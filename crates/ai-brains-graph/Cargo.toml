@@ -1,0 +1,21 @@
+[package]
+name = "ai-brains-graph"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ai-brains-core = { path = "../ai-brains-core" }
+ai-brains-events = { path = "../ai-brains-events" }
+ai-brains-store = { path = "../ai-brains-store" }
+lbug = "0.15.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+[dev-dependencies]
+tempfile = "3.10"

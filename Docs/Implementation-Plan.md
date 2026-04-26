@@ -1,5 +1,7 @@
 # AI-Brains Implementation Plan v2 — Hardened, Decomposed, AI-Agent-Ready
 
+> **Note:** As development progressed, some architectural and environment-specific decisions required deviating from this original plan. Please see [Deviations.md](./Deviations.md) for a complete list of changes, including graph decoupling and SQLite fallbacks.
+
 **Product:** AI-Brains  
 **Document status:** Implementation Plan v2  
 **Primary platform:** Windows 11, PowerShell 7+  

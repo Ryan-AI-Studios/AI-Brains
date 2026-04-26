@@ -1,0 +1,136 @@
+use ai_brains_core::ids::{MemoryId, SessionId};
+use ai_brains_events::{Envelope, Payload, SessionSummaryCreatedPayload};
+use ai_brains_models::{CompletionRequest, ModelProvider};
+use ai_brains_store::{EventStore, QueryStore};
+use std::str::FromStr;
+use std::sync::Arc;
+
+mod conflict_detection;
+mod recipe_promotion;
+mod memory_synthesis;
+mod backup;
+mod retention;
+
+use conflict_detection::ConflictDetectionService;
+use recipe_promotion::RecipePromotionService;
+use memory_synthesis::MemorySynthesizer;
+pub use backup::BackupService;
+pub use retention::RetentionService;
+
+pub struct NightlyService {
+    query_store: Arc<dyn QueryStore>,
+    event_store: Arc<dyn EventStore>,
+    model_provider: Arc<dyn ModelProvider>,
+}
+
+impl NightlyService {
+    pub fn new(
+        query_store: Arc<dyn QueryStore>,
+        event_store: Arc<dyn EventStore>,
+        model_provider: Arc<dyn ModelProvider>,
+    ) -> Self {
+        Self {
+            query_store,
+            event_store,
+            model_provider,
+        }
+    }
+
+    pub async fn run_nightly(&self) -> Result<usize, Box<dyn std::error::Error>> {
+        let unsummarized = self.query_store.get_unsummarized_sessions()?;
+        let mut count = 0;
+
+        for session_id in unsummarized {
+            if let Err(e) = self.summarize_session(&session_id).await {
+                tracing::error!("Failed to summarize session {}: {}", session_id, e);
+                continue;
+            }
+            count += 1;
+        }
+
+        // Run hierarchical synthesis
+        let synthesizer = MemorySynthesizer::new(
+            self.query_store.clone(),
+            self.event_store.clone(),
+            self.model_provider.clone(),
+        );
+        if let Err(e) = synthesizer.run_synthesis().await {
+            tracing::error!("Memory synthesis failed: {}", e);
+        }
+
+        // Retention Cleanup (90 days)
+        let retention = RetentionService::new(self.query_store.clone(), 90);
+        if let Err(e) = retention.run_cleanup().await {
+            tracing::error!("Retention cleanup failed: {}", e);
+        }
+
+        Ok(count)
+    }
+
+    async fn summarize_session(&self, session_id_str: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let turns = self.query_store.get_session_turns(session_id_str)?;
+        if turns.is_empty() {
+            return Ok(());
+        }
+
+        let mut conversation = String::new();
+        for (role, content) in turns {
+            conversation.push_str(&format!("{}: {}\n", role.to_uppercase(), content));
+        }
+
+        let prompt = format!(
+            "Summarize the following conversation in one short paragraph for long-term memory retrieval:\n\n{}",
+            conversation
+        );
+
+        let request = CompletionRequest {
+            prompt,
+            system_prompt: Some(
+                "You are a helpful assistant summarizing developer sessions.".to_string(),
+            ),
+            max_tokens: Some(200),
+            temperature: Some(0.3),
+        };
+
+        let response = self.model_provider.complete(request).await?;
+        let memory_id = MemoryId::new();
+        let session_id = SessionId::from_str(session_id_str)?;
+
+        let event = ai_brains_events::constructors::EventBuilder::new(
+            ai_brains_events::AggregateType::Session,
+            session_id.as_uuid(),
+            ai_brains_events::EventKind::SessionSummaryCreated,
+            ai_brains_events::Actor::System,
+            ai_brains_core::privacy::Privacy::LocalOnly,
+        )
+        .build(Payload::SessionSummaryCreated(SessionSummaryCreatedPayload {
+            session_id,
+            memory_id,
+            summary: response.text.clone(),
+        }))?;
+
+        self.event_store.append_event(&event)?;
+
+        // Run intelligence services
+        let conflict_service = ConflictDetectionService::new(
+            self.query_store.clone(),
+            self.event_store.clone(),
+            self.model_provider.clone(),
+        );
+        let recipe_service = RecipePromotionService::new(
+            self.query_store.clone(),
+            self.event_store.clone(),
+            self.model_provider.clone(),
+        );
+
+        let summary_text = response.text;
+        if let Err(e) = conflict_service.check_for_conflicts(&session_id, &summary_text).await {
+            tracing::error!("Conflict detection failed for session {}: {}", session_id, e);
+        }
+        if let Err(e) = recipe_service.promote_recipes(&session_id, &summary_text).await {
+            tracing::error!("Recipe promotion failed for session {}: {}", session_id, e);
+        }
+
+        Ok(())
+    }
+}

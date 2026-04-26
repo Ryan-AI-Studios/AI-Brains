@@ -1,65 +1,69 @@
 ---
 name: onboarding
-description: Trigger this skill when starting a new session on the CrawlX repo, when an agent needs orientation, or when asked "where do I start?", "what's the project state?", "how does work get done here?", or "onboard me". Loads once per session to establish context.
+description: Trigger this skill when starting a new session on the AI-Brains repo, when an agent needs orientation, or when asked "where do I start?", "what's the project state?", "how does work get done here?", or "onboard me". Loads once per session to establish context.
 ---
 
-# CrawlX Onboarding
+# AI-Brains Onboarding
 
-You are working on **CrawlX** — a self-hosted, local-first crawl-operations platform that approximates paid Firecrawl capabilities with policy-controlled automation, multi-engine waterfall scraping, and agentic research.
+You are working on **AI-Brains** — a Windows-first, local-first memory system for AI coding harnesses. It captures clean conversation history without the noise of tool logs or hidden thinking.
 
 ## Core Pillars
 
-1.  **Security First**: Triple-layer SSRF protection (URL validator, DNS guard, network isolation) is a hard prerequisite for any scraping.
-2.  **Durable Orchestration**: Every scrape is a durable job with content-addressed artifact persistence and failure classification.
-3.  **Waterfall Engine**: Intelligent fallback ladder (Static -> JS -> Playwright -> Branded Browser -> Cloud Escalation).
+1.  **Capture First**: Capture must be fast, durable, and independent of advanced features (models, graph, etc.).
+2.  **Canonical SSOT**: A SQLCipher-backed append-only event log is the single source of truth.
+3.  **Privacy & Security**: Encrypted storage, secret scanning, and strict privacy inheritance (local_only, sealed).
+4.  **CQRS**: Commands append events; Queries read projections. Never mix them.
 
-## Architecture: Monorepo Structure
+## Architecture: Rust Workspace
 
-- **`apps/api`**: Fastify API providing a Firecrawl v2.8-compatible surface.
-- **`apps/browser-worker`**: Playwright 1.59 worker with video receipts and ARIA snapshots.
-- **`apps/cli`**: Commander.js CLI for operator control.
-- **`apps/web`**: React 19 + Vite 8 dashboard for job monitoring and policy management.
-- **`packages/*`**: Modular domain logic (core, db, security, waterfall-engine, etc.).
+The project is organized into specialized crates to maintain strict boundaries:
+
+- **`ai-brains-core`**: Pure domain model (ids, privacy, session, memory).
+- **`ai-brains-events`**: Immutable event definitions and envelope.
+- **`ai-brains-store`**: SQLCipher event log and read-optimized projections.
+- **`ai-brainsd`**: Local daemon with a single-writer queue for concurrency safety.
+- **`ai-brains-cli`**: Primary user/harness interface.
+- **`ai-brains-capture`**: Logic for converting harness IO into domain events.
+- **`ai-brains-adapters`**: Parsing for Claude, Gemini, Codex, etc.
 
 ## Current State
 
-- **Plan**: `Implementation-Plan.md` v2 (Track-based execution).
-- **Infrastructure**: ChangeGuard initialized, Docker infrastructure defined, Monorepo scaffolded.
-- **Track 0**: Security baseline and infrastructure setup is the immediate priority.
+- **Plan**: `Docs/Implementation-Plan.md` v2 (Track-based execution).
+- **Tracks**: Currently at **Phase 0 — Foundation and Conductor**.
+- **Infrastructure**: Git initialized, remote connected to GitHub.
 
 ## Engineering Principles (Non-Negotiable)
 
-- **neverthrow**: `Result<T, E>` for all fallible operations. No exceptions for control flow.
-- **Zod 4**: Strict schema validation as the single source of truth.
-- **Content-Addressing**: All artifacts stored by SHA-256 hash for deduplication and change tracking.
-- **Design the Seam**: Implement schemas and stubs for deferred features (Agent, Change Tracking) immediately.
-- **TDD**: Two-commit minimum (Red → Green).
+- **Rust Safety**: No `unwrap`, `expect`, or `panic` in production code. Use `thiserror` and `anyhow` for errors.
+- **Event Sourcing**: Never update/delete raw events. Use compensating events.
+- **No Thinking Capture**: Do not store hidden chain-of-thought or raw tool logs.
+- **TDD (Tracks)**: Implementation follows the Conductor/Track system. Verify behavior via tests before implementation where possible.
+- **Windows-First**: Paths must handle UNC, WSL, and drive-case normalization correctly.
 
 ## CI Gate (Must Pass Before Every Commit)
 
-```bash
-pnpm audit --audit-level high ; biome check --write=false . ; pnpm -r run typecheck ; pnpm -r run test
+```powershell
+cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit
 ```
 
 ## Workflows
 
-1. **Track Lead**: Follow the `Implementation-Plan.md` track by track.
+1. **Track Lead**: Follow the `Implementation-Plan.md` phase by phase (T00 -> T27).
 2. **Ledger**: Record all architectural decisions using `changeguard ledger`.
 3. **Verify**: Use `changeguard verify` to ensure structural and behavioral integrity.
-4. **Scaffold**: Use `pnpm` workspace protocol for internal package dependencies.
+4. **Research-Strategy-Execution**: Follow the standard agent lifecycle for every track.
 
 ## Key Reference Documents
 
 | Document | Purpose |
 |----------|---------|
-| `Implementation-Plan.md` | Master execution plan and architecture |
-| `.agents/rules/core-mandates.md` | Non-negotiable mandates (Security, ADTs) |
-| `docs/threat-model.md` | Security boundaries and SSRF protection |
-| `skill/SKILL.md` | Instructions for using CrawlX as an agent |
+| `Docs/PRD.md` | Product vision and core requirements |
+| `Docs/Implementation-Plan.md` | Master execution plan (Tracks) |
+| `.agents/rules/core-mandates.md` | Non-negotiable mandates |
+| `Docs/conductor/` | Track management and review checklists |
 
 ## Quick Start
 
-1. **Read `Implementation-Plan.md`** to understand the 10 tracks.
+1. **Read `Docs/Implementation-Plan.md`** to understand the 28 tracks.
 2. **Run `changeguard doctor`** to verify your environment.
-3. **Install Hooks**: `cp .agents/hooks/* .git/hooks/` to enable workflow enforcement.
-4. **Start Track 0**: Security baseline implementation in `packages/security`.
+3. **Initialize Track 0**: Establish the foundation crate structure.

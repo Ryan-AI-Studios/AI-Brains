@@ -1,0 +1,24 @@
+[package]
+name = "ai-brains-brain"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ai-brains-core = { path = "../ai-brains-core" }
+ai-brains-events = { path = "../ai-brains-events" }
+ai-brains-store = { path = "../ai-brains-store" }
+ai-brains-models = { path = "../ai-brains-models" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+ai-brains-crypto = { path = "../ai-brains-crypto" }
+tempfile = "3.10"

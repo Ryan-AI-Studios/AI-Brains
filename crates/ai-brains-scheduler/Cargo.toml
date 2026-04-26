@@ -1,0 +1,12 @@
+[package]
+name = "ai-brains-scheduler"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+ai-brains-core = { path = "../ai-brains-core" }
+ai-brains-path = { path = "../ai-brains-path" }

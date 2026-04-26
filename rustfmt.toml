@@ -1,0 +1,9 @@
+edition = "2021"
+newline_style = "Windows"
+max_width = 100
+# Unstable features removed for stable compatibility:
+# indent_style = "Block"
+# imports_granularity = "Crate"
+# group_imports = "StdExternalCrate"
+# combine_control_expr = true
+# trailing_comma = "Vertical"

@@ -1,0 +1,280 @@
+use ai_brains_capture::{parse_ingest_request, CaptureContext, CaptureService, MemorySink};
+use ai_brains_contracts::ingest::IngestResponse;
+use ai_brains_contracts::preflight::PreflightContextResponse;
+use ai_brains_contracts::recall::{RecallResponse, RecallResult};
+use ai_brains_crypto::SqlCipherKey;
+use ai_brains_retrieval::{build_preflight, recall};
+use ai_brains_store::connection::VaultConnection;
+use ai_brains_store::EventStore;
+use clap::{Parser, Subcommand};
+use std::io::{self, Read};
+use std::path::PathBuf;
+use std::str::FromStr;
+
+#[derive(Parser)]
+#[command(name = "ai-brains")]
+#[command(about = "AI-Brains CLI", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+
+    /// Path to the vault database
+    #[arg(long, env = "AI_BRAINS_VAULT_PATH")]
+    vault_path: Option<PathBuf>,
+
+    /// Hex-encoded key for the vault (or dummy)
+    #[arg(long, env = "AI_BRAINS_KEY")]
+    key: Option<String>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Initialize a new vault
+    Init,
+    /// Ingest a conversation turn (reads JSON from stdin)
+    Ingest,
+    /// Recall memories based on a query
+    Recall {
+        query: String,
+        #[arg(short, long, default_value_t = 5)]
+        limit: usize,
+    },
+    /// Generate preflight context for an LLM
+    Preflight {
+        #[arg(short, long, default_value_t = 1500)]
+        max_words: usize,
+    },
+    /// Run nightly intelligence sweep
+    Nightly {
+        /// Print the command to schedule this job on Windows
+        #[arg(long)]
+        schedule: bool,
+        /// Start time for the scheduled task (e.g. "03:00")
+        #[arg(long, default_value = "03:00")]
+        start_time: String,
+    },
+    /// Create a timestamped backup of the vault
+    Backup,
+    /// Forget a specific memory (soft delete)
+    Forget {
+        /// Memory ID to forget
+        memory_id: String,
+    },
+}
+
+fn main() {
+    let cli = Cli::parse();
+    if let Err(err) = run(cli) {
+        eprintln!("Error: {err}");
+        std::process::exit(1);
+    }
+}
+
+fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+    match &cli.command {
+        Commands::Init => run_init(&cli),
+        Commands::Ingest => run_ingest(),
+        Commands::Recall { query, limit } => run_recall(&cli, query.clone(), *limit),
+        Commands::Preflight { max_words } => run_preflight(&cli, *max_words),
+        Commands::Nightly { schedule, start_time } => run_nightly(&cli, *schedule, start_time.clone()),
+        Commands::Backup => run_backup(&cli),
+        Commands::Forget { memory_id } => run_forget(&cli, memory_id.clone()),
+    }
+}
+
+fn open_vault(cli: &Cli) -> Result<VaultConnection, Box<dyn std::error::Error>> {
+    let path = cli
+        .vault_path
+        .clone()
+        .ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
+
+    // In degraded mode, we use a fixed dummy key if none provided
+    // This allows rusqlite-bundled to work even if SQLCipher isn't active
+    let key_str = cli.key.clone().unwrap_or_else(|| {
+        "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
+    });
+
+    let key = SqlCipherKey::from_raw(key_str);
+    let conn = VaultConnection::open(path, &key)?;
+    conn.migrate()?;
+    Ok(conn)
+}
+
+fn run_init(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
+    let path = cli
+        .vault_path
+        .clone()
+        .ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
+    
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let _conn = open_vault(cli)?;
+    println!("Vault initialized successfully at {}", path.display());
+    Ok(())
+}
+
+fn run_ingest() -> Result<(), Box<dyn std::error::Error>> {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input)?;
+    let request = parse_ingest_request(&input)?;
+
+    let mut sink = MemorySink::default();
+    let outcome = CaptureService::new().ingest_request(
+        request,
+        CaptureContext {
+            git_working_dir: std::env::current_dir().ok(),
+        },
+        &mut sink,
+    )?;
+
+    let response = IngestResponse {
+        event_id: outcome.events[0].event_id.to_string(),
+        processed: true,
+    };
+    println!("{}", serde_json::to_string(&response)?);
+    Ok(())
+}
+
+fn run_recall(cli: &Cli, query: String, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = open_vault(cli)?;
+
+    // Attempt to open graph vault next to the main vault
+    #[cfg(feature = "graph")]
+    let graph_vault = if let Some(path) = &cli.vault_path {
+        let graph_path = path.with_extension("graph.db");
+        ai_brains_graph::LadybugVault::open(graph_path).ok()
+    } else {
+        None
+    };
+
+    #[cfg(feature = "graph")]
+    let graph_search = graph_vault
+        .as_ref()
+        .map(|v| ai_brains_graph::queries::GraphSearch::new(v));
+
+    #[cfg(not(feature = "graph"))]
+    let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
+
+    let hits = recall(&conn, graph_search.as_ref(), &query, limit)?;
+
+    let response = RecallResponse {
+        results: hits
+            .into_iter()
+            .map(|h| RecallResult {
+                memory_id: h.memory_id,
+                content: h.content,
+                source: h.source,
+            })
+            .collect(),
+    };
+
+    println!("{}", serde_json::to_string(&response)?);
+    Ok(())
+}
+
+fn run_preflight(cli: &Cli, max_words: usize) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = open_vault(cli)?;
+
+    // Attempt to open graph vault next to the main vault
+    #[cfg(feature = "graph")]
+    let graph_vault = if let Some(path) = &cli.vault_path {
+        let graph_path = path.with_extension("graph.db");
+        ai_brains_graph::LadybugVault::open(graph_path).ok()
+    } else {
+        None
+    };
+
+    #[cfg(feature = "graph")]
+    let graph_search = graph_vault
+        .as_ref()
+        .map(|v| ai_brains_graph::queries::GraphSearch::new(v));
+
+    #[cfg(not(feature = "graph"))]
+    let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
+
+    let context = build_preflight(&conn, graph_search.as_ref(), max_words)?;
+
+    let response = PreflightContextResponse {
+        text: context.text,
+        word_count: context.word_count,
+    };
+
+    println!("{}", serde_json::to_string(&response)?);
+    Ok(())
+}
+
+fn run_nightly(cli: &Cli, schedule: bool, start_time: String) -> Result<(), Box<dyn std::error::Error>> {
+    if schedule {
+        let exe_path = std::env::current_exe()?;
+        let cmd = ai_brains_scheduler::TaskScheduler::render_create_command(
+            exe_path.to_str().ok_or("Invalid executable path")?,
+            "AI-Brains-Nightly",
+            &start_time
+        );
+        println!("Run the following command in an elevated PowerShell session to schedule the nightly job:");
+        println!("\n{}\n", cmd);
+        return Ok(());
+    }
+
+    let conn = open_vault(cli)?;
+    let event_store = std::sync::Arc::new(ai_brains_store::SqliteEventStore::new(conn.clone()));
+    let query_store = std::sync::Arc::new(conn);
+    
+    // For now, use Ollama as default provider
+    let model_provider = std::sync::Arc::new(ai_brains_models::ollama::OllamaProvider::new("http://localhost:11434".to_string(), "qwen2.5:3b".to_string()));
+    
+    let service = ai_brains_brain::NightlyService::new(query_store, event_store, model_provider);
+    
+    println!("Starting nightly intelligence sweep...");
+    let tokio_runtime = tokio::runtime::Runtime::new()?;
+    let count = tokio_runtime.block_on(service.run_nightly())?;
+    println!("Nightly sweep completed. Processed {} sessions.", count);
+    
+    Ok(())
+}
+
+fn run_backup(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
+    let path = cli
+        .vault_path
+        .clone()
+        .ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
+        
+    let service = ai_brains_brain::BackupService::new(path);
+    println!("Creating vault backup...");
+    let backup_path = service.run_backup()?;
+    println!("Backup created successfully: {}", backup_path.display());
+    Ok(())
+}
+
+fn run_forget(cli: &Cli, memory_id_str: String) -> Result<(), Box<dyn std::error::Error>> {
+    use ai_brains_core::ids::MemoryId;
+    use ai_brains_events::constructors::EventBuilder;
+    use ai_brains_events::{AggregateType, EventKind, Actor, Payload, MemoryForgottenPayload};
+    use ai_brains_core::privacy::Privacy;
+
+    let memory_id = MemoryId::from_str(&memory_id_str)?;
+    let conn = open_vault(cli)?;
+    let event_store = ai_brains_store::SqliteEventStore::new(conn.clone());
+
+    let event = EventBuilder::new(
+        AggregateType::Memory,
+        memory_id.as_uuid(),
+        EventKind::MemoryForgotten,
+        Actor::User(ai_brains_core::ids::UserId::new()),
+        Privacy::LocalOnly,
+    )
+    .build(Payload::MemoryForgotten(MemoryForgottenPayload {
+        memory_id,
+    }))?;
+
+    event_store.append_event(&event)?;
+    
+    // Projections will be updated by the next query or background job
+    // But for immediate feedback, we can trigger a manual projection update if needed
+    // Or just say it's done.
+    
+    println!("Memory {} marked as forgotten.", memory_id);
+    Ok(())
+}

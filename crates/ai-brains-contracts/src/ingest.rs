@@ -1,0 +1,21 @@
+use ai_brains_core::ids::{HarnessId, SessionId, TurnId};
+use ai_brains_core::privacy::Privacy;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngestRequest {
+    pub session_id: SessionId,
+    pub harness_id: HarnessId,
+    pub turn_id: TurnId,
+    pub role: String,
+    pub content: String,
+    pub privacy: Privacy,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngestResponse {
+    pub event_id: String,
+    pub processed: bool,
+}

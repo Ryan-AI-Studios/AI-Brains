@@ -1,0 +1,12 @@
+# AI-Brains Clippy Configuration
+msrv = "1.95.0"
+
+# Strict linting for the project
+disallowed-methods = [
+    { path = "std::option::Option::unwrap", reason = "Use .ok_or() or handle the None case explicitly. No panics in production." },
+    { path = "std::result::Result::unwrap", reason = "Use ? or handle the error case explicitly. No panics in production." },
+    { path = "std::result::Result::expect", reason = "Use ? or handle the error case explicitly. No panics in production." },
+]
+
+# Cognitive complexity limit
+cognitive-complexity-threshold = 25

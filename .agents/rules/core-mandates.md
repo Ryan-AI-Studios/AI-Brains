@@ -1,12 +1,15 @@
-# Core Mandates - CrawlX
+# Core Mandates - AI-Brains
 
-1. **Security & SSRF Protection**: Hard prerequisite. Every scrape attempt must pass the three-layer egress firewall (URL validator, DNS guard, container network isolation). Never allow requests to private/internal IPs or cloud metadata endpoints.
-2. **Explicit Error Handling**: Use `neverthrow` for all fallible operations. `Result<T, E>` is mandatory for domain logic. No `try/catch` for control flow; no `unwrap()` or `throw` in production code.
-3. **Strict Schema Validation**: Zod 4 is the single source of truth. All API inputs, configuration, and engine responses must be strictly validated.
-4. **Content-Addressed Artifacts**: All scraped content (HTML, Markdown, screenshots) must be stored using SHA-256 hashes. The database stores hash pointers, never inline content, ensuring deduplication and change tracking.
-5. **Composition Over Inheritance**: Prioritize explicit wrappers, adapters, and functional composition. Use the `WaterfallEngine` pattern for multi-engine fallback rather than complex retry logic.
-6. **TDD (Two-Commit Minimum)**: Behavioral correctness must be proven via tests before implementation. Commit 1 = failing tests (Red). Commit 2+ = implementation (Green).
-7. **CI Gate**: Before every commit, the following must pass:
-   `pnpm audit --audit-level high` ; `biome check --write=false .` ; `pnpm -r run typecheck` ; `pnpm -r run test`
-8. **Design the Seam Now**: For deferred features (Agent, change tracking, cloud escalation), the database schemas, TypeScript interfaces, and Zod schemas must exist from day one, returning `501 Not Implemented`.
-9. **Provenance via ChangeGuard**: All architectural decisions and major changes must be recorded in the `changeguard ledger`.
+1. **Capture Independence**: Hard prerequisite. The capture path (CLI -> Daemon -> Event Log) must work when graph DB, embeddings, local models, and cloud providers are offline.
+2. **Canonical Event Store**: SQLCipher-backed append-only event log is the only source of truth. Never update or delete raw events. Use compensating events for corrections.
+3. **CQRS Strictness**: Commands append events. Queries read projections. Do not mix read and write logic in the same transaction or service layer.
+4. **No Hidden Thinking / Tool Logs**: Do not store internal chain-of-thought, model reasoning, or raw tool logs. Capture only the final assistant response and the user prompt.
+5. **Privacy Inheritance**: Derived memories (summaries, clusters) must inherit the strictest privacy flag (`local_only`, `never_inject`, `sealed`) from their source events.
+6. **No Repo Writes by Default**: AI-Brains must not write project-local files. Use global user storage (`$env:USERPROFILE\.ai-brains`) unless the user explicitly invokes a repo-write command.
+7. **Rust Safety & Idioms**: No `unwrap()`, `expect()`, or `panic()` in production code. Use explicit error types. Use `zeroize` for sensitive key material in memory.
+8. **Path Normalization**: All paths must be normalized to handle Windows drive-case, forward/backward slashes, UNC prefixes, and WSL `/mnt/c/` mappings consistently.
+9. **TDD (Two-Commit Minimum)**: Behavioral correctness must be proven via tests before implementation. Commit 1 = failing tests (Red). Commit 2+ = implementation (Green).
+10. **Provenance via ChangeGuard**: Every track implementation and major architectural decision must be recorded in the `changeguard ledger`.
+11. **CI Gate**: Before every commit, the following must pass:
+    `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit`
+12. **Commercial License Safety**: Only use dependencies with permissive licenses (MIT, Apache, BSD). Reject AGPL, GPL, and SSPL components in the core path.

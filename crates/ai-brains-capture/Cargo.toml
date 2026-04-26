@@ -1,0 +1,16 @@
+[package]
+name = "ai-brains-capture"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ai-brains-contracts = { path = "../ai-brains-contracts" }
+ai-brains-core = { path = "../ai-brains-core" }
+ai-brains-events = { path = "../ai-brains-events" }
+ai-brains-git = { path = "../ai-brains-git" }
+ai-brains-security = { path = "../ai-brains-security" }
+serde_json.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,135 @@
+# Conductor Master Track Board
+
+## Project Status
+**Status:** In Progress
+**Phase:** Phase 12 — E2E Hardening [Completed]
+**Current Track:** T28 — Documentation & Handover (Planned)
+
+## Track Registry
+
+| ID | Name | Status | Owner | Description |
+|---|---|---|---|---|
+| T00 | Foundation and Workspace | **Completed** | Orchestrator | Workspace structure, CI gates, and global tools. |
+| T01 | Core Domain | **Completed** | architecture-planner | Pure domain model (ids, privacy, session). |
+| T02 | Event Contracts | **Completed** | architecture-planner | Immutable event definitions. |
+| T03 | JSON Contracts | **Completed** | architecture-planner | API DTOs for CLI/Daemon. |
+| T04 | Crypto Recovery | **Completed** | architecture-planner | SQLCipher key and recovery kit logic. |
+| T05 | Store Event Log | **Completed** | architecture-planner | Append-only event store on SQLCipher. |
+| T06 | Store Projections | **Completed** | architecture-planner | Read-optimized views derived from events. |
+| T07 | Path Normalization | **Completed** | architecture-planner | Canonical Windows/WSL/UNC project identity. |
+| T08 | Git Metadata | **Completed** | architecture-planner | Bounded repository identity and diff statistics. |
+| T09 | Security Scanning | **Completed** | architecture-planner | Secret detection, privacy escalation, and redaction. |
+| T10 | Capture Core | **Completed** | architecture-planner | Daemon-free capture command handling. |
+| T11 | Daemon Writer | **Completed** | architecture-planner | Single-writer queue and spool replay. |
+| T12 | CLI Foundation | **Completed** | architecture-planner | JSON-only CLI routing for local capture. |
+| T13 | CLI Capture | **Completed** | architecture-planner | CLI integration with capture core. |
+| T18 | Retrieval Lexical | **Completed** | architecture-planner | Lexical recall over the store read side. |
+| T19 | Preflight Recall | **Completed** | architecture-planner | Word-budgeted preflight assembly with privacy filtering. |
+| T20 | Graph Projection | **Completed** | architecture-planner | Rebuildable graph projection layer using LadybugDB. |
+| T21 | Model Providers | **Completed** | architecture-planner | Provider-agnostic model abstraction and Ollama integration. |
+| T22 | Nightly Summaries | **Completed** | architecture-planner | Background worker for session summarization. |
+| T23 | Conflicts Recipes | **Completed** | architecture-planner | Contradictory session detection and recipe promotion. |
+| T24 | RAPTOR CRAG | **Completed** | architecture-planner | Hierarchical clustering and synthesis (Memory Synthesis). |
+| T25 | Scheduler Backups | **Completed** | architecture-planner | Windows task scheduling and automated vault backups. |
+| T26 | Retention Forget | **Completed** | architecture-planner | Policy-based turn expiration and soft-delete. |
+| T27 | E2E Hardening | **Completed** | architecture-planner | Smoke testing and fault isolation. |
+
+## Completed Track: T27 — E2E Hardening
+- [x] Implemented `init` command in CLI for clean vault creation and migration.
+- [x] Decoupled graph database compilation via Cargo features (`--no-default-features`).
+- [x] Authored automated E2E smoke tests for `init` and `ingest`.
+- [x] CI Gate: `test_cli_init_smoke` and `test_cli_ingest_smoke` pass successfully.
+
+## Completed Track: T26 — Retention Forget
+- [x] `last_accessed_at` added to `turn_projection` via migration 0012.
+- [x] `RetentionService` implemented for automated 90-day turn expiration.
+- [x] `forget` command added to CLI with `MemoryForgotten` event support.
+- [x] SQL and Graph search queries updated to exclude forgotten memories.
+- [x] CI Gate: `retention_and_forget` integration tests pass.
+
+## Completed Track: T25 — Scheduler Backups
+- [x] `ai-brains-scheduler` crate implemented for Windows task management.
+- [x] `ai-brains nightly --schedule` command added to CLI.
+- [x] `BackupService` implemented for timestamped vault copies.
+- [x] `ai-brains backup` command added to CLI.
+- [x] CI Gate: Unit tests for scheduler and backup pass.
+
+## Completed Track: T24 — RAPTOR CRAG
+- [x] RAPTOR-style hierarchical clustering for session summaries.
+- [x] `MemorySynthesized` event defined and implemented.
+- [x] Hierarchical knowledge node synthesis.
+- [x] CRAG factual verification gate implemented.
+- [x] CI Gate: All tests pass including `test_raptor_synthesis`.
+
+## Completed Track: T23 — Conflicts Recipes
+- [x] `ConflictDetected` event defined and implemented.
+- [x] `RecipePromoted` event defined and implemented.
+- [x] `ConflictDetectionService` implemented in `ai-brains-brain`.
+- [x] `RecipePromotionService` implemented in `ai-brains-brain`.
+- [x] Verification: `conflict_detected_from_contradictory_sessions` test passes.
+- [x] Verification: `recipe_promoted_from_windows_workaround` test passes.
+
+## Completed Track: T22 — Nightly Summaries
+- [x] `NightlyService` implemented in `ai-brains-brain`.
+- [x] unsummarized session discovery via `QueryStore`.
+- [x] `SessionSummaryCreated` event integration.
+- [x] Verification: `nightly_summarizes_session` test passes.
+
+## Completed Track: T21 — Model Providers
+- [x] `ai-brains-models` crate scaffolded and added to workspace.
+- [x] `ModelProvider` trait and common DTOs defined.
+- [x] `OllamaProvider` implemented with `reqwest`.
+- [x] `ProviderRegistry` implemented with privacy-aware routing.
+- [x] `MockProvider` implemented for testing.
+- [x] Verification: Registry respects privacy gate test passes.
+- [x] Verification: Ollama integration test (mocked) passes.
+
+## Completed Track: T20 — Graph Projection
+- [x] `ai-brains-graph` crate scaffolded and added to workspace.
+- [x] LadybugDB schema initialized with Project/Session/Turn/Memory nodes.
+- [x] `GraphProjector` implemented for event-driven updates.
+- [x] `GraphRebuilder` implemented for idempotent reconstruction from event log.
+- [x] Graph traversal implemented for related memory discovery.
+- [x] CI Gate: All tests pass including `rebuild_is_idempotent`.
+
+## Completed Track: T19/T18 — Retrieval and Preflight
+- [x] Single writer queue supports concurrent ingest.
+- [x] Spool replays after restart.
+
+## Completed Track: T13/T12/T10 — Capture Without Daemon
+- [x] Capture works without daemon.
+- [x] Capture works without graph/models.
+- [x] Hook-facing CLI ingest produces JSON only.
+- [x] Raw tool/thinking fields ignored.
+
+## Completed Track: T09 — Security Scanning
+- [x] Phase 1: Crate Setup
+- [x] Phase 2: Detection and Policy
+- [x] Phase 3: Verification
+
+## Completed Track: T08 — Git Metadata
+- [x] Phase 1: Crate Setup
+- [x] Phase 2: Repository Discovery
+- [x] Phase 3: Metadata Readers
+- [x] Phase 4: Verification
+
+## Completed Track: T07 — Path Normalization
+- [x] Phase 1: Crate Setup
+- [x] Phase 2: Canonical Windows Identity
+- [x] Phase 3: Cross-Environment Mapping
+- [x] Phase 4: Best-Effort Resolution and Display
+- [x] Phase 5: Verification
+
+## Completed Track: T06 — Store Projections
+- [x] Phase 1: Projection Migrations and Schema
+- [x] Phase 2: Projection Handlers
+- [x] Phase 3: FTS Integration
+- [x] Phase 4: Event Replay and Rebuild
+- [x] Phase 5: Concurrency and Review
+
+## Completed Track: T05 — Store Event Log
+- [x] Phase 1: Cargo Setup and Errors
+- [x] Phase 2: Schema and Migrations
+- [x] Phase 3: Vault Connection and Config
+- [x] Phase 4: Event Store and Transaction
+- [x] Phase 5: Final Review

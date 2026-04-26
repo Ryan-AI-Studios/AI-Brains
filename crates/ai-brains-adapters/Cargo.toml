@@ -1,0 +1,13 @@
+[package]
+name = "ai-brains-adapters"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ai-brains-contracts = { path = "../ai-brains-contracts" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

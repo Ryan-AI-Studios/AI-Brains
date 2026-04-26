@@ -1,3 +1,4 @@
+---
 name: scripts-evaluator
 description: >
   Robust multi-line script execution for Antigravity on Windows.

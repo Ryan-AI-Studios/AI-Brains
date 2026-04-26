@@ -1,51 +1,52 @@
 ---
 name: coding-core
-description: Use this skill when writing, modifying, or reviewing TypeScript code in CrawlX. Trigger when editing .ts files, making architectural decisions, implementing features, or discussing error handling patterns, module boundaries, or waterfall scraping.
+description: Use this skill when writing, modifying, or reviewing Rust code in AI-Brains. Trigger when editing .rs files, making architectural decisions, implementing features, or discussing event sourcing, SQLCipher, crate boundaries, or memory intelligence.
 ---
 
-# Coding Core - CrawlX
+# Coding Core - AI-Brains
 
-Load this skill when working on the Fastify API, Playwright workers, or shared packages.
+Load this skill when working on any crate in the AI-Brains Rust workspace.
 
 ## Retrieval Precedence
 
 1. **Active File / Context**: Current code and task context.
 2. **Local Rules**: `.agents/rules/*.md`.
-3. **Documentation**: `Implementation-Plan.md`.
-4. **External**: `context7` for library docs (Fastify, Drizzle, Playwright), `exa` for web search.
+3. **Documentation**: `Docs/PRD.md`, `Docs/Implementation-Plan.md`.
+4. **External**: `context7` for library docs (Tokio, Axum, SQLCipher, Rusqlite), `exa` for web search.
 
 ## Engineering Standards
 
-- **TypeScript**: ~5.8. Strict mode, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`.
-- **Error Handling**: `neverthrow` for all fallible operations. `Result<T, E>` is mandatory.
-- **Validation**: Zod 4 for all inputs and cross-boundary data.
-- **ORM**: Drizzle ORM (PostgreSQL). Migrations via `drizzle-kit`.
-- **API Framework**: Fastify 5. Use `@fastify/type-provider-zod` for type-safe routes.
-- **Composition**: Prefer adapters and wrappers over inheritance.
-- **Immutability**: Use `readonly` for all interfaces and arrays by default.
+- **Rust Version**: ~1.95.0. 
+- **Error Handling**: `thiserror` for library crates, `anyhow` for binary crates. No `unwrap` or `panic` in production.
+- **Serialization**: `serde` for all DTOs and events.
+- **Database**: `rusqlite` with SQLCipher for the canonical store. `LadybugDB` for graph projections.
+- **Async**: `Tokio` runtime for daemon and scheduler coordination.
+- **API Framework**: `Axum` for the localhost daemon API.
+- **Composition**: Prefer composition and delegation over complex inheritance or trait-based cloning.
+- **Immutability**: Canonical events are immutable. Projections are rebuildable.
 
-## Monorepo Boundaries
+## Workspace Boundaries
 
-| Path | Responsibility |
-|------|----------------|
-| `apps/api` | Fastify server, v2.8 compatibility layer, BullMQ job producers. |
-| `apps/browser-worker` | Playwright 1.59 instance, artifact capture, session vault. |
-| `packages/core` | Shared domain types, value objects (URL, Hash), and errors. |
-| `packages/db` | Drizzle schema, migrations, and repository patterns. |
-| `packages/security` | Egress firewall, URL validation, DNS guard, SSRF protection. |
-| `packages/waterfall-engine` | Multi-engine fallback orchestrator (Static -> JS -> Playwright). |
-| `packages/artifact-store` | Content-addressed persistence (SHA-256). |
-| `packages/model-adapter` | LLM abstraction (Ollama, OpenAI-compat) with capability routing. |
+| Crate | Responsibility |
+|-------|----------------|
+| `ai-brains-core` | Pure domain model (ids, privacy, session, memory). No external IO. |
+| `ai-brains-events` | Immutable event definitions and the event envelope (hashing, signing). |
+| `ai-brains-contracts` | Shared JSON DTOs for CLI <-> Daemon communication. |
+| `ai-brains-store` | SQLCipher event log, migrations, and read projections. |
+| `ai-brains-crypto` | Key material management, DPAPI wrappers, and recovery kit logic. |
+| `ai-brains-capture` | Converts harness-specific IO into normalized domain events. |
+| `ai-brainsd` | Daemon process managing single-writer queue and vault unlock. |
+| `ai-brains-cli` | The main CLI interface (`init`, `ingest`, `recall`, etc.). |
 
 ## Patterns & Performance
 
-- **Job Persistence**: Every scrape is a job in `jobs` table + BullMQ queue.
-- **Deduplication**: Artifacts are stored by content hash. DB references the hash.
-- **Streaming**: Prefer streaming large responses and using `undici` for HTTP calls.
-- **SSRF Guard**: Always validate URLs and resolved IPs against `packages/security` policy before any request.
+- **Event Sourcing**: Every command result is an append-only event.
+- **CQRS**: Command handlers append events; Query handlers read optimized projection tables.
+- **Single-Writer**: The daemon uses a queue to ensure only one process writes to SQLCipher at a time.
+- **Path Normalization**: Use `ai-brains-path` to handle Windows-specific path edge cases before storage.
 
 ## Security Mandates
 
-- **Egress Firewall**: Blocks private CIDRs, metadata IPs, and non-HTTP schemes.
-- **Secret Redactor**: Scrub sensitive tokens from logs and stored artifacts.
-- **Session Vault**: Encrypted browser profiles (AES-256-GCM) with domain-scoping.
+- **Secret Redactor**: `ai-brains-security` must scan content for secrets before embedding or cloud model calls.
+- **Vault Encryption**: All canonical data must be stored in a SQLCipher-encrypted vault.
+- **Privacy Inheritance**: Derived data must inherit the source's privacy flag.

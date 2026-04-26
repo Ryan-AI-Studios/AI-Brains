@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "crates/ai-brains-core",
+    "crates/ai-brains-events",
+    "crates/ai-brains-contracts",
+    "crates/ai-brains-crypto",
+    "crates/ai-brains-store",
+    "crates/ai-brains-path",
+    "crates/ai-brains-git",
+    "crates/ai-brains-security",
+    "crates/ai-brains-capture",
+    "crates/ai-brains-adapters",
+    "crates/ai-brains-daemon-api",
+    "crates/ai-brainsd",
+    "crates/ai-brains-cli",
+    "crates/ai-brains-retrieval",
+    "crates/ai-brains-graph",
+    "crates/ai-brains-models",
+    "crates/ai-brains-brain",
+    "crates/ai-brains-scheduler",
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["AI-Brains Contributors"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AI-Brains/AI-Brains"
+
+[workspace.dependencies]
+# Common dependencies for future tracks
+anyhow = "1.0"
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.42", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }
+reqwest = { version = "0.12", features = ["json"] }
+async-trait = "0.1"
+tempfile = "3.10"
+assert_cmd = "2.0"
+predicates = "3.1"

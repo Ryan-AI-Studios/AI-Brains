@@ -1,0 +1,17 @@
+[package]
+name = "ai-brainsd"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ai-brains-capture = { path = "../ai-brains-capture" }
+ai-brains-contracts = { path = "../ai-brains-contracts" }
+ai-brains-core = { path = "../ai-brains-core" }
+ai-brains-daemon-api = { path = "../ai-brains-daemon-api" }
+ai-brains-events = { path = "../ai-brains-events" }
+serde_json.workspace = true
+tokio.workspace = true
+uuid.workspace = true

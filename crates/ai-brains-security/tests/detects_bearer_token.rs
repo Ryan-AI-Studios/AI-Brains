@@ -1,0 +1,9 @@
+use ai_brains_security::{scan_text, SecretKind};
+
+#[test]
+fn detects_bearer_token() {
+    let findings = scan_text("Authorization: Bearer abcdefghijklmnopQRST1234");
+    assert!(findings
+        .iter()
+        .any(|finding| finding.kind == SecretKind::BearerToken));
+}
