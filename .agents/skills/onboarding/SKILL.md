@@ -22,15 +22,20 @@ The project is organized into specialized crates to maintain strict boundaries:
 - **`ai-brains-events`**: Immutable event definitions and envelope.
 - **`ai-brains-store`**: SQLCipher event log and read-optimized projections.
 - **`ai-brainsd`**: Local daemon with a single-writer queue for concurrency safety.
-- **`ai-brains-cli`**: Primary user/harness interface.
+- **`ai-brains-cli`**: Primary user/harness interface (the `ai-brains` command).
 - **`ai-brains-capture`**: Logic for converting harness IO into domain events.
-- **`ai-brains-adapters`**: Parsing for Claude, Gemini, Codex, etc.
+- **`ai-brains-models`**: Local AI provider routing (Ollama, etc.).
+- **`ai-brains-retrieval`**: Semantic and FTS search engines (Vector + Keyword).
+- **`ai-brains-graph`**: (Optional) LadybugDB integration for structural intelligence.
+- **`ai-brains-brain`**: High-level intelligence services (Nightly, Summaries).
+- **`ai-brains-scheduler`**: Windows Task Scheduler integration for background tasks.
 
 ## Current State
 
 - **Plan**: `Docs/Implementation-Plan.md` v2 (Track-based execution).
-- **Tracks**: Currently at **Phase 0 — Foundation and Conductor**.
-- **Infrastructure**: Git initialized, remote connected to GitHub.
+- **Tracks**: Completed **Phase 12 — E2E Hardening**. All core CLI features are stable.
+- **Infrastructure**: CI/CD ready, ChangeGuard ledger active, LadybugDB feature-gated for MSVC compatibility.
+- **Deviations**: See `Docs/Deviations.md` for architectural departures (e.g., SQLite fallback, graph decoupling).
 
 ## Engineering Principles (Non-Negotiable)
 
@@ -64,6 +69,7 @@ cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; carg
 
 ## Quick Start
 
-1. **Read `Docs/Implementation-Plan.md`** to understand the 28 tracks.
-2. **Run `changeguard doctor`** to verify your environment.
-3. **Initialize Track 0**: Establish the foundation crate structure.
+1. **Read `Docs/status.md`** to see the current completion roadmap.
+2. **Review `Docs/Deviations.md`** to understand Windows-specific build constraints.
+3. **Run `ai-brains --help`** to explore the hardened CLI toolchain.
+4. **Run `changeguard ledger`** to check recent architectural provenance.

@@ -13,7 +13,7 @@ fn privacy_filter_excludes_sealed() -> Result<(), Box<dyn std::error::Error>> {
     let results = lexical_search(store.connection(), "PRIVATE KEY")?;
     assert!(results.is_empty());
 
-    let preflight = build_preflight(store.connection(), 1500)?;
+    let preflight = build_preflight(store.connection(), None, 1500)?;
     assert!(preflight.text.is_empty());
     Ok(())
 }

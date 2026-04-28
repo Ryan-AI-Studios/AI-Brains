@@ -9,6 +9,7 @@ use ai_brains_events::Payload;
 fn tool_call_field_ignored() -> Result<(), Box<dyn std::error::Error>> {
     let raw = r#"{
       "session_id":"00000000-0000-0000-0000-000000000001",
+      "project_id":"00000000-0000-0000-0000-000000000000",
       "harness_id":"00000000-0000-0000-0000-000000000002",
       "turn_id":"00000000-0000-0000-0000-000000000003",
       "role":"assistant",

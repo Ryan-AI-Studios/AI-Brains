@@ -6,6 +6,10 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "ai-brains"
+path = "src/main.rs"
+
 [dependencies]
 ai-brains-capture = { path = "../ai-brains-capture" }
 ai-brains-contracts = { path = "../ai-brains-contracts" }
@@ -22,6 +26,7 @@ ai-brains-scheduler = { path = "../ai-brains-scheduler" }
 ai-brains-events = { path = "../ai-brains-events" }
 ai-brains-core = { path = "../ai-brains-core" }
 tokio = { workspace = true }
+rusqlite = { workspace = true }
 
 [features]
 default = []

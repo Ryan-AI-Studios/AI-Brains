@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IngestRequest {
     pub session_id: SessionId,
+    pub project_id: ai_brains_core::ids::ProjectId,
     pub harness_id: HarnessId,
     pub turn_id: TurnId,
     pub role: String,

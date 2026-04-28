@@ -20,6 +20,7 @@ pub fn sink() -> MemorySink {
 pub fn ingest_request(role: &str, content: &str) -> IngestRequest {
     IngestRequest {
         session_id: SessionId::new(),
+        project_id: ProjectId::new(),
         harness_id: HarnessId::new(),
         turn_id: TurnId::new(),
         role: role.to_string(),

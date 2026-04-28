@@ -18,6 +18,7 @@ fn unique_spool_dir(name: &str) -> PathBuf {
 fn request(content: &str) -> IngestRequest {
     IngestRequest {
         session_id: SessionId::new(),
+        project_id: ai_brains_core::ids::ProjectId::new(),
         harness_id: HarnessId::new(),
         turn_id: TurnId::new(),
         role: "user".to_string(),

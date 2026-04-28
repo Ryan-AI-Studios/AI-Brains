@@ -7,7 +7,7 @@ fn test_cli_init_smoke() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
     
-    let mut cmd = Command::cargo_bin("ai-brains-cli").unwrap();
+    let mut cmd = Command::cargo_bin("ai-brains").unwrap();
     cmd.arg("--vault-path")
        .arg(&vault_path)
        .arg("init")
@@ -24,11 +24,11 @@ fn test_cli_ingest_smoke() {
     let vault_path = dir.path().join("vault.db");
     
     // Init first
-    let mut init_cmd = Command::cargo_bin("ai-brains-cli").unwrap();
+    let mut init_cmd = Command::cargo_bin("ai-brains").unwrap();
     init_cmd.arg("--vault-path").arg(&vault_path).arg("init").assert().success();
     
     // Ingest
-    let mut ingest_cmd = Command::cargo_bin("ai-brains-cli").unwrap();
+    let mut ingest_cmd = Command::cargo_bin("ai-brains").unwrap();
     let turn_json = r#"{
         "type": "turn",
         "session_id": "11111111-1111-1111-1111-111111111111",

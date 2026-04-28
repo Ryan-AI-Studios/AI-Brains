@@ -10,7 +10,7 @@ fn privacy_filter_excludes_never_inject() -> Result<(), Box<dyn std::error::Erro
     let results = lexical_search(store.connection(), "operator")?;
     assert!(results.is_empty());
 
-    let preflight = build_preflight(store.connection(), 1500)?;
+    let preflight = build_preflight(store.connection(), None, 1500)?;
     assert!(preflight.text.is_empty());
     Ok(())
 }

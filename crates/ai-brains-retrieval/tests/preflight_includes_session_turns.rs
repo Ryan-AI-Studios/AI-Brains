@@ -4,24 +4,24 @@ use ai_brains_retrieval::build_preflight;
 
 #[test]
 fn preflight_includes_session_turns() -> Result<(), Box<dyn std::error::Error>> {
-    let mut store =
+    let store =
         common::store_with_memory("pinned memory", ai_brains_core::privacy::Privacy::CloudOk)?;
-    let session_id = common::append_active_session(&mut store)?;
+    let session_id = common::append_active_session(&store)?;
 
     common::append_turn(
-        &mut store,
+        &store,
         &session_id,
         "user",
         "What is the capital of France?",
     )?;
     common::append_turn(
-        &mut store,
+        &store,
         &session_id,
         "assistant",
         "The capital of France is Paris.",
     )?;
 
-    let context = build_preflight(store.connection(), 1500)?;
+    let context = build_preflight(store.connection(), None, 1500)?;
 
     // This is expected to fail currently as preflight.rs only lists active session IDs
     assert!(context.text.contains("What is the capital of France?"));

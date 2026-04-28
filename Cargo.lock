@@ -119,6 +119,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "predicates",
+ "rusqlite",
  "serde_json",
  "tempfile",
  "tokio",

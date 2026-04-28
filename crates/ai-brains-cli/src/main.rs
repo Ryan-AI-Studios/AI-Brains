@@ -1,4 +1,4 @@
-use ai_brains_capture::{parse_ingest_request, CaptureContext, CaptureService, MemorySink};
+use ai_brains_capture::{parse_ingest_request, CaptureContext, CaptureService, CaptureSink};
 use ai_brains_contracts::ingest::IngestResponse;
 use ai_brains_contracts::preflight::PreflightContextResponse;
 use ai_brains_contracts::recall::{RecallResponse, RecallResult};
@@ -7,7 +7,11 @@ use ai_brains_retrieval::{build_preflight, recall};
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::EventStore;
 use clap::{Parser, Subcommand};
+use rusqlite::params;
 use std::io::{self, Read};
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{AggregateType, EventKind, Actor, Payload, ProjectRegisteredPayload};
+use ai_brains_core::ids::{HarnessId, ProjectId, SessionId, TurnId};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -73,7 +77,7 @@ fn main() {
 fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &cli.command {
         Commands::Init => run_init(&cli),
-        Commands::Ingest => run_ingest(),
+        Commands::Ingest => run_ingest(&cli),
         Commands::Recall { query, limit } => run_recall(&cli, query.clone(), *limit),
         Commands::Preflight { max_words } => run_preflight(&cli, *max_words),
         Commands::Nightly { schedule, start_time } => run_nightly(&cli, *schedule, start_time.clone()),
@@ -115,19 +119,92 @@ fn run_init(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn run_ingest() -> Result<(), Box<dyn std::error::Error>> {
+fn run_ingest(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
     let request = parse_ingest_request(&input)?;
 
-    let mut sink = MemorySink::default();
-    let outcome = CaptureService::new().ingest_request(
+    let conn = open_vault(cli)?;
+    let event_store = ai_brains_store::SqliteEventStore::new(conn.clone());
+
+    struct StoreSink {
+        store: ai_brains_store::SqliteEventStore,
+        last_error: Option<String>,
+    }
+    impl CaptureSink for StoreSink {
+        fn append(&mut self, envelope: ai_brains_events::Envelope) {
+            if let Err(err) = self.store.append_event(&envelope) {
+                self.last_error = Some(err.to_string());
+            }
+        }
+    }
+
+    let mut sink = StoreSink {
+        store: event_store,
+        last_error: None,
+    };
+
+    let service = CaptureService::new();
+    let capture_context = CaptureContext {
+        git_working_dir: std::env::current_dir().ok(),
+    };
+
+    // Auto-create project if it doesn't exist
+    let project_exists = {
+        let conn_lock = conn.lock()?;
+        let mut stmt = conn_lock.prepare("SELECT 1 FROM project_projection WHERE project_id = ?")?;
+        stmt.exists(params![request.project_id.to_string()])?
+    };
+
+    if !project_exists {
+        let event = EventBuilder::new(
+            AggregateType::Project,
+            request.project_id.as_uuid(),
+            EventKind::ProjectRegistered,
+            Actor::User(ai_brains_core::ids::UserId::new()),
+            request.privacy,
+        )
+        .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+            project_id: request.project_id,
+            name: format!("Project {}", request.project_id),
+        }))?;
+        
+        sink.store.append_event(&event)?;
+    }
+
+    // Auto-start session if it doesn't exist
+    let session_exists = {
+        let conn_lock = conn.lock()?;
+        let mut stmt = conn_lock.prepare("SELECT 1 FROM session_projection WHERE session_id = ?")?;
+        stmt.exists(params![request.session_id.to_string()])?
+    };
+
+    if !session_exists {
+        service.start_session(
+            ai_brains_capture::SessionStartCommand {
+                session_id: request.session_id,
+                project_id: request.project_id,
+                harness_id: request.harness_id,
+                privacy: request.privacy,
+            },
+            capture_context.clone(),
+            &mut sink,
+        )?;
+        
+        if let Some(err) = sink.last_error.take() {
+             return Err(format!("Failed to auto-start session: {}", err).into());
+        }
+    }
+    
+    let outcome = service.ingest_request(
         request,
-        CaptureContext {
-            git_working_dir: std::env::current_dir().ok(),
-        },
+        capture_context,
         &mut sink,
     )?;
+
+    if let Some(err) = sink.last_error {
+        return Err(format!("Failed to persist turn: {}", err).into());
+    }
 
     let response = IngestResponse {
         event_id: outcome.events[0].event_id.to_string(),
