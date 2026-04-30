@@ -2,7 +2,7 @@
 # Handles SessionStart, UserPromptSubmit, and Stop events.
 
 # Initialize UTF-8 encoding (BOM-less) for standard streams and file I/O
-$utf8NoBom = New-Object System.Text.Encoding.UTF8Encoding $false
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = $utf8NoBom
 
 $logPrefix = "[ai-brains-codex]"
