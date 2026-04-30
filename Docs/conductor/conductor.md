@@ -36,6 +36,7 @@
 | T27 | E2E Hardening | **Completed** | architecture-planner | Smoke testing and fault isolation. |
 | T28 | Cross-Agent Harness | **Completed** | Orchestrator | Cross-agent synthesis and standardized hook implementation. |
 | T29 | Relational Graph | **Completed** | Orchestrator | Migrate graph projection to SQLite (ADR-0009). |
+| T30 | Hardening Protocol | **Completed** | Orchestrator | Optimization, encoding fixes, and agentic protocol overhaul. |
 
 ## Current Verification Snapshot
 - `cargo fmt`: passes.

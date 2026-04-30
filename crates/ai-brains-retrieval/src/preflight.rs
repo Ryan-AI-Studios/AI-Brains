@@ -65,6 +65,7 @@ pub fn build_preflight(
         sections.push(session_texts.join("\n\n"));
     }
     if !collected.is_empty() {
+        // 1. Build the index section
         let mut index_lines = vec!["--- Memory Index (Briefing) ---".to_string()];
         for (i, content) in collected.iter().enumerate() {
             let first_line = content.lines().next().unwrap_or("Untitled Memory");
@@ -75,12 +76,31 @@ pub fn build_preflight(
             };
             index_lines.push(format!("{}. {}", i + 1, summary));
         }
-        sections.push(index_lines.join("\n"));
+        let index_text = index_lines.join("\n");
+        
+        // 2. Build the detailed section (only the most recent memory)
+        let mut detailed_text = String::new();
+        if let Some(most_recent) = collected.first() {
+            detailed_text = format!(
+                "--- Most Recent Memory ---\n\n{}\n\n(Use 'recall' to fetch details for other index items)",
+                most_recent
+            );
+        }
 
-        sections.push(format!(
-            "--- Detailed Memories ---\n\n{}",
-            collected.join("\n\n")
-        ));
+        // 3. Assemble with budget awareness
+        let full_text = format!("{}\n\n{}", index_text, detailed_text);
+        if word_count(&full_text) <= max_words {
+            sections.push(full_text);
+        } else {
+            // If full text doesn't fit, prioritize index
+            if word_count(&index_text) <= max_words {
+                sections.push(index_text);
+            } else {
+                // If even index doesn't fit, truncate it
+                sections.push(trim_to_word_budget(&index_text, max_words));
+                sections.push("... [Index Truncated]".to_string());
+            }
+        }
     }
 
     let text = trim_to_word_budget(&sections.join("\n\n"), max_words);

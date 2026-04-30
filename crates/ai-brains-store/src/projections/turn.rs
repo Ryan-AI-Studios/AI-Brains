@@ -40,10 +40,11 @@ impl Projection for TurnProjection {
             .map_err(|e| StoreError::EventReadFailed(e.to_string()))?;
 
         tx.execute(
-            "INSERT INTO memory_projection (memory_id, content, privacy, status, level, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO memory_projection (memory_id, session_id, content, privacy, status, level, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             rusqlite::params![
                 memory_id.to_string(),
+                session_id,
                 format!("{}: {}", role.to_uppercase(), content),
                 privacy,
                 "pinned", // Mark as pinned so it's searchable by default

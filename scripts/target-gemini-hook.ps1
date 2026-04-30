@@ -1,6 +1,10 @@
 # AI-Brains Hook for Gemini CLI
 # Handles Preflight (BeforeAgent/SessionStart) and Ingest (AfterAgent) lifecycle events.
 
+# Initialize UTF-8 encoding (BOM-less) for standard streams and file I/O
+$utf8NoBom = New-Object System.Text.Encoding.UTF8Encoding $false
+$OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = $utf8NoBom
+
 $logPrefix = "[ai-brains-gemini]"
 
 function Write-Log($message) {
@@ -62,14 +66,56 @@ function Invoke-Preflight($hookEventName) {
     }
 }
 
+function De-Noise($content) {
+    if (-not $content) { return $null }
+    
+    # Heuristic: Strip long markdown code blocks (usually test logs or file contents)
+    # We keep short ones (under 10 lines) as they might be important snippets.
+    $lines = $content -split "`r?`n"
+    $filteredLines = @()
+    $inCodeBlock = $false
+    $currentBlock = @()
+
+    foreach ($line in $lines) {
+        if ($line -match '^```') {
+            if ($inCodeBlock) {
+                # End of block
+                if ($currentBlock.Count -le 10) {
+                    $filteredLines += "```"
+                    $filteredLines += $currentBlock
+                    $filteredLines += "```"
+                } else {
+                    $filteredLines += "```... [Long block stripped] ...```"
+                }
+                $currentBlock = @()
+                $inCodeBlock = $false
+            } else {
+                # Start of block
+                $inCodeBlock = $true
+            }
+            continue
+        }
+
+        if ($inCodeBlock) {
+            $currentBlock += $line
+        } else {
+            $filteredLines += $line
+        }
+    }
+
+    return ($filteredLines -join "`n")
+}
+
 function Invoke-Ingest($data) {
     Write-Log "Running ingest"
-    $content = Get-AssistantContent $data
-    if (-not $content) {
+    $rawContent = Get-AssistantContent $data
+    if (-not $rawContent) {
         Write-Log "No response content found to ingest"
         Write-HookResponse @{ success = $true; systemMessage = "No response content found to ingest." }
         return
     }
+
+    $content = De-Noise $rawContent
 
     $projectDir = $env:GEMINI_PROJECT_DIR
     $ingestScript = $null
@@ -105,7 +151,7 @@ function Invoke-Ingest($data) {
 
             $tempFile = [System.IO.Path]::GetTempFileName()
             try {
-                $ingestPayload | Out-File -FilePath $tempFile -Encoding utf8
+                [System.IO.File]::WriteAllText($tempFile, $ingestPayload, $utf8NoBom)
                 Get-Content -LiteralPath $tempFile -Raw | ai-brains ingest 2>$null | Out-Null
             } finally {
                 if (Test-Path -LiteralPath $tempFile) { Remove-Item -LiteralPath $tempFile -Force }
