@@ -35,9 +35,6 @@ impl MemorySynthesizer {
         let source_level = target_level - 1;
         let source_memories = self.query_store.get_memories_by_level(source_level)?;
 
-        // Find memories that aren't already parents in the hierarchy
-        // For now, we'll just synthesize what we have if we have enough.
-        // A more advanced implementation would track 'new' memories specifically.
         if source_memories.len() < 2 {
             return Ok(0);
         }
@@ -94,7 +91,6 @@ impl MemorySynthesizer {
         memories: &[(MemoryId, String)],
     ) -> Result<Vec<Vec<(MemoryId, String)>>, Box<dyn std::error::Error>> {
         // Heuristic: Group by 5 for now.
-        // TODO: Use embeddings and GMM/K-Means.
         let mut clusters = Vec::new();
         for chunk in memories.chunks(5) {
             clusters.push(chunk.to_vec());
@@ -109,32 +105,35 @@ impl MemorySynthesizer {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut contents = String::new();
         for (_, content) in cluster {
-            contents.push_str("- ");
+            contents.push_str("--- SOURCE MEMORY ---\n");
             contents.push_str(content);
             contents.push('\n');
         }
 
-        let role = if level == 1 {
-            "synthesizing developer session history"
-        } else {
-            "aggregating high-level architectural and process learnings"
-        };
-
         let prompt = format!(
-            "Synthesize the following related level {} memories into a single, higher-level knowledge node (Level {}). \
-             Focus on recurring patterns, shared technical context, and cumulative progress across sessions and agents.\n\n\
-             Memories:\n{}",
+            "Synthesize the following Level {} memories into a single Level {} Knowledge Node in JSON format.\n\n\
+             Rules:\n\
+             1. Aggregate recurring patterns and permanent constraints.\n\
+             2. Maintain technical density.\n\
+             3. Output ONLY valid JSON.\n\n\
+             JSON Schema:\n\
+             {{\n\
+               \"title\": \"Synthesis Title\",\n\
+               \"aggregated_context\": \"Combined summary of work\",\n\
+               \"invariants\": [\"Shared technical invariants identified across sessions\"],\n\
+               \"cumulative_progress\": [\"Overall progress made across these nodes\"]\n\
+             }}\n\n\
+             Source Memories:\n{}",
             level - 1, level, contents
         );
 
         let request = CompletionRequest {
             prompt,
-            system_prompt: Some(format!(
-                "You are a principal engineer {} into a knowledge base.",
-                role
-            )),
-            max_tokens: Some(400),
-            temperature: Some(0.3),
+            system_prompt: Some(
+                "You are a factual synthesis engine for a hierarchical knowledge vault. You output ONLY valid JSON.".to_string(),
+            ),
+            max_tokens: Some(1000),
+            temperature: Some(0.0),
         };
 
         let response = self.model_provider.complete(request).await?;
@@ -148,29 +147,38 @@ impl MemorySynthesizer {
     ) -> Result<bool, Box<dyn std::error::Error>> {
         let mut sources = String::new();
         for (_, content) in cluster {
-            sources.push_str("- ");
+            sources.push_str("--- SOURCE ---\n");
             sources.push_str(content);
             sources.push('\n');
         }
 
         let prompt = format!(
-            "Verify the following synthesized summary against the source summaries. \
-             Does the synthesis accurately reflect the information provided? \
-             If it introduces hallucinations or unsupported claims, respond with 'UNSUPPORTED'. \
-             Otherwise, respond with 'SUPPORTED'.\n\n\
-             Source Summaries:\n{}\n\nSynthesized Summary: {}",
+            "Perform a rigorous factual audit of the following JSON synthesis against its sources.\n\n\
+             Check for:\n\
+             1. Factual contradictions.\n\
+             2. Hallucinations (e.g. paths, features, or events NOT in the sources).\n\
+             3. Over-reaching claims.\n\n\
+             If the JSON is factually grounded in the sources, respond with 'SUPPORTED'.\n\
+             If it contains any unsupported claims, respond with 'UNSUPPORTED' and list the errors.\n\n\
+             Source Data:\n{}\n\nSynthesis JSON:\n{}",
             sources, synthesis
         );
 
         let request = CompletionRequest {
             prompt,
-            system_prompt: Some("You are a factual verification assistant.".to_string()),
-            max_tokens: Some(50),
+            system_prompt: Some("You are a strict technical auditor. You verify facts and reject hallucinations.".to_string()),
+            max_tokens: Some(200),
             temperature: Some(0.0),
         };
 
         let response = self.model_provider.complete(request).await?;
         let text = response.text.to_uppercase();
-        Ok(text.contains("SUPPORTED") && !text.contains("UNSUPPORTED"))
+        
+        if text.contains("UNSUPPORTED") {
+            tracing::warn!("CRAG REJECTED: {}", response.text);
+            return Ok(false);
+        }
+        
+        Ok(text.contains("SUPPORTED"))
     }
 }

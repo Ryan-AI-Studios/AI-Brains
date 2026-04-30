@@ -127,17 +127,31 @@ impl NightlyService {
         }
 
         let prompt = format!(
-            "Summarize the following conversation in one short paragraph for long-term memory retrieval:\n\n{}",
+            "Analyze the following developer session and extract a structured knowledge node in JSON format.\n\n\
+             Rules:\n\
+             1. Stick STRICTLY to facts in the provided text.\n\
+             2. Do NOT hallucinate paths (e.g. do not assume ~/.config if the source says C:\\Users).\n\
+             3. If a decision is not explicitly stated, do not include it.\n\n\
+             JSON Schema:\n\
+             {{\n\
+               \"title\": \"Brief descriptive title\",\n\
+               \"summary\": \"Concise overview of accomplishments\",\n\
+               \"decisions\": [\"List of specific architectural or process decisions\"],\n\
+               \"constraints\": [\"Technical constraints or invariants identified\"],\n\
+               \"next_steps\": [\"Planned future work identified in session\"]\n\
+             }}\n\n\
+             Conversation:\n{}",
             conversation
         );
-
+ 
         let request = CompletionRequest {
             prompt,
             system_prompt: Some(
-                "You are a helpful assistant summarizing developer sessions.".to_string(),
+                "You are a factual data extraction engine for a technical memory vault. \
+                 You output ONLY valid JSON. You are extremely conservative and avoid any unsupported claims.".to_string(),
             ),
-            max_tokens: Some(200),
-            temperature: Some(0.3),
+            max_tokens: Some(600),
+            temperature: Some(0.0), // Maximum deterministic for facts
         };
 
         let response = self.completion_provider.complete(request).await?;
