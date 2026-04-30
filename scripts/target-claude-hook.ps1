@@ -1,6 +1,10 @@
 # AI-Brains Hook for Claude Code
 # Handles SessionStart, Stop, SessionEnd, and PreCompact events.
 
+# Initialize UTF-8 encoding (BOM-less) for standard streams and file I/O
+$utf8NoBom = New-Object System.Text.Encoding.UTF8Encoding $false
+$OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = $utf8NoBom
+
 $logPrefix = "[ai-brains-claude]"
 
 function Write-Log($message) {
@@ -70,11 +74,49 @@ function Get-AssistantMessagesFromTranscript($transcriptPath, $tail, $limit) {
     return $messages
 }
 
-function Invoke-Ingest($content, $inputJson, $projectDir, $label) {
-    if (-not $content) {
+function De-Noise($content) {
+    if (-not $content) { return $null }
+    
+    $lines = $content -split "`r?`n"
+    $filteredLines = @()
+    $inCodeBlock = $false
+    $currentBlock = @()
+
+    foreach ($line in $lines) {
+        if ($line -match '^```') {
+            if ($inCodeBlock) {
+                if ($currentBlock.Count -le 10) {
+                    $filteredLines += "```"
+                    $filteredLines += $currentBlock
+                    $filteredLines += "```"
+                } else {
+                    $filteredLines += "```... [Long block stripped] ...```"
+                }
+                $currentBlock = @()
+                $inCodeBlock = $false
+            } else {
+                $inCodeBlock = $true
+            }
+            continue
+        }
+
+        if ($inCodeBlock) {
+            $currentBlock += $line
+        } else {
+            $filteredLines += $line
+        }
+    }
+
+    return ($filteredLines -join "`n")
+}
+
+function Invoke-Ingest($rawContent, $inputJson, $projectDir, $label) {
+    if (-not $rawContent) {
         Write-Log "$label no assistant content found"
         return
     }
+
+    $content = De-Noise $rawContent
 
     if ($projectDir) {
         $localScript = Join-Path $projectDir ".agents\skills\ai-brains\scripts\ingest.ps1"
@@ -111,7 +153,7 @@ function Invoke-Ingest($content, $inputJson, $projectDir, $label) {
 
     $tempFile = [System.IO.Path]::GetTempFileName()
     try {
-        $ingestPayload | Out-File -FilePath $tempFile -Encoding utf8
+        [System.IO.File]::WriteAllText($tempFile, $ingestPayload, $utf8NoBom)
         Get-Content -LiteralPath $tempFile -Raw | ai-brains ingest 2>$null | Out-Null
     } finally {
         if (Test-Path -LiteralPath $tempFile) { Remove-Item -LiteralPath $tempFile -Force }
@@ -127,7 +169,7 @@ function Export-ClaudeEnv {
     if ($env:AI_BRAINS_HARNESS_ID) { $envLines += "export AI_BRAINS_HARNESS_ID=""$($env:AI_BRAINS_HARNESS_ID)""" }
 
     if ($envLines.Count -gt 0) {
-        $envLines | Out-File -FilePath $env:CLAUDE_ENV_FILE -Append -Encoding utf8
+        [System.IO.File]::AppendAllLines($env:CLAUDE_ENV_FILE, $envLines, $utf8NoBom)
     }
 }
 

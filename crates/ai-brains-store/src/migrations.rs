@@ -54,6 +54,10 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0013_relational_graph",
         include_str!("../migrations/0013_relational_graph.sql"),
     ),
+    (
+        "0014_memory_session_context",
+        include_str!("../migrations/0014_memory_session_context.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {

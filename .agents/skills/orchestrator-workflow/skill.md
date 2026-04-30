@@ -35,16 +35,15 @@ ChangeGuard tracks architectural provenance. Use it at these points:
 ## The Standard Operating Procedure
 
 ### 1. Planning Phase
-1. **Identify Track:** Consult `Docs/Implementation-Plan.md` for the next uncompleted track (e.g., T01 Core Domain).
-2. **Analyze Couplings:** Run `changeguard hotspots` to identify if the target crate is brittle.
-3. **Delegate Planning:** Invoke `architecture-planner`.
-   *   *Prompt:* "Create a spec for Track <ID>. Constraints: Rust workspace, TDD, Event Sourcing, No hidden thinking capture. Files owned: crates/<crate-name>."
-4. **Register:** Create `tracks/T<ID>-<name>.md` and update `Docs/Implementation-Plan.md` status to `[IN PROGRESS]`.
-5. **Start Transaction:** `changeguard ledger start --entity crates/<crate> --category <CAT> --message "Track <ID>: <name>"`
+1. **Identify Track:** Consult `Docs/Implementation-Plan.md` for the next uncompleted track.
+2. **Historical Recall:** Run `ai-brains recall "<track topic>"` to retrieve past decisions or constraints relevant to this work.
+3. **Analyze Couplings:** Run `changeguard hotspots` to identify if the target crate is brittle.
+4. **Delegate Planning:** Invoke `architecture-planner`.
+5. **Register:** Create `tracks/T<ID>-<name>.md` and update `Docs/Implementation-Plan.md` status to `[IN PROGRESS]`.
+6. **Start Transaction:** `changeguard ledger start T<ID>-<name> --category <CAT>`
 
 ### 2. Implementation Phase
-1. **Delegate Implementation:** Invoke `generalist` (or `rust-triage-specialist` if debugging).
-   *   *Prompt:* "Implement Track <ID> per `tracks/T<ID>.md`. Use TDD. Ensure `cargo test` passes. No panics/unwraps."
+1. **Delegate Implementation:** Invoke `generalist`.
 2. **TDD Loop:** Red (failing test) -> Green (implementation) -> Refactor.
 3. **Impact Check:** `changeguard impact`. Ensure logic hasn't leaked across crate boundaries.
 
@@ -55,9 +54,11 @@ cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; carg
 ```
 
 ### 4. Finalization Phase
-1. **Close Track:** Mark as `[COMPLETED]` in `Docs/Implementation-Plan.md`.
-2. **Commit with Ledger:** `changeguard ledger commit --tx-id <ID> --category <CAT> --summary "Implemented Track <ID>"`
-3. **Audit:** Run `changeguard ledger status` to ensure a clean baseline for the next track.
+1. **Durable Ingest:** Manually ingest any significant architectural decisions or newly discovered constraints:
+   `powershell .agents/skills/ai-brains/scripts/ingest.ps1 -Content "DECISION: <...> | RATIONALE: <...>" -Role assistant`
+2. **Close Track:** Mark as `[COMPLETED]` in `Docs/Implementation-Plan.md`.
+3. **Commit with Ledger:** `changeguard ledger commit --tx-id <ID> --category <CAT> --summary "Implemented Track <ID>"`
+4. **Audit:** Run `changeguard ledger status` to ensure a clean baseline for the next track.
 
 ## Orchestrator Rules of Engagement
 

@@ -1,7 +1,7 @@
 use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use ai_brains_store::VaultConnection;
-use rusqlite::params;
+use rusqlite::params_from_iter;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RetrievalMemory {
@@ -20,20 +20,25 @@ pub fn lexical_search(
     let mut sql = "SELECT mp.memory_id, mp.content, mp.privacy
          FROM memory_fts fts
          JOIN memory_projection mp ON mp.rowid = fts.rowid
-         WHERE memory_fts MATCH ? AND mp.status = 'pinned'"
-        .to_string();
+         LEFT JOIN session_projection sp ON mp.session_id = sp.session_id
+         WHERE memory_fts MATCH ? AND mp.status = 'pinned'".to_string();
+    
+    let mut params_vec: Vec<rusqlite::types::Value> = vec![query.to_string().into()];
 
-    if project_id.is_some() || session_id.is_some() {
-        // This is a placeholder since memory_projection doesn't have project_id yet.
-        // In a full implementation, we would join with session_projection here
-        // or ensure memory_projection has project_id denormalized.
-        // For now, we will just return the global hits but the signature is ready.
+    if let Some(sid) = session_id {
+        sql.push_str(" AND mp.session_id = ?");
+        params_vec.push(sid.to_string().into());
+    }
+
+    if let Some(pid) = project_id {
+        sql.push_str(" AND sp.project_id = ?");
+        params_vec.push(pid.to_string().into());
     }
 
     sql.push_str(" ORDER BY rank");
 
     let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query(params![query])?;
+    let mut rows = stmt.query(params_from_iter(params_vec))?;
     let mut results = Vec::new();
 
     while let Some(row) = rows.next()? {

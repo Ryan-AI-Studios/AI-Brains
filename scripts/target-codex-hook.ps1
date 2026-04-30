@@ -1,6 +1,10 @@
 # AI-Brains Hook for Codex CLI
 # Handles SessionStart, UserPromptSubmit, and Stop events.
 
+# Initialize UTF-8 encoding (BOM-less) for standard streams and file I/O
+$utf8NoBom = New-Object System.Text.Encoding.UTF8Encoding $false
+$OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = $utf8NoBom
+
 $logPrefix = "[ai-brains-codex]"
 
 function Write-Log($message) {
@@ -76,11 +80,49 @@ function Get-LastAssistantMessageFromTranscript($transcriptPath) {
     return $null
 }
 
-function Invoke-Ingest($content, $inputJson, $projectDir, $role) {
-    if (-not $content) {
+function De-Noise($content) {
+    if (-not $content) { return $null }
+    
+    $lines = $content -split "`r?`n"
+    $filteredLines = @()
+    $inCodeBlock = $false
+    $currentBlock = @()
+
+    foreach ($line in $lines) {
+        if ($line -match '^```') {
+            if ($inCodeBlock) {
+                if ($currentBlock.Count -le 10) {
+                    $filteredLines += "```"
+                    $filteredLines += $currentBlock
+                    $filteredLines += "```"
+                } else {
+                    $filteredLines += "```... [Long block stripped] ...```"
+                }
+                $currentBlock = @()
+                $inCodeBlock = $false
+            } else {
+                $inCodeBlock = $true
+            }
+            continue
+        }
+
+        if ($inCodeBlock) {
+            $currentBlock += $line
+        } else {
+            $filteredLines += $line
+        }
+    }
+
+    return ($filteredLines -join "`n")
+}
+
+function Invoke-Ingest($rawContent, $inputJson, $projectDir, $role) {
+    if (-not $rawContent) {
         Write-Log "No $role content found for ingest"
         return
     }
+
+    $content = De-Noise $rawContent
 
     $localScript = $null
     if ($projectDir) {
@@ -120,7 +162,7 @@ function Invoke-Ingest($content, $inputJson, $projectDir, $role) {
 
     $tempFile = [System.IO.Path]::GetTempFileName()
     try {
-        $ingestPayload | Out-File -FilePath $tempFile -Encoding utf8
+        [System.IO.File]::WriteAllText($tempFile, $ingestPayload, $utf8NoBom)
         Get-Content -LiteralPath $tempFile -Raw | ai-brains ingest 2>$null | Out-Null
     } finally {
         if (Test-Path -LiteralPath $tempFile) { Remove-Item -LiteralPath $tempFile -Force }
