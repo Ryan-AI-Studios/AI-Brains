@@ -4,7 +4,7 @@
 **Status:** In Progress
 **Phase:** Phase 15 - Cross-Agent Memory Synthesis [In Progress]
 **Current Track:** T28 - Cross-Agent Harness [In Progress]
-**Verification:** Degraded Windows gate is green as of 2026-04-30. Full all-target workspace check still fails on the documented LadybugDB/MSVC debug `LNK1248` graph build issue, and ChangeGuard ledger has stale graph/models/brain transactions.
+**Verification:** Degraded Windows gate is green as of 2026-04-30. Full all-target workspace check still fails on the documented LadybugDB/MSVC debug `LNK1248` graph build issue. ChangeGuard ledger is reconciled locally.
 
 ## Track Registry
 
@@ -43,7 +43,7 @@
 - `cargo check --workspace --all-targets`: still fails on LadybugDB/MSVC debug `LNK1248`.
 - `cargo-nextest`: not installed in this shell; `cargo test` was used for local verification.
 - `changeguard scan --impact`: HIGH risk because of changed public symbols and high changed-file volume.
-- `changeguard ledger status`: stale pending transactions for graph, models, and brain.
+- `changeguard ledger status`: no pending transactions and no unaudited drift.
 
 ## Completed Track: T27 - E2E Hardening
 - [x] Implemented `init` command in CLI for clean vault creation and migration.
@@ -84,7 +84,7 @@
 - [x] Unsummarized session discovery via `QueryStore`.
 - [x] `SessionSummaryCreated` event integration.
 - [x] Verification reconciliation: brain tests updated for the current `NightlyService::new` signature and pass in degraded workspace verification.
-- [ ] ChangeGuard reconciliation: stale pending transaction for `crates/ai-brains-brain`.
+- [x] ChangeGuard reconciliation: no pending transaction for `crates/ai-brains-brain`.
 
 ## Implemented Track: T21 - Model Providers
 - [x] `ai-brains-models` crate scaffolded and added to workspace.
@@ -93,7 +93,7 @@
 - [x] `ProviderRegistry` implemented with privacy-aware routing.
 - [x] `MockProvider` implemented for testing.
 - [x] Verification reconciliation: model provider tests pass in degraded workspace verification.
-- [ ] ChangeGuard reconciliation: stale pending transaction for `crates/ai-brains-models`.
+- [x] ChangeGuard reconciliation: no pending transaction for `crates/ai-brains-models`.
 
 ## Implemented Track: T20 - Graph Projection
 - [x] `ai-brains-graph` crate scaffolded and added to workspace.
@@ -102,7 +102,7 @@
 - [x] `GraphRebuilder` implemented for event-log reconstruction.
 - [x] Graph traversal implemented for related memory discovery.
 - [ ] Verification reconciliation: current all-target workspace check hits LadybugDB/MSVC debug `LNK1248`; graph remains feature-gated/degraded in this Windows environment.
-- [ ] ChangeGuard reconciliation: stale pending transaction for `crates/ai-brains-graph`.
+- [x] ChangeGuard reconciliation: no pending transaction for `crates/ai-brains-graph`.
 
 ## Completed Track: T19/T18 - Retrieval and Preflight
 - [x] Single writer queue supports concurrent ingest.

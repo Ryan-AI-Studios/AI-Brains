@@ -70,4 +70,4 @@ Implement the nightly background process that generates summaries for completed 
 - Brain tests have been updated for the current `NightlyService::new` signature and pass in degraded Windows workspace verification.
 - Full all-target verification remains blocked by the graph crate's documented LadybugDB/MSVC debug linker issue.
 - `AggregatedLearningsService` is present in the same crate, but its cross-agent synthesis method is still a stub and belongs to T28 follow-up.
-- ChangeGuard still reports a stale pending transaction for `crates/ai-brains-brain`; provenance must be reconciled before this track is closed.
+- ChangeGuard provenance is reconciled locally: no pending transaction remains for `crates/ai-brains-brain`.

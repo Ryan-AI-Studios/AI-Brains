@@ -6,7 +6,7 @@
 ## 1. Executive Summary
 The AI-Brains system has evolved from a hardware-optimized local capture tool into a hardened, project-aware memory infrastructure. Recent work has focused on global Windows availability, robust project isolation, token-efficient retrieval indexing, and early cross-agent hook support.
 
-Important correction: the current Windows verification path is green only in degraded mode that excludes the LadybugDB graph crate. T20-T22 implementation artifacts are present in code, but graph verification and ChangeGuard provenance still need reconciliation before those tracks should be treated as fully closed.
+Important correction: the current Windows verification path is green only in degraded mode that excludes the LadybugDB graph crate. T20-T22 implementation artifacts are present in code, and ChangeGuard provenance has been reconciled locally; graph verification still needs a non-Windows or graph-isolated path before T20 should be treated as fully closed.
 
 ## 2. Implemented Milestones Requiring Reconciliation
 
@@ -40,9 +40,9 @@ Important correction: the current Windows verification path is green only in deg
 - **Pass:** `cargo test --workspace --exclude ai-brains-graph`.
 - **Not Green:** Full `cargo check --workspace --all-targets` still hits the documented LadybugDB/MSVC debug `LNK1248` graph build failure.
 - **Tooling Note:** `cargo-nextest` is not installed in this shell; `cargo test` was used for the local verification pass.
-- **ChangeGuard:** `changeguard scan --impact` reports HIGH risk. `changeguard ledger status` shows stale pending transactions for `crates/ai-brains-graph`, `crates/ai-brains-models`, and `crates/ai-brains-brain`.
+- **ChangeGuard:** `changeguard scan --impact` reports HIGH risk due changed-file/symbol volume. `changeguard ledger status` reports no pending transactions and no unaudited drift.
 
 ---
 **Orchestrator Status:** Healthy
 **Context Window:** Optimized (index-first retrieval active)
-**ChangeGuard Ledger:** Reconciliation required
+**ChangeGuard Ledger:** Reconciled locally

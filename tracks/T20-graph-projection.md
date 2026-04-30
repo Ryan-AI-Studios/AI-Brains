@@ -72,4 +72,5 @@ Build a rebuildable graph projection layer using LadybugDB (SQLite-based graph) 
 ## Handoff Notes
 - Code artifacts and tests are present under `crates/ai-brains-graph`.
 - Current all-target workspace verification is not green on Windows because LadybugDB/lbug debug linking fails with MSVC `LNK1248`.
-- ChangeGuard still reports a stale pending transaction for `crates/ai-brains-graph`; provenance must be reconciled before this track is closed.
+- ChangeGuard provenance is reconciled locally: no pending transaction remains for `crates/ai-brains-graph`.
+- T20 still needs a reliable graph-specific verification path; Windows all-target builds remain blocked by LadybugDB/lbug debug `LNK1248`.

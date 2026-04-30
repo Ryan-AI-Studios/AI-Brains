@@ -45,4 +45,4 @@ Implements Phase 15: Cross-Agent Memory Synthesis and standardized hook wrappers
 - `cargo test --workspace --exclude ai-brains-graph` passes.
 - Full `cargo check --workspace --all-targets` still fails on LadybugDB/MSVC debug `LNK1248`.
 - `cargo-nextest` is not installed in this shell; local verification used `cargo test`.
-- ChangeGuard ledger still has stale pending transactions for graph, models, and brain.
+- ChangeGuard ledger is reconciled locally: no pending transactions and no unaudited drift.

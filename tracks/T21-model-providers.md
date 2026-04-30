@@ -71,4 +71,4 @@ Implement a provider-agnostic model abstraction with initial support for local O
 - Focused tests exist for mocked Ollama completion and privacy-aware registry selection.
 - Degraded Windows verification passes with `cargo clippy --workspace --all-targets --exclude ai-brains-graph -- -D warnings` and `cargo test --workspace --exclude ai-brains-graph`.
 - Full all-target verification remains blocked by the graph crate's documented LadybugDB/MSVC debug linker issue.
-- ChangeGuard still reports a stale pending transaction for `crates/ai-brains-models`; provenance must be reconciled before this track is closed.
+- ChangeGuard provenance is reconciled locally: no pending transaction remains for `crates/ai-brains-models`.
