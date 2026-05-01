@@ -81,6 +81,17 @@ enum Commands {
         #[arg(long)]
         new_project: bool,
     },
+    /// Pin a high-level decision or constraint directly to the vault
+    Pin {
+        /// The content to pin (e.g., "DECISION: Switched to SQLite")
+        content: String,
+        /// The role to associate with this pin (default: assistant)
+        #[arg(long, default_value = "assistant")]
+        role: String,
+        /// Privacy level (default: LocalOnly)
+        #[arg(long, default_value = "LocalOnly")]
+        privacy: String,
+    },
 }
 
 fn main() {
@@ -127,6 +138,11 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Forget { memory_id } => run_forget(&cli, memory_id.clone()),
         Commands::StopSession { session_id } => run_stop_session(&cli, session_id.clone()),
         Commands::Context { new_project } => run_context(&cli, *new_project),
+        Commands::Pin {
+            content,
+            role,
+            privacy,
+        } => run_pin(&cli, content.clone(), role.clone(), privacy.clone()),
     }
 }
 
@@ -501,6 +517,71 @@ fn run_stop_session(cli: &Cli, session_id_str: String) -> Result<(), Box<dyn std
     }
 
     println!("Session {} marked as completed.", session_id);
+    Ok(())
+}
+
+fn run_pin(
+    cli: &Cli,
+    content: String,
+    role: String,
+    privacy_str: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use ai_brains_contracts::ingest::IngestRequest;
+    use ai_brains_core::privacy::Privacy;
+
+    let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
+        .map(|s| ProjectId::from_str(&s).unwrap())
+        .ok()
+        .ok_or("AI_BRAINS_PROJECT_ID not set. Run 'ai-brains context' first.")?;
+
+    let session_id = std::env::var("AI_BRAINS_SESSION_ID")
+        .map(|s| SessionId::from_str(&s).unwrap())
+        .ok()
+        .ok_or("AI_BRAINS_SESSION_ID not set. Run 'ai-brains context' first.")?;
+
+    let harness_id = std::env::var("AI_BRAINS_HARNESS_ID")
+        .map(|s| HarnessId::from_str(&s).unwrap())
+        .unwrap_or_else(|_| HarnessId::new());
+
+    let privacy = match privacy_str.to_lowercase().as_str() {
+        "cloudok" => Privacy::CloudOk,
+        "localonly" => Privacy::LocalOnly,
+        "neverinject" => Privacy::NeverInject,
+        "sealed" => Privacy::Sealed,
+        _ => Privacy::LocalOnly,
+    };
+
+    let request = IngestRequest {
+        session_id,
+        project_id,
+        harness_id,
+        turn_id: ai_brains_core::ids::TurnId::new(),
+        role,
+        content,
+        thinking: None,
+        privacy,
+    };
+
+    let conn = open_vault(cli)?;
+    let event_store = ai_brains_store::SqliteEventStore::new(conn.clone());
+
+    let mut sink = struct_sink::StoreSink {
+        store: event_store,
+        last_error: None,
+    };
+
+    let service = CaptureService::new();
+    let capture_context = CaptureContext {
+        git_working_dir: std::env::current_dir().ok(),
+    };
+
+    service.ingest_request(request, capture_context, &mut sink)?;
+
+    if let Some(err) = sink.last_error {
+        return Err(format!("Failed to pin memory: {}", err).into());
+    }
+
+    println!("Memory successfully pinned to vault.");
     Ok(())
 }
 
