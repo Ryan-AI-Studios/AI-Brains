@@ -8,7 +8,7 @@ pub fn strip_ansi_from_output(raw: &str) -> String {
 /// Condense a changeguard hotspot table into a compact summary.
 /// Takes the raw table output (after ANSI stripping) and extracts
 /// just the data rows, discarding formatting headers, dividers,
-/// and decorative whitespace. Truncates to 5 entries max.
+/// log preamble, and decorative whitespace. Truncates to 5 entries max.
 pub fn condense_hotspots(stripped_output: &str) -> String {
     let mut lines: Vec<String> = Vec::new();
 
@@ -23,6 +23,13 @@ pub fn condense_hotspots(stripped_output: &str) -> String {
         }
         // Skip lines that are purely decorative borders (e.g. "=====" or "-----")
         if trimmed.starts_with("===") || trimmed.starts_with("---") {
+            continue;
+        }
+        // Skip ChangeGuard log preamble (timestamps, INFO lines, progress messages)
+        if trimmed.contains("changeguard::") || trimmed.contains("INFO") {
+            continue;
+        }
+        if trimmed.starts_with("Analyzing") || trimmed.starts_with("Note:") {
             continue;
         }
         lines.push(trimmed.to_string());
@@ -118,5 +125,21 @@ mod tests {
         let result = condense_hotspots(input);
         assert!(!result.contains("------"), "Should strip dash dividers");
         assert!(!result.contains("======"), "Should strip equals dividers");
+    }
+
+    #[test]
+    fn strips_changeguard_log_preamble() {
+        let input = "2026-05-01T11:25:37Z INFO changeguard::state::storage: Initialized storage at \"/path\"\n\
+                     Analyzing 100 commits for temporal hotspots...\n\
+                     Codebase Hotspots (Risk Density)\n\
+                     | Rank | Score | Freq | Comp | File Path |\n\
+                     | 1 | 0.22 | 2 | 2 | src/main.rs |\n\
+                     Note: High frequency + high complexity = high risk density.";
+        let result = condense_hotspots(input);
+        assert!(!result.contains("changeguard"), "Should strip log lines");
+        assert!(!result.contains("Analyzing"), "Should strip progress lines");
+        assert!(!result.contains("Note:"), "Should strip note footer");
+        assert!(result.contains("src/main.rs"), "Should keep data rows");
+        assert!(result.contains("Codebase Hotspots"), "Should keep header");
     }
 }
