@@ -33,7 +33,7 @@ The project is organized into specialized crates to maintain strict boundaries:
 ## Current State
 
 - **Plan**: `Docs/Implementation-Plan.md` v2 (Track-based execution).
-- **Tracks**: Completed **Phase 12 — E2E Hardening**. All core CLI features are stable.
+- **Status**: Completed **Phase 15 — Cross-Agent Memory Synthesis**. All core features are stable.
 - **Infrastructure**: CI/CD ready, ChangeGuard ledger active, LadybugDB feature-gated for MSVC compatibility.
 - **Deviations**: See `Docs/Deviations.md` for architectural departures (e.g., SQLite fallback, graph decoupling).
 
@@ -53,7 +53,7 @@ cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; carg
 
 ## Workflows
 
-1. **Track Lead**: Follow the `Implementation-Plan.md` phase by phase (T00 -> T27).
+1. **Track Lead**: Follow the `conductor/conductor.md` phase by phase (T00 -> T34).
 2. **Ledger**: Record all architectural decisions using `changeguard ledger`.
 3. **Verify**: Use `changeguard verify` to ensure structural and behavioral integrity.
 4. **Research-Strategy-Execution**: Follow the standard agent lifecycle for every track.
@@ -64,7 +64,7 @@ cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; carg
 |----------|---------|
 | `Docs/PRD.md` | Product vision and core requirements |
 | `Docs/Implementation-Plan.md` | Master execution plan (Tracks) |
-| `.agents/rules/core-mandates.md` | Non-negotiable mandates |
+| `AGENTS.md` | Unified project rules and mandates |
 | `conductor/` | Track management and review checklists |
 
 ## Quick Start
