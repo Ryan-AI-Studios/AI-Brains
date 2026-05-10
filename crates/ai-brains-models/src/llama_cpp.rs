@@ -1,6 +1,6 @@
 use crate::{
     CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, ModelError,
-    ModelProvider, Result,
+    ModelProvider, Result, TokenizeRequest, TokenizeResponse,
 };
 use async_trait::async_trait;
 use serde::Serialize;
@@ -24,6 +24,11 @@ struct LlamaCompletionRequest<'a> {
 struct LlamaEmbeddingRequest<'a> {
     model: &'a str,
     input: &'a str,
+}
+
+#[derive(Serialize)]
+struct LlamaTokenizeRequest<'a> {
+    content: &'a str,
 }
 
 pub struct LlamaCppProvider {
@@ -134,6 +139,44 @@ impl ModelProvider for LlamaCppProvider {
             .collect();
 
         Ok(EmbeddingResponse { vector })
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse> {
+        let client = reqwest::Client::new();
+        // llama.cpp specific tokenize endpoint
+        let body = LlamaTokenizeRequest {
+            content: &request.text,
+        };
+
+        let res = client
+            .post(format!("{}/tokenize", self.endpoint))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ModelError::Network(e.to_string()))?;
+
+        if !res.status().is_success() {
+            let status = res.status();
+            let text = res.text().await.unwrap_or_default();
+            return Err(ModelError::Provider(format!(
+                "llama.cpp (tokenize) returned {}: {}",
+                status, text
+            )));
+        }
+
+        let json: serde_json::Value = res
+            .json()
+            .await
+            .map_err(|e| ModelError::Provider(e.to_string()))?;
+
+        let tokens = json["tokens"]
+            .as_array()
+            .ok_or_else(|| ModelError::Provider("Missing tokens field".to_string()))?
+            .iter()
+            .map(|v| v.as_u64().unwrap_or(0) as u32)
+            .collect();
+
+        Ok(TokenizeResponse { tokens })
     }
 
     fn name(&self) -> &str {

@@ -1,7 +1,7 @@
 # AI-Brains Project Status Report
 **Date:** 2026-04-30
-**Phase:** Track T33 - Antigravity Conversation Import [COMPLETED]
-**Current Track:** T33
+**Phase:** Track T34 - Resilient Summarization Truncation [COMPLETED]
+**Current Track:** T34
 
 ## 1. Executive Summary
 Implemented Antigravity conversation import: parsing JSONL logs from `~/.gemini/antigravity/brain/`, extracting user/assistant turns while enforcing mandate #4 (no hidden thinking/tool logs), and integrating the import into nightly runs. Also includes the T32 preflight ANSI cleanup fixes.
@@ -27,6 +27,17 @@ Implemented Antigravity conversation import: parsing JSONL logs from `~/.gemini/
   - Idempotent: skips sessions already in `session_projection`
   - Mandate #4 enforced: tool-only and hidden thinking entries are filtered out
   - Updated `Docs/antigravity-rule.md` with auto-import documentation
+- [x] **Bug Fix: Antigravity Import Completion**
+  - Fixed issue where imported sessions remained 'active', skipping summarization.
+  - Added deterministic UUID v5 generation for import idempotency.
+  - Implemented 5-minute quiescence check to avoid importing active sessions.
+  - Associated imports with stable Antigravity Harness ID and project environment.
+- [x] **Track T34: Resilient Summarization Truncation**
+  - Problem: Large Antigravity sessions exceeding model context window (38,912 tokens).
+  - Solution: Implementation of Sequential Chunking with "Context Carryover" mechanism.
+  - Status: COMPLETED.
+  - Features: Turn-aware splitting, accurate `/tokenize` integration, sequential part synthesis, and hardware-stable VRAM management for Intel Arc B580.
+
   - Adapter capability upgraded from `Manual` to `Partial`
   - New tests: 9 adapter unit tests, 1 integration test
 

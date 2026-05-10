@@ -30,3 +30,7 @@ This document records the intentional deviations from the original `Implementati
 *   **Original Plan:** Use `OllamaProvider` as the primary local intelligence engine.
 *   **Deviation:** Implemented a custom `LlamaCppProvider` and transitioned to a multi-stage RAG strategy using environment-based model selection.
 *   **Rationale:** The user's environment uses a high-performance Intel Arc B580 with a custom `llama-server` router. The standard Ollama API was insufficient for the required multi-model swapping (BGE-M3 for embeddings, Qwen 3.5 for completion) within strict 12GB VRAM limits. The dynamic configuration via `.env` allows for rapid model swaps without code changes.
+## 7. Summarization Truncation & Hardware Constraints (Track T34)
+*   **Original Plan:** Summarize sessions in a single LLM pass.
+*   **Deviation:** Implemented Sequential Chunking with context carryover for sessions exceeding the 38,912 token limit.
+*   **Rationale:** The Intel Arc B580 has a soft VRAM limit of ~10 GB. Exceeding this via a large context window (e.g., 64k) triggers a performance-killing spill into System RAM (34 TPS to 2 TPS). By enforcing a 38,912 token limit and processing oversized Antigravity logs in sequential parts, we ensure stable, high-performance summarization for sessions of any length without losing context.

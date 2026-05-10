@@ -40,6 +40,7 @@
 | T31 | Onboarding & Observability | **In Progress** | Orchestrator | Integrate 4-layer repo understanding (ADR-0010). |
 | T32 | Preflight ANSI Cleanup & Dedup | **Completed** | Orchestrator | Strip ANSI codes, deduplicate safety/index, condense hotspots. |
 | T33 | Antigravity Conversation Import | **Completed** | Orchestrator | Parse Antigravity logs, import turns into nightly, CLI subcommand. |
+| T34 | Resilient Summarization Truncation | **Completed** | Orchestrator | Sequential chunking with context carryover for large sessions. |
 
 ## Current Verification Snapshot
 - `cargo fmt`: passes.
@@ -150,3 +151,11 @@
 - [x] Phase 3: Vault Connection and Config
 - [x] Phase 4: Event Store and Transaction
 - [x] Phase 5: Final Review
+
+## Completed Track: T34 - Resilient Summarization Truncation
+- [x] Upgraded `ModelProvider` with `tokenize()` and character-based estimation fallback.
+- [x] Implemented `NightlyService` sequential chunking loop with context carryover.
+- [x] Enforced turn-aware splitting to protect message boundaries.
+- [x] Added `AI_BRAINS_CTX_SIZE` environment control for hardware-specific stability (Intel Arc B580).
+- [x] Verified via integration test `nightly_summarizes_large_session`.
+- [x] Updated `Docs/Deviations.md` with hardware-stable context strategies.

@@ -1,6 +1,6 @@
 use crate::{
     CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, ModelError,
-    ModelProvider, Result,
+    ModelProvider, Result, TokenizeRequest, TokenizeResponse,
 };
 use async_trait::async_trait;
 use std::sync::Mutex;
@@ -39,6 +39,17 @@ impl ModelProvider for MockProvider {
         Ok(EmbeddingResponse {
             vector: vec![0.0; 1536],
         })
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse> {
+        // Mock tokenization: 1 token per word-like unit
+        let tokens = request
+            .text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, _)| i as u32)
+            .collect();
+        Ok(TokenizeResponse { tokens })
     }
 
     fn name(&self) -> &str {

@@ -291,7 +291,9 @@ mod tests {
                 step_type: "PLANNER_RESPONSE".to_string(),
                 content: None, // Tool call only, no text content
                 created_at: None,
-                tool_calls: vec![serde_json::from_str(r#"{"name": "view_file"}"#).expect("valid json")],
+                tool_calls: vec![
+                    serde_json::from_str(r#"{"name": "view_file"}"#).expect("valid json")
+                ],
             },
             AntigravityStep {
                 step_index: 8,

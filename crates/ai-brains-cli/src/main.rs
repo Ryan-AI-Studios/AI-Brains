@@ -12,10 +12,11 @@ use ai_brains_retrieval::{build_preflight, recall};
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::EventStore;
 use clap::{Parser, Subcommand};
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::str::FromStr;
+use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(name = "ai-brains")]
@@ -118,7 +119,8 @@ enum SafetyCommands {
 }
 
 fn main() {
-    dotenvy::dotenv().ok();
+    // Project .env always wins over inherited shell vars — prevents cross-project ID bleed
+    dotenvy::dotenv_override().ok();
 
     // Fallback to global config in ~/.ai-brains/.env if AI_BRAINS_VAULT_PATH not set yet
     if std::env::var("AI_BRAINS_VAULT_PATH").is_err() {
@@ -171,6 +173,65 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         },
         Commands::AntigravityImport { days } => run_antigravity_import(&cli, *days),
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn ensure_project_and_session_exists(
+    conn: &VaultConnection,
+    sink: &mut struct_sink::StoreSink,
+    service: &CaptureService,
+    capture_context: &CaptureContext,
+    project_id: ProjectId,
+    session_id: SessionId,
+    harness_id: HarnessId,
+    privacy: ai_brains_core::privacy::Privacy,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Auto-create project if it doesn't exist
+    let project_exists = {
+        let conn_lock = conn.lock()?;
+        let mut stmt =
+            conn_lock.prepare("SELECT 1 FROM project_projection WHERE project_id = ?")?;
+        stmt.exists(params![project_id.to_string()])?
+    };
+
+    if !project_exists {
+        let event = EventBuilder::new(
+            AggregateType::Project,
+            project_id.as_uuid(),
+            EventKind::ProjectRegistered,
+            Actor::User(ai_brains_core::ids::UserId::new()),
+            privacy,
+        )
+        .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+            project_id,
+            name: format!("Project {}", project_id),
+        }))?;
+
+        sink.store.append_event(&event)?;
+    }
+
+    // Auto-start session if it doesn't exist
+    let session_exists = {
+        let conn_lock = conn.lock()?;
+        let mut stmt =
+            conn_lock.prepare("SELECT 1 FROM session_projection WHERE session_id = ?")?;
+        stmt.exists(params![session_id.to_string()])?
+    };
+
+    if !session_exists {
+        service.start_session(
+            ai_brains_capture::SessionStartCommand {
+                session_id,
+                project_id,
+                harness_id,
+                privacy,
+            },
+            capture_context.clone(),
+            sink,
+        )?;
+    }
+
+    Ok(())
 }
 
 fn run_context(_cli: &Cli, new_project: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -284,53 +345,19 @@ fn run_ingest(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         git_working_dir: std::env::current_dir().ok(),
     };
 
-    // Auto-create project if it doesn't exist
-    let project_exists = {
-        let conn_lock = conn.lock()?;
-        let mut stmt =
-            conn_lock.prepare("SELECT 1 FROM project_projection WHERE project_id = ?")?;
-        stmt.exists(params![request.project_id.to_string()])?
-    };
+    ensure_project_and_session_exists(
+        &conn,
+        &mut sink,
+        &service,
+        &capture_context,
+        request.project_id,
+        request.session_id,
+        request.harness_id,
+        request.privacy,
+    )?;
 
-    if !project_exists {
-        let event = EventBuilder::new(
-            AggregateType::Project,
-            request.project_id.as_uuid(),
-            EventKind::ProjectRegistered,
-            Actor::User(ai_brains_core::ids::UserId::new()),
-            request.privacy,
-        )
-        .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
-            project_id: request.project_id,
-            name: format!("Project {}", request.project_id),
-        }))?;
-
-        sink.store.append_event(&event)?;
-    }
-
-    // Auto-start session if it doesn't exist
-    let session_exists = {
-        let conn_lock = conn.lock()?;
-        let mut stmt =
-            conn_lock.prepare("SELECT 1 FROM session_projection WHERE session_id = ?")?;
-        stmt.exists(params![request.session_id.to_string()])?
-    };
-
-    if !session_exists {
-        service.start_session(
-            ai_brains_capture::SessionStartCommand {
-                session_id: request.session_id,
-                project_id: request.project_id,
-                harness_id: request.harness_id,
-                privacy: request.privacy,
-            },
-            capture_context.clone(),
-            &mut sink,
-        )?;
-
-        if let Some(err) = sink.last_error.take() {
-            return Err(format!("Failed to auto-start session: {}", err).into());
-        }
+    if let Some(err) = sink.last_error.take() {
+        return Err(format!("Failed to auto-initialize context: {}", err).into());
     }
 
     let outcome = service.ingest_request(request, capture_context, &mut sink)?;
@@ -606,6 +633,21 @@ fn run_pin(
         git_working_dir: std::env::current_dir().ok(),
     };
 
+    ensure_project_and_session_exists(
+        &conn,
+        &mut sink,
+        &service,
+        &capture_context,
+        project_id,
+        session_id,
+        harness_id,
+        privacy,
+    )?;
+
+    if let Some(err) = sink.last_error.take() {
+        return Err(format!("Failed to auto-initialize context: {}", err).into());
+    }
+
     service.ingest_request(request, capture_context, &mut sink)?;
 
     if let Some(err) = sink.last_error {
@@ -663,6 +705,8 @@ fn run_antigravity_import(cli: &Cli, days: usize) -> Result<(), Box<dyn std::err
         discover_sessions, extract_turns, filter_recent_sessions, parse_overview_file,
         session_id_from_path,
     };
+    use ai_brains_core::ids::TurnId;
+    use std::time::{Duration, SystemTime};
 
     println!("Scanning for Antigravity sessions...");
 
@@ -681,15 +725,42 @@ fn run_antigravity_import(cli: &Cli, days: usize) -> Result<(), Box<dyn std::err
         return Ok(());
     }
 
-    println!("Found {} session(s) to import.", recent_sessions.len());
+    println!("Found {} session(s) to scan.", recent_sessions.len());
 
     let conn = open_vault(cli)?;
     let service = ai_brains_capture::CaptureService::new();
+
+    // Canonical Antigravity Harness ID
+    let antigravity_harness = HarnessId::from_str("00000000-0000-0000-0000-000000000001")
+        .map_err(|e| format!("Invalid canonical harness ID: {}", e))?;
+
+    // Inherit project ID from environment if available
+    let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
+        .ok()
+        .and_then(|s| ProjectId::from_str(&s).ok())
+        .unwrap_or_default();
 
     let mut total_turns = 0;
     let mut sessions_imported = 0;
 
     for overview_path in &recent_sessions {
+        // Quiescence check: Skip if modified in the last 5 minutes
+        if let Ok(metadata) = std::fs::metadata(overview_path) {
+            if let Ok(modified) = metadata.modified() {
+                if SystemTime::now()
+                    .duration_since(modified)
+                    .unwrap_or(Duration::ZERO)
+                    < Duration::from_secs(300)
+                {
+                    println!(
+                        "Session at {} is still active (modified < 5m ago), skipping.",
+                        overview_path.display()
+                    );
+                    continue;
+                }
+            }
+        }
+
         let session_id_str = match session_id_from_path(overview_path) {
             Some(id) => id,
             None => {
@@ -701,17 +772,31 @@ fn run_antigravity_import(cli: &Cli, days: usize) -> Result<(), Box<dyn std::err
             }
         };
 
-        // Skip sessions that have already been imported (idempotent)
+        let session_id = SessionId::from_uuid(
+            Uuid::parse_str(&session_id_str).unwrap_or_else(|_| Uuid::new_v4()),
+        );
+
+        // Status-aware idempotency check
         {
             let conn_lock = conn.lock()?;
             let mut stmt =
-                conn_lock.prepare("SELECT 1 FROM session_projection WHERE session_id = ?")?;
-            if stmt.exists(rusqlite::params![session_id_str])? {
+                conn_lock.prepare("SELECT status FROM session_projection WHERE session_id = ?")?;
+            let status: Option<String> = stmt
+                .query_row(params![session_id_str], |row| row.get(0))
+                .optional()?;
+
+            if let Some(s) = status {
+                if s == "completed" {
+                    println!(
+                        "Session {} already completed, skipping.",
+                        &session_id_str[..8]
+                    );
+                    continue;
+                }
                 println!(
-                    "Session {} already imported, skipping.",
+                    "Session {} is active/incomplete. Resuming import...",
                     &session_id_str[..8]
                 );
-                continue;
             }
         }
 
@@ -732,13 +817,6 @@ fn run_antigravity_import(cli: &Cli, days: usize) -> Result<(), Box<dyn std::err
             continue;
         }
 
-        // Auto-create project if needed
-        let project_id = ai_brains_core::ids::ProjectId::new();
-        let session_id = ai_brains_core::ids::SessionId::from_uuid(
-            uuid::Uuid::parse_str(&session_id_str).unwrap_or_else(|_| uuid::Uuid::new_v4()),
-        );
-
-        // Start the session
         let capture_context = ai_brains_capture::CaptureContext {
             git_working_dir: std::env::current_dir().ok(),
         };
@@ -747,24 +825,34 @@ fn run_antigravity_import(cli: &Cli, days: usize) -> Result<(), Box<dyn std::err
             last_error: None,
         };
 
+        // Start the session (idempotent at the event store level if we use deterministic IDs)
+        // Note: start_session uses random IDs internally for the event, so we'll manually
+        // construct the start command if we wanted full v5 event IDs, but start_session
+        // check if session exists in projection.
         service.start_session(
             ai_brains_capture::SessionStartCommand {
                 session_id,
                 project_id,
-                harness_id: ai_brains_core::ids::HarnessId::from_uuid(uuid::Uuid::new_v4()),
+                harness_id: antigravity_harness,
                 privacy: ai_brains_core::privacy::Privacy::LocalOnly,
             },
             capture_context.clone(),
             &mut sink,
         )?;
 
-        // Ingest each turn
-        for turn in &turns {
+        // Ingest each turn with deterministic Turn IDs
+        for (i, turn) in turns.iter().enumerate() {
+            // v5 Turn ID based on session and index
+            let turn_id = TurnId::from_uuid(Uuid::new_v5(
+                &session_id.as_uuid(),
+                format!("turn-{}", i).as_bytes(),
+            ));
+
             let request = ai_brains_contracts::ingest::IngestRequest {
                 session_id,
                 project_id,
-                harness_id: ai_brains_core::ids::HarnessId::from_uuid(uuid::Uuid::new_v4()),
-                turn_id: ai_brains_core::ids::TurnId::new(),
+                harness_id: antigravity_harness,
+                turn_id,
                 role: turn.role.clone(),
                 content: turn.content.clone(),
                 privacy: ai_brains_core::privacy::Privacy::LocalOnly,
@@ -773,6 +861,19 @@ fn run_antigravity_import(cli: &Cli, days: usize) -> Result<(), Box<dyn std::err
             service.ingest_request(request, capture_context.clone(), &mut sink)?;
             total_turns += 1;
         }
+
+        // Mark as completed
+        service.stop_session(
+            ai_brains_capture::SessionStopCommand {
+                session_id,
+                harness_id: antigravity_harness,
+                privacy: ai_brains_core::privacy::Privacy::LocalOnly,
+                status: ai_brains_capture::SessionStopStatus::Completed,
+                reason: Some("Antigravity batch import complete".to_string()),
+            },
+            capture_context,
+            &mut sink,
+        )?;
 
         sessions_imported += 1;
         println!(
@@ -783,7 +884,7 @@ fn run_antigravity_import(cli: &Cli, days: usize) -> Result<(), Box<dyn std::err
     }
 
     println!(
-        "Antigravity import complete. Imported {} turn(s) from {} session(s).",
+        "Antigravity import complete. Processed {} turn(s) from {} session(s).",
         total_turns, sessions_imported
     );
     Ok(())

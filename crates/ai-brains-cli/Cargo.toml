@@ -21,7 +21,7 @@ ai-brains-models = { path = "../ai-brains-models" }
 ai-brains-graph = { path = "../ai-brains-graph", optional = true }
 serde_json.workspace = true
 clap = { version = "4.4", features = ["derive", "env"] }
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { workspace = true, features = ["v4", "v5"] }
 ai-brains-brain = { path = "../ai-brains-brain" }
 ai-brains-scheduler = { path = "../ai-brains-scheduler" }
 ai-brains-events = { path = "../ai-brains-events" }

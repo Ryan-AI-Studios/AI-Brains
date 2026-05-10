@@ -1,6 +1,6 @@
 use ai_brains_core::ids::{MemoryId, SessionId};
 use ai_brains_events::{Payload, SessionSummaryCreatedPayload};
-use ai_brains_models::{CompletionRequest, ModelProvider};
+use ai_brains_models::{CompletionRequest, ModelProvider, TokenizeRequest};
 use ai_brains_store::{EventStore, QueryStore};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -121,16 +121,112 @@ impl NightlyService {
             return Ok(());
         }
 
-        let mut conversation = String::new();
-        for (role, content) in turns {
-            conversation.push_str(&format!("{}: {}\n", role.to_uppercase(), content));
+        // Context Limit Configuration
+        let ctx_limit = std::env::var("AI_BRAINS_CTX_SIZE")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(38912);
+
+        let overhead_buffer = 1500; // Buffer for system instructions, prompt headers, and response
+        let effective_budget = ctx_limit.saturating_sub(overhead_buffer);
+        tracing::info!(
+            "Summarizing session {}: ctx_limit={}, effective_budget={}",
+            session_id_str,
+            ctx_limit,
+            effective_budget
+        );
+
+        // Calculate current tokens
+        let mut full_conversation = String::new();
+        for (role, content) in &turns {
+            full_conversation.push_str(&format!("{}: {}\n", role.to_uppercase(), content));
         }
 
-        let prompt = format!(
-            "Analyze the following developer session and extract a structured knowledge node in JSON format.\n\n\
-             Rules:\n\
+        let token_count = self
+            .completion_provider
+            .tokenize(TokenizeRequest {
+                text: full_conversation.clone(),
+            })
+            .await
+            .map(|r| r.tokens.len())
+            .unwrap_or_else(|_| ai_brains_models::estimate_tokens(&full_conversation));
+
+        tracing::info!("Session {} token_count={}", session_id_str, token_count);
+
+        if token_count > effective_budget {
+            tracing::info!(
+                "Session {} exceeds budget ({} > {}). Using sequential chunking.",
+                session_id_str,
+                token_count,
+                effective_budget
+            );
+            return self
+                .summarize_chunked(session_id_str, turns, effective_budget)
+                .await;
+        }
+
+        let prompt = self.build_summary_prompt(&full_conversation, None);
+        let response = self.execute_completion(prompt).await?;
+        self.persist_and_follow_up(session_id_str, response.text)
+            .await
+    }
+
+    async fn summarize_chunked(
+        &self,
+        session_id_str: &str,
+        turns: Vec<(String, String)>,
+        budget: usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let chunks = self.split_into_chunks(turns, budget).await?;
+        let mut previous_summary: Option<String> = None;
+        let mut final_json: Option<String> = None;
+
+        for (i, chunk_turns) in chunks.iter().enumerate() {
+            tracing::info!(
+                "Processing chunk {}/{} for session {}...",
+                i + 1,
+                chunks.len(),
+                session_id_str
+            );
+            let mut chunk_text = String::new();
+            for (role, content) in chunk_turns {
+                chunk_text.push_str(&format!("{}: {}\n", role.to_uppercase(), content));
+            }
+
+            let prompt_header = format!(
+                "This is Part {} of {} of a large session.\n\n\
+                 {}\n\n\
+                 Conversation Chunk:\n",
+                i + 1,
+                chunks.len(),
+                previous_summary
+                    .as_ref()
+                    .map(|s| format!("Context from previous parts: {}\n", s))
+                    .unwrap_or_default(),
+            );
+
+            let summary_prompt = self.build_summary_prompt(&chunk_text, Some(&prompt_header));
+            let response = self.execute_completion(summary_prompt).await?;
+
+            previous_summary = Some(response.text.clone());
+            if i == chunks.len() - 1 {
+                final_json = Some(response.text);
+            }
+        }
+
+        if let Some(json) = final_json {
+            self.persist_and_follow_up(session_id_str, json).await
+        } else {
+            Err("Failed to produce a final summary during chunking".into())
+        }
+    }
+
+    fn build_summary_prompt(&self, conversation: &str, header_override: Option<&str>) -> String {
+        let header = header_override.unwrap_or("Analyze the following developer session and extract a structured knowledge node in JSON format.\n\n");
+        format!(
+            "{}Rules:\n\
              1. Stick STRICTLY to facts in the provided text.\n\
-             2. Do NOT hallucinate paths (e.g. do not assume ~/.config if the source says C:\\Users).\n\
+             2. Do NOT hallucinate paths.\n\
              3. If a decision is not explicitly stated, do not include it.\n\n\
              JSON Schema:\n\
              {{\n\
@@ -141,20 +237,69 @@ impl NightlyService {
                \"next_steps\": [\"Planned future work identified in session\"]\n\
              }}\n\n\
              Conversation:\n{}",
-            conversation
-        );
+            header, conversation
+        )
+    }
 
+    async fn split_into_chunks(
+        &self,
+        turns: Vec<(String, String)>,
+        budget: usize,
+    ) -> Result<Vec<Vec<(String, String)>>, Box<dyn std::error::Error>> {
+        let mut chunks = Vec::new();
+        let mut current_chunk = Vec::new();
+        let mut current_tokens = 0;
+
+        for turn in turns {
+            let turn_text = format!("{}: {}\n", turn.0.to_uppercase(), turn.1);
+            let turn_tokens = self
+                .completion_provider
+                .tokenize(TokenizeRequest {
+                    text: turn_text.clone(),
+                })
+                .await
+                .map(|r| r.tokens.len())
+                .unwrap_or_else(|_| ai_brains_models::estimate_tokens(&turn_text));
+
+            if current_tokens + turn_tokens > budget && !current_chunk.is_empty() {
+                chunks.push(current_chunk);
+                current_chunk = Vec::new();
+                current_tokens = 0;
+            }
+
+            current_tokens += turn_tokens;
+            current_chunk.push(turn);
+        }
+
+        if !current_chunk.is_empty() {
+            chunks.push(current_chunk);
+        }
+
+        Ok(chunks)
+    }
+
+    async fn execute_completion(
+        &self,
+        prompt: String,
+    ) -> Result<ai_brains_models::CompletionResponse, Box<dyn std::error::Error>> {
         let request = CompletionRequest {
             prompt,
             system_prompt: Some(
                 "You are a factual data extraction engine for a technical memory vault. \
                  You output ONLY valid JSON. You are extremely conservative and avoid any unsupported claims.".to_string(),
             ),
-            max_tokens: Some(600),
-            temperature: Some(0.0), // Maximum deterministic for facts
+            max_tokens: Some(1000),
+            temperature: Some(0.0),
         };
 
-        let response = self.completion_provider.complete(request).await?;
+        Ok(self.completion_provider.complete(request).await?)
+    }
+
+    async fn persist_and_follow_up(
+        &self,
+        session_id_str: &str,
+        summary_json: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let memory_id = MemoryId::new();
         let session_id = SessionId::from_str(session_id_str)?;
 
@@ -169,7 +314,7 @@ impl NightlyService {
             SessionSummaryCreatedPayload {
                 session_id,
                 memory_id,
-                summary: response.text.clone(),
+                summary: summary_json.clone(),
             },
         ))?;
 
@@ -187,9 +332,8 @@ impl NightlyService {
             self.completion_provider.clone(),
         );
 
-        let summary_text = response.text;
         if let Err(e) = conflict_service
-            .check_for_conflicts(&session_id, &summary_text)
+            .check_for_conflicts(&session_id, &summary_json)
             .await
         {
             tracing::error!(
@@ -199,7 +343,7 @@ impl NightlyService {
             );
         }
         if let Err(e) = recipe_service
-            .promote_recipes(&session_id, &summary_text)
+            .promote_recipes(&session_id, &summary_json)
             .await
         {
             tracing::error!("Recipe promotion failed for session {}: {}", session_id, e);

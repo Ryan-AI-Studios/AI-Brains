@@ -23,6 +23,8 @@ pub fn build_preflight(
     let active = active_sessions(conn, project_id)?;
     let conn = conn.lock()?;
 
+    let project_id_str: Option<String> = project_id.map(|p| p.to_string());
+
     let mut sections = Vec::new();
 
     // --- Onboarding & Safety Section (Max 15% of budget) ---
@@ -30,13 +32,26 @@ pub fn build_preflight(
     let mut safety_lines = Vec::new();
     let mut safety_ids: HashSet<String> = HashSet::new();
 
-    let mut safety_stmt = conn.prepare(
+    let safety_sql = if project_id_str.is_some() {
+        "SELECT m.memory_id, m.content FROM memory_projection m
+         INNER JOIN session_projection s ON m.session_id = s.session_id
+         WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
+         AND m.status = 'pinned'
+         AND s.project_id = ?1
+         ORDER BY m.updated_at DESC LIMIT 10"
+    } else {
         "SELECT memory_id, content FROM memory_projection
          WHERE (content LIKE '%CONSTRAINT:%' OR content LIKE '%INVARIANT:%' OR content LIKE '%HOTSPOT:%')
          AND status = 'pinned'
          ORDER BY updated_at DESC LIMIT 10"
-    )?;
-    let mut safety_rows = safety_stmt.query([])?;
+    };
+
+    let mut safety_stmt = conn.prepare(safety_sql)?;
+    let mut safety_rows = if let Some(ref pid) = project_id_str {
+        safety_stmt.query(rusqlite::params![pid])?
+    } else {
+        safety_stmt.query([])?
+    };
     while let Some(row) = safety_rows.next()? {
         let memory_id: String = row.get(0)?;
         let content: String = row.get(1)?;
@@ -64,18 +79,27 @@ pub fn build_preflight(
         sections.push(session_texts.join("\n\n"));
     }
 
-    // --- General Memory Index (excluding entries already in the safety section) ---
-    let mut sql = "SELECT memory_id, content, privacy
+    // --- General Memory Index (scoped to current project when project_id is known) ---
+    let index_sql = if project_id_str.is_some() {
+        "SELECT m.memory_id, m.content, m.privacy
+         FROM memory_projection m
+         INNER JOIN session_projection s ON m.session_id = s.session_id
+         WHERE m.status = 'pinned'
+         AND s.project_id = ?1
+         ORDER BY m.updated_at DESC"
+    } else {
+        "SELECT memory_id, content, privacy
          FROM memory_projection
-         WHERE status = 'pinned'"
-        .to_string();
+         WHERE status = 'pinned'
+         ORDER BY updated_at DESC"
+    };
 
-    // Placeholder for memory project filtering
-
-    sql.push_str(" ORDER BY updated_at DESC");
-
-    let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query([])?;
+    let mut stmt = conn.prepare(index_sql)?;
+    let mut rows = if let Some(ref pid) = project_id_str {
+        stmt.query(rusqlite::params![pid])?
+    } else {
+        stmt.query([])?
+    };
     let mut collected = Vec::new();
 
     while let Some(row) = rows.next()? {

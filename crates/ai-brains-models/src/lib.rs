@@ -42,12 +42,29 @@ pub struct EmbeddingResponse {
     pub vector: Vec<f32>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenizeRequest {
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenizeResponse {
+    pub tokens: Vec<u32>,
+}
+
 #[async_trait]
 pub trait ModelProvider: Send + Sync {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse>;
     async fn embed(&self, request: EmbeddingRequest) -> Result<EmbeddingResponse>;
+    async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse>;
     fn name(&self) -> &str;
     fn is_local(&self) -> bool;
+}
+
+pub fn estimate_tokens(text: &str) -> usize {
+    // Heuristic: 1 token per 3.5 characters (conservative)
+    // Most models are ~4 chars/token, so 3.5 gives us a safety margin.
+    (text.len() as f32 / 3.5).ceil() as usize
 }
 
 pub use mock::MockProvider;

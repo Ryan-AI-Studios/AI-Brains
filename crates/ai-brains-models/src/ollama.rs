@@ -1,6 +1,6 @@
 use crate::{
     CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, ModelError,
-    ModelProvider, Result,
+    ModelProvider, Result, TokenizeRequest, TokenizeResponse,
 };
 use async_trait::async_trait;
 use serde::Serialize;
@@ -22,6 +22,12 @@ struct OllamaCompletionRequest<'a> {
 
 #[derive(Serialize)]
 struct OllamaEmbeddingRequest<'a> {
+    model: &'a str,
+    prompt: &'a str,
+}
+
+#[derive(Serialize)]
+struct OllamaTokenizeRequest<'a> {
     model: &'a str,
     prompt: &'a str,
 }
@@ -114,6 +120,41 @@ impl ModelProvider for OllamaProvider {
             .collect();
 
         Ok(EmbeddingResponse { vector })
+    }
+
+    async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse> {
+        let client = reqwest::Client::new();
+        let body = OllamaTokenizeRequest {
+            model: &self.model,
+            prompt: &request.text,
+        };
+
+        let res = client
+            .post(format!("{}/api/tokenize", self.endpoint))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ModelError::Network(e.to_string()))?;
+
+        if !res.status().is_success() {
+            return Err(ModelError::Provider(format!(
+                "Ollama (tokenize) returned {}",
+                res.status()
+            )));
+        }
+
+        let json: serde_json::Value = res
+            .json()
+            .await
+            .map_err(|e| ModelError::Provider(e.to_string()))?;
+        let tokens = json["tokens"]
+            .as_array()
+            .ok_or_else(|| ModelError::Provider("Missing tokens field".to_string()))?
+            .iter()
+            .map(|v| v.as_u64().unwrap_or(0) as u32)
+            .collect();
+
+        Ok(TokenizeResponse { tokens })
     }
 
     fn name(&self) -> &str {
