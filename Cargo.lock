@@ -65,6 +65,7 @@ dependencies = [
  "ai-brains-capture",
  "ai-brains-contracts",
  "ai-brains-core",
+ "ai-brains-store",
  "dirs",
  "rusqlite",
  "serde",

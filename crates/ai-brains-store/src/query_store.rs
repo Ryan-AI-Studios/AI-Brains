@@ -41,10 +41,14 @@ impl QueryStore for VaultConnection {
         Ok(results)
     }
 
-    fn get_session_status(&self, session_id: &ai_brains_core::ids::SessionId) -> Result<Option<String>> {
+    fn get_session_status(
+        &self,
+        session_id: &ai_brains_core::ids::SessionId,
+    ) -> Result<Option<String>> {
         use rusqlite::{params, OptionalExtension};
         let conn = self.lock()?;
-        let mut stmt = conn.prepare("SELECT status FROM session_projection WHERE session_id = ?")?;
+        let mut stmt =
+            conn.prepare("SELECT status FROM session_projection WHERE session_id = ?")?;
         let status: Option<String> = stmt
             .query_row(params![session_id.to_string()], |row| row.get(0))
             .optional()?;

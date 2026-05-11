@@ -22,13 +22,8 @@ pub fn run(ctx: &AppContext, days: usize) -> Result<(), Box<dyn std::error::Erro
         .unwrap_or_default();
 
     let query_store = ctx.conn.clone() as std::sync::Arc<dyn ai_brains_store::QueryStore>;
-    let (total_turns, sessions_imported) = import_antigravity_sessions(
-        query_store.as_ref(),
-        &service,
-        &mut sink,
-        days,
-        project_id,
-    )?;
+    let (total_turns, sessions_imported) =
+        import_antigravity_sessions(query_store.as_ref(), &service, &mut sink, days, project_id)?;
 
     if let Some(err) = sink.last_error {
         return Err(format!("Antigravity import encountered an error: {}", err).into());
