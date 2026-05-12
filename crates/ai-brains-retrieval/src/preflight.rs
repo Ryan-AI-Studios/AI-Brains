@@ -37,7 +37,7 @@ pub fn build_preflight(
          LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
          AND m.status = 'pinned'
-         AND (s.project_id = ?1 OR m.project_id = ?1)
+         AND (s.project_id = ? OR m.project_id = ?)
          ORDER BY m.updated_at DESC LIMIT 10"
     } else {
         "SELECT memory_id, content, updated_at FROM memory_projection
@@ -90,7 +90,7 @@ pub fn build_preflight(
          FROM memory_projection m
          LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE m.status = 'pinned'
-         AND (s.project_id = ?1 OR m.project_id = ?1)
+         AND (s.project_id = ? OR m.project_id = ?)
          ORDER BY m.updated_at DESC"
     } else {
         "SELECT memory_id, content, privacy, updated_at
