@@ -51,6 +51,9 @@ enum Commands {
         /// Output human-readable text instead of JSON
         #[arg(long)]
         pretty: bool,
+        /// Output format: 'json' (default) or 'human'
+        #[arg(long, default_value = "json")]
+        format: String,
         /// Comma-separated target file/directory paths for contextual risk analysis
         #[arg(long, env = "AI_BRAINS_SCOPE", value_delimiter = ',')]
         scope: Vec<String>,
@@ -280,10 +283,16 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     max_words,
                     project_id,
                     pretty,
+                    format,
                     scope,
-                } => {
-                    commands::preflight::run(&ctx, *max_words, *project_id, *pretty, scope.clone())
-                }
+                } => commands::preflight::run(
+                    &ctx,
+                    *max_words,
+                    *project_id,
+                    *pretty,
+                    format.clone(),
+                    scope.clone(),
+                ),
                 Commands::Nightly {
                     schedule,
                     unschedule,

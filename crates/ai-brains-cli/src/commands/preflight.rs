@@ -8,6 +8,7 @@ pub fn run(
     max_words: usize,
     project_id: Option<ProjectId>,
     pretty: bool,
+    format: String,
     scope: Vec<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Attempt to open graph vault next to the main vault
@@ -34,7 +35,8 @@ pub fn run(
         scope_paths,
     )?;
 
-    if pretty {
+    let human_mode = pretty || format.eq_ignore_ascii_case("human");
+    if human_mode {
         println!("{}", context.text);
     } else {
         let response = PreflightContextResponse {

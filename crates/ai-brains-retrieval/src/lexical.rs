@@ -74,8 +74,7 @@ pub fn lexical_search(
 /// database syntax error.
 fn sanitize_for_fts5(query: &str) -> String {
     // Replace punctuation known to confuse the FTS5 query parser.
-    let normalized: String =
-        query.replace(['?', '"', '*', '(', ')', '.', '-', ':'], " ");
+    let normalized: String = query.replace(['?', '"', '*', '(', ')', '.', '-', ':'], " ");
 
     // Filter out bare FTS5 operator keywords so they are not interpreted as
     // boolean operators.

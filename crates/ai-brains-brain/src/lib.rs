@@ -127,6 +127,7 @@ impl NightlyService {
         }
 
         // Run hierarchical synthesis
+        eprintln!("[Nightly] Running hierarchical memory synthesis...");
         let synthesizer = MemorySynthesizer::new(
             self.query_store.clone(),
             self.event_store.clone(),
@@ -134,15 +135,23 @@ impl NightlyService {
         );
         if let Err(e) = synthesizer.run_synthesis(1, project_id).await {
             tracing::error!("Memory synthesis failed: {}", e);
+            eprintln!("[Nightly] Memory synthesis failed: {}", e);
+        } else {
+            eprintln!("[Nightly] Memory synthesis complete.");
         }
 
         // Retention Cleanup (90 days)
+        eprintln!("[Nightly] Running retention cleanup (90-day horizon)...");
         let retention = RetentionService::new(self.query_store.clone(), 90);
         if let Err(e) = retention.run_cleanup().await {
             tracing::error!("Retention cleanup failed: {}", e);
+            eprintln!("[Nightly] Retention cleanup failed: {}", e);
+        } else {
+            eprintln!("[Nightly] Retention cleanup complete.");
         }
 
         // Cross-Agent Synthesis (Phase 15)
+        eprintln!("[Nightly] Running cross-agent synthesis...");
         let cross_agent = AggregatedLearningsService::new(
             self.query_store.clone(),
             self.event_store.clone(),
@@ -150,12 +159,19 @@ impl NightlyService {
         );
         if let Err(e) = cross_agent.run_cross_agent_synthesis(project_id).await {
             tracing::error!("Cross-agent synthesis failed: {}", e);
+            eprintln!("[Nightly] Cross-agent synthesis failed: {}", e);
+        } else {
+            eprintln!("[Nightly] Cross-agent synthesis complete.");
         }
 
         // Feedback Loop Accuracy Check
+        eprintln!("[Nightly] Running feedback-loop accuracy check...");
         let feedback = FeedbackLoopService::new(self.query_store.clone(), self.event_store.clone());
         if let Err(e) = feedback.run_accuracy_check(project_id).await {
             tracing::error!("Feedback loop check failed: {}", e);
+            eprintln!("[Nightly] Feedback loop accuracy check failed: {}", e);
+        } else {
+            eprintln!("[Nightly] Feedback-loop accuracy check complete.");
         }
 
         Ok(count)

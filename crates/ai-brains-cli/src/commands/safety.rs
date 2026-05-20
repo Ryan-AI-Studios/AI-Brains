@@ -68,6 +68,20 @@ pub fn run(
 
     let content = render_hotspots(&hotspots);
 
+    // Print each hotspot with its risk metrics so the user sees what changed
+    println!("--- Hotspot Details ---");
+    for (i, h) in hotspots.iter().enumerate() {
+        println!(
+            "  {}. {} (score: {:.4}, freq: {}, complexity: {})",
+            i + 1,
+            h.path,
+            h.score,
+            h.frequency,
+            h.complexity
+        );
+    }
+    println!("--- End Hotspot Details ---");
+
     super::pin::run(
         ctx,
         content,
@@ -77,7 +91,10 @@ pub fn run(
         None,
     )?;
 
-    println!("Safety synchronization complete.");
+    println!(
+        "Safety synchronization complete. {} hotspot(s) pinned to vault.",
+        hotspots.len()
+    );
     Ok(())
 }
 

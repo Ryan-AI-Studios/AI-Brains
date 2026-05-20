@@ -140,10 +140,16 @@ fn query_changeguard_bridge(
             continue;
         }
 
+        // Defensive: stdout may contain tracing/log lines mixed with NDJSON.
+        // Skip anything that does not look like a JSON object or array.
+        if !line.starts_with('{') && !line.starts_with('[') {
+            continue;
+        }
+
         let record: BridgeRecord = match serde_json::from_str(line) {
             Ok(r) => r,
-            Err(e) => {
-                eprintln!("Failed to parse bridge search response line: {}", e);
+            Err(_e) => {
+                // Silently skip malformed JSON lines mixed into stdout.
                 continue;
             }
         };
