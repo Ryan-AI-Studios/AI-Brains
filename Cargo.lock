@@ -78,9 +78,11 @@ dependencies = [
 name = "ai-brains-brain"
 version = "0.1.0"
 dependencies = [
+ "ai-brains-contracts",
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-events",
+ "ai-brains-graph",
  "ai-brains-models",
  "ai-brains-store",
  "async-trait",
@@ -105,8 +107,12 @@ dependencies = [
  "ai-brains-events",
  "ai-brains-git",
  "ai-brains-security",
+ "chrono",
+ "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
@@ -218,6 +224,7 @@ dependencies = [
 name = "ai-brains-graph"
 version = "0.1.0"
 dependencies = [
+ "ai-brains-contracts",
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-events",

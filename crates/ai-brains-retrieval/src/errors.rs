@@ -8,4 +8,8 @@ pub enum RetrievalError {
     Sql(#[from] rusqlite::Error),
     #[error("store error: {0}")]
     Store(#[from] ai_brains_store::StoreError),
+    #[error("IPC bridge error: {0}")]
+    Ipc(String),
+    #[error("deserialization error: {0}")]
+    Deserialization(String),
 }

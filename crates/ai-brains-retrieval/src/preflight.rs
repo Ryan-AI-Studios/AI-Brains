@@ -19,6 +19,7 @@ pub fn build_preflight(
     _graph: Option<&GraphSearch>,
     max_words: usize,
     project_id: Option<ai_brains_core::ids::ProjectId>,
+    scope_paths: Option<Vec<String>>,
 ) -> Result<PreflightContext> {
     let active = active_sessions(conn, project_id)?;
     let conn = conn.lock()?;
@@ -29,7 +30,7 @@ pub fn build_preflight(
 
     // --- ChangeGuard Blended Section (New) ---
     if let Some(ref pid) = project_id_str {
-        if let Some(cg_context) = query_changeguard(pid) {
+        if let Some(cg_context) = query_changeguard(pid, scope_paths.as_ref()) {
             sections.push(cg_context);
         }
     }
@@ -241,12 +242,122 @@ pub fn build_preflight(
     })
 }
 
-fn query_changeguard(_project_id: &str) -> Option<String> {
+fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Option<String> {
     // 1. Create a temp file
     let temp_file = tempfile::NamedTempFile::new().ok()?;
     let temp_path = temp_file.path().to_path_buf();
 
-    // 2. Invoke changeguard bridge export --out <temp_path> --hotspots
+    // 2. Build the command with optional scope
+    let mut cmd = std::process::Command::new("changeguard");
+    cmd.args([
+        "bridge",
+        "export",
+        "--out",
+        &temp_path.to_string_lossy(),
+        "--hotspots",
+    ]);
+
+    // If scope is provided, append --scope <comma-separated paths>
+    if let Some(paths) = scope_paths {
+        if !paths.is_empty() {
+            cmd.arg("--scope");
+            cmd.arg(paths.join(","));
+        }
+    }
+
+    let output = cmd.output().ok()?;
+
+    if !output.status.success() {
+        // Fail-open: if contextual query fails, fall through to generic query
+        if scope_paths.is_some() {
+            return query_changeguard_fallback();
+        }
+        return None;
+    }
+
+    // 3. Read the temp file, deserialize records, construct a clean text response
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    let file = File::open(&temp_path).ok()?;
+    let reader = BufReader::new(file);
+
+    let is_contextual = scope_paths.is_some();
+    let mut hotspots = Vec::new();
+    for line in reader.lines() {
+        let line = line.ok()?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        if let Ok(record) = serde_json::from_str::<ai_brains_contracts::bridge::BridgeRecord>(&line)
+        {
+            if record.record_kind == "hotspot_delta" {
+                if let Some(path) = record.payload.get("path").and_then(|v| v.as_str()) {
+                    let score = record
+                        .payload
+                        .get("score")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+                    let reason = record
+                        .payload
+                        .get("reason")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+
+                    if is_contextual {
+                        // Parse contextual risk fields for scope-based queries
+                        let temporal_coupling = record
+                            .payload
+                            .get("temporal_coupling")
+                            .and_then(|v| v.as_f64());
+                        let failure_probability = record
+                            .payload
+                            .get("failure_probability")
+                            .and_then(|v| v.as_f64());
+
+                        let mut entry = format!("- {} (Risk: {:.2}", path, score);
+                        if let Some(tc) = temporal_coupling {
+                            entry.push_str(&format!(" | Temporal Coupling: {:.2}", tc));
+                        }
+                        if let Some(fp) = failure_probability {
+                            entry.push_str(&format!(" | Failure Prob: {:.1}%", fp * 100.0));
+                        }
+                        if !reason.is_empty() {
+                            entry.push_str(&format!(" | Reason: {}", reason));
+                        }
+                        entry.push_str(") [Source: ChangeGuard Contextual]");
+                        hotspots.push(entry);
+                    } else {
+                        hotspots.push(format!(
+                            "- {} (Score: {:.2}, Reason: {}) [Source: ChangeGuard]",
+                            path, score, reason
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    if hotspots.is_empty() {
+        None
+    } else if is_contextual {
+        Some(format!(
+            "--- ChangeGuard Intelligence (Contextual Risk) ---\nTop Impacted Hotspots for Current Scope:\n{}",
+            hotspots.join("\n")
+        ))
+    } else {
+        Some(format!(
+            "--- ChangeGuard Intelligence ---\nTop Hotspots:\n{}",
+            hotspots.join("\n")
+        ))
+    }
+}
+
+/// Fallback: run a generic (non-scoped) hotspot query when contextual query fails.
+/// Implements the fail-open requirement.
+fn query_changeguard_fallback() -> Option<String> {
+    let temp_file = tempfile::NamedTempFile::new().ok()?;
+    let temp_path = temp_file.path().to_path_buf();
+
     let output = std::process::Command::new("changeguard")
         .args([
             "bridge",
@@ -262,7 +373,6 @@ fn query_changeguard(_project_id: &str) -> Option<String> {
         return None;
     }
 
-    // 3. Read the temp file, deserialize records, construct a clean text response
     use std::fs::File;
     use std::io::{BufRead, BufReader};
     let file = File::open(&temp_path).ok()?;
@@ -289,7 +399,7 @@ fn query_changeguard(_project_id: &str) -> Option<String> {
                         .and_then(|v| v.as_str())
                         .unwrap_or("");
                     hotspots.push(format!(
-                        "- {} (Score: {:.2}, Reason: {}) [Source: ChangeGuard]",
+                        "- {} (Score: {:.2}, Reason: {}) [Source: ChangeGuard Fallback]",
                         path, score, reason
                     ));
                 }
@@ -301,7 +411,7 @@ fn query_changeguard(_project_id: &str) -> Option<String> {
         None
     } else {
         Some(format!(
-            "--- ChangeGuard Intelligence ---\nTop Hotspots:\n{}",
+            "--- ChangeGuard Intelligence (Fallback - Contextual Unavailable) ---\nTop Hotspots:\n{}",
             hotspots.join("\n")
         ))
     }

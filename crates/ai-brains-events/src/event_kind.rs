@@ -33,6 +33,10 @@ pub enum EventKind {
     FeedbackMetric,
     PredictionRecorded,
     VerifyOutcomeRecorded,
+    DecisionRecorded,
+
+    // Verification gating (T43)
+    IngestGateRejected,
 
     // Catch-all for forward compatibility
     #[serde(other)]

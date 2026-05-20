@@ -171,7 +171,11 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
 #[allow(clippy::disallowed_methods)]
 fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std::error::Error>> {
     // Check if changeguard CLI is available
-    if std::process::Command::new("changeguard").arg("--version").output().is_err() {
+    if std::process::Command::new("changeguard")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
         println!("Skipping E2E test: changeguard CLI not found in PATH.");
         return Ok(());
     }
@@ -195,14 +199,26 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     let mut git_init = std::process::Command::new("git");
     git_init.arg("init").current_dir(&ws_path).output()?;
     let mut git_add = std::process::Command::new("git");
-    git_add.arg("add").arg("src/main.rs").current_dir(&ws_path).output()?;
+    git_add
+        .arg("add")
+        .arg("src/main.rs")
+        .current_dir(&ws_path)
+        .output()?;
     let mut git_commit = std::process::Command::new("git");
-    git_commit.arg("-c").arg("user.name=Test").arg("-c").arg("user.email=test@example.com")
-        .arg("commit").arg("-m").arg("initial commit").current_dir(&ws_path).output()?;
+    git_commit
+        .arg("-c")
+        .arg("user.name=Test")
+        .arg("-c")
+        .arg("user.email=test@example.com")
+        .arg("commit")
+        .arg("-m")
+        .arg("initial commit")
+        .current_dir(&ws_path)
+        .output()?;
 
-    // Run changeguard scan
+    // Run changeguard scan with impact analysis
     let mut cg_scan = std::process::Command::new("changeguard");
-    cg_scan.arg("scan").current_dir(&ws_path);
+    cg_scan.arg("scan").arg("--impact").current_dir(&ws_path);
     let output = cg_scan.output()?;
     assert!(output.status.success(), "changeguard scan failed");
 
@@ -223,8 +239,14 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
         .arg("context")
         .current_dir(&ws_path)
         .output()?;
-    println!("CONTEXT STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
-    println!("CONTEXT STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+    println!(
+        "CONTEXT STDOUT:\n{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    println!(
+        "CONTEXT STDERR:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(output.status.success());
 
     // 4. Verify that data was successfully pulled into the SQLite database.
@@ -236,12 +258,15 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     // Check last_inbound_hash was set
     let last_inbound_hash: Option<String> = conn_lock
         .query_row(
-            "SELECT val FROM sync_state WHERE key = 'last_inbound_hash'",
+            "SELECT value FROM sync_state WHERE key = 'last_inbound_hash'",
             [],
             |r| r.get(0),
         )
         .ok();
-    assert!(last_inbound_hash.is_some(), "last_inbound_hash should have been populated by auto-trigger pull");
+    assert!(
+        last_inbound_hash.is_some(),
+        "last_inbound_hash should have been populated by auto-trigger pull"
+    );
 
     // 5. Insert a mock memory into memory_projection to push back to ChangeGuard
     let project_id_str = std::fs::read_to_string(ws_path.join(".env"))?
@@ -287,11 +312,19 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
         .current_dir(&ws_path)
         .assert()
         .success()
-        .stdout(predicate::str::contains("Successfully pushed insights to ChangeGuard."));
+        .stdout(predicate::str::contains(
+            "Successfully pushed insights to ChangeGuard.",
+        ));
 
     // 7. Verify that ChangeGuard's latest-impact.json contains our pushed memory insight
-    let latest_impact_path = ws_path.join(".changeguard").join("state").join("latest-impact.json");
-    assert!(latest_impact_path.exists(), "latest-impact.json should exist in .changeguard/state/");
+    let latest_impact_path = ws_path
+        .join(".changeguard")
+        .join("reports")
+        .join("latest-impact.json");
+    assert!(
+        latest_impact_path.exists(),
+        "latest-impact.json should exist in .changeguard/reports/"
+    );
 
     let impact_content = std::fs::read_to_string(&latest_impact_path)?;
     assert!(

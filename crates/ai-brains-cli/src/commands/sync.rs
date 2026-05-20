@@ -144,7 +144,10 @@ pub fn run_pull(
                 .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new()),
             None => ai_brains_core::ids::SessionId::new(),
         };
-        let tx_id = record.tx_id.as_ref().map(|s| ai_brains_core::ids::TransactionId::new(s.clone()));
+        let tx_id = record
+            .tx_id
+            .as_ref()
+            .map(|s| ai_brains_core::ids::TransactionId::new(s.clone()));
 
         // Apply Privacy::combine() during sync ingestion — combine incoming record privacy with project session privacy.
         let session_privacy = sink

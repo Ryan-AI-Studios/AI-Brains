@@ -12,5 +12,9 @@ ai-brains-core = { path = "../ai-brains-core" }
 ai-brains-events = { path = "../ai-brains-events" }
 ai-brains-git = { path = "../ai-brains-git" }
 ai-brains-security = { path = "../ai-brains-security" }
+serde = { workspace = true }
 serde_json.workspace = true
 thiserror.workspace = true
+chrono = { workspace = true }
+tempfile = "3.10"
+tracing = { workspace = true }

@@ -1,9 +1,9 @@
 # Conductor Master Track Board
 
 ## Project Status
-**Status:** In Progress
-**Phase:** Phase 17 - ChangeGuard Integration [COMPLETED]
-**Current Track:** Final Cleanup & Release Handover
+**Status:** Completed
+**Phase:** Phase 18 - True Unification [COMPLETED]
+**Current Track:** None (all tracks complete)
 **Verification:** Full Windows workspace gate is green as of 2026-05-19.
 
 ## Track Registry
@@ -47,6 +47,9 @@
 | T38 | Structured Bridge (NDJSON Fallback) | **Completed** | Orchestrator | [T38](./tracks/trackT38/spec.md) | Define BridgeRecord schema and implement sync pull from NDJSON. |
 | T39 | Real-Time Bridge (IPC) | **Completed** | Orchestrator | [T39](./tracks/trackT39/spec.md) | Named-pipe/Local-HTTP handoff between ai-brainsd and ChangeGuard. |
 | T40 | Unified Retrieval & Feedback Loop | **Completed** | Orchestrator | [T40](./tracks/trackT40/spec.md) | Blended preflight/ask results; nightly sweep accuracy checks. |
+| T41 | Risk-Weighted Preflight & MADR Ingestion | **Completed** | Orchestrator | [T41](./tracks/trackT41/spec.md) | Contextual risk preflight + structured MADR ingestion from ChangeGuard. |
+| T42 | Shared Knowledge Graph & Unified Search | **Completed** | Orchestrator | [T42](./tracks/trackT42/spec.md) | CozoProxyBackend + unified IPC recall via ChangeGuard Tantivy/CozoDB. |
+| T43 | Predictive Verification Gating & Intervention | **In Progress** | Orchestrator | [T43](./tracks/trackT43/spec.md) | Ingest-final verification gate + RiskReviewAgent for proactive intervention. |
 
 ## Completed Phase: Phase 17 - ChangeGuard Integration
 - [x] Bidirectional structured sync with ChangeGuard via `BridgeRecord`.
@@ -55,3 +58,11 @@
 - [x] Auto-discovery of project IDs from `.changeguard` metadata.
 - [x] Nightly feedback loop with prediction accuracy metrics.
 - [x] Verified via CI gate and ChangeGuard ledger.
+
+## Current Phase: Phase 18 - True Unification (In Progress)
+
+- [x] **Part 1 — Unified Architectural Ledger & Risk-Weighted Preflight** (T41 + C1)
+- [x] **Part 2 — Shared Knowledge Graph & Search** (T42 + C2)
+- [x] **Part 3 — Predictive Verification Gating** (T43 + C3)
+
+Cross-repo tracks in ChangeGuard: Milestone C (C1, C2, C3). See `C:\dev\ChangeGuard\conductor\conductor.md`.

@@ -167,8 +167,9 @@ where
 
                             // Parse string IDs from interchange format for internal use.
                             use std::str::FromStr;
-                            let project_id = ai_brains_core::ids::ProjectId::from_str(&record.project_id)
-                                .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new());
+                            let project_id =
+                                ai_brains_core::ids::ProjectId::from_str(&record.project_id)
+                                    .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new());
                             let session_id = match &record.session_id {
                                 Some(s) => ai_brains_core::ids::SessionId::from_str(s)
                                     .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new()),

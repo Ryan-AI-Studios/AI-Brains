@@ -11,7 +11,7 @@ fn privacy_filter_excludes_never_inject() -> Result<(), Box<dyn std::error::Erro
     assert!(results.is_empty());
 
     let project_id = ai_brains_core::ids::ProjectId::from_uuid(uuid::Uuid::nil());
-    let preflight = build_preflight(store.connection(), None, 1500, Some(project_id))?;
+    let preflight = build_preflight(store.connection(), None, 1500, Some(project_id), None)?;
     assert!(preflight.text.is_empty());
     Ok(())
 }

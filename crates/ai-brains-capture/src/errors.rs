@@ -14,6 +14,16 @@ impl std::fmt::Display for ValidationError {
     }
 }
 
+/// Structured payload carried by [`CaptureError::VerificationGateRejected`].
+#[derive(Debug, Clone)]
+pub struct VerificationGateRejection {
+    pub session_id: ai_brains_core::ids::SessionId,
+    pub failure_probability: f64,
+    pub drift_detected: bool,
+    pub risk_level: String,
+    pub explanation: String,
+}
+
 #[derive(Debug, Error)]
 pub enum CaptureError {
     #[error("unsupported role: {0}")]
@@ -24,6 +34,14 @@ pub enum CaptureError {
     EmptyFinal,
     #[error("session stop reason is required for failed status")]
     MissingFailureReason,
+    #[error(
+        "verification gate rejected ingest: {explanation} (failure_prob={failure_probability:.2}, drift={drift_detected}, risk={risk_level})",
+        failure_probability = .0.failure_probability,
+        drift_detected = .0.drift_detected,
+        risk_level = .0.risk_level,
+        explanation = .0.explanation
+    )]
+    VerificationGateRejected(VerificationGateRejection),
     #[error("event build failed: {0}")]
     Event(#[from] ai_brains_events::EventError),
     #[error("json parse failed: {0}")]

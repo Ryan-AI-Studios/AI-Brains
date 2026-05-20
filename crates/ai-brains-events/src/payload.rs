@@ -137,6 +137,49 @@ pub struct VerifyOutcomeRecordedPayload {
     pub affected_paths: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngestGateRejectedPayload {
+    pub session_id: SessionId,
+    /// Human-readable reason for rejection.
+    pub reason: String,
+    /// Predicted failure probability (0.0 – 1.0) from ChangeGuard.
+    pub failure_probability: f64,
+    /// Whether ChangeGuard detected ledger drift.
+    pub drift_detected: bool,
+    /// Risk level string: "low", "medium", "high", or "critical".
+    pub risk_level: String,
+    /// Full explanation payload from the verification engine.
+    pub explanation: String,
+}
+
+impl PartialEq for IngestGateRejectedPayload {
+    fn eq(&self, other: &Self) -> bool {
+        self.session_id == other.session_id
+            && self.reason == other.reason
+            && self.failure_probability.to_bits() == other.failure_probability.to_bits()
+            && self.drift_detected == other.drift_detected
+            && self.risk_level == other.risk_level
+            && self.explanation == other.explanation
+    }
+}
+
+impl Eq for IngestGateRejectedPayload {}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DecisionRecordedPayload {
+    pub decision_id: MemoryId,
+    pub title: String,
+    pub context: String,
+    pub decision: String,
+    pub consequences: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<ProjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<SessionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tx_id: Option<TransactionId>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "PascalCase")]
 pub enum Payload {
@@ -159,6 +202,8 @@ pub enum Payload {
     FeedbackMetric(FeedbackMetricPayload),
     PredictionRecorded(PredictionRecordedPayload),
     VerifyOutcomeRecorded(VerifyOutcomeRecordedPayload),
+    DecisionRecorded(DecisionRecordedPayload),
+    IngestGateRejected(IngestGateRejectedPayload),
 
     /// Used for unknown future events to prevent deserialization failure
     #[serde(other)]

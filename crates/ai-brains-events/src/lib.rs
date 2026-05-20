@@ -15,9 +15,10 @@ pub use envelope::Envelope;
 pub use errors::EventError;
 pub use event_kind::EventKind;
 pub use payload::{
-    AssistantFinalRecordedPayload, ConflictDetectedPayload, FeedbackMetricPayload,
-    MemoryForgottenPayload, MemoryPinnedPayload, MemoryRestoredPayload, MemorySynthesizedPayload,
-    Payload, PredictionRecordedPayload, ProjectRegisteredPayload, RecipePromotedPayload,
-    SessionCompletedPayload, SessionFailedPayload, SessionStartedPayload,
-    SessionSummaryCreatedPayload, UserPromptRecordedPayload, VerifyOutcomeRecordedPayload,
+    AssistantFinalRecordedPayload, ConflictDetectedPayload, DecisionRecordedPayload,
+    FeedbackMetricPayload, IngestGateRejectedPayload, MemoryForgottenPayload, MemoryPinnedPayload,
+    MemoryRestoredPayload, MemorySynthesizedPayload, Payload, PredictionRecordedPayload,
+    ProjectRegisteredPayload, RecipePromotedPayload, SessionCompletedPayload, SessionFailedPayload,
+    SessionStartedPayload, SessionSummaryCreatedPayload, UserPromptRecordedPayload,
+    VerifyOutcomeRecordedPayload,
 };

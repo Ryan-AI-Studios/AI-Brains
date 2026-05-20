@@ -120,6 +120,35 @@ impl Projection for MemoryProjection {
                     rusqlite::params!["forgotten", occurred_at, p.memory_id.to_string()],
                 )?;
             }
+            Payload::DecisionRecorded(p) => {
+                let content = MemoryProjection::format_madr_markdown(
+                    &p.title,
+                    &p.context,
+                    &p.decision,
+                    &p.consequences,
+                );
+                tx.execute(
+                    "INSERT INTO memory_projection (memory_id, session_id, project_id, content, privacy, status, level, tx_id, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     ON CONFLICT(memory_id) DO UPDATE SET
+                        content = excluded.content,
+                        session_id = COALESCE(excluded.session_id, memory_projection.session_id),
+                        project_id = COALESCE(excluded.project_id, memory_projection.project_id),
+                        updated_at = excluded.updated_at",
+                    rusqlite::params![
+                        p.decision_id.to_string(),
+                        p.session_id.as_ref().map(|s| s.to_string()),
+                        p.project_id.as_ref().map(|s| s.to_string()),
+                        content,
+                        privacy_json,
+                        "pinned",
+                        0,
+                        p.tx_id.as_ref().map(|t| t.to_string()),
+                        occurred_at,
+                        occurred_at
+                    ],
+                )?;
+            }
             _ => {}
         }
         Ok(())
@@ -127,6 +156,18 @@ impl Projection for MemoryProjection {
 }
 
 impl MemoryProjection {
+    fn format_madr_markdown(
+        title: &str,
+        context: &str,
+        decision: &str,
+        consequences: &str,
+    ) -> String {
+        format!(
+            "# {}\n\n## Context\n{}\n\n## Decision\n{}\n\n## Consequences\n{}",
+            title, context, decision, consequences
+        )
+    }
+
     fn escalate_session_privacy(
         &self,
         tx: &Transaction,
@@ -158,5 +199,39 @@ impl MemoryProjection {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MemoryProjection;
+
+    #[test]
+    fn format_madr_markdown_produces_valid_madr() {
+        let result = MemoryProjection::format_madr_markdown(
+            "ADR-001: Use Rust for Core Engine",
+            "We evaluated Rust, Go, and Python for the core engine.",
+            "We selected Rust for its safety guarantees and zero-cost abstractions.",
+            "Increased compile times but eliminated entire classes of runtime bugs.",
+        );
+
+        assert!(result.starts_with("# ADR-001: Use Rust for Core Engine"));
+        assert!(result.contains("## Context\nWe evaluated Rust, Go, and Python"));
+        assert!(result.contains("## Decision\nWe selected Rust"));
+        assert!(result.contains("## Consequences\nIncreased compile times"));
+    }
+
+    #[test]
+    fn format_madr_markdown_handles_multiline_fields() {
+        let result = MemoryProjection::format_madr_markdown(
+            "ADR: Multiline",
+            "Context line 1\nContext line 2",
+            "Decision line 1\nDecision line 2",
+            "Consequence line 1\nConsequence line 2",
+        );
+
+        assert!(result.contains("Context line 1\nContext line 2"));
+        assert!(result.contains("Decision line 1\nDecision line 2"));
+        assert!(result.contains("Consequence line 1\nConsequence line 2"));
     }
 }

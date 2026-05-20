@@ -11,7 +11,7 @@ fn preflight_does_not_duplicate_safety_entries_in_index() -> Result<(), Box<dyn 
     let store = common::store_with_memory(content, Privacy::CloudOk)?;
 
     let project_id = ai_brains_core::ids::ProjectId::from_uuid(uuid::Uuid::nil());
-    let context = build_preflight(store.connection(), None, 1500, Some(project_id))?;
+    let context = build_preflight(store.connection(), None, 1500, Some(project_id), None)?;
 
     // The content should appear exactly once (in the safety section),
     // NOT duplicated in the memory index or most-recent section

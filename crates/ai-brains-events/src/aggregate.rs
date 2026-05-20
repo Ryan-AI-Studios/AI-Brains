@@ -11,6 +11,7 @@ pub enum AggregateType {
     Job,
     Conflict,
     Recipe,
+    Decision,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

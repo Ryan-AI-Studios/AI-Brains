@@ -7,7 +7,9 @@ license.workspace = true
 
 [dependencies]
 ai-brains-core = { path = "../ai-brains-core" }
+ai-brains-contracts = { path = "../ai-brains-contracts" }
 ai-brains-events = { path = "../ai-brains-events" }
+ai-brains-graph = { path = "../ai-brains-graph" }
 ai-brains-store = { path = "../ai-brains-store" }
 ai-brains-models = { path = "../ai-brains-models" }
 serde = { workspace = true }
@@ -19,6 +21,7 @@ async-trait = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 rusqlite = { workspace = true }
+tempfile = "3.10"
 
 [dev-dependencies]
 ai-brains-crypto = { path = "../ai-brains-crypto" }
