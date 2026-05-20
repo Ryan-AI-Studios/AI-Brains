@@ -3,29 +3,32 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum Privacy {
     #[serde(
+        rename = "Public",
         alias = "cloudok",
         alias = "cloud_ok",
-        alias = "Public",
+        alias = "CloudOk",
         alias = "public"
     )]
     CloudOk = 0,
     #[serde(
+        rename = "ProjectLocal",
         alias = "localonly",
         alias = "local_only",
-        alias = "ProjectLocal",
+        alias = "LocalOnly",
         alias = "projectlocal",
         alias = "project_local"
     )]
     LocalOnly = 1,
     #[serde(
+        rename = "Private",
         alias = "neverinject",
         alias = "never_inject",
-        alias = "Private",
+        alias = "NeverInject",
         alias = "private"
     )]
     NeverInject = 2,
     #[default]
-    #[serde(alias = "sealed", alias = "Sealed")]
+    #[serde(rename = "Sealed", alias = "sealed", alias = "Sealed")]
     Sealed = 3,
 }
 

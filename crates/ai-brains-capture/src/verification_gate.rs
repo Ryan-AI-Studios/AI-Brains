@@ -147,15 +147,17 @@ impl VerificationGate {
 fn query_changeguard_verification() -> Result<VerifyResponse, String> {
     // -- Build the request envelope -----------------------------------------
     let record = BridgeRecord {
-        bridge_version: "0.2".to_string(),
+        bridge_version: "0.3".to_string(),
         direction: BridgeDirection::Outbound,
-        timestamp: chrono::Utc::now().to_rfc3339(),
+        timestamp: chrono::Utc::now(),
         parent_hash: None,
         project_id: String::new(),
         session_id: None,
         tx_id: None,
         record_kind: "verification_request".to_string(),
-        payload: serde_json::json!({"kind": "ingest_gate_check"}),
+        payload: ai_brains_contracts::bridge::BridgePayload::Unknown(
+            serde_json::json!({"kind": "ingest_gate_check"}),
+        ),
         privacy: Privacy::LocalOnly,
     };
 
@@ -214,49 +216,43 @@ fn parse_verification_from_ndjson(content: &str) -> Result<VerifyResponse, Strin
             Err(_) => continue,
         };
 
+        let payload = record.payload_value();
+
         match record.record_kind.as_str() {
             "verification_summary" => {
-                if let Some(prob) = record
-                    .payload
-                    .get("failure_probability")
-                    .and_then(|v| v.as_f64())
-                {
+                if let Some(prob) = payload.get("failure_probability").and_then(|v| v.as_f64()) {
                     failure_prob = prob;
                 }
-                if let Some(drift) = record
-                    .payload
-                    .get("drift_detected")
-                    .and_then(|v| v.as_bool())
-                {
+                if let Some(drift) = payload.get("drift_detected").and_then(|v| v.as_bool()) {
                     drift_detected = drift_detected || drift;
                 }
-                if let Some(level) = record.payload.get("risk_level").and_then(|v| v.as_str()) {
+                if let Some(level) = payload.get("risk_level").and_then(|v| v.as_str()) {
                     if risk_level_ord(level) > risk_level_ord(&risk_level) {
                         risk_level = level.to_string();
                     }
                 }
-                if let Some(explain) = record.payload.get("explanation").and_then(|v| v.as_str()) {
+                if let Some(explain) = payload.get("explanation").and_then(|v| v.as_str()) {
                     explanations.push(explain.to_string());
                 }
             }
             "hotspot" => {
-                if let Some(severity) = record.payload.get("severity").and_then(|v| v.as_f64()) {
+                if let Some(severity) = payload.get("severity").and_then(|v| v.as_f64()) {
                     // Use the highest hotspot severity as a proxy for failure
                     // probability when no explicit verification_summary exists.
                     failure_prob = f64::max(failure_prob, severity);
                 }
-                if let Some(level) = record.payload.get("risk").and_then(|v| v.as_str()) {
+                if let Some(level) = payload.get("risk").and_then(|v| v.as_str()) {
                     if risk_level_ord(level) > risk_level_ord(&risk_level) {
                         risk_level = level.to_string();
                     }
                 }
-                if let Some(explain) = record.payload.get("explanation").and_then(|v| v.as_str()) {
+                if let Some(explain) = payload.get("explanation").and_then(|v| v.as_str()) {
                     explanations.push(explain.to_string());
                 }
             }
             "drift_delta" => {
                 drift_detected = true;
-                if let Some(explain) = record.payload.get("explanation").and_then(|v| v.as_str()) {
+                if let Some(explain) = payload.get("explanation").and_then(|v| v.as_str()) {
                     explanations.push(format!("[DRIFT] {explain}"));
                 }
             }
@@ -441,20 +437,20 @@ mod tests {
     #[test]
     fn parse_verification_summary_record() {
         let ndjson = serde_json::to_string(&BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "verification_summary".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "failure_probability": 0.92,
                 "drift_detected": true,
                 "risk_level": "critical",
                 "explanation": "CI prediction failure rate 92%"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         })
         .unwrap();
@@ -469,19 +465,19 @@ mod tests {
     #[test]
     fn parse_hotspot_record_as_failure_proxy() {
         let ndjson = serde_json::to_string(&BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "hotspot".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "severity": 0.88,
                 "risk": "high",
                 "explanation": "Hotspot in core module"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         })
         .unwrap();
@@ -494,17 +490,17 @@ mod tests {
     #[test]
     fn parse_drift_delta_record() {
         let ndjson = serde_json::to_string(&BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "drift_delta".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "explanation": "Uncommitted changes in ledger"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         })
         .unwrap();
@@ -517,38 +513,38 @@ mod tests {
     #[test]
     fn parse_multiple_records_chooses_max_risk() {
         let hotspot = serde_json::to_string(&BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "hotspot".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "severity": 0.60,
                 "risk": "medium",
                 "explanation": "Medium hotspot"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         })
         .unwrap();
 
         let summary = serde_json::to_string(&BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "verification_summary".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "failure_probability": 0.95,
                 "drift_detected": false,
                 "risk_level": "critical",
                 "explanation": "Critical from CI prediction"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         })
         .unwrap();

@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: Use this skill when you want a cross-model code review, a second opinion on changes, or an independent audit before committing. Trigger when the user asks for a review, a second pair of eyes, cross-model review, Codex review, or wants GPT/Codex to examine code. Also trigger before final verification on high-risk changes.
+description: "Use this skill when you want a cross-model code review, a second opinion on changes, or an independent audit before committing. Trigger when the user asks for a review, a second pair of eyes, cross-model review, Codex review, or wants GPT/Codex to examine code. Also trigger before final verification on high-risk changes."
 ---
 
 # Codex Cross-Model Review (AI-Brains)

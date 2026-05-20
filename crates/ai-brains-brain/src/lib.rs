@@ -56,6 +56,7 @@ impl AggregatedLearningsService {
     }
 }
 
+#[derive(Clone)]
 pub struct NightlyService {
     query_store: Arc<dyn QueryStore>,
     event_store: Arc<dyn EventStore>,
@@ -84,13 +85,45 @@ impl NightlyService {
     ) -> Result<usize, Box<dyn std::error::Error>> {
         let unsummarized = self.query_store.get_unsummarized_sessions()?;
         let mut count = 0;
+        let total = unsummarized.len();
+        eprintln!(
+            "[Nightly] Found {} unsummarized sessions to process.",
+            total
+        );
 
-        for session_id in unsummarized {
-            if let Err(e) = self.summarize_session(&session_id, Some(project_id)).await {
-                tracing::error!("Failed to summarize session {}: {}", session_id, e);
-                continue;
+        for (idx, session_id) in unsummarized.into_iter().enumerate() {
+            eprintln!(
+                "[Nightly] [{}/{}] Summarizing session {}...",
+                idx + 1,
+                total,
+                session_id
+            );
+            let service = self.clone();
+            let session_clone = session_id.clone();
+            let join_res = tokio::task::spawn(async move {
+                service
+                    .summarize_session(&session_clone, Some(project_id))
+                    .await
+                    .map_err(|e| e.to_string())
+            })
+            .await;
+
+            match join_res {
+                Ok(Ok(())) => {
+                    count += 1;
+                }
+                Ok(Err(e)) => {
+                    tracing::error!("Failed to summarize session {}: {}", session_id, e);
+                    eprintln!("[Nightly] Error summarizing session {}: {}", session_id, e);
+                }
+                Err(e) => {
+                    tracing::error!("Panic/Join error summarizing session {}: {}", session_id, e);
+                    eprintln!(
+                        "[Nightly] Panic/abort occurred summarizing session {}!",
+                        session_id
+                    );
+                }
             }
-            count += 1;
         }
 
         // Run hierarchical synthesis

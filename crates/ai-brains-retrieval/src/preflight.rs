@@ -290,29 +290,18 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
         }
         if let Ok(record) = serde_json::from_str::<ai_brains_contracts::bridge::BridgeRecord>(&line)
         {
+            let payload = record.payload_value();
             if record.record_kind == "hotspot_delta" {
-                if let Some(path) = record.payload.get("path").and_then(|v| v.as_str()) {
-                    let score = record
-                        .payload
-                        .get("score")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let reason = record
-                        .payload
-                        .get("reason")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
+                if let Some(path) = payload.get("path").and_then(|v| v.as_str()) {
+                    let score = payload.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let reason = payload.get("reason").and_then(|v| v.as_str()).unwrap_or("");
 
                     if is_contextual {
                         // Parse contextual risk fields for scope-based queries
-                        let temporal_coupling = record
-                            .payload
-                            .get("temporal_coupling")
-                            .and_then(|v| v.as_f64());
-                        let failure_probability = record
-                            .payload
-                            .get("failure_probability")
-                            .and_then(|v| v.as_f64());
+                        let temporal_coupling =
+                            payload.get("temporal_coupling").and_then(|v| v.as_f64());
+                        let failure_probability =
+                            payload.get("failure_probability").and_then(|v| v.as_f64());
 
                         let mut entry = format!("- {} (Risk: {:.2}", path, score);
                         if let Some(tc) = temporal_coupling {
@@ -386,18 +375,11 @@ fn query_changeguard_fallback() -> Option<String> {
         }
         if let Ok(record) = serde_json::from_str::<ai_brains_contracts::bridge::BridgeRecord>(&line)
         {
+            let payload = record.payload_value();
             if record.record_kind == "hotspot_delta" {
-                if let Some(path) = record.payload.get("path").and_then(|v| v.as_str()) {
-                    let score = record
-                        .payload
-                        .get("score")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let reason = record
-                        .payload
-                        .get("reason")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
+                if let Some(path) = payload.get("path").and_then(|v| v.as_str()) {
+                    let score = payload.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let reason = payload.get("reason").and_then(|v| v.as_str()).unwrap_or("");
                     hotspots.push(format!(
                         "- {} (Score: {:.2}, Reason: {}) [Source: ChangeGuard Fallback]",
                         path, score, reason
@@ -458,7 +440,19 @@ fn dedup_hotspots(entries: Vec<(String, String)>) -> Vec<String> {
                 .collect();
             if !new_paths.is_empty() {
                 // Rebuild the entry with only the new paths to avoid noise
-                result.push(content.clone());
+                let new_paths_set: HashSet<String> = new_paths.into_iter().collect();
+                let mut rebuilt_lines = Vec::new();
+                for line in content.lines() {
+                    let line_paths = extract_hotspot_paths(line);
+                    if line_paths.is_empty() {
+                        rebuilt_lines.push(line.to_string());
+                    } else {
+                        if line_paths.iter().any(|p| new_paths_set.contains(p)) {
+                            rebuilt_lines.push(line.to_string());
+                        }
+                    }
+                }
+                result.push(rebuilt_lines.join("\n"));
             }
             // If all paths already seen, skip this entry entirely
         } else {
@@ -600,5 +594,40 @@ mod tests {
         assert_eq!(paths.len(), 2);
         assert!(paths.contains(&"crates/app/src/main.rs".to_string()));
         assert!(paths.contains(&"scripts/deploy.ps1".to_string()));
+    }
+
+    #[test]
+    fn dedup_hotspots_rebuilds_entry_with_only_new_paths() {
+        let entries = vec![
+            (
+                "ASSISTANT: HOTSPOT: Codebase Hotspots (Risk Density)\n\
+                 | Rank | Score | File Path |\n\
+                 |------+------+--------------------------------|\n\
+                 | 1 | 0.1 | crates/path1 |\n\
+                 | 2 | 0.2 | crates/path2 |"
+                    .to_string(),
+                "2026-01-01T00:00:00Z".to_string(),
+            ),
+            (
+                "ASSISTANT: HOTSPOT: Codebase Hotspots (Risk Density)\n\
+                 | Rank | Score | File Path |\n\
+                 |------+------+--------------------------------|\n\
+                 | 1 | 0.3 | crates/path1 |\n\
+                 | 2 | 0.4 | crates/path3 |"
+                    .to_string(),
+                "2026-01-01T00:00:00Z".to_string(),
+            ),
+        ];
+
+        let result = dedup_hotspots(entries);
+        assert_eq!(result.len(), 2);
+        assert!(result[0].contains("crates/path1"));
+        assert!(result[0].contains("crates/path2"));
+        // Second entry should only contain crates/path3, not crates/path1
+        assert!(
+            !result[1].contains("crates/path1"),
+            "should have filtered out crates/path1 from second entry"
+        );
+        assert!(result[1].contains("crates/path3"));
     }
 }

@@ -1,6 +1,6 @@
 ---
 name: coding-core
-description: Use this skill when writing, modifying, or reviewing Rust code in AI-Brains. Trigger when editing .rs files, making architectural decisions, implementing features, or discussing event sourcing, SQLCipher, crate boundaries, or memory intelligence.
+description: "Use this skill when writing, modifying, or reviewing Rust code in AI-Brains. Trigger when editing .rs files, making architectural decisions, implementing features, or discussing event sourcing, SQLCipher, crate boundaries, or memory intelligence."
 ---
 
 # Coding Core - AI-Brains

@@ -133,6 +133,7 @@ dependencies = [
  "ai-brains-scheduler",
  "ai-brains-store",
  "assert_cmd",
+ "chrono",
  "clap",
  "dirs 6.0.0",
  "dotenvy",

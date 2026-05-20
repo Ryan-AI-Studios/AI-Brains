@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "ai-brains")]
+#[command(version)]
 #[command(about = "AI-Brains CLI", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -250,8 +251,9 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if !*show {
                 dotenvy::dotenv_override().ok();
                 let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
-                println!("Auto-triggering sync pull from ChangeGuard...");
-                commands::sync::run_pull(&ctx, None, true, true)?;
+                if let Err(e) = commands::sync::run_pull(&ctx, None, true, true) {
+                    eprintln!("Warning: Auto-triggering sync pull failed: {}", e);
+                }
             }
             Ok(())
         }

@@ -23,3 +23,5 @@ target
 .agents/
 .env
 *.db
+backups/
+

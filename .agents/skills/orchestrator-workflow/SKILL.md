@@ -1,6 +1,6 @@
 ---
 name: orchestrator-workflow
-description: Defines the standard operating procedure for orchestrating sub-agents, managing conductor tracks, maintaining the CI gate, and tracking provenance via ChangeGuard for the AI-Brains project. Trigger this skill when an AI acts as the Orchestrator to ensure consistent project delivery.
+description: "Defines the standard operating procedure for orchestrating sub-agents, managing conductor tracks, maintaining the CI gate, and tracking provenance via ChangeGuard for the AI-Brains project. Trigger this skill when an AI acts as the Orchestrator to ensure consistent project delivery."
 ---
 
 # Orchestrator Workflow (AI-Brains)

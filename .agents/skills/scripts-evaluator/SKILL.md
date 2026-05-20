@@ -1,10 +1,9 @@
 ---
 name: scripts-evaluator
-description: >
-  Robust multi-line script execution for Antigravity on Windows.
+description: "Robust multi-line script execution for Antigravity on Windows.
   Use this skill whenever you need to execute multi-line TypeScript or JavaScript
-  using 'tsx' or 'node'. It prevents the "Node REPL" issue where the agent gets
-  stuck in an interactive session.
+  using 'tsx' or 'node'. It prevents the 'Node REPL' issue where the agent gets
+  stuck in an interactive session."
 ---
 
 # Scripts Evaluator

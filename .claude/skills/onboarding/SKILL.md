@@ -1,6 +1,6 @@
 ---
 name: onboarding
-description: Trigger this skill when starting a new session on the AI-Brains repo, when an agent needs orientation, or when asked "where do I start?", "what's the project state?", "how does work get done here?", or "onboard me". Loads once per session to establish context.
+description: "Trigger this skill when starting a new session on the AI-Brains repo, when an agent needs orientation, or when asked 'where do I start?', 'what's the project state?', 'how does work get done here?', or 'onboard me'. Loads once per session to establish context."
 ---
 
 # AI-Brains Onboarding

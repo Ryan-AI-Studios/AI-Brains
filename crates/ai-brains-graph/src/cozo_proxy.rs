@@ -193,9 +193,9 @@ impl CozoProxyBackend {
         let temp_path = temp_file.path().to_path_buf();
 
         // Build a BridgeRecord carrying the Datalog payload
-        let timestamp = chrono::Utc::now().to_rfc3339();
+        let timestamp = chrono::Utc::now();
         let record = BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
             timestamp,
             parent_hash: None,
@@ -203,9 +203,9 @@ impl CozoProxyBackend {
             session_id: None,
             tx_id: None,
             record_kind: record_kind.to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "datalog": datalog,
-            }),
+            })),
             privacy: ai_brains_core::privacy::Privacy::LocalOnly,
         };
 
@@ -256,9 +256,9 @@ impl CozoProxyBackend {
             .map_err(|e| GraphError::IoError(std::io::Error::other(e)))?;
         let temp_path = temp_file.path().to_path_buf();
 
-        let timestamp = chrono::Utc::now().to_rfc3339();
+        let timestamp = chrono::Utc::now();
         let record = BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
             timestamp,
             parent_hash: None,
@@ -266,9 +266,9 @@ impl CozoProxyBackend {
             session_id: None,
             tx_id: None,
             record_kind: "datalog_query".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "datalog": datalog,
-            }),
+            })),
             privacy: ai_brains_core::privacy::Privacy::LocalOnly,
         };
 
@@ -316,7 +316,7 @@ impl CozoProxyBackend {
             if let Ok(record) = serde_json::from_str::<BridgeRecord>(line) {
                 if record.record_kind == "named_rows" {
                     if let Ok(rows) =
-                        serde_json::from_value::<CozoNamedRows>(record.payload.clone())
+                        serde_json::from_value::<CozoNamedRows>(record.payload_value())
                     {
                         return Ok(rows);
                     }

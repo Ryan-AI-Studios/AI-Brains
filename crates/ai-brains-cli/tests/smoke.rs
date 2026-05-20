@@ -56,3 +56,51 @@ fn test_cli_ingest_smoke() {
         .success()
         .stdout(predicate::str::contains("\"processed\":true"));
 }
+
+#[test]
+fn test_cli_context_idempotency() {
+    let dir = tempdir().unwrap();
+    let env_path = dir.path().join(".env");
+
+    // First run - initializes context
+    let mut cmd1 = Command::cargo_bin("ai-brains").unwrap();
+    cmd1.current_dir(dir.path())
+        .arg("context")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Context initialized for project"));
+
+    assert!(env_path.exists());
+    let content1 = std::fs::read_to_string(&env_path).unwrap();
+
+    // Second run - should be idempotent and succeed without error
+    let mut cmd2 = Command::cargo_bin("ai-brains").unwrap();
+    cmd2.current_dir(dir.path())
+        .arg("context")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Context is already initialized for project",
+        ));
+
+    let content2 = std::fs::read_to_string(&env_path).unwrap();
+    assert_eq!(
+        content1, content2,
+        "Context file should not have changed on second run"
+    );
+
+    // Third run with --new-session - should replace session and change file contents
+    let mut cmd3 = Command::cargo_bin("ai-brains").unwrap();
+    cmd3.current_dir(dir.path())
+        .arg("context")
+        .arg("--new-session")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Replacing existing session"));
+
+    let content3 = std::fs::read_to_string(&env_path).unwrap();
+    assert_ne!(
+        content1, content3,
+        "Context file should have changed after --new-session"
+    );
+}

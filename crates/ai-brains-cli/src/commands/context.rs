@@ -56,7 +56,17 @@ pub fn run(
         ProjectId::from_uuid(uuid::Uuid::from_bytes(bytes))
     };
 
-    // Check for existing session
+    let existing_project = if env_path.exists() {
+        let existing = std::fs::read_to_string(&env_path)?;
+        existing
+            .lines()
+            .find(|l| l.starts_with("AI_BRAINS_PROJECT_ID"))
+            .and_then(|l| l.split('=').nth(1))
+            .map(|s| s.to_string())
+    } else {
+        None
+    };
+
     let existing_session = if env_path.exists() {
         let existing = std::fs::read_to_string(&env_path)?;
         existing
@@ -70,11 +80,17 @@ pub fn run(
 
     if let Some(ref sid) = existing_session {
         if !new_session {
-            eprintln!(
-                "Session {} already exists. Use --new-session to replace, or --show to view.",
-                sid
+            println!(
+                "Context is already initialized for project: {}",
+                project_name
             );
-            return Err("session already exists".into());
+            if let Some(ref pid) = existing_project {
+                println!("Project ID: {}", pid);
+            } else {
+                println!("Project ID: {}", project_id);
+            }
+            println!("Session ID: {}", sid);
+            return Ok(());
         }
         println!("Replacing existing session: {}", sid);
     }

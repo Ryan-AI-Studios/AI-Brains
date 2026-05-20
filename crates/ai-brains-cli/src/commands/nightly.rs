@@ -216,26 +216,23 @@ fn ingest_madr_from_changeguard(
         }
 
         // Extract structured MADR fields from payload
-        let title = record
-            .payload
+        let payload = record.payload_value();
+        let title = payload
             .get("title")
             .and_then(|v| v.as_str())
             .unwrap_or("Untitled Decision")
             .to_string();
-        let context = record
-            .payload
+        let context = payload
             .get("context")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let decision = record
-            .payload
+        let decision = payload
             .get("decision")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let consequences = record
-            .payload
+        let consequences = payload
             .get("consequences")
             .and_then(|v| v.as_str())
             .unwrap_or("")

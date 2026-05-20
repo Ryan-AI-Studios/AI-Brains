@@ -1,9 +1,10 @@
 use crate::context::{AppContext, StoreSink};
 use ai_brains_capture::{CaptureContext, CaptureService};
-use ai_brains_contracts::bridge::BridgeRecord;
+use ai_brains_contracts::bridge::{BridgePayload, BridgeRecord};
 use ai_brains_contracts::ingest::IngestRequest;
 use ai_brains_core::ids::TurnId;
 use ai_brains_store::EventStore;
+use chrono;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -97,21 +98,15 @@ pub fn run_pull(
 
         let record: BridgeRecord = match serde_json::from_str::<BridgeRecord>(&line) {
             Ok(r) => {
-                if let Some(expected_last) = &last_hash {
-                    match &r.parent_hash {
-                        Some(actual_parent) => {
-                            if actual_parent != expected_last {
-                                eprintln!("Lineage verification failed: parent_hash mismatch. Expected {}, got {}. Skipping record.", expected_last, actual_parent);
-                                continue;
-                            }
-                        }
-                        None => {
-                            eprintln!(
-                                "Bridge record rejected: missing parent_hash. Expected {}",
-                                expected_last
-                            );
+                if let Some(actual_parent) = &r.parent_hash {
+                    if let Some(expected_last) = &last_hash {
+                        if actual_parent != expected_last {
+                            eprintln!("Lineage verification failed: parent_hash mismatch. Expected {}, got {}. Skipping record.", expected_last, actual_parent);
                             continue;
                         }
+                    } else {
+                        eprintln!("Bridge record rejected: non-null parent_hash {} but state has no previous inbound hash. Skipping record.", actual_parent);
+                        continue;
                     }
                 }
                 r
@@ -178,9 +173,11 @@ pub fn run_pull(
 
         // Handle specific structured payloads
         if record.record_kind == "verify_outcome" {
+            let payload_value =
+                serde_json::to_value(&record.payload).unwrap_or(serde_json::Value::Null);
             if let Ok(outcome) = serde_json::from_value::<
                 ai_brains_events::VerifyOutcomeRecordedPayload,
-            >(record.payload.clone())
+            >(payload_value)
             {
                 let event = ai_brains_events::constructors::EventBuilder::new(
                     ai_brains_events::AggregateType::System,
@@ -281,19 +278,16 @@ pub fn run_push(
             session_id
         };
 
-        let payload = serde_json::json!({
-            "type": "Insight",
-            "memory_id": memory_id,
-            "relevance": 1.0,
-            "content": content
-        });
-        let timestamp = time::OffsetDateTime::now_utc()
-            .format(&time::format_description::well_known::Rfc3339)
-            .unwrap_or_else(|_| String::new());
+        let payload = BridgePayload::Insight {
+            type_field: "Insight".to_string(),
+            memory_id,
+            relevance: 1.0,
+            content,
+        };
         let record = BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp,
+            timestamp: chrono::Utc::now(),
             parent_hash: last_hash.clone(),
             project_id: record_project_id.to_string(),
             session_id: Some(record_session_id.to_string()),
@@ -400,23 +394,21 @@ pub fn run_query(
             Some(session_id),
         )?;
 
-        use ai_brains_contracts::bridge::{BridgeDirection, BridgeRecord};
-        let timestamp = time::OffsetDateTime::now_utc()
-            .format(&time::format_description::well_known::Rfc3339)
-            .unwrap_or_else(|_| String::new());
+        use ai_brains_contracts::bridge::{BridgeDirection, BridgePayload, BridgeRecord};
+        let timestamp = chrono::Utc::now();
 
         for h in hits {
-            let payload = serde_json::json!({
-                "type": "Insight",
-                "memory_id": h.memory_id,
-                "relevance": h.score.unwrap_or(1.0),
-                "content": h.content
-            });
+            let payload = BridgePayload::Insight {
+                type_field: "Insight".to_string(),
+                memory_id: h.memory_id,
+                relevance: h.score.unwrap_or(1.0),
+                content: h.content,
+            };
 
             let record = BridgeRecord {
-                bridge_version: "0.2".to_string(),
+                bridge_version: "0.3".to_string(),
                 direction: BridgeDirection::Outbound,
-                timestamp: timestamp.clone(),
+                timestamp,
                 parent_hash: None,
                 project_id: project_id.to_string(),
                 session_id: Some(session_id.to_string()),

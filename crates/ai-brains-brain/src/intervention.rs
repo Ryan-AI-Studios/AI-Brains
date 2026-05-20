@@ -198,15 +198,17 @@ impl RiskReviewAgent {
 async fn query_changeguard_risk_alerts() -> Result<Vec<RiskAlert>, String> {
     // Build the request envelope (same pattern as other bridge users).
     let record = BridgeRecord {
-        bridge_version: "0.2".to_string(),
+        bridge_version: "0.3".to_string(),
         direction: BridgeDirection::Outbound,
-        timestamp: chrono::Utc::now().to_rfc3339(),
+        timestamp: chrono::Utc::now(),
         parent_hash: None,
         project_id: String::new(),
         session_id: None,
         tx_id: None,
         record_kind: "risk_poll".to_string(),
-        payload: serde_json::json!({"kind": "risk_alert_poll"}),
+        payload: ai_brains_contracts::bridge::BridgePayload::Unknown(
+            serde_json::json!({"kind": "risk_alert_poll"}),
+        ),
         privacy: Privacy::LocalOnly,
     };
 
@@ -270,25 +272,22 @@ fn parse_risk_alerts_from_ndjson(content: &str) -> Result<Vec<RiskAlert>, String
             continue;
         }
 
-        let source_file = record
-            .payload
+        let payload = record.payload_value();
+        let source_file = payload
             .get("source_file")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
             .to_string();
-        let target_file = record
-            .payload
+        let target_file = payload
             .get("target_file")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
             .to_string();
-        let coupling_score = record
-            .payload
+        let coupling_score = payload
             .get("coupling_score")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0);
-        let explanation = record
-            .payload
+        let explanation = payload
             .get("explanation")
             .and_then(|v| v.as_str())
             .unwrap_or("")
@@ -324,20 +323,20 @@ mod tests {
     #[test]
     fn parse_risk_alert_from_valid_ndjson() {
         let record = BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "risk_alert".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "source_file": "src/main.rs",
                 "target_file": "src/lib.rs",
                 "coupling_score": 0.89,
                 "explanation": "Historical coupling > 85%"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         };
 
@@ -352,15 +351,17 @@ mod tests {
     #[test]
     fn parse_ignores_non_risk_alert_records() {
         let hotspot = BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "hotspot".to_string(),
-            payload: serde_json::json!({"severity": 0.9}),
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(
+                serde_json::json!({"severity": 0.9}),
+            ),
             privacy: Privacy::LocalOnly,
         };
 
@@ -381,38 +382,38 @@ mod tests {
     #[test]
     fn parse_multiple_risk_alerts() {
         let alert1 = BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "risk_alert".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "source_file": "a.rs",
                 "target_file": "b.rs",
                 "coupling_score": 0.9,
                 "explanation": "Pair 1"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         };
 
         let alert2 = BridgeRecord {
-            bridge_version: "0.2".to_string(),
+            bridge_version: "0.3".to_string(),
             direction: BridgeDirection::Outbound,
-            timestamp: chrono::Utc::now().to_rfc3339(),
+            timestamp: chrono::Utc::now(),
             parent_hash: None,
             project_id: "test".to_string(),
             session_id: None,
             tx_id: None,
             record_kind: "risk_alert".to_string(),
-            payload: serde_json::json!({
+            payload: ai_brains_contracts::bridge::BridgePayload::Unknown(serde_json::json!({
                 "source_file": "c.rs",
                 "target_file": "d.rs",
                 "coupling_score": 0.75,
                 "explanation": "Pair 2"
-            }),
+            })),
             privacy: Privacy::LocalOnly,
         };
 

@@ -1,6 +1,6 @@
 ---
 name: changeguard
-description: Use this skill when working in a repository initialized with `.changeguard/` and the task involves code edits, reviews, impact/risk analysis, verification planning, drift handling, ledger provenance, or deciding what tests to run. Before meaningful edits, run ChangeGuard scan/impact; after edits, run verification and report unresolved drift or ledger state.
+description: "Use this skill when working in a repository initialized with `.changeguard/` and the task involves code edits, reviews, impact/risk analysis, verification planning, drift handling, ledger provenance, or deciding what tests to run. Before meaningful edits, run ChangeGuard scan/impact; after edits, run verification and report unresolved drift or ledger state."
 ---
 
 # ChangeGuard

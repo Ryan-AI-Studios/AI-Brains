@@ -25,7 +25,7 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
 
     // Hotspot record
     let record1 = serde_json::json!({
-        "bridge_version": "0.2",
+        "bridge_version": "0.3",
         "direction": "inbound",
         "timestamp": "2026-05-19T12:00:00Z",
         "parent_hash": null,
@@ -41,12 +41,22 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
         "privacy": "LocalOnly"
     });
 
+    // Parse and serialize matching standard implementation for exact hash
+    let parsed1: ai_brains_contracts::bridge::BridgeRecord =
+        serde_json::from_str(&serde_json::to_string(&record1)?)?;
+    let json_for_hash = serde_json::to_string(&parsed1)?;
+
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(json_for_hash.as_bytes());
+    let h1 = format!("{:x}", hasher.finalize());
+
     // Ledger delta record
     let record2 = serde_json::json!({
-        "bridge_version": "0.2",
+        "bridge_version": "0.3",
         "direction": "inbound",
         "timestamp": "2026-05-19T12:05:00Z",
-        "parent_hash": "115348e420cb7236b8d52f526302fd46bd694ed65ad1cf16e16e7b98306f0c16",
+        "parent_hash": h1,
         "project_id": "00000000-0000-0000-0000-000000000001",
         "session_id": "00000000-0000-0000-0000-000000000002",
         "tx_id": "tx-12345",
@@ -124,23 +134,9 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
 
     push_assert.success();
 
-    // Determine expected project/session IDs (bin loads .env if present)
-    let expected_project_id = if std::path::Path::new(".env").exists() {
-        dotenvy::from_filename(".env").ok();
-        std::env::var("AI_BRAINS_PROJECT_ID")
-            .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000001".to_string())
-    } else {
-        "00000000-0000-0000-0000-000000000001".to_string()
-    };
-
-    let expected_session_id = if std::path::Path::new(".env").exists() {
-        std::env::var("AI_BRAINS_SESSION_ID")
-            .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000002".to_string())
-    } else {
-        "00000000-0000-0000-0000-000000000002".to_string()
-    };
-
-    // Check if temp export file exists and contains the expected BridgeRecord format
+    // Verify the export file contains a valid BridgeRecord with required fields.
+    // Specific IDs vary by environment (dotenv_override loads from project .env),
+    // so we check structural correctness rather than exact ID values.
     let export_path = std::env::temp_dir().join("aibrains_export.ndjson");
     assert!(
         export_path.exists(),
@@ -155,9 +151,10 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
         let parsed: serde_json::Value = serde_json::from_str(&line)?;
         assert_eq!(parsed["direction"], "outbound");
         assert_eq!(parsed["record_kind"], "insight");
-        assert_eq!(parsed["project_id"], expected_project_id);
-        assert_eq!(parsed["session_id"], expected_session_id);
-        assert_eq!(parsed["privacy"], "LocalOnly");
+        // project_id and session_id must be present, non-empty strings
+        assert!(parsed["project_id"].as_str().is_some_and(|s| !s.is_empty()));
+        assert!(parsed["session_id"].as_str().is_some_and(|s| !s.is_empty()));
+        assert_eq!(parsed["privacy"], "ProjectLocal");
         assert!(parsed["payload"]["content"].as_str().is_some());
     }
 
@@ -331,6 +328,123 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
         impact_content.contains("Important architectural insight from E2E testing."),
         "latest-impact.json should contain the exported memory insight content"
     );
+
+    Ok(())
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn test_lineage_bootstrapping_with_existing_hash() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let vault_path = dir.path().join("vault.db");
+
+    // 1. Initialize the vault
+    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    init_cmd
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // 2. Preset a mock last_inbound_hash in the sync_state table to simulate prior sync state
+    {
+        let key_str =
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string();
+        let key = ai_brains_crypto::SqlCipherKey::from_raw(key_str);
+        let conn = ai_brains_store::connection::VaultConnection::open(vault_path.clone(), &key)?;
+        let conn_lock = conn.lock()?;
+        conn_lock.execute(
+            "INSERT INTO sync_state (key, value) VALUES (?, ?)",
+            rusqlite::params!["last_inbound_hash", "some_prior_hash"],
+        )?;
+    }
+
+    // 3. Write a mock bridge export file (ChangeGuard -> AI-Brains)
+    let pull_file_path = dir.path().join("cg_export_bootstrap.ndjson");
+    let mut pull_file = File::create(&pull_file_path)?;
+
+    // Record 1: parent_hash: null (first record, bootstrapped)
+    let record1 = serde_json::json!({
+        "bridge_version": "0.3",
+        "direction": "inbound",
+        "timestamp": "2026-05-19T12:00:00Z",
+        "parent_hash": null,
+        "project_id": "00000000-0000-0000-0000-000000000001",
+        "session_id": "00000000-0000-0000-0000-000000000002",
+        "tx_id": null,
+        "record_kind": "hotspot",
+        "payload": {
+            "path": "crates/ai-brains-cli/src/main.rs",
+            "score": 2.5,
+            "reason": "high complexity"
+        },
+        "privacy": "LocalOnly"
+    });
+
+    // Parse and serialize matching standard implementation for exact hash
+    let parsed1: ai_brains_contracts::bridge::BridgeRecord =
+        serde_json::from_str(&serde_json::to_string(&record1)?)?;
+    let json_for_hash = serde_json::to_string(&parsed1)?;
+
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(json_for_hash.as_bytes());
+    let h1 = format!("{:x}", hasher.finalize());
+
+    // Record 2: matches record 1's hash (should be pulled)
+    let record2 = serde_json::json!({
+        "bridge_version": "0.3",
+        "direction": "inbound",
+        "timestamp": "2026-05-19T12:05:00Z",
+        "parent_hash": h1,
+        "project_id": "00000000-0000-0000-0000-000000000001",
+        "session_id": "00000000-0000-0000-0000-000000000002",
+        "tx_id": "tx-12345",
+        "record_kind": "ledger_delta",
+        "payload": {
+            "tx_id": "tx-12345",
+            "intent": "refactor preflight",
+            "files_changed": 1
+        },
+        "privacy": "LocalOnly"
+    });
+
+    // Record 3: mismatching parent_hash (should be rejected/skipped)
+    let record3 = serde_json::json!({
+        "bridge_version": "0.3",
+        "direction": "inbound",
+        "timestamp": "2026-05-19T12:10:00Z",
+        "parent_hash": "mismatching_parent_hash",
+        "project_id": "00000000-0000-0000-0000-000000000001",
+        "session_id": "00000000-0000-0000-0000-000000000002",
+        "tx_id": null,
+        "record_kind": "hotspot",
+        "payload": {
+            "path": "crates/ai-brains-cli/src/main.rs",
+            "score": 1.0,
+            "reason": "low complexity"
+        },
+        "privacy": "LocalOnly"
+    });
+
+    writeln!(pull_file, "{}", serde_json::to_string(&record1)?)?;
+    writeln!(pull_file, "{}", serde_json::to_string(&record2)?)?;
+    writeln!(pull_file, "{}", serde_json::to_string(&record3)?)?;
+    pull_file.flush()?;
+
+    // 4. Pull the mock records into AI-Brains. Only record 1 & 2 should succeed.
+    let mut pull_cmd = Command::cargo_bin("ai-brains")?;
+    pull_cmd
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("sync")
+        .arg("pull")
+        .arg("--from-file")
+        .arg(&pull_file_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Successfully synced 2 records."));
 
     Ok(())
 }

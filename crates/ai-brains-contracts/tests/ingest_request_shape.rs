@@ -20,6 +20,6 @@ fn test_ingest_request_shape() {
 
     let serialized =
         serde_json::to_string(&request).expect("Should serialize ingest request in test");
-    let expected = r#"{"session_id":"00000000-0000-0000-0000-000000000000","project_id":"00000000-0000-0000-0000-000000000000","harness_id":"00000000-0000-0000-0000-000000000000","turn_id":"00000000-0000-0000-0000-000000000000","role":"user","content":"hello world","privacy":"CloudOk"}"#;
+    let expected = r#"{"session_id":"00000000-0000-0000-0000-000000000000","project_id":"00000000-0000-0000-0000-000000000000","harness_id":"00000000-0000-0000-0000-000000000000","turn_id":"00000000-0000-0000-0000-000000000000","role":"user","content":"hello world","privacy":"Public"}"#;
     assert_eq!(serialized, expected);
 }

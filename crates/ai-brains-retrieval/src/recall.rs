@@ -111,71 +111,30 @@ pub fn recall(
 // Unified IPC Bridge Query
 // ---------------------------------------------------------------------------
 
-/// Query ChangeGuard's blended Tantivy search via the bridge IPC.
-/// Sends a `bridge query` subcommand and parses the NDJSON response
-/// for `BridgeRecord::Insight` entries.
+/// Query ChangeGuard's Tantivy search via `changeguard search --json`.
+/// Parses the NDJSON response for `BridgeRecord::Insight` entries.
 ///
 /// Returns Ok(Vec) on success. On any failure (CLI missing, non-zero exit,
 /// parse errors), returns an Err so the caller can fall back to local FTS5.
 #[allow(clippy::disallowed_methods)]
 fn query_changeguard_bridge(
     query: &str,
-    project_id: Option<ai_brains_core::ids::ProjectId>,
-    session_id: Option<ai_brains_core::ids::SessionId>,
+    _project_id: Option<ai_brains_core::ids::ProjectId>,
+    _session_id: Option<ai_brains_core::ids::SessionId>,
 ) -> std::result::Result<Vec<RecallHit>, String> {
-    // Build a temp file for the query input and output.
-    let temp_in = tempfile::NamedTempFile::new().map_err(|e| format!("tempfile error: {}", e))?;
-    let temp_in_path = temp_in.path().to_path_buf();
-
-    let temp_out = tempfile::NamedTempFile::new().map_err(|e| format!("tempfile error: {}", e))?;
-    let temp_out_path = temp_out.path().to_path_buf();
-
-    // Write a minimal BridgeRecord as the query envelope.
-    let timestamp = chrono::Utc::now().to_rfc3339();
-    let query_record = BridgeRecord {
-        bridge_version: "0.2".to_string(),
-        direction: ai_brains_contracts::bridge::BridgeDirection::Outbound,
-        timestamp,
-        parent_hash: None,
-        project_id: project_id.map(|p| p.to_string()).unwrap_or_default(),
-        session_id: session_id.map(|s| s.to_string()),
-        tx_id: None,
-        record_kind: "search_query".to_string(),
-        payload: serde_json::json!({
-            "query": query,
-            "kind": "unified",
-        }),
-        privacy: Privacy::LocalOnly,
-    };
-
-    let ndjson =
-        serde_json::to_string(&query_record).map_err(|e| format!("serialize error: {}", e))?;
-    std::fs::write(&temp_in_path, ndjson.as_bytes()).map_err(|e| format!("write error: {}", e))?;
-
-    // Invoke: changeguard bridge query --in <input> --out <output>
     let output = std::process::Command::new("changeguard")
-        .args([
-            "bridge",
-            "query",
-            "--in",
-            temp_in_path.to_str().unwrap_or(""),
-            "--out",
-            temp_out_path.to_str().unwrap_or(""),
-        ])
+        .args(["search", "--json", query])
         .output()
         .map_err(|e| format!("changeguard CLI not available: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("changeguard bridge query failed: {}", stderr));
+        return Err(format!("changeguard search failed: {}", stderr));
     }
 
-    // Parse NDJSON output: each line is a BridgeRecord with record_kind = "insight".
-    let content =
-        std::fs::read_to_string(&temp_out_path).map_err(|e| format!("read output error: {}", e))?;
-
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let mut hits = Vec::new();
-    for line in content.lines() {
+    for line in stdout.lines() {
         let line = line.trim();
         if line.is_empty() {
             continue;
@@ -184,31 +143,28 @@ fn query_changeguard_bridge(
         let record: BridgeRecord = match serde_json::from_str(line) {
             Ok(r) => r,
             Err(e) => {
-                eprintln!("Failed to parse bridge query response line: {}", e);
+                eprintln!("Failed to parse bridge search response line: {}", e);
                 continue;
             }
         };
 
-        // Only process Insight records from the unified search result.
         if record.record_kind.to_lowercase() != "insight" {
             continue;
         }
 
-        let memory_id = record
-            .payload
+        let payload = record.payload_value();
+        let memory_id = payload
             .get("memory_id")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
             .to_string();
-        let content = record
-            .payload
+        let content = payload
             .get("content")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let score = record.payload.get("score").and_then(|v| v.as_f64());
-        let source = record
-            .payload
+        let score = payload.get("relevance").and_then(|v| v.as_f64());
+        let source = payload
             .get("source")
             .and_then(|v| v.as_str())
             .unwrap_or("bridge")

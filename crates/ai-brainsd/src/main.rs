@@ -159,11 +159,9 @@ where
                     }
                     DaemonRequest::Sync(record) => {
                         if record.record_kind == "query" {
-                            let query_text = record
-                                .payload
-                                .get("text")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
+                            let payload = record.payload_value();
+                            let query_text =
+                                payload.get("text").and_then(|v| v.as_str()).unwrap_or("");
 
                             // Parse string IDs from interchange format for internal use.
                             use std::str::FromStr;
@@ -180,20 +178,20 @@ where
                                 .query_memories(query_text, project_id, session_id)
                                 .await?;
 
-                            let timestamp = chrono::Utc::now().to_rfc3339();
+                            let timestamp = chrono::Utc::now();
 
                             for h in hits {
-                                let payload = serde_json::json!({
-                                    "type": "Insight",
-                                    "memory_id": h.memory_id,
-                                    "relevance": h.score.unwrap_or(1.0),
-                                    "content": h.content
-                                });
+                                let payload = ai_brains_contracts::bridge::BridgePayload::Insight {
+                                    type_field: "Insight".to_string(),
+                                    memory_id: h.memory_id,
+                                    relevance: h.score.unwrap_or(1.0),
+                                    content: h.content,
+                                };
 
                                 let resp_record = BridgeRecord {
-                                    bridge_version: "0.2".to_string(),
+                                    bridge_version: "0.3".to_string(),
                                     direction: BridgeDirection::Outbound,
-                                    timestamp: timestamp.clone(),
+                                    timestamp,
                                     parent_hash: None,
                                     project_id: record.project_id.clone(),
                                     session_id: record.session_id.clone(),

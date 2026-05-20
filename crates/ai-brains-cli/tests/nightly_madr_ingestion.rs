@@ -26,7 +26,7 @@ fn test_madr_ingestion_via_sync_pull() -> Result<(), Box<dyn std::error::Error>>
     let mut file = std::fs::File::create(&ndjson_path)?;
 
     let madr_record = serde_json::json!({
-        "bridge_version": "0.2",
+        "bridge_version": "0.3",
         "direction": "inbound",
         "timestamp": "2026-05-19T12:00:00Z",
         "parent_hash": "abc123",
@@ -156,7 +156,7 @@ fn test_madr_formatting_through_event_store() -> Result<(), Box<dyn std::error::
         rusqlite::params![decision_id.to_string()],
         |row| row.get(0),
     )?;
-    assert!(privacy_str.contains("LocalOnly"));
+    assert!(privacy_str.contains("ProjectLocal"));
 
     Ok(())
 }

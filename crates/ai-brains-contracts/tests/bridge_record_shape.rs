@@ -11,13 +11,17 @@ fn test_bridge_record_serde() -> Result<(), Box<dyn std::error::Error>> {
     let record = BridgeRecord {
         bridge_version: "1.0".to_string(),
         direction: BridgeDirection::Inbound,
-        timestamp: "2026-05-19T00:00:00Z".to_string(),
+        timestamp: chrono::DateTime::parse_from_rfc3339("2026-05-19T00:00:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc),
         parent_hash: None,
         project_id: project_id.clone(),
         session_id: session_id.clone(),
         tx_id: tx_id.clone(),
         record_kind: "prompt".to_string(),
-        payload: serde_json::json!({"text": "hello"}),
+        payload: ai_brains_contracts::bridge::BridgePayload::Unknown(
+            serde_json::json!({"text": "hello"}),
+        ),
         privacy: Privacy::LocalOnly,
     };
 
@@ -31,7 +35,7 @@ fn test_bridge_record_serde() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(deserialized.record_kind, "prompt");
 
     // Verify null session_id deserialization works (ChangeGuard sends null)
-    let json_with_null = r#"{"bridge_version":"0.2","direction":"inbound","timestamp":"2026-05-19T00:00:00Z","parent_hash":null,"project_id":"ChangeGuard","session_id":null,"tx_id":null,"record_kind":"hotspot_delta","payload":{},"privacy":"ProjectLocal"}"#;
+    let json_with_null = r#"{"bridge_version":"0.3","direction":"inbound","timestamp":"2026-05-19T00:00:00Z","parent_hash":null,"project_id":"ChangeGuard","session_id":null,"tx_id":null,"record_kind":"hotspot_delta","payload":{},"privacy":"ProjectLocal"}"#;
     let deserialized: BridgeRecord = serde_json::from_str(json_with_null)?;
     assert_eq!(deserialized.project_id, "ChangeGuard");
     assert_eq!(deserialized.session_id, None);

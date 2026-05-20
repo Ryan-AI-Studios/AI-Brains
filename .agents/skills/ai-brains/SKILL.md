@@ -1,6 +1,6 @@
 ---
 name: ai-brains
-description: Persistent memory and project context vault. Use this skill whenever the user asks 'what did we decide', mentions past sessions, or when starting work on a repo cold. Trigger when you hear 'remember this', 'don't forget', 'check the vault', or 'what did we decide about'. ALSO trigger on frustration signals like 'I told you last time' or 'we already tried that'. Use even if memory isn't explicitly mentioned if the task involves project history. DO NOT use for generic coding questions, library documentation, or formatting help.
+description: "Persistent memory and project context vault. Use this skill whenever the user asks 'what did we decide', mentions past sessions, or when starting work on a repo cold. Trigger when you hear 'remember this', 'don't forget', 'check the vault', or 'what did we decide about'. ALSO trigger on frustration signals like 'I told you last time' or 'we already tried that'. Use even if memory isn't explicitly mentioned if the task involves project history. DO NOT use for generic coding questions, library documentation, or formatting help."
 ---
 
 # AI-Brains Memory Protocol
@@ -14,7 +14,7 @@ This skill provides access to the long-term memory vault. Use it to avoid repeat
 
 ## Availability & Fallback
 This skill requires the `ai-brains` CLI tool.
-1. **Check**: Run `ai-brains --help`. If it prints usage info, the CLI is available.
+1. **Check**: Run `ai-brains --version`. If it prints usage info, the CLI is available.
 2. **Fallback**: If the CLI is not found, inform the user that ai-brains needs to be installed. Proceed with manual context gathering (README, Cargo.toml, entry points) and do not attempt further vault commands.
 
 ## Workflow Phases

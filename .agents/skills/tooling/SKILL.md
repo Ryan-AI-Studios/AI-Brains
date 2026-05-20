@@ -1,6 +1,6 @@
 ---
 name: tooling
-description: Use this skill when using Sourcebot, GitHub CLI, or ChangeGuard for research, CI verification, or codebase exploration. Trigger when searching the codebase, checking CI, or running changeguard commands.
+description: "Use this skill when using Sourcebot, GitHub CLI, or ChangeGuard for research, CI verification, or codebase exploration. Trigger when searching the codebase, checking CI, or running changeguard commands."
 ---
 
 # Tooling & Research - AI-Brains

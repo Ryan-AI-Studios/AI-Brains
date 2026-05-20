@@ -247,30 +247,27 @@ async fn process_sync(
         .get_sync_state("last_inbound_hash")
         .map_err(|e| format!("Store error: {}", e))?;
 
-    if let Some(expected_last_hash) = &expected_last {
-        match &record.parent_hash {
-            Some(actual_parent) => {
-                if actual_parent != expected_last_hash {
-                    let msg = format!(
-                        "Lineage verification failed: parent_hash mismatch. Expected {}, got {}",
-                        expected_last_hash, actual_parent
-                    );
-                    if let Some(path) = spool_path {
-                        let _ = fs::remove_file(path).await;
-                    }
-                    return Err(msg.into());
-                }
-            }
-            None => {
+    if let Some(actual_parent) = &record.parent_hash {
+        if let Some(expected_last_hash) = &expected_last {
+            if actual_parent != expected_last_hash {
                 let msg = format!(
-                    "Bridge record rejected: missing parent_hash. Expected {}",
-                    expected_last_hash
+                    "Lineage verification failed: parent_hash mismatch. Expected {}, got {}",
+                    expected_last_hash, actual_parent
                 );
                 if let Some(path) = spool_path {
                     let _ = fs::remove_file(path).await;
                 }
                 return Err(msg.into());
             }
+        } else {
+            let msg = format!(
+                "Bridge record rejected: non-null parent_hash {} but state has no previous inbound hash",
+                actual_parent
+            );
+            if let Some(path) = spool_path {
+                let _ = fs::remove_file(path).await;
+            }
+            return Err(msg.into());
         }
     }
 
@@ -309,7 +306,10 @@ async fn process_sync(
             .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new()),
         None => ai_brains_core::ids::SessionId::new(),
     };
-    let tx_id = record.tx_id.map(ai_brains_core::ids::TransactionId::new);
+    let tx_id = record
+        .tx_id
+        .clone()
+        .map(ai_brains_core::ids::TransactionId::new);
 
     let session_privacy = store
         .get_session_privacy(&session_id.to_string())
@@ -320,7 +320,7 @@ async fn process_sync(
     // Handle specific structured payloads
     if record.record_kind == "verify_outcome" {
         if let Ok(outcome) = serde_json::from_value::<ai_brains_events::VerifyOutcomeRecordedPayload>(
-            record.payload.clone(),
+            record.payload_value(),
         ) {
             let event = ai_brains_events::constructors::EventBuilder::new(
                 ai_brains_events::AggregateType::System,
