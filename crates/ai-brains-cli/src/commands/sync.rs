@@ -25,6 +25,7 @@ pub fn run_pull(
     from_file: Option<PathBuf>,
     hotspots: bool,
     ledger: bool,
+    quiet: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _temp_cleanup;
     let actual_file = match from_file {
@@ -64,8 +65,15 @@ pub fn run_pull(
                 cmd.arg("--ledger");
             }
 
+            if quiet {
+                cmd.stderr(std::process::Stdio::null());
+            }
+
             let output = cmd.output()?;
             if !output.status.success() {
+                if quiet {
+                    return Ok(());
+                }
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(format!("Failed to export from ChangeGuard: {}", stderr).into());
             }
@@ -218,8 +226,11 @@ pub fn run_push(
     ctx: &AppContext,
     _with_impact: bool,
     _with_verify: bool,
+    quiet: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("AI-Brains: Exporting insights to ChangeGuard...");
+    if !quiet {
+        println!("AI-Brains: Exporting insights to ChangeGuard...");
+    }
 
     use ai_brains_contracts::bridge::{BridgeDirection, BridgeRecord};
     use std::io::Write;
@@ -328,31 +339,42 @@ pub fn run_push(
     file.flush()?;
 
     println!("Triggering ChangeGuard bridge import...");
-    let output = std::process::Command::new("changeguard")
-        .args([
-            "bridge",
-            "import",
-            "--input",
-            export_path.to_string_lossy().as_ref(),
-        ])
-        .output();
+    let mut cmd = std::process::Command::new("changeguard");
+    cmd.args([
+        "bridge",
+        "import",
+        "--input",
+        export_path.to_string_lossy().as_ref(),
+    ]);
+
+    if quiet {
+        cmd.stderr(std::process::Stdio::null());
+    }
+
+    let output = cmd.output();
 
     match output {
         Ok(out) if out.status.success() => {
-            println!("{}", String::from_utf8_lossy(&out.stdout));
-            println!("Successfully pushed insights to ChangeGuard.");
+            if !quiet {
+                println!("{}", String::from_utf8_lossy(&out.stdout));
+                println!("Successfully pushed insights to ChangeGuard.");
+            }
         }
         Ok(out) => {
-            eprintln!(
-                "ChangeGuard import failed: {}",
-                String::from_utf8_lossy(&out.stderr)
-            );
+            if !quiet {
+                eprintln!(
+                    "ChangeGuard import failed: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
         }
         Err(e) => {
-            println!(
-                "ChangeGuard CLI not found or failed to execute. Error: {}",
-                e
-            );
+            if !quiet {
+                println!(
+                    "ChangeGuard CLI not found or failed to execute. Error: {}",
+                    e
+                );
+            }
         }
     }
 
@@ -440,22 +462,31 @@ pub async fn run_query(
 
     println!("\n--- ChangeGuard Ledger Search ---");
     // 2. ChangeGuard Query (Attempt to call CLI)
-    let output = std::process::Command::new("changeguard")
-        .args(["ledger", "search", &query])
-        .output();
+    let mut cmd = std::process::Command::new("changeguard");
+    cmd.args(["ledger", "search", &query]);
+
+    if quiet {
+        cmd.stderr(std::process::Stdio::null());
+    }
+
+    let output = cmd.output();
 
     match output {
         Ok(out) if out.status.success() => {
             println!("{}", String::from_utf8_lossy(&out.stdout));
         }
         Ok(out) => {
-            eprintln!(
-                "ChangeGuard search failed: {}",
-                String::from_utf8_lossy(&out.stderr)
-            );
+            if !quiet {
+                eprintln!(
+                    "ChangeGuard search failed: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
         }
         Err(_) => {
-            println!("ChangeGuard CLI not found or failed to execute.");
+            if !quiet {
+                println!("ChangeGuard CLI not found or failed to execute.");
+            }
         }
     }
 

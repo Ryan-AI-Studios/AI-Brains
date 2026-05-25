@@ -4,7 +4,7 @@ use ai_brains_store::EventStore;
 use std::str::FromStr;
 use std::sync::Arc;
 
-pub fn run(
+pub async fn run(
     ctx: &AppContext,
     schedule: bool,
     unschedule: bool,
@@ -73,6 +73,17 @@ pub fn run(
         return Ok(());
     }
 
+    // Ensure daemon is running for background intelligence sweep
+    let daemon_client = crate::daemon_client::DaemonClient::new();
+    if !daemon_client
+        .ensure_running(&ctx.vault_path, &ctx._key)
+        .await
+    {
+        tracing::warn!(
+            "Failed to ensure daemon is running. Nightly sweep may have reduced functionality."
+        );
+    }
+
     let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
         .ok()
         .and_then(|s| ProjectId::from_str(&s).ok())
@@ -120,9 +131,8 @@ pub fn run(
 
     eprintln!("Starting nightly intelligence sweep...");
     eprintln!("Summarizing sessions...");
-    let tokio_runtime = tokio::runtime::Runtime::new()?;
 
-    let count = tokio_runtime.block_on(service.run_nightly(project_id))?;
+    let count = service.run_nightly(project_id).await?;
     eprintln!("Running memory synthesis...");
     eprintln!("Nightly sweep completed. {} sessions summarized.", count);
 

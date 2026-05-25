@@ -2,6 +2,7 @@ pub mod agy_hook;
 pub mod antigravity_import;
 pub mod backup;
 pub mod context;
+pub mod daemon;
 pub mod forget;
 pub mod ingest;
 pub mod init;

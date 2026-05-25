@@ -74,9 +74,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
                         let writer_inner = writer_clone.clone();
                         let mut shutdown_rx_inner = shutdown_tx_clone.subscribe();
+                        let shutdown_tx_inner = shutdown_tx_clone.clone();
                         tokio::spawn(async move {
                             tokio::select! {
-                                _ = handle_client(server, writer_inner) => {}
+                                _ = handle_client(server, writer_inner, shutdown_tx_inner) => {}
                                 _ = shutdown_rx_inner.recv() => {
                                     tracing::info!("Shutting down client connection...");
                                 }
@@ -140,9 +141,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
     }
 
-    // Wait for shutdown signal in the main task too
-    let _ = tokio::signal::ctrl_c().await;
-    let _ = shutdown_tx.send(());
+    // Wait for shutdown signal (Ctrl-C or internal Shutdown request)
+    let mut shutdown_rx = shutdown_tx.subscribe();
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            println!("\nCtrl-C received. Closing daemon...");
+        }
+        _ = shutdown_rx.recv() => {
+            println!("Internal shutdown signal received. Closing daemon...");
+        }
+    }
 
     #[cfg(not(windows))]
     {
@@ -160,6 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 async fn handle_client<S>(
     mut server: S,
     writer: DaemonWriter,
+    shutdown_tx: tokio::sync::broadcast::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
@@ -210,6 +219,11 @@ where
                         let mut payload = serde_json::to_vec(&DaemonResponse::Pong)?;
                         payload.push(b'\n');
                         server.write_all(&payload).await?;
+                        Ok(())
+                    }
+                    DaemonRequest::Shutdown => {
+                        tracing::info!("Shutdown request received via IPC.");
+                        let _ = shutdown_tx.send(());
                         Ok(())
                     }
                     DaemonRequest::Ingest(req) => match writer.ingest(req).await {

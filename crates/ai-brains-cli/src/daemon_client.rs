@@ -187,4 +187,28 @@ impl DaemonClient {
             false
         }
     }
+
+    pub async fn shutdown(&self) -> Result<(), Box<dyn std::error::Error>> {
+        #[cfg(windows)]
+        {
+            use tokio::net::windows::named_pipe::ClientOptions;
+            let mut stream = ClientOptions::new().open(&self.pipe_path)?;
+            let shutdown = DaemonRequest::Shutdown;
+            let mut payload = serde_json::to_vec(&shutdown)?;
+            payload.push(b'\n');
+            stream.write_all(&payload).await?;
+            Ok(())
+        }
+
+        #[cfg(not(windows))]
+        {
+            use tokio::net::UnixStream;
+            let mut stream = UnixStream::connect(&self.socket_path).await?;
+            let shutdown = DaemonRequest::Shutdown;
+            let mut payload = serde_json::to_vec(&shutdown)?;
+            payload.push(b'\n');
+            stream.write_all(&payload).await?;
+            Ok(())
+        }
+    }
 }

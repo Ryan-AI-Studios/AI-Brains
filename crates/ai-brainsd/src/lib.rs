@@ -195,6 +195,9 @@ async fn replay_spool(
             DaemonRequest::Ping => {
                 let _ = fs::remove_file(path).await;
             }
+            DaemonRequest::Shutdown => {
+                let _ = fs::remove_file(path).await;
+            }
         }
     }
     Ok(())

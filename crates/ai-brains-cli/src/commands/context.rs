@@ -159,7 +159,7 @@ pub fn run(
 
     // Auto-trigger sync pull to ingest initial signals (hotspots/ledger)
     if !show {
-        if let Err(e) = crate::commands::sync::run_pull(ctx, None, true, true) {
+        if let Err(e) = crate::commands::sync::run_pull(ctx, None, true, true, false) {
             eprintln!("Warning: Auto-triggering sync pull failed: {}", e);
         }
     }

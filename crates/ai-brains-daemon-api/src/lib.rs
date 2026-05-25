@@ -8,6 +8,7 @@ pub enum DaemonRequest {
     Ping,
     Ingest(IngestRequest),
     Sync(BridgeRecord),
+    Shutdown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -156,6 +156,21 @@ enum Commands {
         #[arg(long)]
         payload: String,
     },
+    /// Manage the AI-Brains daemon process
+    Daemon {
+        #[command(subcommand)]
+        command: DaemonCommands,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum DaemonCommands {
+    /// Stop the running daemon gracefully
+    Stop {
+        /// Forcefully terminate the process if it doesn't respond to shutdown signal
+        #[arg(long, short)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -186,6 +201,9 @@ pub enum SyncCommands {
         /// Export ledger delta data from ChangeGuard
         #[arg(long)]
         ledger: bool,
+        /// Suppress ChangeGuard error messages
+        #[arg(long, short)]
+        quiet: bool,
     },
     /// Push current context to ChangeGuard
     Push {
@@ -195,6 +213,9 @@ pub enum SyncCommands {
         /// Include verification context
         #[arg(long)]
         with_verify: bool,
+        /// Suppress ChangeGuard error messages
+        #[arg(long, short)]
+        quiet: bool,
     },
     /// Unified query across AI-Brains and ChangeGuard
     Query {
@@ -321,7 +342,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             schedule,
             unschedule,
             start_time,
-        } => commands::nightly::run(&ctx, *schedule, *unschedule, start_time.clone()),
+        } => commands::nightly::run(&ctx, *schedule, *unschedule, start_time.clone()).await,
         Commands::Backup { command } => match command {
             Some(BackupCommands::Restore { path }) => {
                 commands::backup::run_restore(&ctx, path.clone())
@@ -393,11 +414,13 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 from_file,
                 hotspots,
                 ledger,
-            } => commands::sync::run_pull(&ctx, from_file.clone(), *hotspots, *ledger),
+                quiet,
+            } => commands::sync::run_pull(&ctx, from_file.clone(), *hotspots, *ledger, *quiet),
             SyncCommands::Push {
                 with_impact,
                 with_verify,
-            } => commands::sync::run_push(&ctx, *with_impact, *with_verify),
+                quiet,
+            } => commands::sync::run_push(&ctx, *with_impact, *with_verify, *quiet),
             SyncCommands::Query {
                 query,
                 format,
@@ -406,5 +429,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         },
         Commands::AntigravityImport { days } => commands::antigravity_import::run(&ctx, *days),
         Commands::AgyHook { payload } => commands::agy_hook::run(&ctx, payload),
+        Commands::Daemon { command } => match command {
+            DaemonCommands::Stop { force } => commands::daemon::run_stop(&ctx, *force).await,
+        },
     }
 }
