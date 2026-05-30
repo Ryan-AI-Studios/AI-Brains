@@ -70,6 +70,14 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0017_sync_state",
         include_str!("../migrations/0017_sync_state.sql"),
     ),
+    (
+        "0018_memory_embedding",
+        include_str!("../migrations/0018_memory_embedding.sql"),
+    ),
+    (
+        "0019_embedding_timestamp",
+        include_str!("../migrations/0019_embedding_timestamp.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {

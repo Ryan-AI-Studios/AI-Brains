@@ -1,5 +1,5 @@
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
-use ai_brains_events::{Payload, SessionSummaryCreatedPayload};
+use ai_brains_events::{MemorySynthesizedPayload, Payload, SessionSummaryCreatedPayload};
 use ai_brains_models::{CompletionRequest, ModelProvider, TokenizeRequest};
 use ai_brains_store::{EventStore, QueryStore};
 use std::str::FromStr;
@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 mod backup;
 mod conflict_detection;
+mod embeddings;
 mod feedback_loop;
 pub mod intervention;
 mod memory_synthesis;
@@ -15,6 +16,7 @@ mod retention;
 
 pub use backup::BackupService;
 use conflict_detection::ConflictDetectionService;
+pub use embeddings::EmbeddingService;
 pub use feedback_loop::FeedbackLoopService;
 pub use intervention::{InterventionWarning, RiskAlert, RiskReviewAgent};
 use memory_synthesis::MemorySynthesizer;
@@ -82,16 +84,18 @@ impl NightlyService {
     pub async fn run_nightly(
         &self,
         project_id: ProjectId,
+        batch_size: Option<usize>,
     ) -> Result<usize, Box<dyn std::error::Error>> {
         let unsummarized = self.query_store.get_unsummarized_sessions()?;
         let mut count = 0;
         let total = unsummarized.len();
+        let limit = batch_size.unwrap_or(total);
         eprintln!(
-            "[Nightly] Found {} unsummarized sessions to process.",
-            total
+            "[Nightly] Found {} unsummarized sessions to process (batch limit: {}).",
+            total, limit
         );
 
-        for (idx, session_id) in unsummarized.into_iter().enumerate() {
+        for (idx, session_id) in unsummarized.into_iter().take(limit).enumerate() {
             eprintln!(
                 "[Nightly] [{}/{}] Summarizing session {}...",
                 idx + 1,
@@ -184,6 +188,58 @@ impl NightlyService {
             .set_sync_state("last_nightly_count", &count.to_string())
         {
             tracing::warn!("Failed to persist last_nightly_count: {}", e);
+        }
+
+        // EMBED: Backfill embeddings for recent memories without embeddings
+        eprintln!("[Nightly] Running embedding backfill...");
+        let embed_service = EmbeddingService::new(
+            self.query_store.clone(),
+            self._embedding_provider.clone(),
+        );
+        let mut backfill_success = 0;
+        let mut stale_success = 0;
+
+        match embed_service.backfill_recent(50, Some(7)).await {
+            Ok((success, failed)) => {
+                backfill_success = success;
+                eprintln!(
+                    "[Nightly] Embedding backfill: {} succeeded, {} failed.",
+                    success, failed
+                );
+            }
+            Err(e) => {
+                tracing::error!("Embedding backfill failed: {}", e);
+                eprintln!("[Nightly] Embedding backfill failed: {}", e);
+            }
+        }
+
+        // REFRESH: Re-embed stale embeddings (>30 days old)
+        match embed_service.refresh_stale(30, 10).await {
+            Ok((success, failed)) => {
+                stale_success = success;
+                eprintln!(
+                    "[Nightly] Stale refresh: {} succeeded, {} failed.",
+                    success, failed
+                );
+            }
+            Err(e) => {
+                tracing::error!("Stale refresh failed: {}", e);
+                eprintln!("[Nightly] Stale refresh failed: {}", e);
+            }
+        }
+
+        // Persist embedding stats
+        if let Err(e) = self
+            .event_store
+            .set_sync_state("last_embedding_backfill_count", &backfill_success.to_string())
+        {
+            tracing::warn!("Failed to persist embedding backfill count: {}", e);
+        }
+        if let Err(e) = self
+            .event_store
+            .set_sync_state("last_stale_refresh_count", &stale_success.to_string())
+        {
+            tracing::warn!("Failed to persist stale refresh count: {}", e);
         }
 
         Ok(count)
@@ -408,6 +464,38 @@ impl NightlyService {
         ))?;
 
         self.event_store.append_event(&event)?;
+
+        // Emit MemorySynthesized so graph projector creates SYNTHESIZED_FROM edges
+        let source_ids = self
+            .query_store
+            .get_session_memory_ids(session_id_str)
+            .unwrap_or_default();
+        let synth_project_id = project_id
+            .unwrap_or_else(|| ProjectId::from_uuid(uuid::Uuid::nil()));
+        let synth_event = ai_brains_events::constructors::EventBuilder::new(
+            ai_brains_events::AggregateType::Memory,
+            memory_id.as_uuid(),
+            ai_brains_events::EventKind::MemorySynthesized,
+            ai_brains_events::Actor::System,
+            ai_brains_core::privacy::Privacy::LocalOnly,
+        )
+        .build(Payload::MemorySynthesized(MemorySynthesizedPayload {
+            memory_id,
+            content: summary_json.clone(),
+            source_memory_ids: source_ids,
+            level: 0,
+            project_id: synth_project_id,
+        }));
+        match synth_event {
+            Ok(ev) => {
+                if let Err(e) = self.event_store.append_event(&ev) {
+                    tracing::warn!("Failed to emit MemorySynthesized for session {}: {}", session_id_str, e);
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to build MemorySynthesized event for session {}: {}", session_id_str, e);
+            }
+        }
 
         // Run intelligence services
         let conflict_service = ConflictDetectionService::new(

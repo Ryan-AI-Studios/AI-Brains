@@ -64,11 +64,18 @@ pub struct SessionFailedPayload {
 pub struct MemoryPinnedPayload {
     pub memory_id: MemoryId,
     pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<SessionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<ProjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tx_id: Option<TransactionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rank: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_tag: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query_text: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

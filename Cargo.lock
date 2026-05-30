@@ -265,6 +265,7 @@ dependencies = [
  "ai-brains-crypto",
  "ai-brains-events",
  "ai-brains-graph",
+ "ai-brains-models",
  "ai-brains-store",
  "chrono",
  "rusqlite",
@@ -272,6 +273,7 @@ dependencies = [
  "strip-ansi-escapes",
  "tempfile",
  "thiserror",
+ "tokio",
  "uuid",
 ]
 

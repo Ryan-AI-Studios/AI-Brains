@@ -39,6 +39,9 @@ pub fn store_with_memory(
         session_id: None,
         project_id: Some(project_id),
         tx_id: None,
+        rank: None,
+        source_tag: None,
+        query_text: None,
     });
     let envelope = EventBuilder::new(
         AggregateType::Memory,

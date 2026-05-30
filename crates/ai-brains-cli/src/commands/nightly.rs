@@ -152,9 +152,21 @@ pub async fn run(
     eprintln!("Starting nightly intelligence sweep...");
     eprintln!("Summarizing sessions...");
 
-    let count = service.run_nightly(project_id).await?;
+    let batch_size = std::env::var("AI_BRAINS_NIGHTLY_BATCH")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok());
+    let count = service.run_nightly(project_id, batch_size).await?;
     eprintln!("Running memory synthesis...");
+
+    // WAL checkpoint: ensure embeddings generated during nightly are persisted
+    // before potential timeout on MADR ingestion
+    ctx.conn.wal_checkpoint();
+    eprintln!("WAL checkpointed — embeddings persisted to disk.");
+
     eprintln!("Nightly sweep completed. {} sessions summarized.", count);
+
+    eprintln!("Stats: {} sessions summarized.", count);
+    eprintln!("Embedding stats: see stderr output above.");
 
     // --- MADR Ingestion (Phase 18: T41) ---
     eprintln!("Ingesting structured MADR decisions from ChangeGuard...");

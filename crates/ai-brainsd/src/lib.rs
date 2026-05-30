@@ -162,6 +162,7 @@ impl DaemonWriter {
             5,
             Some(project_id),
             Some(session_id),
+            false,
         )?;
         Ok(hits)
     }

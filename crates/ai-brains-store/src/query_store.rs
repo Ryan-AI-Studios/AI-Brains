@@ -70,12 +70,22 @@ impl QueryStore for VaultConnection {
         Ok(results)
     }
 
-    fn get_memories_by_level(&self, level: u32) -> Result<Vec<(MemoryId, String)>> {
+    fn get_memories_by_level(&self, level: u32, limit: Option<usize>) -> Result<Vec<(MemoryId, String)>> {
         let conn = self.lock()?;
-        let mut stmt = conn.prepare(
+        let sql = if let Some(n) = limit {
+            format!(
+                "SELECT memory_id, content FROM memory_projection 
+                 WHERE level = ? AND status = 'pinned'
+                 ORDER BY updated_at DESC LIMIT {}",
+                n
+            )
+        } else {
             "SELECT memory_id, content FROM memory_projection 
-             WHERE level = ? AND status = 'pinned'",
-        )?;
+             WHERE level = ? AND status = 'pinned'
+             ORDER BY updated_at DESC"
+                .to_string()
+        };
+        let mut stmt = conn.prepare(&sql)?;
         let rows = stmt.query_map([level], |row| {
             let id_str: String = row.get(0)?;
             let content: String = row.get(1)?;
@@ -181,5 +191,139 @@ impl QueryStore for VaultConnection {
 
     fn get_last_nightly_run(&self) -> Result<Option<String>> {
         self.get_sync_state("last_nightly_run")
+    }
+
+    fn store_embedding(&self, memory_id: &str, embedding: &[u8]) -> Result<()> {
+        let conn = self.lock()?;
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE memory_projection SET embedding = ?, embedding_generated_at = ? WHERE memory_id = ?",
+            params![embedding, now, memory_id],
+        )?;
+        Ok(())
+    }
+
+    fn get_stale_memories(
+        &self,
+        days_threshold: i32,
+        limit: usize,
+    ) -> Result<Vec<(String, String)>> {
+        let conn = self.lock()?;
+        let sql = format!(
+            "SELECT memory_id, content FROM memory_projection
+             WHERE embedding IS NOT NULL
+               AND (
+                 embedding_generated_at IS NULL
+                 OR datetime(embedding_generated_at) < datetime('now', '-{} days')
+               )
+             ORDER BY COALESCE(embedding_generated_at, updated_at) ASC
+             LIMIT {}",
+            days_threshold, limit
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map([], |row| {
+            let id: String = row.get(0)?;
+            let content: String = row.get(1)?;
+            Ok((id, content))
+        })?;
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
+    }
+
+    fn get_memories_without_embeddings(
+        &self,
+        limit: usize,
+        since_days: Option<i32>,
+    ) -> Result<Vec<(String, String)>> {
+        let conn = self.lock()?;
+        let sql = if let Some(days) = since_days {
+            format!(
+                "SELECT memory_id, content FROM memory_projection
+                 WHERE embedding IS NULL
+                   AND status = 'pinned'
+                   AND updated_at > datetime('now', '-{} days')
+                 ORDER BY updated_at DESC
+                 LIMIT {}",
+                days, limit
+            )
+        } else {
+            format!(
+                "SELECT memory_id, content FROM memory_projection
+                 WHERE embedding IS NULL
+                   AND status = 'pinned'
+                 ORDER BY updated_at DESC
+                 LIMIT {}",
+                limit
+            )
+        };
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map([], |row| {
+            let id: String = row.get(0)?;
+            let content: String = row.get(1)?;
+            Ok((id, content))
+        })?;
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
+    }
+
+    fn get_session_memory_ids(&self, session_id: &str) -> Result<Vec<MemoryId>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare(
+            "SELECT memory_id FROM memory_projection WHERE session_id = ?",
+        )?;
+        let rows = stmt.query_map([session_id], |row| {
+            let id_str: String = row.get(0)?;
+            Ok(id_str)
+        })?;
+        let mut results = Vec::new();
+        for row in rows {
+            let id_str = row?;
+            let id = MemoryId::from_str(&id_str)
+                .map_err(|e| crate::StoreError::EventReadFailed(e.to_string()))?;
+            results.push(id);
+        }
+        Ok(results)
+    }
+
+    fn list_projects(
+        &self,
+    ) -> Result<Vec<(String, String, String, usize)>> {
+        let conn = self.lock()?;
+        let sql = "
+            SELECT
+                p.project_id,
+                p.name,
+                COALESCE(a.alias, '') as alias,
+                COALESCE(mem.memory_count, 0) as memory_count
+            FROM project_projection p
+            LEFT JOIN (
+                SELECT project_id, alias FROM project_alias_projection
+            ) a ON p.project_id = a.project_id
+            LEFT JOIN (
+                SELECT project_id, COUNT(*) as memory_count
+                FROM memory_projection
+                GROUP BY project_id
+            ) mem ON p.project_id = mem.project_id
+            ORDER BY memory_count DESC
+        ";
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([], |row| {
+            let project_id: String = row.get(0)?;
+            let name: String = row.get(1)?;
+            let alias: String = row.get(2)?;
+            let count: usize = row.get(3)?;
+            Ok((project_id, name, alias, count))
+        })?;
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
     }
 }

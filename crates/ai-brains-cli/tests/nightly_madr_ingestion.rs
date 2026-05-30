@@ -195,6 +195,9 @@ fn test_non_madr_records_are_not_ingested_as_decisions() -> Result<(), Box<dyn s
         session_id: None,
         project_id: None,
         tx_id: None,
+        rank: None,
+        source_tag: None,
+        query_text: None,
     });
 
     let envelope = EventBuilder::new(

@@ -11,7 +11,7 @@ pub use cozo_proxy::{CozoProxyBackend, GraphBackend, GraphEdge, GraphNode, Graph
 pub use errors::{GraphError, Result};
 pub use multiplex::MultiplexGraphBackend;
 pub use projector::GraphProjector;
-pub use queries::GraphSearch;
+pub use queries::{GraphSearch, NeighborHit};
 pub use rebuild::GraphRebuilder;
 pub use sqlite_backend::SqliteGraphBackend;
 pub use vault::GraphVault;

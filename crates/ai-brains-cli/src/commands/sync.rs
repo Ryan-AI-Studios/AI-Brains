@@ -424,6 +424,9 @@ pub async fn run_query(
             5,
             Some(project_id),
             Some(session_id),
+            false,
+            0.1,
+            1,
         )?;
 
         use ai_brains_contracts::bridge::{BridgeDirection, BridgePayload, BridgeRecord};
@@ -458,7 +461,7 @@ pub async fn run_query(
 
     println!("--- AI-Brains Recall ---");
     // 1. Local Recall
-    crate::commands::recall::run(ctx, query.clone(), 3, None, None, fmt)?;
+    crate::commands::recall::run(ctx, query.clone(), 3, None, None, fmt, false, 0.1, 1)?;
 
     println!("\n--- ChangeGuard Ledger Search ---");
     // 2. ChangeGuard Query (Attempt to call CLI)

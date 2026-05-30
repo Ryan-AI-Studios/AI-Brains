@@ -12,10 +12,11 @@ pub fn run(
     format: Option<String>,
     scope: Vec<String>,
     summary: bool,
+    global: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Attempt to open graph vault next to the main vault
     #[cfg(feature = "graph")]
-    let graph_vault = ai_brains_graph::GraphVault::new(ctx.conn.clone());
+    let graph_vault = ai_brains_graph::GraphVault::new((*ctx.conn).clone());
 
     #[cfg(feature = "graph")]
     let graph_search = Some(ai_brains_graph::queries::GraphSearch::new(&graph_vault));
@@ -35,6 +36,7 @@ pub fn run(
         max_words,
         project_id,
         scope_paths,
+        global,
     )?;
 
     if summary {

@@ -115,10 +115,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         match res {
                             Ok((stream, _addr)) => {
                                 let writer_inner = writer_clone.clone();
+                                let shutdown_tx_for_client = shutdown_tx_clone.clone();
                                 let mut shutdown_rx_inner = shutdown_tx_clone.subscribe();
-                                tokio::spawn(async move {
+                                    tokio::spawn(async move {
                                     tokio::select! {
-                                        _ = handle_client(stream, writer_inner) => {}
+                                        _ = handle_client(stream, writer_inner, shutdown_tx_for_client) => {}
                                         _ = shutdown_rx_inner.recv() => {
                                             tracing::info!("Shutting down client connection...");
                                         }

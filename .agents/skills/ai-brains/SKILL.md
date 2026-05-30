@@ -1,98 +1,158 @@
 ---
-name: ai-brains
-description: "Persistent memory and project context vault. Use this skill whenever the user asks 'what did we decide', mentions past sessions, or when starting work on a repo cold. Trigger when you hear 'remember this', 'don't forget', 'check the vault', or 'what did we decide about'. ALSO trigger on frustration signals like 'I told you last time' or 'we already tried that'. Use even if memory isn't explicitly mentioned if the task involves project history. DO NOT use for generic coding questions, library documentation, or formatting help."
+title: AI-Brains Project Skill
+description: How to build, develop, and operate the AI-Brains local-first memory vault.
+category: devops
+version: 1.0.0
 ---
 
-# AI-Brains Memory Protocol
+# AI-Brains Project Skill
 
-This skill provides access to the long-term memory vault. Use it to avoid repeating work and to stay aligned with established architectural decisions.
+## What This Is
 
-## When NOT to use this skill
-- **Generic Knowledge**: Do not use for general "How to" questions (e.g., "How do I use unwrap in Rust?").
-- **Trivial Edits**: Do not use for one-off formatting or simple syntax fixes.
-- **Immediate Context**: Do not use if the answer is already visible in the current session's immediate conversation history.
+AI-Brains is a local-first, event-sourced memory vault with:
+- **SQLCipher** encrypted SQLite database (`vault.db`)
+- **FTS5** full-text search over conversation turns and ingested documents
+- **Nightly summarization** job for session compaction
+- **ChangeGuard bridge** for safety signals (HOTSPOT, DECISION, CONSTRAINT)
+- **Graph projection** layer for relational queries
+- **Rust workspace** with ~15 crates under `crates/`
 
-## Availability & Fallback
-This skill requires the `ai-brains` CLI tool.
-1. **Check**: Run `ai-brains --version`. If it prints usage info, the CLI is available.
-2. **Fallback**: If the CLI is not found, inform the user that ai-brains needs to be installed. Proceed with manual context gathering (README, Cargo.toml, entry points) and do not attempt further vault commands.
+## Where It Lives
 
-## Infrastructure Invariants (May 2026)
-- **Daemon Auto-Launch**: The CLI automatically spawns `ai-brainsd` in the background if it's unreachable. It inherits vault path and key from the environment.
-- **Ultra-Fast Handshake**: The CLI performs an async Ping/Pong handshake with the daemon in **<10ms**.
-- **Fast-Fail**: Daemon-dependent commands return `exit 1` immediately if the daemon is unreachable and auto-launch fails.
-- **Structured Errors**: All CLI failures emit structured JSON objects (`ApiResult::error`) to stderr.
+| Component | Location |
+|-----------|----------|
+| Source code | `C:\dev\AI-Brains` |
+| Cargo binary | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` |
+| Vault database | `C:\dev\ai-brains\vault.db` |
+| Conductor tracks | `C:\dev\AI-Brains\conductor\tracks\` |
+| Obsidian vault | `C:\Users\RyanB\Documents\Hermes\` |
 
-## Workflow Phases
+## Build Requirements
 
-### Phase 1: Orient (What do I already know?)
-Trigger when starting a new session or entering a new repository.
-1. **Sync Safety**: Run `ai-brains safety sync`.
-   - **Goal**: Ingest recent ChangeGuard hotspots to identify brittle files.
-   - **Tip**: Use `--dry-run` to preview what would be synced without pinning.
-2. **Get Orientation**: Run `ai-brains preflight --summary`.
-   - **Goal**: Identify project state and safety constraints via a concise human-centric summary.
-   - **Tip**: Use `--pretty` for full human-readable text, or `--format json` for agent context.
-- **Heuristic**: Keep any additional manual research notes under ~150 words to ensure the memory index remains dominant in your context.
+### Windows Cross-Compilation (Primary Target)
 
-### Phase 2: Recall (Search before acting)
-Trigger before starting a development track, architectural change, or when an unfamiliar constant/path is encountered.
-1. **Unified Search**: Run `ai-brains sync query "<topic>" --quiet`
-   - **Goal**: Search both local vault and ChangeGuard bridge records in one command.
-   - **Tip**: Use `--quiet` to suppress ChangeGuard bridge noise (e.g., file locks).
-2. **Vault Search**: Run `ai-brains recall "<topic>"`
-   - **Goal**: Find project-specific constraints or rejected approaches in the local vault.
-   - **Context**: This command traverses FTS5 with BM25 ranking.
-   - **Readable output**: Use `--format pretty` for human-readable results with scores displayed.
+The project targets `x86_64-pc-windows-gnu` for Windows builds:
 
-### Phase 3: Record (Persist after deciding)
-Trigger immediately after a major decision, discovery of a critical constraint, or user correction.
-Run: `ai-brains pin "DECISION: <content>"`
-- **Goal**: Pin "Dense" knowledge (decisions, invariants, constraints).
-- **Format**: Use the format `DECISION: ...`, `CONSTRAINT: ...`, or `INVARIANT: ...`.
-- **Role Selection**: Use the default (assistant) when recording your own reasoning. Use `--role user` when recording a direct correction or instruction from the user.
-- **Tags**: Use `--tag <tag>` (repeatable) to categorize memories (e.g., `--tag architecture --tag database`).
-- **Stdin**: Use `--stdin` to pipe long content instead of a positional argument.
+```bash
+# 1. Install MinGW-w64 toolchain on WSL
+sudo apt-get update
+sudo apt-get install -y gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64
 
-### Phase 4: Forget (Correct mistakes)
-Trigger when a memory is wrong, outdated, or was created for testing.
-- **By ID**: `ai-brains forget --memory-id <uuid> -f` — forgets a specific memory (use `-f` to skip confirmation).
-- **By content**: `ai-brains forget --match "<search terms>" -f` — finds and forgets by content match.
-- **List**: `ai-brains forget --list-forgotten` — shows all forgotten memories.
-- **Restore**: `ai-brains forget --restore <uuid>` — un-forgets a memory via compensating event.
+# 2. Configure Cargo linker
+cat > ~/.cargo/config.toml << 'EOF'
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+ar = "x86_64-w64-mingw32-ar"
+EOF
 
-## Integration & Automation
+# 3. Verify
+which x86_64-w64-mingw32-gcc
+x86_64-w64-mingw32-gcc --version
 
-### Antigravity (`agy`) CLI
-The system supports the new `agy` CLI via real-time hooks and multi-path discovery.
-- **agy-hook**: Triggered by `agy` to push turns into the vault. Enforces privacy filtering (user/assistant only).
-- **Incremental Import**: `ai-brains antigravity-import` scans tool-specific brain dirs and project-specific tmp chat folders (`session-*.jsonl`). It uses file metadata to skip unchanged sessions, ensuring fast performance even with hundreds of files.
+# 4. Build
+cargo build --target x86_64-pc-windows-gnu -p ai-brains-cli
+```
 
-## Maintenance
-For batch reconciliation across sessions and to update the relational graph, run:
-`ai-brains nightly`
-- **Fast Performance**: The nightly sweep uses incremental scanning to process only new or modified Antigravity data.
-- **Graceful Management**: Use `ai-brains daemon stop` to shutdown the background process before upgrades. Use `--force` if it hangs.
-- **Scheduling**: Use `--schedule` to register as a Windows scheduled task. Use `--unschedule` to remove it.
+### Linux Native Build
 
-## Backup & Restore
-- **Create backup**: `ai-brains backup` (or `ai-brains backup create --output-dir <path>`)
-- **Restore**: `ai-brains backup restore <path>` — verifies integrity before restoring, prompts for confirmation.
+```bash
+cargo build --release -p ai-brains-cli
+```
 
-## Command Summary
+## Common Commands
 
-| Action | Command |
-|---|---|
-| Initialize Context | `ai-brains context` (use `--show` to view, `--new-session` reset) |
-| Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
-| Unified Search | `ai-brains sync query` (searches vault + ChangeGuard) |
-| Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
-| Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
-| Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |
-| Forget Memory | `ai-brains forget` (use `--match` for search, `--restore` undo) |
-| agy Capture Hook | `ai-brains agy-hook --payload "{...}"` (used by agy CLI hooks) |
-| Import Antigravity | `ai-brains antigravity-import --days 30` (incremental scan) |
-| Nightly Sweep | `ai-brains nightly` (summarization + graph rebuild) |
-| Sync Pull/Push | `ai-brains sync pull`, `ai-brains sync push` (interchange with bridge) |
-| Stop Daemon | `ai-brains daemon stop` (use `--force` to kill process) |
-| Backup Vault | `ai-brains backup` (use `backup restore <path>` to recover) |
+### Vault Operations
+```bash
+# Initialize a new vault
+ai-brains init --vault-path C:\dev\ai-brains\vault.db
+
+# Ingest a file or directory
+ai-brains ingest --vault-path C:\dev\ai-brains\vault.db --project-id <ID> --path C:\path\to\notes\n
+# Query with FTS5
+ai-brains recall --vault-path C:\dev\ai-brains\vault.db "your query" --limit 5
+
+# Preflight (project-scoped safety signals)
+ai-brains preflight --vault-path C:\dev\ai-brains\vault.db --project-id <ID> --summary
+
+# Nightly summarization
+ai-brains nightly --vault-path C:\dev\ai-brains\vault.db
+
+# Check nightly status
+ai-brains nightly --status --vault-path C:\dev\ai-brains\vault.db
+```
+
+### Testing
+```bash
+# Run all tests
+cargo test --workspace
+
+# Run specific crate tests
+cargo test -p ai-brains-path
+cargo test -p ai-brains-store
+cargo test -p ai-brains-cli
+
+# Run with specific target
+cargo test --target x86_64-pc-windows-gnu -p ai-brains-cli
+```
+
+### Conductor Workflow
+All tracks follow the Conductor pattern:
+1. **Spec** in `conductor/tracks/trackTNN-<name>/spec.md`
+2. **Plan** in `conductor/tracks/trackTNN-<name>/plan.md`
+3. Branch from main: `track-tNN-<name>`
+4. Implement → test → lint
+5. Update `conductor/conductor.md` registry
+6. Commit → push → PR
+
+## Key Architecture
+
+### Crate Layout
+| Crate | Purpose |
+|-------|---------|
+| `ai-brains-core` | IDs, privacy types, session model |
+| `ai-brains-store` | SQLCipher event store + projections |
+| `ai-brains-path` | Windows/WSL/UNC path normalization |
+| `ai-brains-capture` | CLI/daemon capture pipeline |
+| `ai-brains-retrieval` | FTS5 search + preflight assembly |
+| `ai-brains-graph` | CozoProxy + graph projection |
+| `ai-brains-cli` | Main CLI binary |
+| `ai-brainsd` | Background daemon |
+
+### Preflight vs Recall
+- **Preflight**: Project-scoped, structured data only (HOTSPOT, DECISION, CONSTRAINT), requires `project_id`
+- **Recall**: Cross-project FTS5 search, returns all content types, no project scoping
+
+For cross-project context (e.g., "what is Ryan working on?"), use `recall`.
+For repo-specific safety signals when coding in a specific project, use `preflight`.
+
+## Windows-Specific Notes
+
+1. **Paths**: Use forward slashes or escaped backslashes in PowerShell: `C:\\dev\\ai-brains`
+2. **PowerShell encoding**: Always set `$OutputEncoding = [System.Text.Encoding]::UTF8`
+3. **Cargo config**: `~/.cargo/config.toml` is required for `x86_64-pc-windows-gnu` linker
+4. **Binary location**: After `cargo install`, binary is at `C:\Users\RyanB\.cargo\bin\ai-brains.exe`
+
+## Troubleshooting
+
+### "linker not found" error
+```bash
+# MinGW not installed
+sudo apt-get install gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64
+```
+
+### Vault locked / SQLite busy
+```bash
+# Check for running daemon
+ps aux | grep ai-brainsd
+# Or: ai-brains sync query --vault-path <path>  # auto-starts daemon if needed
+```
+
+### Tests fail on path canonicalization
+See Track T58: Unix absolute paths need `starts_with('/')` check in `canonical.rs`.
+
+## Safety & Privacy
+
+- **Privacy filter** runs on all ingested content — never expose API keys, passwords, or tokens
+- **Redaction** automatically masks `sk-...`, `ghp_...`, `SG.*` patterns
+- **Pinned memories** (HOTSPOT, CONSTRAINT, DECISION) are promoted to preflight context
+- Use `--quiet` flag on bridge commands to suppress stderr noise

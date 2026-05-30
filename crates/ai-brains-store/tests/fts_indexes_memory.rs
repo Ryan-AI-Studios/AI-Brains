@@ -36,6 +36,9 @@ fn test_fts_indexes_memory() {
         session_id: None,
         project_id: None,
         tx_id: None,
+        rank: None,
+        source_tag: None,
+        query_text: None,
     });
 
     let envelope = EventBuilder::new(

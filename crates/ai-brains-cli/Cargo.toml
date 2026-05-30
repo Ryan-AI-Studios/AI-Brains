@@ -46,7 +46,7 @@ time.workspace = true
 
 [features]
 default = []
-graph = ["dep:ai-brains-graph"]
+graph = ["dep:ai-brains-graph", "ai-brains-retrieval/graph"]
 
 [dev-dependencies]
 tempfile.workspace = true

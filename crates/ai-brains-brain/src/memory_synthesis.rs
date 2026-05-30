@@ -34,7 +34,11 @@ impl MemorySynthesizer {
 
         // 1. Get all memories at source level that haven't been synthesized yet
         let source_level = target_level - 1;
-        let source_memories = self.query_store.get_memories_by_level(source_level)?;
+        let batch_size = std::env::var("AI_BRAINS_SYNTHESIS_BATCH")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(50);
+        let source_memories = self.query_store.get_memories_by_level(source_level, Some(batch_size))?;
 
         if source_memories.len() < 2 {
             return Ok(0);

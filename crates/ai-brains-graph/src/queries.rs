@@ -1,6 +1,13 @@
 use crate::errors::{GraphError, Result};
 use crate::vault::GraphVault;
 
+#[derive(Debug, Clone)]
+pub struct NeighborHit {
+    pub external_id: String,
+    pub label: String,
+    pub direction: String,
+}
+
 pub struct GraphSearch<'a> {
     vault: &'a GraphVault,
 }
@@ -36,6 +43,91 @@ impl<'a> GraphSearch<'a> {
             FROM walk w
             JOIN graph_node n ON n.node_id = w.node_id
             WHERE w.depth = 2"
+        ).map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([session_id], |row| row.get::<_, String>(0))
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row.map_err(|e| GraphError::DbError(e.to_string()))?);
+        }
+        Ok(results)
+    }
+
+    /// Returns 1-hop graph neighbors of a memory (both incoming and outgoing edges).
+    pub fn get_neighbors(&self, memory_id: &str) -> Result<Vec<NeighborHit>> {
+        let conn = self
+            .vault
+            .connection()
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let mut stmt = conn
+            .prepare_cached(
+                "SELECT n.external_id, e.label, 'outgoing' as direction
+                FROM graph_node src
+                JOIN graph_edge e ON e.src_id = src.node_id
+                JOIN graph_node n ON n.node_id = e.dst_id
+                WHERE src.external_id = ?1
+
+                UNION ALL
+
+                SELECT n.external_id, e.label, 'incoming' as direction
+                FROM graph_node dst
+                JOIN graph_edge e ON e.dst_id = dst.node_id
+                JOIN graph_node n ON n.node_id = e.src_id
+                WHERE dst.external_id = ?1",
+            )
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([memory_id], |row| {
+                Ok(NeighborHit {
+                    external_id: row.get(0)?,
+                    label: row.get(1)?,
+                    direction: row.get(2)?,
+                })
+            })
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row.map_err(|e| GraphError::DbError(e.to_string()))?);
+        }
+        Ok(results)
+    }
+
+    /// Returns all memory external_ids linked to a session via graph edges.
+    /// Catches both direct session -[RECALLS]-> memory edges (from MemoryPinned events)
+    /// and the legacy session <- turn -> memory path.
+    pub fn get_session_memories(&self, session_id: &str) -> Result<Vec<String>> {
+        let conn = self
+            .vault
+            .connection()
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let mut stmt = conn.prepare_cached(
+            "WITH RECURSIVE walk(depth, node_id) AS (
+              SELECT 0, node_id FROM graph_node WHERE external_id = ?1 AND kind = 'session'
+              UNION ALL
+              SELECT 1, e.src_id FROM walk w JOIN graph_edge e ON w.depth = 0 AND e.dst_id = w.node_id AND e.label = 'IN_SESSION'
+              UNION ALL
+              SELECT 2, e.dst_id FROM walk w JOIN graph_edge e ON w.depth = 1 AND e.src_id = w.node_id AND e.label IN ('RECALLS', 'SOURCE_FOR')
+            )
+            SELECT DISTINCT n.external_id
+            FROM walk w JOIN graph_node n ON n.node_id = w.node_id
+            WHERE w.depth = 2
+
+            UNION
+
+            SELECT DISTINCT n.external_id
+            FROM graph_node s
+            JOIN graph_edge e ON e.src_id = s.node_id AND e.label = 'RECALLS'
+            JOIN graph_node n ON n.node_id = e.dst_id
+            WHERE s.external_id = ?1 AND s.kind = 'session'",
         ).map_err(|e| GraphError::DbError(e.to_string()))?;
 
         let rows = stmt

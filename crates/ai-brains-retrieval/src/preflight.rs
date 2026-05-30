@@ -20,8 +20,13 @@ pub fn build_preflight(
     max_words: usize,
     project_id: Option<ai_brains_core::ids::ProjectId>,
     scope_paths: Option<Vec<String>>,
+    global: bool,
 ) -> Result<PreflightContext> {
-    let active = active_sessions(conn, project_id)?;
+    let active = if global {
+        active_sessions(conn, None)?
+    } else {
+        active_sessions(conn, project_id)?
+    };
     let conn = conn.lock()?;
 
     let project_id_str: Option<String> = project_id.map(|p| p.to_string());
@@ -30,10 +35,12 @@ pub fn build_preflight(
 
     // --- ChangeGuard Blended Section (New) ---
     let mut has_cg_intelligence = false;
-    if let Some(ref pid) = project_id_str {
-        if let Some(cg_context) = query_changeguard(pid, scope_paths.as_ref()) {
-            sections.push(cg_context);
-            has_cg_intelligence = true;
+    if !global {
+        if let Some(ref pid) = project_id_str {
+            if let Some(cg_context) = query_changeguard(pid, scope_paths.as_ref()) {
+                sections.push(cg_context);
+                has_cg_intelligence = true;
+            }
         }
     }
 
@@ -42,18 +49,27 @@ pub fn build_preflight(
     let mut safety_entries: Vec<(String, String)> = Vec::new(); // (content, updated_at)
     let mut safety_ids: HashSet<String> = HashSet::new();
 
-    let safety_sql = "SELECT m.memory_id, m.content, m.updated_at FROM memory_projection m
+    let safety_sql = if global {
+        "SELECT m.memory_id, m.content, m.updated_at FROM memory_projection m
+         WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
+         AND m.status = 'pinned'
+         ORDER BY m.updated_at DESC LIMIT 10"
+    } else {
+        "SELECT m.memory_id, m.content, m.updated_at FROM memory_projection m
          LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
          AND m.status = 'pinned'
          AND (s.project_id = ? OR m.project_id = ?)
-         ORDER BY m.updated_at DESC LIMIT 10";
+         ORDER BY m.updated_at DESC LIMIT 10"
+    };
 
     let mut safety_stmt = conn.prepare(safety_sql)?;
-    let mut safety_rows = if let Some(ref pid) = project_id_str {
+    let mut safety_rows = if global {
+        safety_stmt.query([])?
+    } else if let Some(ref pid) = project_id_str {
         safety_stmt.query(rusqlite::params![pid, pid])?
     } else {
-        // Return nothing if no project_id provided
+        // Return nothing if no project_id provided and not global
         safety_stmt.query(rusqlite::params![
             Option::<String>::None,
             Option::<String>::None
@@ -133,15 +149,24 @@ pub fn build_preflight(
     }
 
     // --- General Memory Index (scoped to current project when project_id is known) ---
-    let index_sql = "SELECT m.memory_id, m.content, m.privacy, m.updated_at
+    let index_sql = if global {
+        "SELECT m.memory_id, m.content, m.privacy, m.updated_at
+         FROM memory_projection m
+         WHERE m.status = 'pinned'
+         ORDER BY m.updated_at DESC"
+    } else {
+        "SELECT m.memory_id, m.content, m.privacy, m.updated_at
          FROM memory_projection m
          LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE m.status = 'pinned'
          AND (s.project_id = ? OR m.project_id = ?)
-         ORDER BY m.updated_at DESC";
+         ORDER BY m.updated_at DESC"
+    };
 
     let mut stmt = conn.prepare(index_sql)?;
-    let mut rows = if let Some(ref pid) = project_id_str {
+    let mut rows = if global {
+        stmt.query([])?
+    } else if let Some(ref pid) = project_id_str {
         stmt.query(rusqlite::params![pid, pid])?
     } else {
         stmt.query(rusqlite::params![
@@ -239,7 +264,7 @@ pub fn build_preflight(
         }
     }
 
-    if collected.is_empty() && active.is_empty() && project_id.is_none() {
+    if collected.is_empty() && active.is_empty() && !global && project_id.is_none() {
         sections.push("--- AI-Brains: New Repository Detected ---\nThis repository has not been initialized with AI-Brains. No previous memories or safety signals are available for this context. Run 'ai-brains context' to initialize project tracking.".to_string());
     }
 

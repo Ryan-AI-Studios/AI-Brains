@@ -60,6 +60,9 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
         session_id: None,
         project_id: None,
         tx_id: None,
+        rank: None,
+        source_tag: None,
+        query_text: None,
     }))?;
     event_store.append_event(&mem_event)?;
 
@@ -138,7 +141,7 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
         mock_provider.clone(),
         mock_provider,
     );
-    let count = nightly.run_nightly(project_id).await?;
+    let count = nightly.run_nightly(project_id, None).await?;
     assert_eq!(count, 1);
 
     // 5. Verify Projections

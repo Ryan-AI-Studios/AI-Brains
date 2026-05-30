@@ -42,6 +42,15 @@ enum Commands {
         /// Output format: 'json' (default) or 'pretty'
         #[arg(long, default_value = "json")]
         format: String,
+        /// Use semantic (embedding) search alongside FTS5
+        #[arg(long)]
+        semantic: bool,
+        /// Score boost added to graph-neighbor hits (default 0.1)
+        #[arg(long, default_value_t = 0.1)]
+        graph_boost: f64,
+        /// Hop depth for graph expansion (reserved; currently only depth=1)
+        #[arg(long, default_value_t = 1)]
+        graph_hop_depth: usize,
     },
     /// Generate preflight context for an LLM
     Preflight {
@@ -61,6 +70,9 @@ enum Commands {
         /// Output a concise statistical summary instead of full text
         #[arg(short, long)]
         summary: bool,
+        /// Aggregate context across ALL projects (ignores project_id filter)
+        #[arg(long)]
+        global: bool,
     },
     /// Run nightly intelligence sweep
     Nightly {
@@ -166,6 +178,51 @@ enum Commands {
     Daemon {
         #[command(subcommand)]
         command: DaemonCommands,
+    },
+    /// Manage projects and resolve aliases
+    Project {
+        #[command(subcommand)]
+        command: ProjectCommands,
+    },
+    #[cfg(feature = "graph")]
+    /// Graph operations (rebuild, query)
+    Graph {
+        #[command(subcommand)]
+        command: GraphCommands,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum GraphCommands {
+    /// Rebuild graph from all events
+    Rebuild,
+    /// Show 1-hop graph neighbors of a memory
+    Neighbors {
+        memory_id: String,
+    },
+    /// Show recursive SYNTHESIZED_FROM hierarchy of a memory
+    Hierarchy {
+        memory_id: String,
+    },
+    /// Show all memories in a session via graph edges
+    Session {
+        session_id: String,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ProjectCommands {
+    /// List all projects in the vault
+    List,
+    /// Resolve an alias to a project ID
+    Resolve {
+        alias: String,
+    },
+    /// Auto-detect project from current git repository
+    Detect {
+        /// Output as shell export statement
+        #[arg(long)]
+        export: bool,
     },
 }
 
@@ -322,6 +379,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             project_id,
             session_id,
             format,
+            semantic,
+            graph_boost,
+            graph_hop_depth,
         } => commands::recall::run(
             &ctx,
             query.clone(),
@@ -329,6 +389,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             *project_id,
             *session_id,
             format.clone(),
+            *semantic,
+            *graph_boost,
+            *graph_hop_depth,
         ),
         Commands::Preflight {
             max_words,
@@ -337,6 +400,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             format,
             scope,
             summary,
+            global,
         } => commands::preflight::run(
             &ctx,
             *max_words,
@@ -345,6 +409,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             format.clone(),
             scope.clone(),
             *summary,
+            *global,
         ),
         Commands::Nightly {
             schedule,
@@ -442,6 +507,24 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::AgyHook { payload } => commands::agy_hook::run(&ctx, payload),
         Commands::Daemon { command } => match command {
             DaemonCommands::Stop { force } => commands::daemon::run_stop(&ctx, *force).await,
+        },
+        Commands::Project { command } => match command {
+            ProjectCommands::List => commands::project::list(&ctx),
+            ProjectCommands::Resolve { alias } => commands::project::resolve(&ctx, alias),
+            ProjectCommands::Detect { export } => commands::project::detect(&ctx, *export),
+        },
+        #[cfg(feature = "graph")]
+        Commands::Graph { command } => match command {
+            GraphCommands::Rebuild => commands::graph::rebuild(&ctx),
+            GraphCommands::Neighbors { memory_id } => {
+                commands::graph::neighbors(&ctx, memory_id)
+            }
+            GraphCommands::Hierarchy { memory_id } => {
+                commands::graph::hierarchy(&ctx, memory_id)
+            }
+            GraphCommands::Session { session_id } => {
+                commands::graph::session(&ctx, session_id)
+            }
         },
     }
 }

@@ -103,6 +103,15 @@ impl<'a> GraphProjector<'a> {
                     category: "memory".to_string(),
                     metadata: serde_json::json!({"status": "pinned"}),
                 });
+                // Add a direct RECALLS edge: session -> memory
+                if let Some(session_id) = &p.session_id {
+                    self.edge_buffer.push(GraphEdge {
+                        source: session_id.to_string(),
+                        target: p.memory_id.to_string(),
+                        relation: "RECALLS".to_string(),
+                        confidence: 1.0,
+                    });
+                }
             }
             Payload::SessionSummaryCreated(p) => {
                 self.node_buffer.push(GraphNode {

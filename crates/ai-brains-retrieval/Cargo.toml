@@ -10,12 +10,14 @@ repository.workspace = true
 ai-brains-core = { path = "../ai-brains-core" }
 ai-brains-store = { path = "../ai-brains-store" }
 ai-brains-contracts = { path = "../ai-brains-contracts" }
+ai-brains-models = { path = "../ai-brains-models" }
 ai-brains-graph = { path = "../ai-brains-graph", optional = true }
 rusqlite.workspace = true
 thiserror.workspace = true
 strip-ansi-escapes.workspace = true
 chrono = { workspace = true }
 serde_json.workspace = true
+tokio = { workspace = true }
 tempfile.workspace = true
 
 [features]

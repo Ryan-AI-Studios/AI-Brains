@@ -91,15 +91,17 @@ impl GraphBackend for SqliteGraphBackend {
         let tx = conn
             .transaction()
             .map_err(|e| GraphError::DbError(e.to_string()))?;
-        let src_id = self.ensure_node(&tx, source, "unknown")?;
-        let dst_id = self.ensure_node(&tx, target, "unknown")?;
+        // Nodes should already exist; add_edge does not create nodes to avoid
+        // CHECK constraint failures when the kind is not known.
+        let src_id = self.ensure_node_or_insert(&tx, source)?;
+        let dst_id = self.ensure_node_or_insert(&tx, target)?;
         self.ensure_edge(&tx, src_id, relation, dst_id, confidence)?;
         tx.commit()
             .map_err(|e| GraphError::DbError(e.to_string()))?;
         Ok(())
     }
 
-    fn add_edges(&self, edges: &[GraphEdge]) -> Result<()> {
+    fn add_edges(&self, edges: &[crate::cozo_proxy::GraphEdge]) -> Result<()> {
         let mut conn = self
             .conn
             .lock()
@@ -108,8 +110,8 @@ impl GraphBackend for SqliteGraphBackend {
             .transaction()
             .map_err(|e| GraphError::DbError(e.to_string()))?;
         for edge in edges {
-            let src_id = self.ensure_node(&tx, &edge.source, "unknown")?;
-            let dst_id = self.ensure_node(&tx, &edge.target, "unknown")?;
+            let src_id = self.ensure_node_or_insert(&tx, &edge.source)?;
+            let dst_id = self.ensure_node_or_insert(&tx, &edge.target)?;
             self.ensure_edge(&tx, src_id, &edge.relation, dst_id, edge.confidence)?;
         }
         tx.commit()
@@ -129,5 +131,40 @@ impl GraphBackend for SqliteGraphBackend {
 
     fn is_available(&self) -> bool {
         true
+    }
+}
+
+impl SqliteGraphBackend {
+    /// Used by add_edge/add_edges: ensure node exists, inserting on-the-fly
+    /// with kind "memory" if not present. This handles source_memory_ids
+    /// that reference nodes from events not tracked by the projector.
+    fn ensure_node_or_insert(
+        &self,
+        conn: &Connection,
+        external_id: &str,
+    ) -> Result<i64> {
+        let mut stmt = conn
+            .prepare_cached("SELECT node_id FROM graph_node WHERE external_id = ?")
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        let existing: rusqlite::Result<i64> =
+            stmt.query_row([external_id], |row| row.get::<_, i64>(0));
+
+        match existing {
+            Ok(id) => Ok(id),
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                conn.execute(
+                    "INSERT INTO graph_node (kind, external_id) VALUES (?, ?)",
+                    params!["memory", external_id],
+                )
+                .map_err(|e| {
+                    GraphError::DbError(format!(
+                        "failed to insert missing graph_node `{}`: {}",
+                        external_id, e
+                    ))
+                })?;
+                Ok(conn.last_insert_rowid())
+            }
+            Err(e) => Err(GraphError::DbError(e.to_string())),
+        }
     }
 }

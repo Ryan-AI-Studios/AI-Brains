@@ -45,6 +45,9 @@ async fn test_forget_excludes_from_search() -> Result<(), Box<dyn std::error::Er
             session_id: None,
             project_id: None,
             tx_id: None,
+            rank: None,
+            source_tag: None,
+            query_text: None,
         },
     ))?;
     event_store.append_event(&event)?;

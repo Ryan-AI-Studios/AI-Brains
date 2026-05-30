@@ -20,19 +20,21 @@ pub fn active_sessions(
 ) -> Result<Vec<SessionContext>> {
     let conn = conn.lock()?;
 
-    let pid = match project_id {
-        Some(pid) => pid,
-        None => return Ok(Vec::new()),
-    };
-
-    let sql = format!(
+    let sql = if let Some(pid) = project_id {
+        format!(
+            "SELECT session_id, privacy
+             FROM session_projection
+             WHERE status = 'active'
+             AND project_id = '{}'
+             ORDER BY updated_at DESC",
+            pid
+        )
+    } else {
         "SELECT session_id, privacy
          FROM session_projection
          WHERE status = 'active'
-         AND project_id = '{}'
-         ORDER BY updated_at DESC",
-        pid
-    );
+         ORDER BY updated_at DESC".to_string()
+    };
 
     let mut stmt = conn.prepare(&sql)?;
     let mut rows = stmt.query([])?;

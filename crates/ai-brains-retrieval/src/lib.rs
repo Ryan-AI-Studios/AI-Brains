@@ -4,6 +4,7 @@ mod lexical;
 mod preflight;
 mod privacy_filter;
 mod recall;
+mod semantic;
 mod sessions;
 mod word_budget;
 

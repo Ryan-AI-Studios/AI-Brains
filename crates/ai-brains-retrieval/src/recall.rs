@@ -27,6 +27,17 @@ impl RecallHit {
         }
     }
 
+    /// Create a hit added via graph neighbor expansion.
+    pub fn graph(memory_id: String, content: String, score: Option<f64>) -> Self {
+        Self {
+            memory_id,
+            content,
+            source: "graph".to_string(),
+            score,
+            privacy: None,
+        }
+    }
+
     /// Create a hit from the unified IPC bridge.
     pub fn bridge(
         memory_id: String,
@@ -49,6 +60,9 @@ impl RecallHit {
 /// (`bridge query`) first. If IPC is unavailable or fails, falls back to
 /// local FTS5 search. Results from both sources are blended, with privacy
 /// flags preserved from bridge hits.
+///
+/// When `semantic` is true, also queries via embedding-based semantic search
+/// and blends those results alongside bridge and FTS5 hits.
 pub fn recall(
     conn: &VaultConnection,
     graph: Option<&GraphSearch>,
@@ -56,6 +70,10 @@ pub fn recall(
     limit: usize,
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
+    semantic: bool,
+    graph_boost: f64,
+    // Controls whether graph neighbor expansion is performed (depth >= 1 enables it).
+    graph_hop_depth: usize,
 ) -> Result<Vec<RecallHit>> {
     // Phase 1: Try unified IPC recall via ChangeGuard bridge query.
     let bridge_hits = query_changeguard_bridge(query, project_id, session_id);
@@ -66,8 +84,18 @@ pub fn recall(
         .map(|memory| RecallHit::fts(memory.memory_id, memory.content, memory.score))
         .collect();
 
-    // Phase 3: Blend results. Bridge hits come first (higher authority),
-    // followed by local FTS5 hits. Deduplicate by memory_id.
+    // Phase 3: Semantic search when requested.
+    let semantic_hits: Vec<RecallHit> = if semantic {
+        crate::semantic::semantic_search(conn, query, limit, project_id, session_id).unwrap_or_else(|e| {
+            eprintln!("Semantic search failed, continuing with lexical results: {}", e);
+            Vec::new()
+        })
+    } else {
+        Vec::new()
+    };
+
+    // Phase 4: Blend results. Bridge hits come first (higher authority),
+    // followed by semantic hits, then local FTS5 hits. Deduplicate by memory_id.
     let mut seen_ids = std::collections::HashSet::new();
     let mut blended = Vec::new();
 
@@ -87,21 +115,79 @@ pub fn recall(
         }
     }
 
-    // Add local hits, skipping any already present from the bridge.
+    // Add semantic hits, skipping any already present from the bridge.
+    for hit in semantic_hits {
+        if seen_ids.insert(hit.memory_id.clone()) {
+            blended.push(hit);
+        }
+    }
+
+    // Add local hits, skipping any already present from bridge or semantic.
     for hit in local_hits {
         if seen_ids.insert(hit.memory_id.clone()) {
             blended.push(hit);
         }
     }
 
-    // Truncate to limit.
-    if blended.len() > limit {
-        blended.truncate(limit);
+    // Graph-based neighbor expansion: for each current hit, fetch 1-hop
+    // neighbors and add unseen ones with a boosted score.
+    if graph_hop_depth >= 1 {
+        if let Some(searcher) = graph {
+            let mut graph_hits: Vec<RecallHit> = Vec::new();
+            // Snapshot existing hits to iterate without borrow issues.
+            let existing: Vec<(String, Option<f64>)> = blended
+                .iter()
+                .map(|h| (h.memory_id.clone(), h.score))
+                .collect();
+
+            for (parent_id, parent_score) in existing {
+                let neighbors = match searcher.get_neighbors(&parent_id) {
+                    Ok(n) => n,
+                    Err(e) => {
+                        eprintln!("Graph neighbor lookup failed for {}: {}", parent_id, e);
+                        continue;
+                    }
+                };
+                for neighbor in neighbors {
+                    if !seen_ids.contains(&neighbor.external_id) {
+                        // Fetch content from memory_projection by external_id.
+                        let content_opt: Option<String> = {
+                            let db = conn.lock().ok();
+                            db.and_then(|c| {
+                                c.query_row(
+                                    "SELECT content FROM memory_projection WHERE memory_id = ?1",
+                                    rusqlite::params![neighbor.external_id],
+                                    |row| row.get::<_, String>(0),
+                                )
+                                .ok()
+                            })
+                        };
+                        if let Some(content) = content_opt {
+                            let boost_score = Some(parent_score.unwrap_or(0.0) + graph_boost);
+                            seen_ids.insert(neighbor.external_id.clone());
+                            graph_hits.push(RecallHit::graph(
+                                neighbor.external_id,
+                                content,
+                                boost_score,
+                            ));
+                        }
+                    }
+                }
+            }
+            blended.extend(graph_hits);
+        }
     }
 
-    // Graph-based augmentation placeholder (preserves existing contract).
-    if let Some(_searcher) = graph {
-        // Future: graph-based ranking/expansion could go here.
+    // Re-sort by score descending (None scores go last), then truncate.
+    blended.sort_by(|a, b| match (a.score, b.score) {
+        (Some(sa), Some(sb)) => sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+
+    if blended.len() > limit {
+        blended.truncate(limit);
     }
 
     Ok(blended)

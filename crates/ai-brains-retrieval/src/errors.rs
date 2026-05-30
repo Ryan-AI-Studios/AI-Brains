@@ -12,4 +12,6 @@ pub enum RetrievalError {
     Ipc(String),
     #[error("deserialization error: {0}")]
     Deserialization(String),
+    #[error("model/embedding error: {0}")]
+    Model(String),
 }
