@@ -1,7 +1,7 @@
 mod common;
 
 use ai_brains_core::privacy::Privacy;
-use ai_brains_retrieval::recall;
+use ai_brains_retrieval::{recall, RecallOptions};
 
 #[test]
 fn recall_returns_sources() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,11 +15,10 @@ fn recall_returns_sources() -> Result<(), Box<dyn std::error::Error>> {
         None,
         "unique lexical retrieval source test marker",
         100,
-        None,
-        None,
-        false,
-        0.0,
-        0,
+        RecallOptions {
+            graph_hop_depth: 0,
+            ..RecallOptions::default()
+        },
     )?;
     assert!(!hits.is_empty());
     // Find the one from our local store

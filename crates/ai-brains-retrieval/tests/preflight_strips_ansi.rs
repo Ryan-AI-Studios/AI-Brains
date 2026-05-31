@@ -11,7 +11,14 @@ fn preflight_strips_ansi_from_pinned_memories() -> Result<(), Box<dyn std::error
     let store = common::store_with_memory(ansi_content, Privacy::CloudOk)?;
 
     let project_id = ai_brains_core::ids::ProjectId::from_uuid(uuid::Uuid::nil());
-    let context = build_preflight(store.connection(), None, 1500, Some(project_id), None, false)?;
+    let context = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
 
     // The preflight output must NOT contain ANSI escape sequences
     assert!(

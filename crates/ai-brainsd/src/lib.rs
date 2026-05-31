@@ -160,11 +160,13 @@ impl DaemonWriter {
             graph_search,
             query,
             5,
-            Some(project_id),
-            Some(session_id),
-            false,
-            0.0,
-            0,
+            ai_brains_retrieval::RecallOptions {
+                project_id: Some(project_id),
+                session_id: Some(session_id),
+                semantic: false,
+                graph_boost: 0.0,
+                graph_hop_depth: 0,
+            },
         )?;
         Ok(hits)
     }

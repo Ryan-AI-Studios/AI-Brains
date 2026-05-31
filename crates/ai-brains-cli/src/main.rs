@@ -198,17 +198,11 @@ pub enum GraphCommands {
     /// Rebuild graph from all events
     Rebuild,
     /// Show 1-hop graph neighbors of a memory
-    Neighbors {
-        memory_id: String,
-    },
+    Neighbors { memory_id: String },
     /// Show recursive SYNTHESIZED_FROM hierarchy of a memory
-    Hierarchy {
-        memory_id: String,
-    },
+    Hierarchy { memory_id: String },
     /// Show all memories in a session via graph edges
-    Session {
-        session_id: String,
-    },
+    Session { session_id: String },
     /// Show current graph health: node/edge counts
     Update,
 }
@@ -218,9 +212,7 @@ pub enum ProjectCommands {
     /// List all projects in the vault
     List,
     /// Resolve an alias to a project ID
-    Resolve {
-        alias: String,
-    },
+    Resolve { alias: String },
     /// Auto-detect project from current git repository
     Detect {
         /// Output as shell export statement
@@ -387,14 +379,16 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             graph_hop_depth,
         } => commands::recall::run(
             &ctx,
-            query.clone(),
-            *limit,
-            *project_id,
-            *session_id,
-            format.clone(),
-            *semantic,
-            *graph_boost,
-            *graph_hop_depth,
+            commands::recall::RecallRunOptions {
+                query: query.clone(),
+                limit: *limit,
+                project_id: *project_id,
+                session_id: *session_id,
+                format: format.clone(),
+                semantic: *semantic,
+                graph_boost: *graph_boost,
+                graph_hop_depth: *graph_hop_depth,
+            },
         ),
         Commands::Preflight {
             max_words,
@@ -406,13 +400,15 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             global,
         } => commands::preflight::run(
             &ctx,
-            *max_words,
-            *project_id,
-            *pretty,
-            format.clone(),
-            scope.clone(),
-            *summary,
-            *global,
+            commands::preflight::PreflightRunOptions {
+                max_words: *max_words,
+                project_id: *project_id,
+                pretty: *pretty,
+                format: format.clone(),
+                scope: scope.clone(),
+                summary: *summary,
+                global: *global,
+            },
         ),
         Commands::Nightly {
             schedule,
@@ -519,15 +515,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(feature = "graph")]
         Commands::Graph { command } => match command {
             GraphCommands::Rebuild => commands::graph::rebuild(&ctx),
-            GraphCommands::Neighbors { memory_id } => {
-                commands::graph::neighbors(&ctx, memory_id)
-            }
-            GraphCommands::Hierarchy { memory_id } => {
-                commands::graph::hierarchy(&ctx, memory_id)
-            }
-            GraphCommands::Session { session_id } => {
-                commands::graph::session(&ctx, session_id)
-            }
+            GraphCommands::Neighbors { memory_id } => commands::graph::neighbors(&ctx, memory_id),
+            GraphCommands::Hierarchy { memory_id } => commands::graph::hierarchy(&ctx, memory_id),
+            GraphCommands::Session { session_id } => commands::graph::session(&ctx, session_id),
             GraphCommands::Update => commands::graph::update(&ctx),
         },
     }

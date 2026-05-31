@@ -4,15 +4,19 @@ use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
 use is_terminal::IsTerminal;
 
+pub struct PreflightRunOptions {
+    pub max_words: usize,
+    pub project_id: Option<ProjectId>,
+    pub pretty: bool,
+    pub format: Option<String>,
+    pub scope: Vec<String>,
+    pub summary: bool,
+    pub global: bool,
+}
+
 pub fn run(
     ctx: &AppContext,
-    max_words: usize,
-    project_id: Option<ProjectId>,
-    pretty: bool,
-    format: Option<String>,
-    scope: Vec<String>,
-    summary: bool,
-    global: bool,
+    options: PreflightRunOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Attempt to open graph vault next to the main vault
     #[cfg(feature = "graph")]
@@ -24,29 +28,29 @@ pub fn run(
     #[cfg(not(feature = "graph"))]
     let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
 
-    let scope_paths = if scope.is_empty() {
+    let scope_paths = if options.scope.is_empty() {
         None
     } else {
-        Some(normalize_scope_paths(&scope))
+        Some(normalize_scope_paths(&options.scope))
     };
 
     let context = build_preflight(
         &ctx.conn,
         graph_search.as_ref(),
-        max_words,
-        project_id,
+        options.max_words,
+        options.project_id,
         scope_paths,
-        global,
+        options.global,
     )?;
 
-    if summary {
-        print_summary(ctx, project_id, &context.text);
+    if options.summary {
+        print_summary(ctx, options.project_id, &context.text);
         return Ok(());
     }
 
     // Smart defaulting: If stdout is a TTY and no format is specified, use human mode.
     let is_tty = std::io::stdout().is_terminal();
-    let format_str = format.unwrap_or_else(|| {
+    let format_str = options.format.unwrap_or_else(|| {
         if is_tty {
             "human".to_string()
         } else {
@@ -54,7 +58,7 @@ pub fn run(
         }
     });
 
-    let human_mode = pretty
+    let human_mode = options.pretty
         || format_str.eq_ignore_ascii_case("human")
         || format_str.eq_ignore_ascii_case("pretty");
 

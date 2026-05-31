@@ -5,6 +5,15 @@ use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_store::VaultConnection;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RecallOptions {
+    pub project_id: Option<ai_brains_core::ids::ProjectId>,
+    pub session_id: Option<ai_brains_core::ids::SessionId>,
+    pub semantic: bool,
+    pub graph_boost: f64,
+    pub graph_hop_depth: usize,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecallHit {
     pub memory_id: String,
@@ -68,13 +77,11 @@ pub fn recall(
     graph: Option<&GraphSearch>,
     query: &str,
     limit: usize,
-    project_id: Option<ai_brains_core::ids::ProjectId>,
-    session_id: Option<ai_brains_core::ids::SessionId>,
-    semantic: bool,
-    graph_boost: f64,
-    // Controls whether graph neighbor expansion is performed (depth >= 1 enables it).
-    graph_hop_depth: usize,
+    options: RecallOptions,
 ) -> Result<Vec<RecallHit>> {
+    let project_id = options.project_id;
+    let session_id = options.session_id;
+
     // Phase 1: Try unified IPC recall via ChangeGuard bridge query.
     let bridge_hits = query_changeguard_bridge(query, project_id, session_id);
 
@@ -85,14 +92,22 @@ pub fn recall(
         .collect();
 
     // Phase 3: Semantic search when requested.
-    let semantic_hits: Vec<RecallHit> = if semantic {
-        crate::semantic::semantic_search(conn, query, limit, project_id, session_id).unwrap_or_else(|e| {
-            eprintln!("Semantic search failed, continuing with lexical results: {}", e);
-            Vec::new()
-        })
+    let semantic_hits: Vec<RecallHit> = if options.semantic {
+        crate::semantic::semantic_search(conn, query, limit, project_id, session_id).unwrap_or_else(
+            |e| {
+                eprintln!(
+                    "Semantic search failed, continuing with lexical results: {}",
+                    e
+                );
+                Vec::new()
+            },
+        )
     } else {
         Vec::new()
     };
+
+    #[cfg(not(feature = "graph"))]
+    let _ = (graph, options.graph_boost, options.graph_hop_depth);
 
     // Phase 4: Blend results. Bridge hits come first (higher authority),
     // followed by semantic hits, then local FTS5 hits. Deduplicate by memory_id.
@@ -132,7 +147,7 @@ pub fn recall(
     // Graph-based neighbor expansion: for each current hit, fetch 1-hop
     // neighbors and add unseen ones with a boosted score.
     #[cfg(feature = "graph")]
-    if graph_hop_depth >= 1 {
+    if options.graph_hop_depth >= 1 {
         if let Some(searcher) = graph {
             let mut graph_hits: Vec<RecallHit> = Vec::new();
             // Snapshot existing hits to iterate without borrow issues.
@@ -164,7 +179,8 @@ pub fn recall(
                             })
                         };
                         if let Some(content) = content_opt {
-                            let boost_score = Some(parent_score.unwrap_or(0.0) + graph_boost);
+                            let boost_score =
+                                Some(parent_score.unwrap_or(0.0) + options.graph_boost);
                             seen_ids.insert(neighbor.external_id.clone());
                             graph_hits.push(RecallHit::graph(
                                 neighbor.external_id,

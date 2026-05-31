@@ -14,7 +14,9 @@ pub fn run(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
         store: event_store,
         last_error: None,
         #[cfg(feature = "graph")]
-        graph_hook: Some(crate::live_graph::LiveGraphHook::new(std::sync::Arc::clone(&ctx.conn))),
+        graph_hook: Some(crate::live_graph::LiveGraphHook::new(
+            std::sync::Arc::clone(&ctx.conn),
+        )),
     };
 
     let service = CaptureService::new();

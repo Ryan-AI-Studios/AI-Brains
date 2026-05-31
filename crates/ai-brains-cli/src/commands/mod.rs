@@ -4,6 +4,7 @@ pub mod backup;
 pub mod context;
 pub mod daemon;
 pub mod forget;
+#[cfg(feature = "graph")]
 pub mod graph;
 pub mod ingest;
 pub mod init;
@@ -14,4 +15,5 @@ pub mod project;
 pub mod recall;
 pub mod safety;
 pub mod stop_session;
+pub mod symbol_bridge;
 pub mod sync;

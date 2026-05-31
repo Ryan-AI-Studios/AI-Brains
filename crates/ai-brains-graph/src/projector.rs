@@ -105,6 +105,12 @@ impl<'a> GraphProjector<'a> {
                 });
                 // Add a direct RECALLS edge: session -> memory
                 if let Some(session_id) = &p.session_id {
+                    self.node_buffer.push(GraphNode {
+                        id: session_id.to_string(),
+                        label: "Session".to_string(),
+                        category: "session".to_string(),
+                        metadata: serde_json::json!({}),
+                    });
                     self.edge_buffer.push(GraphEdge {
                         source: session_id.to_string(),
                         target: p.memory_id.to_string(),

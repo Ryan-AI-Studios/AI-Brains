@@ -3,21 +3,31 @@ use ai_brains_contracts::recall::{RecallResponse, RecallResult};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload};
-use ai_brains_retrieval::recall;
+use ai_brains_retrieval::{recall, RecallOptions};
 use ai_brains_store::EventStore;
 use std::str::FromStr;
 
-pub fn run(
-    ctx: &AppContext,
-    query: String,
-    limit: usize,
-    project_id: Option<ProjectId>,
-    session_id: Option<SessionId>,
-    format: String,
-    semantic: bool,
-    graph_boost: f64,
-    graph_hop_depth: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub struct RecallRunOptions {
+    pub query: String,
+    pub limit: usize,
+    pub project_id: Option<ProjectId>,
+    pub session_id: Option<SessionId>,
+    pub format: String,
+    pub semantic: bool,
+    pub graph_boost: f64,
+    pub graph_hop_depth: usize,
+}
+
+pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn std::error::Error>> {
+    let effective_session_id = options.session_id.or_else(|| {
+        let generated = SessionId::new();
+        eprintln!(
+            "No session id supplied for recall; using generated session {} for graph provenance.",
+            generated
+        );
+        Some(generated)
+    });
+
     // Attempt to open graph vault next to the main vault
     #[cfg(feature = "graph")]
     let graph_vault = ai_brains_graph::GraphVault::new((*ctx.conn).clone());
@@ -31,13 +41,15 @@ pub fn run(
     let hits = recall(
         &ctx.conn,
         graph_search.as_ref(),
-        &query,
-        limit,
-        project_id,
-        session_id,
-        semantic,
-        graph_boost,
-        graph_hop_depth,
+        &options.query,
+        options.limit,
+        RecallOptions {
+            project_id: options.project_id,
+            session_id: options.session_id,
+            semantic: options.semantic,
+            graph_boost: options.graph_boost,
+            graph_hop_depth: options.graph_hop_depth,
+        },
     )?;
 
     // Emit MemoryPinned events for each recall hit so the graph projector can
@@ -58,16 +70,20 @@ pub fn run(
             .build(Payload::MemoryPinned(MemoryPinnedPayload {
                 memory_id,
                 content: hit.content.clone(),
-                session_id,
-                project_id,
+                session_id: effective_session_id,
+                project_id: options.project_id,
                 tx_id: None,
                 rank: Some(rank as u32),
                 source_tag: Some(hit.source.clone()),
-                query_text: Some(query.clone()),
+                query_text: Some(options.query.clone()),
             }));
             if let Ok(ev) = ev {
                 if let Err(e) = event_store.append_event(&ev) {
-                    tracing::warn!("Failed to emit MemoryPinned event for {}: {}", hit.memory_id, e);
+                    tracing::warn!(
+                        "Failed to emit MemoryPinned event for {}: {}",
+                        hit.memory_id,
+                        e
+                    );
                 }
             }
         }
@@ -88,11 +104,11 @@ pub fn run(
     if response.results.is_empty() {
         eprintln!(
             "No results for '{}'. Try shorter terms or check spelling.",
-            query
+            options.query
         );
     }
 
-    match format.as_str() {
+    match options.format.as_str() {
         "pretty" => {
             for r in &response.results {
                 if let Some(s) = r.score {

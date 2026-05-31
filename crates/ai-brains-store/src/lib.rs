@@ -16,14 +16,18 @@ pub use event_store::{EventStore, SqliteEventStore};
 pub use fts::{FtsSearch, SearchResult};
 pub use transaction::Transaction;
 
-use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
+use ai_brains_core::ids::{MemoryId, SessionId};
 
 pub trait QueryStore: std::marker::Send + std::marker::Sync {
     fn get_unsummarized_sessions(&self) -> Result<Vec<String>>;
     fn get_session_turns(&self, session_id: &str) -> Result<Vec<(String, String)>>;
     fn get_session_status(&self, session_id: &SessionId) -> Result<Option<String>>;
     fn search_memories(&self, query: &str, limit: usize) -> Result<Vec<(MemoryId, String)>>;
-    fn get_memories_by_level(&self, level: u32, limit: Option<usize>) -> Result<Vec<(MemoryId, String)>>;
+    fn get_memories_by_level(
+        &self,
+        level: u32,
+        limit: Option<usize>,
+    ) -> Result<Vec<(MemoryId, String)>>;
     fn delete_old_turns(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<usize>;
     fn list_forgotten_memories(
         &self,
@@ -47,9 +51,7 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         days_threshold: i32,
         limit: usize,
     ) -> Result<Vec<(String, String)>>;
-    fn list_projects(
-        &self,
-    ) -> Result<Vec<(String, String, String, usize)>>; // UUID, name, alias, memory_count
+    fn list_projects(&self) -> Result<Vec<(String, String, String, usize)>>; // UUID, name, alias, memory_count
     fn get_session_memory_ids(&self, session_id: &str) -> Result<Vec<MemoryId>>;
 }
 

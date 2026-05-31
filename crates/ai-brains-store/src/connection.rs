@@ -39,9 +39,9 @@ impl VaultConnection {
         apply_migrations(&mut conn)
     }
 
-    pub fn wal_checkpoint(&self) {
-        if let Ok(conn) = self.lock() {
-            let _ = conn.execute("PRAGMA wal_checkpoint(PASSIVE)", []);
-        }
+    pub fn wal_checkpoint(&self) -> Result<()> {
+        let conn = self.lock()?;
+        conn.execute("PRAGMA wal_checkpoint(PASSIVE)", [])?;
+        Ok(())
     }
 }

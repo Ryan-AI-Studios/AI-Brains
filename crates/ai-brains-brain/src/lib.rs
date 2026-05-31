@@ -88,6 +88,7 @@ impl NightlyService {
     ) -> Result<usize, Box<dyn std::error::Error>> {
         let unsummarized = self.query_store.get_unsummarized_sessions()?;
         let mut count = 0;
+        let mut errors = Vec::new();
         let total = unsummarized.len();
         let limit = batch_size.unwrap_or(total);
         eprintln!(
@@ -119,6 +120,7 @@ impl NightlyService {
                 Ok(Err(e)) => {
                     tracing::error!("Failed to summarize session {}: {}", session_id, e);
                     eprintln!("[Nightly] Error summarizing session {}: {}", session_id, e);
+                    errors.push(format!("summarize_session {}: {}", session_id, e));
                 }
                 Err(e) => {
                     tracing::error!("Panic/Join error summarizing session {}: {}", session_id, e);
@@ -126,6 +128,10 @@ impl NightlyService {
                         "[Nightly] Panic/abort occurred summarizing session {}!",
                         session_id
                     );
+                    errors.push(format!(
+                        "summarize_session {} join error: {}",
+                        session_id, e
+                    ));
                 }
             }
         }
@@ -140,6 +146,7 @@ impl NightlyService {
         if let Err(e) = synthesizer.run_synthesis(1, project_id).await {
             tracing::error!("Memory synthesis failed: {}", e);
             eprintln!("[Nightly] Memory synthesis failed: {}", e);
+            errors.push(format!("memory_synthesis: {}", e));
         } else {
             eprintln!("[Nightly] Memory synthesis complete.");
         }
@@ -150,6 +157,7 @@ impl NightlyService {
         if let Err(e) = retention.run_cleanup().await {
             tracing::error!("Retention cleanup failed: {}", e);
             eprintln!("[Nightly] Retention cleanup failed: {}", e);
+            errors.push(format!("retention_cleanup: {}", e));
         } else {
             eprintln!("[Nightly] Retention cleanup complete.");
         }
@@ -164,6 +172,7 @@ impl NightlyService {
         if let Err(e) = cross_agent.run_cross_agent_synthesis(project_id).await {
             tracing::error!("Cross-agent synthesis failed: {}", e);
             eprintln!("[Nightly] Cross-agent synthesis failed: {}", e);
+            errors.push(format!("cross_agent_synthesis: {}", e));
         } else {
             eprintln!("[Nightly] Cross-agent synthesis complete.");
         }
@@ -174,6 +183,7 @@ impl NightlyService {
         if let Err(e) = feedback.run_accuracy_check(project_id).await {
             tracing::error!("Feedback loop check failed: {}", e);
             eprintln!("[Nightly] Feedback loop accuracy check failed: {}", e);
+            errors.push(format!("feedback_loop: {}", e));
         } else {
             eprintln!("[Nightly] Feedback-loop accuracy check complete.");
         }
@@ -192,10 +202,8 @@ impl NightlyService {
 
         // EMBED: Backfill embeddings for recent memories without embeddings
         eprintln!("[Nightly] Running embedding backfill...");
-        let embed_service = EmbeddingService::new(
-            self.query_store.clone(),
-            self._embedding_provider.clone(),
-        );
+        let embed_service =
+            EmbeddingService::new(self.query_store.clone(), self._embedding_provider.clone());
         let mut backfill_success = 0;
         let mut stale_success = 0;
 
@@ -210,6 +218,7 @@ impl NightlyService {
             Err(e) => {
                 tracing::error!("Embedding backfill failed: {}", e);
                 eprintln!("[Nightly] Embedding backfill failed: {}", e);
+                errors.push(format!("embedding_backfill: {}", e));
             }
         }
 
@@ -225,14 +234,15 @@ impl NightlyService {
             Err(e) => {
                 tracing::error!("Stale refresh failed: {}", e);
                 eprintln!("[Nightly] Stale refresh failed: {}", e);
+                errors.push(format!("stale_refresh: {}", e));
             }
         }
 
         // Persist embedding stats
-        if let Err(e) = self
-            .event_store
-            .set_sync_state("last_embedding_backfill_count", &backfill_success.to_string())
-        {
+        if let Err(e) = self.event_store.set_sync_state(
+            "last_embedding_backfill_count",
+            &backfill_success.to_string(),
+        ) {
             tracing::warn!("Failed to persist embedding backfill count: {}", e);
         }
         if let Err(e) = self
@@ -240,6 +250,17 @@ impl NightlyService {
             .set_sync_state("last_stale_refresh_count", &stale_success.to_string())
         {
             tracing::warn!("Failed to persist stale refresh count: {}", e);
+        }
+        match serde_json::to_string(&errors) {
+            Ok(serialized) => {
+                if let Err(e) = self
+                    .event_store
+                    .set_sync_state("last_nightly_errors", &serialized)
+                {
+                    tracing::warn!("Failed to persist last_nightly_errors: {}", e);
+                }
+            }
+            Err(e) => tracing::warn!("Failed to serialize nightly errors: {}", e),
         }
 
         Ok(count)
@@ -446,6 +467,13 @@ impl NightlyService {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let memory_id = MemoryId::new();
         let session_id = SessionId::from_str(session_id_str)?;
+        let source_ids = self.query_store.get_session_memory_ids(session_id_str)?;
+        if source_ids.is_empty() {
+            tracing::warn!(
+                "Session {} summary has no source memory ids; SYNTHESIZED_FROM edges will be empty",
+                session_id_str
+            );
+        }
 
         let event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
@@ -466,12 +494,8 @@ impl NightlyService {
         self.event_store.append_event(&event)?;
 
         // Emit MemorySynthesized so graph projector creates SYNTHESIZED_FROM edges
-        let source_ids = self
-            .query_store
-            .get_session_memory_ids(session_id_str)
-            .unwrap_or_default();
-        let synth_project_id = project_id
-            .unwrap_or_else(|| ProjectId::from_uuid(uuid::Uuid::nil()));
+        let synth_project_id =
+            project_id.unwrap_or_else(|| ProjectId::from_uuid(uuid::Uuid::nil()));
         let synth_event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Memory,
             memory_id.as_uuid(),
@@ -489,11 +513,19 @@ impl NightlyService {
         match synth_event {
             Ok(ev) => {
                 if let Err(e) = self.event_store.append_event(&ev) {
-                    tracing::warn!("Failed to emit MemorySynthesized for session {}: {}", session_id_str, e);
+                    tracing::warn!(
+                        "Failed to emit MemorySynthesized for session {}: {}",
+                        session_id_str,
+                        e
+                    );
                 }
             }
             Err(e) => {
-                tracing::warn!("Failed to build MemorySynthesized event for session {}: {}", session_id_str, e);
+                tracing::warn!(
+                    "Failed to build MemorySynthesized event for session {}: {}",
+                    session_id_str,
+                    e
+                );
             }
         }
 

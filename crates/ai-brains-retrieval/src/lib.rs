@@ -12,7 +12,7 @@ pub use ansi::strip_ansi;
 pub use errors::{Result, RetrievalError};
 pub use lexical::{lexical_search, RetrievalMemory};
 pub use preflight::{build_preflight, PreflightContext};
-pub use recall::{recall, RecallHit};
+pub use recall::{recall, RecallHit, RecallOptions};
 pub use sessions::active_sessions;
 
 #[cfg(not(feature = "graph"))]

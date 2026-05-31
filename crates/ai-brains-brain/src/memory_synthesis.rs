@@ -38,7 +38,9 @@ impl MemorySynthesizer {
             .ok()
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(50);
-        let source_memories = self.query_store.get_memories_by_level(source_level, Some(batch_size))?;
+        let source_memories = self
+            .query_store
+            .get_memories_by_level(source_level, Some(batch_size))?;
 
         if source_memories.len() < 2 {
             return Ok(0);

@@ -33,7 +33,8 @@ pub fn active_sessions(
         "SELECT session_id, privacy
          FROM session_projection
          WHERE status = 'active'
-         ORDER BY updated_at DESC".to_string()
+         ORDER BY updated_at DESC"
+            .to_string()
     };
 
     let mut stmt = conn.prepare(&sql)?;

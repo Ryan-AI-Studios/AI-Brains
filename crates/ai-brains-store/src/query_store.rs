@@ -70,7 +70,11 @@ impl QueryStore for VaultConnection {
         Ok(results)
     }
 
-    fn get_memories_by_level(&self, level: u32, limit: Option<usize>) -> Result<Vec<(MemoryId, String)>> {
+    fn get_memories_by_level(
+        &self,
+        level: u32,
+        limit: Option<usize>,
+    ) -> Result<Vec<(MemoryId, String)>> {
         let conn = self.lock()?;
         let sql = if let Some(n) = limit {
             format!(
@@ -274,9 +278,8 @@ impl QueryStore for VaultConnection {
 
     fn get_session_memory_ids(&self, session_id: &str) -> Result<Vec<MemoryId>> {
         let conn = self.lock()?;
-        let mut stmt = conn.prepare(
-            "SELECT memory_id FROM memory_projection WHERE session_id = ?",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT memory_id FROM memory_projection WHERE session_id = ?")?;
         let rows = stmt.query_map([session_id], |row| {
             let id_str: String = row.get(0)?;
             Ok(id_str)
@@ -291,9 +294,7 @@ impl QueryStore for VaultConnection {
         Ok(results)
     }
 
-    fn list_projects(
-        &self,
-    ) -> Result<Vec<(String, String, String, usize)>> {
+    fn list_projects(&self) -> Result<Vec<(String, String, String, usize)>> {
         let conn = self.lock()?;
         let sql = "
             SELECT

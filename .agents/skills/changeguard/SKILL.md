@@ -10,7 +10,10 @@ Use ChangeGuard as the local safety layer and engineering intelligence engine fo
 ## Core Capabilities
 
 - **Search & Discovery**: High-performance regex (Tantivy), precise LSP navigation (SCIP), and conceptual semantic search (local embeddings) with parallel HNSW retrieval.
-- **Knowledge Graph**: Durable, billion-edge relational and vector storage (CozoDB-redux/Sled) with native code-aware tokenization (Tree-Sitter).
+- **Code Symbol Index**: Tree-sitter parsing of Rust, TypeScript, and Python — extracts every public function, struct, enum, trait, module, and HTTP route into the Knowledge Graph. Queryable via `changeguard search` and `changeguard ask`.
+- **Route Extraction**: Detects HTTP routes from Axum, Express, and other frameworks. Stores `method`, `path_pattern`, `handler_name`, `framework`, and confidence score.
+- **Call Graph**: Tracks function call relationships (`Direct`, `MethodCall`, `TraitDispatch`, `Dynamic`, `External`) so you can answer "what calls this function?" and "what does this function depend on?".
+- **Knowledge Graph**: Durable, billion-edge relational and vector storage (CozoDB-redux/Sled) with native code-aware tokenization (Tree-Sitter). Stores symbols in `project_symbol` table.
 - **Impact Analysis**: Deep "blast radius" analysis across 20+ specialized providers (Infra, Contracts, Observability, Temporal).
 - **Cryptographic Provenance**: Mathematical proof of intent via Ed25519 signing of every ledger entry. Offline verification via `verify --signatures`.
 - **Intent Capture TUI**: Interactive terminal UI for auditing and refining LLM-drafted intent payloads during the git commit process.
@@ -19,10 +22,45 @@ Use ChangeGuard as the local safety layer and engineering intelligence engine fo
 - **Documentation Generation**: Export Knowledge Graph data to Markdown/Mermaid passive documentation (`index --export-docs`).
 - **Dead Code Detection**: Confidence-based dead code detection blending graph reachability, git activity, and test history (`dead-code` command).
 - **Live Visualization**: WebSocket-based Arc Diagram for real-time Knowledge Graph updates (`viz-server`, `viz-server --stop`).
+- **AI-Brains Bridge**: Exposes its Knowledge Graph to AI-Brains via `bridge export --graph-query` IPC. AI-Brains nightly pipeline queries symbol data through this bridge (T70).
 
 ## Philosophy: CLI-First Intelligence
 
 ChangeGuard is a **CLI-first** tool and **explicitly rejects MCP/Server/Cloud architecture** for v1. It provides structured, "Gemini-ready" context directly via its CLI outputs. Use ChangeGuard commands as your primary discovery and safety tools.
+
+## Code Symbol Queries — Use These First
+
+Before searching the web or reading files manually, query ChangeGuard's symbol index. It knows every public function, struct, route, and call edge in the codebase.
+
+```bash
+# Always refresh the index first (incremental, fast)
+changeguard index --auto-index
+
+# Find a function, struct, or type by name
+changeguard search "handleGetUser"
+changeguard search "AuthMiddleware"
+
+# Find HTTP routes
+changeguard search "POST /auth"
+changeguard ask "list all HTTP GET route handlers"
+
+# Find what calls a function
+changeguard ask "what calls validateToken"
+changeguard ask "show callers of UserRepository::find_by_id"
+
+# Find all public endpoints
+changeguard ask "find all Axum route handlers"
+changeguard ask "what API endpoints are defined in src/routes"
+
+# Dead code
+changeguard dead-code --threshold 0.75
+```
+
+These queries work because ChangeGuard indexes:
+- Every `pub fn`, `pub struct`, `pub enum`, `pub trait` via tree-sitter
+- HTTP route registrations (Axum `Router::route`, Express `app.get`, etc.)
+- Function call edges via static analysis
+- SCIP-precise symbol navigation from LSP data
 
 ## Default Workflow
 
@@ -32,25 +70,31 @@ ChangeGuard is a **CLI-first** tool and **explicitly rejects MCP/Server/Cloud ar
    changeguard doctor
    ```
 
-2. Check current provenance state:
+2. **Refresh symbol index** (do this at session start when working on code):
+
+   ```bash
+   changeguard index --auto-index
+   ```
+
+3. Check current provenance state:
 
    ```bash
    changeguard ledger status
    ```
 
-3. Before meaningful code edits, assess impact:
+4. Before meaningful code edits, assess impact:
 
    ```bash
    changeguard scan --impact
    ```
 
-4. Read `.changeguard/reports/latest-impact.json` when it exists. Use it to
+5. Read `.changeguard/reports/latest-impact.json` when it exists. Use it to
    identify risk level, hotspots, temporal couplings, affected symbols, runtime
    dependencies, and verification hints.
 
-5. Make the smallest scoped change that satisfies the task.
+6. Make the smallest scoped change that satisfies the task.
 
-6. After edits, run:
+7. After edits, run:
 
    ```bash
    changeguard verify
@@ -58,7 +102,7 @@ ChangeGuard is a **CLI-first** tool and **explicitly rejects MCP/Server/Cloud ar
 
    Also run any repo-specific tests needed for the touched files.
 
-7. Report the outcome: impact/risk signals used, verification run, and any
+8. Report the outcome: impact/risk signals used, verification run, and any
    unresolved pending transactions, drift, or unavailable ChangeGuard command.
 
 ## Repository Configuration
@@ -176,6 +220,21 @@ Alternatively, run manually from the source root:
 ```bash
 cargo install --path .
 ```
+
+## AI-Brains Integration
+
+ChangeGuard and AI-Brains are complementary systems sharing a CozoDB backend:
+
+| Capability | Use |
+|------------|-----|
+| "What does function X do?" | `changeguard search "X"` |
+| "What endpoints exist?" | `changeguard ask "list all HTTP routes"` |
+| "What calls function X?" | `changeguard ask "what calls X"` |
+| "What did we decide about X?" | `ai-brains recall "X" --semantic` |
+| "What was built in session Y?" | `ai-brains graph hierarchy <memory_id>` |
+| "Blast radius of this change?" | `changeguard scan --impact` |
+
+The AI-Brains nightly pipeline (T70, pending) will automatically pull ChangeGuard's `project_symbol` data into AI-Brains memories, so `ai-brains recall` will also return code symbols. Until T70 ships, use `changeguard search` and `changeguard ask` directly for code-symbol queries.
 
 ## References
 

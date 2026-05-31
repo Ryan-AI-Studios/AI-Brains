@@ -40,7 +40,14 @@ fn preflight_without_scope_still_works() -> Result<(), Box<dyn std::error::Error
 
     let project_id = ai_brains_core::ids::ProjectId::from_uuid(uuid::Uuid::nil());
 
-    let context = build_preflight(store.connection(), None, 1500, Some(project_id), None, false)?;
+    let context = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
 
     assert!(!context.text.is_empty());
     assert!(context.word_count > 0);
@@ -58,7 +65,14 @@ fn preflight_with_empty_scope_vec() -> Result<(), Box<dyn std::error::Error>> {
     let project_id = ai_brains_core::ids::ProjectId::from_uuid(uuid::Uuid::nil());
 
     // Empty vec should behave the same as None
-    let context_none = build_preflight(store.connection(), None, 1500, Some(project_id), None, false)?;
+    let context_none = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
 
     let context_empty = build_preflight(
         store.connection(),

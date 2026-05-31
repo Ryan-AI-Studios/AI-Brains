@@ -1,7 +1,8 @@
 use crate::errors::{GraphError, Result};
 use crate::vault::GraphVault;
+use serde::Serialize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NeighborHit {
     pub external_id: String,
     pub label: String,

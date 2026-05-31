@@ -20,6 +20,9 @@ pub async fn run(
         let last_count = query_store
             .get_sync_state("last_nightly_count")?
             .unwrap_or_else(|| "0".to_string());
+        let last_errors = query_store
+            .get_sync_state("last_nightly_errors")?
+            .unwrap_or_else(|| "[]".to_string());
 
         println!("=== Nightly Status ===");
         match last_run {
@@ -28,6 +31,7 @@ pub async fn run(
         }
         println!("Unsummarized sessions remaining: {}", unsummarized.len());
         println!("Sessions summarized in last run: {}", last_count);
+        println!("Errors in last run: {}", last_errors);
         println!("======================");
         return Ok(());
     }
@@ -116,8 +120,9 @@ pub async fn run(
     }
 
     #[cfg(feature = "graph")]
-    let event_store: Arc<dyn ai_brains_store::EventStore + Send + Sync> =
-        Arc::new(crate::live_graph::GraphAwareEventStore::new((*ctx.conn).clone()));
+    let event_store: Arc<dyn ai_brains_store::EventStore + Send + Sync> = Arc::new(
+        crate::live_graph::GraphAwareEventStore::new((*ctx.conn).clone()),
+    );
     #[cfg(not(feature = "graph"))]
     let event_store: Arc<dyn ai_brains_store::EventStore + Send + Sync> =
         Arc::new(ai_brains_store::SqliteEventStore::new((*ctx.conn).clone()));
@@ -165,7 +170,7 @@ pub async fn run(
 
     // WAL checkpoint: ensure embeddings generated during nightly are persisted
     // before potential timeout on MADR ingestion
-    ctx.conn.wal_checkpoint();
+    ctx.conn.wal_checkpoint()?;
     eprintln!("WAL checkpointed — embeddings persisted to disk.");
 
     eprintln!("Nightly sweep completed. {} sessions summarized.", count);
@@ -183,6 +188,13 @@ pub async fn run(
             "Note: MADR ingestion failed: {}. Nightly sweep completed successfully.",
             e
         );
+    }
+
+    // --- Symbol Bridge (T70) ---
+    eprintln!("[Nightly] Ingesting code symbols from ChangeGuard...");
+    match crate::commands::symbol_bridge::ingest_symbols_from_changeguard(ctx, project_id) {
+        Ok(n) => eprintln!("[Nightly] {} code symbols ingested.", n),
+        Err(e) => eprintln!("[Nightly] Symbol ingestion failed (non-fatal): {}", e),
     }
 
     Ok(())

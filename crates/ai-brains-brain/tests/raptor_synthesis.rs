@@ -201,7 +201,10 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
         conn.query_row("SELECT COUNT(*) FROM memory_hierarchy", [], |row| {
             row.get(0)
         })?;
-    assert_eq!(hierarchy_count, 4); // 1 parent, 4 level-0 children
+    // T68 adds one session-summary synthesis edge per summarized source turn;
+    // hierarchical RAPTOR synthesis then links the level-1 parent to all four
+    // level-0 memories.
+    assert_eq!(hierarchy_count, 6);
 
     Ok(())
 }

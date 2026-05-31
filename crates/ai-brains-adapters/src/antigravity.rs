@@ -485,9 +485,11 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
             }
         }
 
-        let session_id = SessionId::from_uuid(
-            Uuid::parse_str(&source.session_id).unwrap_or_else(|_| Uuid::new_v4()),
-        );
+        let session_uuid = match Uuid::parse_str(&source.session_id) {
+            Ok(id) => id,
+            Err(_) => Uuid::new_v5(&Uuid::NAMESPACE_URL, source.session_id.as_bytes()),
+        };
+        let session_id = SessionId::from_uuid(session_uuid);
 
         let (turns, harness_id) = match source.format {
             AntigravityFormat::BrainLog => {

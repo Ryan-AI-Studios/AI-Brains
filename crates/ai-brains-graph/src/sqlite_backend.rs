@@ -1,4 +1,4 @@
-use crate::cozo_proxy::{GraphBackend, GraphEdge, GraphNode};
+use crate::cozo_proxy::{GraphBackend, GraphNode};
 use crate::errors::{GraphError, Result};
 use ai_brains_store::VaultConnection;
 use rusqlite::{params, Connection};
@@ -138,11 +138,7 @@ impl SqliteGraphBackend {
     /// Used by add_edge/add_edges: ensure node exists, inserting on-the-fly
     /// with kind "memory" if not present. This handles source_memory_ids
     /// that reference nodes from events not tracked by the projector.
-    fn ensure_node_or_insert(
-        &self,
-        conn: &Connection,
-        external_id: &str,
-    ) -> Result<i64> {
+    fn ensure_node_or_insert(&self, conn: &Connection, external_id: &str) -> Result<i64> {
         let mut stmt = conn
             .prepare_cached("SELECT node_id FROM graph_node WHERE external_id = ?")
             .map_err(|e| GraphError::DbError(e.to_string()))?;

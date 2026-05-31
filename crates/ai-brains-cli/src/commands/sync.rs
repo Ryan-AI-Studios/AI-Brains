@@ -89,7 +89,9 @@ pub fn run_pull(
         store: event_store,
         last_error: None,
         #[cfg(feature = "graph")]
-        graph_hook: Some(crate::live_graph::LiveGraphHook::new(std::sync::Arc::clone(&ctx.conn))),
+        graph_hook: Some(crate::live_graph::LiveGraphHook::new(
+            std::sync::Arc::clone(&ctx.conn),
+        )),
     };
 
     let service = CaptureService::new();
@@ -424,11 +426,13 @@ pub async fn run_query(
             graph_search.as_ref(),
             &query,
             5,
-            Some(project_id),
-            Some(session_id),
-            false,
-            0.1,
-            1,
+            ai_brains_retrieval::RecallOptions {
+                project_id: Some(project_id),
+                session_id: Some(session_id),
+                semantic: false,
+                graph_boost: 0.1,
+                graph_hop_depth: 1,
+            },
         )?;
 
         use ai_brains_contracts::bridge::{BridgeDirection, BridgePayload, BridgeRecord};
@@ -463,7 +467,19 @@ pub async fn run_query(
 
     println!("--- AI-Brains Recall ---");
     // 1. Local Recall
-    crate::commands::recall::run(ctx, query.clone(), 3, None, None, fmt, false, 0.1, 1)?;
+    crate::commands::recall::run(
+        ctx,
+        crate::commands::recall::RecallRunOptions {
+            query: query.clone(),
+            limit: 3,
+            project_id: None,
+            session_id: None,
+            format: fmt,
+            semantic: false,
+            graph_boost: 0.1,
+            graph_hop_depth: 1,
+        },
+    )?;
 
     println!("\n--- ChangeGuard Ledger Search ---");
     // 2. ChangeGuard Query (Attempt to call CLI)
