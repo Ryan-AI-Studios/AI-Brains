@@ -27,6 +27,22 @@ impl TaskScheduler {
     pub fn render_delete_command(task_name: &str) -> String {
         format!("schtasks /delete /tn \"{}\" /f", task_name)
     }
+
+    /// Renders a schtasks command to run the daemon at every user logon.
+    /// exe_path: Full path to ai-brainsd.exe
+    /// task_name: Unique name (e.g. "AI-Brains-Daemon")
+    /// delay_seconds: Seconds to wait after logon before starting (30 recommended)
+    pub fn render_daemon_logon_command(
+        exe_path: &str,
+        task_name: &str,
+        delay_seconds: u32,
+    ) -> String {
+        let mm = delay_seconds / 60;
+        let ss = delay_seconds % 60;
+        format!(
+            "schtasks /create /tn \"{task_name}\" /tr \"\\\"{exe_path}\\\"\" /sc ONLOGON /delay {mm:04}:{ss:02} /f",
+        )
+    }
 }
 
 #[cfg(test)]
@@ -43,6 +59,19 @@ mod tests {
         assert_eq!(
             cmd,
             r#"schtasks /create /tn "AI-Brains-Nightly" /tr "'C:\Program Files\AI-Brains\ai-brains.exe' nightly" /sc daily /st 03:00 /f"#
+        );
+    }
+
+    #[test]
+    fn test_render_daemon_logon_command() {
+        let cmd = TaskScheduler::render_daemon_logon_command(
+            r"C:\Users\RyanB\.cargo\bin\ai-brainsd.exe",
+            "AI-Brains-Daemon",
+            30,
+        );
+        assert_eq!(
+            cmd,
+            r#"schtasks /create /tn "AI-Brains-Daemon" /tr "\"C:\Users\RyanB\.cargo\bin\ai-brainsd.exe\"" /sc ONLOGON /delay 0000:30 /f"#
         );
     }
 }

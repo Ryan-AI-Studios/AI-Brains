@@ -15,7 +15,17 @@ type BoxError = Box<dyn std::error::Error + Send + Sync>;
 #[tokio::main]
 #[allow(clippy::disallowed_methods)]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Local .env first, then global ~/.ai-brains/.env for vault path config.
     dotenvy::dotenv().ok();
+    if std::env::var("AI_BRAINS_VAULT_PATH").is_err() {
+        if let Some(mut global_env) = dirs::home_dir() {
+            global_env.push(".ai-brains");
+            global_env.push(".env");
+            if global_env.exists() {
+                dotenvy::from_path_override(global_env).ok();
+            }
+        }
+    }
 
     let mut spool_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     spool_dir.push(".ai-brains");

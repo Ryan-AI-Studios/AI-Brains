@@ -223,6 +223,12 @@ pub enum ProjectCommands {
 
 #[derive(Subcommand, Clone)]
 pub enum DaemonCommands {
+    /// Start the daemon in the background
+    Start,
+    /// Register a Windows Task Scheduler logon task to auto-start the daemon
+    Schedule,
+    /// Remove the Task Scheduler logon task
+    Unschedule,
     /// Stop the running daemon gracefully
     Stop {
         /// Forcefully terminate the process if it doesn't respond to shutdown signal
@@ -505,6 +511,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::AntigravityImport { days } => commands::antigravity_import::run(&ctx, *days),
         Commands::AgyHook { payload } => commands::agy_hook::run(&ctx, payload),
         Commands::Daemon { command } => match command {
+            DaemonCommands::Start => commands::daemon::run_start(&ctx),
+            DaemonCommands::Schedule => commands::daemon::run_schedule(&ctx),
+            DaemonCommands::Unschedule => commands::daemon::run_unschedule(&ctx),
             DaemonCommands::Stop { force } => commands::daemon::run_stop(&ctx, *force).await,
         },
         Commands::Project { command } => match command {
