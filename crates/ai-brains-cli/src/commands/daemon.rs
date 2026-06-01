@@ -129,3 +129,48 @@ pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std:
 
     Ok(())
 }
+
+pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+    let client = DaemonClient::new();
+    let is_running = client.probe(std::time::Duration::from_millis(200)).await;
+
+    if is_running {
+        println!("Status: Running");
+    } else {
+        println!("Status: Stopped");
+    }
+
+    for port in [8081, 8083] {
+        let addr = format!("127.0.0.1:{}", port);
+        if let Ok(socket_addr) = addr.parse() {
+            match std::net::TcpStream::connect_timeout(
+                &socket_addr,
+                std::time::Duration::from_millis(100),
+            ) {
+                Ok(_) => println!("Port {}: Open", port),
+                Err(_) => println!("Port {}: Closed", port),
+            }
+        }
+    }
+
+    // Try to report PID
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("tasklist")
+            .args(["/FI", "IMAGENAME eq ai-brainsd.exe", "/FO", "CSV", "/NH"])
+            .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("ai-brainsd.exe") {
+            // CSV format: "ai-brainsd.exe","PID","Session Name","Session#","Mem Usage"
+            if let Some(line) = stdout.lines().next() {
+                let parts: Vec<&str> = line.split(',').collect();
+                if parts.len() > 1 {
+                    let pid = parts[1].trim_matches('\"');
+                    println!("PID: {}", pid);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}

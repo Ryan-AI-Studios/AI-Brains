@@ -225,6 +225,8 @@ pub enum ProjectCommands {
 pub enum DaemonCommands {
     /// Start the daemon in the background
     Start,
+    /// Show the status of the running daemon
+    Status,
     /// Register a Windows Task Scheduler logon task to auto-start the daemon
     Schedule,
     /// Remove the Task Scheduler logon task
@@ -512,6 +514,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::AgyHook { payload } => commands::agy_hook::run(&ctx, payload),
         Commands::Daemon { command } => match command {
             DaemonCommands::Start => commands::daemon::run_start(&ctx),
+            DaemonCommands::Status => commands::daemon::run_status(&ctx).await,
             DaemonCommands::Schedule => commands::daemon::run_schedule(&ctx),
             DaemonCommands::Unschedule => commands::daemon::run_unschedule(&ctx),
             DaemonCommands::Stop { force } => commands::daemon::run_stop(&ctx, *force).await,

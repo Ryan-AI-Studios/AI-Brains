@@ -41,7 +41,7 @@ impl VaultConnection {
 
     pub fn wal_checkpoint(&self) -> Result<()> {
         let conn = self.lock()?;
-        conn.execute("PRAGMA wal_checkpoint(PASSIVE)", [])?;
+        let _ = conn.query_row("PRAGMA wal_checkpoint(PASSIVE)", [], |_| Ok(()));
         Ok(())
     }
 }

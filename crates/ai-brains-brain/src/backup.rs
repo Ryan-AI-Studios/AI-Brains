@@ -47,7 +47,10 @@ impl BackupService {
         }
 
         // Verify integrity of the backup
-        dst.execute_batch("PRAGMA integrity_check")?;
+        let res: String = dst.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+        if res != "ok" {
+            return Err(format!("Integrity check failed: {}", res).into());
+        }
 
         Ok(backup_path)
     }

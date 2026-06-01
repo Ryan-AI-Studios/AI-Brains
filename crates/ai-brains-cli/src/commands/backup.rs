@@ -25,7 +25,10 @@ pub fn run_restore(
 
     // Verify integrity of the backup before restoring
     let bak_conn = rusqlite::Connection::open(&backup_path)?;
-    bak_conn.execute_batch("PRAGMA integrity_check")?;
+    let res: String = bak_conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+    if res != "ok" {
+        return Err(format!("Integrity check failed: {}", res).into());
+    }
 
     eprintln!(
         "WARNING: This will overwrite the current vault at {}",
