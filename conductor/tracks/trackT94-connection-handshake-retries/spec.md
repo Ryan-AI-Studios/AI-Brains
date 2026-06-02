@@ -1,8 +1,8 @@
 # Track T94: Automatic Host Connection Handshake Jitter & Retries
 
-**Status:** ⏳ **Pending**
-**Started:** None
-**Owner:** None
+**Status:** ✅ **Complete**
+**Started:** 2026-06-02
+**Owner:** Claude
 **Priority:** P2 — improves robustness of host detection.
 
 ---
