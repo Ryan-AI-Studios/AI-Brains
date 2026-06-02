@@ -29,7 +29,7 @@ $daemonProc = Get-Process ai-brainsd -ErrorAction SilentlyContinue
 $daemonWasRunning = $false
 if ($daemonProc) {
     $daemonWasRunning = $true
-    Write-Host "  Found ai-brainsd (PID $($daemonProc.Id)) — stopping gracefully..." -ForegroundColor Yellow
+    Write-Host "  Found ai-brainsd (PID $($daemonProc.Id)) - stopping gracefully..." -ForegroundColor Yellow
     # Attempt graceful shutdown via CLI; ignore errors if CLI is not yet on PATH
     $aiBrains = Get-Command ai-brains -ErrorAction SilentlyContinue
     if ($aiBrains) {
@@ -39,7 +39,7 @@ if ($daemonProc) {
     # Force-kill if still running
     $stillRunning = Get-Process ai-brainsd -ErrorAction SilentlyContinue
     if ($stillRunning) {
-        Write-Host "  Graceful shutdown timed out — force-killing..." -ForegroundColor Yellow
+        Write-Host "  Graceful shutdown timed out - force-killing..." -ForegroundColor Yellow
         taskkill /F /IM ai-brainsd.exe 2>$null
         Start-Sleep -Milliseconds 400
     }
