@@ -25,8 +25,12 @@
 | T81 | --quiet silences bridge warnings | ✅ **Complete** | Claude | [T81](tracks/trackT81-quiet-bridge-warnings/spec.md) | `recall --quiet`, `preflight --quiet`, `sync query --quiet` suppress the "ChangeGuard bridge query failed" warning |
 | T82 | honor context --new-project | ✅ **Complete** | Claude | [T82](tracks/trackT82-context-new-project/spec.md) | `context --new-project` rotates the project_id and prints "Rotating project ID from <old> to fresh UUID." |
 | T83 | JSON schemas for agy-hook & sync pull | ✅ **Complete** | Claude | [T83](tracks/trackT83-schemas-for-cli-commands/spec.md) | `agy-hook --schema` and `sync pull --schema` print JSON Schema 2020-12 documents; schemas at `Docs/schemas/` |
+| T84 | Self-Healing / Auto-Restart Tooling | ✅ **Complete** | Claude | [T84](tracks/trackT84-self-healing-auto-restart/spec.md) | `daemon update` stops daemon gracefully (force if unresponsive), runs `cargo install`, restarts; `Build-AIBrains.ps1` does the same |
+| T85 | Configuration-Based Backend URL and Port Status Checks | ✅ **Complete** | Claude | [T85](tracks/trackT85-config-based-port-status/spec.md) | `daemon status` reads `AI_BRAINS_MODEL_URL`/`AI_BRAINS_EMBEDDING_URL`, parses host:port, probes those; defaults to Ollama :11434 and llama.cpp :8080 |
+| T86 | Structured Stdin for Pipeline Tooling | ✅ **Complete** | Claude | [T86](tracks/trackT86-structured-stdin/spec.md) | `recall -` reads query from stdin; `preflight --stdin` reads JSON `{"scope":[...],"max_words":N}` from stdin; TTY guard prevents hanging |
 | UX | Friendly default project name | ✅ **Complete** | Claude | [UX](tracks/trackUX-friendly-default-project-name/spec.md) | Default name is `(no alias) — <8-char-uuid-prefix>` instead of `Project <full-uuid>`; full id still in dedicated column |
 | Docs | WORKFLOWS.md cookbook | ✅ **Complete** | Claude | [Docs/WORKFLOWS.md](../Docs/WORKFLOWS.md) | 6 end-to-end recipes: setup, Antigravity import, hygiene, backup, code-search, daemon/nightly |
+
 
 ---
 

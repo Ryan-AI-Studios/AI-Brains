@@ -806,6 +806,165 @@ fn test_forget_unknown_memory_id_errors() {
     );
 }
 
+/// T84: `daemon update` subcommand must appear in `daemon --help`.
+/// A full stop/install/restart cannot run in CI (requires live cargo workspace),
+/// so we only verify the command surface is wired up.
+#[test]
+fn test_daemon_update_command_exists() {
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("daemon")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("update"));
+}
+
+/// T85: `daemon status` must probe the port extracted from `AI_BRAINS_MODEL_URL`
+/// rather than the old hardcoded port 8081. We set a distinctive port (9099)
+/// that is almost certainly unoccupied and assert it appears in the output.
+#[test]
+fn test_daemon_status_respects_model_url_env_var() {
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_MODEL_URL", "http://127.0.0.1:9099")
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status must run");
+
+    assert!(
+        output.status.success(),
+        "daemon status must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("9099"),
+        "daemon status must probe configured port 9099 from AI_BRAINS_MODEL_URL; got: {stdout}"
+    );
+    // Old hardcoded port must NOT appear
+    assert!(
+        !stdout.contains("Port 8081"),
+        "daemon status must not probe hardcoded 8081; got: {stdout}"
+    );
+}
+
+/// T85: When `AI_BRAINS_EMBEDDING_URL` is set, `daemon status` probes that port.
+#[test]
+fn test_daemon_status_respects_embedding_url_env_var() {
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_EMBEDDING_URL", "http://127.0.0.1:9199")
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status must run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("9199"),
+        "daemon status must probe configured embedding port 9199; got: {stdout}"
+    );
+}
+
+/// T86: `recall -` must read the query from stdin and return a valid JSON response.
+#[test]
+fn test_recall_reads_query_from_stdin() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let turn_json = r#"{
+        "session_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "project_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        "harness_id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        "turn_id": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+        "privacy": "LocalOnly",
+        "role": "user",
+        "content": "GPU driver fix for VRAM allocation regression."
+    }"#;
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("ingest")
+        .write_stdin(turn_json)
+        .assert()
+        .success();
+
+    // recall - reads query from piped stdin
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("recall")
+        .arg("-")
+        .write_stdin("GPU driver fix")
+        .output()
+        .expect("recall - must run");
+
+    assert!(
+        output.status.success(),
+        "recall - must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // Output should be valid JSON
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("recall - must emit valid JSON; got: {stdout} ({e})"));
+    assert!(
+        parsed["results"].is_array(),
+        "recall - JSON must have a 'results' array; got: {parsed}"
+    );
+}
+
+/// T86: `preflight --stdin` must accept JSON options from stdin and succeed.
+#[test]
+fn test_preflight_reads_options_from_stdin() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let stdin_json = r#"{"max_words": 500}"#;
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("preflight")
+        .arg("--stdin")
+        .write_stdin(stdin_json)
+        .assert()
+        .success();
+}
+
+/// T86: `--stdin` flag must appear in `preflight --help`.
+#[test]
+fn test_preflight_stdin_flag_in_help() {
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("preflight")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--stdin"));
+}
+
 /// UX: when a project is registered without an alias, the default name
 /// should be readable in `project list`. The old form was
 /// `Project <full-uuid>` (32 hex chars); the friendly form is

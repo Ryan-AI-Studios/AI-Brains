@@ -130,6 +130,45 @@ pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std:
     Ok(())
 }
 
+/// T85: Parse "host:port" from a URL string (strips scheme/path).
+/// Returns None if no port is present or the port is not a valid u16.
+fn parse_host_port(url: &str) -> Option<(String, u16)> {
+    // Strip "http://" / "https://" scheme prefix
+    let without_scheme = if let Some(pos) = url.find("://") {
+        &url[pos + 3..]
+    } else {
+        url
+    };
+    // Keep only "host:port" — strip any path/query/fragment
+    let host_port = without_scheme.split('/').next().unwrap_or(without_scheme);
+    let colon_pos = host_port.rfind(':')?;
+    let host = &host_port[..colon_pos];
+    let port: u16 = host_port[colon_pos + 1..].parse().ok()?;
+    Some((host.to_string(), port))
+}
+
+/// T85: Resolve backend address from an env var, with sensible defaults.
+/// Returns (host, port, description_for_display).
+fn resolve_backend(
+    env_var: &str,
+    default_host: &str,
+    default_port: u16,
+    default_label: &str,
+) -> (String, u16, String) {
+    match std::env::var(env_var) {
+        Ok(url) if !url.is_empty() => {
+            let (host, port) =
+                parse_host_port(&url).unwrap_or_else(|| (default_host.to_string(), default_port));
+            (host, port, url)
+        }
+        _ => (
+            default_host.to_string(),
+            default_port,
+            format!("{} ({}=unset)", default_label, env_var),
+        ),
+    }
+}
+
 pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     let client = DaemonClient::new();
     let is_running = client.probe(std::time::Duration::from_millis(200)).await;
@@ -140,15 +179,38 @@ pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Err
         println!("Status: Stopped");
     }
 
-    for port in [8081, 8083] {
-        let addr = format!("127.0.0.1:{}", port);
-        if let Ok(socket_addr) = addr.parse() {
-            match std::net::TcpStream::connect_timeout(
-                &socket_addr,
-                std::time::Duration::from_millis(100),
-            ) {
-                Ok(_) => println!("Port {}: Open", port),
-                Err(_) => println!("Port {}: Closed", port),
+    // T85: resolve backend addresses from configuration rather than hardcoded ports
+    let (model_host, model_port, model_desc) = resolve_backend(
+        "AI_BRAINS_MODEL_URL",
+        "127.0.0.1",
+        11434,
+        "Ollama default :11434",
+    );
+    let (embed_host, embed_port, embed_desc) = resolve_backend(
+        "AI_BRAINS_EMBEDDING_URL",
+        "127.0.0.1",
+        8080,
+        "llama.cpp default :8080",
+    );
+
+    for (name, host, port, desc) in [
+        ("LLM backend", model_host, model_port, model_desc),
+        ("Embedding backend", embed_host, embed_port, embed_desc),
+    ] {
+        let addr = format!("{}:{}", host, port);
+        match addr.parse::<std::net::SocketAddr>() {
+            Ok(socket_addr) => {
+                let state = match std::net::TcpStream::connect_timeout(
+                    &socket_addr,
+                    std::time::Duration::from_millis(100),
+                ) {
+                    Ok(_) => "Open",
+                    Err(_) => "Closed",
+                };
+                println!("{} {} [{}]: {}", name, addr, desc, state);
+            }
+            Err(_) => {
+                println!("{} {}: unable to parse address", name, addr);
             }
         }
     }
@@ -173,4 +235,110 @@ pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Err
     }
 
     Ok(())
+}
+
+/// T84: Stop the daemon, install updated binaries via `cargo install`, then restart.
+///
+/// Must be run from the workspace root. Gracefully stops the daemon first;
+/// falls back to a force-kill if it does not respond within ~1 s.
+pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("[update] Checking for running daemon...");
+    let client = DaemonClient::new();
+    let is_running = client.probe(std::time::Duration::from_millis(300)).await;
+
+    if is_running {
+        eprintln!("[update] Daemon is running — sending graceful shutdown signal...");
+        let shutdown_ok = client.shutdown().await.is_ok();
+        if shutdown_ok {
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        }
+
+        // Verify it actually stopped
+        let still_running = client.probe(std::time::Duration::from_millis(200)).await;
+        if !shutdown_ok || still_running {
+            eprintln!("[update] Graceful shutdown did not complete — force-terminating...");
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/IM", "ai-brainsd.exe"])
+                    .output();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = std::process::Command::new("pkill")
+                    .args(["-9", "ai-brainsd"])
+                    .output();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        }
+        eprintln!("[update] Daemon stopped.");
+    } else {
+        eprintln!("[update] No running daemon found.");
+    }
+
+    eprintln!("[update] Installing ai-brains-cli via `cargo install --locked`...");
+    let cli_ok = std::process::Command::new("cargo")
+        .args(["install", "--path", "crates/ai-brains-cli", "--locked"])
+        .status()
+        .map_err(|e| format!("Failed to invoke cargo: {e}"))?;
+    if !cli_ok.success() {
+        return Err(format!(
+            "cargo install ai-brains-cli failed (exit {:?}). Run from the workspace root.",
+            cli_ok.code()
+        )
+        .into());
+    }
+
+    eprintln!("[update] Installing ai-brainsd via `cargo install --locked`...");
+    let daemon_ok = std::process::Command::new("cargo")
+        .args(["install", "--path", "crates/ai-brainsd", "--locked"])
+        .status()
+        .map_err(|e| format!("Failed to invoke cargo: {e}"))?;
+    if !daemon_ok.success() {
+        return Err(format!(
+            "cargo install ai-brainsd failed (exit {:?}). Run from the workspace root.",
+            daemon_ok.code()
+        )
+        .into());
+    }
+    eprintln!("[update] Binaries installed.");
+
+    eprintln!("[update] Restarting daemon...");
+    run_start(ctx)?;
+    println!("[update] Update complete. New daemon is running.");
+    Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods)]
+mod tests {
+    use super::*;
+
+    /// T85: parse_host_port correctly extracts host and port from full URLs.
+    #[test]
+    fn parse_host_port_full_url() {
+        let (host, port) = parse_host_port("http://127.0.0.1:9099").unwrap();
+        assert_eq!(host, "127.0.0.1");
+        assert_eq!(port, 9099);
+    }
+
+    #[test]
+    fn parse_host_port_with_path() {
+        let (host, port) = parse_host_port("http://localhost:11434/api/generate").unwrap();
+        assert_eq!(host, "localhost");
+        assert_eq!(port, 11434);
+    }
+
+    #[test]
+    fn parse_host_port_bare_host_port() {
+        let (host, port) = parse_host_port("127.0.0.1:8080").unwrap();
+        assert_eq!(host, "127.0.0.1");
+        assert_eq!(port, 8080);
+    }
+
+    #[test]
+    fn parse_host_port_no_port_returns_none() {
+        assert!(parse_host_port("http://localhost/").is_none());
+        assert!(parse_host_port("localhost").is_none());
+    }
 }

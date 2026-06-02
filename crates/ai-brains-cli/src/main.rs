@@ -65,6 +65,7 @@ enum Commands {
     Ingest,
     /// Recall memories based on a query
     Recall {
+        /// Query string, or `-` to read from stdin
         query: String,
         #[arg(short, long, default_value_t = 5)]
         limit: usize,
@@ -111,6 +112,9 @@ enum Commands {
         /// Aggregate context across ALL projects (ignores project_id filter)
         #[arg(long)]
         global: bool,
+        /// Read options from stdin as JSON `{"scope":[...],"max_words":N}` instead of CLI flags
+        #[arg(long)]
+        stdin: bool,
     },
     /// Run nightly intelligence sweep
     Nightly {
@@ -283,6 +287,8 @@ pub enum DaemonCommands {
         #[arg(long, short)]
         force: bool,
     },
+    /// Stop daemon, install updated binaries, then restart (run from workspace root)
+    Update,
 }
 
 #[derive(Subcommand, Clone)]
@@ -364,6 +370,44 @@ pub enum SafetyCommands {
         #[arg(long)]
         dry_run: bool,
     },
+}
+
+/// T86: Read a plain-text query from stdin until EOF.
+/// Returns an error if stdin is a terminal (avoids hanging in interactive shells).
+fn read_query_from_stdin() -> Result<String, Box<dyn std::error::Error>> {
+    use is_terminal::IsTerminal;
+    use std::io::Read;
+    if std::io::stdin().is_terminal() {
+        return Err(
+            "stdin is a terminal — pipe or redirect input when using `-` as the query.".into(),
+        );
+    }
+    let mut buf = String::new();
+    std::io::stdin()
+        .read_to_string(&mut buf)
+        .map_err(|e| format!("Failed to read from stdin: {e}"))?;
+    let query = buf.trim().to_string();
+    if query.is_empty() {
+        return Err("Query read from stdin is empty.".into());
+    }
+    Ok(query)
+}
+
+/// T86: Read a JSON object from stdin until EOF.
+/// Returns an error if stdin is a terminal.
+fn read_json_from_stdin() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    use is_terminal::IsTerminal;
+    use std::io::Read;
+    if std::io::stdin().is_terminal() {
+        return Err("stdin is a terminal — pipe JSON input when using --stdin.".into());
+    }
+    let mut buf = String::new();
+    std::io::stdin()
+        .read_to_string(&mut buf)
+        .map_err(|e| format!("Failed to read from stdin: {e}"))?;
+    let value: serde_json::Value = serde_json::from_str(buf.trim())
+        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+    Ok(value)
 }
 
 fn main() {
@@ -452,20 +496,28 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             graph_boost,
             graph_hop_depth,
             quiet,
-        } => commands::recall::run(
-            &ctx,
-            commands::recall::RecallRunOptions {
-                query: query.clone(),
-                limit: *limit,
-                project_id: *project_id,
-                session_id: *session_id,
-                format: format.clone(),
-                semantic: *semantic,
-                graph_boost: *graph_boost,
-                graph_hop_depth: *graph_hop_depth,
-                quiet: *quiet,
-            },
-        ),
+        } => {
+            // T86: `-` as the query reads the query string from stdin until EOF
+            let effective_query = if query == "-" {
+                read_query_from_stdin()?
+            } else {
+                query.clone()
+            };
+            commands::recall::run(
+                &ctx,
+                commands::recall::RecallRunOptions {
+                    query: effective_query,
+                    limit: *limit,
+                    project_id: *project_id,
+                    session_id: *session_id,
+                    format: format.clone(),
+                    semantic: *semantic,
+                    graph_boost: *graph_boost,
+                    graph_hop_depth: *graph_hop_depth,
+                    quiet: *quiet,
+                },
+            )
+        }
         Commands::Preflight {
             max_words,
             project_id,
@@ -474,18 +526,40 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             scope,
             summary,
             global,
-        } => commands::preflight::run(
-            &ctx,
-            commands::preflight::PreflightRunOptions {
-                max_words: *max_words,
-                project_id: *project_id,
-                pretty: *pretty,
-                format: format.clone(),
-                scope: scope.clone(),
-                summary: *summary,
-                global: *global,
-            },
-        ),
+            stdin: use_stdin,
+        } => {
+            // T86: --stdin reads a JSON object {"max_words":N,"scope":[...]} from stdin
+            let (effective_max_words, effective_scope) = if *use_stdin {
+                let json_input = read_json_from_stdin()?;
+                let mw = json_input["max_words"]
+                    .as_u64()
+                    .map(|n| n as usize)
+                    .unwrap_or(*max_words);
+                let sc = json_input["scope"]
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_else(|| scope.clone());
+                (mw, sc)
+            } else {
+                (*max_words, scope.clone())
+            };
+            commands::preflight::run(
+                &ctx,
+                commands::preflight::PreflightRunOptions {
+                    max_words: effective_max_words,
+                    project_id: *project_id,
+                    pretty: *pretty,
+                    format: format.clone(),
+                    scope: effective_scope,
+                    summary: *summary,
+                    global: *global,
+                },
+            )
+        }
         Commands::Nightly {
             schedule,
             unschedule,
@@ -615,6 +689,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             DaemonCommands::Schedule => commands::daemon::run_schedule(&ctx),
             DaemonCommands::Unschedule => commands::daemon::run_unschedule(&ctx),
             DaemonCommands::Stop { force } => commands::daemon::run_stop(&ctx, *force).await,
+            DaemonCommands::Update => commands::daemon::run_update(&ctx).await,
         },
         Commands::Project { command } => match command {
             ProjectCommands::List => commands::project::list(&ctx),
