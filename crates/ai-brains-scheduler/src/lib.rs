@@ -39,8 +39,11 @@ impl TaskScheduler {
     ) -> String {
         let mm = delay_seconds / 60;
         let ss = delay_seconds % 60;
+        // T78: use the same single-quote convention as render_create_command.
+        // The previous escaped-doublequote format produced a literal trailing
+        // backslash that schtasks rejected with "Access is denied".
         format!(
-            "schtasks /create /tn \"{task_name}\" /tr \"\\\"{exe_path}\\\"\" /sc ONLOGON /delay {mm:04}:{ss:02} /f",
+            "schtasks /create /tn \"{task_name}\" /tr \"'{exe_path}'\" /sc ONLOGON /delay {mm:04}:{ss:02} /f",
         )
     }
 }
