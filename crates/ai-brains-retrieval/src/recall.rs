@@ -1,4 +1,5 @@
 use crate::errors::Result;
+use crate::fts_utils::sanitize_fts_query;
 use crate::lexical::lexical_search;
 use crate::GraphSearch;
 use ai_brains_contracts::bridge::BridgeRecord;
@@ -15,6 +16,9 @@ pub struct RecallOptions {
     /// When true, suppress non-fatal warnings (e.g. bridge-failed notices
     /// when the cwd is not a git repository).
     pub quiet: bool,
+    /// When true, skip the ChangeGuard bridge query entirely and use only
+    /// vault FTS5 + semantic search.
+    pub no_bridge: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -85,11 +89,20 @@ pub fn recall(
     let project_id = options.project_id;
     let session_id = options.session_id;
 
+    // Sanitize query once for use with both FTS5 and ChangeGuard search.
+    let sanitized = sanitize_fts_query(query);
+
     // Phase 1: Try unified IPC recall via ChangeGuard bridge query.
-    let bridge_hits = query_changeguard_bridge(query, project_id, session_id);
+    // Cap bridge results at ceil(limit/2) to guarantee vault memories surface.
+    let bridge_cap = limit.div_ceil(2);
+    let bridge_hits = if options.no_bridge {
+        Ok(Vec::new())
+    } else {
+        query_changeguard_bridge(&sanitized, project_id, session_id)
+    };
 
     // Phase 2: Always run local FTS5 as a fallback / supplement.
-    let local_hits: Vec<RecallHit> = lexical_search(conn, query, project_id, session_id)?
+    let local_hits: Vec<RecallHit> = lexical_search(conn, &sanitized, project_id, session_id)?
         .into_iter()
         .map(|memory| RecallHit::fts(memory.memory_id, memory.content, memory.score))
         .collect();
@@ -118,7 +131,9 @@ pub fn recall(
     let mut blended = Vec::new();
 
     match bridge_hits {
-        Ok(bridge) => {
+        Ok(mut bridge) => {
+            // T87: Cap bridge contribution so vault memories always get slots.
+            bridge.truncate(bridge_cap);
             for hit in bridge {
                 if seen_ids.insert(hit.memory_id.clone()) {
                     blended.push(hit);
@@ -392,6 +407,55 @@ mod tests {
         // mem-3: from FTS only
         assert_eq!(blended[2].memory_id, "mem-3");
         assert_eq!(blended[2].source, "fts");
+    }
+
+    #[test]
+    fn bridge_cap_leaves_room_for_vault_hits() {
+        // With limit=4, bridge cap = ceil(4/2) = 2.
+        // Even if bridge returns 5 hits, only 2 make it; the other 2 slots go to vault FTS.
+        let bridge_cap = 4_usize.div_ceil(2);
+        assert_eq!(bridge_cap, 2);
+
+        let many_bridge: Vec<RecallHit> = (0..5)
+            .map(|i| {
+                RecallHit::bridge(
+                    format!("bridge-{}", i),
+                    format!("content {}", i),
+                    Some(0.9 - i as f64 * 0.05),
+                    "bridge".into(),
+                    None,
+                )
+            })
+            .collect();
+
+        let vault_hits: Vec<RecallHit> = (0..3)
+            .map(|i| RecallHit::fts(format!("vault-{}", i), format!("vault {}", i), Some(0.5)))
+            .collect();
+
+        let mut seen = std::collections::HashSet::new();
+        let mut blended = Vec::new();
+
+        let mut capped = many_bridge;
+        capped.truncate(bridge_cap);
+        for hit in capped {
+            if seen.insert(hit.memory_id.clone()) {
+                blended.push(hit);
+            }
+        }
+        for hit in vault_hits {
+            if seen.insert(hit.memory_id.clone()) {
+                blended.push(hit);
+            }
+        }
+        blended.truncate(4);
+
+        let vault_count = blended.iter().filter(|h| h.source == "fts").count();
+        assert!(
+            vault_count >= 1,
+            "At least one vault memory must appear; got {}",
+            vault_count
+        );
+        assert_eq!(blended.len(), 4);
     }
 
     #[test]

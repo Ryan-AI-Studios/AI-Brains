@@ -17,6 +17,7 @@ pub struct RecallRunOptions {
     pub graph_boost: f64,
     pub graph_hop_depth: usize,
     pub quiet: bool,
+    pub no_bridge: bool,
 }
 
 pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn std::error::Error>> {
@@ -51,6 +52,7 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
             graph_boost: options.graph_boost,
             graph_hop_depth: options.graph_hop_depth,
             quiet: options.quiet,
+            no_bridge: options.no_bridge,
         },
     )?;
 

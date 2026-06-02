@@ -88,21 +88,14 @@ pub fn run(
         return Err(format!("Failed to auto-initialize context: {}", err).into());
     }
 
-    let outcome = service.ingest_request(request, capture_context, &mut sink)?;
+    service.ingest_request(request, capture_context, &mut sink)?;
 
     if let Some(err) = sink.last_error {
         return Err(format!("Failed to pin memory: {}", err).into());
     }
 
-    // The memory_id is derived from the turn_id in the projection
-    // Use the first event's ID or the turn_id
-    let memory_id = outcome
-        .events
-        .first()
-        .map(|e| e.event_id.to_string())
-        .unwrap_or_else(|| turn_id.to_string());
-
-    println!("Memory {} successfully pinned to vault.", memory_id);
+    // The projection stores turn_id as memory_id; print it so `forget --memory-id` works.
+    println!("Memory {} successfully pinned to vault.", turn_id);
     Ok(())
 }
 

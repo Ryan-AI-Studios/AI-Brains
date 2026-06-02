@@ -1,5 +1,7 @@
 use crate::context::AppContext;
-use ai_brains_store::QueryStore;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{Actor, AggregateType, EventKind, Payload, ProjectAliasAddedPayload};
+use ai_brains_store::{EventStore, QueryStore};
 
 pub fn list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     let projects = ctx.conn.list_projects()?;
@@ -102,13 +104,89 @@ pub fn detect(ctx: &AppContext, export_shell: bool) -> Result<(), Box<dyn std::e
         }
     }
 
-    // No match found
-    if export_shell {
-        eprintln!("# No project detected in current directory — run from a git repo with an AI-Brains project");
-        std::process::exit(1);
-    } else {
-        println!("No project detected in current directory.");
+    // T93: Fallback — try AI_BRAINS_PROJECT_ID already loaded from .env by main.
+    if let Ok(pid_str) = std::env::var("AI_BRAINS_PROJECT_ID") {
+        if !pid_str.is_empty() {
+            let projects = ctx.conn.list_projects()?;
+            if let Some((pid, name, alias, _count)) =
+                projects.iter().find(|(p, _, _, _)| p == &pid_str)
+            {
+                if export_shell {
+                    println!("export AI_BRAINS_PROJECT_ID={}", pid);
+                    println!(
+                        "# AI-Brains project detected from .env: {} | alias={} (from .env)",
+                        name, alias
+                    );
+                } else {
+                    println!(
+                        "Detected project from .env: {} ({}) | alias={} (from .env)",
+                        name, pid, alias
+                    );
+                }
+                return Ok(());
+            }
+        }
     }
+
+    // Nothing found via slug match or .env.
+    let msg = "No project detected. Set an alias with 'project set-alias' or initialize a project with 'init'.";
+    if export_shell {
+        eprintln!("# {}", msg);
+    } else {
+        eprintln!("{}", msg);
+    }
+    std::process::exit(1);
+}
+
+pub fn set_alias(
+    ctx: &AppContext,
+    project_id_str: &str,
+    alias: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::str::FromStr;
+
+    let project_id = ai_brains_core::ids::ProjectId::from_str(project_id_str)
+        .map_err(|_| format!("Invalid project ID: '{}'", project_id_str))?;
+
+    // Verify the project exists in the vault.
+    let projects = ctx.conn.list_projects()?;
+    if !projects.iter().any(|(pid, _, _, _)| pid == project_id_str) {
+        return Err(format!("Project '{}' not found in vault.", project_id_str).into());
+    }
+
+    // Check for alias conflicts.
+    if let Some(existing_pid) = ctx.conn.resolve_project_id_from_alias(alias)? {
+        if existing_pid == project_id {
+            println!(
+                "Alias '{}' is already set for project {}.",
+                alias, project_id_str
+            );
+            return Ok(());
+        }
+        eprintln!(
+            "Alias '{}' is already assigned to project {}.",
+            alias, existing_pid
+        );
+        std::process::exit(1);
+    }
+
+    // Append the ProjectAliasAdded event — projection will update the alias table.
+    let event = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        EventKind::ProjectAliasAdded,
+        Actor::User(ai_brains_core::ids::UserId::new()),
+        ai_brains_core::privacy::Privacy::LocalOnly,
+    )
+    .build(Payload::ProjectAliasAdded(ProjectAliasAddedPayload {
+        project_id,
+        alias: alias.to_string(),
+    }))?;
+
+    let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+    event_store.append_event(&event)?;
+
+    println!("Alias '{}' set for project {}.", alias, project_id_str);
     Ok(())
 }
 

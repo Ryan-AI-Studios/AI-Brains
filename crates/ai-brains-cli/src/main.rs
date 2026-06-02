@@ -90,6 +90,10 @@ enum Commands {
         /// scripts and CI runs.
         #[arg(long)]
         quiet: bool,
+        /// Skip the ChangeGuard bridge query and use only local vault FTS5 +
+        /// semantic search. Guarantees vault memories appear in results.
+        #[arg(long)]
+        no_bridge: bool,
     },
     /// Generate preflight context for an LLM
     Preflight {
@@ -263,11 +267,18 @@ pub enum ProjectCommands {
     List,
     /// Resolve an alias to a project ID
     Resolve { alias: String },
-    /// Auto-detect project from current git repository
+    /// Auto-detect project from current git repository (fallback: .env AI_BRAINS_PROJECT_ID)
     Detect {
         /// Output as shell export statement
         #[arg(long)]
         export: bool,
+    },
+    /// Set a human-readable alias for a project
+    SetAlias {
+        /// Project UUID (from `project list`)
+        project_id: String,
+        /// Alias name (e.g. "ai-brains", "my-app")
+        alias: String,
     },
 }
 
@@ -496,6 +507,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             graph_boost,
             graph_hop_depth,
             quiet,
+            no_bridge,
         } => {
             // T86: `-` as the query reads the query string from stdin until EOF
             let effective_query = if query == "-" {
@@ -515,6 +527,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     graph_boost: *graph_boost,
                     graph_hop_depth: *graph_hop_depth,
                     quiet: *quiet,
+                    no_bridge: *no_bridge,
                 },
             )
         }
@@ -695,6 +708,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             ProjectCommands::List => commands::project::list(&ctx),
             ProjectCommands::Resolve { alias } => commands::project::resolve(&ctx, alias),
             ProjectCommands::Detect { export } => commands::project::detect(&ctx, *export),
+            ProjectCommands::SetAlias { project_id, alias } => {
+                commands::project::set_alias(&ctx, project_id, alias)
+            }
         },
         #[cfg(feature = "graph")]
         Commands::Graph { command } => match command {

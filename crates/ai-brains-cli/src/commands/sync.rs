@@ -110,14 +110,16 @@ pub fn run_pull(
 
         let record: BridgeRecord = match serde_json::from_str::<BridgeRecord>(&line) {
             Ok(r) => {
-                if let Some(actual_parent) = &r.parent_hash {
-                    if let Some(expected_last) = &last_hash {
-                        if actual_parent != expected_last {
-                            eprintln!("Lineage verification failed: parent_hash mismatch. Expected {}, got {}. Skipping record.", expected_last, actual_parent);
-                            continue;
-                        }
-                    } else {
-                        eprintln!("Bridge record rejected: non-null parent_hash {} but state has no previous inbound hash. Skipping record.", actual_parent);
+                // T92: Only enforce lineage when we have a prior hash (non-bootstrap).
+                // On first-ever import last_hash is None; accept the chain as-is to
+                // bootstrap state. On subsequent imports, verify continuity.
+                if let (Some(actual_parent), Some(expected_last)) = (&r.parent_hash, &last_hash) {
+                    if actual_parent != expected_last {
+                        eprintln!(
+                            "Lineage verification failed: parent_hash mismatch. \
+                             Expected {}, got {}. Skipping record.",
+                            expected_last, actual_parent
+                        );
                         continue;
                     }
                 }
@@ -138,10 +140,10 @@ pub fn run_pull(
         last_hash = Some(hash_hex.clone());
         sink.store.set_sync_state("last_inbound_hash", &hash_hex)?;
 
-        // Pulling only inbound records (ChangeGuard -> AI-Brains)
-        if record.direction != ai_brains_contracts::bridge::BridgeDirection::Inbound {
-            continue;
-        }
+        // T92: Accept records regardless of direction tag — `bridge export` exports
+        // ChangeGuard-native data (hotspots, ledger) whose direction may not be
+        // tagged as Inbound. Direction filtering belongs in ChangeGuard's exporter,
+        // not in our consumer.
 
         // Parse string IDs from the interchange format into typed IDs.
         let project_id = ai_brains_core::ids::ProjectId::from_str(&record.project_id)
@@ -480,13 +482,17 @@ pub async fn run_query(
             graph_boost: 0.1,
             graph_hop_depth: 1,
             quiet,
+            no_bridge: false,
         },
     )?;
 
     println!("\n--- ChangeGuard Ledger Search ---");
+    // T91: strip ANSI codes; T90: sanitize for FTS5 before forwarding to changeguard.
+    let clean_query = ai_brains_retrieval::strip_ansi(&query);
+    let sanitized_query = ai_brains_retrieval::sanitize_fts_query(&clean_query);
     // 2. ChangeGuard Query (Attempt to call CLI)
     let mut cmd = std::process::Command::new("changeguard");
-    cmd.args(["ledger", "search", &query]);
+    cmd.args(["ledger", "search", &sanitized_query]);
 
     if quiet {
         cmd.stderr(std::process::Stdio::null());

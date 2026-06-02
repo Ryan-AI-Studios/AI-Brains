@@ -1,5 +1,6 @@
 mod ansi;
 mod errors;
+mod fts_utils;
 mod lexical;
 mod preflight;
 mod privacy_filter;
@@ -10,6 +11,7 @@ mod word_budget;
 
 pub use ansi::strip_ansi;
 pub use errors::{Result, RetrievalError};
+pub use fts_utils::sanitize_fts_query;
 pub use lexical::{lexical_search, RetrievalMemory};
 pub use preflight::{build_preflight, PreflightContext};
 pub use recall::{recall, RecallHit, RecallOptions};
