@@ -80,7 +80,10 @@ pub fn run(
     };
 
     if let Some(ref sid) = existing_session {
-        if !new_session {
+        // T82: --new-project forces re-initialization even when a session
+        // already exists. The early-return below is skipped in that case,
+        // and we fall through to assign a fresh project_id and session_id.
+        if !new_session && !new_project {
             println!(
                 "Context is already initialized for project: {}",
                 project_name
@@ -93,7 +96,16 @@ pub fn run(
             println!("Session ID: {}", sid);
             return Ok(());
         }
-        println!("Replacing existing session: {}", sid);
+        if new_project {
+            if let Some(ref pid) = existing_project {
+                println!("Rotating project ID from {} to fresh UUID.", pid);
+            } else {
+                println!("Rotating to fresh project ID.");
+            }
+        }
+        if new_session || new_project {
+            println!("Replacing existing session: {}", sid);
+        }
     }
 
     let session_id = SessionId::new();
