@@ -488,6 +488,70 @@ fn test_backup_restore_force_skips_prompt() {
         .stdout(predicate::str::contains("Vault restored from"));
 }
 
+/// T83: `agy-hook --schema` must print the JSON Schema for the payload
+/// shape and exit 0. The audit showed that the schema was undocumented
+/// and users hit "missing field `transcriptPath`" without a hint.
+#[test]
+fn test_agy_hook_schema_flag() {
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("agy-hook")
+        .arg("--schema")
+        .output()
+        .expect("agy-hook --schema must run");
+
+    assert!(
+        output.status.success(),
+        "agy-hook --schema must exit 0; got: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("agy-hook --schema must emit valid JSON, got: {stdout} ({e})"));
+    assert_eq!(parsed["title"].as_str(), Some("AI-Brains agy-hook payload"));
+    let required: Vec<&str> = parsed["required"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+    for field in ["transcriptPath", "sessionId", "projectHash"] {
+        assert!(
+            required.contains(&field),
+            "agy-hook schema must require {field}; got: {required:?}"
+        );
+    }
+}
+
+/// T83: `sync pull --schema` must print the JSON Schema for the NDJSON
+/// record shape and exit 0.
+#[test]
+fn test_sync_pull_schema_flag() {
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("sync")
+        .arg("pull")
+        .arg("--schema")
+        .output()
+        .expect("sync pull --schema must run");
+
+    assert!(
+        output.status.success(),
+        "sync pull --schema must exit 0; got: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("sync pull --schema must emit valid JSON, got: {stdout} ({e})"));
+    assert_eq!(
+        parsed["title"].as_str(),
+        Some("AI-Brains sync pull NDJSON record")
+    );
+    assert!(parsed["required"]
+        .as_array()
+        .map(|a| a.iter().any(|v| v.as_str() == Some("bridge_version")))
+        .unwrap_or(false),
+        "sync pull schema must require bridge_version");
+}
+
 /// T82: `context --new-project` with an existing `.env` must rotate the
 /// project_id to a fresh UUID. The audit showed that the flag was parsed
 /// but ignored when `.env` already existed.
