@@ -488,6 +488,57 @@ fn test_backup_restore_force_skips_prompt() {
         .stdout(predicate::str::contains("Vault restored from"));
 }
 
+/// T80: when no `.env` exists in cwd, `main()` clears
+/// `AI_BRAINS_PROJECT_ID` and `AI_BRAINS_SESSION_ID` even if the caller
+/// has set them in their shell. The `--no-project-context` escape hatch
+/// preserves those env vars. This test runs the CLI in a tempdir with the
+/// env vars exported, and asserts that `pin` succeeds when
+/// `--no-project-context` is set.
+#[test]
+fn test_no_project_context_preserves_env_vars() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    // .env must NOT exist in cwd for the env-clear branch to fire.
+    assert!(!dir.path().join(".env").exists());
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .current_dir(dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Export env vars from the test process. Command::cargo_bin inherits
+    // by default; assert_cmd::cargo::Command uses std::process::Command
+    // which inherits the test process env unless told otherwise.
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .current_dir(dir.path())
+        .env("AI_BRAINS_PROJECT_ID", "22222222-2222-2222-2222-222222222222")
+        .env("AI_BRAINS_SESSION_ID", "11111111-1111-1111-1111-111111111111")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("pin")
+        .arg("T80 env-var preservation test")
+        .output()
+        .expect("pin must run");
+
+    assert!(
+        output.status.success(),
+        "pin with --no-project-context must succeed; got: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("successfully pinned"),
+        "stdout should confirm the pin; got: {stdout}"
+    );
+}
+
 /// T79: `nightly --skip-import` flag must be present in the help text and
 /// accepted by clap. The full pipeline (MADR ingestion, symbol bridge,
 /// summaries) cannot run in a smoke test without a live model server, so
