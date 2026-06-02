@@ -69,9 +69,29 @@ mod tests {
             "AI-Brains-Daemon",
             30,
         );
+        // T78: must use the same single-quote convention as
+        // render_create_command. The previous escaped-doublequote format
+        // produced a literal trailing backslash that schtasks rejected
+        // with "Access is denied".
         assert_eq!(
             cmd,
-            r#"schtasks /create /tn "AI-Brains-Daemon" /tr "\"C:\Users\RyanB\.cargo\bin\ai-brainsd.exe\"" /sc ONLOGON /delay 0000:30 /f"#
+            r#"schtasks /create /tn "AI-Brains-Daemon" /tr "'C:\Users\RyanB\.cargo\bin\ai-brainsd.exe'" /sc ONLOGON /delay 0000:30 /f"#
+        );
+    }
+
+    #[test]
+    fn test_render_daemon_logon_command_with_spaces_in_path() {
+        // Regression: schtasks rejects a path with spaces if quoting is
+        // malformed. Verify the single-quote convention survives paths that
+        // contain spaces.
+        let cmd = TaskScheduler::render_daemon_logon_command(
+            r"C:\Program Files\AI-Brains\ai-brainsd.exe",
+            "AI-Brains-Daemon",
+            60,
+        );
+        assert_eq!(
+            cmd,
+            r#"schtasks /create /tn "AI-Brains-Daemon" /tr "'C:\Program Files\AI-Brains\ai-brainsd.exe'" /sc ONLOGON /delay 0001:00 /f"#
         );
     }
 }
