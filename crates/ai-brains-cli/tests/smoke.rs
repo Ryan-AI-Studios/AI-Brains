@@ -487,3 +487,42 @@ fn test_backup_restore_force_skips_prompt() {
         .success()
         .stdout(predicate::str::contains("Vault restored from"));
 }
+
+/// T77: `forget --memory-id=<unknown>` must fail with a clear "not found" error
+/// instead of silently appending a MemoryForgotten event that matches zero
+/// projection rows.
+#[test]
+fn test_forget_unknown_memory_id_errors() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    let mut init_cmd = Command::cargo_bin("ai-brains").unwrap();
+    init_cmd
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let unknown_id = "00000000-0000-0000-0000-000000000000";
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("forget")
+        .arg(format!("--memory-id={}", unknown_id))
+        .arg("--force")
+        .output()
+        .expect("forget must run");
+
+    assert!(
+        !output.status.success(),
+        "forget on an unknown --memory-id must exit non-zero; got: {:?}",
+        output
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("not found") || stderr.contains("not in"),
+        "stderr should explain the unknown memory id; got: {stderr}"
+    );
+}
