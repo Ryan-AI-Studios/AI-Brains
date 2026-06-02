@@ -488,6 +488,33 @@ fn test_backup_restore_force_skips_prompt() {
         .stdout(predicate::str::contains("Vault restored from"));
 }
 
+/// T79: `nightly --skip-import` flag must be present in the help text and
+/// accepted by clap. The full pipeline (MADR ingestion, symbol bridge,
+/// summaries) cannot run in a smoke test without a live model server, so
+/// the test only verifies the flag is plumbed through.
+#[test]
+fn test_nightly_skip_import_flag_accepted() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // The flag should appear in the help text so users discover it.
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("nightly")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--skip-import"));
+}
+
 /// T77: `forget --memory-id=<unknown>` must fail with a clear "not found" error
 /// instead of silently appending a MemoryForgotten event that matches zero
 /// projection rows.
