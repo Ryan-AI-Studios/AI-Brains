@@ -200,13 +200,32 @@ pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Err
         let addr = format!("{}:{}", host, port);
         match addr.parse::<std::net::SocketAddr>() {
             Ok(socket_addr) => {
-                let state = match std::net::TcpStream::connect_timeout(
-                    &socket_addr,
-                    std::time::Duration::from_millis(100),
-                ) {
-                    Ok(_) => "Open",
-                    Err(_) => "Closed",
-                };
+                let mut state = "Closed";
+                let mut delay = std::time::Duration::from_millis(100);
+                for attempt in 0..5 {
+                    match std::net::TcpStream::connect_timeout(
+                        &socket_addr,
+                        std::time::Duration::from_millis(100),
+                    ) {
+                        Ok(_) => {
+                            state = "Open";
+                            break;
+                        }
+                        Err(_) => {
+                            if attempt < 4 {
+                                let nanos = std::time::SystemTime::now()
+                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                    .map(|d| d.as_nanos())
+                                    .unwrap_or(0);
+                                let jitter_ms = (nanos % 30) as u64;
+                                std::thread::sleep(
+                                    delay + std::time::Duration::from_millis(jitter_ms),
+                                );
+                                delay *= 2;
+                            }
+                        }
+                    }
+                }
                 println!("{} {} [{}]: {}", name, addr, desc, state);
             }
             Err(_) => {
