@@ -132,6 +132,17 @@ pub fn run(
     if let Some(id_str) = memory_id {
         let memory_id = MemoryId::from_str(&id_str)?;
 
+        // T77: validate that the memory_id exists in the projection before
+        // appending an event that would otherwise silently match zero rows.
+        if !ctx.conn.memory_exists(&id_str)? {
+            return Err(format!(
+                "Memory {} not found. Use 'forget --match' to search, \
+                 or 'forget --list-forgotten' to see forgotten memories.",
+                id_str
+            )
+            .into());
+        }
+
         // Show what we're about to forget
         let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
             .ok()

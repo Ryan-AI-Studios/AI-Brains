@@ -327,4 +327,14 @@ impl QueryStore for VaultConnection {
         }
         Ok(results)
     }
+
+    fn memory_exists(&self, memory_id: &str) -> Result<bool> {
+        let conn = self.lock()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM memory_projection WHERE memory_id = ?",
+            [memory_id],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
+    }
 }

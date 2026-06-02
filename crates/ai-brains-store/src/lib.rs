@@ -53,6 +53,10 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
     ) -> Result<Vec<(String, String)>>;
     fn list_projects(&self) -> Result<Vec<(String, String, String, usize)>>; // UUID, name, alias, memory_count
     fn get_session_memory_ids(&self, session_id: &str) -> Result<Vec<MemoryId>>;
+    /// Returns true iff a row with this `memory_id` exists in `memory_projection`.
+    /// Used by `forget` to validate `--memory-id` before appending a
+    /// `MemoryForgotten` event that would otherwise silently no-op.
+    fn memory_exists(&self, memory_id: &str) -> Result<bool>;
 }
 
 pub trait SyncStateStore: std::marker::Send + std::marker::Sync {
