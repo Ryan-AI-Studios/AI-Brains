@@ -18,6 +18,15 @@
 | T74 | Graph Health Smoke Test | ✅ **Complete** | Claude | [T74](tracks/trackT74-graph-health-smoke/spec.md) | nextest smoke that runs init → ingest → pin → recall → `graph update` and asserts nodes/edges ≥ 1, status live |
 | T75 | OPERATIONS.md Modernization | ✅ **Complete** | Claude | [T75](tracks/trackT75-operations-modernization/spec.md) | Rewrote OPERATIONS.md to cover daemon, forget, safety sync, sync query, bridge, schedule, restore, and the full env-var surface |
 | T76 | CLI Polish (project list + backup restore) | ✅ **Complete** | Claude | [T76](tracks/trackT76-cli-polish/spec.md) | Widened `project list` name column with hint header; added `--force` and `--dry-run` to `backup restore`; 2 new tests |
+| T77 | forget --memory-id validation | ✅ **Complete** | Claude | [T77](tracks/trackT77-forget-memory-id-validation/spec.md) | `forget --memory-id=<unknown>` exits 1 with "Memory <id> not found." instead of silently no-op'ing |
+| T78 | daemon schedule schtasks quoting | ✅ **Complete** | Claude | [T78](tracks/trackT78-daemon-schedule-quoting/spec.md) | `render_daemon_logon_command` uses single-quote wrapping so schtasks accepts paths with spaces |
+| T79 | nightly --skip-import | ✅ **Complete** | Claude | [T79](tracks/trackT79-nightly-skip-import/spec.md) | Opt-out flag for `antigravity_import` in `nightly`; prevents cross-vault contamination on isolated/CI vaults |
+| T80 | --no-project-context flag | ✅ **Complete** | Claude | [T80](tracks/trackT80-no-project-context-flag/spec.md) | Global escape hatch so `main()` does not auto-clear `AI_BRAINS_*` env vars when no `.env` exists in cwd |
+| T81 | --quiet silences bridge warnings | ✅ **Complete** | Claude | [T81](tracks/trackT81-quiet-bridge-warnings/spec.md) | `recall --quiet`, `preflight --quiet`, `sync query --quiet` suppress the "ChangeGuard bridge query failed" warning |
+| T82 | honor context --new-project | ✅ **Complete** | Claude | [T82](tracks/trackT82-context-new-project/spec.md) | `context --new-project` rotates the project_id and prints "Rotating project ID from <old> to fresh UUID." |
+| T83 | JSON schemas for agy-hook & sync pull | ✅ **Complete** | Claude | [T83](tracks/trackT83-schemas-for-cli-commands/spec.md) | `agy-hook --schema` and `sync pull --schema` print JSON Schema 2020-12 documents; schemas at `Docs/schemas/` |
+| UX | Friendly default project name | ✅ **Complete** | Claude | [UX](tracks/trackUX-friendly-default-project-name/spec.md) | Default name is `(no alias) — <8-char-uuid-prefix>` instead of `Project <full-uuid>`; full id still in dedicated column |
+| Docs | WORKFLOWS.md cookbook | ✅ **Complete** | Claude | [Docs/WORKFLOWS.md](../Docs/WORKFLOWS.md) | 6 end-to-end recipes: setup, Antigravity import, hygiene, backup, code-search, daemon/nightly |
 
 ---
 
