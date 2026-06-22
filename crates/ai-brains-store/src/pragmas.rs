@@ -18,5 +18,8 @@ pub fn apply_pragmas(conn: &Connection, key: &SqlCipherKey) -> Result<()> {
     // 4. Synchronous mode
     conn.execute_batch("PRAGMA synchronous = NORMAL;")?;
 
+    // 5. Busy timeout: let SQLite retry internally for up to 5s before returning SQLITE_BUSY
+    conn.execute_batch("PRAGMA busy_timeout = 5000;")?;
+
     Ok(())
 }
