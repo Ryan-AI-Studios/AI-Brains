@@ -224,7 +224,7 @@ fn ingest_madr_from_changeguard(
     };
 
     // Call ChangeGuard bridge export --ledger to fetch MADR records
-    let output = std::process::Command::new("changeguard")
+    let output = std::process::Command::new("ledgerful")
         .args([
             "bridge",
             "export",

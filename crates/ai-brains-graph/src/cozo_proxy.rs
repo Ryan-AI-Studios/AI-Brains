@@ -101,7 +101,7 @@ impl CozoProxyBackend {
         let changeguard_dir = cwd.join(".changeguard");
         let dir_exists = changeguard_dir.exists() && changeguard_dir.is_dir();
 
-        let cli_available = std::process::Command::new("changeguard")
+        let cli_available = std::process::Command::new("ledgerful")
             .arg("--version")
             .output()
             .map(|o| o.status.success())
@@ -154,7 +154,7 @@ impl CozoProxyBackend {
             .map_err(|e| GraphError::DbError(format!("Failed to serialize BridgeRecord: {}", e)))?;
         std::fs::write(&temp_path, ndjson.as_bytes()).map_err(GraphError::IoError)?;
 
-        let output = std::process::Command::new("changeguard")
+        let output = std::process::Command::new("ledgerful")
             .args([
                 "bridge",
                 "import",
@@ -163,7 +163,7 @@ impl CozoProxyBackend {
             ])
             .output()
             .map_err(|e| {
-                GraphError::DbError(format!("Failed to invoke changeguard bridge import: {}", e))
+                GraphError::DbError(format!("Failed to invoke ledgerful bridge import: {}", e))
             })?;
 
         if !output.status.success() {
@@ -226,7 +226,7 @@ impl CozoProxyBackend {
             .map_err(|e| GraphError::IoError(std::io::Error::other(e)))?;
         let out_path = out_file.path().to_path_buf();
 
-        let output = std::process::Command::new("changeguard")
+        let output = std::process::Command::new("ledgerful")
             .args([
                 "bridge",
                 "export",
@@ -237,7 +237,7 @@ impl CozoProxyBackend {
             ])
             .output()
             .map_err(|e| {
-                GraphError::DbError(format!("Failed to invoke changeguard bridge export: {}", e))
+                GraphError::DbError(format!("Failed to invoke ledgerful bridge export: {}", e))
             })?;
 
         if !output.status.success() {

@@ -51,7 +51,7 @@ pub fn run_pull(
                 path: temp_path.clone(),
             });
 
-            let mut cmd = std::process::Command::new("changeguard");
+            let mut cmd = std::process::Command::new("ledgerful");
             cmd.arg("bridge").arg("export");
             cmd.arg("--out").arg(&temp_path);
 
@@ -75,7 +75,7 @@ pub fn run_pull(
                     return Ok(());
                 }
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(format!("Failed to export from ChangeGuard: {}", stderr).into());
+                return Err(format!("Failed to export from ledgerful: {}", stderr).into());
             }
             temp_path
         }
@@ -344,8 +344,8 @@ pub fn run_push(
     }
     file.flush()?;
 
-    println!("Triggering ChangeGuard bridge import...");
-    let mut cmd = std::process::Command::new("changeguard");
+    println!("Triggering ledgerful bridge import...");
+    let mut cmd = std::process::Command::new("ledgerful");
     cmd.args([
         "bridge",
         "import",
@@ -369,17 +369,14 @@ pub fn run_push(
         Ok(out) => {
             if !quiet {
                 eprintln!(
-                    "ChangeGuard import failed: {}",
+                    "ledgerful import failed: {}",
                     String::from_utf8_lossy(&out.stderr)
                 );
             }
         }
         Err(e) => {
             if !quiet {
-                println!(
-                    "ChangeGuard CLI not found or failed to execute. Error: {}",
-                    e
-                );
+                println!("ledgerful CLI not found or failed to execute. Error: {}", e);
             }
         }
     }
@@ -393,6 +390,7 @@ pub async fn run_query(
     query: String,
     format: Option<String>,
     quiet: bool,
+    global: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Phase 0: Ensure daemon is running (Requirement T51.1)
     let client = crate::daemon_client::DaemonClient::new();
@@ -404,6 +402,19 @@ pub async fn run_query(
     }
 
     let fmt = format.unwrap_or_else(|| "pretty".to_string());
+
+    let project_id = if global {
+        None
+    } else {
+        let project_id_str =
+            std::env::var("AI_BRAINS_PROJECT_ID").unwrap_or_else(|_| "default-project".to_string());
+        use std::str::FromStr;
+        Some(
+            ai_brains_core::ids::ProjectId::from_str(&project_id_str)
+                .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new()),
+        )
+    };
+
     if fmt == "ndjson" {
         #[cfg(feature = "graph")]
         let graph_vault = ai_brains_graph::GraphVault::new((*ctx.conn).clone());
@@ -412,14 +423,11 @@ pub async fn run_query(
         #[cfg(not(feature = "graph"))]
         let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
 
-        let project_id_str =
-            std::env::var("AI_BRAINS_PROJECT_ID").unwrap_or_else(|_| "default-project".to_string());
         let session_id_str = std::env::var("AI_BRAINS_SESSION_ID")
             .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new().to_string());
 
         use std::str::FromStr;
-        let project_id = ai_brains_core::ids::ProjectId::from_str(&project_id_str)
-            .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new());
+        let project_id = project_id.unwrap_or_else(ai_brains_core::ids::ProjectId::new);
         let session_id = ai_brains_core::ids::SessionId::from_str(&session_id_str)
             .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new());
 
@@ -475,14 +483,14 @@ pub async fn run_query(
         crate::commands::recall::RecallRunOptions {
             query: query.clone(),
             limit: 3,
-            project_id: None,
+            project_id,
             session_id: None,
             format: fmt,
             semantic: false,
             graph_boost: 0.1,
             graph_hop_depth: 1,
             quiet,
-            no_bridge: false,
+            no_bridge: true,
         },
     )?;
 
@@ -491,7 +499,7 @@ pub async fn run_query(
     let clean_query = ai_brains_retrieval::strip_ansi(&query);
     let sanitized_query = ai_brains_retrieval::sanitize_fts_query(&clean_query);
     // 2. ChangeGuard Query (Attempt to call CLI)
-    let mut cmd = std::process::Command::new("changeguard");
+    let mut cmd = std::process::Command::new("ledgerful");
     cmd.args(["ledger", "search", &sanitized_query]);
 
     if quiet {
@@ -507,14 +515,14 @@ pub async fn run_query(
         Ok(out) => {
             if !quiet {
                 eprintln!(
-                    "ChangeGuard search failed: {}",
+                    "ledgerful search failed: {}",
                     String::from_utf8_lossy(&out.stderr)
                 );
             }
         }
         Err(_) => {
             if !quiet {
-                println!("ChangeGuard CLI not found or failed to execute.");
+                println!("ledgerful CLI not found or failed to execute.");
             }
         }
     }

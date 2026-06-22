@@ -99,14 +99,14 @@ pub fn run(
 }
 
 fn fetch_hotspots_json(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> {
-    let output = std::process::Command::new("changeguard")
+    let output = std::process::Command::new("ledgerful")
         .args(["hotspots", "--json", "--limit", &limit.to_string()])
         .output()
-        .map_err(|e| format!("failed to run changeguard: {}", e))?;
+        .map_err(|e| format!("failed to run ledgerful: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("changeguard exited with error: {}", stderr.trim()));
+        return Err(format!("ledgerful exited with error: {}", stderr.trim()));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -115,7 +115,7 @@ fn fetch_hotspots_json(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> 
     let json_start = stdout
         .lines()
         .position(|line| line.trim_start().starts_with('['))
-        .ok_or_else(|| "no JSON array found in changeguard output".to_string())?;
+        .ok_or_else(|| "no JSON array found in ledgerful output".to_string())?;
     let json_str: String = stdout
         .lines()
         .skip(json_start)
@@ -123,17 +123,17 @@ fn fetch_hotspots_json(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> 
         .join("\n");
 
     serde_json::from_str::<Vec<ChangeGuardHotspot>>(&json_str)
-        .map_err(|e| format!("failed to parse changeguard JSON: {}", e))
+        .map_err(|e| format!("failed to parse ledgerful JSON: {}", e))
 }
 
 fn fetch_hotspots_text(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> {
-    let output = std::process::Command::new("changeguard")
+    let output = std::process::Command::new("ledgerful")
         .args(["hotspots", "--limit", &limit.to_string()])
         .output()
-        .map_err(|e| format!("failed to run changeguard: {}", e))?;
+        .map_err(|e| format!("failed to run ledgerful: {}", e))?;
 
     if !output.status.success() {
-        return Err("changeguard exited with non-zero status".to_string());
+        return Err("ledgerful exited with non-zero status".to_string());
     }
 
     let raw = String::from_utf8_lossy(&output.stdout);

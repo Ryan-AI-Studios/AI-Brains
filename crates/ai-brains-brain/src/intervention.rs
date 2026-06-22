@@ -224,7 +224,7 @@ async fn query_changeguard_risk_alerts() -> Result<Vec<RiskAlert>, String> {
     // runtime.  `std::process::Command` is inherently synchronous.
     let out_path = temp_out_path.clone();
     let output = tokio::task::spawn_blocking(move || {
-        std::process::Command::new("changeguard")
+        std::process::Command::new("ledgerful")
             .args([
                 "bridge",
                 "export",
@@ -236,14 +236,14 @@ async fn query_changeguard_risk_alerts() -> Result<Vec<RiskAlert>, String> {
     })
     .await
     .map_err(|e| format!("spawn_blocking failed: {e}"))?
-    .map_err(|e| format!("changeguard CLI not available: {e}"))?;
+    .map_err(|e| format!("ledgerful CLI not available: {e}"))?;
 
     // Keep temp_in alive until the command completes.
     drop(temp_in);
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("changeguard bridge export failed: {stderr}"));
+        return Err(format!("ledgerful bridge export failed: {stderr}"));
     }
 
     let content =

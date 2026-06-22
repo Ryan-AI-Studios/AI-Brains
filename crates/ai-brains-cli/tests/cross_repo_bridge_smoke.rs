@@ -167,13 +167,23 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std::error::Error>> {
-    // Check if changeguard CLI is available
-    if std::process::Command::new("changeguard")
+    // Try ledgerful (canonical) first, fall back to changeguard alias
+    let binary = if std::process::Command::new("ledgerful")
+        .arg("--version")
+        .output()
+        .is_ok()
+    {
+        "ledgerful"
+    } else {
+        "changeguard"
+    };
+
+    if std::process::Command::new(binary)
         .arg("--version")
         .output()
         .is_err()
     {
-        println!("Skipping E2E test: changeguard CLI not found in PATH.");
+        println!("Skipping E2E test: {} CLI not found in PATH.", binary);
         return Ok(());
     }
 
@@ -182,10 +192,10 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     let ws_path = dir.path().to_path_buf();
 
     // 1. Initialize ChangeGuard in the temp workspace
-    let mut cg_init = std::process::Command::new("changeguard");
+    let mut cg_init = std::process::Command::new(binary);
     cg_init.arg("init").current_dir(&ws_path);
     let output = cg_init.output()?;
-    assert!(output.status.success(), "changeguard init failed");
+    assert!(output.status.success(), "{} init failed", binary);
 
     // Create a dummy source file so that scan has something to index
     let dummy_rs = ws_path.join("src").join("main.rs");
@@ -213,11 +223,11 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
         .current_dir(&ws_path)
         .output()?;
 
-    // Run changeguard scan with impact analysis
-    let mut cg_scan = std::process::Command::new("changeguard");
+    // Run ledgerful scan with impact analysis
+    let mut cg_scan = std::process::Command::new(binary);
     cg_scan.arg("scan").arg("--impact").current_dir(&ws_path);
     let output = cg_scan.output()?;
-    assert!(output.status.success(), "changeguard scan failed");
+    assert!(output.status.success(), "{} scan failed", binary);
 
     // 2. Initialize AI-Brains vault
     let mut init_cmd = Command::cargo_bin("ai-brains")?;

@@ -115,21 +115,21 @@ fn symbol_content(symbol: &SymbolRecord) -> String {
 /// Non-fatal; logs a warning if unavailable.
 fn refresh_changeguard_index() {
     #[allow(clippy::disallowed_methods)]
-    match std::process::Command::new("changeguard")
+    match std::process::Command::new("ledgerful")
         .arg("index")
         .output()
     {
         Ok(o) if o.status.success() => {
-            eprintln!("[Nightly] ChangeGuard symbol index refreshed.");
+            eprintln!("[Nightly] ledgerful symbol index refreshed.");
         }
         Ok(o) => {
             eprintln!(
-                "[Nightly] ChangeGuard index refresh non-fatal: {}",
+                "[Nightly] ledgerful index refresh non-fatal: {}",
                 String::from_utf8_lossy(&o.stderr).trim()
             );
         }
         Err(e) => {
-            eprintln!("[Nightly] ChangeGuard not available for indexing: {}", e);
+            eprintln!("[Nightly] ledgerful not available for indexing: {}", e);
         }
     }
 }

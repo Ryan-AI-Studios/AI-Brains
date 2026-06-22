@@ -170,7 +170,7 @@ fn query_changeguard_verification() -> Result<VerifyResponse, String> {
     let temp_out_path = temp_out.path().to_path_buf();
 
     // -- Invoke changeguard bridge export ----------------------------------
-    let output = std::process::Command::new("changeguard")
+    let output = std::process::Command::new("ledgerful")
         .args([
             "bridge",
             "export",
@@ -182,11 +182,11 @@ fn query_changeguard_verification() -> Result<VerifyResponse, String> {
                 .ok_or_else(|| "invalid temp output path".to_string())?,
         ])
         .output()
-        .map_err(|e| format!("changeguard CLI not available: {e}"))?;
+        .map_err(|e| format!("ledgerful CLI not available: {e}"))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("changeguard bridge export failed: {stderr}"));
+        return Err(format!("ledgerful bridge export failed: {stderr}"));
     }
 
     // -- Parse NDJSON output -----------------------------------------------

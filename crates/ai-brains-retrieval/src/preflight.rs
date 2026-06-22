@@ -281,7 +281,7 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
     let temp_path = temp_file.path().to_path_buf();
 
     // 2. Build the command with optional scope
-    let mut cmd = std::process::Command::new("changeguard");
+    let mut cmd = std::process::Command::new("ledgerful");
     cmd.args([
         "bridge",
         "export",
@@ -380,7 +380,7 @@ fn query_changeguard_fallback() -> Option<String> {
     let temp_file = tempfile::NamedTempFile::new().ok()?;
     let temp_path = temp_file.path().to_path_buf();
 
-    let output = std::process::Command::new("changeguard")
+    let output = std::process::Command::new("ledgerful")
         .args([
             "bridge",
             "export",
