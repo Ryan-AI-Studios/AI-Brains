@@ -23,3 +23,16 @@ pub fn apply_pragmas(conn: &Connection, key: &SqlCipherKey) -> Result<()> {
 
     Ok(())
 }
+
+/// Apply only the key, cipher compatibility, and busy timeout pragmas.
+/// Use this when opening a second connection to a vault that is already
+/// open by another connection (e.g. backup source). Setting journal_mode
+/// or synchronous requires exclusive access and will deadlock if another
+/// connection holds the file open.
+pub fn apply_key_pragmas(conn: &Connection, key: &SqlCipherKey) -> Result<()> {
+    let pragma_key = format!("PRAGMA key = \"{}\"", key.expose_secret());
+    conn.execute_batch(&pragma_key)?;
+    conn.execute_batch("PRAGMA cipher_compatibility = 4;")?;
+    conn.execute_batch("PRAGMA busy_timeout = 5000;")?;
+    Ok(())
+}

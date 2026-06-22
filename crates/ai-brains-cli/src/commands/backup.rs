@@ -1,6 +1,6 @@
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
-use ai_brains_store::pragmas::apply_pragmas;
+use ai_brains_store::pragmas::apply_key_pragmas;
 use std::path::PathBuf;
 
 pub fn run_create(
@@ -12,7 +12,10 @@ pub fn run_create(
         service = service.with_output_dir(dir);
     }
     eprintln!("Creating vault backup...");
-    let backup_path = service.run_backup()?;
+    // Use the existing AppContext connection to avoid opening a second
+    // connection to the same WAL file (which deadlocks).
+    let conn = ctx.conn.lock()?;
+    let backup_path = service.run_backup_from_conn(&conn)?;
     println!("Backup created and verified: {}", backup_path.display());
     Ok(())
 }
@@ -30,7 +33,7 @@ pub async fn run_restore(
     // Verify integrity of the backup before doing anything destructive.
     // Apply key pragmas to read the encrypted backup.
     let bak_conn = rusqlite::Connection::open(&backup_path)?;
-    apply_pragmas(&bak_conn, &ctx._key)?;
+    apply_key_pragmas(&bak_conn, &ctx._key)?;
     let res: String = bak_conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     if res != "ok" {
         return Err(format!("Integrity check failed: {}", res).into());
@@ -73,8 +76,10 @@ pub async fn run_restore(
 
     // Restore via SQLite backup API (overwrites current vault).
     // Apply key pragmas so the destination is encrypted.
+    // Use apply_key_pragmas for the vault (may already be open by AppContext)
+    // and apply_pragmas for the backup source connection.
     let mut vault_conn = rusqlite::Connection::open(&ctx.vault_path)?;
-    apply_pragmas(&vault_conn, &ctx._key)?;
+    apply_key_pragmas(&vault_conn, &ctx._key)?;
     let backup = rusqlite::backup::Backup::new(&bak_conn, &mut vault_conn)?;
     backup.run_to_completion(10, std::time::Duration::from_millis(250), None)?;
 

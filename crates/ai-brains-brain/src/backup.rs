@@ -1,5 +1,5 @@
 use ai_brains_crypto::SqlCipherKey;
-use ai_brains_store::pragmas::apply_pragmas;
+use ai_brains_store::pragmas::apply_key_pragmas;
 use chrono::Utc;
 use std::fs;
 use std::path::PathBuf;
@@ -24,7 +24,13 @@ impl BackupService {
         self
     }
 
-    pub fn run_backup(&self) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    /// Run a backup using the SQLite backup API.
+    /// The source connection is borrowed from the caller to avoid opening
+    /// a second connection to the same WAL file (which deadlocks).
+    pub fn run_backup_from_conn(
+        &self,
+        src_conn: &rusqlite::Connection,
+    ) -> Result<PathBuf, Box<dyn std::error::Error>> {
         if !self.vault_path.exists() {
             return Err("Vault file does not exist".into());
         }
@@ -47,17 +53,15 @@ impl BackupService {
             fs::remove_file(&backup_path)?;
         }
 
-        // Apply SQLCipher key pragmas (key + cipher_compatibility + journal_mode
-        // + synchronous + busy_timeout = 5000) to both connections.
-        let src = rusqlite::Connection::open(&self.vault_path)?;
-        apply_pragmas(&src, &self.key)?;
         let mut dst = rusqlite::Connection::open(&backup_path)?;
-        apply_pragmas(&dst, &self.key)?;
+        apply_key_pragmas(&dst, &self.key)?;
 
-        // Use SQLite backup API for consistent, safe backups
+        // Use SQLite backup API with the borrowed source connection.
+        // Use -1 (all remaining pages) per step with no sleep for fast
+        // completion on small-to-medium vaults.
         {
-            let backup = rusqlite::backup::Backup::new(&src, &mut dst)?;
-            backup.run_to_completion(10, std::time::Duration::from_millis(250), None)?;
+            let backup = rusqlite::backup::Backup::new(src_conn, &mut dst)?;
+            backup.run_to_completion(100000, std::time::Duration::ZERO, None)?;
         }
 
         // Verify integrity of the backup
@@ -67,6 +71,16 @@ impl BackupService {
         }
 
         Ok(backup_path)
+    }
+
+    /// Run a backup by opening a fresh connection to the vault.
+    /// WARNING: This will deadlock if another connection to the same vault
+    /// is already open in WAL mode. Prefer `run_backup_from_conn` with the
+    /// existing AppContext connection.
+    pub fn run_backup(&self) -> Result<PathBuf, Box<dyn std::error::Error>> {
+        let src = rusqlite::Connection::open(&self.vault_path)?;
+        src.execute_batch("PRAGMA busy_timeout = 5000;")?;
+        self.run_backup_from_conn(&src)
     }
 }
 
@@ -88,7 +102,7 @@ mod tests {
             "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
         );
         let conn = rusqlite::Connection::open(&vault_path)?;
-        apply_pragmas(&conn, &key)?;
+        apply_key_pragmas(&conn, &key)?;
         conn.execute_batch(
             "CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
         )?;
@@ -102,7 +116,7 @@ mod tests {
 
         // Verify the backup has our table (open with key)
         let backup_conn = rusqlite::Connection::open(&backup_path)?;
-        apply_pragmas(&backup_conn, &key)?;
+        apply_key_pragmas(&backup_conn, &key)?;
         let count: i32 =
             backup_conn.query_row("SELECT COUNT(*) FROM test", [], |row| row.get(0))?;
         assert_eq!(count, 1);
