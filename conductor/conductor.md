@@ -38,6 +38,10 @@
 | UX | Friendly default project name | ✅ **Complete** | Claude | [UX](tracks/trackUX-friendly-default-project-name/spec.md) | Default name is `(no alias) — <8-char-uuid-prefix>` instead of `Project <full-uuid>`; full id still in dedicated column |
 | Docs | WORKFLOWS.md cookbook | ✅ **Complete** | Claude | [Docs/WORKFLOWS.md](../Docs/WORKFLOWS.md) | 6 end-to-end recipes: setup, Antigravity import, hygiene, backup, code-search, daemon/nightly |
 | T94 | Connection Handshake Retries & Jitter | ✅ **Complete** | Claude | [T94](tracks/trackT94-connection-handshake-retries/spec.md) | Implement backoff retry patterns in the TCP status checks for backend providers to prevent false-negatives on slow startup |
+| T95 | `sync query` Project Isolation | ✅ **Complete** | Claude | [T95](tracks/trackT95-sync-query-project-isolation/spec.md) | Pretty-path `sync query` scopes to `AI_BRAINS_PROJECT_ID` by default; `--global` flag for opt-in unscoped recall |
+| T96 | SQLCipher `busy_timeout` | ✅ **Complete** | Claude | [T96](tracks/trackT96-sqlcipher-busy-timeout/spec.md) | Added `PRAGMA busy_timeout = 5000` to fix transient "unable to open database file" under concurrent CLI access |
+| T97 | Migrate Shell-Out `changeguard` → `ledgerful` | ✅ **Complete** | Claude | [T97](tracks/trackT97-ledgerful-binary-rename/spec.md) | Updated ~16 callsites to use renamed binary; updated error messages and docs |
+| T98 | Pass `--auto-index` to Bridge Calls | ✅ **Complete** | Claude | [T98](tracks/trackT98-bridge-auto-index/spec.md) | Added `--auto-index` to `ledgerful search` in recall bridge; skipped `bridge export` (unsupported) |
 
 
 ---

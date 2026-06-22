@@ -234,25 +234,29 @@ pub fn recall(
 // Unified IPC Bridge Query
 // ---------------------------------------------------------------------------
 
-/// Query ChangeGuard's Tantivy search via `changeguard search --json`.
+/// Query Ledgerful's Tantivy search via `ledgerful search --json`.
 /// Parses the NDJSON response for `BridgeRecord::Insight` entries.
 ///
 /// Returns Ok(Vec) on success. On any failure (CLI missing, non-zero exit,
 /// parse errors), returns an Err so the caller can fall back to local FTS5.
+fn bridge_search_args(query: &str) -> Vec<&str> {
+    vec!["search", "--auto-index", "--json", query]
+}
+
 #[allow(clippy::disallowed_methods)]
 fn query_changeguard_bridge(
     query: &str,
     _project_id: Option<ai_brains_core::ids::ProjectId>,
     _session_id: Option<ai_brains_core::ids::SessionId>,
 ) -> std::result::Result<Vec<RecallHit>, String> {
-    let output = std::process::Command::new("changeguard")
-        .args(["search", "--json", query])
+    let output = std::process::Command::new("ledgerful")
+        .args(bridge_search_args(query))
         .output()
-        .map_err(|e| format!("changeguard CLI not available: {}", e))?;
+        .map_err(|e| format!("ledgerful CLI not available: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("changeguard search failed: {}", stderr));
+        return Err(format!("ledgerful search failed: {}", stderr));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -344,19 +348,9 @@ mod tests {
     }
 
     #[test]
-    fn query_changeguard_bridge_fails_when_cli_missing() {
-        // Temporarily mess with PATH so changeguard can't be found.
-        // Actually, the function already handles missing CLI gracefully.
-        let result = query_changeguard_bridge("test query", None, None);
-        // On CI / local without changeguard, this should fail gracefully.
-        if let Err(ref e) = result {
-            assert!(
-                e.contains("not available") || e.contains("CLI not found") || e.contains("failed"),
-                "Error message should indicate unavailability: {}",
-                e
-            );
-        }
-        // If it succeeds (changeguard is installed), that's also fine.
+    fn bridge_search_args_includes_auto_index_flag_and_query() {
+        let args = bridge_search_args("some query");
+        assert_eq!(args, vec!["search", "--auto-index", "--json", "some query"]);
     }
 
     #[test]

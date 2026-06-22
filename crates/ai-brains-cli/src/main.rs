@@ -367,6 +367,9 @@ pub enum SyncCommands {
         /// Suppress daemon-down error messages
         #[arg(long, short)]
         quiet: bool,
+        /// Search across all projects, ignoring AI_BRAINS_PROJECT_ID
+        #[arg(long)]
+        global: bool,
     },
 }
 
@@ -681,7 +684,11 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 query,
                 format,
                 quiet,
-            } => commands::sync::run_query(&ctx, query.clone(), format.clone(), *quiet).await,
+                global,
+            } => {
+                commands::sync::run_query(&ctx, query.clone(), format.clone(), *quiet, *global)
+                    .await
+            }
         },
         Commands::AntigravityImport { days } => commands::antigravity_import::run(&ctx, *days),
         Commands::AgyHook { payload, schema } => {
