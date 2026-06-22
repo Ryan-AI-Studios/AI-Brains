@@ -12,7 +12,8 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
 
     // 1. Init vault
     let mut cmd = Command::cargo_bin("ai-brains")?;
-    cmd.arg("--vault-path")
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
@@ -21,12 +22,23 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
     // 2. Setup project context
     let project_id = "00000000-0000-0000-0000-000000001234";
     let mut cmd = Command::cargo_bin("ai-brains")?;
-    cmd.arg("--vault-path")
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
         .arg(&vault_path)
         .env("AI_BRAINS_PROJECT_ID", project_id)
         .arg("context")
+        .arg("--new-project")
         .assert()
         .success();
+
+    // Read the session_id that context created so agy-hook targets the same session.
+    let env_content = std::fs::read_to_string(temp_dir.path().join(".env"))?;
+    let session_id = env_content
+        .lines()
+        .find(|l| l.starts_with("AI_BRAINS_SESSION_ID"))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     // 3. Create a mock agy transcript
     let agy_dir = temp_dir.path().join("agy-chats");
@@ -38,7 +50,6 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
         r#"{{"role": "user", "content": "hello", "timestamp": "2026-05-24T12:00:00Z"}}"#
     )?;
 
-    let session_id = uuid::Uuid::new_v4().to_string();
     let project_hash = "abc123hash";
 
     let payload = serde_json::json!({
@@ -49,7 +60,8 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
 
     // 4. Run agy-hook (should auto-link)
     let mut cmd = Command::cargo_bin("ai-brains")?;
-    cmd.arg("--vault-path")
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
         .arg(&vault_path)
         .env("AI_BRAINS_PROJECT_ID", project_id)
         .arg("agy-hook")
@@ -63,10 +75,12 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
 
     // 5. Verify turn ingested
     let mut cmd = Command::cargo_bin("ai-brains")?;
-    cmd.arg("--vault-path")
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
         .arg(&vault_path)
         .arg("recall")
         .arg("hello")
+        .arg("--no-bridge")
         .assert()
         .success()
         .stdout(predicate::str::contains("hello"));
@@ -78,8 +92,10 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
     )?;
 
     let mut cmd = Command::cargo_bin("ai-brains")?;
-    cmd.arg("--vault-path")
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
         .arg(&vault_path)
+        .env("AI_BRAINS_PROJECT_ID", project_id)
         .arg("agy-hook")
         .arg("--payload")
         .arg(serde_json::to_string(&payload)?)
