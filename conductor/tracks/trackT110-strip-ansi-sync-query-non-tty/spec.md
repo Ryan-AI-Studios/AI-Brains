@@ -31,6 +31,7 @@ Additionally, T101 already added TTY detection for `recall` format defaulting, b
 - Check if `ledgerful search` supports `--no-color` or `--color never` (check `ledgerful search --help`).
 - If supported: add `--no-color` to the `ledgerful search` args in `sync.rs` when `!stdout.is_terminal()`.
 - If not supported: apply `strip_ansi` (already exists from T91 in `crates/ai-brains-cli/src/commands/sync.rs`) to the ChangeGuard output before printing.
+- **Environment variable safety net:** Regardless of whether `--no-color` is supported, set `NO_COLOR=1` in the subprocess environment when `!stdout.is_terminal()`. This is the de-facto standard env var recognized by `colored`, `tracing`, `clap`, and most Rust CLI libraries. It acts as a foolproof safety net alongside any CLI flags.
 - The TTY check uses `is_terminal::IsTerminal` (already a dependency): `std::io::stdout().is_terminal()`.
 - This is the same pattern as T101's `resolve_format` for `recall`.
 

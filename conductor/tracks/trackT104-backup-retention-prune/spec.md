@@ -26,13 +26,19 @@
 
 **AC6:** `backup prune` only deletes files matching the `vault-*.db.bak` pattern in the backup directory. It never touches other files.
 
+**AC7:** If a file cannot be deleted because it is in use (Windows file locking — `std::io::Error` with `ErrorKind::PermissionDenied` or `ErrorKind::ResourceBusy`), the prune operation skips it with a `tracing::warn!` and continues with the remaining files. The prune does not fail the entire batch for one locked file.
+
+**AC8:** Files matching `vault-*.db.bak` but with unparseable timestamps (e.g. `vault-malformed.db.bak`) are skipped with a `tracing::warn!` and excluded from both the keep count and the deletion list. They are never deleted (since their age is unknown) and never counted toward `--keep N`.
+
 ## Design Notes
 
 - The backup directory is `vault_path.parent()/backups/` (or the custom `--output-dir`).
 - List files matching `vault-*.db.bak`, sort by timestamp (parsed from filename, not mtime — mtime is unreliable on copied files), then apply the retention policy.
+- Timestamp parsing: extract the `%Y-%m-%dT%H-%M-%S` portion from the filename. If parsing fails, skip the file with `tracing::warn!("Skipping backup file with unparseable timestamp: {}", filename)`.
 - Duration parsing: support `Nd` (days), `Nh` (hours), `Nw` (weeks). Use `humantime` crate if available, or a simple parser.
 - The `--keep` count includes the newly created backup when called via `backup create --keep N`.
 - Always keep at least 1 backup (refuse to prune the most recent file even if `--keep 0`).
+- File deletion errors: catch `std::io::Error` per file, check `ErrorKind`, log warning, continue. Only propagate errors that are not file-in-use errors.
 
 ## Files
 

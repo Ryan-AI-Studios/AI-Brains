@@ -28,13 +28,18 @@ The current flow: FTS5 query → if empty, return empty. There is no fallback to
 
 **AC6:** No regression in existing recall tests. The fallback only fires when FTS5 returns empty.
 
+**AC7:** The substring fallback is skipped entirely if the vault has more than 10,000 memories for the current project. A full-table `LIKE` scan on a large vault would spike CPU. When skipped, FTS5's empty results stand and the no-results hint (T111) fires. A `tracing::debug!` message is emitted: "Skipping substring fallback: project has N memories (>10000 threshold)."
+
+**AC8:** The substring fallback uses `LIKE` which is case-insensitive for ASCII but case-sensitive for Unicode characters by default in SQLite. This is documented as a known limitation — the fallback is a best-effort path, not a replacement for FTS5. No ICU collation or custom function is added (over-engineering for a fallback).
+
 ## Design Notes
 
 - The fallback should be in `ai-brains-retrieval/src/lexical.rs` (the FTS5 search module), not in the CLI layer. The `recall` function in `ai-brains-retrieval` should try FTS5 first, then substring if empty.
 - Substring search: `SELECT memory_id, content, source FROM memories WHERE content LIKE '%' || ? || '%' AND project_id = ? LIMIT ?`
 - Sanitize the query for LIKE (escape `%` and `_` literals in the query string) to prevent wildcard injection.
-- Performance: on small vaults (<1000 memories) this is fast. On large vaults, the fallback may be slow — add a `tracing::warn!` if the vault has >5000 memories and the fallback fires.
+- Performance guard: before running the fallback, query `SELECT count(*) FROM memories WHERE project_id = ?`. If count > 10,000, skip the fallback. This prevents CPU spikes on large vaults where FTS5 is the appropriate search mechanism.
 - The fallback is a separate query, not a modification of the FTS5 query. This keeps the CQRS boundary clean.
+- **Sequencing with T111:** The control flow must be: FTS5 search → (if empty) substring fallback → (if still empty) emit T111 hints. The hint must not fire if the substring fallback found results.
 
 ## Files
 

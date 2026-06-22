@@ -24,10 +24,9 @@
 
 ## Design Notes
 
-- In clap, this can be done by adding an `#[arg(long = "alias")]` field to the `Resolve` variant alongside the positional, OR by using `#[arg(num_args = 0..=1)]` on the positional with a separate `--alias` option.
-- Simplest approach: add `#[arg(long = "alias", conflicts_with = "positional")]` as an alternative. But clap doesn't easily support "one of these two" without a group.
-- Even simpler: keep the positional, add `--alias` as an alias: `#[arg(long = "alias", value_name = "ALIAS")]` — but this creates two ways to provide the same arg.
-- Cleanest: use `clap::ArgGroup` or just add `--alias` as a separate option and in the handler, use whichever is `Some`.
+- Use clap's declarative conflict resolution: add `#[arg(long = "alias", conflicts_with = "alias_positional")]` as a separate field. Clap auto-generates correct help text and handles the XOR validation declaratively — no manual `Some` matching needed.
+- The positional arg field name should be `alias_positional` (or similar) so `conflicts_with` references it clearly.
+- In the handler, use whichever field is `Some` — since clap guarantees only one is set via `conflicts_with`, this is safe.
 - Minimal code change: ~5 lines in main.rs + ~3 lines in project.rs.
 
 ## Files

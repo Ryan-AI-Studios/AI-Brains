@@ -34,7 +34,15 @@
 - For `forget`: query the memories that match, print the list, skip the `MemoryForgotten` event append.
 - For `ingest`: read and parse stdin JSON, validate fields, print the preview, skip the event append.
 - Truncate content preview to 100 chars with `...` indicator.
-- Keep the implementation simple — the dry-run path should be a few lines of preview output + early return before the write.
+- **Event log purity:** The `EventStore::append_event` call must be physically isolated behind an explicit `if !dry_run { ... }` block, not gated by an early return deep inside a helper function. This makes the no-write guarantee structurally verifiable in code review. The pattern:
+  ```rust
+  if dry_run {
+      println!("[dry-run] Would pin: ...");
+  } else {
+      event_store.append_event(&ev)?;
+  }
+  ```
+- Keep the implementation simple — the dry-run path should be a few lines of preview output.
 
 ## Files
 

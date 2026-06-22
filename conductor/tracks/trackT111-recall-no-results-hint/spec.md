@@ -33,6 +33,7 @@ When `ai-brains recall` returns zero results, it prints: `No results for '<query
 - The hint logic should be in `recall.rs` (CLI layer), not in the retrieval layer — the retrieval layer should just return results, the CLI layer handles user-facing messages.
 - Keep the hint concise — one line, not a paragraph.
 - The `hint` field in `RecallResponse` is backward-compatible (optional, skipped when None).
+- **Sequencing with T105:** The control flow must be: FTS5 search → (if empty) T105 substring fallback → (if still empty) emit T111 hints. The hint must NOT fire if the T105 substring fallback found results. The hint only fires when ALL search paths return zero results. If T105 is not yet implemented, the hint fires when FTS5 returns empty (current behavior). When T105 lands, the hint logic moves to after the fallback.
 
 ## Files
 

@@ -22,7 +22,7 @@ Backup files are raw SQLite DB copies. There is no metadata indicating when the 
 
 **AC4:** `backup list` (new subcommand) lists all backups in the backup directory with their metadata in a table format. If a backup doesn't have the metadata table (pre-T109 backups), it shows `(no metadata)` for those fields.
 
-**AC5:** The metadata table does not interfere with the restore process — it's ignored by the SQLite backup API on restore (the table is restored along with everything else, but the restore overwrites the vault including any existing metadata table).
+**AC5:** The metadata table is restored into the live vault along with everything else by the SQLite backup API. After the restore completes, `backup restore` executes `DROP TABLE IF EXISTS _aibrains_backup_meta;` on the live vault to keep the live schema pristine. The metadata table is a backup-file artifact, not a live-schema table.
 
 ## Design Notes
 
@@ -30,7 +30,7 @@ Backup files are raw SQLite DB copies. There is no metadata indicating when the 
 - Write the metadata AFTER the backup API completes (so the backup is already a valid copy), using a simple `CREATE TABLE` + `INSERT` on the destination connection.
 - `schema_version`: read from `cozo_meta` or the AI-Brains migrations table (check what table tracks the current migration version).
 - `backup list`: scan the backup directory for `vault-*.db.bak` files, open each, try to read `_aibrains_backup_meta`, display in a table.
-- Keep it simple — no JSON, no nested values, just key-value pairs.
+- **Post-restore cleanup:** After `Backup::run_to_completion` in `run_restore`, execute `DROP TABLE IF EXISTS _aibrains_backup_meta;` on the destination vault connection. This ensures the live vault doesn't accumulate restore-history artifacts. The backup file itself retains the metadata.
 
 ## Files
 
