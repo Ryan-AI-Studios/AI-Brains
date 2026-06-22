@@ -47,6 +47,14 @@
 | T101 | Default `recall` to Pretty Format on TTY | ✅ **Complete** | Claude | [T101](tracks/trackT101-recall-pretty-default-tty/spec.md) | Detect TTY and default to pretty format; truncate long content; tests must pass --format explicitly |
 | T102 | Suppress Session-ID Noise | ✅ **Complete** | Claude | [T102](tracks/trackT102-suppress-session-noise/spec.md) | Change eprintln to tracing::debug; include session_id in JSON/pretty output as metadata |
 | T103 | `daemon schedule/unschedule --dry-run` | ✅ **Complete** | Claude | [T103](tracks/trackT103-daemon-schedule-dry-run/spec.md) | Add --dry-run to both schedule and unschedule; include UAC permission note in output |
+| T104 | Backup Retention / Prune Policy | ⏳ **Pending** | — | [T104](tracks/trackT104-backup-retention-prune/spec.md) | `backup prune --keep N --older-than <dur>`; `backup create --keep N` auto-prune; `--dry-run` support |
+| T105 | Recall Fallback for Small Vaults | ⏳ **Pending** | — | [T105](tracks/trackT105-recall-fallback-small-vaults/spec.md) | Substring LIKE fallback when FTS5 returns empty; contextual no-results hint with --global/--semantic suggestions |
+| T106 | Nightly End-to-End Timeout Validation | ⏳ **Pending** | — | [T106](tracks/trackT106-nightly-timeout-validation/spec.md) | Validate T100 timeouts end-to-end: dead backend, live backend; confirm bounded completion + error logging |
+| T107 | Unified --dry-run for Mutating Commands | ⏳ **Pending** | — | [T107](tracks/trackT107-unified-dry-run/spec.md) | Add --dry-run to pin, forget, ingest; preview without writing to vault |
+| T108 | `project resolve --alias` Flag | ⏳ **Pending** | — | [T108](tracks/trackT108-project-resolve-alias-flag/spec.md) | Accept --alias <name> as alternative to positional arg; backward compatible |
+| T109 | Backup Metadata Header Table | ⏳ **Pending** | — | [T109](tracks/trackT109-backup-metadata-header/spec.md) | `_aibrains_backup_meta` table in backup with timestamp, source path, version; `backup list` subcommand |
+| T110 | Strip ANSI in `sync query` When Not TTY | ⏳ **Pending** | — | [T110](tracks/trackT110-strip-ansi-sync-query-non-tty/spec.md) | Pass --no-color to ledgerful or strip ANSI when stdout is piped; preserve color on TTY |
+| T111 | Recall No-Results Hint | ⏳ **Pending** | — | [T111](tracks/trackT111-recall-no-results-hint/spec.md) | Contextual hints: suggest --semantic, --global based on flags; small-vault warning; `hint` field in RecallResponse |
 
 
 ---
