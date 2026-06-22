@@ -1,8 +1,8 @@
 # Track T101: Default `recall` to Pretty Format When stdout is a TTY
 
-**Status:** Pending
-**Started:** —
-**Owner:** —
+**Status:** Complete
+**Started:** 2026-06-22
+**Owner:** Claude
 **Priority:** P3 — UX polish; JSON by default is unfriendly to interactive users.
 **Source:** Non-destructive command test 2026-06-22.
 

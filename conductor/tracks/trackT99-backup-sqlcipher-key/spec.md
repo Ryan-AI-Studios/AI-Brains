@@ -3,8 +3,6 @@
 **Status:** Complete
 **Owner:** Claude
 **Started:** 2026-06-22
-**Started:** —
-**Owner:** —
 **Priority:** P1 — backups are the user's recovery mechanism; currently broken (hangs indefinitely).
 **Source:** Non-destructive command test 2026-06-22.
 

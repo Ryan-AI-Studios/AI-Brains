@@ -1,8 +1,8 @@
 # Track T102: Suppress Session-ID Noise on recall and sync query
 
-**Status:** Pending
-**Started:** —
-**Owner:** —
+**Status:** Complete
+**Started:** 2026-06-22
+**Owner:** Claude
 **Priority:** P3 — UX polish; every recall prints a session-ID warning to stderr.
 **Source:** Non-destructive command test 2026-06-22.
 
