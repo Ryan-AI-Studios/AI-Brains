@@ -5,6 +5,7 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload};
 use ai_brains_retrieval::{recall, RecallOptions};
 use ai_brains_store::EventStore;
+use is_terminal::IsTerminal;
 use std::str::FromStr;
 
 pub struct RecallRunOptions {
@@ -12,7 +13,7 @@ pub struct RecallRunOptions {
     pub limit: usize,
     pub project_id: Option<ProjectId>,
     pub session_id: Option<SessionId>,
-    pub format: String,
+    pub format: Option<String>,
     pub semantic: bool,
     pub graph_boost: f64,
     pub graph_hop_depth: usize,
@@ -20,10 +21,23 @@ pub struct RecallRunOptions {
     pub no_bridge: bool,
 }
 
+fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
+    match explicit {
+        Some(f) => f,
+        None => {
+            if is_tty {
+                "pretty"
+            } else {
+                "json"
+            }
+        }
+    }
+}
+
 pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn std::error::Error>> {
     let effective_session_id = options.session_id.or_else(|| {
         let generated = SessionId::new();
-        eprintln!(
+        tracing::debug!(
             "No session id supplied for recall; using generated session {} for graph provenance.",
             generated
         );
@@ -103,6 +117,7 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
                 score: h.score,
             })
             .collect(),
+        session_id: effective_session_id.map(|s| s.to_string()),
     };
 
     if response.results.is_empty() {
@@ -112,13 +127,23 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
         );
     }
 
-    match options.format.as_str() {
+    let format_str = resolve_format(options.format.as_deref(), std::io::stdout().is_terminal());
+
+    match format_str {
         "pretty" => {
+            if let Some(ref sid) = response.session_id {
+                println!("Session: {}", sid);
+            }
             for r in &response.results {
-                if let Some(s) = r.score {
-                    println!("[score={:.3}] {}: {}", s, r.memory_id, r.content);
+                let content = if r.content.chars().count() > 500 {
+                    format!("{}...", r.content.chars().take(500).collect::<String>())
                 } else {
-                    println!("{}: {}", r.memory_id, r.content);
+                    r.content.clone()
+                };
+                if let Some(s) = r.score {
+                    println!("[score={:.3}] {}: {}", s, r.memory_id, content);
+                } else {
+                    println!("{}: {}", r.memory_id, content);
                 }
             }
         }
@@ -126,4 +151,35 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_format__explicit_json__returns_json() {
+        assert_eq!(resolve_format(Some("json"), true), "json");
+        assert_eq!(resolve_format(Some("json"), false), "json");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_format__explicit_pretty__returns_pretty() {
+        assert_eq!(resolve_format(Some("pretty"), true), "pretty");
+        assert_eq!(resolve_format(Some("pretty"), false), "pretty");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_format__no_explicit_on_tty__returns_pretty() {
+        assert_eq!(resolve_format(None, true), "pretty");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_format__no_explicit_not_tty__returns_json() {
+        assert_eq!(resolve_format(None, false), "json");
+    }
 }

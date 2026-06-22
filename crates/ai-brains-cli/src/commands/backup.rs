@@ -1,11 +1,13 @@
 use crate::context::AppContext;
+use crate::daemon_client::DaemonClient;
+use ai_brains_store::pragmas::apply_pragmas;
 use std::path::PathBuf;
 
 pub fn run_create(
     ctx: &AppContext,
     output_dir: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut service = ai_brains_brain::BackupService::new(ctx.vault_path.clone());
+    let mut service = ai_brains_brain::BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
     if let Some(dir) = output_dir {
         service = service.with_output_dir(dir);
     }
@@ -15,7 +17,7 @@ pub fn run_create(
     Ok(())
 }
 
-pub fn run_restore(
+pub async fn run_restore(
     ctx: &AppContext,
     backup_path: PathBuf,
     force: bool,
@@ -26,7 +28,9 @@ pub fn run_restore(
     }
 
     // Verify integrity of the backup before doing anything destructive.
+    // Apply key pragmas to read the encrypted backup.
     let bak_conn = rusqlite::Connection::open(&backup_path)?;
+    apply_pragmas(&bak_conn, &ctx._key)?;
     let res: String = bak_conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     if res != "ok" {
         return Err(format!("Integrity check failed: {}", res).into());
@@ -40,6 +44,17 @@ pub fn run_restore(
             ctx.vault_path.display()
         );
         return Ok(());
+    }
+
+    // AC7: Warn if the daemon is running, as restoring may corrupt the
+    // daemon's open connection. The busy_timeout pragma handles lock
+    // contention, but overwriting a file the daemon has open is risky.
+    let client = DaemonClient::new();
+    if client.probe(std::time::Duration::from_millis(200)).await {
+        eprintln!(
+            "WARNING: Daemon is running. Restoring while the daemon has the vault open \
+             may cause corruption. Consider running `ai-brains daemon stop` first."
+        );
     }
 
     // Interactive confirm unless --force was passed (e.g. in CI/automation).
@@ -57,7 +72,9 @@ pub fn run_restore(
     }
 
     // Restore via SQLite backup API (overwrites current vault).
+    // Apply key pragmas so the destination is encrypted.
     let mut vault_conn = rusqlite::Connection::open(&ctx.vault_path)?;
+    apply_pragmas(&vault_conn, &ctx._key)?;
     let backup = rusqlite::backup::Backup::new(&bak_conn, &mut vault_conn)?;
     backup.run_to_completion(10, std::time::Duration::from_millis(250), None)?;
 

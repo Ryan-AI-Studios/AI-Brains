@@ -485,7 +485,7 @@ pub async fn run_query(
             limit: 3,
             project_id,
             session_id: None,
-            format: fmt,
+            format: Some(fmt),
             semantic: false,
             graph_boost: 0.1,
             graph_hop_depth: 1,

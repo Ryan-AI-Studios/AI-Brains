@@ -42,6 +42,11 @@
 | T96 | SQLCipher `busy_timeout` | ✅ **Complete** | Claude | [T96](tracks/trackT96-sqlcipher-busy-timeout/spec.md) | Added `PRAGMA busy_timeout = 5000` to fix transient "unable to open database file" under concurrent CLI access |
 | T97 | Migrate Shell-Out `changeguard` → `ledgerful` | ✅ **Complete** | Claude | [T97](tracks/trackT97-ledgerful-binary-rename/spec.md) | Updated ~16 callsites to use renamed binary; updated error messages and docs |
 | T98 | Pass `--auto-index` to Bridge Calls | ✅ **Complete** | Claude | [T98](tracks/trackT98-bridge-auto-index/spec.md) | Added `--auto-index` to `ledgerful search` in recall bridge; skipped `bridge export` (unsupported) |
+| T99 | Fix `backup create` — SQLCipher Key | ✅ **Complete** | Claude | [T99](tracks/trackT99-backup-sqlcipher-key/spec.md) | Backup hangs: add SQLCipher key + busy_timeout pragmas; guard restore against running daemon; delete stale backup files |
+| T100 | LLM Request Timeouts | ✅ **Complete** | GLM-5.2 | [T100](tracks/trackT100-llm-request-timeout/spec.md) | `nightly` hangs: add per-request timeouts (120s/30s/10s) to reqwest client; reuse client across requests |
+| T101 | Default `recall` to Pretty Format on TTY | ✅ **Complete** | Claude | [T101](tracks/trackT101-recall-pretty-default-tty/spec.md) | Detect TTY and default to pretty format; truncate long content; tests must pass --format explicitly |
+| T102 | Suppress Session-ID Noise | ✅ **Complete** | Claude | [T102](tracks/trackT102-suppress-session-noise/spec.md) | Change eprintln to tracing::debug; include session_id in JSON/pretty output as metadata |
+| T103 | `daemon schedule/unschedule --dry-run` | ✅ **Complete** | Claude | [T103](tracks/trackT103-daemon-schedule-dry-run/spec.md) | Add --dry-run to both schedule and unschedule; include UAC permission note in output |
 
 
 ---

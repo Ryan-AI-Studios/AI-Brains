@@ -73,9 +73,9 @@ enum Commands {
         project_id: Option<ProjectId>,
         #[arg(long, env = "AI_BRAINS_SESSION_ID")]
         session_id: Option<SessionId>,
-        /// Output format: 'json' (default) or 'pretty'
-        #[arg(long, default_value = "json")]
-        format: String,
+        /// Output format: 'json' or 'pretty' (default: pretty on TTY, json otherwise)
+        #[arg(long)]
+        format: Option<String>,
         /// Use semantic (embedding) search alongside FTS5
         #[arg(long)]
         semantic: bool,
@@ -289,9 +289,17 @@ pub enum DaemonCommands {
     /// Show the status of the running daemon
     Status,
     /// Register a Windows Task Scheduler logon task to auto-start the daemon
-    Schedule,
+    Schedule {
+        /// Preview the schtasks command without registering the task
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Remove the Task Scheduler logon task
-    Unschedule,
+    Unschedule {
+        /// Preview the schtasks /delete command without executing it
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Stop the running daemon gracefully
     Stop {
         /// Forcefully terminate the process if it doesn't respond to shutdown signal
@@ -598,7 +606,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 path,
                 force,
                 dry_run,
-            }) => commands::backup::run_restore(&ctx, path.clone(), *force, *dry_run),
+            }) => commands::backup::run_restore(&ctx, path.clone(), *force, *dry_run).await,
             Some(BackupCommands::Create { output_dir }) => {
                 commands::backup::run_create(&ctx, output_dir.clone())
             }
@@ -706,8 +714,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Daemon { command } => match command {
             DaemonCommands::Start => commands::daemon::run_start(&ctx),
             DaemonCommands::Status => commands::daemon::run_status(&ctx).await,
-            DaemonCommands::Schedule => commands::daemon::run_schedule(&ctx),
-            DaemonCommands::Unschedule => commands::daemon::run_unschedule(&ctx),
+            DaemonCommands::Schedule { dry_run } => commands::daemon::run_schedule(&ctx, *dry_run),
+            DaemonCommands::Unschedule { dry_run } => {
+                commands::daemon::run_unschedule(&ctx, *dry_run)
+            }
             DaemonCommands::Stop { force } => commands::daemon::run_stop(&ctx, *force).await,
             DaemonCommands::Update => commands::daemon::run_update(&ctx).await,
         },

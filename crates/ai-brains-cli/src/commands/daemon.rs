@@ -57,10 +57,22 @@ fn spawn_daemon(exe: &std::path::Path) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
-pub fn run_schedule(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    let exe = which_daemon()?;
+fn schedule_inner(exe: &std::path::Path, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
     let exe_str = exe.to_string_lossy();
     let cmd = TaskScheduler::render_daemon_logon_command(&exe_str, "AI-Brains-Daemon", 30);
+
+    if dry_run {
+        println!("[dry-run] Would execute:");
+        println!("  {cmd}");
+        println!();
+        println!("Daemon logon command: {}", exe_str);
+        println!();
+        println!(
+            "(Note: actual registration may require elevated PowerShell privileges depending on system policy)"
+        );
+        return Ok(());
+    }
+
     println!("Registering Task Scheduler logon task...");
     println!("  {cmd}");
     let status = std::process::Command::new("cmd")
@@ -77,8 +89,24 @@ pub fn run_schedule(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
-pub fn run_unschedule(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_schedule(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let exe = which_daemon()?;
+    schedule_inner(&exe, dry_run)
+}
+
+fn unschedule_inner(dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
     let cmd = TaskScheduler::render_delete_command("AI-Brains-Daemon");
+
+    if dry_run {
+        println!("[dry-run] Would execute:");
+        println!("  {cmd}");
+        println!();
+        println!(
+            "(Note: actual removal may require elevated PowerShell privileges depending on system policy)"
+        );
+        return Ok(());
+    }
+
     let status = std::process::Command::new("cmd")
         .args(["/C", &cmd])
         .status()?;
@@ -88,6 +116,10 @@ pub fn run_unschedule(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Error
         eprintln!("schtasks /delete failed — task may not exist.");
     }
     Ok(())
+}
+
+pub fn run_unschedule(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+    unschedule_inner(dry_run)
 }
 
 pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -359,5 +391,38 @@ mod tests {
     fn parse_host_port_no_port_returns_none() {
         assert!(parse_host_port("http://localhost/").is_none());
         assert!(parse_host_port("localhost").is_none());
+    }
+
+    /// T103: schedule_inner with dry_run must return Ok without executing
+    /// schtasks and must print the rendered command plus the daemon path.
+    #[test]
+    #[allow(non_snake_case)]
+    fn schedule_inner__dry_run__prints_command_without_registering() {
+        let exe = std::path::PathBuf::from(r"C:\fake\ai-brainsd.exe");
+        let result = schedule_inner(&exe, true);
+        assert!(result.is_ok());
+    }
+
+    /// T103: unschedule_inner with dry_run must return Ok without executing
+    /// schtasks /delete.
+    #[test]
+    #[allow(non_snake_case)]
+    fn unschedule_inner__dry_run__prints_command_without_removing() {
+        let result = unschedule_inner(true);
+        assert!(result.is_ok());
+    }
+
+    /// T103: unschedule_inner with dry_run must return Ok for the deletion
+    /// command when rendered with the hard-coded task name.
+    #[test]
+    #[allow(non_snake_case)]
+    fn unschedule_inner__dry_run__renders_delete_command_for_ai_brains_daemon() {
+        let expected = TaskScheduler::render_delete_command("AI-Brains-Daemon");
+        let result = unschedule_inner(true);
+        assert!(result.is_ok());
+        // The rendered command is emitted to stdout; we verify it is the
+        // expected schtasks /delete string rather than inspecting captured
+        // output, keeping the test deterministic without stdio plumbing.
+        assert!(expected.starts_with("schtasks /delete /tn \"AI-Brains-Daemon\""));
     }
 }

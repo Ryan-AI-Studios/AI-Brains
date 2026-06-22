@@ -4,6 +4,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use serde::Serialize;
+use std::time::Duration;
 
 #[derive(Serialize)]
 struct ChatMessage<'a> {
@@ -34,19 +35,70 @@ struct LlamaTokenizeRequest<'a> {
 pub struct LlamaCppProvider {
     endpoint: String,
     model: String,
+    client: reqwest::Client,
+    completion_timeout: Duration,
+    embedding_timeout: Duration,
+    tokenize_timeout: Duration,
 }
 
 impl LlamaCppProvider {
     pub fn new(endpoint: String, model: String) -> Self {
-        Self { endpoint, model }
+        let completion_timeout = Duration::from_secs(
+            std::env::var("AI_BRAINS_LLM_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(120),
+        );
+        let embedding_timeout = Duration::from_secs(
+            std::env::var("AI_BRAINS_EMBEDDING_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(30),
+        );
+        let tokenize_timeout = Duration::from_secs(
+            std::env::var("AI_BRAINS_TOKENIZE_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(10),
+        );
+        Self::with_timeouts(
+            endpoint,
+            model,
+            completion_timeout,
+            embedding_timeout,
+            tokenize_timeout,
+        )
+    }
+
+    pub fn with_timeouts(
+        endpoint: String,
+        model: String,
+        completion_timeout: Duration,
+        embedding_timeout: Duration,
+        tokenize_timeout: Duration,
+    ) -> Self {
+        Self {
+            endpoint,
+            model,
+            client: reqwest::Client::new(),
+            completion_timeout,
+            embedding_timeout,
+            tokenize_timeout,
+        }
+    }
+}
+
+fn map_send_error(e: reqwest::Error) -> ModelError {
+    if e.is_timeout() {
+        ModelError::Timeout
+    } else {
+        ModelError::Network(e.to_string())
     }
 }
 
 #[async_trait]
 impl ModelProvider for LlamaCppProvider {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse> {
-        let client = reqwest::Client::new();
-        // OpenAI compatible chat/completions
         let system_prompt = request
             .system_prompt
             .as_deref()
@@ -68,12 +120,14 @@ impl ModelProvider for LlamaCppProvider {
             stream: false,
         };
 
-        let res = client
+        let res = self
+            .client
             .post(format!("{}/v1/chat/completions", self.endpoint))
             .json(&body)
+            .timeout(self.completion_timeout)
             .send()
             .await
-            .map_err(|e| ModelError::Network(e.to_string()))?;
+            .map_err(map_send_error)?;
 
         if !res.status().is_success() {
             let status = res.status();
@@ -103,19 +157,19 @@ impl ModelProvider for LlamaCppProvider {
     }
 
     async fn embed(&self, request: EmbeddingRequest) -> Result<EmbeddingResponse> {
-        let client = reqwest::Client::new();
-        // OpenAI compatible embeddings
         let body = LlamaEmbeddingRequest {
             model: &self.model,
             input: &request.text,
         };
 
-        let res = client
+        let res = self
+            .client
             .post(format!("{}/v1/embeddings", self.endpoint))
             .json(&body)
+            .timeout(self.embedding_timeout)
             .send()
             .await
-            .map_err(|e| ModelError::Network(e.to_string()))?;
+            .map_err(map_send_error)?;
 
         if !res.status().is_success() {
             let status = res.status();
@@ -142,18 +196,18 @@ impl ModelProvider for LlamaCppProvider {
     }
 
     async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse> {
-        let client = reqwest::Client::new();
-        // llama.cpp specific tokenize endpoint
         let body = LlamaTokenizeRequest {
             content: &request.text,
         };
 
-        let res = client
+        let res = self
+            .client
             .post(format!("{}/tokenize", self.endpoint))
             .json(&body)
+            .timeout(self.tokenize_timeout)
             .send()
             .await
-            .map_err(|e| ModelError::Network(e.to_string()))?;
+            .map_err(map_send_error)?;
 
         if !res.status().is_success() {
             let status = res.status();

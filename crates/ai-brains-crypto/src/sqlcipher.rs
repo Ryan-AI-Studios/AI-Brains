@@ -3,7 +3,7 @@ use std::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A key formatted for SQLCipher (e.g., "x'HEX_KEY'")
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SqlCipherKey {
     material: String,
 }
