@@ -22,23 +22,28 @@ Users rarely know full session UUIDs offhand. They would need to query the vault
 
 **AC1:** `--session <prefix>` accepts a UUID prefix (first N characters) and resolves it to the full session ID by matching against sessions in the vault. e.g. `--session a09b` matches `a09b9b05-...` if only one session starts with `a09b`.
 
-**AC2:** If multiple sessions match the prefix, `recall` prints an error listing the matching session IDs and asks the user to provide a longer prefix: `Ambiguous session prefix 'a09b'. Matching sessions: a09b9b05-..., a09b1234-.... Provide more characters.`
+**AC2:** A minimum prefix length of 4 characters is required. Prefixes shorter than 4 chars are rejected with: `Session prefix too short; provide at least 4 characters to avoid accidental matches.` This prevents 1-2 char prefixes from accidentally matching a single session.
 
-**AC3:** If no sessions match the prefix, `recall` prints: `No session matching 'a09b'. Use 'ai-brains project list' to see sessions.`
+**AC3:** If multiple sessions match the prefix, `recall` prints an error listing up to 5 matching session IDs (capped) and asks the user to provide a longer prefix: `Ambiguous session prefix 'a09b'. Matching sessions (5 of 12 shown): a09b9b05-..., a09b1234-..., .... Provide more characters.` If more than 5 match, the count is shown but only 5 are listed.
 
-**AC4:** `--session <full-uuid>` continues to work exactly as before (backward compatible).
+**AC4:** If no sessions match the prefix, `recall` prints: `No session matching 'a09b'. Use 'ai-brains project list' to see sessions.`
 
-**AC5:** `--session-last` (new flag) scopes recall to the most recently active session in the current project. This is a convenience for the common case of "search in my last session".
+**AC5:** `--session <full-uuid>` continues to work exactly as before (backward compatible). Full UUIDs (36 chars, valid format) skip prefix resolution.
 
-**AC6:** Session resolution queries the vault's session list (from the memory projection or event log), not just the current project's `.env`.
+**AC6:** `--session-last` (new flag) scopes recall to the most recently active session in the current project. This is a convenience for the common case of "search in my last session".
+
+**AC7:** Session resolution queries the vault's session list (from the memory projection or event log), not just the current project's `.env`.
+
+**AC8:** `--session` and `--session-last` are mutually exclusive (`conflicts_with`). Using both exits 1 with a clap conflict error.
 
 ## Design Notes
 
 - **Files:** `crates/ai-brains-cli/src/main.rs` (add `--session-last` flag), `crates/ai-brains-cli/src/commands/recall.rs` (session resolution logic), `crates/ai-brains-store/src/` (query for session list).
 - Session resolution flow:
-  1. If `--session` value is a full UUID (36 chars, valid format) → use directly.
-  2. If `--session` value is a prefix (<36 chars) → query vault for all sessions starting with this prefix.
-  3. If exactly 1 match → use it. If >1 → ambiguous error. If 0 → not found error.
+  1. If `--session` value is a full UUID (36 chars, valid format) → use directly, skip prefix resolution.
+  2. If `--session` value is < 4 chars → reject with "prefix too short" error.
+  3. If `--session` value is a prefix (4-35 chars) → query vault for all sessions starting with this prefix.
+  4. If exactly 1 match → use it. If >1 → ambiguous error (cap display at 5). If 0 → not found error.
 - For `--session-last`: query the vault for the most recent session by `last_turn_at` or max event timestamp in the current project.
 - The session list query can use: `SELECT DISTINCT session_id FROM memory_projection WHERE session_id LIKE 'prefix%' ORDER BY session_id`
 - `--session` and `--session-last` are mutually exclusive (`conflicts_with`).
@@ -53,7 +58,9 @@ Users rarely know full session UUIDs offhand. They would need to query the vault
 
 **Red:** `recall__session_prefix__resolves_to_full_id` — vault with session `a09b9b05-1234-...`, run `recall --session a09b`, assert results are scoped to that session.
 
-**Red:** `recall__session_prefix_ambiguous__errors_with_matches` — vault with sessions `a09b...` and `a09c...`, run `recall --session a09`, assert error listing both.
+**Red:** `recall__session_prefix_ambiguous__errors_with_capped_matches` — vault with 12 sessions starting `a09`, run `recall --session a09b`, assert error listing at most 5 matches and showing "12 of 12 shown" count (or "5 of 12 shown").
+
+**Red:** `recall__session_prefix_too_short__rejected` — run `recall --session ab`, assert error "prefix too short" and at least 4 characters required.
 
 **Red:** `recall__session_prefix_no_match__errors` — run `recall --session zzzz`, assert "No session matching" error.
 

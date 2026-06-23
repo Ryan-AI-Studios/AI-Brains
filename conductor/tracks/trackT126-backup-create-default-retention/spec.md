@@ -23,22 +23,28 @@ Most users don't think about retention until disk space runs out. A sensible def
 
 **AC1:** `backup create` defaults to `--keep 10` (keeps the 10 most recent backups, prunes older ones) when `--keep` is not explicitly provided.
 
-**AC2:** `backup create --keep 0` or `backup create --no-prune` disables pruning entirely (keeps all backups). This is the opt-out for users who want to keep everything.
+**AC2:** `--keep 0` is REJECTED as an invalid value (exits 1 with error: `--keep 0 is invalid; use --no-prune to disable pruning`). This prevents the dangerous interpretation of "delete all existing backups". The minimum valid `--keep` value is 1.
 
-**AC3:** `backup create --keep N` (explicit) overrides the default with N.
+**AC3:** `backup create --no-prune` disables pruning entirely (keeps all backups). This is the explicit opt-out for users who want to keep everything. `--no-prune` and `--keep` are mutually exclusive (`conflicts_with`).
 
-**AC4:** When default pruning runs, it prints a brief summary: `Pruned 3 old backups (kept 10).` via `tracing::info!`.
+**AC4:** `backup create --keep N` (explicit, N >= 1) overrides the default with N.
 
-**AC5:** The most recent backup is ALWAYS preserved, even if `--keep 1` is set.
+**AC5:** When default pruning runs, it prints a brief summary: `Pruned 3 old backups (kept 10).` via `tracing::info!`.
 
-**AC6:** No regression in `backup prune` standalone command (it still works with explicit `--keep`).
+**AC6:** The most recent backup is ALWAYS preserved, even if `--keep 1` is set.
+
+**AC7:** No regression in `backup prune` standalone command (it still works with explicit `--keep`). `backup prune --keep 0` should also be rejected with the same error message.
+
+**AC8:** **Breaking-change migration warning.** The first time `backup create` runs with the new default (no explicit `--keep` or `--no-prune`), it prints a one-time `tracing::warn!` notice: `Default retention changed: keeping 10 most recent backups. Use --no-prune to keep all. This notice won't appear again.` This notice is gated on a sentinel file (`~/.ai-brains/.retention-acknowledged`) — once written, the notice never appears again. This prevents users from silently losing old backups on their first run without warning.
 
 ## Design Notes
 
 - **File:** `crates/ai-brains-cli/src/commands/backup.rs` — `run_create` function.
 - Change the `keep` parameter default from `None` (no pruning) to `Some(10)`.
-- Add a `--no-prune` flag that sets `keep = None`.
-- The existing prune logic in T104 already handles `keep=0` as "keep all" — verify this or make `--keep 0` explicitly disable pruning.
+- Add a `--no-prune` flag that sets `keep = None`. `--no-prune` and `--keep` are mutually exclusive.
+- **`--keep 0` rejection:** Validate `keep >= 1` before proceeding. If `keep == 0`, return an error immediately. This applies to both `backup create --keep 0` and `backup prune --keep 0`.
+- **Migration sentinel:** On first run with default retention (no explicit `--keep` and no `--no-prune`), check for `~/.ai-brains/.retention-acknowledged`. If absent, print the warning and create the sentinel file. If present, proceed silently. This is a one-time notice, not a persistent warning.
+- The existing prune logic in T104 already handles `keep` values — verify it handles `keep >= 1` correctly and that `keep=1` preserves the most recent.
 - The pruning should happen AFTER the backup is created (so the new backup is included in the count and the oldest is pruned).
 - Print the prune result via `tracing::info!` only if backups were actually pruned (don't print "Pruned 0" noise).
 
@@ -51,11 +57,15 @@ Most users don't think about retention until disk space runs out. A sensible def
 
 **Red:** `backup_create__default_keep_10__prunes_old_backups` — create 12 backups, then run `backup create` (no --keep), assert only 10 remain.
 
+**Red:** `backup_create__keep_0__rejected` — run `backup create --keep 0`, assert exit 1 and error message contains "invalid" and "use --no-prune".
+
 **Red:** `backup_create__no_prune__keeps_all` — create several backups, run `backup create --no-prune`, assert all backups remain.
 
 **Red:** `backup_create__explicit_keep_N__overrides_default` — run `backup create --keep 3`, assert only 3 remain.
 
-**Green:** Implement default retention. Tests pass.
+**Red:** `backup_create__first_run_emits_migration_warning` — ensure no sentinel file exists, run `backup create` (default retention), assert stderr contains "Default retention changed". Run again, assert warning does NOT appear (sentinel written).
+
+**Green:** Implement default retention + sentinel. Tests pass.
 
 ## Verification
 

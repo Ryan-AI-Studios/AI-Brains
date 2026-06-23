@@ -25,11 +25,11 @@ Flooding stderr with expected-condition warnings makes it hard to spot real issu
 
 ## Acceptance Criteria
 
-**AC1:** "Could not read backup metadata: no such table: _aibrains_backup_meta" is demoted from `warn!` to `debug!`. This is an expected condition for pre-T109 backups.
+**AC1:** "Could not read backup metadata: no such table: _aibrains_backup_meta" is demoted from `warn!` to `debug!` ONLY for backups that predate T109 (i.e., backups created before the metadata table was introduced). For newer backups (created after T109), a missing metadata table indicates actual corruption and remains at `warn!`.
 
 **AC2:** "Skipping backup file with unparseable timestamp during list" is demoted from `warn!` to `debug!`. The `(unparseable)` indicator in the table output is sufficient user-facing signal.
 
-**AC3:** Genuinely unexpected metadata read failures (wrong key, corrupted file, I/O error) remain at `warn!`. Only the "no such table" and "unparseable timestamp" cases are demoted.
+**AC3:** Genuinely unexpected metadata read failures (wrong key, corrupted file, I/O error, "database is locked") remain at `warn!`. Only the "no such table" and "unparseable timestamp" cases are demoted.
 
 **AC4:** `backup list` output is clean by default — no WARN lines on stderr for a vault with a mix of old and new backups. With `RUST_LOG=debug`, the debug messages appear.
 
@@ -38,12 +38,18 @@ Flooding stderr with expected-condition warnings makes it hard to spot real issu
 ## Design Notes
 
 - **File:** `crates/ai-brains-brain/src/backup.rs` — `list_backups` method (around lines 268-314) and `prune_backups` (similar warnings).
+- **Discriminating old vs new backups:** Instead of blindly string-matching "no such table", check whether the backup file is likely pre-T109. Two approaches:
+  1. **Timestamp-based:** If the backup's timestamp (from the filename) predates a known cutoff (e.g., before 2026-06-22 when T109 was implemented), treat missing metadata as expected → `debug!`. Otherwise → `warn!`.
+  2. **Content-based (preferred):** After the "no such table" error, check if the backup contains ANY of the core tables (`events`, `memory_projection`). If it does but lacks `_aibrains_backup_meta`, it's a pre-T109 backup (expected) → `debug!`. If it lacks even the core tables, it's corrupted → `warn!`.
+- Use approach 2 (content-based) as it's robust regardless of filename format or timestamp.
 - In `list_backups`:
-  - Change `tracing::warn!(... "Could not read backup metadata")` to check the error first. If error message contains "no such table" → `tracing::debug!`. Otherwise → `tracing::warn!`.
+  - When `read_backup_metadata` returns an error:
+    - If the error is "no such table: _aibrains_backup_meta" → check for core tables. If core tables exist → `tracing::debug!`. If core tables also missing → `tracing::warn!` (genuine corruption).
+    - For any other error (wrong key, I/O) → `tracing::warn!` (always).
   - Change `tracing::warn!(... "Skipping backup file with unparseable timestamp during list")` to `tracing::debug!`.
 - In `prune_backups`:
   - Same pattern: "unparseable timestamp" → `debug!`, other errors → `warn!`.
-- The error discrimination can use `err.to_string().contains("no such table")` or check the `rusqlite::Error` enum if it exposes the specific error kind.
+- The error discrimination should check the `rusqlite::Error` enum or use `err.to_string().contains("no such table")` for the specific table name, then do the core-tables check.
 
 ## Files
 
@@ -51,9 +57,11 @@ Flooding stderr with expected-condition warnings makes it hard to spot real issu
 
 ## Tests (TDD)
 
-**Red:** `backup_list__expected_conditions_are_debug_not_warn` — create a vault with a pre-T109-style backup (no metadata table) and a new backup. Run `backup list`, capture stderr. Assert no `WARN` lines appear. Set `RUST_LOG=debug`, run again, assert `DEBUG` lines appear for the old backup.
+**Red:** `backup_list__pre_t109_backup__debug_not_warn` — create a backup without the `_aibrains_backup_meta` table (simulating pre-T109), run `backup list`, capture stderr, assert no `WARN` lines for that backup. Set `RUST_LOG=debug`, assert `DEBUG` line appears.
 
-**Green:** Demote the expected-condition warnings to debug. Test passes.
+**Red:** `backup_list__corrupted_new_backup__stays_warn` — create a backup file that has neither `_aibrains_backup_meta` NOR core tables (`events`/`memory_projection`), run `backup list`, assert `WARN` line appears for that file (genuine corruption detected).
+
+**Green:** Implement content-based discrimination. Tests pass.
 
 ## Verification
 
