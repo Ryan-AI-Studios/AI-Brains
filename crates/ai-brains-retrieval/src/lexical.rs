@@ -64,6 +64,124 @@ pub fn lexical_search(
     Ok(results)
 }
 
+/// Substring fallback when FTS5 returns no results.
+///
+/// Only runs for small vaults (<= 10,000 pinned memories in the requested
+/// project scope). The LIKE pattern is case-insensitive for ASCII characters
+/// but case-sensitive for most Unicode characters because SQLite's default
+/// `LIKE` uses ASCII case folding only.
+pub fn substring_fallback(
+    conn: &VaultConnection,
+    query: &str,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    session_id: Option<ai_brains_core::ids::SessionId>,
+    limit: usize,
+) -> Result<Vec<RetrievalMemory>> {
+    let conn = conn.lock()?;
+
+    // CPU guard: skip substring scan for large projects.
+    let count: i64 = project_memory_count(&conn, project_id, session_id)?;
+    if count > 10_000 {
+        tracing::debug!(
+            project_id = ?project_id,
+            count,
+            "Skipping substring fallback: project has {} memories (>10000 threshold)",
+            count
+        );
+        return Ok(Vec::new());
+    }
+
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let pattern = format!("%{}%", escape_like_pattern(query));
+
+    let mut sql = "SELECT memory_id, content, privacy FROM memory_projection\n         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'".to_string();
+    let mut params_vec: Vec<rusqlite::types::Value> = vec![pattern.into()];
+
+    if let Some(sid) = session_id {
+        sql.push_str(" AND session_id = ?");
+        params_vec.push(sid.to_string().into());
+    }
+
+    if let Some(pid) = project_id {
+        sql.push_str(
+            " AND (project_id = ? OR EXISTS (
+             SELECT 1 FROM session_projection sp
+             WHERE sp.session_id = memory_projection.session_id
+             AND sp.project_id = ?))",
+        );
+        let pid_str = pid.to_string();
+        params_vec.push(pid_str.clone().into());
+        params_vec.push(pid_str.into());
+    }
+
+    sql.push_str(" ORDER BY updated_at DESC LIMIT ?");
+    params_vec.push((limit as i64).into());
+
+    tracing::debug!(
+        project_id = ?project_id,
+        query = %query,
+        "FTS5 returned 0 results, falling back to substring search for '{}'",
+        query
+    );
+
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query(params_from_iter(params_vec))?;
+    let mut results = Vec::new();
+
+    while let Some(row) = rows.next()? {
+        let privacy: String = row.get(2)?;
+        if is_injectable_privacy(&privacy) {
+            results.push(RetrievalMemory {
+                memory_id: row.get(0)?,
+                content: row.get(1)?,
+                score: None,
+            });
+        }
+    }
+
+    Ok(results)
+}
+
+fn project_memory_count(
+    conn: &rusqlite::Connection,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    session_id: Option<ai_brains_core::ids::SessionId>,
+) -> Result<i64> {
+    let mut sql = "SELECT COUNT(*) FROM memory_projection WHERE status = 'pinned'".to_string();
+    let mut params_vec: Vec<rusqlite::types::Value> = Vec::new();
+
+    if let Some(sid) = session_id {
+        sql.push_str(" AND session_id = ?");
+        params_vec.push(sid.to_string().into());
+    }
+
+    if let Some(pid) = project_id {
+        sql.push_str(
+            " AND (project_id = ? OR EXISTS (
+             SELECT 1 FROM session_projection sp
+             WHERE sp.session_id = memory_projection.session_id
+             AND sp.project_id = ?))",
+        );
+        let pid_str = pid.to_string();
+        params_vec.push(pid_str.clone().into());
+        params_vec.push(pid_str.into());
+    }
+
+    let count: i64 = conn.query_row(&sql, params_from_iter(params_vec), |row| row.get(0))?;
+    Ok(count)
+}
+
+/// Escape `%` and `_` so they are treated as literals by SQLite LIKE.
+fn escape_like_pattern(query: &str) -> String {
+    query
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 /// Defensive sanitization for SQLite FTS5 MATCH expressions.
 ///
 /// Downstream consumers (e.g. ChangeGuard `bridge query`) forward raw

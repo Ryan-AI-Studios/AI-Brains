@@ -3,10 +3,30 @@ use ai_brains_capture::{parse_ingest_request, CaptureContext, CaptureService};
 use ai_brains_contracts::ingest::IngestResponse;
 use std::io::{self, Read};
 
-pub fn run(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+const PREVIEW_MAX_LEN: usize = 100;
+
+fn truncate_preview(s: &str) -> String {
+    if s.chars().count() <= PREVIEW_MAX_LEN {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(PREVIEW_MAX_LEN).collect();
+        format!("{}...", truncated)
+    }
+}
+
+pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
     let request = parse_ingest_request(&input)?;
+
+    if dry_run {
+        let preview = truncate_preview(&request.content);
+        println!(
+            "[dry-run] Would ingest turn {} for project {} / session {} (role={}): {}",
+            request.turn_id, request.project_id, request.session_id, request.role, preview
+        );
+        return Ok(());
+    }
 
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
 

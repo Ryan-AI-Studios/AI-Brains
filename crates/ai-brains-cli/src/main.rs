@@ -62,7 +62,11 @@ enum Commands {
         force: bool,
     },
     /// Ingest a conversation turn (reads JSON from stdin)
-    Ingest,
+    Ingest {
+        /// Preview what would be ingested without writing to the vault
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Recall memories based on a query
     Recall {
         /// Query string, or `-` to read from stdin
@@ -94,6 +98,9 @@ enum Commands {
         /// semantic search. Guarantees vault memories appear in results.
         #[arg(long)]
         no_bridge: bool,
+        /// Search across all projects, ignoring AI_BRAINS_PROJECT_ID
+        #[arg(long)]
+        global: bool,
     },
     /// Generate preflight context for an LLM
     Preflight {
@@ -162,6 +169,9 @@ enum Commands {
         /// Restore a forgotten memory
         #[arg(long)]
         restore: Option<String>,
+        /// Preview what would be forgotten without modifying the vault
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Stop an active session
     StopSession {
@@ -202,6 +212,9 @@ enum Commands {
         /// Optional ChangeGuard transaction ID to link this pin to
         #[arg(long, env = "CHANGEGUARD_TX_ID")]
         tx_id: Option<String>,
+        /// Preview what would be pinned without writing to the vault
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Manage repository safety signals
     Safety {
@@ -266,7 +279,13 @@ pub enum ProjectCommands {
     /// List all projects in the vault
     List,
     /// Resolve an alias to a project ID
-    Resolve { alias: String },
+    Resolve {
+        /// Project alias to resolve (positional)
+        alias_positional: Option<String>,
+        /// Project alias to resolve via --alias flag
+        #[arg(long = "alias", conflicts_with = "alias_positional")]
+        alias: Option<String>,
+    },
     /// Auto-detect project from current git repository (fallback: .env AI_BRAINS_PROJECT_ID)
     Detect {
         /// Output as shell export statement
@@ -317,6 +336,10 @@ pub enum BackupCommands {
         /// Custom output directory for the backup
         #[arg(long)]
         output_dir: Option<PathBuf>,
+        /// After a successful backup, prune old backups keeping only the N
+        /// most recent (including the new one). Default: no pruning.
+        #[arg(long)]
+        keep: Option<usize>,
     },
     /// Restore vault from a backup file
     Restore {
@@ -330,6 +353,20 @@ pub enum BackupCommands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Delete old backups according to a retention policy
+    Prune {
+        /// Keep the N most recent backups (default: 10)
+        #[arg(long, default_value_t = 10)]
+        keep: usize,
+        /// Delete backups older than this duration (e.g. 30d, 12h, 2w)
+        #[arg(long)]
+        older_than: Option<String>,
+        /// List the files that would be deleted without actually deleting them
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// List all backups with their metadata
+    List,
 }
 
 #[derive(Subcommand, Clone)]
@@ -507,7 +544,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
     match &cli.command {
         Commands::Init { force } => commands::init::run(&ctx, *force),
-        Commands::Ingest => commands::ingest::run(&ctx),
+        Commands::Ingest { dry_run } => commands::ingest::run(&ctx, *dry_run),
         Commands::Recall {
             query,
             limit,
@@ -519,6 +556,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             graph_hop_depth,
             quiet,
             no_bridge,
+            global,
         } => {
             // T86: `-` as the query reads the query string from stdin until EOF
             let effective_query = if query == "-" {
@@ -526,12 +564,14 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 query.clone()
             };
+            // T105: --global searches across all projects (project_id = None)
+            let effective_project_id = if *global { None } else { *project_id };
             commands::recall::run(
                 &ctx,
                 commands::recall::RecallRunOptions {
                     query: effective_query,
                     limit: *limit,
-                    project_id: *project_id,
+                    project_id: effective_project_id,
                     session_id: *session_id,
                     format: format.clone(),
                     semantic: *semantic,
@@ -539,6 +579,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     graph_hop_depth: *graph_hop_depth,
                     quiet: *quiet,
                     no_bridge: *no_bridge,
+                    global: *global,
                 },
             )
         }
@@ -607,10 +648,16 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 force,
                 dry_run,
             }) => commands::backup::run_restore(&ctx, path.clone(), *force, *dry_run).await,
-            Some(BackupCommands::Create { output_dir }) => {
-                commands::backup::run_create(&ctx, output_dir.clone())
+            Some(BackupCommands::Create { output_dir, keep }) => {
+                commands::backup::run_create(&ctx, output_dir.clone(), *keep)
             }
-            None => commands::backup::run_create(&ctx, None),
+            Some(BackupCommands::Prune {
+                keep,
+                older_than,
+                dry_run,
+            }) => commands::backup::run_prune(&ctx, *keep, older_than.clone(), *dry_run),
+            Some(BackupCommands::List) => commands::backup::run_list(&ctx),
+            None => commands::backup::run_create(&ctx, None, None),
         },
         Commands::Forget {
             memory_id,
@@ -618,6 +665,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             force,
             list_forgotten,
             restore,
+            dry_run,
         } => commands::forget::run(
             &ctx,
             memory_id.clone(),
@@ -625,6 +673,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             *force,
             *list_forgotten,
             restore.clone(),
+            *dry_run,
         ),
         Commands::StopSession { session_id } => {
             commands::stop_session::run(&ctx, session_id.clone())
@@ -642,6 +691,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             stdin,
             tags,
             tx_id,
+            dry_run,
         } => {
             if *stdin {
                 commands::pin::run_stdin(
@@ -650,6 +700,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     privacy.clone(),
                     tags.clone(),
                     tx_id.clone(),
+                    *dry_run,
                 )
             } else if let Some(c) = content {
                 commands::pin::run(
@@ -659,6 +710,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     privacy.clone(),
                     tags.clone(),
                     tx_id.clone(),
+                    *dry_run,
                 )
             } else {
                 Err("Either provide content as a positional argument or use --stdin to read from stdin.".into())
@@ -723,7 +775,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         },
         Commands::Project { command } => match command {
             ProjectCommands::List => commands::project::list(&ctx),
-            ProjectCommands::Resolve { alias } => commands::project::resolve(&ctx, alias),
+            ProjectCommands::Resolve {
+                alias_positional,
+                alias,
+            } => commands::project::resolve(&ctx, alias_positional.clone(), alias.clone()),
             ProjectCommands::Detect { export } => commands::project::detect(&ctx, *export),
             ProjectCommands::SetAlias { project_id, alias } => {
                 commands::project::set_alias(&ctx, project_id, alias)

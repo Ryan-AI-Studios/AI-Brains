@@ -55,6 +55,95 @@ pub fn store_with_memory(
     Ok(store)
 }
 
+pub fn empty_store() -> Result<SqliteEventStore, Box<dyn std::error::Error>> {
+    let temp_file = NamedTempFile::new()?;
+    let db_path = temp_file
+        .path()
+        .to_str()
+        .ok_or("invalid temp path")?
+        .to_string();
+
+    let key = DataKey::generate();
+    let sql_key = ai_brains_crypto::SqlCipherKey::from_data_key(&key);
+
+    let conn = VaultConnection::open(&db_path, &sql_key)?;
+    conn.migrate()?;
+    let store = SqliteEventStore::new(conn);
+    Ok(store)
+}
+
+pub fn store_with_project_id(
+    content: &str,
+    privacy: Privacy,
+    project_id: ProjectId,
+) -> Result<SqliteEventStore, Box<dyn std::error::Error>> {
+    let temp_file = NamedTempFile::new()?;
+    let db_path = temp_file
+        .path()
+        .to_str()
+        .ok_or("invalid temp path")?
+        .to_string();
+
+    let key = DataKey::generate();
+    let sql_key = ai_brains_crypto::SqlCipherKey::from_data_key(&key);
+
+    let conn = VaultConnection::open(&db_path, &sql_key)?;
+    conn.migrate()?;
+    let store = SqliteEventStore::new(conn);
+
+    let memory_id = MemoryId::new();
+    let payload = Payload::MemoryPinned(MemoryPinnedPayload {
+        memory_id,
+        content: content.to_string(),
+        session_id: None,
+        project_id: Some(project_id),
+        tx_id: None,
+        rank: None,
+        source_tag: None,
+        query_text: None,
+    });
+    let envelope = EventBuilder::new(
+        AggregateType::Memory,
+        memory_id.as_uuid(),
+        EventKind::MemoryPinned,
+        Actor::System,
+        privacy,
+    )
+    .build(payload)?;
+    store.append_event(&envelope)?;
+    Ok(store)
+}
+
+pub fn insert_pinned_memories_direct(
+    store: &SqliteEventStore,
+    project_id: ProjectId,
+    count: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = store.connection().lock()?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let privacy = serde_json::to_string(&Privacy::CloudOk)?;
+    let pid = project_id.to_string();
+    for i in 0..count {
+        let memory_id = MemoryId::new().to_string();
+        conn.execute(
+            "INSERT INTO memory_projection (
+                memory_id, project_id, content, privacy, status, level, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            rusqlite::params![
+                memory_id,
+                pid.clone(),
+                format!("bulk memory {}", i),
+                privacy.clone(),
+                "pinned",
+                0,
+                now,
+                now
+            ],
+        )?;
+    }
+    Ok(())
+}
+
 pub fn append_active_session(
     store: &SqliteEventStore,
 ) -> Result<(SessionId, ProjectId), Box<dyn std::error::Error>> {

@@ -5,6 +5,17 @@ use ai_brains_core::ids::{HarnessId, ProjectId, SessionId, TransactionId, TurnId
 use ai_brains_core::privacy::Privacy;
 use std::io::Read;
 
+const PREVIEW_MAX_LEN: usize = 100;
+
+fn truncate_preview(s: &str) -> String {
+    if s.chars().count() <= PREVIEW_MAX_LEN {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(PREVIEW_MAX_LEN).collect();
+        format!("{}...", truncated)
+    }
+}
+
 pub fn run(
     ctx: &AppContext,
     content: String,
@@ -12,6 +23,7 @@ pub fn run(
     privacy_str: String,
     tags: Vec<String>,
     tx_id: Option<String>,
+    dry_run: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
         .map_err(|_| "AI_BRAINS_PROJECT_ID not set. Run 'ai-brains context' first.")?
@@ -38,9 +50,8 @@ pub fn run(
         _ => Privacy::LocalOnly,
     };
 
-    // Embed tags in content as a prefix for backward compat
     let final_content = if tags.is_empty() {
-        content
+        content.clone()
     } else {
         format!("TAGS: {}\n{}", tags.join(", "), content)
     };
@@ -57,6 +68,15 @@ pub fn run(
         privacy,
         tx_id: tx_id_parsed,
     };
+
+    if dry_run {
+        let preview = truncate_preview(&content);
+        println!(
+            "[dry-run] Would pin memory {} (role={}, privacy={}, tags={:?}): {}",
+            turn_id, request.role, privacy_str, tags, preview
+        );
+        return Ok(());
+    }
 
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
 
@@ -106,6 +126,7 @@ pub fn run_stdin(
     privacy_str: String,
     tags: Vec<String>,
     tx_id: Option<String>,
+    dry_run: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
@@ -113,5 +134,5 @@ pub fn run_stdin(
     if content.is_empty() {
         return Err("stdin content is empty".into());
     }
-    run(ctx, content, role, privacy_str, tags, tx_id)
+    run(ctx, content, role, privacy_str, tags, tx_id, dry_run)
 }

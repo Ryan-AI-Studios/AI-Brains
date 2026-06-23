@@ -9,6 +9,17 @@ use ai_brains_retrieval::lexical_search;
 use ai_brains_store::{EventStore, QueryStore};
 use std::str::FromStr;
 
+const PREVIEW_MAX_LEN: usize = 100;
+
+fn truncate_preview(s: &str) -> String {
+    if s.chars().count() <= PREVIEW_MAX_LEN {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(PREVIEW_MAX_LEN).collect();
+        format!("{}...", truncated)
+    }
+}
+
 pub fn run(
     ctx: &AppContext,
     memory_id: Option<String>,
@@ -16,6 +27,7 @@ pub fn run(
     force: bool,
     list_forgotten: bool,
     restore: Option<String>,
+    dry_run: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
 
@@ -39,6 +51,10 @@ pub fn run(
 
     if let Some(restore_id) = restore {
         let memory_id = MemoryId::from_str(&restore_id)?;
+        if dry_run {
+            println!("[dry-run] Would restore memory {}.", memory_id);
+            return Ok(());
+        }
         let event = EventBuilder::new(
             AggregateType::Memory,
             memory_id.as_uuid(),
@@ -64,6 +80,25 @@ pub fn run(
                 "No memories matching '{}'. Try broader search terms.",
                 query
             );
+            return Ok(());
+        }
+
+        if dry_run {
+            let noun = if hits.len() == 1 {
+                "memory"
+            } else {
+                "memories"
+            };
+            println!(
+                "[dry-run] Would forget {} {} matching \"{}\":",
+                hits.len(),
+                noun,
+                query
+            );
+            for hit in &hits {
+                let preview = truncate_preview(hit.content.lines().next().unwrap_or(&hit.content));
+                println!("  {} — {}", hit.memory_id, preview);
+            }
             return Ok(());
         }
 
@@ -148,16 +183,21 @@ pub fn run(
             .ok()
             .and_then(|s| s.parse().ok());
         let hits = lexical_search(&ctx.conn, &id_str, project_id, None)?;
-        if let Some(hit) = hits.iter().find(|h| h.memory_id == id_str) {
-            let first_line: String = hit
-                .content
-                .lines()
-                .next()
-                .unwrap_or(&hit.content)
-                .chars()
-                .take(80)
-                .collect();
-            println!("Memory: {} — {}", id_str, first_line);
+        let preview = hits
+            .iter()
+            .find(|h| h.memory_id == id_str)
+            .map(|hit| truncate_preview(hit.content.lines().next().unwrap_or(&hit.content)));
+
+        if dry_run {
+            println!("[dry-run] Would forget memory {}.", id_str);
+            if let Some(p) = preview {
+                println!("  Preview: {}", p);
+            }
+            return Ok(());
+        }
+
+        if let Some(p) = preview {
+            println!("Memory: {} — {}", id_str, p);
         }
 
         if !force {

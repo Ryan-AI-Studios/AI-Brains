@@ -19,6 +19,7 @@ pub struct RecallRunOptions {
     pub graph_hop_depth: usize,
     pub quiet: bool,
     pub no_bridge: bool,
+    pub global: bool,
 }
 
 fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
@@ -118,14 +119,8 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
             })
             .collect(),
         session_id: effective_session_id.map(|s| s.to_string()),
+        hint: None,
     };
-
-    if response.results.is_empty() {
-        eprintln!(
-            "No results for '{}'. Try shorter terms or check spelling.",
-            options.query
-        );
-    }
 
     let format_str = resolve_format(options.format.as_deref(), std::io::stdout().is_terminal());
 
@@ -146,11 +141,101 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
                     println!("{}: {}", r.memory_id, content);
                 }
             }
+            if response.results.is_empty() {
+                if let Some(ref hint) = build_recall_hint(
+                    &ctx.conn,
+                    &options.query,
+                    options.semantic,
+                    options.global,
+                    options.project_id,
+                )? {
+                    eprintln!("{}", hint);
+                }
+            }
         }
-        _ => println!("{}", serde_json::to_string(&response)?),
+        _ => {
+            let mut response = response;
+            if response.results.is_empty() {
+                response.hint = build_recall_hint(
+                    &ctx.conn,
+                    &options.query,
+                    options.semantic,
+                    options.global,
+                    options.project_id,
+                )?;
+            }
+            println!("{}", serde_json::to_string(&response)?);
+        }
     }
 
     Ok(())
+}
+
+/// Build a contextual hint when recall returns zero results (T111).
+fn build_recall_hint(
+    conn: &ai_brains_store::VaultConnection,
+    query: &str,
+    semantic: bool,
+    global: bool,
+    project_id: Option<ProjectId>,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let mut hint = build_recall_hint_core(query, semantic, global);
+
+    if !global {
+        let count = project_memory_count(conn, project_id)?;
+        if count < 10 {
+            hint.push_str(&format!(
+                "\nThis project has only {} memories — results may be limited. Consider importing more sessions.",
+                count
+            ));
+        }
+    }
+
+    Ok(Some(hint))
+}
+
+fn build_recall_hint_core(query: &str, semantic: bool, global: bool) -> String {
+    if global {
+        format!(
+            "No results for '{}' across all projects. The vault may be empty or the query may not match any memories.",
+            query
+        )
+    } else if semantic {
+        format!(
+            "No results for '{}' (semantic search). Try --global to search across all projects, or check if the embedding model is running.",
+            query
+        )
+    } else {
+        format!(
+            "No results for '{}'. Try --semantic for embedding-based search, or --global to search across all projects.",
+            query
+        )
+    }
+}
+
+fn project_memory_count(
+    conn: &ai_brains_store::VaultConnection,
+    project_id: Option<ProjectId>,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    let conn = conn.lock()?;
+    let mut sql = "SELECT COUNT(*) FROM memory_projection WHERE status = 'pinned'".to_string();
+    let mut params: Vec<String> = Vec::new();
+
+    if let Some(pid) = project_id {
+        sql.push_str(
+            " AND (project_id = ? OR EXISTS (\n             SELECT 1 FROM session_projection sp\n             WHERE sp.session_id = memory_projection.session_id\n             AND sp.project_id = ?))",
+        );
+        let pid_str = pid.to_string();
+        params.push(pid_str.clone());
+        params.push(pid_str);
+    }
+
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params
+        .iter()
+        .map(|p| p as &dyn rusqlite::types::ToSql)
+        .collect();
+    let count: i64 = conn.query_row(&sql, param_refs.as_slice(), |row| row.get(0))?;
+    Ok(count as usize)
 }
 
 #[cfg(test)]
@@ -181,5 +266,48 @@ mod tests {
     #[allow(non_snake_case)]
     fn resolve_format__no_explicit_not_tty__returns_json() {
         assert_eq!(resolve_format(None, false), "json");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__no_semantic_no_global__suggests_semantic_and_global() {
+        let hint = build_recall_hint_core("query", false, false);
+        assert!(
+            hint.contains("Try --semantic"),
+            "hint should suggest --semantic; got: {}",
+            hint
+        );
+        assert!(
+            hint.contains("--global"),
+            "hint should suggest --global; got: {}",
+            hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__semantic_used__suggests_global_and_embedding_model() {
+        let hint = build_recall_hint_core("query", true, false);
+        assert!(
+            hint.contains("semantic search"),
+            "hint should mention semantic search; got: {}",
+            hint
+        );
+        assert!(
+            hint.contains("embedding model"),
+            "hint should suggest checking embedding model; got: {}",
+            hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__global_used__notes_all_projects_empty() {
+        let hint = build_recall_hint_core("query", false, true);
+        assert!(
+            hint.contains("across all projects"),
+            "hint should note global scope; got: {}",
+            hint
+        );
     }
 }

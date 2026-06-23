@@ -21,9 +21,16 @@ pub fn list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn resolve(ctx: &AppContext, alias: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn resolve(
+    ctx: &AppContext,
+    alias_positional: Option<String>,
+    alias: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let alias = alias_positional.or(alias).ok_or(
+        "No alias provided. Use `project resolve <alias>` or `project resolve --alias <alias>`.",
+    )?;
     // First try exact alias match
-    if let Some(pid) = ctx.conn.resolve_project_id_from_alias(alias)? {
+    if let Some(pid) = ctx.conn.resolve_project_id_from_alias(&alias)? {
         println!("{}", pid);
         return Ok(());
     }

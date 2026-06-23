@@ -89,6 +89,7 @@ pub fn run(
         "LocalOnly".to_string(),
         Vec::new(),
         None,
+        dry_run,
     )?;
 
     println!(

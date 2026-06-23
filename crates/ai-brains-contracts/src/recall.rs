@@ -28,6 +28,8 @@ pub struct RecallResponse {
     pub results: Vec<RecallResult>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
 }
 
 #[cfg(test)]
@@ -41,6 +43,7 @@ mod tests {
         let resp = RecallResponse {
             results: vec![],
             session_id: Some("test-session".to_string()),
+            hint: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("session_id"));
@@ -54,6 +57,7 @@ mod tests {
         let resp = RecallResponse {
             results: vec![],
             session_id: None,
+            hint: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(!json.contains("session_id"));

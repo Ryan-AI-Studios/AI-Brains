@@ -491,6 +491,7 @@ pub async fn run_query(
             graph_hop_depth: 1,
             quiet,
             no_bridge: true,
+            global: false,
         },
     )?;
 
@@ -498,9 +499,15 @@ pub async fn run_query(
     // T91: strip ANSI codes; T90: sanitize for FTS5 before forwarding to changeguard.
     let clean_query = ai_brains_retrieval::strip_ansi(&query);
     let sanitized_query = ai_brains_retrieval::sanitize_fts_query(&clean_query);
+    // T110: suppress ANSI color codes when stdout is not a TTY.
+    use is_terminal::IsTerminal;
+    let is_tty = std::io::stdout().is_terminal();
     // 2. ChangeGuard Query (Attempt to call CLI)
     let mut cmd = std::process::Command::new("ledgerful");
     cmd.args(["ledger", "search", &sanitized_query]);
+    if !is_tty {
+        cmd.env("NO_COLOR", "1");
+    }
 
     if quiet {
         cmd.stderr(std::process::Stdio::null());
@@ -510,7 +517,12 @@ pub async fn run_query(
 
     match output {
         Ok(out) if out.status.success() => {
-            println!("{}", String::from_utf8_lossy(&out.stdout));
+            let stdout_str = String::from_utf8_lossy(&out.stdout);
+            if is_tty {
+                println!("{}", stdout_str);
+            } else {
+                println!("{}", ai_brains_retrieval::strip_ansi(&stdout_str));
+            }
         }
         Ok(out) => {
             if !quiet {

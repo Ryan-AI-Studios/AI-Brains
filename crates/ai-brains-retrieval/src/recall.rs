@@ -1,6 +1,6 @@
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
-use crate::lexical::lexical_search;
+use crate::lexical::{lexical_search, substring_fallback};
 use crate::GraphSearch;
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_core::privacy::Privacy;
@@ -39,6 +39,17 @@ impl RecallHit {
             content,
             source: "fts".to_string(),
             score,
+            privacy: None,
+        }
+    }
+
+    /// Create a hit from the substring LIKE fallback.
+    pub fn substring(memory_id: String, content: String) -> Self {
+        Self {
+            memory_id,
+            content,
+            source: "substring".to_string(),
+            score: None,
             privacy: None,
         }
     }
@@ -102,10 +113,22 @@ pub fn recall(
     };
 
     // Phase 2: Always run local FTS5 as a fallback / supplement.
-    let local_hits: Vec<RecallHit> = lexical_search(conn, &sanitized, project_id, session_id)?
+    let mut local_hits: Vec<RecallHit> = lexical_search(conn, &sanitized, project_id, session_id)?
         .into_iter()
         .map(|memory| RecallHit::fts(memory.memory_id, memory.content, memory.score))
         .collect();
+
+    // Phase 2b: If FTS5 returned nothing, try a substring LIKE scan (T105).
+    // Limited to small project scopes to avoid expensive full-table scans.
+    if local_hits.is_empty() {
+        let fallback = substring_fallback(conn, query, project_id, session_id, limit)?;
+        if !fallback.is_empty() {
+            local_hits = fallback
+                .into_iter()
+                .map(|memory| RecallHit::substring(memory.memory_id, memory.content))
+                .collect();
+        }
+    }
 
     // Phase 3: Semantic search when requested.
     let semantic_hits: Vec<RecallHit> = if options.semantic {
