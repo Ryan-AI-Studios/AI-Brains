@@ -6,6 +6,7 @@ use ai_brains_events::{Actor, AggregateType, EventKind, MemoryPinnedPayload, Pay
 use ai_brains_retrieval::{recall, RecallOptions};
 use ai_brains_store::EventStore;
 use is_terminal::IsTerminal;
+use rusqlite::OptionalExtension;
 use std::str::FromStr;
 
 pub struct RecallRunOptions {
@@ -13,6 +14,8 @@ pub struct RecallRunOptions {
     pub limit: usize,
     pub project_id: Option<ProjectId>,
     pub session_id: Option<SessionId>,
+    pub session_last: bool,
+    pub session_prefix: Option<String>,
     pub format: Option<String>,
     pub semantic: bool,
     pub graph_boost: f64,
@@ -35,7 +38,111 @@ fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
     }
 }
 
-pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn std::error::Error>> {
+fn session_prefix_pattern(prefix: &str) -> String {
+    let escaped = prefix
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    format!("{}%", escaped)
+}
+
+fn query_sessions_by_prefix(
+    conn: &ai_brains_store::VaultConnection,
+    prefix: &str,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let conn_guard = conn.lock()?;
+    let pattern = session_prefix_pattern(prefix);
+    let mut stmt = conn_guard.prepare(
+        "SELECT DISTINCT session_id FROM memory_projection WHERE session_id LIKE ? ESCAPE '\\' ORDER BY session_id",
+    )?;
+    let rows = stmt.query_map([&pattern], |row| row.get::<_, String>(0))?;
+    let mut results = Vec::new();
+    for row in rows {
+        results.push(row?);
+    }
+    Ok(results)
+}
+
+fn query_most_recent_session(
+    conn: &ai_brains_store::VaultConnection,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let conn_guard = conn.lock()?;
+    let session_id: Option<String> = conn_guard
+        .query_row(
+            "SELECT session_id FROM memory_projection WHERE session_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1",
+            [],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+    Ok(session_id)
+}
+
+fn resolve_session(
+    conn: &ai_brains_store::VaultConnection,
+    explicit: Option<SessionId>,
+    last: bool,
+    session_prefix: Option<&str>,
+) -> Result<Option<SessionId>, Box<dyn std::error::Error>> {
+    if last {
+        let sid = query_most_recent_session(conn)?.ok_or_else(|| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "No sessions found in vault.",
+            )) as Box<dyn std::error::Error>
+        })?;
+        return Ok(Some(SessionId::from_str(&sid)?));
+    }
+
+    if let Some(raw) = session_prefix {
+        if raw.len() == 36 {
+            if let Ok(sid) = SessionId::from_str(raw) {
+                return Ok(Some(sid));
+            }
+        }
+
+        if raw.len() < 4 {
+            return Err(
+                "Session prefix too short; provide at least 4 characters to avoid accidental matches."
+                    .into(),
+            );
+        }
+
+        let matches = query_sessions_by_prefix(conn, raw)?;
+        match matches.len() {
+            0 => Err(format!(
+                "No session matching '{}'. Use 'ai-brains project list' to see sessions.",
+                raw
+            )
+            .into()),
+            1 => Ok(Some(SessionId::from_str(&matches[0])?)),
+            n => {
+                let shown: Vec<String> = matches.iter().take(5).cloned().collect();
+                let suffix = format!(" ({} of {} shown)", shown.len(), n);
+                let list = shown.join(", ");
+                Err(format!(
+                    "Ambiguous session prefix '{}'. Matching sessions{}: {}. Provide more characters.",
+                    raw, suffix, list
+                )
+                .into())
+            }
+        }
+    } else {
+        Ok(explicit)
+    }
+}
+
+pub fn run(
+    ctx: &AppContext,
+    mut options: RecallRunOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let resolved_session_id = resolve_session(
+        &ctx.conn,
+        options.session_id,
+        options.session_last,
+        options.session_prefix.as_deref(),
+    )?;
+    options.session_id = resolved_session_id;
     let effective_session_id = options.session_id.or_else(|| {
         let generated = SessionId::new();
         tracing::debug!(
@@ -116,6 +223,7 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
                 content: h.content,
                 source: h.source,
                 score: h.score,
+                session_id: h.session_id,
             })
             .collect(),
         session_id: effective_session_id.map(|s| s.to_string()),
@@ -135,10 +243,18 @@ pub fn run(ctx: &AppContext, options: RecallRunOptions) -> Result<(), Box<dyn st
                 } else {
                     r.content.clone()
                 };
+                let prefix = r
+                    .session_id
+                    .as_ref()
+                    .map(|s| &s[..s.len().min(8)])
+                    .unwrap_or("none");
                 if let Some(s) = r.score {
-                    println!("[score={:.3}] {}: {}", s, r.memory_id, content);
+                    println!(
+                        "[score={:.3} | session={}] {}: {}",
+                        s, prefix, r.memory_id, content
+                    );
                 } else {
-                    println!("{}: {}", r.memory_id, content);
+                    println!("[session={}] {}: {}", prefix, r.memory_id, content);
                 }
             }
             if response.results.is_empty() {

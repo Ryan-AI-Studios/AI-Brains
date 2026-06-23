@@ -4,6 +4,7 @@ use ai_brains_store::EventStore;
 use std::str::FromStr;
 use std::sync::Arc;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     ctx: &AppContext,
     schedule: bool,
@@ -11,6 +12,7 @@ pub async fn run(
     start_time: String,
     status: bool,
     skip_import: bool,
+    run_as_system: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let task_name = "AI-Brains-Nightly";
 
@@ -55,20 +57,10 @@ pub async fn run(
     if schedule {
         let exe_path = std::env::current_exe()?;
         let exe_str = exe_path.to_str().ok_or("Invalid executable path")?;
+        let args = build_schtasks_args(exe_str, task_name, &start_time, run_as_system);
 
         let output = std::process::Command::new("schtasks")
-            .args([
-                "/create",
-                "/tn",
-                task_name,
-                "/tr",
-                &format!("'{}' nightly", exe_str),
-                "/sc",
-                "daily",
-                "/st",
-                &start_time,
-                "/f",
-            ])
+            .args(&args)
             .output()
             .map_err(|e| {
                 format!(
@@ -85,6 +77,14 @@ pub async fn run(
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
+            if run_as_system
+                && (stderr.contains("Access is denied") || stdout.contains("Access is denied"))
+            {
+                return Err(
+                    "Scheduling as SYSTEM requires elevation. Re-run from an Administrator shell."
+                        .into(),
+                );
+            }
             let cmd = ai_brains_scheduler::TaskScheduler::render_create_command(
                 exe_str,
                 task_name,
@@ -205,6 +205,31 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+fn build_schtasks_args(
+    exe_str: &str,
+    task_name: &str,
+    start_time: &str,
+    run_as_system: bool,
+) -> Vec<String> {
+    let mut args = vec![
+        "/create".to_string(),
+        "/tn".to_string(),
+        task_name.to_string(),
+        "/tr".to_string(),
+        format!("'{}' nightly", exe_str),
+        "/sc".to_string(),
+        "daily".to_string(),
+        "/st".to_string(),
+        start_time.to_string(),
+    ];
+    if run_as_system {
+        args.push("/ru".to_string());
+        args.push("SYSTEM".to_string());
+    }
+    args.push("/f".to_string());
+    args
 }
 
 /// Fetch structured MADR records from ChangeGuard via bridge IPC and ingest as
@@ -409,5 +434,44 @@ mod tests {
         assert!(result.contains("## Context\n\n"));
         assert!(result.contains("## Decision\n\n"));
         assert!(result.contains("## Consequences\n"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_schedule__run_as_system__adds_ru_system() {
+        let args =
+            build_schtasks_args(r"C:\fake\ai-brains.exe", "AI-Brains-Nightly", "03:00", true);
+        let ru_pos = args.iter().position(|a| *a == "/ru");
+        let system_pos = args.iter().position(|a| *a == "SYSTEM");
+        assert!(ru_pos.is_some());
+        assert!(system_pos.is_some());
+        assert!(ru_pos < system_pos);
+        assert_eq!(args.last().map(String::as_str), Some("/f"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_schedule__no_run_as_system__omits_ru_system() {
+        let args = build_schtasks_args(
+            r"C:\fake\ai-brains.exe",
+            "AI-Brains-Nightly",
+            "03:00",
+            false,
+        );
+        assert!(!args.iter().any(|a| a == "/ru"));
+        assert!(!args.iter().any(|a| a == "SYSTEM"));
+        assert_eq!(args.last().map(String::as_str), Some("/f"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_schedule__run_as_system_not_elevated__clear_error() {
+        let stderr = "ERROR: Access is denied.";
+        let stdout = "";
+        let run_as_system = true;
+        assert!(
+            run_as_system
+                && (stderr.contains("Access is denied") || stdout.contains("Access is denied"))
+        );
     }
 }

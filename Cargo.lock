@@ -48,7 +48,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-adapters"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-capture",
  "ai-brains-contracts",
@@ -65,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-brain"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-capture"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-adapters",
  "ai-brains-brain",
@@ -146,7 +146,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-contracts"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-core",
  "chrono",
@@ -157,7 +157,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-crypto"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes-gcm",
  "ai-brains-core",
@@ -186,7 +186,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-daemon-api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-contracts",
  "serde",
@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-events"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-core",
  "hex",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-git"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hex",
  "sha2",
@@ -217,7 +217,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-graph"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -237,7 +237,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-models"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-core",
  "async-trait",
@@ -252,14 +252,14 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-path"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "ai-brains-retrieval"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-scheduler"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-core",
  "ai-brains-path",
@@ -291,7 +291,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-security"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-core",
  "once_cell",
@@ -301,7 +301,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-store"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-core",
  "ai-brains-crypto",
@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brainsd"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ai-brains-capture",
  "ai-brains-contracts",
@@ -2729,6 +2729,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-serde"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
+dependencies = [
+ "serde",
+ "tracing-core",
+]
+
+[[package]]
 name = "tracing-subscriber"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2738,12 +2748,15 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex-automata",
+ "serde",
+ "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
  "tracing-log",
+ "tracing-serde",
 ]
 
 [[package]]

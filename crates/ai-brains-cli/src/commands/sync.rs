@@ -392,6 +392,7 @@ pub async fn run_query(
     format: Option<String>,
     quiet: bool,
     global: bool,
+    no_bridge: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format.unwrap_or_else(|| "pretty".to_string());
 
@@ -431,7 +432,8 @@ pub async fn run_query(
                 semantic: false,
                 graph_boost: 0.1,
                 graph_hop_depth: 1,
-                ..Default::default()
+                quiet,
+                no_bridge,
             },
         )?;
 
@@ -452,7 +454,7 @@ pub async fn run_query(
                 timestamp,
                 parent_hash: None,
                 project_id: project_id.to_string(),
-                session_id: None,
+                session_id: h.session_id.as_ref().map(|s| s.to_string()),
                 tx_id: None,
                 record_kind: "insight".to_string(),
                 payload,
@@ -474,6 +476,8 @@ pub async fn run_query(
             limit: 3,
             project_id,
             session_id,
+            session_last: false,
+            session_prefix: None,
             format: Some(fmt),
             semantic: false,
             graph_boost: 0.1,
@@ -483,6 +487,10 @@ pub async fn run_query(
             global: false,
         },
     )?;
+
+    if no_bridge {
+        return Ok(());
+    }
 
     println!("\n--- ChangeGuard Ledger Search ---");
     // T91: strip ANSI codes; T90: sanitize for FTS5 before forwarding to changeguard.

@@ -51,6 +51,10 @@ struct Cli {
     /// the env vars explicitly.
     #[arg(long, global = true)]
     no_project_context: bool,
+
+    /// Tracing output format: compact (default), full, json, or off
+    #[arg(long, global = true, default_value = "compact")]
+    log_format: String,
 }
 
 #[derive(Subcommand)]
@@ -77,6 +81,10 @@ enum Commands {
         project_id: Option<ProjectId>,
         #[arg(long = "session")]
         session_id: Option<SessionId>,
+        /// Optional partial/short session ID prefix to resolve against the vault.
+        /// Conflicts with --session-last.
+        #[arg(long, conflicts_with = "session_last")]
+        session_prefix: Option<String>,
         /// Output format: 'json' or 'pretty' (default: pretty on TTY, json otherwise)
         #[arg(long)]
         format: Option<String>,
@@ -101,6 +109,9 @@ enum Commands {
         /// Search across all projects, ignoring AI_BRAINS_PROJECT_ID
         #[arg(long)]
         global: bool,
+        /// Use the most recent active session for recall.
+        #[arg(long, conflicts_with = "session_id", conflicts_with = "session_prefix")]
+        session_last: bool,
     },
     /// Generate preflight context for an LLM
     Preflight {
@@ -146,11 +157,18 @@ enum Commands {
         /// from the user's real Antigravity history.
         #[arg(long)]
         skip_import: bool,
+        /// Schedule the task to run as SYSTEM (no login required). Requires elevation.
+        #[arg(long)]
+        run_as_system: bool,
     },
     /// Create a timestamped backup of the vault
     Backup {
         #[command(subcommand)]
         command: Option<BackupCommands>,
+        /// Preview what would happen without creating the backup file.
+        /// Only applies when no subcommand is given (defaults to create).
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Forget a specific memory (soft delete)
     Forget {
@@ -252,11 +270,21 @@ enum Commands {
         #[command(subcommand)]
         command: ProjectCommands,
     },
+    /// Graph operations
     #[cfg(feature = "graph")]
-    /// Graph operations (rebuild, query)
     Graph {
         #[command(subcommand)]
         command: GraphCommands,
+    },
+    /// Graph operations (requires --features graph)
+    #[cfg(not(feature = "graph"))]
+    Graph {
+        #[command(subcommand)]
+        command: GraphCommands,
+
+        /// Trailing arguments accepted when the graph feature is not enabled
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
     },
 }
 
@@ -312,6 +340,9 @@ pub enum DaemonCommands {
         /// Preview the schtasks command without registering the task
         #[arg(long)]
         dry_run: bool,
+        /// Schedule the task to run as SYSTEM (no login required). Requires elevation.
+        #[arg(long)]
+        run_as_system: bool,
     },
     /// Remove the Task Scheduler logon task
     Unschedule {
@@ -337,9 +368,15 @@ pub enum BackupCommands {
         #[arg(long)]
         output_dir: Option<PathBuf>,
         /// After a successful backup, prune old backups keeping only the N
-        /// most recent (including the new one). Default: no pruning.
-        #[arg(long)]
+        /// most recent (including the new one). Default: 10.
+        #[arg(long, conflicts_with = "no_prune")]
         keep: Option<usize>,
+        /// Disable pruning after creating the backup
+        #[arg(long, conflicts_with = "keep")]
+        no_prune: bool,
+        /// Preview what would happen without creating the backup file
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Restore vault from a backup file
     Restore {
@@ -367,6 +404,17 @@ pub enum BackupCommands {
     },
     /// List all backups with their metadata
     List,
+    /// Verify the integrity of backup files
+    Verify {
+        /// Path to a single backup file to verify
+        path: Option<PathBuf>,
+        /// Run a full integrity_check instead of the default quick_check
+        #[arg(long)]
+        full: bool,
+        /// Output format: 'json' or 'pretty' (default: pretty)
+        #[arg(long)]
+        format: Option<String>,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -415,6 +463,9 @@ pub enum SyncCommands {
         /// Search across all projects, ignoring AI_BRAINS_PROJECT_ID
         #[arg(long)]
         global: bool,
+        /// Skip the ChangeGuard bridge query and use only local vault recall.
+        #[arg(long)]
+        no_bridge: bool,
     },
 }
 
@@ -475,6 +526,15 @@ fn main() {
     // is cheap and this keeps the env-var logic close to its trigger.
     let no_project_context = std::env::args().any(|a| a == "--no-project-context");
 
+    // Pre-scan for --log-format so the tracing subscriber can be initialized
+    // with the requested format before clap is fully parsed.
+    let log_format = std::env::args()
+        .collect::<Vec<_>>()
+        .windows(2)
+        .find(|w| w[0] == "--log-format")
+        .map(|w| w[1].clone())
+        .unwrap_or_else(|| "compact".to_string());
+
     // Project .env fills env gaps without overriding shell vars.
     // If no local .env exists, we clear project-specific env vars to prevent
     // stale inheritance from other projects in the same shell session.
@@ -500,13 +560,35 @@ fn main() {
         }
     }
 
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                tracing_subscriber::EnvFilter::new("warn,ai_brains=info,ai_brains_cli=info")
-            }),
-        )
-        .init();
+    let default_filter = tracing_subscriber::EnvFilter::new(
+        "warn,ai_brains=info,ai_brains_cli=info,ai_brains_brain=info",
+    );
+    let env_filter =
+        tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or(default_filter);
+
+    match log_format.as_str() {
+        "off" => {
+            tracing_subscriber::fmt()
+                .with_env_filter(tracing_subscriber::EnvFilter::new("off"))
+                .init();
+        }
+        "json" => {
+            tracing_subscriber::fmt()
+                .json()
+                .with_env_filter(env_filter)
+                .init();
+        }
+        "full" => {
+            tracing_subscriber::fmt().with_env_filter(env_filter).init();
+        }
+        _ => {
+            tracing_subscriber::fmt()
+                .compact()
+                .with_target(false)
+                .with_env_filter(env_filter)
+                .init();
+        }
+    }
 
     // Set up a basic signal handler for graceful interruption
     let runtime = match tokio::runtime::Builder::new_multi_thread()
@@ -556,6 +638,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             limit,
             project_id,
             session_id,
+            session_prefix,
             format,
             semantic,
             graph_boost,
@@ -563,6 +646,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             quiet,
             no_bridge,
             global,
+            session_last,
         } => {
             // T86: `-` as the query reads the query string from stdin until EOF
             let effective_query = if query == "-" {
@@ -584,6 +668,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     limit: *limit,
                     project_id: effective_project_id,
                     session_id: effective_session_id,
+                    session_last: *session_last,
+                    session_prefix: session_prefix.clone(),
                     format: format.clone(),
                     semantic: *semantic,
                     graph_boost: *graph_boost,
@@ -642,6 +728,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             start_time,
             status,
             skip_import,
+            run_as_system,
         } => {
             commands::nightly::run(
                 &ctx,
@@ -650,17 +737,31 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 start_time.clone(),
                 *status,
                 *skip_import,
+                *run_as_system,
             )
             .await
         }
-        Commands::Backup { command } => match command {
+        Commands::Backup { command, dry_run } => match command {
             Some(BackupCommands::Restore {
                 path,
                 force,
                 dry_run,
             }) => commands::backup::run_restore(&ctx, path.clone(), *force, *dry_run).await,
-            Some(BackupCommands::Create { output_dir, keep }) => {
-                commands::backup::run_create(&ctx, output_dir.clone(), *keep)
+            Some(BackupCommands::Create {
+                output_dir,
+                keep,
+                no_prune,
+                dry_run,
+            }) => {
+                let effective_keep = if *no_prune { None } else { keep.or(Some(10)) };
+                let is_default_retention = !*no_prune && keep.is_none();
+                commands::backup::run_create(
+                    &ctx,
+                    output_dir.clone(),
+                    effective_keep,
+                    *dry_run,
+                    is_default_retention,
+                )
             }
             Some(BackupCommands::Prune {
                 keep,
@@ -668,7 +769,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 dry_run,
             }) => commands::backup::run_prune(&ctx, *keep, older_than.clone(), *dry_run),
             Some(BackupCommands::List) => commands::backup::run_list(&ctx),
-            None => commands::backup::run_create(&ctx, None, None),
+            Some(BackupCommands::Verify { path, full, format }) => {
+                commands::backup::run_verify(&ctx, path.clone(), *full, format.clone())
+            }
+            None => commands::backup::run_create(&ctx, None, Some(10), *dry_run, true),
         },
         Commands::Forget {
             memory_id,
@@ -756,9 +860,17 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 format,
                 quiet,
                 global,
+                no_bridge,
             } => {
-                commands::sync::run_query(&ctx, query.clone(), format.clone(), *quiet, *global)
-                    .await
+                commands::sync::run_query(
+                    &ctx,
+                    query.clone(),
+                    format.clone(),
+                    *quiet,
+                    *global,
+                    *no_bridge,
+                )
+                .await
             }
         },
         Commands::AntigravityImport { days } => commands::antigravity_import::run(&ctx, *days),
@@ -777,7 +889,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Daemon { command } => match command {
             DaemonCommands::Start => commands::daemon::run_start(&ctx),
             DaemonCommands::Status => commands::daemon::run_status(&ctx).await,
-            DaemonCommands::Schedule { dry_run } => commands::daemon::run_schedule(&ctx, *dry_run),
+            DaemonCommands::Schedule {
+                dry_run,
+                run_as_system,
+            } => commands::daemon::run_schedule(&ctx, *dry_run, *run_as_system),
             DaemonCommands::Unschedule { dry_run } => {
                 commands::daemon::run_unschedule(&ctx, *dry_run)
             }
@@ -796,12 +911,18 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         #[cfg(feature = "graph")]
-        Commands::Graph { command } => match command {
+        Commands::Graph { command, .. } => match command {
             GraphCommands::Rebuild => commands::graph::rebuild(&ctx),
             GraphCommands::Neighbors { memory_id } => commands::graph::neighbors(&ctx, memory_id),
             GraphCommands::Hierarchy { memory_id } => commands::graph::hierarchy(&ctx, memory_id),
             GraphCommands::Session { session_id } => commands::graph::session(&ctx, session_id),
             GraphCommands::Update => commands::graph::update(&ctx),
         },
+        #[cfg(not(feature = "graph"))]
+        Commands::Graph { .. } => {
+            println!("The graph subcommand requires a --features graph build.");
+            println!("Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph");
+            Ok(())
+        }
     }
 }

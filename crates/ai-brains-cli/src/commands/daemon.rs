@@ -57,9 +57,13 @@ fn spawn_daemon(exe: &std::path::Path) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
-fn schedule_inner(exe: &std::path::Path, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn schedule_inner(
+    exe: &std::path::Path,
+    dry_run: bool,
+    run_as_system: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let exe_str = exe.to_string_lossy();
-    let cmd = TaskScheduler::render_daemon_logon_command(&exe_str, "AI-Brains-Daemon", 30);
+    let cmd = render_daemon_schedule_command(&exe_str, "AI-Brains-Daemon", 30, run_as_system);
 
     if dry_run {
         println!("[dry-run] Would execute:");
@@ -75,13 +79,23 @@ fn schedule_inner(exe: &std::path::Path, dry_run: bool) -> Result<(), Box<dyn st
 
     println!("Registering Task Scheduler logon task...");
     println!("  {cmd}");
-    let status = std::process::Command::new("cmd")
+    let output = std::process::Command::new("cmd")
         .args(["/C", &cmd])
-        .status()?;
-    if status.success() {
+        .output()?;
+    if output.status.success() {
         println!("Task 'AI-Brains-Daemon' registered. Daemon will start at next logon.");
         println!("To start it now without rebooting: ai-brains daemon start");
     } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if run_as_system
+            && (stderr.contains("Access is denied") || stdout.contains("Access is denied"))
+        {
+            return Err(
+                "Scheduling as SYSTEM requires elevation. Re-run from an Administrator shell."
+                    .into(),
+            );
+        }
         return Err(
             "schtasks failed — check that you have permission to create scheduled tasks.".into(),
         );
@@ -89,9 +103,27 @@ fn schedule_inner(exe: &std::path::Path, dry_run: bool) -> Result<(), Box<dyn st
     Ok(())
 }
 
-pub fn run_schedule(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn render_daemon_schedule_command(
+    exe_path: &str,
+    task_name: &str,
+    delay_seconds: u32,
+    run_as_system: bool,
+) -> String {
+    let base = TaskScheduler::render_daemon_logon_command(exe_path, task_name, delay_seconds);
+    if run_as_system {
+        format!("{} /ru SYSTEM", base)
+    } else {
+        base
+    }
+}
+
+pub fn run_schedule(
+    _ctx: &AppContext,
+    dry_run: bool,
+    run_as_system: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let exe = which_daemon()?;
-    schedule_inner(&exe, dry_run)
+    schedule_inner(&exe, dry_run, run_as_system)
 }
 
 fn unschedule_inner(dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -201,7 +233,34 @@ fn resolve_backend(
     }
 }
 
-pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+fn format_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+    if bytes >= GB {
+        format!("{:.1} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.1} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} B", bytes)
+    }
+}
+
+fn count_pinned_memories(
+    conn: &crate::context::AppContext,
+) -> Result<u64, Box<dyn std::error::Error>> {
+    let conn_lock = conn.conn.lock()?;
+    let count: u64 = conn_lock.query_row(
+        "SELECT COUNT(*) FROM memory_projection WHERE status = 'pinned'",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(count)
+}
+
+pub async fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     let client = DaemonClient::new();
     let is_running = client.probe(std::time::Duration::from_millis(200)).await;
 
@@ -209,6 +268,21 @@ pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Err
         println!("Status: Running");
     } else {
         println!("Status: Stopped");
+    }
+
+    // T128: show vault info only when daemon is running (caller may be pointing
+    // at a different vault than the one the daemon is serving, so we use the
+    // CLI-resolved path as the best available proxy).
+    if is_running {
+        println!("Vault: {}", ctx.vault_path.display());
+        let size = std::fs::metadata(&ctx.vault_path)
+            .map(|m| m.len())
+            .unwrap_or(0);
+        println!("Vault size: {}", format_size(size));
+        match count_pinned_memories(ctx) {
+            Ok(count) => println!("Memories: {}", count),
+            Err(e) => tracing::warn!("Failed to read memory count: {}", e),
+        }
     }
 
     // T85: resolve backend addresses from configuration rather than hardcoded ports
@@ -399,7 +473,36 @@ mod tests {
     #[allow(non_snake_case)]
     fn schedule_inner__dry_run__prints_command_without_registering() {
         let exe = std::path::PathBuf::from(r"C:\fake\ai-brainsd.exe");
-        let result = schedule_inner(&exe, true);
+        let result = schedule_inner(&exe, true, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn schedule_inner__run_as_system__adds_ru_system() {
+        let cmd =
+            render_daemon_schedule_command(r"C:\fake\ai-brainsd.exe", "AI-Brains-Daemon", 30, true);
+        assert!(cmd.contains("/ru SYSTEM"));
+        assert!(cmd.ends_with(" /ru SYSTEM"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn schedule_inner__no_run_as_system__omits_ru_system() {
+        let cmd = render_daemon_schedule_command(
+            r"C:\fake\ai-brainsd.exe",
+            "AI-Brains-Daemon",
+            30,
+            false,
+        );
+        assert!(!cmd.contains("/ru SYSTEM"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn schedule_inner__dry_run_with_run_as_system__prints_ru_system() {
+        let exe = std::path::PathBuf::from(r"C:\fake\ai-brainsd.exe");
+        let result = schedule_inner(&exe, true, true);
         assert!(result.is_ok());
     }
 
@@ -424,5 +527,29 @@ mod tests {
         // expected schtasks /delete string rather than inspecting captured
         // output, keeping the test deterministic without stdio plumbing.
         assert!(expected.starts_with("schtasks /delete /tn \"AI-Brains-Daemon\""));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_size__bytes() {
+        assert_eq!(format_size(512), "512 B");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_size__kilobytes() {
+        assert_eq!(format_size(2048), "2.0 KB");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_size__megabytes() {
+        assert_eq!(format_size(1_048_576 * 5), "5.0 MB");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_size__gigabytes() {
+        assert_eq!(format_size(1_073_741_824 * 2), "2.0 GB");
     }
 }

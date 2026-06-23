@@ -2,6 +2,10 @@
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::fs::{self, OpenOptions};
+use std::io::{Seek, Write};
+use std::path::PathBuf;
+
 use tempfile::tempdir;
 
 const PROJECT_ALPHA: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -75,6 +79,474 @@ fn recall_json(
         .as_array()
         .unwrap_or_else(|| panic!("results must be an array; got: {parsed}"))
         .clone()
+}
+
+/// T124: `sync query --no-bridge --format pretty` skips the ChangeGuard
+/// Ledger Search section but still runs local recall.
+#[test]
+#[allow(non_snake_case)]
+fn sync_query__no_bridge__skips_changeguard_section() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T124 no-bridge seed content.",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("sync")
+        .arg("query")
+        .arg("no-bridge seed")
+        .arg("--no-bridge")
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("sync query must run");
+
+    assert!(
+        output.status.success(),
+        "sync query --no-bridge must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("AI-Brains Recall"),
+        "local recall section must be present; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("ChangeGuard Ledger Search"),
+        "ChangeGuard section must be skipped with --no-bridge; got: {stdout}"
+    );
+}
+
+/// T124: `sync query --no-bridge --format ndjson` emits only local records.
+#[test]
+#[allow(non_snake_case)]
+fn sync_query__no_bridge_ndjson__only_local_records() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T124 no-bridge ndjson seed content.",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("sync")
+        .arg("query")
+        .arg("no-bridge ndjson seed")
+        .arg("--no-bridge")
+        .arg("--format")
+        .arg("ndjson")
+        .output()
+        .expect("sync query must run");
+
+    assert!(
+        output.status.success(),
+        "sync query --no-bridge --format ndjson must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let records: Vec<serde_json::Value> = stdout
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect();
+    assert!(
+        !records.is_empty(),
+        "local records must be emitted; got: {stdout}"
+    );
+    for r in &records {
+        assert_eq!(
+            r["record_kind"].as_str(),
+            Some("insight"),
+            "all records must be local insight records; got: {r}"
+        );
+        assert_eq!(
+            r["project_id"].as_str(),
+            Some(PROJECT_ALPHA),
+            "local record project_id must match; got: {r}"
+        );
+    }
+}
+
+/// T127: `sync query --format ndjson` local records carry their source session_id.
+#[test]
+#[allow(non_snake_case)]
+fn sync_query_ndjson__local_record_has_session_id() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T127 ndjson session id seed content.",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("sync")
+        .arg("query")
+        .arg("ndjson session id seed")
+        .arg("--format")
+        .arg("ndjson")
+        .arg("--no-bridge")
+        .output()
+        .expect("sync query must run");
+
+    assert!(
+        output.status.success(),
+        "sync query --format ndjson must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let records: Vec<serde_json::Value> = stdout
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect();
+    assert!(
+        !records.is_empty(),
+        "local records must be emitted; got: {stdout}"
+    );
+    let found = records.iter().any(|r| {
+        r["session_id"]
+            .as_str()
+            .map(|s| s == SESSION_1)
+            .unwrap_or(false)
+    });
+    assert!(
+        found,
+        "at least one record must have session_id={SESSION_1}; got: {stdout}"
+    );
+}
+
+/// T125: `recall --session <prefix>` resolves to the full session ID and scopes results.
+#[test]
+#[allow(non_snake_case)]
+fn recall__session_prefix__resolves_to_full_id() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T125 prefix resolution content one",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_2,
+        "T125 prefix resolution content two",
+    );
+
+    let results = recall_json(
+        &vault_path,
+        "prefix resolution content",
+        &[
+            "--project-id",
+            PROJECT_ALPHA,
+            "--session-prefix",
+            "1111",
+            "--no-bridge",
+        ],
+    );
+    assert_eq!(
+        results.len(),
+        1,
+        "prefix recall must resolve to exactly one session; got: {results:?}"
+    );
+    assert_eq!(
+        results[0]["session_id"].as_str(),
+        Some(SESSION_1),
+        "result must be from session 1; got: {:?}",
+        results[0]["session_id"]
+    );
+}
+
+/// T125: `recall --session <too-short>` is rejected with a clear error.
+#[test]
+#[allow(non_snake_case)]
+fn recall__session_prefix_too_short__rejected() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T125 too short content",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("recall")
+        .arg("too short")
+        .arg("--session-prefix")
+        .arg("ab")
+        .output()
+        .expect("recall must run");
+
+    assert!(
+        !output.status.success(),
+        "too-short session prefix must exit non-zero"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("too short") && stderr.contains("4 characters"),
+        "error must mention too short and 4 characters; got: {stderr}"
+    );
+}
+
+/// T125: `recall --session <prefix>` with no matching session errors clearly.
+#[test]
+#[allow(non_snake_case)]
+fn recall__session_prefix_no_match__errors() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T125 no match content",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("recall")
+        .arg("no match")
+        .arg("--session-prefix")
+        .arg("zzzz")
+        .output()
+        .expect("recall must run");
+
+    assert!(
+        !output.status.success(),
+        "no-match session prefix must exit non-zero"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("No session matching")
+            && stderr.contains("zzzz")
+            && stderr.contains("project list"),
+        "error must mention no session matching and project list; got: {stderr}"
+    );
+}
+
+/// T125: `recall --session-last` scopes recall to the most recent session.
+#[test]
+#[allow(non_snake_case)]
+fn recall__session_last__scopes_to_most_recent() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T125 session last content",
+    );
+    // Ensure the second session has a later updated_at by serializing ingest.
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_2,
+        "T125 session last content recent",
+    );
+
+    let results = recall_json(
+        &vault_path,
+        "session last content",
+        &[
+            "--project-id",
+            PROJECT_ALPHA,
+            "--session-last",
+            "--no-bridge",
+        ],
+    );
+    assert_eq!(
+        results.len(),
+        1,
+        "--session-last must scope to the most recent session; got: {results:?}"
+    );
+    assert_eq!(
+        results[0]["session_id"].as_str(),
+        Some(SESSION_2),
+        "result must be from the most recent session; got: {:?}",
+        results[0]["session_id"]
+    );
+}
+
+/// T130: JSON recall results include a session_id per result matching the source session.
+#[test]
+#[allow(non_snake_case)]
+fn recall_json__each_result_has_session_id() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T130 session field content alpha",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_2,
+        "T130 session field content beta",
+    );
+
+    let results = recall_json(
+        &vault_path,
+        "session field content",
+        &["--project-id", PROJECT_ALPHA, "--no-bridge"],
+    );
+    assert_eq!(
+        results.len(),
+        2,
+        "expected results from both sessions; got: {results:?}"
+    );
+    let sessions: std::collections::HashSet<String> = results
+        .iter()
+        .filter_map(|r| r["session_id"].as_str().map(String::from))
+        .collect();
+    assert!(
+        sessions.contains(SESSION_1),
+        "results must include session 1; got: {sessions:?}"
+    );
+    assert!(
+        sessions.contains(SESSION_2),
+        "results must include session 2; got: {sessions:?}"
+    );
+}
+
+/// T130: Pretty recall output shows the 8-char session prefix on each result line.
+#[test]
+#[allow(non_snake_case)]
+fn recall_pretty__shows_session_prefix() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T130 pretty session prefix content",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("recall")
+        .arg("pretty session prefix")
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("recall must run");
+
+    assert!(
+        output.status.success(),
+        "recall --format pretty must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let prefix = &SESSION_1[..8];
+    assert!(
+        stdout.contains(&format!("session={}", prefix)),
+        "pretty output must contain session=8-char prefix; got: {stdout}"
+    );
+}
+
+/// T130: The top-level JSON response field is effective_session_id, not session_id.
+#[test]
+#[allow(non_snake_case)]
+fn recall_json__top_level_effective_session_id() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T130 effective session id content",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("recall")
+        .arg("effective session id")
+        .arg("--format")
+        .arg("json")
+        .arg("--session")
+        .arg(SESSION_1)
+        .output()
+        .expect("recall must run");
+
+    assert!(
+        output.status.success(),
+        "recall --format json --session must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("recall must emit valid JSON; got: {stdout} ({e})"));
+    assert!(
+        parsed.get("effective_session_id").is_some(),
+        "top-level field must be effective_session_id; got: {parsed}"
+    );
+    assert!(
+        parsed.get("session_id").is_none(),
+        "top-level session_id must be renamed to effective_session_id; got: {parsed}"
+    );
 }
 
 /// T112: Default recall (no --global, no --session) should return memories
@@ -238,6 +710,776 @@ fn recall__env_session_id__does_not_auto_scope() {
         results.len(),
         2,
         "env AI_BRAINS_SESSION_ID must not auto-scope recall; got: {results:?}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__dry_run__does_not_create_file() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--dry-run")
+        .output()
+        .expect("backup create --dry-run must run");
+
+    assert!(
+        output.status.success(),
+        "backup create --dry-run must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let backup_dir = dir.path().join("backups");
+    assert!(
+        !backup_dir.exists() || backup_dir.read_dir().unwrap().next().is_none(),
+        "dry-run must not create any backup file"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__dry_run__prints_preview() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--dry-run")
+        .output()
+        .expect("backup create --dry-run must run");
+
+    assert!(
+        output.status.success(),
+        "backup create --dry-run must exit 0"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("[dry-run] Would create backup at"),
+        "stdout must contain dry-run preview; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("source vault") && stdout.contains(&*vault_path.to_string_lossy()),
+        "stdout must mention source vault path; got: {stdout}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_list__pre_t109_backup__no_warn_on_stderr() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Create a real backup, then strip its metadata table to simulate pre-T109.
+    let backup_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+    assert!(backup_output.status.success(), "backup create failed");
+    let stdout = String::from_utf8_lossy(&backup_output.stdout);
+    let backup_path = stdout
+        .lines()
+        .find_map(|l| l.split("Backup created and verified: ").nth(1))
+        .expect("backup path must be printed");
+
+    let key = "x'0000000000000000000000000000000000000000000000000000000000000000'";
+    let conn = rusqlite::Connection::open(backup_path).unwrap();
+    ai_brains_store::pragmas::apply_key_pragmas(
+        &conn,
+        &ai_brains_crypto::SqlCipherKey::from_raw(key.to_string()),
+    )
+    .unwrap();
+    conn.execute_batch("DROP TABLE IF EXISTS _aibrains_backup_meta;")
+        .unwrap();
+    drop(conn);
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("RUST_LOG", "warn")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list must run");
+
+    assert!(output.status.success(), "backup list must exit 0");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("WARN") || !stderr.contains("backup metadata"),
+        "pre-T109 backup must not emit metadata WARN; got: {stderr}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_list__corrupted_new_backup__stays_warn() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
+    fs::write(&bogus, b"not a valid sqlite database").unwrap();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("RUST_LOG", "warn")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list must run");
+
+    assert!(output.status.success(), "backup list must exit 0");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined
+            .to_lowercase()
+            .contains("could not read backup metadata")
+            || combined.to_lowercase().contains("file is not a database"),
+        "corrupted backup must emit warning; got: {combined}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_list__source_vault_column_shows_path_end() {
+    // Use a long vault path so the source vault path exceeds 40 chars.
+    let dir = tempdir().unwrap();
+    let subdir = dir
+        .path()
+        .join("very-long-directory-name-that-makes-path-exceed-forty");
+    fs::create_dir_all(&subdir).unwrap();
+    let vault_path = subdir.join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list must run");
+
+    assert!(output.status.success(), "backup list must exit 0");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("vault.db"),
+        "Source Vault column should show path end containing vault.db; got: {stdout}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_list__parses_nanosecond_timestamp() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .assert()
+        .success();
+
+    // Copy the real backup to a nanosecond+timezone name.
+    let entries: Vec<_> = fs::read_dir(&backup_dir).unwrap().collect();
+    let src = entries.first().unwrap().as_ref().unwrap().path();
+    let dst = backup_dir.join("vault-2026-04-28T16-23-52.639348300+00-00.db.bak");
+    fs::copy(&src, &dst).unwrap();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list must run");
+
+    assert!(output.status.success(), "backup list must exit 0");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("2026-04-28 16:23:52"),
+        "nanosecond timestamp must parse; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("(unparseable)"),
+        "nanosecond timestamp must not show unparseable; got: {stdout}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_list__parses_nanosecond_no_timezone() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .assert()
+        .success();
+
+    let entries: Vec<_> = fs::read_dir(&backup_dir).unwrap().collect();
+    let src = entries.first().unwrap().as_ref().unwrap().path();
+    let dst = backup_dir.join("vault-2026-04-28T16-23-52.639348300.db.bak");
+    fs::copy(&src, &dst).unwrap();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list must run");
+
+    assert!(output.status.success(), "backup list must exit 0");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("2026-04-28 16:23:52"),
+        "nanosecond timestamp must parse; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("(unparseable)"),
+        "nanosecond timestamp must not show unparseable; got: {stdout}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__default_keep_10__prunes_old_backups() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Seed 12 old backups by creating one real backup and copying it to
+    // distinct past timestamps. Use `--output-dir` to ensure predictable paths.
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--no-prune")
+        .assert()
+        .success();
+    let real_backup = fs::read_dir(&backup_dir)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let real_bytes = fs::read(&real_backup).unwrap();
+
+    for day in 1..=12 {
+        let name = format!("vault-2024-01-{:02}T00-00-00.db.bak", day);
+        fs::write(backup_dir.join(&name), &real_bytes).unwrap();
+    }
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .output()
+        .expect("backup create must run");
+    assert!(
+        output.status.success(),
+        "backup create must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let count = fs::read_dir(&backup_dir).unwrap().count();
+    assert_eq!(
+        count, 10,
+        "default keep=10 should prune oldest backups; found {count}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__keep_0__rejected() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--keep")
+        .arg("0")
+        .output()
+        .expect("backup create --keep 0 must run");
+
+    assert!(!output.status.success(), "backup create --keep 0 must fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("invalid") && stderr.contains("--no-prune"),
+        "error must mention invalid and --no-prune; got: {stderr}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__no_prune__keeps_all() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--no-prune")
+        .assert()
+        .success();
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--no-prune")
+        .assert()
+        .success();
+
+    let count = fs::read_dir(&backup_dir).unwrap().count();
+    assert_eq!(count, 2, "--no-prune must keep all backups; found {count}");
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__first_run_emits_migration_warning() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Ensure no sentinel by pointing HOME to a fresh temp dir.
+    let home_dir = tempdir().unwrap();
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("USERPROFILE", home_dir.path())
+        .env("RUST_LOG", "warn")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .output()
+        .expect("backup create must run");
+
+    assert!(output.status.success(), "backup create must exit 0");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined
+            .to_lowercase()
+            .contains("default retention changed"),
+        "first run must emit retention warning; got: stdout={stdout} stderr={stderr}"
+    );
+
+    let output2 = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("USERPROFILE", home_dir.path())
+        .env("RUST_LOG", "warn")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .output()
+        .expect("second backup create must run");
+
+    assert!(output2.status.success(), "second backup create must exit 0");
+    let stdout2 = String::from_utf8_lossy(&output2.stdout);
+    let stderr2 = String::from_utf8_lossy(&output2.stderr);
+    let combined2 = format!("{stdout2}{stderr2}");
+    assert!(
+        !combined2
+            .to_lowercase()
+            .contains("default retention changed"),
+        "second run must not emit retention warning; got: {combined2}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__valid_backup__reports_ok() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+    assert!(output.status.success(), "backup create failed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let backup_path = stdout
+        .lines()
+        .find_map(|l| l.split("Backup created and verified: ").nth(1))
+        .expect("backup path must be printed");
+
+    let verify_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .arg(backup_path)
+        .output()
+        .expect("backup verify must run");
+
+    assert!(
+        verify_output.status.success(),
+        "backup verify must exit 0; stderr={}",
+        String::from_utf8_lossy(&verify_output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    assert!(
+        stdout.contains("OK"),
+        "verify must report OK for valid backup; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("FAIL"),
+        "verify must not report FAIL for valid backup; got: {stdout}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__corrupted_backup__reports_fail() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+    assert!(output.status.success(), "backup create failed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let backup_path = PathBuf::from(
+        stdout
+            .lines()
+            .find_map(|l| l.split("Backup created and verified: ").nth(1))
+            .expect("backup path must be printed"),
+    );
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&backup_path)
+        .unwrap();
+    file.seek(std::io::SeekFrom::Start(100)).unwrap();
+    file.write_all(b"CORRUPTION").unwrap();
+    file.sync_all().unwrap();
+    drop(file);
+
+    let verify_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .arg(&backup_path)
+        .output()
+        .expect("backup verify must run");
+
+    assert!(
+        !verify_output.status.success(),
+        "backup verify on corrupted backup must exit non-zero"
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    assert!(
+        stdout.contains("FAIL"),
+        "verify must report FAIL for corrupted backup; got: {stdout}"
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify_all__mixed__reports_per_file() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Create two valid backups, waiting between them so timestamps differ.
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    let _output2 = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("second backup create must run");
+
+    // Corrupt one of the backups.
+    let backup_dir = dir.path().join("backups");
+    let mut paths: Vec<PathBuf> = fs::read_dir(&backup_dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
+    paths.sort();
+
+    // Corrupt the older backup so the newer one stays valid. After sorting
+    // by name the first entry is the older backup (lower timestamp seconds).
+    let older = &paths[0];
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(older)
+        .unwrap();
+    file.seek(std::io::SeekFrom::Start(100)).unwrap();
+    file.write_all(b"CORRUPTION").unwrap();
+    file.sync_all().unwrap();
+    drop(file);
+
+    let verify_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .output()
+        .expect("backup verify must run");
+
+    assert!(
+        !verify_output.status.success(),
+        "verify with one corrupted backup must exit non-zero"
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    let output_lines: Vec<&str> = stdout
+        .lines()
+        .filter(|l| l.starts_with("vault-") && (l.contains(": OK") || l.contains(": FAIL")))
+        .collect();
+    let ok_count = output_lines
+        .iter()
+        .filter(|l| l.trim().ends_with(": OK"))
+        .count();
+    let fail_count = output_lines
+        .iter()
+        .filter(|l| l.trim().ends_with(": FAIL"))
+        .count();
+    assert_eq!(ok_count, 1, "expected 1 OK; got: {stdout}");
+    assert_eq!(fail_count, 1, "expected 1 FAIL; got: {stdout}");
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__json_format() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+
+    let verify_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("backup verify --format json must run");
+
+    assert!(
+        verify_output.status.success(),
+        "backup verify json must exit 0; stderr={}",
+        String::from_utf8_lossy(&verify_output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    let json_line = stdout
+        .lines()
+        .find(|l| l.trim_start().starts_with('{'))
+        .unwrap_or_else(|| {
+            panic!("verify json output must contain a JSON object line; got: {stdout}")
+        });
+    let parsed: serde_json::Value = serde_json::from_str(json_line)
+        .unwrap_or_else(|e| panic!("verify json must be valid JSON; got: {json_line} ({e})"));
+    let results = parsed["results"].as_array().cloned().unwrap_or_default();
+    assert!(!results.is_empty(), "json results must be non-empty");
+    let first = &results[0];
+    assert!(first["path"].is_string(), "result must have path");
+    assert!(first["status"].is_string(), "result must have status");
+    assert!(first["check"].is_string(), "result must have check");
+    assert!(first["tables"].is_array(), "result must have tables array");
+    assert!(
+        first["size_bytes"].is_number(),
+        "result must have size_bytes"
     );
 }
 
@@ -1456,6 +2698,238 @@ fn test_preflight_stdin_flag_in_help() {
         .stdout(predicate::str::contains("--stdin"));
 }
 
+/// T122: When built without the graph feature, `ai-brains graph update`
+/// prints a helpful hint and exits 0.
+#[cfg(not(feature = "graph"))]
+#[test]
+#[allow(non_snake_case)]
+fn graph__default_build__prints_hint() {
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("graph")
+        .arg("update")
+        .output()
+        .expect("graph update must run");
+
+    assert!(
+        output.status.success(),
+        "graph (stub) must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("requires a --features graph build"),
+        "stub must print feature hint; got: {stdout}"
+    );
+
+    let help_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("graph")
+        .arg("--help")
+        .output()
+        .expect("graph --help must run");
+    assert!(
+        help_output.status.success(),
+        "graph --help must exit 0; stderr={}",
+        String::from_utf8_lossy(&help_output.stderr)
+    );
+    let help_stdout = String::from_utf8_lossy(&help_output.stdout);
+    assert!(
+        help_stdout.contains("requires --features graph"),
+        "graph --help must mention feature requirement; got: {help_stdout}"
+    );
+}
+
+/// T128: `daemon status` shows vault info only when the daemon is running.
+/// Starting/stopping a daemon in tests is unreliable, so this test asserts
+/// the conditional behaviour: if the daemon happens to be running, the vault
+/// info lines must be present; if it is stopped, they must be absent.
+#[test]
+#[allow(non_snake_case)]
+fn daemon_status__vault_info_conditional_on_running() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status must run");
+
+    assert!(
+        output.status.success(),
+        "daemon status must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let running = stdout.contains("Status: Running");
+    let stopped = stdout.contains("Status: Stopped");
+    assert!(
+        running || stopped,
+        "daemon status must report a status; got: {stdout}"
+    );
+
+    let has_vault_path = stdout.contains("Vault:");
+    let has_vault_size = stdout.contains("Vault size:");
+    let has_memories = stdout.contains("Memories:");
+
+    if running {
+        assert!(
+            has_vault_path && has_vault_size && has_memories,
+            "vault info must be shown when daemon is running; got: {stdout}"
+        );
+    } else {
+        assert!(
+            !has_vault_path && !has_vault_size && !has_memories,
+            "vault info must not be shown when daemon is stopped; got: {stdout}"
+        );
+    }
+}
+
+/// T129: `--log-format compact` emits short tracing lines without the full
+/// ISO timestamp.
+#[test]
+#[allow(non_snake_case)]
+fn log_format_compact__short_output() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("RUST_LOG", "info")
+        .arg("--log-format")
+        .arg("compact")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list with compact format must run");
+
+    assert!(
+        output.status.success(),
+        "backup list --log-format compact must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    for line in stderr.lines() {
+        assert!(
+            !line.contains("T") || !line.contains("Z") || !line.contains("."),
+            "compact format must not contain full ISO timestamp; got: {line}"
+        );
+    }
+}
+
+/// T129: `--log-format json` emits valid JSON objects on stderr.
+#[test]
+#[allow(non_snake_case)]
+fn log_format_json__valid_json_lines() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("RUST_LOG", "info")
+        .arg("--log-format")
+        .arg("json")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list with json format must run");
+
+    assert!(
+        output.status.success(),
+        "backup list --log-format json must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    for line in stderr.lines().filter(|l| !l.trim().is_empty()) {
+        let parsed: serde_json::Value = serde_json::from_str(line).unwrap_or_else(|e| {
+            panic!("json format must emit valid JSON per line; got: {line} ({e})")
+        });
+        assert!(
+            parsed.get("timestamp").is_some(),
+            "json line must have timestamp; got: {parsed}"
+        );
+        assert!(
+            parsed.get("level").is_some(),
+            "json line must have level; got: {parsed}"
+        );
+        assert!(
+            parsed.get("target").is_some() || parsed.get("fields").is_some(),
+            "json line must have target or fields; got: {parsed}"
+        );
+    }
+}
+
+/// T129: `--log-format off` suppresses tracing output on stderr.
+#[test]
+#[allow(non_snake_case)]
+fn log_format_off__no_tracing_output() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("RUST_LOG", "info")
+        .arg("--log-format")
+        .arg("off")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list with off format must run");
+
+    assert!(
+        output.status.success(),
+        "backup list --log-format off must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.trim().is_empty(),
+        "off format must suppress tracing output; got: {stderr}"
+    );
+}
+
 /// T115: `sync query` with the daemon not running must still return local
 /// recall results. The command should not probe or attempt to start the
 /// daemon.
@@ -1635,5 +3109,315 @@ fn test_project_list_friendly_default_name() {
     assert!(
         stdout.contains("(no alias)"),
         "project list should show '(no alias) — <short-uuid>' for unnamed projects; got: {stdout}"
+    );
+}
+
+/// T119 AC5: `backup --dry-run` (top-level, no subcommand) should trigger the
+/// same dry-run preview as `backup create --dry-run`.
+#[test]
+#[allow(non_snake_case)]
+fn backup__top_level_dry_run__triggers_preview() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("USERPROFILE", dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("--dry-run")
+        .output()
+        .expect("backup --dry-run must run");
+
+    assert!(
+        output.status.success(),
+        "backup --dry-run must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("[dry-run] Would create backup at"),
+        "top-level backup --dry-run must print preview; got: {stdout}"
+    );
+    let backup_dir = dir.path().join("backups");
+    if backup_dir.exists() {
+        let count = fs::read_dir(&backup_dir).unwrap().count();
+        assert_eq!(count, 0, "no backup file should be created in dry-run");
+    }
+}
+
+/// T119 AC3: `backup create --dry-run --keep N` shows prune preview alongside
+/// the backup preview.
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__dry_run_keep__shows_prune_preview() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("USERPROFILE", dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--dry-run")
+        .arg("--keep")
+        .arg("5")
+        .output()
+        .expect("backup create --dry-run --keep must run");
+
+    assert!(
+        output.status.success(),
+        "backup create --dry-run --keep must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("[dry-run] Would create backup at"),
+        "must print backup preview; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("[dry-run] Would prune"),
+        "must print prune preview; got: {stdout}"
+    );
+}
+
+/// T126 AC4: `backup create --keep N` (explicit) overrides the default 10.
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__explicit_keep_N__overrides_default() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    for day in 1..=5 {
+        let name = format!("vault-2024-01-{:02}T00-00-00.db.bak", day);
+        fs::write(backup_dir.join(&name), b"fake").unwrap();
+    }
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("USERPROFILE", dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("create")
+        .arg("--keep")
+        .arg("3")
+        .assert()
+        .success();
+
+    let count = fs::read_dir(&backup_dir).unwrap().count();
+    assert_eq!(
+        count, 3,
+        "explicit --keep 3 must leave exactly 3 backups; found {count}"
+    );
+}
+
+/// T126 AC7: `backup prune --keep 0` is rejected with the same error message.
+#[test]
+#[allow(non_snake_case)]
+fn backup_prune__keep_0__rejected() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("prune")
+        .arg("--keep")
+        .arg("0")
+        .output()
+        .expect("backup prune --keep 0 must run");
+
+    assert!(
+        !output.status.success(),
+        "backup prune --keep 0 must exit non-zero"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("invalid") && stderr.contains("--no-prune"),
+        "error must mention 'invalid' and '--no-prune'; got: {stderr}"
+    );
+}
+
+/// T123 AC5: `backup prune` correctly handles nanosecond-precision backups —
+/// they are included in the sort order and eligible for pruning.
+#[test]
+#[allow(non_snake_case)]
+fn backup_prune__handles_nanosecond_timestamps() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(
+        "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+    );
+
+    {
+        let conn = rusqlite::Connection::open(&vault_path).unwrap();
+        ai_brains_store::pragmas::apply_key_pragmas(&conn, &key).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP); INSERT INTO schema_migrations (name) VALUES ('0001'); CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
+        )
+        .unwrap();
+    }
+
+    let service = ai_brains_brain::BackupService::new(vault_path.clone(), key.clone())
+        .with_output_dir(backup_dir.clone());
+
+    let files = [
+        "vault-2024-01-01T00-00-00.db.bak",
+        "vault-2024-01-02T00-00-00.123456789+00-00.db.bak",
+        "vault-2024-01-03T00-00-00.db.bak",
+        "vault-2024-01-04T00-00-00.987654321+00-00.db.bak",
+        "vault-2024-01-05T00-00-00.db.bak",
+    ];
+
+    for name in &files {
+        let path = backup_dir.join(name);
+        let src = rusqlite::Connection::open(&vault_path).unwrap();
+        ai_brains_store::pragmas::apply_key_pragmas(&src, &key).unwrap();
+        let mut dst = rusqlite::Connection::open(&path).unwrap();
+        ai_brains_store::pragmas::apply_key_pragmas(&dst, &key).unwrap();
+        let backup = rusqlite::backup::Backup::new(&src, &mut dst).unwrap();
+        backup
+            .run_to_completion(1000, std::time::Duration::ZERO, None)
+            .unwrap();
+    }
+
+    let result = service.prune_backups(2, None, false).unwrap();
+    assert_eq!(result.pruned_count, 3, "should prune 3 oldest backups");
+    assert_eq!(result.remaining_count, 2, "should keep 2 newest");
+    assert!(
+        backup_dir
+            .join("vault-2024-01-04T00-00-00.987654321+00-00.db.bak")
+            .exists(),
+        "newest nanosecond backup must be kept"
+    );
+    assert!(
+        backup_dir.join("vault-2024-01-05T00-00-00.db.bak").exists(),
+        "newest seconds backup must be kept"
+    );
+    assert!(
+        !backup_dir.join("vault-2024-01-01T00-00-00.db.bak").exists(),
+        "oldest seconds backup must be pruned"
+    );
+    assert!(
+        !backup_dir
+            .join("vault-2024-01-02T00-00-00.123456789+00-00.db.bak")
+            .exists(),
+        "old nanosecond backup must be pruned"
+    );
+    assert!(
+        !backup_dir.join("vault-2024-01-03T00-00-00.db.bak").exists(),
+        "middle seconds backup must be pruned"
+    );
+}
+
+/// T125 AC3: If multiple sessions match the prefix, `recall` prints an error
+/// listing up to 5 matching session IDs and the total count.
+#[test]
+#[allow(non_snake_case)]
+fn recall__session_prefix_ambiguous__errors_with_capped_matches() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    for i in 0..7 {
+        let session_id = format!("1111111{}-1111-1111-1111-111111111111", i);
+        let turn_json = format!(
+            r#"{{"session_id": "{}", "project_id": "{}", "harness_id": "00000000-0000-0000-0000-000000000000", "turn_id": "{}", "privacy": "LocalOnly", "role": "user", "content": "ambiguous session test {}"}}"#,
+            session_id,
+            PROJECT_ALPHA,
+            uuid::Uuid::new_v4(),
+            i
+        );
+        Command::cargo_bin("ai-brains")
+            .unwrap()
+            .arg("--vault-path")
+            .arg(&vault_path)
+            .arg("ingest")
+            .write_stdin(turn_json)
+            .assert()
+            .success();
+    }
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("recall")
+        .arg("ambiguous session test")
+        .arg("--session-prefix")
+        .arg("1111")
+        .arg("--project-id")
+        .arg(PROJECT_ALPHA)
+        .output()
+        .expect("recall must run");
+
+    assert!(
+        !output.status.success(),
+        "recall with ambiguous prefix must exit non-zero"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined.to_lowercase().contains("ambiguous"),
+        "error must mention 'ambiguous'; got: {combined}"
+    );
+    assert!(
+        combined.contains("of 7 shown"),
+        "error must show total count 'of 7 shown'; got: {combined}"
+    );
+    assert!(
+        combined.contains("5 of 7 shown"),
+        "error must cap display at 5 matches; got: {combined}"
     );
 }

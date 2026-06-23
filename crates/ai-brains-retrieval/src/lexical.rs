@@ -8,6 +8,7 @@ pub struct RetrievalMemory {
     pub memory_id: String,
     pub content: String,
     pub score: Option<f64>,
+    pub session_id: Option<String>,
 }
 
 pub fn lexical_search(
@@ -23,7 +24,7 @@ pub fn lexical_search(
         return Ok(Vec::new());
     }
 
-    let mut sql = "SELECT mp.memory_id, mp.content, mp.privacy, fts.rank
+    let mut sql = "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, fts.rank
          FROM memory_fts fts
          JOIN memory_projection mp ON mp.rowid = fts.rowid
          LEFT JOIN session_projection sp ON mp.session_id = sp.session_id
@@ -56,7 +57,8 @@ pub fn lexical_search(
             results.push(RetrievalMemory {
                 memory_id: row.get(0)?,
                 content: row.get(1)?,
-                score: row.get(3)?,
+                score: row.get(4)?,
+                session_id: row.get(3)?,
             });
         }
     }
@@ -97,7 +99,7 @@ pub fn substring_fallback(
 
     let pattern = format!("%{}%", escape_like_pattern(query));
 
-    let mut sql = "SELECT memory_id, content, privacy FROM memory_projection\n         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'".to_string();
+    let mut sql = "SELECT memory_id, content, privacy, session_id FROM memory_projection\n         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'".to_string();
     let mut params_vec: Vec<rusqlite::types::Value> = vec![pattern.into()];
 
     if let Some(sid) = session_id {
@@ -138,6 +140,7 @@ pub fn substring_fallback(
                 memory_id: row.get(0)?,
                 content: row.get(1)?,
                 score: None,
+                session_id: row.get(3)?,
             });
         }
     }

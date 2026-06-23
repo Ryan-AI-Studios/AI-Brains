@@ -62,19 +62,20 @@
 | T116 | Backup List Full Paths | ✅ **Complete** | GLM-5.2 | [T116](tracks/trackT116-backup-list-full-paths/spec.md) | Show filename not truncated full path; strip UNC prefix from source_vault_path |
 | T117 | Backup Schema Version Fix | ✅ **Complete** | GLM-5.2 | [T117](tracks/trackT117-backup-schema-version-fix/spec.md) | Fix schema_migrations query (MAX(name) not MAX(version)); metadata shows latest migration name |
 | T118 | eprintln! to tracing! Migration | ✅ **Complete** | Claude | [T118](tracks/trackT118-eprintln-to-tracing-migration/spec.md) | Migrate 62 eprintln! calls to tracing::info!/warn!/debug!; default log level info; keep eprintln! only for errors+prompts |
-| T119 | `backup create --dry-run` | ⏳ **Pending** | — | [T119](tracks/trackT119-backup-create-dry-run/spec.md) | Add --dry-run to backup create; preview path/size without writing file |
-| T120 | `backup list` Noise Suppression | ⏳ **Pending** | — | [T120](tracks/trackT120-backup-list-noise-suppression/spec.md) | Demote expected-condition warnings (no metadata table, unparseable timestamp) from warn! to debug! |
-| T121 | `backup list` Source Vault Column Width | ⏳ **Pending** | — | [T121](tracks/trackT121-backup-list-source-vault-width/spec.md) | Widen Source Vault column to 40 chars; right-truncate to show path end not beginning |
-| T122 | `graph` Subcommand Hint Stub | ⏳ **Pending** | — | [T122](tracks/trackT122-graph-subcommand-hint-stub/spec.md) | Stub graph subcommand in default build that prints --features graph install hint |
-| T123 | Backup Timestamp Parser Robustness | ⏳ **Pending** | — | [T123](tracks/trackT123-backup-timestamp-parser-robustness/spec.md) | Parse nanosecond+timezone timestamp formats from old backups; recover orphaned files |
-| T124 | `sync query --no-bridge` Flag | ⏳ **Pending** | — | [T124](tracks/trackT124-sync-query-no-bridge-flag/spec.md) | Add --no-bridge to sync query to skip ChangeGuard search; consistency with recall |
-| T125 | `recall --session` Partial Match | ⏳ **Pending** | — | [T125](tracks/trackT125-recall-session-partial-match/spec.md) | Accept session UUID prefix; add --session-last for most recent session |
-| T126 | `backup create` Default Retention | ⏳ **Pending** | — | [T126](tracks/trackT126-backup-create-default-retention/spec.md) | Default --keep 10 on backup create; --no-prune to opt out; prevents unbounded growth |
-| T127 | `sync query` NDJSON Session Passthrough | ⏳ **Pending** | — | [T127](tracks/trackT127-sync-query-ndjson-session-passthrough/spec.md) | NDJSON records carry source session_id instead of hardcoded null |
-| T128 | `daemon status` Vault Info | ⏳ **Pending** | — | [T128](tracks/trackT128-daemon-status-vault-info/spec.md) | Show vault path, size, memory count in daemon status output |
-| T129 | Tracing Output Format Option | ⏳ **Pending** | — | [T129](tracks/trackT129-tracing-output-format-option/spec.md) | --log-format compact/full/json/off; default compact; RUST_LOG still controls level |
-| T130 | `recall` Result Session-ID Field | ⏳ **Pending** | — | [T130](tracks/trackT130-recall-result-session-id-field/spec.md) | Per-result session_id in JSON/pretty/NDJSON; rename top-level to effective_session_id |
-| T131 | `backup verify` Command | ⏳ **Pending** | — | [T131](tracks/trackT131-backup-verify-command/spec.md) | Verify integrity of all or single backup; PRAGMA integrity_check + core table check |
+| T119 | `backup create --dry-run` | ✅ **Complete** | GLM-5.2 | [T119](tracks/trackT119-backup-create-dry-run/spec.md) | Add --dry-run to backup create; preview path/size without writing file |
+| T120 | `backup list` Noise Suppression | ✅ **Complete** | GLM-5.2 | [T120](tracks/trackT120-backup-list-noise-suppression/spec.md) | Content-based discrimination: demote expected-condition warnings to debug!; keep warn! for corruption |
+| T121 | `backup list` Source Vault Column Width | ✅ **Complete** | GLM-5.2 | [T121](tracks/trackT121-backup-list-source-vault-width/spec.md) | Widen Source Vault column to 40 chars; right-truncate to show path end not beginning |
+| T122 | `graph` Subcommand Hint Stub | ✅ **Complete** | GLM-5.2 | [T122](tracks/trackT122-graph-subcommand-hint-stub/spec.md) | Stub graph subcommand in default build that prints --features graph install hint |
+| T123 | Backup Timestamp Parser Robustness | ✅ **Complete** | GLM-5.2 | [T123](tracks/trackT123-backup-timestamp-parser-robustness/spec.md) | Parse nanosecond+timezone timestamp formats from old backups; recover orphaned files |
+| T124 | `sync query --no-bridge` Flag | ✅ **Complete** | GLM-5.2 | [T124](tracks/trackT124-sync-query-no-bridge-flag/spec.md) | Add --no-bridge to sync query to skip ChangeGuard search; consistency with recall |
+| T125 | `recall --session` Partial Match | ✅ **Complete** | GLM-5.2 | [T125](tracks/trackT125-recall-session-partial-match/spec.md) | Accept session UUID prefix (--session-prefix); add --session-last for most recent session |
+| T126 | `backup create` Default Retention | ✅ **Complete** | GLM-5.2 | [T126](tracks/trackT126-backup-create-default-retention/spec.md) | Default --keep 10; --no-prune opt-out; --keep 0 rejected; migration sentinel warning |
+| T127 | `sync query` NDJSON Session Passthrough | ✅ **Complete** | GLM-5.2 | [T127](tracks/trackT127-sync-query-ndjson-session-passthrough/spec.md) | NDJSON records carry source session_id instead of hardcoded null |
+| T128 | `daemon status` Vault Info | ✅ **Complete** | GLM-5.2 | [T128](tracks/trackT128-daemon-status-vault-info/spec.md) | Show vault path, size, memory count in daemon status output |
+| T129 | Tracing Output Format Option | ✅ **Complete** | GLM-5.2 | [T129](tracks/trackT129-tracing-output-format-option/spec.md) | --log-format compact/full/json/off; default compact; RUST_LOG still controls level |
+| T130 | `recall` Result Session-ID Field | ✅ **Complete** | GLM-5.2 | [T130](tracks/trackT130-recall-result-session-id-field/spec.md) | Per-result session_id in JSON/pretty/NDJSON; rename top-level to effective_session_id |
+| T131 | `backup verify` Command | ✅ **Complete** | GLM-5.2 | [T131](tracks/trackT131-backup-verify-command/spec.md) | Verify integrity of all or single backup; PRAGMA quick_check default + --full for integrity_check |
+| T132 | `--run-as-system` Flag for Schedule | ✅ **Complete** | Claude | [T132](tracks/trackT132-schedule-run-as-system/spec.md) | Added --run-as-system to nightly and daemon schedule; /ru SYSTEM appended; elevation error clarified; 5 unit tests pass |
 
 
 ---

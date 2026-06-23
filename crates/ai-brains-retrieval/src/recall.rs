@@ -29,39 +29,54 @@ pub struct RecallHit {
     pub score: Option<f64>,
     /// Privacy flag inherited from the source memory.
     pub privacy: Option<Privacy>,
+    /// Session ID of the source memory, if any.
+    pub session_id: Option<String>,
 }
 
 impl RecallHit {
     /// Create a basic FTS5 hit with no privacy flag.
-    pub fn fts(memory_id: String, content: String, score: Option<f64>) -> Self {
+    pub fn fts(
+        memory_id: String,
+        content: String,
+        score: Option<f64>,
+        session_id: Option<String>,
+    ) -> Self {
         Self {
             memory_id,
             content,
             source: "fts".to_string(),
             score,
             privacy: None,
+            session_id,
         }
     }
 
     /// Create a hit from the substring LIKE fallback.
-    pub fn substring(memory_id: String, content: String) -> Self {
+    pub fn substring(memory_id: String, content: String, session_id: Option<String>) -> Self {
         Self {
             memory_id,
             content,
             source: "substring".to_string(),
             score: None,
             privacy: None,
+            session_id,
         }
     }
 
     /// Create a hit added via graph neighbor expansion.
-    pub fn graph(memory_id: String, content: String, score: Option<f64>) -> Self {
+    pub fn graph(
+        memory_id: String,
+        content: String,
+        score: Option<f64>,
+        session_id: Option<String>,
+    ) -> Self {
         Self {
             memory_id,
             content,
             source: "graph".to_string(),
             score,
             privacy: None,
+            session_id,
         }
     }
 
@@ -79,6 +94,7 @@ impl RecallHit {
             source,
             score,
             privacy,
+            session_id: None,
         }
     }
 }
@@ -115,7 +131,14 @@ pub fn recall(
     // Phase 2: Always run local FTS5 as a fallback / supplement.
     let mut local_hits: Vec<RecallHit> = lexical_search(conn, &sanitized, project_id, session_id)?
         .into_iter()
-        .map(|memory| RecallHit::fts(memory.memory_id, memory.content, memory.score))
+        .map(|memory| {
+            RecallHit::fts(
+                memory.memory_id,
+                memory.content,
+                memory.score,
+                memory.session_id,
+            )
+        })
         .collect();
 
     // Phase 2b: If FTS5 returned nothing, try a substring LIKE scan (T105).
@@ -125,7 +148,9 @@ pub fn recall(
         if !fallback.is_empty() {
             local_hits = fallback
                 .into_iter()
-                .map(|memory| RecallHit::substring(memory.memory_id, memory.content))
+                .map(|memory| {
+                    RecallHit::substring(memory.memory_id, memory.content, memory.session_id)
+                })
                 .collect();
         }
     }
@@ -229,6 +254,7 @@ pub fn recall(
                                 neighbor.external_id,
                                 content,
                                 boost_score,
+                                None,
                             ));
                         }
                     }
@@ -348,11 +374,26 @@ mod tests {
 
     #[test]
     fn recall_hit_fts_constructor() {
-        let hit = RecallHit::fts("mem-1".into(), "test content".into(), Some(0.85));
+        let hit = RecallHit::fts("mem-1".into(), "test content".into(), Some(0.85), None);
         assert_eq!(hit.memory_id, "mem-1");
         assert_eq!(hit.source, "fts");
         assert_eq!(hit.score, Some(0.85));
         assert_eq!(hit.privacy, None);
+        assert_eq!(hit.session_id, None);
+    }
+
+    #[test]
+    fn recall_hit_fts_constructor_with_session_id() {
+        let hit = RecallHit::fts(
+            "mem-1".into(),
+            "test content".into(),
+            Some(0.85),
+            Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string()),
+        );
+        assert_eq!(
+            hit.session_id,
+            Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string())
+        );
     }
 
     #[test]
@@ -368,6 +409,7 @@ mod tests {
         assert_eq!(hit.source, "code_context");
         assert_eq!(hit.score, Some(0.92));
         assert_eq!(hit.privacy, Some(Privacy::LocalOnly));
+        assert_eq!(hit.session_id, None);
     }
 
     #[test]
@@ -396,8 +438,8 @@ mod tests {
         ];
 
         let local_fts = vec![
-            RecallHit::fts("mem-2".into(), "c2-fts".into(), Some(0.7)),
-            RecallHit::fts("mem-3".into(), "c3".into(), Some(0.6)),
+            RecallHit::fts("mem-2".into(), "c2-fts".into(), Some(0.7), None),
+            RecallHit::fts("mem-3".into(), "c3".into(), Some(0.6), None),
         ];
 
         let mut seen = std::collections::HashSet::new();
@@ -446,7 +488,14 @@ mod tests {
             .collect();
 
         let vault_hits: Vec<RecallHit> = (0..3)
-            .map(|i| RecallHit::fts(format!("vault-{}", i), format!("vault {}", i), Some(0.5)))
+            .map(|i| {
+                RecallHit::fts(
+                    format!("vault-{}", i),
+                    format!("vault {}", i),
+                    Some(0.5),
+                    None,
+                )
+            })
             .collect();
 
         let mut seen = std::collections::HashSet::new();

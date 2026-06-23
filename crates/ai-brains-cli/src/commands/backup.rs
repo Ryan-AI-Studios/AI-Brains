@@ -1,33 +1,98 @@
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
+use ai_brains_brain::BackupService;
 use ai_brains_store::pragmas::apply_key_pragmas;
 use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
+
+const RETENTION_SENTINEL: &str = ".retention-acknowledged";
+
+fn retention_sentinel_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let home = if let Ok(profile) = std::env::var("USERPROFILE") {
+        PathBuf::from(profile)
+    } else if let Ok(home) = std::env::var("HOME") {
+        PathBuf::from(home)
+    } else {
+        dirs::home_dir().ok_or("Could not determine home directory")?
+    };
+    let mut path = home;
+    path.push(".ai-brains");
+    if !path.exists() {
+        fs::create_dir_all(&path)?;
+    }
+    path.push(RETENTION_SENTINEL);
+    Ok(path)
+}
+
+fn maybe_emit_retention_warning() -> Result<(), Box<dyn std::error::Error>> {
+    let sentinel = retention_sentinel_path()?;
+    if !sentinel.exists() {
+        tracing::warn!(
+            "Default retention changed: keeping 10 most recent backups. Use --no-prune to keep all. This notice won't appear again."
+        );
+        fs::write(&sentinel, b"")?;
+    }
+    Ok(())
+}
 
 pub fn run_create(
     ctx: &AppContext,
     output_dir: Option<PathBuf>,
     keep: Option<usize>,
+    dry_run: bool,
+    is_default_retention: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut service = ai_brains_brain::BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
+    if let Some(0) = keep {
+        return Err("--keep 0 is invalid; use --no-prune to disable pruning".into());
+    }
+
+    let mut service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
     if let Some(dir) = output_dir {
         service = service.with_output_dir(dir);
     }
+
+    if dry_run {
+        let backup_path = service.preview_backup_path()?;
+        let size = fs::metadata(&ctx.vault_path).map(|m| m.len()).unwrap_or(0);
+        println!(
+            "[dry-run] Would create backup at {}, source vault {}, estimated size {} bytes.",
+            backup_path.display(),
+            ctx.vault_path.display(),
+            size
+        );
+        if let Some(n) = keep {
+            let result = service.prune_backups(n, None, true)?;
+            println!(
+                "[dry-run] Would prune {} backup(s), {} remaining. Would free {:.2} MB.",
+                result.pruned_count,
+                result.remaining_count,
+                result.freed_bytes as f64 / (1024.0 * 1024.0)
+            );
+        }
+        return Ok(());
+    }
+
+    if is_default_retention {
+        maybe_emit_retention_warning()?;
+    }
+
     tracing::info!("Creating vault backup...");
-    // Use the existing AppContext connection to avoid opening a second
-    // connection to the same WAL file (which deadlocks).
     let conn = ctx.conn.lock()?;
     let backup_path = service.run_backup_from_conn(&conn)?;
     println!("Backup created and verified: {}", backup_path.display());
 
     if let Some(n) = keep {
+        // Build a fresh service so prune_backups sees the newly created backup.
+        let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
         let result = service.prune_backups(n, None, false)?;
-        println!(
-            "Pruned {} backup(s), {} remaining. Freed {:.2} MB.",
-            result.pruned_count,
-            result.remaining_count,
-            result.freed_bytes as f64 / (1024.0 * 1024.0)
-        );
+        if result.pruned_count > 0 {
+            tracing::info!(
+                "Pruned {} old backups (kept {}).",
+                result.pruned_count,
+                result.remaining_count
+            );
+        }
     }
 
     Ok(())
@@ -39,7 +104,11 @@ pub fn run_prune(
     older_than: Option<String>,
     dry_run: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let service = ai_brains_brain::BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
+    if keep == 0 {
+        return Err("--keep 0 is invalid; use --no-prune to disable pruning".into());
+    }
+
+    let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
     let result = service.prune_backups(keep, older_than.as_deref(), dry_run)?;
     let freed_mib = result.freed_bytes as f64 / (1024.0 * 1024.0);
 
@@ -58,7 +127,7 @@ pub fn run_prune(
 }
 
 pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    let service = ai_brains_brain::BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
+    let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
     let backups = service.list_backups()?;
     if backups.is_empty() {
         println!("No backups found.");
@@ -66,7 +135,7 @@ pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!(
-        "{:<35} {:<22} {:<26} {:<14} {:<20}",
+        "{:<35} {:<22} {:<40} {:<14} {:<20}",
         "Filename", "Timestamp", "Source Vault", "Version", "Size (bytes)"
     );
     for info in backups {
@@ -96,10 +165,10 @@ pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
             .to_string_lossy()
             .to_string();
         println!(
-            "{:<35} {:<22} {:<26} {:<14} {:<20}",
+            "{:<35} {:<22} {:<40} {:<14} {:<20}",
             filename,
             ts,
-            truncate(&source, 26),
+            truncate_right(&source, 40),
             truncate(&version, 14),
             size
         );
@@ -113,6 +182,147 @@ fn truncate(s: &str, max_len: usize) -> String {
     } else {
         s.chars().take(max_len - 3).collect::<String>() + "..."
     }
+}
+
+fn truncate_right(s: &str, max_len: usize) -> String {
+    let char_count = s.chars().count();
+    if char_count <= max_len {
+        s.to_string()
+    } else {
+        let keep = max_len.saturating_sub(3);
+        "...".to_string() + &s.chars().skip(char_count - keep).collect::<String>()
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+struct VerifyResult {
+    path: String,
+    status: String,
+    check: String,
+    tables: Vec<String>,
+    size_bytes: u64,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct VerifyOutput {
+    results: Vec<VerifyResult>,
+}
+
+pub fn run_verify(
+    ctx: &AppContext,
+    path: Option<PathBuf>,
+    full: bool,
+    format: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
+    let check_name = if full {
+        "integrity_check"
+    } else {
+        "quick_check"
+    };
+
+    let paths: Vec<PathBuf> = match path {
+        Some(p) => vec![p],
+        None => service.find_backup_files()?,
+    };
+
+    tracing::info!("Verifying {} backup file(s)...", paths.len());
+    let mut results = Vec::new();
+    let mut any_failed = false;
+
+    for path in &paths {
+        let filename = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.to_string_lossy().to_string());
+        tracing::info!("Verifying {} ({})...", filename, check_name);
+
+        let size_bytes = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+        let mut tables: Vec<String> = Vec::new();
+        let status: String;
+
+        match verify_single_backup(path, &ctx._key, full, &mut tables) {
+            Ok(()) => {
+                status = "ok".to_string();
+                tracing::info!("{}: OK", filename);
+            }
+            Err(err) => {
+                status = "fail".to_string();
+                any_failed = true;
+                tracing::info!("{}: FAIL — {}", filename, err);
+            }
+        }
+
+        results.push(VerifyResult {
+            path: path.to_string_lossy().to_string(),
+            status,
+            check: check_name.to_string(),
+            tables,
+            size_bytes,
+        });
+    }
+
+    if format.as_deref() == Some("json") {
+        let output = VerifyOutput { results };
+        println!("{}", serde_json::to_string(&output)?);
+    } else {
+        for result in &results {
+            let label = if result.status == "ok" { "OK" } else { "FAIL" };
+            println!(
+                "{}: {}",
+                PathBuf::from(&result.path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| result.path.clone()),
+                label
+            );
+        }
+    }
+
+    if any_failed {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn verify_single_backup(
+    path: &PathBuf,
+    key: &ai_brains_crypto::SqlCipherKey,
+    full: bool,
+    tables_out: &mut Vec<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = rusqlite::Connection::open(path)?;
+    apply_key_pragmas(&conn, key)?;
+
+    let check_sql = if full {
+        "PRAGMA integrity_check"
+    } else {
+        "PRAGMA quick_check"
+    };
+    let check_res: String = match conn.query_row(check_sql, [], |row| row.get(0)) {
+        Ok(v) => v,
+        Err(err) => return Err(format!("{} query failed: {}", check_sql, err).into()),
+    };
+    if check_res.to_lowercase() != "ok" {
+        return Err(format!("{} failed: {}", check_sql, check_res).into());
+    }
+
+    let mut stmt = conn.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('events', 'memory_projection')",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        let name: String = row.get(0)?;
+        Ok(name)
+    })?;
+    for row in rows {
+        tables_out.push(row?);
+    }
+    tables_out.sort();
+
+    if tables_out.is_empty() {
+        return Err("backup is missing core tables".into());
+    }
+    Ok(())
 }
 
 pub async fn run_restore(

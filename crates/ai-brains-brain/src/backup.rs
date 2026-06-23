@@ -1,6 +1,6 @@
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_store::pragmas::apply_key_pragmas;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
@@ -51,6 +51,14 @@ impl BackupService {
             fs::create_dir_all(&dir)?;
         }
         Ok(dir)
+    }
+
+    /// Compute the backup path that the next backup would be written to
+    /// without actually writing it.
+    pub fn preview_backup_path(&self) -> Result<PathBuf, Box<dyn std::error::Error>> {
+        let backup_dir = self.backup_dir()?;
+        let timestamp = Utc::now().format("%Y-%m-%dT%H-%M-%S");
+        Ok(backup_dir.join(format!("vault-{}.db.bak", timestamp)))
     }
 
     /// Run a backup using the SQLite backup API.
@@ -173,13 +181,11 @@ impl BackupService {
                 .strip_prefix("vault-")
                 .and_then(|s| s.strip_suffix(".db.bak"))
                 .unwrap_or("");
-            let timestamp = match NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%dT%H-%M-%S")
-            {
-                Ok(ts) => ts,
-                Err(err) => {
-                    tracing::warn!(
+            let timestamp = match parse_backup_timestamp(timestamp_str) {
+                Some(ts) => ts,
+                None => {
+                    tracing::debug!(
                         path = %path.display(),
-                        error = %err,
                         "Skipping backup file with unparseable timestamp"
                     );
                     continue;
@@ -250,6 +256,23 @@ impl BackupService {
         })
     }
 
+    pub fn find_backup_files(&self) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+        let backup_dir = self.backup_dir()?;
+        let mut paths = Vec::new();
+        for entry in fs::read_dir(&backup_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let name = entry.file_name();
+            let name_lossy = name.to_string_lossy();
+            if name_lossy.starts_with("vault-") && name_lossy.ends_with(".db.bak") {
+                paths.push(path);
+            }
+        }
+        // Sort newest first (lexicographic order matches timestamp order).
+        paths.sort_by(|a, b| b.cmp(a));
+        Ok(paths)
+    }
+
     /// List all backups in the backup directory, reading metadata from each
     /// backup file when possible.
     pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
@@ -269,9 +292,9 @@ impl BackupService {
                 .strip_prefix("vault-")
                 .and_then(|s| s.strip_suffix(".db.bak"))
                 .unwrap_or("");
-            let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%dT%H-%M-%S").ok();
+            let timestamp = parse_backup_timestamp(timestamp_str);
             if timestamp.is_none() {
-                tracing::warn!(
+                tracing::debug!(
                     path = %path.display(),
                     "Skipping backup file with unparseable timestamp during list"
                 );
@@ -280,11 +303,28 @@ impl BackupService {
             let metadata = match Self::read_backup_metadata(&path, &self.key) {
                 Ok(m) => m,
                 Err(err) => {
-                    tracing::warn!(
-                        path = %path.display(),
-                        error = %err,
-                        "Could not read backup metadata"
-                    );
+                    let is_missing_meta_table = err
+                        .to_string()
+                        .contains("no such table: _aibrains_backup_meta");
+                    let has_core_tables = match rusqlite::Connection::open(&path) {
+                        Ok(conn) => {
+                            let _ = apply_key_pragmas(&conn, &self.key);
+                            has_core_tables(&conn)
+                        }
+                        Err(_) => false,
+                    };
+                    if is_missing_meta_table && has_core_tables {
+                        tracing::debug!(
+                            path = %path.display(),
+                            "Backup predates metadata table; core tables present"
+                        );
+                    } else {
+                        tracing::warn!(
+                            path = %path.display(),
+                            error = %err,
+                            "Could not read backup metadata"
+                        );
+                    }
                     HashMap::new()
                 }
             };
@@ -300,7 +340,7 @@ impl BackupService {
         Ok(infos)
     }
 
-    fn read_backup_metadata(
+    pub fn read_backup_metadata(
         path: &PathBuf,
         key: &SqlCipherKey,
     ) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
@@ -320,6 +360,55 @@ impl BackupService {
         }
         Ok(map)
     }
+}
+
+fn has_core_tables(conn: &rusqlite::Connection) -> bool {
+    conn.query_row(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name IN ('events', 'memory_projection') LIMIT 1",
+        [],
+        |_row| Ok(true),
+    )
+    .unwrap_or(false)
+}
+
+pub fn parse_backup_timestamp(s: &str) -> Option<NaiveDateTime> {
+    let formats = [
+        "%Y-%m-%dT%H-%M-%S",
+        "%Y-%m-%dT%H-%M-%S%.f",
+        "%Y-%m-%dT%H-%M-%S%.f%:z",
+    ];
+    for fmt in formats {
+        if let Ok(ts) = NaiveDateTime::parse_from_str(s, fmt) {
+            return Some(ts);
+        }
+    }
+
+    let normalized = normalize_timezone_colons(s);
+    if normalized != s {
+        if let Ok(ts) = NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H-%M-%S%.f%:z") {
+            return Some(ts);
+        }
+    }
+
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+        return Some(dt.naive_utc());
+    }
+    None
+}
+
+fn normalize_timezone_colons(s: &str) -> String {
+    if let Some(pos) = s.rfind('+').or_else(|| s.rfind('-')) {
+        let (prefix, tz) = s.split_at(pos);
+        if tz.len() == 6 && tz[3..4] == *"-" {
+            let mut normalized = String::with_capacity(s.len());
+            normalized.push_str(prefix);
+            normalized.push_str(&tz[..3]);
+            normalized.push(':');
+            normalized.push_str(&tz[4..]);
+            return normalized;
+        }
+    }
+    s.to_string()
 }
 
 fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
@@ -342,7 +431,7 @@ fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::disallowed_methods)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
@@ -537,6 +626,53 @@ mod tests {
         assert!(source.is_some());
 
         Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn parse_backup_timestamp__seconds_format() {
+        let ts = parse_backup_timestamp("2026-04-28T16-23-52");
+        assert!(ts.is_some());
+        assert_eq!(
+            ts.unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),
+            "2026-04-28 16:23:52"
+        );
+    }
+
+    #[test]
+    fn parse_backup_timestamp__nanosecond_format() {
+        let ts = parse_backup_timestamp("2026-04-28T16-23-52.639348300");
+        assert!(ts.is_some());
+        assert_eq!(
+            ts.unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),
+            "2026-04-28 16:23:52"
+        );
+    }
+
+    #[test]
+    fn parse_backup_timestamp__nanosecond_with_timezone() {
+        let ts = parse_backup_timestamp("2026-04-28T16-23-52.639348300+00:00");
+        assert!(ts.is_some());
+        assert_eq!(
+            ts.unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),
+            "2026-04-28 16:23:52"
+        );
+    }
+
+    #[test]
+    fn parse_backup_timestamp__nanosecond_with_dash_timezone() {
+        let ts = parse_backup_timestamp("2026-04-28T16-23-52.639348300+00-00");
+        assert!(ts.is_some());
+        assert_eq!(
+            ts.unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),
+            "2026-04-28 16:23:52"
+        );
+    }
+
+    #[test]
+    fn parse_backup_timestamp__invalid_returns_none() {
+        assert!(parse_backup_timestamp("not-a-timestamp").is_none());
+        assert!(parse_backup_timestamp("2026-04-28").is_none());
     }
 
     #[test]

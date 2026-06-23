@@ -21,12 +21,17 @@ pub struct RecallResult {
     pub source: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecallResponse {
     pub results: Vec<RecallResult>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "effective_session_id"
+    )]
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,

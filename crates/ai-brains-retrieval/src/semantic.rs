@@ -6,7 +6,7 @@ use ai_brains_models::ModelProvider;
 use ai_brains_store::VaultConnection;
 use rusqlite::params_from_iter;
 
-type EmbeddedMemory = (String, String, Privacy, Vec<u8>);
+type EmbeddedMemory = (String, String, Privacy, Option<String>, Vec<u8>);
 
 /// Perform semantic search over pinned memories with non-null embeddings.
 /// Fetches an embedding for the query via LlamaCppProvider, then computes
@@ -23,20 +23,23 @@ pub fn semantic_search(
 
     let mut scored: Vec<(f64, RecallHit)> = memories
         .into_iter()
-        .filter_map(|(memory_id, content, privacy, embedding_bytes)| {
-            let emb = bytes_to_f32_vec(&embedding_bytes)?;
-            let sim = cosine_similarity(&query_embedding, &emb)?;
-            Some((
-                sim,
-                RecallHit {
-                    memory_id,
-                    content,
-                    source: "semantic".to_string(),
-                    score: Some(sim),
-                    privacy: Some(privacy),
-                },
-            ))
-        })
+        .filter_map(
+            |(memory_id, content, privacy, session_id, embedding_bytes)| {
+                let emb = bytes_to_f32_vec(&embedding_bytes)?;
+                let sim = cosine_similarity(&query_embedding, &emb)?;
+                Some((
+                    sim,
+                    RecallHit {
+                        memory_id,
+                        content,
+                        source: "semantic".to_string(),
+                        score: Some(sim),
+                        privacy: Some(privacy),
+                        session_id,
+                    },
+                ))
+            },
+        )
         .collect();
 
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
@@ -74,7 +77,7 @@ fn fetch_pinned_embeddings(
 ) -> Result<Vec<EmbeddedMemory>> {
     let conn = conn.lock()?;
 
-    let mut sql = "SELECT mp.memory_id, mp.content, mp.privacy, mp.embedding
+    let mut sql = "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, mp.embedding
         FROM memory_projection mp
         LEFT JOIN session_projection sp ON mp.session_id = sp.session_id
         WHERE mp.status = 'pinned' AND mp.embedding IS NOT NULL"
@@ -102,14 +105,15 @@ fn fetch_pinned_embeddings(
         let memory_id: String = row.get(0)?;
         let content: String = row.get(1)?;
         let privacy_str: String = row.get(2)?;
-        let embedding: Vec<u8> = row.get(3)?;
+        let session_id: Option<String> = row.get(3)?;
+        let embedding: Vec<u8> = row.get(4)?;
 
         if !is_injectable_privacy(&privacy_str) {
             continue;
         }
 
         let privacy: Privacy = serde_json::from_str(&privacy_str).unwrap_or(Privacy::LocalOnly);
-        results.push((memory_id, content, privacy, embedding));
+        results.push((memory_id, content, privacy, session_id, embedding));
     }
 
     Ok(results)
