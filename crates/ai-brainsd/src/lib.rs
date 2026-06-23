@@ -150,8 +150,8 @@ impl DaemonWriter {
     pub async fn query_memories(
         &self,
         query: &str,
-        project_id: ai_brains_core::ids::ProjectId,
-        session_id: ai_brains_core::ids::SessionId,
+        project_id: Option<ai_brains_core::ids::ProjectId>,
+        session_id: Option<ai_brains_core::ids::SessionId>,
     ) -> Result<Vec<ai_brains_retrieval::RecallHit>, BoxError> {
         let conn = self.event_store.connection();
         let graph_search: Option<&ai_brains_retrieval::GraphSearch> = None;
@@ -161,8 +161,8 @@ impl DaemonWriter {
             query,
             5,
             ai_brains_retrieval::RecallOptions {
-                project_id: Some(project_id),
-                session_id: Some(session_id),
+                project_id,
+                session_id,
                 semantic: false,
                 graph_boost: 0.0,
                 graph_hop_depth: 0,

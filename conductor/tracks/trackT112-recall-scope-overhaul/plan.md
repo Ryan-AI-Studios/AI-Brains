@@ -1,0 +1,26 @@
+# Track T112: Recall Scope Overhaul — Plan
+
+- [x] Update `crates/ai-brains-cli/src/main.rs`
+  - [x] Remove `env = "AI_BRAINS_SESSION_ID"` from `Recall` `session_id` field and rename long flag to `--session`.
+  - [x] In the `Recall` match arm: `--global` clears both `project_id` and `session_id` to `None`; otherwise `session_id` is whatever `--session` provides (default `None`).
+- [x] Update `crates/ai-brains-cli/src/commands/recall.rs`
+  - [x] Keep `effective_session_id` for `MemoryPinned` graph provenance.
+  - [x] Verify search call uses `options.session_id` (no env fallback).
+- [x] Update `crates/ai-brains-cli/src/commands/sync.rs`
+  - [x] NDJSON path: pass `session_id: None` by default, don't read `AI_BRAINS_SESSION_ID`.
+  - [x] `--global` clears both `project_id` and `session_id`; default passes `project_id` from env and `session_id: None`.
+- [x] Update `crates/ai-brainsd/src/lib.rs`
+  - [x] Change `query_memories` signature to accept `Option<ProjectId>` and `Option<SessionId>`.
+  - [x] Update daemon `main.rs` caller to pass parsed `Option`s.
+- [x] Add TDD tests to `crates/ai-brains-cli/tests/smoke.rs`
+  - [x] Red: `recall__default_scope__searches_all_project_memories`
+  - [x] Red: `recall__global_flag__searches_all_projects_and_sessions`
+  - [x] Red: `recall__session_flag__scopes_to_specified_session`
+  - [x] Extra coverage: `recall__env_session_id__does_not_auto_scope`
+- [x] Run targeted verification and fix issues.
+  - [x] `cargo nextest run -p ai-brains-cli`
+  - [x] `cargo nextest run -p ai-brains-retrieval`
+  - [x] `cargo nextest run -p ai-brainsd`
+  - [x] `cargo clippy -p ai-brains-cli -p ai-brains-retrieval -p ai-brainsd --all-targets -- -D warnings`
+  - [x] `cargo fmt --check`
+- [x] Self-review and write `review.md`.

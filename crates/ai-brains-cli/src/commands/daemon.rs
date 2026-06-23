@@ -113,7 +113,7 @@ fn unschedule_inner(dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
     if status.success() {
         println!("Task 'AI-Brains-Daemon' removed.");
     } else {
-        eprintln!("schtasks /delete failed — task may not exist.");
+        tracing::warn!("schtasks /delete failed — task may not exist.");
     }
     Ok(())
 }
@@ -126,7 +126,7 @@ pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std:
     let client = DaemonClient::new();
 
     if force {
-        eprintln!("Forcefully stopping AI-Brains daemon...");
+        tracing::info!("Forcefully stopping AI-Brains daemon...");
         #[cfg(windows)]
         {
             let _ = std::process::Command::new("taskkill")
@@ -143,7 +143,7 @@ pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std:
         return Ok(());
     }
 
-    eprintln!("Sending shutdown signal to AI-Brains daemon...");
+    tracing::info!("Sending shutdown signal to AI-Brains daemon...");
     match client.shutdown().await {
         Ok(_) => {
             println!("Shutdown signal sent successfully.");
@@ -151,11 +151,11 @@ pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std:
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
         Err(e) => {
-            eprintln!(
+            tracing::warn!(
                 "Failed to send shutdown signal: {}. The daemon might not be running.",
                 e
             );
-            eprintln!("Use --force to kill the process if it's unresponsive.");
+            tracing::warn!("Use --force to kill the process if it's unresponsive.");
         }
     }
 
@@ -293,12 +293,12 @@ pub async fn run_status(_ctx: &AppContext) -> Result<(), Box<dyn std::error::Err
 /// Must be run from the workspace root. Gracefully stops the daemon first;
 /// falls back to a force-kill if it does not respond within ~1 s.
 pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("[update] Checking for running daemon...");
+    tracing::info!("[update] Checking for running daemon...");
     let client = DaemonClient::new();
     let is_running = client.probe(std::time::Duration::from_millis(300)).await;
 
     if is_running {
-        eprintln!("[update] Daemon is running — sending graceful shutdown signal...");
+        tracing::info!("[update] Daemon is running — sending graceful shutdown signal...");
         let shutdown_ok = client.shutdown().await.is_ok();
         if shutdown_ok {
             tokio::time::sleep(std::time::Duration::from_millis(800)).await;
@@ -307,7 +307,7 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
         // Verify it actually stopped
         let still_running = client.probe(std::time::Duration::from_millis(200)).await;
         if !shutdown_ok || still_running {
-            eprintln!("[update] Graceful shutdown did not complete — force-terminating...");
+            tracing::warn!("[update] Graceful shutdown did not complete — force-terminating...");
             #[cfg(windows)]
             {
                 let _ = std::process::Command::new("taskkill")
@@ -322,12 +322,12 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
             }
             tokio::time::sleep(std::time::Duration::from_millis(400)).await;
         }
-        eprintln!("[update] Daemon stopped.");
+        tracing::info!("[update] Daemon stopped.");
     } else {
-        eprintln!("[update] No running daemon found.");
+        tracing::info!("[update] No running daemon found.");
     }
 
-    eprintln!("[update] Installing ai-brains-cli via `cargo install --locked`...");
+    tracing::info!("[update] Installing ai-brains-cli via `cargo install --locked`...");
     let cli_ok = std::process::Command::new("cargo")
         .args(["install", "--path", "crates/ai-brains-cli", "--locked"])
         .status()
@@ -340,7 +340,7 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
         .into());
     }
 
-    eprintln!("[update] Installing ai-brainsd via `cargo install --locked`...");
+    tracing::info!("[update] Installing ai-brainsd via `cargo install --locked`...");
     let daemon_ok = std::process::Command::new("cargo")
         .args(["install", "--path", "crates/ai-brainsd", "--locked"])
         .status()
@@ -352,9 +352,9 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
         )
         .into());
     }
-    eprintln!("[update] Binaries installed.");
+    tracing::info!("[update] Binaries installed.");
 
-    eprintln!("[update] Restarting daemon...");
+    tracing::info!("[update] Restarting daemon...");
     run_start(ctx)?;
     println!("[update] Update complete. New daemon is running.");
     Ok(())

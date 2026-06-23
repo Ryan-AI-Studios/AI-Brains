@@ -96,12 +96,12 @@ pub fn detect(ctx: &AppContext, export_shell: bool) -> Result<(), Box<dyn std::e
             }
             return Ok(());
         } else if matched.len() > 1 {
-            eprintln!(
+            tracing::info!(
                 "Ambiguous match for '{}' — multiple candidates found in vault:",
                 lower_slug
             );
             for (pid, name, alias, count) in &matched {
-                eprintln!("  {} | {} | {} | {} memories", pid, name, alias, count);
+                tracing::info!("  {} | {} | {} | {} memories", pid, name, alias, count);
             }
             if export_shell {
                 eprintln!("# No unambiguous match — set AI_BRAINS_PROJECT_ID manually");

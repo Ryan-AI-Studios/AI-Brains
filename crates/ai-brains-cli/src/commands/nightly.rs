@@ -47,7 +47,7 @@ pub async fn run(
             println!("Nightly task '{}' removed.", task_name);
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            eprintln!("Failed to remove task: {}", stderr);
+            tracing::warn!("Failed to remove task: {}", stderr);
         }
         return Ok(());
     }
@@ -90,7 +90,7 @@ pub async fn run(
                 task_name,
                 &start_time,
             );
-            eprintln!(
+            tracing::warn!(
                 "Failed to schedule task. Run this in an elevated PowerShell session:\n{}\nError: {}{}",
                 cmd, stdout, stderr
             );
@@ -115,7 +115,7 @@ pub async fn run(
         .unwrap_or_default();
 
     if project_id == ProjectId::default() {
-        eprintln!(
+        tracing::warn!(
             "AI_BRAINS_PROJECT_ID not set. Run 'ai-brains context' first. Using default project."
         );
     }
@@ -150,7 +150,7 @@ pub async fn run(
 
     // Import Antigravity sessions before summarization so they get summarized too
     if skip_import {
-        eprintln!(
+        tracing::info!(
             "Skipping Antigravity import (--skip-import). \
              Use this on isolated, CI, or per-project vaults to prevent \
              cross-vault contamination from the user's real Antigravity history."
@@ -166,42 +166,42 @@ pub async fn run(
         embedding_provider,
     );
 
-    eprintln!("Starting nightly intelligence sweep...");
-    eprintln!("Summarizing sessions...");
+    tracing::info!("Starting nightly intelligence sweep...");
+    tracing::info!("Summarizing sessions...");
 
     let batch_size = std::env::var("AI_BRAINS_NIGHTLY_BATCH")
         .ok()
         .and_then(|s| s.parse::<usize>().ok());
     let count = service.run_nightly(project_id, batch_size).await?;
-    eprintln!("Running memory synthesis...");
+    tracing::info!("Running memory synthesis...");
 
     // WAL checkpoint: ensure embeddings generated during nightly are persisted
     // before potential timeout on MADR ingestion
     ctx.conn.wal_checkpoint()?;
-    eprintln!("WAL checkpointed — embeddings persisted to disk.");
+    tracing::info!("WAL checkpointed — embeddings persisted to disk.");
 
-    eprintln!("Nightly sweep completed. {} sessions summarized.", count);
+    tracing::info!("Nightly sweep completed. {} sessions summarized.", count);
 
-    eprintln!("Stats: {} sessions summarized.", count);
-    eprintln!("Embedding stats: see stderr output above.");
+    tracing::info!("Stats: {} sessions summarized.", count);
+    tracing::info!("Embedding stats: see stderr output above.");
     #[cfg(feature = "graph")]
-    eprintln!("[Nightly] Graph updated incrementally — run 'graph rebuild' only if you suspect missing edges.");
+    tracing::info!("[Nightly] Graph updated incrementally — run 'graph rebuild' only if you suspect missing edges.");
 
     // --- MADR Ingestion (Phase 18: T41) ---
-    eprintln!("Ingesting structured MADR decisions from ChangeGuard...");
+    tracing::info!("Ingesting structured MADR decisions from ChangeGuard...");
     if let Err(e) = ingest_madr_from_changeguard(ctx, project_id) {
         tracing::error!("MADR ingestion failed (non-fatal): {}", e);
-        eprintln!(
-            "Note: MADR ingestion failed: {}. Nightly sweep completed successfully.",
+        tracing::warn!(
+            "MADR ingestion failed: {}. Nightly sweep completed successfully.",
             e
         );
     }
 
     // --- Symbol Bridge (T70) ---
-    eprintln!("[Nightly] Ingesting code symbols from ChangeGuard...");
+    tracing::info!("[Nightly] Ingesting code symbols from ChangeGuard...");
     match crate::commands::symbol_bridge::ingest_symbols_from_changeguard(ctx, project_id) {
-        Ok(n) => eprintln!("[Nightly] {} code symbols ingested.", n),
-        Err(e) => eprintln!("[Nightly] Symbol ingestion failed (non-fatal): {}", e),
+        Ok(n) => tracing::info!("[Nightly] {} code symbols ingested.", n),
+        Err(e) => tracing::warn!("[Nightly] Symbol ingestion failed (non-fatal): {}", e),
     }
 
     Ok(())
@@ -360,7 +360,7 @@ fn ingest_madr_from_changeguard(
     // Clean up temp file
     let _ = std::fs::remove_file(&temp_path);
 
-    eprintln!("MADR ingestion completed. {} decisions ingested.", ingested);
+    tracing::info!("MADR ingestion completed. {} decisions ingested.", ingested);
     Ok(())
 }
 

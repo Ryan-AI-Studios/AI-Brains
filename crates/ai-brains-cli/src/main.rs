@@ -75,7 +75,7 @@ enum Commands {
         limit: usize,
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
         project_id: Option<ProjectId>,
-        #[arg(long, env = "AI_BRAINS_SESSION_ID")]
+        #[arg(long = "session")]
         session_id: Option<SessionId>,
         /// Output format: 'json' or 'pretty' (default: pretty on TTY, json otherwise)
         #[arg(long)]
@@ -475,7 +475,7 @@ fn main() {
     // is cheap and this keeps the env-var logic close to its trigger.
     let no_project_context = std::env::args().any(|a| a == "--no-project-context");
 
-    // Project .env always wins over inherited shell vars.
+    // Project .env fills env gaps without overriding shell vars.
     // If no local .env exists, we clear project-specific env vars to prevent
     // stale inheritance from other projects in the same shell session.
     // T80: --no-project-context disables this whole block so that CI, hooks,
@@ -485,7 +485,7 @@ fn main() {
             std::env::remove_var("AI_BRAINS_PROJECT_ID");
             std::env::remove_var("AI_BRAINS_SESSION_ID");
         } else {
-            dotenvy::dotenv_override().ok();
+            dotenvy::dotenv().ok();
         }
 
         // Fallback to global config in ~/.ai-brains/.env if AI_BRAINS_VAULT_PATH not set yet
@@ -494,13 +494,19 @@ fn main() {
                 home.push(".ai-brains");
                 home.push(".env");
                 if home.exists() {
-                    dotenvy::from_path_override(home).ok();
+                    dotenvy::from_path(home).ok();
                 }
             }
         }
     }
 
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                tracing_subscriber::EnvFilter::new("warn,ai_brains=info,ai_brains_cli=info")
+            }),
+        )
+        .init();
 
     // Set up a basic signal handler for graceful interruption
     let runtime = match tokio::runtime::Builder::new_multi_thread()
@@ -564,15 +570,20 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 query.clone()
             };
-            // T105: --global searches across all projects (project_id = None)
-            let effective_project_id = if *global { None } else { *project_id };
+            // T112: --global searches across all projects and sessions;
+            // default is project-scoped with no session filter.
+            let (effective_project_id, effective_session_id) = if *global {
+                (None, None)
+            } else {
+                (*project_id, *session_id)
+            };
             commands::recall::run(
                 &ctx,
                 commands::recall::RecallRunOptions {
                     query: effective_query,
                     limit: *limit,
                     project_id: effective_project_id,
-                    session_id: *session_id,
+                    session_id: effective_session_id,
                     format: format.clone(),
                     semantic: *semantic,
                     graph_boost: *graph_boost,

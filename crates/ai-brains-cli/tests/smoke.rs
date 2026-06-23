@@ -4,6 +4,243 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use tempfile::tempdir;
 
+const PROJECT_ALPHA: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const PROJECT_BETA: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const SESSION_1: &str = "11111111-1111-1111-1111-111111111111";
+const SESSION_2: &str = "22222222-2222-2222-2222-222222222222";
+const SESSION_3: &str = "33333333-3333-3333-3333-333333333333";
+const SESSION_4: &str = "44444444-4444-4444-4444-444444444444";
+
+fn init_vault(vault_path: &std::path::Path) {
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(vault_path)
+        .arg("init")
+        .assert()
+        .success();
+}
+
+fn ingest_turn(vault_path: &std::path::Path, project_id: &str, session_id: &str, content: &str) {
+    let turn_json = format!(
+        r#"{{
+            "session_id": "{}",
+            "project_id": "{}",
+            "harness_id": "00000000-0000-0000-0000-000000000000",
+            "turn_id": "{}",
+            "privacy": "LocalOnly",
+            "role": "user",
+            "content": "{}"
+        }}"#,
+        session_id,
+        project_id,
+        uuid::Uuid::new_v4(),
+        content.replace('"', "\\\"")
+    );
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(vault_path)
+        .arg("ingest")
+        .write_stdin(turn_json)
+        .assert()
+        .success();
+}
+
+fn recall_json(
+    vault_path: &std::path::Path,
+    query: &str,
+    extra_args: &[&str],
+) -> Vec<serde_json::Value> {
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(vault_path)
+        .arg("recall")
+        .arg(query)
+        .arg("--format")
+        .arg("json")
+        .args(extra_args)
+        .output()
+        .expect("recall must run");
+    assert!(
+        output.status.success(),
+        "recall must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("recall must emit valid JSON; got: {stdout} ({e})"));
+    parsed["results"]
+        .as_array()
+        .unwrap_or_else(|| panic!("results must be an array; got: {parsed}"))
+        .clone()
+}
+
+/// T112: Default recall (no --global, no --session) should return memories
+/// from all sessions within the current project.
+#[test]
+#[allow(non_snake_case)]
+fn recall__default_scope__searches_all_project_memories() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "alpha-one unique-token",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_2,
+        "alpha-two unique-token",
+    );
+
+    let results = recall_json(
+        &vault_path,
+        "unique-token",
+        &["--project-id", PROJECT_ALPHA],
+    );
+    assert_eq!(
+        results.len(),
+        2,
+        "default recall should find memories from both sessions in the project; got: {results:?}"
+    );
+}
+
+/// T112: `recall --global` should search across all projects and all sessions.
+#[test]
+#[allow(non_snake_case)]
+fn recall__global_flag__searches_all_projects_and_sessions() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "global-token alpha session one",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_2,
+        "global-token alpha session two",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_BETA,
+        SESSION_3,
+        "global-token beta session three",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_BETA,
+        SESSION_4,
+        "global-token beta session four",
+    );
+
+    let results = recall_json(&vault_path, "global-token", &["--global"]);
+    assert_eq!(
+        results.len(),
+        4,
+        "--global recall should find memories across all projects and sessions; got: {results:?}"
+    );
+}
+
+/// T112: `recall --session <ID>` should scope results to the specified session only.
+#[test]
+#[allow(non_snake_case)]
+fn recall__session_flag__scopes_to_specified_session() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "session-scoped content only in session one",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_2,
+        "session-scoped content only in session two",
+    );
+
+    let results = recall_json(
+        &vault_path,
+        "session-scoped",
+        &["--project-id", PROJECT_ALPHA, "--session", SESSION_1],
+    );
+    assert_eq!(
+        results.len(),
+        1,
+        "--session recall should return exactly one hit for the specified session; got: {results:?}"
+    );
+    let content = results[0]["content"].as_str().unwrap_or("");
+    assert!(
+        content.contains("session one"),
+        "the single result should come from session one; got: {content}"
+    );
+}
+
+/// T112: When AI_BRAINS_SESSION_ID is set, recall does NOT auto-scope by session.
+#[test]
+#[allow(non_snake_case)]
+fn recall__env_session_id__does_not_auto_scope() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "env-token in session one",
+    );
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_2,
+        "env-token in session two",
+    );
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("AI_BRAINS_SESSION_ID", SESSION_2)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("recall")
+        .arg("env-token")
+        .arg("--format")
+        .arg("json")
+        .arg("--project-id")
+        .arg(PROJECT_ALPHA)
+        .output()
+        .expect("recall must run");
+
+    assert!(
+        output.status.success(),
+        "recall must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("recall must emit valid JSON; got: {stdout} ({e})"));
+    let results = parsed["results"].as_array().cloned().unwrap_or_default();
+    assert_eq!(
+        results.len(),
+        2,
+        "env AI_BRAINS_SESSION_ID must not auto-scope recall; got: {results:?}"
+    );
+}
+
 #[test]
 fn test_cli_init_smoke() {
     let dir = tempdir().unwrap();
@@ -488,6 +725,69 @@ fn test_backup_restore_force_skips_prompt() {
         .stdout(predicate::str::contains("Vault restored from"));
 }
 
+/// T116: `backup list` must show the backup filename in the first column,
+/// not a truncated full path, and the header must read "Filename".
+#[test]
+#[allow(non_snake_case)]
+fn backup_list__shows_filename_not_full_path() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let backup_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+    assert!(backup_output.status.success(), "backup create failed");
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list must run");
+    assert!(
+        output.status.success(),
+        "backup list must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Filename"),
+        "backup list header must contain 'Filename'; got: {stdout}"
+    );
+
+    let data_line = stdout
+        .lines()
+        .find(|l| l.trim_start().starts_with("vault-") && l.contains(".db.bak"))
+        .expect("backup list must contain a data line starting with the backup filename");
+    let filename = data_line
+        .split_whitespace()
+        .next()
+        .expect("first column must be the filename");
+    assert!(
+        filename.starts_with("vault-") && filename.ends_with(".db.bak"),
+        "first column must be a backup filename; got: {filename}"
+    );
+    assert!(
+        !filename.contains(std::path::MAIN_SEPARATOR),
+        "first column must not contain a path separator (truncated full path); got: {filename}"
+    );
+}
+
 /// T83: `agy-hook --schema` must print the JSON Schema for the payload
 /// shape and exit 0. The audit showed that the schema was undocumented
 /// and users hit "missing field `transcriptPath`" without a hint.
@@ -820,6 +1120,93 @@ fn test_daemon_update_command_exists() {
         .stdout(predicate::str::contains("update"));
 }
 
+/// T113: Shell env vars must win over project `.env` files.
+#[test]
+#[allow(non_snake_case)]
+fn env_var_precedence__shell_overrides_env_file() {
+    let dir = tempdir().unwrap();
+    let env_path = dir.path().join(".env");
+    std::fs::write(&env_path, "AI_BRAINS_MODEL_URL=http://127.0.0.1:9999\n")
+        .expect("write project .env");
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .current_dir(dir.path())
+        .env("AI_BRAINS_MODEL_URL", "http://127.0.0.1:1")
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status must run");
+
+    assert!(
+        output.status.success(),
+        "daemon status must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("127.0.0.1:1"),
+        "daemon status must use the shell env var URL (port :1); got: {stdout}"
+    );
+    assert!(
+        stdout.contains("Closed") || stdout.contains("closed"),
+        "daemon status must report the shell URL as closed/unreachable; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("9999"),
+        "daemon status must not use the .env URL (port 9999); got: {stdout}"
+    );
+}
+
+/// T113: Project `.env` must take precedence over global `~/.ai-brains/.env`.
+/// We redirect USERPROFILE to a tempdir, place a global .env there with port
+/// 7777, and a project .env with port 8888 in the cwd. The project value must
+/// win because it loads first and the global loader is non-override.
+#[test]
+#[allow(non_snake_case)]
+fn env_var_precedence__project_env_overrides_global_env() {
+    let project_dir = tempdir().unwrap();
+    let home_dir = tempdir().unwrap();
+
+    let global_ai_brains = home_dir.path().join(".ai-brains");
+    std::fs::create_dir_all(&global_ai_brains).expect("create global .ai-brains dir");
+    std::fs::write(
+        global_ai_brains.join(".env"),
+        "AI_BRAINS_MODEL_URL=http://127.0.0.1:7777\n",
+    )
+    .expect("write global .env");
+
+    std::fs::write(
+        project_dir.path().join(".env"),
+        "AI_BRAINS_MODEL_URL=http://127.0.0.1:8888\n",
+    )
+    .expect("write project .env");
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .current_dir(project_dir.path())
+        .env("USERPROFILE", home_dir.path())
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status must run");
+
+    assert!(
+        output.status.success(),
+        "daemon status must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("8888"),
+        "daemon status must use the project .env URL (port 8888); got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("7777"),
+        "daemon status must not use the global .env URL (port 7777); got: {stdout}"
+    );
+}
+
 /// T85: `daemon status` must probe the port extracted from `AI_BRAINS_MODEL_URL`
 /// rather than the old hardcoded port 8081. We set a distinctive port (9099)
 /// that is almost certainly unoccupied and assert it appears in the output.
@@ -848,6 +1235,72 @@ fn test_daemon_status_respects_model_url_env_var() {
         !stdout.contains("Port 8081"),
         "daemon status must not probe hardcoded 8081; got: {stdout}"
     );
+}
+
+/// T118: `backup create` progress must go through tracing, not raw stderr.
+/// Before migration, "Creating vault backup..." appeared as a raw eprintln!
+/// line. After migration, the raw text must NOT appear in stderr.
+#[test]
+#[allow(non_snake_case)]
+fn backup_create__progress_goes_to_tracing_not_stderr() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+
+    assert!(
+        output.status.success(),
+        "backup create must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("Creating vault backup..."),
+        "backup progress must not be raw stderr text; got: {stderr}"
+    );
+}
+
+/// T118: The scoped tracing filter must keep external crates quiet.
+/// `daemon status` exercises TCP connection attempts but no HTTP bodies,
+/// so it should not produce `INFO reqwest`/`INFO hyper`/`INFO tokio` lines.
+/// Only `ai_brains` / `ai_brains_cli` crate messages should appear at info level.
+#[test]
+#[allow(non_snake_case)]
+fn tracing_filter__external_deps_stay_quiet() {
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("RUST_LOG", "")
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status must run");
+
+    assert!(
+        output.status.success(),
+        "daemon status must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    for external in ["INFO reqwest", "INFO hyper", "INFO tokio", "INFO rusqlite"] {
+        assert!(
+            !stderr.contains(external),
+            "scoped filter must suppress external INFO logs; found {external}; got: {stderr}"
+        );
+    }
 }
 
 /// T85: When `AI_BRAINS_EMBEDDING_URL` is set, `daemon status` probes that port.
@@ -1001,6 +1454,138 @@ fn test_preflight_stdin_flag_in_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains("--stdin"));
+}
+
+/// T115: `sync query` with the daemon not running must still return local
+/// recall results. The command should not probe or attempt to start the
+/// daemon.
+#[test]
+#[allow(non_snake_case)]
+fn sync_query__daemon_down__returns_local_results() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let turn_json = r#"{
+        "session_id": "11111111-1111-1111-1111-111111111111",
+        "project_id": "22222222-2222-2222-2222-222222222222",
+        "harness_id": "33333333-3333-3333-3333-333333333333",
+        "turn_id": "44444444-4444-4444-4444-444444444444",
+        "privacy": "LocalOnly",
+        "role": "user",
+        "content": "T115 sync query local fallback seed content."
+    }"#;
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("ingest")
+        .write_stdin(turn_json)
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env(
+            "AI_BRAINS_PROJECT_ID",
+            "22222222-2222-2222-2222-222222222222",
+        )
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("sync")
+        .arg("query")
+        .arg("T115 sync query local fallback seed content")
+        .output()
+        .expect("sync query must run");
+
+    assert!(
+        output.status.success(),
+        "sync query must succeed when daemon is not running; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("T115 sync query local fallback seed content."),
+        "sync query must return local recall results; got: {stdout}"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("daemon is not running"),
+        "sync query must not error about daemon; got: {stderr}"
+    );
+}
+
+/// T115: `sync query` with the daemon not running must complete quickly and
+/// not emit a daemon-is-down error. No probe, no spawn attempt.
+#[test]
+#[allow(non_snake_case)]
+fn sync_query__daemon_down__no_spawn_attempt() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let turn_json = r#"{
+        "session_id": "55555555-5555-5555-5555-555555555555",
+        "project_id": "66666666-6666-6666-6666-666666666666",
+        "harness_id": "77777777-7777-7777-7777-777777777777",
+        "turn_id": "88888888-8888-8888-8888-888888888888",
+        "privacy": "LocalOnly",
+        "role": "user",
+        "content": "T115 no spawn attempt seed content."
+    }"#;
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("ingest")
+        .write_stdin(turn_json)
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env(
+            "AI_BRAINS_PROJECT_ID",
+            "66666666-6666-6666-6666-666666666666",
+        )
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("sync")
+        .arg("query")
+        .arg("T115 no spawn attempt seed content")
+        .output()
+        .expect("sync query must run");
+
+    assert!(
+        output.status.success(),
+        "sync query must succeed when daemon is not running; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("daemon is not running"),
+        "sync query must not error about daemon; got: {stderr}"
+    );
+    assert!(
+        !stderr.contains("daemon is unreachable"),
+        "sync query must not error about daemon reachability; got: {stderr}"
+    );
 }
 
 /// UX: when a project is registered without an alias, the default name

@@ -5,6 +5,23 @@ use std::io::{self, Read};
 
 const PREVIEW_MAX_LEN: usize = 100;
 
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct DryRunIngestRequest {
+    turn_id: String,
+    session_id: String,
+    project_id: String,
+    harness_id: String,
+    role: String,
+    content: String,
+    privacy: String,
+    #[serde(default)]
+    thinking: Option<String>,
+    #[serde(default)]
+    tx_id: Option<String>,
+}
+
 fn truncate_preview(s: &str) -> String {
     if s.chars().count() <= PREVIEW_MAX_LEN {
         s.to_string()
@@ -17,16 +34,25 @@ fn truncate_preview(s: &str) -> String {
 pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
-    let request = parse_ingest_request(&input)?;
 
     if dry_run {
-        let preview = truncate_preview(&request.content);
+        let req: DryRunIngestRequest =
+            serde_json::from_str(&input).map_err(|e| format!("Invalid JSON: {}", e))?;
+        if req.content.trim().is_empty() {
+            return Err("content field is empty".into());
+        }
+        if req.role.trim().is_empty() {
+            return Err("role field is empty".into());
+        }
+        let preview = truncate_preview(&req.content);
         println!(
             "[dry-run] Would ingest turn {} for project {} / session {} (role={}): {}",
-            request.turn_id, request.project_id, request.session_id, request.role, preview
+            req.turn_id, req.project_id, req.session_id, req.role, preview
         );
         return Ok(());
     }
+
+    let request = parse_ingest_request(&input)?;
 
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
 

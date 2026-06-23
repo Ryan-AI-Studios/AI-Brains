@@ -76,7 +76,7 @@ pub fn run(
         let hits = lexical_search(&ctx.conn, &query, project_id, None)?;
 
         if hits.is_empty() {
-            eprintln!(
+            tracing::info!(
                 "No memories matching '{}'. Try broader search terms.",
                 query
             );
@@ -108,7 +108,7 @@ pub fn run(
             println!("Found: {} — {}", hit.memory_id, first_line);
 
             if !force {
-                eprintln!("Use --force to forget this memory.");
+                tracing::info!("Use --force to forget this memory.");
                 return Ok(());
             }
 
@@ -140,7 +140,7 @@ pub fn run(
                 println!("  {} — {}", hit.memory_id, first_line);
             }
             if !force {
-                eprintln!("Use --force to forget all {} memories.", hits.len());
+                tracing::info!("Use --force to forget all {} memories.", hits.len());
                 return Ok(());
             }
 

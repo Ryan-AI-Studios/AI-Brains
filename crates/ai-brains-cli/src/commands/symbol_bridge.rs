@@ -120,16 +120,16 @@ fn refresh_changeguard_index() {
         .output()
     {
         Ok(o) if o.status.success() => {
-            eprintln!("[Nightly] ledgerful symbol index refreshed.");
+            tracing::info!("[Nightly] ledgerful symbol index refreshed.");
         }
         Ok(o) => {
-            eprintln!(
+            tracing::warn!(
                 "[Nightly] ledgerful index refresh non-fatal: {}",
                 String::from_utf8_lossy(&o.stderr).trim()
             );
         }
         Err(e) => {
-            eprintln!("[Nightly] ledgerful not available for indexing: {}", e);
+            tracing::warn!("[Nightly] ledgerful not available for indexing: {}", e);
         }
     }
 }

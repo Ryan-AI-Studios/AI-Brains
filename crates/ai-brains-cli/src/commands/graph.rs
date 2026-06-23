@@ -30,7 +30,7 @@ struct GraphHealthOutput<'a> {
 }
 
 pub fn rebuild(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("[graph] Starting graph rebuild...");
+    tracing::info!("[graph] Starting graph rebuild...");
 
     let event_store = SqliteEventStore::new((*ctx.conn).clone());
     let graph_vault = GraphVault::new((*ctx.conn).clone());
@@ -38,7 +38,7 @@ pub fn rebuild(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
 
     rebuilder.rebuild()?;
 
-    eprintln!("[graph] Rebuild complete.");
+    tracing::info!("[graph] Rebuild complete.");
     Ok(())
 }
 

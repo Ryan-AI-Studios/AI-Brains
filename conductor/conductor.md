@@ -55,13 +55,13 @@
 | T109 | Backup Metadata Header Table | ✅ **Complete** | GLM-5.2 | [T109](tracks/trackT109-backup-metadata-header/spec.md) | `_aibrains_backup_meta` table in backup with timestamp, source path, version; `backup list` subcommand; DROP TABLE after restore |
 | T110 | Strip ANSI in `sync query` When Not TTY | ✅ **Complete** | GLM-5.2 | [T110](tracks/trackT110-strip-ansi-sync-query-non-tty/spec.md) | NO_COLOR=1 env var + strip_ansi on output when not TTY; preserve color on TTY |
 | T111 | Recall No-Results Hint | ✅ **Complete** | GLM-5.2 | [T111](tracks/trackT111-recall-no-results-hint/spec.md) | Contextual hints: suggest --semantic, --global based on flags; small-vault warning; `hint` field in RecallResponse; sequenced after T105 fallback |
-| T112 | Recall Scope Overhaul | ⏳ **Pending** | — | [T112](tracks/trackT112-recall-scope-overhaul/spec.md) | Default to project-wide search (no session filter); `--global` clears both project+session; add `--session` flag for explicit session scoping |
-| T113 | Env-Var Override Precedence | ⏳ **Pending** | — | [T113](tracks/trackT113-env-var-override-precedence/spec.md) | Shell env vars > project .env > global .env; replace dotenv_override with dotenv (non-override); unblocks T106 testing |
-| T114 | Ingest --dry-run Skip UUID Validation | ⏳ **Pending** | — | [T114](tracks/trackT114-ingest-dry-run-skip-validation/spec.md) | Dry-run accepts placeholder UUIDs; strict validation only on non-dry-run path |
-| T115 | Sync Query Daemon Fallback | ⏳ **Pending** | — | [T115](tracks/trackT115-sync-query-daemon-fallback/spec.md) | Warn instead of error when daemon is down; local recall + ChangeGuard search proceed without daemon |
-| T116 | Backup List Full Paths | ⏳ **Pending** | — | [T116](tracks/trackT116-backup-list-full-paths/spec.md) | Show filename not truncated full path; fix schema_version query; strip UNC prefix from source_vault_path |
-| T117 | Backup Schema Version Fix | ⏳ **Pending** | — | [T117](tracks/trackT117-backup-schema-version-fix/spec.md) | Fix schema_migrations query (COUNT(*) not MAX(version)); metadata shows applied migration count |
-| T118 | eprintln! to tracing! Migration | ⏳ **Pending** | — | [T118](tracks/trackT118-eprintln-to-tracing-migration/spec.md) | Migrate 62 eprintln! calls to tracing::info!/warn!/debug!; default log level info; keep eprintln! only for errors+prompts |
+| T112 | Recall Scope Overhaul | ✅ **Complete** | Hermes | [T112](tracks/trackT112-recall-scope-overhaul/spec.md) | Default to project-wide search (no session filter); `--global` clears both project+session; add `--session` flag for explicit session scoping |
+| T113 | Env-Var Override Precedence | ✅ **Complete** | Claude | [T113](tracks/trackT113-env-var-override-precedence/spec.md) | Shell env vars > project .env > global .env; replace dotenv_override with dotenv (non-override); unblocks T106 testing |
+| T114 | Ingest --dry-run Skip UUID Validation | ✅ **Complete** | GLM-5.2 | [T114](tracks/trackT114-ingest-dry-run-skip-validation/spec.md) | Dry-run accepts placeholder UUIDs; strict validation only on non-dry-run path |
+| T115 | Sync Query Daemon Fallback | ✅ **Complete** | Claude | [T115](tracks/trackT115-sync-query-daemon-fallback/spec.md) | Remove daemon gate; local recall + ChangeGuard search proceed without daemon |
+| T116 | Backup List Full Paths | ✅ **Complete** | GLM-5.2 | [T116](tracks/trackT116-backup-list-full-paths/spec.md) | Show filename not truncated full path; strip UNC prefix from source_vault_path |
+| T117 | Backup Schema Version Fix | ✅ **Complete** | GLM-5.2 | [T117](tracks/trackT117-backup-schema-version-fix/spec.md) | Fix schema_migrations query (MAX(name) not MAX(version)); metadata shows latest migration name |
+| T118 | eprintln! to tracing! Migration | ✅ **Complete** | Claude | [T118](tracks/trackT118-eprintln-to-tracing-migration/spec.md) | Migrate 62 eprintln! calls to tracing::info!/warn!/debug!; default log level info; keep eprintln! only for errors+prompts |
 
 
 ---

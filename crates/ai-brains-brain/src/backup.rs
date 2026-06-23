@@ -98,10 +98,10 @@ impl BackupService {
         )?;
 
         let file_size = fs::metadata(&backup_path)?.len();
-        let source_vault_path = self
-            .vault_path
-            .canonicalize()
-            .unwrap_or_else(|_| self.vault_path.clone());
+        let source_vault_path = match dunce::canonicalize(&self.vault_path) {
+            Ok(p) => p,
+            Err(_) => self.vault_path.clone(),
+        };
 
         let insert = |key: &str, value: String| -> Result<usize, rusqlite::Error> {
             dst.execute(
@@ -118,24 +118,11 @@ impl BackupService {
         insert("ai_brains_version", env!("CARGO_PKG_VERSION").to_string())?;
         insert("backup_file_size_bytes", file_size.to_string())?;
 
-        // Schema version: try the known migration table names in order.
         let schema_ver: Option<String> = src_conn
-            .query_row("SELECT MAX(version) FROM _aibrains_migrations", [], |row| {
+            .query_row("SELECT MAX(name) FROM schema_migrations", [], |row| {
                 row.get(0)
             })
-            .ok()
-            .or_else(|| {
-                src_conn
-                    .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
-                        row.get(0)
-                    })
-                    .ok()
-            })
-            .or_else(|| {
-                src_conn
-                    .query_row("SELECT MAX(version) FROM migrations", [], |row| row.get(0))
-                    .ok()
-            });
+            .ok();
         insert(
             "schema_version",
             schema_ver.unwrap_or_else(|| "unknown".to_string()),
@@ -416,6 +403,92 @@ mod tests {
             |row| row.get(0),
         )?;
         assert!(source.is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn backup__metadata_has_correct_schema_version() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+
+        let key = SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        );
+        let conn = rusqlite::Connection::open(&vault_path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (
+                name TEXT PRIMARY KEY,
+                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO schema_migrations (name) VALUES ('0018_memory_embedding');
+            INSERT INTO schema_migrations (name) VALUES ('0019_embedding_timestamp');
+            CREATE TABLE test (id INTEGER PRIMARY KEY);
+            INSERT INTO test VALUES (1);",
+        )?;
+
+        let service = BackupService::new(vault_path.clone(), key.clone());
+        let backup_path = service.run_backup_from_conn(&conn)?;
+
+        assert!(backup_path.exists());
+
+        let backup_conn = rusqlite::Connection::open(&backup_path)?;
+        apply_key_pragmas(&backup_conn, &key)?;
+        let schema_version: Option<String> = backup_conn.query_row(
+            "SELECT value FROM _aibrains_backup_meta WHERE key = 'schema_version'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(schema_version, Some("0019_embedding_timestamp".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn backup__metadata_source_path_no_unc_prefix() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+
+        let key = SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        );
+        let conn = rusqlite::Connection::open(&vault_path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (
+                name TEXT PRIMARY KEY,
+                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO schema_migrations (name) VALUES ('0018_memory_embedding');
+            CREATE TABLE test (id INTEGER PRIMARY KEY);
+            INSERT INTO test VALUES (1);",
+        )?;
+
+        let service = BackupService::new(vault_path.clone(), key.clone());
+        let backup_path = service.run_backup_from_conn(&conn)?;
+
+        assert!(backup_path.exists());
+
+        let backup_conn = rusqlite::Connection::open(&backup_path)?;
+        apply_key_pragmas(&backup_conn, &key)?;
+        let source_path: Option<String> = backup_conn.query_row(
+            "SELECT value FROM _aibrains_backup_meta WHERE key = 'source_vault_path'",
+            [],
+            |row| row.get(0),
+        )?;
+        let source_path = source_path.expect("source_vault_path must be recorded");
+        assert!(
+            !source_path.starts_with("\\\\?\\"),
+            "source_vault_path must not have UNC prefix, got: {source_path}"
+        );
+        assert_eq!(
+            std::path::PathBuf::from(&source_path),
+            vault_path,
+            "source_vault_path must match the original vault path"
+        );
 
         Ok(())
     }

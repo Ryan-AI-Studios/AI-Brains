@@ -115,10 +115,11 @@ pub fn run_pull(
                 // bootstrap state. On subsequent imports, verify continuity.
                 if let (Some(actual_parent), Some(expected_last)) = (&r.parent_hash, &last_hash) {
                     if actual_parent != expected_last {
-                        eprintln!(
+                        tracing::warn!(
                             "Lineage verification failed: parent_hash mismatch. \
                              Expected {}, got {}. Skipping record.",
-                            expected_last, actual_parent
+                            expected_last,
+                            actual_parent
                         );
                         continue;
                     }
@@ -126,7 +127,7 @@ pub fn run_pull(
                 r
             }
             Err(err) => {
-                eprintln!("Failed to parse BridgeRecord: {}. Skipping line.", err);
+                tracing::warn!("Failed to parse BridgeRecord: {}. Skipping line.", err);
                 continue;
             }
         };
@@ -368,7 +369,7 @@ pub fn run_push(
         }
         Ok(out) => {
             if !quiet {
-                eprintln!(
+                tracing::warn!(
                     "ledgerful import failed: {}",
                     String::from_utf8_lossy(&out.stderr)
                 );
@@ -376,7 +377,7 @@ pub fn run_push(
         }
         Err(e) => {
             if !quiet {
-                println!("ledgerful CLI not found or failed to execute. Error: {}", e);
+                tracing::info!("ledgerful CLI not found or failed to execute. Error: {}", e);
             }
         }
     }
@@ -392,26 +393,20 @@ pub async fn run_query(
     quiet: bool,
     global: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Phase 0: Ensure daemon is running (Requirement T51.1)
-    let client = crate::daemon_client::DaemonClient::new();
-    if !client.ensure_running(&ctx.vault_path, &ctx._key).await {
-        if quiet {
-            return Ok(());
-        }
-        return Err("AI-Brains daemon is not running or unreachable.".into());
-    }
-
     let fmt = format.unwrap_or_else(|| "pretty".to_string());
 
-    let project_id = if global {
-        None
+    let (project_id, session_id) = if global {
+        (None, None)
     } else {
         let project_id_str =
             std::env::var("AI_BRAINS_PROJECT_ID").unwrap_or_else(|_| "default-project".to_string());
         use std::str::FromStr;
-        Some(
-            ai_brains_core::ids::ProjectId::from_str(&project_id_str)
-                .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new()),
+        (
+            Some(
+                ai_brains_core::ids::ProjectId::from_str(&project_id_str)
+                    .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new()),
+            ),
+            None,
         )
     };
 
@@ -423,13 +418,7 @@ pub async fn run_query(
         #[cfg(not(feature = "graph"))]
         let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
 
-        let session_id_str = std::env::var("AI_BRAINS_SESSION_ID")
-            .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new().to_string());
-
-        use std::str::FromStr;
         let project_id = project_id.unwrap_or_else(ai_brains_core::ids::ProjectId::new);
-        let session_id = ai_brains_core::ids::SessionId::from_str(&session_id_str)
-            .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new());
 
         let hits = ai_brains_retrieval::recall(
             &ctx.conn,
@@ -438,7 +427,7 @@ pub async fn run_query(
             5,
             ai_brains_retrieval::RecallOptions {
                 project_id: Some(project_id),
-                session_id: Some(session_id),
+                session_id: None,
                 semantic: false,
                 graph_boost: 0.1,
                 graph_hop_depth: 1,
@@ -463,7 +452,7 @@ pub async fn run_query(
                 timestamp,
                 parent_hash: None,
                 project_id: project_id.to_string(),
-                session_id: Some(session_id.to_string()),
+                session_id: None,
                 tx_id: None,
                 record_kind: "insight".to_string(),
                 payload,
@@ -484,7 +473,7 @@ pub async fn run_query(
             query: query.clone(),
             limit: 3,
             project_id,
-            session_id: None,
+            session_id,
             format: Some(fmt),
             semantic: false,
             graph_boost: 0.1,
@@ -526,7 +515,7 @@ pub async fn run_query(
         }
         Ok(out) => {
             if !quiet {
-                eprintln!(
+                tracing::warn!(
                     "ledgerful search failed: {}",
                     String::from_utf8_lossy(&out.stderr)
                 );
@@ -534,7 +523,7 @@ pub async fn run_query(
         }
         Err(_) => {
             if !quiet {
-                println!("ledgerful CLI not found or failed to execute.");
+                tracing::info!("ledgerful CLI not found or failed to execute.");
             }
         }
     }

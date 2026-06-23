@@ -13,7 +13,7 @@ pub fn run_create(
     if let Some(dir) = output_dir {
         service = service.with_output_dir(dir);
     }
-    eprintln!("Creating vault backup...");
+    tracing::info!("Creating vault backup...");
     // Use the existing AppContext connection to avoid opening a second
     // connection to the same WAL file (which deadlocks).
     let conn = ctx.conn.lock()?;
@@ -66,8 +66,8 @@ pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!(
-        "{:<40} {:<22} {:<26} {:<14} {:<20}",
-        "Path", "Timestamp", "Source Vault", "Version", "Size (bytes)"
+        "{:<35} {:<22} {:<26} {:<14} {:<20}",
+        "Filename", "Timestamp", "Source Vault", "Version", "Size (bytes)"
     );
     for info in backups {
         let ts = info
@@ -89,9 +89,15 @@ pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
             .get("backup_file_size_bytes")
             .cloned()
             .unwrap_or_else(|| "(no metadata)".to_string());
+        let filename = info
+            .path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         println!(
-            "{:<40} {:<22} {:<26} {:<14} {:<20}",
-            truncate(&info.path.to_string_lossy(), 40),
+            "{:<35} {:<22} {:<26} {:<14} {:<20}",
+            filename,
             ts,
             truncate(&source, 26),
             truncate(&version, 14),
@@ -144,16 +150,16 @@ pub async fn run_restore(
     // contention, but overwriting a file the daemon has open is risky.
     let client = DaemonClient::new();
     if client.probe(std::time::Duration::from_millis(200)).await {
-        eprintln!(
-            "WARNING: Daemon is running. Restoring while the daemon has the vault open \
+        tracing::warn!(
+            "Daemon is running. Restoring while the daemon has the vault open \
              may cause corruption. Consider running `ai-brains daemon stop` first."
         );
     }
 
     // Interactive confirm unless --force was passed (e.g. in CI/automation).
     if !force {
-        eprintln!(
-            "WARNING: This will overwrite the current vault at {}",
+        tracing::warn!(
+            "This will overwrite the current vault at {}",
             ctx.vault_path.display()
         );
         eprint!("Type 'yes' to continue: ");

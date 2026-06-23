@@ -252,16 +252,15 @@ where
                             let query_text =
                                 payload.get("text").and_then(|v| v.as_str()).unwrap_or("");
 
-                            // Parse string IDs from interchange format for internal use.
+                            // T112: pass IDs through as Option so the daemon
+                            // defaults to unscoped search.
                             use std::str::FromStr;
                             let project_id =
-                                ai_brains_core::ids::ProjectId::from_str(&record.project_id)
-                                    .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new());
-                            let session_id = match &record.session_id {
-                                Some(s) => ai_brains_core::ids::SessionId::from_str(s)
-                                    .unwrap_or_else(|_| ai_brains_core::ids::SessionId::new()),
-                                None => ai_brains_core::ids::SessionId::new(),
-                            };
+                                ai_brains_core::ids::ProjectId::from_str(&record.project_id).ok();
+                            let session_id = record
+                                .session_id
+                                .as_ref()
+                                .and_then(|s| ai_brains_core::ids::SessionId::from_str(s).ok());
 
                             match writer
                                 .query_memories(query_text, project_id, session_id)
