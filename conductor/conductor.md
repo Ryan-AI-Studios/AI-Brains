@@ -76,6 +76,12 @@
 | T130 | `recall` Result Session-ID Field | ✅ **Complete** | GLM-5.2 | [T130](tracks/trackT130-recall-result-session-id-field/spec.md) | Per-result session_id in JSON/pretty/NDJSON; rename top-level to effective_session_id |
 | T131 | `backup verify` Command | ✅ **Complete** | GLM-5.2 | [T131](tracks/trackT131-backup-verify-command/spec.md) | Verify integrity of all or single backup; PRAGMA quick_check default + --full for integrity_check |
 | T132 | `--run-as-system` Flag for Schedule | ✅ **Complete** | Claude | [T132](tracks/trackT132-schedule-run-as-system/spec.md) | Added --run-as-system to nightly and daemon schedule; /ru SYSTEM appended; elevation error clarified; 5 unit tests pass |
+| T133 | Recall Hint to Stdout | ⏳ **Pending** | — | [T133](tracks/trackT133-recall-hint-to-stdout/spec.md) | Move no-results hint from eprintln! to println! so PowerShell doesn't wrap as error |
+| T134 | `backup list --quiet` Flag | ⏳ **Pending** | — | [T134](tracks/trackT134-backup-list-quiet-flag/spec.md) | Suppress WARN noise from old/unopenable backups |
+| T135 | `nightly --status` Shows Schedule State | ⏳ **Pending** | — | [T135](tracks/trackT135-nightly-status-show-schedule-state/spec.md) | Show whether nightly task is scheduled (Yes/No + time) |
+| T136 | `--log-format minimal` Mode | ⏳ **Pending** | — | [T136](tracks/trackT136-log-format-minimal-mode/spec.md) | Level + message only, no timestamp/target; between compact and off |
+| T137 | Bridge Hits Populate Session-ID | ⏳ **Pending** | — | [T137](tracks/trackT137-bridge-hits-populate-session-id/spec.md) | Read session_id from BridgeRecord in bridge query path; omit session= in pretty when None |
+| T138 | `backup verify` FAIL Error Reason | ⏳ **Pending** | — | [T138](tracks/trackT138-backup-verify-fail-error-reason/spec.md) | Show why each backup failed (wrong key vs corruption vs missing tables) |
 
 
 ---
