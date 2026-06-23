@@ -20,7 +20,7 @@ Result: `schema_version` is always `"unknown"` in backup metadata.
 
 ## Acceptance Criteria
 
-**AC1:** New backups have `schema_version` set to the count of applied migrations as a string (e.g. `"19"`).
+**AC1:** New backups have `schema_version` set to the latest applied migration name (e.g. `"0019_embedding_timestamp"`), representing the high-water mark of the schema.
 
 **AC2:** `backup restore --dry-run` displays the correct schema version.
 
@@ -31,14 +31,11 @@ Result: `schema_version` is always `"unknown"` in backup metadata.
 - **Fix in `crates/ai-brains-brain/src/backup.rs`:** Replace the schema_ver query:
   ```rust
   let schema_ver: Option<String> = src_conn
-      .query_row("SELECT COUNT(*) FROM schema_migrations", [], |row| {
-          let count: i64 = row.get(0)?;
-          Ok(count.to_string())
-      })
+      .query_row("SELECT MAX(name) FROM schema_migrations", [], |row| row.get(0))
       .ok();
   ```
 
-- The migration table is `schema_migrations` with `name TEXT PRIMARY KEY` and `applied_at TEXT`. No `version` column. Count of rows = number of applied migrations = schema version.
+- The migration table is `schema_migrations` with `name TEXT PRIMARY KEY` and `applied_at TEXT`. No `version` column. `MAX(name)` returns the high-water mark — the latest migration applied. This is safer than `COUNT(*)` because it represents the actual schema state, not just an aggregate count. Migrations are applied transactionally, so a partial failure rolls back and `MAX(name)` correctly reflects the last successful migration.
 
 ## Files
 

@@ -31,29 +31,40 @@ The purpose of `--dry-run` is to preview what would happen. Requiring valid UUID
 
 ## Design Notes
 
-- **Approach:** In `ingest.rs`, parse the stdin as a `serde_json::Value` first. If `dry_run`, extract the fields as strings for preview and return early. If not `dry_run`, call `parse_ingest_request()` for strict validation.
+- **Approach:** Define a private `DryRunIngestRequest` struct in `ingest.rs` where all UUID-typed fields are `String` instead of `SessionId`/`ProjectId`/etc. Derive `Deserialize` on it. This avoids schema drift — the struct mirrors `IngestRequest` but with relaxed types. If `IngestRequest` adds a field, the dry-run struct will fail to compile if it's missing the field (with `#[serde(deny_unknown_fields)]` to catch new fields).
 
 - **Code change in `crates/ai-brains-cli/src/commands/ingest.rs`:**
   ```rust
+  #[derive(serde::Deserialize)]
+  #[serde(deny_unknown_fields)]
+  struct DryRunIngestRequest {
+      turn_id: String,
+      session_id: String,
+      project_id: String,
+      harness_id: String,
+      role: String,
+      content: String,
+      privacy: String,
+      #[serde(default)]
+      thinking: Option<String>,
+      #[serde(default)]
+      tx_id: Option<String>,
+  }
+
   pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
       let mut input = String::new();
       io::stdin().read_to_string(&mut input)?;
 
       if dry_run {
-          let v: serde_json::Value = serde_json::from_str(&input)
+          let req: DryRunIngestRequest = serde_json::from_str(&input)
               .map_err(|e| format!("Invalid JSON: {}", e))?;
-          let content = v.get("content").and_then(|c| c.as_str()).unwrap_or("(missing)");
-          if content.is_empty() {
-              return Err("content field is missing or empty".into());
+          if req.content.is_empty() {
+              return Err("content field is empty".into());
           }
-          let role = v.get("role").and_then(|r| r.as_str()).unwrap_or("(missing)");
-          let turn_id = v.get("turn_id").and_then(|t| t.as_str()).unwrap_or("(missing)");
-          let session_id = v.get("session_id").and_then(|s| s.as_str()).unwrap_or("(missing)");
-          let project_id = v.get("project_id").and_then(|p| p.as_str()).unwrap_or("(missing)");
-          let preview = truncate_preview(content);
+          let preview = truncate_preview(&req.content);
           println!(
               "[dry-run] Would ingest turn {} for project {} / session {} (role={}): {}",
-              turn_id, project_id, session_id, role, preview
+              req.turn_id, req.project_id, req.session_id, req.role, preview
           );
           return Ok(());
       }
@@ -63,7 +74,9 @@ The purpose of `--dry-run` is to preview what would happen. Requiring valid UUID
   }
   ```
 
-- **Required fields for dry-run:** `content` (must be present and non-empty). All other fields are shown as-is or `(missing)`.
+- **Why a struct, not `serde_json::Value`:** Manual `v.get("turn_id")` duplicates field names as string literals and risks drifting from the real `IngestRequest` struct. A dedicated `DryRunIngestRequest` struct keeps the extraction declarative, leverages Serde's error handling, and `#[serde(deny_unknown_fields)]` catches schema drift at the deserialization level.
+
+- **Required fields for dry-run:** All fields that `IngestRequest` requires are still required by `DryRunIngestRequest` (they must be present as strings). Only the UUID format validation is skipped. `content` must be non-empty.
 
 ## Files
 

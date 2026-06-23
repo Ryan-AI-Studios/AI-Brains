@@ -27,7 +27,7 @@ T109 writes `schema_version` to the backup metadata by trying `SELECT MAX(versio
 
 **AC2:** `backup list` column headers update to "Filename" instead of "Path".
 
-**AC3:** New backups (created after this fix) have a correct `schema_version` value in the metadata table — the count of applied migrations (e.g. `"19"`) or the latest migration name (e.g. `"0019_embedding_timestamp"`).
+**AC3:** New backups (created after this fix) have a correct `schema_version` value in the metadata table — the latest applied migration name (e.g. `"0019_embedding_timestamp"`). See T117 for the query fix.
 
 **AC4:** `backup restore --dry-run` displays the correct schema version for new backups.
 
@@ -60,7 +60,7 @@ T109 writes `schema_version` to the backup metadata by trying `SELECT MAX(versio
       .ok();
   ```
 
-  The count is simpler and more useful for version comparison. Use the count.
+  Use `MAX(name)` — it's the high-water mark, safer than `COUNT(*)` for representing schema state. Delegates to T117 for the actual fix.
 
 - **Issue 3 fix:** Add `dunce` as a dependency to `ai-brains-brain` (it's already in the transitive dep tree). Replace `self.vault_path.canonicalize()` with `dunce::canonicalize(&self.vault_path)`.
 

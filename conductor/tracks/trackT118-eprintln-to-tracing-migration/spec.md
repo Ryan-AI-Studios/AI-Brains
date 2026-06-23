@@ -65,18 +65,29 @@ T102 already migrated `recall` session noise from `eprintln!` to `tracing::debug
 
 - **Note:** `tracing::info!` output goes to stderr by default with the `tracing_subscriber::fmt::init()` configuration. But it's formatted as structured log lines, not raw text, so PowerShell doesn't render it as RemoteException. The user can control verbosity with `RUST_LOG`.
 
-- **Consideration:** Some users may prefer seeing progress messages by default. With `tracing::info!`, they only appear if `RUST_LOG=info` is set. This is a behavior change. To mitigate, set the default log level to `info` in `main.rs`:
+- **Consideration:** Some users may prefer seeing progress messages by default. With `tracing::info!`, they only appear if `RUST_LOG=info` is set. This is a behavior change. To mitigate, set the default log level to `info` for AI-Brains crates ONLY, keeping external dependencies at `warn`:
+
   ```rust
   // Replace: tracing_subscriber::fmt::init();
   // With:
   tracing_subscriber::fmt()
       .with_env_filter(
           tracing_subscriber::EnvFilter::try_from_default_env()
-              .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"))
+              .unwrap_or_else(|_| {
+                  tracing_subscriber::EnvFilter::new("warn,ai_brains=info,ai_brains_cli=info")
+              })
       )
       .init();
   ```
-  This makes `info`-level messages visible by default but suppressible via `RUST_LOG=warn`.
+
+- **CRITICAL — EnvFilter scoping:** The default filter MUST be scoped to application crates (`ai_brains=info,ai_brains_cli=info`), NOT a blanket `info` level. A blanket `EnvFilter::new("info")` would dump all `INFO`-level logs from every dependency (`reqwest`, `hyper`, `tokio`, `sqlcipher`, `rusqlite`, etc.) into the terminal, creating far more noise than the original `eprintln!` calls. The scoped filter ensures external crates stay quiet (`warn`) while AI-Brains emits its progress messages (`info`).
+
+  The filter targets:
+  - `warn` — default level for all crates (external deps, stdlib)
+  - `ai_brains=info` — all `ai_brains_*` crates at info level (brain, store, retrieval, models, etc.)
+  - `ai_brains_cli=info` — the CLI crate specifically
+
+  Users can override with `RUST_LOG=debug,ai_brains=debug` for full debugging, or `RUST_LOG=warn` to suppress progress messages.
 
 ## Files
 
@@ -97,7 +108,9 @@ T102 already migrated `recall` session noise from `eprintln!` to `tracing::debug
 
 **Red:** `backup_create__progress_goes_to_tracing_not_stderr` — run backup create, capture stderr, assert no raw "Creating vault backup..." text.
 
-**Green:** Migrate eprintln! calls. Tests pass.
+**Red:** `tracing_filter__external_deps_stay_quiet` — run any command that triggers reqwest/tokio/hyper activity, capture stderr, assert no `INFO` logs from external crates (only `ai_brains` and `ai_brains_cli` crate messages appear).
+
+**Green:** Migrate eprintln! calls + set scoped EnvFilter. Tests pass.
 
 ## Verification
 

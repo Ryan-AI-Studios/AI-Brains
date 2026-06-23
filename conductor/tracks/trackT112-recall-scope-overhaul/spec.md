@@ -34,12 +34,15 @@ The `effective_session_id` variable in `recall.rs:39-46` is computed but never p
 
 **AC8:** The T111 hint text is accurate: `--global` says "across all projects" and means it (no session filter).
 
+**AC9:** The daemon's `query_memories` method (`ai-brainsd/src/lib.rs:150`) accepts `Option<ProjectId>` and `Option<SessionId>` so the daemon RPC recall path also defaults to unscoped search.
+
 ## Design Notes
 
 - **Files to change:**
   - `crates/ai-brains-cli/src/main.rs` — Add `--session <SESSION_ID>` flag to `Recall`. Remove `session_id` from the `Recall` env var binding (it should NOT auto-load from env for search purposes). Change the match arm: pass `session_id: None` by default, pass `Some(id)` only when `--session` is explicitly provided. For `--global`, pass both `project_id: None` and `session_id: None`.
   - `crates/ai-brains-cli/src/commands/recall.rs` — `RecallRunOptions.session_id` is already `Option<SessionId>`. The `effective_session_id` for graph provenance is computed from `options.session_id` OR generated — keep this for graph edges. But the search call to `recall()` should use `options.session_id` (which is now `None` by default).
   - `crates/ai-brains-cli/src/commands/sync.rs` — In the NDJSON path (line 426-432), don't auto-set `session_id` from env var. In the pretty path (line 487), already passes `session_id: None` — no change needed.
+  - `crates/ai-brainsd/src/lib.rs` — The daemon's `query_memories` method (line 150-174) hardcodes `session_id: Some(session_id)` and `project_id: Some(project_id)`. This must also be updated to accept `Option<ProjectId>` and `Option<SessionId>` so the daemon path matches the CLI path. Without this, the daemon RPC recall stays session-scoped even after the CLI fix.
 
 - **Backward compatibility:** Users who relied on session-scoped search (if any) must now pass `--session $AI_BRAINS_SESSION_ID`. This is a breaking change but the previous behavior was a bug — session-scoped search was never documented as the default.
 
@@ -47,11 +50,14 @@ The `effective_session_id` variable in `recall.rs:39-46` is computed but never p
 
 - **The `--session` flag should NOT have an env var binding** (`#[arg(long)]` only, no `env = "AI_BRAINS_SESSION_ID"`). The existing `session_id` field on `Recall` currently has `#[arg(long, env = "AI_BRAINS_SESSION_ID")]` — remove the `env` attribute and rename to `--session`.
 
+- **Graph provenance safety:** The `effective_session_id` in `recall.rs:39-46` is used for `MemoryPinned` events (line 92: `session_id: effective_session_id`). This MUST remain — clearing `options.session_id` for search must not drop the session context needed for pinning events. The `effective_session_id` falls back to a generated UUID when `options.session_id` is `None`, so graph edges always have a session association. This is correct and safe.
+
 ## Files
 
 - `crates/ai-brains-cli/src/main.rs` — Add `--session` flag, remove env binding from recall's session_id, clear session_id on --global.
 - `crates/ai-brains-cli/src/commands/recall.rs` — Keep `effective_session_id` for graph provenance only.
 - `crates/ai-brains-cli/src/commands/sync.rs` — NDJSON path: don't auto-set session_id from env.
+- `crates/ai-brainsd/src/lib.rs` — `query_memories`: accept `Option<ProjectId>` and `Option<SessionId>`.
 - `crates/ai-brains-cli/tests/smoke.rs` — Update tests that rely on session-scoped recall.
 
 ## Tests (TDD)

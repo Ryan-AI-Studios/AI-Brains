@@ -22,19 +22,21 @@ This is an unnecessary gate that makes `sync query` fail in environments where t
 
 ## Acceptance Criteria
 
-**AC1:** When the daemon is NOT running, `sync query` proceeds with local-only recall and ChangeGuard search, printing a warning to stderr: `Warning: AI-Brains daemon is not running. Local recall and ChangeGuard search only.`
+**AC1:** When the daemon is NOT running, `sync query` proceeds with local-only recall and ChangeGuard search without any warning or delay. The command does not probe or attempt to start the daemon.
 
-**AC2:** When the daemon IS running, `sync query` works as before (no warning).
+**AC2:** When the daemon IS running, `sync query` works as before (no change).
 
-**AC3:** The `--quiet` flag suppresses the daemon-down warning.
+**AC3:** The `--quiet` flag is unaffected (it already suppresses ChangeGuard errors).
 
 **AC4:** The `--format ndjson` path also works without the daemon.
 
 **AC5:** No regression in existing `sync query` tests.
 
+**AC6:** No daemon probe latency — the command starts immediately without waiting for a named pipe connection timeout.
+
 ## Design Notes
 
-- **Fix:** In `sync.rs:run_query()`, remove the `ensure_running` gate. Instead, probe the daemon and emit a warning if down. The command proceeds regardless.
+- **Fix:** Remove the `ensure_running` gate entirely from `run_query()`. The daemon is irrelevant to `sync query` execution — local recall reads the vault directly, and ChangeGuard search calls `ledgerful` (a separate CLI). Probing adds latency (named pipe timeout) and `ensure_running` may attempt to spawn the daemon (adding seconds of delay). The cleanest fix is to simply not check.
 
 - **Current code (sync.rs:395-402):**
   ```rust
@@ -47,22 +49,9 @@ This is an unnecessary gate that makes `sync query` fail in environments where t
   }
   ```
 
-- **New code:**
-  ```rust
-  let client = crate::daemon_client::DaemonClient::new();
-  let daemon_up = client.ensure_running(&ctx.vault_path, &ctx._key).await;
-  if !daemon_up && !quiet {
-      eprintln!("Warning: AI-Brains daemon is not running. Local recall and ChangeGuard search only.");
-  }
-  // Proceed regardless — local recall doesn't need the daemon.
-  ```
+- **New code:** Delete those lines entirely. No probe, no warning, no spawn attempt. The command proceeds directly to local recall + ChangeGuard search.
 
-- **Note:** The `ensure_running` call may attempt to start the daemon. If we want to avoid that, use `client.probe()` instead (just checks if running, doesn't start). Check the DaemonClient API.
-
-- **Alternative:** If `ensure_running` starts the daemon, change to a lightweight probe:
-  ```rust
-  let daemon_up = client.probe(std::time::Duration::from_millis(500)).await;
-  ```
+- **Why no warning:** The daemon's presence or absence has no impact on `sync query`'s ability to function. Warning about it would be noise. If a future feature adds a daemon-dependent code path to `sync query`, only that path should warn on failure.
 
 ## Files
 
@@ -70,9 +59,9 @@ This is an unnecessary gate that makes `sync query` fail in environments where t
 
 ## Tests (TDD)
 
-**Red:** `sync_query__daemon_down__returns_local_results` — ensure daemon is not running, run `sync query "test"`, assert it returns local recall results with a warning on stderr.
+**Red:** `sync_query__daemon_down__returns_local_results` — ensure daemon is not running, run `sync query "test"`, assert it returns local recall results without error or delay.
 
-**Red:** `sync_query__daemon_down_quiet__no_warning` — same but with `--quiet`, assert no warning on stderr.
+**Red:** `sync_query__daemon_down__no_spawn_attempt` — ensure daemon is not running, run `sync query "test"`, assert the command completes in <1s (proves no spawn attempt or probe timeout).
 
 **Green:** Remove the hard gate. Tests pass.
 
