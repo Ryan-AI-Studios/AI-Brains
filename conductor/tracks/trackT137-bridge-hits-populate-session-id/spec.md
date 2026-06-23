@@ -21,17 +21,17 @@ The fix is straightforward: the `BridgeRecord` response from `ledgerful search -
 
 ## Acceptance Criteria
 
-**AC1:** When a bridge `BridgeRecord` has `session_id: Some(...)`, the resulting `RecallHit` has `session_id` populated with that value.
+**AC1:** When a bridge `BridgeRecord` has `session_id: Some(non_empty)`, the resulting `RecallHit` has `session_id` populated with that value.
 
-**AC2:** When a bridge `BridgeRecord` has `session_id: None`, the `RecallHit` has `session_id: None` — no regression.
+**AC2:** When a bridge `BridgeRecord` has `session_id: None` OR `Some("")` (empty string), the `RecallHit` has `session_id: None` — empty strings are normalized to `None` to prevent printing `session=` with no value. No regression.
 
-**AC3:** The JSON recall output shows `session_id` for bridge hits when the source record has one (not empty string).
+**AC3:** The JSON recall output shows `session_id` for bridge hits when the source record has a non-empty value (not empty string).
 
-**AC4:** The pretty format shows `session=xxxxxxxx` for bridge hits when available, and omits the `session=` prefix when not (instead of showing `session=` with empty value).
+**AC4:** The pretty format shows `session=xxxxxxxx` for bridge hits when available, and omits the `session=` prefix entirely when `session_id` is `None` (instead of showing `session=` with empty value).
 
 ## Design Notes
 
-- **File:** `crates/ai-brains-retrieval/src/recall.rs` — in `query_changeguard_bridge`, when building `RecallHit::bridge(...)`, pass `record.session_id.clone()` as the `session_id` field.
+- **File:** `crates/ai-brains-retrieval/src/recall.rs` — in `query_changeguard_bridge`, when building `RecallHit::bridge(...)`, pass `record.session_id.clone()` as the `session_id` field. **Important:** normalize `Some("")` to `None` — use `.filter(|s| !s.is_empty())` to prevent empty strings from being treated as a valid session ID. This handles downstream systems that return `""` instead of `null`.
 - The `RecallHit::bridge` constructor currently sets `session_id: None`. Either add a parameter or set the field after construction.
 - Check the `BridgeRecord` struct in `ai-brains-contracts/src/bridge.rs` to confirm `session_id` is available on the deserialized record.
 - For the pretty format: when `session_id` is `None`, omit the `session=` part entirely instead of showing `session=`. This applies to both bridge and local hits — update the pretty format logic in `recall.rs` (CLI).

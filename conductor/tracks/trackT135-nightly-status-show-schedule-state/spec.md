@@ -31,10 +31,11 @@ Scheduled: No (run 'ai-brains nightly --schedule' to enable)
 
 ## Design Notes
 
-- **File:** `crates/ai-brains-cli/src/commands/nightly.rs` — in the `--status` branch, before printing the existing status, run `schtasks /query /tn AI-Brains-Nightly /fo LIST` and parse the output.
-- On Windows: `schtasks /query /tn "AI-Brains-Nightly" /fo LIST` returns `Next Run Time`, `Status`, etc. if the task exists, or an error if it doesn't.
+- **File:** `crates/ai-brains-cli/src/commands/nightly.rs` — in the `--status` branch, before printing the existing status, run `schtasks /query /tn AI-Brains-Nightly /fo CSV /nh` and check if it succeeds.
+- **IMPORTANT: Use `/fo CSV` not `/fo LIST`** — `schtasks /fo LIST` output is localized (e.g., Spanish Windows outputs "Próxima hora de ejecución" instead of "Next Run Time"). `/fo CSV` with `/nh` (no header) returns structured data with consistent column order regardless of locale: `TaskName,Next Run Time,Status,Logon Mode,Last Run Time,Last Result,Author,Task To Run`. Column order is stable across locales even though header labels are localized.
+- Parse the CSV output: split on commas, the 2nd field (index 1) is the next run time, 3rd field (index 2) is the status ("Ready", "Running", "Disabled", etc.).
+- If `schtasks /query` returns a non-zero exit code, the task doesn't exist → `Scheduled: No`.
 - On non-Windows: skip the schedule check entirely (`#[cfg(windows)]` guard).
-- Parse `Next Run Time` from the output to show the scheduled time.
 
 ## Files
 
