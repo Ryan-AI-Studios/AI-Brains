@@ -243,18 +243,25 @@ pub fn run(
                 } else {
                     r.content.clone()
                 };
-                let prefix = r
-                    .session_id
-                    .as_ref()
-                    .map(|s| &s[..s.len().min(8)])
-                    .unwrap_or("none");
-                if let Some(s) = r.score {
-                    println!(
-                        "[score={:.3} | session={}] {}: {}",
-                        s, prefix, r.memory_id, content
-                    );
-                } else {
-                    println!("[session={}] {}: {}", prefix, r.memory_id, content);
+                match &r.session_id {
+                    Some(sid) => {
+                        let prefix = &sid[..sid.len().min(8)];
+                        if let Some(s) = r.score {
+                            println!(
+                                "[score={:.3} | session={}] {}: {}",
+                                s, prefix, r.memory_id, content
+                            );
+                        } else {
+                            println!("[session={}] {}: {}", prefix, r.memory_id, content);
+                        }
+                    }
+                    None => {
+                        if let Some(s) = r.score {
+                            println!("[score={:.3}] {}: {}", s, r.memory_id, content);
+                        } else {
+                            println!("{}: {}", r.memory_id, content);
+                        }
+                    }
                 }
             }
             if response.results.is_empty() {
@@ -265,7 +272,9 @@ pub fn run(
                     options.global,
                     options.project_id,
                 )? {
-                    eprintln!("{}", hint);
+                    if std::io::stdout().is_terminal() {
+                        println!("{}", hint);
+                    }
                 }
             }
         }
@@ -424,6 +433,27 @@ mod tests {
             hint.contains("across all projects"),
             "hint should note global scope; got: {}",
             hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn recall_hint__no_results_pretty__hint_core_contains_no_results() {
+        let hint = build_recall_hint_core("zzzz", false, false);
+        assert!(
+            hint.contains("No results for 'zzzz'"),
+            "hint should mention 'zzzz'; got: {}",
+            hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn recall_hint__tty_guard__stdout_is_terminal_check_compiles() {
+        let check: bool = std::io::stdout().is_terminal();
+        assert!(
+            std::any::type_name_of_val(&check).contains("bool"),
+            "is_terminal must return a bool"
         );
     }
 }

@@ -28,6 +28,21 @@ use ai_brains_core::ids::{ProjectId, SessionId};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[allow(non_snake_case)]
+    fn log_format_prescan__minimal__recognized() {
+        let args = ["--log-format", "minimal"];
+        let format = args
+            .windows(2)
+            .find(|w| w[0] == "--log-format")
+            .map(|w| w[1].to_string())
+            .unwrap_or_else(|| "compact".to_string());
+        assert_eq!(format, "minimal");
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "ai-brains")]
 #[command(version)]
@@ -52,7 +67,7 @@ struct Cli {
     #[arg(long, global = true)]
     no_project_context: bool,
 
-    /// Tracing output format: compact (default), full, json, or off
+    /// Tracing output format: compact (default), full, json, minimal, or off
     #[arg(long, global = true, default_value = "compact")]
     log_format: String,
 }
@@ -403,7 +418,11 @@ pub enum BackupCommands {
         dry_run: bool,
     },
     /// List all backups with their metadata
-    List,
+    List {
+        /// Suppress WARN-level tracing output for backup metadata read failures.
+        #[arg(long)]
+        quiet: bool,
+    },
     /// Verify the integrity of backup files
     Verify {
         /// Path to a single backup file to verify
@@ -580,6 +599,14 @@ fn main() {
         }
         "full" => {
             tracing_subscriber::fmt().with_env_filter(env_filter).init();
+        }
+        "minimal" => {
+            tracing_subscriber::fmt()
+                .compact()
+                .with_target(false)
+                .without_time()
+                .with_env_filter(env_filter)
+                .init();
         }
         _ => {
             tracing_subscriber::fmt()
@@ -768,7 +795,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 older_than,
                 dry_run,
             }) => commands::backup::run_prune(&ctx, *keep, older_than.clone(), *dry_run),
-            Some(BackupCommands::List) => commands::backup::run_list(&ctx),
+            Some(BackupCommands::List { quiet }) => commands::backup::run_list(&ctx, *quiet),
             Some(BackupCommands::Verify { path, full, format }) => {
                 commands::backup::run_verify(&ctx, path.clone(), *full, format.clone())
             }

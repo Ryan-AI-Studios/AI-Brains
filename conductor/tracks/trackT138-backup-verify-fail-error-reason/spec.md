@@ -1,6 +1,6 @@
 # Track T138: `backup verify` FAIL Error Reason
 
-**Status:** Pending
+**Status:** Complete
 **Started:** —
 **Owner:** —
 **Priority:** P3 — observability; FAIL doesn't distinguish wrong-key from corruption.

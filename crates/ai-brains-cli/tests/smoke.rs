@@ -1417,7 +1417,7 @@ fn backup_verify_all__mixed__reports_per_file() {
         .count();
     let fail_count = output_lines
         .iter()
-        .filter(|l| l.trim().ends_with(": FAIL"))
+        .filter(|l| l.trim().contains(": FAIL"))
         .count();
     assert_eq!(ok_count, 1, "expected 1 OK; got: {stdout}");
     assert_eq!(fail_count, 1, "expected 1 FAIL; got: {stdout}");
@@ -1480,6 +1480,105 @@ fn backup_verify__json_format() {
     assert!(
         first["size_bytes"].is_number(),
         "result must have size_bytes"
+    );
+}
+
+/// T138: backup verify FAIL includes the error reason in text output.
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__corrupted_backup__shows_error_reason() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
+    fs::write(&bogus, b"not a valid sqlite database").unwrap();
+
+    let verify_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .arg(&bogus)
+        .output()
+        .expect("backup verify must run");
+
+    assert!(
+        !verify_output.status.success(),
+        "verify on corrupted backup must exit non-zero"
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    assert!(
+        stdout.contains("FAIL —"),
+        "verify output must contain 'FAIL —' with reason; got: {stdout}"
+    );
+}
+
+/// T138: backup verify --format json includes an error field for FAIL results.
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__json_includes_error_field() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
+    fs::write(&bogus, b"not a valid sqlite database").unwrap();
+
+    let verify_output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .arg(&bogus)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("backup verify json must run");
+
+    assert!(
+        !verify_output.status.success(),
+        "verify json on corrupted backup must exit non-zero"
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    let json_line = stdout
+        .lines()
+        .find(|l| l.trim_start().starts_with('{'))
+        .unwrap_or_else(|| {
+            panic!("verify json output must contain a JSON object line; got: {stdout}")
+        });
+    let parsed: serde_json::Value = serde_json::from_str(json_line)
+        .unwrap_or_else(|e| panic!("verify json must be valid JSON; got: {json_line} ({e})"));
+    let results = parsed["results"].as_array().cloned().unwrap_or_default();
+    assert!(!results.is_empty(), "json results must be non-empty");
+    let first = &results[0];
+    assert_eq!(first["status"].as_str(), Some("fail"));
+    assert!(
+        first["error"]
+            .as_str()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false),
+        "fail result must have a non-empty error field; got: {first}"
     );
 }
 
@@ -2831,9 +2930,10 @@ fn log_format_compact__short_output() {
         String::from_utf8_lossy(&output.stderr)
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let iso_pattern = regex::Regex::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}").unwrap();
     for line in stderr.lines() {
         assert!(
-            !line.contains("T") || !line.contains("Z") || !line.contains("."),
+            !iso_pattern.is_match(line),
             "compact format must not contain full ISO timestamp; got: {line}"
         );
     }
@@ -2928,6 +3028,48 @@ fn log_format_off__no_tracing_output() {
         stderr.trim().is_empty(),
         "off format must suppress tracing output; got: {stderr}"
     );
+}
+
+/// T136: `--log-format minimal` shows level + message with no ISO timestamp.
+#[test]
+#[allow(non_snake_case)]
+fn log_format_minimal__no_timestamp() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .env("RUST_LOG", "info")
+        .arg("--log-format")
+        .arg("minimal")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("list")
+        .output()
+        .expect("backup list with minimal format must run");
+
+    assert!(
+        output.status.success(),
+        "backup list --log-format minimal must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let iso_pattern = regex::Regex::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}").unwrap();
+    for line in stderr.lines() {
+        assert!(
+            !iso_pattern.is_match(line),
+            "minimal format must not contain ISO timestamp; got: {line}"
+        );
+    }
 }
 
 /// T115: `sync query` with the daemon not running must still return local

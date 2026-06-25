@@ -9,5 +9,5 @@ repository.workspace = true
 [dependencies]
 ai-brains-core = { path = "../ai-brains-core" }
 once_cell = "1.21"
-regex = "1.12"
+regex.workspace = true
 thiserror.workspace = true

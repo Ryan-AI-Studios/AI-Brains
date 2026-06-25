@@ -126,9 +126,9 @@ pub fn run_prune(
     Ok(())
 }
 
-pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_list(ctx: &AppContext, quiet: bool) -> Result<(), Box<dyn std::error::Error>> {
     let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
-    let backups = service.list_backups()?;
+    let backups = service.list_backups(quiet)?;
     if backups.is_empty() {
         println!("No backups found.");
         return Ok(());
@@ -201,6 +201,8 @@ struct VerifyResult {
     check: String,
     tables: Vec<String>,
     size_bytes: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -240,6 +242,7 @@ pub fn run_verify(
         let size_bytes = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
         let mut tables: Vec<String> = Vec::new();
         let status: String;
+        let mut error_msg: Option<String> = None;
 
         match verify_single_backup(path, &ctx._key, full, &mut tables) {
             Ok(()) => {
@@ -249,6 +252,7 @@ pub fn run_verify(
             Err(err) => {
                 status = "fail".to_string();
                 any_failed = true;
+                error_msg = Some(err.to_string());
                 tracing::info!("{}: FAIL — {}", filename, err);
             }
         }
@@ -259,6 +263,7 @@ pub fn run_verify(
             check: check_name.to_string(),
             tables,
             size_bytes,
+            error: error_msg,
         });
     }
 
@@ -267,15 +272,17 @@ pub fn run_verify(
         println!("{}", serde_json::to_string(&output)?);
     } else {
         for result in &results {
-            let label = if result.status == "ok" { "OK" } else { "FAIL" };
-            println!(
-                "{}: {}",
-                PathBuf::from(&result.path)
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| result.path.clone()),
-                label
-            );
+            let filename = PathBuf::from(&result.path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| result.path.clone());
+            if let Some(ref err) = result.error {
+                println!("{}: FAIL — {}", filename, err);
+            } else if result.status == "ok" {
+                println!("{}: OK", filename);
+            } else {
+                println!("{}: FAIL", filename);
+            }
         }
     }
 

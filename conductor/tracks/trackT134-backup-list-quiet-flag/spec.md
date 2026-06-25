@@ -1,6 +1,6 @@
 # Track T134: `backup list --quiet` Flag
 
-**Status:** Pending
+**Status:** Complete
 **Started:** —
 **Owner:** —
 **Priority:** P3 — UX friction; old/unopenable backups emit WARN noise with no way to suppress.

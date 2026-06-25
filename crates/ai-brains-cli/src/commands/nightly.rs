@@ -27,7 +27,13 @@ pub async fn run(
             .get_sync_state("last_nightly_errors")?
             .unwrap_or_else(|| "[]".to_string());
 
+        #[cfg(windows)]
+        let schedule_line = check_schedule_state();
+        #[cfg(not(windows))]
+        let schedule_line = "Scheduled: (unknown on non-Windows)".to_string();
+
         println!("=== Nightly Status ===");
+        println!("{}", schedule_line);
         match last_run {
             Some(ts) => println!("Last nightly run: {}", ts),
             None => println!("Last nightly run: never"),
@@ -205,6 +211,26 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+#[cfg(windows)]
+fn check_schedule_state() -> String {
+    let output = std::process::Command::new("schtasks")
+        .args(["/query", "/tn", "AI-Brains-Nightly", "/fo", "CSV", "/nh"])
+        .output();
+    match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let line = stdout.lines().next().unwrap_or("");
+            let fields: Vec<&str> = line.split(',').collect();
+            let next_run = fields
+                .get(1)
+                .map(|s| s.trim_matches('"'))
+                .unwrap_or("unknown");
+            format!("Scheduled: Yes (next run: {})", next_run)
+        }
+        _ => "Scheduled: No (run 'ai-brains nightly --schedule' to enable)".to_string(),
+    }
 }
 
 fn build_schtasks_args(
@@ -407,6 +433,32 @@ pub fn format_madr_markdown(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__schedule_state_parse__extracts_next_run_from_csv() {
+        let csv_line =
+            "\"\\AI-Brains-Nightly\",\"6/25/2026 1:00:00 AM\",\"Ready\",\"Interactive/Background\"";
+        let fields: Vec<&str> = csv_line.split(',').collect();
+        let next_run = fields
+            .get(1)
+            .map(|s| s.trim_matches('"'))
+            .unwrap_or("unknown");
+        assert!(!next_run.is_empty());
+        assert!(next_run.contains("6/25/2026"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__schedule_state_parse__empty_output_reports_not_scheduled() {
+        let csv_line = "";
+        let fields: Vec<&str> = csv_line.split(',').collect();
+        let next_run = fields
+            .get(1)
+            .map(|s| s.trim_matches('"'))
+            .unwrap_or("unknown");
+        assert_eq!(next_run, "unknown");
+    }
 
     #[test]
     fn format_madr_markdown_produces_expected_structure() {

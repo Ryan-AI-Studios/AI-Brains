@@ -87,6 +87,7 @@ impl RecallHit {
         score: Option<f64>,
         source: String,
         privacy: Option<Privacy>,
+        session_id: Option<String>,
     ) -> Self {
         Self {
             memory_id,
@@ -94,7 +95,7 @@ impl RecallHit {
             source,
             score,
             privacy,
-            session_id: None,
+            session_id,
         }
     }
 }
@@ -353,10 +354,11 @@ fn query_changeguard_bridge(
             .unwrap_or("bridge")
             .to_string();
         let privacy = Some(record.privacy);
+        let session_id = record.session_id.clone().filter(|s| !s.is_empty());
 
         if !content.is_empty() {
             hits.push(RecallHit::bridge(
-                memory_id, content, score, source, privacy,
+                memory_id, content, score, source, privacy, session_id,
             ));
         }
     }
@@ -404,12 +406,34 @@ mod tests {
             Some(0.92),
             "code_context".into(),
             Some(Privacy::LocalOnly),
+            None,
         );
         assert_eq!(hit.memory_id, "mem-2");
         assert_eq!(hit.source, "code_context");
         assert_eq!(hit.score, Some(0.92));
         assert_eq!(hit.privacy, Some(Privacy::LocalOnly));
         assert_eq!(hit.session_id, None);
+    }
+
+    #[test]
+    fn recall_hit_bridge_constructor_with_session_id() {
+        let hit = RecallHit::bridge(
+            "mem-2".into(),
+            "bridge content".into(),
+            Some(0.92),
+            "code_context".into(),
+            Some(Privacy::LocalOnly),
+            Some("session-123".into()),
+        );
+        assert_eq!(hit.session_id, Some("session-123".to_string()));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn bridge_session_id_normalization__empty_string_becomes_none() {
+        let raw = Some("".to_string());
+        let normalized = raw.filter(|s| !s.is_empty());
+        assert_eq!(normalized, None);
     }
 
     #[test]
@@ -427,12 +451,14 @@ mod tests {
                 Some(0.9),
                 "bridge".into(),
                 None,
+                None,
             ),
             RecallHit::bridge(
                 "mem-2".into(),
                 "c2".into(),
                 Some(0.8),
                 "bridge".into(),
+                None,
                 None,
             ),
         ];
@@ -483,6 +509,7 @@ mod tests {
                     Some(0.9 - i as f64 * 0.05),
                     "bridge".into(),
                     None,
+                    None,
                 )
             })
             .collect();
@@ -532,6 +559,7 @@ mod tests {
             Some(1.0),
             "bridge".into(),
             Some(Privacy::NeverInject),
+            None,
         )];
 
         let mut seen = std::collections::HashSet::new();

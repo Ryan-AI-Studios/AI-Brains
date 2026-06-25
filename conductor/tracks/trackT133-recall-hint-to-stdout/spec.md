@@ -1,6 +1,6 @@
 # Track T133: Recall Hint to Stdout
 
-**Status:** Pending
+**Status:** Complete
 **Started:** —
 **Owner:** —
 **Priority:** P3 — UX friction; no-results hint prints to stderr, PowerShell treats as error.

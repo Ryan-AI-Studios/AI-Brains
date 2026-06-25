@@ -275,7 +275,7 @@ impl BackupService {
 
     /// List all backups in the backup directory, reading metadata from each
     /// backup file when possible.
-    pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
+    pub fn list_backups(&self, quiet: bool) -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
         let backup_dir = self.backup_dir()?;
         let mut infos: Vec<BackupInfo> = Vec::new();
 
@@ -317,6 +317,12 @@ impl BackupService {
                         tracing::debug!(
                             path = %path.display(),
                             "Backup predates metadata table; core tables present"
+                        );
+                    } else if quiet {
+                        tracing::debug!(
+                            path = %path.display(),
+                            error = %err,
+                            "Could not read backup metadata (quiet)"
                         );
                     } else {
                         tracing::warn!(
@@ -625,6 +631,48 @@ mod tests {
         )?;
         assert!(source.is_some());
 
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_backups__quiet__uses_debug_for_metadata_failures(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+        let backup_dir = dir.path().join("backups");
+        fs::create_dir_all(&backup_dir)?;
+
+        let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
+        fs::write(&bogus, b"not a valid sqlite database")?;
+
+        let key = SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        );
+        let service = BackupService::new(vault_path, key);
+        let backups = service.list_backups(true)?;
+        assert_eq!(backups.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_backups__not_quiet__uses_warn_for_metadata_failures(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+        let backup_dir = dir.path().join("backups");
+        fs::create_dir_all(&backup_dir)?;
+
+        let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
+        fs::write(&bogus, b"not a valid sqlite database")?;
+
+        let key = SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        );
+        let service = BackupService::new(vault_path, key);
+        let backups = service.list_backups(false)?;
+        assert_eq!(backups.len(), 1);
         Ok(())
     }
 

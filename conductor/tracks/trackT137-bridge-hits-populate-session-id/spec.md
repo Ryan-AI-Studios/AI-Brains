@@ -1,6 +1,6 @@
 # Track T137: Bridge Hits Populate Session-ID
 
-**Status:** Pending
+**Status:** Complete
 **Started:** —
 **Owner:** —
 **Priority:** P3 — data completeness; bridge hits have empty session_id.

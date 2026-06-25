@@ -1,6 +1,6 @@
 # Track T136: `--log-format minimal` Mode
 
-**Status:** Pending
+**Status:** Complete
 **Started:** —
 **Owner:** —
 **Priority:** P3 — UX; compact format still has full timestamps, off is all-or-nothing.

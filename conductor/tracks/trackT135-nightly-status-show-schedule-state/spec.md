@@ -1,6 +1,6 @@
 # Track T135: `nightly --status` Shows Schedule State
 
-**Status:** Pending
+**Status:** Complete
 **Started:** —
 **Owner:** —
 **Priority:** P3 — observability; can't tell if nightly is scheduled without checking schtasks.
