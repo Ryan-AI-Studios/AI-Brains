@@ -1,16 +1,13 @@
 /// Sanitize a query string for safe use with SQLite FTS5 or ChangeGuard search.
 ///
-/// Wraps each whitespace-delimited token in double-quotes so FTS5 treats them
-/// as phrase literals rather than operator syntax. This prevents syntax errors
-/// from special characters: `.`, `*`, `(`, `)`, `:`, `^`, `-`.
-/// Internal double-quote characters are escaped by doubling them (FTS5 spec §4.2).
+/// Extracts alphanumeric/underscore runs and wraps each token in double-quotes
+/// so FTS5 treats them as phrase literals rather than operator syntax. This
+/// prevents syntax errors from punctuation-heavy natural language.
 pub fn sanitize_fts_query(query: &str) -> String {
     let tokens: Vec<String> = query
-        .split_whitespace()
-        .map(|token| {
-            let escaped = token.replace('"', "\"\"");
-            format!("\"{}\"", escaped)
-        })
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|token| !token.is_empty())
+        .map(|token| format!("\"{}\"", token))
         .collect();
     tokens.join(" ")
 }
@@ -21,27 +18,27 @@ mod tests {
 
     #[test]
     fn bare_dot_wrapped() {
-        assert_eq!(sanitize_fts_query("context.rs"), r#""context.rs""#);
+        assert_eq!(sanitize_fts_query("context.rs"), r#""context" "rs""#);
     }
 
     #[test]
     fn parentheses_wrapped() {
         assert_eq!(
             sanitize_fts_query("some.method(arg)"),
-            r#""some.method(arg)""#
+            r#""some" "method" "arg""#
         );
     }
 
     #[test]
     fn asterisk_wrapped() {
-        assert_eq!(sanitize_fts_query("foo*"), r#""foo*""#);
+        assert_eq!(sanitize_fts_query("foo*"), r#""foo""#);
     }
 
     #[test]
     fn mixed_query() {
         assert_eq!(
             sanitize_fts_query("context.rs brittle hotspot"),
-            r#""context.rs" "brittle" "hotspot""#
+            r#""context" "rs" "brittle" "hotspot""#
         );
     }
 
@@ -52,6 +49,14 @@ mod tests {
 
     #[test]
     fn internal_double_quotes_escaped() {
-        assert_eq!(sanitize_fts_query("say \"hello\""), r#""say" """hello""""#);
+        assert_eq!(sanitize_fts_query("say \"hello\""), r#""say" "hello""#);
+    }
+
+    #[test]
+    fn comma_separated_prompt_is_tokenized() {
+        assert_eq!(
+            sanitize_fts_query("bridge error: fts5, syntax near comma"),
+            r#""bridge" "error" "fts5" "syntax" "near" "comma""#
+        );
     }
 }

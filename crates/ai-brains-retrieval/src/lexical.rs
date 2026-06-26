@@ -1,4 +1,5 @@
 use crate::errors::Result;
+use crate::fts_utils::sanitize_fts_query;
 use crate::privacy_filter::is_injectable_privacy;
 use ai_brains_store::VaultConnection;
 use rusqlite::params_from_iter;
@@ -19,7 +20,7 @@ pub fn lexical_search(
 ) -> Result<Vec<RetrievalMemory>> {
     let conn = conn.lock()?;
 
-    let sanitized = sanitize_for_fts5(query);
+    let sanitized = sanitize_fts_query(query);
     if sanitized.is_empty() {
         return Ok(Vec::new());
     }
@@ -183,33 +184,4 @@ fn escape_like_pattern(query: &str) -> String {
         .replace('\\', "\\\\")
         .replace('%', "\\%")
         .replace('_', "\\_")
-}
-
-/// Defensive sanitization for SQLite FTS5 MATCH expressions.
-///
-/// Downstream consumers (e.g. ChangeGuard `bridge query`) forward raw
-/// natural-language questions that may contain characters which break FTS5
-/// syntax (`?`, `"`, `*`, `(`, `)`) or bare operator keywords (`AND`, `OR`,
-/// `NOT`, `NEAR`). This function removes those hazards while preserving
-/// alphanumeric tokens so that lexical recall never panics or returns a
-/// database syntax error.
-fn sanitize_for_fts5(query: &str) -> String {
-    // Replace punctuation known to confuse the FTS5 query parser.
-    let normalized: String = query.replace(['?', '"', '*', '(', ')', '.', '-', ':'], " ");
-
-    // Filter out bare FTS5 operator keywords so they are not interpreted as
-    // boolean operators.
-    let mut result = String::new();
-    for token in normalized.split_whitespace() {
-        let lower = token.to_ascii_lowercase();
-        if lower == "and" || lower == "or" || lower == "not" || lower == "near" {
-            continue;
-        }
-        if !result.is_empty() {
-            result.push(' ');
-        }
-        result.push_str(token);
-    }
-
-    result
 }

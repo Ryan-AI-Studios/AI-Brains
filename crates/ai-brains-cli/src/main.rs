@@ -539,16 +539,79 @@ fn read_json_from_stdin() -> Result<serde_json::Value, Box<dyn std::error::Error
     Ok(value)
 }
 
+fn should_warn_project_context_override(args: &[String]) -> bool {
+    args.iter().any(|arg| {
+        matches!(
+            arg.as_str(),
+            "preflight"
+                | "recall"
+                | "sync"
+                | "pin"
+                | "forget"
+                | "nightly"
+                | "context"
+                | "project"
+                | "safety"
+                | "antigravity-import"
+        )
+    })
+}
+
+fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: bool) {
+    let entries = match dotenvy::from_path_iter(path) {
+        Ok(entries) => entries,
+        Err(err) => {
+            tracing::warn!("Failed to parse local .env for project context: {}", err);
+            return;
+        }
+    };
+
+    for entry in entries {
+        let (key, value) = match entry {
+            Ok(entry) => entry,
+            Err(err) => {
+                tracing::warn!("Skipping malformed local .env entry: {}", err);
+                continue;
+            }
+        };
+
+        if key != "AI_BRAINS_PROJECT_ID" && key != "AI_BRAINS_SESSION_ID" {
+            continue;
+        }
+
+        if warn_on_override {
+            if let Ok(existing) = std::env::var(&key) {
+                if existing != value {
+                    eprintln!(
+                        "Warning: local .env {} overrides inherited shell value {}.",
+                        key, existing
+                    );
+                }
+            }
+        } else if let Ok(existing) = std::env::var(&key) {
+            if existing != value {
+                tracing::debug!(
+                    "local .env {} overrides inherited shell value for this command",
+                    key
+                );
+            }
+        }
+
+        std::env::set_var(key, value);
+    }
+}
+
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
     // Parse the CLI first so we can read the global --no-project-context
     // flag before doing any env-var manipulation. We re-parse below; clap
     // is cheap and this keeps the env-var logic close to its trigger.
-    let no_project_context = std::env::args().any(|a| a == "--no-project-context");
+    let no_project_context = args.iter().any(|a| a == "--no-project-context");
+    let warn_on_project_context_override = should_warn_project_context_override(&args);
 
     // Pre-scan for --log-format so the tracing subscriber can be initialized
     // with the requested format before clap is fully parsed.
-    let log_format = std::env::args()
-        .collect::<Vec<_>>()
+    let log_format = args
         .windows(2)
         .find(|w| w[0] == "--log-format")
         .map(|w| w[1].clone())
@@ -560,11 +623,13 @@ fn main() {
     // T80: --no-project-context disables this whole block so that CI, hooks,
     // and any non-interactive caller can supply env vars explicitly.
     if !no_project_context {
-        if !std::path::Path::new(".env").exists() {
+        let project_env = std::path::Path::new(".env");
+        if !project_env.exists() {
             std::env::remove_var("AI_BRAINS_PROJECT_ID");
             std::env::remove_var("AI_BRAINS_SESSION_ID");
         } else {
             dotenvy::dotenv().ok();
+            apply_local_project_context_env(project_env, warn_on_project_context_override);
         }
 
         // Fallback to global config in ~/.ai-brains/.env if AI_BRAINS_VAULT_PATH not set yet

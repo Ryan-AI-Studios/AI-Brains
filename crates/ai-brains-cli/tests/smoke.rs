@@ -2381,6 +2381,71 @@ fn test_no_project_context_preserves_env_vars() {
     );
 }
 
+#[test]
+#[allow(non_snake_case)]
+fn preflight__local_env_project_context_overrides_inherited_shell_ids() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let local_project_id = "99999999-9999-9999-9999-999999999999";
+    let local_session_id = "88888888-8888-8888-8888-888888888888";
+    let inherited_project_id = "77777777-7777-7777-7777-777777777777";
+    let inherited_session_id = "66666666-6666-6666-6666-666666666666";
+
+    fs::write(
+        dir.path().join(".env"),
+        format!(
+            "AI_BRAINS_PROJECT_ID={}\nAI_BRAINS_SESSION_ID={}\n",
+            local_project_id, local_session_id
+        ),
+    )
+    .unwrap();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .current_dir(dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .current_dir(dir.path())
+        .env("AI_BRAINS_PROJECT_ID", inherited_project_id)
+        .env("AI_BRAINS_SESSION_ID", inherited_session_id)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("preflight")
+        .arg("--summary")
+        .output()
+        .expect("preflight must run");
+
+    assert!(
+        output.status.success(),
+        "preflight must succeed; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains(&format!("Project: {}", local_project_id)),
+        "preflight should scope to local .env project; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains(inherited_project_id),
+        "preflight must not silently scope to inherited project; got: {stdout}"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("local .env AI_BRAINS_PROJECT_ID overrides inherited shell value"),
+        "preflight should warn about inherited project override; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("local .env AI_BRAINS_SESSION_ID overrides inherited shell value"),
+        "preflight should warn about inherited session override; got: {stderr}"
+    );
+}
+
 /// T79: `nightly --skip-import` flag must be present in the help text and
 /// accepted by clap. The full pipeline (MADR ingestion, symbol bridge,
 /// summaries) cannot run in a smoke test without a live model server, so

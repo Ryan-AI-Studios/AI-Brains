@@ -47,6 +47,26 @@ fn lexical_search_survives_asterisk() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
+fn lexical_search_survives_comma_heavy_prompt() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::store_with_memory(
+        "The bridge query path must escape fts5 syntax near comma.",
+        Privacy::CloudOk,
+    )?;
+
+    let results = lexical_search(
+        store.connection(),
+        "bridge query, fts5: syntax near comma",
+        None,
+        None,
+    )?;
+    assert!(
+        !results.is_empty(),
+        "Query with comma and colon should return results, not crash"
+    );
+    Ok(())
+}
+
+#[test]
 fn lexical_search_survives_only_special_chars() -> Result<(), Box<dyn std::error::Error>> {
     let store =
         common::store_with_memory("some test content about architecture", Privacy::CloudOk)?;
