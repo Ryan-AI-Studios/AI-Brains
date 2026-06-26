@@ -183,8 +183,11 @@ pub async fn run(
 
     // WAL checkpoint: ensure embeddings generated during nightly are persisted
     // before potential timeout on MADR ingestion
-    ctx.conn.wal_checkpoint()?;
-    tracing::info!("WAL checkpointed — embeddings persisted to disk.");
+    if let Err(e) = ctx.conn.wal_checkpoint() {
+        tracing::warn!("WAL checkpoint failed (non-fatal, possibly locked): {}", e);
+    } else {
+        tracing::info!("WAL checkpointed — embeddings persisted to disk.");
+    }
 
     tracing::info!("Nightly sweep completed. {} sessions summarized.", count);
 

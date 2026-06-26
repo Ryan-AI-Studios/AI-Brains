@@ -4,6 +4,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use serde::Serialize;
+use std::time::Duration;
 
 #[derive(Serialize)]
 struct OllamaOptions {
@@ -35,18 +36,71 @@ struct OllamaTokenizeRequest<'a> {
 pub struct OllamaProvider {
     endpoint: String,
     model: String,
+    client: reqwest::Client,
+    completion_timeout: Duration,
+    embedding_timeout: Duration,
+    tokenize_timeout: Duration,
 }
 
 impl OllamaProvider {
     pub fn new(endpoint: String, model: String) -> Self {
-        Self { endpoint, model }
+        let completion_timeout = Duration::from_secs(
+            std::env::var("AI_BRAINS_LLM_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(120),
+        );
+        let embedding_timeout = Duration::from_secs(
+            std::env::var("AI_BRAINS_EMBEDDING_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(30),
+        );
+        let tokenize_timeout = Duration::from_secs(
+            std::env::var("AI_BRAINS_TOKENIZE_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(10),
+        );
+
+        Self::with_timeouts(
+            endpoint,
+            model,
+            completion_timeout,
+            embedding_timeout,
+            tokenize_timeout,
+        )
+    }
+
+    pub fn with_timeouts(
+        endpoint: String,
+        model: String,
+        completion_timeout: Duration,
+        embedding_timeout: Duration,
+        tokenize_timeout: Duration,
+    ) -> Self {
+        Self {
+            endpoint,
+            model,
+            client: reqwest::Client::new(),
+            completion_timeout,
+            embedding_timeout,
+            tokenize_timeout,
+        }
+    }
+}
+
+fn map_send_error(e: reqwest::Error) -> ModelError {
+    if e.is_timeout() {
+        ModelError::Timeout
+    } else {
+        ModelError::Network(e.to_string())
     }
 }
 
 #[async_trait]
 impl ModelProvider for OllamaProvider {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse> {
-        let client = reqwest::Client::new();
         let body = OllamaCompletionRequest {
             model: &self.model,
             prompt: &request.prompt,
@@ -58,12 +112,14 @@ impl ModelProvider for OllamaProvider {
             },
         };
 
-        let res = client
+        let res = self
+            .client
             .post(format!("{}/api/generate", self.endpoint))
             .json(&body)
+            .timeout(self.completion_timeout)
             .send()
             .await
-            .map_err(|e| ModelError::Network(e.to_string()))?;
+            .map_err(map_send_error)?;
 
         if !res.status().is_success() {
             return Err(ModelError::Provider(format!(
@@ -88,18 +144,19 @@ impl ModelProvider for OllamaProvider {
     }
 
     async fn embed(&self, request: EmbeddingRequest) -> Result<EmbeddingResponse> {
-        let client = reqwest::Client::new();
         let body = OllamaEmbeddingRequest {
             model: &self.model,
             prompt: &request.text,
         };
 
-        let res = client
+        let res = self
+            .client
             .post(format!("{}/api/embeddings", self.endpoint))
             .json(&body)
+            .timeout(self.embedding_timeout)
             .send()
             .await
-            .map_err(|e| ModelError::Network(e.to_string()))?;
+            .map_err(map_send_error)?;
 
         if !res.status().is_success() {
             return Err(ModelError::Provider(format!(
@@ -123,18 +180,19 @@ impl ModelProvider for OllamaProvider {
     }
 
     async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse> {
-        let client = reqwest::Client::new();
         let body = OllamaTokenizeRequest {
             model: &self.model,
             prompt: &request.text,
         };
 
-        let res = client
+        let res = self
+            .client
             .post(format!("{}/api/tokenize", self.endpoint))
             .json(&body)
+            .timeout(self.tokenize_timeout)
             .send()
             .await
-            .map_err(|e| ModelError::Network(e.to_string()))?;
+            .map_err(map_send_error)?;
 
         if !res.status().is_success() {
             return Err(ModelError::Provider(format!(

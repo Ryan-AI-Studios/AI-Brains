@@ -84,6 +84,7 @@
 | T138 | `backup verify` FAIL Error Reason | ✅ **Complete** | — | [T138](tracks/trackT138-backup-verify-fail-error-reason/spec.md) | Show why each backup failed (wrong key vs corruption vs missing tables) |
 | T139 | Project Env Precedence and Preflight Scope | Complete | Codex | [T139](tracks/trackT139-project-env-precedence-preflight-scope/spec.md) | Local `.env` project/session IDs override stale inherited shell IDs with a warning |
 | T140 | FTS Query Sanitization for Bridge and Recall | Complete | Codex | [T140](tracks/trackT140-fts-query-sanitization-bridge-recall/spec.md) | Shared sanitizer tokenizes punctuation-heavy prompts so commas cannot crash FTS5 |
+| T141 | Nightly Timeout Hardening Follow-up | Complete | Codex | [T141](tracks/trackT141-nightly-timeout-hardening-follow-up/spec.md) | Adopt and verify preexisting Ollama timeout, nightly abort, WAL, and deterministic recall-test hardening |
 
 
 ---

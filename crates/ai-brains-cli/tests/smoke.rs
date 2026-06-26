@@ -574,7 +574,7 @@ fn recall__default_scope__searches_all_project_memories() {
     let results = recall_json(
         &vault_path,
         "unique-token",
-        &["--project-id", PROJECT_ALPHA],
+        &["--project-id", PROJECT_ALPHA, "--no-bridge"],
     );
     assert_eq!(
         results.len(),
@@ -616,7 +616,7 @@ fn recall__global_flag__searches_all_projects_and_sessions() {
         "global-token beta session four",
     );
 
-    let results = recall_json(&vault_path, "global-token", &["--global"]);
+    let results = recall_json(&vault_path, "global-token", &["--global", "--no-bridge"]);
     assert_eq!(
         results.len(),
         4,
@@ -648,7 +648,13 @@ fn recall__session_flag__scopes_to_specified_session() {
     let results = recall_json(
         &vault_path,
         "session-scoped",
-        &["--project-id", PROJECT_ALPHA, "--session", SESSION_1],
+        &[
+            "--project-id",
+            PROJECT_ALPHA,
+            "--session",
+            SESSION_1,
+            "--no-bridge",
+        ],
     );
     assert_eq!(
         results.len(),
@@ -694,6 +700,7 @@ fn recall__env_session_id__does_not_auto_scope() {
         .arg("json")
         .arg("--project-id")
         .arg(PROJECT_ALPHA)
+        .arg("--no-bridge")
         .output()
         .expect("recall must run");
 

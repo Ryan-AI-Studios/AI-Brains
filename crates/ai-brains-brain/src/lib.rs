@@ -89,6 +89,7 @@ impl NightlyService {
         let unsummarized = self.query_store.get_unsummarized_sessions()?;
         let mut count = 0;
         let mut errors = Vec::new();
+        let mut consecutive_errors = 0;
         let total = unsummarized.len();
         let limit = batch_size.unwrap_or(total);
         eprintln!(
@@ -97,6 +98,11 @@ impl NightlyService {
         );
 
         for (idx, session_id) in unsummarized.into_iter().take(limit).enumerate() {
+            if consecutive_errors >= 3 {
+                tracing::warn!("Aborting session summarization due to multiple consecutive errors (likely LLM backend down).");
+                eprintln!("[Nightly] Aborting summarization early after 3 consecutive failures.");
+                break;
+            }
             eprintln!(
                 "[Nightly] [{}/{}] Summarizing session {}...",
                 idx + 1,
@@ -116,11 +122,13 @@ impl NightlyService {
             match join_res {
                 Ok(Ok(())) => {
                     count += 1;
+                    consecutive_errors = 0;
                 }
                 Ok(Err(e)) => {
                     tracing::error!("Failed to summarize session {}: {}", session_id, e);
                     eprintln!("[Nightly] Error summarizing session {}: {}", session_id, e);
                     errors.push(format!("summarize_session {}: {}", session_id, e));
+                    consecutive_errors += 1;
                 }
                 Err(e) => {
                     tracing::error!("Panic/Join error summarizing session {}: {}", session_id, e);
@@ -132,6 +140,7 @@ impl NightlyService {
                         "summarize_session {} join error: {}",
                         session_id, e
                     ));
+                    consecutive_errors += 1;
                 }
             }
         }
