@@ -117,7 +117,7 @@ enum Commands {
         /// scripts and CI runs.
         #[arg(long)]
         quiet: bool,
-        /// Skip the ChangeGuard bridge query and use only local vault FTS5 +
+        /// Skip the Ledgerful bridge query and use only local vault FTS5 +
         /// semantic search. Guarantees vault memories appear in results.
         #[arg(long)]
         no_bridge: bool,
@@ -443,13 +443,13 @@ pub enum SyncCommands {
         /// Path to the NDJSON file
         #[arg(long)]
         from_file: Option<PathBuf>,
-        /// Export hotspot data from ChangeGuard
+        /// Export hotspot data from Ledgerful
         #[arg(long)]
         hotspots: bool,
-        /// Export ledger delta data from ChangeGuard
+        /// Export ledger delta data from Ledgerful
         #[arg(long)]
         ledger: bool,
-        /// Suppress ChangeGuard error messages
+        /// Suppress Ledgerful error messages
         #[arg(long, short)]
         quiet: bool,
         /// Print the JSON Schema for the expected NDJSON record shape and exit.
@@ -457,7 +457,7 @@ pub enum SyncCommands {
         #[arg(long)]
         schema: bool,
     },
-    /// Push current context to ChangeGuard
+    /// Push current context to Ledgerful
     Push {
         /// Include impact context
         #[arg(long)]
@@ -465,11 +465,11 @@ pub enum SyncCommands {
         /// Include verification context
         #[arg(long)]
         with_verify: bool,
-        /// Suppress ChangeGuard error messages
+        /// Suppress Ledgerful error messages
         #[arg(long, short)]
         quiet: bool,
     },
-    /// Unified query across AI-Brains and ChangeGuard
+    /// Unified query across AI-Brains and Ledgerful
     Query {
         /// The query string
         query: String,
@@ -482,7 +482,7 @@ pub enum SyncCommands {
         /// Search across all projects, ignoring AI_BRAINS_PROJECT_ID
         #[arg(long)]
         global: bool,
-        /// Skip the ChangeGuard bridge query and use only local vault recall.
+        /// Skip the Ledgerful bridge query and use only local vault recall.
         #[arg(long)]
         no_bridge: bool,
     },
@@ -490,7 +490,7 @@ pub enum SyncCommands {
 
 #[derive(Subcommand, Clone)]
 pub enum SafetyCommands {
-    /// Synchronize ChangeGuard hotspots into the AI-Brains vault
+    /// Synchronize Ledgerful hotspots into the AI-Brains vault
     Sync {
         /// Limit the number of hotspots to ingest
         #[arg(short, long, default_value_t = 5)]
