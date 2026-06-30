@@ -8,7 +8,7 @@
 
 ## Problem Statement
 
-When downstream tools (e.g., ChangeGuard `bridge query`) pass raw user queries into `ai-brains recall`, unescaped SQLite FTS5 special characters cause a hard syntax error. The error propagates as raw text instead of structured JSON, which in turn confuses the NDJSON parser in ChangeGuard's bridge client.
+When downstream tools (e.g., Ledgerful `bridge query`) pass raw user queries into `ai-brains recall`, unescaped SQLite FTS5 special characters cause a hard syntax error. The error propagates as raw text instead of structured JSON, which in turn confuses the NDJSON parser in Ledgerful's bridge client.
 
 ### Manifestation
 ```
@@ -42,11 +42,11 @@ SQLite FTS5 (Module Version 5) treats the following characters as syntax operato
 
 ---
 
-## Root Cause in ChangeGuard → AI-Brains Flow
+## Root Cause in Ledgerful → AI-Brains Flow
 
-1. ChangeGuard `ask` receives a natural-language question like:  
+1. Ledgerful `ask` receives a natural-language question like:  
    `"What is the main purpose of ChangeGuard?"`
-2. ChangeGuard's bridge client forwards this **verbatim** to `ai-brains recall` via the named-pipe IPC.
+2. Ledgerful's bridge client forwards this **verbatim** to `ai-brains recall` via the named-pipe IPC.
 3. AI-Brains constructs an FTS5 query using the raw string:
    ```sql
    SELECT * FROM memories WHERE content MATCH 'What is the main purpose of ChangeGuard?'
@@ -54,7 +54,7 @@ SQLite FTS5 (Module Version 5) treats the following characters as syntax operato
 4. The trailing `?` is parsed as a token. Depending on build flags and tokenizer, it either:
    - Is stripped by the tokenizer (safe), **or**
    - Is passed to the query parser as a bare token, causing `fts5: syntax error near "?"`.
-5. The error bubbles up as a plain string, not JSON. ChangeGuard's `BridgeRecord` NDJSON parser chokes on it.
+5. The error bubbles up as a plain string, not JSON. Ledgerful's `BridgeRecord` NDJSON parser chokes on it.
 
 ---
 
@@ -62,7 +62,7 @@ SQLite FTS5 (Module Version 5) treats the following characters as syntax operato
 
 ### Strategy 1: Sanitize Before FTS5 (Recommended)
 
-In the consumer (ChangeGuard) or at the AI-Brains API boundary, sanitize the query:
+In the consumer (Ledgerful) or at the AI-Brains API boundary, sanitize the query:
 
 ```rust
 fn sanitize_for_fts5(input: &str) -> String {
@@ -169,7 +169,7 @@ When FTS5 fails **even after** the fallback, return a structured JSON error so d
 }
 ```
 
-This ensures ChangeGuard's `BridgeRecord` deserialization succeeds and can present a meaningful error to the user.
+This ensures Ledgerful's `BridgeRecord` deserialization succeeds and can present a meaningful error to the user.
 
 ---
 
@@ -203,8 +203,8 @@ All should return either valid results or a structured JSON error — **never** 
 
 ## Related Issues
 
-- **ChangeGuard CG-2:** FTS5 syntax error degrades dual-retrieval in `ask` and `bridge query`.  
-- **ChangeGuard CG-1:** Local model unreachable due to `localhost` → `::1` resolution.  
+- **Ledgerful CG-2:** FTS5 syntax error degrades dual-retrieval in `ask` and `bridge query`.  
+- **Ledgerful CG-1:** Local model unreachable due to `localhost` → `::1` resolution.  
 - **AI-Brains IPC Protocol:** BridgeRecord v0.2 schema assumes every line is valid NDJSON. Error text breaks this invariant.
 
 ---
@@ -213,5 +213,5 @@ All should return either valid results or a structured JSON error — **never** 
 
 - [SQLite FTS5 Query Syntax](https://www.sqlite.org/fts5.html#full_text_query_syntax)
 - [FTS5 Tokenizers](https://www.sqlite.org/fts5.html#tokenizers)
-- ChangeGuard BridgeRecord Schema: `src/bridge/model.rs`
-- ChangeGuard Bridge Client: `src/bridge/client.rs`, `src/bridge/client/client_cli.rs`
+- Ledgerful BridgeRecord Schema: `src/bridge/model.rs`
+- Ledgerful Bridge Client: `src/bridge/client.rs`, `src/bridge/client/client_cli.rs`

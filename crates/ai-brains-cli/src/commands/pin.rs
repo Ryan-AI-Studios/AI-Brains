@@ -39,7 +39,7 @@ pub fn run(
         .unwrap_or_default();
 
     let tx_id_parsed = tx_id
-        .or_else(|| std::env::var("CHANGEGUARD_TX_ID").ok())
+        .or_else(crate::context::read_ledger_tx_id)
         .map(TransactionId::new);
 
     let privacy = match privacy_str.to_lowercase().as_str() {

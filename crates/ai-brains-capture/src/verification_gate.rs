@@ -1,8 +1,8 @@
 //! Verification gate: intercepts `ingest-final` (assistant capture) and calls
-//! ChangeGuard's predictive CI engine before the event is committed.
+//! Ledgerful's predictive CI engine before the event is committed.
 //!
 //! ## Fail-open
-//! If ChangeGuard IPC is unreachable the gate **must** let capture proceed.
+//! If Ledgerful IPC is unreachable the gate **must** let capture proceed.
 //! We never block capture due to a transient pipe failure.
 //!
 //! ## CQRS
@@ -17,12 +17,12 @@ use std::fs;
 // Domain types
 // ---------------------------------------------------------------------------
 
-/// Structured verification response parsed from ChangeGuard IPC output.
+/// Structured verification response parsed from Ledgerful IPC output.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VerifyResponse {
     /// Predicted CI failure probability (0.0 – 1.0).
     pub failure_probability: f64,
-    /// Whether ChangeGuard detected uncommitted ledger drift.
+    /// Whether Ledgerful detected uncommitted ledger drift.
     pub drift_detected: bool,
     /// Risk classification: "low", "medium", "high", or "critical".
     pub risk_level: String,
@@ -48,9 +48,9 @@ pub enum GateDecision {
 // VerificationBackend trait (mockable for testing)
 // ---------------------------------------------------------------------------
 
-/// Abstraction over the ChangeGuard IPC call. Mock implementations are used in
+/// Abstraction over the Ledgerful IPC call. Mock implementations are used in
 /// unit tests so we can exercise both the blocking and fail-open paths without
-/// a real ChangeGuard installation.
+/// a real Ledgerful installation.
 pub trait VerificationBackend: Send + Sync + std::fmt::Debug {
     /// Execute a verification check. Returns the parsed response on success,
     /// or a human-readable error string when IPC fails.
@@ -58,10 +58,10 @@ pub trait VerificationBackend: Send + Sync + std::fmt::Debug {
 }
 
 // ---------------------------------------------------------------------------
-// Real ChangeGuard backend (via bridge export IPC)
+// Real Ledgerful backend (via bridge export IPC)
 // ---------------------------------------------------------------------------
 
-/// Production backend that shells out to `changeguard bridge export`.
+/// Production backend that shells out to `ledgerful bridge export`.
 #[derive(Debug)]
 pub struct ChangeGuardVerificationBackend;
 
@@ -98,7 +98,7 @@ impl VerificationGate {
     /// Run the verification check.
     ///
     /// Returns [`GateDecision::Proceed`] when:
-    /// - ChangeGuard IPC is unreachable (**fail-open**), or
+    /// - Ledgerful IPC is unreachable (**fail-open**), or
     /// - failure probability is below the threshold and no drift is detected.
     ///
     /// Returns [`GateDecision::Blocked`] when:
@@ -129,7 +129,7 @@ impl VerificationGate {
             Err(e) => {
                 // **Fail-open**: never block capture on transient IPC failure.
                 tracing::warn!(
-                    "ChangeGuard IPC unreachable, failing open (proceeding with ingest): {e}"
+                    "Ledgerful IPC unreachable, failing open (proceeding with ingest): {e}"
                 );
                 GateDecision::Proceed
             }
@@ -141,7 +141,7 @@ impl VerificationGate {
 // Bridge IPC query
 // ---------------------------------------------------------------------------
 
-/// Call `changeguard bridge export --hotspots --ledger`, parse the NDJSON
+/// Call `ledgerful bridge export --hotspots --ledger`, parse the NDJSON
 /// output, and synthesise a [`VerifyResponse`].
 #[allow(clippy::disallowed_methods)]
 fn query_changeguard_verification() -> Result<VerifyResponse, String> {
@@ -169,7 +169,7 @@ fn query_changeguard_verification() -> Result<VerifyResponse, String> {
     let temp_out = tempfile::NamedTempFile::new().map_err(|e| format!("tempfile error: {e}"))?;
     let temp_out_path = temp_out.path().to_path_buf();
 
-    // -- Invoke changeguard bridge export ----------------------------------
+    // -- Invoke ledgerful bridge export ----------------------------------
     let output = std::process::Command::new("ledgerful")
         .args([
             "bridge",
@@ -261,7 +261,7 @@ fn parse_verification_from_ndjson(content: &str) -> Result<VerifyResponse, Strin
     }
 
     let explanation = if explanations.is_empty() {
-        "No verification signals received from ChangeGuard".to_string()
+        "No verification signals received from Ledgerful".to_string()
     } else {
         explanations.join("; ")
     };

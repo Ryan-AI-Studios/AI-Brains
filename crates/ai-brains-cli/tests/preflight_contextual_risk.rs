@@ -5,7 +5,7 @@ use predicates::prelude::*;
 use tempfile::tempdir;
 
 /// Test that preflight with --scope works without crashing (fail-open when
-/// ChangeGuard is unavailable).
+/// Ledgerful is unavailable).
 #[test]
 fn test_preflight_with_scope_does_not_crash() -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;
@@ -20,7 +20,7 @@ fn test_preflight_with_scope_does_not_crash() -> Result<(), Box<dyn std::error::
         .assert()
         .success();
 
-    // 2. Run preflight with --scope flag (ChangeGuard likely not available,
+    // 2. Run preflight with --scope flag (Ledgerful likely not available,
     //    but preflight should not crash due to fail-open)
     let mut preflight_cmd = Command::cargo_bin("ai-brains")?;
     preflight_cmd
@@ -69,7 +69,7 @@ fn test_preflight_with_and_without_scope() -> Result<(), Box<dyn std::error::Err
         .assert()
         .success();
 
-    // Run preflight with scope (should not crash even if ChangeGuard unavailable)
+    // Run preflight with scope (should not crash even if Ledgerful unavailable)
     let mut preflight_with_scope = Command::cargo_bin("ai-brains")?;
     preflight_with_scope
         .arg("--vault-path")

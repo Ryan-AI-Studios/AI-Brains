@@ -16,7 +16,7 @@ pub struct RecallOptions {
     /// When true, suppress non-fatal warnings (e.g. bridge-failed notices
     /// when the cwd is not a git repository).
     pub quiet: bool,
-    /// When true, skip the ChangeGuard bridge query entirely and use only
+    /// When true, skip the Ledgerful bridge query entirely and use only
     /// vault FTS5 + semantic search.
     pub no_bridge: bool,
 }
@@ -100,7 +100,7 @@ impl RecallHit {
     }
 }
 
-/// Primary recall entry point. Attempts unified IPC recall via ChangeGuard
+/// Primary recall entry point. Attempts unified IPC recall via Ledgerful
 /// (`bridge query`) first. If IPC is unavailable or fails, falls back to
 /// local FTS5 search. Results from both sources are blended, with privacy
 /// flags preserved from bridge hits.
@@ -117,10 +117,10 @@ pub fn recall(
     let project_id = options.project_id;
     let session_id = options.session_id;
 
-    // Sanitize query once for use with both FTS5 and ChangeGuard search.
+    // Sanitize query once for use with both FTS5 and Ledgerful search.
     let sanitized = sanitize_fts_query(query);
 
-    // Phase 1: Try unified IPC recall via ChangeGuard bridge query.
+    // Phase 1: Try unified IPC recall via Ledgerful bridge query.
     // Cap bridge results at ceil(limit/2) to guarantee vault memories surface.
     let bridge_cap = limit.div_ceil(2);
     let bridge_hits = if options.no_bridge {
@@ -192,7 +192,7 @@ pub fn recall(
         Err(e) => {
             if !options.quiet {
                 eprintln!(
-                    "ChangeGuard bridge query failed, falling back to local FTS5 only: {}",
+                    "Ledgerful bridge query failed, falling back to local FTS5 only: {}",
                     e
                 );
             }

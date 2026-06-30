@@ -152,7 +152,7 @@ Goal: see what code in this repo was touched recently, and recall any
 related memory context.
 
 ```powershell
-# 1. Pull structured safety/ledger entries from ChangeGuard.
+# 1. Pull structured safety/ledger entries from Ledgerful.
 ai-brains --vault-path .ai-brains\vault.db safety sync --limit 50
 
 # 2. Recall semantically across the same vault (combines FTS5 + embeddings).

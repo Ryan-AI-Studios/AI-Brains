@@ -10,7 +10,7 @@ At the start of this session, the Gemini CLI successfully executed the `ai-brain
 
 ### Data Injected:
 - **Memory Index (Briefing):** Provided a 12-point summary of previous session states.
-- **Detailed Memories:** Included a full summary of Phase 14 hardening, repository cloning (Family, AI-Brains, ChangeGuard), and hardware optimization settings.
+- **Detailed Memories:** Included a full summary of Phase 14 hardening, repository cloning (Family, AI-Brains, Ledgerful), and hardware optimization settings.
 - **Project Intent:** Correctly identified the primary goal: *"Hardware optimization for Intel Arc B580."*
 
 ## 3. Hook Functional Analysis

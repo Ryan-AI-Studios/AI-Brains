@@ -149,9 +149,9 @@ pub struct IngestGateRejectedPayload {
     pub session_id: SessionId,
     /// Human-readable reason for rejection.
     pub reason: String,
-    /// Predicted failure probability (0.0 – 1.0) from ChangeGuard.
+    /// Predicted failure probability (0.0 – 1.0) from Ledgerful.
     pub failure_probability: f64,
-    /// Whether ChangeGuard detected ledger drift.
+    /// Whether Ledgerful detected ledger drift.
     pub drift_detected: bool,
     /// Risk level string: "low", "medium", "high", or "critical".
     pub risk_level: String,

@@ -197,7 +197,7 @@ pub async fn run(
     tracing::info!("[Nightly] Graph updated incrementally — run 'graph rebuild' only if you suspect missing edges.");
 
     // --- MADR Ingestion (Phase 18: T41) ---
-    tracing::info!("Ingesting structured MADR decisions from ChangeGuard...");
+    tracing::info!("Ingesting structured MADR decisions from Ledgerful...");
     if let Err(e) = ingest_madr_from_changeguard(ctx, project_id) {
         tracing::error!("MADR ingestion failed (non-fatal): {}", e);
         tracing::warn!(
@@ -207,7 +207,7 @@ pub async fn run(
     }
 
     // --- Symbol Bridge (T70) ---
-    tracing::info!("[Nightly] Ingesting code symbols from ChangeGuard...");
+    tracing::info!("[Nightly] Ingesting code symbols from Ledgerful...");
     match crate::commands::symbol_bridge::ingest_symbols_from_changeguard(ctx, project_id) {
         Ok(n) => tracing::info!("[Nightly] {} code symbols ingested.", n),
         Err(e) => tracing::warn!("[Nightly] Symbol ingestion failed (non-fatal): {}", e),
@@ -261,7 +261,7 @@ fn build_schtasks_args(
     args
 }
 
-/// Fetch structured MADR records from ChangeGuard via bridge IPC and ingest as
+/// Fetch structured MADR records from Ledgerful via bridge IPC and ingest as
 /// Decision domain events into the event store.
 fn ingest_madr_from_changeguard(
     ctx: &AppContext,
@@ -277,7 +277,7 @@ fn ingest_madr_from_changeguard(
         p
     };
 
-    // Call ChangeGuard bridge export --ledger to fetch MADR records
+    // Call Ledgerful bridge export --ledger to fetch MADR records
     let output = std::process::Command::new("ledgerful")
         .args([
             "bridge",
@@ -292,11 +292,11 @@ fn ingest_madr_from_changeguard(
         Ok(out) if out.status.success() => {}
         Ok(out) => {
             let stderr = String::from_utf8_lossy(&out.stderr);
-            tracing::warn!("ChangeGuard bridge export failed: {}", stderr);
+            tracing::warn!("Ledgerful bridge export failed: {}", stderr);
             return Ok(()); // Non-fatal: fail gracefully
         }
         Err(e) => {
-            tracing::warn!("ChangeGuard CLI not available: {}", e);
+            tracing::warn!("Ledgerful CLI not available: {}", e);
             return Ok(()); // Non-fatal: fail gracefully
         }
     }

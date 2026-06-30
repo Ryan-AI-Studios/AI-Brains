@@ -46,11 +46,11 @@ The formatting gate fails across the workspace. The output includes widespread n
 
 Impact: conductor standards and the stated CI gate are not met.
 
-### F3 - T70 uses an unsupported ChangeGuard command
+### F3 - T70 uses an unsupported Ledgerful command
 
 Severity: High
 
-T70 requires `changeguard index --auto-index`. The local ChangeGuard binary rejects that flag:
+T70 requires `changeguard index --auto-index`. The local Ledgerful binary rejects that flag:
 
 `error: unexpected argument '--auto-index' found`
 
@@ -64,7 +64,7 @@ Severity: High
 
 `symbol_bridge.rs` emits `MemoryPinned` events for up to 500 symbols at lines 43-85, but it does not check existing events before appending. A stable UUID is computed at lines 51-55, but the event log is append-only, so rerunning nightly appends another event with the same aggregate id rather than upserting.
 
-It also does not ingest HTTP route fields required by AC4, does not scope the ChangeGuard query by project root, and does not prove symbols are searchable by `ai-brains recall`. The query at lines 130-132 only fetches `file_path`, `qualified_name`, `symbol_name`, `symbol_kind`, and `line_start`.
+It also does not ingest HTTP route fields required by AC4, does not scope the Ledgerful query by project root, and does not prove symbols are searchable by `ai-brains recall`. The query at lines 130-132 only fetches `file_path`, `qualified_name`, `symbol_name`, `symbol_kind`, and `line_start`.
 
 Impact: T70 fails AC4, AC5, and AC6, and AC3 is unverified.
 
@@ -240,7 +240,7 @@ Status: Not complete.
 
 Evidence: `symbol_bridge.rs` exists and nightly invokes it at `nightly.rs:188-193`.
 
-Gaps: invalid ChangeGuard flag, no project-root scoping, no route ingestion, no duplicate prevention, no proven recall output, no tests, and conductor still marks T70 pending.
+Gaps: invalid Ledgerful flag, no project-root scoping, no route ingestion, no duplicate prevention, no proven recall output, no tests, and conductor still marks T70 pending.
 
 ## Placeholder / TODO / Stub Review
 
@@ -253,7 +253,7 @@ No `TODO`, `todo!`, or `unimplemented!` markers were found in the T55-T70 implem
 
 ## Repository Hygiene
 
-The working tree contains dirty project files and large/generated local artifacts reported by ChangeGuard, including logs and vault backups. This conflicts with the "No Repository Pollution" mandate if those artifacts are not intentionally ignored or externalized.
+The working tree contains dirty project files and large/generated local artifacts reported by Ledgerful, including logs and vault backups. This conflicts with the "No Repository Pollution" mandate if those artifacts are not intentionally ignored or externalized.
 
 Notable examples from scan output: `vault.db`, `vault.db.backup`, `vault.db.bak`, `t70-output.log`, `t66-output.log`, `fixes-output.log`, `ingest.json`, and ad hoc batch/PowerShell scripts.
 
@@ -263,7 +263,7 @@ Notable examples from scan output: `vault.db`, `vault.db.backup`, `vault.db.bak`
 2. Run rustfmt or normalize line endings so `cargo fmt --check` passes.
 3. Replace T70 `changeguard index --auto-index` with the supported local command, or version-detect before using the flag.
 4. Add end-to-end tests for T67/T68/T69 graph behavior with a temporary vault.
-5. Add T70 tests with a mocked ChangeGuard bridge export and duplicate-run assertions.
+5. Add T70 tests with a mocked Ledgerful bridge export and duplicate-run assertions.
 6. Complete T57 error-state sync and status display.
 7. Re-run the full CI gate: `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit`.
 
@@ -274,7 +274,7 @@ Resolved in code:
 - F1: default workspace build now compiles with graph-only CLI code gated behind the `graph` feature.
 - F2: `cargo fmt --check` passes after rustfmt normalization.
 - F3: T70 no longer calls unsupported `changeguard index --auto-index`; it uses the locally supported `changeguard index`.
-- F4: T70 symbol ingestion now skips already-ingested symbol aggregate IDs, adds best-effort project-root filtering, reads ChangeGuard's local indexed SQLite state directly, joins HTTP route fields from `api_routes`, and has tests proving route content, duplicate prevention, and recallability.
+- F4: T70 symbol ingestion now skips already-ingested symbol aggregate IDs, adds best-effort project-root filtering, reads Ledgerful's local indexed SQLite state directly, joins HTTP route fields from `api_routes`, and has tests proving route content, duplicate prevention, and recallability.
 - F5: recall emits graph provenance with an effective session ID even when the caller did not provide one, and the graph projector creates a session node for `RECALLS` edges.
 - F6: session summary synthesis now gathers source memory IDs before appending the summary itself, avoiding self-sourcing and preserving source edges.
 - F7: nightly status records and displays `last_nightly_errors`.

@@ -96,7 +96,7 @@ impl CaptureService {
 
     /// Create a service with the given verification gate enabled.
     /// The gate will intercept assistant-final ingests and may block them
-    /// when ChangeGuard predicts high failure probability or detects drift.
+    /// when Ledgerful predicts high failure probability or detects drift.
     pub fn with_verification_gate(gate: VerificationGate) -> Self {
         Self {
             verification_gate: Some(gate),
@@ -145,7 +145,7 @@ impl CaptureService {
 
                 // --- T43 Verification Gate ---------------------------------
                 // Intercept assistant-final (ingest-final) before event
-                // build.  If ChangeGuard predicts high failure probability or
+                // build.  If Ledgerful predicts high failure probability or
                 // detects ledger drift the gate blocks and returns a
                 // structured error so the AI harness can self-remediate.
                 if let Some(ref gate) = self.verification_gate {

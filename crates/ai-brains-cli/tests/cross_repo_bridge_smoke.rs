@@ -19,7 +19,7 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
         .assert()
         .success();
 
-    // 2. Write a mock bridge export file (ChangeGuard -> AI-Brains)
+    // 2. Write a mock bridge export file (Ledgerful -> AI-Brains)
     let pull_file_path = dir.path().join("cg_export.ndjson");
     let mut pull_file = File::create(&pull_file_path)?;
 
@@ -110,7 +110,7 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
         )?;
     }
 
-    // Run sync push. It might fail if changeguard binary isn't in PATH,
+    // Run sync push. It might fail if ledgerful binary isn't in PATH,
     // but the NDJSON export file should have been written to the temp dir.
     let mut push_cmd = Command::cargo_bin("ai-brains")?;
     let push_assert = push_cmd
@@ -191,7 +191,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     let vault_path = dir.path().join("vault.db");
     let ws_path = dir.path().to_path_buf();
 
-    // 1. Initialize ChangeGuard in the temp workspace
+    // 1. Initialize Ledgerful in the temp workspace
     let mut cg_init = std::process::Command::new(binary);
     cg_init.arg("init").current_dir(&ws_path);
     let output = cg_init.output()?;
@@ -202,7 +202,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     std::fs::create_dir_all(ws_path.join("src"))?;
     std::fs::write(&dummy_rs, "fn main() { println!(\"hello\"); }")?;
 
-    // Create a git repo and commit the file so changeguard scan detects it
+    // Create a git repo and commit the file so ledgerful scan detects it
     let mut git_init = std::process::Command::new("git");
     git_init.arg("init").current_dir(&ws_path).output()?;
     let mut git_add = std::process::Command::new("git");
@@ -275,7 +275,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
         "last_inbound_hash should have been populated by auto-trigger pull"
     );
 
-    // 5. Insert a mock memory into memory_projection to push back to ChangeGuard
+    // 5. Insert a mock memory into memory_projection to push back to Ledgerful
     let project_id_str = std::fs::read_to_string(ws_path.join(".env"))?
         .lines()
         .find(|l| l.starts_with("AI_BRAINS_PROJECT_ID"))
@@ -309,7 +309,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     drop(conn_lock);
     drop(conn);
 
-    // 6. Run sync push to export the memory back to ChangeGuard
+    // 6. Run sync push to export the memory back to Ledgerful
     let mut push_cmd = Command::cargo_bin("ai-brains")?;
     push_cmd
         .arg("--vault-path")
@@ -320,17 +320,17 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "Successfully pushed insights to ChangeGuard.",
+            "Successfully pushed insights to Ledgerful.",
         ));
 
-    // 7. Verify that ChangeGuard's latest-impact.json contains our pushed memory insight
+    // 7. Verify that Ledgerful's latest-impact.json contains our pushed memory insight
     let latest_impact_path = ws_path
-        .join(".changeguard")
+        .join(".ledgerful")
         .join("reports")
         .join("latest-impact.json");
     assert!(
         latest_impact_path.exists(),
-        "latest-impact.json should exist in .changeguard/reports/"
+        "latest-impact.json should exist in .ledgerful/reports/"
     );
 
     let impact_content = std::fs::read_to_string(&latest_impact_path)?;
@@ -370,7 +370,7 @@ fn test_lineage_bootstrapping_with_existing_hash() -> Result<(), Box<dyn std::er
         )?;
     }
 
-    // 3. Write a mock bridge export file (ChangeGuard -> AI-Brains)
+    // 3. Write a mock bridge export file (Ledgerful -> AI-Brains)
     let pull_file_path = dir.path().join("cg_export_bootstrap.ndjson");
     let mut pull_file = File::create(&pull_file_path)?;
 

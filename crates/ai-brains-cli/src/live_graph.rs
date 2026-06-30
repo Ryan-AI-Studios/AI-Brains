@@ -12,7 +12,7 @@ use ai_brains_store::VaultConnection;
 #[cfg(feature = "graph")]
 use std::sync::Arc;
 
-/// Owns a GraphProjector backed by SQLite (+ CozoDB if ChangeGuard is available).
+/// Owns a GraphProjector backed by SQLite (+ CozoDB if Ledgerful is available).
 /// `apply_and_flush` is non-fatal: graph failures never block the primary append.
 #[cfg(feature = "graph")]
 pub struct LiveGraphHook {

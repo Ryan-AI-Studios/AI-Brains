@@ -1,4 +1,4 @@
-/// Sanitize a query string for safe use with SQLite FTS5 or ChangeGuard search.
+/// Sanitize a query string for safe use with SQLite FTS5 or Ledgerful search.
 ///
 /// Extracts alphanumeric/underscore runs and wraps each token in double-quotes
 /// so FTS5 treats them as phrase literals rather than operator syntax. This

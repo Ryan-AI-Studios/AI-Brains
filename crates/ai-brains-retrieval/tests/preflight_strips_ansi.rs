@@ -5,9 +5,9 @@ use ai_brains_retrieval::build_preflight;
 
 #[test]
 fn preflight_strips_ansi_from_pinned_memories() -> Result<(), Box<dyn std::error::Error>> {
-    // Pin a memory containing ANSI escape codes (simulating raw ChangeGuard output)
+    // Pin a memory containing ANSI escape codes (simulating raw Ledgerful output)
     let ansi_content =
-        "HOTSPOT: Brittle files identified by ChangeGuard:\n\n\u{1b}[32m INFO\u{1b}[0m file loaded";
+        "HOTSPOT: Brittle files identified by Ledgerful:\n\n\u{1b}[32m INFO\u{1b}[0m file loaded";
     let store = common::store_with_memory(ansi_content, Privacy::CloudOk)?;
 
     let project_id = ai_brains_core::ids::ProjectId::from_uuid(uuid::Uuid::nil());

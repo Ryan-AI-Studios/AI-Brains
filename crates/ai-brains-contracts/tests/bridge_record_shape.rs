@@ -34,7 +34,7 @@ fn test_bridge_record_serde() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(deserialized.tx_id, tx_id);
     assert_eq!(deserialized.record_kind, "prompt");
 
-    // Verify null session_id deserialization works (ChangeGuard sends null)
+    // Verify null session_id deserialization works (Ledgerful sends null)
     let json_with_null = r#"{"bridge_version":"0.3","direction":"inbound","timestamp":"2026-05-19T00:00:00Z","parent_hash":null,"project_id":"ChangeGuard","session_id":null,"tx_id":null,"record_kind":"hotspot_delta","payload":{},"privacy":"ProjectLocal"}"#;
     let deserialized: BridgeRecord = serde_json::from_str(json_with_null)?;
     assert_eq!(deserialized.project_id, "ChangeGuard");

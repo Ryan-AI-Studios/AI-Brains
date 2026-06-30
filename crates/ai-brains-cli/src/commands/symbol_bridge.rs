@@ -21,7 +21,7 @@ struct SymbolRecord {
     path_pattern: Option<String>,
 }
 
-/// Refresh ChangeGuard's symbol index, then ingest public symbols into AI-Brains
+/// Refresh Ledgerful's symbol index, then ingest public symbols into AI-Brains
 /// as MemoryPinned events. Non-fatal; any failure is logged and skipped.
 pub fn ingest_symbols_from_changeguard(
     ctx: &AppContext,
@@ -32,7 +32,7 @@ pub fn ingest_symbols_from_changeguard(
     let project_root = std::env::current_dir().ok();
     let symbols = query_symbols_from_changeguard()?;
     if symbols.is_empty() {
-        tracing::info!("No symbols returned from ChangeGuard index");
+        tracing::info!("No symbols returned from Ledgerful index");
         return Ok(0);
     }
 
@@ -111,7 +111,7 @@ fn symbol_content(symbol: &SymbolRecord) -> String {
     }
 }
 
-/// Call `changeguard index` to refresh the symbol index.
+/// Call `ledgerful index` to refresh the symbol index.
 /// Non-fatal; logs a warning if unavailable.
 fn refresh_changeguard_index() {
     #[allow(clippy::disallowed_methods)]
@@ -134,16 +134,16 @@ fn refresh_changeguard_index() {
     }
 }
 
-/// Query public project symbols from ChangeGuard's local index.
+/// Query public project symbols from Ledgerful's local index.
 ///
-/// Current ChangeGuard bridge snapshots do not expose arbitrary graph-query
+/// Current Ledgerful bridge snapshots do not expose arbitrary graph-query
 /// export, so T70 reads the indexed SQLite state directly. Route metadata is
 /// joined from `api_routes` when that table exists.
 #[allow(clippy::disallowed_methods)]
 fn query_symbols_from_changeguard() -> Result<Vec<SymbolRecord>, Box<dyn std::error::Error>> {
     let db_path = std::env::current_dir()?.join(".changeguard/state/ledger.db");
     if !db_path.exists() {
-        tracing::info!("ChangeGuard ledger DB not found at {}", db_path.display());
+        tracing::info!("Ledgerful ledger DB not found at {}", db_path.display());
         return Ok(Vec::new());
     }
 

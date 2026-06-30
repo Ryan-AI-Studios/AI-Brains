@@ -15,7 +15,7 @@
     "direction": {
       "type": "string",
       "enum": ["inbound", "outbound"],
-      "description": "Direction of the record. `inbound` = ChangeGuard -> AI-Brains."
+      "description": "Direction of the record. `inbound` = Ledgerful -> AI-Brains."
     },
     "timestamp": {
       "type": "string",
@@ -36,7 +36,7 @@
     },
     "tx_id": {
       "type": ["string", "null"],
-      "description": "Optional ChangeGuard transaction ID."
+      "description": "Optional Ledgerful transaction ID."
     },
     "record_kind": {
       "type": "string",

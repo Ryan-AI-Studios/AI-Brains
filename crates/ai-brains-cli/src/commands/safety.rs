@@ -13,27 +13,27 @@ pub fn run(
     limit: usize,
     dry_run: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Scanning for ChangeGuard Hotspots...");
+    println!("Scanning for Ledgerful Hotspots...");
 
     // Try structured JSON output first; fall back to text mode
     let hotspots = match fetch_hotspots_json(limit) {
         Ok(hs) => {
-            println!("ChangeGuard scan complete: {} hotspots found.", hs.len());
+            println!("Ledgerful scan complete: {} hotspots found.", hs.len());
             hs
         }
         Err(json_err) => {
-            // Fall back to text-mode parsing for older ChangeGuard versions
+            // Fall back to text-mode parsing for older Ledgerful versions
             match fetch_hotspots_text(limit) {
                 Ok(hs) => {
                     println!(
-                        "ChangeGuard scan complete (text mode, --json not available: {}).",
+                        "Ledgerful scan complete (text mode, --json not available: {}).",
                         json_err
                     );
                     hs
                 }
                 Err(text_err) => {
                     return Err(format!(
-                        "ChangeGuard scan failed. Ensure ChangeGuard is installed and initialized.\n\
+                        "Ledgerful scan failed. Ensure Ledgerful is installed and initialized.\n\
                          JSON error: {}\nText error: {}",
                         json_err, text_err
                     )
@@ -172,7 +172,7 @@ fn fetch_hotspots_text(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> 
 }
 
 fn render_hotspots(hotspots: &[ChangeGuardHotspot]) -> String {
-    let mut lines = vec!["HOTSPOT: Brittle files identified by ChangeGuard:".to_string()];
+    let mut lines = vec!["HOTSPOT: Brittle files identified by Ledgerful:".to_string()];
     for (i, h) in hotspots.iter().enumerate() {
         lines.push(format!(
             "{}. {} (score: {:.2}, freq: {}, complexity: {})",

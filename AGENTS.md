@@ -7,7 +7,7 @@
 - **Capture Privacy**: DO NOT store hidden chain-of-thought, model reasoning, or raw tool logs. Capture ONLY the final assistant response and user prompt.
 - **Privacy Inheritance**: Derived memories (summaries, clusters) MUST inherit the strictest privacy flag from their source events.
 - **Rust Safety**: PROHIBITED use of `unwrap()`, `expect()`, or `panic()` in production code. Explicit error handling (`thiserror`, `anyhow`) and `zeroize` for sensitive key material are mandatory.
-- **Provenance**: ALL architectural decisions and track implementations MUST be recorded in the `changeguard ledger`.
+- **Provenance**: ALL architectural decisions and track implementations MUST be recorded in the `ledgerful ledger`.
 - **No Repository Pollution**: AI-Brains MUST NOT write project-local files by default. Use global user storage (`$env:USERPROFILE\.ai-brains`) unless the user explicitly invokes a repo-write command.
 
 ## Technical Invariants
@@ -37,7 +37,7 @@
 - **Track Discipline**: Implementation MUST follow the `conductor/conductor.md` track-by-track.
 - **Change Management**:
   - **Before Edits**: Run `ledgerful doctor` to ensure the toolchain is healthy, and `ledgerful scan --impact` for meaningful code/config/policy edits. Inspect any hotspots and high (>70%) temporal coupling.
-  - **During Edits**: DO NOT edit `.changeguard/` state files directly.
+  - **During Edits**: DO NOT edit `.ledgerful/` state files directly.
   - **After Edits**: Run `ledgerful verify` to validate changes against safety rules. Report verification outcomes, pending transactions, risk levels, and drift.
   - **Ledger Provenance**: Record architectural updates via `ledgerful ledger start` / `commit` or `atomic` commands.
 - **AI-Brains Self-Usage**:
@@ -79,7 +79,7 @@ Halt and ask the user before proceeding with any of:
 - **Template**: E1 empty-state string|null ripple — document the null/empty/missing shape for every new API surface.
 
 ## Review & Severity
-- **Review Log**: `conductor/<track>/review.md` (the review log is NOT the changeguard ledger).
+- **Review Log**: `conductor/<track>/review.md` (the review log is NOT the ledgerful ledger).
 - **Critical/High**: MUST be `verified_fixed` before clearance. Regression caused by this work is always high; never deferrable.
 - **Medium**: Fix by default. Defer only if not a regression, one-line justification in `review.md`, tracked follow-up, cap ≤3 deferred mediums per track, and appended to `conductor/ISSUES.md`.
 - **Low-info**: Defer freely; MUST append to `conductor/ISSUES.md`.

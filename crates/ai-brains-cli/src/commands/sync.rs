@@ -142,8 +142,8 @@ pub fn run_pull(
         sink.store.set_sync_state("last_inbound_hash", &hash_hex)?;
 
         // T92: Accept records regardless of direction tag — `bridge export` exports
-        // ChangeGuard-native data (hotspots, ledger) whose direction may not be
-        // tagged as Inbound. Direction filtering belongs in ChangeGuard's exporter,
+        // Ledgerful-native data (hotspots, ledger) whose direction may not be
+        // tagged as Inbound. Direction filtering belongs in Ledgerful's exporter,
         // not in our consumer.
 
         // Parse string IDs from the interchange format into typed IDs.
@@ -236,7 +236,7 @@ pub fn run_push(
     quiet: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !quiet {
-        println!("AI-Brains: Exporting insights to ChangeGuard...");
+        println!("AI-Brains: Exporting insights to Ledgerful...");
     }
 
     use ai_brains_contracts::bridge::{BridgeDirection, BridgeRecord};
@@ -364,7 +364,7 @@ pub fn run_push(
         Ok(out) if out.status.success() => {
             if !quiet {
                 println!("{}", String::from_utf8_lossy(&out.stdout));
-                println!("Successfully pushed insights to ChangeGuard.");
+                println!("Successfully pushed insights to Ledgerful.");
             }
         }
         Ok(out) => {
@@ -492,14 +492,14 @@ pub async fn run_query(
         return Ok(());
     }
 
-    println!("\n--- ChangeGuard Ledger Search ---");
-    // T91: strip ANSI codes; T90: sanitize for FTS5 before forwarding to changeguard.
+    println!("\n--- Ledgerful Ledger Search ---");
+    // T91: strip ANSI codes; T90: sanitize for FTS5 before forwarding to ledgerful.
     let clean_query = ai_brains_retrieval::strip_ansi(&query);
     let sanitized_query = ai_brains_retrieval::sanitize_fts_query(&clean_query);
     // T110: suppress ANSI color codes when stdout is not a TTY.
     use is_terminal::IsTerminal;
     let is_tty = std::io::stdout().is_terminal();
-    // 2. ChangeGuard Query (Attempt to call CLI)
+    // 2. Ledgerful Query (Attempt to call CLI)
     let mut cmd = std::process::Command::new("ledgerful");
     cmd.args(["ledger", "search", &sanitized_query]);
     if !is_tty {

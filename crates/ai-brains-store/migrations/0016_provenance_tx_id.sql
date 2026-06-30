@@ -1,4 +1,4 @@
--- Add tx_id and project_id to core projections for ChangeGuard linking
+-- Add tx_id and project_id to core projections for Ledgerful linking
 ALTER TABLE project_projection ADD COLUMN tx_id TEXT;
 ALTER TABLE session_projection ADD COLUMN tx_id TEXT;
 ALTER TABLE turn_projection ADD COLUMN project_id TEXT;

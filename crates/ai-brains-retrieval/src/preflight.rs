@@ -33,7 +33,7 @@ pub fn build_preflight(
 
     let mut sections = Vec::new();
 
-    // --- ChangeGuard Blended Section (New) ---
+    // --- Ledgerful Blended Section (New) ---
     let mut has_cg_intelligence = false;
     if !global {
         if let Some(ref pid) = project_id_str {
@@ -346,11 +346,11 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
                         if !reason.is_empty() {
                             entry.push_str(&format!(" | Reason: {}", reason));
                         }
-                        entry.push_str(") [Source: ChangeGuard Contextual]");
+                        entry.push_str(") [Source: Ledgerful Contextual]");
                         hotspots.push(entry);
                     } else {
                         hotspots.push(format!(
-                            "- {} (Score: {:.2}, Reason: {}) [Source: ChangeGuard]",
+                            "- {} (Score: {:.2}, Reason: {}) [Source: Ledgerful]",
                             path, score, reason
                         ));
                     }
@@ -363,12 +363,12 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
         None
     } else if is_contextual {
         Some(format!(
-            "--- ChangeGuard Intelligence (Contextual Risk) ---\nTop Impacted Hotspots for Current Scope:\n{}",
+            "--- Ledgerful Intelligence (Contextual Risk) ---\nTop Impacted Hotspots for Current Scope:\n{}",
             hotspots.join("\n")
         ))
     } else {
         Some(format!(
-            "--- ChangeGuard Intelligence ---\nTop Hotspots:\n{}",
+            "--- Ledgerful Intelligence ---\nTop Hotspots:\n{}",
             hotspots.join("\n")
         ))
     }
@@ -414,7 +414,7 @@ fn query_changeguard_fallback() -> Option<String> {
                     let score = payload.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
                     let reason = payload.get("reason").and_then(|v| v.as_str()).unwrap_or("");
                     hotspots.push(format!(
-                        "- {} (Score: {:.2}, Reason: {}) [Source: ChangeGuard Fallback]",
+                        "- {} (Score: {:.2}, Reason: {}) [Source: Ledgerful Fallback]",
                         path, score, reason
                     ));
                 }
@@ -426,7 +426,7 @@ fn query_changeguard_fallback() -> Option<String> {
         None
     } else {
         Some(format!(
-            "--- ChangeGuard Intelligence (Fallback - Contextual Unavailable) ---\nTop Hotspots:\n{}",
+            "--- Ledgerful Intelligence (Fallback - Contextual Unavailable) ---\nTop Hotspots:\n{}",
             hotspots.join("\n")
         ))
     }

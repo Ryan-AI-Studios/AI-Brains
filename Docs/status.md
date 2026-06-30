@@ -68,10 +68,10 @@ The full per-track specs live in `conductor/tracks/`.
 - `MemoryPinned` (emitted on recall) and `MemorySynthesized` (emitted on nightly) create `RECALLS` and `SYNTHESIZED_FROM` graph edges.
 - `ai-brains graph update` reports live node/edge counts; `ai-brains graph rebuild` remains as a full-resync tool for corruption recovery.
 
-### ChangeGuard Bridge (T70)
-- The nightly pipeline ingests ChangeGuard's symbol index (functions, routes, call edges) into AI-Brains memories.
+### Ledgerful Bridge (T70)
+- The nightly pipeline ingests Ledgerful's symbol index (functions, routes, call edges) into AI-Brains memories.
 - `ai-bbrains safety sync` finds hotspots and re-pins them as vault memories.
-- `ai-brains sync query "<topic>"` searches both the AI-Brains vault and the ChangeGuard ledger in one command.
+- `ai-brains sync query "<topic>"` searches both the AI-Brains vault and the Ledgerful ledger in one command.
 - See the Code Symbol Queries section in `.agents/skills/changeguard/SKILL.md` for the full query surface.
 
 ### Antigravity Integration (T33, T44–T50)
@@ -97,7 +97,7 @@ The full per-track specs live in `conductor/tracks/`.
 | `cargo nextest run --workspace` | all pass (193 baseline + 5 new from T72–T76) |
 | `cargo deny check` | advisories ok, bans ok, licenses ok, sources ok |
 | `cargo audit` | 0 vulnerabilities (1102 advisories loaded) |
-| `changeguard ledger status` | no pending transactions, no drift |
+| `ledgerful ledger status` | no pending transactions, no drift |
 | Live vault health | 477 memories, 861 graph nodes, 72 graph edges (live) |
 
 ## 5. Known Drifts Resolved by T72
@@ -111,5 +111,5 @@ The full per-track specs live in `conductor/tracks/`.
 
 **Orchestrator Status:** Protocol Enforced
 **Context Window:** Hardened (Index-First, ANSI-Clean, Deduplicated, Chunked)
-**ChangeGuard Ledger:** Reconciled
+**Ledgerful Ledger:** Reconciled
 **CI Gate:** Reproducible

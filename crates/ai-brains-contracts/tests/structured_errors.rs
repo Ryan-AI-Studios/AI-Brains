@@ -7,7 +7,7 @@ fn test_structured_error_serialization() {
     let result: ApiResult<serde_json::Value> = ApiResult::error(error);
 
     let json = serde_json::to_string(&result).expect("serialize failed");
-    // Verify top-level fields for ChangeGuard compatibility
+    // Verify top-level fields for Ledgerful compatibility
     assert!(json.contains(r#""status":"error""#));
     assert!(json.contains(r#""message":"test message""#));
 

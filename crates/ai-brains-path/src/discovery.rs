@@ -1,35 +1,43 @@
 use std::path::{Path, PathBuf};
 
-/// Searches for a .changeguard directory starting from the given path and walking up the tree.
-/// Returns the path to the .changeguard directory if found.
-pub fn find_changeguard_dir(start_path: &Path) -> Option<PathBuf> {
+/// Searches for a ledgerful state directory starting from the given path and walking up the tree.
+/// Looks for `.ledgerful/` first, then `.git/.ledgerful/`, then falls back to legacy `.changeguard/`
+/// and `.git/.changeguard/` for backward compatibility.
+///
+/// The upward walk stops at the first directory that contains a `.git/` folder
+/// (i.e. the repository/project boundary) if no state directory was found at or
+/// below that level. This keeps discovery project-local and avoids picking up an
+/// unrelated user-home state directory.
+pub fn find_ledgerful_dir(start_path: &Path) -> Option<PathBuf> {
     let mut current = start_path.to_path_buf();
     loop {
-        // Check .changeguard
-        let changeguard_path = current.join(".changeguard");
-        if changeguard_path.is_dir() {
-            return Some(changeguard_path);
+        for candidate in [
+            current.join(".ledgerful"),
+            current.join(".git").join(".ledgerful"),
+            current.join(".changeguard"),
+            current.join(".git").join(".changeguard"),
+        ] {
+            if candidate.is_dir() {
+                return Some(candidate);
+            }
         }
 
-        // Check .git/.changeguard
-        let git_changeguard_path = current.join(".git").join(".changeguard");
-        if git_changeguard_path.is_dir() {
-            return Some(git_changeguard_path);
+        // Stop at the repository boundary so a test/project temp dir does not
+        // accidentally discover a global state directory in a parent path.
+        if current.join(".git").is_dir() {
+            return None;
         }
 
         if !current.pop() {
-            break;
+            return None;
         }
     }
-    None
 }
 
-/// Attempts to extract a project ID from .changeguard metadata.
-/// For now, we look for a 'project_id' file or entry in a config if it exists.
-/// ChangeGuard often uses a fixed project ID per repo.
-pub fn extract_project_id_from_changeguard(changeguard_dir: &Path) -> Option<String> {
-    // Look for .changeguard/project_id
-    let id_file = changeguard_dir.join("project_id");
+/// Attempts to extract a project ID from a ledgerful state directory.
+/// Looks for a `project_id` file inside the given directory and returns its trimmed contents.
+pub fn extract_project_id_from_ledgerful(ledgerful_dir: &Path) -> Option<String> {
+    let id_file = ledgerful_dir.join("project_id");
     if id_file.exists() {
         if let Ok(content) = std::fs::read_to_string(id_file) {
             let trimmed = content.trim();
@@ -39,7 +47,17 @@ pub fn extract_project_id_from_changeguard(changeguard_dir: &Path) -> Option<Str
         }
     }
 
-    // Fallback: Check for .changeguard/config.json or similar if we knew the schema.
-    // Assuming for now it's in a 'project_id' file.
     None
+}
+
+/// Deprecated: use [`find_ledgerful_dir`] instead.
+#[deprecated(note = "use find_ledgerful_dir instead")]
+pub fn find_changeguard_dir(start_path: &Path) -> Option<PathBuf> {
+    find_ledgerful_dir(start_path)
+}
+
+/// Deprecated: use [`extract_project_id_from_ledgerful`] instead.
+#[deprecated(note = "use extract_project_id_from_ledgerful instead")]
+pub fn extract_project_id_from_changeguard(changeguard_dir: &Path) -> Option<String> {
+    extract_project_id_from_ledgerful(changeguard_dir)
 }

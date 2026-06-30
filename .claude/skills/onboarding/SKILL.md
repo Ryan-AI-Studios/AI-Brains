@@ -154,7 +154,7 @@ Each track is a bounded unit of work: `spec.md` (specification) + `plan.md` (tas
 | `conductor/ISSUES.md` | Unresolved debt (deferred mediums/lows) |
 | `conductor/<track>/spec.md` | Track spec (objective, API contracts, verification plan) |
 | `conductor/<track>/plan.md` | Task checklist (`- [ ]`) |
-| `conductor/<track>/review.md` | Review log (NOT the changeguard ledger) |
+| `conductor/<track>/review.md` | Review log (NOT the ledgerful ledger) |
 
 **Backlog routing**: When planning a track, absorb related `ISSUES.md` items into `plan.md` and remove them from `ISSUES.md`.
 
@@ -231,7 +231,7 @@ Then:
 - Add one-line evidence note.
 - Pin non-obvious decisions: `ai-brains pin "DECISION: <what + why>" --tx-id <tx-id>`.
 
-## ChangeGuard Integration
+## Ledgerful Integration
 
 | Phase | Command | Purpose |
 |-------|---------|---------|
@@ -243,13 +243,13 @@ Then:
 
 **Ledger categories**: `ARCHITECTURE`, `SECURITY`, `FEATURE`, `INFRA`, `REFACTOR`, `BUGFIX`, `DOCS`, `CHORE`.
 
-**Skip ChangeGuard for**: format-only, scratch files, binary/media-only, lockfile-only churn, explicit user bypass.
+**Skip Ledgerful for**: format-only, scratch files, binary/media-only, lockfile-only churn, explicit user bypass.
 
-**If commands fail**: continue with native checks if unavailable; reconcile drift if ledger dirty; report if `scan --impact` can't complete; use `--auto-index` if index is `[STALE]`; never edit `.changeguard/` state files directly.
+**If commands fail**: continue with native checks if unavailable; reconcile drift if ledger dirty; report if `scan --impact` can't complete; use `--auto-index` if index is `[STALE]`; never edit `.ledgerful/` state files directly.
 
 ## Tooling
 
-- **ChangeGuard**: `ledgerful scan --impact`, `ledgerful search`, `ledgerful ask`, `ledgerful ledger start/commit/atomic`, `ledgerful verify --scope fast|full`, `ledgerful dead-code --threshold 0.75`. See the `changeguard` skill for full reference.
+- **Ledgerful**: `ledgerful scan --impact`, `ledgerful search`, `ledgerful ask`, `ledgerful ledger start/commit/atomic`, `ledgerful verify --scope fast|full`, `ledgerful dead-code --threshold 0.75`. See the `ledgerful` skill (in .claude/skills/changeguard/) for full reference.
 - **GitHub CLI**: `gh run list` (CI), `gh run view` (details), `gh pr diff` (review), `gh pr status`.
 - **Dependency alerts**: `cargo tree -i <crate>@<version>` to find direct vs transitive. If transitive, upgrade the direct dep. If via git dep, verify upstream fix visibility. Record external handoffs in a conductor track. Run focused checks + `ledgerful verify` after dep changes.
 

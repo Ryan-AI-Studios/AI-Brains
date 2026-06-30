@@ -50,7 +50,7 @@ AI-Brains uses a hierarchical loading strategy for cross-repository flexibility:
 - [Architectural Deviations](./Docs/Deviations.md)
 
 ## Development
-This project uses a track-based implementation method managed via ChangeGuard.
+This project uses a track-based implementation method managed via Ledgerful.
 ```powershell
 ./scripts/dev-check.ps1
 ```

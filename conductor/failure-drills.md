@@ -6,7 +6,7 @@ This document defines the standard failure drills for AI-Brains. These drills en
 
 | Drill ID | Scenario | Expected Result | Verification |
 |---|---|---|---|
-| F-CAP-01 | Kill daemon mid-ingest | CLI returns a retryable error or spools the event locally. No data corruption in the vault. | Run `ai-brains ingest`, kill `ai-brainsd` process during write, verify `changeguard scan --impact` is LOW. |
+| F-CAP-01 | Kill daemon mid-ingest | CLI returns a retryable error or spools the event locally. No data corruption in the vault. | Run `ai-brains ingest`, kill `ai-brainsd` process during write, verify `ledgerful scan --impact` is LOW. |
 | F-CAP-02 | Kill process during session | Session marked as `interrupted` or `unknown` on next health scan. | Start session, kill harness process, run `ai-brains sessions`, verify status. |
 | F-CAP-03 | Graph service unavailable | Capture succeeds. Retrieval falls back to lexical search. Health reports degraded graph. | Disable graph backend, run `ai-brains ingest`, verify capture success. |
 | F-CAP-04 | Model provider unavailable | Nightly sweep continues for other projects. Partial failure recorded. | Block Ollama/Llama port, run `ai-brains nightly`, verify logs. |

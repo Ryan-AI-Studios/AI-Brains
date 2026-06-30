@@ -1,5 +1,5 @@
 //! CozoDB proxy backend: translates AI-Brains graph operations into Datalog
-//! statements and routes them through BridgeRecord IPC to ChangeGuard's CozoDB.
+//! statements and routes them through BridgeRecord IPC to Ledgerful's CozoDB.
 //!
 //! Feature-gated: activates only when `.changeguard/` directory is present.
 //! Falls back gracefully to the SQLite graph backend otherwise.
@@ -53,7 +53,7 @@ pub struct CozoNamedRows {
 
 /// Abstraction over graph storage backends. Implementations route mutations
 /// and queries to either a local SQLite store or a remote CozoDB instance
-/// via the ChangeGuard bridge.
+/// via the Ledgerful bridge.
 pub trait GraphBackend {
     /// Insert or update a node in the graph.
     fn add_node(
@@ -88,7 +88,7 @@ pub trait GraphBackend {
 // ---------------------------------------------------------------------------
 
 /// Translates AI-Brains graph operations into CozoDB Datalog statements and
-/// routes them through the ChangeGuard Bridge IPC (named pipe / CLI).
+/// routes them through the Ledgerful Bridge IPC (named pipe / CLI).
 pub struct CozoProxyBackend {
     changeguard_available: bool,
 }
@@ -120,13 +120,12 @@ impl CozoProxyBackend {
         }
     }
 
-    /// Send a Datalog mutation (put) to ChangeGuard via bridge import.
+    /// Send a Datalog mutation (put) to Ledgerful via bridge import.
     #[allow(clippy::disallowed_methods)]
     fn send_datalog_mutation(&self, datalog: &str, record_kind: &str) -> Result<()> {
         if !self.changeguard_available {
             return Err(GraphError::DbError(
-                "ChangeGuard is not available; CozoProxyBackend cannot route mutations."
-                    .to_string(),
+                "Ledgerful is not available; CozoProxyBackend cannot route mutations.".to_string(),
             ));
         }
 
@@ -172,15 +171,15 @@ impl CozoProxyBackend {
             if let Ok(api_res) = serde_json::from_str::<ApiResult<serde_json::Value>>(&stderr) {
                 if let Some(err) = api_res.error {
                     return Err(GraphError::DbError(format!(
-                        "ChangeGuard Error: {} ({})",
+                        "Ledgerful Error: {} ({})",
                         err.message, err.code
                     )));
                 }
             }
 
-            tracing::warn!("ChangeGuard bridge import failed: {}", stderr);
+            tracing::warn!("Ledgerful bridge import failed: {}", stderr);
             return Err(GraphError::DbError(format!(
-                "ChangeGuard bridge import rejected Datalog mutation: {}",
+                "Ledgerful bridge import rejected Datalog mutation: {}",
                 stderr
             )));
         }
@@ -193,7 +192,7 @@ impl CozoProxyBackend {
     fn run_datalog_query(&self, datalog: &str) -> Result<CozoNamedRows> {
         if !self.changeguard_available {
             return Err(GraphError::DbError(
-                "ChangeGuard is not available; CozoProxyBackend cannot run queries.".to_string(),
+                "Ledgerful is not available; CozoProxyBackend cannot run queries.".to_string(),
             ));
         }
 
@@ -243,7 +242,7 @@ impl CozoProxyBackend {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(GraphError::DbError(format!(
-                "ChangeGuard bridge export failed: {}",
+                "Ledgerful bridge export failed: {}",
                 stderr
             )));
         }

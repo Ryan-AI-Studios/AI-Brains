@@ -1,5 +1,5 @@
 //! RiskReviewAgent: background intervention agent that listens for high-risk
-//! drift alerts from ChangeGuard's watcher and proactively injects warnings
+//! drift alerts from Ledgerful's watcher and proactively injects warnings
 //! into the AI harness context.
 //!
 //! ## Non-blocking
@@ -19,7 +19,7 @@ use std::sync::Mutex;
 // Domain types
 // ---------------------------------------------------------------------------
 
-/// A risk alert parsed from a ChangeGuard `BridgeRecord` with
+/// A risk alert parsed from a Ledgerful `BridgeRecord` with
 /// `record_kind = "risk_alert"`.
 #[derive(Debug, Clone)]
 pub struct RiskAlert {
@@ -61,7 +61,7 @@ pub struct InterventionWarning {
 // RiskReviewAgent
 // ---------------------------------------------------------------------------
 
-/// Background agent that polls ChangeGuard for high-risk drift alerts,
+/// Background agent that polls Ledgerful for high-risk drift alerts,
 /// queries the CozoDB reachability graph to assess blast radius, and
 /// formats intervention warnings for the AI harness.
 ///
@@ -77,7 +77,7 @@ pub struct RiskReviewAgent {
 
 impl RiskReviewAgent {
     /// Create a new agent that queries the given CozoDB backend and polls
-    /// ChangeGuard via bridge IPC for risk alerts.
+    /// Ledgerful via bridge IPC for risk alerts.
     pub fn new(cozo_backend: CozoProxyBackend) -> Self {
         Self {
             cozo_backend,
@@ -85,11 +85,11 @@ impl RiskReviewAgent {
         }
     }
 
-    /// Run one polling cycle: fetch risk alerts from ChangeGuard, deduplicate,
+    /// Run one polling cycle: fetch risk alerts from Ledgerful, deduplicate,
     /// assess blast radius for each, and return formatted warnings.
     ///
     /// This is safe to call from a background `tokio::spawn` — it will never
-    /// panic and gracefully degrades (returns empty vec) when ChangeGuard or
+    /// panic and gracefully degrades (returns empty vec) when Ledgerful or
     /// CozoDB are unavailable.
     pub async fn run(&self) -> Vec<InterventionWarning> {
         let alerts = match self.poll_risk_alerts().await {
@@ -151,8 +151,8 @@ impl RiskReviewAgent {
     // Polling
     // ------------------------------------------------------------------
 
-    /// Poll ChangeGuard via `bridge export --hotspots` for risk-alert records.
-    /// Returns an empty `Vec` (not an error) when ChangeGuard is unreachable
+    /// Poll Ledgerful via `bridge export --hotspots` for risk-alert records.
+    /// Returns an empty `Vec` (not an error) when Ledgerful is unreachable
     /// so the agent never disrupts the main pipeline.
     async fn poll_risk_alerts(&self) -> Result<Vec<RiskAlert>, String> {
         query_changeguard_risk_alerts().await
@@ -192,7 +192,7 @@ impl RiskReviewAgent {
 // Bridge IPC: polling for risk alerts
 // ---------------------------------------------------------------------------
 
-/// Shell out to `changeguard bridge export --hotspots` and parse the NDJSON
+/// Shell out to `ledgerful bridge export --hotspots` and parse the NDJSON
 /// output for records with `record_kind = "risk_alert"`.
 #[allow(clippy::disallowed_methods)]
 async fn query_changeguard_risk_alerts() -> Result<Vec<RiskAlert>, String> {

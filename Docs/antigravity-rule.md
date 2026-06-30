@@ -44,7 +44,7 @@ ai-brains pin "CONSTRAINT: user prefers single bundled PRs over many small ones"
 Run these commands at the beginning of every Antigravity session to load context:
 
 ```powershell
-# 1. Sync safety signals from ChangeGuard
+# 1. Sync safety signals from Ledgerful
 ai-brains safety sync
 
 # 2. Load recent project state and constraints

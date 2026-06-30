@@ -9,6 +9,23 @@ use rusqlite::params;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+pub(crate) fn read_ledger_tx_id() -> Option<String> {
+    if let Ok(v) = std::env::var("LEDGERFUL_TX_ID") {
+        if !v.is_empty() {
+            return Some(v);
+        }
+    }
+    if let Ok(v) = std::env::var("CHANGEGUARD_TX_ID") {
+        if !v.is_empty() {
+            tracing::warn!(
+                "CHANGEGUARD_TX_ID is deprecated; use LEDGERFUL_TX_ID. Falling back for this session."
+            );
+            return Some(v);
+        }
+    }
+    None
+}
+
 pub struct AppContext {
     pub vault_path: PathBuf,
     pub _key: SqlCipherKey,
@@ -88,9 +105,7 @@ impl AppContext {
         harness_id: ai_brains_core::ids::HarnessId,
         privacy: ai_brains_core::privacy::Privacy,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let tx_id = std::env::var("CHANGEGUARD_TX_ID")
-            .ok()
-            .map(ai_brains_core::ids::TransactionId::new);
+        let tx_id = read_ledger_tx_id().map(ai_brains_core::ids::TransactionId::new);
 
         // Auto-create project if it doesn't exist
         let project_exists = {

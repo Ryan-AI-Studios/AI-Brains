@@ -81,11 +81,11 @@ fn recall_json(
         .clone()
 }
 
-/// T124: `sync query --no-bridge --format pretty` skips the ChangeGuard
+/// T124: `sync query --no-bridge --format pretty` skips the Ledgerful
 /// Ledger Search section but still runs local recall.
 #[test]
 #[allow(non_snake_case)]
-fn sync_query__no_bridge__skips_changeguard_section() {
+fn sync_query__no_bridge__skips_ledgerful_section() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
@@ -123,8 +123,8 @@ fn sync_query__no_bridge__skips_changeguard_section() {
         "local recall section must be present; got: {stdout}"
     );
     assert!(
-        !stdout.contains("ChangeGuard Ledger Search"),
-        "ChangeGuard section must be skipped with --no-bridge; got: {stdout}"
+        !stdout.contains("Ledgerful Ledger Search"),
+        "Ledgerful section must be skipped with --no-bridge; got: {stdout}"
     );
 }
 
@@ -2263,7 +2263,7 @@ fn test_context_new_project_rotates_id() {
 }
 
 /// T81: `recall --quiet` from a non-git directory must NOT print the
-/// "ChangeGuard bridge query failed, falling back to local FTS5 only:"
+/// "Ledgerful bridge query failed, falling back to local FTS5 only:"
 /// warning on stderr. The audit showed this warning is emitted on every
 /// `recall` call when the cwd is not a git repository.
 #[test]

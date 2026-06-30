@@ -222,8 +222,8 @@ enum Commands {
         /// Show current context without modifying anything
         #[arg(long)]
         show: bool,
-        /// Optional ChangeGuard transaction ID to link this context to
-        #[arg(long, env = "CHANGEGUARD_TX_ID")]
+        /// Optional Ledgerful transaction ID to link this context to
+        #[arg(long, env = "LEDGERFUL_TX_ID")]
         tx_id: Option<String>,
     },
     /// Pin a high-level decision or constraint directly to the vault
@@ -242,8 +242,8 @@ enum Commands {
         /// Tags to categorize this memory (repeatable)
         #[arg(long = "tag", short = 't')]
         tags: Vec<String>,
-        /// Optional ChangeGuard transaction ID to link this pin to
-        #[arg(long, env = "CHANGEGUARD_TX_ID")]
+        /// Optional Ledgerful transaction ID to link this pin to
+        #[arg(long, env = "LEDGERFUL_TX_ID")]
         tx_id: Option<String>,
         /// Preview what would be pinned without writing to the vault
         #[arg(long)]
@@ -254,7 +254,7 @@ enum Commands {
         #[command(subcommand)]
         command: SafetyCommands,
     },
-    /// Sync structured records from external tools (ChangeGuard)
+    /// Sync structured records from external tools (Ledgerful)
     Sync {
         #[command(subcommand)]
         command: SyncCommands,

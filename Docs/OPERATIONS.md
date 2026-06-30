@@ -2,7 +2,7 @@
 
 This guide covers the day-to-day operations, configuration, and troubleshooting of the AI-Brains system.
 
-> **Current state (June 2026):** Phase 15 (Cross-Agent Memory Synthesis) plus T44–T71 are shipped. The CLI has 17 top-level subcommands, the daemon auto-launches, nightly schedules via Windows Task Scheduler, and the ChangeGuard bridge is live. The Operations surface is significantly larger than the pre-T44 era this document originally described.
+> **Current state (June 2026):** Phase 15 (Cross-Agent Memory Synthesis) plus T44–T71 are shipped. The CLI has 17 top-level subcommands, the daemon auto-launches, nightly schedules via Windows Task Scheduler, and the Ledgerful bridge is live. The Operations surface is significantly larger than the pre-T44 era this document originally described.
 
 ## 1. Installation and Setup
 
@@ -77,12 +77,12 @@ Options worth knowing:
 - `--graph-boost <0.0–1.0>` to weight graph-neighbor hits
 - `--project-id` / `--session-id` to scope
 
-### Unified Search (AI-Brains + ChangeGuard)
-The T70 bridge lets a single command search both your memory vault and the ChangeGuard ledger.
+### Unified Search (AI-Brains + Ledgerful)
+The T70 bridge lets a single command search both your memory vault and the Ledgerful ledger.
 ```powershell
 ai-brains sync query "rust" --format pretty
 ```
-Output has two sections — `--- AI-Brains Recall ---` (vault FTS hits) and `--- ChangeGuard Ledger Search ---` (ledger entries). Use `--quiet` to suppress the second section if you only want the vault view.
+Output has two sections — `--- AI-Brains Recall ---` (vault FTS hits) and `--- Ledgerful Ledger Search ---` (ledger entries). Use `--quiet` to suppress the second section if you only want the vault view.
 
 ### Generating Preflight Context
 ```powershell
@@ -103,7 +103,7 @@ This command generates a deterministic `PROJECT_ID` based on your directory and 
 - `--show` — print current context without modifying `.env`
 - `--new-project` — force a fresh project ID
 - `--new-session` — rotate the session ID (useful for long sessions)
-- `--tx-id <uuid>` — link the context to a ChangeGuard transaction (T37)
+- `--tx-id <uuid>` — link the context to a Ledgerful transaction (T37)
 
 ### Listing Projects
 ```powershell
@@ -139,7 +139,7 @@ The nightly job does:
 - Antigravity session import (T33)
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)
-- Symbol-bridge ingestion from ChangeGuard (T70)
+- Symbol-bridge ingestion from Ledgerful (T70)
 - MemoryPinned / MemorySynthesized event emission (T67, T68) for the live graph
 
 ### Scheduling Nightly
@@ -177,7 +177,7 @@ ai-brains backup restore <path> --dry-run     # verify integrity, report, no cha
 
 ## 7. Safety & Hotspot Sync
 
-ChangeGuard scans the codebase for hotspots (frequently-edited, complex files). The bridge re-pins these as AI-Brains memories so they appear in preflight and recall.
+Ledgerful scans the codebase for hotspots (frequently-edited, complex files). The bridge re-pins these as AI-Brains memories so they appear in preflight and recall.
 
 ```powershell
 ai-brains safety sync                # sync top 5 hotspots
@@ -230,7 +230,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | `AI_BRAINS_KEY` | Hex-encoded SQLCipher key (or dummy in degraded mode). |
 | `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). |
 | `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). |
-| `CHANGEGUARD_TX_ID` | ChangeGuard transaction ID for ledger cross-linking (T37). |
+| `CHANGEGUARD_TX_ID` | Ledgerful transaction ID for ledger cross-linking (T37). |
 | `AI_BRAINS_MODEL_URL` | Endpoint for the local LLM completion server (default: `http://127.0.0.1:8081`). |
 | `AI_BRAINS_EMBEDDING_URL` | Endpoint for the local embedding server (default: `http://127.0.0.1:8083`). |
 | `AI_BRAINS_EMBEDDING_MODEL` | Name of the embedding model (default: `nomic-embed-text-v1.5`). |
@@ -244,7 +244,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Initialize Vault | `ai-brains init` (use `--force` to overwrite populated vault) |
 | Show Context | `ai-brains context --show` |
 | Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
-| Unified Search | `ai-brains sync query "<topic>"` (searches vault + ChangeGuard) |
+| Unified Search | `ai-brains sync query "<topic>"` (searches vault + Ledgerful) |
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
 | Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |

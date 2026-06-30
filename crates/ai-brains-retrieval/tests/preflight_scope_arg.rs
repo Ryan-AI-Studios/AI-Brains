@@ -4,7 +4,7 @@ use ai_brains_core::privacy::Privacy;
 use ai_brains_retrieval::build_preflight;
 
 /// Test that build_preflight accepts scope_paths and produces output
-/// even when ChangeGuard is unavailable (fail-open behavior).
+/// even when Ledgerful is unavailable (fail-open behavior).
 #[test]
 fn preflight_with_scope_paths_does_not_crash() -> Result<(), Box<dyn std::error::Error>> {
     let content = "CONSTRAINT: All public APIs must be versioned.";
@@ -25,7 +25,7 @@ fn preflight_with_scope_paths_does_not_crash() -> Result<(), Box<dyn std::error:
         false,
     )?;
 
-    // Should produce output even without ChangeGuard available (fail-open)
+    // Should produce output even without Ledgerful available (fail-open)
     assert!(!context.text.is_empty());
     assert!(context.word_count > 0);
 

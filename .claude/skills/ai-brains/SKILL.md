@@ -28,7 +28,7 @@ This skill requires the `ai-brains` CLI tool.
 ### Phase 1: Orient (What do I already know?)
 Trigger when starting a new session or entering a new repository.
 1. **Sync Safety**: Run `ai-brains safety sync`.
-   - **Goal**: Ingest recent ChangeGuard hotspots to identify brittle files.
+   - **Goal**: Ingest recent Ledgerful hotspots to identify brittle files.
    - **Tip**: Use `--dry-run` to preview what would be synced without pinning.
 2. **Get Orientation**: Run `ai-brains preflight --summary`.
    - **Goal**: Identify project state and safety constraints via a concise human-centric summary.
@@ -38,8 +38,8 @@ Trigger when starting a new session or entering a new repository.
 ### Phase 2: Recall (Search before acting)
 Trigger before starting a development track, architectural change, or when an unfamiliar constant/path is encountered.
 1. **Unified Search**: Run `ai-brains sync query "<topic>" --quiet`
-   - **Goal**: Search both local vault and ChangeGuard bridge records in one command.
-   - **Tip**: Use `--quiet` to suppress ChangeGuard bridge noise (e.g., file locks).
+   - **Goal**: Search both local vault and Ledgerful bridge records in one command.
+   - **Tip**: Use `--quiet` to suppress Ledgerful bridge noise (e.g., file locks).
 2. **Vault Search**: Run `ai-brains recall "<topic>"`
    - **Goal**: Find project-specific constraints or rejected approaches in the local vault.
    - **Context**: This command traverses FTS5 with BM25 ranking.
@@ -85,7 +85,7 @@ For batch reconciliation across sessions and to update the relational graph, run
 |---|---|
 | Initialize Context | `ai-brains context` (use `--show` to view, `--new-session` reset) |
 | Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
-| Unified Search | `ai-brains sync query` (searches vault + ChangeGuard) |
+| Unified Search | `ai-brains sync query` (searches vault + Ledgerful) |
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
 | Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |

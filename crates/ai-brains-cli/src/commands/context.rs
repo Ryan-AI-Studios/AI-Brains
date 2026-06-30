@@ -1,5 +1,5 @@
 use ai_brains_core::ids::{HarnessId, ProjectId, SessionId};
-use ai_brains_path::{extract_project_id_from_changeguard, find_changeguard_dir};
+use ai_brains_path::{extract_project_id_from_ledgerful, find_ledgerful_dir};
 
 pub fn run(
     ctx: &crate::context::AppContext,
@@ -35,17 +35,17 @@ pub fn run(
         return Ok(());
     }
 
-    // Auto-discovery from ChangeGuard
-    let changeguard_dir = find_changeguard_dir(&current_dir);
-    let discovered_project_id = changeguard_dir
+    // Auto-discovery from Ledgerful
+    let ledgerful_dir = find_ledgerful_dir(&current_dir);
+    let discovered_project_id = ledgerful_dir
         .as_ref()
-        .and_then(|dir| extract_project_id_from_changeguard(dir))
+        .and_then(|dir| extract_project_id_from_ledgerful(dir))
         .and_then(|id_str| id_str.parse::<ProjectId>().ok());
 
     let project_id = if new_project {
         ProjectId::new()
     } else if let Some(id) = discovered_project_id {
-        println!("Auto-discovered project ID from .changeguard: {}", id);
+        println!("Auto-discovered project ID from .ledgerful: {}", id);
         id
     } else {
         // Deterministic project ID based on the canonical directory path
@@ -142,7 +142,7 @@ pub fn run(
     );
 
     if let Some(id) = tx_id {
-        env_content.push_str(&format!("CHANGEGUARD_TX_ID={}\n", id));
+        env_content.push_str(&format!("LEDGERFUL_TX_ID={}\n", id));
     }
 
     let mut final_content = if env_path.exists() {
@@ -153,9 +153,10 @@ pub fn run(
                 !l.starts_with("AI_BRAINS_PROJECT_ID")
                     && !l.starts_with("AI_BRAINS_SESSION_ID")
                     && !l.starts_with("AI_BRAINS_HARNESS_ID")
+                    && !l.starts_with("LEDGERFUL_TX_ID")
                     && !l.starts_with("CHANGEGUARD_TX_ID")
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<&str>>()
             .join("\n")
     } else {
         String::new()

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiResult<T> {
     pub ok: bool,
-    /// Compatibility field for external tools (e.g. ChangeGuard)
+    /// Compatibility field for external tools (e.g. Ledgerful)
     pub status: String,
     /// Compatibility field for external tools (flat message)
     #[serde(skip_serializing_if = "Option::is_none")]
