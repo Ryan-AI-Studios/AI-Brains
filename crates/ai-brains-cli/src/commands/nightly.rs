@@ -13,6 +13,7 @@ pub async fn run(
     status: bool,
     skip_import: bool,
     run_as_system: bool,
+    dry_run: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let task_name = "AI-Brains-Nightly";
 
@@ -63,7 +64,35 @@ pub async fn run(
     if schedule {
         let exe_path = std::env::current_exe()?;
         let exe_str = exe_path.to_str().ok_or("Invalid executable path")?;
-        let args = build_schtasks_args(exe_str, task_name, &start_time, run_as_system);
+
+        let task_command = if run_as_system {
+            let content = generate_nightly_wrapper_script(exe_str)?;
+            if dry_run {
+                let args = build_schtasks_args(
+                    "%TEMP%\\ai-brains-nightly-task.bat",
+                    task_name,
+                    &start_time,
+                    run_as_system,
+                );
+                println!("[dry-run] Would execute:");
+                println!("  schtasks {}", args.join(" "));
+                println!();
+                println!("Wrapper script content:");
+                println!("{}", content);
+                println!();
+                println!(
+                    "(Note: actual registration may require elevated PowerShell privileges depending on system policy)"
+                );
+                return Ok(());
+            }
+            let path = write_wrapper_script(&content)?;
+            println!("Wrapper script written to: {}", path.display());
+            format!("'{}'", path.display())
+        } else {
+            format!("'{}' nightly", exe_str)
+        };
+
+        let args = build_schtasks_args(&task_command, task_name, &start_time, run_as_system);
 
         let output = std::process::Command::new("schtasks")
             .args(&args)
@@ -237,7 +266,7 @@ fn check_schedule_state() -> String {
 }
 
 fn build_schtasks_args(
-    exe_str: &str,
+    task_command: &str,
     task_name: &str,
     start_time: &str,
     run_as_system: bool,
@@ -247,7 +276,7 @@ fn build_schtasks_args(
         "/tn".to_string(),
         task_name.to_string(),
         "/tr".to_string(),
-        format!("'{}' nightly", exe_str),
+        task_command.to_string(),
         "/sc".to_string(),
         "daily".to_string(),
         "/st".to_string(),
@@ -259,6 +288,39 @@ fn build_schtasks_args(
     }
     args.push("/f".to_string());
     args
+}
+
+const REQUIRED_ENV_VARS: [&str; 5] = [
+    "AI_BRAINS_VAULT_PATH",
+    "AI_BRAINS_MODEL_URL",
+    "AI_BRAINS_COMPLETION_MODEL",
+    "AI_BRAINS_EMBEDDING_URL",
+    "AI_BRAINS_EMBEDDING_MODEL",
+];
+
+fn generate_nightly_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut lines = vec!["@echo off".to_string()];
+    for key in REQUIRED_ENV_VARS {
+        match std::env::var(key) {
+            Ok(value) if !value.is_empty() => {
+                lines.push(format!("set {}={}", key, value));
+            }
+            Ok(_) | Err(_) => {
+                tracing::warn!("Required env var {} is missing or empty", key);
+            }
+        }
+    }
+    lines.push(format!(
+        r#""{}" --no-project-context nightly --skip-import --log-format json"#,
+        exe_str
+    ));
+    Ok(lines.join("\n"))
+}
+
+fn write_wrapper_script(content: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let path = std::env::temp_dir().join("ai-brains-nightly-task.bat");
+    std::fs::write(&path, content).map_err(|e| format!("Failed to write wrapper script: {}", e))?;
+    Ok(path)
 }
 
 /// Fetch structured MADR records from Ledgerful via bridge IPC and ingest as
@@ -528,5 +590,79 @@ mod tests {
             run_as_system
                 && (stderr.contains("Access is denied") || stdout.contains("Access is denied"))
         );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_schtasks_args__run_as_system__includes_no_project_context_and_skip_import() {
+        let args = build_schtasks_args(
+            r"C:\fake\ai-brains.exe --no-project-context nightly --skip-import --log-format json",
+            "AI-Brains-Nightly",
+            "03:00",
+            true,
+        );
+        let tr = args
+            .iter()
+            .position(|a| a == "/tr")
+            .expect("/tr argument present");
+        let task_command = &args[tr + 1];
+        assert!(task_command.contains("--no-project-context"));
+        assert!(task_command.contains("--skip-import"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_schtasks_args__no_run_as_system__omits_no_project_context_and_skip_import() {
+        let args = build_schtasks_args(
+            r"C:\fake\ai-brains.exe nightly",
+            "AI-Brains-Nightly",
+            "03:00",
+            false,
+        );
+        let tr = args
+            .iter()
+            .position(|a| a == "/tr")
+            .expect("/tr argument present");
+        let task_command = &args[tr + 1];
+        assert!(!task_command.contains("--no-project-context"));
+        assert!(!task_command.contains("--skip-import"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_schtasks_args__run_as_system__tr_points_to_wrapper_script() {
+        let args = build_schtasks_args(
+            r"C:\Users\RyanB\AppData\Local\Temp\ai-brains-nightly-task.bat",
+            "AI-Brains-Nightly",
+            "03:00",
+            true,
+        );
+        let tr = args
+            .iter()
+            .position(|a| a == "/tr")
+            .expect("/tr argument present");
+        let task_command = &args[tr + 1];
+        assert!(task_command.ends_with(".bat"));
+        assert!(!task_command.contains("ai-brains.exe"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_schtasks_args__run_as_system__wrapper_script_contains_env_vars(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        std::env::set_var("AI_BRAINS_VAULT_PATH", "C:\\vault.db");
+        std::env::set_var("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081");
+        std::env::set_var("AI_BRAINS_COMPLETION_MODEL", "model.gguf");
+        std::env::set_var("AI_BRAINS_EMBEDDING_URL", "http://127.0.0.1:8083");
+        std::env::set_var("AI_BRAINS_EMBEDDING_MODEL", "embed-model");
+        let content = generate_nightly_wrapper_script(r"C:\fake\ai-brains.exe")?;
+        assert!(content.contains("AI_BRAINS_VAULT_PATH"));
+        assert!(content.contains("AI_BRAINS_MODEL_URL"));
+        assert!(content.contains("AI_BRAINS_COMPLETION_MODEL"));
+        assert!(content.contains("AI_BRAINS_EMBEDDING_URL"));
+        assert!(content.contains("AI_BRAINS_EMBEDDING_MODEL"));
+        assert!(content.contains("--no-project-context"));
+        assert!(content.contains("--skip-import"));
+        Ok(())
     }
 }

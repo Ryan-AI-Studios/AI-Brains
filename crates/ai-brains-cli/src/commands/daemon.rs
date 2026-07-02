@@ -69,6 +69,12 @@ fn schedule_inner(
         println!("[dry-run] Would execute:");
         println!("  {cmd}");
         println!();
+        if run_as_system {
+            let content = generate_daemon_wrapper_script(&exe_str)?;
+            println!("Wrapper script content:");
+            println!("{}", content);
+            println!();
+        }
         println!("Daemon logon command: {}", exe_str);
         println!();
         println!(
@@ -77,8 +83,22 @@ fn schedule_inner(
         return Ok(());
     }
 
-    println!("Registering Task Scheduler logon task...");
-    println!("  {cmd}");
+    let task_command = if run_as_system {
+        let content = generate_daemon_wrapper_script(&exe_str)?;
+        let path = write_daemon_wrapper_script(&content)?;
+        println!("Wrapper script written to: {}", path.display());
+        format!("'{}'", path.display())
+    } else {
+        format!("'{}'", exe_str)
+    };
+
+    let cmd =
+        TaskScheduler::render_daemon_logon_command_with_tr("AI-Brains-Daemon", 30, &task_command);
+    if run_as_system {
+        println!("{} /ru SYSTEM", cmd);
+    } else {
+        println!("{}", cmd);
+    }
     let output = std::process::Command::new("cmd")
         .args(["/C", &cmd])
         .output()?;
@@ -103,13 +123,56 @@ fn schedule_inner(
     Ok(())
 }
 
+fn generate_daemon_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let required = [
+        "AI_BRAINS_VAULT_PATH",
+        "AI_BRAINS_MODEL_URL",
+        "AI_BRAINS_COMPLETION_MODEL",
+        "AI_BRAINS_EMBEDDING_URL",
+        "AI_BRAINS_EMBEDDING_MODEL",
+    ];
+    let mut lines = vec!["@echo off".to_string()];
+    for key in required {
+        match std::env::var(key) {
+            Ok(value) if !value.is_empty() => {
+                lines.push(format!("set {}={}", key, value));
+            }
+            Ok(_) | Err(_) => {
+                tracing::warn!("Required env var {} is missing or empty", key);
+            }
+        }
+    }
+    lines.push(format!(r#""{}" --no-project-context"#, exe_str));
+    Ok(lines.join("\n"))
+}
+
+fn write_daemon_wrapper_script(
+    content: &str,
+) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let path = std::env::temp_dir().join("ai-brains-daemon-task.bat");
+    std::fs::write(&path, content).map_err(|e| format!("Failed to write wrapper script: {}", e))?;
+    Ok(path)
+}
+
 fn render_daemon_schedule_command(
     exe_path: &str,
     task_name: &str,
     delay_seconds: u32,
     run_as_system: bool,
 ) -> String {
-    let base = TaskScheduler::render_daemon_logon_command(exe_path, task_name, delay_seconds);
+    let task_command = if run_as_system {
+        match generate_daemon_wrapper_script(exe_path) {
+            Ok(_) => "%TEMP%\\ai-brains-daemon-task.bat --no-project-context".to_string(),
+            Err(_) => {
+                format!("'{}' --no-project-context", exe_path)
+            }
+        }
+    } else {
+        format!("'{}'", exe_path)
+    };
+
+    let base =
+        TaskScheduler::render_daemon_logon_command_with_tr(task_name, delay_seconds, &task_command);
     if run_as_system {
         format!("{} /ru SYSTEM", base)
     } else {
@@ -504,6 +567,14 @@ mod tests {
         let exe = std::path::PathBuf::from(r"C:\fake\ai-brainsd.exe");
         let result = schedule_inner(&exe, true, true);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn render_daemon_schedule_command__run_as_system__includes_no_project_context() {
+        let cmd =
+            render_daemon_schedule_command(r"C:\fake\ai-brainsd.exe", "AI-Brains-Daemon", 30, true);
+        assert!(cmd.contains("--no-project-context"));
     }
 
     /// T103: unschedule_inner with dry_run must return Ok without executing

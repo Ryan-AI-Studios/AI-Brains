@@ -85,6 +85,7 @@
 | T139 | Project Env Precedence and Preflight Scope | Complete | Codex | [T139](tracks/trackT139-project-env-precedence-preflight-scope/spec.md) | Local `.env` project/session IDs override stale inherited shell IDs with a warning |
 | T140 | FTS Query Sanitization for Bridge and Recall | Complete | Codex | [T140](tracks/trackT140-fts-query-sanitization-bridge-recall/spec.md) | Shared sanitizer tokenizes punctuation-heavy prompts so commas cannot crash FTS5 |
 | T141 | Nightly Timeout Hardening Follow-up | Complete | Codex | [T141](tracks/trackT141-nightly-timeout-hardening-follow-up/spec.md) | Adopt and verify preexisting Ollama timeout, nightly abort, WAL, and deterministic recall-test hardening |
+| T143 | Nightly `--run-as-system` SYSTEM Context Fix | 🔄 **In Progress** | — | [T143](tracks/trackT143-nightly-run-as-system-fix/spec.md) | `--run-as-system` generates a wrapper `.bat` baking in env vars + adds `--no-project-context --skip-import`; adds `--dry-run` for nightly schedule |
 
 
 ---

@@ -149,6 +149,23 @@ ai-brains nightly --status             # show last run timestamp + pending work
 ai-brains nightly --unschedule
 ```
 
+#### Running the nightly as SYSTEM (`--run-as-system`)
+By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143):
+
+- It generates a **wrapper `.bat` script** that bakes in the current values of `AI_BRAINS_VAULT_PATH`, `AI_BRAINS_MODEL_URL`, `AI_BRAINS_COMPLETION_MODEL`, `AI_BRAINS_EMBEDDING_URL`, and `AI_BRAINS_EMBEDDING_MODEL` from your environment (or `.env`). The scheduled task runs that wrapper instead of the bare executable, so SYSTEM gets the same config you have.
+- The wrapper appends `--no-project-context --skip-import` to the `ai-brains.exe nightly` invocation. SYSTEM has no `.env` to auto-discover and cannot reach your Antigravity session DB, so project-context discovery and the Antigravity import would both fail; these flags skip them.
+- `--run-as-system` **requires an elevated PowerShell session** (Run as Administrator). If the `schtasks /Create` call fails with `Access is denied`, reopen PowerShell as Administrator and retry — the CLI prints the exact command it tried to run.
+
+To preview the registration without writing it, add `--dry-run`:
+
+```powershell
+ai-brains nightly --schedule --run-as-system --start-time "03:00" --dry-run
+```
+
+`--dry-run` prints the `schtasks` command and the generated wrapper script to stdout without registering the task, so you can verify the baked-in env vars and flags before committing.
+
+> **Migration (T143):** Existing `AI-Brains-Nightly` SYSTEM tasks registered by T132 lack the baked-in env vars and fail with exit code 1. Re-schedule with `ai-brains nightly --unschedule` then `ai-brains nightly --schedule --run-as-system`. The same treatment applies to `daemon --schedule --run-as-system`.
+
 ## 6. Memory Hygiene
 
 ### Soft-Delete

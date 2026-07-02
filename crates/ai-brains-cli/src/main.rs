@@ -175,6 +175,9 @@ enum Commands {
         /// Schedule the task to run as SYSTEM (no login required). Requires elevation.
         #[arg(long)]
         run_as_system: bool,
+        /// Preview the scheduling command without registering the task
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Create a timestamped backup of the vault
     Backup {
@@ -821,6 +824,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             status,
             skip_import,
             run_as_system,
+            dry_run,
         } => {
             commands::nightly::run(
                 &ctx,
@@ -830,6 +834,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 *status,
                 *skip_import,
                 *run_as_system,
+                *dry_run,
             )
             .await
         }

@@ -28,6 +28,20 @@ impl TaskScheduler {
         format!("schtasks /delete /tn \"{}\" /f", task_name)
     }
 
+    /// Renders a schtasks command to run the daemon at every user logon with a
+    /// caller-supplied /tr value.
+    pub fn render_daemon_logon_command_with_tr(
+        task_name: &str,
+        delay_seconds: u32,
+        task_command: &str,
+    ) -> String {
+        let mm = delay_seconds / 60;
+        let ss = delay_seconds % 60;
+        format!(
+            "schtasks /create /tn \"{task_name}\" /tr \"{task_command}\" /sc ONLOGON /delay {mm:04}:{ss:02} /f",
+        )
+    }
+
     /// Renders a schtasks command to run the daemon at every user logon.
     /// exe_path: Full path to ai-brainsd.exe
     /// task_name: Unique name (e.g. "AI-Brains-Daemon")
@@ -37,13 +51,10 @@ impl TaskScheduler {
         task_name: &str,
         delay_seconds: u32,
     ) -> String {
-        let mm = delay_seconds / 60;
-        let ss = delay_seconds % 60;
-        // T78: use the same single-quote convention as render_create_command.
-        // The previous escaped-doublequote format produced a literal trailing
-        // backslash that schtasks rejected with "Access is denied".
-        format!(
-            "schtasks /create /tn \"{task_name}\" /tr \"'{exe_path}'\" /sc ONLOGON /delay {mm:04}:{ss:02} /f",
+        Self::render_daemon_logon_command_with_tr(
+            task_name,
+            delay_seconds,
+            &format!("'{exe_path}'"),
         )
     }
 }

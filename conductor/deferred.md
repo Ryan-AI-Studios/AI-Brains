@@ -39,3 +39,13 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 ### 6. `scripts/dev-check.ps1` PowerShell parse error
 - Reported by Track 1 worker as pre-existing; not investigated (out of T142 scope).
 - The script does not run at all due to a parse error. If this script is used in CI or local dev workflow, triage in a hygiene track.
+
+---
+
+## From nightly investigation (2026-07-01)
+
+### 7. Nightly scheduled task fails as SYSTEM — T143 in progress
+- **Issue:** `ai-brains nightly --schedule --run-as-system` (T132) registers a SYSTEM task with bare `ai-brains.exe nightly` — no vault path, no LLM env vars, no `--no-project-context`, no `--skip-import`. SYSTEM doesn't inherit User env vars, so the nightly fails with exit code 1 every night.
+- **Last successful nightly run:** 2026-06-25T11:46 UTC. Failing silently since then.
+- **Immediate workaround applied:** `scripts/nightly-task.bat` wrapper script with env vars baked in; task re-registered as SYSTEM via elevated `schtasks /Create /RU SYSTEM`.
+- **Proper fix:** Track T143 (`conductor/tracks/trackT143-nightly-run-as-system-fix/`) — make `--run-as-system` in the CLI generate the wrapper script and add `--no-project-context --skip-import` automatically.
