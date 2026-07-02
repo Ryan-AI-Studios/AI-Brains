@@ -70,10 +70,16 @@ fn schedule_inner(
         println!("  {cmd}");
         println!();
         if run_as_system {
-            let content = generate_daemon_wrapper_script(&exe_str)?;
-            println!("Wrapper script content:");
-            println!("{}", content);
-            println!();
+            match generate_daemon_wrapper_script(&exe_str) {
+                Ok(content) => {
+                    println!("Wrapper script content:");
+                    println!("{}", content);
+                    println!();
+                }
+                Err(e) => {
+                    println!("(Wrapper script would fail: {})", e);
+                }
+            }
         }
         println!("Daemon logon command: {}", exe_str);
         println!();
@@ -124,7 +130,25 @@ fn schedule_inner(
 }
 
 fn generate_daemon_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let required = [
+    let required: [&str; 5] = [
+        "AI_BRAINS_VAULT_PATH",
+        "AI_BRAINS_MODEL_URL",
+        "AI_BRAINS_COMPLETION_MODEL",
+        "AI_BRAINS_EMBEDDING_URL",
+        "AI_BRAINS_EMBEDDING_MODEL",
+    ];
+    let env_values: Vec<(&str, String)> = required
+        .iter()
+        .map(|key| (*key, std::env::var(key).unwrap_or_default()))
+        .collect();
+    generate_daemon_wrapper_script_from_env(exe_str, &env_values)
+}
+
+fn generate_daemon_wrapper_script_from_env(
+    exe_str: &str,
+    env_values: &[(&str, String)],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let required: [&str; 5] = [
         "AI_BRAINS_VAULT_PATH",
         "AI_BRAINS_MODEL_URL",
         "AI_BRAINS_COMPLETION_MODEL",
@@ -132,14 +156,36 @@ fn generate_daemon_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::
         "AI_BRAINS_EMBEDDING_MODEL",
     ];
     let mut lines = vec!["@echo off".to_string()];
+    let mut missing = Vec::new();
     for key in required {
-        match std::env::var(key) {
-            Ok(value) if !value.is_empty() => {
-                lines.push(format!("set {}={}", key, value));
-            }
-            Ok(_) | Err(_) => {
-                tracing::warn!("Required env var {} is missing or empty", key);
-            }
+        let value = env_values
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, v)| v.as_str())
+            .unwrap_or("");
+        if value.is_empty() {
+            tracing::warn!("Required env var {} is missing or empty", key);
+            missing.push(key);
+        } else {
+            lines.push(format!("set \"{}={}\"", key, value));
+        }
+    }
+    if !missing.is_empty() {
+        return Err(format!(
+            "Cannot schedule as SYSTEM: required env vars missing or empty: {}. \
+             Run from a directory with a .env file, or set them in your user environment before scheduling.",
+            missing.join(", ")
+        )
+        .into());
+    }
+    let vault_path = env_values
+        .iter()
+        .find(|(k, _)| *k == "AI_BRAINS_VAULT_PATH")
+        .map(|(_, v)| v.as_str())
+        .unwrap_or("");
+    if let Some(parent) = std::path::Path::new(vault_path).parent() {
+        if !parent.as_os_str().is_empty() {
+            lines.push(format!("cd /d \"{}\"", parent.display()));
         }
     }
     lines.push(format!(r#""{}" --no-project-context"#, exe_str));
@@ -149,7 +195,16 @@ fn generate_daemon_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::
 fn write_daemon_wrapper_script(
     content: &str,
 ) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    let path = std::env::temp_dir().join("ai-brains-daemon-task.bat");
+    let vault_path = std::env::var("AI_BRAINS_VAULT_PATH").unwrap_or_default();
+    let dir = if vault_path.is_empty() {
+        std::env::temp_dir()
+    } else {
+        std::path::Path::new(&vault_path)
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(std::env::temp_dir)
+    };
+    let path = dir.join(".ai-brains-daemon-task.bat");
     std::fs::write(&path, content).map_err(|e| format!("Failed to write wrapper script: {}", e))?;
     Ok(path)
 }
@@ -575,6 +630,52 @@ mod tests {
         let cmd =
             render_daemon_schedule_command(r"C:\fake\ai-brainsd.exe", "AI-Brains-Daemon", 30, true);
         assert!(cmd.contains("--no-project-context"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn generate_daemon_wrapper_script__all_vars_present__includes_set_cd_and_no_project_context(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let env_values: Vec<(&str, String)> = vec![
+            ("AI_BRAINS_VAULT_PATH", "C:\\vault\\vault.db".to_string()),
+            ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),
+            ("AI_BRAINS_COMPLETION_MODEL", "model.gguf".to_string()),
+            (
+                "AI_BRAINS_EMBEDDING_URL",
+                "http://127.0.0.1:8083".to_string(),
+            ),
+            ("AI_BRAINS_EMBEDDING_MODEL", "embed-model".to_string()),
+        ];
+        let content =
+            generate_daemon_wrapper_script_from_env(r"C:\fake\ai-brainsd.exe", &env_values)?;
+        assert!(content.contains("set \"AI_BRAINS_VAULT_PATH=C:\\vault\\vault.db\""));
+        assert!(content.contains("set \"AI_BRAINS_MODEL_URL=http://127.0.0.1:8081\""));
+        assert!(content.contains("cd /d \"C:\\vault\""));
+        assert!(content.contains("--no-project-context"));
+        assert!(content.contains(r#""C:\fake\ai-brainsd.exe""#));
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn generate_daemon_wrapper_script__missing_env_var__returns_error() {
+        let env_values: Vec<(&str, String)> = vec![
+            ("AI_BRAINS_VAULT_PATH", String::new()),
+            ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),
+            ("AI_BRAINS_COMPLETION_MODEL", "model.gguf".to_string()),
+            (
+                "AI_BRAINS_EMBEDDING_URL",
+                "http://127.0.0.1:8083".to_string(),
+            ),
+            ("AI_BRAINS_EMBEDDING_MODEL", "embed-model".to_string()),
+        ];
+        let result =
+            generate_daemon_wrapper_script_from_env(r"C:\fake\ai-brainsd.exe", &env_values);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("AI_BRAINS_VAULT_PATH"));
     }
 
     /// T103: unschedule_inner with dry_run must return Ok without executing

@@ -49,3 +49,14 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 - **Last successful nightly run:** 2026-06-25T11:46 UTC. Failing silently since then.
 - **Immediate workaround applied:** `scripts/nightly-task.bat` wrapper script with env vars baked in; task re-registered as SYSTEM via elevated `schtasks /Create /RU SYSTEM`.
 - **Proper fix:** Track T143 (`conductor/tracks/trackT143-nightly-run-as-system-fix/`) — make `--run-as-system` in the CLI generate the wrapper script and add `--no-project-context --skip-import` automatically.
+
+### 8. Privilege escalation: SYSTEM executes user-writable binaries
+- **Issue:** `--run-as-system` schedules a SYSTEM task that executes a wrapper script + binary, both in user-writable locations (vault parent dir, `C:\Users\RyanB\.cargo\bin\`). Any user-level process can replace either file and gain SYSTEM execution.
+- **Pre-existing:** T132 had the same risk (bare exe invocation as SYSTEM). T143 moved the wrapper to the vault parent (not `%TEMP%`) and added `cd /d`, but the underlying risk remains.
+- **Codex review:** Flagged as critical on two consecutive reviews. Reviewer won't clear without ACL hardening.
+- **Defer to:** A dedicated SECURITY track that:
+  - Relocates the wrapper script to `C:\ProgramData\AI-Brains\` with `icacls` granting `SYSTEM:R` + `Administrators:F` only.
+  - Copies the binary to a SYSTEM-controlled location at schedule time, or restricts the cargo bin dir ACLs.
+  - Rejects existing files/reparse points during wrapper creation.
+  - Verifies the resulting ACL before task registration.
+- **Current mitigation:** Single-user dev machine. Risk is theoretical until multi-user environments are supported.

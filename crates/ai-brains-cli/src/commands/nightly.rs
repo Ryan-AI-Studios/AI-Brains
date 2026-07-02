@@ -66,28 +66,59 @@ pub async fn run(
         let exe_str = exe_path.to_str().ok_or("Invalid executable path")?;
 
         let task_command = if run_as_system {
-            let content = generate_nightly_wrapper_script(exe_str)?;
-            if dry_run {
-                let args = build_schtasks_args(
-                    "%TEMP%\\ai-brains-nightly-task.bat",
-                    task_name,
-                    &start_time,
-                    run_as_system,
-                );
-                println!("[dry-run] Would execute:");
-                println!("  schtasks {}", args.join(" "));
-                println!();
-                println!("Wrapper script content:");
-                println!("{}", content);
-                println!();
-                println!(
-                    "(Note: actual registration may require elevated PowerShell privileges depending on system policy)"
-                );
-                return Ok(());
+            let wrapper_placeholder = std::env::var("AI_BRAINS_VAULT_PATH")
+                .ok()
+                .and_then(|vp| {
+                    std::path::Path::new(&vp)
+                        .parent()
+                        .map(|p| format!("{}\\.ai-brains-nightly-task.bat", p.display()))
+                })
+                .unwrap_or_else(|| "%TEMP%\\ai-brains-nightly-task.bat".to_string());
+            match generate_nightly_wrapper_script(exe_str) {
+                Ok(content) => {
+                    if dry_run {
+                        let args = build_schtasks_args(
+                            &wrapper_placeholder,
+                            task_name,
+                            &start_time,
+                            run_as_system,
+                        );
+                        println!("[dry-run] Would execute:");
+                        println!("  schtasks {}", args.join(" "));
+                        println!();
+                        println!("Wrapper script content:");
+                        println!("{}", content);
+                        println!();
+                        println!(
+                            "(Note: actual registration may require elevated PowerShell privileges depending on system policy)"
+                        );
+                        return Ok(());
+                    }
+                    let path = write_wrapper_script(&content)?;
+                    println!("Wrapper script written to: {}", path.display());
+                    format!("'{}'", path.display())
+                }
+                Err(e) => {
+                    if dry_run {
+                        let args = build_schtasks_args(
+                            &wrapper_placeholder,
+                            task_name,
+                            &start_time,
+                            run_as_system,
+                        );
+                        println!("[dry-run] Would execute:");
+                        println!("  schtasks {}", args.join(" "));
+                        println!();
+                        println!("(Wrapper script would fail: {})", e);
+                        println!();
+                        println!(
+                            "(Note: actual registration may require elevated PowerShell privileges depending on system policy)"
+                        );
+                        return Ok(());
+                    }
+                    return Err(e);
+                }
             }
-            let path = write_wrapper_script(&content)?;
-            println!("Wrapper script written to: {}", path.display());
-            format!("'{}'", path.display())
         } else {
             format!("'{}' nightly", exe_str)
         };
@@ -299,15 +330,48 @@ const REQUIRED_ENV_VARS: [&str; 5] = [
 ];
 
 fn generate_nightly_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let env_values: Vec<(&str, String)> = REQUIRED_ENV_VARS
+        .iter()
+        .map(|key| (*key, std::env::var(key).unwrap_or_default()))
+        .collect();
+    generate_nightly_wrapper_script_from_env(exe_str, &env_values)
+}
+
+fn generate_nightly_wrapper_script_from_env(
+    exe_str: &str,
+    env_values: &[(&str, String)],
+) -> Result<String, Box<dyn std::error::Error>> {
     let mut lines = vec!["@echo off".to_string()];
+    let mut missing = Vec::new();
     for key in REQUIRED_ENV_VARS {
-        match std::env::var(key) {
-            Ok(value) if !value.is_empty() => {
-                lines.push(format!("set {}={}", key, value));
-            }
-            Ok(_) | Err(_) => {
-                tracing::warn!("Required env var {} is missing or empty", key);
-            }
+        let value = env_values
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, v)| v.as_str())
+            .unwrap_or("");
+        if value.is_empty() {
+            tracing::warn!("Required env var {} is missing or empty", key);
+            missing.push(key);
+        } else {
+            lines.push(format!("set \"{}={}\"", key, value));
+        }
+    }
+    if !missing.is_empty() {
+        return Err(format!(
+            "Cannot schedule as SYSTEM: required env vars missing or empty: {}. \
+             Run from a directory with a .env file, or set them in your user environment before scheduling.",
+            missing.join(", ")
+        )
+        .into());
+    }
+    let vault_path = env_values
+        .iter()
+        .find(|(k, _)| *k == "AI_BRAINS_VAULT_PATH")
+        .map(|(_, v)| v.as_str())
+        .unwrap_or("");
+    if let Some(parent) = std::path::Path::new(vault_path).parent() {
+        if !parent.as_os_str().is_empty() {
+            lines.push(format!("cd /d \"{}\"", parent.display()));
         }
     }
     lines.push(format!(
@@ -318,7 +382,16 @@ fn generate_nightly_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std:
 }
 
 fn write_wrapper_script(content: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    let path = std::env::temp_dir().join("ai-brains-nightly-task.bat");
+    let vault_path = std::env::var("AI_BRAINS_VAULT_PATH").unwrap_or_default();
+    let dir = if vault_path.is_empty() {
+        std::env::temp_dir()
+    } else {
+        std::path::Path::new(&vault_path)
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(std::env::temp_dir)
+    };
+    let path = dir.join(".ai-brains-nightly-task.bat");
     std::fs::write(&path, content).map_err(|e| format!("Failed to write wrapper script: {}", e))?;
     Ok(path)
 }
@@ -650,19 +723,47 @@ mod tests {
     #[allow(non_snake_case)]
     fn build_schtasks_args__run_as_system__wrapper_script_contains_env_vars(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        std::env::set_var("AI_BRAINS_VAULT_PATH", "C:\\vault.db");
-        std::env::set_var("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081");
-        std::env::set_var("AI_BRAINS_COMPLETION_MODEL", "model.gguf");
-        std::env::set_var("AI_BRAINS_EMBEDDING_URL", "http://127.0.0.1:8083");
-        std::env::set_var("AI_BRAINS_EMBEDDING_MODEL", "embed-model");
-        let content = generate_nightly_wrapper_script(r"C:\fake\ai-brains.exe")?;
-        assert!(content.contains("AI_BRAINS_VAULT_PATH"));
-        assert!(content.contains("AI_BRAINS_MODEL_URL"));
-        assert!(content.contains("AI_BRAINS_COMPLETION_MODEL"));
-        assert!(content.contains("AI_BRAINS_EMBEDDING_URL"));
-        assert!(content.contains("AI_BRAINS_EMBEDDING_MODEL"));
+        let env_values: Vec<(&str, String)> = vec![
+            ("AI_BRAINS_VAULT_PATH", "C:\\vault.db".to_string()),
+            ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),
+            ("AI_BRAINS_COMPLETION_MODEL", "model.gguf".to_string()),
+            (
+                "AI_BRAINS_EMBEDDING_URL",
+                "http://127.0.0.1:8083".to_string(),
+            ),
+            ("AI_BRAINS_EMBEDDING_MODEL", "embed-model".to_string()),
+        ];
+        let content =
+            generate_nightly_wrapper_script_from_env(r"C:\fake\ai-brains.exe", &env_values)?;
+        assert!(content.contains("set \"AI_BRAINS_VAULT_PATH=C:\\vault.db\""));
+        assert!(content.contains("set \"AI_BRAINS_MODEL_URL=http://127.0.0.1:8081\""));
+        assert!(content.contains("set \"AI_BRAINS_COMPLETION_MODEL=model.gguf\""));
+        assert!(content.contains("set \"AI_BRAINS_EMBEDDING_URL=http://127.0.0.1:8083\""));
+        assert!(content.contains("set \"AI_BRAINS_EMBEDDING_MODEL=embed-model\""));
         assert!(content.contains("--no-project-context"));
         assert!(content.contains("--skip-import"));
+        assert!(content.contains(r#""C:\fake\ai-brains.exe""#));
+        assert!(content.contains("cd /d \"C:\\\""));
         Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn generate_nightly_wrapper_script__missing_env_var__returns_error() {
+        let env_values: Vec<(&str, String)> = vec![
+            ("AI_BRAINS_VAULT_PATH", "C:\\vault.db".to_string()),
+            ("AI_BRAINS_MODEL_URL", String::new()),
+            ("AI_BRAINS_COMPLETION_MODEL", "model.gguf".to_string()),
+            (
+                "AI_BRAINS_EMBEDDING_URL",
+                "http://127.0.0.1:8083".to_string(),
+            ),
+            ("AI_BRAINS_EMBEDDING_MODEL", "embed-model".to_string()),
+        ];
+        let result =
+            generate_nightly_wrapper_script_from_env(r"C:\fake\ai-brains.exe", &env_values);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("AI_BRAINS_MODEL_URL"));
     }
 }
