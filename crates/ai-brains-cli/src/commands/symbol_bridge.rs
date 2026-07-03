@@ -141,11 +141,21 @@ fn refresh_changeguard_index() {
 /// joined from `api_routes` when that table exists.
 #[allow(clippy::disallowed_methods)]
 fn query_symbols_from_changeguard() -> Result<Vec<SymbolRecord>, Box<dyn std::error::Error>> {
-    let db_path = std::env::current_dir()?.join(".changeguard/state/ledger.db");
-    if !db_path.exists() {
-        tracing::info!("Ledgerful ledger DB not found at {}", db_path.display());
+    let cwd = std::env::current_dir()?;
+    let ledgerful_path = cwd.join(".ledgerful/state/ledger.db");
+    let changeguard_path = cwd.join(".changeguard/state/ledger.db");
+    let db_path = if ledgerful_path.exists() {
+        ledgerful_path
+    } else if changeguard_path.exists() {
+        changeguard_path
+    } else {
+        tracing::info!(
+            "Ledgerful ledger DB not found at {} or {}",
+            ledgerful_path.display(),
+            changeguard_path.display()
+        );
         return Ok(Vec::new());
-    }
+    };
 
     let conn =
         rusqlite::Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
