@@ -26,6 +26,9 @@ sha2.workspace = true
 hex.workspace = true
 chrono.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+windows-service = "0.8"
 
 [dev-dependencies]
 tempfile.workspace = true

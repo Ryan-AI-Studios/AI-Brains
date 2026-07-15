@@ -59,6 +59,56 @@ impl TaskScheduler {
     }
 }
 
+pub struct ServiceScheduler;
+
+impl ServiceScheduler {
+    const SERVICE_NAME: &'static str = "AI-Brains-Daemon";
+    const DISPLAY_NAME: &'static str = "AI-Brains Daemon";
+    const DESCRIPTION: &'static str =
+        "Local-first AI coding memory vault — captures conversation history without tool logs or hidden thinking.";
+
+    pub fn render_install_command(exe_path: &str, _env_sidecar_path: &str) -> String {
+        format!(
+            "sc create \"{name}\" binPath= \"\\\"{exe}\\\" --service\" start= delayed-auto DisplayName= \"{display}\"",
+            name = Self::SERVICE_NAME,
+            exe = exe_path,
+            display = Self::DISPLAY_NAME,
+        )
+    }
+
+    pub fn render_description_command() -> String {
+        format!(
+            "sc description \"{name}\" \"{desc}\"",
+            name = Self::SERVICE_NAME,
+            desc = Self::DESCRIPTION,
+        )
+    }
+
+    pub fn render_env_sidecar_hint(env_sidecar_path: &str) -> String {
+        format!("Write daemon env vars to: {path}", path = env_sidecar_path,)
+    }
+
+    pub fn render_start_command() -> String {
+        format!("sc start \"{}\"", Self::SERVICE_NAME)
+    }
+
+    pub fn render_stop_command() -> String {
+        format!("sc stop \"{}\"", Self::SERVICE_NAME)
+    }
+
+    pub fn render_uninstall_command() -> String {
+        format!("sc delete \"{}\"", Self::SERVICE_NAME)
+    }
+
+    pub fn service_name() -> &'static str {
+        Self::SERVICE_NAME
+    }
+
+    pub fn service_description() -> &'static str {
+        Self::DESCRIPTION
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -107,5 +157,62 @@ mod tests {
             cmd,
             r#"schtasks /create /tn "AI-Brains-Daemon" /tr "'C:\Program Files\AI-Brains\ai-brainsd.exe'" /sc ONLOGON /delay 0001:00 /f"#
         );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn service_scheduler__render_install_command__includes_sc_create_and_service_flag() {
+        let cmd = ServiceScheduler::render_install_command(
+            r"C:\Program Files\AI-Brains\ai-brainsd.exe",
+            r"C:\ProgramData\AI-Brains\daemon.env",
+        );
+        assert!(cmd.starts_with("sc create \"AI-Brains-Daemon\""));
+        assert!(cmd.contains("--service"));
+        assert!(cmd.contains("start= delayed-auto"));
+        assert!(
+            cmd.contains(r#"binPath= "\"C:\Program Files\AI-Brains\ai-brainsd.exe\" --service""#),
+            "binPath must escape inner quotes: {cmd}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn service_scheduler__render_description_command__includes_sc_description() {
+        let cmd = ServiceScheduler::render_description_command();
+        assert!(cmd.starts_with("sc description \"AI-Brains-Daemon\""));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn service_scheduler__render_uninstall_command__includes_sc_delete() {
+        let cmd = ServiceScheduler::render_uninstall_command();
+        assert_eq!(cmd, "sc delete \"AI-Brains-Daemon\"");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn service_scheduler__render_start_command__includes_sc_start() {
+        let cmd = ServiceScheduler::render_start_command();
+        assert_eq!(cmd, "sc start \"AI-Brains-Daemon\"");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn service_scheduler__render_stop_command__includes_sc_stop() {
+        let cmd = ServiceScheduler::render_stop_command();
+        assert_eq!(cmd, "sc stop \"AI-Brains-Daemon\"");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn service_scheduler__render_env_sidecar_hint__includes_path() {
+        let cmd = ServiceScheduler::render_env_sidecar_hint(r"C:\ProgramData\AI-Brains\daemon.env");
+        assert!(cmd.contains("C:\\ProgramData\\AI-Brains\\daemon.env"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn service_scheduler__service_name__returns_constant() {
+        assert_eq!(ServiceScheduler::service_name(), "AI-Brains-Daemon");
     }
 }

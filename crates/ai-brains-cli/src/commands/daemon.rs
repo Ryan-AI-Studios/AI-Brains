@@ -240,11 +240,17 @@ pub fn run_schedule(
     dry_run: bool,
     run_as_system: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    tracing::warn!(
+        "Note: `daemon schedule` is deprecated. Use `ai-brains daemon install` for a proper Windows service."
+    );
     let exe = which_daemon()?;
     schedule_inner(&exe, dry_run, run_as_system)
 }
 
 fn unschedule_inner(dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+    tracing::warn!(
+        "Note: `daemon unschedule` is deprecated. Use `ai-brains daemon uninstall` to remove the Windows service."
+    );
     let cmd = TaskScheduler::render_delete_command("AI-Brains-Daemon");
 
     if dry_run {
@@ -270,6 +276,203 @@ fn unschedule_inner(dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
 
 pub fn run_unschedule(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
     unschedule_inner(dry_run)
+}
+
+pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let exe = which_daemon()?;
+    let exe_str = exe.to_string_lossy().to_string();
+
+    let env_sidecar_dir =
+        std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+    let env_sidecar_path = std::path::Path::new(&env_sidecar_dir)
+        .join("AI-Brains")
+        .join("daemon.env");
+
+    let service_name = ai_brains_scheduler::ServiceScheduler::service_name();
+    let bin_path = format!("{exe_str} --service");
+    let display_name = "AI-Brains Daemon";
+
+    if dry_run {
+        println!("[dry-run] Would execute the following commands:");
+        println!("  1. sc create \"{service_name}\" binPath= \"{bin_path}\" start= delayed-auto DisplayName= \"{display_name}\"");
+        println!("  2. sc description \"{service_name}\" \"...\"");
+        println!("  3. Write env vars to: {}", env_sidecar_path.display());
+        println!("  4. sc start \"{service_name}\"");
+        println!();
+        println!("(Requires an elevated PowerShell session.)");
+        return Ok(());
+    }
+
+    if !is_elevated() {
+        return Err(
+            "Installing a Windows service requires elevation. Re-run from an Administrator shell."
+                .into(),
+        );
+    }
+
+    let env_sidecar_content = generate_env_sidecar();
+    if let Some(content) = env_sidecar_content {
+        if let Some(parent) = env_sidecar_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&env_sidecar_path, &content)?;
+        println!("Env sidecar written to: {}", env_sidecar_path.display());
+    }
+
+    println!("Creating service...");
+    let output = std::process::Command::new("sc")
+        .arg("create")
+        .arg(service_name)
+        .arg(format!("binPath= {bin_path}"))
+        .arg("start=")
+        .arg("demand")
+        .arg(format!("DisplayName= {display_name}"))
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stderr.contains("already exists") || stdout.contains("already exists") {
+            return Err("Service 'AI-Brains-Daemon' already exists. Use `ai-brains daemon uninstall` first.".into());
+        }
+        return Err(format!("sc create failed: {stderr}{stdout}").into());
+    }
+
+    println!("Setting description...");
+    let _ = std::process::Command::new("sc")
+        .args(["description", service_name])
+        .arg(ai_brains_scheduler::ServiceScheduler::service_description())
+        .output();
+
+    println!("Setting delayed-auto start...");
+    let _ = std::process::Command::new("sc")
+        .arg("config")
+        .arg(service_name)
+        .arg("start=")
+        .arg("delayed-auto")
+        .output();
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    println!("Starting service...");
+    let start_output = std::process::Command::new("sc")
+        .args(["start", service_name])
+        .output()?;
+    if start_output.status.success() {
+        println!("Service 'AI-Brains-Daemon' installed and started.");
+    } else {
+        println!(
+            "Service installed but failed to auto-start. Use `ai-brains daemon start` or `sc start AI-Brains-Daemon`."
+        );
+    }
+
+    Ok(())
+}
+
+pub fn run_uninstall(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let service_name = ai_brains_scheduler::ServiceScheduler::service_name();
+
+    if dry_run {
+        println!("[dry-run] Would execute the following commands:");
+        println!("  1. sc stop \"{service_name}\"");
+        println!("  2. sc delete \"{service_name}\"");
+        println!();
+        println!("(Requires an elevated PowerShell session.)");
+        return Ok(());
+    }
+
+    if !is_elevated() {
+        return Err(
+            "Uninstalling a Windows service requires elevation. Re-run from an Administrator shell."
+                .into(),
+        );
+    }
+
+    println!("Stopping service...");
+    let _ = std::process::Command::new("sc")
+        .args(["stop", service_name])
+        .output();
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
+    println!("Deleting service...");
+    let output = std::process::Command::new("sc")
+        .args(["delete", service_name])
+        .output()?;
+    if output.status.success() {
+        println!("Service 'AI-Brains-Daemon' removed.");
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stderr.contains("does not exist")
+            || stdout.contains("does not exist")
+            || stderr.contains("1060")
+            || stdout.contains("1060")
+        {
+            println!("Service 'AI-Brains-Daemon' was not installed — nothing to remove.");
+        } else {
+            return Err(format!("sc delete failed: {stderr}{stdout}").into());
+        }
+    }
+
+    Ok(())
+}
+
+fn generate_env_sidecar() -> Option<String> {
+    let keys = [
+        "AI_BRAINS_VAULT_PATH",
+        "AI_BRAINS_VAULT_KEY",
+        "AI_BRAINS_MODEL_URL",
+        "AI_BRAINS_COMPLETION_MODEL",
+        "AI_BRAINS_EMBEDDING_URL",
+        "AI_BRAINS_EMBEDDING_MODEL",
+    ];
+    let mut lines = Vec::new();
+    let mut found_any = false;
+    for key in &keys {
+        if let Ok(val) = std::env::var(key) {
+            if !val.is_empty() {
+                lines.push(format!("{key}={val}"));
+                found_any = true;
+            }
+        }
+    }
+    if found_any {
+        Some(lines.join("\n"))
+    } else {
+        None
+    }
+}
+
+#[cfg(windows)]
+fn is_elevated() -> bool {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::Security::{
+        GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+    };
+    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+    unsafe {
+        let mut token = windows::Win32::Foundation::HANDLE::default();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+            return false;
+        }
+
+        let mut elevation = TOKEN_ELEVATION::default();
+        let mut ret_len: u32 = 0;
+        let ok = GetTokenInformation(
+            token,
+            TokenElevation,
+            Some(&mut elevation as *mut _ as *mut _),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut ret_len,
+        );
+        let _ = CloseHandle(token);
+
+        ok.is_ok() && elevation.TokenIsElevated != 0
+    }
+}
+
+#[cfg(not(windows))]
+fn is_elevated() -> bool {
+    true
 }
 
 pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std::error::Error>> {

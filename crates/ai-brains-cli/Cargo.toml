@@ -44,6 +44,9 @@ chrono.workspace = true
 
 time.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
 [features]
 default = []
 graph = ["dep:ai-brains-graph", "ai-brains-retrieval/graph"]

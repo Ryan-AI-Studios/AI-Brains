@@ -10,12 +10,40 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 #[cfg(windows)]
 use tokio::net::windows::named_pipe::ServerOptions;
 
+#[cfg(windows)]
+use ai_brainsd::instance_guard::{InstanceDecision, ProbeOutcome};
+#[cfg(windows)]
+use ai_brainsd::pipe_error::{classify_pipe_error, PipeErrorKind};
+
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-#[tokio::main]
+const PIPE_NAME: &str = r"\\.\pipe\aibrains-sync";
+
 #[allow(clippy::disallowed_methods)]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Local .env first, then global ~/.ai-brains/.env for vault path config.
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let args: Vec<String> = std::env::args().collect();
+    let run_as_service = args.iter().any(|a| a == "--service");
+
+    if run_as_service {
+        #[cfg(windows)]
+        {
+            return ai_brainsd::windows_service::run_service();
+        }
+        #[cfg(not(windows))]
+        {
+            eprintln!("--service flag is only supported on Windows.");
+            std::process::exit(1);
+        }
+    }
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+
+    runtime.block_on(async_main())
+}
+
+async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenvy::dotenv().ok();
     if std::env::var("AI_BRAINS_VAULT_PATH").is_err() {
         if let Some(mut global_env) = dirs::home_dir() {
@@ -55,30 +83,110 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     #[cfg(windows)]
     {
-        let pipe_name = r"\\.\pipe\aibrains-sync";
-        println!("AI-Brains Daemon started. Listening on {}", pipe_name);
+        match check_existing_instance(PIPE_NAME).await {
+            InstanceDecision::AlreadyRunning => {
+                println!(
+                    "Daemon already running on {pipe_name}. Exiting. \
+                     Use `ai-brains daemon status` to check.",
+                    pipe_name = PIPE_NAME
+                );
+                return Ok(());
+            }
+            InstanceDecision::ProbeFailed => {
+                println!(
+                    "Probe of existing pipe failed — proceeding to create {pipe_name}.",
+                    pipe_name = PIPE_NAME
+                );
+            }
+            InstanceDecision::Proceed => {}
+        }
+
+        let pipe_sa = match ai_brainsd::pipe_security::build_pipe_security_attributes() {
+            Ok(sa) => Some(sa),
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to build pipe security descriptor (continuing with default): {}",
+                    e
+                );
+                None
+            }
+        };
+
+        println!("AI-Brains Daemon started. Listening on {}", PIPE_NAME);
 
         let writer_clone = writer.clone();
         let shutdown_tx_clone = shutdown_tx.clone();
 
+        let sa_ptr_usize: usize = pipe_sa
+            .as_ref()
+            .map(|sa| sa as *const _ as *const std::ffi::c_void as usize)
+            .unwrap_or(0);
+
         tokio::spawn(async move {
+            let mut first_instance = true;
+            let mut use_sd = sa_ptr_usize != 0;
             loop {
-                let server = match ServerOptions::new()
-                    .first_pipe_instance(false)
-                    .create(pipe_name)
-                {
-                    Ok(s) => s,
-                    Err(e) => {
-                        eprintln!("Failed to create named pipe instance: {}", e);
-                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                        continue;
+                let server_result = if use_sd {
+                    let mut opts = ServerOptions::new();
+                    opts.first_pipe_instance(first_instance);
+                    let sa_ptr = sa_ptr_usize as *mut std::ffi::c_void;
+                    let res =
+                        unsafe { opts.create_with_security_attributes_raw(PIPE_NAME, sa_ptr) };
+                    if res.is_err() {
+                        tracing::warn!(
+                            "Pipe creation with custom SD failed, falling back to default SD"
+                        );
+                        use_sd = false;
+                        let mut opts2 = ServerOptions::new();
+                        opts2.first_pipe_instance(first_instance);
+                        opts2.create(PIPE_NAME)
+                    } else {
+                        res
                     }
+                } else {
+                    let mut opts = ServerOptions::new();
+                    opts.first_pipe_instance(first_instance);
+                    opts.create(PIPE_NAME)
+                };
+
+                let server = match server_result {
+                    Ok(s) => {
+                        first_instance = false;
+                        s
+                    }
+                    Err(e) => match classify_pipe_error(&e) {
+                        PipeErrorKind::AccessDenied => {
+                            eprintln!(
+                                "Access denied creating pipe {pipe_name} — \
+                                     another instance owns it or the security descriptor \
+                                     denies access. Exiting.\n\
+                                     Hint: use `ai-brains daemon stop` to stop the \
+                                     existing instance, or check the service is not \
+                                     already running via `sc query AI-Brains-Daemon`.",
+                                pipe_name = PIPE_NAME
+                            );
+                            std::process::exit(1);
+                        }
+                        PipeErrorKind::PipeBusy => {
+                            tracing::debug!("Pipe busy, retrying in 1s: {}", e);
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                            continue;
+                        }
+                        PipeErrorKind::Other => {
+                            eprintln!(
+                                "Failed to create named pipe instance on {pipe_name}: {err}",
+                                pipe_name = PIPE_NAME,
+                                err = e
+                            );
+                            std::process::exit(1);
+                        }
+                    },
                 };
 
                 tokio::select! {
                     res = server.connect() => {
                         if let Err(e) = res {
-                            eprintln!("Failed to connect client: {}", e);
+                            tracing::warn!("Failed to connect client: {}", e);
                             continue;
                         }
 
@@ -173,6 +281,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     println!("Daemon exited cleanly.");
     Ok(())
+}
+
+#[cfg(windows)]
+async fn check_existing_instance(pipe_name: &str) -> InstanceDecision {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::windows::named_pipe::ClientOptions;
+    use tokio::time::timeout;
+
+    let probe_timeout = std::time::Duration::from_secs(2);
+
+    let mut stream = match ClientOptions::new().open(pipe_name) {
+        Ok(s) => s,
+        Err(_) => return InstanceDecision::from_probe(ProbeOutcome::ConnectFailed),
+    };
+
+    let ping = DaemonRequest::Ping;
+    let json = match serde_json::to_vec(&ping) {
+        Ok(j) => j,
+        Err(_) => return InstanceDecision::from_probe(ProbeOutcome::NoResponse),
+    };
+
+    let mut payload = json;
+    payload.push(b'\n');
+
+    if timeout(probe_timeout, stream.write_all(&payload))
+        .await
+        .is_err()
+    {
+        return InstanceDecision::from_probe(ProbeOutcome::NoResponse);
+    }
+
+    let mut buf = vec![0u8; 1024];
+    match timeout(probe_timeout, stream.read(&mut buf)).await {
+        Ok(Ok(n)) if n > 0 => {
+            if let Ok(resp) = serde_json::from_slice::<DaemonResponse>(&buf[..n]) {
+                if matches!(resp, DaemonResponse::Pong) {
+                    return InstanceDecision::from_probe(ProbeOutcome::Pong);
+                }
+            }
+            InstanceDecision::from_probe(ProbeOutcome::NoResponse)
+        }
+        _ => InstanceDecision::from_probe(ProbeOutcome::NoResponse),
+    }
 }
 
 #[allow(clippy::disallowed_methods)]

@@ -122,14 +122,15 @@ ai-brains project detect --export            # auto-detect from current git repo
 ### Daemon Lifecycle
 The `ai-brainsd` daemon is a single-writer queue that serializes event writes for concurrency safety.
 ```powershell
-ai-brains daemon start             # start in background
+ai-brains daemon start             # start in background (console process)
 ai-brains daemon status            # show PID + listening ports
 ai-brains daemon stop              # graceful shutdown (use --force if it hangs)
-ai-brains daemon schedule          # register Windows Task Scheduler logon task
-ai-brains daemon unschedule        # remove the logon task
+ai-brains daemon install           # install as Windows service (requires elevation)
+ai-brains daemon uninstall         # remove the Windows service (requires elevation)
 ```
 - The CLI auto-launches the daemon if it is unreachable, so most users never need `daemon start` explicitly.
-- If the Task Scheduler call fails with `Access is denied`, run from an elevated PowerShell session.
+- **Windows service (recommended for persistent daemon):** `daemon install` registers `AI-Brains-Daemon` as a Windows service running as `LocalSystem` in Session 0. The pipe security descriptor grants the interactive user cross-session access, so CLI clients in Session 1 can connect. Env vars (vault path, model URLs) are written to `%ProgramData%\AI-Brains\daemon.env`. Requires an elevated PowerShell session.
+- **Deprecated:** `daemon schedule` / `unschedule` (Task Scheduler ONLOGON) still work but are deprecated in favor of `install` / `uninstall`. The Task Scheduler approach had a cross-session pipe access issue where Session 0 daemons were unreachable from Session 1.
 
 ### Nightly Intelligence Sweep
 ```powershell
@@ -219,7 +220,15 @@ ai-brains init --force
 ```
 
 ### `daemon schedule` reports "Access is denied"
-The Task Scheduler registration requires elevation. Open PowerShell **as Administrator** and retry. The CLI prints the exact `schtasks` command it tried to run, which you can also paste manually.
+The Task Scheduler registration requires elevation. Open PowerShell **as Administrator** and retry. The CLI prints the exact `schtasks` command it tried to run, which you can also paste manually. **Note:** `daemon schedule` is deprecated — use `ai-brains daemon install` for a proper Windows service.
+
+### `Failed to create named pipe instance: Access is denied (os error 5)`
+This means another `ai-brainsd` instance already owns the `\\.\pipe\aibrains-sync` pipe and the security descriptor denies your user access. This is the cross-session pipe issue (T144). The fix is to:
+1. Stop any existing daemon: `ai-brains daemon stop --force`
+2. Install as a service: `ai-brains daemon install` (from elevated PowerShell)
+3. The service creates the pipe with a security descriptor that grants the current user cross-session access.
+
+If you see this on a second manual launch, the daemon now detects the existing instance and exits cleanly with "Daemon already running" instead of looping.
 
 ### Recalls return only code files, not session memories
 This is correct FTS5 behavior when no session context has been pinned. After a few ingest+recall cycles, the relevant session memory will surface. The `safety sync` command intentionally pins file paths as memories so the same query can return both kinds of result.

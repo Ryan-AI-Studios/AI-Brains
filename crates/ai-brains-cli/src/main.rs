@@ -368,6 +368,18 @@ pub enum DaemonCommands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Install the daemon as a Windows service (requires elevation)
+    Install {
+        /// Preview the sc.exe commands without executing them
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Uninstall the Windows service (requires elevation)
+    Uninstall {
+        /// Preview the sc.exe command without executing it
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Stop the running daemon gracefully
     Stop {
         /// Forcefully terminate the process if it doesn't respond to shutdown signal
@@ -992,6 +1004,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } => commands::daemon::run_schedule(&ctx, *dry_run, *run_as_system),
             DaemonCommands::Unschedule { dry_run } => {
                 commands::daemon::run_unschedule(&ctx, *dry_run)
+            }
+            DaemonCommands::Install { dry_run } => commands::daemon::run_install(&ctx, *dry_run),
+            DaemonCommands::Uninstall { dry_run } => {
+                commands::daemon::run_uninstall(&ctx, *dry_run)
             }
             DaemonCommands::Stop { force } => commands::daemon::run_stop(&ctx, *force).await,
             DaemonCommands::Update => commands::daemon::run_update(&ctx).await,

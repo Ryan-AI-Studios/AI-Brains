@@ -10,6 +10,15 @@ use tokio::fs;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
+pub mod instance_guard;
+pub mod pipe_error;
+
+#[cfg(windows)]
+pub mod pipe_security;
+
+#[cfg(windows)]
+pub mod windows_service;
+
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 struct DaemonStoreSink {
