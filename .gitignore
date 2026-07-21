@@ -27,3 +27,7 @@ target
 backups/
 *.db-shm
 *.db-wal
+
+# Generated schedule wrappers (machine-local paths + model env baked in)
+.ai-brains-nightly-task.bat
+.ai-brains-*-task.bat

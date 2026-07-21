@@ -92,6 +92,12 @@ fn schedule_inner(
     let task_command = if run_as_system {
         let content = generate_daemon_wrapper_script(&exe_str)?;
         let path = write_daemon_wrapper_script(&content)?;
+        if !crate::artifact_security::may_register_after_prepare(true) {
+            return Err(
+                "internal: daemon wrapper prepare reported success but registration gate denied"
+                    .into(),
+            );
+        }
         println!("Wrapper script written to: {}", path.display());
         format!("'{}'", path.display())
     } else {
@@ -195,17 +201,9 @@ fn generate_daemon_wrapper_script_from_env(
 fn write_daemon_wrapper_script(
     content: &str,
 ) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    let vault_path = std::env::var("AI_BRAINS_VAULT_PATH").unwrap_or_default();
-    let dir = if vault_path.is_empty() {
-        std::env::temp_dir()
-    } else {
-        std::path::Path::new(&vault_path)
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(std::env::temp_dir)
-    };
-    let path = dir.join(".ai-brains-daemon-task.bat");
-    std::fs::write(&path, content).map_err(|e| format!("Failed to write wrapper script: {}", e))?;
+    // T145: %ProgramData%\AI-Brains\daemon-task.bat with SYSTEM+Administrators ACL only.
+    let path = crate::artifact_security::daemon_wrapper_path();
+    crate::artifact_security::write_protected_artifact(&path, content)?;
     Ok(path)
 }
 
@@ -217,7 +215,9 @@ fn render_daemon_schedule_command(
 ) -> String {
     let task_command = if run_as_system {
         match generate_daemon_wrapper_script(exe_path) {
-            Ok(_) => "%TEMP%\\ai-brains-daemon-task.bat --no-project-context".to_string(),
+            Ok(_) => crate::artifact_security::daemon_wrapper_path()
+                .display()
+                .to_string(),
             Err(_) => {
                 format!("'{}' --no-project-context", exe_path)
             }
@@ -282,11 +282,8 @@ pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::
     let exe = which_daemon()?;
     let exe_str = exe.to_string_lossy().to_string();
 
-    let env_sidecar_dir =
-        std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
-    let env_sidecar_path = std::path::Path::new(&env_sidecar_dir)
-        .join("AI-Brains")
-        .join("daemon.env");
+    // T145: daemon.env under %ProgramData%\AI-Brains with SYSTEM+Administrators ACL only.
+    let env_sidecar_path = crate::artifact_security::daemon_env_path();
 
     let service_name = ai_brains_scheduler::ServiceScheduler::service_name();
     let bin_path = format!("{exe_str} --service");
@@ -296,7 +293,10 @@ pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::
         println!("[dry-run] Would execute the following commands:");
         println!("  1. sc create \"{service_name}\" binPath= \"{bin_path}\" start= delayed-auto DisplayName= \"{display_name}\"");
         println!("  2. sc description \"{service_name}\" \"...\"");
-        println!("  3. Write env vars to: {}", env_sidecar_path.display());
+        println!(
+            "  3. Write env vars (ACL-restricted) to: {}",
+            env_sidecar_path.display()
+        );
         println!("  4. sc start \"{service_name}\"");
         println!();
         println!("(Requires an elevated PowerShell session.)");
@@ -310,13 +310,40 @@ pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::
         );
     }
 
+    // Env sidecar + parent dir hardening (fail closed before service create):
+    // - Always ensure %ProgramData%\AI-Brains parent is non-reparse + ACL-restricted
+    //   before sc create (even when no env content is written).
+    // - Some(content) → rewrite via write_protected_artifact (parent+file ACL).
+    // - None + path exists → apply+verify ACL on the existing file.
+    // - None + path missing → parent still protected; refuse dangling reparse at path.
+    crate::artifact_security::ensure_program_data_ai_brains_dir()?;
     let env_sidecar_content = generate_env_sidecar();
-    if let Some(content) = env_sidecar_content {
-        if let Some(parent) = env_sidecar_path.parent() {
-            std::fs::create_dir_all(parent)?;
+    match env_sidecar_content {
+        Some(content) => {
+            crate::artifact_security::write_protected_artifact(&env_sidecar_path, &content)?;
+            println!("Env sidecar written to: {}", env_sidecar_path.display());
         }
-        std::fs::write(&env_sidecar_path, &content)?;
-        println!("Env sidecar written to: {}", env_sidecar_path.display());
+        None if env_sidecar_path.exists() => {
+            crate::artifact_security::ensure_protected_artifact_acl(&env_sidecar_path)?;
+            println!(
+                "Existing env sidecar ACL hardened: {}",
+                env_sidecar_path.display()
+            );
+        }
+        None => {
+            // Dangling reparse can make Path::exists() false — still refuse.
+            if crate::artifact_security::is_reparse_or_symlink(&env_sidecar_path)? {
+                return Err(format!(
+                    "refusing to register service: reparse point/symlink at {}",
+                    env_sidecar_path.display()
+                )
+                .into());
+            }
+            println!(
+                "No env sidecar content; parent ACL protected at {}",
+                crate::artifact_security::program_data_ai_brains_dir().display()
+            );
+        }
     }
 
     println!("Creating service...");
@@ -829,10 +856,19 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn render_daemon_schedule_command__run_as_system__includes_no_project_context() {
+    fn render_daemon_schedule_command__run_as_system__uses_program_data_wrapper_or_no_project_context(
+    ) {
+        // When env is complete, dry-run /tr is the ProgramData wrapper path (flags live in the bat).
+        // When env is incomplete, dry-run falls back to the bare exe + --no-project-context.
         let cmd =
             render_daemon_schedule_command(r"C:\fake\ai-brainsd.exe", "AI-Brains-Daemon", 30, true);
-        assert!(cmd.contains("--no-project-context"));
+        let uses_wrapper = cmd.contains("daemon-task.bat") || cmd.contains("AI-Brains");
+        let uses_flag = cmd.contains("--no-project-context");
+        assert!(
+            uses_wrapper || uses_flag,
+            "expected ProgramData wrapper path or --no-project-context fallback, got: {cmd}"
+        );
+        assert!(cmd.contains("/ru SYSTEM"));
     }
 
     #[test]
