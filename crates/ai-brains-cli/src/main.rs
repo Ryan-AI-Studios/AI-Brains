@@ -620,6 +620,10 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    // UAC elevated child: restore env + cwd handoff from the non-elevated parent
+    // before any .env / project-context logic (parent may have already loaded .env).
+    crate::elevation::load_elevate_env_handoff();
+
     // Parse the CLI first so we can read the global --no-project-context
     // flag before doing any env-var manipulation. We re-parse below; clap
     // is cheap and this keeps the env-var logic close to its trigger.
@@ -722,6 +726,10 @@ fn main() {
                 run(cli).await
             } => {
                 if let Err(err) = res {
+                    // If this is an elevated UAC child, leave a log for the parent process.
+                    if crate::elevation::is_elevated() {
+                        crate::elevation::write_elevate_error_log(&err.to_string());
+                    }
                     use ai_brains_contracts::response::{ApiError, ApiResult};
                     let api_error = ApiError::new("COMMAND_FAILED", err.to_string());
                     let result = ApiResult::<serde_json::Value>::error(api_error);
