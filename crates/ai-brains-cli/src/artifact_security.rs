@@ -2,10 +2,22 @@
 //!
 //! Wrappers and env sidecars used by SYSTEM-scheduled tasks must not live in
 //! user-writable locations. This module relocates them, refuses reparse-point
-//! targets, applies `SYSTEM:F` + `Administrators:F` only (via `icacls`), and
-//! verifies the ACL before callers may register a scheduled task (fail closed).
+//! targets, applies an absolute DACL (`SYSTEM` + `Administrators` full only,
+//! protected from inheritance) via Win32 SDDL/`SetNamedSecurityInfo`, and
+//! verifies the ACL (via `icacls` query) before callers may register a
+//! scheduled task (fail closed).
 
 use std::path::{Path, PathBuf};
+
+/// Absolute protected DACL: SYSTEM + Administrators full control only.
+///
+/// - `D:P` — DACL present and **protected** (no inheritance).
+/// - `FA` — file full access; `SY` — Local System; `BA` — Built-in Administrators.
+///
+/// Applied with `ConvertStringSecurityDescriptorToSecurityDescriptor` +
+/// `SetNamedSecurityInfo` so Windows does not leave residual LogonSession ACEs
+/// (unlike incremental `icacls /grant` + `/remove`).
+pub const RESTRICTIVE_FILE_SDDL: &str = "D:P(A;;FA;;;SY)(A;;FA;;;BA)";
 
 /// `%ProgramData%\AI-Brains` (falls back to `C:\ProgramData\AI-Brains`).
 pub fn program_data_ai_brains_dir() -> PathBuf {
@@ -294,7 +306,7 @@ pub fn is_hardlink(path: &Path) -> std::io::Result<bool> {
     }
 }
 
-/// Apply restrictive ACL: remove inheritance; grant SYSTEM + Administrators full only.
+/// Apply absolute restrictive ACL: SYSTEM + Administrators full only, no inheritance.
 pub fn apply_restrictive_acl(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     {
@@ -338,13 +350,13 @@ pub fn unexpected_acl_principals(icacls_stdout: &str) -> Vec<String> {
         if principal.is_empty() {
             continue;
         }
-        if !is_system_principal(&principal) && !is_administrators_principal(&principal) {
-            if !out
+        if !is_system_principal(&principal)
+            && !is_administrators_principal(&principal)
+            && !out
                 .iter()
                 .any(|p: &String| p.eq_ignore_ascii_case(&principal))
-            {
-                out.push(principal);
-            }
+        {
+            out.push(principal);
         }
     }
     out
@@ -395,14 +407,15 @@ pub fn acl_output_is_restrictive(icacls_stdout: &str) -> Result<(), String> {
         if is_administrators_principal(&principal) && has_full_control(&rights) {
             has_admins_f = true;
         }
+    }
 
-        // Any other principal that isn't SYSTEM or Administrators is a failure
-        if !is_system_principal(&principal) && !is_administrators_principal(&principal) {
-            return Err(format!(
-                "ACL grants access to unexpected principal '{principal}' (rights={rights}); \
-                 expected SYSTEM and Administrators only"
-            ));
-        }
+    // Fail closed on any leftover principal (LogonSessionId, Users, Everyone, …).
+    let unexpected = unexpected_acl_principals(icacls_stdout);
+    if let Some(principal) = unexpected.first() {
+        return Err(format!(
+            "ACL grants access to unexpected principal '{principal}'; \
+             expected SYSTEM and Administrators only"
+        ));
     }
 
     if !has_system_f {
@@ -510,111 +523,107 @@ fn is_hardlink_windows(path: &Path) -> std::io::Result<bool> {
     Ok(info.nNumberOfLinks > 1)
 }
 
+/// Apply absolute DACL via SDDL + SetNamedSecurityInfo (not incremental icacls).
+///
+/// Replaces the entire DACL and marks it protected so LogonSessionId / creator
+/// ACEs and inheritance cannot remain — the failure mode of icacls /grant + /remove.
 #[cfg(windows)]
 fn apply_restrictive_acl_windows(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| format!("Path is not valid UTF-8: {}", path.display()))?;
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{LocalFree, ERROR_SUCCESS, HLOCAL};
+    use windows::Win32::Security::Authorization::{
+        ConvertStringSecurityDescriptorToSecurityDescriptorW, SetNamedSecurityInfoW,
+        SDDL_REVISION_1, SE_FILE_OBJECT,
+    };
+    use windows::Win32::Security::{
+        GetSecurityDescriptorDacl, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
+        ACL, PSECURITY_DESCRIPTOR,
+    };
 
-    // Strip inherited ACEs so only explicit grants remain.
-    let inherit = std::process::Command::new("icacls")
-        .arg(path_str)
-        .arg("/inheritance:r")
-        .output()
-        .map_err(|e| format!("Failed to run icacls /inheritance:r: {e}"))?;
-    if !inherit.status.success() {
-        let stderr = String::from_utf8_lossy(&inherit.stderr);
-        let stdout = String::from_utf8_lossy(&inherit.stdout);
-        return Err(
-            format!("icacls /inheritance:r failed for {path_str}: {stdout}{stderr}").into(),
-        );
-    }
+    let path_wide: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let sddl_wide: Vec<u16> = RESTRICTIVE_FILE_SDDL
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
 
-    // S-1-5-18 = SYSTEM, S-1-5-32-544 = BUILTIN\Administrators (locale-independent).
-    let grant = std::process::Command::new("icacls")
-        .arg(path_str)
-        .arg("/grant:r")
-        .arg("*S-1-5-18:(F)")
-        .arg("*S-1-5-32-544:(F)")
-        .output()
-        .map_err(|e| format!("Failed to run icacls /grant:r: {e}"))?;
-    if !grant.status.success() {
-        // Inheritance was stripped; without grants the object may have an empty
-        // DACL window. Best-effort delete for files only (remove_file is a no-op
-        // error on directories) so we do not leave a broken artifact behind.
-        let _ = std::fs::remove_file(path);
-        let stderr = String::from_utf8_lossy(&grant.stderr);
-        let stdout = String::from_utf8_lossy(&grant.stdout);
-        return Err(format!(
-            "icacls /grant:r SYSTEM+Administrators failed for {path_str}: {stdout}{stderr}"
+    let mut psd = PSECURITY_DESCRIPTOR::default();
+    unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            PCWSTR(sddl_wide.as_ptr()),
+            SDDL_REVISION_1,
+            &mut psd,
+            None,
         )
-        .into());
+        .map_err(|e| {
+            format!("ConvertStringSecurityDescriptor failed for {RESTRICTIVE_FILE_SDDL}: {e}")
+        })?;
     }
 
-    // Windows often leaves a LogonSessionId_* ACE (and sometimes the creator
-    // user) on newly created files even after /grant:r for SYSTEM/Admins.
-    // Strip every unexpected principal so verify can pass fail-closed.
-    strip_unexpected_acl_principals_windows(path_str)?;
+    if psd.0.is_null() {
+        return Err("ConvertStringSecurityDescriptor returned null security descriptor".into());
+    }
 
-    Ok(())
-}
-
-/// Remove ACEs that are not SYSTEM or Administrators (e.g. LogonSessionId).
-fn strip_unexpected_acl_principals_windows(
-    path_str: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // A few rounds: removing one ACE can leave others; cap to avoid loops.
-    for _ in 0..8 {
-        let output = std::process::Command::new("icacls")
-            .arg(path_str)
-            .output()
-            .map_err(|e| format!("Failed to run icacls while stripping ACEs: {e}"))?;
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            return Err(format!(
-                "icacls query failed while stripping ACEs for {path_str}: {stdout}{stderr}"
-            )
-            .into());
-        }
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let unexpected = unexpected_acl_principals(&stdout);
-        if unexpected.is_empty() {
-            return Ok(());
-        }
-        for principal in unexpected {
-            let remove = std::process::Command::new("icacls")
-                .arg(path_str)
-                .arg("/remove")
-                .arg(&principal)
-                .output()
-                .map_err(|e| format!("Failed to run icacls /remove: {e}"))?;
-            if !remove.status.success() {
-                // Try grant-type removal as well.
-                let remove_g = std::process::Command::new("icacls")
-                    .arg(path_str)
-                    .arg("/remove:g")
-                    .arg(&principal)
-                    .output()
-                    .map_err(|e| format!("Failed to run icacls /remove:g: {e}"))?;
-                if !remove_g.status.success() {
-                    let stderr = String::from_utf8_lossy(&remove.stderr);
-                    let stdout = String::from_utf8_lossy(&remove.stdout);
-                    let stderr_g = String::from_utf8_lossy(&remove_g.stderr);
-                    let stdout_g = String::from_utf8_lossy(&remove_g.stdout);
-                    return Err(format!(
-                        "icacls /remove failed for principal '{principal}' on {path_str}: \
-                         /remove=>{stdout}{stderr} /remove:g=>{stdout_g}{stderr_g}"
-                    )
-                    .into());
+    // Free LocalAlloc'd SD from ConvertStringSecurityDescriptor on all exits.
+    struct SdGuard(PSECURITY_DESCRIPTOR);
+    impl Drop for SdGuard {
+        fn drop(&mut self) {
+            if !self.0 .0.is_null() {
+                unsafe {
+                    let _ = LocalFree(Some(HLOCAL(self.0 .0)));
                 }
             }
         }
     }
-    Err(format!(
-        "Could not strip unexpected ACL principals from {path_str} after multiple attempts"
-    )
-    .into())
+    let guard = SdGuard(psd);
+
+    let mut dacl_present = windows::core::BOOL::default();
+    let mut dacl_defaulted = windows::core::BOOL::default();
+    let mut dacl_ptr: *mut ACL = std::ptr::null_mut();
+
+    unsafe {
+        GetSecurityDescriptorDacl(
+            guard.0,
+            &mut dacl_present,
+            &mut dacl_ptr,
+            &mut dacl_defaulted,
+        )
+        .map_err(|e| format!("GetSecurityDescriptorDacl failed: {e}"))?;
+    }
+
+    if !dacl_present.as_bool() || dacl_ptr.is_null() {
+        return Err("SDDL conversion produced no DACL".into());
+    }
+
+    let status = unsafe {
+        SetNamedSecurityInfoW(
+            PCWSTR(path_wide.as_ptr()),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+            None,
+            None,
+            Some(dacl_ptr),
+            None,
+        )
+    };
+
+    if status != ERROR_SUCCESS {
+        // Best-effort: do not leave a half-secured file artifact.
+        let _ = std::fs::remove_file(path);
+        return Err(format!(
+            "SetNamedSecurityInfoW failed for {}: Win32 error {} \
+             (could not apply absolute SYSTEM+Administrators DACL)",
+            path.display(),
+            status.0
+        )
+        .into());
+    }
+
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -772,6 +781,17 @@ fn is_forbidden_principal(principal: &str) -> bool {
 #[allow(non_snake_case, clippy::disallowed_methods)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn restrictive_file_sddl__protected_system_and_admins_only() {
+        // D:P = protected DACL; SY = SYSTEM; BA = Administrators; FA = full file access.
+        assert_eq!(RESTRICTIVE_FILE_SDDL, "D:P(A;;FA;;;SY)(A;;FA;;;BA)");
+        assert!(RESTRICTIVE_FILE_SDDL.starts_with("D:P"));
+        assert!(RESTRICTIVE_FILE_SDDL.contains(";;;SY)"));
+        assert!(RESTRICTIVE_FILE_SDDL.contains(";;;BA)"));
+        assert!(!RESTRICTIVE_FILE_SDDL.contains("WD")); // not Everyone
+        assert!(!RESTRICTIVE_FILE_SDDL.contains("BU")); // not Users
+    }
 
     #[test]
     fn nightly_wrapper_path__default__under_program_data() {
