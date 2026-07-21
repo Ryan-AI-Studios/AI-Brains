@@ -10,6 +10,99 @@ pub enum ElevationOutcome {
     Relaunched { exit_code: u32 },
 }
 
+/// Temp file where an elevated child writes its error text so the parent can show it.
+pub fn elevate_error_log_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("ai-brains-elevate-last-error.txt")
+}
+
+/// Env handoff file so elevated child inherits `.env` values without relying only on cwd.
+pub fn elevate_env_handoff_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("ai-brains-elevate-env.env")
+}
+
+/// Keys to forward into the elevated process (wrapper generation + vault).
+const ELEVATE_ENV_KEYS: &[&str] = &[
+    "AI_BRAINS_VAULT_PATH",
+    "AI_BRAINS_KEY",
+    "AI_BRAINS_VAULT_KEY",
+    "AI_BRAINS_MODEL_URL",
+    "AI_BRAINS_COMPLETION_MODEL",
+    "AI_BRAINS_EMBEDDING_URL",
+    "AI_BRAINS_EMBEDDING_MODEL",
+    "AI_BRAINS_PROJECT_ID",
+    "AI_BRAINS_SESSION_ID",
+];
+
+/// Snapshot current process env for the elevated child (written just before UAC).
+pub fn write_elevate_env_handoff() -> Result<(), Box<dyn std::error::Error>> {
+    let mut lines = Vec::new();
+    for key in ELEVATE_ENV_KEYS {
+        if let Ok(val) = std::env::var(key) {
+            if !val.is_empty() {
+                // dotenv-style; values with newlines are rejected
+                if val.contains('\n') || val.contains('\r') {
+                    continue;
+                }
+                lines.push(format!("{key}={val}"));
+            }
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        lines.push(format!("AI_BRAINS_ELEVATE_CWD={}", cwd.display()));
+    }
+    let path = elevate_env_handoff_path();
+    std::fs::write(&path, lines.join("\n")).map_err(|e| {
+        format!(
+            "Failed to write elevate env handoff {}: {e}",
+            path.display()
+        )
+    })?;
+    Ok(())
+}
+
+/// Load handoff env if present (elevated child startup). Does not remove the file
+/// until after successful use so a crashed child can still be debugged.
+pub fn load_elevate_env_handoff() {
+    let path = elevate_env_handoff_path();
+    if !path.exists() {
+        return;
+    }
+    if let Ok(iter) = dotenvy::from_path_iter(&path) {
+        for entry in iter.flatten() {
+            let (key, value) = entry;
+            if key == "AI_BRAINS_ELEVATE_CWD" {
+                let _ = std::env::set_current_dir(&value);
+                continue;
+            }
+            // Prefer handoff over empty defaults for elevate path.
+            std::env::set_var(key, value);
+        }
+    }
+    let _ = std::fs::remove_file(&path);
+}
+
+/// Write an error message for the non-elevated parent to surface after UAC relaunch.
+pub fn write_elevate_error_log(message: &str) {
+    let path = elevate_error_log_path();
+    let _ = std::fs::write(
+        &path,
+        format!("{message}\n(cwd={})\n", std::env::current_dir().map(|p| p.display().to_string()).unwrap_or_else(|_| "<unknown>".into())),
+    );
+}
+
+/// Read and clear the elevate error log, if any.
+pub fn take_elevate_error_log() -> Option<String> {
+    let path = elevate_error_log_path();
+    let text = std::fs::read_to_string(&path).ok()?;
+    let _ = std::fs::remove_file(&path);
+    let trimmed = text.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
 /// True when the process token is elevated (Administrators full token, not UAC filtered).
 pub fn is_elevated() -> bool {
     #[cfg(windows)]
@@ -36,6 +129,9 @@ pub fn ensure_elevated_or_relaunch() -> Result<ElevationOutcome, Box<dyn std::er
         println!(
             "Administrator elevation is required. Showing UAC prompt (approve to continue)..."
         );
+        // Clear stale error log from a previous attempt; hand off loaded env.
+        let _ = std::fs::remove_file(elevate_error_log_path());
+        write_elevate_env_handoff()?;
         let code = relaunch_elevated_and_wait()?;
         Ok(ElevationOutcome::Relaunched { exit_code: code })
     }
@@ -113,10 +209,15 @@ fn relaunch_elevated_and_wait() -> Result<u32, Box<dyn std::error::Error>> {
 
     let exe = std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
     let params = build_relaunch_params(std::env::args().skip(1));
+    // Preserve project cwd so elevated child loads the same `.env` (otherwise
+    // ShellExecute often starts in System32 and wrapper generation fails on
+    // missing AI_BRAINS_* vars).
+    let cwd = std::env::current_dir().map_err(|e| format!("current_dir failed: {e}"))?;
 
     let mut exe_wide: Vec<u16> = exe.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
     let mut verb_wide: Vec<u16> = "runas".encode_utf16().chain(std::iter::once(0)).collect();
     let mut params_wide: Vec<u16> = params.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut cwd_wide: Vec<u16> = cwd.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
 
     let mut info = SHELLEXECUTEINFOW {
         cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
@@ -125,7 +226,7 @@ fn relaunch_elevated_and_wait() -> Result<u32, Box<dyn std::error::Error>> {
         lpVerb: PCWSTR(verb_wide.as_mut_ptr()),
         lpFile: PCWSTR(exe_wide.as_mut_ptr()),
         lpParameters: PCWSTR(params_wide.as_mut_ptr()),
-        lpDirectory: PCWSTR::null(),
+        lpDirectory: PCWSTR(cwd_wide.as_mut_ptr()),
         nShow: SW_SHOWNORMAL.0,
         ..Default::default()
     };

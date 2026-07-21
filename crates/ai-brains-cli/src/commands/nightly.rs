@@ -67,14 +67,18 @@ pub async fn run(
 
         // SYSTEM scheduling needs admin: offer UAC relaunch (skip for dry-run).
         if run_as_system && !dry_run {
+            // Fail before UAC if wrapper env cannot be built (common when .env missing).
+            let _ = generate_nightly_wrapper_script(exe_str)?;
             match crate::elevation::ensure_elevated_or_relaunch()? {
                 crate::elevation::ElevationOutcome::AlreadyElevated => {}
                 crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
                     if exit_code == 0 {
                         return Ok(());
                     }
+                    let detail = crate::elevation::take_elevate_error_log()
+                        .unwrap_or_else(|| "(no elevated error log; re-run with an Admin shell for full stderr)".into());
                     return Err(format!(
-                        "Elevated schedule process exited with code {exit_code}"
+                        "Elevated schedule process exited with code {exit_code}: {detail}"
                     )
                     .into());
                 }

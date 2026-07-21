@@ -90,14 +90,18 @@ fn schedule_inner(
     }
 
     if run_as_system {
+        let _ = generate_daemon_wrapper_script(&exe_str)?;
         match crate::elevation::ensure_elevated_or_relaunch()? {
             crate::elevation::ElevationOutcome::AlreadyElevated => {}
             crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
                 if exit_code == 0 {
                     return Ok(());
                 }
+                let detail = crate::elevation::take_elevate_error_log().unwrap_or_else(|| {
+                    "(no elevated error log; re-run from an Admin shell for full stderr)".into()
+                });
                 return Err(format!(
-                    "Elevated schedule process exited with code {exit_code}"
+                    "Elevated schedule process exited with code {exit_code}: {detail}"
                 )
                 .into());
             }
@@ -324,8 +328,11 @@ pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::
             if exit_code == 0 {
                 return Ok(());
             }
+            let detail = crate::elevation::take_elevate_error_log().unwrap_or_else(|| {
+                "(no elevated error log; re-run from an Admin shell for full stderr)".into()
+            });
             return Err(format!(
-                "Elevated install process exited with code {exit_code}"
+                "Elevated install process exited with code {exit_code}: {detail}"
             )
             .into());
         }
@@ -433,8 +440,11 @@ pub fn run_uninstall(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std
             if exit_code == 0 {
                 return Ok(());
             }
+            let detail = crate::elevation::take_elevate_error_log().unwrap_or_else(|| {
+                "(no elevated error log; re-run from an Admin shell for full stderr)".into()
+            });
             return Err(format!(
-                "Elevated uninstall process exited with code {exit_code}"
+                "Elevated uninstall process exited with code {exit_code}: {detail}"
             )
             .into());
         }
