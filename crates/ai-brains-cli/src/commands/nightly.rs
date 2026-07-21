@@ -73,10 +73,29 @@ pub async fn run(
                 crate::elevation::ElevationOutcome::AlreadyElevated => {}
                 crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
                     if exit_code == 0 {
+                        // Elevated child did the work; surface its log (console was hidden).
+                        if let Some(Ok(msg)) = crate::elevation::take_elevate_result() {
+                            println!("{msg}");
+                        }
+                        let wrapper = crate::artifact_security::nightly_wrapper_path();
+                        println!(
+                            "Elevated schedule finished successfully.\n\
+                             Task: {task_name} (SYSTEM)\n\
+                             Wrapper: {}\n\
+                             Note: that path is ACL-restricted (SYSTEM/Administrators only);\n\
+                             listing/icacls from a non-elevated shell may say Access denied.\n\
+                             Verify with an elevated shell or: schtasks /Query /TN {task_name}",
+                            wrapper.display()
+                        );
                         return Ok(());
                     }
-                    let detail = crate::elevation::take_elevate_error_log()
-                        .unwrap_or_else(|| "(no elevated error log; re-run with an Admin shell for full stderr)".into());
+                    let detail = crate::elevation::take_elevate_result()
+                        .and_then(|r| r.err())
+                        .or_else(crate::elevation::take_elevate_error_log)
+                        .unwrap_or_else(|| {
+                            "(no elevated error log; re-run from an Admin shell for full stderr)"
+                                .into()
+                        });
                     return Err(format!(
                         "Elevated schedule process exited with code {exit_code}: {detail}"
                     )
@@ -161,10 +180,18 @@ pub async fn run(
             })?;
 
         if output.status.success() {
-            println!(
+            let msg = format!(
                 "Nightly task '{}' scheduled daily at {}.",
                 task_name, start_time
             );
+            println!("{msg}");
+            if crate::elevation::is_elevated() {
+                let wrapper = crate::artifact_security::nightly_wrapper_path();
+                crate::elevation::write_elevate_success_log(&format!(
+                    "{msg}\nWrapper script: {}",
+                    wrapper.display()
+                ));
+            }
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);

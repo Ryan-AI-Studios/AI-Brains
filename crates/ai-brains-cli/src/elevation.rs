@@ -15,6 +15,12 @@ pub fn elevate_error_log_path() -> std::path::PathBuf {
     std::env::temp_dir().join("ai-brains-elevate-last-error.txt")
 }
 
+/// Result status written by elevated child (`OK\n…` or `ERR\n…`). Parent waits on this
+/// when ShellExecute does not return a process handle.
+pub fn elevate_result_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("ai-brains-elevate-result.txt")
+}
+
 /// Env handoff file so elevated child inherits `.env` values without relying only on cwd.
 pub fn elevate_env_handoff_path() -> std::path::PathBuf {
     std::env::temp_dir().join("ai-brains-elevate-env.env")
@@ -84,10 +90,19 @@ pub fn load_elevate_env_handoff() {
 /// Write an error message for the non-elevated parent to surface after UAC relaunch.
 pub fn write_elevate_error_log(message: &str) {
     let path = elevate_error_log_path();
-    let _ = std::fs::write(
-        &path,
-        format!("{message}\n(cwd={})\n", std::env::current_dir().map(|p| p.display().to_string()).unwrap_or_else(|_| "<unknown>".into())),
-    );
+    let cwd = std::env::current_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| "<unknown>".into());
+    let body = format!("{message}\n(cwd={cwd})\n");
+    let _ = std::fs::write(&path, &body);
+    // Also write the result file so parent wait-without-handle can finish.
+    let _ = std::fs::write(elevate_result_path(), format!("ERR\n{body}"));
+}
+
+/// Elevated child succeeded — write result file for parent summary.
+pub fn write_elevate_success_log(message: &str) {
+    let body = format!("{message}\n");
+    let _ = std::fs::write(elevate_result_path(), format!("OK\n{body}"));
 }
 
 /// Read and clear the elevate error log, if any.
@@ -100,6 +115,30 @@ pub fn take_elevate_error_log() -> Option<String> {
         None
     } else {
         Some(trimmed)
+    }
+}
+
+/// Read and clear elevate result (`Ok(message)` / `Err(message)`).
+pub fn take_elevate_result() -> Option<Result<String, String>> {
+    let path = elevate_result_path();
+    let text = std::fs::read_to_string(&path).ok()?;
+    let _ = std::fs::remove_file(&path);
+    let mut lines = text.lines();
+    let status = lines.next()?.trim();
+    let rest = lines.collect::<Vec<_>>().join("\n");
+    let rest = rest.trim().to_string();
+    match status {
+        "OK" => Some(Ok(if rest.is_empty() {
+            "Elevated command completed successfully.".into()
+        } else {
+            rest
+        })),
+        "ERR" => Some(Err(if rest.is_empty() {
+            "Elevated command failed (no details).".into()
+        } else {
+            rest
+        })),
+        _ => Some(Err(text.trim().to_string())),
     }
 }
 
@@ -129,8 +168,9 @@ pub fn ensure_elevated_or_relaunch() -> Result<ElevationOutcome, Box<dyn std::er
         println!(
             "Administrator elevation is required. Showing UAC prompt (approve to continue)..."
         );
-        // Clear stale error log from a previous attempt; hand off loaded env.
+        // Clear stale logs from a previous attempt; hand off loaded env.
         let _ = std::fs::remove_file(elevate_error_log_path());
+        let _ = std::fs::remove_file(elevate_result_path());
         write_elevate_env_handoff()?;
         let code = relaunch_elevated_and_wait()?;
         Ok(ElevationOutcome::Relaunched { exit_code: code })
@@ -205,7 +245,8 @@ fn relaunch_elevated_and_wait() -> Result<u32, Box<dyn std::error::Error>> {
     use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
     use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
     use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
-    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    // Hide the elevated console — parent surfaces result via elevate-result file.
+    use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 
     let exe = std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
     let params = build_relaunch_params(std::env::args().skip(1));
@@ -227,7 +268,7 @@ fn relaunch_elevated_and_wait() -> Result<u32, Box<dyn std::error::Error>> {
         lpFile: PCWSTR(exe_wide.as_mut_ptr()),
         lpParameters: PCWSTR(params_wide.as_mut_ptr()),
         lpDirectory: PCWSTR(cwd_wide.as_mut_ptr()),
-        nShow: SW_SHOWNORMAL.0,
+        nShow: SW_HIDE.0,
         ..Default::default()
     };
 
@@ -249,24 +290,57 @@ fn relaunch_elevated_and_wait() -> Result<u32, Box<dyn std::error::Error>> {
     }
 
     let process = info.hProcess;
-    if process.is_invalid() {
-        // Launched but no process handle — treat as fire-and-forget success.
-        return Ok(0);
-    }
+    if !process.is_invalid() {
+        let wait = unsafe { WaitForSingleObject(process, INFINITE) };
+        if wait != WAIT_OBJECT_0 {
+            let _ = unsafe { CloseHandle(process) };
+            return Err("WaitForSingleObject on elevated process failed".into());
+        }
 
-    let wait = unsafe { WaitForSingleObject(process, INFINITE) };
-    if wait != WAIT_OBJECT_0 {
+        let mut exit_code: u32 = 1;
+        let got = unsafe { GetExitCodeProcess(process, &mut exit_code) };
         let _ = unsafe { CloseHandle(process) };
-        return Err("WaitForSingleObject on elevated process failed".into());
+        if got.is_err() {
+            return Err("GetExitCodeProcess on elevated process failed".into());
+        }
+        // Prefer result file if present (richer message); exit code is authoritative.
+        return Ok(exit_code);
     }
 
-    let mut exit_code: u32 = 1;
-    let got = unsafe { GetExitCodeProcess(process, &mut exit_code) };
-    let _ = unsafe { CloseHandle(process) };
-    if got.is_err() {
-        return Err("GetExitCodeProcess on elevated process failed".into());
+    // No process handle (known UAC/ShellExecute quirk): wait on result file instead
+    // of treating launch as immediate success (previous bug → silent false OK).
+    println!("Waiting for elevated process to finish...");
+    wait_for_elevate_result_file(std::time::Duration::from_secs(120))
+}
+
+/// Poll for elevate-result.txt written by the elevated child.
+#[cfg(windows)]
+fn wait_for_elevate_result_file(
+    timeout: std::time::Duration,
+) -> Result<u32, Box<dyn std::error::Error>> {
+    let path = elevate_result_path();
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout {
+        if path.exists() {
+            // Small settle delay so the writer finishes.
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            let text = std::fs::read_to_string(&path).unwrap_or_default();
+            if text.starts_with("OK") {
+                return Ok(0);
+            }
+            if text.starts_with("ERR") {
+                return Ok(1);
+            }
+            // Partial write — keep waiting a bit more.
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    Ok(exit_code)
+    Err(format!(
+        "Timed out waiting for elevated process result at {}. \
+         The UAC child may have crashed before reporting status.",
+        path.display()
+    )
+    .into())
 }
 
 #[cfg(test)]

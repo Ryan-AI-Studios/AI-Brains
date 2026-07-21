@@ -94,16 +94,7 @@ fn schedule_inner(
         match crate::elevation::ensure_elevated_or_relaunch()? {
             crate::elevation::ElevationOutcome::AlreadyElevated => {}
             crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
-                if exit_code == 0 {
-                    return Ok(());
-                }
-                let detail = crate::elevation::take_elevate_error_log().unwrap_or_else(|| {
-                    "(no elevated error log; re-run from an Admin shell for full stderr)".into()
-                });
-                return Err(format!(
-                    "Elevated schedule process exited with code {exit_code}: {detail}"
-                )
-                .into());
+                return report_elevated_outcome(exit_code, "schedule");
             }
         }
     }
@@ -325,16 +316,7 @@ pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::
     match crate::elevation::ensure_elevated_or_relaunch()? {
         crate::elevation::ElevationOutcome::AlreadyElevated => {}
         crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
-            if exit_code == 0 {
-                return Ok(());
-            }
-            let detail = crate::elevation::take_elevate_error_log().unwrap_or_else(|| {
-                "(no elevated error log; re-run from an Admin shell for full stderr)".into()
-            });
-            return Err(format!(
-                "Elevated install process exited with code {exit_code}: {detail}"
-            )
-            .into());
+            return report_elevated_outcome(exit_code, "install");
         }
     }
 
@@ -437,16 +419,7 @@ pub fn run_uninstall(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std
     match crate::elevation::ensure_elevated_or_relaunch()? {
         crate::elevation::ElevationOutcome::AlreadyElevated => {}
         crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
-            if exit_code == 0 {
-                return Ok(());
-            }
-            let detail = crate::elevation::take_elevate_error_log().unwrap_or_else(|| {
-                "(no elevated error log; re-run from an Admin shell for full stderr)".into()
-            });
-            return Err(format!(
-                "Elevated uninstall process exited with code {exit_code}: {detail}"
-            )
-            .into());
+            return report_elevated_outcome(exit_code, "uninstall");
         }
     }
 
@@ -477,6 +450,26 @@ pub fn run_uninstall(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std
     }
 
     Ok(())
+}
+
+fn report_elevated_outcome(
+    exit_code: u32,
+    action: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if exit_code == 0 {
+        if let Some(Ok(msg)) = crate::elevation::take_elevate_result() {
+            println!("{msg}");
+        }
+        println!("Elevated daemon {action} finished successfully.");
+        return Ok(());
+    }
+    let detail = crate::elevation::take_elevate_result()
+        .and_then(|r| r.err())
+        .or_else(crate::elevation::take_elevate_error_log)
+        .unwrap_or_else(|| {
+            "(no elevated error log; re-run from an Admin shell for full stderr)".into()
+        });
+    Err(format!("Elevated {action} process exited with code {exit_code}: {detail}").into())
 }
 
 fn generate_env_sidecar() -> Option<String> {
