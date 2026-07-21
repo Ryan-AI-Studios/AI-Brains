@@ -10,9 +10,13 @@
 
 ### D0.2 — ACL implementation approach
 
-- **Choice: `icacls.exe` for apply + verify**, not hand-rolled SD construction.
-- Rationale: auditable, matches `deferred.md` #8 sketch, avoids subtle Win32 DACL mistakes. Reparse-point detection uses Win32 `GetFileAttributesW` / `FILE_ATTRIBUTE_REPARSE_POINT` (and `Path::is_symlink`) — same Windows surface as T144's security module, but file ACLs stay shell-based.
-- Template read: `crates/ai-brainsd/src/pipe_security.rs` (SDDL for pipes is a different concern; not reused for file ACLs).
+- **Initial choice:** `icacls` apply + verify (Phase 0).
+- **Final (after live UAC failures):** **absolute DACL** via SDDL  
+  `D:P(A;;FA;;;SY)(A;;FA;;;BA)` + `ConvertStringSecurityDescriptorToSecurityDescriptor` +  
+  `SetNamedSecurityInfo` with `PROTECTED_DACL_SECURITY_INFORMATION` (PR #13).  
+  Incremental `icacls /grant` left Windows `LogonSessionId_*` ACEs that `/remove` could not strip.
+- **Verify:** still fail-closed via `icacls` query parse (`SYSTEM` + `Administrators` full only).
+- Reparse detection: `GetFileAttributesW` / `FILE_ATTRIBUTE_REPARSE_POINT` + `Path::is_symlink`.
 
 ### D0.3 — DoD-4 binary path residual risk
 
@@ -45,13 +49,10 @@ Implemented without live `schtasks` re-register (Phase 6 STOP still open):
 4. **Docs** — `Docs/OPERATIONS.md` SYSTEM section + residual binary risk; `conductor/deferred.md` #8 struck with T145 pointer.
 5. **Tests** — pure ACL parse (ok / Everyone / Users / missing SYSTEM), path helpers, regular-file reparse false, symlink refuse when creatable, optional temp write+icacls (may skip without elevation).
 
-### Residual risks (still open)
+### Residual risks (accepted)
 
 - Cargo-bin `ai-brains.exe` / `ai-brainsd.exe` user-writable (D0.3 accepted).
-- Live elevated re-register + `icacls` capture for DoD-1/DoD-7 still Phase 6 STOP.
-- Track not marked Complete; no git commit/push from this implementer.
-- **R5 residual:** if `icacls` grant fails after inheritance strip, empty DACL window possible; registration remains fail-closed; best-effort delete attempted on the file artifact.
-- **R6 residual:** closed by codex C2 — hardlinks (`nlink > 1`) are refused before overwrite; regular single-link replace remains allowed per D0.5.
+- Codex deferred P3: no mock-`schtasks` integration test (wiring uses `?` + prepare gate + pure tests).
 
 ## Findings
 
@@ -118,7 +119,7 @@ Implemented without live `schtasks` re-register (Phase 6 STOP still open):
 
 ### C6 P1 PROCESS — completion gates
 - **Disposition:** VALIDATED (process)
-- **Status:** open — orchestrator owns full gate / live schtasks / track Complete. Do **not** mark Complete here.
+- **Status:** `verified_fixed` — live Phase 6 completed 2026-07-21 (see Live verification evidence below); track marked Complete.
 
 ### Observed gate (package-scoped)
 - `cargo nextest run -p ai-brains-cli` — 163 passed, 0 skipped (post C1–C5 + ensure_parent on ensure path)
@@ -133,11 +134,77 @@ Implemented without live `schtasks` re-register (Phase 6 STOP still open):
 6. **Fix:** `ensure_program_data_ai_brains_dir()` always before `sc create`; dangling reparse refuse
 7. **Round 4** (`review.codex.round4.md`): **PASS WITH DEFERRED P3**
    - P0/P1/P2: none open
-   - Deferred P3: no mock-schtasks boundary integration test (wiring uses `?` + `may_register_after_prepare` + pure gate tests)
-   - Process open: Phase 6 live elevated re-register + live `icacls` capture (STOP)
+   - Deferred P3: no mock-`schtasks` boundary integration test (wiring uses `?` + prepare gate + pure tests)
+8. Follow-up PRs after codex: #10 UAC auto-elevate, #11 elevate env/cwd, #12 LogonSession strip (superseded), #13 absolute SDDL, #14 elevate wait/result UX
 
-### Final engineering status
-- DoD-1..6: met in code/docs (live icacls capture for DoD-1 is Phase 6)
-- DoD-7 live re-register: **STOP** — requires user elevated go-ahead
-- Cross-model clearance for code: **PASS WITH DEFERRED P3** (gpt-5.6-luna high)
-- Post-codex-fix (2026-07-21): `cargo fmt -p ai-brains-cli`; `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` clean; `cargo nextest run -p ai-brains-cli` — **159 passed**, 0 failed, 0 skipped. Track still In Progress (C6 / Phase 6 STOP).
+### Live verification evidence (DoD-1, DoD-7) — 2026-07-21
+
+**Host:** DESKTOP (user RyanB). Recorded from user-run commands after absolute-SDDL + UAC path landed on `main`.
+
+#### Non-elevated shell (schedule via UAC)
+
+```text
+PS C:\dev\AI-Brains> ai-brains nightly --schedule --run-as-system --start-time "03:00"
+Administrator elevation is required. Showing UAC prompt (approve to continue)...
+Nightly task 'AI-Brains-Nightly' scheduled daily at 03:00.
+Wrapper script: C:\ProgramData\AI-Brains\nightly-task.bat
+Elevated schedule finished successfully.
+Task: AI-Brains-Nightly (SYSTEM)
+Wrapper: C:\ProgramData\AI-Brains\nightly-task.bat
+Note: that path is ACL-restricted (SYSTEM/Administrators only);
+listing/icacls from a non-elevated shell may say Access denied.
+Verify with an elevated shell or: schtasks /Query /TN AI-Brains-Nightly
+```
+
+#### Elevated shell (verify ACL + task + manual run)
+
+```text
+PS C:\dev\AI-Brains> icacls "$env:ProgramData\AI-Brains\nightly-task.bat"
+C:\ProgramData\AI-Brains\nightly-task.bat NT AUTHORITY\SYSTEM:(F)
+                                          BUILTIN\Administrators:(F)
+Successfully processed 1 files; Failed processing 0 files
+
+schtasks /Query /TN "AI-Brains-Nightly" /V /FO LIST
+  TaskName:                             \AI-Brains-Nightly
+  Next Run Time:                        7/22/2026 3:00:00 AM
+  Status:                               Ready
+  Last Run Time:                        7/21/2026 6:07:47 AM
+  Last Result:                          0
+  Task To Run:                          "C:\ProgramData\AI-Brains\nightly-task.bat"
+  Run As User:                          SYSTEM
+  Schedule Type:                        Daily
+  Start Time:                           3:00:00 AM
+
+schtasks /Run /TN "AI-Brains-Nightly"
+SUCCESS: Attempted to run the scheduled task "AI-Brains-Nightly".
+```
+
+### DoD matrix (final)
+
+| DoD | Status | Evidence |
+|-----|--------|----------|
+| DoD-1 Wrapper ProgramData + SYSTEM/Admins ACL | **Met** | Live `icacls` above |
+| DoD-2 Reparse/symlink/hardlink refuse | **Met** | Code + unit tests (junction, hardlink, pure refuse) |
+| DoD-3 Fail-closed ACL verify before schtasks | **Met** | `write_protected_artifact` + gate; live path succeeds only after verify |
+| DoD-4 Binary residual | **Met** | D0.3 documented OPERATIONS + review |
+| DoD-5 Daemon path | **Met** | `daemon.env` + daemon wrapper protected; residual bin documented |
+| DoD-6 Docs + deferred #8 | **Met** | OPERATIONS + deferred.md struck |
+| DoD-7 Full gate + live re-register | **Met** | PRs merged; live schedule/icacls/run above |
+| DoD-8 review + conductor + ledger | **Met** | This closeout; conductor Complete; ledger clean at closeout |
+
+### Merged PRs (T145 + follow-ups)
+
+| PR | Title | Merged |
+|----|-------|--------|
+| #9 | feat(T145): SYSTEM task ACL hardening | 2026-07-21 |
+| #10 | feat: UAC auto-elevate for SYSTEM schedule/install | 2026-07-21 |
+| #11 | fix: UAC elevate cwd + env handoff | 2026-07-21 |
+| #12 | fix: strip LogonSessionId ACEs (superseded by #13) | 2026-07-21 |
+| #13 | fix: absolute SDDL ACL for SYSTEM task artifacts | 2026-07-21 |
+| #14 | fix: reliable UAC elevate wait + parent summary | 2026-07-21 |
+
+### Final status
+
+- **Track: Complete** (2026-07-21)
+- Codex: **PASS WITH DEFERRED P3** (only deferred P3: mock-schtasks test)
+- Live SYSTEM nightly: **registered and verified**

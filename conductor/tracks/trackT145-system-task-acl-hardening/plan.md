@@ -73,20 +73,16 @@
 - [x] `conductor/deferred.md`: strike through item #8, point at T145.
 - [x] Full gate (local): `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
       `cargo nextest run --workspace` (398 passed). `cargo deny` / `cargo audit` reinstalled and run before PR.
-- [ ] **STOP before this step:** re-registering the live scheduled task is a real machine-state
-      change (elevated `schtasks` operations on the user's actual daemon/nightly automation) — confirm
-      before proceeding.
-- [ ] From an elevated shell: `ai-brains nightly --unschedule` → `ai-brains nightly --schedule
-      --run-as-system --start-time 03:00` → confirm `icacls` on the new wrapper path shows only
-      `SYSTEM:F`/`Administrators:F` → `schtasks /Run /TN "AI-Brains-Nightly"` → confirm success via the
-      documented log path. Record all of this in `review.md`.
+- [x] **STOP cleared by user:** live re-register performed 2026-07-21 (UAC from normal shell).
+- [x] Live evidence (see `review.md`): UAC schedule → `C:\ProgramData\AI-Brains\nightly-task.bat`;
+      elevated `icacls` shows only SYSTEM:(F) + Administrators:(F); `schtasks` Run As SYSTEM,
+      Task To Run = that bat, Last Result 0; `schtasks /Run` SUCCESS.
 
 ## Phase 7 — Finalize → DoD-8
 
-- [x] Write `review.md` in this track dir: Phase-0 decisions + rationale, evidence for every DoD item,
-      codex rounds, and deferred residuals (live re-register STOP; cargo-bin residual; DoD-3 mock-schtasks P3).
-- [x] Update `../conductor.md`: set T145's status to **Code Complete** (live Phase 6 STOP pending user go-ahead).
-- [ ] Commit the ledger transaction in `C:\dev\AI-Brains` (**SECURITY**) after PR merge if still pending.
+- [x] Write `review.md`: Phase-0 decisions, DoD matrix, codex rounds, live verification evidence.
+- [x] Update `../conductor.md`: T145 status **Complete**.
+- [x] Ledger clean at closeout (0 pending / 0 unaudited drift); SECURITY work landed via PRs #9–#14.
 - [x] Notify: none known downstream — leaf hardening track; companion SECURITY.md readiness can reference T145.
 
 ---
