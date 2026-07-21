@@ -725,20 +725,33 @@ fn main() {
                 let cli = Cli::parse();
                 run(cli).await
             } => {
-                if let Err(err) = res {
-                    // If this is an elevated UAC child, leave a log for the parent process.
-                    if crate::elevation::is_elevated() {
-                        crate::elevation::write_elevate_error_log(&err.to_string());
+                match res {
+                    Ok(()) => {
+                        // Elevated UAC child: leave a success marker the parent can print
+                        // (elevated console is hidden / flashes closed). Commands may
+                        // already have written a richer message — do not overwrite.
+                        if crate::elevation::is_elevated()
+                            && !crate::elevation::elevate_result_path().exists()
+                        {
+                            crate::elevation::write_elevate_success_log(
+                                "Elevated command completed successfully.",
+                            );
+                        }
                     }
-                    use ai_brains_contracts::response::{ApiError, ApiResult};
-                    let api_error = ApiError::new("COMMAND_FAILED", err.to_string());
-                    let result = ApiResult::<serde_json::Value>::error(api_error);
-                    if let Ok(json) = serde_json::to_string(&result) {
-                        eprintln!("{}", json);
-                    } else {
-                        eprintln!("Error: {err}");
+                    Err(err) => {
+                        if crate::elevation::is_elevated() {
+                            crate::elevation::write_elevate_error_log(&err.to_string());
+                        }
+                        use ai_brains_contracts::response::{ApiError, ApiResult};
+                        let api_error = ApiError::new("COMMAND_FAILED", err.to_string());
+                        let result = ApiResult::<serde_json::Value>::error(api_error);
+                        if let Ok(json) = serde_json::to_string(&result) {
+                            eprintln!("{}", json);
+                        } else {
+                            eprintln!("Error: {err}");
+                        }
+                        std::process::exit(1);
                     }
-                    std::process::exit(1);
                 }
             }
         }
