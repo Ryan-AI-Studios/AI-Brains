@@ -129,7 +129,7 @@ ai-brains daemon install           # install as Windows service (requires elevat
 ai-brains daemon uninstall         # remove the Windows service (requires elevation)
 ```
 - The CLI auto-launches the daemon if it is unreachable, so most users never need `daemon start` explicitly.
-- **Windows service (recommended for persistent daemon):** `daemon install` registers `AI-Brains-Daemon` as a Windows service running as `LocalSystem` in Session 0. The pipe security descriptor grants the interactive user cross-session access, so CLI clients in Session 1 can connect. Env vars (vault path, model URLs) are written to `%ProgramData%\AI-Brains\daemon.env`. Requires an elevated PowerShell session.
+- **Windows service (recommended for persistent daemon):** `daemon install` registers `AI-Brains-Daemon` as a Windows service running as `LocalSystem` in Session 0. The pipe security descriptor grants the interactive user cross-session access, so CLI clients in Session 1 can connect. Env vars (vault path, model URLs) are written to `%ProgramData%\AI-Brains\daemon.env` with a restrictive ACL (`SYSTEM:F` + `Administrators:F` only — same model as the nightly SYSTEM wrapper; T145). Requires an elevated PowerShell session.
 - **Deprecated:** `daemon schedule` / `unschedule` (Task Scheduler ONLOGON) still work but are deprecated in favor of `install` / `uninstall`. The Task Scheduler approach had a cross-session pipe access issue where Session 0 daemons were unreachable from Session 1.
 
 ### Nightly Intelligence Sweep
@@ -151,11 +151,18 @@ ai-brains nightly --unschedule
 ```
 
 #### Running the nightly as SYSTEM (`--run-as-system`)
-By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143):
+By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143 + T145):
 
 - It generates a **wrapper `.bat` script** that bakes in the current values of `AI_BRAINS_VAULT_PATH`, `AI_BRAINS_MODEL_URL`, `AI_BRAINS_COMPLETION_MODEL`, `AI_BRAINS_EMBEDDING_URL`, and `AI_BRAINS_EMBEDDING_MODEL` from your environment (or `.env`). The scheduled task runs that wrapper instead of the bare executable, so SYSTEM gets the same config you have.
+- **Wrapper location (T145):** `%ProgramData%\AI-Brains\nightly-task.bat` — not the vault parent or `%TEMP%`. Creation refuses symlink/reparse/junction targets at the file path, refuses hardlinks (`nlink > 1`), **and** refuses if the parent directory (e.g. `%ProgramData%\AI-Brains`) exists as a junction/reparse point. Regular single-link existing files may be replaced on re-schedule.
+- **ACL (T145):** after write, the CLI applies and verifies a restrictive ACL via `icacls`: `SYSTEM` full control + `Administrators` full control only (inheritance removed). Verify with:
+  ```powershell
+  icacls "$env:ProgramData\AI-Brains\nightly-task.bat"
+  ```
+  If ACL apply or verify fails, scheduling aborts (fail closed) — `schtasks /Create` is not called.
 - The wrapper appends `--no-project-context --skip-import` to the `ai-brains.exe nightly` invocation. SYSTEM has no `.env` to auto-discover and cannot reach your Antigravity session DB, so project-context discovery and the Antigravity import would both fail; these flags skip them.
 - `--run-as-system` **requires an elevated PowerShell session** (Run as Administrator). If the `schtasks /Create` call fails with `Access is denied`, reopen PowerShell as Administrator and retry — the CLI prints the exact command it tried to run.
+- **Residual risk (accepted, T145):** the invoked binary typically lives under `%USERPROFILE%\.cargo\bin\` (user-writable by design for `cargo install`). Copying binaries into `ProgramData` is packaging/installer scope, not done here. The primary hijack vector on the *script* path is closed by the ProgramData + ACL model above. The same residual applies to `ai-brainsd.exe` used by `daemon install` / deprecated `daemon schedule --run-as-system`. `daemon.env` uses the same ACL model under `%ProgramData%\AI-Brains\`.
 
 To preview the registration without writing it, add `--dry-run`:
 
@@ -165,7 +172,7 @@ ai-brains nightly --schedule --run-as-system --start-time "03:00" --dry-run
 
 `--dry-run` prints the `schtasks` command and the generated wrapper script to stdout without registering the task, so you can verify the baked-in env vars and flags before committing.
 
-> **Migration (T143):** Existing `AI-Brains-Nightly` SYSTEM tasks registered by T132 lack the baked-in env vars and fail with exit code 1. Re-schedule with `ai-brains nightly --unschedule` then `ai-brains nightly --schedule --run-as-system`. The same treatment applies to `daemon --schedule --run-as-system`.
+> **Migration (T143 + T145):** Existing `AI-Brains-Nightly` SYSTEM tasks may still point at a vault-parent or `%TEMP%` wrapper without restrictive ACL. Re-schedule after T145 to pick up `%ProgramData%\AI-Brains\nightly-task.bat`: `ai-brains nightly --unschedule` then `ai-brains nightly --schedule --run-as-system` from an elevated shell. The same treatment applies to deprecated `daemon schedule --run-as-system` and to re-running `daemon install` for `daemon.env` ACL hardening.
 
 ## 6. Memory Hygiene
 

@@ -87,6 +87,7 @@
 | T141 | Nightly Timeout Hardening Follow-up | Complete | Codex | [T141](tracks/trackT141-nightly-timeout-hardening-follow-up/spec.md) | Adopt and verify preexisting Ollama timeout, nightly abort, WAL, and deterministic recall-test hardening |
 | T143 | Nightly `--run-as-system` SYSTEM Context Fix | 🔄 **In Progress** | — | [T143](tracks/trackT143-nightly-run-as-system-fix/spec.md) | `--run-as-system` generates a wrapper `.bat` baking in env vars + adds `--no-project-context --skip-import`; adds `--dry-run` for nightly schedule |
 | T144 | Windows Service Daemon + Cross-Session Pipe Security | ✅ **Complete** | GLM-5.2 | [T144](tracks/trackT144-windows-service-daemon/spec.md) | Convert `ai-brainsd` to a real Windows service (Session 0) with SDDL pipe security (`D:(A;;GA;;;WD)` — Everyone generic all), single-instance guard (Ping→Pong probe), error classification (AccessDenied/PipeBusy/Other), `--service` flag for SCM dispatch, `daemon install`/`uninstall` CLI subcommands, deprecated `schedule`/`unschedule` |
+| T145 | SYSTEM Task ACL Hardening | ✅ **Code Complete** | Grok | [T145](tracks/trackT145-system-task-acl-hardening/spec.md) | Closes `deferred.md` #8: wrappers + `daemon.env` under ACL-restricted `%ProgramData%\AI-Brains\` (`SYSTEM:F`/`Administrators:F`); parent reparse/junction refuse; hardlink refuse; ACL verify fail-closed; codex gpt-5.6-luna **PASS WITH DEFERRED P3**. **Remaining:** elevated live `schtasks` re-register + `icacls` capture (Phase 6 STOP — user go-ahead). |
 
 
 ---

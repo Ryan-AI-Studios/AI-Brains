@@ -1,3 +1,4 @@
+mod artifact_security;
 mod commands;
 mod context;
 mod daemon_client;

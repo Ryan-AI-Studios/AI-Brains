@@ -66,14 +66,10 @@ pub async fn run(
         let exe_str = exe_path.to_str().ok_or("Invalid executable path")?;
 
         let task_command = if run_as_system {
-            let wrapper_placeholder = std::env::var("AI_BRAINS_VAULT_PATH")
-                .ok()
-                .and_then(|vp| {
-                    std::path::Path::new(&vp)
-                        .parent()
-                        .map(|p| format!("{}\\.ai-brains-nightly-task.bat", p.display()))
-                })
-                .unwrap_or_else(|| "%TEMP%\\ai-brains-nightly-task.bat".to_string());
+            // T145: wrapper always lives under %ProgramData%\AI-Brains\ with restrictive ACL.
+            let wrapper_placeholder = crate::artifact_security::nightly_wrapper_path()
+                .display()
+                .to_string();
             match generate_nightly_wrapper_script(exe_str) {
                 Ok(content) => {
                     if dry_run {
@@ -95,6 +91,13 @@ pub async fn run(
                         return Ok(());
                     }
                     let path = write_wrapper_script(&content)?;
+                    // DoD-3 gate: never reach schtasks unless prepare succeeded.
+                    if !crate::artifact_security::may_register_after_prepare(true) {
+                        return Err(
+                            "internal: wrapper prepare reported success but registration gate denied"
+                                .into(),
+                        );
+                    }
                     println!("Wrapper script written to: {}", path.display());
                     format!("'{}'", path.display())
                 }
@@ -116,6 +119,8 @@ pub async fn run(
                         );
                         return Ok(());
                     }
+                    // Fail closed: do not call schtasks when wrapper write/ACL verify failed.
+                    debug_assert!(!crate::artifact_security::may_register_after_prepare(false));
                     return Err(e);
                 }
             }
@@ -382,17 +387,10 @@ fn generate_nightly_wrapper_script_from_env(
 }
 
 fn write_wrapper_script(content: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    let vault_path = std::env::var("AI_BRAINS_VAULT_PATH").unwrap_or_default();
-    let dir = if vault_path.is_empty() {
-        std::env::temp_dir()
-    } else {
-        std::path::Path::new(&vault_path)
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(std::env::temp_dir)
-    };
-    let path = dir.join(".ai-brains-nightly-task.bat");
-    std::fs::write(&path, content).map_err(|e| format!("Failed to write wrapper script: {}", e))?;
+    // T145: %ProgramData%\AI-Brains\nightly-task.bat with SYSTEM+Administrators ACL only.
+    // write_protected_artifact refuses reparse/symlink targets and verifies ACL (fail closed).
+    let path = crate::artifact_security::nightly_wrapper_path();
+    crate::artifact_security::write_protected_artifact(&path, content)?;
     Ok(path)
 }
 
@@ -704,18 +702,16 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn build_schtasks_args__run_as_system__tr_points_to_wrapper_script() {
-        let args = build_schtasks_args(
-            r"C:\Users\RyanB\AppData\Local\Temp\ai-brains-nightly-task.bat",
-            "AI-Brains-Nightly",
-            "03:00",
-            true,
-        );
+        let wrapper = crate::artifact_security::nightly_wrapper_path();
+        let wrapper_str = wrapper.display().to_string();
+        let args = build_schtasks_args(&wrapper_str, "AI-Brains-Nightly", "03:00", true);
         let tr = args
             .iter()
             .position(|a| a == "/tr")
             .expect("/tr argument present");
         let task_command = &args[tr + 1];
-        assert!(task_command.ends_with(".bat"));
+        assert!(task_command.ends_with("nightly-task.bat"));
+        assert!(task_command.contains("AI-Brains"));
         assert!(!task_command.contains("ai-brains.exe"));
     }
 
