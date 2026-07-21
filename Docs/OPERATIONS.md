@@ -161,7 +161,7 @@ By default `--schedule` registers a task under the current user, which inherits 
   ```
   If ACL apply or verify fails, scheduling aborts (fail closed) — `schtasks /Create` is not called.
 - The wrapper appends `--no-project-context --skip-import` to the `ai-brains.exe nightly` invocation. SYSTEM has no `.env` to auto-discover and cannot reach your Antigravity session DB, so project-context discovery and the Antigravity import would both fail; these flags skip them.
-- `--run-as-system` **requires an elevated PowerShell session** (Run as Administrator). If the `schtasks /Create` call fails with `Access is denied`, reopen PowerShell as Administrator and retry — the CLI prints the exact command it tried to run.
+- `--run-as-system` **requires Administrator rights** (ProgramData ACL + `/RU SYSTEM`). From a normal shell the CLI **prompts for UAC** and re-launches itself elevated (approve the dialog). You can still use an already-elevated PowerShell if you prefer. If UAC is cancelled or disabled, re-run from an Administrator shell. `--dry-run` does not elevate.
 - **Residual risk (accepted, T145):** the invoked binary typically lives under `%USERPROFILE%\.cargo\bin\` (user-writable by design for `cargo install`). Copying binaries into `ProgramData` is packaging/installer scope, not done here. The primary hijack vector on the *script* path is closed by the ProgramData + ACL model above. The same residual applies to `ai-brainsd.exe` used by `daemon install` / deprecated `daemon schedule --run-as-system`. `daemon.env` uses the same ACL model under `%ProgramData%\AI-Brains\`.
 
 To preview the registration without writing it, add `--dry-run`:

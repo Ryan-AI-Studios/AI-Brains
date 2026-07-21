@@ -65,6 +65,22 @@ pub async fn run(
         let exe_path = std::env::current_exe()?;
         let exe_str = exe_path.to_str().ok_or("Invalid executable path")?;
 
+        // SYSTEM scheduling needs admin: offer UAC relaunch (skip for dry-run).
+        if run_as_system && !dry_run {
+            match crate::elevation::ensure_elevated_or_relaunch()? {
+                crate::elevation::ElevationOutcome::AlreadyElevated => {}
+                crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
+                    if exit_code == 0 {
+                        return Ok(());
+                    }
+                    return Err(format!(
+                        "Elevated schedule process exited with code {exit_code}"
+                    )
+                    .into());
+                }
+            }
+        }
+
         let task_command = if run_as_system {
             // T145: wrapper always lives under %ProgramData%\AI-Brains\ with restrictive ACL.
             let wrapper_placeholder = crate::artifact_security::nightly_wrapper_path()

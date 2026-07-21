@@ -89,6 +89,21 @@ fn schedule_inner(
         return Ok(());
     }
 
+    if run_as_system {
+        match crate::elevation::ensure_elevated_or_relaunch()? {
+            crate::elevation::ElevationOutcome::AlreadyElevated => {}
+            crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
+                if exit_code == 0 {
+                    return Ok(());
+                }
+                return Err(format!(
+                    "Elevated schedule process exited with code {exit_code}"
+                )
+                .into());
+            }
+        }
+    }
+
     let task_command = if run_as_system {
         let content = generate_daemon_wrapper_script(&exe_str)?;
         let path = write_daemon_wrapper_script(&content)?;
@@ -303,11 +318,17 @@ pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::
         return Ok(());
     }
 
-    if !is_elevated() {
-        return Err(
-            "Installing a Windows service requires elevation. Re-run from an Administrator shell."
-                .into(),
-        );
+    match crate::elevation::ensure_elevated_or_relaunch()? {
+        crate::elevation::ElevationOutcome::AlreadyElevated => {}
+        crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
+            if exit_code == 0 {
+                return Ok(());
+            }
+            return Err(format!(
+                "Elevated install process exited with code {exit_code}"
+            )
+            .into());
+        }
     }
 
     // Env sidecar + parent dir hardening (fail closed before service create):
@@ -406,11 +427,17 @@ pub fn run_uninstall(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std
         return Ok(());
     }
 
-    if !is_elevated() {
-        return Err(
-            "Uninstalling a Windows service requires elevation. Re-run from an Administrator shell."
-                .into(),
-        );
+    match crate::elevation::ensure_elevated_or_relaunch()? {
+        crate::elevation::ElevationOutcome::AlreadyElevated => {}
+        crate::elevation::ElevationOutcome::Relaunched { exit_code } => {
+            if exit_code == 0 {
+                return Ok(());
+            }
+            return Err(format!(
+                "Elevated uninstall process exited with code {exit_code}"
+            )
+            .into());
+        }
     }
 
     println!("Stopping service...");
@@ -466,40 +493,6 @@ fn generate_env_sidecar() -> Option<String> {
     } else {
         None
     }
-}
-
-#[cfg(windows)]
-fn is_elevated() -> bool {
-    use windows::Win32::Foundation::CloseHandle;
-    use windows::Win32::Security::{
-        GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
-    };
-    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
-
-    unsafe {
-        let mut token = windows::Win32::Foundation::HANDLE::default();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
-            return false;
-        }
-
-        let mut elevation = TOKEN_ELEVATION::default();
-        let mut ret_len: u32 = 0;
-        let ok = GetTokenInformation(
-            token,
-            TokenElevation,
-            Some(&mut elevation as *mut _ as *mut _),
-            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
-            &mut ret_len,
-        );
-        let _ = CloseHandle(token);
-
-        ok.is_ok() && elevation.TokenIsElevated != 0
-    }
-}
-
-#[cfg(not(windows))]
-fn is_elevated() -> bool {
-    true
 }
 
 pub async fn run_stop(_ctx: &AppContext, force: bool) -> Result<(), Box<dyn std::error::Error>> {

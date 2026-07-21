@@ -22,10 +22,11 @@ if (-not $cargo) {
 
 Write-Host "Rust toolchain: $(cargo --version)"
 
-# T84: Stop the daemon before replacing binaries to avoid "Access Denied" on Windows
+# T84: Stop daemon / CLI processes before replacing binaries to avoid "file in use" on Windows
 Write-Host ""
-Write-Host "Checking for running daemon..." -ForegroundColor Cyan
+Write-Host "Checking for running AI-Brains processes..." -ForegroundColor Cyan
 $daemonProc = Get-Process ai-brainsd -ErrorAction SilentlyContinue
+$cliProc = Get-Process ai-brains -ErrorAction SilentlyContinue
 $daemonWasRunning = $false
 if ($daemonProc) {
     $daemonWasRunning = $true
@@ -47,6 +48,20 @@ if ($daemonProc) {
 } else {
     Write-Host "  No running daemon found."
 }
+if ($cliProc) {
+    Write-Host "  Found ai-brains CLI process(es) holding the binary - stopping..." -ForegroundColor Yellow
+    foreach ($p in $cliProc) {
+        Write-Host "    Stopping PID $($p.Id)" -ForegroundColor Yellow
+        Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 500
+    $left = Get-Process ai-brains -ErrorAction SilentlyContinue
+    if ($left) {
+        taskkill /F /IM ai-brains.exe 2>$null
+        Start-Sleep -Milliseconds 400
+    }
+    Write-Host "  CLI process(es) stopped." -ForegroundColor Green
+}
 
 # Build release binary
 Write-Host ""
@@ -57,16 +72,36 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+function Install-BinarySafe {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Dest
+    )
+    try {
+        Copy-Item $Source $Dest -Force
+        return
+    } catch {
+        # Last resort: rename locked target then copy (Windows allows rename of busy files sometimes)
+        $bak = "$Dest.old"
+        if (Test-Path $bak) { Remove-Item $bak -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $Dest) {
+            Rename-Item $Dest $bak -Force -ErrorAction SilentlyContinue
+        }
+        Copy-Item $Source $Dest -Force
+        Remove-Item $bak -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # Copy ai-brains.exe to cargo bin directory
 $builtBin = "$RepoPath\\target\\release\\ai-brains.exe"
 if (Test-Path $builtBin) {
-    Copy-Item $builtBin $OutputBin -Force
+    Install-BinarySafe -Source $builtBin -Dest $OutputBin
     Write-Host "Installed: $OutputBin" -ForegroundColor Green
 } else {
     # Check if it's named ai-brains-new.exe
     $builtBin = "$RepoPath\\target\\release\\ai-brains-new.exe"
     if (Test-Path $builtBin) {
-        Copy-Item $builtBin $OutputBin -Force
+        Install-BinarySafe -Source $builtBin -Dest $OutputBin
         Write-Host "Installed: $OutputBin (from ai-brains-new.exe)" -ForegroundColor Green
     } else {
         Write-Error "Build output not found at expected paths"
@@ -77,7 +112,7 @@ if (Test-Path $builtBin) {
 # Copy ai-brainsd.exe to cargo bin directory
 $builtDaemon = "$RepoPath\\target\\release\\ai-brainsd.exe"
 if (Test-Path $builtDaemon) {
-    Copy-Item $builtDaemon $DaemonBin -Force
+    Install-BinarySafe -Source $builtDaemon -Dest $DaemonBin
     Write-Host "Installed: $DaemonBin" -ForegroundColor Green
 }
 

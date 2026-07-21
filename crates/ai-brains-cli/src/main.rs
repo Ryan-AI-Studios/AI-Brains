@@ -2,6 +2,7 @@ mod artifact_security;
 mod commands;
 mod context;
 mod daemon_client;
+mod elevation;
 mod live_graph;
 
 /// JSON Schema for `ai-bbrains agy-hook --payload`. Bundled at compile time
