@@ -17,7 +17,8 @@ use ai_brainsd::pipe_error::{classify_pipe_error, PipeErrorKind};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-const PIPE_NAME: &str = r"\\.\pipe\aibrains-sync";
+// Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
+const PIPE_NAME: &str = r"\\.\pipe\ledgerful-bridge";
 
 #[allow(clippy::disallowed_methods)]
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -214,7 +215,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     #[cfg(not(windows))]
     {
-        let socket_path = "/tmp/aibrains-sync.sock";
+        let socket_path = "/tmp/ledgerful-bridge.sock";
         let _ = std::fs::remove_file(socket_path);
 
         let listener = tokio::net::UnixListener::bind(socket_path)?;
@@ -273,7 +274,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     #[cfg(not(windows))]
     {
-        let socket_path = "/tmp/aibrains-sync.sock";
+        let socket_path = "/tmp/ledgerful-bridge.sock";
         let _ = std::fs::remove_file(socket_path);
     }
 

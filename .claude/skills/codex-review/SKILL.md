@@ -33,7 +33,7 @@ codex exec -C "." -s read-only -m gpt-5.5-thinking -o review.md "Review the curr
 Include ChangeGuard signals in the review prompt:
 
 ```powershell
-codex exec -C "." -s read-only -m gpt-5.5-thinking -o review.md "Run 'changeguard impact --summary' to see the current risk level. Then review the git diff with that risk context. Focus on: (1) files with high hotspot scores, (2) unintended couplings between ai-brains-capture and ai-brains-models, (3) SQLCipher migration logic. Do not modify files."
+codex exec -C "." -s read-only -m gpt-5.5-thinking -o review.md "Run 'ledgerful impact --summary' to see the current risk level. Then review the git diff with that risk context. Focus on: (1) files with high hotspot scores, (2) unintended couplings between ai-brains-capture and ai-brains-models, (3) SQLCipher migration logic. Do not modify files."
 ```
 
 ## Review Checklist for AI-Brains
@@ -47,13 +47,13 @@ When reviewing AI-Brains code, the reviewer should specifically look for:
 
 ## Integration with ChangeGuard Workflow
 
-1. Run `changeguard scan --impact` — get risk signals
+1. Run `ledgerful scan --impact` — get risk signals
 2. Make your changes
-3. Run `changeguard impact` — see blast radius
+3. Run `ledgerful impact` — see blast radius
 4. Run `codex exec -s read-only ...` — get cross-model review
 5. Address critical/high findings
-6. Run `changeguard verify` — run Rust CI gate
-7. Commit with `changeguard ledger commit`
+6. Run `ledgerful verify` — run Rust CI gate
+7. Commit with `ledgerful ledger commit`
 
 ## Safety Notes
 

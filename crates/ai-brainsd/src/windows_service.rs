@@ -163,7 +163,8 @@ async fn run_daemon_async(
 
     let (ipc_shutdown_tx, _ipc_shutdown_rx) = tokio::sync::broadcast::channel(1);
 
-    let pipe_name = r"\\.\pipe\aibrains-sync";
+    // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
+    let pipe_name = r"\\.\pipe\ledgerful-bridge";
 
     let pipe_sa = crate::pipe_security::build_pipe_security_attributes().ok();
 

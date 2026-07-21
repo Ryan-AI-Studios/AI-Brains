@@ -1,8 +1,13 @@
 //! CozoDB proxy backend: translates AI-Brains graph operations into Datalog
 //! statements and routes them through BridgeRecord IPC to Ledgerful's CozoDB.
 //!
-//! Feature-gated: activates only when `.changeguard/` directory is present.
-//! Falls back gracefully to the SQLite graph backend otherwise.
+//! Feature-gated: activates only when a Ledgerful state directory is present
+//! (`.ledgerful/` preferred, legacy `.changeguard/` accepted). Falls back
+//! gracefully to the SQLite graph backend otherwise.
+//!
+//! The Ledgerful bridge is **opt-in** on the ledgerful side (`bridge.enabled`
+//! or `LEDGERFUL_BRIDGE=1`). Explicit `bridge export`/`import` CLI calls remain
+//! available without opt-in; IPC push paths require opt-in.
 
 use crate::errors::{GraphError, Result};
 use ai_brains_contracts::bridge::{BridgeDirection, BridgeRecord};
@@ -90,7 +95,7 @@ pub trait GraphBackend {
 /// Translates AI-Brains graph operations into CozoDB Datalog statements and
 /// routes them through the Ledgerful Bridge IPC (named pipe / CLI).
 pub struct CozoProxyBackend {
-    changeguard_available: bool,
+    ledgerful_available: bool,
 }
 
 impl CozoProxyBackend {
@@ -98,8 +103,11 @@ impl CozoProxyBackend {
         let cwd = working_dir
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
-        let changeguard_dir = cwd.join(".changeguard");
-        let dir_exists = changeguard_dir.exists() && changeguard_dir.is_dir();
+        // Prefer `.ledgerful/` (current), fall back to legacy `.changeguard/`.
+        let ledgerful_dir = [cwd.join(".ledgerful"), cwd.join(".changeguard")]
+            .into_iter()
+            .find(|p| p.is_dir());
+        let dir_exists = ledgerful_dir.is_some();
 
         let cli_available = std::process::Command::new("ledgerful")
             .arg("--version")
@@ -110,20 +118,26 @@ impl CozoProxyBackend {
         let available = dir_exists && cli_available;
 
         tracing::info!(
-            changeguard_dir=%changeguard_dir.display(),
+            ledgerful_dir=%ledgerful_dir
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "(none)".to_string()),
             available,
             "CozoProxyBackend initialized"
         );
 
         Self {
-            changeguard_available: available,
+            ledgerful_available: available,
         }
     }
 
     /// Send a Datalog mutation (put) to Ledgerful via bridge import.
+    ///
+    /// Uses explicit `ledgerful bridge import` (pure-local I/O; works without
+    /// `bridge.enabled` opt-in per ledgerful 0065).
     #[allow(clippy::disallowed_methods)]
     fn send_datalog_mutation(&self, datalog: &str, record_kind: &str) -> Result<()> {
-        if !self.changeguard_available {
+        if !self.ledgerful_available {
             return Err(GraphError::DbError(
                 "Ledgerful is not available; CozoProxyBackend cannot route mutations.".to_string(),
             ));
@@ -190,7 +204,7 @@ impl CozoProxyBackend {
     /// Run a Datalog query through the bridge and parse NamedRows response.
     #[allow(clippy::disallowed_methods)]
     fn run_datalog_query(&self, datalog: &str) -> Result<CozoNamedRows> {
-        if !self.changeguard_available {
+        if !self.ledgerful_available {
             return Err(GraphError::DbError(
                 "Ledgerful is not available; CozoProxyBackend cannot run queries.".to_string(),
             ));
@@ -441,7 +455,7 @@ impl GraphBackend for CozoProxyBackend {
     }
 
     fn is_available(&self) -> bool {
-        self.changeguard_available
+        self.ledgerful_available
     }
 }
 

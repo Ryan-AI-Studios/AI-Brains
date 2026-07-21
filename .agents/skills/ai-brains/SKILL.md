@@ -193,9 +193,9 @@ The graph is stored in SQLite (`graph_node`, `graph_edge` tables) and optionally
 |------|---------|
 | Find past decisions, session memories, or code symbols | `ai-brains recall --semantic` |
 | Get project-scoped safety signals before editing | `ai-brains preflight --project-id <id>` |
-| Find a live function or endpoint by name | `changeguard search "functionName"` |
-| Natural language code queries | `changeguard ask "find all GET handlers"` |
-| Blast radius of a change | `changeguard scan --impact` |
+| Find a live function or endpoint by name | `ledgerful search "functionName"` |
+| Natural language code queries | `ledgerful ask "find all GET handlers"` |
+| Blast radius of a change | `ledgerful scan --impact` |
 
 > **As of T70:** `ai-brains recall` also returns code symbols (functions, routes) ingested from ChangeGuard during nightly. A single recall query is sufficient for most questions about past decisions and code structure.
 

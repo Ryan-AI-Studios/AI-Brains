@@ -14,7 +14,8 @@
 - **Path Normalization**: Normalization for Windows drive-case, UNC prefixes, and WSL mappings is mandatory for all stored paths.
 - **Relational Graph**: Implementation MUST use the native SQLite backend (Recursive CTEs) to avoid C++ build friction.
 - **Event Sourcing**: Updating or deleting raw events is PROHIBITED. Use compensating events for corrections.
-- **Commercial Safety**: Only permissive licenses (MIT, Apache, BSD) are allowed. AGPL/GPL dependencies are PROHIBITED.
+- **Project License**: PolyForm Noncommercial 1.0.0 (`LICENSE`) with Small-Entity Commercial Exception (`COMMERCIAL-EXCEPTION.md`). Do not relicense crates ad hoc.
+- **Dependency Licenses**: Third-party dependencies MUST use allowed permissive licenses (MIT, Apache, BSD, and other entries in `deny.toml`). AGPL/GPL dependencies are PROHIBITED.
 
 ## Hardware & Environment
 - **Context Constraints**: Enforce a 38,912 token limit for summarization. Use sequential chunking with context carryover for larger sessions.

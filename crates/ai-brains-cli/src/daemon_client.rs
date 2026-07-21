@@ -12,10 +12,11 @@ pub struct DaemonClient {
 impl DaemonClient {
     pub fn new() -> Self {
         Self {
+            // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
             #[cfg(windows)]
-            pipe_path: r"\\.\pipe\aibrains-sync".to_string(),
+            pipe_path: r"\\.\pipe\ledgerful-bridge".to_string(),
             #[cfg(not(windows))]
-            socket_path: "/tmp/aibrains-sync.sock".to_string(),
+            socket_path: "/tmp/ledgerful-bridge.sock".to_string(),
         }
     }
 

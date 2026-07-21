@@ -223,12 +223,28 @@ ai-brains init --force
 The Task Scheduler registration requires elevation. Open PowerShell **as Administrator** and retry. The CLI prints the exact `schtasks` command it tried to run, which you can also paste manually. **Note:** `daemon schedule` is deprecated — use `ai-brains daemon install` for a proper Windows service.
 
 ### `Failed to create named pipe instance: Access is denied (os error 5)`
-This means another `ai-brainsd` instance already owns the `\\.\pipe\aibrains-sync` pipe and the security descriptor denies your user access. This is the cross-session pipe issue (T144). The fix is to:
+This means another `ai-brainsd` instance already owns the `\\.\pipe\ledgerful-bridge` pipe and the security descriptor denies your user access. This is the cross-session pipe issue (T144). The fix is to:
 1. Stop any existing daemon: `ai-brains daemon stop --force`
 2. Install as a service: `ai-brains daemon install` (from elevated PowerShell)
 3. The service creates the pipe with a security descriptor that grants the current user cross-session access.
 
 If you see this on a second manual launch, the daemon now detects the existing instance and exits cleanly with "Daemon already running" instead of looping.
+
+### Ledgerful bridge is off by default
+Ledgerful (engine tracks 0064/0065) renamed the IPC pipe to `\\.\pipe\ledgerful-bridge` and made the bridge **opt-in**. AI-Brains listens on that pipe. Explicit `ledgerful bridge export` / `import` still work without enabling the bridge (pure-local I/O). Implicit push paths (`verify` outcomes, `watch` risk alerts, `ask` enrichment, `bridge query` IPC) require either:
+
+```toml
+# .ledgerful/config.toml
+[bridge]
+enabled = true
+provider_command = "ai-brains"
+```
+
+or for the current shell:
+
+```powershell
+$env:LEDGERFUL_BRIDGE = "1"
+```
 
 ### Recalls return only code files, not session memories
 This is correct FTS5 behavior when no session context has been pinned. After a few ingest+recall cycles, the relevant session memory will surface. The `safety sync` command intentionally pins file paths as memories so the same query can return both kinds of result.

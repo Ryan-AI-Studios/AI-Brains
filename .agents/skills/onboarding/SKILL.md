@@ -154,7 +154,7 @@ Each track is a bounded unit of work: `spec.md` (specification) + `plan.md` (tas
 | `conductor/ISSUES.md` | Unresolved debt (deferred mediums/lows) |
 | `conductor/<track>/spec.md` | Track spec (objective, API contracts, verification plan) |
 | `conductor/<track>/plan.md` | Task checklist (`- [ ]`) |
-| `conductor/<track>/review.md` | Review log (NOT the changeguard ledger) |
+| `conductor/<track>/review.md` | Review log (NOT the ledgerful ledger) |
 
 **Backlog routing**: When planning a track, absorb related `ISSUES.md` items into `plan.md` and remove them from `ISSUES.md`.
 

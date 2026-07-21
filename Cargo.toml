@@ -26,7 +26,8 @@ members = [
 version = "0.1.1"
 authors = ["AI-Brains Contributors"]
 edition = "2021"
-license = "MIT OR Apache-2.0"
+# Project terms: LICENSE (PolyForm Noncommercial 1.0.0) + COMMERCIAL-EXCEPTION.md
+license = "PolyForm-Noncommercial-1.0.0"
 repository = "https://github.com/AI-Brains/AI-Brains"
 
 [workspace.dependencies]

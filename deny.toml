@@ -12,6 +12,7 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "CDLA-Permissive-2.0",
+    "PolyForm-Noncommercial-1.0.0",
 ]
 
 [bans]

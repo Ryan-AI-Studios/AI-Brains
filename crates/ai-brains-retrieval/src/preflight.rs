@@ -216,11 +216,7 @@ pub fn build_preflight(
         let mut index_lines = vec!["--- Memory Index (Briefing) ---".to_string()];
         for (i, (content, updated_at)) in collected.iter().enumerate() {
             let first_line = content.lines().next().unwrap_or("Untitled Memory");
-            let summary = if first_line.len() > 60 {
-                format!("{}...", &first_line[..57])
-            } else {
-                first_line.to_string()
-            };
+            let summary = truncate_index_summary(first_line);
             let ts = relative_timestamp(updated_at);
             if ts.is_empty() {
                 index_lines.push(format!("{}. {}", i + 1, summary));
@@ -550,6 +546,21 @@ fn is_low_signal(content: &str) -> bool {
     false
 }
 
+/// Truncate a memory index title for display.
+///
+/// Uses Unicode scalar counts (not bytes) so multi-byte characters such as
+/// em-dashes never land mid-codepoint and panic on slice.
+fn truncate_index_summary(first_line: &str) -> String {
+    const MAX_CHARS: usize = 60;
+    const KEEP_CHARS: usize = 57;
+    if first_line.chars().count() > MAX_CHARS {
+        let truncated: String = first_line.chars().take(KEEP_CHARS).collect();
+        format!("{truncated}...")
+    } else {
+        first_line.to_string()
+    }
+}
+
 /// Truncate turn content to first 3 lines / 150 words, appending "..." if cut.
 fn truncate_turn(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();
@@ -573,6 +584,24 @@ fn truncate_turn(content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn truncate_index_summary_ascii_under_limit_unchanged() {
+        let s = "ASSISTANT: DECISION: short title";
+        assert_eq!(truncate_index_summary(s), s);
+    }
+
+    #[test]
+    fn truncate_index_summary_emdash_near_boundary_no_panic_and_ellipsis() {
+        // Repro from C:\dev\dedupe preflight panic: em-dash (—) is 3 UTF-8
+        // bytes; a byte slice at 57 was mid-character.
+        let s = "ASSISTANT: DECISION: Starting track 0035 CalendarItems — schema v16 cal_* + message_class; extract-calendar (icalendar+chrono-tz); multi-event ICS=archive parent + per-VEVENT single-event natives; extract-pst calendar class branch; job ics_extract; no RR";
+        let out = truncate_index_summary(s);
+        assert!(out.ends_with("..."), "expected ellipsis, got: {out}");
+        assert!(out.is_char_boundary(out.len()));
+        assert_eq!(out.chars().count(), 57 + 3); // 57 kept + "..."
+        assert!(!out.contains('\u{FFFD}'));
+    }
 
     #[test]
     fn dedup_hotspots_removes_duplicate_paths() {
