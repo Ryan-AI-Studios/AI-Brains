@@ -320,6 +320,36 @@ pub fn verify_restrictive_acl(path: &Path) -> Result<(), Box<dyn std::error::Err
     }
 }
 
+/// Principals present on the ACL that are not well-known SYSTEM / Administrators.
+///
+/// Used both by verify (fail closed) and by apply (strip leftovers such as
+/// `NT AUTHORITY\LogonSessionId_*` ACEs Windows attaches on create).
+pub fn unexpected_acl_principals(icacls_stdout: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for raw_line in icacls_stdout.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with("Successfully processed") || !line.contains(':') {
+            continue;
+        }
+        let Some(ace) = extract_ace_segment(line) else {
+            continue;
+        };
+        let principal = principal_from_ace(&ace);
+        if principal.is_empty() {
+            continue;
+        }
+        if !is_system_principal(&principal) && !is_administrators_principal(&principal) {
+            if !out
+                .iter()
+                .any(|p: &String| p.eq_ignore_ascii_case(&principal))
+            {
+                out.push(principal);
+            }
+        }
+    }
+    out
+}
+
 /// Pure helper: parse `icacls` stdout and accept only SYSTEM + Administrators full.
 ///
 /// Unit-testable without filesystem or `icacls`.
@@ -521,7 +551,70 @@ fn apply_restrictive_acl_windows(path: &Path) -> Result<(), Box<dyn std::error::
         .into());
     }
 
+    // Windows often leaves a LogonSessionId_* ACE (and sometimes the creator
+    // user) on newly created files even after /grant:r for SYSTEM/Admins.
+    // Strip every unexpected principal so verify can pass fail-closed.
+    strip_unexpected_acl_principals_windows(path_str)?;
+
     Ok(())
+}
+
+/// Remove ACEs that are not SYSTEM or Administrators (e.g. LogonSessionId).
+fn strip_unexpected_acl_principals_windows(
+    path_str: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // A few rounds: removing one ACE can leave others; cap to avoid loops.
+    for _ in 0..8 {
+        let output = std::process::Command::new("icacls")
+            .arg(path_str)
+            .output()
+            .map_err(|e| format!("Failed to run icacls while stripping ACEs: {e}"))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            return Err(format!(
+                "icacls query failed while stripping ACEs for {path_str}: {stdout}{stderr}"
+            )
+            .into());
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let unexpected = unexpected_acl_principals(&stdout);
+        if unexpected.is_empty() {
+            return Ok(());
+        }
+        for principal in unexpected {
+            let remove = std::process::Command::new("icacls")
+                .arg(path_str)
+                .arg("/remove")
+                .arg(&principal)
+                .output()
+                .map_err(|e| format!("Failed to run icacls /remove: {e}"))?;
+            if !remove.status.success() {
+                // Try grant-type removal as well.
+                let remove_g = std::process::Command::new("icacls")
+                    .arg(path_str)
+                    .arg("/remove:g")
+                    .arg(&principal)
+                    .output()
+                    .map_err(|e| format!("Failed to run icacls /remove:g: {e}"))?;
+                if !remove_g.status.success() {
+                    let stderr = String::from_utf8_lossy(&remove.stderr);
+                    let stdout = String::from_utf8_lossy(&remove.stdout);
+                    let stderr_g = String::from_utf8_lossy(&remove_g.stderr);
+                    let stdout_g = String::from_utf8_lossy(&remove_g.stdout);
+                    return Err(format!(
+                        "icacls /remove failed for principal '{principal}' on {path_str}: \
+                         /remove=>{stdout}{stderr} /remove:g=>{stdout_g}{stderr_g}"
+                    )
+                    .into());
+                }
+            }
+        }
+    }
+    Err(format!(
+        "Could not strip unexpected ACL principals from {path_str} after multiple attempts"
+    )
+    .into())
 }
 
 #[cfg(windows)]
@@ -756,6 +849,37 @@ Successfully processed 1 files; Failed processing 0 files
 Successfully processed 1 files; Failed processing 0 files
 "#;
         assert!(acl_output_is_restrictive(sample).is_ok());
+    }
+
+    #[test]
+    fn unexpected_acl_principals__logon_session_id__listed() {
+        let sample = r#"C:\ProgramData\AI-Brains\nightly-task.bat NT AUTHORITY\SYSTEM:(F)
+                                           BUILTIN\Administrators:(F)
+                                           NT AUTHORITY\LogonSessionId_0_208120:(RX)
+Successfully processed 1 files; Failed processing 0 files
+"#;
+        let unexpected = unexpected_acl_principals(sample);
+        assert_eq!(unexpected.len(), 1);
+        assert!(
+            unexpected[0].contains("LogonSessionId"),
+            "unexpected: {unexpected:?}"
+        );
+        // Verify still fails closed on that principal
+        let err = acl_output_is_restrictive(sample).expect_err("must reject LogonSessionId");
+        assert!(
+            err.to_ascii_lowercase().contains("logonsessionid")
+                || err.to_ascii_lowercase().contains("unexpected"),
+            "unexpected err: {err}"
+        );
+    }
+
+    #[test]
+    fn unexpected_acl_principals__system_admins_only__empty() {
+        let sample = r#"C:\ProgramData\AI-Brains\nightly-task.bat NT AUTHORITY\SYSTEM:(F)
+                                           BUILTIN\Administrators:(F)
+Successfully processed 1 files; Failed processing 0 files
+"#;
+        assert!(unexpected_acl_principals(sample).is_empty());
     }
 
     #[test]
