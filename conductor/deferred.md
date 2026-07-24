@@ -56,3 +56,25 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 - ~~**Pre-existing:** T132 had the same risk (bare exe invocation as SYSTEM). T143 moved the wrapper to the vault parent (not `%TEMP%`) and added `cd /d`, but the underlying risk remains.~~
 - ~~**Codex review:** Flagged as critical on two consecutive reviews. Reviewer won't clear without ACL hardening.~~
 - **Addressed by T145** (`conductor/tracks/trackT145-system-task-acl-hardening/`): wrappers + `daemon.env` relocated to `%ProgramData%\AI-Brains\` with `icacls` `SYSTEM:F` + `Administrators:F` only; reparse/symlink refuse; ACL verified before `schtasks` register (fail closed). **Residual (accepted):** cargo-bin binary path remains user-writable — documented in OPERATIONS.md / review.md; packaging copy-to-ProgramData out of scope.
+
+---
+
+## From T147 — Governed Memory Baseline + Edition 2024 + Shadow (2026-07-24)
+
+Squash-merged PR #17. Full gate green (fmt / clippy / nextest 426 / deny / audit / ledgerful verify). Claude cross-model **PASS**; Codex primary blocked by account usage limit until ~2026-07-28.
+
+### 9. Optional Codex re-audit of T147 (process residual)
+- Codex `exec` rate-limited during T147 closeout; Claude used as skill fallback (`review.claude.md` + `review.claude.round2.md` **PASS**).
+- Optional: re-run Codex read-only track audit when quota resets and archive as `review.codex.md` for symmetry with T145. Not blocking.
+
+### 10. Turn-derived `memory_id` non-determinism (fixture golden omission)
+- Turn projector assigns `MemoryId::new()` per turn projection; golden export omits `memory_id` so R1 snapshots stay deterministic (T147-F4 accepted residual).
+- Follow-up only if a later track needs stable turn→memory IDs (e.g. derive from event_id). Out of T147 scope.
+
+### 11. `TempEnv` public API surface
+- `ai_brains_core::temp_env::TempEnv` is always-public so dependent crates' integration tests can use it (T147-F7 accepted residual).
+- Optional later: feature-gate via `test-util` if public surface becomes a concern. No correctness impact.
+
+### 12. Shadow dry-run still opens source (no migrate)
+- Dry-run / create opens the source vault read-only for event count and copy; does **not** call `migrate()` on source (T147-F5 fixed).
+- May still create/touch WAL companions beside source under SQLite open. Acceptable for P0; full soft-canonicalize / handle TOCTOU remains P6.
