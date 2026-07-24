@@ -279,7 +279,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | `AI_BRAINS_KEY` | Hex-encoded SQLCipher key (or dummy in degraded mode). |
 | `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). |
 | `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). |
-| `CHANGEGUARD_TX_ID` | Ledgerful transaction ID for ledger cross-linking (T37). |
+| `LEDGERFUL_TX_ID` | Ledgerful transaction ID for ledger cross-linking (preferred; T142). |
+| `CHANGEGUARD_TX_ID` | Deprecated alias for `LEDGERFUL_TX_ID` (warns and falls back; T142). |
 | `AI_BRAINS_MODEL_URL` | Endpoint for the local LLM completion server (default: `http://127.0.0.1:8081`). |
 | `AI_BRAINS_EMBEDDING_URL` | Endpoint for the local embedding server (default: `http://127.0.0.1:8083`). |
 | `AI_BRAINS_EMBEDDING_MODEL` | Name of the embedding model (default: `nomic-embed-text-v1.5`). |

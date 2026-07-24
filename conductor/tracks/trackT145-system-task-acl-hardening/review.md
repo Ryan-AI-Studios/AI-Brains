@@ -192,6 +192,13 @@ SUCCESS: Attempted to run the scheduled task "AI-Brains-Nightly".
 | DoD-7 Full gate + live re-register | **Met** | PRs merged; live schedule/icacls/run above |
 | DoD-8 review + conductor + ledger | **Met** | This closeout; conductor Complete; ledger clean at closeout |
 
+### Closeout re-check (2026-07-24)
+
+- Independent DoD re-audit vs current main: **PASS WITH DEFERRED P3** (same residual: mock-`schtasks` P3; cargo-bin residual accepted).
+- Codex fresh re-audit attempted: **rate-limited** until ~2026-07-28; prior Codex rounds 1–4 still authoritative (round4 PASS WITH DEFERRED P3).
+- Related: T143 marked Complete; deferred #7 struck (T143 fix + this track’s live Last Result 0).
+- PRs: #9–#14 engineering/follow-ups; #15 docs closeout evidence.
+
 ### Merged PRs (T145 + follow-ups)
 
 | PR | Title | Merged |

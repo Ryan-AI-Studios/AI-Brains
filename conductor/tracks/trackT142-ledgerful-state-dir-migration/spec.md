@@ -1,8 +1,8 @@
 # Track T142: Migrate `.changeguard/` State Directory + Product-Name to Ledgerful
 
-**Status:** Pending
-**Started:** —
-**Owner:** manager (delegated)
+**Status:** Complete (merged on main; conductor closeout 2026-07-24)
+**Started:** 2026-06-29
+**Owner:** Antigravity (closeout: Grok)
 **Priority:** P1 — AI-Brains cannot discover `.ledgerful/`-only installs today, breaking `ai-brains context` auto-discovery on fresh ledgerful repos.
 **Source:** User directive 2026-06-29; ledgerful rebrand now uses `.ledgerful/` state dir (verified `C:\dev\ledgerful\.ledgerful` exists; `.changeguard` does not). Track T97 (complete) migrated only the binary invocation, deliberately leaving the state dir and product-name references for a follow-up.
 

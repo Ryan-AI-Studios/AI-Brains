@@ -1,8 +1,8 @@
 # Track T143: Fix `--run-as-system` Nightly Scheduling for SYSTEM Context
 
-**Status:** Pending
-**Started:** —
-**Owner:** —
+**Status:** Complete (merged on main; conductor closeout 2026-07-24)
+**Started:** 2026-07-01
+**Owner:** Antigravity (closeout: Grok; live confirm via T145)
 **Priority:** P1 — the nightly task has been failing since 2026-06-25 because `--run-as-system` registers a task without the env vars and flags SYSTEM needs.
 **Source:** Manager investigation 2026-07-01; T132 (`--run-as-system` flag) shipped a task that runs `ai-brains.exe nightly` as SYSTEM with no working directory, no vault path, no LLM env vars, and no `--skip-import` / `--no-project-context`.
 

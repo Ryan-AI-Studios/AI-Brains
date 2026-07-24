@@ -22,11 +22,9 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 - **Do NOT change without a migration** that backfills the new tag value in existing rows (or a mapping layer that accepts both).
 - Defer until a migration strategy is designed.
 
-### 3. `CHANGEGUARD_TX_ID` in Docs/OPERATIONS.md env table
-- `Docs/OPERATIONS.md:233` still lists `CHANGEGUARD_TX_ID` in the environment-variable table.
-- T142 made `LEDGERFUL_TX_ID` the canonical name with `CHANGEGUARD_TX_ID` as a deprecated fallback (with `tracing::warn!`).
-- Docs need to mention both names: `LEDGERFUL_TX_ID` (preferred) and `CHANGEGUARD_TX_ID` (deprecated alias).
-- Same for any other doc references to the env var that were left as-is during T142 Track 2.
+### ~~3. `CHANGEGUARD_TX_ID` in Docs/OPERATIONS.md env table~~ — Resolved (T142 closeout 2026-07-24)
+- ~~`Docs/OPERATIONS.md` still listed only `CHANGEGUARD_TX_ID`.~~
+- **Resolved:** env table documents `LEDGERFUL_TX_ID` (preferred) and `CHANGEGUARD_TX_ID` (deprecated alias).
 
 ### 4. `conductor/archive/**` and completed track specs
 - Historical record; intentionally NOT rewritten in T142 per user preference.
@@ -45,11 +43,10 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## From nightly investigation (2026-07-01)
 
-### 7. Nightly scheduled task fails as SYSTEM — T143 in progress
-- **Issue:** `ai-brains nightly --schedule --run-as-system` (T132) registers a SYSTEM task with bare `ai-brains.exe nightly` — no vault path, no LLM env vars, no `--no-project-context`, no `--skip-import`. SYSTEM doesn't inherit User env vars, so the nightly fails with exit code 1 every night.
-- **Last successful nightly run:** 2026-06-25T11:46 UTC. Failing silently since then.
-- **Immediate workaround applied:** `scripts/nightly-task.bat` wrapper script with env vars baked in; task re-registered as SYSTEM via elevated `schtasks /Create /RU SYSTEM`.
-- **Proper fix:** Track T143 (`conductor/tracks/trackT143-nightly-run-as-system-fix/`) — make `--run-as-system` in the CLI generate the wrapper script and add `--no-project-context --skip-import` automatically.
+### ~~7. Nightly scheduled task fails as SYSTEM~~ — Fixed by T143 (+ T145 live ACL)
+- ~~T132 registered bare `ai-brains.exe nightly` as SYSTEM without env vars / flags.~~
+- **Fixed by T143** (`c7585d3`, `634249e`): CLI generates wrapper with baked `AI_BRAINS_*` env, `--no-project-context --skip-import`, and `--dry-run` preview.
+- **Hardened by T145:** wrapper lives under `%ProgramData%\AI-Brains\` with SYSTEM+Administrators ACL; live schedule verified 2026-07-21 (task Run As SYSTEM, Last Result 0).
 
 ### ~~8. Privilege escalation: SYSTEM executes user-writable binaries~~ — Addressed by T145
 - ~~**Issue:** `--run-as-system` schedules a SYSTEM task that executes a wrapper script + binary, both in user-writable locations (vault parent dir, `C:\Users\RyanB\.cargo\bin\`). Any user-level process can replace either file and gain SYSTEM execution.~~
