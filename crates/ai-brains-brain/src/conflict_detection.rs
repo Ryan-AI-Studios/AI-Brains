@@ -57,8 +57,7 @@ impl ConflictDetectionService {
 
         let prompt = format!(
             "Analyze if the following new session summary contradicts any of the existing memories.\n\nNew Summary: {}\n\nExisting Memories:\n{}\n\nIf there is a direct contradiction, explain why. If not, respond with 'NO CONFLICT'.",
-            summary,
-            context
+            summary, context
         );
 
         let request = CompletionRequest {

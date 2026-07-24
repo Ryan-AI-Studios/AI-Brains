@@ -1,7 +1,7 @@
 use crate::errors::{CryptoError, Result};
 use aes_gcm::{
-    aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit},
 };
 use argon2::Argon2;
 use rand::rngs::SysRng;

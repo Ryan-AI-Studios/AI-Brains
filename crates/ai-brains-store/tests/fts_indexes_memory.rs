@@ -4,8 +4,8 @@ use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::{
-    constructors::EventBuilder, payload::MemoryPinnedPayload, Actor, AggregateType, EventKind,
-    Payload,
+    Actor, AggregateType, EventKind, Payload, constructors::EventBuilder,
+    payload::MemoryPinnedPayload,
 };
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};

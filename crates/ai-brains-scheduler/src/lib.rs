@@ -64,8 +64,7 @@ pub struct ServiceScheduler;
 impl ServiceScheduler {
     const SERVICE_NAME: &'static str = "AI-Brains-Daemon";
     const DISPLAY_NAME: &'static str = "AI-Brains Daemon";
-    const DESCRIPTION: &'static str =
-        "Local-first AI coding memory vault — captures conversation history without tool logs or hidden thinking.";
+    const DESCRIPTION: &'static str = "Local-first AI coding memory vault — captures conversation history without tool logs or hidden thinking.";
 
     pub fn render_install_command(exe_path: &str, _env_sidecar_path: &str) -> String {
         format!(

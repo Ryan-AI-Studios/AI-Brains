@@ -113,16 +113,16 @@ pub fn run_pull(
                 // T92: Only enforce lineage when we have a prior hash (non-bootstrap).
                 // On first-ever import last_hash is None; accept the chain as-is to
                 // bootstrap state. On subsequent imports, verify continuity.
-                if let (Some(actual_parent), Some(expected_last)) = (&r.parent_hash, &last_hash) {
-                    if actual_parent != expected_last {
-                        tracing::warn!(
-                            "Lineage verification failed: parent_hash mismatch. \
+                if let (Some(actual_parent), Some(expected_last)) = (&r.parent_hash, &last_hash)
+                    && actual_parent != expected_last
+                {
+                    tracing::warn!(
+                        "Lineage verification failed: parent_hash mismatch. \
                              Expected {}, got {}. Skipping record.",
-                            expected_last,
-                            actual_parent
-                        );
-                        continue;
-                    }
+                        expected_last,
+                        actual_parent
+                    );
+                    continue;
                 }
                 r
             }

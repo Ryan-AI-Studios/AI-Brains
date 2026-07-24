@@ -6,9 +6,9 @@ This document records the supported installation paths and version pins for the 
 
 | Tool | Minimum Version | Install Command |
 |------|----------------|-----------------|
-| `cargo-nextest` | 0.9.137 | `cargo install cargo-nextest --locked` |
-| `cargo-deny` | 0.19.4 | `cargo install cargo-deny --locked` |
-| `cargo-audit` | 0.22.1 | `cargo install cargo-audit --locked` |
+| `cargo-nextest` | 0.9.140 | `cargo install cargo-nextest --locked` |
+| `cargo-deny` | 0.20.2 | `cargo install cargo-deny --locked` |
+| `cargo-audit` | 0.22.2 | `cargo install cargo-audit --locked` |
 
 All three tools install to `~/.cargo/bin/` via standard `cargo install`. No project-local binaries or generated caches are used.
 

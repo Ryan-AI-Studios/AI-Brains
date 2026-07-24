@@ -112,26 +112,25 @@ pub fn detect(ctx: &AppContext, export_shell: bool) -> Result<(), Box<dyn std::e
     }
 
     // T93: Fallback — try AI_BRAINS_PROJECT_ID already loaded from .env by main.
-    if let Ok(pid_str) = std::env::var("AI_BRAINS_PROJECT_ID") {
-        if !pid_str.is_empty() {
-            let projects = ctx.conn.list_projects()?;
-            if let Some((pid, name, alias, _count)) =
-                projects.iter().find(|(p, _, _, _)| p == &pid_str)
-            {
-                if export_shell {
-                    println!("export AI_BRAINS_PROJECT_ID={}", pid);
-                    println!(
-                        "# AI-Brains project detected from .env: {} | alias={} (from .env)",
-                        name, alias
-                    );
-                } else {
-                    println!(
-                        "Detected project from .env: {} ({}) | alias={} (from .env)",
-                        name, pid, alias
-                    );
-                }
-                return Ok(());
+    if let Ok(pid_str) = std::env::var("AI_BRAINS_PROJECT_ID")
+        && !pid_str.is_empty()
+    {
+        let projects = ctx.conn.list_projects()?;
+        if let Some((pid, name, alias, _count)) = projects.iter().find(|(p, _, _, _)| p == &pid_str)
+        {
+            if export_shell {
+                println!("export AI_BRAINS_PROJECT_ID={}", pid);
+                println!(
+                    "# AI-Brains project detected from .env: {} | alias={} (from .env)",
+                    name, alias
+                );
+            } else {
+                println!(
+                    "Detected project from .env: {} ({}) | alias={} (from .env)",
+                    name, pid, alias
+                );
             }
+            return Ok(());
         }
     }
 

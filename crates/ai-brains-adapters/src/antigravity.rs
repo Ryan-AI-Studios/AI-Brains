@@ -189,10 +189,10 @@ pub fn filter_recent_sessions(paths: &[PathBuf], days: usize) -> Vec<PathBuf> {
     paths
         .iter()
         .filter(|p| {
-            if let Ok(metadata) = std::fs::metadata(p) {
-                if let Ok(modified) = metadata.modified() {
-                    return modified >= cutoff;
-                }
+            if let Ok(metadata) = std::fs::metadata(p)
+                && let Ok(modified) = metadata.modified()
+            {
+                return modified >= cutoff;
             }
             false
         })
@@ -257,14 +257,14 @@ pub fn extract_turns(steps: &[AntigravityStep]) -> Vec<AntigravityTurn> {
             }
             ("MODEL", "PLANNER_RESPONSE") => {
                 // Only keep responses that have text content (not tool-only calls)
-                if let Some(content) = &step.content {
-                    if !content.trim().is_empty() {
-                        turns.push(AntigravityTurn {
-                            role: "assistant".to_string(),
-                            content: content.clone(),
-                            created_at: step.created_at.clone(),
-                        });
-                    }
+                if let Some(content) = &step.content
+                    && !content.trim().is_empty()
+                {
+                    turns.push(AntigravityTurn {
+                        role: "assistant".to_string(),
+                        content: content.clone(),
+                        created_at: step.created_at.clone(),
+                    });
                 }
                 // Skip tool_calls-only responses (mandate #4)
             }
@@ -417,12 +417,11 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
     let recent_sources: Vec<AntigravitySessionSource> = all_sources
         .into_iter()
         .filter(|s| {
-            if let Ok(metadata) = std::fs::metadata(&s.path) {
-                if let Ok(modified) = metadata.modified() {
-                    let cutoff =
-                        SystemTime::now() - Duration::from_secs(days as u64 * 24 * 60 * 60);
-                    return modified >= cutoff;
-                }
+            if let Ok(metadata) = std::fs::metadata(&s.path)
+                && let Ok(modified) = metadata.modified()
+            {
+                let cutoff = SystemTime::now() - Duration::from_secs(days as u64 * 24 * 60 * 60);
+                return modified >= cutoff;
             }
             false
         })
@@ -475,14 +474,13 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         }
 
         // Quiescence check: Skip if modified in the last 5 minutes (still active)
-        if let Some(modified) = metadata.as_ref().and_then(|m| m.modified().ok()) {
-            if SystemTime::now()
+        if let Some(modified) = metadata.as_ref().and_then(|m| m.modified().ok())
+            && SystemTime::now()
                 .duration_since(modified)
                 .unwrap_or(Duration::ZERO)
                 < Duration::from_secs(300)
-            {
-                continue;
-            }
+        {
+            continue;
         }
 
         let session_uuid = match Uuid::parse_str(&source.session_id) {
@@ -646,7 +644,7 @@ mod tests {
                 content: None, // Tool call only, no text content
                 created_at: None,
                 tool_calls: vec![
-                    serde_json::from_str(r#"{"name": "view_file"}"#).expect("valid json")
+                    serde_json::from_str(r#"{"name": "view_file"}"#).expect("valid json"),
                 ],
             },
             AntigravityStep {

@@ -109,11 +109,11 @@ mod tests {
     use ai_brains_core::privacy::Privacy;
     use ai_brains_crypto::{DataKey, SqlCipherKey};
     use ai_brains_events::{
-        constructors::EventBuilder, Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload,
+        Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, constructors::EventBuilder,
     };
     use ai_brains_graph::{GraphSearch, GraphVault};
-    use ai_brains_store::connection::VaultConnection;
     use ai_brains_store::EventStore;
+    use ai_brains_store::connection::VaultConnection;
     use tempfile::NamedTempFile;
 
     fn setup_connection() -> Result<VaultConnection, Box<dyn std::error::Error>> {
@@ -131,8 +131,8 @@ mod tests {
     }
 
     #[test]
-    fn graph_aware_store_makes_recall_edge_visible_on_append(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn graph_aware_store_makes_recall_edge_visible_on_append()
+    -> Result<(), Box<dyn std::error::Error>> {
         let conn = setup_connection()?;
         let store = GraphAwareEventStore::new(conn.clone());
         let session_id = SessionId::new();

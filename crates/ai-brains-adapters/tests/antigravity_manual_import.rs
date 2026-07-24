@@ -1,6 +1,6 @@
 use ai_brains_adapters::{
-    adapter_capability, apply_idempotent_patch, install_scope, manual_import_instructions,
-    wrapper_command, AdapterKind, CapabilityLevel,
+    AdapterKind, CapabilityLevel, adapter_capability, apply_idempotent_patch, install_scope,
+    manual_import_instructions, wrapper_command,
 };
 
 #[test]

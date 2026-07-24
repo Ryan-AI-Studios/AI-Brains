@@ -1,6 +1,6 @@
 #![allow(clippy::disallowed_methods)]
-use ai_brains_contracts::preflight::PreflightResponse;
 use ai_brains_contracts::ApiResult;
+use ai_brains_contracts::preflight::PreflightResponse;
 
 #[test]
 fn test_preflight_response_shape() {

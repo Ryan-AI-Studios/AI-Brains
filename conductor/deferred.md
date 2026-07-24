@@ -36,9 +36,10 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 - `anyhow` unsoundness in `Error::downcast_mut()`. Currently in `deny.toml` allowlist (pre-existing).
 - Monitor for upstream fix; remove allowlist entry once `anyhow` publishes a patched release.
 
-### 6. `scripts/dev-check.ps1` PowerShell parse error
-- Reported by Track 1 worker as pre-existing; not investigated (out of T142 scope).
-- The script does not run at all due to a parse error. If this script is used in CI or local dev workflow, triage in a hygiene track.
+### ~~6. `scripts/dev-check.ps1` PowerShell parse error~~ — Resolved (T146 + T147)
+- ~~Reported by Track 1 worker as pre-existing; not investigated (out of T142 scope).~~
+- ~~The script does not run at all due to a parse error.~~
+- **Resolved:** T146 em-dash fix + T147 baseline re-verify. `powershell.exe -NoProfile -File scripts\dev-check.ps1 -CheckOnly` exits 0 under Windows PowerShell 5.1 (2026-07-24); tool pins bumped to nextest 0.9.140 / deny 0.20.2 / audit 0.22.2.
 
 ---
 

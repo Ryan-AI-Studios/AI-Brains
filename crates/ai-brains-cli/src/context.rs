@@ -10,18 +10,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 pub(crate) fn read_ledger_tx_id() -> Option<String> {
-    if let Ok(v) = std::env::var("LEDGERFUL_TX_ID") {
-        if !v.is_empty() {
-            return Some(v);
-        }
+    if let Ok(v) = std::env::var("LEDGERFUL_TX_ID")
+        && !v.is_empty()
+    {
+        return Some(v);
     }
-    if let Ok(v) = std::env::var("CHANGEGUARD_TX_ID") {
-        if !v.is_empty() {
-            tracing::warn!(
-                "CHANGEGUARD_TX_ID is deprecated; use LEDGERFUL_TX_ID. Falling back for this session."
-            );
-            return Some(v);
-        }
+    if let Ok(v) = std::env::var("CHANGEGUARD_TX_ID")
+        && !v.is_empty()
+    {
+        tracing::warn!(
+            "CHANGEGUARD_TX_ID is deprecated; use LEDGERFUL_TX_ID. Falling back for this session."
+        );
+        return Some(v);
     }
     None
 }

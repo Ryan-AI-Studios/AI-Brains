@@ -10,6 +10,7 @@ pub mod project;
 pub mod recipe;
 pub mod session;
 pub mod status;
+pub mod temp_env;
 pub mod turn;
 pub mod user;
 pub mod validation;

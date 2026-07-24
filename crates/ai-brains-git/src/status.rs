@@ -1,6 +1,6 @@
+use crate::MAX_UNTRACKED_FILES;
 use crate::command::run_git;
 use crate::errors::Result;
-use crate::MAX_UNTRACKED_FILES;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -21,10 +21,10 @@ pub fn read_status(root: &Path) -> Result<RepoStatus> {
 
     for line in output.lines().filter(|line| !line.trim().is_empty()) {
         is_dirty = true;
-        if let Some(path) = line.strip_prefix("?? ") {
-            if untracked_files.len() < MAX_UNTRACKED_FILES {
-                untracked_files.push(path.to_string());
-            }
+        if let Some(path) = line.strip_prefix("?? ")
+            && untracked_files.len() < MAX_UNTRACKED_FILES
+        {
+            untracked_files.push(path.to_string());
         }
     }
 

@@ -340,29 +340,29 @@ async fn process_sync(
     let combined_privacy = record.privacy.combine(session_privacy);
 
     // Handle specific structured payloads
-    if record.record_kind == "verify_outcome" {
-        if let Ok(outcome) = serde_json::from_value::<ai_brains_events::VerifyOutcomeRecordedPayload>(
+    if record.record_kind == "verify_outcome"
+        && let Ok(outcome) = serde_json::from_value::<ai_brains_events::VerifyOutcomeRecordedPayload>(
             record.payload_value(),
-        ) {
-            let event = ai_brains_events::constructors::EventBuilder::new(
-                ai_brains_events::AggregateType::System,
-                uuid::Uuid::new_v4(),
-                ai_brains_events::EventKind::VerifyOutcomeRecorded,
-                ai_brains_events::Actor::System,
-                combined_privacy,
-            )
-            .build(ai_brains_events::Payload::VerifyOutcomeRecorded(outcome))
-            .map_err(|e| format!("Event build error: {}", e))?;
+        )
+    {
+        let event = ai_brains_events::constructors::EventBuilder::new(
+            ai_brains_events::AggregateType::System,
+            uuid::Uuid::new_v4(),
+            ai_brains_events::EventKind::VerifyOutcomeRecorded,
+            ai_brains_events::Actor::System,
+            combined_privacy,
+        )
+        .build(ai_brains_events::Payload::VerifyOutcomeRecorded(outcome))
+        .map_err(|e| format!("Event build error: {}", e))?;
 
-            store
-                .append_event(&event)
-                .map_err(|e| format!("Event append error: {}", e))?;
+        store
+            .append_event(&event)
+            .map_err(|e| format!("Event append error: {}", e))?;
 
-            if let Some(path) = spool_path {
-                let _ = fs::remove_file(path).await;
-            }
-            return Ok(());
+        if let Some(path) = spool_path {
+            let _ = fs::remove_file(path).await;
         }
+        return Ok(());
     }
 
     let request = IngestRequest {

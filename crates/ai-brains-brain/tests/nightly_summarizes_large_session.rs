@@ -2,6 +2,7 @@
 
 use ai_brains_brain::NightlyService;
 use ai_brains_core::ids::{ProjectId, SessionId};
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_events::{
     Payload, SessionCompletedPayload, SessionStartedPayload, UserPromptRecordedPayload,
@@ -13,8 +14,8 @@ use std::sync::Arc;
 use tempfile::tempdir;
 
 #[tokio::test]
-async fn test_nightly_summarizes_large_session_via_chunking(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn test_nightly_summarizes_large_session_via_chunking()
+-> Result<(), Box<dyn std::error::Error>> {
     let _ = tracing_subscriber::fmt::try_init();
     let dir = tempdir()?;
     let db_path = dir.path().join("vault.db");
@@ -29,7 +30,7 @@ async fn test_nightly_summarizes_large_session_via_chunking(
     // 1. Set environment variable for small context to force chunking
     // Overhead buffer is 1500.
     // effective_budget = 1600 - 1500 = 100.
-    std::env::set_var("AI_BRAINS_CTX_SIZE", "1600");
+    let _ctx_size = TempEnv::set("AI_BRAINS_CTX_SIZE", "1600");
 
     // 2. Setup a session with 2 turns to exceed the 100 token budget
     let project_id = ProjectId::new();

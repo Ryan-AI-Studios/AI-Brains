@@ -199,10 +199,10 @@ fn generate_daemon_wrapper_script_from_env(
         .find(|(k, _)| *k == "AI_BRAINS_VAULT_PATH")
         .map(|(_, v)| v.as_str())
         .unwrap_or("");
-    if let Some(parent) = std::path::Path::new(vault_path).parent() {
-        if !parent.as_os_str().is_empty() {
-            lines.push(format!("cd /d \"{}\"", parent.display()));
-        }
+    if let Some(parent) = std::path::Path::new(vault_path).parent()
+        && !parent.as_os_str().is_empty()
+    {
+        lines.push(format!("cd /d \"{}\"", parent.display()));
     }
     lines.push(format!(r#""{}" --no-project-context"#, exe_str));
     Ok(lines.join("\n"))
@@ -301,7 +301,9 @@ pub fn run_install(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::
 
     if dry_run {
         println!("[dry-run] Would execute the following commands:");
-        println!("  1. sc create \"{service_name}\" binPath= \"{bin_path}\" start= delayed-auto DisplayName= \"{display_name}\"");
+        println!(
+            "  1. sc create \"{service_name}\" binPath= \"{bin_path}\" start= delayed-auto DisplayName= \"{display_name}\""
+        );
         println!("  2. sc description \"{service_name}\" \"...\"");
         println!(
             "  3. Write env vars (ACL-restricted) to: {}",
@@ -481,11 +483,11 @@ fn generate_env_sidecar() -> Option<String> {
     let mut lines = Vec::new();
     let mut found_any = false;
     for key in &keys {
-        if let Ok(val) = std::env::var(key) {
-            if !val.is_empty() {
-                lines.push(format!("{key}={val}"));
-                found_any = true;
-            }
+        if let Ok(val) = std::env::var(key)
+            && !val.is_empty()
+        {
+            lines.push(format!("{key}={val}"));
+            found_any = true;
         }
     }
     if found_any {
@@ -849,8 +851,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn render_daemon_schedule_command__run_as_system__uses_program_data_wrapper_or_no_project_context(
-    ) {
+    fn render_daemon_schedule_command__run_as_system__uses_program_data_wrapper_or_no_project_context()
+     {
         // When env is complete, dry-run /tr is the ProgramData wrapper path (flags live in the bat).
         // When env is incomplete, dry-run falls back to the bare exe + --no-project-context.
         let cmd =
@@ -866,8 +868,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn generate_daemon_wrapper_script__all_vars_present__includes_set_cd_and_no_project_context(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn generate_daemon_wrapper_script__all_vars_present__includes_set_cd_and_no_project_context()
+    -> Result<(), Box<dyn std::error::Error>> {
         let env_values: Vec<(&str, String)> = vec![
             ("AI_BRAINS_VAULT_PATH", "C:\\vault\\vault.db".to_string()),
             ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),
@@ -904,10 +906,12 @@ mod tests {
         let result =
             generate_daemon_wrapper_script_from_env(r"C:\fake\ai-brainsd.exe", &env_values);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("AI_BRAINS_VAULT_PATH"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("AI_BRAINS_VAULT_PATH")
+        );
     }
 
     /// T103: unschedule_inner with dry_run must return Ok without executing

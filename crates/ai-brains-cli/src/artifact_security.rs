@@ -202,30 +202,30 @@ pub fn write_protected_artifact(
     }
     #[cfg(windows)]
     {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                // 1. If parent exists and is reparse/junction → Err (before create).
-                if let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?) {
-                    return Err(msg.into());
-                }
-
-                // 2. create_dir_all if needed.
-                std::fs::create_dir_all(parent).map_err(|e| {
-                    format!(
-                        "Failed to create protected artifact directory {}: {}",
-                        parent.display(),
-                        e
-                    )
-                })?;
-
-                // 3. Re-check parent is still not reparse after create.
-                if let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?) {
-                    return Err(msg.into());
-                }
-
-                // 3b. Parent ACL apply+verify (AI-Brains) — shared with ensure path.
-                ensure_parent_protected(path)?;
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            // 1. If parent exists and is reparse/junction → Err (before create).
+            if let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?) {
+                return Err(msg.into());
             }
+
+            // 2. create_dir_all if needed.
+            std::fs::create_dir_all(parent).map_err(|e| {
+                format!(
+                    "Failed to create protected artifact directory {}: {}",
+                    parent.display(),
+                    e
+                )
+            })?;
+
+            // 3. Re-check parent is still not reparse after create.
+            if let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?) {
+                return Err(msg.into());
+            }
+
+            // 3b. Parent ACL apply+verify (AI-Brains) — shared with ensure path.
+            ensure_parent_protected(path)?;
         }
 
         // 4. File reparse check before write.
@@ -450,10 +450,10 @@ fn is_reparse_or_symlink_windows(path: &Path) -> std::io::Result<bool> {
     // Also detect directory junctions / other reparse points that may not
     // report as is_symlink() on all Rust/Windows combinations.
     use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
     use windows::Win32::Storage::FileSystem::{
-        GetFileAttributesW, FILE_ATTRIBUTE_REPARSE_POINT, INVALID_FILE_ATTRIBUTES,
+        FILE_ATTRIBUTE_REPARSE_POINT, GetFileAttributesW, INVALID_FILE_ATTRIBUTES,
     };
+    use windows::core::PCWSTR;
 
     let wide: Vec<u16> = path
         .as_os_str()
@@ -475,13 +475,13 @@ fn is_reparse_or_symlink_windows(path: &Path) -> std::io::Result<bool> {
 #[cfg(windows)]
 fn is_hardlink_windows(path: &Path) -> std::io::Result<bool> {
     use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
     use windows::Win32::Foundation::{CloseHandle, GENERIC_READ};
     use windows::Win32::Storage::FileSystem::{
-        CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
-        FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_SHARE_DELETE,
-        FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_FLAG_BACKUP_SEMANTICS,
+        FILE_FLAG_OPEN_REPARSE_POINT, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+        GetFileInformationByHandle, OPEN_EXISTING,
     };
+    use windows::core::PCWSTR;
 
     // Fast path: missing path is not a hardlink.
     match path.symlink_metadata() {
@@ -530,16 +530,16 @@ fn is_hardlink_windows(path: &Path) -> std::io::Result<bool> {
 #[cfg(windows)]
 fn apply_restrictive_acl_windows(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Foundation::{LocalFree, ERROR_SUCCESS, HLOCAL};
+    use windows::Win32::Foundation::{ERROR_SUCCESS, HLOCAL, LocalFree};
     use windows::Win32::Security::Authorization::{
-        ConvertStringSecurityDescriptorToSecurityDescriptorW, SetNamedSecurityInfoW,
-        SDDL_REVISION_1, SE_FILE_OBJECT,
+        ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1, SE_FILE_OBJECT,
+        SetNamedSecurityInfoW,
     };
     use windows::Win32::Security::{
-        GetSecurityDescriptorDacl, ACL, DACL_SECURITY_INFORMATION,
+        ACL, DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl,
         PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR,
     };
+    use windows::core::PCWSTR;
 
     let path_wide: Vec<u16> = path
         .as_os_str()
@@ -572,9 +572,9 @@ fn apply_restrictive_acl_windows(path: &Path) -> Result<(), Box<dyn std::error::
     struct SdGuard(PSECURITY_DESCRIPTOR);
     impl Drop for SdGuard {
         fn drop(&mut self) {
-            if !self.0 .0.is_null() {
+            if !self.0.0.is_null() {
                 unsafe {
-                    let _ = LocalFree(Some(HLOCAL(self.0 .0)));
+                    let _ = LocalFree(Some(HLOCAL(self.0.0)));
                 }
             }
         }
@@ -825,9 +825,10 @@ mod tests {
             path.file_name().and_then(|n| n.to_str()),
             Some("daemon-task.bat")
         );
-        assert!(path
-            .components()
-            .any(|c| c.as_os_str() == std::ffi::OsStr::new("AI-Brains")));
+        assert!(
+            path.components()
+                .any(|c| c.as_os_str() == std::ffi::OsStr::new("AI-Brains"))
+        );
     }
 
     #[test]
@@ -837,9 +838,10 @@ mod tests {
             path.file_name().and_then(|n| n.to_str()),
             Some("daemon.env")
         );
-        assert!(path
-            .components()
-            .any(|c| c.as_os_str() == std::ffi::OsStr::new("AI-Brains")));
+        assert!(
+            path.components()
+                .any(|c| c.as_os_str() == std::ffi::OsStr::new("AI-Brains"))
+        );
     }
 
     #[test]

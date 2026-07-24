@@ -37,12 +37,11 @@ pub fn run(ctx: &AppContext, payload_json: &str) -> Result<(), Box<dyn std::erro
     let mut project_id = original_resolved_pid;
 
     // Phase 2: Fallback to environment PID if not resolved (Requirement T48.2)
-    if project_id.is_none() {
-        if let Ok(env_pid_str) = std::env::var("AI_BRAINS_PROJECT_ID") {
-            if let Ok(env_pid) = ProjectId::from_str(&env_pid_str) {
-                project_id = Some(env_pid);
-            }
-        }
+    if project_id.is_none()
+        && let Ok(env_pid_str) = std::env::var("AI_BRAINS_PROJECT_ID")
+        && let Ok(env_pid) = ProjectId::from_str(&env_pid_str)
+    {
+        project_id = Some(env_pid);
     }
 
     let project_id = project_id.unwrap_or_else(ProjectId::new);

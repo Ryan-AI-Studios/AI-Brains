@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 use windows_service::{
-    define_windows_service,
+    Result as WsResult, define_windows_service,
     service::{
         ServiceAccess, ServiceControl, ServiceControlAccept, ServiceErrorControl, ServiceExitCode,
         ServiceInfo, ServiceStartType, ServiceState, ServiceStatus, ServiceType,
@@ -16,13 +16,11 @@ use windows_service::{
     service_control_handler::{self, ServiceControlHandlerResult},
     service_dispatcher,
     service_manager::{ServiceManager, ServiceManagerAccess},
-    Result as WsResult,
 };
 
 const SERVICE_NAME: &str = "AI-Brains-Daemon";
 const SERVICE_DISPLAY_NAME: &str = "AI-Brains Daemon";
-const SERVICE_DESCRIPTION: &str =
-    "Local-first AI coding memory vault — captures conversation history without tool logs or hidden thinking.";
+const SERVICE_DESCRIPTION: &str = "Local-first AI coding memory vault — captures conversation history without tool logs or hidden thinking.";
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 
 pub fn run_service() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -126,13 +124,13 @@ async fn run_daemon_async(
         let _ = dotenvy::from_path_override(&sidecar_env);
     }
 
-    if std::env::var("AI_BRAINS_VAULT_PATH").is_err() {
-        if let Some(mut global_env) = dirs::home_dir() {
-            global_env.push(".ai-brains");
-            global_env.push(".env");
-            if global_env.exists() {
-                dotenvy::from_path_override(global_env).ok();
-            }
+    if std::env::var("AI_BRAINS_VAULT_PATH").is_err()
+        && let Some(mut global_env) = dirs::home_dir()
+    {
+        global_env.push(".ai-brains");
+        global_env.push(".env");
+        if global_env.exists() {
+            dotenvy::from_path_override(global_env).ok();
         }
     }
 
@@ -463,11 +461,11 @@ pub fn uninstall_service() -> WsResult<()> {
     let service_access = ServiceAccess::QUERY_STATUS | ServiceAccess::STOP | ServiceAccess::DELETE;
     let service = service_manager.open_service(SERVICE_NAME, service_access)?;
 
-    if let Ok(status) = service.query_status() {
-        if status.current_state == ServiceState::Running {
-            let _ = service.stop();
-            thread::sleep(Duration::from_secs(2));
-        }
+    if let Ok(status) = service.query_status()
+        && status.current_state == ServiceState::Running
+    {
+        let _ = service.stop();
+        thread::sleep(Duration::from_secs(2));
     }
 
     service.delete()?;

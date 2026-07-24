@@ -390,10 +390,10 @@ pub fn parse_backup_timestamp(s: &str) -> Option<NaiveDateTime> {
     }
 
     let normalized = normalize_timezone_colons(s);
-    if normalized != s {
-        if let Ok(ts) = NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H-%M-%S%.f%:z") {
-            return Some(ts);
-        }
+    if normalized != s
+        && let Ok(ts) = NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H-%M-%S%.f%:z")
+    {
+        return Some(ts);
     }
 
     if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
@@ -444,8 +444,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn backup_create__encrypted_vault__produces_valid_backup(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn backup_create__encrypted_vault__produces_valid_backup()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let vault_path = dir.path().join("vault.db");
 
@@ -636,8 +636,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn list_backups__quiet__uses_debug_for_metadata_failures(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn list_backups__quiet__uses_debug_for_metadata_failures()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let vault_path = dir.path().join("vault.db");
         let backup_dir = dir.path().join("backups");
@@ -657,8 +657,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn list_backups__not_quiet__uses_warn_for_metadata_failures(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn list_backups__not_quiet__uses_warn_for_metadata_failures()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let vault_path = dir.path().join("vault.db");
         let backup_dir = dir.path().join("backups");

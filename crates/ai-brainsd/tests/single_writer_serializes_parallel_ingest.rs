@@ -37,8 +37,8 @@ fn request(project_id: ProjectId, session_id: SessionId, content: &str) -> Inges
 }
 
 #[tokio::test]
-async fn single_writer_serializes_parallel_ingest(
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn single_writer_serializes_parallel_ingest()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let spool_dir = unique_spool_dir("parallel");
     let db_path = spool_dir.join("vault.db");
     std::fs::create_dir_all(&spool_dir)?;

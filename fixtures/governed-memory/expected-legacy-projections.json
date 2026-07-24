@@ -1,0 +1,80 @@
+{
+  "memory_fts_count": 3,
+  "memory_projection": [
+    {
+      "content": "ASSISTANT: It freezes vault projection behavior with synthetic fixtures.",
+      "created_at": "2024-01-15T10:03:00Z",
+      "level": 0,
+      "privacy": "\"ProjectLocal\"",
+      "project_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "session_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "status": "pinned",
+      "tx_id": null,
+      "updated_at": "2024-01-15T10:03:00Z"
+    },
+    {
+      "content": "CONSTRAINT: Shadow vaults must never mutate the live vault.",
+      "created_at": "2024-01-15T10:04:00Z",
+      "level": 0,
+      "privacy": "\"ProjectLocal\"",
+      "project_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "session_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "status": "pinned",
+      "tx_id": null,
+      "updated_at": "2024-01-15T10:04:00Z"
+    },
+    {
+      "content": "USER: What is the governed memory baseline?",
+      "created_at": "2024-01-15T10:02:00Z",
+      "level": 0,
+      "privacy": "\"ProjectLocal\"",
+      "project_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "session_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "status": "pinned",
+      "tx_id": null,
+      "updated_at": "2024-01-15T10:02:00Z"
+    }
+  ],
+  "project_projection": [
+    {
+      "created_at": "2024-01-15T10:00:00Z",
+      "name": "Governed Memory Fixture",
+      "project_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "tx_id": null,
+      "updated_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "session_projection": [
+    {
+      "created_at": "2024-01-15T10:01:00Z",
+      "privacy": "\"ProjectLocal\"",
+      "project_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "session_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "status": "active",
+      "summarized_at": null,
+      "summary_memory_id": null,
+      "tx_id": null,
+      "updated_at": "2024-01-15T10:03:00Z"
+    }
+  ],
+  "turn_projection": [
+    {
+      "content": "What is the governed memory baseline?",
+      "occurred_at": "2024-01-15T10:02:00Z",
+      "project_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "role": "user",
+      "session_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "turn_index": 0,
+      "tx_id": null
+    },
+    {
+      "content": "It freezes vault projection behavior with synthetic fixtures.",
+      "occurred_at": "2024-01-15T10:03:00Z",
+      "project_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "role": "assistant",
+      "session_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "turn_index": 1,
+      "tx_id": null
+    }
+  ]
+}

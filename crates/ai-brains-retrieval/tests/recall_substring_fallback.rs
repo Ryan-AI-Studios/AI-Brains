@@ -1,7 +1,7 @@
 mod common;
 
 use ai_brains_core::privacy::Privacy;
-use ai_brains_retrieval::{recall, RecallOptions};
+use ai_brains_retrieval::{RecallOptions, recall};
 
 /// T105: When FTS5 returns zero results, recall should fall back to a
 /// substring LIKE scan and return the matching memory with source="substring".

@@ -182,13 +182,13 @@ impl CozoProxyBackend {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
 
-            if let Ok(api_res) = serde_json::from_str::<ApiResult<serde_json::Value>>(&stderr) {
-                if let Some(err) = api_res.error {
-                    return Err(GraphError::DbError(format!(
-                        "Ledgerful Error: {} ({})",
-                        err.message, err.code
-                    )));
-                }
+            if let Ok(api_res) = serde_json::from_str::<ApiResult<serde_json::Value>>(&stderr)
+                && let Some(err) = api_res.error
+            {
+                return Err(GraphError::DbError(format!(
+                    "Ledgerful Error: {} ({})",
+                    err.message, err.code
+                )));
             }
 
             tracing::warn!("Ledgerful bridge import failed: {}", stderr);
@@ -268,14 +268,11 @@ impl CozoProxyBackend {
             if line.is_empty() {
                 continue;
             }
-            if let Ok(record) = serde_json::from_str::<BridgeRecord>(line) {
-                if record.record_kind == "named_rows" {
-                    if let Ok(rows) =
-                        serde_json::from_value::<CozoNamedRows>(record.payload_value())
-                    {
-                        return Ok(rows);
-                    }
-                }
+            if let Ok(record) = serde_json::from_str::<BridgeRecord>(line)
+                && record.record_kind == "named_rows"
+                && let Ok(rows) = serde_json::from_value::<CozoNamedRows>(record.payload_value())
+            {
+                return Ok(rows);
             }
         }
 

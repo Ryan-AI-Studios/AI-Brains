@@ -3,10 +3,10 @@
 use ai_brains_models::llama_cpp::LlamaCppProvider;
 use ai_brains_models::{CompletionRequest, ModelError, ModelProvider};
 use std::time::Duration;
-use wiremock::matchers::method;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;
+use wiremock::matchers::method;
 
 #[tokio::test]
 async fn llama_cpp_provider_timeout_expires_returns_timeout_error() {

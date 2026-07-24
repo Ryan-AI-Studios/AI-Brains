@@ -102,9 +102,9 @@ Required tool versions (install commands in `Docs/ci-tooling.md`):
 
 | Tool | Min Version |
 |------|-------------|
-| `cargo-nextest` | 0.9.137 |
-| `cargo-deny` | 0.19.4 |
-| `cargo-audit` | 0.22.1 |
+| `cargo-nextest` | 0.9.140 |
+| `cargo-deny` | 0.20.2 |
+| `cargo-audit` | 0.22.2 |
 
 ### Targeted vs Full Verification
 
@@ -135,7 +135,7 @@ Do NOT:
   - **slow**: heavy integration tests suffixed `__slow`, 300s timeout, nightly.
   - **compile_fail**: `trybuild`, separate CI job.
   - **doctests**: `cargo test --doc`, PR-time.
-- **Environment Variables**: NEVER call `std::env::set_var`/`remove_var` directly in tests — use a `TempEnv` RAII guard for cleanup + `#[serial(env)]` for thread safety. Both required. Edition 2024 made these unsafe.
+- **Environment Variables**: NEVER call `std::env::set_var`/`remove_var` directly in tests — use `ai_brains_core::temp_env::TempEnv` RAII for restore-on-drop. Prefer nextest process isolation; add `#[serial(env)]` only when one binary mutates overlapping keys in-process. Edition 2024 made `set_var`/`remove_var` unsafe; production CLI startup uses `unsafe` + SAFETY comments.
 - **Working Directory**: Per-test `DirGuard` restores `set_current_dir` on drop; use `#[serial(cwd)]` if serialization needed. No global cwd_lock mutex.
 - **Parameterization**: Use `rstest` `#[case]` (generates independent `#[test]` per case, granular failures). NEVER for-loop inside a single `#[test]` (aborts on first failure, hides rest).
 - **Fixtures**: Per-test `tempfile::tempdir()` mandated for SQLite/hermetic isolation. Share immutable expensive builds via `OnceLock<Arc<SharedState>>` — NOT mutable state, NOT servers. Each test spawns its own Axum router on `127.0.0.1:0`.

@@ -2,7 +2,7 @@ use crate::context::AppContext;
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    constructors::EventBuilder, Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload,
+    Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, constructors::EventBuilder,
 };
 use serde::Deserialize;
 use uuid::Uuid;
@@ -248,11 +248,7 @@ fn symbol_already_ingested(event_store: &dyn EventStore, memory_uuid: Uuid) -> b
 }
 
 fn non_empty(value: String) -> Option<String> {
-    if value.is_empty() {
-        None
-    } else {
-        Some(value)
-    }
+    if value.is_empty() { None } else { Some(value) }
 }
 
 fn symbol_in_project(file_path: &str, project_root: Option<&std::path::Path>) -> bool {
@@ -277,7 +273,7 @@ fn symbol_in_project(file_path: &str, project_root: Option<&std::path::Path>) ->
 mod tests {
     use super::*;
     use ai_brains_crypto::{DataKey, SqlCipherKey};
-    use ai_brains_retrieval::{recall, RecallOptions};
+    use ai_brains_retrieval::{RecallOptions, recall};
     use ai_brains_store::connection::VaultConnection;
     use ai_brains_store::event_store::SqliteEventStore;
     use tempfile::NamedTempFile;

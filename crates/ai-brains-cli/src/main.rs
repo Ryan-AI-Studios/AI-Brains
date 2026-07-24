@@ -306,6 +306,33 @@ enum Commands {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
+    /// Create a shadow vault copy for safe dogfood evaluation
+    Shadow {
+        #[command(subcommand)]
+        command: ShadowCommands,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+enum ShadowCommands {
+    /// Create a new shadow vault from a source vault
+    Create {
+        /// Path to the source vault database
+        #[arg(long)]
+        source: PathBuf,
+        /// Path for the new destination vault (must not exist)
+        #[arg(long)]
+        destination: PathBuf,
+        /// Explicitly enable turn-content redaction (default behavior)
+        #[arg(long = "redact-turn-content", action = clap::ArgAction::SetTrue)]
+        redact_turn_content: bool,
+        /// Preserve turn content when creating the shadow vault
+        #[arg(long = "no-redact-turn-content", action = clap::ArgAction::SetTrue)]
+        no_redact_turn_content: bool,
+        /// Preview refusals and plan without writing any files
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -597,24 +624,28 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
         }
 
         if warn_on_override {
-            if let Ok(existing) = std::env::var(&key) {
-                if existing != value {
-                    eprintln!(
-                        "Warning: local .env {} overrides inherited shell value {}.",
-                        key, existing
-                    );
-                }
-            }
-        } else if let Ok(existing) = std::env::var(&key) {
-            if existing != value {
-                tracing::debug!(
-                    "local .env {} overrides inherited shell value for this command",
-                    key
+            if let Ok(existing) = std::env::var(&key)
+                && existing != value
+            {
+                eprintln!(
+                    "Warning: local .env {} overrides inherited shell value {}.",
+                    key, existing
                 );
             }
+        } else if let Ok(existing) = std::env::var(&key)
+            && existing != value
+        {
+            tracing::debug!(
+                "local .env {} overrides inherited shell value for this command",
+                key
+            );
         }
 
-        std::env::set_var(key, value);
+        // SAFETY: single-threaded CLI startup before worker threads; process env
+        // is intentionally mutated for project-context loading.
+        unsafe {
+            std::env::set_var(key, value);
+        }
     }
 }
 
@@ -646,21 +677,25 @@ fn main() {
     if !no_project_context {
         let project_env = std::path::Path::new(".env");
         if !project_env.exists() {
-            std::env::remove_var("AI_BRAINS_PROJECT_ID");
-            std::env::remove_var("AI_BRAINS_SESSION_ID");
+            // SAFETY: single-threaded CLI startup before worker threads; process env
+            // is intentionally mutated to clear stale project context.
+            unsafe {
+                std::env::remove_var("AI_BRAINS_PROJECT_ID");
+                std::env::remove_var("AI_BRAINS_SESSION_ID");
+            }
         } else {
             dotenvy::dotenv().ok();
             apply_local_project_context_env(project_env, warn_on_project_context_override);
         }
 
         // Fallback to global config in ~/.ai-brains/.env if AI_BRAINS_VAULT_PATH not set yet
-        if std::env::var("AI_BRAINS_VAULT_PATH").is_err() {
-            if let Some(mut home) = dirs::home_dir() {
-                home.push(".ai-brains");
-                home.push(".env");
-                if home.exists() {
-                    dotenvy::from_path(home).ok();
-                }
+        if std::env::var("AI_BRAINS_VAULT_PATH").is_err()
+            && let Some(mut home) = dirs::home_dir()
+        {
+            home.push(".ai-brains");
+            home.push(".env");
+            if home.exists() {
+                dotenvy::from_path(home).ok();
             }
         }
     }
@@ -759,8 +794,34 @@ fn main() {
 }
 
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+    // Shadow opens source/destination itself and must not require a global vault path.
+    if let Commands::Shadow { command } = &cli.command {
+        return match command {
+            ShadowCommands::Create {
+                source,
+                destination,
+                redact_turn_content,
+                no_redact_turn_content,
+                dry_run,
+            } => {
+                // Default: redact. --no-redact-turn-content wins when both are passed.
+                // --redact-turn-content is accepted for CLI contract symmetry.
+                let _ = redact_turn_content;
+                let redact = !*no_redact_turn_content;
+                commands::shadow::run_create(
+                    source.clone(),
+                    destination.clone(),
+                    redact,
+                    *dry_run,
+                    cli.key.clone(),
+                )
+            }
+        };
+    }
+
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
     match &cli.command {
+        Commands::Shadow { .. } => unreachable!("shadow handled above"),
         Commands::Init { force } => commands::init::run(&ctx, *force),
         Commands::Ingest { dry_run } => commands::ingest::run(&ctx, *dry_run),
         Commands::Recall {
@@ -1057,7 +1118,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(not(feature = "graph"))]
         Commands::Graph { .. } => {
             println!("The graph subcommand requires a --features graph build.");
-            println!("Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph");
+            println!(
+                "Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph"
+            );
             Ok(())
         }
     }

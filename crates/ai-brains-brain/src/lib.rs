@@ -99,7 +99,9 @@ impl NightlyService {
 
         for (idx, session_id) in unsummarized.into_iter().take(limit).enumerate() {
             if consecutive_errors >= 3 {
-                tracing::warn!("Aborting session summarization due to multiple consecutive errors (likely LLM backend down).");
+                tracing::warn!(
+                    "Aborting session summarization due to multiple consecutive errors (likely LLM backend down)."
+                );
                 eprintln!("[Nightly] Aborting summarization early after 3 consecutive failures.");
                 break;
             }

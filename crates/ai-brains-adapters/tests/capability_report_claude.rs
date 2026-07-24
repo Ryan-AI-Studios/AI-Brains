@@ -1,4 +1,4 @@
-use ai_brains_adapters::{adapter_capability, AdapterKind, CapabilityLevel};
+use ai_brains_adapters::{AdapterKind, CapabilityLevel, adapter_capability};
 
 #[test]
 fn capability_report_claude() {

@@ -8,9 +8,9 @@ use ai_brains_events::{
     Actor, AggregateType, EventKind, MemoryForgottenPayload, Payload, SessionStartedPayload,
     UserPromptRecordedPayload,
 };
+use ai_brains_store::QueryStore;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
-use ai_brains_store::QueryStore;
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 use tempfile::tempdir;

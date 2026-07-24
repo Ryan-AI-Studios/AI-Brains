@@ -132,7 +132,9 @@ impl MemorySynthesizer {
                \"cumulative_progress\": [\"Overall progress made across these nodes\"]\n\
              }}\n\n\
              Source Memories:\n{}",
-            level - 1, level, contents
+            level - 1,
+            level,
+            contents
         );
 
         let request = CompletionRequest {

@@ -2,10 +2,10 @@ use crate::errors::{CryptoError, Result};
 
 #[cfg(windows)]
 use windows::{
-    core::PCWSTR,
     Win32::Security::Cryptography::{
-        CryptProtectData, CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
+        CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptProtectData, CryptUnprotectData,
     },
+    core::PCWSTR,
 };
 
 #[cfg(windows)]
