@@ -4,11 +4,11 @@
 use std::io;
 
 use windows::{
-    core::PCSTR,
     Win32::Security::{
         Authorization::ConvertStringSecurityDescriptorToSecurityDescriptorA, PSECURITY_DESCRIPTOR,
         SECURITY_ATTRIBUTES,
     },
+    core::PCSTR,
 };
 
 const SDDL: &str = "D:(A;;GA;;;WD)";

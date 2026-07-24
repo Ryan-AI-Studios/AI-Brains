@@ -1,7 +1,7 @@
+use crate::GraphSearch;
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
 use crate::lexical::{lexical_search, substring_fallback};
-use crate::GraphSearch;
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_store::VaultConnection;

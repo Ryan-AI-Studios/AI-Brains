@@ -34,10 +34,6 @@ pub enum Privacy {
 
 impl Privacy {
     pub fn combine(&self, other: Privacy) -> Privacy {
-        if *self > other {
-            *self
-        } else {
-            other
-        }
+        if *self > other { *self } else { other }
     }
 }

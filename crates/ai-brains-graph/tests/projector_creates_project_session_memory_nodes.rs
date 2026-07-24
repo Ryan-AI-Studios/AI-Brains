@@ -3,7 +3,7 @@ mod common;
 use ai_brains_core::ids::MemoryId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    constructors::EventBuilder, Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload,
+    Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, constructors::EventBuilder,
 };
 use ai_brains_graph::GraphProjector;
 use ai_brains_graph::{GraphSearch, GraphVault};

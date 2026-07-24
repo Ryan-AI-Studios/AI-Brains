@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
+use crate::GraphSearch;
 use crate::ansi::strip_ansi;
 use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use crate::sessions::active_sessions;
 use crate::word_budget::{trim_to_word_budget, word_count};
-use crate::GraphSearch;
 use ai_brains_store::VaultConnection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,13 +35,12 @@ pub fn build_preflight(
 
     // --- Ledgerful Blended Section (New) ---
     let mut has_cg_intelligence = false;
-    if !global {
-        if let Some(ref pid) = project_id_str {
-            if let Some(cg_context) = query_changeguard(pid, scope_paths.as_ref()) {
-                sections.push(cg_context);
-                has_cg_intelligence = true;
-            }
-        }
+    if !global
+        && let Some(ref pid) = project_id_str
+        && let Some(cg_context) = query_changeguard(pid, scope_paths.as_ref())
+    {
+        sections.push(cg_context);
+        has_cg_intelligence = true;
     }
 
     // --- Onboarding & Safety Section (Max 15% of budget) ---
@@ -287,11 +286,11 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
     ]);
 
     // If scope is provided, append --scope <comma-separated paths>
-    if let Some(paths) = scope_paths {
-        if !paths.is_empty() {
-            cmd.arg("--scope");
-            cmd.arg(paths.join(","));
-        }
+    if let Some(paths) = scope_paths
+        && !paths.is_empty()
+    {
+        cmd.arg("--scope");
+        cmd.arg(paths.join(","));
     }
 
     let output = cmd.output().ok()?;
@@ -320,36 +319,36 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
         if let Ok(record) = serde_json::from_str::<ai_brains_contracts::bridge::BridgeRecord>(&line)
         {
             let payload = record.payload_value();
-            if record.record_kind == "hotspot_delta" {
-                if let Some(path) = payload.get("path").and_then(|v| v.as_str()) {
-                    let score = payload.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    let reason = payload.get("reason").and_then(|v| v.as_str()).unwrap_or("");
+            if record.record_kind == "hotspot_delta"
+                && let Some(path) = payload.get("path").and_then(|v| v.as_str())
+            {
+                let score = payload.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let reason = payload.get("reason").and_then(|v| v.as_str()).unwrap_or("");
 
-                    if is_contextual {
-                        // Parse contextual risk fields for scope-based queries
-                        let temporal_coupling =
-                            payload.get("temporal_coupling").and_then(|v| v.as_f64());
-                        let failure_probability =
-                            payload.get("failure_probability").and_then(|v| v.as_f64());
+                if is_contextual {
+                    // Parse contextual risk fields for scope-based queries
+                    let temporal_coupling =
+                        payload.get("temporal_coupling").and_then(|v| v.as_f64());
+                    let failure_probability =
+                        payload.get("failure_probability").and_then(|v| v.as_f64());
 
-                        let mut entry = format!("- {} (Risk: {:.2}", path, score);
-                        if let Some(tc) = temporal_coupling {
-                            entry.push_str(&format!(" | Temporal Coupling: {:.2}", tc));
-                        }
-                        if let Some(fp) = failure_probability {
-                            entry.push_str(&format!(" | Failure Prob: {:.1}%", fp * 100.0));
-                        }
-                        if !reason.is_empty() {
-                            entry.push_str(&format!(" | Reason: {}", reason));
-                        }
-                        entry.push_str(") [Source: Ledgerful Contextual]");
-                        hotspots.push(entry);
-                    } else {
-                        hotspots.push(format!(
-                            "- {} (Score: {:.2}, Reason: {}) [Source: Ledgerful]",
-                            path, score, reason
-                        ));
+                    let mut entry = format!("- {} (Risk: {:.2}", path, score);
+                    if let Some(tc) = temporal_coupling {
+                        entry.push_str(&format!(" | Temporal Coupling: {:.2}", tc));
                     }
+                    if let Some(fp) = failure_probability {
+                        entry.push_str(&format!(" | Failure Prob: {:.1}%", fp * 100.0));
+                    }
+                    if !reason.is_empty() {
+                        entry.push_str(&format!(" | Reason: {}", reason));
+                    }
+                    entry.push_str(") [Source: Ledgerful Contextual]");
+                    hotspots.push(entry);
+                } else {
+                    hotspots.push(format!(
+                        "- {} (Score: {:.2}, Reason: {}) [Source: Ledgerful]",
+                        path, score, reason
+                    ));
                 }
             }
         }
@@ -405,15 +404,15 @@ fn query_changeguard_fallback() -> Option<String> {
         if let Ok(record) = serde_json::from_str::<ai_brains_contracts::bridge::BridgeRecord>(&line)
         {
             let payload = record.payload_value();
-            if record.record_kind == "hotspot_delta" {
-                if let Some(path) = payload.get("path").and_then(|v| v.as_str()) {
-                    let score = payload.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    let reason = payload.get("reason").and_then(|v| v.as_str()).unwrap_or("");
-                    hotspots.push(format!(
-                        "- {} (Score: {:.2}, Reason: {}) [Source: Ledgerful Fallback]",
-                        path, score, reason
-                    ));
-                }
+            if record.record_kind == "hotspot_delta"
+                && let Some(path) = payload.get("path").and_then(|v| v.as_str())
+            {
+                let score = payload.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let reason = payload.get("reason").and_then(|v| v.as_str()).unwrap_or("");
+                hotspots.push(format!(
+                    "- {} (Score: {:.2}, Reason: {}) [Source: Ledgerful Fallback]",
+                    path, score, reason
+                ));
             }
         }
     }

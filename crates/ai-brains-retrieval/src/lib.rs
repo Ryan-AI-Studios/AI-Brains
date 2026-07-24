@@ -12,9 +12,9 @@ mod word_budget;
 pub use ansi::strip_ansi;
 pub use errors::{Result, RetrievalError};
 pub use fts_utils::sanitize_fts_query;
-pub use lexical::{lexical_search, substring_fallback, RetrievalMemory};
-pub use preflight::{build_preflight, PreflightContext};
-pub use recall::{recall, RecallHit, RecallOptions};
+pub use lexical::{RetrievalMemory, lexical_search, substring_fallback};
+pub use preflight::{PreflightContext, build_preflight};
+pub use recall::{RecallHit, RecallOptions, recall};
 pub use sessions::active_sessions;
 
 #[cfg(not(feature = "graph"))]

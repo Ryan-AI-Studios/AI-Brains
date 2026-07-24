@@ -43,14 +43,14 @@ const ELEVATE_ENV_KEYS: &[&str] = &[
 pub fn write_elevate_env_handoff() -> Result<(), Box<dyn std::error::Error>> {
     let mut lines = Vec::new();
     for key in ELEVATE_ENV_KEYS {
-        if let Ok(val) = std::env::var(key) {
-            if !val.is_empty() {
-                // dotenv-style; values with newlines are rejected
-                if val.contains('\n') || val.contains('\r') {
-                    continue;
-                }
-                lines.push(format!("{key}={val}"));
+        if let Ok(val) = std::env::var(key)
+            && !val.is_empty()
+        {
+            // dotenv-style; values with newlines are rejected
+            if val.contains('\n') || val.contains('\r') {
+                continue;
             }
+            lines.push(format!("{key}={val}"));
         }
     }
     if let Ok(cwd) = std::env::current_dir() {
@@ -81,7 +81,11 @@ pub fn load_elevate_env_handoff() {
                 continue;
             }
             // Prefer handoff over empty defaults for elevate path.
-            std::env::set_var(key, value);
+            // SAFETY: elevate child is single-threaded at handoff load; process env
+            // is intentionally mutated for the elevated process context.
+            unsafe {
+                std::env::set_var(key, value);
+            }
         }
     }
     let _ = std::fs::remove_file(&path);
@@ -213,7 +217,7 @@ pub fn build_relaunch_params(args: impl IntoIterator<Item = String>) -> String {
 fn is_elevated_windows() -> bool {
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::Security::{
-        GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+        GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation,
     };
     use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
@@ -241,10 +245,10 @@ fn is_elevated_windows() -> bool {
 #[cfg(windows)]
 fn relaunch_elevated_and_wait() -> Result<u32, Box<dyn std::error::Error>> {
     use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
     use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
-    use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
-    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+    use windows::Win32::System::Threading::{GetExitCodeProcess, INFINITE, WaitForSingleObject};
+    use windows::Win32::UI::Shell::{SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW};
+    use windows::core::PCWSTR;
     // Hide the elevated console — parent surfaces result via elevate-result file.
     use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 

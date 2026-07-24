@@ -4,8 +4,8 @@ use ai_brains_brain::AggregatedLearningsService;
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    constructors::EventBuilder, Actor, AggregateType, EventKind, MemorySynthesizedPayload, Payload,
-    ProjectRegisteredPayload,
+    Actor, AggregateType, EventKind, MemorySynthesizedPayload, Payload, ProjectRegisteredPayload,
+    constructors::EventBuilder,
 };
 use ai_brains_models::{CompletionResponse, MockProvider};
 use ai_brains_store::{EventStore, SqliteEventStore, VaultConnection};

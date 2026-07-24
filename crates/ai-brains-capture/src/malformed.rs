@@ -36,13 +36,13 @@ pub fn parse_ingest_request(json: &str) -> Result<IngestRequest> {
         }
     }
 
-    if let Some(role) = value.get("role").and_then(|v| v.as_str()) {
-        if !["user", "assistant", "system"].contains(&role) {
-            errors.push(ValidationError {
-                field: "role".into(),
-                message: format!("unsupported role '{}'", role),
-            });
-        }
+    if let Some(role) = value.get("role").and_then(|v| v.as_str())
+        && !["user", "assistant", "system"].contains(&role)
+    {
+        errors.push(ValidationError {
+            field: "role".into(),
+            message: format!("unsupported role '{}'", role),
+        });
     }
 
     if !errors.is_empty() {

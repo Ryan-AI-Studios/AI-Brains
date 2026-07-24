@@ -81,8 +81,8 @@ fn test_madr_formatting_through_event_store() -> Result<(), Box<dyn std::error::
     use ai_brains_core::privacy::Privacy;
     use ai_brains_crypto::DataKey;
     use ai_brains_events::{
-        constructors::EventBuilder, Actor, AggregateType, DecisionRecordedPayload, EventKind,
-        Payload,
+        Actor, AggregateType, DecisionRecordedPayload, EventKind, Payload,
+        constructors::EventBuilder,
     };
     use ai_brains_store::connection::VaultConnection;
     use ai_brains_store::event_store::{EventStore, SqliteEventStore};
@@ -168,7 +168,7 @@ fn test_non_madr_records_are_not_ingested_as_decisions() -> Result<(), Box<dyn s
     use ai_brains_core::privacy::Privacy;
     use ai_brains_crypto::DataKey;
     use ai_brains_events::{
-        constructors::EventBuilder, Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload,
+        Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, constructors::EventBuilder,
     };
     use ai_brains_store::connection::VaultConnection;
     use ai_brains_store::event_store::{EventStore, SqliteEventStore};

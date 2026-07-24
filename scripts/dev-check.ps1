@@ -11,9 +11,9 @@ $ErrorActionPreference = "Stop"
 # Required tool versions (update when intentionally upgrading)
 # ---------------------------------------------------------------------------
 $Required = @{
-    "cargo-nextest" = @{ MinVersion = "0.9.137"; InstallCmd = "cargo install cargo-nextest --locked" }
-    "cargo-deny"    = @{ MinVersion = "0.19.4";  InstallCmd = "cargo install cargo-deny --locked" }
-    "cargo-audit"   = @{ MinVersion = "0.22.1";  InstallCmd = "cargo install cargo-audit --locked" }
+    "cargo-nextest" = @{ MinVersion = "0.9.140"; InstallCmd = "cargo install cargo-nextest --locked" }
+    "cargo-deny"    = @{ MinVersion = "0.20.2";  InstallCmd = "cargo install cargo-deny --locked" }
+    "cargo-audit"   = @{ MinVersion = "0.22.2";  InstallCmd = "cargo install cargo-audit --locked" }
 }
 
 function Get-ToolVersion([string]$Name) {

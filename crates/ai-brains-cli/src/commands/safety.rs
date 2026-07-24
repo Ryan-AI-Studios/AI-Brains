@@ -146,21 +146,21 @@ fn fetch_hotspots_text(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> 
             continue;
         }
         let parts: Vec<&str> = trimmed.split('|').map(|s| s.trim()).collect();
-        if parts.len() >= 6 {
-            if let (Ok(score), Ok(frequency), Ok(complexity)) = (
+        if parts.len() >= 6
+            && let (Ok(score), Ok(frequency), Ok(complexity)) = (
                 parts[2].parse::<f64>(),
                 parts[3].parse::<f64>(),
                 parts[4].parse::<f64>(),
-            ) {
-                let path = parts[5].to_string();
-                if !path.is_empty() && path != "File Path" {
-                    hotspots.push(ChangeGuardHotspot {
-                        path,
-                        score,
-                        complexity,
-                        frequency,
-                    });
-                }
+            )
+        {
+            let path = parts[5].to_string();
+            if !path.is_empty() && path != "File Path" {
+                hotspots.push(ChangeGuardHotspot {
+                    path,
+                    score,
+                    complexity,
+                    frequency,
+                });
             }
         }
     }

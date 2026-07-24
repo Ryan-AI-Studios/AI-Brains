@@ -120,16 +120,12 @@ impl DaemonClient {
                                 let remaining = timeout.saturating_sub(start.elapsed());
                                 if let Ok(Ok(n)) =
                                     tokio_timeout(remaining, stream.read(&mut buffer)).await
+                                    && n > 0
+                                    && let Ok(resp) =
+                                        serde_json::from_slice::<DaemonResponse>(&buffer[..n])
+                                    && matches!(resp, DaemonResponse::Pong)
                                 {
-                                    if n > 0 {
-                                        if let Ok(resp) =
-                                            serde_json::from_slice::<DaemonResponse>(&buffer[..n])
-                                        {
-                                            if matches!(resp, DaemonResponse::Pong) {
-                                                return true;
-                                            }
-                                        }
-                                    }
+                                    return true;
                                 }
                             }
                         }

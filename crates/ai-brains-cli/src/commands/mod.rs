@@ -14,6 +14,7 @@ pub mod preflight;
 pub mod project;
 pub mod recall;
 pub mod safety;
+pub mod shadow;
 pub mod stop_session;
 pub mod symbol_bridge;
 pub mod sync;

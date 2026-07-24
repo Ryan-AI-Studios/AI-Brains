@@ -1,4 +1,4 @@
-use ai_brains_path::{normalize_project_path, PathError};
+use ai_brains_path::{PathError, normalize_project_path};
 
 #[test]
 fn relative_paths_now_supported() -> Result<(), Box<dyn std::error::Error>> {

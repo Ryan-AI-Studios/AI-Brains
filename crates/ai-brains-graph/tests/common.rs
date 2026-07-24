@@ -3,9 +3,9 @@
 use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::{
+    Actor, AggregateType, EventKind, Payload,
     constructors::EventBuilder,
     payload::{ProjectRegisteredPayload, SessionStartedPayload},
-    Actor, AggregateType, EventKind, Payload,
 };
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};

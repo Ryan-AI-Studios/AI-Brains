@@ -1,7 +1,7 @@
 use crate::cozo_proxy::{GraphBackend, GraphNode};
 use crate::errors::{GraphError, Result};
 use ai_brains_store::VaultConnection;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::sync::Arc;
 
 pub struct SqliteGraphBackend {

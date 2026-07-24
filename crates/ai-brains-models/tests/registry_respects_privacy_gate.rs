@@ -1,9 +1,9 @@
 #![allow(clippy::disallowed_methods)]
 
 use ai_brains_core::privacy::Privacy;
+use ai_brains_models::CompletionResponse;
 use ai_brains_models::mock::MockProvider;
 use ai_brains_models::registry::ProviderRegistry;
-use ai_brains_models::CompletionResponse;
 use std::sync::Mutex;
 
 #[test]

@@ -1,8 +1,8 @@
+use crate::QueryStore;
 use crate::connection::VaultConnection;
 use crate::errors::Result;
-use crate::QueryStore;
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use std::str::FromStr;
 
 impl QueryStore for VaultConnection {

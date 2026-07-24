@@ -103,8 +103,8 @@ fn append_completed_session(
 
 #[tokio::test]
 #[allow(non_snake_case)]
-async fn nightly__three_consecutive_summary_errors__aborts_remaining_sessions(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn nightly__three_consecutive_summary_errors__aborts_remaining_sessions()
+-> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;
     let db_path = dir.path().join("vault.db");
     let key = SqlCipherKey::from_raw(

@@ -3,7 +3,7 @@ use ai_brains_contracts::recall::{RecallResponse, RecallResult};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload};
-use ai_brains_retrieval::{recall, RecallOptions};
+use ai_brains_retrieval::{RecallOptions, recall};
 use ai_brains_store::EventStore;
 use is_terminal::IsTerminal;
 use rusqlite::OptionalExtension;
@@ -95,10 +95,10 @@ fn resolve_session(
     }
 
     if let Some(raw) = session_prefix {
-        if raw.len() == 36 {
-            if let Ok(sid) = SessionId::from_str(raw) {
-                return Ok(Some(sid));
-            }
+        if raw.len() == 36
+            && let Ok(sid) = SessionId::from_str(raw)
+        {
+            return Ok(Some(sid));
         }
 
         if raw.len() < 4 {
@@ -203,14 +203,14 @@ pub fn run(
                 source_tag: Some(hit.source.clone()),
                 query_text: Some(options.query.clone()),
             }));
-            if let Ok(ev) = ev {
-                if let Err(e) = event_store.append_event(&ev) {
-                    tracing::warn!(
-                        "Failed to emit MemoryPinned event for {}: {}",
-                        hit.memory_id,
-                        e
-                    );
-                }
+            if let Ok(ev) = ev
+                && let Err(e) = event_store.append_event(&ev)
+            {
+                tracing::warn!(
+                    "Failed to emit MemoryPinned event for {}: {}",
+                    hit.memory_id,
+                    e
+                );
             }
         }
     }
@@ -264,18 +264,17 @@ pub fn run(
                     }
                 }
             }
-            if response.results.is_empty() {
-                if let Some(ref hint) = build_recall_hint(
+            if response.results.is_empty()
+                && let Some(ref hint) = build_recall_hint(
                     &ctx.conn,
                     &options.query,
                     options.semantic,
                     options.global,
                     options.project_id,
-                )? {
-                    if std::io::stdout().is_terminal() {
-                        println!("{}", hint);
-                    }
-                }
+                )?
+                && std::io::stdout().is_terminal()
+            {
+                println!("{}", hint);
             }
         }
         _ => {

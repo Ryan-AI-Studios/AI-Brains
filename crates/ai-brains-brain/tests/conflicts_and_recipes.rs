@@ -4,9 +4,9 @@ use ai_brains_brain::NightlyService;
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    constructors::EventBuilder, Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload,
-    ProjectRegisteredPayload, SessionCompletedPayload, SessionStartedPayload,
-    UserPromptRecordedPayload,
+    Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, ProjectRegisteredPayload,
+    SessionCompletedPayload, SessionStartedPayload, UserPromptRecordedPayload,
+    constructors::EventBuilder,
 };
 use ai_brains_models::{CompletionResponse, MockProvider};
 use ai_brains_store::{EventStore, QueryStore, SqliteEventStore, VaultConnection};

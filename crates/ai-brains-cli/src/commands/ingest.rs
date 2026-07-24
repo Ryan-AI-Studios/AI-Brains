@@ -1,5 +1,5 @@
 use crate::context::{AppContext, StoreSink};
-use ai_brains_capture::{parse_ingest_request, CaptureContext, CaptureService};
+use ai_brains_capture::{CaptureContext, CaptureService, parse_ingest_request};
 use ai_brains_contracts::ingest::IngestResponse;
 use std::io::{self, Read};
 

@@ -13,7 +13,7 @@ use tokio::net::windows::named_pipe::ServerOptions;
 #[cfg(windows)]
 use ai_brainsd::instance_guard::{InstanceDecision, ProbeOutcome};
 #[cfg(windows)]
-use ai_brainsd::pipe_error::{classify_pipe_error, PipeErrorKind};
+use ai_brainsd::pipe_error::{PipeErrorKind, classify_pipe_error};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -46,13 +46,13 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
 async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenvy::dotenv().ok();
-    if std::env::var("AI_BRAINS_VAULT_PATH").is_err() {
-        if let Some(mut global_env) = dirs::home_dir() {
-            global_env.push(".ai-brains");
-            global_env.push(".env");
-            if global_env.exists() {
-                dotenvy::from_path_override(global_env).ok();
-            }
+    if std::env::var("AI_BRAINS_VAULT_PATH").is_err()
+        && let Some(mut global_env) = dirs::home_dir()
+    {
+        global_env.push(".ai-brains");
+        global_env.push(".env");
+        if global_env.exists() {
+            dotenvy::from_path_override(global_env).ok();
         }
     }
 
@@ -316,10 +316,10 @@ async fn check_existing_instance(pipe_name: &str) -> InstanceDecision {
     let mut buf = vec![0u8; 1024];
     match timeout(probe_timeout, stream.read(&mut buf)).await {
         Ok(Ok(n)) if n > 0 => {
-            if let Ok(resp) = serde_json::from_slice::<DaemonResponse>(&buf[..n]) {
-                if matches!(resp, DaemonResponse::Pong) {
-                    return InstanceDecision::from_probe(ProbeOutcome::Pong);
-                }
+            if let Ok(resp) = serde_json::from_slice::<DaemonResponse>(&buf[..n])
+                && matches!(resp, DaemonResponse::Pong)
+            {
+                return InstanceDecision::from_probe(ProbeOutcome::Pong);
             }
             InstanceDecision::from_probe(ProbeOutcome::NoResponse)
         }

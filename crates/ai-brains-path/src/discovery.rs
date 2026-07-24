@@ -38,12 +38,12 @@ pub fn find_ledgerful_dir(start_path: &Path) -> Option<PathBuf> {
 /// Looks for a `project_id` file inside the given directory and returns its trimmed contents.
 pub fn extract_project_id_from_ledgerful(ledgerful_dir: &Path) -> Option<String> {
     let id_file = ledgerful_dir.join("project_id");
-    if id_file.exists() {
-        if let Ok(content) = std::fs::read_to_string(id_file) {
-            let trimmed = content.trim();
-            if !trimmed.is_empty() {
-                return Some(trimmed.to_string());
-            }
+    if id_file.exists()
+        && let Ok(content) = std::fs::read_to_string(id_file)
+    {
+        let trimmed = content.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
         }
     }
 

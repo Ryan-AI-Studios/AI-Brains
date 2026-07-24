@@ -1,7 +1,7 @@
+use crate::SyncStateStore;
 use crate::connection::VaultConnection;
 use crate::errors::{Result, StoreError};
 use crate::projections;
-use crate::SyncStateStore;
 use ai_brains_events::Envelope;
 use rusqlite::params;
 use uuid::Uuid;

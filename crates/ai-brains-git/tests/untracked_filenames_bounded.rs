@@ -14,10 +14,12 @@ fn untracked_filenames_bounded() -> Result<(), Box<dyn std::error::Error>> {
     let metadata = collect_metadata(&root)?;
 
     assert_eq!(metadata.untracked_files.len(), max_untracked_files());
-    assert!(metadata
-        .untracked_files
-        .iter()
-        .all(|name| name.starts_with("scratch-")));
+    assert!(
+        metadata
+            .untracked_files
+            .iter()
+            .all(|name| name.starts_with("scratch-"))
+    );
 
     let _ = std::fs::remove_dir_all(&root);
     Ok(())

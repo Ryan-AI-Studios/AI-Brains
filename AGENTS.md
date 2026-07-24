@@ -49,7 +49,7 @@
 ## Test Conventions
 - **Naming**: `function_or_feature__condition__expected_result`; drop the `test_` prefix; preserve the `__slow` suffix (tier marker).
 - **Tiers**: default (<60s, excludes `compile_fail` + `__slow`), ci (+retries, 60s), slow (`__slow`, 300s, nightly), compile_fail (`trybuild`, separate job), doctests (`cargo test --doc`, PR-time).
-- **Never**: `std::env::set_var`/`remove_var` (use `TempEnv` RAII + `#[serial(env)]`), sleep-for-async (use `wait_for_condition`), bare `#[ignore]` (require reason + owner), real network calls (use `httpmock`/loopback), fs writes outside tempdir.
+- **Never**: bare `std::env::set_var`/`remove_var` in tests (use `ai_brains_core::temp_env::TempEnv` RAII + `#[serial(env)]` when a multi-test binary mutates overlapping keys; nextest process isolation is the default). Production CLI startup may use `unsafe { std::env::set_var/remove_var }` with a SAFETY comment. Also never: sleep-for-async (use `wait_for_condition`), bare `#[ignore]` (require reason + owner), real network calls (use `httpmock`/loopback), fs writes outside tempdir.
 - **Must**: `tempfile::tempdir()` per test, `rstest` `#[case]` for parameterization (never for-loop in one `#[test]`), assert specific values (not just `is_ok`/`is_err`), `DirGuard` for cwd (use `#[serial(cwd)]` if needed), `OnceLock<Arc<SharedState>>` for shared immutable builds (not mutable state, not servers).
 - **Fixtures**: Each test spawns its own Axum router on `127.0.0.1:0`. Full details in the onboarding skill.
 

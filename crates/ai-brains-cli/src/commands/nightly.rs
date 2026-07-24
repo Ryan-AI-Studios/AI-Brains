@@ -210,7 +210,9 @@ pub async fn run(
             );
             tracing::warn!(
                 "Failed to schedule task. Run this in an elevated PowerShell session:\n{}\nError: {}{}",
-                cmd, stdout, stderr
+                cmd,
+                stdout,
+                stderr
             );
         }
         return Ok(());
@@ -306,7 +308,9 @@ pub async fn run(
     tracing::info!("Stats: {} sessions summarized.", count);
     tracing::info!("Embedding stats: see stderr output above.");
     #[cfg(feature = "graph")]
-    tracing::info!("[Nightly] Graph updated incrementally — run 'graph rebuild' only if you suspect missing edges.");
+    tracing::info!(
+        "[Nightly] Graph updated incrementally — run 'graph rebuild' only if you suspect missing edges."
+    );
 
     // --- MADR Ingestion (Phase 18: T41) ---
     tracing::info!("Ingesting structured MADR decisions from Ledgerful...");
@@ -421,10 +425,10 @@ fn generate_nightly_wrapper_script_from_env(
         .find(|(k, _)| *k == "AI_BRAINS_VAULT_PATH")
         .map(|(_, v)| v.as_str())
         .unwrap_or("");
-    if let Some(parent) = std::path::Path::new(vault_path).parent() {
-        if !parent.as_os_str().is_empty() {
-            lines.push(format!("cd /d \"{}\"", parent.display()));
-        }
+    if let Some(parent) = std::path::Path::new(vault_path).parent()
+        && !parent.as_os_str().is_empty()
+    {
+        lines.push(format!("cd /d \"{}\"", parent.display()));
     }
     lines.push(format!(
         r#""{}" --no-project-context nightly --skip-import --log-format json"#,
@@ -764,8 +768,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn build_schtasks_args__run_as_system__wrapper_script_contains_env_vars(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn build_schtasks_args__run_as_system__wrapper_script_contains_env_vars()
+    -> Result<(), Box<dyn std::error::Error>> {
         let env_values: Vec<(&str, String)> = vec![
             ("AI_BRAINS_VAULT_PATH", "C:\\vault.db".to_string()),
             ("AI_BRAINS_MODEL_URL", "http://127.0.0.1:8081".to_string()),

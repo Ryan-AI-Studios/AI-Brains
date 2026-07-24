@@ -226,10 +226,10 @@ fn parse_verification_from_ndjson(content: &str) -> Result<VerifyResponse, Strin
                 if let Some(drift) = payload.get("drift_detected").and_then(|v| v.as_bool()) {
                     drift_detected = drift_detected || drift;
                 }
-                if let Some(level) = payload.get("risk_level").and_then(|v| v.as_str()) {
-                    if risk_level_ord(level) > risk_level_ord(&risk_level) {
-                        risk_level = level.to_string();
-                    }
+                if let Some(level) = payload.get("risk_level").and_then(|v| v.as_str())
+                    && risk_level_ord(level) > risk_level_ord(&risk_level)
+                {
+                    risk_level = level.to_string();
                 }
                 if let Some(explain) = payload.get("explanation").and_then(|v| v.as_str()) {
                     explanations.push(explain.to_string());
@@ -241,10 +241,10 @@ fn parse_verification_from_ndjson(content: &str) -> Result<VerifyResponse, Strin
                     // probability when no explicit verification_summary exists.
                     failure_prob = f64::max(failure_prob, severity);
                 }
-                if let Some(level) = payload.get("risk").and_then(|v| v.as_str()) {
-                    if risk_level_ord(level) > risk_level_ord(&risk_level) {
-                        risk_level = level.to_string();
-                    }
+                if let Some(level) = payload.get("risk").and_then(|v| v.as_str())
+                    && risk_level_ord(level) > risk_level_ord(&risk_level)
+                {
+                    risk_level = level.to_string();
                 }
                 if let Some(explain) = payload.get("explanation").and_then(|v| v.as_str()) {
                     explanations.push(explain.to_string());

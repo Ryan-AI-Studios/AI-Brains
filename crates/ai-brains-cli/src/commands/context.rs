@@ -175,10 +175,8 @@ pub fn run(
     println!("Local .env updated successfully.");
 
     // Auto-trigger sync pull to ingest initial signals (hotspots/ledger)
-    if !show {
-        if let Err(e) = crate::commands::sync::run_pull(ctx, None, true, true, false) {
-            tracing::warn!("Auto-triggering sync pull failed: {}", e);
-        }
+    if !show && let Err(e) = crate::commands::sync::run_pull(ctx, None, true, true, false) {
+        tracing::warn!("Auto-triggering sync pull failed: {}", e);
     }
 
     Ok(())
