@@ -255,10 +255,18 @@ fn relaunch_elevated_and_wait() -> Result<u32, Box<dyn std::error::Error>> {
     // missing AI_BRAINS_* vars).
     let cwd = std::env::current_dir().map_err(|e| format!("current_dir failed: {e}"))?;
 
-    let mut exe_wide: Vec<u16> = exe.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let mut exe_wide: Vec<u16> = exe
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
     let mut verb_wide: Vec<u16> = "runas".encode_utf16().chain(std::iter::once(0)).collect();
     let mut params_wide: Vec<u16> = params.encode_utf16().chain(std::iter::once(0)).collect();
-    let mut cwd_wide: Vec<u16> = cwd.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let mut cwd_wide: Vec<u16> = cwd
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
 
     let mut info = SHELLEXECUTEINFOW {
         cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
@@ -355,7 +363,10 @@ mod tests {
 
     #[test]
     fn quote_windows_arg__with_spaces__quoted() {
-        assert_eq!(quote_windows_arg("C:\\Program Files\\x"), "\"C:\\Program Files\\x\"");
+        assert_eq!(
+            quote_windows_arg("C:\\Program Files\\x"),
+            "\"C:\\Program Files\\x\""
+        );
     }
 
     #[test]

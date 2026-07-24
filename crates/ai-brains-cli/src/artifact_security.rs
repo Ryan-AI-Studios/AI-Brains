@@ -537,8 +537,8 @@ fn apply_restrictive_acl_windows(path: &Path) -> Result<(), Box<dyn std::error::
         SDDL_REVISION_1, SE_FILE_OBJECT,
     };
     use windows::Win32::Security::{
-        GetSecurityDescriptorDacl, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
-        ACL, PSECURITY_DESCRIPTOR,
+        GetSecurityDescriptorDacl, ACL, DACL_SECURITY_INFORMATION,
+        PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR,
     };
 
     let path_wide: Vec<u16> = path
