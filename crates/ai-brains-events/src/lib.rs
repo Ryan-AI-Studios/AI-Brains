@@ -15,10 +15,20 @@ pub use envelope::Envelope;
 pub use errors::EventError;
 pub use event_kind::EventKind;
 pub use payload::{
-    AssistantFinalRecordedPayload, ConflictDetectedPayload, DecisionRecordedPayload,
-    FeedbackMetricPayload, IngestGateRejectedPayload, MemoryForgottenPayload, MemoryPinnedPayload,
-    MemoryRestoredPayload, MemorySynthesizedPayload, Payload, PredictionRecordedPayload,
-    ProjectAliasAddedPayload, ProjectRegisteredPayload, RecipePromotedPayload,
-    SessionCompletedPayload, SessionFailedPayload, SessionStartedPayload,
-    SessionSummaryCreatedPayload, UserPromptRecordedPayload, VerifyOutcomeRecordedPayload,
+    AssistantFinalRecordedPayload, BriefingGeneratedPayload, ConclusionActivatedPayload,
+    ConclusionConfirmedPayload, ConclusionDisputedPayload, ConclusionMarkedStalePayload,
+    ConclusionProposedPayload, ConclusionRejectedPayload, ConclusionSupersededPayload,
+    ConflictDetectedPayload, ContentErasedPayload, ContentErasureRequestedPayload,
+    DecisionApprovedPayload, DecisionProposedPayload, DecisionRecordedPayload,
+    DecisionRevokedPayload, DecisionSupersededPayload, EvidenceRecordedPayload,
+    EvidenceSupersededPayload, FeedbackMetricPayload, IngestGateRejectedPayload,
+    MemoryForgottenPayload, MemoryPinnedPayload, MemoryRestoredPayload, MemorySynthesizedPayload,
+    Payload, PredictionRecordedPayload, PrincipalRegisteredPayload, ProjectAliasAddedPayload,
+    ProjectRegisteredPayload, QueryTraceRecordedPayload, RecipePromotedPayload,
+    RepositoryJoinedWorkspacePayload, ReviewItemOpenedPayload, ReviewItemResolvedPayload,
+    ScopeGrantIssuedPayload, ScopeGrantRevokedPayload, SessionCompletedPayload,
+    SessionFailedPayload, SessionStartedPayload, SessionSummaryCreatedPayload,
+    SourceObservedPayload, SourceRegisteredPayload, SourceUnavailablePayload,
+    SourceVersionRecordedPayload, UserPromptRecordedPayload, VerifyOutcomeRecordedPayload,
+    WorkspaceRegisteredPayload,
 };

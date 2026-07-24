@@ -75,3 +75,16 @@ Squash-merged PR #17. Full gate green (fmt / clippy / nextest 426 / deny / audit
 ### 12. Shadow dry-run still opens source (no migrate)
 - Dry-run / create opens the source vault read-only for event count and copy; does **not** call `migrate()` on source (T147-F5 fixed).
 - May still create/touch WAL companions beside source under SQLite open. Acceptable for P0; full soft-canonicalize / handle TOCTOU remains P6.
+
+---
+
+## From T148 — Governed Domain, Events, Contracts (2026-07-24)
+
+### 13. Known event-type tag registry triplication (INT-M2)
+- `KnownPayload`, `is_known_payload_type()`, and `EventKind` each list known tags independently.
+- Drift risk: missing a string in `is_known_payload_type` deserializes a “known” type as field-preserving `Unknown` (typed access lost; data retained).
+- Follow-up: macro or single source of truth. Non-blocking for P1 (R0 still preserves fields).
+
+### 14. `ConclusionMarkedStale` optional-only fields (INT-M3)
+- Both `changed_source_version_id` and `unavailable_reason` may be `None` at type level.
+- Spec prose expects at least one of version-change or unavailable reason; enforce via constructor/validation when workflow builders land (P2/P3).

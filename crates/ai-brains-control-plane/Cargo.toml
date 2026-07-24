@@ -1,17 +1,16 @@
 [package]
-name = "ai-brains-contracts"
+name = "ai-brains-control-plane"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "Governed-memory control plane ports (no workflows/adapters in T148)"
 
 [dependencies]
 ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
+ai-brains-events = { path = "../ai-brains-events", version = "0.1.0" }
+thiserror.workspace = true
+time.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-chrono.workspace = true
-time.workspace = true
-
-[dev-dependencies]
-uuid.workspace = true

@@ -1,0 +1,12 @@
+{
+  "api_version": "1",
+  "briefing": {
+    "id": "00000000-0000-0000-0000-0000000000b1",
+    "kind": "Preflight",
+    "evidence_handles": [
+      {
+        "evidence_id": "00000000-0000-0000-0000-0000000000e1"
+      }
+    ]
+  }
+}

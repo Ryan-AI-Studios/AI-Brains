@@ -97,17 +97,23 @@ fn source_fingerprint(
 }
 
 fn redact_turn_content(mut envelope: Envelope) -> Result<Envelope, Box<dyn std::error::Error>> {
-    match &mut envelope.payload {
+    // Only rewrite known turn payloads. Unknown and all other kinds pass through
+    // with their original payload_hash (T148 R0 — no strip/re-hash of Unknown).
+    let changed = match &mut envelope.payload {
         Payload::UserPromptRecorded(p) => {
             p.content = REDACTED_PLACEHOLDER.to_string();
+            true
         }
         Payload::AssistantFinalRecorded(p) => {
             p.content = REDACTED_PLACEHOLDER.to_string();
+            true
         }
-        _ => {}
+        _ => false,
+    };
+    if changed {
+        envelope.payload_hash = compute_payload_hash(&envelope.payload)
+            .map_err(|e| format!("failed to recompute payload_hash after redaction: {e}"))?;
     }
-    envelope.payload_hash = compute_payload_hash(&envelope.payload)
-        .map_err(|e| format!("failed to recompute payload_hash after redaction: {e}"))?;
     Ok(envelope)
 }
 
@@ -278,4 +284,46 @@ pub fn run_create(
     );
     println!("Manifest written to {}", manifest_path.display());
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(non_snake_case, clippy::disallowed_methods)]
+mod tests {
+    use super::*;
+    use ai_brains_core::privacy::Privacy;
+    use ai_brains_events::{Actor, AggregateType, EventKind};
+    use time::OffsetDateTime;
+    use uuid::Uuid;
+
+    #[test]
+    fn redact_turn_content__unknown_payload__preserves_hash_and_fields() {
+        let raw = serde_json::json!({
+            "type": "TotallyFutureEvent",
+            "foo": 1,
+            "bar": "x"
+        });
+        let original_hash = "preserve-me-hash";
+        let envelope = Envelope {
+            event_id: Uuid::from_u128(1),
+            schema_version: 1,
+            aggregate_type: AggregateType::System,
+            aggregate_id: Uuid::nil(),
+            event_type: EventKind::Unknown("TotallyFutureEvent".to_string()),
+            occurred_at: OffsetDateTime::from_unix_timestamp(1_700_000_000)
+                .expect("valid timestamp for test"),
+            actor: Actor::System,
+            causation_id: None,
+            correlation_id: None,
+            privacy: Privacy::LocalOnly,
+            payload: Payload::Unknown(raw.clone()),
+            payload_hash: original_hash.to_string(),
+        };
+
+        let out = redact_turn_content(envelope).expect("redact should succeed");
+        assert_eq!(out.payload_hash, original_hash);
+        match out.payload {
+            Payload::Unknown(v) => assert_eq!(v, raw),
+            other => panic!("expected Unknown, got {other:?}"),
+        }
+    }
 }
