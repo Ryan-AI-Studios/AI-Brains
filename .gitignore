@@ -22,6 +22,8 @@ target
 .changeguard/
 .ledgerful/
 .agents/
+# Local track registry / review scratch (not published with the product tree)
+conductor/
 .env
 *.db
 backups/
