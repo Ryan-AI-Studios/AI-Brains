@@ -452,10 +452,7 @@ pub fn run_uninstall(_ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std
     Ok(())
 }
 
-fn report_elevated_outcome(
-    exit_code: u32,
-    action: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn report_elevated_outcome(exit_code: u32, action: &str) -> Result<(), Box<dyn std::error::Error>> {
     if exit_code == 0 {
         if let Some(Ok(msg)) = crate::elevation::take_elevate_result() {
             println!("{msg}");

@@ -43,6 +43,9 @@ AI-Brains uses a hierarchical loading strategy for cross-repository flexibility:
 3.  **Env Vars**: Override any of the above.
 
 ## Documentation
+- [Domain Language](./CONTEXT.md)
+- [Governed Memory Control Plane Vision](./Docs/MEMORY-CONTROL-PLANE-VISION.md)
+- [July 2026 Memory-System Comparison](./Docs/RESEARCH/memory-systems-comparison-2026-07.md)
 - [Capabilities & Features](./Docs/CAPABILITIES.md)
 - [Architecture](./Docs/ARCHITECTURE.md)
 - [Operations Guide](./Docs/OPERATIONS.md)

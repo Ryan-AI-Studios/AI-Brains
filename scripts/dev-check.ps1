@@ -33,17 +33,17 @@ function Compare-Versions([string]$Installed, [string]$Min) {
 # ---------------------------------------------------------------------------
 # Preflight: verify tools are present and meet minimum versions
 # ---------------------------------------------------------------------------
-Write-Host "=== AI-Brains CI Gate — Tool Preflight ===" -ForegroundColor Cyan
+Write-Host "=== AI-Brains CI Gate - Tool Preflight ===" -ForegroundColor Cyan
 $allOk = $true
 
 foreach ($tool in $Required.Keys) {
     $info    = $Required[$tool]
     $version = Get-ToolVersion $tool
     if (-not $version) {
-        Write-Host "  [MISSING] $tool — install with: $($info.InstallCmd)" -ForegroundColor Red
+        Write-Host "  [MISSING] $tool - install with: $($info.InstallCmd)" -ForegroundColor Red
         $allOk = $false
     } elseif (-not (Compare-Versions $version $info.MinVersion)) {
-        Write-Host "  [OUTDATED] $tool $version (need >= $($info.MinVersion)) — upgrade: $($info.InstallCmd)" -ForegroundColor Yellow
+        Write-Host "  [OUTDATED] $tool $version (need >= $($info.MinVersion)) - upgrade: $($info.InstallCmd)" -ForegroundColor Yellow
         $allOk = $false
     } else {
         Write-Host "  [OK] $tool $version" -ForegroundColor Green
