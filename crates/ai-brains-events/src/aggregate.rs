@@ -11,7 +11,19 @@ pub enum AggregateType {
     Job,
     Conflict,
     Recipe,
+    /// Legacy decision facts (`DecisionRecorded`) and new governed decision events
+    /// (`DecisionProposed` / `DecisionApproved` / …) share this aggregate type.
     Decision,
+    // Governed memory aggregates (T148)
+    Source,
+    Evidence,
+    Conclusion,
+    Workspace,
+    Principal,
+    Grant,
+    ReviewItem,
+    Briefing,
+    QueryTrace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

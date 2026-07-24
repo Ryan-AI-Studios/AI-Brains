@@ -1,0 +1,15 @@
+{
+  "api_version": "1",
+  "item": {
+    "id": "00000000-0000-0000-0000-0000000000a1",
+    "kind": "Conclusion",
+    "statement": "Event log is source of truth",
+    "state": "Active",
+    "evidence_handles": [
+      {
+        "evidence_id": "00000000-0000-0000-0000-0000000000e1",
+        "cite_label": "ADR-0010"
+      }
+    ]
+  }
+}

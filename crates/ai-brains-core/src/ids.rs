@@ -52,6 +52,21 @@ define_id!(MemoryId);
 define_id!(ConflictId);
 define_id!(RecipeId);
 define_id!(KnowledgeId);
+// Governed memory IDs (T148) — DecisionId is distinct from MemoryId / KnowledgeId
+define_id!(SourceId);
+define_id!(SourceVersionId);
+define_id!(EvidenceId);
+define_id!(ConclusionId);
+define_id!(DecisionId);
+define_id!(WorkspaceId);
+define_id!(PrincipalId);
+define_id!(GrantId);
+define_id!(ReviewItemId);
+define_id!(BriefingId);
+define_id!(QueryTraceId);
+define_id!(ContentKeyId);
+define_id!(TombstoneId);
+define_id!(ReplicationEventId);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TransactionId(String);

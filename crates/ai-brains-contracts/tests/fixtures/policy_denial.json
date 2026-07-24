@@ -1,0 +1,9 @@
+{
+  "api_version": "1",
+  "code": "POLICY_DENIED",
+  "message": "principal lacks ApproveDecision on repository scope",
+  "details": {
+    "capability": "ApproveDecision",
+    "scope": "Repository"
+  }
+}

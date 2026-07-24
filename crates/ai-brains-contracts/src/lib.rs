@@ -1,14 +1,22 @@
 pub mod backup;
 pub mod bridge;
+pub mod briefings;
 pub mod doctor;
 pub mod hook;
 pub mod ingest;
+pub mod knowledge;
 pub mod memory;
+pub mod policy;
 pub mod preflight;
 pub mod projects;
 pub mod recall;
 pub mod response;
+pub mod review;
+pub mod scopes;
 pub mod sessions;
+pub mod sources;
+pub mod time_convert;
 pub mod version;
 
 pub use response::{ApiError, ApiResult};
+pub use time_convert::offset_to_utc;

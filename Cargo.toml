@@ -5,6 +5,7 @@ members = [
     "crates/ai-brains-core",
     "crates/ai-brains-events",
     "crates/ai-brains-contracts",
+    "crates/ai-brains-control-plane",
     "crates/ai-brains-crypto",
     "crates/ai-brains-store",
     "crates/ai-brains-path",
