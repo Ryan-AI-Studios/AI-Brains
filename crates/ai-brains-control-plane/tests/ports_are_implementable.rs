@@ -1,10 +1,12 @@
 #![allow(non_snake_case)]
 #![allow(clippy::disallowed_methods)]
 use ai_brains_control_plane::{
-    Clock, ControlPlaneError, EventWriter, Fingerprinter, GovernedQueryStore, PolicyEvaluator,
-    Result, StaleFact,
+    ClaimConflictRow, Clock, ConclusionRow, ControlPlaneError, DecisionRow, EventWriter,
+    Fingerprinter, GovernedQueryStore, PolicyEvaluator, Result, ReviewItemRow, StaleFact,
 };
-use ai_brains_core::ids::{ConclusionId, DecisionId, PrincipalId, SourceId, SourceVersionId};
+use ai_brains_core::ids::{
+    ConclusionId, ConflictId, DecisionId, PrincipalId, ReviewItemId, SourceId, SourceVersionId,
+};
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
 use ai_brains_events::Envelope;
@@ -57,6 +59,46 @@ impl GovernedQueryStore for DummyQuery {
     }
     fn evidence_count_for_source(&self, _source_id: SourceId) -> Result<u64> {
         Ok(0)
+    }
+    fn get_conclusion(&self, _conclusion_id: ConclusionId) -> Result<Option<ConclusionRow>> {
+        Ok(None)
+    }
+    fn list_conclusions_by_scope_state(
+        &self,
+        _scope: Option<&str>,
+        _state: Option<&str>,
+    ) -> Result<Vec<ConclusionRow>> {
+        Ok(Vec::new())
+    }
+    fn get_decision(&self, _decision_id: DecisionId) -> Result<Option<DecisionRow>> {
+        Ok(None)
+    }
+    fn list_decisions(
+        &self,
+        _scope: Option<&str>,
+        _state: Option<&str>,
+    ) -> Result<Vec<DecisionRow>> {
+        Ok(Vec::new())
+    }
+    fn list_open_review_items(&self) -> Result<Vec<ReviewItemRow>> {
+        Ok(Vec::new())
+    }
+    fn get_review_item(&self, _review_item_id: ReviewItemId) -> Result<Option<ReviewItemRow>> {
+        Ok(None)
+    }
+    fn list_open_claim_conflicts(&self) -> Result<Vec<ClaimConflictRow>> {
+        Ok(Vec::new())
+    }
+    fn get_claim_conflict(&self, _conflict_id: ConflictId) -> Result<Option<ClaimConflictRow>> {
+        Ok(None)
+    }
+    fn conclusions_valid_at(
+        &self,
+        _scope: &str,
+        _statement: Option<&str>,
+        _at: OffsetDateTime,
+    ) -> Result<Vec<ConclusionRow>> {
+        Ok(Vec::new())
     }
 }
 

@@ -2,7 +2,7 @@ use crate::context::AppContext;
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, constructors::EventBuilder,
+    Actor, AggregateType, MemoryPinnedPayload, Payload, constructors::EventBuilder,
 };
 use serde::Deserialize;
 use uuid::Uuid;
@@ -68,7 +68,6 @@ fn ingest_symbol_records(
         let ev = EventBuilder::new(
             AggregateType::Memory,
             memory_uuid,
-            EventKind::MemoryPinned,
             Actor::System,
             Privacy::LocalOnly,
         )

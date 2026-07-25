@@ -4,7 +4,7 @@ use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, Payload,
+    Actor, AggregateType, Payload,
     constructors::EventBuilder,
     payload::{MemoryPinnedPayload, ProjectRegisteredPayload, SessionStartedPayload},
 };
@@ -46,7 +46,6 @@ pub fn store_with_memory(
     let envelope = EventBuilder::new(
         AggregateType::Memory,
         memory_id.as_uuid(),
-        EventKind::MemoryPinned,
         Actor::System,
         privacy,
     )
@@ -105,7 +104,6 @@ pub fn store_with_project_id(
     let envelope = EventBuilder::new(
         AggregateType::Memory,
         memory_id.as_uuid(),
-        EventKind::MemoryPinned,
         Actor::System,
         privacy,
     )
@@ -157,7 +155,6 @@ pub fn append_active_session(
     let project_envelope = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         Actor::System,
         Privacy::CloudOk,
     )
@@ -172,7 +169,6 @@ pub fn append_active_session(
     let envelope = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::SessionStarted,
         Actor::System,
         Privacy::CloudOk,
     )
@@ -203,16 +199,9 @@ pub fn append_turn(
         })
     };
 
-    let kind = if role == "user" {
-        EventKind::UserPromptRecorded
-    } else {
-        EventKind::AssistantFinalRecorded
-    };
-
     let envelope = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        kind,
         Actor::System,
         Privacy::CloudOk,
     )

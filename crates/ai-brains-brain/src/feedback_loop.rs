@@ -1,7 +1,7 @@
 use ai_brains_core::ids::ProjectId;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{FeedbackMetricPayload, Payload};
-use ai_brains_events::{Actor, AggregateType, EventKind};
+use ai_brains_events::{Actor, AggregateType};
 use ai_brains_store::{EventStore, QueryStore};
 use std::sync::Arc;
 
@@ -75,7 +75,6 @@ impl FeedbackLoopService {
                             let event = EventBuilder::new(
                                 AggregateType::System,
                                 uuid::Uuid::new_v4(),
-                                EventKind::FeedbackMetric,
                                 Actor::System,
                                 ai_brains_core::privacy::Privacy::LocalOnly,
                             )

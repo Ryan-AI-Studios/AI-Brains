@@ -3,7 +3,7 @@ use ai_brains_core::ids::MemoryId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, MemoryForgottenPayload, MemoryRestoredPayload, Payload,
+    Actor, AggregateType, MemoryForgottenPayload, MemoryRestoredPayload, Payload,
 };
 use ai_brains_retrieval::lexical_search;
 use ai_brains_store::{EventStore, QueryStore};
@@ -58,7 +58,6 @@ pub fn run(
         let event = EventBuilder::new(
             AggregateType::Memory,
             memory_id.as_uuid(),
-            EventKind::MemoryRestored,
             Actor::User(ai_brains_core::ids::UserId::new()),
             Privacy::LocalOnly,
         )
@@ -116,7 +115,6 @@ pub fn run(
             let event = EventBuilder::new(
                 AggregateType::Memory,
                 memory_id.as_uuid(),
-                EventKind::MemoryForgotten,
                 Actor::User(ai_brains_core::ids::UserId::new()),
                 Privacy::LocalOnly,
             )
@@ -149,7 +147,6 @@ pub fn run(
                 let event = EventBuilder::new(
                     AggregateType::Memory,
                     memory_id.as_uuid(),
-                    EventKind::MemoryForgotten,
                     Actor::User(ai_brains_core::ids::UserId::new()),
                     Privacy::LocalOnly,
                 )
@@ -212,7 +209,6 @@ pub fn run(
         let event = EventBuilder::new(
             AggregateType::Memory,
             memory_id.as_uuid(),
-            EventKind::MemoryForgotten,
             Actor::User(ai_brains_core::ids::UserId::new()),
             Privacy::LocalOnly,
         )

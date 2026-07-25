@@ -5,7 +5,7 @@ use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, MemoryForgottenPayload, Payload, SessionStartedPayload,
+    Actor, AggregateType, MemoryForgottenPayload, Payload, SessionStartedPayload,
     UserPromptRecordedPayload,
 };
 use ai_brains_store::QueryStore;
@@ -34,7 +34,6 @@ async fn test_forget_excludes_from_search() -> Result<(), Box<dyn std::error::Er
     let event = EventBuilder::new(
         AggregateType::Memory,
         memory_id.as_uuid(),
-        EventKind::MemoryPinned,
         Actor::User(ai_brains_core::ids::UserId::new()),
         Privacy::LocalOnly,
     )
@@ -60,7 +59,6 @@ async fn test_forget_excludes_from_search() -> Result<(), Box<dyn std::error::Er
     let forget_event = EventBuilder::new(
         AggregateType::Memory,
         memory_id.as_uuid(),
-        EventKind::MemoryForgotten,
         Actor::User(ai_brains_core::ids::UserId::new()),
         Privacy::LocalOnly,
     )
@@ -99,7 +97,6 @@ async fn test_retention_removes_old_turns() -> Result<(), Box<dyn std::error::Er
     let reg = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -115,7 +112,6 @@ async fn test_retention_removes_old_turns() -> Result<(), Box<dyn std::error::Er
     let start = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::SessionStarted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -129,7 +125,6 @@ async fn test_retention_removes_old_turns() -> Result<(), Box<dyn std::error::Er
     let prompt = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::UserPromptRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )

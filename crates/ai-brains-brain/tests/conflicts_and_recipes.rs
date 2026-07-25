@@ -4,7 +4,7 @@ use ai_brains_brain::NightlyService;
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, ProjectRegisteredPayload,
+    Actor, AggregateType, MemoryPinnedPayload, Payload, ProjectRegisteredPayload,
     SessionCompletedPayload, SessionStartedPayload, UserPromptRecordedPayload,
     constructors::EventBuilder,
 };
@@ -34,7 +34,6 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
     let reg_event = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -50,7 +49,6 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
     let mem_event = EventBuilder::new(
         AggregateType::Memory,
         memory_id.as_uuid(),
-        EventKind::MemoryPinned,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -71,7 +69,6 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
     let start_event = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::SessionStarted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -85,7 +82,6 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
     let prompt_event = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::UserPromptRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -99,7 +95,6 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
     let comp_event = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::SessionCompleted,
         actor.clone(),
         Privacy::LocalOnly,
     )

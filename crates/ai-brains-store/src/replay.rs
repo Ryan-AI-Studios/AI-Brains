@@ -105,7 +105,14 @@ impl SqliteEventStore {
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
 
         // 2. Truncate projections (FK-safe: children before parents)
-        // Governed projections first (evidence FK → source_version → source).
+        // Epistemic children first (T150).
+        tx.execute("DELETE FROM claim_conflict_projection", [])?;
+        tx.execute("DELETE FROM decision_support_projection", [])?;
+        tx.execute("DELETE FROM conclusion_evidence_projection", [])?;
+        tx.execute("DELETE FROM review_item_projection", [])?;
+        tx.execute("DELETE FROM decision_projection", [])?;
+        tx.execute("DELETE FROM conclusion_projection", [])?;
+        // Governed projections (evidence FK → source_version → source).
         tx.execute("DELETE FROM invalidation_queue_projection", [])?;
         tx.execute("DELETE FROM knowledge_dependency_projection", [])?;
         // evidence_fts is content=linked; clear projection (triggers maintain FTS).

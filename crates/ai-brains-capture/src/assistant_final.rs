@@ -1,7 +1,7 @@
 use ai_brains_contracts::ingest::IngestRequest;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{AssistantFinalRecordedPayload, Payload};
-use ai_brains_events::{Actor, AggregateType, Envelope, EventKind};
+use ai_brains_events::{Actor, AggregateType, Envelope};
 
 pub fn build_assistant_final(
     request: &IngestRequest,
@@ -10,7 +10,6 @@ pub fn build_assistant_final(
     EventBuilder::new(
         AggregateType::Session,
         request.session_id.as_uuid(),
-        EventKind::AssistantFinalRecorded,
         Actor::Harness(request.harness_id),
         privacy,
     )

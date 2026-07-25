@@ -574,7 +574,6 @@ fn ingest_madr_from_changeguard(
         let event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Decision,
             decision_id.as_uuid(),
-            ai_brains_events::EventKind::DecisionRecorded,
             ai_brains_events::Actor::System,
             record.privacy,
         )

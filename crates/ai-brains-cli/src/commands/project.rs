@@ -1,6 +1,6 @@
 use crate::context::AppContext;
 use ai_brains_events::constructors::EventBuilder;
-use ai_brains_events::{Actor, AggregateType, EventKind, Payload, ProjectAliasAddedPayload};
+use ai_brains_events::{Actor, AggregateType, Payload, ProjectAliasAddedPayload};
 use ai_brains_store::{EventStore, QueryStore};
 
 pub fn list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
@@ -180,7 +180,6 @@ pub fn set_alias(
     let event = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectAliasAdded,
         Actor::User(ai_brains_core::ids::UserId::new()),
         ai_brains_core::privacy::Privacy::LocalOnly,
     )

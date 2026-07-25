@@ -61,7 +61,6 @@ fn append_completed_session(
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
             session_id.as_uuid(),
-            ai_brains_events::EventKind::SessionStarted,
             ai_brains_events::Actor::User(user),
             Default::default(),
         )
@@ -73,7 +72,6 @@ fn append_completed_session(
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
             session_id.as_uuid(),
-            ai_brains_events::EventKind::UserPromptRecorded,
             ai_brains_events::Actor::User(user),
             Default::default(),
         )
@@ -85,7 +83,6 @@ fn append_completed_session(
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
             session_id.as_uuid(),
-            ai_brains_events::EventKind::SessionCompleted,
             ai_brains_events::Actor::User(user),
             Default::default(),
         )
@@ -119,7 +116,6 @@ async fn nightly__three_consecutive_summary_errors__aborts_remaining_sessions()
     let project_event = ai_brains_events::constructors::EventBuilder::new(
         ai_brains_events::AggregateType::Project,
         project_id.as_uuid(),
-        ai_brains_events::EventKind::ProjectRegistered,
         ai_brains_events::Actor::User(ai_brains_core::ids::UserId::new()),
         Default::default(),
     )

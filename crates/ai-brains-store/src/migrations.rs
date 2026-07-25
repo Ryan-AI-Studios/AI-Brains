@@ -90,6 +90,10 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0022_graph_governed_kinds",
         include_str!("../migrations/0022_graph_governed_kinds.sql"),
     ),
+    (
+        "0023_epistemic_review",
+        include_str!("../migrations/0023_epistemic_review.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {

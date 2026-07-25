@@ -3,12 +3,16 @@ use crate::errors::Result;
 use ai_brains_events::Envelope;
 use rusqlite::Transaction;
 
+pub mod claim_conflict;
+pub mod conclusion;
 pub mod conflict;
+pub mod decision;
 pub mod dependency;
 pub mod evidence;
 pub mod memory;
 pub mod project;
 pub mod recipe;
+pub mod review;
 pub mod session;
 pub mod source;
 pub mod turn;
@@ -29,5 +33,10 @@ pub fn apply_all(tx: &Transaction, envelope: &Envelope) -> Result<()> {
     source::SourceProjection.apply(tx, envelope)?;
     evidence::EvidenceProjection.apply(tx, envelope)?;
     dependency::DependencyProjection.apply(tx, envelope)?;
+    // Epistemic lifecycle (T150) — after dependency so evidence FKs exist.
+    conclusion::ConclusionProjection.apply(tx, envelope)?;
+    decision::DecisionProjection.apply(tx, envelope)?;
+    review::ReviewProjection.apply(tx, envelope)?;
+    claim_conflict::ClaimConflictProjection.apply(tx, envelope)?;
     Ok(())
 }

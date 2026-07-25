@@ -19,7 +19,7 @@ use ai_brains_events::payload::{
     EvidenceRecordedPayload, SourceObservedPayload, SourceRegisteredPayload,
     SourceVersionRecordedPayload,
 };
-use ai_brains_events::{Actor, AggregateType, Envelope, EventKind, Payload};
+use ai_brains_events::{Actor, AggregateType, Envelope, Payload};
 use ai_brains_path::normalize_for_location_compare;
 use ai_brains_sources::{
     fingerprint_external, fingerprint_file_with_identity, fingerprint_git_path,
@@ -148,7 +148,6 @@ where
         let observed = build_event(
             AggregateType::Source,
             source_id.as_uuid(),
-            EventKind::SourceObserved,
             actor,
             req.privacy,
             Payload::SourceObserved(SourceObservedPayload {
@@ -190,7 +189,6 @@ where
         batch.push(build_event(
             AggregateType::Source,
             source_id.as_uuid(),
-            EventKind::SourceRegistered,
             actor.clone(),
             req.privacy,
             Payload::SourceRegistered(SourceRegisteredPayload {
@@ -206,7 +204,6 @@ where
     batch.push(build_event(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceVersionRecorded,
         actor.clone(),
         req.privacy,
         Payload::SourceVersionRecorded(SourceVersionRecordedPayload {
@@ -220,7 +217,6 @@ where
     batch.push(build_event(
         AggregateType::Evidence,
         evidence_id.as_uuid(),
-        EventKind::EvidenceRecorded,
         actor.clone(),
         req.privacy,
         Payload::EvidenceRecorded(EvidenceRecordedPayload {
@@ -236,7 +232,6 @@ where
     batch.push(build_event(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceObserved,
         actor,
         req.privacy,
         Payload::SourceObserved(SourceObservedPayload {
@@ -372,12 +367,26 @@ pub fn scope_identity_key(scope: &ScopeRef) -> String {
 pub(crate) fn build_event(
     aggregate_type: AggregateType,
     aggregate_id: uuid::Uuid,
-    event_type: EventKind,
     actor: Actor,
     privacy: Privacy,
     payload: Payload,
 ) -> Result<Envelope> {
-    EventBuilder::new(aggregate_type, aggregate_id, event_type, actor, privacy)
+    EventBuilder::new(aggregate_type, aggregate_id, actor, privacy)
         .build(payload)
         .map_err(|e| ControlPlaneError::EventAppend(e.to_string()))
+}
+
+/// Reject closed valid-time windows whose end is not strictly after start.
+pub(crate) fn ensure_valid_time_interval(
+    valid_from: time::OffsetDateTime,
+    valid_until: Option<time::OffsetDateTime>,
+) -> Result<()> {
+    if let Some(until) = valid_until
+        && until <= valid_from
+    {
+        return Err(ControlPlaneError::InvalidPayload(
+            "valid_until must be strictly after valid_from".into(),
+        ));
+    }
+    Ok(())
 }

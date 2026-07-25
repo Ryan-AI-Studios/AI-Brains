@@ -1,7 +1,8 @@
 use crate::QueryStore;
 use crate::connection::VaultConnection;
-use crate::errors::Result;
+use crate::errors::{Result, StoreError};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
+use ai_brains_core::privacy::Privacy;
 use rusqlite::{OptionalExtension, params};
 use std::str::FromStr;
 
@@ -103,6 +104,25 @@ impl QueryStore for VaultConnection {
             results.push((id, content));
         }
         Ok(results)
+    }
+
+    fn get_memory_privacy(&self, memory_id: &MemoryId) -> Result<Option<Privacy>> {
+        let conn = self.lock()?;
+        let privacy_json: Option<String> = conn
+            .query_row(
+                "SELECT privacy FROM memory_projection WHERE memory_id = ?",
+                [memory_id.to_string()],
+                |row| row.get(0),
+            )
+            .optional()?;
+        match privacy_json {
+            Some(json) => {
+                let privacy: Privacy = serde_json::from_str(&json)
+                    .map_err(|e| StoreError::EventReadFailed(e.to_string()))?;
+                Ok(Some(privacy))
+            }
+            None => Ok(None),
+        }
     }
 
     fn delete_old_turns(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<usize> {

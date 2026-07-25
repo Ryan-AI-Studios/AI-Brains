@@ -4,8 +4,7 @@ use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, Payload, constructors::EventBuilder,
-    payload::MemoryPinnedPayload,
+    Actor, AggregateType, Payload, constructors::EventBuilder, payload::MemoryPinnedPayload,
 };
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
@@ -44,7 +43,6 @@ fn test_fts_indexes_memory() {
     let envelope = EventBuilder::new(
         AggregateType::Memory,
         memory_id.as_uuid(),
-        EventKind::MemoryPinned,
         actor,
         Privacy::LocalOnly,
     )

@@ -4,7 +4,7 @@ use ai_brains_brain::NightlyService;
 use ai_brains_core::ids::{ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, Payload, ProjectRegisteredPayload, SessionCompletedPayload,
+    Actor, AggregateType, Payload, ProjectRegisteredPayload, SessionCompletedPayload,
     SessionStartedPayload, UserPromptRecordedPayload, constructors::EventBuilder,
 };
 use ai_brains_models::{CompletionResponse, MockProvider};
@@ -34,7 +34,6 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
     let reg_event = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -50,7 +49,6 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
     let start_1 = EventBuilder::new(
         AggregateType::Session,
         session_1_id.as_uuid(),
-        EventKind::SessionStarted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -64,7 +62,6 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
     let prompt_1 = EventBuilder::new(
         AggregateType::Session,
         session_1_id.as_uuid(),
-        EventKind::UserPromptRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -78,7 +75,6 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
     let comp_1 = EventBuilder::new(
         AggregateType::Session,
         session_1_id.as_uuid(),
-        EventKind::SessionCompleted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -92,7 +88,6 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
     let start_2 = EventBuilder::new(
         AggregateType::Session,
         session_2_id.as_uuid(),
-        EventKind::SessionStarted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -106,7 +101,6 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
     let prompt_2 = EventBuilder::new(
         AggregateType::Session,
         session_2_id.as_uuid(),
-        EventKind::UserPromptRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -120,7 +114,6 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
     let comp_2 = EventBuilder::new(
         AggregateType::Session,
         session_2_id.as_uuid(),
-        EventKind::SessionCompleted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -231,7 +224,6 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
     let reg_event = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -247,7 +239,6 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
     let start_1 = EventBuilder::new(
         AggregateType::Session,
         session_1_id.as_uuid(),
-        EventKind::SessionStarted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -261,7 +252,6 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
     let prompt_1 = EventBuilder::new(
         AggregateType::Session,
         session_1_id.as_uuid(),
-        EventKind::UserPromptRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -275,7 +265,6 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
     let comp_1 = EventBuilder::new(
         AggregateType::Session,
         session_1_id.as_uuid(),
-        EventKind::SessionCompleted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -289,7 +278,6 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
     let start_2 = EventBuilder::new(
         AggregateType::Session,
         session_2_id.as_uuid(),
-        EventKind::SessionStarted,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -303,7 +291,6 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
     let prompt_2 = EventBuilder::new(
         AggregateType::Session,
         session_2_id.as_uuid(),
-        EventKind::UserPromptRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -317,7 +304,6 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
     let comp_2 = EventBuilder::new(
         AggregateType::Session,
         session_2_id.as_uuid(),
-        EventKind::SessionCompleted,
         actor.clone(),
         Privacy::LocalOnly,
     )

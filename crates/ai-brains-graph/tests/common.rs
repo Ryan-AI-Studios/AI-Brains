@@ -3,7 +3,7 @@
 use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, Payload,
+    Actor, AggregateType, Payload,
     constructors::EventBuilder,
     payload::{ProjectRegisteredPayload, SessionStartedPayload},
 };
@@ -41,7 +41,6 @@ pub fn append_session(
     let project_envelope = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         Actor::System,
         Privacy::CloudOk,
     )
@@ -56,7 +55,6 @@ pub fn append_session(
     let envelope = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::SessionStarted,
         Actor::System,
         Privacy::CloudOk,
     )

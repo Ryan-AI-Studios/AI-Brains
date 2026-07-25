@@ -229,7 +229,7 @@ fn store_append_events__mid_batch_failure__rolls_back_all() {
     use ai_brains_core::ids::{SourceId, SourceVersionId};
     use ai_brains_events::constructors::EventBuilder;
     use ai_brains_events::payload::{SourceRegisteredPayload, SourceVersionRecordedPayload};
-    use ai_brains_events::{Actor, AggregateType, EventKind, Payload};
+    use ai_brains_events::{Actor, AggregateType, Payload};
     use time::OffsetDateTime;
 
     let source_id = SourceId::new();
@@ -241,7 +241,6 @@ fn store_append_events__mid_batch_failure__rolls_back_all() {
     let reg = EventBuilder::new(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceRegistered,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -257,7 +256,6 @@ fn store_append_events__mid_batch_failure__rolls_back_all() {
     let ver1 = EventBuilder::new(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceVersionRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -275,7 +273,6 @@ fn store_append_events__mid_batch_failure__rolls_back_all() {
     let ver_dup = EventBuilder::new(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceVersionRecorded,
         actor,
         Privacy::LocalOnly,
     )

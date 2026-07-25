@@ -32,7 +32,6 @@ async fn test_nightly_summarizes_session() -> Result<(), Box<dyn std::error::Err
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Project,
             project_id.as_uuid(),
-            ai_brains_events::EventKind::ProjectRegistered,
             ai_brains_events::Actor::User(ai_brains_core::ids::UserId::new()),
             Default::default(),
         )
@@ -46,7 +45,6 @@ async fn test_nightly_summarizes_session() -> Result<(), Box<dyn std::error::Err
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
             session_id.as_uuid(),
-            ai_brains_events::EventKind::SessionStarted,
             ai_brains_events::Actor::User(ai_brains_core::ids::UserId::new()),
             Default::default(),
         )
@@ -58,7 +56,6 @@ async fn test_nightly_summarizes_session() -> Result<(), Box<dyn std::error::Err
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
             session_id.as_uuid(),
-            ai_brains_events::EventKind::UserPromptRecorded,
             ai_brains_events::Actor::User(ai_brains_core::ids::UserId::new()),
             Default::default(),
         )
@@ -70,7 +67,6 @@ async fn test_nightly_summarizes_session() -> Result<(), Box<dyn std::error::Err
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
             session_id.as_uuid(),
-            ai_brains_events::EventKind::SessionCompleted,
             ai_brains_events::Actor::User(ai_brains_core::ids::UserId::new()),
             Default::default(),
         )

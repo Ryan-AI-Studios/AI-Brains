@@ -84,7 +84,6 @@ impl RecipePromotionService {
         let event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Recipe,
             recipe_id.as_uuid(),
-            ai_brains_events::EventKind::RecipePromoted,
             ai_brains_events::Actor::System,
             ai_brains_core::privacy::Privacy::LocalOnly,
         )

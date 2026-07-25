@@ -10,7 +10,7 @@ mod conflict_detection;
 mod embeddings;
 mod feedback_loop;
 pub mod intervention;
-mod memory_synthesis;
+pub mod memory_synthesis;
 mod recipe_promotion;
 mod retention;
 
@@ -489,7 +489,6 @@ impl NightlyService {
         let event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
             session_id.as_uuid(),
-            ai_brains_events::EventKind::SessionSummaryCreated,
             ai_brains_events::Actor::System,
             ai_brains_core::privacy::Privacy::LocalOnly,
         )
@@ -510,7 +509,6 @@ impl NightlyService {
         let synth_event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Memory,
             memory_id.as_uuid(),
-            ai_brains_events::EventKind::MemorySynthesized,
             ai_brains_events::Actor::System,
             ai_brains_core::privacy::Privacy::LocalOnly,
         )

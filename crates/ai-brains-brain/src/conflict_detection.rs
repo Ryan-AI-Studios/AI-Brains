@@ -81,7 +81,6 @@ impl ConflictDetectionService {
         let event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Conflict,
             conflict_id.as_uuid(),
-            ai_brains_events::EventKind::ConflictDetected,
             ai_brains_events::Actor::System,
             ai_brains_core::privacy::Privacy::LocalOnly,
         )

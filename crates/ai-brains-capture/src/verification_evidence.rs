@@ -10,7 +10,7 @@ use ai_brains_core::ids::{EvidenceId, SourceId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{EvidenceRecordedPayload, Payload};
-use ai_brains_events::{Actor, AggregateType, Envelope, EventKind};
+use ai_brains_events::{Actor, AggregateType, Envelope};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -148,7 +148,6 @@ pub fn build_verification_evidence_events(
     let evidence_event = EventBuilder::new(
         AggregateType::Evidence,
         evidence_id.as_uuid(),
-        EventKind::EvidenceRecorded,
         actor,
         privacy,
     )

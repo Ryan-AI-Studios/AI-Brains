@@ -18,7 +18,7 @@ use ai_brains_events::payload::{
     ConclusionActivatedPayload, ConclusionMarkedStalePayload, ReviewItemOpenedPayload,
     SourceUnavailablePayload,
 };
-use ai_brains_events::{Actor, AggregateType, Envelope, EventKind, Payload};
+use ai_brains_events::{Actor, AggregateType, Envelope, Payload};
 
 use crate::errors::{ControlPlaneError, Result};
 use crate::ports::{Clock, EventWriter, GovernedQueryStore};
@@ -67,7 +67,6 @@ where
         batch.push(build_event(
             AggregateType::Conclusion,
             conclusion_id.as_uuid(),
-            EventKind::ConclusionMarkedStale,
             actor.clone(),
             privacy,
             Payload::ConclusionMarkedStale(payload),
@@ -80,7 +79,6 @@ where
         batch.push(build_event(
             AggregateType::ReviewItem,
             review_item_id.as_uuid(),
-            EventKind::ReviewItemOpened,
             actor.clone(),
             privacy,
             Payload::ReviewItemOpened(ReviewItemOpenedPayload {
@@ -180,7 +178,6 @@ where
     batch.push(build_event(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceUnavailable,
         actor.clone(),
         privacy,
         Payload::SourceUnavailable(SourceUnavailablePayload {
@@ -195,7 +192,6 @@ where
     batch.push(build_event(
         AggregateType::ReviewItem,
         source_review_id.as_uuid(),
-        EventKind::ReviewItemOpened,
         actor.clone(),
         privacy,
         Payload::ReviewItemOpened(ReviewItemOpenedPayload {
@@ -228,7 +224,6 @@ where
         batch.push(build_event(
             AggregateType::Conclusion,
             conclusion_id.as_uuid(),
-            EventKind::ConclusionMarkedStale,
             actor.clone(),
             privacy,
             Payload::ConclusionMarkedStale(payload),
@@ -241,7 +236,6 @@ where
         batch.push(build_event(
             AggregateType::ReviewItem,
             review_item_id.as_uuid(),
-            EventKind::ReviewItemOpened,
             actor.clone(),
             privacy,
             Payload::ReviewItemOpened(ReviewItemOpenedPayload {
@@ -334,7 +328,6 @@ where
         batch.push(build_event(
             AggregateType::Conclusion,
             conclusion_id.as_uuid(),
-            EventKind::ConclusionActivated,
             actor.clone(),
             privacy,
             Payload::ConclusionActivated(ConclusionActivatedPayload { conclusion_id }),
