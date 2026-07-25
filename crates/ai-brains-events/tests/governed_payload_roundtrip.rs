@@ -75,6 +75,7 @@ fn remaining_governed_payloads__roundtrip_subset() {
         BriefingId, ContentKeyId, GrantId, ProjectId, QueryTraceId, ReviewItemId, TombstoneId,
         WorkspaceId,
     };
+    use ai_brains_core::privacy::Privacy;
     use ai_brains_core::scope::{GrantCapability, ScopeRef};
     use ai_brains_events::*;
     use time::OffsetDateTime;
@@ -154,15 +155,26 @@ fn remaining_governed_payloads__roundtrip_subset() {
             principal_id: PrincipalId::from_uuid(Uuid::from_u128(9)),
             scope: ScopeRef::Repository(ProjectId::from_uuid(Uuid::from_u128(12))),
             capability: GrantCapability::ReadEvidence,
+            privacy: Privacy::LocalOnly,
         }),
         Payload::ScopeGrantRevoked(ScopeGrantRevokedPayload {
             grant_id: GrantId::from_uuid(Uuid::from_u128(13)),
             reason: "expired".into(),
         }),
+        Payload::PolicyDecisionRecorded(ai_brains_events::PolicyDecisionRecordedPayload {
+            principal_id: PrincipalId::from_uuid(Uuid::from_u128(9)),
+            capability: GrantCapability::ProposeConclusion,
+            scope_key: format!("Repository:{}", ProjectId::from_uuid(Uuid::from_u128(12))),
+            allowed: false,
+            reason_code: "missing_grant".into(),
+            privacy: Some(Privacy::LocalOnly),
+        }),
         Payload::PrincipalRegistered(PrincipalRegisteredPayload {
             principal_id: PrincipalId::from_uuid(Uuid::from_u128(9)),
             kind: "Human".into(),
             display_name: "Ryan".into(),
+            bound_source_kinds: Vec::new(),
+            bound_capabilities: Vec::new(),
         }),
         Payload::ReviewItemOpened(ReviewItemOpenedPayload {
             review_item_id: ReviewItemId::from_uuid(Uuid::from_u128(14)),
@@ -241,4 +253,46 @@ fn decision_proposed_and_approved__locked_shape__roundtrip() {
         }
         other => panic!("expected DecisionApproved, got {other:?}"),
     }
+}
+
+#[test]
+fn PrincipalRegistered__old_json_without_bindings__deserializes_empty_defaults() {
+    use ai_brains_events::PrincipalRegisteredPayload;
+
+    let principal_id = PrincipalId::from_uuid(Uuid::from_u128(9));
+    let json = serde_json::json!({
+        "principal_id": principal_id,
+        "kind": "Human",
+        "display_name": "Ryan"
+    });
+    let payload: PrincipalRegisteredPayload = serde_json::from_value(json)
+        .expect("old PrincipalRegistered JSON deserializes with empty binding defaults");
+    assert_eq!(payload.principal_id, principal_id);
+    assert_eq!(payload.kind, "Human");
+    assert_eq!(payload.display_name, "Ryan");
+    assert!(payload.bound_source_kinds.is_empty());
+    assert!(payload.bound_capabilities.is_empty());
+}
+
+#[test]
+fn ScopeGrantIssued__old_json_without_privacy__defaults_local_only() {
+    use ai_brains_core::ids::{GrantId, PrincipalId as Pid, ProjectId};
+    use ai_brains_core::privacy::Privacy;
+    use ai_brains_core::scope::{GrantCapability, ScopeRef};
+    use ai_brains_events::ScopeGrantIssuedPayload;
+
+    let grant_id = GrantId::from_uuid(Uuid::from_u128(13));
+    let principal_id = Pid::from_uuid(Uuid::from_u128(9));
+    let project_id = ProjectId::from_uuid(Uuid::from_u128(12));
+    let json = serde_json::json!({
+        "grant_id": grant_id,
+        "principal_id": principal_id,
+        "scope": { "Repository": project_id },
+        "capability": "ReadEvidence"
+    });
+    let payload: ScopeGrantIssuedPayload = serde_json::from_value(json)
+        .expect("old ScopeGrantIssued JSON deserializes with LocalOnly privacy default");
+    assert_eq!(payload.privacy, Privacy::LocalOnly);
+    assert_eq!(payload.capability, GrantCapability::ReadEvidence);
+    assert_eq!(payload.scope, ScopeRef::Repository(project_id));
 }

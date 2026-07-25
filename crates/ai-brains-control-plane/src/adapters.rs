@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::errors::{ControlPlaneError, Result};
 use crate::ports::{
     ClaimConflictRow, Clock, ConclusionRow, DecisionRow, EventWriter, Fingerprinter,
-    GovernedQueryStore, PolicyEvaluator, ReviewItemRow, StaleFact,
+    GovernedQueryStore, PolicyContext, PolicyEvaluator, ReviewItemRow, StaleFact,
 };
 
 /// [`EventWriter`] over a real [`SqliteEventStore`] (transactional multi-append).
@@ -749,7 +749,15 @@ impl Fingerprinter for Sha256FingerprinterPort {
     }
 }
 
-/// Always-allow policy (tests / open vaults).
+/// Always-allow policy (**test-only** helper — not for production defaults).
+///
+/// Production governed commands **must** use
+/// [`StorePorts::production_policy`] / [`StorePorts::policy_evaluator`]
+/// ([`crate::DefaultPolicyEvaluator`] over a real grant store).
+///
+/// Kept public so integration tests in this crate can bypass matrix checks when
+/// exercising non-policy command paths. Do not select this type in production
+/// wiring.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AllowAllPolicy;
 
@@ -759,6 +767,7 @@ impl PolicyEvaluator for AllowAllPolicy {
         _principal: PrincipalId,
         _capability: GrantCapability,
         _scope: &ScopeRef,
+        _ctx: &PolicyContext,
     ) -> Result<bool> {
         Ok(true)
     }
@@ -774,6 +783,7 @@ impl PolicyEvaluator for DenyAllPolicy {
         _principal: PrincipalId,
         _capability: GrantCapability,
         _scope: &ScopeRef,
+        _ctx: &PolicyContext,
     ) -> Result<bool> {
         Ok(false)
     }
@@ -792,6 +802,333 @@ impl StorePorts {
         Self {
             writer: StoreEventWriter::new(store),
             query: StoreGovernedQuery::new(query_store),
+        }
+    }
+
+    /// Shared vault clone for grant/identity adapters.
+    pub fn store(&self) -> SqliteEventStore {
+        SqliteEventStore::new(self.writer.store().connection().clone())
+    }
+
+    pub fn grant_store(&self) -> StoreGrantPrincipalStore {
+        StoreGrantPrincipalStore::new(self.store())
+    }
+
+    pub fn identity_store(&self) -> StoreScopeIdentityStore {
+        StoreScopeIdentityStore::new(self.store())
+    }
+
+    /// Production policy evaluator (deny-by-default matrix over SQL grants).
+    ///
+    /// Prefer this (or [`Self::production_policy`]) for all governed command paths.
+    pub fn policy_evaluator(&self) -> crate::DefaultPolicyEvaluator<StoreGrantPrincipalStore> {
+        crate::DefaultPolicyEvaluator::new(self.grant_store())
+    }
+
+    /// Production policy path — alias of [`Self::policy_evaluator`].
+    ///
+    /// Callers should construct policy **only** through this method (or
+    /// `policy_evaluator`) so `AllowAllPolicy` cannot be selected by accident.
+    pub fn production_policy(&self) -> crate::DefaultPolicyEvaluator<StoreGrantPrincipalStore> {
+        self.policy_evaluator()
+    }
+}
+
+/// [`crate::GrantPrincipalStore`] over a real vault.
+pub struct StoreGrantPrincipalStore {
+    store: SqliteEventStore,
+}
+
+impl StoreGrantPrincipalStore {
+    pub fn new(store: SqliteEventStore) -> Self {
+        Self { store }
+    }
+
+    pub fn store(&self) -> &SqliteEventStore {
+        &self.store
+    }
+
+    /// Active grant scope keys for a principal (for isolation helpers).
+    pub fn list_active_grant_scope_keys(&self, principal: PrincipalId) -> Result<Vec<String>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT DISTINCT scope_key FROM scope_grant_projection
+                 WHERE principal_id = ? AND revoked_at IS NULL
+                 ORDER BY scope_key ASC",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let rows = stmt
+            .query_map([principal.to_string()], |row| row.get::<_, String>(0))
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row.map_err(|e| ControlPlaneError::Query(e.to_string()))?);
+        }
+        Ok(out)
+    }
+
+    /// Latest policy decision log rows for a principal (tests / audit).
+    pub fn list_policy_decisions(
+        &self,
+        principal: PrincipalId,
+        limit: usize,
+    ) -> Result<Vec<crate::PolicyDecisionEntry>> {
+        use crate::grants::{parse_capability, parse_privacy};
+        use crate::policy::PolicyDecisionEntry;
+        use ai_brains_core::privacy::Privacy;
+        use ai_brains_core::scope::GrantCapability;
+
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT principal_id, capability, scope_key, allowed, reason_code, privacy
+                 FROM policy_decision_log
+                 WHERE principal_id = ?
+                 ORDER BY id DESC
+                 LIMIT ?",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let rows = stmt
+            .query_map(
+                rusqlite::params![principal.to_string(), limit as i64],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, i64>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                    ))
+                },
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (pid, cap, scope_key, allowed, reason, privacy) =
+                row.map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            let principal_id = PrincipalId::from_uuid(
+                Uuid::parse_str(&pid).map_err(|e| ControlPlaneError::Query(e.to_string()))?,
+            );
+            let capability: GrantCapability = parse_capability(&cap)?;
+            let privacy: Option<Privacy> = privacy.map(|p| parse_privacy(&p));
+            out.push(PolicyDecisionEntry {
+                principal_id,
+                capability,
+                scope_key,
+                allowed: allowed != 0,
+                reason_code: reason,
+                privacy,
+            });
+        }
+        Ok(out)
+    }
+}
+
+impl crate::GrantPrincipalStore for StoreGrantPrincipalStore {
+    fn get_principal(
+        &self,
+        id: PrincipalId,
+    ) -> Result<Option<ai_brains_core::principal::Principal>> {
+        use crate::grants::{
+            parse_capabilities_json, parse_principal_kind, parse_source_kinds_json,
+        };
+        use ai_brains_core::principal::Principal;
+
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let row = conn.query_row(
+            "SELECT principal_id, kind, display_name, bound_source_kinds, bound_capabilities
+             FROM principal_projection WHERE principal_id = ?",
+            [id.to_string()],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            },
+        );
+        match row {
+            Ok((pid, kind, display_name, bound_kinds, bound_caps)) => {
+                let principal_id = PrincipalId::from_uuid(
+                    Uuid::parse_str(&pid).map_err(|e| ControlPlaneError::Query(e.to_string()))?,
+                );
+                Ok(Some(Principal {
+                    id: principal_id,
+                    kind: parse_principal_kind(&kind),
+                    display_name,
+                    bound_source_kinds: parse_source_kinds_json(&bound_kinds)?,
+                    bound_capabilities: parse_capabilities_json(&bound_caps)?,
+                }))
+            }
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(ControlPlaneError::Query(e.to_string())),
+        }
+    }
+
+    fn active_grants(
+        &self,
+        principal: PrincipalId,
+        scope: &ScopeRef,
+    ) -> Result<Vec<ai_brains_core::scope::ScopeGrant>> {
+        use crate::grants::{parse_capability, parse_privacy};
+        use crate::sources::{parse_scope_key, scope_identity_key};
+        use ai_brains_core::scope::ScopeGrant;
+
+        let scope_key = scope_identity_key(scope);
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT scope_key, capability, privacy FROM scope_grant_projection
+                 WHERE principal_id = ? AND scope_key = ? AND revoked_at IS NULL",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let rows = stmt
+            .query_map(rusqlite::params![principal.to_string(), scope_key], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (sk, cap, priv_s) = row.map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            let scope_ref = parse_scope_key(&sk)?;
+            out.push(ScopeGrant {
+                scope: scope_ref,
+                capability: parse_capability(&cap)?,
+                privacy: parse_privacy(&priv_s),
+            });
+        }
+        Ok(out)
+    }
+
+    fn log_policy_decision(&self, entry: crate::PolicyDecisionEntry) -> Result<()> {
+        use ai_brains_core::privacy::Privacy;
+        use ai_brains_events::constructors::EventBuilder;
+        use ai_brains_events::payload::PolicyDecisionRecordedPayload;
+        use ai_brains_events::{Actor, AggregateType, Payload};
+
+        // Audit metadata only (reason codes) — envelope privacy LocalOnly is fine.
+        let envelope = EventBuilder::new(
+            AggregateType::Principal,
+            entry.principal_id.as_uuid(),
+            Actor::System,
+            Privacy::LocalOnly,
+        )
+        .build(Payload::PolicyDecisionRecorded(
+            PolicyDecisionRecordedPayload {
+                principal_id: entry.principal_id,
+                capability: entry.capability,
+                scope_key: entry.scope_key,
+                allowed: entry.allowed,
+                reason_code: entry.reason_code,
+                privacy: entry.privacy,
+            },
+        ))
+        .map_err(|e| ControlPlaneError::EventAppend(e.to_string()))?;
+
+        EventStore::append_events(&self.store, &[envelope])
+            .map_err(|e| ControlPlaneError::EventAppend(e.to_string()))?;
+        Ok(())
+    }
+}
+
+/// [`crate::ScopeIdentityStore`] over repository identity / path-alias projections.
+pub struct StoreScopeIdentityStore {
+    store: SqliteEventStore,
+}
+
+impl StoreScopeIdentityStore {
+    pub fn new(store: SqliteEventStore) -> Self {
+        Self { store }
+    }
+
+    pub fn store(&self) -> &SqliteEventStore {
+        &self.store
+    }
+}
+
+impl crate::ScopeIdentityStore for StoreScopeIdentityStore {
+    fn find_by_remote_hash(&self, hash: &str) -> Result<Option<ai_brains_core::ids::ProjectId>> {
+        self.lookup_project(
+            "SELECT project_id FROM repository_identity_projection
+             WHERE remote_url_hash = ? AND remote_url_hash IS NOT NULL AND remote_url_hash != ''",
+            hash,
+        )
+    }
+
+    fn find_by_path_alias(
+        &self,
+        normalized_path: &str,
+    ) -> Result<Option<ai_brains_core::ids::ProjectId>> {
+        self.lookup_project(
+            "SELECT project_id FROM repository_path_alias_projection WHERE normalized_path = ?",
+            normalized_path,
+        )
+    }
+
+    fn find_by_common_dir_alias(
+        &self,
+        path: &str,
+    ) -> Result<Option<ai_brains_core::ids::ProjectId>> {
+        // Common-dir is stored as a path alias (same table).
+        self.find_by_path_alias(path)
+    }
+
+    fn find_by_ledgerful_id(&self, id: &str) -> Result<Option<ai_brains_core::ids::ProjectId>> {
+        self.lookup_project(
+            "SELECT project_id FROM repository_identity_projection
+             WHERE ledgerful_project_id = ?",
+            id,
+        )
+    }
+}
+
+impl StoreScopeIdentityStore {
+    fn lookup_project(
+        &self,
+        sql: &str,
+        key: &str,
+    ) -> Result<Option<ai_brains_core::ids::ProjectId>> {
+        use ai_brains_core::ids::ProjectId;
+
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let row: std::result::Result<String, rusqlite::Error> =
+            conn.query_row(sql, [key], |r| r.get(0));
+        match row {
+            Ok(id_s) => {
+                let uuid =
+                    Uuid::parse_str(&id_s).map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+                Ok(Some(ProjectId::from_uuid(uuid)))
+            }
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(ControlPlaneError::Query(e.to_string())),
         }
     }
 }

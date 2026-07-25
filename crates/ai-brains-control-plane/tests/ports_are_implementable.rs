@@ -123,6 +123,7 @@ impl PolicyEvaluator for DummyPolicy {
         _principal: PrincipalId,
         _capability: GrantCapability,
         _scope: &ScopeRef,
+        _ctx: &ai_brains_control_plane::PolicyContext,
     ) -> Result<bool> {
         Ok(false)
     }
@@ -180,6 +181,7 @@ fn dummy_ports__implementable_without_panic() {
             PrincipalId::new(),
             GrantCapability::ReadEvidence,
             &ScopeRef::Personal(ai_brains_core::ids::UserId::new()),
+            &ai_brains_control_plane::PolicyContext::unspecified(),
         )
         .expect("policy")
     );

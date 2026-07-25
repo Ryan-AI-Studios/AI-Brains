@@ -1,5 +1,6 @@
-use crate::capability::{AdapterCapability, CapabilityLevel};
+use crate::capability::{AdapterCapability, CapabilityLevel, full_harness_governed_reads};
 use crate::neutral_event::NeutralEvent;
+use ai_brains_core::scope::GrantCapability;
 use serde_json::Value;
 
 pub fn claude_capability() -> AdapterCapability {
@@ -8,7 +9,10 @@ pub fn claude_capability() -> AdapterCapability {
         level: CapabilityLevel::Full,
         supports_hooks: true,
         supports_wrapper_mode: true,
-        notes: "Parses stop payloads and supports user-level hook configuration.".to_string(),
+        notes: "Parses stop payloads and supports user-level hook configuration. Full harnesses bind as PrincipalKind::Agent (not Connector) so ProposeConclusion is in-matrix; principal_binding deferred until registry wiring. Connector observe-only remains ReadEvidence.".to_string(),
+        governed_reads: full_harness_governed_reads(),
+        governed_writes: vec![GrantCapability::ProposeConclusion],
+        principal_binding: None,
     }
 }
 

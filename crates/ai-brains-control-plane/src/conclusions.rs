@@ -14,8 +14,10 @@ use ai_brains_events::{Actor, AggregateType, Payload};
 use time::OffsetDateTime;
 
 use crate::errors::{ControlPlaneError, Result};
-use crate::ports::{Clock, EventWriter, GovernedQueryStore, PolicyEvaluator};
-use crate::sources::{build_event, ensure_valid_time_interval, scope_identity_key};
+use crate::ports::{Clock, EventWriter, GovernedQueryStore, PolicyContext, PolicyEvaluator};
+use crate::sources::{
+    build_event, ensure_valid_time_interval, parse_scope_key, scope_identity_key,
+};
 
 #[derive(Debug, Clone)]
 pub struct ProposeConclusionRequest {
@@ -50,10 +52,12 @@ where
     C: Clock,
     P: PolicyEvaluator,
 {
+    let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
     if !policy.allow(
         req.principal.id,
         GrantCapability::ProposeConclusion,
         &req.scope,
+        &policy_ctx,
     )? {
         return Err(ControlPlaneError::PolicyDenied(
             "ProposeConclusion denied".into(),
@@ -99,10 +103,11 @@ where
     })
 }
 
-pub fn activate_conclusion<W, Q, C>(
+pub fn activate_conclusion<W, Q, C, P>(
     writer: &W,
     query: &Q,
     _clock: &C,
+    policy: &P,
     principal: &Principal,
     conclusion_id: ConclusionId,
     privacy: Privacy,
@@ -111,6 +116,7 @@ where
     W: EventWriter,
     Q: GovernedQueryStore,
     C: Clock,
+    P: PolicyEvaluator,
 {
     let row = query
         .get_conclusion(conclusion_id)?
@@ -122,13 +128,24 @@ where
         ));
     }
 
+    let scope = parse_scope_key(&row.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    // Agents may activate non-protected candidates when granted ProposeConclusion.
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ProposeConclusion,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ProposeConclusion denied for activate".into(),
+        ));
+    }
+
     let state = parse_conclusion_state(&row.state)?;
     state
         .transition(ConclusionState::Active, None, None)
         .map_err(|e| ControlPlaneError::InvalidTransition(e.to_string()))?;
-
-    // Agent may activate non-protected candidates.
-    let _ = principal;
 
     let event = build_event(
         AggregateType::Conclusion,
@@ -141,10 +158,11 @@ where
     Ok(())
 }
 
-pub fn confirm_conclusion<W, Q, C>(
+pub fn confirm_conclusion<W, Q, C, P>(
     writer: &W,
     query: &Q,
     clock: &C,
+    policy: &P,
     principal: &Principal,
     conclusion_id: ConclusionId,
     privacy: Privacy,
@@ -153,6 +171,7 @@ where
     W: EventWriter,
     Q: GovernedQueryStore,
     C: Clock,
+    P: PolicyEvaluator,
 {
     let row = query
         .get_conclusion(conclusion_id)?
@@ -174,6 +193,19 @@ where
         // Non-protected confirm still requires human approval authority per domain rules.
         return Err(ControlPlaneError::ApprovalRequired(
             "confirm requires human ApprovalAuthority".into(),
+        ));
+    }
+
+    let scope = parse_scope_key(&row.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ApproveConclusion,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ApproveConclusion denied".into(),
         ));
     }
 
@@ -202,10 +234,11 @@ where
 }
 
 /// Alias for confirm (approve_conclusion → Confirmed).
-pub fn approve_conclusion<W, Q, C>(
+pub fn approve_conclusion<W, Q, C, P>(
     writer: &W,
     query: &Q,
     clock: &C,
+    policy: &P,
     principal: &Principal,
     conclusion_id: ConclusionId,
     privacy: Privacy,
@@ -214,14 +247,25 @@ where
     W: EventWriter,
     Q: GovernedQueryStore,
     C: Clock,
+    P: PolicyEvaluator,
 {
-    confirm_conclusion(writer, query, clock, principal, conclusion_id, privacy)
+    confirm_conclusion(
+        writer,
+        query,
+        clock,
+        policy,
+        principal,
+        conclusion_id,
+        privacy,
+    )
 }
 
-pub fn reject_conclusion<W, Q, C>(
+#[allow(clippy::too_many_arguments)]
+pub fn reject_conclusion<W, Q, C, P>(
     writer: &W,
     query: &Q,
     _clock: &C,
+    policy: &P,
     principal: &Principal,
     conclusion_id: ConclusionId,
     reason: &str,
@@ -231,6 +275,7 @@ where
     W: EventWriter,
     Q: GovernedQueryStore,
     C: Clock,
+    P: PolicyEvaluator,
 {
     if reason.trim().is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
@@ -240,6 +285,20 @@ where
     let row = query
         .get_conclusion(conclusion_id)?
         .ok_or_else(|| ControlPlaneError::NotFound(format!("conclusion {conclusion_id}")))?;
+    let scope = parse_scope_key(&row.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    // Reject is an approval-band action (hard-deny for Agent via matrix).
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ApproveConclusion,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ApproveConclusion denied for reject".into(),
+        ));
+    }
+
     let state = parse_conclusion_state(&row.state)?;
     state
         .transition(ConclusionState::Rejected, None, None)
@@ -304,7 +363,13 @@ where
         .map_err(|e| ControlPlaneError::InvalidTransition(e.to_string()))?;
 
     let scope = parse_scope_key(&old.scope)?;
-    if !policy.allow(principal.id, GrantCapability::ProposeConclusion, &scope)? {
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ProposeConclusion,
+        &scope,
+        &policy_ctx,
+    )? {
         return Err(ControlPlaneError::PolicyDenied(
             "ProposeConclusion denied".into(),
         ));
@@ -366,43 +431,13 @@ fn parse_conclusion_state(s: &str) -> Result<ConclusionState> {
     }
 }
 
-/// Rehydrate [`ScopeRef`] from the stored scope identity key.
-fn parse_scope_key(key: &str) -> Result<ScopeRef> {
-    use ai_brains_core::ids::{ProjectId, UserId, WorkspaceId};
-    use uuid::Uuid;
-
-    let parse_uuid = |rest: &str, kind: &str| -> Result<Uuid> {
-        Uuid::parse_str(rest).map_err(|e| {
-            ControlPlaneError::InvalidPayload(format!("invalid {kind} id in scope key: {e}"))
-        })
-    };
-
-    if let Some(rest) = key.strip_prefix("Repository:") {
-        Ok(ScopeRef::Repository(ProjectId::from_uuid(parse_uuid(
-            rest,
-            "Repository",
-        )?)))
-    } else if let Some(rest) = key.strip_prefix("Workspace:") {
-        Ok(ScopeRef::Workspace(WorkspaceId::from_uuid(parse_uuid(
-            rest,
-            "Workspace",
-        )?)))
-    } else if let Some(rest) = key.strip_prefix("Personal:") {
-        Ok(ScopeRef::Personal(UserId::from_uuid(parse_uuid(
-            rest, "Personal",
-        )?)))
-    } else {
-        Err(ControlPlaneError::InvalidPayload(format!(
-            "unparseable scope key: {key}"
-        )))
-    }
-}
-
 /// Helper for tests / callers constructing a principal.
 pub fn principal(kind: PrincipalKind, id: PrincipalId, name: &str) -> Principal {
     Principal {
         id,
         kind,
         display_name: name.to_string(),
+        bound_source_kinds: Vec::new(),
+        bound_capabilities: Vec::new(),
     }
 }

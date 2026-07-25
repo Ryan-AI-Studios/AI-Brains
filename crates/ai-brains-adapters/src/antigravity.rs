@@ -16,8 +16,11 @@ pub fn antigravity_capability() -> AdapterCapability {
         level: CapabilityLevel::Partial,
         supports_hooks: false,
         supports_wrapper_mode: false,
-        notes: "Batch import via nightly or antigravity-import command. No real-time hooks."
+        notes: "Batch import via nightly or antigravity-import command. No real-time hooks. Intended PrincipalKind::Connector binding for import observe; principal_binding deferred until registry wiring."
             .to_string(),
+        governed_reads: Vec::new(),
+        governed_writes: Vec::new(),
+        principal_binding: None,
     }
 }
 

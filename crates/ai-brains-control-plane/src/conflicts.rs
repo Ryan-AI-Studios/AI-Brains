@@ -3,13 +3,17 @@
 use ai_brains_core::ids::ConflictId;
 use ai_brains_core::principal::Principal;
 use ai_brains_core::privacy::Privacy;
+use ai_brains_core::scope::GrantCapability;
 use ai_brains_events::payload::{ClaimConflictOpenedPayload, ClaimConflictResolvedPayload};
 use ai_brains_events::{Actor, AggregateType, Payload};
 use time::OffsetDateTime;
 
 use crate::errors::{ControlPlaneError, Result};
-use crate::ports::{ClaimConflictRow, ConclusionRow, EventWriter, GovernedQueryStore};
-use crate::sources::build_event;
+use crate::ports::{
+    ClaimConflictRow, ConclusionRow, EventWriter, GovernedQueryStore, PolicyContext,
+    PolicyEvaluator,
+};
+use crate::sources::{build_event, parse_scope_key};
 
 #[derive(Debug, Clone)]
 pub struct OpenClaimConflictRequest {
@@ -25,15 +29,35 @@ pub struct OpenClaimConflictRequest {
     pub conflict_id: Option<ConflictId>,
 }
 
-pub fn open_claim_conflict<W>(writer: &W, req: OpenClaimConflictRequest) -> Result<ConflictId>
+/// Open a claim conflict. Requires `ProposeConclusion` on the conflict scope.
+pub fn open_claim_conflict<W, P>(
+    writer: &W,
+    policy: &P,
+    principal: &Principal,
+    req: OpenClaimConflictRequest,
+) -> Result<ConflictId>
 where
     W: EventWriter,
+    P: PolicyEvaluator,
 {
     if req.explanation.trim().is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
             "conflict explanation must be non-empty".into(),
         ));
     }
+    let scope = parse_scope_key(&req.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ProposeConclusion,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ProposeConclusion denied for open claim conflict".into(),
+        ));
+    }
+
     let conflict_id = req.conflict_id.unwrap_or_default();
     let event = build_event(
         AggregateType::Conflict,
@@ -56,9 +80,11 @@ where
     Ok(conflict_id)
 }
 
-pub fn resolve_claim_conflict<W, Q>(
+/// Resolve a claim conflict. Requires `ApproveConclusion` on the conflict scope.
+pub fn resolve_claim_conflict<W, Q, P>(
     writer: &W,
     query: &Q,
+    policy: &P,
     principal: &Principal,
     conflict_id: ConflictId,
     resolution: &str,
@@ -67,6 +93,7 @@ pub fn resolve_claim_conflict<W, Q>(
 where
     W: EventWriter,
     Q: GovernedQueryStore,
+    P: PolicyEvaluator,
 {
     if resolution.trim().is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
@@ -81,6 +108,19 @@ where
             "conflict {conflict_id} is {}",
             row.status
         )));
+    }
+
+    let scope = parse_scope_key(&row.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ApproveConclusion,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ApproveConclusion denied for resolve claim conflict".into(),
+        ));
     }
 
     let event = build_event(

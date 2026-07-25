@@ -5,10 +5,12 @@ use ai_brains_core::ids::{
     ConclusionId, EvidenceId, MemoryId, PrincipalId, ProjectId, SessionId, SourceId,
 };
 use ai_brains_core::privacy::Privacy;
+use ai_brains_core::scope::GrantCapability;
 use ai_brains_core::source::SourceKind;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{
-    ConclusionProposedPayload, MemoryPinnedPayload, SessionStartedPayload, SourceRegisteredPayload,
+    ConclusionProposedPayload, MemoryPinnedPayload, PolicyDecisionRecordedPayload,
+    SessionStartedPayload, SourceRegisteredPayload,
 };
 use ai_brains_events::{Actor, AggregateType, EventKind, Payload};
 use serde_json::json;
@@ -64,6 +66,17 @@ fn event_kind_from_payload__several_known_variants__match() {
                 scope: None,
             }),
             EventKind::SourceRegistered,
+        ),
+        (
+            Payload::PolicyDecisionRecorded(PolicyDecisionRecordedPayload {
+                principal_id: PrincipalId::new(),
+                capability: GrantCapability::ReadEvidence,
+                scope_key: "Repository:x".into(),
+                allowed: false,
+                reason_code: "missing_grant".into(),
+                privacy: Some(Privacy::LocalOnly),
+            }),
+            EventKind::PolicyDecisionRecorded,
         ),
     ];
     for (payload, expected) in cases {

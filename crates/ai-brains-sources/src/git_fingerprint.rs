@@ -75,6 +75,7 @@ mod tests {
             branch: Some("main".into()),
             commit: Some("abc".into()),
             remote_url_hash: None,
+            remote_names: Vec::new(),
             is_dirty: true,
             untracked_files: vec!["z.txt".into(), "a.txt".into()],
             diffstat: Some(DiffStat {
@@ -83,6 +84,7 @@ mod tests {
                 deletions: 3,
                 summary: "1 file changed".into(),
             }),
+            common_dir: None,
         };
         let mut b = a.clone();
         b.untracked_files = vec!["a.txt".into(), "z.txt".into()];

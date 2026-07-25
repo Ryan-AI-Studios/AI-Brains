@@ -1,12 +1,54 @@
 use ai_brains_core::ids::{
     ConclusionId, ConflictId, DecisionId, PrincipalId, ReviewItemId, SourceId, SourceVersionId,
 };
+use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
 use ai_brains_events::Envelope;
 use time::OffsetDateTime;
 
 use crate::errors::Result;
+
+/// Connector trust posture for policy evaluation (stub for T151 Phase A).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectorTrust {
+    LocalOnly,
+    CloudOk,
+    Unknown,
+}
+
+/// Processing route for policy evaluation (stub for T151 Phase A).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProcessingRoute {
+    Local,
+    Cloud,
+}
+
+/// Contextual inputs for [`PolicyEvaluator::allow`] beyond principal/capability/scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicyContext {
+    pub privacy: Privacy,
+    pub connector_trust: Option<ConnectorTrust>,
+    pub route: Option<ProcessingRoute>,
+    pub source_kind: Option<SourceKind>,
+}
+
+impl PolicyContext {
+    /// Context with only privacy set; trust/route/source unspecified.
+    pub fn default_for_privacy(privacy: Privacy) -> Self {
+        Self {
+            privacy,
+            connector_trust: None,
+            route: None,
+            source_kind: None,
+        }
+    }
+
+    /// Fully unspecified context; privacy defaults to [`Privacy::LocalOnly`].
+    pub fn unspecified() -> Self {
+        Self::default_for_privacy(Privacy::LocalOnly)
+    }
+}
 
 /// Append governed (and legacy) events atomically.
 pub trait EventWriter {
@@ -179,5 +221,6 @@ pub trait PolicyEvaluator {
         principal: PrincipalId,
         capability: GrantCapability,
         scope: &ScopeRef,
+        ctx: &PolicyContext,
     ) -> Result<bool>;
 }

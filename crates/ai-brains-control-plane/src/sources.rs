@@ -28,7 +28,9 @@ use ai_brains_sources::{
 
 use crate::errors::{ControlPlaneError, Result};
 use crate::invalidation::{plan_invalidation_events_for_changed_source, revalidate_matching_stale};
-use crate::ports::{Clock, EventWriter, Fingerprinter, GovernedQueryStore, PolicyEvaluator};
+use crate::ports::{
+    Clock, EventWriter, Fingerprinter, GovernedQueryStore, PolicyContext, PolicyEvaluator,
+};
 
 /// How content is supplied for fingerprinting.
 #[derive(Debug, Clone)]
@@ -95,7 +97,18 @@ where
     P: PolicyEvaluator,
 {
     // 1. Policy
-    let allowed = policy.allow(req.principal, GrantCapability::ReadEvidence, &req.scope)?;
+    let policy_ctx = PolicyContext {
+        privacy: req.privacy,
+        connector_trust: None,
+        route: None,
+        source_kind: Some(req.kind.clone()),
+    };
+    let allowed = policy.allow(
+        req.principal,
+        GrantCapability::ReadEvidence,
+        &req.scope,
+        &policy_ctx,
+    )?;
     if !allowed {
         return Err(ControlPlaneError::PolicyDenied(
             "ReadEvidence denied for principal/scope".to_string(),
@@ -361,6 +374,38 @@ pub fn scope_identity_key(scope: &ScopeRef) -> String {
         ScopeRef::Repository(id) => format!("Repository:{id}"),
         ScopeRef::Workspace(id) => format!("Workspace:{id}"),
         ScopeRef::Personal(id) => format!("Personal:{id}"),
+    }
+}
+
+/// Rehydrate [`ScopeRef`] from a stored scope identity key.
+pub fn parse_scope_key(key: &str) -> Result<ScopeRef> {
+    use ai_brains_core::ids::{ProjectId, UserId, WorkspaceId};
+    use uuid::Uuid;
+
+    let parse_uuid = |rest: &str, kind: &str| -> Result<Uuid> {
+        Uuid::parse_str(rest).map_err(|e| {
+            ControlPlaneError::InvalidPayload(format!("invalid {kind} id in scope key: {e}"))
+        })
+    };
+
+    if let Some(rest) = key.strip_prefix("Repository:") {
+        Ok(ScopeRef::Repository(ProjectId::from_uuid(parse_uuid(
+            rest,
+            "Repository",
+        )?)))
+    } else if let Some(rest) = key.strip_prefix("Workspace:") {
+        Ok(ScopeRef::Workspace(WorkspaceId::from_uuid(parse_uuid(
+            rest,
+            "Workspace",
+        )?)))
+    } else if let Some(rest) = key.strip_prefix("Personal:") {
+        Ok(ScopeRef::Personal(UserId::from_uuid(parse_uuid(
+            rest, "Personal",
+        )?)))
+    } else {
+        Err(ControlPlaneError::InvalidPayload(format!(
+            "unparseable scope key: {key}"
+        )))
     }
 }
 

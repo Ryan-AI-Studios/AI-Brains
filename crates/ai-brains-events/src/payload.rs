@@ -4,6 +4,7 @@ use ai_brains_core::ids::{
     SourceVersionId, TombstoneId, TransactionId, WorkspaceId,
 };
 use ai_brains_core::model_provenance::ModelProvenance;
+use ai_brains_core::privacy::Privacy;
 use ai_brains_core::review::{ReviewCriticality, ReviewSubjectKind};
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
@@ -438,12 +439,21 @@ pub struct RepositoryJoinedWorkspacePayload {
     pub project_id: ProjectId,
 }
 
+/// Default privacy for historical `ScopeGrantIssued` events that omit the field.
+fn default_scope_grant_privacy() -> Privacy {
+    Privacy::LocalOnly
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScopeGrantIssuedPayload {
     pub grant_id: GrantId,
     pub principal_id: PrincipalId,
     pub scope: ScopeRef,
     pub capability: GrantCapability,
+    /// Grant privacy used for `strictest_wins` / cloud-route blocking.
+    /// Defaults to [`Privacy::LocalOnly`] when absent from historical events.
+    #[serde(default = "default_scope_grant_privacy")]
+    pub privacy: Privacy,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -455,8 +465,19 @@ pub struct ScopeGrantRevokedPayload {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrincipalRegisteredPayload {
     pub principal_id: PrincipalId,
+    /// Wire representation of principal kind as PascalCase of
+    /// [`ai_brains_core::principal::PrincipalKind`] for round-trip:
+    /// `Human` | `Agent` | `Connector` | `System` | `Service` | `Other:{label}`.
+    /// Legacy free-form values (including historical `Service`) parse via
+    /// `parse_principal_kind` into known variants or `Other`.
     pub kind: String,
     pub display_name: String,
+    /// Source kinds this principal is bound to; empty when unbound (default for old events).
+    #[serde(default)]
+    pub bound_source_kinds: Vec<SourceKind>,
+    /// Capabilities this principal is bound to; empty when unbound (default for old events).
+    #[serde(default)]
+    pub bound_capabilities: Vec<GrantCapability>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -540,6 +561,46 @@ pub struct ClaimConflictResolvedPayload {
     pub resolved_by: PrincipalId,
 }
 
+/// Bind or refresh a repository project identity (normalized remote hash + optional ledgerful id).
+///
+/// Projected into `repository_identity_projection`. When `force` is true and
+/// `remote_url_hash` is set, any other project holding that hash is cleared so
+/// the unique index allows rebind.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RepositoryIdentityRegisteredPayload {
+    pub project_id: ProjectId,
+    /// SHA-256 hex of normalized remote URL; omit/None when only binding ledgerful id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_url_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ledgerful_project_id: Option<String>,
+    /// When true, rebind: clear other projects that held this remote_url_hash.
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// Register a normalized path alias for a repository project (Windows/WSL forms).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RepositoryPathAliasAddedPayload {
+    pub project_id: ProjectId,
+    pub normalized_path: String,
+}
+
+/// Policy matrix allow/deny audit row (T151) — reason codes only, never claim/statement text.
+///
+/// Projected into `policy_decision_log` so `rebuild_projections` rehydrates audit history.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PolicyDecisionRecordedPayload {
+    pub principal_id: PrincipalId,
+    pub capability: GrantCapability,
+    pub scope_key: String,
+    pub allowed: bool,
+    pub reason_code: String,
+    /// Content/route privacy considered at decision time (not secret content).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub privacy: Option<Privacy>,
+}
+
 /// Internally tagged payload (`type` field, PascalCase).
 ///
 /// [`Payload::Unknown`] preserves the full original JSON object so shadow/append
@@ -597,6 +658,9 @@ pub enum Payload {
     ContentErased(ContentErasedPayload),
     ClaimConflictOpened(ClaimConflictOpenedPayload),
     ClaimConflictResolved(ClaimConflictResolvedPayload),
+    RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
+    RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload),
+    PolicyDecisionRecorded(PolicyDecisionRecordedPayload),
     /// Full original JSON object for unrecognized `type` tags.
     Unknown(serde_json::Value),
 }
@@ -656,6 +720,9 @@ enum KnownPayload {
     ContentErased(ContentErasedPayload),
     ClaimConflictOpened(ClaimConflictOpenedPayload),
     ClaimConflictResolved(ClaimConflictResolvedPayload),
+    RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
+    RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload),
+    PolicyDecisionRecorded(PolicyDecisionRecordedPayload),
 }
 
 fn is_known_payload_type(type_str: &str) -> bool {
@@ -712,6 +779,9 @@ fn is_known_payload_type(type_str: &str) -> bool {
             | "ContentErased"
             | "ClaimConflictOpened"
             | "ClaimConflictResolved"
+            | "RepositoryIdentityRegistered"
+            | "RepositoryPathAliasAdded"
+            | "PolicyDecisionRecorded"
     )
 }
 
@@ -769,6 +839,11 @@ impl From<KnownPayload> for Payload {
             KnownPayload::ContentErased(p) => Payload::ContentErased(p),
             KnownPayload::ClaimConflictOpened(p) => Payload::ClaimConflictOpened(p),
             KnownPayload::ClaimConflictResolved(p) => Payload::ClaimConflictResolved(p),
+            KnownPayload::RepositoryIdentityRegistered(p) => {
+                Payload::RepositoryIdentityRegistered(p)
+            }
+            KnownPayload::RepositoryPathAliasAdded(p) => Payload::RepositoryPathAliasAdded(p),
+            KnownPayload::PolicyDecisionRecorded(p) => Payload::PolicyDecisionRecorded(p),
         }
     }
 }
@@ -829,6 +904,13 @@ impl Payload {
             Payload::ContentErased(p) => KnownPayload::ContentErased(p.clone()),
             Payload::ClaimConflictOpened(p) => KnownPayload::ClaimConflictOpened(p.clone()),
             Payload::ClaimConflictResolved(p) => KnownPayload::ClaimConflictResolved(p.clone()),
+            Payload::RepositoryIdentityRegistered(p) => {
+                KnownPayload::RepositoryIdentityRegistered(p.clone())
+            }
+            Payload::RepositoryPathAliasAdded(p) => {
+                KnownPayload::RepositoryPathAliasAdded(p.clone())
+            }
+            Payload::PolicyDecisionRecorded(p) => KnownPayload::PolicyDecisionRecorded(p.clone()),
             Payload::Unknown(_) => return None,
         })
     }

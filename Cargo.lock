@@ -169,6 +169,7 @@ dependencies = [
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-events",
+ "ai-brains-git",
  "ai-brains-path",
  "ai-brains-sources",
  "ai-brains-store",
