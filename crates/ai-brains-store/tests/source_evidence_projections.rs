@@ -46,7 +46,6 @@ fn source_and_version_and_evidence__append_events__rows_materialized() {
     let reg = EventBuilder::new(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceRegistered,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -63,7 +62,6 @@ fn source_and_version_and_evidence__append_events__rows_materialized() {
     let observed = EventBuilder::new(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceObserved,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -78,7 +76,6 @@ fn source_and_version_and_evidence__append_events__rows_materialized() {
     let version = EventBuilder::new(
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceVersionRecorded,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -96,7 +93,6 @@ fn source_and_version_and_evidence__append_events__rows_materialized() {
     let evidence = EventBuilder::new(
         AggregateType::Evidence,
         evidence_id.as_uuid(),
-        EventKind::EvidenceRecorded,
         actor,
         Privacy::LocalOnly,
     )
@@ -157,7 +153,6 @@ fn source_unavailable_and_evidence_superseded__update_status() {
             &EventBuilder::new(
                 AggregateType::Source,
                 source_id.as_uuid(),
-                EventKind::SourceRegistered,
                 actor.clone(),
                 Privacy::LocalOnly,
             )
@@ -177,7 +172,6 @@ fn source_unavailable_and_evidence_superseded__update_status() {
             &EventBuilder::new(
                 AggregateType::Evidence,
                 evidence_id.as_uuid(),
-                EventKind::EvidenceRecorded,
                 actor.clone(),
                 Privacy::LocalOnly,
             )
@@ -198,7 +192,6 @@ fn source_unavailable_and_evidence_superseded__update_status() {
             &EventBuilder::new(
                 AggregateType::Source,
                 source_id.as_uuid(),
-                EventKind::SourceUnavailable,
                 actor.clone(),
                 Privacy::LocalOnly,
             )
@@ -216,7 +209,6 @@ fn source_unavailable_and_evidence_superseded__update_status() {
             &EventBuilder::new(
                 AggregateType::Evidence,
                 evidence_id.as_uuid(),
-                EventKind::EvidenceSuperseded,
                 actor,
                 Privacy::LocalOnly,
             )
@@ -263,7 +255,6 @@ fn conclusion_proposed__materializes_knowledge_dependencies() {
         EventBuilder::new(
             AggregateType::Source,
             source_id.as_uuid(),
-            EventKind::SourceRegistered,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -278,7 +269,6 @@ fn conclusion_proposed__materializes_knowledge_dependencies() {
         EventBuilder::new(
             AggregateType::Source,
             source_id.as_uuid(),
-            EventKind::SourceVersionRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -294,7 +284,6 @@ fn conclusion_proposed__materializes_knowledge_dependencies() {
         EventBuilder::new(
             AggregateType::Evidence,
             evidence_id.as_uuid(),
-            EventKind::EvidenceRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -310,7 +299,6 @@ fn conclusion_proposed__materializes_knowledge_dependencies() {
         EventBuilder::new(
             AggregateType::Conclusion,
             conclusion_id.as_uuid(),
-            EventKind::ConclusionProposed,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -319,12 +307,17 @@ fn conclusion_proposed__materializes_knowledge_dependencies() {
             statement: "X".into(),
             evidence_ids: vec![evidence_id],
             proposer: PrincipalId::new(),
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
+            protected_category: None,
+            unsupported: false,
+            model_provenance: None,
         }))
         .unwrap(),
         EventBuilder::new(
             AggregateType::Decision,
             decision_id.as_uuid(),
-            EventKind::DecisionProposed,
             actor,
             Privacy::LocalOnly,
         )
@@ -334,6 +327,10 @@ fn conclusion_proposed__materializes_knowledge_dependencies() {
             statement: "we use X".into(),
             proposer: PrincipalId::new(),
             conclusion_ids: Some(vec![conclusion_id]),
+            evidence_ids: None,
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
         }))
         .unwrap(),
     ] {
@@ -386,7 +383,6 @@ fn rebuild_projections__restores_source_evidence_dependency_rows() {
         EventBuilder::new(
             AggregateType::Source,
             source_id.as_uuid(),
-            EventKind::SourceRegistered,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -401,7 +397,6 @@ fn rebuild_projections__restores_source_evidence_dependency_rows() {
         EventBuilder::new(
             AggregateType::Source,
             source_id.as_uuid(),
-            EventKind::SourceVersionRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -417,7 +412,6 @@ fn rebuild_projections__restores_source_evidence_dependency_rows() {
         EventBuilder::new(
             AggregateType::Evidence,
             evidence_id.as_uuid(),
-            EventKind::EvidenceRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -433,7 +427,6 @@ fn rebuild_projections__restores_source_evidence_dependency_rows() {
         EventBuilder::new(
             AggregateType::Conclusion,
             conclusion_id.as_uuid(),
-            EventKind::ConclusionProposed,
             actor,
             Privacy::LocalOnly,
         )
@@ -442,6 +435,12 @@ fn rebuild_projections__restores_source_evidence_dependency_rows() {
             statement: "Y".into(),
             evidence_ids: vec![evidence_id],
             proposer: PrincipalId::new(),
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
+            protected_category: None,
+            unsupported: false,
+            model_provenance: None,
         }))
         .unwrap(),
     ] {
@@ -578,7 +577,6 @@ fn read_all_events__same_timestamp__stable_event_id_order() {
     let mut e_high = EventBuilder::new(
         AggregateType::Source,
         Uuid::new_v4(),
-        EventKind::SourceObserved,
         Actor::System,
         Privacy::LocalOnly,
     )
@@ -594,7 +592,6 @@ fn read_all_events__same_timestamp__stable_event_id_order() {
     let mut e_low = EventBuilder::new(
         AggregateType::Source,
         Uuid::new_v4(),
-        EventKind::SourceObserved,
         Actor::System,
         Privacy::LocalOnly,
     )

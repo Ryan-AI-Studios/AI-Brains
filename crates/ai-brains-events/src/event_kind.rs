@@ -71,6 +71,10 @@ pub enum EventKind {
     ContentErasureRequested,
     ContentErased,
 
+    // Claim conflicts (T150) — distinct from legacy ConflictDetected (memory)
+    ClaimConflictOpened,
+    ClaimConflictResolved,
+
     /// Forward-compatible catch-all; holds the original tag string.
     Unknown(String),
 }
@@ -129,6 +133,8 @@ impl EventKind {
             EventKind::QueryTraceRecorded => "QueryTraceRecorded",
             EventKind::ContentErasureRequested => "ContentErasureRequested",
             EventKind::ContentErased => "ContentErased",
+            EventKind::ClaimConflictOpened => "ClaimConflictOpened",
+            EventKind::ClaimConflictResolved => "ClaimConflictResolved",
             EventKind::Unknown(s) => s.as_str(),
         }
     }
@@ -186,6 +192,8 @@ impl EventKind {
             "QueryTraceRecorded" => EventKind::QueryTraceRecorded,
             "ContentErasureRequested" => EventKind::ContentErasureRequested,
             "ContentErased" => EventKind::ContentErased,
+            "ClaimConflictOpened" => EventKind::ClaimConflictOpened,
+            "ClaimConflictResolved" => EventKind::ClaimConflictResolved,
             other => EventKind::Unknown(other.to_string()),
         }
     }
@@ -207,5 +215,75 @@ impl<'de> Deserialize<'de> for EventKind {
 impl std::fmt::Display for EventKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+/// Single source of truth: envelope `event_type` is always derived from payload.
+///
+/// Exhaustive on known variants. [`Payload::Unknown`] extracts the JSON `type`
+/// tag when present so re-serialization preserves the future kind string.
+impl From<&crate::payload::Payload> for EventKind {
+    fn from(payload: &crate::payload::Payload) -> Self {
+        use crate::payload::Payload;
+        match payload {
+            Payload::SystemInitialized(_) => EventKind::SystemInitialized,
+            Payload::RecoveryKitCreated(_) => EventKind::RecoveryKitCreated,
+            Payload::ProjectRegistered(_) => EventKind::ProjectRegistered,
+            Payload::ProjectAliasAdded(_) => EventKind::ProjectAliasAdded,
+            Payload::SessionStarted(_) => EventKind::SessionStarted,
+            Payload::UserPromptRecorded(_) => EventKind::UserPromptRecorded,
+            Payload::AssistantFinalRecorded(_) => EventKind::AssistantFinalRecorded,
+            Payload::SessionCompleted(_) => EventKind::SessionCompleted,
+            Payload::SessionFailed(_) => EventKind::SessionFailed,
+            Payload::MemoryPinned(_) => EventKind::MemoryPinned,
+            Payload::MemoryForgotten(_) => EventKind::MemoryForgotten,
+            Payload::MemoryRestored(_) => EventKind::MemoryRestored,
+            Payload::SessionSummaryCreated(_) => EventKind::SessionSummaryCreated,
+            Payload::ConflictDetected(_) => EventKind::ConflictDetected,
+            Payload::RecipePromoted(_) => EventKind::RecipePromoted,
+            Payload::MemorySynthesized(_) => EventKind::MemorySynthesized,
+            Payload::FeedbackMetric(_) => EventKind::FeedbackMetric,
+            Payload::PredictionRecorded(_) => EventKind::PredictionRecorded,
+            Payload::VerifyOutcomeRecorded(_) => EventKind::VerifyOutcomeRecorded,
+            Payload::DecisionRecorded(_) => EventKind::DecisionRecorded,
+            Payload::IngestGateRejected(_) => EventKind::IngestGateRejected,
+            Payload::SourceRegistered(_) => EventKind::SourceRegistered,
+            Payload::SourceObserved(_) => EventKind::SourceObserved,
+            Payload::SourceVersionRecorded(_) => EventKind::SourceVersionRecorded,
+            Payload::SourceUnavailable(_) => EventKind::SourceUnavailable,
+            Payload::EvidenceRecorded(_) => EventKind::EvidenceRecorded,
+            Payload::EvidenceSuperseded(_) => EventKind::EvidenceSuperseded,
+            Payload::ConclusionProposed(_) => EventKind::ConclusionProposed,
+            Payload::ConclusionActivated(_) => EventKind::ConclusionActivated,
+            Payload::ConclusionConfirmed(_) => EventKind::ConclusionConfirmed,
+            Payload::ConclusionMarkedStale(_) => EventKind::ConclusionMarkedStale,
+            Payload::ConclusionDisputed(_) => EventKind::ConclusionDisputed,
+            Payload::ConclusionSuperseded(_) => EventKind::ConclusionSuperseded,
+            Payload::ConclusionRejected(_) => EventKind::ConclusionRejected,
+            Payload::DecisionProposed(_) => EventKind::DecisionProposed,
+            Payload::DecisionApproved(_) => EventKind::DecisionApproved,
+            Payload::DecisionSuperseded(_) => EventKind::DecisionSuperseded,
+            Payload::DecisionRevoked(_) => EventKind::DecisionRevoked,
+            Payload::WorkspaceRegistered(_) => EventKind::WorkspaceRegistered,
+            Payload::RepositoryJoinedWorkspace(_) => EventKind::RepositoryJoinedWorkspace,
+            Payload::ScopeGrantIssued(_) => EventKind::ScopeGrantIssued,
+            Payload::ScopeGrantRevoked(_) => EventKind::ScopeGrantRevoked,
+            Payload::PrincipalRegistered(_) => EventKind::PrincipalRegistered,
+            Payload::ReviewItemOpened(_) => EventKind::ReviewItemOpened,
+            Payload::ReviewItemResolved(_) => EventKind::ReviewItemResolved,
+            Payload::BriefingGenerated(_) => EventKind::BriefingGenerated,
+            Payload::QueryTraceRecorded(_) => EventKind::QueryTraceRecorded,
+            Payload::ContentErasureRequested(_) => EventKind::ContentErasureRequested,
+            Payload::ContentErased(_) => EventKind::ContentErased,
+            Payload::ClaimConflictOpened(_) => EventKind::ClaimConflictOpened,
+            Payload::ClaimConflictResolved(_) => EventKind::ClaimConflictResolved,
+            Payload::Unknown(value) => {
+                let tag = value
+                    .get("type")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("Unknown");
+                EventKind::from_str_tag(tag)
+            }
+        }
     }
 }

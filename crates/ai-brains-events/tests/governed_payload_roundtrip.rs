@@ -41,6 +41,11 @@ fn evidence_recorded__with_model_provenance__roundtrip() {
             model: "qwen".to_string(),
             model_version: Some("3.5".to_string()),
             workflow_version: None,
+            deployment: None,
+            input_ids: None,
+            output_hash: None,
+            started_at: None,
+            completed_at: None,
         }),
         summary: "snippet".to_string(),
     });
@@ -54,6 +59,12 @@ fn conclusion_proposed__roundtrip() {
         statement: "X is true".to_string(),
         evidence_ids: vec![EvidenceId::from_uuid(Uuid::from_u128(2))],
         proposer: PrincipalId::from_uuid(Uuid::from_u128(9)),
+        valid_from: None,
+        valid_until: None,
+        scope: String::new(),
+        protected_category: None,
+        unsupported: false,
+        model_provenance: None,
     });
     assert_eq!(roundtrip(p.clone()), p);
 }
@@ -204,6 +215,10 @@ fn decision_proposed_and_approved__locked_shape__roundtrip() {
         statement: "Control plane uses ports-only in P1".to_string(),
         proposer: PrincipalId::from_uuid(Uuid::from_u128(9)),
         conclusion_ids: Some(vec![ConclusionId::from_uuid(Uuid::from_u128(4))]),
+        evidence_ids: None,
+        valid_from: None,
+        valid_until: None,
+        scope: String::new(),
     });
     assert_eq!(roundtrip(proposal.clone()), proposal);
 

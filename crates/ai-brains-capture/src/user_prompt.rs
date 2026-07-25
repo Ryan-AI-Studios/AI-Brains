@@ -1,7 +1,7 @@
 use ai_brains_contracts::ingest::IngestRequest;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{Payload, UserPromptRecordedPayload};
-use ai_brains_events::{Actor, AggregateType, Envelope, EventKind};
+use ai_brains_events::{Actor, AggregateType, Envelope};
 
 pub fn build_user_prompt(
     request: &IngestRequest,
@@ -10,7 +10,6 @@ pub fn build_user_prompt(
     EventBuilder::new(
         AggregateType::Session,
         request.session_id.as_uuid(),
-        EventKind::UserPromptRecorded,
         Actor::Harness(request.harness_id),
         privacy,
     )

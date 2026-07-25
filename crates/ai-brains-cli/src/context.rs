@@ -1,7 +1,7 @@
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
+    Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
 };
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::{EventStore, QueryStore};
@@ -80,7 +80,6 @@ impl AppContext {
             let event = EventBuilder::new(
                 AggregateType::Project,
                 project_id.as_uuid(),
-                EventKind::ProjectAliasAdded,
                 Actor::User(ai_brains_core::ids::UserId::new()),
                 privacy,
             )
@@ -119,7 +118,6 @@ impl AppContext {
             let event = EventBuilder::new(
                 AggregateType::Project,
                 project_id.as_uuid(),
-                EventKind::ProjectRegistered,
                 Actor::User(ai_brains_core::ids::UserId::new()),
                 privacy,
             )

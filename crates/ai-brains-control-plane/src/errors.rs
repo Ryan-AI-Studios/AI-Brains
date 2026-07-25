@@ -11,6 +11,18 @@ pub enum ControlPlaneError {
     #[error("policy denied: {0}")]
     PolicyDenied(String),
 
+    #[error("approval required: {0}")]
+    ApprovalRequired(String),
+
+    #[error("unsupported conclusion cannot be confirmed: {0}")]
+    UnsupportedCannotConfirm(String),
+
+    #[error("not found: {0}")]
+    NotFound(String),
+
+    #[error("invalid transition: {0}")]
+    InvalidTransition(String),
+
     #[error("fingerprint failed: {0}")]
     Fingerprint(String),
 

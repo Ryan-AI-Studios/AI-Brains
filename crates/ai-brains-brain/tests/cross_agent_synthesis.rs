@@ -4,7 +4,7 @@ use ai_brains_brain::AggregatedLearningsService;
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, MemorySynthesizedPayload, Payload, ProjectRegisteredPayload,
+    Actor, AggregateType, MemorySynthesizedPayload, Payload, ProjectRegisteredPayload,
     constructors::EventBuilder,
 };
 use ai_brains_models::{CompletionResponse, MockProvider};
@@ -34,7 +34,6 @@ async fn test_cross_agent_synthesis_level_2() -> Result<(), Box<dyn std::error::
     let reg_event = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -50,7 +49,6 @@ async fn test_cross_agent_synthesis_level_2() -> Result<(), Box<dyn std::error::
     let event_0a1 = EventBuilder::new(
         AggregateType::Memory,
         memory_0a1_id.as_uuid(),
-        EventKind::MemorySynthesized,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -68,7 +66,6 @@ async fn test_cross_agent_synthesis_level_2() -> Result<(), Box<dyn std::error::
     let event_0a2 = EventBuilder::new(
         AggregateType::Memory,
         memory_0a2_id.as_uuid(),
-        EventKind::MemorySynthesized,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -86,7 +83,6 @@ async fn test_cross_agent_synthesis_level_2() -> Result<(), Box<dyn std::error::
     let event_1a = EventBuilder::new(
         AggregateType::Memory,
         memory_1a_id.as_uuid(),
-        EventKind::MemorySynthesized,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -104,7 +100,6 @@ async fn test_cross_agent_synthesis_level_2() -> Result<(), Box<dyn std::error::
     let event_0b1 = EventBuilder::new(
         AggregateType::Memory,
         memory_0b1_id.as_uuid(),
-        EventKind::MemorySynthesized,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -122,7 +117,6 @@ async fn test_cross_agent_synthesis_level_2() -> Result<(), Box<dyn std::error::
     let event_0b2 = EventBuilder::new(
         AggregateType::Memory,
         memory_0b2_id.as_uuid(),
-        EventKind::MemorySynthesized,
         actor.clone(),
         Privacy::LocalOnly,
     )
@@ -140,7 +134,6 @@ async fn test_cross_agent_synthesis_level_2() -> Result<(), Box<dyn std::error::
     let event_1b = EventBuilder::new(
         AggregateType::Memory,
         memory_1b_id.as_uuid(),
-        EventKind::MemorySynthesized,
         actor.clone(),
         Privacy::LocalOnly,
     )

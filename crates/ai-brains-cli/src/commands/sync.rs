@@ -197,7 +197,6 @@ pub fn run_pull(
                 let event = ai_brains_events::constructors::EventBuilder::new(
                     ai_brains_events::AggregateType::System,
                     uuid::Uuid::new_v4(),
-                    ai_brains_events::EventKind::VerifyOutcomeRecorded,
                     ai_brains_events::Actor::System,
                     combined_privacy,
                 )

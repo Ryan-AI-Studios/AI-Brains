@@ -21,7 +21,7 @@ use ai_brains_events::payload::{
     EvidenceRecordedPayload, EvidenceSupersededPayload, RepositoryJoinedWorkspacePayload,
     SourceRegisteredPayload, SourceVersionRecordedPayload, WorkspaceRegisteredPayload,
 };
-use ai_brains_events::{Actor, AggregateType, EventKind, Payload};
+use ai_brains_events::{Actor, AggregateType, Payload};
 use ai_brains_graph::{
     GraphProjector, GraphRebuilder, GraphSearch, GraphVault, SqliteGraphBackend,
 };
@@ -32,13 +32,11 @@ fn append(
     store: &impl EventStore,
     aggregate_type: AggregateType,
     aggregate_id: uuid::Uuid,
-    kind: EventKind,
     payload: Payload,
 ) -> Result<uuid::Uuid, Box<dyn std::error::Error>> {
     let envelope = EventBuilder::new(
         aggregate_type,
         aggregate_id,
-        kind,
         Actor::System,
         Privacy::LocalOnly,
     )
@@ -77,7 +75,6 @@ fn governed_fixture(
         store,
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceRegistered,
         Payload::SourceRegistered(SourceRegisteredPayload {
             source_id,
             kind: SourceKind::File,
@@ -91,7 +88,6 @@ fn governed_fixture(
         store,
         AggregateType::Source,
         source_id.as_uuid(),
-        EventKind::SourceVersionRecorded,
         Payload::SourceVersionRecorded(SourceVersionRecordedPayload {
             source_id,
             version_id,
@@ -104,7 +100,6 @@ fn governed_fixture(
         store,
         AggregateType::Evidence,
         evidence_id.as_uuid(),
-        EventKind::EvidenceRecorded,
         Payload::EvidenceRecorded(EvidenceRecordedPayload {
             evidence_id,
             source_id,
@@ -119,7 +114,6 @@ fn governed_fixture(
         store,
         AggregateType::Evidence,
         evidence_new.as_uuid(),
-        EventKind::EvidenceRecorded,
         Payload::EvidenceRecorded(EvidenceRecordedPayload {
             evidence_id: evidence_new,
             source_id,
@@ -134,7 +128,6 @@ fn governed_fixture(
         store,
         AggregateType::Evidence,
         evidence_id.as_uuid(),
-        EventKind::EvidenceSuperseded,
         Payload::EvidenceSuperseded(EvidenceSupersededPayload {
             evidence_id,
             superseded_by: evidence_new,
@@ -146,12 +139,17 @@ fn governed_fixture(
         store,
         AggregateType::Conclusion,
         conclusion_id.as_uuid(),
-        EventKind::ConclusionProposed,
         Payload::ConclusionProposed(ConclusionProposedPayload {
             conclusion_id,
             statement: "X holds".into(),
             evidence_ids: vec![evidence_new],
             proposer: principal,
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
+            protected_category: None,
+            unsupported: false,
+            model_provenance: None,
         }),
     )?;
 
@@ -159,13 +157,16 @@ fn governed_fixture(
         store,
         AggregateType::Decision,
         decision_id.as_uuid(),
-        EventKind::DecisionProposed,
         Payload::DecisionProposed(DecisionProposedPayload {
             decision_id,
             title: "Ship it".into(),
             statement: "We ship".into(),
             proposer: principal,
             conclusion_ids: Some(vec![conclusion_id]),
+            evidence_ids: None,
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
         }),
     )?;
 
@@ -173,7 +174,6 @@ fn governed_fixture(
         store,
         AggregateType::Workspace,
         workspace_id.as_uuid(),
-        EventKind::WorkspaceRegistered,
         Payload::WorkspaceRegistered(WorkspaceRegisteredPayload {
             workspace_id,
             name: "ws".into(),
@@ -184,7 +184,6 @@ fn governed_fixture(
         store,
         AggregateType::Workspace,
         workspace_id.as_uuid(),
-        EventKind::RepositoryJoinedWorkspace,
         Payload::RepositoryJoinedWorkspace(RepositoryJoinedWorkspacePayload {
             workspace_id,
             project_id,
@@ -337,7 +336,6 @@ fn conclusion_marked_stale__retains_historical_derived_from()
         &store,
         AggregateType::Conclusion,
         fx.conclusion_id.as_uuid(),
-        EventKind::ConclusionMarkedStale,
         Payload::ConclusionMarkedStale(stale),
     )?;
 

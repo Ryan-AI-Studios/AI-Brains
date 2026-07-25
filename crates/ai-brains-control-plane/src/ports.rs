@@ -1,4 +1,6 @@
-use ai_brains_core::ids::{ConclusionId, DecisionId, PrincipalId, SourceId, SourceVersionId};
+use ai_brains_core::ids::{
+    ConclusionId, ConflictId, DecisionId, PrincipalId, ReviewItemId, SourceId, SourceVersionId,
+};
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
 use ai_brains_events::Envelope;
@@ -17,6 +19,80 @@ pub struct StaleFact {
     pub changed_source_version_id: Option<SourceVersionId>,
     pub unavailable_reason: Option<String>,
     pub source_id: Option<SourceId>,
+}
+
+/// Row from `conclusion_projection`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConclusionRow {
+    pub id: ConclusionId,
+    pub state: String,
+    pub statement: String,
+    pub scope: String,
+    pub privacy: String,
+    pub proposer: String,
+    pub valid_from: OffsetDateTime,
+    pub valid_until: Option<OffsetDateTime>,
+    pub recorded_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+    pub supersedes: Option<String>,
+    pub superseded_by: Option<String>,
+    pub protected_category: Option<String>,
+    pub unsupported: bool,
+}
+
+/// Row from `decision_projection`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecisionRow {
+    pub id: DecisionId,
+    pub state: String,
+    pub title: String,
+    pub statement: String,
+    pub scope: String,
+    pub proposer: String,
+    pub approver: Option<String>,
+    pub proposal_event_id: Option<String>,
+    pub valid_from: Option<OffsetDateTime>,
+    pub valid_until: Option<OffsetDateTime>,
+    pub recorded_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+    pub superseded_by: Option<String>,
+}
+
+/// Row from `review_item_projection`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewItemRow {
+    pub id: ReviewItemId,
+    pub subject_kind: String,
+    pub subject_id: String,
+    pub criticality: String,
+    pub status: String,
+    pub opened_by: String,
+    pub subject: String,
+    pub resolution: Option<String>,
+    pub resolved_by: Option<String>,
+    pub related_conclusion_id: Option<String>,
+    pub related_decision_id: Option<String>,
+    pub related_source_id: Option<String>,
+    pub recorded_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+}
+
+/// Row from `claim_conflict_projection`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimConflictRow {
+    pub id: ConflictId,
+    pub claim_a_kind: String,
+    pub claim_a_id: String,
+    pub claim_b_kind: String,
+    pub claim_b_id: String,
+    pub status: String,
+    pub scope: String,
+    pub valid_from: Option<OffsetDateTime>,
+    pub valid_until: Option<OffsetDateTime>,
+    pub explanation: String,
+    pub resolution: Option<String>,
+    pub recorded_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
 }
 
 /// Typed projection reads for governed memory.
@@ -54,6 +130,36 @@ pub trait GovernedQueryStore {
     fn source_version_count(&self, source_id: SourceId) -> Result<u64>;
 
     fn evidence_count_for_source(&self, source_id: SourceId) -> Result<u64>;
+
+    // --- T150 typed epistemic rows ---
+
+    fn get_conclusion(&self, conclusion_id: ConclusionId) -> Result<Option<ConclusionRow>>;
+
+    fn list_conclusions_by_scope_state(
+        &self,
+        scope: Option<&str>,
+        state: Option<&str>,
+    ) -> Result<Vec<ConclusionRow>>;
+
+    fn get_decision(&self, decision_id: DecisionId) -> Result<Option<DecisionRow>>;
+
+    fn list_decisions(&self, scope: Option<&str>, state: Option<&str>) -> Result<Vec<DecisionRow>>;
+
+    fn list_open_review_items(&self) -> Result<Vec<ReviewItemRow>>;
+
+    fn get_review_item(&self, review_item_id: ReviewItemId) -> Result<Option<ReviewItemRow>>;
+
+    fn list_open_claim_conflicts(&self) -> Result<Vec<ClaimConflictRow>>;
+
+    fn get_claim_conflict(&self, conflict_id: ConflictId) -> Result<Option<ClaimConflictRow>>;
+
+    /// Conclusions whose valid-time window contains `at` (uses valid_from/until, not recorded time).
+    fn conclusions_valid_at(
+        &self,
+        scope: &str,
+        statement: Option<&str>,
+        at: OffsetDateTime,
+    ) -> Result<Vec<ConclusionRow>>;
 }
 
 /// Thin clock port (may wrap `ai_brains_core::clock` in adapters).

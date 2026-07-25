@@ -109,7 +109,7 @@ mod tests {
     use ai_brains_core::privacy::Privacy;
     use ai_brains_crypto::{DataKey, SqlCipherKey};
     use ai_brains_events::{
-        Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, constructors::EventBuilder,
+        Actor, AggregateType, MemoryPinnedPayload, Payload, constructors::EventBuilder,
     };
     use ai_brains_graph::{GraphSearch, GraphVault};
     use ai_brains_store::EventStore;
@@ -141,7 +141,6 @@ mod tests {
         let envelope = EventBuilder::new(
             AggregateType::Memory,
             memory_id.as_uuid(),
-            EventKind::MemoryPinned,
             Actor::System,
             Privacy::LocalOnly,
         )

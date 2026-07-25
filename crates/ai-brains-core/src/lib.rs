@@ -14,6 +14,7 @@ pub mod model_provenance;
 pub mod principal;
 pub mod privacy;
 pub mod project;
+pub mod protected_category;
 pub mod recipe;
 pub mod review;
 pub mod scope;

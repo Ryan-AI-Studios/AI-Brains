@@ -24,6 +24,9 @@ chrono = { workspace = true }
 rusqlite = { workspace = true }
 tempfile.workspace = true
 dunce = "1"
+sha2.workspace = true
+hex.workspace = true
+time.workspace = true
 
 [dev-dependencies]
 ai-brains-crypto = { path = "../ai-brains-crypto" }

@@ -18,6 +18,7 @@ pub use migrations::apply_migrations_through;
 pub use transaction::Transaction;
 
 use ai_brains_core::ids::{MemoryId, SessionId};
+use ai_brains_core::privacy::Privacy;
 
 pub trait QueryStore: std::marker::Send + std::marker::Sync {
     fn get_unsummarized_sessions(&self) -> Result<Vec<String>>;
@@ -29,6 +30,8 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         level: u32,
         limit: Option<usize>,
     ) -> Result<Vec<(MemoryId, String)>>;
+    /// Privacy flag for a memory in `memory_projection`, if present.
+    fn get_memory_privacy(&self, memory_id: &MemoryId) -> Result<Option<Privacy>>;
     fn delete_old_turns(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<usize>;
     fn list_forgotten_memories(
         &self,

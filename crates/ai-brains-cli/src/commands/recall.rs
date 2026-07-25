@@ -2,7 +2,7 @@ use crate::context::AppContext;
 use ai_brains_contracts::recall::{RecallResponse, RecallResult};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_events::constructors::EventBuilder;
-use ai_brains_events::{Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload};
+use ai_brains_events::{Actor, AggregateType, MemoryPinnedPayload, Payload};
 use ai_brains_retrieval::{RecallOptions, recall};
 use ai_brains_store::EventStore;
 use is_terminal::IsTerminal;
@@ -189,7 +189,6 @@ pub fn run(
             let ev = EventBuilder::new(
                 AggregateType::Memory,
                 memory_id.as_uuid(),
-                EventKind::MemoryPinned,
                 Actor::System,
                 ai_brains_core::privacy::Privacy::LocalOnly,
             )

@@ -3,7 +3,7 @@ mod common;
 use ai_brains_core::ids::MemoryId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, MemoryPinnedPayload, Payload, constructors::EventBuilder,
+    Actor, AggregateType, MemoryPinnedPayload, Payload, constructors::EventBuilder,
 };
 use ai_brains_graph::GraphProjector;
 use ai_brains_graph::{GraphSearch, GraphVault};
@@ -62,7 +62,6 @@ fn test_projector_links_pinned_recall_memory_to_session() -> Result<(), Box<dyn 
     let envelope = EventBuilder::new(
         AggregateType::Memory,
         memory_id.as_uuid(),
-        EventKind::MemoryPinned,
         Actor::System,
         Privacy::LocalOnly,
     )

@@ -5,7 +5,7 @@ use ai_brains_core::ids::{HarnessId, ProjectId, SessionId, TurnId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, Payload, ProjectRegisteredPayload, SessionStartedPayload,
+    Actor, AggregateType, Payload, ProjectRegisteredPayload, SessionStartedPayload,
 };
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
@@ -56,7 +56,6 @@ async fn spool_replays_after_restart() -> Result<(), Box<dyn std::error::Error +
     let project_event = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         Actor::System,
         Privacy::CloudOk,
     )
@@ -70,7 +69,6 @@ async fn spool_replays_after_restart() -> Result<(), Box<dyn std::error::Error +
     let session_event = EventBuilder::new(
         AggregateType::Session,
         session_id.as_uuid(),
-        EventKind::SessionStarted,
         Actor::System,
         Privacy::CloudOk,
     )

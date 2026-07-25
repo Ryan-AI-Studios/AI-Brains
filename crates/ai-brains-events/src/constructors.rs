@@ -8,10 +8,15 @@ use ai_brains_core::clock;
 use ai_brains_core::privacy::Privacy;
 use uuid::Uuid;
 
+/// Builds an [`Envelope`] whose `event_type` is **derived from the payload**.
+///
+/// Aggregate type remains explicit: not every payload maps 1:1 to a single
+/// aggregate (legacy dual-model and multi-aggregate workflows). Event kind
+/// never does — mismatched kind/payload pairs are unrepresentable via this
+/// builder (T150 deferred #13 structural fix).
 pub struct EventBuilder {
     aggregate_type: AggregateType,
     aggregate_id: Uuid,
-    event_type: EventKind,
     actor: Actor,
     privacy: Privacy,
     causation_id: Option<Uuid>,
@@ -22,14 +27,12 @@ impl EventBuilder {
     pub fn new(
         aggregate_type: AggregateType,
         aggregate_id: Uuid,
-        event_type: EventKind,
         actor: Actor,
         privacy: Privacy,
     ) -> Self {
         Self {
             aggregate_type,
             aggregate_id,
-            event_type,
             actor,
             privacy,
             causation_id: None,
@@ -52,6 +55,7 @@ impl EventBuilder {
             p.validate()?;
         }
 
+        let event_type = EventKind::from(&payload);
         let payload_hash = compute_payload_hash(&payload)?;
 
         Ok(Envelope {
@@ -59,7 +63,7 @@ impl EventBuilder {
             schema_version: crate::version::CURRENT_SCHEMA_VERSION,
             aggregate_type: self.aggregate_type,
             aggregate_id: self.aggregate_id,
-            event_type: self.event_type,
+            event_type,
             occurred_at: clock::now(),
             actor: self.actor,
             causation_id: self.causation_id,

@@ -2,14 +2,13 @@ use crate::command_handler::{SessionStopCommand, SessionStopStatus};
 use crate::errors::CaptureError;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{Payload, SessionCompletedPayload, SessionFailedPayload};
-use ai_brains_events::{Actor, AggregateType, Envelope, EventKind};
+use ai_brains_events::{Actor, AggregateType, Envelope};
 
 pub fn build_session_stop(command: &SessionStopCommand) -> crate::Result<Envelope> {
     match command.status {
         SessionStopStatus::Completed => EventBuilder::new(
             AggregateType::Session,
             command.session_id.as_uuid(),
-            EventKind::SessionCompleted,
             Actor::Harness(command.harness_id),
             command.privacy,
         )
@@ -25,7 +24,6 @@ pub fn build_session_stop(command: &SessionStopCommand) -> crate::Result<Envelop
             EventBuilder::new(
                 AggregateType::Session,
                 command.session_id.as_uuid(),
-                EventKind::SessionFailed,
                 Actor::Harness(command.harness_id),
                 command.privacy,
             )
@@ -38,7 +36,6 @@ pub fn build_session_stop(command: &SessionStopCommand) -> crate::Result<Envelop
         SessionStopStatus::Aborted => EventBuilder::new(
             AggregateType::Session,
             command.session_id.as_uuid(),
-            EventKind::SessionFailed,
             Actor::Harness(command.harness_id),
             command.privacy,
         )

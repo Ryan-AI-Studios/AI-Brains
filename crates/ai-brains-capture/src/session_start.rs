@@ -1,13 +1,12 @@
 use crate::command_handler::SessionStartCommand;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{Payload, SessionStartedPayload};
-use ai_brains_events::{Actor, AggregateType, Envelope, EventKind};
+use ai_brains_events::{Actor, AggregateType, Envelope};
 
 pub fn build_session_started(command: &SessionStartCommand) -> crate::Result<Envelope> {
     EventBuilder::new(
         AggregateType::Session,
         command.session_id.as_uuid(),
-        EventKind::SessionStarted,
         Actor::Harness(command.harness_id),
         command.privacy,
     )

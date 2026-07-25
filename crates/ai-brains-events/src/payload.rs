@@ -264,6 +264,26 @@ pub struct ConclusionProposedPayload {
     pub statement: String,
     pub evidence_ids: Vec<EvidenceId>,
     pub proposer: PrincipalId,
+    /// Domain valid-from (≠ recorded `Envelope.occurred_at`). Historical fixtures
+    /// omit this; projection defaults to `occurred_at` when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub valid_from: Option<OffsetDateTime>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub valid_until: Option<OffsetDateTime>,
+    /// Scope identity key (e.g. `Repository:{project_id}`); empty when absent.
+    #[serde(default)]
+    pub scope: String,
+    /// Protected category name (PascalCase) when gated for human approval.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protected_category: Option<String>,
+    /// True when proposed without supporting evidence ids.
+    #[serde(default)]
+    pub unsupported: bool,
+    /// Model lineage for synthesis-derived candidates (no CoT). Historical fixtures omit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_provenance: Option<ModelProvenance>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -365,8 +385,21 @@ pub struct DecisionProposedPayload {
     pub title: String,
     pub statement: String,
     pub proposer: PrincipalId,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conclusion_ids: Option<Vec<ConclusionId>>,
+    /// Supporting evidence links (optional; additive schema default None).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_ids: Option<Vec<EvidenceId>>,
+    /// Domain valid-from (optional; historical fixtures omit).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub valid_from: Option<OffsetDateTime>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub valid_until: Option<OffsetDateTime>,
+    /// Scope identity key; empty when absent.
+    #[serde(default)]
+    pub scope: String,
 }
 
 /// Locked T148 shape: identity + proposal event + approver + approval time.
@@ -482,6 +515,31 @@ pub struct ContentErasedPayload {
     pub tombstone_id: TombstoneId,
 }
 
+/// Open a claim-level conflict (T150; distinct from legacy memory ConflictDetected).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClaimConflictOpenedPayload {
+    pub conflict_id: ConflictId,
+    pub claim_a_kind: String,
+    pub claim_a_id: String,
+    pub claim_b_kind: String,
+    pub claim_b_id: String,
+    pub scope: String,
+    pub explanation: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub valid_from: Option<OffsetDateTime>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub valid_until: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClaimConflictResolvedPayload {
+    pub conflict_id: ConflictId,
+    pub resolution: String,
+    pub resolved_by: PrincipalId,
+}
+
 /// Internally tagged payload (`type` field, PascalCase).
 ///
 /// [`Payload::Unknown`] preserves the full original JSON object so shadow/append
@@ -537,6 +595,8 @@ pub enum Payload {
     QueryTraceRecorded(QueryTraceRecordedPayload),
     ContentErasureRequested(ContentErasureRequestedPayload),
     ContentErased(ContentErasedPayload),
+    ClaimConflictOpened(ClaimConflictOpenedPayload),
+    ClaimConflictResolved(ClaimConflictResolvedPayload),
     /// Full original JSON object for unrecognized `type` tags.
     Unknown(serde_json::Value),
 }
@@ -594,6 +654,8 @@ enum KnownPayload {
     QueryTraceRecorded(QueryTraceRecordedPayload),
     ContentErasureRequested(ContentErasureRequestedPayload),
     ContentErased(ContentErasedPayload),
+    ClaimConflictOpened(ClaimConflictOpenedPayload),
+    ClaimConflictResolved(ClaimConflictResolvedPayload),
 }
 
 fn is_known_payload_type(type_str: &str) -> bool {
@@ -648,6 +710,8 @@ fn is_known_payload_type(type_str: &str) -> bool {
             | "QueryTraceRecorded"
             | "ContentErasureRequested"
             | "ContentErased"
+            | "ClaimConflictOpened"
+            | "ClaimConflictResolved"
     )
 }
 
@@ -703,6 +767,8 @@ impl From<KnownPayload> for Payload {
             KnownPayload::QueryTraceRecorded(p) => Payload::QueryTraceRecorded(p),
             KnownPayload::ContentErasureRequested(p) => Payload::ContentErasureRequested(p),
             KnownPayload::ContentErased(p) => Payload::ContentErased(p),
+            KnownPayload::ClaimConflictOpened(p) => Payload::ClaimConflictOpened(p),
+            KnownPayload::ClaimConflictResolved(p) => Payload::ClaimConflictResolved(p),
         }
     }
 }
@@ -761,6 +827,8 @@ impl Payload {
             Payload::QueryTraceRecorded(p) => KnownPayload::QueryTraceRecorded(p.clone()),
             Payload::ContentErasureRequested(p) => KnownPayload::ContentErasureRequested(p.clone()),
             Payload::ContentErased(p) => KnownPayload::ContentErased(p.clone()),
+            Payload::ClaimConflictOpened(p) => KnownPayload::ClaimConflictOpened(p.clone()),
+            Payload::ClaimConflictResolved(p) => KnownPayload::ClaimConflictResolved(p.clone()),
             Payload::Unknown(_) => return None,
         })
     }

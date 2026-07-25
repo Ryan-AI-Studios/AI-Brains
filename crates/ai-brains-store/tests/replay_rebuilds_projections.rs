@@ -4,8 +4,7 @@ use ai_brains_core::ids::ProjectId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::{
-    Actor, AggregateType, EventKind, Payload, constructors::EventBuilder,
-    payload::ProjectRegisteredPayload,
+    Actor, AggregateType, Payload, constructors::EventBuilder, payload::ProjectRegisteredPayload,
 };
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
@@ -37,7 +36,6 @@ fn test_replay_rebuilds_projections() {
     let envelope = EventBuilder::new(
         AggregateType::Project,
         project_id.as_uuid(),
-        EventKind::ProjectRegistered,
         actor,
         Privacy::LocalOnly,
     )

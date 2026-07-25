@@ -20,7 +20,7 @@ use ai_brains_events::payload::{
     ConclusionProposedPayload, DecisionProposedPayload, EvidenceRecordedPayload,
     SourceRegisteredPayload, SourceVersionRecordedPayload,
 };
-use ai_brains_events::{Actor, AggregateType, EventKind, Payload};
+use ai_brains_events::{Actor, AggregateType, Payload};
 use ai_brains_store::SqliteEventStore;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::EventStore as StoreEventStore;
@@ -73,7 +73,6 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
         EventBuilder::new(
             AggregateType::Source,
             source_a.as_uuid(),
-            EventKind::SourceRegistered,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -88,7 +87,6 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
         EventBuilder::new(
             AggregateType::Source,
             source_a.as_uuid(),
-            EventKind::SourceVersionRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -104,7 +102,6 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
         EventBuilder::new(
             AggregateType::Evidence,
             evidence_a.as_uuid(),
-            EventKind::EvidenceRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -120,7 +117,6 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
         EventBuilder::new(
             AggregateType::Source,
             source_b.as_uuid(),
-            EventKind::SourceRegistered,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -135,7 +131,6 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
         EventBuilder::new(
             AggregateType::Source,
             source_b.as_uuid(),
-            EventKind::SourceVersionRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -151,7 +146,6 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
         EventBuilder::new(
             AggregateType::Evidence,
             evidence_b.as_uuid(),
-            EventKind::EvidenceRecorded,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -167,7 +161,6 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
         EventBuilder::new(
             AggregateType::Conclusion,
             conclusion_a.as_uuid(),
-            EventKind::ConclusionProposed,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -176,12 +169,17 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
             statement: "depends on A".into(),
             evidence_ids: vec![evidence_a],
             proposer: principal,
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
+            protected_category: None,
+            unsupported: false,
+            model_provenance: None,
         }))
         .unwrap(),
         EventBuilder::new(
             AggregateType::Conclusion,
             conclusion_b.as_uuid(),
-            EventKind::ConclusionProposed,
             actor.clone(),
             Privacy::LocalOnly,
         )
@@ -190,12 +188,17 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
             statement: "depends on B".into(),
             evidence_ids: vec![evidence_b],
             proposer: principal,
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
+            protected_category: None,
+            unsupported: false,
+            model_provenance: None,
         }))
         .unwrap(),
         EventBuilder::new(
             AggregateType::Decision,
             decision_a.as_uuid(),
-            EventKind::DecisionProposed,
             actor,
             Privacy::LocalOnly,
         )
@@ -205,6 +208,10 @@ fn seed_two_sources_two_conclusions(ports: &StorePorts) -> Fixture {
             statement: "we ship based on A".into(),
             proposer: principal,
             conclusion_ids: Some(vec![conclusion_a]),
+            evidence_ids: None,
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
         }))
         .unwrap(),
     ];
@@ -423,7 +430,6 @@ fn revalidate__same_fingerprint__clears_matching_stale_only() {
             EventBuilder::new(
                 AggregateType::Conclusion,
                 conclusion_a.as_uuid(),
-                EventKind::ConclusionProposed,
                 actor.clone(),
                 Privacy::LocalOnly,
             )
@@ -432,12 +438,17 @@ fn revalidate__same_fingerprint__clears_matching_stale_only() {
                 statement: "A".into(),
                 evidence_ids: vec![evidence_a],
                 proposer: principal,
+                valid_from: None,
+                valid_until: None,
+                scope: String::new(),
+                protected_category: None,
+                unsupported: false,
+                model_provenance: None,
             }))
             .unwrap(),
             EventBuilder::new(
                 AggregateType::Conclusion,
                 conclusion_b.as_uuid(),
-                EventKind::ConclusionProposed,
                 actor,
                 Privacy::LocalOnly,
             )
@@ -446,6 +457,12 @@ fn revalidate__same_fingerprint__clears_matching_stale_only() {
                 statement: "B".into(),
                 evidence_ids: vec![evidence_b],
                 proposer: principal,
+                valid_from: None,
+                valid_until: None,
+                scope: String::new(),
+                protected_category: None,
+                unsupported: false,
+                model_provenance: None,
             }))
             .unwrap(),
         ])
@@ -561,7 +578,6 @@ fn revalidate__mismatched_stale_version__not_cleared() {
             EventBuilder::new(
                 AggregateType::Conclusion,
                 conclusion_id.as_uuid(),
-                EventKind::ConclusionProposed,
                 Actor::System,
                 Privacy::LocalOnly,
             )
@@ -570,12 +586,17 @@ fn revalidate__mismatched_stale_version__not_cleared() {
                 statement: "depends".into(),
                 evidence_ids: vec![evidence_id],
                 proposer: principal,
+                valid_from: None,
+                valid_until: None,
+                scope: String::new(),
+                protected_category: None,
+                unsupported: false,
+                model_provenance: None,
             }))
             .unwrap(),
             EventBuilder::new(
                 AggregateType::Conclusion,
                 conclusion_id.as_uuid(),
-                EventKind::ConclusionMarkedStale,
                 Actor::System,
                 Privacy::LocalOnly,
             )
@@ -791,7 +812,6 @@ fn revalidate__unavailable_other_source__not_cleared() {
         .append_events(&[EventBuilder::new(
             AggregateType::Conclusion,
             conclusion_id.as_uuid(),
-            EventKind::ConclusionProposed,
             Actor::System,
             Privacy::LocalOnly,
         )
@@ -800,6 +820,12 @@ fn revalidate__unavailable_other_source__not_cleared() {
             statement: "depends on A and B".into(),
             evidence_ids: vec![evidence_a, evidence_b],
             proposer: principal,
+            valid_from: None,
+            valid_until: None,
+            scope: String::new(),
+            protected_category: None,
+            unsupported: false,
+            model_provenance: None,
         }))
         .unwrap()])
         .unwrap();
