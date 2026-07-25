@@ -15,6 +15,7 @@ pub mod principal;
 pub mod privacy;
 pub mod project;
 pub mod recipe;
+pub mod review;
 pub mod scope;
 pub mod session;
 pub mod source;

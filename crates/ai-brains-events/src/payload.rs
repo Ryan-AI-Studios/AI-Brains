@@ -4,6 +4,7 @@ use ai_brains_core::ids::{
     SourceVersionId, TombstoneId, TransactionId, WorkspaceId,
 };
 use ai_brains_core::model_provenance::ModelProvenance;
+use ai_brains_core::review::{ReviewCriticality, ReviewSubjectKind};
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -206,6 +207,9 @@ pub struct SourceRegisteredPayload {
     pub display_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub locator: Option<String>,
+    /// Scope identity key (e.g. `Personal:{user_id}`); absent on historical events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -282,6 +286,56 @@ pub struct ConclusionMarkedStalePayload {
     pub changed_source_version_id: Option<SourceVersionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unavailable_reason: Option<String>,
+    /// Optional source that triggered staleness (T149 revalidation matching).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_id: Option<SourceId>,
+}
+
+impl ConclusionMarkedStalePayload {
+    /// Require at least one of version id or non-empty unavailable reason.
+    pub fn validate(&self) -> Result<(), crate::errors::EventError> {
+        let has_version = self.changed_source_version_id.is_some();
+        let has_reason = self
+            .unavailable_reason
+            .as_ref()
+            .is_some_and(|r| !r.trim().is_empty());
+        if !has_version && !has_reason {
+            return Err(crate::errors::EventError::InvalidPayload(
+                "ConclusionMarkedStale requires changed_source_version_id or non-empty unavailable_reason"
+                    .to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn try_new(
+        conclusion_id: ConclusionId,
+        changed_source_version_id: Option<SourceVersionId>,
+        unavailable_reason: Option<String>,
+    ) -> Result<Self, crate::errors::EventError> {
+        Self::try_new_with_source(
+            conclusion_id,
+            changed_source_version_id,
+            unavailable_reason,
+            None,
+        )
+    }
+
+    pub fn try_new_with_source(
+        conclusion_id: ConclusionId,
+        changed_source_version_id: Option<SourceVersionId>,
+        unavailable_reason: Option<String>,
+        source_id: Option<SourceId>,
+    ) -> Result<Self, crate::errors::EventError> {
+        let payload = Self {
+            conclusion_id,
+            changed_source_version_id,
+            unavailable_reason,
+            source_id,
+        };
+        payload.validate()?;
+        Ok(payload)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -377,6 +431,20 @@ pub struct ReviewItemOpenedPayload {
     pub review_item_id: ReviewItemId,
     pub subject: String,
     pub opened_by: PrincipalId,
+    /// Structured subject kind (Decision / Source / …). Defaults for historical rows.
+    #[serde(default)]
+    pub subject_kind: ReviewSubjectKind,
+    /// Subject entity id as string (decision/source/conclusion uuid).
+    #[serde(default)]
+    pub subject_id: String,
+    #[serde(default)]
+    pub criticality: ReviewCriticality,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub related_conclusion_id: Option<ConclusionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub related_decision_id: Option<DecisionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub related_source_id: Option<SourceId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

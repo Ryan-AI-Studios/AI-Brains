@@ -9,6 +9,7 @@ mod privacy;
 mod session_start;
 mod session_stop;
 mod user_prompt;
+pub mod verification_evidence;
 pub mod verification_gate;
 
 pub use command_handler::{
@@ -17,4 +18,11 @@ pub use command_handler::{
 };
 pub use errors::{CaptureError, Result, VerificationGateRejection};
 pub use malformed::parse_ingest_request;
-pub use verification_gate::{GateDecision, VerificationGate, VerifyResponse};
+pub use verification_evidence::{
+    VerificationEvidence, VerificationEvidenceStatus, build_verification_evidence_events,
+    verification_gate_source_id,
+};
+pub use verification_gate::{
+    ChangeGuardVerificationBackend, GateDecision, VerificationBackend, VerificationGate,
+    VerifyResponse,
+};

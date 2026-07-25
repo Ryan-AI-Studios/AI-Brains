@@ -5,12 +5,21 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Governed-memory control plane ports (no workflows/adapters in T148)"
+description = "Governed-memory control plane ports, adapters, and observation/invalidation workflows"
 
 [dependencies]
 ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
 ai-brains-events = { path = "../ai-brains-events", version = "0.1.0" }
+ai-brains-path = { path = "../ai-brains-path", version = "0.1.0" }
+ai-brains-sources = { path = "../ai-brains-sources", version = "0.1.0" }
+ai-brains-store = { path = "../ai-brains-store", version = "0.1.0" }
 thiserror.workspace = true
 time.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+uuid.workspace = true
+rusqlite.workspace = true
+
+[dev-dependencies]
+ai-brains-crypto = { path = "../ai-brains-crypto", version = "0.1.0" }
+tempfile.workspace = true

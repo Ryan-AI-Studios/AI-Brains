@@ -3,11 +3,14 @@ use crate::connection::VaultConnection;
 use crate::errors::{Result, StoreError};
 use crate::projections;
 use ai_brains_events::Envelope;
+use ai_brains_events::Payload;
 use rusqlite::params;
 use uuid::Uuid;
 
 pub trait EventStore: Send + Sync {
     fn append_event(&self, envelope: &Envelope) -> Result<()>;
+    /// Append multiple events in a single transaction (all-or-nothing).
+    fn append_events(&self, envelopes: &[Envelope]) -> Result<()>;
     fn read_events(&self, aggregate_id: Uuid) -> Result<Vec<Envelope>>;
     fn read_all_events(&self) -> Result<Vec<Envelope>>;
     fn get_sync_state(&self, key: &str) -> Result<Option<String>>;
@@ -44,26 +47,71 @@ impl SyncStateStore for SqliteEventStore {
     }
 }
 
+fn validate_envelope_payload(envelope: &Envelope) -> Result<()> {
+    if let Payload::ConclusionMarkedStale(ref p) = envelope.payload {
+        p.validate()
+            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+    }
+    Ok(())
+}
+
+fn insert_event_row(tx: &rusqlite::Transaction<'_>, envelope: &Envelope) -> Result<()> {
+    let actor_json = serde_json::to_string(&envelope.actor)
+        .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+    let payload_json = serde_json::to_string(&envelope.payload)
+        .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+    let occurred_at = envelope
+        .occurred_at
+        .format(&time::format_description::well_known::Rfc3339)
+        .map_err(|e| StoreError::EventAppendFailed(format!("Failed to format date: {}", e)))?;
+
+    let aggregate_type_str = serde_json::to_string(&envelope.aggregate_type)
+        .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?
+        .trim_matches('"')
+        .to_string();
+
+    let event_type_str = serde_json::to_string(&envelope.event_type)
+        .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?
+        .trim_matches('"')
+        .to_string();
+
+    tx.execute(
+        "INSERT INTO events (
+            event_id, schema_version, aggregate_type, aggregate_id, event_type,
+            occurred_at, actor_json, causation_id, correlation_id, privacy,
+            payload_json, payload_hash
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params![
+            envelope.event_id.to_string(),
+            envelope.schema_version,
+            aggregate_type_str,
+            envelope.aggregate_id.to_string(),
+            event_type_str,
+            occurred_at,
+            actor_json,
+            envelope.causation_id.map(|u| u.to_string()),
+            envelope.correlation_id.map(|u| u.to_string()),
+            serde_json::to_string(&envelope.privacy)
+                .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?,
+            payload_json,
+            envelope.payload_hash,
+        ],
+    )
+    .map_err(|e| {
+        if e.to_string().contains("events are immutable") {
+            StoreError::ImmutableEventModified(e.to_string())
+        } else {
+            StoreError::EventAppendFailed(e.to_string())
+        }
+    })?;
+
+    projections::apply_all(tx, envelope)?;
+    Ok(())
+}
+
 impl EventStore for SqliteEventStore {
     fn append_event(&self, envelope: &Envelope) -> Result<()> {
-        let actor_json = serde_json::to_string(&envelope.actor)
-            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
-        let payload_json = serde_json::to_string(&envelope.payload)
-            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
-        let occurred_at = envelope
-            .occurred_at
-            .format(&time::format_description::well_known::Rfc3339)
-            .map_err(|e| StoreError::EventAppendFailed(format!("Failed to format date: {}", e)))?;
-
-        let aggregate_type_str = serde_json::to_string(&envelope.aggregate_type)
-            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?
-            .trim_matches('"')
-            .to_string();
-
-        let event_type_str = serde_json::to_string(&envelope.event_type)
-            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?
-            .trim_matches('"')
-            .to_string();
+        validate_envelope_payload(envelope)?;
 
         let mut conn = self
             .conn
@@ -74,38 +122,35 @@ impl EventStore for SqliteEventStore {
             .transaction()
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
 
-        tx.execute(
-            "INSERT INTO events (
-                event_id, schema_version, aggregate_type, aggregate_id, event_type,
-                occurred_at, actor_json, causation_id, correlation_id, privacy,
-                payload_json, payload_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            params![
-                envelope.event_id.to_string(),
-                envelope.schema_version,
-                aggregate_type_str,
-                envelope.aggregate_id.to_string(),
-                event_type_str,
-                occurred_at,
-                actor_json,
-                envelope.causation_id.map(|u| u.to_string()),
-                envelope.correlation_id.map(|u| u.to_string()),
-                serde_json::to_string(&envelope.privacy)
-                    .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?,
-                payload_json,
-                envelope.payload_hash,
-            ],
-        )
-        .map_err(|e| {
-            if e.to_string().contains("events are immutable") {
-                StoreError::ImmutableEventModified(e.to_string())
-            } else {
-                StoreError::EventAppendFailed(e.to_string())
-            }
-        })?;
+        insert_event_row(&tx, envelope)?;
 
-        // Apply projections
-        projections::apply_all(&tx, envelope)?;
+        tx.commit()
+            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+
+        Ok(())
+    }
+
+    fn append_events(&self, envelopes: &[Envelope]) -> Result<()> {
+        if envelopes.is_empty() {
+            return Ok(());
+        }
+
+        for envelope in envelopes {
+            validate_envelope_payload(envelope)?;
+        }
+
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+
+        let tx = conn
+            .transaction()
+            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+
+        for envelope in envelopes {
+            insert_event_row(&tx, envelope)?;
+        }
 
         tx.commit()
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
@@ -171,7 +216,7 @@ impl SqliteEventStore {
                     payload_json, payload_hash
                 FROM events 
                 WHERE aggregate_id = ?
-                ORDER BY occurred_at ASC",
+                ORDER BY occurred_at ASC, event_id ASC",
                 vec![id.to_string()],
             ),
             None => (
@@ -180,7 +225,7 @@ impl SqliteEventStore {
                     occurred_at, actor_json, causation_id, correlation_id, privacy,
                     payload_json, payload_hash
                 FROM events 
-                ORDER BY occurred_at ASC",
+                ORDER BY occurred_at ASC, event_id ASC",
                 vec![],
             ),
         };

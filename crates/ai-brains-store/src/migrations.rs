@@ -78,9 +78,27 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0019_embedding_timestamp",
         include_str!("../migrations/0019_embedding_timestamp.sql"),
     ),
+    (
+        "0020_source_evidence",
+        include_str!("../migrations/0020_source_evidence.sql"),
+    ),
+    (
+        "0021_knowledge_dependencies",
+        include_str!("../migrations/0021_knowledge_dependencies.sql"),
+    ),
+    (
+        "0022_graph_governed_kinds",
+        include_str!("../migrations/0022_graph_governed_kinds.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {
+    apply_migrations_through(conn, None)
+}
+
+/// Apply migrations up to and including `through_name` (inclusive).
+/// When `through_name` is `None`, applies all registered migrations.
+pub fn apply_migrations_through(conn: &mut Connection, through_name: Option<&str>) -> Result<()> {
     // Create schema_migrations table if it doesn't exist
     conn.execute(
         "CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -107,6 +125,10 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<()> {
             tx.execute("INSERT INTO schema_migrations (name) VALUES (?)", [name])?;
 
             tx.commit()?;
+        }
+
+        if through_name == Some(*name) {
+            break;
         }
     }
 

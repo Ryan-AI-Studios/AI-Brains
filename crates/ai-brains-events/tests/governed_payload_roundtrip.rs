@@ -24,6 +24,7 @@ fn source_registered__roundtrip() {
         kind: SourceKind::GitRepository,
         display_name: "repo".to_string(),
         locator: Some("https://example.com/r.git".to_string()),
+        scope: Some("Personal:00000000-0000-0000-0000-000000000009".to_string()),
     });
     assert_eq!(roundtrip(p.clone()), p);
 }
@@ -102,6 +103,7 @@ fn remaining_governed_payloads__roundtrip_subset() {
             conclusion_id: ConclusionId::from_uuid(Uuid::from_u128(5)),
             changed_source_version_id: Some(SourceVersionId::from_uuid(Uuid::from_u128(2))),
             unavailable_reason: None,
+            source_id: Some(SourceId::from_uuid(Uuid::from_u128(1))),
         }),
         Payload::ConclusionDisputed(ConclusionDisputedPayload {
             conclusion_id: ConclusionId::from_uuid(Uuid::from_u128(5)),
@@ -155,6 +157,12 @@ fn remaining_governed_payloads__roundtrip_subset() {
             review_item_id: ReviewItemId::from_uuid(Uuid::from_u128(14)),
             subject: "review".into(),
             opened_by: PrincipalId::from_uuid(Uuid::from_u128(9)),
+            subject_kind: ai_brains_core::review::ReviewSubjectKind::Decision,
+            subject_id: DecisionId::from_uuid(Uuid::from_u128(7)).to_string(),
+            criticality: ai_brains_core::review::ReviewCriticality::High,
+            related_conclusion_id: None,
+            related_decision_id: Some(DecisionId::from_uuid(Uuid::from_u128(7))),
+            related_source_id: Some(SourceId::from_uuid(Uuid::from_u128(1))),
         }),
         Payload::ReviewItemResolved(ReviewItemResolvedPayload {
             review_item_id: ReviewItemId::from_uuid(Uuid::from_u128(14)),

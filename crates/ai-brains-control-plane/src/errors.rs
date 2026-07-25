@@ -16,6 +16,9 @@ pub enum ControlPlaneError {
 
     #[error("clock error: {0}")]
     Clock(String),
+
+    #[error("invalid payload: {0}")]
+    InvalidPayload(String),
 }
 
 pub type Result<T> = std::result::Result<T, ControlPlaneError>;

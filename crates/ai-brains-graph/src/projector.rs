@@ -183,6 +183,152 @@ impl<'a> GraphProjector<'a> {
                     });
                 }
             }
+            // --- Governed provenance (T149 Phase G) ---
+            Payload::SourceRegistered(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.source_id.to_string(),
+                    label: p.display_name.clone(),
+                    category: "source".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+            }
+            Payload::SourceVersionRecorded(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.source_id.to_string(),
+                    label: "Source".to_string(),
+                    category: "source".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                self.node_buffer.push(GraphNode {
+                    id: p.version_id.to_string(),
+                    label: "SourceVersion".to_string(),
+                    category: "source_version".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                self.edge_buffer.push(GraphEdge {
+                    source: p.source_id.to_string(),
+                    target: p.version_id.to_string(),
+                    relation: "CONTAINS".to_string(),
+                    confidence: 1.0,
+                });
+            }
+            Payload::EvidenceRecorded(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.evidence_id.to_string(),
+                    label: "Evidence".to_string(),
+                    category: "evidence".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                if let Some(version_id) = &p.source_version_id {
+                    self.node_buffer.push(GraphNode {
+                        id: version_id.to_string(),
+                        label: "SourceVersion".to_string(),
+                        category: "source_version".to_string(),
+                        metadata: serde_json::json!({}),
+                    });
+                    self.edge_buffer.push(GraphEdge {
+                        source: p.evidence_id.to_string(),
+                        target: version_id.to_string(),
+                        relation: "OBSERVED_FROM".to_string(),
+                        confidence: 1.0,
+                    });
+                }
+            }
+            Payload::EvidenceSuperseded(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.evidence_id.to_string(),
+                    label: "Evidence".to_string(),
+                    category: "evidence".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                self.node_buffer.push(GraphNode {
+                    id: p.superseded_by.to_string(),
+                    label: "Evidence".to_string(),
+                    category: "evidence".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                // successor SUPERSEDES predecessor
+                self.edge_buffer.push(GraphEdge {
+                    source: p.superseded_by.to_string(),
+                    target: p.evidence_id.to_string(),
+                    relation: "SUPERSEDES".to_string(),
+                    confidence: 1.0,
+                });
+            }
+            Payload::ConclusionProposed(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.conclusion_id.to_string(),
+                    label: "Conclusion".to_string(),
+                    category: "conclusion".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                for evidence_id in &p.evidence_ids {
+                    self.node_buffer.push(GraphNode {
+                        id: evidence_id.to_string(),
+                        label: "Evidence".to_string(),
+                        category: "evidence".to_string(),
+                        metadata: serde_json::json!({}),
+                    });
+                    self.edge_buffer.push(GraphEdge {
+                        source: p.conclusion_id.to_string(),
+                        target: evidence_id.to_string(),
+                        relation: "DERIVED_FROM".to_string(),
+                        confidence: 1.0,
+                    });
+                }
+            }
+            Payload::DecisionProposed(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.decision_id.to_string(),
+                    label: p.title.clone(),
+                    category: "decision".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                if let Some(conclusion_ids) = &p.conclusion_ids {
+                    for conclusion_id in conclusion_ids {
+                        self.node_buffer.push(GraphNode {
+                            id: conclusion_id.to_string(),
+                            label: "Conclusion".to_string(),
+                            category: "conclusion".to_string(),
+                            metadata: serde_json::json!({}),
+                        });
+                        self.edge_buffer.push(GraphEdge {
+                            source: p.decision_id.to_string(),
+                            target: conclusion_id.to_string(),
+                            relation: "SUPPORTED_BY".to_string(),
+                            confidence: 1.0,
+                        });
+                    }
+                }
+            }
+            Payload::WorkspaceRegistered(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.workspace_id.to_string(),
+                    label: p.name.clone(),
+                    category: "workspace".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+            }
+            Payload::RepositoryJoinedWorkspace(p) => {
+                self.node_buffer.push(GraphNode {
+                    id: p.workspace_id.to_string(),
+                    label: "Workspace".to_string(),
+                    category: "workspace".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                self.node_buffer.push(GraphNode {
+                    id: p.project_id.to_string(),
+                    label: "Project".to_string(),
+                    category: "project".to_string(),
+                    metadata: serde_json::json!({}),
+                });
+                self.edge_buffer.push(GraphEdge {
+                    source: p.workspace_id.to_string(),
+                    target: p.project_id.to_string(),
+                    relation: "CONTAINS".to_string(),
+                    confidence: 1.0,
+                });
+            }
             _ => {}
         }
 

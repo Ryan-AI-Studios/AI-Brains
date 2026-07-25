@@ -16,4 +16,7 @@ pub enum EventError {
 
     #[error("Upcast failed: {0}")]
     UpcastFailed(String),
+
+    #[error("Invalid payload: {0}")]
+    InvalidPayload(String),
 }

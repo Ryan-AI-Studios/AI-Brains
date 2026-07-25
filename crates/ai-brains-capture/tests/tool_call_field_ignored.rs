@@ -19,11 +19,11 @@ fn tool_call_field_ignored() -> Result<(), Box<dyn std::error::Error>> {
     }"#;
 
     let request: IngestRequest = serde_json::from_str(raw)?;
-    let service = CaptureService::new();
+    let service = CaptureService::new_without_verification_gate();
     let mut sink = MemorySink::default();
     let outcome = service.ingest_request(request, common::context(), &mut sink)?;
 
-    match &outcome.events[0].payload {
+    match &outcome.primary_event().expect("primary").payload {
         Payload::AssistantFinalRecorded(payload) => {
             assert_eq!(payload.content, "final answer only")
         }

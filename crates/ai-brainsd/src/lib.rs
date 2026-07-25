@@ -240,8 +240,7 @@ async fn process_ingest(
     }
 
     let event_id = outcome
-        .events
-        .first()
+        .primary_event()
         .map(|e| e.event_id.to_string())
         .unwrap_or_else(|| Uuid::new_v4().to_string());
 
