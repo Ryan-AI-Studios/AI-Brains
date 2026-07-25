@@ -75,6 +75,13 @@ pub enum EventKind {
     ClaimConflictOpened,
     ClaimConflictResolved,
 
+    // Repository identity / path aliases (T151) — rehydrate on rebuild_projections
+    RepositoryIdentityRegistered,
+    RepositoryPathAliasAdded,
+
+    // Policy audit (T151) — rehydrate policy_decision_log on rebuild_projections
+    PolicyDecisionRecorded,
+
     /// Forward-compatible catch-all; holds the original tag string.
     Unknown(String),
 }
@@ -135,6 +142,9 @@ impl EventKind {
             EventKind::ContentErased => "ContentErased",
             EventKind::ClaimConflictOpened => "ClaimConflictOpened",
             EventKind::ClaimConflictResolved => "ClaimConflictResolved",
+            EventKind::RepositoryIdentityRegistered => "RepositoryIdentityRegistered",
+            EventKind::RepositoryPathAliasAdded => "RepositoryPathAliasAdded",
+            EventKind::PolicyDecisionRecorded => "PolicyDecisionRecorded",
             EventKind::Unknown(s) => s.as_str(),
         }
     }
@@ -194,6 +204,9 @@ impl EventKind {
             "ContentErased" => EventKind::ContentErased,
             "ClaimConflictOpened" => EventKind::ClaimConflictOpened,
             "ClaimConflictResolved" => EventKind::ClaimConflictResolved,
+            "RepositoryIdentityRegistered" => EventKind::RepositoryIdentityRegistered,
+            "RepositoryPathAliasAdded" => EventKind::RepositoryPathAliasAdded,
+            "PolicyDecisionRecorded" => EventKind::PolicyDecisionRecorded,
             other => EventKind::Unknown(other.to_string()),
         }
     }
@@ -277,6 +290,9 @@ impl From<&crate::payload::Payload> for EventKind {
             Payload::ContentErased(_) => EventKind::ContentErased,
             Payload::ClaimConflictOpened(_) => EventKind::ClaimConflictOpened,
             Payload::ClaimConflictResolved(_) => EventKind::ClaimConflictResolved,
+            Payload::RepositoryIdentityRegistered(_) => EventKind::RepositoryIdentityRegistered,
+            Payload::RepositoryPathAliasAdded(_) => EventKind::RepositoryPathAliasAdded,
+            Payload::PolicyDecisionRecorded(_) => EventKind::PolicyDecisionRecorded,
             Payload::Unknown(value) => {
                 let tag = value
                     .get("type")

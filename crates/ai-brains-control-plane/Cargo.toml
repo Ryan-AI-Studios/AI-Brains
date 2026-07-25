@@ -10,6 +10,7 @@ description = "Governed-memory control plane ports, adapters, and observation/in
 [dependencies]
 ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
 ai-brains-events = { path = "../ai-brains-events", version = "0.1.0" }
+ai-brains-git = { path = "../ai-brains-git", version = "0.1.0" }
 ai-brains-path = { path = "../ai-brains-path", version = "0.1.0" }
 ai-brains-sources = { path = "../ai-brains-sources", version = "0.1.0" }
 ai-brains-store = { path = "../ai-brains-store", version = "0.1.0" }

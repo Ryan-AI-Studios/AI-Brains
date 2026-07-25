@@ -1,18 +1,29 @@
-//! Governed-memory control plane: ports, adapters, and workflows (T148–T150).
+//! Governed-memory control plane: ports, adapters, and workflows (T148–T151).
+//!
+//! # Policy (T151)
+//!
+//! **Production must** construct the evaluator via
+//! [`StorePorts::production_policy`] (or [`StorePorts::policy_evaluator`]),
+//! which returns [`DefaultPolicyEvaluator`] over [`StoreGrantPrincipalStore`].
+//! Do **not** use [`AllowAllPolicy`] outside tests — it bypasses the deny-by-default
+//! matrix and is retained only for integration harnesses that exercise non-policy paths.
 
 pub mod adapters;
 pub mod conclusions;
 pub mod conflicts;
 pub mod decisions;
 pub mod errors;
+pub mod grants;
 pub mod invalidation;
+pub mod policy;
 pub mod ports;
 pub mod review;
+pub mod scope_resolver;
 pub mod sources;
 
 pub use adapters::{
     AllowAllPolicy, DenyAllPolicy, Sha256FingerprinterPort, StoreEventWriter, StoreGovernedQuery,
-    StorePorts, SystemClock,
+    StoreGrantPrincipalStore, StorePorts, StoreScopeIdentityStore, SystemClock,
 };
 pub use conclusions::{
     ProposeConclusionRequest, ProposeConclusionResult, activate_conclusion, approve_conclusion,
@@ -29,17 +40,27 @@ pub use decisions::{
     revoke_decision, supersede_decision,
 };
 pub use errors::{ControlPlaneError, Result};
+pub use grants::{
+    RemoteIdentityKey, issue_grant, join_repository, register_path_alias, register_principal,
+    register_workspace, revoke_grant, set_repository_ledgerful_id, upsert_repository_identity,
+};
 pub use invalidation::{
     InvalidationResult, SourceUnavailableRequest, invalidate_dependents_for_changed_source,
     mark_source_unavailable, plan_invalidation_events_for_changed_source,
     revalidate_matching_stale, try_mark_stale_payload,
 };
+pub use policy::{DefaultPolicyEvaluator, GrantPrincipalStore, PolicyDecisionEntry, reduce_grants};
 pub use ports::{
-    ClaimConflictRow, Clock, ConclusionRow, DecisionRow, EventWriter, Fingerprinter,
-    GovernedQueryStore, PolicyEvaluator, ReviewItemRow, StaleFact,
+    ClaimConflictRow, Clock, ConclusionRow, ConnectorTrust, DecisionRow, EventWriter,
+    Fingerprinter, GovernedQueryStore, PolicyContext, PolicyEvaluator, ProcessingRoute,
+    ReviewItemRow, StaleFact,
 };
 pub use review::resolve_review_item;
+pub use scope_resolver::{
+    ResolutionEvidence, ResolvedScope, ScopeConfidence, ScopeIdentityStore, ScopeResolveInput,
+    is_authoritative, resolve_scope,
+};
 pub use sources::{
     ObserveSourceRequest, ObserveSourceResult, SourceContent, normalize_path_locator,
-    observe_source, scope_identity_key, source_identity_string,
+    observe_source, parse_scope_key, scope_identity_key, source_identity_string,
 };

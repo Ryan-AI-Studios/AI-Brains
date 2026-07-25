@@ -105,6 +105,14 @@ impl SqliteEventStore {
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
 
         // 2. Truncate projections (FK-safe: children before parents)
+        // Scopes / grants (T151) — grants & path aliases before parents.
+        tx.execute("DELETE FROM policy_decision_log", [])?;
+        tx.execute("DELETE FROM scope_grant_projection", [])?;
+        tx.execute("DELETE FROM repository_path_alias_projection", [])?;
+        tx.execute("DELETE FROM workspace_repository_projection", [])?;
+        tx.execute("DELETE FROM principal_projection", [])?;
+        tx.execute("DELETE FROM repository_identity_projection", [])?;
+        tx.execute("DELETE FROM workspace_projection", [])?;
         // Epistemic children first (T150).
         tx.execute("DELETE FROM claim_conflict_projection", [])?;
         tx.execute("DELETE FROM decision_support_projection", [])?;

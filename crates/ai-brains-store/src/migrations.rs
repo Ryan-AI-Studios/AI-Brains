@@ -94,6 +94,10 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0023_epistemic_review",
         include_str!("../migrations/0023_epistemic_review.sql"),
     ),
+    (
+        "0024_scopes_principals_grants",
+        include_str!("../migrations/0024_scopes_principals_grants.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {

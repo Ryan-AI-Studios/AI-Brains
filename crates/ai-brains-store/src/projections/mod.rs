@@ -9,13 +9,18 @@ pub mod conflict;
 pub mod decision;
 pub mod dependency;
 pub mod evidence;
+pub mod grant;
 pub mod memory;
+pub mod policy_log;
+pub mod principal;
 pub mod project;
 pub mod recipe;
+pub mod repository_identity;
 pub mod review;
 pub mod session;
 pub mod source;
 pub mod turn;
+pub mod workspace;
 
 pub trait Projection {
     fn apply(&self, tx: &Transaction, envelope: &Envelope) -> Result<()>;
@@ -38,5 +43,11 @@ pub fn apply_all(tx: &Transaction, envelope: &Envelope) -> Result<()> {
     decision::DecisionProjection.apply(tx, envelope)?;
     review::ReviewProjection.apply(tx, envelope)?;
     claim_conflict::ClaimConflictProjection.apply(tx, envelope)?;
+    // Scopes / principals / grants (T151) — no FK to epistemic tables.
+    workspace::WorkspaceProjection.apply(tx, envelope)?;
+    principal::PrincipalProjection.apply(tx, envelope)?;
+    grant::GrantProjection.apply(tx, envelope)?;
+    repository_identity::RepositoryIdentityProjection.apply(tx, envelope)?;
+    policy_log::PolicyLogProjection.apply(tx, envelope)?;
     Ok(())
 }

@@ -14,8 +14,10 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::errors::{ControlPlaneError, Result};
-use crate::ports::{Clock, EventWriter, GovernedQueryStore, PolicyEvaluator};
-use crate::sources::{build_event, ensure_valid_time_interval, scope_identity_key};
+use crate::ports::{Clock, EventWriter, GovernedQueryStore, PolicyContext, PolicyEvaluator};
+use crate::sources::{
+    build_event, ensure_valid_time_interval, parse_scope_key, scope_identity_key,
+};
 
 #[derive(Debug, Clone)]
 pub struct ProposeDecisionRequest {
@@ -50,10 +52,12 @@ where
     C: Clock,
     P: PolicyEvaluator,
 {
+    let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
     if !policy.allow(
         req.principal.id,
         GrantCapability::ProposeDecision,
         &req.scope,
+        &policy_ctx,
     )? {
         return Err(ControlPlaneError::PolicyDenied(
             "ProposeDecision denied".into(),
@@ -96,10 +100,11 @@ where
     })
 }
 
-pub fn approve_decision<W, Q, C>(
+pub fn approve_decision<W, Q, C, P>(
     writer: &W,
     query: &Q,
     clock: &C,
+    policy: &P,
     principal: &Principal,
     decision_id: DecisionId,
     privacy: Privacy,
@@ -108,6 +113,7 @@ where
     W: EventWriter,
     Q: GovernedQueryStore,
     C: Clock,
+    P: PolicyEvaluator,
 {
     if !matches!(principal.kind, PrincipalKind::Human) {
         return Err(ControlPlaneError::ApprovalRequired(
@@ -118,6 +124,19 @@ where
     let row = query
         .get_decision(decision_id)?
         .ok_or_else(|| ControlPlaneError::NotFound(format!("decision {decision_id}")))?;
+    let scope = parse_scope_key(&row.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ApproveDecision,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ApproveDecision denied".into(),
+        ));
+    }
+
     let state = parse_decision_state(&row.state)?;
     state
         .transition(DecisionState::Approved, Some(principal.id))
@@ -153,10 +172,13 @@ where
     Ok(())
 }
 
-pub fn supersede_decision<W, Q, C>(
+#[allow(clippy::too_many_arguments)]
+pub fn supersede_decision<W, Q, C, P>(
     writer: &W,
     query: &Q,
     _clock: &C,
+    policy: &P,
+    principal: &Principal,
     old_decision_id: DecisionId,
     new_decision_id: DecisionId,
     reason: &str,
@@ -166,6 +188,7 @@ where
     W: EventWriter,
     Q: GovernedQueryStore,
     C: Clock,
+    P: PolicyEvaluator,
 {
     if reason.trim().is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
@@ -175,6 +198,19 @@ where
     let row = query
         .get_decision(old_decision_id)?
         .ok_or_else(|| ControlPlaneError::NotFound(format!("decision {old_decision_id}")))?;
+    let scope = parse_scope_key(&row.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ProposeDecision,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ProposeDecision denied for supersede".into(),
+        ));
+    }
+
     let state = parse_decision_state(&row.state)?;
     state
         .transition(DecisionState::Superseded, None)
@@ -195,10 +231,12 @@ where
     Ok(())
 }
 
-pub fn revoke_decision<W, Q, C>(
+#[allow(clippy::too_many_arguments)]
+pub fn revoke_decision<W, Q, C, P>(
     writer: &W,
     query: &Q,
     _clock: &C,
+    policy: &P,
     principal: &Principal,
     decision_id: DecisionId,
     reason: &str,
@@ -208,6 +246,7 @@ where
     W: EventWriter,
     Q: GovernedQueryStore,
     C: Clock,
+    P: PolicyEvaluator,
 {
     if reason.trim().is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
@@ -217,6 +256,19 @@ where
     let row = query
         .get_decision(decision_id)?
         .ok_or_else(|| ControlPlaneError::NotFound(format!("decision {decision_id}")))?;
+    let scope = parse_scope_key(&row.scope)?;
+    let policy_ctx = PolicyContext::default_for_privacy(privacy);
+    if !policy.allow(
+        principal.id,
+        GrantCapability::ApproveDecision,
+        &scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ApproveDecision denied for revoke".into(),
+        ));
+    }
+
     let state = parse_decision_state(&row.state)?;
     state
         .transition(DecisionState::Revoked, None)

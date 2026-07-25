@@ -1,4 +1,5 @@
-use crate::capability::{AdapterCapability, CapabilityLevel};
+use crate::capability::{AdapterCapability, CapabilityLevel, full_harness_governed_reads};
+use ai_brains_core::scope::GrantCapability;
 
 pub fn gemini_capability() -> AdapterCapability {
     AdapterCapability {
@@ -6,6 +7,9 @@ pub fn gemini_capability() -> AdapterCapability {
         level: CapabilityLevel::Full,
         supports_hooks: true,
         supports_wrapper_mode: true,
-        notes: "Supports hook integration and degraded parsing fallback.".to_string(),
+        notes: "Supports hook integration and degraded parsing fallback. Full harnesses bind as PrincipalKind::Agent (not Connector) so ProposeConclusion is in-matrix; principal_binding deferred until registry wiring. Connector observe-only remains ReadEvidence.".to_string(),
+        governed_reads: full_harness_governed_reads(),
+        governed_writes: vec![GrantCapability::ProposeConclusion],
+        principal_binding: None,
     }
 }

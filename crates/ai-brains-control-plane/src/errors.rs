@@ -31,6 +31,10 @@ pub enum ControlPlaneError {
 
     #[error("invalid payload: {0}")]
     InvalidPayload(String),
+
+    /// Repository identity would create a second project for the same normalized remote.
+    #[error("repository identity conflict: {0}")]
+    IdentityConflict(String),
 }
 
 pub type Result<T> = std::result::Result<T, ControlPlaneError>;

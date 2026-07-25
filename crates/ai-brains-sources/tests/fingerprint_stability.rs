@@ -127,6 +127,7 @@ fn git_metadata_canonicalization__same_fields_same_digest() {
         branch: Some("main".into()),
         commit: Some("deadbeef".into()),
         remote_url_hash: Some("abc123".into()),
+        remote_names: Vec::new(),
         is_dirty: false,
         untracked_files: vec!["b.rs".into(), "a.rs".into()],
         diffstat: Some(DiffStat {
@@ -135,6 +136,7 @@ fn git_metadata_canonicalization__same_fields_same_digest() {
             deletions: 1,
             summary: "2 files changed, 10 insertions(+), 1 deletion(-)".into(),
         }),
+        common_dir: None,
     };
     let once = fingerprint_git_metadata(&meta);
     let twice = fingerprint_git_metadata(&meta);

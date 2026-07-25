@@ -313,6 +313,7 @@ fn conflict_scenario3__decision_beats_candidate_still_listed() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &human(),
         dec.decision_id,
         Privacy::LocalOnly,
@@ -402,6 +403,8 @@ fn conflict_scenario4__equal_authority_opens_conflict_not_merge() {
 
     let conflict_id = open_claim_conflict(
         &ports.writer,
+        &AllowAllPolicy,
+        &human(),
         OpenClaimConflictRequest {
             claim_a_kind: "Conclusion".into(),
             claim_a_id: a.conclusion_id.to_string(),
@@ -428,6 +431,7 @@ fn conflict_scenario4__equal_authority_opens_conflict_not_merge() {
     resolve_claim_conflict(
         &ports.writer,
         &ports.query,
+        &AllowAllPolicy,
         &human(),
         conflict_id,
         "prefer A after review",
@@ -484,6 +488,7 @@ fn conflict_scenario5__superseded_historical_vs_current_successor() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &agent(),
         old.conclusion_id,
         Privacy::LocalOnly,

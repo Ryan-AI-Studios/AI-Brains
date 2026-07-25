@@ -108,6 +108,7 @@ fn approve_decision__agent_rejected_human_ok() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &agent(),
         res.decision_id,
         Privacy::LocalOnly,
@@ -119,6 +120,7 @@ fn approve_decision__agent_rejected_human_ok() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &human(),
         res.decision_id,
         Privacy::LocalOnly,
@@ -155,6 +157,7 @@ fn supersede_and_revoke_decision__state_updates() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &human(),
         first.decision_id,
         Privacy::LocalOnly,
@@ -183,6 +186,8 @@ fn supersede_and_revoke_decision__state_updates() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
+        &human(),
         first.decision_id,
         second.decision_id,
         "replaced",
@@ -223,6 +228,7 @@ fn supersede_and_revoke_decision__state_updates() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &human(),
         third.decision_id,
         "no longer needed",
@@ -313,6 +319,7 @@ fn approve_decision__missing_proposal_event_id__fails_closed() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &human(),
         res.decision_id,
         Privacy::LocalOnly,
@@ -363,6 +370,7 @@ fn approve_decision__malformed_proposal_event_id__fails_closed() {
         &ports.writer,
         &ports.query,
         &SystemClock,
+        &AllowAllPolicy,
         &human(),
         res.decision_id,
         Privacy::LocalOnly,
@@ -398,4 +406,78 @@ fn propose_decision__valid_until_not_after_from__rejected() {
     )
     .unwrap_err();
     assert!(matches!(err, ControlPlaneError::InvalidPayload(_)));
+}
+
+/// R1-F1: Human without ApproveDecision grant is denied by DefaultPolicyEvaluator.
+#[test]
+fn approve_decision__human_without_grant__policy_denied() {
+    use ai_brains_control_plane::{issue_grant, register_principal};
+    use ai_brains_core::scope::GrantCapability;
+
+    let (_t, ports) = open_ports();
+    let clock = SystemClock;
+    let scope = ScopeRef::Personal(UserId::new());
+    let human_p = human();
+    register_principal(&ports.writer, &clock, &human_p).unwrap();
+
+    // Propose via AllowAll (agent not registered is fine for AllowAll).
+    let res = propose_decision(
+        &ports.writer,
+        &ports.query,
+        &clock,
+        &AllowAllPolicy,
+        ProposeDecisionRequest {
+            principal: agent(),
+            scope: scope.clone(),
+            title: "T".into(),
+            statement: "S".into(),
+            conclusion_ids: None,
+            evidence_ids: None,
+            privacy: Privacy::LocalOnly,
+            valid_from: None,
+            valid_until: None,
+            decision_id: None,
+        },
+    )
+    .unwrap();
+
+    let policy = ports.policy_evaluator();
+    let err = approve_decision(
+        &ports.writer,
+        &ports.query,
+        &clock,
+        &policy,
+        &human_p,
+        res.decision_id,
+        Privacy::LocalOnly,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, ControlPlaneError::PolicyDenied(_)),
+        "expected PolicyDenied without grant, got {err:?}"
+    );
+
+    // With grant → allow.
+    issue_grant(
+        &ports.writer,
+        &clock,
+        human_p.id,
+        scope,
+        GrantCapability::ApproveDecision,
+        Privacy::LocalOnly,
+    )
+    .unwrap();
+    let policy2 = ports.policy_evaluator();
+    approve_decision(
+        &ports.writer,
+        &ports.query,
+        &clock,
+        &policy2,
+        &human_p,
+        res.decision_id,
+        Privacy::LocalOnly,
+    )
+    .unwrap();
+    let row = ports.query.get_decision(res.decision_id).unwrap().unwrap();
+    assert_eq!(row.state, "Approved");
 }
