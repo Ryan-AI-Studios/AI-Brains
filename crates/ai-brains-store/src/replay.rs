@@ -10,13 +10,14 @@ impl SqliteEventStore {
         {
             let conn = self.conn.lock()?;
             // 1. Fetch all events first to avoid borrowing the transaction while iterating
+            // Deterministic order: occurred_at then event_id (P2-7).
             let mut stmt = conn.prepare(
                 "SELECT 
                 event_id, schema_version, aggregate_type, aggregate_id, event_type,
                 occurred_at, actor_json, causation_id, correlation_id, privacy,
                 payload_json, payload_hash
             FROM events 
-            ORDER BY occurred_at ASC",
+            ORDER BY occurred_at ASC, event_id ASC",
             )?;
 
             let mut rows = stmt.query([])?;
@@ -103,7 +104,16 @@ impl SqliteEventStore {
             .transaction()
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
 
-        // 2. Truncate projections
+        // 2. Truncate projections (FK-safe: children before parents)
+        // Governed projections first (evidence FK → source_version → source).
+        tx.execute("DELETE FROM invalidation_queue_projection", [])?;
+        tx.execute("DELETE FROM knowledge_dependency_projection", [])?;
+        // evidence_fts is content=linked; clear projection (triggers maintain FTS).
+        tx.execute("DELETE FROM evidence_projection", [])?;
+        tx.execute("DELETE FROM source_version_projection", [])?;
+        tx.execute("DELETE FROM source_alias_projection", [])?;
+        tx.execute("DELETE FROM source_projection", [])?;
+
         tx.execute("DELETE FROM memory_projection", [])?;
         tx.execute("DELETE FROM turn_projection", [])?;
         tx.execute("DELETE FROM session_projection", [])?;

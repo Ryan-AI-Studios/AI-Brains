@@ -1,0 +1,18 @@
+[package]
+name = "ai-brains-sources"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic source fingerprints (SHA-256) and normalization (T149)"
+
+[dependencies]
+ai-brains-git = { path = "../ai-brains-git", version = "0.1.0" }
+sha2.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -48,6 +48,10 @@ impl EventBuilder {
     }
 
     pub fn build(self, payload: Payload) -> Result<Envelope, crate::errors::EventError> {
+        if let Payload::ConclusionMarkedStale(ref p) = payload {
+            p.validate()?;
+        }
+
         let payload_hash = compute_payload_hash(&payload)?;
 
         Ok(Envelope {

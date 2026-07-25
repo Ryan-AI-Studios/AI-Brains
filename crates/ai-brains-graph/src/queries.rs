@@ -177,4 +177,49 @@ impl<'a> GraphSearch<'a> {
         }
         Ok(results)
     }
+
+    /// Count edges matching (src external_id, dst external_id, label).
+    pub fn count_edge(&self, src_external: &str, dst_external: &str, label: &str) -> Result<i64> {
+        let conn = self
+            .vault
+            .connection()
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM graph_edge e
+                 JOIN graph_node s ON s.node_id = e.src_id
+                 JOIN graph_node d ON d.node_id = e.dst_id
+                 WHERE s.external_id = ? AND d.external_id = ? AND e.label = ?",
+                rusqlite::params![src_external, dst_external, label],
+                |row| row.get(0),
+            )
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        Ok(count)
+    }
+
+    pub fn node_count(&self) -> Result<i64> {
+        let conn = self
+            .vault
+            .connection()
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM graph_node", [], |row| row.get(0))
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        Ok(count)
+    }
+
+    pub fn edge_count(&self) -> Result<i64> {
+        let conn = self
+            .vault
+            .connection()
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM graph_edge", [], |row| row.get(0))
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        Ok(count)
+    }
 }

@@ -8,13 +8,53 @@ use crate::unc::{is_unc_path, normalize_unc};
 use crate::windows::{has_drive_prefix, normalize_drive_path, strip_extended_length_prefix};
 use std::path::Path;
 
+/// Map WSL `/mnt/<drive>/...` (or `\mnt\<drive>\...`) to a Windows drive path.
+///
+/// Example: `/mnt/c/Dev/Project` → `C:\Dev\Project`.
+fn map_wsl_mnt_to_drive(path: &str) -> Option<String> {
+    let slash_normalized = path.replace('/', "\\");
+    let lower = slash_normalized.to_ascii_lowercase();
+    let rest = lower.strip_prefix(r"\mnt\")?;
+    let (drive, remainder) = match rest.split_once('\\') {
+        Some((d, r)) => (d, r),
+        None => (rest, ""),
+    };
+    if drive.len() != 1 {
+        return None;
+    }
+    let drive_letter = drive.chars().next()?;
+    if !drive_letter.is_ascii_alphabetic() {
+        return None;
+    }
+    // Preserve remainder casing from the slash-normalized form after the prefix.
+    // Prefix length in chars: "\mnt\" (5) + drive (1) + optional "\".
+    let prefix_len = 5 + drive.len();
+    let remainder_original = if slash_normalized.len() > prefix_len {
+        let after = &slash_normalized[prefix_len..];
+        after.strip_prefix('\\').unwrap_or(after)
+    } else {
+        remainder
+    };
+    let letter = drive_letter.to_ascii_uppercase();
+    if remainder_original.is_empty() {
+        Some(format!("{letter}:\\"))
+    } else {
+        Some(format!("{letter}:\\{remainder_original}"))
+    }
+}
+
 /// Normalize a path string for equality / containment checks.
 ///
-/// Steps: best-effort resolve → strip `\\?\` → UNC or drive normalize.
+/// Steps: best-effort resolve → strip `\\?\` → WSL `/mnt/c` map → UNC or drive normalize.
 /// Non-existing paths fall back to the input string (then still strip/normalize).
 pub fn normalize_for_location_compare(input: &str) -> String {
     let resolved = resolve_best_effort(input);
-    let stripped = strip_extended_length_prefix(&resolved).replace('/', "\\");
+    let mut stripped = strip_extended_length_prefix(&resolved).replace('/', "\\");
+
+    // WSL mount form → Windows drive path so /mnt/c/... equals C:\...
+    if let Some(mapped) = map_wsl_mnt_to_drive(&stripped) {
+        stripped = mapped.replace('/', "\\");
+    }
 
     if is_unc_path(&stripped) {
         return normalize_unc(&stripped);

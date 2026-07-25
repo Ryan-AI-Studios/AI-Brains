@@ -14,6 +14,7 @@ pub use connection::VaultConnection;
 pub use errors::{Result, StoreError};
 pub use event_store::{EventStore, SqliteEventStore};
 pub use fts::{FtsSearch, SearchResult};
+pub use migrations::apply_migrations_through;
 pub use transaction::Transaction;
 
 use ai_brains_core::ids::{MemoryId, SessionId};

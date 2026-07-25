@@ -103,6 +103,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -163,11 +164,18 @@ name = "ai-brains-control-plane"
 version = "0.1.1"
 dependencies = [
  "ai-brains-core",
+ "ai-brains-crypto",
  "ai-brains-events",
+ "ai-brains-path",
+ "ai-brains-sources",
+ "ai-brains-store",
+ "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "time",
+ "uuid",
 ]
 
 [[package]]
@@ -245,6 +253,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
+ "time",
  "tokio",
  "tracing",
  "uuid",
@@ -313,6 +322,18 @@ dependencies = [
  "ai-brains-core",
  "once_cell",
  "regex",
+ "thiserror",
+]
+
+[[package]]
+name = "ai-brains-sources"
+version = "0.1.1"
+dependencies = [
+ "ai-brains-git",
+ "hex",
+ "serde_json",
+ "sha2",
+ "tempfile",
  "thiserror",
 ]
 

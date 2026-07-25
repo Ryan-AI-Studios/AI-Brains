@@ -10,7 +10,9 @@ use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub fn service() -> CaptureService {
-    CaptureService::new()
+    // Tests that are not specifically about the verification gate must not
+    // depend on Ledgerful IPC or emit verification evidence by default.
+    CaptureService::new_without_verification_gate()
 }
 
 pub fn sink() -> MemorySink {

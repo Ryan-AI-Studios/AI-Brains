@@ -91,7 +91,10 @@ pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Er
     }
 
     let response = IngestResponse {
-        event_id: outcome.events[0].event_id.to_string(),
+        event_id: outcome
+            .primary_event()
+            .map(|e| e.event_id.to_string())
+            .unwrap_or_else(|| outcome.events[0].event_id.to_string()),
         processed: true,
     };
     println!("{}", serde_json::to_string(&response)?);

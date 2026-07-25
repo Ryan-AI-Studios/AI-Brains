@@ -33,8 +33,10 @@ pub struct VerifyResponse {
 /// Decision returned by [`VerificationGate::check`].
 #[derive(Debug, Clone)]
 pub enum GateDecision {
-    /// Capture is allowed to proceed.
-    Proceed,
+    /// Capture is allowed; verification succeeded with a structured response.
+    Proceed { verify: VerifyResponse },
+    /// Capture is allowed because IPC failed (fail-open); never treat as Passed.
+    ProceedUnavailable { reason: String },
     /// Capture is blocked — the AI harness must self-remediate.
     Blocked {
         failure_probability: f64,
@@ -95,15 +97,19 @@ impl VerificationGate {
     /// Default failure-probability threshold above which the gate blocks.
     pub const DEFAULT_THRESHOLD: f64 = 0.7;
 
+    /// Production gate using the real Ledgerful backend.
+    pub fn production() -> Self {
+        Self::new(
+            Box::new(ChangeGuardVerificationBackend),
+            Self::DEFAULT_THRESHOLD,
+        )
+    }
+
     /// Run the verification check.
     ///
-    /// Returns [`GateDecision::Proceed`] when:
-    /// - Ledgerful IPC is unreachable (**fail-open**), or
-    /// - failure probability is below the threshold and no drift is detected.
-    ///
-    /// Returns [`GateDecision::Blocked`] when:
-    /// - failure probability exceeds the threshold, or
-    /// - drift is detected.
+    /// Returns [`GateDecision::Proceed`] when verification succeeds below threshold.
+    /// Returns [`GateDecision::ProceedUnavailable`] when IPC fails (**fail-open**).
+    /// Returns [`GateDecision::Blocked`] when probability/drift exceed threshold.
     pub fn check(&self) -> GateDecision {
         match self.backend.run_verify() {
             Ok(resp) => {
@@ -123,7 +129,7 @@ impl VerificationGate {
                     }
                 } else {
                     tracing::debug!("Verification gate: PROCEED");
-                    GateDecision::Proceed
+                    GateDecision::Proceed { verify: resp }
                 }
             }
             Err(e) => {
@@ -131,7 +137,7 @@ impl VerificationGate {
                 tracing::warn!(
                     "Ledgerful IPC unreachable, failing open (proceeding with ingest): {e}"
                 );
-                GateDecision::Proceed
+                GateDecision::ProceedUnavailable { reason: e }
             }
         }
     }
@@ -350,7 +356,7 @@ mod tests {
         });
         let gate = VerificationGate::new(backend, VerificationGate::DEFAULT_THRESHOLD);
         let decision = gate.check();
-        assert!(matches!(decision, GateDecision::Proceed));
+        assert!(matches!(decision, GateDecision::Proceed { .. }));
     }
 
     #[test]
@@ -403,8 +409,8 @@ mod tests {
         let gate = VerificationGate::new(backend, VerificationGate::DEFAULT_THRESHOLD);
         let decision = gate.check();
         assert!(
-            matches!(decision, GateDecision::Proceed),
-            "Gate MUST fail-open when IPC is unreachable"
+            matches!(decision, GateDecision::ProceedUnavailable { .. }),
+            "Gate MUST fail-open as ProceedUnavailable when IPC is unreachable"
         );
     }
 
@@ -417,7 +423,7 @@ mod tests {
         let gate = VerificationGate::new(backend, 0.9);
         let decision = gate.check();
         assert!(
-            matches!(decision, GateDecision::Proceed),
+            matches!(decision, GateDecision::Proceed { .. }),
             "Gate should proceed when failure_prob < custom threshold"
         );
     }
