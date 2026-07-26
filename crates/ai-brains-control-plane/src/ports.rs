@@ -1,5 +1,6 @@
 use ai_brains_core::ids::{
-    ConclusionId, ConflictId, DecisionId, PrincipalId, ReviewItemId, SourceId, SourceVersionId,
+    ConclusionId, ConflictId, DecisionId, EvidenceId, PrincipalId, ReviewItemId, SourceId,
+    SourceVersionId,
 };
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
@@ -202,6 +203,49 @@ pub trait GovernedQueryStore {
         statement: Option<&str>,
         at: OffsetDateTime,
     ) -> Result<Vec<ConclusionRow>>;
+
+    /// Evidence ids linked to a conclusion (for briefing authority handles).
+    fn evidence_ids_for_conclusion(&self, conclusion_id: ConclusionId) -> Result<Vec<EvidenceId>>;
+
+    /// Evidence ids linked to a decision via decision_support_projection.
+    fn evidence_ids_for_decision(&self, decision_id: DecisionId) -> Result<Vec<EvidenceId>>;
+
+    /// Privacy label from `evidence_projection` when a row exists (JSON or bare label).
+    ///
+    /// Returns `None` when the evidence id is not projected (synthetic handles, missing rows).
+    fn evidence_privacy(&self, evidence_id: EvidenceId) -> Result<Option<String>>;
+
+    /// Conclusion ids supporting a decision (also usable as authority handles).
+    fn conclusion_ids_for_decision(&self, decision_id: DecisionId) -> Result<Vec<ConclusionId>>;
+
+    /// Compact version vector for briefing cache keys.
+    ///
+    /// Includes epistemic row counts for `scope`, principal-scoped grant epoch
+    /// (active grant count and max issued/revoked timestamps) so grant
+    /// issue/revoke forces a cache miss (T152-R2-01), plus scope-linked
+    /// source/evidence version counts and max timestamps (T152-P2-01).
+    fn epistemic_version_vector(&self, scope: &str, principal_id: &str) -> Result<String>;
+
+    /// Lookup a cached briefing packet by cache key.
+    ///
+    /// Returns `(packet_json, expires_rfc3339)` when a row exists. Callers must
+    /// check expiry against the current clock.
+    fn get_briefing_cache(&self, cache_key: &str) -> Result<Option<(String, Option<String>)>>;
+
+    /// Insert or replace a full briefing packet cache row.
+    #[allow(clippy::too_many_arguments)]
+    fn put_briefing_cache(
+        &self,
+        cache_key: &str,
+        briefing_type: &str,
+        scope_key: &str,
+        policy_version: &str,
+        source_version_vector: &str,
+        budget: u64,
+        packet_json: &str,
+        generated_at: &str,
+        expires: Option<&str>,
+    ) -> Result<()>;
 }
 
 /// Thin clock port (may wrap `ai_brains_core::clock` in adapters).

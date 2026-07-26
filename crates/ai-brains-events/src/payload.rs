@@ -521,6 +521,24 @@ pub struct QueryTraceRecordedPayload {
     pub query_trace_id: QueryTraceId,
     pub query_text: String,
     pub evidence_ids: Vec<EvidenceId>,
+    /// Scope identity key (e.g. `Repository:{id}`). Empty on legacy events.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub scope: String,
+    /// Principal id that ran the query. Empty on legacy events.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub principal_id: String,
+    /// Policy evaluator label (e.g. `DefaultPolicyEvaluator`). Empty on legacy events.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub applied_policy: String,
+    /// Serialized ranking components JSON. Empty/`{}` on legacy events.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub ranking_json: String,
+    /// Optional freshness summary string (or JSON).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub freshness_summary: Option<String>,
+    /// Optional open-conflict summary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conflict_summary: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

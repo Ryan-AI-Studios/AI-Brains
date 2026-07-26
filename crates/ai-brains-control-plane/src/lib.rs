@@ -9,6 +9,7 @@
 //! matrix and is retained only for integration harnesses that exercise non-policy paths.
 
 pub mod adapters;
+pub mod briefings;
 pub mod conclusions;
 pub mod conflicts;
 pub mod decisions;
@@ -17,6 +18,7 @@ pub mod grants;
 pub mod invalidation;
 pub mod policy;
 pub mod ports;
+pub mod query;
 pub mod review;
 pub mod scope_resolver;
 pub mod sources;
@@ -24,6 +26,11 @@ pub mod sources;
 pub use adapters::{
     AllowAllPolicy, DenyAllPolicy, Sha256FingerprinterPort, StoreEventWriter, StoreGovernedQuery,
     StoreGrantPrincipalStore, StorePorts, StoreScopeIdentityStore, SystemClock,
+};
+pub use briefings::{
+    BRIEFING_POLICY_VERSION, BudgetConfig, PersonalBriefingRequest, ProjectBriefingRequest,
+    apply_budget, apply_personal_budget, build_personal_briefing, build_project_briefing,
+    render_personal_markdown, render_project_json, render_project_markdown,
 };
 pub use conclusions::{
     ProposeConclusionRequest, ProposeConclusionResult, activate_conclusion, approve_conclusion,
@@ -54,6 +61,10 @@ pub use ports::{
     ClaimConflictRow, Clock, ConclusionRow, ConnectorTrust, DecisionRow, EventWriter,
     Fingerprinter, GovernedQueryStore, PolicyContext, PolicyEvaluator, ProcessingRoute,
     ReviewItemRow, StaleFact,
+};
+pub use query::{
+    ExpandHandleRequest, GetQueryTraceRequest, ProgressiveQueryRequest, expand_handle,
+    get_query_trace, progressive_query,
 };
 pub use review::resolve_review_item;
 pub use scope_resolver::{

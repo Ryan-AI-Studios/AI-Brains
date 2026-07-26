@@ -1,0 +1,38 @@
+{
+  "api_version": "1",
+  "briefing_id": "00000000-0000-0000-0000-0000000000b3",
+  "kind": "Personal",
+  "scope_key": "Personal:00000000-0000-0000-0000-0000000000u1",
+  "preferences": [
+    {
+      "id": "00000000-0000-0000-0000-0000000000c3",
+      "statement": "Prefer PowerShell separators (; not &&)",
+      "evidence_handles": [
+        {
+          "evidence_id": "00000000-0000-0000-0000-0000000000e3"
+        }
+      ]
+    }
+  ],
+  "continuity": {
+    "summary": "Continuing T152 briefings track",
+    "thread_handles": ["session:00000000-0000-0000-0000-0000000000s1"]
+  },
+  "open_review_items": [],
+  "grants_applied": [
+    {
+      "grant_id": "00000000-0000-0000-0000-0000000000g1",
+      "scope_key": "Personal:00000000-0000-0000-0000-0000000000u1",
+      "capability": "ReadConclusions",
+      "privacy": "LocalOnly"
+    }
+  ],
+  "warnings": [],
+  "budget": {
+    "max_words": 800,
+    "used_words": 45,
+    "truncated_sections": [],
+    "more_available": false
+  },
+  "denied": false
+}

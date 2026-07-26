@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use crate::GraphSearch;
 use crate::ansi::strip_ansi;
@@ -6,6 +7,18 @@ use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use crate::sessions::active_sessions;
 use crate::word_budget::{trim_to_word_budget, word_count};
+use ai_brains_contracts::briefings::{
+    BriefingScopeDto, BriefingWarningDto, BudgetReportDto, FreshnessSummaryDto,
+    ProjectBriefingPacket,
+};
+use ai_brains_control_plane::{
+    BudgetConfig, ProjectBriefingRequest, ScopeResolveInput, StorePorts, SystemClock,
+    build_project_briefing, make_principal, render_project_markdown,
+};
+use ai_brains_core::ids::PrincipalId;
+use ai_brains_core::principal::PrincipalKind;
+use ai_brains_core::privacy::Privacy;
+use ai_brains_store::SqliteEventStore;
 use ai_brains_store::VaultConnection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,7 +27,214 @@ pub struct PreflightContext {
     pub word_count: usize,
 }
 
+/// Env flag: `AI_BRAINS_GOVERNED_BRIEFING=1` enables typed ProjectBriefingPacket path.
+///
+/// When enabled, `preflight` builds a governed Project packet (policy + scope
+/// authority + budget). Empty-state: unresolved/global → empty packet + warning;
+/// grant denial → empty authority sections (`denied` / warnings). See
+/// `Docs/OPERATIONS.md` (Governed briefings) and CLI `ai-brains briefing` /
+/// `ai-brains query` for the packet / progressive surfaces.
+///
+/// **One-cycle residual (T152-R1-07):** env-only (and `Option<bool>` API override).
+/// Config-file / `.env` loader key `governed_briefing = true` is intentionally not
+/// wired yet — process env or explicit option only for this compatibility cycle.
+/// Default is off (legacy string-scrape preflight).
+pub fn governed_briefing_enabled() -> bool {
+    match std::env::var("AI_BRAINS_GOVERNED_BRIEFING") {
+        Ok(v) => {
+            let t = v.trim();
+            t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
+        }
+        Err(_) => false,
+    }
+}
+
+/// Config-style override: when `Some(true)` force governed; `Some(false)` force legacy;
+/// `None` defers to [`governed_briefing_enabled`] env flag.
+pub fn build_preflight_with_options(
+    conn: &VaultConnection,
+    graph: Option<&GraphSearch>,
+    max_words: usize,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    scope_paths: Option<Vec<String>>,
+    global: bool,
+    governed_briefing: Option<bool>,
+) -> Result<PreflightContext> {
+    let use_governed = governed_briefing.unwrap_or_else(governed_briefing_enabled);
+    if use_governed {
+        return build_governed_preflight(conn, max_words, project_id, global);
+    }
+    build_legacy_preflight(conn, graph, max_words, project_id, scope_paths, global)
+}
+
 pub fn build_preflight(
+    conn: &VaultConnection,
+    graph: Option<&GraphSearch>,
+    max_words: usize,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    scope_paths: Option<Vec<String>>,
+    global: bool,
+) -> Result<PreflightContext> {
+    build_preflight_with_options(
+        conn,
+        graph,
+        max_words,
+        project_id,
+        scope_paths,
+        global,
+        None,
+    )
+}
+
+/// Typed Project briefing path — routes through control-plane `build_project_briefing`
+/// with production policy + T151 scope resolve (no raw SQL authority bypass).
+///
+/// **Principal:** optional `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` (UUID) selects the
+/// Human principal; otherwise a well-known System principal is used. In both
+/// cases the principal must be **registered** and hold `ReadDecisions` /
+/// `ReadConclusions` grants for the resolved scope — otherwise authority
+/// sections are empty (denied), while the governed markdown header still renders.
+fn build_governed_preflight(
+    conn: &VaultConnection,
+    max_words: usize,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    global: bool,
+) -> Result<PreflightContext> {
+    if global || project_id.is_none() {
+        // Empty-state: no project id / global mode → empty packet with warning.
+        let packet = empty_governed_packet(
+            if global { "global" } else { "unresolved" },
+            if global {
+                "Global governed preflight returns empty project packet"
+            } else {
+                "Project id unavailable; governed preflight returned empty packet"
+            },
+        );
+        let text = render_governed_packet_markdown(&packet, max_words);
+        return Ok(PreflightContext {
+            word_count: word_count(&text),
+            text,
+        });
+    }
+
+    let store = SqliteEventStore::new(conn.clone());
+    let ports = StorePorts::from_store(store);
+    let clock = SystemClock;
+    let policy = ports.production_policy();
+    let identity = ports.identity_store();
+    let principal = preflight_principal();
+
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let resolve = ScopeResolveInput {
+        cwd,
+        explicit_project_id: project_id,
+        force_personal: false,
+        personal_user_id: None,
+        git_metadata: None,
+    };
+
+    let packet = build_project_briefing(
+        None::<&ai_brains_control_plane::StoreEventWriter>,
+        &ports.query,
+        &clock,
+        &policy,
+        &identity,
+        ProjectBriefingRequest {
+            principal,
+            resolve,
+            budget: BudgetConfig {
+                max_words,
+                ..BudgetConfig::default()
+            },
+            privacy: Privacy::LocalOnly,
+            dry_run: true,
+            briefing_id: None,
+            ledgerful: None,
+        },
+    )?;
+
+    let text = render_governed_packet_markdown(&packet, max_words);
+    Ok(PreflightContext {
+        word_count: word_count(&text),
+        text,
+    })
+}
+
+/// Resolve the principal used for governed preflight policy evaluation.
+fn preflight_principal() -> ai_brains_core::principal::Principal {
+    // Optional override: `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID=<uuid>`
+    if let Ok(raw) = std::env::var("AI_BRAINS_PREFLIGHT_PRINCIPAL_ID") {
+        let trimmed = raw.trim();
+        if let Ok(u) = uuid::Uuid::parse_str(trimmed) {
+            return make_principal(
+                PrincipalKind::Human,
+                PrincipalId::from_uuid(u),
+                "preflight-human",
+            );
+        }
+    }
+    // Well-known System principal for local-vault preflight (must be registered + granted).
+    make_principal(
+        PrincipalKind::System,
+        PrincipalId::from_uuid(uuid::Uuid::from_u128(
+            0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2,
+        )),
+        "preflight-system",
+    )
+}
+
+fn empty_governed_packet(scope_key: &str, warning: &str) -> ProjectBriefingPacket {
+    ProjectBriefingPacket {
+        api_version: ai_brains_contracts::briefings::API_VERSION.to_string(),
+        briefing_id: uuid::Uuid::nil().to_string(),
+        kind: "Project".into(),
+        scope: BriefingScopeDto {
+            scope_key: scope_key.into(),
+            confidence: "Low".into(),
+            warnings: vec![warning.into()],
+            alternatives: Vec::new(),
+            authoritative: false,
+        },
+        handoff: None,
+        decisions: Vec::new(),
+        conclusions: Vec::new(),
+        constraints: Vec::new(),
+        warnings: vec![BriefingWarningDto {
+            kind: "other".into(),
+            message: warning.into(),
+            subject_id: None,
+            subject_kind: None,
+        }],
+        freshness: FreshnessSummaryDto {
+            total_sources: 0,
+            fresh_count: 0,
+            stale_count: 0,
+            unavailable_count: 0,
+            worst_state: "Unknown".into(),
+        },
+        ledgerful: None,
+        evidence_handles: Vec::new(),
+        budget: BudgetReportDto {
+            max_words: 0,
+            used_words: 0,
+            truncated_sections: Vec::new(),
+            more_available: false,
+        },
+        generated_at: None,
+        denied: false,
+        denial_reason: None,
+    }
+}
+
+/// Render governed preflight markdown (header marks governed path; body from control-plane shape).
+fn render_governed_packet_markdown(packet: &ProjectBriefingPacket, max_words: usize) -> String {
+    // Reuse control-plane markdown then re-tag the header for dual-path tests/CLI recognition.
+    let body = render_project_markdown(packet);
+    let retagged = body.replacen("# Project Briefing", "# Project Briefing (governed)", 1);
+    trim_to_word_budget(&retagged, max_words)
+}
+
+fn build_legacy_preflight(
     conn: &VaultConnection,
     _graph: Option<&GraphSearch>,
     max_words: usize,

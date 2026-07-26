@@ -105,6 +105,10 @@ impl SqliteEventStore {
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
 
         // 2. Truncate projections (FK-safe: children before parents)
+        // Briefings / query traces (T152) — feedback before traces.
+        tx.execute("DELETE FROM retrieval_feedback_projection", [])?;
+        tx.execute("DELETE FROM query_trace_projection", [])?;
+        tx.execute("DELETE FROM briefing_cache_projection", [])?;
         // Scopes / grants (T151) — grants & path aliases before parents.
         tx.execute("DELETE FROM policy_decision_log", [])?;
         tx.execute("DELETE FROM scope_grant_projection", [])?;

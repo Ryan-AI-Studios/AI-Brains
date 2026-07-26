@@ -3,6 +3,7 @@ use crate::errors::Result;
 use ai_brains_events::Envelope;
 use rusqlite::Transaction;
 
+pub mod briefing;
 pub mod claim_conflict;
 pub mod conclusion;
 pub mod conflict;
@@ -49,5 +50,7 @@ pub fn apply_all(tx: &Transaction, envelope: &Envelope) -> Result<()> {
     grant::GrantProjection.apply(tx, envelope)?;
     repository_identity::RepositoryIdentityProjection.apply(tx, envelope)?;
     policy_log::PolicyLogProjection.apply(tx, envelope)?;
+    // Briefings + progressive query traces (T152).
+    briefing::BriefingProjection.apply(tx, envelope)?;
     Ok(())
 }

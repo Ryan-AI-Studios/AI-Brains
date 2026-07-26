@@ -13,7 +13,9 @@ pub use ansi::strip_ansi;
 pub use errors::{Result, RetrievalError};
 pub use fts_utils::sanitize_fts_query;
 pub use lexical::{RetrievalMemory, lexical_search, substring_fallback};
-pub use preflight::{PreflightContext, build_preflight};
+pub use preflight::{
+    PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
+};
 pub use recall::{RecallHit, RecallOptions, recall};
 pub use sessions::active_sessions;
 

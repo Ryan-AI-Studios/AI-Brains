@@ -29,6 +29,7 @@ use crate::context::AppContext;
 use ai_brains_core::ids::{ProjectId, SessionId};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 #[cfg(test)]
 mod tests {
@@ -311,6 +312,78 @@ enum Commands {
         #[command(subcommand)]
         command: ShadowCommands,
     },
+    /// Build typed Project / Personal briefing packets (T152)
+    ///
+    /// Empty-state contract: denied/unresolved scopes return a packet with
+    /// `denied=true` or empty authority sections + warnings (JSON stdout by default).
+    /// Principal: `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` or well-known System principal
+    /// (must be registered + granted). See `AI_BRAINS_GOVERNED_BRIEFING` for preflight.
+    Briefing {
+        #[command(subcommand)]
+        command: BriefingCommands,
+    },
+    /// Governed progressive query, handle expand, and query-trace retrieval (T152)
+    Query {
+        #[command(subcommand)]
+        command: GovernedQueryCommands,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+enum BriefingCommands {
+    /// Build a Project Briefing packet (policy → lifecycle → authority)
+    Project {
+        #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
+        project_id: Option<ProjectId>,
+        #[arg(short, long, default_value_t = 1500)]
+        max_words: usize,
+        /// Skip BriefingGenerated event / cache write (default: true)
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        dry_run: bool,
+        /// Output format: `json` (default) or `markdown`
+        #[arg(long)]
+        format: Option<String>,
+    },
+    /// Build a Personal Continuity Briefing packet
+    Personal {
+        /// Personal user id (defaults to principal UUID mapping)
+        #[arg(long)]
+        user_id: Option<String>,
+        #[arg(short, long, default_value_t = 800)]
+        max_words: usize,
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        dry_run: bool,
+        /// Output format: `json` (default) or `markdown`
+        #[arg(long)]
+        format: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+enum GovernedQueryCommands {
+    /// Run a governed progressive query (JSON ProgressiveQueryResponse)
+    Progressive {
+        /// Query text
+        query: String,
+        #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
+        project_id: Option<ProjectId>,
+        #[arg(short, long, default_value_t = 16)]
+        limit: usize,
+        /// Skip QueryTraceRecorded event (default: true)
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        dry_run: bool,
+    },
+    /// Expand an evidence / conclusion / decision handle to a bounded preview
+    Expand {
+        /// Handle id (evidence UUID, conclusion id, or decision id)
+        handle_id: String,
+        #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
+        project_id: Option<ProjectId>,
+        #[arg(long, default_value_t = 512)]
+        max_chars: usize,
+    },
+    /// Fetch a governed query trace by id (null when missing or unauthorized)
+    Trace { trace_id: String },
 }
 
 #[derive(Subcommand, Clone)]
@@ -597,6 +670,8 @@ fn should_warn_project_context_override(args: &[String]) -> bool {
                 | "project"
                 | "safety"
                 | "antigravity-import"
+                | "briefing"
+                | "query"
         )
     })
 }
@@ -822,6 +897,76 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
     match &cli.command {
         Commands::Shadow { .. } => unreachable!("shadow handled above"),
+        Commands::Briefing { command } => match command {
+            BriefingCommands::Project {
+                project_id,
+                max_words,
+                dry_run,
+                format,
+            } => commands::briefing::run_project(
+                &ctx,
+                commands::briefing::ProjectBriefingOptions {
+                    project_id: *project_id,
+                    max_words: *max_words,
+                    dry_run: *dry_run,
+                    format: format.clone(),
+                },
+            ),
+            BriefingCommands::Personal {
+                user_id,
+                max_words,
+                dry_run,
+                format,
+            } => {
+                let uid = match user_id {
+                    Some(raw) => Some(ai_brains_core::ids::UserId::from_str(raw)?),
+                    None => None,
+                };
+                commands::briefing::run_personal(
+                    &ctx,
+                    commands::briefing::PersonalBriefingOptions {
+                        user_id: uid,
+                        max_words: *max_words,
+                        dry_run: *dry_run,
+                        format: format.clone(),
+                    },
+                )
+            }
+        },
+        Commands::Query { command } => match command {
+            GovernedQueryCommands::Progressive {
+                query,
+                project_id,
+                limit,
+                dry_run,
+            } => commands::governed_query::run_progressive(
+                &ctx,
+                commands::governed_query::ProgressiveQueryOptions {
+                    query: query.clone(),
+                    project_id: *project_id,
+                    limit: *limit,
+                    dry_run: *dry_run,
+                },
+            ),
+            GovernedQueryCommands::Expand {
+                handle_id,
+                project_id,
+                max_chars,
+            } => commands::governed_query::run_expand(
+                &ctx,
+                commands::governed_query::ExpandHandleOptions {
+                    handle_id: handle_id.clone(),
+                    project_id: *project_id,
+                    max_chars: *max_chars,
+                },
+            ),
+            GovernedQueryCommands::Trace { trace_id } => commands::governed_query::run_trace(
+                &ctx,
+                commands::governed_query::TraceOptions {
+                    trace_id: trace_id.clone(),
+                },
+            ),
+        },
         Commands::Init { force } => commands::init::run(&ctx, *force),
         Commands::Ingest { dry_run } => commands::ingest::run(&ctx, *dry_run),
         Commands::Recall {

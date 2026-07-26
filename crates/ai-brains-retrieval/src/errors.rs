@@ -8,10 +8,18 @@ pub enum RetrievalError {
     Sql(#[from] rusqlite::Error),
     #[error("store error: {0}")]
     Store(#[from] ai_brains_store::StoreError),
+    #[error("control plane error: {0}")]
+    ControlPlane(String),
     #[error("IPC bridge error: {0}")]
     Ipc(String),
     #[error("deserialization error: {0}")]
     Deserialization(String),
     #[error("model/embedding error: {0}")]
     Model(String),
+}
+
+impl From<ai_brains_control_plane::ControlPlaneError> for RetrievalError {
+    fn from(e: ai_brains_control_plane::ControlPlaneError) -> Self {
+        RetrievalError::ControlPlane(e.to_string())
+    }
 }

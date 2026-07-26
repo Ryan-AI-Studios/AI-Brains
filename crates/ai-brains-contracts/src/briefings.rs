@@ -1,9 +1,20 @@
+//! Briefing DTOs and typed Project / Personal packets (T152).
+//!
+//! **Hard rules**
+//! - Personal sections are **never** nested inside [`ProjectBriefingPacket`].
+//! - Stale / Disputed / Rejected conclusions appear only under warnings, not current lists.
+//! - Every authoritative decision/conclusion entry carries ≥1 evidence handle.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::knowledge::EvidenceHandle;
 
 pub const API_VERSION: &str = "1";
+
+// ---------------------------------------------------------------------------
+// Shell (backward compatible)
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BriefingDto {
@@ -29,4 +40,421 @@ impl BriefingResponse {
             briefing,
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Shared packet pieces
+// ---------------------------------------------------------------------------
+
+/// Budget metering for a generated briefing packet.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BudgetReportDto {
+    pub max_words: usize,
+    pub used_words: usize,
+    /// Section names dropped or truncated (snake_case).
+    #[serde(default)]
+    pub truncated_sections: Vec<String>,
+    pub more_available: bool,
+}
+
+/// Resolved scope summary embedded in a Project briefing.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BriefingScopeDto {
+    /// Scope identity key, e.g. `Repository:{uuid}`.
+    pub scope_key: String,
+    /// High | Medium | Low | Ambiguous
+    pub confidence: String,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    #[serde(default)]
+    pub alternatives: Vec<String>,
+    /// True when callers may inject high-authority claims for this scope.
+    pub authoritative: bool,
+}
+
+/// Compact claim entry (decision or conclusion) with required evidence handles.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BriefingClaimDto {
+    pub id: String,
+    /// Decision | Conclusion
+    pub kind: String,
+    pub statement: String,
+    /// Approved | Active | Confirmed (current authority only).
+    pub state: String,
+    #[serde(default)]
+    pub evidence_handles: Vec<EvidenceHandle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+}
+
+/// Constraint / invariant entry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BriefingConstraintDto {
+    pub id: String,
+    pub statement: String,
+    #[serde(default)]
+    pub evidence_handles: Vec<EvidenceHandle>,
+}
+
+/// Non-current or risk signal (stale, disputed, open conflict, unavailable, denied).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BriefingWarningDto {
+    /// stale | disputed | open_conflict | unavailable | denied | low_confidence | other
+    pub kind: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_kind: Option<String>,
+}
+
+/// Aggregate freshness summary for sources feeding the packet.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FreshnessSummaryDto {
+    pub total_sources: u32,
+    pub fresh_count: u32,
+    pub stale_count: u32,
+    pub unavailable_count: u32,
+    /// Best-effort worst state label (Fresh | Stale | Unavailable | Unknown).
+    pub worst_state: String,
+}
+
+/// Optional Ledgerful / ChangeGuard blend (degrades to null/empty on failure).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LedgerfulSectionDto {
+    #[serde(default)]
+    pub hotspots: Vec<String>,
+    #[serde(default)]
+    pub impact_notes: Vec<String>,
+    /// True when the bridge failed and the section is empty/degraded.
+    #[serde(default)]
+    pub degraded: bool,
+}
+
+/// Optional active handoff / session summary.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HandoffSectionDto {
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub session_ids: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Project briefing packet
+// ---------------------------------------------------------------------------
+
+/// Cold-start Project Briefing packet.
+///
+/// **Does not** embed Personal continuity sections. Personal is a separate packet.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectBriefingPacket {
+    pub api_version: String,
+    pub briefing_id: String,
+    /// Always `"Project"` for this packet type.
+    pub kind: String,
+    pub scope: BriefingScopeDto,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff: Option<HandoffSectionDto>,
+    #[serde(default)]
+    pub decisions: Vec<BriefingClaimDto>,
+    #[serde(default)]
+    pub conclusions: Vec<BriefingClaimDto>,
+    #[serde(default)]
+    pub constraints: Vec<BriefingConstraintDto>,
+    #[serde(default)]
+    pub warnings: Vec<BriefingWarningDto>,
+    pub freshness: FreshnessSummaryDto,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ledgerful: Option<LedgerfulSectionDto>,
+    /// Flattened evidence handles cited by authoritative claims (and extras).
+    #[serde(default)]
+    pub evidence_handles: Vec<EvidenceHandle>,
+    pub budget: BudgetReportDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_at: Option<DateTime<Utc>>,
+    /// When policy denied ReadDecisions/ReadConclusions for the principal.
+    #[serde(default)]
+    pub denied: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denial_reason: Option<String>,
+}
+
+impl ProjectBriefingPacket {
+    pub fn empty_denied(
+        briefing_id: String,
+        scope: BriefingScopeDto,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            briefing_id,
+            kind: "Project".to_string(),
+            scope,
+            handoff: None,
+            decisions: Vec::new(),
+            conclusions: Vec::new(),
+            constraints: Vec::new(),
+            warnings: Vec::new(),
+            freshness: FreshnessSummaryDto {
+                total_sources: 0,
+                fresh_count: 0,
+                stale_count: 0,
+                unavailable_count: 0,
+                worst_state: "Unknown".to_string(),
+            },
+            ledgerful: None,
+            evidence_handles: Vec::new(),
+            budget: BudgetReportDto {
+                max_words: 0,
+                used_words: 0,
+                truncated_sections: Vec::new(),
+                more_available: false,
+            },
+            generated_at: None,
+            denied: true,
+            denial_reason: Some(reason.into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectBriefingResponse {
+    pub api_version: String,
+    pub packet: ProjectBriefingPacket,
+}
+
+impl ProjectBriefingResponse {
+    pub fn new(packet: ProjectBriefingPacket) -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            packet,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Personal continuity briefing packet
+// ---------------------------------------------------------------------------
+
+/// Preference / personal constraint (Personal scope only).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PersonalPreferenceDto {
+    pub id: String,
+    pub statement: String,
+    #[serde(default)]
+    pub evidence_handles: Vec<EvidenceHandle>,
+}
+
+/// Compact continuity thread summary.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ContinuitySummaryDto {
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub thread_handles: Vec<String>,
+}
+
+/// Open review item in personal continuity.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PersonalReviewItemDto {
+    pub id: String,
+    pub subject: String,
+    pub criticality: String,
+    pub status: String,
+}
+
+/// Grant that authorized this personal packet.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AppliedGrantDto {
+    pub grant_id: String,
+    pub scope_key: String,
+    pub capability: String,
+    pub privacy: String,
+}
+
+/// Personal Continuity Briefing — never nested inside a Project packet.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonalContinuityBriefingPacket {
+    pub api_version: String,
+    pub briefing_id: String,
+    /// Always `"Personal"` for this packet type.
+    pub kind: String,
+    /// Personal scope key `Personal:{user_id}`.
+    pub scope_key: String,
+    #[serde(default)]
+    pub preferences: Vec<PersonalPreferenceDto>,
+    #[serde(default)]
+    pub continuity: ContinuitySummaryDto,
+    #[serde(default)]
+    pub open_review_items: Vec<PersonalReviewItemDto>,
+    #[serde(default)]
+    pub grants_applied: Vec<AppliedGrantDto>,
+    #[serde(default)]
+    pub warnings: Vec<BriefingWarningDto>,
+    pub budget: BudgetReportDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub denied: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denial_reason: Option<String>,
+}
+
+impl PersonalContinuityBriefingPacket {
+    pub fn empty_denied(
+        briefing_id: String,
+        scope_key: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            briefing_id,
+            kind: "Personal".to_string(),
+            scope_key: scope_key.into(),
+            preferences: Vec::new(),
+            continuity: ContinuitySummaryDto {
+                summary: String::new(),
+                thread_handles: Vec::new(),
+            },
+            open_review_items: Vec::new(),
+            grants_applied: Vec::new(),
+            warnings: Vec::new(),
+            budget: BudgetReportDto {
+                max_words: 0,
+                used_words: 0,
+                truncated_sections: Vec::new(),
+                more_available: false,
+            },
+            generated_at: None,
+            denied: true,
+            denial_reason: Some(reason.into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersonalBriefingResponse {
+    pub api_version: String,
+    pub packet: PersonalContinuityBriefingPacket,
+}
+
+impl PersonalBriefingResponse {
+    pub fn new(packet: PersonalContinuityBriefingPacket) -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            packet,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Progressive query DTOs (T152 Phase E surface)
+// ---------------------------------------------------------------------------
+
+/// Ranking component breakdown for a progressive query hit.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RankingComponentsDto {
+    /// Authority ordinal (higher = more authoritative).
+    pub authority: i32,
+    /// Valid-time preference score (higher = better fit for query time).
+    pub valid_time: i32,
+    /// Optional secondary relevance score (vector/FTS); never sole authority.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relevance: Option<f64>,
+}
+
+/// Compact progressive query result row.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgressiveQueryHitDto {
+    pub id: String,
+    /// Decision | Conclusion | Evidence | Memory
+    pub kind: String,
+    pub statement: String,
+    pub state: String,
+    #[serde(default)]
+    pub evidence_handles: Vec<EvidenceHandle>,
+    #[serde(default)]
+    pub source_versions: Vec<String>,
+    pub freshness: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conflict_status: Option<String>,
+    pub ranking: RankingComponentsDto,
+}
+
+/// Governed progressive query response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgressiveQueryResponse {
+    pub api_version: String,
+    #[serde(default)]
+    pub results: Vec<ProgressiveQueryHitDto>,
+    pub applied_scope: String,
+    pub applied_policy: String,
+    pub query_trace_id: String,
+    pub more_available: bool,
+    #[serde(default)]
+    pub freshness_summary: Option<FreshnessSummaryDto>,
+    #[serde(default)]
+    pub conflict_summary: Option<String>,
+    #[serde(default)]
+    pub denied: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denial_reason: Option<String>,
+}
+
+impl ProgressiveQueryResponse {
+    pub fn new(
+        results: Vec<ProgressiveQueryHitDto>,
+        applied_scope: impl Into<String>,
+        applied_policy: impl Into<String>,
+        query_trace_id: impl Into<String>,
+        more_available: bool,
+    ) -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            results,
+            applied_scope: applied_scope.into(),
+            applied_policy: applied_policy.into(),
+            query_trace_id: query_trace_id.into(),
+            more_available,
+            freshness_summary: None,
+            conflict_summary: None,
+            denied: false,
+            denial_reason: None,
+        }
+    }
+}
+
+/// Full retrieval trace by id (not dumped in the default query response body).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryTraceDto {
+    pub api_version: String,
+    pub query_trace_id: String,
+    pub scope: String,
+    pub principal: String,
+    pub query: String,
+    pub applied_policy: String,
+    #[serde(default)]
+    pub ranking_json: serde_json::Value,
+    #[serde(default)]
+    pub result_handles: Vec<EvidenceHandle>,
+    #[serde(default)]
+    pub freshness_summary: Option<String>,
+    #[serde(default)]
+    pub conflict_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recorded_at: Option<DateTime<Utc>>,
+}
+
+/// Bounded preview when expanding an evidence/handle (no full raw dump by default).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HandlePreviewDto {
+    pub api_version: String,
+    pub handle_id: String,
+    pub kind: String,
+    /// Bounded text preview (truncated).
+    pub preview: String,
+    pub truncated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_version_id: Option<String>,
 }

@@ -1,7 +1,8 @@
 //! Concrete adapters binding control-plane ports to `ai-brains-store` / `ai-brains-sources`.
 
 use ai_brains_core::ids::{
-    ConclusionId, ConflictId, DecisionId, PrincipalId, ReviewItemId, SourceId, SourceVersionId,
+    ConclusionId, ConflictId, DecisionId, EvidenceId, PrincipalId, ReviewItemId, SourceId,
+    SourceVersionId,
 };
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
@@ -717,6 +718,242 @@ impl GovernedQueryStore for StoreGovernedQuery {
         }
         Ok(out)
     }
+
+    fn evidence_ids_for_conclusion(&self, conclusion_id: ConclusionId) -> Result<Vec<EvidenceId>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT evidence_id FROM conclusion_evidence_projection
+                 WHERE conclusion_id = ?
+                 ORDER BY evidence_id ASC",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let rows = stmt
+            .query_map([conclusion_id.to_string()], |r| r.get::<_, String>(0))
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let s = row.map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            if s.is_empty() {
+                continue;
+            }
+            let uuid = Uuid::parse_str(&s).map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            out.push(EvidenceId::from_uuid(uuid));
+        }
+        Ok(out)
+    }
+
+    fn evidence_ids_for_decision(&self, decision_id: DecisionId) -> Result<Vec<EvidenceId>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT DISTINCT evidence_id FROM decision_support_projection
+                 WHERE decision_id = ? AND evidence_id != ''
+                 ORDER BY evidence_id ASC",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let rows = stmt
+            .query_map([decision_id.to_string()], |r| r.get::<_, String>(0))
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let s = row.map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            let uuid = Uuid::parse_str(&s).map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            out.push(EvidenceId::from_uuid(uuid));
+        }
+        Ok(out)
+    }
+
+    fn evidence_privacy(&self, evidence_id: EvidenceId) -> Result<Option<String>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        match conn.query_row(
+            "SELECT privacy FROM evidence_projection WHERE evidence_id = ?",
+            [evidence_id.to_string()],
+            |r| r.get::<_, String>(0),
+        ) {
+            Ok(p) => Ok(Some(p)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(ControlPlaneError::Query(e.to_string())),
+        }
+    }
+
+    fn conclusion_ids_for_decision(&self, decision_id: DecisionId) -> Result<Vec<ConclusionId>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT DISTINCT conclusion_id FROM decision_support_projection
+                 WHERE decision_id = ? AND conclusion_id != ''
+                 ORDER BY conclusion_id ASC",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let rows = stmt
+            .query_map([decision_id.to_string()], |r| r.get::<_, String>(0))
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let s = row.map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            let uuid = Uuid::parse_str(&s).map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            out.push(ConclusionId::from_uuid(uuid));
+        }
+        Ok(out)
+    }
+
+    fn epistemic_version_vector(&self, scope: &str, principal_id: &str) -> Result<String> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let conclusions: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM conclusion_projection WHERE scope = ?",
+                [scope],
+                |r| r.get(0),
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let decisions: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM decision_projection WHERE scope = ?",
+                [scope],
+                |r| r.get(0),
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let conflicts: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM claim_conflict_projection WHERE scope = ?",
+                [scope],
+                |r| r.get(0),
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let max_updated: String = conn
+            .query_row(
+                "SELECT COALESCE(MAX(u), '') FROM (
+                    SELECT MAX(updated_at) AS u FROM conclusion_projection WHERE scope = ?
+                    UNION ALL
+                    SELECT MAX(updated_at) AS u FROM decision_projection WHERE scope = ?
+                 )",
+                rusqlite::params![scope, scope],
+                |r| r.get(0),
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        // Principal-scoped grant epoch: active count + max issued/revoked so
+        // issue and revoke both advance the briefing cache key (T152-R2-01).
+        let (g_active, g_issued_max, g_revoked_max): (i64, String, String) = conn
+            .query_row(
+                "SELECT
+                    COALESCE(SUM(CASE WHEN revoked_at IS NULL THEN 1 ELSE 0 END), 0),
+                    COALESCE(MAX(issued_at), ''),
+                    COALESCE(MAX(revoked_at), '')
+                 FROM scope_grant_projection
+                 WHERE principal_id = ? AND scope_key = ?",
+                rusqlite::params![principal_id, scope],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        // T152-P2-01: include source/evidence version state for scope-linked sources so
+        // source observation without a corresponding epistemic-row update still misses cache.
+        let (src_count, src_ver_count, src_ver_max, evid_count): (i64, i64, String, i64) = conn
+            .query_row(
+                "SELECT
+                    (SELECT COUNT(*) FROM source_projection WHERE scope = ?),
+                    (SELECT COUNT(*) FROM source_version_projection sv
+                     INNER JOIN source_projection s ON s.source_id = sv.source_id
+                     WHERE s.scope = ?),
+                    (SELECT COALESCE(MAX(sv.recorded_at), '') FROM source_version_projection sv
+                     INNER JOIN source_projection s ON s.source_id = sv.source_id
+                     WHERE s.scope = ?),
+                    (SELECT COUNT(*) FROM evidence_projection e
+                     INNER JOIN source_projection s ON s.source_id = e.source_id
+                     WHERE s.scope = ?)",
+                rusqlite::params![scope, scope, scope, scope],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        Ok(format!(
+            "c={conclusions};d={decisions};x={conflicts};u={max_updated};g={g_active};gi={g_issued_max};gr={g_revoked_max};s={src_count};sv={src_ver_count};svm={src_ver_max};e={evid_count}"
+        ))
+    }
+
+    fn get_briefing_cache(&self, cache_key: &str) -> Result<Option<(String, Option<String>)>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        match conn.query_row(
+            "SELECT packet_json, expires FROM briefing_cache_projection WHERE cache_key = ?",
+            [cache_key],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
+        ) {
+            Ok(row) => Ok(Some(row)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(ControlPlaneError::Query(e.to_string())),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn put_briefing_cache(
+        &self,
+        cache_key: &str,
+        briefing_type: &str,
+        scope_key: &str,
+        policy_version: &str,
+        source_version_vector: &str,
+        budget: u64,
+        packet_json: &str,
+        generated_at: &str,
+        expires: Option<&str>,
+    ) -> Result<()> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        conn.execute(
+            "INSERT INTO briefing_cache_projection (
+                cache_key, briefing_type, scope_key, policy_version,
+                source_version_vector, budget, packet_json, generated_at, expires
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(cache_key) DO UPDATE SET
+                briefing_type = excluded.briefing_type,
+                scope_key = excluded.scope_key,
+                policy_version = excluded.policy_version,
+                source_version_vector = excluded.source_version_vector,
+                budget = excluded.budget,
+                packet_json = excluded.packet_json,
+                generated_at = excluded.generated_at,
+                expires = excluded.expires",
+            rusqlite::params![
+                cache_key,
+                briefing_type,
+                scope_key,
+                policy_version,
+                source_version_vector,
+                budget as i64,
+                packet_json,
+                generated_at,
+                expires,
+            ],
+        )
+        .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        Ok(())
+    }
 }
 
 /// System clock adapter.
@@ -868,6 +1105,59 @@ impl StoreGrantPrincipalStore {
         let mut out = Vec::new();
         for row in rows {
             out.push(row.map_err(|e| ControlPlaneError::Query(e.to_string()))?);
+        }
+        Ok(out)
+    }
+
+    /// Active grants for a principal as briefing `AppliedGrantDto` rows (T152-FRESH-P2 / FRESH3-P2-01).
+    ///
+    /// Filters to `scope_key` so personal packets never list project grants (and vice versa).
+    /// When `capabilities` is non-empty, only those capability labels are returned.
+    /// Ordered by (scope_key, capability, grant_id) for deterministic packets.
+    pub fn list_applied_grants(
+        &self,
+        principal: PrincipalId,
+        scope_key: &str,
+        capabilities: Option<&[&str]>,
+    ) -> Result<Vec<ai_brains_contracts::briefings::AppliedGrantDto>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT grant_id, scope_key, capability, privacy FROM scope_grant_projection
+                 WHERE principal_id = ? AND revoked_at IS NULL AND scope_key = ?
+                 ORDER BY scope_key ASC, capability ASC, grant_id ASC",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let rows = stmt
+            .query_map([principal.to_string(), scope_key.to_string()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (grant_id, row_scope, capability, privacy) =
+                row.map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            if let Some(caps) = capabilities
+                && !caps.is_empty()
+                && !caps.iter().any(|c| capability.eq_ignore_ascii_case(c))
+            {
+                continue;
+            }
+            out.push(ai_brains_contracts::briefings::AppliedGrantDto {
+                grant_id,
+                scope_key: row_scope,
+                capability,
+                privacy,
+            });
         }
         Ok(out)
     }

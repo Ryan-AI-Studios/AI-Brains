@@ -5,7 +5,8 @@ use ai_brains_control_plane::{
     Fingerprinter, GovernedQueryStore, PolicyEvaluator, Result, ReviewItemRow, StaleFact,
 };
 use ai_brains_core::ids::{
-    ConclusionId, ConflictId, DecisionId, PrincipalId, ReviewItemId, SourceId, SourceVersionId,
+    ConclusionId, ConflictId, DecisionId, EvidenceId, PrincipalId, ReviewItemId, SourceId,
+    SourceVersionId,
 };
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
@@ -99,6 +100,38 @@ impl GovernedQueryStore for DummyQuery {
         _at: OffsetDateTime,
     ) -> Result<Vec<ConclusionRow>> {
         Ok(Vec::new())
+    }
+    fn evidence_ids_for_conclusion(&self, _conclusion_id: ConclusionId) -> Result<Vec<EvidenceId>> {
+        Ok(Vec::new())
+    }
+    fn evidence_ids_for_decision(&self, _decision_id: DecisionId) -> Result<Vec<EvidenceId>> {
+        Ok(Vec::new())
+    }
+    fn evidence_privacy(&self, _evidence_id: EvidenceId) -> Result<Option<String>> {
+        Ok(None)
+    }
+    fn conclusion_ids_for_decision(&self, _decision_id: DecisionId) -> Result<Vec<ConclusionId>> {
+        Ok(Vec::new())
+    }
+    fn epistemic_version_vector(&self, _scope: &str, _principal_id: &str) -> Result<String> {
+        Ok(String::new())
+    }
+    fn get_briefing_cache(&self, _cache_key: &str) -> Result<Option<(String, Option<String>)>> {
+        Ok(None)
+    }
+    fn put_briefing_cache(
+        &self,
+        _cache_key: &str,
+        _briefing_type: &str,
+        _scope_key: &str,
+        _policy_version: &str,
+        _source_version_vector: &str,
+        _budget: u64,
+        _packet_json: &str,
+        _generated_at: &str,
+        _expires: Option<&str>,
+    ) -> Result<()> {
+        Ok(())
     }
 }
 
