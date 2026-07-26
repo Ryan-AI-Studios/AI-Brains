@@ -202,6 +202,12 @@ fn remaining_governed_payloads__roundtrip_subset() {
             query_trace_id: QueryTraceId::from_uuid(Uuid::from_u128(16)),
             query_text: "q".into(),
             evidence_ids: vec![EvidenceId::from_uuid(Uuid::from_u128(3))],
+            scope: "Repository:00000000-0000-0000-0000-000000000001".into(),
+            principal_id: PrincipalId::from_uuid(Uuid::from_u128(9)).to_string(),
+            applied_policy: "DefaultPolicyEvaluator".into(),
+            ranking_json: r#"{"order":["policy"]}"#.into(),
+            freshness_summary: Some("fresh=1".into()),
+            conflict_summary: None,
         }),
         Payload::ContentErasureRequested(ContentErasureRequestedPayload {
             content_key_id: ContentKeyId::from_uuid(Uuid::from_u128(17)),

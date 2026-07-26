@@ -15,6 +15,7 @@ path = "src/main.rs"
 ai-brains-adapters = { path = "../ai-brains-adapters" }
 ai-brains-capture = { path = "../ai-brains-capture" }
 ai-brains-contracts = { path = "../ai-brains-contracts" }
+ai-brains-control-plane = { path = "../ai-brains-control-plane" }
 ai-brains-retrieval = { path = "../ai-brains-retrieval" }
 ai-brains-store = { path = "../ai-brains-store" }
 ai-brains-crypto = { path = "../ai-brains-crypto" }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub const API_VERSION: &str = "1";
 
 /// Evidence handle — id + optional cite label (not prose-only).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EvidenceHandle {
     pub evidence_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]

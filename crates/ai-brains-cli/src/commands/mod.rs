@@ -1,9 +1,11 @@
 pub mod agy_hook;
 pub mod antigravity_import;
 pub mod backup;
+pub mod briefing;
 pub mod context;
 pub mod daemon;
 pub mod forget;
+pub mod governed_query;
 #[cfg(feature = "graph")]
 pub mod graph;
 pub mod ingest;

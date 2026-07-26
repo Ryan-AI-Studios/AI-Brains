@@ -1,0 +1,74 @@
+{
+  "api_version": "1",
+  "briefing_id": "00000000-0000-0000-0000-0000000000b2",
+  "kind": "Project",
+  "scope": {
+    "scope_key": "Repository:00000000-0000-0000-0000-0000000000a1",
+    "confidence": "High",
+    "warnings": [],
+    "alternatives": [],
+    "authoritative": true
+  },
+  "handoff": null,
+  "decisions": [
+    {
+      "id": "00000000-0000-0000-0000-0000000000d1",
+      "kind": "Decision",
+      "statement": "Use migration 0025 for briefings",
+      "state": "Approved",
+      "title": "Briefing migration",
+      "evidence_handles": [
+        {
+          "evidence_id": "00000000-0000-0000-0000-0000000000e1",
+          "cite_label": "spec R2"
+        }
+      ]
+    }
+  ],
+  "conclusions": [
+    {
+      "id": "00000000-0000-0000-0000-0000000000c1",
+      "kind": "Conclusion",
+      "statement": "Briefings are deterministic in v1",
+      "state": "Active",
+      "evidence_handles": [
+        {
+          "evidence_id": "00000000-0000-0000-0000-0000000000e2"
+        }
+      ]
+    }
+  ],
+  "constraints": [],
+  "warnings": [
+    {
+      "kind": "stale",
+      "message": "Conclusion marked stale after source change",
+      "subject_id": "00000000-0000-0000-0000-0000000000c2",
+      "subject_kind": "Conclusion"
+    }
+  ],
+  "freshness": {
+    "total_sources": 2,
+    "fresh_count": 1,
+    "stale_count": 1,
+    "unavailable_count": 0,
+    "worst_state": "Stale"
+  },
+  "ledgerful": null,
+  "evidence_handles": [
+    {
+      "evidence_id": "00000000-0000-0000-0000-0000000000e1",
+      "cite_label": "spec R2"
+    },
+    {
+      "evidence_id": "00000000-0000-0000-0000-0000000000e2"
+    }
+  ],
+  "budget": {
+    "max_words": 1500,
+    "used_words": 120,
+    "truncated_sections": [],
+    "more_available": false
+  },
+  "denied": false
+}

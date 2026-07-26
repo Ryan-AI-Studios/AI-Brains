@@ -117,6 +117,7 @@ dependencies = [
  "ai-brains-brain",
  "ai-brains-capture",
  "ai-brains-contracts",
+ "ai-brains-control-plane",
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-daemon-api",
@@ -166,6 +167,7 @@ dependencies = [
 name = "ai-brains-control-plane"
 version = "0.1.1"
 dependencies = [
+ "ai-brains-contracts",
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-events",
@@ -173,6 +175,7 @@ dependencies = [
  "ai-brains-path",
  "ai-brains-sources",
  "ai-brains-store",
+ "chrono",
  "rusqlite",
  "serde",
  "serde_json",
@@ -292,6 +295,7 @@ name = "ai-brains-retrieval"
 version = "0.1.1"
 dependencies = [
  "ai-brains-contracts",
+ "ai-brains-control-plane",
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-events",

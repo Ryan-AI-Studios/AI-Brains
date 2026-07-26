@@ -1,0 +1,37 @@
+{
+  "api_version": "1",
+  "results": [
+    {
+      "id": "00000000-0000-0000-0000-0000000000c1",
+      "kind": "Conclusion",
+      "statement": "Briefings are deterministic in v1",
+      "state": "Active",
+      "evidence_handles": [
+        {
+          "evidence_id": "00000000-0000-0000-0000-0000000000e2"
+        }
+      ],
+      "source_versions": ["00000000-0000-0000-0000-0000000000v1"],
+      "freshness": "Fresh",
+      "conflict_status": null,
+      "ranking": {
+        "authority": 80,
+        "valid_time": 50,
+        "relevance": 0.42
+      }
+    }
+  ],
+  "applied_scope": "Repository:00000000-0000-0000-0000-0000000000a1",
+  "applied_policy": "DefaultPolicyEvaluator",
+  "query_trace_id": "00000000-0000-0000-0000-0000000000t1",
+  "more_available": false,
+  "freshness_summary": {
+    "total_sources": 1,
+    "fresh_count": 1,
+    "stale_count": 0,
+    "unavailable_count": 0,
+    "worst_state": "Fresh"
+  },
+  "conflict_summary": null,
+  "denied": false
+}

@@ -92,6 +92,40 @@ ai-brains preflight --max-words 1500
 - `--pretty` / `--format human` for human-readable text
 - `--scope "src/foo.rs,src/bar.rs"` for contextual risk analysis on a specific path set
 
+### Governed briefings & progressive query (T152)
+
+Set `AI_BRAINS_GOVERNED_BRIEFING=1` (or `true`/`yes`) to route `preflight` through the typed
+`ProjectBriefingPacket` path (policy + scope authority + budget). Default remains the legacy
+string-scrape preflight. The principal used for grant checks is
+`AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` (UUID) when set; otherwise a well-known System principal.
+Both must be **registered** and hold `ReadDecisions` / `ReadConclusions` grants for the
+resolved repository scope, or authority sections are empty (`denied` / warnings).
+
+**Empty-state contract**
+- Unresolved / global preflight → empty project packet + warning (not a crash).
+- Policy denial → `denied=true` (or empty sections) with a `denied` warning; never injects
+  high-authority claims without a grant.
+- Non-authoritative scope (Low/Ambiguous) → empty current decisions/conclusions +
+  `low_confidence` warning.
+
+**Packet shape (JSON)**
+- Project: `api_version`, `briefing_id`, `kind="Project"`, `scope`, `decisions[]`,
+  `conclusions[]`, `constraints[]`, `warnings[]`, `freshness`, `evidence_handles[]`,
+  `budget`, optional `denied` / `denial_reason`. Personal fields are never nested.
+- Personal: separate packet (`kind="Personal"`) with `preferences`, `continuity`,
+  `open_review_items`, `grants_applied` — never embedded inside Project.
+- Progressive query: `results[]` (handles + ranking), `query_trace_id`, `freshness_summary`,
+  optional `denied`.
+
+**CLI surface (dry-run JSON by default)**
+```powershell
+ai-brains briefing project --project-id <uuid> --format json
+ai-brains briefing personal --format markdown
+ai-brains query progressive "authority order" --project-id <uuid>
+ai-brains query expand <handle-id> --project-id <uuid>
+ai-brains query trace <trace-id>
+```
+
 ## 4. Project & Session Management
 
 ### Project Setup
@@ -286,6 +320,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | `AI_BRAINS_EMBEDDING_MODEL` | Name of the embedding model (default: `nomic-embed-text-v1.5`). |
 | `AI_BRAINS_COMPLETION_MODEL` | Name of the completion model (default: `gemma-4-E4B-it-Q6_K.gguf`). |
 | `AI_BRAINS_SCOPE` | Comma-separated paths for preflight contextual risk analysis. |
+| `AI_BRAINS_GOVERNED_BRIEFING` | When `1`/`true`/`yes`, `preflight` uses typed Project briefing (policy + authority). Default off. |
+| `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` | UUID principal for governed preflight / briefing / query CLI grant checks. |
 
 ## 10. Command Summary
 
@@ -296,6 +332,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
 | Unified Search | `ai-brains sync query "<topic>"` (searches vault + Ledgerful) |
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
+| Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (JSON packet; see T152 section) |
+| Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
 | Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |
 | Forget Memory | `ai-brains forget` (use `--match` for search, `--restore` undo, `-f` to skip confirm) |

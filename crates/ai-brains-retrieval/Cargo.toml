@@ -10,6 +10,7 @@ repository.workspace = true
 ai-brains-core = { path = "../ai-brains-core" }
 ai-brains-store = { path = "../ai-brains-store" }
 ai-brains-contracts = { path = "../ai-brains-contracts" }
+ai-brains-control-plane = { path = "../ai-brains-control-plane" }
 ai-brains-models = { path = "../ai-brains-models" }
 ai-brains-graph = { path = "../ai-brains-graph", optional = true }
 rusqlite.workspace = true
@@ -20,6 +21,7 @@ serde_json.workspace = true
 tokio = { workspace = true }
 tempfile.workspace = true
 tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
 
 [features]
 default = []
