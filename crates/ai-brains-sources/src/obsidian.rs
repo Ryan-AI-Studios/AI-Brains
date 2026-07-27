@@ -106,7 +106,7 @@ impl MarkdownObsidianConnector {
         // Prefer absolute/canonical root for stable containment.
         let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
 
-        let is_obsidian_vault = is_obsidian_vault(&root);
+        let is_obsidian_vault = detect_obsidian_vault(&root)?;
 
         let manifest = ConnectorManifest {
             schema_version: MANIFEST_SCHEMA_VERSION,
@@ -160,11 +160,21 @@ impl MarkdownObsidianConnector {
 }
 
 /// True when `root/.obsidian` exists and is a directory.
-pub fn is_obsidian_vault(root: &Path) -> bool {
+///
+/// `NotFound` → `false` (plain markdown root). Other I/O errors propagate so a
+/// vault is not silently misclassified when the marker is inaccessible.
+pub fn is_obsidian_vault(root: &Path) -> Result<bool, ConnectorError> {
+    detect_obsidian_vault(root)
+}
+
+fn detect_obsidian_vault(root: &Path) -> Result<bool, ConnectorError> {
     let marker = root.join(".obsidian");
     match std::fs::symlink_metadata(&marker) {
-        Ok(m) => m.is_dir(),
-        Err(_) => false,
+        Ok(m) => Ok(m.is_dir()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(ConnectorError::Internal {
+            detail: format!("obsidian marker metadata {}: {e}", marker.display()),
+        }),
     }
 }
 
