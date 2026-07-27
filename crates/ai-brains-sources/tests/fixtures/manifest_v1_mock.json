@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "builtin.mock",
+  "display_name": "Mock Connector",
+  "connector_version": "0.1.0",
+  "source_kinds": ["File"],
+  "operations": {
+    "list": true,
+    "observe": true,
+    "preview": true,
+    "propose_write": true
+  },
+  "scope_affinity": ["Personal", "Repository", "Workspace"],
+  "freshness": "Fingerprint",
+  "credentials": "None",
+  "sandbox": "TrustedBuiltin",
+  "default_trust": "LocalOnly"
+}

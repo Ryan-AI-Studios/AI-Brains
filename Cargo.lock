@@ -337,12 +337,15 @@ dependencies = [
 name = "ai-brains-sources"
 version = "0.1.1"
 dependencies = [
+ "ai-brains-core",
  "ai-brains-git",
  "hex",
+ "serde",
  "serde_json",
  "sha2",
  "tempfile",
  "thiserror",
+ "uuid",
 ]
 
 [[package]]
