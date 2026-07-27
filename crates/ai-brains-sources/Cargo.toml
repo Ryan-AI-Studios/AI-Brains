@@ -5,14 +5,17 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Deterministic source fingerprints (SHA-256) and normalization (T149)"
+description = "Deterministic source fingerprints, normalization, and connector port + capability manifest (T149/T153)"
 
 [dependencies]
+ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
 ai-brains-git = { path = "../ai-brains-git", version = "0.1.0" }
 sha2.workspace = true
 hex.workspace = true
 thiserror.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

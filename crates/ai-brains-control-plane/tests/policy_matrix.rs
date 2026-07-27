@@ -602,3 +602,92 @@ fn policy_matrix__grant_privacy_strictest_blocks_cloud() {
         "privacy_route_mismatch"
     );
 }
+
+// --- T153: connector registry principal binding ↔ policy ---
+
+#[test]
+fn connector_registry__principal_id_bound__read_evidence_allowed() {
+    use ai_brains_sources::{
+        InProcessConnectorRegistry, MOCK_CONNECTOR_ID, MockConnector, principal_id_for_connector,
+    };
+
+    let mut reg = InProcessConnectorRegistry::new();
+    reg.register(Box::new(MockConnector::new()))
+        .expect("register mock");
+    let bound_id = reg
+        .get_manifest(MOCK_CONNECTOR_ID)
+        .expect("manifest")
+        .principal_id
+        .expect("principal_id bound");
+    assert_eq!(bound_id, principal_id_for_connector(MOCK_CONNECTOR_ID));
+
+    // Kind bindings from the connector manifest (File).
+    let kinds = reg
+        .get(MOCK_CONNECTOR_ID)
+        .expect("connector")
+        .manifest()
+        .source_kinds
+        .clone();
+    assert_eq!(kinds, vec![SourceKind::File]);
+
+    let store = MemGrantStore::default();
+    let connector = Principal {
+        id: bound_id,
+        kind: PrincipalKind::Connector,
+        display_name: "Mock Connector".into(),
+        bound_source_kinds: kinds,
+        bound_capabilities: Vec::new(),
+    };
+    let scope = repo_scope();
+    store.register(connector.clone());
+    store.grant(connector.id, scope.clone(), GrantCapability::ReadEvidence);
+    let eval = DefaultPolicyEvaluator::new(&store);
+    let mut ctx = ctx();
+    ctx.source_kind = Some(SourceKind::File);
+    // Trust label parity: sources ConnectorTrustLabel::LocalOnly ↔ ConnectorTrust::LocalOnly
+    ctx.connector_trust = Some(ConnectorTrust::LocalOnly);
+    assert!(
+        eval.allow(bound_id, GrantCapability::ReadEvidence, &scope, &ctx)
+            .unwrap(),
+        "registry-bound principal with grant + bound File kind must allow ReadEvidence"
+    );
+}
+
+#[test]
+fn connector_observe__unbound_source_kind__policy_denied() {
+    use ai_brains_sources::{InProcessConnectorRegistry, MOCK_CONNECTOR_ID, MockConnector};
+
+    let mut reg = InProcessConnectorRegistry::new();
+    reg.register(Box::new(MockConnector::new()))
+        .expect("register mock");
+    let bound_id = reg
+        .get_manifest(MOCK_CONNECTOR_ID)
+        .expect("manifest")
+        .principal_id
+        .expect("principal_id bound");
+
+    let store = MemGrantStore::default();
+    let connector = Principal {
+        id: bound_id,
+        kind: PrincipalKind::Connector,
+        display_name: "Mock Connector".into(),
+        // Bound only to File (from mock manifest); GitRepository is unbound.
+        bound_source_kinds: vec![SourceKind::File],
+        bound_capabilities: Vec::new(),
+    };
+    let scope = repo_scope();
+    store.register(connector.clone());
+    store.grant(connector.id, scope.clone(), GrantCapability::ReadEvidence);
+    let eval = DefaultPolicyEvaluator::new(&store);
+    let mut ctx = ctx();
+    ctx.source_kind = Some(SourceKind::GitRepository);
+    assert!(
+        !eval
+            .allow(bound_id, GrantCapability::ReadEvidence, &scope, &ctx)
+            .unwrap()
+    );
+    assert_eq!(
+        store.last_log().unwrap().reason_code,
+        "connector_source_kind_unbound"
+    );
+}
