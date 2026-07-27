@@ -11,7 +11,9 @@
 //!   into this crate — that would create a sources↔control-plane cycle);
 //! - never follow attacker-controlled links outside the vault root.
 //!
-//! Full soft-canonicalize TOCTOU hardening remains a P6 residual for T154+.
+//! T154 implements vault containment + reparse refuse for Markdown/Obsidian.
+//! Residual soft-canonicalize / openat TOCTOU remains documented on
+//! [`crate::vault_fs`] and [`crate::obsidian`].
 //!
 //! # Write-back
 //!
