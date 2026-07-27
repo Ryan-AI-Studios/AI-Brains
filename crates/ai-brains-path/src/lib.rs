@@ -5,6 +5,7 @@ mod display;
 mod errors;
 mod location;
 mod project_path;
+mod reparse;
 mod symlink;
 mod unc;
 mod windows;
@@ -18,6 +19,7 @@ pub use location::{
     normalize_for_location_compare, path_is_same_or_inside, paths_refer_to_same_location,
 };
 pub use project_path::ProjectPath;
+pub use reparse::{is_reparse_or_symlink, refuse_if_reparse};
 pub use symlink::resolve_best_effort;
 
 #[deprecated(note = "use extract_project_id_from_ledgerful")]
