@@ -5,16 +5,13 @@
 
 use std::path::Path;
 
-use ai_brains_sources::{
-    VaultFsError, is_reserved_windows_stem, resolve_under_root,
-};
+use ai_brains_sources::{VaultFsError, is_reserved_windows_stem, resolve_under_root};
 use tempfile::tempdir;
 
 #[test]
 fn resolve_under_root__parent_escape__errors() {
     let dir = tempdir().expect("tempdir");
-    let err =
-        resolve_under_root(dir.path(), "notes/../../outside.md").expect_err("parent escape");
+    let err = resolve_under_root(dir.path(), "notes/../../outside.md").expect_err("parent escape");
     assert!(matches!(err, VaultFsError::PathEscape(_)), "{err}");
 }
 
@@ -31,7 +28,10 @@ fn resolve_under_root__normalized_relative__ok() {
     let dir = tempdir().expect("tempdir");
     std::fs::create_dir_all(dir.path().join("notes")).expect("mkdir");
     let resolved = resolve_under_root(dir.path(), "notes/alpha.md").expect("ok");
-    assert!(ai_brains_path::path_is_same_or_inside(&resolved, dir.path()));
+    assert!(ai_brains_path::path_is_same_or_inside(
+        &resolved,
+        dir.path()
+    ));
     assert!(resolved.ends_with(Path::new("notes").join("alpha.md")));
 }
 

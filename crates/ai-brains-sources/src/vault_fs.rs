@@ -75,9 +75,7 @@ fn component_stem(component: &str) -> &str {
 /// reserved Windows device stem under the blanket T154 policy.
 pub fn is_reserved_windows_stem(component: &str) -> bool {
     let stem = component_stem(component);
-    RESERVED_STEMS
-        .iter()
-        .any(|r| stem.eq_ignore_ascii_case(r))
+    RESERVED_STEMS.iter().any(|r| stem.eq_ignore_ascii_case(r))
 }
 
 /// Normalize a vault-relative locator to forward slashes without a leading `./`.
@@ -130,8 +128,8 @@ fn absolute_root(root: &Path) -> Result<PathBuf, VaultFsError> {
 
 /// Refuse when `path` is a reparse point / symlink / junction.
 pub fn refuse_reparse_path(path: &Path) -> Result<(), VaultFsError> {
-    let is_reparse = ai_brains_path::is_reparse_or_symlink(path)
-        .map_err(|e| VaultFsError::Io(e.to_string()))?;
+    let is_reparse =
+        ai_brains_path::is_reparse_or_symlink(path).map_err(|e| VaultFsError::Io(e.to_string()))?;
     if is_reparse {
         return Err(VaultFsError::ReparseRefused(path.display().to_string()));
     }
@@ -261,8 +259,8 @@ mod unit_tests {
     #[test]
     fn resolve_under_root__parent_escape__errors() {
         let dir = tempdir().expect("tempdir");
-        let err = resolve_under_root(dir.path(), "notes/../../outside.md")
-            .expect_err("parent escape");
+        let err =
+            resolve_under_root(dir.path(), "notes/../../outside.md").expect_err("parent escape");
         assert!(matches!(err, VaultFsError::PathEscape(_)));
     }
 
@@ -283,7 +281,10 @@ mod unit_tests {
         let notes = dir.path().join("notes");
         std::fs::create_dir_all(&notes).expect("mkdir");
         let resolved = resolve_under_root(dir.path(), "notes/alpha.md").expect("ok");
-        assert!(ai_brains_path::path_is_same_or_inside(&resolved, dir.path()));
+        assert!(ai_brains_path::path_is_same_or_inside(
+            &resolved,
+            dir.path()
+        ));
         assert!(resolved.ends_with(Path::new("notes").join("alpha.md")));
     }
 
@@ -394,9 +395,7 @@ mod unit_tests {
         let link = notes.join("evil");
         let created = create_dir_symlink(outside.path(), &link);
         if !created {
-            eprintln!(
-                "soft-skip: could not create dir symlink/junction (privilege missing)."
-            );
+            eprintln!("soft-skip: could not create dir symlink/junction (privilege missing).");
             return;
         }
 

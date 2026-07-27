@@ -197,9 +197,7 @@ fn obsidian_connector__list__skips_dot_obsidian() {
     );
     // Vault root handle has empty locator; no note path under .obsidian.
     assert!(
-        !handles
-            .iter()
-            .any(|h| h.locator.contains("app.json")),
+        !handles.iter().any(|h| h.locator.contains("app.json")),
         "config must not be listed"
     );
 }
@@ -213,11 +211,15 @@ fn obsidian_connector__list__ignores_node_modules_and_git() {
     let handles = c.list(&ctx).expect("list");
     let locs: Vec<&str> = handles.iter().map(|h| h.locator.as_str()).collect();
     assert!(
-        !locs.iter().any(|l| l.contains("node_modules") || l.contains(".git")),
+        !locs
+            .iter()
+            .any(|l| l.contains("node_modules") || l.contains(".git")),
         "ignored dirs must never list: {locs:?}"
     );
     assert!(
-        !locs.iter().any(|l| *l == "node_modules/x.md" || *l == ".git/x.md"),
+        !locs
+            .iter()
+            .any(|l| *l == "node_modules/x.md" || *l == ".git/x.md"),
         "planted ignore fixtures must be absent: {locs:?}"
     );
 }
@@ -265,8 +267,7 @@ fn obsidian_connector__observe__fingerprintable_payload() {
     let fp = fingerprint_file_with_identity(&payload.identity, &payload.content)
         .expect("fingerprintable");
     assert!(fp.starts_with('v'), "got {fp}");
-    let fp2 =
-        fingerprint_file_with_identity(&payload.identity, &payload.content).expect("fp2");
+    let fp2 = fingerprint_file_with_identity(&payload.identity, &payload.content).expect("fp2");
     assert_eq!(fp, fp2);
 }
 
@@ -285,8 +286,11 @@ fn obsidian_connector__rename__new_locator_identity() {
         .clone();
     let old_identity = alpha.identity.clone();
 
-    fs::rename(dir.path().join("notes/alpha.md"), dir.path().join("notes/beta.md"))
-        .expect("rename");
+    fs::rename(
+        dir.path().join("notes/alpha.md"),
+        dir.path().join("notes/beta.md"),
+    )
+    .expect("rename");
 
     let after = c.list(&ctx).expect("list after");
     assert!(
@@ -341,7 +345,10 @@ fn obsidian_connector__duplicate_title__two_handles() {
         .iter()
         .filter(|h| h.locator == "notes/dup.md" || h.locator == "notes/gamma.md")
         .count();
-    assert_eq!(dup, 2, "two files with shared title remain distinct handles");
+    assert_eq!(
+        dup, 2,
+        "two files with shared title remain distinct handles"
+    );
     let id_dup = handles
         .iter()
         .find(|h| h.locator == "notes/dup.md")
@@ -384,10 +391,7 @@ fn obsidian_connector__path_traversal__refused() {
         locator: r"C:\Windows\win.ini".into(),
     };
     let err2 = c.observe(&ctx, &abs).expect_err("absolute");
-    assert!(
-        matches!(err2, ConnectorError::Internal { .. }),
-        "{err2}"
-    );
+    assert!(matches!(err2, ConnectorError::Internal { .. }), "{err2}");
 }
 
 #[test]
@@ -510,7 +514,9 @@ fn obsidian_connector__observe__intermediate_reparse__refused() {
         kind: SourceKind::File,
         locator: "notes/evil/file.md".into(),
     };
-    let err = c.observe(&ctx, &forced).expect_err("intermediate reparse observe");
+    let err = c
+        .observe(&ctx, &forced)
+        .expect_err("intermediate reparse observe");
     let msg = err.to_string().to_ascii_lowercase();
     assert!(
         msg.contains("reparse")

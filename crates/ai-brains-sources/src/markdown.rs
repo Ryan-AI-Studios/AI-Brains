@@ -25,11 +25,9 @@ pub fn split_frontmatter(text: &str) -> (Option<&str>, &str) {
     while search_from <= rest.len() {
         let slice = &rest[search_from..];
         // Match "---" at start of remaining text or after newline.
-        let at_line_start = search_from == 0
-            || rest.as_bytes().get(search_from.wrapping_sub(1)) == Some(&b'\n');
-        if at_line_start
-            && let Some(after) = slice.strip_prefix("---")
-        {
+        let at_line_start =
+            search_from == 0 || rest.as_bytes().get(search_from.wrapping_sub(1)) == Some(&b'\n');
+        if at_line_start && let Some(after) = slice.strip_prefix("---") {
             // Fence line ends: end of string, \n, or \r\n
             if after.is_empty() {
                 return (Some(&rest[..search_from]), "");
@@ -85,7 +83,11 @@ pub fn preview_from_markdown(text: &str, max_chars: usize) -> Preview {
     let line_end = if preview_line_count == 0 {
         None
     } else {
-        Some(body_line_start.saturating_add(preview_line_count).saturating_sub(1))
+        Some(
+            body_line_start
+                .saturating_add(preview_line_count)
+                .saturating_sub(1),
+        )
     };
 
     Preview {

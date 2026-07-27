@@ -410,8 +410,8 @@ fn connector_obsidian__passes_shared_contract() {
         b"---\ntitle: Hello\n---\n# Hi\n",
     )
     .expect("note");
-    let connector = MarkdownObsidianConnector::open(dir.path(), VaultOptions::default())
-        .expect("open vault");
+    let connector =
+        MarkdownObsidianConnector::open(dir.path(), VaultOptions::default()).expect("open vault");
     assert_eq!(connector.manifest().id, OBSIDIAN_CONNECTOR_ID);
     assert_connector_contract(&connector);
 }

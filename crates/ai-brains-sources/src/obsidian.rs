@@ -324,9 +324,8 @@ impl Connector for MarkdownObsidianConnector {
             }
             SourceKind::File => {
                 let locator = normalize_locator(&handle.locator);
-                let bytes =
-                    read_file_under_root(&self.root, &locator, self.options.max_file_bytes)
-                        .map_err(map_vault_err)?;
+                let bytes = read_file_under_root(&self.root, &locator, self.options.max_file_bytes)
+                    .map_err(map_vault_err)?;
                 let identity = make_identity(&ctx.scope, &SourceKind::File, &locator);
                 Ok(ObservePayload {
                     handle: SourceHandle {
@@ -392,6 +391,64 @@ impl Connector for MarkdownObsidianConnector {
             rationale: proposal.rationale.clone(),
             artifact_id,
         })
+    }
+}
+
+/// List-walk decision for a single directory entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ListEntryAction {
+    Proceed,
+    Skip,
+}
+
+/// Classify reparse-check result for list walks.
+///
+/// Only confirmed reparse/symlink refusal is skipped; other filesystem errors
+/// (permission denied, etc.) must surface as [`ConnectorError::Internal`].
+fn list_entry_reparse_decision(
+    result: Result<(), VaultFsError>,
+) -> Result<ListEntryAction, ConnectorError> {
+    match result {
+        Ok(()) => Ok(ListEntryAction::Proceed),
+        Err(VaultFsError::ReparseRefused(_)) => Ok(ListEntryAction::Skip),
+        Err(other) => Err(map_vault_err(other)),
+    }
+}
+
+/// Classify `symlink_metadata` for list walks.
+///
+/// `NotFound` is skipped (race: entry deleted during walk). All other I/O
+/// errors propagate as Internal.
+fn list_entry_metadata_decision(
+    result: Result<std::fs::Metadata, std::io::Error>,
+    path: &Path,
+) -> Result<Option<std::fs::Metadata>, ConnectorError> {
+    match result {
+        Ok(meta) => Ok(Some(meta)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(ConnectorError::Internal {
+            detail: format!("symlink_metadata {}: {e}", path.display()),
+        }),
+    }
+}
+
+/// Classify `resolve_under_root` for list walks.
+///
+/// Path policy refusals (escape, reserved stem, absolute, reparse) skip the
+/// entry. I/O and other unexpected errors propagate.
+fn list_entry_resolve_decision(
+    result: Result<PathBuf, VaultFsError>,
+) -> Result<ListEntryAction, ConnectorError> {
+    match result {
+        Ok(_) => Ok(ListEntryAction::Proceed),
+        Err(
+            VaultFsError::PathEscape(_)
+            | VaultFsError::ReservedStem(_)
+            | VaultFsError::ReparseRefused(_)
+            | VaultFsError::AbsolutePath(_)
+            | VaultFsError::EmptyRelative,
+        ) => Ok(ListEntryAction::Skip),
+        Err(other) => Err(map_vault_err(other)),
     }
 }
 
@@ -462,8 +519,10 @@ fn walk_vault(
             continue;
         }
         // Windows junctions may not report is_symlink; extra reparse check.
-        if refuse_reparse_path(&path).is_err() {
-            continue;
+        // Only ReparseRefused is skippable; I/O errors from metadata must surface.
+        match list_entry_reparse_decision(refuse_reparse_path(&path))? {
+            ListEntryAction::Proceed => {}
+            ListEntryAction::Skip => continue,
         }
 
         if file_type.is_dir() {
@@ -491,10 +550,10 @@ fn walk_vault(
             continue;
         }
 
-        // Size cap: skip oversized on list.
-        let meta = match std::fs::symlink_metadata(&path) {
-            Ok(m) => m,
-            Err(_) => continue,
+        // Size cap: skip oversized on list. NotFound races skip; other I/O errors surface.
+        let Some(meta) = list_entry_metadata_decision(std::fs::symlink_metadata(&path), &path)?
+        else {
+            continue;
         };
         if meta.len() > max_file_bytes {
             continue;
@@ -503,14 +562,15 @@ fn walk_vault(
         let rel = match path.strip_prefix(vault_root) {
             Ok(r) => r,
             Err(_) => {
-                // Containment failure — skip.
+                // Containment failure — skip (should not appear from a root-bounded walk).
                 continue;
             }
         };
         let locator = normalize_locator(&rel.to_string_lossy());
-        // Double-check resolve.
-        if resolve_under_root(vault_root, &locator).is_err() {
-            continue;
+        // Double-check resolve: policy refusals skip; I/O errors surface.
+        match list_entry_resolve_decision(resolve_under_root(vault_root, &locator))? {
+            ListEntryAction::Proceed => {}
+            ListEntryAction::Skip => continue,
         }
 
         if handles.len() >= max_files {
@@ -527,4 +587,123 @@ fn walk_vault(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn list_entry_reparse_decision__ok__proceed() {
+        assert_eq!(
+            list_entry_reparse_decision(Ok(())).expect("ok"),
+            ListEntryAction::Proceed
+        );
+    }
+
+    #[test]
+    fn list_entry_reparse_decision__reparse_refused__skip() {
+        let err = VaultFsError::ReparseRefused("link".into());
+        assert_eq!(
+            list_entry_reparse_decision(Err(err)).expect("skip"),
+            ListEntryAction::Skip
+        );
+    }
+
+    #[test]
+    fn list_entry_reparse_decision__io_error__propagates_internal() {
+        let err = VaultFsError::Io("permission denied".into());
+        let mapped = list_entry_reparse_decision(Err(err)).expect_err("must surface");
+        assert!(
+            matches!(mapped, ConnectorError::Internal { .. }),
+            "expected Internal, got {mapped:?}"
+        );
+        let detail = mapped.to_string().to_ascii_lowercase();
+        assert!(
+            detail.contains("permission denied") || detail.contains("i/o"),
+            "{mapped}"
+        );
+    }
+
+    #[test]
+    fn list_entry_reparse_decision__not_found__propagates_not_swallow() {
+        // NotFound from vault_fs is not a reparse skip; list reparse check
+        // should not treat it as silent continue.
+        let err = VaultFsError::NotFound("gone.md".into());
+        let mapped = list_entry_reparse_decision(Err(err)).expect_err("must surface");
+        assert!(
+            matches!(mapped, ConnectorError::HandleNotFound { .. }),
+            "expected HandleNotFound, got {mapped:?}"
+        );
+    }
+
+    #[test]
+    fn list_entry_metadata_decision__ok__some() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("note.md");
+        std::fs::write(&file, b"hi").expect("write");
+        let meta = std::fs::symlink_metadata(&file).expect("meta");
+        let out = list_entry_metadata_decision(Ok(meta), &file).expect("ok");
+        assert!(out.is_some());
+        assert_eq!(out.expect("some").len(), 2);
+    }
+
+    #[test]
+    fn list_entry_metadata_decision__not_found__none() {
+        let path = Path::new("missing-during-walk.md");
+        let err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
+        let out = list_entry_metadata_decision(Err(err), path).expect("skip race");
+        assert!(out.is_none());
+    }
+
+    #[test]
+    fn list_entry_metadata_decision__permission_denied__propagates_internal() {
+        let path = Path::new("locked.md");
+        let err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+        let mapped = list_entry_metadata_decision(Err(err), path).expect_err("must surface");
+        assert!(
+            matches!(mapped, ConnectorError::Internal { ref detail } if detail.contains("symlink_metadata")),
+            "expected Internal symlink_metadata, got {mapped:?}"
+        );
+    }
+
+    #[test]
+    fn list_entry_resolve_decision__ok__proceed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let resolved = resolve_under_root(dir.path(), "notes/a.md").expect("resolve");
+        assert_eq!(
+            list_entry_resolve_decision(Ok(resolved)).expect("ok"),
+            ListEntryAction::Proceed
+        );
+    }
+
+    #[test]
+    fn list_entry_resolve_decision__path_escape__skip() {
+        let err = VaultFsError::PathEscape("..".into());
+        assert_eq!(
+            list_entry_resolve_decision(Err(err)).expect("skip"),
+            ListEntryAction::Skip
+        );
+    }
+
+    #[test]
+    fn list_entry_resolve_decision__reserved_stem__skip() {
+        let err = VaultFsError::ReservedStem("aux.md".into());
+        assert_eq!(
+            list_entry_resolve_decision(Err(err)).expect("skip"),
+            ListEntryAction::Skip
+        );
+    }
+
+    #[test]
+    fn list_entry_resolve_decision__io_error__propagates_internal() {
+        let err = VaultFsError::Io("disk fault".into());
+        let mapped = list_entry_resolve_decision(Err(err)).expect_err("must surface");
+        assert!(
+            matches!(mapped, ConnectorError::Internal { .. }),
+            "expected Internal, got {mapped:?}"
+        );
+    }
 }
