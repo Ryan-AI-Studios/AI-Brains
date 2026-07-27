@@ -288,6 +288,7 @@ dependencies = [
  "rstest",
  "tempfile",
  "thiserror",
+ "windows",
 ]
 
 [[package]]
@@ -339,6 +340,7 @@ version = "0.1.1"
 dependencies = [
  "ai-brains-core",
  "ai-brains-git",
+ "ai-brains-path",
  "hex",
  "serde",
  "serde_json",

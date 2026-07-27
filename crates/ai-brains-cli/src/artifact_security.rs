@@ -42,16 +42,12 @@ pub fn daemon_env_path() -> PathBuf {
 
 /// Pure helper: refuse when `is_reparse` is true (unit-testable without FS).
 ///
+/// Thin wrapper over [`ai_brains_path::refuse_if_reparse`] so call sites stay
+/// stable after the T154 path-crate promotion.
+///
 /// Production passes `is_reparse_or_symlink(path)?` as the second argument.
 pub fn refuse_if_reparse(path: &Path, is_reparse: bool) -> Result<(), String> {
-    if is_reparse {
-        Err(format!(
-            "refusing to write through reparse point/symlink/junction at {}",
-            path.display()
-        ))
-    } else {
-        Ok(())
-    }
+    ai_brains_path::refuse_if_reparse(path, is_reparse)
 }
 
 /// Pure helper: refuse when `is_hardlink` is true (unit-testable without FS).
@@ -272,19 +268,11 @@ pub fn write_protected_artifact(
 }
 
 /// True if `path` exists and is a reparse point or symlink (does not follow links).
+/// True when `path` exists and is a symlink or (on Windows) any reparse point.
+///
+/// Thin wrapper over [`ai_brains_path::is_reparse_or_symlink`] (T154 shared impl).
 pub fn is_reparse_or_symlink(path: &Path) -> std::io::Result<bool> {
-    #[cfg(not(windows))]
-    {
-        match path.symlink_metadata() {
-            Ok(meta) => Ok(meta.file_type().is_symlink()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
-            Err(e) => Err(e),
-        }
-    }
-    #[cfg(windows)]
-    {
-        is_reparse_or_symlink_windows(path)
-    }
+    ai_brains_path::is_reparse_or_symlink(path)
 }
 
 /// True if `path` exists and has more than one hard link (nlink > 1).
@@ -433,43 +421,7 @@ pub fn acl_output_is_restrictive(icacls_stdout: &str) -> Result<(), String> {
     Ok(())
 }
 
-// --- Windows implementation ---
-
-#[cfg(windows)]
-fn is_reparse_or_symlink_windows(path: &Path) -> std::io::Result<bool> {
-    match path.symlink_metadata() {
-        Ok(meta) => {
-            if meta.file_type().is_symlink() {
-                return Ok(true);
-            }
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-        Err(e) => return Err(e),
-    }
-
-    // Also detect directory junctions / other reparse points that may not
-    // report as is_symlink() on all Rust/Windows combinations.
-    use std::os::windows::ffi::OsStrExt;
-    use windows::Win32::Storage::FileSystem::{
-        FILE_ATTRIBUTE_REPARSE_POINT, GetFileAttributesW, INVALID_FILE_ATTRIBUTES,
-    };
-    use windows::core::PCWSTR;
-
-    let wide: Vec<u16> = path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let attrs = unsafe { GetFileAttributesW(PCWSTR(wide.as_ptr())) };
-    if attrs == INVALID_FILE_ATTRIBUTES {
-        let err = std::io::Error::last_os_error();
-        if err.kind() == std::io::ErrorKind::NotFound {
-            return Ok(false);
-        }
-        return Err(err);
-    }
-    Ok((attrs & FILE_ATTRIBUTE_REPARSE_POINT.0) != 0)
-}
+// --- Windows implementation (hardlink only; reparse lives in ai-brains-path) ---
 
 /// nlink via `GetFileInformationByHandle` (`std` `number_of_links` is unstable).
 #[cfg(windows)]

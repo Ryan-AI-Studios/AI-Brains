@@ -16,8 +16,9 @@ use ai_brains_core::source::SourceKind;
 use ai_brains_sources::{
     Connector, ConnectorContext, ConnectorError, ConnectorOperations, ConnectorTrustLabel,
     InProcessConnectorRegistry, MANIFEST_SCHEMA_VERSION, MOCK_CONNECTOR_ID, ManifestError,
-    MockConnector, RegistryError, SandboxMode, WriteProposalInput, fingerprint_file_with_identity,
-    parse_manifest_json, parse_manifest_str, principal_id_for_connector, validate_manifest,
+    MarkdownObsidianConnector, MockConnector, OBSIDIAN_CONNECTOR_ID, RegistryError, SandboxMode,
+    VaultOptions, WriteProposalInput, fingerprint_file_with_identity, parse_manifest_json,
+    parse_manifest_str, principal_id_for_connector, validate_manifest,
 };
 use tempfile::tempdir;
 use uuid::Uuid;
@@ -396,6 +397,23 @@ fn connector_trust_label__parity_names() {
     assert_eq!(ConnectorTrustLabel::LocalOnly.as_str(), "LocalOnly");
     assert_eq!(ConnectorTrustLabel::CloudOk.as_str(), "CloudOk");
     assert_eq!(ConnectorTrustLabel::Unknown.as_str(), "Unknown");
+}
+
+#[test]
+fn connector_obsidian__passes_shared_contract() {
+    let dir = tempdir().expect("tempdir");
+    fs::create_dir_all(dir.path().join(".obsidian")).expect("obsidian");
+    fs::write(dir.path().join(".obsidian/app.json"), b"{}").expect("app.json");
+    fs::create_dir_all(dir.path().join("notes")).expect("notes");
+    fs::write(
+        dir.path().join("notes/hello.md"),
+        b"---\ntitle: Hello\n---\n# Hi\n",
+    )
+    .expect("note");
+    let connector =
+        MarkdownObsidianConnector::open(dir.path(), VaultOptions::default()).expect("open vault");
+    assert_eq!(connector.manifest().id, OBSIDIAN_CONNECTOR_ID);
+    assert_connector_contract(&connector);
 }
 
 // --- helpers ---
