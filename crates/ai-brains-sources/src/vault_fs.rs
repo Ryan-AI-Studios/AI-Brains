@@ -5,7 +5,8 @@
 //! - **Containment:** candidates must stay under the configured vault root
 //!   (`ai_brains_path::path_is_same_or_inside`).
 //! - **Reparse refuse:** detect symlink/junction via `ai_brains_path` and fail
-//!   closed (does **not** follow attacker-controlled links out of the vault).
+//!   closed on the vault root **and every intermediate path component** (does
+//!   **not** follow attacker-controlled links out of the vault).
 //! - **Reserved Windows stems:** blanket case-insensitive stem match against
 //!   classic device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`,
 //!   `LPT1`–`LPT9`). Intentionally conservative; false-positives such as
@@ -89,65 +90,16 @@ pub fn normalize_locator(relative: &str) -> String {
 ///
 /// Rejects empty, absolute, `..` escapes, and reserved device stems in **any**
 /// component. Does not require the candidate to exist on disk.
+///
+/// Does **not** perform reparse checks (path may not exist). Call
+/// [`refuse_reparse_along_path`] before open/observe.
 pub fn resolve_under_root(root: &Path, relative: &str) -> Result<PathBuf, VaultFsError> {
-    let relative = relative.trim();
-    if relative.is_empty() || relative == "." {
-        // Root itself (vault handle); still require containment of root under root.
-        let root_abs = absolute_root(root)?;
-        return Ok(root_abs);
-    }
-
-    let rel_path = Path::new(relative);
-    if rel_path.is_absolute() {
-        return Err(VaultFsError::AbsolutePath(relative.to_string()));
-    }
-
-    // Reject absolute-looking forms that Path may not treat as absolute on all OS.
-    if relative.starts_with('/') || relative.starts_with('\\') {
-        return Err(VaultFsError::AbsolutePath(relative.to_string()));
-    }
-    // Drive-letter absolute (Windows-style) even when running tests elsewhere.
-    let bytes = relative.as_bytes();
-    if bytes.len() >= 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
-        return Err(VaultFsError::AbsolutePath(relative.to_string()));
-    }
-
-    let mut safe_parts: Vec<String> = Vec::new();
-    for comp in rel_path.components() {
-        match comp {
-            Component::Normal(os) => {
-                let s = os.to_string_lossy();
-                if is_reserved_windows_stem(&s) {
-                    return Err(VaultFsError::ReservedStem(s.into_owned()));
-                }
-                // Reject empty-ish / dot-dot disguised as Normal (should not happen).
-                if s == ".." || s == "." {
-                    return Err(VaultFsError::PathEscape(format!(
-                        "invalid path component '{s}' in {relative}"
-                    )));
-                }
-                safe_parts.push(s.into_owned());
-            }
-            Component::CurDir => {
-                // skip "."
-            }
-            Component::ParentDir => {
-                return Err(VaultFsError::PathEscape(format!(
-                    "parent traversal in {relative}"
-                )));
-            }
-            Component::RootDir | Component::Prefix(_) => {
-                return Err(VaultFsError::AbsolutePath(relative.to_string()));
-            }
-        }
-    }
-
-    if safe_parts.is_empty() {
-        let root_abs = absolute_root(root)?;
-        return Ok(root_abs);
-    }
-
+    let safe_parts = safe_relative_components(relative)?;
     let root_abs = absolute_root(root)?;
+    if safe_parts.is_empty() {
+        return Ok(root_abs);
+    }
+
     let mut candidate = root_abs.clone();
     for part in &safe_parts {
         candidate.push(part);
@@ -186,14 +138,86 @@ pub fn refuse_reparse_path(path: &Path) -> Result<(), VaultFsError> {
     Ok(())
 }
 
-/// Resolve under root → reparse check → size cap → read full bytes.
+/// Refuse reparse/symlink/junction on `root` and **every intermediate component**
+/// along `relative_components`, including the final path.
+///
+/// Spec lock (T154 R1-01): independent of whether the resolved target lands
+/// inside the vault — intermediate reparse points are refused.
+///
+/// Missing path components are not treated as reparse (`is_reparse_or_symlink`
+/// returns false for not-found); callers still get NotFound on read.
+pub fn refuse_reparse_along_path(
+    root: &Path,
+    relative_components: &[impl AsRef<str>],
+) -> Result<(), VaultFsError> {
+    refuse_reparse_path(root)?;
+    let mut current = root.to_path_buf();
+    for part in relative_components {
+        current.push(part.as_ref());
+        refuse_reparse_path(&current)?;
+    }
+    Ok(())
+}
+
+/// Collect safe relative components (no FS access) — shared with resolve/read.
+fn safe_relative_components(relative: &str) -> Result<Vec<String>, VaultFsError> {
+    let relative = relative.trim();
+    if relative.is_empty() || relative == "." {
+        return Ok(Vec::new());
+    }
+
+    let rel_path = Path::new(relative);
+    if rel_path.is_absolute() {
+        return Err(VaultFsError::AbsolutePath(relative.to_string()));
+    }
+    if relative.starts_with('/') || relative.starts_with('\\') {
+        return Err(VaultFsError::AbsolutePath(relative.to_string()));
+    }
+    let bytes = relative.as_bytes();
+    if bytes.len() >= 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+        return Err(VaultFsError::AbsolutePath(relative.to_string()));
+    }
+
+    let mut safe_parts: Vec<String> = Vec::new();
+    for comp in rel_path.components() {
+        match comp {
+            Component::Normal(os) => {
+                let s = os.to_string_lossy();
+                if is_reserved_windows_stem(&s) {
+                    return Err(VaultFsError::ReservedStem(s.into_owned()));
+                }
+                if s == ".." || s == "." {
+                    return Err(VaultFsError::PathEscape(format!(
+                        "invalid path component '{s}' in {relative}"
+                    )));
+                }
+                safe_parts.push(s.into_owned());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                return Err(VaultFsError::PathEscape(format!(
+                    "parent traversal in {relative}"
+                )));
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(VaultFsError::AbsolutePath(relative.to_string()));
+            }
+        }
+    }
+    Ok(safe_parts)
+}
+
+/// Resolve under root → intermediate + final reparse check → size cap → read.
 pub fn read_file_under_root(
     root: &Path,
     relative: &str,
     max_bytes: u64,
 ) -> Result<Vec<u8>, VaultFsError> {
     let path = resolve_under_root(root, relative)?;
-    refuse_reparse_path(&path)?;
+    let components = safe_relative_components(relative)?;
+    let root_abs = absolute_root(root)?;
+    // Refuse reparse on root and every intermediate / final component.
+    refuse_reparse_along_path(&root_abs, &components)?;
 
     let meta = match std::fs::symlink_metadata(&path) {
         Ok(m) => m,
@@ -215,8 +239,8 @@ pub fn read_file_under_root(
         return Err(VaultFsError::Oversized { size, max_bytes });
     }
 
-    // Re-check reparse immediately before open (still TOCTOU residual).
-    refuse_reparse_path(&path)?;
+    // Re-check reparse along the full chain immediately before open (TOCTOU residual).
+    refuse_reparse_along_path(&root_abs, &components)?;
 
     std::fs::read(&path).map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
@@ -307,8 +331,103 @@ mod unit_tests {
     }
 
     #[test]
+    fn refuse_reparse_along_path__regular_chain__ok() {
+        let dir = tempdir().expect("tempdir");
+        let notes = dir.path().join("notes");
+        std::fs::create_dir_all(&notes).expect("mkdir");
+        let file = notes.join("alpha.md");
+        std::fs::write(&file, b"hi").expect("write");
+        refuse_reparse_along_path(dir.path(), &["notes", "alpha.md"]).expect("regular chain");
+    }
+
+    #[test]
+    fn refuse_reparse_along_path__walks_each_component() {
+        // Pure structural: every component is joined and checked; missing leaves
+        // are not reparse (NotFound → false), so a chain with a missing tail is ok.
+        let dir = tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("notes")).expect("mkdir");
+        refuse_reparse_along_path(dir.path(), &["notes", "missing.md"])
+            .expect("missing leaf is not reparse");
+    }
+
+    #[test]
+    fn refuse_reparse_along_path__intermediate_symlink__refused() {
+        let dir = tempdir().expect("tempdir");
+        let notes = dir.path().join("notes");
+        std::fs::create_dir_all(&notes).expect("mkdir");
+
+        let outside = tempdir().expect("outside");
+        std::fs::write(outside.path().join("file.md"), b"secret").expect("outside file");
+
+        let link = notes.join("evil");
+        let created = create_dir_symlink(outside.path(), &link);
+        if !created {
+            eprintln!(
+                "soft-skip: could not create dir symlink/junction (privilege missing). \
+                 Component-walk coverage remains in refuse_reparse_along_path__regular_chain__ok."
+            );
+            return;
+        }
+
+        let err = refuse_reparse_along_path(dir.path(), &["notes", "evil", "file.md"])
+            .expect_err("intermediate reparse");
+        assert!(
+            matches!(err, VaultFsError::ReparseRefused(_)),
+            "expected ReparseRefused, got {err:?}"
+        );
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("reparse") || msg.contains("symlink") || msg.contains("junction"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn read_file_under_root__intermediate_reparse__refused() {
+        let dir = tempdir().expect("tempdir");
+        let notes = dir.path().join("notes");
+        std::fs::create_dir_all(&notes).expect("mkdir");
+
+        let outside = tempdir().expect("outside");
+        std::fs::write(outside.path().join("file.md"), b"SECRET").expect("outside file");
+
+        let link = notes.join("evil");
+        let created = create_dir_symlink(outside.path(), &link);
+        if !created {
+            eprintln!(
+                "soft-skip: could not create dir symlink/junction (privilege missing)."
+            );
+            return;
+        }
+
+        let err = read_file_under_root(dir.path(), "notes/evil/file.md", 1_048_576)
+            .expect_err("intermediate reparse on read");
+        assert!(
+            matches!(err, VaultFsError::ReparseRefused(_)),
+            "expected ReparseRefused, got {err:?}"
+        );
+    }
+
+    #[test]
     fn normalize_locator__slashes() {
         assert_eq!(normalize_locator(r"notes\alpha.md"), "notes/alpha.md");
         assert_eq!(normalize_locator("./notes/a.md"), "notes/a.md");
+    }
+
+    /// Directory symlink (Unix) or Windows dir symlink/junction; false if unsupported.
+    fn create_dir_symlink(target: &Path, link: &Path) -> bool {
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(target, link).is_ok()
+        }
+        #[cfg(windows)]
+        {
+            std::os::windows::fs::symlink_dir(target, link).is_ok()
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = (target, link);
+            false
+        }
     }
 }

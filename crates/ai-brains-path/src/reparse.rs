@@ -34,7 +34,7 @@ pub fn is_reparse_or_symlink(path: &Path) -> std::io::Result<bool> {
 pub fn refuse_if_reparse(path: &Path, is_reparse: bool) -> Result<(), String> {
     if is_reparse {
         Err(format!(
-            "refusing to write through reparse point/symlink/junction at {}",
+            "refusing path through reparse point/symlink/junction at {}",
             path.display()
         ))
     } else {

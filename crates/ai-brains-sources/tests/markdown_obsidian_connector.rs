@@ -51,6 +51,11 @@ fn write_fixture_vault(root: &Path) {
     fs::write(root.join("readme.txt"), b"not markdown").expect("txt");
     fs::create_dir_all(root.join(".trash")).expect("trash");
     fs::write(root.join(".trash/gone.md"), b"should not list").expect("trash md");
+    // Ignored trees (R1-04): must never appear in list.
+    fs::create_dir_all(root.join("node_modules")).expect("node_modules");
+    fs::write(root.join("node_modules/x.md"), b"should not list").expect("nm md");
+    fs::create_dir_all(root.join(".git/hooks")).expect("git hooks");
+    fs::write(root.join(".git/x.md"), b"should not list").expect("git md");
 }
 
 fn open_vault(root: &Path) -> MarkdownObsidianConnector {
@@ -181,9 +186,12 @@ fn obsidian_connector__list__skips_dot_obsidian() {
     let ctx = personal_ctx();
     let handles = c.list(&ctx).expect("list");
     assert!(
-        handles
-            .iter()
-            .all(|h| !h.locator.contains(".obsidian") && !h.locator.contains(".trash")),
+        handles.iter().all(|h| {
+            !h.locator.contains(".obsidian")
+                && !h.locator.contains(".trash")
+                && !h.locator.contains("node_modules")
+                && !h.locator.contains(".git")
+        }),
         "handles: {:?}",
         handles.iter().map(|h| &h.locator).collect::<Vec<_>>()
     );
@@ -193,6 +201,24 @@ fn obsidian_connector__list__skips_dot_obsidian() {
             .iter()
             .any(|h| h.locator.contains("app.json")),
         "config must not be listed"
+    );
+}
+
+#[test]
+fn obsidian_connector__list__ignores_node_modules_and_git() {
+    let dir = tempdir().expect("tempdir");
+    write_fixture_vault(dir.path());
+    let c = open_vault(dir.path());
+    let ctx = personal_ctx();
+    let handles = c.list(&ctx).expect("list");
+    let locs: Vec<&str> = handles.iter().map(|h| h.locator.as_str()).collect();
+    assert!(
+        !locs.iter().any(|l| l.contains("node_modules") || l.contains(".git")),
+        "ignored dirs must never list: {locs:?}"
+    );
+    assert!(
+        !locs.iter().any(|l| *l == "node_modules/x.md" || *l == ".git/x.md"),
+        "planted ignore fixtures must be absent: {locs:?}"
     );
 }
 
@@ -429,6 +455,144 @@ fn create_file_symlink(target: &Path, link: &Path) -> bool {
         let _ = (target, link);
         false
     }
+}
+
+/// Directory symlink / junction; false if privilege missing.
+fn create_dir_symlink(target: &Path, link: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, link).is_ok()
+    }
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_dir(target, link).is_ok()
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (target, link);
+        false
+    }
+}
+
+#[test]
+fn obsidian_connector__observe__intermediate_reparse__refused() {
+    let dir = tempdir().expect("tempdir");
+    write_fixture_vault(dir.path());
+
+    let outside = tempdir().expect("outside");
+    fs::write(outside.path().join("file.md"), b"SECRET OUTSIDE").expect("outside");
+
+    // Intermediate directory reparse: notes/evil -> outside
+    let link = dir.path().join("notes/evil");
+    let created = create_dir_symlink(outside.path(), &link);
+    if !created {
+        eprintln!(
+            "soft-skip: could not create dir symlink/junction (privilege missing). \
+             Intermediate reparse walk covered by vault_fs unit tests."
+        );
+        return;
+    }
+
+    let c = open_vault(dir.path());
+    let ctx = personal_ctx();
+
+    // List must not walk through the reparse (no notes/evil/...).
+    let handles = c.list(&ctx).expect("list");
+    assert!(
+        !handles.iter().any(|h| h.locator.contains("evil")),
+        "intermediate reparse must not be listed: {:?}",
+        handles.iter().map(|h| &h.locator).collect::<Vec<_>>()
+    );
+
+    // Forced observe of a path through intermediate reparse must fail closed.
+    let forced = ai_brains_sources::SourceHandle {
+        identity: "x".into(),
+        kind: SourceKind::File,
+        locator: "notes/evil/file.md".into(),
+    };
+    let err = c.observe(&ctx, &forced).expect_err("intermediate reparse observe");
+    let msg = err.to_string().to_ascii_lowercase();
+    assert!(
+        msg.contains("reparse")
+            || msg.contains("symlink")
+            || msg.contains("junction")
+            || msg.contains("not found")
+            || msg.contains("not a regular"),
+        "unexpected err: {err}"
+    );
+}
+
+#[test]
+fn obsidian_connector__list__max_depth__excludes_deeper_notes() {
+    let dir = tempdir().expect("tempdir");
+    fs::create_dir_all(dir.path().join(".obsidian")).expect("obs");
+    fs::write(dir.path().join(".obsidian/app.json"), b"{}").expect("json");
+    // Shallow note at vault root (depth 0 walk).
+    fs::write(dir.path().join("a.md"), b"# shallow\n").expect("a.md");
+    // Deep tree: d1/d2/d3/deep.md beyond max_depth=2.
+    fs::create_dir_all(dir.path().join("d1/d2/d3")).expect("deep dirs");
+    fs::write(dir.path().join("d1/d2/d3/deep.md"), b"# deep\n").expect("deep");
+    // Also a mid-level note that should still be visible under max_depth=2.
+    fs::write(dir.path().join("d1/mid.md"), b"# mid\n").expect("mid");
+
+    let opts = VaultOptions {
+        max_depth: 2,
+        ..VaultOptions::default()
+    };
+    let c = open_vault_opts(dir.path(), opts);
+    let ctx = personal_ctx();
+    let handles = c.list(&ctx).expect("list");
+    let locs: Vec<&str> = handles
+        .iter()
+        .filter(|h| h.kind == SourceKind::File)
+        .map(|h| h.locator.as_str())
+        .collect();
+
+    assert!(
+        locs.contains(&"a.md"),
+        "shallow note must be present: {locs:?}"
+    );
+    assert!(
+        locs.contains(&"d1/mid.md"),
+        "depth-1 note must be present under max_depth=2: {locs:?}"
+    );
+    assert!(
+        !locs.contains(&"d1/d2/d3/deep.md"),
+        "deep note beyond max_depth must be absent: {locs:?}"
+    );
+}
+
+#[test]
+fn obsidian_connector__plain_md_root__no_obsidian_vault_handle() {
+    let dir = tempdir().expect("tempdir");
+    // Plain markdown root: notes only, NO .obsidian.
+    fs::create_dir_all(dir.path().join("notes")).expect("notes");
+    fs::write(dir.path().join("notes/a.md"), b"# plain note\n").expect("a.md");
+
+    let c = open_vault(dir.path());
+    assert!(
+        !c.is_obsidian_vault(),
+        "plain md root must not be treated as Obsidian vault"
+    );
+
+    let ctx = personal_ctx();
+    let handles = c.list(&ctx).expect("list");
+    assert!(
+        !handles.iter().any(|h| h.kind == SourceKind::ObsidianVault),
+        "list must have no ObsidianVault handles: {:?}",
+        handles
+            .iter()
+            .map(|h| (&h.kind, &h.locator))
+            .collect::<Vec<_>>()
+    );
+    let note = handles
+        .iter()
+        .find(|h| h.locator == "notes/a.md")
+        .expect("notes/a.md listed")
+        .clone();
+    let payload = c.observe(&ctx, &note).expect("observe plain note");
+    assert!(!payload.content.is_empty());
+    assert_eq!(payload.handle.locator, "notes/a.md");
 }
 
 #[test]

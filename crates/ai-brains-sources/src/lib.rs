@@ -62,7 +62,7 @@ pub use registry::{
 };
 pub use vault_fs::{
     VaultFsError, is_reserved_windows_stem, normalize_locator, read_file_under_root,
-    refuse_reparse_path, resolve_under_root,
+    refuse_reparse_along_path, refuse_reparse_path, resolve_under_root,
 };
 
 pub use fingerprint::SourcesError;
