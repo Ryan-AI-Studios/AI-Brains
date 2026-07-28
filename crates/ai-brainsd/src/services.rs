@@ -69,8 +69,8 @@ use ai_brains_control_plane::{
     PersonalBriefingRequest as CpPersonalBriefing, PolicyContext, PolicyEvaluator,
     ProgressiveQueryRequest, ProjectBriefingRequest as CpProjectBriefing,
     ProposeConclusionRequest as CpProposeConclusion, ProposeDecisionRequest as CpProposeDecision,
-    ResolvedScope, ScopeConfidence, ScopeResolveInput, StoreEventWriter, StorePorts, SystemClock,
-    build_personal_briefing, build_project_briefing, expand_handle, is_authoritative,
+    ResolvedScope, ReviewItemRow, ScopeConfidence, ScopeResolveInput, StoreEventWriter, StorePorts,
+    SystemClock, build_personal_briefing, build_project_briefing, expand_handle, is_authoritative,
     make_principal, parse_scope_key, progressive_query, propose_conclusion, propose_decision,
     resolve_review_item, resolve_scope, scope_identity_key,
 };
@@ -383,9 +383,14 @@ impl GovernedServices {
                 )));
             }
         };
+        let expected_scope = scope_identity_key(&scope);
         match load_source_dto(self.event_store.as_ref(), source_id)? {
-            Some(dto) => Ok(DaemonResponse::Source(dto)),
-            None => Ok(DaemonResponse::Error(ApiError::new(
+            Some((dto, stored_scope)) if stored_scope == expected_scope => {
+                Ok(DaemonResponse::Source(dto))
+            }
+            // Missing, empty legacy scope on non-empty request, or other-scope:
+            // NOT_FOUND (anti-enumeration — do not leak existence across scopes).
+            Some(_) | None => Ok(DaemonResponse::Error(ApiError::new(
                 "NOT_FOUND",
                 format!("source {}", req.id),
             ))),
@@ -426,6 +431,7 @@ impl GovernedServices {
             }
             Err(e) => return Ok(map_control_plane_error(e)),
         }
+        let scope_key = scope_identity_key(&scope);
         let mut items = match ports.query.list_open_review_items() {
             Ok(items) => items,
             Err(e) => return Ok(map_control_plane_error(e)),
@@ -436,7 +442,21 @@ impl GovernedServices {
                 items.clear();
             }
         }
-        let dtos: Vec<ReviewItemDto> = items
+        // Scope isolation: only items related to the requested scope (not vault-wide).
+        let mut scoped = Vec::with_capacity(items.len());
+        for item in items {
+            match review_item_matches_scope(
+                &ports.query,
+                self.event_store.as_ref(),
+                &item,
+                &scope_key,
+            ) {
+                Ok(true) => scoped.push(item),
+                Ok(false) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        let dtos: Vec<ReviewItemDto> = scoped
             .into_iter()
             .map(|r| ReviewItemDto {
                 id: r.id.to_string(),
@@ -972,17 +992,19 @@ fn parse_personal_user_id(scope: &str) -> Option<UserId> {
     UserId::from_str(scope).ok()
 }
 
+/// Load source DTO plus stored scope identity key from `source_projection`.
+/// Stored scope is empty string when historical / unspecified.
 fn load_source_dto(
     store: &SqliteEventStore,
     source_id: SourceId,
-) -> Result<Option<SourceDto>, BoxError> {
+) -> Result<Option<(SourceDto, String)>, BoxError> {
     let conn = store
         .connection()
         .lock()
         .map_err(|e| -> BoxError { e.to_string().into() })?;
     let mut stmt = conn
         .prepare(
-            "SELECT source_id, kind, display_name, locator, last_observed_at
+            "SELECT source_id, kind, display_name, locator, last_observed_at, scope
              FROM source_projection WHERE source_id = ?",
         )
         .map_err(|e| -> BoxError { e.to_string().into() })?;
@@ -1008,21 +1030,73 @@ fn load_source_dto(
         let last_observed: Option<String> = row
             .get(4)
             .map_err(|e| -> BoxError { e.to_string().into() })?;
+        let scope: String = row
+            .get(5)
+            .map_err(|e| -> BoxError { e.to_string().into() })?;
         let last_observed_at = last_observed.and_then(|s| {
             chrono::DateTime::parse_from_rfc3339(&s)
                 .ok()
                 .map(|dt| dt.with_timezone(&chrono::Utc))
         });
-        Ok(Some(SourceDto {
-            id,
-            kind,
-            display_name,
-            locator,
-            last_observed_at,
-        }))
+        Ok(Some((
+            SourceDto {
+                id,
+                kind,
+                display_name,
+                locator,
+                last_observed_at,
+            },
+            scope,
+        )))
     } else {
         Ok(None)
     }
+}
+
+/// True when an open review item is bound to `scope_key` (related conclusion /
+/// decision / source scope, or free-text subject / subject_id containing the key).
+///
+/// Mirrors `review_item_is_personal_related` in control-plane personal briefings,
+/// generalized to any scope identity key (and including related sources).
+fn review_item_matches_scope(
+    query: &impl GovernedQueryStore,
+    store: &SqliteEventStore,
+    item: &ReviewItemRow,
+    scope_key: &str,
+) -> Result<bool, BoxError> {
+    if let Some(ref cid) = item.related_conclusion_id
+        && let Ok(uuid) = Uuid::parse_str(cid)
+    {
+        let id = ConclusionId::from_uuid(uuid);
+        match query.get_conclusion(id) {
+            Ok(Some(row)) => return Ok(row.scope == scope_key),
+            Ok(None) => {}
+            Err(e) => return Err(e.to_string().into()),
+        }
+    }
+    if let Some(ref did) = item.related_decision_id
+        && let Ok(uuid) = Uuid::parse_str(did)
+    {
+        let id = DecisionId::from_uuid(uuid);
+        match query.get_decision(id) {
+            Ok(Some(row)) => return Ok(row.scope == scope_key),
+            Ok(None) => {}
+            Err(e) => return Err(e.to_string().into()),
+        }
+    }
+    if let Some(ref sid) = item.related_source_id
+        && let Ok(uuid) = Uuid::parse_str(sid)
+    {
+        let id = SourceId::from_uuid(uuid);
+        if let Some((_, stored_scope)) = load_source_dto(store, id)? {
+            return Ok(stored_scope == scope_key);
+        }
+    }
+    // Fallback: subject text or subject_id mentions the scope identity key.
+    if item.subject.contains(scope_key) || item.subject_id.contains(scope_key) {
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 #[cfg(test)]

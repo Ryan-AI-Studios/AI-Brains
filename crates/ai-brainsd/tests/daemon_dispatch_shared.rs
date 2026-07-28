@@ -19,6 +19,7 @@ use ai_brainsd::dispatch::{
 };
 use ai_brainsd::services::{GovernedServices, governed_spool_stem};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::AsyncReadExt;
@@ -484,6 +485,250 @@ async fn handle_daemon_request__list_review_items_without_grant__policy_denied()
                 Ok(())
             }
             other => panic!("expected POLICY_DENIED, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+/// Codex R2 HIGH-1: source registered in scope A is visible with grant on A,
+/// but NOT_FOUND when requesting scope B (even with a grant on B).
+#[tokio::test]
+async fn handle_daemon_request__inspect_source__scope_isolation__cross_scope_not_found()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use ai_brains_contracts::sources::InspectSourceRequest;
+    use ai_brains_core::source::SourceKind;
+    use ai_brains_events::constructors::EventBuilder;
+    use ai_brains_events::payload::SourceRegisteredPayload;
+    use ai_brains_events::{Actor, AggregateType, Payload};
+
+    let h = start_harness("inspect-scope").await?;
+    let principal_id = PrincipalId::new();
+    let principal = ai_brains_control_plane::make_principal(
+        PrincipalKind::Human,
+        principal_id,
+        "inspect-scope-human",
+    );
+    let scope_a = ScopeRef::Personal(UserId::new());
+    let scope_b = ScopeRef::Personal(UserId::new());
+    let key_a = ai_brains_control_plane::scope_identity_key(&scope_a);
+    let key_b = ai_brains_control_plane::scope_identity_key(&scope_b);
+
+    let source_id = SourceId::new();
+    let env = EventBuilder::new(
+        AggregateType::Source,
+        source_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::SourceRegistered(SourceRegisteredPayload {
+        source_id,
+        kind: SourceKind::File,
+        display_name: "scope-a-file".into(),
+        locator: Some("/tmp/scope-a.md".into()),
+        scope: Some(key_a.clone()),
+    }))?;
+    EventStore::append_event(h.store.as_ref(), &env)?;
+
+    // Grant on scope A → found.
+    grant_capability(
+        &h.store,
+        &principal,
+        scope_a.clone(),
+        GrantCapability::ReadEvidence,
+    );
+    let found = handle_daemon_request(
+        DaemonRequest::InspectSource(InspectSourceRequest {
+            api_version: "1".into(),
+            id: source_id.to_string(),
+            principal_id: Some(principal_id.to_string()),
+            scope: Some(key_a.clone()),
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+    match found {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Source(dto) => {
+                assert_eq!(dto.id, source_id.to_string());
+                assert_eq!(dto.display_name, "scope-a-file");
+            }
+            other => panic!("expected Source in scope A, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+
+    // Grant only on scope B; request scope B for source in A → NOT_FOUND (anti-enumeration).
+    let principal_b = ai_brains_control_plane::make_principal(
+        PrincipalKind::Human,
+        PrincipalId::new(),
+        "inspect-scope-b",
+    );
+    grant_capability(
+        &h.store,
+        &principal_b,
+        scope_b.clone(),
+        GrantCapability::ReadEvidence,
+    );
+    let cross = handle_daemon_request(
+        DaemonRequest::InspectSource(InspectSourceRequest {
+            api_version: "1".into(),
+            id: source_id.to_string(),
+            principal_id: Some(principal_b.id.to_string()),
+            scope: Some(key_b),
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+    match cross {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "NOT_FOUND");
+                Ok(())
+            }
+            other => panic!("expected NOT_FOUND for cross-scope, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+/// Codex R2 HIGH-2: review related to a conclusion in scope A must not appear
+/// when listing with grant/request on scope B.
+#[tokio::test]
+async fn handle_daemon_request__list_review_items__scope_isolation__filters_other_scope()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use ai_brains_contracts::review::ListReviewItemsRequest;
+    use ai_brains_core::ids::{ConclusionId, ReviewItemId};
+    use ai_brains_core::review::{ReviewCriticality, ReviewSubjectKind};
+    use ai_brains_events::constructors::EventBuilder;
+    use ai_brains_events::payload::ReviewItemOpenedPayload;
+    use ai_brains_events::{Actor, AggregateType, Payload};
+
+    let h = start_harness("list-review-scope").await?;
+    let principal_id = PrincipalId::new();
+    let principal = ai_brains_control_plane::make_principal(
+        PrincipalKind::Human,
+        principal_id,
+        "list-review-scope-human",
+    );
+    let scope_a = ScopeRef::Personal(UserId::new());
+    let scope_b = ScopeRef::Personal(UserId::new());
+    let key_a = ai_brains_control_plane::scope_identity_key(&scope_a);
+    let key_b = ai_brains_control_plane::scope_identity_key(&scope_b);
+
+    // Propose conclusion in scope A so review can relate to it.
+    grant_propose(&h.store, &principal, scope_a.clone());
+    let proposed = handle_daemon_request(
+        DaemonRequest::ProposeConclusion(ProposeConclusionRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            scope: key_a.clone(),
+            statement: "scope A claim for review filter".into(),
+            evidence_ids: vec![],
+            privacy: Some("LocalOnly".into()),
+            command_id: None,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+    let conclusion_id = match proposed {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::ConclusionProposed(resp) => {
+                ConclusionId::from_str(&resp.conclusion_id).map_err(|e| e.to_string())?
+            }
+            other => panic!("expected ConclusionProposed, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    };
+
+    let review_item_id = ReviewItemId::new();
+    let env = EventBuilder::new(
+        AggregateType::ReviewItem,
+        review_item_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ReviewItemOpened(ReviewItemOpenedPayload {
+        review_item_id,
+        subject: format!("review for conclusion in {key_a}"),
+        opened_by: principal_id,
+        subject_kind: ReviewSubjectKind::Conclusion,
+        subject_id: conclusion_id.to_string(),
+        criticality: ReviewCriticality::Medium,
+        related_conclusion_id: Some(conclusion_id),
+        related_decision_id: None,
+        related_source_id: None,
+    }))?;
+    EventStore::append_event(h.store.as_ref(), &env)?;
+
+    // Grant on scope B only → list must not include scope A review.
+    grant_capability(
+        &h.store,
+        &principal,
+        scope_b.clone(),
+        GrantCapability::ReadConclusions,
+    );
+    let listed_b = handle_daemon_request(
+        DaemonRequest::ListReviewItems(ListReviewItemsRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            scope: Some(key_b.clone()),
+            status: None,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+    match listed_b {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::ReviewList(resp) => {
+                assert!(
+                    !resp
+                        .items
+                        .iter()
+                        .any(|i| i.id == review_item_id.to_string()),
+                    "scope A review must not appear under scope B: {:?}",
+                    resp.items
+                );
+            }
+            other => panic!("expected ReviewList, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+
+    // Grant on scope A → list includes the related review.
+    grant_capability(
+        &h.store,
+        &principal,
+        scope_a.clone(),
+        GrantCapability::ReadConclusions,
+    );
+    let listed_a = handle_daemon_request(
+        DaemonRequest::ListReviewItems(ListReviewItemsRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            scope: Some(key_a),
+            status: None,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+    match listed_a {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::ReviewList(resp) => {
+                assert!(
+                    resp.items
+                        .iter()
+                        .any(|i| i.id == review_item_id.to_string()),
+                    "scope A review must appear under scope A: {:?}",
+                    resp.items
+                );
+                Ok(())
+            }
+            other => panic!("expected ReviewList, got {other:?}"),
         },
         other => panic!("expected Response, got {other:?}"),
     }
