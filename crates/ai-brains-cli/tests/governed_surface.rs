@@ -206,7 +206,23 @@ fn existing_briefing_project__still_ok() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Project").or(predicate::str::contains("briefing")));
+        .stdout(predicate::str::contains("Project").or(predicate::str::contains("briefing")))
+        .stdout(
+            predicate::str::contains("Examples")
+                .or(predicate::str::contains("ai-brains briefing project")),
+        );
+}
+
+#[test]
+fn cli_query__help__documents_examples() {
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("query")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Examples"))
+        .stdout(predicate::str::contains("progressive"));
 }
 
 #[test]

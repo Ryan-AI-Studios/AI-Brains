@@ -318,11 +318,17 @@ enum Commands {
     /// `denied=true` or empty authority sections + warnings (JSON stdout by default).
     /// Principal: `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` or well-known System principal
     /// (must be registered + granted). See `AI_BRAINS_GOVERNED_BRIEFING` for preflight.
+    #[command(
+        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500\n  ai-brains briefing personal --format json"
+    )]
     Briefing {
         #[command(subcommand)]
         command: BriefingCommands,
     },
     /// Governed progressive query, handle expand, and query-trace retrieval (T152)
+    #[command(
+        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\"\n  ai-brains query expand <handle-id>\n  ai-brains query trace <trace-id>"
+    )]
     Query {
         #[command(subcommand)]
         command: GovernedQueryCommands,
@@ -392,8 +398,12 @@ enum Commands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500\n  ai-brains briefing personal --format json"
+)]
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
+    #[command(after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500")]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
         project_id: Option<ProjectId>,
@@ -407,6 +417,7 @@ enum BriefingCommands {
         format: Option<String>,
     },
     /// Build a Personal Continuity Briefing packet
+    #[command(after_help = "Examples:\n  ai-brains briefing personal --format json")]
     Personal {
         /// Personal user id (defaults to principal UUID mapping)
         #[arg(long)]
@@ -422,8 +433,14 @@ enum BriefingCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\"\n  ai-brains query expand <handle-id>\n  ai-brains query trace <trace-id>"
+)]
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
+    #[command(
+        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\""
+    )]
     Progressive {
         /// Query text
         query: String,
@@ -436,6 +453,7 @@ enum GovernedQueryCommands {
         dry_run: bool,
     },
     /// Expand an evidence / conclusion / decision handle to a bounded preview
+    #[command(after_help = "Examples:\n  ai-brains query expand <handle-id>")]
     Expand {
         /// Handle id (evidence UUID, conclusion id, or decision id)
         handle_id: String,
@@ -445,6 +463,7 @@ enum GovernedQueryCommands {
         max_chars: usize,
     },
     /// Fetch a governed query trace by id (null when missing or unauthorized)
+    #[command(after_help = "Examples:\n  ai-brains query trace <trace-id>")]
     Trace { trace_id: String },
 }
 
