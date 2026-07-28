@@ -105,6 +105,10 @@ impl SqliteEventStore {
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
 
         // 2. Truncate projections (FK-safe: children before parents)
+        // Content-envelope event projections (T163) — side stores intentionally retained
+        // (content_key_store, encrypted_content_blob are not event-sourced ciphertext).
+        tx.execute("DELETE FROM erasure_request_projection", [])?;
+        tx.execute("DELETE FROM tombstone_projection", [])?;
         // Briefings / query traces (T152) — feedback before traces.
         tx.execute("DELETE FROM retrieval_feedback_projection", [])?;
         tx.execute("DELETE FROM query_trace_projection", [])?;

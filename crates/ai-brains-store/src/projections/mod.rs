@@ -7,6 +7,7 @@ pub mod briefing;
 pub mod claim_conflict;
 pub mod conclusion;
 pub mod conflict;
+pub mod content_envelope;
 pub mod decision;
 pub mod dependency;
 pub mod evidence;
@@ -52,5 +53,8 @@ pub fn apply_all(tx: &Transaction, envelope: &Envelope) -> Result<()> {
     policy_log::PolicyLogProjection.apply(tx, envelope)?;
     // Briefings + progressive query traces (T152).
     briefing::BriefingProjection.apply(tx, envelope)?;
+    // Content-envelope erasure / tombstone event projections (T163).
+    // Side stores (content_key_store, encrypted_content_blob) are not written here.
+    content_envelope::ContentEnvelopeProjection.apply(tx, envelope)?;
     Ok(())
 }
