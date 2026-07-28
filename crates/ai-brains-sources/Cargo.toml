@@ -5,7 +5,7 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Deterministic source fingerprints, normalization, connector port, Markdown/Obsidian vault, Git, and Ledgerful connectors (T149/T153/T154/T155)"
+description = "Deterministic source fingerprints, normalization, connector port, Markdown/Obsidian vault, Git, Ledgerful, Hermes/Honcho read adapters + circularity (T149/T153–T156)"
 
 [dependencies]
 ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }

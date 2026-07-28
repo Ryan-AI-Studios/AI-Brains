@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "item_id": "honcho-profile-1",
+  "kind": "profile",
+  "statement": "User prefers local-first tooling.",
+  "provider_timestamps": "2026-07-28T12:00:00Z",
+  "confidence": 0.9
+}
