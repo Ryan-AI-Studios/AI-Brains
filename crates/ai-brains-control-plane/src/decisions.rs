@@ -1,4 +1,11 @@
 //! Decision lifecycle commands (T150 Phase E).
+//!
+//! # Idempotency (T159)
+//!
+//! When [`ProposeDecisionRequest::decision_id`] is `Some`, it is an
+//! **idempotency handle**: if a decision with that id already exists,
+//! [`propose_decision`] returns the prior result without a second
+//! `DecisionProposed` event.
 
 use ai_brains_core::decision::DecisionState;
 use ai_brains_core::ids::{ConclusionId, DecisionId, EvidenceId};
@@ -41,7 +48,7 @@ pub struct ProposeDecisionResult {
 
 pub fn propose_decision<W, Q, C, P>(
     writer: &W,
-    _query: &Q,
+    query: &Q,
     clock: &C,
     policy: &P,
     req: ProposeDecisionRequest,
@@ -52,6 +59,22 @@ where
     C: Clock,
     P: PolicyEvaluator,
 {
+    // Detect-already-done when a pre-assigned id is supplied (spool / client retry).
+    if let Some(preassigned) = req.decision_id
+        && let Some(row) = query.get_decision(preassigned)?
+    {
+        // Prefer stored proposal_event_id when present; nil UUID if missing/unparsable.
+        let proposal_event_id = row
+            .proposal_event_id
+            .as_deref()
+            .and_then(|s| Uuid::parse_str(s).ok())
+            .unwrap_or_else(Uuid::nil);
+        return Ok(ProposeDecisionResult {
+            decision_id: preassigned,
+            proposal_event_id,
+        });
+    }
+
     let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
     if !policy.allow(
         req.principal.id,

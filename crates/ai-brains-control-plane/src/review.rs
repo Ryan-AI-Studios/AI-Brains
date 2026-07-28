@@ -1,4 +1,11 @@
 //! Review item commands (T150 Phase E).
+//!
+//! # Idempotency (T159)
+//!
+//! When a review item is already non-`Open` (resolved), [`resolve_review_item`]
+//! returns `Ok(())` without appending a second `ReviewItemResolved` event.
+//! Missing items still return [`ControlPlaneError::NotFound`]. Open items still
+//! enforce Human + `ApproveDecision` policy.
 
 use ai_brains_core::ids::ReviewItemId;
 use ai_brains_core::principal::{Principal, PrincipalKind};
@@ -33,6 +40,16 @@ where
     Q: GovernedQueryStore,
     P: PolicyEvaluator,
 {
+    let row = query
+        .get_review_item(review_item_id)?
+        .ok_or_else(|| ControlPlaneError::NotFound(format!("review_item {review_item_id}")))?;
+
+    // Idempotent replay: already resolved → success without second append
+    // (before principal/policy gates so spool replay cannot fail as ApprovalRequired).
+    if row.status != "Open" {
+        return Ok(());
+    }
+
     if reason.trim().is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
             "resolution reason must be non-empty".into(),
@@ -43,17 +60,6 @@ where
         return Err(ControlPlaneError::ApprovalRequired(
             "review resolve requires human principal (not Agent)".into(),
         ));
-    }
-
-    let row = query
-        .get_review_item(review_item_id)?
-        .ok_or_else(|| ControlPlaneError::NotFound(format!("review_item {review_item_id}")))?;
-
-    if row.status != "Open" {
-        return Err(ControlPlaneError::InvalidTransition(format!(
-            "review item {review_item_id} is {}",
-            row.status
-        )));
     }
 
     let policy_ctx = PolicyContext::default_for_privacy(privacy);

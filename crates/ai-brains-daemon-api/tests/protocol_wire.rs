@@ -207,6 +207,7 @@ fn daemon_request__propose_conclusion__roundtrip() {
         statement: "x".into(),
         evidence_ids: vec!["e1".into()],
         privacy: None,
+        command_id: None,
     }));
 }
 
@@ -221,6 +222,7 @@ fn daemon_request__propose_decision__roundtrip() {
         conclusion_ids: vec![],
         evidence_ids: vec!["e1".into()],
         privacy: Some("LocalOnly".into()),
+        command_id: None,
     }));
 }
 
@@ -239,6 +241,8 @@ fn daemon_request__resolve_review_item__roundtrip() {
         resolution: "dismissed".into(),
         principal_id: None,
         note: None,
+        scope: None,
+        command_id: None,
     }));
 }
 
@@ -250,6 +254,7 @@ fn daemon_request__request_erasure__roundtrip() {
         ids: vec!["agg-1".into()],
         reason: Some("user request".into()),
         scope: None,
+        command_id: None,
     }));
 }
 

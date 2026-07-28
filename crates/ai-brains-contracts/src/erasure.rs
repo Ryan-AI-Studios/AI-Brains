@@ -25,6 +25,10 @@ pub struct RequestErasureRequest {
     pub reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
+    /// Client command / idempotency key. When set, daemon spools and derives
+    /// a deterministic ticket `request_id` (uuid v5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
 }
 
 /// Acknowledgement that an erasure request was accepted (not that wipe completed).
@@ -65,9 +69,17 @@ mod tests {
             ids: vec!["agg-1".into()],
             reason: Some("user request".into()),
             scope: Some("Personal:00000000-0000-0000-0000-0000000000u1".into()),
+            command_id: Some("erase-cmd-1".into()),
         };
         let json = serde_json::to_string(&req).expect("serialize");
         let decoded: RequestErasureRequest = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(decoded, req);
+    }
+
+    #[test]
+    fn request_erasure_request__command_id_optional() {
+        let decoded: RequestErasureRequest =
+            serde_json::from_str(r#"{"api_version":"1","ids":["a"]}"#).expect("deserialize");
+        assert!(decoded.command_id.is_none());
     }
 }

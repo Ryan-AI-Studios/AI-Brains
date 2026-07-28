@@ -37,6 +37,62 @@ fn human() -> ai_brains_core::principal::Principal {
 }
 
 #[test]
+fn propose_decision__preassigned_id_second_call__no_second_event() {
+    use ai_brains_core::ids::DecisionId;
+    use ai_brains_events::Payload;
+    use ai_brains_store::event_store::EventStore;
+
+    let (_t, ports) = open_ports();
+    let decision_id = DecisionId::new();
+    let req = ProposeDecisionRequest {
+        principal: agent(),
+        scope: ScopeRef::Personal(UserId::new()),
+        title: "Idempotent".into(),
+        statement: "ship once".into(),
+        conclusion_ids: None,
+        evidence_ids: None,
+        privacy: Privacy::LocalOnly,
+        valid_from: None,
+        valid_until: None,
+        decision_id: Some(decision_id),
+    };
+    let first = propose_decision(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        req.clone(),
+    )
+    .unwrap();
+    assert_eq!(first.decision_id, decision_id);
+
+    let second = propose_decision(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        req,
+    )
+    .unwrap();
+    assert_eq!(second.decision_id, decision_id);
+
+    let events = ports.writer.store().read_all_events().unwrap();
+    let proposed_count = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                &e.payload,
+                Payload::DecisionProposed(p) if p.decision_id == decision_id
+            )
+        })
+        .count();
+    assert_eq!(
+        proposed_count, 1,
+        "second call with pre-assigned id must not append another DecisionProposed"
+    );
+}
+
+#[test]
 fn propose_decision__yields_proposed_state() {
     let (_t, ports) = open_ports();
     let conc = propose_conclusion(

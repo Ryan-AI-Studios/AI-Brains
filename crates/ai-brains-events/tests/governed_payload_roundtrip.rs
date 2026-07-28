@@ -221,6 +221,13 @@ fn remaining_governed_payloads__roundtrip_subset() {
             content_key_id: ContentKeyId::from_uuid(Uuid::from_u128(17)),
             tombstone_id: TombstoneId::from_uuid(Uuid::from_u128(18)),
         }),
+        Payload::ErasureTicketAccepted(ErasureTicketAcceptedPayload {
+            request_id: "00000000-0000-0000-0000-000000000019".into(),
+            requester: PrincipalId::from_uuid(Uuid::from_u128(9)),
+            target_ids: vec!["agg-1".into()],
+            reason: Some("user request".into()),
+            scope: Some("Personal:00000000-0000-0000-0000-0000000000u1".into()),
+        }),
     ];
     for p in cases {
         assert_eq!(roundtrip(p.clone()), p);

@@ -269,3 +269,54 @@ fn resolve_review_item__human_without_grant__policy_denied() {
         .unwrap();
     assert_eq!(row.status, "Open");
 }
+
+#[test]
+fn resolve_review_item__already_resolved_second_call__idempotent_ok() {
+    use ai_brains_events::Payload;
+    use ai_brains_store::event_store::EventStore;
+
+    let (_t, ports) = open_ports();
+    let review_item_id = open_review_item(&ports);
+    let human = make_principal(PrincipalKind::Human, PrincipalId::new(), "h");
+    let scope = ScopeRef::Personal(UserId::new());
+
+    resolve_review_item(
+        &ports.writer,
+        &ports.query,
+        &AllowAllPolicy,
+        &human,
+        review_item_id,
+        "first resolve",
+        Privacy::LocalOnly,
+        scope.clone(),
+    )
+    .unwrap();
+
+    // Second call (replay) must succeed without a second lifecycle event.
+    resolve_review_item(
+        &ports.writer,
+        &ports.query,
+        &AllowAllPolicy,
+        &human,
+        review_item_id,
+        "replay resolve",
+        Privacy::LocalOnly,
+        scope,
+    )
+    .unwrap();
+
+    let events = ports.writer.store().read_all_events().unwrap();
+    let resolved_count = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                &e.payload,
+                Payload::ReviewItemResolved(p) if p.review_item_id == review_item_id
+            )
+        })
+        .count();
+    assert_eq!(
+        resolved_count, 1,
+        "already-resolved second call must not append another ReviewItemResolved"
+    );
+}

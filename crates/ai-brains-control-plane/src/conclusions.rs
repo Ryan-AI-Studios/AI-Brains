@@ -1,4 +1,13 @@
 //! Conclusion lifecycle commands (T150 Phase D).
+//!
+//! # Idempotency (T159)
+//!
+//! When [`ProposeConclusionRequest::conclusion_id`] is `Some`, it is an
+//! **idempotency handle**: if a conclusion with that id already exists in the
+//! projection, [`propose_conclusion`] returns the prior result **without**
+//! appending a second `ConclusionProposed` event. When `None`, a new id is
+//! generated and append proceeds as usual (first-wins semantics for T159 when
+//! the same pre-assigned id is reused with different statements).
 
 use ai_brains_core::conclusion::{ApprovalAuthority, ConclusionState};
 use ai_brains_core::ids::{ConclusionId, EvidenceId, PrincipalId};
@@ -41,7 +50,7 @@ pub struct ProposeConclusionResult {
 
 pub fn propose_conclusion<W, Q, C, P>(
     writer: &W,
-    _query: &Q,
+    query: &Q,
     clock: &C,
     policy: &P,
     req: ProposeConclusionRequest,
@@ -52,6 +61,16 @@ where
     C: Clock,
     P: PolicyEvaluator,
 {
+    // Detect-already-done when a pre-assigned id is supplied (spool / client retry).
+    if let Some(preassigned) = req.conclusion_id
+        && let Some(row) = query.get_conclusion(preassigned)?
+    {
+        return Ok(ProposeConclusionResult {
+            conclusion_id: preassigned,
+            unsupported: row.unsupported,
+        });
+    }
+
     let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
     if !policy.allow(
         req.principal.id,

@@ -65,6 +65,10 @@ pub struct ProposeConclusionRequest {
     pub evidence_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub privacy: Option<String>,
+    /// Client command / idempotency key. When set, daemon spools and derives a
+    /// deterministic conclusion id (uuid v5) for control-plane detect-already-done.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
 }
 
 /// Result of accepting a conclusion proposal into the control plane.
@@ -108,6 +112,9 @@ pub struct ProposeDecisionRequest {
     pub evidence_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub privacy: Option<String>,
+    /// Client command / idempotency key (see [`ProposeConclusionRequest::command_id`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
 }
 
 /// Result of accepting a decision proposal.
@@ -147,9 +154,19 @@ mod tests {
             statement: "Briefings are deterministic".into(),
             evidence_ids: vec!["e1".into(), "e2".into()],
             privacy: Some("LocalOnly".into()),
+            command_id: Some("cmd-1".into()),
         };
         let json = serde_json::to_string(&req).expect("serialize");
         let decoded: ProposeConclusionRequest = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(decoded, req);
+    }
+
+    #[test]
+    fn propose_conclusion_request__command_id_optional_default() {
+        let decoded: ProposeConclusionRequest = serde_json::from_str(
+            r#"{"api_version":"1","scope":"Personal:u1","statement":"s","evidence_ids":[]}"#,
+        )
+        .expect("deserialize");
+        assert!(decoded.command_id.is_none());
     }
 }
