@@ -163,17 +163,31 @@ async fn run_daemon_async(
     let (ipc_shutdown_tx, _ipc_shutdown_rx) = tokio::sync::broadcast::channel(1);
 
     // Optional loopback HTTP (T161) — third caller of handle_daemon_request.
+    // When explicitly enabled, hard-fail service start on bind/token errors so
+    // operators cannot assume a listening API that never bound (R1-01).
+    // LocalSystem residual (R1-02): token lands under SYSTEM profile — not for
+    // interactive desktop clients; prefer interactive `ai-brainsd --http`.
     let service_args: Vec<String> = std::env::args().collect();
-    if let Err(e) = crate::http_adapter::maybe_start_http(
+    if crate::http_adapter::http_enabled_from_env_and_args(&service_args) {
+        tracing::warn!(
+            "HTTP enabled under Windows service (LocalSystem): bearer token is stored under the \
+             SYSTEM profile (%USERPROFILE%\\.ai-brains\\http.token for SYSTEM) with owner-only ACL \
+             and is NOT readable by interactive Session 1 CLI/desktop clients. Use interactive \
+             `ai-brainsd --http` (or `ai-brains daemon start` with AI_BRAINS_HTTP=1) for local \
+             clients. Shared multi-session token is out of scope residual."
+        );
+    }
+    crate::http_adapter::maybe_start_http(
         &service_args,
         writer.clone(),
         services.clone(),
         &ipc_shutdown_tx,
     )
     .await
-    {
-        tracing::error!("Failed to start HTTP API in service: {e}");
-    }
+    .map_err(|e| {
+        tracing::error!("Failed to start HTTP API in service (hard-fail): {e}");
+        e
+    })?;
 
     // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
     let pipe_name = r"\\.\pipe\ledgerful-bridge";

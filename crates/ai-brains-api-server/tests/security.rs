@@ -4,19 +4,20 @@
 use std::sync::Arc;
 
 use ai_brains_api_server::bind::{
-    ALLOW_NON_LOOPBACK_ENV, BindError, is_loopback_addr, non_loopback_opt_in_enabled,
-    resolve_bind_addr,
+    ALLOW_NON_LOOPBACK_ENV, BindError, is_loopback_addr, resolve_bind_addr,
 };
 use ai_brains_api_server::dispatch::HttpDispatch;
 use ai_brains_api_server::dispatch::test_support::MockHttpDispatch;
 use ai_brains_api_server::token::{
-    USER_TOKEN_FILE_SDDL, generate_token, verify_owner_acl_output, write_token_file,
+    USER_TOKEN_FILE_SDDL, generate_token, load_or_create_token, verify_owner_acl_output,
+    write_token_file,
 };
 use ai_brains_api_server::{
     BODY_LIMIT_BYTES, app_state, build_router, token_bytes_equal, tokens_equal,
 };
 use ai_brains_contracts::policy::POLICY_DENIED_CODE;
 use ai_brains_contracts::response::ApiError;
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -52,23 +53,15 @@ fn http_bind__non_loopback_without_optin__rejected() {
     let ip: std::net::IpAddr = "0.0.0.0".parse().unwrap();
     assert!(!is_loopback_addr(ip));
 
-    // When opt-in env is not truthy, resolve must reject explicit non-loopback.
-    // Clear any ambient opt-in for this process if present by testing both
-    // branches of the pure check + BindError shape when opt-in is off.
-    if !non_loopback_opt_in_enabled() {
-        let err = resolve_bind_addr(Some("0.0.0.0:7432"), None).expect_err("must reject");
-        match err {
-            BindError::NonLoopbackWithoutOptIn { addr } => {
-                assert_eq!(addr.ip().to_string(), "0.0.0.0");
-            }
-            other => panic!("unexpected error: {other}"),
+    // Force-clear ambient opt-in so the reject path always runs (R1-08).
+    // nextest process isolation is the default isolation story.
+    let _guard = TempEnv::remove(ALLOW_NON_LOOPBACK_ENV);
+    let err = resolve_bind_addr(Some("0.0.0.0:7432"), None).expect_err("must reject");
+    match err {
+        BindError::NonLoopbackWithoutOptIn { addr } => {
+            assert_eq!(addr.ip().to_string(), "0.0.0.0");
         }
-    } else {
-        // Ambient opt-in in CI: still prove the error type exists and loopback works.
-        let ok = resolve_bind_addr(None, Some(7432)).expect("loopback default");
-        assert!(is_loopback_addr(ok.ip()));
-        // Document that ambient ALLOW is set — non-loopback still needs explicit bind.
-        let _ = ALLOW_NON_LOOPBACK_ENV;
+        other => panic!("unexpected error: {other}"),
     }
 }
 
@@ -96,7 +89,9 @@ async fn http_auth__missing_bearer__401() {
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
     let bytes = body_bytes(resp).await;
     let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(v["code"], "UNAUTHORIZED");
+    // Auth 401 uses DaemonResponse::Error tagged shape (R1-07).
+    assert_eq!(v["type"], "error");
+    assert_eq!(v["payload"]["code"], "UNAUTHORIZED");
 }
 
 #[tokio::test]
@@ -275,16 +270,73 @@ Successfully processed 1 files; Failed processing 0 files
 "#;
     let err = verify_owner_acl_output(program_data_style).expect_err("SY+BA must fail");
     assert!(
-        err.contains("SYSTEM+Administrators") || err.contains("owner-only"),
+        err.contains("SYSTEM") || err.contains("owner-only") || err.contains("Administrators"),
         "err={err}"
     );
 
-    // Accept a typical owner/user full ACE (no Everyone).
+    // Accept a typical owner/user full ACE (no Everyone) — pure OW (F).
     let owner_style = r#"
 C:\Users\x\.ai-brains\http.token DESKTOP-X\user:(F)
 Successfully processed 1 files; Failed processing 0 files
 "#;
     verify_owner_acl_output(owner_style).expect("owner full should pass");
+}
+
+#[test]
+fn http_token_acl_verify__sy_plus_owner__must_fail() {
+    let sy_owner = r#"
+C:\Users\x\.ai-brains\http.token NT AUTHORITY\SYSTEM:(F)
+                                 DESKTOP-X\user:(F)
+Successfully processed 1 files; Failed processing 0 files
+"#;
+    let err = verify_owner_acl_output(sy_owner).expect_err("SY+Owner must fail");
+    assert!(
+        err.contains("SYSTEM") || err.contains("owner-only"),
+        "err={err}"
+    );
+}
+
+#[test]
+fn http_token_acl_verify__unexpected_everyone_ace__must_fail() {
+    let everyone = r#"
+C:\Users\x\.ai-brains\http.token DESKTOP-X\user:(F)
+                                 Everyone:(F)
+Successfully processed 1 files; Failed processing 0 files
+"#;
+    let err = verify_owner_acl_output(everyone).expect_err("Everyone must fail");
+    assert!(
+        err.contains("Everyone")
+            || err.contains("EVERYONE")
+            || err.contains("broad")
+            || err.contains("owner-only"),
+        "err={err}"
+    );
+}
+
+#[test]
+fn http_token_acl_verify__pure_owner_f__must_pass() {
+    let owner_only = r#"
+C:\Users\x\.ai-brains\http.token DESKTOP-X\user:(F)
+Successfully processed 1 files; Failed processing 0 files
+"#;
+    verify_owner_acl_output(owner_only).expect("pure OW (F) must pass");
+
+    let owner_rights = r#"
+C:\Users\x\.ai-brains\http.token OWNER RIGHTS:(F)
+Successfully processed 1 files; Failed processing 0 files
+"#;
+    verify_owner_acl_output(owner_rights).expect("OWNER RIGHTS (F) must pass");
+}
+
+#[test]
+fn http_token_load__reverify_acl_roundtrip() {
+    // Load path must re-verify ACL (R1-04) without rejecting a freshly written token.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("http.token");
+    let token = generate_token().unwrap();
+    write_token_file(&path, token.as_str()).expect("write token");
+    let loaded = load_or_create_token(&path).expect("load must re-verify and succeed");
+    assert_eq!(loaded.as_str(), token.as_str());
 }
 
 #[test]

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use axum::extract::{FromRef, Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -85,6 +85,28 @@ async fn dispatch_request(
     Ok(map_daemon_response(resp))
 }
 
+/// If body `command_id` is empty/missing, fill from `X-Command-Id` (R1-06).
+fn fill_command_id_from_header(command_id: &mut Option<String>, headers: &HeaderMap) {
+    let body_empty = command_id
+        .as_ref()
+        .map(|s| s.trim().is_empty())
+        .unwrap_or(true);
+    if !body_empty {
+        return;
+    }
+    let Some(raw) = headers
+        .get("x-command-id")
+        .or_else(|| headers.get("X-Command-Id"))
+        .and_then(|v| v.to_str().ok())
+    else {
+        return;
+    };
+    let trimmed = raw.trim();
+    if !trimmed.is_empty() {
+        *command_id = Some(trimmed.to_string());
+    }
+}
+
 async fn resolve_scope(
     State(state): State<AppState>,
     _auth: Authenticated,
@@ -136,16 +158,20 @@ async fn inspect_source(
 async fn propose_conclusion(
     State(state): State<AppState>,
     _auth: Authenticated,
-    Json(body): Json<ProposeConclusionRequest>,
+    headers: HeaderMap,
+    Json(mut body): Json<ProposeConclusionRequest>,
 ) -> Result<Response, ApiHttpError> {
+    fill_command_id_from_header(&mut body.command_id, &headers);
     dispatch_request(&state, DaemonRequest::ProposeConclusion(body)).await
 }
 
 async fn propose_decision(
     State(state): State<AppState>,
     _auth: Authenticated,
-    Json(body): Json<ProposeDecisionRequest>,
+    headers: HeaderMap,
+    Json(mut body): Json<ProposeDecisionRequest>,
 ) -> Result<Response, ApiHttpError> {
+    fill_command_id_from_header(&mut body.command_id, &headers);
     dispatch_request(&state, DaemonRequest::ProposeDecision(body)).await
 }
 
@@ -178,17 +204,21 @@ async fn resolve_review_item(
     State(state): State<AppState>,
     _auth: Authenticated,
     Path(id): Path<String>,
+    headers: HeaderMap,
     Json(mut body): Json<ResolveReviewItemRequest>,
 ) -> Result<Response, ApiHttpError> {
     // Path id is authoritative for REST.
     body.id = id;
+    fill_command_id_from_header(&mut body.command_id, &headers);
     dispatch_request(&state, DaemonRequest::ResolveReviewItem(body)).await
 }
 
 async fn request_erasure(
     State(state): State<AppState>,
     _auth: Authenticated,
-    Json(body): Json<RequestErasureRequest>,
+    headers: HeaderMap,
+    Json(mut body): Json<RequestErasureRequest>,
 ) -> Result<Response, ApiHttpError> {
+    fill_command_id_from_header(&mut body.command_id, &headers);
     dispatch_request(&state, DaemonRequest::RequestErasure(body)).await
 }

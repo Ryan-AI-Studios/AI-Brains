@@ -8,6 +8,7 @@ use axum::response::{IntoResponse, Response};
 use subtle::ConstantTimeEq;
 
 use ai_brains_contracts::response::ApiError;
+use ai_brains_daemon_api::DaemonResponse;
 
 /// Auth configuration held in application state.
 #[derive(Debug, Clone)]
@@ -46,7 +47,9 @@ pub struct AuthRejection {
 
 impl IntoResponse for AuthRejection {
     fn into_response(self) -> Response {
-        let body = Json(self.error);
+        // Same tagged wire shape as domain errors (`DaemonResponse::Error`) so
+        // clients parse one schema (R1-07).
+        let body = Json(DaemonResponse::Error(self.error));
         (self.status, body).into_response()
     }
 }

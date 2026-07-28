@@ -187,17 +187,48 @@ async fn routes__personal_briefing__dispatches() {
 #[tokio::test]
 async fn routes__erasure_request__dispatches() {
     let (app, dispatch) = app_echo_type();
+    // Contracts: `ids: Vec<String>` (not `id`); assert RequestErasure (R1-09).
     let (status, _) = oneshot_post(
         app,
         "/v1/erasure/request",
-        r#"{"api_version":"1","id":"m1","scope":"project:p","principal_id":"p","command_id":"e1"}"#,
+        r#"{"api_version":"1","ids":["m1"],"scope":"project:p","principal_id":"p","command_id":"e1"}"#,
     )
     .await;
-    // Accept 200 (dispatched) or 422 (body shape incomplete).
-    if status == StatusCode::OK {
-        let calls = dispatch.calls.lock().await;
-        assert!(matches!(calls[0], DaemonRequest::RequestErasure(_)));
-    } else {
-        assert!(status.is_client_error(), "status={status}");
+    assert_eq!(status, StatusCode::OK, "valid erasure body must dispatch");
+    let calls = dispatch.calls.lock().await;
+    match &calls[0] {
+        DaemonRequest::RequestErasure(req) => {
+            assert_eq!(req.ids, vec!["m1".to_string()]);
+            assert_eq!(req.command_id.as_deref(), Some("e1"));
+        }
+        other => panic!("expected RequestErasure, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn routes__propose_conclusion__x_command_id_header_fills_body() {
+    let (app, dispatch) = app_echo_type();
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/conclusions/propose")
+                .header("content-type", "application/json")
+                .header("authorization", format!("Bearer {TOKEN}"))
+                .header("X-Command-Id", "from-header-cmd")
+                .body(Body::from(
+                    r#"{"api_version":"1","statement":"x","scope":"project:p","principal_id":"p"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let calls = dispatch.calls.lock().await;
+    match &calls[0] {
+        DaemonRequest::ProposeConclusion(req) => {
+            assert_eq!(req.command_id.as_deref(), Some("from-header-cmd"));
+        }
+        other => panic!("unexpected {other:?}"),
     }
 }

@@ -30,6 +30,7 @@ zeroize = { workspace = true }
 windows.workspace = true
 
 [dev-dependencies]
+ai-brains-core = { path = "../ai-brains-core" }
 http-body-util.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full", "test-util"] }

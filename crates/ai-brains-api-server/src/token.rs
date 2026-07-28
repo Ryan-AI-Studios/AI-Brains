@@ -65,9 +65,17 @@ pub fn default_token_path() -> Result<PathBuf, TokenError> {
 }
 
 /// Generate a high-entropy opaque token (base64url, no padding).
+///
+/// Uses non-panicking entropy (`SysRng::try_fill_bytes`); maps failure to
+/// [`TokenError::Entropy`] (matches `ai-brains-crypto` passphrase path).
 pub fn generate_token() -> Result<Zeroizing<String>, TokenError> {
+    use rand::TryRng;
+    use rand::rngs::SysRng;
+
     let mut bytes = [0u8; TOKEN_ENTROPY_BYTES];
-    rand::fill(&mut bytes);
+    SysRng
+        .try_fill_bytes(&mut bytes)
+        .map_err(|e| TokenError::Entropy(format!("SysRng::try_fill_bytes failed: {e}")))?;
     let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
     // Zeroize raw entropy.
     bytes.fill(0);
@@ -104,6 +112,9 @@ pub fn ensure_token(
 
 fn load_token(path: &Path) -> Result<Zeroizing<String>, TokenError> {
     refuse_reparse(path)?;
+    // Fail-closed: re-verify owner ACL on every load so a weakened ACL is not
+    // accepted forever after first create (R1-04). Re-apply once if verify fails.
+    ensure_owner_acl_on_load(path)?;
     let raw = std::fs::read_to_string(path).map_err(|source| TokenError::Read {
         path: path.display().to_string(),
         source,
@@ -115,6 +126,23 @@ fn load_token(path: &Path) -> Result<Zeroizing<String>, TokenError> {
         });
     }
     Ok(Zeroizing::new(trimmed))
+}
+
+/// Re-verify owner ACL on load; if weak, re-apply once then re-verify fail-closed.
+fn ensure_owner_acl_on_load(path: &Path) -> Result<(), TokenError> {
+    #[cfg(windows)]
+    {
+        if verify_owner_acl_windows(path).is_ok() {
+            return Ok(());
+        }
+        apply_owner_acl_windows(path).map_err(TokenError::Acl)?;
+        verify_owner_acl_windows(path).map_err(TokenError::Acl)
+    }
+    #[cfg(not(windows))]
+    {
+        // Unix: re-apply 0600 (same as create path).
+        apply_and_verify_owner_acl(path)
+    }
 }
 
 /// Write token with reparse refuse + owner-only ACL (apply-then-verify fail-closed).
@@ -371,88 +399,211 @@ fn verify_owner_acl_windows(path: &Path) -> Result<(), String> {
     verify_owner_acl_output(&stdout)
 }
 
-/// Pure helper: accept owner-only posture; reject SY+BA-only ProgramData ACL and broad grants.
+/// Pure helper: accept **owner-only** posture; reject SY/BA Full, broad grants, extra ACEs.
+///
+/// Strict icacls parse (R1-03):
+/// - Exactly owner / current-user style Full (`(F)`) is required
+/// - `NT AUTHORITY\SYSTEM` / `BUILTIN\Administrators` with Full **must fail** (even with owner)
+/// - Everyone / Authenticated Users / BUILTIN\Users / World — never allowed
+/// - Unexpected principals with any ACE — fail closed
 ///
 /// Unit-testable without filesystem.
 pub fn verify_owner_acl_output(icacls_stdout: &str) -> Result<(), String> {
     let mut has_owner_or_user_f = false;
-    let mut has_system_f = false;
-    let mut has_admins_f = false;
-    let mut has_users_or_everyone = false;
+    let mut owner_principals: Vec<String> = Vec::new();
 
     for raw_line in icacls_stdout.lines() {
         let line = raw_line.trim();
         if line.is_empty() || line.starts_with("Successfully processed") || !line.contains(':') {
             continue;
         }
-        let lower = line.to_ascii_lowercase();
 
-        // Broad principals — never allowed on the token file.
-        if lower.contains("everyone")
-            || lower.contains("authenticated users")
-            || lower.contains("builtin\\users")
-            || lower.contains("\\users:(")
-        {
-            has_users_or_everyone = true;
+        let Some(ace) = extract_ace_segment(line) else {
+            continue;
+        };
+        let principal = principal_from_ace(&ace);
+        let rights = rights_from_ace(&ace);
+        if principal.is_empty() {
+            continue;
         }
 
-        // SYSTEM / Administrators markers (ProgramData style).
-        if (lower.contains("nt authority\\system") || lower.contains("*s-1-5-18"))
-            && (lower.contains("(f)") || lower.contains("(f)"))
-        {
-            has_system_f = true;
-        }
-        if (lower.contains("builtin\\administrators") || lower.contains("*s-1-5-32-544"))
-            && lower.contains("(f)")
-        {
-            has_admins_f = true;
+        if is_forbidden_broad_principal(&principal) {
+            return Err(format!(
+                "token ACL grants access to broad principal '{principal}' (rights={rights}); \
+                 expected owner-only D:P(A;;FA;;;OW)"
+            ));
         }
 
-        // Owner-style: current user SID or username with (F), or explicit OWNER RIGHTS.
-        if (lower.contains("(f)") || lower.contains("(f)"))
-            && (lower.contains("owner rights")
-                || (!lower.contains("nt authority\\system")
-                    && !lower.contains("builtin\\administrators")
-                    && !lower.contains("everyone")
-                    && !lower.contains("authenticated users")))
-        {
-            // Heuristic: any non-SY/BA full ACE counts as owner/user.
-            if !lower.contains("nt authority\\system") && !lower.contains("builtin\\administrators")
+        // SYSTEM / Administrators Full — never allowed on user token (reject SY+Owner).
+        if is_system_principal(&principal) && has_full_control(&rights) {
+            return Err(format!(
+                "token ACL grants SYSTEM full control ('{principal}'); \
+                 expected owner-only D:P(A;;FA;;;OW) (not SY+Owner / not SY+BA)"
+            ));
+        }
+        if is_administrators_principal(&principal) && has_full_control(&rights) {
+            return Err(format!(
+                "token ACL grants Administrators full control ('{principal}'); \
+                 expected owner-only D:P(A;;FA;;;OW)"
+            ));
+        }
+
+        // Any SYSTEM/BA ACE (even non-F) is unexpected for pure OW posture.
+        if is_system_principal(&principal) || is_administrators_principal(&principal) {
+            return Err(format!(
+                "token ACL includes privileged principal '{principal}' (rights={rights}); \
+                 expected owner-only D:P(A;;FA;;;OW)"
+            ));
+        }
+
+        if has_full_control(&rights) {
+            has_owner_or_user_f = true;
+            if !owner_principals
+                .iter()
+                .any(|p| p.eq_ignore_ascii_case(&principal))
             {
-                has_owner_or_user_f = true;
+                owner_principals.push(principal);
             }
+        } else {
+            // Non-full ACE on a non-owner principal is unexpected; fail closed.
+            return Err(format!(
+                "token ACL has unexpected non-full ACE for '{principal}' (rights={rights}); \
+                 expected single owner full control only"
+            ));
         }
     }
 
-    if has_users_or_everyone {
-        return Err(
-            "token ACL grants broad Users/Everyone access; expected owner-only D:P(A;;FA;;;OW)"
-                .into(),
-        );
-    }
-
-    // Fail if ACL looks exactly like ProgramData SY+BA and nothing else.
-    if has_system_f && has_admins_f && !has_owner_or_user_f {
-        return Err(
-            "token ACL is SYSTEM+Administrators only (RESTRICTIVE_FILE_SDDL style); \
-             expected owner-only USER_TOKEN_FILE_SDDL D:P(A;;FA;;;OW)"
-                .into(),
-        );
-    }
-
-    if !(has_owner_or_user_f || has_system_f || has_admins_f) {
-        // Empty or unparseable — fail closed.
-        // Note: some locales print the username differently; if we have any (F)
-        // ACE at all we already set has_owner_or_user_f. Empty → fail.
+    if !has_owner_or_user_f {
         return Err(
             "token ACL missing owner full control; expected D:P(A;;FA;;;OW) posture".into(),
         );
     }
 
-    // Owner-only may still list the resolved username as (F); accept.
-    if has_owner_or_user_f {
-        return Ok(());
+    // Owner-only: at most one distinct owner/user Full principal (username or OWNER RIGHTS).
+    // Two distinct Full principals (e.g. user + Everyone already rejected; user + other) fail.
+    if owner_principals.len() > 1 {
+        // Allow OWNER RIGHTS alongside a single resolved username (both represent OW).
+        let non_owner_rights: Vec<_> = owner_principals
+            .iter()
+            .filter(|p| !is_owner_rights_principal(p))
+            .collect();
+        if non_owner_rights.len() > 1 {
+            return Err(format!(
+                "token ACL has multiple owner Full principals ({}); \
+                 expected single owner-only D:P(A;;FA;;;OW)",
+                owner_principals.join(", ")
+            ));
+        }
     }
 
-    Err("token ACL verification failed: not owner-only".into())
+    Ok(())
+}
+
+// --- Pure icacls parse helpers (owner-only posture; mirrored from artifact_security style) ---
+
+fn extract_ace_segment(line: &str) -> Option<String> {
+    let rights_marker = line.rfind(":(")?;
+    let before = line[..rights_marker].trim_end();
+    if before.is_empty() {
+        return None;
+    }
+    let after = &line[rights_marker..];
+    let rights_end = after.rfind(')').map(|i| i + 1).unwrap_or(after.len());
+    let rights = after[..rights_end].trim();
+    if rights.is_empty() {
+        return None;
+    }
+    let principal = principal_before_rights(before)?;
+    Some(format!("{principal}{rights}"))
+}
+
+fn principal_before_rights(before: &str) -> Option<String> {
+    let s = before.trim();
+    if s.is_empty() {
+        return None;
+    }
+    if looks_like_windows_path_prefix(s) {
+        let mut parts = s.splitn(2, char::is_whitespace);
+        let _path = parts.next()?;
+        let principal = parts.next().map(str::trim).unwrap_or("");
+        if principal.is_empty() {
+            return None;
+        }
+        return Some(principal.to_string());
+    }
+    Some(s.to_string())
+}
+
+fn looks_like_windows_path_prefix(s: &str) -> bool {
+    let b = s.as_bytes();
+    if b.len() >= 3 && b[1] == b':' && (b[2] == b'\\' || b[2] == b'/') && b[0].is_ascii_alphabetic()
+    {
+        return true;
+    }
+    s.starts_with("\\\\") || s.starts_with("//")
+}
+
+fn principal_from_ace(ace: &str) -> String {
+    match ace.find(":(") {
+        Some(i) => ace[..i].trim().to_string(),
+        None => ace.trim().to_string(),
+    }
+}
+
+fn rights_from_ace(ace: &str) -> String {
+    match ace.find(":(") {
+        Some(i) => ace[i + 1..].trim().to_string(),
+        None => String::new(),
+    }
+}
+
+fn has_full_control(rights: &str) -> bool {
+    let upper = rights.to_ascii_uppercase();
+    upper.contains("(F)") || upper.contains("FULL")
+}
+
+fn normalize_principal(principal: &str) -> String {
+    principal
+        .trim()
+        .trim_start_matches('*')
+        .to_ascii_uppercase()
+}
+
+fn is_system_principal(principal: &str) -> bool {
+    let p = normalize_principal(principal);
+    p == "S-1-5-18" || p == "SYSTEM" || p == "NT AUTHORITY\\SYSTEM"
+}
+
+fn is_administrators_principal(principal: &str) -> bool {
+    let p = normalize_principal(principal);
+    p == "S-1-5-32-544" || p == "ADMINISTRATORS" || p == "BUILTIN\\ADMINISTRATORS"
+}
+
+fn is_owner_rights_principal(principal: &str) -> bool {
+    let p = normalize_principal(principal);
+    p == "OWNER RIGHTS" || p == "S-1-3-4"
+}
+
+/// Broad / world / users principals never allowed on the HTTP token file.
+fn is_forbidden_broad_principal(principal: &str) -> bool {
+    let p = normalize_principal(principal);
+    if is_administrators_principal(principal) || is_system_principal(principal) {
+        return false; // handled separately (still rejected, but not as "broad")
+    }
+    p == "EVERYONE"
+        || p == "S-1-1-0"
+        || p == "WORLD"
+        || p == "AUTHENTICATED USERS"
+        || p == "NT AUTHORITY\\AUTHENTICATED USERS"
+        || p == "S-1-5-11"
+        || p == "INTERACTIVE"
+        || p == "NT AUTHORITY\\INTERACTIVE"
+        || p == "S-1-5-4"
+        || p == "USERS"
+        || p == "BUILTIN\\USERS"
+        || p == "S-1-5-32-545"
+        || p.ends_with("\\USERS")
+        || p.ends_with("\\EVERYONE")
+        || p.contains("AUTHENTICATED USERS")
+        || p.contains("\\EVERYONE")
 }
