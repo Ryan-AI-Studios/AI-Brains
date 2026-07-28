@@ -142,7 +142,7 @@ async fn run_propose_daemon(
     let client = DaemonClient::new();
     let req = DaemonRequest::ProposeConclusion(WireProposeConclusion {
         api_version: ai_brains_contracts::knowledge::API_VERSION.to_string(),
-        principal_id: principal_id_wire(options.principal_id.as_deref(), &principal),
+        principal_id: principal_id_wire(&principal),
         scope: options.scope.clone(),
         statement: options.statement.clone(),
         evidence_ids: options.evidence.clone(),

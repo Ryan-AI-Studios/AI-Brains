@@ -128,7 +128,7 @@ async fn run_show_daemon(
     let req = DaemonRequest::InspectSource(InspectSourceRequest {
         api_version: ai_brains_contracts::sources::API_VERSION.to_string(),
         id: options.id.clone(),
-        principal_id: principal_id_wire(options.principal_id.as_deref(), &principal),
+        principal_id: principal_id_wire(&principal),
         scope: options.scope.clone(),
     });
     let resp = match client.request(req).await {

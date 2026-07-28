@@ -106,7 +106,7 @@ async fn run_show_daemon(
         api_version: ai_brains_contracts::briefings::API_VERSION.to_string(),
         id: options.id.clone(),
         scope: options.scope.clone(),
-        principal_id: principal_id_wire(options.principal_id.as_deref(), &principal),
+        principal_id: principal_id_wire(&principal),
         max_chars: Some(options.max_chars),
     });
     let resp = match client.request(req).await {

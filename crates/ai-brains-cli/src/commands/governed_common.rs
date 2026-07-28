@@ -321,16 +321,13 @@ pub fn resolve_principal(principal_id: Option<&str>) -> Principal {
     cli_principal()
 }
 
-/// Wire principal id string for daemon requests (None when default system).
-pub fn principal_id_wire(principal_id: Option<&str>, principal: &Principal) -> Option<String> {
-    if principal_id.is_some() {
-        return Some(principal.id.to_string());
-    }
-    if matches!(principal.kind, PrincipalKind::Human) {
-        return Some(principal.id.to_string());
-    }
-    // System default — omit so daemon applies its own resolution (compatible).
-    None
+/// Wire principal id string for daemon requests.
+///
+/// Always sends the resolved principal id (including the default System principal)
+/// so the daemon cannot diverge via `AI_BRAINS_DAEMON_PRINCIPAL_ID` when the CLI
+/// already selected an identity (T160 Codex P1 / principal parity).
+pub fn principal_id_wire(principal: &Principal) -> Option<String> {
+    Some(principal.id.to_string())
 }
 
 /// Auto-generate a command_id UUID when the user omitted one.
@@ -508,5 +505,35 @@ mod tests {
         assert_eq!(wire.confidence, "Low");
         assert_eq!(wire.warnings.len(), 1);
         assert_eq!(wire.evidence.len(), 1);
+    }
+
+    #[test]
+    fn principal_id_wire__default_system__always_some_system_uuid() {
+        let system = make_principal(
+            PrincipalKind::System,
+            PrincipalId::from_uuid(Uuid::from_u128(
+                0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2,
+            )),
+            "cli-system",
+        );
+        let wire = principal_id_wire(&system);
+        assert_eq!(wire.as_deref(), Some(system.id.to_string().as_str()));
+        assert!(
+            matches!(system.kind, PrincipalKind::System),
+            "fixture must be System principal"
+        );
+    }
+
+    #[test]
+    fn principal_id_wire__explicit_human__that_uuid() {
+        let id = Uuid::parse_str("11111111-2222-3333-4444-555555555555")
+            .expect("fixture uuid");
+        let principal = make_principal(
+            PrincipalKind::Human,
+            PrincipalId::from_uuid(id),
+            "cli-human",
+        );
+        let wire = principal_id_wire(&principal);
+        assert_eq!(wire.as_deref(), Some(id.to_string().as_str()));
     }
 }

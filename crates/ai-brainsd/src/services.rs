@@ -15,8 +15,12 @@
 //!
 //! # Principal resolution
 //!
-//! 1. Wire `principal_id` if parseable as UUID → Human principal with that id
-//! 2. Else env `AI_BRAINS_DAEMON_PRINCIPAL_ID` if UUID → Human
+//! 1. Wire `principal_id` if parseable as UUID:
+//!    - well-known System principal UUID → System (`daemon-system`) for kind parity
+//!      with CLI `cli_principal` (T160 Codex P1)
+//!    - any other UUID → Human (`daemon-human`)
+//! 2. Else env `AI_BRAINS_DAEMON_PRINCIPAL_ID` if UUID → Human (legacy clients that
+//!    omit wire `principal_id`)
 //! 3. Else CLI-compatible fixed System principal
 //!
 //! # Idempotency ownership
@@ -851,11 +855,24 @@ fn control_plane_error_parts(err: &ControlPlaneError) -> (&'static str, String) 
     }
 }
 
+/// Well-known System principal UUID shared with CLI `cli_principal` (briefing.rs).
+const CLI_SYSTEM_PRINCIPAL_U128: u128 =
+    0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2;
+
 /// Resolve principal for daemon IPC (see module docs).
 pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
     if let Some(raw) = wire_principal_id {
         let trimmed = raw.trim();
         if let Ok(u) = Uuid::parse_str(trimmed) {
+            // Preserve System kind for the well-known CLI System principal so
+            // wire identity + kind match local CP (policy matrix parity).
+            if u.as_u128() == CLI_SYSTEM_PRINCIPAL_U128 {
+                return make_principal(
+                    PrincipalKind::System,
+                    PrincipalId::from_uuid(u),
+                    "daemon-system",
+                );
+            }
             return make_principal(
                 PrincipalKind::Human,
                 PrincipalId::from_uuid(u),
@@ -863,6 +880,7 @@ pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
             );
         }
     }
+    // Legacy clients that omit wire principal_id may still set daemon env.
     if let Ok(raw) = std::env::var("AI_BRAINS_DAEMON_PRINCIPAL_ID") {
         let trimmed = raw.trim();
         if let Ok(u) = Uuid::parse_str(trimmed) {
@@ -876,9 +894,7 @@ pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
     // CLI-compatible System principal (briefing.rs cli_principal).
     make_principal(
         PrincipalKind::System,
-        PrincipalId::from_uuid(Uuid::from_u128(
-            0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2,
-        )),
+        PrincipalId::from_uuid(Uuid::from_u128(CLI_SYSTEM_PRINCIPAL_U128)),
         "daemon-system",
     )
 }
@@ -1201,5 +1217,64 @@ mod tests {
             Err(s) => assert_eq!(s, "bad-conclusion"),
             Ok(_) => panic!("expected Err with bad id"),
         }
+    }
+
+    #[test]
+    fn resolve_principal__wire_system_uuid__system_kind() {
+        let system_uuid = Uuid::from_u128(CLI_SYSTEM_PRINCIPAL_U128);
+        let p = resolve_principal(Some(&system_uuid.to_string()));
+        assert!(matches!(p.kind, PrincipalKind::System));
+        assert_eq!(p.id.to_string(), system_uuid.to_string());
+        assert_eq!(p.display_name, "daemon-system");
+    }
+
+    #[test]
+    fn resolve_principal__wire_other_uuid__human_kind() {
+        let id = Uuid::parse_str("11111111-2222-3333-4444-555555555555")
+            .expect("fixture uuid");
+        let p = resolve_principal(Some(&id.to_string()));
+        assert!(matches!(p.kind, PrincipalKind::Human));
+        assert_eq!(p.id.to_string(), id.to_string());
+        assert_eq!(p.display_name, "daemon-human");
+    }
+
+    #[test]
+    fn resolve_principal__no_wire_with_env__human_from_env() {
+        use ai_brains_core::temp_env::TempEnv;
+        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+            .expect("fixture uuid");
+        let _guard = TempEnv::set("AI_BRAINS_DAEMON_PRINCIPAL_ID", env_id.to_string());
+        let p = resolve_principal(None);
+        assert!(matches!(p.kind, PrincipalKind::Human));
+        assert_eq!(p.id.to_string(), env_id.to_string());
+        assert_eq!(p.display_name, "daemon-env-human");
+    }
+
+    #[test]
+    fn resolve_principal__no_wire_no_env__system_default() {
+        use ai_brains_core::temp_env::TempEnv;
+        let _guard = TempEnv::remove("AI_BRAINS_DAEMON_PRINCIPAL_ID");
+        let p = resolve_principal(None);
+        let system_uuid = Uuid::from_u128(CLI_SYSTEM_PRINCIPAL_U128);
+        assert!(matches!(p.kind, PrincipalKind::System));
+        assert_eq!(p.id.to_string(), system_uuid.to_string());
+        assert_eq!(p.display_name, "daemon-system");
+    }
+
+    #[test]
+    fn resolve_principal__wire_present_overrides_env() {
+        use ai_brains_core::temp_env::TempEnv;
+        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+            .expect("env fixture");
+        let wire_id = Uuid::parse_str("11111111-2222-3333-4444-555555555555")
+            .expect("wire fixture");
+        let _guard = TempEnv::set("AI_BRAINS_DAEMON_PRINCIPAL_ID", env_id.to_string());
+        let p = resolve_principal(Some(&wire_id.to_string()));
+        assert_eq!(
+            p.id.to_string(),
+            wire_id.to_string(),
+            "wire principal_id must win over AI_BRAINS_DAEMON_PRINCIPAL_ID"
+        );
+        assert!(matches!(p.kind, PrincipalKind::Human));
     }
 }

@@ -142,7 +142,7 @@ async fn run_list_daemon(
     let client = DaemonClient::new();
     let req = DaemonRequest::ListReviewItems(ListReviewItemsRequest {
         api_version: ai_brains_contracts::review::API_VERSION.to_string(),
-        principal_id: principal_id_wire(options.principal_id.as_deref(), &principal),
+        principal_id: principal_id_wire(&principal),
         scope: options.scope.clone(),
         status: options.status.clone(),
     });
@@ -292,7 +292,7 @@ async fn run_resolve_daemon(
         api_version: ai_brains_contracts::review::API_VERSION.to_string(),
         id: options.id.clone(),
         resolution: options.resolution.clone(),
-        principal_id: principal_id_wire(options.principal_id.as_deref(), &principal),
+        principal_id: principal_id_wire(&principal),
         note: options.note.clone(),
         scope: Some(options.scope.clone()),
         command_id: Some(command_id.to_string()),

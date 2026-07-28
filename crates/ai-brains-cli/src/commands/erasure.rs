@@ -51,7 +51,7 @@ pub async fn run_request(options: RequestOptions) -> Result<(), Box<dyn std::err
     let client = DaemonClient::new();
     let req = DaemonRequest::RequestErasure(RequestErasureRequest {
         api_version: ai_brains_contracts::erasure::API_VERSION.to_string(),
-        principal_id: principal_id_wire(options.principal_id.as_deref(), &principal),
+        principal_id: principal_id_wire(&principal),
         ids: options.ids.clone(),
         reason: options.reason.clone(),
         scope: options.scope.clone(),
