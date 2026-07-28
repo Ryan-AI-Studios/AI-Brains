@@ -128,9 +128,7 @@ fn run_service_inner() -> WsResult<()> {
             Ok(())
         }
         Err(e) => {
-            tracing::error!(
-                "Service startup failed (SCM will not see Running): {e}"
-            );
+            tracing::error!("Service startup failed (SCM will not see Running): {e}");
             // Drain the daemon thread (it should have already returned after
             // signaling the startup error).
             match daemon_thread.join() {
