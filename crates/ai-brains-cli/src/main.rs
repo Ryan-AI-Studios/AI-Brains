@@ -330,58 +330,61 @@ enum Commands {
     /// Resolve the active governed scope (T160 / #20)
     ///
     /// Always surfaces authoritative, confidence, warnings, and alternatives.
-    /// Example: `ai-brains scope resolve --format json`
+    #[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
     Scope {
         #[command(subcommand)]
         command: ScopeCommands,
     },
     /// Inspect evidence / handle previews (T160)
-    ///
-    /// Example: `ai-brains evidence show <id> --scope Repository:<uuid> --format json`
+    #[command(
+        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+    )]
     Evidence {
         #[command(subcommand)]
         command: EvidenceCommands,
     },
     /// Inspect registered sources (T160)
-    ///
-    /// Example: `ai-brains source show <id> --scope Repository:<uuid>`
+    #[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
     Source {
         #[command(subcommand)]
         command: SourceCommands,
     },
     /// Propose conclusions (T160)
-    ///
-    /// Example: `ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid>`
+    #[command(
+        after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
+    )]
     Conclusion {
         #[command(subcommand)]
         command: ConclusionCommands,
     },
     /// Propose decisions (T160)
-    ///
-    /// Example: `ai-brains decision propose --statement "..." --scope Repository:<uuid>`
+    #[command(
+        after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
+    )]
     Decision {
         #[command(subcommand)]
         command: DecisionCommands,
     },
     /// Review queue list / resolve (T160)
-    ///
-    /// Example: `ai-brains review list --scope Repository:<uuid>`
-    /// Example: `ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>`
+    #[command(
+        after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+    )]
     Review {
         #[command(subcommand)]
         command: ReviewCommands,
     },
     /// Policy grant inspection (read-only, T160)
-    ///
-    /// Example: `ai-brains policy show --scope Repository:<uuid>`
-    /// Example: `ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>`
+    #[command(
+        after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+    )]
     Policy {
         #[command(subcommand)]
         command: PolicyCommands,
     },
     /// Request erasure tickets (daemon-required; no CE wipe claim) (T160)
-    ///
-    /// Example: `ai-brains erasure request --id <id> --scope Repository:<uuid> --format json`
+    #[command(
+        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+    )]
     Erasure {
         #[command(subcommand)]
         command: ErasureCommands,
@@ -446,8 +449,10 @@ enum GovernedQueryCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
 enum ScopeCommands {
     /// Resolve the active governed scope for the working context
+    #[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
     Resolve {
         /// Output format: json (default) | human | markdown
         #[arg(long, default_value = "json")]
@@ -477,8 +482,14 @@ enum ScopeCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+)]
 enum EvidenceCommands {
     /// Show a bounded evidence / handle preview
+    #[command(
+        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+    )]
     Show {
         /// Evidence or handle id
         id: String,
@@ -504,8 +515,10 @@ enum EvidenceCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
 enum SourceCommands {
     /// Show a registered source by id
+    #[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
     Show {
         /// Source id
         id: String,
@@ -526,8 +539,14 @@ enum SourceCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
+)]
 enum ConclusionCommands {
     /// Propose a conclusion (daemon preferred; local if daemon down before send or --local)
+    #[command(
+        after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
+    )]
     Propose {
         /// Claim / statement text
         #[arg(long = "claim", visible_alias = "statement")]
@@ -555,8 +574,14 @@ enum ConclusionCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
+)]
 enum DecisionCommands {
     /// Propose a decision (daemon preferred; local if daemon down before send or --local)
+    #[command(
+        after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
+    )]
     Propose {
         /// Decision statement
         #[arg(long)]
@@ -589,8 +614,12 @@ enum DecisionCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+)]
 enum ReviewCommands {
     /// List open review items (E1: items: [] when empty)
+    #[command(after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>")]
     List {
         /// Scope identity key (required)
         #[arg(long)]
@@ -610,6 +639,9 @@ enum ReviewCommands {
         require_daemon: bool,
     },
     /// Resolve a review item (prefer Human principal; System may get APPROVAL_REQUIRED)
+    #[command(
+        after_help = "Examples:\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+    )]
     Resolve {
         /// Review item id
         id: String,
@@ -638,8 +670,12 @@ enum ReviewCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+)]
 enum PolicyCommands {
     /// List applied grants for principal + scope (read-only)
+    #[command(after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>")]
     Show {
         /// Scope identity key (required)
         #[arg(long)]
@@ -650,6 +686,9 @@ enum PolicyCommands {
         principal_id: Option<String>,
     },
     /// Dry-run capability allow check
+    #[command(
+        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+    )]
     Check {
         /// Capability name (e.g. ProposeConclusion)
         #[arg(long)]
@@ -665,8 +704,14 @@ enum PolicyCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+)]
 enum ErasureCommands {
     /// Request an erasure ticket (daemon-required; never claims CE wipe)
+    #[command(
+        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+    )]
     Request {
         /// Target record / aggregate ids (repeatable)
         #[arg(long = "id", required = true)]

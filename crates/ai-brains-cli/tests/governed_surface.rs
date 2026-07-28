@@ -63,7 +63,23 @@ fn cli_conclusion_propose__help_lists_claim_and_evidence() {
         .success()
         .stdout(predicate::str::contains("--claim").or(predicate::str::contains("claim")))
         .stdout(predicate::str::contains("--evidence").or(predicate::str::contains("evidence")))
-        .stdout(predicate::str::contains("--scope").or(predicate::str::contains("scope")));
+        .stdout(predicate::str::contains("--scope").or(predicate::str::contains("scope")))
+        .stdout(
+            predicate::str::contains("Examples")
+                .or(predicate::str::contains("ai-brains conclusion propose")),
+        );
+}
+
+#[test]
+fn cli_scope__help__documents_examples() {
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("scope")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Examples"))
+        .stdout(predicate::str::contains("ai-brains scope resolve"));
 }
 
 #[test]
