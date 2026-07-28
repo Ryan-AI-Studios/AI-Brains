@@ -23,6 +23,15 @@ const SERVICE_DISPLAY_NAME: &str = "AI-Brains Daemon";
 const SERVICE_DESCRIPTION: &str = "Local-first AI coding memory vault — captures conversation history without tool logs or hidden thinking.";
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 
+/// SCM service-specific exit codes (non-zero = failure visible to `sc` / Services MMC).
+const SERVICE_EXIT_STARTUP_FAILED: u32 = 1;
+const SERVICE_EXIT_RUNTIME_FAILED: u32 = 2;
+const SERVICE_EXIT_THREAD_PANIC: u32 = 3;
+
+/// How long the service control thread waits for fatal startup (vault + optional HTTP)
+/// before treating the start as failed without ever reporting Running.
+const STARTUP_READY_TIMEOUT: Duration = Duration::from_secs(120);
+
 pub fn run_service() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let result = service_dispatcher::start(SERVICE_NAME, ffi_service_main);
     result.map_err(|e| format!("Failed to start service dispatcher: {e}"))?;
@@ -59,60 +68,152 @@ fn run_service_inner() -> WsResult<()> {
         controls_accepted: ServiceControlAccept::STOP,
         exit_code: ServiceExitCode::Win32(0),
         checkpoint: 0,
-        wait_hint: Duration::from_secs(10),
+        wait_hint: STARTUP_READY_TIMEOUT,
         process_id: None,
     })?;
 
-    let daemon_thread = thread::spawn(move || {
-        if let Err(e) = run_daemon_runtime(shutdown_rx) {
-            tracing::error!("Daemon thread error: {}", e);
+    // Fatal startup (vault open, optional HTTP) runs on the daemon thread and
+    // signals this channel *before* we report Running to SCM (CR1-P2-01).
+    // If HTTP is enabled and bind/token fails, we never mark Running and stop
+    // with ServiceSpecific(STARTUP_FAILED).
+    let (ready_tx, ready_rx) = mpsc::channel::<Result<(), String>>();
+
+    let daemon_thread = thread::spawn(move || run_daemon_runtime(shutdown_rx, ready_tx));
+
+    let startup_result = match ready_rx.recv_timeout(STARTUP_READY_TIMEOUT) {
+        Ok(r) => r,
+        Err(mpsc::RecvTimeoutError::Timeout) => Err(format!(
+            "Daemon startup did not become ready within {}s",
+            STARTUP_READY_TIMEOUT.as_secs()
+        )),
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            Err("Daemon thread exited before signaling startup ready".to_string())
         }
-    });
+    };
 
-    status_handle.set_service_status(ServiceStatus {
-        service_type: SERVICE_TYPE,
-        current_state: ServiceState::Running,
-        controls_accepted: ServiceControlAccept::STOP,
-        exit_code: ServiceExitCode::Win32(0),
-        checkpoint: 0,
-        wait_hint: Duration::default(),
-        process_id: None,
-    })?;
+    match startup_result {
+        Ok(()) => {
+            status_handle.set_service_status(ServiceStatus {
+                service_type: SERVICE_TYPE,
+                current_state: ServiceState::Running,
+                controls_accepted: ServiceControlAccept::STOP,
+                exit_code: ServiceExitCode::Win32(0),
+                checkpoint: 0,
+                wait_hint: Duration::default(),
+                process_id: None,
+            })?;
 
-    let _ = daemon_thread.join();
+            let exit_code = match daemon_thread.join() {
+                Ok(Ok(())) => ServiceExitCode::Win32(0),
+                Ok(Err(e)) => {
+                    tracing::error!("Daemon runtime failed after Running: {e}");
+                    ServiceExitCode::ServiceSpecific(SERVICE_EXIT_RUNTIME_FAILED)
+                }
+                Err(_) => {
+                    tracing::error!("Daemon thread panicked after Running");
+                    ServiceExitCode::ServiceSpecific(SERVICE_EXIT_THREAD_PANIC)
+                }
+            };
 
-    status_handle.set_service_status(ServiceStatus {
-        service_type: SERVICE_TYPE,
-        current_state: ServiceState::Stopped,
-        controls_accepted: ServiceControlAccept::empty(),
-        exit_code: ServiceExitCode::Win32(0),
-        checkpoint: 0,
-        wait_hint: Duration::default(),
-        process_id: None,
-    })?;
+            status_handle.set_service_status(ServiceStatus {
+                service_type: SERVICE_TYPE,
+                current_state: ServiceState::Stopped,
+                controls_accepted: ServiceControlAccept::empty(),
+                exit_code,
+                checkpoint: 0,
+                wait_hint: Duration::default(),
+                process_id: None,
+            })?;
 
-    Ok(())
+            Ok(())
+        }
+        Err(e) => {
+            tracing::error!("Service startup failed (SCM will not see Running): {e}");
+            // Drain the daemon thread (it should have already returned after
+            // signaling the startup error).
+            match daemon_thread.join() {
+                Ok(Ok(())) => {}
+                Ok(Err(runtime_err)) => {
+                    tracing::error!("Daemon thread error after failed startup: {runtime_err}");
+                }
+                Err(_) => {
+                    tracing::error!("Daemon thread panicked during failed startup");
+                }
+            }
+
+            status_handle.set_service_status(ServiceStatus {
+                service_type: SERVICE_TYPE,
+                current_state: ServiceState::Stopped,
+                controls_accepted: ServiceControlAccept::empty(),
+                exit_code: ServiceExitCode::ServiceSpecific(SERVICE_EXIT_STARTUP_FAILED),
+                checkpoint: 0,
+                wait_hint: Duration::default(),
+                process_id: None,
+            })?;
+
+            // Startup never reached Running — SCM-visible failure is the
+            // ServiceSpecific exit code above. Log path already covered.
+            Ok(())
+        }
+    }
 }
 
 fn run_daemon_runtime(
     shutdown_rx: mpsc::Receiver<()>,
+    ready_tx: mpsc::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let rt = tokio::runtime::Builder::new_multi_thread()
+    let rt = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .build()?;
-
-    rt.block_on(async {
-        if let Err(e) = run_daemon_async(shutdown_rx).await {
-            tracing::error!("run_daemon_async error: {}", e);
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(e) => {
+            let msg = format!("tokio runtime build failed: {e}");
+            let _ = ready_tx.send(Err(msg.clone()));
+            return Err(msg.into());
         }
-    });
+    };
 
-    Ok(())
+    // Propagate daemon errors (including HTTP hard-fail) — do not swallow.
+    rt.block_on(run_daemon_async(shutdown_rx, ready_tx))
 }
 
+/// Fatal setup (env, vault, writer, optional HTTP) then long-running pipe loop.
+///
+/// Signals `ready_tx` with `Ok(())` only after fatal startup succeeds so the
+/// service control thread can report `Running`. On any fatal startup error
+/// (including HTTP enable failure), signals `Err` and returns without ever
+/// starting the pipe accept loop.
 async fn run_daemon_async(
     shutdown_rx: mpsc::Receiver<()>,
+    ready_tx: mpsc::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    match run_daemon_startup().await {
+        Ok(started) => {
+            if ready_tx.send(Ok(())).is_err() {
+                return Err("Service control channel closed during startup ready".into());
+            }
+            run_daemon_pipe_loop(started, shutdown_rx).await
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            tracing::error!("Service fatal startup failed: {msg}");
+            let _ = ready_tx.send(Err(msg));
+            Err(e)
+        }
+    }
+}
+
+/// State produced by fatal service startup, consumed by the pipe loop.
+struct ServiceDaemonStarted {
+    writer: crate::DaemonWriter,
+    services: crate::services::GovernedServices,
+    ipc_shutdown_tx: tokio::sync::broadcast::Sender<()>,
+}
+
+/// Vault open, writer, optional HTTP. HTTP hard-fails when enabled (R1-01 / CR1-P2-01).
+async fn run_daemon_startup()
+-> Result<ServiceDaemonStarted, Box<dyn std::error::Error + Send + Sync>> {
     dotenvy::dotenv().ok();
 
     let program_data =
@@ -161,6 +262,50 @@ async fn run_daemon_async(
     let services = crate::services::GovernedServices::new(event_store.clone());
 
     let (ipc_shutdown_tx, _ipc_shutdown_rx) = tokio::sync::broadcast::channel(1);
+
+    // Optional loopback HTTP (T161) — third caller of handle_daemon_request.
+    // When explicitly enabled, hard-fail service start on bind/token errors so
+    // operators cannot assume a listening API that never bound (R1-01 / CR1-P2-01).
+    // LocalSystem residual (R1-02): token lands under SYSTEM profile — not for
+    // interactive desktop clients; prefer interactive `ai-brainsd --http`.
+    let service_args: Vec<String> = std::env::args().collect();
+    if crate::http_adapter::http_enabled_from_env_and_args(&service_args) {
+        tracing::warn!(
+            "HTTP enabled under Windows service (LocalSystem): bearer token is stored under the \
+             SYSTEM profile (%USERPROFILE%\\.ai-brains\\http.token for SYSTEM) with owner-only ACL \
+             and is NOT readable by interactive Session 1 CLI/desktop clients. Use interactive \
+             `ai-brainsd --http` (or `ai-brains daemon start` with AI_BRAINS_HTTP=1) for local \
+             clients. Shared multi-session token is out of scope residual."
+        );
+    }
+    crate::http_adapter::maybe_start_http(
+        &service_args,
+        writer.clone(),
+        services.clone(),
+        &ipc_shutdown_tx,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to start HTTP API in service (hard-fail): {e}");
+        e
+    })?;
+
+    Ok(ServiceDaemonStarted {
+        writer,
+        services,
+        ipc_shutdown_tx,
+    })
+}
+
+async fn run_daemon_pipe_loop(
+    started: ServiceDaemonStarted,
+    shutdown_rx: mpsc::Receiver<()>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let ServiceDaemonStarted {
+        writer,
+        services,
+        ipc_shutdown_tx,
+    } = started;
 
     // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
     let pipe_name = r"\\.\pipe\ledgerful-bridge";
