@@ -79,6 +79,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let event_store = Arc::new(SqliteEventStore::new(conn));
     let writer = DaemonWriter::start(spool_dir, event_store.clone()).await?;
+    let services = ai_brainsd::services::GovernedServices::new(event_store.clone());
 
     let (shutdown_tx, _shutdown_rx) = tokio::sync::broadcast::channel(1);
 
@@ -116,6 +117,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("AI-Brains Daemon started. Listening on {}", PIPE_NAME);
 
         let writer_clone = writer.clone();
+        let services_clone = services.clone();
         let shutdown_tx_clone = shutdown_tx.clone();
 
         let sa_ptr_usize: usize = pipe_sa
@@ -192,11 +194,12 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         }
 
                         let writer_inner = writer_clone.clone();
+                        let services_inner = services_clone.clone();
                         let mut shutdown_rx_inner = shutdown_tx_clone.subscribe();
                         let shutdown_tx_inner = shutdown_tx_clone.clone();
                         tokio::spawn(async move {
                             tokio::select! {
-                                _ = handle_client(server, writer_inner, shutdown_tx_inner) => {}
+                                _ = handle_client(server, writer_inner, services_inner, shutdown_tx_inner) => {}
                                 _ = shutdown_rx_inner.recv() => {
                                     tracing::info!("Shutting down client connection...");
                                 }
@@ -225,6 +228,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         );
 
         let writer_clone = writer.clone();
+        let services_clone = services.clone();
         let shutdown_tx_clone = shutdown_tx.clone();
 
         tokio::spawn(async move {
@@ -234,11 +238,12 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         match res {
                             Ok((stream, _addr)) => {
                                 let writer_inner = writer_clone.clone();
+                                let services_inner = services_clone.clone();
                                 let shutdown_tx_for_client = shutdown_tx_clone.clone();
                                 let mut shutdown_rx_inner = shutdown_tx_clone.subscribe();
                                     tokio::spawn(async move {
                                     tokio::select! {
-                                        _ = handle_client(stream, writer_inner, shutdown_tx_for_client) => {}
+                                        _ = handle_client(stream, writer_inner, services_inner, shutdown_tx_for_client) => {}
                                         _ = shutdown_rx_inner.recv() => {
                                             tracing::info!("Shutting down client connection...");
                                         }
@@ -331,6 +336,7 @@ async fn check_existing_instance(pipe_name: &str) -> InstanceDecision {
 async fn handle_client<S>(
     mut server: S,
     writer: DaemonWriter,
+    services: ai_brainsd::services::GovernedServices,
     shutdown_tx: tokio::sync::broadcast::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 where
@@ -361,7 +367,7 @@ where
             match parse_live_request_line(line) {
                 Ok(request) => {
                     let result: Result<(), BoxError> =
-                        match handle_daemon_request(request, &writer).await {
+                        match handle_daemon_request(request, &writer, &services).await {
                             Ok(outcome) => {
                                 write_dispatch_result(&mut server, outcome, &shutdown_tx).await
                             }
