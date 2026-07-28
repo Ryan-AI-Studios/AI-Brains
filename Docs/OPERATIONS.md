@@ -126,6 +126,27 @@ ai-brains query expand <handle-id> --project-id <uuid>
 ai-brains query trace <trace-id>
 ```
 
+### Governed command surface (T160)
+
+Thin CLI over control-plane (local default for reads) and named-pipe daemon (preferred for mutations). JSON default for new commands; exit codes: 3=POLICY_DENIED, 4=NOT_FOUND, 5=DAEMON_UNAVAILABLE, 6=INVALID_PAYLOAD.
+
+```powershell
+ai-brains scope resolve --format json
+ai-brains evidence show <id> --scope Repository:<uuid> --format json
+ai-brains source show <id> --scope Repository:<uuid>
+ai-brains review list --scope Repository:<uuid>
+ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local
+ai-brains decision propose --statement "..." --scope Repository:<uuid>
+ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>
+ai-brains erasure request --id <id> --scope Repository:<uuid>   # daemon-required; no CE wipe
+ai-brains policy show --scope Repository:<uuid>
+ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
+```
+
+- Mutations auto-generate `--command-id` when omitted; local propose uses shared CP `id_from_command` (same pre-assigned domain id as daemon).
+- After a mutation is **sent** to the daemon, timeout → non-zero + "outcome unknown; retry same --command-id" (no silent local fallback).
+- Erasure is always daemon-required (`--local` rejected). Ticket honesty only — never claims content-envelope wipe.
+
 ## 4. Project & Session Management
 
 ### Project Setup
@@ -335,6 +356,10 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
 | Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (JSON packet; see T152 section) |
 | Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` |
+| Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence show` · `source show` · `review list\|resolve` (T160) |
+| Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
+| Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |
+| Policy show / check | `ai-brains policy show\|check` (read-only grants) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
 | Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |
 | Forget Memory | `ai-brains forget` (use `--match` for search, `--restore` undo, `-f` to skip confirm) |

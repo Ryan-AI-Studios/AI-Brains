@@ -10,6 +10,7 @@
 
 pub mod adapters;
 pub mod briefings;
+pub mod command_id;
 pub mod conclusions;
 pub mod conflicts;
 pub mod decisions;
@@ -31,6 +32,9 @@ pub use briefings::{
     BRIEFING_POLICY_VERSION, BudgetConfig, PersonalBriefingRequest, ProjectBriefingRequest,
     apply_budget, apply_personal_budget, build_personal_briefing, build_project_briefing,
     render_personal_markdown, render_project_json, render_project_markdown,
+};
+pub use command_id::{
+    NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, id_from_command,
 };
 pub use conclusions::{
     ProposeConclusionRequest, ProposeConclusionResult, activate_conclusion, approve_conclusion,

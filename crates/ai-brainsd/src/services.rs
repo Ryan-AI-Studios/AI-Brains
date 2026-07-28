@@ -91,10 +91,12 @@ use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// UUID v5 namespace seeds (DNS-style) for command_id → domain id derivation.
-pub const NS_PROPOSE_CONCLUSION: &str = "ai-brains.command.propose_conclusion";
-pub const NS_PROPOSE_DECISION: &str = "ai-brains.command.propose_decision";
-pub const NS_REQUEST_ERASURE: &str = "ai-brains.command.request_erasure";
+// NS_* and id_from_command live in ai-brains-control-plane (T160 shared derivation).
+// Re-export so existing daemon call sites / tests keep a stable path.
+pub use ai_brains_control_plane::{
+    NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, id_from_command,
+};
+
 // Review resolve idempotency is review_item_id + status based in control-plane
 // (not a command_id-derived domain id). Spool still keys by command_id when set.
 
@@ -889,12 +891,6 @@ pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
         )),
         "daemon-system",
     )
-}
-
-/// Derive a deterministic UUID from a frozen DNS-style namespace + command_id.
-pub fn id_from_command(namespace_name: &str, command_id: &str) -> Uuid {
-    let ns = Uuid::new_v5(&Uuid::NAMESPACE_DNS, namespace_name.as_bytes());
-    Uuid::new_v5(&ns, command_id.as_bytes())
 }
 
 /// Sanitize command_id for use as a spool filename stem component.
