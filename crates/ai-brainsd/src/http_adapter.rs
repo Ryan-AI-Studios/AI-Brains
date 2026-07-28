@@ -93,7 +93,8 @@ pub fn build_http_state(
     );
     let dispatch = Arc::new(DaemonHttpDispatch::new(writer, services));
     let dispatch: Arc<dyn HttpDispatch> = dispatch;
-    Ok(app_state(dispatch, token.as_str().to_string()))
+    // Move Zeroizing into AuthConfig (no plain String intermediate).
+    Ok(app_state(dispatch, token))
 }
 
 /// Spawn the HTTP server task. Returns the bound local address.

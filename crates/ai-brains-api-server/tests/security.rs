@@ -23,6 +23,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
+use zeroize::Zeroizing;
 
 fn test_token() -> String {
     "test-bearer-token-with-enough-entropy-0123456789abcdef".to_string()
@@ -34,7 +35,7 @@ fn mock_ok_dispatch() -> Arc<dyn HttpDispatch> {
 
 fn app_with_token(token: &str) -> axum::Router {
     let dispatch = mock_ok_dispatch();
-    let state = app_state(dispatch, token.to_string());
+    let state = app_state(dispatch, Zeroizing::new(token.to_string()));
     build_router(state)
 }
 
@@ -213,7 +214,7 @@ async fn http_policy_denied__403_policy_denied_code() {
             "grant missing for capability",
         )))
     }));
-    let state = app_state(dispatch, token.clone());
+    let state = app_state(dispatch, Zeroizing::new(token.clone()));
     let app = build_router(state);
 
     let resp = app
@@ -357,7 +358,10 @@ async fn http_dispatch_port__mock__returns_daemon_response_shape() {
         DaemonRequest::ResolveScope(_) => Ok(DaemonResponse::Pong),
         other => Ok(DaemonResponse::unsupported(&format!("{other:?}"))),
     }));
-    let state = app_state(mock.clone() as Arc<dyn HttpDispatch>, token.clone());
+    let state = app_state(
+        mock.clone() as Arc<dyn HttpDispatch>,
+        Zeroizing::new(token.clone()),
+    );
     let app = build_router(state);
 
     let resp = app

@@ -1,20 +1,36 @@
 //! Bearer token authentication middleware and constant-time compare helpers.
 
+use std::fmt;
+use std::sync::Arc;
+
 use axum::Json;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use subtle::ConstantTimeEq;
+use zeroize::Zeroizing;
 
 use ai_brains_contracts::response::ApiError;
 use ai_brains_daemon_api::DaemonResponse;
 
 /// Auth configuration held in application state.
-#[derive(Debug, Clone)]
+///
+/// `bearer_token` is `Arc<Zeroizing<String>>` so:
+/// - FromRef / request extractors clone only the Arc (no secret heap copy)
+/// - memory is zeroized when the last Arc drops (CR1-P2-02)
+#[derive(Clone)]
 pub struct AuthConfig {
     /// Opaque bearer token (never log the full value).
-    pub bearer_token: String,
+    pub bearer_token: Arc<Zeroizing<String>>,
+}
+
+impl fmt::Debug for AuthConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuthConfig")
+            .field("bearer_token", &"[redacted]")
+            .finish()
+    }
 }
 
 /// Constant-time string compare for bearer tokens.
@@ -97,7 +113,7 @@ where
             return Err(AuthRejection::unauthorized("empty bearer token"));
         }
 
-        if !tokens_equal(token, &auth.bearer_token) {
+        if !tokens_equal(token, auth.bearer_token.as_str()) {
             // Never include provided/expected token material in the message.
             return Err(AuthRejection::unauthorized("invalid bearer token"));
         }

@@ -11,6 +11,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
+use zeroize::Zeroizing;
 
 const TOKEN: &str = "route-test-token-0123456789abcdef01234567";
 
@@ -20,7 +21,7 @@ fn app_echo_type() -> (axum::Router, Arc<MockHttpDispatch>) {
         Ok(DaemonResponse::Pong)
     }));
     let dispatch: Arc<dyn HttpDispatch> = mock.clone();
-    let state = app_state(dispatch, TOKEN.to_string());
+    let state = app_state(dispatch, Zeroizing::new(TOKEN.to_string()));
     (build_router(state), mock)
 }
 
@@ -162,7 +163,7 @@ async fn routes__parity__briefing_response_is_daemon_response_json() {
 
     let mock = Arc::new(MockHttpDispatch::always(expected.clone()));
     let dispatch: Arc<dyn HttpDispatch> = mock;
-    let state = app_state(dispatch, TOKEN.to_string());
+    let state = app_state(dispatch, Zeroizing::new(TOKEN.to_string()));
     let app = build_router(state);
 
     let (status, bytes) =

@@ -36,6 +36,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use tokio::net::TcpListener;
+use zeroize::Zeroizing;
 
 /// Serve the HTTP API until `shutdown` completes.
 ///
@@ -71,11 +72,16 @@ where
 }
 
 /// Build application state from a dispatch port and bearer token.
-pub fn app_state(dispatch: Arc<dyn HttpDispatch>, bearer_token: impl Into<String>) -> AppState {
+///
+/// Takes `Zeroizing<String>` so callers that already hold a zeroizing token
+/// (e.g. `ensure_token`) can move it without a plain-`String` intermediate.
+/// Stored as `Arc<Zeroizing<String>>` so FromRef clones only the Arc and the
+/// secret is zeroized on final drop (CR1-P2-02).
+pub fn app_state(dispatch: Arc<dyn HttpDispatch>, bearer_token: Zeroizing<String>) -> AppState {
     AppState {
         dispatch,
         auth: AuthConfig {
-            bearer_token: bearer_token.into(),
+            bearer_token: Arc::new(bearer_token),
         },
     }
 }
