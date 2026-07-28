@@ -338,6 +338,7 @@ dependencies = [
 name = "ai-brains-sources"
 version = "0.1.1"
 dependencies = [
+ "ai-brains-contracts",
  "ai-brains-core",
  "ai-brains-git",
  "ai-brains-path",

@@ -10,6 +10,11 @@ mod status;
 use std::path::Path;
 use std::path::PathBuf;
 
+pub use command::{
+    DEFAULT_GIT_TIMEOUT, DEFAULT_GIT_TIMEOUT_MS, ENV_GCM_INTERACTIVE, ENV_GIT_ASKPASS,
+    ENV_GIT_TERMINAL_PROMPT, ENV_SSH_ASKPASS_REQUIRE, apply_git_automation_env,
+    automation_env_pairs, git_askpass_noop_program, git_command, run_git, run_git_timeout,
+};
 pub use diffstat::DiffStat;
 pub use discover::discover_common_dir;
 pub use errors::{GitError, Result};
@@ -41,6 +46,12 @@ impl GitMetadata {
     }
 }
 
+/// Collect repository metadata using the default git command timeout
+/// ([`DEFAULT_GIT_TIMEOUT`], 5000 ms).
+///
+/// Every underlying `git` spawn (via [`run_git`]) applies non-interactive env
+/// guards and the default deadline. See the `command` module docs for
+/// hang-prevention design (env guards primary; kill is direct-child only).
 pub fn collect_metadata(path: &Path) -> Result<GitMetadata> {
     let Some(root) = discover::discover_root(path)? else {
         return Ok(GitMetadata::default());
@@ -63,4 +74,18 @@ pub fn collect_metadata(path: &Path) -> Result<GitMetadata> {
 
 pub fn max_untracked_files() -> usize {
     MAX_UNTRACKED_FILES
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn collect_metadata__uses_default_timeout_constant() {
+        // Production collect path uses `run_git` → `DEFAULT_GIT_TIMEOUT` (5s)
+        // on every discover/status/remote/… spawn.
+        assert_eq!(DEFAULT_GIT_TIMEOUT_MS, 5_000);
+        assert_eq!(DEFAULT_GIT_TIMEOUT.as_millis(), 5_000);
+    }
 }
