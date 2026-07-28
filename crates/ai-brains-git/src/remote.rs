@@ -132,8 +132,7 @@ pub(crate) fn map_git_config_get_result(
         Ok(v) => Ok(v),
         // git config --get exits 1 when the key is unset — not a hard failure.
         Err(GitError::CommandFailed {
-            exit_code: Some(1),
-            ..
+            exit_code: Some(1), ..
         }) => Ok(None),
         Err(GitError::CommandFailed { .. }) if soft => Ok(None),
         Err(_) if soft => Ok(None),
@@ -354,9 +353,8 @@ mod tests {
             command: "git config --get remote.origin.url".into(),
             elapsed_ms: 5000,
         };
-        let strict_timeout =
-            map_git_config_get_result(Err(timeout), SoftFailPolicy::Strict)
-                .expect_err("strict propagates Timeout");
+        let strict_timeout = map_git_config_get_result(Err(timeout), SoftFailPolicy::Strict)
+            .expect_err("strict propagates Timeout");
         assert!(matches!(strict_timeout, GitError::Timeout { .. }));
     }
 }

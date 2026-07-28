@@ -252,10 +252,7 @@ impl GitConnector {
         if ttl_ms == 0 {
             return None;
         }
-        let guard = self
-            .last_collect
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
+        let guard = self.last_collect.lock().unwrap_or_else(|p| p.into_inner());
         let entry = guard.as_ref()?;
         if entry.collected_at.elapsed() <= Duration::from_millis(ttl_ms) {
             Some(entry.meta.clone())
@@ -268,10 +265,7 @@ impl GitConnector {
         if self.options.collect_cache_ttl_ms == 0 {
             return;
         }
-        let mut guard = self
-            .last_collect
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
+        let mut guard = self.last_collect.lock().unwrap_or_else(|p| p.into_inner());
         *guard = Some(CollectCacheEntry {
             collected_at: Instant::now(),
             meta,
@@ -279,10 +273,7 @@ impl GitConnector {
     }
 
     fn clear_collect_cache(&self) {
-        let mut guard = self
-            .last_collect
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
+        let mut guard = self.last_collect.lock().unwrap_or_else(|p| p.into_inner());
         *guard = None;
     }
 
