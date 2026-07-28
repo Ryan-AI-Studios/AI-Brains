@@ -12,7 +12,7 @@ use ai_brains_core::ids::UserId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_core::source::SourceKind;
-use ai_brains_git::{GitError, collect_metadata};
+use ai_brains_git::{GitError, SoftFailPolicy, collect_metadata, collect_metadata_strict};
 use ai_brains_sources::{
     Connector, ConnectorContext, ConnectorError, ConnectorTrustLabel, DEFAULT_GIT_MAX_HANDLES,
     GIT_CONNECTOR_ID, GitConnector, GitConnectorOptions, InProcessConnectorRegistry,
@@ -235,8 +235,8 @@ fn git_connector__observe__remote_url_forms__same_hash_field()
 }
 
 #[test]
-fn git_connector__observe__timeout_or_command_fail__returns_err() {
-    // Live hang avoided: pure mapping of GitError → ConnectorError::Internal.
+fn map_git_error__timeout_or_command_fail__internal_prefix() {
+    // Pure mapping helper (not full connector AC coverage alone).
     let timeout = GitError::Timeout {
         command: "git status".into(),
         elapsed_ms: 5000,
@@ -259,13 +259,11 @@ fn git_connector__observe__timeout_or_command_fail__returns_err() {
 }
 
 #[test]
-fn git_connector__list__command_fail__returns_err_not_silent_empty() {
-    // Documented hard-fail path: map_git_error always yields Internal, never Ok(()).
-    // Integration with collect_metadata soft-maps most CLI failures today (#22
-    // residual at git-crate layer); connector maps any Err through this path.
+fn git_connector__list__hard_fail_map__not_silent_empty() {
+    // map_git_error always yields Internal; connector collect Err arm uses it.
     let err = map_git_error(GitError::CommandFailed {
         command: "git rev-parse --show-toplevel".into(),
-        message: "fatal: not a git repository".into(),
+        message: "fatal: bad object".into(),
     });
     assert!(
         matches!(err, ConnectorError::Internal { .. }),
@@ -275,6 +273,21 @@ fn git_connector__list__command_fail__returns_err_not_silent_empty() {
         !matches!(err, ConnectorError::HandleNotFound { .. }),
         "must not disguise command fail as missing handle"
     );
+}
+
+#[test]
+fn collect_metadata_strict__not_a_repo__ok_empty_not_err() -> Result<(), Box<dyn std::error::Error>>
+{
+    // Strict still soft-maps genuine not-a-repository so connector can set
+    // REASON_NOT_A_REPOSITORY side-channel instead of Internal.
+    let dir = tempdir()?;
+    let meta = collect_metadata_strict(dir.path())?;
+    assert!(!meta.is_repository());
+    // Soft path agrees for true non-repos.
+    let soft = collect_metadata(dir.path())?;
+    assert!(!soft.is_repository());
+    assert_eq!(SoftFailPolicy::Strict, SoftFailPolicy::Strict);
+    Ok(())
 }
 
 #[test]

@@ -1,6 +1,7 @@
 use crate::MAX_UNTRACKED_FILES;
-use crate::command::run_git;
+use crate::command::run_git_timeout;
 use crate::errors::Result;
+use crate::policy::{GitRunOptions, or_soft_default};
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -9,11 +10,17 @@ pub struct RepoStatus {
     pub untracked_files: Vec<String>,
 }
 
-pub fn read_status(root: &Path) -> Result<RepoStatus> {
-    let output = match run_git(root, &["status", "--porcelain", "--untracked-files=all"]) {
+pub(crate) fn read_status_with_options(root: &Path, opts: &GitRunOptions) -> Result<RepoStatus> {
+    let output = match run_git_timeout(
+        root,
+        &["status", "--porcelain", "--untracked-files=all"],
+        opts.timeout,
+    ) {
         Ok(Some(output)) => output,
         Ok(None) => return Ok(RepoStatus::default()),
-        Err(_) => return Ok(RepoStatus::default()),
+        Err(e) => {
+            return or_soft_default(Err(e), opts.policy, RepoStatus::default());
+        }
     };
 
     let mut is_dirty = false;

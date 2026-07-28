@@ -36,8 +36,9 @@
 //!    and `remote_names` lists available remotes for evidence (R-GIT2.3).
 //! 4. Empty / whitespace-only remote URL after normalize → no hash.
 
-use crate::command::run_git;
-use crate::errors::Result;
+use crate::command::run_git_timeout;
+use crate::errors::{GitError, Result};
+use crate::policy::{GitRunOptions, SoftFailPolicy, or_soft_default};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
@@ -59,18 +60,27 @@ pub fn read_remote_url_hash(root: &Path) -> Result<Option<String>> {
 
 /// Remote selection with name evidence for multi-remote / no-origin cases.
 pub fn read_remote_selection(root: &Path) -> Result<RemoteHashResult> {
-    let mut remote_names = match run_git(root, &["remote"]) {
+    read_remote_selection_with_options(root, &GitRunOptions::default())
+}
+
+/// [`read_remote_selection`] with explicit timeout and soft-fail policy.
+pub(crate) fn read_remote_selection_with_options(
+    root: &Path,
+    opts: &GitRunOptions,
+) -> Result<RemoteHashResult> {
+    let mut remote_names = match run_git_timeout(root, &["remote"], opts.timeout) {
         Ok(Some(list)) => list
             .lines()
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_string)
             .collect::<Vec<_>>(),
-        Ok(None) | Err(_) => Vec::new(),
+        Ok(None) => Vec::new(),
+        Err(e) => or_soft_default(Err(e), opts.policy, Vec::new())?,
     };
     remote_names.sort();
 
-    if let Ok(Some(url)) = run_git(root, &["config", "--get", "remote.origin.url"]) {
+    if let Some(url) = git_config_get(root, "remote.origin.url", opts)? {
         return Ok(RemoteHashResult {
             hash: hash_remote_url(&url),
             remote_names,
@@ -86,15 +96,31 @@ pub fn read_remote_selection(root: &Path) -> Result<RemoteHashResult> {
     }
 
     let config_key = format!("remote.{}.url", remote_names[0]);
-    match run_git(root, &["config", "--get", config_key.as_str()]) {
-        Ok(Some(url)) => Ok(RemoteHashResult {
+    match git_config_get(root, config_key.as_str(), opts)? {
+        Some(url) => Ok(RemoteHashResult {
             hash: hash_remote_url(&url),
             remote_names,
         }),
-        Ok(None) | Err(_) => Ok(RemoteHashResult {
+        None => Ok(RemoteHashResult {
             hash: None,
             remote_names,
         }),
+    }
+}
+
+/// `git config --get` treats exit-nonzero as missing key (CommandFailed).
+///
+/// Missing keys soft-map to `Ok(None)` under both policies. Timeout / Io still
+/// soft-map under Soft and propagate under Strict.
+fn git_config_get(root: &Path, key: &str, opts: &GitRunOptions) -> Result<Option<String>> {
+    match run_git_timeout(root, &["config", "--get", key], opts.timeout) {
+        Ok(v) => Ok(v),
+        // git config --get exits 1 when the key is unset — not a hard failure.
+        Err(GitError::CommandFailed { .. }) => Ok(None),
+        Err(e) => match opts.policy {
+            SoftFailPolicy::Soft => Ok(None),
+            SoftFailPolicy::Strict => Err(e),
+        },
     }
 }
 

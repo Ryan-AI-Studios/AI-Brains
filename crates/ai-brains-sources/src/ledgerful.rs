@@ -167,10 +167,13 @@ impl LedgerfulConnector {
     ///
     /// Callers **must** check this after every `list`.
     pub fn last_unavailable_reason(&self) -> Option<String> {
-        self.last_unavailable_reason
+        // Side-channel is non-secret status only; recover the guard on poison
+        // so a prior panic-in-lock does not hide the last reason.
+        let g = self
+            .last_unavailable_reason
             .lock()
-            .map(|g| g.clone())
-            .unwrap_or(None)
+            .unwrap_or_else(|p| p.into_inner());
+        g.clone()
     }
 
     /// Configured options.
@@ -185,15 +188,19 @@ impl LedgerfulConnector {
 
     fn clear_side_channels(&self) {
         self.last_list_truncated.store(false, Ordering::Relaxed);
-        if let Ok(mut g) = self.last_unavailable_reason.lock() {
-            *g = None;
-        }
+        let mut g = self
+            .last_unavailable_reason
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        *g = None;
     }
 
     fn set_unavailable(&self, reason: impl Into<String>) {
-        if let Ok(mut g) = self.last_unavailable_reason.lock() {
-            *g = Some(reason.into());
-        }
+        let mut g = self
+            .last_unavailable_reason
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        *g = Some(reason.into());
     }
 
     fn set_truncated(&self, truncated: bool) {

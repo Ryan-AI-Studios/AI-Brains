@@ -46,23 +46,56 @@ pub const ENV_SSH_ASKPASS_REQUIRE: &str = "SSH_ASKPASS_REQUIRE";
 
 /// Returns the platform no-op program used for `GIT_ASKPASS`.
 ///
-/// - **Windows:** `scripts/git-askpass-noop.cmd` under this crate (accepts any
-///   prompt args git appends; exits 0 immediately).
 /// - **Unix:** `/bin/true` (accepts args; exits 0). The shell script under
 ///   `scripts/` is available as a fallback reference but `/bin/true` is used
 ///   in production for reliability without execute-bit concerns.
+/// - **Windows resolution order:**
+///   1. `CARGO_MANIFEST_DIR/scripts/git-askpass-noop.cmd` when that file exists
+///      (dev / `cargo test` source tree).
+///   2. `current_exe()` parent `/scripts/git-askpass-noop.cmd` when present
+///      (packaged installs that ship the script beside the binary).
+///   3. `%SystemRoot%\System32\cmd.exe` — fail-closed fallback if the script is
+///      missing. May exit non-zero when git appends prompt args; hang prevention
+///      still holds via env guards + timeout. Packaged installs should ship the
+///      `.cmd` (preferred) or accept this fail-closed residual.
 pub fn git_askpass_noop_program() -> OsString {
     #[cfg(windows)]
     {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("scripts")
-            .join("git-askpass-noop.cmd")
-            .into_os_string()
+        windows_git_askpass_noop_program()
     }
     #[cfg(not(windows))]
     {
         OsString::from("/bin/true")
     }
+}
+
+/// Windows ASKPASS path resolution (see [`git_askpass_noop_program`] rustdoc).
+#[cfg(windows)]
+fn windows_git_askpass_noop_program() -> OsString {
+    let from_manifest = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("scripts")
+        .join("git-askpass-noop.cmd");
+    if from_manifest.is_file() {
+        return from_manifest.into_os_string();
+    }
+
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(parent) = exe.parent()
+    {
+        let beside = parent.join("scripts").join("git-askpass-noop.cmd");
+        if beside.is_file() {
+            return beside.into_os_string();
+        }
+    }
+
+    // Fail-closed fallback: always a path that exists on a normal Windows image.
+    // Hang prevention still holds; credential prompts do not block forever.
+    let system_root =
+        std::env::var_os("SystemRoot").unwrap_or_else(|| OsString::from(r"C:\Windows"));
+    Path::new(&system_root)
+        .join("System32")
+        .join("cmd.exe")
+        .into_os_string()
 }
 
 /// Env pairs applied by [`apply_git_automation_env`] (inspectable for unit tests).
@@ -320,6 +353,15 @@ mod tests {
     }
 
     #[test]
+    fn git_askpass_noop_program__returns_non_empty() {
+        let prog = git_askpass_noop_program();
+        assert!(!prog.is_empty(), "ASKPASS program path must be non-empty");
+        // automation_env_pairs always installs GIT_ASKPASS from this helper.
+        let value = automation_env_value(ENV_GIT_ASKPASS).expect("GIT_ASKPASS must be set");
+        assert_eq!(value, prog);
+    }
+
+    #[test]
     fn run_git__sets_git_askpass_noop() {
         let value = automation_env_value(ENV_GIT_ASKPASS).expect("GIT_ASKPASS must be set");
         assert!(
@@ -330,13 +372,16 @@ mod tests {
         #[cfg(windows)]
         {
             let s = value.to_string_lossy();
+            // Prefer packaged no-op script; fall back to cmd.exe when script missing.
+            let is_script = s.ends_with("git-askpass-noop.cmd");
+            let is_cmd_fallback = s.ends_with("cmd.exe") || s.ends_with("cmd.EXE");
             assert!(
-                s.ends_with("git-askpass-noop.cmd"),
-                "Windows ASKPASS should be git-askpass-noop.cmd, got {s}"
+                is_script || is_cmd_fallback,
+                "Windows ASKPASS should be git-askpass-noop.cmd or cmd.exe fallback, got {s}"
             );
             assert!(
                 Path::new(&value).is_file(),
-                "ASKPASS script must exist at {}",
+                "ASKPASS program must exist at {}",
                 s
             );
         }

@@ -1,5 +1,6 @@
-use crate::command::run_git;
+use crate::command::run_git_timeout;
 use crate::errors::{GitError, Result};
+use crate::policy::{GitRunOptions, or_soft_default};
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,11 +11,16 @@ pub struct DiffStat {
     pub summary: String,
 }
 
-pub fn read_diffstat(root: &Path) -> Result<Option<DiffStat>> {
-    let output = match run_git(root, &["diff", "--shortstat", "HEAD", "--"]) {
+pub(crate) fn read_diffstat_with_options(
+    root: &Path,
+    opts: &GitRunOptions,
+) -> Result<Option<DiffStat>> {
+    let output = match run_git_timeout(root, &["diff", "--shortstat", "HEAD", "--"], opts.timeout) {
         Ok(Some(output)) => output,
         Ok(None) => return Ok(None),
-        Err(_) => return Ok(None),
+        Err(e) => {
+            return or_soft_default(Err(e), opts.policy, None);
+        }
     };
 
     parse_shortstat(&output).map(Some)

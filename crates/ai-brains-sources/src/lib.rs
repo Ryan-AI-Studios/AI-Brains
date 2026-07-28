@@ -8,8 +8,10 @@
 //! Common format: `v{NORMALIZER_VERSION}:{sha256_hex}`.
 //! File fingerprints fold canonical source identity into the preimage.
 //!
-//! Git I/O goes exclusively through [`ai_brains_git::collect_metadata`] — this
-//! crate never shells out to `git` and never hashes `.git` wholesale.
+//! Git connector I/O goes through
+//! [`ai_brains_git::collect_metadata_strict_with_timeout`]; soft
+//! [`ai_brains_git::collect_metadata`] remains for fingerprint helpers / legacy.
+//! This crate never shells out to `git` directly and never hashes `.git` wholesale.
 //!
 //! # Connectors (T153 / T154 / T155)
 //!

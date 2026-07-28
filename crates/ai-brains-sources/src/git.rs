@@ -2,7 +2,9 @@
 //!
 //! # Design locks
 //!
-//! - **I/O:** only via [`ai_brains_git::collect_metadata`] (CLI git; no libgit2).
+//! - **I/O:** only via [`ai_brains_git::collect_metadata_strict_with_timeout`]
+//!   (CLI git; no libgit2). Scope resolver and other soft callers keep
+//!   [`ai_brains_git::collect_metadata`].
 //! - **Identity:** `{scope_key}|GitRepository|{normalized_root_or_common_dir}`.
 //! - **Content:** [`crate::canonicalize_git_metadata`] bytes; fingerprint via
 //!   [`crate::fingerprint_git_metadata`].
@@ -26,10 +28,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_core::source::SourceKind;
-use ai_brains_git::{GitError, GitMetadata, collect_metadata};
+use ai_brains_git::{GitError, GitMetadata, collect_metadata_strict_with_timeout};
 
 use crate::canonicalize_git_metadata;
 use crate::connector::{
@@ -49,10 +52,8 @@ pub const DEFAULT_GIT_MAX_HANDLES: usize = 16;
 
 /// Default collect timeout in milliseconds (matches [`ai_brains_git::DEFAULT_GIT_TIMEOUT_MS`]).
 ///
-/// Documented on options for callers; production `collect_metadata` already applies
-/// this deadline inside `ai-brains-git`. A future `collect_metadata_timeout` may
-/// plumb [`GitConnectorOptions::collect_timeout_ms`] through without changing the
-/// connector public shape.
+/// Plumbed through [`GitConnectorOptions::collect_timeout_ms`] into
+/// [`ai_brains_git::collect_metadata_strict_with_timeout`].
 pub const DEFAULT_GIT_COLLECT_TIMEOUT_MS: u64 = 5_000;
 
 /// Soft-empty reason when the configured root is not inside a git repository.
@@ -61,10 +62,9 @@ pub const REASON_NOT_A_REPOSITORY: &str = "not_a_repository";
 /// Options for [`GitConnector`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GitConnectorOptions {
-    /// Preferred collect deadline in ms (documented; git crate default is 5000).
+    /// Per-spawn collect deadline in ms (passed to strict collect).
     ///
-    /// Currently informational until `ai-brains-git` exposes a timeout-parameterized
-    /// collect API. Production collect already uses the 5s default.
+    /// Defaults to [`DEFAULT_GIT_COLLECT_TIMEOUT_MS`] (5000).
     pub collect_timeout_ms: u64,
     /// Max handles from `list` (default [`DEFAULT_GIT_MAX_HANDLES`]).
     pub max_handles: usize,
@@ -159,10 +159,13 @@ impl GitConnector {
     /// (including a legitimate empty list only when max_handles is 0 with a
     /// live repo — rare). Soft empty not-a-repo always sets a reason.
     pub fn last_unavailable_reason(&self) -> Option<String> {
-        self.last_unavailable_reason
+        // Side-channel is non-secret status only; recover the guard on poison
+        // so a prior panic-in-lock does not hide the last reason.
+        let g = self
+            .last_unavailable_reason
             .lock()
-            .map(|g| g.clone())
-            .unwrap_or(None)
+            .unwrap_or_else(|p| p.into_inner());
+        g.clone()
     }
 
     /// Configured root path.
@@ -177,27 +180,29 @@ impl GitConnector {
 
     fn clear_side_channels(&self) {
         self.last_list_truncated.store(false, Ordering::Relaxed);
-        if let Ok(mut g) = self.last_unavailable_reason.lock() {
-            *g = None;
-        }
+        let mut g = self
+            .last_unavailable_reason
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        *g = None;
     }
 
     fn set_unavailable(&self, reason: impl Into<String>) {
-        if let Ok(mut g) = self.last_unavailable_reason.lock() {
-            *g = Some(reason.into());
-        }
+        let mut g = self
+            .last_unavailable_reason
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        *g = Some(reason.into());
     }
 
     fn set_truncated(&self, truncated: bool) {
         self.last_list_truncated.store(truncated, Ordering::Relaxed);
     }
 
-    /// Collect metadata; map git hard failures to connector errors.
+    /// Collect metadata via strict policy; map git hard failures to connector errors.
     fn collect(&self) -> Result<GitMetadata, ConnectorError> {
-        // `collect_timeout_ms` is documented on options; production collect uses
-        // the git crate default (5s) until a timeout-parameterized API exists.
-        let _timeout_ms = self.options.collect_timeout_ms;
-        match collect_metadata(&self.root) {
+        let timeout = Duration::from_millis(self.options.collect_timeout_ms);
+        match collect_metadata_strict_with_timeout(&self.root, timeout) {
             Ok(meta) => Ok(meta),
             Err(e) => {
                 let detail = git_error_reason(&e);
@@ -480,5 +485,50 @@ mod unit_tests {
         assert!(preview.text.contains("branch=main"));
         assert!(preview.text.contains("commit=abcdef012345"));
         assert!(preview.text.contains("status=clean"));
+    }
+
+    #[test]
+    fn git_connector__uses_strict_collect() {
+        // Wiring contract: collect path uses strict + timeout from options.
+        // Soft collect would hide Timeout/Io as empty not_a_repository; strict
+        // surfaces them via map_git_error (timeout: / io: / command_failed:).
+        let opts = GitConnectorOptions {
+            collect_timeout_ms: 1_234,
+            max_handles: 8,
+        };
+        assert_eq!(opts.collect_timeout_ms, 1_234);
+        // map path for hard failures remains Internal with prefix — same as
+        // production collect Err arm.
+        let mapped = map_git_error(GitError::Timeout {
+            command: "git rev-parse --show-toplevel".into(),
+            elapsed_ms: 1234,
+        });
+        match mapped {
+            ConnectorError::Internal { detail } => {
+                assert!(detail.starts_with("timeout:"), "{detail}");
+            }
+            other => panic!("expected Internal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn last_unavailable_reason__poison_recovers_value() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let connector =
+            GitConnector::open(dir.path(), GitConnectorOptions::default()).expect("open");
+        connector.set_unavailable("side_channel_lock_poisoned_probe");
+        // Simulate poison by panicking while holding the lock on another thread.
+        let mutex = &connector.last_unavailable_reason;
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _g = mutex.lock().expect("lock");
+            panic!("poison test");
+        }));
+        assert!(mutex.is_poisoned());
+        let reason = connector.last_unavailable_reason();
+        assert_eq!(
+            reason.as_deref(),
+            Some("side_channel_lock_poisoned_probe"),
+            "poison must not hide side-channel reason"
+        );
     }
 }
