@@ -1,0 +1,18 @@
+{
+  "type": "sync",
+  "payload": {
+    "bridge_version": "0.3",
+    "direction": "inbound",
+    "timestamp": "2026-01-01T00:00:00Z",
+    "parent_hash": null,
+    "project_id": "00000000-0000-0000-0000-0000000000a1",
+    "session_id": null,
+    "tx_id": null,
+    "record_kind": "query",
+    "payload": {
+      "type": "Query",
+      "text": "what is the decision?"
+    },
+    "privacy": "LocalOnly"
+  }
+}

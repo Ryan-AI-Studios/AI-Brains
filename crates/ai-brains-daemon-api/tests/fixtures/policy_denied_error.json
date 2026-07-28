@@ -1,0 +1,11 @@
+{
+  "type": "error",
+  "payload": {
+    "code": "POLICY_DENIED",
+    "message": "principal lacks ApproveDecision on repository scope",
+    "details": {
+      "capability": "ApproveDecision",
+      "scope": "Repository"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "type": "scope_resolved",
+  "payload": {
+    "api_version": "1",
+    "scope": "",
+    "confidence": "Low",
+    "authoritative": false,
+    "evidence": [],
+    "warnings": [],
+    "alternatives": []
+  }
+}
