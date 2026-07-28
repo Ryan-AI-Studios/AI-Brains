@@ -27,12 +27,15 @@ use std::ffi::OsString;
 use std::io::{self, Read};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+
+#[cfg(any(test, feature = "test-hooks"))]
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// When true (test-hooks / cfg(test) only), the next [`run_git_timeout`] call
 /// returns [`GitError::Timeout`] without spawning. Used for end-to-end hard-fail
 /// coverage of strict collect and the Git connector.
+#[cfg(any(test, feature = "test-hooks"))]
 static FORCE_TIMEOUT: AtomicBool = AtomicBool::new(false);
 
 /// Force the next git spawn path to return [`GitError::Timeout`] (no process).
@@ -182,12 +185,17 @@ pub fn run_git_timeout(path: &Path, args: &[&str], timeout: Duration) -> Result<
     let command_label = format_git_command(args);
 
     // Test inject: hard-fail without spawning (see `test_force_timeout`).
-    // Swap clears the one-shot so a stuck true cannot poison later spawns.
-    if FORCE_TIMEOUT.swap(false, Ordering::SeqCst) {
-        return Err(GitError::Timeout {
-            command: command_label,
-            elapsed_ms: 0,
-        });
+    // Compiled only under cfg(test) / feature = "test-hooks" so production
+    // binaries never expose this path (R3-01).
+    #[cfg(any(test, feature = "test-hooks"))]
+    {
+        // Swap clears the one-shot so a stuck true cannot poison later spawns.
+        if FORCE_TIMEOUT.swap(false, Ordering::SeqCst) {
+            return Err(GitError::Timeout {
+                command: command_label,
+                elapsed_ms: 0,
+            });
+        }
     }
 
     let mut cmd = git_command(path, args);
