@@ -158,6 +158,7 @@ async fn run_daemon_async(
     let event_store =
         std::sync::Arc::new(ai_brains_store::event_store::SqliteEventStore::new(conn));
     let writer = crate::DaemonWriter::start(spool_dir, event_store.clone()).await?;
+    let services = crate::services::GovernedServices::new(event_store.clone());
 
     let (ipc_shutdown_tx, _ipc_shutdown_rx) = tokio::sync::broadcast::channel(1);
 
@@ -167,6 +168,7 @@ async fn run_daemon_async(
     let pipe_sa = crate::pipe_security::build_pipe_security_attributes().ok();
 
     let writer_clone = writer.clone();
+    let services_clone = services.clone();
     let ipc_shutdown_tx_clone = ipc_shutdown_tx.clone();
     let pipe_name_owned = pipe_name.to_string();
 
@@ -232,11 +234,12 @@ async fn run_daemon_async(
             match server.connect().await {
                 Ok(()) => {
                     let writer_inner = writer_clone.clone();
+                    let services_inner = services_clone.clone();
                     let shutdown_tx_inner = ipc_shutdown_tx_clone.clone();
                     let mut shutdown_rx_inner = ipc_shutdown_tx_clone.subscribe();
                     tokio::spawn(async move {
                         tokio::select! {
-                            _ = handle_service_client(server, writer_inner, shutdown_tx_inner) => {}
+                            _ = handle_service_client(server, writer_inner, services_inner, shutdown_tx_inner) => {}
                             _ = shutdown_rx_inner.recv() => {
                                 tracing::info!("Shutting down client connection...");
                             }
@@ -273,6 +276,7 @@ async fn run_daemon_async(
 async fn handle_service_client<S>(
     mut server: S,
     writer: crate::DaemonWriter,
+    services: crate::services::GovernedServices,
     shutdown_tx: tokio::sync::broadcast::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 where
@@ -304,7 +308,9 @@ where
             match crate::dispatch::parse_live_request_line(line) {
                 Ok(request) => {
                     let result: Result<(), Box<dyn std::error::Error + Send + Sync>> =
-                        match crate::dispatch::handle_daemon_request(request, &writer).await {
+                        match crate::dispatch::handle_daemon_request(request, &writer, &services)
+                            .await
+                        {
                             Ok(outcome) => {
                                 crate::dispatch::write_dispatch_result(
                                     &mut server,

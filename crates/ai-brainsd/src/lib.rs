@@ -1,7 +1,25 @@
+//! `ai-brainsd` library: single-writer vault + named-pipe dispatch (T158/T159).
+//!
+//! # CQRS (T159)
+//!
+//! - **Mutations** (Ingest/Sync + governed propose/resolve/erasure) go through
+//!   [`DaemonWriter`]'s bounded mpsc queue (single consumer).
+//! - **Queries** (legacy Sync query + governed scope/briefings/knowledge) use
+//!   shared vault reads off the write queue via [`services::GovernedServices`].
+//!
+//! # Spool
+//!
+//! - Legacy Ingest/Sync: always uuid-named spool files.
+//! - Governed mutations: spool **only** when `command_id` is present
+//!   (`{op}_{sanitized_command_id}.json`). Replay hits control-plane
+//!   detect-already-done. Spool is deleted on `Ok` (success or terminal domain
+//!   error); retained on `Err` (retriable infra).
+
 use ai_brains_capture::{CaptureContext, CaptureService, CaptureSink};
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_contracts::ingest::{IngestRequest, IngestResponse};
-use ai_brains_daemon_api::DaemonRequest;
+use ai_brains_control_plane::StorePorts;
+use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use ai_brains_events::Envelope;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 use std::path::{Path, PathBuf};
@@ -13,12 +31,17 @@ use uuid::Uuid;
 pub mod dispatch;
 pub mod instance_guard;
 pub mod pipe_error;
+pub mod services;
 
 #[cfg(windows)]
 pub mod pipe_security;
 
 #[cfg(windows)]
 pub mod windows_service;
+
+use services::{
+    GovernedMutation, governed_mutation_op_kind, governed_spool_stem, process_governed_mutation,
+};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -46,8 +69,14 @@ enum WriterMessage {
         spool_path: PathBuf,
         reply: oneshot::Sender<Result<(), BoxError>>,
     },
+    Governed {
+        op: GovernedMutation,
+        spool_path: Option<PathBuf>,
+        reply: oneshot::Sender<Result<DaemonResponse, BoxError>>,
+    },
 }
 
+/// Single-writer facade for the daemon vault (mutations + legacy query helpers).
 #[derive(Clone)]
 pub struct DaemonWriter {
     sender: mpsc::Sender<WriterMessage>,
@@ -63,12 +92,18 @@ impl DaemonWriter {
         fs::create_dir_all(&spool_dir).await?;
 
         let (sender, mut receiver) = mpsc::channel(64);
-        let worker_store = Arc::clone(&event_store) as Arc<dyn EventStore>;
+        let worker_store_arc = Arc::clone(&event_store);
         let worker_spool_dir = spool_dir.clone();
 
         tokio::spawn(async move {
             let service = CaptureService::new();
-            if let Err(e) = replay_spool(&worker_spool_dir, &worker_store, &service).await {
+            let worker_dyn = Arc::clone(&worker_store_arc) as Arc<dyn EventStore>;
+            // StorePorts for governed mutations on the writer task only.
+            let ports = StorePorts::from_store(SqliteEventStore::new(
+                worker_store_arc.connection().clone(),
+            ));
+
+            if let Err(e) = replay_spool(&worker_spool_dir, &worker_dyn, &service, &ports).await {
                 eprintln!("Failed to replay spool on daemon startup: {}", e);
             }
 
@@ -80,8 +115,7 @@ impl DaemonWriter {
                         reply,
                     } => {
                         let result =
-                            process_ingest(&service, &worker_store, request, Some(spool_path))
-                                .await;
+                            process_ingest(&service, &worker_dyn, request, Some(spool_path)).await;
                         let _ = reply.send(result);
                     }
                     WriterMessage::Sync {
@@ -90,7 +124,15 @@ impl DaemonWriter {
                         reply,
                     } => {
                         let result =
-                            process_sync(&service, &worker_store, record, Some(spool_path)).await;
+                            process_sync(&service, &worker_dyn, record, Some(spool_path)).await;
+                        let _ = reply.send(result);
+                    }
+                    WriterMessage::Governed {
+                        op,
+                        spool_path,
+                        reply,
+                    } => {
+                        let result = process_governed_on_writer(&ports, op, spool_path).await;
                         let _ = reply.send(result);
                     }
                 }
@@ -150,6 +192,46 @@ impl DaemonWriter {
         })?
     }
 
+    /// Enqueue a governed mutation on the single-writer task.
+    ///
+    /// When `command_id` is present on the request, spools the full
+    /// [`DaemonRequest`] JSON first (at-least-once) under
+    /// `{op}_{sanitized_command_id}.json`. Deletes spool on completed handling
+    /// (`Ok`); retains spool on retriable infra (`Err`).
+    pub async fn enqueue_governed(
+        &self,
+        daemon_request: DaemonRequest,
+        op: GovernedMutation,
+        command_id: Option<&str>,
+    ) -> Result<DaemonResponse, BoxError> {
+        let spool_path = if let Some(cid) = command_id.filter(|c| !c.trim().is_empty()) {
+            let stem = governed_spool_stem(governed_mutation_op_kind(&op), cid);
+            let path = self.spool_dir.join(format!("{stem}.json"));
+            let payload = serde_json::to_vec(&daemon_request)?;
+            fs::write(&path, payload).await?;
+            Some(path)
+        } else {
+            None
+        };
+
+        let (reply_tx, reply_rx) = oneshot::channel();
+        self.sender
+            .send(WriterMessage::Governed {
+                op,
+                spool_path,
+                reply: reply_tx,
+            })
+            .await
+            .map_err(|_| "daemon queue closed")?;
+
+        reply_rx.await.map_err(|_| -> BoxError {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "daemon worker dropped",
+            ))
+        })?
+    }
+
     pub async fn recorded_events(&self) -> Vec<Envelope> {
         self.event_store.read_all_events().unwrap_or_else(|e| {
             eprintln!("Failed to read events from event store: {}", e);
@@ -186,12 +268,43 @@ impl DaemonWriter {
     pub fn spool_dir(&self) -> &Path {
         &self.spool_dir
     }
+
+    pub fn event_store(&self) -> &Arc<SqliteEventStore> {
+        &self.event_store
+    }
+}
+
+/// Process one governed mutation on the writer task.
+///
+/// Spool policy (AC6 durability):
+/// - `Ok(_)` including `DaemonResponse::Error` (terminal domain) → **delete** spool
+/// - `Err(_)` retriable infra from `map_mutation_control_plane_error` → **retain** spool
+async fn process_governed_on_writer(
+    ports: &StorePorts,
+    op: GovernedMutation,
+    spool_path: Option<PathBuf>,
+) -> Result<DaemonResponse, BoxError> {
+    // Blocking CP/store work on the writer task (single-threaded consumer).
+    let result = process_governed_mutation(ports, op);
+    match &result {
+        Ok(_) => {
+            // Completed handling (success or terminal domain error) — drop spool.
+            if let Some(path) = spool_path {
+                let _ = fs::remove_file(path).await;
+            }
+        }
+        Err(_) => {
+            // Retriable infra — leave spool for restart replay.
+        }
+    }
+    result
 }
 
 async fn replay_spool(
     spool_dir: &Path,
     store: &Arc<dyn EventStore>,
     service: &CaptureService,
+    ports: &StorePorts,
 ) -> Result<(), BoxError> {
     let mut entries = fs::read_dir(spool_dir).await?;
     while let Some(entry) = entries.next_entry().await? {
@@ -209,7 +322,23 @@ async fn replay_spool(
             DaemonRequest::Sync(record) => {
                 process_sync(service, store, record, Some(path)).await?;
             }
-            // Live-only / control ops — not durable spool work. Drop without panic.
+            DaemonRequest::ProposeConclusion(req) => {
+                let op = GovernedMutation::ProposeConclusion(req);
+                let _ = process_governed_on_writer(ports, op, Some(path)).await?;
+            }
+            DaemonRequest::ProposeDecision(req) => {
+                let op = GovernedMutation::ProposeDecision(req);
+                let _ = process_governed_on_writer(ports, op, Some(path)).await?;
+            }
+            DaemonRequest::ResolveReviewItem(req) => {
+                let op = GovernedMutation::ResolveReviewItem(req);
+                let _ = process_governed_on_writer(ports, op, Some(path)).await?;
+            }
+            DaemonRequest::RequestErasure(req) => {
+                let op = GovernedMutation::RequestErasure(req);
+                let _ = process_governed_on_writer(ports, op, Some(path)).await?;
+            }
+            // Queries / control — not durable spool work. Drop without panic.
             DaemonRequest::Ping
             | DaemonRequest::Shutdown
             | DaemonRequest::ResolveScope(_)
@@ -218,11 +347,7 @@ async fn replay_spool(
             | DaemonRequest::QueryKnowledge(_)
             | DaemonRequest::InspectEvidence(_)
             | DaemonRequest::InspectSource(_)
-            | DaemonRequest::ProposeConclusion(_)
-            | DaemonRequest::ProposeDecision(_)
-            | DaemonRequest::ListReviewItems(_)
-            | DaemonRequest::ResolveReviewItem(_)
-            | DaemonRequest::RequestErasure(_) => {
+            | DaemonRequest::ListReviewItems(_) => {
                 let _ = fs::remove_file(path).await;
             }
         }

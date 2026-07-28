@@ -70,6 +70,8 @@ pub enum EventKind {
     QueryTraceRecorded,
     ContentErasureRequested,
     ContentErased,
+    /// Durable erasure accept ticket (T159); not CE wipe.
+    ErasureTicketAccepted,
 
     // Claim conflicts (T150) — distinct from legacy ConflictDetected (memory)
     ClaimConflictOpened,
@@ -140,6 +142,7 @@ impl EventKind {
             EventKind::QueryTraceRecorded => "QueryTraceRecorded",
             EventKind::ContentErasureRequested => "ContentErasureRequested",
             EventKind::ContentErased => "ContentErased",
+            EventKind::ErasureTicketAccepted => "ErasureTicketAccepted",
             EventKind::ClaimConflictOpened => "ClaimConflictOpened",
             EventKind::ClaimConflictResolved => "ClaimConflictResolved",
             EventKind::RepositoryIdentityRegistered => "RepositoryIdentityRegistered",
@@ -202,6 +205,7 @@ impl EventKind {
             "QueryTraceRecorded" => EventKind::QueryTraceRecorded,
             "ContentErasureRequested" => EventKind::ContentErasureRequested,
             "ContentErased" => EventKind::ContentErased,
+            "ErasureTicketAccepted" => EventKind::ErasureTicketAccepted,
             "ClaimConflictOpened" => EventKind::ClaimConflictOpened,
             "ClaimConflictResolved" => EventKind::ClaimConflictResolved,
             "RepositoryIdentityRegistered" => EventKind::RepositoryIdentityRegistered,
@@ -288,6 +292,7 @@ impl From<&crate::payload::Payload> for EventKind {
             Payload::QueryTraceRecorded(_) => EventKind::QueryTraceRecorded,
             Payload::ContentErasureRequested(_) => EventKind::ContentErasureRequested,
             Payload::ContentErased(_) => EventKind::ContentErased,
+            Payload::ErasureTicketAccepted(_) => EventKind::ErasureTicketAccepted,
             Payload::ClaimConflictOpened(_) => EventKind::ClaimConflictOpened,
             Payload::ClaimConflictResolved(_) => EventKind::ClaimConflictResolved,
             Payload::RepositoryIdentityRegistered(_) => EventKind::RepositoryIdentityRegistered,

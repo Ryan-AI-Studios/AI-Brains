@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 ai-brains-capture = { path = "../ai-brains-capture" }
 ai-brains-contracts = { path = "../ai-brains-contracts" }
+ai-brains-control-plane = { path = "../ai-brains-control-plane" }
 ai-brains-core = { path = "../ai-brains-core" }
 ai-brains-crypto = { path = "../ai-brains-crypto" }
 ai-brains-daemon-api = { path = "../ai-brains-daemon-api" }
@@ -25,6 +26,7 @@ uuid.workspace = true
 sha2.workspace = true
 hex.workspace = true
 chrono.workspace = true
+rusqlite.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows.workspace = true
@@ -32,3 +34,4 @@ windows-service = "0.8"
 
 [dev-dependencies]
 tempfile.workspace = true
+ai-brains-control-plane = { path = "../ai-brains-control-plane" }

@@ -375,6 +375,7 @@ version = "0.1.1"
 dependencies = [
  "ai-brains-capture",
  "ai-brains-contracts",
+ "ai-brains-control-plane",
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-daemon-api",
@@ -385,6 +386,7 @@ dependencies = [
  "dirs",
  "dotenvy",
  "hex",
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2",

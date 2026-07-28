@@ -1,4 +1,12 @@
 //! Decision lifecycle commands (T150 Phase E).
+//!
+//! # Idempotency (T159)
+//!
+//! When [`ProposeDecisionRequest::decision_id`] is `Some`, it is an
+//! **idempotency handle**: after payload validation and policy allow, if a
+//! decision with that id already exists, [`propose_decision`] returns the
+//! prior result without a second `DecisionProposed` event. Callers without
+//! `ProposeDecision` still receive [`ControlPlaneError::PolicyDenied`].
 
 use ai_brains_core::decision::DecisionState;
 use ai_brains_core::ids::{ConclusionId, DecisionId, EvidenceId};
@@ -41,7 +49,7 @@ pub struct ProposeDecisionResult {
 
 pub fn propose_decision<W, Q, C, P>(
     writer: &W,
-    _query: &Q,
+    query: &Q,
     clock: &C,
     policy: &P,
     req: ProposeDecisionRequest,
@@ -52,6 +60,14 @@ where
     C: Clock,
     P: PolicyEvaluator,
 {
+    // 1. Payload validation
+    if req.title.trim().is_empty() || req.statement.trim().is_empty() {
+        return Err(ControlPlaneError::InvalidPayload(
+            "title and statement must be non-empty".into(),
+        ));
+    }
+
+    // 2. Policy gate (always — before detect-already-done so replay without grant denies)
     let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
     if !policy.allow(
         req.principal.id,
@@ -63,12 +79,24 @@ where
             "ProposeDecision denied".into(),
         ));
     }
-    if req.title.trim().is_empty() || req.statement.trim().is_empty() {
-        return Err(ControlPlaneError::InvalidPayload(
-            "title and statement must be non-empty".into(),
-        ));
+
+    // 3. Detect-already-done when a pre-assigned id is supplied (spool / client retry).
+    if let Some(preassigned) = req.decision_id
+        && let Some(row) = query.get_decision(preassigned)?
+    {
+        // Prefer stored proposal_event_id when present; nil UUID if missing/unparsable.
+        let proposal_event_id = row
+            .proposal_event_id
+            .as_deref()
+            .and_then(|s| Uuid::parse_str(s).ok())
+            .unwrap_or_else(Uuid::nil);
+        return Ok(ProposeDecisionResult {
+            decision_id: preassigned,
+            proposal_event_id,
+        });
     }
 
+    // 4. Append
     let now = clock.now()?;
     let valid_from = req.valid_from.unwrap_or(now);
     ensure_valid_time_interval(valid_from, req.valid_until)?;

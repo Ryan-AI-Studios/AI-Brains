@@ -115,6 +115,120 @@ fn propose_conclusion__without_evidence__unsupported_cannot_confirm() {
 }
 
 #[test]
+fn propose_conclusion__preassigned_id_second_call__no_second_event() {
+    use ai_brains_core::ids::ConclusionId;
+    use ai_brains_events::Payload;
+    use ai_brains_store::event_store::EventStore;
+
+    let (_t, ports) = open_ports();
+    let conclusion_id = ConclusionId::new();
+    let req = ProposeConclusionRequest {
+        principal: agent(),
+        scope: ScopeRef::Personal(UserId::new()),
+        statement: "idempotent claim".into(),
+        evidence_ids: vec![EvidenceId::new()],
+        privacy: Privacy::LocalOnly,
+        valid_from: None,
+        valid_until: None,
+        protected_category: None,
+        conclusion_id: Some(conclusion_id),
+    };
+    let first = propose_conclusion(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        req.clone(),
+    )
+    .unwrap();
+    assert_eq!(first.conclusion_id, conclusion_id);
+    assert!(!first.unsupported);
+
+    // Second call with grant still succeeds (no second append).
+    let second = propose_conclusion(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        req,
+    )
+    .unwrap();
+    assert_eq!(second.conclusion_id, conclusion_id);
+    assert_eq!(second.unsupported, first.unsupported);
+
+    let events = ports.writer.store().read_all_events().unwrap();
+    let proposed_count = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                &e.payload,
+                Payload::ConclusionProposed(p) if p.conclusion_id == conclusion_id
+            )
+        })
+        .count();
+    assert_eq!(
+        proposed_count, 1,
+        "second call with pre-assigned id must not append another ConclusionProposed"
+    );
+}
+
+#[test]
+fn propose_conclusion__preassigned_id_second_call_without_grant__policy_denied() {
+    use ai_brains_control_plane::DenyAllPolicy;
+    use ai_brains_core::ids::ConclusionId;
+    use ai_brains_events::Payload;
+    use ai_brains_store::event_store::EventStore;
+
+    let (_t, ports) = open_ports();
+    let conclusion_id = ConclusionId::new();
+    let req = ProposeConclusionRequest {
+        principal: agent(),
+        scope: ScopeRef::Personal(UserId::new()),
+        statement: "idempotent claim".into(),
+        evidence_ids: vec![EvidenceId::new()],
+        privacy: Privacy::LocalOnly,
+        valid_from: None,
+        valid_until: None,
+        protected_category: None,
+        conclusion_id: Some(conclusion_id),
+    };
+    propose_conclusion(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        req.clone(),
+    )
+    .unwrap();
+
+    // Replay without grant must not short-circuit past policy.
+    let err = propose_conclusion(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &DenyAllPolicy,
+        req,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, ControlPlaneError::PolicyDenied(_)),
+        "expected PolicyDenied on second propose without grant, got {err:?}"
+    );
+
+    let events = ports.writer.store().read_all_events().unwrap();
+    let proposed_count = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                &e.payload,
+                Payload::ConclusionProposed(p) if p.conclusion_id == conclusion_id
+            )
+        })
+        .count();
+    assert_eq!(proposed_count, 1, "deny path must not append");
+}
+
+#[test]
 fn propose_conclusion__explicit_valid_window__stored_distinct_from_now() {
     let (_t, ports) = open_ports();
     let valid_from = OffsetDateTime::from_unix_timestamp(1_500_000_000).unwrap();

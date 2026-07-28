@@ -1,15 +1,18 @@
-//! Shared live daemon request dispatch (T158).
+//! Shared live daemon request dispatch (T158/T159).
 //!
 //! Both the interactive named-pipe loop ([`crate`] main binary) and the Windows
-//! service host call [`handle_daemon_request`] so new protocol variants get one
-//! stub/handler site (T159 extends this module — do not re-copy arms into
-//! `main.rs` / `windows_service.rs`).
+//! service host call [`handle_daemon_request`] so protocol variants get one
+//! handler site (do not re-copy arms into `main.rs` / `windows_service.rs`).
 //!
-//! Spool replay remains separate (fire-and-forget write path in `lib.rs`).
+//! # CQRS (T159)
 //!
-//! **Not-implemented policy:** governed ops return
-//! [`ai_brains_daemon_api::DaemonResponse::unsupported`] (`UNSUPPORTED_OPERATION`)
-//! until T159 wires control-plane handlers.
+//! - Mutations: [`DaemonWriter`] mpsc (single writer)
+//! - Queries: [`GovernedServices`] off-queue StorePorts reads
+//!
+//! # Policy
+//!
+//! Production policy only (via control-plane services). Errors map to stable
+//! `ApiError.code` values (`POLICY_DENIED`, `NOT_FOUND`, …).
 
 use ai_brains_contracts::bridge::{BridgeDirection, BridgePayload, BridgeRecord};
 use ai_brains_contracts::response::ApiError;
@@ -17,6 +20,7 @@ use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use std::str::FromStr;
 
 use crate::DaemonWriter;
+use crate::services::{GovernedMutation, GovernedServices};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -67,19 +71,15 @@ pub fn parse_live_request_line(line: &[u8]) -> Result<DaemonRequest, ApiError> {
     }
 }
 
-/// Handle one deserialized live request using the single-writer [`DaemonWriter`].
+/// Handle one deserialized live request.
 ///
-/// Legacy behavior:
-/// - `Ping` → `Pong`
-/// - `Shutdown` → [`LiveDispatchResult::Shutdown`] (no response body)
-/// - `Ingest` → `Ingest` response or `Err`
-/// - `Sync` query (`record_kind == "query"`) → multi-line insight BridgeRecords
-/// - `Sync` non-query → `Sync { success: true }` or `Err`
-///
-/// New governed variants (T158): `Error(UNSUPPORTED_OPERATION)` — never panic/`todo!`.
+/// Legacy: Ping/Shutdown/Ingest/Sync as before.
+/// Governed queries: off-queue via `services`.
+/// Governed mutations: single-writer queue via `writer`.
 pub async fn handle_daemon_request(
     request: DaemonRequest,
     writer: &DaemonWriter,
+    services: &GovernedServices,
 ) -> Result<LiveDispatchResult, BoxError> {
     match request {
         DaemonRequest::Ping => Ok(LiveDispatchResult::Response(Box::new(DaemonResponse::Pong))),
@@ -94,40 +94,86 @@ pub async fn handle_daemon_request(
             )))
         }
         DaemonRequest::Sync(record) => dispatch_sync(record, writer).await,
-        // --- Governed ops (protocol surface only; handlers in T159) ---
-        DaemonRequest::ResolveScope(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("resolve_scope"),
-        ))),
-        DaemonRequest::ProjectBriefing(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("project_briefing"),
-        ))),
-        DaemonRequest::PersonalBriefing(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("personal_briefing"),
-        ))),
-        DaemonRequest::QueryKnowledge(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("query_knowledge"),
-        ))),
-        DaemonRequest::InspectEvidence(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("inspect_evidence"),
-        ))),
-        DaemonRequest::InspectSource(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("inspect_source"),
-        ))),
-        DaemonRequest::ProposeConclusion(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("propose_conclusion"),
-        ))),
-        DaemonRequest::ProposeDecision(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("propose_decision"),
-        ))),
-        DaemonRequest::ListReviewItems(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("list_review_items"),
-        ))),
-        DaemonRequest::ResolveReviewItem(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("resolve_review_item"),
-        ))),
-        DaemonRequest::RequestErasure(_) => Ok(LiveDispatchResult::Response(Box::new(
-            DaemonResponse::unsupported("request_erasure"),
-        ))),
+
+        // --- Governed queries (off-queue) ---
+        DaemonRequest::ResolveScope(req) => {
+            let resp = services.resolve_scope(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::ProjectBriefing(req) => {
+            let resp = services.project_briefing(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::PersonalBriefing(req) => {
+            let resp = services.personal_briefing(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::QueryKnowledge(req) => {
+            let resp = services.query_knowledge(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::InspectEvidence(req) => {
+            let resp = services.inspect_evidence(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::InspectSource(req) => {
+            let resp = services.inspect_source(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::ListReviewItems(req) => {
+            let resp = services.list_review_items(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+
+        // --- Governed mutations (writer queue) ---
+        DaemonRequest::ProposeConclusion(req) => {
+            let command_id = req.command_id.clone();
+            let daemon_req = DaemonRequest::ProposeConclusion(req.clone());
+            let resp = writer
+                .enqueue_governed(
+                    daemon_req,
+                    GovernedMutation::ProposeConclusion(req),
+                    command_id.as_deref(),
+                )
+                .await?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::ProposeDecision(req) => {
+            let command_id = req.command_id.clone();
+            let daemon_req = DaemonRequest::ProposeDecision(req.clone());
+            let resp = writer
+                .enqueue_governed(
+                    daemon_req,
+                    GovernedMutation::ProposeDecision(req),
+                    command_id.as_deref(),
+                )
+                .await?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::ResolveReviewItem(req) => {
+            let command_id = req.command_id.clone();
+            let daemon_req = DaemonRequest::ResolveReviewItem(req.clone());
+            let resp = writer
+                .enqueue_governed(
+                    daemon_req,
+                    GovernedMutation::ResolveReviewItem(req),
+                    command_id.as_deref(),
+                )
+                .await?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::RequestErasure(req) => {
+            let command_id = req.command_id.clone();
+            let daemon_req = DaemonRequest::RequestErasure(req.clone());
+            let resp = writer
+                .enqueue_governed(
+                    daemon_req,
+                    GovernedMutation::RequestErasure(req),
+                    command_id.as_deref(),
+                )
+                .await?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
     }
 }
 

@@ -1,4 +1,12 @@
 //! Review item commands (T150 Phase E).
+//!
+//! # Idempotency (T159)
+//!
+//! When a review item is already non-`Open` (resolved), [`resolve_review_item`]
+//! still enforces Human + `ApproveDecision` policy, then returns `Ok(())`
+//! without appending a second `ReviewItemResolved` event. Missing items still
+//! return [`ControlPlaneError::NotFound`]. Callers without the grant receive
+//! [`ControlPlaneError::PolicyDenied`] even on already-resolved items.
 
 use ai_brains_core::ids::ReviewItemId;
 use ai_brains_core::principal::{Principal, PrincipalKind};
@@ -33,27 +41,23 @@ where
     Q: GovernedQueryStore,
     P: PolicyEvaluator,
 {
+    // Missing → NotFound (before payload/policy so probes do not leak grant state).
+    let row = query
+        .get_review_item(review_item_id)?
+        .ok_or_else(|| ControlPlaneError::NotFound(format!("review_item {review_item_id}")))?;
+
+    // 1. Payload validation
     if reason.trim().is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
             "resolution reason must be non-empty".into(),
         ));
     }
 
+    // 2. Principal + policy gates (always — including already-resolved replay)
     if !matches!(principal.kind, PrincipalKind::Human) {
         return Err(ControlPlaneError::ApprovalRequired(
             "review resolve requires human principal (not Agent)".into(),
         ));
-    }
-
-    let row = query
-        .get_review_item(review_item_id)?
-        .ok_or_else(|| ControlPlaneError::NotFound(format!("review_item {review_item_id}")))?;
-
-    if row.status != "Open" {
-        return Err(ControlPlaneError::InvalidTransition(format!(
-            "review item {review_item_id} is {}",
-            row.status
-        )));
     }
 
     let policy_ctx = PolicyContext::default_for_privacy(privacy);
@@ -68,6 +72,12 @@ where
         ));
     }
 
+    // 3. Detect-already-done: already resolved → success without second append
+    if row.status != "Open" {
+        return Ok(());
+    }
+
+    // 4. Append
     let event = build_event(
         AggregateType::ReviewItem,
         review_item_id.as_uuid(),

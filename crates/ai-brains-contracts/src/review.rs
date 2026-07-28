@@ -74,6 +74,12 @@ pub struct ResolveReviewItemRequest {
     pub principal_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// Governing scope identity key for grant lookup (required by control-plane when resolving).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    /// Client command / idempotency key for spool + replay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
 }
 
 /// Outcome of resolving a review item.
