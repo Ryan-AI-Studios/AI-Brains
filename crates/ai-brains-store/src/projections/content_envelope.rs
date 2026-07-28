@@ -13,6 +13,7 @@ use crate::errors::{Result, StoreError};
 use crate::projections::Projection;
 use ai_brains_events::{Envelope, Payload};
 use rusqlite::{Connection, OptionalExtension, params};
+use std::fmt;
 use time::format_description::well_known::Rfc3339;
 
 /// Envelope / wrap schema version locked by ADR-0016 / T163 (S2).
@@ -26,7 +27,10 @@ pub const ALGORITHM_AES_256_GCM: &str = "AES-256-GCM";
 // ---------------------------------------------------------------------------
 
 /// Row from `content_key_store`. Destroyed keys return wrap fields as `None`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Debug redacts wrap material (lengths only) so accidental `{:?}` logging
+/// does not expose ciphertext (spec §6.2 / ADR-0016 §5).
+#[derive(Clone, PartialEq, Eq)]
 pub struct ContentKeyWrapRow {
     pub content_key_id: String,
     pub wrap_schema_version: i64,
@@ -38,8 +42,37 @@ pub struct ContentKeyWrapRow {
     pub destroyed_at: Option<String>,
 }
 
+impl fmt::Debug for ContentKeyWrapRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ContentKeyWrapRow")
+            .field("content_key_id", &self.content_key_id)
+            .field("wrap_schema_version", &self.wrap_schema_version)
+            .field("algorithm", &self.algorithm)
+            .field(
+                "wrap_nonce",
+                &self
+                    .wrap_nonce
+                    .as_ref()
+                    .map(|b| format!("<redacted len={}>", b.len())),
+            )
+            .field(
+                "wrap_ciphertext",
+                &self
+                    .wrap_ciphertext
+                    .as_ref()
+                    .map(|b| format!("<redacted len={}>", b.len())),
+            )
+            .field("status", &self.status)
+            .field("created_at", &self.created_at)
+            .field("destroyed_at", &self.destroyed_at)
+            .finish()
+    }
+}
+
 /// Opaque ciphertext blob row from `encrypted_content_blob`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Debug redacts nonce/ciphertext (lengths only).
+#[derive(Clone, PartialEq, Eq)]
 pub struct EncryptedBlobRow {
     pub blob_id: String,
     pub content_key_id: String,
@@ -52,6 +85,27 @@ pub struct EncryptedBlobRow {
     pub subject_id: Option<String>,
     pub size_bytes: i64,
     pub created_at: String,
+}
+
+impl fmt::Debug for EncryptedBlobRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EncryptedBlobRow")
+            .field("blob_id", &self.blob_id)
+            .field("content_key_id", &self.content_key_id)
+            .field("envelope_schema_version", &self.envelope_schema_version)
+            .field("algorithm", &self.algorithm)
+            .field("nonce", &format!("<redacted len={}>", self.nonce.len()))
+            .field(
+                "ciphertext",
+                &format!("<redacted len={}>", self.ciphertext.len()),
+            )
+            .field("content_class", &self.content_class)
+            .field("subject_kind", &self.subject_kind)
+            .field("subject_id", &self.subject_id)
+            .field("size_bytes", &self.size_bytes)
+            .field("created_at", &self.created_at)
+            .finish()
+    }
 }
 
 /// Row from `erasure_request_projection`.
@@ -80,7 +134,7 @@ pub struct TombstoneRow {
 // ---------------------------------------------------------------------------
 
 /// Insert an active content-key wrap. Wrap nonce and ciphertext must be non-empty
-/// (SQL CHECK also enforces non-NULL wraps when `status = 'active'`).
+/// (app-level reject; SQL CHECK also enforces non-NULL wraps when `status = 'active'`).
 pub fn insert_content_key_wrap(
     conn: &Connection,
     content_key_id: &str,
@@ -89,6 +143,16 @@ pub fn insert_content_key_wrap(
     wrap_ciphertext: &[u8],
     created_at: &str,
 ) -> Result<()> {
+    if wrap_nonce.is_empty() {
+        return Err(StoreError::ConfigError(
+            "content key wrap_nonce must be non-empty".to_string(),
+        ));
+    }
+    if wrap_ciphertext.is_empty() {
+        return Err(StoreError::ConfigError(
+            "content key wrap_ciphertext must be non-empty".to_string(),
+        ));
+    }
     conn.execute(
         "INSERT INTO content_key_store (
             content_key_id, wrap_schema_version, algorithm,
@@ -155,9 +219,16 @@ pub fn destroy_content_key_wrap(
     Ok(())
 }
 
-/// Insert an opaque encrypted content blob. `size_bytes` should be
+/// Insert an opaque encrypted content blob. `size_bytes` must equal
 /// `ciphertext.len()` at insert time.
 pub fn insert_encrypted_blob(conn: &Connection, row: &EncryptedBlobRow) -> Result<()> {
+    let ciphertext_len = row.ciphertext.len() as i64;
+    if row.size_bytes != ciphertext_len {
+        return Err(StoreError::ConfigError(format!(
+            "encrypted blob size_bytes ({}) must equal ciphertext.len() ({})",
+            row.size_bytes, ciphertext_len
+        )));
+    }
     conn.execute(
         "INSERT INTO encrypted_content_blob (
             blob_id, content_key_id, envelope_schema_version, algorithm,
@@ -268,6 +339,26 @@ pub fn get_tombstone(conn: &Connection, content_key_id: &str) -> Result<Option<T
     )?;
     let row = stmt
         .query_row(params![content_key_id], |row| {
+            Ok(TombstoneRow {
+                tombstone_id: row.get(0)?,
+                content_key_id: row.get(1)?,
+                erased_at: row.get(2)?,
+                reason_code: row.get(3)?,
+            })
+        })
+        .optional()?;
+    Ok(row)
+}
+
+/// Fetch tombstone by primary key `tombstone_id`. Missing → `Ok(None)`.
+pub fn get_tombstone_by_id(conn: &Connection, tombstone_id: &str) -> Result<Option<TombstoneRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT tombstone_id, content_key_id, erased_at, reason_code
+         FROM tombstone_projection
+         WHERE tombstone_id = ?",
+    )?;
+    let row = stmt
+        .query_row(params![tombstone_id], |row| {
             Ok(TombstoneRow {
                 tombstone_id: row.get(0)?,
                 content_key_id: row.get(1)?,

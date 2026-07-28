@@ -12,11 +12,12 @@ use ai_brains_events::payload::{
     MemoryForgottenPayload,
 };
 use ai_brains_events::{Actor, AggregateType, Payload};
+use ai_brains_store::StoreError;
 use ai_brains_store::apply_migrations_through;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 use ai_brains_store::projections::content_envelope::{
-    self, ALGORITHM_AES_256_GCM, ENVELOPE_SCHEMA_VERSION, EncryptedBlobRow,
+    self, ALGORITHM_AES_256_GCM, ContentKeyWrapRow, ENVELOPE_SCHEMA_VERSION, EncryptedBlobRow,
 };
 use tempfile::NamedTempFile;
 
@@ -324,6 +325,101 @@ fn content_key_store__destroy_idempotent__second_call_ok() {
 }
 
 #[test]
+fn content_key_store__insert__rejects_empty_wrap_nonce() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let key_id = ContentKeyId::new().to_string();
+
+    let err = content_envelope::insert_content_key_wrap(
+        &conn,
+        &key_id,
+        ENVELOPE_SCHEMA_VERSION,
+        &[],
+        &FIXTURE_CIPHERTEXT,
+        CREATED_AT,
+    )
+    .expect_err("empty wrap_nonce must be rejected");
+    match err {
+        StoreError::ConfigError(msg) => {
+            assert!(
+                msg.contains("wrap_nonce") && msg.contains("non-empty"),
+                "unexpected message: {msg}"
+            );
+        }
+        other => panic!("expected ConfigError, got: {other:?}"),
+    }
+    assert!(
+        content_envelope::get_content_key_wrap(&conn, &key_id)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn content_key_store__insert__rejects_empty_wrap_ciphertext() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let key_id = ContentKeyId::new().to_string();
+
+    let err = content_envelope::insert_content_key_wrap(
+        &conn,
+        &key_id,
+        ENVELOPE_SCHEMA_VERSION,
+        &FIXTURE_WRAP_NONCE,
+        &[],
+        CREATED_AT,
+    )
+    .expect_err("empty wrap_ciphertext must be rejected");
+    match err {
+        StoreError::ConfigError(msg) => {
+            assert!(
+                msg.contains("wrap_ciphertext") && msg.contains("non-empty"),
+                "unexpected message: {msg}"
+            );
+        }
+        other => panic!("expected ConfigError, got: {other:?}"),
+    }
+}
+
+#[test]
+fn content_key_wrap_row__debug__redacts_wrap_material() {
+    let row = ContentKeyWrapRow {
+        content_key_id: "ck-1".to_string(),
+        wrap_schema_version: ENVELOPE_SCHEMA_VERSION,
+        algorithm: ALGORITHM_AES_256_GCM.to_string(),
+        wrap_nonce: Some(FIXTURE_WRAP_NONCE.to_vec()),
+        wrap_ciphertext: Some(FIXTURE_CIPHERTEXT.to_vec()),
+        status: "active".to_string(),
+        created_at: CREATED_AT.to_string(),
+        destroyed_at: None,
+    };
+    let debug = format!("{row:?}");
+    assert!(debug.contains("content_key_id"));
+    assert!(
+        debug.contains("<redacted len=12>"),
+        "nonce len missing: {debug}"
+    );
+    assert!(
+        debug.contains("<redacted len=48>"),
+        "ciphertext len missing: {debug}"
+    );
+    assert!(
+        !debug.contains("0xa5") && !debug.contains("165"),
+        "raw wrap bytes must not appear in Debug: {debug}"
+    );
+    // Destroyed path: None wraps still format without panicking.
+    let destroyed = ContentKeyWrapRow {
+        wrap_nonce: None,
+        wrap_ciphertext: None,
+        status: "destroyed".to_string(),
+        destroyed_at: Some(DESTROYED_AT.to_string()),
+        ..row
+    };
+    let d = format!("{destroyed:?}");
+    assert!(d.contains("None") || d.contains("destroyed"));
+}
+
+#[test]
 fn content_key_store__check__rejects_active_without_wrap() {
     let (_tmp, store) = open_store();
     let conn = store.connection().lock().unwrap();
@@ -402,6 +498,66 @@ fn encrypted_blob__insert_get__opaque_bytes() {
 
     let missing = content_envelope::get_encrypted_blob(&conn, "no-blob").unwrap();
     assert!(missing.is_none());
+}
+
+#[test]
+fn encrypted_blob__insert__rejects_size_bytes_mismatch() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let row = EncryptedBlobRow {
+        blob_id: "blob-bad-size".to_string(),
+        content_key_id: ContentKeyId::new().to_string(),
+        envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+        algorithm: ALGORITHM_AES_256_GCM.to_string(),
+        nonce: FIXTURE_CONTENT_NONCE.to_vec(),
+        ciphertext: FIXTURE_CIPHERTEXT.to_vec(),
+        content_class: None,
+        subject_kind: None,
+        subject_id: None,
+        size_bytes: (FIXTURE_CIPHERTEXT.len() as i64) + 1,
+        created_at: CREATED_AT.to_string(),
+    };
+    let err = content_envelope::insert_encrypted_blob(&conn, &row)
+        .expect_err("size_bytes mismatch must be rejected");
+    match err {
+        StoreError::ConfigError(msg) => {
+            assert!(
+                msg.contains("size_bytes") && msg.contains("ciphertext.len()"),
+                "unexpected message: {msg}"
+            );
+        }
+        other => panic!("expected ConfigError, got: {other:?}"),
+    }
+    assert!(
+        content_envelope::get_encrypted_blob(&conn, "blob-bad-size")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn encrypted_blob_row__debug__redacts_ciphertext() {
+    let row = EncryptedBlobRow {
+        blob_id: "blob-1".to_string(),
+        content_key_id: "ck-1".to_string(),
+        envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+        algorithm: ALGORITHM_AES_256_GCM.to_string(),
+        nonce: FIXTURE_CONTENT_NONCE.to_vec(),
+        ciphertext: FIXTURE_CIPHERTEXT.to_vec(),
+        content_class: Some("raw_turn".to_string()),
+        subject_kind: None,
+        subject_id: None,
+        size_bytes: FIXTURE_CIPHERTEXT.len() as i64,
+        created_at: CREATED_AT.to_string(),
+    };
+    let debug = format!("{row:?}");
+    assert!(debug.contains("blob_id"));
+    assert!(debug.contains("<redacted len=12>"));
+    assert!(debug.contains("<redacted len=48>"));
+    assert!(
+        !debug.contains("0xbe") && !debug.contains("190"),
+        "raw ciphertext must not appear in Debug: {debug}"
+    );
 }
 
 #[test]
@@ -491,6 +647,16 @@ fn tombstone_projection__content_erased__inserts_and_completes_request() {
     assert_eq!(ts.content_key_id, content_key_id.to_string());
     assert_eq!(ts.reason_code, "");
     assert!(!ts.erased_at.is_empty());
+
+    let by_id = content_envelope::get_tombstone_by_id(&conn, &tombstone_id.to_string())
+        .unwrap()
+        .expect("tombstone by id");
+    assert_eq!(by_id, ts);
+    assert!(
+        content_envelope::get_tombstone_by_id(&conn, "no-such-tombstone")
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
