@@ -10,6 +10,8 @@
 
 use std::path::{Path, PathBuf};
 
+use ai_brains_contracts::offset_to_utc;
+use ai_brains_contracts::sources::SourceDto;
 use ai_brains_core::ids::{EvidenceId, PrincipalId, SourceId, SourceVersionId, UserId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
@@ -30,6 +32,7 @@ use crate::errors::{ControlPlaneError, Result};
 use crate::invalidation::{plan_invalidation_events_for_changed_source, revalidate_matching_stale};
 use crate::ports::{
     Clock, EventWriter, Fingerprinter, GovernedQueryStore, PolicyContext, PolicyEvaluator,
+    SourceRow,
 };
 
 /// How content is supplied for fingerprinting.
@@ -374,6 +377,17 @@ pub fn scope_identity_key(scope: &ScopeRef) -> String {
         ScopeRef::Repository(id) => format!("Repository:{id}"),
         ScopeRef::Workspace(id) => format!("Workspace:{id}"),
         ScopeRef::Personal(id) => format!("Personal:{id}"),
+    }
+}
+
+/// Map a projected [`SourceRow`] to the wire [`SourceDto`] (shared CLI/daemon inspect).
+pub fn source_row_to_dto(row: &SourceRow) -> SourceDto {
+    SourceDto {
+        id: row.id.to_string(),
+        kind: row.kind.clone(),
+        display_name: row.display_name.clone(),
+        locator: row.locator.clone(),
+        last_observed_at: row.last_observed_at.map(offset_to_utc),
     }
 }
 

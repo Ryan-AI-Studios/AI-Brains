@@ -318,20 +318,94 @@ enum Commands {
     /// `denied=true` or empty authority sections + warnings (JSON stdout by default).
     /// Principal: `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` or well-known System principal
     /// (must be registered + granted). See `AI_BRAINS_GOVERNED_BRIEFING` for preflight.
+    #[command(
+        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500\n  ai-brains briefing personal --format json"
+    )]
     Briefing {
         #[command(subcommand)]
         command: BriefingCommands,
     },
     /// Governed progressive query, handle expand, and query-trace retrieval (T152)
+    #[command(
+        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\"\n  ai-brains query expand <handle-id>\n  ai-brains query trace <trace-id>"
+    )]
     Query {
         #[command(subcommand)]
         command: GovernedQueryCommands,
     },
+    /// Resolve the active governed scope (T160 / #20)
+    ///
+    /// Always surfaces authoritative, confidence, warnings, and alternatives.
+    #[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
+    Scope {
+        #[command(subcommand)]
+        command: ScopeCommands,
+    },
+    /// Inspect evidence / handle previews (T160)
+    #[command(
+        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+    )]
+    Evidence {
+        #[command(subcommand)]
+        command: EvidenceCommands,
+    },
+    /// Inspect registered sources (T160)
+    #[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
+    Source {
+        #[command(subcommand)]
+        command: SourceCommands,
+    },
+    /// Propose conclusions (T160)
+    #[command(
+        after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
+    )]
+    Conclusion {
+        #[command(subcommand)]
+        command: ConclusionCommands,
+    },
+    /// Propose decisions (T160)
+    #[command(
+        after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
+    )]
+    Decision {
+        #[command(subcommand)]
+        command: DecisionCommands,
+    },
+    /// Review queue list / resolve (T160)
+    #[command(
+        after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+    )]
+    Review {
+        #[command(subcommand)]
+        command: ReviewCommands,
+    },
+    /// Policy grant inspection (read-only, T160)
+    #[command(
+        after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+    )]
+    Policy {
+        #[command(subcommand)]
+        command: PolicyCommands,
+    },
+    /// Request erasure tickets (daemon-required; no CE wipe claim) (T160)
+    #[command(
+        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+    )]
+    Erasure {
+        #[command(subcommand)]
+        command: ErasureCommands,
+    },
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500\n  ai-brains briefing personal --format json"
+)]
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
+    #[command(
+        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500"
+    )]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
         project_id: Option<ProjectId>,
@@ -345,6 +419,7 @@ enum BriefingCommands {
         format: Option<String>,
     },
     /// Build a Personal Continuity Briefing packet
+    #[command(after_help = "Examples:\n  ai-brains briefing personal --format json")]
     Personal {
         /// Personal user id (defaults to principal UUID mapping)
         #[arg(long)]
@@ -360,8 +435,14 @@ enum BriefingCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\"\n  ai-brains query expand <handle-id>\n  ai-brains query trace <trace-id>"
+)]
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
+    #[command(
+        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\""
+    )]
     Progressive {
         /// Query text
         query: String,
@@ -374,6 +455,7 @@ enum GovernedQueryCommands {
         dry_run: bool,
     },
     /// Expand an evidence / conclusion / decision handle to a bounded preview
+    #[command(after_help = "Examples:\n  ai-brains query expand <handle-id>")]
     Expand {
         /// Handle id (evidence UUID, conclusion id, or decision id)
         handle_id: String,
@@ -383,7 +465,298 @@ enum GovernedQueryCommands {
         max_chars: usize,
     },
     /// Fetch a governed query trace by id (null when missing or unauthorized)
+    #[command(after_help = "Examples:\n  ai-brains query trace <trace-id>")]
     Trace { trace_id: String },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
+enum ScopeCommands {
+    /// Resolve the active governed scope for the working context
+    #[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
+    Resolve {
+        /// Output format: json (default) | human | markdown
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        /// Working directory hint (defaults to cwd)
+        #[arg(long)]
+        cwd: Option<String>,
+        /// Explicit repository project id
+        #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
+        project_id: Option<ProjectId>,
+        /// Force Personal scope (never auto-selected otherwise)
+        #[arg(long)]
+        force_personal: bool,
+        /// Personal user id when --force-personal
+        #[arg(long)]
+        personal_user_id: Option<String>,
+        /// Force in-process control-plane path
+        #[arg(long)]
+        local: bool,
+        /// Prefer daemon named-pipe path
+        #[arg(long)]
+        daemon: bool,
+        /// Require daemon; exit 5 if unavailable
+        #[arg(long)]
+        require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+)]
+enum EvidenceCommands {
+    /// Show a bounded evidence / handle preview
+    #[command(
+        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+    )]
+    Show {
+        /// Evidence or handle id
+        id: String,
+        /// Scope identity key (required for policy), e.g. Repository:<uuid>
+        #[arg(long)]
+        scope: Option<String>,
+        /// Output format: json (default) | human | markdown
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        /// Max characters in preview body
+        #[arg(long, default_value_t = 512)]
+        max_chars: usize,
+        /// Principal UUID override (or AI_BRAINS_PREFLIGHT_PRINCIPAL_ID)
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
+enum SourceCommands {
+    /// Show a registered source by id
+    #[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
+    Show {
+        /// Source id
+        id: String,
+        /// Scope identity key (required)
+        #[arg(long)]
+        scope: Option<String>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
+)]
+enum ConclusionCommands {
+    /// Propose a conclusion (daemon preferred; local if daemon down before send or --local)
+    #[command(
+        after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
+    )]
+    Propose {
+        /// Claim / statement text
+        #[arg(long = "claim", visible_alias = "statement")]
+        claim: String,
+        /// Supporting evidence ids (repeatable)
+        #[arg(long = "evidence")]
+        evidence: Vec<String>,
+        /// Scope identity key (required), e.g. Repository:<uuid>
+        #[arg(long)]
+        scope: String,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        /// Idempotency key (auto-generated UUID if omitted)
+        #[arg(long = "command-id")]
+        command_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
+)]
+enum DecisionCommands {
+    /// Propose a decision (daemon preferred; local if daemon down before send or --local)
+    #[command(
+        after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
+    )]
+    Propose {
+        /// Decision statement
+        #[arg(long)]
+        statement: String,
+        /// Optional title (defaults to "Decision")
+        #[arg(long)]
+        title: Option<String>,
+        /// Supporting conclusion ids (repeatable)
+        #[arg(long = "conclusion")]
+        conclusions: Vec<String>,
+        /// Supporting evidence ids (repeatable)
+        #[arg(long = "evidence")]
+        evidence: Vec<String>,
+        /// Scope identity key (required)
+        #[arg(long)]
+        scope: String,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long = "command-id")]
+        command_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+)]
+enum ReviewCommands {
+    /// List open review items (E1: items: [] when empty)
+    #[command(after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>")]
+    List {
+        /// Scope identity key (required)
+        #[arg(long)]
+        scope: Option<String>,
+        /// Optional status filter (e.g. Open)
+        #[arg(long)]
+        status: Option<String>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+    /// Resolve a review item (prefer Human principal; System may get APPROVAL_REQUIRED)
+    #[command(
+        after_help = "Examples:\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+    )]
+    Resolve {
+        /// Review item id
+        id: String,
+        /// Resolution: approved | dismissed | deferred | …
+        #[arg(long)]
+        resolution: String,
+        /// Governing scope identity key (required)
+        #[arg(long)]
+        scope: String,
+        /// Optional note appended to resolution
+        #[arg(long)]
+        note: Option<String>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long = "command-id")]
+        command_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+)]
+enum PolicyCommands {
+    /// List applied grants for principal + scope (read-only)
+    #[command(after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>")]
+    Show {
+        /// Scope identity key (required)
+        #[arg(long)]
+        scope: Option<String>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+    },
+    /// Dry-run capability allow check
+    #[command(
+        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+    )]
+    Check {
+        /// Capability name (e.g. ProposeConclusion)
+        #[arg(long)]
+        capability: String,
+        /// Scope identity key
+        #[arg(long)]
+        scope: String,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+)]
+enum ErasureCommands {
+    /// Request an erasure ticket (daemon-required; never claims CE wipe)
+    #[command(
+        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+    )]
+    Request {
+        /// Target record / aggregate ids (repeatable)
+        #[arg(long = "id", required = true)]
+        ids: Vec<String>,
+        /// Human-readable reason
+        #[arg(long)]
+        reason: Option<String>,
+        /// Scope identity key (required by daemon)
+        #[arg(long)]
+        scope: Option<String>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long = "command-id")]
+        command_id: Option<String>,
+        /// Rejected: erasure is daemon-only
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -852,6 +1225,15 @@ fn main() {
                         if crate::elevation::is_elevated() {
                             crate::elevation::write_elevate_error_log(&err.to_string());
                         }
+                        // Governed surface (T160): structured exit codes; payload already emitted.
+                        if let Some(g) = err
+                            .downcast_ref::<commands::governed_common::GovernedCliError>()
+                        {
+                            if !g.emitted {
+                                eprintln!("{}", g.message);
+                            }
+                            std::process::exit(g.exit_code);
+                        }
                         use ai_brains_contracts::response::{ApiError, ApiResult};
                         let api_error = ApiError::new("COMMAND_FAILED", err.to_string());
                         let result = ApiResult::<serde_json::Value>::error(api_error);
@@ -966,6 +1348,256 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     trace_id: trace_id.clone(),
                 },
             ),
+        },
+        Commands::Scope { command } => match command {
+            ScopeCommands::Resolve {
+                format,
+                cwd,
+                project_id,
+                force_personal,
+                personal_user_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::scope::run_resolve(
+                    &ctx,
+                    commands::scope::ResolveOptions {
+                        format: format.clone(),
+                        cwd: cwd.clone(),
+                        project_id: *project_id,
+                        force_personal: *force_personal,
+                        personal_user_id: personal_user_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+        },
+        Commands::Evidence { command } => match command {
+            EvidenceCommands::Show {
+                id,
+                scope,
+                format,
+                max_chars,
+                principal_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::evidence::run_show(
+                    &ctx,
+                    commands::evidence::ShowOptions {
+                        id: id.clone(),
+                        scope: scope.clone(),
+                        format: format.clone(),
+                        max_chars: *max_chars,
+                        principal_id: principal_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+        },
+        Commands::Source { command } => match command {
+            SourceCommands::Show {
+                id,
+                scope,
+                format,
+                principal_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::source::run_show(
+                    &ctx,
+                    commands::source::ShowOptions {
+                        id: id.clone(),
+                        scope: scope.clone(),
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+        },
+        Commands::Conclusion { command } => match command {
+            ConclusionCommands::Propose {
+                claim,
+                evidence,
+                scope,
+                format,
+                principal_id,
+                command_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::conclusion::run_propose(
+                    &ctx,
+                    commands::conclusion::ProposeOptions {
+                        statement: claim.clone(),
+                        evidence: evidence.clone(),
+                        scope: scope.clone(),
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        command_id: command_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+        },
+        Commands::Decision { command } => match command {
+            DecisionCommands::Propose {
+                statement,
+                title,
+                conclusions,
+                evidence,
+                scope,
+                format,
+                principal_id,
+                command_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::decision::run_propose(
+                    &ctx,
+                    commands::decision::ProposeOptions {
+                        statement: statement.clone(),
+                        title: title.clone(),
+                        conclusions: conclusions.clone(),
+                        evidence: evidence.clone(),
+                        scope: scope.clone(),
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        command_id: command_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+        },
+        Commands::Review { command } => match command {
+            ReviewCommands::List {
+                scope,
+                status,
+                format,
+                principal_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::review::run_list(
+                    &ctx,
+                    commands::review::ListOptions {
+                        scope: scope.clone(),
+                        status: status.clone(),
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+            ReviewCommands::Resolve {
+                id,
+                resolution,
+                scope,
+                note,
+                format,
+                principal_id,
+                command_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::review::run_resolve(
+                    &ctx,
+                    commands::review::ResolveOptions {
+                        id: id.clone(),
+                        resolution: resolution.clone(),
+                        scope: scope.clone(),
+                        note: note.clone(),
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        command_id: command_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+        },
+        Commands::Policy { command } => match command {
+            PolicyCommands::Show {
+                scope,
+                format,
+                principal_id,
+            } => commands::policy_cmd::run_show(
+                &ctx,
+                commands::policy_cmd::ShowOptions {
+                    scope: scope.clone(),
+                    format: format.clone(),
+                    principal_id: principal_id.clone(),
+                },
+            ),
+            PolicyCommands::Check {
+                capability,
+                scope,
+                format,
+                principal_id,
+            } => commands::policy_cmd::run_check(
+                &ctx,
+                commands::policy_cmd::CheckOptions {
+                    capability: capability.clone(),
+                    scope: scope.clone(),
+                    format: format.clone(),
+                    principal_id: principal_id.clone(),
+                },
+            ),
+        },
+        Commands::Erasure { command } => match command {
+            ErasureCommands::Request {
+                ids,
+                reason,
+                scope,
+                format,
+                principal_id,
+                command_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                let _ = &ctx;
+                commands::erasure::run_request(commands::erasure::RequestOptions {
+                    ids: ids.clone(),
+                    reason: reason.clone(),
+                    scope: scope.clone(),
+                    format: format.clone(),
+                    principal_id: principal_id.clone(),
+                    command_id: command_id.clone(),
+                    local: *local,
+                    daemon: *daemon,
+                    require_daemon: *require_daemon,
+                })
+                .await
+            }
         },
         Commands::Init { force } => commands::init::run(&ctx, *force),
         Commands::Ingest { dry_run } => commands::ingest::run(&ctx, *dry_run),

@@ -2,7 +2,8 @@
 #![allow(clippy::disallowed_methods)]
 use ai_brains_control_plane::{
     ClaimConflictRow, Clock, ConclusionRow, ControlPlaneError, DecisionRow, EventWriter,
-    Fingerprinter, GovernedQueryStore, PolicyEvaluator, Result, ReviewItemRow, StaleFact,
+    Fingerprinter, GovernedQueryStore, PolicyEvaluator, Result, ReviewItemRow, SourceRow,
+    StaleFact,
 };
 use ai_brains_core::ids::{
     ConclusionId, ConflictId, DecisionId, EvidenceId, PrincipalId, ReviewItemId, SourceId,
@@ -35,6 +36,9 @@ impl GovernedQueryStore for DummyQuery {
         _locator: Option<&str>,
         _display_name: &str,
     ) -> Result<Option<SourceId>> {
+        Ok(None)
+    }
+    fn get_source(&self, _source_id: SourceId) -> Result<Option<SourceRow>> {
         Ok(None)
     }
     fn latest_source_version(

@@ -15,8 +15,12 @@
 //!
 //! # Principal resolution
 //!
-//! 1. Wire `principal_id` if parseable as UUID → Human principal with that id
-//! 2. Else env `AI_BRAINS_DAEMON_PRINCIPAL_ID` if UUID → Human
+//! 1. Wire `principal_id` if parseable as UUID:
+//!    - well-known System principal UUID → System (`daemon-system`) for kind parity
+//!      with CLI `cli_principal` (T160 Codex P1)
+//!    - any other UUID → Human (`daemon-human`)
+//! 2. Else env `AI_BRAINS_DAEMON_PRINCIPAL_ID` if UUID → Human (legacy clients that
+//!    omit wire `principal_id`)
 //! 3. Else CLI-compatible fixed System principal
 //!
 //! # Idempotency ownership
@@ -63,16 +67,17 @@ use ai_brains_contracts::review::{
     ReviewResolvedResponse,
 };
 use ai_brains_contracts::scopes::{ResolveScopeRequest, ScopeEvidenceDto, ScopeResolvedResponse};
-use ai_brains_contracts::sources::{InspectSourceRequest, SourceDto};
+use ai_brains_contracts::sources::InspectSourceRequest;
 use ai_brains_control_plane::{
     BudgetConfig, ControlPlaneError, EventWriter, ExpandHandleRequest, GovernedQueryStore,
     PersonalBriefingRequest as CpPersonalBriefing, PolicyContext, PolicyEvaluator,
     ProgressiveQueryRequest, ProjectBriefingRequest as CpProjectBriefing,
     ProposeConclusionRequest as CpProposeConclusion, ProposeDecisionRequest as CpProposeDecision,
-    ResolvedScope, ReviewItemRow, ScopeConfidence, ScopeResolveInput, StoreEventWriter, StorePorts,
-    SystemClock, build_personal_briefing, build_project_briefing, expand_handle, is_authoritative,
-    make_principal, parse_scope_key, progressive_query, propose_conclusion, propose_decision,
-    resolve_review_item, resolve_scope, scope_identity_key,
+    ResolvedScope, ScopeConfidence, ScopeResolveInput, StoreEventWriter, StorePorts, SystemClock,
+    build_personal_briefing, build_project_briefing, expand_handle, is_authoritative,
+    list_open_review_items_for_scope, make_principal, parse_scope_key, progressive_query,
+    propose_conclusion, propose_decision, resolve_review_item, resolve_scope, scope_identity_key,
+    source_row_to_dto,
 };
 use ai_brains_core::ids::{
     ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, ReviewItemId, SourceId, UserId,
@@ -91,10 +96,12 @@ use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// UUID v5 namespace seeds (DNS-style) for command_id → domain id derivation.
-pub const NS_PROPOSE_CONCLUSION: &str = "ai-brains.command.propose_conclusion";
-pub const NS_PROPOSE_DECISION: &str = "ai-brains.command.propose_decision";
-pub const NS_REQUEST_ERASURE: &str = "ai-brains.command.request_erasure";
+// NS_* and id_from_command live in ai-brains-control-plane (T160 shared derivation).
+// Re-export so existing daemon call sites / tests keep a stable path.
+pub use ai_brains_control_plane::{
+    NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, id_from_command,
+};
+
 // Review resolve idempotency is review_item_id + status based in control-plane
 // (not a command_id-derived domain id). Spool still keys by command_id when set.
 
@@ -384,16 +391,18 @@ impl GovernedServices {
             }
         };
         let expected_scope = scope_identity_key(&scope);
-        match load_source_dto(self.event_store.as_ref(), source_id)? {
-            Some((dto, stored_scope)) if stored_scope == expected_scope => {
-                Ok(DaemonResponse::Source(dto))
+        let ports = self.ports();
+        match ports.query.get_source(source_id) {
+            Ok(Some(row)) if row.scope == expected_scope => {
+                Ok(DaemonResponse::Source(source_row_to_dto(&row)))
             }
             // Missing, empty legacy scope on non-empty request, or other-scope:
             // NOT_FOUND (anti-enumeration — do not leak existence across scopes).
-            Some(_) | None => Ok(DaemonResponse::Error(ApiError::new(
+            Ok(Some(_)) | Ok(None) => Ok(DaemonResponse::Error(ApiError::new(
                 "NOT_FOUND",
                 format!("source {}", req.id),
             ))),
+            Err(e) => Ok(map_control_plane_error(e)),
         }
     }
 
@@ -432,7 +441,8 @@ impl GovernedServices {
             Err(e) => return Ok(map_control_plane_error(e)),
         }
         let scope_key = scope_identity_key(&scope);
-        let mut items = match ports.query.list_open_review_items() {
+        // Scope isolation: shared CP filter (CLI local path uses the same helper).
+        let mut items = match list_open_review_items_for_scope(&ports.query, &scope_key) {
             Ok(items) => items,
             Err(e) => return Ok(map_control_plane_error(e)),
         };
@@ -442,21 +452,7 @@ impl GovernedServices {
                 items.clear();
             }
         }
-        // Scope isolation: only items related to the requested scope (not vault-wide).
-        let mut scoped = Vec::with_capacity(items.len());
-        for item in items {
-            match review_item_matches_scope(
-                &ports.query,
-                self.event_store.as_ref(),
-                &item,
-                &scope_key,
-            ) {
-                Ok(true) => scoped.push(item),
-                Ok(false) => {}
-                Err(e) => return Err(e),
-            }
-        }
-        let dtos: Vec<ReviewItemDto> = scoped
+        let dtos: Vec<ReviewItemDto> = items
             .into_iter()
             .map(|r| ReviewItemDto {
                 id: r.id.to_string(),
@@ -859,11 +855,23 @@ fn control_plane_error_parts(err: &ControlPlaneError) -> (&'static str, String) 
     }
 }
 
+/// Well-known System principal UUID shared with CLI `cli_principal` (briefing.rs).
+const CLI_SYSTEM_PRINCIPAL_U128: u128 = 0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2;
+
 /// Resolve principal for daemon IPC (see module docs).
 pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
     if let Some(raw) = wire_principal_id {
         let trimmed = raw.trim();
         if let Ok(u) = Uuid::parse_str(trimmed) {
+            // Preserve System kind for the well-known CLI System principal so
+            // wire identity + kind match local CP (policy matrix parity).
+            if u.as_u128() == CLI_SYSTEM_PRINCIPAL_U128 {
+                return make_principal(
+                    PrincipalKind::System,
+                    PrincipalId::from_uuid(u),
+                    "daemon-system",
+                );
+            }
             return make_principal(
                 PrincipalKind::Human,
                 PrincipalId::from_uuid(u),
@@ -871,6 +879,7 @@ pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
             );
         }
     }
+    // Legacy clients that omit wire principal_id may still set daemon env.
     if let Ok(raw) = std::env::var("AI_BRAINS_DAEMON_PRINCIPAL_ID") {
         let trimmed = raw.trim();
         if let Ok(u) = Uuid::parse_str(trimmed) {
@@ -884,17 +893,9 @@ pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
     // CLI-compatible System principal (briefing.rs cli_principal).
     make_principal(
         PrincipalKind::System,
-        PrincipalId::from_uuid(Uuid::from_u128(
-            0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2,
-        )),
+        PrincipalId::from_uuid(Uuid::from_u128(CLI_SYSTEM_PRINCIPAL_U128)),
         "daemon-system",
     )
-}
-
-/// Derive a deterministic UUID from a frozen DNS-style namespace + command_id.
-pub fn id_from_command(namespace_name: &str, command_id: &str) -> Uuid {
-    let ns = Uuid::new_v5(&Uuid::NAMESPACE_DNS, namespace_name.as_bytes());
-    Uuid::new_v5(&ns, command_id.as_bytes())
 }
 
 /// Sanitize command_id for use as a spool filename stem component.
@@ -993,113 +994,6 @@ fn parse_personal_user_id(scope: &str) -> Option<UserId> {
         return UserId::from_str(rest).ok();
     }
     UserId::from_str(scope).ok()
-}
-
-/// Load source DTO plus stored scope identity key from `source_projection`.
-/// Stored scope is empty string when historical / unspecified.
-fn load_source_dto(
-    store: &SqliteEventStore,
-    source_id: SourceId,
-) -> Result<Option<(SourceDto, String)>, BoxError> {
-    let conn = store
-        .connection()
-        .lock()
-        .map_err(|e| -> BoxError { e.to_string().into() })?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT source_id, kind, display_name, locator, last_observed_at, scope
-             FROM source_projection WHERE source_id = ?",
-        )
-        .map_err(|e| -> BoxError { e.to_string().into() })?;
-    let mut rows = stmt
-        .query(rusqlite::params![source_id.to_string()])
-        .map_err(|e| -> BoxError { e.to_string().into() })?;
-    if let Some(row) = rows
-        .next()
-        .map_err(|e| -> BoxError { e.to_string().into() })?
-    {
-        let id: String = row
-            .get(0)
-            .map_err(|e| -> BoxError { e.to_string().into() })?;
-        let kind: String = row
-            .get(1)
-            .map_err(|e| -> BoxError { e.to_string().into() })?;
-        let display_name: String = row
-            .get(2)
-            .map_err(|e| -> BoxError { e.to_string().into() })?;
-        let locator: Option<String> = row
-            .get(3)
-            .map_err(|e| -> BoxError { e.to_string().into() })?;
-        let last_observed: Option<String> = row
-            .get(4)
-            .map_err(|e| -> BoxError { e.to_string().into() })?;
-        let scope: String = row
-            .get(5)
-            .map_err(|e| -> BoxError { e.to_string().into() })?;
-        let last_observed_at = last_observed.and_then(|s| {
-            chrono::DateTime::parse_from_rfc3339(&s)
-                .ok()
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-        });
-        Ok(Some((
-            SourceDto {
-                id,
-                kind,
-                display_name,
-                locator,
-                last_observed_at,
-            },
-            scope,
-        )))
-    } else {
-        Ok(None)
-    }
-}
-
-/// True when an open review item is bound to `scope_key` (related conclusion /
-/// decision / source scope, or free-text subject / subject_id containing the key).
-///
-/// Mirrors `review_item_is_personal_related` in control-plane personal briefings,
-/// generalized to any scope identity key (and including related sources).
-fn review_item_matches_scope(
-    query: &impl GovernedQueryStore,
-    store: &SqliteEventStore,
-    item: &ReviewItemRow,
-    scope_key: &str,
-) -> Result<bool, BoxError> {
-    if let Some(ref cid) = item.related_conclusion_id
-        && let Ok(uuid) = Uuid::parse_str(cid)
-    {
-        let id = ConclusionId::from_uuid(uuid);
-        match query.get_conclusion(id) {
-            Ok(Some(row)) => return Ok(row.scope == scope_key),
-            Ok(None) => {}
-            Err(e) => return Err(e.to_string().into()),
-        }
-    }
-    if let Some(ref did) = item.related_decision_id
-        && let Ok(uuid) = Uuid::parse_str(did)
-    {
-        let id = DecisionId::from_uuid(uuid);
-        match query.get_decision(id) {
-            Ok(Some(row)) => return Ok(row.scope == scope_key),
-            Ok(None) => {}
-            Err(e) => return Err(e.to_string().into()),
-        }
-    }
-    if let Some(ref sid) = item.related_source_id
-        && let Ok(uuid) = Uuid::parse_str(sid)
-    {
-        let id = SourceId::from_uuid(uuid);
-        if let Some((_, stored_scope)) = load_source_dto(store, id)? {
-            return Ok(stored_scope == scope_key);
-        }
-    }
-    // Fallback: subject text or subject_id mentions the scope identity key.
-    if item.subject.contains(scope_key) || item.subject_id.contains(scope_key) {
-        return Ok(true);
-    }
-    Ok(false)
 }
 
 #[cfg(test)]
@@ -1322,5 +1216,61 @@ mod tests {
             Err(s) => assert_eq!(s, "bad-conclusion"),
             Ok(_) => panic!("expected Err with bad id"),
         }
+    }
+
+    #[test]
+    fn resolve_principal__wire_system_uuid__system_kind() {
+        let system_uuid = Uuid::from_u128(CLI_SYSTEM_PRINCIPAL_U128);
+        let p = resolve_principal(Some(&system_uuid.to_string()));
+        assert!(matches!(p.kind, PrincipalKind::System));
+        assert_eq!(p.id.to_string(), system_uuid.to_string());
+        assert_eq!(p.display_name, "daemon-system");
+    }
+
+    #[test]
+    fn resolve_principal__wire_other_uuid__human_kind() {
+        let id = Uuid::parse_str("11111111-2222-3333-4444-555555555555").expect("fixture uuid");
+        let p = resolve_principal(Some(&id.to_string()));
+        assert!(matches!(p.kind, PrincipalKind::Human));
+        assert_eq!(p.id.to_string(), id.to_string());
+        assert_eq!(p.display_name, "daemon-human");
+    }
+
+    #[test]
+    fn resolve_principal__no_wire_with_env__human_from_env() {
+        use ai_brains_core::temp_env::TempEnv;
+        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").expect("fixture uuid");
+        let _guard = TempEnv::set("AI_BRAINS_DAEMON_PRINCIPAL_ID", env_id.to_string());
+        let p = resolve_principal(None);
+        assert!(matches!(p.kind, PrincipalKind::Human));
+        assert_eq!(p.id.to_string(), env_id.to_string());
+        assert_eq!(p.display_name, "daemon-env-human");
+    }
+
+    #[test]
+    fn resolve_principal__no_wire_no_env__system_default() {
+        use ai_brains_core::temp_env::TempEnv;
+        let _guard = TempEnv::remove("AI_BRAINS_DAEMON_PRINCIPAL_ID");
+        let p = resolve_principal(None);
+        let system_uuid = Uuid::from_u128(CLI_SYSTEM_PRINCIPAL_U128);
+        assert!(matches!(p.kind, PrincipalKind::System));
+        assert_eq!(p.id.to_string(), system_uuid.to_string());
+        assert_eq!(p.display_name, "daemon-system");
+    }
+
+    #[test]
+    fn resolve_principal__wire_present_overrides_env() {
+        use ai_brains_core::temp_env::TempEnv;
+        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").expect("env fixture");
+        let wire_id =
+            Uuid::parse_str("11111111-2222-3333-4444-555555555555").expect("wire fixture");
+        let _guard = TempEnv::set("AI_BRAINS_DAEMON_PRINCIPAL_ID", env_id.to_string());
+        let p = resolve_principal(Some(&wire_id.to_string()));
+        assert_eq!(
+            p.id.to_string(),
+            wire_id.to_string(),
+            "wire principal_id must win over AI_BRAINS_DAEMON_PRINCIPAL_ID"
+        );
+        assert!(matches!(p.kind, PrincipalKind::Human));
     }
 }

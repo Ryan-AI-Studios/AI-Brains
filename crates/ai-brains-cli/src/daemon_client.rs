@@ -2,6 +2,78 @@ use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+/// Default bound for a full request/response cycle on the governed surface.
+pub const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Errors from [`DaemonClient::request`] / probe transport.
+#[derive(Debug)]
+pub enum DaemonClientError {
+    /// Named pipe / socket is not accepting connections (daemon not running).
+    NotRunning(String),
+    /// Connect or write failed before the request body was fully sent.
+    Transport { message: String, request_sent: bool },
+    /// Timeout. When `request_sent` is true the outcome is **ambiguous**
+    /// (daemon may have applied the mutation).
+    Timeout { request_sent: bool },
+    /// Response bytes were not valid line-delimited DaemonResponse JSON.
+    Protocol(String),
+}
+
+impl std::fmt::Display for DaemonClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotRunning(m) => write!(f, "daemon not running: {m}"),
+            Self::Transport {
+                message,
+                request_sent,
+            } => {
+                if *request_sent {
+                    write!(
+                        f,
+                        "daemon transport error after send (outcome may be unknown): {message}"
+                    )
+                } else {
+                    write!(f, "daemon transport error: {message}")
+                }
+            }
+            Self::Timeout { request_sent } => {
+                if *request_sent {
+                    write!(
+                        f,
+                        "daemon timeout after request was sent (outcome unknown; retry same --command-id on daemon)"
+                    )
+                } else {
+                    write!(f, "daemon timeout before request could be sent")
+                }
+            }
+            Self::Protocol(m) => write!(f, "daemon protocol error: {m}"),
+        }
+    }
+}
+
+impl std::error::Error for DaemonClientError {}
+
+impl DaemonClientError {
+    /// True when the request body was fully written and the outcome is unknown.
+    pub fn is_ambiguous(&self) -> bool {
+        match self {
+            Self::Timeout { request_sent } => *request_sent,
+            Self::Transport { request_sent, .. } => *request_sent,
+            Self::NotRunning(_) | Self::Protocol(_) => false,
+        }
+    }
+
+    /// True when the daemon was unreachable before any send (safe for local fallback).
+    pub fn is_pre_send_unavailable(&self) -> bool {
+        match self {
+            Self::NotRunning(_) => true,
+            Self::Timeout { request_sent } => !*request_sent,
+            Self::Transport { request_sent, .. } => !*request_sent,
+            Self::Protocol(_) => false,
+        }
+    }
+}
+
 pub struct DaemonClient {
     #[cfg(windows)]
     pipe_path: String,
@@ -37,11 +109,9 @@ impl DaemonClient {
             .to_path_buf();
         daemon_path.push(daemon_name);
 
-        // Try next to current exe first
         let mut cmd = if daemon_path.exists() {
             std::process::Command::new(daemon_path)
         } else {
-            // Fallback to searching PATH
             std::process::Command::new(daemon_name)
         };
 
@@ -68,22 +138,17 @@ impl DaemonClient {
         vault_path: &std::path::Path,
         key: &ai_brains_crypto::SqlCipherKey,
     ) -> bool {
-        // First probe with ultra-fast timeout
         if self.probe(Duration::from_millis(10)).await {
             return true;
         }
 
-        // Potential race: another process might be spawning the daemon right now.
-        // Add a small jittered backoff and re-probe before attempting to spawn.
         let jitter = (std::process::id() % 50) as u64;
         tokio::time::sleep(Duration::from_millis(10 + jitter)).await;
         if self.probe(Duration::from_millis(10)).await {
             return true;
         }
 
-        // Still not running, try to spawn
         if self.spawn_daemon(vault_path, key).is_ok() {
-            // Give it some time to start and probe again
             for _ in 0..5 {
                 tokio::time::sleep(Duration::from_millis(50)).await;
                 if self.probe(Duration::from_millis(10)).await {
@@ -96,116 +161,265 @@ impl DaemonClient {
     }
 
     pub async fn probe(&self, timeout: Duration) -> bool {
+        matches!(
+            self.request_with_timeout(DaemonRequest::Ping, timeout)
+                .await,
+            Ok(DaemonResponse::Pong)
+        )
+    }
+
+    /// Send a full line-delimited [`DaemonRequest`] and await one [`DaemonResponse`].
+    pub async fn request(&self, req: DaemonRequest) -> Result<DaemonResponse, DaemonClientError> {
+        self.request_with_timeout(req, DEFAULT_REQUEST_TIMEOUT)
+            .await
+    }
+
+    /// Like [`Self::request`] with an explicit timeout bound.
+    pub async fn request_with_timeout(
+        &self,
+        req: DaemonRequest,
+        timeout: Duration,
+    ) -> Result<DaemonResponse, DaemonClientError> {
+        let mut payload = serde_json::to_vec(&req)
+            .map_err(|e| DaemonClientError::Protocol(format!("serialize request failed: {e}")))?;
+        payload.push(b'\n');
+
         #[cfg(windows)]
         {
-            use tokio::net::windows::named_pipe::ClientOptions;
-            use tokio::time::timeout as tokio_timeout;
-
-            let start = std::time::Instant::now();
-            while start.elapsed() < timeout {
-                match ClientOptions::new().open(&self.pipe_path) {
-                    Ok(mut stream) => {
-                        let ping = DaemonRequest::Ping;
-                        if let Ok(json) = serde_json::to_vec(&ping) {
-                            let mut payload = json;
-                            payload.push(b'\n');
-
-                            // Use tokio_timeout for write/read to stay within limits
-                            let remaining = timeout.saturating_sub(start.elapsed());
-                            if tokio_timeout(remaining, stream.write_all(&payload))
-                                .await
-                                .is_ok()
-                            {
-                                let mut buffer = [0u8; 1024];
-                                let remaining = timeout.saturating_sub(start.elapsed());
-                                if let Ok(Ok(n)) =
-                                    tokio_timeout(remaining, stream.read(&mut buffer)).await
-                                    && n > 0
-                                    && let Ok(resp) =
-                                        serde_json::from_slice::<DaemonResponse>(&buffer[..n])
-                                    && matches!(resp, DaemonResponse::Pong)
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }
-                    Err(_) => {
-                        tokio::time::sleep(Duration::from_millis(1)).await;
-                    }
-                }
-            }
-            false
+            self.request_windows(&payload, timeout).await
         }
 
         #[cfg(not(windows))]
         {
-            use tokio::net::UnixStream;
-            use tokio::time::timeout as tokio_timeout;
-
-            let start = std::time::Instant::now();
-            while start.elapsed() < timeout {
-                let remaining = timeout.saturating_sub(start.elapsed());
-                if let Ok(Ok(mut stream)) =
-                    tokio_timeout(remaining, UnixStream::connect(&self.socket_path)).await
-                {
-                    let ping = DaemonRequest::Ping;
-                    if let Ok(json) = serde_json::to_vec(&ping) {
-                        let mut payload = json;
-                        payload.push(b'\n');
-
-                        let remaining = timeout.saturating_sub(start.elapsed());
-                        if tokio_timeout(remaining, stream.write_all(&payload))
-                            .await
-                            .is_ok()
-                        {
-                            let mut buffer = [0u8; 1024];
-                            let remaining = timeout.saturating_sub(start.elapsed());
-                            if let Ok(Ok(n)) =
-                                tokio_timeout(remaining, stream.read(&mut buffer)).await
-                            {
-                                if n > 0 {
-                                    if let Ok(resp) =
-                                        serde_json::from_slice::<DaemonResponse>(&buffer[..n])
-                                    {
-                                        if matches!(resp, DaemonResponse::Pong) {
-                                            return true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return false;
-                }
-                tokio::time::sleep(Duration::from_millis(1)).await;
-            }
-            false
+            self.request_unix(&payload, timeout).await
         }
     }
 
-    pub async fn shutdown(&self) -> Result<(), Box<dyn std::error::Error>> {
-        #[cfg(windows)]
-        {
-            use tokio::net::windows::named_pipe::ClientOptions;
-            let mut stream = ClientOptions::new().open(&self.pipe_path)?;
-            let shutdown = DaemonRequest::Shutdown;
-            let mut payload = serde_json::to_vec(&shutdown)?;
-            payload.push(b'\n');
-            stream.write_all(&payload).await?;
-            Ok(())
+    #[cfg(windows)]
+    async fn request_windows(
+        &self,
+        payload: &[u8],
+        timeout: Duration,
+    ) -> Result<DaemonResponse, DaemonClientError> {
+        use tokio::net::windows::named_pipe::ClientOptions;
+        use tokio::time::timeout as tokio_timeout;
+
+        let mut stream = match ClientOptions::new().open(&self.pipe_path) {
+            Ok(s) => s,
+            Err(e) => {
+                return Err(DaemonClientError::NotRunning(format!(
+                    "open pipe {}: {e}",
+                    self.pipe_path
+                )));
+            }
+        };
+
+        match tokio_timeout(timeout, stream.write_all(payload)).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                return Err(DaemonClientError::Transport {
+                    message: format!("write failed: {e}"),
+                    request_sent: false,
+                });
+            }
+            Err(_) => {
+                return Err(DaemonClientError::Timeout {
+                    request_sent: false,
+                });
+            }
         }
 
-        #[cfg(not(windows))]
-        {
-            use tokio::net::UnixStream;
-            let mut stream = UnixStream::connect(&self.socket_path).await?;
-            let shutdown = DaemonRequest::Shutdown;
-            let mut payload = serde_json::to_vec(&shutdown)?;
-            payload.push(b'\n');
-            stream.write_all(&payload).await?;
-            Ok(())
+        let mut buffer = Vec::with_capacity(8192);
+        let mut chunk = [0u8; 8192];
+        let read_deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            let remaining = read_deadline.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                return Err(DaemonClientError::Timeout { request_sent: true });
+            }
+            match tokio_timeout(remaining, stream.read(&mut chunk)).await {
+                Ok(Ok(0)) => {
+                    if buffer.is_empty() {
+                        return Err(DaemonClientError::Transport {
+                            message: "connection closed before response".into(),
+                            request_sent: true,
+                        });
+                    }
+                    break;
+                }
+                Ok(Ok(n)) => {
+                    buffer.extend_from_slice(&chunk[..n]);
+                    if buffer.contains(&b'\n') || looks_like_complete_json(&buffer) {
+                        break;
+                    }
+                }
+                Ok(Err(e)) => {
+                    return Err(DaemonClientError::Transport {
+                        message: format!("read failed: {e}"),
+                        request_sent: true,
+                    });
+                }
+                Err(_) => {
+                    return Err(DaemonClientError::Timeout { request_sent: true });
+                }
+            }
         }
+
+        parse_daemon_response_line(&buffer)
+    }
+
+    #[cfg(not(windows))]
+    async fn request_unix(
+        &self,
+        payload: &[u8],
+        timeout: Duration,
+    ) -> Result<DaemonResponse, DaemonClientError> {
+        use tokio::net::UnixStream;
+        use tokio::time::timeout as tokio_timeout;
+
+        let mut stream = match tokio_timeout(timeout, UnixStream::connect(&self.socket_path)).await
+        {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => {
+                return Err(DaemonClientError::NotRunning(format!(
+                    "connect {}: {e}",
+                    self.socket_path
+                )));
+            }
+            Err(_) => {
+                return Err(DaemonClientError::Timeout {
+                    request_sent: false,
+                });
+            }
+        };
+
+        match tokio_timeout(timeout, stream.write_all(payload)).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                return Err(DaemonClientError::Transport {
+                    message: format!("write failed: {e}"),
+                    request_sent: false,
+                });
+            }
+            Err(_) => {
+                return Err(DaemonClientError::Timeout {
+                    request_sent: false,
+                });
+            }
+        }
+
+        let mut buffer = Vec::with_capacity(8192);
+        let mut chunk = [0u8; 8192];
+        let read_deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            let remaining = read_deadline.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                return Err(DaemonClientError::Timeout { request_sent: true });
+            }
+            match tokio_timeout(remaining, stream.read(&mut chunk)).await {
+                Ok(Ok(0)) => {
+                    if buffer.is_empty() {
+                        return Err(DaemonClientError::Transport {
+                            message: "connection closed before response".into(),
+                            request_sent: true,
+                        });
+                    }
+                    break;
+                }
+                Ok(Ok(n)) => {
+                    buffer.extend_from_slice(&chunk[..n]);
+                    if buffer.contains(&b'\n') || looks_like_complete_json(&buffer) {
+                        break;
+                    }
+                }
+                Ok(Err(e)) => {
+                    return Err(DaemonClientError::Transport {
+                        message: format!("read failed: {e}"),
+                        request_sent: true,
+                    });
+                }
+                Err(_) => {
+                    return Err(DaemonClientError::Timeout { request_sent: true });
+                }
+            }
+        }
+
+        parse_daemon_response_line(&buffer)
+    }
+
+    pub async fn shutdown(&self) -> Result<(), Box<dyn std::error::Error>> {
+        match self.request(DaemonRequest::Shutdown).await {
+            Ok(_) => Ok(()),
+            Err(DaemonClientError::Transport { .. })
+            | Err(DaemonClientError::Timeout { .. })
+            | Err(DaemonClientError::NotRunning(_)) => Ok(()),
+            Err(e) => Err(Box::new(e)),
+        }
+    }
+}
+
+impl Default for DaemonClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn looks_like_complete_json(buf: &[u8]) -> bool {
+    let s = std::str::from_utf8(buf).unwrap_or("").trim();
+    if s.is_empty() {
+        return false;
+    }
+    let open = s.chars().filter(|c| *c == '{').count();
+    let close = s.chars().filter(|c| *c == '}').count();
+    open > 0 && open == close && s.starts_with('{')
+}
+
+fn parse_daemon_response_line(buffer: &[u8]) -> Result<DaemonResponse, DaemonClientError> {
+    let line = match buffer.iter().position(|&b| b == b'\n') {
+        Some(i) => &buffer[..i],
+        None => buffer,
+    };
+    let trimmed = line
+        .iter()
+        .copied()
+        .skip_while(|b| b.is_ascii_whitespace())
+        .collect::<Vec<u8>>();
+    if trimmed.is_empty() {
+        return Err(DaemonClientError::Protocol(
+            "empty response from daemon".into(),
+        ));
+    }
+    serde_json::from_slice::<DaemonResponse>(&trimmed).map_err(|e| {
+        DaemonClientError::Protocol(format!(
+            "invalid DaemonResponse JSON: {e}; body={}",
+            String::from_utf8_lossy(&trimmed)
+        ))
+    })
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn daemon_client_error__timeout_after_send__is_ambiguous() {
+        let err = DaemonClientError::Timeout { request_sent: true };
+        assert!(err.is_ambiguous());
+        assert!(!err.is_pre_send_unavailable());
+    }
+
+    #[test]
+    fn daemon_client_error__not_running__pre_send() {
+        let err = DaemonClientError::NotRunning("pipe closed".into());
+        assert!(!err.is_ambiguous());
+        assert!(err.is_pre_send_unavailable());
+    }
+
+    #[test]
+    fn parse_daemon_response_line__pong() {
+        let raw = br#"{"type":"pong"}"#;
+        let resp = parse_daemon_response_line(raw).expect("parse");
+        assert!(matches!(resp, DaemonResponse::Pong));
     }
 }

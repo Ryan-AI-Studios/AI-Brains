@@ -16,7 +16,7 @@ use uuid::Uuid;
 use crate::errors::{ControlPlaneError, Result};
 use crate::ports::{
     ClaimConflictRow, Clock, ConclusionRow, DecisionRow, EventWriter, Fingerprinter,
-    GovernedQueryStore, PolicyContext, PolicyEvaluator, ReviewItemRow, StaleFact,
+    GovernedQueryStore, PolicyContext, PolicyEvaluator, ReviewItemRow, SourceRow, StaleFact,
 };
 
 /// [`EventWriter`] over a real [`SqliteEventStore`] (transactional multi-append).
@@ -331,6 +331,41 @@ impl GovernedQueryStore for StoreGovernedQuery {
                 Ok(Some(SourceId::from_uuid(uuid)))
             }
             None => Ok(None),
+        }
+    }
+
+    fn get_source(&self, source_id: SourceId) -> Result<Option<SourceRow>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        match conn.query_row(
+            "SELECT source_id, kind, display_name, locator, last_observed_at, scope
+             FROM source_projection WHERE source_id = ?",
+            [source_id.to_string()],
+            |row| {
+                let id_s: String = row.get(0)?;
+                let last_observed_s: Option<String> = row.get(4)?;
+                let last_observed_at = last_observed_s.and_then(|s| {
+                    OffsetDateTime::parse(&s, &time::format_description::well_known::Rfc3339).ok()
+                });
+                Ok(SourceRow {
+                    id: SourceId::from_uuid(
+                        Uuid::parse_str(&id_s)
+                            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
+                    ),
+                    kind: row.get(1)?,
+                    display_name: row.get(2)?,
+                    locator: row.get(3)?,
+                    last_observed_at,
+                    scope: row.get(5)?,
+                })
+            },
+        ) {
+            Ok(row) => Ok(Some(row)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(ControlPlaneError::Query(e.to_string())),
         }
     }
 

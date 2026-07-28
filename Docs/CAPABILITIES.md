@@ -49,6 +49,7 @@ AI final response: I did X
 ```text
 init | ingest | recall | preflight | nightly | backup | forget | stop-session
 context | pin | safety | sync | antigravity-import | agy-hook | daemon | project | graph
+briefing | query | scope | evidence | source | conclusion | decision | review | policy | erasure
 ```
 
 **Global options:**

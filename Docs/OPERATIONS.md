@@ -126,6 +126,27 @@ ai-brains query expand <handle-id> --project-id <uuid>
 ai-brains query trace <trace-id>
 ```
 
+### Governed command surface (T160)
+
+Thin CLI over control-plane (local default for reads) and named-pipe daemon (preferred for mutations). JSON default for new commands; exit codes: 3=POLICY_DENIED, 4=NOT_FOUND, 5=DAEMON_UNAVAILABLE, 6=INVALID_PAYLOAD.
+
+```powershell
+ai-brains scope resolve --format json
+ai-brains evidence show <id> --scope Repository:<uuid> --format json
+ai-brains source show <id> --scope Repository:<uuid>
+ai-brains review list --scope Repository:<uuid>
+ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local
+ai-brains decision propose --statement "..." --scope Repository:<uuid>
+ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>
+ai-brains erasure request --id <id> --scope Repository:<uuid>   # daemon-required; no CE wipe
+ai-brains policy show --scope Repository:<uuid>
+ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
+```
+
+- Mutations auto-generate `--command-id` when omitted; local propose uses shared CP `id_from_command` (same pre-assigned domain id as daemon).
+- After a mutation is **sent** to the daemon, timeout → non-zero + "outcome unknown; retry same --command-id" (no silent local fallback).
+- Erasure is always daemon-required (`--local` rejected). Ticket honesty only — never claims content-envelope wipe.
+
 ## 4. Project & Session Management
 
 ### Project Setup
@@ -162,7 +183,7 @@ ai-brains daemon stop              # graceful shutdown (use --force if it hangs)
 ai-brains daemon install           # install as Windows service (requires elevation)
 ai-brains daemon uninstall         # remove the Windows service (requires elevation)
 ```
-- **Governed IPC (T159):** propose/resolve/erasure mutations go through the writer queue; scope/briefing/query/inspect are off-queue reads. Spool durable crash recovery for governed mutations **only** when the request includes `command_id` (filename `{op}_{sanitized_command_id}.json`). Briefings over the daemon are dry-run. Erasure returns `accepted` only after a durable `ErasureTicketAccepted` ticket event (content-envelope wipe remains P8). Principal: wire `principal_id` UUID → Human, else `AI_BRAINS_DAEMON_PRINCIPAL_ID`, else System default. Production policy only (`production_policy`).
+- **Governed IPC (T159):** propose/resolve/erasure mutations go through the writer queue; scope/briefing/query/inspect are off-queue reads. Spool durable crash recovery for governed mutations **only** when the request includes `command_id` (filename `{op}_{sanitized_command_id}.json`). Briefings over the daemon are dry-run. Erasure returns `accepted` only after a durable `ErasureTicketAccepted` ticket event (content-envelope wipe remains P8). Principal: wire `principal_id` UUID → System if well-known CLI System UUID, else Human; if wire omitted, `AI_BRAINS_DAEMON_PRINCIPAL_ID`, else System default. CLI always passes resolved `principal_id` on daemon wire (T160). Production policy only (`production_policy`).
 - The CLI auto-launches the daemon if it is unreachable, so most users never need `daemon start` explicitly.
 - **Windows service (recommended for persistent daemon):** `daemon install` registers `AI-Brains-Daemon` as a Windows service running as `LocalSystem` in Session 0. The pipe security descriptor grants the interactive user cross-session access, so CLI clients in Session 1 can connect. Env vars (vault path, model URLs) are written to `%ProgramData%\AI-Brains\daemon.env` with a restrictive ACL (`SYSTEM:F` + `Administrators:F` only — same model as the nightly SYSTEM wrapper; T145). Requires an elevated PowerShell session.
 - **Deprecated:** `daemon schedule` / `unschedule` (Task Scheduler ONLOGON) still work but are deprecated in favor of `install` / `uninstall`. The Task Scheduler approach had a cross-session pipe access issue where Session 0 daemons were unreachable from Session 1.
@@ -335,6 +356,10 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
 | Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (JSON packet; see T152 section) |
 | Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` |
+| Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence show` · `source show` · `review list\|resolve` (T160) |
+| Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
+| Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |
+| Policy show / check | `ai-brains policy show\|check` (read-only grants) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
 | Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |
 | Forget Memory | `ai-brains forget` (use `--match` for search, `--restore` undo, `-f` to skip confirm) |
