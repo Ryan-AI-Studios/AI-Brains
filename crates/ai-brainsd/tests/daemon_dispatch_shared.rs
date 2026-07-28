@@ -17,12 +17,29 @@ use ai_brainsd::dispatch::{
     INVALID_REQUEST, LiveDispatchResult, handle_daemon_request, parse_live_request_line,
     write_dispatch_result,
 };
-use ai_brainsd::services::GovernedServices;
-use std::path::PathBuf;
+use ai_brainsd::services::{GovernedServices, governed_spool_stem};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::AsyncReadExt;
 use uuid::Uuid;
+
+/// Poll until `pred` is true or `timeout` elapses (project: no fixed sleep-for-async).
+async fn wait_for_condition<F>(timeout: Duration, interval: Duration, mut pred: F) -> bool
+where
+    F: FnMut() -> bool,
+{
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        if pred() {
+            return true;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(interval).await;
+    }
+}
 
 fn unique_dir(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
@@ -412,8 +429,8 @@ async fn command_id_spool__replay__exactly_one_conclusion_proposed_event()
     };
 
     // Simulate crash-after-append-before-spool-delete: write spool file again.
-    let spool_name = ai_brainsd::services::sanitize_command_id_for_filename(&command_id);
-    let spool_path = h.writer.spool_dir().join(format!("{spool_name}.json"));
+    let stem = governed_spool_stem("propose_conclusion", &command_id);
+    let spool_path = h.writer.spool_dir().join(format!("{stem}.json"));
     let req = DaemonRequest::ProposeConclusion(ProposeConclusionRequest {
         api_version: "1".into(),
         principal_id: Some(principal_id.to_string()),
@@ -425,11 +442,19 @@ async fn command_id_spool__replay__exactly_one_conclusion_proposed_event()
     });
     tokio::fs::write(&spool_path, serde_json::to_vec(&req)?).await?;
 
-    // Restart writer → replay_spool
+    // Restart writer → replay_spool (runs in worker spawn before live recv).
     let writer2 =
         DaemonWriter::start(h.writer.spool_dir().to_path_buf(), Arc::clone(&h.store)).await?;
-    let _ = writer2; // keep alive until replay completes (start awaits replay in worker spawn)
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    let _ = writer2;
+
+    let spool_gone = wait_for_condition(Duration::from_secs(2), Duration::from_millis(50), || {
+        !Path::new(&spool_path).exists()
+    })
+    .await;
+    assert!(
+        spool_gone,
+        "spool file should be deleted after successful replay"
+    );
 
     let events = h.store.read_all_events().map_err(|e| e.to_string())?;
     let proposed = events
@@ -447,6 +472,38 @@ async fn command_id_spool__replay__exactly_one_conclusion_proposed_event()
         "spool replay must not double-append ConclusionProposed"
     );
     Ok(())
+}
+
+#[tokio::test]
+async fn handle_daemon_request__query_knowledge_bad_scope__invalid_payload()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let h = start_harness("query-bad-scope").await?;
+    let outcome = handle_daemon_request(
+        DaemonRequest::QueryKnowledge(QueryKnowledgeRequest {
+            api_version: "1".into(),
+            query: "budget".into(),
+            scope: Some("not-a-valid-scope".into()),
+            principal_id: None,
+            limit: Some(5),
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(
+                    err.code, "INVALID_PAYLOAD",
+                    "query-path CP errors must use frozen codes, not host DAEMON_ERROR"
+                );
+                Ok(())
+            }
+            other => panic!("expected INVALID_PAYLOAD Error, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
 }
 
 #[tokio::test]

@@ -25,8 +25,11 @@
 //!
 //! # Spool
 //!
-//! Governed mutations spool **only** when `command_id` is present (filename
-//! sanitized from the id). Without `command_id`, process live with no durable spool.
+//! Governed mutations spool **only** when `command_id` is present. Filename is
+//! `{op}_{sanitized_command_id}.json` (op-scoped to avoid cross-op collision).
+//! Without `command_id`, process live with no durable spool.
+//! Terminal domain outcomes delete spool; retriable infra (`EventAppend` /
+//! `Query` / `Clock`) keep spool for restart replay.
 //!
 //! # Erasure honesty
 //!
@@ -36,8 +39,8 @@
 
 use ai_brains_contracts::briefings::{
     InspectEvidenceRequest, PersonalBriefingRequest as WirePersonalBriefing,
-    PersonalBriefingResponse, ProgressiveQueryResponse,
-    ProjectBriefingRequest as WireProjectBriefing, ProjectBriefingResponse, QueryKnowledgeRequest,
+    PersonalBriefingResponse, ProjectBriefingRequest as WireProjectBriefing,
+    ProjectBriefingResponse, QueryKnowledgeRequest,
 };
 use ai_brains_contracts::erasure::{ErasureAcceptedResponse, RequestErasureRequest};
 use ai_brains_contracts::knowledge::{
@@ -81,8 +84,9 @@ use uuid::Uuid;
 /// UUID v5 namespace seeds (DNS-style) for command_id → domain id derivation.
 pub const NS_PROPOSE_CONCLUSION: &str = "ai-brains.command.propose_conclusion";
 pub const NS_PROPOSE_DECISION: &str = "ai-brains.command.propose_decision";
-pub const NS_RESOLVE_REVIEW: &str = "ai-brains.command.resolve_review_item";
 pub const NS_REQUEST_ERASURE: &str = "ai-brains.command.request_erasure";
+// Review resolve idempotency is review_item_id + status based in control-plane
+// (not a command_id-derived domain id). Spool still keys by command_id when set.
 
 /// Warning text for erasure responses (P8 residual — no CE wipe in T159).
 pub const ERASURE_CE_WIPE_WARNING: &str =
@@ -135,8 +139,10 @@ impl GovernedServices {
             personal_user_id,
             git_metadata: None,
         };
-        let resolved = resolve_scope(&input, &identity).map_err(map_control_plane_error_to_box)?;
-        Ok(DaemonResponse::ScopeResolved(map_resolved_scope(&resolved)))
+        match resolve_scope(&input, &identity) {
+            Ok(resolved) => Ok(DaemonResponse::ScopeResolved(map_resolved_scope(&resolved))),
+            Err(e) => Ok(map_control_plane_error(e)),
+        }
     }
 
     pub fn project_briefing(&self, req: WireProjectBriefing) -> Result<DaemonResponse, BoxError> {
@@ -160,7 +166,7 @@ impl GovernedServices {
                     .as_deref()
                     .and_then(|s| ProjectId::from_str(s).ok())
             });
-        let packet = build_project_briefing(
+        match build_project_briefing(
             None::<&StoreEventWriter>, // dry_run: no writer
             &ports.query,
             &clock,
@@ -184,11 +190,12 @@ impl GovernedServices {
                 briefing_id: None,
                 ledgerful: None,
             },
-        )
-        .map_err(map_control_plane_error_to_box)?;
-        Ok(DaemonResponse::ProjectBriefing(
-            ProjectBriefingResponse::new(packet),
-        ))
+        ) {
+            Ok(packet) => Ok(DaemonResponse::ProjectBriefing(
+                ProjectBriefingResponse::new(packet),
+            )),
+            Err(e) => Ok(map_control_plane_error(e)),
+        }
     }
 
     pub fn personal_briefing(&self, req: WirePersonalBriefing) -> Result<DaemonResponse, BoxError> {
@@ -203,7 +210,7 @@ impl GovernedServices {
             .unwrap_or_else(|| UserId::from_uuid(principal.id.as_uuid()));
         let grant_store = ports.grant_store();
         let personal_scope_key = scope_identity_key(&ScopeRef::Personal(user_id));
-        let packet = build_personal_briefing(
+        match build_personal_briefing(
             None::<&StoreEventWriter>,
             &ports.query,
             &clock,
@@ -226,11 +233,12 @@ impl GovernedServices {
                 dry_run: true,
                 briefing_id: None,
             },
-        )
-        .map_err(map_control_plane_error_to_box)?;
-        Ok(DaemonResponse::PersonalBriefing(
-            PersonalBriefingResponse::new(packet),
-        ))
+        ) {
+            Ok(packet) => Ok(DaemonResponse::PersonalBriefing(
+                PersonalBriefingResponse::new(packet),
+            )),
+            Err(e) => Ok(map_control_plane_error(e)),
+        }
     }
 
     pub fn query_knowledge(&self, req: QueryKnowledgeRequest) -> Result<DaemonResponse, BoxError> {
@@ -239,7 +247,10 @@ impl GovernedServices {
         let policy = ports.production_policy();
         let principal = resolve_principal(req.principal_id.as_deref());
         let scope = match req.scope.as_deref() {
-            Some(s) => parse_scope_key(s).map_err(map_control_plane_error_to_box)?,
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
             None => {
                 return Ok(DaemonResponse::Error(ApiError::new(
                     "INVALID_PAYLOAD",
@@ -248,7 +259,7 @@ impl GovernedServices {
             }
         };
         let event_store = ports.store();
-        let resp: ProgressiveQueryResponse = progressive_query(
+        match progressive_query(
             None::<&StoreEventWriter>, // dry_run for daemon v1
             &ports.query,
             &event_store,
@@ -263,9 +274,10 @@ impl GovernedServices {
                 dry_run: true,
                 at: None,
             },
-        )
-        .map_err(map_control_plane_error_to_box)?;
-        Ok(DaemonResponse::QueryKnowledge(resp))
+        ) {
+            Ok(resp) => Ok(DaemonResponse::QueryKnowledge(resp)),
+            Err(e) => Ok(map_control_plane_error(e)),
+        }
     }
 
     pub fn inspect_evidence(
@@ -276,7 +288,10 @@ impl GovernedServices {
         let policy = ports.production_policy();
         let principal = resolve_principal(req.principal_id.as_deref());
         let scope = match req.scope.as_deref() {
-            Some(s) => parse_scope_key(s).map_err(map_control_plane_error_to_box)?,
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
             None => {
                 return Ok(DaemonResponse::Error(ApiError::new(
                     "INVALID_PAYLOAD",
@@ -285,7 +300,7 @@ impl GovernedServices {
             }
         };
         let event_store = ports.store();
-        let preview = expand_handle(
+        match expand_handle(
             &ports.query,
             &event_store,
             &policy,
@@ -296,9 +311,10 @@ impl GovernedServices {
                 privacy: Privacy::LocalOnly,
                 max_chars: req.max_chars.unwrap_or(512),
             },
-        )
-        .map_err(map_control_plane_error_to_box)?;
-        Ok(DaemonResponse::EvidencePreview(preview))
+        ) {
+            Ok(preview) => Ok(DaemonResponse::EvidencePreview(preview)),
+            Err(e) => Ok(map_control_plane_error(e)),
+        }
     }
 
     pub fn inspect_source(&self, req: InspectSourceRequest) -> Result<DaemonResponse, BoxError> {
@@ -325,10 +341,10 @@ impl GovernedServices {
         req: ListReviewItemsRequest,
     ) -> Result<DaemonResponse, BoxError> {
         let ports = self.ports();
-        let mut items = ports
-            .query
-            .list_open_review_items()
-            .map_err(map_control_plane_error_to_box)?;
+        let mut items = match ports.query.list_open_review_items() {
+            Ok(items) => items,
+            Err(e) => return Ok(map_control_plane_error(e)),
+        };
         if let Some(status_filter) = req.status.as_deref() {
             // Open-list API only returns Open; if filter is something else → empty.
             if !status_filter.eq_ignore_ascii_case("Open") {
@@ -418,7 +434,7 @@ fn process_propose_conclusion(
                 ConclusionProposedResponse::new(res.conclusion_id.to_string(), status),
             ))
         }
-        Err(e) => Ok(map_control_plane_error(e)),
+        Err(e) => map_mutation_control_plane_error(e),
     }
 }
 
@@ -484,7 +500,7 @@ fn process_propose_decision(
         Ok(res) => Ok(DaemonResponse::DecisionProposed(
             DecisionProposedResponse::new(res.decision_id.to_string(), "proposed"),
         )),
-        Err(e) => Ok(map_control_plane_error(e)),
+        Err(e) => map_mutation_control_plane_error(e),
     }
 }
 
@@ -519,11 +535,8 @@ fn process_resolve_review(
         .clone()
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| req.resolution.clone());
-    // command_id namespace is frozen for future review-linked ids; resolution is keyed by review id.
-    let _ = req
-        .command_id
-        .as_deref()
-        .map(|cid| id_from_command(NS_RESOLVE_REVIEW, cid));
+    // command_id is used only for spool durability (filename); CP detect-already-done
+    // keys on review_item_id + status, not a command_id-derived domain id.
 
     let policy = ports.production_policy();
     match resolve_review_item(
@@ -549,7 +562,7 @@ fn process_resolve_review(
                 status,
             )))
         }
-        Err(e) => Ok(map_control_plane_error(e)),
+        Err(e) => map_mutation_control_plane_error(e),
     }
 }
 
@@ -592,10 +605,11 @@ fn process_request_erasure(
     ))
     .map_err(|e| -> BoxError { format!("erasure ticket event build: {e}").into() })?;
 
+    // Append failure is retriable infra — return Err so command_id spool is retained.
     ports
         .writer
         .append_events(&[event])
-        .map_err(map_control_plane_error_to_box)?;
+        .map_err(|e| -> BoxError { e.to_string().into() })?;
 
     let mut resp = ErasureAcceptedResponse::new(request_id, "accepted");
     resp.warnings.push(ERASURE_CE_WIPE_WARNING.to_string());
@@ -657,9 +671,37 @@ pub fn map_resolved_scope(resolved: &ResolvedScope) -> ScopeResolvedResponse {
 }
 
 /// Map [`ControlPlaneError`] → structured [`DaemonResponse::Error`].
+///
+/// Used for queries (all CP errors) and mutation **terminal** domain outcomes.
 pub fn map_control_plane_error(err: ControlPlaneError) -> DaemonResponse {
     let (code, message) = control_plane_error_parts(&err);
     DaemonResponse::Error(ApiError::new(code, message))
+}
+
+/// Store/clock failures that must keep the command_id spool for restart replay.
+///
+/// Terminal domain outcomes (`PolicyDenied`, `NotFound`, `InvalidPayload`,
+/// `ApprovalRequired`, `InvalidTransition`, `UnsupportedCannotConfirm`,
+/// `IdentityConflict`, `Fingerprint`) complete handling → spool deleted.
+pub fn is_retriable_control_plane_error(err: &ControlPlaneError) -> bool {
+    matches!(
+        err,
+        ControlPlaneError::EventAppend(_)
+            | ControlPlaneError::Query(_)
+            | ControlPlaneError::Clock(_)
+    )
+}
+
+/// Mutation-path mapping: terminal domain → `Ok(Error(...))` (spool deleted);
+/// retriable infra → `Err` (writer retains spool for restart replay).
+pub fn map_mutation_control_plane_error(
+    err: ControlPlaneError,
+) -> Result<DaemonResponse, BoxError> {
+    if is_retriable_control_plane_error(&err) {
+        Err(err.to_string().into())
+    } else {
+        Ok(map_control_plane_error(err))
+    }
 }
 
 fn control_plane_error_parts(err: &ControlPlaneError) -> (&'static str, String) {
@@ -669,13 +711,11 @@ fn control_plane_error_parts(err: &ControlPlaneError) -> (&'static str, String) 
         ControlPlaneError::InvalidPayload(m) => ("INVALID_PAYLOAD", m.clone()),
         ControlPlaneError::ApprovalRequired(m) => ("APPROVAL_REQUIRED", m.clone()),
         ControlPlaneError::InvalidTransition(m) => ("INVALID_TRANSITION", m.clone()),
+        // Terminal domain codes without a dedicated frozen wire code → INTERNAL.
+        // Retriable infra (EventAppend/Query/Clock) also map here when structured;
+        // mutation path surfaces those as Err instead of this mapper.
         other => ("INTERNAL", other.to_string()),
     }
-}
-
-fn map_control_plane_error_to_box(err: ControlPlaneError) -> BoxError {
-    // Prefer structured responses at call sites; this path is for unexpected query failures.
-    format!("{err}").into()
 }
 
 /// Resolve principal for daemon IPC (see module docs).
@@ -716,7 +756,7 @@ pub fn id_from_command(namespace_name: &str, command_id: &str) -> Uuid {
     Uuid::new_v5(&ns, command_id.as_bytes())
 }
 
-/// Sanitize command_id for use as a spool filename stem.
+/// Sanitize command_id for use as a spool filename stem component.
 pub fn sanitize_command_id_for_filename(command_id: &str) -> String {
     let mut out: String = command_id
         .chars()
@@ -736,6 +776,25 @@ pub fn sanitize_command_id_for_filename(command_id: &str) -> String {
         out.truncate(120);
     }
     out
+}
+
+/// Stable op kind for governed spool filenames (avoids cross-op command_id collision).
+pub fn governed_mutation_op_kind(op: &GovernedMutation) -> &'static str {
+    match op {
+        GovernedMutation::ProposeConclusion(_) => "propose_conclusion",
+        GovernedMutation::ProposeDecision(_) => "propose_decision",
+        GovernedMutation::ResolveReviewItem(_) => "resolve_review_item",
+        GovernedMutation::RequestErasure(_) => "request_erasure",
+    }
+}
+
+/// Spool filename stem: `{op}_{sanitized_command_id}` (caller appends `.json`).
+pub fn governed_spool_stem(op_kind: &str, command_id: &str) -> String {
+    format!(
+        "{}_{}",
+        op_kind,
+        sanitize_command_id_for_filename(command_id)
+    )
 }
 
 fn confidence_name(c: ScopeConfidence) -> &'static str {
@@ -869,6 +928,138 @@ mod tests {
     }
 
     #[test]
+    fn map_control_plane_error__not_found__code() {
+        let resp = map_control_plane_error(ControlPlaneError::NotFound("missing item".into()));
+        match resp {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "NOT_FOUND");
+                assert!(err.message.contains("missing item"));
+            }
+            other => panic!("expected Error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn map_control_plane_error__invalid_payload__code() {
+        let resp =
+            map_control_plane_error(ControlPlaneError::InvalidPayload("bad scope key".into()));
+        match resp {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "INVALID_PAYLOAD");
+                assert!(err.message.contains("bad scope"));
+            }
+            other => panic!("expected Error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn map_control_plane_error__approval_required__code() {
+        let resp =
+            map_control_plane_error(ControlPlaneError::ApprovalRequired("needs review".into()));
+        match resp {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "APPROVAL_REQUIRED");
+                assert!(err.message.contains("needs review"));
+            }
+            other => panic!("expected Error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn map_control_plane_error__invalid_transition__code() {
+        let resp = map_control_plane_error(ControlPlaneError::InvalidTransition(
+            "already resolved".into(),
+        ));
+        match resp {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "INVALID_TRANSITION");
+                assert!(err.message.contains("already resolved"));
+            }
+            other => panic!("expected Error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn map_control_plane_error__event_append__internal_code() {
+        let resp =
+            map_control_plane_error(ControlPlaneError::EventAppend("disk full".into()));
+        match resp {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "INTERNAL");
+                assert!(err.message.contains("disk full") || err.message.contains("append"));
+            }
+            other => panic!("expected Error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn is_retriable_control_plane_error__infra_vs_terminal() {
+        assert!(is_retriable_control_plane_error(&ControlPlaneError::EventAppend(
+            "x".into()
+        )));
+        assert!(is_retriable_control_plane_error(&ControlPlaneError::Query(
+            "x".into()
+        )));
+        assert!(is_retriable_control_plane_error(&ControlPlaneError::Clock(
+            "x".into()
+        )));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::PolicyDenied("x".into())
+        ));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::NotFound("x".into())
+        ));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::InvalidPayload("x".into())
+        ));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::ApprovalRequired("x".into())
+        ));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::InvalidTransition("x".into())
+        ));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::UnsupportedCannotConfirm("x".into())
+        ));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::IdentityConflict("x".into())
+        ));
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::Fingerprint("x".into())
+        ));
+    }
+
+    #[test]
+    fn map_mutation_control_plane_error__retriable_infra__returns_err() {
+        let result =
+            map_mutation_control_plane_error(ControlPlaneError::EventAppend("simulated".into()));
+        assert!(
+            result.is_err(),
+            "EventAppend must be Err so process_governed_on_writer retains spool"
+        );
+        let result = map_mutation_control_plane_error(ControlPlaneError::Query("q".into()));
+        assert!(result.is_err());
+        let result = map_mutation_control_plane_error(ControlPlaneError::Clock("c".into()));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn map_mutation_control_plane_error__terminal_domain__returns_ok_error() {
+        let result =
+            map_mutation_control_plane_error(ControlPlaneError::PolicyDenied("denied".into()));
+        match result {
+            Ok(DaemonResponse::Error(err)) => assert_eq!(err.code, "POLICY_DENIED"),
+            other => panic!("expected Ok(Error POLICY_DENIED), got {other:?}"),
+        }
+        let result =
+            map_mutation_control_plane_error(ControlPlaneError::Fingerprint("fp fail".into()));
+        match result {
+            Ok(DaemonResponse::Error(err)) => assert_eq!(err.code, "INTERNAL"),
+            other => panic!("expected Ok(Error INTERNAL), got {other:?}"),
+        }
+    }
+
+    #[test]
     fn id_from_command__stable_for_same_command_id() {
         let a = id_from_command(NS_PROPOSE_CONCLUSION, "cmd-1");
         let b = id_from_command(NS_PROPOSE_CONCLUSION, "cmd-1");
@@ -881,5 +1072,14 @@ mod tests {
     fn sanitize_command_id_for_filename__strips_unsafe() {
         let s = sanitize_command_id_for_filename("a/b:c*d");
         assert_eq!(s, "a_b_c_d");
+    }
+
+    #[test]
+    fn governed_spool_stem__includes_op_kind() {
+        let stem = governed_spool_stem("propose_conclusion", "cmd-1");
+        assert_eq!(stem, "propose_conclusion_cmd-1");
+        let stem2 = governed_spool_stem("request_erasure", "cmd-1");
+        assert_eq!(stem2, "request_erasure_cmd-1");
+        assert_ne!(stem, stem2, "same command_id different ops must not collide");
     }
 }

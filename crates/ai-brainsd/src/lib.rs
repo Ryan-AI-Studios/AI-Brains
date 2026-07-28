@@ -10,8 +10,10 @@
 //! # Spool
 //!
 //! - Legacy Ingest/Sync: always uuid-named spool files.
-//! - Governed mutations: spool **only** when `command_id` is present (filename
-//!   sanitized from command_id). Replay hits control-plane detect-already-done.
+//! - Governed mutations: spool **only** when `command_id` is present
+//!   (`{op}_{sanitized_command_id}.json`). Replay hits control-plane
+//!   detect-already-done. Spool is deleted on `Ok` (success or terminal domain
+//!   error); retained on `Err` (retriable infra).
 
 use ai_brains_capture::{CaptureContext, CaptureService, CaptureSink};
 use ai_brains_contracts::bridge::BridgeRecord;
@@ -37,7 +39,9 @@ pub mod pipe_security;
 #[cfg(windows)]
 pub mod windows_service;
 
-use services::{GovernedMutation, process_governed_mutation, sanitize_command_id_for_filename};
+use services::{
+    GovernedMutation, governed_mutation_op_kind, governed_spool_stem, process_governed_mutation,
+};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -191,7 +195,9 @@ impl DaemonWriter {
     /// Enqueue a governed mutation on the single-writer task.
     ///
     /// When `command_id` is present on the request, spools the full
-    /// [`DaemonRequest`] JSON first (at-least-once). Deletes spool on success.
+    /// [`DaemonRequest`] JSON first (at-least-once) under
+    /// `{op}_{sanitized_command_id}.json`. Deletes spool on completed handling
+    /// (`Ok`); retains spool on retriable infra (`Err`).
     pub async fn enqueue_governed(
         &self,
         daemon_request: DaemonRequest,
@@ -199,8 +205,8 @@ impl DaemonWriter {
         command_id: Option<&str>,
     ) -> Result<DaemonResponse, BoxError> {
         let spool_path = if let Some(cid) = command_id.filter(|c| !c.trim().is_empty()) {
-            let name = sanitize_command_id_for_filename(cid);
-            let path = self.spool_dir.join(format!("{name}.json"));
+            let stem = governed_spool_stem(governed_mutation_op_kind(&op), cid);
+            let path = self.spool_dir.join(format!("{stem}.json"));
             let payload = serde_json::to_vec(&daemon_request)?;
             fs::write(&path, payload).await?;
             Some(path)
@@ -268,6 +274,11 @@ impl DaemonWriter {
     }
 }
 
+/// Process one governed mutation on the writer task.
+///
+/// Spool policy (AC6 durability):
+/// - `Ok(_)` including `DaemonResponse::Error` (terminal domain) → **delete** spool
+/// - `Err(_)` retriable infra from `map_mutation_control_plane_error` → **retain** spool
 async fn process_governed_on_writer(
     ports: &StorePorts,
     op: GovernedMutation,
@@ -276,25 +287,14 @@ async fn process_governed_on_writer(
     // Blocking CP/store work on the writer task (single-threaded consumer).
     let result = process_governed_mutation(ports, op);
     match &result {
-        Ok(DaemonResponse::Error(_)) => {
-            // Domain error: keep spool for retry when command_id was set.
-            // (Client may re-send; leaving spool is safer than losing the command.)
-            // Actually for POLICY_DENIED etc. leaving spool forever is bad.
-            // Spec: delete on success. Policy denial is a terminal success of the
-            // "process" attempt from spool's perspective for live path.
-            // For spool replay of permanent denials, replaying forever is wrong.
-            // Delete spool on any completed handling (Ok with any DaemonResponse).
-            if let Some(path) = spool_path {
-                let _ = fs::remove_file(path).await;
-            }
-        }
         Ok(_) => {
+            // Completed handling (success or terminal domain error) — drop spool.
             if let Some(path) = spool_path {
                 let _ = fs::remove_file(path).await;
             }
         }
         Err(_) => {
-            // Infra failure — leave spool for restart replay.
+            // Retriable infra — leave spool for restart replay.
         }
     }
     result

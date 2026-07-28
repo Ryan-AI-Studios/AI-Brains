@@ -1,12 +1,14 @@
 //! Named-pipe daemon request/response protocol (line-delimited JSON).
 //!
-//! **Design locks (T158)**
+//! **Design locks (T158 / T159)**
 //! - Serde: `tag = "type"`, `content = "payload"`, `rename_all = "snake_case"`.
 //! - Dependencies: **serde + ai-brains-contracts only** — no domain logic.
 //! - Unknown `type` fails deserialize (fail-closed; no `#[serde(other)]`).
 //! - Legacy `ping` / `ingest` / `sync` / `shutdown` wire remains deserializable.
-//! - Full governed handlers land in T159; daemon stubs return
-//!   [`UNSUPPORTED_OPERATION`] via shared dispatch.
+//! - Governed protocol surface is complete; handlers live in `ai-brainsd`
+//!   (T159). This crate remains DTO-only.
+//! - [`DaemonResponse::unsupported`] is a generic helper for callers that need
+//!   an explicit [`UNSUPPORTED_OPERATION`] reply — not a T159 residual.
 
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_contracts::briefings::{
@@ -28,7 +30,7 @@ use ai_brains_contracts::scopes::{ResolveScopeRequest, ScopeResolvedResponse};
 use ai_brains_contracts::sources::{InspectSourceRequest, SourceDto};
 use serde::{Deserialize, Serialize};
 
-/// Stable error code when a request variant is recognized but not yet handled (T159).
+/// Stable error code when a recognized request cannot be handled by this path.
 pub const UNSUPPORTED_OPERATION: &str = "UNSUPPORTED_OPERATION";
 
 /// Inbound daemon command (CLI / agent / desktop → `ai-brainsd`).
@@ -79,11 +81,11 @@ impl DaemonResponse {
         Self::Error(ApiError::new(code, message))
     }
 
-    /// Stub response for variants not yet implemented (T159).
+    /// Build an [`UNSUPPORTED_OPERATION`] error for an unrecognized or unhandled op.
     pub fn unsupported(operation: &str) -> Self {
         Self::Error(ApiError::new(
             UNSUPPORTED_OPERATION,
-            format!("{operation} is not implemented yet (T159)"),
+            format!("{operation} is not supported on this path"),
         ))
     }
 }
