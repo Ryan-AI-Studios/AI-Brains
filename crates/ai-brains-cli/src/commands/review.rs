@@ -12,8 +12,8 @@ use ai_brains_contracts::review::{
     ReviewResolvedResponse,
 };
 use ai_brains_control_plane::{
-    GovernedQueryStore, PolicyContext, PolicyEvaluator, StorePorts, parse_scope_key,
-    resolve_review_item, scope_identity_key,
+    GovernedQueryStore, PolicyContext, PolicyEvaluator, StorePorts,
+    list_open_review_items_for_scope, parse_scope_key, resolve_review_item, scope_identity_key,
 };
 use ai_brains_core::ids::ReviewItemId;
 use ai_brains_core::privacy::Privacy;
@@ -109,7 +109,9 @@ fn run_list_local(
         Err(e) => return fail_cp(format, e),
     }
 
-    let mut items = match ports.query.list_open_review_items() {
+    let scope_key = scope_identity_key(&scope);
+    // Scope isolation: same filter as daemon (related conclusion/decision/source + subject).
+    let mut items = match list_open_review_items_for_scope(&ports.query, &scope_key) {
         Ok(items) => items,
         Err(e) => return fail_cp(format, e),
     };
@@ -118,11 +120,6 @@ fn run_list_local(
     {
         items.clear();
     }
-    // Local path: return open items (E1: items: []). Full subject-scope isolation
-    // mirrors daemon when related_* columns carry scope keys; filter by related
-    // conclusion/decision scope is best-effort via subject string contains.
-    let scope_key = scope_identity_key(&scope);
-    let _ = scope_key; // vault-wide open list for local convenience; policy already gated
 
     let dtos: Vec<ReviewItemDto> = items
         .into_iter()

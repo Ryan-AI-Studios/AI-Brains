@@ -120,6 +120,19 @@ pub struct ReviewItemRow {
     pub updated_at: OffsetDateTime,
 }
 
+/// Row from `source_projection` (inspect / scope isolation).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceRow {
+    pub id: SourceId,
+    /// Stored kind JSON (e.g. `"File"`) as written by the projection.
+    pub kind: String,
+    pub display_name: String,
+    pub locator: Option<String>,
+    pub last_observed_at: Option<OffsetDateTime>,
+    /// Scope identity key; empty when historical / unspecified.
+    pub scope: String,
+}
+
 /// Row from `claim_conflict_projection`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaimConflictRow {
@@ -154,6 +167,9 @@ pub trait GovernedQueryStore {
         locator: Option<&str>,
         display_name: &str,
     ) -> Result<Option<SourceId>>;
+
+    /// Load a projected source row by id (None if not registered).
+    fn get_source(&self, source_id: SourceId) -> Result<Option<SourceRow>>;
 
     /// Latest recorded version id + fingerprint for a source.
     fn latest_source_version(

@@ -246,11 +246,34 @@ fn cli_policy_check__no_grant__exit_code_3() {
         .output()
         .expect("policy check must run");
 
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
     assert_eq!(
         output.status.code(),
         Some(3),
-        "ungranted policy check must exit 3; stdout={} stderr={}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
+        "ungranted policy check must exit 3; stdout={stdout} stderr={stderr}"
+    );
+
+    // T160-R1-01: exactly one JSON document on stdout (ApiError / POLICY_DENIED).
+    // serde_json::from_str rejects trailing second documents.
+    let v: Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("stdout must be a single parseable JSON object; got: {stdout} ({e})")
+    });
+    assert_eq!(
+        v.get("code").and_then(|c| c.as_str()),
+        Some("POLICY_DENIED"),
+        "deny envelope must use POLICY_DENIED; got {v}"
+    );
+    // Dual CheckResult+ApiError would contain "allowed" or multiple top-level objects.
+    assert!(
+        v.get("allowed").is_none(),
+        "deny must not also emit CheckResult; got {v}"
+    );
+    let open_braces = stdout.matches('{').count();
+    // Pretty ApiError is one object (may have nested objects only if present; ApiError is flat).
+    assert!(
+        open_braces == 1,
+        "expected single top-level JSON object on deny; braces={open_braces} stdout={stdout}"
     );
 }

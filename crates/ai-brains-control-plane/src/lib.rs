@@ -64,18 +64,20 @@ pub use policy::{DefaultPolicyEvaluator, GrantPrincipalStore, PolicyDecisionEntr
 pub use ports::{
     ClaimConflictRow, Clock, ConclusionRow, ConnectorTrust, DecisionRow, EventWriter,
     Fingerprinter, GovernedQueryStore, PolicyContext, PolicyEvaluator, ProcessingRoute,
-    ReviewItemRow, StaleFact,
+    ReviewItemRow, SourceRow, StaleFact,
 };
 pub use query::{
     ExpandHandleRequest, GetQueryTraceRequest, ProgressiveQueryRequest, expand_handle,
     get_query_trace, progressive_query,
 };
-pub use review::resolve_review_item;
+pub use review::{
+    list_open_review_items_for_scope, resolve_review_item, review_item_matches_scope,
+};
 pub use scope_resolver::{
     ResolutionEvidence, ResolvedScope, ScopeConfidence, ScopeIdentityStore, ScopeResolveInput,
     is_authoritative, resolve_scope,
 };
 pub use sources::{
     ObserveSourceRequest, ObserveSourceResult, SourceContent, normalize_path_locator,
-    observe_source, parse_scope_key, scope_identity_key, source_identity_string,
+    observe_source, parse_scope_key, scope_identity_key, source_identity_string, source_row_to_dto,
 };

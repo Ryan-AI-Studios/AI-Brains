@@ -9,7 +9,8 @@ use crate::daemon_client::DaemonClient;
 use ai_brains_contracts::response::ApiError;
 use ai_brains_contracts::sources::{InspectSourceRequest, SourceDto};
 use ai_brains_control_plane::{
-    PolicyContext, PolicyEvaluator, StorePorts, parse_scope_key, scope_identity_key,
+    GovernedQueryStore, PolicyContext, PolicyEvaluator, StorePorts, parse_scope_key,
+    scope_identity_key, source_row_to_dto,
 };
 use ai_brains_core::ids::SourceId;
 use ai_brains_core::privacy::Privacy;
@@ -103,70 +104,19 @@ fn run_show_local(
     };
 
     let expected_scope = scope_identity_key(&scope);
-    let dto = match load_source_dto(&ports, source_id)? {
-        Some((dto, stored_scope)) if stored_scope == expected_scope => dto,
-        Some(_) | None => {
+    // CP query port owns projection load; CLI only maps + anti-enumeration.
+    let dto = match ports.query.get_source(source_id) {
+        Ok(Some(row)) if row.scope == expected_scope => source_row_to_dto(&row),
+        Ok(Some(_)) | Ok(None) => {
             return fail_api(
                 format,
                 ApiError::new("NOT_FOUND", format!("source {}", options.id)),
             );
         }
+        Err(e) => return fail_cp(format, e),
     };
 
-    match format {
-        OutputFormat::Json => emit_json(&dto),
-        OutputFormat::Human | OutputFormat::Markdown => {
-            emit_human(&format!(
-                "source: {} ({})\nname: {}\nlocator: {}",
-                dto.id,
-                dto.kind,
-                dto.display_name,
-                dto.locator.as_deref().unwrap_or("-")
-            ));
-            Ok(())
-        }
-    }
-}
-
-fn load_source_dto(
-    ports: &StorePorts,
-    source_id: SourceId,
-) -> Result<Option<(SourceDto, String)>, Box<dyn std::error::Error>> {
-    let store = ports.store();
-    let conn = store
-        .connection()
-        .lock()
-        .map_err(|e| format!("lock vault: {e}"))?;
-    let mut stmt = conn.prepare(
-        "SELECT source_id, kind, display_name, locator, last_observed_at, scope
-         FROM source_projection WHERE source_id = ?",
-    )?;
-    let mut rows = stmt.query(rusqlite::params![source_id.to_string()])?;
-    if let Some(row) = rows.next()? {
-        let id: String = row.get(0)?;
-        let kind: String = row.get(1)?;
-        let display_name: String = row.get(2)?;
-        let locator: Option<String> = row.get(3)?;
-        let last_observed: Option<String> = row.get(4)?;
-        let scope: String = row.get(5)?;
-        let last_observed_at = last_observed.and_then(|s| {
-            chrono::DateTime::parse_from_rfc3339(&s)
-                .ok()
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-        });
-        Ok(Some((
-            SourceDto {
-                id,
-                kind,
-                display_name,
-                locator,
-                last_observed_at,
-            },
-            scope,
-        )))
-    } else {
-        Ok(None)
-    }
+    emit_source(format, &dto)
 }
 
 async fn run_show_daemon(
@@ -189,19 +139,26 @@ async fn run_show_daemon(
     };
     let resp = expect_daemon_ok(format, resp)?;
     match resp {
-        DaemonResponse::Source(dto) => match format {
-            OutputFormat::Json => emit_json(&dto),
-            OutputFormat::Human | OutputFormat::Markdown => {
-                emit_human(&format!(
-                    "source: {} ({})\nname: {}\nlocator: {}",
-                    dto.id,
-                    dto.kind,
-                    dto.display_name,
-                    dto.locator.as_deref().unwrap_or("-")
-                ));
-                Ok(())
-            }
-        },
+        DaemonResponse::Source(dto) => emit_source(format, &dto),
         other => Err(format!("unexpected daemon response: {other:?}").into()),
+    }
+}
+
+fn emit_source(
+    format: OutputFormat,
+    dto: &SourceDto,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match format {
+        OutputFormat::Json => emit_json(dto),
+        OutputFormat::Human | OutputFormat::Markdown => {
+            emit_human(&format!(
+                "source: {} ({})\nname: {}\nlocator: {}",
+                dto.id,
+                dto.kind,
+                dto.display_name,
+                dto.locator.as_deref().unwrap_or("-")
+            ));
+            Ok(())
+        }
     }
 }

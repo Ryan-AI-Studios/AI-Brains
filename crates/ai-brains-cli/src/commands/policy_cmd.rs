@@ -123,6 +123,20 @@ pub fn run_check(
         Err(e) => return fail_cp(format, e),
     };
 
+    if !allowed {
+        // Exactly one structured document on deny (JSON: ApiError only; exit 3).
+        return fail_api(
+            format,
+            ApiError::new(
+                "POLICY_DENIED",
+                format!(
+                    "{} denied for principal {} on {}",
+                    options.capability, principal.id, options.scope
+                ),
+            ),
+        );
+    }
+
     #[derive(serde::Serialize)]
     struct CheckResult {
         allowed: bool,
@@ -132,42 +146,11 @@ pub fn run_check(
     }
 
     let result = CheckResult {
-        allowed,
+        allowed: true,
         principal_id: principal.id.to_string(),
         capability: options.capability.clone(),
         scope: options.scope.clone(),
     };
-
-    if !allowed {
-        // Structured denial with exit 3 for scripts.
-        match format {
-            OutputFormat::Json => {
-                let _ = emit_json(&result);
-                return fail_api(
-                    format,
-                    ApiError::new(
-                        "POLICY_DENIED",
-                        format!(
-                            "{} denied for principal {} on {}",
-                            options.capability, principal.id, options.scope
-                        ),
-                    ),
-                );
-            }
-            OutputFormat::Human | OutputFormat::Markdown => {
-                return fail_api(
-                    format,
-                    ApiError::new(
-                        "POLICY_DENIED",
-                        format!(
-                            "{} denied for principal {} on {}",
-                            options.capability, principal.id, options.scope
-                        ),
-                    ),
-                );
-            }
-        }
-    }
 
     match format {
         OutputFormat::Json => emit_json(&result),

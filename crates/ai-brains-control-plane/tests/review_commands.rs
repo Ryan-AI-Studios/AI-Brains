@@ -3,9 +3,10 @@
 
 use ai_brains_control_plane::{
     AllowAllPolicy, ControlPlaneError, GovernedQueryStore, StorePorts, SystemClock, issue_grant,
-    make_principal, register_principal, resolve_review_item,
+    list_open_review_items_for_scope, make_principal, register_principal, resolve_review_item,
+    review_item_matches_scope, scope_identity_key,
 };
-use ai_brains_core::ids::{PrincipalId, ReviewItemId, UserId};
+use ai_brains_core::ids::{PrincipalId, ProjectId, ReviewItemId, UserId};
 use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::review::{ReviewCriticality, ReviewSubjectKind};
@@ -33,6 +34,10 @@ fn open_ports() -> (NamedTempFile, StorePorts) {
 }
 
 fn open_review_item(ports: &StorePorts) -> ReviewItemId {
+    open_review_item_with_subject(ports, "source unavailable")
+}
+
+fn open_review_item_with_subject(ports: &StorePorts, subject: &str) -> ReviewItemId {
     let review_item_id = ReviewItemId::new();
     let opened_by = PrincipalId::new();
     let env = EventBuilder::new(
@@ -43,7 +48,7 @@ fn open_review_item(ports: &StorePorts) -> ReviewItemId {
     )
     .build(Payload::ReviewItemOpened(ReviewItemOpenedPayload {
         review_item_id,
-        subject: "source unavailable".into(),
+        subject: subject.into(),
         opened_by,
         subject_kind: ReviewSubjectKind::Source,
         subject_id: "src".into(),
@@ -372,4 +377,38 @@ fn resolve_review_item__already_resolved_without_grant__policy_denied() {
         })
         .count();
     assert_eq!(resolved_count, 1, "deny path must not append");
+}
+
+/// T160-R1-02: open review list must not leak across scopes (subject-key binding).
+#[test]
+fn list_open_review_items_for_scope__two_scopes__only_matching() {
+    let (_t, ports) = open_ports();
+    let scope_a = ScopeRef::Repository(ProjectId::new());
+    let scope_b = ScopeRef::Repository(ProjectId::new());
+    let key_a = scope_identity_key(&scope_a);
+    let key_b = scope_identity_key(&scope_b);
+
+    let id_a = open_review_item_with_subject(&ports, &format!("needs review on {key_a}"));
+    let id_b = open_review_item_with_subject(&ports, &format!("needs review on {key_b}"));
+    // Unscoped subject must not appear under either grant.
+    let _id_other = open_review_item_with_subject(&ports, "vault-wide orphan subject");
+
+    let for_a = list_open_review_items_for_scope(&ports.query, &key_a).unwrap();
+    let for_b = list_open_review_items_for_scope(&ports.query, &key_b).unwrap();
+
+    let ids_a: Vec<_> = for_a.iter().map(|r| r.id).collect();
+    let ids_b: Vec<_> = for_b.iter().map(|r| r.id).collect();
+
+    assert_eq!(ids_a, vec![id_a], "scope A list must only include A item");
+    assert_eq!(ids_b, vec![id_b], "scope B list must only include B item");
+    assert!(!ids_a.contains(&id_b));
+    assert!(!ids_b.contains(&id_a));
+
+    // Direct predicate parity.
+    let row_a = ports.query.get_review_item(id_a).unwrap().unwrap();
+    let row_b = ports.query.get_review_item(id_b).unwrap().unwrap();
+    assert!(review_item_matches_scope(&ports.query, &row_a, &key_a).unwrap());
+    assert!(!review_item_matches_scope(&ports.query, &row_a, &key_b).unwrap());
+    assert!(review_item_matches_scope(&ports.query, &row_b, &key_b).unwrap());
+    assert!(!review_item_matches_scope(&ports.query, &row_b, &key_a).unwrap());
 }
