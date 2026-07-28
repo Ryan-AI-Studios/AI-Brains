@@ -147,6 +147,23 @@ ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
 - After a mutation is **sent** to the daemon, timeout → non-zero + "outcome unknown; retry same --command-id" (no silent local fallback).
 - Erasure is always daemon-required (`--local` rejected). Ticket honesty only — never claims content-envelope wipe.
 
+### Erasure honesty (ticket vs cryptographic erasure)
+
+Operators and docs must keep these mechanisms distinct. Normative design is [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md) (Accepted 2026-07-28); product CE is **not** shipped until T163–T165.
+
+| Mechanism | What it does today | Cryptographic erasure (CE)? |
+|-----------|--------------------|-----------------------------|
+| `ai-brains erasure request` → `ErasureTicketAccepted` | Durable **ticket / intent** accepted by the daemon | **No** — ticket ≠ CE |
+| `ai-brains forget` → `MemoryForgotten` | Soft hide/filter in projections | **No** — plaintext remains in the **append-only event log** |
+| Content-envelope CE (`ContentErasureRequested` → destroy content DEK wrap → `ContentErased`) | **Not implemented** (design frozen in ADR-0016) | Future path for **envelope-backed** content only |
+
+**Honest limits (do not over-claim):**
+
+- **Pre-envelope / legacy content:** plaintext already written to the append-only log **cannot** be cryptographically erased without rewriting history (forbidden by event-sourcing invariants). Soft forget is the only mechanism for that class. Forward re-seal under envelopes (when implemented) does **not** un-publish historical plaintext copies already logged.
+- **Future CE (ADR-0016):** for envelope-backed content only — per content-unit DEK wrapped under vault `DataKey`; AES-256-GCM; CE = destroy DEK wrap + purge derived FTS/embeddings/projections. Schema/service/command land in **T163–T165**, not today.
+- **Non-claims:** not NIST media **Purge**/**Destroy** (RustCrypto is not a FIPS-/NIST-validated module); not destruction of offline copies, exports, or **pre-erase backups**; not “SQLCipher vault lock = per-item CE.”
+- CLI and HTTP surfaces must **never** present `ErasureTicketAccepted` or soft forget as content-envelope wipe.
+
 ## 4. Project & Session Management
 
 ### Project Setup
