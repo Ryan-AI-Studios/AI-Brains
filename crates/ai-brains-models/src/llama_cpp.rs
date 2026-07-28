@@ -1,7 +1,9 @@
+use crate::endpoint::{classify_endpoint, endpoint_is_local};
 use crate::{
     CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, ModelError,
     ModelProvider, Result, TokenizeRequest, TokenizeResponse,
 };
+use ai_brains_core::model_provenance::EndpointClass;
 use async_trait::async_trait;
 use serde::Serialize;
 use std::time::Duration;
@@ -35,6 +37,10 @@ struct LlamaTokenizeRequest<'a> {
 pub struct LlamaCppProvider {
     endpoint: String,
     model: String,
+    /// Classified once at construct from `endpoint` (not hardcoded).
+    endpoint_class: EndpointClass,
+    /// Derived from `endpoint_class` — loopback only is local for privacy.
+    is_local: bool,
     client: reqwest::Client,
     completion_timeout: Duration,
     embedding_timeout: Duration,
@@ -77,9 +83,13 @@ impl LlamaCppProvider {
         embedding_timeout: Duration,
         tokenize_timeout: Duration,
     ) -> Self {
+        let endpoint_class = classify_endpoint(&endpoint);
+        let is_local = endpoint_is_local(&endpoint);
         Self {
             endpoint,
             model,
+            endpoint_class,
+            is_local,
             client: reqwest::Client::new(),
             completion_timeout,
             embedding_timeout,
@@ -238,6 +248,30 @@ impl ModelProvider for LlamaCppProvider {
     }
 
     fn is_local(&self) -> bool {
-        true
+        self.is_local
+    }
+
+    fn endpoint_class(&self) -> EndpointClass {
+        self.endpoint_class
+    }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn llama_cpp_provider__remote_endpoint__is_local_false() {
+        let p = LlamaCppProvider::new("https://gpu-box.example.com:8080".into(), "model".into());
+        assert!(!p.is_local());
+        assert_eq!(p.endpoint_class(), EndpointClass::CloudApi);
+    }
+
+    #[test]
+    fn llama_cpp_provider__loopback_endpoint__is_local_true() {
+        let p = LlamaCppProvider::new("http://127.0.0.1:8080".into(), "model".into());
+        assert!(p.is_local());
+        assert_eq!(p.endpoint_class(), EndpointClass::LocalLoopback);
     }
 }

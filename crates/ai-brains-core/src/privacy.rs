@@ -37,3 +37,13 @@ impl Privacy {
         if *self > other { *self } else { other }
     }
 }
+
+/// True when privacy forbids cloud model routing: `LocalOnly`, `NeverInject`, or `Sealed`.
+///
+/// Shared by provider registry, synthesis, and control-plane policy (single source of truth).
+pub fn privacy_is_local_strict(privacy: Privacy) -> bool {
+    matches!(
+        privacy,
+        Privacy::LocalOnly | Privacy::NeverInject | Privacy::Sealed
+    )
+}

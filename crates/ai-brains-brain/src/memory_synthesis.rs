@@ -1,8 +1,9 @@
 use ai_brains_core::ids::{ConclusionId, MemoryId, PrincipalId, ProjectId};
-use ai_brains_core::model_provenance::ModelProvenance;
+use ai_brains_core::model_provenance::{ModelProvenance, cloud_route_allowed};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::payload::ConclusionProposedPayload;
 use ai_brains_events::{EventKind, MemorySynthesizedPayload, Payload};
+use ai_brains_models::registry::allow_cloud_extraction_from_env;
 use ai_brains_models::{CompletionRequest, ModelProvider};
 use ai_brains_store::{EventStore, QueryStore};
 use sha2::{Digest, Sha256};
@@ -88,21 +89,16 @@ fn filter_synthesis_eligible(
     Ok(eligible)
 }
 
-/// LocalOnly (and stricter eligible tiers if any) require a local model provider.
+/// Gate model routing via shared [`cloud_route_allowed`] (reason_code only on denial).
 fn provider_allowed_for_privacy(
     privacy: Privacy,
     provider: &dyn ModelProvider,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // NeverInject/Sealed are filtered earlier; LocalOnly must not hit cloud providers.
-    if privacy >= Privacy::LocalOnly && !provider.is_local() {
-        return Err(format!(
-            "model provider '{}' is not local; refused for privacy {:?}",
-            provider.name(),
-            privacy
-        )
-        .into());
-    }
-    Ok(())
+    let allow_cloud = allow_cloud_extraction_from_env();
+    cloud_route_allowed(privacy, provider.is_local(), allow_cloud).map_err(|denial| {
+        // reason_code only — never prompt body / Privacy Debug dump / API keys
+        Box::new(denial) as Box<dyn std::error::Error>
+    })
 }
 
 pub struct MemorySynthesizer {
@@ -164,9 +160,9 @@ impl MemorySynthesizer {
             // Privacy for routing + inheritance: computed before any model call.
             let privacy = strictest_source_privacy(self.query_store.as_ref(), &cluster)?;
             if let Err(e) = provider_allowed_for_privacy(privacy, self.model_provider.as_ref()) {
+                // Log reason_code only — no prompt body or Privacy Debug dump.
                 tracing::warn!(
-                    ?privacy,
-                    error = %e,
+                    reason_code = %e,
                     "skipping synthesis cluster: provider privacy routing refused"
                 );
                 continue;
@@ -194,27 +190,24 @@ impl MemorySynthesizer {
                 let conclusion_id = ConclusionId::new();
                 let scope = format!("Repository:{project_id}");
                 let input_ids: Vec<String> = cluster.iter().map(|(id, _)| id.to_string()).collect();
-                let deployment = if self.model_provider.is_local() {
-                    "local"
-                } else {
-                    "cloud"
-                };
                 let model = if model_name.is_empty() {
                     "unknown".to_string()
                 } else {
                     model_name
                 };
-                let provenance = ModelProvenance {
-                    provider: self.model_provider.name().to_string(),
+                // endpoint_class is authoritative; deployment is derived via from_provider.
+                let mut provenance = ModelProvenance::from_provider(
+                    self.model_provider.name(),
                     model,
-                    model_version: Some("unknown".to_string()),
-                    workflow_version: Some(HIERARCHICAL_SYNTHESIS_WORKFLOW_VERSION.to_string()),
-                    deployment: Some(deployment.to_string()),
-                    input_ids: Some(input_ids),
-                    output_hash: Some(sha256_hex(&synthesis)),
-                    started_at: Some(started_at),
-                    completed_at: Some(completed_at),
-                };
+                    self.model_provider.endpoint_class(),
+                );
+                provenance.workflow_version =
+                    Some(HIERARCHICAL_SYNTHESIS_WORKFLOW_VERSION.to_string());
+                // Unknown version → None (do not invent "unknown").
+                provenance.input_ids = Some(input_ids);
+                provenance.output_hash = Some(sha256_hex(&synthesis));
+                provenance.started_at = Some(started_at);
+                provenance.completed_at = Some(completed_at);
                 ai_brains_events::constructors::EventBuilder::new(
                     ai_brains_events::AggregateType::Conclusion,
                     conclusion_id.as_uuid(),
