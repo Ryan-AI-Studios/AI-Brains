@@ -83,6 +83,20 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let (shutdown_tx, _shutdown_rx) = tokio::sync::broadcast::channel(1);
 
+    // Optional loopback HTTP (T161) — third caller of handle_daemon_request.
+    let cli_args: Vec<String> = std::env::args().collect();
+    if let Err(e) = ai_brainsd::http_adapter::maybe_start_http(
+        &cli_args,
+        writer.clone(),
+        services.clone(),
+        &shutdown_tx,
+    )
+    .await
+    {
+        eprintln!("Failed to start HTTP API: {e}");
+        return Err(e);
+    }
+
     #[cfg(windows)]
     {
         match check_existing_instance(PIPE_NAME).await {

@@ -162,6 +162,19 @@ async fn run_daemon_async(
 
     let (ipc_shutdown_tx, _ipc_shutdown_rx) = tokio::sync::broadcast::channel(1);
 
+    // Optional loopback HTTP (T161) — third caller of handle_daemon_request.
+    let service_args: Vec<String> = std::env::args().collect();
+    if let Err(e) = crate::http_adapter::maybe_start_http(
+        &service_args,
+        writer.clone(),
+        services.clone(),
+        &ipc_shutdown_tx,
+    )
+    .await
+    {
+        tracing::error!("Failed to start HTTP API in service: {e}");
+    }
+
     // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
     let pipe_name = r"\\.\pipe\ledgerful-bridge";
 

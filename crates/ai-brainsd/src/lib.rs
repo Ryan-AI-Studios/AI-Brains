@@ -29,6 +29,7 @@ use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 pub mod dispatch;
+pub mod http_adapter;
 pub mod instance_guard;
 pub mod pipe_error;
 pub mod services;

@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+ai-brains-api-server = { path = "../ai-brains-api-server" }
 ai-brains-capture = { path = "../ai-brains-capture" }
 ai-brains-contracts = { path = "../ai-brains-contracts" }
 ai-brains-control-plane = { path = "../ai-brains-control-plane" }
@@ -16,6 +17,7 @@ ai-brains-daemon-api = { path = "../ai-brains-daemon-api" }
 ai-brains-events = { path = "../ai-brains-events" }
 ai-brains-store = { path = "../ai-brains-store" }
 ai-brains-retrieval = { path = "../ai-brains-retrieval" }
+async-trait.workspace = true
 dirs.workspace = true
 dotenvy.workspace = true
 serde = { workspace = true }
