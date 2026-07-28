@@ -19,6 +19,18 @@
 //!
 //! Denials are logged with reason codes only — never claim/statement text.
 //!
+//! ## Model / cloud reason codes (shared vocabulary with core)
+//!
+//! | Code | Meaning |
+//! |------|---------|
+//! | `privacy_route_mismatch` | Local-strict privacy (LocalOnly\|NeverInject\|Sealed) + cloud route/provider |
+//! | `cloud_extraction_disabled` | `AI_BRAINS_ALLOW_CLOUD_EXTRACTION` off (models registry) |
+//! | `no_local_provider` | Local required but none viable (models registry) |
+//! | `connector_trust_route_mismatch` | Connector trust LocalOnly + Cloud route |
+//!
+//! See [`ai_brains_core::model_provenance::reason`] and [`reason`] in this module.
+//! Local-strict definition: [`ai_brains_core::privacy::privacy_is_local_strict`].
+//!
 //! ## Grant reduction
 //! Active grants are unique per `(principal, scope, capability)` (partial unique index),
 //! so capability-narrowing via [`reduce_grants`] / [`strictest_wins`] is not needed on
@@ -28,7 +40,7 @@
 
 use ai_brains_core::ids::PrincipalId;
 use ai_brains_core::principal::{Principal, PrincipalKind};
-use ai_brains_core::privacy::Privacy;
+use ai_brains_core::privacy::{Privacy, privacy_is_local_strict};
 use ai_brains_core::scope::{GrantCapability, ScopeGrant, ScopeRef, strictest_wins};
 
 use crate::errors::Result;
@@ -77,12 +89,12 @@ impl<S: GrantPrincipalStore> DefaultPolicyEvaluator<S> {
     ) -> Result<(bool, String)> {
         // Privacy/route gate applies to everyone (including unknown).
         if privacy_blocks_cloud_route(ctx) {
-            return Ok((false, "privacy_route_mismatch".into()));
+            return Ok((false, reason::PRIVACY_ROUTE_MISMATCH.into()));
         }
 
         // Connector trust LocalOnly must not ride a Cloud processing route.
         if connector_trust_blocks_cloud_route(ctx) {
-            return Ok((false, "connector_trust_route_mismatch".into()));
+            return Ok((false, reason::CONNECTOR_TRUST_ROUTE_MISMATCH.into()));
         }
 
         let Some(principal) = self.store.get_principal(principal_id)? else {
@@ -96,7 +108,7 @@ impl<S: GrantPrincipalStore> DefaultPolicyEvaluator<S> {
         if privacy_is_local_strict(combined_privacy)
             && matches!(ctx.route, Some(ProcessingRoute::Cloud))
         {
-            return Ok((false, "privacy_route_mismatch".into()));
+            return Ok((false, reason::PRIVACY_ROUTE_MISMATCH.into()));
         }
 
         let allowed = match principal.kind {
@@ -173,13 +185,6 @@ fn privacy_blocks_cloud_route(ctx: &PolicyContext) -> bool {
 fn connector_trust_blocks_cloud_route(ctx: &PolicyContext) -> bool {
     matches!(ctx.connector_trust, Some(ConnectorTrust::LocalOnly))
         && matches!(ctx.route, Some(ProcessingRoute::Cloud))
-}
-
-fn privacy_is_local_strict(privacy: Privacy) -> bool {
-    matches!(
-        privacy,
-        Privacy::LocalOnly | Privacy::NeverInject | Privacy::Sealed
-    )
 }
 
 fn combine_grant_privacy(grants: &[ScopeGrant], content_privacy: Privacy) -> Privacy {
@@ -289,6 +294,8 @@ fn evaluate_grant_only(capability: GrantCapability, grants: &[ScopeGrant]) -> bo
 }
 
 /// Reason-code constants for tests and callers.
+///
+/// `PRIVACY_ROUTE_MISMATCH` is shared with [`ai_brains_core::model_provenance::reason`].
 pub mod reason {
     pub const UNKNOWN_PRINCIPAL: &str = "unknown_principal";
     pub const MISSING_GRANT: &str = "missing_grant";
@@ -297,7 +304,14 @@ pub mod reason {
     pub const CONNECTOR_SOURCE_KIND_UNBOUND: &str = "connector_source_kind_unbound";
     pub const CONNECTOR_CAP_NOT_OBSERVE: &str = "connector_cap_not_observe";
     pub const SYSTEM_CAP_NOT_BOUND: &str = "system_cap_not_bound";
-    pub const PRIVACY_ROUTE_MISMATCH: &str = "privacy_route_mismatch";
+    /// Same string as [`ai_brains_core::model_provenance::reason::PRIVACY_ROUTE_MISMATCH`].
+    pub const PRIVACY_ROUTE_MISMATCH: &str =
+        ai_brains_core::model_provenance::reason::PRIVACY_ROUTE_MISMATCH;
     pub const CONNECTOR_TRUST_ROUTE_MISMATCH: &str = "connector_trust_route_mismatch";
+    /// Models-registry code (documented for cross-crate alignment; not used by policy matrix).
+    pub const CLOUD_EXTRACTION_DISABLED: &str =
+        ai_brains_core::model_provenance::reason::CLOUD_EXTRACTION_DISABLED;
+    /// Models-registry code (documented for cross-crate alignment; not used by policy matrix).
+    pub const NO_LOCAL_PROVIDER: &str = ai_brains_core::model_provenance::reason::NO_LOCAL_PROVIDER;
     pub const ALLOWED: &str = "allowed";
 }

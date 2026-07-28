@@ -8,6 +8,7 @@ use ai_brains_brain::memory_synthesis::{
     SYSTEM_SYNTHESIS_PRINCIPAL_UUID,
 };
 use ai_brains_core::ids::{MemoryId, ProjectId};
+use ai_brains_core::model_provenance::EndpointClass;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::temp_env::TempEnv;
 use ai_brains_events::constructors::EventBuilder;
@@ -165,15 +166,30 @@ async fn run_synthesis__flag_on__emits_conclusion_proposed_candidate()
                 !prov.provider.is_empty() && !prov.model.is_empty(),
                 "provenance must have non-empty provider AND model: {prov:?}"
             );
-            assert_eq!(
-                prov.model_version.as_deref(),
-                Some("unknown"),
-                "model_version must be concrete, not None"
+            // Unknown version → None (do not invent "unknown").
+            assert!(
+                prov.model_version.is_none(),
+                "model_version must be None when unknown, got {:?}",
+                prov.model_version
             );
             assert_eq!(
                 prov.workflow_version.as_deref(),
                 Some(HIERARCHICAL_SYNTHESIS_WORKFLOW_VERSION),
                 "workflow_version must be hierarchical-synthesis/v1"
+            );
+            assert_eq!(
+                prov.endpoint_class,
+                Some(EndpointClass::LocalProcess),
+                "local mock defaults to LocalProcess endpoint_class"
+            );
+            assert_eq!(
+                prov.deployment.as_deref(),
+                Some("local"),
+                "deployment must be derived from endpoint_class"
+            );
+            assert!(
+                prov.input_ids.as_ref().is_some_and(|ids| !ids.is_empty()),
+                "input_ids must be present on governed candidates"
             );
             assert!(
                 prov.output_hash.as_ref().is_some_and(|h| !h.is_empty()),
@@ -289,11 +305,16 @@ async fn run_synthesis__sealed_sources__excluded_before_model_call()
     let project_id = ProjectId::new();
     seed_level0_memories_with_privacy(&event_store, project_id, Privacy::Sealed)?;
 
-    // Empty mock queue: any model call would fail. Exclusion must yield 0 without calling.
-    let mock = Arc::new(MockProvider::new(vec![]));
-    let synth = MemorySynthesizer::new(query_store, event_store.clone(), mock);
+    // fail_if_called proves exclusion never reaches complete().
+    let mock = Arc::new(MockProvider::new(vec![]).failing_if_called());
+    let synth = MemorySynthesizer::new(query_store, event_store.clone(), mock.clone());
     let n = synth.run_synthesis(1, project_id).await?;
     assert_eq!(n, 0, "Sealed sources must not be auto-synthesized");
+    assert_eq!(
+        mock.complete_call_count(),
+        0,
+        "Sealed exclusion must not call complete()"
+    );
 
     let events = event_store.read_all_events()?;
     assert!(
@@ -324,14 +345,142 @@ async fn run_synthesis__local_only__refuses_cloud_provider()
     let project_id = ProjectId::new();
     seed_level0_memories_with_privacy(&event_store, project_id, Privacy::LocalOnly)?;
 
-    let mut mock = MockProvider::new(vec![]);
+    let mut mock = MockProvider::new(vec![]).failing_if_called();
     mock.is_local = false;
     let mock = Arc::new(mock);
-    let synth = MemorySynthesizer::new(query_store, event_store.clone(), mock);
+    let synth = MemorySynthesizer::new(query_store, event_store.clone(), mock.clone());
     let n = synth.run_synthesis(1, project_id).await?;
     assert_eq!(
         n, 0,
         "LocalOnly clusters must refuse non-local providers before model call"
+    );
+    assert_eq!(
+        mock.complete_call_count(),
+        0,
+        "cloud refusal must not call complete()"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn governed_synthesis__provenance_includes_endpoint_class()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = TempEnv::set(GOVERNED_SYNTHESIS_ENV, "1");
+
+    let dir = tempdir()?;
+    let db_path = dir.path().join("vault.db");
+    let key = ai_brains_crypto::DataKey::generate();
+    let sql_key = ai_brains_crypto::SqlCipherKey::from_data_key(&key);
+    let vault = VaultConnection::open(db_path, &sql_key)?;
+    vault.migrate()?;
+    let vault = Arc::new(vault);
+    let event_store = Arc::new(SqliteEventStore::new((*vault).clone()));
+    let query_store: Arc<dyn QueryStore> = vault.clone();
+    let project_id = ProjectId::new();
+    seed_level0_memories(&event_store, project_id)?;
+
+    let mock = Arc::new(MockProvider::new(vec![
+        CompletionResponse {
+            text: r#"{"title":"gov","aggregated_context":"c","invariants":[],"cumulative_progress":[]}"#.into(),
+            model: "mock-model".into(),
+        },
+        CompletionResponse {
+            text: "SUPPORTED".into(),
+            model: "mock-model".into(),
+        },
+    ]));
+    let synth = MemorySynthesizer::new(query_store, event_store.clone(), mock);
+    let n = synth.run_synthesis(1, project_id).await?;
+    assert!(n >= 1);
+
+    let events = event_store.read_all_events()?;
+    let proposed: Vec<_> = events
+        .iter()
+        .filter(|e| e.event_type == EventKind::ConclusionProposed)
+        .collect();
+    assert!(!proposed.is_empty());
+    match &proposed[0].payload {
+        Payload::ConclusionProposed(p) => {
+            let prov = p.model_provenance.as_ref().expect("must have provenance");
+            assert_eq!(prov.endpoint_class, Some(EndpointClass::LocalProcess));
+            assert_eq!(prov.deployment.as_deref(), Some("local"));
+            assert!(
+                prov.input_ids.as_ref().is_some_and(|ids| ids.len() >= 2),
+                "input_ids from cluster sources"
+            );
+            assert!(prov.output_hash.is_some());
+        }
+        other => panic!("expected ConclusionProposed, got {other:?}"),
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn governed_synthesis__sealed_cluster_skips_or_denies_cloud()
+-> Result<(), Box<dyn std::error::Error>> {
+    // Sealed sources are excluded before clustering; never reach cloud provider.
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = TempEnv::set(GOVERNED_SYNTHESIS_ENV, "1");
+
+    let dir = tempdir()?;
+    let db_path = dir.path().join("vault.db");
+    let key = ai_brains_crypto::DataKey::generate();
+    let sql_key = ai_brains_crypto::SqlCipherKey::from_data_key(&key);
+    let vault = VaultConnection::open(db_path, &sql_key)?;
+    vault.migrate()?;
+    let vault = Arc::new(vault);
+    let event_store = Arc::new(SqliteEventStore::new((*vault).clone()));
+    let query_store: Arc<dyn QueryStore> = vault.clone();
+    let project_id = ProjectId::new();
+    seed_level0_memories_with_privacy(&event_store, project_id, Privacy::Sealed)?;
+
+    let mut mock = MockProvider::new(vec![]).failing_if_called();
+    mock.is_local = false;
+    let mock = Arc::new(mock);
+    let synth = MemorySynthesizer::new(query_store, event_store.clone(), mock.clone());
+    let n = synth.run_synthesis(1, project_id).await?;
+    assert_eq!(
+        n, 0,
+        "Sealed must not synthesize via cloud (or any) provider"
+    );
+    assert_eq!(
+        mock.complete_call_count(),
+        0,
+        "Sealed cloud path must not call complete()"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn run_synthesis__never_inject__refuses_cloud_provider_if_reached()
+-> Result<(), Box<dyn std::error::Error>> {
+    // NeverInject is also excluded from automatic synthesis (filter); gate still refuses cloud.
+    let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = TempEnv::set(GOVERNED_SYNTHESIS_ENV, "1");
+
+    let dir = tempdir()?;
+    let db_path = dir.path().join("vault.db");
+    let key = ai_brains_crypto::DataKey::generate();
+    let sql_key = ai_brains_crypto::SqlCipherKey::from_data_key(&key);
+    let vault = VaultConnection::open(db_path, &sql_key)?;
+    vault.migrate()?;
+    let vault = Arc::new(vault);
+    let event_store = Arc::new(SqliteEventStore::new((*vault).clone()));
+    let query_store: Arc<dyn QueryStore> = vault.clone();
+    let project_id = ProjectId::new();
+    seed_level0_memories_with_privacy(&event_store, project_id, Privacy::NeverInject)?;
+
+    let mut mock = MockProvider::new(vec![]).failing_if_called();
+    mock.is_local = false;
+    let mock = Arc::new(mock);
+    let synth = MemorySynthesizer::new(query_store, event_store.clone(), mock.clone());
+    let n = synth.run_synthesis(1, project_id).await?;
+    assert_eq!(n, 0, "NeverInject must not auto-synthesize");
+    assert_eq!(
+        mock.complete_call_count(),
+        0,
+        "NeverInject refusal must not call complete()"
     );
     Ok(())
 }

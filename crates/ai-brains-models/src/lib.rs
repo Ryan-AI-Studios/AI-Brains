@@ -1,3 +1,4 @@
+use ai_brains_core::model_provenance::EndpointClass;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -8,6 +9,8 @@ pub enum ModelError {
     Network(String),
     #[error("Provider error: {0}")]
     Provider(String),
+    /// Privacy / cloud-route denial. Message is a **stable reason_code only**
+    /// (no prompts, API keys, or Privacy Debug dumps).
     #[error("Privacy violation: {0}")]
     PrivacyViolation(String),
     #[error("Timeout")]
@@ -58,7 +61,17 @@ pub trait ModelProvider: Send + Sync {
     async fn embed(&self, request: EmbeddingRequest) -> Result<EmbeddingResponse>;
     async fn tokenize(&self, request: TokenizeRequest) -> Result<TokenizeResponse>;
     fn name(&self) -> &str;
+    /// Whether this provider is local for privacy routing (loopback / in-process).
     fn is_local(&self) -> bool;
+
+    /// Endpoint class used for provenance. Default derives from [`Self::is_local`].
+    fn endpoint_class(&self) -> EndpointClass {
+        if self.is_local() {
+            EndpointClass::LocalProcess
+        } else {
+            EndpointClass::CloudApi
+        }
+    }
 }
 
 pub fn estimate_tokens(text: &str) -> usize {
@@ -67,7 +80,9 @@ pub fn estimate_tokens(text: &str) -> usize {
     (text.len() as f32 / 3.5).ceil() as usize
 }
 
+pub use endpoint::{classify_endpoint, endpoint_is_local};
 pub use mock::MockProvider;
+pub mod endpoint;
 pub mod llama_cpp;
 pub mod mock;
 pub mod ollama;
