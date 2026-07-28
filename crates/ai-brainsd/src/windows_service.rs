@@ -301,123 +301,36 @@ where
                 continue;
             }
 
-            let request = match serde_json::from_slice::<ai_brains_daemon_api::DaemonRequest>(line)
-            {
-                Ok(request) => Some(request),
-                Err(_) => {
-                    match serde_json::from_slice::<ai_brains_contracts::bridge::BridgeRecord>(line)
-                    {
-                        Ok(record) => Some(ai_brains_daemon_api::DaemonRequest::Sync(record)),
-                        Err(e) => {
-                            tracing::warn!(
-                                "Failed to parse as DaemonRequest or BridgeRecord: {}",
-                                e
-                            );
-                            None
+            match crate::dispatch::parse_live_request_line(line) {
+                Ok(request) => {
+                    let result: Result<(), Box<dyn std::error::Error + Send + Sync>> =
+                        match crate::dispatch::handle_daemon_request(request, &writer).await {
+                            Ok(outcome) => {
+                                crate::dispatch::write_dispatch_result(
+                                    &mut server,
+                                    outcome,
+                                    &shutdown_tx,
+                                )
+                                .await
+                            }
+                            Err(e) => Err(e),
+                        };
+
+                    if let Err(e) = result {
+                        let api_err = ai_brains_contracts::response::ApiError::new(
+                            "DAEMON_ERROR",
+                            e.to_string(),
+                        );
+                        let resp = ai_brains_daemon_api::DaemonResponse::Error(api_err);
+                        if let Ok(mut payload) = serde_json::to_vec(&resp) {
+                            payload.push(b'\n');
+                            let _ = server.write_all(&payload).await;
                         }
                     }
                 }
-            };
-
-            if let Some(request) = request {
-                let result: Result<(), Box<dyn std::error::Error + Send + Sync>> = match request {
-                    ai_brains_daemon_api::DaemonRequest::Ping => {
-                        let mut payload =
-                            serde_json::to_vec(&ai_brains_daemon_api::DaemonResponse::Pong)?;
-                        payload.push(b'\n');
-                        server.write_all(&payload).await?;
-                        Ok(())
-                    }
-                    ai_brains_daemon_api::DaemonRequest::Shutdown => {
-                        tracing::info!("Shutdown request received via IPC.");
-                        let _ = shutdown_tx.send(());
-                        Ok(())
-                    }
-                    ai_brains_daemon_api::DaemonRequest::Ingest(req) => {
-                        match writer.ingest(req).await {
-                            Ok(resp) => {
-                                let mut payload = serde_json::to_vec(
-                                    &ai_brains_daemon_api::DaemonResponse::Ingest(resp),
-                                )?;
-                                payload.push(b'\n');
-                                server.write_all(&payload).await?;
-                                Ok(())
-                            }
-                            Err(e) => Err(e),
-                        }
-                    }
-                    ai_brains_daemon_api::DaemonRequest::Sync(record) => {
-                        if record.record_kind == "query" {
-                            let payload = record.payload_value();
-                            let query_text =
-                                payload.get("text").and_then(|v| v.as_str()).unwrap_or("");
-
-                            use std::str::FromStr;
-                            let project_id =
-                                ai_brains_core::ids::ProjectId::from_str(&record.project_id).ok();
-                            let session_id = record
-                                .session_id
-                                .as_ref()
-                                .and_then(|s| ai_brains_core::ids::SessionId::from_str(s).ok());
-
-                            match writer
-                                .query_memories(query_text, project_id, session_id)
-                                .await
-                            {
-                                Ok(hits) => {
-                                    let timestamp = chrono::Utc::now();
-                                    for h in hits {
-                                        let payload =
-                                            ai_brains_contracts::bridge::BridgePayload::Insight {
-                                                type_field: "Insight".to_string(),
-                                                memory_id: h.memory_id,
-                                                relevance: h.score.unwrap_or(1.0),
-                                                content: h.content,
-                                            };
-                                        let resp_record =
-                                            ai_brains_contracts::bridge::BridgeRecord {
-                                                bridge_version: "0.3".to_string(),
-                                                direction:
-                                                    ai_brains_contracts::bridge::BridgeDirection::Outbound,
-                                                timestamp,
-                                                parent_hash: None,
-                                                project_id: record.project_id.clone(),
-                                                session_id: record.session_id.clone(),
-                                                tx_id: None,
-                                                record_kind: "insight".to_string(),
-                                                payload,
-                                                privacy: ai_brains_core::privacy::Privacy::LocalOnly,
-                                            };
-                                        let mut payload = serde_json::to_vec(&resp_record)?;
-                                        payload.push(b'\n');
-                                        server.write_all(&payload).await?;
-                                    }
-                                    server.write_all(b"\n").await?;
-                                    Ok(())
-                                }
-                                Err(e) => Err(e),
-                            }
-                        } else {
-                            match writer.sync(record).await {
-                                Ok(_) => {
-                                    let mut payload = serde_json::to_vec(
-                                        &ai_brains_daemon_api::DaemonResponse::Sync {
-                                            success: true,
-                                        },
-                                    )?;
-                                    payload.push(b'\n');
-                                    server.write_all(&payload).await?;
-                                    Ok(())
-                                }
-                                Err(e) => Err(e),
-                            }
-                        }
-                    }
-                };
-
-                if let Err(e) = result {
-                    let api_err =
-                        ai_brains_contracts::response::ApiError::new("DAEMON_ERROR", e.to_string());
+                Err(api_err) => {
+                    // AC3 fail-closed: always write Error — never silent drop (client hang).
+                    tracing::warn!("Invalid live request: {}", api_err.message);
                     let resp = ai_brains_daemon_api::DaemonResponse::Error(api_err);
                     if let Ok(mut payload) = serde_json::to_vec(&resp) {
                         payload.push(b'\n');

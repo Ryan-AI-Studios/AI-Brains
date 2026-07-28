@@ -1,0 +1,7 @@
+{
+  "type": "error",
+  "payload": {
+    "code": "DAEMON_ERROR",
+    "message": "queue closed"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "type": "scope_resolved",
+  "payload": {
+    "api_version": "1",
+    "scope": "Repository:00000000-0000-0000-0000-0000000000a1",
+    "confidence": "Ambiguous",
+    "authoritative": false,
+    "evidence": [
+      {
+        "signal": "path_alias",
+        "detail": "matched two aliases"
+      }
+    ],
+    "warnings": [
+      "multiple candidates"
+    ],
+    "alternatives": [
+      "Repository:00000000-0000-0000-0000-0000000000a1",
+      "Repository:00000000-0000-0000-0000-0000000000a2"
+    ]
+  }
+}

@@ -2,6 +2,7 @@ pub mod backup;
 pub mod bridge;
 pub mod briefings;
 pub mod doctor;
+pub mod erasure;
 pub mod hook;
 pub mod ingest;
 pub mod knowledge;

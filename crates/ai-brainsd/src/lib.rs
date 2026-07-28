@@ -10,6 +10,7 @@ use tokio::fs;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
+pub mod dispatch;
 pub mod instance_guard;
 pub mod pipe_error;
 
@@ -208,10 +209,20 @@ async fn replay_spool(
             DaemonRequest::Sync(record) => {
                 process_sync(service, store, record, Some(path)).await?;
             }
-            DaemonRequest::Ping => {
-                let _ = fs::remove_file(path).await;
-            }
-            DaemonRequest::Shutdown => {
+            // Live-only / control ops — not durable spool work. Drop without panic.
+            DaemonRequest::Ping
+            | DaemonRequest::Shutdown
+            | DaemonRequest::ResolveScope(_)
+            | DaemonRequest::ProjectBriefing(_)
+            | DaemonRequest::PersonalBriefing(_)
+            | DaemonRequest::QueryKnowledge(_)
+            | DaemonRequest::InspectEvidence(_)
+            | DaemonRequest::InspectSource(_)
+            | DaemonRequest::ProposeConclusion(_)
+            | DaemonRequest::ProposeDecision(_)
+            | DaemonRequest::ListReviewItems(_)
+            | DaemonRequest::ResolveReviewItem(_)
+            | DaemonRequest::RequestErasure(_) => {
                 let _ = fs::remove_file(path).await;
             }
         }

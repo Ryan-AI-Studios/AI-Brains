@@ -458,3 +458,138 @@ pub struct HandlePreviewDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_version_id: Option<String>,
 }
+
+// ---------------------------------------------------------------------------
+// Governed briefing / query request DTOs (daemon protocol — T158)
+// ---------------------------------------------------------------------------
+
+fn default_api_version() -> String {
+    API_VERSION.to_string()
+}
+
+/// Options for a project briefing over the daemon protocol.
+///
+/// **E1:** optional fields absent or null → handler defaults; never secrets.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProjectBriefingRequest {
+    #[serde(default = "default_api_version")]
+    pub api_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_id: Option<String>,
+    /// Scope identity key (e.g. `Repository:{uuid}`). Optional when cwd is provided.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_words: Option<usize>,
+    /// Optional request-level override for governed briefing path (T152-R1-07).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub governed_briefing: Option<bool>,
+}
+
+impl Default for ProjectBriefingRequest {
+    fn default() -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            principal_id: None,
+            scope: None,
+            cwd: None,
+            max_words: None,
+            governed_briefing: None,
+        }
+    }
+}
+
+/// Options for a personal continuity briefing over the daemon protocol.
+///
+/// **E1:** empty personal packet uses empty arrays / empty continuity summary, never null lists.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PersonalBriefingRequest {
+    #[serde(default = "default_api_version")]
+    pub api_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_id: Option<String>,
+    /// Personal scope key `Personal:{user_id}` or bare user id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_words: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub governed_briefing: Option<bool>,
+}
+
+impl Default for PersonalBriefingRequest {
+    fn default() -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            principal_id: None,
+            scope: None,
+            max_words: None,
+            governed_briefing: None,
+        }
+    }
+}
+
+/// Progressive knowledge query over the daemon protocol.
+///
+/// **E1 response shape** ([`ProgressiveQueryResponse`]): `results: []`, `more_available: false`;
+/// policy deny → `denied: true` or outer `Error(POLICY_DENIED)`, never silent ok with empty.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QueryKnowledgeRequest {
+    #[serde(default = "default_api_version")]
+    pub api_version: String,
+    pub query: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+}
+
+/// Expand an evidence handle to a bounded preview (no full raw dump).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InspectEvidenceRequest {
+    #[serde(default = "default_api_version")]
+    pub api_version: String,
+    /// Evidence / handle id.
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_id: Option<String>,
+    /// Max characters in preview body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_chars: Option<usize>,
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_briefing_request__optional_fields_default() {
+        let decoded: ProjectBriefingRequest =
+            serde_json::from_str(r#"{"api_version":"1"}"#).expect("deserialize");
+        assert!(decoded.principal_id.is_none());
+        assert!(decoded.scope.is_none());
+        assert!(decoded.max_words.is_none());
+        assert!(decoded.governed_briefing.is_none());
+    }
+
+    #[test]
+    fn query_knowledge_request__roundtrip() {
+        let req = QueryKnowledgeRequest {
+            api_version: API_VERSION.to_string(),
+            query: "briefing budget".into(),
+            scope: Some("Repository:00000000-0000-0000-0000-0000000000a1".into()),
+            principal_id: Some("00000000-0000-0000-0000-0000000000p1".into()),
+            limit: Some(10),
+        };
+        let json = serde_json::to_string(&req).expect("serialize");
+        let decoded: QueryKnowledgeRequest = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(decoded, req);
+    }
+}
