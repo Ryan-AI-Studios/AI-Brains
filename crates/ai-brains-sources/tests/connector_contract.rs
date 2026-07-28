@@ -15,10 +15,12 @@ use ai_brains_core::scope::ScopeRef;
 use ai_brains_core::source::SourceKind;
 use ai_brains_sources::{
     Connector, ConnectorContext, ConnectorError, ConnectorOperations, ConnectorTrustLabel,
-    InProcessConnectorRegistry, MANIFEST_SCHEMA_VERSION, MOCK_CONNECTOR_ID, ManifestError,
-    MarkdownObsidianConnector, MockConnector, OBSIDIAN_CONNECTOR_ID, RegistryError, SandboxMode,
-    VaultOptions, WriteProposalInput, fingerprint_file_with_identity, parse_manifest_json,
-    parse_manifest_str, principal_id_for_connector, validate_manifest,
+    GIT_CONNECTOR_ID, GitConnector, GitConnectorOptions, InProcessConnectorRegistry,
+    LEDGERFUL_CONNECTOR_ID, LedgerfulConnector, LedgerfulConnectorOptions, MANIFEST_SCHEMA_VERSION,
+    MOCK_CONNECTOR_ID, ManifestError, MarkdownObsidianConnector, MockConnector,
+    OBSIDIAN_CONNECTOR_ID, RegistryError, SandboxMode, VaultOptions, WriteProposalInput,
+    fingerprint_file_with_identity, parse_manifest_json, parse_manifest_str,
+    principal_id_for_connector, validate_manifest,
 };
 use tempfile::tempdir;
 use uuid::Uuid;
@@ -413,6 +415,71 @@ fn connector_obsidian__passes_shared_contract() {
     let connector =
         MarkdownObsidianConnector::open(dir.path(), VaultOptions::default()).expect("open vault");
     assert_eq!(connector.manifest().id, OBSIDIAN_CONNECTOR_ID);
+    assert_connector_contract(&connector);
+}
+
+#[test]
+fn connector_git__passes_shared_contract_on_repo() {
+    // Minimal git repo under tempdir (no shared helpers — keep contract suite self-contained).
+    let dir = tempdir().expect("tempdir");
+    let root = dir.path();
+    let status = std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(root)
+        .status()
+        .expect("git init");
+    assert!(status.success(), "git init");
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.name", "AI Brains Test"])
+        .current_dir(root)
+        .status();
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.email", "tests@example.com"])
+        .current_dir(root)
+        .status();
+    fs::write(root.join("README.md"), b"hi\n").expect("write");
+    let add = std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(root)
+        .status()
+        .expect("git add");
+    assert!(add.success());
+    let commit = std::process::Command::new("git")
+        .args(["commit", "-m", "initial"])
+        .current_dir(root)
+        .status()
+        .expect("git commit");
+    assert!(commit.success());
+
+    let connector =
+        GitConnector::open(root, GitConnectorOptions::default()).expect("open git connector");
+    assert_eq!(connector.manifest().id, GIT_CONNECTOR_ID);
+    assert_eq!(connector.manifest().sandbox, SandboxMode::TrustedBuiltin);
+    assert!(!connector.manifest().operations.propose_write);
+    assert_connector_contract(&connector);
+}
+
+#[test]
+fn connector_ledgerful__passes_shared_contract() {
+    let json = r#"{
+        "bridge_version":"1.0",
+        "direction":"inbound",
+        "timestamp":"2026-05-19T00:00:00Z",
+        "parent_hash":"ph",
+        "project_id":"p",
+        "session_id":null,
+        "tx_id":"tx",
+        "record_kind":"prompt",
+        "payload":{"text":"hi"},
+        "privacy":"ProjectLocal"
+    }"#;
+    let record: ai_brains_contracts::bridge::BridgeRecord =
+        serde_json::from_str(json).expect("record");
+    let connector =
+        LedgerfulConnector::from_records(vec![record], LedgerfulConnectorOptions::default());
+    assert_eq!(connector.manifest().id, LEDGERFUL_CONNECTOR_ID);
+    assert_eq!(connector.manifest().sandbox, SandboxMode::TrustedBuiltin);
+    assert!(!connector.manifest().operations.propose_write);
     assert_connector_contract(&connector);
 }
 

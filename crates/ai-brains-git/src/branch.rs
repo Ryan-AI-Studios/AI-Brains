@@ -1,10 +1,14 @@
-use crate::command::run_git;
+use crate::command::run_git_timeout;
 use crate::errors::Result;
+use crate::policy::{GitRunOptions, or_soft_default};
 use std::path::Path;
 
-pub fn read_branch(root: &Path) -> Result<Option<String>> {
-    match run_git(root, &["branch", "--show-current"]) {
+pub(crate) fn read_branch_with_options(
+    root: &Path,
+    opts: &GitRunOptions,
+) -> Result<Option<String>> {
+    match run_git_timeout(root, &["branch", "--show-current"], opts.timeout) {
         Ok(branch) => Ok(branch),
-        Err(_) => Ok(None),
+        Err(e) => or_soft_default(Err(e), opts.policy, None),
     }
 }
