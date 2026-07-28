@@ -12,7 +12,9 @@ use ai_brains_core::ids::UserId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_core::source::SourceKind;
-use ai_brains_git::{GitError, SoftFailPolicy, collect_metadata, collect_metadata_strict};
+use ai_brains_git::{
+    ForceTimeoutGuard, GitError, SoftFailPolicy, collect_metadata, collect_metadata_strict,
+};
 use ai_brains_sources::{
     Connector, ConnectorContext, ConnectorError, ConnectorTrustLabel, DEFAULT_GIT_MAX_HANDLES,
     GIT_CONNECTOR_ID, GitConnector, GitConnectorOptions, InProcessConnectorRegistry,
@@ -273,6 +275,68 @@ fn git_connector__list__hard_fail_map__not_silent_empty() {
         !matches!(err, ConnectorError::HandleNotFound { .. }),
         "must not disguise command fail as missing handle"
     );
+}
+
+#[test]
+fn git_connector__list__forced_timeout__returns_err_not_not_a_repository()
+-> Result<(), Box<dyn std::error::Error>> {
+    // End-to-end: inject Timeout at run_git_timeout → strict collect → list Err.
+    // Must NOT soft-empty as not_a_repository (R1-05 / AC4-AC5).
+    let dir = tempdir()?;
+    let connector = GitConnector::open(dir.path(), GitConnectorOptions::default())?;
+    let _guard = ForceTimeoutGuard::arm();
+    let err = connector
+        .list(&personal_ctx())
+        .expect_err("timeout must be Err from list");
+    match err {
+        ConnectorError::Internal { detail } => {
+            assert!(
+                detail.starts_with("timeout:"),
+                "expected timeout: prefix, got {detail}"
+            );
+            assert!(
+                !detail.contains(REASON_NOT_A_REPOSITORY),
+                "must not mislabel timeout as not_a_repository: {detail}"
+            );
+        }
+        other => panic!("expected Internal timeout, got {other:?}"),
+    }
+    let reason = connector
+        .last_unavailable_reason()
+        .expect("side-channel set on hard fail");
+    assert!(
+        reason.starts_with("timeout:"),
+        "side-channel must be timeout, got {reason}"
+    );
+    assert_ne!(reason, REASON_NOT_A_REPOSITORY);
+    Ok(())
+}
+
+#[test]
+fn git_connector__observe__forced_timeout__returns_err() -> Result<(), Box<dyn std::error::Error>> {
+    let root = init_repo("observe-timeout")?;
+    commit_file(&root, "a.txt", "x\n", "initial")?;
+    let connector = GitConnector::open(&root, GitConnectorOptions::default())?;
+    let ctx = personal_ctx();
+    // Obtain a real handle first (without inject).
+    let handles = connector.list(&ctx)?;
+    assert_eq!(handles.len(), 1);
+    let handle = handles[0].clone();
+
+    let _guard = ForceTimeoutGuard::arm();
+    let err = connector
+        .observe(&ctx, &handle)
+        .expect_err("timeout must be Err from observe");
+    match err {
+        ConnectorError::Internal { detail } => {
+            assert!(
+                detail.starts_with("timeout:"),
+                "expected timeout: prefix, got {detail}"
+            );
+        }
+        other => panic!("expected Internal timeout, got {other:?}"),
+    }
+    Ok(())
 }
 
 #[test]

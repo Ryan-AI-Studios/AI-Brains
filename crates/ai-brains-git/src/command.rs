@@ -27,7 +27,41 @@ use std::ffi::OsString;
 use std::io::{self, Read};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+
+/// When true (test-hooks / cfg(test) only), the next [`run_git_timeout`] call
+/// returns [`GitError::Timeout`] without spawning. Used for end-to-end hard-fail
+/// coverage of strict collect and the Git connector.
+static FORCE_TIMEOUT: AtomicBool = AtomicBool::new(false);
+
+/// Force the next git spawn path to return [`GitError::Timeout`] (no process).
+///
+/// Available under `cfg(test)` and the `test-hooks` feature. Always clear in a
+/// `Drop` guard or `defer`-style finally so parallel tests do not leak state.
+#[cfg(any(test, feature = "test-hooks"))]
+pub fn test_force_timeout(force: bool) {
+    FORCE_TIMEOUT.store(force, Ordering::SeqCst);
+}
+
+/// RAII guard that forces timeout for the duration of the guard.
+#[cfg(any(test, feature = "test-hooks"))]
+pub struct ForceTimeoutGuard;
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl ForceTimeoutGuard {
+    pub fn arm() -> Self {
+        test_force_timeout(true);
+        Self
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl Drop for ForceTimeoutGuard {
+    fn drop(&mut self) {
+        test_force_timeout(false);
+    }
+}
 
 /// Default deadline for production git CLI calls (collect_metadata path).
 pub const DEFAULT_GIT_TIMEOUT_MS: u64 = 5_000;
@@ -146,6 +180,16 @@ pub fn run_git(path: &Path, args: &[&str]) -> Result<Option<String>> {
 /// See module rustdoc for orphan residual (ssh/credential helpers).
 pub fn run_git_timeout(path: &Path, args: &[&str], timeout: Duration) -> Result<Option<String>> {
     let command_label = format_git_command(args);
+
+    // Test inject: hard-fail without spawning (see `test_force_timeout`).
+    // Swap clears the one-shot so a stuck true cannot poison later spawns.
+    if FORCE_TIMEOUT.swap(false, Ordering::SeqCst) {
+        return Err(GitError::Timeout {
+            command: command_label,
+            elapsed_ms: 0,
+        });
+    }
+
     let mut cmd = git_command(path, args);
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())

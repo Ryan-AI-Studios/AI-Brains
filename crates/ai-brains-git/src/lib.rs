@@ -17,6 +17,8 @@ pub use command::{
     ENV_GIT_TERMINAL_PROMPT, ENV_SSH_ASKPASS_REQUIRE, apply_git_automation_env,
     automation_env_pairs, git_askpass_noop_program, git_command, run_git, run_git_timeout,
 };
+#[cfg(any(test, feature = "test-hooks"))]
+pub use command::{ForceTimeoutGuard, test_force_timeout};
 pub use diffstat::DiffStat;
 pub use discover::{
     discover_common_dir, discover_common_dir_with_options, discover_root,
@@ -141,5 +143,39 @@ mod tests {
             GitRunOptions::strict_with_timeout(custom).policy,
             SoftFailPolicy::Strict
         );
+    }
+
+    #[test]
+    fn collect_metadata_strict__forced_timeout__returns_timeout_err() {
+        // End-to-end: inject at run_git_timeout → discover → strict collect Err.
+        let dir = std::env::temp_dir().join(format!(
+            "ai-brains-git-strict-timeout-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::create_dir_all(&dir);
+        let _guard = ForceTimeoutGuard::arm();
+        let err = collect_metadata_strict(&dir).expect_err("timeout must surface");
+        let _ = std::fs::remove_dir_all(&dir);
+        match err {
+            GitError::Timeout { command, .. } => {
+                assert!(
+                    command.contains("rev-parse"),
+                    "first spawn is discover rev-parse, got {command}"
+                );
+            }
+            other => panic!("expected Timeout, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn collect_metadata_soft__forced_timeout_on_discover__still_propagates() {
+        // Soft also keeps Timeout hard on discover (truthful unavailability).
+        let dir =
+            std::env::temp_dir().join(format!("ai-brains-git-soft-timeout-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let _guard = ForceTimeoutGuard::arm();
+        let err = collect_metadata(&dir).expect_err("timeout must surface under soft");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(matches!(err, GitError::Timeout { .. }));
     }
 }

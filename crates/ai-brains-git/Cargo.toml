@@ -6,6 +6,11 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = []
+## Inert until called; used by connector integration tests for hard-fail paths.
+test-hooks = []
+
 [dependencies]
 sha2.workspace = true
 hex.workspace = true
