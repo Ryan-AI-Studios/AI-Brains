@@ -1,6 +1,7 @@
 //! Deterministic source fingerprints, content normalization, the connector
 //! port + capability manifest (T149 / T153), Markdown / Obsidian vault
-//! connector (T154), and Git / Ledgerful connectors + bounded refresh (T155).
+//! connector (T154), Git / Ledgerful connectors + bounded refresh (T155), and
+//! Hermes / Honcho external-memory read adapters + circularity (T156).
 //!
 //! Digest algorithm is **SHA-256** only (plus authoritative string forms for
 //! Ledgerful bridge hashes and External ETag/revision).
@@ -13,7 +14,7 @@
 //! [`ai_brains_git::collect_metadata`] remains for fingerprint helpers / legacy.
 //! This crate never shells out to `git` directly and never hashes `.git` wholesale.
 //!
-//! # Connectors (T153 / T154 / T155)
+//! # Connectors (T153 / T154 / T155 / T156)
 //!
 //! Sync [`Connector`] trait + versioned [`ConnectorManifest`] (`schema_version = 1`).
 //! Production [`InProcessConnectorRegistry`] accepts only
@@ -24,13 +25,23 @@
 //! - [`MarkdownObsidianConnector`] (`builtin.obsidian`)
 //! - [`GitConnector`] (`builtin.git`)
 //! - [`LedgerfulConnector`] (`builtin.ledgerful`)
+//! - [`HermesConnector`] (`builtin.hermes`) — fixture/export read; flag default off
+//! - [`HonchoConnector`] (`builtin.honcho`) — fixture/export read; **no AGPL SDK**; flag default off
+//!
+//! Circularity: [`classify_circularity`] never returns Independent; unmarked
+//! external content is Unknown and cannot pass
+//! [`may_count_as_independent_support`]. [`OutboundIndex`] is empty in
+//! production v1.
 //!
 //! Bounded multi-connector helper: [`refresh_bounded`].
 
+mod circularity;
 mod connector;
 mod fingerprint;
 mod git;
 mod git_fingerprint;
+mod hermes;
+mod honcho;
 mod ledgerful;
 mod manifest;
 mod markdown;
@@ -41,6 +52,13 @@ mod refresh;
 mod registry;
 mod vault_fs;
 
+pub use circularity::{
+    CircularityClass, EXTERNAL_ITEM_META_SCHEMA_VERSION, ExternalItemMeta, ExternalItemMetaInput,
+    ORIGIN_MARKER_KEYS, OutboundIndex, classify_circularity, classify_circularity_with_fingerprint,
+    classify_circularity_with_payload, extract_origin_markers_from_bytes,
+    extract_origin_markers_from_value, filter_by_circularity_classes, filter_independent_support,
+    may_count_as_independent_support, meta_with_assert_independent, payload_has_origin_markers,
+};
 pub use connector::{
     Connector, ConnectorContext, ConnectorError, ObservePayload, Preview, SourceHandle,
     WriteProposal, WriteProposalInput,
@@ -55,6 +73,17 @@ pub use git::{
 };
 pub use git_fingerprint::{
     canonicalize_git_metadata, fingerprint_git_metadata, fingerprint_git_path,
+};
+pub use hermes::{
+    DEFAULT_HERMES_MAX_HANDLES, DEFAULT_HERMES_TIMEOUT_MS, ENV_HERMES_CONNECTOR,
+    HERMES_CONNECTOR_ID, HermesConnector, HermesConnectorOptions, HermesSessionSummary,
+    HermesSource, REASON_CONNECTOR_DISABLED, deserialize_optional_privacy,
+    is_env_connector_enabled, load_hermes_export_dir, make_hermes_identity, resolve_item_privacy,
+};
+pub use honcho::{
+    DEFAULT_HONCHO_MAX_HANDLES, DEFAULT_HONCHO_TIMEOUT_MS, ENV_HONCHO_CONNECTOR,
+    HONCHO_CONNECTOR_ID, HonchoConfirmedItem, HonchoConnector, HonchoConnectorOptions,
+    HonchoSource, load_honcho_export_dir, make_honcho_identity,
 };
 pub use ledgerful::{
     DEFAULT_LEDGERFUL_MAX_RECORDS, LEDGERFUL_CONNECTOR_ID, LedgerfulConnector,

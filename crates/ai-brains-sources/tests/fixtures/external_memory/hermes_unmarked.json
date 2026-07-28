@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "session_id": "sess-unmarked-1",
+  "summary_text": "User discussed vault path normalization without control-plane markers.",
+  "source_ids": ["src-a", "src-b"],
+  "occurred_at": "2026-07-28T12:00:00Z"
+}
