@@ -1195,8 +1195,7 @@ mod tests {
 
     #[test]
     fn map_control_plane_error__event_append__internal_code() {
-        let resp =
-            map_control_plane_error(ControlPlaneError::EventAppend("disk full".into()));
+        let resp = map_control_plane_error(ControlPlaneError::EventAppend("disk full".into()));
         match resp {
             DaemonResponse::Error(err) => {
                 assert_eq!(err.code, "INTERNAL");
@@ -1208,9 +1207,9 @@ mod tests {
 
     #[test]
     fn is_retriable_control_plane_error__infra_vs_terminal() {
-        assert!(is_retriable_control_plane_error(&ControlPlaneError::EventAppend(
-            "x".into()
-        )));
+        assert!(is_retriable_control_plane_error(
+            &ControlPlaneError::EventAppend("x".into())
+        ));
         assert!(is_retriable_control_plane_error(&ControlPlaneError::Query(
             "x".into()
         )));
@@ -1294,7 +1293,10 @@ mod tests {
         assert_eq!(stem, "propose_conclusion_cmd-1");
         let stem2 = governed_spool_stem("request_erasure", "cmd-1");
         assert_eq!(stem2, "request_erasure_cmd-1");
-        assert_ne!(stem, stem2, "same command_id different ops must not collide");
+        assert_ne!(
+            stem, stem2,
+            "same command_id different ops must not collide"
+        );
     }
 
     #[test]

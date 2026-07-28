@@ -101,12 +101,7 @@ fn grant_propose(
     principal: &ai_brains_core::principal::Principal,
     scope: ScopeRef,
 ) {
-    grant_capability(
-        store,
-        principal,
-        scope,
-        GrantCapability::ProposeConclusion,
-    );
+    grant_capability(store, principal, scope, GrantCapability::ProposeConclusion);
 }
 
 #[tokio::test]
