@@ -162,14 +162,16 @@ impl DaemonClient {
 
     pub async fn probe(&self, timeout: Duration) -> bool {
         matches!(
-            self.request_with_timeout(DaemonRequest::Ping, timeout).await,
+            self.request_with_timeout(DaemonRequest::Ping, timeout)
+                .await,
             Ok(DaemonResponse::Pong)
         )
     }
 
     /// Send a full line-delimited [`DaemonRequest`] and await one [`DaemonResponse`].
     pub async fn request(&self, req: DaemonRequest) -> Result<DaemonResponse, DaemonClientError> {
-        self.request_with_timeout(req, DEFAULT_REQUEST_TIMEOUT).await
+        self.request_with_timeout(req, DEFAULT_REQUEST_TIMEOUT)
+            .await
     }
 
     /// Like [`Self::request`] with an explicit timeout bound.
@@ -178,9 +180,8 @@ impl DaemonClient {
         req: DaemonRequest,
         timeout: Duration,
     ) -> Result<DaemonResponse, DaemonClientError> {
-        let mut payload = serde_json::to_vec(&req).map_err(|e| {
-            DaemonClientError::Protocol(format!("serialize request failed: {e}"))
-        })?;
+        let mut payload = serde_json::to_vec(&req)
+            .map_err(|e| DaemonClientError::Protocol(format!("serialize request failed: {e}")))?;
         payload.push(b'\n');
 
         #[cfg(windows)]
@@ -234,9 +235,7 @@ impl DaemonClient {
         loop {
             let remaining = read_deadline.saturating_duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                return Err(DaemonClientError::Timeout {
-                    request_sent: true,
-                });
+                return Err(DaemonClientError::Timeout { request_sent: true });
             }
             match tokio_timeout(remaining, stream.read(&mut chunk)).await {
                 Ok(Ok(0)) => {
@@ -261,9 +260,7 @@ impl DaemonClient {
                     });
                 }
                 Err(_) => {
-                    return Err(DaemonClientError::Timeout {
-                        request_sent: true,
-                    });
+                    return Err(DaemonClientError::Timeout { request_sent: true });
                 }
             }
         }
@@ -317,9 +314,7 @@ impl DaemonClient {
         loop {
             let remaining = read_deadline.saturating_duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                return Err(DaemonClientError::Timeout {
-                    request_sent: true,
-                });
+                return Err(DaemonClientError::Timeout { request_sent: true });
             }
             match tokio_timeout(remaining, stream.read(&mut chunk)).await {
                 Ok(Ok(0)) => {
@@ -344,9 +339,7 @@ impl DaemonClient {
                     });
                 }
                 Err(_) => {
-                    return Err(DaemonClientError::Timeout {
-                        request_sent: true,
-                    });
+                    return Err(DaemonClientError::Timeout { request_sent: true });
                 }
             }
         }
@@ -411,9 +404,7 @@ mod tests {
 
     #[test]
     fn daemon_client_error__timeout_after_send__is_ambiguous() {
-        let err = DaemonClientError::Timeout {
-            request_sent: true,
-        };
+        let err = DaemonClientError::Timeout { request_sent: true };
         assert!(err.is_ambiguous());
         assert!(!err.is_pre_send_unavailable());
     }

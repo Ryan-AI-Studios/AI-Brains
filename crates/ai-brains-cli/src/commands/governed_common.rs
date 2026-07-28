@@ -526,8 +526,7 @@ mod tests {
 
     #[test]
     fn principal_id_wire__explicit_human__that_uuid() {
-        let id = Uuid::parse_str("11111111-2222-3333-4444-555555555555")
-            .expect("fixture uuid");
+        let id = Uuid::parse_str("11111111-2222-3333-4444-555555555555").expect("fixture uuid");
         let principal = make_principal(
             PrincipalKind::Human,
             PrincipalId::from_uuid(id),

@@ -403,7 +403,9 @@ enum Commands {
 )]
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
-    #[command(after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500")]
+    #[command(
+        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500"
+    )]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
         project_id: Option<ProjectId>,

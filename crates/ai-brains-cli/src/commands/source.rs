@@ -144,10 +144,7 @@ async fn run_show_daemon(
     }
 }
 
-fn emit_source(
-    format: OutputFormat,
-    dto: &SourceDto,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn emit_source(format: OutputFormat, dto: &SourceDto) -> Result<(), Box<dyn std::error::Error>> {
     match format {
         OutputFormat::Json => emit_json(dto),
         OutputFormat::Human | OutputFormat::Markdown => {

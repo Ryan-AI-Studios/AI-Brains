@@ -856,8 +856,7 @@ fn control_plane_error_parts(err: &ControlPlaneError) -> (&'static str, String) 
 }
 
 /// Well-known System principal UUID shared with CLI `cli_principal` (briefing.rs).
-const CLI_SYSTEM_PRINCIPAL_U128: u128 =
-    0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2;
+const CLI_SYSTEM_PRINCIPAL_U128: u128 = 0xA1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2_A1_B2;
 
 /// Resolve principal for daemon IPC (see module docs).
 pub fn resolve_principal(wire_principal_id: Option<&str>) -> Principal {
@@ -1230,8 +1229,7 @@ mod tests {
 
     #[test]
     fn resolve_principal__wire_other_uuid__human_kind() {
-        let id = Uuid::parse_str("11111111-2222-3333-4444-555555555555")
-            .expect("fixture uuid");
+        let id = Uuid::parse_str("11111111-2222-3333-4444-555555555555").expect("fixture uuid");
         let p = resolve_principal(Some(&id.to_string()));
         assert!(matches!(p.kind, PrincipalKind::Human));
         assert_eq!(p.id.to_string(), id.to_string());
@@ -1241,8 +1239,7 @@ mod tests {
     #[test]
     fn resolve_principal__no_wire_with_env__human_from_env() {
         use ai_brains_core::temp_env::TempEnv;
-        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
-            .expect("fixture uuid");
+        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").expect("fixture uuid");
         let _guard = TempEnv::set("AI_BRAINS_DAEMON_PRINCIPAL_ID", env_id.to_string());
         let p = resolve_principal(None);
         assert!(matches!(p.kind, PrincipalKind::Human));
@@ -1264,10 +1261,9 @@ mod tests {
     #[test]
     fn resolve_principal__wire_present_overrides_env() {
         use ai_brains_core::temp_env::TempEnv;
-        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
-            .expect("env fixture");
-        let wire_id = Uuid::parse_str("11111111-2222-3333-4444-555555555555")
-            .expect("wire fixture");
+        let env_id = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").expect("env fixture");
+        let wire_id =
+            Uuid::parse_str("11111111-2222-3333-4444-555555555555").expect("wire fixture");
         let _guard = TempEnv::set("AI_BRAINS_DAEMON_PRINCIPAL_ID", env_id.to_string());
         let p = resolve_principal(Some(&wire_id.to_string()));
         assert_eq!(
