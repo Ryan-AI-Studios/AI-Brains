@@ -3,9 +3,11 @@
 //! # Idempotency (T159)
 //!
 //! When [`ProposeConclusionRequest::conclusion_id`] is `Some`, it is an
-//! **idempotency handle**: if a conclusion with that id already exists in the
-//! projection, [`propose_conclusion`] returns the prior result **without**
-//! appending a second `ConclusionProposed` event. When `None`, a new id is
+//! **idempotency handle**: after payload validation and policy allow, if a
+//! conclusion with that id already exists in the projection,
+//! [`propose_conclusion`] returns the prior result **without** appending a
+//! second `ConclusionProposed` event. Callers without `ProposeConclusion` still
+//! receive [`ControlPlaneError::PolicyDenied`]. When `None`, a new id is
 //! generated and append proceeds as usual (first-wins semantics for T159 when
 //! the same pre-assigned id is reused with different statements).
 
@@ -61,16 +63,14 @@ where
     C: Clock,
     P: PolicyEvaluator,
 {
-    // Detect-already-done when a pre-assigned id is supplied (spool / client retry).
-    if let Some(preassigned) = req.conclusion_id
-        && let Some(row) = query.get_conclusion(preassigned)?
-    {
-        return Ok(ProposeConclusionResult {
-            conclusion_id: preassigned,
-            unsupported: row.unsupported,
-        });
+    // 1. Payload validation
+    if req.statement.trim().is_empty() {
+        return Err(ControlPlaneError::InvalidPayload(
+            "statement must be non-empty".into(),
+        ));
     }
 
+    // 2. Policy gate (always — before detect-already-done so replay without grant denies)
     let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
     if !policy.allow(
         req.principal.id,
@@ -82,12 +82,18 @@ where
             "ProposeConclusion denied".into(),
         ));
     }
-    if req.statement.trim().is_empty() {
-        return Err(ControlPlaneError::InvalidPayload(
-            "statement must be non-empty".into(),
-        ));
+
+    // 3. Detect-already-done when a pre-assigned id is supplied (spool / client retry).
+    if let Some(preassigned) = req.conclusion_id
+        && let Some(row) = query.get_conclusion(preassigned)?
+    {
+        return Ok(ProposeConclusionResult {
+            conclusion_id: preassigned,
+            unsupported: row.unsupported,
+        });
     }
 
+    // 4. Append
     let now = clock.now()?;
     let conclusion_id = req.conclusion_id.unwrap_or_default();
     let unsupported = req.evidence_ids.is_empty();

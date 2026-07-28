@@ -3,9 +3,10 @@
 //! # Idempotency (T159)
 //!
 //! When [`ProposeDecisionRequest::decision_id`] is `Some`, it is an
-//! **idempotency handle**: if a decision with that id already exists,
-//! [`propose_decision`] returns the prior result without a second
-//! `DecisionProposed` event.
+//! **idempotency handle**: after payload validation and policy allow, if a
+//! decision with that id already exists, [`propose_decision`] returns the
+//! prior result without a second `DecisionProposed` event. Callers without
+//! `ProposeDecision` still receive [`ControlPlaneError::PolicyDenied`].
 
 use ai_brains_core::decision::DecisionState;
 use ai_brains_core::ids::{ConclusionId, DecisionId, EvidenceId};
@@ -59,7 +60,27 @@ where
     C: Clock,
     P: PolicyEvaluator,
 {
-    // Detect-already-done when a pre-assigned id is supplied (spool / client retry).
+    // 1. Payload validation
+    if req.title.trim().is_empty() || req.statement.trim().is_empty() {
+        return Err(ControlPlaneError::InvalidPayload(
+            "title and statement must be non-empty".into(),
+        ));
+    }
+
+    // 2. Policy gate (always — before detect-already-done so replay without grant denies)
+    let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
+    if !policy.allow(
+        req.principal.id,
+        GrantCapability::ProposeDecision,
+        &req.scope,
+        &policy_ctx,
+    )? {
+        return Err(ControlPlaneError::PolicyDenied(
+            "ProposeDecision denied".into(),
+        ));
+    }
+
+    // 3. Detect-already-done when a pre-assigned id is supplied (spool / client retry).
     if let Some(preassigned) = req.decision_id
         && let Some(row) = query.get_decision(preassigned)?
     {
@@ -75,23 +96,7 @@ where
         });
     }
 
-    let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
-    if !policy.allow(
-        req.principal.id,
-        GrantCapability::ProposeDecision,
-        &req.scope,
-        &policy_ctx,
-    )? {
-        return Err(ControlPlaneError::PolicyDenied(
-            "ProposeDecision denied".into(),
-        ));
-    }
-    if req.title.trim().is_empty() || req.statement.trim().is_empty() {
-        return Err(ControlPlaneError::InvalidPayload(
-            "title and statement must be non-empty".into(),
-        ));
-    }
-
+    // 4. Append
     let now = clock.now()?;
     let valid_from = req.valid_from.unwrap_or(now);
     ensure_valid_time_interval(valid_from, req.valid_until)?;

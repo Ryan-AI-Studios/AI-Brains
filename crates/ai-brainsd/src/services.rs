@@ -36,9 +36,9 @@
 //! # Erasure honesty
 //!
 //! `accepted`/`queued` is returned only after a durable `ErasureTicketAccepted`
-//! event is appended (or found). Response **does not** claim content-envelope wipe
-//! (P8 residual). Requires `GrantCapability::Erase` on the request scope (after
-//! idempotent short-circuit when the ticket already exists).
+//! event is appended (or found after policy allow). Response **does not** claim
+//! content-envelope wipe (P8 residual). Requires `GrantCapability::Erase` on the
+//! request scope **before** the idempotent ticket short-circuit.
 //!
 //! # Governed briefing (T152-R1-07 / T159)
 //!
@@ -683,19 +683,14 @@ fn process_request_erasure(
     ports: &StorePorts,
     req: RequestErasureRequest,
 ) -> Result<DaemonResponse, BoxError> {
+    // 1. Resolve principal
     let principal = resolve_principal(req.principal_id.as_deref());
     let request_id = match req.command_id.as_deref() {
         Some(cid) if !cid.trim().is_empty() => id_from_command(NS_REQUEST_ERASURE, cid).to_string(),
         _ => Uuid::new_v4().to_string(),
     };
 
-    // Idempotent short-circuit before policy so replay does not re-require a grant.
-    if let Some(prior) = find_erasure_ticket(ports.store(), &request_id)? {
-        let mut resp = ErasureAcceptedResponse::new(prior.request_id, "accepted");
-        resp.warnings.push(ERASURE_CE_WIPE_WARNING.to_string());
-        return Ok(DaemonResponse::ErasureAccepted(resp));
-    }
-
+    // 2. Require + parse scope
     let scope = match req.scope.as_deref() {
         Some(s) => match parse_scope_key(s) {
             Ok(sc) => sc,
@@ -709,6 +704,7 @@ fn process_request_erasure(
         }
     };
 
+    // 3. Policy gate (always — before ticket short-circuit so replay without grant denies)
     let policy = ports.production_policy();
     let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
     match policy.allow(principal.id, GrantCapability::Erase, &scope, &policy_ctx) {
@@ -719,6 +715,13 @@ fn process_request_erasure(
             ));
         }
         Err(e) => return map_mutation_control_plane_error(e),
+    }
+
+    // 4. Detect-already-done (same principal+grant) or append
+    if let Some(prior) = find_erasure_ticket(ports.store(), &request_id)? {
+        let mut resp = ErasureAcceptedResponse::new(prior.request_id, "accepted");
+        resp.warnings.push(ERASURE_CE_WIPE_WARNING.to_string());
+        return Ok(DaemonResponse::ErasureAccepted(resp));
     }
 
     let aggregate_id = Uuid::parse_str(&request_id).unwrap_or_else(|_| {

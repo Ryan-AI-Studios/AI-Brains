@@ -326,14 +326,14 @@ async fn handle_daemon_request__request_erasure__appends_ticket_then_accepted()
                     .count();
                 assert_eq!(tickets, 1);
 
-                // Second call same command_id → no second ticket (idempotent before policy)
+                // Second call same command_id **with** Erase grant → accepted, still one ticket
                 let outcome2 = handle_daemon_request(
                     DaemonRequest::RequestErasure(RequestErasureRequest {
                         api_version: "1".into(),
-                        principal_id: Some(PrincipalId::new().to_string()),
+                        principal_id: Some(principal_id.to_string()),
                         ids: vec!["agg-1".into()],
                         reason: Some("user request".into()),
-                        scope: Some(scope_key),
+                        scope: Some(scope_key.clone()),
                         command_id: Some("erase-cmd-1".into()),
                     }),
                     &h.writer,
@@ -361,6 +361,30 @@ async fn handle_daemon_request__request_erasure__appends_ticket_then_accepted()
                     })
                     .count();
                 assert_eq!(tickets2, 1);
+
+                // Second call same command_id **without** Erase grant → POLICY_DENIED
+                let outcome3 = handle_daemon_request(
+                    DaemonRequest::RequestErasure(RequestErasureRequest {
+                        api_version: "1".into(),
+                        principal_id: Some(PrincipalId::new().to_string()),
+                        ids: vec!["agg-1".into()],
+                        reason: Some("user request".into()),
+                        scope: Some(scope_key),
+                        command_id: Some("erase-cmd-1".into()),
+                    }),
+                    &h.writer,
+                    &h.services,
+                )
+                .await?;
+                match outcome3 {
+                    LiveDispatchResult::Response(b3) => match *b3 {
+                        DaemonResponse::Error(err) => {
+                            assert_eq!(err.code, "POLICY_DENIED");
+                        }
+                        other => panic!("expected POLICY_DENIED, got {other:?}"),
+                    },
+                    other => panic!("expected Response, got {other:?}"),
+                }
                 Ok(())
             }
             other => panic!("expected ErasureAccepted, got {other:?}"),

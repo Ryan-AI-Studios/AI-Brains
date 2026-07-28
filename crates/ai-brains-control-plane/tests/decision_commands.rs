@@ -66,6 +66,7 @@ fn propose_decision__preassigned_id_second_call__no_second_event() {
     .unwrap();
     assert_eq!(first.decision_id, decision_id);
 
+    // Second call with grant still succeeds (no second append).
     let second = propose_decision(
         &ports.writer,
         &ports.query,
@@ -90,6 +91,62 @@ fn propose_decision__preassigned_id_second_call__no_second_event() {
         proposed_count, 1,
         "second call with pre-assigned id must not append another DecisionProposed"
     );
+}
+
+#[test]
+fn propose_decision__preassigned_id_second_call_without_grant__policy_denied() {
+    use ai_brains_control_plane::DenyAllPolicy;
+    use ai_brains_core::ids::DecisionId;
+    use ai_brains_events::Payload;
+    use ai_brains_store::event_store::EventStore;
+
+    let (_t, ports) = open_ports();
+    let decision_id = DecisionId::new();
+    let req = ProposeDecisionRequest {
+        principal: agent(),
+        scope: ScopeRef::Personal(UserId::new()),
+        title: "Idempotent".into(),
+        statement: "ship once".into(),
+        conclusion_ids: None,
+        evidence_ids: None,
+        privacy: Privacy::LocalOnly,
+        valid_from: None,
+        valid_until: None,
+        decision_id: Some(decision_id),
+    };
+    propose_decision(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        req.clone(),
+    )
+    .unwrap();
+
+    let err = propose_decision(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &DenyAllPolicy,
+        req,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, ControlPlaneError::PolicyDenied(_)),
+        "expected PolicyDenied on second propose without grant, got {err:?}"
+    );
+
+    let events = ports.writer.store().read_all_events().unwrap();
+    let proposed_count = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                &e.payload,
+                Payload::DecisionProposed(p) if p.decision_id == decision_id
+            )
+        })
+        .count();
+    assert_eq!(proposed_count, 1, "deny path must not append");
 }
 
 #[test]

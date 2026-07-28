@@ -292,7 +292,7 @@ fn resolve_review_item__already_resolved_second_call__idempotent_ok() {
     )
     .unwrap();
 
-    // Second call (replay) must succeed without a second lifecycle event.
+    // Second call (replay) with grant must succeed without a second lifecycle event.
     resolve_review_item(
         &ports.writer,
         &ports.query,
@@ -319,4 +319,57 @@ fn resolve_review_item__already_resolved_second_call__idempotent_ok() {
         resolved_count, 1,
         "already-resolved second call must not append another ReviewItemResolved"
     );
+}
+
+#[test]
+fn resolve_review_item__already_resolved_without_grant__policy_denied() {
+    use ai_brains_control_plane::DenyAllPolicy;
+    use ai_brains_events::Payload;
+    use ai_brains_store::event_store::EventStore;
+
+    let (_t, ports) = open_ports();
+    let review_item_id = open_review_item(&ports);
+    let human = make_principal(PrincipalKind::Human, PrincipalId::new(), "h");
+    let scope = ScopeRef::Personal(UserId::new());
+
+    resolve_review_item(
+        &ports.writer,
+        &ports.query,
+        &AllowAllPolicy,
+        &human,
+        review_item_id,
+        "first resolve",
+        Privacy::LocalOnly,
+        scope.clone(),
+    )
+    .unwrap();
+
+    // Already resolved but without grant → PolicyDenied (no auth bypass).
+    let err = resolve_review_item(
+        &ports.writer,
+        &ports.query,
+        &DenyAllPolicy,
+        &human,
+        review_item_id,
+        "replay without grant",
+        Privacy::LocalOnly,
+        scope,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, ControlPlaneError::PolicyDenied(_)),
+        "expected PolicyDenied on already-resolved without grant, got {err:?}"
+    );
+
+    let events = ports.writer.store().read_all_events().unwrap();
+    let resolved_count = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                &e.payload,
+                Payload::ReviewItemResolved(p) if p.review_item_id == review_item_id
+            )
+        })
+        .count();
+    assert_eq!(resolved_count, 1, "deny path must not append");
 }
