@@ -5,7 +5,7 @@ use ai_brains_contracts::briefings::QueryKnowledgeRequest;
 use ai_brains_contracts::erasure::RequestErasureRequest;
 use ai_brains_contracts::knowledge::ProposeConclusionRequest;
 use ai_brains_contracts::scopes::ResolveScopeRequest;
-use ai_brains_core::ids::{PrincipalId, ProjectId, UserId};
+use ai_brains_core::ids::{PrincipalId, ProjectId, SourceId, UserId};
 use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
@@ -74,27 +74,38 @@ async fn start_harness(name: &str) -> Result<Harness, Box<dyn std::error::Error 
     })
 }
 
-fn grant_propose(
+fn grant_capability(
     store: &Arc<SqliteEventStore>,
     principal: &ai_brains_core::principal::Principal,
     scope: ScopeRef,
+    capability: GrantCapability,
 ) {
-    use ai_brains_control_plane::{
-        StorePorts, SystemClock, issue_grant, make_principal, register_principal,
-    };
+    use ai_brains_control_plane::{StorePorts, SystemClock, issue_grant, register_principal};
     let ports = StorePorts::from_store(SqliteEventStore::new(store.connection().clone()));
     let clock = SystemClock;
-    let _ = make_principal; // silence if unused with re-export path
     register_principal(&ports.writer, &clock, principal).expect("register");
     issue_grant(
         &ports.writer,
         &clock,
         principal.id,
         scope,
-        GrantCapability::ProposeConclusion,
+        capability,
         Privacy::LocalOnly,
     )
     .expect("grant");
+}
+
+fn grant_propose(
+    store: &Arc<SqliteEventStore>,
+    principal: &ai_brains_core::principal::Principal,
+    scope: ScopeRef,
+) {
+    grant_capability(
+        store,
+        principal,
+        scope,
+        GrantCapability::ProposeConclusion,
+    );
 }
 
 #[tokio::test]
@@ -266,13 +277,21 @@ async fn handle_daemon_request__query_knowledge__returns_progressive_shape()
 async fn handle_daemon_request__request_erasure__appends_ticket_then_accepted()
 -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let h = start_harness("erase").await?;
+    let principal_id = PrincipalId::new();
+    let principal =
+        ai_brains_control_plane::make_principal(PrincipalKind::Human, principal_id, "erase-human");
+    let user = UserId::new();
+    let scope = ScopeRef::Personal(user);
+    grant_capability(&h.store, &principal, scope.clone(), GrantCapability::Erase);
+    let scope_key = ai_brains_control_plane::scope_identity_key(&scope);
+
     let outcome = handle_daemon_request(
         DaemonRequest::RequestErasure(RequestErasureRequest {
             api_version: "1".into(),
-            principal_id: Some(PrincipalId::new().to_string()),
+            principal_id: Some(principal_id.to_string()),
             ids: vec!["agg-1".into()],
             reason: Some("user request".into()),
-            scope: None,
+            scope: Some(scope_key.clone()),
             command_id: Some("erase-cmd-1".into()),
         }),
         &h.writer,
@@ -306,14 +325,14 @@ async fn handle_daemon_request__request_erasure__appends_ticket_then_accepted()
                     .count();
                 assert_eq!(tickets, 1);
 
-                // Second call same command_id → no second ticket
+                // Second call same command_id → no second ticket (idempotent before policy)
                 let outcome2 = handle_daemon_request(
                     DaemonRequest::RequestErasure(RequestErasureRequest {
                         api_version: "1".into(),
                         principal_id: Some(PrincipalId::new().to_string()),
                         ids: vec!["agg-1".into()],
                         reason: Some("user request".into()),
-                        scope: None,
+                        scope: Some(scope_key),
                         command_id: Some("erase-cmd-1".into()),
                     }),
                     &h.writer,
@@ -344,6 +363,207 @@ async fn handle_daemon_request__request_erasure__appends_ticket_then_accepted()
                 Ok(())
             }
             other => panic!("expected ErasureAccepted, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__request_erasure_without_grant__policy_denied()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let h = start_harness("erase-deny").await?;
+    let principal_id = PrincipalId::new();
+    let scope_key = format!("Personal:{}", UserId::new());
+    let outcome = handle_daemon_request(
+        DaemonRequest::RequestErasure(RequestErasureRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            ids: vec!["agg-1".into()],
+            reason: Some("user request".into()),
+            scope: Some(scope_key),
+            command_id: Some("erase-deny-cmd".into()),
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "POLICY_DENIED");
+                Ok(())
+            }
+            other => panic!("expected POLICY_DENIED error, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__request_erasure_missing_scope__invalid_payload()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let h = start_harness("erase-no-scope").await?;
+    let outcome = handle_daemon_request(
+        DaemonRequest::RequestErasure(RequestErasureRequest {
+            api_version: "1".into(),
+            principal_id: Some(PrincipalId::new().to_string()),
+            ids: vec!["agg-1".into()],
+            reason: Some("user request".into()),
+            scope: None,
+            command_id: Some("erase-no-scope".into()),
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "INVALID_PAYLOAD");
+                assert!(err.message.contains("scope"));
+                Ok(())
+            }
+            other => panic!("expected INVALID_PAYLOAD, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__inspect_source_without_grant__policy_denied()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use ai_brains_contracts::sources::InspectSourceRequest;
+    let h = start_harness("inspect-deny").await?;
+    let outcome = handle_daemon_request(
+        DaemonRequest::InspectSource(InspectSourceRequest {
+            api_version: "1".into(),
+            id: SourceId::new().to_string(),
+            principal_id: Some(PrincipalId::new().to_string()),
+            scope: Some(format!("Personal:{}", UserId::new())),
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "POLICY_DENIED");
+                Ok(())
+            }
+            other => panic!("expected POLICY_DENIED, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__list_review_items_without_grant__policy_denied()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use ai_brains_contracts::review::ListReviewItemsRequest;
+    let h = start_harness("list-review-deny").await?;
+    let outcome = handle_daemon_request(
+        DaemonRequest::ListReviewItems(ListReviewItemsRequest {
+            api_version: "1".into(),
+            principal_id: Some(PrincipalId::new().to_string()),
+            scope: Some(format!("Personal:{}", UserId::new())),
+            status: None,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "POLICY_DENIED");
+                Ok(())
+            }
+            other => panic!("expected POLICY_DENIED, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__propose_conclusion_bad_evidence_id__invalid_payload()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let h = start_harness("bad-evidence").await?;
+    let principal_id = PrincipalId::new();
+    let principal =
+        ai_brains_control_plane::make_principal(PrincipalKind::Human, principal_id, "test-human");
+    let user = UserId::new();
+    let scope = ScopeRef::Personal(user);
+    grant_propose(&h.store, &principal, scope.clone());
+    let scope_key = ai_brains_control_plane::scope_identity_key(&scope);
+
+    let outcome = handle_daemon_request(
+        DaemonRequest::ProposeConclusion(ProposeConclusionRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            scope: scope_key,
+            statement: "claim with bad evidence".into(),
+            evidence_ids: vec!["not-a-uuid".into()],
+            privacy: Some("LocalOnly".into()),
+            command_id: None,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "INVALID_PAYLOAD");
+                assert!(
+                    err.message.contains("evidence"),
+                    "message should name evidence id: {}",
+                    err.message
+                );
+                Ok(())
+            }
+            other => panic!("expected INVALID_PAYLOAD, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__governed_briefing_false__invalid_payload()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use ai_brains_contracts::briefings::ProjectBriefingRequest;
+    let h = start_harness("briefing-ungoverned").await?;
+    let outcome = handle_daemon_request(
+        DaemonRequest::ProjectBriefing(ProjectBriefingRequest {
+            api_version: "1".into(),
+            principal_id: None,
+            scope: None,
+            cwd: None,
+            max_words: Some(100),
+            governed_briefing: Some(false),
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "INVALID_PAYLOAD");
+                assert!(
+                    err.message.contains("governed"),
+                    "message should mention governed briefing: {}",
+                    err.message
+                );
+                Ok(())
+            }
+            other => panic!("expected INVALID_PAYLOAD, got {other:?}"),
         },
         other => panic!("expected Response, got {other:?}"),
     }

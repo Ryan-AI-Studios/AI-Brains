@@ -10,6 +10,8 @@
 //! # Policy
 //!
 //! Always [`StorePorts::production_policy`] — never `AllowAllPolicy` in production paths.
+//! All governed reads and mutations that touch projections or append events check
+//! capabilities (`ReadEvidence`, `ReadConclusions`, `Erase`, propose/resolve via CP).
 //!
 //! # Principal resolution
 //!
@@ -35,7 +37,14 @@
 //!
 //! `accepted`/`queued` is returned only after a durable `ErasureTicketAccepted`
 //! event is appended (or found). Response **does not** claim content-envelope wipe
-//! (P8 residual).
+//! (P8 residual). Requires `GrantCapability::Erase` on the request scope (after
+//! idempotent short-circuit when the ticket already exists).
+//!
+//! # Governed briefing (T152-R1-07 / T159)
+//!
+//! Daemon project/personal briefing is **always** the governed control-plane path.
+//! `governed_briefing: Some(false)` is rejected with `INVALID_PAYLOAD`; `None` or
+//! `Some(true)` proceeds.
 
 use ai_brains_contracts::briefings::{
     InspectEvidenceRequest, PersonalBriefingRequest as WirePersonalBriefing,
@@ -57,19 +66,20 @@ use ai_brains_contracts::scopes::{ResolveScopeRequest, ScopeEvidenceDto, ScopeRe
 use ai_brains_contracts::sources::{InspectSourceRequest, SourceDto};
 use ai_brains_control_plane::{
     BudgetConfig, ControlPlaneError, EventWriter, ExpandHandleRequest, GovernedQueryStore,
-    PersonalBriefingRequest as CpPersonalBriefing, ProgressiveQueryRequest,
-    ProjectBriefingRequest as CpProjectBriefing, ProposeConclusionRequest as CpProposeConclusion,
-    ProposeDecisionRequest as CpProposeDecision, ResolvedScope, ScopeConfidence, ScopeResolveInput,
-    StoreEventWriter, StorePorts, SystemClock, build_personal_briefing, build_project_briefing,
-    expand_handle, is_authoritative, make_principal, parse_scope_key, progressive_query,
-    propose_conclusion, propose_decision, resolve_review_item, resolve_scope, scope_identity_key,
+    PersonalBriefingRequest as CpPersonalBriefing, PolicyContext, PolicyEvaluator,
+    ProgressiveQueryRequest, ProjectBriefingRequest as CpProjectBriefing,
+    ProposeConclusionRequest as CpProposeConclusion, ProposeDecisionRequest as CpProposeDecision,
+    ResolvedScope, ScopeConfidence, ScopeResolveInput, StoreEventWriter, StorePorts, SystemClock,
+    build_personal_briefing, build_project_briefing, expand_handle, is_authoritative,
+    make_principal, parse_scope_key, progressive_query, propose_conclusion, propose_decision,
+    resolve_review_item, resolve_scope, scope_identity_key,
 };
 use ai_brains_core::ids::{
     ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, ReviewItemId, SourceId, UserId,
 };
 use ai_brains_core::principal::{Principal, PrincipalKind};
 use ai_brains_core::privacy::Privacy;
-use ai_brains_core::scope::ScopeRef;
+use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_daemon_api::DaemonResponse;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::ErasureTicketAcceptedPayload;
@@ -146,6 +156,14 @@ impl GovernedServices {
     }
 
     pub fn project_briefing(&self, req: WireProjectBriefing) -> Result<DaemonResponse, BoxError> {
+        // Daemon briefing is always governed (T152-R1-07 / T159).
+        // Honor `governed_briefing`: None | Some(true) proceed; Some(false) rejected.
+        if req.governed_briefing == Some(false) {
+            return Ok(DaemonResponse::Error(ApiError::new(
+                "INVALID_PAYLOAD",
+                "daemon briefing is always governed; omit governed_briefing or set true",
+            )));
+        }
         let ports = self.ports();
         let clock = SystemClock;
         let policy = ports.production_policy();
@@ -199,6 +217,14 @@ impl GovernedServices {
     }
 
     pub fn personal_briefing(&self, req: WirePersonalBriefing) -> Result<DaemonResponse, BoxError> {
+        // Daemon briefing is always governed (T152-R1-07 / T159).
+        // Honor `governed_briefing`: None | Some(true) proceed; Some(false) rejected.
+        if req.governed_briefing == Some(false) {
+            return Ok(DaemonResponse::Error(ApiError::new(
+                "INVALID_PAYLOAD",
+                "daemon briefing is always governed; omit governed_briefing or set true",
+            )));
+        }
         let ports = self.ports();
         let clock = SystemClock;
         let policy = ports.production_policy();
@@ -318,6 +344,36 @@ impl GovernedServices {
     }
 
     pub fn inspect_source(&self, req: InspectSourceRequest) -> Result<DaemonResponse, BoxError> {
+        let ports = self.ports();
+        let principal = resolve_principal(req.principal_id.as_deref());
+        let scope = match req.scope.as_deref() {
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
+            None => {
+                return Ok(DaemonResponse::Error(ApiError::new(
+                    "INVALID_PAYLOAD",
+                    "inspect_source requires scope",
+                )));
+            }
+        };
+        let policy = ports.production_policy();
+        let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+        match policy.allow(
+            principal.id,
+            GrantCapability::ReadEvidence,
+            &scope,
+            &policy_ctx,
+        ) {
+            Ok(true) => {}
+            Ok(false) => {
+                return Ok(map_control_plane_error(ControlPlaneError::PolicyDenied(
+                    "ReadEvidence denied for inspect_source".into(),
+                )));
+            }
+            Err(e) => return Ok(map_control_plane_error(e)),
+        }
         let source_id = match SourceId::from_str(&req.id) {
             Ok(id) => id,
             Err(_) => {
@@ -341,6 +397,35 @@ impl GovernedServices {
         req: ListReviewItemsRequest,
     ) -> Result<DaemonResponse, BoxError> {
         let ports = self.ports();
+        let principal = resolve_principal(req.principal_id.as_deref());
+        let scope = match req.scope.as_deref() {
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
+            None => {
+                return Ok(DaemonResponse::Error(ApiError::new(
+                    "INVALID_PAYLOAD",
+                    "list_review_items requires scope",
+                )));
+            }
+        };
+        let policy = ports.production_policy();
+        let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+        match policy.allow(
+            principal.id,
+            GrantCapability::ReadConclusions,
+            &scope,
+            &policy_ctx,
+        ) {
+            Ok(true) => {}
+            Ok(false) => {
+                return Ok(map_control_plane_error(ControlPlaneError::PolicyDenied(
+                    "ReadConclusions denied for list_review_items".into(),
+                )));
+            }
+            Err(e) => return Ok(map_control_plane_error(e)),
+        }
         let mut items = match ports.query.list_open_review_items() {
             Ok(items) => items,
             Err(e) => return Ok(map_control_plane_error(e)),
@@ -400,7 +485,15 @@ fn process_propose_conclusion(
         Err(e) => return Ok(map_control_plane_error(e)),
     };
     let privacy = parse_privacy(req.privacy.as_deref());
-    let evidence_ids = parse_evidence_ids(&req.evidence_ids);
+    let evidence_ids = match parse_evidence_ids_strict(&req.evidence_ids) {
+        Ok(ids) => ids,
+        Err(bad) => {
+            return Ok(DaemonResponse::Error(ApiError::new(
+                "INVALID_PAYLOAD",
+                format!("invalid evidence id: {bad}"),
+            )));
+        }
+    };
     let conclusion_id = req
         .command_id
         .as_deref()
@@ -452,24 +545,24 @@ fn process_propose_decision(
         .command_id
         .as_deref()
         .map(|cid| DecisionId::from_uuid(id_from_command(NS_PROPOSE_DECISION, cid)));
-    let conclusion_ids = {
-        let parsed: Vec<ConclusionId> = req
-            .conclusion_ids
-            .iter()
-            .filter_map(|s| ConclusionId::from_str(s).ok())
-            .collect();
-        if parsed.is_empty() {
-            None
-        } else {
-            Some(parsed)
+    let conclusion_ids = match parse_conclusion_ids_strict(&req.conclusion_ids) {
+        Ok(parsed) if parsed.is_empty() => None,
+        Ok(parsed) => Some(parsed),
+        Err(bad) => {
+            return Ok(DaemonResponse::Error(ApiError::new(
+                "INVALID_PAYLOAD",
+                format!("invalid conclusion id: {bad}"),
+            )));
         }
     };
-    let evidence_ids = {
-        let parsed = parse_evidence_ids(&req.evidence_ids);
-        if parsed.is_empty() {
-            None
-        } else {
-            Some(parsed)
+    let evidence_ids = match parse_evidence_ids_strict(&req.evidence_ids) {
+        Ok(parsed) if parsed.is_empty() => None,
+        Ok(parsed) => Some(parsed),
+        Err(bad) => {
+            return Ok(DaemonResponse::Error(ApiError::new(
+                "INVALID_PAYLOAD",
+                format!("invalid evidence id: {bad}"),
+            )));
         }
     };
     let title = req
@@ -530,11 +623,11 @@ fn process_resolve_review(
             )));
         }
     };
-    let reason = req
-        .note
-        .clone()
-        .filter(|n| !n.trim().is_empty())
-        .unwrap_or_else(|| req.resolution.clone());
+    // resolution is primary; non-empty note is appended (never overwrite resolution).
+    let reason = match req.note.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
+        Some(note) => format!("{} ({})", req.resolution, note),
+        None => req.resolution.clone(),
+    };
     // command_id is used only for spool durability (filename); CP detect-already-done
     // keys on review_item_id + status, not a command_id-derived domain id.
 
@@ -576,11 +669,36 @@ fn process_request_erasure(
         _ => Uuid::new_v4().to_string(),
     };
 
-    // Idempotent: scan event log for existing ticket with same request_id.
+    // Idempotent short-circuit before policy so replay does not re-require a grant.
     if let Some(prior) = find_erasure_ticket(ports.store(), &request_id)? {
         let mut resp = ErasureAcceptedResponse::new(prior.request_id, "accepted");
         resp.warnings.push(ERASURE_CE_WIPE_WARNING.to_string());
         return Ok(DaemonResponse::ErasureAccepted(resp));
+    }
+
+    let scope = match req.scope.as_deref() {
+        Some(s) => match parse_scope_key(s) {
+            Ok(sc) => sc,
+            Err(e) => return Ok(map_control_plane_error(e)),
+        },
+        None => {
+            return Ok(DaemonResponse::Error(ApiError::new(
+                "INVALID_PAYLOAD",
+                "request_erasure requires scope",
+            )));
+        }
+    };
+
+    let policy = ports.production_policy();
+    let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+    match policy.allow(principal.id, GrantCapability::Erase, &scope, &policy_ctx) {
+        Ok(true) => {}
+        Ok(false) => {
+            return map_mutation_control_plane_error(ControlPlaneError::PolicyDenied(
+                "Erase denied".into(),
+            ));
+        }
+        Err(e) => return map_mutation_control_plane_error(e),
     }
 
     let aggregate_id = Uuid::parse_str(&request_id).unwrap_or_else(|_| {
@@ -815,10 +933,29 @@ fn parse_privacy(raw: Option<&str>) -> Privacy {
     }
 }
 
-fn parse_evidence_ids(ids: &[String]) -> Vec<EvidenceId> {
-    ids.iter()
-        .filter_map(|s| EvidenceId::from_str(s).ok())
-        .collect()
+/// Strict parse: any malformed id → `Err` with the bad id string (caller maps to INVALID_PAYLOAD).
+/// Empty input remains allowed (unsupported conclusion path / optional support links).
+fn parse_evidence_ids_strict(ids: &[String]) -> Result<Vec<EvidenceId>, String> {
+    let mut out = Vec::with_capacity(ids.len());
+    for s in ids {
+        match EvidenceId::from_str(s) {
+            Ok(id) => out.push(id),
+            Err(_) => return Err(s.clone()),
+        }
+    }
+    Ok(out)
+}
+
+/// Strict parse for conclusion ids (same contract as evidence ids).
+fn parse_conclusion_ids_strict(ids: &[String]) -> Result<Vec<ConclusionId>, String> {
+    let mut out = Vec::with_capacity(ids.len());
+    for s in ids {
+        match ConclusionId::from_str(s) {
+            Ok(id) => out.push(id),
+            Err(_) => return Err(s.clone()),
+        }
+    }
+    Ok(out)
 }
 
 fn parse_repository_project_id(scope: &str) -> Option<ProjectId> {
@@ -1081,5 +1218,30 @@ mod tests {
         let stem2 = governed_spool_stem("request_erasure", "cmd-1");
         assert_eq!(stem2, "request_erasure_cmd-1");
         assert_ne!(stem, stem2, "same command_id different ops must not collide");
+    }
+
+    #[test]
+    fn parse_evidence_ids_strict__malformed__returns_bad_id() {
+        let bad = vec!["not-a-uuid".to_string()];
+        match parse_evidence_ids_strict(&bad) {
+            Err(s) => assert_eq!(s, "not-a-uuid"),
+            Ok(_) => panic!("expected Err with bad id"),
+        }
+    }
+
+    #[test]
+    fn parse_evidence_ids_strict__empty__ok() {
+        let empty: Vec<String> = Vec::new();
+        let parsed = parse_evidence_ids_strict(&empty).expect("empty allowed");
+        assert!(parsed.is_empty());
+    }
+
+    #[test]
+    fn parse_conclusion_ids_strict__malformed__returns_bad_id() {
+        let bad = vec!["bad-conclusion".to_string()];
+        match parse_conclusion_ids_strict(&bad) {
+            Err(s) => assert_eq!(s, "bad-conclusion"),
+            Ok(_) => panic!("expected Err with bad id"),
+        }
     }
 }
