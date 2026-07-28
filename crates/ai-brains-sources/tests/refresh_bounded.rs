@@ -232,40 +232,52 @@ fn refresh_bounded__aggregates_last_unavailable_reason() -> Result<(), Box<dyn s
 
 #[test]
 fn refresh_bounded__deadline_exceeded__partial_results_and_failures() {
-    // Fast mock first, then a slow connector so deadline expires mid-pass.
-    let fast = MockConnector::new();
+    // Slow connector first so wall time is spent inside a single blocking list;
+    // subsequent targets must get deadline_exceeded without starting list.
+    // (Deadline is inter-operation only — see refresh_bounded rustdoc.)
     let slow = SlowListConnector {
         inner: MockConnector::new(),
-        delay: Duration::from_millis(80),
+        delay: Duration::from_millis(50),
     };
+    let never_started = MockConnector::new();
 
     let targets = [
-        RefreshTarget {
-            connector_id: "builtin.fast",
-            connector: &fast,
-            side_channels: None,
-        },
         RefreshTarget {
             connector_id: "builtin.slow",
             connector: &slow,
             side_channels: None,
         },
+        RefreshTarget {
+            connector_id: "builtin.never_started",
+            connector: &never_started,
+            side_channels: None,
+        },
     ];
 
-    // Tight deadline: first may complete; second should hit deadline.
-    let report = refresh_bounded(&targets, &personal_ctx(), Duration::from_millis(20), 10);
+    // Tight deadline relative to slow list; first may overrun, second skipped.
+    let report = refresh_bounded(&targets, &personal_ctx(), Duration::from_millis(10), 10);
 
-    // Partial: either observed from fast, or deadline failures present.
-    let has_deadline = report
+    let deadline_ids: Vec<&str> = report
         .failures
         .iter()
-        .any(|f| f.reason == "deadline_exceeded");
+        .filter(|f| f.reason == "deadline_exceeded")
+        .map(|f| f.connector_id.as_str())
+        .collect();
+
+    // Subsequent target must be marked deadline_exceeded without starting.
     assert!(
-        has_deadline || report.truncated || !report.observed.is_empty(),
-        "expected partial results or deadline failures; report={report:?}"
+        deadline_ids.contains(&"builtin.never_started"),
+        "second target must be deadline_exceeded without starting; report={report:?}"
     );
-    // If deadline path fired, truncated should be true.
-    if has_deadline {
-        assert!(report.truncated);
-    }
+    assert!(
+        report.truncated,
+        "deadline path must set truncated; report={report:?}"
+    );
+    // Honest inter-op semantics: wall elapsed may exceed deadline because the
+    // first blocking list can overrun remaining budget (not asserted ≤ here).
+    assert!(
+        report.elapsed >= Duration::from_millis(10),
+        "slow first list should consume at least the deadline window; elapsed={:?}",
+        report.elapsed
+    );
 }

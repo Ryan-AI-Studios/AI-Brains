@@ -118,6 +118,7 @@ mod tests {
         GitError::CommandFailed {
             command: "git rev-parse --show-toplevel".into(),
             message: "fatal: not a git repository (or any of the parent directories): .git".into(),
+            exit_code: Some(128),
         }
     }
 
@@ -125,6 +126,7 @@ mod tests {
         GitError::CommandFailed {
             command: "git status".into(),
             message: "fatal: bad object".into(),
+            exit_code: Some(128),
         }
     }
 
@@ -197,6 +199,7 @@ mod tests {
         let err = GitError::CommandFailed {
             command: "git rev-parse --show-toplevel".into(),
             message: "FATAL: NOT A GIT REPOSITORY".into(),
+            exit_code: Some(128),
         };
         assert!(is_not_a_git_repository_error(&err));
     }

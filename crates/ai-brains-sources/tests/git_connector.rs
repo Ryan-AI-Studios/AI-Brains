@@ -252,6 +252,7 @@ fn map_git_error__timeout_or_command_fail__internal_prefix() {
     let failed = GitError::CommandFailed {
         command: "git rev-parse HEAD".into(),
         message: "fatal: bad".into(),
+        exit_code: Some(128),
     };
     let mapped = map_git_error(failed);
     assert!(matches!(
@@ -266,6 +267,7 @@ fn git_connector__list__hard_fail_map__not_silent_empty() {
     let err = map_git_error(GitError::CommandFailed {
         command: "git rev-parse --show-toplevel".into(),
         message: "fatal: bad object".into(),
+        exit_code: Some(128),
     });
     assert!(
         matches!(err, ConnectorError::Internal { .. }),
@@ -316,7 +318,15 @@ fn git_connector__list__forced_timeout__returns_err_not_not_a_repository()
 fn git_connector__observe__forced_timeout__returns_err() -> Result<(), Box<dyn std::error::Error>> {
     let root = init_repo("observe-timeout")?;
     commit_file(&root, "a.txt", "x\n", "initial")?;
-    let connector = GitConnector::open(&root, GitConnectorOptions::default())?;
+    // Disable collect cache so observe cannot reuse list's successful collect
+    // and must hit the injected timeout path.
+    let connector = GitConnector::open(
+        &root,
+        GitConnectorOptions {
+            collect_cache_ttl_ms: 0,
+            ..GitConnectorOptions::default()
+        },
+    )?;
     let ctx = personal_ctx();
     // Obtain a real handle first (without inject).
     let handles = connector.list(&ctx)?;

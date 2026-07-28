@@ -225,6 +225,8 @@ struct FinishedOutput {
     success: bool,
     stdout: Vec<u8>,
     stderr: Vec<u8>,
+    /// Process exit code (`None` if signal-terminated / unavailable).
+    exit_code: Option<i32>,
 }
 
 struct RealChild {
@@ -249,6 +251,7 @@ impl TimedChild for RealChild {
                     success: status.success(),
                     stdout,
                     stderr,
+                    exit_code: status.code(),
                 }))
             }
         }
@@ -312,6 +315,7 @@ fn map_finished(finished: FinishedOutput, command: &str) -> Result<Option<String
         Err(GitError::CommandFailed {
             command: command.to_string(),
             message: stderr.trim().to_string(),
+            exit_code: finished.exit_code,
         })
     }
 }
@@ -363,6 +367,7 @@ mod tests {
                 success: true,
                 stdout: self.stdout.clone(),
                 stderr: Vec::new(),
+                exit_code: Some(0),
             }))
         }
 
@@ -377,6 +382,7 @@ mod tests {
 
     struct FastFailChild {
         stderr: Vec<u8>,
+        exit_code: Option<i32>,
     }
 
     impl TimedChild for FastFailChild {
@@ -385,6 +391,7 @@ mod tests {
                 success: false,
                 stdout: Vec::new(),
                 stderr: self.stderr.clone(),
+                exit_code: self.exit_code,
             }))
         }
 
@@ -522,13 +529,19 @@ mod tests {
     fn run_git_timeout__fast_failure__command_failed() {
         let mut child = FastFailChild {
             stderr: b"fatal: not a git repository\n".to_vec(),
+            exit_code: Some(128),
         };
         let err = wait_timed_child(&mut child, Duration::from_secs(5), "git status")
             .expect_err("non-zero exit");
         match err {
-            GitError::CommandFailed { command, message } => {
+            GitError::CommandFailed {
+                command,
+                message,
+                exit_code,
+            } => {
                 assert_eq!(command, "git status");
                 assert!(message.contains("not a git repository"));
+                assert_eq!(exit_code, Some(128));
             }
             other => panic!("expected CommandFailed, got {other:?}"),
         }

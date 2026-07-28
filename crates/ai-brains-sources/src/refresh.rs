@@ -82,6 +82,18 @@ pub struct RefreshReport {
 ///   folded into `failures` when `side_channels` is provided.
 /// - Observe fingerprints use kind-aware algorithms (git content hash /
 ///   ledgerful authoritative hash / generic content hash).
+///
+/// # Deadline semantics
+///
+/// The wall deadline is checked **between** list/observe calls. A single
+/// blocking `list`/`observe` (e.g. git collect up to `collect_timeout_ms`) may
+/// overrun the remaining budget. This is intentional for the sync port: true
+/// mid-call cancellation would require async or process kill at the helper
+/// layer. Callers should set connector timeouts ≤ refresh deadline.
+///
+/// When the deadline has already elapsed before starting a target, that target
+/// and remaining targets are marked `deadline_exceeded` without invoking
+/// `list`/`observe`.
 pub fn refresh_bounded(
     targets: &[RefreshTarget<'_>],
     ctx: &ConnectorContext,

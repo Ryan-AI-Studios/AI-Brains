@@ -108,19 +108,36 @@ pub(crate) fn read_remote_selection_with_options(
     }
 }
 
-/// `git config --get` treats exit-nonzero as missing key (CommandFailed).
+/// `git config --get` exit code **1** means the key is unset (`Ok(None)`).
 ///
-/// Missing keys soft-map to `Ok(None)` under both policies. Timeout / Io still
-/// soft-map under Soft and propagate under Strict.
+/// Other non-zero exit codes (and Timeout / Io) soft-map under Soft and
+/// propagate under Strict. Only exit 1 is treated as "key absent" under both
+/// policies (P1-01).
 fn git_config_get(root: &Path, key: &str, opts: &GitRunOptions) -> Result<Option<String>> {
-    match run_git_timeout(root, &["config", "--get", key], opts.timeout) {
+    map_git_config_get_result(
+        run_git_timeout(root, &["config", "--get", key], opts.timeout),
+        opts.policy,
+    )
+}
+
+/// Map a `git config --get` result under soft/strict policy.
+///
+/// Extracted for unit classification tests without spawning git.
+pub(crate) fn map_git_config_get_result(
+    result: Result<Option<String>>,
+    policy: SoftFailPolicy,
+) -> Result<Option<String>> {
+    let soft = matches!(policy, SoftFailPolicy::Soft);
+    match result {
         Ok(v) => Ok(v),
         // git config --get exits 1 when the key is unset — not a hard failure.
-        Err(GitError::CommandFailed { .. }) => Ok(None),
-        Err(e) => match opts.policy {
-            SoftFailPolicy::Soft => Ok(None),
-            SoftFailPolicy::Strict => Err(e),
-        },
+        Err(GitError::CommandFailed {
+            exit_code: Some(1),
+            ..
+        }) => Ok(None),
+        Err(GitError::CommandFailed { .. }) if soft => Ok(None),
+        Err(_) if soft => Ok(None),
+        Err(e) => Err(e),
     }
 }
 
@@ -245,9 +262,25 @@ fn strip_trailing_git_suffix(path: &str) -> &str {
 }
 
 #[cfg(test)]
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::disallowed_methods)]
 mod tests {
     use super::*;
+
+    fn config_missing_key_err() -> GitError {
+        GitError::CommandFailed {
+            command: "git config --get remote.origin.url".into(),
+            message: String::new(),
+            exit_code: Some(1),
+        }
+    }
+
+    fn config_other_fail_err() -> GitError {
+        GitError::CommandFailed {
+            command: "git config --get remote.origin.url".into(),
+            message: "error: malformed value".into(),
+            exit_code: Some(128),
+        }
+    }
 
     #[test]
     fn normalize_remote_url__empty_and_whitespace__empty() {
@@ -269,5 +302,61 @@ mod tests {
             normalize_remote_url("https://github.com/Org/Repo"),
             "github.com/Org/Repo"
         );
+    }
+
+    #[test]
+    fn git_config_get__exit_1__missing_key__ok_none() {
+        // Exit 1 is "key unset" under both Soft and Strict.
+        for policy in [SoftFailPolicy::Soft, SoftFailPolicy::Strict] {
+            let mapped = map_git_config_get_result(Err(config_missing_key_err()), policy)
+                .expect("exit 1 must map to Ok(None)");
+            assert_eq!(mapped, None, "policy={policy:?}");
+        }
+        // Success path still passes through.
+        let present = map_git_config_get_result(
+            Ok(Some("https://example.com/repo.git".into())),
+            SoftFailPolicy::Strict,
+        )
+        .expect("ok value");
+        assert_eq!(present.as_deref(), Some("https://example.com/repo.git"));
+    }
+
+    #[test]
+    fn git_config_get__exit_other_strict__propagates() {
+        let err = map_git_config_get_result(Err(config_other_fail_err()), SoftFailPolicy::Strict)
+            .expect_err("non-1 CommandFailed must propagate under Strict");
+        match err {
+            GitError::CommandFailed {
+                exit_code: Some(128),
+                message,
+                ..
+            } => {
+                assert!(message.contains("malformed"), "{message}");
+            }
+            other => panic!("expected CommandFailed exit 128, got {other:?}"),
+        }
+
+        // Soft still degrades non-1 CommandFailed (and Timeout/Io) to Ok(None).
+        let soft_cmd =
+            map_git_config_get_result(Err(config_other_fail_err()), SoftFailPolicy::Soft)
+                .expect("soft maps other CommandFailed");
+        assert_eq!(soft_cmd, None);
+
+        let timeout = GitError::Timeout {
+            command: "git config --get remote.origin.url".into(),
+            elapsed_ms: 5000,
+        };
+        let soft_timeout = map_git_config_get_result(Err(timeout), SoftFailPolicy::Soft)
+            .expect("soft maps Timeout");
+        assert_eq!(soft_timeout, None);
+
+        let timeout = GitError::Timeout {
+            command: "git config --get remote.origin.url".into(),
+            elapsed_ms: 5000,
+        };
+        let strict_timeout =
+            map_git_config_get_result(Err(timeout), SoftFailPolicy::Strict)
+                .expect_err("strict propagates Timeout");
+        assert!(matches!(strict_timeout, GitError::Timeout { .. }));
     }
 }

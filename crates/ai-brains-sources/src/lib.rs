@@ -50,8 +50,8 @@ pub use fingerprint::{
     fingerprint_file_with_identity, fingerprint_ledgerful,
 };
 pub use git::{
-    DEFAULT_GIT_COLLECT_TIMEOUT_MS, DEFAULT_GIT_MAX_HANDLES, GIT_CONNECTOR_ID, GitConnector,
-    GitConnectorOptions, REASON_NOT_A_REPOSITORY, map_git_error,
+    DEFAULT_GIT_COLLECT_CACHE_TTL_MS, DEFAULT_GIT_COLLECT_TIMEOUT_MS, DEFAULT_GIT_MAX_HANDLES,
+    GIT_CONNECTOR_ID, GitConnector, GitConnectorOptions, REASON_NOT_A_REPOSITORY, map_git_error,
 };
 pub use git_fingerprint::{
     canonicalize_git_metadata, fingerprint_git_metadata, fingerprint_git_path,
