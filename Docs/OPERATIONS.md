@@ -149,18 +149,24 @@ ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
 
 ### Erasure honesty (ticket vs cryptographic erasure)
 
-Operators and docs must keep these mechanisms distinct. Normative design is [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md) (Accepted 2026-07-28); product CE is **not** shipped until T163–T165.
+Operators and docs must keep these mechanisms distinct. Normative design is [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md) (Accepted 2026-07-28); **product CE is not complete until T165** (schema landed in T163; seal/open in T164; governed wipe command in T165).
 
 | Mechanism | What it does today | Cryptographic erasure (CE)? |
 |-----------|--------------------|-----------------------------|
-| `ai-brains erasure request` → `ErasureTicketAccepted` | Durable **ticket / intent** accepted by the daemon | **No** — ticket ≠ CE |
-| `ai-brains forget` → `MemoryForgotten` | Soft hide/filter in projections | **No** — plaintext remains in the **append-only event log** |
-| Content-envelope CE (`ContentErasureRequested` → destroy content DEK wrap → `ContentErased`) | **Not implemented** (design frozen in ADR-0016) | Future path for **envelope-backed** content only |
+| `ai-brains erasure request` → `ErasureTicketAccepted` | Durable **ticket / intent** accepted by the daemon | **No** — ticket ≠ CE; does **not** write CE tables |
+| `ai-brains forget` → `MemoryForgotten` | Soft hide/filter in projections | **No** — plaintext remains in the **append-only event log**; does **not** touch CE tables |
+| Content-envelope CE (`ContentErasureRequested` → destroy content DEK wrap → `ContentErased`) | **Schema + projections only (T163)** — no product seal/open/wipe yet | Future path for **envelope-backed** content only (T164–T165) |
+
+**After T163 (schema honesty):**
+
+- Vault migration **`0026_content_envelopes_erasure`** creates side stores `content_key_store` / `encrypted_content_blob` and event projections `erasure_request_projection` / `tombstone_projection`.
+- **Side stores are not event-sourced ciphertext:** `rebuild_projections` retains wrap + blob rows; it is **not** a backup restore of sealed content from the event log. Only erasure-request and tombstone projections are truncated and re-applied from events.
+- Tables alone do **not** mean CE works end-to-end — AEAD seal/open (T164) and the governed wipe command (T165) are still required before any CE success claim.
 
 **Honest limits (do not over-claim):**
 
 - **Pre-envelope / legacy content:** plaintext already written to the append-only log **cannot** be cryptographically erased without rewriting history (forbidden by event-sourcing invariants). Soft forget is the only mechanism for that class. Forward re-seal under envelopes (when implemented) does **not** un-publish historical plaintext copies already logged.
-- **Future CE (ADR-0016):** for envelope-backed content only — per content-unit DEK wrapped under vault `DataKey`; AES-256-GCM; CE = destroy DEK wrap + purge derived FTS/embeddings/projections. Schema/service/command land in **T163–T165**, not today.
+- **Future CE (ADR-0016):** for envelope-backed content only — per content-unit DEK wrapped under vault `DataKey`; AES-256-GCM; CE = destroy DEK wrap + purge derived FTS/embeddings/projections. Service/command land in **T164–T165**.
 - **Non-claims:** not NIST media **Purge**/**Destroy** (RustCrypto is not a FIPS-/NIST-validated module); not destruction of offline copies, exports, or **pre-erase backups**; not “SQLCipher vault lock = per-item CE.”
 - CLI and HTTP surfaces must **never** present `ErasureTicketAccepted` or soft forget as content-envelope wipe.
 

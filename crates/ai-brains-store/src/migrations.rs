@@ -102,6 +102,10 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0025_briefings_query_traces",
         include_str!("../migrations/0025_briefings_query_traces.sql"),
     ),
+    (
+        "0026_content_envelopes_erasure",
+        include_str!("../migrations/0026_content_envelopes_erasure.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {
