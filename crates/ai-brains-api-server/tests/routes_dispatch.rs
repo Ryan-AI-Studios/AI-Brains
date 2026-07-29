@@ -207,6 +207,56 @@ async fn routes__erasure_request__dispatches() {
 }
 
 #[tokio::test]
+async fn routes__erasure_wipe__dispatches() {
+    let (app, dispatch) = app_echo_type();
+    let (status, _) = oneshot_post(
+        app,
+        "/v1/erasure/wipe",
+        r#"{"api_version":"1","content_key_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","scope":"project:p","principal_id":"p","command_id":"wipe-1","dry_run":true,"confirm":false}"#,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "valid wipe body must dispatch");
+    let calls = dispatch.calls.lock().await;
+    match &calls[0] {
+        DaemonRequest::WipeContentEnvelope(req) => {
+            assert_eq!(req.content_key_id, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+            assert_eq!(req.command_id.as_deref(), Some("wipe-1"));
+            assert!(req.dry_run);
+            assert!(!req.confirm);
+        }
+        other => panic!("expected WipeContentEnvelope, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn routes__erasure_wipe__x_command_id_header_fills_body() {
+    let (app, dispatch) = app_echo_type();
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/erasure/wipe")
+                .header("content-type", "application/json")
+                .header("authorization", format!("Bearer {TOKEN}"))
+                .header("X-Command-Id", "from-header-wipe")
+                .body(Body::from(
+                    r#"{"api_version":"1","content_key_id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","scope":"project:p","principal_id":"p","dry_run":true,"confirm":false}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let calls = dispatch.calls.lock().await;
+    match &calls[0] {
+        DaemonRequest::WipeContentEnvelope(req) => {
+            assert_eq!(req.command_id.as_deref(), Some("from-header-wipe"));
+        }
+        other => panic!("expected WipeContentEnvelope, got {other:?}"),
+    }
+}
+
+#[tokio::test]
 async fn routes__propose_conclusion__x_command_id_header_fills_body() {
     let (app, dispatch) = app_echo_type();
     let resp = app

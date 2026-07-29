@@ -806,6 +806,76 @@ fn ticket_accepted__and_memory_forgotten__do_not_write_ce_tables() {
     }
 }
 
+/// T165 dual-path regression: soft forget remains MemoryForgotten-only and never
+/// destroys content keys or emits ContentErased / CE projection rows.
+#[test]
+fn forget__legacy__still_soft_only() {
+    let (_tmp, store) = open_store();
+    let content_key_id = ContentKeyId::new();
+    let key_str = content_key_id.to_string();
+    let memory_id = MemoryId::new();
+
+    // Pre-existing active wrap must survive soft forget (no CE wipe side effects).
+    {
+        let conn = store.connection().lock().unwrap();
+        content_envelope::insert_content_key_wrap(
+            &conn,
+            &key_str,
+            1,
+            &[0x11u8; 12],
+            &[0x22u8; 32],
+            "2026-07-28T12:00:00Z",
+        )
+        .unwrap();
+    }
+
+    let forget = EventBuilder::new(
+        AggregateType::System,
+        memory_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::MemoryForgotten(MemoryForgottenPayload {
+        memory_id,
+    }))
+    .unwrap();
+    store.append_event(&forget).unwrap();
+
+    let events = store.read_all_events().unwrap();
+    assert_eq!(events.len(), 1);
+    assert!(
+        matches!(&events[0].payload, Payload::MemoryForgotten(p) if p.memory_id == memory_id),
+        "soft forget must emit only MemoryForgotten"
+    );
+    assert!(
+        !events.iter().any(|e| {
+            matches!(
+                &e.payload,
+                Payload::ContentErased(_) | Payload::ContentErasureRequested(_)
+            )
+        }),
+        "soft forget must never emit CE events"
+    );
+
+    let conn = store.connection().lock().unwrap();
+    assert!(
+        !content_envelope::is_content_key_destroyed(&conn, &key_str).unwrap(),
+        "soft forget must not destroy content key wrap"
+    );
+    let wrap = content_envelope::get_content_key_wrap(&conn, &key_str)
+        .unwrap()
+        .expect("wrap row must remain");
+    assert_eq!(wrap.status, "active");
+    assert!(wrap.wrap_ciphertext.is_some(), "wrap material must remain");
+
+    for table in ["erasure_request_projection", "tombstone_projection"] {
+        let count: i64 = conn
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 0, "{table} must stay empty after soft forget");
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Rebuild policy
 // ---------------------------------------------------------------------------

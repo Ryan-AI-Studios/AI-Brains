@@ -2,10 +2,10 @@
 #![allow(clippy::disallowed_methods, non_snake_case)]
 
 use ai_brains_contracts::briefings::QueryKnowledgeRequest;
-use ai_brains_contracts::erasure::RequestErasureRequest;
+use ai_brains_contracts::erasure::{RequestErasureRequest, WipeContentEnvelopeRequest};
 use ai_brains_contracts::knowledge::ProposeConclusionRequest;
 use ai_brains_contracts::scopes::ResolveScopeRequest;
-use ai_brains_core::ids::{PrincipalId, ProjectId, SourceId, UserId};
+use ai_brains_core::ids::{ContentKeyId, PrincipalId, ProjectId, SourceId, UserId};
 use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
@@ -446,6 +446,227 @@ async fn handle_daemon_request__request_erasure_missing_scope__invalid_payload()
                 Ok(())
             }
             other => panic!("expected INVALID_PAYLOAD, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+fn insert_active_wrap(store: &Arc<SqliteEventStore>, content_key_id: &ContentKeyId) {
+    use ai_brains_store::projections::content_envelope;
+    let conn = store.connection().lock().expect("conn lock");
+    content_envelope::insert_content_key_wrap(
+        &conn,
+        &content_key_id.to_string(),
+        1,
+        &[0xAAu8; 12],
+        &[0xBBu8; 48],
+        "2026-07-28T12:00:00Z",
+    )
+    .expect("insert wrap");
+}
+
+fn wrap_is_destroyed(store: &Arc<SqliteEventStore>, content_key_id: &ContentKeyId) -> bool {
+    use ai_brains_store::projections::content_envelope;
+    let conn = store.connection().lock().expect("conn lock");
+    content_envelope::is_content_key_destroyed(&conn, &content_key_id.to_string())
+        .expect("destroy check")
+}
+
+#[tokio::test]
+async fn handle_daemon_request__wipe_content_envelope__dry_run__no_wrap_destroy()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let h = start_harness("wipe-dry").await?;
+    let principal_id = PrincipalId::new();
+    let principal =
+        ai_brains_control_plane::make_principal(PrincipalKind::Human, principal_id, "wipe-human");
+    let user = UserId::new();
+    let scope = ScopeRef::Personal(user);
+    grant_capability(&h.store, &principal, scope.clone(), GrantCapability::Erase);
+    let scope_key = ai_brains_control_plane::scope_identity_key(&scope);
+    let key = ContentKeyId::new();
+    insert_active_wrap(&h.store, &key);
+
+    let outcome = handle_daemon_request(
+        DaemonRequest::WipeContentEnvelope(WipeContentEnvelopeRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            content_key_id: key.to_string(),
+            scope: scope_key,
+            reason: Some("dry plan".into()),
+            command_id: Some("wipe-dry-cmd".into()),
+            dry_run: true,
+            confirm: false,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::ContentEnvelopeWiped(resp) => {
+                assert_eq!(resp.status, "dry_run");
+                assert!(!resp.wrap_destroyed);
+                assert_eq!(resp.validation.wal_checkpoint, "skipped_dry_run");
+                assert!(
+                    resp.warnings.iter().any(|w| {
+                        let l = w.to_ascii_lowercase();
+                        l.contains("nist") || l.contains("purge") || l.contains("backup")
+                    }),
+                    "dry-run must surface honesty warnings: {:?}",
+                    resp.warnings
+                );
+                assert!(
+                    !wrap_is_destroyed(&h.store, &key),
+                    "dry-run must not destroy wrap"
+                );
+                let events = h.writer.recorded_events().await;
+                assert!(
+                    !events.iter().any(|e| {
+                        matches!(
+                            &e.payload,
+                            ai_brains_events::Payload::ContentErasureRequested(_)
+                                | ai_brains_events::Payload::ContentErased(_)
+                        )
+                    }),
+                    "dry-run must not emit CE events"
+                );
+                Ok(())
+            }
+            other => panic!("expected ContentEnvelopeWiped, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__wipe_content_envelope__execute_with_erase_grant()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let h = start_harness("wipe-exec").await?;
+    let principal_id = PrincipalId::new();
+    let principal =
+        ai_brains_control_plane::make_principal(PrincipalKind::Human, principal_id, "wipe-exec");
+    let user = UserId::new();
+    let scope = ScopeRef::Personal(user);
+    grant_capability(&h.store, &principal, scope.clone(), GrantCapability::Erase);
+    let scope_key = ai_brains_control_plane::scope_identity_key(&scope);
+    let key = ContentKeyId::new();
+    insert_active_wrap(&h.store, &key);
+    {
+        use ai_brains_store::projections::content_envelope;
+        let conn = h.store.connection().lock().expect("conn");
+        let row = content_envelope::get_content_key_wrap(&conn, &key.to_string())
+            .expect("get wrap")
+            .expect("wrap row");
+        assert_eq!(row.status, "active", "precondition status: {row:?}");
+        assert!(
+            row.wrap_nonce.as_ref().is_some_and(|n| !n.is_empty()),
+            "precondition wrap_nonce present"
+        );
+        assert!(
+            row.wrap_ciphertext.as_ref().is_some_and(|c| !c.is_empty()),
+            "precondition wrap_ciphertext present"
+        );
+        let ts = content_envelope::get_tombstone(&conn, &key.to_string()).expect("tombstone");
+        assert!(ts.is_none(), "precondition: no tombstone before wipe");
+    }
+
+    let outcome = handle_daemon_request(
+        DaemonRequest::WipeContentEnvelope(WipeContentEnvelopeRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            content_key_id: key.to_string(),
+            scope: scope_key,
+            reason: Some("execute wipe".into()),
+            command_id: Some("wipe-exec-cmd-unique".into()),
+            dry_run: false,
+            confirm: true,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::ContentEnvelopeWiped(resp) => {
+                // With command_id the wipe should still be first-time wiped (not idempotent).
+                assert_eq!(
+                    resp.status, "wiped",
+                    "first execute must wipe (got {resp:?})"
+                );
+                assert!(resp.wrap_destroyed);
+                assert!(resp.verify.wrap_absent);
+                assert!(
+                    wrap_is_destroyed(&h.store, &key),
+                    "execute wipe must destroy wrap in store"
+                );
+                assert!(
+                    resp.warnings.iter().any(|w| {
+                        let l = w.to_ascii_lowercase();
+                        l.contains("nist") || l.contains("purge") || l.contains("backup")
+                    }),
+                    "execute wipe must surface honesty warnings: {:?}",
+                    resp.warnings
+                );
+                let events = h.writer.recorded_events().await;
+                assert!(
+                    events.iter().any(|e| matches!(
+                        &e.payload,
+                        ai_brains_events::Payload::ContentErasureRequested(_)
+                    )),
+                    "expected ContentErasureRequested"
+                );
+                assert!(
+                    events
+                        .iter()
+                        .any(|e| matches!(&e.payload, ai_brains_events::Payload::ContentErased(_))),
+                    "expected ContentErased after destroy"
+                );
+                Ok(())
+            }
+            other => panic!("expected ContentEnvelopeWiped, got {other:?}"),
+        },
+        other => panic!("expected Response, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn handle_daemon_request__wipe_content_envelope_without_grant__policy_denied()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let h = start_harness("wipe-deny").await?;
+    let principal_id = PrincipalId::new();
+    let key = ContentKeyId::new();
+    insert_active_wrap(&h.store, &key);
+    let scope_key = format!("Personal:{}", UserId::new());
+
+    let outcome = handle_daemon_request(
+        DaemonRequest::WipeContentEnvelope(WipeContentEnvelopeRequest {
+            api_version: "1".into(),
+            principal_id: Some(principal_id.to_string()),
+            content_key_id: key.to_string(),
+            scope: scope_key,
+            reason: Some("no grant".into()),
+            command_id: Some("wipe-deny-cmd".into()),
+            dry_run: false,
+            confirm: true,
+        }),
+        &h.writer,
+        &h.services,
+    )
+    .await?;
+
+    match outcome {
+        LiveDispatchResult::Response(boxed) => match *boxed {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "POLICY_DENIED");
+                assert!(
+                    !wrap_is_destroyed(&h.store, &key),
+                    "policy deny must not destroy wrap"
+                );
+                Ok(())
+            }
+            other => panic!("expected POLICY_DENIED error, got {other:?}"),
         },
         other => panic!("expected Response, got {other:?}"),
     }

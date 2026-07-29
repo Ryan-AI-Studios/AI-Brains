@@ -275,7 +275,7 @@ pub async fn choose_mutation_path(flags: PathFlags) -> Result<PathDecision, Path
 pub async fn choose_erasure_path(flags: PathFlags) -> Result<PathDecision, PathPolicyError> {
     if flags.local {
         return Err(PathPolicyError::LocalForbidden {
-            reason: "erasure request is daemon-only; --local is not supported".into(),
+            reason: "erasure is daemon-only; --local is not supported".into(),
         });
     }
     let client = DaemonClient::new();

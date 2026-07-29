@@ -6,13 +6,14 @@
 
 use crate::commands::governed_common::{
     self, OutputFormat, PathDecision, emit_human, emit_json, ensure_command_id, expect_daemon_ok,
-    fail_path, principal_id_wire, resolve_principal,
+    fail_api, fail_path, principal_id_wire, resolve_principal,
 };
 use crate::daemon_client::DaemonClient;
 use ai_brains_contracts::erasure::{
     ContentEnvelopeWipedResponse, ERASURE_TICKET_NO_WIPE_WARNING, ErasureAcceptedResponse,
     RequestErasureRequest, WipeContentEnvelopeRequest,
 };
+use ai_brains_contracts::response::ApiError;
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 
 /// Ticket-path CE honesty warning (E3). Keep available for tests/regressions.
@@ -99,6 +100,16 @@ pub async fn run_request(options: RequestOptions) -> Result<(), Box<dyn std::err
 /// `ai-brains erasure wipe --content-key-id --scope [--dry-run|--confirm]`
 pub async fn run_wipe(options: WipeOptions) -> Result<(), Box<dyn std::error::Error>> {
     let format = OutputFormat::parse(options.format.as_deref());
+
+    // E9: validate dry-run/confirm AND semantics before daemon probe so dual-flag
+    // conflicts always surface as INVALID_PAYLOAD (not DAEMON_UNAVAILABLE).
+    let (dry_run, confirm) = match resolve_wipe_execute_flags(options.dry_run, options.confirm) {
+        Ok(pair) => pair,
+        Err(msg) => {
+            return fail_api(format, ApiError::new("INVALID_PAYLOAD", msg));
+        }
+    };
+
     let flags = governed_common::PathFlags {
         local: options.local,
         daemon: options.daemon,
@@ -112,14 +123,6 @@ pub async fn run_wipe(options: WipeOptions) -> Result<(), Box<dyn std::error::Er
     let PathDecision::Daemon = path else {
         return fail_path(format, governed_common::PathPolicyError::DaemonUnavailable);
     };
-
-    // E9: execute only with --confirm; otherwise dry-run (default-safe).
-    let (dry_run, confirm) = if options.confirm {
-        (false, true)
-    } else {
-        (true, false)
-    };
-    let _ = options.dry_run; // clap documents plan-only; confirm is the execute gate
 
     let command_id = ensure_command_id(options.command_id.as_deref());
     let principal = resolve_principal(options.principal_id.as_deref());
@@ -151,6 +154,30 @@ pub async fn run_wipe(options: WipeOptions) -> Result<(), Box<dyn std::error::Er
             emit_wipe(format, &wire)
         }
         other => Err(format!("unexpected daemon response: {other:?}").into()),
+    }
+}
+
+/// Map CLI `--dry-run` / `--confirm` flags to wire `(dry_run, confirm)`.
+///
+/// Contracts E9 AND semantics:
+/// - default / `--dry-run` alone → plan only (`dry_run=true`, `confirm=false`)
+/// - `--confirm` alone → execute (`dry_run=false`, `confirm=true`)
+/// - both set → refuse (INVALID_PAYLOAD); never destroy under dry-run
+pub fn resolve_wipe_execute_flags(
+    dry_run_flag: bool,
+    confirm_flag: bool,
+) -> Result<(bool, bool), String> {
+    if dry_run_flag && confirm_flag {
+        return Err(
+            "cannot combine --dry-run and --confirm; dry-run is plan-only (omit --confirm to plan, or pass --confirm alone to execute)"
+                .into(),
+        );
+    }
+    if confirm_flag {
+        Ok((false, true))
+    } else {
+        // Default when neither flag is set, and explicit --dry-run.
+        Ok((true, false))
     }
 }
 
@@ -276,5 +303,40 @@ mod tests {
         assert!(joined.contains("purge") || joined.contains("nist"));
         assert!(joined.contains("backup") || joined.contains("offline"));
         assert!(!joined.contains("nist purge completed"));
+    }
+
+    #[test]
+    fn cli_erasure_wipe__default_flags__plan_only() {
+        let (dry_run, confirm) = resolve_wipe_execute_flags(false, false).unwrap();
+        assert!(dry_run);
+        assert!(!confirm);
+    }
+
+    #[test]
+    fn cli_erasure_wipe__confirm_only__execute_mapping() {
+        let (dry_run, confirm) = resolve_wipe_execute_flags(false, true).unwrap();
+        assert!(!dry_run, "confirm-only must set dry_run=false for execute");
+        assert!(confirm);
+    }
+
+    #[test]
+    fn cli_erasure_wipe__dry_run_only__plan_only() {
+        let (dry_run, confirm) = resolve_wipe_execute_flags(true, false).unwrap();
+        assert!(dry_run);
+        assert!(!confirm);
+    }
+
+    #[test]
+    fn cli_erasure_wipe__dry_run_and_confirm__refused() {
+        let err = resolve_wipe_execute_flags(true, true).unwrap_err();
+        assert!(
+            err.contains("--dry-run") && err.contains("--confirm"),
+            "conflict message must name both flags: {err}"
+        );
+        assert!(
+            err.to_ascii_lowercase().contains("plan-only")
+                || err.to_ascii_lowercase().contains("cannot combine"),
+            "must refuse dual flags clearly: {err}"
+        );
     }
 }

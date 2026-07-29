@@ -484,18 +484,16 @@ pub fn purge_derived_plaintext_for_subjects(
 
         // Clear projection content so FTS au trigger drops searchable plaintext.
         // Status is left intact (not soft-forget); content is CE residual purge.
-        let had_plaintext: bool = conn
-            .query_row(
-                "SELECT EXISTS(
+        let had_plaintext: bool = conn.query_row(
+            "SELECT EXISTS(
                     SELECT 1 FROM memory_projection
                     WHERE memory_id = ?
                       AND content IS NOT NULL
                       AND TRIM(content) != ''
                  )",
-                params![memory_id],
-                |row| row.get(0),
-            )
-            .unwrap_or(false);
+            params![memory_id],
+            |row| row.get(0),
+        )?;
 
         let proj_changed = conn.execute(
             "UPDATE memory_projection
@@ -512,6 +510,7 @@ pub fn purge_derived_plaintext_for_subjects(
 
         // Defensive: if FTS still has non-empty content for this memory_id
         // (trigger missing / external content drift), force FTS delete by rowid.
+        // Propagate SQL errors — residual FTS after a failed delete is not silent success.
         if memory_fts_has_plaintext(conn, memory_id)? {
             let fts_rows: Vec<(i64, String)> = {
                 let mut stmt = conn.prepare(
@@ -529,11 +528,11 @@ pub fn purge_derived_plaintext_for_subjects(
                 rows
             };
             for (rowid, content) in &fts_rows {
-                let _ = conn.execute(
+                conn.execute(
                     "INSERT INTO memory_fts(memory_fts, rowid, content, memory_id)
                      VALUES('delete', ?, ?, ?)",
                     params![rowid, content, memory_id],
-                );
+                )?;
             }
         }
     }
@@ -556,14 +555,12 @@ pub fn memory_fts_has_plaintext(conn: &Connection, memory_id: &str) -> Result<bo
         return Ok(true);
     }
     // Also check FTS shadow table for non-empty content rows.
-    let fts_nonempty: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM memory_fts
+    let fts_nonempty: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM memory_fts
              WHERE memory_id = ? AND content IS NOT NULL AND TRIM(content) != ''",
-            params![memory_id],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
+        params![memory_id],
+        |row| row.get(0),
+    )?;
     Ok(fts_nonempty > 0)
 }
 

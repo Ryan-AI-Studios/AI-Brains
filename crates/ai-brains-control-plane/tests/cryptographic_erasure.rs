@@ -5,8 +5,8 @@
 
 use ai_brains_control_plane::{
     AllowAllPolicy, ContentEnvelopeWipeStore, ContentKeyStatus, ControlPlaneError, DenyAllPolicy,
-    StoreContentEnvelopeWipe, StorePorts, SystemClock, WipeContentEnvelopeCommand, make_principal,
-    parse_scope_key, wipe_content_envelope,
+    EventWriter, GovernedQueryStore, StoreContentEnvelopeWipe, StorePorts, SystemClock,
+    WipeContentEnvelopeCommand, make_principal, parse_scope_key, wipe_content_envelope,
 };
 use ai_brains_core::ids::{ContentKeyId, PrincipalId, UserId};
 use ai_brains_core::principal::PrincipalKind;
@@ -682,14 +682,18 @@ fn wipe__dependents__marked_stale_when_source_linked() {
     use ai_brains_control_plane::{
         ObserveSourceRequest, Sha256FingerprinterPort, SourceContent, observe_source,
     };
+    use ai_brains_core::ids::ConclusionId;
     use ai_brains_core::source::SourceKind;
+    use ai_brains_events::constructors::EventBuilder;
+    use ai_brains_events::payload::ConclusionProposedPayload;
+    use ai_brains_events::{Actor, AggregateType};
 
     let (_t, ports) = open_ports();
     let scope = ScopeRef::Personal(UserId::new());
     let human = make_principal(PrincipalKind::Human, PrincipalId::new(), "human");
     let fp = Sha256FingerprinterPort::new();
 
-    // Observe a source so it is registered.
+    // Observe a source so it is registered (+ evidence from observe).
     let obs = observe_source(
         &ports.writer,
         &ports.query,
@@ -709,9 +713,37 @@ fn wipe__dependents__marked_stale_when_source_linked() {
     )
     .unwrap();
     let source_id = obs.source_id;
+    let evidence_id = obs
+        .evidence_id
+        .expect("observe_source must record evidence for new source content");
 
-    // Wipe with subject_kind=source and registered SourceId — mark_source_unavailable runs
-    // even with zero dependents (dependents_marked may be 0 but no skip warning).
+    // Dependent conclusion (and optional decision) on that source via evidence (E15/T149).
+    let conclusion_id = ConclusionId::new();
+    let conclusion_evt = EventBuilder::new(
+        AggregateType::Conclusion,
+        conclusion_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ConclusionProposed(ConclusionProposedPayload {
+        conclusion_id,
+        statement: "depends on wiped source".into(),
+        evidence_ids: vec![evidence_id],
+        proposer: human.id,
+        valid_from: None,
+        valid_until: None,
+        scope: String::new(),
+        protected_category: None,
+        unsupported: false,
+        model_provenance: None,
+    }))
+    .unwrap();
+    ports.writer.append_events(&[conclusion_evt]).unwrap();
+    assert!(
+        !ports.query.is_conclusion_stale(conclusion_id).unwrap(),
+        "precondition: dependent conclusion must not already be stale"
+    );
+
     let key = ContentKeyId::new();
     insert_active_key(ports.writer.store(), &key);
     insert_blob(
@@ -741,6 +773,11 @@ fn wipe__dependents__marked_stale_when_source_linked() {
     )
     .unwrap();
     assert_eq!(resp.status, "wiped");
+    assert!(
+        resp.dependents_marked >= 1,
+        "source-linked wipe must mark at least one dependent: dependents_marked={}",
+        resp.dependents_marked
+    );
     // Source-linked path was taken: no dependents_skipped warning when source registered.
     let skipped = resp
         .warnings
@@ -752,13 +789,23 @@ fn wipe__dependents__marked_stale_when_source_linked() {
         resp.warnings
     );
 
-    // SourceUnavailable should have been appended.
     let events = ports.writer.store().read_all_events().unwrap();
     assert!(
         events
             .iter()
             .any(|e| matches!(&e.payload, Payload::SourceUnavailable(_))),
         "expected SourceUnavailable for linked source"
+    );
+    assert!(
+        events.iter().any(|e| matches!(
+            &e.payload,
+            Payload::ConclusionMarkedStale(p) if p.conclusion_id == conclusion_id
+        )),
+        "expected ConclusionMarkedStale for dependent conclusion"
+    );
+    assert!(
+        ports.query.is_conclusion_stale(conclusion_id).unwrap(),
+        "dependent conclusion must not remain current authority after wipe"
     );
 }
 

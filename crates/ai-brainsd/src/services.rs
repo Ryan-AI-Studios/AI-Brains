@@ -1192,6 +1192,23 @@ mod tests {
         assert!(!is_retriable_control_plane_error(
             &ControlPlaneError::Fingerprint("x".into())
         ));
+        // T165: NotEnvelopeBacked is terminal (spool deleted) and maps NOT_ENVELOPE_BACKED.
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::NotEnvelopeBacked("legacy memory".into())
+        ));
+        match map_control_plane_error(ControlPlaneError::NotEnvelopeBacked("legacy".into())) {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "NOT_ENVELOPE_BACKED");
+                assert!(err.message.contains("legacy"));
+            }
+            other => panic!("expected NOT_ENVELOPE_BACKED Error, got {other:?}"),
+        }
+        let mapped =
+            map_mutation_control_plane_error(ControlPlaneError::NotEnvelopeBacked("x".into()));
+        assert!(
+            mapped.is_ok(),
+            "terminal NotEnvelopeBacked must Ok(Error) so spool is deleted"
+        );
     }
 
     #[test]
