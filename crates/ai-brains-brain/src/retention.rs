@@ -22,13 +22,36 @@ impl RetentionService {
         }
     }
 
+    /// Max accepted raw-turn horizon (100 years) — matches class retention clamp.
+    pub const MAX_HORIZON_DAYS: i64 = 36_500;
+
     /// Resolve raw-turn horizon from env `AI_BRAINS_RETENTION_RAW_TURN_DAYS`, else `default_days`.
+    /// Invalid/non-positive/oversized values fall back to `default_days` (never panic).
     pub fn days_from_env(default_days: i64) -> i64 {
-        std::env::var("AI_BRAINS_RETENTION_RAW_TURN_DAYS")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .filter(|d| *d > 0)
-            .unwrap_or(default_days)
+        let fallback = default_days.clamp(1, Self::MAX_HORIZON_DAYS);
+        match std::env::var("AI_BRAINS_RETENTION_RAW_TURN_DAYS") {
+            Ok(s) => match s.trim().parse::<i64>() {
+                Ok(d) if (1..=Self::MAX_HORIZON_DAYS).contains(&d) => d,
+                Ok(d) => {
+                    warn!(
+                        days = d,
+                        fallback,
+                        "AI_BRAINS_RETENTION_RAW_TURN_DAYS out of range 1..={}; using default",
+                        Self::MAX_HORIZON_DAYS
+                    );
+                    fallback
+                }
+                Err(_) => {
+                    warn!(
+                        value = %s,
+                        fallback,
+                        "AI_BRAINS_RETENTION_RAW_TURN_DAYS not a valid i64; using default"
+                    );
+                    fallback
+                }
+            },
+            Err(_) => fallback,
+        }
     }
 
     /// R7: nightly must not auto-execute CE bulk.
@@ -60,7 +83,16 @@ impl RetentionService {
             self.retention_days
         );
 
-        let cutoff = Utc::now() - Duration::days(self.retention_days);
+        let days = self.retention_days.clamp(1, Self::MAX_HORIZON_DAYS);
+        let Some(delta) = Duration::try_days(days) else {
+            return Err(format!(
+                "raw-turn retention horizon {days} days is not representable as a duration"
+            )
+            .into());
+        };
+        let Some(cutoff) = Utc::now().checked_sub_signed(delta) else {
+            return Err("raw-turn retention cutoff underflow".into());
+        };
         match self.query_store.delete_old_turns(cutoff) {
             Ok(count) => {
                 info!(
