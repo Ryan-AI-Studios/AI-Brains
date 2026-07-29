@@ -182,3 +182,173 @@ No production `unwrap()` / `expect()` / `panic!` in the T166 retention modules. 
 5. **F-005–F-008** — honesty / polish  
 
 Re-run: `cargo nextest run -p ai-brains-control-plane -p ai-brains-cli -p ai-brains-brain -p ai-brains-store -p ai-brains-contracts -p ai-brains-events` and full workspace gate before R2 review.
+
+---
+
+# T166 Internal Review R2 (post-fix re-review)
+
+**Reviewer:** primary (read-only re-review)  
+**Scope:** `feature/T166-class-based-retention` vs base `2f3be7d`; claimed fixes for F-001..F-008 (commit `fb4a95d` and later)  
+**Authority:** `spec.md` R1–R16 + DoD; R1 findings; production retention surfaces  
+**Date:** 2026-07-29  
+**Method:** Code + test evidence only (no workspace CI re-run in this pass)
+
+## Verdict: CLEAN
+
+All prior findings F-001..F-008 are **verified_fixed** with code + test evidence. No new **critical / high / medium** regressions found on the daemon split path, join de-dupe, pin hold, or `RetentionApplied` finalize wiring. Two optional low/info residuals below do not block CLEAN.
+
+---
+
+## F-001..F-008 re-verification
+
+| ID | R1 severity | R2 status | Evidence |
+|----|-------------|-----------|----------|
+| **F-001** | high | **verified_fixed** | Production CLI (`crates/ai-brains-cli/src/commands/retention.rs`) uses `apply_retention_projections` (local projection only) + `DaemonRequest::WipeContentEnvelope` for CE keys. Module docs forbid `AllowAllPolicy` + local wipe. `rg AllowAllPolicy` under `ai-brains-cli/src` hits only comments. `production_apply_requires_daemon(would_ce_wipe > 0)` forces `choose_erasure_path(require_daemon: true)` **before** disposal. Daemon wipe path uses `StorePorts::production_policy` (`ai-brainsd/src/services.rs` `process_wipe_content_envelope`). Fixture `apply_retention` + `AllowAllPolicy` remains **tests-only** (`class_based_retention.rs` integration tests). Tests: `retention_apply__projections_only__defers_ce_no_local_destroy` (wrap stays `active`); CLI unit `production_apply_requires_daemon__ce_candidates__true` / `__projection_only__false`. |
+| **F-002** | medium | **verified_fixed** | `collect_candidates`: every stream-B `env.turn_subject_ids` populates `turn_ids_covered_by_envelope` **regardless** of mechanism; stream-A turns skip when join present (`class_based_retention.rs` ~245–272). Test: `retention_plan__linked_turn_held_or_skip_envelope__no_projection_delete` (old turn + within-horizon secret join → no `projection_delete`). |
+| **F-003** | medium | **verified_fixed** | R11: `env.memory_subject_ids.iter().any(|m| pinned.contains(m))` → `held` (`class_based_retention.rs` ~448–450). Test: `retention_plan__multi_subject_mixed_pin__held` (pinned + unpinned under one key → `would_held >= 1`, `would_ce_wipe == 0`). Sole-subject test still present. |
+| **F-004** | medium | **verified_fixed** | CLI nightly (`commands/nightly.rs` ~282–310) calls `plan_retention` and logs totals (`candidates` / `ce_wipe` / `projection_delete` / `skip` / `held`) with explicit “no apply”. Brain `run_nightly` remains projection-only raw-turn cleanup + R7 intent log (avoids CP dep on brain); comment points to CLI for class dry-run. Spec §6.2 nightly surface satisfied via operator CLI nightly entrypoint. |
+| **F-005** | low | **verified_fixed** | `AI_BRAINS_RETENTION_APPLY_CE` / `APPLY_CE_ON_NIGHTLY` documented as **intent-only** in brain `retention.rs`, brain nightly log, CLI `main.rs` after_help (~806), OPERATIONS (~195, ~227). No silent CE enablement. |
+| **F-006** | low | **verified_fixed** | `emit_report`: `mode == "apply"` → title `"Retention apply"`, else `"Retention plan"` (`retention.rs` ~219–222). |
+| **F-007** | info | **verified_fixed** | OPERATIONS residual row: R15 cascade may mark parent `stale` even if previously `pinned` (~197). |
+| **F-008** | info | **verified_fixed** | CLI: `errors_count = report.errors.len()`; non-zero → `Err("retention apply had errors...")` after emit; human path prints `Errors:` section (~198–253). |
+
+---
+
+## Targeted greps (R2)
+
+| Check | Result |
+|-------|--------|
+| `AllowAllPolicy` in production CLI retention path | **Absent** (comments only in `commands/retention.rs`) |
+| `destroy_content_key_wrap` outside T165 wipe / store / tests | **Clean** — no hits in CLI, `class_based_retention.rs`, or store `projections/retention.rs`. Call chain remains T165 `wipe_content_envelope` → store `content_envelope::destroy_content_key_wrap`. |
+| `unwrap` / `expect` / `panic!` in production retention modules | **None** in `class_based_retention.rs`, store `projections/retention.rs`, CLI `commands/retention.rs`, brain `retention.rs` (test-only `expect` in contracts unit tests / CP integration tests OK). |
+
+---
+
+## Fresh sweep — fix-introduced surfaces
+
+### Daemon / split apply (F-001 fix)
+
+| Concern | Assessment |
+|---------|------------|
+| CE requires daemon before mutate | **OK** — gate on pre-apply plan `would_ce_wipe`; `DAEMON_UNAVAILABLE` before `apply_retention_projections`. |
+| Local path never destroys wrap | **OK** — projections path only collects `pending_ce_keys`; test asserts wrap remains `active` with nonce present. |
+| CE only via T165 daemon wipe | **OK** — CLI loops `DaemonRequest::WipeContentEnvelope` with `confirm: true`, `dry_run: false`. |
+| Projection-only without daemon | **OK** — `production_apply_requires_daemon(0) == false`. |
+| Double plan TOCTOU | **Acceptable residual (info):** daemon gate uses plan #1; apply re-plans inside `apply_retention_projections`. Race that invents CE after a zero-CE plan is theoretical; CE would still go through `DaemonClient` (policy/daemon errors → report errors), never `AllowAllPolicy`. |
+
+### `finalize_retention_apply` / R12
+
+| Concern | Assessment |
+|---------|------------|
+| Projection-only apply appends `RetentionApplied` | **OK** — `apply_retention_projections` appends when `pending_ce_keys` empty. |
+| Deferred CE appends after CE | **OK** — CLI calls `finalize_retention_apply` when keys non-empty (cascade + audit). |
+| Dry-run / no-confirm | **OK** — still refused at CLI and CP. |
+| Fixture path still audits | **OK** — in-process `apply_retention` still appends; tests keep R12 coverage. |
+
+### Join de-dupe (R13) / pin hold (R11)
+
+| Concern | Assessment |
+|---------|------------|
+| content_key de-dupe | **OK** — `seen_content_keys` BTreeSet. |
+| Join suppress independent of mechanism | **OK** — F-002 fix. |
+| Any-pin hold | **OK** — F-003 fix; pin check before age CE for classified envelopes. |
+| Skip noise filter vs joins | **OK** — turn join set filled **before** `candidates.retain` drops pure-skip rows; held/skip envelopes still suppress stream A. |
+
+### Nightly
+
+| Concern | Assessment |
+|---------|------------|
+| Class dry-run log | **OK** on CLI nightly. |
+| CE never auto | **OK** — R7; flag intent-only. |
+| Capture independence | **OK** — plan/apply still store + events + T165 wipe only. |
+
+---
+
+## DoD / R-lock matrix (R2)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| **R1** Dry-run first; confirm apply | **Met** | Unchanged + CLI refuse paths |
+| **R2** One CE path | **Met** | Production = daemon wipe; fixture = `wipe_content_envelope`; no parallel destroy |
+| **R3** Legacy ≠ CE | **Met** | |
+| **R4** No plaintext reports | **Met** | |
+| **R5** Canonical + unclassified skip | **Met** | |
+| **R6** No age-wipe active approved | **Met** | |
+| **R7** Nightly CE default off | **Met** | Intent flag honesty fixed |
+| **R8** Capture independence | **Met** | |
+| **R9** Zero new deps | **Met** | (not re-audited Cargo.lock; surface uses existing crates) |
+| **R10** Append-only events | **Met** | |
+| **R11** Pin hold | **Met** | any linked memory subject |
+| **R12** RetentionApplied on apply | **Met** | Split path: projections-only now; deferred CE via finalize |
+| **R13** No double-count; CE wins when join known | **Met** | any join suppresses stream A |
+| **R14** Cooldown `updated_at` | **Met** | |
+| **R15** Hierarchy cascade | **Met** | Residual pin→stale documented |
+| **R16** Orphan 7d | **Met** | |
+| **DoD** dual-path apply | **Met** | OPERATIONS documents projection local + CE daemon |
+| **DoD** process close (Phase 8 rollup, #34 strike, conductor Complete, cross-model, full gate) | **Unmet** | Process — not product blockers for R2 CLEAN |
+
+---
+
+## New residuals (R2)
+
+### F-009 [info] No direct test that `finalize_retention_apply` appends `RetentionApplied`
+
+- **description:** R12 is proven for in-process `apply_retention`. Production split defers audit to `finalize_retention_apply`; CLI wires it, but there is no unit/integration test asserting RetentionApplied after deferred CE + finalize (only wrap-not-destroyed on projections step).
+- **status:** fixed_pending_verification
+- **fix:** `finalize_retention_apply__appends_final_audit_and_cascades` + `retention_apply__projections_append_audit_before_ce`. Pre-CE audit always; finalize second event.
+
+### F-010 [low] R15 cascade uses planned CE memory subjects, not wipe-success filter
+
+- **description:** After daemon CE loop, CLI always passes full `pending_cascade_memory_ids` into `finalize_retention_apply`, including subjects whose wipe errored. In-process `apply_retention` has the same shape (cascade after batch wipe attempts). Spec ties cascade to **disposed** subjects; partial CE failure can still mark parents `stale`.
+- **status:** fixed_pending_verification
+- **fix:** `pending_cascade_by_key` + `cascade_memory_ids_for_keys`; CLI filters to wiped/already_erased; in-process same. Tests: cascade filter + failed CE no cascade.
+
+### Other residuals (unchanged / mild)
+
+- Nightly raw-turn `delete_old_turns` clock (`last_accessed_at` only) vs class plan `COALESCE(last_accessed_at, occurred_at)`.
+- `memory_legacy` stream-A scan still none-auto in v1.
+- Process DoD / full CI gate / cross-model review still for track close-out.
+
+---
+
+## Missing tests (R2 update)
+
+| Spec §13 / fix gap | Present? |
+|--------------------|----------|
+| Prior §13 suite (empty vault → hierarchy cascade, etc.) | Yes |
+| join known → skip stream-A (F-002) | **Yes** |
+| multi-subject mixed pin (F-003) | **Yes** |
+| projections path defers CE / no local destroy (F-001) | **Yes** |
+| CLI daemon-gate unit tests (F-001) | **Yes** |
+| nightly class dry-run log | **Yes** (CLI path; no automated assert on log line) |
+| finalize → RetentionApplied | **No** (F-009) |
+| cascade only on successful CE | **No** (F-010) |
+
+---
+
+## R2 summary
+
+Product blockers from R1 are closed:
+
+1. Production CE no longer uses `AllowAllPolicy` / local wipe; daemon + production policy parity with T165.  
+2. R13 join precedence covers held/skip as well as `ce_wipe`.  
+3. R11 pin hold is any-subject.  
+4. Nightly class dry-run summary lands on the CLI nightly path; CE remains confirm+daemon only.  
+5. Honesty polish (env flag, apply title, R15 residual doc, non-zero exit on errors) verified.
+
+**R2 verdict: CLEAN** — no open critical/high/medium. F-009 (info) and F-010 (low) may defer to `conductor/ISSUES.md` if desired; process DoD remains for track closure.
+
+---
+
+# Codex R1 findings — dispositions (post-fix)
+
+**Source:** `review.codex.r1.md`  
+**Date:** 2026-07-29  
+
+| ID | Severity | Status | Disposition |
+|----|----------|--------|-------------|
+| **Codex-P1 R12 audit durability** | P1 | **fixed_pending_verification** | `apply_retention_projections` **always** appends `RetentionApplied` after projection deletes, including when CE is deferred (`ce_pending=N` warning). Crash mid-daemon-CE still leaves a durable audit. `finalize_retention_apply` appends a **second** RetentionApplied with cascade + final errors. Tests: `retention_apply__projections_append_audit_before_ce`, `finalize_retention_apply__appends_final_audit_and_cascades`. |
+| **Codex-P1 unsafe horizons** | P1 | **fixed_pending_verification** | `parse_positive_horizon_days` requires `1..=36500`; invalid env overrides fall back to class defaults (never negative / never chrono panic). Cutoffs use `Duration::try_days` + `checked_sub_signed`. OPERATIONS documents validation. Tests: `parse_positive_horizon_days__rejects_non_positive_and_huge`, `retention_config_from_env__negative_falls_back_to_default` (TempEnv). |
+| **Codex-P2 R15 cascade on failed CE** | P2 | **fixed_pending_verification** | CLI tracks successful (`wiped` / `already_erased`) keys only; `cascade_memory_ids_for_keys` maps subjects per key. In-process `apply_retention` same filter. Tests: `cascade_memory_ids_for_keys__only_successful_keys`, `finalize_retention_apply__failed_ce_keys_do_not_cascade`, CLI `cascade_filter__successful_keys_only`. Closes F-010. |
+| **Codex-P3 full content_key in errors** | P3 | **fixed_pending_verification** | Error strings use `truncate_id` (same helper as sample_ids). CLI + in-process apply. Test: CLI `error_key_ids_use_truncate_id`. |
+| **Codex-P3 production split tests** | P3 | **fixed_pending_verification** | Added finalize audit, pre-CE audit, cascade filter, horizon env tests (see above). Closes F-009. |

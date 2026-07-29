@@ -20,10 +20,10 @@ use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
 use ai_brains_contracts::erasure::WipeContentEnvelopeRequest;
 use ai_brains_contracts::response::ApiError;
-use ai_brains_contracts::retention::RetentionPlanReport;
+use ai_brains_contracts::retention::{RetentionPlanReport, truncate_id};
 use ai_brains_control_plane::{
-    RetentionConfig, StorePorts, apply_retention_projections, finalize_retention_apply,
-    parse_scope_key, plan_retention, scope_identity_key,
+    RetentionConfig, StorePorts, apply_retention_projections, cascade_memory_ids_for_keys,
+    finalize_retention_apply, parse_scope_key, plan_retention, scope_identity_key,
 };
 use ai_brains_core::ids::UserId;
 use ai_brains_core::scope::ScopeRef;
@@ -143,10 +143,12 @@ pub fn run_apply(
         report.warnings.push(format!("command_id={command_id}"));
     }
 
-    let mut cascade_memory_ids = outcome.pending_cascade_memory_ids;
+    // Pre-CE RetentionApplied already appended by apply_retention_projections (R12).
     if !outcome.pending_ce_keys.is_empty() {
         let client = DaemonClient::new();
+        let mut successful_ce_keys: Vec<String> = Vec::new();
         for key in &outcome.pending_ce_keys {
+            let key_disp = truncate_id(key);
             let req = DaemonRequest::WipeContentEnvelope(WipeContentEnvelopeRequest {
                 api_version: ai_brains_contracts::erasure::API_VERSION.to_string(),
                 principal_id: principal_id_wire(&principal),
@@ -159,31 +161,37 @@ pub fn run_apply(
             });
             match handle.block_on(client.request(req)) {
                 Ok(DaemonResponse::ContentEnvelopeWiped(wire)) => {
-                    if wire.status != "wiped" && wire.status != "already_erased" {
-                        report
-                            .errors
-                            .push(format!("ce_wipe {key}: unexpected status {}", wire.status));
+                    if wire.status == "wiped" || wire.status == "already_erased" {
+                        successful_ce_keys.push(key.clone());
+                    } else {
+                        report.errors.push(format!(
+                            "ce_wipe {key_disp}: unexpected status {}",
+                            wire.status
+                        ));
                     }
                 }
                 Ok(DaemonResponse::Error(err)) => {
                     report
                         .errors
-                        .push(format!("ce_wipe {key}: {}: {}", err.code, err.message));
+                        .push(format!("ce_wipe {key_disp}: {}: {}", err.code, err.message));
                 }
                 Ok(other) => {
                     report.errors.push(format!(
-                        "ce_wipe {key}: unexpected daemon response: {other:?}"
+                        "ce_wipe {key_disp}: unexpected daemon response: {other:?}"
                     ));
                 }
                 Err(e) => {
                     let classified = governed_common::classify_daemon_mutation_error(&e);
-                    report.errors.push(format!("ce_wipe {key}: {classified}"));
+                    report
+                        .errors
+                        .push(format!("ce_wipe {key_disp}: {classified}"));
                 }
             }
         }
 
-        cascade_memory_ids.sort();
-        cascade_memory_ids.dedup();
+        // R15: cascade only subjects belonging to wiped / already_erased keys.
+        let cascade_memory_ids =
+            cascade_memory_ids_for_keys(&outcome.pending_cascade_by_key, &successful_ce_keys);
         if let Err(e) = finalize_retention_apply(
             &store,
             &ports.writer,
@@ -267,6 +275,8 @@ fn emit_report(
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+    use ai_brains_control_plane::cascade_memory_ids_for_keys;
+    use std::collections::BTreeMap;
 
     #[test]
     fn production_apply_requires_daemon__ce_candidates__true() {
@@ -276,5 +286,27 @@ mod tests {
     #[test]
     fn production_apply_requires_daemon__projection_only__false() {
         assert!(!production_apply_requires_daemon(0));
+    }
+
+    #[test]
+    fn cascade_filter__successful_keys_only() {
+        // Mirrors production CLI: only wiped / already_erased keys feed R15.
+        let mut by_key = BTreeMap::new();
+        by_key.insert("k-ok".into(), vec!["m1".into()]);
+        by_key.insert("k-fail".into(), vec!["m2".into()]);
+        let successful = vec!["k-ok".to_string()];
+        let ids = cascade_memory_ids_for_keys(&by_key, &successful);
+        assert_eq!(ids, vec!["m1".to_string()]);
+    }
+
+    #[test]
+    fn error_key_ids_use_truncate_id() {
+        let full = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+        let disp = truncate_id(full);
+        assert_eq!(disp, full); // UUID length ≤ truncate max
+        let long = format!("{full}-extra-suffix-that-is-long");
+        let t = truncate_id(&long);
+        assert!(t.chars().count() <= 37); // 36 + ellipsis char
+        assert!(t.ends_with('…') || t.ends_with("..."));
     }
 }

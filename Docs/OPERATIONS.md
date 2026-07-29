@@ -226,6 +226,8 @@ ai-brains retention apply --confirm --format json
 | `AI_BRAINS_RETENTION_ORPHAN_ENVELOPE_DAYS` | 7 |
 | `AI_BRAINS_RETENTION_APPLY_CE` / `AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY` | false — **intent log only**; does **not** enable nightly CE. CE apply is `retention apply --confirm` + daemon only |
 
+Horizon day overrides must be integers in **`1..=36500`** (~100y). Non-integer, ≤0, or oversized values **fall back to the class default** (never panic; never apply a negative horizon that would push cutoffs into the future). Cutoffs use checked `chrono::Duration` arithmetic.
+
 **Honesty on every plan/apply with CE candidates:** not NIST Purge; pre-erase backups residual; ticket/soft forget ≠ CE; stream independence until subject join; legacy projection delete ≠ CE.
 
 ## 4. Project & Session Management

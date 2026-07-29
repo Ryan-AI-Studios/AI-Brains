@@ -4,13 +4,15 @@
 //! T166 — class-based retention plan/apply tests.
 
 use ai_brains_control_plane::{
-    AllowAllPolicy, RetentionApplyCommand, RetentionConfig, StoreContentEnvelopeWipe, StorePorts,
-    SystemClock, apply_retention, apply_retention_projections, make_principal, nightly_ce_enabled,
-    plan_retention,
+    AllowAllPolicy, MAX_RETENTION_HORIZON_DAYS, RetentionApplyCommand, RetentionConfig,
+    StoreContentEnvelopeWipe, StorePorts, SystemClock, apply_retention,
+    apply_retention_projections, cascade_memory_ids_for_keys, finalize_retention_apply,
+    make_principal, nightly_ce_enabled, parse_positive_horizon_days, plan_retention,
 };
 use ai_brains_core::ids::{ContentKeyId, PrincipalId, UserId};
 use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::scope::ScopeRef;
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::EventKind;
 use ai_brains_store::SqliteEventStore;
@@ -808,6 +810,213 @@ fn retention_apply__projections_only__defers_ce_no_local_destroy() {
         "projections path must not destroy wrap"
     );
     assert!(wrap.wrap_nonce.is_some());
+}
+
+#[test]
+fn retention_apply__projections_append_audit_before_ce() {
+    // Codex R1 P1 / R12: projections path with CE pending still appends RetentionApplied.
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let key = ContentKeyId::new();
+    let old = (Utc::now() - Duration::days(30)).to_rfc3339();
+    insert_active_key(store, &key, &old);
+    insert_blob(
+        store,
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("secret"),
+        None,
+        None,
+        &old,
+    );
+
+    let outcome = apply_retention_projections(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-audit-pre-ce",
+        true,
+        false,
+    )
+    .unwrap();
+    assert!(
+        !outcome.pending_ce_keys.is_empty(),
+        "CE still deferred: {outcome:?}"
+    );
+    assert!(
+        outcome
+            .report
+            .warnings
+            .iter()
+            .any(|w| w.contains("ce_pending=")),
+        "pre-CE warning expected: {:?}",
+        outcome.report.warnings
+    );
+
+    let events = store.read_all_events().unwrap();
+    let audits: Vec<_> = events
+        .iter()
+        .filter(|e| e.event_type == EventKind::RetentionApplied)
+        .collect();
+    assert_eq!(
+        audits.len(),
+        1,
+        "R12: exactly one pre-CE RetentionApplied before finalize"
+    );
+}
+
+#[test]
+fn finalize_retention_apply__appends_final_audit_and_cascades() {
+    // Codex R1 P3: finalize appends RetentionApplied (second audit after pre-CE).
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let parent = Uuid::new_v4().to_string();
+    let child = Uuid::new_v4().to_string();
+    insert_memory(store, &parent, "active", "parent-summary");
+    insert_memory(store, &child, "active", "child-body");
+    insert_hierarchy(store, &parent, &child);
+
+    // Pre-CE audit (as production projections path does).
+    let outcome = apply_retention_projections(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-finalize-1",
+        true,
+        false,
+    )
+    .unwrap();
+    let pre_ce_audits = store
+        .read_all_events()
+        .unwrap()
+        .iter()
+        .filter(|e| e.event_type == EventKind::RetentionApplied)
+        .count();
+    assert!(pre_ce_audits >= 1, "pre-CE audit required before finalize");
+
+    // Simulate successful CE subjects only (failed keys excluded by CLI).
+    let mut report = outcome.report;
+    finalize_retention_apply(
+        store,
+        &ports.writer,
+        "ret-finalize-1",
+        std::slice::from_ref(&child),
+        &mut report,
+    )
+    .unwrap();
+
+    assert!(
+        report.cascade.parents_marked_for_resynthesis >= 1,
+        "cascade should mark parent: {report:?}"
+    );
+    let audits = store
+        .read_all_events()
+        .unwrap()
+        .iter()
+        .filter(|e| e.event_type == EventKind::RetentionApplied)
+        .count();
+    assert!(
+        audits >= 2,
+        "pre-CE + finalize RetentionApplied expected, got {audits}"
+    );
+
+    let conn = store.connection().lock().unwrap();
+    let status: String = conn
+        .query_row(
+            "SELECT status FROM memory_projection WHERE memory_id = ?",
+            [&parent],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(status, "stale", "parent must be marked stale");
+}
+
+#[test]
+fn finalize_retention_apply__failed_ce_keys_do_not_cascade() {
+    // Codex R1 P2: cascade empty when no successful CE keys.
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let parent = Uuid::new_v4().to_string();
+    let child = Uuid::new_v4().to_string();
+    insert_memory(store, &parent, "active", "parent-summary");
+    insert_memory(store, &child, "active", "child-body");
+    insert_hierarchy(store, &parent, &child);
+
+    let mut report = plan_retention(store, &config()).unwrap();
+    report.mode = "apply".into();
+    report
+        .errors
+        .push("ce_wipe abcd1234…: daemon unavailable".into());
+    // Empty cascade list = failed CE subjects filtered out.
+    finalize_retention_apply(store, &ports.writer, "ret-no-cascade", &[], &mut report).unwrap();
+
+    assert_eq!(report.cascade.parents_marked_for_resynthesis, 0);
+    let conn = store.connection().lock().unwrap();
+    let status: String = conn
+        .query_row(
+            "SELECT status FROM memory_projection WHERE memory_id = ?",
+            [&parent],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(status, "active", "failed CE must not stale parent");
+}
+
+#[test]
+fn cascade_memory_ids_for_keys__only_successful_keys() {
+    // Codex R1 P2: map subjects per key; filter to successful CE only.
+    let mut by_key = std::collections::BTreeMap::new();
+    by_key.insert("key-ok".into(), vec!["mem-a".into(), "mem-b".into()]);
+    by_key.insert("key-fail".into(), vec!["mem-c".into()]);
+
+    let ids = cascade_memory_ids_for_keys(&by_key, ["key-ok"]);
+    assert_eq!(ids, vec!["mem-a".to_string(), "mem-b".to_string()]);
+
+    let none = cascade_memory_ids_for_keys(&by_key, ["key-fail-not-present"]);
+    assert!(none.is_empty());
+}
+
+#[test]
+fn parse_positive_horizon_days__rejects_non_positive_and_huge() {
+    assert_eq!(parse_positive_horizon_days("90").unwrap(), 90);
+    assert!(parse_positive_horizon_days("0").is_err());
+    assert!(parse_positive_horizon_days("-7").is_err());
+    assert!(parse_positive_horizon_days("not-a-number").is_err());
+    assert!(parse_positive_horizon_days(&(MAX_RETENTION_HORIZON_DAYS + 1).to_string()).is_err());
+    assert_eq!(
+        parse_positive_horizon_days(&MAX_RETENTION_HORIZON_DAYS.to_string()).unwrap(),
+        MAX_RETENTION_HORIZON_DAYS
+    );
+}
+
+#[test]
+fn retention_config_from_env__negative_falls_back_to_default() {
+    // Codex R1 P1: negative env must not produce future cutoffs / panic.
+    let _g1 = TempEnv::set("AI_BRAINS_RETENTION_SECRET_DAYS", "-1");
+    let _g2 = TempEnv::set("AI_BRAINS_RETENTION_RAW_TURN_DAYS", "0");
+    let _g3 = TempEnv::set("AI_BRAINS_RETENTION_EVIDENCE_DAYS", "999999999");
+    let _g4 = TempEnv::set("AI_BRAINS_RETENTION_QUERY_TRACE_DAYS", "45");
+
+    let cfg = RetentionConfig::from_env();
+    let defaults = RetentionConfig::default();
+    assert_eq!(
+        cfg.secret_days, defaults.secret_days,
+        "negative must fall back"
+    );
+    assert_eq!(
+        cfg.raw_turn_days, defaults.raw_turn_days,
+        "zero must fall back"
+    );
+    assert_eq!(
+        cfg.evidence_days, defaults.evidence_days,
+        "huge must fall back"
+    );
+    assert_eq!(cfg.query_trace_days, 45, "valid override accepted");
+    assert!(cfg.secret_days > 0);
+    // Cutoff construction must not panic for sanitized config.
+    let now = Utc::now();
+    let _ = now - Duration::days(cfg.secret_days);
+    let _ = now - Duration::days(cfg.raw_turn_days);
 }
 
 #[test]

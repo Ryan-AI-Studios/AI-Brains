@@ -80,34 +80,41 @@ impl Default for RetentionConfig {
     }
 }
 
+/// Maximum accepted horizon days from env (~100 years). Larger values fall back
+/// to the class default so `chrono::Duration` construction cannot overflow.
+pub const MAX_RETENTION_HORIZON_DAYS: i64 = 36_500;
+
 impl RetentionConfig {
     /// Load from `AI_BRAINS_RETENTION_*` env vars; missing keys keep defaults.
+    ///
+    /// Invalid overrides (non-integer, ≤0, or > [`MAX_RETENTION_HORIZON_DAYS`])
+    /// fall back to the class default. Negative values are never applied (no
+    /// future cutoffs / no chrono panic).
     pub fn from_env() -> Self {
-        let mut c = Self::default();
-        if let Some(v) = parse_env_i64("AI_BRAINS_RETENTION_RAW_TURN_DAYS") {
-            c.raw_turn_days = v;
+        let d = Self::default();
+        Self {
+            raw_turn_days: env_horizon_days("AI_BRAINS_RETENTION_RAW_TURN_DAYS", d.raw_turn_days),
+            evidence_days: env_horizon_days("AI_BRAINS_RETENTION_EVIDENCE_DAYS", d.evidence_days),
+            secret_days: env_horizon_days("AI_BRAINS_RETENTION_SECRET_DAYS", d.secret_days),
+            query_trace_days: env_horizon_days(
+                "AI_BRAINS_RETENTION_QUERY_TRACE_DAYS",
+                d.query_trace_days,
+            ),
+            review_trace_days: env_horizon_days(
+                "AI_BRAINS_RETENTION_REVIEW_TRACE_DAYS",
+                d.review_trace_days,
+            ),
+            decision_revoked_cooldown_days: env_horizon_days(
+                "AI_BRAINS_RETENTION_DECISION_REVOKED_COOLDOWN_DAYS",
+                d.decision_revoked_cooldown_days,
+            ),
+            orphan_envelope_days: env_horizon_days(
+                "AI_BRAINS_RETENTION_ORPHAN_ENVELOPE_DAYS",
+                d.orphan_envelope_days,
+            ),
+            apply_ce_on_nightly: parse_env_bool("AI_BRAINS_RETENTION_APPLY_CE")
+                || parse_env_bool("AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY"),
         }
-        if let Some(v) = parse_env_i64("AI_BRAINS_RETENTION_EVIDENCE_DAYS") {
-            c.evidence_days = v;
-        }
-        if let Some(v) = parse_env_i64("AI_BRAINS_RETENTION_SECRET_DAYS") {
-            c.secret_days = v;
-        }
-        if let Some(v) = parse_env_i64("AI_BRAINS_RETENTION_QUERY_TRACE_DAYS") {
-            c.query_trace_days = v;
-        }
-        if let Some(v) = parse_env_i64("AI_BRAINS_RETENTION_REVIEW_TRACE_DAYS") {
-            c.review_trace_days = v;
-        }
-        if let Some(v) = parse_env_i64("AI_BRAINS_RETENTION_DECISION_REVOKED_COOLDOWN_DAYS") {
-            c.decision_revoked_cooldown_days = v;
-        }
-        if let Some(v) = parse_env_i64("AI_BRAINS_RETENTION_ORPHAN_ENVELOPE_DAYS") {
-            c.orphan_envelope_days = v;
-        }
-        c.apply_ce_on_nightly = parse_env_bool("AI_BRAINS_RETENTION_APPLY_CE")
-            || parse_env_bool("AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY");
-        c
     }
 
     pub fn horizon_labels(&self) -> BTreeMap<String, String> {
@@ -138,8 +145,33 @@ impl RetentionConfig {
     }
 }
 
-fn parse_env_i64(key: &str) -> Option<i64> {
-    std::env::var(key).ok().and_then(|s| s.parse().ok())
+/// Parse a retention horizon day count: must be in `1..=MAX_RETENTION_HORIZON_DAYS`
+/// and constructible as a chrono duration.
+pub fn parse_positive_horizon_days(raw: &str) -> std::result::Result<i64, &'static str> {
+    let v: i64 = raw
+        .trim()
+        .parse()
+        .map_err(|_| "horizon days must be an integer")?;
+    if v <= 0 {
+        return Err("horizon days must be > 0");
+    }
+    if v > MAX_RETENTION_HORIZON_DAYS {
+        return Err("horizon days exceed maximum (36500)");
+    }
+    if Duration::try_days(v).is_none() {
+        return Err("horizon days overflow Duration");
+    }
+    Ok(v)
+}
+
+fn env_horizon_days(key: &str, default: i64) -> i64 {
+    match std::env::var(key) {
+        Err(_) => default,
+        Ok(s) => match parse_positive_horizon_days(&s) {
+            Ok(v) => v,
+            Err(_) => default,
+        },
+    }
 }
 
 fn parse_env_bool(key: &str) -> bool {
@@ -149,6 +181,17 @@ fn parse_env_bool(key: &str) -> bool {
             t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
         }
         Err(_) => false,
+    }
+}
+
+/// RFC3339 cutoff for `now - days` using checked chrono arithmetic (no panic).
+///
+/// On impossible durations (should not occur after config sanitization), falls
+/// back to the Unix epoch so the scan selects almost nothing rather than everything.
+fn cutoff_days_before(now: chrono::DateTime<Utc>, days: i64) -> String {
+    match Duration::try_days(days).and_then(|d| now.checked_sub_signed(d)) {
+        Some(t) => t.to_rfc3339(),
+        None => "1970-01-01T00:00:00+00:00".to_string(),
     }
 }
 
@@ -261,7 +304,7 @@ fn collect_candidates(
     }
 
     // Stream A — raw turns
-    let turn_cutoff = (now - Duration::days(config.raw_turn_days)).to_rfc3339();
+    let turn_cutoff = cutoff_days_before(now, config.raw_turn_days);
     let turns = ret_scan::list_old_turns(&conn, &turn_cutoff)
         .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
     for t in turns {
@@ -289,7 +332,7 @@ fn collect_candidates(
     }
 
     // Query traces
-    let qt_cutoff = (now - Duration::days(config.query_trace_days)).to_rfc3339();
+    let qt_cutoff = cutoff_days_before(now, config.query_trace_days);
     let qts = ret_scan::list_old_query_traces(&conn, &qt_cutoff)
         .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
     for q in qts {
@@ -313,7 +356,7 @@ fn collect_candidates(
     }
 
     // Review traces (closed + aged)
-    let rt_cutoff = (now - Duration::days(config.review_trace_days)).to_rfc3339();
+    let rt_cutoff = cutoff_days_before(now, config.review_trace_days);
     let rts = ret_scan::list_old_closed_reviews(&conn, &rt_cutoff)
         .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
     for r in rts {
@@ -340,7 +383,7 @@ fn collect_candidates(
     }
 
     // Decisions: only revoked/superseded + cooldown (R6/R14)
-    let dec_cutoff = (now - Duration::days(config.decision_revoked_cooldown_days)).to_rfc3339();
+    let dec_cutoff = cutoff_days_before(now, config.decision_revoked_cooldown_days);
     let decs = ret_scan::list_disposable_decisions(&conn, &dec_cutoff)
         .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
     for d in decs {
@@ -391,7 +434,7 @@ fn classify_envelope(
 
     // R16 orphans
     if env.blob_count == 0 {
-        let orphan_cutoff = (now - Duration::days(config.orphan_envelope_days)).to_rfc3339();
+        let orphan_cutoff = cutoff_days_before(now, config.orphan_envelope_days);
         if env.created_at.as_str() < orphan_cutoff.as_str() {
             return Ok(Candidate {
                 stream: Stream::B,
@@ -502,7 +545,7 @@ fn classify_envelope(
         }
     };
 
-    let cutoff = (now - Duration::days(horizon_days)).to_rfc3339();
+    let cutoff = cutoff_days_before(now, horizon_days);
     if env.age_anchor.as_str() < cutoff.as_str() {
         Ok(Candidate {
             stream: Stream::B,
@@ -676,19 +719,24 @@ pub struct RetentionApplyCommand {
 
 /// Outcome of projection-only apply (production CLI path).
 ///
-/// CE keys are listed for daemon wipe; cascade + audit are completed via
-/// [`finalize_retention_apply`] after CE.
+/// CE keys are listed for daemon wipe. A pre-CE [`RetentionApplied`] audit is
+/// always appended after projections (R12 durability). Call
+/// [`finalize_retention_apply`] after CE with **successful** keys only for R15
+/// cascade + a second (final) RetentionApplied.
 #[derive(Debug, Clone)]
 pub struct RetentionProjectionApplyOutcome {
     pub report: RetentionPlanReport,
     /// Sorted unique content_key_ids needing CE (daemon path).
     pub pending_ce_keys: Vec<String>,
-    /// Memory subject ids for R15 cascade after successful CE.
-    pub pending_cascade_memory_ids: Vec<String>,
+    /// content_key_id → memory subject ids for R15 cascade after **successful** CE.
+    pub pending_cascade_by_key: BTreeMap<String, Vec<String>>,
 }
 
-/// Apply **projection** candidates only (local). Does not CE-wipe and does not
-/// append RetentionApplied when CE is still pending.
+/// Apply **projection** candidates only (local). Does not CE-wipe.
+///
+/// Always appends `RetentionApplied` after projection deletes (R12), including
+/// when CE keys remain pending for the daemon — so a crash mid-CE still leaves
+/// an audit of the disposal that already happened.
 ///
 /// Production CLI uses this so CE can go through the daemon (T165 parity) without
 /// monomorphizing `wipe_content_envelope` into the CLI binary.
@@ -716,7 +764,7 @@ pub fn apply_retention_projections<W: EventWriter>(
     let mut reviews: Vec<String> = Vec::new();
     let mut decisions: Vec<String> = Vec::new();
     let mut ce_keys: Vec<String> = Vec::new();
-    let mut ce_memory_ids: Vec<String> = Vec::new();
+    let mut cascade_by_key: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for c in &candidates {
         match c.mechanism.as_str() {
@@ -738,7 +786,12 @@ pub fn apply_retention_projections<W: EventWriter>(
             MECHANISM_CE_WIPE => {
                 if let Some(ref key) = c.content_key_id {
                     ce_keys.push(key.clone());
-                    ce_memory_ids.extend(c.memory_ids.iter().cloned());
+                    if !c.memory_ids.is_empty() {
+                        cascade_by_key
+                            .entry(key.clone())
+                            .or_default()
+                            .extend(c.memory_ids.iter().cloned());
+                    }
                 }
             }
             _ => {}
@@ -747,8 +800,10 @@ pub fn apply_retention_projections<W: EventWriter>(
 
     ce_keys.sort();
     ce_keys.dedup();
-    ce_memory_ids.sort();
-    ce_memory_ids.dedup();
+    for ids in cascade_by_key.values_mut() {
+        ids.sort();
+        ids.dedup();
+    }
 
     {
         let conn = store
@@ -771,7 +826,7 @@ pub fn apply_retention_projections<W: EventWriter>(
 
     let deferred_ce = !ce_keys.is_empty();
     let errors_count = errors.len() as u64;
-    let report = build_report(
+    let mut report = build_report(
         RetentionReportMode::Apply,
         &generated_at,
         config,
@@ -783,19 +838,27 @@ pub fn apply_retention_projections<W: EventWriter>(
         errors,
     );
 
-    if !deferred_ce {
-        // No CE pending: cascade N/A for CE, append audit now.
-        append_retention_applied(writer, command_id, &report)?;
+    if deferred_ce {
+        report.warnings.push(format!(
+            "ce_pending={} (RetentionApplied pre-CE; finalize after daemon wipe)",
+            ce_keys.len()
+        ));
     }
+
+    // R12: every confirmed apply audits after projections — before daemon CE.
+    // Projection-only: single audit. Deferred CE: pre-CE audit + finalize second.
+    append_retention_applied(writer, command_id, &report)?;
 
     Ok(RetentionProjectionApplyOutcome {
         report,
         pending_ce_keys: ce_keys,
-        pending_cascade_memory_ids: ce_memory_ids,
+        pending_cascade_by_key: cascade_by_key,
     })
 }
 
-/// Complete deferred-CE apply: R15 cascade + R12 RetentionApplied.
+/// Complete deferred-CE apply: R15 cascade for **successful** CE subjects only,
+/// then append a final R12 `RetentionApplied` (second event when pre-CE audit
+/// already exists — durable final tallies / errors).
 pub fn finalize_retention_apply<W: EventWriter>(
     store: &SqliteEventStore,
     writer: &W,
@@ -819,6 +882,22 @@ pub fn finalize_retention_apply<W: EventWriter>(
     report.errors_count = report.errors.len() as u64;
     append_retention_applied(writer, command_id, report)?;
     Ok(())
+}
+
+/// Collect memory subject ids for R15 cascade from keys that wiped successfully.
+pub fn cascade_memory_ids_for_keys(
+    cascade_by_key: &BTreeMap<String, Vec<String>>,
+    successful_keys: impl IntoIterator<Item = impl AsRef<str>>,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    for key in successful_keys {
+        if let Some(ids) = cascade_by_key.get(key.as_ref()) {
+            out.extend(ids.iter().cloned());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// Apply a retention plan in-process (fixture / test path). Refuses without
@@ -858,12 +937,12 @@ where
     let candidates = collect_candidates(store, config, now)?;
 
     let mut errors: Vec<String> = Vec::new();
-    let mut disposed_memory_ids: Vec<String> = Vec::new();
     let mut turns_to_delete: Vec<TurnKey> = Vec::new();
     let mut query_traces: Vec<String> = Vec::new();
     let mut reviews: Vec<String> = Vec::new();
     let mut decisions: Vec<String> = Vec::new();
     let mut ce_keys: Vec<String> = Vec::new();
+    let mut cascade_by_key: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for c in &candidates {
         match c.mechanism.as_str() {
@@ -885,7 +964,12 @@ where
             MECHANISM_CE_WIPE => {
                 if let Some(ref key) = c.content_key_id {
                     ce_keys.push(key.clone());
-                    disposed_memory_ids.extend(c.memory_ids.iter().cloned());
+                    if !c.memory_ids.is_empty() {
+                        cascade_by_key
+                            .entry(key.clone())
+                            .or_default()
+                            .extend(c.memory_ids.iter().cloned());
+                    }
                 }
             }
             _ => {}
@@ -894,6 +978,10 @@ where
 
     ce_keys.sort();
     ce_keys.dedup();
+    for ids in cascade_by_key.values_mut() {
+        ids.sort();
+        ids.dedup();
+    }
 
     // Projection deletes (batch, local)
     {
@@ -916,11 +1004,13 @@ where
     }
 
     // CE via T165 only (R2) — fixture / in-process path
+    let mut successful_ce_keys: Vec<String> = Vec::new();
     for key_str in &ce_keys {
+        let key_disp = truncate_id(key_str);
         let content_key_id = match ContentKeyId::from_str(key_str) {
             Ok(k) => k,
             Err(e) => {
-                errors.push(format!("invalid content_key_id {key_str}: {e}"));
+                errors.push(format!("invalid content_key_id {key_disp}: {e}"));
                 continue;
             }
         };
@@ -935,20 +1025,23 @@ where
         };
         match wipe_content_envelope(writer, query, clock, policy, wipe_side, wipe_cmd) {
             Ok(resp) => {
-                if resp.status != "wiped" && resp.status != "already_erased" {
+                if resp.status == "wiped" || resp.status == "already_erased" {
+                    successful_ce_keys.push(key_str.clone());
+                } else {
                     errors.push(format!(
-                        "ce_wipe {key_str}: unexpected status {}",
+                        "ce_wipe {key_disp}: unexpected status {}",
                         resp.status
                     ));
                 }
             }
             Err(e) => {
-                errors.push(format!("ce_wipe {key_str}: {e}"));
+                errors.push(format!("ce_wipe {key_disp}: {e}"));
             }
         }
     }
 
-    // R15 cascade
+    // R15 cascade — only subjects of successful CE keys
+    let disposed_memory_ids = cascade_memory_ids_for_keys(&cascade_by_key, &successful_ce_keys);
     let parents_marked = {
         let conn = store
             .connection()
