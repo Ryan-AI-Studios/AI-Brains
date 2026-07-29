@@ -276,10 +276,10 @@ ai-brains migrate governed --source .\s.db --destination .\d.db --report .\r.jso
 |------|----------|
 | Dry-run default | Omit `--confirm` (or pass `--dry-run`). Report always written when `--report` is set. Both `--dry-run` and `--confirm` → `INVALID_PAYLOAD` exit **6**. |
 | Confirm | Creates dest (if needed), dest-only `migrate()`, optional envelope copy, T167 apply, **mandatory** `migrate-manifest.json` beside dest. |
-| Source integrity | Source (and dry-run dest peek) open via `VaultConnection::open_read_intent`: prefer `SQLITE_OPEN_READ_ONLY`; fall back to open + key pragmas only (**no** `journal_mode=WAL`). Never `migrate()` source; no intentional event writes (T147 residual **#12**). After every run, source content fingerprint is re-verified; mismatch aborts hard. |
+| Source integrity | Source (and dry-run dest peek) open via pure RO `VaultConnection::open_read_intent` (`SQLITE_OPEN_READ_ONLY` only — **no** R/W fallback; key pragmas only, **no** `journal_mode=WAL`). Never `migrate()` source; no intentional event writes (T147 residual **#12**). After all output writes (report + migrate-manifest), source content fingerprint is re-verified; mismatch aborts hard. |
 | Dest safety | Reuses T147 `refuse_unsafe_destination`: refuse source==dest, dest==live, dest inside live parent, reparse dest/parent. |
 | Live source | Source == live vault refused unless `--allow-live-source` (still refuses live dest). Prefer `shadow create` first. |
-| Report path | Refuse reparse/symlink; refuse report path same location as source, dest vault file, or sibling `migrate-manifest.json` (would overwrite mandatory manifest). |
+| Report path | Refuse reparse/symlink; refuse existing hardlinked report path (prevents truncate of shared inode / source); refuse report path same location as source, dest vault file, or sibling `migrate-manifest.json` (would overwrite mandatory manifest). Manifest write also refuses hardlinked targets. |
 | Missing source | `NOT_FOUND` with exit **4**. |
 | Copy events | Default **on** for empty dest (`--copy-events`); `--no-copy-events` for import-only. Re-apply into non-empty dest is **import-only** even if `--copy-events` (no duplicate source envelopes). |
 | Re-apply | Non-empty dest requires matching `migrate-manifest.json` `source_fingerprint` (content-based, not mtime). Missing/mismatch → refuse unless `--force-overwrite`. |

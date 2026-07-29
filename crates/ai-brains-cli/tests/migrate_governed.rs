@@ -1276,3 +1276,47 @@ fn migrate_governed__no_copy_events__import_only_dest() {
     // Envelope copy would place every source event_id into dest (overlap checked above).
     let _ = source_count;
 }
+
+/// Report path hardlinked to the source vault must refuse (Codex R2 P1-02).
+///
+/// `File::create` on a hardlinked report path would truncate the source vault.
+/// Hardlink creation works without elevation on Windows NTFS and on Unix.
+#[test]
+fn migrate_governed__refuse_hardlink_report_to_source() {
+    let dir = tempdir().expect("tempdir");
+    let (source, dest, report) = paths(dir.path());
+    init_vault(&source);
+    seed_memory_pinned(&source, "hardlink report pin", true);
+
+    // Create report path as hardlink of source before dry-run.
+    fs::hard_link(&source, &report).expect("hard_link report -> source");
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("hardlink")
+                .or(predicate::str::contains("link count"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+
+    // Source must remain intact (refuse before write).
+    let source_len = fs::metadata(&source).expect("source meta").len();
+    assert!(
+        source_len > 0,
+        "source vault must not be truncated by refused hardlink report write"
+    );
+    assert!(
+        event_count(&source) >= 1,
+        "source events must remain readable after hardlink refuse"
+    );
+}

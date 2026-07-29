@@ -28,14 +28,17 @@ impl VaultConnection {
         })
     }
 
-    /// Open a vault for read-intent use without mutating journal mode.
+    /// Open a vault **read-only** without mutating journal mode or WAL/SHM.
     ///
-    /// Prefer `SQLITE_OPEN_READ_ONLY` so SQLite cannot create journal sidecars
-    /// or rewrite `journal_mode`. SQLCipher may reject RO open for some
-    /// encrypted vaults; in that case fall back to a non-creating open with
-    /// [`apply_key_pragmas`] only (key + cipher_compat + busy_timeout — **no**
-    /// `journal_mode` / `synchronous`). Never runs migrations and never
-    /// creates a missing vault file.
+    /// Always opens with `OpenFlags::SQLITE_OPEN_READ_ONLY`, then applies
+    /// [`apply_key_pragmas`] (key + cipher_compat + busy_timeout — **no**
+    /// `journal_mode` / `synchronous`) and verifies the key. Never falls back
+    /// to read/write open (avoids touching existing WAL/SHM state). Never runs
+    /// migrations and never creates a missing vault file.
+    ///
+    /// If the RO open fails (missing path, wrong key, or platform/SQLCipher
+    /// rejection of RO), returns an error — callers must not open R/W as a
+    /// substitute.
     ///
     /// Use for migrate source opens and dry-run destination peeks (M5).
     pub fn open_read_intent<P: AsRef<Path>>(path: P, key: &SqlCipherKey) -> Result<Self> {
@@ -47,28 +50,16 @@ impl VaultConnection {
             )));
         }
 
-        let conn = match Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY) {
-            Ok(conn) => {
-                apply_key_pragmas(&conn, key)?;
-                verify_key(&conn)?;
-                conn
-            }
-            Err(_ro_err) => {
-                // SQLCipher / platform may reject READ_ONLY for encrypted files.
-                // Fall back: open read/write without CREATE so we never materialize
-                // a new vault, and still skip WAL/synchronous pragmas.
-                let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
-                let conn = Connection::open_with_flags(path, flags).map_err(|e| {
-                    StoreError::ConnectionFailed(format!(
-                        "read-intent open failed for {}: {e}",
-                        path.display()
-                    ))
-                })?;
-                apply_key_pragmas(&conn, key)?;
-                verify_key(&conn)?;
-                conn
-            }
-        };
+        let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(
+            |e| {
+                StoreError::ConnectionFailed(format!(
+                    "read-only open failed for {} (no R/W fallback): {e}",
+                    path.display()
+                ))
+            },
+        )?;
+        apply_key_pragmas(&conn, key)?;
+        verify_key(&conn)?;
 
         Ok(Self {
             inner: Arc::new(Mutex::new(conn)),

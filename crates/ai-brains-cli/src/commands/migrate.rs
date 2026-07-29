@@ -4,10 +4,12 @@
 //! - **M2** Classification / apply only via T167 (`classify_legacy` / `apply_legacy_import`).
 //! - **M3/M6** Destination safety via `shadow::refuse_unsafe_destination`.
 //! - **M4/M11** Report has no plaintext bodies; CE honesty false.
-//! - **M5** Never `migrate()` source; source open via `VaultConnection::open_read_intent`
-//!   (no WAL pragma); post-run fingerprint re-verify.
+//! - **M5** Never `migrate()` source; source open via pure RO
+//!   `VaultConnection::open_read_intent`; fingerprint re-verify **after** all
+//!   output writes (report + manifest).
 //! - **M7** Live source refused unless `--allow-live-source`.
-//! - **M8** `refuse_unsafe_report_path` for report location (incl. migrate-manifest).
+//! - **M8** `refuse_unsafe_report_path` for report location (incl. migrate-manifest,
+//!   hardlink refuse when path exists).
 //! - **M15** Missing source → `NOT_FOUND` exit 4.
 //! - **M16** Content-based `migrate_source_fingerprint`.
 //! - **M17/M18** Re-apply: import-only when dest non-empty + matching manifest.
@@ -16,7 +18,9 @@
 //! - **M21** Batch copy 5000 + stderr progress ≥1000.
 //! - **M22** Pass `read_all_events` order to classify (no re-sort).
 
-use crate::artifact_security::{is_reparse_or_symlink, refuse_if_reparse};
+use crate::artifact_security::{
+    is_hardlink, is_reparse_or_symlink, refuse_if_hardlink, refuse_if_reparse,
+};
 use crate::commands::governed_common::{OutputFormat, fail_api, resolve_principal};
 use crate::commands::shadow::{refuse_unsafe_destination, resolve_live_vault_path};
 use ai_brains_contracts::response::ApiError;
@@ -371,36 +375,9 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
             .count() as u64,
     };
 
-    // M5 — re-verify source content fingerprint after run (read-intent reopen).
-    // Fail hard on mismatch (dry-run or confirm). Size check is secondary.
-    let source_fp_after = {
-        let re_conn =
-            VaultConnection::open_read_intent(&opts.source, &source_key).map_err(|e| {
-                format!(
-                    "failed to re-open source vault for integrity check at {}: {e}",
-                    opts.source.display()
-                )
-            })?;
-        let re_store = SqliteEventStore::new(re_conn);
-        let re_events = re_store.read_all_events().map_err(|e| {
-            format!(
-                "failed to re-read source events for integrity check at {}: {e}",
-                opts.source.display()
-            )
-        })?;
-        migrate_source_fingerprint(&re_events)
-    };
-    let source_bytes_after = file_len_or_zero(&opts.source);
-    let source_modified = source_fp_after != source_fp || source_bytes_after != source_bytes_before;
-    if source_modified {
-        return Err(format!(
-            "source vault modified during migrate (fingerprint_before={source_fp}, \
-             fingerprint_after={source_fp_after}, size_before={source_bytes_before}, \
-             size_after={source_bytes_after}); this is a bug — aborting without writing a success report"
-        )
-        .into());
-    }
-
+    // Build + write report first, then final source integrity (Codex R2 P1-02).
+    // Integrity must run *after* report/manifest writes so a hardlinked report
+    // path that truncated the source is detected even if early refuse was raced.
     let report = build_report(BuildReportArgs {
         is_dry_run,
         source: &opts.source,
@@ -415,12 +392,21 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
         would_import_appends,
         legacy_import_applied,
         manifest_written,
-        // Only false on success path (we fail hard when source_modified above).
+        // Provisional: final integrity below fails hard if source changed.
         source_modified: false,
         apply_report: apply_report.as_ref(),
     })?;
 
     write_report_file(&opts.report, &report)?;
+
+    // M5 — re-verify source content fingerprint **after** all output writes.
+    // Fail hard on mismatch (dry-run or confirm). Size check is secondary.
+    verify_source_unmodified_after_writes(
+        &opts.source,
+        &source_key,
+        &source_fp,
+        source_bytes_before,
+    )?;
 
     // Human one-liner summary on stdout.
     if is_dry_run {
@@ -568,6 +554,7 @@ fn run_confirm_materialize(
         created_at,
     };
     let manifest_path = migrate_manifest_path(&opts.destination);
+    refuse_hardlink_write_target(&manifest_path, "migrate-manifest")?;
     let mut file = fs::File::create(&manifest_path)?;
     file.write_all(serde_json::to_string_pretty(&manifest)?.as_bytes())?;
     file.write_all(b"\n")?;
@@ -860,6 +847,8 @@ fn write_report_file(
     {
         fs::create_dir_all(parent)?;
     }
+    // TOCTOU re-check: refuse hardlinked report targets before File::create truncate.
+    refuse_hardlink_write_target(path, "report")?;
     let mut file = fs::File::create(path)?;
     file.write_all(serde_json::to_string_pretty(report)?.as_bytes())?;
     file.write_all(b"\n")?;
@@ -870,7 +859,7 @@ fn write_report_file(
 // Safety helpers
 // ---------------------------------------------------------------------------
 
-/// M8 — refuse reparse/symlink report path; refuse report == source, dest, or migrate-manifest.
+/// M8 — refuse reparse/symlink/hardlink report path; refuse report == source, dest, or migrate-manifest.
 pub fn refuse_unsafe_report_path(
     report: &Path,
     source: &Path,
@@ -893,10 +882,14 @@ pub fn refuse_unsafe_report_path(
         );
     }
 
-    if report.exists()
-        && let Err(msg) = refuse_if_reparse(report, is_reparse_or_symlink(report)?)
-    {
-        return fail_path_refused(format!("refusing migrate report path: {msg}"));
+    if report.exists() {
+        if let Err(msg) = refuse_if_reparse(report, is_reparse_or_symlink(report)?) {
+            return fail_path_refused(format!("refusing migrate report path: {msg}"));
+        }
+        // Hardlink to source/dest (or any multi-link inode) — File::create would truncate shared data.
+        if let Err(msg) = refuse_if_hardlink(report, is_hardlink(report)?) {
+            return fail_path_refused(format!("refusing migrate report path: {msg}"));
+        }
     }
     if let Some(parent) = report.parent()
         && parent.exists()
@@ -905,6 +898,57 @@ pub fn refuse_unsafe_report_path(
         return fail_path_refused(format!("refusing migrate report parent: {msg}"));
     }
 
+    Ok(())
+}
+
+/// Refuse writing through an existing hardlinked path (PATH_REFUSED).
+fn refuse_hardlink_write_target(
+    path: &Path,
+    label: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !path.exists() {
+        return Ok(());
+    }
+    if let Err(msg) = refuse_if_hardlink(path, is_hardlink(path)?) {
+        return fail_path_refused(format!("refusing migrate {label} path: {msg}"));
+    }
+    Ok(())
+}
+
+/// M5 final integrity: re-open source RO and compare content fingerprint + size.
+///
+/// Must run **after** report and migrate-manifest writes so corruption via a
+/// hardlinked output path is still detected.
+fn verify_source_unmodified_after_writes(
+    source: &Path,
+    source_key: &SqlCipherKey,
+    source_fp_before: &str,
+    source_bytes_before: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let re_conn = VaultConnection::open_read_intent(source, source_key).map_err(|e| {
+        format!(
+            "failed to re-open source vault for integrity check at {}: {e}",
+            source.display()
+        )
+    })?;
+    let re_store = SqliteEventStore::new(re_conn);
+    let re_events = re_store.read_all_events().map_err(|e| {
+        format!(
+            "failed to re-read source events for integrity check at {}: {e}",
+            source.display()
+        )
+    })?;
+    let source_fp_after = migrate_source_fingerprint(&re_events);
+    let source_bytes_after = file_len_or_zero(source);
+    if source_fp_after != source_fp_before || source_bytes_after != source_bytes_before {
+        return Err(format!(
+            "source vault modified during migrate (fingerprint_before={source_fp_before}, \
+             fingerprint_after={source_fp_after}, size_before={source_bytes_before}, \
+             size_after={source_bytes_after}); this is a bug — aborting after output writes \
+             (report/manifest may exist; do not trust them; discard destination)"
+        )
+        .into());
+    }
     Ok(())
 }
 
@@ -1287,5 +1331,43 @@ mod tests {
         let report = migrate_manifest_path(&dest);
         let err = refuse_unsafe_report_path(&report, &source, &dest).expect_err("must refuse");
         assert!(err.to_string().contains("migrate-manifest"), "got: {err}");
+    }
+
+    /// Report path hardlinked to source (or any multi-link inode) must refuse
+    /// before `File::create` can truncate shared data (Codex R2 P1-02).
+    #[test]
+    fn refuse_unsafe_report_path__hardlink_to_source__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest.db");
+        let report = dir.path().join("report.json");
+        fs::write(&source, b"vault-bytes").expect("source");
+        fs::hard_link(&source, &report).expect("hardlink report -> source");
+        assert!(
+            is_hardlink(&report).expect("nlink"),
+            "precondition: report must be hardlink"
+        );
+        let err = refuse_unsafe_report_path(&report, &source, &dest).expect_err("must refuse");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("hardlink") || msg.contains("link count") || msg.contains("PATH_REFUSED"),
+            "expected hardlink refuse, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn refuse_hardlink_write_target__hardlinked_manifest__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let manifest = dir.path().join("migrate-manifest.json");
+        fs::write(&source, b"vault-bytes").expect("source");
+        fs::hard_link(&source, &manifest).expect("hardlink manifest -> source");
+        let err = refuse_hardlink_write_target(&manifest, "migrate-manifest")
+            .expect_err("must refuse hardlinked manifest");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("hardlink") || msg.contains("link count") || msg.contains("PATH_REFUSED"),
+            "expected hardlink refuse, got: {msg}"
+        );
     }
 }
