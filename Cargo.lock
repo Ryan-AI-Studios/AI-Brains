@@ -237,6 +237,7 @@ dependencies = [
  "serde_json",
  "subtle",
  "thiserror",
+ "uuid",
  "windows",
  "zeroize",
 ]

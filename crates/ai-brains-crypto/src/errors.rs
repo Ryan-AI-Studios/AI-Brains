@@ -26,6 +26,15 @@ pub enum CryptoError {
     #[error("Invalid key length")]
     InvalidKeyLength,
 
+    /// AEAD authentication failed (tag / AAD / key mismatch). Generic message —
+    /// does not distinguish tag vs AAD vs key to avoid oracle leaks.
+    #[error("Authentication failed")]
+    AuthenticationFailed,
+
+    /// Nonce bytes were not exactly 12 (AES-GCM recommended IV length).
+    #[error("Invalid nonce length")]
+    InvalidNonceLength,
+
     #[error("Recovery kit is missing required components: {0}")]
     RecoveryKitMissing(String),
 }
