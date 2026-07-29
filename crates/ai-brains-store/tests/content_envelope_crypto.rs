@@ -16,8 +16,8 @@ use ai_brains_crypto::{CryptoError, DataKey};
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::SqliteEventStore;
 use ai_brains_store::projections::content_envelope::{
-    self, ALGORITHM_AES_256_GCM, ENVELOPE_SCHEMA_VERSION as STORE_ENVELOPE_SCHEMA_VERSION,
-    EncryptedBlobRow,
+    self, ALGORITHM_AES_256_GCM, ContentKeyWrapRow,
+    ENVELOPE_SCHEMA_VERSION as STORE_ENVELOPE_SCHEMA_VERSION, EncryptedBlobRow,
 };
 use tempfile::NamedTempFile;
 use uuid::Uuid;
@@ -33,6 +33,36 @@ fn open_store() -> (NamedTempFile, SqliteEventStore) {
     let conn = VaultConnection::open(db_path, &sql_key).unwrap();
     conn.migrate().unwrap();
     (temp_file, SqliteEventStore::new(conn))
+}
+
+/// Store-layer open adapter (C14): maps destroyed / missing wrap material to
+/// [`CryptoError::AuthenticationFailed`] without inventing Option-shaped crypto types.
+///
+/// Only constructs [`WrappedContentDek`] when wrap status is active and nonce/ciphertext
+/// are present and non-empty; otherwise fails closed before AEAD.
+fn open_from_store_rows(
+    data_key: &DataKey,
+    content_key_id: &ContentKeyId,
+    wrap_row: &ContentKeyWrapRow,
+    sealed: &ai_brains_crypto::SealedContent,
+    blob_id: Uuid,
+) -> Result<Vec<u8>, CryptoError> {
+    let wrap = match wrap_row {
+        row if row.status == "active" => row,
+        _ => return Err(CryptoError::AuthenticationFailed),
+    };
+    let (nonce_bytes, ciphertext) = match (&wrap.wrap_nonce, &wrap.wrap_ciphertext) {
+        (Some(n), Some(c)) if !n.is_empty() && !c.is_empty() => (n.as_slice(), c.as_slice()),
+        _ => return Err(CryptoError::AuthenticationFailed),
+    };
+    let nonce = parse_nonce(nonce_bytes)?;
+    let wrapped = WrappedContentDek {
+        wrap_schema_version: wrap.wrap_schema_version as u32,
+        nonce,
+        ciphertext: ciphertext.to_vec(),
+    };
+    let opened = unwrap_and_open(data_key, content_key_id, &wrapped, sealed, blob_id)?;
+    Ok(opened.to_vec())
 }
 
 #[test]
@@ -74,20 +104,12 @@ fn content_envelope_crypto__persist_and_open__round_trip() {
         content_envelope::insert_encrypted_blob(&conn, &row).expect("insert blob");
     }
 
-    // Reload from store and open.
+    // Reload from store and open via fail-closed store adapter (success path).
     let conn = store.connection().lock().unwrap();
     let wrap_row = content_envelope::get_content_key_wrap(&conn, &content_key_id.to_string())
         .expect("get wrap")
         .expect("wrap exists");
     assert_eq!(wrap_row.status, "active");
-    let wrap_nonce =
-        parse_nonce(wrap_row.wrap_nonce.as_ref().expect("nonce")).expect("12-byte nonce");
-    let wrap_ct = wrap_row.wrap_ciphertext.expect("ciphertext");
-    let wrapped = WrappedContentDek {
-        wrap_schema_version: wrap_row.wrap_schema_version as u32,
-        nonce: wrap_nonce,
-        ciphertext: wrap_ct,
-    };
 
     let blob = content_envelope::get_encrypted_blob(&conn, &blob_id.to_string())
         .expect("get blob")
@@ -106,11 +128,19 @@ fn content_envelope_crypto__persist_and_open__round_trip() {
         ciphertext: blob.ciphertext,
     };
 
-    let opened = unwrap_and_open(&data_key, &content_key_id, &wrapped, &sealed, blob_id)
-        .expect("unwrap_and_open");
+    let opened = open_from_store_rows(&data_key, &content_key_id, &wrap_row, &sealed, blob_id)
+        .expect("open_from_store_rows");
     assert_eq!(opened.as_slice(), plaintext);
 
-    // Also path: unwrap DEK then open with SealAad
+    // Also path: unwrap DEK then open with SealAad (direct crypto, wrap fields present).
+    let wrap_nonce =
+        parse_nonce(wrap_row.wrap_nonce.as_ref().expect("nonce")).expect("12-byte nonce");
+    let wrap_ct = wrap_row.wrap_ciphertext.as_ref().expect("ciphertext");
+    let wrapped = WrappedContentDek {
+        wrap_schema_version: wrap_row.wrap_schema_version as u32,
+        nonce: wrap_nonce,
+        ciphertext: wrap_ct.clone(),
+    };
     let dek = unwrap_content_dek(&data_key, &wrapped, &content_key_id).expect("unwrap dek");
     let aad = SealAad {
         envelope_schema_version: sealed.envelope_schema_version,
@@ -167,17 +197,12 @@ fn content_envelope_crypto__destroy_wrap__cannot_open() {
         content_envelope::insert_encrypted_blob(&conn, &row).expect("insert blob");
     }
 
-    // Prove open works before destroy.
+    // Prove open works before destroy via the same store adapter.
     {
         let conn = store.connection().lock().unwrap();
         let wrap_row = content_envelope::get_content_key_wrap(&conn, &content_key_id.to_string())
             .unwrap()
             .unwrap();
-        let wrapped_live = WrappedContentDek {
-            wrap_schema_version: wrap_row.wrap_schema_version as u32,
-            nonce: parse_nonce(wrap_row.wrap_nonce.as_ref().unwrap()).unwrap(),
-            ciphertext: wrap_row.wrap_ciphertext.unwrap(),
-        };
         let blob = content_envelope::get_encrypted_blob(&conn, &blob_id.to_string())
             .unwrap()
             .unwrap();
@@ -186,14 +211,9 @@ fn content_envelope_crypto__destroy_wrap__cannot_open() {
             nonce: parse_nonce(&blob.nonce).unwrap(),
             ciphertext: blob.ciphertext,
         };
-        let opened = unwrap_and_open(
-            &data_key,
-            &content_key_id,
-            &wrapped_live,
-            &sealed_live,
-            blob_id,
-        )
-        .expect("open before destroy");
+        let opened =
+            open_from_store_rows(&data_key, &content_key_id, &wrap_row, &sealed_live, blob_id)
+                .expect("open before destroy");
         assert_eq!(opened.as_slice(), plaintext);
     }
 
@@ -211,8 +231,7 @@ fn content_envelope_crypto__destroy_wrap__cannot_open() {
         );
     }
 
-    // Fail closed: destroyed row has None wraps — do not construct WrappedContentDek
-    // from missing bytes (C14). Open path rejects before AEAD.
+    // Fail closed: destroyed row has None wraps — open path maps via real branch.
     let conn = store.connection().lock().unwrap();
     let wrap_row = content_envelope::get_content_key_wrap(&conn, &content_key_id.to_string())
         .unwrap()
@@ -221,32 +240,28 @@ fn content_envelope_crypto__destroy_wrap__cannot_open() {
     assert!(wrap_row.wrap_nonce.is_none());
     assert!(wrap_row.wrap_ciphertext.is_none());
 
-    // Canonical fail-closed mapping (C14): destroyed rows have None wraps —
-    // do not construct WrappedContentDek from missing bytes; reject before AEAD.
-    // Product open path maps missing wrap → AuthenticationFailed.
-    assert!(
-        wrap_row.wrap_nonce.is_none() && wrap_row.wrap_ciphertext.is_none(),
-        "destroyed wrap must not expose nonce/ciphertext for unwrap"
-    );
-    let open_result: Result<(), CryptoError> = Err(CryptoError::AuthenticationFailed);
-    assert!(matches!(
-        open_result,
-        Err(CryptoError::AuthenticationFailed)
-    ));
-
     // Ciphertext blob may remain (undecryptable garbage) — CE destroys keys, not media.
     let blob = content_envelope::get_encrypted_blob(&conn, &blob_id.to_string())
         .unwrap()
         .expect("blob retained");
     assert!(!blob.ciphertext.is_empty());
-    // Even with the retained sealed bytes, there is no wrap to rebuild WrappedContentDek.
     let sealed_orphan = ai_brains_crypto::SealedContent {
         envelope_schema_version: blob.envelope_schema_version as u32,
         nonce: parse_nonce(&blob.nonce).expect("blob nonce"),
         ciphertext: blob.ciphertext,
     };
-    // Using the pre-destroy wrap copy still works only if wrap was not destroyed in
-    // crypto terms — but CE requires destroying all durable wraps. Pre-erase copies
-    // are an honesty residual (ADR-0016); this test proves the store row is gone.
-    let _ = sealed_orphan;
+
+    // Realistic open path: destroyed/missing wrap → AuthenticationFailed from the
+    // actual fail-closed branch (no hardcoded Err literal; no fake wrap material).
+    let open_result = open_from_store_rows(
+        &data_key,
+        &content_key_id,
+        &wrap_row,
+        &sealed_orphan,
+        blob_id,
+    );
+    assert!(
+        matches!(open_result, Err(CryptoError::AuthenticationFailed)),
+        "destroyed wrap must fail closed via store adapter, got: {open_result:?}"
+    );
 }

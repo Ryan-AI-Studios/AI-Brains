@@ -28,7 +28,7 @@ use ai_brains_core::ids::ContentKeyId;
 use rand::TryRng;
 use rand::rngs::SysRng;
 use std::fmt;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /// Content DEK length (AES-256 key material).
 pub const CONTENT_DEK_LEN: usize = 32;
@@ -155,15 +155,18 @@ pub fn unwrap_content_dek(
     let cipher = Aes256Gcm::new_from_slice(data_key.expose_secret())
         .map_err(|e| CryptoError::EncryptionError(e.to_string()))?;
     let nonce = Nonce::from_slice(&wrapped.nonce);
-    let plaintext = cipher
-        .decrypt(
-            nonce,
-            Payload {
-                msg: &wrapped.ciphertext,
-                aad: &aad,
-            },
-        )
-        .map_err(|_| CryptoError::AuthenticationFailed)?;
+    // Zeroize intermediate DEK plaintext so the GCM output buffer is wiped on drop.
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(
+                nonce,
+                Payload {
+                    msg: &wrapped.ciphertext,
+                    aad: &aad,
+                },
+            )
+            .map_err(|_| CryptoError::AuthenticationFailed)?,
+    );
 
     let material: [u8; CONTENT_DEK_LEN] = plaintext
         .as_slice()
@@ -379,5 +382,17 @@ mod tests {
         assert_eq!(msg, "Authentication failed");
         assert!(!msg.to_lowercase().contains("key"));
         assert!(!msg.to_lowercase().contains("ciphertext"));
+    }
+
+    #[test]
+    fn wrap_content_dek__wrong_wrap_schema_version__authentication_failed() {
+        let data_key = DataKey::generate();
+        let dek = ContentDek::generate().expect("dek");
+        let id = ContentKeyId::new();
+        let mut wrapped = wrap_content_dek(&data_key, &dek, &id).expect("wrap");
+        // Tamper version field → AAD mismatch on unwrap (no hard reject of non-1 versions).
+        wrapped.wrap_schema_version = WRAP_SCHEMA_VERSION.wrapping_add(1);
+        let err = unwrap_content_dek(&data_key, &wrapped, &id).expect_err("must fail");
+        assert!(matches!(err, CryptoError::AuthenticationFailed));
     }
 }

@@ -309,6 +309,44 @@ mod tests {
     }
 
     #[test]
+    fn seal_open__wrong_aad_content_key_id__authentication_failed() {
+        let dek = ContentDek::generate().expect("dek");
+        let blob_id = Uuid::new_v4();
+        let aad = SealAad {
+            envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+            content_key_id: ContentKeyId::new(),
+            blob_id,
+        };
+        let sealed = seal(&dek, b"secret", &aad).expect("seal");
+        let wrong = SealAad {
+            envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+            content_key_id: ContentKeyId::new(),
+            blob_id,
+        };
+        let err = open(&dek, &sealed, &wrong).expect_err("must fail");
+        assert!(matches!(err, CryptoError::AuthenticationFailed));
+    }
+
+    #[test]
+    fn seal_open__wrong_envelope_schema_version__authentication_failed() {
+        let dek = ContentDek::generate().expect("dek");
+        let aad = SealAad {
+            envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+            content_key_id: ContentKeyId::new(),
+            blob_id: Uuid::new_v4(),
+        };
+        let sealed = seal(&dek, b"secret", &aad).expect("seal");
+        // Wrong AAD version field → GCM AuthenticationFailed (caller-controlled AAD domain).
+        let wrong = SealAad {
+            envelope_schema_version: ENVELOPE_SCHEMA_VERSION.wrapping_add(1),
+            content_key_id: aad.content_key_id,
+            blob_id: aad.blob_id,
+        };
+        let err = open(&dek, &sealed, &wrong).expect_err("must fail");
+        assert!(matches!(err, CryptoError::AuthenticationFailed));
+    }
+
+    #[test]
     fn seal_open__bitflip_ciphertext__authentication_failed() {
         let dek = ContentDek::generate().expect("dek");
         let aad = SealAad {
