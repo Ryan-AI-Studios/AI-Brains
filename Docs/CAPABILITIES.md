@@ -302,20 +302,21 @@ GRAPH            neighbors · hierarchy · session · update · rebuild · live 
 INTEGRATION      Ledgerful (search/hotspots/bridge/pipe) · multi-harness hooks
 OPS              init · backup suite · daemon service · schedule · update
 PRIVACY/CRYPTO   SQLCipher · privacy levels · path normalization · no CoT
-LEGACY IMPORT    control-plane only: classify_legacy / apply_legacy_import (T167; CLI T168)
+LEGACY IMPORT    classify_legacy / apply_legacy_import (T167) + `migrate governed` CLI (T168)
 ```
 
-### Legacy → governed classification import (T167 / P9.1)
+### Legacy → governed classification import (T167 / P9.1) + migrate CLI (T168)
 
-**Control-plane API only** — not a CLI command yet (CLI migrate is **T168**). Callers supply a legacy event stream + destination ports; the module never opens the live vault itself.
+**Control-plane API** plus operator CLI. Callers (or `ai-brains migrate governed`) supply a legacy event stream + destination ports; the importer never opens the live vault itself.
 
-| API | Role |
-|-----|------|
+| API / CLI | Role |
+|-----------|------|
 | `classify_legacy` | Dry-run plan + `plan_hash` (default); under-promotes pins→Evidence, synth→Candidate, decisions→Proposed+Review |
 | `apply_legacy_import` | Confirm-gated append via raw `build_event`; no `observe_source` / no `RecordEvidence` capability |
 | `plan_report_json` | Operator report (ids/counts/hash; optional truncated snippets; never full bodies by default) |
+| `ai-brains migrate governed` | T168: dry-run differential report; `--confirm` dest materialize + T167 apply; live/reparse refuse; no plaintext in report |
 
-See [OPERATIONS.md](OPERATIONS.md#legacy--governed-classification-import-t167--p91) for operator rules (idempotency, forgotten cascade, CE honesty).
+See [OPERATIONS.md](OPERATIONS.md#legacy--governed-classification-import-t167--p91) and [OPERATIONS.md](OPERATIONS.md#governed-migrate-cli-t168--p92) for operator rules (idempotency, forgotten cascade, CE honesty, re-apply, force-overwrite).
 
 ---
 

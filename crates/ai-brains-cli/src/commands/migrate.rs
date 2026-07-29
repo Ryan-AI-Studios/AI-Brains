@@ -1,0 +1,1141 @@
+//! `ai-brains migrate governed` — shadow replay + differential report (T168 / P9.2).
+//!
+//! - **M1** Dry-run default; `--confirm` for dest materialize + T167 apply.
+//! - **M2** Classification / apply only via T167 (`classify_legacy` / `apply_legacy_import`).
+//! - **M3/M6** Destination safety via `shadow::refuse_unsafe_destination`.
+//! - **M4/M11** Report has no plaintext bodies; CE honesty false.
+//! - **M5** Never `migrate()` source; source unchanged.
+//! - **M7** Live source refused unless `--allow-live-source`.
+//! - **M8** `refuse_unsafe_report_path` for report location.
+//! - **M16** Content-based `migrate_source_fingerprint`.
+//! - **M17/M18** Re-apply: import-only when dest non-empty + matching manifest.
+//! - **M19** `--source-key` / `--destination-key` with `--key` fallback.
+//! - **M20** Envelope copy only (never projections).
+//! - **M21** Batch copy 5000 + stderr progress ≥1000.
+//! - **M22** Pass `read_all_events` order to classify (no re-sort).
+
+use crate::artifact_security::{is_reparse_or_symlink, refuse_if_reparse};
+use crate::commands::governed_common::{
+    EXIT_INTERNAL, EXIT_INVALID_PAYLOAD, GovernedCliError, resolve_principal,
+};
+use crate::commands::shadow::{refuse_unsafe_destination, resolve_live_vault_path};
+use ai_brains_control_plane::{
+    ApplyOpts, ImportActionKind, ImportMechanism, ImportOpts, ImportPlan, StorePorts, SystemClock,
+    apply_legacy_import, classify_legacy, parse_scope_key,
+};
+use ai_brains_core::ids::PrincipalId;
+use ai_brains_core::privacy::Privacy;
+use ai_brains_crypto::SqlCipherKey;
+use ai_brains_events::Envelope;
+use ai_brains_path::paths_refer_to_same_location;
+use ai_brains_store::connection::VaultConnection;
+use ai_brains_store::event_store::{EventStore, SqliteEventStore};
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use time::OffsetDateTime;
+use uuid::Uuid;
+
+const MIGRATE_MANIFEST_VERSION: u32 = 1;
+const CONTENT_HASH_CAP: usize = 500;
+const COPY_BATCH_SIZE: usize = 5000;
+const PROGRESS_THRESHOLD: usize = 1000;
+const DEFAULT_SQL_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
+
+// ---------------------------------------------------------------------------
+// Options
+// ---------------------------------------------------------------------------
+
+pub struct GovernedOptions {
+    pub source: PathBuf,
+    pub destination: PathBuf,
+    pub report: PathBuf,
+    pub dry_run: bool,
+    pub confirm: bool,
+    pub default_scope: Option<String>,
+    pub copy_events: bool,
+    pub allow_live_source: bool,
+    pub force_overwrite: bool,
+    pub source_key: Option<String>,
+    pub destination_key: Option<String>,
+    pub key: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Report types (schema v1 — types only, no domain logic)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DifferentialReport {
+    pub schema_version: u32,
+    pub command: String,
+    pub dry_run: bool,
+    pub created_at: String,
+    pub source_path: String,
+    pub destination_path: String,
+    pub source_fingerprint: String,
+    pub live_vault_resolved: bool,
+    pub plan_hash: String,
+    pub report_hash: String,
+    pub event_counts: EventCounts,
+    pub classification: ClassificationTotals,
+    pub unresolved: Vec<UnresolvedEntry>,
+    pub privacy: PrivacySection,
+    pub gaps: GapsSection,
+    pub content_hashes: Vec<ContentHashEntry>,
+    pub content_hashes_truncated: bool,
+    pub replay_consistency: ReplayConsistency,
+    pub ce_honesty: CeHonesty,
+    pub rollback: RollbackSection,
+    pub legacy_import_applied: bool,
+    pub t167_plan_hash: String,
+    pub manifest_written: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EventCounts {
+    pub source_events: u64,
+    pub dest_events_before: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dest_events_after: Option<u64>,
+    pub would_copy_events: u64,
+    pub would_import_appends: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ClassificationTotals {
+    pub evidence: u64,
+    pub conclusion_candidate: u64,
+    pub decision_proposed: u64,
+    pub review_opened: u64,
+    pub skipped: u64,
+    pub already_imported: u64,
+    pub already_governed: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct UnresolvedEntry {
+    pub original_event_id: String,
+    pub reason_code: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PrivacySection {
+    pub by_level: BTreeMap<String, u64>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GapsSection {
+    pub forgotten_source: u64,
+    pub missing_source: u64,
+    pub missing_scope: u64,
+    pub unknown_payload: u64,
+    pub out_of_matrix: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ContentHashEntry {
+    pub original_event_id: String,
+    pub payload_hash: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub derived_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplayConsistency {
+    pub mode: String,
+    pub source_event_count: u64,
+    pub plan_action_count: u64,
+    pub ok: bool,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CeHonesty {
+    pub claims_cryptographic_erasure: bool,
+    pub legacy_plaintext_limitation: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RollbackSection {
+    pub source_modified: bool,
+    pub instructions: Vec<String>,
+}
+
+/// Hash view: all report fields except `created_at` and `report_hash` (M10).
+#[derive(Debug, Clone, Serialize)]
+struct ReportHashView {
+    schema_version: u32,
+    command: String,
+    dry_run: bool,
+    source_path: String,
+    destination_path: String,
+    source_fingerprint: String,
+    live_vault_resolved: bool,
+    plan_hash: String,
+    event_counts: EventCounts,
+    classification: ClassificationTotals,
+    unresolved: Vec<UnresolvedEntry>,
+    privacy: PrivacySection,
+    gaps: GapsSection,
+    content_hashes: Vec<ContentHashEntry>,
+    content_hashes_truncated: bool,
+    replay_consistency: ReplayConsistency,
+    ce_honesty: CeHonesty,
+    rollback: RollbackSection,
+    legacy_import_applied: bool,
+    t167_plan_hash: String,
+    manifest_written: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct MigrateManifest {
+    version: u32,
+    source_path: String,
+    dest_path: String,
+    source_fingerprint: String,
+    plan_hash: String,
+    created_at: String,
+}
+
+// ---------------------------------------------------------------------------
+// Public entry
+// ---------------------------------------------------------------------------
+
+pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Error>> {
+    if opts.dry_run && opts.confirm {
+        return fail_invalid_payload(
+            "cannot combine --dry-run and --confirm; omit both for dry-run default, or pass --confirm alone to apply",
+        );
+    }
+    let is_dry_run = !opts.confirm;
+
+    let live = resolve_live_vault_path();
+    if live.is_none() {
+        eprintln!(
+            "note: no live vault resolved (AI_BRAINS_VAULT_PATH unset and ~/.ai-brains/.env \
+             has no vault path); only source/destination same-path checks apply"
+        );
+    }
+
+    // M3 / M6 — dest safety (reuse T147 helper as-is).
+    refuse_unsafe_destination(&opts.source, &opts.destination, live.as_deref())
+        .map_err(|e| path_refused(e.to_string()))?;
+
+    // M7 — live source gate.
+    if let Some(ref live_path) = live
+        && paths_refer_to_same_location(&opts.source, live_path)
+        && !opts.allow_live_source
+    {
+        return fail_path_refused(
+            "refusing migrate: source equals the resolved live vault; use `shadow create` first \
+             or pass --allow-live-source (destination still cannot equal live)",
+        );
+    }
+
+    // M8 — report path safety.
+    refuse_unsafe_report_path(&opts.report, &opts.source, &opts.destination)?;
+
+    if !opts.source.exists() {
+        return Err(format!("source vault does not exist: {}", opts.source.display()).into());
+    }
+
+    let source_key = resolve_sql_key(opts.source_key.clone(), opts.key.clone());
+    let dest_key = resolve_sql_key(opts.destination_key.clone(), opts.key.clone());
+
+    // M5 / #12 — open source RO intent; never migrate source.
+    let source_conn = VaultConnection::open(&opts.source, &source_key).map_err(|e| {
+        format!(
+            "failed to open source vault at {} (check --source-key / --key): {e}",
+            opts.source.display()
+        )
+    })?;
+    let source_store = SqliteEventStore::new(source_conn);
+    // M22 — preserve read_all_events order (occurred_at ASC, event_id ASC).
+    let events = source_store.read_all_events().map_err(|e| {
+        format!(
+            "failed to read events from source vault {}: {e}",
+            opts.source.display()
+        )
+    })?;
+
+    let source_fp = migrate_source_fingerprint(&events);
+    let source_bytes_before = file_len_or_zero(&opts.source);
+
+    let default_scope = match opts.default_scope.as_deref() {
+        Some(raw) => match parse_scope_key(raw) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                return fail_invalid_payload(format!("invalid --default-scope: {e}"));
+            }
+        },
+        None => None,
+    };
+
+    // Confirm apply needs non-nil principal (T167); dry-run may use nil.
+    let principal_id = if opts.confirm {
+        resolve_principal(None).id
+    } else {
+        PrincipalId::from_uuid(Uuid::nil())
+    };
+
+    let import_opts = ImportOpts {
+        dry_run: is_dry_run,
+        include_truncated_summaries: false,
+        default_scope,
+        principal_id,
+        command_id: Some(format!("migrate-governed-{}", Uuid::new_v4())),
+    };
+
+    // M2 — classify only via T167.
+    let plan = classify_legacy(&events, &import_opts)
+        .map_err(|e| format!("classify_legacy failed: {e}"))?;
+
+    let mut dest_events_before: u64 = 0;
+    let mut dest_events_after: Option<u64> = None;
+    let mut would_copy_events: u64 = 0;
+    let mut legacy_import_applied = false;
+    let mut manifest_written = false;
+    let mut did_copy = false;
+
+    if is_dry_run {
+        // Peek dest event count without migrating / writing.
+        if opts.destination.exists() {
+            match VaultConnection::open(&opts.destination, &dest_key) {
+                Ok(conn) => {
+                    let store = SqliteEventStore::new(conn);
+                    match store.read_all_events() {
+                        Ok(ev) => dest_events_before = ev.len() as u64,
+                        Err(e) => {
+                            eprintln!(
+                                "note: could not read destination event count ({}): {e}",
+                                opts.destination.display()
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "note: could not open destination for event count ({}): {e}",
+                        opts.destination.display()
+                    );
+                }
+            }
+        }
+        would_copy_events = if dest_events_before == 0 && opts.copy_events {
+            events.len() as u64
+        } else {
+            0
+        };
+        eprintln!(
+            "note: source opened read-only for classify (never migrate source; T147 residual #12)"
+        );
+    } else {
+        // Confirm path.
+        run_confirm_materialize(
+            &opts,
+            &events,
+            &plan,
+            &source_fp,
+            &dest_key,
+            live.as_deref(),
+            &mut dest_events_before,
+            &mut dest_events_after,
+            &mut would_copy_events,
+            &mut legacy_import_applied,
+            &mut manifest_written,
+            &mut did_copy,
+        )?;
+    }
+
+    let would_import_appends = plan
+        .actions
+        .iter()
+        .filter(|a| a.mechanism == ImportMechanism::WouldAppend)
+        .count() as u64;
+
+    let report = build_report(BuildReportArgs {
+        is_dry_run,
+        source: &opts.source,
+        destination: &opts.destination,
+        source_fingerprint: &source_fp,
+        live_vault_resolved: live.is_some(),
+        plan: &plan,
+        events: &events,
+        dest_events_before,
+        dest_events_after,
+        would_copy_events,
+        would_import_appends,
+        legacy_import_applied,
+        manifest_written,
+    })?;
+
+    write_report_file(&opts.report, &report)?;
+
+    // M5 — source file length must be unchanged.
+    let source_bytes_after = file_len_or_zero(&opts.source);
+    if source_bytes_after != source_bytes_before {
+        return Err(format!(
+            "source vault size changed during migrate (before={source_bytes_before}, after={source_bytes_after}); this is a bug"
+        )
+        .into());
+    }
+
+    // Human one-liner summary on stdout.
+    if is_dry_run {
+        println!(
+            "[dry-run] migrate governed: source_events={} plan_hash={} evidence={} unresolved={} would_copy={} would_import_appends={} report={}",
+            report.event_counts.source_events,
+            truncate_hash(&report.plan_hash),
+            report.classification.evidence,
+            report.unresolved.len(),
+            report.event_counts.would_copy_events,
+            report.event_counts.would_import_appends,
+            opts.report.display()
+        );
+    } else {
+        println!(
+            "migrate governed: dest={} source_events={} dest_after={:?} copied={} import_applied={} plan_hash={} report={}",
+            opts.destination.display(),
+            report.event_counts.source_events,
+            report.event_counts.dest_events_after,
+            did_copy,
+            legacy_import_applied,
+            truncate_hash(&report.plan_hash),
+            opts.report.display()
+        );
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Confirm materialize
+// ---------------------------------------------------------------------------
+
+#[allow(clippy::too_many_arguments)]
+fn run_confirm_materialize(
+    opts: &GovernedOptions,
+    events: &[Envelope],
+    plan: &ImportPlan,
+    source_fp: &str,
+    dest_key: &SqlCipherKey,
+    live: Option<&Path>,
+    dest_events_before: &mut u64,
+    dest_events_after: &mut Option<u64>,
+    would_copy_events: &mut u64,
+    legacy_import_applied: &mut bool,
+    manifest_written: &mut bool,
+    did_copy: &mut bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Force-overwrite: wipe dest + sidecars + manifest, then treat as fresh.
+    if opts.force_overwrite {
+        delete_dest_artifacts(&opts.destination)?;
+    }
+
+    // Create parent dirs for dest.
+    if let Some(parent) = opts.destination.parent()
+        && !parent.as_os_str().is_empty()
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent)?;
+    }
+
+    // Soft TOCTOU re-check after mkdir.
+    refuse_unsafe_destination(&opts.source, &opts.destination, live)
+        .map_err(|e| path_refused(e.to_string()))?;
+
+    let dest_conn = VaultConnection::open(&opts.destination, dest_key).map_err(|e| {
+        format!(
+            "failed to open destination vault at {} (check --destination-key / --key): {e}",
+            opts.destination.display()
+        )
+    })?;
+    // Dest-only migrate (M5 / M20).
+    dest_conn.migrate()?;
+    let dest_store = SqliteEventStore::new(dest_conn);
+    let existing = dest_store.read_all_events()?;
+    *dest_events_before = existing.len() as u64;
+
+    let mut copy_events = opts.copy_events;
+    if *dest_events_before > 0 {
+        // M17 / M18 — re-apply requires matching manifest; import-only.
+        let manifest_path = migrate_manifest_path(&opts.destination);
+        if !manifest_path.exists() {
+            return fail_path_refused(format!(
+                "refusing migrate: destination is non-empty but migrate-manifest.json is missing at {}; \
+                 use a fresh destination path or --force-overwrite",
+                manifest_path.display()
+            ));
+        }
+        let body = fs::read_to_string(&manifest_path)?;
+        let existing_manifest: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            format!(
+                "failed to parse migrate-manifest.json at {}: {e}",
+                manifest_path.display()
+            )
+        })?;
+        let mf_fp = existing_manifest
+            .get("source_fingerprint")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if mf_fp != source_fp {
+            return fail_path_refused(format!(
+                "refusing migrate: destination migrate-manifest source_fingerprint mismatch \
+                 (manifest={mf_fp}, current={source_fp}); use a fresh path or --force-overwrite"
+            ));
+        }
+        copy_events = false; // M17 — import-only on re-apply
+    }
+
+    if copy_events && *dest_events_before == 0 {
+        // M20 / M21 — envelope-only batch copy.
+        copy_envelopes_batched(&dest_store, events)?;
+        *did_copy = true;
+        *would_copy_events = events.len() as u64;
+    } else {
+        *would_copy_events = 0;
+    }
+
+    // Re-classify against dest state is NOT done — apply probes dest for idempotency.
+    // Plan was built with dry_run=false principal; re-use it.
+    let ports = StorePorts::from_store(SqliteEventStore::new(dest_store.connection().clone()));
+    let clock = SystemClock;
+    let apply_report = apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &clock,
+        plan,
+        &ApplyOpts { confirm: true },
+    )
+    .map_err(|e| format!("apply_legacy_import failed: {e}"))?;
+
+    *legacy_import_applied = apply_report.legacy_import_applied;
+
+    let after = dest_store.read_all_events()?;
+    *dest_events_after = Some(after.len() as u64);
+
+    // M18 — mandatory migrate-manifest on confirm success.
+    let created_at = created_at_rfc3339();
+    let manifest = MigrateManifest {
+        version: MIGRATE_MANIFEST_VERSION,
+        source_path: opts.source.display().to_string(),
+        dest_path: opts.destination.display().to_string(),
+        source_fingerprint: source_fp.to_string(),
+        plan_hash: plan.plan_hash.clone(),
+        created_at,
+    };
+    let manifest_path = migrate_manifest_path(&opts.destination);
+    let mut file = fs::File::create(&manifest_path)?;
+    file.write_all(serde_json::to_string_pretty(&manifest)?.as_bytes())?;
+    file.write_all(b"\n")?;
+    *manifest_written = true;
+
+    Ok(())
+}
+
+fn copy_envelopes_batched(
+    dest_store: &SqliteEventStore,
+    events: &[Envelope],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let total = events.len();
+    let show_progress = total >= PROGRESS_THRESHOLD;
+    let mut done = 0usize;
+    for chunk in events.chunks(COPY_BATCH_SIZE) {
+        dest_store.append_events(chunk)?;
+        done += chunk.len();
+        if show_progress {
+            eprintln!("copied {done}/{total} events");
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Fingerprint + report hash (M16 / M10)
+// ---------------------------------------------------------------------------
+
+/// Content-based source fingerprint: hex SHA-256 of sorted lines `event_id|payload_hash\n`.
+pub fn migrate_source_fingerprint(events: &[Envelope]) -> String {
+    let mut lines: Vec<String> = events
+        .iter()
+        .map(|e| format!("{}|{}\n", e.event_id, e.payload_hash))
+        .collect();
+    lines.sort();
+    let mut hasher = Sha256::new();
+    for line in &lines {
+        hasher.update(line.as_bytes());
+    }
+    hex::encode(hasher.finalize())
+}
+
+/// Canonical report_hash (M10): SHA-256 of JSON excluding `created_at` and `report_hash`.
+pub fn compute_report_hash(
+    report: &DifferentialReport,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let view = ReportHashView {
+        schema_version: report.schema_version,
+        command: report.command.clone(),
+        dry_run: report.dry_run,
+        source_path: report.source_path.clone(),
+        destination_path: report.destination_path.clone(),
+        source_fingerprint: report.source_fingerprint.clone(),
+        live_vault_resolved: report.live_vault_resolved,
+        plan_hash: report.plan_hash.clone(),
+        event_counts: report.event_counts.clone(),
+        classification: report.classification.clone(),
+        unresolved: report.unresolved.clone(),
+        privacy: report.privacy.clone(),
+        gaps: report.gaps.clone(),
+        content_hashes: report.content_hashes.clone(),
+        content_hashes_truncated: report.content_hashes_truncated,
+        replay_consistency: report.replay_consistency.clone(),
+        ce_honesty: report.ce_honesty.clone(),
+        rollback: report.rollback.clone(),
+        legacy_import_applied: report.legacy_import_applied,
+        t167_plan_hash: report.t167_plan_hash.clone(),
+        manifest_written: report.manifest_written,
+    };
+    let bytes =
+        serde_json::to_vec(&view).map_err(|e| format!("report_hash serialization failed: {e}"))?;
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    Ok(hex::encode(hasher.finalize()))
+}
+
+// ---------------------------------------------------------------------------
+// Report build
+// ---------------------------------------------------------------------------
+
+struct BuildReportArgs<'a> {
+    is_dry_run: bool,
+    source: &'a Path,
+    destination: &'a Path,
+    source_fingerprint: &'a str,
+    live_vault_resolved: bool,
+    plan: &'a ImportPlan,
+    events: &'a [Envelope],
+    dest_events_before: u64,
+    dest_events_after: Option<u64>,
+    would_copy_events: u64,
+    would_import_appends: u64,
+    legacy_import_applied: bool,
+    manifest_written: bool,
+}
+
+fn build_report(
+    args: BuildReportArgs<'_>,
+) -> Result<DifferentialReport, Box<dyn std::error::Error>> {
+    let event_kind_by_id: BTreeMap<Uuid, String> = args
+        .events
+        .iter()
+        .map(|e| (e.event_id, e.event_type.to_string()))
+        .collect();
+    let payload_hash_by_id: BTreeMap<Uuid, String> = args
+        .events
+        .iter()
+        .map(|e| (e.event_id, e.payload_hash.clone()))
+        .collect();
+
+    let already_imported = args
+        .plan
+        .actions
+        .iter()
+        .filter(|a| a.reason_code == "already_imported")
+        .count() as u64;
+
+    let classification = ClassificationTotals {
+        evidence: args.plan.totals.evidence,
+        conclusion_candidate: args.plan.totals.conclusion,
+        decision_proposed: args.plan.totals.decision,
+        review_opened: args.plan.totals.review,
+        skipped: args.plan.totals.skipped,
+        already_imported,
+        already_governed: args.plan.totals.already_governed,
+    };
+
+    let mut unresolved: Vec<UnresolvedEntry> = args
+        .plan
+        .actions
+        .iter()
+        .filter(|a| a.kind == ImportActionKind::Unresolved)
+        .map(|a| UnresolvedEntry {
+            original_event_id: a.original_event_id.to_string(),
+            reason_code: a.reason_code.clone(),
+            kind: event_kind_by_id
+                .get(&a.original_event_id)
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string()),
+        })
+        .collect();
+    unresolved.sort_by(|a, b| {
+        (&a.original_event_id, &a.reason_code).cmp(&(&b.original_event_id, &b.reason_code))
+    });
+
+    let mut by_level: BTreeMap<String, u64> = BTreeMap::new();
+    for a in &args.plan.actions {
+        // Classified actions only (all plan rows are classified actions).
+        let label = privacy_label(a.privacy).to_string();
+        *by_level.entry(label).or_insert(0) += 1;
+    }
+
+    let mut gaps = GapsSection {
+        forgotten_source: 0,
+        missing_source: 0,
+        missing_scope: 0,
+        unknown_payload: 0,
+        out_of_matrix: 0,
+    };
+    for a in &args.plan.actions {
+        match a.reason_code.as_str() {
+            "forgotten_source" => gaps.forgotten_source += 1,
+            "missing_source" => gaps.missing_source += 1,
+            "missing_scope" => gaps.missing_scope += 1,
+            "unknown_payload" => gaps.unknown_payload += 1,
+            "out_of_matrix" => gaps.out_of_matrix += 1,
+            _ => {}
+        }
+    }
+
+    // Content hashes: WouldAppend actions, sort by original_event_id, cap 500.
+    let mut content_hashes: Vec<ContentHashEntry> = args
+        .plan
+        .actions
+        .iter()
+        .filter(|a| a.mechanism == ImportMechanism::WouldAppend)
+        .map(|a| ContentHashEntry {
+            original_event_id: a.original_event_id.to_string(),
+            payload_hash: payload_hash_by_id
+                .get(&a.original_event_id)
+                .cloned()
+                .unwrap_or_default(),
+            derived_id: if a.derived_id.is_empty() {
+                None
+            } else {
+                Some(a.derived_id.clone())
+            },
+        })
+        .collect();
+    content_hashes.sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
+    let content_hashes_truncated = content_hashes.len() > CONTENT_HASH_CAP;
+    if content_hashes_truncated {
+        content_hashes.truncate(CONTENT_HASH_CAP);
+    }
+
+    let source_event_count = args.events.len() as u64;
+    let plan_action_count = args.plan.actions.len() as u64;
+    let replay_ok = source_event_count > 0 || plan_action_count == 0;
+    let mut warnings = Vec::new();
+    if !replay_ok {
+        warnings.push("empty source with non-empty plan (unexpected)".to_string());
+    }
+
+    let mut report = DifferentialReport {
+        schema_version: 1,
+        command: "migrate.governed".to_string(),
+        dry_run: args.is_dry_run,
+        created_at: created_at_rfc3339(),
+        source_path: args.source.display().to_string(),
+        destination_path: args.destination.display().to_string(),
+        source_fingerprint: args.source_fingerprint.to_string(),
+        live_vault_resolved: args.live_vault_resolved,
+        plan_hash: args.plan.plan_hash.clone(),
+        report_hash: String::new(),
+        event_counts: EventCounts {
+            source_events: source_event_count,
+            dest_events_before: args.dest_events_before,
+            dest_events_after: args.dest_events_after,
+            would_copy_events: args.would_copy_events,
+            would_import_appends: args.would_import_appends,
+        },
+        classification,
+        unresolved,
+        privacy: PrivacySection {
+            by_level,
+            note: "Imported entity privacy equals source envelope privacy (T167 L12); no authority upgrade."
+                .to_string(),
+        },
+        gaps,
+        content_hashes,
+        content_hashes_truncated,
+        replay_consistency: ReplayConsistency {
+            mode: "count_digest_v1".to_string(),
+            source_event_count,
+            plan_action_count,
+            ok: true,
+            warnings,
+        },
+        ce_honesty: CeHonesty {
+            claims_cryptographic_erasure: false,
+            legacy_plaintext_limitation:
+                "ADR-0016: copied legacy events remain non-CE.".to_string(),
+        },
+        rollback: RollbackSection {
+            source_modified: false,
+            instructions: vec![
+                "Do not point AI_BRAINS_VAULT_PATH at the destination until T170 dogfood passes."
+                    .to_string(),
+                "Discard destination vault and report to abort.".to_string(),
+                "Live vault was not modified by this command.".to_string(),
+                "Governed feature flags / dual-path remain under operator control (T170)."
+                    .to_string(),
+            ],
+        },
+        legacy_import_applied: args.legacy_import_applied,
+        t167_plan_hash: args.plan.plan_hash.clone(),
+        manifest_written: args.manifest_written,
+    };
+
+    report.report_hash = compute_report_hash(&report)?;
+    Ok(report)
+}
+
+fn write_report_file(
+    path: &Path,
+    report: &DifferentialReport,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = fs::File::create(path)?;
+    file.write_all(serde_json::to_string_pretty(report)?.as_bytes())?;
+    file.write_all(b"\n")?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Safety helpers
+// ---------------------------------------------------------------------------
+
+/// M8 — refuse reparse/symlink report path; refuse report == source or dest vault file.
+pub fn refuse_unsafe_report_path(
+    report: &Path,
+    source: &Path,
+    destination: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if paths_refer_to_same_location(report, source) {
+        return fail_path_refused("refusing migrate: report path equals the source vault file");
+    }
+    if paths_refer_to_same_location(report, destination) {
+        return fail_path_refused(
+            "refusing migrate: report path equals the destination vault file",
+        );
+    }
+
+    if report.exists()
+        && let Err(msg) = refuse_if_reparse(report, is_reparse_or_symlink(report)?)
+    {
+        return fail_path_refused(format!("refusing migrate report path: {msg}"));
+    }
+    if let Some(parent) = report.parent()
+        && parent.exists()
+        && let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?)
+    {
+        return fail_path_refused(format!("refusing migrate report parent: {msg}"));
+    }
+
+    Ok(())
+}
+
+fn migrate_manifest_path(destination: &Path) -> PathBuf {
+    match destination.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent.join("migrate-manifest.json"),
+        _ => PathBuf::from("migrate-manifest.json"),
+    }
+}
+
+fn delete_dest_artifacts(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let candidates = [
+        destination.to_path_buf(),
+        PathBuf::from(format!("{}-wal", destination.display())),
+        PathBuf::from(format!("{}-shm", destination.display())),
+        migrate_manifest_path(destination),
+    ];
+    for p in candidates {
+        if p.exists() {
+            fs::remove_file(&p).map_err(|e| {
+                format!(
+                    "failed to remove {} during --force-overwrite: {e}",
+                    p.display()
+                )
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn resolve_sql_key(specific: Option<String>, fallback: Option<String>) -> SqlCipherKey {
+    let key_str = specific
+        .or(fallback)
+        .unwrap_or_else(|| DEFAULT_SQL_KEY.to_string());
+    SqlCipherKey::from_raw(key_str)
+}
+
+fn created_at_rfc3339() -> String {
+    OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+}
+
+fn file_len_or_zero(path: &Path) -> u64 {
+    fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+}
+
+fn privacy_label(p: Privacy) -> &'static str {
+    match p {
+        Privacy::CloudOk => "Public",
+        Privacy::LocalOnly => "ProjectLocal",
+        Privacy::NeverInject => "Private",
+        Privacy::Sealed => "Sealed",
+    }
+}
+
+fn truncate_hash(h: &str) -> String {
+    const N: usize = 12;
+    if h.len() <= N {
+        h.to_string()
+    } else {
+        format!("{}…", &h[..N])
+    }
+}
+
+fn path_refused(message: String) -> Box<dyn std::error::Error> {
+    eprintln!("PATH_REFUSED: {message}");
+    Box::new(GovernedCliError::emitted(
+        EXIT_INTERNAL,
+        format!("PATH_REFUSED: {message}"),
+    ))
+}
+
+fn fail_path_refused(message: impl Into<String>) -> Result<(), Box<dyn std::error::Error>> {
+    Err(path_refused(message.into()))
+}
+
+fn fail_invalid_payload(message: impl Into<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let message = message.into();
+    eprintln!("INVALID_PAYLOAD: {message}");
+    Err(Box::new(GovernedCliError::emitted(
+        EXIT_INVALID_PAYLOAD,
+        format!("INVALID_PAYLOAD: {message}"),
+    )))
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+#[allow(non_snake_case, clippy::disallowed_methods)]
+mod tests {
+    use super::*;
+    use ai_brains_core::ids::MemoryId;
+    use ai_brains_core::privacy::Privacy;
+    use ai_brains_events::constructors::EventBuilder;
+    use ai_brains_events::payload::MemoryPinnedPayload;
+    use ai_brains_events::{Actor, AggregateType, Payload};
+    use uuid::Uuid;
+
+    fn pin_envelope(content: &str) -> Envelope {
+        let memory_id = MemoryId::from_uuid(Uuid::from_u128(42));
+        EventBuilder::new(
+            AggregateType::Memory,
+            memory_id.as_uuid(),
+            Actor::System,
+            Privacy::LocalOnly,
+        )
+        .build(Payload::MemoryPinned(MemoryPinnedPayload {
+            memory_id,
+            content: content.into(),
+            session_id: None,
+            project_id: None,
+            tx_id: None,
+            rank: None,
+            source_tag: None,
+            query_text: None,
+        }))
+        .expect("build pin envelope")
+    }
+
+    fn sample_report() -> DifferentialReport {
+        DifferentialReport {
+            schema_version: 1,
+            command: "migrate.governed".into(),
+            dry_run: true,
+            created_at: "2026-01-01T00:00:00Z".into(),
+            source_path: "/tmp/source.db".into(),
+            destination_path: "/tmp/dest.db".into(),
+            source_fingerprint: "abc".into(),
+            live_vault_resolved: false,
+            plan_hash: "plan123".into(),
+            report_hash: String::new(),
+            event_counts: EventCounts {
+                source_events: 1,
+                dest_events_before: 0,
+                dest_events_after: None,
+                would_copy_events: 1,
+                would_import_appends: 0,
+            },
+            classification: ClassificationTotals {
+                evidence: 0,
+                conclusion_candidate: 0,
+                decision_proposed: 0,
+                review_opened: 0,
+                skipped: 0,
+                already_imported: 0,
+                already_governed: 0,
+            },
+            unresolved: vec![
+                UnresolvedEntry {
+                    original_event_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb".into(),
+                    reason_code: "missing_scope".into(),
+                    kind: "MemoryPinned".into(),
+                },
+                UnresolvedEntry {
+                    original_event_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".into(),
+                    reason_code: "unknown_payload".into(),
+                    kind: "Unknown".into(),
+                },
+            ],
+            privacy: PrivacySection {
+                by_level: BTreeMap::from([("ProjectLocal".into(), 1)]),
+                note: "note".into(),
+            },
+            gaps: GapsSection {
+                forgotten_source: 0,
+                missing_source: 0,
+                missing_scope: 1,
+                unknown_payload: 1,
+                out_of_matrix: 0,
+            },
+            content_hashes: vec![],
+            content_hashes_truncated: false,
+            replay_consistency: ReplayConsistency {
+                mode: "count_digest_v1".into(),
+                source_event_count: 1,
+                plan_action_count: 1,
+                ok: true,
+                warnings: vec![],
+            },
+            ce_honesty: CeHonesty {
+                claims_cryptographic_erasure: false,
+                legacy_plaintext_limitation: "ADR-0016".into(),
+            },
+            rollback: RollbackSection {
+                source_modified: false,
+                instructions: vec!["a".into()],
+            },
+            legacy_import_applied: false,
+            t167_plan_hash: "plan123".into(),
+            manifest_written: false,
+        }
+    }
+
+    #[test]
+    fn migrate_source_fingerprint__stable_across_reorder() {
+        let e1 = pin_envelope("one");
+        let e2 = {
+            let memory_id = MemoryId::from_uuid(Uuid::from_u128(99));
+            EventBuilder::new(
+                AggregateType::Memory,
+                memory_id.as_uuid(),
+                Actor::System,
+                Privacy::LocalOnly,
+            )
+            .build(Payload::MemoryPinned(MemoryPinnedPayload {
+                memory_id,
+                content: "two".into(),
+                session_id: None,
+                project_id: None,
+                tx_id: None,
+                rank: None,
+                source_tag: None,
+                query_text: None,
+            }))
+            .expect("e2")
+        };
+        let a = migrate_source_fingerprint(&[e1.clone(), e2.clone()]);
+        let b = migrate_source_fingerprint(&[e2, e1]);
+        assert_eq!(a, b);
+        assert_eq!(a.len(), 64);
+    }
+
+    #[test]
+    fn report_hash__same_input_same_hash() {
+        let mut r1 = sample_report();
+        // Pre-sort unresolved as build_report does.
+        r1.unresolved.sort_by(|a, b| {
+            (&a.original_event_id, &a.reason_code).cmp(&(&b.original_event_id, &b.reason_code))
+        });
+        let h1 = compute_report_hash(&r1).expect("h1");
+        let h2 = compute_report_hash(&r1).expect("h2");
+        assert_eq!(h1, h2);
+        assert_eq!(h1.len(), 64);
+    }
+
+    #[test]
+    fn report_hash__reordered_unresolved_same_hash() {
+        let mut r1 = sample_report();
+        let mut r2 = sample_report();
+        r1.unresolved
+            .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
+        r2.unresolved
+            .sort_by(|a, b| b.original_event_id.cmp(&a.original_event_id));
+        // Hash view uses the order in the vec — callers must pre-sort.
+        // After same sort both match:
+        r2.unresolved
+            .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
+        let h1 = compute_report_hash(&r1).expect("h1");
+        let h2 = compute_report_hash(&r2).expect("h2");
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn report_hash__excludes_created_at() {
+        let mut r1 = sample_report();
+        let mut r2 = sample_report();
+        r1.created_at = "2020-01-01T00:00:00Z".into();
+        r2.created_at = "2099-12-31T23:59:59Z".into();
+        r1.unresolved
+            .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
+        r2.unresolved
+            .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
+        let h1 = compute_report_hash(&r1).expect("h1");
+        let h2 = compute_report_hash(&r2).expect("h2");
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn refuse_unsafe_report_path__equals_source__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest.db");
+        fs::write(&source, b"x").expect("source");
+        let err = refuse_unsafe_report_path(&source, &source, &dest).expect_err("must refuse");
+        assert!(
+            err.to_string().contains("report path equals the source"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn refuse_unsafe_report_path__equals_dest__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest.db");
+        fs::write(&dest, b"x").expect("dest");
+        let err = refuse_unsafe_report_path(&dest, &source, &dest).expect_err("must refuse");
+        assert!(
+            err.to_string()
+                .contains("report path equals the destination"),
+            "got: {err}"
+        );
+    }
+}

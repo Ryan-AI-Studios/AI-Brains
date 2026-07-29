@@ -236,7 +236,7 @@ Maps historical AI-Brains events into governed Evidence / Candidate Conclusions 
 
 | Rule | Behavior |
 |------|----------|
-| Surface | **Control-plane API only** (`classify_legacy` / `apply_legacy_import`). CLI migrate is **T168**. |
+| Surface | Control-plane API (`classify_legacy` / `apply_legacy_import`). **CLI is live (T168):** `ai-brains migrate governed`. |
 | Dry-run default | Classify builds a full plan + `plan_hash`; apply requires `ApplyOpts.confirm = true`. |
 | No live vault | Module never opens `%USERPROFILE%\.ai-brains` itself; callers supply event stream + destination ports. |
 | Under-promote | Pins → Evidence; synth → Candidate only; decisions → Proposed + ReviewItemOpened. Never auto-approve. |
@@ -248,6 +248,46 @@ Maps historical AI-Brains events into governed Evidence / Candidate Conclusions 
 | Audit | Successful apply appends `LegacyImportApplied` (plan_hash + counts). Dry-run does not. |
 
 There is **no** `RecordEvidence` capability; bulk import uses raw `build_event` appends (same discipline as invalidation reviews). Production operators must not point apply at the live vault without explicit T168 flags.
+
+### Governed migrate CLI (T168 / P9.2)
+
+Shadow-style **replay + differential report** for legacy → governed import. Does **not** cut over the live vault (that remains **T170**).
+
+```powershell
+# Dry-run (default): classify + write report; no dest vault / no manifest
+ai-brains migrate governed `
+  --source .\fixture-or-shadow.db `
+  --destination .\migrated.db `
+  --report .\migrate-report.json
+
+# Confirm: materialize dest (copy envelopes when empty) + T167 apply + migrate-manifest.json
+ai-brains migrate governed `
+  --source .\fixture-or-shadow.db `
+  --destination .\migrated.db `
+  --report .\migrate-report.json `
+  --confirm
+
+# Optional: default scope for events without project_id (T167 L19)
+ai-brains migrate governed --source .\s.db --destination .\d.db --report .\r.json `
+  --default-scope "Repository:<project-uuid>" --confirm
+```
+
+| Rule | Behavior |
+|------|----------|
+| Dry-run default | Omit `--confirm` (or pass `--dry-run`). Report always written when `--report` is set. Both `--dry-run` and `--confirm` → `INVALID_PAYLOAD` exit **6**. |
+| Confirm | Creates dest (if needed), dest-only `migrate()`, optional envelope copy, T167 apply, **mandatory** `migrate-manifest.json` beside dest. |
+| Source integrity | Source opened **read-only**; **never** schema-migrate source (T147 residual **#12** honesty). Source bytes/event log unchanged after any mode. |
+| Dest safety | Reuses T147 `refuse_unsafe_destination`: refuse source==dest, dest==live, dest inside live parent, reparse dest/parent. |
+| Live source | Source == live vault refused unless `--allow-live-source` (still refuses live dest). Prefer `shadow create` first. |
+| Report path | Refuse reparse/symlink; refuse report path same location as source or dest vault file. |
+| Copy events | Default **on** for empty dest (`--copy-events`); `--no-copy-events` for import-only. Re-apply into non-empty dest is **import-only** even if `--copy-events` (no duplicate source envelopes). |
+| Re-apply | Non-empty dest requires matching `migrate-manifest.json` `source_fingerprint` (content-based, not mtime). Missing/mismatch → refuse unless `--force-overwrite`. |
+| Force overwrite | With `--confirm`: delete dest db (+ WAL/SHM) and migrate-manifest, then recreate fresh (still subject to live/reparse refuse). |
+| Keys | `--source-key` / `--destination-key` with global `--key` fallback. Raw SQLCipher key strings only (fixture/shadow pattern). Production DPAPI unlock of arbitrary live vaults is **out of scope** (T168). |
+| Report contents | Schema v1 JSON: counts, classification, unresolved reason codes, content hashes (payload_hash samples), `plan_hash` / `report_hash`, CE honesty (`claims_cryptographic_erasure: false`), rollback (`source_modified: false`). **No plaintext bodies.** |
+| Progress | Confirm copy of ≥1000 events emits stderr progress; batch append size 5000. |
+
+**Rollback:** discard destination vault + report; do not point `AI_BRAINS_VAULT_PATH` at the destination until T170 dogfood passes. Live vault is never modified by this command.
 
 ## 4. Project & Session Management
 

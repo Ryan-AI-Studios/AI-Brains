@@ -312,6 +312,18 @@ enum Commands {
         #[command(subcommand)]
         command: ShadowCommands,
     },
+    /// Governed migrate: classify legacy events, optional dest materialize, differential report (T168)
+    ///
+    /// Defaults to dry-run (report only). Pass `--confirm` to materialize destination + apply T167 import.
+    /// Destination safety reuses T147 shadow refusals (live vault / parent / reparse). Source is never
+    /// migrated. Report has no plaintext bodies.
+    #[command(
+        after_help = "Examples:\n  ai-brains migrate governed --source ./src.db --destination ./dest.db --report ./report.json\n  ai-brains migrate governed --source ./src.db --destination ./dest.db --report ./report.json --confirm"
+    )]
+    Migrate {
+        #[command(subcommand)]
+        command: Box<MigrateCommands>,
+    },
     /// Build typed Project / Personal briefing packets (T152)
     ///
     /// Empty-state contract: denied/unresolved scopes return a packet with
@@ -857,6 +869,49 @@ enum ShadowCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum MigrateCommands {
+    /// Classify legacy events via T167; write differential report; optional dest apply
+    Governed {
+        /// Path to the source vault database (never migrated)
+        #[arg(long)]
+        source: PathBuf,
+        /// Path for the destination vault (refused if live / inside live parent)
+        #[arg(long)]
+        destination: PathBuf,
+        /// Path for the differential report JSON
+        #[arg(long)]
+        report: PathBuf,
+        /// Explicit dry-run (default when --confirm is absent)
+        #[arg(long)]
+        dry_run: bool,
+        /// Materialize destination + apply T167 import
+        #[arg(long)]
+        confirm: bool,
+        /// Fallback scope when events lack project_id (T167 L19). Form: Repository:<uuid>|Personal:<uuid>|Workspace:<uuid>
+        #[arg(long)]
+        default_scope: Option<String>,
+        /// Copy source envelopes when dest is empty (default true on first materialize)
+        #[arg(long = "copy-events", action = clap::ArgAction::SetTrue)]
+        copy_events: bool,
+        /// Skip envelope copy even on fresh dest (import-only)
+        #[arg(long = "no-copy-events", action = clap::ArgAction::SetTrue)]
+        no_copy_events: bool,
+        /// Permit source == live vault (still refuses dest == live)
+        #[arg(long)]
+        allow_live_source: bool,
+        /// With --confirm: delete existing dest vault + migrate-manifest and recreate
+        #[arg(long)]
+        force_overwrite: bool,
+        /// Raw SQLCipher key for the source vault (falls back to --key / zero-key)
+        #[arg(long)]
+        source_key: Option<String>,
+        /// Raw SQLCipher key for the destination vault (falls back to --key / zero-key)
+        #[arg(long)]
+        destination_key: Option<String>,
+    },
+}
+
 #[derive(Subcommand, Clone)]
 pub enum GraphCommands {
     /// Rebuild graph from all events
@@ -1274,6 +1329,19 @@ fn main() {
         }
     };
 
+    // Parse outside the async future so the huge `Commands` enum does not bloat the
+    // Tokio state machine (Windows debug stacks are tight; T168 Migrate tipped it over).
+    let cli = Cli::parse();
+
+    // Sync vault-path-free commands: handle before async runtime work.
+    if matches!(
+        &cli.command,
+        Commands::Shadow { .. } | Commands::Migrate { .. }
+    ) {
+        handle_cli_result(run_sync_path_free(cli));
+        return;
+    }
+
     runtime.block_on(async {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
@@ -1281,55 +1349,55 @@ fn main() {
                 std::process::exit(130);
             }
             res = async {
-                let cli = Cli::parse();
                 run(cli).await
             } => {
-                match res {
-                    Ok(()) => {
-                        // Elevated UAC child: leave a success marker the parent can print
-                        // (elevated console is hidden / flashes closed). Commands may
-                        // already have written a richer message — do not overwrite.
-                        if crate::elevation::is_elevated()
-                            && !crate::elevation::elevate_result_path().exists()
-                        {
-                            crate::elevation::write_elevate_success_log(
-                                "Elevated command completed successfully.",
-                            );
-                        }
-                    }
-                    Err(err) => {
-                        if crate::elevation::is_elevated() {
-                            crate::elevation::write_elevate_error_log(&err.to_string());
-                        }
-                        // Governed surface (T160): structured exit codes; payload already emitted.
-                        if let Some(g) = err
-                            .downcast_ref::<commands::governed_common::GovernedCliError>()
-                        {
-                            if !g.emitted {
-                                eprintln!("{}", g.message);
-                            }
-                            std::process::exit(g.exit_code);
-                        }
-                        use ai_brains_contracts::response::{ApiError, ApiResult};
-                        let api_error = ApiError::new("COMMAND_FAILED", err.to_string());
-                        let result = ApiResult::<serde_json::Value>::error(api_error);
-                        if let Ok(json) = serde_json::to_string(&result) {
-                            eprintln!("{}", json);
-                        } else {
-                            eprintln!("Error: {err}");
-                        }
-                        std::process::exit(1);
-                    }
-                }
+                handle_cli_result(res);
             }
         }
     });
 }
 
-async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
-    // Shadow opens source/destination itself and must not require a global vault path.
-    if let Commands::Shadow { command } = &cli.command {
-        return match command {
+fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
+    match res {
+        Ok(()) => {
+            // Elevated UAC child: leave a success marker the parent can print
+            // (elevated console is hidden / flashes closed). Commands may
+            // already have written a richer message — do not overwrite.
+            if crate::elevation::is_elevated() && !crate::elevation::elevate_result_path().exists()
+            {
+                crate::elevation::write_elevate_success_log(
+                    "Elevated command completed successfully.",
+                );
+            }
+        }
+        Err(err) => {
+            if crate::elevation::is_elevated() {
+                crate::elevation::write_elevate_error_log(&err.to_string());
+            }
+            // Governed surface (T160): structured exit codes; payload already emitted.
+            if let Some(g) = err.downcast_ref::<commands::governed_common::GovernedCliError>() {
+                if !g.emitted {
+                    eprintln!("{}", g.message);
+                }
+                std::process::exit(g.exit_code);
+            }
+            use ai_brains_contracts::response::{ApiError, ApiResult};
+            let api_error = ApiError::new("COMMAND_FAILED", err.to_string());
+            let result = ApiResult::<serde_json::Value>::error(api_error);
+            if let Ok(json) = serde_json::to_string(&result) {
+                eprintln!("{}", json);
+            } else {
+                eprintln!("Error: {err}");
+            }
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Shadow / migrate open their own vaults and must not require AppContext.
+fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+    match cli.command {
+        Commands::Shadow { command } => match command {
             ShadowCommands::Create {
                 source,
                 destination,
@@ -1337,24 +1405,53 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 no_redact_turn_content,
                 dry_run,
             } => {
-                // Default: redact. --no-redact-turn-content wins when both are passed.
-                // --redact-turn-content is accepted for CLI contract symmetry.
                 let _ = redact_turn_content;
-                let redact = !*no_redact_turn_content;
-                commands::shadow::run_create(
-                    source.clone(),
-                    destination.clone(),
-                    redact,
-                    *dry_run,
-                    cli.key.clone(),
-                )
+                let redact = !no_redact_turn_content;
+                commands::shadow::run_create(source, destination, redact, dry_run, cli.key)
             }
-        };
+        },
+        Commands::Migrate { command } => match *command {
+            MigrateCommands::Governed {
+                source,
+                destination,
+                report,
+                dry_run,
+                confirm,
+                default_scope,
+                copy_events,
+                no_copy_events,
+                allow_live_source,
+                force_overwrite,
+                source_key,
+                destination_key,
+            } => {
+                let _ = copy_events;
+                let copy = !no_copy_events;
+                commands::migrate::run_governed(commands::migrate::GovernedOptions {
+                    source,
+                    destination,
+                    report,
+                    dry_run,
+                    confirm,
+                    default_scope,
+                    copy_events: copy,
+                    allow_live_source,
+                    force_overwrite,
+                    source_key,
+                    destination_key,
+                    key: cli.key,
+                })
+            }
+        },
+        _ => unreachable!("run_sync_path_free only for Shadow/Migrate"),
     }
+}
 
+async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
     match &cli.command {
-        Commands::Shadow { .. } => unreachable!("shadow handled above"),
+        Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
+        Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {
                 project_id,
