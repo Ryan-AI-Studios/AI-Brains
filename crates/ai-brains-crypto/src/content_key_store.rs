@@ -273,6 +273,24 @@ mod tests {
         assert_eq!(opened.expose_secret(), dek.expose_secret());
     }
 
+    /// Production `wrap_content_dek` must draw a fresh CSPRNG nonce per call (C3).
+    /// Uses the public API only — not `wrap_with_nonce`.
+    #[test]
+    fn wrap_content_dek__production_nonces__unique_across_calls() {
+        let data_key = DataKey::generate();
+        let dek = ContentDek::generate().expect("dek");
+        let id = ContentKeyId::new();
+        let a = wrap_content_dek(&data_key, &dek, &id).expect("wrap a");
+        let b = wrap_content_dek(&data_key, &dek, &id).expect("wrap b");
+        assert_ne!(a.nonce, b.nonce, "production wrap must use distinct nonces");
+        assert_ne!(
+            a.ciphertext, b.ciphertext,
+            "distinct nonces must yield distinct ciphertext"
+        );
+        assert_eq!(a.nonce.len(), NONCE_LEN);
+        assert_eq!(b.nonce.len(), NONCE_LEN);
+    }
+
     #[test]
     fn wrap_content_dek__wrong_data_key__authentication_failed() {
         let data_key = DataKey::generate();

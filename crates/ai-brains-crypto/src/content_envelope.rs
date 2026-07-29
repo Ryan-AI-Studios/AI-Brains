@@ -289,6 +289,28 @@ mod tests {
         assert_eq!(opened.as_slice(), plaintext);
     }
 
+    /// Production `seal` must draw a fresh CSPRNG nonce per call (C3).
+    /// Uses the public API only — not `seal_with_nonce`.
+    #[test]
+    fn seal__production_nonces__unique_across_calls() {
+        let dek = ContentDek::generate().expect("dek");
+        let aad = SealAad {
+            envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+            content_key_id: ContentKeyId::new(),
+            blob_id: Uuid::new_v4(),
+        };
+        let plaintext = b"same plaintext for nonce freshness";
+        let a = seal(&dek, plaintext, &aad).expect("seal a");
+        let b = seal(&dek, plaintext, &aad).expect("seal b");
+        assert_ne!(a.nonce, b.nonce, "production seal must use distinct nonces");
+        assert_ne!(
+            a.ciphertext, b.ciphertext,
+            "distinct nonces must yield distinct ciphertext"
+        );
+        assert_eq!(a.nonce.len(), NONCE_LEN);
+        assert_eq!(b.nonce.len(), NONCE_LEN);
+    }
+
     #[test]
     fn seal_open__wrong_aad_blob_id__authentication_failed() {
         let dek = ContentDek::generate().expect("dek");
