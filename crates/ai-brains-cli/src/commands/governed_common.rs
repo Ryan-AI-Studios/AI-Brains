@@ -40,7 +40,7 @@ pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
         "POLICY_DENIED" => EXIT_POLICY_DENIED,
         "NOT_FOUND" => EXIT_NOT_FOUND,
         "DAEMON_UNAVAILABLE" => EXIT_DAEMON_UNAVAILABLE,
-        "INVALID_PAYLOAD" => EXIT_INVALID_PAYLOAD,
+        "INVALID_PAYLOAD" | "NOT_ENVELOPE_BACKED" => EXIT_INVALID_PAYLOAD,
         "APPROVAL_REQUIRED" => EXIT_POLICY_DENIED,
         _ => EXIT_INTERNAL,
     }
@@ -54,6 +54,7 @@ pub fn api_error_from_cp(err: &ControlPlaneError) -> ApiError {
         ControlPlaneError::InvalidPayload(m) => ("INVALID_PAYLOAD", m.clone()),
         ControlPlaneError::ApprovalRequired(m) => ("APPROVAL_REQUIRED", m.clone()),
         ControlPlaneError::InvalidTransition(m) => ("INVALID_TRANSITION", m.clone()),
+        ControlPlaneError::NotEnvelopeBacked(m) => ("NOT_ENVELOPE_BACKED", m.clone()),
         other => ("INTERNAL", other.to_string()),
     };
     ApiError::new(code, message)

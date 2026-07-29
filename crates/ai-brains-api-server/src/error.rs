@@ -16,6 +16,7 @@ pub fn http_status_for_api_error_code(code: &str) -> StatusCode {
         "UNAUTHORIZED" | "UNAUTHENTICATED" => StatusCode::UNAUTHORIZED,
         "POLICY_DENIED" | "FORBIDDEN" => StatusCode::FORBIDDEN,
         "NOT_FOUND" => StatusCode::NOT_FOUND,
+        "NOT_ENVELOPE_BACKED" => StatusCode::BAD_REQUEST,
         c if c.starts_with("INVALID_") => StatusCode::BAD_REQUEST,
         "PAYLOAD_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "UNSUPPORTED_OPERATION" | "NOT_IMPLEMENTED" => StatusCode::NOT_IMPLEMENTED,

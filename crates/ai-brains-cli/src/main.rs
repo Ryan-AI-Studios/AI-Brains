@@ -387,9 +387,9 @@ enum Commands {
         #[command(subcommand)]
         command: PolicyCommands,
     },
-    /// Request erasure tickets (daemon-required; no CE wipe claim) (T160)
+    /// Erasure tickets + content-envelope wipe (daemon-required) (T160/T165)
     #[command(
-        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm"
     )]
     Erasure {
         #[command(subcommand)]
@@ -726,12 +726,12 @@ enum PolicyCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+    after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --dry-run\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm"
 )]
 enum ErasureCommands {
     /// Request an erasure ticket (daemon-required; never claims CE wipe)
     #[command(
-        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json"
+        after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json\nNote: ticket ≠ cryptographic erase. Use `erasure wipe` for envelope-backed CE."
     )]
     Request {
         /// Target record / aggregate ids (repeatable)
@@ -750,6 +750,40 @@ enum ErasureCommands {
         #[arg(long = "command-id")]
         command_id: Option<String>,
         /// Rejected: erasure is daemon-only
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+    /// Cryptographic erase envelope-backed content (daemon-required; dry-run default)
+    #[command(
+        after_help = "Honesty:\n  - CE only for content_key_store envelope-backed keys (NOT_ENVELOPE_BACKED otherwise)\n  - Not NIST Purge/Destroy; WAL TRUNCATE is not media sanitization\n  - Pre-erase backups/exports remain decryptable if restored\n  - Ticket path and soft forget are not CE\nExamples:\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm"
+    )]
+    Wipe {
+        /// Content key id (UUID) to cryptographically erase
+        #[arg(long = "content-key-id", required = true)]
+        content_key_id: String,
+        /// Scope identity key (required)
+        #[arg(long, required = true)]
+        scope: String,
+        /// Optional ops reason (no secrets)
+        #[arg(long)]
+        reason: Option<String>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long = "command-id")]
+        command_id: Option<String>,
+        /// Plan only (default when --confirm is absent). No wrap destroy / events / purge.
+        #[arg(long = "dry-run", action = clap::ArgAction::SetTrue)]
+        dry_run: bool,
+        /// Execute wipe (E9). Without this flag the command is dry-run only.
+        #[arg(long = "confirm", action = clap::ArgAction::SetTrue)]
+        confirm: bool,
+        /// Rejected: wipe is daemon-only
         #[arg(long)]
         local: bool,
         #[arg(long)]
@@ -1592,6 +1626,35 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     format: format.clone(),
                     principal_id: principal_id.clone(),
                     command_id: command_id.clone(),
+                    local: *local,
+                    daemon: *daemon,
+                    require_daemon: *require_daemon,
+                })
+                .await
+            }
+            ErasureCommands::Wipe {
+                content_key_id,
+                scope,
+                reason,
+                format,
+                principal_id,
+                command_id,
+                dry_run,
+                confirm,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                let _ = &ctx;
+                commands::erasure::run_wipe(commands::erasure::WipeOptions {
+                    content_key_id: content_key_id.clone(),
+                    scope: scope.clone(),
+                    reason: reason.clone(),
+                    format: format.clone(),
+                    principal_id: principal_id.clone(),
+                    command_id: command_id.clone(),
+                    dry_run: *dry_run,
+                    confirm: *confirm,
                     local: *local,
                     daemon: *daemon,
                     require_daemon: *require_daemon,

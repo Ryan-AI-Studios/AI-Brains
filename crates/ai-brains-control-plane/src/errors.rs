@@ -35,6 +35,10 @@ pub enum ControlPlaneError {
     /// Repository identity would create a second project for the same normalized remote.
     #[error("repository identity conflict: {0}")]
     IdentityConflict(String),
+
+    /// CE wipe refused: no live `content_key_store` row (E1 — not envelope-backed).
+    #[error("not envelope-backed: {0}")]
+    NotEnvelopeBacked(String),
 }
 
 pub type Result<T> = std::result::Result<T, ControlPlaneError>;

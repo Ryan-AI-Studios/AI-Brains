@@ -6,7 +6,10 @@ use ai_brains_contracts::briefings::{
     PersonalBriefingResponse, PersonalContinuityBriefingPacket, ProgressiveQueryResponse,
     ProjectBriefingPacket, ProjectBriefingRequest, ProjectBriefingResponse, QueryKnowledgeRequest,
 };
-use ai_brains_contracts::erasure::{ErasureAcceptedResponse, RequestErasureRequest};
+use ai_brains_contracts::erasure::{
+    ContentEnvelopeWipedResponse, ErasureAcceptedResponse, RequestErasureRequest,
+    WipeContentEnvelopeRequest, WipePurgedCounts, WipeValidation, WipeVerify,
+};
 use ai_brains_contracts::knowledge::{
     ConclusionProposedResponse, DecisionProposedResponse, ProposeConclusionRequest,
     ProposeDecisionRequest,
@@ -258,6 +261,22 @@ fn daemon_request__request_erasure__roundtrip() {
     }));
 }
 
+#[test]
+fn daemon_request__wipe_content_envelope__roundtrip() {
+    assert_roundtrip_request(DaemonRequest::WipeContentEnvelope(
+        WipeContentEnvelopeRequest {
+            api_version: ai_brains_contracts::erasure::API_VERSION.to_string(),
+            principal_id: Some("p1".into()),
+            content_key_id: "00000000-0000-0000-0000-000000000001".into(),
+            scope: "Personal:u".into(),
+            reason: Some("ops".into()),
+            command_id: Some("wipe-cmd".into()),
+            dry_run: false,
+            confirm: true,
+        },
+    ));
+}
+
 // ---------------------------------------------------------------------------
 // AC2 / AC4 / AC7 — responses
 // ---------------------------------------------------------------------------
@@ -411,6 +430,29 @@ fn daemon_response__thin_results__roundtrip() {
     )));
     assert_roundtrip_response(DaemonResponse::ErasureAccepted(
         ErasureAcceptedResponse::new("erase-1", "accepted"),
+    ));
+    assert_roundtrip_response(DaemonResponse::ContentEnvelopeWiped(
+        ContentEnvelopeWipedResponse {
+            api_version: ai_brains_contracts::erasure::API_VERSION.to_string(),
+            status: "wiped".into(),
+            content_key_id: "00000000-0000-0000-0000-000000000001".into(),
+            tombstone_id: Some("00000000-0000-0000-0000-000000000002".into()),
+            wrap_destroyed: true,
+            blobs_considered: 1,
+            purged: WipePurgedCounts {
+                fts_rows: 1,
+                embeddings: 0,
+                projection_rows: 0,
+            },
+            dependents_marked: 0,
+            warnings: ContentEnvelopeWipedResponse::honesty_warnings(),
+            verify: WipeVerify { wrap_absent: true },
+            validation: WipeValidation {
+                fts_clear: true,
+                store_open_refused: true,
+                wal_checkpoint: "truncated".into(),
+            },
+        },
     ));
     assert_roundtrip_response(DaemonResponse::Sync { success: true });
 }

@@ -339,6 +339,10 @@ async fn replay_spool(
                 let op = GovernedMutation::RequestErasure(req);
                 let _ = process_governed_on_writer(ports, op, Some(path)).await?;
             }
+            DaemonRequest::WipeContentEnvelope(req) => {
+                let op = GovernedMutation::WipeContentEnvelope(req);
+                let _ = process_governed_on_writer(ports, op, Some(path)).await?;
+            }
             // Queries / control — not durable spool work. Drop without panic.
             DaemonRequest::Ping
             | DaemonRequest::Shutdown

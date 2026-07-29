@@ -16,7 +16,10 @@ use ai_brains_contracts::briefings::{
     ProgressiveQueryResponse, ProjectBriefingRequest, ProjectBriefingResponse,
     QueryKnowledgeRequest,
 };
-use ai_brains_contracts::erasure::{ErasureAcceptedResponse, RequestErasureRequest};
+use ai_brains_contracts::erasure::{
+    ContentEnvelopeWipedResponse, ErasureAcceptedResponse, RequestErasureRequest,
+    WipeContentEnvelopeRequest,
+};
 use ai_brains_contracts::ingest::{IngestRequest, IngestResponse};
 use ai_brains_contracts::knowledge::{
     ConclusionProposedResponse, DecisionProposedResponse, ProposeConclusionRequest,
@@ -52,6 +55,8 @@ pub enum DaemonRequest {
     ListReviewItems(ListReviewItemsRequest),
     ResolveReviewItem(ResolveReviewItemRequest),
     RequestErasure(RequestErasureRequest),
+    /// Governed cryptographic erase for envelope-backed content (T165).
+    WipeContentEnvelope(WipeContentEnvelopeRequest),
 }
 
 /// Outbound daemon reply (or multi-line Sync query framing outside this enum).
@@ -60,7 +65,9 @@ pub enum DaemonRequest {
 pub enum DaemonResponse {
     Pong,
     Ingest(IngestResponse),
-    Sync { success: bool },
+    Sync {
+        success: bool,
+    },
     Error(ApiError),
     ScopeResolved(ScopeResolvedResponse),
     ProjectBriefing(ProjectBriefingResponse),
@@ -73,6 +80,8 @@ pub enum DaemonResponse {
     ReviewList(ReviewQueueResponse),
     ReviewResolved(ReviewResolvedResponse),
     ErasureAccepted(ErasureAcceptedResponse),
+    /// CE wipe result (T165); never claims NIST Purge.
+    ContentEnvelopeWiped(ContentEnvelopeWipedResponse),
 }
 
 impl DaemonResponse {
