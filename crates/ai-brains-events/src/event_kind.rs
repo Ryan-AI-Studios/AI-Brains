@@ -74,6 +74,8 @@ pub enum EventKind {
     ErasureTicketAccepted,
     /// Class-based retention apply audit (T166); not CE by itself.
     RetentionApplied,
+    /// Legacy → governed classification import apply audit (T167).
+    LegacyImportApplied,
 
     // Claim conflicts (T150) — distinct from legacy ConflictDetected (memory)
     ClaimConflictOpened,
@@ -146,6 +148,7 @@ impl EventKind {
             EventKind::ContentErased => "ContentErased",
             EventKind::ErasureTicketAccepted => "ErasureTicketAccepted",
             EventKind::RetentionApplied => "RetentionApplied",
+            EventKind::LegacyImportApplied => "LegacyImportApplied",
             EventKind::ClaimConflictOpened => "ClaimConflictOpened",
             EventKind::ClaimConflictResolved => "ClaimConflictResolved",
             EventKind::RepositoryIdentityRegistered => "RepositoryIdentityRegistered",
@@ -210,6 +213,7 @@ impl EventKind {
             "ContentErased" => EventKind::ContentErased,
             "ErasureTicketAccepted" => EventKind::ErasureTicketAccepted,
             "RetentionApplied" => EventKind::RetentionApplied,
+            "LegacyImportApplied" => EventKind::LegacyImportApplied,
             "ClaimConflictOpened" => EventKind::ClaimConflictOpened,
             "ClaimConflictResolved" => EventKind::ClaimConflictResolved,
             "RepositoryIdentityRegistered" => EventKind::RepositoryIdentityRegistered,
@@ -298,6 +302,7 @@ impl From<&crate::payload::Payload> for EventKind {
             Payload::ContentErased(_) => EventKind::ContentErased,
             Payload::ErasureTicketAccepted(_) => EventKind::ErasureTicketAccepted,
             Payload::RetentionApplied(_) => EventKind::RetentionApplied,
+            Payload::LegacyImportApplied(_) => EventKind::LegacyImportApplied,
             Payload::ClaimConflictOpened(_) => EventKind::ClaimConflictOpened,
             Payload::ClaimConflictResolved(_) => EventKind::ClaimConflictResolved,
             Payload::RepositoryIdentityRegistered(_) => EventKind::RepositoryIdentityRegistered,

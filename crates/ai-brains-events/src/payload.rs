@@ -600,6 +600,29 @@ pub struct RetentionAppliedPayload {
     pub sample_ids: Vec<String>,
 }
 
+/// Audit that a legacy → governed classification import **apply** ran (T167 / L20).
+///
+/// Counts and plan_hash only — optional truncated sample ids, never content bodies.
+/// Dry-run must not emit this.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LegacyImportAppliedPayload {
+    /// Canonical plan hash (SHA-256 hex) of the import plan.
+    pub plan_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
+    pub evidence_count: u64,
+    pub conclusion_count: u64,
+    pub decision_count: u64,
+    pub review_count: u64,
+    pub source_count: u64,
+    pub skipped_count: u64,
+    pub already_imported_count: u64,
+    pub unresolved_count: u64,
+    /// Optional truncated identities (max 5 recommended); never full bodies.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sample_ids: Vec<String>,
+}
+
 /// Open a claim-level conflict (T150; distinct from legacy memory ConflictDetected).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClaimConflictOpenedPayload {
@@ -723,6 +746,8 @@ pub enum Payload {
     ErasureTicketAccepted(ErasureTicketAcceptedPayload),
     /// Class-based retention apply audit (T166); not CE by itself.
     RetentionApplied(RetentionAppliedPayload),
+    /// Legacy → governed classification import apply audit (T167); not CE.
+    LegacyImportApplied(LegacyImportAppliedPayload),
     ClaimConflictOpened(ClaimConflictOpenedPayload),
     ClaimConflictResolved(ClaimConflictResolvedPayload),
     RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
@@ -787,6 +812,7 @@ enum KnownPayload {
     ContentErased(ContentErasedPayload),
     ErasureTicketAccepted(ErasureTicketAcceptedPayload),
     RetentionApplied(RetentionAppliedPayload),
+    LegacyImportApplied(LegacyImportAppliedPayload),
     ClaimConflictOpened(ClaimConflictOpenedPayload),
     ClaimConflictResolved(ClaimConflictResolvedPayload),
     RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
@@ -848,6 +874,7 @@ fn is_known_payload_type(type_str: &str) -> bool {
             | "ContentErased"
             | "ErasureTicketAccepted"
             | "RetentionApplied"
+            | "LegacyImportApplied"
             | "ClaimConflictOpened"
             | "ClaimConflictResolved"
             | "RepositoryIdentityRegistered"
@@ -910,6 +937,7 @@ impl From<KnownPayload> for Payload {
             KnownPayload::ContentErased(p) => Payload::ContentErased(p),
             KnownPayload::ErasureTicketAccepted(p) => Payload::ErasureTicketAccepted(p),
             KnownPayload::RetentionApplied(p) => Payload::RetentionApplied(p),
+            KnownPayload::LegacyImportApplied(p) => Payload::LegacyImportApplied(p),
             KnownPayload::ClaimConflictOpened(p) => Payload::ClaimConflictOpened(p),
             KnownPayload::ClaimConflictResolved(p) => Payload::ClaimConflictResolved(p),
             KnownPayload::RepositoryIdentityRegistered(p) => {
@@ -977,6 +1005,7 @@ impl Payload {
             Payload::ContentErased(p) => KnownPayload::ContentErased(p.clone()),
             Payload::ErasureTicketAccepted(p) => KnownPayload::ErasureTicketAccepted(p.clone()),
             Payload::RetentionApplied(p) => KnownPayload::RetentionApplied(p.clone()),
+            Payload::LegacyImportApplied(p) => KnownPayload::LegacyImportApplied(p.clone()),
             Payload::ClaimConflictOpened(p) => KnownPayload::ClaimConflictOpened(p.clone()),
             Payload::ClaimConflictResolved(p) => KnownPayload::ClaimConflictResolved(p.clone()),
             Payload::RepositoryIdentityRegistered(p) => {

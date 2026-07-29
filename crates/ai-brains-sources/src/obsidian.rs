@@ -195,6 +195,7 @@ fn kind_label(kind: &SourceKind) -> String {
         SourceKind::HermesSession => "HermesSession".into(),
         SourceKind::Honcho => "Honcho".into(),
         SourceKind::Manual => "Manual".into(),
+        SourceKind::LegacyAiBrains => "LegacyAiBrains".into(),
         SourceKind::Other(s) => format!("Other({s})"),
     }
 }

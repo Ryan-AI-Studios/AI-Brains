@@ -159,6 +159,11 @@ pub trait GovernedQueryStore {
     fn has_conclusion(&self, conclusion_id: ConclusionId) -> Result<bool>;
     fn has_decision(&self, decision_id: DecisionId) -> Result<bool>;
 
+    /// True when `evidence_projection` has a row for this id (T167 import idempotency).
+    ///
+    /// Do **not** misuse [`Self::evidence_privacy`] as a presence probe.
+    fn has_evidence(&self, evidence_id: EvidenceId) -> Result<bool>;
+
     /// Resolve source by stable identity within a scope.
     fn find_source(
         &self,

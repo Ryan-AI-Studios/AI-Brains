@@ -29,6 +29,9 @@ impl GovernedQueryStore for DummyQuery {
     fn has_decision(&self, _decision_id: DecisionId) -> Result<bool> {
         Ok(false)
     }
+    fn has_evidence(&self, _evidence_id: EvidenceId) -> Result<bool> {
+        Ok(false)
+    }
     fn find_source(
         &self,
         _scope: &str,
@@ -174,6 +177,7 @@ fn dummy_ports__implementable_without_panic() {
     let q = DummyQuery;
     assert!(!q.has_conclusion(ConclusionId::new()).expect("query"));
     assert!(!q.has_decision(DecisionId::new()).expect("query"));
+    assert!(!q.has_evidence(EvidenceId::new()).expect("query"));
     assert!(
         q.find_source("", &SourceKind::File, None, "x")
             .expect("find")

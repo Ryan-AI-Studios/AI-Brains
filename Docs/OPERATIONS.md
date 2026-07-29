@@ -230,6 +230,25 @@ Horizon day overrides must be integers in **`1..=36500`** (~100y). Non-integer, 
 
 **Honesty on every plan/apply with CE candidates:** not NIST Purge; pre-erase backups residual; ticket/soft forget ≠ CE; stream independence until subject join; legacy projection delete ≠ CE.
 
+### Legacy → governed classification import (T167 / P9.1)
+
+Maps historical AI-Brains events into governed Evidence / Candidate Conclusions / Proposed Decisions **without** promoting to Confirmed or Approved authority.
+
+| Rule | Behavior |
+|------|----------|
+| Surface | **Control-plane API only** (`classify_legacy` / `apply_legacy_import`). CLI migrate is **T168**. |
+| Dry-run default | Classify builds a full plan + `plan_hash`; apply requires `ApplyOpts.confirm = true`. |
+| No live vault | Module never opens `%USERPROFILE%\.ai-brains` itself; callers supply event stream + destination ports. |
+| Under-promote | Pins → Evidence; synth → Candidate only; decisions → Proposed + ReviewItemOpened. Never auto-approve. |
+| Forgotten | Final `forgotten` status excludes Evidence; synth with forgotten sources → `unsupported` + reason. |
+| CE honesty | Import does **not** claim content-envelope cryptography (legacy plaintext ≠ CE). |
+| Source | One `SourceRegistered` (`SourceKind::LegacyAiBrains`) per destination vault; **not** via `observe_source`. |
+| Idempotency | uuid v5 natural keys; second apply → zero new aggregates (`has_evidence` / conclusion / decision probes). |
+| Reports | Counts, ids, reason codes, `plan_hash` only — no full plaintext bodies by default. |
+| Audit | Successful apply appends `LegacyImportApplied` (plan_hash + counts). Dry-run does not. |
+
+There is **no** `RecordEvidence` capability; bulk import uses raw `build_event` appends (same discipline as invalidation reviews). Production operators must not point apply at the live vault without explicit T168 flags.
+
 ## 4. Project & Session Management
 
 ### Project Setup
