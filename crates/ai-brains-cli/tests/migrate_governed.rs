@@ -610,6 +610,7 @@ fn migrate_governed__confirm__creates_dest_and_applies() {
     let v: serde_json::Value = serde_json::from_str(&fs::read_to_string(&report).unwrap()).unwrap();
     assert_eq!(v["dry_run"], false);
     assert_eq!(v["manifest_written"], true);
+    assert_eq!(v["legacy_import_applied"], true);
     assert_eq!(v["rollback"]["source_modified"], false);
     assert!(v["classification"]["evidence"].as_u64().unwrap_or(0) >= 1);
 
@@ -640,6 +641,17 @@ fn migrate_governed__confirm_second_run__idempotent() {
         .success();
 
     let dest_count_after_first = event_count(&dest);
+    let v1: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&report).unwrap()).unwrap();
+    assert_eq!(v1["legacy_import_applied"], true);
+    let first_would_import = v1["event_counts"]["would_import_appends"]
+        .as_u64()
+        .unwrap_or(0);
+    assert!(
+        first_would_import >= 1,
+        "first confirm should report applied imports; got would_import_appends={first_would_import}"
+    );
+
     let report2 = dir.path().join("report2.json");
 
     migrate_cmd()
@@ -664,6 +676,27 @@ fn migrate_governed__confirm_second_run__idempotent() {
         dest_count_after_second <= dest_count_after_first + 2,
         "second run must not re-copy source events: first={dest_count_after_first} second={dest_count_after_second}"
     );
+
+    let v2: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&report2).unwrap()).unwrap();
+    // R1-01: fold T167 apply outcomes — second run shows dest-probed already_imported.
+    let already = v2["classification"]["already_imported"]
+        .as_u64()
+        .unwrap_or(0);
+    assert!(
+        already >= 1,
+        "second confirm report must surface classification.already_imported > 0; got {already}"
+    );
+    let second_would_import = v2["event_counts"]["would_import_appends"]
+        .as_u64()
+        .unwrap_or(u64::MAX);
+    assert!(
+        second_would_import < first_would_import || second_would_import == 0,
+        "second run would_import_appends should be low/zero (applied this run); first={first_would_import} second={second_would_import}"
+    );
+    // legacy_import_applied remains true when T167 still emits the audit event
+    // (or false if pure skip) — either way apply path ran; require report key present.
+    assert!(v2.get("legacy_import_applied").is_some());
 }
 
 #[test]
@@ -916,4 +949,205 @@ fn migrate_governed__invalid_default_scope__exit_6() {
         .failure()
         .code(6)
         .stderr(predicate::str::contains("INVALID_PAYLOAD"));
+}
+
+/// Destination parent that is a reparse/junction (or dest symlink) must refuse (R1-04).
+///
+/// Windows: directory junction (no SeCreateSymbolicLinkPrivilege).
+/// Non-Windows: file symlink as destination path.
+#[test]
+fn migrate_governed__refuse_reparse_dest() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("source.db");
+    let report = dir.path().join("report.json");
+    init_vault(&source);
+
+    let dest = {
+        #[cfg(windows)]
+        {
+            let real = dir.path().join("real-dest-dir");
+            fs::create_dir_all(&real).expect("real dest dir");
+            let junction = dir.path().join("dest-junction");
+            let status = std::process::Command::new("cmd")
+                .args([
+                    "/C",
+                    "mklink",
+                    "/J",
+                    &junction.to_string_lossy(),
+                    &real.to_string_lossy(),
+                ])
+                .status()
+                .expect("spawn mklink /J");
+            assert!(
+                status.success(),
+                "mklink /J failed (exit {status}); directory junctions should not need elevation"
+            );
+            junction.join("dest.db")
+        }
+        #[cfg(not(windows))]
+        {
+            let real_file = dir.path().join("real-target.db");
+            fs::write(&real_file, b"placeholder").expect("write real");
+            let link = dir.path().join("dest-link.db");
+            std::os::unix::fs::symlink(&real_file, &link).expect("unix symlink");
+            link
+        }
+    };
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("reparse")
+                .or(predicate::str::contains("symlink"))
+                .or(predicate::str::contains("junction"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+}
+
+/// Report path under a reparse/junction parent must refuse (R1-04).
+#[test]
+fn migrate_governed__refuse_report_reparse() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("source.db");
+    let dest = dir.path().join("dest.db");
+    init_vault(&source);
+
+    let report = {
+        #[cfg(windows)]
+        {
+            let real = dir.path().join("real-report-dir");
+            fs::create_dir_all(&real).expect("real report dir");
+            let junction = dir.path().join("report-junction");
+            let status = std::process::Command::new("cmd")
+                .args([
+                    "/C",
+                    "mklink",
+                    "/J",
+                    &junction.to_string_lossy(),
+                    &real.to_string_lossy(),
+                ])
+                .status()
+                .expect("spawn mklink /J");
+            assert!(
+                status.success(),
+                "mklink /J failed (exit {status}); directory junctions should not need elevation"
+            );
+            junction.join("report.json")
+        }
+        #[cfg(not(windows))]
+        {
+            let real_file = dir.path().join("real-report.json");
+            fs::write(&real_file, b"{}").expect("write real report");
+            let link = dir.path().join("report-link.json");
+            std::os::unix::fs::symlink(&real_file, &link).expect("unix symlink");
+            link
+        }
+    };
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("reparse")
+                .or(predicate::str::contains("symlink"))
+                .or(predicate::str::contains("junction"))
+                .or(predicate::str::contains("PATH_REFUSED"))
+                .or(predicate::str::contains("report")),
+        );
+}
+
+/// `--no-copy-events` on fresh dest: import applied without envelope copy of source events (R1-09).
+#[test]
+fn migrate_governed__no_copy_events__import_only_dest() {
+    use ai_brains_store::event_store::EventStore;
+    use std::collections::HashSet;
+
+    let dir = tempdir().expect("tempdir");
+    let (source, dest, report) = paths(dir.path());
+    init_vault(&source);
+    seed_memory_pinned(&source, "no-copy pin body", true);
+    let source_count = event_count(&source);
+    assert!(source_count >= 1, "source must have at least one event");
+
+    let source_ids: HashSet<_> = {
+        let store = open_store(&source).expect("open source");
+        store
+            .read_all_events()
+            .expect("read source")
+            .into_iter()
+            .map(|e| e.event_id)
+            .collect()
+    };
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .arg("--confirm")
+        .arg("--no-copy-events")
+        .assert()
+        .success();
+
+    assert!(dest.exists(), "confirm must create dest even without copy");
+    let manifest = dest.parent().unwrap().join("migrate-manifest.json");
+    assert!(manifest.exists(), "confirm must write migrate-manifest");
+
+    let v: serde_json::Value = serde_json::from_str(&fs::read_to_string(&report).unwrap()).unwrap();
+    assert_eq!(v["legacy_import_applied"], true);
+    assert_eq!(
+        v["event_counts"]["would_copy_events"].as_u64().unwrap_or(1),
+        0
+    );
+    assert!(
+        v["classification"]["evidence"].as_u64().unwrap_or(0) >= 1,
+        "import classification should still classify evidence"
+    );
+
+    let dest_ids: HashSet<_> = {
+        let store = open_store(&dest).expect("open dest");
+        store
+            .read_all_events()
+            .expect("read dest")
+            .into_iter()
+            .map(|e| e.event_id)
+            .collect()
+    };
+    let overlap: Vec<_> = source_ids.intersection(&dest_ids).collect();
+    assert!(
+        overlap.is_empty(),
+        "--no-copy-events must not append source envelope event_ids into dest; overlap={overlap:?}"
+    );
+
+    let dest_count = event_count(&dest);
+    assert!(
+        dest_count > 0,
+        "import appends must still land on dest; dest_count={dest_count}"
+    );
+    // Dest holds import/audit appends only — not source envelope baseline + imports.
+    // Envelope copy would place every source event_id into dest (overlap checked above).
+    let _ = source_count;
 }

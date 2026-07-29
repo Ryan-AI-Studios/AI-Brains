@@ -276,7 +276,7 @@ ai-brains migrate governed --source .\s.db --destination .\d.db --report .\r.jso
 |------|----------|
 | Dry-run default | Omit `--confirm` (or pass `--dry-run`). Report always written when `--report` is set. Both `--dry-run` and `--confirm` → `INVALID_PAYLOAD` exit **6**. |
 | Confirm | Creates dest (if needed), dest-only `migrate()`, optional envelope copy, T167 apply, **mandatory** `migrate-manifest.json` beside dest. |
-| Source integrity | Source opened **read-only**; **never** schema-migrate source (T147 residual **#12** honesty). Source bytes/event log unchanged after any mode. |
+| Source integrity | Source open is **read-only intent** — never `migrate()` source; no intentional event writes (T147 residual **#12** honesty). SQLite may still touch WAL/SHM sidecars. Source event log content unchanged after any mode. |
 | Dest safety | Reuses T147 `refuse_unsafe_destination`: refuse source==dest, dest==live, dest inside live parent, reparse dest/parent. |
 | Live source | Source == live vault refused unless `--allow-live-source` (still refuses live dest). Prefer `shadow create` first. |
 | Report path | Refuse reparse/symlink; refuse report path same location as source or dest vault file. |

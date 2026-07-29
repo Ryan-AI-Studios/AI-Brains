@@ -15,13 +15,12 @@
 //! - **M22** Pass `read_all_events` order to classify (no re-sort).
 
 use crate::artifact_security::{is_reparse_or_symlink, refuse_if_reparse};
-use crate::commands::governed_common::{
-    EXIT_INTERNAL, EXIT_INVALID_PAYLOAD, GovernedCliError, resolve_principal,
-};
+use crate::commands::governed_common::{OutputFormat, fail_api, resolve_principal};
 use crate::commands::shadow::{refuse_unsafe_destination, resolve_live_vault_path};
+use ai_brains_contracts::response::ApiError;
 use ai_brains_control_plane::{
-    ApplyOpts, ImportActionKind, ImportMechanism, ImportOpts, ImportPlan, StorePorts, SystemClock,
-    apply_legacy_import, classify_legacy, parse_scope_key,
+    ApplyOpts, ImportActionKind, ImportMechanism, ImportOpts, ImportPlan, ImportReport, StorePorts,
+    SystemClock, apply_legacy_import, classify_legacy, parse_scope_key,
 };
 use ai_brains_core::ids::PrincipalId;
 use ai_brains_core::privacy::Privacy;
@@ -223,9 +222,9 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
         );
     }
 
-    // M3 / M6 — dest safety (reuse T147 helper as-is).
+    // M3 / M6 — dest safety (reuse T147 helper; rewrite prefix for migrate messaging).
     refuse_unsafe_destination(&opts.source, &opts.destination, live.as_deref())
-        .map_err(|e| path_refused(e.to_string()))?;
+        .map_err(|e| path_refused(rewrite_refuse_prefix(e.to_string())))?;
 
     // M7 — live source gate.
     if let Some(ref live_path) = live
@@ -302,6 +301,7 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
     let mut legacy_import_applied = false;
     let mut manifest_written = false;
     let mut did_copy = false;
+    let mut apply_report: Option<ImportReport> = None;
 
     if is_dry_run {
         // Peek dest event count without migrating / writing.
@@ -333,7 +333,7 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
             0
         };
         eprintln!(
-            "note: source opened read-only for classify (never migrate source; T147 residual #12)"
+            "note: source open is read-only intent (never migrate source; no intentional event writes; T147 residual #12)"
         );
     } else {
         // Confirm path.
@@ -350,14 +350,19 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
             &mut legacy_import_applied,
             &mut manifest_written,
             &mut did_copy,
+            &mut apply_report,
         )?;
     }
 
-    let would_import_appends = plan
-        .actions
-        .iter()
-        .filter(|a| a.mechanism == ImportMechanism::WouldAppend)
-        .count() as u64;
+    // Dry-run: plan WouldAppend count. Confirm: applied this run (report honesty M13 / R1-01).
+    let would_import_appends = match &apply_report {
+        Some(ar) => ar.applied,
+        None => plan
+            .actions
+            .iter()
+            .filter(|a| a.mechanism == ImportMechanism::WouldAppend)
+            .count() as u64,
+    };
 
     let report = build_report(BuildReportArgs {
         is_dry_run,
@@ -373,6 +378,7 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
         would_import_appends,
         legacy_import_applied,
         manifest_written,
+        apply_report: apply_report.as_ref(),
     })?;
 
     write_report_file(&opts.report, &report)?;
@@ -432,6 +438,7 @@ fn run_confirm_materialize(
     legacy_import_applied: &mut bool,
     manifest_written: &mut bool,
     did_copy: &mut bool,
+    apply_report_out: &mut Option<ImportReport>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Force-overwrite: wipe dest + sidecars + manifest, then treat as fresh.
     if opts.force_overwrite {
@@ -448,7 +455,7 @@ fn run_confirm_materialize(
 
     // Soft TOCTOU re-check after mkdir.
     refuse_unsafe_destination(&opts.source, &opts.destination, live)
-        .map_err(|e| path_refused(e.to_string()))?;
+        .map_err(|e| path_refused(rewrite_refuse_prefix(e.to_string())))?;
 
     let dest_conn = VaultConnection::open(&opts.destination, dest_key).map_err(|e| {
         format!(
@@ -502,8 +509,7 @@ fn run_confirm_materialize(
         *would_copy_events = 0;
     }
 
-    // Re-classify against dest state is NOT done — apply probes dest for idempotency.
-    // Plan was built with dry_run=false principal; re-use it.
+    // Apply probes dest for idempotency (already_imported); fold outcomes into report (R1-01).
     let ports = StorePorts::from_store(SqliteEventStore::new(dest_store.connection().clone()));
     let clock = SystemClock;
     let apply_report = apply_legacy_import(
@@ -516,6 +522,7 @@ fn run_confirm_materialize(
     .map_err(|e| format!("apply_legacy_import failed: {e}"))?;
 
     *legacy_import_applied = apply_report.legacy_import_applied;
+    *apply_report_out = Some(apply_report);
 
     let after = dest_store.read_all_events()?;
     *dest_events_after = Some(after.len() as u64);
@@ -575,9 +582,19 @@ pub fn migrate_source_fingerprint(events: &[Envelope]) -> String {
 }
 
 /// Canonical report_hash (M10): SHA-256 of JSON excluding `created_at` and `report_hash`.
+///
+/// Sorts `unresolved` and `content_hashes` before hashing so order of those
+/// collections does not affect the digest (canonical M10 / R1-05).
 pub fn compute_report_hash(
     report: &DifferentialReport,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    let mut unresolved = report.unresolved.clone();
+    unresolved.sort_by(|a, b| {
+        (&a.original_event_id, &a.reason_code).cmp(&(&b.original_event_id, &b.reason_code))
+    });
+    let mut content_hashes = report.content_hashes.clone();
+    content_hashes.sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
+
     let view = ReportHashView {
         schema_version: report.schema_version,
         command: report.command.clone(),
@@ -589,10 +606,10 @@ pub fn compute_report_hash(
         plan_hash: report.plan_hash.clone(),
         event_counts: report.event_counts.clone(),
         classification: report.classification.clone(),
-        unresolved: report.unresolved.clone(),
+        unresolved,
         privacy: report.privacy.clone(),
         gaps: report.gaps.clone(),
-        content_hashes: report.content_hashes.clone(),
+        content_hashes,
         content_hashes_truncated: report.content_hashes_truncated,
         replay_consistency: report.replay_consistency.clone(),
         ce_honesty: report.ce_honesty.clone(),
@@ -626,6 +643,8 @@ struct BuildReportArgs<'a> {
     would_import_appends: u64,
     legacy_import_applied: bool,
     manifest_written: bool,
+    /// Confirm-path T167 apply outcomes (dest-probed already_imported / applied).
+    apply_report: Option<&'a ImportReport>,
 }
 
 fn build_report(
@@ -642,12 +661,16 @@ fn build_report(
         .map(|e| (e.event_id, e.payload_hash.clone()))
         .collect();
 
-    let already_imported = args
-        .plan
-        .actions
-        .iter()
-        .filter(|a| a.reason_code == "already_imported")
-        .count() as u64;
+    // Confirm: fold T167 apply counters (dest-probed). Dry-run: plan reason codes only.
+    let already_imported = match args.apply_report {
+        Some(ar) => ar.already_imported,
+        None => args
+            .plan
+            .actions
+            .iter()
+            .filter(|a| a.reason_code == "already_imported")
+            .count() as u64,
+    };
 
     let classification = ClassificationTotals {
         evidence: args.plan.totals.evidence,
@@ -767,7 +790,7 @@ fn build_report(
             mode: "count_digest_v1".to_string(),
             source_event_count,
             plan_action_count,
-            ok: true,
+            ok: replay_ok,
             warnings,
         },
         ce_honesty: CeHonesty {
@@ -907,25 +930,31 @@ fn truncate_hash(h: &str) -> String {
     }
 }
 
+/// Map T147 helper wording (`shadow create`) to migrate when reusing refuse_unsafe_destination.
+fn rewrite_refuse_prefix(message: String) -> String {
+    message.replace("shadow create", "migrate")
+}
+
 fn path_refused(message: String) -> Box<dyn std::error::Error> {
-    eprintln!("PATH_REFUSED: {message}");
-    Box::new(GovernedCliError::emitted(
-        EXIT_INTERNAL,
-        format!("PATH_REFUSED: {message}"),
-    ))
+    // fail_api emits Human stderr `CODE: message` and returns Err(GovernedCliError).
+    match fail_api(OutputFormat::Human, ApiError::new("PATH_REFUSED", message)) {
+        Err(e) => e,
+        Ok(()) => Box::new(std::io::Error::other("PATH_REFUSED fail_api returned Ok")),
+    }
 }
 
 fn fail_path_refused(message: impl Into<String>) -> Result<(), Box<dyn std::error::Error>> {
-    Err(path_refused(message.into()))
+    fail_api(
+        OutputFormat::Human,
+        ApiError::new("PATH_REFUSED", message.into()),
+    )
 }
 
 fn fail_invalid_payload(message: impl Into<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let message = message.into();
-    eprintln!("INVALID_PAYLOAD: {message}");
-    Err(Box::new(GovernedCliError::emitted(
-        EXIT_INVALID_PAYLOAD,
-        format!("INVALID_PAYLOAD: {message}"),
-    )))
+    fail_api(
+        OutputFormat::Human,
+        ApiError::new("INVALID_PAYLOAD", message.into()),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,11 +1098,7 @@ mod tests {
 
     #[test]
     fn report_hash__same_input_same_hash() {
-        let mut r1 = sample_report();
-        // Pre-sort unresolved as build_report does.
-        r1.unresolved.sort_by(|a, b| {
-            (&a.original_event_id, &a.reason_code).cmp(&(&b.original_event_id, &b.reason_code))
-        });
+        let r1 = sample_report();
         let h1 = compute_report_hash(&r1).expect("h1");
         let h2 = compute_report_hash(&r1).expect("h2");
         assert_eq!(h1, h2);
@@ -1082,16 +1107,18 @@ mod tests {
 
     #[test]
     fn report_hash__reordered_unresolved_same_hash() {
+        // compute_report_hash sorts unresolved/content_hashes — order independence without pre-sort.
         let mut r1 = sample_report();
         let mut r2 = sample_report();
         r1.unresolved
             .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
         r2.unresolved
             .sort_by(|a, b| b.original_event_id.cmp(&a.original_event_id));
-        // Hash view uses the order in the vec — callers must pre-sort.
-        // After same sort both match:
-        r2.unresolved
-            .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
+        assert_ne!(
+            r1.unresolved.first().map(|u| u.original_event_id.as_str()),
+            r2.unresolved.first().map(|u| u.original_event_id.as_str()),
+            "precondition: vectors must start in different order"
+        );
         let h1 = compute_report_hash(&r1).expect("h1");
         let h2 = compute_report_hash(&r2).expect("h2");
         assert_eq!(h1, h2);
@@ -1103,13 +1130,78 @@ mod tests {
         let mut r2 = sample_report();
         r1.created_at = "2020-01-01T00:00:00Z".into();
         r2.created_at = "2099-12-31T23:59:59Z".into();
-        r1.unresolved
-            .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
-        r2.unresolved
-            .sort_by(|a, b| a.original_event_id.cmp(&b.original_event_id));
         let h1 = compute_report_hash(&r1).expect("h1");
         let h2 = compute_report_hash(&r2).expect("h2");
         assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn build_report__empty_source_nonempty_plan__replay_ok_false() {
+        use ai_brains_control_plane::{
+            ImportAction, ImportActionKind, ImportMechanism, ImportTotals,
+        };
+        use ai_brains_core::ids::PrincipalId;
+        use ai_brains_core::privacy::Privacy;
+
+        let action = ImportAction {
+            kind: ImportActionKind::Evidence,
+            original_event_id: Uuid::from_u128(1),
+            derived_id: "ev-1".into(),
+            reason_code: "legacy_pin".into(),
+            mechanism: ImportMechanism::WouldAppend,
+            source_tag: None,
+            unsupported: None,
+            content: None,
+            title: None,
+            statement: None,
+            privacy: Privacy::LocalOnly,
+            scope_key: None,
+            evidence_ids: Vec::new(),
+            related_decision_id: None,
+            original_memory_id: None,
+            session_id: None,
+        };
+        let plan = ImportPlan {
+            actions: vec![action],
+            totals: ImportTotals {
+                evidence: 1,
+                ..ImportTotals::default()
+            },
+            plan_hash: "plan-test".into(),
+            principal_id: PrincipalId::from_uuid(Uuid::nil()),
+            command_id: None,
+            dry_run: true,
+        };
+        let report = build_report(BuildReportArgs {
+            is_dry_run: true,
+            source: Path::new("/tmp/source.db"),
+            destination: Path::new("/tmp/dest.db"),
+            source_fingerprint: "fp",
+            live_vault_resolved: false,
+            plan: &plan,
+            events: &[],
+            dest_events_before: 0,
+            dest_events_after: None,
+            would_copy_events: 0,
+            would_import_appends: 1,
+            legacy_import_applied: false,
+            manifest_written: false,
+            apply_report: None,
+        })
+        .expect("build_report");
+        assert!(
+            !report.replay_consistency.ok,
+            "empty source + non-empty plan must set replay_consistency.ok false"
+        );
+        assert!(
+            report
+                .replay_consistency
+                .warnings
+                .iter()
+                .any(|w| w.contains("empty source")),
+            "expected empty-source warning, got {:?}",
+            report.replay_consistency.warnings
+        );
     }
 
     #[test]
