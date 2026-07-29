@@ -1076,6 +1076,131 @@ fn migrate_governed__invalid_default_scope__exit_6() {
         .stderr(predicate::str::contains("INVALID_PAYLOAD"));
 }
 
+/// Create a dangling file symlink (target does not exist).
+/// Returns `None` when the OS denies symlink creation (Windows without Developer Mode).
+fn try_dangling_file_symlink(link: &Path) -> Option<()> {
+    let missing_target = link.with_extension("missing-target-does-not-exist");
+    #[cfg(windows)]
+    let created = std::os::windows::fs::symlink_file(&missing_target, link);
+    #[cfg(not(windows))]
+    let created = std::os::unix::fs::symlink(&missing_target, link);
+    match created {
+        Ok(()) => {
+            assert!(
+                !link.exists(),
+                "precondition: dangling symlink must have exists()==false"
+            );
+            Some(())
+        }
+        Err(e) => {
+            eprintln!(
+                "skipping dangling-symlink integration test (symlink create failed: {e}; \
+                 needs Developer Mode or elevation on Windows)"
+            );
+            None
+        }
+    }
+}
+
+/// Codex R5 — dangling symlink as destination must PATH_REFUSED (exists() gate bug).
+#[test]
+fn migrate_governed__refuse_dangling_symlink_dest() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("source.db");
+    let report = dir.path().join("report.json");
+    let dest = dir.path().join("dest-dangling.db");
+    init_vault(&source);
+    if try_dangling_file_symlink(&dest).is_none() {
+        return;
+    }
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("reparse")
+                .or(predicate::str::contains("symlink"))
+                .or(predicate::str::contains("junction"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+}
+
+/// Codex R5 — dangling symlink as report path must PATH_REFUSED.
+#[test]
+fn migrate_governed__refuse_dangling_symlink_report() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("source.db");
+    let dest = dir.path().join("dest.db");
+    let report = dir.path().join("report-dangling.json");
+    init_vault(&source);
+    if try_dangling_file_symlink(&report).is_none() {
+        return;
+    }
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("reparse")
+                .or(predicate::str::contains("symlink"))
+                .or(predicate::str::contains("junction"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+}
+
+/// Codex R5 — dangling symlink at migrate-manifest sibling must PATH_REFUSED.
+#[test]
+fn migrate_governed__refuse_dangling_symlink_manifest() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("source.db");
+    let dest_dir = dir.path().join("dest");
+    let dest = dest_dir.join("dest.db");
+    let report = dir.path().join("report.json");
+    init_vault(&source);
+    fs::create_dir_all(&dest_dir).expect("dest dir");
+    let manifest = dest_dir.join("migrate-manifest.json");
+    if try_dangling_file_symlink(&manifest).is_none() {
+        return;
+    }
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("reparse")
+                .or(predicate::str::contains("symlink"))
+                .or(predicate::str::contains("junction"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+}
+
 /// Destination parent that is a reparse/junction (or dest symlink) must refuse (R1-04).
 ///
 /// Windows: directory junction (no SeCreateSymbolicLinkPrivilege).

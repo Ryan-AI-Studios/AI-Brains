@@ -901,17 +901,19 @@ pub fn refuse_unsafe_report_path(
         );
     }
 
-    if report.exists() {
-        if let Err(msg) = refuse_if_reparse(report, is_reparse_or_symlink(report)?) {
-            return fail_path_refused(format!("refusing migrate report path: {msg}"));
-        }
-        // Hardlink to source/dest (or any multi-link inode) — File::create would truncate shared data.
-        if let Err(msg) = refuse_if_hardlink(report, is_hardlink(report)?) {
-            return fail_path_refused(format!("refusing migrate report path: {msg}"));
-        }
+    // Codex R5: reparse without `exists()` gate — dangling symlinks report
+    // exists()==false but symlink_metadata still detects them.
+    if let Err(msg) = refuse_if_reparse(report, is_reparse_or_symlink(report)?) {
+        return fail_path_refused(format!("refusing migrate report path: {msg}"));
+    }
+    // Hardlinks cannot be dangling; only check multi-link when the path exists.
+    if report.exists()
+        && let Err(msg) = refuse_if_hardlink(report, is_hardlink(report)?)
+    {
+        return fail_path_refused(format!("refusing migrate report path: {msg}"));
     }
     if let Some(parent) = report.parent()
-        && parent.exists()
+        && !parent.as_os_str().is_empty()
         && let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?)
     {
         return fail_path_refused(format!("refusing migrate report parent: {msg}"));
@@ -941,13 +943,15 @@ pub fn refuse_unsafe_manifest_path(
              (destination must not be named migrate-manifest.json)",
         );
     }
-    if manifest.exists() {
-        if let Err(msg) = refuse_if_reparse(&manifest, is_reparse_or_symlink(&manifest)?) {
-            return fail_path_refused(format!("refusing migrate-manifest path: {msg}"));
-        }
-        if let Err(msg) = refuse_if_hardlink(&manifest, is_hardlink(&manifest)?) {
-            return fail_path_refused(format!("refusing migrate-manifest path: {msg}"));
-        }
+    // Codex R5: reparse without `exists()` gate (dangling symlink still detected).
+    if let Err(msg) = refuse_if_reparse(&manifest, is_reparse_or_symlink(&manifest)?) {
+        return fail_path_refused(format!("refusing migrate-manifest path: {msg}"));
+    }
+    // Hardlinks cannot be dangling; only check multi-link when the path exists.
+    if manifest.exists()
+        && let Err(msg) = refuse_if_hardlink(&manifest, is_hardlink(&manifest)?)
+    {
+        return fail_path_refused(format!("refusing migrate-manifest path: {msg}"));
     }
     Ok(())
 }
@@ -1527,6 +1531,82 @@ mod tests {
         assert!(
             msg.contains("hardlink") || msg.contains("link count") || msg.contains("PATH_REFUSED"),
             "expected hardlink refuse, got: {msg}"
+        );
+    }
+
+    /// Create a file symlink whose target does not exist (dangling).
+    /// Returns `None` when the OS denies symlink creation (Windows without Developer Mode).
+    fn try_dangling_file_symlink(link: &Path) -> Option<()> {
+        let missing_target = link.with_extension("missing-target-does-not-exist");
+        #[cfg(windows)]
+        let created = std::os::windows::fs::symlink_file(&missing_target, link);
+        #[cfg(not(windows))]
+        let created = std::os::unix::fs::symlink(&missing_target, link);
+        match created {
+            Ok(()) => {
+                // Precondition: dangling → exists() false, reparse true.
+                assert!(
+                    !link.exists(),
+                    "precondition: dangling symlink must have exists()==false"
+                );
+                assert!(
+                    is_reparse_or_symlink(link).expect("symlink_metadata"),
+                    "precondition: dangling symlink must be detected as reparse"
+                );
+                Some(())
+            }
+            Err(e) => {
+                eprintln!(
+                    "skipping dangling-symlink unit test (symlink create failed: {e}; \
+                     needs Developer Mode or elevation on Windows)"
+                );
+                None
+            }
+        }
+    }
+
+    /// Codex R5 — dangling symlink report path must refuse without exists() gate.
+    #[test]
+    fn refuse_unsafe_report_path__dangling_symlink__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest.db");
+        let report = dir.path().join("report.json");
+        fs::write(&source, b"x").expect("source");
+        if try_dangling_file_symlink(&report).is_none() {
+            return;
+        }
+        let err = refuse_unsafe_report_path(&report, &source, &dest).expect_err("must refuse");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("reparse")
+                || msg.contains("symlink")
+                || msg.contains("junction")
+                || msg.contains("path_refused"),
+            "expected reparse refuse for dangling report symlink, got: {err}"
+        );
+    }
+
+    /// Codex R5 — dangling symlink at migrate-manifest sibling must refuse.
+    #[test]
+    fn refuse_unsafe_manifest_path__dangling_symlink__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest").join("vault.db");
+        let manifest = migrate_manifest_path(&dest);
+        fs::create_dir_all(dest.parent().expect("parent")).expect("mkdir");
+        fs::write(&source, b"x").expect("source");
+        if try_dangling_file_symlink(&manifest).is_none() {
+            return;
+        }
+        let err = refuse_unsafe_manifest_path(&source, &dest).expect_err("must refuse");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("reparse")
+                || msg.contains("symlink")
+                || msg.contains("junction")
+                || msg.contains("path_refused"),
+            "expected reparse refuse for dangling manifest symlink, got: {err}"
         );
     }
 }
