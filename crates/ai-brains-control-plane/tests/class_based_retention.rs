@@ -806,10 +806,7 @@ fn retention_apply__projections_only__defers_ce_no_local_destroy() {
     let wrap = content_envelope::get_content_key_wrap(&conn, &key.to_string())
         .unwrap()
         .expect("key row");
-    assert_eq!(
-        wrap.status, "active",
-        "prepare path must not destroy wrap"
-    );
+    assert_eq!(wrap.status, "active", "prepare path must not destroy wrap");
     assert!(wrap.wrap_nonce.is_some());
 }
 
@@ -831,9 +828,15 @@ fn retention_apply__projections_append_audit_before_ce() {
         &old,
     );
 
-    let outcome =
-        prepare_retention_apply(store, &ports.writer, &config(), "ret-audit-pre-ce", true, false)
-            .unwrap();
+    let outcome = prepare_retention_apply(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-audit-pre-ce",
+        true,
+        false,
+    )
+    .unwrap();
     assert!(
         !outcome.pending_ce_keys.is_empty(),
         "CE still deferred: {outcome:?}"
@@ -869,9 +872,15 @@ fn retention_apply__prepare__leaves_turns_present() {
     let old = (Utc::now() - Duration::days(120)).to_rfc3339();
     insert_turn(store, &sid, 0, &old);
 
-    let outcome =
-        prepare_retention_apply(store, &ports.writer, &config(), "ret-prep-turns", true, false)
-            .unwrap();
+    let outcome = prepare_retention_apply(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-prep-turns",
+        true,
+        false,
+    )
+    .unwrap();
     assert!(
         outcome.report.totals.would_projection_delete >= 1,
         "expected projection candidate: {outcome:?}"
@@ -909,9 +918,15 @@ fn retention_apply__execute__removes_deferred_turns() {
     let old = (Utc::now() - Duration::days(120)).to_rfc3339();
     insert_turn(store, &sid, 0, &old);
 
-    let mut outcome =
-        prepare_retention_apply(store, &ports.writer, &config(), "ret-exec-turns", true, false)
-            .unwrap();
+    let mut outcome = prepare_retention_apply(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-exec-turns",
+        true,
+        false,
+    )
+    .unwrap();
     {
         let conn = store.connection().lock().unwrap();
         let turns: i64 = conn
@@ -1045,9 +1060,15 @@ fn finalize_retention_apply__appends_final_audit_and_cascades() {
     insert_hierarchy(store, &parent, &child);
 
     // Pre-CE audit (as production prepare path does — no projection deletes yet).
-    let outcome =
-        prepare_retention_apply(store, &ports.writer, &config(), "ret-finalize-1", true, false)
-            .unwrap();
+    let outcome = prepare_retention_apply(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-finalize-1",
+        true,
+        false,
+    )
+    .unwrap();
     let pre_ce_audits = store
         .read_all_events()
         .unwrap()

@@ -101,15 +101,13 @@ pub fn run_apply(
     };
 
     // Gates before any mutation: CE requires explicit scope + daemon.
-    let scope = match resolve_retention_apply_scope(
-        options.scope.as_deref(),
-        plan.totals.would_ce_wipe,
-    ) {
-        Ok(s) => s,
-        Err(msg) => {
-            return fail_api(format, ApiError::new("INVALID_PAYLOAD", msg));
-        }
-    };
+    let scope =
+        match resolve_retention_apply_scope(options.scope.as_deref(), plan.totals.would_ce_wipe) {
+            Ok(s) => s,
+            Err(msg) => {
+                return fail_api(format, ApiError::new("INVALID_PAYLOAD", msg));
+            }
+        };
 
     let handle = tokio::runtime::Handle::current();
 
@@ -276,12 +274,10 @@ pub fn resolve_retention_apply_scope(
 ) -> Result<Option<ScopeRef>, String> {
     let trimmed = scope.map(str::trim).filter(|s| !s.is_empty());
     match (production_apply_requires_scope(would_ce_wipe), trimmed) {
-        (true, None) => Err(
-            "retention apply with CE candidates requires --scope \
+        (true, None) => Err("retention apply with CE candidates requires --scope \
              (e.g. Repository:<uuid> or Personal:<uuid>); \
              refusing random default scope"
-                .into(),
-        ),
+            .into()),
         (_, Some(s)) => parse_scope_key(s)
             .map(Some)
             .map_err(|e| format!("invalid --scope: {e}")),
@@ -404,9 +400,11 @@ mod tests {
 
     #[test]
     fn resolve_retention_apply_scope__invalid_key__err() {
-        let err =
-            resolve_retention_apply_scope(Some("not-a-scope"), 1).expect_err("invalid");
-        assert!(err.contains("invalid --scope") || err.contains("unparseable"), "{err}");
+        let err = resolve_retention_apply_scope(Some("not-a-scope"), 1).expect_err("invalid");
+        assert!(
+            err.contains("invalid --scope") || err.contains("unparseable"),
+            "{err}"
+        );
     }
 
     #[test]

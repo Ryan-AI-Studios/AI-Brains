@@ -900,8 +900,7 @@ pub fn apply_retention_projections<W: EventWriter>(
     confirm: bool,
     dry_run: bool,
 ) -> Result<RetentionProjectionApplyOutcome> {
-    let mut outcome =
-        prepare_retention_apply(store, writer, config, command_id, confirm, dry_run)?;
+    let mut outcome = prepare_retention_apply(store, writer, config, command_id, confirm, dry_run)?;
     execute_retention_projection_deletes(store, &mut outcome)?;
     Ok(outcome)
 }
@@ -1092,10 +1091,7 @@ where
             }
             Err(e) => {
                 // Codex R2 P3: do not echo raw error Display (may embed full key).
-                errors.push(format!(
-                    "ce_wipe {key_disp}: {}",
-                    ce_wipe_error_code(&e)
-                ));
+                errors.push(format!("ce_wipe {key_disp}: {}", ce_wipe_error_code(&e)));
             }
         }
     }
