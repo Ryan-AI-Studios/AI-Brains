@@ -147,8 +147,10 @@ impl ImportMechanism {
 /// One planned classification action.
 ///
 /// Body fields (`content`, `title`, `statement`) are always full text for apply
-/// and are **excluded** from [`plan_hash`](compute_plan_hash) (L15 / §6.1).
-/// Truncation is report-only via [`plan_report_json`].
+/// **in-process** and are **excluded** from public serde serialization (L15),
+/// from [`plan_hash`](compute_plan_hash) (§6.1), and from default
+/// [`plan_report_json`]. Truncation is report-only via
+/// [`plan_report_json`] with `include_truncated_summaries = true`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportAction {
     pub kind: ImportActionKind,
@@ -161,13 +163,15 @@ pub struct ImportAction {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unsupported: Option<bool>,
     /// Apply body — always full content (not truncated; not in plan_hash).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Skipped on serde serialize so accidental `serde_json::to_string(plan)`
+    /// never leaks plaintext (L15 / Codex R1-P1). Still available in-process.
+    #[serde(default, skip_serializing)]
     pub content: Option<String>,
-    /// Apply-only title for decisions (not in plan_hash).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Apply-only title for decisions (not in plan_hash / not serialized).
+    #[serde(default, skip_serializing)]
     pub title: Option<String>,
-    /// Apply-only statement for conclusions/decisions (not in plan_hash).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Apply-only statement for conclusions/decisions (not in plan_hash / not serialized).
+    #[serde(default, skip_serializing)]
     pub statement: Option<String>,
     /// Privacy for applied envelopes (from source envelope; L12).
     pub privacy: Privacy,
@@ -250,6 +254,9 @@ pub const REASON_LEGACY_SUMMARY: &str = "legacy_summary";
 pub const REASON_LEGACY_SYNTH: &str = "legacy_synth";
 pub const REASON_LEGACY_DECISION: &str = "legacy_decision";
 pub const REASON_LEGACY_REVIEW: &str = "legacy_review";
+/// A later `MemoryPinned` for the same `memory_id` supersedes this pin
+/// (last-write wins for apply content; discarded pin gets a plan Skip row).
+pub const REASON_SUPERSEDED_DUPLICATE_PIN: &str = "superseded_duplicate_pin";
 
 // ---------------------------------------------------------------------------
 // Id helpers
@@ -413,7 +420,10 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> Result<ImportP
         let privacy = env.privacy;
         match &env.payload {
             Payload::MemoryPinned(p) => {
-                pins.insert(
+                // Last-write wins for pin content (matches restore/later-event
+                // semantics). The discarded earlier pin is not silent-lost:
+                // emit a Skip row so L11 provenance covers every original event.
+                if let Some(prev) = pins.insert(
                     p.memory_id,
                     PendingPin {
                         event_id: env.event_id,
@@ -423,7 +433,27 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> Result<ImportP
                         source_tag: p.source_tag.clone(),
                         privacy,
                     },
-                );
+                ) {
+                    actions.push(ImportAction {
+                        kind: ImportActionKind::Skip,
+                        original_event_id: prev.event_id,
+                        derived_id: String::new(),
+                        reason_code: REASON_SUPERSEDED_DUPLICATE_PIN.into(),
+                        mechanism: ImportMechanism::Skip,
+                        source_tag: prev.source_tag,
+                        unsupported: None,
+                        content: None,
+                        title: None,
+                        statement: None,
+                        privacy: prev.privacy,
+                        scope_key: None,
+                        evidence_ids: Vec::new(),
+                        related_decision_id: None,
+                        original_memory_id: Some(prev.memory_id.to_string()),
+                        session_id: None,
+                    });
+                    totals.skipped += 1;
+                }
                 // Pin implies active unless later forgotten.
                 status.entry(p.memory_id).or_insert(MemoryStatus::Active);
             }
@@ -1139,6 +1169,14 @@ where
     if !apply_opts.confirm {
         return Err(ControlPlaneError::InvalidPayload(
             "apply_legacy_import requires ApplyOpts.confirm = true (L1)".into(),
+        ));
+    }
+
+    // Reject nil principal on confirmed apply — default ImportOpts uses nil for
+    // dry-run/classify only; governance proposer/opened-by must be real (Codex R1).
+    if plan.principal_id.as_uuid().is_nil() {
+        return Err(ControlPlaneError::InvalidPayload(
+            "apply_legacy_import requires a non-nil plan.principal_id (nil principal is only valid for dry-run classify)".into(),
         ));
     }
 

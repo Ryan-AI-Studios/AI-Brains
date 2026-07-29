@@ -5,9 +5,10 @@
 
 use ai_brains_control_plane::{
     ApplyOpts, GovernedQueryStore, ImportActionKind, ImportMechanism, ImportOpts,
-    NS_LEGACY_DECISION, NS_LEGACY_EVIDENCE, StorePorts, SystemClock, apply_legacy_import,
-    classify_legacy, compute_plan_hash, id_from_command, legacy_conclusion_id, legacy_decision_id,
-    legacy_evidence_id, legacy_review_id, legacy_source_id, plan_report_json,
+    NS_LEGACY_DECISION, NS_LEGACY_EVIDENCE, REASON_SUPERSEDED_DUPLICATE_PIN, StorePorts,
+    SystemClock, apply_legacy_import, classify_legacy, compute_plan_hash, id_from_command,
+    legacy_conclusion_id, legacy_decision_id, legacy_evidence_id, legacy_review_id,
+    legacy_source_id, plan_report_json,
 };
 use ai_brains_core::ids::{MemoryId, PrincipalId, ProjectId, SessionId, UserId};
 use ai_brains_core::privacy::Privacy;
@@ -196,6 +197,62 @@ fn classify__memory_pinned__evidence_not_conclusion() {
     assert_eq!(plan.totals.evidence, 1);
     assert_eq!(plan.totals.conclusion, 0);
     assert_eq!(evidence[0].mechanism, ImportMechanism::WouldAppend);
+}
+
+#[test]
+fn classify__duplicate_memory_pin__last_write_wins_with_skip() {
+    // Codex R1-P2: second MemoryPinned for same memory_id last-write-wins for
+    // content; discarded first pin gets a Skip row (no silent loss / L11).
+    let mid = MemoryId::from_uuid(Uuid::from_u128(4));
+    let first = pin_event(mid, "first-pin-body", None, Some("tag-a"));
+    let second = pin_event(mid, "second-pin-body-wins", None, Some("tag-b"));
+    let first_id = first.event_id;
+    let second_id = second.event_id;
+    assert_ne!(
+        first_id, second_id,
+        "EventBuilder must yield distinct event_ids"
+    );
+    let plan = classify_legacy(&[first, second], &opts()).unwrap();
+
+    let skips: Vec<_> = plan
+        .actions
+        .iter()
+        .filter(|a| {
+            a.kind == ImportActionKind::Skip && a.reason_code == REASON_SUPERSEDED_DUPLICATE_PIN
+        })
+        .collect();
+    assert_eq!(
+        skips.len(),
+        1,
+        "exactly one superseded skip for discarded pin"
+    );
+    assert_eq!(
+        skips[0].original_event_id, first_id,
+        "skip must cite the discarded (first) original_event_id"
+    );
+    assert_eq!(
+        skips[0].original_memory_id.as_deref(),
+        Some(mid.to_string().as_str())
+    );
+
+    let evidence: Vec<_> = plan
+        .actions
+        .iter()
+        .filter(|a| a.kind == ImportActionKind::Evidence)
+        .collect();
+    assert_eq!(evidence.len(), 1, "one evidence from last-write pin");
+    assert_eq!(evidence[0].original_event_id, second_id);
+    assert_eq!(
+        evidence[0].content.as_deref(),
+        Some("second-pin-body-wins"),
+        "last-write wins for apply content"
+    );
+    assert_eq!(evidence[0].source_tag.as_deref(), Some("tag-b"));
+    assert_eq!(plan.totals.evidence, 1);
+    assert!(
+        plan.totals.skipped >= 1,
+        "totals.skipped must count superseded pin"
+    );
 }
 
 #[test]
@@ -613,12 +670,45 @@ fn plan_hash__omits_body_plaintext() {
 fn report__no_full_plaintext_by_default() {
     let mid = MemoryId::from_uuid(Uuid::from_u128(90));
     let secret = "SUPER_SECRET_BODY_MUST_NOT_APPEAR";
-    let events = vec![pin_event(mid, secret, None, None)];
+    let title_secret = "SECRET_DECISION_TITLE_MUST_NOT_APPEAR";
+    let statement_secret = "SECRET_STATEMENT_MUST_NOT_APPEAR";
+    let project = ProjectId::from_uuid(Uuid::from_u128(91));
+    let leg = MemoryId::from_uuid(Uuid::from_u128(92));
+    let events = vec![
+        pin_event(mid, secret, None, None),
+        decision_event(leg, title_secret, statement_secret, Some(project)),
+    ];
     let plan = classify_legacy(&events, &opts()).unwrap();
+    // Intentional operator report path (L15).
     let json = plan_report_json(&plan, false).unwrap();
     assert!(!json.contains(secret));
+    assert!(!json.contains(title_secret));
+    assert!(!json.contains(statement_secret));
     assert!(json.contains("plan_hash"));
     assert!(json.contains("legacy_pin") || json.contains("evidence"));
+
+    // Codex R1-P1: raw Serialize of ImportPlan/ImportAction must also omit bodies
+    // (#[serde(skip_serializing)] on content/title/statement).
+    let raw = serde_json::to_string(&plan).expect("plan Serialize");
+    assert!(
+        !raw.contains(secret),
+        "serde_json::to_string(&plan) must not emit pin content"
+    );
+    assert!(
+        !raw.contains(title_secret),
+        "serde_json::to_string(&plan) must not emit decision title"
+    );
+    assert!(
+        !raw.contains(statement_secret),
+        "serde_json::to_string(&plan) must not emit statement body"
+    );
+    // In-process fields remain full for apply.
+    assert!(
+        plan.actions
+            .iter()
+            .any(|a| a.content.as_deref() == Some(secret)),
+        "in-process content must remain full"
+    );
 }
 
 #[test]
@@ -799,6 +889,66 @@ fn apply__without_confirm__refuses() {
     )
     .unwrap_err();
     assert!(err.to_string().contains("confirm"));
+}
+
+#[test]
+fn apply__nil_principal__refuses() {
+    // Codex R1-P2: default ImportOpts uses nil principal; confirm apply must reject it.
+    // Dry-run/classify with nil principal remains OK; only confirm apply is gated.
+    let (_t, ports) = open_ports();
+    let mid = MemoryId::from_uuid(Uuid::from_u128(141));
+    let project = ProjectId::from_uuid(Uuid::from_u128(1410));
+    // Scope from project_id so classify succeeds without default_scope.
+    let events = vec![pin_event(mid, "needs real principal", Some(project), None)];
+    let mut dry = ImportOpts::default();
+    assert!(dry.principal_id.as_uuid().is_nil());
+    let plan = classify_legacy(&events, &dry).unwrap();
+    assert!(
+        plan.principal_id.as_uuid().is_nil(),
+        "default classify may use nil principal"
+    );
+    assert!(
+        plan.actions
+            .iter()
+            .any(|a| a.kind == ImportActionKind::Evidence),
+        "classify should still plan evidence under nil principal"
+    );
+    let err = apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("principal") || msg.contains("nil"),
+        "expected nil-principal rejection, got: {msg}"
+    );
+    // Mutating principal on opts after classify does not matter — plan carries principal_id.
+    dry.principal_id = PrincipalId::from_uuid(Uuid::from_u128(7));
+    let plan_ok = classify_legacy(&events, &dry).unwrap();
+    assert!(!plan_ok.principal_id.as_uuid().is_nil());
+}
+
+#[test]
+fn apply__non_nil_principal__succeeds() {
+    let (_t, ports) = open_ports();
+    let mid = MemoryId::from_uuid(Uuid::from_u128(142));
+    let events = vec![pin_event(mid, "real principal ok", None, None)];
+    let plan = classify_legacy(&events, &opts()).unwrap();
+    assert!(!plan.principal_id.as_uuid().is_nil());
+    let report = apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap();
+    assert!(report.applied >= 1);
+    assert!(report.legacy_import_applied);
 }
 
 #[test]
