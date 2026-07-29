@@ -2,7 +2,9 @@
 //!
 //! - **M1** Dry-run default; `--confirm` for dest materialize + T167 apply.
 //! - **M2** Classification / apply only via T167 (`classify_legacy` / `apply_legacy_import`).
-//! - **M3/M6** Destination safety via `shadow::refuse_unsafe_destination`.
+//! - **M3/M6** Destination safety via `shadow::refuse_unsafe_destination`, plus
+//!   multi-link (hardlink) dest refuse so confirm cannot R/W-open a dest that
+//!   shares an inode with source/live (Codex R3).
 //! - **M4/M11** Report has no plaintext bodies; CE honesty false.
 //! - **M5** Never `migrate()` source; source open via pure RO
 //!   `VaultConnection::open_read_intent`; fingerprint re-verify **after** all
@@ -10,6 +12,8 @@
 //! - **M7** Live source refused unless `--allow-live-source`.
 //! - **M8** `refuse_unsafe_report_path` for report location (incl. migrate-manifest,
 //!   hardlink refuse when path exists).
+//! - **M18** `refuse_unsafe_manifest_path`: sibling manifest must not collide with
+//!   source/dest or be reparse/hardlink before any confirm write.
 //! - **M15** Missing source → `NOT_FOUND` exit 4.
 //! - **M16** Content-based `migrate_source_fingerprint`.
 //! - **M17/M18** Re-apply: import-only when dest non-empty + matching manifest.
@@ -232,6 +236,12 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
     refuse_unsafe_destination(&opts.source, &opts.destination, live.as_deref())
         .map_err(|e| path_refused(rewrite_refuse_prefix(e.to_string())))?;
 
+    // Codex R3 — multi-link dest bypasses path-string equality (hardlink to source/live).
+    // Skip when --force-overwrite: confirm deletes dest first then re-checks after wipe.
+    if opts.destination.exists() && !opts.force_overwrite {
+        refuse_hardlink_destination(&opts.destination)?;
+    }
+
     // M7 — live source gate.
     if let Some(ref live_path) = live
         && paths_refer_to_same_location(&opts.source, live_path)
@@ -245,6 +255,9 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
 
     // M8 — report path safety (incl. refuse overwriting migrate-manifest).
     refuse_unsafe_report_path(&opts.report, &opts.source, &opts.destination)?;
+
+    // M18 / Codex R3 — manifest sibling must not collide with source/dest or be reparse.
+    refuse_unsafe_manifest_path(&opts.source, &opts.destination)?;
 
     // M15 — missing source is NOT_FOUND (exit 4), not a generic COMMAND_FAILED.
     if !opts.source.exists() {
@@ -469,9 +482,15 @@ fn run_confirm_materialize(
         fs::create_dir_all(parent)?;
     }
 
-    // Soft TOCTOU re-check after mkdir.
+    // Soft TOCTOU re-check after mkdir / force-overwrite wipe.
     refuse_unsafe_destination(&opts.source, &opts.destination, live)
         .map_err(|e| path_refused(rewrite_refuse_prefix(e.to_string())))?;
+    // Multi-link dest after wipe: still refuse if something re-linked the path.
+    if opts.destination.exists() {
+        refuse_hardlink_destination(&opts.destination)?;
+    }
+    // Manifest path may become unsafe if dest parent/layout changed (force-overwrite).
+    refuse_unsafe_manifest_path(&opts.source, &opts.destination)?;
 
     let dest_conn = VaultConnection::open(&opts.destination, dest_key).map_err(|e| {
         format!(
@@ -898,6 +917,55 @@ pub fn refuse_unsafe_report_path(
         return fail_path_refused(format!("refusing migrate report parent: {msg}"));
     }
 
+    Ok(())
+}
+
+/// M18 / Codex R3 — refuse unsafe migrate-manifest sibling **before** confirm work.
+///
+/// Catches: source or dest named `migrate-manifest.json` (sibling path collides),
+/// existing reparse/symlink at the manifest path, and multi-link manifest targets.
+pub fn refuse_unsafe_manifest_path(
+    source: &Path,
+    destination: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let manifest = migrate_manifest_path(destination);
+    if paths_refer_to_same_location(&manifest, source) {
+        return fail_path_refused(
+            "refusing migrate: migrate-manifest.json path equals the source vault file \
+             (source must not be named migrate-manifest.json next to destination)",
+        );
+    }
+    if paths_refer_to_same_location(&manifest, destination) {
+        return fail_path_refused(
+            "refusing migrate: migrate-manifest.json path equals the destination vault file \
+             (destination must not be named migrate-manifest.json)",
+        );
+    }
+    if manifest.exists() {
+        if let Err(msg) = refuse_if_reparse(&manifest, is_reparse_or_symlink(&manifest)?) {
+            return fail_path_refused(format!("refusing migrate-manifest path: {msg}"));
+        }
+        if let Err(msg) = refuse_if_hardlink(&manifest, is_hardlink(&manifest)?) {
+            return fail_path_refused(format!("refusing migrate-manifest path: {msg}"));
+        }
+    }
+    Ok(())
+}
+
+/// Codex R3 / M5–M6 — refuse multi-link destination (hardlink to source/live or any nlink>1).
+///
+/// Path-string equality alone cannot detect hardlinks; confirm opens dest R/W and would
+/// mutate the shared inode.
+fn refuse_hardlink_destination(destination: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    if !destination.exists() {
+        return Ok(());
+    }
+    if let Err(msg) = refuse_if_hardlink(destination, is_hardlink(destination)?) {
+        return fail_path_refused(format!(
+            "refusing migrate: destination is a hardlink (multi-link file); \
+             writing would mutate shared data (source/live): {msg}"
+        ));
+    }
     Ok(())
 }
 
@@ -1364,6 +1432,97 @@ mod tests {
         fs::hard_link(&source, &manifest).expect("hardlink manifest -> source");
         let err = refuse_hardlink_write_target(&manifest, "migrate-manifest")
             .expect_err("must refuse hardlinked manifest");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("hardlink") || msg.contains("link count") || msg.contains("PATH_REFUSED"),
+            "expected hardlink refuse, got: {msg}"
+        );
+    }
+
+    /// Dest hardlinked to source must refuse (Codex R3) — path equality alone is insufficient.
+    #[test]
+    fn refuse_hardlink_destination__hardlink_to_source__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest.db");
+        fs::write(&source, b"vault-bytes").expect("source");
+        fs::hard_link(&source, &dest).expect("hardlink dest -> source");
+        assert!(
+            is_hardlink(&dest).expect("nlink"),
+            "precondition: dest must be hardlink"
+        );
+        let err = refuse_hardlink_destination(&dest).expect_err("must refuse hardlinked dest");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("hardlink") || msg.contains("link count") || msg.contains("PATH_REFUSED"),
+            "expected hardlink dest refuse, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn refuse_hardlink_destination__regular_file__ok() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dest = dir.path().join("dest.db");
+        fs::write(&dest, b"vault-bytes").expect("dest");
+        refuse_hardlink_destination(&dest).expect("single-link dest must be allowed");
+    }
+
+    #[test]
+    fn refuse_hardlink_destination__missing__ok() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dest = dir.path().join("missing.db");
+        refuse_hardlink_destination(&dest).expect("missing dest must be allowed");
+    }
+
+    /// Source named migrate-manifest.json next to dest → sibling path == source (Codex R3).
+    #[test]
+    fn refuse_unsafe_manifest_path__equals_source__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("migrate-manifest.json");
+        let dest = dir.path().join("vault.db");
+        fs::write(&source, b"x").expect("source");
+        let err = refuse_unsafe_manifest_path(&source, &dest).expect_err("must refuse");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("source") && msg.contains("migrate-manifest"),
+            "got: {msg}"
+        );
+    }
+
+    /// Dest named migrate-manifest.json → manifest path == dest vault file (Codex R3).
+    #[test]
+    fn refuse_unsafe_manifest_path__equals_destination__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("migrate-manifest.json");
+        fs::write(&dest, b"x").expect("dest");
+        let err = refuse_unsafe_manifest_path(&source, &dest).expect_err("must refuse");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("destination") && msg.contains("migrate-manifest"),
+            "got: {msg}"
+        );
+    }
+
+    #[test]
+    fn refuse_unsafe_manifest_path__normal_sibling__ok() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest").join("vault.db");
+        fs::write(&source, b"x").expect("source");
+        refuse_unsafe_manifest_path(&source, &dest).expect("normal paths must pass");
+    }
+
+    #[test]
+    fn refuse_unsafe_manifest_path__hardlinked_manifest__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest").join("vault.db");
+        let manifest = migrate_manifest_path(&dest);
+        fs::create_dir_all(dest.parent().expect("parent")).expect("mkdir");
+        fs::write(&source, b"vault-bytes").expect("source");
+        fs::hard_link(&source, &manifest).expect("hardlink manifest -> source");
+        let err = refuse_unsafe_manifest_path(&source, &dest).expect_err("must refuse");
         let msg = err.to_string();
         assert!(
             msg.contains("hardlink") || msg.contains("link count") || msg.contains("PATH_REFUSED"),

@@ -1320,3 +1320,114 @@ fn migrate_governed__refuse_hardlink_report_to_source() {
         "source events must remain readable after hardlink refuse"
     );
 }
+
+/// Destination hardlinked to source must refuse (Codex R3).
+///
+/// Path-string equality does not catch hardlinks; confirm would open dest R/W
+/// and mutate the shared source inode (M5/M6).
+#[test]
+fn migrate_governed__refuse_hardlink_dest_to_source() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("source.db");
+    let dest = dir.path().join("dest.db");
+    let report = dir.path().join("report.json");
+    init_vault(&source);
+    seed_memory_pinned(&source, "hardlink dest pin", true);
+
+    fs::hard_link(&source, &dest).expect("hard_link dest -> source");
+    let source_len_before = fs::metadata(&source).expect("source meta").len();
+    let source_events_before = event_count(&source);
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("hardlink")
+                .or(predicate::str::contains("link count"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+
+    assert_eq!(
+        fs::metadata(&source).expect("source meta").len(),
+        source_len_before,
+        "source vault must not be mutated via hardlinked dest"
+    );
+    assert_eq!(
+        event_count(&source),
+        source_events_before,
+        "source events must remain intact after hardlink dest refuse"
+    );
+}
+
+/// Source named `migrate-manifest.json` next to dest → manifest path collides (Codex R3).
+#[test]
+fn migrate_governed__refuse_source_named_migrate_manifest() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("migrate-manifest.json");
+    let dest = dir.path().join("vault.db");
+    let report = dir.path().join("report.json");
+    init_vault(&source);
+    seed_memory_pinned(&source, "manifest name collision pin", true);
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("migrate-manifest")
+                .and(predicate::str::contains("source"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+
+    // Source must still be readable (would have been overwritten by File::create).
+    assert!(
+        event_count(&source) >= 1,
+        "source must not be overwritten by migrate-manifest write"
+    );
+}
+
+/// Destination named `migrate-manifest.json` → manifest path collides with dest (Codex R3).
+#[test]
+fn migrate_governed__refuse_dest_named_migrate_manifest() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("source.db");
+    let dest = dir.path().join("migrate-manifest.json");
+    let report = dir.path().join("report.json");
+    init_vault(&source);
+    seed_memory_pinned(&source, "dest manifest name pin", true);
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("migrate-manifest")
+                .and(predicate::str::contains("destination"))
+                .or(predicate::str::contains("PATH_REFUSED")),
+        );
+}
