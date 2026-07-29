@@ -5,7 +5,8 @@
 
 use ai_brains_control_plane::{
     AllowAllPolicy, RetentionApplyCommand, RetentionConfig, StoreContentEnvelopeWipe, StorePorts,
-    SystemClock, apply_retention, make_principal, nightly_ce_enabled, plan_retention,
+    SystemClock, apply_retention, apply_retention_projections, make_principal, nightly_ce_enabled,
+    plan_retention,
 };
 use ai_brains_core::ids::{ContentKeyId, PrincipalId, UserId};
 use ai_brains_core::principal::PrincipalKind;
@@ -692,6 +693,121 @@ fn retention_apply__idempotent_second_run() {
     .unwrap();
     // Key already destroyed → not an active secret candidate; zero CE is fine
     assert_eq!(report.mode, "apply");
+}
+
+#[test]
+fn retention_plan__linked_turn_held_or_skip_envelope__no_projection_delete() {
+    // F-002 / R13: any known turn↔envelope join suppresses stream-A projection_delete
+    // even when stream-B mechanism is held or within-horizon skip (not only ce_wipe).
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let sid = Uuid::new_v4().to_string();
+    let old_turn = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old_turn);
+
+    let key = ContentKeyId::new();
+    let recent = Utc::now().to_rfc3339();
+    insert_active_key(store, &key, &recent);
+    let turn_subject = format!("{sid}:0");
+    insert_blob(
+        store,
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("secret"),
+        Some("turn"),
+        Some(&turn_subject),
+        &recent,
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    let raw_proj = report
+        .classes
+        .iter()
+        .find(|c| c.class == "raw_turn" && c.mechanism == "projection_delete");
+    assert!(
+        raw_proj.is_none() || raw_proj.unwrap().candidate_count == 0,
+        "R13: linked turn must not projection_delete when join known: {report:?}"
+    );
+}
+
+#[test]
+fn retention_plan__multi_subject_mixed_pin__held() {
+    // F-003 / R11: any pinned memory subject holds the whole content_key.
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let pinned_id = Uuid::new_v4().to_string();
+    let unpinned_id = Uuid::new_v4().to_string();
+    insert_memory(store, &pinned_id, "pinned", "pinned-body");
+    insert_memory(store, &unpinned_id, "active", "unpinned-body");
+    let key = ContentKeyId::new();
+    let old = (Utc::now() - Duration::days(30)).to_rfc3339();
+    insert_active_key(store, &key, &old);
+    insert_blob(
+        store,
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("secret"),
+        Some("memory"),
+        Some(&pinned_id),
+        &old,
+    );
+    insert_blob(
+        store,
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("secret"),
+        Some("memory"),
+        Some(&unpinned_id),
+        &old,
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    assert!(
+        report.totals.would_held >= 1,
+        "mixed pin must hold key: {report:?}"
+    );
+    assert_eq!(
+        report.totals.would_ce_wipe, 0,
+        "must not ce_wipe when any subject pinned: {report:?}"
+    );
+}
+
+#[test]
+fn retention_apply__projections_only__defers_ce_no_local_destroy() {
+    // F-001: production path uses apply_retention_projections; wrap stays active.
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let key = ContentKeyId::new();
+    let old = (Utc::now() - Duration::days(30)).to_rfc3339();
+    insert_active_key(store, &key, &old);
+    insert_blob(
+        store,
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("secret"),
+        None,
+        None,
+        &old,
+    );
+
+    let outcome =
+        apply_retention_projections(store, &ports.writer, &config(), "ret-proj-1", true, false)
+            .unwrap();
+    assert!(
+        !outcome.pending_ce_keys.is_empty(),
+        "CE keys must be deferred: {outcome:?}"
+    );
+    assert_eq!(outcome.pending_ce_keys, vec![key.to_string()]);
+
+    let conn = store.connection().lock().unwrap();
+    let wrap = content_envelope::get_content_key_wrap(&conn, &key.to_string())
+        .unwrap()
+        .expect("key row");
+    assert_eq!(
+        wrap.status, "active",
+        "projections path must not destroy wrap"
+    );
+    assert!(wrap.wrap_nonce.is_some());
 }
 
 #[test]

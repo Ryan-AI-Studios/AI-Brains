@@ -31,10 +31,13 @@ impl RetentionService {
             .unwrap_or(default_days)
     }
 
-    /// R7: nightly must not auto-execute CE bulk without opt-in.
+    /// R7: nightly must not auto-execute CE bulk.
     ///
     /// True only when `AI_BRAINS_RETENTION_APPLY_CE=1` (or true/yes) or
     /// `AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY` is set similarly.
+    ///
+    /// **Honesty:** this flag does **not** enable nightly CE — it only logs intent.
+    /// Class CE remains `ai-brains retention apply --confirm` (daemon for CE rows).
     pub fn apply_ce_on_nightly_from_env() -> bool {
         env_truthy("AI_BRAINS_RETENTION_APPLY_CE")
             || env_truthy("AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY")
@@ -43,14 +46,12 @@ impl RetentionService {
     /// Projection-only raw turn cleanup. Never calls CE wipe (R2/R7).
     pub async fn run_cleanup(&self) -> Result<usize, Box<dyn std::error::Error>> {
         if Self::apply_ce_on_nightly_from_env() {
-            // Opt-in flag is recognized but nightly still does not run CE in this
-            // service — class CE apply is operator-driven (`retention apply --confirm`).
             warn!(
-                "AI_BRAINS_RETENTION_APPLY_CE is set; nightly still runs projection-only raw-turn cleanup (use `ai-brains retention apply --confirm` for class CE)"
+                "AI_BRAINS_RETENTION_APPLY_CE is set; this flag only logs intent — nightly still runs projection-only raw-turn cleanup (use `ai-brains retention apply --confirm` with daemon for class CE)"
             );
         } else {
             info!(
-                "Nightly CE bulk disabled (default; set AI_BRAINS_RETENTION_APPLY_CE=1 only as operator opt-in documentation — apply remains confirm-gated CLI)"
+                "Nightly CE bulk disabled (default). AI_BRAINS_RETENTION_APPLY_CE only documents intent when set; CE apply is CLI+daemon+confirm only"
             );
         }
 

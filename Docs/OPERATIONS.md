@@ -187,11 +187,14 @@ ai-brains retention apply --confirm --format json
 | Rule | Behavior |
 |------|----------|
 | Dry-run default | `retention plan` is report-only; `retention apply` **refuses** without `--confirm` |
-| One CE path | Envelope classes call the same T165 `wipe_content_envelope` path — **no** parallel destroy |
+| One CE path | Envelope classes use the same T165 `wipe_content_envelope` path — **no** parallel destroy |
+| Production apply dual path | **Projection** deletes run in-process. **CE** (`ce_wipe`) rows **require the daemon** (parity T165 E8); if any CE candidate exists and the daemon is down, apply fails with `DAEMON_UNAVAILABLE` before disposal. Projection-only apply may run without the daemon. |
 | Legacy ≠ CE | Stream A projection `DELETE` is **never** labeled cryptographic erasure |
 | Reports | Counts, class, mechanism, truncated sample ids only — **no** plaintext bodies |
 | Approved decisions | Active `Approved` decisions are **not** age-wiped; only terminal `Revoked`/`Superseded` after cooldown |
-| Nightly CE | **Off by default** (`AI_BRAINS_RETENTION_APPLY_CE` / `APPLY_CE_ON_NIGHTLY`); nightly continues raw-turn projection cleanup only |
+| Nightly CE | **Never auto-applied.** `AI_BRAINS_RETENTION_APPLY_CE` / `APPLY_CE_ON_NIGHTLY` only **log intent**; they do **not** enable nightly CE. Nightly runs class dry-run log + raw-turn projection cleanup. Class CE remains confirm-gated CLI + daemon. |
+| Pin hold (R11) | If **any** memory subject linked to a content key is pinned, the key is `held` (not age CE-wiped). |
+| R15 cascade residual | Hierarchy cascade may mark a parent `stale` for resynthesis even if that parent was `pinned` (pin superseded by synthesis staleness after child CE). |
 | Audit | Apply appends `RetentionApplied` (class counts/mechanisms; no bodies). Dry-run does not. |
 
 **Class matrix (v1 defaults)**
@@ -221,7 +224,7 @@ ai-brains retention apply --confirm --format json
 | `AI_BRAINS_RETENTION_REVIEW_TRACE_DAYS` | 90 |
 | `AI_BRAINS_RETENTION_DECISION_REVOKED_COOLDOWN_DAYS` | 30 |
 | `AI_BRAINS_RETENTION_ORPHAN_ENVELOPE_DAYS` | 7 |
-| `AI_BRAINS_RETENTION_APPLY_CE` / `AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY` | false — documents opt-in; confirm-gated CLI remains the CE apply path |
+| `AI_BRAINS_RETENTION_APPLY_CE` / `AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY` | false — **intent log only**; does **not** enable nightly CE. CE apply is `retention apply --confirm` + daemon only |
 
 **Honesty on every plan/apply with CE candidates:** not NIST Purge; pre-erase backups residual; ticket/soft forget ≠ CE; stream independence until subject join; legacy projection delete ≠ CE.
 

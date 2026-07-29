@@ -163,15 +163,16 @@ impl NightlyService {
         }
 
         // Retention Cleanup — raw-turn projection only (default 90d; env override).
-        // Class CE apply is NOT run on nightly unless operators use confirm-gated CLI (R7).
+        // Class CE is NEVER auto-applied on nightly (R7). APPLY_CE env only logs intent.
+        // Class-matrix dry-run is logged by the CLI nightly entrypoint (F-004).
         let retention_days = RetentionService::days_from_env(90);
         eprintln!(
-            "[Nightly] Running retention cleanup ({}-day raw-turn horizon; CE bulk off by default)...",
+            "[Nightly] Running retention cleanup ({}-day raw-turn horizon; CE bulk never auto-applied)...",
             retention_days
         );
         if RetentionService::apply_ce_on_nightly_from_env() {
             eprintln!(
-                "[Nightly] Note: AI_BRAINS_RETENTION_APPLY_CE is set; nightly still skips class CE (use `ai-brains retention apply --confirm`)."
+                "[Nightly] Note: AI_BRAINS_RETENTION_APPLY_CE is set; flag only logs intent — nightly still skips class CE (use `ai-brains retention apply --confirm` with daemon)."
             );
         }
         let retention = RetentionService::new(self.query_store.clone(), retention_days);

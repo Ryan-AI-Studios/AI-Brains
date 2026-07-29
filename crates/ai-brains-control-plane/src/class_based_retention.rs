@@ -242,7 +242,9 @@ fn collect_candidates(
 
     let mut candidates: Vec<Candidate> = Vec::new();
     let mut seen_ids: BTreeSet<String> = BTreeSet::new();
-    let mut turn_ids_covered_by_ce: BTreeSet<String> = BTreeSet::new();
+    // R13: any known turn↔envelope join suppresses stream-A projection_delete
+    // for that turn, regardless of stream-B mechanism (ce_wipe / held / skip).
+    let mut turn_ids_covered_by_envelope: BTreeSet<String> = BTreeSet::new();
     let mut seen_content_keys: BTreeSet<String> = BTreeSet::new();
 
     for env in &envelopes {
@@ -251,9 +253,7 @@ fn collect_candidates(
         }
         let c = classify_envelope(env, config, now, &pinned)?;
         for t in &env.turn_subject_ids {
-            if c.mechanism == MECHANISM_CE_WIPE {
-                turn_ids_covered_by_ce.insert(t.clone());
-            }
+            turn_ids_covered_by_envelope.insert(t.clone());
         }
         if seen_ids.insert(c.id.clone()) {
             candidates.push(c);
@@ -266,8 +266,8 @@ fn collect_candidates(
         .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
     for t in turns {
         let id = t.identity();
-        // R13: when turn↔envelope join known and CE covers it, skip projection_delete.
-        if turn_ids_covered_by_ce.contains(&id) {
+        // R13: when turn↔envelope join known, stream B wins — skip projection_delete.
+        if turn_ids_covered_by_envelope.contains(&id) {
             continue;
         }
         if !seen_ids.insert(format!("turn:{id}")) {
@@ -445,10 +445,9 @@ fn classify_envelope(
         });
     }
 
-    // R11 pin hold: sole subjects are pinned memories
-    if !env.memory_subject_ids.is_empty()
-        && env.memory_subject_ids.iter().all(|m| pinned.contains(m))
-    {
+    // R11 pin hold: if **any** linked memory subject is pinned, hold the whole key
+    // (do not age-based CE-wipe; protects pinned subjects sharing an envelope).
+    if env.memory_subject_ids.iter().any(|m| pinned.contains(m)) {
         return Ok(Candidate {
             stream: Stream::B,
             class: class.to_string(),
@@ -671,16 +670,165 @@ pub struct RetentionApplyCommand {
     pub scope: ScopeRef,
     pub command_id: String,
     pub confirm: bool,
-    /// When true (default), plan only — refuse destructive work.
+    /// When true, plan only — refuse destructive work.
     pub dry_run: bool,
 }
 
-/// Apply a retention plan. Refuses without `confirm && !dry_run` (R1).
+/// Outcome of projection-only apply (production CLI path).
+///
+/// CE keys are listed for daemon wipe; cascade + audit are completed via
+/// [`finalize_retention_apply`] after CE.
+#[derive(Debug, Clone)]
+pub struct RetentionProjectionApplyOutcome {
+    pub report: RetentionPlanReport,
+    /// Sorted unique content_key_ids needing CE (daemon path).
+    pub pending_ce_keys: Vec<String>,
+    /// Memory subject ids for R15 cascade after successful CE.
+    pub pending_cascade_memory_ids: Vec<String>,
+}
+
+/// Apply **projection** candidates only (local). Does not CE-wipe and does not
+/// append RetentionApplied when CE is still pending.
+///
+/// Production CLI uses this so CE can go through the daemon (T165 parity) without
+/// monomorphizing `wipe_content_envelope` into the CLI binary.
+pub fn apply_retention_projections<W: EventWriter>(
+    store: &SqliteEventStore,
+    writer: &W,
+    config: &RetentionConfig,
+    command_id: &str,
+    confirm: bool,
+    dry_run: bool,
+) -> Result<RetentionProjectionApplyOutcome> {
+    if dry_run || !confirm {
+        return Err(ControlPlaneError::InvalidPayload(
+            "retention apply requires confirm=true and dry_run=false (R1)".into(),
+        ));
+    }
+
+    let now = Utc::now();
+    let generated_at = now.to_rfc3339();
+    let candidates = collect_candidates(store, config, now)?;
+
+    let mut errors: Vec<String> = Vec::new();
+    let mut turns_to_delete: Vec<TurnKey> = Vec::new();
+    let mut query_traces: Vec<String> = Vec::new();
+    let mut reviews: Vec<String> = Vec::new();
+    let mut decisions: Vec<String> = Vec::new();
+    let mut ce_keys: Vec<String> = Vec::new();
+    let mut ce_memory_ids: Vec<String> = Vec::new();
+
+    for c in &candidates {
+        match c.mechanism.as_str() {
+            MECHANISM_HELD | MECHANISM_SKIP => {}
+            MECHANISM_PROJECTION_DELETE => {
+                if let Some(ref t) = c.turn {
+                    turns_to_delete.push(t.clone());
+                }
+                if let Some(ref id) = c.query_trace_id {
+                    query_traces.push(id.clone());
+                }
+                if let Some(ref id) = c.review_item_id {
+                    reviews.push(id.clone());
+                }
+                if let Some(ref id) = c.decision_id {
+                    decisions.push(id.clone());
+                }
+            }
+            MECHANISM_CE_WIPE => {
+                if let Some(ref key) = c.content_key_id {
+                    ce_keys.push(key.clone());
+                    ce_memory_ids.extend(c.memory_ids.iter().cloned());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    ce_keys.sort();
+    ce_keys.dedup();
+    ce_memory_ids.sort();
+    ce_memory_ids.dedup();
+
+    {
+        let conn = store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        if let Err(e) = ret_scan::delete_turns(&conn, &turns_to_delete) {
+            errors.push(format!("delete_turns: {e}"));
+        }
+        if let Err(e) = ret_scan::delete_query_traces(&conn, &query_traces) {
+            errors.push(format!("delete_query_traces: {e}"));
+        }
+        if let Err(e) = ret_scan::delete_review_items(&conn, &reviews) {
+            errors.push(format!("delete_review_items: {e}"));
+        }
+        if let Err(e) = ret_scan::delete_decisions(&conn, &decisions) {
+            errors.push(format!("delete_decisions: {e}"));
+        }
+    }
+
+    let deferred_ce = !ce_keys.is_empty();
+    let errors_count = errors.len() as u64;
+    let report = build_report(
+        RetentionReportMode::Apply,
+        &generated_at,
+        config,
+        &candidates,
+        RetentionCascade {
+            parents_marked_for_resynthesis: 0,
+        },
+        errors_count,
+        errors,
+    );
+
+    if !deferred_ce {
+        // No CE pending: cascade N/A for CE, append audit now.
+        append_retention_applied(writer, command_id, &report)?;
+    }
+
+    Ok(RetentionProjectionApplyOutcome {
+        report,
+        pending_ce_keys: ce_keys,
+        pending_cascade_memory_ids: ce_memory_ids,
+    })
+}
+
+/// Complete deferred-CE apply: R15 cascade + R12 RetentionApplied.
+pub fn finalize_retention_apply<W: EventWriter>(
+    store: &SqliteEventStore,
+    writer: &W,
+    command_id: &str,
+    cascade_memory_ids: &[String],
+    report: &mut RetentionPlanReport,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    let parents_marked = {
+        let conn = store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        ret_scan::mark_parents_for_resynthesis(&conn, cascade_memory_ids, &now)
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?
+    };
+    report.cascade.parents_marked_for_resynthesis = report
+        .cascade
+        .parents_marked_for_resynthesis
+        .saturating_add(parents_marked);
+    report.errors_count = report.errors.len() as u64;
+    append_retention_applied(writer, command_id, report)?;
+    Ok(())
+}
+
+/// Apply a retention plan in-process (fixture / test path). Refuses without
+/// `confirm && !dry_run` (R1).
 ///
 /// CE candidates call [`wipe_content_envelope`] only (R2). Appends
 /// [`Payload::RetentionApplied`] on successful apply path (R12).
 ///
-/// Ports mirror [`wipe_content_envelope`]; bundled for operator batch apply.
+/// **Production CLI must not use this for CE** — use
+/// [`apply_retention_projections`] + daemon wipe instead (T165 E8 parity).
 #[allow(clippy::too_many_arguments)]
 pub fn apply_retention<W, Q, C, P, S>(
     store: &SqliteEventStore,
@@ -744,6 +892,9 @@ where
         }
     }
 
+    ce_keys.sort();
+    ce_keys.dedup();
+
     // Projection deletes (batch, local)
     {
         let conn = store
@@ -764,7 +915,7 @@ where
         }
     }
 
-    // CE via T165 only (R2)
+    // CE via T165 only (R2) — fixture / in-process path
     for key_str in &ce_keys {
         let content_key_id = match ContentKeyId::from_str(key_str) {
             Ok(k) => k,

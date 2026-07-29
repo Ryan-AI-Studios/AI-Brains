@@ -36,8 +36,9 @@ pub use briefings::{
     render_personal_markdown, render_project_json, render_project_markdown,
 };
 pub use class_based_retention::{
-    NS_RETENTION_APPLY, RetentionApplyCommand, RetentionConfig, apply_retention,
-    nightly_ce_enabled, plan_retention,
+    NS_RETENTION_APPLY, RetentionApplyCommand, RetentionConfig, RetentionProjectionApplyOutcome,
+    apply_retention, apply_retention_projections, finalize_retention_apply, nightly_ce_enabled,
+    plan_retention,
 };
 pub use command_id::{
     NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, NS_WIPE_CONTENT_ENVELOPE,

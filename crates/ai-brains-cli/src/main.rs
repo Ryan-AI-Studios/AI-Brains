@@ -803,7 +803,7 @@ enum ErasureCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\nNightly CE is opt-in only (AI_BRAINS_RETENTION_APPLY_CE=1)."
+    after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\nNightly: AI_BRAINS_RETENTION_APPLY_CE only logs intent; CE is CLI+daemon+confirm only."
 )]
 enum RetentionCommands {
     /// Dry-run class matrix report (no disposal)
@@ -812,9 +812,9 @@ enum RetentionCommands {
         #[arg(long, default_value = "json")]
         format: Option<String>,
     },
-    /// Apply retention plan (requires --confirm; CE via T165 wipe only)
+    /// Apply retention plan (requires --confirm; CE via daemon T165 wipe)
     #[command(
-        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE\n  - Envelope classes call wipe_content_envelope only\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json"
+        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE (local)\n  - Envelope CE requires daemon + wipe_content_envelope only (T165)\n  - Projection-only apply may run without daemon\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json"
     )]
     Apply {
         #[arg(long, default_value = "json")]
@@ -830,6 +830,8 @@ enum RetentionCommands {
         /// Scope for CE wipe policy path (default Personal)
         #[arg(long)]
         scope: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
     },
 }
 
@@ -1715,6 +1717,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 dry_run,
                 command_id,
                 scope,
+                principal_id,
             } => commands::retention::run_apply(
                 &ctx,
                 commands::retention::ApplyOptions {
@@ -1723,6 +1726,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     dry_run: *dry_run,
                     command_id: command_id.clone(),
                     scope: scope.clone(),
+                    principal_id: principal_id.clone(),
                 },
             ),
         },
