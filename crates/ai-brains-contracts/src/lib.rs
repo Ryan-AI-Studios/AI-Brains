@@ -12,6 +12,7 @@ pub mod preflight;
 pub mod projects;
 pub mod recall;
 pub mod response;
+pub mod retention;
 pub mod review;
 pub mod scopes;
 pub mod sessions;
@@ -20,4 +21,8 @@ pub mod time_convert;
 pub mod version;
 
 pub use response::{ApiError, ApiResult};
+pub use retention::{
+    RetentionCascade, RetentionClassBucket, RetentionPlanReport, RetentionReportMode,
+    RetentionTotals,
+};
 pub use time_convert::offset_to_utc;

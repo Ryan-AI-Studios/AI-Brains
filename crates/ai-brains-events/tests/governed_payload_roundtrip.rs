@@ -228,6 +228,21 @@ fn remaining_governed_payloads__roundtrip_subset() {
             reason: Some("user request".into()),
             scope: Some("Personal:00000000-0000-0000-0000-0000000000u1".into()),
         }),
+        Payload::RetentionApplied(ai_brains_events::RetentionAppliedPayload {
+            command_id: "ret-cmd-1".into(),
+            mode: "apply".into(),
+            class_counts: vec![ai_brains_events::RetentionClassCount {
+                class: "raw_turn".into(),
+                count: 2,
+                mechanism: "projection_delete".into(),
+            }],
+            would_ce_wipe: 0,
+            would_projection_delete: 2,
+            would_skip: 0,
+            would_held: 0,
+            errors_count: 0,
+            sample_ids: vec!["turn:s:0".into()],
+        }),
     ];
     for p in cases {
         assert_eq!(roundtrip(p.clone()), p);

@@ -395,6 +395,14 @@ enum Commands {
         #[command(subcommand)]
         command: ErasureCommands,
     },
+    /// Class-based retention plan/apply (T166 / P8.4)
+    #[command(
+        after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm --format json\nHonesty: projection delete ≠ CE; CE reuses erasure wipe path for envelope classes only."
+    )]
+    Retention {
+        #[command(subcommand)]
+        command: RetentionCommands,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -790,6 +798,38 @@ enum ErasureCommands {
         daemon: bool,
         #[arg(long)]
         require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\nNightly CE is opt-in only (AI_BRAINS_RETENTION_APPLY_CE=1)."
+)]
+enum RetentionCommands {
+    /// Dry-run class matrix report (no disposal)
+    #[command(after_help = "Examples:\n  ai-brains retention plan --format json")]
+    Plan {
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+    },
+    /// Apply retention plan (requires --confirm; CE via T165 wipe only)
+    #[command(
+        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE\n  - Envelope classes call wipe_content_envelope only\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json"
+    )]
+    Apply {
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        /// Execute disposal (required). Without this flag the command refuses.
+        #[arg(long = "confirm", action = clap::ArgAction::SetTrue)]
+        confirm: bool,
+        /// Explicit plan-only (conflicts with --confirm)
+        #[arg(long = "dry-run", action = clap::ArgAction::SetTrue)]
+        dry_run: bool,
+        #[arg(long = "command-id")]
+        command_id: Option<String>,
+        /// Scope for CE wipe policy path (default Personal)
+        #[arg(long)]
+        scope: Option<String>,
     },
 }
 
@@ -1661,6 +1701,30 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 })
                 .await
             }
+        },
+        Commands::Retention { command } => match command {
+            RetentionCommands::Plan { format } => commands::retention::run_plan(
+                &ctx,
+                commands::retention::PlanOptions {
+                    format: format.clone(),
+                },
+            ),
+            RetentionCommands::Apply {
+                format,
+                confirm,
+                dry_run,
+                command_id,
+                scope,
+            } => commands::retention::run_apply(
+                &ctx,
+                commands::retention::ApplyOptions {
+                    format: format.clone(),
+                    confirm: *confirm,
+                    dry_run: *dry_run,
+                    command_id: command_id.clone(),
+                    scope: scope.clone(),
+                },
+            ),
         },
         Commands::Init { force } => commands::init::run(&ctx, *force),
         Commands::Ingest { dry_run } => commands::ingest::run(&ctx, *dry_run),

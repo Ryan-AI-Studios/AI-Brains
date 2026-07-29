@@ -175,6 +175,56 @@ Operators and docs must keep these mechanisms distinct. Normative design is [ADR
 - **Non-claims:** not NIST media **Purge**/**Destroy** (RustCrypto is not a FIPS-/NIST-validated module); not destruction of offline copies, exports, or **pre-erase backups**; not “SQLCipher vault lock = per-item CE”; WAL TRUNCATE is not media sanitization.
 - CLI and HTTP surfaces must **never** present `ErasureTicketAccepted` or soft forget as content-envelope wipe.
 
+### Class-based retention (T166 / P8.4)
+
+Retention is a **class-and-risk matrix**, not a single global clock. Dry-run **before** destroy is mandatory.
+
+```powershell
+ai-brains retention plan --format json
+ai-brains retention apply --confirm --format json
+```
+
+| Rule | Behavior |
+|------|----------|
+| Dry-run default | `retention plan` is report-only; `retention apply` **refuses** without `--confirm` |
+| One CE path | Envelope classes call the same T165 `wipe_content_envelope` path — **no** parallel destroy |
+| Legacy ≠ CE | Stream A projection `DELETE` is **never** labeled cryptographic erasure |
+| Reports | Counts, class, mechanism, truncated sample ids only — **no** plaintext bodies |
+| Approved decisions | Active `Approved` decisions are **not** age-wiped; only terminal `Revoked`/`Superseded` after cooldown |
+| Nightly CE | **Off by default** (`AI_BRAINS_RETENTION_APPLY_CE` / `APPLY_CE_ON_NIGHTLY`); nightly continues raw-turn projection cleanup only |
+| Audit | Apply appends `RetentionApplied` (class counts/mechanisms; no bodies). Dry-run does not. |
+
+**Class matrix (v1 defaults)**
+
+| Class | Stream | Horizon | Mechanism |
+|-------|--------|---------|-----------|
+| `raw_turn` | A (projection) | 90d | `projection_delete` (`delete_old_turns` / equivalent) |
+| `evidence` | B (envelope) | 365d | `ce_wipe` if `content_key` present |
+| `decision_approved` | A | revoked/superseded + 30d cooldown | projection cleanup of terminal rows only |
+| `secret` | B | 7d | `ce_wipe` |
+| `review_trace` | A | 90d from terminal `updated_at` | projection cleanup if closed |
+| `query_trace` | A | 30d | projection delete by `recorded_at` |
+| `memory_legacy` | A | none auto | pinned → `held` |
+| `orphaned_envelope` | B | 7d (active wrap, **0** blobs) | CE destroy wrap only |
+| `unclassified` | either | skip apply | listed in dry-run only |
+
+**Streams (R13):** Stream A identities are projection keys (turns, traces, decisions, …). Stream B is `content_key_id`. Plan never double-counts the same `content_key_id`. When a turn↔envelope join is known (`subject_kind=turn`, `subject_id={session_id}:{turn_index}`), CE wins and stream A projection delete for that turn is skipped. **Until capture writes that join, streams are independent** (documented residual: projection delete may run without CE of a sealed turn, and vice versa).
+
+**Env knobs** (`AI_BRAINS_RETENTION_*`)
+
+| Variable | Default |
+|----------|---------|
+| `AI_BRAINS_RETENTION_RAW_TURN_DAYS` | 90 |
+| `AI_BRAINS_RETENTION_EVIDENCE_DAYS` | 365 |
+| `AI_BRAINS_RETENTION_SECRET_DAYS` | 7 |
+| `AI_BRAINS_RETENTION_QUERY_TRACE_DAYS` | 30 |
+| `AI_BRAINS_RETENTION_REVIEW_TRACE_DAYS` | 90 |
+| `AI_BRAINS_RETENTION_DECISION_REVOKED_COOLDOWN_DAYS` | 30 |
+| `AI_BRAINS_RETENTION_ORPHAN_ENVELOPE_DAYS` | 7 |
+| `AI_BRAINS_RETENTION_APPLY_CE` / `AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY` | false — documents opt-in; confirm-gated CLI remains the CE apply path |
+
+**Honesty on every plan/apply with CE candidates:** not NIST Purge; pre-erase backups residual; ticket/soft forget ≠ CE; stream independence until subject join; legacy projection delete ≠ CE.
+
 ## 4. Project & Session Management
 
 ### Project Setup

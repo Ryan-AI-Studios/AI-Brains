@@ -10,6 +10,7 @@
 
 pub mod adapters;
 pub mod briefings;
+pub mod class_based_retention;
 pub mod command_id;
 pub mod conclusions;
 pub mod conflicts;
@@ -33,6 +34,10 @@ pub use briefings::{
     BRIEFING_POLICY_VERSION, BudgetConfig, PersonalBriefingRequest, ProjectBriefingRequest,
     apply_budget, apply_personal_budget, build_personal_briefing, build_project_briefing,
     render_personal_markdown, render_project_json, render_project_markdown,
+};
+pub use class_based_retention::{
+    NS_RETENTION_APPLY, RetentionApplyCommand, RetentionConfig, apply_retention,
+    nightly_ce_enabled, plan_retention,
 };
 pub use command_id::{
     NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, NS_WIPE_CONTENT_ENVELOPE,
