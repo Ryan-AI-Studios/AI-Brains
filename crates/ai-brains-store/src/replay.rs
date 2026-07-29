@@ -148,6 +148,12 @@ impl SqliteEventStore {
             projections::apply_all(&tx, &envelope)?;
         }
 
+        // 4. CE rebuild durability: side stores (destroyed wraps + blobs) are
+        // retained; event replay can rehydrate projection plaintext before
+        // ContentErased re-purges. Re-apply purge for every destroyed key /
+        // tombstone so residual plaintext cannot survive a full rebuild.
+        projections::content_envelope::reapply_purge_for_erased_content_keys(&tx)?;
+
         tx.commit()
             .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
 

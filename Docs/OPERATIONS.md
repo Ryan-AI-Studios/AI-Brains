@@ -138,36 +138,41 @@ ai-brains review list --scope Repository:<uuid>
 ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local
 ai-brains decision propose --statement "..." --scope Repository:<uuid>
 ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>
-ai-brains erasure request --id <id> --scope Repository:<uuid>   # daemon-required; no CE wipe
+ai-brains erasure request --id <id> --scope Repository:<uuid>   # daemon-required; ticket only (not CE)
+ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>           # dry-run (default)
+ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm # execute CE
 ai-brains policy show --scope Repository:<uuid>
 ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
 ```
 
 - Mutations auto-generate `--command-id` when omitted; local propose uses shared CP `id_from_command` (same pre-assigned domain id as daemon).
 - After a mutation is **sent** to the daemon, timeout → non-zero + "outcome unknown; retry same --command-id" (no silent local fallback).
-- Erasure is always daemon-required (`--local` rejected). Ticket honesty only — never claims content-envelope wipe.
+- Erasure ticket and wipe are always daemon-required (`--local` rejected). Ticket honesty only — never claims content-envelope wipe. Wipe is a **separate** command.
 
 ### Erasure honesty (ticket vs cryptographic erasure)
 
-Operators and docs must keep these mechanisms distinct. Normative design is [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md) (Accepted 2026-07-28); **product CE is not complete until T165** (schema landed in T163; seal/open in T164; governed wipe command in T165).
+Operators and docs must keep these mechanisms distinct. Normative design is [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md) (Accepted 2026-07-28). **T165 shipped** governed CE wipe for envelope-backed content (with residuals below).
 
 | Mechanism | What it does today | Cryptographic erasure (CE)? |
 |-----------|--------------------|-----------------------------|
 | `ai-brains erasure request` → `ErasureTicketAccepted` | Durable **ticket / intent** accepted by the daemon | **No** — ticket ≠ CE; does **not** write CE tables |
 | `ai-brains forget` → `MemoryForgotten` | Soft hide/filter in projections | **No** — plaintext remains in the **append-only event log**; does **not** touch CE tables |
-| Content-envelope CE (`ContentErasureRequested` → destroy content DEK wrap → `ContentErased`) | **Schema + projections only (T163)** — no product seal/open/wipe yet | Future path for **envelope-backed** content only (T164–T165) |
+| `ai-brains erasure wipe` → `ContentErasureRequested` → destroy content DEK wrap → purge FTS/embeddings → `ContentErased` | **Implemented for envelope-backed** (`content_key_store` row required); dry-run default; execute needs `--confirm` | **Yes** under ADR-0016 §12 assumptions (live vault; wrap destroyed; derived indexes purged; AES-256 unbroken; no offline pre-erase copy) |
 
-**After T163 (schema honesty):**
+**Schema + crypto primitives (T163/T164):**
 
 - Vault migration **`0026_content_envelopes_erasure`** creates side stores `content_key_store` / `encrypted_content_blob` and event projections `erasure_request_projection` / `tombstone_projection`.
 - **Side stores are not event-sourced ciphertext:** `rebuild_projections` retains wrap + blob rows; it is **not** a backup restore of sealed content from the event log. Only erasure-request and tombstone projections are truncated and re-applied from events.
-- Tables alone do **not** mean CE works end-to-end — AEAD seal/open (T164) and the governed wipe command (T165) are still required before any CE success claim.
+- Seal/open/wrap/destroy primitives (T164) + governed wipe (T165) form the product CE path.
+
+**Post-wipe WAL (E16):** after successful wipe commit, the daemon runs `PRAGMA wal_checkpoint(TRUNCATE)` on the single-writer connection (BUSY → one retry → warn `pending_passive`). This reduces uncheckpointed deleted FTS/embedding pages in the `-wal` file. It is **not** NIST Purge, not free-page zeroization, and **not** `VACUUM`.
 
 **Honest limits (do not over-claim):**
 
-- **Pre-envelope / legacy content:** plaintext already written to the append-only log **cannot** be cryptographically erased without rewriting history (forbidden by event-sourcing invariants). Soft forget is the only mechanism for that class. Forward re-seal under envelopes (when implemented) does **not** un-publish historical plaintext copies already logged.
-- **Future CE (ADR-0016):** for envelope-backed content only — per content-unit DEK wrapped under vault `DataKey`; AES-256-GCM; CE = destroy DEK wrap + purge derived FTS/embeddings/projections. Service/command land in **T164–T165**.
-- **Non-claims:** not NIST media **Purge**/**Destroy** (RustCrypto is not a FIPS-/NIST-validated module); not destruction of offline copies, exports, or **pre-erase backups**; not “SQLCipher vault lock = per-item CE.”
+- **Pre-envelope / legacy content:** plaintext already written to the append-only log **cannot** be cryptographically erased without rewriting history (forbidden by event-sourcing invariants). Soft forget is the only mechanism for that class. Wipe refuses non-envelope keys with `NOT_ENVELOPE_BACKED` (no silent soft-forget fallback).
+- **CE (ADR-0016):** for envelope-backed content only — per content-unit DEK wrapped under vault `DataKey`; AES-256-GCM; CE = destroy DEK wrap + purge derived FTS/embeddings; verify wrap absent via store re-query (not a fake AEAD `open_fails`).
+- **Dependents:** conclusion/decision invalidation runs only when a blob subject is source-like **and** the `subject_id` is a registered `SourceId` (E15). Memory-only subjects purge indexes only.
+- **Non-claims:** not NIST media **Purge**/**Destroy** (RustCrypto is not a FIPS-/NIST-validated module); not destruction of offline copies, exports, or **pre-erase backups**; not “SQLCipher vault lock = per-item CE”; WAL TRUNCATE is not media sanitization.
 - CLI and HTTP surfaces must **never** present `ErasureTicketAccepted` or soft forget as content-envelope wipe.
 
 ## 4. Project & Session Management
@@ -206,7 +211,7 @@ ai-brains daemon stop              # graceful shutdown (use --force if it hangs)
 ai-brains daemon install           # install as Windows service (requires elevation)
 ai-brains daemon uninstall         # remove the Windows service (requires elevation)
 ```
-- **Governed IPC (T159):** propose/resolve/erasure mutations go through the writer queue; scope/briefing/query/inspect are off-queue reads. Spool durable crash recovery for governed mutations **only** when the request includes `command_id` (filename `{op}_{sanitized_command_id}.json`). Briefings over the daemon are dry-run. Erasure returns `accepted` only after a durable `ErasureTicketAccepted` ticket event (content-envelope wipe remains P8). Principal: wire `principal_id` UUID → System if well-known CLI System UUID, else Human; if wire omitted, `AI_BRAINS_DAEMON_PRINCIPAL_ID`, else System default. CLI always passes resolved `principal_id` on daemon wire (T160). Production policy only (`production_policy`).
+- **Governed IPC (T159/T165):** propose/resolve/erasure-ticket/wipe mutations go through the writer queue; scope/briefing/query/inspect are off-queue reads. Spool durable crash recovery for governed mutations **only** when the request includes `command_id` (filename `{op}_{sanitized_command_id}.json`). Briefings over the daemon are dry-run. Ticket erasure returns `accepted` only after a durable `ErasureTicketAccepted` event (still **not** CE). Content-envelope wipe is `WipeContentEnvelope` / HTTP `POST /v1/erasure/wipe` (dry-run default; execute needs `confirm=true`). Principal: wire `principal_id` UUID → System if well-known CLI System UUID, else Human; if wire omitted, `AI_BRAINS_DAEMON_PRINCIPAL_ID`, else System default. CLI always passes resolved `principal_id` on daemon wire (T160). Production policy only (`production_policy`).
 - **Loopback HTTP API (T161):** optional authenticated REST surface under `/v1` that reuses the same `handle_daemon_request` path as named-pipe IPC (no second writer). **Default off.** Enable with `AI_BRAINS_HTTP=1` or `ai-brainsd --http`. Binds `127.0.0.1:7432` by default (`AI_BRAINS_HTTP_PORT`). Bearer token lives at `%USERPROFILE%\.ai-brains\http.token` (created on first enable; path logged, token never printed). Owner-only Windows ACL `D:P(A;;FA;;;OW)`. All data routes require `Authorization: Bearer <token>`; `GET /health` and `GET /v1/health` are unauthenticated liveness only (`{"status":"ok"}`). Non-loopback bind requires **both** `--http-bind <addr>` and `AI_BRAINS_HTTP_ALLOW_NON_LOOPBACK=1`. CORS is deny-by-default (no `Access-Control-Allow-Origin: *`). Body limit 1 MiB → HTTP 413. Loopback is **not** zero-trust — always use bearer auth; do not expose without reverse-proxy/mTLS planning (out of scope for v1). Mutations accept optional `X-Command-Id` when the JSON body omits `command_id`. If HTTP is explicitly enabled and bind/token start fails, the daemon **hard-fails** (does not continue as if HTTP were up). Post-spawn serve death is logged only (bind already succeeded).
 - **HTTP under Windows LocalSystem service (residual):** When `ai-brainsd` runs as the **Windows service** (`LocalSystem` / Session 0), `%USERPROFILE%` is the **SYSTEM profile**, so `http.token` is created with SYSTEM as owner and an owner-only ACL. **Interactive desktop/CLI clients cannot read that token.** HTTP under the service host is **not** intended for Session 1 local clients. Prefer an **interactive** daemon (`ai-brainsd --http` or `ai-brains daemon start` with `AI_BRAINS_HTTP=1`) for desktop clients. A multi-session shared token path is **out of scope** residual. The service path logs a strong warning when HTTP is enabled. If HTTP is enabled and bind/token setup fails (or other fatal startup fails), the service **does not report `Running` to SCM** — it stays in `StartPending` until failure, then reports **`Stopped` with a service-specific non-zero exit code** (`ServiceSpecific(1)` = startup failed). Operators should treat `sc start` / Services MMC failures as a real start failure, not a healthy daemon without HTTP.
 - The CLI auto-launches the daemon if it is unreachable, so most users never need `daemon start` explicitly.

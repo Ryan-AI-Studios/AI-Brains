@@ -258,6 +258,99 @@ fn cli_erasure_request__local_flag__rejected() {
 }
 
 #[test]
+fn cli_erasure_wipe__local_flag__rejected() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("erasure")
+        .arg("wipe")
+        .arg("--content-key-id")
+        .arg("00000000-0000-0000-0000-0000000000e2")
+        .arg("--scope")
+        .arg("Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        .arg("--local")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("erasure wipe --local must run");
+
+    let code = output.status.code().unwrap_or(0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    // --local is INVALID_PAYLOAD (6); path never claims wipe completed.
+    assert!(
+        code == 5 || code == 6,
+        "expected exit 5 or 6 for wipe --local; got {code}; stdout={stdout} stderr={stderr}"
+    );
+    let joined = format!("{stdout}{stderr}").to_ascii_lowercase();
+    assert!(
+        !joined.contains("wipe completed") && !joined.contains("\"status\":\"wiped\""),
+        "must not claim CE wipe completed on --local reject"
+    );
+    if code == 6 {
+        assert!(
+            joined.contains("daemon-only")
+                || joined.contains("invalid_payload")
+                || joined.contains("--local"),
+            "exit 6 should mention daemon-only / local reject; stdout={stdout} stderr={stderr}"
+        );
+    }
+}
+
+#[test]
+fn cli_erasure_wipe__dry_run_and_confirm__refused() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("erasure")
+        .arg("wipe")
+        .arg("--content-key-id")
+        .arg("00000000-0000-0000-0000-0000000000e3")
+        .arg("--scope")
+        .arg("Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        .arg("--dry-run")
+        .arg("--confirm")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("erasure wipe dual flags must run");
+
+    let code = output.status.code().unwrap_or(0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let joined = format!("{stdout}{stderr}");
+
+    // Flag validation runs before daemon probe → always INVALID_PAYLOAD (6).
+    assert_eq!(
+        code, 6,
+        "dual-flag wipe must exit 6 INVALID_PAYLOAD; stdout={stdout} stderr={stderr}"
+    );
+    assert!(
+        joined.contains("INVALID_PAYLOAD")
+            || joined.to_ascii_lowercase().contains("cannot combine")
+            || joined.to_ascii_lowercase().contains("dry-run"),
+        "dual-flag conflict must be clear; stdout={stdout} stderr={stderr}"
+    );
+    assert!(
+        !joined.to_ascii_lowercase().contains("\"status\":\"wiped\"")
+            && !joined
+                .to_ascii_lowercase()
+                .contains("wrap_destroyed\":true"),
+        "must not destroy under --dry-run --confirm; stdout={stdout} stderr={stderr}"
+    );
+}
+
+#[test]
 fn cli_policy_check__no_grant__exit_code_3() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");

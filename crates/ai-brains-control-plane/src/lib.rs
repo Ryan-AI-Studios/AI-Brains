@@ -13,6 +13,7 @@ pub mod briefings;
 pub mod command_id;
 pub mod conclusions;
 pub mod conflicts;
+pub mod cryptographic_erasure;
 pub mod decisions;
 pub mod errors;
 pub mod grants;
@@ -34,7 +35,8 @@ pub use briefings::{
     render_personal_markdown, render_project_json, render_project_markdown,
 };
 pub use command_id::{
-    NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, id_from_command,
+    NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, NS_WIPE_CONTENT_ENVELOPE,
+    id_from_command,
 };
 pub use conclusions::{
     ProposeConclusionRequest, ProposeConclusionResult, activate_conclusion, approve_conclusion,
@@ -45,6 +47,11 @@ pub use conflicts::{
     OpenClaimConflictRequest, current_successor, equal_authority_conflict, open_claim_conflict,
     open_conflicts_snapshot, prefer_decision_over_candidate, resolve_claim_conflict,
     resolve_scope_preference, select_conclusions_valid_at,
+};
+pub use cryptographic_erasure::{
+    ContentEnvelopeWipeStore, ContentKeyStatus, StoreContentEnvelopeWipe,
+    WipeContentEnvelopeCommand, parse_content_key_id, tombstone_id_from_command,
+    wipe_content_envelope,
 };
 pub use decisions::{
     ProposeDecisionRequest, ProposeDecisionResult, approve_decision, propose_decision,

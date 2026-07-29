@@ -14,7 +14,7 @@ use tower_http::trace::TraceLayer;
 use ai_brains_contracts::briefings::{
     InspectEvidenceRequest, PersonalBriefingRequest, ProjectBriefingRequest, QueryKnowledgeRequest,
 };
-use ai_brains_contracts::erasure::RequestErasureRequest;
+use ai_brains_contracts::erasure::{RequestErasureRequest, WipeContentEnvelopeRequest};
 use ai_brains_contracts::knowledge::{ProposeConclusionRequest, ProposeDecisionRequest};
 use ai_brains_contracts::review::{ListReviewItemsRequest, ResolveReviewItemRequest};
 use ai_brains_contracts::scopes::ResolveScopeRequest;
@@ -56,7 +56,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/decisions/propose", post(propose_decision))
         .route("/v1/review/items", get(list_review_items))
         .route("/v1/review/items/{id}/resolve", post(resolve_review_item))
-        .route("/v1/erasure/request", post(request_erasure));
+        .route("/v1/erasure/request", post(request_erasure))
+        .route("/v1/erasure/wipe", post(wipe_content_envelope));
 
     Router::new()
         .route("/health", get(health))
@@ -221,4 +222,14 @@ async fn request_erasure(
 ) -> Result<Response, ApiHttpError> {
     fill_command_id_from_header(&mut body.command_id, &headers);
     dispatch_request(&state, DaemonRequest::RequestErasure(body)).await
+}
+
+async fn wipe_content_envelope(
+    State(state): State<AppState>,
+    _auth: Authenticated,
+    headers: HeaderMap,
+    Json(mut body): Json<WipeContentEnvelopeRequest>,
+) -> Result<Response, ApiHttpError> {
+    fill_command_id_from_header(&mut body.command_id, &headers);
+    dispatch_request(&state, DaemonRequest::WipeContentEnvelope(body)).await
 }

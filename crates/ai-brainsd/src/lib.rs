@@ -95,6 +95,10 @@ impl DaemonWriter {
         let (sender, mut receiver) = mpsc::channel(64);
         let worker_store_arc = Arc::clone(&event_store);
         let worker_spool_dir = spool_dir.clone();
+        // Gate readiness until startup spool replay finishes so a client cannot
+        // write a command_id spool file that is both replayed and live-processed
+        // (double-apply → wipe returns already_erased on first call).
+        let (ready_tx, ready_rx) = oneshot::channel::<()>();
 
         tokio::spawn(async move {
             let service = CaptureService::new();
@@ -107,6 +111,7 @@ impl DaemonWriter {
             if let Err(e) = replay_spool(&worker_spool_dir, &worker_dyn, &service, &ports).await {
                 eprintln!("Failed to replay spool on daemon startup: {}", e);
             }
+            let _ = ready_tx.send(());
 
             while let Some(message) = receiver.recv().await {
                 match message {
@@ -139,6 +144,13 @@ impl DaemonWriter {
                 }
             }
         });
+
+        ready_rx.await.map_err(|_| -> BoxError {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "daemon writer dropped before spool replay completed",
+            ))
+        })?;
 
         Ok(Self {
             sender,
@@ -337,6 +349,10 @@ async fn replay_spool(
             }
             DaemonRequest::RequestErasure(req) => {
                 let op = GovernedMutation::RequestErasure(req);
+                let _ = process_governed_on_writer(ports, op, Some(path)).await?;
+            }
+            DaemonRequest::WipeContentEnvelope(req) => {
+                let op = GovernedMutation::WipeContentEnvelope(req);
                 let _ = process_governed_on_writer(ports, op, Some(path)).await?;
             }
             // Queries / control — not durable spool work. Drop without panic.

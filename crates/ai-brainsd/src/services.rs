@@ -55,7 +55,10 @@ use ai_brains_contracts::briefings::{
     PersonalBriefingResponse, ProjectBriefingRequest as WireProjectBriefing,
     ProjectBriefingResponse, QueryKnowledgeRequest,
 };
-use ai_brains_contracts::erasure::{ErasureAcceptedResponse, RequestErasureRequest};
+use ai_brains_contracts::erasure::{
+    ERASURE_TICKET_NO_WIPE_WARNING, ErasureAcceptedResponse, RequestErasureRequest,
+    WipeContentEnvelopeRequest,
+};
 use ai_brains_contracts::knowledge::{
     ConclusionProposedResponse, DecisionProposedResponse,
     ProposeConclusionRequest as WireProposeConclusion,
@@ -73,11 +76,12 @@ use ai_brains_control_plane::{
     PersonalBriefingRequest as CpPersonalBriefing, PolicyContext, PolicyEvaluator,
     ProgressiveQueryRequest, ProjectBriefingRequest as CpProjectBriefing,
     ProposeConclusionRequest as CpProposeConclusion, ProposeDecisionRequest as CpProposeDecision,
-    ResolvedScope, ScopeConfidence, ScopeResolveInput, StoreEventWriter, StorePorts, SystemClock,
-    build_personal_briefing, build_project_briefing, expand_handle, is_authoritative,
-    list_open_review_items_for_scope, make_principal, parse_scope_key, progressive_query,
-    propose_conclusion, propose_decision, resolve_review_item, resolve_scope, scope_identity_key,
-    source_row_to_dto,
+    ResolvedScope, ScopeConfidence, ScopeResolveInput, StoreContentEnvelopeWipe, StoreEventWriter,
+    StorePorts, SystemClock, WipeContentEnvelopeCommand, build_personal_briefing,
+    build_project_briefing, expand_handle, is_authoritative, list_open_review_items_for_scope,
+    make_principal, parse_content_key_id, parse_scope_key, progressive_query, propose_conclusion,
+    propose_decision, resolve_review_item, resolve_scope, scope_identity_key, source_row_to_dto,
+    tombstone_id_from_command, wipe_content_envelope,
 };
 use ai_brains_core::ids::{
     ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, ReviewItemId, SourceId, UserId,
@@ -99,15 +103,16 @@ use uuid::Uuid;
 // NS_* and id_from_command live in ai-brains-control-plane (T160 shared derivation).
 // Re-export so existing daemon call sites / tests keep a stable path.
 pub use ai_brains_control_plane::{
-    NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, id_from_command,
+    NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, NS_WIPE_CONTENT_ENVELOPE,
+    id_from_command,
 };
 
 // Review resolve idempotency is review_item_id + status based in control-plane
 // (not a command_id-derived domain id). Spool still keys by command_id when set.
 
-/// Warning text for erasure responses (P8 residual — no CE wipe in T159).
-pub const ERASURE_CE_WIPE_WARNING: &str =
-    "content-envelope wipe not performed (P8 residual); ticket accepted only";
+/// Warning text for ticket erasure responses (E3 — ticket ≠ CE wipe).
+/// Prefer contracts constant; re-export for daemon/tests stability.
+pub const ERASURE_CE_WIPE_WARNING: &str = ERASURE_TICKET_NO_WIPE_WARNING;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -479,6 +484,7 @@ pub fn process_governed_mutation(
         GovernedMutation::ProposeDecision(req) => process_propose_decision(ports, req),
         GovernedMutation::ResolveReviewItem(req) => process_resolve_review(ports, req),
         GovernedMutation::RequestErasure(req) => process_request_erasure(ports, req),
+        GovernedMutation::WipeContentEnvelope(req) => process_wipe_content_envelope(ports, req),
     }
 }
 
@@ -489,6 +495,7 @@ pub enum GovernedMutation {
     ProposeDecision(WireProposeDecision),
     ResolveReviewItem(ResolveReviewItemRequest),
     RequestErasure(RequestErasureRequest),
+    WipeContentEnvelope(WipeContentEnvelopeRequest),
 }
 
 fn process_propose_conclusion(
@@ -753,6 +760,55 @@ fn process_request_erasure(
     Ok(DaemonResponse::ErasureAccepted(resp))
 }
 
+fn process_wipe_content_envelope(
+    ports: &StorePorts,
+    req: WipeContentEnvelopeRequest,
+) -> Result<DaemonResponse, BoxError> {
+    // 1. Principal
+    let principal = resolve_principal(req.principal_id.as_deref());
+
+    // 2. Scope
+    let scope = match parse_scope_key(&req.scope) {
+        Ok(sc) => sc,
+        Err(e) => return Ok(map_control_plane_error(e)),
+    };
+
+    // 3. Content key id
+    let content_key_id = match parse_content_key_id(&req.content_key_id) {
+        Ok(id) => id,
+        Err(e) => return Ok(map_control_plane_error(e)),
+    };
+
+    // 4. Deterministic tombstone from command_id when present
+    let tombstone_id = req
+        .command_id
+        .as_deref()
+        .filter(|c| !c.trim().is_empty())
+        .map(tombstone_id_from_command);
+
+    let side = StoreContentEnvelopeWipe::new(ports.store());
+    let policy = ports.production_policy();
+    match wipe_content_envelope(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &policy,
+        &side,
+        WipeContentEnvelopeCommand {
+            principal,
+            content_key_id,
+            scope,
+            reason: req.reason,
+            tombstone_id,
+            dry_run: req.dry_run,
+            confirm: req.confirm,
+        },
+    ) {
+        Ok(resp) => Ok(DaemonResponse::ContentEnvelopeWiped(resp)),
+        Err(e) => map_mutation_control_plane_error(e),
+    }
+}
+
 fn find_erasure_ticket(
     store: SqliteEventStore,
     request_id: &str,
@@ -848,6 +904,7 @@ fn control_plane_error_parts(err: &ControlPlaneError) -> (&'static str, String) 
         ControlPlaneError::InvalidPayload(m) => ("INVALID_PAYLOAD", m.clone()),
         ControlPlaneError::ApprovalRequired(m) => ("APPROVAL_REQUIRED", m.clone()),
         ControlPlaneError::InvalidTransition(m) => ("INVALID_TRANSITION", m.clone()),
+        ControlPlaneError::NotEnvelopeBacked(m) => ("NOT_ENVELOPE_BACKED", m.clone()),
         // Terminal domain codes without a dedicated frozen wire code → INTERNAL.
         // Retriable infra (EventAppend/Query/Clock) also map here when structured;
         // mutation path surfaces those as Err instead of this mapper.
@@ -927,6 +984,7 @@ pub fn governed_mutation_op_kind(op: &GovernedMutation) -> &'static str {
         GovernedMutation::ProposeDecision(_) => "propose_decision",
         GovernedMutation::ResolveReviewItem(_) => "resolve_review_item",
         GovernedMutation::RequestErasure(_) => "request_erasure",
+        GovernedMutation::WipeContentEnvelope(_) => "wipe_content_envelope",
     }
 }
 
@@ -1134,6 +1192,23 @@ mod tests {
         assert!(!is_retriable_control_plane_error(
             &ControlPlaneError::Fingerprint("x".into())
         ));
+        // T165: NotEnvelopeBacked is terminal (spool deleted) and maps NOT_ENVELOPE_BACKED.
+        assert!(!is_retriable_control_plane_error(
+            &ControlPlaneError::NotEnvelopeBacked("legacy memory".into())
+        ));
+        match map_control_plane_error(ControlPlaneError::NotEnvelopeBacked("legacy".into())) {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "NOT_ENVELOPE_BACKED");
+                assert!(err.message.contains("legacy"));
+            }
+            other => panic!("expected NOT_ENVELOPE_BACKED Error, got {other:?}"),
+        }
+        let mapped =
+            map_mutation_control_plane_error(ControlPlaneError::NotEnvelopeBacked("x".into()));
+        assert!(
+            mapped.is_ok(),
+            "terminal NotEnvelopeBacked must Ok(Error) so spool is deleted"
+        );
     }
 
     #[test]

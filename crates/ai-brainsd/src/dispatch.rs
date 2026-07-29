@@ -174,6 +174,18 @@ pub async fn handle_daemon_request(
                 .await?;
             Ok(LiveDispatchResult::Response(Box::new(resp)))
         }
+        DaemonRequest::WipeContentEnvelope(req) => {
+            let command_id = req.command_id.clone();
+            let daemon_req = DaemonRequest::WipeContentEnvelope(req.clone());
+            let resp = writer
+                .enqueue_governed(
+                    daemon_req,
+                    GovernedMutation::WipeContentEnvelope(req),
+                    command_id.as_deref(),
+                )
+                .await?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
     }
 }
 

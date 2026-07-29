@@ -44,4 +44,16 @@ impl VaultConnection {
         let _ = conn.query_row("PRAGMA wal_checkpoint(PASSIVE)", [], |_| Ok(()));
         Ok(())
     }
+
+    /// Post-wipe WAL checkpoint (E16): `PRAGMA wal_checkpoint(TRUNCATE)`.
+    ///
+    /// On busy result, retries once. Still busy →
+    /// [`crate::projections::content_envelope::WalCheckpointOutcome::PendingPassive`]
+    /// (caller warns; wipe still success). Does **not** claim NIST Purge.
+    pub fn wal_checkpoint_truncate(
+        &self,
+    ) -> Result<crate::projections::content_envelope::WalCheckpointOutcome> {
+        let conn = self.lock()?;
+        crate::projections::content_envelope::wal_checkpoint_truncate(&conn)
+    }
 }

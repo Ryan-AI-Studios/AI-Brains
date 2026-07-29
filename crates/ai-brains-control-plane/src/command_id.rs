@@ -18,6 +18,12 @@ pub const NS_PROPOSE_DECISION: &str = "ai-brains.command.propose_decision";
 /// UUID v5 namespace seed for `request_erasure` command_id → ticket request_id.
 pub const NS_REQUEST_ERASURE: &str = "ai-brains.command.request_erasure";
 
+/// UUID v5 namespace seed for `wipe_content_envelope` command_id → tombstone_id (T165).
+///
+/// Canonical constant lives here for shared CLI/daemon derivation; re-exported from
+/// [`crate::cryptographic_erasure`] as well.
+pub const NS_WIPE_CONTENT_ENVELOPE: &str = "ai-brains.command.wipe_content_envelope";
+
 /// Derive a deterministic UUID from a frozen DNS-style namespace + command_id.
 ///
 /// ```text
