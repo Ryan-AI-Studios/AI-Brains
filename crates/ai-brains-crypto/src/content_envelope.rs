@@ -111,7 +111,14 @@ pub fn seal(dek: &ContentDek, plaintext: &[u8], aad: &SealAad) -> Result<SealedC
 
 /// Open sealed content. Auth/AAD/key mismatch → [`CryptoError::AuthenticationFailed`].
 /// Returns a zeroizing plaintext buffer.
+///
+/// Wire `SealedContent.envelope_schema_version` must match `aad.envelope_schema_version`
+/// (the version bound into GCM AAD). Mismatch is fail-closed before AEAD so the
+/// duplicated wire field cannot disagree with the authenticated AAD domain.
 pub fn open(dek: &ContentDek, sealed: &SealedContent, aad: &SealAad) -> Result<Zeroizing<Vec<u8>>> {
+    if sealed.envelope_schema_version != aad.envelope_schema_version {
+        return Err(CryptoError::AuthenticationFailed);
+    }
     let aad_bytes = build_content_seal_aad(aad);
     let cipher = Aes256Gcm::new_from_slice(dek.expose_secret())
         .map_err(|e| CryptoError::EncryptionError(e.to_string()))?;
@@ -365,6 +372,23 @@ mod tests {
             blob_id: aad.blob_id,
         };
         let err = open(&dek, &sealed, &wrong).expect_err("must fail");
+        assert!(matches!(err, CryptoError::AuthenticationFailed));
+    }
+
+    /// Wire version field must match AAD version even when ciphertext/nonce are intact.
+    /// Without this check, tampering `SealedContent.envelope_schema_version` alone would
+    /// still decrypt under the original AAD (unauthenticated dual-source version).
+    #[test]
+    fn seal_open__wrong_sealed_envelope_schema_version__authentication_failed() {
+        let dek = ContentDek::generate().expect("dek");
+        let aad = SealAad {
+            envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+            content_key_id: ContentKeyId::new(),
+            blob_id: Uuid::new_v4(),
+        };
+        let mut sealed = seal(&dek, b"secret", &aad).expect("seal");
+        sealed.envelope_schema_version = ENVELOPE_SCHEMA_VERSION.wrapping_add(1);
+        let err = open(&dek, &sealed, &aad).expect_err("must fail");
         assert!(matches!(err, CryptoError::AuthenticationFailed));
     }
 
