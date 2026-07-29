@@ -220,13 +220,27 @@ pub fn destroy_content_key_wrap(
 }
 
 /// Insert an opaque encrypted content blob. `size_bytes` must equal
-/// `ciphertext.len()` at insert time.
+/// `ciphertext.len()` at insert time. Logical FK (spec §5.2): `content_key_id`
+/// must already exist in `content_key_store`.
 pub fn insert_encrypted_blob(conn: &Connection, row: &EncryptedBlobRow) -> Result<()> {
     let ciphertext_len = row.ciphertext.len() as i64;
     if row.size_bytes != ciphertext_len {
         return Err(StoreError::ConfigError(format!(
             "encrypted blob size_bytes ({}) must equal ciphertext.len() ({})",
             row.size_bytes, ciphertext_len
+        )));
+    }
+    let key_exists: bool = conn.query_row(
+        "SELECT EXISTS(
+            SELECT 1 FROM content_key_store WHERE content_key_id = ?
+         )",
+        params![row.content_key_id],
+        |r| r.get(0),
+    )?;
+    if !key_exists {
+        return Err(StoreError::ConfigError(format!(
+            "content_key_id does not exist in content_key_store: {}",
+            row.content_key_id
         )));
     }
     conn.execute(

@@ -470,6 +470,16 @@ fn encrypted_blob__insert_get__opaque_bytes() {
     let key_id = ContentKeyId::new().to_string();
     let blob_id = ContentKeyId::new().to_string();
 
+    content_envelope::insert_content_key_wrap(
+        &conn,
+        &key_id,
+        ENVELOPE_SCHEMA_VERSION,
+        &FIXTURE_WRAP_NONCE,
+        &FIXTURE_CIPHERTEXT,
+        CREATED_AT,
+    )
+    .unwrap();
+
     let row = EncryptedBlobRow {
         blob_id: blob_id.clone(),
         content_key_id: key_id.clone(),
@@ -536,6 +546,43 @@ fn encrypted_blob__insert__rejects_size_bytes_mismatch() {
 }
 
 #[test]
+fn encrypted_blob__insert__rejects_missing_content_key() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let missing_key = ContentKeyId::new().to_string();
+    let row = EncryptedBlobRow {
+        blob_id: "blob-orphan".to_string(),
+        content_key_id: missing_key.clone(),
+        envelope_schema_version: ENVELOPE_SCHEMA_VERSION,
+        algorithm: ALGORITHM_AES_256_GCM.to_string(),
+        nonce: FIXTURE_CONTENT_NONCE.to_vec(),
+        ciphertext: FIXTURE_CIPHERTEXT.to_vec(),
+        content_class: None,
+        subject_kind: None,
+        subject_id: None,
+        size_bytes: FIXTURE_CIPHERTEXT.len() as i64,
+        created_at: CREATED_AT.to_string(),
+    };
+    let err = content_envelope::insert_encrypted_blob(&conn, &row)
+        .expect_err("blob without content_key_store row must be rejected");
+    match err {
+        StoreError::ConfigError(msg) => {
+            assert!(
+                msg.contains("content_key_id does not exist in content_key_store")
+                    && msg.contains(&missing_key),
+                "unexpected message: {msg}"
+            );
+        }
+        other => panic!("expected ConfigError, got: {other:?}"),
+    }
+    assert!(
+        content_envelope::get_encrypted_blob(&conn, "blob-orphan")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
 fn encrypted_blob_row__debug__redacts_ciphertext() {
     let row = EncryptedBlobRow {
         blob_id: "blob-1".to_string(),
@@ -566,6 +613,18 @@ fn encrypted_blob__list_by_content_key__returns_rows() {
     let conn = store.connection().lock().unwrap();
     let key_id = ContentKeyId::new().to_string();
     let other_key = ContentKeyId::new().to_string();
+
+    for ck in [&key_id, &other_key] {
+        content_envelope::insert_content_key_wrap(
+            &conn,
+            ck,
+            ENVELOPE_SCHEMA_VERSION,
+            &FIXTURE_WRAP_NONCE,
+            &FIXTURE_CIPHERTEXT,
+            CREATED_AT,
+        )
+        .unwrap();
+    }
 
     for (blob_suffix, ck) in [("a", &key_id), ("b", &key_id), ("c", &other_key)] {
         let row = EncryptedBlobRow {
