@@ -21,6 +21,8 @@ pub const WIPE_HONESTY_TICKET_NOT_CE: &str =
     "erasure ticket and soft forget are not cryptographic erasure";
 pub const WIPE_HONESTY_ENVELOPE_ONLY: &str =
     "cryptographic erasure applies only to envelope-backed content (content_key_store)";
+pub const WIPE_HONESTY_SQLCIPHER_NOT_ITEM_CE: &str =
+    "SQLCipher vault lock is not per-item cryptographic erasure";
 
 /// Dependents skipped when no blob subject maps to a registered SourceId (E15).
 pub const WIPE_WARNING_DEPENDENTS_SKIPPED: &str = "dependents_skipped_no_source_link";
@@ -182,6 +184,7 @@ impl ContentEnvelopeWipedResponse {
             WIPE_HONESTY_PRE_ERASE_BACKUP.to_string(),
             WIPE_HONESTY_TICKET_NOT_CE.to_string(),
             WIPE_HONESTY_ENVELOPE_ONLY.to_string(),
+            WIPE_HONESTY_SQLCIPHER_NOT_ITEM_CE.to_string(),
         ]
     }
 }
@@ -282,6 +285,11 @@ mod tests {
             joined.to_ascii_lowercase().contains("backup")
                 || joined.to_ascii_lowercase().contains("offline"),
             "must include pre-erase backup honesty: {joined}"
+        );
+        assert!(
+            joined.to_ascii_lowercase().contains("sqlcipher")
+                || joined.to_ascii_lowercase().contains("vault lock"),
+            "must include SQLCipher vault-lock honesty: {joined}"
         );
         // E14: no fake open_fails dual crypto signal on wire.
         assert!(

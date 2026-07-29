@@ -759,7 +759,7 @@ enum ErasureCommands {
     },
     /// Cryptographic erase envelope-backed content (daemon-required; dry-run default)
     #[command(
-        after_help = "Honesty:\n  - CE only for content_key_store envelope-backed keys (NOT_ENVELOPE_BACKED otherwise)\n  - Not media sanitization; WAL TRUNCATE is not secure media wipe\n  - Pre-erase backups/exports remain decryptable if restored\n  - Ticket path and soft forget are not CE\nExamples:\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm"
+        after_help = "Honesty:\n  - CE only for content_key_store envelope-backed keys (NOT_ENVELOPE_BACKED otherwise)\n  - Not NIST Purge/Destroy; not physical media sanitization (WAL TRUNCATE is not Purge)\n  - Pre-erase backups/exports remain decryptable if restored\n  - Ticket path and soft forget are not cryptographic erasure\n  - SQLCipher vault lock is not per-item CE\nExamples:\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm"
     )]
     Wipe {
         /// Content key id (UUID) to cryptographically erase

@@ -12,8 +12,9 @@
 
 use ai_brains_contracts::erasure::{
     ContentEnvelopeWipedResponse, WIPE_HONESTY_ENVELOPE_ONLY, WIPE_HONESTY_NOT_NIST_PURGE,
-    WIPE_HONESTY_PRE_ERASE_BACKUP, WIPE_HONESTY_TICKET_NOT_CE, WIPE_WARNING_DEPENDENTS_SKIPPED,
-    WIPE_WARNING_WAL_PENDING_PASSIVE, WipePurgedCounts, WipeValidation, WipeVerify,
+    WIPE_HONESTY_PRE_ERASE_BACKUP, WIPE_HONESTY_SQLCIPHER_NOT_ITEM_CE, WIPE_HONESTY_TICKET_NOT_CE,
+    WIPE_WARNING_DEPENDENTS_SKIPPED, WIPE_WARNING_WAL_PENDING_PASSIVE, WipePurgedCounts,
+    WipeValidation, WipeVerify,
 };
 use ai_brains_core::ids::{ContentKeyId, PrincipalId, SourceId, TombstoneId};
 use ai_brains_core::principal::Principal;
@@ -476,6 +477,7 @@ fn honesty_warnings() -> Vec<String> {
         WIPE_HONESTY_PRE_ERASE_BACKUP.to_string(),
         WIPE_HONESTY_TICKET_NOT_CE.to_string(),
         WIPE_HONESTY_ENVELOPE_ONLY.to_string(),
+        WIPE_HONESTY_SQLCIPHER_NOT_ITEM_CE.to_string(),
     ]
 }
 

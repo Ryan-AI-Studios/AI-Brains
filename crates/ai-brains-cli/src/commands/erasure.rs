@@ -263,6 +263,7 @@ pub fn format_wipe_human(resp: &ContentEnvelopeWipedResponse) -> String {
     );
     lines.push("honesty: erasure ticket and soft forget are not cryptographic erasure".into());
     lines.push("honesty: cryptographic erasure applies only to envelope-backed content".into());
+    lines.push("honesty: vault encryption lock is not per-item cryptographic erasure".into());
     // Map remaining technical warnings to human-safe text (skip honesty constants).
     for w in &resp.warnings {
         if let Some(human) = map_warning_for_human(w) {
@@ -282,6 +283,8 @@ fn map_warning_for_human(warning: &str) -> Option<String> {
         || lower.contains("pre-erase backup")
         || lower.contains("ticket and soft forget")
         || lower.contains("envelope-backed content")
+        || lower.contains("sqlcipher")
+        || lower.contains("vault lock is not per-item")
         || (lower.contains("content_key_store")
             && lower.contains("cryptographic erasure applies only"))
     {
@@ -415,6 +418,10 @@ mod tests {
         assert!(
             lower.contains("pre-erase") || lower.contains("backup"),
             "must still state backup residual honesty: {human}"
+        );
+        assert!(
+            lower.contains("vault encryption") || lower.contains("per-item"),
+            "must state vault lock is not per-item CE (without NIST): {human}"
         );
         assert!(
             lower.contains("wrap_destroyed=true"),
