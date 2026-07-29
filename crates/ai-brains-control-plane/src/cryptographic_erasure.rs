@@ -208,11 +208,15 @@ impl ContentEnvelopeWipeStore for StoreContentEnvelopeWipe {
             .lock()
             .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
         for s in subjects {
-            if !s.kind.eq_ignore_ascii_case("memory") {
-                continue;
-            }
-            if content_envelope::memory_fts_has_plaintext(&conn, &s.id)
-                .map_err(|e| ControlPlaneError::Query(e.to_string()))?
+            if s.kind.eq_ignore_ascii_case("memory") {
+                if content_envelope::memory_fts_has_plaintext(&conn, &s.id)
+                    .map_err(|e| ControlPlaneError::Query(e.to_string()))?
+                {
+                    return Ok(false);
+                }
+            } else if s.kind.eq_ignore_ascii_case("evidence")
+                && content_envelope::evidence_fts_has_plaintext(&conn, &s.id)
+                    .map_err(|e| ControlPlaneError::Query(e.to_string()))?
             {
                 return Ok(false);
             }

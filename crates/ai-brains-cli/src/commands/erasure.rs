@@ -228,22 +228,85 @@ fn emit_wipe(
     match format {
         OutputFormat::Json => emit_json(resp),
         OutputFormat::Human | OutputFormat::Markdown => {
-            emit_human(&format!(
-                "content-envelope wipe {} for key {} (wrap_destroyed={}, blobs={})",
-                resp.status, resp.content_key_id, resp.wrap_destroyed, resp.blobs_considered
-            ));
-            if let Some(tid) = &resp.tombstone_id {
-                emit_human(&format!("tombstone_id={tid}"));
-            }
-            emit_human(&format!(
-                "verify.wrap_absent={} validation.fts_clear={} wal={}",
-                resp.verify.wrap_absent, resp.validation.fts_clear, resp.validation.wal_checkpoint
-            ));
-            for w in &resp.warnings {
-                emit_human(&format!("warning: {w}"));
+            // Human path: never print technical honesty tokens "NIST" / "purged"
+            // (JSON warnings may keep machine-facing constants).
+            for line in format_wipe_human(resp).lines() {
+                emit_human(line);
             }
             Ok(())
         }
+    }
+}
+
+/// Human/Markdown wipe success text (E10 display sanitization).
+///
+/// Must never contain case-insensitive `"nist"` or `"purged"` as product claim
+/// words. JSON warnings retain technical honesty constants for machine consumers.
+pub fn format_wipe_human(resp: &ContentEnvelopeWipedResponse) -> String {
+    let mut lines = Vec::new();
+    lines.push(format!(
+        "content-envelope wipe {} for key {} (wrap_destroyed={}, blobs={})",
+        resp.status, resp.content_key_id, resp.wrap_destroyed, resp.blobs_considered
+    ));
+    if let Some(tid) = &resp.tombstone_id {
+        lines.push(format!("tombstone_id={tid}"));
+    }
+    lines.push(format!(
+        "verify.wrap_absent={} validation.fts_clear={} wal={}",
+        resp.verify.wrap_absent, resp.validation.fts_clear, resp.validation.wal_checkpoint
+    ));
+    // Fixed human honesty block (no NIST / purged tokens).
+    lines.push("honesty: not media sanitization; WAL truncate is not secure media wipe".into());
+    lines.push(
+        "honesty: pre-erase backups, exports, and offline copies remain decryptable if restored"
+            .into(),
+    );
+    lines.push("honesty: erasure ticket and soft forget are not cryptographic erasure".into());
+    lines.push("honesty: cryptographic erasure applies only to envelope-backed content".into());
+    // Map remaining technical warnings to human-safe text (skip honesty constants).
+    for w in &resp.warnings {
+        if let Some(human) = map_warning_for_human(w) {
+            lines.push(format!("warning: {human}"));
+        }
+    }
+    lines.join("\n")
+}
+
+/// Map a machine warning to human-safe display text, or `None` if already covered
+/// by the fixed honesty block / should not be shown as raw technical text.
+fn map_warning_for_human(warning: &str) -> Option<String> {
+    let lower = warning.to_ascii_lowercase();
+    // Honesty constants are replaced by the fixed block above.
+    if lower.contains("nist")
+        || lower.contains("physical media")
+        || lower.contains("pre-erase backup")
+        || lower.contains("ticket and soft forget")
+        || lower.contains("envelope-backed content")
+        || (lower.contains("content_key_store")
+            && lower.contains("cryptographic erasure applies only"))
+    {
+        return None;
+    }
+    if lower.contains("dependents_skipped") {
+        return Some("dependents not marked stale (no registered source link)".into());
+    }
+    if lower.contains("pending_passive") || lower.contains("wal_checkpoint") {
+        return Some("WAL checkpoint deferred; will finish via routine passive checkpoint".into());
+    }
+    if lower.starts_with("command_id=") {
+        return Some(warning.to_string());
+    }
+    // Strip forbidden tokens from any other warning before display.
+    let sanitized = warning
+        .replace("NIST", "")
+        .replace("nist", "")
+        .replace("purged", "cleared")
+        .replace("Purged", "Cleared");
+    let trimmed = sanitized.split_whitespace().collect::<Vec<_>>().join(" ");
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
     }
 }
 
@@ -300,9 +363,63 @@ mod tests {
         };
         ensure_wipe_honesty_warnings(&mut resp);
         let joined = resp.warnings.join(" ").to_ascii_lowercase();
+        // JSON/machine path may keep technical honesty constants.
         assert!(joined.contains("purge") || joined.contains("nist"));
         assert!(joined.contains("backup") || joined.contains("offline"));
         assert!(!joined.contains("nist purge completed"));
+    }
+
+    #[test]
+    fn cli_erasure_wipe__human_output__no_nist_or_purged() {
+        let mut resp = ContentEnvelopeWipedResponse {
+            api_version: ai_brains_contracts::erasure::API_VERSION.to_string(),
+            status: "wiped".into(),
+            content_key_id: "00000000-0000-0000-0000-0000000000aa".into(),
+            tombstone_id: Some("00000000-0000-0000-0000-0000000000bb".into()),
+            wrap_destroyed: true,
+            blobs_considered: 2,
+            purged: WipePurgedCounts {
+                fts_rows: 1,
+                embeddings: 1,
+                projection_rows: 1,
+            },
+            dependents_marked: 0,
+            warnings: ContentEnvelopeWipedResponse::honesty_warnings(),
+            verify: WipeVerify { wrap_absent: true },
+            validation: WipeValidation {
+                fts_clear: true,
+                store_open_refused: true,
+                wal_checkpoint: "pending_passive".into(),
+            },
+        };
+        resp.warnings
+            .push(ai_brains_contracts::erasure::WIPE_WARNING_DEPENDENTS_SKIPPED.to_string());
+        resp.warnings
+            .push(ai_brains_contracts::erasure::WIPE_WARNING_WAL_PENDING_PASSIVE.to_string());
+        resp.warnings.push("command_id=wipe-cmd-1".into());
+
+        let human = format_wipe_human(&resp);
+        let lower = human.to_ascii_lowercase();
+        assert!(
+            !lower.contains("nist"),
+            "human wipe text must not say NIST: {human}"
+        );
+        assert!(
+            !lower.contains("purged"),
+            "human wipe text must not say purged: {human}"
+        );
+        assert!(
+            lower.contains("not media sanitization") || lower.contains("media wipe"),
+            "must still state non-sanitization honesty: {human}"
+        );
+        assert!(
+            lower.contains("pre-erase") || lower.contains("backup"),
+            "must still state backup residual honesty: {human}"
+        );
+        assert!(
+            lower.contains("wrap_destroyed=true"),
+            "must report wrap destroy: {human}"
+        );
     }
 
     #[test]

@@ -132,6 +132,49 @@ fn insert_memory_with_fts_and_embedding(store: &SqliteEventStore, memory_id: &st
     }
 }
 
+fn insert_evidence_with_summary(store: &SqliteEventStore, evidence_id: &str, summary: &str) {
+    let conn = store.connection().lock().unwrap();
+    let source_id = Uuid::new_v4().to_string();
+    conn.execute(
+        "INSERT INTO source_projection (
+            source_id, scope, kind, display_name, locator, status,
+            recorded_at, updated_at
+         ) VALUES (?, '', 'Other', 'fixture-source', NULL, 'Active', ?, ?)",
+        rusqlite::params![source_id, CREATED_AT, CREATED_AT],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO evidence_projection (
+            evidence_id, source_id, source_version_id, status, summary,
+            privacy, model_provenance_json, fingerprint, recorded_at
+         ) VALUES (?, ?, NULL, 'Active', ?, '\"LocalOnly\"', NULL, NULL, ?)",
+        rusqlite::params![evidence_id, source_id, summary, CREATED_AT],
+    )
+    .unwrap();
+    // FTS trigger should populate evidence_fts; defensive explicit insert if missing.
+    let fts_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM evidence_fts WHERE evidence_id = ?",
+            [evidence_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    if fts_count == 0 {
+        let rowid: i64 = conn
+            .query_row(
+                "SELECT rowid FROM evidence_projection WHERE evidence_id = ?",
+                [evidence_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        conn.execute(
+            "INSERT INTO evidence_fts(rowid, summary, evidence_id) VALUES (?, ?, ?)",
+            rusqlite::params![rowid, summary, evidence_id],
+        )
+        .unwrap();
+    }
+}
+
 fn cmd(content_key_id: ContentKeyId, dry_run: bool, confirm: bool) -> WipeContentEnvelopeCommand {
     WipeContentEnvelopeCommand {
         principal: principal(),
@@ -621,6 +664,204 @@ fn wipe__multi_blob__all_subjects_purged() {
     let conn = ports.writer.store().connection().lock().unwrap();
     assert!(!content_envelope::memory_fts_has_hits(&conn, &mem_a).unwrap());
     assert!(!content_envelope::memory_fts_has_hits(&conn, &mem_b).unwrap());
+}
+
+#[test]
+fn wipe__evidence_subject__plaintext_absent_after_purge() {
+    let (_t, ports) = open_ports();
+    let key = ContentKeyId::new();
+    let evidence_id = Uuid::new_v4().to_string();
+    insert_active_key(ports.writer.store(), &key);
+    insert_blob(
+        ports.writer.store(),
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("evidence"),
+        Some(&evidence_id),
+    );
+    insert_evidence_with_summary(ports.writer.store(), &evidence_id, FIXTURE_PLAINTEXT);
+
+    {
+        let conn = ports.writer.store().connection().lock().unwrap();
+        assert!(
+            content_envelope::evidence_fts_has_plaintext(&conn, &evidence_id).unwrap(),
+            "precondition: evidence summary/FTS must hold fixture plaintext"
+        );
+    }
+
+    let side = StoreContentEnvelopeWipe::new(ports.store());
+    let resp = wipe_content_envelope(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        &side,
+        cmd(key, false, true),
+    )
+    .unwrap();
+    assert_eq!(resp.status, "wiped");
+    assert!(resp.validation.fts_clear);
+    assert!(resp.purged.fts_rows >= 1 || resp.purged.projection_rows >= 1);
+
+    let conn = ports.writer.store().connection().lock().unwrap();
+    assert!(!content_envelope::evidence_fts_has_plaintext(&conn, &evidence_id).unwrap());
+    let summary: String = conn
+        .query_row(
+            "SELECT summary FROM evidence_projection WHERE evidence_id = ?",
+            [&evidence_id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        summary.trim().is_empty(),
+        "evidence summary must be cleared: {summary:?}"
+    );
+    assert!(
+        !summary.contains(FIXTURE_PLAINTEXT),
+        "fixture plaintext must not remain in evidence summary"
+    );
+}
+
+#[test]
+fn wipe__multi_blob__mixed_memory_and_evidence_purged() {
+    let (_t, ports) = open_ports();
+    let key = ContentKeyId::new();
+    let memory_id = Uuid::new_v4().to_string();
+    let evidence_id = Uuid::new_v4().to_string();
+    insert_active_key(ports.writer.store(), &key);
+    insert_blob(
+        ports.writer.store(),
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("memory"),
+        Some(&memory_id),
+    );
+    insert_blob(
+        ports.writer.store(),
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("evidence"),
+        Some(&evidence_id),
+    );
+    insert_memory_with_fts_and_embedding(ports.writer.store(), &memory_id, "mixed-memory-secret");
+    insert_evidence_with_summary(ports.writer.store(), &evidence_id, "mixed-evidence-secret");
+
+    let side = StoreContentEnvelopeWipe::new(ports.store());
+    let resp = wipe_content_envelope(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        &side,
+        cmd(key, false, true),
+    )
+    .unwrap();
+    assert_eq!(resp.blobs_considered, 2);
+    assert!(resp.validation.fts_clear);
+
+    let conn = ports.writer.store().connection().lock().unwrap();
+    assert!(!content_envelope::memory_fts_has_hits(&conn, &memory_id).unwrap());
+    assert!(!content_envelope::evidence_fts_has_plaintext(&conn, &evidence_id).unwrap());
+}
+
+#[test]
+fn wipe__rebuild_projections__plaintext_stays_purged() {
+    use ai_brains_core::ids::MemoryId;
+    use ai_brains_events::constructors::EventBuilder;
+    use ai_brains_events::payload::MemoryPinnedPayload;
+    use ai_brains_events::{Actor, AggregateType};
+
+    let (_t, ports) = open_ports();
+    let key = ContentKeyId::new();
+    let memory_id = MemoryId::new();
+    let memory_id_str = memory_id.to_string();
+
+    // Event-sourced memory so rebuild rehydrates projection plaintext from the log.
+    let pin = EventBuilder::new(
+        AggregateType::Memory,
+        memory_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::MemoryPinned(MemoryPinnedPayload {
+        memory_id,
+        content: FIXTURE_PLAINTEXT.to_string(),
+        session_id: None,
+        project_id: None,
+        tx_id: None,
+        rank: None,
+        source_tag: None,
+        query_text: None,
+    }))
+    .unwrap();
+    ports.writer.append_events(&[pin]).unwrap();
+
+    insert_active_key(ports.writer.store(), &key);
+    insert_blob(
+        ports.writer.store(),
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("memory"),
+        Some(&memory_id_str),
+    );
+
+    {
+        let conn = ports.writer.store().connection().lock().unwrap();
+        assert!(
+            content_envelope::memory_fts_has_hits(&conn, &memory_id_str).unwrap(),
+            "precondition: memory FTS holds fixture plaintext"
+        );
+    }
+
+    let side = StoreContentEnvelopeWipe::new(ports.store());
+    let resp = wipe_content_envelope(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &AllowAllPolicy,
+        &side,
+        cmd(key, false, true),
+    )
+    .unwrap();
+    assert_eq!(resp.status, "wiped");
+
+    {
+        let conn = ports.writer.store().connection().lock().unwrap();
+        assert!(!content_envelope::memory_fts_has_hits(&conn, &memory_id_str).unwrap());
+        assert!(content_envelope::is_content_key_destroyed(&conn, &key.to_string()).unwrap());
+    }
+
+    // Rebuild rehydrates MemoryPinned content; CE must re-purge on ContentErased /
+    // post-rebuild pass so residual plaintext cannot return.
+    let mut store = ports.store();
+    store.rebuild_projections().unwrap();
+
+    let conn = store.connection().lock().unwrap();
+    assert!(
+        !content_envelope::memory_fts_has_hits(&conn, &memory_id_str).unwrap(),
+        "after rebuild, fixture plaintext must still be absent from FTS/projection"
+    );
+    let content: String = conn
+        .query_row(
+            "SELECT content FROM memory_projection WHERE memory_id = ?",
+            [&memory_id_str],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        content.trim().is_empty() || !content.contains(FIXTURE_PLAINTEXT),
+        "rebuild must not restore wiped plaintext: {content:?}"
+    );
+    assert!(
+        content_envelope::is_content_key_destroyed(&conn, &key.to_string()).unwrap(),
+        "wrap must remain destroyed after rebuild (side store retained)"
+    );
+    assert!(
+        content_envelope::get_tombstone(&conn, &key.to_string())
+            .unwrap()
+            .is_some(),
+        "tombstone must survive rebuild"
+    );
 }
 
 #[test]

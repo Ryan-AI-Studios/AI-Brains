@@ -453,90 +453,191 @@ pub fn subjects_for_content_key(
     Ok(out)
 }
 
-/// Purge FTS-backed plaintext and clear embeddings for **memory** subjects only.
+/// Purge FTS-backed / projection plaintext for CE-linked subjects.
 ///
-/// Scoped by the provided subject set — never vault-wide. Non-memory subjects
-/// are ignored here (dependents handled separately via SourceId).
+/// Scoped by the provided subject set — never vault-wide.
 ///
-/// Clears `memory_projection.content` (empty string) so the FTS external-content
-/// UPDATE trigger removes searchable plaintext, and NULLs embeddings.
+/// - **memory**: clear `memory_projection.content` + embeddings (FTS au trigger).
+/// - **evidence**: clear `evidence_projection.summary` (FTS au trigger).
+/// - **source**: no source-level FTS/summary table; E15 marks unavailable separately.
+///
+/// Unknown kinds are ignored (no graph pruning invented here).
 pub fn purge_derived_plaintext_for_subjects(
     conn: &Connection,
     subjects: &[BlobSubject],
 ) -> Result<PurgeDerivedCounts> {
     let mut counts = PurgeDerivedCounts::default();
     for subj in subjects {
-        if !subj.kind.eq_ignore_ascii_case("memory") {
-            continue;
+        if subj.kind.eq_ignore_ascii_case("memory") {
+            purge_memory_subject(conn, subj.id.as_str(), &mut counts)?;
+        } else if subj.kind.eq_ignore_ascii_case("evidence") {
+            purge_evidence_subject(conn, subj.id.as_str(), &mut counts)?;
         }
-        let memory_id = subj.id.as_str();
-
-        // Clear embedding first (count only when embedding was present).
-        let emb_changed = conn.execute(
-            "UPDATE memory_projection
-             SET embedding = NULL,
-                 embedding_generated_at = NULL
-             WHERE memory_id = ?
-               AND embedding IS NOT NULL",
-            params![memory_id],
-        )?;
-        counts.embeddings += emb_changed as u64;
-
-        // Clear projection content so FTS au trigger drops searchable plaintext.
-        // Status is left intact (not soft-forget); content is CE residual purge.
-        let had_plaintext: bool = conn.query_row(
-            "SELECT EXISTS(
-                    SELECT 1 FROM memory_projection
-                    WHERE memory_id = ?
-                      AND content IS NOT NULL
-                      AND TRIM(content) != ''
-                 )",
-            params![memory_id],
-            |row| row.get(0),
-        )?;
-
-        let proj_changed = conn.execute(
-            "UPDATE memory_projection
-             SET content = ''
-             WHERE memory_id = ?
-               AND content IS NOT NULL
-               AND TRIM(content) != ''",
-            params![memory_id],
-        )?;
-        counts.projection_rows += proj_changed as u64;
-        if had_plaintext || proj_changed > 0 {
-            counts.fts_rows += 1;
-        }
-
-        // Defensive: if FTS still has non-empty content for this memory_id
-        // (trigger missing / external content drift), force FTS delete by rowid.
-        // Propagate SQL errors — residual FTS after a failed delete is not silent success.
-        if memory_fts_has_plaintext(conn, memory_id)? {
-            let fts_rows: Vec<(i64, String)> = {
-                let mut stmt = conn.prepare(
-                    "SELECT p.rowid, COALESCE(p.content, '')
-                     FROM memory_projection p
-                     WHERE p.memory_id = ?",
-                )?;
-                let mapped = stmt.query_map(params![memory_id], |row| {
-                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-                })?;
-                let mut rows = Vec::new();
-                for r in mapped {
-                    rows.push(r?);
-                }
-                rows
-            };
-            for (rowid, content) in &fts_rows {
-                conn.execute(
-                    "INSERT INTO memory_fts(memory_fts, rowid, content, memory_id)
-                     VALUES('delete', ?, ?, ?)",
-                    params![rowid, content, memory_id],
-                )?;
-            }
-        }
+        // source: no FTS/summary plaintext index; dependents via E15 only.
     }
     Ok(counts)
+}
+
+/// Collect subjects for a content key and purge derived plaintext (E13 / rebuild).
+pub fn purge_derived_plaintext_for_content_key(
+    conn: &Connection,
+    content_key_id: &str,
+) -> Result<PurgeDerivedCounts> {
+    let subjects = subjects_for_content_key(conn, content_key_id)?;
+    purge_derived_plaintext_for_subjects(conn, &subjects)
+}
+
+/// Re-apply derived-plaintext purge for every destroyed content key and every
+/// tombstone (rebuild durability — side stores retained; event replay can restore
+/// projection plaintext before `ContentErased` re-purges).
+pub fn reapply_purge_for_erased_content_keys(conn: &Connection) -> Result<()> {
+    let mut keys: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    {
+        let mut stmt = conn
+            .prepare("SELECT content_key_id FROM content_key_store WHERE status = 'destroyed'")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        for r in rows {
+            keys.insert(r?);
+        }
+    }
+    {
+        let mut stmt = conn.prepare("SELECT content_key_id FROM tombstone_projection")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        for r in rows {
+            keys.insert(r?);
+        }
+    }
+    for key in keys {
+        let _ = purge_derived_plaintext_for_content_key(conn, &key)?;
+    }
+    Ok(())
+}
+
+fn purge_memory_subject(
+    conn: &Connection,
+    memory_id: &str,
+    counts: &mut PurgeDerivedCounts,
+) -> Result<()> {
+    // Clear embedding first (count only when embedding was present).
+    let emb_changed = conn.execute(
+        "UPDATE memory_projection
+         SET embedding = NULL,
+             embedding_generated_at = NULL
+         WHERE memory_id = ?
+           AND embedding IS NOT NULL",
+        params![memory_id],
+    )?;
+    counts.embeddings += emb_changed as u64;
+
+    // Clear projection content so FTS au trigger drops searchable plaintext.
+    // Status is left intact (not soft-forget); content is CE residual purge.
+    let had_plaintext: bool = conn.query_row(
+        "SELECT EXISTS(
+                SELECT 1 FROM memory_projection
+                WHERE memory_id = ?
+                  AND content IS NOT NULL
+                  AND TRIM(content) != ''
+             )",
+        params![memory_id],
+        |row| row.get(0),
+    )?;
+
+    let proj_changed = conn.execute(
+        "UPDATE memory_projection
+         SET content = ''
+         WHERE memory_id = ?
+           AND content IS NOT NULL
+           AND TRIM(content) != ''",
+        params![memory_id],
+    )?;
+    counts.projection_rows += proj_changed as u64;
+    if had_plaintext || proj_changed > 0 {
+        counts.fts_rows += 1;
+    }
+
+    // Defensive: if FTS still has non-empty content for this memory_id
+    // (trigger missing / external content drift), force FTS delete by rowid.
+    if memory_fts_has_plaintext(conn, memory_id)? {
+        let fts_rows: Vec<(i64, String)> = {
+            let mut stmt = conn.prepare(
+                "SELECT p.rowid, COALESCE(p.content, '')
+                 FROM memory_projection p
+                 WHERE p.memory_id = ?",
+            )?;
+            let mapped = stmt.query_map(params![memory_id], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })?;
+            let mut rows = Vec::new();
+            for r in mapped {
+                rows.push(r?);
+            }
+            rows
+        };
+        for (rowid, content) in &fts_rows {
+            conn.execute(
+                "INSERT INTO memory_fts(memory_fts, rowid, content, memory_id)
+                 VALUES('delete', ?, ?, ?)",
+                params![rowid, content, memory_id],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn purge_evidence_subject(
+    conn: &Connection,
+    evidence_id: &str,
+    counts: &mut PurgeDerivedCounts,
+) -> Result<()> {
+    let had_plaintext: bool = conn.query_row(
+        "SELECT EXISTS(
+                SELECT 1 FROM evidence_projection
+                WHERE evidence_id = ?
+                  AND summary IS NOT NULL
+                  AND TRIM(summary) != ''
+             )",
+        params![evidence_id],
+        |row| row.get(0),
+    )?;
+
+    // summary is NOT NULL — empty string clears searchable FTS via au trigger.
+    let proj_changed = conn.execute(
+        "UPDATE evidence_projection
+         SET summary = ''
+         WHERE evidence_id = ?
+           AND TRIM(summary) != ''",
+        params![evidence_id],
+    )?;
+    counts.projection_rows += proj_changed as u64;
+    if had_plaintext || proj_changed > 0 {
+        counts.fts_rows += 1;
+    }
+
+    if evidence_fts_has_plaintext(conn, evidence_id)? {
+        let fts_rows: Vec<(i64, String)> = {
+            let mut stmt = conn.prepare(
+                "SELECT p.rowid, COALESCE(p.summary, '')
+                 FROM evidence_projection p
+                 WHERE p.evidence_id = ?",
+            )?;
+            let mapped = stmt.query_map(params![evidence_id], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })?;
+            let mut rows = Vec::new();
+            for r in mapped {
+                rows.push(r?);
+            }
+            rows
+        };
+        for (rowid, summary) in &fts_rows {
+            conn.execute(
+                "INSERT INTO evidence_fts(evidence_fts, rowid, summary, evidence_id)
+                 VALUES('delete', ?, ?, ?)",
+                params![rowid, summary, evidence_id],
+            )?;
+        }
+    }
+    Ok(())
 }
 
 /// True iff FTS still holds non-empty content for the memory (validation layer).
@@ -564,6 +665,29 @@ pub fn memory_fts_has_plaintext(conn: &Connection, memory_id: &str) -> Result<bo
     Ok(fts_nonempty > 0)
 }
 
+/// True iff evidence projection/FTS still holds non-empty summary plaintext.
+pub fn evidence_fts_has_plaintext(conn: &Connection, evidence_id: &str) -> Result<bool> {
+    let proj: Option<String> = conn
+        .query_row(
+            "SELECT summary FROM evidence_projection WHERE evidence_id = ?",
+            params![evidence_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(c) = proj
+        && !c.trim().is_empty()
+    {
+        return Ok(true);
+    }
+    let fts_nonempty: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM evidence_fts
+             WHERE evidence_id = ? AND summary IS NOT NULL AND TRIM(summary) != ''",
+        params![evidence_id],
+        |row| row.get(0),
+    )?;
+    Ok(fts_nonempty > 0)
+}
+
 /// Back-compat name used by tests / callers: non-empty FTS/projection plaintext.
 pub fn memory_fts_has_hits(conn: &Connection, memory_id: &str) -> Result<bool> {
     memory_fts_has_plaintext(conn, memory_id)
@@ -580,21 +704,34 @@ pub enum WalCheckpointOutcome {
 
 /// Run `PRAGMA wal_checkpoint(TRUNCATE)` with one busy retry (E16).
 ///
-/// SQLite returns a result row `(busy, log, checkpointed)`; `busy != 0` means
-/// the checkpoint could not finish. One retry; still busy →
-/// [`WalCheckpointOutcome::PendingPassive`] (**not** an error).
-/// Does not claim NIST Purge or free-page zeroization.
+/// Handles both forms of busy:
+/// 1. Result row `(busy, log, checkpointed)` with `busy != 0`
+/// 2. rusqlite [`Error`] when SQLite returns `SQLITE_BUSY` as an error
+///
+/// One retry; still busy → [`WalCheckpointOutcome::PendingPassive`] (**not** an
+/// error). Does not claim media sanitization or free-page zeroization.
 pub fn wal_checkpoint_truncate(conn: &Connection) -> Result<WalCheckpointOutcome> {
-    let busy = run_wal_checkpoint_truncate(conn)?;
-    if busy == 0 {
-        return Ok(WalCheckpointOutcome::Truncated);
-    }
-    // E16: one retry on busy.
-    let busy_retry = run_wal_checkpoint_truncate(conn)?;
-    if busy_retry == 0 {
-        Ok(WalCheckpointOutcome::Truncated)
-    } else {
-        Ok(WalCheckpointOutcome::PendingPassive)
+    match run_wal_checkpoint_truncate(conn) {
+        Ok(0) => Ok(WalCheckpointOutcome::Truncated),
+        Ok(_) => {
+            // busy column != 0: one retry
+            match run_wal_checkpoint_truncate(conn) {
+                Ok(0) => Ok(WalCheckpointOutcome::Truncated),
+                Ok(_) => Ok(WalCheckpointOutcome::PendingPassive),
+                Err(e) if is_sqlite_busy_error(&e) => Ok(WalCheckpointOutcome::PendingPassive),
+                Err(e) => Err(e),
+            }
+        }
+        Err(e) if is_sqlite_busy_error(&e) => {
+            // SQLITE_BUSY as Error (not only busy column): one retry
+            match run_wal_checkpoint_truncate(conn) {
+                Ok(0) => Ok(WalCheckpointOutcome::Truncated),
+                Ok(_) => Ok(WalCheckpointOutcome::PendingPassive),
+                Err(e2) if is_sqlite_busy_error(&e2) => Ok(WalCheckpointOutcome::PendingPassive),
+                Err(e2) => Err(e2),
+            }
+        }
+        Err(e) => Err(e),
     }
 }
 
@@ -602,6 +739,20 @@ pub fn wal_checkpoint_truncate(conn: &Connection) -> Result<WalCheckpointOutcome
 fn run_wal_checkpoint_truncate(conn: &Connection) -> Result<i64> {
     conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| row.get(0))
         .map_err(StoreError::DatabaseError)
+}
+
+/// True when rusqlite reports SQLITE_BUSY / DatabaseBusy.
+fn is_sqlite_busy_error(err: &StoreError) -> bool {
+    match err {
+        StoreError::DatabaseError(rusqlite::Error::SqliteFailure(code, _)) => {
+            matches!(
+                code.code,
+                rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked
+            ) || code.extended_code == 5 // SQLITE_BUSY
+                || code.extended_code == 6 // SQLITE_LOCKED
+        }
+        _ => false,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -647,6 +798,7 @@ impl Projection for ContentEnvelopeProjection {
                 // Complete request (UPSERT) + insert minimal tombstone.
                 // Orphan ContentErased (no prior request): insert completed row
                 // with empty requester/reason; requested_at = completed_at.
+                let key_str = p.content_key_id.to_string();
                 tx.execute(
                     "INSERT INTO erasure_request_projection (
                         content_key_id, requester, reason, status,
@@ -657,7 +809,7 @@ impl Projection for ContentEnvelopeProjection {
                         completed_at = excluded.completed_at,
                         tombstone_id = excluded.tombstone_id",
                     params![
-                        p.content_key_id.to_string(),
+                        key_str.as_str(),
                         occurred_at,
                         occurred_at,
                         p.tombstone_id.to_string(),
@@ -671,12 +823,13 @@ impl Projection for ContentEnvelopeProjection {
                         content_key_id = excluded.content_key_id,
                         erased_at = excluded.erased_at,
                         reason_code = excluded.reason_code",
-                    params![
-                        p.tombstone_id.to_string(),
-                        p.content_key_id.to_string(),
-                        occurred_at,
-                    ],
+                    params![p.tombstone_id.to_string(), key_str.as_str(), occurred_at,],
                 )?;
+                // Rebuild durability (T165 Codex R1): re-purge derived plaintext for
+                // subjects linked via retained encrypted_content_blob side store.
+                // Event replay restores memory/evidence projection text; CE must
+                // clear it again when ContentErased is applied.
+                let _ = purge_derived_plaintext_for_content_key(tx, &key_str)?;
             }
             // Ticket path and soft forget must not write CE tables (S7/S8).
             _ => {}
