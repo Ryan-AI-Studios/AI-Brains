@@ -719,8 +719,8 @@ pub struct RetentionApplyCommand {
 
 /// Outcome of projection-only apply (production CLI path).
 ///
-/// CE keys are listed for daemon wipe. A pre-CE [`RetentionApplied`] audit is
-/// always appended after projections (R12 durability). Call
+/// CE keys are listed for daemon wipe. A planned [`RetentionApplied`] audit is
+/// always appended **before** any projection delete (R12 durability). Call
 /// [`finalize_retention_apply`] after CE with **successful** keys only for R15
 /// cascade + a second (final) RetentionApplied.
 #[derive(Debug, Clone)]
@@ -734,9 +734,10 @@ pub struct RetentionProjectionApplyOutcome {
 
 /// Apply **projection** candidates only (local). Does not CE-wipe.
 ///
-/// Always appends `RetentionApplied` after projection deletes (R12), including
-/// when CE keys remain pending for the daemon — so a crash mid-CE still leaves
-/// an audit of the disposal that already happened.
+/// R12 durability: builds the apply report from planned candidates, appends
+/// `RetentionApplied` **before** any projection delete. If the audit append
+/// fails, **no** deletes run. When CE keys remain pending for the daemon, a
+/// warning is recorded and finalize after wipe appends a second audit.
 ///
 /// Production CLI uses this so CE can go through the daemon (T165 parity) without
 /// monomorphizing `wipe_content_envelope` into the CLI binary.
@@ -758,7 +759,6 @@ pub fn apply_retention_projections<W: EventWriter>(
     let generated_at = now.to_rfc3339();
     let candidates = collect_candidates(store, config, now)?;
 
-    let mut errors: Vec<String> = Vec::new();
     let mut turns_to_delete: Vec<TurnKey> = Vec::new();
     let mut query_traces: Vec<String> = Vec::new();
     let mut reviews: Vec<String> = Vec::new();
@@ -805,6 +805,33 @@ pub fn apply_retention_projections<W: EventWriter>(
         ids.dedup();
     }
 
+    // 1) Planned report first (counts from candidates; no mutation yet).
+    let deferred_ce = !ce_keys.is_empty();
+    let mut report = build_report(
+        RetentionReportMode::Apply,
+        &generated_at,
+        config,
+        &candidates,
+        RetentionCascade {
+            parents_marked_for_resynthesis: 0,
+        },
+        0,
+        Vec::new(),
+    );
+
+    if deferred_ce {
+        report.warnings.push(format!(
+            "ce_pending={} (RetentionApplied pre-mutation; finalize after daemon wipe)",
+            ce_keys.len()
+        ));
+    }
+
+    // 2) R12: audit BEFORE any delete. If append fails, do not delete.
+    // Projection-only: single pre-mutation audit. Deferred CE: + finalize second.
+    append_retention_applied(writer, command_id, &report)?;
+
+    // 3) Projection deletes only after durable audit.
+    let mut errors: Vec<String> = Vec::new();
     {
         let conn = store
             .connection()
@@ -823,31 +850,8 @@ pub fn apply_retention_projections<W: EventWriter>(
             errors.push(format!("delete_decisions: {e}"));
         }
     }
-
-    let deferred_ce = !ce_keys.is_empty();
-    let errors_count = errors.len() as u64;
-    let mut report = build_report(
-        RetentionReportMode::Apply,
-        &generated_at,
-        config,
-        &candidates,
-        RetentionCascade {
-            parents_marked_for_resynthesis: 0,
-        },
-        errors_count,
-        errors,
-    );
-
-    if deferred_ce {
-        report.warnings.push(format!(
-            "ce_pending={} (RetentionApplied pre-CE; finalize after daemon wipe)",
-            ce_keys.len()
-        ));
-    }
-
-    // R12: every confirmed apply audits after projections — before daemon CE.
-    // Projection-only: single audit. Deferred CE: pre-CE audit + finalize second.
-    append_retention_applied(writer, command_id, &report)?;
+    report.errors = errors;
+    report.errors_count = report.errors.len() as u64;
 
     Ok(RetentionProjectionApplyOutcome {
         report,
@@ -903,8 +907,9 @@ pub fn cascade_memory_ids_for_keys(
 /// Apply a retention plan in-process (fixture / test path). Refuses without
 /// `confirm && !dry_run` (R1).
 ///
-/// CE candidates call [`wipe_content_envelope`] only (R2). Appends
-/// [`Payload::RetentionApplied`] on successful apply path (R12).
+/// CE candidates call [`wipe_content_envelope`] only (R2). Appends planned
+/// [`Payload::RetentionApplied`] **before** any delete/wipe (R12). If the audit
+/// append fails, no destructive work runs.
 ///
 /// **Production CLI must not use this for CE** — use
 /// [`apply_retention_projections`] + daemon wipe instead (T165 E8 parity).
@@ -936,7 +941,6 @@ where
     let generated_at = now.to_rfc3339();
     let candidates = collect_candidates(store, config, now)?;
 
-    let mut errors: Vec<String> = Vec::new();
     let mut turns_to_delete: Vec<TurnKey> = Vec::new();
     let mut query_traces: Vec<String> = Vec::new();
     let mut reviews: Vec<String> = Vec::new();
@@ -983,7 +987,29 @@ where
         ids.dedup();
     }
 
-    // Projection deletes (batch, local)
+    // 1–2) Planned report + R12 audit BEFORE any delete/wipe.
+    let mut report = build_report(
+        RetentionReportMode::Apply,
+        &generated_at,
+        config,
+        &candidates,
+        RetentionCascade {
+            parents_marked_for_resynthesis: 0,
+        },
+        0,
+        Vec::new(),
+    );
+    if !ce_keys.is_empty() {
+        report.warnings.push(format!(
+            "ce_pending={} (RetentionApplied pre-mutation; in-process wipe follows)",
+            ce_keys.len()
+        ));
+    }
+    append_retention_applied(writer, &cmd.command_id, &report)?;
+
+    let mut errors: Vec<String> = Vec::new();
+
+    // 3) Projection deletes (batch, local) after durable audit
     {
         let conn = store
             .connection()
@@ -1035,7 +1061,11 @@ where
                 }
             }
             Err(e) => {
-                errors.push(format!("ce_wipe {key_disp}: {e}"));
+                // Codex R2 P3: do not echo raw error Display (may embed full key).
+                errors.push(format!(
+                    "ce_wipe {key_disp}: {}",
+                    ce_wipe_error_code(&e)
+                ));
             }
         }
     }
@@ -1051,31 +1081,34 @@ where
             .map_err(|e| ControlPlaneError::Query(e.to_string()))?
     };
 
-    let errors_count = errors.len() as u64;
-    let report = build_report(
-        RetentionReportMode::Apply,
-        &generated_at,
-        config,
-        &candidates,
-        RetentionCascade {
-            parents_marked_for_resynthesis: parents_marked,
-        },
-        errors_count,
-        errors.clone(),
-    );
+    report.cascade.parents_marked_for_resynthesis = parents_marked;
+    report.errors = errors.clone();
+    report.errors_count = report.errors.len() as u64;
 
-    // R12 RetentionApplied audit
-    append_retention_applied(writer, &cmd.command_id, &report)?;
-
-    // Non-zero CE failures → error after audit (spec: aggregate errors; non-zero if any CE fail)
+    // Non-zero CE failures → error after pre-mutation audit (spec: non-zero if any CE fail)
     let ce_failed = errors.iter().any(|e| e.starts_with("ce_wipe "));
     if ce_failed {
         return Err(ControlPlaneError::Query(format!(
-            "retention apply completed with {errors_count} error(s); CE failure(s) present"
+            "retention apply completed with {} error(s); CE failure(s) present",
+            report.errors_count
         )));
     }
 
     Ok(report)
+}
+
+/// Stable short code for CE wipe failures (avoids full content_key_id in reports).
+fn ce_wipe_error_code(e: &ControlPlaneError) -> &'static str {
+    match e {
+        ControlPlaneError::NotEnvelopeBacked(_) => "not_envelope_backed",
+        ControlPlaneError::PolicyDenied(_) => "policy_denied",
+        ControlPlaneError::InvalidPayload(_) => "invalid_payload",
+        ControlPlaneError::Query(_) => "query_failed",
+        ControlPlaneError::EventAppend(_) => "event_append_failed",
+        ControlPlaneError::NotFound(_) => "not_found",
+        ControlPlaneError::ApprovalRequired(_) => "approval_required",
+        _ => "wipe_failed",
+    }
 }
 
 fn append_retention_applied<W: EventWriter>(

@@ -8,7 +8,8 @@
 //!   - **CE** rows: require daemon (T165 E8 parity); each key wiped via
 //!     `DaemonRequest::WipeContentEnvelope` only. Never `AllowAllPolicy` + local wipe.
 //!   - If any CE candidate exists and daemon is down → `DAEMON_UNAVAILABLE` before disposal.
-//!   - Projection-only apply may run without daemon.
+//!   - CE apply requires explicit `--scope` (never invent a random Personal UUID).
+//!   - Projection-only apply may run without daemon or `--scope`.
 //!
 //! Fixture tests may call `apply_retention` in-process with `AllowAllPolicy`.
 
@@ -25,7 +26,6 @@ use ai_brains_control_plane::{
     RetentionConfig, StorePorts, apply_retention_projections, cascade_memory_ids_for_keys,
     finalize_retention_apply, parse_scope_key, plan_retention, scope_identity_key,
 };
-use ai_brains_core::ids::UserId;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use ai_brains_store::SqliteEventStore;
@@ -87,24 +87,21 @@ pub fn run_apply(
     let command_id = ensure_command_id(options.command_id.as_deref());
     let principal = resolve_principal(options.principal_id.as_deref());
 
-    let scope = match options.scope.as_deref() {
-        Some(s) if !s.trim().is_empty() => match parse_scope_key(s) {
-            Ok(sc) => sc,
-            Err(e) => {
-                return fail_api(
-                    format,
-                    ApiError::new("INVALID_PAYLOAD", format!("invalid --scope: {e}")),
-                );
-            }
-        },
-        _ => ScopeRef::Personal(UserId::new()),
-    };
-    let scope_wire = scope_identity_key(&scope);
-
     let plan = match plan_retention(&store, &config) {
         Ok(p) => p,
         Err(e) => {
             return fail_api(format, ApiError::new("QUERY_FAILED", e.to_string()));
+        }
+    };
+
+    // Gates before any mutation: CE requires explicit scope + daemon.
+    let scope = match resolve_retention_apply_scope(
+        options.scope.as_deref(),
+        plan.totals.would_ce_wipe,
+    ) {
+        Ok(s) => s,
+        Err(msg) => {
+            return fail_api(format, ApiError::new("INVALID_PAYLOAD", msg));
         }
     };
 
@@ -125,6 +122,7 @@ pub fn run_apply(
         };
     }
 
+    // apply_retention_projections: planned RetentionApplied first, then projection deletes.
     let outcome =
         match apply_retention_projections(&store, &ports.writer, &config, &command_id, true, false)
         {
@@ -143,8 +141,20 @@ pub fn run_apply(
         report.warnings.push(format!("command_id={command_id}"));
     }
 
-    // Pre-CE RetentionApplied already appended by apply_retention_projections (R12).
+    // Pre-mutation RetentionApplied already appended by apply_retention_projections (R12).
     if !outcome.pending_ce_keys.is_empty() {
+        let Some(ref sc) = scope else {
+            // Unreachable when plan.totals matched outcome; belt-and-suspenders.
+            return fail_api(
+                format,
+                ApiError::new(
+                    "INVALID_PAYLOAD",
+                    "retention apply with CE candidates requires --scope \
+                     (e.g. Repository:<uuid> or Personal:<uuid>)",
+                ),
+            );
+        };
+        let scope_wire = scope_identity_key(sc);
         let client = DaemonClient::new();
         let mut successful_ce_keys: Vec<String> = Vec::new();
         for key in &outcome.pending_ce_keys {
@@ -171,9 +181,10 @@ pub fn run_apply(
                     }
                 }
                 Ok(DaemonResponse::Error(err)) => {
+                    // Codex R2 P3: code only — err.message may embed full content_key_id.
                     report
                         .errors
-                        .push(format!("ce_wipe {key_disp}: {}: {}", err.code, err.message));
+                        .push(format!("ce_wipe {key_disp}: {}", err.code));
                 }
                 Ok(other) => {
                     report.errors.push(format!(
@@ -215,6 +226,36 @@ pub fn run_apply(
 /// Whether production apply must require the daemon before mutating.
 pub fn production_apply_requires_daemon(would_ce_wipe: u64) -> bool {
     would_ce_wipe > 0
+}
+
+/// Whether production apply must require an explicit `--scope` (CE path).
+pub fn production_apply_requires_scope(would_ce_wipe: u64) -> bool {
+    would_ce_wipe > 0
+}
+
+/// Resolve CE scope for retention apply.
+///
+/// When `would_ce_wipe > 0`, `--scope` is **required** (parseable
+/// `Repository:<uuid>` / `Personal:<uuid>` / `Workspace:<uuid>`). Never invent
+/// a random `Personal` UUID. Projection-only apply (`would_ce_wipe == 0`) may
+/// omit scope (unused).
+pub fn resolve_retention_apply_scope(
+    scope: Option<&str>,
+    would_ce_wipe: u64,
+) -> Result<Option<ScopeRef>, String> {
+    let trimmed = scope.map(str::trim).filter(|s| !s.is_empty());
+    match (production_apply_requires_scope(would_ce_wipe), trimmed) {
+        (true, None) => Err(
+            "retention apply with CE candidates requires --scope \
+             (e.g. Repository:<uuid> or Personal:<uuid>); \
+             refusing random default scope"
+                .into(),
+        ),
+        (_, Some(s)) => parse_scope_key(s)
+            .map(Some)
+            .map_err(|e| format!("invalid --scope: {e}")),
+        (false, None) => Ok(None),
+    }
 }
 
 fn emit_report(
@@ -272,11 +313,12 @@ fn emit_report(
 }
 
 #[cfg(test)]
-#[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
     use ai_brains_control_plane::cascade_memory_ids_for_keys;
     use std::collections::BTreeMap;
+    use uuid::Uuid;
 
     #[test]
     fn production_apply_requires_daemon__ce_candidates__true() {
@@ -286,6 +328,54 @@ mod tests {
     #[test]
     fn production_apply_requires_daemon__projection_only__false() {
         assert!(!production_apply_requires_daemon(0));
+    }
+
+    #[test]
+    fn production_apply_requires_scope__ce_candidates__true() {
+        assert!(production_apply_requires_scope(1));
+        assert!(!production_apply_requires_scope(0));
+    }
+
+    #[test]
+    fn resolve_retention_apply_scope__ce_without_scope__err() {
+        let err = resolve_retention_apply_scope(None, 1).expect_err("must require scope");
+        assert!(
+            err.contains("--scope") || err.contains("requires"),
+            "expected clear scope message, got: {err}"
+        );
+        assert!(
+            err.contains("refusing random") || err.contains("Repository:"),
+            "expected guidance, got: {err}"
+        );
+    }
+
+    #[test]
+    fn resolve_retention_apply_scope__ce_empty_scope__err() {
+        let err = resolve_retention_apply_scope(Some("   "), 2).expect_err("empty not ok");
+        assert!(err.contains("--scope") || err.contains("requires"), "{err}");
+    }
+
+    #[test]
+    fn resolve_retention_apply_scope__ce_with_scope__ok() {
+        let uid = Uuid::nil();
+        let key = format!("Personal:{uid}");
+        let sc = resolve_retention_apply_scope(Some(&key), 1)
+            .expect("valid scope")
+            .expect("Some");
+        assert_eq!(scope_identity_key(&sc), key);
+    }
+
+    #[test]
+    fn resolve_retention_apply_scope__projection_only_omits_scope__ok() {
+        let sc = resolve_retention_apply_scope(None, 0).expect("projection-only");
+        assert!(sc.is_none());
+    }
+
+    #[test]
+    fn resolve_retention_apply_scope__invalid_key__err() {
+        let err =
+            resolve_retention_apply_scope(Some("not-a-scope"), 1).expect_err("invalid");
+        assert!(err.contains("invalid --scope") || err.contains("unparseable"), "{err}");
     }
 
     #[test]
@@ -308,5 +398,17 @@ mod tests {
         let t = truncate_id(&long);
         assert!(t.chars().count() <= 37); // 36 + ellipsis char
         assert!(t.ends_with('…') || t.ends_with("..."));
+    }
+
+    #[test]
+    fn daemon_error_line__code_only_no_message() {
+        // Documents P3 shape: ce_wipe {truncated}: {code} — never raw err.message.
+        let key = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+        let key_disp = truncate_id(key);
+        let code = "POLICY_DENIED";
+        let line = format!("ce_wipe {key_disp}: {code}");
+        assert!(!line.contains("content_key_store"));
+        assert!(!line.contains("no content_key_store row"));
+        assert!(line.ends_with(code));
     }
 }

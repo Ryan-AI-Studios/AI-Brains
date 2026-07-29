@@ -347,8 +347,188 @@ Product blockers from R1 are closed:
 
 | ID | Severity | Status | Disposition |
 |----|----------|--------|-------------|
-| **Codex-P1 R12 audit durability** | P1 | **fixed_pending_verification** | `apply_retention_projections` **always** appends `RetentionApplied` after projection deletes, including when CE is deferred (`ce_pending=N` warning). Crash mid-daemon-CE still leaves a durable audit. `finalize_retention_apply` appends a **second** RetentionApplied with cascade + final errors. Tests: `retention_apply__projections_append_audit_before_ce`, `finalize_retention_apply__appends_final_audit_and_cascades`. |
-| **Codex-P1 unsafe horizons** | P1 | **fixed_pending_verification** | `parse_positive_horizon_days` requires `1..=36500`; invalid env overrides fall back to class defaults (never negative / never chrono panic). Cutoffs use `Duration::try_days` + `checked_sub_signed`. OPERATIONS documents validation. Tests: `parse_positive_horizon_days__rejects_non_positive_and_huge`, `retention_config_from_env__negative_falls_back_to_default` (TempEnv). |
-| **Codex-P2 R15 cascade on failed CE** | P2 | **fixed_pending_verification** | CLI tracks successful (`wiped` / `already_erased`) keys only; `cascade_memory_ids_for_keys` maps subjects per key. In-process `apply_retention` same filter. Tests: `cascade_memory_ids_for_keys__only_successful_keys`, `finalize_retention_apply__failed_ce_keys_do_not_cascade`, CLI `cascade_filter__successful_keys_only`. Closes F-010. |
-| **Codex-P3 full content_key in errors** | P3 | **fixed_pending_verification** | Error strings use `truncate_id` (same helper as sample_ids). CLI + in-process apply. Test: CLI `error_key_ids_use_truncate_id`. |
-| **Codex-P3 production split tests** | P3 | **fixed_pending_verification** | Added finalize audit, pre-CE audit, cascade filter, horizon env tests (see above). Closes F-009. |
+| **Codex-P1 R12 audit durability** | P1 | **verified_fixed** (R3) | See Internal Review R3 §1. |
+| **Codex-P1 unsafe horizons** | P1 | **verified_fixed** (R3) | See Internal Review R3 §2. |
+| **Codex-P2 R15 cascade on failed CE** | P2 | **verified_fixed** (R3) | See Internal Review R3 §3. |
+| **Codex-P3 full content_key in errors** | P3 | **verified_fixed** (R3) | See Internal Review R3 §4. |
+| **Codex-P3 production split tests** | P3 | **verified_fixed** (R3) | See Internal Review R3 §1–3 test table. |
+
+---
+
+# T166 Internal Review R3 (Codex R1 fix re-review)
+
+**Reviewer:** primary (read-only re-review)  
+**Scope:** `feature/T166-class-based-retention` vs base `2f3be7d`; Codex R1 fix commit `c6f7e6e` and later on branch  
+**Authority:** `spec.md` R1–R16; R1/R2 findings; Codex `review.codex.r1.md` P1–P3; production retention surfaces  
+**Date:** 2026-07-29  
+**Method:** Code + test evidence only (no workspace CI re-run in this pass)
+
+## Verdict: CLEAN
+
+All Codex R1 P1/P2/P3 items and prior F-001..F-010 claims are **verified_fixed** with code + test evidence. No new **critical / high / medium** regressions from the fix set. One optional **low** residual (brain nightly horizon path) does not block CLEAN.
+
+---
+
+## 1. R12 — RetentionApplied durability (Codex-P1)
+
+| Claim | Result | Evidence |
+|-------|--------|----------|
+| Pre-CE audit after projections even when CE pending | **Met** | `apply_retention_projections` always calls `append_retention_applied` after projection deletes (`class_based_retention.rs` ~848–850), including when `ce_keys` non-empty; warning `ce_pending=N (RetentionApplied pre-CE; finalize after daemon wipe)`. |
+| Finalize second event after daemon CE | **Met** | CLI calls `finalize_retention_apply` when `pending_ce_keys` non-empty (`commands/retention.rs` ~147–203); finalize appends a second `RetentionApplied` (~883). |
+| Projection-only still one event | **Met** | CLI only enters CE/finalize block when keys non-empty; empty CE → single audit from projections path. Fixture `apply_retention` still single audit post-work. |
+| Crash mid-daemon-CE leaves durable audit | **Met** | Pre-CE append happens **before** daemon loop returns to caller; projections already audited. |
+
+**Tests:**
+
+- `retention_apply__projections_append_audit_before_ce` — CE pending → exactly 1 `RetentionApplied` pre-finalize + `ce_pending=` warning.
+- `finalize_retention_apply__appends_final_audit_and_cascades` — pre-CE + finalize → ≥2 audits; cascade marks parent stale.
+- Prior: `retention_apply__appends_retention_applied_event` (fixture path).
+
+**Status:** **verified_fixed** (closes F-009).
+
+---
+
+## 2. Horizon parsing (Codex-P1)
+
+| Claim | Result | Evidence |
+|-------|--------|----------|
+| No panic on overflow construction | **Met** | `parse_positive_horizon_days` uses `Duration::try_days`; `cutoff_days_before` uses `try_days` + `checked_sub_signed` with epoch fallback (select almost nothing, not everything). No `Duration::days` in production class-based path. |
+| No negative horizons | **Met** | `v <= 0` rejected; env invalid → class default. |
+| Clamp `1..=36500` | **Met** | `MAX_RETENTION_HORIZON_DAYS = 36_500`; oversize rejected. |
+| Checked duration | **Met** | As above; OPERATIONS ~229 documents validation. |
+
+**Tests:**
+
+- `parse_positive_horizon_days__rejects_non_positive_and_huge` — 0, −7, non-int, max+1 err; 90 and max ok.
+- `retention_config_from_env__negative_falls_back_to_default` (TempEnv) — negative/zero/huge fall back; valid 45 accepted; secret_days > 0.
+
+**Status:** **verified_fixed** for class-based / CLI plan+apply path.
+
+---
+
+## 3. R15 cascade only successful CE keys (Codex-P2)
+
+| Claim | Result | Evidence |
+|-------|--------|----------|
+| Production CLI filters wiped / already_erased | **Met** | `successful_ce_keys` only on those statuses; `cascade_memory_ids_for_keys(&pending_cascade_by_key, &successful_ce_keys)` before finalize. |
+| Map is per-key (not flat all planned subjects) | **Met** | `pending_cascade_by_key: BTreeMap<String, Vec<String>>` collected only under `MECHANISM_CE_WIPE`. |
+| In-process fixture path same filter | **Met** | `apply_retention` builds `successful_ce_keys` the same way; cascade uses `cascade_memory_ids_for_keys`. |
+| Failed CE → no parent stale | **Met** | Test with empty successful list. |
+
+**Tests:**
+
+- `cascade_memory_ids_for_keys__only_successful_keys`
+- `finalize_retention_apply__failed_ce_keys_do_not_cascade` — parent stays `active`
+- CLI unit `cascade_filter__successful_keys_only`
+
+**Status:** **verified_fixed** (closes F-010).
+
+---
+
+## 4. Truncated ids in errors (Codex-P3)
+
+| Claim | Result | Evidence |
+|-------|--------|----------|
+| CE error strings use truncated key display | **Met** | CLI: `key_disp = truncate_id(key)` in all `ce_wipe {key_disp}: …` branches. In-process: `key_disp = truncate_id(key_str)` for invalid key + wipe errors. |
+| Same helper as sample_ids | **Met** | contracts `truncate_id` (MAX 36 + ellipsis). |
+
+**Test:** CLI `error_key_ids_use_truncate_id` (UUID ≤36 preserved; longer truncated).
+
+**Status:** **verified_fixed**.
+
+---
+
+## 5. Production safety greps (regression + prior locks)
+
+| Check | Result |
+|-------|--------|
+| Production CLI `AllowAllPolicy` | **Absent** — comments only in `commands/retention.rs` |
+| Production CE path | Daemon `WipeContentEnvelope` only; gate `production_apply_requires_daemon(would_ce_wipe > 0)` |
+| `destroy_content_key_wrap` outside T165 wipe / store / tests | **Clean** — no hits in CLI, class_based_retention, store projections/retention |
+| `unwrap` / `expect` / `panic!` in production retention modules | **None** in `class_based_retention.rs`, store `projections/retention.rs`, CLI `commands/retention.rs`, brain `retention.rs` |
+| Parallel destroy in retention | **None** |
+
+---
+
+## 6. Fresh sweep — regressions from Codex fixes
+
+| Concern | Assessment |
+|---------|------------|
+| Double audit same `command_id` | **OK** — intentional pre-CE + final; same aggregate id, two append-only events. |
+| Finalize still runs when all CE fail | **OK** — cascade empty; second audit carries errors; R12 final tallies. |
+| Cascade mark with empty slice | **OK** — `mark_parents_for_resynthesis` → 0 parents. |
+| Pre-CE report cascade count 0 | **OK** — true cascade only at finalize / in-process after successful CE. |
+| Horizon silent fallback vs hard fail | **Acceptable** — invalid env falls back to default (fail-safe for operator start); documented in OPERATIONS. |
+| Brain nightly `days_from_env` not fully aligned | **Low residual (F-011)** — see below; pre-existing parallel path, not introduced by dual-path CE fix. |
+| Projection-only `apply_retention_projections` exact audit count test | **Info** — implied by code (no finalize when keys empty) + fixture R12; optional extra unit test not required for CLEAN. |
+
+### F-011 [low] Brain nightly horizon still `> 0` only + `Duration::days`
+
+- **description:** Class path sanitizes `AI_BRAINS_RETENTION_*` to `1..=36500` with checked chrono. Brain `RetentionService::days_from_env` only requires `*d > 0` and nightly uses `Utc::now() - Duration::days(self.retention_days)`, so a huge positive env could theoretically panic on chrono overflow on the **legacy raw-turn** nightly path (not mass-select via negative). No CE. Not introduced by Codex R1 CE/audit fixes; consistency gap only.
+- **files:** `crates/ai-brains-brain/src/retention.rs` (~26–31, ~63)
+- **required_fix (optional):** Reuse `parse_positive_horizon_days` / same max + `try_days` checked cutoff.
+- **status:** open (deferrable)
+
+---
+
+## DoD / R-lock matrix (R3 delta)
+
+| Item | R2 | R3 |
+|------|----|----|
+| **R12** RetentionApplied | Met (split path) | **Met** + pre-CE durability verified |
+| **R15** cascade | Met | **Met** + success-key filter verified |
+| Horizons safe | (not in R2 matrix) | **Met** on class path |
+| Error id truncation | (not scored) | **Met** |
+| F-001..F-008 | verified_fixed | unchanged |
+| F-009 / F-010 | fixed_pending_verification | **verified_fixed** |
+| Process DoD (Phase 8, #34, conductor Complete, full gate) | Unmet | **Unmet** (process; not product blockers) |
+
+---
+
+## Missing tests (R3 update)
+
+| Gap | Present? |
+|-----|----------|
+| pre-CE RetentionApplied with CE pending | **Yes** |
+| finalize second RetentionApplied + cascade | **Yes** |
+| cascade only successful CE keys | **Yes** |
+| horizon reject / env fallback | **Yes** |
+| truncated error key ids | **Yes** (CLI unit) |
+| brain huge-horizon no-panic | **No** (F-011 optional) |
+
+---
+
+## R3 summary
+
+Codex R1 blockers are closed:
+
+1. **R12:** Every confirmed production apply appends `RetentionApplied` after projections **before** daemon CE; finalize adds a second final audit when CE was pending; projection-only remains a single event.  
+2. **Horizons:** Class config rejects ≤0 and >36500, falls back on invalid env, uses checked duration construction (no chrono panic / no future cutoffs).  
+3. **R15:** Cascade subjects drawn only from successful wipe keys (CLI + in-process).  
+4. **R4-ish ids:** Apply error strings truncate content_key ids.  
+5. **Safety:** No production `AllowAllPolicy` for CE, no parallel destroy, no `unwrap`/`expect`/`panic!` in production retention modules.
+
+**R3 verdict: CLEAN** — no open critical/high/medium. F-011 (low) may defer to `conductor/ISSUES.md`. Process DoD / full CI gate remain for track closure.
+
+---
+
+# Codex R2 findings — dispositions (post-fix)
+
+**Source:** `review.codex.r2.md`  
+**Date:** 2026-07-29  
+
+| ID | Severity | Status | Disposition |
+|----|----------|--------|-------------|
+| **Codex-R2-P1 R12 audit before destructive work** | P1 | **verified_fixed** | `apply_retention_projections` and in-process `apply_retention` now build planned report, append `RetentionApplied` **before** any projection delete / CE wipe. If audit append fails, no deletes run. Warning text: `ce_pending=N (RetentionApplied pre-mutation; …)`. Finalize still appends second audit after successful CE cascade. Tests: `retention_apply__projections_append_audit_before_ce`, `retention_apply__projections_audit_before_projection_delete`. |
+| **Codex-R2-P1 default CE scope random Personal UUID** | P1 | **verified_fixed** | CLI `resolve_retention_apply_scope`: when `would_ce_wipe > 0`, requires non-empty `--scope` parseable as `Repository:/Personal:/Workspace:<uuid>`; `INVALID_PAYLOAD` if missing/empty; never `UserId::new()`. Projection-only (`would_ce_wipe == 0`) may omit scope. Scope + daemon gates run **before** `apply_retention_projections`. Help/after_help examples show `--scope`. Tests: `resolve_retention_apply_scope__ce_without_scope__err`, `__projection_only_omits_scope__ok`, `__ce_with_scope__ok`, `production_apply_requires_scope__ce_candidates__true`. |
+| **Codex-R2-P3 daemon err.message full keys** | P3 | **verified_fixed** | CLI `DaemonResponse::Error` → `ce_wipe {key_disp}: {err.code}` only (no `err.message`). In-process wipe errors use `ce_wipe_error_code` short codes (`policy_denied`, `not_envelope_backed`, …) instead of `Display` which embeds full key. Test: `daemon_error_line__code_only_no_message`. |
+
+## R4 notes (Codex R2 fix re-review self-check)
+
+| Concern | Result |
+|---------|--------|
+| Pre-mutation audit order | Plan build → `append_retention_applied` → projection deletes → (CLI) CE → finalize |
+| Random Personal scope | Removed; `UserId::new()` no longer in retention CLI apply path |
+| Scope gate before mutation | Plan first, then `resolve_retention_apply_scope` + daemon, then projections |
+| Double audit with CE | Intentional: pre-mutation + finalize final tallies |
+| Projection-only scope | Optional / unused |

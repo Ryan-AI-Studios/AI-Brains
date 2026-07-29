@@ -397,7 +397,7 @@ enum Commands {
     },
     /// Class-based retention plan/apply (T166 / P8.4)
     #[command(
-        after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm --format json\nHonesty: projection delete ≠ CE; CE reuses erasure wipe path for envelope classes only."
+        after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json\nHonesty: projection delete ≠ CE; CE reuses erasure wipe path for envelope classes only; CE apply requires --scope."
     )]
     Retention {
         #[command(subcommand)]
@@ -803,7 +803,7 @@ enum ErasureCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\nNightly: AI_BRAINS_RETENTION_APPLY_CE only logs intent; CE is CLI+daemon+confirm only."
+    after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\n  ai-brains retention apply --confirm --scope Repository:<uuid>\nNightly: AI_BRAINS_RETENTION_APPLY_CE only logs intent; CE is CLI+daemon+confirm+scope only."
 )]
 enum RetentionCommands {
     /// Dry-run class matrix report (no disposal)
@@ -814,7 +814,7 @@ enum RetentionCommands {
     },
     /// Apply retention plan (requires --confirm; CE via daemon T165 wipe)
     #[command(
-        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE (local)\n  - Envelope CE requires daemon + wipe_content_envelope only (T165)\n  - Projection-only apply may run without daemon\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json"
+        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE (local)\n  - Envelope CE requires daemon + wipe_content_envelope only (T165)\n  - CE candidates require explicit --scope (Repository:<uuid> / Personal:<uuid>); no random default\n  - Projection-only apply may run without daemon or --scope\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json"
     )]
     Apply {
         #[arg(long, default_value = "json")]
@@ -827,7 +827,7 @@ enum RetentionCommands {
         dry_run: bool,
         #[arg(long = "command-id")]
         command_id: Option<String>,
-        /// Scope for CE wipe policy path (default Personal)
+        /// Scope for CE wipe policy path (required when plan has CE candidates)
         #[arg(long)]
         scope: Option<String>,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]

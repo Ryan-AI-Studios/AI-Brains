@@ -814,7 +814,7 @@ fn retention_apply__projections_only__defers_ce_no_local_destroy() {
 
 #[test]
 fn retention_apply__projections_append_audit_before_ce() {
-    // Codex R1 P1 / R12: projections path with CE pending still appends RetentionApplied.
+    // Codex R2 P1 / R12: planned RetentionApplied is appended (pre-mutation) when CE pending.
     let (_tmp, ports) = open_ports();
     let store = store_of(&ports);
     let key = ContentKeyId::new();
@@ -848,8 +848,8 @@ fn retention_apply__projections_append_audit_before_ce() {
             .report
             .warnings
             .iter()
-            .any(|w| w.contains("ce_pending=")),
-        "pre-CE warning expected: {:?}",
+            .any(|w| w.contains("ce_pending=") && w.contains("pre-mutation")),
+        "pre-mutation CE warning expected: {:?}",
         outcome.report.warnings
     );
 
@@ -861,8 +861,50 @@ fn retention_apply__projections_append_audit_before_ce() {
     assert_eq!(
         audits.len(),
         1,
-        "R12: exactly one pre-CE RetentionApplied before finalize"
+        "R12: exactly one pre-mutation RetentionApplied before finalize"
     );
+}
+
+#[test]
+fn retention_apply__projections_audit_before_projection_delete() {
+    // Codex R2 P1: audit is durable even when projection work also runs (pre-mutation order).
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let sid = Uuid::new_v4().to_string();
+    let old = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old);
+
+    let outcome = apply_retention_projections(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-audit-pre-proj",
+        true,
+        false,
+    )
+    .unwrap();
+    assert!(
+        outcome.report.totals.would_projection_delete >= 1,
+        "expected projection candidate: {outcome:?}"
+    );
+
+    let events = store.read_all_events().unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| e.event_type == EventKind::RetentionApplied),
+        "R12: RetentionApplied must exist after apply (appended before deletes)"
+    );
+
+    let conn = store.connection().lock().unwrap();
+    let turns: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM turn_projection WHERE session_id = ?",
+            [&sid],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(turns, 0, "projection deleted after pre-mutation audit");
 }
 
 #[test]
