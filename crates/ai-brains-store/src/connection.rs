@@ -50,14 +50,13 @@ impl VaultConnection {
             )));
         }
 
-        let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(
-            |e| {
+        let conn =
+            Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|e| {
                 StoreError::ConnectionFailed(format!(
                     "read-only open failed for {} (no R/W fallback): {e}",
                     path.display()
                 ))
-            },
-        )?;
+            })?;
         apply_key_pragmas(&conn, key)?;
         verify_key(&conn)?;
 
