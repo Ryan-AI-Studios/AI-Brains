@@ -145,12 +145,21 @@ fn decision_event(
 }
 
 fn summary_event(memory_id: MemoryId, summary: &str, project_id: Option<ProjectId>) -> Envelope {
+    summary_event_with_session(memory_id, summary, project_id, SessionId::new())
+}
+
+fn summary_event_with_session(
+    memory_id: MemoryId,
+    summary: &str,
+    project_id: Option<ProjectId>,
+    session_id: SessionId,
+) -> Envelope {
     envelope(
         AggregateType::Session,
-        SessionId::new().as_uuid(),
+        session_id.as_uuid(),
         Privacy::LocalOnly,
         Payload::SessionSummaryCreated(SessionSummaryCreatedPayload {
-            session_id: SessionId::new(),
+            session_id,
             project_id,
             memory_id,
             summary: summary.into(),
@@ -171,7 +180,7 @@ fn classify__memory_pinned__evidence_not_conclusion() {
         None,
         None,
     )];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let evidence: Vec<_> = plan
         .actions
         .iter()
@@ -198,7 +207,7 @@ fn classify__memory_synthesized__candidate_only() {
         pin_event(src, "source pin content", Some(project), None),
         synth_event(synth, "derived claim", project, vec![src]),
     ];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let conclusions: Vec<_> = plan
         .actions
         .iter()
@@ -214,6 +223,33 @@ fn classify__memory_synthesized__candidate_only() {
             .all(|a| a.kind != ImportActionKind::Skip || a.reason_code != "conclusion_confirmed")
     );
     assert_eq!(plan.totals.conclusion, 1);
+
+    // Apply and assert projection state is Candidate (not Confirmed) — T167-R1-05.
+    let (_t, ports) = open_ports();
+    apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap();
+    let cid = legacy_conclusion_id(conclusions[0].original_event_id);
+    let row = ports
+        .query
+        .get_conclusion(cid)
+        .unwrap()
+        .expect("conclusion projected");
+    assert_eq!(row.state, "Candidate");
+    assert!(!row.unsupported);
+    assert_eq!(row.statement, "derived claim");
+    let store = ports.writer.store();
+    let all = store.read_all_events().unwrap();
+    assert!(
+        !all.iter()
+            .any(|e| e.event_type == EventKind::ConclusionConfirmed),
+        "import must not emit ConclusionConfirmed"
+    );
 }
 
 #[test]
@@ -226,7 +262,7 @@ fn classify__decision_recorded__proposed_plus_review() {
         "CP uses ports",
         Some(project),
     )];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let decisions: Vec<_> = plan
         .actions
         .iter()
@@ -249,7 +285,7 @@ fn classify__decision_recorded__proposed_plus_review() {
 fn classify__forgotten_memory__excluded() {
     let mid = MemoryId::from_uuid(Uuid::from_u128(5));
     let events = vec![pin_event(mid, "will forget", None, None), forget_event(mid)];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     assert_eq!(plan.totals.evidence, 0);
     let forgotten = plan
         .actions
@@ -267,7 +303,7 @@ fn classify__forgotten_then_restored__included() {
         forget_event(mid),
         restore_event(mid),
     ];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     assert_eq!(plan.totals.evidence, 1);
     assert!(plan.actions.iter().any(
         |a| a.kind == ImportActionKind::Evidence && a.mechanism == ImportMechanism::WouldAppend
@@ -284,7 +320,7 @@ fn classify__synth_referencing_forgotten_source__unsupported_true() {
         forget_event(child),
         synth_event(synth, "parent synth", project, vec![child]),
     ];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let c = plan
         .actions
         .iter()
@@ -311,7 +347,7 @@ fn classify__unknown_payload__unresolved() {
         payload: Payload::Unknown(serde_json::json!({"type": "FutureThing", "x": 1})),
         payload_hash: "deadbeef".into(),
     };
-    let plan = classify_legacy(&[env], &opts());
+    let plan = classify_legacy(&[env], &opts()).unwrap();
     assert_eq!(plan.totals.unresolved, 1);
     assert!(
         plan.actions
@@ -397,7 +433,7 @@ fn classify__missing_scope_without_default__skipped() {
     let mut o = opts();
     o.default_scope = None;
     let events = vec![pin_event(mid, "no project no default", None, None)];
-    let plan = classify_legacy(&events, &o);
+    let plan = classify_legacy(&events, &o).unwrap();
     assert_eq!(plan.totals.evidence, 0);
     assert!(
         plan.actions
@@ -413,7 +449,7 @@ fn classify__default_scope_fallback__used() {
     let mut o = opts();
     o.default_scope = Some(ScopeRef::Personal(user));
     let events = vec![pin_event(mid, "fallback scope", None, None)];
-    let plan = classify_legacy(&events, &o);
+    let plan = classify_legacy(&events, &o).unwrap();
     assert_eq!(plan.totals.evidence, 1);
     let ev = plan
         .actions
@@ -430,8 +466,14 @@ fn classify__default_scope_fallback__used() {
 fn classify__session_summary__evidence_digest() {
     let mid = MemoryId::from_uuid(Uuid::from_u128(60));
     let project = ProjectId::from_uuid(Uuid::from_u128(61));
-    let events = vec![summary_event(mid, "session digest summary", Some(project))];
-    let plan = classify_legacy(&events, &opts());
+    let session = SessionId::from_uuid(Uuid::from_u128(62));
+    let events = vec![summary_event_with_session(
+        mid,
+        "session digest summary",
+        Some(project),
+        session,
+    )];
+    let plan = classify_legacy(&events, &opts()).unwrap();
     assert_eq!(plan.totals.evidence, 1);
     assert_eq!(plan.totals.conclusion, 0);
     let ev = plan
@@ -441,6 +483,36 @@ fn classify__session_summary__evidence_digest() {
         .unwrap();
     assert_eq!(ev.reason_code, "legacy_summary");
     assert_eq!(ev.content.as_deref(), Some("session digest summary"));
+    // §5.1 / T167-R1-03: session_id on plan action metadata.
+    assert_eq!(ev.session_id.as_deref(), Some(session.to_string().as_str()));
+
+    // Apply: session_id durable in Evidence summary provenance.
+    let (_t, ports) = open_ports();
+    apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap();
+    let store = ports.writer.store();
+    let all = store.read_all_events().unwrap();
+    let recorded = all
+        .iter()
+        .find(|e| e.event_type == EventKind::EvidenceRecorded)
+        .expect("evidence recorded");
+    match &recorded.payload {
+        Payload::EvidenceRecorded(p) => {
+            assert!(
+                p.summary.contains(&format!("[session_id:{session}]")),
+                "summary missing session provenance: {}",
+                p.summary
+            );
+            assert!(p.summary.contains("session digest summary"));
+        }
+        other => panic!("unexpected payload: {other:?}"),
+    }
 }
 
 #[test]
@@ -452,13 +524,43 @@ fn classify__preserves_source_tag_metadata() {
         None,
         Some("changeguard:symbol"),
     )];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let ev = plan
         .actions
         .iter()
         .find(|a| a.kind == ImportActionKind::Evidence)
         .unwrap();
     assert_eq!(ev.source_tag.as_deref(), Some("changeguard:symbol"));
+
+    // T167-R1-02: source_tag durable after apply (no changeguard→ledgerful rewrite).
+    let (_t, ports) = open_ports();
+    apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap();
+    let store = ports.writer.store();
+    let all = store.read_all_events().unwrap();
+    let recorded = all
+        .iter()
+        .find(|e| e.event_type == EventKind::EvidenceRecorded)
+        .expect("evidence recorded");
+    match &recorded.payload {
+        Payload::EvidenceRecorded(p) => {
+            assert!(
+                p.summary.contains("[source_tag:changeguard:symbol]"),
+                "summary missing source_tag sidecar: {}",
+                p.summary
+            );
+            assert!(p.summary.contains("tagged pin"));
+            assert!(!p.summary.contains("ledgerful:symbol"));
+            assert!(p.fingerprint.is_some());
+        }
+        other => panic!("unexpected payload: {other:?}"),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -469,8 +571,8 @@ fn classify__preserves_source_tag_metadata() {
 fn plan_hash__same_input_same_hash() {
     let mid = MemoryId::from_uuid(Uuid::from_u128(80));
     let events = vec![pin_event(mid, "body", None, Some("tag"))];
-    let p1 = classify_legacy(&events, &opts());
-    let p2 = classify_legacy(&events, &opts());
+    let p1 = classify_legacy(&events, &opts()).unwrap();
+    let p2 = classify_legacy(&events, &opts()).unwrap();
     assert_eq!(p1.plan_hash, p2.plan_hash);
     assert!(!p1.plan_hash.is_empty());
 }
@@ -479,10 +581,10 @@ fn plan_hash__same_input_same_hash() {
 fn plan_hash__reordered_actions_same_hash() {
     let mid = MemoryId::from_uuid(Uuid::from_u128(81));
     let events = vec![pin_event(mid, "body", None, None)];
-    let mut plan = classify_legacy(&events, &opts());
-    let h1 = compute_plan_hash(&plan.actions);
+    let mut plan = classify_legacy(&events, &opts()).unwrap();
+    let h1 = compute_plan_hash(&plan.actions).unwrap();
     plan.actions.reverse();
-    let h2 = compute_plan_hash(&plan.actions);
+    let h2 = compute_plan_hash(&plan.actions).unwrap();
     assert_eq!(h1, h2);
 }
 
@@ -494,8 +596,8 @@ fn plan_hash__omits_body_plaintext() {
     let mut e2 = pin_event(mid, "body-beta-different-text", None, Some("t"));
     // Force identical event_ids so original_event_id keys match.
     e2.event_id = e1.event_id;
-    let p1 = classify_legacy(&[e1], &opts());
-    let p2 = classify_legacy(&[e2], &opts());
+    let p1 = classify_legacy(&[e1], &opts()).unwrap();
+    let p2 = classify_legacy(&[e2], &opts()).unwrap();
     assert_eq!(p1.plan_hash, p2.plan_hash);
     assert_ne!(
         p1.actions[0].content.as_deref(),
@@ -512,7 +614,7 @@ fn report__no_full_plaintext_by_default() {
     let mid = MemoryId::from_uuid(Uuid::from_u128(90));
     let secret = "SUPER_SECRET_BODY_MUST_NOT_APPEAR";
     let events = vec![pin_event(mid, secret, None, None)];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let json = plan_report_json(&plan, false).unwrap();
     assert!(!json.contains(secret));
     assert!(json.contains("plan_hash"));
@@ -535,7 +637,7 @@ fn classify__fixture_legacy_v1__frozen_plan_totals() {
     // Fixture has project_id on pin — no default_scope needed for evidence.
     let mut o = opts();
     o.default_scope = None;
-    let plan = classify_legacy(&events, &o);
+    let plan = classify_legacy(&events, &o).unwrap();
     // Frozen: 1 MemoryPinned → evidence; project/session/turns → skip; no unresolved.
     assert_eq!(plan.totals.evidence, 1, "fixture pin → evidence");
     assert_eq!(plan.totals.conclusion, 0);
@@ -563,7 +665,7 @@ fn apply__second_run__zero_new_aggregates() {
     let (_t, ports) = open_ports();
     let mid = MemoryId::from_uuid(Uuid::from_u128(100));
     let events = vec![pin_event(mid, "import me", None, None)];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let r1 = apply_legacy_import(
         &ports.writer,
         &ports.query,
@@ -599,7 +701,7 @@ fn apply__ensures_legacy_source_once() {
         pin_event(m1, "pin one", None, None),
         pin_event(m2, "pin two", None, None),
     ];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let r = apply_legacy_import(
         &ports.writer,
         &ports.query,
@@ -619,7 +721,7 @@ fn apply__appends_legacy_import_applied() {
     let (_t, ports) = open_ports();
     let mid = MemoryId::from_uuid(Uuid::from_u128(120));
     let events = vec![pin_event(mid, "audit me", None, None)];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     let r = apply_legacy_import(
         &ports.writer,
         &ports.query,
@@ -652,7 +754,7 @@ fn apply__does_not_call_observe_source() {
     let (_t, ports) = open_ports();
     let mid = MemoryId::from_uuid(Uuid::from_u128(130));
     let events = vec![pin_event(mid, "no observe", None, None)];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     apply_legacy_import(
         &ports.writer,
         &ports.query,
@@ -687,7 +789,7 @@ fn apply__does_not_call_observe_source() {
 fn apply__without_confirm__refuses() {
     let (_t, ports) = open_ports();
     let mid = MemoryId::from_uuid(Uuid::from_u128(140));
-    let plan = classify_legacy(&[pin_event(mid, "x", None, None)], &opts());
+    let plan = classify_legacy(&[pin_event(mid, "x", None, None)], &opts()).unwrap();
     let err = apply_legacy_import(
         &ports.writer,
         &ports.query,
@@ -710,7 +812,7 @@ fn apply__decision_and_review__projected() {
         "Import under-promotes",
         Some(project),
     )];
-    let plan = classify_legacy(&events, &opts());
+    let plan = classify_legacy(&events, &opts()).unwrap();
     apply_legacy_import(
         &ports.writer,
         &ports.query,
@@ -745,4 +847,171 @@ fn apply__decision_and_review__projected() {
         "review status={}",
         rev.status
     );
+}
+
+#[test]
+fn apply__include_truncated_summaries__still_full_content() {
+    // T167-R1-01: flag must not truncate apply bodies / fingerprints.
+    let mid = MemoryId::from_uuid(Uuid::from_u128(160));
+    let long_body = "A".repeat(200) + "FULL_PIN_TAIL_MARKER";
+    let mut o = opts();
+    o.include_truncated_summaries = true;
+    let events = vec![pin_event(mid, &long_body, None, None)];
+    let plan = classify_legacy(&events, &o).unwrap();
+    let ev = plan
+        .actions
+        .iter()
+        .find(|a| a.kind == ImportActionKind::Evidence)
+        .expect("evidence action");
+    assert_eq!(
+        ev.content.as_deref(),
+        Some(long_body.as_str()),
+        "ImportAction.content must stay full when include_truncated_summaries=true"
+    );
+
+    // Report may truncate; full body must not appear when flag drives report path.
+    let report_json = plan_report_json(&plan, true).unwrap();
+    assert!(report_json.contains("truncated_summary"));
+    assert!(
+        !report_json.contains("FULL_PIN_TAIL_MARKER"),
+        "report truncated_summary must not include full tail"
+    );
+
+    let (_t, ports) = open_ports();
+    apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap();
+    let store = ports.writer.store();
+    let all = store.read_all_events().unwrap();
+    let recorded = all
+        .iter()
+        .find(|e| e.event_type == EventKind::EvidenceRecorded)
+        .expect("evidence");
+    match &recorded.payload {
+        Payload::EvidenceRecorded(p) => {
+            assert!(
+                p.summary.contains("FULL_PIN_TAIL_MARKER"),
+                "applied summary must use full content"
+            );
+            assert_eq!(p.summary.len(), long_body.len());
+        }
+        other => panic!("unexpected: {other:?}"),
+    }
+}
+
+#[test]
+fn apply__duplicate_evidence_id_in_plan__already_imported() {
+    // T167-R1-04: same derived EvidenceId twice in one plan must not double-append.
+    let mid = MemoryId::from_uuid(Uuid::from_u128(170));
+    let events = vec![pin_event(mid, "shared memory pin", None, None)];
+    let mut plan = classify_legacy(&events, &opts()).unwrap();
+    let first = plan
+        .actions
+        .iter()
+        .find(|a| a.kind == ImportActionKind::Evidence)
+        .cloned()
+        .expect("evidence");
+    // Inject a second WouldAppend with the same derived_id (simulates pin+summary collision
+    // that slipped past classify, or a hand-built plan).
+    let mut dup = first.clone();
+    dup.original_event_id = Uuid::from_u128(171);
+    plan.actions.push(dup);
+    plan.totals.evidence += 1;
+
+    let (_t, ports) = open_ports();
+    let report = apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap();
+    assert_eq!(report.applied, 1, "only one new evidence append");
+    assert!(
+        report.already_imported >= 1,
+        "second same id → already_imported"
+    );
+
+    let store = ports.writer.store();
+    let all = store.read_all_events().unwrap();
+    let evidence_count = all
+        .iter()
+        .filter(|e| e.event_type == EventKind::EvidenceRecorded)
+        .count();
+    assert_eq!(evidence_count, 1, "must not double-append EvidenceRecorded");
+}
+
+#[test]
+fn classify__pin_and_summary_same_memory__one_evidence() {
+    // Classify collapse: one memory_id → one Evidence WouldAppend.
+    let mid = MemoryId::from_uuid(Uuid::from_u128(180));
+    let project = ProjectId::from_uuid(Uuid::from_u128(181));
+    let events = vec![
+        pin_event(mid, "pin body", Some(project), None),
+        summary_event(mid, "summary body", Some(project)),
+    ];
+    let plan = classify_legacy(&events, &opts()).unwrap();
+    let would = plan
+        .actions
+        .iter()
+        .filter(|a| {
+            a.kind == ImportActionKind::Evidence && a.mechanism == ImportMechanism::WouldAppend
+        })
+        .count();
+    assert_eq!(would, 1);
+    assert_eq!(plan.totals.evidence, 1);
+    assert!(
+        plan.actions
+            .iter()
+            .any(|a| a.reason_code == "already_imported" && a.mechanism == ImportMechanism::Skip),
+        "second memory_id hit should skip as already_imported"
+    );
+}
+
+#[test]
+fn apply__legacy_import_applied__evidence_count_matches_plan() {
+    // T167-R1-07: audit evidence_count aligned with plan totals.
+    let project = ProjectId::from_uuid(Uuid::from_u128(190));
+    let m1 = MemoryId::from_uuid(Uuid::from_u128(191));
+    let m2 = MemoryId::from_uuid(Uuid::from_u128(192));
+    let synth = MemoryId::from_uuid(Uuid::from_u128(193));
+    let events = vec![
+        pin_event(m1, "pin-a", Some(project), None),
+        pin_event(m2, "pin-b", Some(project), None),
+        synth_event(synth, "claim", project, vec![m1, m2]),
+    ];
+    let plan = classify_legacy(&events, &opts()).unwrap();
+    assert_eq!(plan.totals.evidence, 2);
+    assert_eq!(plan.totals.conclusion, 1);
+
+    let (_t, ports) = open_ports();
+    apply_legacy_import(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &plan,
+        &ApplyOpts { confirm: true },
+    )
+    .unwrap();
+    let store = ports.writer.store();
+    let all = store.read_all_events().unwrap();
+    let audit = all
+        .iter()
+        .find(|e| e.event_type == EventKind::LegacyImportApplied)
+        .expect("audit event");
+    match &audit.payload {
+        Payload::LegacyImportApplied(p) => {
+            assert_eq!(p.evidence_count, plan.totals.evidence);
+            assert_eq!(p.conclusion_count, plan.totals.conclusion);
+            assert_eq!(p.decision_count, plan.totals.decision);
+            assert_eq!(p.review_count, plan.totals.review);
+        }
+        other => panic!("unexpected: {other:?}"),
+    }
 }

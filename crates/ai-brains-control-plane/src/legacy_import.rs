@@ -12,7 +12,7 @@
 //! - **L19** `default_scope`; None + no project → `missing_scope`.
 //! - **L20** `LegacyImportApplied` on successful apply only.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use ai_brains_core::ids::{
     ConclusionId, DecisionId, EvidenceId, MemoryId, PrincipalId, ProjectId, ReviewItemId, SourceId,
@@ -72,7 +72,8 @@ pub const LEGACY_SOURCE_DISPLAY_NAME: &str = "Legacy AI-Brains";
 pub struct ImportOpts {
     /// Default **true** — plan only; apply is a separate call with confirm.
     pub dry_run: bool,
-    /// When true, plan/report may include truncated body snippets (default false / L15).
+    /// When true, [`plan_report_json`] may include truncated body snippets
+    /// (default false / L15). Does **not** truncate apply bodies on the plan.
     pub include_truncated_summaries: bool,
     /// Fallback scope when an event has no project_id (L19).
     pub default_scope: Option<ScopeRef>,
@@ -145,8 +146,9 @@ impl ImportMechanism {
 
 /// One planned classification action.
 ///
-/// Body fields (`content`, `title`, `statement`) are for apply only and are
-/// **excluded** from [`plan_hash`](compute_plan_hash) (L15 / §6.1).
+/// Body fields (`content`, `title`, `statement`) are always full text for apply
+/// and are **excluded** from [`plan_hash`](compute_plan_hash) (L15 / §6.1).
+/// Truncation is report-only via [`plan_report_json`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportAction {
     pub kind: ImportActionKind,
@@ -158,7 +160,7 @@ pub struct ImportAction {
     pub source_tag: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unsupported: Option<bool>,
-    /// Apply-only body (not in plan_hash).
+    /// Apply body — always full content (not truncated; not in plan_hash).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     /// Apply-only title for decisions (not in plan_hash).
@@ -181,6 +183,9 @@ pub struct ImportAction {
     /// Original memory id when present (provenance; L11).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_memory_id: Option<String>,
+    /// Session provenance for session-summary evidence (§5.1 / L11).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 /// Totals for a classify plan.
@@ -314,7 +319,10 @@ struct PlanHashEntry {
 }
 
 /// Canonical plan hash: sorted by `(original_event_id, action_kind)` → ActionView.
-pub fn compute_plan_hash(actions: &[ImportAction]) -> String {
+///
+/// Returns [`ControlPlaneError::InvalidPayload`] if canonical serialization fails
+/// (must not silently hash empty bytes).
+pub fn compute_plan_hash(actions: &[ImportAction]) -> Result<String> {
     let mut map: BTreeMap<(String, String), PlanHashEntry> = BTreeMap::new();
     for a in actions {
         let key = (a.original_event_id.to_string(), a.kind.as_str().to_string());
@@ -333,8 +341,10 @@ pub fn compute_plan_hash(actions: &[ImportAction]) -> String {
     }
     // BTreeMap iteration is sorted by key; serialize as Vec of entries.
     let entries: Vec<PlanHashEntry> = map.into_values().collect();
-    let bytes = serde_json::to_vec(&entries).unwrap_or_default();
-    hex_sha256(&bytes)
+    let bytes = serde_json::to_vec(&entries).map_err(|e| {
+        ControlPlaneError::InvalidPayload(format!("plan_hash serialization failed: {e}"))
+    })?;
+    Ok(hex_sha256(&bytes))
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +371,8 @@ struct PendingSummary {
     memory_id: MemoryId,
     summary: String,
     project_id: Option<ProjectId>,
+    /// Provenance: original session (§5.1).
+    session_id: String,
     privacy: Privacy,
 }
 
@@ -387,7 +399,7 @@ struct PendingDecision {
 /// Classify a stream of legacy (and mixed) envelopes into a governed import plan.
 ///
 /// Dry-run still runs both passes and computes `plan_hash` (L1 / §5.0).
-pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
+pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> Result<ImportPlan> {
     let mut status: HashMap<MemoryId, MemoryStatus> = HashMap::new();
     let mut pins: HashMap<MemoryId, PendingPin> = HashMap::new();
     let mut summaries: Vec<PendingSummary> = Vec::new();
@@ -427,6 +439,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                     memory_id: p.memory_id,
                     summary: p.summary.clone(),
                     project_id: p.project_id,
+                    session_id: p.session_id.to_string(),
                     privacy,
                 });
                 status.entry(p.memory_id).or_insert(MemoryStatus::Active);
@@ -470,6 +483,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                     evidence_ids: Vec::new(),
                     related_decision_id: None,
                     original_memory_id: None,
+                    session_id: None,
                 });
                 totals.unresolved += 1;
             }
@@ -570,6 +584,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                 evidence_ids: Vec::new(),
                 related_decision_id: None,
                 original_memory_id: Some(pin.memory_id.to_string()),
+                session_id: None,
             });
             totals.skipped += 1;
             continue;
@@ -592,6 +607,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                 evidence_ids: Vec::new(),
                 related_decision_id: None,
                 original_memory_id: Some(pin.memory_id.to_string()),
+                session_id: None,
             });
             totals.skipped += 1;
             continue;
@@ -616,6 +632,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                     evidence_ids: Vec::new(),
                     related_decision_id: None,
                     original_memory_id: Some(pin.memory_id.to_string()),
+                    session_id: None,
                 });
                 totals.skipped += 1;
                 continue;
@@ -625,13 +642,8 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
         let eid = legacy_evidence_id(Some(&pin.memory_id), pin.event_id);
         evidence_map.insert(pin.memory_id, eid);
 
-        let content_for_plan = if opts.include_truncated_summaries {
-            Some(truncate_body(&pin.content))
-        } else {
-            // Keep full content for apply path only — plan_hash excludes it.
-            Some(pin.content.clone())
-        };
-
+        // Always keep full content for apply (L15 / T167-R1-01). Truncation is
+        // report-only via plan_report_json(include_truncated_summaries).
         actions.push(ImportAction {
             kind: ImportActionKind::Evidence,
             original_event_id: pin.event_id,
@@ -640,7 +652,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
             mechanism: ImportMechanism::WouldAppend,
             source_tag: pin.source_tag.clone(),
             unsupported: None,
-            content: content_for_plan,
+            content: Some(pin.content.clone()),
             title: None,
             statement: None,
             privacy: pin.privacy,
@@ -648,6 +660,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
             evidence_ids: Vec::new(),
             related_decision_id: None,
             original_memory_id: Some(pin.memory_id.to_string()),
+            session_id: None,
         });
         totals.evidence += 1;
     }
@@ -675,6 +688,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                 evidence_ids: Vec::new(),
                 related_decision_id: None,
                 original_memory_id: Some(sum.memory_id.to_string()),
+                session_id: Some(sum.session_id.clone()),
             });
             totals.skipped += 1;
             continue;
@@ -697,6 +711,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                 evidence_ids: Vec::new(),
                 related_decision_id: None,
                 original_memory_id: Some(sum.memory_id.to_string()),
+                session_id: Some(sum.session_id.clone()),
             });
             totals.skipped += 1;
             continue;
@@ -721,6 +736,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                     evidence_ids: Vec::new(),
                     related_decision_id: None,
                     original_memory_id: Some(sum.memory_id.to_string()),
+                    session_id: Some(sum.session_id.clone()),
                 });
                 totals.skipped += 1;
                 continue;
@@ -728,7 +744,30 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
         };
 
         let eid = legacy_evidence_id(Some(&sum.memory_id), sum.event_id);
-        evidence_map.entry(sum.memory_id).or_insert(eid);
+        // Collapse: one memory_id → one Evidence action (pin wins over summary).
+        if evidence_map.contains_key(&sum.memory_id) {
+            actions.push(ImportAction {
+                kind: ImportActionKind::Skip,
+                original_event_id: sum.event_id,
+                derived_id: eid.to_string(),
+                reason_code: REASON_ALREADY_IMPORTED.into(),
+                mechanism: ImportMechanism::Skip,
+                source_tag: None,
+                unsupported: None,
+                content: None,
+                title: None,
+                statement: None,
+                privacy: sum.privacy,
+                scope_key: Some(scope_key),
+                evidence_ids: Vec::new(),
+                related_decision_id: None,
+                original_memory_id: Some(sum.memory_id.to_string()),
+                session_id: Some(sum.session_id.clone()),
+            });
+            totals.skipped += 1;
+            continue;
+        }
+        evidence_map.insert(sum.memory_id, eid);
 
         actions.push(ImportAction {
             kind: ImportActionKind::Evidence,
@@ -746,6 +785,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
             evidence_ids: Vec::new(),
             related_decision_id: None,
             original_memory_id: Some(sum.memory_id.to_string()),
+            session_id: Some(sum.session_id.clone()),
         });
         totals.evidence += 1;
     }
@@ -774,6 +814,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                 evidence_ids: Vec::new(),
                 related_decision_id: None,
                 original_memory_id: Some(synth.memory_id.to_string()),
+                session_id: None,
             });
             totals.skipped += 1;
             continue;
@@ -796,6 +837,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                 evidence_ids: Vec::new(),
                 related_decision_id: None,
                 original_memory_id: Some(synth.memory_id.to_string()),
+                session_id: None,
             });
             totals.skipped += 1;
             continue;
@@ -820,6 +862,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                     evidence_ids: Vec::new(),
                     related_decision_id: None,
                     original_memory_id: Some(synth.memory_id.to_string()),
+                    session_id: None,
                 });
                 totals.skipped += 1;
                 continue;
@@ -883,6 +926,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
             evidence_ids,
             related_decision_id: None,
             original_memory_id: Some(synth.memory_id.to_string()),
+            session_id: None,
         });
         totals.conclusion += 1;
     }
@@ -907,6 +951,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                 evidence_ids: Vec::new(),
                 related_decision_id: None,
                 original_memory_id: Some(dec.legacy_memory_decision_id.to_string()),
+                session_id: None,
             });
             totals.skipped += 1;
             continue;
@@ -931,6 +976,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
                     evidence_ids: Vec::new(),
                     related_decision_id: None,
                     original_memory_id: Some(dec.legacy_memory_decision_id.to_string()),
+                    session_id: None,
                 });
                 totals.skipped += 1;
                 continue;
@@ -956,6 +1002,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
             evidence_ids: Vec::new(),
             related_decision_id: Some(did),
             original_memory_id: Some(dec.legacy_memory_decision_id.to_string()),
+            session_id: None,
         });
         totals.decision += 1;
 
@@ -975,19 +1022,20 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> ImportPlan {
             evidence_ids: Vec::new(),
             related_decision_id: Some(did),
             original_memory_id: None,
+            session_id: None,
         });
         totals.review += 1;
     }
 
-    let plan_hash = compute_plan_hash(&actions);
-    ImportPlan {
+    let plan_hash = compute_plan_hash(&actions)?;
+    Ok(ImportPlan {
         actions,
         totals,
         plan_hash,
         principal_id: opts.principal_id,
         command_id: opts.command_id.clone(),
         dry_run: opts.dry_run,
-    }
+    })
 }
 
 fn skip_action(event_id: Uuid, reason: &str, privacy: Privacy) -> ImportAction {
@@ -1007,6 +1055,7 @@ fn skip_action(event_id: Uuid, reason: &str, privacy: Privacy) -> ImportAction {
         evidence_ids: Vec::new(),
         related_decision_id: None,
         original_memory_id: None,
+        session_id: None,
     }
 }
 
@@ -1041,6 +1090,29 @@ fn truncate_body(s: &str) -> String {
         s.to_string()
     } else {
         s.chars().take(MAX).collect::<String>() + "…"
+    }
+}
+
+/// Compose durable Evidence summary including provenance sidecars (L17 / §5.1).
+///
+/// `source_tag` is preserved verbatim (no changeguard→ledgerful rewrite).
+/// `session_id` is recorded for session-summary digests.
+fn compose_evidence_summary(
+    content: &str,
+    source_tag: Option<&str>,
+    session_id: Option<&str>,
+) -> String {
+    let mut meta: Vec<String> = Vec::new();
+    if let Some(tag) = source_tag.filter(|t| !t.is_empty()) {
+        meta.push(format!("[source_tag:{tag}]"));
+    }
+    if let Some(sid) = session_id.filter(|s| !s.is_empty()) {
+        meta.push(format!("[session_id:{sid}]"));
+    }
+    if meta.is_empty() {
+        content.to_string()
+    } else {
+        format!("{}\n{content}", meta.join("\n"))
     }
 }
 
@@ -1141,6 +1213,13 @@ where
 
     let now = clock.now()?;
 
+    // In-batch de-dupe: projection probes only see pre-batch state (T167-R1-04).
+    // Source is registered at most once above; no in-loop source appends.
+    let mut seen_evidence: HashSet<EvidenceId> = HashSet::new();
+    let mut seen_conclusion: HashSet<ConclusionId> = HashSet::new();
+    let mut seen_decision: HashSet<DecisionId> = HashSet::new();
+    let mut seen_review: HashSet<ReviewItemId> = HashSet::new();
+
     for a in &plan.actions {
         if a.mechanism != ImportMechanism::WouldAppend {
             continue;
@@ -1154,11 +1233,16 @@ where
                         return Err(ControlPlaneError::InvalidPayload(e));
                     }
                 };
-                if query.has_evidence(eid)? {
+                if query.has_evidence(eid)? || !seen_evidence.insert(eid) {
                     report.already_imported += 1;
                     continue;
                 }
-                let summary = a.content.clone().unwrap_or_default();
+                let body = a.content.as_deref().unwrap_or("");
+                let summary = compose_evidence_summary(
+                    body,
+                    a.source_tag.as_deref(),
+                    a.session_id.as_deref(),
+                );
                 let fingerprint = hex_sha256(summary.as_bytes());
                 batch.push(build_event(
                     AggregateType::Evidence,
@@ -1187,7 +1271,7 @@ where
                         return Err(ControlPlaneError::InvalidPayload(e));
                     }
                 };
-                if query.has_conclusion(cid)? {
+                if query.has_conclusion(cid)? || !seen_conclusion.insert(cid) {
                     report.already_imported += 1;
                     continue;
                 }
@@ -1225,7 +1309,7 @@ where
                         return Err(ControlPlaneError::InvalidPayload(e));
                     }
                 };
-                if query.has_decision(did)? {
+                if query.has_decision(did)? || !seen_decision.insert(did) {
                     report.already_imported += 1;
                     continue;
                 }
@@ -1262,7 +1346,7 @@ where
                         return Err(ControlPlaneError::InvalidPayload(e));
                     }
                 };
-                if query.get_review_item(rid)?.is_some() {
+                if query.get_review_item(rid)?.is_some() || !seen_review.insert(rid) {
                     report.already_imported += 1;
                     continue;
                 }
@@ -1302,18 +1386,11 @@ where
         .unwrap_or_else(|| plan.plan_hash.clone());
     let agg_id = id_from_command(NS_LEGACY_IMPORT_BATCH, &batch_key);
 
-    let evidence_applied = plan
-        .actions
-        .iter()
-        .filter(|a| {
-            a.kind == ImportActionKind::Evidence && a.mechanism == ImportMechanism::WouldAppend
-        })
-        .count() as u64;
-    // Report counts from this run (applied new + already).
+    // Align counts with plan totals (same basis for every kind; T167-R1-07).
     let audit = Payload::LegacyImportApplied(LegacyImportAppliedPayload {
         plan_hash: plan.plan_hash.clone(),
         command_id: plan.command_id.clone(),
-        evidence_count: evidence_applied.min(report.applied + report.already_imported),
+        evidence_count: plan.totals.evidence,
         conclusion_count: plan.totals.conclusion,
         decision_count: plan.totals.decision,
         review_count: plan.totals.review,
@@ -1374,7 +1451,10 @@ impl FromStrId for ReviewItemId {
 // Default plan serialization without bodies (L15 / report test)
 // ---------------------------------------------------------------------------
 
-/// Body-free action view for operator reports (L15).
+/// Operator report action view (L15).
+///
+/// Never includes full apply bodies. Optional `truncated_summary` only when
+/// `include_truncated_summaries` is requested.
 #[derive(Debug, Serialize)]
 struct ReportActionView<'a> {
     kind: &'a str,
@@ -1385,7 +1465,11 @@ struct ReportActionView<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     source_tag: &'a Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    session_id: &'a Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     unsupported: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    truncated_summary: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1396,23 +1480,36 @@ struct PlanReportView<'a> {
     dry_run: bool,
 }
 
-/// Serialize plan for reports: strips body fields unless `include_bodies`.
-pub fn plan_report_json(plan: &ImportPlan, include_bodies: bool) -> Result<String> {
-    if include_bodies {
-        return serde_json::to_string_pretty(plan)
-            .map_err(|e| ControlPlaneError::InvalidPayload(e.to_string()));
-    }
+/// Serialize plan for operator reports (L15).
+///
+/// - `include_truncated_summaries = false` (default): no body text.
+/// - `include_truncated_summaries = true`: truncated snippets only — never full
+///   apply bodies. Full content remains on [`ImportAction`] for apply fidelity.
+pub fn plan_report_json(plan: &ImportPlan, include_truncated_summaries: bool) -> Result<String> {
     let views: Vec<ReportActionView<'_>> = plan
         .actions
         .iter()
-        .map(|a| ReportActionView {
-            kind: a.kind.as_str(),
-            original_event_id: a.original_event_id.to_string(),
-            derived_id: &a.derived_id,
-            reason_code: &a.reason_code,
-            mechanism: a.mechanism.as_str(),
-            source_tag: &a.source_tag,
-            unsupported: a.unsupported,
+        .map(|a| {
+            let truncated_summary = if include_truncated_summaries {
+                a.content
+                    .as_deref()
+                    .or(a.statement.as_deref())
+                    .or(a.title.as_deref())
+                    .map(truncate_body)
+            } else {
+                None
+            };
+            ReportActionView {
+                kind: a.kind.as_str(),
+                original_event_id: a.original_event_id.to_string(),
+                derived_id: &a.derived_id,
+                reason_code: &a.reason_code,
+                mechanism: a.mechanism.as_str(),
+                source_tag: &a.source_tag,
+                session_id: &a.session_id,
+                unsupported: a.unsupported,
+                truncated_summary,
+            }
         })
         .collect();
     let report = PlanReportView {
