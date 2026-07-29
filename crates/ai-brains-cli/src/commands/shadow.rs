@@ -147,13 +147,14 @@ pub fn refuse_unsafe_destination(
         }
     }
 
-    if destination.exists()
-        && let Err(msg) = refuse_if_reparse(destination, is_reparse_or_symlink(destination)?)
-    {
+    // Codex R5: do not gate on `exists()`. Dangling symlinks have exists()==false
+    // while symlink_metadata / is_reparse_or_symlink still detect them; File::create
+    // or SQLite open can follow/create through the link.
+    if let Err(msg) = refuse_if_reparse(destination, is_reparse_or_symlink(destination)?) {
         return Err(msg.into());
     }
     if let Some(parent) = destination.parent()
-        && parent.exists()
+        && !parent.as_os_str().is_empty()
         && let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?)
     {
         return Err(format!("destination parent: {msg}").into());
@@ -325,5 +326,43 @@ mod tests {
             Payload::Unknown(v) => assert_eq!(v, raw),
             other => panic!("expected Unknown, got {other:?}"),
         }
+    }
+
+    /// Codex R5 — dangling symlink dest (exists()==false) must still refuse.
+    #[test]
+    fn refuse_unsafe_destination__dangling_symlink__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest-dangling.db");
+        std::fs::write(&source, b"x").expect("source");
+        let missing_target = dir.path().join("missing-target-does-not-exist.db");
+
+        #[cfg(windows)]
+        let created = std::os::windows::fs::symlink_file(&missing_target, &dest);
+        #[cfg(not(windows))]
+        let created = std::os::unix::fs::symlink(&missing_target, &dest);
+
+        if let Err(e) = created {
+            eprintln!(
+                "skipping refuse_unsafe_destination__dangling_symlink__refuses: {e} \
+                 (needs Developer Mode or elevation on Windows)"
+            );
+            return;
+        }
+        assert!(
+            !dest.exists(),
+            "precondition: dangling symlink must have exists()==false"
+        );
+        assert!(
+            is_reparse_or_symlink(&dest).expect("metadata"),
+            "precondition: dangling symlink must be detected as reparse"
+        );
+
+        let err = refuse_unsafe_destination(&source, &dest, None).expect_err("must refuse");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("reparse") || msg.contains("symlink") || msg.contains("junction"),
+            "expected reparse refuse for dangling dest symlink, got: {err}"
+        );
     }
 }

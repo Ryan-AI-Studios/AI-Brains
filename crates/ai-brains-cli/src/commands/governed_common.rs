@@ -42,6 +42,8 @@ pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
         "DAEMON_UNAVAILABLE" => EXIT_DAEMON_UNAVAILABLE,
         "INVALID_PAYLOAD" | "NOT_ENVELOPE_BACKED" => EXIT_INVALID_PAYLOAD,
         "APPROVAL_REQUIRED" => EXIT_POLICY_DENIED,
+        // Path / live-vault refusals (migrate, shadow reuse) → EXIT_INTERNAL (1).
+        "PATH_REFUSED" => EXIT_INTERNAL,
         _ => EXIT_INTERNAL,
     }
 }
