@@ -18,6 +18,7 @@ pub mod principal;
 pub mod project;
 pub mod recipe;
 pub mod repository_identity;
+pub mod retention;
 pub mod review;
 pub mod session;
 pub mod source;

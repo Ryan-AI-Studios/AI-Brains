@@ -1,7 +1,13 @@
+//! Nightly raw-turn projection cleanup (legacy path).
+//!
+//! Class-based plan/apply lives in `ai-brains-control-plane::class_based_retention`.
+//! This service **only** runs stream-A raw-turn projection delete and **never**
+//! performs CE bulk unless explicitly documented elsewhere with opt-in (R7).
+
 use ai_brains_store::QueryStore;
 use chrono::{Duration, Utc};
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub struct RetentionService {
     query_store: Arc<dyn QueryStore>,
@@ -16,22 +22,126 @@ impl RetentionService {
         }
     }
 
+    /// Max accepted raw-turn horizon (100 years) — matches class retention clamp.
+    pub const MAX_HORIZON_DAYS: i64 = 36_500;
+
+    /// Resolve raw-turn horizon from env `AI_BRAINS_RETENTION_RAW_TURN_DAYS`, else `default_days`.
+    /// Invalid/non-positive/oversized values fall back to `default_days` (never panic).
+    pub fn days_from_env(default_days: i64) -> i64 {
+        let fallback = default_days.clamp(1, Self::MAX_HORIZON_DAYS);
+        match std::env::var("AI_BRAINS_RETENTION_RAW_TURN_DAYS") {
+            Ok(s) => match s.trim().parse::<i64>() {
+                Ok(d) if (1..=Self::MAX_HORIZON_DAYS).contains(&d) => d,
+                Ok(d) => {
+                    warn!(
+                        days = d,
+                        fallback,
+                        "AI_BRAINS_RETENTION_RAW_TURN_DAYS out of range 1..={}; using default",
+                        Self::MAX_HORIZON_DAYS
+                    );
+                    fallback
+                }
+                Err(_) => {
+                    warn!(
+                        value = %s,
+                        fallback,
+                        "AI_BRAINS_RETENTION_RAW_TURN_DAYS not a valid i64; using default"
+                    );
+                    fallback
+                }
+            },
+            Err(_) => fallback,
+        }
+    }
+
+    /// R7: nightly must not auto-execute CE bulk.
+    ///
+    /// True only when `AI_BRAINS_RETENTION_APPLY_CE=1` (or true/yes) or
+    /// `AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY` is set similarly.
+    ///
+    /// **Honesty:** this flag does **not** enable nightly CE — it only logs intent.
+    /// Class CE remains `ai-brains retention apply --confirm` (daemon for CE rows).
+    pub fn apply_ce_on_nightly_from_env() -> bool {
+        env_truthy("AI_BRAINS_RETENTION_APPLY_CE")
+            || env_truthy("AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY")
+    }
+
+    /// Projection-only raw turn cleanup. Never calls CE wipe (R2/R7).
     pub async fn run_cleanup(&self) -> Result<usize, Box<dyn std::error::Error>> {
+        if Self::apply_ce_on_nightly_from_env() {
+            warn!(
+                "AI_BRAINS_RETENTION_APPLY_CE is set; this flag only logs intent — nightly still runs projection-only raw-turn cleanup (use `ai-brains retention apply --confirm` with daemon for class CE)"
+            );
+        } else {
+            info!(
+                "Nightly CE bulk disabled (default). AI_BRAINS_RETENTION_APPLY_CE only documents intent when set; CE apply is CLI+daemon+confirm only"
+            );
+        }
+
         info!(
-            "Starting raw turn retention cleanup ({} days)...",
+            "Starting raw turn retention cleanup ({} days, projection_delete only)...",
             self.retention_days
         );
 
-        let cutoff = Utc::now() - Duration::days(self.retention_days);
+        let days = self.retention_days.clamp(1, Self::MAX_HORIZON_DAYS);
+        let Some(delta) = Duration::try_days(days) else {
+            return Err(format!(
+                "raw-turn retention horizon {days} days is not representable as a duration"
+            )
+            .into());
+        };
+        let Some(cutoff) = Utc::now().checked_sub_signed(delta) else {
+            return Err("raw-turn retention cutoff underflow".into());
+        };
         match self.query_store.delete_old_turns(cutoff) {
             Ok(count) => {
-                info!("Cleaned up {} expired turns.", count);
+                info!(
+                    "Cleaned up {} expired turns (not cryptographic erasure).",
+                    count
+                );
                 Ok(count)
             }
             Err(e) => {
                 error!("Retention cleanup failed: {}", e);
                 Err(e.into())
             }
+        }
+    }
+}
+
+fn env_truthy(key: &str) -> bool {
+    match std::env::var(key) {
+        Ok(s) => {
+            let t = s.trim();
+            t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
+        }
+        Err(_) => false,
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nightly_default__no_ce_without_opt_in() {
+        // Default path: without env, CE must be false (R7).
+        // We cannot safely mutate process-global env in parallel tests without TempEnv;
+        // assert the pure default helper semantics via apply_ce_on_nightly_from_env when unset.
+        // If CI sets the opt-in, this still documents the intended default.
+        let enabled = RetentionService::apply_ce_on_nightly_from_env();
+        if std::env::var("AI_BRAINS_RETENTION_APPLY_CE").is_err()
+            && std::env::var("AI_BRAINS_RETENTION_APPLY_CE_ON_NIGHTLY").is_err()
+        {
+            assert!(!enabled, "R7: nightly CE must default off when env unset");
+        }
+    }
+
+    #[test]
+    fn days_from_env__default_when_unset() {
+        if std::env::var("AI_BRAINS_RETENTION_RAW_TURN_DAYS").is_err() {
+            assert_eq!(RetentionService::days_from_env(90), 90);
         }
     }
 }

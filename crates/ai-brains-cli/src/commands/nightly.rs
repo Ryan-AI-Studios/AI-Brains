@@ -279,6 +279,37 @@ pub async fn run(
         tracing::error!("Antigravity import failed: {}", e);
     }
 
+    // F-004: class-matrix dry-run log (plan only; never apply CE on nightly).
+    {
+        use ai_brains_control_plane::{RetentionConfig, plan_retention};
+        let plan_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+        let config = RetentionConfig::from_env();
+        match plan_retention(&plan_store, &config) {
+            Ok(report) => {
+                tracing::info!(
+                    candidates = report.totals.candidates,
+                    ce_wipe = report.totals.would_ce_wipe,
+                    projection_delete = report.totals.would_projection_delete,
+                    skip = report.totals.would_skip,
+                    held = report.totals.would_held,
+                    "retention class dry-run (no apply)"
+                );
+                eprintln!(
+                    "[Nightly] Retention class dry-run: candidates={} ce_wipe={} projection_delete={} skip={} held={} (no apply)",
+                    report.totals.candidates,
+                    report.totals.would_ce_wipe,
+                    report.totals.would_projection_delete,
+                    report.totals.would_skip,
+                    report.totals.would_held
+                );
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "retention class dry-run failed (non-fatal)");
+                eprintln!("[Nightly] Retention class dry-run failed (non-fatal): {e}");
+            }
+        }
+    }
+
     let service = ai_brains_brain::NightlyService::new(
         query_store,
         event_store,

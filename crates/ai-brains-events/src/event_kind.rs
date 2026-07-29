@@ -72,6 +72,8 @@ pub enum EventKind {
     ContentErased,
     /// Durable erasure accept ticket (T159); not CE wipe.
     ErasureTicketAccepted,
+    /// Class-based retention apply audit (T166); not CE by itself.
+    RetentionApplied,
 
     // Claim conflicts (T150) — distinct from legacy ConflictDetected (memory)
     ClaimConflictOpened,
@@ -143,6 +145,7 @@ impl EventKind {
             EventKind::ContentErasureRequested => "ContentErasureRequested",
             EventKind::ContentErased => "ContentErased",
             EventKind::ErasureTicketAccepted => "ErasureTicketAccepted",
+            EventKind::RetentionApplied => "RetentionApplied",
             EventKind::ClaimConflictOpened => "ClaimConflictOpened",
             EventKind::ClaimConflictResolved => "ClaimConflictResolved",
             EventKind::RepositoryIdentityRegistered => "RepositoryIdentityRegistered",
@@ -206,6 +209,7 @@ impl EventKind {
             "ContentErasureRequested" => EventKind::ContentErasureRequested,
             "ContentErased" => EventKind::ContentErased,
             "ErasureTicketAccepted" => EventKind::ErasureTicketAccepted,
+            "RetentionApplied" => EventKind::RetentionApplied,
             "ClaimConflictOpened" => EventKind::ClaimConflictOpened,
             "ClaimConflictResolved" => EventKind::ClaimConflictResolved,
             "RepositoryIdentityRegistered" => EventKind::RepositoryIdentityRegistered,
@@ -293,6 +297,7 @@ impl From<&crate::payload::Payload> for EventKind {
             Payload::ContentErasureRequested(_) => EventKind::ContentErasureRequested,
             Payload::ContentErased(_) => EventKind::ContentErased,
             Payload::ErasureTicketAccepted(_) => EventKind::ErasureTicketAccepted,
+            Payload::RetentionApplied(_) => EventKind::RetentionApplied,
             Payload::ClaimConflictOpened(_) => EventKind::ClaimConflictOpened,
             Payload::ClaimConflictResolved(_) => EventKind::ClaimConflictResolved,
             Payload::RepositoryIdentityRegistered(_) => EventKind::RepositoryIdentityRegistered,

@@ -162,15 +162,26 @@ impl NightlyService {
             eprintln!("[Nightly] Memory synthesis complete.");
         }
 
-        // Retention Cleanup (90 days)
-        eprintln!("[Nightly] Running retention cleanup (90-day horizon)...");
-        let retention = RetentionService::new(self.query_store.clone(), 90);
+        // Retention Cleanup — raw-turn projection only (default 90d; env override).
+        // Class CE is NEVER auto-applied on nightly (R7). APPLY_CE env only logs intent.
+        // Class-matrix dry-run is logged by the CLI nightly entrypoint (F-004).
+        let retention_days = RetentionService::days_from_env(90);
+        eprintln!(
+            "[Nightly] Running retention cleanup ({}-day raw-turn horizon; CE bulk never auto-applied)...",
+            retention_days
+        );
+        if RetentionService::apply_ce_on_nightly_from_env() {
+            eprintln!(
+                "[Nightly] Note: AI_BRAINS_RETENTION_APPLY_CE is set; flag only logs intent — nightly still skips class CE (use `ai-brains retention apply --confirm` with daemon)."
+            );
+        }
+        let retention = RetentionService::new(self.query_store.clone(), retention_days);
         if let Err(e) = retention.run_cleanup().await {
             tracing::error!("Retention cleanup failed: {}", e);
             eprintln!("[Nightly] Retention cleanup failed: {}", e);
             errors.push(format!("retention_cleanup: {}", e));
         } else {
-            eprintln!("[Nightly] Retention cleanup complete.");
+            eprintln!("[Nightly] Retention cleanup complete (projection_delete only; not CE).");
         }
 
         // Cross-Agent Synthesis (Phase 15)

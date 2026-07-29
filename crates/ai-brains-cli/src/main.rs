@@ -395,6 +395,14 @@ enum Commands {
         #[command(subcommand)]
         command: ErasureCommands,
     },
+    /// Class-based retention plan/apply (T166 / P8.4)
+    #[command(
+        after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json\nHonesty: projection delete ≠ CE; CE reuses erasure wipe path for envelope classes only; CE apply requires --scope."
+    )]
+    Retention {
+        #[command(subcommand)]
+        command: RetentionCommands,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -790,6 +798,40 @@ enum ErasureCommands {
         daemon: bool,
         #[arg(long)]
         require_daemon: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\n  ai-brains retention apply --confirm --scope Repository:<uuid>\nNightly: AI_BRAINS_RETENTION_APPLY_CE only logs intent; CE is CLI+daemon+confirm+scope only."
+)]
+enum RetentionCommands {
+    /// Dry-run class matrix report (no disposal)
+    #[command(after_help = "Examples:\n  ai-brains retention plan --format json")]
+    Plan {
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+    },
+    /// Apply retention plan (requires --confirm; CE via daemon T165 wipe)
+    #[command(
+        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE (local)\n  - Envelope CE requires daemon + wipe_content_envelope only (T165)\n  - CE candidates require explicit --scope (Repository:<uuid> / Personal:<uuid>); no random default\n  - Projection-only apply may run without daemon or --scope\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json"
+    )]
+    Apply {
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        /// Execute disposal (required). Without this flag the command refuses.
+        #[arg(long = "confirm", action = clap::ArgAction::SetTrue)]
+        confirm: bool,
+        /// Explicit plan-only (conflicts with --confirm)
+        #[arg(long = "dry-run", action = clap::ArgAction::SetTrue)]
+        dry_run: bool,
+        #[arg(long = "command-id")]
+        command_id: Option<String>,
+        /// Scope for CE wipe policy path (required when plan has CE candidates)
+        #[arg(long)]
+        scope: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
     },
 }
 
@@ -1661,6 +1703,32 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 })
                 .await
             }
+        },
+        Commands::Retention { command } => match command {
+            RetentionCommands::Plan { format } => commands::retention::run_plan(
+                &ctx,
+                commands::retention::PlanOptions {
+                    format: format.clone(),
+                },
+            ),
+            RetentionCommands::Apply {
+                format,
+                confirm,
+                dry_run,
+                command_id,
+                scope,
+                principal_id,
+            } => commands::retention::run_apply(
+                &ctx,
+                commands::retention::ApplyOptions {
+                    format: format.clone(),
+                    confirm: *confirm,
+                    dry_run: *dry_run,
+                    command_id: command_id.clone(),
+                    scope: scope.clone(),
+                    principal_id: principal_id.clone(),
+                },
+            ),
         },
         Commands::Init { force } => commands::init::run(&ctx, *force),
         Commands::Ingest { dry_run } => commands::ingest::run(&ctx, *dry_run),
