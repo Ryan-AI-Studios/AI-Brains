@@ -4,12 +4,14 @@
 //! - **M2** Classification / apply only via T167 (`classify_legacy` / `apply_legacy_import`).
 //! - **M3/M6** Destination safety via `shadow::refuse_unsafe_destination`.
 //! - **M4/M11** Report has no plaintext bodies; CE honesty false.
-//! - **M5** Never `migrate()` source; source unchanged.
+//! - **M5** Never `migrate()` source; source open via `VaultConnection::open_read_intent`
+//!   (no WAL pragma); post-run fingerprint re-verify.
 //! - **M7** Live source refused unless `--allow-live-source`.
-//! - **M8** `refuse_unsafe_report_path` for report location.
+//! - **M8** `refuse_unsafe_report_path` for report location (incl. migrate-manifest).
+//! - **M15** Missing source → `NOT_FOUND` exit 4.
 //! - **M16** Content-based `migrate_source_fingerprint`.
 //! - **M17/M18** Re-apply: import-only when dest non-empty + matching manifest.
-//! - **M19** `--source-key` / `--destination-key` with `--key` fallback.
+//! - **M19** `--source-key` / `--destination-key` with `--key` fallback (flag after subcommand OK).
 //! - **M20** Envelope copy only (never projections).
 //! - **M21** Batch copy 5000 + stderr progress ≥1000.
 //! - **M22** Pass `read_all_events` order to classify (no re-sort).
@@ -237,23 +239,28 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
         );
     }
 
-    // M8 — report path safety.
+    // M8 — report path safety (incl. refuse overwriting migrate-manifest).
     refuse_unsafe_report_path(&opts.report, &opts.source, &opts.destination)?;
 
+    // M15 — missing source is NOT_FOUND (exit 4), not a generic COMMAND_FAILED.
     if !opts.source.exists() {
-        return Err(format!("source vault does not exist: {}", opts.source.display()).into());
+        return fail_not_found(format!(
+            "source vault does not exist: {}",
+            opts.source.display()
+        ));
     }
 
     let source_key = resolve_sql_key(opts.source_key.clone(), opts.key.clone());
     let dest_key = resolve_sql_key(opts.destination_key.clone(), opts.key.clone());
 
-    // M5 / #12 — open source RO intent; never migrate source.
-    let source_conn = VaultConnection::open(&opts.source, &source_key).map_err(|e| {
-        format!(
-            "failed to open source vault at {} (check --source-key / --key): {e}",
-            opts.source.display()
-        )
-    })?;
+    // M5 / #12 — open source read-intent (no journal_mode mutation); never migrate source.
+    let source_conn =
+        VaultConnection::open_read_intent(&opts.source, &source_key).map_err(|e| {
+            format!(
+                "failed to open source vault at {} (check --source-key / --key): {e}",
+                opts.source.display()
+            )
+        })?;
     let source_store = SqliteEventStore::new(source_conn);
     // M22 — preserve read_all_events order (occurred_at ASC, event_id ASC).
     let events = source_store.read_all_events().map_err(|e| {
@@ -304,9 +311,9 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
     let mut apply_report: Option<ImportReport> = None;
 
     if is_dry_run {
-        // Peek dest event count without migrating / writing.
+        // Peek dest event count without migrating / writing / WAL-mutating.
         if opts.destination.exists() {
-            match VaultConnection::open(&opts.destination, &dest_key) {
+            match VaultConnection::open_read_intent(&opts.destination, &dest_key) {
                 Ok(conn) => {
                     let store = SqliteEventStore::new(conn);
                     match store.read_all_events() {
@@ -333,7 +340,7 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
             0
         };
         eprintln!(
-            "note: source open is read-only intent (never migrate source; no intentional event writes; T147 residual #12)"
+            "note: source open uses read-intent (open_read_intent: no journal_mode pragma; never migrate source; T147 residual #12)"
         );
     } else {
         // Confirm path.
@@ -364,6 +371,36 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
             .count() as u64,
     };
 
+    // M5 — re-verify source content fingerprint after run (read-intent reopen).
+    // Fail hard on mismatch (dry-run or confirm). Size check is secondary.
+    let source_fp_after = {
+        let re_conn =
+            VaultConnection::open_read_intent(&opts.source, &source_key).map_err(|e| {
+                format!(
+                    "failed to re-open source vault for integrity check at {}: {e}",
+                    opts.source.display()
+                )
+            })?;
+        let re_store = SqliteEventStore::new(re_conn);
+        let re_events = re_store.read_all_events().map_err(|e| {
+            format!(
+                "failed to re-read source events for integrity check at {}: {e}",
+                opts.source.display()
+            )
+        })?;
+        migrate_source_fingerprint(&re_events)
+    };
+    let source_bytes_after = file_len_or_zero(&opts.source);
+    let source_modified = source_fp_after != source_fp || source_bytes_after != source_bytes_before;
+    if source_modified {
+        return Err(format!(
+            "source vault modified during migrate (fingerprint_before={source_fp}, \
+             fingerprint_after={source_fp_after}, size_before={source_bytes_before}, \
+             size_after={source_bytes_after}); this is a bug — aborting without writing a success report"
+        )
+        .into());
+    }
+
     let report = build_report(BuildReportArgs {
         is_dry_run,
         source: &opts.source,
@@ -378,19 +415,12 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
         would_import_appends,
         legacy_import_applied,
         manifest_written,
+        // Only false on success path (we fail hard when source_modified above).
+        source_modified: false,
         apply_report: apply_report.as_ref(),
     })?;
 
     write_report_file(&opts.report, &report)?;
-
-    // M5 — source file length must be unchanged.
-    let source_bytes_after = file_len_or_zero(&opts.source);
-    if source_bytes_after != source_bytes_before {
-        return Err(format!(
-            "source vault size changed during migrate (before={source_bytes_before}, after={source_bytes_after}); this is a bug"
-        )
-        .into());
-    }
 
     // Human one-liner summary on stdout.
     if is_dry_run {
@@ -643,6 +673,8 @@ struct BuildReportArgs<'a> {
     would_import_appends: u64,
     legacy_import_applied: bool,
     manifest_written: bool,
+    /// True only when post-run source fingerprint/size diverges (M5); success path is false.
+    source_modified: bool,
     /// Confirm-path T167 apply outcomes (dest-probed already_imported / applied).
     apply_report: Option<&'a ImportReport>,
 }
@@ -799,7 +831,7 @@ fn build_report(
                 "ADR-0016: copied legacy events remain non-CE.".to_string(),
         },
         rollback: RollbackSection {
-            source_modified: false,
+            source_modified: args.source_modified,
             instructions: vec![
                 "Do not point AI_BRAINS_VAULT_PATH at the destination until T170 dogfood passes."
                     .to_string(),
@@ -838,7 +870,7 @@ fn write_report_file(
 // Safety helpers
 // ---------------------------------------------------------------------------
 
-/// M8 — refuse reparse/symlink report path; refuse report == source or dest vault file.
+/// M8 — refuse reparse/symlink report path; refuse report == source, dest, or migrate-manifest.
 pub fn refuse_unsafe_report_path(
     report: &Path,
     source: &Path,
@@ -850,6 +882,14 @@ pub fn refuse_unsafe_report_path(
     if paths_refer_to_same_location(report, destination) {
         return fail_path_refused(
             "refusing migrate: report path equals the destination vault file",
+        );
+    }
+    // M18 honesty: report must not overwrite the mandatory migrate-manifest sibling.
+    let manifest = migrate_manifest_path(destination);
+    if paths_refer_to_same_location(report, &manifest) {
+        return fail_path_refused(
+            "refusing migrate: report path equals migrate-manifest.json location \
+             (would overwrite mandatory migrate-manifest)",
         );
     }
 
@@ -954,6 +994,13 @@ fn fail_invalid_payload(message: impl Into<String>) -> Result<(), Box<dyn std::e
     fail_api(
         OutputFormat::Human,
         ApiError::new("INVALID_PAYLOAD", message.into()),
+    )
+}
+
+fn fail_not_found(message: impl Into<String>) -> Result<(), Box<dyn std::error::Error>> {
+    fail_api(
+        OutputFormat::Human,
+        ApiError::new("NOT_FOUND", message.into()),
     )
 }
 
@@ -1186,6 +1233,7 @@ mod tests {
             would_import_appends: 1,
             legacy_import_applied: false,
             manifest_written: false,
+            source_modified: false,
             apply_report: None,
         })
         .expect("build_report");
@@ -1229,5 +1277,15 @@ mod tests {
                 .contains("report path equals the destination"),
             "got: {err}"
         );
+    }
+
+    #[test]
+    fn refuse_unsafe_report_path__equals_migrate_manifest__refuses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("dest").join("dest.db");
+        let report = migrate_manifest_path(&dest);
+        let err = refuse_unsafe_report_path(&report, &source, &dest).expect_err("must refuse");
+        assert!(err.to_string().contains("migrate-manifest"), "got: {err}");
     }
 }

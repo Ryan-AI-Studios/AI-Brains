@@ -546,6 +546,131 @@ fn migrate_governed__refuse_report_equals_dest() {
 }
 
 #[test]
+fn migrate_governed__refuse_report_equals_migrate_manifest() {
+    let dir = tempdir().expect("tempdir");
+    let (source, dest, _report) = paths(dir.path());
+    init_vault(&source);
+    // Sibling of dest: dest_dir/migrate-manifest.json
+    let manifest_as_report = dest
+        .parent()
+        .expect("dest parent")
+        .join("migrate-manifest.json");
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&manifest_as_report)
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("migrate-manifest"));
+}
+
+#[test]
+fn migrate_governed__missing_source__not_found_exit_4() {
+    let dir = tempdir().expect("tempdir");
+    let source = dir.path().join("does-not-exist.db");
+    let dest = dir.path().join("dest.db");
+    let report = dir.path().join("report.json");
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(predicate::str::contains("NOT_FOUND"));
+}
+
+#[test]
+fn migrate_governed__key_after_subcommand__accepted() {
+    let dir = tempdir().expect("tempdir");
+    let (source, dest, report) = paths(dir.path());
+    init_vault(&source);
+    seed_memory_pinned(&source, "key-after-flag pin", true);
+
+    // --key after `governed` (not only before `migrate`) must be accepted.
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .arg("--key")
+        .arg(ZERO_KEY)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[dry-run]"));
+
+    assert!(
+        report.exists(),
+        "report written with --key after subcommand"
+    );
+}
+
+#[test]
+fn migrate_governed__dry_run__source_fingerprint_stable() {
+    let dir = tempdir().expect("tempdir");
+    let (source, dest, report) = paths(dir.path());
+    init_vault(&source);
+    seed_memory_pinned(&source, "fp integrity pin", true);
+
+    let count_before = event_count(&source);
+    let len_before = fs::metadata(&source).unwrap().len();
+
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report)
+        .assert()
+        .success();
+
+    assert_eq!(event_count(&source), count_before);
+    assert_eq!(fs::metadata(&source).unwrap().len(), len_before);
+
+    let v: serde_json::Value = serde_json::from_str(&fs::read_to_string(&report).unwrap()).unwrap();
+    assert_eq!(v["rollback"]["source_modified"], false);
+    let fp_report = v["source_fingerprint"].as_str().unwrap().to_string();
+
+    // Second dry-run must yield the same fingerprint (source content unchanged).
+    let report2 = dir.path().join("report2.json");
+    migrate_cmd()
+        .arg("migrate")
+        .arg("governed")
+        .arg("--source")
+        .arg(&source)
+        .arg("--destination")
+        .arg(&dest)
+        .arg("--report")
+        .arg(&report2)
+        .assert()
+        .success();
+    let v2: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&report2).unwrap()).unwrap();
+    assert_eq!(v2["source_fingerprint"], fp_report);
+    assert_eq!(event_count(&source), count_before);
+}
+
+#[test]
 fn migrate_governed__both_dry_run_and_confirm__invalid_payload() {
     let dir = tempdir().expect("tempdir");
     let (source, dest, report) = paths(dir.path());

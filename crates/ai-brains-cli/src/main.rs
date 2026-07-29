@@ -909,6 +909,10 @@ enum MigrateCommands {
         /// Raw SQLCipher key for the destination vault (falls back to --key / zero-key)
         #[arg(long)]
         destination_key: Option<String>,
+        /// Shared SQLCipher key fallback when --source-key / --destination-key omitted
+        /// (also accepted as a root CLI flag before `migrate`; this places it after `governed`)
+        #[arg(long)]
+        key: Option<String>,
     },
 }
 
@@ -1424,9 +1428,14 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 force_overwrite,
                 source_key,
                 destination_key,
+                key,
             } => {
                 let _ = copy_events;
                 let copy = !no_copy_events;
+                // Shared key: governed `--key` (after subcommand) then root `--key`.
+                // Per-side inside run_governed: source_key → shared → zero-key;
+                // destination_key → shared → zero-key.
+                let shared_key = key.or(cli.key);
                 commands::migrate::run_governed(commands::migrate::GovernedOptions {
                     source,
                     destination,
@@ -1439,7 +1448,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     force_overwrite,
                     source_key,
                     destination_key,
-                    key: cli.key,
+                    key: shared_key,
                 })
             }
         },
