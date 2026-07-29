@@ -717,12 +717,18 @@ pub struct RetentionApplyCommand {
     pub dry_run: bool,
 }
 
-/// Outcome of projection-only apply (production CLI path).
+/// Outcome of retention prepare (production CLI path).
 ///
-/// CE keys are listed for daemon wipe. A planned [`RetentionApplied`] audit is
-/// always appended **before** any projection delete (R12 durability). Call
-/// [`finalize_retention_apply`] after CE with **successful** keys only for R15
-/// cascade + a second (final) RetentionApplied.
+/// Holds the pre-mutation audit report plus deferred CE keys and projection
+/// delete actions. **No** projection deletes run in [`prepare_retention_apply`].
+///
+/// Production CE-first order when `pending_ce_keys` is non-empty:
+/// 1. prepare (audit only)
+/// 2. daemon CE wipe batch (track successful keys)
+/// 3. [`execute_retention_projection_deletes`]
+/// 4. [`finalize_retention_apply`] for successful CE only
+///
+/// Projection-only (`pending_ce_keys` empty): prepare then execute deletes.
 #[derive(Debug, Clone)]
 pub struct RetentionProjectionApplyOutcome {
     pub report: RetentionPlanReport,
@@ -730,18 +736,23 @@ pub struct RetentionProjectionApplyOutcome {
     pub pending_ce_keys: Vec<String>,
     /// content_key_id → memory subject ids for R15 cascade after **successful** CE.
     pub pending_cascade_by_key: BTreeMap<String, Vec<String>>,
+    /// Deferred stream-A turn projection deletes (not applied until execute).
+    pub turns_to_delete: Vec<TurnKey>,
+    /// Deferred query_trace projection deletes.
+    pub query_traces_to_delete: Vec<String>,
+    /// Deferred review_item projection deletes.
+    pub reviews_to_delete: Vec<String>,
+    /// Deferred decision projection deletes.
+    pub decisions_to_delete: Vec<String>,
 }
 
-/// Apply **projection** candidates only (local). Does not CE-wipe.
+/// Audit only + collect CE / projection actions; **no** deletes or CE wipe.
 ///
-/// R12 durability: builds the apply report from planned candidates, appends
-/// `RetentionApplied` **before** any projection delete. If the audit append
-/// fails, **no** deletes run. When CE keys remain pending for the daemon, a
-/// warning is recorded and finalize after wipe appends a second audit.
-///
-/// Production CLI uses this so CE can go through the daemon (T165 parity) without
-/// monomorphizing `wipe_content_envelope` into the CLI binary.
-pub fn apply_retention_projections<W: EventWriter>(
+/// R12 durability: builds the apply report from planned candidates and appends
+/// `RetentionApplied` **before** any mutation. If the audit append fails, the
+/// caller must not wipe or delete. When CE keys remain pending for the daemon,
+/// a warning is recorded; finalize after wipe appends a second audit.
+pub fn prepare_retention_apply<W: EventWriter>(
     store: &SqliteEventStore,
     writer: &W,
     config: &RetentionConfig,
@@ -805,7 +816,7 @@ pub fn apply_retention_projections<W: EventWriter>(
         ids.dedup();
     }
 
-    // 1) Planned report first (counts from candidates; no mutation yet).
+    // Planned report first (counts from candidates; no mutation yet).
     let deferred_ce = !ce_keys.is_empty();
     let mut report = build_report(
         RetentionReportMode::Apply,
@@ -821,43 +832,78 @@ pub fn apply_retention_projections<W: EventWriter>(
 
     if deferred_ce {
         report.warnings.push(format!(
-            "ce_pending={} (RetentionApplied pre-mutation; finalize after daemon wipe)",
+            "ce_pending={} (RetentionApplied pre-mutation; CE-first then finalize after wipe)",
             ce_keys.len()
         ));
     }
 
-    // 2) R12: audit BEFORE any delete. If append fails, do not delete.
-    // Projection-only: single pre-mutation audit. Deferred CE: + finalize second.
+    // R12: audit BEFORE any delete/wipe. If append fails, do not mutate.
     append_retention_applied(writer, command_id, &report)?;
 
-    // 3) Projection deletes only after durable audit.
+    Ok(RetentionProjectionApplyOutcome {
+        report,
+        pending_ce_keys: ce_keys,
+        pending_cascade_by_key: cascade_by_key,
+        turns_to_delete,
+        query_traces_to_delete: query_traces,
+        reviews_to_delete: reviews,
+        decisions_to_delete: decisions,
+    })
+}
+
+/// Run deferred projection deletes recorded in `outcome`; merge errors into
+/// `outcome.report`. Safe to call after CE wipe (CE-first production order).
+pub fn execute_retention_projection_deletes(
+    store: &SqliteEventStore,
+    outcome: &mut RetentionProjectionApplyOutcome,
+) -> Result<()> {
     let mut errors: Vec<String> = Vec::new();
     {
         let conn = store
             .connection()
             .lock()
             .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
-        if let Err(e) = ret_scan::delete_turns(&conn, &turns_to_delete) {
+        if let Err(e) = ret_scan::delete_turns(&conn, &outcome.turns_to_delete) {
             errors.push(format!("delete_turns: {e}"));
         }
-        if let Err(e) = ret_scan::delete_query_traces(&conn, &query_traces) {
+        if let Err(e) = ret_scan::delete_query_traces(&conn, &outcome.query_traces_to_delete) {
             errors.push(format!("delete_query_traces: {e}"));
         }
-        if let Err(e) = ret_scan::delete_review_items(&conn, &reviews) {
+        if let Err(e) = ret_scan::delete_review_items(&conn, &outcome.reviews_to_delete) {
             errors.push(format!("delete_review_items: {e}"));
         }
-        if let Err(e) = ret_scan::delete_decisions(&conn, &decisions) {
+        if let Err(e) = ret_scan::delete_decisions(&conn, &outcome.decisions_to_delete) {
             errors.push(format!("delete_decisions: {e}"));
         }
     }
-    report.errors = errors;
-    report.errors_count = report.errors.len() as u64;
+    if !errors.is_empty() {
+        outcome.report.errors.extend(errors);
+        outcome.report.errors_count = outcome.report.errors.len() as u64;
+    }
+    Ok(())
+}
 
-    Ok(RetentionProjectionApplyOutcome {
-        report,
-        pending_ce_keys: ce_keys,
-        pending_cascade_by_key: cascade_by_key,
-    })
+/// Convenience: prepare (audit) then execute projection deletes.
+///
+/// Does **not** CE-wipe. Prefer the split path in production CLI so CE can run
+/// **before** projection deletes (CE-first). Fixture/tests may use this for
+/// projection-only apply.
+///
+/// Production CLI uses prepare → daemon CE → execute → finalize so CE can go
+/// through the daemon (T165 parity) without monomorphizing
+/// `wipe_content_envelope` into the CLI binary.
+pub fn apply_retention_projections<W: EventWriter>(
+    store: &SqliteEventStore,
+    writer: &W,
+    config: &RetentionConfig,
+    command_id: &str,
+    confirm: bool,
+    dry_run: bool,
+) -> Result<RetentionProjectionApplyOutcome> {
+    let mut outcome =
+        prepare_retention_apply(store, writer, config, command_id, confirm, dry_run)?;
+    execute_retention_projection_deletes(store, &mut outcome)?;
+    Ok(outcome)
 }
 
 /// Complete deferred-CE apply: R15 cascade for **successful** CE subjects only,
@@ -908,11 +954,14 @@ pub fn cascade_memory_ids_for_keys(
 /// `confirm && !dry_run` (R1).
 ///
 /// CE candidates call [`wipe_content_envelope`] only (R2). Appends planned
-/// [`Payload::RetentionApplied`] **before** any delete/wipe (R12). If the audit
-/// append fails, no destructive work runs.
+/// [`Payload::RetentionApplied`] **before** any wipe/delete (R12). Order is
+/// CE-first (wipe, then projection deletes, then R15 cascade) so policy-denied
+/// CE cannot leave projection deletes already applied — same as production.
 ///
 /// **Production CLI must not use this for CE** — use
-/// [`apply_retention_projections`] + daemon wipe instead (T165 E8 parity).
+/// [`prepare_retention_apply`] + daemon wipe +
+/// [`execute_retention_projection_deletes`] + [`finalize_retention_apply`]
+/// (T165 E8 parity).
 #[allow(clippy::too_many_arguments)]
 pub fn apply_retention<W, Q, C, P, S>(
     store: &SqliteEventStore,
@@ -987,7 +1036,7 @@ where
         ids.dedup();
     }
 
-    // 1–2) Planned report + R12 audit BEFORE any delete/wipe.
+    // 1–2) Planned report + R12 audit BEFORE any wipe/delete (CE-first order).
     let mut report = build_report(
         RetentionReportMode::Apply,
         &generated_at,
@@ -1001,7 +1050,7 @@ where
     );
     if !ce_keys.is_empty() {
         report.warnings.push(format!(
-            "ce_pending={} (RetentionApplied pre-mutation; in-process wipe follows)",
+            "ce_pending={} (RetentionApplied pre-mutation; CE-first wipe then projections)",
             ce_keys.len()
         ));
     }
@@ -1009,27 +1058,8 @@ where
 
     let mut errors: Vec<String> = Vec::new();
 
-    // 3) Projection deletes (batch, local) after durable audit
-    {
-        let conn = store
-            .connection()
-            .lock()
-            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
-        if let Err(e) = ret_scan::delete_turns(&conn, &turns_to_delete) {
-            errors.push(format!("delete_turns: {e}"));
-        }
-        if let Err(e) = ret_scan::delete_query_traces(&conn, &query_traces) {
-            errors.push(format!("delete_query_traces: {e}"));
-        }
-        if let Err(e) = ret_scan::delete_review_items(&conn, &reviews) {
-            errors.push(format!("delete_review_items: {e}"));
-        }
-        if let Err(e) = ret_scan::delete_decisions(&conn, &decisions) {
-            errors.push(format!("delete_decisions: {e}"));
-        }
-    }
-
-    // CE via T165 only (R2) — fixture / in-process path
+    // 3) CE via T165 only (R2) — fixture / in-process path, **before** projections
+    //    so policy-denied CE cannot leave projection deletes already applied.
     let mut successful_ce_keys: Vec<String> = Vec::new();
     for key_str in &ce_keys {
         let key_disp = truncate_id(key_str);
@@ -1070,7 +1100,27 @@ where
         }
     }
 
-    // R15 cascade — only subjects of successful CE keys
+    // 4) Projection deletes after CE batch (CE-first consistency with production).
+    {
+        let conn = store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        if let Err(e) = ret_scan::delete_turns(&conn, &turns_to_delete) {
+            errors.push(format!("delete_turns: {e}"));
+        }
+        if let Err(e) = ret_scan::delete_query_traces(&conn, &query_traces) {
+            errors.push(format!("delete_query_traces: {e}"));
+        }
+        if let Err(e) = ret_scan::delete_review_items(&conn, &reviews) {
+            errors.push(format!("delete_review_items: {e}"));
+        }
+        if let Err(e) = ret_scan::delete_decisions(&conn, &decisions) {
+            errors.push(format!("delete_decisions: {e}"));
+        }
+    }
+
+    // 5) R15 cascade — only subjects of successful CE keys
     let disposed_memory_ids = cascade_memory_ids_for_keys(&cascade_by_key, &successful_ce_keys);
     let parents_marked = {
         let conn = store

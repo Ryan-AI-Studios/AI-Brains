@@ -6,8 +6,9 @@
 use ai_brains_control_plane::{
     AllowAllPolicy, MAX_RETENTION_HORIZON_DAYS, RetentionApplyCommand, RetentionConfig,
     StoreContentEnvelopeWipe, StorePorts, SystemClock, apply_retention,
-    apply_retention_projections, cascade_memory_ids_for_keys, finalize_retention_apply,
-    make_principal, nightly_ce_enabled, parse_positive_horizon_days, plan_retention,
+    apply_retention_projections, cascade_memory_ids_for_keys, execute_retention_projection_deletes,
+    finalize_retention_apply, make_principal, nightly_ce_enabled, parse_positive_horizon_days,
+    plan_retention, prepare_retention_apply,
 };
 use ai_brains_core::ids::{ContentKeyId, PrincipalId, UserId};
 use ai_brains_core::principal::PrincipalKind;
@@ -776,7 +777,7 @@ fn retention_plan__multi_subject_mixed_pin__held() {
 
 #[test]
 fn retention_apply__projections_only__defers_ce_no_local_destroy() {
-    // F-001: production path uses apply_retention_projections; wrap stays active.
+    // F-001: production path uses prepare (no local wipe); wrap stays active.
     let (_tmp, ports) = open_ports();
     let store = store_of(&ports);
     let key = ContentKeyId::new();
@@ -793,7 +794,7 @@ fn retention_apply__projections_only__defers_ce_no_local_destroy() {
     );
 
     let outcome =
-        apply_retention_projections(store, &ports.writer, &config(), "ret-proj-1", true, false)
+        prepare_retention_apply(store, &ports.writer, &config(), "ret-proj-1", true, false)
             .unwrap();
     assert!(
         !outcome.pending_ce_keys.is_empty(),
@@ -807,7 +808,7 @@ fn retention_apply__projections_only__defers_ce_no_local_destroy() {
         .expect("key row");
     assert_eq!(
         wrap.status, "active",
-        "projections path must not destroy wrap"
+        "prepare path must not destroy wrap"
     );
     assert!(wrap.wrap_nonce.is_some());
 }
@@ -830,15 +831,9 @@ fn retention_apply__projections_append_audit_before_ce() {
         &old,
     );
 
-    let outcome = apply_retention_projections(
-        store,
-        &ports.writer,
-        &config(),
-        "ret-audit-pre-ce",
-        true,
-        false,
-    )
-    .unwrap();
+    let outcome =
+        prepare_retention_apply(store, &ports.writer, &config(), "ret-audit-pre-ce", true, false)
+            .unwrap();
     assert!(
         !outcome.pending_ce_keys.is_empty(),
         "CE still deferred: {outcome:?}"
@@ -866,8 +861,85 @@ fn retention_apply__projections_append_audit_before_ce() {
 }
 
 #[test]
+fn retention_apply__prepare__leaves_turns_present() {
+    // CE-first split: prepare audits but does not delete projections.
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let sid = Uuid::new_v4().to_string();
+    let old = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old);
+
+    let outcome =
+        prepare_retention_apply(store, &ports.writer, &config(), "ret-prep-turns", true, false)
+            .unwrap();
+    assert!(
+        outcome.report.totals.would_projection_delete >= 1,
+        "expected projection candidate: {outcome:?}"
+    );
+    assert!(
+        !outcome.turns_to_delete.is_empty(),
+        "turns must be deferred for execute: {outcome:?}"
+    );
+
+    let events = store.read_all_events().unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| e.event_type == EventKind::RetentionApplied),
+        "R12: RetentionApplied must exist after prepare (before deletes)"
+    );
+
+    let conn = store.connection().lock().unwrap();
+    let turns: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM turn_projection WHERE session_id = ?",
+            [&sid],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(turns, 1, "prepare must not delete projections");
+}
+
+#[test]
+fn retention_apply__execute__removes_deferred_turns() {
+    // prepare leaves turns; execute removes them.
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let sid = Uuid::new_v4().to_string();
+    let old = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old);
+
+    let mut outcome =
+        prepare_retention_apply(store, &ports.writer, &config(), "ret-exec-turns", true, false)
+            .unwrap();
+    {
+        let conn = store.connection().lock().unwrap();
+        let turns: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM turn_projection WHERE session_id = ?",
+                [&sid],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(turns, 1, "still present after prepare");
+    }
+
+    execute_retention_projection_deletes(store, &mut outcome).unwrap();
+
+    let conn = store.connection().lock().unwrap();
+    let turns: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM turn_projection WHERE session_id = ?",
+            [&sid],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(turns, 0, "execute removes deferred projection deletes");
+}
+
+#[test]
 fn retention_apply__projections_audit_before_projection_delete() {
-    // Codex R2 P1: audit is durable even when projection work also runs (pre-mutation order).
+    // Convenience apply_retention_projections = prepare + execute (projection-only).
     let (_tmp, ports) = open_ports();
     let store = store_of(&ports);
     let sid = Uuid::new_v4().to_string();
@@ -908,6 +980,60 @@ fn retention_apply__projections_audit_before_projection_delete() {
 }
 
 #[test]
+fn retention_apply__prepare__ce_and_projection__defers_both() {
+    // CE-first: prepare with both CE + projection candidates deletes neither.
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let sid = Uuid::new_v4().to_string();
+    let old_turn = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old_turn);
+    let key = ContentKeyId::new();
+    let old_ce = (Utc::now() - Duration::days(30)).to_rfc3339();
+    insert_active_key(store, &key, &old_ce);
+    insert_blob(
+        store,
+        &key,
+        &Uuid::new_v4().to_string(),
+        Some("secret"),
+        None,
+        None,
+        &old_ce,
+    );
+
+    let outcome = prepare_retention_apply(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-ce-first-prep",
+        true,
+        false,
+    )
+    .unwrap();
+    assert!(
+        !outcome.pending_ce_keys.is_empty(),
+        "CE deferred: {outcome:?}"
+    );
+    assert!(
+        !outcome.turns_to_delete.is_empty(),
+        "projections deferred: {outcome:?}"
+    );
+
+    let conn = store.connection().lock().unwrap();
+    let turns: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM turn_projection WHERE session_id = ?",
+            [&sid],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(turns, 1, "prepare must not delete turns before CE");
+    let wrap = content_envelope::get_content_key_wrap(&conn, &key.to_string())
+        .unwrap()
+        .expect("key row");
+    assert_eq!(wrap.status, "active", "prepare must not wipe CE");
+}
+
+#[test]
 fn finalize_retention_apply__appends_final_audit_and_cascades() {
     // Codex R1 P3: finalize appends RetentionApplied (second audit after pre-CE).
     let (_tmp, ports) = open_ports();
@@ -918,16 +1044,10 @@ fn finalize_retention_apply__appends_final_audit_and_cascades() {
     insert_memory(store, &child, "active", "child-body");
     insert_hierarchy(store, &parent, &child);
 
-    // Pre-CE audit (as production projections path does).
-    let outcome = apply_retention_projections(
-        store,
-        &ports.writer,
-        &config(),
-        "ret-finalize-1",
-        true,
-        false,
-    )
-    .unwrap();
+    // Pre-CE audit (as production prepare path does — no projection deletes yet).
+    let outcome =
+        prepare_retention_apply(store, &ports.writer, &config(), "ret-finalize-1", true, false)
+            .unwrap();
     let pre_ce_audits = store
         .read_all_events()
         .unwrap()

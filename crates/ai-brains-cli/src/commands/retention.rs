@@ -4,12 +4,17 @@
 //!
 //! - **`retention plan`** — local dry-run (no disposal).
 //! - **`retention apply --confirm`**:
-//!   - **Projection** deletes: in-process via [`apply_retention_projections`].
-//!   - **CE** rows: require daemon (T165 E8 parity); each key wiped via
-//!     `DaemonRequest::WipeContentEnvelope` only. Never `AllowAllPolicy` + local wipe.
+//!   - **Pre-mutation** `RetentionApplied` audit via [`prepare_retention_apply`].
+//!   - **CE** rows first (when any): require daemon (T165 E8 parity); each key
+//!     wiped via `DaemonRequest::WipeContentEnvelope` only. Never
+//!     `AllowAllPolicy` + local wipe. CE-first so policy-denied CE cannot leave
+//!     projection deletes already applied.
+//!   - **Then** projection deletes via [`execute_retention_projection_deletes`].
+//!   - Finalize cascade for successful CE only + second `RetentionApplied`.
 //!   - If any CE candidate exists and daemon is down → `DAEMON_UNAVAILABLE` before disposal.
 //!   - CE apply requires explicit `--scope` (never invent a random Personal UUID).
-//!   - Projection-only apply may run without daemon or `--scope`.
+//!   - Projection-only apply (`would_ce_wipe == 0`) may run without daemon or `--scope`
+//!     (audit then projection deletes only).
 //!
 //! Fixture tests may call `apply_retention` in-process with `AllowAllPolicy`.
 
@@ -23,8 +28,9 @@ use ai_brains_contracts::erasure::WipeContentEnvelopeRequest;
 use ai_brains_contracts::response::ApiError;
 use ai_brains_contracts::retention::{RetentionPlanReport, truncate_id};
 use ai_brains_control_plane::{
-    RetentionConfig, StorePorts, apply_retention_projections, cascade_memory_ids_for_keys,
-    finalize_retention_apply, parse_scope_key, plan_retention, scope_identity_key,
+    RetentionConfig, StorePorts, cascade_memory_ids_for_keys, execute_retention_projection_deletes,
+    finalize_retention_apply, parse_scope_key, plan_retention, prepare_retention_apply,
+    scope_identity_key,
 };
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
@@ -122,10 +128,11 @@ pub fn run_apply(
         };
     }
 
-    // apply_retention_projections: planned RetentionApplied first, then projection deletes.
-    let outcome =
-        match apply_retention_projections(&store, &ports.writer, &config, &command_id, true, false)
-        {
+    // CE-first production order when would_ce_wipe > 0:
+    // prepare (audit) → daemon CE wipe → projection deletes → finalize.
+    // Projection-only: prepare (audit) → projection deletes.
+    let mut outcome =
+        match prepare_retention_apply(&store, &ports.writer, &config, &command_id, true, false) {
             Ok(o) => o,
             Err(e) => {
                 let msg = e.to_string();
@@ -136,13 +143,22 @@ pub fn run_apply(
             }
         };
 
-    let mut report = outcome.report;
-    if !report.warnings.iter().any(|w| w.contains("command_id=")) {
-        report.warnings.push(format!("command_id={command_id}"));
+    if !outcome
+        .report
+        .warnings
+        .iter()
+        .any(|w| w.contains("command_id="))
+    {
+        outcome
+            .report
+            .warnings
+            .push(format!("command_id={command_id}"));
     }
 
-    // Pre-mutation RetentionApplied already appended by apply_retention_projections (R12).
-    if !outcome.pending_ce_keys.is_empty() {
+    // Pre-mutation RetentionApplied already appended by prepare (R12).
+    let mut successful_ce_keys: Vec<String> = Vec::new();
+    let had_ce = !outcome.pending_ce_keys.is_empty();
+    if had_ce {
         let Some(ref sc) = scope else {
             // Unreachable when plan.totals matched outcome; belt-and-suspenders.
             return fail_api(
@@ -156,7 +172,6 @@ pub fn run_apply(
         };
         let scope_wire = scope_identity_key(sc);
         let client = DaemonClient::new();
-        let mut successful_ce_keys: Vec<String> = Vec::new();
         for key in &outcome.pending_ce_keys {
             let key_disp = truncate_id(key);
             let req = DaemonRequest::WipeContentEnvelope(WipeContentEnvelopeRequest {
@@ -174,7 +189,7 @@ pub fn run_apply(
                     if wire.status == "wiped" || wire.status == "already_erased" {
                         successful_ce_keys.push(key.clone());
                     } else {
-                        report.errors.push(format!(
+                        outcome.report.errors.push(format!(
                             "ce_wipe {key_disp}: unexpected status {}",
                             wire.status
                         ));
@@ -182,24 +197,36 @@ pub fn run_apply(
                 }
                 Ok(DaemonResponse::Error(err)) => {
                     // Codex R2 P3: code only — err.message may embed full content_key_id.
-                    report
+                    outcome
+                        .report
                         .errors
                         .push(format!("ce_wipe {key_disp}: {}", err.code));
                 }
                 Ok(other) => {
-                    report.errors.push(format!(
+                    outcome.report.errors.push(format!(
                         "ce_wipe {key_disp}: unexpected daemon response: {other:?}"
                     ));
                 }
                 Err(e) => {
                     let classified = governed_common::classify_daemon_mutation_error(&e);
-                    report
+                    outcome
+                        .report
                         .errors
                         .push(format!("ce_wipe {key_disp}: {classified}"));
                 }
             }
         }
+    }
 
+    // Projection deletes after CE batch (or immediately when projection-only).
+    if let Err(e) = execute_retention_projection_deletes(&store, &mut outcome) {
+        outcome
+            .report
+            .errors
+            .push(format!("execute_retention_projection_deletes: {e}"));
+    }
+
+    if had_ce {
         // R15: cascade only subjects belonging to wiped / already_erased keys.
         let cascade_memory_ids =
             cascade_memory_ids_for_keys(&outcome.pending_cascade_by_key, &successful_ce_keys);
@@ -208,12 +235,16 @@ pub fn run_apply(
             &ports.writer,
             &command_id,
             &cascade_memory_ids,
-            &mut report,
+            &mut outcome.report,
         ) {
-            report.errors.push(format!("finalize_retention_apply: {e}"));
+            outcome
+                .report
+                .errors
+                .push(format!("finalize_retention_apply: {e}"));
         }
     }
 
+    let mut report = outcome.report;
     report.errors_count = report.errors.len() as u64;
     let exit_err = report.errors_count > 0;
     emit_report(format, &report)?;
