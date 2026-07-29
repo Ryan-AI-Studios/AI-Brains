@@ -296,6 +296,22 @@ impl GovernedQueryStore for StoreGovernedQuery {
         Ok(count > 0)
     }
 
+    fn has_evidence(&self, evidence_id: EvidenceId) -> Result<bool> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM evidence_projection WHERE evidence_id = ?",
+                [evidence_id.to_string()],
+                |row| row.get(0),
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        Ok(count > 0)
+    }
+
     fn find_source(
         &self,
         scope: &str,

@@ -21,13 +21,15 @@ impl Projection for DependencyProjection {
             Payload::SourceVersionRecorded(_) => {}
             Payload::ConclusionProposed(p) => {
                 for evidence_id in &p.evidence_ids {
+                    // source_version_id may be NULL (legacy import / evidence without version).
                     let source_version_id: Option<String> = tx
                         .query_row(
                             "SELECT source_version_id FROM evidence_projection WHERE evidence_id = ?",
                             rusqlite::params![evidence_id.to_string()],
-                            |row| row.get(0),
+                            |row| row.get::<_, Option<String>>(0),
                         )
-                        .optional()?;
+                        .optional()?
+                        .flatten();
 
                     tx.execute(
                         "INSERT INTO knowledge_dependency_projection (

@@ -19,6 +19,7 @@ pub mod decisions;
 pub mod errors;
 pub mod grants;
 pub mod invalidation;
+pub mod legacy_import;
 pub mod policy;
 pub mod ports;
 pub mod query;
@@ -73,6 +74,14 @@ pub use invalidation::{
     InvalidationResult, SourceUnavailableRequest, invalidate_dependents_for_changed_source,
     mark_source_unavailable, plan_invalidation_events_for_changed_source,
     revalidate_matching_stale, try_mark_stale_payload,
+};
+pub use legacy_import::{
+    ApplyOpts, ImportAction, ImportActionKind, ImportMechanism, ImportOpts, ImportPlan,
+    ImportReport, ImportTotals, LEGACY_SOURCE_DISPLAY_NAME, LEGACY_SOURCE_NAME,
+    NS_LEGACY_CONCLUSION, NS_LEGACY_DECISION, NS_LEGACY_EVIDENCE, NS_LEGACY_IMPORT_BATCH,
+    NS_LEGACY_REVIEW, NS_LEGACY_SOURCE, REASON_SUPERSEDED_DUPLICATE_PIN, apply_legacy_import,
+    classify_legacy, compute_plan_hash, legacy_conclusion_id, legacy_decision_id,
+    legacy_evidence_id, legacy_review_id, legacy_source_id, plan_report_json,
 };
 pub use policy::{DefaultPolicyEvaluator, GrantPrincipalStore, PolicyDecisionEntry, reduce_grants};
 pub use ports::{

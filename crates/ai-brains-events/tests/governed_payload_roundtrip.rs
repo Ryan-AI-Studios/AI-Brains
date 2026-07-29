@@ -243,6 +243,19 @@ fn remaining_governed_payloads__roundtrip_subset() {
             errors_count: 0,
             sample_ids: vec!["turn:s:0".into()],
         }),
+        Payload::LegacyImportApplied(ai_brains_events::LegacyImportAppliedPayload {
+            plan_hash: "abc123".into(),
+            command_id: Some("import-cmd-1".into()),
+            evidence_count: 1,
+            conclusion_count: 0,
+            decision_count: 0,
+            review_count: 0,
+            source_count: 1,
+            skipped_count: 4,
+            already_imported_count: 0,
+            unresolved_count: 0,
+            sample_ids: vec!["ev-1".into()],
+        }),
     ];
     for p in cases {
         assert_eq!(roundtrip(p.clone()), p);

@@ -306,6 +306,7 @@ fn compute_fingerprint<F: Fingerprinter>(
         SourceKind::Manual
         | SourceKind::HermesSession
         | SourceKind::Honcho
+        | SourceKind::LegacyAiBrains
         | SourceKind::Other(_) => {
             let bytes = content_as_bytes(content);
             fingerprint_external(identity, &bytes)
@@ -343,6 +344,7 @@ pub fn source_identity_string(
         SourceKind::HermesSession => "HermesSession".to_string(),
         SourceKind::Honcho => "Honcho".to_string(),
         SourceKind::Manual => "Manual".to_string(),
+        SourceKind::LegacyAiBrains => "LegacyAiBrains".to_string(),
         SourceKind::Other(s) => format!("Other({s})"),
     };
     let loc = locator.unwrap_or(display_name);

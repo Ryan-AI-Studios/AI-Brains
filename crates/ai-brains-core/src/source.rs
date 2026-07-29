@@ -11,5 +11,7 @@ pub enum SourceKind {
     HermesSession,
     Honcho,
     Manual,
+    /// Historical AI-Brains event-log content imported into governed ECD (T167).
+    LegacyAiBrains,
     Other(String),
 }
