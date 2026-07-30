@@ -1,0 +1,36 @@
+{
+  "stage": "B",
+  "compare_hash": "e1aaff0e6a17ac1b62ae7608867a420ecb2d46ffe90bc9565dc85b3a7503462b",
+  "t169": {
+    "exit_code": 0,
+    "report_hash": "eda59b44f35a56907b40e5eadd4ad52a9989fff2f22ef82fccef85c8c65f0486",
+    "hard_gates_passed": true
+  },
+  "hard_checks": {
+    "t169_passed": true,
+    "live_vault_mutated": false,
+    "live_checksum_verified": false,
+    "live_checksum_unchanged": true
+  },
+  "counts": {
+    "decision_count": 0,
+    "conclusion_count": 0,
+    "claim_ids_sample_count": 11,
+    "warning_refs_count": 1
+  },
+  "paths_basenames": {
+    "shadow": "shadow.db",
+    "migrated": "migrated.db",
+    "evaluate_report": "evaluate-report.json",
+    "migrate_report": "migrate-report.json",
+    "live_vault": null
+  },
+  "live_vault_integrity": {
+    "sha256_pre": null,
+    "sha256_post": null,
+    "unchanged": true,
+    "note": "Honest D24 N/A: process AI_BRAINS_VAULT_PATH unset for this evidence run; no default vault under USERPROFILE. Locked live vault (when present) is fail-closed, not N/A pass."
+  },
+  "governed_denied": true,
+  "notes": "Sanitized summary only — no claim bodies, no full live paths. Codex R1 re-run after D24 honesty fix. Fixture pin path yields denied briefing (grant gap); project_id wiring verified."
+}

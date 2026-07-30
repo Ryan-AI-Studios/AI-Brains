@@ -120,5 +120,14 @@ Release claims must only cite evidence present in evaluate reports / scenario ha
 | Track | Relation |
 |-------|----------|
 | T152 / T149 / T150 / T151 / T156 / T165 | Domain APIs under test |
-| **T170** | Live/redacted dogfood; human 20-claim review from `human_review_seed`; exit 7 branching |
+| **T170** | Live/redacted dogfood; human 20-claim review from `human_review_seed`; exit 7 branching — full runbook: [SHADOW-DOGFOOD-GATE.md](SHADOW-DOGFOOD-GATE.md) |
 | **T185** | Evaluation artifact index / claims-with-evidence |
+
+### T170 dogfood pointer
+
+After T169 hard gates pass (exit **0**), operators follow the progressive shadow dogfood gate before any live enablement:
+
+- Runbook: [SHADOW-DOGFOOD-GATE.md](SHADOW-DOGFOOD-GATE.md) (Stages A–D; D1–D26; D26 = `--vault-path` not env for shadow)
+- Checklist: [templates/dogfood-human-checklist.md](templates/dogfood-human-checklist.md)
+- Orchestrator: `scripts/dogfood-shadow.ps1`
+- Compare: `ai-brains dogfood compare --governed … --legacy … --out …`

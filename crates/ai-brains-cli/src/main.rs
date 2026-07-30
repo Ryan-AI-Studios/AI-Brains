@@ -335,6 +335,16 @@ enum Commands {
         #[command(subcommand)]
         command: EvaluateCommands,
     },
+    /// Dogfood helpers (T170): pure-serde compare of governed briefing vs legacy preflight.
+    ///
+    /// Never opens a vault. Never mutates live. Use with `--vault-path` capture inputs only (D26).
+    #[command(
+        after_help = "Examples:\n  ai-brains dogfood compare --governed packet.json --legacy preflight.json --out dogfood-compare.json --stage B"
+    )]
+    Dogfood {
+        #[command(subcommand)]
+        command: DogfoodCommands,
+    },
     /// Build typed Project / Personal briefing packets (T152)
     ///
     /// Empty-state contract: denied/unresolved scopes return a packet with
@@ -881,6 +891,58 @@ enum ShadowCommands {
 }
 
 #[derive(Subcommand)]
+enum DogfoodCommands {
+    /// Build dogfood-compare.json from governed packet + legacy preflight JSON
+    Compare {
+        /// Path to ProjectBriefingPacket JSON (from `briefing project --format json`)
+        #[arg(long)]
+        governed: PathBuf,
+        /// Path to PreflightContextResponse JSON (from `preflight --format json`, flag off)
+        #[arg(long)]
+        legacy: PathBuf,
+        /// Output path for dogfood-compare.json
+        #[arg(long)]
+        out: PathBuf,
+        /// Allow overwriting an existing --out file (never vaults)
+        #[arg(long = "allow-out-overwrite", default_value_t = false)]
+        allow_out_overwrite: bool,
+        /// Stage label: B (synthetic) or C (shadow dogfood)
+        #[arg(long)]
+        stage: Option<String>,
+        /// Optional T169 evaluate-report.json (Stage B seed + report_hash)
+        #[arg(long = "evaluate-report")]
+        evaluate_report: Option<PathBuf>,
+        /// Optional migrate-report.json path (recorded in paths; not opened)
+        #[arg(long = "migrate-report")]
+        migrate_report: Option<PathBuf>,
+        /// Shadow vault path (recorded in paths; not opened)
+        #[arg(long)]
+        shadow: Option<PathBuf>,
+        /// Migrated vault path (recorded in paths; not opened)
+        #[arg(long)]
+        migrated: Option<PathBuf>,
+        /// Live vault path for integrity section (not opened)
+        #[arg(long = "live-vault")]
+        live_vault: Option<PathBuf>,
+        /// D24 live vault SHA-256 before dogfood
+        #[arg(long = "sha256-pre")]
+        sha256_pre: Option<String>,
+        /// D24 live vault SHA-256 after dogfood
+        #[arg(long = "sha256-post")]
+        sha256_post: Option<String>,
+        /// T169 evaluate exit code
+        #[arg(long = "t169-exit")]
+        t169_exit: Option<i32>,
+        /// T169 report_hash
+        #[arg(long = "t169-report-hash")]
+        t169_report_hash: Option<String>,
+        /// T169 hard_gates_passed (optional override)
+        #[arg(long = "t169-hard-gates-passed")]
+        t169_hard_gates_passed: Option<bool>,
+    },
+}
+
+#[derive(Subcommand)]
 enum EvaluateCommands {
     /// Run versioned governed-memory scenario corpus + hard/soft metrics
     Governed {
@@ -1376,7 +1438,10 @@ fn main() {
     // Sync vault-path-free commands: handle before async runtime work.
     if matches!(
         &cli.command,
-        Commands::Shadow { .. } | Commands::Migrate { .. } | Commands::Evaluate { .. }
+        Commands::Shadow { .. }
+            | Commands::Migrate { .. }
+            | Commands::Evaluate { .. }
+            | Commands::Dogfood { .. }
     ) {
         handle_cli_result(run_sync_path_free(cli));
         return;
@@ -1434,7 +1499,7 @@ fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
     }
 }
 
-/// Shadow / migrate / evaluate open their own vaults and must not require AppContext.
+/// Shadow / migrate / evaluate / dogfood open their own inputs and must not require AppContext.
 fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Commands::Shadow { command } => match command {
@@ -1506,7 +1571,42 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 vault_path: cli.vault_path,
             }),
         },
-        _ => unreachable!("run_sync_path_free only for Shadow/Migrate/Evaluate"),
+        Commands::Dogfood { command } => match command {
+            DogfoodCommands::Compare {
+                governed,
+                legacy,
+                out,
+                allow_out_overwrite,
+                stage,
+                evaluate_report,
+                migrate_report,
+                shadow,
+                migrated,
+                live_vault,
+                sha256_pre,
+                sha256_post,
+                t169_exit,
+                t169_report_hash,
+                t169_hard_gates_passed,
+            } => commands::dogfood::run_compare(commands::dogfood::DogfoodCompareOptions {
+                governed,
+                legacy,
+                out,
+                stage,
+                evaluate_report,
+                migrate_report,
+                shadow,
+                migrated,
+                live_vault,
+                sha256_pre,
+                sha256_post,
+                t169_exit,
+                t169_report_hash,
+                t169_hard_gates_passed,
+                allow_out_overwrite,
+            }),
+        },
+        _ => unreachable!("run_sync_path_free only for Shadow/Migrate/Evaluate/Dogfood"),
     }
 }
 
@@ -1516,6 +1616,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
         Commands::Evaluate { .. } => unreachable!("evaluate handled in run_sync_path_free"),
+        Commands::Dogfood { .. } => unreachable!("dogfood handled in run_sync_path_free"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {
                 project_id,

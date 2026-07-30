@@ -309,6 +309,41 @@ ai-brains evaluate governed --fixtures fixtures/governed-memory/scenarios --repo
 
 Scenario 10 (circularity) runs in `ai-brains-sources` nextest (`runner=sources_tests`); the CP CLI report marks it skipped with that reason when not aggregated.
 
+### Shadow dogfood gate (T170 / P9.4)
+
+Progressive dogfood before any live governed enablement. Full runbook (Stages A–D, D1–D26, compare schema, human checklist): [EVALUATION/SHADOW-DOGFOOD-GATE.md](EVALUATION/SHADOW-DOGFOOD-GATE.md). Checklist template: [EVALUATION/templates/dogfood-human-checklist.md](EVALUATION/templates/dogfood-human-checklist.md).
+
+```powershell
+# Orchestrator (WorkDir only; never Stage D; never User-level env)
+.\scripts\dogfood-shadow.ps1 -WorkDir C:\temp\ai-brains-dogfood
+
+# Compare CLI (pure JSON in → dogfood-compare.json)
+ai-brains dogfood compare `
+  --governed .\governed-packet.json `
+  --legacy .\legacy-preflight.json `
+  --out .\dogfood-compare.json `
+  --stage B
+```
+
+| Rule | Behavior |
+|------|----------|
+| Progressive order | A (T169 evaluate exit **0**) → B (fixture vault) → C (redacted shadow) → D (**approval only**) |
+| **D26** | Compare with global **`--vault-path <shadow-or-migrated.db>`**. **Never** set `AI_BRAINS_VAULT_PATH` to a shadow/migrated path (breaks live refuse). |
+| Flag enable (session only, after Stage D approval) | `$env:AI_BRAINS_GOVERNED_BRIEFING = "1"` |
+| Flag rollback (primary) | `$env:AI_BRAINS_GOVERNED_BRIEFING = "0"` or `Remove-Item Env:AI_BRAINS_GOVERNED_BRIEFING` |
+| Rollback verify | `preflight --format json` `(governed)` probe + `briefing project --format json` for authority — **never** `preflight --summary` for governed |
+| **D24** | Live vault SHA-256 pre/post must match when a live vault exists; locked/unreadable live path is **fail-closed** (not N/A pass) |
+| Stage D | Scripts **refuse**; explicit user approval required; observation min 1 session or ≥3 governed invocations |
+
+**Emergency User-env clear (manual only — D23).** Scripts never set User scope. Only if an operator previously set persistent User env by hand:
+
+```powershell
+[Environment]::SetEnvironmentVariable("AI_BRAINS_GOVERNED_BRIEFING", $null, "User")
+# Open a new shell after User clear so process does not inherit a stale value.
+```
+
+**Thin shadow wrapper:** `scripts/shadow-vault.ps1` (forwards to `ai-brains shadow`). Dogfood orchestrator: `scripts/dogfood-shadow.ps1`.
+
 ## 4. Project & Session Management
 
 ### Project Setup
