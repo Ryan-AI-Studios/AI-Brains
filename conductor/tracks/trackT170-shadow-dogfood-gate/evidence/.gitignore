@@ -1,0 +1,14 @@
+# Never commit vault databases or sidecars (D16)
+*.db
+*.db-*
+*.db-shm
+*.db-wal
+shadow-manifest.json
+migrate-manifest.json
+
+# Large / sensitive runtime artifacts (keep sanitized summaries only)
+governed-packet.json
+legacy-preflight.json
+fixture.db*
+shadow.db*
+migrated.db*

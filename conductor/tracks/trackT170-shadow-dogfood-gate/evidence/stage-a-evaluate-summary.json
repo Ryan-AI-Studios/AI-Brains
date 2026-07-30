@@ -1,0 +1,13 @@
+{
+  "stage": "A",
+  "exit_code": 0,
+  "report_hash": "eda59b44f35a56907b40e5eadd4ad52a9989fff2f22ef82fccef85c8c65f0486",
+  "hard_gates_passed": true,
+  "scenarios_total": 10,
+  "scenarios_passed": 9,
+  "scenarios_failed": 0,
+  "scenarios_skipped": 1,
+  "claim_ids_sample_count": 11,
+  "produced_at_unix": 1785377242,
+  "notes": "Sanitized Stage A summary only; full evaluate-report not committed."
+}
