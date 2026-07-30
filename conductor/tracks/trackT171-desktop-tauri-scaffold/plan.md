@@ -45,7 +45,7 @@ Authority: `spec.md` locks **S1–S24**. Adapter-only; Windows-first; workspace 
 ## Phase D — License + supply-chain gates
 
 - [x] `cargo deny check` green (added `Apache-2.0 WITH LLVM-exception` for Tauri GTK transitive).
-- [ ] `cargo audit` (run at PR if needed).
+- [x] `cargo audit` (exit 0; see SMOKE.md).
 - [x] **S6 provenance:** tauri / tauri-build / @tauri-apps/* from tauri-apps.
 - [x] npm: **`license:check`** via license-checker-rseidelsohn + GPL/AGPL fail.
 - [x] Commit `package-lock.json` + root Cargo.lock.
