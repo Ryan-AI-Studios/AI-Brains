@@ -303,6 +303,7 @@ INTEGRATION      Ledgerful (search/hotspots/bridge/pipe) · multi-harness hooks
 OPS              init · backup suite · daemon service · schedule · update
 PRIVACY/CRYPTO   SQLCipher · privacy levels · path normalization · no CoT
 LEGACY IMPORT    classify_legacy / apply_legacy_import (T167) + `migrate governed` CLI (T168)
+EVALUATION       `evaluate governed` trust-gate harness (T169) — hermetic scenarios + report_hash
 ```
 
 ### Legacy → governed classification import (T167 / P9.1) + migrate CLI (T168)
@@ -317,6 +318,16 @@ LEGACY IMPORT    classify_legacy / apply_legacy_import (T167) + `migrate governe
 | `ai-brains migrate governed` | T168: dry-run differential report; `--confirm` dest materialize + T167 apply; live/reparse refuse; no plaintext in report |
 
 See [OPERATIONS.md](OPERATIONS.md#legacy--governed-classification-import-t167--p91) and [OPERATIONS.md](OPERATIONS.md#governed-migrate-cli-t168--p92) for operator rules (idempotency, forgotten cascade, CE honesty, re-apply, force-overwrite).
+
+### Governed evaluation harness (T169 / P9.3)
+
+| API / CLI | Role |
+|-----------|------|
+| `ai-brains evaluate governed` | Run scenario corpus; JSON report + exit 0/1/6/7; never mutates live vault |
+| CP `evaluation/` | Pure metrics, seed programs 1–9, hermetic runner |
+| sources nextest | Scenario 10 circularity hard gates |
+
+See [EVALUATION/GOVERNED-MEMORY-MVP.md](EVALUATION/GOVERNED-MEMORY-MVP.md) and [OPERATIONS.md](OPERATIONS.md#governed-evaluate-cli-t169--p93).
 
 ---
 
