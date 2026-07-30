@@ -1,0 +1,26 @@
+{
+  "api_version": "1",
+  "status": "dry_run",
+  "content_key_id": "00000000-0000-0000-0000-000000000001",
+  "tombstone_id": null,
+  "wrap_destroyed": false,
+  "blobs_considered": 0,
+  "purged": {
+    "fts_rows": 0,
+    "embeddings": 0,
+    "projection_rows": 0
+  },
+  "dependents_marked": 0,
+  "warnings": [
+    "not NIST Purge/Destroy; not physical media sanitization (TRUNCATE is not Purge)",
+    "pre-erase backups, exports, and offline copies remain decryptable if restored"
+  ],
+  "verify": {
+    "wrap_absent": false
+  },
+  "validation": {
+    "fts_clear": true,
+    "store_open_refused": false,
+    "wal_checkpoint": "skipped_dry_run"
+  }
+}

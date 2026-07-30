@@ -1,0 +1,34 @@
+{
+  "api_version": "1",
+  "packet": {
+    "api_version": "1",
+    "briefing_id": "brief-stale-1",
+    "kind": "Project",
+    "scope": {
+      "scope_key": "Repository:e2e-fixture",
+      "confidence": "High",
+      "warnings": [],
+      "alternatives": [],
+      "authoritative": true
+    },
+    "decisions": [],
+    "conclusions": [],
+    "constraints": [],
+    "warnings": [],
+    "freshness": {
+      "total_sources": 2,
+      "fresh_count": 1,
+      "stale_count": 1,
+      "unavailable_count": 0,
+      "worst_state": "stale"
+    },
+    "evidence_handles": [],
+    "budget": {
+      "max_words": 500,
+      "used_words": 12,
+      "truncated_sections": [],
+      "more_available": false
+    },
+    "denied": false
+  }
+}

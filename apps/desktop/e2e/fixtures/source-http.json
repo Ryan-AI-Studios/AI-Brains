@@ -1,0 +1,7 @@
+{
+  "id": "src-http-1",
+  "kind": "url",
+  "display_name": "HTTP Source (display only)",
+  "locator": "http://evil.example",
+  "last_observed_at": "2026-07-01T00:00:00Z"
+}

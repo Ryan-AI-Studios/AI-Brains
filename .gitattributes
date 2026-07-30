@@ -1,1 +1,4 @@
 * text=auto eol=lf
+
+apps/desktop/e2e/**/*-snapshots/**/*.png binary -diff
+apps/desktop/e2e/**/*-snapshots/** binary -diff

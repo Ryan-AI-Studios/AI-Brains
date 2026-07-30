@@ -257,3 +257,262 @@ mod capability_tests {
         );
     }
 }
+
+/// D25: shared golden fixtures under `e2e/fixtures` must stay contract-shaped
+/// (arrays present as `[]` not null; required keys present; error kinds honest).
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod fixture_sync_tests {
+    fn parse_fixture(name: &str, raw: &str) -> serde_json::Value {
+        match serde_json::from_str(raw) {
+            Ok(v) => v,
+            Err(e) => panic!("{name} must parse: {e}"),
+        }
+    }
+
+    fn assert_array_key(value: &serde_json::Value, key: &str) {
+        let field = value.get(key);
+        assert!(field.is_some(), "{key} key must be present");
+        assert!(
+            !field.is_some_and(|v| v.is_null()),
+            "{key} must not be null (E1)"
+        );
+        assert!(
+            field.and_then(|v| v.as_array()).is_some(),
+            "{key} must be an array"
+        );
+    }
+
+    fn assert_string_key(value: &serde_json::Value, key: &str) {
+        let field = value.get(key).and_then(|v| v.as_str());
+        assert!(
+            field.is_some_and(|s| !s.is_empty()),
+            "{key} must be a non-empty string"
+        );
+    }
+
+    #[test]
+    fn fixture__review_empty_json__items_array_not_null() {
+        let value = parse_fixture(
+            "review-empty.json",
+            include_str!("../../e2e/fixtures/review-empty.json"),
+        );
+        assert_eq!(value.get("api_version").and_then(|v| v.as_str()), Some("1"));
+        assert_array_key(&value, "items");
+        assert_eq!(
+            value
+                .get("items")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len()),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn fixture__review_items_json__items_array_with_required_fields() {
+        let value = parse_fixture(
+            "review-items.json",
+            include_str!("../../e2e/fixtures/review-items.json"),
+        );
+        assert_eq!(value.get("api_version").and_then(|v| v.as_str()), Some("1"));
+        assert_array_key(&value, "items");
+        let items = value
+            .get("items")
+            .and_then(|v| v.as_array())
+            .expect("items array");
+        assert!(
+            !items.is_empty(),
+            "review-items.json should include sample items"
+        );
+        let first = &items[0];
+        assert_string_key(first, "id");
+        assert_string_key(first, "subject");
+        assert_string_key(first, "status");
+    }
+
+    #[test]
+    fn fixture__offline_error_json__kind_and_message() {
+        let value = parse_fixture(
+            "offline-error.json",
+            include_str!("../../e2e/fixtures/offline-error.json"),
+        );
+        assert_eq!(value.get("kind").and_then(|v| v.as_str()), Some("offline"));
+        assert_string_key(&value, "message");
+    }
+
+    #[test]
+    fn fixture__denied_error_json__kind_and_message() {
+        let value = parse_fixture(
+            "denied-error.json",
+            include_str!("../../e2e/fixtures/denied-error.json"),
+        );
+        assert_eq!(value.get("kind").and_then(|v| v.as_str()), Some("denied"));
+        assert_string_key(&value, "message");
+    }
+
+    #[test]
+    fn fixture__source_https_json__required_keys_https_locator() {
+        let value = parse_fixture(
+            "source-https.json",
+            include_str!("../../e2e/fixtures/source-https.json"),
+        );
+        assert_string_key(&value, "id");
+        assert_string_key(&value, "kind");
+        assert_string_key(&value, "display_name");
+        let locator = value.get("locator").and_then(|v| v.as_str());
+        assert!(
+            locator.is_some_and(|s| s.starts_with("https://")),
+            "source-https.json locator must be https"
+        );
+    }
+
+    #[test]
+    fn fixture__source_path_json__required_keys_path_locator() {
+        let value = parse_fixture(
+            "source-path.json",
+            include_str!("../../e2e/fixtures/source-path.json"),
+        );
+        assert_string_key(&value, "id");
+        assert_string_key(&value, "kind");
+        assert_string_key(&value, "display_name");
+        let locator = value.get("locator").and_then(|v| v.as_str());
+        assert!(
+            locator.is_some_and(|s| !s.is_empty() && !s.contains("://")),
+            "source-path.json locator must be a non-URI path"
+        );
+    }
+
+    #[test]
+    fn fixture__source_missing_json__locator_null() {
+        let value = parse_fixture(
+            "source-missing.json",
+            include_str!("../../e2e/fixtures/source-missing.json"),
+        );
+        assert_string_key(&value, "id");
+        assert_string_key(&value, "kind");
+        assert_string_key(&value, "display_name");
+        assert!(
+            value.get("locator").is_some_and(|v| v.is_null()),
+            "source-missing.json locator must be null"
+        );
+    }
+
+    #[test]
+    fn fixture__source_http_json__http_locator_display_only() {
+        let value = parse_fixture(
+            "source-http.json",
+            include_str!("../../e2e/fixtures/source-http.json"),
+        );
+        assert_string_key(&value, "id");
+        let locator = value.get("locator").and_then(|v| v.as_str());
+        assert!(
+            locator.is_some_and(|s| s.starts_with("http://")),
+            "source-http.json locator must be http (display-only, not openable)"
+        );
+    }
+
+    #[test]
+    fn fixture__source_no_locator_key_json__locator_key_absent() {
+        let value = parse_fixture(
+            "source-no-locator-key.json",
+            include_str!("../../e2e/fixtures/source-no-locator-key.json"),
+        );
+        assert_string_key(&value, "id");
+        assert_string_key(&value, "kind");
+        assert!(
+            !value.as_object().is_some_and(|m| m.contains_key("locator")),
+            "source-no-locator-key.json must omit locator property (missing vs null)"
+        );
+    }
+
+    #[test]
+    fn fixture__wipe_dry_run_json__contract_shape() {
+        let value = parse_fixture(
+            "wipe-dry-run.json",
+            include_str!("../../e2e/fixtures/wipe-dry-run.json"),
+        );
+        assert_eq!(value.get("api_version").and_then(|v| v.as_str()), Some("1"));
+        assert_eq!(
+            value.get("status").and_then(|v| v.as_str()),
+            Some("dry_run")
+        );
+        assert_string_key(&value, "content_key_id");
+        assert!(
+            value.get("wrap_destroyed").and_then(|v| v.as_bool()) == Some(false),
+            "dry-run wrap_destroyed must be false"
+        );
+        assert_array_key(&value, "warnings");
+        assert!(value.get("purged").is_some_and(|v| v.is_object()));
+        assert!(value.get("verify").is_some_and(|v| v.is_object()));
+        assert!(value.get("validation").is_some_and(|v| v.is_object()));
+    }
+
+    #[test]
+    fn fixture__wipe_execute_json__contract_shape() {
+        let value = parse_fixture(
+            "wipe-execute.json",
+            include_str!("../../e2e/fixtures/wipe-execute.json"),
+        );
+        assert_eq!(value.get("api_version").and_then(|v| v.as_str()), Some("1"));
+        assert_eq!(value.get("status").and_then(|v| v.as_str()), Some("wiped"));
+        assert_string_key(&value, "content_key_id");
+        assert!(
+            value.get("wrap_destroyed").and_then(|v| v.as_bool()) == Some(true),
+            "execute wrap_destroyed must be true"
+        );
+        assert_array_key(&value, "warnings");
+        let warnings = value
+            .get("warnings")
+            .and_then(|v| v.as_array())
+            .expect("warnings array");
+        assert!(
+            !warnings.is_empty(),
+            "execute wipe must carry honesty warnings"
+        );
+        assert!(value.get("purged").is_some_and(|v| v.is_object()));
+        assert!(value.get("verify").is_some_and(|v| v.is_object()));
+        assert!(value.get("validation").is_some_and(|v| v.is_object()));
+    }
+
+    #[test]
+    fn fixture__resolve_success_json__required_keys_and_warnings_array() {
+        let value = parse_fixture(
+            "resolve-success.json",
+            include_str!("../../e2e/fixtures/resolve-success.json"),
+        );
+        assert_eq!(value.get("api_version").and_then(|v| v.as_str()), Some("1"));
+        assert_string_key(&value, "id");
+        assert_string_key(&value, "status");
+        assert_array_key(&value, "warnings");
+    }
+
+    #[test]
+    fn fixture__briefing_stale_json__freshness_stale_contract() {
+        let value = parse_fixture(
+            "briefing-stale.json",
+            include_str!("../../e2e/fixtures/briefing-stale.json"),
+        );
+        assert_eq!(value.get("api_version").and_then(|v| v.as_str()), Some("1"));
+        let packet = value.get("packet").expect("packet key must be present");
+        assert!(packet.is_object(), "packet must be an object");
+        assert_array_key(packet, "decisions");
+        assert_array_key(packet, "conclusions");
+        assert_array_key(packet, "constraints");
+        assert_array_key(packet, "warnings");
+        assert_array_key(packet, "evidence_handles");
+        let freshness = packet
+            .get("freshness")
+            .expect("freshness key must be present");
+        assert_eq!(
+            freshness.get("worst_state").and_then(|v| v.as_str()),
+            Some("stale")
+        );
+        assert!(
+            freshness
+                .get("stale_count")
+                .and_then(|v| v.as_u64())
+                .is_some_and(|n| n >= 1),
+            "stale_count must be >= 1"
+        );
+    }
+}

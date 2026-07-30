@@ -1,0 +1,29 @@
+{
+  "api_version": "1",
+  "status": "wiped",
+  "content_key_id": "00000000-0000-0000-0000-000000000001",
+  "tombstone_id": "00000000-0000-0000-0000-0000000000aa",
+  "wrap_destroyed": true,
+  "blobs_considered": 2,
+  "purged": {
+    "fts_rows": 1,
+    "embeddings": 1,
+    "projection_rows": 0
+  },
+  "dependents_marked": 0,
+  "warnings": [
+    "not NIST Purge/Destroy; not physical media sanitization (TRUNCATE is not Purge)",
+    "pre-erase backups, exports, and offline copies remain decryptable if restored",
+    "erasure ticket and soft forget are not cryptographic erasure",
+    "cryptographic erasure applies only to envelope-backed content (content_key_store)",
+    "SQLCipher vault lock is not per-item cryptographic erasure"
+  ],
+  "verify": {
+    "wrap_absent": true
+  },
+  "validation": {
+    "fts_clear": true,
+    "store_open_refused": true,
+    "wal_checkpoint": "truncated"
+  }
+}

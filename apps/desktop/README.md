@@ -188,11 +188,60 @@ npm run license:check
 | Dual-layer opener | **Landed** (U3/U20) — no JS opener package |
 | probe_health command | **Landed** (GET `/health`) |
 | react-markdown | Skipped (plain text / JSON pre; license simplicity) |
-| axe-core | Optional — skipped; T174 may add |
+| axe-core | Optional — soft only via `@axe-core/playwright` if added; bare `axe-core` not used |
 | xyflow claim graph | Skipped |
 | specta / ts-rs full gen | Hand-synced DTOs instead |
 | Propose conclusion/decision forms | Skipped |
-| Playwright E2E | **T174** (security case handoff in track evidence) |
+| Playwright E2E | **Landed (T174)** — Chromium + build+preview; HashRouter `gotoRoute` |
+
+## Testing (T174 offline-first pyramid)
+
+**Node ≥ 22** required (`engines.node`).
+
+| Level | Command | Notes |
+|-------|---------|-------|
+| L1 Rust host | `cargo test -p ai-brains-desktop --lib` | CSP/capability + **D25** golden fixture sync (all `e2e/fixtures/*.json`) |
+| L2 Unit | `npm run test:unit` | Vitest + jsdom + RTL + user-event; crypto + dialog polyfills in `src/test/setup.ts` |
+| L2 typecheck | `npm run typecheck:tests` | `tsc --noEmit -p tsconfig.vitest.json` (product `typecheck` still excludes tests) |
+| L3 E2E | `npm run test:e2e` | Playwright Chromium; **build + preview only** (never Vite HMR) |
+| L4 Visual | `npm run test:visual` | ARIA snapshots primary (`toMatchAriaSnapshot`); optional wipe-dialog pixel golden |
+| L5 Human | see track `evidence/SMOKE.md` | Live WebView2 + daemon Isolation smoke |
+
+### HashRouter navigation
+
+Always use hash routes:
+
+```ts
+// e2e/helpers/gotoRoute.ts
+await page.goto(`http://127.0.0.1:4173#/${route}`);
+// NEVER page.goto('/review') alone for HashRouter
+```
+
+### webServer contract
+
+Playwright `webServer` runs `node ./scripts/e2e-serve.mjs` which:
+
+1. `npm run build` (production dist)
+2. `vite preview --host 127.0.0.1 --port 4173`
+
+Dev server / `unsafe-inline` HMR is **not** used for E2E.
+
+### Tauri invoke mocks (E2E)
+
+`context.addInitScript` installs `window.__TAURI_INTERNALS__.invoke` **before** the app loads (`e2e/helpers/mockInvoke.ts`). Default table paints offline Home promptly (`retry: false`).
+
+### Snapshot update procedure
+
+```powershell
+# Explicit only — never silent in CI
+npm run test:e2e:update
+```
+
+Pixel compare is advisory and host-sensitive (`--font-render-hinting=none`, viewport 1280×720). Prefer ARIA snapshots for structure; wipe dialog has an optional PNG under `e2e/visual.spec.ts-snapshots/`.
+
+### Live smoke residual
+
+Automated L2–L4 do **not** replace live `tauri dev` under Isolation with a real daemon token. See `conductor/tracks/trackT174-desktop-tests/evidence/SMOKE.md`.
 
 ## Scripts
 
@@ -202,8 +251,13 @@ npm run license:check
 | `npm run build` | `tsc --noEmit` + Vite production build |
 | `npm run preview` | Preview Vite `dist/` |
 | `npm run tauri` | Tauri CLI passthrough |
-| `npm run typecheck` | `tsc --noEmit` |
+| `npm run typecheck` | `tsc --noEmit` (excludes unit test sources) |
+| `npm run typecheck:tests` | `tsc --noEmit -p tsconfig.vitest.json` (includes unit tests) |
 | `npm run license:check` | Production license summary + GPL/AGPL fail |
+| `npm run test` / `test:unit` | Vitest unit suite |
+| `npm run test:e2e` | Playwright Chromium E2E |
+| `npm run test:visual` | Playwright `@visual` (ARIA + wipe PNG) |
+| `npm run test:e2e:update` | Update Playwright snapshots (manual) |
 
 ## Product license
 

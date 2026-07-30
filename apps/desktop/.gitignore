@@ -13,3 +13,9 @@ src-tauri/gen/
 *.log
 .vscode/*
 !.vscode/extensions.json
+
+# Playwright / Vitest artifacts (snapshots under e2e/** are committed)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

@@ -1,0 +1,11 @@
+{
+  "api_version": "1",
+  "items": [
+    {
+      "id": "review-item-1",
+      "subject": "Fixture review subject",
+      "status": "Open",
+      "opened_at": "2026-07-01T00:00:00Z"
+    }
+  ]
+}

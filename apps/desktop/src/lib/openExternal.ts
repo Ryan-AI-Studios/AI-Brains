@@ -20,7 +20,8 @@ export type LocatorKind =
 
 /**
  * Classify an API-provided locator without fabricating one.
- * https → open URL; path-like → reveal; other text → display only; absent → none.
+ * https → open URL; other URI schemes (http/file/javascript/…) → display-only text;
+ * path-like → reveal; other text → display only; absent → none.
  */
 export function classifyLocator(
   locator: string | null | undefined,
@@ -34,6 +35,12 @@ export function classifyLocator(
   }
   if (/^https:\/\//i.test(value)) {
     return { kind: "https", value };
+  }
+  // Non-https URI schemes are display-only — never path, never openable here.
+  // Covers http:, file:, javascript:, data:, etc.
+  // Scheme must be ≥2 chars so Windows drive letters (`C:\…`) fall through to path.
+  if (/^[a-z][a-z0-9+.-]+:/i.test(value) && !/^[a-zA-Z]:[\\/]/.test(value)) {
+    return { kind: "text", value };
   }
   // Path-like: drive letter, UNC/root slash, or contains path separators.
   if (
