@@ -203,7 +203,10 @@ pub fn refuse_unsafe_dogfood_out_path(
         );
     }
     if let Some(name) = out.file_name().and_then(|n| n.to_str())
-        && (name.ends_with(".db") || name == "vault.db" || name.ends_with(".sqlite"))
+        && {
+            let lower = name.to_ascii_lowercase();
+            lower.ends_with(".db") || lower == "vault.db" || lower.ends_with(".sqlite")
+        }
     {
         return fail_path_refused(
             "refusing dogfood: --out path looks like a vault database file",
