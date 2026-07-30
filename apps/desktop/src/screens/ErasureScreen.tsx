@@ -11,6 +11,15 @@ import type {
   ErasureAcceptedResponse,
 } from "../lib/types";
 
+/** Contract honesty bullets shown for execute wipe when API warnings are not yet available. */
+const WIPE_HONESTY_STATIC = [
+  "not NIST Purge/Destroy; not physical media sanitization (TRUNCATE is not Purge)",
+  "pre-erase backups, exports, and offline copies remain decryptable if restored",
+  "erasure ticket and soft forget are not cryptographic erasure",
+  "cryptographic erasure applies only to envelope-backed content (content_key_store)",
+  "SQLCipher vault lock is not per-item cryptographic erasure",
+] as const;
+
 export function ErasureScreen() {
   const { scope: activeScope, setScope: setActiveScope } = useActiveScope();
 
@@ -22,12 +31,11 @@ export function ErasureScreen() {
     useState<ErasureAcceptedResponse | null>(null);
   const [ticketError, setTicketError] = useState<UiError | null>(null);
 
-  // Wipe path
+  // Wipe path — dry_run stays; typed WIPE replaces confirm checkbox (U6).
   const [contentKeyId, setContentKeyId] = useState("");
   const [wipeScope, setWipeScope] = useState("");
   const [wipeReason, setWipeReason] = useState("");
   const [dryRun, setDryRun] = useState(true);
-  const [confirmWipe, setConfirmWipe] = useState(false);
   const [wipeResult, setWipeResult] =
     useState<ContentEnvelopeWipedResponse | null>(null);
   const [wipeError, setWipeError] = useState<UiError | null>(null);
@@ -77,7 +85,7 @@ export function ErasureScreen() {
   });
 
   const wipeMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (opts: { confirm: boolean }) => {
       const scope = wipeScope.trim();
       if (!scope) {
         return Promise.reject({
@@ -91,7 +99,8 @@ export function ErasureScreen() {
         scope,
         reason: wipeReason || undefined,
         dry_run: dryRun,
-        confirm: confirmWipe,
+        // dry-run: confirm true is fine; execute: only when phrase matched (caller).
+        confirm: opts.confirm,
       });
     },
     onSuccess: (resp) => {
@@ -201,9 +210,9 @@ export function ErasureScreen() {
       <section className="card">
         <h2>Content-envelope wipe</h2>
         <p className="muted small">
-          Defaults are dry-run safe. Execute only when dry_run is false{" "}
-          <em>and</em> confirm is true. Honesty warnings from the API are shown
-          in full.
+          Defaults are dry-run safe. Execute requires dry_run false and typing{" "}
+          <code>WIPE</code> in the confirm dialog. Honesty warnings from the API
+          are shown in full.
         </p>
         <form
           className="form-grid"
@@ -245,16 +254,8 @@ export function ErasureScreen() {
             />
             dry_run (default true)
           </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={confirmWipe}
-              onChange={(e) => setConfirmWipe(e.target.checked)}
-            />
-            confirm (required with dry_run false to execute)
-          </label>
           <button type="submit" className="btn btn-danger">
-            {dryRun ? "Preview wipe (dry-run)" : "Wipe (requires confirm)"}
+            {dryRun ? "Preview wipe (dry-run)" : "Wipe (type WIPE to confirm)"}
           </button>
         </form>
         {wipeError && (
@@ -307,9 +308,10 @@ export function ErasureScreen() {
       <ConfirmDialog
         open={dialogOpen}
         title={dryRun ? "Confirm dry-run wipe" : "Confirm content-envelope wipe"}
-        danger={!dryRun && confirmWipe}
+        danger={!dryRun}
         busy={wipeMutation.isPending}
         confirmLabel={dryRun ? "Run dry-run" : "Execute wipe"}
+        typedConfirmPhrase={dryRun ? undefined : "WIPE"}
         body={
           <div>
             <p>
@@ -319,25 +321,38 @@ export function ErasureScreen() {
               scope: <code>{wipeScope}</code>
             </p>
             <p>
-              dry_run={String(dryRun)} · confirm={String(confirmWipe)}
+              dry_run={String(dryRun)} · confirm=
+              {dryRun ? "true (dry-run)" : "requires typed WIPE"}
             </p>
-            {!dryRun && !confirmWipe && (
-              <p className="error">
-                Execute path requires dry_run=false and confirm=true. This
-                request will not destroy wrap material.
-              </p>
+            {!dryRun && (
+              <>
+                <p className="error">
+                  This will attempt cryptographic erasure for envelope-backed
+                  content only. Not NIST Purge; backups remain decryptable if
+                  restored.
+                </p>
+                <h3 className="dialog-honesty-title">Honesty (contract)</h3>
+                <ul className="warn-list">
+                  {WIPE_HONESTY_STATIC.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </>
             )}
-            {!dryRun && confirmWipe && (
-              <p className="error">
-                This will attempt cryptographic erasure for envelope-backed
-                content only. Not NIST Purge; backups remain decryptable if
-                restored.
+            {dryRun && (
+              <p className="muted small">
+                Dry-run does not destroy wrap material. Typed WIPE is not
+                required for dry-run.
               </p>
             )}
           </div>
         }
         onCancel={() => setDialogOpen(false)}
-        onConfirm={() => wipeMutation.mutate()}
+        onConfirm={() => {
+          // Execute path: Confirm is disabled until phrase matches, so confirm:true is safe.
+          // Dry-run: confirm true without typed phrase.
+          wipeMutation.mutate({ confirm: true });
+        }}
       />
     </div>
   );

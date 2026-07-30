@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDaemonConnectionInfo, resolveScope } from "../lib/api";
 import { useActiveScope } from "../lib/scopeContext";
 import { queryKeys } from "../lib/queryKeys";
+import { StatusBadge } from "./StatusBadge";
 
 /**
  * Chrome indicator: connection + best-effort scope resolve.
@@ -42,23 +43,34 @@ export function ScopeIndicator() {
   const tokenOk = conn.data?.token_file_present === true;
   const base = conn.data?.loopback_base_url ?? "—";
 
-  let scopeLabel = "scope unresolved";
-  let scopeClass = "badge badge-muted";
+  let scopeBadge: ReactNode;
   if (scope.isSuccess) {
     const s = scope.data;
     if (s.authoritative) {
-      scopeLabel = s.scope || "authoritative scope";
-      scopeClass = "badge badge-ok";
+      scopeBadge = (
+        <StatusBadge
+          kind="ok"
+          label={s.scope || "authoritative scope"}
+          title={s.warnings?.join("; ") ?? ""}
+        />
+      );
     } else {
-      scopeLabel = `${s.confidence || "Low"}: ${s.scope || "(empty)"}`;
-      scopeClass = "badge badge-warn";
+      scopeBadge = (
+        <StatusBadge
+          kind="warn"
+          label={`${s.confidence || "Low"}: ${s.scope || "(empty)"}`}
+          title={s.warnings?.join("; ") ?? "Non-authoritative scope"}
+        />
+      );
     }
   } else if (scope.isError) {
-    scopeLabel = "scope unavailable";
-    scopeClass = "badge badge-muted";
+    scopeBadge = (
+      <StatusBadge kind="unavailable" label="scope unavailable" />
+    );
   } else if (!tokenOk) {
-    scopeLabel = "no session token";
-    scopeClass = "badge badge-warn";
+    scopeBadge = <StatusBadge kind="warn" label="no session token" />;
+  } else {
+    scopeBadge = <StatusBadge kind="unavailable" label="scope unresolved" />;
   }
 
   return (
@@ -66,12 +78,11 @@ export function ScopeIndicator() {
       <span className="muted small" title={base}>
         {base}
       </span>
-      <span className={tokenOk ? "badge badge-ok" : "badge badge-warn"}>
-        {tokenOk ? "token present" : "token missing"}
-      </span>
-      <span className={scopeClass} title={scope.data?.warnings?.join("; ") ?? ""}>
-        {scopeLabel}
-      </span>
+      <StatusBadge
+        kind={tokenOk ? "ok" : "warn"}
+        label={tokenOk ? "token present" : "token missing"}
+      />
+      {scopeBadge}
     </div>
   );
 }

@@ -5,6 +5,32 @@ import { useActiveScope } from "../lib/scopeContext";
 import { queryKeys } from "../lib/queryKeys";
 import { useInvokeQuery } from "../hooks/useInvokeQuery";
 import { StatePanel } from "../components/StatePanel";
+import {
+  classifyLocator,
+  openUrl,
+  revealPath,
+} from "../lib/openExternal";
+import { mapInvokeError, type UiError } from "../lib/errors";
+import type { SourceDto } from "../lib/types";
+
+function asSourceDto(data: unknown): SourceDto | null {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+  const rec = data as Record<string, unknown>;
+  if (typeof rec.id !== "string" || typeof rec.kind !== "string") {
+    return null;
+  }
+  return {
+    id: rec.id,
+    kind: rec.kind,
+    display_name:
+      typeof rec.display_name === "string" ? rec.display_name : rec.id,
+    locator: typeof rec.locator === "string" ? rec.locator : null,
+    last_observed_at:
+      typeof rec.last_observed_at === "string" ? rec.last_observed_at : null,
+  };
+}
 
 export function SourceScreen() {
   const params = useParams();
@@ -13,6 +39,8 @@ export function SourceScreen() {
   const [idInput, setIdInput] = useState(routeId);
   const [activeId, setActiveId] = useState(routeId);
   const [scope, setScope] = useState("");
+  const [openError, setOpenError] = useState<UiError | null>(null);
+  const [openBusy, setOpenBusy] = useState(false);
 
   // Keep input/active id in sync when navigating #/source/:id → another id.
   useEffect(() => {
@@ -39,6 +67,8 @@ export function SourceScreen() {
   });
 
   const needsScope = !!activeId && !effectiveScope;
+  const source = asSourceDto(q.data);
+  const locator = classifyLocator(source?.locator);
 
   return (
     <div className="screen">
@@ -46,6 +76,8 @@ export function SourceScreen() {
         <h1>Source inspect</h1>
         <p className="muted">
           Inspect a registered source by id via the daemon. Scope is required.
+          Open/reveal uses dual-layer Rust open only when the API provides a
+          locator (never fabricated).
         </p>
       </header>
 
@@ -97,6 +129,61 @@ export function SourceScreen() {
         >
           {q.data && (
             <div className="card">
+              {source && (
+                <div className="locator-row">
+                  <div>
+                    <strong>{source.display_name}</strong>
+                    <div className="muted small">
+                      {source.kind} · <code>{source.id}</code>
+                    </div>
+                  </div>
+                  {locator.kind === "https" && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      disabled={openBusy}
+                      onClick={() => {
+                        setOpenBusy(true);
+                        setOpenError(null);
+                        void openUrl(locator.value)
+                          .catch((err) => setOpenError(mapInvokeError(err)))
+                          .finally(() => setOpenBusy(false));
+                      }}
+                    >
+                      Open URL
+                    </button>
+                  )}
+                  {locator.kind === "path" && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      disabled={openBusy}
+                      onClick={() => {
+                        setOpenBusy(true);
+                        setOpenError(null);
+                        void revealPath(locator.value)
+                          .catch((err) => setOpenError(mapInvokeError(err)))
+                          .finally(() => setOpenBusy(false));
+                      }}
+                    >
+                      Reveal path
+                    </button>
+                  )}
+                  {locator.kind === "text" && (
+                    <p className="muted small">
+                      Locator (display only): <code>{locator.value}</code>
+                    </p>
+                  )}
+                  {locator.kind === "none" && (
+                    <p className="muted small">No locator available</p>
+                  )}
+                </div>
+              )}
+              {openError && (
+                <p className="error" role="alert">
+                  {openError.message}
+                </p>
+              )}
               <pre className="json">{JSON.stringify(q.data, null, 2)}</pre>
             </div>
           )}
