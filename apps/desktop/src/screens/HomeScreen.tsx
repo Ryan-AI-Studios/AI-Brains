@@ -6,10 +6,12 @@ import { useActiveScope } from "../lib/scopeContext";
 import { queryKeys } from "../lib/queryKeys";
 import { useInvokeQuery } from "../hooks/useInvokeQuery";
 import { StatePanel } from "../components/StatePanel";
+import { StatusBadge } from "../components/StatusBadge";
 import type {
   BriefingClaim,
   BriefingWarning,
   EvidenceHandle,
+  FreshnessSummary,
   PersonalBriefingPacket,
   PersonalPreference,
   PersonalReviewItem,
@@ -197,13 +199,7 @@ function ProjectPacketView({ packet }: { packet: ProjectBriefingPacket }) {
 
       <div className="card">
         <h2>Freshness (from packet)</h2>
-        <p className="muted small">
-          total {packet.freshness?.total_sources ?? 0} · fresh{" "}
-          {packet.freshness?.fresh_count ?? 0} · stale{" "}
-          {packet.freshness?.stale_count ?? 0} · unavailable{" "}
-          {packet.freshness?.unavailable_count ?? 0} · worst{" "}
-          {packet.freshness?.worst_state ?? "Unknown"}
-        </p>
+        <FreshnessSummaryView freshness={packet.freshness} />
       </div>
 
       <ClaimList title="Decisions" claims={decisions} />
@@ -290,6 +286,39 @@ function PersonalPacketView({ packet }: { packet: PersonalBriefingPacket }) {
             ))}
           </ul>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** SU9: stale freshness uses StatusBadge (icon + text), not color-only. */
+function FreshnessSummaryView({
+  freshness,
+}: {
+  freshness?: FreshnessSummary | null;
+}) {
+  const staleCount = freshness?.stale_count ?? 0;
+  const worst = freshness?.worst_state ?? "Unknown";
+  const worstIsStale = worst.toLowerCase() === "stale";
+  const showStaleBadge = staleCount > 0 || worstIsStale;
+
+  return (
+    <div className="freshness-summary">
+      <p className="muted small">
+        total {freshness?.total_sources ?? 0} · fresh{" "}
+        {freshness?.fresh_count ?? 0} · stale {staleCount} · unavailable{" "}
+        {freshness?.unavailable_count ?? 0} · worst {worst}
+      </p>
+      {showStaleBadge && (
+        <StatusBadge
+          kind="stale"
+          label={
+            staleCount > 0
+              ? `${staleCount} stale source${staleCount === 1 ? "" : "s"}`
+              : "stale"
+          }
+          title={`Freshness worst_state=${worst}; stale_count=${staleCount}`}
+        />
       )}
     </div>
   );

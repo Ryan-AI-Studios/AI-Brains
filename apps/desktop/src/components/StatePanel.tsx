@@ -1,4 +1,5 @@
 import { mapInvokeError, type UiError } from "../lib/errors";
+import { StatusBadge } from "./StatusBadge";
 
 export type PanelStatus =
   | "idle"
@@ -40,7 +41,10 @@ export function StatePanel({
   if (status === "offline") {
     return (
       <div className="state-panel state-offline" role="alert">
-        <h3>Daemon offline</h3>
+        <h3 className="state-heading">
+          <StatusBadge kind="offline" label="Offline" />
+          <span>Daemon offline</span>
+        </h3>
         <p>
           {error?.message ??
             "Cannot reach the AI-Brains daemon on loopback. Start the daemon and ensure the user-session token exists."}
@@ -57,7 +61,10 @@ export function StatePanel({
   if (status === "denied") {
     return (
       <div className="state-panel state-denied" role="alert">
-        <h3>Access denied</h3>
+        <h3 className="state-heading">
+          <StatusBadge kind="denied" label="Denied" />
+          <span>Access denied</span>
+        </h3>
         <p>
           {error?.message ??
             "Session token missing or not authorized. Place a user-session token at %USERPROFILE%\\.ai-brains\\http.token."}
@@ -74,7 +81,10 @@ export function StatePanel({
   if (status === "unavailable") {
     return (
       <div className="state-panel state-unavailable" role="status">
-        <h3>Unavailable</h3>
+        <h3 className="state-heading">
+          <StatusBadge kind="unavailable" label="Unavailable" />
+          <span>Unavailable</span>
+        </h3>
         <p className="muted">{unavailableMessage}</p>
       </div>
     );
@@ -91,7 +101,10 @@ export function StatePanel({
   if (status === "error") {
     return (
       <div className="state-panel state-error" role="alert">
-        <h3>Error</h3>
+        <h3 className="state-heading">
+          <StatusBadge kind="error" label="Error" />
+          <span>Error</span>
+        </h3>
         <p>{error?.message ?? "Request failed."}</p>
         {error?.kind === "transient" && (
           <p className="muted small">Transient failure — you may retry.</p>

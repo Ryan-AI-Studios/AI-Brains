@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main-window capability for T172 minimum screens (adapter invoke only)",
+  "description": "Main-window capability for T172 screens + T173 dual-layer opener (scoped https/path only)",
   "windows": ["main"],
   "permissions": [
     "core:app:default",
@@ -19,6 +19,16 @@
     "allow-resolve-scope",
     "allow-request-erasure",
     "allow-wipe-content-envelope",
-    "allow-probe-health"
+    "allow-probe-health",
+    "allow-open-url",
+    "allow-reveal-path",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://*" }]
+    },
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "**" }]
+    }
   ]
 }

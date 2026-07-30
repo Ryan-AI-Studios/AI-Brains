@@ -65,7 +65,7 @@ Patch bumps within these majors are allowed when forced by security or Tauri pai
 
 | Item | Owner |
 |------|--------|
-| **Tauri Isolation Pattern** | **T173** candidate (document only in T171; not required for smoke) |
+| **Tauri Isolation Pattern** | **Mandated in T173** (implemented; classic single-file isolation app) |
 | Full product screens | T172 |
 | Playwright / deep FE tests | T174 |
 | specta / ts-rs full contract codegen | Prefer T172+; T171 uses hand-written thin types for smoke |

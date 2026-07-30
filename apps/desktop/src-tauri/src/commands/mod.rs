@@ -2,8 +2,10 @@
 
 pub mod api;
 pub mod http_client;
+pub mod open;
 
 pub use http_client::InvokeApiError;
+pub use open::{open_url, reveal_path};
 
 use serde::Serialize;
 use std::path::PathBuf;

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI-Brains Isolation</title>
+</head>
+<body>
+  <!--
+    Isolation Pattern (U2/U19): classic single-file inline script only.
+    No type=module, no import/export, zero npm deps.
+    Hook is hygiene/audit only — returns payload unmodified (C13 residual:
+    does not claim denylist enforcement).
+  -->
+  <script>
+    window.__TAURI_ISOLATION_HOOK__ = function (payload) {
+      return payload;
+    };
+  </script>
+</body>
+</html>

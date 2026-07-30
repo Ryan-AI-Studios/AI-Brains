@@ -32,6 +32,9 @@ const nav: {
 export function Layout() {
   return (
     <div className="shell">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <aside className="sidebar" aria-label="Primary">
         <div className="brand">
           <strong>AI-Brains</strong>
@@ -57,7 +60,7 @@ export function Layout() {
         <header className="topbar">
           <ScopeIndicator />
         </header>
-        <main className="content">
+        <main id="main-content" className="content" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
