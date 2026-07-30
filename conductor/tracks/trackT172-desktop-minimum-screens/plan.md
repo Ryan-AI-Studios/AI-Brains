@@ -1,6 +1,6 @@
 # T172 Plan — Desktop Minimum Screens (P10.1)
 
-Status: **In Progress** (2026-07-30 implement) — internal review CLEAN; Codex gate pending.
+Status: **Completed** (2026-07-30) — Codex R3 PASS WITH DEFERRED P3.
 
 Authority: `spec.md` locks **M1–M24**. Invoke-first; adapter-only; existing T161 routes only; prompt offline; prod CSP strict.
 
@@ -107,14 +107,14 @@ Authority: `spec.md` locks **M1–M24**. Invoke-first; adapter-only; existing T1
 - [x] SC16: prod CSP string check; dev CSP note in README if relaxed.
 - [x] README: screen map, invoke-first, daemon + token prerequisites, unavailable surfaces, retry policy, CSP split.
 - [x] OPERATIONS.md short desktop section (or pointer from README).
-- [ ] Manual smoke notes (daemon up/down, prompt offline) in plan or evidence/.
+- [x] Manual smoke notes (daemon up/down, prompt offline) in plan or evidence/.
 
 ## Phase F — Closeout
 
 - [x] SC1–SC16 checklist.
-- [ ] deferred.md: strike/absorb #45/#46 items that landed; residual single-instance/Isolation as needed.
-- [ ] Review log + conductor → Completed after review.
-- [ ] Pin: invoke-first screens; HashRouter; hand DTOs; erasure honesty; M23 retry; M24 prod CSP.
+- [x] deferred.md: strike/absorb #45/#46 items that landed; residual single-instance/Isolation as needed.
+- [x] Review log + conductor → Completed after review.
+- [x] Pin: invoke-first screens; HashRouter; hand DTOs; erasure honesty; M23 retry; M24 prod CSP.
 
 ## Out of scope (explicit)
 

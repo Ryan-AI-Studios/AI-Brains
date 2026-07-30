@@ -2,7 +2,7 @@
 
 - **Track ID:** T172-DesktopMinimumScreens
 - **Phase:** P10 Task 10.1
-- **Status:** **In Progress** (implement + internal review clean; Codex pending)
+- **Status:** **Completed** (2026-07-30) — Codex R3 PASS WITH DEFERRED P3
 - **Depends on:** **T171 Completed** (`apps/desktop` Tauri v2 scaffold, ADR-0017, invoke `ping` + `get_daemon_connection_info`); **T158–T161** governed contracts + loopback `/v1` + bearer + CORS deny-by-absence; **T160** CLI parity for shared ops
 - **Blocks:** T173 security/UX polish across screens; T174 deep desktop tests / beta gate
 - **Category:** FEATURE / ARCHITECTURE
@@ -311,16 +311,16 @@ apps/desktop/
 
 ## 10. Definition of Done
 
-- [ ] Route map + contract map implemented per §3.5  
-- [ ] SC1–SC16 green (incl. prompt offline/denied + prod CSP intact)  
-- [ ] Home + Review are dogfood-usable against local daemon  
-- [ ] Unavailable surfaces honest (connectors, retention plan)  
-- [ ] No TS domain logic; invoke-first; token only in Rust  
-- [ ] QueryClient **M23** retry policy  
-- [ ] AppManifest/capabilities/license/deny gates green  
-- [ ] README + OPERATIONS note for desktop screens  
-- [ ] deferred.md updated (absorb #45 items that land)  
-- [ ] Conductor → Completed after review  
+- [x] Route map + contract map implemented per §3.5  
+- [x] SC1–SC16 green (incl. prompt offline/denied + prod CSP intact)  
+- [x] Home + Review are dogfood-usable against local daemon  
+- [x] Unavailable surfaces honest (connectors, retention plan)  
+- [x] No TS domain logic; invoke-first; token only in Rust  
+- [x] QueryClient **M23** retry policy  
+- [x] AppManifest/capabilities/license/deny gates green  
+- [x] README + OPERATIONS note for desktop screens  
+- [x] deferred.md updated (absorb #45 items that land)  
+- [x] Conductor → Completed after review  
 
 ## 11. Risks
 

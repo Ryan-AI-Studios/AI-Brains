@@ -49,3 +49,15 @@ Verdict: **CLEAN**
 - `cargo test -p ai-brains-desktop` — see fixer commit
 - `cargo clippy -p ai-brains-desktop --all-targets -- -D warnings` — see fixer commit
 - `npm run typecheck` / `license:check` — see fixer commit
+
+## Codex R1 (2026-07-30) — FAIL
+See `review.codex.md`. P1 scope wiring + claims route; P2 adapter tests + zeroize.
+
+## Codex R2 (2026-07-30) — FAIL
+See `review.codex.r2.md`. Sole remaining P2: Authorization `format!` String.
+
+## Codex R3 (2026-07-30) — PASS WITH DEFERRED P3
+See `review.codex.r3.md`. Sensitive HeaderValue Authorization path verified; prior P1/P2 fixed; deferred claim re-fetch + process residuals only.
+
+## Final disposition
+Engineering DoD met. Gate cleared for PR.
