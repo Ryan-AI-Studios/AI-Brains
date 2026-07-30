@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "personal_and_cross_project_denied",
+  "title": "Personal + cross-project isolation",
+  "tags": ["policy", "isolation", "hard-gate"],
+  "status": "active",
+  "seed": {
+    "program": "personal_and_cross_project",
+    "params": {}
+  },
+  "min_valid_claims_count": 0,
+  "actions": [
+    { "op": "build_project_briefing", "dry_run": true }
+  ],
+  "asserts": {
+    "hard": [
+      { "metric": "stale_as_current_count", "op": "eq", "value": 0 },
+      { "metric": "unauthorized_scope_leakage_count", "op": "eq", "value": 0 },
+      { "metric": "cross_project_leakage_count", "op": "eq", "value": 0 }
+    ],
+    "soft": []
+  }
+}

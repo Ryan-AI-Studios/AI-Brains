@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "conflicting_scoped_claims",
+  "title": "Conflicting scoped claims",
+  "tags": ["conflict", "hard-gate"],
+  "status": "active",
+  "seed": {
+    "program": "conflict_scoped",
+    "params": {}
+  },
+  "min_valid_claims_count": 0,
+  "actions": [
+    { "op": "build_project_briefing", "dry_run": true }
+  ],
+  "asserts": {
+    "hard": [
+      { "metric": "stale_as_current_count", "op": "eq", "value": 0 },
+      { "metric": "conflict_unmerged", "op": "eq", "value": 0 },
+      { "metric": "unauthorized_scope_leakage_count", "op": "eq", "value": 0 }
+    ],
+    "soft": []
+  }
+}

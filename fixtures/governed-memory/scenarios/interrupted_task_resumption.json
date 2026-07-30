@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "interrupted_task_resumption",
+  "title": "Interrupted task resumption / handoff",
+  "tags": ["briefing", "handoff", "hard-gate"],
+  "status": "active",
+  "seed": {
+    "program": "handoff_interrupted",
+    "params": {}
+  },
+  "min_valid_claims_count": 1,
+  "actions": [
+    { "op": "build_project_briefing", "dry_run": true }
+  ],
+  "asserts": {
+    "hard": [
+      { "metric": "stale_as_current_count", "op": "eq", "value": 0 },
+      { "metric": "unauthorized_scope_leakage_count", "op": "eq", "value": 0 },
+      { "metric": "cross_project_leakage_count", "op": "eq", "value": 0 },
+      { "metric": "current_claim_count", "op": "gte", "value": 1 }
+    ],
+    "soft": [
+      { "metric": "budget_compliant", "op": "eq", "value": true }
+    ]
+  }
+}

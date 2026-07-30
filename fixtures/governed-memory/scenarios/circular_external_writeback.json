@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "circular_external_writeback",
+  "title": "Circular external-memory write-back rejection",
+  "tags": ["circularity", "sources", "hard-gate"],
+  "status": "active",
+  "runner": "sources_tests",
+  "min_valid_claims_count": 0,
+  "actions": [],
+  "asserts": {
+    "hard": [
+      { "metric": "independent_support_false_positive", "op": "eq", "value": 0 }
+    ],
+    "soft": []
+  }
+}

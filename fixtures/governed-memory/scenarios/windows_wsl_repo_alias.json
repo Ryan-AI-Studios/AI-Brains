@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "windows_wsl_repo_alias",
+  "title": "Windows/WSL repository alias resolution",
+  "tags": ["scope", "path", "hard-gate"],
+  "status": "active",
+  "seed": {
+    "program": "path_alias_wsl",
+    "params": {
+      "win_path": "C:\\Dev\\EvalProject",
+      "wsl_path": "/mnt/c/Dev/EvalProject"
+    }
+  },
+  "min_valid_claims_count": 0,
+  "actions": [
+    { "op": "resolve_scope" }
+  ],
+  "asserts": {
+    "hard": [
+      { "metric": "scope_key_stable", "op": "eq", "value": true }
+    ],
+    "soft": []
+  }
+}
