@@ -14,6 +14,8 @@ fn main() {
             "request_erasure",
             "wipe_content_envelope",
             "probe_health",
+            "open_url",
+            "reveal_path",
         ]));
     if let Err(e) = tauri_build::try_build(attrs) {
         eprintln!("tauri-build failed: {e}");

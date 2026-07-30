@@ -564,12 +564,7 @@ mod tests {
         let body = get_json("/v1/review/items", &[])
             .await
             .expect("get_json should succeed");
-        assert!(
-            body["items"]
-                .as_array()
-                .expect("items array")
-                .is_empty()
-        );
+        assert!(body["items"].as_array().expect("items array").is_empty());
         mock.assert();
     }
 
