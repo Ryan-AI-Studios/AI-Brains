@@ -30,6 +30,12 @@ backups/
 *.db-shm
 *.db-wal
 
+# Desktop (apps/desktop) — also covered by apps/desktop/.gitignore
+apps/desktop/node_modules/
+apps/desktop/dist/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
 # Generated schedule wrappers (machine-local paths + model env baked in)
 .ai-brains-nightly-task.bat
 .ai-brains-*-task.bat

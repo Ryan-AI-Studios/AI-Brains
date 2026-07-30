@@ -6,6 +6,9 @@ unsound = "workspace"
 allow = [
     "MIT",
     "Apache-2.0",
+    # Pulled by Tauri Linux GTK sys stack (target-lexicon via system-deps/cfg-expr);
+    # permissive LLVM exception is allowed for the desktop host transitive tree.
+    "Apache-2.0 WITH LLVM-exception",
     "BSD-3-Clause",
     "MPL-2.0",
     "ISC",

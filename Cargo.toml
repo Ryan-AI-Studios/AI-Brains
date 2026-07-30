@@ -23,6 +23,7 @@ members = [
     "crates/ai-brains-models",
     "crates/ai-brains-brain",
     "crates/ai-brains-scheduler",
+    "apps/desktop/src-tauri",
 ]
 
 [workspace.package]
