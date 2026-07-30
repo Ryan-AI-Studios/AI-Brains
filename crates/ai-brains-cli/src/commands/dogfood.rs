@@ -3,8 +3,15 @@
 //! Reads governed ProjectBriefingPacket JSON + legacy preflight JSON and emits
 //! `dogfood-compare.json` (schema v1). Zero new crates; path-free sync path.
 
-use crate::commands::governed_common::{EXIT_INVALID_PAYLOAD, GovernedCliError, emit_json};
-use ai_brains_path::resolve_best_effort;
+use crate::artifact_security::{
+    is_hardlink, is_reparse_or_symlink, refuse_if_hardlink, refuse_if_reparse,
+};
+use crate::commands::governed_common::{
+    EXIT_INVALID_PAYLOAD, GovernedCliError, OutputFormat, emit_json, fail_api,
+};
+use crate::commands::shadow::resolve_live_vault_path;
+use ai_brains_contracts::response::ApiError;
+use ai_brains_path::{paths_refer_to_same_location, resolve_best_effort};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -40,6 +47,8 @@ pub struct DogfoodCompareOptions {
     pub t169_exit: Option<i32>,
     pub t169_report_hash: Option<String>,
     pub t169_hard_gates_passed: Option<bool>,
+    /// Allow overwriting an existing `--out` file (JSON only; never vaults).
+    pub allow_out_overwrite: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -132,6 +141,10 @@ pub struct DiffSection {
 pub struct HardChecks {
     pub t169_passed: bool,
     pub live_vault_mutated: bool,
+    /// True only when pre and post SHA-256 were both obtained and compared.
+    pub live_checksum_verified: bool,
+    /// True when no live vault path was provided (N/A) **or** both hashes match.
+    /// False when live path is present but hashes are missing/mixed/unequal (D24 fail-closed).
     pub live_checksum_unchanged: bool,
 }
 
@@ -143,6 +156,12 @@ pub struct HumanReviewSeedSection {
 
 /// Run `dogfood compare`: load inputs, build packet, write `--out`, emit JSON stdout.
 pub fn run_compare(opts: DogfoodCompareOptions) -> Result<(), Box<dyn std::error::Error>> {
+    refuse_unsafe_dogfood_out_path(
+        &opts.out,
+        opts.allow_out_overwrite,
+        opts.live_vault.as_deref(),
+    )?;
+
     let governed_raw = read_json_file(&opts.governed)?;
     let legacy_raw = read_json_file(&opts.legacy)?;
     let evaluate_raw = match &opts.evaluate_report {
@@ -155,6 +174,63 @@ pub fn run_compare(opts: DogfoodCompareOptions) -> Result<(), Box<dyn std::error
     write_compare_out(&opts.out, &packet)?;
     emit_json(&packet)?;
     Ok(())
+}
+
+/// Refuse unsafe `--out` paths: vault extensions, live vault same-location,
+/// reparse/hardlink, existing file without `--allow-out-overwrite`.
+pub fn refuse_unsafe_dogfood_out_path(
+    out: &Path,
+    allow_overwrite: bool,
+    live_vault: Option<&Path>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Err(msg) = refuse_if_reparse(out, is_reparse_or_symlink(out)?) {
+        return fail_path_refused(format!("refusing dogfood --out path: {msg}"));
+    }
+    if out.exists()
+        && let Err(msg) = refuse_if_hardlink(out, is_hardlink(out)?)
+    {
+        return fail_path_refused(format!("refusing dogfood --out path: {msg}"));
+    }
+    if let Some(parent) = out.parent()
+        && !parent.as_os_str().is_empty()
+        && let Err(msg) = refuse_if_reparse(parent, is_reparse_or_symlink(parent)?)
+    {
+        return fail_path_refused(format!("refusing dogfood --out parent: {msg}"));
+    }
+    if out.exists() && !allow_overwrite {
+        return fail_path_refused(
+            "refusing dogfood: --out path already exists (pass --allow-out-overwrite)",
+        );
+    }
+    if let Some(name) = out.file_name().and_then(|n| n.to_str())
+        && (name.ends_with(".db") || name == "vault.db" || name.ends_with(".sqlite"))
+    {
+        return fail_path_refused(
+            "refusing dogfood: --out path looks like a vault database file",
+        );
+    }
+    // Explicit --live-vault same-location refuse.
+    if let Some(live) = live_vault
+        && paths_refer_to_same_location(out, live)
+    {
+        return fail_path_refused("refusing dogfood: --out path equals live vault path");
+    }
+    // Resolved live vault (env/default) when available — never overwrite live.
+    if let Some(resolved_live) = resolve_live_vault_path()
+        && paths_refer_to_same_location(out, &resolved_live)
+    {
+        return fail_path_refused(
+            "refusing dogfood: --out path equals resolved live vault path",
+        );
+    }
+    Ok(())
+}
+
+fn fail_path_refused(message: impl Into<String>) -> Result<(), Box<dyn std::error::Error>> {
+    fail_api(
+        OutputFormat::Json,
+        ApiError::new("PATH_REFUSED", message.into()),
+    )
 }
 
 fn read_json_file(path: &Path) -> Result<Value, Box<dyn std::error::Error>> {
@@ -199,28 +275,13 @@ pub fn build_compare_packet(
     let packet_value = extract_briefing_packet(governed_raw)?;
     let legacy = parse_legacy_preflight(legacy_raw)?;
 
-    let decisions = packet_value
-        .get("decisions")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let conclusions = packet_value
-        .get("conclusions")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let warnings = packet_value
-        .get("warnings")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
+    let decisions = require_array_field(&packet_value, "decisions")?.clone();
+    let conclusions = require_array_field(&packet_value, "conclusions")?.clone();
+    let warnings = require_array_field(&packet_value, "warnings")?.clone();
 
     let decision_count = decisions.len() as u64;
     let conclusion_count = conclusions.len() as u64;
-    let denied = packet_value
-        .get("denied")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let denied = parse_denied_field(&packet_value)?;
 
     let uncited_current_count = count_uncited(&decisions) + count_uncited(&conclusions);
 
@@ -234,11 +295,7 @@ pub fn build_compare_packet(
     let warning_refs_all = collect_risk_warning_refs(&warnings);
     let content_fingerprint = content_fingerprint_from_packet(&packet_value)?;
 
-    let stage = opts
-        .stage
-        .clone()
-        .unwrap_or_else(|| "B".to_string())
-        .to_uppercase();
+    let stage = parse_stage(opts.stage.as_deref())?;
 
     let claim_ids_sample = match stage.as_str() {
         "C" => stratified_claim_sample(&decisions, &conclusions, 20),
@@ -254,16 +311,21 @@ pub fn build_compare_packet(
 
     let (t169_exit, t169_hash, t169_hard) = resolve_t169_fields(opts, evaluate_raw);
 
+    // D24: N/A unchanged only when no live vault path is provided.
+    // Live path present but hashes missing/mixed → fail-closed (unchanged=false, verified=false).
+    let live_path_provided = opts.live_vault.is_some();
     let sha_pre = opts.sha256_pre.clone().map(|s| s.to_lowercase());
     let sha_post = opts.sha256_post.clone().map(|s| s.to_lowercase());
-    let checksum_unchanged = match (&sha_pre, &sha_post) {
-        (Some(a), Some(b)) => a == b,
-        (None, None) => true, // no live vault → N/A treated as unchanged
-        _ => false,
+    let (checksum_unchanged, live_checksum_verified) = match (&sha_pre, &sha_post) {
+        (Some(a), Some(b)) => (a == b, true),
+        (None, None) if !live_path_provided => (true, false), // true N/A — no live vault
+        (None, None) => (false, false),                      // live path but unreadable
+        _ => (false, false),                                 // mixed Some/None
     };
-    let live_vault_mutated = !checksum_unchanged && sha_pre.is_some() && sha_post.is_some();
+    let live_vault_mutated = live_checksum_verified && !checksum_unchanged;
 
-    let t169_passed = t169_exit == Some(0) && t169_hard.unwrap_or(true);
+    // Missing hard_gates_passed must NOT default to true (Codex R1 P1-02).
+    let t169_passed = t169_exit == Some(0) && t169_hard == Some(true);
 
     let paths = PathsSection {
         shadow: opts.shadow.as_ref().map(|p| normalize_path_str(p)),
@@ -272,6 +334,22 @@ pub fn build_compare_packet(
         migrate_report: opts.migrate_report.as_ref().map(|p| normalize_path_str(p)),
         live_vault: opts.live_vault.as_ref().map(|p| normalize_path_str(p)),
     };
+
+    let mut limitations = default_limitations();
+    if live_path_provided && !live_checksum_verified {
+        limitations.insert(
+            0,
+            "D24_UNREADABLE: live vault path was provided but SHA-256 pre/post were not both obtained; live_checksum_unchanged=false (fail-closed)."
+                .into(),
+        );
+    }
+    if evaluate_raw.is_some() && (t169_hash.is_none() || t169_hard.is_none()) {
+        limitations.insert(
+            0,
+            "T169_REPORT_INCOMPLETE: evaluate report provided but missing report_hash and/or hard_gates_passed; t169_passed=false."
+                .into(),
+        );
+    }
 
     let mut packet = DogfoodComparePacket {
         schema_version: 1,
@@ -315,6 +393,7 @@ pub fn build_compare_packet(
             hard_checks: HardChecks {
                 t169_passed,
                 live_vault_mutated,
+                live_checksum_verified,
                 live_checksum_unchanged: checksum_unchanged,
             },
         },
@@ -322,7 +401,7 @@ pub fn build_compare_packet(
             claim_ids_sample,
             warning_refs_all,
         },
-        limitations: default_limitations(),
+        limitations,
     };
 
     packet.compare_hash = compute_compare_hash(&packet).map_err(|e| {
@@ -333,6 +412,50 @@ pub fn build_compare_packet(
     })?;
 
     Ok(packet)
+}
+
+fn parse_stage(stage: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
+    match stage.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok("B".to_string()),
+        Some(s) => {
+            let upper = s.to_uppercase();
+            match upper.as_str() {
+                "B" | "C" => Ok(upper),
+                other => Err(Box::new(GovernedCliError::emitted(
+                    EXIT_INVALID_PAYLOAD,
+                    format!("--stage must be B or C (got {other})"),
+                )) as Box<dyn std::error::Error>),
+            }
+        }
+    }
+}
+
+fn require_array_field<'a>(
+    packet: &'a Value,
+    name: &str,
+) -> Result<&'a Vec<Value>, Box<dyn std::error::Error>> {
+    match packet.get(name) {
+        Some(Value::Array(arr)) => Ok(arr),
+        Some(_) => Err(Box::new(GovernedCliError::emitted(
+            EXIT_INVALID_PAYLOAD,
+            format!("governed packet field '{name}' must be an array"),
+        )) as Box<dyn std::error::Error>),
+        None => Err(Box::new(GovernedCliError::emitted(
+            EXIT_INVALID_PAYLOAD,
+            format!("governed packet missing required array field '{name}'"),
+        )) as Box<dyn std::error::Error>),
+    }
+}
+
+fn parse_denied_field(packet: &Value) -> Result<bool, Box<dyn std::error::Error>> {
+    match packet.get("denied") {
+        None => Ok(false),
+        Some(Value::Bool(b)) => Ok(*b),
+        Some(_) => Err(Box::new(GovernedCliError::emitted(
+            EXIT_INVALID_PAYLOAD,
+            "governed packet field 'denied' must be a boolean when present",
+        )) as Box<dyn std::error::Error>),
+    }
 }
 
 fn resolve_t169_fields(
@@ -379,21 +502,31 @@ fn extract_t169_claim_sample(eval: &Value) -> Vec<String> {
 
 /// Accept either a bare ProjectBriefingPacket or `{ "packet": {…} }` / ApiResult wrapper.
 fn extract_briefing_packet(raw: &Value) -> Result<Value, Box<dyn std::error::Error>> {
-    if raw.get("decisions").is_some() || raw.get("conclusions").is_some() {
+    if looks_like_briefing_packet(raw) {
         return Ok(raw.clone());
     }
     if let Some(packet) = raw.get("packet") {
+        if looks_like_briefing_packet(packet) {
+            return Ok(packet.clone());
+        }
+        // Still return packet so require_array_field can emit a precise error.
         return Ok(packet.clone());
     }
     if let Some(data) = raw.get("data")
-        && (data.get("decisions").is_some() || data.get("packet").is_some())
+        && (looks_like_briefing_packet(data) || data.get("packet").is_some())
     {
         return extract_briefing_packet(data);
     }
     Err(Box::new(GovernedCliError::emitted(
         EXIT_INVALID_PAYLOAD,
-        "governed JSON missing decisions/conclusions (expected ProjectBriefingPacket)",
+        "governed JSON missing decisions/conclusions/warnings (expected ProjectBriefingPacket)",
     )))
+}
+
+fn looks_like_briefing_packet(raw: &Value) -> bool {
+    raw.get("decisions").is_some()
+        || raw.get("conclusions").is_some()
+        || raw.get("warnings").is_some()
 }
 
 #[derive(Debug)]
@@ -415,15 +548,49 @@ fn parse_legacy_preflight(raw: &Value) -> Result<LegacyParsed, Box<dyn std::erro
         raw
     };
 
-    let text = obj
-        .get("text")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let word_count = obj
-        .get("word_count")
-        .and_then(|v| v.as_u64())
-        .unwrap_or_else(|| count_words(&text));
+    let text = match obj.get("text") {
+        Some(Value::String(s)) => s.clone(),
+        Some(_) => {
+            return Err(Box::new(GovernedCliError::emitted(
+                EXIT_INVALID_PAYLOAD,
+                "legacy preflight field 'text' must be a string",
+            )) as Box<dyn std::error::Error>);
+        }
+        None => {
+            return Err(Box::new(GovernedCliError::emitted(
+                EXIT_INVALID_PAYLOAD,
+                "legacy preflight missing required string field 'text'",
+            )) as Box<dyn std::error::Error>);
+        }
+    };
+
+    let word_count = match obj.get("word_count") {
+        None => count_words(&text),
+        Some(Value::Number(n)) => {
+            if let Some(u) = n.as_u64() {
+                u
+            } else if let Some(i) = n.as_i64() {
+                if i < 0 {
+                    return Err(Box::new(GovernedCliError::emitted(
+                        EXIT_INVALID_PAYLOAD,
+                        "legacy preflight field 'word_count' must be a non-negative number",
+                    )) as Box<dyn std::error::Error>);
+                }
+                i as u64
+            } else {
+                return Err(Box::new(GovernedCliError::emitted(
+                    EXIT_INVALID_PAYLOAD,
+                    "legacy preflight field 'word_count' must be a finite number",
+                )) as Box<dyn std::error::Error>);
+            }
+        }
+        Some(_) => {
+            return Err(Box::new(GovernedCliError::emitted(
+                EXIT_INVALID_PAYLOAD,
+                "legacy preflight field 'word_count' must be a number when present",
+            )) as Box<dyn std::error::Error>);
+        }
+    };
 
     let (d, c, h) = count_legacy_markers(&text);
     Ok(LegacyParsed {
@@ -774,6 +941,7 @@ mod tests {
             t169_exit: Some(0),
             t169_report_hash: Some("rh1".into()),
             t169_hard_gates_passed: Some(true),
+            allow_out_overwrite: false,
         }
     }
 
@@ -876,7 +1044,169 @@ mod tests {
         let p = build_compare_packet(&opts, &sample_packet(), &sample_legacy(), None).unwrap();
         assert!(!p.live_vault_integrity.unchanged);
         assert!(p.diff.hard_checks.live_vault_mutated);
+        assert!(p.diff.hard_checks.live_checksum_verified);
         assert!(!p.diff.hard_checks.live_checksum_unchanged);
+    }
+
+    #[test]
+    fn d24__no_live_path_no_hashes__unchanged_na_true() {
+        let mut opts = base_opts();
+        opts.live_vault = None;
+        opts.sha256_pre = None;
+        opts.sha256_post = None;
+        let p = build_compare_packet(&opts, &sample_packet(), &sample_legacy(), None).unwrap();
+        assert!(p.live_vault_integrity.unchanged);
+        assert!(!p.diff.hard_checks.live_checksum_verified);
+        assert!(p.diff.hard_checks.live_checksum_unchanged);
+        assert!(!p.diff.hard_checks.live_vault_mutated);
+        assert!(
+            !p.limitations
+                .iter()
+                .any(|l| l.starts_with("D24_UNREADABLE"))
+        );
+    }
+
+    #[test]
+    fn d24__live_path_no_hashes__fail_closed_unchanged_false() {
+        let mut opts = base_opts();
+        opts.live_vault = Some(PathBuf::from("vault.db"));
+        opts.sha256_pre = None;
+        opts.sha256_post = None;
+        let p = build_compare_packet(&opts, &sample_packet(), &sample_legacy(), None).unwrap();
+        assert!(!p.live_vault_integrity.unchanged);
+        assert!(!p.diff.hard_checks.live_checksum_verified);
+        assert!(!p.diff.hard_checks.live_checksum_unchanged);
+        assert!(!p.diff.hard_checks.live_vault_mutated);
+        assert!(
+            p.limitations
+                .iter()
+                .any(|l| l.starts_with("D24_UNREADABLE"))
+        );
+    }
+
+    #[test]
+    fn d24__live_path_mixed_hashes__fail_closed() {
+        let mut opts = base_opts();
+        opts.live_vault = Some(PathBuf::from("vault.db"));
+        opts.sha256_pre = Some("aaa".into());
+        opts.sha256_post = None;
+        let p = build_compare_packet(&opts, &sample_packet(), &sample_legacy(), None).unwrap();
+        assert!(!p.diff.hard_checks.live_checksum_unchanged);
+        assert!(!p.diff.hard_checks.live_checksum_verified);
+    }
+
+    #[test]
+    fn t169_passed__missing_hard_gates__false_not_default_true() {
+        let mut opts = base_opts();
+        opts.t169_exit = Some(0);
+        opts.t169_hard_gates_passed = None;
+        opts.t169_report_hash = None;
+        let eval = json!({
+            "report_hash": "rh-only",
+            // hard_gates_passed intentionally absent
+            "human_review_seed": { "claim_ids_sample": [], "warning_ids_all": [] }
+        });
+        let p =
+            build_compare_packet(&opts, &sample_packet(), &sample_legacy(), Some(&eval)).unwrap();
+        assert_eq!(p.t169.hard_gates_passed, None);
+        assert!(!p.diff.hard_checks.t169_passed);
+        assert!(
+            p.limitations
+                .iter()
+                .any(|l| l.starts_with("T169_REPORT_INCOMPLETE"))
+        );
+    }
+
+    #[test]
+    fn stage__invalid_value__errors() {
+        let mut opts = base_opts();
+        opts.stage = Some("D".into());
+        let err = build_compare_packet(&opts, &sample_packet(), &sample_legacy(), None)
+            .expect_err("stage D refused");
+        assert!(
+            err.to_string().contains("stage") || err.to_string().contains("B or C"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn parse__governed_missing_decisions_array__errors() {
+        let mut packet = sample_packet();
+        packet.as_object_mut().unwrap().remove("decisions");
+        let err = build_compare_packet(&base_opts(), &packet, &sample_legacy(), None)
+            .expect_err("missing decisions");
+        assert!(err.to_string().contains("decisions"), "{err}");
+    }
+
+    #[test]
+    fn parse__governed_wrong_type_warnings__errors() {
+        let mut packet = sample_packet();
+        packet
+            .as_object_mut()
+            .unwrap()
+            .insert("warnings".into(), json!("not-array"));
+        let err = build_compare_packet(&base_opts(), &packet, &sample_legacy(), None)
+            .expect_err("warnings type");
+        assert!(err.to_string().contains("warnings"), "{err}");
+    }
+
+    #[test]
+    fn parse__legacy_missing_text__errors() {
+        let legacy = json!({ "word_count": 3 });
+        let err = build_compare_packet(&base_opts(), &sample_packet(), &legacy, None)
+            .expect_err("missing text");
+        assert!(err.to_string().contains("text"), "{err}");
+    }
+
+    #[test]
+    fn parse__denied_wrong_type__errors() {
+        let mut packet = sample_packet();
+        packet
+            .as_object_mut()
+            .unwrap()
+            .insert("denied".into(), json!("yes"));
+        let err = build_compare_packet(&base_opts(), &packet, &sample_legacy(), None)
+            .expect_err("denied type");
+        assert!(err.to_string().contains("denied"), "{err}");
+    }
+
+    #[test]
+    fn refuse_out__db_extension__refuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = dir.path().join("vault.db");
+        let err = refuse_unsafe_dogfood_out_path(&out, true, None).expect_err("db ext");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("PATH_REFUSED") || msg.contains("vault") || msg.contains("database"),
+            "{msg}"
+        );
+    }
+
+    #[test]
+    fn refuse_out__equals_live_vault__refuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let live = dir.path().join("live.db");
+        fs::write(&live, b"x").unwrap();
+        let err =
+            refuse_unsafe_dogfood_out_path(&live, true, Some(&live)).expect_err("same as live");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("PATH_REFUSED") || msg.contains("live"),
+            "{msg}"
+        );
+    }
+
+    #[test]
+    fn refuse_out__existing_without_allow__refuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = dir.path().join("compare.json");
+        fs::write(&out, b"{}").unwrap();
+        let err = refuse_unsafe_dogfood_out_path(&out, false, None).expect_err("exists");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("PATH_REFUSED") || msg.contains("already exists"),
+            "{msg}"
+        );
     }
 
     #[test]

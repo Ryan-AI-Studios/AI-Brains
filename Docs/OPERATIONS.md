@@ -332,7 +332,7 @@ ai-brains dogfood compare `
 | Flag enable (session only, after Stage D approval) | `$env:AI_BRAINS_GOVERNED_BRIEFING = "1"` |
 | Flag rollback (primary) | `$env:AI_BRAINS_GOVERNED_BRIEFING = "0"` or `Remove-Item Env:AI_BRAINS_GOVERNED_BRIEFING` |
 | Rollback verify | `preflight --format json` `(governed)` probe + `briefing project --format json` for authority — **never** `preflight --summary` for governed |
-| **D24** | Live vault SHA-256 pre/post must match when a live vault exists |
+| **D24** | Live vault SHA-256 pre/post must match when a live vault exists; locked/unreadable live path is **fail-closed** (not N/A pass) |
 | Stage D | Scripts **refuse**; explicit user approval required; observation min 1 session or ≥3 governed invocations |
 
 **Emergency User-env clear (manual only — D23).** Scripts never set User scope. Only if an operator previously set persistent User env by hand:

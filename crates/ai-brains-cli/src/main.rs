@@ -903,6 +903,9 @@ enum DogfoodCommands {
         /// Output path for dogfood-compare.json
         #[arg(long)]
         out: PathBuf,
+        /// Allow overwriting an existing --out file (never vaults)
+        #[arg(long = "allow-out-overwrite", default_value_t = false)]
+        allow_out_overwrite: bool,
         /// Stage label: B (synthetic) or C (shadow dogfood)
         #[arg(long)]
         stage: Option<String>,
@@ -1573,6 +1576,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 governed,
                 legacy,
                 out,
+                allow_out_overwrite,
                 stage,
                 evaluate_report,
                 migrate_report,
@@ -1599,6 +1603,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 t169_exit,
                 t169_report_hash,
                 t169_hard_gates_passed,
+                allow_out_overwrite,
             }),
         },
         _ => unreachable!("run_sync_path_free only for Shadow/Migrate/Evaluate/Dogfood"),

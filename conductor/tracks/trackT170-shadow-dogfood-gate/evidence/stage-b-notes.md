@@ -4,21 +4,24 @@
 |-------|-------|
 | Date (UTC) | 2026-07-30 |
 | Stage | B |
-| Operator | Grok (R1 review-fix automation) |
+| Operator | Grok (Codex R1 fix automation) |
 | Stage D requested? | **N** (deferred — no approval) |
-| WorkDir (temp, not committed) | `%TEMP%\t170-stageb-*` (ephemeral) |
+| WorkDir (temp, not committed) | `%TEMP%\t170-stageb-r1-*` (ephemeral) |
+| Human checklist | [stage-b-human-checklist.md](./stage-b-human-checklist.md) |
 
 ## Commands run
 
 ```powershell
 $env:PATH = "<worktree>\target\debug;" + $env:PATH
-$wd = Join-Path $env:TEMP "t170-stageb-$(Get-Random)"
+# Honest D24 N/A: do not resolve locked operator live vault
+Remove-Item Env:AI_BRAINS_VAULT_PATH -ErrorAction SilentlyContinue
+$wd = Join-Path $env:TEMP "t170-stageb-r1-$(Get-Random)"
 New-Item -ItemType Directory -Path $wd | Out-Null
 .\scripts\dogfood-shadow.ps1 -WorkDir $wd
-# exit 0
+# exit 0 (D24 status=na)
 ```
 
-CLI binary: worktree `target\debug\ai-brains.exe` (post R1-01…R1-07 fixes).
+CLI binary: worktree `target\debug\ai-brains.exe` (Codex R1 P1/P2 fixes).
 
 ## Stage A
 
@@ -26,8 +29,9 @@ CLI binary: worktree `target\debug\ai-brains.exe` (post R1-01…R1-07 fixes).
 |-------|-------|
 | Evaluate exit | **0** |
 | report_hash | `eda59b44f35a56907b40e5eadd4ad52a9989fff2f22ef82fccef85c8c65f0486` |
-| hard_gates_passed | **true** |
+| hard_gates_passed | **true** (missing field would **throw**, not default true) |
 | scenarios | 10 total / 9 passed / 0 failed / 1 skipped |
+| baseline file | WorkDir `stage-a-report-hash.txt` |
 
 Also updated `stage-a-evaluate-summary.json` (same hash as prior baseline).
 
@@ -35,31 +39,34 @@ Also updated `stage-a-evaluate-summary.json` (same hash as prior baseline).
 
 | Field | Value |
 |-------|-------|
-| Live vault present? | Yes — process env / default resolved to a path **basename** `vault.db` under a non-WorkDir AI-Brains data dir (full path **not** committed) |
-| SHA-256 pre/post | **N/A** — file locked by another process (`Get-FileHash` access denied). Orchestrator now warns and continues (does not abort Stage B). |
-| hard_checks.live_checksum_unchanged | **true** (both pre/post absent → N/A treated as unchanged) |
-| Notes | Script never points env at shadow; never User-level env; D24 mismatch still fails when both hashes are readable and differ |
+| Live vault present? | **N** for evidence run (env cleared; no USERPROFILE default vault) → honest **N/A** |
+| SHA-256 pre/post | **N/A** |
+| hard_checks.live_checksum_unchanged | **true** (N/A only when no live path) |
+| hard_checks.live_checksum_verified | **false** |
+| Fail-closed check | With `AI_BRAINS_VAULT_PATH` → locked vault: exit **1**, `live_checksum_unchanged=false`, limitations `D24_UNREADABLE` |
 
 ## Stage B pipeline results
 
 | Step | Result |
 |------|--------|
-| fixture init + pin (decision + constraint) | **ok** (pin non-zero → hard fail after R1-01) |
-| `fixture-project-id.txt` persisted | **yes** (GUID only; sample run id not committed as secret) |
-| shadow create (default redact) | **ok** → basenames `shadow.db`, `shadow-manifest.json` |
-| migrate governed --confirm | **ok** → basenames `migrated.db`, `migrate-report.json` |
-| governed capture | `--vault-path <migrated> briefing project --project-id <fixture>` BOM-less JSON |
+| fixture init + pin (decision + constraint) | **ok** |
+| `fixture-project-id.txt` persisted | **yes** |
+| shadow create (default redact) | **ok** |
+| migrate governed --confirm | **ok** |
+| governed capture | `--vault-path` + `--project-id` BOM-less JSON |
 | legacy capture | `preflight --format json` flag off, BOM-less JSON |
 | dogfood compare | **ok** — see `stage-b-compare-summary.json` |
+| human checklist | **filled** — `stage-b-human-checklist.md` |
 
 ### Compare hard_checks (no claim bodies)
 
 | Field | Value |
 |-------|-------|
-| compare_hash | `a510314b8e67472efdbe2eccb2b9bff6149d06a4b760979427c10f77ad0b6bcf` |
+| compare_hash | `e1aaff0e6a17ac1b62ae7608867a420ecb2d46ffe90bc9565dc85b3a7503462b` |
 | t169_passed | true |
 | live_vault_mutated | false |
-| live_checksum_unchanged | true |
+| live_checksum_verified | false |
+| live_checksum_unchanged | true (honest N/A) |
 | paths.migrate_report | present (basename only in summary) |
 | claim_ids_sample_count | 11 (T169 seed) |
 | governed decision_count | 0 |
@@ -67,7 +74,7 @@ Also updated `stage-a-evaluate-summary.json` (same hash as prior baseline).
 
 ### Honesty: fixture pin ≠ governed Decision authority
 
-Stage B pins create **memory pin** events, not full governed Decision/Conclusion claims with grants. `briefing project --project-id <fixture>` correctly scopes to `Repository:<fixture-id>` but returns `denied=true` / warning kind `denied` (“No read grant for decisions or conclusions at this scope”). Pipeline + project_id wiring are proven; rich authority claims remain operator Stage C / richer seed territory.
+Stage B pins create **memory pin** events, not full governed Decision/Conclusion claims with grants. `briefing project --project-id <fixture>` correctly scopes but returns `denied=true`. Pipeline + project_id wiring are proven; rich authority claims remain operator Stage C / richer seed territory.
 
 ## Rollback probe (executed on work `migrated.db`)
 
@@ -75,18 +82,18 @@ Stage B pins create **memory pin** events, not full governed Decision/Conclusion
 |-------|------|---------|--------|
 | Legacy | `AI_BRAINS_GOVERNED_BRIEFING=0` | `preflight --vault-path … --format json` | exit 0; text does **not** contain `(governed)` |
 | Governed mode marker | `=1` | `preflight --vault-path … --format json` | exit 0; text **contains** `(governed)` |
-| Authority | n/a | `briefing project --vault-path … --project-id <fixture> --format json` | exit 0; typed packet; `denied=true` (grant gap — see honesty note) |
+| Authority | n/a | `briefing project --vault-path … --project-id <fixture> --format json` | exit 0; typed packet; `denied=true` |
 | Forbidden | — | `preflight --summary` | **not used** (D21) |
 
 ## Idempotency (D20)
 
-Second run on same WorkDir: removes existing `evaluate-report.json`, regenerates compare partials, reuses `fixture-project-id.txt`, exit **0**.
+Second run on same WorkDir: removes existing `evaluate-report.json`, regenerates compare partials, reuses `fixture-project-id.txt`.
 
 ## BOM check
 
-`governed-packet.json` / `legacy-preflight.json` first bytes are `{` / `{"` — **no** UTF-8 BOM (R1-05).
+`governed-packet.json` / `legacy-preflight.json` first bytes are `{` — **no** UTF-8 BOM.
 
 ## Stage C / D
 
-- **Stage C deferred** — owner: operator; reason: no operator test vault in CI.
+- **Stage C deferred** — owner: operator; reason: no operator test vault in CI. Orchestrator now supports `-ProjectId` + `stage-a-report-hash.txt` drift warn.
 - **Stage D deferred** — no live enablement approval; observation (D25) N/A.

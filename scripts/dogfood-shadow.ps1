@@ -17,6 +17,10 @@
   Optional Stage C source vault (prefer operator test vault). When omitted,
   Stage B creates a fixture vault under WorkDir.
 
+.PARAMETER ProjectId
+  Optional project id for Stage C `briefing project --project-id`. Required for
+  multi-project vaults (see SHADOW-DOGFOOD-GATE.md Stage C).
+
 .PARAMETER SkipMigrate
   Skip optional migrate governed step.
 
@@ -24,10 +28,14 @@
   Path to T169 scenario fixtures directory (default: fixtures/governed-memory/scenarios).
 
 .PARAMETER DryRun
-  Shadow create --dry-run only (no write); still runs evaluate unless -SkipEvaluate.
+  Shadow create --dry-run only (no write); still runs evaluate (Stage A required).
 
 .PARAMETER SkipEvaluate
-  Skip Stage A evaluate (not recommended).
+  Debug only: skip Stage A. Requires -AllowIncomplete; exits non-zero (2).
+  Stage A is required for a complete dogfood run.
+
+.PARAMETER AllowIncomplete
+  With -SkipEvaluate only: permit incomplete debug runs that still exit 2.
 
 .PARAMETER SkipShadow
   Skip shadow create (compare only if inputs already exist).
@@ -36,7 +44,7 @@
   .\scripts\dogfood-shadow.ps1 -WorkDir C:\temp\ai-brains-dogfood
 
 .EXAMPLE
-  .\scripts\dogfood-shadow.ps1 -WorkDir C:\temp\df -SourceVault C:\vaults\test.db -SkipMigrate
+  .\scripts\dogfood-shadow.ps1 -WorkDir C:\temp\df -SourceVault C:\vaults\test.db -ProjectId <guid> -SkipMigrate
 #>
 [CmdletBinding()]
 param(
@@ -45,6 +53,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$SourceVault,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ProjectId,
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipMigrate,
@@ -57,6 +68,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipEvaluate,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AllowIncomplete,
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipShadow
@@ -80,7 +94,7 @@ function Get-FileSha256Hex([string]$Path) {
         return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
     }
     catch {
-        # Live vault may be locked by daemon/another process — treat as N/A for D24.
+        # Live vault may be locked by daemon/another process — do NOT treat as N/A pass (D24).
         Write-WarnMsg "D24: could not hash live vault ($Path): $_"
         return $null
     }
@@ -138,12 +152,13 @@ function Resolve-LiveVaultPathForIntegrity {
         }
     }
 
-    $home = $env:USERPROFILE
-    if (-not $home) {
-        $home = $env:HOME
+    # Do not use $HOME/$home — PowerShell automatic variable is read-only.
+    $userHome = $env:USERPROFILE
+    if (-not $userHome) {
+        $userHome = [Environment]::GetEnvironmentVariable("HOME")
     }
-    if ($home) {
-        $envFile = Join-Path $home ".ai-brains\.env"
+    if ($userHome) {
+        $envFile = Join-Path $userHome ".ai-brains\.env"
         if (Test-Path -LiteralPath $envFile) {
             $lines = Get-Content -LiteralPath $envFile -ErrorAction SilentlyContinue
             foreach ($line in $lines) {
@@ -158,7 +173,7 @@ function Resolve-LiveVaultPathForIntegrity {
                 }
             }
         }
-        $defaultVault = Join-Path $home ".ai-brains\vault.db"
+        $defaultVault = Join-Path $userHome ".ai-brains\vault.db"
         if (Test-Path -LiteralPath $defaultVault) {
             return [System.IO.Path]::GetFullPath($defaultVault)
         }
@@ -191,11 +206,36 @@ function Assert-NeverVaultPathEnvIsShadow {
     }
 }
 
+function Get-D24Status {
+    param(
+        [string]$LiveVault,
+        [string]$ShaPre,
+        [string]$ShaPost
+    )
+    if (-not $LiveVault) {
+        return "na"
+    }
+    if ($ShaPre -and $ShaPost) {
+        if ($ShaPre -eq $ShaPost) {
+            return "verified"
+        }
+        return "mismatch"
+    }
+    if ($ShaPre -or $ShaPost) {
+        return "partial"
+    }
+    return "unreadable"
+}
+
 # --- Preconditions ---
 $cli = Get-Command ai-brains -ErrorAction SilentlyContinue
 if (-not $cli) {
     Write-Error "ai-brains CLI not found on PATH. Build/install crates/ai-brains-cli first."
     exit 1
+}
+
+if ($SkipEvaluate -and -not $AllowIncomplete) {
+    throw "Stage A is required for a complete dogfood run. Remove -SkipEvaluate, or pass -AllowIncomplete (debug only; exits 2)."
 }
 
 if (-not (Test-Path -LiteralPath $WorkDir)) {
@@ -212,7 +252,10 @@ $compareOut = Join-Path $WorkDir "dogfood-compare.json"
 $migrateReport = Join-Path $WorkDir "migrate-report.json"
 $fixtureDb = Join-Path $WorkDir "fixture.db"
 $fixtureProjectIdFile = Join-Path $WorkDir "fixture-project-id.txt"
+$stageAReportHashFile = Join-Path $WorkDir "stage-a-report-hash.txt"
 $fixtureProjectId = $null
+$scriptIncomplete = $false
+$exitCode = 0
 
 Write-Info "WorkDir=$WorkDir"
 Write-Info "D26: will pass --vault-path for compare; will NEVER set AI_BRAINS_VAULT_PATH to shadow/migrated."
@@ -227,7 +270,7 @@ if ($liveVault) {
         Write-Info "D24 live vault pre-hash: $shaPre (path basename only in evidence)"
     }
     else {
-        Write-Info "D24 live vault resolved but SHA-256 N/A (locked or unreadable); path not required for Stage B"
+        Write-WarnMsg "D24 live vault resolved but SHA-256 unreadable (locked); will fail-closed unless both pre/post hashes are obtained"
     }
 }
 else {
@@ -239,7 +282,12 @@ $t169Exit = $null
 $t169ReportHash = $null
 $t169Hard = $null
 
-if (-not $SkipEvaluate) {
+if ($SkipEvaluate) {
+    Write-WarnMsg "SkipEvaluate + AllowIncomplete: Stage A skipped — run is INCOMPLETE (will exit 2)"
+    $scriptIncomplete = $true
+    $exitCode = 2
+}
+else {
     Write-Info "Stage A: evaluate governed --fixtures $EvaluateFixtures"
     if (-not (Test-Path -LiteralPath $EvaluateFixtures)) {
         throw "Evaluate fixtures path not found: $EvaluateFixtures"
@@ -258,25 +306,46 @@ if (-not $SkipEvaluate) {
         Write-Error "Stage A evaluate failed with exit $t169Exit (0=pass, 1=tool, 7=trust fail). Aborting dogfood."
         exit $t169Exit
     }
-    if (Test-Path -LiteralPath $evaluateReport) {
-        try {
-            $evalJson = Get-Content -LiteralPath $evaluateReport -Raw -Encoding UTF8 | ConvertFrom-Json
-            $t169ReportHash = $evalJson.report_hash
-            $t169Hard = [bool]$evalJson.hard_gates_passed
-            Write-Info "Stage A report_hash=$t169ReportHash hard_gates_passed=$t169Hard"
+    if (-not (Test-Path -LiteralPath $evaluateReport)) {
+        throw "Stage A evaluate-report.json missing after exit 0: $evaluateReport"
+    }
+    try {
+        $evalJson = Get-Content -LiteralPath $evaluateReport -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+    catch {
+        throw "Stage A evaluate-report.json unparseable: $_"
+    }
+    $t169ReportHash = $evalJson.report_hash
+    if (-not $t169ReportHash) {
+        throw "Stage A evaluate-report.json missing report_hash"
+    }
+    # Missing hard_gates_passed → fail (do not default true).
+    if ($null -eq $evalJson.PSObject.Properties['hard_gates_passed'] -or $null -eq $evalJson.hard_gates_passed) {
+        throw "Stage A evaluate-report.json missing hard_gates_passed"
+    }
+    $t169Hard = [bool]$evalJson.hard_gates_passed
+    if (-not $t169Hard) {
+        throw "Stage A hard_gates_passed=false; aborting dogfood"
+    }
+    Write-Info "Stage A report_hash=$t169ReportHash hard_gates_passed=$t169Hard"
+    # Compare to prior baseline (if any) BEFORE overwriting — Stage C re-runs use this.
+    if (Test-Path -LiteralPath $stageAReportHashFile) {
+        $baseline = (Get-Content -LiteralPath $stageAReportHashFile -Raw -Encoding UTF8).Trim()
+        if ($baseline -and ($baseline -ne $t169ReportHash)) {
+            Write-WarnMsg "Evaluate report_hash DRIFT vs WorkDir Stage A baseline: baseline=$baseline current=$t169ReportHash (document intentional fixture drift for Stage C)"
         }
-        catch {
-            Write-WarnMsg "Could not parse evaluate-report.json: $_"
+        elseif ($baseline) {
+            Write-Info "Evaluate report_hash matches WorkDir Stage A baseline"
         }
     }
-}
-else {
-    Write-WarnMsg "SkipEvaluate set — Stage A skipped (not recommended)"
+    # Persist Stage A baseline for Stage C drift detection on later runs in same WorkDir.
+    Write-JsonNoBom -Path $stageAReportHashFile -Content $t169ReportHash
 }
 
 # --- Stage B/C source ---
 $stage = "B"
 $sourceForShadow = $null
+$briefingProjectId = $null
 
 if ($SourceVault) {
     if (-not (Test-Path -LiteralPath $SourceVault)) {
@@ -285,6 +354,13 @@ if ($SourceVault) {
     $sourceForShadow = [System.IO.Path]::GetFullPath($SourceVault)
     $stage = "C"
     Write-Info "Stage C source vault provided (prefer operator test vault): using for shadow"
+    if ($ProjectId) {
+        $briefingProjectId = $ProjectId.Trim()
+        Write-Info "Stage C ProjectId=$briefingProjectId"
+    }
+    else {
+        Write-WarnMsg "Stage C without -ProjectId: briefing project may be empty on multi-project vaults (see runbook)"
+    }
 }
 else {
     # Stage B fixture vault
@@ -334,6 +410,11 @@ else {
         }
     }
     $sourceForShadow = $fixtureDb
+    $briefingProjectId = $fixtureProjectId
+    if ($ProjectId) {
+        # Explicit override even on Stage B (rare).
+        $briefingProjectId = $ProjectId.Trim()
+    }
 }
 
 # --- Shadow ---
@@ -411,6 +492,35 @@ if ($env:AI_BRAINS_VAULT_PATH) {
     }
 }
 
+# D24 post hash (always when live vault resolved)
+$shaPost = $null
+if ($liveVault) {
+    $shaPost = Get-FileSha256Hex -Path $liveVault
+    if ($shaPre -and $shaPost -and ($shaPre -ne $shaPost)) {
+        Write-Error "D24 FAIL: live vault SHA-256 changed (pre=$shaPre post=$shaPost)"
+        exit 1
+    }
+    if ($shaPost) {
+        Write-Info "D24 live vault post-hash: $shaPost (match=$($shaPre -eq $shaPost))"
+    }
+    else {
+        Write-WarnMsg "D24 live vault post-hash: unreadable (locked)"
+    }
+}
+
+$d24Status = Get-D24Status -LiveVault $liveVault -ShaPre $shaPre -ShaPost $shaPost
+Write-Info "D24 status=$d24Status"
+if ($d24Status -eq "unreadable" -or $d24Status -eq "partial") {
+    Write-WarnMsg "D24 not empirically verified (status=$d24Status); dogfood will exit non-zero (fail-closed)"
+    $scriptIncomplete = $true
+    if ($exitCode -eq 0) { $exitCode = 1 }
+}
+elseif ($d24Status -eq "mismatch") {
+    # Already exited above when both hashes present and differ; defensive.
+    $scriptIncomplete = $true
+    if ($exitCode -eq 0) { $exitCode = 1 }
+}
+
 # --- Capture compare inputs (skip if DryRun with no shadow file) ---
 if (-not $DryRun -and (Test-Path -LiteralPath $dbForCompare)) {
     # Idempotent re-run: clear regenerated JSON partials under WorkDir.
@@ -428,9 +538,9 @@ if (-not $DryRun -and (Test-Path -LiteralPath $dbForCompare)) {
         "briefing", "project",
         "--format", "json"
     )
-    if ($fixtureProjectId -and $stage -eq "B") {
-        $briefingArgs += @("--project-id", $fixtureProjectId)
-        Write-Info "Capture governed: --vault-path $dbForCompare briefing project --project-id $fixtureProjectId"
+    if ($briefingProjectId) {
+        $briefingArgs += @("--project-id", $briefingProjectId)
+        Write-Info "Capture governed: --vault-path $dbForCompare briefing project --project-id $briefingProjectId"
     }
     else {
         Write-Info "Capture governed: --vault-path $dbForCompare briefing project"
@@ -478,31 +588,20 @@ if (-not $DryRun -and (Test-Path -LiteralPath $dbForCompare)) {
     if (Test-Path -LiteralPath $migratedDb) {
         $compareArgs += @("--migrated", $migratedDb)
     }
+    # Pass live path whenever resolved so CLI fail-closes if hashes incomplete (D24 honesty).
     if ($liveVault) {
         $compareArgs += @("--live-vault", $liveVault)
     }
+    if ($shaPre) { $compareArgs += @("--sha256-pre", $shaPre) }
+    if ($shaPost) { $compareArgs += @("--sha256-post", $shaPost) }
     if ($null -ne $t169Exit) {
         $compareArgs += @("--t169-exit", "$t169Exit")
     }
     if ($t169ReportHash) {
         $compareArgs += @("--t169-report-hash", $t169ReportHash)
     }
-    # D24 post hash before writing compare (so packet can include it)
-    $shaPost = $null
-    if ($liveVault) {
-        $shaPost = Get-FileSha256Hex -Path $liveVault
-        if ($shaPre -and $shaPost -and ($shaPre -ne $shaPost)) {
-            Write-Error "D24 FAIL: live vault SHA-256 changed (pre=$shaPre post=$shaPost)"
-            exit 1
-        }
-        if ($shaPre) { $compareArgs += @("--sha256-pre", $shaPre) }
-        if ($shaPost) { $compareArgs += @("--sha256-post", $shaPost) }
-        if ($shaPost) {
-            Write-Info "D24 live vault post-hash: $shaPost (match=$($shaPre -eq $shaPost))"
-        }
-        else {
-            Write-Info "D24 live vault post-hash: N/A (locked or unreadable)"
-        }
+    if ($null -ne $t169Hard) {
+        $compareArgs += @("--t169-hard-gates-passed", $(if ($t169Hard) { "true" } else { "false" }))
     }
 
     & ai-brains @compareArgs
@@ -513,21 +612,12 @@ if (-not $DryRun -and (Test-Path -LiteralPath $dbForCompare)) {
 }
 else {
     Write-Info "Skipping compare capture (DryRun or missing db)"
-    # D24 post still required
-    if ($liveVault) {
-        $shaPost = Get-FileSha256Hex -Path $liveVault
-        if ($shaPre -and $shaPost -and ($shaPre -ne $shaPost)) {
-            Write-Error "D24 FAIL: live vault SHA-256 changed (pre=$shaPre post=$shaPost)"
-            exit 1
-        }
-        Write-Info "D24 live vault post-hash: $shaPost"
-    }
 }
 
 # --- Rollback drill helper (print only; does not enable live) ---
 Write-Host ""
 Write-Host "=== Rollback drill (D21/D23) — run manually on work db ===" -ForegroundColor Cyan
-$projectIdHint = if ($fixtureProjectId) { " --project-id $fixtureProjectId" } else { "" }
+$projectIdHint = if ($briefingProjectId) { " --project-id $briefingProjectId" } else { "" }
 Write-Host @"
 # Flag off → legacy (expect text does NOT match (governed))
 `$env:AI_BRAINS_GOVERNED_BRIEFING = '0'
@@ -554,5 +644,10 @@ Write-Host "If approved later: session-only `$env:AI_BRAINS_GOVERNED_BRIEFING='1
 Write-Host "Human checklist: Docs/EVALUATION/templates/dogfood-human-checklist.md"
 Write-Host "Runbook: Docs/EVALUATION/SHADOW-DOGFOOD-GATE.md"
 
-Write-Info "Done (stage=$stage). Exit 0."
+if ($scriptIncomplete) {
+    Write-WarnMsg "Done (stage=$stage) INCOMPLETE: exit $exitCode (D24 status=$d24Status). Fix live vault readability or run without a locked live vault for honest N/A."
+    exit $exitCode
+}
+
+Write-Info "Done (stage=$stage). Exit 0 (D24 status=$d24Status)."
 exit 0

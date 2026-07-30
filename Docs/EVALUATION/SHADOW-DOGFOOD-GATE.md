@@ -104,13 +104,15 @@ Resolve the **live** vault path **without** mutating env to shadow:
 4. If none → record **N/A** (no live vault).
 
 ```powershell
-# Example hash helper
+# Example hash helper — catch access denied; do NOT treat locked live vault as N/A pass (D24)
 function Get-FileSha256([string]$Path) {
   if (-not (Test-Path -LiteralPath $Path)) { return $null }
-  (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+  try { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
+  catch { return $null }  # unreadable → fail-closed when path exists
 }
 $LiveVault = ... # resolved live path or $null
 $ShaPre = if ($LiveVault) { Get-FileSha256 $LiveVault } else { $null }
+# If $LiveVault is set but $ShaPre is $null: D24 unreadable — dogfood must not claim unchanged=true
 ```
 
 ### 2.3 Shadow (+ optional migrate)
@@ -137,9 +139,12 @@ ai-brains migrate governed `
 ```powershell
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 function Write-CliStdoutNoBom([string]$Path, [string[]]$CliArgs) {
-    $out = & ai-brains @CliArgs 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "ai-brains failed ($LASTEXITCODE): $out" }
-    [System.IO.File]::WriteAllText($Path, $out.Trim(), $Utf8NoBom)
+    # Capture stdout ONLY — do not merge stderr (2>&1) or warnings corrupt JSON.
+    $out = & ai-brains @CliArgs
+    if ($LASTEXITCODE -ne 0) { throw "ai-brains failed ($LASTEXITCODE)" }
+    $text = if ($null -eq $out) { "" } elseif ($out -is [System.Array]) { ($out | ForEach-Object { "$_" }) -join [Environment]::NewLine } else { "$out" }
+    if (-not [string]::IsNullOrEmpty($text) -and -not $text.EndsWith("`n")) { $text = $text + [Environment]::NewLine }
+    [System.IO.File]::WriteAllText($Path, $text, $Utf8NoBom)
 }
 
 $Db = "$WorkDir\shadow.db"   # or migrated.db
@@ -204,6 +209,14 @@ Recompute live vault SHA-256. **Must equal** pre-hash when both exist.
 
 **Source preference:** operator-provided **test vault** first (lowest risk). Active user vault allowed when the operator accepts a redacted shadow of real data — document which was used.
 
+### Project id (multi-project vaults)
+
+Stage C **requires an explicit project id** when the source vault holds more than one project scope. Pass orchestrator `-ProjectId <uuid>` (or `briefing project --project-id <uuid>`). Without it, scope discovery may yield empty/wrong authority. Stage B uses the fixture id from `fixture-project-id.txt` automatically.
+
+### Stage A baseline hash
+
+The orchestrator writes `stage-a-report-hash.txt` under WorkDir after Stage A. On later runs in the same WorkDir, a changed evaluate `report_hash` is **warned** (document intentional fixture drift + new baseline). Stage C re-checks must match Stage A **or** document drift.
+
 ### Steps
 
 0. **Re-run** `evaluate governed`; require exit **0**. `report_hash` must match Stage A **or** document intentional fixture drift + new baseline hash.  
@@ -211,11 +224,20 @@ Recompute live vault SHA-256. **Must equal** pre-hash when both exist.
 2. **D24** pre-hash live vault.  
 3. `shadow create --source <chosen-vault> --destination <work>\shadow.db` (default redact; dry-run first). **Do not** set `AI_BRAINS_VAULT_PATH` to shadow.  
 4. Optional migrate from **shadow** → work-dir migrated dest + report.  
-5. Capture compare inputs (§2.4 / §9).  
+5. Capture compare inputs (§2.4 / §9) with `--project-id` when multi-project.  
 6. Emit `dogfood-compare.json` (§6).  
 7. Human review: **D15 Stage C** stratified sample + all risk warning refs; sign-off.  
 8. **D24** post-hash; must match pre.  
 9. **Pass:** T169 re-check green; live hash stable; human sign-off; hard checks pass.
+
+**Orchestrator Stage C example:**
+
+```powershell
+.\scripts\dogfood-shadow.ps1 `
+  -WorkDir C:\temp\ai-brains-dogfood-c `
+  -SourceVault C:\vaults\operator-test.db `
+  -ProjectId <project-uuid>
+```
 
 Stage C is **operator-dependent** and not required in CI. Defer with owner + reason when no test vault is available.
 
@@ -303,6 +325,7 @@ Risk warnings for D7: kinds ∈ `{stale, disputed, open_conflict, unavailable, d
     "hard_checks": {
       "t169_passed": true,
       "live_vault_mutated": false,
+      "live_checksum_verified": false,
       "live_checksum_unchanged": true
     }
   },
@@ -412,9 +435,12 @@ Required when not using `dogfood compare` / orchestrator. Prefer §2.4’s BOM-l
 $Db = "$WorkDir\shadow.db"   # never set AI_BRAINS_VAULT_PATH to this
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 function Write-CliStdoutNoBom([string]$Path, [string[]]$CliArgs) {
-    $out = & ai-brains @CliArgs 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "ai-brains failed ($LASTEXITCODE): $out" }
-    [System.IO.File]::WriteAllText($Path, $out.Trim(), $Utf8NoBom)
+    # Capture stdout ONLY — do not merge stderr (2>&1) or warnings corrupt JSON.
+    $out = & ai-brains @CliArgs
+    if ($LASTEXITCODE -ne 0) { throw "ai-brains failed ($LASTEXITCODE)" }
+    $text = if ($null -eq $out) { "" } elseif ($out -is [System.Array]) { ($out | ForEach-Object { "$_" }) -join [Environment]::NewLine } else { "$out" }
+    if (-not [string]::IsNullOrEmpty($text) -and -not $text.EndsWith("`n")) { $text = $text + [Environment]::NewLine }
+    [System.IO.File]::WriteAllText($Path, $text, $Utf8NoBom)
 }
 
 # 1) Governed typed packet (global --vault-path before subcommand)
@@ -445,14 +471,14 @@ ai-brains dogfood compare `
   -EvaluateFixtures fixtures\governed-memory\scenarios
 ```
 
-Parameters: `-WorkDir`, `-SourceVault` (optional Stage C), `-SkipMigrate`, `-EvaluateFixtures`, `-DryRun`, `-SkipEvaluate`, `-SkipShadow`.
+Parameters: `-WorkDir`, `-SourceVault` (optional Stage C), `-ProjectId` (Stage C multi-project), `-SkipMigrate`, `-EvaluateFixtures`, `-DryRun`, `-SkipShadow`, `-SkipEvaluate` (debug only with `-AllowIncomplete`; exits 2).
 
 Behavior:
 
-- Stage A evaluate → abort on non-0; record `report_hash`.  
-- **D24** pre/post live hashes.  
+- Stage A evaluate → abort on non-0; require parseable `report_hash` + `hard_gates_passed`; persist `stage-a-report-hash.txt`.  
+- **D24** pre/post live hashes; when live path exists but hashes unreadable → **fail-closed** (exit non-zero; compare `live_checksum_unchanged=false` + `D24_UNREADABLE`). True N/A only when no live vault resolves.  
 - Shadow/migrate under WorkDir only; **never** assign `AI_BRAINS_VAULT_PATH` to shadow (**D26**).  
-- Compare via **briefing project** + **preflight** JSON.  
+- Compare via **briefing project** + **preflight** JSON (`--project-id` for Stage B fixture / Stage C `-ProjectId`).  
 - Never User-level env; never Stage D.  
 - Style: `#Requires -Version 5.1`, `$ErrorActionPreference = 'Stop'`, `[CmdletBinding()]`.
 
