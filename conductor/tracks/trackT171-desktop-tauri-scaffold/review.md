@@ -51,3 +51,15 @@
 - cargo fmt --check -p ai-brains-desktop: pass
 - cargo deny check: pass (prior)
 - cargo audit: exit 0 (prior R1)
+
+## Codex R2 (fresh re-review — PASS)
+
+Date: 2026-07-30  
+Artifact: `review.codex.r2.md`  
+Verdict: **PASS**
+
+Prior R1 FAIL findings verified fixed (build artifacts, fmt, S21 helpers/tests).  
+No new P0/P1/P2. Residuals: interactive GUI visual confirm; Missing-WebView2 process-exit not process-tested (honest).
+
+Gate clear authorized on engineering DoD + Codex R2 PASS.
+

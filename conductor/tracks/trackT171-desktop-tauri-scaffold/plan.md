@@ -1,6 +1,6 @@
 # T171 Plan — Desktop Tauri Scaffold (P10.0)
 
-Status: **In Progress / Implemented in worktree** (awaiting orchestrator Completed).
+Status: **Completed** (2026-07-30) — Codex R2 PASS; PR lifecycle.
 
 Authority: `spec.md` locks **S1–S24**. Adapter-only; Windows-first; workspace membership **after** smoke.
 
