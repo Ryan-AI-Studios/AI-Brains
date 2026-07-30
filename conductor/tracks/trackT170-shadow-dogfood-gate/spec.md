@@ -2,7 +2,7 @@
 
 - **Track ID:** T170-ShadowDogfoodGate
 - **Phase:** P9 Task 9.4
-- **Status:** **In Progress** (implementation on `feat/t170-shadow-dogfood-gate`; **AI1–AI3 review fold-in 2026-07-30**)
+- **Status:** ✅ **Completed** (2026-07-30; Codex R2 PASS WITH DEFERRED P3; Stage C/D deferred with owner)
 - **Depends on:** **T168 Complete** (`shadow create`, `migrate governed`, path refuse, report/manifest); **T169 Complete** (`evaluate governed`, exit **0/1/6/7**, `human_review_seed`, `Docs/EVALUATION/GOVERNED-MEMORY-MVP.md`); **T152** dual-path preflight flag `AI_BRAINS_GOVERNED_BRIEFING`; T147 shadow safety
 - **Blocks:** Honest “governed mode on live vault” claims; feeds **T185** dogfood evidence index
 - **Category:** SECURITY / RELEASE / DOCS
