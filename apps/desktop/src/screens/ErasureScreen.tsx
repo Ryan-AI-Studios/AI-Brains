@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { requestErasure, wipeContentEnvelope } from "../lib/api";
 import { asArray } from "../lib/types";
+import { useActiveScope } from "../lib/scopeContext";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { StatePanel, statusFromUiError } from "../components/StatePanel";
 import { mapInvokeError, type UiError } from "../lib/errors";
@@ -11,6 +12,8 @@ import type {
 } from "../lib/types";
 
 export function ErasureScreen() {
+  const { scope: activeScope, setScope: setActiveScope } = useActiveScope();
+
   // Ticket path
   const [idsText, setIdsText] = useState("");
   const [reason, setReason] = useState("");
@@ -30,16 +33,37 @@ export function ErasureScreen() {
   const [wipeError, setWipeError] = useState<UiError | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Seed both scope fields from shared active scope once available.
+  useEffect(() => {
+    if (!activeScope) {
+      return;
+    }
+    if (!ticketScope.trim()) {
+      setTicketScope(activeScope);
+    }
+    if (!wipeScope.trim()) {
+      setWipeScope(activeScope);
+    }
+  }, [activeScope, ticketScope, wipeScope]);
+
   const ticketMutation = useMutation({
     mutationFn: () => {
       const ids = idsText
         .split(/[\n,]/)
         .map((s) => s.trim())
         .filter(Boolean);
+      const scope = ticketScope.trim();
+      if (!scope) {
+        return Promise.reject({
+          kind: "error",
+          message: "Resolve scope first — request_erasure requires scope",
+        });
+      }
+      setActiveScope(scope);
       return requestErasure({
         ids,
         reason: reason || undefined,
-        scope: ticketScope || undefined,
+        scope,
       });
     },
     onSuccess: (resp) => {
@@ -53,14 +77,23 @@ export function ErasureScreen() {
   });
 
   const wipeMutation = useMutation({
-    mutationFn: () =>
-      wipeContentEnvelope({
+    mutationFn: () => {
+      const scope = wipeScope.trim();
+      if (!scope) {
+        return Promise.reject({
+          kind: "error",
+          message: "Resolve scope first — wipe requires scope",
+        });
+      }
+      setActiveScope(scope);
+      return wipeContentEnvelope({
         content_key_id: contentKeyId.trim(),
-        scope: wipeScope.trim(),
+        scope,
         reason: wipeReason || undefined,
         dry_run: dryRun,
         confirm: confirmWipe,
-      }),
+      });
+    },
     onSuccess: (resp) => {
       setWipeResult(resp);
       setWipeError(null);
@@ -79,7 +112,8 @@ export function ErasureScreen() {
         <p className="muted">
           <strong>Ticket ≠ wipe (M13).</strong> Requesting erasure accepts a
           ticket only. Content-envelope wipe is a separate command with dry-run
-          defaults and honesty warnings from the API.
+          defaults and honesty warnings from the API. Scope is required for both
+          paths.
         </p>
       </header>
 
@@ -93,6 +127,14 @@ export function ErasureScreen() {
           className="form-grid"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!ticketScope.trim()) {
+              setTicketError({
+                kind: "error",
+                message:
+                  "Resolve scope first — request_erasure requires scope",
+              });
+              return;
+            }
             ticketMutation.mutate();
           }}
         >
@@ -114,11 +156,12 @@ export function ErasureScreen() {
             />
           </label>
           <label>
-            Scope
+            Scope (required)
             <input
               value={ticketScope}
               onChange={(e) => setTicketScope(e.target.value)}
-              placeholder="Optional scope key"
+              placeholder="Repository:{uuid}"
+              required
             />
           </label>
           <button
@@ -179,7 +222,7 @@ export function ErasureScreen() {
             />
           </label>
           <label>
-            scope
+            scope (required)
             <input
               value={wipeScope}
               onChange={(e) => setWipeScope(e.target.value)}

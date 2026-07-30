@@ -14,6 +14,8 @@ export const queryKeys = {
     ["scope", "resolve", cwd ?? null, forcePersonal ?? false] as const,
   knowledgeQuery: (query: string, scope?: string | null) =>
     ["knowledge", "query", query, scope ?? null] as const,
-  evidence: (id: string) => ["evidence", id] as const,
-  source: (id: string) => ["source", id] as const,
+  evidence: (id: string, scope?: string | null) =>
+    ["evidence", id, scope ?? null] as const,
+  source: (id: string, scope?: string | null) =>
+    ["source", id, scope ?? null] as const,
 };

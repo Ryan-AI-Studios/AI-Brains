@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { resolveScope } from "../lib/api";
 import { asArray, type ScopeEvidence } from "../lib/types";
+import { useActiveScope } from "../lib/scopeContext";
 import { queryKeys } from "../lib/queryKeys";
 import { useInvokeQuery } from "../hooks/useInvokeQuery";
 import { StatePanel } from "../components/StatePanel";
 
 export function ScopeScreen() {
+  const { applyResolved, setResolveFromCwd } = useActiveScope();
   const [cwd, setCwd] = useState("");
   const [explicitProjectId, setExplicitProjectId] = useState("");
   const [forcePersonal, setForcePersonal] = useState(false);
@@ -28,6 +30,22 @@ export function ScopeScreen() {
 
   const data = q.data;
 
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    const key = data.scope?.trim() ?? "";
+    if (!key) {
+      return;
+    }
+    applyResolved({
+      scope: key,
+      authoritative: data.authoritative,
+      confidence: data.confidence,
+    });
+    setResolveFromCwd(cwd.trim() || null);
+  }, [data, applyResolved, setResolveFromCwd, cwd]);
+
   return (
     <div className="screen">
       <header className="screen-header">
@@ -36,7 +54,8 @@ export function ScopeScreen() {
           Authoritative flag, confidence, evidence, warnings, and alternatives
           come from the daemon. Grant listing is{" "}
           <strong>honest unavailable</strong> here (no T161 grants list route
-          wired for this chrome).
+          wired for this chrome). Successful resolve updates the shared active
+          scope used by Query, Review, Evidence, Source, and Erasure.
         </p>
       </header>
 

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { personalBriefing, projectBriefing } from "../lib/api";
 import { asArray } from "../lib/types";
+import { useActiveScope } from "../lib/scopeContext";
 import { queryKeys } from "../lib/queryKeys";
 import { useInvokeQuery } from "../hooks/useInvokeQuery";
 import { StatePanel } from "../components/StatePanel";
@@ -18,10 +19,18 @@ import type {
 type BriefingMode = "project" | "personal";
 
 export function HomeScreen() {
+  const { scope: activeScope, setScope: setActiveScope } = useActiveScope();
   const [mode, setMode] = useState<BriefingMode>("project");
   const [cwd, setCwd] = useState("");
   const [scope, setScope] = useState("");
   const [enabled, setEnabled] = useState(true);
+
+  // Seed local field from shared active scope (do not invent when empty).
+  useEffect(() => {
+    if (activeScope && !scope.trim()) {
+      setScope(activeScope);
+    }
+  }, [activeScope, scope]);
 
   const project = useInvokeQuery({
     queryKey: queryKeys.projectBriefing(scope || null, cwd || null),
@@ -95,6 +104,10 @@ export function HomeScreen() {
         className="form-row"
         onSubmit={(e) => {
           e.preventDefault();
+          const next = scope.trim();
+          if (next) {
+            setActiveScope(next);
+          }
           setEnabled(true);
           active.refetch();
         }}
@@ -110,7 +123,7 @@ export function HomeScreen() {
           </label>
         )}
         <label>
-          scope (optional)
+          scope (optional — seeded from active scope)
           <input
             value={scope}
             onChange={(e) => setScope(e.target.value)}
@@ -299,7 +312,7 @@ function ClaimList({
           {claims.map((c) => (
             <li key={c.id}>
               <Link
-                to={`/claim/${encodeURIComponent(c.kind)}/${encodeURIComponent(c.id)}`}
+                to={`/claims/${encodeURIComponent(c.kind)}/${encodeURIComponent(c.id)}`}
                 state={{
                   evidence_handles: asArray<EvidenceHandle>(c.evidence_handles),
                   statement: c.statement,

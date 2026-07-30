@@ -1,12 +1,17 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDaemonConnectionInfo, resolveScope } from "../lib/api";
+import { useActiveScope } from "../lib/scopeContext";
 import { queryKeys } from "../lib/queryKeys";
 
 /**
  * Chrome indicator: connection + best-effort scope resolve.
  * Never treats non-authoritative scope as a full grant (M5).
+ * On success with a non-empty scope key, populates shared ActiveScope context.
  */
 export function ScopeIndicator() {
+  const { applyResolved } = useActiveScope();
+
   const conn = useQuery({
     queryKey: queryKeys.connectionInfo,
     queryFn: getDaemonConnectionInfo,
@@ -18,6 +23,21 @@ export function ScopeIndicator() {
     enabled: !!conn.data?.token_file_present && !!conn.data?.loopback_base_url,
     retry: false,
   });
+
+  useEffect(() => {
+    if (!scope.isSuccess || !scope.data) {
+      return;
+    }
+    const key = scope.data.scope?.trim() ?? "";
+    if (!key) {
+      return;
+    }
+    applyResolved({
+      scope: key,
+      authoritative: scope.data.authoritative,
+      confidence: scope.data.confidence,
+    });
+  }, [scope.isSuccess, scope.data, applyResolved]);
 
   const tokenOk = conn.data?.token_file_present === true;
   const base = conn.data?.loopback_base_url ?? "—";

@@ -26,7 +26,7 @@ const nav: {
   { to: "/source", label: "Source", icon: FileSearch },
   { to: "/erasure", label: "Erasure", icon: Eraser },
   { to: "/connectors", label: "Connectors", icon: Link2 },
-  { to: "/claim", label: "Claim", icon: Shield },
+  { to: "/claims", label: "Claims", icon: Shield },
 ];
 
 export function Layout() {

@@ -10,6 +10,18 @@ use zeroize::Zeroizing;
 
 use super::{resolve_loopback_base_url, user_session_token_path};
 
+#[cfg(test)]
+use std::sync::Mutex;
+
+/// Test-only base URL override so httpmock ports do not race on env vars.
+#[cfg(test)]
+static BASE_URL_OVERRIDE_FOR_TESTS: Mutex<Option<String>> = Mutex::new(None);
+
+/// Serialize adapter HTTP tests that mutate token path / base URL overrides.
+/// Tokio mutex so the guard can be held across `.await` in async tests.
+#[cfg(test)]
+static ADAPTER_HTTP_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 /// Connect timeout for loopback daemon HTTP.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 /// Total request timeout for loopback daemon HTTP.
@@ -127,6 +139,11 @@ pub fn ensure_command_id(command_id: &mut Option<String>) {
 ///
 /// Returns `Zeroizing<String>` so the secret is zeroed on drop. Never returned
 /// to JS — callers attach it only to the Authorization header within Rust.
+///
+/// Best-effort zeroize: file contents are read into `Zeroizing`, trimmed into a
+/// second `Zeroizing`, and the raw buffer is dropped before return. The
+/// Authorization header is a short-lived `String` owned by reqwest for the
+/// request lifetime only.
 pub fn read_user_session_token() -> Result<Zeroizing<String>, InvokeApiError> {
     let path = user_session_token_path().ok_or_else(|| {
         InvokeApiError::denied("user home directory unavailable; cannot locate session token")
@@ -138,17 +155,19 @@ pub fn read_user_session_token() -> Result<Zeroizing<String>, InvokeApiError> {
         ));
     }
 
-    let raw = std::fs::read_to_string(&path).map_err(|e| {
-        // Do not include file contents; path is fixed and non-secret.
+    // Read into Zeroizing so the full file buffer is wiped on drop.
+    let raw = Zeroizing::new(std::fs::read_to_string(&path).map_err(|e| {
+        // Do not include file contents; path is non-secret.
         InvokeApiError::denied(format!("failed to read user-session token: {e}"))
-    })?;
+    })?);
 
-    let token = raw.trim();
-    if token.is_empty() {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
         return Err(InvokeApiError::denied("user-session token file is empty"));
     }
 
-    Ok(Zeroizing::new(token.to_string()))
+    // Copy only the trimmed token into a fresh Zeroizing; `raw` drops next.
+    Ok(Zeroizing::new(trimmed.to_owned()))
 }
 
 /// Percent-encode a single URL path segment (RFC 3986 unreserved left alone).
@@ -199,12 +218,32 @@ fn build_client() -> Result<reqwest::Client, InvokeApiError> {
 }
 
 fn base_url() -> Result<String, InvokeApiError> {
+    #[cfg(test)]
+    {
+        if let Ok(guard) = BASE_URL_OVERRIDE_FOR_TESTS.lock()
+            && let Some(ref url) = *guard
+        {
+            return Ok(url.clone());
+        }
+    }
+
     resolve_loopback_base_url().ok_or_else(|| {
         InvokeApiError::error(
             "invalid AI_BRAINS_HTTP_PORT; cannot resolve loopback base URL",
             None,
         )
     })
+}
+
+/// Point the adapter at an httpmock (or other) base URL for the current process.
+///
+/// Cleared by passing `None`. Callers must serialize concurrent adapter tests
+/// (see `ADAPTER_HTTP_TEST_LOCK` in the test module).
+#[cfg(test)]
+pub fn set_base_url_override_for_tests(url: Option<String>) {
+    if let Ok(mut guard) = BASE_URL_OVERRIDE_FOR_TESTS.lock() {
+        *guard = url;
+    }
 }
 
 /// Authenticated JSON request against a T161 path. Response body as `serde_json::Value`.
@@ -385,9 +424,51 @@ mod tests {
         assert!(v.get("status").is_none());
     }
 
+    /// Holds the process-wide adapter test lock + restores overrides on drop.
+    struct AdapterHttpTestGuard {
+        _lock: tokio::sync::MutexGuard<'static, ()>,
+        _dir: tempfile::TempDir,
+    }
+
+    impl AdapterHttpTestGuard {
+        async fn lock_with_token(token: Option<&str>) -> Self {
+            let lock = ADAPTER_HTTP_TEST_LOCK.lock().await;
+            let dir = tempfile::tempdir().expect("tempdir");
+            let path = dir.path().join("http.token");
+            match token {
+                Some(t) => {
+                    std::fs::write(&path, t).expect("write token");
+                    crate::commands::set_token_path_override_for_tests(Some(path));
+                }
+                None => {
+                    // Point at a non-existent file under the temp dir.
+                    crate::commands::set_token_path_override_for_tests(Some(path));
+                }
+            }
+            Self {
+                _lock: lock,
+                _dir: dir,
+            }
+        }
+
+        fn point_at(server: &httpmock::MockServer) {
+            set_base_url_override_for_tests(Some(server.base_url()));
+        }
+    }
+
+    impl Drop for AdapterHttpTestGuard {
+        fn drop(&mut self) {
+            set_base_url_override_for_tests(None);
+            crate::commands::set_token_path_override_for_tests(None);
+        }
+    }
+
     #[tokio::test]
-    async fn post_json__httpmock_happy_empty_briefing() {
+    async fn post_json__httpmock_token_file__success_body() {
         let server = httpmock::MockServer::start();
+        let _guard = AdapterHttpTestGuard::lock_with_token(Some("test-token-not-logged")).await;
+        AdapterHttpTestGuard::point_at(&server);
+
         let mock = server.mock(|when, then| {
             when.method(httpmock::Method::POST)
                 .path("/v1/briefings/project")
@@ -428,51 +509,91 @@ mod tests {
             }));
         });
 
-        // Direct call against mock: exercise JSON shape + auth header (no full path via resolve_loopback).
-        let client = reqwest::Client::builder()
-            .connect_timeout(CONNECT_TIMEOUT)
-            .timeout(REQUEST_TIMEOUT)
-            .build()
-            .expect("client");
-        let url = format!("{}/v1/briefings/project", server.base_url());
-        let response = client
-            .post(&url)
-            .header(
-                reqwest::header::AUTHORIZATION,
-                "Bearer test-token-not-logged",
-            )
-            .json(&serde_json::json!({ "api_version": "1" }))
-            .send()
-            .await
-            .expect("send");
-        assert_eq!(response.status().as_u16(), 200);
-        let body: serde_json::Value = response.json().await.expect("json");
+        let body = post_json(
+            "/v1/briefings/project",
+            &serde_json::json!({ "api_version": "1" }),
+        )
+        .await
+        .expect("post_json should succeed");
         assert_eq!(body["api_version"], "1");
-        assert!(body["packet"]["decisions"].as_array().unwrap().is_empty());
+        assert!(
+            body["packet"]["decisions"]
+                .as_array()
+                .expect("decisions array")
+                .is_empty()
+        );
         mock.assert();
     }
 
     #[tokio::test]
-    async fn get_json__httpmock_review_empty_items() {
+    async fn get_json__httpmock_token_file__success_body() {
         let server = httpmock::MockServer::start();
+        let _guard = AdapterHttpTestGuard::lock_with_token(Some("test-token-not-logged")).await;
+        AdapterHttpTestGuard::point_at(&server);
+
         let mock = server.mock(|when, then| {
-            when.method(httpmock::Method::GET).path("/v1/review/items");
+            when.method(httpmock::Method::GET)
+                .path("/v1/review/items")
+                .header("authorization", "Bearer test-token-not-logged");
             then.status(200).json_body(serde_json::json!({
                 "api_version": "1",
                 "items": []
             }));
         });
 
-        let client = reqwest::Client::builder()
-            .connect_timeout(CONNECT_TIMEOUT)
-            .timeout(REQUEST_TIMEOUT)
-            .build()
-            .expect("client");
-        let url = format!("{}/v1/review/items", server.base_url());
-        let response = client.get(&url).send().await.expect("send");
-        assert_eq!(response.status().as_u16(), 200);
-        let body: serde_json::Value = response.json().await.expect("json");
-        assert!(body["items"].as_array().unwrap().is_empty());
+        let body = get_json("/v1/review/items", &[])
+            .await
+            .expect("get_json should succeed");
+        assert!(
+            body["items"]
+                .as_array()
+                .expect("items array")
+                .is_empty()
+        );
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn post_json__missing_token__denied() {
+        let server = httpmock::MockServer::start();
+        let _guard = AdapterHttpTestGuard::lock_with_token(None).await;
+        AdapterHttpTestGuard::point_at(&server);
+
+        let err = post_json(
+            "/v1/briefings/project",
+            &serde_json::json!({ "api_version": "1" }),
+        )
+        .await
+        .expect_err("missing token must deny");
+        assert_eq!(err.kind, "denied");
+        assert!(
+            err.message.to_ascii_lowercase().contains("token"),
+            "expected token-related message, got {}",
+            err.message
+        );
+    }
+
+    #[tokio::test]
+    async fn post_json__httpmock_401__denied_kind() {
+        let server = httpmock::MockServer::start();
+        let _guard = AdapterHttpTestGuard::lock_with_token(Some("bad-or-expired-token")).await;
+        AdapterHttpTestGuard::point_at(&server);
+
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::POST)
+                .path("/v1/briefings/project")
+                .header("authorization", "Bearer bad-or-expired-token");
+            then.status(401).body(r#"{"error":"unauthorized"}"#);
+        });
+
+        let err = post_json(
+            "/v1/briefings/project",
+            &serde_json::json!({ "api_version": "1" }),
+        )
+        .await
+        .expect_err("401 must map to denied");
+        assert_eq!(err.kind, "denied");
+        assert_eq!(err.status, Some(401));
         mock.assert();
     }
 

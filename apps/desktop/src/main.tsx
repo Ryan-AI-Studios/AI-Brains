@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
+import { ActiveScopeProvider } from "./lib/scopeContext";
 import { createAppQueryClient } from "./lib/queryClient";
 import "./App.css";
 
@@ -17,7 +18,9 @@ createRoot(rootEl).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <HashRouter>
-        <App />
+        <ActiveScopeProvider>
+          <App />
+        </ActiveScopeProvider>
       </HashRouter>
     </QueryClientProvider>
   </StrictMode>,

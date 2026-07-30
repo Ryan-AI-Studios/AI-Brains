@@ -34,4 +34,5 @@ windows = { version = "0.62", features = [
 
 [dev-dependencies]
 httpmock = "0.7"
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -30,7 +30,7 @@ export function ClaimDetailScreen() {
         </header>
         <div className="card">
           <p className="muted">
-            Route shape: <code>#/claim/:kind/:id</code>
+            Route shape: <code>#/claims/:kind/:id</code>
           </p>
         </div>
       </div>

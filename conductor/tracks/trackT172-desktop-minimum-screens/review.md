@@ -32,11 +32,20 @@ Verdict: **CLEAN**
 
 ## Codex reviews
 
-- R1: see `review.codex.md` (pending)
+- R1: see `review.codex.md` — **FAIL** → fixer pass (scope wiring, claims plural, adapter tests, zeroize)
 - Fresh R2: see `review.codex.r2.md` (pending before gate clear)
+
+### Codex R1 findings (fix pass)
+
+| id | severity | description | status |
+|----|----------|-------------|--------|
+| P1-01 | critical | Scope not propagated to live screens | fixed_pending_verification |
+| P1-02 | high | Claim route singular vs `#/claims/:kind/:id` | fixed_pending_verification |
+| P2-01 | medium | httpmock tests bypassed adapter (`post_json`/`get_json`) | fixed_pending_verification |
+| P2-02 | low | Token read path Zeroizing hygiene | fixed_pending_verification |
 
 ## Gate evidence (package-scoped)
 
-- `cargo test -p ai-brains-desktop` — 29 passed
-- `cargo clippy -p ai-brains-desktop --all-targets -- -D warnings` — clean
-- `npm run typecheck` / `license:check` — OK
+- `cargo test -p ai-brains-desktop` — see fixer commit
+- `cargo clippy -p ai-brains-desktop --all-targets -- -D warnings` — see fixer commit
+- `npm run typecheck` / `license:check` — see fixer commit
