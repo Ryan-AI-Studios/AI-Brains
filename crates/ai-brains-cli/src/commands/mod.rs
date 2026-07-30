@@ -6,6 +6,7 @@ pub mod conclusion;
 pub mod context;
 pub mod daemon;
 pub mod decision;
+pub mod dogfood;
 pub mod erasure;
 pub mod evaluate;
 pub mod evidence;
