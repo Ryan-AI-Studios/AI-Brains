@@ -303,7 +303,7 @@ INTEGRATION      Ledgerful (search/hotspots/bridge/pipe) · multi-harness hooks
 OPS              init · backup suite · daemon service · schedule · update
 PRIVACY/CRYPTO   SQLCipher · privacy levels · path normalization · no CoT
 LEGACY IMPORT    classify_legacy / apply_legacy_import (T167) + `migrate governed` CLI (T168)
-EVALUATION       `evaluate governed` trust-gate harness (T169) — hermetic scenarios + report_hash
+EVALUATION       `evaluate governed` (T169) + shadow dogfood gate / `dogfood compare` (T170)
 ```
 
 ### Legacy → governed classification import (T167 / P9.1) + migrate CLI (T168)
@@ -328,6 +328,16 @@ See [OPERATIONS.md](OPERATIONS.md#legacy--governed-classification-import-t167--p
 | sources nextest | Scenario 10 circularity hard gates |
 
 See [EVALUATION/GOVERNED-MEMORY-MVP.md](EVALUATION/GOVERNED-MEMORY-MVP.md) and [OPERATIONS.md](OPERATIONS.md#governed-evaluate-cli-t169--p93).
+
+### Shadow dogfood gate (T170 / P9.4)
+
+| API / CLI / script | Role |
+|--------------------|------|
+| `scripts/dogfood-shadow.ps1` | Stage A evaluate + D24 live hash + shadow/migrate under WorkDir + compare capture; **never** Stage D / User env / `AI_BRAINS_VAULT_PATH`→shadow |
+| `ai-brains dogfood compare` | Pure-serde compare packet (`dogfood-compare.json`); fingerprints + `compare_hash`; D15 seed + warning_refs |
+| Human checklist | [EVALUATION/templates/dogfood-human-checklist.md](EVALUATION/templates/dogfood-human-checklist.md) |
+
+See [EVALUATION/SHADOW-DOGFOOD-GATE.md](EVALUATION/SHADOW-DOGFOOD-GATE.md) and [OPERATIONS.md](OPERATIONS.md#shadow-dogfood-gate-t170--p94).
 
 ---
 
