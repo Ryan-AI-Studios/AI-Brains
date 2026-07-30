@@ -1,0 +1,76 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #e8eaed;
+  background-color: #12141a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 0 0 1.5rem;
+  color: #9aa0a6;
+  font-size: 0.95rem;
+}
+
+.card {
+  border: 1px solid #2a2f3a;
+  border-radius: 0.75rem;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  background: #1a1e27;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.muted {
+  color: #9aa0a6;
+  margin: 0;
+}
+
+.small {
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.error {
+  color: #f28b82;
+  margin: 0;
+}
+
+.json {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: #0d0f14;
+  border: 1px solid #2a2f3a;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}

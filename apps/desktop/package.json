@@ -1,0 +1,32 @@
+{
+  "name": "ai-brains-desktop",
+  "private": true,
+  "version": "0.1.1",
+  "type": "module",
+  "description": "AI-Brains desktop thin client (Tauri v2 + React)",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "typecheck": "tsc --noEmit",
+    "license:check": "node ./scripts/license-check.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "license-checker-rseidelsohn": "5.0.1",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}
