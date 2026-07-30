@@ -909,6 +909,9 @@ enum DogfoodCommands {
         /// Optional T169 evaluate-report.json (Stage B seed + report_hash)
         #[arg(long = "evaluate-report")]
         evaluate_report: Option<PathBuf>,
+        /// Optional migrate-report.json path (recorded in paths; not opened)
+        #[arg(long = "migrate-report")]
+        migrate_report: Option<PathBuf>,
         /// Shadow vault path (recorded in paths; not opened)
         #[arg(long)]
         shadow: Option<PathBuf>,
@@ -1572,6 +1575,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 out,
                 stage,
                 evaluate_report,
+                migrate_report,
                 shadow,
                 migrated,
                 live_vault,
@@ -1586,6 +1590,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 out,
                 stage,
                 evaluate_report,
+                migrate_report,
                 shadow,
                 migrated,
                 live_vault,

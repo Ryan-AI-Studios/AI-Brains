@@ -70,19 +70,24 @@ $WorkDir = "C:\temp\ai-brains-dogfood-b"
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 $Fixture = "$WorkDir\fixture.db"
 
-ai-brains --vault-path $Fixture init
+ai-brains --no-project-context --vault-path $Fixture init
 
-# Provide project/session context for pin (or set AI_BRAINS_PROJECT_ID / SESSION_ID)
-# Prefer process-scoped env only; do not point AI_BRAINS_VAULT_PATH at shadow later.
-$env:AI_BRAINS_VAULT_PATH = $Fixture   # allowed for fixture init/pin only
-ai-brains context --new-project --new-session
-ai-brains pin "DECISION: Dogfood fixture decision for T170 Stage B"
-ai-brains pin "CONSTRAINT: Fixture vault must not be treated as live"
-# Clear process vault env after pin so resolve_live_vault_path does not stick on fixture
-Remove-Item Env:AI_BRAINS_VAULT_PATH -ErrorAction SilentlyContinue
+# Pin requires project/session. Prefer process-scoped IDs + --vault-path (not AI_BRAINS_VAULT_PATH→shadow).
+# Persist the fixture project id — Stage B briefing must pass the same --project-id.
+$FixtureProjectId = [guid]::NewGuid().ToString()
+$env:AI_BRAINS_PROJECT_ID = $FixtureProjectId
+$env:AI_BRAINS_SESSION_ID = [guid]::NewGuid().ToString()
+Set-Content -LiteralPath "$WorkDir\fixture-project-id.txt" -Value $FixtureProjectId -NoNewline
+ai-brains --no-project-context --vault-path $Fixture pin "DECISION: Dogfood fixture decision for T170 Stage B"
+if ($LASTEXITCODE -ne 0) { throw "pin decision failed" }
+ai-brains --no-project-context --vault-path $Fixture pin "CONSTRAINT: Fixture vault must not be treated as live"
+if ($LASTEXITCODE -ne 0) { throw "pin constraint failed" }
+# Clear process project/session env after pin (do not leave dogfood IDs in the shell)
+Remove-Item Env:AI_BRAINS_PROJECT_ID -ErrorAction SilentlyContinue
+Remove-Item Env:AI_BRAINS_SESSION_ID -ErrorAction SilentlyContinue
 ```
 
-> **Note:** Setting `AI_BRAINS_VAULT_PATH` to the **fixture** under WorkDir for init/pin is fine. **D26** forbids pointing it at **shadow/migrated** when comparing or when live refuse must still protect the real live vault. Prefer `--vault-path $Fixture` for pin/init when the CLI allows it so the process env never holds a dogfood path.
+> **Note:** Prefer `--vault-path $Fixture` for pin/init so the process env never holds a dogfood vault path. **D26** forbids pointing `AI_BRAINS_VAULT_PATH` at **shadow/migrated**. Fail Stage B if pin exits non-zero (do not continue with an empty fixture).
 
 ### 2.2 D24 pre-hash (live)
 
@@ -126,13 +131,21 @@ ai-brains migrate governed `
 $Db = "$WorkDir\shadow.db"   # or migrated.db
 # NEVER: $env:AI_BRAINS_VAULT_PATH = $Db
 
-# Governed (typed ProjectBriefingPacket)
-ai-brains briefing project --vault-path $Db --format json > "$WorkDir\governed-packet.json"
+# Fixture project id from §2.1 (required so pin decisions appear in project briefing)
+$FixtureProjectId = (Get-Content -LiteralPath "$WorkDir\fixture-project-id.txt" -Raw).Trim()
+
+# Governed (typed ProjectBriefingPacket) — pass --project-id for Stage B fixture
+# Global --vault-path must precede the subcommand.
+ai-brains --no-project-context --vault-path $Db briefing project `
+  --project-id $FixtureProjectId `
+  --format json > "$WorkDir\governed-packet.json"
 
 # Legacy preflight (flag off)
 $env:AI_BRAINS_GOVERNED_BRIEFING = "0"
-ai-brains preflight --vault-path $Db --format json > "$WorkDir\legacy-preflight.json"
+ai-brains --no-project-context --vault-path $Db preflight --format json > "$WorkDir\legacy-preflight.json"
 ```
+
+> **Stage B wiring:** `scripts/dogfood-shadow.ps1` persists `fixture-project-id.txt` at pin time and passes `--project-id` to `briefing project`. Without it, discovery under WorkDir yields an empty/wrong project scope.
 
 ### 2.5 Emit compare packet
 
@@ -143,6 +156,7 @@ ai-brains dogfood compare `
   --out "$WorkDir\dogfood-compare.json" `
   --stage B `
   --evaluate-report "$WorkDir\evaluate-report.json" `
+  --migrate-report "$WorkDir\migrate-report.json" `
   --shadow "$WorkDir\shadow.db" `
   --live-vault $LiveVault `
   --sha256-pre $ShaPre `
@@ -151,7 +165,7 @@ ai-brains dogfood compare `
   --t169-report-hash <from evaluate-report>
 ```
 
-Or use `scripts/dogfood-shadow.ps1` which orchestrates capture + compare.
+Or use `scripts/dogfood-shadow.ps1` which orchestrates capture + compare (including `--project-id` and `--migrate-report` when present).
 
 ### 2.6 Human checklist (Stage B seed)
 

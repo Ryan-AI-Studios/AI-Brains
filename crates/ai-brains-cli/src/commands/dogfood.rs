@@ -31,6 +31,7 @@ pub struct DogfoodCompareOptions {
     pub out: PathBuf,
     pub stage: Option<String>,
     pub evaluate_report: Option<PathBuf>,
+    pub migrate_report: Option<PathBuf>,
     pub shadow: Option<PathBuf>,
     pub migrated: Option<PathBuf>,
     pub live_vault: Option<PathBuf>,
@@ -268,7 +269,7 @@ pub fn build_compare_packet(
         shadow: opts.shadow.as_ref().map(|p| normalize_path_str(p)),
         migrated: opts.migrated.as_ref().map(|p| normalize_path_str(p)),
         evaluate_report: opts.evaluate_report.as_ref().map(|p| normalize_path_str(p)),
-        migrate_report: None,
+        migrate_report: opts.migrate_report.as_ref().map(|p| normalize_path_str(p)),
         live_vault: opts.live_vault.as_ref().map(|p| normalize_path_str(p)),
     };
 
@@ -604,9 +605,8 @@ fn sort_compare_arrays(root: &mut Value) {
         .and_then(|v| v.as_object_mut())
     {
         if let Some(Value::Array(ids)) = seed.get_mut("claim_ids_sample") {
-            // Sample order is significant for Stage C stratification display; keep as-is for hash
-            // stability of the emitted packet (already deterministic from builder).
-            let _ = ids;
+            // Spec §6.3: claim_ids_sample is order-independent for compare_hash canon.
+            ids.sort_by(|a, b| a.as_str().cmp(&b.as_str()));
         }
         if let Some(Value::Array(refs)) = seed.get_mut("warning_refs_all") {
             refs.sort_by(|a, b| {
@@ -765,6 +765,7 @@ mod tests {
             out: PathBuf::from("out.json"),
             stage: Some("C".into()),
             evaluate_report: None,
+            migrate_report: None,
             shadow: Some(PathBuf::from("shadow.db")),
             migrated: None,
             live_vault: None,
@@ -909,5 +910,51 @@ mod tests {
         let c = canonicalize_value(&v);
         let keys: Vec<_> = c.as_object().unwrap().keys().cloned().collect();
         assert_eq!(keys, vec!["a".to_string(), "z".to_string()]);
+    }
+
+    #[test]
+    fn compare_hash__claim_ids_sample_order_independent() {
+        // Spec §6.3: claim_ids_sample is sorted for compare_hash even if packet order differs.
+        let mut opts = base_opts();
+        opts.stage = Some("B".into());
+        let eval_a = json!({
+            "report_hash": "rh",
+            "hard_gates_passed": true,
+            "human_review_seed": {
+                "claim_ids_sample": ["z-id", "a-id", "m-id"],
+                "warning_ids_all": []
+            }
+        });
+        let eval_b = json!({
+            "report_hash": "rh",
+            "hard_gates_passed": true,
+            "human_review_seed": {
+                "claim_ids_sample": ["m-id", "z-id", "a-id"],
+                "warning_ids_all": []
+            }
+        });
+        let p_a =
+            build_compare_packet(&opts, &sample_packet(), &sample_legacy(), Some(&eval_a)).unwrap();
+        let p_b =
+            build_compare_packet(&opts, &sample_packet(), &sample_legacy(), Some(&eval_b)).unwrap();
+        // Emitted sample preserves source order; hash must still match after sort in canon.
+        assert_eq!(p_a.compare_hash, p_b.compare_hash);
+        assert_eq!(
+            p_a.human_review_seed.claim_ids_sample,
+            vec!["z-id".to_string(), "a-id".to_string(), "m-id".to_string()]
+        );
+    }
+
+    #[test]
+    fn migrate_report__path_recorded_when_provided() {
+        let mut opts = base_opts();
+        opts.migrate_report = Some(PathBuf::from("migrate-report.json"));
+        let p = build_compare_packet(&opts, &sample_packet(), &sample_legacy(), None).unwrap();
+        assert!(
+            p.paths
+                .migrate_report
+                .as_ref()
+                .is_some_and(|s| s.contains("migrate-report.json"))
+        );
     }
 }

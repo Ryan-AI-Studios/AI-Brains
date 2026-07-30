@@ -23,7 +23,8 @@ fn dogfood_compare__help__lists_flags() {
         .success()
         .stdout(predicate::str::contains("--governed"))
         .stdout(predicate::str::contains("--legacy"))
-        .stdout(predicate::str::contains("--out"));
+        .stdout(predicate::str::contains("--out"))
+        .stdout(predicate::str::contains("--migrate-report"));
 }
 
 #[test]

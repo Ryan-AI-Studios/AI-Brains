@@ -76,7 +76,43 @@ function Get-FileSha256Hex([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) {
         return $null
     }
-    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    try {
+        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    catch {
+        # Live vault may be locked by daemon/another process — treat as N/A for D24.
+        Write-WarnMsg "D24: could not hash live vault ($Path): $_"
+        return $null
+    }
+}
+
+# PS 5.1 Set-Content -Encoding utf8 emits BOM; serde_json rejects BOM-leading JSON.
+$script:Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+
+function Write-JsonNoBom([string]$Path, [string]$Content) {
+    [System.IO.File]::WriteAllText($Path, $Content, $script:Utf8NoBom)
+}
+
+function Write-CliStdoutNoBom([string]$Path, [scriptblock]$Command) {
+    # Capture CLI stdout only (not stderr) and write BOM-less UTF-8 for serde_json.
+    $out = & $Command
+    $exit = $LASTEXITCODE
+    if ($exit -ne 0) {
+        throw "CLI command failed exit $exit while writing $Path"
+    }
+    $text = if ($null -eq $out) {
+        ""
+    }
+    elseif ($out -is [System.Array]) {
+        ($out | ForEach-Object { "$_" }) -join [Environment]::NewLine
+    }
+    else {
+        "$out"
+    }
+    if (-not [string]::IsNullOrEmpty($text) -and -not $text.EndsWith("`n")) {
+        $text = $text + [Environment]::NewLine
+    }
+    Write-JsonNoBom -Path $Path -Content $text
 }
 
 function Resolve-LiveVaultPathForIntegrity {
@@ -175,6 +211,8 @@ $legacyPreflight = Join-Path $WorkDir "legacy-preflight.json"
 $compareOut = Join-Path $WorkDir "dogfood-compare.json"
 $migrateReport = Join-Path $WorkDir "migrate-report.json"
 $fixtureDb = Join-Path $WorkDir "fixture.db"
+$fixtureProjectIdFile = Join-Path $WorkDir "fixture-project-id.txt"
+$fixtureProjectId = $null
 
 Write-Info "WorkDir=$WorkDir"
 Write-Info "D26: will pass --vault-path for compare; will NEVER set AI_BRAINS_VAULT_PATH to shadow/migrated."
@@ -185,7 +223,12 @@ $liveVault = Resolve-LiveVaultPathForIntegrity -WorkDirResolved $WorkDir
 $shaPre = $null
 if ($liveVault) {
     $shaPre = Get-FileSha256Hex -Path $liveVault
-    Write-Info "D24 live vault pre-hash: $shaPre (path recorded in compare only)"
+    if ($shaPre) {
+        Write-Info "D24 live vault pre-hash: $shaPre (path basename only in evidence)"
+    }
+    else {
+        Write-Info "D24 live vault resolved but SHA-256 N/A (locked or unreadable); path not required for Stage B"
+    }
 }
 else {
     Write-Info "D24: no live vault resolved (N/A)"
@@ -201,9 +244,15 @@ if (-not $SkipEvaluate) {
     if (-not (Test-Path -LiteralPath $EvaluateFixtures)) {
         throw "Evaluate fixtures path not found: $EvaluateFixtures"
     }
+    # D20 idempotency: remove existing report (or use --allow-report-overwrite).
+    if (Test-Path -LiteralPath $evaluateReport) {
+        Write-WarnMsg "Removing existing evaluate-report.json for idempotent re-run (D20)"
+        Remove-Item -LiteralPath $evaluateReport -Force
+    }
     & ai-brains --no-project-context evaluate governed `
         --fixtures $EvaluateFixtures `
-        --report $evaluateReport
+        --report $evaluateReport `
+        --allow-report-overwrite
     $t169Exit = $LASTEXITCODE
     if ($t169Exit -ne 0) {
         Write-Error "Stage A evaluate failed with exit $t169Exit (0=pass, 1=tool, 7=trust fail). Aborting dogfood."
@@ -211,7 +260,7 @@ if (-not $SkipEvaluate) {
     }
     if (Test-Path -LiteralPath $evaluateReport) {
         try {
-            $evalJson = Get-Content -LiteralPath $evaluateReport -Raw | ConvertFrom-Json
+            $evalJson = Get-Content -LiteralPath $evaluateReport -Raw -Encoding UTF8 | ConvertFrom-Json
             $t169ReportHash = $evalJson.report_hash
             $t169Hard = [bool]$evalJson.hard_gates_passed
             Write-Info "Stage A report_hash=$t169ReportHash hard_gates_passed=$t169Hard"
@@ -250,22 +299,38 @@ else {
         $prevProject = $env:AI_BRAINS_PROJECT_ID
         $prevSession = $env:AI_BRAINS_SESSION_ID
         try {
-            $env:AI_BRAINS_PROJECT_ID = [guid]::NewGuid().ToString()
+            $fixtureProjectId = [guid]::NewGuid().ToString()
+            $env:AI_BRAINS_PROJECT_ID = $fixtureProjectId
             $env:AI_BRAINS_SESSION_ID = [guid]::NewGuid().ToString()
+            # Persist for re-run / briefing --project-id (R1-01).
+            Write-JsonNoBom -Path $fixtureProjectIdFile -Content $fixtureProjectId
             & ai-brains --no-project-context --vault-path $fixtureDb pin "DECISION: T170 Stage B fixture decision"
             if ($LASTEXITCODE -ne 0) {
-                Write-WarnMsg "pin decision failed ($LASTEXITCODE); continuing with empty-ish fixture"
+                throw "Stage B pin decision failed exit $LASTEXITCODE (refusing empty fixture)"
             }
             & ai-brains --no-project-context --vault-path $fixtureDb pin "CONSTRAINT: T170 fixture vault is not live"
             if ($LASTEXITCODE -ne 0) {
-                Write-WarnMsg "pin constraint failed ($LASTEXITCODE)"
+                throw "Stage B pin constraint failed exit $LASTEXITCODE (refusing incomplete fixture)"
             }
+            Write-Info "Stage B fixture project_id=$fixtureProjectId (saved to fixture-project-id.txt)"
         }
         finally {
             if ($null -eq $prevProject) { Remove-Item Env:AI_BRAINS_PROJECT_ID -ErrorAction SilentlyContinue }
             else { $env:AI_BRAINS_PROJECT_ID = $prevProject }
             if ($null -eq $prevSession) { Remove-Item Env:AI_BRAINS_SESSION_ID -ErrorAction SilentlyContinue }
             else { $env:AI_BRAINS_SESSION_ID = $prevSession }
+        }
+    }
+    else {
+        # Reuse existing fixture; load persisted project_id when present.
+        if (Test-Path -LiteralPath $fixtureProjectIdFile) {
+            $fixtureProjectId = (Get-Content -LiteralPath $fixtureProjectIdFile -Raw -Encoding UTF8).Trim()
+            if ($fixtureProjectId) {
+                Write-Info "Stage B reusing fixture project_id=$fixtureProjectId"
+            }
+        }
+        if (-not $fixtureProjectId) {
+            Write-WarnMsg "Stage B fixture.db exists but fixture-project-id.txt missing; briefing may be empty without --project-id"
         }
     }
     $sourceForShadow = $fixtureDb
@@ -348,16 +413,40 @@ if ($env:AI_BRAINS_VAULT_PATH) {
 
 # --- Capture compare inputs (skip if DryRun with no shadow file) ---
 if (-not $DryRun -and (Test-Path -LiteralPath $dbForCompare)) {
-    Write-Info "Capture governed: briefing project --vault-path $dbForCompare"
+    # Idempotent re-run: clear regenerated JSON partials under WorkDir.
+    foreach ($partial in @($governedPacket, $legacyPreflight, $compareOut)) {
+        if (Test-Path -LiteralPath $partial) {
+            Write-WarnMsg "Removing regenerated artifact for re-run: $(Split-Path -Leaf $partial)"
+            Remove-Item -LiteralPath $partial -Force
+        }
+    }
+
+    # Global --vault-path must precede the subcommand (not global=true in clap).
+    $briefingArgs = @(
+        "--no-project-context",
+        "--vault-path", $dbForCompare,
+        "briefing", "project",
+        "--format", "json"
+    )
+    if ($fixtureProjectId -and $stage -eq "B") {
+        $briefingArgs += @("--project-id", $fixtureProjectId)
+        Write-Info "Capture governed: --vault-path $dbForCompare briefing project --project-id $fixtureProjectId"
+    }
+    else {
+        Write-Info "Capture governed: --vault-path $dbForCompare briefing project"
+    }
+
     $prevFlag = $env:AI_BRAINS_GOVERNED_BRIEFING
     try {
-        & ai-brains --no-project-context briefing project --vault-path $dbForCompare --format json `
-            | Set-Content -LiteralPath $governedPacket -Encoding utf8
+        Write-CliStdoutNoBom -Path $governedPacket -Command {
+            & ai-brains @briefingArgs
+        }
 
         Write-Info "Capture legacy: preflight --vault-path with AI_BRAINS_GOVERNED_BRIEFING=0"
         $env:AI_BRAINS_GOVERNED_BRIEFING = "0"
-        & ai-brains --no-project-context preflight --vault-path $dbForCompare --format json `
-            | Set-Content -LiteralPath $legacyPreflight -Encoding utf8
+        Write-CliStdoutNoBom -Path $legacyPreflight -Command {
+            & ai-brains --no-project-context --vault-path $dbForCompare preflight --format json
+        }
     }
     finally {
         if ($null -eq $prevFlag) {
@@ -379,6 +468,9 @@ if (-not $DryRun -and (Test-Path -LiteralPath $dbForCompare)) {
     )
     if (Test-Path -LiteralPath $evaluateReport) {
         $compareArgs += @("--evaluate-report", $evaluateReport)
+    }
+    if (Test-Path -LiteralPath $migrateReport) {
+        $compareArgs += @("--migrate-report", $migrateReport)
     }
     if (Test-Path -LiteralPath $shadowDb) {
         $compareArgs += @("--shadow", $shadowDb)
@@ -405,7 +497,12 @@ if (-not $DryRun -and (Test-Path -LiteralPath $dbForCompare)) {
         }
         if ($shaPre) { $compareArgs += @("--sha256-pre", $shaPre) }
         if ($shaPost) { $compareArgs += @("--sha256-post", $shaPost) }
-        Write-Info "D24 live vault post-hash: $shaPost (match=$($shaPre -eq $shaPost))"
+        if ($shaPost) {
+            Write-Info "D24 live vault post-hash: $shaPost (match=$($shaPre -eq $shaPost))"
+        }
+        else {
+            Write-Info "D24 live vault post-hash: N/A (locked or unreadable)"
+        }
     }
 
     & ai-brains @compareArgs
@@ -430,15 +527,16 @@ else {
 # --- Rollback drill helper (print only; does not enable live) ---
 Write-Host ""
 Write-Host "=== Rollback drill (D21/D23) — run manually on work db ===" -ForegroundColor Cyan
+$projectIdHint = if ($fixtureProjectId) { " --project-id $fixtureProjectId" } else { "" }
 Write-Host @"
 # Flag off → legacy (expect text does NOT match (governed))
 `$env:AI_BRAINS_GOVERNED_BRIEFING = '0'
-ai-brains preflight --vault-path $dbForCompare --format json
+ai-brains --no-project-context --vault-path $dbForCompare preflight --format json
 
 # Flag on → governed probe (expect (governed) in text OR briefing project OK)
 `$env:AI_BRAINS_GOVERNED_BRIEFING = '1'
-ai-brains preflight --vault-path $dbForCompare --format json
-ai-brains briefing project --vault-path $dbForCompare --format json
+ai-brains --no-project-context --vault-path $dbForCompare preflight --format json
+ai-brains --no-project-context --vault-path $dbForCompare briefing project$projectIdHint --format json
 
 # Rollback primary
 `$env:AI_BRAINS_GOVERNED_BRIEFING = '0'
