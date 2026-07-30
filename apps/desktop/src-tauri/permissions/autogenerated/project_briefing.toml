@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-project-briefing"
+description = "Enables the project_briefing command without any pre-configured scope."
+commands.allow = ["project_briefing"]
+
+[[permission]]
+identifier = "deny-project-briefing"
+description = "Denies the project_briefing command without any pre-configured scope."
+commands.deny = ["project_briefing"]

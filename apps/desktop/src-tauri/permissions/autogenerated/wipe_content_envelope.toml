@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-wipe-content-envelope"
+description = "Enables the wipe_content_envelope command without any pre-configured scope."
+commands.allow = ["wipe_content_envelope"]
+
+[[permission]]
+identifier = "deny-wipe-content-envelope"
+description = "Denies the wipe_content_envelope command without any pre-configured scope."
+commands.deny = ["wipe_content_envelope"]

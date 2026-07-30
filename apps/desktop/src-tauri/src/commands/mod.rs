@@ -1,11 +1,26 @@
 //! Tauri invoke commands — adapter surface only (no domain policy).
 
+pub mod api;
+pub mod http_client;
+
+pub use http_client::InvokeApiError;
+
 use serde::Serialize;
 use std::path::PathBuf;
+#[cfg(test)]
+use std::sync::Mutex;
 
 /// Default daemon HTTP port when `AI_BRAINS_HTTP_PORT` is unset (matches api-server).
 const DEFAULT_HTTP_PORT: u16 = 7432;
 const HTTP_PORT_ENV: &str = "AI_BRAINS_HTTP_PORT";
+/// Optional absolute path override for the user-session token file.
+///
+/// Intended for tests and advanced installs. When unset, the default is
+/// `%USERPROFILE%\.ai-brains\http.token` (or `$HOME/.ai-brains/http.token`).
+const TOKEN_PATH_ENV: &str = "AI_BRAINS_HTTP_TOKEN_PATH";
+
+#[cfg(test)]
+static TOKEN_PATH_OVERRIDE_FOR_TESTS: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 /// Static smoke response for host reachability (no HTTP, no vault).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -33,8 +48,40 @@ pub fn ping_payload() -> PingResponse {
     }
 }
 
-/// Resolve user-session token path: `%USERPROFILE%\.ai-brains\http.token`.
+/// Test-only hook: force `user_session_token_path` to a fixed path (or clear).
+///
+/// Prefer writing a real temp token file and pointing here rather than
+/// mutating the developer's home directory.
+#[cfg(test)]
+pub fn set_token_path_override_for_tests(path: Option<PathBuf>) {
+    if let Ok(mut guard) = TOKEN_PATH_OVERRIDE_FOR_TESTS.lock() {
+        *guard = path;
+    }
+}
+
+/// Resolve user-session token path.
+///
+/// Order:
+/// 1. `#[cfg(test)]` override via [`set_token_path_override_for_tests`]
+/// 2. `AI_BRAINS_HTTP_TOKEN_PATH` env (absolute path; testability / advanced)
+/// 3. `%USERPROFILE%\.ai-brains\http.token` (or `$HOME/...`)
 pub fn user_session_token_path() -> Option<PathBuf> {
+    #[cfg(test)]
+    {
+        if let Ok(guard) = TOKEN_PATH_OVERRIDE_FOR_TESTS.lock()
+            && let Some(ref p) = *guard
+        {
+            return Some(p.clone());
+        }
+    }
+
+    if let Ok(raw) = std::env::var(TOKEN_PATH_ENV) {
+        let trimmed = raw.trim();
+        if !trimmed.is_empty() {
+            return Some(PathBuf::from(trimmed));
+        }
+    }
+
     dirs::home_dir().map(|home| home.join(".ai-brains").join("http.token"))
 }
 

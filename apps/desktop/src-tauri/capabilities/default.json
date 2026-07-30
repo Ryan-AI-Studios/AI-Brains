@@ -1,13 +1,24 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimal main-window capability for T171 smoke (no menu/tray/resources)",
+  "description": "Main-window capability for T172 minimum screens (adapter invoke only)",
   "windows": ["main"],
   "permissions": [
     "core:app:default",
     "core:event:default",
     "core:window:default",
     "allow-ping",
-    "allow-get-daemon-connection-info"
+    "allow-get-daemon-connection-info",
+    "allow-project-briefing",
+    "allow-personal-briefing",
+    "allow-query-knowledge",
+    "allow-inspect-evidence",
+    "allow-inspect-source",
+    "allow-list-review-items",
+    "allow-resolve-review-item",
+    "allow-resolve-scope",
+    "allow-request-erasure",
+    "allow-wipe-content-envelope",
+    "allow-probe-health"
   ]
 }
