@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "cold_start_cited_project",
+  "title": "Cold-start current cited project briefing",
+  "tags": ["briefing", "citation", "hard-gate"],
+  "status": "active",
+  "seed": {
+    "program": "project_briefing_minimal",
+    "params": {}
+  },
+  "min_valid_claims_count": 1,
+  "actions": [
+    { "op": "build_project_briefing", "dry_run": true }
+  ],
+  "asserts": {
+    "hard": [
+      { "metric": "stale_as_current_count", "op": "eq", "value": 0 },
+      { "metric": "unauthorized_scope_leakage_count", "op": "eq", "value": 0 },
+      { "metric": "current_claim_count", "op": "gte", "value": 1 },
+      { "metric": "uncited_current_claim_count", "op": "eq", "value": 0 }
+    ],
+    "soft": [
+      { "metric": "citation_coverage", "op": "gte", "value": 1.0 },
+      { "metric": "budget_compliant", "op": "eq", "value": true }
+    ]
+  }
+}

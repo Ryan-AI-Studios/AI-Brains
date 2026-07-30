@@ -324,6 +324,17 @@ enum Commands {
         #[command(subcommand)]
         command: Box<MigrateCommands>,
     },
+    /// Evaluate governed-memory trust scenarios (T169). Hermetic tempfile vaults only.
+    ///
+    /// Exit: 0 hard pass; 1 internal/path refuse; 6 invalid payload; 7 hard-gate fail.
+    /// Soft metric misses do not fail unless `--strict-soft`. Never mutates live vault.
+    #[command(
+        after_help = "Examples:\n  ai-brains evaluate governed --fixtures fixtures/governed-memory/scenarios\n  ai-brains evaluate governed --fixtures ./scenarios --report ./evaluate-report.json"
+    )]
+    Evaluate {
+        #[command(subcommand)]
+        command: EvaluateCommands,
+    },
     /// Build typed Project / Personal briefing packets (T152)
     ///
     /// Empty-state contract: denied/unresolved scopes return a packet with
@@ -870,6 +881,31 @@ enum ShadowCommands {
 }
 
 #[derive(Subcommand)]
+enum EvaluateCommands {
+    /// Run versioned governed-memory scenario corpus + hard/soft metrics
+    Governed {
+        /// Directory of scenario JSON files (default: fixtures/governed-memory/scenarios)
+        #[arg(long, default_value = "fixtures/governed-memory/scenarios")]
+        fixtures: PathBuf,
+        /// Optional path to write evaluate-report.json (stdout always gets JSON too)
+        #[arg(long)]
+        report: Option<PathBuf>,
+        /// Filter to one or more scenario ids (default: all)
+        #[arg(long = "scenario")]
+        scenario: Vec<String>,
+        /// Soft metric failures → exit 7
+        #[arg(long)]
+        strict_soft: bool,
+        /// Deferred scenarios count as hard fail
+        #[arg(long)]
+        require_all_active: bool,
+        /// Allow overwriting an existing report file
+        #[arg(long)]
+        allow_report_overwrite: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum MigrateCommands {
     /// Classify legacy events via T167; write differential report; optional dest apply
     Governed {
@@ -1340,7 +1376,7 @@ fn main() {
     // Sync vault-path-free commands: handle before async runtime work.
     if matches!(
         &cli.command,
-        Commands::Shadow { .. } | Commands::Migrate { .. }
+        Commands::Shadow { .. } | Commands::Migrate { .. } | Commands::Evaluate { .. }
     ) {
         handle_cli_result(run_sync_path_free(cli));
         return;
@@ -1398,7 +1434,7 @@ fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
     }
 }
 
-/// Shadow / migrate open their own vaults and must not require AppContext.
+/// Shadow / migrate / evaluate open their own vaults and must not require AppContext.
 fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Commands::Shadow { command } => match command {
@@ -1452,7 +1488,25 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 })
             }
         },
-        _ => unreachable!("run_sync_path_free only for Shadow/Migrate"),
+        Commands::Evaluate { command } => match command {
+            EvaluateCommands::Governed {
+                fixtures,
+                report,
+                scenario,
+                strict_soft,
+                require_all_active,
+                allow_report_overwrite,
+            } => commands::evaluate::run_governed(commands::evaluate::GovernedEvaluateOptions {
+                fixtures,
+                report,
+                scenario,
+                strict_soft,
+                require_all_active,
+                allow_report_overwrite,
+                vault_path: cli.vault_path,
+            }),
+        },
+        _ => unreachable!("run_sync_path_free only for Shadow/Migrate/Evaluate"),
     }
 }
 
@@ -1461,6 +1515,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &cli.command {
         Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
+        Commands::Evaluate { .. } => unreachable!("evaluate handled in run_sync_path_free"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {
                 project_id,

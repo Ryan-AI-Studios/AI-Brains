@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "erased_evidence_removes_derived",
+  "title": "Erased evidence removes derived content",
+  "tags": ["erasure", "ce", "hard-gate"],
+  "status": "active",
+  "seed": {
+    "program": "erasure_ce_wipe",
+    "params": { "wipe_reason": "evaluation CE wipe" }
+  },
+  "min_valid_claims_count": 1,
+  "actions": [
+    { "op": "build_project_briefing", "dry_run": true }
+  ],
+  "asserts": {
+    "hard": [
+      { "metric": "stale_as_current_count", "op": "eq", "value": 0 },
+      { "metric": "ce_subject_absent", "op": "eq", "value": 0 },
+      { "metric": "must_be_absent_present_count", "op": "eq", "value": 0 },
+      { "metric": "unauthorized_scope_leakage_count", "op": "eq", "value": 0 },
+      { "metric": "current_claim_count", "op": "gte", "value": 1 }
+    ],
+    "soft": []
+  }
+}

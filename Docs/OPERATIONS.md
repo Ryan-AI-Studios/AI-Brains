@@ -291,6 +291,24 @@ ai-brains migrate governed --source .\s.db --destination .\d.db --report .\r.jso
 
 **Rollback:** discard destination vault + report; do not point `AI_BRAINS_VAULT_PATH` at the destination until T170 dogfood passes. Live vault is never modified by this command.
 
+### Governed evaluate CLI (T169 / P9.3)
+
+Hermetic **trust-gate** harness over synthetic scenarios (tempfile vaults only). Full metric definitions, catalog, and limitations: [EVALUATION/GOVERNED-MEMORY-MVP.md](EVALUATION/GOVERNED-MEMORY-MVP.md).
+
+```powershell
+ai-brains evaluate governed --fixtures fixtures/governed-memory/scenarios
+ai-brains evaluate governed --fixtures fixtures/governed-memory/scenarios --report .\evaluate-report.json
+```
+
+| Exit | Meaning |
+|------|---------|
+| **0** | Hard gates passed |
+| **1** | Internal / path refuse (tool broke) |
+| **6** | Invalid scenario schema/payload |
+| **7** | `HARD_GATE_FAILED` (trust regression) or `--strict-soft` quality fail |
+
+Scenario 10 (circularity) runs in `ai-brains-sources` nextest (`runner=sources_tests`); the CP CLI report marks it skipped with that reason when not aggregated.
+
 ## 4. Project & Session Management
 
 ### Project Setup

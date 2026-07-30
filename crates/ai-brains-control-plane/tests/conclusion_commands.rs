@@ -451,6 +451,7 @@ fn reject_and_correct_conclusion__supersession_batch() {
         vec![EvidenceId::new()],
         "better evidence",
         Privacy::LocalOnly,
+        None,
     )
     .unwrap();
     assert_ne!(new_id, res2.conclusion_id);
@@ -501,6 +502,7 @@ fn correct_conclusion__from_candidate__fails_invalid_transition() {
         vec![EvidenceId::new()],
         "attempt from candidate",
         Privacy::LocalOnly,
+        None,
     )
     .unwrap_err();
     assert!(
@@ -552,6 +554,7 @@ fn correct_conclusion__policy_deny__fails() {
         vec![EvidenceId::new()],
         "policy blocks propose",
         Privacy::LocalOnly,
+        None,
     )
     .unwrap_err();
     assert!(
@@ -602,6 +605,7 @@ fn correct_conclusion__from_active__succeeds() {
         vec![EvidenceId::new()],
         "fix after activate",
         Privacy::LocalOnly,
+        None,
     )
     .unwrap();
     let old = ports

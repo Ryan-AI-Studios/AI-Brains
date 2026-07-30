@@ -7,6 +7,7 @@ pub mod context;
 pub mod daemon;
 pub mod decision;
 pub mod erasure;
+pub mod evaluate;
 pub mod evidence;
 pub mod forget;
 pub mod governed_common;
