@@ -33,6 +33,8 @@ pub const EXIT_POLICY_DENIED: i32 = 3;
 pub const EXIT_NOT_FOUND: i32 = 4;
 pub const EXIT_DAEMON_UNAVAILABLE: i32 = 5;
 pub const EXIT_INVALID_PAYLOAD: i32 = 6;
+/// Trust hard-gate failure (T169 evaluate governed). Distinct from EXIT_INTERNAL (tool broke).
+pub const EXIT_HARD_GATE_FAILED: i32 = 7;
 
 /// Map a structured API error code to a CLI exit code.
 pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
@@ -44,6 +46,8 @@ pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
         "APPROVAL_REQUIRED" => EXIT_POLICY_DENIED,
         // Path / live-vault refusals (migrate, shadow reuse) → EXIT_INTERNAL (1).
         "PATH_REFUSED" => EXIT_INTERNAL,
+        // Evaluate trust gates failed (harness worked; product blocked).
+        "HARD_GATE_FAILED" => EXIT_HARD_GATE_FAILED,
         _ => EXIT_INTERNAL,
     }
 }
