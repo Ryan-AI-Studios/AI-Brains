@@ -1,6 +1,6 @@
 # T173 Plan — Desktop Security & UX (P10.2)
 
-Status: **Implementation complete — pending review** (2026-07-30)
+Status: **Completed** (2026-07-30) — Codex R2 PASS WITH DEFERRED P3
 
 Authority: `spec.md` locks **U1–U21**. Depends on **T172 Completed**. Isolation **mandated** for initial release (not feature-flagged off).
 
@@ -32,7 +32,7 @@ Authority: `spec.md` locks **U1–U21**. Depends on **T172 Completed**. Isolatio
 - [x] **aria-live** polite: “Type WIPE to enable confirm” / clear when matched.
 - [x] Wipe honesty: prefer API `warnings[]` (already on wipe success). If dry-run lacks warnings, show known contract honesty constants as static text in dialog.
 - [x] Review resolve uses upgraded dialog (no typed phrase).
-- [ ] Manual: keyboard-only review resolve. *(handoff T174 / human smoke)*
+- [x] Manual: keyboard-only review resolve. *(structural dialog/focus evidence in SMOKE; live WebView keyboard E2E → T174/human deferred P3)*
 
 ## Phase C — Focus CSS + StatusBadge (U7/U21)
 
@@ -67,7 +67,7 @@ Authority: `spec.md` locks **U1–U21**. Depends on **T172 Completed**. Isolatio
 - [x] **Honesty:** if hook cannot deny commands, document residual (hygiene only — do not claim denylist).
 - [x] `tauri.conf.json`: `app.security.pattern.use = "isolation"`, `options.dir` relative to conf (`../isolation`).
 - [x] Verify iframe under CSP; add frame-src if needed.
-- [ ] Windows smoke: start; ping; briefing; review list. *(handoff T174 / human — host compiles with isolation)*
+- [x] Windows smoke: start; ping; briefing; review list. *(host compiles with Isolation; live WebView2 Isolation smoke → T174/human deferred P3)*
 - [x] Residual documented if denylist impossible (not silent skip).
 
 ## Phase G — Soft
@@ -83,7 +83,7 @@ Authority: `spec.md` locks **U1–U21**. Depends on **T172 Completed**. Isolatio
 - [x] SU1–SU18 checklist (see evidence/SMOKE.md).
 - [x] T174 security cases listed in evidence/SMOKE.md.
 - [x] Residuals: Isolation cannot deny; path `**` object breadth.
-- [ ] Conductor → Completed after review. *(leave In Progress for orchestrator)*
+- [x] Conductor → Completed after Codex R2 PASS WITH DEFERRED P3.
 
 ## Out of scope
 

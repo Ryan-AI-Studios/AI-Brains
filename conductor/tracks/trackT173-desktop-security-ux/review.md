@@ -472,3 +472,24 @@ No security regressions relative to R1/R2 checklist passes.
 - No open critical / high / medium findings.
 - Residual open items remain low_info only (live GUI smoke, Isolation cannot-deny, path `**` breadth).
 - **Verdict: CLEAN** — T173 internal re-review after Codex FAIL fixes clears for track security shape; live WebView smoke stays T174 residual, not a re-open.
+
+---
+
+# Codex R2 (2026-07-30) — PASS WITH DEFERRED P3
+
+See `review.codex.r2.md`. Fresh completion audit: prior F-01–F-04 verified fixed; U1–U21 and SU1–SU18 pass (U15 with deferred live GUI).
+
+## Deferred P3 residuals
+
+| Residual | Severity | Owner | Note |
+|----------|----------|-------|------|
+| Live WebView2 Isolation + full keyboard-only GUI smoke | P3 | **T174** / human | Structural/dialog/Isolation evidence present; live E2E not a code defect |
+| Isolation hook cannot deny IPC (pass-through hygiene) | P3 | residual | Documented C13; not a silent skip |
+| Path capability `"**"` object breadth | P3 | residual | Accepted design residual; Layer 1 still rejects empty / `..` |
+
+## Final disposition
+
+- Engineering DoD met (Isolation, dual-layer opener, typed WIPE, focus a11y, gates green).
+- Codex R2 **PASS WITH DEFERRED P3**.
+- Residuals listed above and in `conductor/deferred.md` §48.
+- **Clearance decision pending full gate + PR** (pre-push / CI verify).

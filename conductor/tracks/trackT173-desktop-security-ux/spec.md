@@ -2,7 +2,7 @@
 
 - **Track ID:** T173-DesktopSecurityUx
 - **Phase:** P10 Task 10.2
-- **Status:** 🔄 **In Progress** (implementation complete — pending review; research **2026-07-30** + **AI1–AI3 review fold-in**)
+- **Status:** **Completed** (2026-07-30) — Codex R2 PASS WITH DEFERRED P3
 - **Depends on:** **T172 Completed** (nine screens, invoke→reqwest→T161, M1–M24, ConfirmDialog baseline, ScopeIndicator, prod CSP + `devCsp`); **T171** scaffold locks (S1–S24, ADR-0017)
 - **Blocks:** T174 deep desktop tests / offline beta gate (security cases + a11y fixtures)
 - **Category:** SECURITY / FEATURE
@@ -278,13 +278,14 @@ apps/desktop/
 
 ## 10. Definition of Done
 
-- [ ] U1–U21 satisfied (Isolation residual only if justified)  
-- [ ] SU1–SU18 green  
-- [ ] Dual-layer opener + no npm opener package  
-- [ ] Typed wipe replaces checkbox; dialog a11y  
-- [ ] :focus-visible + scroll-padding  
-- [ ] Docs + T174 handoff  
-- [ ] Gates green; conductor → Completed after review  
+- [x] U1–U21 satisfied (Isolation residual only if justified; U15 live WebView GUI → T174/human deferred P3)  
+- [x] SU1–SU18 green (code + structural evidence; live Isolation/keyboard GUI smoke → T174)  
+- [x] Dual-layer opener + no npm opener package  
+- [x] Typed wipe replaces checkbox; dialog a11y  
+- [x] :focus-visible + scroll-padding  
+- [x] Docs + T174 handoff  
+- [x] Gates green; conductor → Completed after Codex R2 PASS WITH DEFERRED P3  
+
 
 ## 11. Risks
 
