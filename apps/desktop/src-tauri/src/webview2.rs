@@ -22,6 +22,25 @@ pub enum WebView2Status {
     Missing,
 }
 
+/// Pure: whether a registry `pv` value indicates an installed Evergreen Runtime.
+///
+/// Empty and `0.0.0.0` are treated as not installed (Microsoft placeholder values).
+pub fn pv_indicates_installed(pv: &str) -> bool {
+    !pv.is_empty() && pv != "0.0.0.0"
+}
+
+/// Pure: dialog / console body shown when WebView2 is missing (includes Bootstrapper URL).
+pub fn webview2_missing_message() -> String {
+    format!(
+        "Microsoft Edge WebView2 Runtime was not found on this system.\n\n\
+         AI-Brains Desktop needs WebView2 to display its UI.\n\n\
+         WebView2 is preinstalled on Windows 10 (1803+) and Windows 11 for most SKUs.\n\
+         On stripped or older systems, install the Evergreen Bootstrapper from:\n\
+         {WEBVIEW2_BOOTSTRAPPER_URL}\n\n\
+         The application will now exit."
+    )
+}
+
 /// Detect WebView2 Evergreen Runtime presence.
 ///
 /// Non-Windows targets always report [`WebView2Status::Available`] (optional
@@ -43,6 +62,11 @@ pub fn detect_webview2() -> WebView2Status {
 /// If WebView2 is missing on Windows, show a blocking dialog and exit with code 1.
 ///
 /// Safe to call before Tauri starts. Does not panic.
+///
+/// Process-exit path is intentionally not unit-tested (would terminate the test
+/// process). Coverage for the Missing branch is the pure message builder plus
+/// production wiring: `detect_webview2() == Missing` → `show_missing_dialog()` →
+/// `std::process::exit(EXIT_WEBVIEW2_MISSING)`.
 pub fn ensure_webview2_or_exit() {
     if detect_webview2() == WebView2Status::Missing {
         show_missing_dialog();
@@ -70,7 +94,7 @@ fn webview2_registry_has_version() -> bool {
 
     for &(root, base) in ROOTS {
         let subkey = format!(r"{base}\{WEBVIEW2_CLIENT_GUID}");
-        if read_pv(root, &subkey).is_some_and(|pv| !pv.is_empty() && pv != "0.0.0.0") {
+        if read_pv(root, &subkey).is_some_and(|pv| pv_indicates_installed(&pv)) {
             return true;
         }
     }
@@ -79,25 +103,18 @@ fn webview2_registry_has_version() -> bool {
 
 #[cfg(windows)]
 fn read_pv(root: windows::Win32::System::Registry::HKEY, subkey: &str) -> Option<String> {
-    use windows::core::PCWSTR;
     use windows::Win32::Foundation::ERROR_SUCCESS;
     use windows::Win32::System::Registry::{
-        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, KEY_READ, REG_SZ, REG_VALUE_TYPE,
+        HKEY, KEY_READ, REG_SZ, REG_VALUE_TYPE, RegCloseKey, RegOpenKeyExW, RegQueryValueExW,
     };
+    use windows::core::PCWSTR;
 
     let wide: Vec<u16> = subkey.encode_utf16().chain(std::iter::once(0)).collect();
     let mut hkey = HKEY::default();
 
     // SAFETY: subkey is a valid NUL-terminated UTF-16 path; hkey is written only on success.
-    let open_status = unsafe {
-        RegOpenKeyExW(
-            root,
-            PCWSTR(wide.as_ptr()),
-            Some(0),
-            KEY_READ,
-            &mut hkey,
-        )
-    };
+    let open_status =
+        unsafe { RegOpenKeyExW(root, PCWSTR(wide.as_ptr()), Some(0), KEY_READ, &mut hkey) };
     if open_status != ERROR_SUCCESS {
         return None;
     }
@@ -164,21 +181,14 @@ fn read_pv(root: windows::Win32::System::Registry::HKEY, subkey: &str) -> Option
 
 #[cfg(windows)]
 fn show_missing_dialog() {
+    use windows::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
     use windows::core::PCWSTR;
-    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
 
     let title: Vec<u16> = "AI-Brains — WebView2 required"
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect();
-    let body = format!(
-        "Microsoft Edge WebView2 Runtime was not found on this system.\n\n\
-         AI-Brains Desktop needs WebView2 to display its UI.\n\n\
-         WebView2 is preinstalled on Windows 10 (1803+) and Windows 11 for most SKUs.\n\
-         On stripped or older systems, install the Evergreen Bootstrapper from:\n\
-         {WEBVIEW2_BOOTSTRAPPER_URL}\n\n\
-         The application will now exit."
-    );
+    let body = webview2_missing_message();
     let body_wide: Vec<u16> = body.encode_utf16().chain(std::iter::once(0)).collect();
 
     // SAFETY: title/body are valid NUL-terminated UTF-16; HWND null is allowed for no owner.
@@ -194,9 +204,7 @@ fn show_missing_dialog() {
 
 #[cfg(not(windows))]
 fn show_missing_dialog() {
-    eprintln!(
-        "WebView2 runtime missing (unexpected on non-Windows). Bootstrapper: {WEBVIEW2_BOOTSTRAPPER_URL}"
-    );
+    eprintln!("{}", webview2_missing_message());
 }
 
 #[cfg(test)]
@@ -210,9 +218,56 @@ mod tests {
         assert!(WEBVIEW2_BOOTSTRAPPER_URL.contains("webview2"));
     }
 
+    #[test]
+    fn webview2_missing_message__contains_bootstrapper_url() {
+        let msg = webview2_missing_message();
+        assert!(
+            msg.contains(WEBVIEW2_BOOTSTRAPPER_URL),
+            "missing-dialog body must include Bootstrapper URL; got: {msg}"
+        );
+        assert!(
+            msg.contains("WebView2"),
+            "missing-dialog body must mention WebView2; got: {msg}"
+        );
+        assert!(
+            msg.contains("https://developer.microsoft.com"),
+            "missing-dialog body must point at Microsoft docs; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn pv_indicates_installed__empty__false() {
+        assert!(!pv_indicates_installed(""));
+    }
+
+    #[test]
+    fn pv_indicates_installed__placeholder_zero__false() {
+        assert!(!pv_indicates_installed("0.0.0.0"));
+    }
+
+    #[test]
+    fn pv_indicates_installed__real_version__true() {
+        assert!(pv_indicates_installed("1.2.3.4"));
+        assert!(pv_indicates_installed("144.0.3485.54"));
+    }
+
     #[cfg(not(windows))]
     #[test]
     fn detect_webview2__non_windows__available() {
         assert_eq!(detect_webview2(), WebView2Status::Available);
+    }
+
+    /// Proves the Windows registry path does not panic and returns a known variant.
+    /// Does not assert Available vs Missing (host-dependent); both are valid.
+    #[cfg(windows)]
+    #[test]
+    fn detect_webview2__windows__returns_known_variant() {
+        let status = detect_webview2();
+        // Visible under `cargo test -- --nocapture` for smoke evidence hosts.
+        eprintln!("detect_webview2() = {status:?}");
+        assert!(
+            matches!(status, WebView2Status::Available | WebView2Status::Missing),
+            "detect_webview2 must return Available or Missing; got: {status:?}"
+        );
     }
 }
