@@ -361,3 +361,114 @@ Source: `review.codex.md` Verdict FAIL
 | Live WebView2 Isolation + keyboard E2E | low_info / U15 partial | T174 / human (documented) |
 | Isolation cannot-deny | low_info | accepted residual |
 | Path capability `"**"` breadth | low_info | accepted residual; dual-layer Layer1 still tight |
+
+---
+
+## Internal Review R3
+Date: 2026-07-30  
+Reviewer: Internal Re-Reviewer (read-only + review.md update)  
+Branch: `feat/t173-desktop-security-ux`  
+Workspace: `C:\dev\AI-Brains-wt-t173`  
+Scope: Verify Codex FAIL fixes F-01..F-04 (post-fixer; claim commit `a627227`)  
+Source: `review.codex.md` FAIL + fixer disposition block above  
+Verdict: **CLEAN**
+
+## Codex finding dispositions (R3)
+
+| ID | Sev | Title | Prior (fixer) | R3 status | Result |
+|----|-----|-------|---------------|-----------|--------|
+| **F-01** | P1 | Dual-layer opener not effective on custom `OpenerExt` path | `fixed_pending_verification` | **`verified_fixed`** | Layer1 validators + Layer2 capability-mirror before `OpenerExt`; sync test vs `default.json` |
+| **F-02** | P2 | Windows/keyboard smoke incomplete | `fixed_pending_verification` | **`verified_fixed`** | Structural + host/unit evidence improved; live GUI residual T174 honest |
+| **F-03** | P3 | Stale StatusBadge not wired | `fixed_pending_verification` | **`verified_fixed`** | Home `FreshnessSummaryView` renders `kind="stale"` |
+| **F-04** | P2 | cargo audit evidence missing | `fixed_pending_verification` | **`verified_fixed`** | SMOKE records audit exit 0 + 19 allowed warnings |
+
+### F-01 — verified_fixed
+
+**Codex claim:** Scoped capability objects gate plugin IPC only; custom `open_url` / `reveal_path` called `OpenerExt` after validators alone — dual-layer incomplete.
+
+**R3 evidence (code re-read):**
+
+1. **Layer 1** — `validate_https_url` / `validate_reveal_path` still run first in commands  
+   (`apps/desktop/src-tauri/src/commands/open.rs` L256–257, L272–273).
+2. **Layer 2** — independent `url_capability_allows` / `path_capability_allows` run **before** `app.opener().open_*`  
+   (same file L257–261, L273–277). Constants `CAPABILITY_URL_ALLOWS = ["https://*"]`,  
+   `CAPABILITY_PATH_ALLOWS = ["**"]` (L26–33).
+3. **Sync test** — `default_json_url_allows_match_rust_mirror` parses  
+   `capabilities/default.json` via `include_str!` and asserts allow arrays match mirror constants  
+   (L403–464). `default.json` L26–32 is object-scoped `https://*` + path `**` (not  
+   `opener:default` / `allow-default-urls` / bare string open-path).
+4. **Honesty** — module docs + README state plugin IPC scopes alone do **not** gate `OpenerExt`;  
+   mirror is the effective second gate on the custom path.
+
+**Residual (unchanged low_info, not a re-open):** path mirror with `"**"` accepts any non-empty  
+path after Layer 1 (R1-04 / path capability residual). Layer 1 still refuses empty / `..` /  
+device forms. Acceptable for vault locators on arbitrary drives.
+
+### F-02 — verified_fixed (residual T174 remains low_info)
+
+**Codex claim:** Required Windows Isolation + keyboard live smoke deferred / incomplete.
+
+**R3 evidence:**
+
+- `evidence/SMOKE.md` F-02 section now has file:line structural walkthrough  
+  (`ConfirmDialog` showModal / Escape / restore-focus / Enter→Confirm / WIPE; Erasure typed WIPE;  
+  Review ConfirmDialog) plus Isolation conf + `isolation/index.html` + compile/unit table.
+- Explicit framing: host/unit + structural a11y verified; **live WebView2 E2E deferred to  
+  T174/human** (U15 partial) — honest residual, same class as R1-02.
+
+Not re-opened: residual is documented and severity stays low_info / U15 partial, not a code defect.
+
+### F-03 — verified_fixed
+
+**Codex claim:** `StatusBadge` had `stale` kind but production UI never rendered it; Home used plain text.
+
+**R3 evidence:**
+
+- `HomeScreen.tsx` `FreshnessSummaryView` (L294–325): when `stale_count > 0` or  
+  `worst_state === "stale"`, renders `<StatusBadge kind="stale" label=…>` (Clock icon + text).
+- `StatusBadge.tsx` still maps `stale → Clock` + `badge-warn` (icon + text, not color-only).
+- StatePanel still covers offline/denied/unavailable/error.
+
+### F-04 — verified_fixed
+
+**Codex claim:** SU12 requires license:check + deny + audit; SMOKE lacked `cargo audit`.
+
+**R3 evidence:**
+
+- `evidence/SMOKE.md` automated gates table includes `cargo audit` **PASS** (exit 0;  
+  0 vulnerabilities; 19 allowed warnings) with detail subsection for F-04 / SU12.
+- Implementer gate re-run block records same. Reviewer did not re-execute audit in this  
+  read-only pass; evidence artifact is present and specific enough for SU12 closure.
+
+## Regression scan (R3)
+
+| Surface | Result | Notes |
+|---------|--------|-------|
+| No JS `@tauri-apps/plugin-opener` | **OK** | Absent from `package.json` deps/devDeps; **no** matches in `package-lock.json`; `openExternal.ts` invoke-only |
+| Typed WIPE | **OK** | `ErasureScreen.tsx` L314 `typedConfirmPhrase={dryRun ? undefined : "WIPE"}`; Confirm disabled until exact match; Enter focuses Confirm (no auto-submit); Escape → cancel |
+| Isolation mandated | **OK** | `tauri.conf.json` L27 `"use": "isolation"`, dir `../isolation`; Cargo `features = ["isolation"]`; classic single-file `isolation/index.html` pass-through hook; residual cannot-deny documented |
+| Plugin order | **OK** | `lib.rs` single-instance first, then opener |
+| Capabilities shape | **OK** | Object-scoped only; capability_tests still forbid defaults / bare open-path |
+| Inert preview | **OK** | No `dangerouslySetInnerHTML` in `apps/desktop/src` |
+| Analytics | **OK** | No analytics SDK deps |
+
+No security regressions relative to R1/R2 checklist passes.
+
+## Open residuals after R3 (low_info only)
+
+| ID / item | Severity | Status | Note |
+|-----------|----------|--------|------|
+| R1-02 / F-02 live GUI | low_info / U15 partial | open | Live Isolation + keyboard WebView E2E → T174/human |
+| R1-03 | low_info | open | Isolation hook cannot deny IPC |
+| R1-04 / path `"**"` | low_info | open | Accepted residual; Layer 1 still tight |
+
+## New findings (R3)
+
+**None.**
+
+## R3 conclusion
+
+- Codex **F-01**, **F-02**, **F-03**, **F-04** are **`verified_fixed`**.
+- No open critical / high / medium findings.
+- Residual open items remain low_info only (live GUI smoke, Isolation cannot-deny, path `**` breadth).
+- **Verdict: CLEAN** — T173 internal re-review after Codex FAIL fixes clears for track security shape; live WebView smoke stays T174 residual, not a re-open.
