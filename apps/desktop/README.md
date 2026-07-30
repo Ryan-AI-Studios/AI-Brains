@@ -82,7 +82,7 @@ React Query defaults: **`retry: false`** for queries and mutations so offline/de
 | `#/query` | Knowledge query | Compact/expand results |
 | `#/evidence`, `#/evidence/:id` | Evidence inspect | Bounded preview |
 | `#/source`, `#/source/:id` | Source inspect | By id |
-| `#/claim/:kind/:id` | Claim detail | Read-only handles (no xyflow) |
+| `#/claims/:kind/:id` | Claim detail | Read-only handles (no xyflow); `#/claim/...` redirects |
 | `#/erasure` | Erasure | Ticket ≠ wipe honesty (M13); retention plan **unavailable** |
 | `#/connectors` | Connectors | Static **unavailable** (M4) |
 

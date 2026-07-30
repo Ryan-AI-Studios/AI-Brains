@@ -246,6 +246,26 @@ pub fn set_base_url_override_for_tests(url: Option<String>) {
     }
 }
 
+/// Build a sensitive `Authorization: Bearer …` header without a long-lived plain `String`.
+///
+/// Bytes are assembled in a [`Zeroizing`] buffer, then copied into a
+/// [`reqwest::header::HeaderValue`] marked sensitive (redacted in Debug). The
+/// Zeroizing buffer is zeroed on drop; HeaderValue ownership lasts for the
+/// request lifetime (reqwest API constraint).
+fn authorization_header_value(token: &str) -> Result<reqwest::header::HeaderValue, InvokeApiError> {
+    let mut buf = Zeroizing::new(Vec::with_capacity(7 + token.len()));
+    buf.extend_from_slice(b"Bearer ");
+    buf.extend_from_slice(token.as_bytes());
+    let mut value = reqwest::header::HeaderValue::from_bytes(buf.as_slice()).map_err(|e| {
+        InvokeApiError::error(
+            format!("invalid user-session token for Authorization header: {e}"),
+            None,
+        )
+    })?;
+    value.set_sensitive(true);
+    Ok(value)
+}
+
 /// Authenticated JSON request against a T161 path. Response body as `serde_json::Value`.
 pub async fn request_json(
     method: reqwest::Method,
@@ -271,13 +291,13 @@ pub async fn request_json(
         format!("{base}{path}?{}", pairs.join("&"))
     };
 
+    // Build Authorization without `format!` into a long-lived plain String:
+    // Zeroizing buffer → sensitive HeaderValue (redacted in Debug; never logged).
+    let auth_header = authorization_header_value(token.as_str())?;
+
     let mut builder = client
         .request(method, &url)
-        // Authorization header only; never log the bearer value.
-        .header(
-            reqwest::header::AUTHORIZATION,
-            format!("Bearer {}", token.as_str()),
-        )
+        .header(reqwest::header::AUTHORIZATION, auth_header)
         .header(reqwest::header::ACCEPT, "application/json");
 
     if let Some(json) = body {
