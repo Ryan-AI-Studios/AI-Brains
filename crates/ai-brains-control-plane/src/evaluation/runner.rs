@@ -21,7 +21,10 @@ use super::seeds::{SeedOutcome, open_hermetic_ports, run_seed};
 use ai_brains_core::privacy::Privacy;
 
 use crate::adapters::{StorePorts, SystemClock};
-use crate::briefings::{BudgetConfig, ProjectBriefingRequest, build_project_briefing};
+use crate::briefings::{
+    BudgetConfig, PersonalBriefingRequest, ProjectBriefingRequest, build_personal_briefing,
+    build_project_briefing,
+};
 use crate::errors::{ControlPlaneError, Result};
 
 /// Options for a full evaluate run.
@@ -234,6 +237,7 @@ fn run_one_scenario(scenario: &Scenario) -> Result<OneResult> {
         foreign_claim_ids: outcome.foreign_claim_ids.clone(),
         beta_claim_ids: outcome.beta_claim_ids.clone(),
         wiped_subject_id: outcome.wiped_subject_id.clone(),
+        must_be_absent_claim_ids: outcome.must_be_absent_claim_ids.clone(),
         conflict_claim_ids: outcome.conflict_claim_ids.clone(),
         scope_keys: outcome.scope_keys.clone(),
         require_citations: outcome.require_citations,
@@ -246,6 +250,18 @@ fn run_one_scenario(scenario: &Scenario) -> Result<OneResult> {
     let mut hard_ok = true;
     let mut soft_ok = true;
     let mut soft_failure_entries = Vec::new();
+
+    // Personal grant denial path (scen 5): principal without Personal grant must
+    // receive a denied empty personal briefing.
+    if outcome.require_personal_denial {
+        match verify_personal_denial(&ports, &outcome) {
+            Ok(()) => {}
+            Err(msg) => {
+                hard_ok = false;
+                messages.push(msg);
+            }
+        }
+    }
 
     // E23 anti zero-recall: always hard-check min_valid_claims_count.
     if metrics.current_claim_count < u64::from(scenario.min_valid_claims_count) {
@@ -363,6 +379,48 @@ fn build_briefing(ports: &StorePorts, outcome: &SeedOutcome) -> Result<ProjectBr
             ledgerful: None,
         },
     )
+}
+
+/// Personal briefing for principal without Personal grant must be denied/empty.
+fn verify_personal_denial(
+    ports: &StorePorts,
+    outcome: &SeedOutcome,
+) -> std::result::Result<(), String> {
+    let user_id = outcome.personal_user_id.ok_or_else(|| {
+        "require_personal_denial set but personal_user_id missing from seed".to_string()
+    })?;
+    let policy = ports.production_policy();
+    // Alpha principal has no Personal grant; empty applied-grants list is correct.
+    let packet = build_personal_briefing(
+        Some(&ports.writer),
+        &ports.query,
+        &SystemClock,
+        &policy,
+        |_p| Ok(vec![]),
+        PersonalBriefingRequest {
+            principal: outcome.principal.clone(),
+            user_id,
+            budget: BudgetConfig::default(),
+            privacy: Privacy::LocalOnly,
+            dry_run: true,
+            briefing_id: None,
+        },
+    )
+    .map_err(|e| format!("personal denial briefing failed: {e}"))?;
+
+    if !packet.denied {
+        return Err(
+            "personal denial hard fail: expected denied personal briefing without Personal grant"
+                .into(),
+        );
+    }
+    if !packet.preferences.is_empty() {
+        return Err(format!(
+            "personal denial hard fail: expected empty preferences, got {}",
+            packet.preferences.len()
+        ));
+    }
+    Ok(())
 }
 
 fn eval_assert(spec: &AssertSpec, metrics: &MetricValues) -> bool {
@@ -552,5 +610,32 @@ mod tests {
         let out = evaluate_scenarios(&[a, b], &EvaluateOptions::default()).expect("run");
         assert!(out.report.hard_gates_passed, "{:?}", out.report.scenarios);
         assert_eq!(out.report.scenarios.len(), 2);
+    }
+
+    #[test]
+    fn report_hash__two_evaluate_runs__same_hash() {
+        // Cold-start alone is enough for e2e determinism of claim ids + hash.
+        let s = active_scenario("cold", "project_briefing_minimal", 1);
+        let out1 = evaluate_scenarios(std::slice::from_ref(&s), &EvaluateOptions::default())
+            .expect("run1");
+        let out2 =
+            evaluate_scenarios(&[s], &EvaluateOptions::default()).expect("run2");
+        assert!(
+            out1.report.hard_gates_passed,
+            "run1: {:?}",
+            out1.report.scenarios
+        );
+        assert!(
+            out2.report.hard_gates_passed,
+            "run2: {:?}",
+            out2.report.scenarios
+        );
+        assert_eq!(
+            out1.report.report_hash, out2.report.report_hash,
+            "report_hash must be stable across two evaluate runs (E7); seed ids={:?} vs {:?}",
+            out1.report.human_review_seed.claim_ids_sample,
+            out2.report.human_review_seed.claim_ids_sample
+        );
+        assert!(!out1.report.report_hash.is_empty());
     }
 }

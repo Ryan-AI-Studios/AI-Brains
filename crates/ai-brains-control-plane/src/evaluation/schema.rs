@@ -35,6 +35,7 @@ pub const KNOWN_METRICS: &[&str] = &[
     "conflict_unmerged",
     "independent_support_false_positive",
     "ce_subject_absent",
+    "must_be_absent_present_count",
     "scope_key_stable",
 ];
 
@@ -176,6 +177,23 @@ pub fn validate_scenario(scenario: &Scenario) -> Result<()> {
     }
 
     if scenario.status == ScenarioStatus::Deferred {
+        // E20: deferred requires non-empty defer_reason + owner.
+        match scenario.defer_reason.as_deref().map(str::trim) {
+            Some(r) if !r.is_empty() => {}
+            _ => {
+                return Err(ControlPlaneError::InvalidPayload(
+                    "deferred scenario requires non-empty defer_reason".into(),
+                ));
+            }
+        }
+        match scenario.owner.as_deref().map(str::trim) {
+            Some(o) if !o.is_empty() => {}
+            _ => {
+                return Err(ControlPlaneError::InvalidPayload(
+                    "deferred scenario requires non-empty owner".into(),
+                ));
+            }
+        }
         // Deferred may lack seed; still validate asserts if present.
         validate_asserts(&scenario.asserts)?;
         return Ok(());
@@ -377,5 +395,54 @@ mod tests {
         }"#;
         let s = load_scenario_json(raw).expect("catalog-only scen 10");
         assert_eq!(s.runner.as_deref(), Some("sources_tests"));
+    }
+
+    #[test]
+    fn scenario_schema__deferred_missing_owner__invalid_payload() {
+        let raw = r#"{
+          "schema_version": 1,
+          "id": "future",
+          "title": "t",
+          "status": "deferred",
+          "defer_reason": "not ready",
+          "actions": [],
+          "asserts": { "hard": [], "soft": [] }
+        }"#;
+        let err = load_scenario_json(raw).expect_err("must require owner");
+        assert!(matches!(err, ControlPlaneError::InvalidPayload(_)));
+        assert!(err.to_string().contains("owner"));
+    }
+
+    #[test]
+    fn scenario_schema__deferred_missing_reason__invalid_payload() {
+        let raw = r#"{
+          "schema_version": 1,
+          "id": "future",
+          "title": "t",
+          "status": "deferred",
+          "owner": "T170",
+          "actions": [],
+          "asserts": { "hard": [], "soft": [] }
+        }"#;
+        let err = load_scenario_json(raw).expect_err("must require defer_reason");
+        assert!(matches!(err, ControlPlaneError::InvalidPayload(_)));
+        assert!(err.to_string().contains("defer_reason"));
+    }
+
+    #[test]
+    fn scenario_schema__deferred_with_owner_and_reason__ok() {
+        let raw = r#"{
+          "schema_version": 1,
+          "id": "future",
+          "title": "t",
+          "status": "deferred",
+          "defer_reason": "not ready",
+          "owner": "T170",
+          "actions": [],
+          "asserts": { "hard": [], "soft": [] }
+        }"#;
+        let s = load_scenario_json(raw).expect("valid deferred");
+        assert_eq!(s.status, ScenarioStatus::Deferred);
+        assert_eq!(s.owner.as_deref(), Some("T170"));
     }
 }

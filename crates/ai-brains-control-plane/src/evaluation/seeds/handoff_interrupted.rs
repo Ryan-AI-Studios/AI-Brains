@@ -30,12 +30,14 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         scope.clone(),
         "Resume handoff",
         "Continue interrupted migration task from checkpoint",
+        "handoff:decision",
     )?;
     let open_work = seed_active_conclusion(
         ports,
         &agent_p,
         scope,
         "Open work: finish evaluate harness wiring and scenario fixtures",
+        "handoff:open-work",
     )?;
 
     Ok(SeedOutcome {

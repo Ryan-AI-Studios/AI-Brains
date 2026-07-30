@@ -13,9 +13,9 @@ pub mod seeds;
 
 pub use metrics::{
     MetricContext, MetricValues, budget_compliant, ce_subject_absent, citation_coverage,
-    conflict_unmerged, cross_project_leakage_count, current_claim_count, scope_key_stable,
-    score_packet, stale_as_current_count, unauthorized_scope_leakage_count,
-    uncited_current_claim_count,
+    conflict_unmerged, cross_project_leakage_count, current_claim_count,
+    must_be_absent_present_count, scope_key_stable, score_packet, stale_as_current_count,
+    unauthorized_scope_leakage_count, uncited_current_claim_count,
 };
 pub use report::{
     EvaluateReport, HumanReviewSeed, ScenarioResult, SoftFailure, Totals, compute_report_hash,

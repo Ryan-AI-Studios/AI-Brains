@@ -29,12 +29,14 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         scope.clone(),
         "Ship briefings",
         "Use deterministic project briefings for cold-start",
+        "cold-start:decision",
     )?;
     let conc_id = seed_active_conclusion(
         ports,
         &agent_p,
         scope,
         "Authority order is policy-first with evidence handles",
+        "cold-start:conclusion",
     )?;
 
     Ok(SeedOutcome {

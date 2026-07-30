@@ -1,6 +1,6 @@
 //! Scenario 7 — source_unavailable.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ai_brains_core::ids::{ConclusionId, EvidenceId, PrincipalId, SourceId, SourceVersionId};
 use ai_brains_core::privacy::Privacy;
@@ -45,6 +45,7 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         scope.clone(),
         "Continue",
         "Unaffected decision remains current",
+        "unavail:unaffected-decision",
     )?;
 
     let source_id = SourceId::from_uuid(stable_uuid("unavail:source"));
@@ -146,12 +147,17 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         },
     )?;
 
+    let dep_id = conclusion_id.to_string();
+    let mut must_be_absent = BTreeSet::new();
+    must_be_absent.insert(dep_id.clone());
+
     Ok(SeedOutcome {
         principal: agent_p,
         project_id,
         resolve: resolve_for_project(project_id),
         claim_ids: vec![dec_id],
-        warning_subject_ids: vec![conclusion_id.to_string()],
+        warning_subject_ids: vec![dep_id],
+        must_be_absent_claim_ids: must_be_absent,
         require_citations: true,
         ..SeedOutcome::default()
     })

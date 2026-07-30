@@ -1503,6 +1503,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 strict_soft,
                 require_all_active,
                 allow_report_overwrite,
+                vault_path: cli.vault_path,
             }),
         },
         _ => unreachable!("run_sync_path_free only for Shadow/Migrate/Evaluate"),

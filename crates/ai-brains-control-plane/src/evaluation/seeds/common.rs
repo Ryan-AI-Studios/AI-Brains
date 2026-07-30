@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 
-use ai_brains_core::ids::{EvidenceId, PrincipalId, ProjectId};
+use ai_brains_core::ids::{
+    ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, UserId,
+};
 use ai_brains_core::principal::{Principal, PrincipalKind};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
@@ -33,8 +35,24 @@ pub fn stable_project(label: &str) -> ProjectId {
     ProjectId::from_uuid(stable_uuid(&format!("project:{label}")))
 }
 
+pub fn stable_user(label: &str) -> UserId {
+    UserId::from_uuid(stable_uuid(&format!("user:{label}")))
+}
+
 pub fn stable_principal_id(label: &str) -> PrincipalId {
     PrincipalId::from_uuid(stable_uuid(&format!("principal:{label}")))
+}
+
+pub fn stable_decision_id(label: &str) -> DecisionId {
+    DecisionId::from_uuid(stable_uuid(&format!("decision:{label}")))
+}
+
+pub fn stable_conclusion_id(label: &str) -> ConclusionId {
+    ConclusionId::from_uuid(stable_uuid(&format!("conclusion:{label}")))
+}
+
+pub fn stable_evidence_id(label: &str) -> EvidenceId {
+    EvidenceId::from_uuid(stable_uuid(&format!("evidence:{label}")))
 }
 
 /// Open a fresh SQLCipher vault in a NamedTempFile (hermetic; E1/E25).
@@ -76,6 +94,7 @@ pub fn human(label: &str) -> Principal {
 pub fn grant_read_write(ports: &StorePorts, principal: PrincipalId, scope: ScopeRef) -> Result<()> {
     let clock = SystemClock;
     for cap in [
+        GrantCapability::ReadEvidence,
         GrantCapability::ReadConclusions,
         GrantCapability::ReadDecisions,
         GrantCapability::ProposeConclusion,
@@ -110,16 +129,19 @@ pub fn resolve_for_project(project_id: ProjectId) -> ScopeResolveInput {
     }
 }
 
-/// Propose + approve a decision with one evidence handle.
+/// Propose + approve a decision with one evidence handle (stable uuid-v5 ids).
 pub fn seed_approved_decision(
     ports: &StorePorts,
     principal: &Principal,
     scope: ScopeRef,
     title: &str,
     statement: &str,
+    id_label: &str,
 ) -> Result<String> {
     let policy = ports.production_policy();
     let clock = SystemClock;
+    let decision_id = stable_decision_id(id_label);
+    let evidence_id = stable_evidence_id(id_label);
     let dec = propose_decision(
         &ports.writer,
         &ports.query,
@@ -131,11 +153,11 @@ pub fn seed_approved_decision(
             title: title.into(),
             statement: statement.into(),
             conclusion_ids: None,
-            evidence_ids: Some(vec![EvidenceId::new()]),
+            evidence_ids: Some(vec![evidence_id]),
             privacy: Privacy::LocalOnly,
             valid_from: None,
             valid_until: None,
-            decision_id: None,
+            decision_id: Some(decision_id),
         },
     )?;
     approve_decision(
@@ -150,15 +172,18 @@ pub fn seed_approved_decision(
     Ok(dec.decision_id.to_string())
 }
 
-/// Propose + activate a conclusion with evidence.
+/// Propose + activate a conclusion with evidence (stable uuid-v5 ids).
 pub fn seed_active_conclusion(
     ports: &StorePorts,
     principal: &Principal,
     scope: ScopeRef,
     statement: &str,
+    id_label: &str,
 ) -> Result<String> {
     let policy = ports.production_policy();
     let clock = SystemClock;
+    let conclusion_id = stable_conclusion_id(id_label);
+    let evidence_id = stable_evidence_id(id_label);
     let res = propose_conclusion(
         &ports.writer,
         &ports.query,
@@ -168,12 +193,12 @@ pub fn seed_active_conclusion(
             principal: principal.clone(),
             scope,
             statement: statement.into(),
-            evidence_ids: vec![EvidenceId::new()],
+            evidence_ids: vec![evidence_id],
             privacy: Privacy::LocalOnly,
             valid_from: None,
             valid_until: None,
             protected_category: None,
-            conclusion_id: None,
+            conclusion_id: Some(conclusion_id),
         },
     )?;
     activate_conclusion(

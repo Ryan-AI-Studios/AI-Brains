@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use ai_brains_core::ids::ConflictId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use serde_json::Value;
@@ -9,7 +10,7 @@ use serde_json::Value;
 use super::SeedOutcome;
 use super::common::{
     agent, grant_read_write, human, register, resolve_for_project, seed_active_conclusion,
-    stable_project,
+    stable_project, stable_uuid,
 };
 use crate::adapters::StorePorts;
 use crate::conflicts::{OpenClaimConflictRequest, open_claim_conflict};
@@ -27,8 +28,20 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
     grant_read_write(ports, human_p.id, scope.clone())?;
     grant_read_write(ports, agent_p.id, scope.clone())?;
 
-    let a = seed_active_conclusion(ports, &agent_p, scope.clone(), "deploy on friday")?;
-    let b = seed_active_conclusion(ports, &agent_p, scope, "do not deploy friday")?;
+    let a = seed_active_conclusion(
+        ports,
+        &agent_p,
+        scope.clone(),
+        "deploy on friday",
+        "conflict:claim-a",
+    )?;
+    let b = seed_active_conclusion(
+        ports,
+        &agent_p,
+        scope,
+        "do not deploy friday",
+        "conflict:claim-b",
+    )?;
 
     // Open conflict so both are not silent current authority without warning.
     open_claim_conflict(
@@ -45,7 +58,7 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
             privacy: Privacy::LocalOnly,
             valid_from: None,
             valid_until: None,
-            conflict_id: None,
+            conflict_id: Some(ConflictId::from_uuid(stable_uuid("conflict:id"))),
         },
     )?;
 

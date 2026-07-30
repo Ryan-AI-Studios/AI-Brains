@@ -16,6 +16,7 @@
     "hard": [
       { "metric": "stale_as_current_count", "op": "eq", "value": 0 },
       { "metric": "unauthorized_scope_leakage_count", "op": "eq", "value": 0 },
+      { "metric": "must_be_absent_present_count", "op": "eq", "value": 0 },
       { "metric": "current_claim_count", "op": "gte", "value": 1 }
     ],
     "soft": []

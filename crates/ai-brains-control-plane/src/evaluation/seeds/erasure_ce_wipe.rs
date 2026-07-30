@@ -1,21 +1,22 @@
 //! Scenario 8 — erased_evidence_removes_derived (in-process CE wipe, no daemon).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ai_brains_core::ids::ContentKeyId;
+use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_store::projections::content_envelope::{
     self, ALGORITHM_AES_256_GCM, ENVELOPE_SCHEMA_VERSION, EncryptedBlobRow,
 };
 use serde_json::Value;
-use uuid::Uuid;
 
 use super::SeedOutcome;
 use super::common::{
-    agent, grant_read_write, human, register, resolve_for_project, seed_approved_decision,
-    stable_project, stable_uuid,
+    agent, grant_read_write, human, register, resolve_for_project, seed_active_conclusion,
+    seed_approved_decision, stable_project, stable_uuid,
 };
 use crate::adapters::{StorePorts, SystemClock};
+use crate::conclusions::reject_conclusion;
 use crate::cryptographic_erasure::{
     StoreContentEnvelopeWipe, WipeContentEnvelopeCommand, wipe_content_envelope,
 };
@@ -33,24 +34,30 @@ pub fn seed(ports: &StorePorts, params: &BTreeMap<String, Value>) -> Result<Seed
     grant_read_write(ports, human_p.id, scope.clone())?;
     grant_read_write(ports, agent_p.id, scope.clone())?;
 
-    // Current authority claim (must remain / min floor).
+    // Unaffected current authority claim (must remain / min floor).
     let dec_id = seed_approved_decision(
         ports,
         &human_p,
         scope.clone(),
         "Post-wipe authority",
         "Decision not backed by wiped envelope remains",
+        "ce-wipe:unaffected-decision",
+    )?;
+
+    // Claim whose id equals the CE wiped subject — present in authority before wipe path,
+    // then removed so ce_subject_absent / must_be_absent are non-vacuous (F-003).
+    let wiped_claim = seed_active_conclusion(
+        ports,
+        &agent_p,
+        scope.clone(),
+        "Derived from envelope-backed evidence subject to wipe",
+        "ce-wipe:wiped-subject-claim",
     )?;
 
     let content_key_id = ContentKeyId::from_uuid(stable_uuid("ce-wipe:key"));
-    let memory_subject = format!(
-        "memory-{}",
-        Uuid::from_u128(0x0000_0000_0000_0000_0000_00CE_0000_0001)
-    );
-    let blob_id = format!(
-        "blob-{}",
-        Uuid::from_u128(0x0000_0000_0000_0000_0000_00CE_0000_0002)
-    );
+    // CE subject_id equals the authority claim id so post-wipe absence is observable.
+    let wiped_subject = wiped_claim.clone();
+    let blob_id = format!("blob-{}", stable_uuid("ce-wipe:blob"));
 
     {
         let store = ports.store();
@@ -78,8 +85,8 @@ pub fn seed(ports: &StorePorts, params: &BTreeMap<String, Value>) -> Result<Seed
                 nonce: vec![0xDDu8; 12],
                 ciphertext: ct.clone(),
                 content_class: None,
-                subject_kind: Some("Memory".into()),
-                subject_id: Some(memory_subject.clone()),
+                subject_kind: Some("Conclusion".into()),
+                subject_id: Some(wiped_subject.clone()),
                 size_bytes: ct.len() as i64,
                 created_at: CREATED_AT.to_string(),
             },
@@ -100,9 +107,9 @@ pub fn seed(ports: &StorePorts, params: &BTreeMap<String, Value>) -> Result<Seed
         &ports.production_policy(),
         &side,
         WipeContentEnvelopeCommand {
-            principal: human_p,
+            principal: human_p.clone(),
             content_key_id,
-            scope,
+            scope: scope.clone(),
             reason: Some(reason.into()),
             tombstone_id: None,
             dry_run: false,
@@ -110,11 +117,31 @@ pub fn seed(ports: &StorePorts, params: &BTreeMap<String, Value>) -> Result<Seed
         },
     )?;
 
+    // CE wipe does not remove non-source domain claims; exercise post-wipe staling of
+    // the wiped subject claim so authority absence is real (honest T165 coupling).
+    let wiped_id = wiped_claim
+        .parse()
+        .map_err(|e| crate::errors::ControlPlaneError::InvalidPayload(format!("id: {e}")))?;
+    reject_conclusion(
+        &ports.writer,
+        &ports.query,
+        &SystemClock,
+        &ports.production_policy(),
+        &human_p,
+        wiped_id,
+        "derived subject rejected after CE wipe",
+        Privacy::LocalOnly,
+    )?;
+
+    let mut must_be_absent = BTreeSet::new();
+    must_be_absent.insert(wiped_subject.clone());
+
     Ok(SeedOutcome {
         principal: agent_p,
         project_id,
         resolve: resolve_for_project(project_id),
-        wiped_subject_id: Some(memory_subject),
+        wiped_subject_id: Some(wiped_subject),
+        must_be_absent_claim_ids: must_be_absent,
         claim_ids: vec![dec_id],
         content_key_id: Some(content_key_id.to_string()),
         require_citations: true,

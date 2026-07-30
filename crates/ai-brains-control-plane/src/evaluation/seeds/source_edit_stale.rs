@@ -1,6 +1,6 @@
 //! Scenario 3 — source_edit_stales_conclusion.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ai_brains_core::ids::{ConclusionId, EvidenceId, PrincipalId, SourceId, SourceVersionId};
 use ai_brains_core::privacy::Privacy;
@@ -25,7 +25,7 @@ use crate::conclusions::activate_conclusion;
 use crate::errors::Result;
 use crate::ports::EventWriter;
 use crate::sources::{ObserveSourceRequest, SourceContent, observe_source, scope_identity_key};
-use crate::{AllowAllPolicy, normalize_path_locator};
+use crate::normalize_path_locator;
 
 pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<SeedOutcome> {
     let project_id = stable_project("source-edit");
@@ -45,6 +45,7 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         scope.clone(),
         "Keep shipping",
         "Unaffected decision remains current",
+        "source-edit:unaffected-decision",
     )?;
 
     let source_id = SourceId::from_uuid(stable_uuid("source-edit:source"));
@@ -133,7 +134,7 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         Privacy::LocalOnly,
     )?;
 
-    // Change source → invalidate dependent conclusion.
+    // Change source → invalidate dependent conclusion (production policy only; F-006).
     let fp = Sha256FingerprinterPort::new();
     let req = ObserveSourceRequest {
         principal: agent_p.id,
@@ -145,33 +146,26 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         privacy: Privacy::LocalOnly,
         run_invalidation: true,
     };
-    // AllowAll for observe path identity when policy grants exist; production policy is fine
-    // if principal has grants. Use production policy first.
-    let _ = observe_source(
+    observe_source(
         &ports.writer,
         &ports.query,
         &SystemClock,
         &fp,
         &policy,
-        req.clone(),
-    )
-    .or_else(|_| {
-        observe_source(
-            &ports.writer,
-            &ports.query,
-            &SystemClock,
-            &fp,
-            &AllowAllPolicy,
-            req,
-        )
-    })?;
+        req,
+    )?;
+
+    let dep_id = conclusion_id.to_string();
+    let mut must_be_absent = BTreeSet::new();
+    must_be_absent.insert(dep_id.clone());
 
     Ok(SeedOutcome {
         principal: agent_p,
         project_id,
         resolve: resolve_for_project(project_id),
         claim_ids: vec![dec_id],
-        warning_subject_ids: vec![conclusion_id.to_string()],
+        warning_subject_ids: vec![dep_id],
+        must_be_absent_claim_ids: must_be_absent,
         require_citations: true,
         ..SeedOutcome::default()
     })

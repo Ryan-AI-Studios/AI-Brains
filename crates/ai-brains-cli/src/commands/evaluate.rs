@@ -27,12 +27,17 @@ pub struct GovernedEvaluateOptions {
     pub strict_soft: bool,
     pub require_all_active: bool,
     pub allow_report_overwrite: bool,
+    /// Optional live vault path (from `--vault-path`) for same-location refuse only.
+    pub vault_path: Option<PathBuf>,
 }
 
 /// Run evaluate governed: load fixtures, hermetic run, emit report, exit per E22.
 pub fn run_governed(opts: GovernedEvaluateOptions) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(ref report) = opts.report {
         refuse_unsafe_evaluate_report_path(report, opts.allow_report_overwrite)?;
+        if let Some(ref vault) = opts.vault_path {
+            refuse_report_equals_vault(report, vault)?;
+        }
     }
 
     let scenarios = match load_scenarios_dir(&opts.fixtures) {
@@ -155,8 +160,7 @@ pub fn refuse_unsafe_evaluate_report_path(
     Ok(())
 }
 
-/// Refuse when report path equals a provided vault path (test helper surface).
-#[cfg(test)]
+/// Refuse when report path equals a provided vault path (T168-style same-location).
 pub fn refuse_report_equals_vault(
     report: &Path,
     vault: &Path,

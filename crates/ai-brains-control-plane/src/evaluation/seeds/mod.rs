@@ -14,7 +14,7 @@ mod source_unavailable;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use ai_brains_core::ids::ProjectId;
+use ai_brains_core::ids::{ProjectId, UserId};
 use ai_brains_core::principal::Principal;
 use serde_json::Value;
 
@@ -33,6 +33,7 @@ pub struct SeedOutcome {
     pub foreign_claim_ids: BTreeSet<String>,
     pub beta_claim_ids: BTreeSet<String>,
     pub wiped_subject_id: Option<String>,
+    pub must_be_absent_claim_ids: BTreeSet<String>,
     pub conflict_claim_ids: Option<(String, String)>,
     pub scope_keys: Option<(String, String)>,
     pub claim_ids: Vec<String>,
@@ -41,6 +42,10 @@ pub struct SeedOutcome {
     pub require_citations: bool,
     /// When set, briefing is expected denied/empty (min_valid may be 0).
     pub expect_denied: bool,
+    /// When true, runner must verify Personal briefing is denied for principal.
+    pub require_personal_denial: bool,
+    /// Personal user id for personal-denial path (scen 5).
+    pub personal_user_id: Option<UserId>,
 }
 
 impl Default for SeedOutcome {
@@ -48,10 +53,12 @@ impl Default for SeedOutcome {
         Self {
             principal: crate::conclusions::principal(
                 ai_brains_core::principal::PrincipalKind::System,
-                ai_brains_core::ids::PrincipalId::new(),
+                ai_brains_core::ids::PrincipalId::from_uuid(common::stable_uuid(
+                    "seed-outcome:unset-principal",
+                )),
                 "unset",
             ),
-            project_id: ProjectId::new(),
+            project_id: ProjectId::from_uuid(common::stable_uuid("seed-outcome:unset-project")),
             resolve: ScopeResolveInput {
                 cwd: PathBuf::from("."),
                 explicit_project_id: None,
@@ -62,6 +69,7 @@ impl Default for SeedOutcome {
             foreign_claim_ids: BTreeSet::new(),
             beta_claim_ids: BTreeSet::new(),
             wiped_subject_id: None,
+            must_be_absent_claim_ids: BTreeSet::new(),
             conflict_claim_ids: None,
             scope_keys: None,
             claim_ids: Vec::new(),
@@ -69,6 +77,8 @@ impl Default for SeedOutcome {
             content_key_id: None,
             require_citations: true,
             expect_denied: false,
+            require_personal_denial: false,
+            personal_user_id: None,
         }
     }
 }
@@ -131,5 +141,14 @@ mod tests {
         drop(p2);
         drop(t1);
         drop(t2);
+    }
+
+    #[test]
+    fn seed__stable_ids__two_runs_same_claim_ids() {
+        let (_t1, p1) = open_hermetic_ports().expect("p1");
+        let (_t2, p2) = open_hermetic_ports().expect("p2");
+        let o1 = run_seed(&p1, "project_briefing_minimal", &BTreeMap::new()).expect("s1");
+        let o2 = run_seed(&p2, "project_briefing_minimal", &BTreeMap::new()).expect("s2");
+        assert_eq!(o1.claim_ids, o2.claim_ids);
     }
 }

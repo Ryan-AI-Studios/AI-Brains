@@ -505,6 +505,7 @@ fn conflict_scenario5__superseded_historical_vs_current_successor() {
         vec![EvidenceId::new()],
         "supersede with better evidence",
         Privacy::LocalOnly,
+        None,
     )
     .unwrap();
     let hist = ports

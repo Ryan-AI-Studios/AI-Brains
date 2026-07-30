@@ -18,6 +18,8 @@ pub struct MetricContext {
     pub beta_claim_ids: BTreeSet<String>,
     /// Subject id wiped via CE (scen 8).
     pub wiped_subject_id: Option<String>,
+    /// Claim ids that must not appear as current authority (stale/superseded/wiped).
+    pub must_be_absent_claim_ids: BTreeSet<String>,
     /// Pair of incompatible claims (scen 4); silent merge when both current without warning.
     pub conflict_claim_ids: Option<(String, String)>,
     /// Two resolved scope_key strings (scen 9).
@@ -42,6 +44,8 @@ pub struct MetricValues {
     pub budget_compliant: bool,
     pub conflict_unmerged: u64,
     pub ce_subject_absent: u64,
+    /// Count of `must_be_absent_claim_ids` still present in current authority (0 = pass).
+    pub must_be_absent_present_count: u64,
     pub scope_key_stable: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latency_ms: Option<u64>,
@@ -65,6 +69,7 @@ impl MetricValues {
             "budget_compliant" => Value::Bool(self.budget_compliant),
             "conflict_unmerged" => Value::from(self.conflict_unmerged),
             "ce_subject_absent" => Value::from(self.ce_subject_absent),
+            "must_be_absent_present_count" => Value::from(self.must_be_absent_present_count),
             "scope_key_stable" => Value::Bool(self.scope_key_stable),
             "latency_ms" => match self.latency_ms {
                 Some(v) => Value::from(v),
@@ -105,6 +110,10 @@ impl MetricValues {
         m.insert(
             "ce_subject_absent".into(),
             Value::from(self.ce_subject_absent),
+        );
+        m.insert(
+            "must_be_absent_present_count".into(),
+            Value::from(self.must_be_absent_present_count),
         );
         m.insert(
             "scope_key_stable".into(),
@@ -269,6 +278,22 @@ pub fn ce_subject_absent(packet: &ProjectBriefingPacket, wiped_subject_id: Optio
     if present { 1 } else { 0 }
 }
 
+/// Count of claim ids that must be absent but are still current authority (0 = pass).
+pub fn must_be_absent_present_count(
+    packet: &ProjectBriefingPacket,
+    must_be_absent: &BTreeSet<String>,
+) -> u64 {
+    if must_be_absent.is_empty() {
+        return 0;
+    }
+    packet
+        .decisions
+        .iter()
+        .chain(packet.conclusions.iter())
+        .filter(|c| must_be_absent.contains(&c.id))
+        .count() as u64
+}
+
 /// Two path spellings resolve to the same scope_key.
 pub fn scope_key_stable(keys: Option<&(String, String)>) -> bool {
     match keys {
@@ -312,6 +337,10 @@ pub fn score_packet(
         budget_compliant: budget_compliant(p),
         conflict_unmerged: conflict_unmerged(p, ctx.conflict_claim_ids.as_ref()),
         ce_subject_absent: ce_subject_absent(p, ctx.wiped_subject_id.as_deref()),
+        must_be_absent_present_count: must_be_absent_present_count(
+            p,
+            &ctx.must_be_absent_claim_ids,
+        ),
         scope_key_stable: scope_key_stable(ctx.scope_keys.as_ref()),
         latency_ms,
     }
@@ -536,6 +565,29 @@ mod tests {
         let p = packet(vec![claim("wiped-1", true)], vec![], vec![], false, 1, 100);
         assert!(ce_subject_absent(&p, Some("wiped-1")) >= 1);
         assert_eq!(ce_subject_absent(&p, Some("other")), 0);
+    }
+
+    #[test]
+    fn metric_must_be_absent__still_in_authority__counts() {
+        let p = packet(
+            vec![claim("live", true)],
+            vec![claim("stale-dep", true)],
+            vec![],
+            false,
+            1,
+            100,
+        );
+        let mut absent = BTreeSet::new();
+        absent.insert("stale-dep".into());
+        assert!(must_be_absent_present_count(&p, &absent) >= 1);
+    }
+
+    #[test]
+    fn metric_must_be_absent__not_in_authority__zero() {
+        let p = packet(vec![claim("live", true)], vec![], vec![], false, 1, 100);
+        let mut absent = BTreeSet::new();
+        absent.insert("stale-dep".into());
+        assert_eq!(must_be_absent_present_count(&p, &absent), 0);
     }
 
     #[test]

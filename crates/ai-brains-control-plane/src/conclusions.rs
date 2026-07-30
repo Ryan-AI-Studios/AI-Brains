@@ -348,6 +348,9 @@ where
 ///
 /// Old state must allow transition to Superseded (Active/Confirmed/Stale/Disputed).
 /// Candidates must be activated (or confirmed) first. Propose policy is enforced.
+///
+/// `new_conclusion_id` may be pre-assigned (evaluation seeds / spool retries); when
+/// `None`, a fresh id is generated.
 #[allow(clippy::too_many_arguments)]
 pub fn correct_conclusion<W, Q, C, P>(
     writer: &W,
@@ -360,6 +363,7 @@ pub fn correct_conclusion<W, Q, C, P>(
     evidence_ids: Vec<EvidenceId>,
     reason: &str,
     privacy: Privacy,
+    new_conclusion_id: Option<ConclusionId>,
 ) -> Result<ConclusionId>
 where
     W: EventWriter,
@@ -402,7 +406,7 @@ where
 
     let now = clock.now()?;
     ensure_valid_time_interval(now, old.valid_until)?;
-    let new_id = ConclusionId::new();
+    let new_id = new_conclusion_id.unwrap_or_default();
     let unsupported = evidence_ids.is_empty();
     let propose = build_event(
         AggregateType::Conclusion,
