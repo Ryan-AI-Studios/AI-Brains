@@ -56,7 +56,7 @@ Verdict: **NEEDS_FIX**
 | SU12 | **Met** | SMOKE: license:check + deny PASS |
 | SU13 | **Met** | Scoped opener objects; no default-urls / bare open-path |
 | SU14 | **Met** | Inert previews only |
-| SU15 | **Met** (pending verify) | README complete; OPERATIONS expanded for T173 dual-layer / Isolation / CSP / typed WIPE / a11y / no-analytics (R1-01 `fixed_pending_verification`) |
+| SU15 | **Met** | README complete; OPERATIONS expanded for T173 dual-layer / Isolation / CSP / typed WIPE / a11y / no-analytics (R1-01 `verified_fixed`) |
 | SU16 | **Met** | T174 handoff cases 1–10 in SMOKE |
 | SU17 | **Met** | No `@tauri-apps/plugin-opener` in package.json |
 | SU18 | **Met** | `capability_tests` + review of `default.json` object scopes |
@@ -64,7 +64,7 @@ Verdict: **NEEDS_FIX**
 ## Findings
 
 ### R1-01 | medium | OPERATIONS still T172-only; SU15 security operator notes missing
-- status: fixed_pending_verification
+- status: verified_fixed
 - files:
   - `Docs/OPERATIONS.md` (## Desktop thin client (T172 + T173 security))
   - `apps/desktop/README.md` (complete — contrast)
@@ -78,6 +78,8 @@ Verdict: **NEEDS_FIX**
   OPERATIONS L578–585 vs README dual-layer / Isolation / CSP / wipe / privacy sections; SU15 text; plan Phase H checklist marked complete.
 - fix_notes:
   Retitled section to T172+T173; added SU15 operator bullets (dual-layer open, Isolation hygiene residual, CSP/`devCsp`, typed WIPE, focus a11y, no analytics) + kept README deep-dive pointer.
+- verification_notes (R2):
+  OPERATIONS L578–597 retitled “T172 + T173 security”; Runtime (T172) + Security locks (T173 / SU15) cover dual-layer open, Isolation cannot-deny residual, CSP/`devCsp`, typed WIPE, focus a11y, no analytics, single-instance; README deep-dive link retained.
 
 ### R1-02 | low_info | Live Isolation + keyboard WebView smoke deferred
 - status: open
@@ -118,7 +120,7 @@ Verdict: **NEEDS_FIX**
   `default.json` L29–32; open.rs validators; README path residual.
 
 ### R1-05 | low_info | ADR-0017 Isolation still listed as “T173 candidate”
-- status: fixed_pending_verification
+- status: verified_fixed
 - files:
   - `Docs/DECISIONS/ADR-0017-desktop-frontend-stack.md` (deferred table)
 - description:
@@ -129,6 +131,8 @@ Verdict: **NEEDS_FIX**
   ADR-0017 L68 vs `tauri.conf.json` isolation pattern.
 - fix_notes:
   Deferred table row now says Isolation is **mandated in T173** (implemented; classic single-file isolation app).
+- verification_notes (R2):
+  ADR-0017 deferred table L68: “**Mandated in T173** (implemented; classic single-file isolation app)” — matches `tauri.conf.json` pattern.use=isolation.
 
 ## Completeness / wiring notes
 
@@ -162,9 +166,9 @@ Verdict: **NEEDS_FIX**
 - URL/path validator unit tables in `open.rs`.
 - CSP + isolation pattern + capability shape + no JS opener package tests in `lib.rs`.
 
-### Docs (checklist 10) — **pass** (pending re-verify)
+### Docs (checklist 10) — **pass**
 - README matches reality thoroughly.
-- OPERATIONS expanded for T173 SU15 (R1-01 `fixed_pending_verification`).
+- OPERATIONS expanded for T173 SU15 (R1-01 `verified_fixed`).
 
 ### Single-instance (checklist 11) — **pass**
 - Present; first plugin; focuses/unminimizes `main`.
@@ -195,3 +199,82 @@ Security-critical implementation for T173 is **substantially complete and correc
 **Implementer fix pass:** R1-01 and R1-05 marked `fixed_pending_verification`. Residual low_info items R1-02 (live smoke → T174/human), R1-03 (isolation cannot-deny), R1-04 (path `**`) remain open/deferred by design. Re-review OPERATIONS + ADR-0017 wording for clearance.
 
 **Cross-model:** SECURITY category — recommend orchestrator still run codex-style cross-model review before final track closure, focused on opener capabilities + Isolation residual honesty.
+
+---
+
+# T173 Internal Review R2
+Date: 2026-07-30  
+Reviewer: Internal Re-Reviewer (read-only + review.md update)  
+Branch: `feat/t173-desktop-security-ux`  
+Workspace: `C:\dev\AI-Brains-wt-t173`  
+Scope: Verify R1-01 + R1-05 fixes; security regression spot-check  
+Verdict: **CLEAN**
+
+## Fix verification
+
+| Finding | Prior status | R2 status | Result |
+|---------|--------------|-----------|--------|
+| **R1-01** medium OPERATIONS SU15 | `fixed_pending_verification` | **`verified_fixed`** | OPERATIONS retitled + Security locks (T173/SU15) bullets present |
+| **R1-05** low ADR Isolation wording | `fixed_pending_verification` | **`verified_fixed`** | ADR-0017 deferred row: “Mandated in T173 (implemented…)” |
+
+### R1-01 evidence (re-read)
+
+`Docs/OPERATIONS.md` L578–597:
+
+- Title: `## Desktop thin client (T172 + T173 security)` (was T172-only).
+- README deep-dive pointer retained.
+- **Runtime (T172):** invoke-first, token prereqs, offline/denied, unavailable surfaces, **single-instance**.
+- **Security locks (T173 / SU15):**
+  - Dual-layer open: Rust-only `open_url`/`reveal_path`; https-only; empty/`..` refuse; scoped capability objects; forbids `opener:default`, `allow-default-urls`, bare unscoped open-path, JS `@tauri-apps/plugin-opener`.
+  - Isolation mandated + **cannot-deny** residual honesty (C13).
+  - CSP prod vs `devCsp` (never ship devCsp as prod).
+  - Typed **`WIPE`**; Enter focuses Confirm; Escape cancels.
+  - Focus a11y (`:focus-visible`, scroll-padding).
+  - No analytics/crash phone-home by default.
+
+Meets required_fix from R1 and SU15. No residual gap for medium severity.
+
+### R1-05 evidence (re-read)
+
+`Docs/DECISIONS/ADR-0017-desktop-frontend-stack.md` deferred table L68:
+
+| Item | Owner |
+|------|--------|
+| **Tauri Isolation Pattern** | **Mandated in T173** (implemented; classic single-file isolation app) |
+
+Stale “T173 candidate” language is gone; aligns with `tauri.conf.json` `pattern.use=isolation`.
+
+## Security regression spot-check (R2)
+
+| Surface | Result | Notes |
+|---------|--------|-------|
+| `open.rs` validators + commands | **OK** | https-only URL; path empty/`..` refuse; `OpenerExt` after validate |
+| `capabilities/default.json` | **OK** | Object-scoped `https://*` + path `**`; no `opener:default` / `allow-default-urls` / bare open-path string |
+| `isolation/index.html` | **OK** | Classic inline script; pass-through hook; no module/import |
+| `tauri.conf.json` | **OK** | Isolation mandated; prod CSP + `frame-src`; separate `devCsp` |
+| `package.json` / lockfile | **OK** | No `@tauri-apps/plugin-opener` |
+| `openExternal.ts` | **OK** | Invoke-only wrappers |
+| `ConfirmDialog.tsx` + Erasure WIPE | **OK** | `typedConfirmPhrase="WIPE"` on execute; Enter→focus Confirm; Escape cancel; dry-run checkbox separate |
+| `dangerouslySetInnerHTML` in `apps/desktop/src` | **OK** | None |
+| Production `unwrap`/`expect`/`panic` in host glue | **OK** | Only in `#[cfg(test)]` modules |
+
+No security regressions observed relative to R1 checklist passes.
+
+## Open residuals (unchanged; accepted low_info)
+
+| ID | Severity | Status | Note |
+|----|----------|--------|------|
+| R1-02 | low_info | open | Live Isolation + keyboard WebView smoke → T174/human |
+| R1-03 | low_info | open | Isolation hook cannot deny IPC (documented residual) |
+| R1-04 | low_info | open | Path capability `"path": "**"` object breadth (accepted) |
+
+## New findings (R2)
+
+**None.**
+
+## R2 conclusion
+
+- **R1-01** and **R1-05** are **`verified_fixed`**.
+- No open critical / high / medium findings.
+- Residual open items are low_info only (by design / deferred smoke).
+- **Verdict: CLEAN** — clearance for T173 internal review on docs + security shape (live WebView smoke still R1-02 residual for release confidence, not a code defect).
