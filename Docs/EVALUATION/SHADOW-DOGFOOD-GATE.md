@@ -35,9 +35,14 @@ Progressive dogfood gate for AI-Brains governed memory: prove synthetic trust ga
 $WorkDir = "C:\temp\ai-brains-dogfood"   # example; use your work dir
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 
+# D20 re-run: remove existing report or pass --allow-report-overwrite
+$EvalReport = "$WorkDir\evaluate-report.json"
+if (Test-Path -LiteralPath $EvalReport) { Remove-Item -LiteralPath $EvalReport -Force }
+
 ai-brains evaluate governed `
   --fixtures fixtures/governed-memory/scenarios `
-  --report "$WorkDir\evaluate-report.json"
+  --report $EvalReport `
+  --allow-report-overwrite
 
 # require $LASTEXITCODE -eq 0
 ```
@@ -127,7 +132,16 @@ ai-brains migrate governed `
 
 ### 2.4 Capture compare inputs (D26: `--vault-path` only)
 
+**Encoding (Windows PS 5.1):** do **not** use `>` redirection for JSON artifacts — it may write UTF-16, and `Set-Content -Encoding utf8` writes a UTF-8 **BOM**. Both break `serde_json` / `dogfood compare`. Use BOM-less UTF-8:
+
 ```powershell
+$Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+function Write-CliStdoutNoBom([string]$Path, [string[]]$CliArgs) {
+    $out = & ai-brains @CliArgs 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "ai-brains failed ($LASTEXITCODE): $out" }
+    [System.IO.File]::WriteAllText($Path, $out.Trim(), $Utf8NoBom)
+}
+
 $Db = "$WorkDir\shadow.db"   # or migrated.db
 # NEVER: $env:AI_BRAINS_VAULT_PATH = $Db
 
@@ -136,16 +150,19 @@ $FixtureProjectId = (Get-Content -LiteralPath "$WorkDir\fixture-project-id.txt" 
 
 # Governed (typed ProjectBriefingPacket) — pass --project-id for Stage B fixture
 # Global --vault-path must precede the subcommand.
-ai-brains --no-project-context --vault-path $Db briefing project `
-  --project-id $FixtureProjectId `
-  --format json > "$WorkDir\governed-packet.json"
+Write-CliStdoutNoBom "$WorkDir\governed-packet.json" @(
+  "--no-project-context", "--vault-path", $Db, "briefing", "project",
+  "--project-id", $FixtureProjectId, "--format", "json"
+)
 
 # Legacy preflight (flag off)
 $env:AI_BRAINS_GOVERNED_BRIEFING = "0"
-ai-brains --no-project-context --vault-path $Db preflight --format json > "$WorkDir\legacy-preflight.json"
+Write-CliStdoutNoBom "$WorkDir\legacy-preflight.json" @(
+  "--no-project-context", "--vault-path", $Db, "preflight", "--format", "json"
+)
 ```
 
-> **Stage B wiring:** `scripts/dogfood-shadow.ps1` persists `fixture-project-id.txt` at pin time and passes `--project-id` to `briefing project`. Without it, discovery under WorkDir yields an empty/wrong project scope.
+> **Stage B wiring:** `scripts/dogfood-shadow.ps1` persists `fixture-project-id.txt` at pin time and passes `--project-id` to `briefing project`. Without it, discovery under WorkDir yields an empty/wrong project scope. Prefer the orchestrator for capture; it already uses BOM-less writes.
 
 ### 2.5 Emit compare packet
 
@@ -389,17 +406,27 @@ Scripts **never** set User scope. Only if an operator previously set persistent 
 
 ## 9. Manual compare procedure
 
-Required when not using `dogfood compare` / orchestrator:
+Required when not using `dogfood compare` / orchestrator. Prefer §2.4’s BOM-less capture helpers (do **not** use `>` on Windows PowerShell 5.1 for JSON).
 
 ```powershell
 $Db = "$WorkDir\shadow.db"   # never set AI_BRAINS_VAULT_PATH to this
+$Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+function Write-CliStdoutNoBom([string]$Path, [string[]]$CliArgs) {
+    $out = & ai-brains @CliArgs 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "ai-brains failed ($LASTEXITCODE): $out" }
+    [System.IO.File]::WriteAllText($Path, $out.Trim(), $Utf8NoBom)
+}
 
-# 1) Governed typed packet
-ai-brains briefing project --vault-path $Db --format json > $WorkDir\governed-packet.json
+# 1) Governed typed packet (global --vault-path before subcommand)
+Write-CliStdoutNoBom "$WorkDir\governed-packet.json" @(
+  "--no-project-context", "--vault-path", $Db, "briefing", "project", "--format", "json"
+)
 
 # 2) Legacy preflight text (flag off)
 $env:AI_BRAINS_GOVERNED_BRIEFING = "0"
-ai-brains preflight --vault-path $Db --format json > $WorkDir\legacy-preflight.json
+Write-CliStdoutNoBom "$WorkDir\legacy-preflight.json" @(
+  "--no-project-context", "--vault-path", $Db, "preflight", "--format", "json"
+)
 
 # 3) Fill dogfood-compare.json via CLI:
 ai-brains dogfood compare `
