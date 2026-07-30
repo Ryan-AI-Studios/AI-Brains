@@ -55,6 +55,7 @@ Default daemon HTTP port (when unset): **7432** (`AI_BRAINS_HTTP_PORT` overrides
 - **CSP** is non-null in production (`tauri.conf.json`). Baseline includes:
   - `default-src 'self' customprotocol: asset:`
   - `connect-src ipc: http://ipc.localhost` (required so invoke is not blocked)
+  - `style-src 'self'` only (Vite emits external CSS; no `'unsafe-inline'`)
   - no remote script CDN, no `'unsafe-eval'`
 - **Capabilities** are stripped (no unused menu/tray/resources). Commands are allowlisted via `AppManifest::commands` in `build.rs`.
 

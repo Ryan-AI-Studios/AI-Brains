@@ -267,7 +267,6 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
- "thiserror 2.0.18",
  "windows 0.62.2",
 ]
 

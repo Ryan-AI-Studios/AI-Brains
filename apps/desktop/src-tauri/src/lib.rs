@@ -92,5 +92,9 @@ mod csp_tests {
             !csp_text.contains("unsafe-eval"),
             "CSP must not allow unsafe-eval; got: {csp_text}"
         );
+        assert!(
+            !csp_text.contains("unsafe-inline"),
+            "CSP must not allow unsafe-inline (styles from 'self' assets only); got: {csp_text}"
+        );
     }
 }

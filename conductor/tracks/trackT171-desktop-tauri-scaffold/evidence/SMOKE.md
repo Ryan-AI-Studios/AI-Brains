@@ -42,6 +42,7 @@ No secrets recorded.
 | `cargo check -p ai-brains-desktop` | 0 | workspace member |
 | `cargo clippy -p ai-brains-desktop --all-targets -- -D warnings` | 0 | |
 | `cargo deny check` | 0 | after allowing Apache-2.0 WITH LLVM-exception |
+| `cargo audit` | 0 | 2026-07-30 R1; exit 0 — no vulnerabilities; 18 allowed warnings (GTK3 unmaintained transitive via Tauri Linux deps, unic-*, proc-macro-error, anyhow/glib unsound). None affect Windows desktop shell. |
 
 ## SC1–SC9
 
@@ -65,4 +66,4 @@ No secrets recorded.
 ## Residual
 
 - Manual interactive `npm run tauri dev` window smoke left for operator if desired.
-- `cargo audit` not re-run in this session (deny ok).
+- SC3 full GUI / `npm run tauri build` headless installer smoke not re-recorded in R1 (host unit tests + vite build cover scaffold).
