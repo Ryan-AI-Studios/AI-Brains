@@ -575,11 +575,23 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Manage Projects | `ai-brains project list/resolve/detect` |
 | Graph Health | `ai-brains graph update` (use `graph rebuild` if stale) |
 
-## Desktop thin client (T172)
+## Desktop thin client (T172 + T173 security)
 
-See [apps/desktop/README.md](../apps/desktop/README.md) for the Tauri adapter shell.
+Operator notes for the Tauri desktop adapter. Deep dive, architecture diagrams, and residual detail live in [apps/desktop/README.md](../apps/desktop/README.md).
 
-- **Invoke-first:** UI never uses webview fetch to loopback `/v1`; Rust holds the user-session bearer.
+### Runtime (T172)
+
+- **Invoke-first:** UI never uses webview `fetch` to loopback `/v1`; Rust holds the user-session bearer.
 - **Prereqs for live screens:** daemon on `AI_BRAINS_HTTP_PORT` (default 7432) + `%USERPROFILE%\.ai-brains\http.token`.
 - **Offline/denied:** paint promptly (QueryClient `retry: false`); no fake full-grant empty states.
-- **Unavailable by design on this track:** connectors UI, retention plan UI, grants inventory.
+- **Unavailable by design:** connectors UI, retention plan UI, grants inventory.
+- **Single-instance:** second launch focuses/unminimizes the existing `main` window (plugin registered first).
+
+### Security locks (T173 / SU15)
+
+- **Dual-layer open:** external open is **Rust-only** via `open_url` / `reveal_path` (validators + `tauri-plugin-opener`). URLs are **https-only**; paths refuse empty / `..`. Capabilities use **scoped objects only** (`opener:allow-open-url` with `https://*`; object-form path allow). **Forbidden:** `opener:default`, `opener:allow-default-urls`, bare unscoped `opener:allow-open-path`, and the JS package `@tauri-apps/plugin-opener` (never in FE `package.json`).
+- **Isolation Pattern (mandated):** classic single-file isolation app (`apps/desktop/isolation/`). The isolation hook is **hygiene/audit only** — pass-through; it **cannot claim denylist** enforcement (C13 residual).
+- **CSP prod vs `devCsp`:** production `app.security.csp` is strict (IPC + Isolation `frame-src 'self' customprotocol: asset:`; no `unsafe-inline` / `unsafe-eval` / HMR hosts). `devCsp` relaxes for Vite localhost only — **never ship `devCsp` as prod**.
+- **Typed WIPE:** execute wipe requires typing exact phrase **`WIPE`** in the confirm dialog (checkbox confirm removed). Dry-run does not require the phrase. Enter focuses Confirm (no auto-submit); Escape cancels.
+- **Focus a11y:** `:focus-visible` outlines on interactive controls; `scroll-padding-top` so focus is not hidden under the sticky topbar.
+- **No analytics / crash phone-home by default:** no Sentry, PostHog, or similar in the production tree. Opt-in would need an ADR + track.

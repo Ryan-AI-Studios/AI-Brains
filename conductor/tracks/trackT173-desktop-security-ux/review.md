@@ -1,47 +1,197 @@
-# T173 Review Log — Desktop Security & UX (P10.2)
+# T173 Internal Review R1
+Date: 2026-07-30  
+Reviewer: Internal Reviewer (read-only)  
+Branch: `feat/t173-desktop-security-ux`  
+Workspace: `C:\dev\AI-Brains-wt-t173`  
+Diff base: `origin/main...HEAD` + implementer smoke claims  
+Verdict: **NEEDS_FIX**
 
-**Track:** T173-DesktopSecurityUx  
-**Category:** SECURITY  
-**Implementer:** Grok (worktree `AI-Brains-wt-t173`)  
-**Status:** Implementation complete — pending review / verification
+## Requirement matrix (summary)
 
-## Implementer notes
+### U1–U21
 
-### Delivered
+| ID | Status | Evidence |
+|----|--------|----------|
+| **U1** Adapter only | **Met** | Invoke wrappers in `api.ts` / `openExternal.ts`; wipe honesty from API + static contract bullets; no TS grants/freshness/erasure authority |
+| **U2** Isolation mandated | **Met** | `tauri.conf.json` `pattern.use=isolation`, `options.dir=../isolation`; `isolation/index.html` present; residual honesty documented (cannot deny) |
+| **U3** Dual-layer safe open | **Met** | Rust validators in `open.rs` + scoped capabilities objects; https-only URL; path `..` refused |
+| **U4** Inert preview | **Met** | No `dangerouslySetInnerHTML` in `apps/desktop/src`; Evidence/Source use `<pre>` / plain text |
+| **U5** Prod CSP strict | **Met** | Prod CSP non-null, ipc, no unsafe-inline/eval, no HMR hosts; `frame-src` for Isolation; `csp_tests` |
+| **U6** Typed wipe + dialog a11y | **Met** | Checkbox removed; `typedConfirmPhrase="WIPE"` on execute only; Enter focuses Confirm; Escape → cancel; honesty bullets |
+| **U7** Keyboard / focus / non-color status | **Met** | `:focus-visible` on interactive controls; native `<dialog showModal>`; StatusBadge icon+text in StatePanel + ScopeIndicator |
+| **U8** Scope indicator always visible | **Met** | `Layout.tsx` topbar always renders `ScopeIndicator` |
+| **U9** No analytics | **Met** | No analytics deps in `package.json` / production tree; README privacy lock |
+| **U10** Secrets Rust-only | **Met** | Bearer via `Zeroizing` in `http_client.rs`; no web storage of token |
+| **U11** Provenance + license | **Met** | opener/single-instance in desktop Cargo only (tauri-apps class); `license:check` + deny claimed PASS in SMOKE |
+| **U12** AppManifest + capabilities | **Met** | `allow-open-url` / `allow-reveal-path` permissions + scoped opener objects in `default.json` |
+| **U13** No unwrap/expect/panic in prod host glue | **Met** | Production host paths avoid unwrap/expect/panic; only `#[cfg(test)]` modules use them |
+| **U14** Capture independence | **Met** | Desktop remains optional adapter (README + architecture) |
+| **U15** Windows-first verify | **Partial** | Host compiles + unit tests; live WebView Isolation smoke deferred to T174/human (documented) |
+| **U16** tsc / vite build / license:check | **Met** | SMOKE evidence PASS (not re-run by reviewer) |
+| **U17** #40 out | **Met** | No opportunistic dep-bump campaign; pins stay in ADR/README band |
+| **U18** Playwright → T174 | **Met** | No Playwright added; handoff list in `evidence/SMOKE.md` |
+| **U19** Isolation classic single-file | **Met** | `isolation/index.html` inline classic script; no `type=module` / import / npm deps |
+| **U20** No JS opener package | **Met** | Absent from `package.json` / lockfile; capability test asserts absence |
+| **U21** scroll-padding focus not obscured | **Met** | `scroll-padding-top: 4rem` on `.main-column` / `.content`; sticky topbar |
 
-| Phase | Summary |
-|-------|---------|
-| A | Prod CSP + `frame-src`; csp_tests extended; README prod vs devCsp |
-| B | Native `<dialog>` ConfirmDialog; typed `WIPE`; ErasureScreen checkbox removed |
-| C | `:focus-visible`, scroll-padding, sticky topbar, StatusBadge |
-| D | Dual-layer opener (Cargo-only plugin, Rust validators, scoped capabilities, FE invoke wrappers) |
-| E | No `dangerouslySetInnerHTML`; plain JSON/text previews |
-| F | Isolation single-file classic hook; conf pattern mandated |
-| G | single-instance first plugin; skip-to-main link |
-| H | README/ops, SMOKE evidence, T174 handoff, this review skeleton |
+### SU1–SU18
 
-### Residuals (honest)
-
-1. **Isolation hook cannot deny** — audit/pass-through only (C13 / U2 residual).
-2. **Path capability breadth** — object form `"path": "**"` after Rust validation; not bare string unscoped.
-3. **Full WebView smoke** (ping + briefing + review under Isolation) — deferred to human/T174 (no automated Playwright on this track).
-4. **react-markdown / axe-core** — skipped by design (license simplicity / free optional).
-
-### Suggested reviewer focus
-
-- [ ] Capabilities JSON: no `allow-default-urls` / `opener:default` / bare `opener:allow-open-path`
-- [ ] package.json lacks `@tauri-apps/plugin-opener`
-- [ ] Wipe: typed phrase only on execute; Enter does not auto-submit
-- [ ] open.rs: no unwrap/expect/panic in production paths
-- [ ] Isolation classic single-file (no type=module)
-- [ ] SECURITY category: consider cross-model review before clearance
+| ID | Status | Evidence |
+|----|--------|----------|
+| SU1 | **Met** | `csp_tests` cover baseline + frame-src |
+| SU2 | **Met** | Isolation enabled + residual honesty |
+| SU3 | **Met** | URL validator unit table (https allow; http/file/js/… refuse) |
+| SU4 | **Met** | Path validator unit table (`..` / empty refuse) |
+| SU5 | **Met** | SourceScreen “No locator available”; never fabricates |
+| SU6 | **Met** | Typed WIPE; dry_run checkbox separate; honesty in dialog + result |
+| SU7 | **Met** | Native dialog focus trap / Escape / restore-focus |
+| SU7a | **Met** | Enter on phrase input → `confirmBtnRef.focus()`; no auto-submit |
+| SU7b | **Met** | `aria-live="polite"` gate message |
+| SU8 | **Partial** | Code path keyboard-operable; live keyboard smoke deferred (T174) |
+| SU8a | **Met** | `:focus-visible` rules in `App.css` |
+| SU8b | **Met** | scroll-padding + sticky topbar |
+| SU9 | **Met** | StatusBadge offline/denied/unavailable/error in StatePanel |
+| SU10 | **Met** | ScopeIndicator always in chrome |
+| SU11 | **Met** | No analytics production deps |
+| SU12 | **Met** | SMOKE: license:check + deny PASS |
+| SU13 | **Met** | Scoped opener objects; no default-urls / bare open-path |
+| SU14 | **Met** | Inert previews only |
+| SU15 | **Met** (pending verify) | README complete; OPERATIONS expanded for T173 dual-layer / Isolation / CSP / typed WIPE / a11y / no-analytics (R1-01 `fixed_pending_verification`) |
+| SU16 | **Met** | T174 handoff cases 1–10 in SMOKE |
+| SU17 | **Met** | No `@tauri-apps/plugin-opener` in package.json |
+| SU18 | **Met** | `capability_tests` + review of `default.json` object scopes |
 
 ## Findings
 
-| ID | Severity | Description | Status |
-|----|----------|-------------|--------|
-| — | — | (none yet — implementer seed) | — |
+### R1-01 | medium | OPERATIONS still T172-only; SU15 security operator notes missing
+- status: fixed_pending_verification
+- files:
+  - `Docs/OPERATIONS.md` (## Desktop thin client (T172 + T173 security))
+  - `apps/desktop/README.md` (complete — contrast)
+  - `conductor/tracks/trackT173-desktop-security-ux/spec.md` (SU15)
+  - `conductor/tracks/trackT173-desktop-security-ux/plan.md` (Phase H claims OPERATIONS done)
+- description:
+  Spec **SU15** and plan Phase H require **OPERATIONS** to document dual-layer open, Isolation mandate, CSP prod/dev split, typed WIPE, and no-analytics defaults. `Docs/OPERATIONS.md` still titles the section “Desktop thin client (**T172**)” and only lists T172 operator bullets (invoke-first, token path, offline/denied, unavailable surfaces) plus a README pointer. It does **not** restate the T173 security/ops locks operators need without opening the app README.
+- required_fix:
+  Expand (or retitle) the desktop section to cover at least: dual-layer opener (Rust-only; no JS opener; https-only; no `opener:default` / allow-default-urls / bare unscoped open-path); Isolation mandated + cannot-deny residual; prod CSP vs `devCsp`; typed `WIPE` for execute wipe; single-instance focus behavior; no analytics by default. Keep the README deep-dive link.
+- evidence:
+  OPERATIONS L578–585 vs README dual-layer / Isolation / CSP / wipe / privacy sections; SU15 text; plan Phase H checklist marked complete.
+- fix_notes:
+  Retitled section to T172+T173; added SU15 operator bullets (dual-layer open, Isolation hygiene residual, CSP/`devCsp`, typed WIPE, focus a11y, no analytics) + kept README deep-dive pointer.
 
-## Cross-model
+### R1-02 | low_info | Live Isolation + keyboard WebView smoke deferred
+- status: open
+- files:
+  - `conductor/tracks/trackT173-desktop-security-ux/evidence/SMOKE.md`
+  - `conductor/tracks/trackT173-desktop-security-ux/plan.md` (Phase F/B manual items)
+- description:
+  U15 / SU8 live Windows WebView smoke (start → ping → briefing → review list under Isolation; full keyboard review path) is intentionally deferred to human/T174. Host-side conf, isolation app, and unit gates are in place. Not a code defect; residual for release confidence.
+- required_fix:
+  None for T173 code. Ensure T174 (or human smoke) runs the listed cases before calling desktop release complete.
+- evidence:
+  SMOKE “Live tauri dev… Deferred”; plan unchecked manual Windows smoke / keyboard review.
 
-- Pending orchestrator/codex review for SECURITY track.
+### R1-03 | low_info | Isolation hook cannot deny IPC (accepted residual)
+- status: open
+- files:
+  - `apps/desktop/isolation/index.html`
+  - `apps/desktop/README.md`
+  - `evidence/SMOKE.md`
+- description:
+  Hook is pass-through (`return payload`). Documented as hygiene/audit only (C13 / U2 residual). Correct honesty — do not claim denylist.
+- required_fix:
+  None. Keep residual language in README/OPERATIONS when R1-01 is fixed.
+- evidence:
+  Isolation script returns payload unmodified; residual sections in README + SMOKE.
+
+### R1-04 | low_info | Path capability breadth `"path": "**"` (accepted residual)
+- status: open
+- files:
+  - `apps/desktop/src-tauri/capabilities/default.json`
+  - `apps/desktop/src-tauri/src/commands/open.rs`
+  - README residual note
+- description:
+  Object-form `opener:allow-open-path` with `"path": "**"` is intentionally broad so API locators on arbitrary drives can reveal. Not bare-string unscoped permission (SU18 satisfied). Rust still refuses empty / `..` / selected device forms. Residual risk if FE is compromised: any non-`..` path can be opened via invoke.
+- required_fix:
+  None for this track unless product wants tighter globs later.
+- evidence:
+  `default.json` L29–32; open.rs validators; README path residual.
+
+### R1-05 | low_info | ADR-0017 Isolation still listed as “T173 candidate”
+- status: fixed_pending_verification
+- files:
+  - `Docs/DECISIONS/ADR-0017-desktop-frontend-stack.md` (deferred table)
+- description:
+  ADR deferred table still says Isolation is a T173 candidate. Implementation now mandates Isolation. Historical owner row is not wrong, but status language is slightly stale relative to landed U2.
+- required_fix:
+  Optional follow-up: mark Isolation landed under T173 (or supersede row) when track closes. Not blocking security behavior.
+- evidence:
+  ADR-0017 L68 vs `tauri.conf.json` isolation pattern.
+- fix_notes:
+  Deferred table row now says Isolation is **mandated in T173** (implemented; classic single-file isolation app).
+
+## Completeness / wiring notes
+
+### Dual-layer opener (checklist 3) — **pass**
+- Cargo-only: `apps/desktop/src-tauri/Cargo.toml` has `tauri-plugin-opener = "2.5"`; **not** workspace; **no** `@tauri-apps/plugin-opener` in `package.json` / lockfile.
+- Builder: `lib.rs` registers single-instance **first**, then opener.
+- Commands: `open_url` / `reveal_path` take `AppHandle`, use `OpenerExt`, validate first.
+- Capabilities: scoped objects only — `https://*` URL; object path allow — **no** `opener:default`, **no** `allow-default-urls`, **no** bare string `opener:allow-open-path`.
+- FE: `openExternal.ts` invoke-only; Source uses `classifyLocator` on API `locator` only.
+
+### Isolation (checklist 4) — **pass**
+- Classic single-file inline JS; configured in `tauri.conf.json`; residual honesty present.
+- `frame-src 'self' customprotocol: asset:` on prod CSP + test assert.
+- `tauri` / `tauri-build` features include `isolation`.
+
+### Typed WIPE (checklist 5) — **pass**
+- No `confirmWipe` checkbox state.
+- Execute path: `typedConfirmPhrase="WIPE"`; Confirm disabled until exact match; `confirm: true` only after dialog confirm.
+- Enter focuses Confirm (no auto-submit); Escape cancels via `onCancel`; `aria-live` polite messages.
+- Dry-run remains separate checkbox; dry-run dialog does not require phrase.
+
+### Focus / StatusBadge (checklists 6–7) — **pass**
+- Global `:focus-visible` + interactive selectors; `outline: none` only with `:focus-visible` replacement.
+- `scroll-padding-top: 4rem` on scroll containers; sticky topbar.
+- StatusBadge = lucide icon + text for offline/denied/unavailable/error (and scope states).
+
+### Production host glue (checklist 8) — **pass**
+- No production `unwrap`/`expect`/`panic` in host glue reviewed (`open.rs`, `lib.rs` run path, `main.rs`, `webview2.rs`). Test modules only.
+
+### Tests (checklist 9) — **pass**
+- URL/path validator unit tables in `open.rs`.
+- CSP + isolation pattern + capability shape + no JS opener package tests in `lib.rs`.
+
+### Docs (checklist 10) — **pass** (pending re-verify)
+- README matches reality thoroughly.
+- OPERATIONS expanded for T173 SU15 (R1-01 `fixed_pending_verification`).
+
+### Single-instance (checklist 11) — **pass**
+- Present; first plugin; focuses/unminimizes `main`.
+
+### No stubs / XSS sinks (checklist 2) — **pass**
+- No placeholders/stubs in security path; no `dangerouslySetInnerHTML` on API content; Connectors/Retention remain honest unavailable (pre-existing T172 design).
+
+## Gate evidence observed (if any)
+
+From `evidence/SMOKE.md` (implementer-reported; not re-executed in this read-only review):
+
+| Gate | Claimed |
+|------|---------|
+| `npm run typecheck` | PASS |
+| `npm run build` | PASS |
+| `npm run license:check` | PASS |
+| `cargo test -p ai-brains-desktop --lib` | PASS (38 tests) |
+| `cargo clippy -p ai-brains-desktop --all-targets -- -D warnings` | PASS |
+| `cargo fmt -p ai-brains-desktop -- --check` | PASS |
+| `cargo deny check` | PASS |
+| `cargo check -p ai-brains-desktop` | PASS (isolation + plugins) |
+| Live `tauri dev` Isolation smoke | Deferred T174 / human |
+
+## Reviewer conclusion
+
+Security-critical implementation for T173 is **substantially complete and correctly shaped**: dual-layer opener, Isolation mandate + honest residual, typed WIPE, dialog/focus a11y, CSP+tests, no JS opener package, StatusBadge, single-instance first.
+
+**Implementer fix pass:** R1-01 and R1-05 marked `fixed_pending_verification`. Residual low_info items R1-02 (live smoke → T174/human), R1-03 (isolation cannot-deny), R1-04 (path `**`) remain open/deferred by design. Re-review OPERATIONS + ADR-0017 wording for clearance.
+
+**Cross-model:** SECURITY category — recommend orchestrator still run codex-style cross-model review before final track closure, focused on opener capabilities + Isolation residual honesty.
