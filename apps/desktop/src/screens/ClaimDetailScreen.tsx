@@ -1,12 +1,23 @@
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
+import { asArray } from "../lib/types";
+import type { EvidenceHandle } from "../lib/types";
+
+/** Optional route state when opening a claim from Home/Query packets. */
+interface ClaimLocationState {
+  evidence_handles?: EvidenceHandle[];
+  statement?: string;
+}
 
 /**
  * Read-only claim detail from route params (id/kind).
- * Evidence handles are listed as links — no xyflow graph required.
- * Full claim body is not re-fetched here; deep inspect uses evidence/source screens.
+ * Claim id is never treated as an evidence id. Evidence is linked only when
+ * handles are provided via route state (or later packet load).
  */
 export function ClaimDetailScreen() {
   const { kind = "", id = "" } = useParams();
+  const location = useLocation();
+  const state = (location.state ?? null) as ClaimLocationState | null;
+  const evidenceHandles = asArray<EvidenceHandle>(state?.evidence_handles);
 
   if (!id) {
     return (
@@ -42,16 +53,40 @@ export function ClaimDetailScreen() {
         <p>
           id: <code>{id}</code>
         </p>
+        {state?.statement && <p>{state.statement}</p>}
         <p className="muted small">
-          Evidence bodies are inspected by id. Use Query/Home packets for
-          statements and handle lists when available.
+          Claim id is not an evidence id. Inspect evidence only via handles from
+          the source packet.
         </p>
+
+        <h2>Evidence handles</h2>
+        {evidenceHandles.length === 0 ? (
+          <p className="muted small">
+            No evidence handles on this navigation. Open the claim from Home or
+            Query (packet-backed links pass handles), or inspect evidence by id
+            from those screens.
+          </p>
+        ) : (
+          <ul className="claim-list">
+            {evidenceHandles.map((h) => (
+              <li key={h.evidence_id}>
+                <Link
+                  to={`/evidence/${encodeURIComponent(h.evidence_id)}`}
+                  className="inline-link"
+                >
+                  {h.cite_label || h.evidence_id}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className="btn-row">
-          <Link className="btn" to={`/evidence/${encodeURIComponent(id)}`}>
-            Inspect as evidence id
-          </Link>
           <Link className="btn btn-ghost" to="/query">
             Back to query
+          </Link>
+          <Link className="btn btn-ghost" to="/">
+            Back to home
           </Link>
         </div>
       </div>

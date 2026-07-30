@@ -116,6 +116,20 @@ export function StatePanel({
   return <>{children}</>;
 }
 
+/** Map a structured UI error to a panel status (kind-aware titles). */
+export function statusFromUiError(error: UiError): PanelStatus {
+  switch (error.kind) {
+    case "offline":
+      return "offline";
+    case "denied":
+      return "denied";
+    case "unavailable":
+      return "unavailable";
+    default:
+      return "error";
+  }
+}
+
 /** Map a react-query error + loading flags into a panel status. */
 export function statusFromQuery(opts: {
   isLoading: boolean;
@@ -132,11 +146,7 @@ export function statusFromQuery(opts: {
   }
   if (opts.isError) {
     const uiError = mapInvokeError(opts.error);
-    if (uiError.kind === "offline") return { status: "offline", uiError };
-    if (uiError.kind === "denied") return { status: "denied", uiError };
-    if (uiError.kind === "unavailable")
-      return { status: "unavailable", uiError };
-    return { status: "error", uiError };
+    return { status: statusFromUiError(uiError), uiError };
   }
   if (opts.isEmpty) {
     return { status: "empty", uiError: null };

@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router";
 import {
   BookOpen,
   Eraser,
+  FileSearch,
   Home,
   Link2,
   ListChecks,
@@ -22,6 +23,7 @@ const nav: {
   { to: "/scope", label: "Scope", icon: MapPin },
   { to: "/query", label: "Query", icon: Search },
   { to: "/evidence", label: "Evidence", icon: BookOpen },
+  { to: "/source", label: "Source", icon: FileSearch },
   { to: "/erasure", label: "Erasure", icon: Eraser },
   { to: "/connectors", label: "Connectors", icon: Link2 },
   { to: "/claim", label: "Claim", icon: Shield },

@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::http_client::{
-    InvokeApiError, ensure_command_id, get_json, post_json, probe_health as http_probe_health,
+    InvokeApiError, encode_path_segment, ensure_command_id, get_json, post_json,
+    probe_health as http_probe_health,
 };
 
 fn api_version_one() -> String {
@@ -222,7 +223,7 @@ pub async fn list_review_items(args: ListReviewItemsArgs) -> Result<Value, Invok
 #[tauri::command]
 pub async fn resolve_review_item(mut args: ResolveReviewItemArgs) -> Result<Value, InvokeApiError> {
     ensure_command_id(&mut args.command_id);
-    let id = args.id.clone();
+    let id = encode_path_segment(&args.id);
     let path = format!("/v1/review/items/{id}/resolve");
     post_json(&path, &to_value(&args)?).await
 }
@@ -281,6 +282,14 @@ mod tests {
         assert_eq!(v["api_version"], "1");
         let cid = v["command_id"].as_str().expect("command_id string");
         assert!(uuid::Uuid::parse_str(cid).is_ok());
+    }
+
+    #[test]
+    fn resolve_review_item_path__percent_encodes_id_segment() {
+        let id = encode_path_segment("item/with space");
+        let path = format!("/v1/review/items/{id}/resolve");
+        assert_eq!(path, "/v1/review/items/item%2Fwith%20space/resolve");
+        assert!(!path.contains("item/with"));
     }
 
     #[test]

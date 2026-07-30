@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { requestErasure, wipeContentEnvelope } from "../lib/api";
 import { asArray } from "../lib/types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { StatePanel, statusFromUiError } from "../components/StatePanel";
 import { mapInvokeError, type UiError } from "../lib/errors";
 import type {
   ContentEnvelopeWipedResponse,
@@ -129,9 +130,10 @@ export function ErasureScreen() {
           </button>
         </form>
         {ticketError && (
-          <p className="error" role="alert">
-            {ticketError.message}
-          </p>
+          <StatePanel
+            status={statusFromUiError(ticketError)}
+            error={ticketError}
+          />
         )}
         {ticketResult && (
           <div className="result-box">
@@ -213,9 +215,10 @@ export function ErasureScreen() {
           </button>
         </form>
         {wipeError && (
-          <p className="error" role="alert">
-            {wipeError.message}
-          </p>
+          <StatePanel
+            status={statusFromUiError(wipeError)}
+            error={wipeError}
+          />
         )}
         {wipeResult && (
           <div className="result-box">

@@ -298,7 +298,13 @@ function ClaimList({
         <ul className="claim-list">
           {claims.map((c) => (
             <li key={c.id}>
-              <Link to={`/claim/${encodeURIComponent(c.kind)}/${encodeURIComponent(c.id)}`}>
+              <Link
+                to={`/claim/${encodeURIComponent(c.kind)}/${encodeURIComponent(c.id)}`}
+                state={{
+                  evidence_handles: asArray<EvidenceHandle>(c.evidence_handles),
+                  statement: c.statement,
+                }}
+              >
                 {c.title || c.statement.slice(0, 120)}
               </Link>
               <span className="badge badge-muted">{c.state}</span>

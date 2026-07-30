@@ -146,6 +146,12 @@ export function QueryScreen() {
                           </p>
                           <Link
                             to={`/claim/${encodeURIComponent(hit.kind)}/${encodeURIComponent(hit.id)}`}
+                            state={{
+                              evidence_handles: asArray<EvidenceHandle>(
+                                hit.evidence_handles,
+                              ),
+                              statement: hit.statement,
+                            }}
                           >
                             Open claim detail
                           </Link>

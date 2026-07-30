@@ -4,7 +4,7 @@ import { listReviewItems, resolveReviewItem } from "../lib/api";
 import { asArray } from "../lib/types";
 import { queryKeys } from "../lib/queryKeys";
 import { useInvokeQuery } from "../hooks/useInvokeQuery";
-import { StatePanel } from "../components/StatePanel";
+import { StatePanel, statusFromUiError } from "../components/StatePanel";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { mapInvokeError, type UiError } from "../lib/errors";
 import type { ReviewItem } from "../lib/types";
@@ -85,9 +85,10 @@ export function ReviewScreen() {
       )}
 
       {resolveError && (
-        <div className="card card-error" role="alert">
-          <p>{resolveError.message}</p>
-        </div>
+        <StatePanel
+          status={statusFromUiError(resolveError)}
+          error={resolveError}
+        />
       )}
 
       <StatePanel

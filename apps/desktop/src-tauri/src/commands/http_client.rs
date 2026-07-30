@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use zeroize::Zeroizing;
 
 use super::{resolve_loopback_base_url, user_session_token_path};
 
@@ -124,9 +125,9 @@ pub fn ensure_command_id(command_id: &mut Option<String>) {
 
 /// Read the user-session bearer from disk. Missing/empty → denied.
 ///
-/// Never returns the token to callers outside this module's request path in a
-/// way that would cross the JS boundary; callers attach it only to Authorization.
-pub fn read_user_session_token() -> Result<String, InvokeApiError> {
+/// Returns `Zeroizing<String>` so the secret is zeroed on drop. Never returned
+/// to JS — callers attach it only to the Authorization header within Rust.
+pub fn read_user_session_token() -> Result<Zeroizing<String>, InvokeApiError> {
     let path = user_session_token_path().ok_or_else(|| {
         InvokeApiError::denied("user home directory unavailable; cannot locate session token")
     })?;
@@ -147,7 +148,27 @@ pub fn read_user_session_token() -> Result<String, InvokeApiError> {
         return Err(InvokeApiError::denied("user-session token file is empty"));
     }
 
-    Ok(token.to_string())
+    Ok(Zeroizing::new(token.to_string()))
+}
+
+/// Percent-encode a single URL path segment (RFC 3986 unreserved left alone).
+///
+/// Differs from query form-encoding: space becomes `%20` (not `+`).
+pub fn encode_path_segment(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    for b in raw.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char);
+            }
+            _ => {
+                out.push('%');
+                out.push(char::from(b"0123456789ABCDEF"[(b >> 4) as usize]));
+                out.push(char::from(b"0123456789ABCDEF"[(b & 0xf) as usize]));
+            }
+        }
+    }
+    out
 }
 
 /// Minimal application/x-www-form-urlencoded component encoding for query strings.
@@ -214,7 +235,10 @@ pub async fn request_json(
     let mut builder = client
         .request(method, &url)
         // Authorization header only; never log the bearer value.
-        .header(reqwest::header::AUTHORIZATION, format!("Bearer {token}"))
+        .header(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {}", token.as_str()),
+        )
         .header(reqwest::header::ACCEPT, "application/json");
 
     if let Some(json) = body {
@@ -480,5 +504,20 @@ mod tests {
         let err = map_http_status(401, "nope");
         assert_eq!(err.kind, "denied");
         assert_ne!(err.kind, "offline");
+    }
+
+    #[test]
+    fn encode_path_segment__leaves_unreserved() {
+        assert_eq!(encode_path_segment("item-1_A.z~"), "item-1_A.z~");
+    }
+
+    #[test]
+    fn encode_path_segment__encodes_slash_and_space() {
+        assert_eq!(encode_path_segment("a/b c"), "a%2Fb%20c");
+    }
+
+    #[test]
+    fn encode_path_segment__encodes_plus_and_percent() {
+        assert_eq!(encode_path_segment("a+b%"), "a%2Bb%25");
     }
 }
