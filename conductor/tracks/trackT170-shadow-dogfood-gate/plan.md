@@ -1,6 +1,6 @@
 # T170 Plan — Shadow Dogfood Gate + Live Enablement Stop (P9.4)
 
-Status: **In Progress** (implementation on `feat/t170-shadow-dogfood-gate`).
+Status: **Completed** (2026-07-30). Codex R2 PASS WITH DEFERRED P3 (Stage C/D operator/user deferred).
 
 Authority: `spec.md` locks **D1–D26**. Process/docs-first. **No live enablement without explicit user approval.**
 
