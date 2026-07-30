@@ -1,0 +1,8 @@
+{
+  "api_version": "1",
+  "id": "review-item-1",
+  "status": "Resolved",
+  "warnings": [
+    "resolution recorded; verify governed state on next briefing"
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "kind": "denied",
+  "message": "session token missing or not authorized",
+  "status": 401
+}

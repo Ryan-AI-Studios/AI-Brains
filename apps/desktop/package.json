@@ -13,7 +13,13 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "license:check": "node ./scripts/license-check.mjs"
+    "typecheck:tests": "tsc --noEmit -p tsconfig.vitest.json",
+    "license:check": "node ./scripts/license-check.mjs",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test --grep @visual",
+    "test:e2e:update": "playwright test --update-snapshots"
   },
   "dependencies": {
     "@tanstack/react-query": "5.101.4",
@@ -24,12 +30,20 @@
     "react-router": "8.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.0",
     "@tauri-apps/cli": "2.11.4",
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/jest-dom": "7.0.0",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "22.19.7",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.4",
+    "jsdom": "30.0.0",
     "license-checker-rseidelsohn": "5.0.1",
     "typescript": "7.0.2",
-    "vite": "8.1.5"
+    "vite": "8.1.5",
+    "vitest": "4.1.0"
   }
 }

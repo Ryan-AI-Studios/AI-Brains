@@ -1,0 +1,7 @@
+{
+  "id": "src-https-1",
+  "kind": "url",
+  "display_name": "HTTPS Source",
+  "locator": "https://example.com/docs",
+  "last_observed_at": "2026-07-01T00:00:00Z"
+}
