@@ -39,18 +39,51 @@ pub const KNOWN_METRICS: &[&str] = &[
     "scope_key_stable",
 ];
 
+/// Expected JSON type for a seed param value (E6 typed whitelist).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // Number/Bool reserved for future typed keys; String used today.
+enum SeedParamType {
+    /// Path / label / free-text string keys.
+    String,
+    /// Integer or float.
+    Number,
+    /// JSON boolean.
+    Bool,
+}
+
 /// Params keys allowed for every seed program (all optional; empty object is fine).
-const UNIVERSAL_PARAM_KEYS: &[&str] = &["label", "project_label"];
+const UNIVERSAL_PARAM_KEYS: &[(&str, SeedParamType)] = &[
+    ("label", SeedParamType::String),
+    ("project_label", SeedParamType::String),
+];
 
 /// Extra allowed param keys per program (empty = only universal).
-fn program_param_keys(program: &str) -> &'static [&'static str] {
+fn program_param_keys(program: &str) -> &'static [(&'static str, SeedParamType)] {
     match program {
-        "path_alias_wsl" => &["win_path", "wsl_path"],
-        "erasure_ce_wipe" => &["wipe_reason"],
-        "personal_and_cross_project" => &["alpha_label", "beta_label"],
+        "path_alias_wsl" => &[
+            ("win_path", SeedParamType::String),
+            ("wsl_path", SeedParamType::String),
+        ],
+        "erasure_ce_wipe" => &[("wipe_reason", SeedParamType::String)],
+        "personal_and_cross_project" => &[
+            ("alpha_label", SeedParamType::String),
+            ("beta_label", SeedParamType::String),
+        ],
         _ => &[],
     }
 }
+
+/// Resolve expected type for an allowed key on a program (universal + program extras).
+fn expected_param_type(program: &str, key: &str) -> Option<SeedParamType> {
+    UNIVERSAL_PARAM_KEYS
+        .iter()
+        .chain(program_param_keys(program).iter())
+        .find(|(k, _)| *k == key)
+        .map(|(_, t)| *t)
+}
+
+/// Metrics that are only valid under `runner: sources_tests` (not CP score_packet).
+const SOURCES_ONLY_METRICS: &[&str] = &["independent_support_false_positive"];
 
 /// Scenario lifecycle status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -195,7 +228,8 @@ pub fn validate_scenario(scenario: &Scenario) -> Result<()> {
             }
         }
         // Deferred may lack seed; still validate asserts if present.
-        validate_asserts(&scenario.asserts)?;
+        // Allow sources-only metric names so deferred catalog entries stay valid.
+        validate_asserts(&scenario.asserts, /*allow_sources_only*/ true)?;
         return Ok(());
     }
 
@@ -206,8 +240,8 @@ pub fn validate_scenario(scenario: &Scenario) -> Result<()> {
                 "unknown scenario runner '{runner}'"
             )));
         }
-        // External-runner scenarios need no CP seed.
-        validate_asserts(&scenario.asserts)?;
+        // External-runner scenarios need no CP seed; sources-only metrics allowed.
+        validate_asserts(&scenario.asserts, /*allow_sources_only*/ true)?;
         return Ok(());
     }
 
@@ -227,27 +261,44 @@ pub fn validate_scenario(scenario: &Scenario) -> Result<()> {
 
     validate_seed_params(&seed.program, &seed.params)?;
     validate_actions(&scenario.actions)?;
-    validate_asserts(&scenario.asserts)?;
+    // CP seed scenarios must not assert sources-only metrics (P1-03).
+    validate_asserts(&scenario.asserts, /*allow_sources_only*/ false)?;
     Ok(())
 }
 
 fn validate_seed_params(program: &str, params: &BTreeMap<String, Value>) -> Result<()> {
-    let extra = program_param_keys(program);
     for (key, value) in params {
-        let allowed = UNIVERSAL_PARAM_KEYS.contains(&key.as_str()) || extra.contains(&key.as_str());
-        if !allowed {
+        let Some(expected) = expected_param_type(program, key) else {
             return Err(ControlPlaneError::InvalidPayload(format!(
                 "unknown seed param '{key}' for program '{program}'"
             )));
+        };
+        // Null is allowed for optional params (all keys are optional).
+        if value.is_null() {
+            continue;
         }
-        // Typed whitelist: only string/bool/number/null for known keys.
-        match value {
-            Value::String(_) | Value::Bool(_) | Value::Number(_) | Value::Null => {}
-            Value::Array(_) | Value::Object(_) => {
-                return Err(ControlPlaneError::InvalidPayload(format!(
-                    "seed param '{key}' has unsupported type for program '{program}'"
-                )));
-            }
+        let type_ok = match expected {
+            SeedParamType::String => value.is_string(),
+            SeedParamType::Number => value.is_number(),
+            SeedParamType::Bool => value.is_boolean(),
+        };
+        if !type_ok {
+            let got = match value {
+                Value::String(_) => "string",
+                Value::Number(_) => "number",
+                Value::Bool(_) => "bool",
+                Value::Array(_) => "array",
+                Value::Object(_) => "object",
+                Value::Null => "null",
+            };
+            let want = match expected {
+                SeedParamType::String => "string",
+                SeedParamType::Number => "number",
+                SeedParamType::Bool => "bool",
+            };
+            return Err(ControlPlaneError::InvalidPayload(format!(
+                "seed param '{key}' for program '{program}' must be {want} (or null), got {got}"
+            )));
         }
     }
     Ok(())
@@ -271,11 +322,18 @@ fn validate_actions(actions: &[ScenarioAction]) -> Result<()> {
     Ok(())
 }
 
-fn validate_asserts(asserts: &AssertsSpec) -> Result<()> {
+fn validate_asserts(asserts: &AssertsSpec, allow_sources_only: bool) -> Result<()> {
     for a in asserts.hard.iter().chain(asserts.soft.iter()) {
         if !KNOWN_METRICS.contains(&a.metric.as_str()) {
             return Err(ControlPlaneError::InvalidPayload(format!(
                 "unknown assert metric '{}'",
+                a.metric
+            )));
+        }
+        if !allow_sources_only && SOURCES_ONLY_METRICS.contains(&a.metric.as_str()) {
+            return Err(ControlPlaneError::InvalidPayload(format!(
+                "metric '{}' is only valid for runner=sources_tests scenarios; \
+                 not evaluable by the control-plane harness",
                 a.metric
             )));
         }
@@ -371,6 +429,57 @@ mod tests {
         let err = load_scenario_json(raw).expect_err("must reject unknown param");
         assert!(matches!(err, ControlPlaneError::InvalidPayload(_)));
         assert!(err.to_string().contains("unknown seed param"));
+    }
+
+    #[test]
+    fn scenario_schema__bad_seed_params_type__invalid_payload() {
+        // path keys must be string; numeric win_path is INVALID_PAYLOAD (E6 / P1-01).
+        let raw = r#"{
+          "schema_version": 1,
+          "id": "x",
+          "title": "t",
+          "status": "active",
+          "seed": {
+            "program": "path_alias_wsl",
+            "params": { "win_path": 12345 }
+          },
+          "actions": [{ "op": "resolve_scope" }],
+          "asserts": { "hard": [], "soft": [] }
+        }"#;
+        let err = load_scenario_json(raw).expect_err("must reject wrong type");
+        assert!(
+            matches!(err, ControlPlaneError::InvalidPayload(_)),
+            "got {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("win_path") && (msg.contains("string") || msg.contains("type")),
+            "{msg}"
+        );
+    }
+
+    #[test]
+    fn scenario_schema__sources_only_metric_on_cp_seed__invalid_payload() {
+        let raw = r#"{
+          "schema_version": 1,
+          "id": "x",
+          "title": "t",
+          "status": "active",
+          "seed": { "program": "project_briefing_minimal", "params": {} },
+          "actions": [{ "op": "build_project_briefing", "dry_run": true }],
+          "asserts": {
+            "hard": [
+              { "metric": "independent_support_false_positive", "op": "eq", "value": 0 }
+            ],
+            "soft": []
+          }
+        }"#;
+        let err = load_scenario_json(raw).expect_err("CP seed must not assert sources-only metric");
+        assert!(matches!(err, ControlPlaneError::InvalidPayload(_)));
+        assert!(
+            err.to_string()
+                .contains("independent_support_false_positive")
+        );
     }
 
     #[test]

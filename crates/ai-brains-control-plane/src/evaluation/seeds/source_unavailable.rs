@@ -156,7 +156,9 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         project_id,
         resolve: resolve_for_project(project_id),
         claim_ids: vec![dec_id],
-        warning_subject_ids: vec![dep_id],
+        warning_subject_ids: vec![dep_id.clone()],
+        // P2-01: runner verifies packet.warnings (not seed metadata alone).
+        require_stale_or_unavailable_warnings: vec![dep_id],
         must_be_absent_claim_ids: must_be_absent,
         require_citations: true,
         ..SeedOutcome::default()

@@ -75,7 +75,9 @@ impl MetricValues {
                 Some(v) => Value::from(v),
                 None => Value::Null,
             },
-            "independent_support_false_positive" => Value::from(0u64),
+            // Sources-only metric: not scored by CP harness (P1-03). Returning None
+            // makes any assert fail closed if schema validation is bypassed.
+            "independent_support_false_positive" => return None,
             _ => return None,
         })
     }
@@ -137,6 +139,15 @@ impl MetricValues {
         }
         m
     }
+}
+
+/// Sources-only circularity metric cannot be scored without sources runner context.
+/// Calling this from CP evaluates to an error (never a silent zero).
+pub fn independent_support_false_positive_cp_unavailable() -> Result<u64, &'static str> {
+    Err(
+        "independent_support_false_positive is only valid for runner=sources_tests; \
+         control-plane score_packet has no circularity context",
+    )
 }
 
 fn number_value(v: f64) -> Value {
@@ -600,5 +611,15 @@ mod tests {
             "Repository:a".into(),
             "Repository:b".into()
         ))));
+    }
+
+    #[test]
+    fn metric_independent_support__cp_get__none_not_fake_zero() {
+        let m = MetricValues::default();
+        assert!(
+            m.get("independent_support_false_positive").is_none(),
+            "CP MetricValues must not silently score independent_support_false_positive as 0"
+        );
+        assert!(independent_support_false_positive_cp_unavailable().is_err());
     }
 }

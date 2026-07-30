@@ -210,3 +210,48 @@ fn evaluate_cli__report_write__exit_0() {
     assert!(body.contains("report_hash"));
     assert!(body.contains("hard_gates_passed"));
 }
+
+#[test]
+fn evaluate_cli__report_dash__stdout_only_no_file() {
+    // `--report -` must not create a literal file named "-" and must still print JSON.
+    let dir = tempdir().unwrap();
+    let cwd_dash = dir.path().join("-");
+    assert!(!cwd_dash.exists());
+    cmd()
+        .current_dir(dir.path())
+        .arg("--no-project-context")
+        .arg("evaluate")
+        .arg("governed")
+        .arg("--fixtures")
+        .arg(fixtures_dir())
+        .arg("--scenario")
+        .arg("cold_start_cited_project")
+        .arg("--report")
+        .arg("-")
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("report_hash"));
+    assert!(
+        !cwd_dash.exists(),
+        "must not write a file named '-' for --report -"
+    );
+}
+
+#[test]
+fn evaluate_cli__unknown_scenario_filter__exit_6() {
+    cmd()
+        .arg("--no-project-context")
+        .arg("evaluate")
+        .arg("governed")
+        .arg("--fixtures")
+        .arg(fixtures_dir())
+        .arg("--scenario")
+        .arg("definitely_not_a_real_scenario_id")
+        .assert()
+        .code(6)
+        .stdout(
+            predicate::str::contains("INVALID_PAYLOAD")
+                .or(predicate::str::contains("scenario"))
+                .or(predicate::str::contains("filter")),
+        );
+}

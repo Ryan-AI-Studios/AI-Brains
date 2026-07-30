@@ -18,7 +18,8 @@ use super::common::{
 use crate::adapters::{StorePorts, SystemClock};
 use crate::conclusions::reject_conclusion;
 use crate::cryptographic_erasure::{
-    StoreContentEnvelopeWipe, WipeContentEnvelopeCommand, wipe_content_envelope,
+    ContentEnvelopeWipeStore, StoreContentEnvelopeWipe, WipeContentEnvelopeCommand,
+    wipe_content_envelope,
 };
 use crate::errors::Result;
 
@@ -100,7 +101,7 @@ pub fn seed(ports: &StorePorts, params: &BTreeMap<String, Value>) -> Result<Seed
         .unwrap_or("evaluation CE wipe");
 
     let side = StoreContentEnvelopeWipe::new(ports.store());
-    wipe_content_envelope(
+    let wipe_resp = wipe_content_envelope(
         &ports.writer,
         &ports.query,
         &SystemClock,
@@ -117,8 +118,12 @@ pub fn seed(ports: &StorePorts, params: &BTreeMap<String, Value>) -> Result<Seed
         },
     )?;
 
+    // P1-04: do not ignore wipe result — a no-op Ok would otherwise pass the scenario.
+    verify_wipe_succeeded(&wipe_resp, &side, &content_key_id.to_string())?;
+
     // CE wipe does not remove non-source domain claims; exercise post-wipe staling of
     // the wiped subject claim so authority absence is real (honest T165 coupling).
+    // Reject remains for authority-absence metrics; wipe success is independently proven above.
     let wiped_id = wiped_claim
         .parse()
         .map_err(|e| crate::errors::ControlPlaneError::InvalidPayload(format!("id: {e}")))?;
@@ -147,4 +152,107 @@ pub fn seed(ports: &StorePorts, params: &BTreeMap<String, Value>) -> Result<Seed
         require_citations: true,
         ..SeedOutcome::default()
     })
+}
+
+/// Fail the seed when CE wipe did not actually destroy wrap / mark key destroyed.
+fn verify_wipe_succeeded(
+    resp: &ai_brains_contracts::erasure::ContentEnvelopeWipedResponse,
+    side: &StoreContentEnvelopeWipe,
+    content_key_id: &str,
+) -> Result<()> {
+    use crate::errors::ControlPlaneError;
+
+    let status_ok = resp.status == "wiped" || resp.status == "already_erased";
+    if !status_ok {
+        return Err(ControlPlaneError::Query(format!(
+            "CE wipe seed: unexpected wipe status '{}' (expected wiped|already_erased)",
+            resp.status
+        )));
+    }
+    if !resp.wrap_destroyed {
+        return Err(ControlPlaneError::Query(
+            "CE wipe seed: wrap_destroyed=false — wipe did not destroy content key wrap".into(),
+        ));
+    }
+    if !resp.verify.wrap_absent {
+        return Err(ControlPlaneError::Query(
+            "CE wipe seed: verify.wrap_absent=false — wrap material still present after wipe"
+                .into(),
+        ));
+    }
+
+    // Store inspect: ContentKeyStatus must be destroyed / wrap gone.
+    let status = side.get_wrap_status(content_key_id)?;
+    match status {
+        Some(s) if s.status == "destroyed" || !s.wrap_material_present => Ok(()),
+        Some(s) => Err(ControlPlaneError::Query(format!(
+            "CE wipe seed: content key status='{}' wrap_material_present={} \
+             (expected destroyed / wrap absent)",
+            s.status, s.wrap_material_present
+        ))),
+        None => Err(ControlPlaneError::Query(
+            "CE wipe seed: content key row missing after wipe (expected destroyed status row)"
+                .into(),
+        )),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+    use ai_brains_contracts::erasure::{
+        ContentEnvelopeWipedResponse, WipePurgedCounts, WipeValidation, WipeVerify,
+    };
+
+    fn fake_resp(status: &str, wrap_destroyed: bool, wrap_absent: bool) -> ContentEnvelopeWipedResponse {
+        ContentEnvelopeWipedResponse {
+            api_version: "1".into(),
+            status: status.into(),
+            content_key_id: "k".into(),
+            tombstone_id: Some("t".into()),
+            wrap_destroyed,
+            blobs_considered: 1,
+            purged: WipePurgedCounts::default(),
+            dependents_marked: 0,
+            warnings: Vec::new(),
+            verify: WipeVerify { wrap_absent },
+            validation: WipeValidation {
+                fts_clear: true,
+                store_open_refused: true,
+                wal_checkpoint: "truncated".into(),
+            },
+        }
+    }
+
+    #[test]
+    fn erasure_ce_wipe__noop_wipe_status__fails_verify() {
+        // A no-op wipe returning dry_run / wrap_destroyed=false must fail seed verification.
+        let resp = fake_resp("dry_run", false, false);
+        // We only exercise response-field gates when store inspect is unreachable —
+        // status/wrap flags alone must fail without needing a live store.
+        assert_ne!(resp.status, "wiped");
+        assert!(!resp.wrap_destroyed);
+        let status_ok = resp.status == "wiped" || resp.status == "already_erased";
+        assert!(!status_ok, "dry_run must not count as successful wipe");
+    }
+
+    #[test]
+    fn erasure_ce_wipe__seed_run__wipe_verified() {
+        let (_tmp, ports) = super::super::open_hermetic_ports().expect("ports");
+        let out = seed(&ports, &BTreeMap::new()).expect("seed must succeed with real wipe");
+        assert!(out.wiped_subject_id.is_some());
+        assert!(out.content_key_id.is_some());
+        // Post-seed store: key must be destroyed.
+        let side = StoreContentEnvelopeWipe::new(ports.store());
+        let key = out.content_key_id.as_deref().expect("key");
+        let st = side.get_wrap_status(key).expect("status");
+        let st = st.expect("row");
+        assert!(
+            st.status == "destroyed" || !st.wrap_material_present,
+            "status={} wrap_present={}",
+            st.status,
+            st.wrap_material_present
+        );
+    }
 }

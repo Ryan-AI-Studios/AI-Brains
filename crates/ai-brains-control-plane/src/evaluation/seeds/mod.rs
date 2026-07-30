@@ -37,7 +37,11 @@ pub struct SeedOutcome {
     pub conflict_claim_ids: Option<(String, String)>,
     pub scope_keys: Option<(String, String)>,
     pub claim_ids: Vec<String>,
+    /// Subject ids for human-review sampling (optional metadata).
     pub warning_subject_ids: Vec<String>,
+    /// Dependent subjects that **must** appear in `packet.warnings` with
+    /// stale/unavailable/disputed/rejected kind (scen 3/7 — P2-01). Empty = no check.
+    pub require_stale_or_unavailable_warnings: Vec<String>,
     pub content_key_id: Option<String>,
     pub require_citations: bool,
     /// When set, briefing is expected denied/empty (min_valid may be 0).
@@ -74,6 +78,7 @@ impl Default for SeedOutcome {
             scope_keys: None,
             claim_ids: Vec::new(),
             warning_subject_ids: Vec::new(),
+            require_stale_or_unavailable_warnings: Vec::new(),
             content_key_id: None,
             require_citations: true,
             expect_denied: false,

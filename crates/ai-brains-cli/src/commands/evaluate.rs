@@ -7,8 +7,8 @@ use crate::artifact_security::{
     is_hardlink, is_reparse_or_symlink, refuse_if_hardlink, refuse_if_reparse,
 };
 use crate::commands::governed_common::{
-    EXIT_HARD_GATE_FAILED, EXIT_INTERNAL, EXIT_INVALID_PAYLOAD, GovernedCliError, OutputFormat,
-    emit_error, emit_json, fail_api,
+    EXIT_HARD_GATE_FAILED, GovernedCliError, OutputFormat, api_error_from_cp, emit_error,
+    emit_json, exit_code_for_api_error, fail_api,
 };
 use ai_brains_contracts::response::ApiError;
 use ai_brains_control_plane::evaluation::{
@@ -31,9 +31,24 @@ pub struct GovernedEvaluateOptions {
     pub vault_path: Option<PathBuf>,
 }
 
+/// True when `--report` is omitted or is the stdout sentinel `-` (spec E22).
+fn report_is_stdout_only(report: &Option<PathBuf>) -> bool {
+    match report {
+        None => true,
+        Some(p) => p.as_os_str() == "-",
+    }
+}
+
 /// Run evaluate governed: load fixtures, hermetic run, emit report, exit per E22.
 pub fn run_governed(opts: GovernedEvaluateOptions) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(ref report) = opts.report {
+    // P2-03: `--report -` is stdout-only (no file write / no path refuse).
+    let write_report_path = if report_is_stdout_only(&opts.report) {
+        None
+    } else {
+        opts.report.as_ref()
+    };
+
+    if let Some(report) = write_report_path {
         refuse_unsafe_evaluate_report_path(report, opts.allow_report_overwrite)?;
         if let Some(ref vault) = opts.vault_path {
             refuse_report_equals_vault(report, vault)?;
@@ -43,7 +58,8 @@ pub fn run_governed(opts: GovernedEvaluateOptions) -> Result<(), Box<dyn std::er
     let scenarios = match load_scenarios_dir(&opts.fixtures) {
         Ok(s) => s,
         Err(e) => {
-            let api = ApiError::new("INVALID_PAYLOAD", e.to_string());
+            // P2-04: structured ControlPlaneError → exit code (no substring matching).
+            let api = api_error_from_cp(&e);
             return fail_api(OutputFormat::Json, api);
         }
     };
@@ -67,24 +83,16 @@ pub fn run_governed(opts: GovernedEvaluateOptions) -> Result<(), Box<dyn std::er
     let outcome = match evaluate_scenarios(&scenarios, &eval_opts) {
         Ok(o) => o,
         Err(e) => {
-            let msg = e.to_string();
-            let (code, api_code) = if msg.contains("unknown")
-                || msg.contains("schema")
-                || msg.contains("INVALID")
-                || msg.contains("invalid")
-            {
-                (EXIT_INVALID_PAYLOAD, "INVALID_PAYLOAD")
-            } else {
-                (EXIT_INTERNAL, "INTERNAL")
-            };
-            let api = ApiError::new(api_code, msg);
+            // P2-04: map via ControlPlaneError kind, not message substrings.
+            let api = api_error_from_cp(&e);
+            let code = exit_code_for_api_error(&api);
             let _ = emit_error(OutputFormat::Json, &api);
             return Err(Box::new(GovernedCliError::emitted(code, api.message)));
         }
     };
 
-    // Always emit JSON report to stdout (or write --report and still print summary).
-    if let Some(ref report_path) = opts.report {
+    // Always emit JSON report to stdout; optionally also write a file when path is real.
+    if let Some(report_path) = write_report_path {
         write_report(report_path, &outcome.report)?;
     }
     emit_json(&outcome.report)?;
@@ -203,5 +211,12 @@ mod tests {
         let report = dir.path().join("out.db");
         let err = refuse_unsafe_evaluate_report_path(&report, true).expect_err("db ext");
         assert!(err.to_string().contains("vault") || err.to_string().contains("PATH_REFUSED"));
+    }
+
+    #[test]
+    fn evaluate_cli__report_dash__stdout_only() {
+        assert!(report_is_stdout_only(&None));
+        assert!(report_is_stdout_only(&Some(PathBuf::from("-"))));
+        assert!(!report_is_stdout_only(&Some(PathBuf::from("report.json"))));
     }
 }

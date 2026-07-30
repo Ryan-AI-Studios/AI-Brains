@@ -97,10 +97,29 @@ pub fn evaluate_scenarios(scenarios: &[Scenario], opts: &EvaluateOptions) -> Res
     let filtered: Vec<&Scenario> = if opts.scenario_filter.is_empty() {
         scenarios.iter().collect()
     } else {
-        scenarios
+        let matched: Vec<&Scenario> = scenarios
             .iter()
             .filter(|s| opts.scenario_filter.iter().any(|f| f == &s.id))
-            .collect()
+            .collect();
+        // P2-02: unknown --scenario ids must not exit 0 with empty pass.
+        if matched.is_empty() {
+            return Err(ControlPlaneError::InvalidPayload(format!(
+                "no scenarios matched --scenario filter {:?}; loaded ids: {:?}",
+                opts.scenario_filter,
+                scenarios.iter().map(|s| s.id.as_str()).collect::<Vec<_>>()
+            )));
+        }
+        let unknown: Vec<&String> = opts
+            .scenario_filter
+            .iter()
+            .filter(|f| !scenarios.iter().any(|s| s.id == **f))
+            .collect();
+        if !unknown.is_empty() {
+            return Err(ControlPlaneError::InvalidPayload(format!(
+                "unknown scenario id(s) in --scenario filter: {unknown:?}"
+            )));
+        }
+        matched
     };
 
     for scenario in filtered {
@@ -224,7 +243,9 @@ fn run_one_scenario(scenario: &Scenario) -> Result<OneResult> {
     let packet = run_actions(&ports, &outcome, &scenario.actions)?;
     let latency_ms = start.elapsed().as_millis() as u64;
 
-    let mut warning_ids: Vec<String> = outcome.warning_subject_ids.clone();
+    // Human-review seed: collect warning subject ids from the *packet* only (P2-01).
+    // Seed metadata still drives expected-warning hard checks below.
+    let mut warning_ids: Vec<String> = Vec::new();
     if let Some(ref p) = packet {
         for w in &p.warnings {
             if let Some(sid) = &w.subject_id {
@@ -270,6 +291,24 @@ fn run_one_scenario(scenario: &Scenario) -> Result<OneResult> {
             "E23 min_valid_claims_count: got {} need >= {}",
             metrics.current_claim_count, scenario.min_valid_claims_count
         ));
+    }
+
+    // E2 mandatory baseline hard gates — always enforced, independent of fixture asserts.
+    apply_baseline_hard_gates(&metrics, &outcome, &mut hard_ok, &mut messages);
+
+    // P2-01 (scen 3/7): packet.warnings must contain stale/unavailable for
+    // dependents — seed metadata alone is not enough.
+    if !outcome.require_stale_or_unavailable_warnings.is_empty() {
+        match verify_expected_stale_warnings(
+            packet.as_ref(),
+            &outcome.require_stale_or_unavailable_warnings,
+        ) {
+            Ok(()) => {}
+            Err(msg) => {
+                hard_ok = false;
+                messages.push(msg);
+            }
+        }
     }
 
     for a in &scenario.asserts.hard {
@@ -419,6 +458,67 @@ fn verify_personal_denial(
             "personal denial hard fail: expected empty preferences, got {}",
             packet.preferences.len()
         ));
+    }
+    Ok(())
+}
+
+/// E2 baseline hard gates always enforced (fixture hard asserts are additive).
+fn apply_baseline_hard_gates(
+    metrics: &MetricValues,
+    outcome: &SeedOutcome,
+    hard_ok: &mut bool,
+    messages: &mut Vec<String>,
+) {
+    if metrics.stale_as_current_count != 0 {
+        *hard_ok = false;
+        messages.push(format!(
+            "E2 baseline: stale_as_current_count must be 0, got {}",
+            metrics.stale_as_current_count
+        ));
+    }
+    if metrics.unauthorized_scope_leakage_count != 0 {
+        *hard_ok = false;
+        messages.push(format!(
+            "E2 baseline: unauthorized_scope_leakage_count must be 0, got {}",
+            metrics.unauthorized_scope_leakage_count
+        ));
+    }
+    // Multi-project / beta seed: cross-project leakage must be zero when beta ids present.
+    if !outcome.beta_claim_ids.is_empty() && metrics.cross_project_leakage_count != 0 {
+        *hard_ok = false;
+        messages.push(format!(
+            "E2 baseline: cross_project_leakage_count must be 0 when multi-project seed active, got {}",
+            metrics.cross_project_leakage_count
+        ));
+    }
+}
+
+/// Kinds accepted as evidence that a dependent subject was surface-warned (scen 3/7).
+const EXPECTED_DEPENDENT_WARNING_KINDS: &[&str] =
+    &["stale", "unavailable", "disputed", "rejected"];
+
+/// Hard-fail when seed expects dependent warning subjects but packet lacks matching warnings.
+fn verify_expected_stale_warnings(
+    packet: Option<&ProjectBriefingPacket>,
+    expected_subject_ids: &[String],
+) -> std::result::Result<(), String> {
+    let Some(p) = packet else {
+        return Err(
+            "expected stale/unavailable warnings but briefing packet is missing".into(),
+        );
+    };
+    for sid in expected_subject_ids {
+        let found = p.warnings.iter().any(|w| {
+            w.subject_id.as_deref() == Some(sid.as_str())
+                && EXPECTED_DEPENDENT_WARNING_KINDS
+                    .contains(&w.kind.to_ascii_lowercase().as_str())
+        });
+        if !found {
+            return Err(format!(
+                "expected packet.warnings entry with kind in {EXPECTED_DEPENDENT_WARNING_KINDS:?} \
+                 for dependent subject '{sid}' (seed warning_subject_ids alone is insufficient)"
+            ));
+        }
     }
     Ok(())
 }
@@ -637,5 +737,104 @@ mod tests {
             out2.report.human_review_seed.claim_ids_sample
         );
         assert!(!out1.report.report_hash.is_empty());
+    }
+
+    #[test]
+    fn runner__baseline_hard_gates__always_enforced_without_fixture_asserts() {
+        // Soft-only fixture asserts must not skip E2 baseline gates.
+        // Unit-check apply_baseline_hard_gates fails when stale_as_current != 0.
+        let metrics = MetricValues {
+            stale_as_current_count: 1,
+            unauthorized_scope_leakage_count: 0,
+            ..MetricValues::default()
+        };
+        let outcome = SeedOutcome::default();
+        let mut hard_ok = true;
+        let mut messages = Vec::new();
+        apply_baseline_hard_gates(&metrics, &outcome, &mut hard_ok, &mut messages);
+        assert!(!hard_ok);
+        assert!(
+            messages.iter().any(|m| m.contains("stale_as_current_count")),
+            "{messages:?}"
+        );
+    }
+
+    #[test]
+    fn runner__baseline_hard_gates__cross_project_when_beta_present() {
+        let metrics = MetricValues {
+            cross_project_leakage_count: 2,
+            ..MetricValues::default()
+        };
+        let mut outcome = SeedOutcome::default();
+        outcome.beta_claim_ids.insert("beta-1".into());
+        let mut hard_ok = true;
+        let mut messages = Vec::new();
+        apply_baseline_hard_gates(&metrics, &outcome, &mut hard_ok, &mut messages);
+        assert!(!hard_ok);
+        assert!(
+            messages
+                .iter()
+                .any(|m| m.contains("cross_project_leakage_count")),
+            "{messages:?}"
+        );
+    }
+
+    #[test]
+    fn runner__soft_only_scenario__still_applies_baseline_and_passes_clean() {
+        // Fixture declares only soft asserts; baseline E2 gates still run and pass.
+        let mut s = active_scenario("cold", "project_briefing_minimal", 1);
+        s.asserts.hard.clear();
+        s.asserts.soft.push(AssertSpec {
+            metric: "budget_compliant".into(),
+            op: AssertOp::Eq,
+            value: Value::Bool(true),
+        });
+        let out = evaluate_scenarios(&[s], &EvaluateOptions::default()).expect("run");
+        assert!(
+            out.report.hard_gates_passed,
+            "baseline gates should pass on clean cold-start: {:?}",
+            out.report.scenarios
+        );
+    }
+
+    #[test]
+    fn runner__unknown_scenario_filter__invalid_payload() {
+        let s = active_scenario("cold", "project_briefing_minimal", 1);
+        let opts = EvaluateOptions {
+            scenario_filter: vec!["does_not_exist".into()],
+            ..Default::default()
+        };
+        let err = evaluate_scenarios(&[s], &opts).expect_err("unknown filter");
+        assert!(
+            matches!(err, ControlPlaneError::InvalidPayload(_)),
+            "got {err:?}"
+        );
+        assert!(err.to_string().contains("scenario"));
+    }
+
+    #[test]
+    fn runner__expected_warning_missing_from_packet__hard_fail() {
+        let err = verify_expected_stale_warnings(
+            None,
+            &["dep-subject".into()],
+        )
+        .expect_err("missing packet");
+        assert!(err.contains("packet") || err.contains("missing"));
+
+        // Packet with no matching warning for expected subject.
+        let empty = ProjectBriefingPacket::empty_denied(
+            "eval".into(),
+            ai_brains_contracts::briefings::BriefingScopeDto {
+                scope_key: String::new(),
+                confidence: "Low".into(),
+                warnings: Vec::new(),
+                alternatives: Vec::new(),
+                authoritative: false,
+            },
+            "denied",
+        );
+        let err = verify_expected_stale_warnings(Some(&empty), &["dep-subject".into()])
+            .expect_err("must require warning");
+        assert!(err.contains("dep-subject"), "{err}");
     }
 }
