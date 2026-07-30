@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resolve-review-item"
+description = "Enables the resolve_review_item command without any pre-configured scope."
+commands.allow = ["resolve_review_item"]
+
+[[permission]]
+identifier = "deny-resolve-review-item"
+description = "Denies the resolve_review_item command without any pre-configured scope."
+commands.deny = ["resolve_review_item"]

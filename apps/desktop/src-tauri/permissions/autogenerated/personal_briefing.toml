@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-personal-briefing"
+description = "Enables the personal_briefing command without any pre-configured scope."
+commands.allow = ["personal_briefing"]
+
+[[permission]]
+identifier = "deny-personal-briefing"
+description = "Denies the personal_briefing command without any pre-configured scope."
+commands.deny = ["personal_briefing"]

@@ -574,3 +574,12 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Restore Vault | `ai-brains backup restore <path>` (use `--force` non-interactive, `--dry-run` to preview) |
 | Manage Projects | `ai-brains project list/resolve/detect` |
 | Graph Health | `ai-brains graph update` (use `graph rebuild` if stale) |
+
+## Desktop thin client (T172)
+
+See [apps/desktop/README.md](../apps/desktop/README.md) for the Tauri adapter shell.
+
+- **Invoke-first:** UI never uses webview fetch to loopback `/v1`; Rust holds the user-session bearer.
+- **Prereqs for live screens:** daemon on `AI_BRAINS_HTTP_PORT` (default 7432) + `%USERPROFILE%\.ai-brains\http.token`.
+- **Offline/denied:** paint promptly (QueryClient `retry: false`); no fake full-grant empty states.
+- **Unavailable by design on this track:** connectors UI, retention plan UI, grants inventory.

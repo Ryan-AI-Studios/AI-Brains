@@ -14,14 +14,15 @@
       {
         "label": "main",
         "title": "AI-Brains",
-        "width": 900,
-        "height": 680,
+        "width": 1100,
+        "height": 760,
         "resizable": true,
         "fullscreen": false
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: asset:; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self'"
+      "csp": "default-src 'self' customprotocol: asset:; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self'",
+      "devCsp": "default-src 'self' customprotocol: asset: http://localhost:1420; connect-src ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1420; img-src 'self' asset: http://asset.localhost blob: data: http://localhost:1420; style-src 'self' 'unsafe-inline' http://localhost:1420; script-src 'self' 'unsafe-inline' http://localhost:1420"
     }
   },
   "bundle": {

@@ -1,5 +1,10 @@
 //! Tauri invoke commands — adapter surface only (no domain policy).
 
+pub mod api;
+pub mod http_client;
+
+pub use http_client::InvokeApiError;
+
 use serde::Serialize;
 use std::path::PathBuf;
 
