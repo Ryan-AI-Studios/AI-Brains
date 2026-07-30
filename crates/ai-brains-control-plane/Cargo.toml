@@ -10,6 +10,7 @@ description = "Governed-memory control plane ports, adapters, and observation/in
 [dependencies]
 ai-brains-contracts = { path = "../ai-brains-contracts", version = "0.1.0" }
 ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
+ai-brains-crypto = { path = "../ai-brains-crypto", version = "0.1.0" }
 ai-brains-events = { path = "../ai-brains-events", version = "0.1.0" }
 ai-brains-git = { path = "../ai-brains-git", version = "0.1.0" }
 ai-brains-path = { path = "../ai-brains-path", version = "0.1.0" }
@@ -23,7 +24,6 @@ serde_json.workspace = true
 uuid.workspace = true
 rusqlite.workspace = true
 sha2.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
-ai-brains-crypto = { path = "../ai-brains-crypto", version = "0.1.0" }
-tempfile.workspace = true

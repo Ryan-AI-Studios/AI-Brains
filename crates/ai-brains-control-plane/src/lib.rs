@@ -17,6 +17,7 @@ pub mod conflicts;
 pub mod cryptographic_erasure;
 pub mod decisions;
 pub mod errors;
+pub mod evaluation;
 pub mod grants;
 pub mod invalidation;
 pub mod legacy_import;
