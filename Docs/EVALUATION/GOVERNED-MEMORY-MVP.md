@@ -65,8 +65,9 @@ Do **not** treat exit 1 and exit 7 the same: 7 means the harness worked and scor
 | `latency_ms` | Soft only | Recorded; **excluded from `report_hash`**. Never hard-gated in default CI. |
 | `conflict_unmerged` | Hard (scen 4) | Both incompatible claims current without open_conflict/disputed warning. |
 | `ce_subject_absent` | Hard (scen 8) | Fail count if wiped subject still in authority (0 = absent = pass). |
+| `must_be_absent_present_count` | Hard (scen 3/6/7/8) | Seed-supplied claim ids that must **not** appear in current authority after invalidation/supersession/wipe path. Target **0**. |
 | `scope_key_stable` | Hard (scen 9) | Two path spellings → same `scope_key`. |
-| `independent_support_false_positive` | Hard (scen 10) | Sources helpers: Echo/unlabeled must not `may_count_as_independent_support`. |
+| `independent_support_false_positive` | Hard (scen 10, sources tests only) | Sources helpers: Echo/unlabeled must not `may_count_as_independent_support`. **Not** a CP metric (schema rejects on CP seed scenarios). |
 
 ## Scenario catalog
 
