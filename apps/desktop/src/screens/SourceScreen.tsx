@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { inspectSource } from "../lib/api";
 import { queryKeys } from "../lib/queryKeys";
@@ -10,6 +10,12 @@ export function SourceScreen() {
   const routeId = params.id ?? "";
   const [idInput, setIdInput] = useState(routeId);
   const [activeId, setActiveId] = useState(routeId);
+
+  // Keep input/active id in sync when navigating #/source/:id → another id.
+  useEffect(() => {
+    setIdInput(routeId);
+    setActiveId(routeId);
+  }, [routeId]);
 
   const q = useInvokeQuery({
     queryKey: queryKeys.source(activeId),

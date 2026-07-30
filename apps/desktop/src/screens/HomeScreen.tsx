@@ -310,9 +310,18 @@ function ClaimList({
               <span className="badge badge-muted">{c.state}</span>
               <div className="muted small">
                 evidence:{" "}
-                {asArray<EvidenceHandle>(c.evidence_handles)
-                  .map((h) => h.evidence_id)
-                  .join(", ") || "—"}
+                {asArray<EvidenceHandle>(c.evidence_handles).length === 0
+                  ? "—"
+                  : asArray<EvidenceHandle>(c.evidence_handles).map((h, i) => (
+                      <span key={h.evidence_id}>
+                        {i > 0 ? ", " : null}
+                        <Link
+                          to={`/evidence/${encodeURIComponent(h.evidence_id)}`}
+                        >
+                          {h.evidence_id}
+                        </Link>
+                      </span>
+                    ))}
               </div>
             </li>
           ))}
