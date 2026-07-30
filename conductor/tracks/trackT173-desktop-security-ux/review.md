@@ -278,3 +278,86 @@ No security regressions observed relative to R1 checklist passes.
 - No open critical / high / medium findings.
 - Residual open items are low_info only (by design / deferred smoke).
 - **Verdict: CLEAN** — clearance for T173 internal review on docs + security shape (live WebView smoke still R1-02 residual for release confidence, not a code defect).
+
+---
+
+# T173 Codex Cross-Model R1 Findings — Fixer Disposition
+Date: 2026-07-30  
+Fixer: Grok Build (Codex FAIL F-01..F-04)  
+Ledger TX: `a57911f7-6fc6-4bcf-9958-57e0e3bb9a05`  
+Source: `review.codex.md` Verdict FAIL  
+
+## Disposition summary
+
+| ID | Sev | Title | Status |
+|----|-----|-------|--------|
+| **F-01** | P1 | Dual-layer opener not effective on custom `OpenerExt` path | `fixed_pending_verification` |
+| **F-02** | P2 | Windows/keyboard smoke incomplete | `fixed_pending_verification` (host/unit + structural; live GUI residual T174) |
+| **F-03** | P3 | Stale StatusBadge not wired | `fixed_pending_verification` |
+| **F-04** | P2 | cargo audit evidence missing | `fixed_pending_verification` |
+
+### F-01 | P1 | Effective dual-layer on custom open path
+- status: fixed_pending_verification
+- files:
+  - `apps/desktop/src-tauri/src/commands/open.rs`
+  - `apps/desktop/src-tauri/capabilities/default.json` (unchanged shape; sync-tested)
+  - `apps/desktop/README.md`
+  - `Docs/OPERATIONS.md`
+- description:
+  Codex correctly noted scoped capability objects gate plugin IPC handlers, not custom commands that call `OpenerExt` directly. Custom path previously had only Layer-1 validators.
+- fix:
+  - Layer 2 **capability-mirror**: `url_capability_allows` / `path_capability_allows` with `CAPABILITY_URL_ALLOWS = ["https://*"]` and `CAPABILITY_PATH_ALLOWS = ["**"]`.
+  - Both layers run before `OpenerExt` in `open_url` / `reveal_path`.
+  - Test `default_json_url_allows_match_rust_mirror` enforces sync with `default.json`.
+  - Docs updated: honest dual-layer wording (validators + capability-mirror + scoped plugin caps).
+  - Residual path breadth `"**"` documented; Layer 1 still refuses empty/`..`/device forms.
+- residual:
+  Plugin IPC scopes alone still do not gate `OpenerExt`; effective second gate is the Rust mirror. Frontend remains invoke-only (no JS opener).
+
+### F-02 | P2 | Windows / keyboard smoke
+- status: fixed_pending_verification
+- files:
+  - `conductor/tracks/trackT173-desktop-security-ux/evidence/SMOKE.md`
+- description:
+  Live WebView Isolation + keyboard-only operator path was deferred.
+- fix:
+  - Structural walkthrough with file:line proof (showModal, Escape, restore-focus, WIPE Enter→Confirm, ReviewScreen ConfirmDialog).
+  - Isolation conf + `isolation/index.html` presence + compile/unit evidence recorded.
+  - Honest framing: host/unit verified; live GUI E2E remains T174 residual (U15 partial).
+
+### F-03 | P3 | Stale StatusBadge
+- status: fixed_pending_verification
+- files:
+  - `apps/desktop/src/screens/HomeScreen.tsx`
+- description:
+  `stale` kind existed but no production render.
+- fix:
+  - `FreshnessSummaryView` shows `<StatusBadge kind="stale">` when `stale_count > 0` or `worst_state` is stale (SU9).
+
+### F-04 | P2 | cargo audit evidence
+- status: fixed_pending_verification
+- files:
+  - `conductor/tracks/trackT173-desktop-security-ux/evidence/SMOKE.md`
+- description:
+  SU12 requires audit evidence; prior SMOKE lacked it.
+- fix:
+  - Ran `cargo audit` (exit 0; 19 allowed warnings). Exact result recorded in SMOKE.md.
+
+## Gate re-run (fixer)
+
+| Gate | Result |
+|------|--------|
+| npm typecheck / build / license:check | PASS |
+| cargo test -p ai-brains-desktop --lib | PASS (46) |
+| cargo clippy -p ai-brains-desktop --all-targets -D warnings | PASS |
+| cargo fmt --check | PASS |
+| cargo deny check | PASS |
+| cargo audit | PASS (exit 0; 19 allowed warnings) |
+
+## Open residuals after fixer
+
+| Item | Severity | Note |
+|------|----------|------|
+| Live WebView2 Isolation + keyboard E2E | low_info / U15 partial | T174 / human (documented) |
+| Isolation cannot-deny | low_info | accepted residual |
+| Path capability `"**"` breadth | low_info | accepted residual; dual-layer Layer1 still tight |

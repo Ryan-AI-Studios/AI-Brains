@@ -74,14 +74,18 @@ Regression tests live in `src-tauri/src/lib.rs` (`csp_tests`).
 
 ### Dual-layer safe open (U3 / U20)
 
+Custom commands call `OpenerExt` directly; plugin CommandScope does **not** apply to that host path.
+Effective dual-layer authorization therefore lives on the custom-command path itself:
+
 | Layer | Rule |
 |-------|------|
-| **Rust commands** | `open_url` / `reveal_path` only — validators: **https-only** URLs; paths refuse `..` / empty |
-| **Capabilities** | Scoped objects only: `opener:allow-open-url` with `https://*`; `opener:allow-open-path` with object path globs |
+| **Layer 1 — validators** | `validate_https_url` / `validate_reveal_path`: **https-only** URLs; paths refuse `..` / empty / device forms |
+| **Layer 2 — capability-mirror** | Independent `url_capability_allows` / `path_capability_allows` matching the same allow globs as `capabilities/default.json` (`https://*` / `**`). Constants must stay in sync (unit test). |
+| **Scoped capabilities (plugin IPC)** | Object form only: `opener:allow-open-url` with `https://*`; `opener:allow-open-path` with path globs — constrains plugin handlers if ever invoked |
 | **Forbidden** | `opener:default`, `opener:allow-default-urls`, bare string `opener:allow-open-path`, **JS** `@tauri-apps/plugin-opener` npm package |
 | **Frontend** | `lib/openExternal.ts` invoke wrappers only; Source screen uses API `locator` when present (never fabricated) |
 
-Path capability residual: object form with `"path": "**"` is broad by design so vault locators on arbitrary drives can reveal; Rust still re-validates every path.
+Path capability residual: object form with `"path": "**"` is broad by design so vault locators on arbitrary drives can reveal; Layer 1 still refuses empty / `..` / device forms. Layer 2 with `**` intentionally accepts any non-empty path after Layer 1.
 
 ### Destructive confirm (U6)
 
