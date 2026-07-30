@@ -1,28 +1,35 @@
-# T170 Review Log — Shadow Dogfood Gate + Live Enablement Stop (P9.4)
+# T170 Review Log
 
-Status: **In Progress** (implementation). Reviewers fill findings below.
+## R1 — Internal review (2026-07-30)
 
-## Scope reviewed
+**Verdict:** NEEDS_FIX → fixes applied (`fixed_pending_verification`)  
+**Reviewer:** explore subagent (read-only)  
+**Implementer:** Grok Build (R1 fix pass)
 
-- Docs: `Docs/EVALUATION/SHADOW-DOGFOOD-GATE.md`, checklist template, OPERATIONS, CAPABILITIES, GOVERNED-MEMORY-MVP cross-link
-- Script: `scripts/dogfood-shadow.ps1` (D26, D24, Stage D refuse)
-- CLI: `ai-brains dogfood compare` + unit/integration tests
-- Evidence: `evidence/` sanitized Stage A/B notes; Stage C/D deferred
-
-## Findings
+### Findings
 
 | ID | Severity | Status | Summary |
 |----|----------|--------|---------|
-| — | — | — | No findings yet |
+| R1-01 | medium | fixed_pending_verification | Stage B fixture project_id persisted + passed to `briefing project --project-id`; pin non-zero fails Stage B; runbook §2 updated |
+| R1-02 | medium | fixed_pending_verification | D20: remove evaluate-report + `--allow-report-overwrite`; clear compare partials on re-run; second run exit 0 verified |
+| R1-03 | medium | fixed_pending_verification | Full Stage B under `%TEMP%\t170-stageb-*`: evaluate exit 0, compare_hash recorded, rollback probe executed, evidence/ updated |
+| R1-04 | medium | fixed_pending_verification | plan.md Phase E reconciled: executed rollback + honesty checkbox for denied fixture briefing |
+| R1-05 | medium | fixed_pending_verification | BOM-less `WriteAllText` for JSON captures; BOM check first-byte `{` on artifacts |
+| R1-06 | low | fixed_pending_verification | `sort_compare_arrays` sorts `claim_ids_sample`; unit test order-independent hash |
+| R1-07 | low | fixed_pending_verification | `--migrate-report` CLI flag → `paths.migrate_report`; script passes when file exists |
+| R1-08 | low | open | Optional Stage B seed integration assertion deferred (easy path partial via unit tests + evidence run) |
 
-## Status legend
+No critical/high. Stage C/D deferrals accepted.
 
-- `open` → needs fix
-- `fixed_pending_verification` → implementer claims fixed
-- `verified_fixed` → reviewer/cross-model confirmed
-- `deferred` → allowed only for Medium (with rules) / Low-info
+### Evidence pointers (R1-03)
 
-## Notes
+- `evidence/stage-b-notes.md` — commands, D24 N/A (locked vault), rollback flag 0/1, honesty on denied briefing
+- `evidence/stage-b-compare-summary.json` — compare_hash + hard_checks + basenames only
+- `evidence/stage-a-evaluate-summary.json` — report_hash stable
 
-- Critical/High must be `verified_fixed` before clearance.
-- Stage C/D deferred with owner+reason is in-spec for MVP close at Stage B/C.
+### Test gate (implementer)
+
+```
+cargo clippy -p ai-brains-cli --all-targets -- -D warnings   # ok
+cargo nextest run -p ai-brains-cli -E 'test(dogfood) | test(compare)'  # 13 passed
+```

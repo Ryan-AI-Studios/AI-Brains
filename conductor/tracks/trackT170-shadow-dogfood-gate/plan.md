@@ -46,13 +46,16 @@ Authority: `spec.md` locks **D1–D26**. Process/docs-first. **No live enablemen
 
 ## Phase E — Stage B synthetic rehearsal (required)
 
-- [x] Fixture vault: `init --vault-path` + ingest/pin events (script path).
-- [x] D24 pre hash (script).
-- [x] Shadow (+ optional migrate) under WorkDir (script).
-- [x] Rollback drill: documented flag on/off with **preflight --format json** `(governed)` probe + **briefing project** — **not** `--summary`.
-- [x] D23 document User-env circuit breaker (manual).
-- [x] D24 post hash matches (script fails on mismatch).
-- [x] Checklist template + stage-b-notes (T169 seed OK if &lt;20).
+- [x] Fixture vault: `init --vault-path` + pin events; persist `fixture-project-id.txt`; fail on pin non-zero (R1-01).
+- [x] Stage B briefing passes `--project-id` from fixture file (R1-01); runbook §2 updated.
+- [x] D24 pre/post hash (script); locked live vault → N/A warn, not abort; mismatch still fails when both readable.
+- [x] Shadow (+ optional migrate) under WorkDir (script); `--migrate-report` wired into compare (R1-07).
+- [x] Rollback drill **executed** on work `migrated.db`: flag 0 → no `(governed)`; flag 1 → `(governed)` in preflight JSON; `briefing project --project-id` for authority — **not** `--summary` (D21). See evidence/stage-b-notes.md.
+- [x] D23 document User-env circuit breaker (manual only; script never sets User scope).
+- [x] D20 re-run idempotency: evaluate report remove + `--allow-report-overwrite`; regenerate compare partials (R1-02).
+- [x] BOM-less UTF-8 for governed/legacy JSON captures (R1-05).
+- [x] Evidence: stage-b-notes.md + stage-b-compare-summary.json (hashes/counts only; no claim bodies).
+- [ ] **Partial honesty:** fixture pin path yields `briefing denied=true` (no ReadDecisions grant / pin≠governed Decision). Pipeline + project_id wiring proven; richer authority sample deferred to Stage C / improved seed if needed.
 
 ## Phase F — Stage C (operator-dependent)
 
@@ -65,9 +68,9 @@ Authority: `spec.md` locks **D1–D26**. Process/docs-first. **No live enablemen
 
 - [x] Stage D: **deferred** (no live enablement approval).
 - [ ] If enabled: **D25** observation (≥1 session or ≥3 governed invocations); record. — N/A while deferred
-- [x] Rust gate if code added; PS analyzer if script added (manual style match).
+- [x] Rust gate if code added (`cargo clippy -p ai-brains-cli --all-targets -- -D warnings`; nextest dogfood/compare).
 - [ ] ledgerful verify if code touched (orchestrator/finalize).
-- [ ] Conductor → Completed; residuals → deferred (leave In Progress until gates confirmed).
+- [ ] Conductor → Completed; residuals → deferred (leave In Progress until R1 findings `verified_fixed`).
 - [x] Pin candidates documented: D26 vault-path; D21 no-summary; D24 checksum; stop-before live.
 
 ## Out of scope
