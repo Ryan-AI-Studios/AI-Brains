@@ -4,7 +4,14 @@
 //! T176 — migration 0027 replication schema + store APIs.
 
 use ai_brains_core::ids::DeviceId;
+use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{
+    Actor, AggregateType, DeviceEnrolledPayload as EventDeviceEnrolledPayload,
+    DeviceRevokedPayload as EventDeviceRevokedPayload, Payload,
+};
+use ai_brains_store::EventStore;
 use ai_brains_store::apply_migrations_through;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::SqliteEventStore;
@@ -13,8 +20,9 @@ use ai_brains_store::projections::replication::{
     PeerContentKeyWrapRow, SignedControlRow,
 };
 use ai_brains_sync::{
-    ContentTypeCode, ControlPayload, DeviceEnrolledPayload, REPLICATION_SCHEMA_VERSION,
-    build_and_sign_control, generate_device_keys, verify_envelope,
+    ContentTypeCode, ControlPayload, DeviceEnrolledPayload, DeviceRevokedPayload,
+    REPLICATION_SCHEMA_VERSION, build_and_sign_control, generate_device_keys, nil_content_key_id,
+    verify_envelope,
 };
 use tempfile::NamedTempFile;
 
@@ -442,4 +450,370 @@ fn tick_ack_cycle__reaches_unreachable() {
         )
         .unwrap();
     assert_eq!(status, "unreachable");
+}
+
+// ---------------------------------------------------------------------------
+// ReplicationProjection (membership SOV → side stores)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn append_event__device_enrolled__projects_identity_and_signed_control() {
+    let (_tmp, store) = open_store();
+    let keys = generate_device_keys().unwrap();
+    let device = DeviceId::new();
+    let ed = keys.verifying_key().to_bytes();
+    let x = keys.x25519_public().to_bytes();
+    let built = build_and_sign_control(
+        ContentTypeCode::DeviceEnrolled,
+        &ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            device_id: device,
+            ed25519_pub: ed,
+            x25519_pub: x,
+        }),
+        device,
+        1,
+        &keys.signing_key(),
+        nil_content_key_id(),
+    )
+    .unwrap();
+    verify_envelope(&built.signed, &keys.verifying_key()).unwrap();
+
+    let fp = [0x33u8; 32];
+    let event = EventBuilder::new(
+        AggregateType::System,
+        device.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceEnrolled(EventDeviceEnrolledPayload {
+        device_id: device,
+        enrolled_by_device_id: device,
+        status: "local".into(),
+        fingerprint_sha256: hex::encode(fp),
+        ed25519_public: hex::encode(ed),
+        x25519_public: hex::encode(x),
+        schema_version: REPLICATION_SCHEMA_VERSION,
+        replication_event_id: built.signed.outer.event_id,
+        local_seq: built.signed.outer.local_seq,
+        envelope_id: built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(built.signed.signature),
+        body_hex: hex::encode(&built.body),
+        content_type_code: built.signed.outer.content_type_code.as_u16(),
+    }))
+    .unwrap();
+
+    store.append_event(&event).unwrap();
+
+    let conn = store.connection().lock().unwrap();
+    let identity = replication::get_device(&conn, &device.to_string())
+        .unwrap()
+        .expect("device_identity projected");
+    assert_eq!(identity.status, "local");
+    assert_eq!(identity.ed25519_public, ed.to_vec());
+    assert_eq!(identity.fingerprint_sha256, fp.to_vec());
+
+    let control = replication::get_signed_control(&conn, &built.signed.outer.event_id.to_string())
+        .unwrap()
+        .expect("signed_control projected");
+    assert_eq!(control.signature, built.signed.signature.to_vec());
+    assert_eq!(control.body, built.body);
+    assert!(replication::envelope_exists(&conn, &built.signed.outer.event_id.to_string()).unwrap());
+}
+
+#[test]
+fn append_event__device_revoked__projects_tombstone_and_control() {
+    let (_tmp, store) = open_store();
+    let local_keys = generate_device_keys().unwrap();
+    let peer_keys = generate_device_keys().unwrap();
+    let local = DeviceId::new();
+    let peer = DeviceId::new();
+    let local_ed = local_keys.verifying_key().to_bytes();
+    let local_x = local_keys.x25519_public().to_bytes();
+    let peer_ed = peer_keys.verifying_key().to_bytes();
+    let peer_x = peer_keys.x25519_public().to_bytes();
+
+    // Enroll local then peer via events (projector path).
+    let local_built = build_and_sign_control(
+        ContentTypeCode::DeviceEnrolled,
+        &ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            device_id: local,
+            ed25519_pub: local_ed,
+            x25519_pub: local_x,
+        }),
+        local,
+        1,
+        &local_keys.signing_key(),
+        nil_content_key_id(),
+    )
+    .unwrap();
+    let local_event = EventBuilder::new(
+        AggregateType::System,
+        local.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceEnrolled(EventDeviceEnrolledPayload {
+        device_id: local,
+        enrolled_by_device_id: local,
+        status: "local".into(),
+        fingerprint_sha256: hex::encode([0x11u8; 32]),
+        ed25519_public: hex::encode(local_ed),
+        x25519_public: hex::encode(local_x),
+        schema_version: REPLICATION_SCHEMA_VERSION,
+        replication_event_id: local_built.signed.outer.event_id,
+        local_seq: 1,
+        envelope_id: local_built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(local_built.signed.signature),
+        body_hex: hex::encode(&local_built.body),
+        content_type_code: ContentTypeCode::DeviceEnrolled.as_u16(),
+    }))
+    .unwrap();
+    store.append_event(&local_event).unwrap();
+
+    let peer_built = build_and_sign_control(
+        ContentTypeCode::DeviceEnrolled,
+        &ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            device_id: peer,
+            ed25519_pub: peer_ed,
+            x25519_pub: peer_x,
+        }),
+        local,
+        2,
+        &local_keys.signing_key(),
+        nil_content_key_id(),
+    )
+    .unwrap();
+    let peer_event = EventBuilder::new(
+        AggregateType::System,
+        peer.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceEnrolled(EventDeviceEnrolledPayload {
+        device_id: peer,
+        enrolled_by_device_id: local,
+        status: "active".into(),
+        fingerprint_sha256: hex::encode([0x22u8; 32]),
+        ed25519_public: hex::encode(peer_ed),
+        x25519_public: hex::encode(peer_x),
+        schema_version: REPLICATION_SCHEMA_VERSION,
+        replication_event_id: peer_built.signed.outer.event_id,
+        local_seq: 2,
+        envelope_id: peer_built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(peer_built.signed.signature),
+        body_hex: hex::encode(&peer_built.body),
+        content_type_code: ContentTypeCode::DeviceEnrolled.as_u16(),
+    }))
+    .unwrap();
+    store.append_event(&peer_event).unwrap();
+
+    let revoke_built = build_and_sign_control(
+        ContentTypeCode::DeviceRevoked,
+        &ControlPayload::DeviceRevoked(DeviceRevokedPayload {
+            device_id: peer,
+            reason_code: "test-revoke".into(),
+        }),
+        local,
+        3,
+        &local_keys.signing_key(),
+        nil_content_key_id(),
+    )
+    .unwrap();
+    let revoke_event = EventBuilder::new(
+        AggregateType::System,
+        peer.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceRevoked(EventDeviceRevokedPayload {
+        device_id: peer,
+        revoked_by_device_id: local,
+        reason_code: "test-revoke".into(),
+        replication_event_id: revoke_built.signed.outer.event_id,
+        local_seq: 3,
+        envelope_id: revoke_built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(revoke_built.signed.signature),
+        body_hex: hex::encode(&revoke_built.body),
+        content_type_code: ContentTypeCode::DeviceRevoked.as_u16(),
+    }))
+    .unwrap();
+    store.append_event(&revoke_event).unwrap();
+
+    let conn = store.connection().lock().unwrap();
+    let peer_row = replication::get_device(&conn, &peer.to_string())
+        .unwrap()
+        .expect("peer row retained");
+    assert_eq!(peer_row.status, "revoked");
+
+    let tombstoned: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM device_id_tombstone WHERE device_id = ?)",
+            [peer.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(tombstoned, "DeviceRevoked must insert tombstone");
+
+    let control =
+        replication::get_signed_control(&conn, &revoke_built.signed.outer.event_id.to_string())
+            .unwrap()
+            .expect("revoke signed control");
+    assert_eq!(control.sender_device_id, local.to_string());
+    assert_eq!(
+        control.content_type_code,
+        ContentTypeCode::DeviceRevoked.as_u16() as i64
+    );
+}
+
+#[test]
+fn append_device_enrolled_with_private_key__bad_wrap__rolls_back_event() {
+    let (_tmp, store) = open_store();
+    let keys = generate_device_keys().unwrap();
+    let device = DeviceId::new();
+    let ed = keys.verifying_key().to_bytes();
+    let x = keys.x25519_public().to_bytes();
+    let built = build_and_sign_control(
+        ContentTypeCode::DeviceEnrolled,
+        &ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            device_id: device,
+            ed25519_pub: ed,
+            x25519_pub: x,
+        }),
+        device,
+        1,
+        &keys.signing_key(),
+        nil_content_key_id(),
+    )
+    .unwrap();
+
+    let event = EventBuilder::new(
+        AggregateType::System,
+        device.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceEnrolled(EventDeviceEnrolledPayload {
+        device_id: device,
+        enrolled_by_device_id: device,
+        status: "local".into(),
+        fingerprint_sha256: hex::encode([0xAAu8; 32]),
+        ed25519_public: hex::encode(ed),
+        x25519_public: hex::encode(x),
+        schema_version: REPLICATION_SCHEMA_VERSION,
+        replication_event_id: built.signed.outer.event_id,
+        local_seq: 1,
+        envelope_id: built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(built.signed.signature),
+        body_hex: hex::encode(&built.body),
+        content_type_code: ContentTypeCode::DeviceEnrolled.as_u16(),
+    }))
+    .unwrap();
+
+    // Empty wrap fails validation after projector would have written identity.
+    let bad_key = DevicePrivateKeyRow {
+        device_id: device.to_string(),
+        wrap_schema_version: 1,
+        algorithm: "AES-256-GCM".to_string(),
+        protection: "datakey".to_string(),
+        wrap_nonce: vec![],
+        wrap_ciphertext: vec![],
+        created_at: CREATED_AT.to_string(),
+    };
+    let err = store
+        .append_device_enrolled_with_private_key(&event, &bad_key)
+        .expect_err("empty wrap must fail");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("wrap_nonce") || msg.contains("non-empty"),
+        "expected wrap validation error, got: {msg}"
+    );
+
+    let conn = store.connection().lock().unwrap();
+    assert!(
+        replication::get_device(&conn, &device.to_string())
+            .unwrap()
+            .is_none(),
+        "failed private-key insert must roll back projected identity"
+    );
+    let event_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE event_type = 'DeviceEnrolled'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        event_count, 0,
+        "failed private-key insert must roll back event SOV row"
+    );
+}
+
+#[test]
+fn append_device_enrolled_with_private_key__local__atomic_ok() {
+    let (_tmp, store) = open_store();
+    let keys = generate_device_keys().unwrap();
+    let device = DeviceId::new();
+    let ed = keys.verifying_key().to_bytes();
+    let x = keys.x25519_public().to_bytes();
+    let built = build_and_sign_control(
+        ContentTypeCode::DeviceEnrolled,
+        &ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            device_id: device,
+            ed25519_pub: ed,
+            x25519_pub: x,
+        }),
+        device,
+        1,
+        &keys.signing_key(),
+        nil_content_key_id(),
+    )
+    .unwrap();
+
+    let event = EventBuilder::new(
+        AggregateType::System,
+        device.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceEnrolled(EventDeviceEnrolledPayload {
+        device_id: device,
+        enrolled_by_device_id: device,
+        status: "local".into(),
+        fingerprint_sha256: hex::encode([0xBBu8; 32]),
+        ed25519_public: hex::encode(ed),
+        x25519_public: hex::encode(x),
+        schema_version: REPLICATION_SCHEMA_VERSION,
+        replication_event_id: built.signed.outer.event_id,
+        local_seq: 1,
+        envelope_id: built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(built.signed.signature),
+        body_hex: hex::encode(&built.body),
+        content_type_code: ContentTypeCode::DeviceEnrolled.as_u16(),
+    }))
+    .unwrap();
+
+    let private_key = DevicePrivateKeyRow {
+        device_id: device.to_string(),
+        wrap_schema_version: 1,
+        algorithm: "AES-256-GCM".to_string(),
+        protection: "datakey".to_string(),
+        wrap_nonce: vec![0xAB; 12],
+        wrap_ciphertext: vec![0xCD; 80],
+        created_at: CREATED_AT.to_string(),
+    };
+    store
+        .append_device_enrolled_with_private_key(&event, &private_key)
+        .unwrap();
+
+    let conn = store.connection().lock().unwrap();
+    assert!(replication::has_active_or_local_device(&conn).unwrap());
+    let wrap = replication::get_device_private_key_wrap(&conn, &device.to_string())
+        .unwrap()
+        .expect("private key wrap");
+    assert_eq!(wrap.wrap_nonce.len(), 12);
 }

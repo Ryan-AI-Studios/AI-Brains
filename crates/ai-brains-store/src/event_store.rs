@@ -2,6 +2,9 @@ use crate::SyncStateStore;
 use crate::connection::VaultConnection;
 use crate::errors::{Result, StoreError};
 use crate::projections;
+use crate::projections::replication::{
+    DevicePrivateKeyRow, has_active_or_local_device, put_device_private_key_wrap,
+};
 use ai_brains_events::Envelope;
 use ai_brains_events::Payload;
 use rusqlite::params;
@@ -32,6 +35,51 @@ impl SqliteEventStore {
 
     pub fn connection(&self) -> &VaultConnection {
         &self.conn
+    }
+
+    /// Append a `DeviceEnrolled` event and store the local private-key wrap in one
+    /// IMMEDIATE transaction (bootstrap path).
+    ///
+    /// Order: R27 check (when `status = local`) → event row + projector
+    /// (identity/control/index) → private key wrap. Failure of any step rolls back
+    /// the event so SOV and side stores cannot diverge. Private key material is
+    /// never written into the event payload.
+    pub fn append_device_enrolled_with_private_key(
+        &self,
+        envelope: &Envelope,
+        private_key: &DevicePrivateKeyRow,
+    ) -> Result<()> {
+        validate_envelope_payload(envelope)?;
+
+        let Payload::DeviceEnrolled(ref enrolled) = envelope.payload else {
+            return Err(StoreError::EventAppendFailed(
+                "append_device_enrolled_with_private_key requires DeviceEnrolled payload"
+                    .to_string(),
+            ));
+        };
+
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+
+        let tx = conn
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+
+        // R27: reject concurrent second local bootstrap inside the write lock.
+        if enrolled.status == "local" && has_active_or_local_device(&tx)? {
+            return Err(StoreError::ConfigError(
+                "BootstrapAlreadyEnrolled: an active or local device already exists".to_string(),
+            ));
+        }
+
+        insert_event_row(&tx, envelope)?;
+        put_device_private_key_wrap(&tx, private_key)?;
+
+        tx.commit()
+            .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+        Ok(())
     }
 }
 

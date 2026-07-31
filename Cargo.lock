@@ -420,6 +420,7 @@ dependencies = [
  "ai-brains-sync",
  "chrono",
  "ed25519-dalek",
+ "hex",
  "rusqlite",
  "serde",
  "serde_json",

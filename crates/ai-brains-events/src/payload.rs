@@ -690,10 +690,10 @@ pub struct PolicyDecisionRecordedPayload {
 
 /// Canonical event-log record for device membership add (T176 / ADR-0018).
 ///
-/// Dual-write with `signed_replication_control` / `device_identity` side stores is
-/// intentional in T176: this payload is the append-only SOV for membership history;
-/// side stores hold signed wire control material for multi-device apply. T177 may
-/// unify projection apply-from-log.
+/// SOV for membership: a `ReplicationProjection` rebuilds public `device_identity`,
+/// `signed_replication_control`, and `encrypted_envelope_index` from this payload.
+/// Private key wraps are **not** in the event log (secret); bootstrap uses a single
+/// TX that appends this event then stores the wrap.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeviceEnrolledPayload {
     pub device_id: DeviceId,
@@ -710,11 +710,19 @@ pub struct DeviceEnrolledPayload {
     /// Replication wire event id (matches signed control outer.event_id).
     pub replication_event_id: ReplicationEventId,
     pub local_seq: u64,
+    /// Wire control outer.envelope_id (rebuilds signed control + envelope index).
+    pub envelope_id: Uuid,
+    /// Hex-encoded Ed25519 signature over signed_bytes (64 bytes → 128 hex chars).
+    pub signature_hex: String,
+    /// Hex-encoded cleartext control body.
+    pub body_hex: String,
+    /// Wire `content_type_code` (e.g. `0x0010` DeviceEnrolled).
+    pub content_type_code: u16,
 }
 
 /// Canonical event-log record for device membership remove / permanent retirement (T176).
 ///
-/// Dual-write with side stores is intentional (see [`DeviceEnrolledPayload`]).
+/// Projection rebuilds tombstone + signed control from this payload (no dual-write).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeviceRevokedPayload {
     pub device_id: DeviceId,
@@ -723,6 +731,14 @@ pub struct DeviceRevokedPayload {
     /// Replication wire event id (matches signed control outer.event_id).
     pub replication_event_id: ReplicationEventId,
     pub local_seq: u64,
+    /// Wire control outer.envelope_id.
+    pub envelope_id: Uuid,
+    /// Hex-encoded Ed25519 signature (64 bytes → 128 hex chars).
+    pub signature_hex: String,
+    /// Hex-encoded cleartext control body.
+    pub body_hex: String,
+    /// Wire `content_type_code` (e.g. `0x0011` DeviceRevoked).
+    pub content_type_code: u16,
 }
 
 /// Internally tagged payload (`type` field, PascalCase).

@@ -9,11 +9,13 @@
 | Internal R3 | ID-12 + ID-14 fix | **CLEAN_WITH_DEFERRED_LOWS** | 2026-07-30 |
 | Codex R1 | cross-model review.codex.md | **FAIL** | 2026-07-31 |
 | Codex R1 remediations | implementer | **fixed_pending_verification** | 2026-07-30 |
+| Codex R2 | membership dual-write atomicity | **FAIL** (HIGH) | 2026-07-30 |
+| Codex R2 remediation | implementer | **fixed_pending_verification** | 2026-07-30 |
 
 ## Implementation
 
 - Branch: `track/T176-sync-crate-schema`
-- Commits: `f68f274` (impl), `f0b897b` (review fixes), + ID-12/14 follow-up
+- Commits: `f68f274` (impl), `f0b897b` (review fixes), + ID-12/14 follow-up, + SOV dual-write, + atomic membership projector
 - Ledger tx: `5dae83e3-193e-467b-a817-c7f92e172af4`
 
 ---
@@ -41,15 +43,28 @@
 | Codex-P2-A Self-revoke | medium | **fixed_pending_verification** | `run_revoke` rejects device_id == signer_id (ADR-0018 L4) |
 | Codex-P2-B Regression | medium | **fixed_pending_verification** | Upgrade path, CHECK, signed DeviceRevoked/erasure/ACK tests |
 | Codex-P2-C Governance | low_info | open | This log updated; leave conductor Complete to orchestrator after re-review |
+| Codex-R2-A Membership dual-write not atomic | high | **fixed_pending_verification** | See detail below |
 
 ---
 
 ## Codex R1 FAIL detail
 
+### Codex-R2-A — Membership dual-write not atomic
+- **severity:** high
+- **status:** fixed_pending_verification
+- **problem:** CLI appended DeviceEnrolled/DeviceRevoked then separately wrote side stores. Side-store failure after append left SOV saying membership changed without identity/control rows; no projector.
+- **fix (CQRS-correct):**
+  1. Extended `DeviceEnrolledPayload` / `DeviceRevokedPayload` with wire fields (`envelope_id`, `signature_hex`, `body_hex`, `content_type_code`) so a projector can rebuild public membership + signed control.
+  2. `ReplicationProjection` in `projections/replication.rs` applies enroll → identity+signed_control+envelope_index; revoke → tombstone+control+index. Idempotent on replication event_id.
+  3. Registered in `apply_all`.
+  4. Bootstrap private key cannot go in the event log: `SqliteEventStore::append_device_enrolled_with_private_key` single IMMEDIATE TX (R27 check → insert_event_row/apply_all → put_device_private_key_wrap).
+  5. CLI bootstrap uses atomic append+wrap; enroll/revoke only `append_event` (projector applies). No separate dual-write.
+- **evidence:** store tests `append_event__device_enrolled__projects_identity_and_signed_control`, `append_event__device_revoked__projects_tombstone_and_control`, `append_device_enrolled_with_private_key__bad_wrap__rolls_back_event`; CLI still green for bootstrap/enroll/revoke.
+
 ### Codex-P1-A — Append to canonical event log
 - **severity:** high
 - **status:** fixed_pending_verification
-- **fix:** `ai-brains-events` adds `DeviceEnrolled` / `DeviceRevoked` payloads + `EventKind`; CLI `device.rs` appends via `EventStore` before side-store TX. Dual-write intentional (SOV + signed_replication_control); T177 may unify apply-from-log.
+- **fix:** `ai-brains-events` adds `DeviceEnrolled` / `DeviceRevoked` payloads + `EventKind`; CLI appends via EventStore; public side stores now projected (Codex-R2-A).
 - **evidence:** `payload.rs`, `event_kind.rs`, `device.rs` `append_device_*_event`; CLI tests `bootstrap__appends_device_enrolled_event_log_sov`, `revoke__peer_after_enroll__ok_and_event_log`
 
 ### Codex-P1-B — content_key_id for erasure/ACK
@@ -92,5 +107,5 @@
 ## Disposition policy
 
 - All high/medium fixed before cross-model clearance.
-- Dual-write (event log + side store) is intentional for T176; document residual for T177 projection unify.
+- Membership public side stores are event-projected (Codex-R2-A); private key wrap remains command-path secret.
 - Deferred lows only: ID-13 (and process ID-11 until closeout).

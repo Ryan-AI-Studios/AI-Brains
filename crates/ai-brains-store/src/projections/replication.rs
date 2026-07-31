@@ -5,11 +5,18 @@
 //! retained on rebuild.
 //! Operational: replication_cursor, gap buffer, erasure_ack, gap_skip_audit — v1 retain.
 //!
+//! Membership public state is projected from `DeviceEnrolled` / `DeviceRevoked`
+//! events via [`ReplicationProjection`] (CQRS). Private key wraps stay command-path
+//! only (secret material must not enter the event log).
+//!
 //! No plaintext event bodies. No crypto seal/open here (opaque wrap bytes).
 
 use crate::errors::{Result, StoreError};
+use crate::projections::Projection;
+use ai_brains_events::{Envelope, Payload};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::fmt;
+use time::format_description::well_known::Rfc3339;
 
 /// Default ACK timeout in sync cycles (R14). Unit-testable; production T176 does not tick.
 pub const ACK_TIMEOUT_SYNC_CYCLES: u32 = 3;
@@ -501,6 +508,8 @@ pub fn next_local_seq(conn: &Connection, sender_device_id: &str) -> Result<i64> 
 // ---------------------------------------------------------------------------
 
 /// Persist a signed control envelope (cleartext body + signature).
+/// Same `event_id` is idempotent (no-op success) so rebuild/re-apply is safe
+/// while side stores are retained on `rebuild_projections`.
 pub fn insert_signed_control(conn: &Connection, row: &SignedControlRow) -> Result<()> {
     if row.signature.len() != 64 {
         return Err(StoreError::ConfigError(
@@ -511,6 +520,9 @@ pub fn insert_signed_control(conn: &Connection, row: &SignedControlRow) -> Resul
         return Err(StoreError::ConfigError(
             "signed control body must be non-empty".to_string(),
         ));
+    }
+    if get_signed_control(conn, &row.event_id)?.is_some() {
+        return Ok(());
     }
     conn.execute(
         "INSERT INTO signed_replication_control (
@@ -891,4 +903,175 @@ pub fn insert_gap_skip_audit(
         ],
     )?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Event projection (membership SOV → public side stores)
+// ---------------------------------------------------------------------------
+
+/// Applies `DeviceEnrolled` / `DeviceRevoked` to public membership side stores.
+///
+/// Does **not** write `device_private_key_store` (secret; command-path only).
+pub struct ReplicationProjection;
+
+fn decode_hex_field(hex_str: &str, field: &str) -> Result<Vec<u8>> {
+    hex::decode(hex_str).map_err(|e| {
+        StoreError::EventAppendFailed(format!("Device membership payload {field}: {e}"))
+    })
+}
+
+fn decode_hex_len(hex_str: &str, field: &str, expected_len: usize) -> Result<Vec<u8>> {
+    let bytes = decode_hex_field(hex_str, field)?;
+    if bytes.len() != expected_len {
+        return Err(StoreError::EventAppendFailed(format!(
+            "Device membership payload {field}: expected {expected_len} bytes, got {}",
+            bytes.len()
+        )));
+    }
+    Ok(bytes)
+}
+
+fn nil_content_key_id_str() -> String {
+    uuid::Uuid::nil().to_string()
+}
+
+impl Projection for ReplicationProjection {
+    fn apply(&self, tx: &rusqlite::Transaction, envelope: &Envelope) -> Result<()> {
+        let occurred_at = envelope
+            .occurred_at
+            .format(&Rfc3339)
+            .map_err(|e| StoreError::EventAppendFailed(format!("Failed to format date: {e}")))?;
+
+        match &envelope.payload {
+            Payload::DeviceEnrolled(p) => {
+                let replication_event_id = p.replication_event_id.to_string();
+                // Idempotent re-apply when side stores are retained across rebuild.
+                if get_signed_control(tx, &replication_event_id)?.is_some() {
+                    return Ok(());
+                }
+
+                let ed25519_public = decode_hex_len(&p.ed25519_public, "ed25519_public", 32)?;
+                let x25519_public = decode_hex_len(&p.x25519_public, "x25519_public", 32)?;
+                let fingerprint_sha256 =
+                    decode_hex_len(&p.fingerprint_sha256, "fingerprint_sha256", 32)?;
+                let signature = decode_hex_len(&p.signature_hex, "signature_hex", 64)?;
+                let body = decode_hex_field(&p.body_hex, "body_hex")?;
+                if body.is_empty() {
+                    return Err(StoreError::EventAppendFailed(
+                        "DeviceEnrolled body_hex must be non-empty".to_string(),
+                    ));
+                }
+
+                let device_id = p.device_id.to_string();
+                let enrolled_by = p.enrolled_by_device_id.to_string();
+                let display_name = if p.status == "local" {
+                    Some("local".to_string())
+                } else {
+                    None
+                };
+
+                if get_device(tx, &device_id)?.is_none() {
+                    insert_device_identity(
+                        tx,
+                        &DeviceIdentityRow {
+                            device_id: device_id.clone(),
+                            schema_version: i64::from(p.schema_version),
+                            ed25519_public,
+                            x25519_public,
+                            display_name,
+                            status: p.status.clone(),
+                            enrolled_at: occurred_at.clone(),
+                            revoked_at: None,
+                            enrolled_by_device_id: enrolled_by.clone(),
+                            fingerprint_sha256,
+                        },
+                    )?;
+                }
+
+                let envelope_id = p.envelope_id.to_string();
+                insert_signed_control(
+                    tx,
+                    &SignedControlRow {
+                        event_id: replication_event_id.clone(),
+                        envelope_id: envelope_id.clone(),
+                        sender_device_id: enrolled_by.clone(),
+                        content_type_code: i64::from(p.content_type_code),
+                        body: body.clone(),
+                        signature,
+                        schema_version: i64::from(p.schema_version),
+                        local_seq: p.local_seq as i64,
+                        created_at: occurred_at.clone(),
+                    },
+                )?;
+                insert_envelope_index(
+                    tx,
+                    &EnvelopeIndexRow {
+                        envelope_id,
+                        event_id: replication_event_id,
+                        sender_device_id: enrolled_by,
+                        local_seq: p.local_seq as i64,
+                        content_type_code: i64::from(p.content_type_code),
+                        content_key_id: Some(nil_content_key_id_str()),
+                        body_len: body.len() as i64,
+                        padding_bucket: None,
+                        applied_at: Some(occurred_at),
+                    },
+                )?;
+            }
+            Payload::DeviceRevoked(p) => {
+                let replication_event_id = p.replication_event_id.to_string();
+                if get_signed_control(tx, &replication_event_id)?.is_some() {
+                    // Control already applied; still ensure tombstone (idempotent).
+                    tombstone_device(tx, &p.device_id.to_string(), &occurred_at, &p.reason_code)?;
+                    return Ok(());
+                }
+
+                let signature = decode_hex_len(&p.signature_hex, "signature_hex", 64)?;
+                let body = decode_hex_field(&p.body_hex, "body_hex")?;
+                if body.is_empty() {
+                    return Err(StoreError::EventAppendFailed(
+                        "DeviceRevoked body_hex must be non-empty".to_string(),
+                    ));
+                }
+
+                let device_id = p.device_id.to_string();
+                let revoked_by = p.revoked_by_device_id.to_string();
+                let envelope_id = p.envelope_id.to_string();
+                // Control schema version is wire REPLICATION_SCHEMA_VERSION (v1 = 1).
+                let schema_version = 1i64;
+
+                insert_signed_control(
+                    tx,
+                    &SignedControlRow {
+                        event_id: replication_event_id.clone(),
+                        envelope_id: envelope_id.clone(),
+                        sender_device_id: revoked_by.clone(),
+                        content_type_code: i64::from(p.content_type_code),
+                        body: body.clone(),
+                        signature,
+                        schema_version,
+                        local_seq: p.local_seq as i64,
+                        created_at: occurred_at.clone(),
+                    },
+                )?;
+                insert_envelope_index(
+                    tx,
+                    &EnvelopeIndexRow {
+                        envelope_id,
+                        event_id: replication_event_id,
+                        sender_device_id: revoked_by,
+                        local_seq: p.local_seq as i64,
+                        content_type_code: i64::from(p.content_type_code),
+                        content_key_id: Some(nil_content_key_id_str()),
+                        body_len: body.len() as i64,
+                        padding_bucket: None,
+                        applied_at: Some(occurred_at.clone()),
+                    },
+                )?;
+                tombstone_device(tx, &device_id, &occurred_at, &p.reason_code)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
 }

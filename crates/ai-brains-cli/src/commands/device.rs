@@ -4,15 +4,13 @@
 //! **not** metadata-private. First-device uses `bootstrap`; peers use OOB
 //! fingerprint + `enroll` (T177 delivers history via relay).
 //!
-//! # Dual-write (intentional for T176)
+//! # CQRS membership path
 //!
-//! Bootstrap / enroll / revoke:
-//! 1. Append immutable `DeviceEnrolled` / `DeviceRevoked` to the canonical
-//!    event log (SOV — AGENTS.md + spec §9.1).
-//! 2. Write side tables (`device_identity`, `signed_replication_control`, …)
-//!    for signed wire control material used by multi-device apply.
-//!
-//! Projection apply-from-log for `device_identity` is deferred (T177 may unify).
+//! Bootstrap / enroll / revoke append immutable `DeviceEnrolled` /
+//! `DeviceRevoked` to the event log. `ReplicationProjection` rebuilds public
+//! side stores (`device_identity`, `signed_replication_control`,
+//! `encrypted_envelope_index`). Bootstrap private-key wrap is secret and is
+//! stored in the same SQLite transaction as the enroll event (never in the log).
 
 use crate::context::AppContext;
 use ai_brains_core::ids::DeviceId;
@@ -24,10 +22,10 @@ use ai_brains_events::{
     DeviceRevokedPayload as EventDeviceRevokedPayload, Payload,
 };
 use ai_brains_store::EventStore;
-use ai_brains_store::projections::replication::{
-    self, BootstrapLocalDeviceInput, DeviceIdentityRow, DevicePrivateKeyRow, EnvelopeIndexRow,
-    SignedControlRow,
-};
+use ai_brains_store::SqliteEventStore;
+use ai_brains_store::projections::replication::{self, DevicePrivateKeyRow};
+#[cfg(test)]
+use ai_brains_store::projections::replication::{EnvelopeIndexRow, SignedControlRow};
 use ai_brains_sync::{
     ControlPayload, DeviceEnrolledPayload, DevicePrivateSeeds, DeviceRevokedPayload,
     REPLICATION_SCHEMA_VERSION, build_and_sign_control, enrollment_package, fingerprint_sha256,
@@ -67,6 +65,7 @@ fn now_rfc3339() -> Result<String, Box<dyn std::error::Error>> {
     Ok(OffsetDateTime::now_utc().format(&Rfc3339)?)
 }
 
+#[cfg(test)]
 fn signed_control_rows(
     built: &ai_brains_sync::SignedControlEnvelope,
     created_at: &str,
@@ -145,10 +144,9 @@ fn load_local_signing_key(
     Ok((device_id, key_pair.signing_key()))
 }
 
-/// Append membership control to the canonical event log (SOV). Side stores are separate.
+/// Build a DeviceEnrolled domain event with full wire-control fields for projection.
 #[allow(clippy::too_many_arguments)]
-fn append_device_enrolled_event(
-    ctx: &AppContext,
+fn build_device_enrolled_event(
     device_id: DeviceId,
     enrolled_by: DeviceId,
     status: &str,
@@ -157,8 +155,8 @@ fn append_device_enrolled_event(
     x25519_pub: &[u8; 32],
     schema_version: u16,
     built: &ai_brains_sync::SignedControlEnvelope,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let event = EventBuilder::new(
+) -> Result<ai_brains_events::Envelope, Box<dyn std::error::Error>> {
+    Ok(EventBuilder::new(
         AggregateType::System,
         device_id.as_uuid(),
         Actor::System,
@@ -174,8 +172,36 @@ fn append_device_enrolled_event(
         schema_version,
         replication_event_id: built.signed.outer.event_id,
         local_seq: built.signed.outer.local_seq,
-    }))?;
-    let store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+        envelope_id: built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(built.signed.signature),
+        body_hex: hex::encode(&built.body),
+        content_type_code: built.signed.outer.content_type_code.as_u16(),
+    }))?)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_device_enrolled_event(
+    ctx: &AppContext,
+    device_id: DeviceId,
+    enrolled_by: DeviceId,
+    status: &str,
+    fingerprint: &[u8; 32],
+    ed25519_pub: &[u8; 32],
+    x25519_pub: &[u8; 32],
+    schema_version: u16,
+    built: &ai_brains_sync::SignedControlEnvelope,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let event = build_device_enrolled_event(
+        device_id,
+        enrolled_by,
+        status,
+        fingerprint,
+        ed25519_pub,
+        x25519_pub,
+        schema_version,
+        built,
+    )?;
+    let store = SqliteEventStore::new((*ctx.conn).clone());
     store.append_event(&event)?;
     Ok(())
 }
@@ -199,14 +225,18 @@ fn append_device_revoked_event(
         reason_code: reason_code.to_string(),
         replication_event_id: built.signed.outer.event_id,
         local_seq: built.signed.outer.local_seq,
+        envelope_id: built.signed.outer.envelope_id.as_uuid(),
+        signature_hex: hex::encode(built.signed.signature),
+        body_hex: hex::encode(&built.body),
+        content_type_code: built.signed.outer.content_type_code.as_u16(),
     }))?;
-    let store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+    let store = SqliteEventStore::new((*ctx.conn).clone());
     store.append_event(&event)?;
     Ok(())
 }
 
-/// First-device local bootstrap (R26/R27): identity + private key + signed DeviceEnrolled
-/// in one SQLite transaction, plus canonical event-log SOV append (dual-write).
+/// First-device local bootstrap (R26/R27): signed DeviceEnrolled event + private key wrap
+/// in one IMMEDIATE SQLite transaction. Projector owns public membership side stores.
 pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     {
         let conn = ctx.conn.lock()?;
@@ -248,9 +278,12 @@ pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
     // Fail closed: signature must verify against the public we store.
     verify_envelope(&built.signed, &keys.verifying_key()).map_err(|e| e.to_string())?;
 
-    // SOV first: immutable event log (AGENTS.md + spec §9.1). Side store next.
-    append_device_enrolled_event(
-        ctx,
+    let seeds = DevicePrivateSeeds::from_key_pair(&keys);
+    let sealed = private_blob::seal_device_private_blob(&data_key, &seeds, &device_id)
+        .map_err(|e| e.to_string())?;
+    let private_key = sealed_to_row(&device_id, &sealed, &enrolled_at);
+
+    let event = build_device_enrolled_event(
         device_id,
         device_id,
         "local",
@@ -260,45 +293,14 @@ pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
         REPLICATION_SCHEMA_VERSION,
         &built,
     )?;
-
-    let (signed_control, envelope_index) = signed_control_rows(&built, &enrolled_at);
-
-    let identity = DeviceIdentityRow {
-        device_id: device_id.to_string(),
-        schema_version: REPLICATION_SCHEMA_VERSION as i64,
-        ed25519_public: ed_pub.to_vec(),
-        x25519_public: x_pub.to_vec(),
-        display_name: Some("local".to_string()),
-        status: "local".to_string(),
-        enrolled_at: enrolled_at.clone(),
-        revoked_at: None,
-        enrolled_by_device_id: device_id.to_string(), // self (R26)
-        fingerprint_sha256: fp.to_vec(),
-    };
-
-    let seeds = DevicePrivateSeeds::from_key_pair(&keys);
-    let sealed = private_blob::seal_device_private_blob(&data_key, &seeds, &device_id)
-        .map_err(|e| e.to_string())?;
-    let private_key = sealed_to_row(&device_id, &sealed, &enrolled_at);
-
-    {
-        let mut conn = ctx.conn.lock()?;
-        replication::bootstrap_local_device(
-            &mut conn,
-            &BootstrapLocalDeviceInput {
-                identity,
-                private_key,
-                signed_control,
-                envelope_index,
-            },
-        )?;
-    }
+    let store = SqliteEventStore::new((*ctx.conn).clone());
+    store.append_device_enrolled_with_private_key(&event, &private_key)?;
 
     println!("Device bootstrap complete (status=local).");
     println!("device_id: {device_id}");
     println!("fingerprint: {}", format_fingerprint_hyphen(&fp));
     println!("signed_control: DeviceEnrolled (self-signed, local_seq={local_seq})");
-    println!("event_log: DeviceEnrolled appended (canonical SOV; dual-write with side store)");
+    println!("event_log: DeviceEnrolled appended (canonical SOV; projector applies membership)");
     println!("Note: multi-device is optional; not PQ; not remote wipe; not metadata-private.");
     Ok(())
 }
@@ -453,7 +455,6 @@ pub fn run_enroll(
         }
     }
 
-    let enrolled_at = now_rfc3339()?;
     let control_payload = ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
         schema_version: parsed.schema_version,
         device_id: parsed.device_id,
@@ -473,7 +474,7 @@ pub fn run_enroll(
     let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|e| format!("verifying key: {e}"))?;
     verify_envelope(&built.signed, &vk).map_err(|e| e.to_string())?;
 
-    // SOV first, then side store (dual-write intentional for T176).
+    // SOV append only — ReplicationProjection applies public membership side stores.
     append_device_enrolled_event(
         ctx,
         parsed.device_id,
@@ -485,25 +486,6 @@ pub fn run_enroll(
         parsed.schema_version,
         &built,
     )?;
-
-    let (signed_control, envelope_index) = signed_control_rows(&built, &enrolled_at);
-    let identity = DeviceIdentityRow {
-        device_id: parsed.device_id.to_string(),
-        schema_version: parsed.schema_version as i64,
-        ed25519_public: parsed.ed25519_pub.to_vec(),
-        x25519_public: parsed.x25519_pub.to_vec(),
-        display_name: None,
-        status: "active".to_string(),
-        enrolled_at,
-        revoked_at: None,
-        enrolled_by_device_id: signer_id.to_string(),
-        fingerprint_sha256: fp.to_vec(),
-    };
-
-    {
-        let mut conn = ctx.conn.lock()?;
-        replication::enroll_peer_device(&mut conn, &identity, &signed_control, &envelope_index)?;
-    }
 
     println!(
         "Enrolled peer {} as active (signed DeviceEnrolled by {}).",
@@ -554,7 +536,6 @@ pub fn run_revoke(ctx: &AppContext, device_id: &str) -> Result<(), Box<dyn std::
     }
 
     let reason_code = "cli-revoke".to_string();
-    let revoked_at = now_rfc3339()?;
 
     let control_payload = ControlPayload::DeviceRevoked(DeviceRevokedPayload {
         device_id: revoked_device,
@@ -574,21 +555,8 @@ pub fn run_revoke(ctx: &AppContext, device_id: &str) -> Result<(), Box<dyn std::
     let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|e| format!("verifying key: {e}"))?;
     verify_envelope(&built.signed, &vk).map_err(|e| e.to_string())?;
 
-    // SOV first, then side store (dual-write intentional for T176).
+    // SOV append only — ReplicationProjection tombstones + stores signed control.
     append_device_revoked_event(ctx, revoked_device, signer_id, &reason_code, &built)?;
-
-    let (signed_control, envelope_index) = signed_control_rows(&built, &revoked_at);
-    {
-        let mut conn = ctx.conn.lock()?;
-        replication::revoke_device_with_control(
-            &mut conn,
-            device_id,
-            &revoked_at,
-            &reason_code,
-            &signed_control,
-            &envelope_index,
-        )?;
-    }
 
     println!("Revoked and tombstoned device {device_id}.");
     println!(
