@@ -80,6 +80,7 @@ fn migration_0027__fresh_vault__tables_exist() {
         "replication_gap_buffer",
         "erasure_ack_projection",
         "replication_gap_skip_audit",
+        "replication_outbox",
     ] {
         assert!(table_exists(&store, table), "missing table {table}");
     }
@@ -134,6 +135,7 @@ fn migration_0027__after_0026__applies_forward() {
         "replication_gap_buffer",
         "erasure_ack_projection",
         "replication_gap_skip_audit",
+        "replication_outbox",
     ] {
         assert!(
             table_exists_conn(&conn, table),
@@ -150,6 +152,17 @@ fn migration_0027__after_0026__applies_forward() {
         )
         .unwrap();
     assert_eq!(applied, 1, "0027 must be recorded in schema_migrations");
+    let applied_outbox: i64 = locked
+        .query_row(
+            "SELECT COUNT(*) FROM schema_migrations WHERE name = '0028_replication_outbox'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        applied_outbox, 1,
+        "0028 must be recorded in schema_migrations"
+    );
 }
 
 fn table_exists_conn(conn: &VaultConnection, name: &str) -> bool {

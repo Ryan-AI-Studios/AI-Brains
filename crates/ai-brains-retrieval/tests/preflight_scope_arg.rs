@@ -83,8 +83,29 @@ fn preflight_with_empty_scope_vec() -> Result<(), Box<dyn std::error::Error>> {
         false,
     )?;
 
-    // Both should contain the same memory content
-    assert_eq!(context_none.text, context_empty.text);
+    // Both should contain the same memory content. Do not require byte-identical
+    // relative ages ("just now" vs "1 min ago") — wall clock can advance between
+    // the two build_preflight calls under load (unrelated flake under full suite).
+    assert!(
+        context_none.text.contains(content),
+        "None scope missing memory: {}",
+        context_none.text
+    );
+    assert!(
+        context_empty.text.contains(content),
+        "empty scope missing memory: {}",
+        context_empty.text
+    );
+    let strip_ages = |s: &str| {
+        s.replace("just now", "<age>")
+            .replace("1 min ago", "<age>")
+            .replace("2 min ago", "<age>")
+    };
+    assert_eq!(
+        strip_ages(&context_none.text),
+        strip_ages(&context_empty.text),
+        "None vs empty scope should match aside from relative age wording"
+    );
 
     Ok(())
 }

@@ -445,9 +445,9 @@ enum Commands {
         #[command(subcommand)]
         command: DeviceCommands,
     },
-    /// Multi-device replication status / cursors (T176). Push/pull deferred to T177 (no sockets).
+    /// Multi-device replication status / cursors / push / pull (T177 file fake relay only).
     #[command(
-        after_help = "Examples:\n  ai-brains replicate status\n  ai-brains replicate cursors\n  ai-brains replicate push   # errors: relay not configured / T177\nHonesty: optional multi-device; not PQ; not remote wipe; not metadata-private."
+        after_help = "Examples:\n  ai-brains replicate status\n  ai-brains replicate cursors\n  ai-brains replicate push --fake-relay ./relay\n  ai-brains replicate pull --fake-relay ./relay\nEnv: AI_BRAINS_SYNC_FAKE_RELAY_PATH\nNo `replicate sync` alias — run push then pull.\nHonesty: optional multi-device; not PQ; not remote wipe; not metadata-private."
     )]
     Replicate {
         #[command(subcommand)]
@@ -497,14 +497,48 @@ enum DeviceCommands {
 
 #[derive(Subcommand, Clone)]
 enum ReplicateCommands {
-    /// Local cursors, gap state, enrolled count; relay: not configured
-    Status,
+    /// Local cursors, gap/blocked state, enrolled count; relay file path or not configured
+    Status {
+        /// Explicit file fake relay directory (or set AI_BRAINS_SYNC_FAKE_RELAY_PATH)
+        #[arg(long)]
+        fake_relay: Option<PathBuf>,
+        /// Emit JSON status
+        #[arg(long)]
+        format: Option<String>,
+        /// Minimal output (relay line only)
+        #[arg(long)]
+        quiet: bool,
+    },
     /// Dump replication_cursor rows
-    Cursors,
-    /// Fail closed: relay not configured / deferred to T177 (no sockets)
-    Push,
-    /// Fail closed: relay not configured / deferred to T177 (no sockets)
-    Pull,
+    Cursors {
+        /// Emit JSON
+        #[arg(long)]
+        format: Option<String>,
+    },
+    /// Push pending envelopes to an explicitly configured file fake relay (no sockets)
+    Push {
+        /// Explicit file fake relay directory (or set AI_BRAINS_SYNC_FAKE_RELAY_PATH)
+        #[arg(long)]
+        fake_relay: Option<PathBuf>,
+        /// Output format: text (default) or json
+        #[arg(long)]
+        format: Option<String>,
+        /// Suppress success chatter (text mode only)
+        #[arg(long)]
+        quiet: bool,
+    },
+    /// Pull peer envelopes from an explicitly configured file fake relay (no sockets)
+    Pull {
+        /// Explicit file fake relay directory (or set AI_BRAINS_SYNC_FAKE_RELAY_PATH)
+        #[arg(long)]
+        fake_relay: Option<PathBuf>,
+        /// Output format: text (default) or json
+        #[arg(long)]
+        format: Option<String>,
+        /// Suppress success chatter (text mode only)
+        #[arg(long)]
+        quiet: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -2277,10 +2311,34 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             DeviceCommands::Revoke { device_id } => commands::device::run_revoke(&ctx, device_id),
         },
         Commands::Replicate { command } => match command {
-            ReplicateCommands::Status => commands::replicate::run_status(&ctx),
-            ReplicateCommands::Cursors => commands::replicate::run_cursors(&ctx),
-            ReplicateCommands::Push => commands::replicate::run_push(&ctx),
-            ReplicateCommands::Pull => commands::replicate::run_pull(&ctx),
+            ReplicateCommands::Status {
+                fake_relay,
+                format,
+                quiet,
+            } => {
+                let format_json = format.as_deref() == Some("json");
+                commands::replicate::run_status(&ctx, fake_relay.clone(), format_json, *quiet)
+            }
+            ReplicateCommands::Cursors { format } => {
+                let format_json = format.as_deref() == Some("json");
+                commands::replicate::run_cursors(&ctx, format_json)
+            }
+            ReplicateCommands::Push {
+                fake_relay,
+                format,
+                quiet,
+            } => {
+                let format_json = format.as_deref() == Some("json");
+                commands::replicate::run_push(&ctx, fake_relay.clone(), format_json, *quiet)
+            }
+            ReplicateCommands::Pull {
+                fake_relay,
+                format,
+                quiet,
+            } => {
+                let format_json = format.as_deref() == Some("json");
+                commands::replicate::run_pull(&ctx, fake_relay.clone(), format_json, *quiet)
+            }
         },
         Commands::Safety { command } => match command {
             SafetyCommands::Sync { limit, dry_run } => {

@@ -123,6 +123,169 @@ pub fn build_signed_bytes(input: &SignedBytesInput) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+/// Fixed header length before variable ciphertext: schema…content_key + ct_len.
+const SIGNED_BYTES_FIXED_PREFIX: usize = 2 + 16 + 16 + 8 + 2 + 16 + 16 + 4;
+
+/// Decode one wrap record; returns `(record, bytes_consumed)`.
+pub fn parse_wrap_record(bytes: &[u8]) -> Result<(WrapRecord, usize)> {
+    // recipient(16) + eph(32) + nonce(12) + ct_len(4)
+    const FIXED: usize = 16 + 32 + 12 + 4;
+    if bytes.len() < FIXED {
+        return Err(SyncError::InvalidEncoding(format!(
+            "wrap record truncated: {} < {FIXED}",
+            bytes.len()
+        )));
+    }
+    let recipient = Uuid::from_bytes(
+        bytes[0..16]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("wrap recipient uuid".to_string()))?,
+    );
+    let mut eph_x25519_pub = [0u8; 32];
+    eph_x25519_pub.copy_from_slice(&bytes[16..48]);
+    let mut wrap_nonce = [0u8; 12];
+    wrap_nonce.copy_from_slice(&bytes[48..60]);
+    let ct_len = u32::from_be_bytes(
+        bytes[60..64]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("wrap_ct_len".to_string()))?,
+    ) as usize;
+    let total = FIXED + ct_len;
+    if bytes.len() < total {
+        return Err(SyncError::InvalidEncoding(format!(
+            "wrap_ct truncated: need {total}, have {}",
+            bytes.len()
+        )));
+    }
+    let wrap_ct = bytes[64..total].to_vec();
+    Ok((
+        WrapRecord {
+            recipient_device_id: DeviceId::from_uuid(recipient),
+            eph_x25519_pub,
+            wrap_nonce,
+            wrap_ct,
+        },
+        total,
+    ))
+}
+
+/// Inverse of [`build_signed_bytes`]. Requires exact consumption (no leftover bytes).
+pub fn parse_signed_bytes(bytes: &[u8]) -> Result<SignedBytesInput> {
+    if bytes.len() < SIGNED_BYTES_FIXED_PREFIX {
+        return Err(SyncError::InvalidEncoding(format!(
+            "signed_bytes truncated: {} < {SIGNED_BYTES_FIXED_PREFIX}",
+            bytes.len()
+        )));
+    }
+    let mut off = 0usize;
+
+    let schema_version = u16::from_be_bytes(
+        bytes[off..off + 2]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("schema_version".to_string()))?,
+    );
+    off += 2;
+
+    let envelope_id = EnvelopeId::from_uuid(Uuid::from_bytes(
+        bytes[off..off + 16]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("envelope_id".to_string()))?,
+    ));
+    off += 16;
+
+    let device_id = DeviceId::from_uuid(Uuid::from_bytes(
+        bytes[off..off + 16]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("device_id".to_string()))?,
+    ));
+    off += 16;
+
+    let local_seq = u64::from_be_bytes(
+        bytes[off..off + 8]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("local_seq".to_string()))?,
+    );
+    off += 8;
+
+    let content_type_code = u16::from_be_bytes(
+        bytes[off..off + 2]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("content_type_code".to_string()))?,
+    );
+    off += 2;
+
+    let event_id = ReplicationEventId::from_uuid(Uuid::from_bytes(
+        bytes[off..off + 16]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("event_id".to_string()))?,
+    ));
+    off += 16;
+
+    let content_key_id = ContentKeyId::from_uuid(Uuid::from_bytes(
+        bytes[off..off + 16]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("content_key_id".to_string()))?,
+    ));
+    off += 16;
+
+    let ciphertext_len = u32::from_be_bytes(
+        bytes[off..off + 4]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("ciphertext_len".to_string()))?,
+    ) as usize;
+    off += 4;
+
+    if bytes.len() < off + ciphertext_len + 4 {
+        return Err(SyncError::InvalidEncoding(format!(
+            "ciphertext/wrap_count truncated at offset {off}"
+        )));
+    }
+    let ciphertext = bytes[off..off + ciphertext_len].to_vec();
+    off += ciphertext_len;
+
+    let wrap_count = u32::from_be_bytes(
+        bytes[off..off + 4]
+            .try_into()
+            .map_err(|_| SyncError::InvalidEncoding("wrap_count".to_string()))?,
+    ) as usize;
+    off += 4;
+
+    let mut wrap_records = Vec::with_capacity(wrap_count);
+    for i in 0..wrap_count {
+        let (rec, consumed) = parse_wrap_record(&bytes[off..]).map_err(|e| match e {
+            SyncError::InvalidEncoding(msg) => {
+                SyncError::InvalidEncoding(format!("wrap[{i}]: {msg}"))
+            }
+            other => other,
+        })?;
+        off += consumed;
+        wrap_records.push(rec);
+    }
+
+    if off != bytes.len() {
+        return Err(SyncError::InvalidEncoding(format!(
+            "signed_bytes leftover {} bytes after parse",
+            bytes.len() - off
+        )));
+    }
+
+    if !wraps_are_sorted(&wrap_records) {
+        return Err(SyncError::UnsortedWrapList);
+    }
+
+    Ok(SignedBytesInput {
+        schema_version,
+        envelope_id,
+        device_id,
+        local_seq,
+        content_type_code,
+        event_id,
+        content_key_id,
+        ciphertext,
+        wrap_records,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::disallowed_methods)]

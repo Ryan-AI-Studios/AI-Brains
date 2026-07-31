@@ -126,7 +126,7 @@ fn bootstrap__second_call__err() {
 }
 
 #[test]
-fn cli_replicate_push__no_relay__structured_err() {
+fn cli_replicate_push__no_config__err() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
@@ -140,7 +140,9 @@ fn cli_replicate_push__no_relay__structured_err() {
         .assert()
         .failure()
         .stderr(
-            predicate::str::contains("relay not configured").or(predicate::str::contains("T177")),
+            predicate::str::contains("relay not configured")
+                .or(predicate::str::contains("fake-relay"))
+                .or(predicate::str::contains("AI_BRAINS_SYNC_FAKE_RELAY_PATH")),
         );
 
     Command::cargo_bin("ai-brains")
@@ -152,6 +154,145 @@ fn cli_replicate_push__no_relay__structured_err() {
         .assert()
         .success()
         .stdout(predicate::str::contains("not configured"));
+}
+
+#[test]
+fn cli_replicate_push__fake_relay__ok() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    let relay = dir.path().join("fake-relay");
+    init_vault(&vault);
+    bootstrap(&vault);
+
+    // Bootstrap does not yet enqueue via ReplicateEngine outbox, so push may be 0.
+    // Still must exit 0, report structured count, and create the fake-relay marker.
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("push")
+        .arg("--fake-relay")
+        .arg(&relay)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("replicate push"))
+        .stdout(predicate::str::contains("pushed"));
+
+    let marker = relay.join(ai_brains_sync::FAKE_RELAY_MARKER);
+    assert!(
+        marker.exists(),
+        "FileFakeRelay must write marker at {}",
+        marker.display()
+    );
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("status")
+        .arg("--fake-relay")
+        .arg(&relay)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("file:"));
+}
+
+#[test]
+fn cli_replicate_push__format_json__ok() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    let relay = dir.path().join("fake-relay");
+    init_vault(&vault);
+    bootstrap(&vault);
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("push")
+        .arg("--fake-relay")
+        .arg(&relay)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("push json");
+    assert!(
+        output.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json object");
+    assert_eq!(v["ok"], true);
+    assert!(v["pushed"].is_number(), "pushed must be a number: {v}");
+    let relay_s = v["relay"].as_str().expect("relay string");
+    assert!(
+        relay_s.starts_with("file:"),
+        "relay should be file: path, got {relay_s}"
+    );
+    assert!(
+        v.get("pulled_peers").is_none(),
+        "push must not emit pulled_peers"
+    );
+}
+
+#[test]
+fn cli_replicate_pull__format_json__ok() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    let relay = dir.path().join("fake-relay");
+    init_vault(&vault);
+    bootstrap(&vault);
+
+    // Ensure relay exists (push creates marker).
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("push")
+        .arg("--fake-relay")
+        .arg(&relay)
+        .assert()
+        .success();
+
+    let output = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("pull")
+        .arg("--fake-relay")
+        .arg(&relay)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("pull json");
+    assert!(
+        output.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json object");
+    assert_eq!(v["ok"], true);
+    // Envelope apply count (not peer count); renamed from pulled_peers (P3).
+    assert!(
+        v["applied"].is_number(),
+        "applied must be envelope count number: {v}"
+    );
+    let relay_s = v["relay"].as_str().expect("relay string");
+    assert!(
+        relay_s.starts_with("file:"),
+        "relay should be file: path, got {relay_s}"
+    );
+    assert!(
+        v.get("pulled_peers").is_none(),
+        "pull JSON must use applied, not pulled_peers"
+    );
 }
 
 #[test]

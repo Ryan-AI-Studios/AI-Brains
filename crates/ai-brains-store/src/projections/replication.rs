@@ -493,6 +493,48 @@ pub fn envelope_exists(conn: &Connection, event_id: &str) -> Result<bool> {
     Ok(exists)
 }
 
+/// Lookup envelope index by `(sender_device_id, local_seq)` (UNIQUE pair).
+pub fn get_envelope_by_sender_seq(
+    conn: &Connection,
+    sender_device_id: &str,
+    local_seq: i64,
+) -> Result<Option<EnvelopeIndexRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT envelope_id, event_id, sender_device_id, local_seq,
+                content_type_code, content_key_id, body_len, padding_bucket, applied_at
+         FROM encrypted_envelope_index
+         WHERE sender_device_id = ? AND local_seq = ?",
+    )?;
+    let row = stmt
+        .query_row(params![sender_device_id, local_seq], |row| {
+            Ok(EnvelopeIndexRow {
+                envelope_id: row.get(0)?,
+                event_id: row.get(1)?,
+                sender_device_id: row.get(2)?,
+                local_seq: row.get(3)?,
+                content_type_code: row.get(4)?,
+                content_key_id: row.get(5)?,
+                body_len: row.get(6)?,
+                padding_bucket: row.get(7)?,
+                applied_at: row.get(8)?,
+            })
+        })
+        .optional()?;
+    Ok(row)
+}
+
+/// All applied `event_id` values (convergence oracle F4), sorted ascending.
+pub fn list_envelope_event_ids(conn: &Connection) -> Result<Vec<String>> {
+    let mut stmt =
+        conn.prepare("SELECT event_id FROM encrypted_envelope_index ORDER BY event_id ASC")?;
+    let rows = stmt.query_map([], |row| row.get(0))?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
+}
+
 /// Next `local_seq` for a sender (max existing + 1, or 1 if none).
 pub fn next_local_seq(conn: &Connection, sender_device_id: &str) -> Result<i64> {
     let max: Option<i64> = conn.query_row(
@@ -780,6 +822,76 @@ pub fn buffer_gap_seq(
     Ok(())
 }
 
+/// Gap-buffer rows for a peer, ordered by `local_seq` ascending.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GapBufferRow {
+    pub peer_device_id: String,
+    pub local_seq: i64,
+    pub envelope_id: String,
+    pub buffered_at: String,
+}
+
+pub fn list_gap_buffer(conn: &Connection, peer_device_id: &str) -> Result<Vec<GapBufferRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT peer_device_id, local_seq, envelope_id, buffered_at
+         FROM replication_gap_buffer
+         WHERE peer_device_id = ?
+         ORDER BY local_seq ASC",
+    )?;
+    let rows = stmt.query_map(params![peer_device_id], |row| {
+        Ok(GapBufferRow {
+            peer_device_id: row.get(0)?,
+            local_seq: row.get(1)?,
+            envelope_id: row.get(2)?,
+            buffered_at: row.get(3)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
+}
+
+/// True if `(peer, local_seq)` is buffered.
+pub fn gap_buffer_has_seq(conn: &Connection, peer_device_id: &str, local_seq: i64) -> Result<bool> {
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(
+            SELECT 1 FROM replication_gap_buffer
+            WHERE peer_device_id = ? AND local_seq = ?
+         )",
+        params![peer_device_id, local_seq],
+        |r| r.get(0),
+    )?;
+    Ok(exists)
+}
+
+pub fn delete_gap_seq(conn: &Connection, peer_device_id: &str, local_seq: i64) -> Result<()> {
+    conn.execute(
+        "DELETE FROM replication_gap_buffer WHERE peer_device_id = ? AND local_seq = ?",
+        params![peer_device_id, local_seq],
+    )?;
+    Ok(())
+}
+
+/// Load one erasure-ack projection row.
+pub fn get_erasure_ack(
+    conn: &Connection,
+    erasure_id: &str,
+    peer_device_id: &str,
+) -> Result<Option<ErasureAckRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT erasure_id, peer_device_id, content_key_id, status,
+                sync_cycles_waiting, updated_at
+         FROM erasure_ack_projection
+         WHERE erasure_id = ? AND peer_device_id = ?",
+    )?;
+    let row = stmt
+        .query_row(params![erasure_id, peer_device_id], map_ack_row)
+        .optional()?;
+    Ok(row)
+}
+
 pub fn list_cursors(conn: &Connection) -> Result<Vec<ReplicationCursorRow>> {
     let mut stmt = conn.prepare(
         "SELECT peer_device_id, high_water_seq, expected_local_seq, state, updated_at
@@ -876,6 +988,106 @@ pub fn tick_ack_cycle(conn: &Connection, updated_at: &str) -> Result<usize> {
         params![updated_at, ACK_TIMEOUT_SYNC_CYCLES as i64],
     )?;
     Ok(n)
+}
+
+// ---------------------------------------------------------------------------
+// Durable replication outbox (T177 M2)
+// ---------------------------------------------------------------------------
+
+/// Pending / pushed wire envelope awaiting (or already sent via) `relay.put`.
+#[derive(Clone, PartialEq, Eq)]
+pub struct OutboxRow {
+    pub envelope_id: String,
+    pub event_id: String,
+    pub sender_device_id: String,
+    pub local_seq: i64,
+    pub content_type_code: i64,
+    pub wire_body: Vec<u8>,
+    pub created_at: String,
+    pub pushed_at: Option<String>,
+}
+
+impl fmt::Debug for OutboxRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OutboxRow")
+            .field("envelope_id", &self.envelope_id)
+            .field("event_id", &self.event_id)
+            .field("sender_device_id", &self.sender_device_id)
+            .field("local_seq", &self.local_seq)
+            .field("content_type_code", &self.content_type_code)
+            .field("wire_body_len", &self.wire_body.len())
+            .field("created_at", &self.created_at)
+            .field("pushed_at", &self.pushed_at)
+            .finish()
+    }
+}
+
+/// Insert outbox row. Same `envelope_id` / `event_id` is idempotent (no-op).
+pub fn insert_outbox(conn: &Connection, row: &OutboxRow) -> Result<()> {
+    if row.wire_body.is_empty() {
+        return Err(StoreError::ConfigError(
+            "replication_outbox wire_body must be non-empty".to_string(),
+        ));
+    }
+    conn.execute(
+        "INSERT INTO replication_outbox (
+            envelope_id, event_id, sender_device_id, local_seq,
+            content_type_code, wire_body, created_at, pushed_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(envelope_id) DO NOTHING",
+        params![
+            row.envelope_id,
+            row.event_id,
+            row.sender_device_id,
+            row.local_seq,
+            row.content_type_code,
+            row.wire_body,
+            row.created_at,
+            row.pushed_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Unpushed outbox rows for a sender, ascending by `local_seq`.
+pub fn list_unpushed_outbox(conn: &Connection, sender_device_id: &str) -> Result<Vec<OutboxRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT envelope_id, event_id, sender_device_id, local_seq,
+                content_type_code, wire_body, created_at, pushed_at
+         FROM replication_outbox
+         WHERE sender_device_id = ? AND pushed_at IS NULL
+         ORDER BY local_seq ASC",
+    )?;
+    let rows = stmt.query_map(params![sender_device_id], map_outbox_row)?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
+}
+
+/// Mark an outbox row as successfully put to the relay.
+pub fn mark_outbox_pushed(conn: &Connection, envelope_id: &str, pushed_at: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE replication_outbox
+         SET pushed_at = ?
+         WHERE envelope_id = ? AND pushed_at IS NULL",
+        params![pushed_at, envelope_id],
+    )?;
+    Ok(())
+}
+
+fn map_outbox_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<OutboxRow> {
+    Ok(OutboxRow {
+        envelope_id: row.get(0)?,
+        event_id: row.get(1)?,
+        sender_device_id: row.get(2)?,
+        local_seq: row.get(3)?,
+        content_type_code: row.get(4)?,
+        wire_body: row.get(5)?,
+        created_at: row.get(6)?,
+        pushed_at: row.get(7)?,
+    })
 }
 
 // ---------------------------------------------------------------------------
