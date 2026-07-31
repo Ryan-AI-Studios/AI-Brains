@@ -1,0 +1,9 @@
+FAIL
+
+`P1` closed. The smuggled-membership fix is present: `DataEvent` plaintext is opened and rejected before any durable writes in `crates/ai-brains-store/src/replication_engine.rs:462-470`, with defense-in-depth in `project_data_store` at `:667-674`. The new `project_data__smuggled_device_revoked__reject` coverage is also present in `crates/ai-brains-store/tests/replication_converge.rs`.
+
+`P2` medium: inbound tombstone apply can still leak a queued `ErasureAck` across rollback. In `crates/ai-brains-store/src/replication_engine.rs:759-801`, `ContentErasureTombstone` handling calls `queue_erasure_ack_on`, which delegates to `queue_control_on`. But `queue_control_on` pushes the signed ACK into the engine’s in-memory `pending` queue before the outer apply transaction commits at `:245-269`, while the enclosing inbound apply transaction does not commit until later at `:472-513`. If a later step in `apply_blob` fails after the ACK is queued but before commit, the SQLite work rolls back, but the in-memory ACK survives on that engine instance and can be pushed later. That means the “single-TX apply / tombstone queue atomic” closure claim is still not fully true on the failure path.
+
+`P3` closed. `replicate push` / `pull` now take `--format json` in `crates/ai-brains-cli/src/main.rs:2326-2340`; `run_push` and `run_pull` emit JSON in `crates/ai-brains-cli/src/commands/replicate.rs:230-305`; and pull now uses `applied`, not `pulled_peers`, with explicit JSON tests in `crates/ai-brains-cli/tests/device_replicate_cli.rs:202-296`.
+
+I did not find a remaining code issue in the earlier domain-append or `GapSkipAudit` drain fixes. I could not independently rerun `cargo nextest` or `clippy` in this sandbox: `cargo` is blocked by read-only `.cargo-lock` creation, and the prebuilt test binaries fail here because tempdir creation under `%LocalAppData%\\Temp` is denied by the sandbox, not because of assertion failures.

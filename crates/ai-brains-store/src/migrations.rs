@@ -110,6 +110,10 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0027_replication_state",
         include_str!("../migrations/0027_replication_state.sql"),
     ),
+    (
+        "0028_replication_outbox",
+        include_str!("../migrations/0028_replication_outbox.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {
@@ -129,23 +133,22 @@ pub fn apply_migrations_through(conn: &mut Connection, through_name: Option<&str
     )?;
 
     for (name, sql) in MIGRATIONS {
-        let already_applied: bool = conn.query_row(
+        // IMMEDIATE + re-check inside the txn so concurrent openers (CLI tests
+        // against a shared default vault) cannot double-insert schema_migrations.
+        let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let already_applied: bool = tx.query_row(
             "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE name = ?)",
             [name],
             |row| row.get(0),
         )?;
 
         if !already_applied {
-            let tx = conn.transaction()?;
-
             tx.execute_batch(sql).map_err(|e| {
                 StoreError::MigrationFailed(format!("Failed to apply migration {}: {}", name, e))
             })?;
-
             tx.execute("INSERT INTO schema_migrations (name) VALUES (?)", [name])?;
-
-            tx.commit()?;
         }
+        tx.commit()?;
 
         if through_name == Some(*name) {
             break;

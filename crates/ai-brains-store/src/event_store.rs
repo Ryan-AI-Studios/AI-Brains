@@ -7,7 +7,7 @@ use crate::projections::replication::{
 };
 use ai_brains_events::Envelope;
 use ai_brains_events::Payload;
-use rusqlite::params;
+use rusqlite::{Connection, OptionalExtension, params};
 use uuid::Uuid;
 
 pub trait EventStore: Send + Sync {
@@ -146,15 +146,76 @@ fn insert_event_row(tx: &rusqlite::Transaction<'_>, envelope: &Envelope) -> Resu
         ],
     )
     .map_err(|e| {
-        if e.to_string().contains("events are immutable") {
-            StoreError::ImmutableEventModified(e.to_string())
+        let msg = e.to_string();
+        if msg.contains("events are immutable") {
+            StoreError::ImmutableEventModified(msg)
+        } else if msg.to_lowercase().contains("unique") {
+            StoreError::EventAppendFailed(format!("unique_event_id:{msg}"))
         } else {
-            StoreError::EventAppendFailed(e.to_string())
+            StoreError::EventAppendFailed(msg)
         }
     })?;
 
     projections::apply_all(tx, envelope)?;
     Ok(())
+}
+
+/// Insert a domain event + projectors on an existing transaction (no commit).
+///
+/// Duplicate `event_id` (UNIQUE) is **idempotent Ok** so re-apply of the same
+/// sealed data envelope is safe. Callers that need a full commit should use
+/// [`append_event_on_connection`] or commit the outer transaction themselves
+/// (e.g. replication `apply_blob` single-TX path).
+pub fn append_event_in_tx(tx: &rusqlite::Transaction<'_>, envelope: &Envelope) -> Result<()> {
+    validate_envelope_payload(envelope)?;
+
+    let already = tx
+        .query_row(
+            "SELECT 1 FROM events WHERE event_id = ?1",
+            params![envelope.event_id.to_string()],
+            |_| Ok(true),
+        )
+        .optional()
+        .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?
+        .unwrap_or(false);
+    if already {
+        return Ok(());
+    }
+
+    match insert_event_row(tx, envelope) {
+        Ok(()) => Ok(()),
+        Err(StoreError::EventAppendFailed(msg)) if msg.starts_with("unique_event_id:") => {
+            // Race-safe idempotent path; outer TX may still commit other work.
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Append a domain event on a raw `&Connection` (standalone replication helper).
+///
+/// Begins a transaction, inserts the event row + runs projectors, commits.
+/// Duplicate `event_id` (UNIQUE) is **idempotent Ok**. Does not require
+/// [`VaultConnection`] / mutex — the caller already holds the connection.
+///
+/// Prefer [`append_event_in_tx`] when the caller already owns a transaction
+/// (nested `BEGIN` is not supported).
+pub fn append_event_on_connection(conn: &Connection, envelope: &Envelope) -> Result<()> {
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+    match append_event_in_tx(&tx, envelope) {
+        Ok(()) => {
+            tx.commit()
+                .map_err(|e| StoreError::EventAppendFailed(e.to_string()))?;
+            Ok(())
+        }
+        Err(e) => {
+            // Drop rolls back any partial insert from this TX.
+            drop(tx);
+            Err(e)
+        }
+    }
 }
 
 impl EventStore for SqliteEventStore {

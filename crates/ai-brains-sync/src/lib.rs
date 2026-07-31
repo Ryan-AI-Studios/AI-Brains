@@ -1,8 +1,14 @@
-//! Multi-device encrypted event envelope replication (ADR-0018 / T176).
+//! Multi-device encrypted event envelope replication (ADR-0018 / T176–T177).
 //!
-//! Library only: device identity, enrollment package, outer sign/verify,
-//! per-recipient DEK wrap, control payloads, padding, apply-order tie-break.
-//! **No sockets / no relay client** (T177).
+//! This crate provides **wire format, fake relays, and crypto primitives**:
+//! device identity, enrollment package, outer sign/verify, per-recipient DEK
+//! wrap, control payloads, padding, apply-order tie-break, `wire_v1` framing,
+//! and fake relays (memory / file / adversarial).
+//!
+//! **`ReplicateEngine`** (push/pull apply pipeline, durable outbox, cursors)
+//! lives in **`ai-brains-store`**, not here.
+//!
+//! **No production network.** Fake relays are test/dev only (T177 Phase A).
 //!
 //! # Honesty
 //!
@@ -22,7 +28,9 @@ pub mod error;
 pub mod fingerprint_fmt;
 pub mod padding;
 pub mod private_blob;
+pub mod relay;
 pub mod signed_bytes;
+pub mod wire;
 pub mod wrap;
 
 pub use apply_order::{ApplyOrderKey, sort_by_apply_order};
@@ -49,7 +57,16 @@ pub use private_blob::{
     AAD_KIND_DEVICE_PRIVATE_KEY, DEVICE_PRIVATE_PLAINTEXT_LEN, DevicePrivateSeeds,
     SealedDevicePrivate, open_device_private_blob, seal_device_private_blob,
 };
-pub use signed_bytes::{EnvelopeId, WrapRecord, build_signed_bytes, wraps_are_sorted};
+pub use relay::{
+    AdversarialRelay, FAKE_RELAY_MARKER, FileFakeRelay, MemoryFakeRelay, RelayBlob, RelayPort,
+};
+pub use signed_bytes::{
+    EnvelopeId, WrapRecord, build_signed_bytes, parse_signed_bytes, wraps_are_sorted,
+};
+pub use wire::{
+    WIRE_MAGIC, WIRE_MAX_SIZE, WIRE_SIGNATURE_LEN, WIRE_VERSION_V1, decode_signed_envelope,
+    encode_signed_envelope,
+};
 pub use wrap::{
     LABEL_AIB_SYNC_DEK_WRAP, PeerDekWrap, build_wrap_aad, build_wrap_info, unwrap_content_dek,
     wrap_content_dek_for_recipient,

@@ -8,6 +8,7 @@ pub mod pragmas;
 pub mod projections;
 pub mod query_store;
 pub mod replay;
+pub mod replication_engine;
 pub mod transaction;
 
 pub use connection::VaultConnection;
@@ -15,6 +16,10 @@ pub use errors::{Result, StoreError};
 pub use event_store::{EventStore, SqliteEventStore};
 pub use fts::{FtsSearch, SearchResult};
 pub use migrations::apply_migrations_through;
+pub use replication_engine::{
+    ApplyOutcome, EngineError, EngineResult, ReplicateEngine, sign_and_queue_erasure_tombstone,
+    sign_and_queue_revoke, signed_to_blob,
+};
 pub use transaction::Transaction;
 
 use ai_brains_core::ids::{MemoryId, SessionId};

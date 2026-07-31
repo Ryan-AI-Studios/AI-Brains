@@ -10,6 +10,7 @@ repository.workspace = true
 ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
 ai-brains-events = { path = "../ai-brains-events", version = "0.1.0" }
 ai-brains-crypto = { path = "../ai-brains-crypto", version = "0.1.0" }
+ai-brains-sync = { path = "../ai-brains-sync", version = "0.1.0" }
 
 rusqlite.workspace = true
 thiserror.workspace = true
@@ -19,10 +20,10 @@ chrono.workspace = true
 time.workspace = true
 uuid.workspace = true
 hex.workspace = true
+ed25519-dalek.workspace = true
+x25519-dalek.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-ai-brains-sync = { path = "../ai-brains-sync", version = "0.1.0" }
-ed25519-dalek.workspace = true
 hex.workspace = true
 
