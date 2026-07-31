@@ -1,0 +1,29 @@
+[package]
+name = "ai-brains-sync"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Multi-device encrypted event envelope replication (ADR-0018) — library only; no sockets"
+
+[dependencies]
+ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
+ai-brains-crypto = { path = "../ai-brains-crypto", version = "0.1.0" }
+
+ed25519-dalek.workspace = true
+x25519-dalek.workspace = true
+hkdf.workspace = true
+aes-gcm.workspace = true
+sha2.workspace = true
+hex.workspace = true
+zeroize.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+serde = { workspace = true, features = ["derive"] }
+rand.workspace = true
+uuid.workspace = true
+time.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

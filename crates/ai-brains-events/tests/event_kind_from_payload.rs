@@ -2,15 +2,16 @@
 #![allow(non_snake_case)]
 
 use ai_brains_core::ids::{
-    ConclusionId, EvidenceId, MemoryId, PrincipalId, ProjectId, SessionId, SourceId,
+    ConclusionId, DeviceId, EvidenceId, MemoryId, PrincipalId, ProjectId, ReplicationEventId,
+    SessionId, SourceId,
 };
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::GrantCapability;
 use ai_brains_core::source::SourceKind;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{
-    ConclusionProposedPayload, MemoryPinnedPayload, PolicyDecisionRecordedPayload,
-    SessionStartedPayload, SourceRegisteredPayload,
+    ConclusionProposedPayload, DeviceEnrolledPayload, DeviceRevokedPayload, MemoryPinnedPayload,
+    PolicyDecisionRecordedPayload, SessionStartedPayload, SourceRegisteredPayload,
 };
 use ai_brains_events::{Actor, AggregateType, EventKind, Payload};
 use serde_json::json;
@@ -77,6 +78,38 @@ fn event_kind_from_payload__several_known_variants__match() {
                 privacy: Some(Privacy::LocalOnly),
             }),
             EventKind::PolicyDecisionRecorded,
+        ),
+        (
+            Payload::DeviceEnrolled(DeviceEnrolledPayload {
+                device_id: DeviceId::new(),
+                enrolled_by_device_id: DeviceId::new(),
+                status: "local".into(),
+                fingerprint_sha256: "aa".repeat(32),
+                ed25519_public: "bb".repeat(32),
+                x25519_public: "cc".repeat(32),
+                schema_version: 1,
+                replication_event_id: ReplicationEventId::new(),
+                local_seq: 1,
+                envelope_id: Uuid::new_v4(),
+                signature_hex: "dd".repeat(64),
+                body_hex: "ee".repeat(8),
+                content_type_code: 0x0010,
+            }),
+            EventKind::DeviceEnrolled,
+        ),
+        (
+            Payload::DeviceRevoked(DeviceRevokedPayload {
+                device_id: DeviceId::new(),
+                revoked_by_device_id: DeviceId::new(),
+                reason_code: "cli-revoke".into(),
+                replication_event_id: ReplicationEventId::new(),
+                local_seq: 2,
+                envelope_id: Uuid::new_v4(),
+                signature_hex: "ff".repeat(64),
+                body_hex: "11".repeat(8),
+                content_type_code: 0x0011,
+            }),
+            EventKind::DeviceRevoked,
         ),
     ];
     for (payload, expected) in cases {

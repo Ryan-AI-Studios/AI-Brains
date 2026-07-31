@@ -17,6 +17,7 @@ pub mod policy_log;
 pub mod principal;
 pub mod project;
 pub mod recipe;
+pub mod replication;
 pub mod repository_identity;
 pub mod retention;
 pub mod review;
@@ -57,5 +58,8 @@ pub fn apply_all(tx: &Transaction, envelope: &Envelope) -> Result<()> {
     // Content-envelope erasure / tombstone event projections (T163).
     // Side stores (content_key_store, encrypted_content_blob) are not written here.
     content_envelope::ContentEnvelopeProjection.apply(tx, envelope)?;
+    // Multi-device membership (T176): DeviceEnrolled / DeviceRevoked → public side stores.
+    // Private key wraps are command-path only (not event-sourced).
+    replication::ReplicationProjection.apply(tx, envelope)?;
     Ok(())
 }
