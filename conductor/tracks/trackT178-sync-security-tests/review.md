@@ -40,7 +40,16 @@ cargo fmt --check                                      → pre-existing Windows 
 ```
 Ambient `AI-Brains-Daemon` Session-0 process can flake `cli_erasure_request__daemon_down__exit_code_5` (POLICY_DENIED vs exit 5); stopped service for gate; **unrelated to T178**.
 
-### Codex R3 (final) — pending after PR closeout docs
+### Codex R3 (final gate, 2026-07-31)
+**Verdict: PASS WITH DEFERRED P3** (`review.codex.r3.md`)
+
+| ID | Sev | Disposition |
+|----|-----|-------------|
+| CR1-P1 / CR1-P2 | — | verified fixed |
+| CR2-P3 F21 Cargo.toml-only | P3 | deferred → deferred.md §55 |
+| Engineering Must matrix | — | met |
+
+Fresh final cross-model review clean above Low (only deferred P3).
 
 ## Deferred lows → deferred.md §55
 - IR1-L1 / R2-L1 / R2-L2 ceremony / attestation thinness
