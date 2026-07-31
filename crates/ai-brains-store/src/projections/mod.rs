@@ -17,6 +17,7 @@ pub mod policy_log;
 pub mod principal;
 pub mod project;
 pub mod recipe;
+pub mod replication;
 pub mod repository_identity;
 pub mod retention;
 pub mod review;

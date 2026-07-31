@@ -106,6 +106,10 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0026_content_envelopes_erasure",
         include_str!("../migrations/0026_content_envelopes_erasure.sql"),
     ),
+    (
+        "0027_replication_state",
+        include_str!("../migrations/0027_replication_state.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {

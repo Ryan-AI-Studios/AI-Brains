@@ -216,6 +216,9 @@ pub fn destroy_content_key_wrap(
          WHERE content_key_id = ?",
         params![destroyed_at, content_key_id],
     )?;
+    // Multi-device peer wraps for this content key (T176 R5 / ADR-0018 §10).
+    // Best-effort: table may be empty; no-op when no peer wraps exist.
+    crate::projections::replication::delete_peer_wraps_for_key(conn, content_key_id)?;
     Ok(())
 }
 

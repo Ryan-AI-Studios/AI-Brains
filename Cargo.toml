@@ -8,6 +8,7 @@ members = [
     "crates/ai-brains-control-plane",
     "crates/ai-brains-sources",
     "crates/ai-brains-crypto",
+    "crates/ai-brains-sync",
     "crates/ai-brains-store",
     "crates/ai-brains-path",
     "crates/ai-brains-git",
@@ -65,6 +66,11 @@ zeroize = { version = "1.8", features = ["derive"] }
 time = { version = "0.3", features = ["serde", "parsing", "formatting"] }
 dirs = "6.0"
 rand = "0.10"
+# Multi-device replication (T176 / ADR-0018) — classical ECC only; not PQ.
+ed25519-dalek = { version = "3", features = ["serde", "zeroize", "rand_core"] }
+# NO getrandom feature — panic-free keygen via try_fill_bytes + StaticSecret::from (R25).
+x25519-dalek = { version = "3", features = ["serde", "zeroize", "static_secrets"] }
+hkdf = "0.13"
 axum = "0.8.9"
 tower = "0.5"
 tower-http = { version = "0.6.6", features = ["limit", "cors", "trace"] }

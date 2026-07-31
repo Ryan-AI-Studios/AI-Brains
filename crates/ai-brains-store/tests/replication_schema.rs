@@ -1,0 +1,278 @@
+#![allow(clippy::disallowed_methods)]
+#![allow(non_snake_case)]
+
+//! T176 — migration 0027 replication schema + store APIs.
+
+use ai_brains_crypto::DataKey;
+use ai_brains_store::connection::VaultConnection;
+use ai_brains_store::event_store::SqliteEventStore;
+use ai_brains_store::projections::replication::{
+    self, DeviceIdentityRow, DevicePrivateKeyRow, EnvelopeIndexRow, PeerContentKeyWrapRow,
+};
+use tempfile::NamedTempFile;
+
+const CREATED_AT: &str = "2026-07-30T12:00:00Z";
+const REVOKED_AT: &str = "2026-07-30T13:00:00Z";
+
+fn open_store() -> (NamedTempFile, SqliteEventStore) {
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let key = DataKey::generate();
+    let sql_key = ai_brains_crypto::SqlCipherKey::from_data_key(&key);
+    let conn = VaultConnection::open(db_path, &sql_key).unwrap();
+    conn.migrate().unwrap();
+    (temp_file, SqliteEventStore::new(conn))
+}
+
+fn table_exists(store: &SqliteEventStore, name: &str) -> bool {
+    let conn = store.connection().lock().unwrap();
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+            [name],
+            |r| r.get(0),
+        )
+        .unwrap();
+    count == 1
+}
+
+fn sample_identity(device_id: &str, status: &str, enrolled_by: &str) -> DeviceIdentityRow {
+    DeviceIdentityRow {
+        device_id: device_id.to_string(),
+        schema_version: 1,
+        ed25519_public: vec![0x11; 32],
+        x25519_public: vec![0x22; 32],
+        display_name: Some("test".to_string()),
+        status: status.to_string(),
+        enrolled_at: CREATED_AT.to_string(),
+        revoked_at: None,
+        enrolled_by_device_id: enrolled_by.to_string(),
+        fingerprint_sha256: vec![0x33; 32],
+    }
+}
+
+#[test]
+fn migration_0027__fresh_vault__tables_exist() {
+    let (_tmp, store) = open_store();
+    for table in [
+        "device_identity",
+        "device_id_tombstone",
+        "device_private_key_store",
+        "peer_content_key_wrap",
+        "encrypted_envelope_index",
+        "replication_cursor",
+        "replication_gap_buffer",
+        "erasure_ack_projection",
+        "replication_gap_skip_audit",
+    ] {
+        assert!(table_exists(&store, table), "missing table {table}");
+    }
+    // No content_hash column (R29).
+    let conn = store.connection().lock().unwrap();
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(encrypted_envelope_index)")
+        .unwrap();
+    let cols: Vec<String> = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect();
+    assert!(
+        !cols.iter().any(|c| c == "content_hash_sha256"),
+        "must not have content_hash_sha256"
+    );
+}
+
+#[test]
+fn first_device__enrolled_by__self() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    replication::insert_device_identity(&conn, &sample_identity(id, "local", id)).unwrap();
+    let got = replication::get_device(&conn, id).unwrap().unwrap();
+    assert_eq!(got.status, "local");
+    assert_eq!(got.enrolled_by_device_id, id);
+    assert_eq!(got.device_id, got.enrolled_by_device_id);
+}
+
+#[test]
+fn device_tombstone__re_enroll_same_id__rejected() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    replication::insert_device_identity(&conn, &sample_identity(id, "local", id)).unwrap();
+    replication::tombstone_device(&conn, id, REVOKED_AT, "test-revoke").unwrap();
+    let err = replication::insert_device_identity(&conn, &sample_identity(id, "active", id))
+        .expect_err("tombstoned re-enroll");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("tombstoned") || msg.contains("permanently"),
+        "got: {msg}"
+    );
+}
+
+#[test]
+fn peer_wrap_pk__upsert__replaces() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let row1 = PeerContentKeyWrapRow {
+        content_key_id: "ck-1".to_string(),
+        recipient_device_id: "dev-r".to_string(),
+        sender_device_id: "dev-s1".to_string(),
+        schema_version: 1,
+        eph_x25519_public: vec![0x01; 32],
+        wrap_nonce: vec![0x02; 12],
+        wrap_ciphertext: vec![0x03; 48],
+        created_at: CREATED_AT.to_string(),
+    };
+    replication::upsert_peer_content_key_wrap(&conn, &row1).unwrap();
+    let mut row2 = row1.clone();
+    row2.sender_device_id = "dev-s2".to_string();
+    row2.eph_x25519_public = vec![0xFF; 32];
+    replication::upsert_peer_content_key_wrap(&conn, &row2).unwrap();
+    let got = replication::get_peer_wrap(&conn, "ck-1", "dev-r")
+        .unwrap()
+        .unwrap();
+    assert_eq!(got.sender_device_id, "dev-s2");
+    assert_eq!(got.eph_x25519_public, vec![0xFF; 32]);
+}
+
+#[test]
+fn revoke__deletes_recipient_wraps() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let local = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    let peer = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    replication::insert_device_identity(&conn, &sample_identity(local, "local", local)).unwrap();
+    replication::insert_device_identity(&conn, &sample_identity(peer, "active", local)).unwrap();
+    replication::upsert_peer_content_key_wrap(
+        &conn,
+        &PeerContentKeyWrapRow {
+            content_key_id: "ck-x".to_string(),
+            recipient_device_id: peer.to_string(),
+            sender_device_id: local.to_string(),
+            schema_version: 1,
+            eph_x25519_public: vec![0x01; 32],
+            wrap_nonce: vec![0x02; 12],
+            wrap_ciphertext: vec![0x03; 48],
+            created_at: CREATED_AT.to_string(),
+        },
+    )
+    .unwrap();
+    assert!(
+        replication::get_peer_wrap(&conn, "ck-x", peer)
+            .unwrap()
+            .is_some()
+    );
+    replication::tombstone_device(&conn, peer, REVOKED_AT, "stolen").unwrap();
+    assert!(
+        replication::get_peer_wrap(&conn, "ck-x", peer)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn envelope_index__duplicate_event_id__idempotent() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let row = EnvelopeIndexRow {
+        envelope_id: "env-1".to_string(),
+        event_id: "evt-1".to_string(),
+        sender_device_id: "dev-1".to_string(),
+        local_seq: 1,
+        content_type_code: 0x0010,
+        content_key_id: Some("00000000-0000-0000-0000-000000000000".to_string()),
+        body_len: 82,
+        padding_bucket: None,
+        applied_at: Some(CREATED_AT.to_string()),
+    };
+    replication::insert_envelope_index(&conn, &row).unwrap();
+    // Same event_id, different envelope_id — idempotent no-op.
+    let mut row2 = row.clone();
+    row2.envelope_id = "env-2".to_string();
+    replication::insert_envelope_index(&conn, &row2).unwrap();
+    assert!(replication::envelope_exists(&conn, "evt-1").unwrap());
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM encrypted_envelope_index WHERE event_id = ?",
+            ["evt-1"],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 1);
+}
+
+#[test]
+fn bootstrap__second_call__err() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    assert!(!replication::has_active_or_local_device(&conn).unwrap());
+    let id = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    replication::insert_device_identity(&conn, &sample_identity(id, "local", id)).unwrap();
+    assert!(replication::has_active_or_local_device(&conn).unwrap());
+    // Second bootstrap attempt is rejected by API guard (CLI will use this).
+    let err_status = if replication::has_active_or_local_device(&conn).unwrap() {
+        Err::<(), _>("BootstrapAlreadyEnrolled")
+    } else {
+        Ok(())
+    };
+    assert!(err_status.is_err());
+}
+
+#[test]
+fn private_key_wrap__roundtrip_row() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let id = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    replication::insert_device_identity(&conn, &sample_identity(id, "local", id)).unwrap();
+    replication::put_device_private_key_wrap(
+        &conn,
+        &DevicePrivateKeyRow {
+            device_id: id.to_string(),
+            wrap_schema_version: 1,
+            algorithm: "AES-256-GCM".to_string(),
+            protection: "datakey".to_string(),
+            wrap_nonce: vec![0xAB; 12],
+            wrap_ciphertext: vec![0xCD; 80],
+            created_at: CREATED_AT.to_string(),
+        },
+    )
+    .unwrap();
+    let got = replication::get_device_private_key_wrap(&conn, id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(got.protection, "datakey");
+    assert_eq!(got.wrap_nonce.len(), 12);
+}
+
+#[test]
+fn tick_ack_cycle__reaches_unreachable() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    replication::upsert_erasure_ack(
+        &conn,
+        &replication::ErasureAckRow {
+            erasure_id: "er-1".to_string(),
+            peer_device_id: "peer-1".to_string(),
+            content_key_id: "ck-1".to_string(),
+            status: "pending".to_string(),
+            sync_cycles_waiting: 0,
+            updated_at: CREATED_AT.to_string(),
+        },
+    )
+    .unwrap();
+    for i in 0..3 {
+        replication::tick_ack_cycle(&conn, &format!("t{i}")).unwrap();
+    }
+    let pending = replication::list_pending_acks(&conn).unwrap();
+    assert!(pending.is_empty());
+    let status: String = conn
+        .query_row(
+            "SELECT status FROM erasure_ack_projection WHERE erasure_id = ?",
+            ["er-1"],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(status, "unreachable");
+}

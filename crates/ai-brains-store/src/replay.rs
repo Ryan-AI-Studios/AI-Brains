@@ -107,6 +107,14 @@ impl SqliteEventStore {
         // 2. Truncate projections (FK-safe: children before parents)
         // Content-envelope event projections (T163) — side stores intentionally retained
         // (content_key_store, encrypted_content_blob are not event-sourced ciphertext).
+        //
+        // Multi-device replication side stores + operational state (T176 / ADR-0018 §5.3):
+        // RETAIN — do NOT DELETE on rebuild:
+        //   device_identity, device_id_tombstone, device_private_key_store,
+        //   peer_content_key_wrap, encrypted_envelope_index,
+        //   replication_cursor, replication_gap_buffer, erasure_ack_projection,
+        //   replication_gap_skip_audit.
+        // These are durable crypto/replication material (not pure event projections).
         tx.execute("DELETE FROM erasure_request_projection", [])?;
         tx.execute("DELETE FROM tombstone_projection", [])?;
         // Briefings / query traces (T152) — feedback before traces.

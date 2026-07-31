@@ -436,6 +436,72 @@ enum Commands {
         #[command(subcommand)]
         command: RetentionCommands,
     },
+    /// Multi-device enrollment (T176 / ADR-0018). Optional; not PQ; not remote wipe; not metadata-private.
+    /// Does **not** repurpose `sync` (Ledgerful) or `safety sync` (hotspot pin).
+    #[command(
+        after_help = "Examples:\n  ai-brains device bootstrap\n  ai-brains device list\n  ai-brains device fingerprint\n  ai-brains device package-export --out peer.bin\n  ai-brains device enroll --package peer.bin --yes\n  ai-brains device revoke <device-id>\nHonesty: multi-device is optional; classical ECC only (not PQ); ACK ≠ wipe proof; padding ≠ metadata privacy."
+    )]
+    Device {
+        #[command(subcommand)]
+        command: DeviceCommands,
+    },
+    /// Multi-device replication status / cursors (T176). Push/pull deferred to T177 (no sockets).
+    #[command(
+        after_help = "Examples:\n  ai-brains replicate status\n  ai-brains replicate cursors\n  ai-brains replicate push   # errors: relay not configured / T177\nHonesty: optional multi-device; not PQ; not remote wipe; not metadata-private."
+    )]
+    Replicate {
+        #[command(subcommand)]
+        command: ReplicateCommands,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+#[command(
+    after_help = "First device: bootstrap. Peers: package-export on new machine → enroll on enrolled vault (OOB fingerprint)."
+)]
+enum DeviceCommands {
+    /// First-device local enroll (status=local, self enrolled_by). Fails if any active/local exists.
+    Bootstrap,
+    /// Print dual-key fingerprint (R24 hyphen groups; --raw for plain hex)
+    Fingerprint {
+        /// Emit raw lowercase hex without hyphens
+        #[arg(long)]
+        raw: bool,
+    },
+    /// List enrolled devices (active + local)
+    List,
+    /// Generate keys + write enrollment package (new machine; does not enroll into a peer vault)
+    PackageExport {
+        /// Output path for the enrollment package bytes
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Enroll a peer from package on an already-enrolled vault (confirm fingerprint OOB)
+    Enroll {
+        /// Path to enrollment package from package-export
+        #[arg(long)]
+        package: PathBuf,
+        /// Skip interactive yes confirmation (still prints fingerprint)
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Revoke + permanently tombstone a device; delete peer wraps for recipient (R23)
+    Revoke {
+        /// Device id (UUID) to revoke
+        device_id: String,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+enum ReplicateCommands {
+    /// Local cursors, gap state, enrolled count; relay: not configured
+    Status,
+    /// Dump replication_cursor rows
+    Cursors,
+    /// Fail closed: relay not configured / deferred to T177 (no sockets)
+    Push,
+    /// Fail closed: relay not configured / deferred to T177 (no sockets)
+    Pull,
 }
 
 #[derive(Subcommand, Clone)]
@@ -2194,6 +2260,24 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 Err("Either provide content as a positional argument or use --stdin to read from stdin.".into())
             }
         }
+        Commands::Device { command } => match command {
+            DeviceCommands::Bootstrap => commands::device::run_bootstrap(&ctx),
+            DeviceCommands::Fingerprint { raw } => commands::device::run_fingerprint(&ctx, *raw),
+            DeviceCommands::List => commands::device::run_list(&ctx),
+            DeviceCommands::PackageExport { out } => {
+                commands::device::run_package_export(out.clone())
+            }
+            DeviceCommands::Enroll { package, yes } => {
+                commands::device::run_enroll(&ctx, package.clone(), *yes)
+            }
+            DeviceCommands::Revoke { device_id } => commands::device::run_revoke(&ctx, device_id),
+        },
+        Commands::Replicate { command } => match command {
+            ReplicateCommands::Status => commands::replicate::run_status(&ctx),
+            ReplicateCommands::Cursors => commands::replicate::run_cursors(&ctx),
+            ReplicateCommands::Push => commands::replicate::run_push(&ctx),
+            ReplicateCommands::Pull => commands::replicate::run_pull(&ctx),
+        },
         Commands::Safety { command } => match command {
             SafetyCommands::Sync { limit, dry_run } => {
                 commands::safety::run(&ctx, *limit, *dry_run)
