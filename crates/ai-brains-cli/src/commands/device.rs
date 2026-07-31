@@ -432,6 +432,17 @@ pub fn run_revoke(ctx: &AppContext, device_id: &str) -> Result<(), Box<dyn std::
     )
     .map_err(|e| e.to_string())?;
 
+    // Fail closed: match bootstrap/enroll — verify before persist.
+    let signer_row =
+        replication::get_device(&conn, &signer_id.to_string())?.ok_or("signer identity missing")?;
+    let vk_bytes: [u8; 32] = signer_row
+        .ed25519_public
+        .as_slice()
+        .try_into()
+        .map_err(|_| "signer ed25519_public must be 32 bytes")?;
+    let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|e| format!("verifying key: {e}"))?;
+    verify_envelope(&built.signed, &vk).map_err(|e| e.to_string())?;
+
     let (signed_control, envelope_index) = signed_control_rows(&built, &revoked_at);
     replication::revoke_device_with_control(
         &mut conn,

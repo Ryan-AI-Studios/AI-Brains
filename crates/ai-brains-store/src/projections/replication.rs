@@ -601,11 +601,6 @@ pub fn bootstrap_local_device(
     conn: &mut Connection,
     input: &BootstrapLocalDeviceInput,
 ) -> Result<()> {
-    if has_active_or_local_device(conn)? {
-        return Err(StoreError::ConfigError(
-            "BootstrapAlreadyEnrolled: an active or local device already exists".to_string(),
-        ));
-    }
     if input.identity.status != "local" {
         return Err(StoreError::ConfigError(
             "bootstrap_local_device requires identity.status = 'local'".to_string(),
@@ -616,7 +611,14 @@ pub fn bootstrap_local_device(
             "bootstrap self-enroll requires enrolled_by_device_id == device_id".to_string(),
         ));
     }
-    let tx = conn.transaction()?;
+    // R27: re-check enrolled set *inside* an IMMEDIATE transaction so concurrent
+    // writers cannot insert a second local/active device between check and write.
+    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    if has_active_or_local_device(&tx)? {
+        return Err(StoreError::ConfigError(
+            "BootstrapAlreadyEnrolled: an active or local device already exists".to_string(),
+        ));
+    }
     insert_device_identity(&tx, &input.identity)?;
     put_device_private_key_wrap(&tx, &input.private_key)?;
     insert_signed_control(&tx, &input.signed_control)?;
