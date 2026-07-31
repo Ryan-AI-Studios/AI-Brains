@@ -1,6 +1,6 @@
 # T176 Plan — Sync Crate + Replication Schema (P11.1)
 
-Status: **Proposed / Expanded** (+ AI1–AI3 fold-in 2026-07-30) — implement only on explicit go-ahead.  
+Status: **Completed** (2026-07-31) — Codex R3 PASS; squash-merged PR #47 (`687239b`).
 Normative: ADR-0018 Accepted + `spec.md` locks **R1–R30**.
 
 ## Handoff freezes (do not re-litigate)
