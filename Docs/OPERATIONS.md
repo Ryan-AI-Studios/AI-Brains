@@ -595,3 +595,33 @@ Operator notes for the Tauri desktop adapter. Deep dive, architecture diagrams, 
 - **Typed WIPE:** execute wipe requires typing exact phrase **`WIPE`** in the confirm dialog (checkbox confirm removed). Dry-run does not require the phrase. Enter focuses Confirm (no auto-submit); Escape cancels.
 - **Focus a11y:** `:focus-visible` outlines on interactive controls; `scroll-padding-top` so focus is not hidden under the sticky topbar.
 - **No analytics / crash phone-home by default:** no Sentry, PostHog, or similar in the production tree. Opt-in would need an ADR + track.
+
+
+## Multi-device sync residuals
+
+> **Scope:** Optional multi-device encrypted event replication (ADR-0018 / Phase 11 fake-relay path). Local-only remains the default. This section is the canonical home for residual honesty claims (T178 F26).
+
+### What multi-device sync does **not** claim
+
+- **Not a ZK relay.** The fake relay stores opaque `wire_v1` bodies plus public routing metadata (device ids, sequence numbers, content-type codes, sizes). Operators and a compromised relay can observe the **device graph**, envelope **counts**, **sizes**, and **timing** of put/pull. This is **not** a metadata-private channel.
+- **Not post-quantum.** Device keys and envelope crypto are classical (Ed25519, X25519, HKDF-SHA256, AES-256-GCM). There is **no** post-quantum KEM/signature in the protocol; do not market the path as PQ-secure or post-quantum-ready.
+- **Not NIST SP 800-88 Purge / remote wipe.** Content Erasure (CE) is best-effort multi-device destroy of content-key wraps with peer **ErasureAck** rows. An ACK is a **signed attestation** that a peer applied the tombstone locally — **not wipe proof** of peer disks, backups, or offline devices. Do not claim multi-device NIST Purge as a product property.
+- **Padding is not metadata-private.** Size-bucket padding (`PAD_BUCKETS` 256 / 4096 / 65536) is best-effort traffic shaping only. It does **not** make the relay metadata-private; sizes, counts, timing, and the enrolled device graph remain observable (**pad is not metadata-private**).
+- **#34.2 DataKey rotation still open.** Per-seal content-DEK wraps improve multi-device nonce budget relative to a single long-lived content key, but they **do not** close vault-level **DataKey rotation**. Treat #34.2 as an open residual until a dedicated track ships.
+
+### Operational residuals operators should expect
+
+| Residual | Operator expectation |
+|----------|----------------------|
+| Metadata leakage | Relay sees sizes, counts, timing, device graph, content-type codes |
+| ACK attestation residual | `acked` / `failed` / `unreachable` are peer attestations, not wipe proof |
+| Offline CE lag | Offline peers stay `pending` then may become `unreachable` after ACK timeout cycles; not silent full wipe |
+| Classical crypto | Ed25519 / X25519 / AES-GCM — not PQ |
+| Gap / reorder | Sync gaps buffer until fill or signed `GapSkipAudit`; no corrupt apply past gap |
+| Capture independence | `ai-brains-capture` has **no** dependency on `ai-brains-sync` |
+
+### Related docs
+
+- [ADR-0018](DECISIONS/ADR-0018-encrypted-event-replication-protocol.md) — protocol normative
+- Threat model §7 (T175) — claim matrix L1–L16 / residuals
+- T178 security suite — executable acceptance gates for the claims above

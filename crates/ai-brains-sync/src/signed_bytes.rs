@@ -300,6 +300,13 @@ mod tests {
         Uuid::from_bytes(b)
     }
 
+    /// T178-L5-sig-canonical-bytes — thin wrapper over fixture KAT (F7).
+    #[test]
+    fn t178_l5_sig_canonical_bytes__kat() {
+        // T178-L5-sig-canonical-bytes
+        signed_bytes__fixture__exact_hex();
+    }
+
     #[test]
     fn signed_bytes__fixture__exact_hex() {
         // Fixed deterministic fixture for §5.2 KAT.

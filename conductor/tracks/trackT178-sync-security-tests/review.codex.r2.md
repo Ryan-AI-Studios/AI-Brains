@@ -1,0 +1,15 @@
+FAIL
+
+**Findings**
+1. `P1` Engineering DoD is still open, so this track is not completion-ready. [plan.md](/abs/path/C:/dev/AI-Brains/conductor/tracks/trackT178-sync-security-tests/plan.md:102) still leaves `E3` through `E8` unchecked, including the full workspace gate, manual evidence, and closeout updates. [spec.md](/abs/path/C:/dev/AI-Brains/conductor/tracks/trackT178-sync-security-tests/spec.md:455) still marks the DoD items open, and [review.md](/abs/path/C:/dev/AI-Brains/conductor/tracks/trackT178-sync-security-tests/review.md:49) still carries `CR1-DoD` as open. I did not find recorded evidence for `cargo fmt --check`, workspace `clippy`, workspace `nextest`, `cargo deny check`, `cargo audit`, or `ledgerful verify --scope full` under the track artifacts. This is not a fail on conductor status alone; the engineering acceptance bar itself remains unproven.
+2. `P3` The F21 capture-isolation guard is weaker than the frozen invariant. [replication_security.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-store/tests/replication_security.rs:1415) only string-scans `crates/ai-brains-capture/Cargo.toml`, while [spec.md](/abs/path/C:/dev/AI-Brains/conductor/tracks/trackT178-sync-security-tests/spec.md:137) frames F21 as a crate-graph/programmatic gate. The current manifests look clean, so this is non-blocking, but the test would miss a future transitive edge.
+
+**Verified**
+- CR1-P1 is fixed in code and test: revoked recipients are omitted while active peers still receive wraps, with the empty-wrap case failing, in [replication_security.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-store/tests/replication_security.rs:214).
+- CR1-P2 is fixed: the revoked peer now unwraps the stored wrap and AEAD-opens the historical plaintext in [replication_security.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-store/tests/replication_security.rs:1258).
+- F19 expanded snapshot coverage is present in [twin_vaults.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-store/tests/common/twin_vaults.rs:81).
+- F20 seed containment is correct: the deterministic wrap helper remains `pub(crate)` in [wrap.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-sync/src/wrap.rs:125).
+- F24 covers both forged-ACK layers in [replication_security.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-store/tests/replication_security.rs:914) and [replication_security.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-store/tests/replication_security.rs:969).
+- F26/F27 are present in [OPERATIONS.md](/abs/path/C:/dev/AI-Brains/Docs/OPERATIONS.md:600) and enforced by [replication_security.rs](/abs/path/C:/dev/AI-Brains/crates/ai-brains-store/tests/replication_security.rs:1440).
+
+Assumption: if full-gate or `ledgerful verify --scope full` evidence exists outside the checked track artifacts, finding 1 should be re-evaluated against that evidence.

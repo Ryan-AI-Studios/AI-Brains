@@ -279,8 +279,8 @@ Codex R4 **PASS WITH DEFERRED P3**. Internal R3+ CLEAN WITH DEFERRED LOWS.
 - **T176 expansion (2026-07-30):** track **Proposed / Expanded** — live crates.io pins (ed25519/x25519-dalek **3.0.0**, curve25519-dalek **5.0.0**, hkdf **0.13.0**, hpke **0.14.0** deferred); schema `0027_replication_state` + locks **R1–R30** in `trackT176-sync-crate-schema/spec.md`.
 - **T176 AI fold-in (2026-07-30):** dual-layer DataKey+DPAPI (R6); revoke wrap DELETE (R23); hyphen fingerprint (R24); panic-free keygen (R25, no x25519 `getrandom`); HKDF `Some(&[])` for clarity (SHA-256 equivalent to `None` — AI2); `local` status + first-device self-sign + enroll ceremony; private-blob layout AAD 0x03; upsert wraps; drop content_hash; single erasure code 0x0012.
 - **T176 implement (2026-07-31):** **Completed** on PR (see conductor). `ai-brains-sync` + migration `0027_replication_state` + CLI `device`/`replicate`. Membership via `DeviceEnrolled`/`DeviceRevoked` event log + `ReplicationProjection` (atomic bootstrap with private-key wrap). Codex **R3 PASS**.
-- **#34.1 partial absorb:** schema + types + `erasure_ack_projection` + control encode/verify unit tests **in T176**; multi-device CE orchestration / relay proof remains **T177–T178**.
-- **T176 deferred lows:** package enrollment `schema_version` allowlist on enroll (ID-13); full WRAP golden KAT matrix remains T178; relay push/pull intentionally T177.
+- **#34.1 partial absorb:** schema + types + `erasure_ack_projection` + control encode/verify unit tests **in T176**; multi-device CE orchestration **T177 Complete** (C10–C11); **security proof / forged-ACK suite → T178** (Proposed / Expanded 2026-07-31).
+- **T176 deferred lows:** package enrollment `schema_version` allowlist on enroll (ID-13) → absorbed T177; full WRAP golden KAT matrix → **T178** (expanded); relay push/pull → T177 Complete.
 
 ---
 
@@ -331,7 +331,8 @@ Codex R4 **PASS WITH DEFERRED P3**. Internal R3+ CLEAN WITH DEFERRED LOWS.
 - **P11 multi-device key tombstone / erasure ACK:** out of T162–T165.
   - **T175 design absorbed** (L7 signed ACK round-trip + attestation residual); **implement T176–T178** (ADR-0018 Accepted 2026-07-30).
   - **T176 (2026-07-31 Complete):** schema + types + `erasure_ack_projection` + control encode/verify + local projection APIs **done**. Multi-device CE orchestration / relay proof remains **T177–T178**.
-  - **T177 expansion (2026-07-31):** scenarios C10–C11 (tombstone + ErasureAck + timeout) planned under fake relay; implement on go-ahead.
+  - **T177 Complete (2026-07-31):** C10–C11 tombstone + ErasureAck + timeout under fake relay.
+  - **T178 expanded (2026-07-31):** security claim matrix + forged ACK / WRAP KAT — implement on go-ahead.
 
 ### 38. T166 design freezes absorbed into track (2026-07-29 expansion) — **Completed with T166**
 
@@ -571,6 +572,21 @@ Folded into and shipped by T174 (`trackT174-desktop-tests/`) — Codex R2 **PASS
 ### 53. T177 residuals after Complete
 
 - **#34.2 DataKey rotation:** still open (not closed by T177).
-- **T178:** full threat-model §7 claim matrix; WRAP KAT; adversarial meta-swap / forged ACK suite (AdversarialRelay exported).
+- ~~**T178:** full threat-model §7 claim matrix; WRAP KAT; adversarial meta-swap / forged ACK suite (AdversarialRelay exported).~~ → **Promoted to T178 expansion (2026-07-31)** — see `trackT178-sync-security-tests/{spec,plan}.md` (Proposed / Expanded; implement on go-ahead).
 - **CLI bootstrap→outbox:** first-device bootstrap does not auto-enqueue DeviceEnrolled to replication_outbox; convergence uses engine seal / OOB enroll. Optional follow-up: enqueue signed controls from device CLI.
 - **C14:** optional FileFake twin smoke not required; unit file_relay tests present.
+
+### 54. T178 Sync Security Tests — **Completed** (2026-07-31)
+
+Shipped: F1–F28 suite; F23 `tests/common/twin_vaults`; F19 expanded snapshot; F20 static+seeded WRAP KATs (`pub(crate)` seed helper); F21 capture Cargo.toml gate; F22 replay; F24 dual forged-ACK; F25 body flip; F26 OPERATIONS multi-device residuals; F27 honesty scanner; multi-device revoke **omit** wraps; revoke-past AEAD open proof. Ledger TX `87b2f538`. Internal R2 CLEAN WITH DEFERRED LOWS; Codex R1 FAIL→fix; R2 engineering verified; final Codex R3 after closeout.
+
+- **Absorbed:** #53 T178 handoff; T176 WRAP golden residual; #34.1 security proof.
+- **Still open:** **#34.2 DataKey rotation** (not closed).
+
+### 55. T178 residuals after Complete
+
+- **#34.2 DataKey rotation:** still open.
+- **IR1-L1 / R2-L1:** L3 ceremony fingerprint “reject” is structural package-hash binding; raw `insert_device_identity` accepts caller-supplied fp (production OOB recomputes).
+- **IR1-L1:** R-ack-attestation behavioral pin thin (doc scanner primary).
+- **CR2-P3:** F21 parses capture `Cargo.toml` only (not full transitive cargo-metadata graph); `cargo tree -p ai-brains-capture` confirmed no sync edge at ship.
+- **L10 / L15 / HPKE / PIN / CAVP / pre-erase backups:** explicit product/formal defers (unchanged).
