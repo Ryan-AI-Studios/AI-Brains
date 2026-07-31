@@ -1,7 +1,7 @@
 -- Migration 0027: Multi-device replication side stores + operational projections (T176 / P11.1)
 -- Side stores (device_identity, device_id_tombstone, device_private_key_store,
--- peer_content_key_wrap, encrypted_envelope_index) hold durable crypto/replication
--- material and are NOT truncated on rebuild_projections.
+-- peer_content_key_wrap, encrypted_envelope_index, signed_replication_control)
+-- hold durable crypto/replication material and are NOT truncated on rebuild_projections.
 -- Operational tables (replication_cursor, replication_gap_buffer,
 -- erasure_ack_projection, replication_gap_skip_audit) are retained by default (v1).
 -- Forward-only; never edit 0001–0026. No plaintext event bodies. No content_hash column.
@@ -80,6 +80,25 @@ CREATE TABLE encrypted_envelope_index (
 
 CREATE INDEX idx_envelope_sender_seq
     ON encrypted_envelope_index (sender_device_id, local_seq);
+
+-- Local signed control envelopes (DeviceEnrolled / DeviceRevoked / etc.).
+-- Cleartext control body + detached Ed25519 signature; retain on rebuild (same as 0027 side stores).
+-- Not a substitute for the append-only event log; local control persistence for L3/L4 apply.
+CREATE TABLE signed_replication_control (
+    event_id            TEXT PRIMARY KEY,
+    envelope_id         TEXT NOT NULL UNIQUE,
+    sender_device_id    TEXT NOT NULL,
+    content_type_code   INTEGER NOT NULL,
+    body                BLOB NOT NULL,      -- cleartext control payload
+    signature           BLOB NOT NULL,      -- 64-byte Ed25519
+    schema_version      INTEGER NOT NULL,
+    local_seq           INTEGER NOT NULL,
+    created_at          TEXT NOT NULL,
+    CHECK (length(signature) = 64)
+);
+
+CREATE INDEX idx_signed_control_sender_seq
+    ON signed_replication_control (sender_device_id, local_seq);
 
 -- Per peer stream cursor + gap state (L13).
 CREATE TABLE replication_cursor (

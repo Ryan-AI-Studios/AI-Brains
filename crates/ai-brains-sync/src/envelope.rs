@@ -84,13 +84,29 @@ fn to_signed_input(outer: &OuterEnvelope) -> SignedBytesInput {
     }
 }
 
-/// Sign an outer envelope. Control envelopes must have `wrap_count = 0`.
-pub fn sign_envelope(outer: &OuterEnvelope, signing_key: &SigningKey) -> Result<SignedEnvelope> {
+/// Validate wrap_count rules before sign/verify (control = 0; data ≥ 1).
+fn check_wrap_count_rules(outer: &OuterEnvelope) -> Result<()> {
     if outer.content_type_code.is_control() && !outer.wrap_records.is_empty() {
         return Err(SyncError::InvalidEncoding(
             "control envelopes must have wrap_count = 0".to_string(),
         ));
     }
+    if matches!(outer.content_type_code, ContentTypeCode::DataEvent)
+        && outer.wrap_records.is_empty()
+    {
+        return Err(SyncError::InvalidEncoding(
+            "DataEvent envelopes must have wrap_count >= 1".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Sign an outer envelope.
+///
+/// Control envelopes must have `wrap_count = 0`. Data envelopes require
+/// `wrap_count >= 1` (fail closed on empty wraps).
+pub fn sign_envelope(outer: &OuterEnvelope, signing_key: &SigningKey) -> Result<SignedEnvelope> {
+    check_wrap_count_rules(outer)?;
     // Reject unknown is already enforced by ContentTypeCode type.
     let signed = build_signed_bytes(&to_signed_input(outer))?;
     let sig = signing_key.sign(&signed);
@@ -102,15 +118,12 @@ pub fn sign_envelope(outer: &OuterEnvelope, signing_key: &SigningKey) -> Result<
 
 /// Verify detached signature over canonical `signed_bytes`.
 ///
-/// Rejects unsorted wrap lists and unknown type codes. Meta-swap fails closed.
+/// Rejects unsorted/duplicate wrap lists, empty data wraps, and unknown type
+/// codes. Meta-swap fails closed.
 pub fn verify_envelope(signed: &SignedEnvelope, verifying_key: &VerifyingKey) -> Result<()> {
     // Fail closed on unknown codes if reconstructed.
     let _ = ContentTypeCode::from_u16(signed.outer.content_type_code.as_u16())?;
-    if signed.outer.content_type_code.is_control() && !signed.outer.wrap_records.is_empty() {
-        return Err(SyncError::InvalidEncoding(
-            "control envelopes must have wrap_count = 0".to_string(),
-        ));
-    }
+    check_wrap_count_rules(&signed.outer)?;
     if !wraps_are_sorted(&signed.outer.wrap_records) {
         return Err(SyncError::UnsortedWrapList);
     }
@@ -230,5 +243,37 @@ mod tests {
     fn content_type__unknown__reject() {
         let err = ContentTypeCode::from_u16(0x00FF).expect_err("unknown");
         assert!(matches!(err, SyncError::UnknownContentType(0x00FF)));
+    }
+
+    #[test]
+    fn verify_envelope__data_empty_wraps__err() {
+        let keys = generate_device_keys().expect("keys");
+        let device = DeviceId::from_uuid(uuid_n(2));
+        let outer = OuterEnvelope {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            envelope_id: EnvelopeId::from_uuid(uuid_n(1)),
+            device_id: device,
+            local_seq: 1,
+            content_type_code: ContentTypeCode::DataEvent,
+            event_id: ReplicationEventId::from_uuid(uuid_n(3)),
+            content_key_id: ContentKeyId::from_uuid(uuid_n(4)),
+            ciphertext: vec![0u8; DATA_BODY_MIN_LEN],
+            wrap_records: vec![],
+        };
+        let err = sign_envelope(&outer, &keys.signing_key()).expect_err("empty wraps");
+        assert!(
+            matches!(err, SyncError::InvalidEncoding(ref m) if m.contains("wrap_count")),
+            "got: {err:?}"
+        );
+        // Also reject at verify even if signature were forced.
+        let signed = SignedEnvelope {
+            outer,
+            signature: [0u8; 64],
+        };
+        let err = verify_envelope(&signed, &keys.verifying_key()).expect_err("verify empty");
+        assert!(
+            matches!(err, SyncError::InvalidEncoding(ref m) if m.contains("wrap_count")),
+            "got: {err:?}"
+        );
     }
 }

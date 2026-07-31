@@ -73,11 +73,13 @@ pub fn encode_wrap_record(rec: &WrapRecord) -> Vec<u8> {
     out
 }
 
-/// True iff wrap records are strictly non-decreasing by recipient_device_id bytes.
+/// True iff wrap records are **strictly increasing** by recipient_device_id bytes.
+///
+/// Duplicate recipient_device_id values are rejected (not merely unsorted).
 pub fn wraps_are_sorted(records: &[WrapRecord]) -> bool {
     records.windows(2).all(|w| {
         w[0].recipient_device_id.as_uuid().as_bytes()
-            <= w[1].recipient_device_id.as_uuid().as_bytes()
+            < w[1].recipient_device_id.as_uuid().as_bytes()
     })
 }
 
@@ -206,6 +208,38 @@ mod tests {
             ],
         };
         let err = build_signed_bytes(&input).expect_err("unsorted");
+        assert!(matches!(err, SyncError::UnsortedWrapList));
+    }
+
+    #[test]
+    fn signed_bytes__duplicate_recipient__err() {
+        let same = DeviceId::from_uuid(uuid_n(5));
+        let input = SignedBytesInput {
+            schema_version: 1,
+            envelope_id: EnvelopeId::from_uuid(uuid_n(1)),
+            device_id: DeviceId::from_uuid(uuid_n(2)),
+            local_seq: 1,
+            content_type_code: 0x0001,
+            event_id: ReplicationEventId::from_uuid(uuid_n(3)),
+            content_key_id: ContentKeyId::from_uuid(uuid_n(4)),
+            ciphertext: vec![0; 28],
+            wrap_records: vec![
+                WrapRecord {
+                    recipient_device_id: same,
+                    eph_x25519_pub: [1; 32],
+                    wrap_nonce: [2; 12],
+                    wrap_ct: vec![3; 48],
+                },
+                WrapRecord {
+                    recipient_device_id: same,
+                    eph_x25519_pub: [4; 32],
+                    wrap_nonce: [5; 12],
+                    wrap_ct: vec![6; 48],
+                },
+            ],
+        };
+        assert!(!wraps_are_sorted(&input.wrap_records));
+        let err = build_signed_bytes(&input).expect_err("duplicate recipient");
         assert!(matches!(err, SyncError::UnsortedWrapList));
     }
 }

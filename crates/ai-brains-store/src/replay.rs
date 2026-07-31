@@ -112,6 +112,7 @@ impl SqliteEventStore {
         // RETAIN — do NOT DELETE on rebuild:
         //   device_identity, device_id_tombstone, device_private_key_store,
         //   peer_content_key_wrap, encrypted_envelope_index,
+        //   signed_replication_control,
         //   replication_cursor, replication_gap_buffer, erasure_ack_projection,
         //   replication_gap_skip_audit.
         // These are durable crypto/replication material (not pure event projections).

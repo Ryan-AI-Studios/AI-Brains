@@ -167,6 +167,7 @@ dependencies = [
  "clap",
  "dirs",
  "dotenvy",
+ "ed25519-dalek",
  "hex",
  "is-terminal",
  "predicates",
@@ -183,6 +184,7 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "windows 0.62.2",
+ "zeroize",
 ]
 
 [[package]]
@@ -415,7 +417,9 @@ dependencies = [
  "ai-brains-core",
  "ai-brains-crypto",
  "ai-brains-events",
+ "ai-brains-sync",
  "chrono",
+ "ed25519-dalek",
  "rusqlite",
  "serde",
  "serde_json",

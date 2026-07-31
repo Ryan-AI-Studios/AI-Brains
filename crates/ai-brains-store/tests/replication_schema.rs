@@ -3,11 +3,17 @@
 
 //! T176 — migration 0027 replication schema + store APIs.
 
+use ai_brains_core::ids::DeviceId;
 use ai_brains_crypto::DataKey;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::SqliteEventStore;
 use ai_brains_store::projections::replication::{
-    self, DeviceIdentityRow, DevicePrivateKeyRow, EnvelopeIndexRow, PeerContentKeyWrapRow,
+    self, BootstrapLocalDeviceInput, DeviceIdentityRow, DevicePrivateKeyRow, EnvelopeIndexRow,
+    PeerContentKeyWrapRow, SignedControlRow,
+};
+use ai_brains_sync::{
+    ContentTypeCode, ControlPayload, DeviceEnrolledPayload, REPLICATION_SCHEMA_VERSION,
+    build_and_sign_control, generate_device_keys, verify_envelope,
 };
 use tempfile::NamedTempFile;
 
@@ -60,6 +66,7 @@ fn migration_0027__fresh_vault__tables_exist() {
         "device_private_key_store",
         "peer_content_key_wrap",
         "encrypted_envelope_index",
+        "signed_replication_control",
         "replication_cursor",
         "replication_gap_buffer",
         "erasure_ack_projection",
@@ -204,21 +211,96 @@ fn envelope_index__duplicate_event_id__idempotent() {
 }
 
 #[test]
-fn bootstrap__second_call__err() {
+fn bootstrap_local_device__second_call__err() {
     let (_tmp, store) = open_store();
-    let conn = store.connection().lock().unwrap();
+    let mut conn = store.connection().lock().unwrap();
     assert!(!replication::has_active_or_local_device(&conn).unwrap());
-    let id = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
-    replication::insert_device_identity(&conn, &sample_identity(id, "local", id)).unwrap();
-    assert!(replication::has_active_or_local_device(&conn).unwrap());
-    // Second bootstrap attempt is rejected by API guard (CLI will use this).
-    let err_status = if replication::has_active_or_local_device(&conn).unwrap() {
-        Err::<(), _>("BootstrapAlreadyEnrolled")
-    } else {
-        Ok(())
+
+    let keys = generate_device_keys().unwrap();
+    let device = DeviceId::new();
+    let ed = keys.verifying_key().to_bytes();
+    let x = keys.x25519_public().to_bytes();
+    let built = build_and_sign_control(
+        ContentTypeCode::DeviceEnrolled,
+        &ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            device_id: device,
+            ed25519_pub: ed,
+            x25519_pub: x,
+        }),
+        device,
+        1,
+        &keys.signing_key(),
+    )
+    .unwrap();
+    verify_envelope(&built.signed, &keys.verifying_key()).unwrap();
+
+    let input = BootstrapLocalDeviceInput {
+        identity: DeviceIdentityRow {
+            device_id: device.to_string(),
+            schema_version: 1,
+            ed25519_public: ed.to_vec(),
+            x25519_public: x.to_vec(),
+            display_name: Some("local".to_string()),
+            status: "local".to_string(),
+            enrolled_at: CREATED_AT.to_string(),
+            revoked_at: None,
+            enrolled_by_device_id: device.to_string(),
+            fingerprint_sha256: vec![0x33; 32],
+        },
+        private_key: DevicePrivateKeyRow {
+            device_id: device.to_string(),
+            wrap_schema_version: 1,
+            algorithm: "AES-256-GCM".to_string(),
+            protection: "datakey".to_string(),
+            wrap_nonce: vec![0xAB; 12],
+            wrap_ciphertext: vec![0xCD; 80],
+            created_at: CREATED_AT.to_string(),
+        },
+        signed_control: SignedControlRow {
+            event_id: built.signed.outer.event_id.to_string(),
+            envelope_id: built.signed.outer.envelope_id.as_uuid().to_string(),
+            sender_device_id: device.to_string(),
+            content_type_code: CONTENT_TYPE_DEVICE_ENROLLED_I64,
+            body: built.body.clone(),
+            signature: built.signed.signature.to_vec(),
+            schema_version: 1,
+            local_seq: 1,
+            created_at: CREATED_AT.to_string(),
+        },
+        envelope_index: EnvelopeIndexRow {
+            envelope_id: built.signed.outer.envelope_id.as_uuid().to_string(),
+            event_id: built.signed.outer.event_id.to_string(),
+            sender_device_id: device.to_string(),
+            local_seq: 1,
+            content_type_code: CONTENT_TYPE_DEVICE_ENROLLED_I64,
+            content_key_id: Some("00000000-0000-0000-0000-000000000000".to_string()),
+            body_len: built.body.len() as i64,
+            padding_bucket: None,
+            applied_at: Some(CREATED_AT.to_string()),
+        },
     };
-    assert!(err_status.is_err());
+
+    replication::bootstrap_local_device(&mut conn, &input).unwrap();
+    assert!(replication::has_active_or_local_device(&conn).unwrap());
+
+    // Stored control is verifiable.
+    let stored = replication::get_signed_control(&conn, &input.signed_control.event_id)
+        .unwrap()
+        .expect("signed control");
+    assert_eq!(stored.sender_device_id, device.to_string());
+    assert_eq!(stored.signature, built.signed.signature.to_vec());
+
+    // Second bootstrap rejected with structured error (ID-5).
+    let err = replication::bootstrap_local_device(&mut conn, &input).expect_err("second");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("BootstrapAlreadyEnrolled"),
+        "expected BootstrapAlreadyEnrolled, got: {msg}"
+    );
 }
+
+const CONTENT_TYPE_DEVICE_ENROLLED_I64: i64 = 0x0010;
 
 #[test]
 fn private_key_wrap__roundtrip_row() {

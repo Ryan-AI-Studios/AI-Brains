@@ -21,4 +21,6 @@ uuid.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+ai-brains-sync = { path = "../ai-brains-sync", version = "0.1.0" }
+ed25519-dalek.workspace = true
 

@@ -472,9 +472,12 @@ enum DeviceCommands {
     List,
     /// Generate keys + write enrollment package (new machine; does not enroll into a peer vault)
     PackageExport {
-        /// Output path for the enrollment package bytes
+        /// Output path for the enrollment package bytes (public only by default)
         #[arg(long)]
         out: PathBuf,
+        /// Optional path for OS-protected private seeds (Windows: DPAPI). Never raw seed files.
+        #[arg(long)]
+        write_private_key: Option<PathBuf>,
     },
     /// Enroll a peer from package on an already-enrolled vault (confirm fingerprint OOB)
     Enroll {
@@ -2264,9 +2267,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             DeviceCommands::Bootstrap => commands::device::run_bootstrap(&ctx),
             DeviceCommands::Fingerprint { raw } => commands::device::run_fingerprint(&ctx, *raw),
             DeviceCommands::List => commands::device::run_list(&ctx),
-            DeviceCommands::PackageExport { out } => {
-                commands::device::run_package_export(out.clone())
-            }
+            DeviceCommands::PackageExport {
+                out,
+                write_private_key,
+            } => commands::device::run_package_export(out.clone(), write_private_key.clone()),
             DeviceCommands::Enroll { package, yes } => {
                 commands::device::run_enroll(&ctx, package.clone(), *yes)
             }

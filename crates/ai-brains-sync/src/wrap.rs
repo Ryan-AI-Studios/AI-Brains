@@ -245,13 +245,18 @@ mod tests {
         // Second call identical.
         let okm2 = derive_wrap_key(&ikm, &info).expect("hkdf2");
         assert_eq!(okm, okm2);
-        // Stable recompute + non-zero OKM (T178 may pin exact hex fixture later).
         assert_eq!(okm.len(), 32);
         assert_ne!(okm, [0u8; 32]);
         let hk = Hkdf::<Sha256>::new(Some(&[]), &ikm);
         let mut direct = [0u8; 32];
         hk.expand(&info, &mut direct).expect("expand");
         assert_eq!(okm, direct);
+        // Fixed IKM ([0x42;32]) + info (schema=1, content/recipient/sender fixed_id 1/2/3)
+        // → pinned OKM (T176 residual; T178 owns full WRAP KATs).
+        assert_eq!(
+            hex::encode(okm),
+            "ac8bacd1a06000523db2170a84db49ccecb1ed2fbc5f6642c975840d21aadde3"
+        );
         let aad = build_wrap_aad(REPLICATION_SCHEMA_VERSION, &content_key, &recipient);
         assert_eq!(aad.len(), 2 + 16 + 16);
         assert_eq!(&aad[0..2], &1u16.to_be_bytes());

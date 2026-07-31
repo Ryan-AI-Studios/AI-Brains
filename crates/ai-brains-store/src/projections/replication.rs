@@ -1,7 +1,8 @@
 //! Multi-device replication side stores + operational projections (T176 / ADR-0018).
 //!
 //! Side stores: device_identity, device_id_tombstone, device_private_key_store,
-//! peer_content_key_wrap, encrypted_envelope_index — retained on rebuild.
+//! peer_content_key_wrap, encrypted_envelope_index, signed_replication_control —
+//! retained on rebuild.
 //! Operational: replication_cursor, gap buffer, erasure_ack, gap_skip_audit — v1 retain.
 //!
 //! No plaintext event bodies. No crypto seal/open here (opaque wrap bytes).
@@ -109,6 +110,45 @@ pub struct EnvelopeIndexRow {
     pub body_len: i64,
     pub padding_bucket: Option<i64>,
     pub applied_at: Option<String>,
+}
+
+/// Local signed control envelope (cleartext body + Ed25519 signature).
+#[derive(Clone, PartialEq, Eq)]
+pub struct SignedControlRow {
+    pub event_id: String,
+    pub envelope_id: String,
+    pub sender_device_id: String,
+    pub content_type_code: i64,
+    pub body: Vec<u8>,
+    pub signature: Vec<u8>,
+    pub schema_version: i64,
+    pub local_seq: i64,
+    pub created_at: String,
+}
+
+impl fmt::Debug for SignedControlRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SignedControlRow")
+            .field("event_id", &self.event_id)
+            .field("envelope_id", &self.envelope_id)
+            .field("sender_device_id", &self.sender_device_id)
+            .field("content_type_code", &self.content_type_code)
+            .field("body_len", &self.body.len())
+            .field("signature_len", &self.signature.len())
+            .field("schema_version", &self.schema_version)
+            .field("local_seq", &self.local_seq)
+            .field("created_at", &self.created_at)
+            .finish()
+    }
+}
+
+/// Inputs for atomic first-device bootstrap (identity + private key + signed control).
+#[derive(Debug, Clone)]
+pub struct BootstrapLocalDeviceInput {
+    pub identity: DeviceIdentityRow,
+    pub private_key: DevicePrivateKeyRow,
+    pub signed_control: SignedControlRow,
+    pub envelope_index: EnvelopeIndexRow,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -444,6 +484,213 @@ pub fn envelope_exists(conn: &Connection, event_id: &str) -> Result<bool> {
         |r| r.get(0),
     )?;
     Ok(exists)
+}
+
+/// Next `local_seq` for a sender (max existing + 1, or 1 if none).
+pub fn next_local_seq(conn: &Connection, sender_device_id: &str) -> Result<i64> {
+    let max: Option<i64> = conn.query_row(
+        "SELECT MAX(local_seq) FROM encrypted_envelope_index WHERE sender_device_id = ?",
+        params![sender_device_id],
+        |r| r.get(0),
+    )?;
+    Ok(max.unwrap_or(0) + 1)
+}
+
+// ---------------------------------------------------------------------------
+// Signed control side store
+// ---------------------------------------------------------------------------
+
+/// Persist a signed control envelope (cleartext body + signature).
+pub fn insert_signed_control(conn: &Connection, row: &SignedControlRow) -> Result<()> {
+    if row.signature.len() != 64 {
+        return Err(StoreError::ConfigError(
+            "signed control signature must be 64 bytes".to_string(),
+        ));
+    }
+    if row.body.is_empty() {
+        return Err(StoreError::ConfigError(
+            "signed control body must be non-empty".to_string(),
+        ));
+    }
+    conn.execute(
+        "INSERT INTO signed_replication_control (
+            event_id, envelope_id, sender_device_id, content_type_code,
+            body, signature, schema_version, local_seq, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params![
+            row.event_id,
+            row.envelope_id,
+            row.sender_device_id,
+            row.content_type_code,
+            row.body,
+            row.signature,
+            row.schema_version,
+            row.local_seq,
+            row.created_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Load a signed control by event_id.
+pub fn get_signed_control(conn: &Connection, event_id: &str) -> Result<Option<SignedControlRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT event_id, envelope_id, sender_device_id, content_type_code,
+                body, signature, schema_version, local_seq, created_at
+         FROM signed_replication_control WHERE event_id = ?",
+    )?;
+    let row = stmt
+        .query_row(params![event_id], |row| {
+            Ok(SignedControlRow {
+                event_id: row.get(0)?,
+                envelope_id: row.get(1)?,
+                sender_device_id: row.get(2)?,
+                content_type_code: row.get(3)?,
+                body: row.get(4)?,
+                signature: row.get(5)?,
+                schema_version: row.get(6)?,
+                local_seq: row.get(7)?,
+                created_at: row.get(8)?,
+            })
+        })
+        .optional()?;
+    Ok(row)
+}
+
+/// List signed controls for a sender ordered by local_seq.
+pub fn list_signed_controls_for_sender(
+    conn: &Connection,
+    sender_device_id: &str,
+) -> Result<Vec<SignedControlRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT event_id, envelope_id, sender_device_id, content_type_code,
+                body, signature, schema_version, local_seq, created_at
+         FROM signed_replication_control
+         WHERE sender_device_id = ?
+         ORDER BY local_seq ASC, event_id ASC",
+    )?;
+    let rows = stmt.query_map(params![sender_device_id], |row| {
+        Ok(SignedControlRow {
+            event_id: row.get(0)?,
+            envelope_id: row.get(1)?,
+            sender_device_id: row.get(2)?,
+            content_type_code: row.get(3)?,
+            body: row.get(4)?,
+            signature: row.get(5)?,
+            schema_version: row.get(6)?,
+            local_seq: row.get(7)?,
+            created_at: row.get(8)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// Atomic bootstrap (identity + private key + signed DeviceEnrolled control)
+// ---------------------------------------------------------------------------
+
+/// First-device bootstrap in a single SQLite transaction (R27 / ID-3).
+///
+/// Fails with a structured `ConfigError` containing `BootstrapAlreadyEnrolled`
+/// if any active or local device already exists.
+pub fn bootstrap_local_device(
+    conn: &mut Connection,
+    input: &BootstrapLocalDeviceInput,
+) -> Result<()> {
+    if has_active_or_local_device(conn)? {
+        return Err(StoreError::ConfigError(
+            "BootstrapAlreadyEnrolled: an active or local device already exists".to_string(),
+        ));
+    }
+    if input.identity.status != "local" {
+        return Err(StoreError::ConfigError(
+            "bootstrap_local_device requires identity.status = 'local'".to_string(),
+        ));
+    }
+    if input.identity.device_id != input.identity.enrolled_by_device_id {
+        return Err(StoreError::ConfigError(
+            "bootstrap self-enroll requires enrolled_by_device_id == device_id".to_string(),
+        ));
+    }
+    let tx = conn.transaction()?;
+    insert_device_identity(&tx, &input.identity)?;
+    put_device_private_key_wrap(&tx, &input.private_key)?;
+    insert_signed_control(&tx, &input.signed_control)?;
+    insert_envelope_index(&tx, &input.envelope_index)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Enroll a peer: identity + signed DeviceEnrolled control + envelope index (one TX).
+pub fn enroll_peer_device(
+    conn: &mut Connection,
+    identity: &DeviceIdentityRow,
+    signed_control: &SignedControlRow,
+    envelope_index: &EnvelopeIndexRow,
+) -> Result<()> {
+    if !has_active_or_local_device(conn)? {
+        return Err(StoreError::ConfigError(
+            "No enrolled device on this vault; run bootstrap first".to_string(),
+        ));
+    }
+    if identity.status != "active" {
+        return Err(StoreError::ConfigError(
+            "enroll_peer_device requires identity.status = 'active'".to_string(),
+        ));
+    }
+    let tx = conn.transaction()?;
+    insert_device_identity(&tx, identity)?;
+    insert_signed_control(&tx, signed_control)?;
+    insert_envelope_index(&tx, envelope_index)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Revoke: signed DeviceRevoked control + envelope index + tombstone/R23 (one TX).
+pub fn revoke_device_with_control(
+    conn: &mut Connection,
+    device_id: &str,
+    revoked_at: &str,
+    reason_code: &str,
+    signed_control: &SignedControlRow,
+    envelope_index: &EnvelopeIndexRow,
+) -> Result<()> {
+    let existing = get_device(conn, device_id)?;
+    let Some(row) = existing else {
+        return Err(StoreError::ConfigError(format!(
+            "Device not found: {device_id}"
+        )));
+    };
+    if row.status == "revoked" {
+        return Err(StoreError::ConfigError(format!(
+            "Device already revoked: {device_id}"
+        )));
+    }
+    let tx = conn.transaction()?;
+    insert_signed_control(&tx, signed_control)?;
+    insert_envelope_index(&tx, envelope_index)?;
+    // Inline tombstone + R23 so we stay in the same transaction.
+    tx.execute(
+        "UPDATE device_identity
+         SET status = 'revoked', revoked_at = ?
+         WHERE device_id = ?",
+        params![revoked_at, device_id],
+    )?;
+    tx.execute(
+        "INSERT OR IGNORE INTO device_id_tombstone (device_id, revoked_at, reason_code)
+         VALUES (?, ?, ?)",
+        params![device_id, revoked_at, reason_code],
+    )?;
+    tx.execute(
+        "DELETE FROM peer_content_key_wrap WHERE recipient_device_id = ?",
+        params![device_id],
+    )?;
+    tx.commit()?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

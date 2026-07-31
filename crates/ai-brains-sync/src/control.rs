@@ -265,6 +265,46 @@ fn decode_gap_skip_audit(body: &[u8]) -> Result<GapSkipAuditPayload> {
 /// Document fixed enrollment package size for control DeviceEnrolled.
 pub const DEVICE_ENROLLED_BODY_LEN: usize = ENROLLMENT_PACKAGE_LEN;
 
+/// Built and signed control envelope ready for local persistence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignedControlEnvelope {
+    pub signed: crate::envelope::SignedEnvelope,
+    /// Cleartext control body (also present as `signed.outer.ciphertext`).
+    pub body: Vec<u8>,
+}
+
+/// Build cleartext control payload, wrap as outer envelope (wrap_count=0,
+/// content_key_id = nil UUID except caller may override), and Ed25519-sign.
+///
+/// Used by bootstrap / enroll / revoke local control persistence (T176).
+pub fn build_and_sign_control(
+    kind: ContentTypeCode,
+    payload: &ControlPayload,
+    sender_device_id: DeviceId,
+    local_seq: u64,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<SignedControlEnvelope> {
+    if !kind.is_control() {
+        return Err(SyncError::InvalidEncoding(
+            "build_and_sign_control requires a control content type".to_string(),
+        ));
+    }
+    let body = encode_control_payload(kind, payload)?;
+    let outer = crate::envelope::OuterEnvelope {
+        schema_version: crate::enrollment::REPLICATION_SCHEMA_VERSION,
+        envelope_id: crate::signed_bytes::EnvelopeId::new(),
+        device_id: sender_device_id,
+        local_seq,
+        content_type_code: kind,
+        event_id: ReplicationEventId::new(),
+        content_key_id: ContentKeyId::from_uuid(uuid::Uuid::nil()),
+        ciphertext: body.clone(),
+        wrap_records: vec![],
+    };
+    let signed = crate::envelope::sign_envelope(&outer, signing_key)?;
+    Ok(SignedControlEnvelope { signed, body })
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::disallowed_methods)]
@@ -315,5 +355,33 @@ mod tests {
         let signed = sign_envelope(&outer, &keys.signing_key()).expect("sign");
         assert!(signed.outer.wrap_records.is_empty());
         verify_envelope(&signed, &keys.verifying_key()).expect("verify");
+    }
+
+    #[test]
+    fn build_and_sign_control__device_enrolled__verifiable() {
+        let keys = generate_device_keys().expect("keys");
+        let device = DeviceId::from_uuid(Uuid::new_v4());
+        let payload = DeviceEnrolledPayload {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            device_id: device,
+            ed25519_pub: keys.verifying_key().to_bytes(),
+            x25519_pub: keys.x25519_public().to_bytes(),
+        };
+        let built = build_and_sign_control(
+            ContentTypeCode::DeviceEnrolled,
+            &ControlPayload::DeviceEnrolled(payload),
+            device,
+            1,
+            &keys.signing_key(),
+        )
+        .expect("sign control");
+        assert!(built.signed.outer.wrap_records.is_empty());
+        assert_eq!(built.signed.outer.content_key_id.as_uuid(), Uuid::nil());
+        verify_envelope(&built.signed, &keys.verifying_key()).expect("verify");
+        // Meta-swap must fail.
+        let mut swapped = built.signed.clone();
+        swapped.outer.local_seq = 999;
+        let err = verify_envelope(&swapped, &keys.verifying_key()).expect_err("meta-swap");
+        assert!(matches!(err, SyncError::SignatureInvalid));
     }
 }

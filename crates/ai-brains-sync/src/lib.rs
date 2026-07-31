@@ -27,8 +27,9 @@ pub mod wrap;
 
 pub use apply_order::{ApplyOrderKey, sort_by_apply_order};
 pub use control::{
-    ContentErasureTombstonePayload, DeviceEnrolledPayload, DeviceRevokedPayload, ErasureAckPayload,
-    GapSkipAuditPayload, decode_control_payload, encode_control_payload,
+    ContentErasureTombstonePayload, ControlPayload, DeviceEnrolledPayload, DeviceRevokedPayload,
+    ErasureAckPayload, GapSkipAuditPayload, SignedControlEnvelope, build_and_sign_control,
+    decode_control_payload, encode_control_payload,
 };
 pub use device_keys::{DeviceKeyPair, generate_device_keys};
 pub use enrollment::{
@@ -48,7 +49,7 @@ pub use private_blob::{
     AAD_KIND_DEVICE_PRIVATE_KEY, DEVICE_PRIVATE_PLAINTEXT_LEN, DevicePrivateSeeds,
     SealedDevicePrivate, open_device_private_blob, seal_device_private_blob,
 };
-pub use signed_bytes::{WrapRecord, build_signed_bytes};
+pub use signed_bytes::{EnvelopeId, WrapRecord, build_signed_bytes, wraps_are_sorted};
 pub use wrap::{
     LABEL_AIB_SYNC_DEK_WRAP, PeerDekWrap, build_wrap_aad, build_wrap_info, unwrap_content_dek,
     wrap_content_dek_for_recipient,
