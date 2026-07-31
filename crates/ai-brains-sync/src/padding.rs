@@ -51,4 +51,17 @@ mod tests {
         assert_eq!(padded.len(), 256);
         assert_eq!(&padded[..10], &[1u8; 10]);
     }
+
+    /// T178-L14-pad-buckets — PAD_BUCKETS membership.
+    #[test]
+    fn t178_l14_pad_buckets__membership() {
+        // T178-L14-pad-buckets
+        assert_eq!(PAD_BUCKETS, [256, 4096, 65536]);
+        for &b in &PAD_BUCKETS {
+            assert_eq!(pad_to_bucket(b), b);
+        }
+        assert!(PAD_BUCKETS.contains(&pad_to_bucket(0)));
+        assert!(PAD_BUCKETS.contains(&pad_to_bucket(100)));
+        assert!(PAD_BUCKETS.contains(&pad_to_bucket(1000)));
+    }
 }

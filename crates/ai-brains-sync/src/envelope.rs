@@ -213,6 +213,155 @@ mod tests {
         assert!(matches!(err, SyncError::SignatureInvalid));
     }
 
+    /// T178-L5-meta-swap-fails — unit verify fails on meta swap.
+    #[test]
+    fn t178_l5_meta_swap_fails__signature_invalid() {
+        // T178-L5-meta-swap-fails
+        verify_envelope__metadata_swap__err();
+    }
+
+    /// T178-L5-content-nonce-in-blob — encode_data_body = 12 nonce + ct + 16 tag.
+    #[test]
+    fn t178_l5_content_nonce_in_blob__layout() {
+        // T178-L5-content-nonce-in-blob
+        let nonce = [0x11u8; DATA_BODY_NONCE_LEN];
+        let mut ct_and_tag = vec![0xAAu8; 8];
+        ct_and_tag.extend_from_slice(&[0xBBu8; DATA_BODY_TAG_LEN]);
+        let body = encode_data_body(&nonce, &ct_and_tag).expect("encode");
+        assert_eq!(body.len(), DATA_BODY_NONCE_LEN + ct_and_tag.len());
+        assert_eq!(&body[..DATA_BODY_NONCE_LEN], &nonce);
+        assert_eq!(&body[DATA_BODY_NONCE_LEN..], &ct_and_tag);
+        let (n2, ct2) = decode_data_body(&body).expect("decode");
+        assert_eq!(n2, nonce);
+        assert_eq!(ct2, ct_and_tag);
+        // Outer signed_bytes covers ciphertext field which embeds nonce‖ct‖tag
+        // (no separate unsigned nonce field) — structural via OuterEnvelope.
+        let keys = generate_device_keys().expect("keys");
+        let device = DeviceId::from_uuid(uuid_n(2));
+        let wrap = crate::signed_bytes::WrapRecord {
+            recipient_device_id: DeviceId::from_uuid(uuid_n(9)),
+            eph_x25519_pub: [0; 32],
+            wrap_nonce: [0; 12],
+            wrap_ct: vec![0; 48],
+        };
+        let outer = OuterEnvelope {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            envelope_id: EnvelopeId::from_uuid(uuid_n(1)),
+            device_id: device,
+            local_seq: 1,
+            content_type_code: ContentTypeCode::DataEvent,
+            event_id: ReplicationEventId::from_uuid(uuid_n(3)),
+            content_key_id: ContentKeyId::from_uuid(uuid_n(4)),
+            ciphertext: body.clone(),
+            wrap_records: vec![wrap],
+        };
+        let signed = sign_envelope(&outer, &keys.signing_key()).expect("sign");
+        verify_envelope(&signed, &keys.verifying_key()).expect("verify");
+        assert_eq!(signed.outer.ciphertext, body);
+    }
+
+    /// T178-L5-control-cleartext-parse — wrap_count=0; decode after verify; no DEK unwrap.
+    #[test]
+    fn t178_l5_control_cleartext_parse__no_dek() {
+        // T178-L5-control-cleartext-parse
+        use crate::control::{ControlPayload, DeviceEnrolledPayload, decode_control_payload};
+        use crate::enrollment::enrollment_package;
+        let keys = generate_device_keys().expect("keys");
+        let device = DeviceId::from_uuid(uuid_n(2));
+        let ed = keys.verifying_key().to_bytes();
+        let x = keys.x25519_public().to_bytes();
+        let body = enrollment_package(&device, &ed, &x);
+        let outer = OuterEnvelope {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            envelope_id: EnvelopeId::from_uuid(uuid_n(1)),
+            device_id: device,
+            local_seq: 1,
+            content_type_code: ContentTypeCode::DeviceEnrolled,
+            event_id: ReplicationEventId::from_uuid(uuid_n(3)),
+            content_key_id: ContentKeyId::from_uuid(Uuid::nil()),
+            ciphertext: body.clone(),
+            wrap_records: vec![],
+        };
+        assert!(outer.wrap_records.is_empty());
+        let signed = sign_envelope(&outer, &keys.signing_key()).expect("sign");
+        verify_envelope(&signed, &keys.verifying_key()).expect("verify");
+        let decoded =
+            decode_control_payload(ContentTypeCode::DeviceEnrolled, &signed.outer.ciphertext)
+                .expect("decode control");
+        match decoded {
+            ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
+                device_id,
+                ed25519_pub,
+                x25519_pub,
+                ..
+            }) => {
+                assert_eq!(device_id, device);
+                assert_eq!(ed25519_pub, ed);
+                assert_eq!(x25519_pub, x);
+            }
+            other => panic!("expected DeviceEnrolled, got {other:?}"),
+        }
+    }
+
+    /// T178-L5-wrap-list-tamper — mutate wrap under same sig → SignatureInvalid.
+    #[test]
+    fn t178_l5_wrap_list_tamper__signature_invalid() {
+        // T178-L5-wrap-list-tamper
+        let keys = generate_device_keys().expect("keys");
+        let device = DeviceId::from_uuid(uuid_n(2));
+        let wrap = crate::signed_bytes::WrapRecord {
+            recipient_device_id: DeviceId::from_uuid(uuid_n(9)),
+            eph_x25519_pub: [1; 32],
+            wrap_nonce: [2; 12],
+            wrap_ct: vec![3; 48],
+        };
+        let outer = OuterEnvelope {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            envelope_id: EnvelopeId::from_uuid(uuid_n(1)),
+            device_id: device,
+            local_seq: 1,
+            content_type_code: ContentTypeCode::DataEvent,
+            event_id: ReplicationEventId::from_uuid(uuid_n(3)),
+            content_key_id: ContentKeyId::from_uuid(uuid_n(4)),
+            ciphertext: vec![0u8; DATA_BODY_MIN_LEN],
+            wrap_records: vec![wrap],
+        };
+        let mut signed = sign_envelope(&outer, &keys.signing_key()).expect("sign");
+        // Mutate wrap_ct under same outer signature.
+        signed.outer.wrap_records[0].wrap_ct[0] ^= 0xFF;
+        let err = verify_envelope(&signed, &keys.verifying_key()).expect_err("must fail");
+        assert!(matches!(err, SyncError::SignatureInvalid));
+    }
+
+    /// T178-L5-tamper-ct — bit flip body → verify fail.
+    #[test]
+    fn t178_l5_tamper_ct__signature_invalid() {
+        // T178-L5-tamper-ct
+        let keys = generate_device_keys().expect("keys");
+        let device = DeviceId::from_uuid(uuid_n(2));
+        let wrap = crate::signed_bytes::WrapRecord {
+            recipient_device_id: DeviceId::from_uuid(uuid_n(9)),
+            eph_x25519_pub: [1; 32],
+            wrap_nonce: [2; 12],
+            wrap_ct: vec![3; 48],
+        };
+        let outer = OuterEnvelope {
+            schema_version: REPLICATION_SCHEMA_VERSION,
+            envelope_id: EnvelopeId::from_uuid(uuid_n(1)),
+            device_id: device,
+            local_seq: 1,
+            content_type_code: ContentTypeCode::DataEvent,
+            event_id: ReplicationEventId::from_uuid(uuid_n(3)),
+            content_key_id: ContentKeyId::from_uuid(uuid_n(4)),
+            ciphertext: vec![0u8; DATA_BODY_MIN_LEN + 4],
+            wrap_records: vec![wrap],
+        };
+        let mut signed = sign_envelope(&outer, &keys.signing_key()).expect("sign");
+        signed.outer.ciphertext[0] ^= 0x01;
+        let err = verify_envelope(&signed, &keys.verifying_key()).expect_err("must fail");
+        assert!(matches!(err, SyncError::SignatureInvalid));
+    }
+
     #[test]
     fn control_device_enrolled__wrap_count_zero__ok() {
         let keys = generate_device_keys().expect("keys");

@@ -192,6 +192,11 @@ impl<'a, R: RelayPort> ReplicateEngine<'a, R> {
         for recipient in &sorted_recipients {
             let peer_row = replication::get_device(self.conn, &recipient.to_string())?
                 .ok_or(SyncError::NotEnrolled)?;
+            // L4: revoked recipients are omitted from wrap list (future exclusion);
+            // unknown / non-active non-revoked still fail closed as NotEnrolled.
+            if peer_row.status == "revoked" {
+                continue;
+            }
             if peer_row.status != "active" && peer_row.status != "local" {
                 return Err(EngineError::Sync(SyncError::NotEnrolled));
             }
@@ -214,6 +219,11 @@ impl<'a, R: RelayPort> ReplicateEngine<'a, R> {
                 wrap_nonce: wrap.wrap_nonce,
                 wrap_ct: wrap.wrap_ct,
             });
+        }
+        if wrap_records.is_empty() {
+            return Err(EngineError::Sync(SyncError::InvalidEncoding(
+                "data envelope requires at least one recipient wrap".to_string(),
+            )));
         }
 
         let outer = OuterEnvelope {
