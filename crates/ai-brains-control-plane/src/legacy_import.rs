@@ -578,7 +578,9 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> Result<ImportP
             | Payload::ClaimConflictResolved(_)
             | Payload::RepositoryIdentityRegistered(_)
             | Payload::RepositoryPathAliasAdded(_)
-            | Payload::PolicyDecisionRecorded(_) => {
+            | Payload::PolicyDecisionRecorded(_)
+            | Payload::DeviceEnrolled(_)
+            | Payload::DeviceRevoked(_) => {
                 actions.push(skip_action(env.event_id, REASON_OUT_OF_MATRIX, privacy));
                 totals.skipped += 1;
             }

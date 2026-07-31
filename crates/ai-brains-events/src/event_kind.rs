@@ -88,6 +88,10 @@ pub enum EventKind {
     // Policy audit (T151) — rehydrate policy_decision_log on rebuild_projections
     PolicyDecisionRecorded,
 
+    // Multi-device membership controls (T176 / ADR-0018) — canonical event-log SOV
+    DeviceEnrolled,
+    DeviceRevoked,
+
     /// Forward-compatible catch-all; holds the original tag string.
     Unknown(String),
 }
@@ -154,6 +158,8 @@ impl EventKind {
             EventKind::RepositoryIdentityRegistered => "RepositoryIdentityRegistered",
             EventKind::RepositoryPathAliasAdded => "RepositoryPathAliasAdded",
             EventKind::PolicyDecisionRecorded => "PolicyDecisionRecorded",
+            EventKind::DeviceEnrolled => "DeviceEnrolled",
+            EventKind::DeviceRevoked => "DeviceRevoked",
             EventKind::Unknown(s) => s.as_str(),
         }
     }
@@ -219,6 +225,8 @@ impl EventKind {
             "RepositoryIdentityRegistered" => EventKind::RepositoryIdentityRegistered,
             "RepositoryPathAliasAdded" => EventKind::RepositoryPathAliasAdded,
             "PolicyDecisionRecorded" => EventKind::PolicyDecisionRecorded,
+            "DeviceEnrolled" => EventKind::DeviceEnrolled,
+            "DeviceRevoked" => EventKind::DeviceRevoked,
             other => EventKind::Unknown(other.to_string()),
         }
     }
@@ -308,6 +316,8 @@ impl From<&crate::payload::Payload> for EventKind {
             Payload::RepositoryIdentityRegistered(_) => EventKind::RepositoryIdentityRegistered,
             Payload::RepositoryPathAliasAdded(_) => EventKind::RepositoryPathAliasAdded,
             Payload::PolicyDecisionRecorded(_) => EventKind::PolicyDecisionRecorded,
+            Payload::DeviceEnrolled(_) => EventKind::DeviceEnrolled,
+            Payload::DeviceRevoked(_) => EventKind::DeviceRevoked,
             Payload::Unknown(value) => {
                 let tag = value
                     .get("type")

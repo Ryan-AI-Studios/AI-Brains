@@ -3,10 +3,27 @@
 //! Honesty: optional multi-device; **not** post-quantum; **not** remote wipe;
 //! **not** metadata-private. First-device uses `bootstrap`; peers use OOB
 //! fingerprint + `enroll` (T177 delivers history via relay).
+//!
+//! # Dual-write (intentional for T176)
+//!
+//! Bootstrap / enroll / revoke:
+//! 1. Append immutable `DeviceEnrolled` / `DeviceRevoked` to the canonical
+//!    event log (SOV — AGENTS.md + spec §9.1).
+//! 2. Write side tables (`device_identity`, `signed_replication_control`, …)
+//!    for signed wire control material used by multi-device apply.
+//!
+//! Projection apply-from-log for `device_identity` is deferred (T177 may unify).
 
 use crate::context::AppContext;
 use ai_brains_core::ids::DeviceId;
+use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::DataKey;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{
+    Actor, AggregateType, DeviceEnrolledPayload as EventDeviceEnrolledPayload,
+    DeviceRevokedPayload as EventDeviceRevokedPayload, Payload,
+};
+use ai_brains_store::EventStore;
 use ai_brains_store::projections::replication::{
     self, BootstrapLocalDeviceInput, DeviceIdentityRow, DevicePrivateKeyRow, EnvelopeIndexRow,
     SignedControlRow,
@@ -14,7 +31,7 @@ use ai_brains_store::projections::replication::{
 use ai_brains_sync::{
     ControlPayload, DeviceEnrolledPayload, DevicePrivateSeeds, DeviceRevokedPayload,
     REPLICATION_SCHEMA_VERSION, build_and_sign_control, enrollment_package, fingerprint_sha256,
-    format_fingerprint_hyphen, generate_device_keys, open_device_private_blob,
+    format_fingerprint_hyphen, generate_device_keys, nil_content_key_id, open_device_private_blob,
     parse_enrollment_package, private_blob, verify_envelope,
 };
 use ed25519_dalek::VerifyingKey;
@@ -128,16 +145,78 @@ fn load_local_signing_key(
     Ok((device_id, key_pair.signing_key()))
 }
 
+/// Append membership control to the canonical event log (SOV). Side stores are separate.
+#[allow(clippy::too_many_arguments)]
+fn append_device_enrolled_event(
+    ctx: &AppContext,
+    device_id: DeviceId,
+    enrolled_by: DeviceId,
+    status: &str,
+    fingerprint: &[u8; 32],
+    ed25519_pub: &[u8; 32],
+    x25519_pub: &[u8; 32],
+    schema_version: u16,
+    built: &ai_brains_sync::SignedControlEnvelope,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let event = EventBuilder::new(
+        AggregateType::System,
+        device_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceEnrolled(EventDeviceEnrolledPayload {
+        device_id,
+        enrolled_by_device_id: enrolled_by,
+        status: status.to_string(),
+        fingerprint_sha256: hex::encode(fingerprint),
+        ed25519_public: hex::encode(ed25519_pub),
+        x25519_public: hex::encode(x25519_pub),
+        schema_version,
+        replication_event_id: built.signed.outer.event_id,
+        local_seq: built.signed.outer.local_seq,
+    }))?;
+    let store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+    store.append_event(&event)?;
+    Ok(())
+}
+
+fn append_device_revoked_event(
+    ctx: &AppContext,
+    device_id: DeviceId,
+    revoked_by: DeviceId,
+    reason_code: &str,
+    built: &ai_brains_sync::SignedControlEnvelope,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let event = EventBuilder::new(
+        AggregateType::System,
+        device_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::DeviceRevoked(EventDeviceRevokedPayload {
+        device_id,
+        revoked_by_device_id: revoked_by,
+        reason_code: reason_code.to_string(),
+        replication_event_id: built.signed.outer.event_id,
+        local_seq: built.signed.outer.local_seq,
+    }))?;
+    let store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+    store.append_event(&event)?;
+    Ok(())
+}
+
 /// First-device local bootstrap (R26/R27): identity + private key + signed DeviceEnrolled
-/// in one SQLite transaction.
+/// in one SQLite transaction, plus canonical event-log SOV append (dual-write).
 pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = ctx.conn.lock()?;
-    if replication::has_active_or_local_device(&conn)? {
-        return Err(
-            "Bootstrap already enrolled: an active or local device already exists (R27). \
-             Use `device enroll` for additional devices."
-                .into(),
-        );
+    {
+        let conn = ctx.conn.lock()?;
+        if replication::has_active_or_local_device(&conn)? {
+            return Err(
+                "Bootstrap already enrolled: an active or local device already exists (R27). \
+                 Use `device enroll` for additional devices."
+                    .into(),
+            );
+        }
     }
 
     let data_key = data_key_from_sqlcipher(&ctx._key)?;
@@ -163,10 +242,24 @@ pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
         device_id,
         local_seq,
         &keys.signing_key(),
+        nil_content_key_id(),
     )
     .map_err(|e| e.to_string())?;
     // Fail closed: signature must verify against the public we store.
     verify_envelope(&built.signed, &keys.verifying_key()).map_err(|e| e.to_string())?;
+
+    // SOV first: immutable event log (AGENTS.md + spec §9.1). Side store next.
+    append_device_enrolled_event(
+        ctx,
+        device_id,
+        device_id,
+        "local",
+        &fp,
+        &ed_pub,
+        &x_pub,
+        REPLICATION_SCHEMA_VERSION,
+        &built,
+    )?;
 
     let (signed_control, envelope_index) = signed_control_rows(&built, &enrolled_at);
 
@@ -188,20 +281,24 @@ pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
         .map_err(|e| e.to_string())?;
     let private_key = sealed_to_row(&device_id, &sealed, &enrolled_at);
 
-    replication::bootstrap_local_device(
-        &mut conn,
-        &BootstrapLocalDeviceInput {
-            identity,
-            private_key,
-            signed_control,
-            envelope_index,
-        },
-    )?;
+    {
+        let mut conn = ctx.conn.lock()?;
+        replication::bootstrap_local_device(
+            &mut conn,
+            &BootstrapLocalDeviceInput {
+                identity,
+                private_key,
+                signed_control,
+                envelope_index,
+            },
+        )?;
+    }
 
     println!("Device bootstrap complete (status=local).");
     println!("device_id: {device_id}");
     println!("fingerprint: {}", format_fingerprint_hyphen(&fp));
     println!("signed_control: DeviceEnrolled (self-signed, local_seq={local_seq})");
+    println!("event_log: DeviceEnrolled appended (canonical SOV; dual-write with side store)");
     println!("Note: multi-device is optional; not PQ; not remote wipe; not metadata-private.");
     Ok(())
 }
@@ -319,9 +416,20 @@ pub fn run_enroll(
     package_path: PathBuf,
     yes: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = ctx.conn.lock()?;
     let data_key = data_key_from_sqlcipher(&ctx._key)?;
-    let (signer_id, signing_key) = load_local_signing_key(&conn, &data_key)?;
+    let (signer_id, signing_key, local_seq, vk_bytes) = {
+        let conn = ctx.conn.lock()?;
+        let (signer_id, signing_key) = load_local_signing_key(&conn, &data_key)?;
+        let local_seq = replication::next_local_seq(&conn, &signer_id.to_string())? as u64;
+        let signer_row = replication::get_device(&conn, &signer_id.to_string())?
+            .ok_or("signer identity missing")?;
+        let vk_bytes: [u8; 32] = signer_row
+            .ed25519_public
+            .as_slice()
+            .try_into()
+            .map_err(|_| "signer ed25519_public must be 32 bytes")?;
+        (signer_id, signing_key, local_seq, vk_bytes)
+    };
 
     let bytes = fs::read(&package_path)?;
     let parsed = parse_enrollment_package(&bytes).map_err(|e| e.to_string())?;
@@ -346,7 +454,6 @@ pub fn run_enroll(
     }
 
     let enrolled_at = now_rfc3339()?;
-    let local_seq = replication::next_local_seq(&conn, &signer_id.to_string())? as u64;
     let control_payload = ControlPayload::DeviceEnrolled(DeviceEnrolledPayload {
         schema_version: parsed.schema_version,
         device_id: parsed.device_id,
@@ -359,19 +466,25 @@ pub fn run_enroll(
         signer_id,
         local_seq,
         &signing_key,
+        nil_content_key_id(),
     )
     .map_err(|e| e.to_string())?;
 
-    // Verify with local device public from identity row.
-    let signer_row =
-        replication::get_device(&conn, &signer_id.to_string())?.ok_or("signer identity missing")?;
-    let vk_bytes: [u8; 32] = signer_row
-        .ed25519_public
-        .as_slice()
-        .try_into()
-        .map_err(|_| "signer ed25519_public must be 32 bytes")?;
     let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|e| format!("verifying key: {e}"))?;
     verify_envelope(&built.signed, &vk).map_err(|e| e.to_string())?;
+
+    // SOV first, then side store (dual-write intentional for T176).
+    append_device_enrolled_event(
+        ctx,
+        parsed.device_id,
+        signer_id,
+        "active",
+        &fp,
+        &parsed.ed25519_pub,
+        &parsed.x25519_pub,
+        parsed.schema_version,
+        &built,
+    )?;
 
     let (signed_control, envelope_index) = signed_control_rows(&built, &enrolled_at);
     let identity = DeviceIdentityRow {
@@ -387,7 +500,10 @@ pub fn run_enroll(
         fingerprint_sha256: fp.to_vec(),
     };
 
-    replication::enroll_peer_device(&mut conn, &identity, &signed_control, &envelope_index)?;
+    {
+        let mut conn = ctx.conn.lock()?;
+        replication::enroll_peer_device(&mut conn, &identity, &signed_control, &envelope_index)?;
+    }
 
     println!(
         "Enrolled peer {} as active (signed DeviceEnrolled by {}).",
@@ -400,24 +516,45 @@ pub fn run_enroll(
 }
 
 /// Revoke a device: signed DeviceRevoked + tombstone + R23 delete peer wraps.
+///
+/// Self-revoke by the local signer alone is forbidden (ADR-0018 L4).
 pub fn run_revoke(ctx: &AppContext, device_id: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = ctx.conn.lock()?;
-    let existing = replication::get_device(&conn, device_id)?
-        .ok_or_else(|| format!("Device not found: {device_id}"))?;
-    if existing.status == "revoked" {
-        println!("Device {device_id} is already revoked.");
-        return Ok(());
-    }
-
     let data_key = data_key_from_sqlcipher(&ctx._key)?;
-    let (signer_id, signing_key) = load_local_signing_key(&conn, &data_key)?;
+
+    // Phase 1: read identity + signer under a short lock (no nested EventStore lock).
+    let (signer_id, signing_key, local_seq, vk_bytes) = {
+        let conn = ctx.conn.lock()?;
+        let existing = replication::get_device(&conn, device_id)?
+            .ok_or_else(|| format!("Device not found: {device_id}"))?;
+        if existing.status == "revoked" {
+            println!("Device {device_id} is already revoked.");
+            return Ok(());
+        }
+        let (signer_id, signing_key) = load_local_signing_key(&conn, &data_key)?;
+        let local_seq = replication::next_local_seq(&conn, &signer_id.to_string())? as u64;
+        let signer_row = replication::get_device(&conn, &signer_id.to_string())?
+            .ok_or("signer identity missing")?;
+        let vk_bytes: [u8; 32] = signer_row
+            .ed25519_public
+            .as_slice()
+            .try_into()
+            .map_err(|_| "signer ed25519_public must be 32 bytes")?;
+        (signer_id, signing_key, local_seq, vk_bytes)
+    };
 
     let revoked_device: DeviceId = device_id
         .parse()
         .map_err(|e| format!("invalid device_id: {e}"))?;
+
+    // ADR-0018 L4: cannot self-revoke as sole authority.
+    if revoked_device == signer_id {
+        return Err("Cannot self-revoke as sole authority (ADR-0018 L4). \
+             Revoke from a different enrolled device, or enroll a peer first."
+            .into());
+    }
+
     let reason_code = "cli-revoke".to_string();
     let revoked_at = now_rfc3339()?;
-    let local_seq = replication::next_local_seq(&conn, &signer_id.to_string())? as u64;
 
     let control_payload = ControlPayload::DeviceRevoked(DeviceRevokedPayload {
         device_id: revoked_device,
@@ -429,29 +566,29 @@ pub fn run_revoke(ctx: &AppContext, device_id: &str) -> Result<(), Box<dyn std::
         signer_id,
         local_seq,
         &signing_key,
+        nil_content_key_id(),
     )
     .map_err(|e| e.to_string())?;
 
     // Fail closed: match bootstrap/enroll — verify before persist.
-    let signer_row =
-        replication::get_device(&conn, &signer_id.to_string())?.ok_or("signer identity missing")?;
-    let vk_bytes: [u8; 32] = signer_row
-        .ed25519_public
-        .as_slice()
-        .try_into()
-        .map_err(|_| "signer ed25519_public must be 32 bytes")?;
     let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|e| format!("verifying key: {e}"))?;
     verify_envelope(&built.signed, &vk).map_err(|e| e.to_string())?;
 
+    // SOV first, then side store (dual-write intentional for T176).
+    append_device_revoked_event(ctx, revoked_device, signer_id, &reason_code, &built)?;
+
     let (signed_control, envelope_index) = signed_control_rows(&built, &revoked_at);
-    replication::revoke_device_with_control(
-        &mut conn,
-        device_id,
-        &revoked_at,
-        &reason_code,
-        &signed_control,
-        &envelope_index,
-    )?;
+    {
+        let mut conn = ctx.conn.lock()?;
+        replication::revoke_device_with_control(
+            &mut conn,
+            device_id,
+            &revoked_at,
+            &reason_code,
+            &signed_control,
+            &envelope_index,
+        )?;
+    }
 
     println!("Revoked and tombstoned device {device_id}.");
     println!(
@@ -522,6 +659,7 @@ mod tests {
             device,
             1,
             &keys.signing_key(),
+            nil_content_key_id(),
         )
         .expect("sign");
         let (ctrl, idx) = signed_control_rows(&built, "2026-07-30T00:00:00Z");

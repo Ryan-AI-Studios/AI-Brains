@@ -29,7 +29,7 @@ pub use apply_order::{ApplyOrderKey, sort_by_apply_order};
 pub use control::{
     ContentErasureTombstonePayload, ControlPayload, DeviceEnrolledPayload, DeviceRevokedPayload,
     ErasureAckPayload, GapSkipAuditPayload, SignedControlEnvelope, build_and_sign_control,
-    decode_control_payload, encode_control_payload,
+    decode_control_payload, encode_control_payload, nil_content_key_id,
 };
 pub use device_keys::{DeviceKeyPair, generate_device_keys};
 pub use enrollment::{

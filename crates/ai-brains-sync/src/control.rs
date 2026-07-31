@@ -273,8 +273,12 @@ pub struct SignedControlEnvelope {
     pub body: Vec<u8>,
 }
 
-/// Build cleartext control payload, wrap as outer envelope (wrap_count=0,
-/// content_key_id = nil UUID except caller may override), and Ed25519-sign.
+/// Build cleartext control payload, wrap as outer envelope (wrap_count=0),
+/// and Ed25519-sign.
+///
+/// `content_key_id` is part of signed outer metadata (ADR-0018):
+/// - DeviceEnrolled / DeviceRevoked / GapSkipAudit → nil UUID
+/// - ContentErasureTombstone / ErasureAck → target content key from payload
 ///
 /// Used by bootstrap / enroll / revoke local control persistence (T176).
 pub fn build_and_sign_control(
@@ -283,6 +287,7 @@ pub fn build_and_sign_control(
     sender_device_id: DeviceId,
     local_seq: u64,
     signing_key: &ed25519_dalek::SigningKey,
+    content_key_id: ContentKeyId,
 ) -> Result<SignedControlEnvelope> {
     if !kind.is_control() {
         return Err(SyncError::InvalidEncoding(
@@ -297,12 +302,17 @@ pub fn build_and_sign_control(
         local_seq,
         content_type_code: kind,
         event_id: ReplicationEventId::new(),
-        content_key_id: ContentKeyId::from_uuid(uuid::Uuid::nil()),
+        content_key_id,
         ciphertext: body.clone(),
         wrap_records: vec![],
     };
     let signed = crate::envelope::sign_envelope(&outer, signing_key)?;
     Ok(SignedControlEnvelope { signed, body })
+}
+
+/// Nil content key for membership / gap-skip controls (not bound to a CE key).
+pub fn nil_content_key_id() -> ContentKeyId {
+    ContentKeyId::from_uuid(uuid::Uuid::nil())
 }
 
 #[cfg(test)]
@@ -373,6 +383,7 @@ mod tests {
             device,
             1,
             &keys.signing_key(),
+            nil_content_key_id(),
         )
         .expect("sign control");
         assert!(built.signed.outer.wrap_records.is_empty());
@@ -383,5 +394,122 @@ mod tests {
         swapped.outer.local_seq = 999;
         let err = verify_envelope(&swapped, &keys.verifying_key()).expect_err("meta-swap");
         assert!(matches!(err, SyncError::SignatureInvalid));
+    }
+
+    #[test]
+    fn build_and_sign_control__device_revoked__verifiable() {
+        let keys = generate_device_keys().expect("keys");
+        let signer = DeviceId::from_uuid(Uuid::new_v4());
+        let target = DeviceId::from_uuid(Uuid::new_v4());
+        let payload = DeviceRevokedPayload {
+            device_id: target,
+            reason_code: "lost-device".to_string(),
+        };
+        let built = build_and_sign_control(
+            ContentTypeCode::DeviceRevoked,
+            &ControlPayload::DeviceRevoked(payload.clone()),
+            signer,
+            2,
+            &keys.signing_key(),
+            nil_content_key_id(),
+        )
+        .expect("sign revoked");
+        assert_eq!(built.signed.outer.content_key_id.as_uuid(), Uuid::nil());
+        assert!(built.signed.outer.wrap_records.is_empty());
+        verify_envelope(&built.signed, &keys.verifying_key()).expect("verify");
+        let decoded =
+            decode_control_payload(ContentTypeCode::DeviceRevoked, &built.body).expect("decode");
+        match decoded {
+            ControlPayload::DeviceRevoked(p) => {
+                assert_eq!(p.device_id, target);
+                assert_eq!(p.reason_code, "lost-device");
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn build_and_sign_control__erasure_tombstone__content_key_bound() {
+        let keys = generate_device_keys().expect("keys");
+        let signer = DeviceId::from_uuid(Uuid::new_v4());
+        let target_key = ContentKeyId::from_uuid(Uuid::new_v4());
+        let payload = ContentErasureTombstonePayload {
+            content_key_id: target_key,
+            reason_code: "user-forget".to_string(),
+        };
+        let built = build_and_sign_control(
+            ContentTypeCode::ContentErasureTombstone,
+            &ControlPayload::ContentErasureTombstone(payload),
+            signer,
+            3,
+            &keys.signing_key(),
+            target_key,
+        )
+        .expect("sign tombstone");
+        assert_eq!(built.signed.outer.content_key_id, target_key);
+        assert_ne!(built.signed.outer.content_key_id.as_uuid(), Uuid::nil());
+        verify_envelope(&built.signed, &keys.verifying_key()).expect("verify");
+        // Tampering content_key_id in outer must fail verify.
+        let mut swapped = built.signed.clone();
+        swapped.outer.content_key_id = ContentKeyId::from_uuid(Uuid::new_v4());
+        let err = verify_envelope(&swapped, &keys.verifying_key()).expect_err("key-swap");
+        assert!(matches!(err, SyncError::SignatureInvalid));
+    }
+
+    #[test]
+    fn build_and_sign_control__erasure_ack__content_key_bound() {
+        let keys = generate_device_keys().expect("keys");
+        let peer = DeviceId::from_uuid(Uuid::new_v4());
+        let target_key = ContentKeyId::from_uuid(Uuid::new_v4());
+        let erasure_id = ReplicationEventId::from_uuid(Uuid::new_v4());
+        let payload = ErasureAckPayload {
+            erasure_id,
+            content_key_id: target_key,
+            peer_device_id: peer,
+            status: "acked".to_string(),
+        };
+        let built = build_and_sign_control(
+            ContentTypeCode::ErasureAck,
+            &ControlPayload::ErasureAck(payload.clone()),
+            peer,
+            4,
+            &keys.signing_key(),
+            target_key,
+        )
+        .expect("sign ack");
+        assert_eq!(built.signed.outer.content_key_id, target_key);
+        verify_envelope(&built.signed, &keys.verifying_key()).expect("verify");
+        let decoded =
+            decode_control_payload(ContentTypeCode::ErasureAck, &built.body).expect("decode");
+        match decoded {
+            ControlPayload::ErasureAck(p) => {
+                assert_eq!(p.content_key_id, target_key);
+                assert_eq!(p.status, "acked");
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn build_and_sign_control__gap_skip_audit__nil_key_verifiable() {
+        let keys = generate_device_keys().expect("keys");
+        let peer = DeviceId::from_uuid(Uuid::new_v4());
+        let signer = DeviceId::from_uuid(Uuid::new_v4());
+        let payload = GapSkipAuditPayload {
+            peer_device_id: peer,
+            skipped_seq: 7,
+            reason: "operator-skip".to_string(),
+        };
+        let built = build_and_sign_control(
+            ContentTypeCode::GapSkipAudit,
+            &ControlPayload::GapSkipAudit(payload),
+            signer,
+            5,
+            &keys.signing_key(),
+            nil_content_key_id(),
+        )
+        .expect("sign gap skip");
+        assert_eq!(built.signed.outer.content_key_id.as_uuid(), Uuid::nil());
+        verify_envelope(&built.signed, &keys.verifying_key()).expect("verify");
     }
 }

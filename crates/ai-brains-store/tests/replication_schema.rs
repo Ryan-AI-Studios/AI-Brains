@@ -5,6 +5,7 @@
 
 use ai_brains_core::ids::DeviceId;
 use ai_brains_crypto::DataKey;
+use ai_brains_store::apply_migrations_through;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::SqliteEventStore;
 use ai_brains_store::projections::replication::{
@@ -87,6 +88,89 @@ fn migration_0027__fresh_vault__tables_exist() {
     assert!(
         !cols.iter().any(|c| c == "content_hash_sha256"),
         "must not have content_hash_sha256"
+    );
+}
+
+#[test]
+fn migration_0027__after_0026__applies_forward() {
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let key = DataKey::generate();
+    let sql_key = ai_brains_crypto::SqlCipherKey::from_data_key(&key);
+    let conn = VaultConnection::open(db_path, &sql_key).unwrap();
+
+    {
+        let mut locked = conn.lock().unwrap();
+        apply_migrations_through(&mut locked, Some("0026_content_envelopes_erasure")).unwrap();
+    }
+
+    assert!(
+        !table_exists_conn(&conn, "device_identity"),
+        "0026-only vault must not yet have device_identity"
+    );
+    assert!(
+        table_exists_conn(&conn, "content_key_store"),
+        "0026 vault must have content_key_store"
+    );
+
+    conn.migrate().unwrap();
+
+    for table in [
+        "device_identity",
+        "device_id_tombstone",
+        "device_private_key_store",
+        "peer_content_key_wrap",
+        "encrypted_envelope_index",
+        "signed_replication_control",
+        "replication_cursor",
+        "replication_gap_buffer",
+        "erasure_ack_projection",
+        "replication_gap_skip_audit",
+    ] {
+        assert!(
+            table_exists_conn(&conn, table),
+            "after full migrate, missing table {table}"
+        );
+    }
+
+    let locked = conn.lock().unwrap();
+    let applied: i64 = locked
+        .query_row(
+            "SELECT COUNT(*) FROM schema_migrations WHERE name = '0027_replication_state'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(applied, 1, "0027 must be recorded in schema_migrations");
+}
+
+fn table_exists_conn(conn: &VaultConnection, name: &str) -> bool {
+    let locked = conn.lock().unwrap();
+    let count: i64 = locked
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+            [name],
+            |r| r.get(0),
+        )
+        .unwrap();
+    count == 1
+}
+
+#[test]
+fn device_identity__bad_status__check_constraint_rejects() {
+    let (_tmp, store) = open_store();
+    let conn = store.connection().lock().unwrap();
+    let mut bad = sample_identity(
+        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "not-a-status",
+        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    );
+    bad.status = "zombie".to_string();
+    let err = replication::insert_device_identity(&conn, &bad).expect_err("bad status");
+    let msg = err.to_string().to_lowercase();
+    assert!(
+        msg.contains("check") || msg.contains("constraint") || msg.contains("status"),
+        "expected CHECK failure, got: {err}"
     );
 }
 
@@ -231,6 +315,7 @@ fn bootstrap_local_device__second_call__err() {
         device,
         1,
         &keys.signing_key(),
+        ai_brains_sync::nil_content_key_id(),
     )
     .unwrap();
     verify_envelope(&built.signed, &keys.verifying_key()).unwrap();

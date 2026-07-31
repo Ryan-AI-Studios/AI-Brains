@@ -1,7 +1,7 @@
 use ai_brains_core::ids::{
-    BriefingId, ConclusionId, ConflictId, ContentKeyId, DecisionId, EvidenceId, GrantId, MemoryId,
-    PrincipalId, ProjectId, QueryTraceId, RecipeId, ReviewItemId, SessionId, SourceId,
-    SourceVersionId, TombstoneId, TransactionId, WorkspaceId,
+    BriefingId, ConclusionId, ConflictId, ContentKeyId, DecisionId, DeviceId, EvidenceId, GrantId,
+    MemoryId, PrincipalId, ProjectId, QueryTraceId, RecipeId, ReplicationEventId, ReviewItemId,
+    SessionId, SourceId, SourceVersionId, TombstoneId, TransactionId, WorkspaceId,
 };
 use ai_brains_core::model_provenance::ModelProvenance;
 use ai_brains_core::privacy::Privacy;
@@ -688,6 +688,43 @@ pub struct PolicyDecisionRecordedPayload {
     pub privacy: Option<Privacy>,
 }
 
+/// Canonical event-log record for device membership add (T176 / ADR-0018).
+///
+/// Dual-write with `signed_replication_control` / `device_identity` side stores is
+/// intentional in T176: this payload is the append-only SOV for membership history;
+/// side stores hold signed wire control material for multi-device apply. T177 may
+/// unify projection apply-from-log.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeviceEnrolledPayload {
+    pub device_id: DeviceId,
+    pub enrolled_by_device_id: DeviceId,
+    /// `"local"` (first-device bootstrap) or `"active"` (peer enroll).
+    pub status: String,
+    /// Hex-encoded SHA-256 of the enrollment package (32 bytes → 64 hex chars).
+    pub fingerprint_sha256: String,
+    /// Hex-encoded Ed25519 public key (32 bytes → 64 hex chars).
+    pub ed25519_public: String,
+    /// Hex-encoded X25519 public key (32 bytes → 64 hex chars).
+    pub x25519_public: String,
+    pub schema_version: u16,
+    /// Replication wire event id (matches signed control outer.event_id).
+    pub replication_event_id: ReplicationEventId,
+    pub local_seq: u64,
+}
+
+/// Canonical event-log record for device membership remove / permanent retirement (T176).
+///
+/// Dual-write with side stores is intentional (see [`DeviceEnrolledPayload`]).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeviceRevokedPayload {
+    pub device_id: DeviceId,
+    pub revoked_by_device_id: DeviceId,
+    pub reason_code: String,
+    /// Replication wire event id (matches signed control outer.event_id).
+    pub replication_event_id: ReplicationEventId,
+    pub local_seq: u64,
+}
+
 /// Internally tagged payload (`type` field, PascalCase).
 ///
 /// [`Payload::Unknown`] preserves the full original JSON object so shadow/append
@@ -753,6 +790,10 @@ pub enum Payload {
     RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
     RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload),
     PolicyDecisionRecorded(PolicyDecisionRecordedPayload),
+    /// Multi-device membership add (T176); dual-write with signed control side store.
+    DeviceEnrolled(DeviceEnrolledPayload),
+    /// Multi-device membership remove / permanent DeviceId retirement (T176).
+    DeviceRevoked(DeviceRevokedPayload),
     /// Full original JSON object for unrecognized `type` tags.
     Unknown(serde_json::Value),
 }
@@ -818,6 +859,8 @@ enum KnownPayload {
     RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
     RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload),
     PolicyDecisionRecorded(PolicyDecisionRecordedPayload),
+    DeviceEnrolled(DeviceEnrolledPayload),
+    DeviceRevoked(DeviceRevokedPayload),
 }
 
 fn is_known_payload_type(type_str: &str) -> bool {
@@ -880,6 +923,8 @@ fn is_known_payload_type(type_str: &str) -> bool {
             | "RepositoryIdentityRegistered"
             | "RepositoryPathAliasAdded"
             | "PolicyDecisionRecorded"
+            | "DeviceEnrolled"
+            | "DeviceRevoked"
     )
 }
 
@@ -945,6 +990,8 @@ impl From<KnownPayload> for Payload {
             }
             KnownPayload::RepositoryPathAliasAdded(p) => Payload::RepositoryPathAliasAdded(p),
             KnownPayload::PolicyDecisionRecorded(p) => Payload::PolicyDecisionRecorded(p),
+            KnownPayload::DeviceEnrolled(p) => Payload::DeviceEnrolled(p),
+            KnownPayload::DeviceRevoked(p) => Payload::DeviceRevoked(p),
         }
     }
 }
@@ -1015,6 +1062,8 @@ impl Payload {
                 KnownPayload::RepositoryPathAliasAdded(p.clone())
             }
             Payload::PolicyDecisionRecorded(p) => KnownPayload::PolicyDecisionRecorded(p.clone()),
+            Payload::DeviceEnrolled(p) => KnownPayload::DeviceEnrolled(p.clone()),
+            Payload::DeviceRevoked(p) => KnownPayload::DeviceRevoked(p.clone()),
             Payload::Unknown(_) => return None,
         })
     }

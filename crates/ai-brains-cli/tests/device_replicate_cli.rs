@@ -7,7 +7,10 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
+use std::path::Path;
 use tempfile::tempdir;
+
+const ZERO_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
 
 fn init_vault(vault_path: &std::path::Path) {
     Command::cargo_bin("ai-brains")
@@ -276,6 +279,135 @@ fn cli_revoke__after_enroll__ok() {
         .success()
         .stdout(predicate::str::contains("Revoked"))
         .stdout(predicate::str::contains("Signed DeviceRevoked"));
+}
+
+#[test]
+fn bootstrap__appends_device_enrolled_event_log_sov() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    bootstrap(&vault);
+
+    let count = count_events_of_type(&vault, "DeviceEnrolled").expect("query events");
+    assert!(
+        count >= 1,
+        "bootstrap must append ≥1 DeviceEnrolled row to events (SOV), got {count}"
+    );
+}
+
+#[test]
+fn revoke__self__fails_adr0018_l4() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("device")
+        .arg("bootstrap")
+        .output()
+        .expect("bootstrap");
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let local_id = stdout
+        .lines()
+        .find_map(|l| l.strip_prefix("device_id: "))
+        .expect("device_id line")
+        .trim()
+        .to_string();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("device")
+        .arg("revoke")
+        .arg(&local_id)
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("self-revoke")
+                .or(predicate::str::contains("sole authority"))
+                .or(predicate::str::contains("ADR-0018")),
+        );
+}
+
+#[test]
+fn revoke__peer_after_enroll__ok_and_event_log() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    bootstrap(&vault);
+
+    let package = dir.path().join("peer.bin");
+    let export = Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("device")
+        .arg("package-export")
+        .arg("--out")
+        .arg(&package)
+        .output()
+        .expect("export");
+    assert!(export.status.success());
+    let export_out = String::from_utf8_lossy(&export.stdout);
+    let peer_id = export_out
+        .lines()
+        .find_map(|l| l.strip_prefix("device_id: "))
+        .expect("device_id line")
+        .trim()
+        .to_string();
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("device")
+        .arg("enroll")
+        .arg("--package")
+        .arg(&package)
+        .arg("--yes")
+        .assert()
+        .success();
+
+    let enrolled = count_events_of_type(&vault, "DeviceEnrolled").expect("enrolled events");
+    assert!(
+        enrolled >= 2,
+        "bootstrap + enroll must produce ≥2 DeviceEnrolled events, got {enrolled}"
+    );
+
+    Command::cargo_bin("ai-brains")
+        .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("device")
+        .arg("revoke")
+        .arg(&peer_id)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Revoked"));
+
+    let revoked = count_events_of_type(&vault, "DeviceRevoked").expect("revoked events");
+    assert!(
+        revoked >= 1,
+        "peer revoke must append DeviceRevoked to events, got {revoked}"
+    );
+}
+
+fn count_events_of_type(
+    vault_path: &Path,
+    event_type: &str,
+) -> Result<i64, Box<dyn std::error::Error>> {
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
+    let conn = ai_brains_store::connection::VaultConnection::open(vault_path, &key)?;
+    let locked = conn.lock()?;
+    let count: i64 = locked.query_row(
+        "SELECT COUNT(*) FROM events WHERE event_type = ?",
+        [event_type],
+        |r| r.get(0),
+    )?;
+    Ok(count)
 }
 
 #[cfg(windows)]
