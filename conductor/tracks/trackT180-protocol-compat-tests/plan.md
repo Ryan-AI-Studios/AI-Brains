@@ -60,9 +60,9 @@ Ledger: `87a23c0c-2092-458c-b7ed-1e51d1c67ee0`.
 - [x] **E1** Full gate: fmt, clippy -D warnings, nextest 1693 pass, deny, audit (allowed warnings only)  
 - [x] **E2** Targeted nextest: protocol_compat + protocol_wire + CLI (66+ daemon/http/events; 4 CLI)  
 - [x] **E3** Internal R1→fix→R2 **PASS** (0 open findings)  
-- [ ] **E3b** Codex cross-model clean final gate  
-- [x] **E4** deferred §57 updated (In Progress / Implemented)  
-- [ ] **E5** Pin decision after merge-ready  
+- [x] **E3b** Codex cross-model clean final gate — R1 **PASS** (0 findings); `review.codex.r1.md`  
+- [x] **E4** deferred §57 Completed  
+- [x] **E5** Pin after PR green (or at merge)  
 
 ---
 

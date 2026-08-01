@@ -2,7 +2,7 @@
 
 - **Track ID:** T180-ProtocolCompatTests
 - **Phase:** P12 — Release hardening and adoption (Task 2)
-- **Status:** 📋 **Proposed / Expanded** (+ AI1/AI2 fold-in 2026-07-31) — design-only until human go-ahead
+- **Status:** ✅ **Completed** (2026-08-01) — Codex R1 PASS; local full gate green
 - **Depends on:** T158–T161 **Completed** (daemon wire + HTTP `/v1`); T148–T150 event R0 Unknown fidelity; T176–T178 sync AIBR wire KATs (index only); contracts multi-module `API_VERSION = "1"`; no public release tag required (fixture-first)
 - **Blocks / feeds:** T183 upgrade notes (limitations: unenforced `api_version`, Upcast stub, BridgePayload capture); T185 wire honesty
 - **Category:** FEATURE / RELEASE / TESTING
@@ -310,10 +310,10 @@ Fixtures/tests only; no AGPL tools; project-owned binaries only if N−1 residua
 
 ## 12. Definition of Done
 
-- [ ] F1–F38 reflected  
-- [ ] AC1–AC12 green  
-- [ ] PROTOCOL-COMPAT.md published  
-- [ ] Conductor → Completed after review  
+- [x] F1–F38 reflected  
+- [x] AC1–AC12 green  
+- [x] PROTOCOL-COMPAT.md published  
+- [x] Conductor → Completed after review (internal R2 + Codex R1 PASS)  
 
 ## 13. Implementation priority
 
@@ -323,7 +323,7 @@ Fixtures/tests only; no AGPL tools; project-owned binaries only if N−1 residua
 4. **D** — P-SYNC index; residual notes for T183/T185  
 5. **E** — Gate + closeout  
 
-**Still design-only until human go-ahead.**
+**Shipped 2026-08-01** (branch `track/T180-protocol-compat-tests`).
 
 ## 14. AI review disposition
 

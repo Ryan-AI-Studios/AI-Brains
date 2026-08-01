@@ -5,9 +5,11 @@
 **Branch:** `track/T180-protocol-compat-tests`  
 **Scope:** Spec AC1–AC12, F1–F38, landed tests/docs vs policy honesty
 
-## Verdict: PASS (internal R2 pending re-review)
+## Verdict: PASS (engineering complete)
 
-Round 1: PASS WITH DEFERRED (2 medium + 4 low). Round 1→2 fixes applied 2026-08-01 (M1/M2 + L1–L4).
+- Internal R1: PASS WITH DEFERRED → fixes → **R2 PASS** (0 open)
+- Codex R1: **PASS** (0 P0–P3 findings) — `review.codex.r1.md`
+- Local gate: nextest 1693, clippy -D warnings, deny/audit exit 0
 
 | Severity | Count | Status |
 |----------|------:|--------|
@@ -15,6 +17,7 @@ Round 1: PASS WITH DEFERRED (2 medium + 4 low). Round 1→2 fixes applied 2026-0
 | high | 0 | — |
 | medium | 2 | **verified_fixed** (M1 CLI production paths; M2 sync index paths) |
 | low | 4 | **verified_fixed** (L1–L4) |
+| Codex P0–P3 | 0 | clean final gate |
 
 ---
 
