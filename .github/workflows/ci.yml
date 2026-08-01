@@ -13,6 +13,11 @@ on:
       - main
   workflow_dispatch:
 
+# Least-privilege default token (T184 / OpenSSF Token-Permissions class).
+# Jobs that need write (e.g. future release/provenance) must opt in explicitly.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1

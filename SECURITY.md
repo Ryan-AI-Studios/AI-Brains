@@ -25,6 +25,10 @@ If you believe you have found a vulnerability in AI-Brains, please open a privat
 
 Do not file public issues with exploit details until coordinated disclosure.
 
+## Coordinated disclosure timeline
+
+Target: **90 days** from a confirmed fix landing in a released commit, **or** the next public release that includes the fix — whichever is **later** — before full public write-up of exploit details. Earlier disclosure may be agreed with the reporter. Critical issues may be summarized sooner without a weaponized PoC.
+
 ## Scope notes
 
 - AI-Brains is licensed under PolyForm Noncommercial 1.0.0 with a small-entity commercial exception — see `LICENSE` and `COMMERCIAL-EXCEPTION.md`.  

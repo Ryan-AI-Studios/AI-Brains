@@ -1,6 +1,28 @@
 #![cfg(windows)]
 #![allow(clippy::disallowed_methods)]
 
+//! Named-pipe security descriptor for `ai-brainsd`.
+//!
+//! # Design (T144 + T184 F-1)
+//!
+//! The daemon may run as **LocalSystem** (Session 0 Windows service). CLI clients
+//! run in **Session 1+** as interactive users and must open the pipe. Owner-only
+//! (`OW`) is insufficient when SYSTEM creates the pipe.
+//!
+//! SDDL grants:
+//! - **SY** (Local System) — service host
+//! - **BA** (Built-in Administrators) — elevated operators
+//! - **IU** (Interactive) — interactive logon sessions (Session 1+)
+//!
+//! This replaces the prior **WD** (Everyone / World) grant, which contradicted
+//! T144 non-goals (multi-user World was listed as a security risk) and
+//! OPERATIONS prose (“interactive user”).
+//!
+//! **Residual (R-MULTI / R-PIPE-IU):** On a multi-user machine, *any* interactive
+//! logon can open the pipe. Pipe messages still have no bearer (contrast HTTP).
+//! Single-owner desktops are the primary model; multi-user hosts accept residual
+//! risk documented in SECURITY-LIMITS.
+
 use std::io;
 
 use windows::{
@@ -11,7 +33,9 @@ use windows::{
     core::PCSTR,
 };
 
-const SDDL: &str = "D:(A;;GA;;;WD)";
+/// SYSTEM + Administrators + Interactive (not World/Everyone).
+/// See module docs and T184 finding F-1.
+const SDDL: &str = "D:(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;IU)";
 
 pub fn build_pipe_security_attributes() -> io::Result<SECURITY_ATTRIBUTES> {
     let mut psd: PSECURITY_DESCRIPTOR = PSECURITY_DESCRIPTOR::default();
@@ -27,7 +51,7 @@ pub fn build_pipe_security_attributes() -> io::Result<SECURITY_ATTRIBUTES> {
 
     if result.is_err() {
         return Err(io::Error::other(format!(
-            "ConvertStringSecurityDescriptorToSecurityDescriptorW failed: {:?}",
+            "ConvertStringSecurityDescriptorToSecurityDescriptorA failed: {:?}",
             result
         )));
     }
@@ -68,7 +92,7 @@ mod tests {
     }
 
     #[test]
-    fn build_pipe_security_attributes__dacl_present_grants_everyone() {
+    fn build_pipe_security_attributes__dacl_present_not_world() {
         let sa = build_pipe_security_attributes().expect("should build security attributes");
         let psd = PSECURITY_DESCRIPTOR(sa.lpSecurityDescriptor);
 
@@ -87,8 +111,32 @@ mod tests {
         assert!(result.is_ok());
         assert!(
             dacl_present.as_bool(),
-            "DACL must be present (explicit Everyone grant)"
+            "DACL must be present (explicit SY+BA+IU grant)"
         );
         assert!(!dacl_ptr.is_null(), "DACL pointer must not be null");
+
+        // Normative SDDL must not grant World/Everyone (WD).
+        assert!(
+            !SDDL.contains(";;;WD)"),
+            "pipe SDDL must not grant Everyone/World (WD); got {SDDL}"
+        );
+        assert!(
+            SDDL.contains(";;;IU)"),
+            "pipe SDDL must grant Interactive (IU); got {SDDL}"
+        );
+        assert!(
+            SDDL.contains(";;;SY)"),
+            "pipe SDDL must grant SYSTEM (SY); got {SDDL}"
+        );
+        assert!(
+            SDDL.contains(";;;BA)"),
+            "pipe SDDL must grant Administrators (BA); got {SDDL}"
+        );
+    }
+
+    #[test]
+    fn pipe_sddl__excludes_world_and_includes_interactive() {
+        assert_eq!(SDDL, "D:(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;IU)");
+        assert!(!SDDL.contains("WD"));
     }
 }

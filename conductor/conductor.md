@@ -127,7 +127,7 @@
 | T181 | Backup Recovery Drills | ✅ **Completed** | Grok | [T181](tracks/trackT181-backup-recovery-drills/spec.md) | **P12.3 complete 2026-08-01:** RECOVERY-DRILLS; R/K/E/F drills; secret helper; CE residual honesty; dual-mode wrong-key residual (plain bundled SQLite). Internal R2 PASS; Codex R2 **PASS WITH DEFERRED P3**. Residuals `deferred.md` §59. |
 | T182 | Connector Sandbox Decision | ✅ **Completed** | Grok | [T182](tracks/trackT182-connector-sandbox-decision/spec.md) | **P12.4 complete 2026-08-01:** ADR-0019 **Accepted** (TrustedBuiltin L1–L10); threat-model; soft two-layer tests; CAPABILITIES cite. Internal R2 PASS; Codex R1/R2 design clean (closeout/provenance P2s fixed); full gate 1708 passed; final Codex **R3 PASS WITH DEFERRED P3** (easy P3 fixed). Residuals `deferred.md` §60. |
 | T183 | Release Documentation Pack | ✅ **Completed** | Grok | [T183](tracks/trackT183-release-documentation/spec.md) | **P12.5 complete 2026-08-01:** Docs/README+INSTALL+SECURITY-LIMITS+SECURITY.md+CHANGELOG; F8 elevated rewords; provenance user-view; Impl-Plan §8 banner; status demote; CLAIMS-CROSSCHECK for T185. Internal R2 PASS; Codex R1 content PASS; final Codex **R2 PASS** (0 findings). Residuals → T185. |
-| T184 | Independent Security Review | 📋 **Proposed** | — | [T184](tracks/trackT184-independent-security-review/spec.md) | **P12.6 placeholder:** HTTP/connectors/models/keys/sync review; high findings must clear. |
+| T184 | Independent Security Review | ✅ **Completed** | Grok | [T184](tracks/trackT184-independent-security-review/spec.md) | **P12.6 complete 2026-08-01:** Charter frozen Sync=Y Desktop=Y; independent pass; F-1 High pipe SDDL SY+BA+IU; UDS 0o600; CI permissions+Dependabot; SECURITY.md 90d; residual register; AC1–AC10. Residuals `deferred.md` §62. |
 | T185 | Claims + SBOM Release Gate | 📋 **Proposed** | — | [T185](tracks/trackT185-claims-sbom-release-gate/spec.md) | **P12.7 placeholder:** claims only with evidence; deny/audit/SBOM; no cert/perfect-deletion claims. |
 | T186 | Hermetic CLI / Multi-OS Test Hygiene | 📋 **Proposed** | Grok | [T186](tracks/trackT186-hermetic-cli-ci-hygiene/spec.md) | **P12 residual placeholder:** shared hermetic assert_cmd helper; ambient-env CI honesty; soft-canonicalize path KATs; optional nextest no-fail-fast; post-T179. |
 
@@ -146,4 +146,5 @@
 2. Add entry to table above with **Pending** status
 3. Update to **In Progress** when implementation starts
 4. Update to **Complete** when all success criteria are met
+
 

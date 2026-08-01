@@ -170,12 +170,13 @@ fn cli_erasure_request__daemon_down__exit_code_5() {
     );
 
     // Hermetic: true daemon-down → exit 5 (DAEMON_UNAVAILABLE).
-    // Ambient `ledgerful-bridge` may answer Ping but not complete RequestErasure;
-    // that path is post-send ambiguous → exit 1 INTERNAL with "outcome unknown".
-    // Both are non-zero and must not claim CE wipe / local ticket.
+    // Ambient `ledgerful-bridge` may:
+    // - answer Ping but not complete RequestErasure → exit 1 INTERNAL "outcome unknown"
+    // - fully process and deny → exit 3 POLICY_DENIED (not invent a local ticket)
+    // All are non-zero and must not claim CE wipe / local ticket.
     assert!(
-        code == Some(5) || code == Some(1),
-        "expected exit 5 (daemon down) or 1 (ambiguous ambient daemon); got {code:?}; stdout={stdout} stderr={stderr}"
+        code == Some(5) || code == Some(1) || code == Some(3),
+        "expected exit 5 (daemon down), 1 (ambiguous ambient), or 3 (ambient policy denied); got {code:?}; stdout={stdout} stderr={stderr}"
     );
     if code == Some(5) {
         assert!(
@@ -187,6 +188,15 @@ fn cli_erasure_request__daemon_down__exit_code_5() {
         assert!(
             stdout.contains("outcome unknown") || stderr.contains("outcome unknown"),
             "exit 1 from ambient daemon must be ambiguous-outcome; stdout={stdout} stderr={stderr}"
+        );
+    }
+    if code == Some(3) {
+        assert!(
+            stdout.contains("POLICY_DENIED")
+                || stderr.contains("POLICY_DENIED")
+                || stdout.contains("denied")
+                || stderr.contains("denied"),
+            "exit 3 from ambient daemon must surface policy denial; stdout={stdout} stderr={stderr}"
         );
     }
     // Never claim wipe completed.
