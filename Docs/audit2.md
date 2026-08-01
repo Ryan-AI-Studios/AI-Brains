@@ -1,6 +1,8 @@
 # Audit 2: Conductor Tracks T55-T70
 
-Date: 2026-05-31
+> **Historical audit (2026-05-31).** Stale — T66–T71 and later P12 tracks have since completed. Live status: `conductor/conductor.md` · docs index: `Docs/README.md`. Do not treat “default CLI build is broken” as current fact without re-verification.
+
+Date: 2026-05-31  
 Scope: `conductor/tracks/trackT55` through `trackT70-changeguard-symbol-bridge`, current workspace implementation, conductor registry, and local verification.
 
 ## Executive Summary

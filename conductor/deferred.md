@@ -660,3 +660,35 @@ P12.4 complete. Normative: [ADR-0019](../Docs/DECISIONS/ADR-0019-connector-sandb
 6. Optional pin via `ai-brains pin` for ADR-0019 — soft  
 
 **Absorbed (productized / locked, not eliminated):** T153 R1-06 (soft tests); T154 cap-std as builtin hardening candidate (not plugin sandbox); vision §7.2 subprocess-first as L7.
+
+---
+
+## From T183 — Release Documentation Pack (2026-08-01)
+
+### 61. T183 Release Documentation — ✅ **Completed** (shipped 2026-08-01)
+
+P12.5 complete. Normative: `Docs/README.md`, `Docs/INSTALL.md`, `Docs/SECURITY-LIMITS.md`, root `SECURITY.md`, `CHANGELOG.md`, elevated F8 rewords, track `evidence/*`. Review: internal R2 + Codex R1 content clean; final Codex R2 as publish gate.
+
+**Absorbed / productized (documentation):**
+
+| Source | Outcome |
+|--------|---------|
+| T179 HANDOFF + F8 | INSTALL locks + elevated SQLCipher honesty |
+| T180 protocol honesty | INSTALL upgrade notes + PROTOCOL-COMPAT links |
+| T181 doctor / recovery export | Documented **absence** (DTO ≠ CLI); RECOVERY-DRILLS |
+| T182 ADR-0019 | Cited in SECURITY-LIMITS non-claims |
+| Implementation-Plan §8 phantoms | Drift banner |
+| status.md staleness | Demoted historical |
+| OPERATIONS “17 subcommands” | Banner replaced |
+| Missing Docs index / CHANGELOG / SECURITY | Created |
+
+**Residuals (open, not T183 blockers — hand to T185 / future):**
+
+1. Formal claims gate re-grep elevated docs + CLAIMS-CROSSCHECK consumption — **T185**  
+2. Version-banner CI sync — **T185**  
+3. MSI / notarization / App Store packaging — **T185**  
+4. Historical SQLCipher wording outside AC7 elevated set (`AGENTS.md`, PRD body, archives) — soft T185 re-grep  
+5. Implement `doctor` / `recovery export` product CLIs — future (honestly documented as absent)  
+6. #34.2 DataKey rotation; systemd/launchd production units; CONTRIBUTING.md; Common Changelog; T186 suite — unchanged out of scope  
+
+**Evidence handoff for T185:** `conductor/tracks/trackT183-release-documentation/evidence/CLAIMS-CROSSCHECK.md`

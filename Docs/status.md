@@ -1,8 +1,13 @@
 # AI-Brains Project Status Report
-**Date:** 2026-06-02
-**Phase:** Post-T71 / Hardening & Cross-Agent Synthesis
-**Current Track:** T72 (Status & Doc Reconciliation, this update)
-**Last Shipped Track:** T71 — CI Tooling Reproducibility
+
+> **Historical freeze.** This document is frozen at **T72 (2026-06-02)**. It is **not** live product status.  
+> **Current status:** [`conductor/conductor.md`](../conductor/conductor.md) · docs index [`Docs/README.md`](README.md).  
+> Do not treat tables below as complete after T72.
+
+**Date:** 2026-06-02  
+**Phase:** Post-T71 / Hardening & Cross-Agent Synthesis  
+**Current Track (at freeze):** T72 (Status & Doc Reconciliation, this update)  
+**Last Shipped Track (at freeze):** T71 — CI Tooling Reproducibility
 
 ## 1. Executive Summary
 

@@ -1265,6 +1265,11 @@ If these fields are present, adapters may record a warning count, not the conten
 
 ## 8. CLI Surface v2
 
+> **Drift notice (T183 / 2026-08-01):** This §8 lists the **original design-plan** CLI surface. Many commands were **renamed, never built, or only exist as DTOs** (for example `doctor`, `unlock`/`lock`, `recovery export`, `install-hooks` as shown below).  
+> **Live operator CLI** = `ai-brains --help` and the track registry in `conductor/conductor.md`.  
+> **Adoption docs** = [`Docs/README.md`](README.md) · [`Docs/INSTALL.md`](INSTALL.md) · [`Docs/OPERATIONS.md`](OPERATIONS.md).  
+> Do not treat this section as a shipping checklist.
+
 ## 8.1 Setup
 
 ```powershell
