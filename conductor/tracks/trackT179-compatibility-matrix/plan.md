@@ -111,12 +111,50 @@ Any Rust tests: `feature__condition__expected_result`; hermetic; no real network
 - [ ] T180 protocol goldens  
 - [ ] Electron / prod CSP weaken  
 
+## Phase F — GHA PR #51 red → green (expand T179; **not** a new track)
+
+**Disposition:** Failures are **T179’s own CI gate** (first multi-OS workflow). Fix **on branch** `track/T179-compatibility-matrix` / PR #51. Do **not** open T186 or defer to T180/T185.
+
+### Root causes (gh run 30681897520)
+
+| Gate | Step | Cause |
+|------|------|--------|
+| `gate-windows` | `cargo fmt --check` | `smoke.rs` pin `.env(...)` single-line; rustfmt wants multi-arg form |
+| `gate-linux` / `gate-macos` | `nextest` | `test_backup_restore_dry_run` sets `AI_BRAINS_PROJECT_ID` via `.env()` but **omits** `--no-project-context`. Without repo-root `.env`, CLI **removes** those vars (T80 stale-context clear) → pin fails |
+
+**Incomplete prior fix (4496f59):** added `.env()` only — insufficient on clean GHA.
+
+### Checklist
+
+- [x] **F1** Document dual failure (fmt + hermetic pin) from `gh pr checks 51` / failed job logs  
+- [x] **F2** Fix pin invocation: `.env(PROJECT)` + `.env(SESSION)` + **`--no-project-context`** (match smoke hermetic pattern)  
+- [x] **F3** `cargo fmt` so Windows `fmt --check` green  
+- [x] **F4** Targeted local: `cargo nextest run -p ai-brains-cli --test smoke test_backup_restore_dry_run` → **PASS** (2026-08-01)  
+- [ ] **F5** Push to PR #51; confirm all three gates green via `gh pr checks 51`  
+- [ ] **F6** Record GHA green in `evidence/SMOKE-*.md` / residual table  
+- [ ] **F7** Codex re-review only if F5 green and track closeout  
+
+### Policy freezes (from failure)
+
+| ID | Rule |
+|----|------|
+| **F39** | Hermetic CLI tests that supply `AI_BRAINS_PROJECT_ID` / `SESSION_ID` **must** pass `--no-project-context` (or create a project `.env`); otherwise main clears them when no `.env` exists. |
+| **F40** | Multi-OS CI must run `cargo fmt --check` on the same rustfmt version as local; multiline `env(` is required for long string literals under max_width 100. |
+
+### Advice if T179 were abandoned instead
+
+Would **not** recommend: failures block the matrix claim itself. A follow-on track would only re-do T179 closeout under a new number. Keep PR #51, fix here, then close T179.
+
+---
+
 ## Residual log (fill during implement)
 
 | Item | Severity | Owner |
 |------|----------|-------|
-| First Linux `cargo check` dry-run / UNIX-BUILD fill | Medium | Orchestrator / GHA gate-linux |
+| First GHA green on PR #51 (fmt + nextest all OS) | **High** | Phase F — in progress |
+| First Linux `cargo check` dry-run / UNIX-BUILD fill | Medium | WSL evidence partial; GHA is source of truth |
 | Expand `rust-toolchain.toml` targets for multi-OS | Low | When Linux CI needs host targets |
 | Optional WSL workflow_dispatch smoke (C6) | Low | T183/T185 residual |
-| macOS remains T2 until soft job green | Info | T185 |
+| macOS remains T2 until soft job green | Info | After F5 |
 | arm64 T3 honesty | Info | Future soft job |
+| F26 release SHA-pin | Low | T185 |

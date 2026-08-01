@@ -1949,14 +1949,22 @@ fn test_backup_restore_dry_run() {
         .arg("init")
         .assert()
         .success();
-    // Hermetic: pin requires project/session IDs. Clean CI has no ambient
-    // AI_BRAINS_PROJECT_ID (Windows dev shells often do). T179 Linux gate.
+    // Hermetic (T179 GHA): pin reads PROJECT_ID/SESSION_ID from env, but without
+    // a project `.env` the CLI **clears** those vars unless `--no-project-context`
+    // (T80). Clean runners have no ambient IDs and no repo-root `.env`.
     Command::cargo_bin("ai-brains")
         .unwrap()
+        .env(
+            "AI_BRAINS_PROJECT_ID",
+            "88888888-8888-8888-8888-888888888888",
+        )
+        .env(
+            "AI_BRAINS_SESSION_ID",
+            "99999999-9999-9999-9999-999999999999",
+        )
         .arg("--vault-path")
         .arg(&dest_vault)
-        .env("AI_BRAINS_PROJECT_ID", "88888888-8888-8888-8888-888888888888")
-        .env("AI_BRAINS_SESSION_ID", "99999999-9999-9999-9999-999999999999")
+        .arg("--no-project-context")
         .arg("pin")
         .arg("Original content on dest that must survive dry-run")
         .assert()

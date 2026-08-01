@@ -599,7 +599,7 @@ P12.1 implement on branch `track/T179-compatibility-matrix` (not design-only).
 - **Landed:** `Docs/COMPATIBILITY.md` (F8 exact, F23 pipe/UDS/HTTP, F29, F32, engines); grep-complete `evidence/CFG-INVENTORY.md`; `.github/workflows/ci.yml` (`windows-2025` + `ubuntu-24.04` required, `macos-15` soft); `scripts/dev-check.sh` (desktop exclude on Linux/macOS); WSL UNIX-BUILD (check+clippy green exclude desktop); hermetic package-export vault-path tests; DPAPI junk + UDS path units; capture-independence CI step; smoke evidence under `evidence/SMOKE-*.md`.
 - **Absorbs:** T174 §49 / #49 multi-OS visual + WDIO residual (**T2 desktop** + engine honesty); PRD secondary Ubuntu/WSL; vision Win11+WSL; Deviations §1 SQLCipher honesty.
 - **Frozen F1–F32:** Win11 **T1**; Ubuntu core **T1** with WSL evidence + required GHA (desktop **T2** excluded); macOS soft **`macos-15`**; WSL = Linux binary + `/mnt/c`; transport: Win pipe / Unix **UDS live** / **HTTP portable**; DPAPI seed non-portable; audit **exit code only**; zero new prod crates; toolchain **1.95.0**.
-- **Still open / residual until closeout:** first GHA job greens on PR (local WSL/Windows gates recorded); F26 release SHA-pin (→ T185); rust-toolchain targets still Win-only (L3); arm64 T3; Unix CLI→HTTP-only not DoD; #34.2.
+- **Still open / residual until closeout:** **PR #51 GHA red→green (Phase F):** root cause = pin hermetic env without `--no-project-context` (T80 clears PROJECT_ID when no `.env`) + rustfmt on smoke.rs; fix landed locally, push/checks pending. F26 release SHA-pin (→ T185); rust-toolchain targets still Win-only (L3); arm64 T3; Unix CLI→HTTP-only not DoD; #34.2.
 - ~~**T180 protocol compat**~~ → **Promoted to T180 expansion (2026-07-31)** — see §57 / `trackT180-protocol-compat-tests/`.
 - **Out of scope:** App Store/notarization/MSI; SQLCipher flip as DoD; Electron; AGPL CI.
 
@@ -613,3 +613,11 @@ Design-only expansion of P12.2 (`trackT180-protocol-compat-tests/{spec,plan}.md`
 - **AI2:** #1–#9 + A–F largely agree; serde_json minor pin / single API_VERSION SOOT / runtime enforcement = residuals not DoD.
 - **Out of scope:** Infinite history; third-party clients; multi-OS; #34.2; OpenAPI/jsonschema DoD; binary N−1 DoD; implement Upcast migrations.
 - **Still open until implement:** PROTOCOL-COMPAT.md + suite not landed.
+
+### 58. T186 Hermetic CLI / Multi-OS Test Hygiene — **Proposed** (2026-08-01)
+
+Placeholder residual after T179 first multi-OS GHA (see `trackT186-hermetic-cli-ci-hygiene/`).
+
+- **Absorbs:** ambient `AI_BRAINS_PROJECT_ID` / session pollution on clean runners; shared hermetic `assert_cmd` helper; soft-canonicalize path containment expansion; optional GHA `--no-fail-fast` inventory; CI wall-clock notes (~15–20 min full Win+Linux).
+- **Out of scope:** platform tier changes (T179); T180 protocol; T181 drills productization; #34.2.
+- **Still open until expand/implement:** helper + suite migration not landed.

@@ -129,6 +129,7 @@
 | T183 | Release Documentation Pack | 📋 **Proposed** | — | [T183](tracks/trackT183-release-documentation/spec.md) | **P12.5 placeholder:** install, provenance, agents, review, erasure limits, cloud, sync threat. |
 | T184 | Independent Security Review | 📋 **Proposed** | — | [T184](tracks/trackT184-independent-security-review/spec.md) | **P12.6 placeholder:** HTTP/connectors/models/keys/sync review; high findings must clear. |
 | T185 | Claims + SBOM Release Gate | 📋 **Proposed** | — | [T185](tracks/trackT185-claims-sbom-release-gate/spec.md) | **P12.7 placeholder:** claims only with evidence; deny/audit/SBOM; no cert/perfect-deletion claims. |
+| T186 | Hermetic CLI / Multi-OS Test Hygiene | 📋 **Proposed** | Grok | [T186](tracks/trackT186-hermetic-cli-ci-hygiene/spec.md) | **P12 residual placeholder:** shared hermetic assert_cmd helper; ambient-env CI honesty; soft-canonicalize path KATs; optional nextest no-fail-fast; post-T179. |
 
 
 ---

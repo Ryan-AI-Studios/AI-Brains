@@ -93,3 +93,13 @@ See `.github/workflows/ci.yml` job `gate-linux`:
 |------|---------|--------|
 | WSL Linux | `cargo nextest run --workspace --exclude ai-brains-desktop --no-fail-fast` | **1587 passed**, 0 failed, 1 skipped (~316s) |
 | Windows | `cargo nextest run -p ai-brains-cli -p ai-brains-path -p ai-brains-sources --tests` | **558 passed**, 0 failed |
+| Windows local | `cargo nextest run -p ai-brains-cli --test smoke test_backup_restore_dry_run` after Phase F fix | **PASS** (T80 `--no-project-context` + env) |
+
+### GHA PR #51 (run 30681897520) — Phase F
+
+| Gate | Failure | Fix |
+|------|---------|-----|
+| windows-2025 | `cargo fmt --check` on `smoke.rs` pin `.env` lines | rustfmt multi-arg form |
+| ubuntu-24.04 / macos-15 | `test_backup_restore_dry_run`: pin saw no PROJECT_ID | `--no-project-context` required so T80 does not clear env when no `.env` |
+
+Incomplete 4496f59 only added `.env()` without the flag. See plan Phase F / F39.
