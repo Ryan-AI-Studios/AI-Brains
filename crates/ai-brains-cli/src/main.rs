@@ -1538,14 +1538,10 @@ fn main() {
     // Tokio state machine (Windows debug stacks are tight; T168 Migrate tipped it over).
     let cli = Cli::parse();
 
-    // Sync vault-path-free commands: handle before async runtime work.
-    if matches!(
-        &cli.command,
-        Commands::Shadow { .. }
-            | Commands::Migrate { .. }
-            | Commands::Evaluate { .. }
-            | Commands::Dogfood { .. }
-    ) {
+    // Sync vault-path-free commands: handle before AppContext / async runtime.
+    // Includes schema printers and the non-graph stub so clean Linux CI hosts
+    // without AI_BRAINS_VAULT_PATH still work (T179).
+    if is_vault_path_free(&cli.command) {
         handle_cli_result(run_sync_path_free(cli));
         return;
     }
@@ -1563,6 +1559,23 @@ fn main() {
             }
         }
     });
+}
+
+/// Commands that must not require `--vault-path` / `AI_BRAINS_VAULT_PATH`.
+fn is_vault_path_free(command: &Commands) -> bool {
+    match command {
+        Commands::Shadow { .. }
+        | Commands::Migrate { .. }
+        | Commands::Evaluate { .. }
+        | Commands::Dogfood { .. } => true,
+        Commands::AgyHook { schema: true, .. } => true,
+        Commands::Sync {
+            command: SyncCommands::Pull { schema: true, .. },
+        } => true,
+        #[cfg(not(feature = "graph"))]
+        Commands::Graph { .. } => true,
+        _ => false,
+    }
 }
 
 fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
@@ -1602,9 +1615,24 @@ fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
     }
 }
 
-/// Shadow / migrate / evaluate / dogfood open their own inputs and must not require AppContext.
+/// Vault-path-free commands: no AppContext (shadow/migrate/evaluate/dogfood,
+/// schema printers, non-graph stub).
 fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
+        Commands::AgyHook { schema: true, .. } => {
+            print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")
+        }
+        Commands::Sync {
+            command: SyncCommands::Pull { schema: true, .. },
+        } => print_schema(SCHEMA_SYNC_PULL, "AI-Brains sync pull NDJSON record"),
+        #[cfg(not(feature = "graph"))]
+        Commands::Graph { .. } => {
+            println!("The graph subcommand requires a --features graph build.");
+            println!(
+                "Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph"
+            );
+            Ok(())
+        }
         Commands::Shadow { command } => match command {
             ShadowCommands::Create {
                 source,
@@ -1709,7 +1737,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 allow_out_overwrite,
             }),
         },
-        _ => unreachable!("run_sync_path_free only for Shadow/Migrate/Evaluate/Dogfood"),
+        _ => unreachable!("run_sync_path_free only for vault-path-free commands"),
     }
 }
 

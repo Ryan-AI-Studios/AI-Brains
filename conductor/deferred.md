@@ -550,7 +550,8 @@ Folded into and shipped by T174 (`trackT174-desktop-tests/`) — Codex R2 **PASS
 - **D1–D27 / DT1–DT20:** L1 Rust → L2 Vitest+RTL+mockIPC → L3 Playwright renderer → L4 ARIA primary + pixel secondary → L5 live WebView2 human residual.
 - **Tool freeze (installed):** vitest **4.1.0** MIT; @playwright/test **1.62.0** Apache-2.0; RTL **16.3.0**; jest-dom 7 / user-event 14; jsdom **30.0.0**; soft axe not added.
 - **AI1 B1–B16 folded:** license:check **production-only**; crypto + dialog polyfills; `context.addInitScript`; visual pins; Node ≥22; build+preview webServer; HashRouter `gotoRoute`; clearMocks+restoreAllMocks; source locator; user-event; vite `test:` block; httpmock 0.7; gitattributes binary snaps.
-- **Absorbs #46.** #48 live residual → §50. Out of scope: T179 multi-OS; hard axe gate; Electron; prod CSP weaken; AGPL tools; httpmock 0.8.
+- **Absorbs #46.** #48 live residual → §50. Out of scope at ship: multi-OS visual/WDIO (→ **§56 / T179**); hard axe gate; Electron; prod CSP weaken; AGPL tools; httpmock 0.8.
+- ~~**Multi-OS visual / WDIO matrix residual**~~ → **Promoted to T179 expansion (2026-07-31)** — see §56 / `trackT179-compatibility-matrix/` (T2 desktop note; not hard multi-OS e2e gate).
 
 ### 50. T174 deferred P3 residuals (2026-07-30 Codex R2)
 
@@ -590,3 +591,32 @@ Shipped: F1–F28 suite; F23 `tests/common/twin_vaults`; F19 expanded snapshot; 
 - **IR1-L1:** R-ack-attestation behavioral pin thin (doc scanner primary).
 - **CR2-P3:** F21 parses capture `Cargo.toml` only (not full transitive cargo-metadata graph); `cargo tree -p ai-brains-capture` confirmed no sync edge at ship.
 - **L10 / L15 / HPKE / PIN / CAVP / pre-erase backups:** explicit product/formal defers (unchanged).
+
+### 56. T179 Compatibility Matrix — **Completed** (2026-08-01)
+
+P12.1 shipped on `track/T179-compatibility-matrix` / PR #51. GHA run **30683807812** all gates green.
+
+- **Landed:** `Docs/COMPATIBILITY.md`; CFG inventory; `.github/workflows/ci.yml`; `scripts/dev-check.sh`; Unix hygiene; Phase F CI fixes (T80 hermetic pin, WSL map-before-soft-resolve, macOS path canonical compare).
+- **Absorbs:** T174 multi-OS residual as T2 desktop; PRD secondary Ubuntu/WSL; SQLCipher honesty.
+- **Residuals (not DoD blockers):** F26 release SHA-pin → **T185**; rust-toolchain multi-target expand → Low; arm64 T3; Unix CLI→HTTP-only not DoD; hermetic helper suite → **T186**; #34.2 still open (unrelated).
+- ~~**T180 protocol compat**~~ → **Promoted to T180 expansion (2026-07-31)** — see §57.
+- **Out of scope (unchanged):** App Store/notarization/MSI; SQLCipher flip as DoD; Electron; AGPL CI.
+
+### 57. T180 Protocol Compat Tests — **Proposed / Expanded** (2026-07-31; AI1/AI2 fold-in)
+
+Design-only expansion of P12.2 (`trackT180-protocol-compat-tests/{spec,plan}.md`). Implement on go-ahead.
+
+- **Absorbs:** T158 suite elevate (~527-line `protocol_wire.rs`); R0 Unknown; BridgePayload capture + raw BridgeRecord fallback; T179→T180 handoff.
+- **Frozen F1–F38 (post fold-in):** Fixture-first N−1; **crate-local fixtures only** (no root tree); elevate-first; additive `assert_deserializes_with_extra_fields`; public wire **no** `deny_unknown_fields` (dry-run ingest only, asymmetric); **8×** module `API_VERSION` **unenforced** (honesty tests incl. `"2"` accepted); P-BRIDGE opposite policy; Upcast **stub** (R0 active); CLI compact/pretty freeze; no doctor/`--version` JSON; Payload hand-serde must not become derived; zero new prod deps.
+- **AI1:** BS1–3 agree (public wire open fields; crate-local fixtures; extra-field helper); jsonschema = soft only.
+- **AI2:** #1–#9 + A–F largely agree; serde_json minor pin / single API_VERSION SOOT / runtime enforcement = residuals not DoD.
+- **Out of scope:** Infinite history; third-party clients; multi-OS; #34.2; OpenAPI/jsonschema DoD; binary N−1 DoD; implement Upcast migrations.
+- **Still open until implement:** PROTOCOL-COMPAT.md + suite not landed.
+
+### 58. T186 Hermetic CLI / Multi-OS Test Hygiene — **Proposed** (2026-08-01)
+
+Placeholder residual after T179 first multi-OS GHA (see `trackT186-hermetic-cli-ci-hygiene/`).
+
+- **Absorbs:** ambient `AI_BRAINS_PROJECT_ID` / session pollution on clean runners; shared hermetic `assert_cmd` helper; soft-canonicalize path containment expansion; optional GHA `--no-fail-fast` inventory; CI wall-clock notes (~15–20 min full Win+Linux).
+- **Out of scope:** platform tier changes (T179); T180 protocol; T181 drills productization; #34.2.
+- **Still open until expand/implement:** helper + suite migration not landed.

@@ -2,9 +2,7 @@
 
 use std::path::PathBuf;
 
-use ai_brains_core::ids::{
-    ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, UserId,
-};
+use ai_brains_core::ids::{ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, UserId};
 use ai_brains_core::principal::{Principal, PrincipalKind};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};

@@ -74,6 +74,14 @@ impl DaemonClientError {
     }
 }
 
+/// Live Windows named-pipe endpoint (must match ledgerful IpcClient / track 0064).
+#[cfg(windows)]
+pub const DEFAULT_DAEMON_TRANSPORT_PATH: &str = r"\\.\pipe\ledgerful-bridge";
+
+/// Live Unix domain socket endpoint used by `DaemonClient` on non-Windows.
+#[cfg(not(windows))]
+pub const DEFAULT_DAEMON_TRANSPORT_PATH: &str = "/tmp/ledgerful-bridge.sock";
+
 pub struct DaemonClient {
     #[cfg(windows)]
     pipe_path: String,
@@ -86,9 +94,22 @@ impl DaemonClient {
         Self {
             // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
             #[cfg(windows)]
-            pipe_path: r"\\.\pipe\ledgerful-bridge".to_string(),
+            pipe_path: DEFAULT_DAEMON_TRANSPORT_PATH.to_string(),
             #[cfg(not(windows))]
-            socket_path: "/tmp/ledgerful-bridge.sock".to_string(),
+            socket_path: DEFAULT_DAEMON_TRANSPORT_PATH.to_string(),
+        }
+    }
+
+    /// Live local transport endpoint (named pipe path on Windows, UDS path on Unix).
+    /// Portable multi-OS product IPC remains loopback HTTP + bearer (T161 / F23).
+    pub fn transport_path(&self) -> &str {
+        #[cfg(windows)]
+        {
+            &self.pipe_path
+        }
+        #[cfg(not(windows))]
+        {
+            &self.socket_path
         }
     }
 
@@ -364,6 +385,14 @@ impl Default for DaemonClient {
     }
 }
 
+impl std::fmt::Debug for DaemonClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DaemonClient")
+            .field("transport_path", &self.transport_path())
+            .finish()
+    }
+}
+
 fn looks_like_complete_json(buf: &[u8]) -> bool {
     let s = std::str::from_utf8(buf).unwrap_or("").trim();
     if s.is_empty() {
@@ -421,5 +450,16 @@ mod tests {
         let raw = br#"{"type":"pong"}"#;
         let resp = parse_daemon_response_line(raw).expect("parse");
         assert!(matches!(resp, DaemonResponse::Pong));
+    }
+
+    /// T179 F23: live DaemonClient transport is OS-native (pipe vs UDS), not HTTP.
+    #[test]
+    fn daemon_client__new__uses_os_native_transport_path() {
+        let client = DaemonClient::new();
+        assert_eq!(client.transport_path(), DEFAULT_DAEMON_TRANSPORT_PATH);
+        #[cfg(windows)]
+        assert_eq!(client.transport_path(), r"\\.\pipe\ledgerful-bridge");
+        #[cfg(not(windows))]
+        assert_eq!(client.transport_path(), "/tmp/ledgerful-bridge.sock");
     }
 }

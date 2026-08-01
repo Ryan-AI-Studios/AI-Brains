@@ -45,14 +45,37 @@ fn map_wsl_mnt_to_drive(path: &str) -> Option<String> {
 
 /// Normalize a path string for equality / containment checks.
 ///
-/// Steps: best-effort resolve → strip `\\?\` → WSL `/mnt/c` map → UNC or drive normalize.
-/// Non-existing paths fall back to the input string (then still strip/normalize).
+/// Steps: **WSL `/mnt/c` map first** → best-effort resolve → strip `\\?\` →
+/// UNC or drive normalize. Non-existing paths fall back to the input string
+/// (then still strip/normalize).
+///
+/// WSL must run **before** soft-resolve: on Windows, a bare `/mnt/c/...` path is
+/// treated as drive-relative (`\mnt\c\...` under the current volume, e.g.
+/// `D:\mnt\c\...` on GHA). Mapping after soft-resolve misses that form (T179
+/// Phase F / gate-windows `path_locator_wsl_and_windows`).
 pub fn normalize_for_location_compare(input: &str) -> String {
-    let resolved = resolve_best_effort(input);
+    // Map WSL before resolve so soft-canonicalize never binds /mnt/c to CWD drive.
+    let pre = if let Some(mapped) = map_wsl_mnt_to_drive(input) {
+        mapped
+    } else {
+        input.to_string()
+    };
+
+    let resolved = resolve_best_effort(&pre);
     let mut stripped = strip_extended_length_prefix(&resolved).replace('/', "\\");
 
-    // WSL mount form → Windows drive path so /mnt/c/... equals C:\...
+    // Second pass: if soft-resolve already joined a mistaken `\mnt\...` under a
+    // drive (legacy callers / intermediate forms), still map when possible.
     if let Some(mapped) = map_wsl_mnt_to_drive(&stripped) {
+        stripped = mapped.replace('/', "\\");
+    } else if let Some((_, rest)) = stripped.split_once(r":\mnt\")
+        && let Some(mapped) = map_wsl_mnt_to_drive(&format!(r"\mnt\{rest}"))
+    {
+        // e.g. D:\mnt\c\Dev\... from pre-fix soft-resolve of /mnt/c/...
+        stripped = mapped.replace('/', "\\");
+    } else if let Some((_, rest)) = stripped.split_once(r":/mnt/")
+        && let Some(mapped) = map_wsl_mnt_to_drive(&format!("/mnt/{rest}"))
+    {
         stripped = mapped.replace('/', "\\");
     }
 
@@ -106,6 +129,7 @@ pub fn path_is_same_or_inside(candidate: impl AsRef<Path>, root: impl AsRef<Path
 
 #[cfg(test)]
 #[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
@@ -159,6 +183,30 @@ mod tests {
     }
 
     #[test]
+    fn normalize_for_location_compare__wsl_mnt_c__equals_windows_drive() {
+        // Must not depend on CWD (GHA Windows often runs on D:).
+        let wsl = normalize_for_location_compare("/mnt/c/Dev/Project/readme.md");
+        let win = normalize_for_location_compare(r"C:\Dev\Project\readme.md");
+        assert_eq!(wsl, win, "WSL and Windows forms must normalize equal");
+        assert!(
+            wsl.starts_with(r"c:\") || wsl.starts_with(r"C:\"),
+            "expected C: drive after WSL map, got {wsl}"
+        );
+        assert!(
+            !wsl.to_ascii_lowercase().contains(r"\mnt\c\"),
+            "must not leave residual \\mnt\\c under another drive: {wsl}"
+        );
+    }
+
+    #[test]
+    fn normalize_for_location_compare__mistaken_drive_mnt_c__still_maps() {
+        // Pre-fix soft-resolve artifact: current-drive + \mnt\c\...
+        let mistaken = normalize_for_location_compare(r"D:\mnt\c\Dev\Project\readme.md");
+        let win = normalize_for_location_compare(r"C:\Dev\Project\readme.md");
+        assert_eq!(mistaken, win);
+    }
+
+    #[test]
     fn normalize_for_location_compare__non_existing__strips_prefix() {
         let missing = r"\\?\C:\definitely\does\not\exist\xyz-t147";
         let norm = normalize_for_location_compare(missing);
@@ -181,5 +229,20 @@ mod tests {
         let a = PathBuf::from(r"C:\Dev\X");
         let b = PathBuf::from(r"c:\dev\x");
         assert!(paths_refer_to_same_location(&a, &b));
+    }
+
+    /// Soft-resolve: not-yet-created child under an existing temp parent still
+    /// compares as inside that parent (macOS /var vs /private/var honesty).
+    #[test]
+    fn path_is_same_or_inside__missing_child_under_existing_parent__true() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let parent = dir.path().join("live-home");
+        std::fs::create_dir_all(&parent).expect("parent");
+        let missing_child = parent.join("migrate-sibling.db");
+        assert!(!missing_child.exists(), "fixture child must not exist yet");
+        assert!(
+            path_is_same_or_inside(&missing_child, &parent),
+            "missing child under existing parent must still be inside"
+        );
     }
 }

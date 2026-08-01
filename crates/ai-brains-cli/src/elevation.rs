@@ -7,6 +7,9 @@ pub enum ElevationOutcome {
     AlreadyElevated,
     /// A new elevated process was started, waited on, and finished with this exit code.
     /// Caller should return without re-doing work (the elevated child did the work).
+    /// Constructed only on Windows (`ensure_elevated_or_relaunch`); kept on all
+    /// targets so call-site matches stay exhaustive.
+    #[cfg_attr(not(windows), allow(dead_code))]
     Relaunched { exit_code: u32 },
 }
 
@@ -27,6 +30,7 @@ pub fn elevate_env_handoff_path() -> std::path::PathBuf {
 }
 
 /// Keys to forward into the elevated process (wrapper generation + vault).
+#[cfg(windows)]
 const ELEVATE_ENV_KEYS: &[&str] = &[
     "AI_BRAINS_VAULT_PATH",
     "AI_BRAINS_KEY",
@@ -40,6 +44,7 @@ const ELEVATE_ENV_KEYS: &[&str] = &[
 ];
 
 /// Snapshot current process env for the elevated child (written just before UAC).
+#[cfg(windows)]
 pub fn write_elevate_env_handoff() -> Result<(), Box<dyn std::error::Error>> {
     let mut lines = Vec::new();
     for key in ELEVATE_ENV_KEYS {
@@ -186,6 +191,10 @@ pub fn ensure_elevated_or_relaunch() -> Result<ElevationOutcome, Box<dyn std::er
 }
 
 /// Quote a single Windows command-line argument (spaces / quotes).
+///
+/// Available on non-Windows under `cfg(test)` so pure quoting unit tests run in
+/// Linux CI without shipping the helper in production Unix binaries.
+#[cfg(any(windows, test))]
 pub fn quote_windows_arg(arg: &str) -> String {
     if arg.is_empty() {
         return "\"\"".to_string();
@@ -206,6 +215,7 @@ pub fn quote_windows_arg(arg: &str) -> String {
 }
 
 /// Build the parameter string for ShellExecute from argv (skipping argv[0]).
+#[cfg(any(windows, test))]
 pub fn build_relaunch_params(args: impl IntoIterator<Item = String>) -> String {
     args.into_iter()
         .map(|a| quote_windows_arg(&a))

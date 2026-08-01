@@ -1,5 +1,5 @@
 edition = "2024"
-newline_style = "Windows"
+newline_style = "Auto"
 max_width = 100
 # Unstable features removed for stable compatibility:
 # indent_style = "Block"

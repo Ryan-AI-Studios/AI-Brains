@@ -200,13 +200,13 @@ fn refuse_hardlink(path: &Path) -> Result<(), TokenError> {
     #[cfg(not(windows))]
     {
         use std::os::unix::fs::MetadataExt;
-        if let Ok(meta) = path.symlink_metadata() {
-            if meta.nlink() > 1 {
-                return Err(TokenError::Hardlink(format!(
-                    "refusing hardlink at {}",
-                    path.display()
-                )));
-            }
+        if let Ok(meta) = path.symlink_metadata()
+            && meta.nlink() > 1
+        {
+            return Err(TokenError::Hardlink(format!(
+                "refusing hardlink at {}",
+                path.display()
+            )));
         }
     }
     Ok(())

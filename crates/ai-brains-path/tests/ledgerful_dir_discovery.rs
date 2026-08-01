@@ -18,7 +18,9 @@ fn make_project_root(temp: &Path) -> std::io::Result<()> {
 
 fn nested_start(temp: &Path) -> std::io::Result<std::path::PathBuf> {
     let child = temp.join("nested");
-    create_dir(&child, ".")?;
+    // create_dir_all on the directory itself — join(".") can fail with
+    // NotFound on some Unix/WSL path combinations (T179).
+    fs::create_dir_all(&child)?;
     Ok(child)
 }
 

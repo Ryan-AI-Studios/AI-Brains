@@ -494,8 +494,7 @@ fn apply_baseline_hard_gates(
 }
 
 /// Kinds accepted as evidence that a dependent subject was surface-warned (scen 3/7).
-const EXPECTED_DEPENDENT_WARNING_KINDS: &[&str] =
-    &["stale", "unavailable", "disputed", "rejected"];
+const EXPECTED_DEPENDENT_WARNING_KINDS: &[&str] = &["stale", "unavailable", "disputed", "rejected"];
 
 /// Hard-fail when seed expects dependent warning subjects but packet lacks matching warnings.
 fn verify_expected_stale_warnings(
@@ -503,15 +502,12 @@ fn verify_expected_stale_warnings(
     expected_subject_ids: &[String],
 ) -> std::result::Result<(), String> {
     let Some(p) = packet else {
-        return Err(
-            "expected stale/unavailable warnings but briefing packet is missing".into(),
-        );
+        return Err("expected stale/unavailable warnings but briefing packet is missing".into());
     };
     for sid in expected_subject_ids {
         let found = p.warnings.iter().any(|w| {
             w.subject_id.as_deref() == Some(sid.as_str())
-                && EXPECTED_DEPENDENT_WARNING_KINDS
-                    .contains(&w.kind.to_ascii_lowercase().as_str())
+                && EXPECTED_DEPENDENT_WARNING_KINDS.contains(&w.kind.to_ascii_lowercase().as_str())
         });
         if !found {
             return Err(format!(
@@ -718,8 +714,7 @@ mod tests {
         let s = active_scenario("cold", "project_briefing_minimal", 1);
         let out1 = evaluate_scenarios(std::slice::from_ref(&s), &EvaluateOptions::default())
             .expect("run1");
-        let out2 =
-            evaluate_scenarios(&[s], &EvaluateOptions::default()).expect("run2");
+        let out2 = evaluate_scenarios(&[s], &EvaluateOptions::default()).expect("run2");
         assert!(
             out1.report.hard_gates_passed,
             "run1: {:?}",
@@ -731,7 +726,8 @@ mod tests {
             out2.report.scenarios
         );
         assert_eq!(
-            out1.report.report_hash, out2.report.report_hash,
+            out1.report.report_hash,
+            out2.report.report_hash,
             "report_hash must be stable across two evaluate runs (E7); seed ids={:?} vs {:?}",
             out1.report.human_review_seed.claim_ids_sample,
             out2.report.human_review_seed.claim_ids_sample
@@ -754,7 +750,9 @@ mod tests {
         apply_baseline_hard_gates(&metrics, &outcome, &mut hard_ok, &mut messages);
         assert!(!hard_ok);
         assert!(
-            messages.iter().any(|m| m.contains("stale_as_current_count")),
+            messages
+                .iter()
+                .any(|m| m.contains("stale_as_current_count")),
             "{messages:?}"
         );
     }
@@ -814,11 +812,8 @@ mod tests {
 
     #[test]
     fn runner__expected_warning_missing_from_packet__hard_fail() {
-        let err = verify_expected_stale_warnings(
-            None,
-            &["dep-subject".into()],
-        )
-        .expect_err("missing packet");
+        let err = verify_expected_stale_warnings(None, &["dep-subject".into()])
+            .expect_err("missing packet");
         assert!(err.contains("packet") || err.contains("missing"));
 
         // Packet with no matching warning for expected subject.

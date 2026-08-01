@@ -205,7 +205,11 @@ mod tests {
         ContentEnvelopeWipedResponse, WipePurgedCounts, WipeValidation, WipeVerify,
     };
 
-    fn fake_resp(status: &str, wrap_destroyed: bool, wrap_absent: bool) -> ContentEnvelopeWipedResponse {
+    fn fake_resp(
+        status: &str,
+        wrap_destroyed: bool,
+        wrap_absent: bool,
+    ) -> ContentEnvelopeWipedResponse {
         ContentEnvelopeWipedResponse {
             api_version: "1".into(),
             status: status.into(),

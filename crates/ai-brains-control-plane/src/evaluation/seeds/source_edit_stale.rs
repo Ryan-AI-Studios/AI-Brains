@@ -23,9 +23,9 @@ use super::common::{
 use crate::adapters::{Sha256FingerprinterPort, StorePorts, SystemClock};
 use crate::conclusions::activate_conclusion;
 use crate::errors::Result;
+use crate::normalize_path_locator;
 use crate::ports::EventWriter;
 use crate::sources::{ObserveSourceRequest, SourceContent, observe_source, scope_identity_key};
-use crate::normalize_path_locator;
 
 pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<SeedOutcome> {
     let project_id = stable_project("source-edit");
@@ -146,14 +146,7 @@ pub fn seed(ports: &StorePorts, _params: &BTreeMap<String, Value>) -> Result<See
         privacy: Privacy::LocalOnly,
         run_invalidation: true,
     };
-    observe_source(
-        &ports.writer,
-        &ports.query,
-        &SystemClock,
-        &fp,
-        &policy,
-        req,
-    )?;
+    observe_source(&ports.writer, &ports.query, &SystemClock, &fp, &policy, req)?;
 
     let dep_id = conclusion_id.to_string();
     let mut must_be_absent = BTreeSet::new();
