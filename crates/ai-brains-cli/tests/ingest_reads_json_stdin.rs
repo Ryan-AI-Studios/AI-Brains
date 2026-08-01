@@ -1,5 +1,4 @@
-use std::io::Write;
-use std::process::{Command, Stdio};
+mod common;
 
 fn run_ingest(
     args: &[&str],
@@ -8,21 +7,14 @@ fn run_ingest(
     let dir = tempfile::tempdir()?;
     let vault_path = dir.path().join("vault.db");
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_ai-brains"))
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
         .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
-    if let Some(stdin) = child.stdin.as_mut() {
-        stdin.write_all(input.as_bytes())?;
-    }
-
-    Ok(child.wait_with_output()?)
+        .write_stdin(input)
+        .output()?;
+    Ok(output)
 }
 
 #[test]

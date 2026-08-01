@@ -3,8 +3,9 @@
 
 //! T181 CLI recovery drills: R-01, R-03, F-01, F-02 (+ secret non-leak on CLI surfaces).
 
+mod common;
+
 use ai_brains_crypto::test_support::assert_no_secret_leakage;
-use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs::{self, OpenOptions};
 use std::io::{Seek, Write};
@@ -20,8 +21,7 @@ const ZERO_KEY_BYTES: [u8; 32] = [0u8; 32];
 const ALT_KEY_BYTES: [u8; 32] = [0xffu8; 32];
 
 fn init_vault(vault_path: &Path) {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("init")
@@ -30,8 +30,7 @@ fn init_vault(vault_path: &Path) {
 }
 
 fn init_vault_with_key(vault_path: &Path, key: &str) {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("--key")
@@ -42,8 +41,7 @@ fn init_vault_with_key(vault_path: &Path, key: &str) {
 }
 
 fn create_backup(vault_path: &Path) -> PathBuf {
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("backup")
@@ -142,8 +140,7 @@ fn backup_restore__seeded_content__present_after_force_restore() {
             "content": "{SEED_CONTENT}"
         }}"#
     );
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&source_vault)
         .arg("ingest")
@@ -159,8 +156,7 @@ fn backup_restore__seeded_content__present_after_force_restore() {
 
     init_vault(&dest_vault);
     // Different content on dest so we prove overwrite brought source content.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .env(
             "AI_BRAINS_PROJECT_ID",
             "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -177,8 +173,7 @@ fn backup_restore__seeded_content__present_after_force_restore() {
         .assert()
         .success();
 
-    let restore_out = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let restore_out = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&dest_vault)
         .arg("backup")
@@ -205,8 +200,7 @@ fn backup_restore__seeded_content__present_after_force_restore() {
     );
 
     // Content smoke via recall.
-    let recall = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let recall = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&dest_vault)
         .arg("--no-project-context")
@@ -241,8 +235,7 @@ fn backup_restore__missing_path__not_found_class() {
     init_vault(&vault);
 
     let missing = dir.path().join("does-not-exist.db.bak");
-    let out = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let out = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("backup")
@@ -281,8 +274,7 @@ fn corrupt_backup_case(offset: u64) {
     let backup_path = create_backup(&vault);
     corrupt_at(&backup_path, offset);
 
-    let out = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let out = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("backup")
@@ -320,8 +312,7 @@ fn backup_verify__wrong_key__wrong_key_class() {
     let zero_backup = create_backup(&zero_vault);
 
     init_vault_with_key(&alt_vault, ALT_KEY);
-    let alt_backup_out = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let alt_backup_out = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&alt_vault)
         .arg("--key")
@@ -343,8 +334,7 @@ fn backup_verify__wrong_key__wrong_key_class() {
     );
 
     // Positive control: same key verifies.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&alt_vault)
         .arg("--key")
@@ -357,8 +347,7 @@ fn backup_verify__wrong_key__wrong_key_class() {
         .stdout(predicate::str::contains("OK"));
 
     // Cross-key: zero-key backup under ALT_KEY context.
-    let out = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let out = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&alt_vault)
         .arg("--key")
@@ -420,8 +409,7 @@ fn backup_restore__dry_run__integrity_ok_no_mutation() {
     let size_before = fs::metadata(&dest).unwrap().len();
     let backup_path = create_backup(&source);
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&dest)
         .arg("backup")

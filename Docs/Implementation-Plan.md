@@ -202,7 +202,7 @@ ai-brains/
 ├── rustfmt.toml
 ├── clippy.toml
 ├── deny.toml
-├── nextest.toml
+├── .config/nextest.toml
 ├── README.md
 ├── LICENSE
 ├── SECURITY.md
@@ -1385,7 +1385,7 @@ Create repository, workspace, dependency gate, conductor docs, and track docs.
 Cargo.toml
 rust-toolchain.toml
 deny.toml
-nextest.toml
+.config/nextest.toml
 scripts/dev-check.ps1
 docs/conductor/*
 tracks/T00-foundation.md

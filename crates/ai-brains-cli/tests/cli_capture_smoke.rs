@@ -1,25 +1,9 @@
-use std::io::Write;
-use std::process::{Command, Stdio};
+mod common;
 
 #[test]
 fn cli_capture_smoke() -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempfile::tempdir()?;
     let vault_path = dir.path().join("vault.db");
-
-    let mut child = Command::new(env!("CARGO_BIN_EXE_ai-brains"))
-        .arg("--vault-path")
-        .arg(&vault_path)
-        .arg("--log-format")
-        .arg("off")
-        .arg("ingest")
-        // Isolate from ambient shell/project env (T179 Linux full suite flake).
-        .env_remove("AI_BRAINS_MODEL_URL")
-        .env_remove("AI_BRAINS_EMBEDDING_URL")
-        .env_remove("RUST_LOG")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
 
     let input = r#"{
       "session_id":"00000000-0000-0000-0000-000000000011",
@@ -32,14 +16,17 @@ fn cli_capture_smoke() -> Result<(), Box<dyn std::error::Error>> {
       "thinking":"hidden"
     }"#;
 
-    // Close stdin after write so ingest sees EOF (required for some read-to-end paths).
-    {
-        let mut stdin = child.stdin.take().ok_or("ingest child stdin not piped")?;
-        stdin.write_all(input.as_bytes())?;
-        stdin.flush()?;
-    }
+    let output = common::hermetic_bin()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--log-format")
+        .arg("off")
+        .arg("ingest")
+        // Isolate from ambient shell noise not covered by hermetic denylist.
+        .env_remove("RUST_LOG")
+        .write_stdin(input)
+        .output()?;
 
-    let output = child.wait_with_output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(

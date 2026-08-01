@@ -1,0 +1,10 @@
+[profile.default]
+retries = 1
+# nextest 0.9.x: table form uses `period` + optional `terminate-after` (N periods).
+# period=30s marks tests slow; terminate-after=4 kills after 120s total.
+# Documented in Docs/ci-tooling.md. Very long suites should use __slow + override if needed.
+slow-timeout = { period = "30s", terminate-after = 4 }
+
+[profile.ci]
+retries = 3
+fail-fast = false

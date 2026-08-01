@@ -134,7 +134,7 @@ Some minimal/scratch containers lack `/bin/true`. Git automation on Unix require
 - **Never** claim “macOS 15 supported” from `macos-latest` after it points at macOS 26 (F25). Soft pin for T179 is **`macos-15`**.
 - **Do not** use deprecated `macos-14`.
 - **Do not** use archived `actions-rs/*`.
-- PR may use floating major action tags (e.g. `dtolnay/rust-toolchain@v1`); **release jobs SHA-pin actions** (F26).
+- PR `ci.yml` and release jobs **SHA-pin** third-party actions (T186 / R-CI-PIN + F26). Dependabot `github-actions` bumps pins.
 - **cargo audit:** gate on **exit code** only (F27); never grep for a final summary line (`cargo-audit` 0.22.x). See [ci-tooling.md](ci-tooling.md).
 - No AGPL CI tooling.
 

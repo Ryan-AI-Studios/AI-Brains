@@ -1,7 +1,8 @@
 #![allow(clippy::disallowed_methods)]
 #![allow(non_snake_case)]
 
-use assert_cmd::Command;
+mod common;
+
 use predicates::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -13,8 +14,7 @@ const SESSION_ID: &str = "11111111-1111-1111-1111-111111111111";
 const DISTINCTIVE: &str = "shadow-unique-turn-content-T147-xyzzy";
 
 fn init_vault(vault_path: &Path) {
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("--vault-path")
         .arg(vault_path)
@@ -37,8 +37,7 @@ fn ingest_user_turn(vault_path: &Path, content: &str) {
         uuid::Uuid::new_v4(),
         content.replace('"', "\\\"")
     );
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("--vault-path")
         .arg(vault_path)
@@ -80,8 +79,7 @@ fn shadow_create__same_source_and_destination__refuses() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("shadow")
         .arg("create")
@@ -103,8 +101,7 @@ fn shadow_create__destination_equals_live_vault__refuses() {
     init_vault(&source);
     init_vault(&live);
 
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .env("AI_BRAINS_VAULT_PATH", live.as_os_str())
         .arg("shadow")
@@ -133,8 +130,7 @@ fn shadow_create__destination_inside_live_vault_parent__refuses() {
     init_vault(&source);
     init_vault(&live);
 
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .env("AI_BRAINS_VAULT_PATH", live.as_os_str())
         .arg("shadow")
@@ -162,8 +158,7 @@ fn shadow_create__dry_run__writes_no_files() {
     assert!(!dest.exists());
     assert!(!dest.parent().expect("parent").exists());
 
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("shadow")
         .arg("create")
@@ -243,8 +238,7 @@ fn shadow_create__destination_reparse_or_symlink__refuses() {
         }
     };
 
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("shadow")
         .arg("create")
@@ -277,8 +271,7 @@ fn shadow_create__happy_path__redacts_turns_and_writes_manifest() {
         "source must contain distinctive content before shadow; got {source_contents:?}"
     );
 
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("shadow")
         .arg("create")
@@ -359,8 +352,7 @@ fn shadow_create__no_redact_turn_content__preserves_content() {
     init_vault(&source);
     ingest_user_turn(&source, DISTINCTIVE);
 
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("shadow")
         .arg("create")

@@ -1,7 +1,7 @@
-use assert_cmd::prelude::*;
+mod common;
+
 use predicates::prelude::*;
 use std::io::Write;
-use std::process::Command;
 use tempfile::tempdir;
 
 #[test]
@@ -11,7 +11,7 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
     let vault_path = temp_dir.path().join("vault.db");
 
     // 1. Init vault
-    let mut cmd = Command::cargo_bin("ai-brains")?;
+    let mut cmd = common::hermetic_bin();
     cmd.current_dir(temp_dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -21,7 +21,7 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
 
     // 2. Setup project context
     let project_id = "00000000-0000-0000-0000-000000001234";
-    let mut cmd = Command::cargo_bin("ai-brains")?;
+    let mut cmd = common::hermetic_bin();
     cmd.current_dir(temp_dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -59,7 +59,7 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
     });
 
     // 4. Run agy-hook (should auto-link)
-    let mut cmd = Command::cargo_bin("ai-brains")?;
+    let mut cmd = common::hermetic_bin();
     cmd.current_dir(temp_dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -74,7 +74,7 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
         ));
 
     // 5. Verify turn ingested
-    let mut cmd = Command::cargo_bin("ai-brains")?;
+    let mut cmd = common::hermetic_bin();
     cmd.current_dir(temp_dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -91,7 +91,7 @@ fn test_project_mapping_and_delta_sync() -> Result<(), Box<dyn std::error::Error
         r#"{{"role": "assistant", "content": "world", "timestamp": "2026-05-24T12:01:00Z"}}"#
     )?;
 
-    let mut cmd = Command::cargo_bin("ai-brains")?;
+    let mut cmd = common::hermetic_bin();
     cmd.current_dir(temp_dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
