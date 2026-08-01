@@ -1,0 +1,40 @@
+# cargo-about configuration (T185)
+# Keep `accepted` aligned with deny.toml [licenses].allow (simple SPDX ids only;
+# dual-licensed crates match if any component is accepted — cargo-about does not
+# accept "MIT OR Apache-2.0" compound strings in this list).
+# Install: cargo install --locked --features cli cargo-about
+#
+# For binary-ship NOTICE we ignore dev/build edges and private workspace members
+# so the listing reflects redistributable runtime/link graph (plus targets).
+
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",
+    "MPL-2.0",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "CDLA-Permissive-2.0",
+    "PolyForm-Noncommercial-1.0.0",
+    # NOTICE-only extras: cargo-about may label dual-licensed crates with these
+    # components. Policy enforcement remains deny.toml (does NOT allow CC0 alone).
+    # If generate fails on an unknown license, clarify — do not widen deny.toml here.
+    "CC0-1.0",
+]
+
+# Prefer release-relevant graph for NOTICE text
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+ignore-transitive-dependencies = false
+
+# Workspace members (PolyForm-NC product crates) are not third-party NOTICE targets
+private = { ignore = true }
+
+# Optional target filter (multi-OS release); omit to scan host resolve
+# targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+
+workarounds = []

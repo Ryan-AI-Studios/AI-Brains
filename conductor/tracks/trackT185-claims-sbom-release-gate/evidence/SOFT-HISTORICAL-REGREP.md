@@ -1,0 +1,2 @@
+Docs\PRD.md:1122: Storage is encrypted :: 7. Storage is encrypted and recoverable with a recovery kit.
+Docs\Implementation-Plan.md:2019: full DB encryption :: - Vault storage honesty (**F8**): bundled SQLite + application-level Content Envelope (CE) AES-256-GCM + OS filesystem permissions — **not** a live “full DB encryption” / page-level SQLCipher claim by default. See [COMPATIBILITY.md](COMPATIBILITY.md) F8, [SECURITY-LIMITS.md](SECURITY-LIMITS.md), and [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) (**R-F8**, **R-ZERO-KEY**).

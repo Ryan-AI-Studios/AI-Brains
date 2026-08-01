@@ -82,11 +82,76 @@ Local `dev-check.ps1` / `dev-check.sh` remain the developer full gate; GHA mirro
 - If `cargo-deny` is blocked (OS error 4551), uninstall it and reinstall via `cargo install cargo-deny --locked`.
 - No special execution policy changes are required for `scripts/dev-check.ps1` if run within the project shell.
 
+## Release-gate tools (T185 / P12.7)
+
+Dev/CI only — **not** workspace product dependencies. **No AGPL/GPL** tools.
+
+| Tool | Pin | License | Install |
+|------|-----|---------|---------|
+| `cargo-cyclonedx` | **0.5.9** | **Apache-2.0** | `cargo install --locked cargo-cyclonedx` (pin: `--version 0.5.9`) |
+| `cargo-about` | **0.9.1** | MIT OR Apache-2.0 | `cargo install --locked --features cli cargo-about` (pin: `--version 0.9.1`) |
+| Fallback `cargo-sbom` | **0.10.0** | MIT | `cargo install --locked cargo-sbom` — only if cyclonedx path fails |
+
+### SBOM (CycloneDX 1.5, per shipped binary)
+
+```powershell
+# Windows — package defaults, not --all-features; target matches release build
+.\scripts\generate-sbom.ps1
+# → dist/sbom/ai-brains-<ver>.cdx.json, ai-brainsd-<ver>.cdx.json (specVersion 1.5)
+```
+
+```bash
+# Linux runners
+./scripts/generate-sbom.sh
+# TARGET=x86_64-unknown-linux-gnu VERSION=0.1.1 ./scripts/generate-sbom.sh
+```
+
+Underlying generator:
+
+```text
+cargo cyclonedx --format json --spec-version 1.5 --describe binaries --target <triple> --target-in-filename
+```
+
+Tool supports CycloneDX **1.3–1.5** only; do not claim 1.6/1.7 until the generator catches up. Soft `SOURCE_DATE_EPOCH` from `git log -1 --format=%ct` improves timestamp reproducibility.
+
+### THIRD-PARTY notices
+
+Committed config: repo-root `about.toml` + markdown template `about.md.hbs`.
+
+```powershell
+# Must use -o (PowerShell cannot reliably redirect cargo-about stdout)
+.\scripts\generate-notices.ps1
+# → dist/THIRD-PARTY.md
+```
+
+```bash
+./scripts/generate-notices.sh
+```
+
+`deny.toml` allows **CDLA-Permissive-2.0**; `about.toml` accepted list includes the same SPDX id.
+
+### Claims scan + soft wrappers
+
+```powershell
+.\scripts\check-release-claims.ps1
+.\scripts\check-version-banners.ps1
+.\scripts\generate-checksums.ps1
+.\scripts\dev-release-check.ps1          # gate + SBOM + NOTICE + claims + checksums
+.\scripts\dev-release-check.ps1 -SkipGate
+```
+
+Human order and sign-off: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). Normative claims: [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md). Soft release workflow: `.github/workflows/release.yml` (SHA-pinned `uses:` only in that file; PR `ci.yml` floating majors remain T186 residual).
+
+### R-SLSA language
+
+Optional GitHub Artifact Attestations (public repo or Enterprise Cloud private) are **Build L1-oriented** only. Forbidden: SLSA Build L3, “SLSA certified,” tamper-proof supply chain.
+
 ## Upgrading a Tool
 
 1. Run `cargo install <tool> --locked` with the new version.
 2. Verify the full gate still passes: `.\scripts\dev-check.ps1` (Windows) or `./scripts/dev-check.sh` (POSIX).
 3. Update the version pin table above, in `scripts/dev-check.ps1` (`$Required` hash), in `scripts/dev-check.sh`, and in `.github/workflows/ci.yml` install steps.
+4. For release tools (`cargo-cyclonedx`, `cargo-about`), also update this section, `scripts/generate-*.ps1` headers, and `.github/workflows/release.yml` install pins.
 
 ## Behavior Notes
 
