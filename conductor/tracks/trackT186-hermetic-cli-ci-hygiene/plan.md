@@ -100,7 +100,7 @@
 - [x] **F5** deferred §58/§64 Completed
 - [x] **F6** Conductor T186 → ✅ Completed
 - [x] **F7** Optional pin decision (skip unless material)
-- [ ] **F8** Codex clean final gate + PR squash-merge (after GHA green)
+- [x] **F8** GHA green (run 30719856981); Codex final + squash-merge in progress
 
 ---
 

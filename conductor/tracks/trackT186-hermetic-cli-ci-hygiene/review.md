@@ -28,7 +28,7 @@ Reviewed against `spec.md` L1–L13 / AC0–AC10 / DoD and `plan.md` phases A0�
 | **AC0** | Discoverable `.config/nextest.toml`; profile `ci` loads; valid slow-timeout terminate syntax | **Met** | Config at `.config/nextest.toml` with `slow-timeout = { period = "30s", terminate-after = 4 }` (kill at 120s; nextest 0.9.x table form). Root `nextest.toml` gone. `[profile.ci]` has `retries = 3`, `fail-fast = false`. Docs document prove-load commands. |
 | **AC1** | Shared hermetic helper used by priority set | **Met** | `common/mod.rs`: `hermetic_bin` / `hermetic_vault` / `hermetic_cmd` / `hermetic_cmd_with_ids` + `AMBIENT_DENYLIST`. Priority files all `mod common;` and spawn via `common::hermetic_bin()` (smoke, migrate, shadow, device, recovery). Soft set also migrated. |
 | **AC2** | Ambient pollution test proves isolation | **Met** (minor assertion gap → F-T186-02) | `hermetic_smoke.rs`: parent polluted with `PROJECT_ID` / `SESSION_ID` / `KEY` / `VAULT_PATH` via `TempEnv`; `hermetic_cmd` init + pin succeed; fixture vault path created; second test proves `hermetic_bin` + explicit `--vault-path` wins over ambient vault path. |
-| **AC3** | Clean GHA `gate-windows` + `gate-linux` nextest green | **Met (local full gate)** | Local full workspace nextest `--profile ci`: **1713 passed** (5 flaky retries under load, all green). Workflow wired; GHA re-attests on PR (publish gate). |
+| **AC3** | Clean GHA `gate-windows` + `gate-linux` nextest green | **Met** | Local 1713 passed. **GHA run [30719856981](https://github.com/Ryan-AI-Studios/AI-Brains/actions/runs/30719856981)** (PR #64): gate-windows success, gate-linux success, gate-macos soft success. Fix e6c82f5: hermetic_cmd `--no-project-context` for CI without `.env`. |
 | **AC4** | Path soft-resolve KATs; no live-parent refuse regression; Darwin note | **Met** | `path_is_same_or_inside__missing_child_under_existing_parent__true`; `resolve_best_effort__missing_child_under_existing_parent__soft_resolves` (Phase D gap fill); Darwin `/var` → `/private/var` on `resolve_best_effort` docs + KAT comments. Shadow/migrate suites still exercise refuse paths via hermetic helper. |
 | **AC5** | GHA nextest uses `--profile ci` after AC0 | **Met** | `ci.yml` gate-windows L76, gate-linux L132, gate-macos L180 all `… --profile ci`. |
 | **AC6** | `Docs/ci-tooling.md` hermetic + nextest sections | **Met** | Sections cover `.config/nextest.toml`, profile.ci, terminate kill behavior, wall-clock 15–20 min, `NEXTEST_*` overrides, hermetic helper/denylist/`env_clear` prefer-never, #12 TOCTOU residual honesty. No “fully compliant” OpenSSF language. |
@@ -196,18 +196,19 @@ Implementation meets T186 DoD: discoverable nextest + profile.ci, hermetic helpe
 
 | Round | Verdict | Notes |
 |-------|---------|-------|
-| R1 | **FAIL** | P2: AC9 open + review overstated PASS; implementation otherwise correct |
-| R2 | pending | After closeout honesty fix |
+| R1 | **FAIL** | P2: AC9 open + review overstated PASS |
+| R2 | **FAIL** | P2: AC3 needs recorded GHA green; P3 terminate-after=1 stale notes |
+| R3 | pending | After GHA green + paperwork reconcile |
 
-### Local gate evidence (orchestrator)
+### Local + GHA gate evidence (orchestrator)
 
 | Check | Result |
 |-------|--------|
 | Path KATs | 2 passed |
-| hermetic_smoke | 2 passed (~6s after AC2 tighten) |
+| hermetic_smoke | 2 passed (CI fix: `--no-project-context`) |
 | Priority+soft CLI | 154 passed |
-| Full workspace nextest `--profile ci` | **1713 passed**, 1 skipped (terminate-after=4 / 120s; earlier terminate-after=1 killed cross_repo e2e under load) |
-| clippy ai-brains-cli + path -D warnings | exit 0 |
-| fmt / deny / audit | exit 0 |
+| Full workspace nextest `--profile ci` | **1713 passed** (terminate-after=4 / 120s) |
+| clippy / fmt / deny / audit | green |
+| **GHA PR #64 run 30719856981** | **Win + Linux + macOS soft all success** |
 
-No open Critical/High/Medium. Ready for Codex R2 final gate after PR CI.
+No open Critical/High/Medium. Ready for Codex R3 final clean gate.
