@@ -17,7 +17,7 @@ Soft two-layer sandbox-declaration tests shipped in `ai-brains-sources`.
 | Codex R1 | design **PASS**; closeout P2s CX1/CX2 fixed after full gate |
 | Full workspace gate | green (1708 passed, 1 skipped; deny/audit ok) |
 | Codex R2 | **FAIL** CX3 only — ADR/review “final R2 evidence” mismatch (design clean) |
-| Codex R3 | **pending** final fresh gate after CX3 alignment |
+| Codex R3 | **PASS WITH DEFERRED P3** — design clean; easy P3 (stale conductor note) fixed at record time |
 
 Same discipline as
 [ADR-0018](ADR-0018-encrypted-event-replication-protocol.md): Status **Accepted**

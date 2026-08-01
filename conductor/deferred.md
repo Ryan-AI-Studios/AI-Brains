@@ -644,7 +644,7 @@ P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills
 
 ### 60. T182 Connector Sandbox — **Completed** (2026-08-01)
 
-P12.4 complete. Normative: [ADR-0019](../Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md) **Accepted**; companion threat-model + track specs under `conductor/tracks/trackT182-connector-sandbox-decision/`. Internal R2 PASS; Codex R1 design PASS; full gate 1708 passed.
+P12.4 complete. Normative: [ADR-0019](../Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md) **Accepted**; companion threat-model + track specs under `conductor/tracks/trackT182-connector-sandbox-decision/`. Internal R2 PASS; Codex R3 **PASS WITH DEFERRED P3** (easy P3 fixed); full gate 1708 passed.
 
 **Locks frozen (ADR-0019 L1–L10):** v1 = `TrustedBuiltin` only; two-layer serde+registry defense; no native DLL load; no AGPL host; future third-party = subprocess (OS Job Objects / Landlock / sandbox profiles) first, then WASI with **two-crate** `wasmtime`+`wasmtime-wasi` pin, FilePerms re-verify, Extism lag honesty, tokio/sync tension; zero prod Wasmtime/Extism/cap-std deps.
 

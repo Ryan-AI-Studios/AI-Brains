@@ -2,7 +2,7 @@
 
 - **Track:** T182-ConnectorSandboxDecision
 - **Category:** SECURITY / ARCHITECTURE
-- **Status:** design clean; full gate green; Codex R2 FAIL (doc provenance) fixed; final Codex R3 pending
+- **Status:** **CLOSED** — Codex R3 **PASS WITH DEFERRED P3**; easy P3 fixed; no open >low
 - **Date opened:** 2026-08-01
 - **Owner (implement):** Grok
 
@@ -24,7 +24,8 @@
 | R1-04 | info | Internal R1 | Full workspace gate not re-evidenced in R1 | `verified_fixed` | Full gate 2026-08-01: fmt/clippy green; nextest 1708 passed 1 skipped; deny ok; audit warnings only (pre-existing) |
 | CX1 | P2 | Codex R1 | AC8/conductor still open at review time | `verified_fixed` | Closeout after Codex R1 design PASS + full gate; no design defect |
 | CX2 | P2 | Codex R1 | Full workspace gate not re-evidenced | `verified_fixed` | Same as R1-04 evidence |
-| CX3 | P2 | Codex R2 | ADR claimed final R2 evidence while review.md still said R2 pending | `fixed_pending_verification` | Align ADR + review.md; re-run fresh Codex R3 as final gate |
+| CX3 | P2 | Codex R2 | ADR claimed final R2 evidence while review.md still said R2 pending | `verified_fixed` | R3: ADR provenance table honest; R3 PASS WITH DEFERRED P3 |
+| CX4 | P3 | Codex R3 | conductor.md summary still said “final Codex R2 as publish gate” | `verified_fixed` | Easy fix: conductor note updated to R3 PASS WITH DEFERRED P3 |
 
 ## Review rounds
 
@@ -34,7 +35,7 @@
 | Internal R2 | explore subagent | **PASS** (R1-01/02/03 verified_fixed) | 2026-08-01 |
 | Cross-model R1 | Codex gpt-5.4 high | **FAIL** (CX1/CX2 closeout gates only; **zero design P0–P2**) | 2026-08-01 |
 | Cross-model R2 | Codex gpt-5.4 high | **FAIL** (CX3 ADR/review provenance mismatch only; design clean) | 2026-08-01 |
-| Cross-model R3 | Codex | pending final fresh gate after CX3 fix | |
+| Cross-model R3 | Codex gpt-5.4 high | **PASS WITH DEFERRED P3** (CX4 stale conductor note — fixed) | 2026-08-01 |
 
 ## Codex R1 design summary (no design fixes required)
 
