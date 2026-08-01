@@ -74,13 +74,24 @@ pub enum CredentialDeclaration {
 /// Sandbox posture for connector execution.
 ///
 /// Production registries accept only [`SandboxMode::TrustedBuiltin`].
-/// WASI / subprocess host modes are reserved for T182.
+/// WASI / subprocess host modes are reserved per **ADR-0019** (Trusted
+/// Built-ins First) — not product/serde variants until a host lands.
+///
+/// Two-layer defense (ADR-0019 L9): (1) serde fails closed on unknown
+/// `sandbox` strings; (2) registry refuses non-`TrustedBuiltin`
+/// (`RegistryError::SandboxNotAllowed`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 #[non_exhaustive]
 pub enum SandboxMode {
     /// In-process built-in; still subject to policy (T151).
     TrustedBuiltin,
+
+    /// Test-only constructible mode for registry denial coverage (T182 / T153 R1-06).
+    /// Not a production host variant. Never serialize as a real product mode.
+    #[cfg(test)]
+    #[doc(hidden)]
+    TestUntrustedPlaceholder,
 }
 
 /// Trust default declared by the connector (DTO parity with control-plane
@@ -221,5 +232,65 @@ mod unit_tests {
         m.schema_version = 1;
         m.source_kinds.clear();
         assert_eq!(validate_manifest(&m), Err(ManifestError::EmptySourceKinds));
+    }
+
+    /// Layer 1 (ADR-0019 L9): unknown sandbox strings fail at serde/parse.
+    /// Must **not** surface as `RegistryError::SandboxNotAllowed` (never reaches registry).
+    fn minimal_manifest_json_with_sandbox(sandbox: &str) -> String {
+        format!(
+            r#"{{
+              "schema_version": 1,
+              "id": "builtin.mock",
+              "display_name": "Mock",
+              "connector_version": "0.1.0",
+              "source_kinds": ["File"],
+              "operations": {{
+                "list": true,
+                "observe": true,
+                "preview": false,
+                "propose_write": false
+              }},
+              "scope_affinity": ["Personal"],
+              "freshness": "Fingerprint",
+              "credentials": "None",
+              "sandbox": "{sandbox}",
+              "default_trust": "LocalOnly"
+            }}"#
+        )
+    }
+
+    #[test]
+    fn parse_manifest_str__sandbox_Subprocess__serde_fail_closed() {
+        let err = match parse_manifest_str(&minimal_manifest_json_with_sandbox("Subprocess")) {
+            Err(e) => e,
+            Ok(_) => panic!("unknown sandbox must fail at serde/parse"),
+        };
+        assert!(
+            matches!(err, ManifestError::Json(_)),
+            "expected ManifestError::Json for unknown sandbox, got {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            !msg.contains("SandboxNotAllowed"),
+            "unknown sandbox must not claim SandboxNotAllowed (never reaches registry): {msg}"
+        );
+    }
+
+    #[test]
+    fn parse_manifest_str__sandbox_UntrustedExternal__serde_fail_closed() {
+        let err = match parse_manifest_str(&minimal_manifest_json_with_sandbox("UntrustedExternal"))
+        {
+            Err(e) => e,
+            Ok(_) => panic!("unknown sandbox must fail at serde/parse"),
+        };
+        assert!(
+            matches!(err, ManifestError::Json(_)),
+            "expected ManifestError::Json for unknown sandbox, got {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            !msg.contains("SandboxNotAllowed"),
+            "unknown sandbox must not claim SandboxNotAllowed (never reaches registry): {msg}"
+        );
     }
 }

@@ -637,3 +637,26 @@ P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills
 9. Low: rstest preference for F-matrix; store Online Backup mirror vs BackupService; duplicate dry-run smoke/recovery_drills  
 
 **Absorbed (productized, not eliminated):** §34 / T162–T166 / T178 pre-erase backup residual → E-01 drill + docs honesty.
+
+---
+
+## From T182 — Connector Sandbox Decision (2026-08-01)
+
+### 60. T182 Connector Sandbox — **Completed** (2026-08-01)
+
+P12.4 complete. Normative: [ADR-0019](../Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md) **Accepted**; companion threat-model + track specs under `conductor/tracks/trackT182-connector-sandbox-decision/`. Internal R2 PASS; Codex R3 **PASS WITH DEFERRED P3** (easy P3 fixed); full gate 1708 passed.
+
+**Locks frozen (ADR-0019 L1–L10):** v1 = `TrustedBuiltin` only; two-layer serde+registry defense; no native DLL load; no AGPL host; future third-party = subprocess (OS Job Objects / Landlock / sandbox profiles) first, then WASI with **two-crate** `wasmtime`+`wasmtime-wasi` pin, FilePerms re-verify, Extism lag honesty, tokio/sync tension; zero prod Wasmtime/Extism/cap-std deps.
+
+**Soft R1-06 shipped:** layer-1 serde unknown sandbox (`Subprocess` / `UntrustedExternal` → `ManifestError::Json`); layer-2 `#[cfg(test)] SandboxMode::TestUntrustedPlaceholder` → `RegistryError::SandboxNotAllowed`.
+
+**Residuals remaining (not fixed by T182):**
+
+1. **#12** path TOCTOU / openat / cap-std residual — documented; still open for future path-hardening  
+2. **CloudOk** constructible-unused / registry does not enforce trust label — future feature-flag non-LocalOnly  
+3. List cursor **#23** — out of scope (consumer-driven)  
+4. Plugin host (subprocess / WASI) — future track under L7/L8 gates  
+5. Harness `AdapterCapability.principal_binding` residual — out of scope  
+6. Optional pin via `ai-brains pin` for ADR-0019 — soft  
+
+**Absorbed (productized / locked, not eliminated):** T153 R1-06 (soft tests); T154 cap-std as builtin hardening candidate (not plugin sandbox); vision §7.2 subprocess-first as L7.
