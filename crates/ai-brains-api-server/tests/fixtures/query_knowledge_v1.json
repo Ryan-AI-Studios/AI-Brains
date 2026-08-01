@@ -1,0 +1,6 @@
+{
+  "api_version": "1",
+  "query": "budget decision",
+  "scope": "Repository:00000000-0000-0000-0000-0000000000a1",
+  "limit": 5
+}

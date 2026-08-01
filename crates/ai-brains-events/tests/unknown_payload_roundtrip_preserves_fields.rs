@@ -1,3 +1,5 @@
+//! T180-E-r0-unknown elevate — R0 Unknown payload fidelity (T148).
+//! See also `protocol_compat_events.rs` and Docs/PROTOCOL-COMPAT.md §6.
 #![allow(non_snake_case)]
 #![allow(clippy::disallowed_methods)]
 use ai_brains_core::privacy::Privacy;

@@ -602,16 +602,12 @@ P12.1 shipped on `track/T179-compatibility-matrix` / PR #51. GHA run **306838078
 - ~~**T180 protocol compat**~~ → **Promoted to T180 expansion (2026-07-31)** — see §57.
 - **Out of scope (unchanged):** App Store/notarization/MSI; SQLCipher flip as DoD; Electron; AGPL CI.
 
-### 57. T180 Protocol Compat Tests — **Proposed / Expanded** (2026-07-31; AI1/AI2 fold-in)
+### 57. T180 Protocol Compat Tests — **Completed** (2026-08-01)
 
-Design-only expansion of P12.2 (`trackT180-protocol-compat-tests/{spec,plan}.md`). Implement on go-ahead.
+P12.2 shipped: `Docs/PROTOCOL-COMPAT.md`; elevate T158; additive helper; honesty/CLI/HTTP/EVENT suites. Internal R2 PASS; Codex R1 **PASS** (0 findings).
 
-- **Absorbs:** T158 suite elevate (~527-line `protocol_wire.rs`); R0 Unknown; BridgePayload capture + raw BridgeRecord fallback; T179→T180 handoff.
-- **Frozen F1–F38 (post fold-in):** Fixture-first N−1; **crate-local fixtures only** (no root tree); elevate-first; additive `assert_deserializes_with_extra_fields`; public wire **no** `deny_unknown_fields` (dry-run ingest only, asymmetric); **8×** module `API_VERSION` **unenforced** (honesty tests incl. `"2"` accepted); P-BRIDGE opposite policy; Upcast **stub** (R0 active); CLI compact/pretty freeze; no doctor/`--version` JSON; Payload hand-serde must not become derived; zero new prod deps.
-- **AI1:** BS1–3 agree (public wire open fields; crate-local fixtures; extra-field helper); jsonschema = soft only.
-- **AI2:** #1–#9 + A–F largely agree; serde_json minor pin / single API_VERSION SOOT / runtime enforcement = residuals not DoD.
-- **Out of scope:** Infinite history; third-party clients; multi-OS; #34.2; OpenAPI/jsonschema DoD; binary N−1 DoD; implement Upcast migrations.
-- **Still open until implement:** PROTOCOL-COMPAT.md + suite not landed.
+- **Residuals (open, not blockers):** F36 runtime api_version enforcement; F35 single API_VERSION SOOT; F24 binary N−1 post-release; F34 optional jsonschema; serde_json minor pin → **T185** / T183 handoff notes.
+- **Out of scope (unchanged):** Infinite history; third-party clients; multi-OS; #34.2; OpenAPI DoD; Upcast migrations as DoD.
 
 ### 58. T186 Hermetic CLI / Multi-OS Test Hygiene — **Proposed** (2026-08-01)
 

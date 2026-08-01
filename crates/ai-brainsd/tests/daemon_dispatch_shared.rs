@@ -1316,6 +1316,7 @@ fn daemon_dispatch__main_and_service__same_handler_module() {
 
 #[test]
 fn parse_live_request_line__unknown_type__returns_invalid_request() {
+    // T180-D-unknown-type (live boundary elevate)
     let line = br#"{"type":"not_a_real_op","payload":null}"#;
     let err = parse_live_request_line(line).expect_err("unknown type must fail");
     assert_eq!(err.code, INVALID_REQUEST);
@@ -1346,7 +1347,8 @@ fn parse_live_request_line__ping__ok() {
 
 #[test]
 fn parse_live_request_line__raw_bridge_record__wraps_as_sync() {
-    // Legacy clients may send a bare BridgeRecord (no DaemonRequest envelope).
+    // T180-D-raw-bridge-fallback — Legacy clients may send a bare BridgeRecord
+    // (no DaemonRequest envelope). See Docs/PROTOCOL-COMPAT.md §2.2.
     let line = br#"{
         "bridge_version": "0.3",
         "direction": "inbound",
