@@ -3,7 +3,7 @@
 **Version:** 0.1.1  
 **Platform:** Windows 11 first (PowerShell); Ubuntu 24.04 / WSL and macOS are tiered — see **[COMPATIBILITY.md](COMPATIBILITY.md)** (not a blanket “best-effort” claim)  
 **Type:** Local-first CLI + optional local daemon (not an MCP server)  
-**Related docs:** [OPERATIONS.md](OPERATIONS.md) · [WORKFLOWS.md](WORKFLOWS.md) · [PRD.md](PRD.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [status.md](status.md) · [ADR-0019 connector sandbox](DECISIONS/ADR-0019-connector-sandbox-execution-model.md)
+**Related docs:** [README.md](README.md) (index) · [INSTALL.md](INSTALL.md) · [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · [OPERATIONS.md](OPERATIONS.md) · [WORKFLOWS.md](WORKFLOWS.md) · [PRD.md](PRD.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [PROTOCOL-COMPAT.md](PROTOCOL-COMPAT.md) · [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) · [status.md](status.md) (historical) · [ADR-0019 connector sandbox](DECISIONS/ADR-0019-connector-sandbox-execution-model.md)
 
 ---
 
@@ -30,7 +30,7 @@ AI final response: I did X
 | Pillar | Behavior |
 |--------|----------|
 | **Capture independence** | CLI → daemon → event log works without models, embeddings, or graph DBs |
-| **Canonical source of truth** | Every state change is an immutable event in a SQLCipher append-only log |
+| **Canonical source of truth** | Every state change is an immutable event in an append-only log (bundled SQLite + CE; SQLCipher page-level feature-gated — [COMPATIBILITY.md](COMPATIBILITY.md) F8) |
 | **CQRS** | Commands append events; queries read projections only |
 | **Capture privacy** | Only user prompts + final assistant responses (no CoT / tool logs) |
 | **Privacy inheritance** | Derived memories inherit the strictest privacy of sources |
@@ -43,6 +43,18 @@ AI final response: I did X
 **Workspace crates:** `core` · `events` · `contracts` · `store` · `crypto` · `path` · `capture` · `retrieval` · `graph` · `models` · `brain` · `scheduler` · `ai-brains-daemon-api` · `ai-brains-api-server` · `ai-brainsd` · `ai-brains-cli`
 
 **Loopback HTTP (T161):** optional authenticated `/v1` REST on `ai-brainsd` (default off; `AI_BRAINS_HTTP=1` / `--http`); same `DaemonRequest`/`DaemonResponse` contracts as named-pipe IPC via `HttpDispatch` → `handle_daemon_request`; bearer token + owner-only ACL; bind loopback-only by default.
+
+### Provenance (user view)
+
+Governed memory separates **what was observed** from **what we conclude** and **what we decide**:
+
+| Kind | Operator meaning | CLI (T160) |
+|------|------------------|------------|
+| **Evidence / source** | Observed material with fingerprints and origin | `evidence`, `source` |
+| **Conclusion** | Derived claim that still needs review when required | `conclusion` |
+| **Decision** | Accepted commitment (often after review) | `decision`, `review` |
+
+**Rules of thumb:** evidence ≠ conclusion; circular or unrooted promotion stays **Unknown** (not silently “Independent”). Corrections use **compensating events**, not silent rewrite of the log. See [ADR-0011](DECISIONS/ADR-0011-separate-evidence-conclusions-decisions.md) and [OPERATIONS.md](OPERATIONS.md) governed command surface.
 
 ---
 
@@ -59,7 +71,7 @@ briefing | query | scope | evidence | source | conclusion | decision | review | 
 | Flag / env | Purpose |
 |------------|---------|
 | `--vault-path` / `AI_BRAINS_VAULT_PATH` | Vault database path |
-| `--key` / `AI_BRAINS_KEY` | SQLCipher key |
+| `--key` / `AI_BRAINS_KEY` | Vault open key (SQLCipher-ready contract; page-level encryption not live on default `bundled` builds — F8) |
 | `--no-project-context` | CI/hooks: do not load project `.env` or clobber inherited IDs |
 | `--log-format` | `compact` \| `full` \| `json` \| `minimal` \| `off` |
 
@@ -239,7 +251,7 @@ ai-brains backup verify [--full]
 ai-brains backup prune --keep N --older-than <dur>
 ai-brains backup restore <path> [--force] [--dry-run]
 ```
-SQLCipher-aware backup, metadata headers, integrity checks, restore guarded when daemon is running. Default retention keeps 10 backups.
+Backup suite with metadata headers, integrity checks, and restore guarded when the daemon is running (SQLCipher-ready contracts; default build is bundled SQLite — F8). Default retention keeps 10 backups.
 
 ---
 
@@ -247,7 +259,7 @@ SQLCipher-aware backup, metadata headers, integrity checks, restore guarded when
 
 - Privacy levels from cloud-ok through sealed; pins default to **`LocalOnly`**
 - Preflight/recall filter non-injectable / sealed content
-- **SQLCipher** vault; busy timeout under concurrent CLI access
+- Vault open contracts (SQLCipher-ready); default storage is **bundled SQLite** + Content Envelope — [COMPATIBILITY.md](COMPATIBILITY.md) F8; busy timeout under concurrent CLI access
 - Key via `AI_BRAINS_KEY` / crypto recovery path; `zeroize` for secrets
 
 ---
@@ -301,7 +313,7 @@ INTELLIGENCE     nightly (summarize · embed · synthesize · symbol bridge)
 GRAPH            neighbors · hierarchy · session · update · rebuild · live projector
 INTEGRATION      Ledgerful (search/hotspots/bridge/pipe) · multi-harness hooks
 OPS              init · backup suite · daemon service · schedule · update
-PRIVACY/CRYPTO   SQLCipher · privacy levels · path normalization · no CoT
+PRIVACY/CRYPTO   vault+CE (F8) · privacy levels · path normalization · no CoT
 LEGACY IMPORT    classify_legacy / apply_legacy_import (T167) + `migrate governed` CLI (T168)
 EVALUATION       `evaluate governed` (T169) + shadow dogfood gate / `dogfood compare` (T170)
 ```

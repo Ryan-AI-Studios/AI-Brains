@@ -1,5 +1,7 @@
 # AI-Brains Repository Audit Report
 
+> **Historical audit (2026-04-26).** Stale relative to current product. Live status: `conductor/conductor.md` · docs index: `Docs/README.md`. Vault encryption claims in older prose may predate F8 honesty ([COMPATIBILITY.md](COMPATIBILITY.md)).
+
 **Date:** 2026-04-26  
 **Auditor:** opencode agent  
 **Scope:** Comprehensive audit of AI-Brains repository for completeness, correctness, and adherence to documented plans

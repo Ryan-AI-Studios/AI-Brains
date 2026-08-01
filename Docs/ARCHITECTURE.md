@@ -6,7 +6,7 @@ AI-Brains implements a Command Query Responsibility Segregation (CQRS) pattern w
 ## 2. Core Components
 
 ### 2.1 Event Store (`ai-brains-store`)
-The source of truth is an append-only table in a SQLCipher-encrypted SQLite database.
+The source of truth is an append-only table in a **bundled SQLite** database. Sensitive payloads use application-level **Content Envelope AES-256-GCM**; **SQLCipher page-level encryption is feature-gated / not live** on the default build (see [COMPATIBILITY.md](COMPATIBILITY.md) F8).
 - **Immutability**: Database triggers prevent updates or deletes to the `events` table.
 - **Schema Versions**: Supports upcasting for backward-compatible event evolution.
 
@@ -42,6 +42,16 @@ The "Nightly" intelligence worker that operates on background tasks:
 - **RAPTOR**: Hierarchical clustering of memories (Level 0->1 and Level 1->2) for long-term knowledge retention.
 - **CRAG**: Corrective Retrieval Augmented Generation to verify factual accuracy.
 
+## 2.7 Provenance model (user view)
+
+AI-Brains treats provenance as first-class:
+
+- **Evidence / sources** record what was observed (with fingerprints where applicable).  
+- **Conclusions** are derived claims; they are not automatic truth.  
+- **Decisions** are accepted commitments, often after a **review** queue step.  
+
+**Evidence ≠ conclusion.** Under-specified or circular promotion remains **Unknown** rather than silently labeled Independent. Corrections are **compensating events** (CQRS append), not in-place mutation of the event log. Operator entry points: `evidence`, `source`, `conclusion`, `decision`, `review` (see [CAPABILITIES.md](CAPABILITIES.md) and [OPERATIONS.md](OPERATIONS.md)). Design intent: [ADR-0011](DECISIONS/ADR-0011-separate-evidence-conclusions-decisions.md).
+
 ## 3. Data Flow
 
 ### Command Path (Write)
@@ -75,7 +85,7 @@ To optimize for long-context LLMs, the retrieval layer generates a **Briefing In
 ## 5. Portability and Degradation
 AI-Brains is designed to run in environments with varying levels of service:
 - **Minimum**: SQLite + Lexical Search (Works everywhere).
-- **Hardened**: SQLCipher (Full encryption).
+- **Hardened**: Content Envelope AES-256-GCM + OS permissions; SQLCipher page-level remains feature-gated (not “full encryption” on default builds — [COMPATIBILITY.md](COMPATIBILITY.md) F8).
 - **Intelligence**: Ollama/Cloud Models + RAPTOR (Full synthesis).
 - **Relational**: LadybugDB (Graph traversal).
 

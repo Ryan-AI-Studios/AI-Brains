@@ -2,7 +2,7 @@
 
 This guide covers the day-to-day operations, configuration, and troubleshooting of the AI-Brains system.
 
-> **Current state (June 2026):** Phase 15 (Cross-Agent Memory Synthesis) plus T44–T71 are shipped. The CLI has 17 top-level subcommands, the daemon auto-launches, nightly schedules via Windows Task Scheduler, and the Ledgerful bridge is live. The Operations surface is significantly larger than the pre-T44 era this document originally described.
+> **Current state:** Live track registry and product status live in [`conductor/conductor.md`](../conductor/conductor.md) and the docs index [`Docs/README.md`](README.md). The CLI surface is large (~30+ top-level commands — run `ai-brains --help`); the daemon can auto-launch; nightly can schedule via Windows Task Scheduler; the Ledgerful bridge is live. This guide is an **ops reference** — sections may lag new governed/multi-device commands; prefer `--help` and the docs index when in doubt. Vault encryption honesty: [COMPATIBILITY.md](COMPATIBILITY.md) F8 (bundled SQLite + CE; SQLCipher page-level not live by default).
 
 ## 1. Installation and Setup
 
@@ -534,7 +534,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Variable | Description |
 |---|---|
 | `AI_BRAINS_VAULT_PATH` | Default path to the vault database. |
-| `AI_BRAINS_KEY` | Hex-encoded SQLCipher key (or dummy in degraded mode). |
+| `AI_BRAINS_KEY` | Hex-encoded vault open key (SQLCipher-ready contract; default build is bundled SQLite — see COMPATIBILITY F8). |
 | `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). |
 | `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). |
 | `LEDGERFUL_TX_ID` | Ledgerful transaction ID for ledger cross-linking (preferred; T142). |

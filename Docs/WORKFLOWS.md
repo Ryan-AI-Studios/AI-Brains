@@ -29,7 +29,7 @@ ai-brains --vault-path .ai-brains\vault.db context
 
 # 4. Pin a high-level decision so the next recall will surface it.
 ai-brains --vault-path .ai-brains\vault.db pin `
-    "DECISION: Use SQLCipher for vault storage; never store raw event payloads unencrypted."
+    "DECISION: Prefer Content Envelope encryption for sensitive payloads; never store raw secrets in plain vault fields. Vault page-level SQLCipher is feature-gated (COMPATIBILITY F8)."
 
 # 5. Verify the pin comes back from recall.
 ai-brains --vault-path .ai-brains\vault.db recall "vault storage decision"
