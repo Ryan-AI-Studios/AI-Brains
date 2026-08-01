@@ -448,6 +448,8 @@ ai-brains backup create --output-dir D:\backups # custom directory
 ```
 Backups include an integrity check; corrupt backups are rejected at creation time.
 
+**Recovery drills (T181):** operator playbook, CE pre-erase honesty, RecoveryKit residual, and automated drill matrix live in [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). Run restore + content smoke before releases — not “backup exists” alone.
+
 ### Restore
 ```powershell
 ai-brains backup restore <path>               # interactive confirm + overwrite

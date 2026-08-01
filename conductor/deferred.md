@@ -326,6 +326,7 @@ Codex R4 **PASS WITH DEFERRED P3**. Internal R3+ CLEAN WITH DEFERRED LOWS.
 - ~~**T166:** class-based retention preferring CE for envelope classes~~ **Promoted 2026-07-29:** track **expanded** (`trackT166-class-based-retention/`) — class matrix, dry-run plan, apply+confirm, T165 wipe reuse; **Completed 2026-07-29** T166 PR (class retention plan/apply).
 - ~~**Human accept ADR-0016**~~ **Accepted 2026-07-28** — T163–T165 Complete (product CE for envelope-backed under ADR §12).
 - **Pre-erase backup residual:** physical fact remains; honesty in T165 wipe + T166 plan/apply warnings for CE candidates.
+  - **T181 (2026-08-01 Expanded):** productize residual as **drill proof** (T181-E-01 pre-wipe backup still opens after live wipe) + `Docs/RECOVERY-DRILLS.md` honesty — does **not** eliminate offline copies.
 - **DataKey rotation / wrap-nonce accounting:** future gap if volume or multi-device demands it (P8+ / P11) — not required for v1 CE.
   - **T175 (2026-07-30 Completed / ADR-0018 Accepted):** **direction** frozen; multi-device wrap keys are per-recipient ephemeral (O(1) seals) — better than vault-lifetime DataKey budget. **Implementation residual remains open** (P11 hygiene track) — do **not** treat as fully closed by T175.
 - **P11 multi-device key tombstone / erasure ACK:** out of T162–T165.
@@ -616,3 +617,23 @@ Placeholder residual after T179 first multi-OS GHA (see `trackT186-hermetic-cli-
 - **Absorbs:** ambient `AI_BRAINS_PROJECT_ID` / session pollution on clean runners; shared hermetic `assert_cmd` helper; soft-canonicalize path containment expansion; optional GHA `--no-fail-fast` inventory; CI wall-clock notes (~15–20 min full Win+Linux).
 - **Out of scope:** platform tier changes (T179); T180 protocol; T181 drills productization; #34.2.
 - **Still open until expand/implement:** helper + suite migration not landed.
+
+### 59. T181 Backup Recovery Drills — **Completed** (2026-08-01)
+
+P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills/{spec,plan,review}.md` (**F1–F48**, AC1–AC11). Playbook: `Docs/RECOVERY-DRILLS.md`.
+
+**Shipped:** automated R/K/E/F drills; `assert_no_secret_leakage` (hex/base64/url-safe/raw/Debug byte forms); CE pre-erase residual productized as E-01 (physical residual remains); kit library-only honesty; dual-mode wrong-key residual when `rusqlite` is plain `bundled` (not SQLCipher). Internal R2 mediums fixed; Codex R1 P2 `fs::copy` fixed; full nextest 1704 green; deny/audit green.
+
+**Residuals remaining (not fixed by T181):**
+
+1. No `recovery export` CLI (operator kit out-of-band) — T183/T184  
+2. No `doctor` CLI — T183  
+3. Argon2 KDF params not in kit JSON (F37) — future schema  
+4. #34.2 DataKey rotation — open  
+5. F-REC-03/04 projection/graph rebuild drills — soft  
+6. Restore hard-fail while daemon running — product residual (warn today)  
+7. Optional intermediate-hex zeroize tighten in `from_data_key` — soft crypto  
+8. **Wrong-key / K-06 fail-closed requires SQLCipher page encryption** (`bundled-sqlcipher` or equiv.); current `bundled` plain SQLite ignores `PRAGMA key` — security-relevant pre-existing residual  
+9. Low: rstest preference for F-matrix; store Online Backup mirror vs BackupService; duplicate dry-run smoke/recovery_drills  
+
+**Absorbed (productized, not eliminated):** §34 / T162–T166 / T178 pre-erase backup residual → E-01 drill + docs honesty.
