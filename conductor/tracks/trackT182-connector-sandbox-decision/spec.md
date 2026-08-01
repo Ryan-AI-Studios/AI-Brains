@@ -2,7 +2,7 @@
 
 - **Track ID:** T182-ConnectorSandboxDecision
 - **Phase:** P12 — Release hardening and adoption (Task 4)
-- **Status:** ✅ **Completed** (2026-08-01) — ADR-0019 **Accepted**; soft two-layer tests shipped; reviews pending orchestrator
+- **Status:** 🔄 **In Review** (2026-08-01) — ADR-0019 **Accepted** (technical freeze); soft two-layer tests shipped; design-review rounds in `review.md`
 - **Depends on:** P6 connector port + built-ins **Complete** (T153–T156); T151 policy/grants; path reparse refuse (T154); security review culture from P11 (T175) / P8; soft: T184 review charter consumes this ADR
 - **Blocks / feeds:** T183 release docs (connector trust language); T184 connector path scope; T185 claims honesty (no “plugin sandbox” overclaim); future plugin tracks (none scheduled)
 - **Category:** SECURITY / ARCHITECTURE
@@ -259,7 +259,7 @@ Optional **Cargo.lock dep-guard** test (`wasmtime`/`extism`/`cap-std` absent): *
 - [x] AC5: License locks: no AGPL host; Wasmtime/Extism/cap-std named only as **future** candidates with precise deny-compatible licenses  
 - [x] AC6: Non-claims section present (no perfect isolation / no marketplace / no TOCTOU-closed / no “WASI FilePerms always hold”)  
 - [x] AC7: Zero new production deps; `cargo deny check` / audit unchanged for this track if code optional  
-- [x] AC8: Conductor status Completed; deferred promotions struck; T183/T184/T185 can cite ADR-0019  
+- [ ] AC8: Conductor status Completed after design review clean; deferred promotions struck; T183/T184/T185 can cite ADR-0019  
 - [x] AC9 (soft): Layer-1 serde unknown sandbox test and/or Layer-2 R1-06 cfg(test) registry denial  
 
 ## 10. Verification plan

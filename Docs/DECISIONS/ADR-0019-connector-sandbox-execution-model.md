@@ -2,11 +2,27 @@
 
 ## Status
 
-**Accepted** — 2026-08-01.
+**Accepted** — 2026-08-01 (technical freeze under T182).
 
-Accepted after T182 design review (internal + SECURITY cross-model); soft two-layer tests shipped. Normative for release language on connectors (P12.4). Complements [ADR-0012](ADR-0012-local-first-control-plane-and-public-protocol.md) (local-first control plane) and policy from T151. Does **not** change capture independence or epistemic rules ([ADR-0011](ADR-0011-separate-evidence-conclusions-decisions.md)). Related design culture: [ADR-0018](ADR-0018-encrypted-event-replication-protocol.md) (Encrypted Event Envelope Replication Protocol — threat-model + non-claims discipline).
+Decision content (v1 = TrustedBuiltin only; L1–L10 locks; non-claims; future subprocess→WASI gates) is frozen and normative for release language on connectors (P12.4). Soft two-layer sandbox-declaration tests shipped in `ai-brains-sources`.
 
-Companion threat model: [`conductor/tracks/trackT182-connector-sandbox-decision/threat-model.md`](../../conductor/tracks/trackT182-connector-sandbox-decision/threat-model.md). Spec fold-in: [`spec.md` §15](../../conductor/tracks/trackT182-connector-sandbox-decision/spec.md).
+**Design-review provenance** is recorded in the track review log
+[`review.md`](../../conductor/tracks/trackT182-connector-sandbox-decision/review.md)
+and is **not** implied complete by this Status line alone. When internal + SECURITY
+cross-model rounds clear, that log is the evidence (same discipline as
+[ADR-0018](ADR-0018-encrypted-event-replication-protocol.md)).
+
+Complements [ADR-0012](ADR-0012-local-first-control-plane-and-public-protocol.md)
+(local-first control plane) and policy from T151. Does **not** change capture
+independence or epistemic rules
+([ADR-0011](ADR-0011-separate-evidence-conclusions-decisions.md)). Related design
+culture: ADR-0018 (Encrypted Event Envelope Replication Protocol — threat-model +
+non-claims discipline).
+
+Companion threat model:
+[`conductor/tracks/trackT182-connector-sandbox-decision/threat-model.md`](../../conductor/tracks/trackT182-connector-sandbox-decision/threat-model.md).
+Spec fold-in:
+[`spec.md` §15](../../conductor/tracks/trackT182-connector-sandbox-decision/spec.md).
 
 ## Context
 
@@ -53,7 +69,22 @@ These are rationale for **deferral**, not a permanent ban. A later track may ado
 
 ## Decision
 
-### 1. v1 execution model
+Normative locks **L1–L10** (cite as ADR-0019 L*n*):
+
+| # | Lock |
+|---|------|
+| **L1** | **v1 release execution model = `SandboxMode::TrustedBuiltin` only.** Production registries refuse all other modes. |
+| **L2** | **No production dependency** on Wasmtime, Extism, cap-std, or WASI hosts without a **new** track + ADR update. |
+| **L3** | **Forbidden:** arbitrary native shared libraries as connectors; Node WASI host; AGPL plugin hosts. |
+| **L4** | **Policy always applies** (T151). Built-in ≠ policy bypass. |
+| **L5** | **`propose_write` never mutates user files** — proposal artifact only. |
+| **L6** | **Network default deny** for LocalOnly connectors; **`CloudOk` constructible-but-unused** — registry does not enforce trust label in v1; future non-`LocalOnly` requires feature flag + re-threat-model. |
+| **L7** | **Future third-party preference:** (1) capability-scoped **subprocess** with OS isolation primitives, (2) **WASI/`wasmtime`+`wasmtime-wasi`** when demand + patch budget exist. Rationale includes Wasmtime CVE classes, WASI-host High bypasses, Extism pin lag, and **tokio-in-core** tension from `wasmtime-wasi`. |
+| **L8** | **Future plugin gate conditions** (all required): threat-model re-review; feature flag default **off**; timeout/kill + path allowlist/preopens; no vault key / RecoveryKit / DataKey on IPC (T181); network deny default; write proposal-only unless grant+UX; supply chain `cargo deny` + `cargo audit` green (incl. `unsound`/`unmaintained` workspace); Wasmtime-specific two-crate pin + FilePerms re-verify + Cranelift/Pulley preference + Extism pin honesty; docs honesty / no cert language. |
+| **L9** | **Two-layer sandbox defense (v1):** (1) serde fail-closed on unknown `SandboxMode` strings; (2) registry refuses non-`TrustedBuiltin`. Future host variants non-constructible in production until a host lands (test-only constructs allowed for denial coverage). |
+| **L10** | **Non-claims:** formal certification; perfect process isolation for built-ins; marketplace safety; closed TOCTOU without openat/cap-std; “Wasmtime/WASI FilePerms make untrusted code safe forever.” |
+
+### 1. v1 execution model (L1, L4–L6, L9)
 
 1. **Only `SandboxMode::TrustedBuiltin` may register** in production registries.  
 2. Built-ins are **in-process** Rust, same binary trust as the rest of AI-Brains.  
@@ -64,14 +95,15 @@ These are rationale for **deferral**, not a permanent ban. A later track may ado
 7. **Two-layer sandbox declaration defense:** serde fail-closed + registry refuse non-`TrustedBuiltin`.  
 8. **`CloudOk` is reserved/unused** — constructible today but not used; future non-`LocalOnly` requires explicit feature flag + threat re-review (registry does not enforce trust label in v1).
 
-### 2. Forbidden without a new ADR (or explicit supersession)
+### 2. Forbidden without a new ADR (or explicit supersession) (L2–L3)
 
 - Loading arbitrary native libraries (`LoadLibrary` / `dlopen` of user paths) as connectors.  
 - Embedding AGPL connector hosts or requiring AGPL plugins for product features.  
 - Using Node’s experimental WASI (or similar non-Bytecode-Alliance weak hosts) for untrusted plugins.  
 - Marketing “third-party plugin marketplace,” “WASI isolation,” or “untrusted code is sandboxed” for the v1 product.
+- Adding production Wasmtime / Extism / cap-std / WASI host dependencies without a new track + ADR update.
 
-### 3. Future third-party roadmap (gated — not implemented here)
+### 3. Future third-party roadmap (gated — not implemented here) (L7–L8)
 
 **Preference order:**
 
@@ -98,11 +130,11 @@ These are rationale for **deferral**, not a permanent ban. A later track may ado
 
 `SandboxMode` may later gain variants such as `Subprocess` / `Wasi` only when a host exists. Until then, keep the enum production surface as **TrustedBuiltin-only** (test-only constructs allowed for denial coverage). Soft tests: (1) serde unknown-variant fail-closed; (2) cfg(test) constructible → `SandboxNotAllowed`.
 
-### 4. Path residual honesty
+### 4. Path residual honesty (L10)
 
 v1 path-bearing connectors use containment resolve + reparse/symlink refuse. **Check-then-open TOCTOU** without `openat` / `cap-std` remains an **accepted residual** (**deferred #12**). Built-ins minimize risk via root containment + symlink refusal at check time — this is **not** complete path safety. Closing #12 is **not** a prerequisite for this ADR; claiming it closed **is** forbidden.
 
-### 5. License posture for future hosts
+### 5. License posture for future hosts (L2, L5 of licenses)
 
 | Candidate | Typical license | Notes |
 |-----------|-----------------|-------|
@@ -129,7 +161,7 @@ Any new crate still requires implement-day `cargo deny check` including transiti
 - CloudOk trust label not registry-enforced.  
 - Future plugin work needs a full track (not a drive-by).
 
-### Non-claims
+### Non-claims (L10)
 
 This ADR does **not** claim formal security certification, perfect isolation of built-ins, closed TOCTOU, marketplace safety, that WASI FilePerms always hold, or that Wasmtime would make untrusted code safe without ongoing patches.
 
@@ -155,8 +187,8 @@ This ADR does **not** claim formal security certification, perfect isolation of 
 
 ## Acceptance checklist (track)
 
-- [x] Design review clean (or deferred mediums ≤3 with register) — Accepted after T182 design review (internal + SECURITY cross-model); soft two-layer tests shipped  
-- [x] Status → **Accepted** + date (2026-08-01)  
+- [ ] Design review clean (or deferred mediums ≤3 with register) — **pending** internal + SECURITY cross-model rounds in track `review.md` (do not check until those clear)  
+- [x] Status → **Accepted** + date (2026-08-01 technical freeze); soft two-layer tests shipped  
 - [x] File promoted under `Docs/DECISIONS/`  
-- [x] Conductor T182 Completed  
+- [ ] Conductor T182 Completed — after design review clean + full gate  
 - [ ] Optional pin via `ai-brains pin`  

@@ -1,6 +1,6 @@
 # T182 Plan — Connector Sandbox Decision + Threat Model (P12.4)
 
-Status: **Completed** (2026-08-01) — ADR-0019 Accepted + soft two-layer tests shipped. Design/ADR track + test-only code.
+Status: **In Review** (2026-08-01) — ADR-0019 Accepted technical freeze + soft two-layer tests shipped. Design-review rounds open.
 
 ## Track shape
 
@@ -33,11 +33,11 @@ Status: **Completed** (2026-08-01) — ADR-0019 Accepted + soft two-layer tests 
 
 ## Phase B — ADR accept (implement on go-ahead)
 
-- [ ] Human / orchestrator review of threat model + ADR draft (post-fold-in)
-- [ ] Internal review log → resolve findings
+- [x] Human / orchestrator review of threat model + ADR draft (post-fold-in) — implement phase
+- [x] Internal review log → resolve findings — R1 FAIL (R1-01 provenance) → fixed; R2 pending re-verify
 - [ ] Cross-model (SECURITY) review until clean or justified deferrals
-- [x] Promote `adr-0019-draft.md` → `Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md` with **Accepted**
-- [x] Cross-link from OPERATIONS or CAPABILITIES if a one-line “connector trust” pointer is free (do not invent long docs — T183 owns pack)
+- [x] Promote `adr-0019-draft.md` → `Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md` with **Accepted** (technical freeze; review provenance in `review.md`)
+- [x] Cross-link from CAPABILITIES one-line “connector trust” pointer (T183 owns full pack)
 - [ ] Optional pin: `ai-brains pin "DECISION: ADR-0019 v1 TrustedBuiltin only; third-party subprocess then WASI; no DLL load; no AGPL host; two-crate wasmtime pin if ever"`
 
 ## Phase C — Soft code (optional)
@@ -53,8 +53,8 @@ Two-layer defense (L9) — **do not** assert `SandboxNotAllowed` on unknown-stri
 
 ## Phase D — Closeout
 
-- [x] AC1–AC8 (and AC9 if taken) checked in `spec.md`
-- [x] Conductor row → Completed; owner filled
+- [x] AC1–AC7 + AC9 checked in `spec.md`; AC8 pending design-review clean
+- [ ] Conductor row → Completed after design review clean; owner filled (currently In Review)
 - [x] deferred.md §60 struck/promoted notes
 - [ ] Full gate only if code changed:  
   `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit ; ledgerful verify --scope full`
