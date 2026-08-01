@@ -68,15 +68,15 @@ pub fn normalize_for_location_compare(input: &str) -> String {
     // drive (legacy callers / intermediate forms), still map when possible.
     if let Some(mapped) = map_wsl_mnt_to_drive(&stripped) {
         stripped = mapped.replace('/', "\\");
-    } else if let Some((_, rest)) = stripped.split_once(r":\mnt\") {
+    } else if let Some((_, rest)) = stripped.split_once(r":\mnt\")
+        && let Some(mapped) = map_wsl_mnt_to_drive(&format!(r"\mnt\{rest}"))
+    {
         // e.g. D:\mnt\c\Dev\... from pre-fix soft-resolve of /mnt/c/...
-        if let Some(mapped) = map_wsl_mnt_to_drive(&format!(r"\mnt\{rest}")) {
-            stripped = mapped.replace('/', "\\");
-        }
-    } else if let Some((_, rest)) = stripped.split_once(r":/mnt/") {
-        if let Some(mapped) = map_wsl_mnt_to_drive(&format!("/mnt/{rest}")) {
-            stripped = mapped.replace('/', "\\");
-        }
+        stripped = mapped.replace('/', "\\");
+    } else if let Some((_, rest)) = stripped.split_once(r":/mnt/")
+        && let Some(mapped) = map_wsl_mnt_to_drive(&format!("/mnt/{rest}"))
+    {
+        stripped = mapped.replace('/', "\\");
     }
 
     if is_unc_path(&stripped) {
