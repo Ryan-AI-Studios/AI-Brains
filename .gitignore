@@ -39,3 +39,9 @@ apps/desktop/src-tauri/gen/
 # Generated schedule wrappers (machine-local paths + model env baked in)
 .ai-brains-nightly-task.bat
 .ai-brains-*-task.bat
+
+# T185 release artifacts (root dist only; apps/desktop/dist/ already ignored above)
+/dist/
+# cargo-cyclonedx crate-local BOMs (scripts clean these; ignore if left behind)
+*.cdx.json
+

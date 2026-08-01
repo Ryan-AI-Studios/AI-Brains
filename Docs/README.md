@@ -3,7 +3,8 @@
 **Product version:** 0.1.1 (`Cargo.toml` workspace)  
 **Platform matrix:** [COMPATIBILITY.md](COMPATIBILITY.md)  
 **Track status (live):** [`conductor/conductor.md`](../conductor/conductor.md)  
-**Security limits hub:** [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · root [SECURITY.md](../SECURITY.md)
+**Security limits hub:** [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · root [SECURITY.md](../SECURITY.md)  
+**Release claims gate:** [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) · [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md)
 
 This index is the **single entry point** for operators and developers. Prefer it over browsing orphan historical files.
 
@@ -100,9 +101,11 @@ Full executive summary: [SECURITY-LIMITS.md](SECURITY-LIMITS.md).
 
 | Doc | Role |
 |-----|------|
+| [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) | **Normative** claim / non-claim checklist + residual cross-walk (T185) |
+| [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) | Ordered human + script release gate (dry-run / `v*` tag) |
 | [Implementation-Plan.md](Implementation-Plan.md) | Historical master plan — **§8 CLI surface may list commands never built**; live CLI = `ai-brains --help` + conductor |
 | [status.md](status.md) | **Historical** freeze (T72 / 2026-06-02) — not live status |
-| [ci-tooling.md](ci-tooling.md) | CI tool pins |
+| [ci-tooling.md](ci-tooling.md) | CI tool pins (+ SBOM / NOTICE tools) |
 | [hooks.md](hooks.md) / harness hook docs | Adapter integration notes |
 | Root [CHANGELOG.md](../CHANGELOG.md) | Keep a Changelog |
 | Root [README.md](../README.md) | Product intro |

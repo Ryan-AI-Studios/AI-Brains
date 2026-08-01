@@ -124,7 +124,7 @@ Do **not** claim in user-facing release prose:
 - “SQLCipher page encryption” / “Full encryption” **without** F8 qualifier  
 - Shipped `doctor` or `recovery export` product CLIs  
 
-Formal claims gate: conductor **T185** (consumes track `evidence/CLAIMS-CROSSCHECK.md`).
+Formal claims gate: [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) + [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) (T185; seed evidence was T183 `CLAIMS-CROSSCHECK.md`).
 
 ---
 

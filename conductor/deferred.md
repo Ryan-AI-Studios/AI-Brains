@@ -721,3 +721,50 @@ P12.6 executed. Normative: `conductor/tracks/trackT184-independent-security-revi
 **Closed in T184:** R-DISCLOSURE-TL, R-CI-PERM, R-CI-DEPBOT (and corrected R-CHANGELOG-PATH to root `CHANGELOG.md`).
 
 **Out of scope remains:** full multi-OS pentest; ASVS/SOC2 certification; doctor/export/DataKey rotation product work; SBOM packaging (T185).
+---
+
+---
+
+---
+
+## From T185 - Claims + SBOM Release Gate (2026-08-01)
+
+### 63. T185 Claims + SBOM Release Gate — **Completed** (2026-08-01)
+
+P12.7 executed. Normative: `conductor/tracks/trackT185-claims-sbom-release-gate/{spec,plan,review}.md` + `evidence/`.
+
+**Shipped:**
+- `Docs/RELEASE-CLAIMS.md` — claim/non-claim, full residual cross-walk (L3), “what we don’t ship”
+- `Docs/RELEASE-CHECKLIST.md` — ordered gate + dry-run human sign-off
+- Scripts: `generate-sbom.ps1/.sh`, `generate-notices.ps1/.sh`, `check-release-claims.ps1`, `check-version-banners.ps1`, `generate-checksums.ps1`, `dev-release-check.ps1`
+- Committed `about.toml` + `about.md.hbs` (+ default `about.hbs`); CycloneDX **1.5** per-binary via cargo-cyclonedx **0.5.9**; cargo-about **0.9.1** `--features cli`
+- Soft `.github/workflows/release.yml` — SHA-pinned actions; soft `actions/attest` (L1-oriented; no L3 claim)
+- Impl-Plan §17 F8-honest vault storage; ci-tooling pins; dry-run archive under `evidence/dry-run-2026-08-01/`
+
+**R-SLSA disposition:** release workflow may emit GitHub Artifact Attestations (Build L1-oriented fields auto-populated). **Not** SLSA Build L3 / certified. Dry-run did not publish attestations.
+
+**Absorbed (closed as T185 process work):**
+| Source | Item |
+|--------|------|
+| §56 T179 | F26 release-workflow SHA-pin; platform smoke rows on checklist |
+| §57 T180 | Protocol honesty language in RELEASE-CLAIMS |
+| §61 T183 | CLAIMS-CROSSCHECK consumption; elevated re-grep script; version-banner; soft historical re-grep |
+| §62 T184 | Residual full cross-walk; R-SLSA axis honesty |
+| HANDOFF-T183-T185 | F8 honesty; deny/audit exit-code gate on checklist |
+| T169/T170 | Evaluation pointers in evidence index (hard gates only) |
+| Impl-Plan §17 | Storage encryption → F8-honest |
+
+**Explicit non-DoD residuals (remain open):**
+
+1. MSI / notarization / App Store packaging
+2. systemd / launchd production units
+3. PR `ci.yml` full action SHA-pin (**R-CI-PIN** → **T186** or later; release.yml pins shipped)
+4. Branch protection (**R-CI-BRANCH** — repo admin)
+5. doctor / recovery export CLIs; #34.2 DataKey rotation; SQLCipher page-encrypt flip
+6. T186 hermetic CLI suite (parallel)
+7. Soft historical PRD “Storage is encrypted…” line (report-only; not elevated)
+8. **NOTICE noise:** `cargo-about` may still list first-party PolyForm workspace crates despite `private.ignore` (presentation only; deny policy remains SOOT for allowed licenses)
+
+**Out of scope remains:** public `v*` marketing release without human re-walk of checklist; SLSA L3; SOC2/ASVS certification.
+
+**Review closeout:** Internal PASS WITH DEFERRED P3; Codex R1 FAIL→fix; R2 FAIL→easy P3; **R3 PASS WITH DEFERRED P3** (final gate).

@@ -2016,7 +2016,7 @@ And the following statements are true:
 
 - Capture works offline.
 - Capture works if graph/model unavailable.
-- Storage is encrypted.
+- Vault storage honesty (**F8**): bundled SQLite + application-level Content Envelope (CE) AES-256-GCM + OS filesystem permissions — **not** a live “full DB encryption” / page-level SQLCipher claim by default. See [COMPATIBILITY.md](COMPATIBILITY.md) F8, [SECURITY-LIMITS.md](SECURITY-LIMITS.md), and [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) (**R-F8**, **R-ZERO-KEY**).
 - Recovery kit restores.
 - No repo writes by default.
 - Hidden thinking/tool calls are not stored.
@@ -2027,3 +2027,4 @@ And the following statements are true:
 - Three concurrent sessions across two projects pass E2E.
 - Preflight is useful and under 1500 words.
 - Nightly jobs degrade gracefully.
+- **Release process:** execute [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) (claims scan, deny/audit, SBOM, NOTICE, platform smoke, residual citation, human sign-off) before public `v*` / binary distribution claims.
