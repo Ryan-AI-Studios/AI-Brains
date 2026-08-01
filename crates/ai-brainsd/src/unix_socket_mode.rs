@@ -18,7 +18,7 @@ pub fn apply_owner_only_mode(path: &std::path::Path) -> std::io::Result<()> {
 }
 
 #[cfg(test)]
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::disallowed_methods)]
 mod tests {
     use super::*;
 
