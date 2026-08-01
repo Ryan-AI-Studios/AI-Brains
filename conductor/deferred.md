@@ -777,7 +777,7 @@ P12.7 executed. Normative: `conductor/tracks/trackT185-claims-sbom-release-gate/
 P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-hermetic-cli-ci-hygiene/{spec,plan,review}.md` (L1–L13, AC0–AC10).
 
 **Shipped:**
-- **AC0:** `nextest.toml` → `.config/nextest.toml`; `slow-timeout = { period = "30s", terminate-after = 1 }`; profile.ci discoverable
+- **AC0:** `nextest.toml` → `.config/nextest.toml`; `slow-timeout = { period = "30s", terminate-after = 4 }` (120s kill); profile.ci discoverable
 - **Helper:** `tests/common/mod.rs` (`hermetic_bin` / `hermetic_vault` / `hermetic_cmd`); 11-key denylist (elevation + SCOPE + PREFLIGHT)
 - **AC2:** `hermetic_smoke.rs` ambient pollution proof
 - **Priority+soft migration:** smoke, migrate, shadow, device, recovery, preflight, mapping, sync_query, CARGO_BIN_EXE trio

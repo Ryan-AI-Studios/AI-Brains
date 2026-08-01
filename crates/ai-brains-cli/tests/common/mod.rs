@@ -73,10 +73,16 @@ pub fn hermetic_vault(vault: &Path) -> Command {
 
 /// Hermetic binary with vault path + default project/session env (L1).
 ///
+/// Uses `--no-project-context` so the CLI does **not** clear `AI_BRAINS_PROJECT_ID`
+/// / `SESSION_ID` when no cwd `.env` exists (CI runners). Local developer
+/// workspaces often have a repo `.env`, which masks the bug without this flag.
+///
 /// Override project/session with further `.env(...)` calls after this returns
 /// (later env wins in assert_cmd).
 pub fn hermetic_cmd(vault: &Path) -> Command {
     let mut cmd = hermetic_vault(vault);
+    // T80: preserve explicit env on clean runners (no project-local .env).
+    cmd.arg("--no-project-context");
     cmd.env("AI_BRAINS_PROJECT_ID", DEFAULT_PROJECT);
     cmd.env("AI_BRAINS_SESSION_ID", DEFAULT_SESSION);
     cmd
@@ -85,6 +91,7 @@ pub fn hermetic_cmd(vault: &Path) -> Command {
 /// Hermetic binary with vault + explicit project/session.
 pub fn hermetic_cmd_with_ids(vault: &Path, project_id: &str, session_id: &str) -> Command {
     let mut cmd = hermetic_vault(vault);
+    cmd.arg("--no-project-context");
     cmd.env("AI_BRAINS_PROJECT_ID", project_id);
     cmd.env("AI_BRAINS_SESSION_ID", session_id);
     cmd

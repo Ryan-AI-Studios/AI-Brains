@@ -22,7 +22,7 @@
 ## Phase A0 — nextest config (Critical prerequisite / AC0)
 
 - [x] **A0.1** Move `nextest.toml` → **`.config/nextest.toml`**
-- [x] **A0.2** Fix slow-timeout: `slow-timeout = { period = "30s", terminate-after = 1 }`
+- [x] **A0.2** Fix slow-timeout: `slow-timeout = { period = "30s", terminate-after = 4 }` (kill at 120s; after=1 killed cross_repo e2e under load)
 - [x] **A0.3** Keep `[profile.ci]` `fail-fast = false`, `retries = 3`
 - [x] **A0.4** Verify: `cargo nextest show-config` / list with `--profile ci` succeeds; no unknown-key warning
 - [x] **A0.5** `dev-check.ps1` / `dev-check.sh` need no path change (auto-discovery)
