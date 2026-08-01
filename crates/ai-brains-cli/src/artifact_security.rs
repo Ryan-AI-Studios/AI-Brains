@@ -17,6 +17,9 @@ use std::path::{Path, PathBuf};
 /// Applied with `ConvertStringSecurityDescriptorToSecurityDescriptor` +
 /// `SetNamedSecurityInfo` so Windows does not leave residual LogonSession ACEs
 /// (unlike incremental `icacls /grant` + `/remove`).
+///
+/// Compiled under `cfg(test)` on non-Windows so pure SDDL unit tests run in Linux CI.
+#[cfg(any(windows, test))]
 pub const RESTRICTIVE_FILE_SDDL: &str = "D:P(A;;FA;;;SY)(A;;FA;;;BA)";
 
 /// `%ProgramData%\AI-Brains` (falls back to `C:\ProgramData\AI-Brains`).
@@ -73,7 +76,7 @@ pub fn ensure_protected_artifact_acl(path: &Path) -> Result<(), Box<dyn std::err
     #[cfg(not(windows))]
     {
         let _ = path;
-        return Err("ensure_protected_artifact_acl is only supported on Windows".into());
+        Err("ensure_protected_artifact_acl is only supported on Windows".into())
     }
     #[cfg(windows)]
     {
@@ -105,7 +108,7 @@ pub fn ensure_protected_artifact_acl(path: &Path) -> Result<(), Box<dyn std::err
 pub fn ensure_program_data_ai_brains_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     {
-        return Err("ensure_program_data_ai_brains_dir is only supported on Windows".into());
+        Err("ensure_program_data_ai_brains_dir is only supported on Windows".into())
     }
     #[cfg(windows)]
     {
@@ -138,6 +141,7 @@ pub fn ensure_program_data_ai_brains_dir() -> Result<PathBuf, Box<dyn std::error
 }
 
 /// Parent reparse refuse + optional AI-Brains dir ACL apply/verify (fail closed).
+#[cfg(windows)]
 fn ensure_parent_protected(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let Some(parent) = path.parent() else {
         return Ok(());
@@ -194,7 +198,7 @@ pub fn write_protected_artifact(
     #[cfg(not(windows))]
     {
         let _ = (path, content);
-        return Err("write_protected_artifact is only supported on Windows".into());
+        Err("write_protected_artifact is only supported on Windows".into())
     }
     #[cfg(windows)]
     {
@@ -295,24 +299,24 @@ pub fn is_hardlink(path: &Path) -> std::io::Result<bool> {
 }
 
 /// Apply absolute restrictive ACL: SYSTEM + Administrators full only, no inheritance.
+///
+/// Windows-only: callers that need fail-closed behavior on Unix use
+/// [`ensure_protected_artifact_acl`] / [`write_protected_artifact`] stubs instead.
+#[cfg(windows)]
 pub fn apply_restrictive_acl(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(not(windows))]
-    {
-        let _ = path;
-        return Err("apply_restrictive_acl is only supported on Windows".into());
-    }
-    #[cfg(windows)]
-    {
-        apply_restrictive_acl_windows(path)
-    }
+    apply_restrictive_acl_windows(path)
 }
 
 /// Read ACL via `icacls` and ensure only SYSTEM + Administrators full control.
+///
+/// Available under `cfg(test)` on non-Windows as a fail-closed stub so the
+/// default-temp ACL reject unit test compiles in Linux CI.
+#[cfg(any(windows, test))]
 pub fn verify_restrictive_acl(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     {
         let _ = path;
-        return Err("verify_restrictive_acl is only supported on Windows".into());
+        Err("verify_restrictive_acl is only supported on Windows".into())
     }
     #[cfg(windows)]
     {
@@ -324,6 +328,8 @@ pub fn verify_restrictive_acl(path: &Path) -> Result<(), Box<dyn std::error::Err
 ///
 /// Used both by verify (fail closed) and by apply (strip leftovers such as
 /// `NT AUTHORITY\LogonSessionId_*` ACEs Windows attaches on create).
+/// Pure parser — available under `cfg(test)` on non-Windows for Linux CI unit tests.
+#[cfg(any(windows, test))]
 pub fn unexpected_acl_principals(icacls_stdout: &str) -> Vec<String> {
     let mut out = Vec::new();
     for raw_line in icacls_stdout.lines() {
@@ -353,6 +359,7 @@ pub fn unexpected_acl_principals(icacls_stdout: &str) -> Vec<String> {
 /// Pure helper: parse `icacls` stdout and accept only SYSTEM + Administrators full.
 ///
 /// Unit-testable without filesystem or `icacls`.
+#[cfg(any(windows, test))]
 pub fn acl_output_is_restrictive(icacls_stdout: &str) -> Result<(), String> {
     let mut has_system_f = false;
     let mut has_admins_f = false;
@@ -598,8 +605,9 @@ fn verify_restrictive_acl_windows(path: &Path) -> Result<(), Box<dyn std::error:
     acl_output_is_restrictive(&stdout).map_err(|e| e.into())
 }
 
-// --- Pure ACL parse helpers ---
+// --- Pure ACL parse helpers (Windows ACL semantics; unit-tested on all hosts) ---
 
+#[cfg(any(windows, test))]
 fn extract_ace_segment(line: &str) -> Option<String> {
     // Prefer the last occurrence of ":(" which marks ACE rights (paths may contain
     // drive-letter colons like `C:` but not the `:(` rights form).
@@ -629,6 +637,7 @@ fn extract_ace_segment(line: &str) -> Option<String> {
 /// If `before` starts with a Windows path (`X:\...` or `\\...`), everything after
 /// the first path token is the principal (may include spaces). Otherwise the whole
 /// trimmed string is the principal (continuation ACE lines).
+#[cfg(any(windows, test))]
 fn principal_before_rights(before: &str) -> Option<String> {
     let s = before.trim();
     if s.is_empty() {
@@ -649,6 +658,7 @@ fn principal_before_rights(before: &str) -> Option<String> {
     Some(s.to_string())
 }
 
+#[cfg(any(windows, test))]
 fn looks_like_windows_path_prefix(s: &str) -> bool {
     let b = s.as_bytes();
     // Drive path: `C:\...` or `C:/...`
@@ -660,6 +670,7 @@ fn looks_like_windows_path_prefix(s: &str) -> bool {
     s.starts_with("\\\\") || s.starts_with("//")
 }
 
+#[cfg(any(windows, test))]
 fn principal_from_ace(ace: &str) -> String {
     match ace.find(":(") {
         Some(i) => ace[..i].trim().to_string(),
@@ -667,6 +678,7 @@ fn principal_from_ace(ace: &str) -> String {
     }
 }
 
+#[cfg(any(windows, test))]
 fn rights_from_ace(ace: &str) -> String {
     match ace.find(":(") {
         Some(i) => ace[i + 1..].trim().to_string(),
@@ -674,11 +686,13 @@ fn rights_from_ace(ace: &str) -> String {
     }
 }
 
+#[cfg(any(windows, test))]
 fn has_full_control(rights: &str) -> bool {
     let upper = rights.to_ascii_uppercase();
     upper.contains("(F)") || upper.contains("FULL")
 }
 
+#[cfg(any(windows, test))]
 fn normalize_principal(principal: &str) -> String {
     principal
         .trim()
@@ -688,17 +702,20 @@ fn normalize_principal(principal: &str) -> String {
 
 /// Well-known local SYSTEM only — not domain accounts named SYSTEM.
 /// Accepts optional `*` SID prefix via [`normalize_principal`].
+#[cfg(any(windows, test))]
 fn is_system_principal(principal: &str) -> bool {
     let p = normalize_principal(principal);
     p == "S-1-5-18" || p == "SYSTEM" || p == "NT AUTHORITY\\SYSTEM"
 }
 
 /// Well-known BUILTIN Administrators only — not domain Administrators groups.
+#[cfg(any(windows, test))]
 fn is_administrators_principal(principal: &str) -> bool {
     let p = normalize_principal(principal);
     p == "S-1-5-32-544" || p == "ADMINISTRATORS" || p == "BUILTIN\\ADMINISTRATORS"
 }
 
+#[cfg(any(windows, test))]
 fn is_forbidden_principal(principal: &str) -> bool {
     let p = normalize_principal(principal);
     // Broad well-known principals that must never appear on SYSTEM task artifacts.
@@ -1012,7 +1029,9 @@ Successfully processed 1 files; Failed processing 0 files
     }
 
     /// DoD-3 fail path: default inherited Users ACLs must not pass verify.
+    /// Windows-only: Unix stub always fails closed without parsing host ACLs.
     #[test]
+    #[cfg(windows)]
     fn verify_restrictive_acl__default_user_temp_file__err() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("unrestricted-default-acl.txt");
@@ -1033,7 +1052,11 @@ Successfully processed 1 files; Failed processing 0 files
         );
     }
 
+    /// Full write path is Windows-only (ProgramData ACL). Unix fail-closed stub
+    /// returns "only supported on Windows" before reparse checks — covered by
+    /// pure `refuse_if_reparse` unit tests on all platforms.
     #[test]
+    #[cfg(windows)]
     fn write_protected_artifact__reparse_point_or_symlink__refuses() {
         // When the target itself is a symlink, write must refuse.
         // Creating file symlinks on Windows may require Developer Mode or
@@ -1072,7 +1095,9 @@ Successfully processed 1 files; Failed processing 0 files
     }
 
     /// Hardlinks do not require elevation; refuse nlink > 1 before overwrite (D0.5 allows regular replace).
+    /// Windows-only write path (see write_protected_artifact Unix stub).
     #[test]
+    #[cfg(windows)]
     fn write_protected_artifact__hardlink_target__refuses() {
         let dir = tempfile::tempdir().expect("tempdir");
         let real = dir.path().join("real-target.txt");
@@ -1148,7 +1173,9 @@ Successfully processed 1 files; Failed processing 0 files
 
     /// Full write + icacls apply/verify when the host allows it.
     /// Hard-asserts on Ok; on Err requires an ACL/icacls-shaped message (not a silent pass).
+    /// Windows-only: Unix stub returns "only supported on Windows".
     #[test]
+    #[cfg(windows)]
     fn write_protected_artifact__regular_file_in_temp__applies_and_verifies() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("protected-artifact.txt");
@@ -1189,6 +1216,36 @@ Successfully processed 1 files; Failed processing 0 files
                 );
             }
         }
+    }
+
+    /// Unix fail-closed: protected artifact APIs must not silently succeed.
+    #[test]
+    #[cfg(not(windows))]
+    fn write_protected_artifact__unix__fail_closed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("protected-artifact.txt");
+        let err = write_protected_artifact(&path, "x").expect_err("unix fail closed");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("windows") || msg.contains("only supported"),
+            "expected Windows-only fail-closed message, got: {msg}"
+        );
+        assert!(!path.exists(), "must not write artifact on Unix");
+    }
+
+    /// Unix fail-closed stub for ACL verify.
+    #[test]
+    #[cfg(not(windows))]
+    fn verify_restrictive_acl__unix__fail_closed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, b"x").expect("write");
+        let err = verify_restrictive_acl(&path).expect_err("unix fail closed");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("windows") || msg.contains("only supported"),
+            "expected Windows-only fail-closed message, got: {msg}"
+        );
     }
 
     /// DoD-3 pure registration gate: prepare failure must not advance to schtasks.

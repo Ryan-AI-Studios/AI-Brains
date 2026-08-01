@@ -3,7 +3,8 @@
 //! # Policy locks
 //!
 //! - **Containment:** candidates must stay under the configured vault root
-//!   (`ai_brains_path::path_is_same_or_inside`).
+//!   via lexical `lexical_same_or_inside` (no symlink follow — T179 Linux
+//!   honesty so reparse refuse is not pre-empted by PathEscape).
 //! - **Reparse refuse:** detect symlink/junction via `ai_brains_path` and fail
 //!   closed on the vault root **and every intermediate path component** (does
 //!   **not** follow attacker-controlled links out of the vault).
@@ -91,6 +92,10 @@ pub fn normalize_locator(relative: &str) -> String {
 ///
 /// Does **not** perform reparse checks (path may not exist). Call
 /// [`refuse_reparse_along_path`] before open/observe.
+///
+/// Containment is **lexical** (no symlink follow). Following reparse here would
+/// turn intermediate symlink escapes into [`VaultFsError::PathEscape`] before
+/// reparse refuse can run (T154 R1-01 / T179 Linux).
 pub fn resolve_under_root(root: &Path, relative: &str) -> Result<PathBuf, VaultFsError> {
     let safe_parts = safe_relative_components(relative)?;
     let root_abs = absolute_root(root)?;
@@ -103,7 +108,7 @@ pub fn resolve_under_root(root: &Path, relative: &str) -> Result<PathBuf, VaultF
         candidate.push(part);
     }
 
-    if !ai_brains_path::path_is_same_or_inside(&candidate, &root_abs) {
+    if !lexical_same_or_inside(&candidate, &root_abs) {
         return Err(VaultFsError::PathEscape(format!(
             "{} is outside vault root {}",
             candidate.display(),
@@ -112,6 +117,18 @@ pub fn resolve_under_root(root: &Path, relative: &str) -> Result<PathBuf, VaultF
     }
 
     Ok(candidate)
+}
+
+/// Component-wise containment without following reparse/symlinks.
+///
+/// Prefer this over [`ai_brains_path::path_is_same_or_inside`] when the candidate
+/// was built from Normal components only and intermediate reparse will be
+/// checked separately — that helper resolves best-effort and follows links.
+fn lexical_same_or_inside(candidate: &Path, root: &Path) -> bool {
+    if candidate == root {
+        return true;
+    }
+    candidate.starts_with(root)
 }
 
 /// Absolute form of `root` for containment compares.

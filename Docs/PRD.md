@@ -3,7 +3,7 @@
 **Product name:** AI-Brains
 **Document status:** Draft v1.0
 **Primary platform:** Windows 11, PowerShell-first
-**Secondary platform:** Ubuntu / WSL, best-effort after Windows reliability is proven
+**Secondary platform:** Ubuntu 24.04 / WSL (tiered; T1 only after CI/smoke) — see [COMPATIBILITY.md](COMPATIBILITY.md); macOS arm64 best-effort (T2 soft)
 **Product type:** Local-first CLI + optional local daemon for AI harness conversation memory
 **Core directive:** Capture clean user/AI conversation memory across AI harnesses without storing hidden thinking, tool/action noise, or terminal sludge.
 

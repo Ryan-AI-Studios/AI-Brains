@@ -2538,6 +2538,7 @@ fn test_daemon_update_command_exists() {
 #[allow(non_snake_case)]
 fn env_var_precedence__shell_overrides_env_file() {
     let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
     let env_path = dir.path().join(".env");
     std::fs::write(&env_path, "AI_BRAINS_MODEL_URL=http://127.0.0.1:9999\n")
         .expect("write project .env");
@@ -2545,6 +2546,7 @@ fn env_var_precedence__shell_overrides_env_file() {
     let output = Command::cargo_bin("ai-brains")
         .unwrap()
         .current_dir(dir.path())
+        .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_MODEL_URL", "http://127.0.0.1:1")
         .arg("daemon")
         .arg("status")
@@ -2572,14 +2574,15 @@ fn env_var_precedence__shell_overrides_env_file() {
 }
 
 /// T113: Project `.env` must take precedence over global `~/.ai-brains/.env`.
-/// We redirect USERPROFILE to a tempdir, place a global .env there with port
-/// 7777, and a project .env with port 8888 in the cwd. The project value must
-/// win because it loads first and the global loader is non-override.
+/// We redirect USERPROFILE/HOME to a tempdir, place a global .env there with
+/// port 7777, and a project .env with port 8888 in the cwd. The project value
+/// must win because it loads first and the global loader is non-override.
 #[test]
 #[allow(non_snake_case)]
 fn env_var_precedence__project_env_overrides_global_env() {
     let project_dir = tempdir().unwrap();
     let home_dir = tempdir().unwrap();
+    let vault = project_dir.path().join("vault.db");
 
     let global_ai_brains = home_dir.path().join(".ai-brains");
     std::fs::create_dir_all(&global_ai_brains).expect("create global .ai-brains dir");
@@ -2598,7 +2601,15 @@ fn env_var_precedence__project_env_overrides_global_env() {
     let output = Command::cargo_bin("ai-brains")
         .unwrap()
         .current_dir(project_dir.path())
+        // Windows home + Unix home (dirs::home_dir / dotenv global fallback).
         .env("USERPROFILE", home_dir.path())
+        .env("HOME", home_dir.path())
+        // Vault via CLI flag so Windows backslash paths are not dotenv-escaped
+        // and clean Linux CI does not need ambient AI_BRAINS_VAULT_PATH.
+        .env_remove("AI_BRAINS_VAULT_PATH")
+        .env_remove("AI_BRAINS_MODEL_URL")
+        .arg("--vault-path")
+        .arg(&vault)
         .arg("daemon")
         .arg("status")
         .output()
@@ -2625,8 +2636,11 @@ fn env_var_precedence__project_env_overrides_global_env() {
 /// that is almost certainly unoccupied and assert it appears in the output.
 #[test]
 fn test_daemon_status_respects_model_url_env_var() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
     let output = Command::cargo_bin("ai-brains")
         .unwrap()
+        .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_MODEL_URL", "http://127.0.0.1:9099")
         .arg("daemon")
         .arg("status")
@@ -2694,8 +2708,11 @@ fn backup_create__progress_goes_to_tracing_not_stderr() {
 #[test]
 #[allow(non_snake_case)]
 fn tracing_filter__external_deps_stay_quiet() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
     let output = Command::cargo_bin("ai-brains")
         .unwrap()
+        .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("RUST_LOG", "")
         .arg("daemon")
         .arg("status")
@@ -2719,15 +2736,22 @@ fn tracing_filter__external_deps_stay_quiet() {
 /// T85: When `AI_BRAINS_EMBEDDING_URL` is set, `daemon status` probes that port.
 #[test]
 fn test_daemon_status_respects_embedding_url_env_var() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
     let output = Command::cargo_bin("ai-brains")
         .unwrap()
+        .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_EMBEDDING_URL", "http://127.0.0.1:9199")
         .arg("daemon")
         .arg("status")
         .output()
         .expect("daemon status must run");
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "daemon status must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("9199"),
@@ -2741,6 +2765,9 @@ fn test_daemon_status_retries_on_slow_startup() {
     use std::net::TcpListener;
     use std::thread;
     use std::time::Duration;
+
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
 
     // Bind to a random port to get a free port number, then drop it
     let port = {
@@ -2759,13 +2786,18 @@ fn test_daemon_status_retries_on_slow_startup() {
 
     let output = Command::cargo_bin("ai-brains")
         .unwrap()
+        .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_MODEL_URL", format!("http://127.0.0.1:{}", port))
         .arg("daemon")
         .arg("status")
         .output()
         .expect("daemon status must run");
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "daemon status must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("Open"),

@@ -1,5 +1,7 @@
 use ai_brains_crypto::SqlCipherKey;
-use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
+#[cfg(windows)]
+use ai_brains_daemon_api::DaemonRequest;
+use ai_brains_daemon_api::DaemonResponse;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::SqliteEventStore;
 use ai_brainsd::DaemonWriter;
@@ -18,6 +20,7 @@ use ai_brainsd::pipe_error::{PipeErrorKind, classify_pipe_error};
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
+#[cfg(windows)]
 const PIPE_NAME: &str = r"\\.\pipe\ledgerful-bridge";
 
 #[allow(clippy::disallowed_methods)]

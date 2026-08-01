@@ -38,6 +38,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
+#[cfg(windows)]
 use zeroize::Zeroizing;
 
 /// Parse vault DataKey from SqlCipherKey material `x'<64 hex chars>'`.

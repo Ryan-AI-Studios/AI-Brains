@@ -236,4 +236,26 @@ mod tests {
         assert_eq!(opened.ed25519_seed, keys.ed25519_seed);
         assert_eq!(opened.x25519_seed, keys.x25519_seed);
     }
+
+    /// Opening a `datakey_dpapi` blob with junk ciphertext must fail closed with a
+    /// message that mentions DPAPI (Windows: CryptUnprotect fails; non-Windows:
+    /// "DPAPI is only available on Windows"). T179 F29 honesty proof.
+    #[test]
+    fn device_private_blob__open_dpapi_junk__fails_with_dpapi_message() {
+        let data_key = DataKey::generate();
+        let device = DeviceId::from_uuid(Uuid::new_v4());
+        let sealed = SealedDevicePrivate {
+            wrap_schema_version: DEVICE_PRIVATE_WRAP_SCHEMA_VERSION,
+            protection: PROTECTION_DATAKEY_DPAPI.to_string(),
+            wrap_nonce: [0u8; NONCE_LEN],
+            wrap_ciphertext: vec![0u8; 64],
+        };
+        let err = open_device_private_blob(&data_key, &sealed, &device)
+            .expect_err("junk DPAPI ciphertext must fail open");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("DPAPI"),
+            "expected DPAPI in error message, got: {msg}"
+        );
+    }
 }

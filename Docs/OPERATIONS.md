@@ -7,9 +7,10 @@ This guide covers the day-to-day operations, configuration, and troubleshooting 
 ## 1. Installation and Setup
 
 ### Prerequisites
-- Rust (Stable, MSVC toolchain)
+- Rust (Stable, MSVC toolchain) — workspace pin **1.95.0** (`rust-toolchain.toml`)
 - PowerShell 7+ (Recommended for Windows)
 - `cargo-nextest`, `cargo-deny`, `cargo-audit` — see [ci-tooling.md](ci-tooling.md) for pins
+- **Platform support:** Windows 11 x64 is primary (T1). Ubuntu 24.04 / WSL and macOS are tiered — see the normative matrix in **[COMPATIBILITY.md](COMPATIBILITY.md)** before claiming secondary-platform support.
 
 ### Build
 ```powershell

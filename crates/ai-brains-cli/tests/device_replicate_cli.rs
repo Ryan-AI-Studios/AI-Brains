@@ -298,10 +298,16 @@ fn cli_replicate_pull__format_json__ok() {
 #[test]
 fn cli_package_export__public_only__no_raw_seeds() {
     let dir = tempdir().unwrap();
+    // package-export does not read the vault, but the CLI still requires a vault path
+    // (global gate). Hermetic: never rely on ambient AI_BRAINS_VAULT_PATH (Linux CI has none).
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
     let out = dir.path().join("peer.bin");
 
     Command::cargo_bin("ai-brains")
         .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
         .arg("device")
         .arg("package-export")
         .arg("--out")
@@ -331,13 +337,19 @@ fn cli_enroll__after_bootstrap_and_package__ok() {
     let package = dir.path().join("peer.bin");
     let export = Command::cargo_bin("ai-brains")
         .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
         .arg("device")
         .arg("package-export")
         .arg("--out")
         .arg(&package)
         .output()
         .expect("export");
-    assert!(export.status.success());
+    assert!(
+        export.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&export.stderr)
+    );
     let export_out = String::from_utf8_lossy(&export.stdout);
     let peer_id = export_out
         .lines()
@@ -382,13 +394,19 @@ fn cli_revoke__after_enroll__ok() {
     let package = dir.path().join("peer.bin");
     let export = Command::cargo_bin("ai-brains")
         .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
         .arg("device")
         .arg("package-export")
         .arg("--out")
         .arg(&package)
         .output()
         .expect("export");
-    assert!(export.status.success());
+    assert!(
+        export.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&export.stderr)
+    );
     let export_out = String::from_utf8_lossy(&export.stdout);
     let peer_id = export_out
         .lines()
@@ -485,13 +503,19 @@ fn revoke__peer_after_enroll__ok_and_event_log() {
     let package = dir.path().join("peer.bin");
     let export = Command::cargo_bin("ai-brains")
         .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
         .arg("device")
         .arg("package-export")
         .arg("--out")
         .arg(&package)
         .output()
         .expect("export");
-    assert!(export.status.success());
+    assert!(
+        export.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&export.stderr)
+    );
     let export_out = String::from_utf8_lossy(&export.stdout);
     let peer_id = export_out
         .lines()
@@ -555,11 +579,15 @@ fn count_events_of_type(
 #[test]
 fn cli_package_export__write_private_key_dpapi__ok() {
     let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
     let out = dir.path().join("peer.bin");
     let priv_path = dir.path().join("peer.key.dpapi");
 
     Command::cargo_bin("ai-brains")
         .unwrap()
+        .arg("--vault-path")
+        .arg(&vault)
         .arg("device")
         .arg("package-export")
         .arg("--out")

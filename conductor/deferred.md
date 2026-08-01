@@ -550,7 +550,8 @@ Folded into and shipped by T174 (`trackT174-desktop-tests/`) — Codex R2 **PASS
 - **D1–D27 / DT1–DT20:** L1 Rust → L2 Vitest+RTL+mockIPC → L3 Playwright renderer → L4 ARIA primary + pixel secondary → L5 live WebView2 human residual.
 - **Tool freeze (installed):** vitest **4.1.0** MIT; @playwright/test **1.62.0** Apache-2.0; RTL **16.3.0**; jest-dom 7 / user-event 14; jsdom **30.0.0**; soft axe not added.
 - **AI1 B1–B16 folded:** license:check **production-only**; crypto + dialog polyfills; `context.addInitScript`; visual pins; Node ≥22; build+preview webServer; HashRouter `gotoRoute`; clearMocks+restoreAllMocks; source locator; user-event; vite `test:` block; httpmock 0.7; gitattributes binary snaps.
-- **Absorbs #46.** #48 live residual → §50. Out of scope: T179 multi-OS; hard axe gate; Electron; prod CSP weaken; AGPL tools; httpmock 0.8.
+- **Absorbs #46.** #48 live residual → §50. Out of scope at ship: multi-OS visual/WDIO (→ **§56 / T179**); hard axe gate; Electron; prod CSP weaken; AGPL tools; httpmock 0.8.
+- ~~**Multi-OS visual / WDIO matrix residual**~~ → **Promoted to T179 expansion (2026-07-31)** — see §56 / `trackT179-compatibility-matrix/` (T2 desktop note; not hard multi-OS e2e gate).
 
 ### 50. T174 deferred P3 residuals (2026-07-30 Codex R2)
 
@@ -590,3 +591,25 @@ Shipped: F1–F28 suite; F23 `tests/common/twin_vaults`; F19 expanded snapshot; 
 - **IR1-L1:** R-ack-attestation behavioral pin thin (doc scanner primary).
 - **CR2-P3:** F21 parses capture `Cargo.toml` only (not full transitive cargo-metadata graph); `cargo tree -p ai-brains-capture` confirmed no sync edge at ship.
 - **L10 / L15 / HPKE / PIN / CAVP / pre-erase backups:** explicit product/formal defers (unchanged).
+
+### 56. T179 Compatibility Matrix — **In Progress / Implementing** (2026-07-31)
+
+P12.1 implement on branch `track/T179-compatibility-matrix` (not design-only).
+
+- **Landed:** `Docs/COMPATIBILITY.md` (F8 exact, F23 pipe/UDS/HTTP, F29, F32, engines); grep-complete `evidence/CFG-INVENTORY.md`; `.github/workflows/ci.yml` (`windows-2025` + `ubuntu-24.04` required, `macos-15` soft); `scripts/dev-check.sh` (desktop exclude on Linux/macOS); WSL UNIX-BUILD (check+clippy green exclude desktop); hermetic package-export vault-path tests; DPAPI junk + UDS path units; capture-independence CI step; smoke evidence under `evidence/SMOKE-*.md`.
+- **Absorbs:** T174 §49 / #49 multi-OS visual + WDIO residual (**T2 desktop** + engine honesty); PRD secondary Ubuntu/WSL; vision Win11+WSL; Deviations §1 SQLCipher honesty.
+- **Frozen F1–F32:** Win11 **T1**; Ubuntu core **T1** with WSL evidence + required GHA (desktop **T2** excluded); macOS soft **`macos-15`**; WSL = Linux binary + `/mnt/c`; transport: Win pipe / Unix **UDS live** / **HTTP portable**; DPAPI seed non-portable; audit **exit code only**; zero new prod crates; toolchain **1.95.0**.
+- **Still open / residual until closeout:** first GHA job greens on PR (local WSL/Windows gates recorded); F26 release SHA-pin (→ T185); rust-toolchain targets still Win-only (L3); arm64 T3; Unix CLI→HTTP-only not DoD; #34.2.
+- ~~**T180 protocol compat**~~ → **Promoted to T180 expansion (2026-07-31)** — see §57 / `trackT180-protocol-compat-tests/`.
+- **Out of scope:** App Store/notarization/MSI; SQLCipher flip as DoD; Electron; AGPL CI.
+
+### 57. T180 Protocol Compat Tests — **Proposed / Expanded** (2026-07-31; AI1/AI2 fold-in)
+
+Design-only expansion of P12.2 (`trackT180-protocol-compat-tests/{spec,plan}.md`). Implement on go-ahead.
+
+- **Absorbs:** T158 suite elevate (~527-line `protocol_wire.rs`); R0 Unknown; BridgePayload capture + raw BridgeRecord fallback; T179→T180 handoff.
+- **Frozen F1–F38 (post fold-in):** Fixture-first N−1; **crate-local fixtures only** (no root tree); elevate-first; additive `assert_deserializes_with_extra_fields`; public wire **no** `deny_unknown_fields` (dry-run ingest only, asymmetric); **8×** module `API_VERSION` **unenforced** (honesty tests incl. `"2"` accepted); P-BRIDGE opposite policy; Upcast **stub** (R0 active); CLI compact/pretty freeze; no doctor/`--version` JSON; Payload hand-serde must not become derived; zero new prod deps.
+- **AI1:** BS1–3 agree (public wire open fields; crate-local fixtures; extra-field helper); jsonschema = soft only.
+- **AI2:** #1–#9 + A–F largely agree; serde_json minor pin / single API_VERSION SOOT / runtime enforcement = residuals not DoD.
+- **Out of scope:** Infinite history; third-party clients; multi-OS; #34.2; OpenAPI/jsonschema DoD; binary N−1 DoD; implement Upcast migrations.
+- **Still open until implement:** PROTOCOL-COMPAT.md + suite not landed.

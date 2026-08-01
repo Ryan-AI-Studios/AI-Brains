@@ -199,13 +199,33 @@ fn generate_daemon_wrapper_script_from_env(
         .find(|(k, _)| *k == "AI_BRAINS_VAULT_PATH")
         .map(|(_, v)| v.as_str())
         .unwrap_or("");
-    if let Some(parent) = std::path::Path::new(vault_path).parent()
-        && !parent.as_os_str().is_empty()
-    {
-        lines.push(format!("cd /d \"{}\"", parent.display()));
+    // Windows .bat scripts always use `\`. Host Path::parent is OS-sensitive
+    // (`\` is not a separator on Unix), so split on Windows separators after
+    // normalizing `/` → `\` (T179 cross-platform unit tests).
+    if let Some(parent) = windows_path_parent(vault_path) {
+        lines.push(format!("cd /d \"{parent}\""));
     }
     lines.push(format!(r#""{}" --no-project-context"#, exe_str));
     Ok(lines.join("\n"))
+}
+
+/// Parent directory of a Windows-style path for `.bat` `cd /d` lines.
+///
+/// Treats both `\` and `/` as separators so generation is host-OS independent.
+/// Drive roots are returned with a trailing `\` (`C:\`), matching `Path::parent`
+/// on Windows for `C:\file.db`.
+fn windows_path_parent(path: &str) -> Option<String> {
+    let normalized = path.replace('/', "\\");
+    let trimmed = normalized.trim_end_matches('\\');
+    let (parent, _leaf) = trimmed.rsplit_once('\\')?;
+    if parent.is_empty() {
+        None
+    } else if parent.ends_with(':') {
+        // Drive root: `C:\vault.db` → `C:\` (not bare `C:`).
+        Some(format!("{parent}\\"))
+    } else {
+        Some(parent.to_string())
+    }
 }
 
 fn write_daemon_wrapper_script(
