@@ -269,3 +269,19 @@ All R1 findings **>low** are **verified_fixed** for their claimed fix scope. No 
 | Overclaim of Unix HTTP default | **None** |
 | F8 vault wording | **Exact** |
 | Not cleared by R2 (operator/closeout) | First GHA green on PR; Phase E full gate / ledger pin / conductor Completed — track residual, not R2 NEEDS_FIX |
+
+---
+
+## Closeout R2 (2026-08-01)
+
+**Verdict: PASS / Completed**
+
+| Item | Evidence |
+|------|----------|
+| GHA required + soft | PR #51 run **30683807812**: gate-windows, gate-linux, gate-macos all **success** |
+| Phase F CI blockers | Hermetic pin + `--no-project-context` (T80); WSL map before soft-resolve; macOS git root canonical; clippy collapsible_if |
+| AC3/AC4/AC5/AC7 | Satisfied by live GHA jobs (fmt/clippy/nextest/deny/audit/capture-independence) + smoke evidence files |
+| AC9 | Conductor → Completed; deferred §56 Completed |
+| Residual handoff | T183 install; T185 claims/SHA-pin; T186 hermetic helper polish |
+
+Internal R1 NEEDS_FIX items closed by GHA green + Phase F. Optional Codex re-audit not required for engineering closeout.

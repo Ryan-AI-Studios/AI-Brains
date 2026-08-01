@@ -592,17 +592,15 @@ Shipped: F1–F28 suite; F23 `tests/common/twin_vaults`; F19 expanded snapshot; 
 - **CR2-P3:** F21 parses capture `Cargo.toml` only (not full transitive cargo-metadata graph); `cargo tree -p ai-brains-capture` confirmed no sync edge at ship.
 - **L10 / L15 / HPKE / PIN / CAVP / pre-erase backups:** explicit product/formal defers (unchanged).
 
-### 56. T179 Compatibility Matrix — **In Progress / Implementing** (2026-07-31)
+### 56. T179 Compatibility Matrix — **Completed** (2026-08-01)
 
-P12.1 implement on branch `track/T179-compatibility-matrix` (not design-only).
+P12.1 shipped on `track/T179-compatibility-matrix` / PR #51. GHA run **30683807812** all gates green.
 
-- **Landed:** `Docs/COMPATIBILITY.md` (F8 exact, F23 pipe/UDS/HTTP, F29, F32, engines); grep-complete `evidence/CFG-INVENTORY.md`; `.github/workflows/ci.yml` (`windows-2025` + `ubuntu-24.04` required, `macos-15` soft); `scripts/dev-check.sh` (desktop exclude on Linux/macOS); WSL UNIX-BUILD (check+clippy green exclude desktop); hermetic package-export vault-path tests; DPAPI junk + UDS path units; capture-independence CI step; smoke evidence under `evidence/SMOKE-*.md`.
-- **Absorbs:** T174 §49 / #49 multi-OS visual + WDIO residual (**T2 desktop** + engine honesty); PRD secondary Ubuntu/WSL; vision Win11+WSL; Deviations §1 SQLCipher honesty.
-- **Frozen F1–F32:** Win11 **T1**; Ubuntu core **T1** with WSL evidence + required GHA (desktop **T2** excluded); macOS soft **`macos-15`**; WSL = Linux binary + `/mnt/c`; transport: Win pipe / Unix **UDS live** / **HTTP portable**; DPAPI seed non-portable; audit **exit code only**; zero new prod crates; toolchain **1.95.0**.
-- **GHA PR #51 green (run 30683807812):** Phase F closed — pin needs `--no-project-context`; WSL map before soft-resolve; macOS git root canonical compare; clippy clean.  
-- **Still open / residual until formal track closeout:** F26 release SHA-pin (→ T185); rust-toolchain targets still Win-only (L3); arm64 T3; Unix CLI→HTTP-only not DoD; #34.2; optional Codex re-review.
-- ~~**T180 protocol compat**~~ → **Promoted to T180 expansion (2026-07-31)** — see §57 / `trackT180-protocol-compat-tests/`.
-- **Out of scope:** App Store/notarization/MSI; SQLCipher flip as DoD; Electron; AGPL CI.
+- **Landed:** `Docs/COMPATIBILITY.md`; CFG inventory; `.github/workflows/ci.yml`; `scripts/dev-check.sh`; Unix hygiene; Phase F CI fixes (T80 hermetic pin, WSL map-before-soft-resolve, macOS path canonical compare).
+- **Absorbs:** T174 multi-OS residual as T2 desktop; PRD secondary Ubuntu/WSL; SQLCipher honesty.
+- **Residuals (not DoD blockers):** F26 release SHA-pin → **T185**; rust-toolchain multi-target expand → Low; arm64 T3; Unix CLI→HTTP-only not DoD; hermetic helper suite → **T186**; #34.2 still open (unrelated).
+- ~~**T180 protocol compat**~~ → **Promoted to T180 expansion (2026-07-31)** — see §57.
+- **Out of scope (unchanged):** App Store/notarization/MSI; SQLCipher flip as DoD; Electron; AGPL CI.
 
 ### 57. T180 Protocol Compat Tests — **Proposed / Expanded** (2026-07-31; AI1/AI2 fold-in)
 

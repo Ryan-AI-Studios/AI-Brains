@@ -2,7 +2,7 @@
 
 - **Track ID:** T179-CompatibilityMatrix
 - **Phase:** P12 — Release hardening and adoption (Task 1)
-- **Status:** 🔄 **In Progress** (+ AI1/AI2 fold-in 2026-07-31) — implement underway; residual Linux dry-run, full gate, review/closeout
+- **Status:** ✅ **Completed** (2026-08-01) — GHA PR #51 all gates green (run 30683807812; docs follow-up 30684575740); residuals deferred to T183/T185/T186
 - **Depends on:** Core CLI/daemon stable on Windows (live primary); P10 desktop Complete on Windows; P11 sync Complete (wire crypto platform-agnostic)
 - **Blocks / feeds:** T183 install docs (Windows-first, then others); T185 release gate “platform smoke per T179”; honest marketing claims
 - **Category:** INFRA / RELEASE
