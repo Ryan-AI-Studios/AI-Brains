@@ -1,4 +1,22 @@
 //! Golden wire tests for DaemonRequest / DaemonResponse (T158).
+//!
+//! # T180 elevate map (F28)
+//!
+//! | T180 id | Test in this file |
+//! |---------|-------------------|
+//! | `T180-D-legacy-ping` | `daemon_request__legacy_ping_json__deserializes` |
+//! | `T180-D-legacy-shutdown` | `daemon_request__legacy_shutdown__deserializes` |
+//! | `T180-D-legacy-ingest` | `daemon_request__legacy_ingest_json__deserializes` |
+//! | `T180-D-legacy-sync` | `daemon_request__legacy_sync_json__deserializes` |
+//! | `T180-D-legacy-pong` | `daemon_response__legacy_pong__deserializes` |
+//! | `T180-D-legacy-error` | `daemon_response__error_api_error__roundtrip` |
+//! | `T180-D-unknown-type` | `daemon_request__unknown_type__fails_deserialize` |
+//! | `T180-D-governed-roundtrip-*` | `daemon_request__*__roundtrip` / `daemon_response__*__roundtrip` |
+//! | `T180-D-e1-*` | `daemon_response__scope_resolved__e1_empty_arrays`, `query_empty_results__e1`, `review_list_empty__e1` |
+//! | `T180-D-policy-denied` | `daemon_response__error_policy_denied__roundtrip` |
+//!
+//! Gap-fill (additive helper, honesty, bridge, fixture drift): `protocol_compat.rs`.
+//! Policy: `Docs/PROTOCOL-COMPAT.md`.
 #![allow(clippy::disallowed_methods, non_snake_case)]
 
 use ai_brains_contracts::briefings::{
@@ -45,11 +63,12 @@ fn assert_roundtrip_response(resp: DaemonResponse) {
 }
 
 // ---------------------------------------------------------------------------
-// AC1 — legacy goldens
+// AC1 — legacy goldens (T180-D-legacy-*; wire-gen-0)
 // ---------------------------------------------------------------------------
 
 #[test]
 fn daemon_request__legacy_ping_json__deserializes() {
+    // T180-D-legacy-ping
     let raw = include_str!("fixtures/legacy_ping_request.json");
     let decoded: DaemonRequest = serde_json::from_str(raw).expect("legacy ping");
     assert!(matches!(decoded, DaemonRequest::Ping));
@@ -113,7 +132,7 @@ fn daemon_response__error_api_error__roundtrip() {
 }
 
 // ---------------------------------------------------------------------------
-// AC3 — unknown type fail-closed
+// AC3 — unknown type fail-closed (T180-D-unknown-type; guards #[serde(other)])
 // ---------------------------------------------------------------------------
 // Serde-level rejection is the first gate. Live hosts must also surface
 // INVALID_REQUEST via `ai_brainsd::dispatch::parse_live_request_line` (see
@@ -121,6 +140,7 @@ fn daemon_response__error_api_error__roundtrip() {
 
 #[test]
 fn daemon_request__unknown_type__fails_deserialize() {
+    // T180-D-unknown-type
     let raw = r#"{"type":"not_a_real_op","payload":{}}"#;
     let err = serde_json::from_str::<DaemonRequest>(raw).expect_err("unknown must fail");
     let msg = err.to_string();

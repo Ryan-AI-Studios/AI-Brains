@@ -1,0 +1,8 @@
+{
+  "type": "resolve_scope",
+  "payload": {
+    "api_version": "1",
+    "cwd": "C:/dev/AI-Brains",
+    "force_personal": false
+  }
+}
