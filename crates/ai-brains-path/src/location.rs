@@ -106,6 +106,7 @@ pub fn path_is_same_or_inside(candidate: impl AsRef<Path>, root: impl AsRef<Path
 
 #[cfg(test)]
 #[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
@@ -181,5 +182,20 @@ mod tests {
         let a = PathBuf::from(r"C:\Dev\X");
         let b = PathBuf::from(r"c:\dev\x");
         assert!(paths_refer_to_same_location(&a, &b));
+    }
+
+    /// Soft-resolve: not-yet-created child under an existing temp parent still
+    /// compares as inside that parent (macOS /var vs /private/var honesty).
+    #[test]
+    fn path_is_same_or_inside__missing_child_under_existing_parent__true() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let parent = dir.path().join("live-home");
+        std::fs::create_dir_all(&parent).expect("parent");
+        let missing_child = parent.join("migrate-sibling.db");
+        assert!(!missing_child.exists(), "fixture child must not exist yet");
+        assert!(
+            path_is_same_or_inside(&missing_child, &parent),
+            "missing child under existing parent must still be inside"
+        );
     }
 }
