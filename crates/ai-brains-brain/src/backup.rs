@@ -579,10 +579,13 @@ mod tests {
             !source_path.starts_with("\\\\?\\"),
             "source_vault_path must not have UNC prefix, got: {source_path}"
         );
+        // Compare after canonicalize so macOS /var → /private/var is honest (T179 soft macOS).
+        let recorded = std::fs::canonicalize(std::path::Path::new(&source_path))
+            .unwrap_or_else(|_| std::path::PathBuf::from(&source_path));
+        let expected = std::fs::canonicalize(&vault_path).unwrap_or(vault_path.clone());
         assert_eq!(
-            std::path::PathBuf::from(&source_path),
-            vault_path,
-            "source_vault_path must match the original vault path"
+            recorded, expected,
+            "source_vault_path must match the original vault path (after canonicalize)"
         );
 
         Ok(())

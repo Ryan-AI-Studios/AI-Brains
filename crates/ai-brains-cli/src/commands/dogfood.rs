@@ -208,9 +208,7 @@ pub fn refuse_unsafe_dogfood_out_path(
             lower.ends_with(".db") || lower == "vault.db" || lower.ends_with(".sqlite")
         }
     {
-        return fail_path_refused(
-            "refusing dogfood: --out path looks like a vault database file",
-        );
+        return fail_path_refused("refusing dogfood: --out path looks like a vault database file");
     }
     // Explicit --live-vault same-location refuse.
     if let Some(live) = live_vault
@@ -222,9 +220,7 @@ pub fn refuse_unsafe_dogfood_out_path(
     if let Some(resolved_live) = resolve_live_vault_path()
         && paths_refer_to_same_location(out, &resolved_live)
     {
-        return fail_path_refused(
-            "refusing dogfood: --out path equals resolved live vault path",
-        );
+        return fail_path_refused("refusing dogfood: --out path equals resolved live vault path");
     }
     Ok(())
 }
@@ -322,8 +318,8 @@ pub fn build_compare_packet(
     let (checksum_unchanged, live_checksum_verified) = match (&sha_pre, &sha_post) {
         (Some(a), Some(b)) => (a == b, true),
         (None, None) if !live_path_provided => (true, false), // true N/A — no live vault
-        (None, None) => (false, false),                      // live path but unreadable
-        _ => (false, false),                                 // mixed Some/None
+        (None, None) => (false, false),                       // live path but unreadable
+        _ => (false, false),                                  // mixed Some/None
     };
     let live_vault_mutated = live_checksum_verified && !checksum_unchanged;
 
