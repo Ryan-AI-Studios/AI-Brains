@@ -1908,8 +1908,10 @@ fn test_graph_health_smoke() {
 
 /// T76: `backup restore --dry-run` must verify integrity and report the plan,
 /// but must not overwrite the destination vault and must not prompt.
+/// T181-R-02 elevate (F31 rename).
 #[test]
-fn test_backup_restore_dry_run() {
+#[allow(non_snake_case)]
+fn backup_restore__dry_run__no_dest_mutation() {
     let dir = tempdir().unwrap();
     let source_vault = dir.path().join("source.db");
     let dest_vault = dir.path().join("dest.db");
@@ -2013,9 +2015,13 @@ fn test_backup_restore_dry_run() {
     );
 }
 
-/// T76: `backup restore --force` must skip the interactive confirm prompt.
+/// T76 / T181: `backup restore --force` skips interactive prompt.
+/// Content smoke after force restore is owned by T181-R-01
+/// (`recovery_drills::backup_restore__seeded_content__present_after_force_restore`);
+/// this elevate keeps the non-interactive prompt contract (F39 supersede note).
 #[test]
-fn test_backup_restore_force_skips_prompt() {
+#[allow(non_snake_case)]
+fn backup_restore__force__skips_prompt() {
     let dir = tempdir().unwrap();
     let source_vault = dir.path().join("source.db");
     let dest_vault = dir.path().join("dest.db");
