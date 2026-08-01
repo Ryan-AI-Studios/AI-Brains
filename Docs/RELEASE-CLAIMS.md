@@ -171,7 +171,7 @@ Every row in T184 `residuals.md` is dispositioned below. Minimum cite set per L3
 | **R-PQ** | Post-quantum not claimed | Cited as non-claim | Explicit non-claim (ADR-0018 L16). |
 | **R-STATUS-STALE** | status.md historical demote residual | Out of scope for claims | Soft doc hygiene; re-confirm in elevated re-grep, not a product feature. |
 | **R-CHANGELOG-PATH** | CHANGELOG is repo root `CHANGELOG.md` | Out of scope for claims | Path corrected (F-10); use root CHANGELOG for release notes. |
-| **R-CI-PIN** | Actions pinned to major tag not SHA | Out of scope for claims | T186 / Scorecard hygiene; release.yml may SHA-pin without claiming full PR pin. |
+| **R-CI-PIN** | Actions pinned to major tag not SHA | Closed for product claims | **T186:** PR `ci.yml` + release.yml full SHA pins; Scorecard Pinned-Dependencies improved (not a product marketing claim). |
 | **R-CI-SAST** | No dedicated SAST (clippy ≠ SAST) | Cited as non-claim | Do not claim SAST product coverage. |
 | **R-CI-BRANCH** | Branch protection not enabled | Cited as non-claim | Open repo-admin residual; do not claim enforced protection. |
 | **R-SLSA** | No SLSA L3 / optional L1 attest | Cited as non-claim (L3); soft L1 optional | Repo is **public** — GitHub Artifact Attestations may be enabled in soft `release.yml` (L1-oriented fields via `actions/attest`). **Forbidden:** SLSA L3, “certified SLSA,” tamper-proof supply chain. Disposition updates when attest ships or is skipped. |

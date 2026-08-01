@@ -1,6 +1,7 @@
 #![allow(clippy::disallowed_methods)]
 
-use assert_cmd::Command;
+mod common;
+
 use tempfile::tempdir;
 
 const PROJECT_A: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -20,8 +21,7 @@ fn ingest_turn(vault_path: &std::path::Path, project_id: &str, content: &str) {
     }}"#
     );
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("ingest")
@@ -31,8 +31,7 @@ fn ingest_turn(vault_path: &std::path::Path, project_id: &str, content: &str) {
 }
 
 fn init_vault(vault_path: &std::path::Path) {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("init")
@@ -47,8 +46,7 @@ fn sync_query_pretty_default_scoped_to_current_project_no_cross_project_results(
     init_vault(&vault_path);
     ingest_turn(&vault_path, PROJECT_A, "secret_token_a");
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(dir.path())
         .env("AI_BRAINS_PROJECT_ID", PROJECT_B)
         .arg("--vault-path")
@@ -75,8 +73,7 @@ fn sync_query_pretty_global_flag_returns_cross_project_results() {
     init_vault(&vault_path);
     ingest_turn(&vault_path, PROJECT_A, "secret_token_a");
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(dir.path())
         .env("AI_BRAINS_PROJECT_ID", PROJECT_B)
         .arg("--vault-path")
@@ -104,8 +101,7 @@ fn sync_query_ndjson_remains_scoped_no_regression() {
     init_vault(&vault_path);
     ingest_turn(&vault_path, PROJECT_A, "secret_token_a");
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(dir.path())
         .env("AI_BRAINS_PROJECT_ID", PROJECT_B)
         .arg("--vault-path")

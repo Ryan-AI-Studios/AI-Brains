@@ -179,7 +179,7 @@ When using `.github/workflows/release.yml` on `v*` tags / `workflow_dispatch`:
 - [ ] Permissions least-privilege (`contents: write` for assets; `id-token: write` only if attesting)  
 - [ ] Attest via SHA-pinned `actions/attest` only on public (or Enterprise Cloud private) repos  
 - [ ] If attest skipped: record R-SLSA “tooling unavailable / skipped” — not silent  
-- [ ] PR `ci.yml` floating majors left alone (T186 residual) unless explicitly expanded  
+- [ ] PR `ci.yml` third-party `uses:` remain full SHA pins (T186 / R-CI-PIN; Dependabot bumps)  
 
 ---
 

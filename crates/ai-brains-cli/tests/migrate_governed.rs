@@ -3,6 +3,8 @@
 
 //! T168 — `migrate governed` integration tests (assert_cmd + tempfile).
 
+mod common;
+
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
@@ -16,8 +18,7 @@ const SESSION_ID: &str = "11111111-1111-1111-1111-111111111111";
 const DISTINCTIVE: &str = "migrate-unique-plaintext-T168-xyzzy-body-secret";
 
 fn init_vault(vault_path: &Path) {
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("--vault-path")
         .arg(vault_path)
@@ -27,8 +28,7 @@ fn init_vault(vault_path: &Path) {
 }
 
 fn pin_via_cli(vault_path: &Path, content: &str) {
-    Command::cargo_bin("ai-brains")
-        .expect("binary")
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("--vault-path")
         .arg(vault_path)
@@ -97,7 +97,7 @@ fn event_count(vault_path: &Path) -> usize {
 }
 
 fn migrate_cmd() -> Command {
-    let mut c = Command::cargo_bin("ai-brains").expect("binary");
+    let mut c = common::hermetic_bin();
     c.arg("--no-project-context");
     c
 }

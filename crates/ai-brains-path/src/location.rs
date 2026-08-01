@@ -245,4 +245,45 @@ mod tests {
             "missing child under existing parent must still be inside"
         );
     }
+
+    /// Soft-resolve joins a missing child onto the *canonicalized* existing
+    /// parent (not a bare echo of the raw absolute string). On macOS this is
+    /// what makes `/var/...` children compare under `/private/var/...` parents.
+    #[test]
+    fn resolve_best_effort__missing_child_under_existing_parent__soft_resolves() {
+        use std::path::Path;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let parent = dir.path().join("live-home");
+        std::fs::create_dir_all(&parent).expect("parent");
+        let missing_child = parent.join("migrate-sibling.db");
+        assert!(!missing_child.exists(), "fixture child must not exist yet");
+
+        let raw = missing_child.to_string_lossy().into_owned();
+        let resolved = crate::resolve_best_effort(&raw);
+
+        assert!(
+            Path::new(&resolved)
+                .file_name()
+                .is_some_and(|n| n == "migrate-sibling.db"),
+            "resolved must end with child name; got {resolved}"
+        );
+
+        let parent_resolved = crate::resolve_best_effort(&parent.to_string_lossy());
+        assert!(
+            path_is_same_or_inside(Path::new(&resolved), Path::new(&parent_resolved)),
+            "soft-resolved child must be under soft-resolved parent\n  parent={parent_resolved}\n  child={resolved}"
+        );
+
+        // Parent exists → soft-resolve uses canonicalize(parent) + rejoin suffix.
+        // Result must sit under the finished parent form (may differ from raw when
+        // canonicalize rewrites the prefix, e.g. macOS /var → /private/var).
+        let fp = parent_resolved.trim_end_matches(['\\', '/']);
+        assert!(
+            resolved.starts_with(&format!("{fp}\\"))
+                || resolved.starts_with(&format!("{fp}/"))
+                || resolved.starts_with(fp),
+            "expected soft-resolve under finished parent {fp}, got {resolved} (raw was {raw})"
+        );
+    }
 }

@@ -1,6 +1,7 @@
 #![allow(clippy::disallowed_methods)]
 
-use assert_cmd::Command;
+mod common;
+
 use predicates::prelude::*;
 use std::fs::{self, OpenOptions};
 use std::io::{Seek, Write};
@@ -16,8 +17,7 @@ const SESSION_3: &str = "33333333-3333-3333-3333-333333333333";
 const SESSION_4: &str = "44444444-4444-4444-4444-444444444444";
 
 fn init_vault(vault_path: &std::path::Path) {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("init")
@@ -41,8 +41,7 @@ fn ingest_turn(vault_path: &std::path::Path, project_id: &str, session_id: &str,
         uuid::Uuid::new_v4(),
         content.replace('"', "\\\"")
     );
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("ingest")
@@ -56,8 +55,7 @@ fn recall_json(
     query: &str,
     extra_args: &[&str],
 ) -> Vec<serde_json::Value> {
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("recall")
@@ -97,8 +95,7 @@ fn sync_query__no_bridge__skips_ledgerful_section() {
         "T124 no-bridge seed content.",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -143,8 +140,7 @@ fn sync_query__no_bridge_ndjson__only_local_records() {
         "T124 no-bridge ndjson seed content.",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -202,8 +198,7 @@ fn sync_query_ndjson__local_record_has_session_id() {
         "T127 ndjson session id seed content.",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -304,8 +299,7 @@ fn recall__session_prefix_too_short__rejected() {
         "T125 too short content",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -343,8 +337,7 @@ fn recall__session_prefix_no_match__errors() {
         "T125 no match content",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -475,8 +468,7 @@ fn recall_pretty__shows_session_prefix() {
         "T130 pretty session prefix content",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -516,8 +508,7 @@ fn recall_json__top_level_effective_session_id() {
         "T130 effective session id content",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -689,8 +680,7 @@ fn recall__env_session_id__does_not_auto_scope() {
         "env-token in session two",
     );
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_SESSION_ID", SESSION_2)
         .arg("--vault-path")
         .arg(&vault_path)
@@ -726,16 +716,14 @@ fn backup_create__dry_run__does_not_create_file() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -763,16 +751,14 @@ fn backup_create__dry_run__prints_preview() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -801,8 +787,7 @@ fn backup_create__dry_run__prints_preview() {
 fn backup_list__pre_t109_backup__no_warn_on_stderr() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -810,8 +795,7 @@ fn backup_list__pre_t109_backup__no_warn_on_stderr() {
         .success();
 
     // Create a real backup, then strip its metadata table to simulate pre-T109.
-    let backup_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let backup_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -835,8 +819,7 @@ fn backup_list__pre_t109_backup__no_warn_on_stderr() {
         .unwrap();
     drop(conn);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("RUST_LOG", "warn")
         .arg("--vault-path")
         .arg(&vault_path)
@@ -861,8 +844,7 @@ fn backup_list__corrupted_new_backup__stays_warn() {
     let backup_dir = dir.path().join("backups");
     fs::create_dir_all(&backup_dir).unwrap();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -872,8 +854,7 @@ fn backup_list__corrupted_new_backup__stays_warn() {
     let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
     fs::write(&bogus, b"not a valid sqlite database").unwrap();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("RUST_LOG", "warn")
         .arg("--vault-path")
         .arg(&vault_path)
@@ -906,24 +887,21 @@ fn backup_list__source_vault_column_shows_path_end() {
     fs::create_dir_all(&subdir).unwrap();
     let vault_path = subdir.join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -946,16 +924,14 @@ fn backup_list__parses_nanosecond_timestamp() {
     let vault_path = dir.path().join("vault.db");
     let backup_dir = dir.path().join("backups");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -968,8 +944,7 @@ fn backup_list__parses_nanosecond_timestamp() {
     let dst = backup_dir.join("vault-2026-04-28T16-23-52.639348300+00-00.db.bak");
     fs::copy(&src, &dst).unwrap();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -996,16 +971,14 @@ fn backup_list__parses_nanosecond_no_timezone() {
     let vault_path = dir.path().join("vault.db");
     let backup_dir = dir.path().join("backups");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1017,8 +990,7 @@ fn backup_list__parses_nanosecond_no_timezone() {
     let dst = backup_dir.join("vault-2026-04-28T16-23-52.639348300.db.bak");
     fs::copy(&src, &dst).unwrap();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1045,8 +1017,7 @@ fn backup_create__default_keep_10__prunes_old_backups() {
     let vault_path = dir.path().join("vault.db");
     let backup_dir = dir.path().join("backups");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1055,8 +1026,7 @@ fn backup_create__default_keep_10__prunes_old_backups() {
 
     // Seed 12 old backups by creating one real backup and copying it to
     // distinct past timestamps. Use `--output-dir` to ensure predictable paths.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1077,8 +1047,7 @@ fn backup_create__default_keep_10__prunes_old_backups() {
         fs::write(backup_dir.join(&name), &real_bytes).unwrap();
     }
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1104,16 +1073,14 @@ fn backup_create__keep_0__rejected() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1138,16 +1105,14 @@ fn backup_create__no_prune__keeps_all() {
     let vault_path = dir.path().join("vault.db");
     let backup_dir = dir.path().join("backups");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1158,8 +1123,7 @@ fn backup_create__no_prune__keeps_all() {
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1178,8 +1142,7 @@ fn backup_create__first_run_emits_migration_warning() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1188,8 +1151,7 @@ fn backup_create__first_run_emits_migration_warning() {
 
     // Ensure no sentinel by pointing HOME to a fresh temp dir.
     let home_dir = tempdir().unwrap();
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("USERPROFILE", home_dir.path())
         .env("RUST_LOG", "warn")
         .arg("--vault-path")
@@ -1210,8 +1172,7 @@ fn backup_create__first_run_emits_migration_warning() {
         "first run must emit retention warning; got: stdout={stdout} stderr={stderr}"
     );
 
-    let output2 = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output2 = common::hermetic_bin()
         .env("USERPROFILE", home_dir.path())
         .env("RUST_LOG", "warn")
         .arg("--vault-path")
@@ -1239,16 +1200,14 @@ fn backup_verify__valid_backup__reports_ok() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1261,8 +1220,7 @@ fn backup_verify__valid_backup__reports_ok() {
         .find_map(|l| l.split("Backup created and verified: ").nth(1))
         .expect("backup path must be printed");
 
-    let verify_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let verify_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1293,16 +1251,14 @@ fn backup_verify__corrupted_backup__reports_fail() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1327,8 +1283,7 @@ fn backup_verify__corrupted_backup__reports_fail() {
     file.sync_all().unwrap();
     drop(file);
 
-    let verify_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let verify_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1354,8 +1309,7 @@ fn backup_verify_all__mixed__reports_per_file() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1363,16 +1317,14 @@ fn backup_verify_all__mixed__reports_per_file() {
         .success();
 
     // Create two valid backups, waiting between them so timestamps differ.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
         .output()
         .expect("backup create must run");
     std::thread::sleep(std::time::Duration::from_secs(2));
-    let _output2 = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let _output2 = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1400,8 +1352,7 @@ fn backup_verify_all__mixed__reports_per_file() {
     file.sync_all().unwrap();
     drop(file);
 
-    let verify_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let verify_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1436,24 +1387,21 @@ fn backup_verify__json_format() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
         .output()
         .expect("backup create must run");
 
-    let verify_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let verify_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1499,8 +1447,7 @@ fn backup_verify__corrupted_backup__shows_error_reason() {
     let backup_dir = dir.path().join("backups");
     fs::create_dir_all(&backup_dir).unwrap();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1510,8 +1457,7 @@ fn backup_verify__corrupted_backup__shows_error_reason() {
     let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
     fs::write(&bogus, b"not a valid sqlite database").unwrap();
 
-    let verify_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let verify_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1540,8 +1486,7 @@ fn backup_verify__json_includes_error_field() {
     let backup_dir = dir.path().join("backups");
     fs::create_dir_all(&backup_dir).unwrap();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1551,8 +1496,7 @@ fn backup_verify__json_includes_error_field() {
     let bogus = backup_dir.join("vault-2026-01-01T00-00-00.db.bak");
     fs::write(&bogus, b"not a valid sqlite database").unwrap();
 
-    let verify_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let verify_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1594,7 +1538,7 @@ fn test_cli_init_smoke() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    let mut cmd = Command::cargo_bin("ai-brains").unwrap();
+    let mut cmd = common::hermetic_bin();
     cmd.arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1611,7 +1555,7 @@ fn test_cli_ingest_smoke() {
     let vault_path = dir.path().join("vault.db");
 
     // Init first
-    let mut init_cmd = Command::cargo_bin("ai-brains").unwrap();
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -1620,7 +1564,7 @@ fn test_cli_ingest_smoke() {
         .success();
 
     // Ingest
-    let mut ingest_cmd = Command::cargo_bin("ai-brains").unwrap();
+    let mut ingest_cmd = common::hermetic_bin();
     let turn_json = r#"{
         "type": "turn",
         "session_id": "11111111-1111-1111-1111-111111111111",
@@ -1649,7 +1593,7 @@ fn test_cli_context_idempotency() {
     let env_path = dir.path().join(".env");
 
     // Init vault first (required for context)
-    let mut init_cmd = Command::cargo_bin("ai-brains").unwrap();
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .current_dir(dir.path())
         .arg("--vault-path")
@@ -1659,7 +1603,7 @@ fn test_cli_context_idempotency() {
         .success();
 
     // First run - initializes context
-    let mut cmd1 = Command::cargo_bin("ai-brains").unwrap();
+    let mut cmd1 = common::hermetic_bin();
     cmd1.current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -1672,7 +1616,7 @@ fn test_cli_context_idempotency() {
     let content1 = std::fs::read_to_string(&env_path).unwrap();
 
     // Second run - should be idempotent and succeed without error
-    let mut cmd2 = Command::cargo_bin("ai-brains").unwrap();
+    let mut cmd2 = common::hermetic_bin();
     cmd2.current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -1690,7 +1634,7 @@ fn test_cli_context_idempotency() {
     );
 
     // Third run with --new-session - should replace session and change file contents
-    let mut cmd3 = Command::cargo_bin("ai-brains").unwrap();
+    let mut cmd3 = common::hermetic_bin();
     cmd3.current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -1715,7 +1659,7 @@ fn test_init_refuses_populated_vault() {
     let vault_path = dir.path().join("vault.db");
 
     // First init + ingest to populate the vault with one project + one session.
-    let mut init_cmd = Command::cargo_bin("ai-brains").unwrap();
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -1733,8 +1677,7 @@ fn test_init_refuses_populated_vault() {
         "content": "Populate the vault so init has data to refuse on."
     }"#;
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
@@ -1743,8 +1686,7 @@ fn test_init_refuses_populated_vault() {
         .success();
 
     // Second init without --force must fail with a clear error.
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1769,7 +1711,7 @@ fn test_init_force_overwrites() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    let mut init_cmd = Command::cargo_bin("ai-brains").unwrap();
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -1787,8 +1729,7 @@ fn test_init_force_overwrites() {
         "content": "Populate the vault so --force is exercised."
     }"#;
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
@@ -1796,8 +1737,7 @@ fn test_init_force_overwrites() {
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1822,8 +1762,7 @@ fn test_graph_health_smoke() {
     let vault_path = dir.path().join("vault.db");
 
     // 1) Init
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1840,8 +1779,7 @@ fn test_graph_health_smoke() {
         "role": "user",
         "content": "Anchoring memory for the graph health smoke test."
     }"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
@@ -1850,8 +1788,7 @@ fn test_graph_health_smoke() {
         .success();
 
     // 3) Pin a memory so the graph has a `MemoryPinned` event to project.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("pin")
@@ -1861,8 +1798,7 @@ fn test_graph_health_smoke() {
 
     // 4) Recall — T67 wiring emits MemoryPinned events for hits, which the
     //    live graph projector (T69) should immediately apply.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("recall")
@@ -1873,8 +1809,7 @@ fn test_graph_health_smoke() {
         .success();
 
     // 5) `graph update` should report live, non-empty graph state.
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("graph")
@@ -1917,8 +1852,7 @@ fn backup_restore__dry_run__no_dest_mutation() {
     let dest_vault = dir.path().join("dest.db");
 
     // Create source vault with a project so restore has real data to verify.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&source_vault)
         .arg("init")
@@ -1933,8 +1867,7 @@ fn backup_restore__dry_run__no_dest_mutation() {
         "role": "user",
         "content": "Seed the source vault so backup has data."
     }"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&source_vault)
         .arg("ingest")
@@ -1944,8 +1877,7 @@ fn backup_restore__dry_run__no_dest_mutation() {
 
     // Create dest vault and seed it with a different project so we can detect
     // any accidental overwrite.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&dest_vault)
         .arg("init")
@@ -1954,8 +1886,7 @@ fn backup_restore__dry_run__no_dest_mutation() {
     // Hermetic (T179 GHA): pin reads PROJECT_ID/SESSION_ID from env, but without
     // a project `.env` the CLI **clears** those vars unless `--no-project-context`
     // (T80). Clean runners have no ambient IDs and no repo-root `.env`.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .env(
             "AI_BRAINS_PROJECT_ID",
             "88888888-8888-8888-8888-888888888888",
@@ -1976,8 +1907,7 @@ fn backup_restore__dry_run__no_dest_mutation() {
     let dest_size_before = std::fs::metadata(&dest_vault).unwrap().len();
 
     // Generate a backup of source.
-    let backup_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let backup_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&source_vault)
         .arg("backup")
@@ -1995,8 +1925,7 @@ fn backup_restore__dry_run__no_dest_mutation() {
     assert!(backup_path.exists(), "backup file must exist");
 
     // Dry-run restore.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&dest_vault)
         .arg("backup")
@@ -2027,8 +1956,7 @@ fn backup_restore__force__skips_prompt() {
     let dest_vault = dir.path().join("dest.db");
 
     // Build source vault with a project + a backup file.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&source_vault)
         .arg("init")
@@ -2043,8 +1971,7 @@ fn backup_restore__force__skips_prompt() {
         "role": "user",
         "content": "Source content for force-restore test."
     }"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&source_vault)
         .arg("ingest")
@@ -2052,8 +1979,7 @@ fn backup_restore__force__skips_prompt() {
         .assert()
         .success();
 
-    let backup_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let backup_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&source_vault)
         .arg("backup")
@@ -2069,8 +1995,7 @@ fn backup_restore__force__skips_prompt() {
     let backup_path = std::path::PathBuf::from(backup_path);
 
     // Init dest so the file exists (required for SQLite restore).
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&dest_vault)
         .arg("init")
@@ -2078,8 +2003,7 @@ fn backup_restore__force__skips_prompt() {
         .success();
 
     // --force must succeed with no stdin (interactive prompt would hang).
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&dest_vault)
         .arg("backup")
@@ -2099,16 +2023,14 @@ fn backup_list__shows_filename_not_full_path() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let backup_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let backup_output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -2116,8 +2038,7 @@ fn backup_list__shows_filename_not_full_path() {
         .expect("backup create must run");
     assert!(backup_output.status.success(), "backup create failed");
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -2159,8 +2080,7 @@ fn backup_list__shows_filename_not_full_path() {
 /// and users hit "missing field `transcriptPath`" without a hint.
 #[test]
 fn test_agy_hook_schema_flag() {
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("agy-hook")
         .arg("--schema")
         .output()
@@ -2191,8 +2111,7 @@ fn test_agy_hook_schema_flag() {
 /// record shape and exit 0.
 #[test]
 fn test_sync_pull_schema_flag() {
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("sync")
         .arg("pull")
         .arg("--schema")
@@ -2228,8 +2147,7 @@ fn test_context_new_project_rotates_id() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -2237,8 +2155,7 @@ fn test_context_new_project_rotates_id() {
         .success();
 
     // First context run: writes an initial .env.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -2256,8 +2173,7 @@ fn test_context_new_project_rotates_id() {
         .expect("first project_id must be in .env");
 
     // Second run with --new-project must rotate the project_id.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -2292,8 +2208,7 @@ fn test_recall_quiet_silences_bridge_warning() {
     // Run from a directory that is guaranteed to NOT be a git repository.
     assert!(!dir.path().join(".git").exists());
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -2310,8 +2225,7 @@ fn test_recall_quiet_silences_bridge_warning() {
         "role": "user",
         "content": "T81 quiet-recall-bridge-warning seed content."
     }"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
@@ -2319,8 +2233,7 @@ fn test_recall_quiet_silences_bridge_warning() {
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -2363,8 +2276,7 @@ fn test_no_project_context_preserves_env_vars() {
     // .env must NOT exist in cwd for the env-clear branch to fire.
     assert!(!dir.path().join(".env").exists());
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -2375,8 +2287,7 @@ fn test_no_project_context_preserves_env_vars() {
     // Export env vars from the test process. Command::cargo_bin inherits
     // by default; assert_cmd::cargo::Command uses std::process::Command
     // which inherits the test process env unless told otherwise.
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(dir.path())
         .env(
             "AI_BRAINS_PROJECT_ID",
@@ -2425,8 +2336,7 @@ fn preflight__local_env_project_context_overrides_inherited_shell_ids() {
     )
     .unwrap();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -2434,8 +2344,7 @@ fn preflight__local_env_project_context_overrides_inherited_shell_ids() {
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(dir.path())
         .env("AI_BRAINS_PROJECT_ID", inherited_project_id)
         .env("AI_BRAINS_SESSION_ID", inherited_session_id)
@@ -2480,8 +2389,7 @@ fn test_nightly_skip_import_flag_accepted() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -2489,8 +2397,7 @@ fn test_nightly_skip_import_flag_accepted() {
         .success();
 
     // The flag should appear in the help text so users discover it.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("nightly")
         .arg("--help")
         .assert()
@@ -2506,7 +2413,7 @@ fn test_forget_unknown_memory_id_errors() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    let mut init_cmd = Command::cargo_bin("ai-brains").unwrap();
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -2515,8 +2422,7 @@ fn test_forget_unknown_memory_id_errors() {
         .success();
 
     let unknown_id = "00000000-0000-0000-0000-000000000000";
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("forget")
@@ -2542,8 +2448,7 @@ fn test_forget_unknown_memory_id_errors() {
 /// so we only verify the command surface is wired up.
 #[test]
 fn test_daemon_update_command_exists() {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("daemon")
         .arg("--help")
         .assert()
@@ -2561,8 +2466,7 @@ fn env_var_precedence__shell_overrides_env_file() {
     std::fs::write(&env_path, "AI_BRAINS_MODEL_URL=http://127.0.0.1:9999\n")
         .expect("write project .env");
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(dir.path())
         .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_MODEL_URL", "http://127.0.0.1:1")
@@ -2616,8 +2520,7 @@ fn env_var_precedence__project_env_overrides_global_env() {
     )
     .expect("write project .env");
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .current_dir(project_dir.path())
         // Windows home + Unix home (dirs::home_dir / dotenv global fallback).
         .env("USERPROFILE", home_dir.path())
@@ -2656,8 +2559,7 @@ fn env_var_precedence__project_env_overrides_global_env() {
 fn test_daemon_status_respects_model_url_env_var() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_MODEL_URL", "http://127.0.0.1:9099")
         .arg("daemon")
@@ -2691,16 +2593,14 @@ fn backup_create__progress_goes_to_tracing_not_stderr() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -2728,8 +2628,7 @@ fn backup_create__progress_goes_to_tracing_not_stderr() {
 fn tracing_filter__external_deps_stay_quiet() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("RUST_LOG", "")
         .arg("daemon")
@@ -2756,8 +2655,7 @@ fn tracing_filter__external_deps_stay_quiet() {
 fn test_daemon_status_respects_embedding_url_env_var() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_EMBEDDING_URL", "http://127.0.0.1:9199")
         .arg("daemon")
@@ -2802,8 +2700,7 @@ fn test_daemon_status_retries_on_slow_startup() {
         }
     });
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("AI_BRAINS_VAULT_PATH", &vault)
         .env("AI_BRAINS_MODEL_URL", format!("http://127.0.0.1:{}", port))
         .arg("daemon")
@@ -2829,8 +2726,7 @@ fn test_recall_reads_query_from_stdin() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -2846,8 +2742,7 @@ fn test_recall_reads_query_from_stdin() {
         "role": "user",
         "content": "GPU driver fix for VRAM allocation regression."
     }"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
@@ -2856,8 +2751,7 @@ fn test_recall_reads_query_from_stdin() {
         .success();
 
     // recall - reads query from piped stdin
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("recall")
@@ -2887,8 +2781,7 @@ fn test_preflight_reads_options_from_stdin() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -2896,8 +2789,7 @@ fn test_preflight_reads_options_from_stdin() {
         .success();
 
     let stdin_json = r#"{"max_words": 500}"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("preflight")
@@ -2910,8 +2802,7 @@ fn test_preflight_reads_options_from_stdin() {
 /// T86: `--stdin` flag must appear in `preflight --help`.
 #[test]
 fn test_preflight_stdin_flag_in_help() {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("preflight")
         .arg("--help")
         .assert()
@@ -2925,8 +2816,7 @@ fn test_preflight_stdin_flag_in_help() {
 #[test]
 #[allow(non_snake_case)]
 fn graph__default_build__prints_hint() {
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("graph")
         .arg("update")
         .output()
@@ -2943,8 +2833,7 @@ fn graph__default_build__prints_hint() {
         "stub must print feature hint; got: {stdout}"
     );
 
-    let help_output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let help_output = common::hermetic_bin()
         .arg("graph")
         .arg("--help")
         .output()
@@ -2971,16 +2860,14 @@ fn daemon_status__vault_info_conditional_on_running() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("daemon")
@@ -3026,16 +2913,14 @@ fn log_format_compact__short_output() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("RUST_LOG", "info")
         .arg("--log-format")
         .arg("compact")
@@ -3068,16 +2953,14 @@ fn log_format_json__valid_json_lines() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("RUST_LOG", "info")
         .arg("--log-format")
         .arg("json")
@@ -3120,16 +3003,14 @@ fn log_format_off__no_tracing_output() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("RUST_LOG", "info")
         .arg("--log-format")
         .arg("off")
@@ -3159,16 +3040,14 @@ fn log_format_minimal__no_timestamp() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("RUST_LOG", "info")
         .arg("--log-format")
         .arg("minimal")
@@ -3203,8 +3082,7 @@ fn sync_query__daemon_down__returns_local_results() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -3220,8 +3098,7 @@ fn sync_query__daemon_down__returns_local_results() {
         "role": "user",
         "content": "T115 sync query local fallback seed content."
     }"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
@@ -3229,8 +3106,7 @@ fn sync_query__daemon_down__returns_local_results() {
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env(
             "AI_BRAINS_PROJECT_ID",
             "22222222-2222-2222-2222-222222222222",
@@ -3269,8 +3145,7 @@ fn sync_query__daemon_down__no_spawn_attempt() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -3286,8 +3161,7 @@ fn sync_query__daemon_down__no_spawn_attempt() {
         "role": "user",
         "content": "T115 no spawn attempt seed content."
     }"#;
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
@@ -3295,8 +3169,7 @@ fn sync_query__daemon_down__no_spawn_attempt() {
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env(
             "AI_BRAINS_PROJECT_ID",
             "66666666-6666-6666-6666-666666666666",
@@ -3337,8 +3210,7 @@ fn test_project_list_friendly_default_name() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -3346,8 +3218,7 @@ fn test_project_list_friendly_default_name() {
         .success();
 
     // context creates a ProjectRegistered event with the default name.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -3355,8 +3226,7 @@ fn test_project_list_friendly_default_name() {
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("project")
@@ -3384,16 +3254,14 @@ fn backup__top_level_dry_run__triggers_preview() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("USERPROFILE", dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -3427,16 +3295,14 @@ fn backup_create__dry_run_keep__shows_prune_preview() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .env("USERPROFILE", dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -3473,8 +3339,7 @@ fn backup_create__explicit_keep_N__overrides_default() {
     let backup_dir = dir.path().join("backups");
     fs::create_dir_all(&backup_dir).unwrap();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -3486,8 +3351,7 @@ fn backup_create__explicit_keep_N__overrides_default() {
         fs::write(backup_dir.join(&name), b"fake").unwrap();
     }
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .env("USERPROFILE", dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
@@ -3512,16 +3376,14 @@ fn backup_prune__keep_0__rejected() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -3625,8 +3487,7 @@ fn recall__session_prefix_ambiguous__errors_with_capped_matches() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -3642,8 +3503,7 @@ fn recall__session_prefix_ambiguous__errors_with_capped_matches() {
             uuid::Uuid::new_v4(),
             i
         );
-        Command::cargo_bin("ai-brains")
-            .unwrap()
+        common::hermetic_bin()
             .arg("--vault-path")
             .arg(&vault_path)
             .arg("ingest")
@@ -3652,8 +3512,7 @@ fn recall__session_prefix_ambiguous__errors_with_capped_matches() {
             .success();
     }
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("recall")

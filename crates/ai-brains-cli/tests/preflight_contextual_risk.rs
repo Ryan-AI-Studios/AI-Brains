@@ -1,6 +1,7 @@
 #![allow(clippy::disallowed_methods)]
 
-use assert_cmd::Command;
+mod common;
+
 use predicates::prelude::*;
 use tempfile::tempdir;
 
@@ -12,7 +13,7 @@ fn test_preflight_with_scope_does_not_crash() -> Result<(), Box<dyn std::error::
     let vault_path = dir.path().join("vault.db");
 
     // 1. Initialize the vault
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -22,7 +23,7 @@ fn test_preflight_with_scope_does_not_crash() -> Result<(), Box<dyn std::error::
 
     // 2. Run preflight with --scope flag (Ledgerful likely not available,
     //    but preflight should not crash due to fail-open)
-    let mut preflight_cmd = Command::cargo_bin("ai-brains")?;
+    let mut preflight_cmd = common::hermetic_bin();
     preflight_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -47,7 +48,7 @@ fn test_preflight_with_and_without_scope() -> Result<(), Box<dyn std::error::Err
     let vault_path = dir.path().join("vault.db");
 
     // Initialize and pin
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -56,7 +57,7 @@ fn test_preflight_with_and_without_scope() -> Result<(), Box<dyn std::error::Err
         .success();
 
     // Run preflight without scope
-    let mut preflight_no_scope = Command::cargo_bin("ai-brains")?;
+    let mut preflight_no_scope = common::hermetic_bin();
     preflight_no_scope
         .arg("--vault-path")
         .arg(&vault_path)
@@ -70,7 +71,7 @@ fn test_preflight_with_and_without_scope() -> Result<(), Box<dyn std::error::Err
         .success();
 
     // Run preflight with scope (should not crash even if Ledgerful unavailable)
-    let mut preflight_with_scope = Command::cargo_bin("ai-brains")?;
+    let mut preflight_with_scope = common::hermetic_bin();
     preflight_with_scope
         .arg("--vault-path")
         .arg(&vault_path)
@@ -94,7 +95,7 @@ fn test_preflight_scope_from_env_var() -> Result<(), Box<dyn std::error::Error>>
     let dir = tempdir()?;
     let vault_path = dir.path().join("vault.db");
 
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -102,7 +103,7 @@ fn test_preflight_scope_from_env_var() -> Result<(), Box<dyn std::error::Error>>
         .assert()
         .success();
 
-    let mut preflight_cmd = Command::cargo_bin("ai-brains")?;
+    let mut preflight_cmd = common::hermetic_bin();
     preflight_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -125,7 +126,7 @@ fn test_preflight_json_output_with_scope() -> Result<(), Box<dyn std::error::Err
     let dir = tempdir()?;
     let vault_path = dir.path().join("vault.db");
 
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -133,7 +134,7 @@ fn test_preflight_json_output_with_scope() -> Result<(), Box<dyn std::error::Err
         .assert()
         .success();
 
-    let mut preflight_cmd = Command::cargo_bin("ai-brains")?;
+    let mut preflight_cmd = common::hermetic_bin();
     preflight_cmd
         .arg("--vault-path")
         .arg(&vault_path)

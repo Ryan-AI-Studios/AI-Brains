@@ -610,13 +610,12 @@ P12.2 shipped: `Docs/PROTOCOL-COMPAT.md`; elevate T158; additive helper; honesty
 - **Residuals (open, not blockers):** F36 runtime api_version enforcement; F35 single API_VERSION SOOT; F24 binary N−1 post-release; F34 optional jsonschema; serde_json minor pin → **T185** / T183 handoff notes.
 - **Out of scope (unchanged):** Infinite history; third-party clients; multi-OS; #34.2; OpenAPI DoD; Upcast migrations as DoD.
 
-### 58. T186 Hermetic CLI / Multi-OS Test Hygiene — **Proposed** (2026-08-01)
+### 58. T186 Hermetic CLI / Multi-OS Test Hygiene — **Completed** (2026-08-01) — see also §64
 
-Placeholder residual after T179 first multi-OS GHA (see `trackT186-hermetic-cli-ci-hygiene/`).
+P12 residual after T179 multi-OS GHA. Shipped: shared hermetic helper; ambient denylist; priority+soft suite migration; soft-canonicalize KAT expansion; GHA `--profile ci` (no-fail-fast); wall-clock docs; R-CI-PIN PR `ci.yml` SHA pins.
 
-- **Absorbs:** ambient `AI_BRAINS_PROJECT_ID` / session pollution on clean runners; shared hermetic `assert_cmd` helper; soft-canonicalize path containment expansion; optional GHA `--no-fail-fast` inventory; CI wall-clock notes (~15–20 min full Win+Linux).
-- **Out of scope:** platform tier changes (T179); T180 protocol; T181 drills productization; #34.2.
-- **Still open until expand/implement:** helper + suite migration not landed.
+- **Out of scope (unchanged):** platform tiers; T180; T181 productization; #34.2; R-CI-BRANCH (admin); full long-tail rewrite.
+- **Long-tail residual (L13):** 25 `cargo_bin` sites / 5 files inventoried — not DoD blockers.
 
 ### 59. T181 Backup Recovery Drills — **Completed** (2026-08-01)
 
@@ -712,7 +711,7 @@ P12.6 executed. Normative: `conductor/tracks/trackT184-independent-security-revi
 | R-MULTI, R-PIPE-IU, R-UDS-TMP | Multi-user Interactive residual after F-1 |
 | R-HTTP-SYS, R-DOC-CLI, R-TB, R-CLOUDOK | Prior honesty |
 | R-API-VER, R-BRIDGE, R-DTO-GOLDEN | Protocol honesty / T185 |
-| R-CI-PIN | **T186** — pin GHA actions by full SHA |
+| R-CI-PIN | **Closed (T186)** — PR `ci.yml` + release.yml full SHA pins |
 | R-CI-BRANCH | Repo admin — enable branch protection on `main` |
 | R-CI-SAST | Optional later (clippy ≠ SAST) |
 | R-SLSA | **T185** provenance axis |
@@ -758,7 +757,7 @@ P12.7 executed. Normative: `conductor/tracks/trackT185-claims-sbom-release-gate/
 
 1. MSI / notarization / App Store packaging
 2. systemd / launchd production units
-3. PR `ci.yml` full action SHA-pin (**R-CI-PIN** → **T186** or later; release.yml pins shipped)
+3. PR `ci.yml` full action SHA-pin — **Closed T186** (release.yml was T185)
 4. Branch protection (**R-CI-BRANCH** — repo admin)
 5. doctor / recovery export CLIs; #34.2 DataKey rotation; SQLCipher page-encrypt flip
 6. T186 hermetic CLI suite (parallel)
@@ -768,3 +767,35 @@ P12.7 executed. Normative: `conductor/tracks/trackT185-claims-sbom-release-gate/
 **Out of scope remains:** public `v*` marketing release without human re-walk of checklist; SLSA L3; SOC2/ASVS certification.
 
 **Review closeout:** Internal PASS WITH DEFERRED P3; Codex R1 FAIL→fix; R2 FAIL→easy P3; **R3 PASS WITH DEFERRED P3** (final gate).
+
+---
+
+## From T186 - Hermetic CLI / Multi-OS Test Hygiene (2026-08-01)
+
+### 64. T186 Hermetic CLI / CI Hygiene — **Completed** (2026-08-01)
+
+P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-hermetic-cli-ci-hygiene/{spec,plan,review}.md` (L1–L13, AC0–AC10).
+
+**Shipped:**
+- **AC0:** `nextest.toml` → `.config/nextest.toml`; `slow-timeout = { period = "30s", terminate-after = 4 }` (120s kill); profile.ci discoverable
+- **Helper:** `tests/common/mod.rs` (`hermetic_bin` / `hermetic_vault` / `hermetic_cmd`); 11-key denylist (elevation + SCOPE + PREFLIGHT)
+- **AC2:** `hermetic_smoke.rs` ambient pollution proof
+- **Priority+soft migration:** smoke, migrate, shadow, device, recovery, preflight, mapping, sync_query, CARGO_BIN_EXE trio
+- **Path:** `resolve_best_effort__missing_child_under_existing_parent__soft_resolves` KAT
+- **GHA:** `--profile ci` on Win/Linux/macOS; R-CI-PIN full SHA pins aligned with release.yml
+- **Docs:** `Docs/ci-tooling.md` hermetic + nextest; COMPATIBILITY/RELEASE pin wording
+- **Evidence:** `evidence/INVENTORY.md` dual-pattern inventory
+
+**Local gates:** nextest `--workspace --profile ci` **1713 passed**; clippy/fmt/deny/audit green. Internal R1 PASS after inventory/AC2 fixes. Codex R1 FAIL (closeout honesty) → fixed deferred/conductor; final Codex after PR CI.
+
+**Absorbed:** §56/§58 T179 hermetic suite + ambient + soft-canonicalize + no-fail-fast; §62 R-CI-PIN PR pins.
+
+**Explicit non-DoD residuals (remain open elsewhere):**
+1. Long-tail 25 `cargo_bin` sites / 5 files (L13 inventoried)
+2. #12 TOCTOU / openat / cap-std (not closed by soft-resolve)
+3. R-CI-BRANCH (repo admin)
+4. Platform tier / desktop T1
+5. #34.2 DataKey rotation
+6. Optional: `LEDGERFUL_TX_ID` denylist expansion (Info)
+
+**AI1/AI2 fold-in applied at implement:** A1–A12 accepted (nextest path, terminate syntax, dual inventory, denylist, SHA align, pollution test). Rejected: Fully Compliant claims; actionlint DoD; mandatory checkout v7.

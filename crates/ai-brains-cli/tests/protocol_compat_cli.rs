@@ -4,8 +4,7 @@
 //! (not by re-calling `to_string` / `to_string_pretty` in the test).
 #![allow(clippy::disallowed_methods, non_snake_case)]
 
-use std::io::Write;
-use std::process::{Command, Stdio};
+mod common;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -16,7 +15,7 @@ fn run_cli(args: &[&str]) -> Result<std::process::Output, Box<dyn std::error::Er
     let vault_path = dir.path().join("vault.db");
 
     // Ensure vault exists for preflight/scope (init creates empty vault).
-    let init = Command::new(env!("CARGO_BIN_EXE_ai-brains"))
+    let init = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -27,13 +26,11 @@ fn run_cli(args: &[&str]) -> Result<std::process::Output, Box<dyn std::error::Er
         let _ = init;
     }
 
-    let output = Command::new(env!("CARGO_BIN_EXE_ai-brains"))
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("--no-project-context")
         .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .output()?;
     Ok(output)
 }
@@ -45,21 +42,14 @@ fn run_ingest(
     let dir = tempfile::tempdir()?;
     let vault_path = dir.path().join("vault.db");
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_ai-brains"))
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("ingest")
         .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
-    if let Some(stdin) = child.stdin.as_mut() {
-        stdin.write_all(input.as_bytes())?;
-    }
-
-    Ok(child.wait_with_output()?)
+        .write_stdin(input)
+        .output()?;
+    Ok(output)
 }
 
 // ---------------------------------------------------------------------------

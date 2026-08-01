@@ -4,7 +4,8 @@
 //! T176 CLI smoke: device bootstrap / list / fingerprint / second bootstrap /
 //! package-export / enroll / revoke / replicate.
 
-use assert_cmd::Command;
+mod common;
+
 use predicates::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -13,8 +14,7 @@ use tempfile::tempdir;
 const ZERO_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
 
 fn init_vault(vault_path: &std::path::Path) {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("init")
@@ -23,8 +23,7 @@ fn init_vault(vault_path: &std::path::Path) {
 }
 
 fn bootstrap(vault_path: &std::path::Path) {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("device")
@@ -41,8 +40,7 @@ fn cli_device_bootstrap__temp_vault__lists_local() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -52,8 +50,7 @@ fn cli_device_bootstrap__temp_vault__lists_local() {
         .stdout(predicate::str::contains("status=local"))
         .stdout(predicate::str::contains("fingerprint:"));
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -69,8 +66,7 @@ fn cli_device_fingerprint__hyphen_form() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -78,8 +74,7 @@ fn cli_device_fingerprint__hyphen_form() {
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -102,8 +97,7 @@ fn bootstrap__second_call__err() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -111,8 +105,7 @@ fn bootstrap__second_call__err() {
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -131,8 +124,7 @@ fn cli_replicate_push__no_config__err() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("replicate")
@@ -145,8 +137,7 @@ fn cli_replicate_push__no_config__err() {
                 .or(predicate::str::contains("AI_BRAINS_SYNC_FAKE_RELAY_PATH")),
         );
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("replicate")
@@ -166,8 +157,7 @@ fn cli_replicate_push__fake_relay__ok() {
 
     // Bootstrap does not yet enqueue via ReplicateEngine outbox, so push may be 0.
     // Still must exit 0, report structured count, and create the fake-relay marker.
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("replicate")
@@ -186,8 +176,7 @@ fn cli_replicate_push__fake_relay__ok() {
         marker.display()
     );
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("replicate")
@@ -207,8 +196,7 @@ fn cli_replicate_push__format_json__ok() {
     init_vault(&vault);
     bootstrap(&vault);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("replicate")
@@ -248,8 +236,7 @@ fn cli_replicate_pull__format_json__ok() {
     bootstrap(&vault);
 
     // Ensure relay exists (push creates marker).
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("replicate")
@@ -259,8 +246,7 @@ fn cli_replicate_pull__format_json__ok() {
         .assert()
         .success();
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("replicate")
@@ -304,8 +290,7 @@ fn cli_package_export__public_only__no_raw_seeds() {
     init_vault(&vault);
     let out = dir.path().join("peer.bin");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -335,8 +320,7 @@ fn cli_enroll__after_bootstrap_and_package__ok() {
     bootstrap(&vault);
 
     let package = dir.path().join("peer.bin");
-    let export = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let export = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -358,8 +342,7 @@ fn cli_enroll__after_bootstrap_and_package__ok() {
         .trim()
         .to_string();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -372,8 +355,7 @@ fn cli_enroll__after_bootstrap_and_package__ok() {
         .stdout(predicate::str::contains("Enrolled peer"))
         .stdout(predicate::str::contains("signed DeviceEnrolled by"));
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -392,8 +374,7 @@ fn cli_revoke__after_enroll__ok() {
     bootstrap(&vault);
 
     let package = dir.path().join("peer.bin");
-    let export = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let export = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -415,8 +396,7 @@ fn cli_revoke__after_enroll__ok() {
         .trim()
         .to_string();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -427,8 +407,7 @@ fn cli_revoke__after_enroll__ok() {
         .assert()
         .success();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -460,8 +439,7 @@ fn revoke__self__fails_adr0018_l4() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let out = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let out = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -477,8 +455,7 @@ fn revoke__self__fails_adr0018_l4() {
         .trim()
         .to_string();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -501,8 +478,7 @@ fn revoke__peer_after_enroll__ok_and_event_log() {
     bootstrap(&vault);
 
     let package = dir.path().join("peer.bin");
-    let export = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let export = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -524,8 +500,7 @@ fn revoke__peer_after_enroll__ok_and_event_log() {
         .trim()
         .to_string();
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -542,8 +517,7 @@ fn revoke__peer_after_enroll__ok_and_event_log() {
         "bootstrap + enroll must produce ≥2 DeviceEnrolled events, got {enrolled}"
     );
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
@@ -584,8 +558,7 @@ fn cli_package_export__write_private_key_dpapi__ok() {
     let out = dir.path().join("peer.bin");
     let priv_path = dir.path().join("peer.key.dpapi");
 
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("device")
