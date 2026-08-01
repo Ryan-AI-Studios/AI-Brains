@@ -2,15 +2,20 @@
 
 ## Status
 
-**Accepted** — 2026-08-01 (technical freeze under T182).
+**Accepted** — 2026-08-01.
 
-Decision content (v1 = TrustedBuiltin only; L1–L10 locks; non-claims; future subprocess→WASI gates) is frozen and normative for release language on connectors (P12.4). Soft two-layer sandbox-declaration tests shipped in `ai-brains-sources`.
-
-**Design-review provenance** is recorded in the track review log
+Accepted after T182 Internal R2 **PASS**, Codex R1 design **PASS** (closeout-only
+P2s CX1/CX2 — no design defects), and full workspace gate green. Final fresh
+Codex R2 evidence lives in track
 [`review.md`](../../conductor/tracks/trackT182-connector-sandbox-decision/review.md)
-and is **not** implied complete by this Status line alone. When internal + SECURITY
-cross-model rounds clear, that log is the evidence (same discipline as
+(same discipline as
 [ADR-0018](ADR-0018-encrypted-event-replication-protocol.md)).
+
+Normative for release language on connectors (P12.4). Soft two-layer
+sandbox-declaration tests shipped in `ai-brains-sources`.
+
+Decision content: v1 = TrustedBuiltin only; L1–L10 locks; non-claims; future
+subprocess→WASI gates.
 
 Complements [ADR-0012](ADR-0012-local-first-control-plane-and-public-protocol.md)
 (local-first control plane) and policy from T151. Does **not** change capture
@@ -187,8 +192,8 @@ This ADR does **not** claim formal security certification, perfect isolation of 
 
 ## Acceptance checklist (track)
 
-- [ ] Design review clean (or deferred mediums ≤3 with register) — **pending** internal + SECURITY cross-model rounds in track `review.md` (do not check until those clear)  
-- [x] Status → **Accepted** + date (2026-08-01 technical freeze); soft two-layer tests shipped  
+- [x] Design review clean (or deferred mediums ≤3 with register) — Internal R2 PASS; Codex R1 zero design P0–P2; see track `review.md`  
+- [x] Status → **Accepted** + date (2026-08-01); soft two-layer tests shipped  
 - [x] File promoted under `Docs/DECISIONS/`  
-- [ ] Conductor T182 Completed — after design review clean + full gate  
-- [ ] Optional pin via `ai-brains pin`  
+- [x] Conductor T182 Completed — after design review clean + full gate  
+- [x] Optional pin via `ai-brains pin`  

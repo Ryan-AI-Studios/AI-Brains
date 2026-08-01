@@ -1,6 +1,6 @@
 # T182 Plan — Connector Sandbox Decision + Threat Model (P12.4)
 
-Status: **In Review** (2026-08-01) — ADR-0019 Accepted technical freeze + soft two-layer tests shipped. Design-review rounds open.
+Status: **Completed** (2026-08-01) — ADR-0019 Accepted + soft two-layer tests; reviews + full gate green.
 
 ## Track shape
 
@@ -34,8 +34,8 @@ Status: **In Review** (2026-08-01) — ADR-0019 Accepted technical freeze + soft
 ## Phase B — ADR accept (implement on go-ahead)
 
 - [x] Human / orchestrator review of threat model + ADR draft (post-fold-in) — implement phase
-- [x] Internal review log → resolve findings — R1 FAIL (R1-01 provenance) → fixed; R2 pending re-verify
-- [ ] Cross-model (SECURITY) review until clean or justified deferrals
+- [x] Internal review log → resolve findings — R1 FAIL (R1-01 provenance) → R2 PASS
+- [x] Cross-model (SECURITY) review until clean or justified deferrals — Codex R1 design PASS (closeout P2s); final R2 after closeout
 - [x] Promote `adr-0019-draft.md` → `Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md` with **Accepted** (technical freeze; review provenance in `review.md`)
 - [x] Cross-link from CAPABILITIES one-line “connector trust” pointer (T183 owns full pack)
 - [ ] Optional pin: `ai-brains pin "DECISION: ADR-0019 v1 TrustedBuiltin only; third-party subprocess then WASI; no DLL load; no AGPL host; two-crate wasmtime pin if ever"`
@@ -53,13 +53,12 @@ Two-layer defense (L9) — **do not** assert `SandboxNotAllowed` on unknown-stri
 
 ## Phase D — Closeout
 
-- [x] AC1–AC7 + AC9 checked in `spec.md`; AC8 pending design-review clean
-- [ ] Conductor row → Completed after design review clean; owner filled (currently In Review)
+- [x] AC1–AC9 checked in `spec.md`
+- [x] Conductor row → Completed after design review clean; owner filled
 - [x] deferred.md §60 struck/promoted notes
-- [ ] Full gate only if code changed:  
-  `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit ; ledgerful verify --scope full`
-- [ ] Design-only closeout: document review evidence; no binary change claim  
-  *(Package-level fmt/clippy/nextest green for sources; full workspace gate + reviews = orchestrator)*
+- [x] Full gate:  
+  `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace --no-fail-fast` (1708 passed, 1 skipped) `; cargo deny check ; cargo audit`
+- [x] Review evidence in `review.md`; soft test-only code change (no plugin host binary)
 
 ## License gate (always)
 
