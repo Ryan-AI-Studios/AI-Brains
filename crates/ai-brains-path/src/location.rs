@@ -45,15 +45,38 @@ fn map_wsl_mnt_to_drive(path: &str) -> Option<String> {
 
 /// Normalize a path string for equality / containment checks.
 ///
-/// Steps: best-effort resolve → strip `\\?\` → WSL `/mnt/c` map → UNC or drive normalize.
-/// Non-existing paths fall back to the input string (then still strip/normalize).
+/// Steps: **WSL `/mnt/c` map first** → best-effort resolve → strip `\\?\` →
+/// UNC or drive normalize. Non-existing paths fall back to the input string
+/// (then still strip/normalize).
+///
+/// WSL must run **before** soft-resolve: on Windows, a bare `/mnt/c/...` path is
+/// treated as drive-relative (`\mnt\c\...` under the current volume, e.g.
+/// `D:\mnt\c\...` on GHA). Mapping after soft-resolve misses that form (T179
+/// Phase F / gate-windows `path_locator_wsl_and_windows`).
 pub fn normalize_for_location_compare(input: &str) -> String {
-    let resolved = resolve_best_effort(input);
+    // Map WSL before resolve so soft-canonicalize never binds /mnt/c to CWD drive.
+    let pre = if let Some(mapped) = map_wsl_mnt_to_drive(input) {
+        mapped
+    } else {
+        input.to_string()
+    };
+
+    let resolved = resolve_best_effort(&pre);
     let mut stripped = strip_extended_length_prefix(&resolved).replace('/', "\\");
 
-    // WSL mount form → Windows drive path so /mnt/c/... equals C:\...
+    // Second pass: if soft-resolve already joined a mistaken `\mnt\...` under a
+    // drive (legacy callers / intermediate forms), still map when possible.
     if let Some(mapped) = map_wsl_mnt_to_drive(&stripped) {
         stripped = mapped.replace('/', "\\");
+    } else if let Some((_, rest)) = stripped.split_once(r":\mnt\") {
+        // e.g. D:\mnt\c\Dev\... from pre-fix soft-resolve of /mnt/c/...
+        if let Some(mapped) = map_wsl_mnt_to_drive(&format!(r"\mnt\{rest}")) {
+            stripped = mapped.replace('/', "\\");
+        }
+    } else if let Some((_, rest)) = stripped.split_once(r":/mnt/") {
+        if let Some(mapped) = map_wsl_mnt_to_drive(&format!("/mnt/{rest}")) {
+            stripped = mapped.replace('/', "\\");
+        }
     }
 
     if is_unc_path(&stripped) {
@@ -157,6 +180,30 @@ mod tests {
             r"C:\other\vault.db",
             r"C:\Users\me\.ai-brains"
         ));
+    }
+
+    #[test]
+    fn normalize_for_location_compare__wsl_mnt_c__equals_windows_drive() {
+        // Must not depend on CWD (GHA Windows often runs on D:).
+        let wsl = normalize_for_location_compare("/mnt/c/Dev/Project/readme.md");
+        let win = normalize_for_location_compare(r"C:\Dev\Project\readme.md");
+        assert_eq!(wsl, win, "WSL and Windows forms must normalize equal");
+        assert!(
+            wsl.starts_with(r"c:\") || wsl.starts_with(r"C:\"),
+            "expected C: drive after WSL map, got {wsl}"
+        );
+        assert!(
+            !wsl.to_ascii_lowercase().contains(r"\mnt\c\"),
+            "must not leave residual \\mnt\\c under another drive: {wsl}"
+        );
+    }
+
+    #[test]
+    fn normalize_for_location_compare__mistaken_drive_mnt_c__still_maps() {
+        // Pre-fix soft-resolve artifact: current-drive + \mnt\c\...
+        let mistaken = normalize_for_location_compare(r"D:\mnt\c\Dev\Project\readme.md");
+        let win = normalize_for_location_compare(r"C:\Dev\Project\readme.md");
+        assert_eq!(mistaken, win);
     }
 
     #[test]
