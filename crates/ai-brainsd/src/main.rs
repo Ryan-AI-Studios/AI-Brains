@@ -120,16 +120,13 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             InstanceDecision::Proceed => {}
         }
 
-        let pipe_sa = match ai_brainsd::pipe_security::build_pipe_security_attributes() {
-            Ok(sa) => Some(sa),
-            Err(e) => {
-                tracing::warn!(
-                    "Failed to build pipe security descriptor (continuing with default): {}",
-                    e
-                );
-                None
-            }
-        };
+        // T184 F-1: fail closed — never create the pipe with an unknown default DACL.
+        // Box so the SECURITY_ATTRIBUTES address is heap-stable for the raw pointer API.
+        let pipe_sa = Box::new(
+            ai_brainsd::pipe_security::build_pipe_security_attributes().map_err(|e| {
+                format!("Failed to build pipe security descriptor (refusing default DACL): {e}")
+            })?,
+        );
 
         println!("AI-Brains Daemon started. Listening on {}", PIPE_NAME);
 
@@ -137,37 +134,21 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let services_clone = services.clone();
         let shutdown_tx_clone = shutdown_tx.clone();
 
-        let sa_ptr_usize: usize = pipe_sa
-            .as_ref()
-            .map(|sa| sa as *const _ as *const std::ffi::c_void as usize)
-            .unwrap_or(0);
+        let sa_ptr_usize: usize = pipe_sa.as_ref() as *const _ as *const std::ffi::c_void as usize;
+        // Leak intentionally: pipe accept loop holds raw SA pointer for process life.
+        // SECURITY_DESCRIPTOR heap (from ConvertStringSecurityDescriptor) is also process-owned.
+        std::mem::forget(pipe_sa);
 
         tokio::spawn(async move {
             let mut first_instance = true;
-            let mut use_sd = sa_ptr_usize != 0;
             loop {
-                let server_result = if use_sd {
-                    let mut opts = ServerOptions::new();
-                    opts.first_pipe_instance(first_instance);
-                    let sa_ptr = sa_ptr_usize as *mut std::ffi::c_void;
-                    let res =
-                        unsafe { opts.create_with_security_attributes_raw(PIPE_NAME, sa_ptr) };
-                    if res.is_err() {
-                        tracing::warn!(
-                            "Pipe creation with custom SD failed, falling back to default SD"
-                        );
-                        use_sd = false;
-                        let mut opts2 = ServerOptions::new();
-                        opts2.first_pipe_instance(first_instance);
-                        opts2.create(PIPE_NAME)
-                    } else {
-                        res
-                    }
-                } else {
-                    let mut opts = ServerOptions::new();
-                    opts.first_pipe_instance(first_instance);
-                    opts.create(PIPE_NAME)
-                };
+                let mut opts = ServerOptions::new();
+                opts.first_pipe_instance(first_instance);
+                let sa_ptr = sa_ptr_usize as *mut std::ffi::c_void;
+                // Fail closed: do not fall back to ServerOptions::create without the
+                // SY+BA+IU security descriptor (T184 F-1 / Codex R1 P1).
+                let server_result =
+                    unsafe { opts.create_with_security_attributes_raw(PIPE_NAME, sa_ptr) };
 
                 let server = match server_result {
                     Ok(s) => {
@@ -235,10 +216,19 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     #[cfg(not(windows))]
     {
+        // Path must match CLI `DEFAULT_DAEMON_TRANSPORT_PATH` and ledgerful IpcClient
+        // (`/tmp/ledgerful-bridge.sock`). After bind, restrict mode to 0o600 so only
+        // the owner can connect (T184 F-2). Residual: predictable path under /tmp
+        // (bind race if another user owns the name first) — see SECURITY-LIMITS.
         let socket_path = "/tmp/ledgerful-bridge.sock";
         let _ = std::fs::remove_file(socket_path);
 
         let listener = tokio::net::UnixListener::bind(socket_path)?;
+        #[cfg(unix)]
+        {
+            // Fail closed on mode set (T184 F-2) — do not leave a world-open socket.
+            ai_brainsd::unix_socket_mode::apply_owner_only_mode(std::path::Path::new(socket_path))?;
+        }
         println!(
             "AI-Brains Daemon started. Listening on Unix socket: {}",
             socket_path

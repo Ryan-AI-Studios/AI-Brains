@@ -310,43 +310,32 @@ async fn run_daemon_pipe_loop(
     // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
     let pipe_name = r"\\.\pipe\ledgerful-bridge";
 
-    let pipe_sa = crate::pipe_security::build_pipe_security_attributes().ok();
+    // T184 F-1: fail closed — refuse default DACL if SDDL build fails.
+    let pipe_sa = Box::new(
+        crate::pipe_security::build_pipe_security_attributes().map_err(|e| {
+            format!("Failed to build pipe security descriptor (refusing default DACL): {e}")
+        })?,
+    );
 
     let writer_clone = writer.clone();
     let services_clone = services.clone();
     let ipc_shutdown_tx_clone = ipc_shutdown_tx.clone();
     let pipe_name_owned = pipe_name.to_string();
 
-    let sa_ptr_usize: usize = pipe_sa
-        .as_ref()
-        .map(|sa| sa as *const _ as *const std::ffi::c_void as usize)
-        .unwrap_or(0);
+    let sa_ptr_usize: usize = pipe_sa.as_ref() as *const _ as *const std::ffi::c_void as usize;
+    std::mem::forget(pipe_sa);
 
     let server_handle = tokio::spawn(async move {
         use tokio::net::windows::named_pipe::ServerOptions;
 
         let mut first_instance = true;
-        let mut use_sd = sa_ptr_usize != 0;
         loop {
-            let server_result = if use_sd {
-                let mut opts = ServerOptions::new();
-                opts.first_pipe_instance(first_instance);
-                let sa_ptr = sa_ptr_usize as *mut std::ffi::c_void;
-                let res =
-                    unsafe { opts.create_with_security_attributes_raw(&pipe_name_owned, sa_ptr) };
-                if res.is_err() {
-                    use_sd = false;
-                    let mut opts2 = ServerOptions::new();
-                    opts2.first_pipe_instance(first_instance);
-                    opts2.create(&pipe_name_owned)
-                } else {
-                    res
-                }
-            } else {
-                let mut opts = ServerOptions::new();
-                opts.first_pipe_instance(first_instance);
-                opts.create(&pipe_name_owned)
-            };
+            let mut opts = ServerOptions::new();
+            opts.first_pipe_instance(first_instance);
+            let sa_ptr = sa_ptr_usize as *mut std::ffi::c_void;
+            // Fail closed: no fallback to create() without custom SD (T184 F-1).
+            let server_result =
+                unsafe { opts.create_with_security_attributes_raw(&pipe_name_owned, sa_ptr) };
 
             let server = match server_result {
                 Ok(s) => {
@@ -367,7 +356,7 @@ async fn run_daemon_pipe_loop(
                     }
                     crate::pipe_error::PipeErrorKind::Other => {
                         tracing::error!(
-                            "Failed to create pipe {}: {} — exiting service.",
+                            "Failed to create pipe {}: {} — exiting service (no default-DACL fallback).",
                             pipe_name_owned,
                             e
                         );

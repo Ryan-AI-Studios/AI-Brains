@@ -96,6 +96,8 @@ Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite. Do not invent mis
 | Residual | Note |
 |----------|------|
 | Loopback HTTP + bearer | Opt-in; local multi-user residual if token shared |
+| Named-pipe IPC (Windows) | Pipe SDDL is **SYSTEM + Administrators + Interactive** (not World). Any **interactive** logon on a multi-user host can open the pipe; pipe messages have **no bearer** (contrast HTTP). Primary model is single-owner desktop. |
+| Unix domain socket | Default path `/tmp/ledgerful-bridge.sock` (ledgerful interop); post-bind mode **0o600**. Residual: predictable path / bind-race if another principal owns the name first. Prefer loopback HTTP + bearer for multi-user Unix hosts. |
 | LocalSystem service token | Windows service residual (see OPERATIONS service notes) |
 | DPAPI seed portability | Windows-only seal; not portable cross-OS |
 

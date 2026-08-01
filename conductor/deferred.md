@@ -692,3 +692,32 @@ P12.5 complete. Normative: `Docs/README.md`, `Docs/INSTALL.md`, `Docs/SECURITY-L
 6. #34.2 DataKey rotation; systemd/launchd production units; CONTRIBUTING.md; Common Changelog; T186 suite — unchanged out of scope  
 
 **Evidence handoff for T185:** `conductor/tracks/trackT183-release-documentation/evidence/CLAIMS-CROSSCHECK.md`
+
+---
+
+## From T184 — Independent Security Review (2026-08-01)
+
+### 62. T184 Independent Security Review — **Completed** (2026-08-01)
+
+P12.6 executed. Normative: `conductor/tracks/trackT184-independent-security-review/{spec,plan,charter,residuals,review}.md` + `evidence/`.
+
+**Shipped remediations:** pipe SDDL World→SY+BA+IU (F-1 High); UDS post-bind `0o600` (F-2); SECURITY-LIMITS/OPERATIONS honesty; CI `permissions: contents: read` + Dependabot; SECURITY.md 90-day disclosure.
+
+**Residual handoff (cite IDs in T185 claims):**
+
+| Residual | Follow-up |
+|----------|-----------|
+| R-12, R-34.2, R-F8, R-K06, R-CE-PRE, R-WAL-CKPT | Product honesty (prior tracks) |
+| R-ACK, R-META, R-PQ | ADR-0018 |
+| R-MULTI, R-PIPE-IU, R-UDS-TMP | Multi-user Interactive residual after F-1 |
+| R-HTTP-SYS, R-DOC-CLI, R-TB, R-CLOUDOK | Prior honesty |
+| R-API-VER, R-BRIDGE, R-DTO-GOLDEN | Protocol honesty / T185 |
+| R-CI-PIN | **T186** — pin GHA actions by full SHA |
+| R-CI-BRANCH | Repo admin — enable branch protection on `main` |
+| R-CI-SAST | Optional later (clippy ≠ SAST) |
+| R-SLSA | **T185** provenance axis |
+| R-ZERO-KEY, R-DESKTOP-OPEN, R-AUDIT-UNMAINT | Low/Info accepted |
+
+**Closed in T184:** R-DISCLOSURE-TL, R-CI-PERM, R-CI-DEPBOT (and corrected R-CHANGELOG-PATH to root `CHANGELOG.md`).
+
+**Out of scope remains:** full multi-OS pentest; ASVS/SOC2 certification; doctor/export/DataKey rotation product work; SBOM packaging (T185).
