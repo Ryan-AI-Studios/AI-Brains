@@ -3,7 +3,7 @@
 **Version:** 0.1.1  
 **Platform:** Windows 11 first (PowerShell); Ubuntu 24.04 / WSL and macOS are tiered — see **[COMPATIBILITY.md](COMPATIBILITY.md)** (not a blanket “best-effort” claim)  
 **Type:** Local-first CLI + optional local daemon (not an MCP server)  
-**Related docs:** [OPERATIONS.md](OPERATIONS.md) · [WORKFLOWS.md](WORKFLOWS.md) · [PRD.md](PRD.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [status.md](status.md)
+**Related docs:** [OPERATIONS.md](OPERATIONS.md) · [WORKFLOWS.md](WORKFLOWS.md) · [PRD.md](PRD.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [status.md](status.md) · [ADR-0019 connector sandbox](DECISIONS/ADR-0019-connector-sandbox-execution-model.md)
 
 ---
 
@@ -349,6 +349,8 @@ See [EVALUATION/SHADOW-DOGFOOD-GATE.md](EVALUATION/SHADOW-DOGFOOD-GATE.md) and [
 - Graph-heavy features need the **graph** build feature and/or healthy local models  
 - Capture **must not** depend on intelligence features  
 - Ledgerful bridge **push/IPC enrichment is opt-in** on the Ledgerful side  
+- Not a third-party connector plugin host — release connectors are first-party **`TrustedBuiltin` only** ([ADR-0019](DECISIONS/ADR-0019-connector-sandbox-execution-model.md))  
+
 
 ---
 

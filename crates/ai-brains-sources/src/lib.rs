@@ -18,8 +18,9 @@
 //!
 //! Sync [`Connector`] trait + versioned [`ConnectorManifest`] (`schema_version = 1`).
 //! Production [`InProcessConnectorRegistry`] accepts only
-//! [`SandboxMode::TrustedBuiltin`]. Policy still gates observe (T151);
-//! this crate does **not** depend on the control-plane.
+//! [`SandboxMode::TrustedBuiltin`] per **ADR-0019** (Trusted Built-ins First;
+//! two-layer serde fail-closed + registry refuse). Policy still gates observe
+//! (T151); this crate does **not** depend on the control-plane.
 //!
 //! Built-in path-bearing connectors:
 //! - [`MarkdownObsidianConnector`] (`builtin.obsidian`)
