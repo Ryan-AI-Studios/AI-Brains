@@ -2,7 +2,7 @@
 
 - **Track:** T182-ConnectorSandboxDecision
 - **Category:** SECURITY / ARCHITECTURE
-- **Status:** design clean; full gate green; final Codex R2 pending
+- **Status:** design clean; full gate green; Codex R2 FAIL (doc provenance) fixed; final Codex R3 pending
 - **Date opened:** 2026-08-01
 - **Owner (implement):** Grok
 
@@ -24,6 +24,7 @@
 | R1-04 | info | Internal R1 | Full workspace gate not re-evidenced in R1 | `verified_fixed` | Full gate 2026-08-01: fmt/clippy green; nextest 1708 passed 1 skipped; deny ok; audit warnings only (pre-existing) |
 | CX1 | P2 | Codex R1 | AC8/conductor still open at review time | `verified_fixed` | Closeout after Codex R1 design PASS + full gate; no design defect |
 | CX2 | P2 | Codex R1 | Full workspace gate not re-evidenced | `verified_fixed` | Same as R1-04 evidence |
+| CX3 | P2 | Codex R2 | ADR claimed final R2 evidence while review.md still said R2 pending | `fixed_pending_verification` | Align ADR + review.md; re-run fresh Codex R3 as final gate |
 
 ## Review rounds
 
@@ -32,7 +33,8 @@
 | Internal R1 | explore subagent | **FAIL** (R1-01 medium) | 2026-08-01 |
 | Internal R2 | explore subagent | **PASS** (R1-01/02/03 verified_fixed) | 2026-08-01 |
 | Cross-model R1 | Codex gpt-5.4 high | **FAIL** (CX1/CX2 closeout gates only; **zero design P0–P2**) | 2026-08-01 |
-| Cross-model R2 | Codex | pending final fresh gate after closeout | |
+| Cross-model R2 | Codex gpt-5.4 high | **FAIL** (CX3 ADR/review provenance mismatch only; design clean) | 2026-08-01 |
+| Cross-model R3 | Codex | pending final fresh gate after CX3 fix | |
 
 ## Codex R1 design summary (no design fixes required)
 

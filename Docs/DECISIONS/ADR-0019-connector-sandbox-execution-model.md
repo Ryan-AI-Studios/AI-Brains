@@ -4,18 +4,25 @@
 
 **Accepted** — 2026-08-01.
 
-Accepted after T182 Internal R2 **PASS**, Codex R1 design **PASS** (closeout-only
-P2s CX1/CX2 — no design defects), and full workspace gate green. Final fresh
-Codex R2 evidence lives in track
-[`review.md`](../../conductor/tracks/trackT182-connector-sandbox-decision/review.md)
-(same discipline as
-[ADR-0018](ADR-0018-encrypted-event-replication-protocol.md)).
+Decision content frozen and normative for release language on connectors (P12.4):
+v1 = TrustedBuiltin only; L1–L10 locks; non-claims; future subprocess→WASI gates.
+Soft two-layer sandbox-declaration tests shipped in `ai-brains-sources`.
 
-Normative for release language on connectors (P12.4). Soft two-layer
-sandbox-declaration tests shipped in `ai-brains-sources`.
+**Review provenance** (do not invent completeness beyond this table — see track
+[`review.md`](../../conductor/tracks/trackT182-connector-sandbox-decision/review.md)):
 
-Decision content: v1 = TrustedBuiltin only; L1–L10 locks; non-claims; future
-subprocess→WASI gates.
+| Round | Result |
+|-------|--------|
+| Internal R2 | **PASS** |
+| Codex R1 | design **PASS**; closeout P2s CX1/CX2 fixed after full gate |
+| Full workspace gate | green (1708 passed, 1 skipped; deny/audit ok) |
+| Codex R2 | **FAIL** CX3 only — ADR/review “final R2 evidence” mismatch (design clean) |
+| Codex R3 | **pending** final fresh gate after CX3 alignment |
+
+Same discipline as
+[ADR-0018](ADR-0018-encrypted-event-replication-protocol.md): Status **Accepted**
+does not alone prove every review row is closed — the track review log is
+authoritative for round outcomes.
 
 Complements [ADR-0012](ADR-0012-local-first-control-plane-and-public-protocol.md)
 (local-first control plane) and policy from T151. Does **not** change capture
