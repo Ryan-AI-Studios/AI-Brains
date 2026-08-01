@@ -130,9 +130,9 @@ Any Rust tests: `feature__condition__expected_result`; hermetic; no real network
 - [x] **F2** Fix pin invocation: `.env(PROJECT)` + `.env(SESSION)` + **`--no-project-context`** (match smoke hermetic pattern)  
 - [x] **F3** `cargo fmt` so Windows `fmt --check` green  
 - [x] **F4** Targeted local: `cargo nextest run -p ai-brains-cli --test smoke test_backup_restore_dry_run` → **PASS** (2026-08-01)  
-- [ ] **F5** Push to PR #51; confirm all three gates green via `gh pr checks 51`  
-- [ ] **F6** Record GHA green in `evidence/SMOKE-*.md` / residual table  
-- [ ] **F7** Codex re-review only if F5 green and track closeout  
+- [x] **F5** PR #51 run **30683807812** all green: windows-2025, ubuntu-24.04, macos-15 soft  
+- [x] **F6** Additional CI fixes in same closeout: WSL map-before-soft-resolve; macOS git root canonical compare; clippy collapsible_if  
+- [ ] **F7** Codex re-review / track closeout (optional after merge hygiene)  
 
 ### Policy freezes (from failure)
 
