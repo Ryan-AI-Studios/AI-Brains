@@ -55,10 +55,18 @@ Per-recipient wire wraps need no change when only the local vault DataKey rotate
 4. Apply active DEK re-wraps + device private re-seal **on the new DB only** so the
    **old file remains openable with the old key until atomic replace**.
 5. Verify (sqlite_master + unwrap sample active DEKs under new DataKey).
-6. Close handles; **atomic replace** (Windows `MoveFileEx` REPLACE_EXISTING when
-   available; otherwise rename patterns consistent with T187 encrypt).
-7. On any failure **before** replace: abandon/delete the new file; old vault
+6. Hold source exclusive (`PRAGMA locking_mode=EXCLUSIVE`) through export + dest
+   rewrap + verify; **drop source handle only immediately before replace**
+   (Windows cannot replace a path while a process holds the DB open).
+7. **Atomic replace** via Windows `MoveFileEx` REPLACE_EXISTING only (no two-step
+   rename-aside fallback — that would leave the canonical path missing on crash).
+8. On any failure **before** replace: abandon/delete the new file; old vault
    untouched (fail closed).
+
+**Residual (P3 honesty):** between exclusive `drop(source)` and `MoveFileEx`
+there is a tiny OS-required window where another process could open the old
+vault. Daemon hard-fail + exclusive hold through rewrap minimize this; full
+zero-window replace under SQLite exclusive is not available on Windows.
 
 ### 3. Opt-in in-place rekey (F5b, F7b)
 

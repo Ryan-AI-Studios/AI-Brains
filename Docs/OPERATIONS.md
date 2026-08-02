@@ -502,6 +502,7 @@ ai-brains --vault-path $Vault --key $OldKey vault rotate-datakey `
 | Method | Primary = export; opt-in `--accept-rekey-risk` for in-place `PRAGMA rekey` (snapshot + auto-restore; mid-crash residual) |
 | Multi-device | Each device runs its own ceremony; peer wraps untouched |
 | Stale env | Success stdout always includes a **STALE key WARNING** |
+| Windows replace | Exclusive source lock held through export/rewrap/verify; released only immediately before `MoveFileEx` (OS cannot replace an open DB). Tiny concurrent-open residual remains — keep daemon stopped. |
 
 Normative: [ADR-0020](DECISIONS/ADR-0020-datakey-rotation.md). Residual honesty: offline backups/old kits remain decryptable under the **old** key until operators destroy them (not NIST Purge).
 
