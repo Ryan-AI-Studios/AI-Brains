@@ -677,7 +677,8 @@ P12.4 complete. Normative: [ADR-0019](../Docs/DECISIONS/ADR-0019-connector-sandb
 
 **Residuals remaining (not fixed by T182):**
 
-1. **#12** path TOCTOU / openat / cap-std residual — documented; still open for future path-hardening  
+1. ~~**#12** path TOCTOU / openat / cap-std residual~~ — **Closed-with-residuals by T190** (2026-08-02)  
+
 2. **CloudOk** constructible-unused / registry does not enforce trust label — future feature-flag non-LocalOnly  
 3. List cursor **#23** — out of scope (consumer-driven)  
 4. Plugin host (subprocess / WASI) — future track under L7/L8 gates  
@@ -818,7 +819,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 **Explicit non-DoD residuals (remain open elsewhere):**
 1. Long-tail 25 `cargo_bin` sites / 5 files (L13 inventoried)
-2. #12 TOCTOU / openat / cap-std (not closed by soft-resolve)
+2. ~~#12 TOCTOU / openat / cap-std~~ — closed-with-residuals by **T190**
 3. R-CI-BRANCH (repo admin)
 4. Platform tier / desktop T1
 5. #34.2 DataKey rotation
