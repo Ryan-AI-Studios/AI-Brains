@@ -11,12 +11,13 @@
 //! (`insert_content_key_wrap` / `destroy_content_key_wrap`). CE “cannot open
 //! after destroy” is proven at the store integration layer (C14), not here.
 //!
-//! # Residual (ADR-0016 §4)
+//! # DataKey wrap-nonce budget (ADR-0016 §4 / ADR-0020)
 //!
 //! Each wrap uses a fresh random 96-bit nonce under the vault `DataKey` (KEK).
-//! DataKey is vault-lifetime and not rotated in T164; wrap-nonce count
-//! accumulates over vault life. Near-term risk is accepted; rotation is a
-//! future gap (not designed here).
+//! Wrap-nonce count accumulates under one DataKey until operators run the
+//! **DataKey rotation** ceremony (T189 / ADR-0020): see
+//! [`rotate_content_dek_wrap`]. Production rotation also changes the SQLCipher
+//! page key in lockstep (`SqlCipherKey::from_data_key`).
 
 use crate::data_key::DataKey;
 use crate::errors::{CryptoError, Result};
@@ -142,6 +143,21 @@ pub fn wrap_content_dek(
         &nonce_bytes,
         WRAP_SCHEMA_VERSION,
     )
+}
+
+/// Re-wrap an active content DEK under a **new** vault DataKey (T189 / ADR-0020).
+///
+/// Unwraps under `old_key`, then wraps under `new_key` with a **fresh CSPRNG
+/// nonce**. Does not touch destroyed rows (callers filter `status = 'active'`).
+/// Intermediates are zeroized via [`ContentDek`]'s `ZeroizeOnDrop`.
+pub fn rotate_content_dek_wrap(
+    old_key: &DataKey,
+    new_key: &DataKey,
+    content_key_id: &ContentKeyId,
+    wrapped: &WrappedContentDek,
+) -> Result<WrappedContentDek> {
+    let dek = unwrap_content_dek(old_key, wrapped, content_key_id)?;
+    wrap_content_dek(new_key, &dek, content_key_id)
 }
 
 /// Unwrap a content DEK. Wrong DataKey, wrong id, flipped bytes, or empty/short
@@ -411,6 +427,22 @@ mod tests {
         // Tamper version field → AAD mismatch on unwrap (no hard reject of non-1 versions).
         wrapped.wrap_schema_version = WRAP_SCHEMA_VERSION.wrapping_add(1);
         let err = unwrap_content_dek(&data_key, &wrapped, &id).expect_err("must fail");
+        assert!(matches!(err, CryptoError::AuthenticationFailed));
+    }
+
+    #[test]
+    fn rotate_wrap__active_dek__opens_under_new_key() {
+        let old_key = DataKey::from_bytes([0x11; 32]);
+        let new_key = DataKey::from_bytes([0x22; 32]);
+        let dek = ContentDek::from_bytes([0x33; 32]);
+        let id = fixed_content_key_id();
+        let wrapped = wrap_content_dek(&old_key, &dek, &id).expect("wrap old");
+        let rotated =
+            rotate_content_dek_wrap(&old_key, &new_key, &id, &wrapped).expect("rotate wrap");
+        assert_ne!(rotated.nonce, wrapped.nonce, "fresh nonce on re-wrap");
+        let opened = unwrap_content_dek(&new_key, &rotated, &id).expect("open under new");
+        assert_eq!(opened.expose_secret(), dek.expose_secret());
+        let err = unwrap_content_dek(&old_key, &rotated, &id).expect_err("old must fail");
         assert!(matches!(err, CryptoError::AuthenticationFailed));
     }
 }

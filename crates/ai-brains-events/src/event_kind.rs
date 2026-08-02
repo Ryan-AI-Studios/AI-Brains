@@ -9,6 +9,8 @@ pub enum EventKind {
     // System
     SystemInitialized,
     RecoveryKitCreated,
+    /// Vault DataKey rotation audit (T189 / ADR-0020).
+    DataKeyRotated,
 
     // Project
     ProjectRegistered,
@@ -101,6 +103,7 @@ impl EventKind {
         match self {
             EventKind::SystemInitialized => "SystemInitialized",
             EventKind::RecoveryKitCreated => "RecoveryKitCreated",
+            EventKind::DataKeyRotated => "DataKeyRotated",
             EventKind::ProjectRegistered => "ProjectRegistered",
             EventKind::ProjectAliasAdded => "ProjectAliasAdded",
             EventKind::SessionStarted => "SessionStarted",
@@ -168,6 +171,7 @@ impl EventKind {
         match s {
             "SystemInitialized" => EventKind::SystemInitialized,
             "RecoveryKitCreated" => EventKind::RecoveryKitCreated,
+            "DataKeyRotated" => EventKind::DataKeyRotated,
             "ProjectRegistered" => EventKind::ProjectRegistered,
             "ProjectAliasAdded" => EventKind::ProjectAliasAdded,
             "SessionStarted" => EventKind::SessionStarted,
@@ -261,6 +265,7 @@ impl From<&crate::payload::Payload> for EventKind {
         match payload {
             Payload::SystemInitialized(_) => EventKind::SystemInitialized,
             Payload::RecoveryKitCreated(_) => EventKind::RecoveryKitCreated,
+            Payload::DataKeyRotated(_) => EventKind::DataKeyRotated,
             Payload::ProjectRegistered(_) => EventKind::ProjectRegistered,
             Payload::ProjectAliasAdded(_) => EventKind::ProjectAliasAdded,
             Payload::SessionStarted(_) => EventKind::SessionStarted,

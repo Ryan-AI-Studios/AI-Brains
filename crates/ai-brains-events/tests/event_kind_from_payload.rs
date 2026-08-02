@@ -161,3 +161,47 @@ fn event_builder__build__derives_kind_from_payload_not_constructor() {
     assert_eq!(envelope.aggregate_type, AggregateType::Conclusion);
     let _ = Uuid::nil(); // keep uuid import used if needed by future cases
 }
+
+#[test]
+fn rotate_datakey__event__system_aggregate_nil_id() {
+    use ai_brains_events::DataKeyRotatedPayload;
+
+    const COMPLETED_AT: &str = "2026-08-02T12:00:00Z";
+    let rotation_id = Uuid::parse_str("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee").expect("fixed uuid");
+    let payload = Payload::DataKeyRotated(DataKeyRotatedPayload {
+        rotation_id,
+        living_wraps_rewrapped: 3,
+        device_private_resealed: 1,
+        backup_bypassed: true,
+        completed_at: COMPLETED_AT.into(),
+    });
+    assert_eq!(EventKind::from(&payload), EventKind::DataKeyRotated);
+
+    let envelope = EventBuilder::new(
+        AggregateType::System,
+        Uuid::nil(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(payload)
+    .expect("build");
+
+    assert_eq!(envelope.aggregate_type, AggregateType::System);
+    assert_eq!(envelope.aggregate_id, Uuid::nil());
+    assert_eq!(envelope.event_type, EventKind::DataKeyRotated);
+    match &envelope.payload {
+        Payload::DataKeyRotated(p) => {
+            assert_eq!(p.rotation_id, rotation_id);
+            assert_eq!(p.living_wraps_rewrapped, 3);
+            assert_eq!(p.device_private_resealed, 1);
+            assert!(p.backup_bypassed);
+            assert_eq!(p.completed_at, COMPLETED_AT);
+            // No secret-looking fields: payload Debug must not contain key material markers
+            // beyond field names (rotation_id is a public audit id, not key material).
+            let dbg = format!("{p:?}");
+            assert!(!dbg.to_ascii_lowercase().contains("x'"));
+            assert!(!dbg.contains("passphrase"));
+        }
+        other => panic!("expected DataKeyRotated, got {other:?}"),
+    }
+}

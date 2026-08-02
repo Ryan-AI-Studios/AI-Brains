@@ -22,6 +22,18 @@ pub struct RecoveryKitCreatedPayload {
     pub key_id: String,
 }
 
+/// Audit payload for vault DataKey rotation (T189 / ADR-0020). **No secrets.**
+///
+/// Aggregate: `System` + `Uuid::nil()`; `rotation_id` lives only here.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DataKeyRotatedPayload {
+    pub rotation_id: Uuid,
+    pub living_wraps_rewrapped: u64,
+    pub device_private_resealed: u32,
+    pub backup_bypassed: bool,
+    pub completed_at: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProjectRegisteredPayload {
     pub project_id: ProjectId,
@@ -749,6 +761,8 @@ pub struct DeviceRevokedPayload {
 pub enum Payload {
     SystemInitialized(SystemInitializedPayload),
     RecoveryKitCreated(RecoveryKitCreatedPayload),
+    /// Vault DataKey rotation audit (T189); no secrets.
+    DataKeyRotated(DataKeyRotatedPayload),
     ProjectRegistered(ProjectRegisteredPayload),
     ProjectAliasAdded(ProjectAliasAddedPayload),
     SessionStarted(SessionStartedPayload),
@@ -820,6 +834,7 @@ pub enum Payload {
 enum KnownPayload {
     SystemInitialized(SystemInitializedPayload),
     RecoveryKitCreated(RecoveryKitCreatedPayload),
+    DataKeyRotated(DataKeyRotatedPayload),
     ProjectRegistered(ProjectRegisteredPayload),
     ProjectAliasAdded(ProjectAliasAddedPayload),
     SessionStarted(SessionStartedPayload),
@@ -884,6 +899,7 @@ fn is_known_payload_type(type_str: &str) -> bool {
         type_str,
         "SystemInitialized"
             | "RecoveryKitCreated"
+            | "DataKeyRotated"
             | "ProjectRegistered"
             | "ProjectAliasAdded"
             | "SessionStarted"
@@ -949,6 +965,7 @@ impl From<KnownPayload> for Payload {
         match k {
             KnownPayload::SystemInitialized(p) => Payload::SystemInitialized(p),
             KnownPayload::RecoveryKitCreated(p) => Payload::RecoveryKitCreated(p),
+            KnownPayload::DataKeyRotated(p) => Payload::DataKeyRotated(p),
             KnownPayload::ProjectRegistered(p) => Payload::ProjectRegistered(p),
             KnownPayload::ProjectAliasAdded(p) => Payload::ProjectAliasAdded(p),
             KnownPayload::SessionStarted(p) => Payload::SessionStarted(p),
@@ -1017,6 +1034,7 @@ impl Payload {
         Some(match self {
             Payload::SystemInitialized(p) => KnownPayload::SystemInitialized(p.clone()),
             Payload::RecoveryKitCreated(p) => KnownPayload::RecoveryKitCreated(p.clone()),
+            Payload::DataKeyRotated(p) => KnownPayload::DataKeyRotated(p.clone()),
             Payload::ProjectRegistered(p) => KnownPayload::ProjectRegistered(p.clone()),
             Payload::ProjectAliasAdded(p) => KnownPayload::ProjectAliasAdded(p.clone()),
             Payload::SessionStarted(p) => KnownPayload::SessionStarted(p.clone()),
