@@ -199,6 +199,69 @@ pub fn get_content_key_wrap(
     Ok(row)
 }
 
+/// List **active** content-key wraps only (`WHERE status = 'active'`).
+/// Destroyed rows are never returned (T189 F10).
+pub fn list_active_content_key_wraps(conn: &Connection) -> Result<Vec<ContentKeyWrapRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT content_key_id, wrap_schema_version, algorithm,
+                wrap_nonce, wrap_ciphertext, status, created_at, destroyed_at
+         FROM content_key_store
+         WHERE status = 'active'
+         ORDER BY content_key_id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ContentKeyWrapRow {
+            content_key_id: row.get(0)?,
+            wrap_schema_version: row.get(1)?,
+            algorithm: row.get(2)?,
+            wrap_nonce: row.get(3)?,
+            wrap_ciphertext: row.get(4)?,
+            status: row.get(5)?,
+            created_at: row.get(6)?,
+            destroyed_at: row.get(7)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
+}
+
+/// Update wrap material for an **active** content key only (T189 F11 / F19).
+///
+/// Does not touch `peer_content_key_wrap`. Destroyed or missing keys →
+/// [`StoreError::ConfigError`] (0 rows updated).
+pub fn update_content_key_wrap(
+    conn: &Connection,
+    content_key_id: &str,
+    wrap_nonce: &[u8],
+    wrap_ciphertext: &[u8],
+) -> Result<()> {
+    if wrap_nonce.is_empty() {
+        return Err(StoreError::ConfigError(
+            "content key wrap_nonce must be non-empty".to_string(),
+        ));
+    }
+    if wrap_ciphertext.is_empty() {
+        return Err(StoreError::ConfigError(
+            "content key wrap_ciphertext must be non-empty".to_string(),
+        ));
+    }
+    let n = conn.execute(
+        "UPDATE content_key_store
+         SET wrap_nonce = ?, wrap_ciphertext = ?
+         WHERE content_key_id = ? AND status = 'active'",
+        params![wrap_nonce, wrap_ciphertext, content_key_id],
+    )?;
+    if n == 0 {
+        return Err(StoreError::ConfigError(format!(
+            "no active content_key_store row to update: {content_key_id}"
+        )));
+    }
+    Ok(())
+}
+
 /// Destroy a content-key wrap: NULL wrap columns, `status = 'destroyed'`, set
 /// `destroyed_at`. Idempotent if already destroyed (preserves first
 /// `destroyed_at`). Missing key is a no-op (`Ok(())`).

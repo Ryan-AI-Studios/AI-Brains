@@ -364,6 +364,32 @@ pub fn get_device_private_key_wrap(
     Ok(row)
 }
 
+/// List all device private-key wrap rows (T189: ≤1 expected for local vault).
+pub fn list_device_private_key_wraps(conn: &Connection) -> Result<Vec<DevicePrivateKeyRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT device_id, wrap_schema_version, algorithm, protection,
+                wrap_nonce, wrap_ciphertext, created_at
+         FROM device_private_key_store
+         ORDER BY device_id",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(DevicePrivateKeyRow {
+            device_id: row.get(0)?,
+            wrap_schema_version: row.get(1)?,
+            algorithm: row.get(2)?,
+            protection: row.get(3)?,
+            wrap_nonce: row.get(4)?,
+            wrap_ciphertext: row.get(5)?,
+            created_at: row.get(6)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
+}
+
 // ---------------------------------------------------------------------------
 // Peer content key wraps (R5 / R23)
 // ---------------------------------------------------------------------------
