@@ -2,12 +2,12 @@
 
 > **Note:** As development progressed, some architectural and environment-specific decisions required deviating from this original plan. Please see [Deviations.md](./Deviations.md) for a complete list of changes, including graph decoupling and SQLite fallbacks.
 
-**Product:** AI-Brains  
-**Document status:** Implementation Plan v2  
-**Primary platform:** Windows 11, PowerShell 7+  
-**Secondary platform:** Ubuntu / WSL after Windows reliability is proven  
-**Primary language:** Rust  
-**Implementation method:** TDD using conductor/tracks  
+**Product:** AI-Brains
+**Document status:** Implementation Plan v2
+**Primary platform:** Windows 11, PowerShell 7+
+**Secondary platform:** Ubuntu / WSL after Windows reliability is proven
+**Primary language:** Rust
+**Implementation method:** TDD using conductor/tracks
 **Core product rule:** Capture must be fast, durable, encrypted, and independent of every advanced memory feature.
 
 ---
@@ -321,7 +321,7 @@ ai-brains/
 
 **Purpose:** Pure domain model.
 
-**May depend on:** `serde`, `uuid`, `time`, `thiserror`  
+**May depend on:** `serde`, `uuid`, `time`, `thiserror`
 **Must not depend on:** database, CLI, daemon, HTTP, filesystem, Git, model providers
 
 ### Files
@@ -363,7 +363,7 @@ tests/domain_validation_rejects_empty_content.rs
 
 **Purpose:** Event definitions and event envelope.
 
-**May depend on:** `ai-brains-core`, `serde`, `serde_json`, `sha2`, `time`, `uuid`  
+**May depend on:** `ai-brains-core`, `serde`, `serde_json`, `sha2`, `time`, `uuid`
 **Must not depend on:** store, CLI, daemon, adapters
 
 ### Files
@@ -401,7 +401,7 @@ tests/privacy_included_on_every_event.rs
 
 **Purpose:** JSON DTOs for CLI, daemon, hooks, and tests.
 
-**May depend on:** `ai-brains-core`, `serde`, `serde_json`  
+**May depend on:** `ai-brains-core`, `serde`, `serde_json`
 **Must not depend on:** store, adapters, daemon
 
 ### Files
@@ -1265,9 +1265,9 @@ If these fields are present, adapters may record a warning count, not the conten
 
 ## 8. CLI Surface v2
 
-> **Drift notice (T183 / 2026-08-01):** This §8 lists the **original design-plan** CLI surface. Many commands were **renamed, never built, or only exist as DTOs** (for example `doctor`, `unlock`/`lock`, `recovery export`, `install-hooks` as shown below).  
-> **Live operator CLI** = `ai-brains --help` and the track registry in `conductor/conductor.md`.  
-> **Adoption docs** = [`Docs/README.md`](README.md) · [`Docs/INSTALL.md`](INSTALL.md) · [`Docs/OPERATIONS.md`](OPERATIONS.md).  
+> **Drift notice (T183 / T188 / T192 / 2026-08-02):** This §8 lists the **original design-plan** CLI surface. Some names were **renamed, never built, or only exist as DTOs** (for example `unlock`/`lock`, `install-hooks` as shown below). **Shipped since:** `recovery export` (T188), `doctor` (T192 read-only health).
+> **Live operator CLI** = `ai-brains --help` and the track registry in `conductor/conductor.md`.
+> **Adoption docs** = [`Docs/README.md`](README.md) · [`Docs/INSTALL.md`](INSTALL.md) · [`Docs/OPERATIONS.md`](OPERATIONS.md).
 > Do not treat this section as a shipping checklist.
 
 ## 8.1 Setup

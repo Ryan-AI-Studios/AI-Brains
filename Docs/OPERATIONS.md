@@ -468,7 +468,7 @@ ai-brains recovery export --output E:\offline\kit.json --passphrase-file $Secure
 # passphrase-file and kit output (incl. existing parents) refuse reparse/symlink/junction
 # preflight: vault+key must match (hard-fail wrong key/missing vault); event soft-fail only when daemon write blocked
 ```
-`ai-brains doctor` remains **absent**.
+`ai-brains doctor` is **shipped (T192)** as a read-only health report. Use it for vault open/cipher/backup age / optional kit unlock checks; it does **not** replace RECOVERY-DRILLS or invent a default kit path.
 
 ### DataKey rotation (T189 / ADR-0020)
 
@@ -624,7 +624,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Daemon Control | `ai-brains daemon start/status/stop/schedule/unschedule` |
 | Backup Vault | `ai-brains backup` |
 | Restore Vault | `ai-brains backup restore <path>` (use `--force` non-interactive, `--dry-run` to preview; hard-fails if daemon up — T188) |
-| Recovery kit export | `ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force]` (T188; doctor still absent) |
+| Recovery kit export | `ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force]` (T188) |
+| Doctor (health) | `ai-brains doctor [--json] [--kit-path] [--passphrase-file] [--fail-on-degraded] [--backup-max-age 7d] [--full]` (T192; read-only) |
 | Manage Projects | `ai-brains project list/resolve/detect` |
 | Graph Health | `ai-brains graph update` (use `graph rebuild` if stale) |
 

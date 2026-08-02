@@ -1,8 +1,8 @@
 # AI-Brains — Capabilities & Features
 
-**Version:** 0.1.1  
-**Platform:** Windows 11 first (PowerShell); Ubuntu 24.04 / WSL and macOS are tiered — see **[COMPATIBILITY.md](COMPATIBILITY.md)** (not a blanket “best-effort” claim)  
-**Type:** Local-first CLI + optional local daemon (not an MCP server)  
+**Version:** 0.1.1
+**Platform:** Windows 11 first (PowerShell); Ubuntu 24.04 / WSL and macOS are tiered — see **[COMPATIBILITY.md](COMPATIBILITY.md)** (not a blanket “best-effort” claim)
+**Type:** Local-first CLI + optional local daemon (not an MCP server)
 **Related docs:** [README.md](README.md) (index) · [INSTALL.md](INSTALL.md) · [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · [OPERATIONS.md](OPERATIONS.md) · [WORKFLOWS.md](WORKFLOWS.md) · [PRD.md](PRD.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [PROTOCOL-COMPAT.md](PROTOCOL-COMPAT.md) · [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) · [status.md](status.md) (historical) · [ADR-0019 connector sandbox](DECISIONS/ADR-0019-connector-sandbox-execution-model.md)
 
 ---
@@ -196,13 +196,13 @@ ai-brains nightly --schedule --run-as-system --dry-run
 ```
 
 Pipeline includes:
-1. Optional Antigravity import  
-2. Session summarization (chunked; **38,912-token** context with carryover)  
-3. Memory synthesis (batch-limited, e.g. 50 memories/run)  
-4. Embedding backfill + stale refresh + WAL checkpoint  
-5. Ledgerful **symbol bridge** ingest (functions, routes → code-aware recall)  
-6. **`MemorySynthesized`** events for graph edges  
-7. Live graph projection updates  
+1. Optional Antigravity import
+2. Session summarization (chunked; **38,912-token** context with carryover)
+3. Memory synthesis (batch-limited, e.g. 50 memories/run)
+4. Embedding backfill + stale refresh + WAL checkpoint
+5. Ledgerful **symbol bridge** ingest (functions, routes → code-aware recall)
+6. **`MemorySynthesized`** events for graph edges
+7. Live graph projection updates
 
 SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config.
 
@@ -254,7 +254,21 @@ ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--for
 ```
 Backup suite with metadata headers, integrity checks, and restore **hard-fail** when the daemon/service is reachable via robust IPC probe (T188; `--force` never overrides). SQLCipher-encrypted vaults and backups (T187). Default retention keeps 10 backups. Plain→encrypted migrate: `ai-brains vault encrypt` (`sqlcipher_export`).
 
-**Recovery export (T188):** writes RecoveryKit JSON (`schema_version: 1`) to a restricted file path only (never kit JSON on stdout). Passphrase via file or zero-echo TTY (`rpassword`). Argon2id defaults (m=19456, t=2, p=1). **`ai-brains doctor` is not shipped.**
+**Recovery export (T188):** writes RecoveryKit JSON (`schema_version: 1`) to a restricted file path only (never kit JSON on stdout). Passphrase via file or zero-echo TTY (`rpassword`). Argon2id defaults (m=19456, t=2, p=1).
+
+**Doctor (T192):** `ai-brains doctor` is a **read-only** operator health surface.
+
+```text
+ai-brains doctor
+  [--format human|json]           # default human
+  [--json]                        # force JSON (overrides --format)
+  [--fail-on-degraded]            # exit 1 when status=degraded
+  [--kit-path <path>] [--passphrase-file <path>]
+  [--backup-max-age <Nd|Nh|Nw>]   # default 7d
+  [--full]                        # PRAGMA integrity_check
+```
+
+Check matrix (fixed order): `vault_exists`, `vault_open` (`open_read_intent` only — never migrates), `schema_readable`, `cipher_page`, `daemon_reachable` (info: up/down never fails alone), `backup_recent` (soft), `recovery_kit_event` (soft; event ≠ offline file proof), `recovery_kit_file` (hard when `--kit-path` set; skip otherwise — no default kit path search), `zero_key_escape` (soft / R-ZERO-KEY), `integrity` (only with `--full`). Overall: fail ≻ degraded ≻ ok. Exit 0 for ok|degraded (default); 1 for fail; clap usage 2. Never creates vault or `backups/`; never prints secrets. Residual: offline kit without `--kit-path` remains operator responsibility (see RECOVERY-DRILLS).
 
 ---
 
@@ -282,9 +296,9 @@ Backup suite with metadata headers, integrity checks, and restore **hard-fail** 
 
 ## 14. Configuration hierarchy
 
-1. Process environment  
-2. Project-local `.env` (from `context`)  
-3. Global `~\.ai-brains\.env` (vault path, model URLs)  
+1. Process environment
+2. Project-local `.env` (from `context`)
+3. Global `~\.ai-brains\.env` (vault path, model URLs)
 
 ---
 
@@ -358,13 +372,13 @@ See [EVALUATION/SHADOW-DOGFOOD-GATE.md](EVALUATION/SHADOW-DOGFOOD-GATE.md) and [
 
 ## 17. What it is not
 
-- Not a cloud SaaS memory product by default  
-- Not a full IDE replacement  
-- Not an MCP server (CLI/hooks only)  
-- Graph-heavy features need the **graph** build feature and/or healthy local models  
-- Capture **must not** depend on intelligence features  
-- Ledgerful bridge **push/IPC enrichment is opt-in** on the Ledgerful side  
-- Not a third-party connector plugin host — release connectors are first-party **`TrustedBuiltin` only** ([ADR-0019](DECISIONS/ADR-0019-connector-sandbox-execution-model.md))  
+- Not a cloud SaaS memory product by default
+- Not a full IDE replacement
+- Not an MCP server (CLI/hooks only)
+- Graph-heavy features need the **graph** build feature and/or healthy local models
+- Capture **must not** depend on intelligence features
+- Ledgerful bridge **push/IPC enrichment is opt-in** on the Ledgerful side
+- Not a third-party connector plugin host — release connectors are first-party **`TrustedBuiltin` only** ([ADR-0019](DECISIONS/ADR-0019-connector-sandbox-execution-model.md))
 
 
 ---

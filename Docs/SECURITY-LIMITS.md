@@ -1,6 +1,6 @@
 # Security limits (honest hub)
 
-One-page executive summary of **what AI-Brains does and does not claim** for operators, security reviewers, and release gates.  
+One-page executive summary of **what AI-Brains does and does not claim** for operators, security reviewers, and release gates.
 Product version **0.1.1**. Index: [README.md](README.md).
 
 This document **links** normative sources; it does not replace ADRs or COMPATIBILITY.
@@ -89,11 +89,11 @@ See CAPABILITIES models section and T157 policy notes in OPERATIONS.
 |-----------------|--------|
 | `ai-brains recovery export` CLI | **Shipped (T188)** — kit JSON to restricted file only; passphrase file or zero-echo TTY; no `--passphrase` argv |
 | Recovery kit **library** unlock → open chain | Documented / drilled in [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) (K-05 = primitive; export is operator CLI) |
-| `ai-brains doctor` CLI | **Not shipped** |
-| `contracts::doctor` DTO | May exist in-tree — **DTO ≠ CLI** |
+| `ai-brains doctor` CLI | **Shipped (T192)** — read-only health matrix (vault / cipher / backup / kit event / optional kit file / daemon info / zero-key honesty / optional integrity) |
+| `contracts::doctor` DTO | Live product report shape (`schema_version=1`) used by the CLI |
 | Restore while daemon up | **Hard-fail** (T188); robust probe; `--force` never overrides |
 
-Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite + `recovery export`. Do not invent `doctor` in runbooks.
+Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite + `recovery export` + `doctor` (optional `--kit-path`). Residual: offline kit without `--kit-path` remains operator responsibility; doctor does not invent a default kit path.
 
 ---
 
@@ -113,8 +113,8 @@ Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite + `recovery export
 
 **SOT:** [PROTOCOL-COMPAT.md](PROTOCOL-COMPAT.md)
 
-- Unenforced `api_version` in some paths — do not over-claim hard rejection.  
-- Payload **Upcast** stub.  
+- Unenforced `api_version` in some paths — do not over-claim hard rejection.
+- Payload **Upcast** stub.
 - Bridge capture policy documented separately from vault CE.
 
 ---
@@ -123,12 +123,12 @@ Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite + `recovery export
 
 Do **not** claim in user-facing release prose:
 
-- “Certified” (SOC2/ISO/GDPR)  
-- “Perfect deletion”  
-- “Metadata-private sync”  
-- “Sandboxed third-party plugins” / “WASI-safe plugins”  
-- “SQLCipher page encryption” / “Full encryption” **without** F8 qualifier  
-- Shipped `doctor` product CLI (recovery export **is** shipped as of T188) 
+- “Certified” (SOC2/ISO/GDPR)
+- “Perfect deletion”
+- “Metadata-private sync”
+- “Sandboxed third-party plugins” / “WASI-safe plugins”
+- “SQLCipher page encryption” / “Full encryption” **without** F8 qualifier
+- Auto-remediation or inventing default recovery kit paths (doctor is read-only; kit path is explicit)
 
 Formal claims gate: [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) + [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) (T185; seed evidence was T183 `CLAIMS-CROSSCHECK.md`).
 

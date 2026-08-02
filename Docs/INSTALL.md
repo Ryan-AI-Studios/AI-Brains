@@ -1,8 +1,8 @@
 # Install & first vault (how-to)
 
-Windows-first install and adoption path for AI-Brains **0.1.1**.  
-Normative platform matrix: [COMPATIBILITY.md](COMPATIBILITY.md).  
-Ops deep reference: [OPERATIONS.md](OPERATIONS.md).  
+Windows-first install and adoption path for AI-Brains **0.1.1**.
+Normative platform matrix: [COMPATIBILITY.md](COMPATIBILITY.md).
+Ops deep reference: [OPERATIONS.md](OPERATIONS.md).
 Index: [README.md](README.md).
 
 This is a **how-to**: get a working vault and confirm capture works **offline** (no models, no graph required).
@@ -95,9 +95,9 @@ ai-brains --vault-path $vault context
 
 ## 4. Local-only defaults
 
-- Capture path does **not** require cloud models or graph.  
-- Cloud processing is **opt-in** (`allow_cloud` default **false**; Sealed / local-strict paths).  
-- Nightly intelligence / embeddings need local model endpoints when used — not required for install success.  
+- Capture path does **not** require cloud models or graph.
+- Cloud processing is **opt-in** (`allow_cloud` default **false**; Sealed / local-strict paths).
+- Nightly intelligence / embeddings need local model endpoints when used — not required for install success.
 - Product is **local-first**; optional multi-device replication is separate (§7).
 
 ---
@@ -167,12 +167,12 @@ MSI / notarization / App Store packaging are **not** this guide’s DoD (release
 
 ---
 
-## 11. What is **not** shipped as CLI
+## 11. CLI surface notes (shipped vs historical)
 
-| Expected command | Status |
-|------------------|--------|
-| `ai-brains doctor` | **Absent** as product CLI. A contracts DTO may exist; that is not a CLI. |
-| `ai-brains recovery export` | **Shipped (T188)**. Kit JSON to file only; see [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). Doctor still absent. |
+| Command / name | Status |
+|----------------|--------|
+| `ai-brains doctor` | **Shipped (T192)** — read-only health report (vault / cipher / backup / recoverability / daemon). See [CAPABILITIES.md](CAPABILITIES.md) check matrix; optional `--kit-path` for offline kit verify. |
+| `ai-brains recovery export` | **Shipped (T188)**. Kit JSON to file only; see [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). Doctor is separate (`ai-brains doctor`, T192). |
 | `ai-brains unlock` / `lock` / `install-hooks` as in Implementation-Plan §8 | Many §8 names are **historical design** — live surface = `ai-brains --help`. |
 
 See [SECURITY-LIMITS.md](SECURITY-LIMITS.md) and [Implementation-Plan.md](Implementation-Plan.md) §8 drift banner.
@@ -183,8 +183,8 @@ See [SECURITY-LIMITS.md](SECURITY-LIMITS.md) and [Implementation-Plan.md](Implem
 
 When integrating clients or multi-version vaults:
 
-- `api_version` may be present but **not enforced** as a hard gate in all paths — do not claim strict N−1 rejection solely from the field.  
-- Event payload **Upcast** is a **stub** (unknown JSON preserved where designed).  
+- `api_version` may be present but **not enforced** as a hard gate in all paths — do not claim strict N−1 rejection solely from the field.
+- Event payload **Upcast** is a **stub** (unknown JSON preserved where designed).
 - Bridge capture policy: see [PROTOCOL-COMPAT.md](PROTOCOL-COMPAT.md).
 
 ---
@@ -193,10 +193,10 @@ When integrating clients or multi-version vaults:
 
 ### Ubuntu 24.04 / WSL
 
-1. Install Rust pin + build essentials per COMPATIBILITY / UNIX build notes in track evidence if present.  
-2. Prefer same `cargo build --release -p ai-brains-cli` path.  
-3. Daemon: expect **UDS**, not “HTTP-only by default.”  
-4. Askpass: ensure `/bin/true`.  
+1. Install Rust pin + build essentials per COMPATIBILITY / UNIX build notes in track evidence if present.
+2. Prefer same `cargo build --release -p ai-brains-cli` path.
+3. Daemon: expect **UDS**, not “HTTP-only by default.”
+4. Askpass: ensure `/bin/true`.
 5. DPAPI seeds from Windows will **not** open here.
 
 ### macOS
@@ -212,14 +212,14 @@ T2 soft unless promoted. Do not claim WebView2 Isolation. Align runner OS string
 | Populated vault `init` without `--force` | Exit 1 + structured JSON error (expected) |
 | Wrong vault key | Fail-closed (`VaultLocked` / key verification class) under live SQLCipher (T187) |
 | Daemon running during restore | **Hard-fail** (T188 F-03) — non-zero, no overwrite; robust probe residual (our IPC only) |
-| Missing recovery kit export CLI | Use library/kit procedures in RECOVERY-DRILLS; do not invent a CLI |
+| Offline recovery kit verification | Use `ai-brains recovery export` (T188) then `ai-brains doctor --kit-path` (T192); offline kit without path remains operator residual |
 
 ---
 
 ## 15. Soft roadmap pointers
 
-- CI hermetic / multi-OS hygiene may expand (conductor **T186**).  
-- Claims + SBOM formal gate: conductor **T185**.  
+- CI hermetic / multi-OS hygiene may expand (conductor **T186**).
+- Claims + SBOM formal gate: conductor **T185**.
 - Independent security review packet: conductor **T184** (uses SECURITY-LIMITS as index).
 
 Live track registry: [`conductor/conductor.md`](../conductor/conductor.md).

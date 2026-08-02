@@ -50,9 +50,9 @@ $rules = @(
     @{ Name = "tamper-proof supply chain"; Pattern = '\btamper-proof\s+supply\s+chain\b' },
     @{ Name = "full DB encryption (unqualified)"; Pattern = '\bfull\s+(DB|database)\s+encryption\b' },
     @{ Name = "SQLCipher encrypts the database (unqualified)"; Pattern = '\bSQLCipher\s+encrypts\s+the\s+database\b' },
-    @{ Name = "plugin sandbox shipped"; Pattern = '\b(plugin|third-party)\s+sandbox\s+(is\s+)?(shipped|enabled|available)\b' },
-    @{ Name = "invented doctor CLI as shipped"; Pattern = '\bai-brains\s+doctor\b(?!.*\b(not|no|non-|DTO|type|contract)\b)' },
-    @{ Name = "invented recovery export CLI as shipped"; Pattern = '\bai-brains\s+recovery\s+export\b(?!.*\b(not|no|non-|not shipped|kit|drill)\b)' }
+    @{ Name = "plugin sandbox shipped"; Pattern = '\b(plugin|third-party)\s+sandbox\s+(is\s+)?(shipped|enabled|available)\b' }
+    # T192: removed "invented doctor CLI as shipped" (rule #54) — doctor is product.
+    # T188/T192: removed "invented recovery export CLI as shipped" — export is product (T188).
 )
 
 # If a matching line also hits this, treat as non-claim / residual honesty context.

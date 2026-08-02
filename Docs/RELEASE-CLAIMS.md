@@ -1,8 +1,8 @@
 # Release claims checklist (normative)
 
-**Product version:** 0.1.1  
-**Document date:** 2026-08-01  
-**Track:** T185 — Claims Governance, SBOM, and Release Gate  
+**Product version:** 0.1.1
+**Document date:** 2026-08-01
+**Track:** T185 — Claims Governance, SBOM, and Release Gate
 **Status:** Normative for public/tag/binary distribution language (L1–L3)
 
 This document is the **claims-with-evidence** checklist for AI-Brains release language. Affirmative public claims must appear here with an evidence pointer. Forbidden classes must remain non-claims. Residual IDs cite `conductor/tracks/trackT184-independent-security-review/residuals.md`.
@@ -35,8 +35,8 @@ Import and expansion of T183 `CLAIMS-CROSSCHECK.md` for product version **0.1.1*
 | First-party **TrustedBuiltin** connectors only (ADR-0019) | Not sandboxed third-party plugins / WASI marketplace; TrustedBuiltin shares host process (**R-TB**) |
 | CE wipe can make **live** vault content unreadable when wraps are destroyed | Not perfect deletion; not NIST SP 800-88 Purge/Destroy; pre-erase backups remain recoverable (**R-CE-PRE**, **R-WAL-CKPT**) |
 | Backup create / verify / restore CLI suite; restore hard-fails if daemon up (T188) | |
-| `ai-brains recovery export` (kit to file; no kit JSON on stdout) | Not `ai-brains doctor` CLI (**R-DOC-CLI** partial) |
-| Contracts may include doctor DTO types | Not shipped `ai-brains doctor` CLI (**R-DOC-CLI**) |
+| `ai-brains recovery export` (kit to file; no kit JSON on stdout) | Offline kit without operator path still residual |
+| `ai-brains doctor` read-only health CLI (T192 check matrix) | Offline kit without `--kit-path` still operator residual (**R-DOC-CLI** residual half); does not auto-remediate |
 | Windows **T1** primary; Linux core **T1** on documented runners; secondary OS per COMPATIBILITY tiers | Not equal multi-OS primary without tier evidence; macOS only as soft pin |
 | Protocol fixtures and N−1 honesty policy (PROTOCOL-COMPAT) | Not runtime hard rejection of unknown `api_version`; not working schema Upcast migrations (**R-API-VER**) |
 | Independent security review performed (T184 charter + residual register) | Not SOC2 / ISO / GDPR / ASVS-Level **certification**; not “no residual risk” |
@@ -80,7 +80,7 @@ Per T185 L2 and §6.2. These must **not** appear as affirmative product claims i
 | Perfect deletion / NIST Purge / Destroy as product property | **R-CE-PRE**, **R-WAL-CKPT** |
 | Metadata-private sync | **R-META** |
 | Third-party plugin sandbox / WASI marketplace as shipped | **R-TB**, ADR-0019 |
-| Invented `ai-brains doctor` CLI (recovery export **is** shipped as of T188) | **R-DOC-CLI** |
+| Inventing doctor auto-remediation or default kit path search (doctor **is** shipped T192 as read-only) | **R-DOC-CLI** residual |
 | FIPS-validated / NIST Purge page encryption | T187 ships SQLCipher community + OpenSSL vendored — not FIPS/Purge |
 | UI grants authority beyond contracts | Product invariant |
 | SLSA Build L3 / “SLSA certified” / tamper-proof supply chain | **R-SLSA**, L9 |
@@ -107,8 +107,9 @@ Explicit product/process absences for version **0.1.1** (T185 §6.3). This secti
 | **SLSA Build L3** | No isolated signer infra; optional L1-oriented attest only (**R-SLSA**) |
 | **SAST as a product/security claim** | Clippy is lint, not SAST (**R-CI-SAST**) |
 | **Enforced GitHub branch protection** | **R-CI-BRANCH** open (repo admin); do not claim enforced protection |
-| **`ai-brains doctor` CLI** | DTO may exist; CLI not shipped (**R-DOC-CLI**) |
-| **`ai-brains recovery export` CLI** | **Shipped (T188)** — kit file + RECOVERY-DRILLS; doctor still absent (**R-DOC-CLI** partial) |
+| **Offline recovery kit without `--kit-path`** | Doctor shipped (T192) but kit file check is skip unless path given; event ≠ offline file proof (**R-DOC-CLI** residual) |
+| **`ai-brains recovery export` CLI** | **Shipped (T188)** — kit file + RECOVERY-DRILLS |
+| **`ai-brains doctor` CLI** | **Shipped (T192)** — read-only; residual = offline kit without `--kit-path` |
 | **Multi-user pipe auth / per-user pipe bearer** | Single-owner desktop model; Interactive SID residual (**R-MULTI**, **R-PIPE-IU**) |
 | **Post-quantum crypto** | Explicit non-claim (**R-PQ**, ADR-0018 L16) |
 | **Perfect deletion** | CE live wipe only; backups/WAL residuals (**R-CE-PRE**, **R-WAL-CKPT**) |
@@ -164,7 +165,7 @@ Every row in T184 `residuals.md` is dispositioned below. Minimum cite set per L3
 | **R-API-VER** | `api_version` unenforced runtime | Cited as non-claim | PROTOCOL-COMPAT honesty; presence ≠ hard reject. |
 | **R-BRIDGE** | Bridge capture policy doc-vs-code | Out of scope for claims | Process residual; do not invent bridge policy product claims beyond PROTOCOL-COMPAT. |
 | **R-DTO-GOLDEN** | DTO goldens / API_VERSION SOOT gaps | Out of scope for claims | Test/fixture hygiene; not a user-facing capability claim. |
-| **R-DOC-CLI** | No doctor CLI; recovery export **present** (T188 partial) | Cited as non-claim for doctor | Explicit “does not include doctor”; DTO ≠ CLI; export is product. |
+| **R-DOC-CLI** | Doctor **shipped** (T192); residual = offline kit without `--kit-path` | Cited as residual honesty | Doctor does not invent kit path; event log ≠ offline file existence; export remains product. |
 | **R-TB** | TrustedBuiltin shares process | Cited as non-claim | Design: no third-party plugin sandbox claim (ADR-0019 L1). |
 | **R-CLOUDOK** | CloudOk unused; no trust-label gate | Out of scope for claims | Future flag residual; no CloudOk gate claim. |
 | **R-EXTISM** | Wasmtime/Extism patch-lag class | Cited as non-claim / OOS v1 | Host forbidden in v1; no WASI product claim. |
@@ -313,7 +314,7 @@ Automated forbidden-phrase scan (L13 / `scripts/check-release-claims.ps1` when p
 - `perfect deletion`
 - `metadata-private` as a product property
 - `plugin sandbox` / WASI-safe plugins as shipped
-- Inventing shipped `doctor` CLI (recovery export is real as of T188)
+- Inventing doctor auto-remediation / default kit path search (doctor is real as of T192; residual = offline kit without `--kit-path`)
 - Unqualified “full encryption” / “SQLCipher encrypts the database” without F8
 - `fully compliant` (SSDF / ASVS / OpenSSF)
 

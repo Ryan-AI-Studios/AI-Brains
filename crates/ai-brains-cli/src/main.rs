@@ -51,8 +51,9 @@ mod tests {
 #[command(version)]
 #[command(about = "AI-Brains CLI", long_about = None)]
 struct Cli {
+    /// Boxed so Windows debug stacks can parse the large clap `Commands` enum (T192).
     #[command(subcommand)]
-    command: Commands,
+    command: Box<Commands>,
 
     /// Path to the vault database
     #[arg(long, env = "AI_BRAINS_VAULT_PATH")]
@@ -195,6 +196,33 @@ enum Commands {
     Recovery {
         #[command(subcommand)]
         command: RecoveryCommands,
+    },
+    /// Read-only operator health report (vault / cipher / backup / recoverability / daemon)
+    #[command(
+        after_help = "Read-only: no migrate, no vault/backups create, no secrets on stdout. Does not replace RECOVERY-DRILLS. Offline kit residual without --kit-path is operator responsibility. Daemon probe = our IPC only. --backup-max-age uses Nd/Nh/Nw. No --passphrase argv.\nExamples:\n  ai-brains doctor\n  ai-brains doctor --json\n  ai-brains doctor --kit-path ./kit.json --passphrase-file ./pw.txt\n  ai-brains doctor --fail-on-degraded --backup-max-age 14d --full"
+    )]
+    Doctor {
+        /// Output format: human (default) or json
+        #[arg(long, default_value = "human", value_parser = ["human", "json"])]
+        format: String,
+        /// Force JSON output (overrides --format)
+        #[arg(long)]
+        json: bool,
+        /// Exit 1 when overall status is degraded (default exit 0 for degraded)
+        #[arg(long)]
+        fail_on_degraded: bool,
+        /// Offline RecoveryKit path to unlock and compare to vault key
+        #[arg(long)]
+        kit_path: Option<PathBuf>,
+        /// Passphrase file for --kit-path unlock (no --passphrase argv)
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
+        /// Max age for newest backup (Nd/Nh/Nw; default 7d)
+        #[arg(long, default_value = "7d")]
+        backup_max_age: String,
+        /// Run PRAGMA integrity_check (slow path)
+        #[arg(long)]
+        full: bool,
     },
     /// Forget a specific memory (soft delete)
     Forget {
@@ -1522,6 +1550,31 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
 }
 
 fn main() {
+    // Windows PE main-thread stack is often ~1 MiB; clap `Commands` + async
+    // frames exceed that in debug builds once Doctor (T192) landed. Spawn a
+    // worker with a larger stack. RUST_MIN_STACK only affects non-main threads.
+    #[cfg(windows)]
+    {
+        const STACK: usize = 16 * 1024 * 1024;
+        let result = std::thread::Builder::new()
+            .name("ai-brains-main".into())
+            .stack_size(STACK)
+            .spawn(main_inner)
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to spawn main worker thread: {e}");
+                std::process::exit(1);
+            })
+            .join();
+        match result {
+            Ok(()) => {}
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
+    }
+    #[cfg(not(windows))]
+    main_inner();
+}
+
+fn main_inner() {
     let args: Vec<String> = std::env::args().collect();
     // UAC elevated child: restore env + cwd handoff from the non-elevated parent
     // before any .env / project-context logic (parent may have already loaded .env).
@@ -1629,7 +1682,7 @@ fn main() {
     // Sync vault-path-free commands: handle before AppContext / async runtime.
     // Includes schema printers and the non-graph stub so clean Linux CI hosts
     // without AI_BRAINS_VAULT_PATH still work (T179).
-    if is_vault_path_free(&cli.command) {
+    if is_vault_path_free(cli.command.as_ref()) {
         handle_cli_result(run_sync_path_free(cli));
         return;
     }
@@ -1713,7 +1766,7 @@ fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
 /// Vault-path-free commands: no AppContext (shadow/migrate/evaluate/dogfood,
 /// schema printers, non-graph stub).
 fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
-    match cli.command {
+    match *cli.command {
         Commands::AgyHook { schema: true, .. } => {
             print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")
         }
@@ -1861,7 +1914,7 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     // T188 F16b: recovery export must not call AppContext::from_cli (always migrate()).
     // Special-case before vault open+migrate so kit export works while daemon is up.
-    if let Commands::Recovery { command } = &cli.command {
+    if let Commands::Recovery { command } = cli.command.as_ref() {
         return match command {
             RecoveryCommands::Export {
                 output,
@@ -1886,6 +1939,35 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         };
     }
 
+    // T192: doctor is read-only open_read_intent only — never AppContext::from_cli (migrate).
+    if let Commands::Doctor {
+        format,
+        json,
+        fail_on_degraded,
+        kit_path,
+        passphrase_file,
+        backup_max_age,
+        full,
+    } = cli.command.as_ref()
+    {
+        let vault_path = cli
+            .vault_path
+            .clone()
+            .ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
+        return commands::doctor::run(commands::doctor::DoctorOptions {
+            vault_path,
+            key: cli.key.clone(),
+            format: format.clone(),
+            json: *json,
+            fail_on_degraded: *fail_on_degraded,
+            kit_path: kit_path.clone(),
+            passphrase_file: passphrase_file.clone(),
+            backup_max_age: backup_max_age.clone(),
+            full: *full,
+        })
+        .await;
+    }
+
     // T189: rotate-datakey mutates outside AppContext (daemon probe + no migrate race).
     if let Commands::Vault {
         command:
@@ -1901,7 +1983,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 print_key,
                 backup_dir,
             },
-    } = &cli.command
+    } = cli.command.as_ref()
     {
         let vault_path = cli
             .vault_path
@@ -1925,7 +2007,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
-    match &cli.command {
+    match cli.command.as_ref() {
         Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
         Commands::Evaluate { .. } => unreachable!("evaluate handled in run_sync_path_free"),
@@ -1937,6 +2019,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             command: VaultCommands::RotateDatakey { .. },
         } => unreachable!("vault rotate-datakey handled before AppContext"),
         Commands::Recovery { .. } => unreachable!("recovery handled before AppContext"),
+        Commands::Doctor { .. } => unreachable!("doctor handled before AppContext"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {
                 project_id,
