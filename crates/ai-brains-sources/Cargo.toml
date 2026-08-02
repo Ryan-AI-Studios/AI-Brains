@@ -12,6 +12,7 @@ ai-brains-core = { path = "../ai-brains-core", version = "0.1.0" }
 ai-brains-contracts = { path = "../ai-brains-contracts", version = "0.1.0" }
 ai-brains-git = { path = "../ai-brains-git", version = "0.1.0" }
 ai-brains-path = { path = "../ai-brains-path", version = "0.1.0" }
+cap-std.workspace = true
 sha2.workspace = true
 hex.workspace = true
 thiserror.workspace = true

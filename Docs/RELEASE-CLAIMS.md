@@ -149,7 +149,7 @@ Every row in T184 `residuals.md` is dispositioned below. Minimum cite set per L3
 
 | Residual ID | Residual (short) | Disposition | One-line note |
 |-------------|------------------|-------------|---------------|
-| **R-12** | Path TOCTOU without openat/cap-std | Cited as non-claim | No claim of cap-std / openat path hardening; #12 residual documented. |
+| **R-12** | Path TOCTOU / openat / cap-std | **Implemented-with-residuals** (T190 / ADR-0021) | TrustedBuiltin **vault open+list** hardened: cap-std ambient root + component nofollow (Unix `O_NOFOLLOW`, Windows `FILE_FLAG_OPEN_REPARSE_POINT`); handle-bound read; `walk_vault` has zero `std::fs::read_dir`; Hermes/Honcho export dirs elevated. **Residuals:** ambient CLI paths; soft-canonicalize (non-claim for TOCTOU); api-server token path; T188 artifact/migrate write pre-check + post-write reparse (not vault-root read path). |
 | **R-34.2** | DataKey rotation / wrap-nonce budget | **Implemented-with-residuals** | T189 / ADR-0020: `vault rotate-datakey` (export primary); residuals = multi-device per-device ceremony, offline old kits/backups, rekey opt-in crash residual, Argon2 not in kit JSON, Windows drop→MoveFileEx micro-window (OS handle close required). |
 | **R-F8** | Page-level SQLCipher live (T187) | **Closed** (evidence) | `bundled-sqlcipher-vendored-openssl`; header not plain; COMPATIBILITY F8 rewritten. |
 | **R-K06** | Wrong-key fail-closed at page layer | **Closed** (evidence) | T181 F-02/K-06 strict; dual-mode plain residual removed. |

@@ -643,48 +643,50 @@ where
 ///
 /// Invalid JSON on a non-empty line → error (not silent skip).
 ///
+/// Path I/O uses capability Dir list + per-component nofollow open (T190 / F4b).
 /// Callers that need a wall-clock bound should wrap via the path-IO timeout
 /// helper (Hermes/Honcho path connectors do this automatically).
 pub fn load_hermes_export_dir(dir: &Path) -> Result<Vec<HermesSessionSummary>, ConnectorError> {
-    if !dir.exists() {
-        return Err(ConnectorError::Internal {
-            detail: format!("hermes export path missing: {}", dir.display()),
-        });
-    }
-    if !dir.is_dir() {
-        return Err(ConnectorError::Internal {
-            detail: format!("hermes export path not a directory: {}", dir.display()),
-        });
-    }
-
-    let entries = std::fs::read_dir(dir).map_err(|e| ConnectorError::Internal {
-        detail: format!("hermes export read_dir: {e}"),
+    let root = ai_brains_path::open_ambient_vault_dir(dir).map_err(|e| ConnectorError::Internal {
+        detail: format!("hermes export open {}: {e}", dir.display()),
+    })?;
+    let names = ai_brains_path::list_entry_names(&root).map_err(|e| ConnectorError::Internal {
+        detail: format!("hermes export list {}: {e}", dir.display()),
     })?;
 
-    let mut files: Vec<PathBuf> = Vec::new();
-    for entry in entries {
-        let entry = entry.map_err(|e| ConnectorError::Internal {
-            detail: format!("hermes export dir entry: {e}"),
-        })?;
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        let ext = path
+    let mut files: Vec<String> = Vec::new();
+    for name in names {
+        let ext = Path::new(&name)
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_ascii_lowercase();
-        if ext == "jsonl" || ext == "ndjson" {
-            files.push(path);
+        if ext != "jsonl" && ext != "ndjson" {
+            continue;
+        }
+        // Confirm regular file via nofollow open (skip dirs / reparse).
+        match ai_brains_path::open_file_component_nofollow(&root, &name) {
+            Ok(_) => files.push(name),
+            Err(ai_brains_path::CapOpenError::ReparseRefused(_))
+            | Err(ai_brains_path::CapOpenError::NotAFile(_))
+            | Err(ai_brains_path::CapOpenError::NotFound(_)) => continue,
+            Err(e) => {
+                return Err(ConnectorError::Internal {
+                    detail: format!("hermes export open {name}: {e}"),
+                });
+            }
         }
     }
     files.sort();
 
     let mut items = Vec::new();
-    for path in files {
-        let text = std::fs::read_to_string(&path).map_err(|e| ConnectorError::Internal {
-            detail: format!("hermes export read {}: {e}", path.display()),
+    for name in files {
+        let bytes = ai_brains_path::read_file_nofollow_components(dir, &[name.as_str()], 16 * 1024 * 1024)
+            .map_err(|e| ConnectorError::Internal {
+                detail: format!("hermes export read {name}: {e}"),
+            })?;
+        let text = String::from_utf8(bytes).map_err(|e| ConnectorError::Internal {
+            detail: format!("hermes export utf-8 {name}: {e}"),
         })?;
         for (line_no, line) in text.lines().enumerate() {
             let trimmed = line.trim();
@@ -693,11 +695,7 @@ pub fn load_hermes_export_dir(dir: &Path) -> Result<Vec<HermesSessionSummary>, C
             }
             let item: HermesSessionSummary =
                 serde_json::from_str(trimmed).map_err(|e| ConnectorError::Internal {
-                    detail: format!(
-                        "hermes export invalid JSON {}:{}: {e}",
-                        path.display(),
-                        line_no + 1
-                    ),
+                    detail: format!("hermes export invalid JSON {name}:{}: {e}", line_no + 1),
                 })?;
             items.push(item);
         }

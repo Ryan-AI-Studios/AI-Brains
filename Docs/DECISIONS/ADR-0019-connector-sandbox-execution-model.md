@@ -86,7 +86,7 @@ Normative locks **L1–L10** (cite as ADR-0019 L*n*):
 | # | Lock |
 |---|------|
 | **L1** | **v1 release execution model = `SandboxMode::TrustedBuiltin` only.** Production registries refuse all other modes. |
-| **L2** | **No production dependency** on Wasmtime, Extism, cap-std, or WASI hosts without a **new** track + ADR update. |
+| **L2** | **No production dependency** on Wasmtime, Extism, cap-std, or WASI hosts without a **new** track + ADR update. **Carve-out (T190 / [ADR-0021](ADR-0021-path-capability-open.md)):** production `cap-std` 4.0.x is allowed **only** for TrustedBuiltin vault-relative path hardening (component nofollow open + Dir walk). Still **not** a plugin sandbox. |
 | **L3** | **Forbidden:** arbitrary native shared libraries as connectors; Node WASI host; AGPL plugin hosts. |
 | **L4** | **Policy always applies** (T151). Built-in ≠ policy bypass. |
 | **L5** | **`propose_write` never mutates user files** — proposal artifact only. |
@@ -144,7 +144,7 @@ Normative locks **L1–L10** (cite as ADR-0019 L*n*):
 
 ### 4. Path residual honesty (L10)
 
-v1 path-bearing connectors use containment resolve + reparse/symlink refuse. **Check-then-open TOCTOU** without `openat` / `cap-std` remains an **accepted residual** (**deferred #12**). Built-ins minimize risk via root containment + symlink refusal at check time — this is **not** complete path safety. Closing #12 is **not** a prerequisite for this ADR; claiming it closed **is** forbidden.
+v1 path-bearing connectors use containment resolve + reparse/symlink refuse. **T190 / [ADR-0021](ADR-0021-path-capability-open.md)** hardens TrustedBuiltin **vault-relative open + list** with cap-std component nofollow (closes the primary check-then-open residual for Obsidian vault I/O and Hermes/Honcho export dirs). **Residual #12** is **closed-with-residuals**: ambient CLI paths, soft-canonicalize, api-server token path, and T188 artifact write pre-check/post-write reparse are **not** claimed closed. Soft-canon is never a TOCTOU security open.
 
 ### 5. License posture for future hosts (L2, L5 of licenses)
 
@@ -169,7 +169,7 @@ Any new crate still requires implement-day `cargo deny check` including transiti
 
 - No third-party extensibility in v1.  
 - Built-in bugs remain process-level risks.  
-- Path TOCTOU residual (#12) remains documented, not eliminated.  
+- Path TOCTOU residual (#12) **closed-with-residuals** by T190/ADR-0021 for connector vault open+list; ambient/soft-canon/token/artifact-write residuals remain.  
 - CloudOk trust label not registry-enforced.  
 - Future plugin work needs a full track (not a drive-by).
 
@@ -185,7 +185,8 @@ This ADR does **not** claim formal security certification, perfect isolation of 
 | Threat model checked in under track | Yes |
 | Production code changes | No (default) |
 | Soft: serde unknown sandbox + cfg(test) R1-06 | Optional (shipped) |
-| Add Wasmtime/Extism/cap-std | **No** |
+| Add Wasmtime/Extism | **No** |
+| Add cap-std for vault path hardening | **Yes under ADR-0021 / T190 only** |
 | Cargo.lock dep-guard unit test | **No** (deny/audit suffice) |
 
 ## Related

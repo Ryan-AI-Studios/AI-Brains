@@ -11,7 +11,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~§59 #8 wrong-key / K-06 needs page encrypt; R-F8 / R-K06; Deviations §1~~ | **Closed by T187** (2026-08-02) |
 | ~~§59 #1 recovery export; #6 restore daemon hard-fail~~ (R-DOC-CLI partial: export shipped; doctor remains) | **Closed by T188** (2026-08-02); **#2 doctor** still open |
 | ~~**#34.2** DataKey rotation~~ | **Closed by T189** (2026-08-02) PR #67 `9e9465e` |
-| **#12** path TOCTOU / openat / cap-std | **T190** |
+| ~~**#12** path TOCTOU / openat / cap-std~~ | **Closed-with-residuals by T190** (2026-08-02): vault open+list + Hermes/Honcho elevated (ADR-0021). Residuals: ambient CLI, soft-canon, token path, T188 write pre/post reparse. |
 | T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail | **T191** |
 
 Suggested order: T191 (anytime) → T190. Doctor residual remains open (no dedicated track yet).

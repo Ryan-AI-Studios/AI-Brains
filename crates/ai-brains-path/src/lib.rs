@@ -1,5 +1,6 @@
 mod alias;
 mod canonical;
+mod cap_open;
 mod discovery;
 mod display;
 mod errors;
@@ -12,6 +13,10 @@ mod windows;
 mod wsl;
 
 pub use canonical::normalize_project_path;
+pub use cap_open::{
+    CapOpenError, list_entry_names, open_ambient_vault_dir, open_dir_component_nofollow,
+    open_dir_nofollow_components, open_file_component_nofollow, read_file_nofollow_components,
+};
 pub use discovery::{extract_project_id_from_ledgerful, find_ledgerful_dir};
 pub use display::display_path;
 pub use errors::{PathError, Result};

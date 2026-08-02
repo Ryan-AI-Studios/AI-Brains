@@ -71,7 +71,7 @@ See CAPABILITIES models section and T157 policy notes in OPERATIONS.
 
 ## 5. Connectors / plugins
 
-**SOT:** [ADR-0019](DECISIONS/ADR-0019-connector-sandbox-execution-model.md)
+**SOT:** [ADR-0019](DECISIONS/ADR-0019-connector-sandbox-execution-model.md) · [ADR-0021](DECISIONS/ADR-0021-path-capability-open.md)
 
 | Topic | Honesty |
 |-------|---------|
@@ -79,6 +79,7 @@ See CAPABILITIES models section and T157 policy notes in OPERATIONS.
 | Third-party plugin host / marketplace | **Not shipped** |
 | “Sandboxed plugins” / “WASI isolation” marketing | **Forbidden** until a reviewed host lands |
 | Policy (grants) still applies | TrustedBuiltin is not privilege escalation |
+| Vault path open / TOCTOU (T190) | **Connector vault open+list hardened** (cap-std + component nofollow; no ambient `std::fs::read` fallback). **Not** claimed: all ambient CLI paths; soft-canonicalize as security open; token-file path; artifact write path (pre-check + post-write reparse residual). |
 
 ---
 

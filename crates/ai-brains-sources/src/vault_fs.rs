@@ -14,13 +14,15 @@
 //!   `aux.md` are refused. Stem = last component with **one** extension stripped
 //!   (so `com1-meeting-notes.md` is allowed; `aux.md` is not).
 //!
-//! # Residual TOCTOU
+//! # Path open (T190)
 //!
-//! Check-then-open without `openat` / cap-std remains racy if a link is swapped
-//! between reparse detection and read. Documented residual for T182-adjacent work.
+//! Vault-relative reads use [`ai_brains_path`] capability helpers: ambient root
+//! once + per-component nofollow open + handle-bound size/read (ADR-0021).
+//! Lexical resolve + reserved stems remain pre-open gates (F31).
 
 use std::path::{Component, Path, PathBuf};
 
+use ai_brains_path::CapOpenError;
 use thiserror::Error;
 
 /// Errors from vault filesystem helpers.
@@ -222,48 +224,45 @@ fn safe_relative_components(relative: &str) -> Result<Vec<String>, VaultFsError>
     Ok(safe_parts)
 }
 
-/// Resolve under root → intermediate + final reparse check → size cap → read.
+/// Resolve under root (lexical) → component-wise nofollow open → handle-bound read.
+///
+/// Never falls back to ambient `std::fs::read` (T190 F26).
 pub fn read_file_under_root(
     root: &Path,
     relative: &str,
     max_bytes: u64,
 ) -> Result<Vec<u8>, VaultFsError> {
-    let path = resolve_under_root(root, relative)?;
+    // Lexical containment + reserved stems (F31) before any open.
+    let _path = resolve_under_root(root, relative)?;
     let components = safe_relative_components(relative)?;
-    let root_abs = absolute_root(root)?;
-    // Refuse reparse on root and every intermediate / final component.
-    refuse_reparse_along_path(&root_abs, &components)?;
-
-    let meta = match std::fs::symlink_metadata(&path) {
-        Ok(m) => m,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Err(VaultFsError::NotFound(relative.to_string()));
-        }
-        Err(e) => return Err(VaultFsError::Io(e.to_string())),
-    };
-
-    if !meta.is_file() {
-        return Err(VaultFsError::Io(format!(
-            "not a regular file: {}",
-            path.display()
-        )));
+    if components.is_empty() {
+        return Err(VaultFsError::EmptyRelative);
     }
 
-    let size = meta.len();
-    if size > max_bytes {
-        return Err(VaultFsError::Oversized { size, max_bytes });
-    }
+    ai_brains_path::read_file_nofollow_components(root, &components, max_bytes)
+        .map_err(map_cap_open_err)
+}
 
-    // Re-check reparse along the full chain immediately before open (TOCTOU residual).
-    refuse_reparse_along_path(&root_abs, &components)?;
-
-    std::fs::read(&path).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound {
-            VaultFsError::NotFound(relative.to_string())
-        } else {
-            VaultFsError::Io(e.to_string())
+fn map_cap_open_err(e: CapOpenError) -> VaultFsError {
+    match e {
+        CapOpenError::PathEscape(s) => VaultFsError::PathEscape(s),
+        CapOpenError::ReparseRefused(s) => VaultFsError::ReparseRefused(s),
+        CapOpenError::Oversized { size, max_bytes } => VaultFsError::Oversized { size, max_bytes },
+        CapOpenError::NotFound(s) => VaultFsError::NotFound(s),
+        CapOpenError::NotAFile(s) => VaultFsError::Io(format!("not a regular file: {s}")),
+        CapOpenError::NotADir(s) => VaultFsError::Io(format!("not a directory: {s}")),
+        CapOpenError::Io(s) => {
+            // Cap-open NotFound is typed; remaining Io may still mention missing paths.
+            if s.to_ascii_lowercase().contains("not found")
+                || s.to_ascii_lowercase().contains("cannot find")
+                || s.to_ascii_lowercase().contains("no such file")
+            {
+                VaultFsError::NotFound(s)
+            } else {
+                VaultFsError::Io(s)
+            }
         }
-    })
+    }
 }
 
 #[cfg(test)]
