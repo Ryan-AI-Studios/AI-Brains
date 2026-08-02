@@ -85,12 +85,12 @@ Status: **In Progress** (implement 2026-08-02). Spec: [spec.md](./spec.md).
 
 ### Phase E — Claims + closeout
 
-- [x] **E1** Docs (spec §14): RELEASE-CLAIMS R-12; SECURITY-LIMITS §5; ADR-0021 residual table; *(deferred.md / conductor Completed = orchestrator)*
-- [ ] **E2** `conductor.md` status → Completed on ship *(orchestrator)*
-- [ ] **E3** Full gate: fmt / clippy -D / nextest workspace / deny / audit / ledgerful verify *(orchestrator final gate)*
-- [ ] **E4** SECURITY review: internal → fix → cross-model until clean (or deferred P3 only)
-- [ ] **E5** Manual smoke: protected artifact refuse; recovery export kit write; token ensure path
-- [ ] **E6** Ledger commit; pin DECISION; no vault-root read regression note
+- [x] **E1** Docs (spec §14): RELEASE-CLAIMS R-12; SECURITY-LIMITS §5; ADR-0021 residual table; deferred.md struck on ship
+- [x] **E2** `conductor.md` status → Completed on ship
+- [x] **E3** Full gate: fmt / clippy -D / nextest workspace **1852** / deny / audit; CI all platforms green (PR #77)
+- [x] **E4** SECURITY review: internal R1 + wire PASS; Codex R1 FAIL→fix; Codex R2 **PASS WITH DEFERRED P3**
+- [x] **E5** Manual/unit smoke: SOOT AC13/AC14; artifact reparse; token symlink refuse; kit symlink refuse (CI multi-OS)
+- [x] **E6** Ledger commit; pin DECISION; no vault-root read regression (AC7)
 
 ## Verification matrix
 

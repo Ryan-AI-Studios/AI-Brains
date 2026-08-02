@@ -14,13 +14,13 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~**#12** path TOCTOU / openat / cap-std~~ | **Closed-with-residuals by T190** (2026-08-02). Residual elevation → **T193** |
 | ~~T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail~~ | **Closed by T191** (2026-08-02) |
 | ~~**#2** doctor CLI / R-DOC-CLI~~ | **Closed by T192** (2026-08-02) PR #75 `80837da` |
-| T190 ambient CLI / write / token path residuals | **T193** (placeholder 2026-08-02) |
+| ~~T190 ambient CLI / write / token path residuals~~ | **Closed-with-residuals by T193** (2026-08-02) PR #77 `2183127` — P0 write SOOT elevated; soft-canon / parent mkdir / ambient CLI long-tail remain honesty residuals |
 | ~~Argon2 params in kit JSON (F37)~~ | **Closed by T194** (2026-08-02) PR #76 `2c06464` |
 | R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI | **T195** (placeholder 2026-08-02) |
 | systemd / launchd units; CONTRIBUTING hygiene | **T196** (placeholder 2026-08-02) |
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 
-Suggested order: ~~**T194** (kit schema)~~ **closed PR #76** → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs).
+Suggested order: ~~**T194** (kit schema)~~ **closed PR #76** → ~~**T193** (path residual)~~ **closed PR #77** → **T195** (daemon multi-user) → **T196** (ops units/docs).
 
 ---
 
@@ -864,5 +864,5 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 ## T190 residual (2026-08-02)
 
-- **Soft-skip symlink proof** when create privilege missing (F17 / Codex R3 P3) — multi-OS CI re-proves when privilege available; product path fail-closed.
-- **T188 write / token path / ambient CLI** — listed under R-12 residuals; not re-opened as #12.
+- **Soft-skip symlink proof** when create privilege missing (F17 / Codex R3 P3) — multi-OS CI re-proves when privilege available; product path fail-closed. **Kept** as verification residual (R-SOFT-SKIP) after T193 ship.
+- ~~**T188 write / token path / ambient CLI**~~ — **Closed-with-residuals by T193** PR #77 `2183127`: P0 `write_protected_artifact`, token load/write, `recovery::write_kit_file` elevated via shared `cap_open` write SOOT. Remaining honesty residuals: soft-canon, parent `create_dir_all`, P2 ambient CLI long-tail, perfect Windows TOCTOU, R-SOFT-SKIP.
