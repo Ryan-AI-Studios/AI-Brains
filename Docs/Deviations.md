@@ -4,8 +4,8 @@ This document records the intentional deviations from the original `Implementati
 
 ## 1. Storage & Encryption (Phase 5)
 *   **Original Plan:** Use `sqlcipher-bundled` for transparent, full-database AES-256 encryption.
-*   **Deviation:** Degraded to standard `bundled` SQLite for development.
-*   **Rationale:** The primary Windows development environment lacked the required OpenSSL development headers, C++ build tools, and Perl needed to compile `sqlcipher-bundled` from source. The architecture was designed to be SQLCipher-ready (using the same connection contracts), so swapping the `libsqlite3-sys` feature flag back to `sqlcipher` in a configured CI/CD environment will seamlessly restore encryption without code changes.
+*   **Historical deviation:** Degraded to standard `bundled` SQLite for development when the Windows toolchain lacked OpenSSL/Perl to build SQLCipher from source.
+*   **Resolution (T187, 2026-08-02):** Default workspace `rusqlite` features are now `bundled-sqlcipher-vendored-openssl`, `backup`, `fallible_uint` (still pinned at **0.39.0**). New vaults are page-encrypted; wrong key fails closed; legacy plain SQLite files return `LegacyPlaintextVault` with a `vault encrypt` (`sqlcipher_export`) migrate path. Zero keys refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1`. **Not** FIPS; **not** NIST Purge/Destroy; Content Envelope remains a separate layer (page key ≠ content DEK). Build prereq on Windows MSVC: **Perl** on PATH (Strawberry Perl) for `openssl-src`.
 
 ## 2. Graph Database Compilation (Phase 8 & 12)
 *   **Original Plan:** The `ai-brains-graph` crate, wrapping LadybugDB (a C++ embedded property graph DB), is a mandatory dependency for all retrieval and intelligence operations. Note: The PRD explicitly rejected the original KuzuDB in favor of the active LadybugDB/lbug fork.

@@ -36,6 +36,22 @@ function Compare-Versions([string]$Installed, [string]$Min) {
 Write-Host "=== AI-Brains CI Gate - Tool Preflight ===" -ForegroundColor Cyan
 $allOk = $true
 
+# T187: SQLCipher vendored OpenSSL needs Perl on Windows MSVC
+$perl = Get-Command perl -ErrorAction SilentlyContinue
+if (-not $perl) {
+    Write-Host "  [MISSING] perl - required for bundled-sqlcipher-vendored-openssl (openssl-src). Install Strawberry Perl and add to PATH." -ForegroundColor Red
+    $allOk = $false
+} else {
+    $perlVer = (& perl -v 2>&1 | Select-Object -First 2) -join " "
+    Write-Host "  [OK] perl ($perlVer)" -ForegroundColor Green
+}
+$nasm = Get-Command nasm -ErrorAction SilentlyContinue
+if (-not $nasm) {
+    Write-Host "  [INFO] nasm not on PATH (optional; OpenSSL may build with no-asm)" -ForegroundColor DarkGray
+} else {
+    Write-Host "  [OK] nasm $((& nasm -v 2>&1 | Select-Object -First 1))" -ForegroundColor Green
+}
+
 foreach ($tool in $Required.Keys) {
     $info    = $Required[$tool]
     $version = Get-ToolVersion $tool
@@ -73,6 +89,13 @@ function Run-Step([string]$Label, [scriptblock]$Block) {
         exit $LASTEXITCODE
     }
     Write-Host ""
+}
+
+# T187: tests that open historical all-zero vault keys need the escape hatch.
+# Production CLI still refuses zero keys when this is unset.
+if (-not $env:AI_BRAINS_ALLOW_ZERO_KEY) {
+    $env:AI_BRAINS_ALLOW_ZERO_KEY = "1"
+    Write-Host "  [env] AI_BRAINS_ALLOW_ZERO_KEY=1 (test hermetic default; unset for production refuse tests)" -ForegroundColor DarkGray
 }
 
 Run-Step "cargo fmt --check" { cargo fmt --check }

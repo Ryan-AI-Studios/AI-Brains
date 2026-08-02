@@ -17,6 +17,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T187 SQLCipher page encryption (live):** workspace `rusqlite` uses `bundled-sqlcipher-vendored-openssl` (+ `backup`, `fallible_uint`); plain-header sniff + `LegacyPlaintextVault`; `ai-brains vault encrypt` via `sqlcipher_export`; zero-key refuse unless `AI_BRAINS_ALLOW_ZERO_KEY=1`; `SqlCipherKey::validate` / `is_zero`; `PRAGMA cipher_version` smoke; Perl prereq docs + `dev-check.ps1`.
 - Claims / SBOM release gate (P12.7 / T185): `Docs/RELEASE-CLAIMS.md`, `Docs/RELEASE-CHECKLIST.md`, `scripts/generate-sbom.ps1`, `scripts/generate-notices.ps1`, `scripts/check-release-claims.ps1`, `scripts/check-version-banners.ps1`, `scripts/generate-checksums.ps1`, `scripts/dev-release-check.ps1`, soft SHA-pinned `.github/workflows/release.yml`, `about.toml` + `about.md.hbs`.
 - Release documentation pack (P12.5): `Docs/README.md` index, `Docs/INSTALL.md`, `Docs/SECURITY-LIMITS.md`, root `SECURITY.md`, claims cross-check evidence.
 - Compatibility matrix and platform honesty docs (`Docs/COMPATIBILITY.md`) with GHA multi-OS soft/required jobs (P12.1).
@@ -29,11 +30,14 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
-- Elevated docs reworded for F8 vault encryption honesty (bundled SQLite + Content Envelope; no live page-level SQLCipher claim).
+- **T187:** F8 docs/claims flipped to live SQLCipher page encryption (COMPATIBILITY, SECURITY-LIMITS, RELEASE-CLAIMS, ARCHITECTURE, CAPABILITIES, INSTALL, OPERATIONS, Deviations §1 resolved). Not FIPS/Purge.
+- Elevated docs reworded for F8 vault encryption honesty (historical pre-T187 wording retained only in archive tracks).
 - Operations and status docs demoted/banners where historical CLI counts drifted.
+- Backup create keys source connection; backup list surfaces key failures; T181 dual-mode plain residual branches removed from recovery drills.
 
 ### Security
 
+- **T187:** Wrong-key fail-closed at page layer; zero-key refuse by default; legacy plain vaults require explicit `vault encrypt` (no silent auto-encrypt).
 - Documented honest non-claims: no perfect deletion, no metadata-private sync, no third-party plugin sandbox, no invented `doctor` / `recovery export` product CLIs.
 - Independent security review (P12.6 / T184): charter + residual register; named-pipe SDDL hardened to SYSTEM+Administrators+Interactive (not World); Unix UDS post-bind mode `0o600`; CI least-privilege `permissions:` + Dependabot; SECURITY.md 90-day disclosure timeline.
 

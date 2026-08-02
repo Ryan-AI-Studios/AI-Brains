@@ -298,8 +298,20 @@ fn verify_single_backup(
     full: bool,
     tables_out: &mut Vec<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // T187: refuse plain legacy backup files with migrate hint class
+    if ai_brains_store::is_plain_sqlite_header(path) {
+        return Err(
+            "Legacy plaintext backup (SQLite format 3 header): not SQLCipher-encrypted. \
+             Key verification cannot succeed; re-create backup under live SQLCipher or use vault encrypt on a vault first."
+                .into(),
+        );
+    }
+
     let conn = rusqlite::Connection::open(path)?;
-    apply_key_pragmas(&conn, key)?;
+    apply_key_pragmas(&conn, key).map_err(|e| format!("Key verification failed: {e}"))?;
+    // Mandatory post-key schema read (F3)
+    conn.query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()))
+        .map_err(|e| format!("Key verification failed: {e}"))?;
 
     let check_sql = if full {
         "PRAGMA integrity_check"

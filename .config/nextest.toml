@@ -4,6 +4,10 @@ retries = 1
 # period=30s marks tests slow; terminate-after=4 kills after 120s total.
 # Documented in Docs/ci-tooling.md. Very long suites should use __slow + override if needed.
 slow-timeout = { period = "30s", terminate-after = 4 }
+# T187: zero-key escape hatch is NOT set here (nextest 0.9.x profile env is
+# not relied on). CI sets AI_BRAINS_ALLOW_ZERO_KEY=1 in workflow env; local
+# `scripts/dev-check.ps1` sets it; CLI hermetic_bin and store fixture TempEnv
+# cover remaining paths. Production refuses zero keys when unset.
 
 [profile.ci]
 retries = 3

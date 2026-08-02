@@ -23,6 +23,8 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # T187: historical zero-key vault opens in tests; production refuses without this.
+  AI_BRAINS_ALLOW_ZERO_KEY: "1"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -52,6 +54,31 @@ jobs:
 
       - name: Install cargo-nextest
         run: cargo install cargo-nextest --locked --version 0.9.140
+
+      # T187: vendored OpenSSL (bundled-sqlcipher-vendored-openssl) needs Perl on MSVC
+      - name: Ensure Perl on PATH (SQLCipher / openssl-src)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (Get-Command perl -ErrorAction SilentlyContinue) {
+            perl -v | Select-Object -First 2
+            exit 0
+          }
+          # windows-2025 images usually ship Strawberry or Git Perl; surface clear failure if not
+          $candidates = @(
+            "C:\Strawberry\perl\bin",
+            "C:\Program Files\Git\usr\bin"
+          )
+          foreach ($c in $candidates) {
+            if (Test-Path (Join-Path $c "perl.exe")) {
+              $env:Path = "$c;" + $env:Path
+              echo "PATH+=$c" | Out-File -FilePath $env:GITHUB_PATH -Append
+              perl -v | Select-Object -First 2
+              exit 0
+            }
+          }
+          Write-Error "Perl not found — required for bundled-sqlcipher-vendored-openssl (openssl-src Configure)"
+          exit 1
 
       - name: cargo fmt --check
         run: cargo fmt --check

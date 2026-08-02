@@ -38,7 +38,7 @@ On **every T1 tier**, the capture path (CLI → daemon → event log) **must** r
 | Nightly Task Scheduler | **T1** | N/A | **T3** | **T3** | **T3** |
 | Sync wire + fake-relay tests | **T1** | N/A | **T1** (WSL nextest) | **T2** | **T3** |
 | Desktop Tauri | **T1** WebView2 + Isolation | N/A | **T2** WebKitGTK (excluded from required CI) | **T2** WKWebView | **T3** |
-| SQLCipher page-level CE | **Honesty T2** (bundled today) | same | same | same | same |
+| SQLCipher page-level vault | **T1 live** (T187 `bundled-sqlcipher-vendored-openssl`) | **T1 live** | same build | same build | same build |
 
 **Evidence bar:** Windows T1 = local full gate + required `windows-2025` job. Ubuntu T1 core = WSL dry-run recorded in `evidence/SMOKE-linux.md` / `UNIX-BUILD.md` + required `ubuntu-24.04` job (desktop excluded). First GHA greens are recorded on the PR; do not claim GHA label green from WSL alone.
 
@@ -63,9 +63,17 @@ On **every T1 tier**, the capture path (CLI → daemon → event log) **must** r
 
 ## 4. Vault encryption honesty (F8 — exact wording)
 
-Vault storage uses **bundled SQLite** combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions. **SQLCipher page-level encryption** remains architectural / feature-gated until CI verification.
+Vault storage uses **SQLCipher page-level encryption** (T187: workspace `rusqlite` features `bundled-sqlcipher-vendored-openssl` + `backup` + `fallible_uint`) combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions.
 
-Do not claim page-level SQLCipher on any tier while the workspace uses `rusqlite` with the `bundled` feature (not `bundled-sqlcipher`). See `Docs/Deviations.md` §1.
+- New vaults under a correct key workflow do **not** have a plain `SQLite format 3` header.
+- Wrong key on open / backup verify fails closed (`VaultLocked` / key-verification class).
+- Legacy plain SQLite vaults fail with `LegacyPlaintextVault` and a migrate hint; operators convert with `ai-brains vault encrypt` (`sqlcipher_export`, not Online Backup).
+- All-zero keys are refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (tests/legacy only).
+- `PRAGMA cipher_compatibility = 4`; do **not** set `cipher_plaintext_header_size` (full header encrypted).
+- Observed `PRAGMA cipher_version` (2026-08-02 Windows MSVC / `bundled-sqlcipher-vendored-openssl`): **`4.10.0 community`** (unit smoke T187-V-01; track evidence `conductor/tracks/trackT187-sqlcipher-page-encryption/cipher_version.txt`). Re-probe after toolchain upgrades.
+- **Not** FIPS validated; **not** NIST SP 800-88 Purge/Destroy. Page key ≠ content DEK (DataKey rotation is **T189**).
+
+See `Docs/Deviations.md` §1 (resolved by T187).
 
 ---
 
@@ -110,7 +118,7 @@ Some minimal/scratch containers lack `/bin/true`. Git automation on Unix require
 3. **Device private seeds** sealed with `PROTECTION_DATAKEY_DPAPI` on Windows **cannot be opened on non-Windows**. Non-Windows uses DataKey-only sealing (weaker OS binding).
 4. **SYSTEM scheduled task ACL model** is Windows-only (T145).
 5. **Desktop Isolation** is **WebView2-only (Windows)**. macOS WKWebView / Linux WebKitGTK: no Isolation claim.
-6. **Vault encryption (F8):** bundled SQLite + application-level CE AES-256-GCM + OS permissions; SQLCipher page-level is not live until feature+CI.
+6. **Vault encryption (F8 / T187):** SQLCipher page-level live (`bundled-sqlcipher-vendored-openssl`) + application-level CE AES-256-GCM + OS permissions; wrong-key fail-closed; zero-key refuse unless escape hatch.
 7. **Models / VRAM / Ollama / llama-server** are environment-specific; not OS-tier guarantees.
 8. **Git automation** on Unix requires **`/bin/true`** (absent in some minimal containers).
 9. **Capture independence** holds; brain/nightly features may require local models on any OS.
@@ -163,7 +171,7 @@ Local gates:
 ### T185 — Release gate
 
 - Platform smoke checkbox must use a **runner label that matches** the claimed COMPATIBILITY tier (F20).
-- Reaffirm **F8** SQLCipher honesty — do not ship release notes claiming page-level SQLCipher while `bundled` only.
+- Reaffirm **F8** SQLCipher honesty — page-level is live (T187); still forbid FIPS / NIST Purge / perfect-deletion claims.
 - macOS smoke OS string must match pin (`macos-15` vs `macos-26`).
 - See `evidence/HANDOFF-T183-T185.md`.
 
@@ -189,7 +197,7 @@ Local gates:
 |-------|----------|
 | FIPS / validated modules | Non-claim |
 | Equal primary platforms without evidence | Forbidden |
-| SQLCipher page-level on all tiers | Non-claim while `bundled` |
+| FIPS / NIST Purge page encryption | Non-claim (T187 ships community SQLCipher + vendored OpenSSL, not FIPS) |
 | WebView2 Isolation on macOS/Linux | Non-claim |
 | Nested WSL2 Docker e2e as PR gate | Non-claim (F5) |
 | Unix DaemonClient already uses HTTP | Forbidden (live = UDS) |

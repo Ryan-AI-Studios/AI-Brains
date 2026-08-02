@@ -2,6 +2,20 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+## Post-P12 backlog promotion (2026-08-01)
+
+Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). Residual detail below remains until each track closes:
+
+| Residual | Promoted track |
+|----------|----------------|
+| ~~§59 #8 wrong-key / K-06 needs page encrypt; R-F8 / R-K06; Deviations §1~~ | **Closed by T187** (2026-08-02) |
+| §59 #1 recovery export; #6 restore daemon hard-fail; soft doctor / R-DOC-CLI | **T188** |
+| **#34.2** DataKey rotation | **T189** |
+| **#12** path TOCTOU / openat / cap-std | **T190** |
+| T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail | **T191** |
+
+Suggested order: T187 → T188 → T191 (anytime) → T190 → T189 (design-first).
+
 ---
 
 ## From T142 — Ledgerful state-dir + product-name migration (2026-06-29)
@@ -632,10 +646,22 @@ P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills
 5. F-REC-03/04 projection/graph rebuild drills — soft  
 6. Restore hard-fail while daemon running — product residual (warn today)  
 7. Optional intermediate-hex zeroize tighten in `from_data_key` — soft crypto  
-8. **Wrong-key / K-06 fail-closed requires SQLCipher page encryption** (`bundled-sqlcipher` or equiv.); current `bundled` plain SQLite ignores `PRAGMA key` — security-relevant pre-existing residual  
+8. ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ — **Closed by T187** (2026-08-02): live `bundled-sqlcipher-vendored-openssl`; strict F-02/K-06; Deviations §1 resolved; R-F8/R-K06 claims flipped  
 9. Low: rstest preference for F-matrix; store Online Backup mirror vs BackupService; duplicate dry-run smoke/recovery_drills  
 
 **Absorbed (productized, not eliminated):** §34 / T162–T166 / T178 pre-erase backup residual → E-01 drill + docs honesty.
+
+### 65. T187 SQLCipher Page Encryption — **Completed** (2026-08-02)
+
+Post-P12 residual: live SQLCipher page encryption.
+
+**Shipped:** workspace `bundled-sqlcipher-vendored-openssl`; plain-header sniff + `LegacyPlaintextVault`; `vault encrypt` via `sqlcipher_export`; zero-key refuse + `AI_BRAINS_ALLOW_ZERO_KEY`; `SqlCipherKey::validate`/`is_zero`; keyed `run_backup` source; strict recovery drills; Perl prereq docs/CI; claims/docs flip.
+
+**Residuals (not DoD blockers):**
+- `cipher_integrity_check` on backup verify (soft / out of scope)
+- Zero-key escape hatch honesty remains (**R-ZERO-KEY** residual language)
+- Windows MSVC Perl PATH hygiene on developer machines (documented)
+- #34.2 DataKey rotation still **T189**
 
 ---
 

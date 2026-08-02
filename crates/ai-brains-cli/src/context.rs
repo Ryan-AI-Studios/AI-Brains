@@ -40,8 +40,8 @@ impl AppContext {
         let path =
             vault_path.ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
 
-        // In degraded mode, we use a fixed dummy key if none provided
-        // This allows rusqlite-bundled to work even if SQLCipher isn't active
+        // Default historical all-zero key when --key omitted. T187: VaultConnection
+        // refuses zero keys unless AI_BRAINS_ALLOW_ZERO_KEY=1 (tests/legacy).
         let key_str = key.unwrap_or_else(|| {
             "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
         });

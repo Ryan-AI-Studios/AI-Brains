@@ -11,16 +11,19 @@ This document **links** normative sources; it does not replace ADRs or COMPATIBI
 
 **SOT:** [COMPATIBILITY.md §4](COMPATIBILITY.md)
 
-Vault storage uses **bundled SQLite** combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions. **SQLCipher page-level encryption** remains architectural / feature-gated until CI verification.
+Vault storage uses **SQLCipher page-level encryption** (T187: `bundled-sqlcipher-vendored-openssl`) combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions.
 
 | Claim | Status |
 |-------|--------|
-| Page-level SQLCipher live on default builds | **Non-claim** while `rusqlite` uses `bundled` |
-| “Full encryption” without F8 qualifier | **Forbidden** |
-| Application CE AES-256-GCM for sensitive payloads | **Yes** (see ADR-0016) |
+| Page-level SQLCipher live on default builds | **Yes** (T187); `PRAGMA cipher_version` non-empty smoke |
+| Wrong-key fail-closed (open / backup verify) | **Yes** (T187; elevates T181 F-02/K-06) |
+| Zero-key refuse unless `AI_BRAINS_ALLOW_ZERO_KEY=1` | **Yes** (T187) |
+| FIPS / NIST Purge / perfect deletion | **Forbidden non-claim** |
+| Application CE AES-256-GCM for sensitive payloads | **Yes** (see ADR-0016); page key ≠ content DEK |
 | OS file permissions matter | **Yes** |
+| Plain→encrypted migrate | Operator `ai-brains vault encrypt` (`sqlcipher_export`) |
 
-Also: [Deviations.md](Deviations.md) §1 · [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md)
+Also: [Deviations.md](Deviations.md) §1 (resolved T187) · [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md)
 
 ---
 

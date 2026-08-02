@@ -453,6 +453,33 @@ enum Commands {
         #[command(subcommand)]
         command: ReplicateCommands,
     },
+    /// Vault operator tools (T187): plain→SQLCipher encrypt via sqlcipher_export
+    #[command(
+        after_help = "Examples:\n  ai-brains vault encrypt --vault-path ./plain.db --dry-run\n  ai-brains vault encrypt --vault-path ./plain.db --destination ./enc.db --key \"x'…'\"\n  ai-brains vault encrypt --vault-path ./plain.db --confirm --key \"x'…'\"\nHonesty: not FIPS; not NIST Purge; Online Backup is not used for plain→encrypt."
+    )]
+    Vault {
+        #[command(subcommand)]
+        command: VaultCommands,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+enum VaultCommands {
+    /// Convert a plaintext SQLite vault to SQLCipher page encryption (sqlcipher_export).
+    Encrypt {
+        /// Source plaintext vault (defaults to --vault-path / AI_BRAINS_VAULT_PATH)
+        #[arg(long)]
+        source: Option<PathBuf>,
+        /// Destination encrypted path (non-destructive). Conflicts with silent default when omitted.
+        #[arg(long)]
+        destination: Option<PathBuf>,
+        /// Replace source in place after export (moves plain aside to *.bak-plain). Required for in-place.
+        #[arg(long)]
+        confirm: bool,
+        /// Preview only; never write (default when neither --destination nor --confirm)
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -1567,7 +1594,8 @@ fn is_vault_path_free(command: &Commands) -> bool {
         Commands::Shadow { .. }
         | Commands::Migrate { .. }
         | Commands::Evaluate { .. }
-        | Commands::Dogfood { .. } => true,
+        | Commands::Dogfood { .. }
+        | Commands::Vault { .. } => true,
         Commands::AgyHook { schema: true, .. } => true,
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
@@ -1737,6 +1765,25 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 allow_out_overwrite,
             }),
         },
+        Commands::Vault { command } => match command {
+            VaultCommands::Encrypt {
+                source,
+                destination,
+                confirm,
+                dry_run,
+            } => {
+                let source = source.or(cli.vault_path).ok_or(
+                    "vault encrypt requires --source or --vault-path / AI_BRAINS_VAULT_PATH",
+                )?;
+                commands::vault::run_encrypt(commands::vault::EncryptCliOptions {
+                    source,
+                    destination,
+                    key: cli.key,
+                    confirm,
+                    dry_run,
+                })
+            }
+        },
         _ => unreachable!("run_sync_path_free only for vault-path-free commands"),
     }
 }
@@ -1748,6 +1795,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
         Commands::Evaluate { .. } => unreachable!("evaluate handled in run_sync_path_free"),
         Commands::Dogfood { .. } => unreachable!("dogfood handled in run_sync_path_free"),
+        Commands::Vault { .. } => unreachable!("vault handled in run_sync_path_free"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {
                 project_id,

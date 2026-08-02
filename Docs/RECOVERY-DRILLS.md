@@ -31,12 +31,12 @@ See also [failure-drills.md](../conductor/failure-drills.md) F-REC-01/02 and
 | **T181-R-03** | Missing backup path | Non-zero; message class: `not found` / `Backup file not found` | Yes |
 | **T181-K-01..04** | Kit passphrase / DPAPI / wrong passphrase / no plaintext in JSON | Library crypto contracts | Yes (`crypto_recovery`) |
 | **T181-K-05** | Unlock kit → `SqlCipherKey::from_data_key` → open vault/backup | Library primitive chain (**not** full operator CLI export workflow) | Yes |
-| **T181-K-06** | Correct unlock + wrong SqlCipherKey open | Open fails when SQLCipher page encryption is active; kit→`from_data_key` binding always asserted. See §11 residual | Yes (dual-mode) |
+| **T181-K-06** | Correct unlock + wrong SqlCipherKey open | Open fails under live SQLCipher (T187 strict; dual-mode plain residual removed) | Yes (strict) |
 | **T181-K-07** | Kit JSON has no Argon2 KDF param fields | Residual honesty (generation-time defaults) | Yes |
 | **T181-E-01** | Pre-erase residual: seal → backup → wipe live → restore pre-wipe | Restored CE content still opens | Yes |
 | **T181-E-02** | Post-wipe backup: seal → wipe → backup → restore | Open fails (wrap destroyed) | Yes |
 | **T181-F-01** | Corrupt backup (header and/or body) | Non-zero + corruption-class substring | Yes |
-| **T181-F-02** | Wrong SQLCipher key on verify/restore | Non-zero + wrong-key class **when SQLCipher-active**; dual-mode residual on plain `bundled` SQLite | Yes (dual-mode) |
+| **T181-F-02** | Wrong SQLCipher key on verify/restore | Non-zero + wrong-key class under live SQLCipher (T187 strict) | Yes (strict) |
 | **T181-F-03** | Daemon running during restore | Warn only (no hard-fail product claim) | Soft / documented |
 
 ---
@@ -61,7 +61,7 @@ ai-brains --vault-path $Vault backup restore $BackupPath --force   # non-interac
 
 **Exit codes:** non-zero on missing path, integrity failure, and (when SQLCipher page encryption is active) wrong key / open failure. Exact wording is stringly (not typed enums); automation matches **substring classes** (see §7).
 
-> **Encryption honesty:** the current workspace `rusqlite` dependency uses `bundled` (plain SQLite; file header `SQLite format 3`). `PRAGMA key` is effectively a no-op until `bundled-sqlcipher` (or equivalent) is enabled. Do **not** claim page-level wrong-key fail-closed on today’s default CI build. See [COMPATIBILITY.md](COMPATIBILITY.md) / [Deviations.md](Deviations.md) and residual §11.
+> **Encryption honesty (T187):** workspace `rusqlite` uses **`bundled-sqlcipher-vendored-openssl`**. New vaults are page-encrypted (header is **not** plain `SQLite format 3`). Wrong-key open/verify fails closed. Zero keys refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1`. Legacy plain vaults: `ai-brains vault encrypt` (`sqlcipher_export`). **Not** FIPS / NIST Purge. See [COMPATIBILITY.md](COMPATIBILITY.md) F8 / [Deviations.md](Deviations.md) §1 (resolved).
 
 ---
 
@@ -112,7 +112,7 @@ Wrap and unwrap both use `Argon2::default()` at the **generation-time** defaults
 |-------|-------------------------------------|
 | Missing path (R-03) | `not found` / `Backup file not found` |
 | Corrupt (F-01) | `integrity` / `corrupt` / `not a database` / `query failed` / `Integrity check failed` |
-| Wrong key (F-02) | Empirical open/verify failure **when SQLCipher-active** (often `not a database` / key verification / file open). Not enforceable on plain `bundled` SQLite (header residual) |
+| Wrong key (F-02) | Fail-closed under live SQLCipher (T187): non-zero + wrong-key class (`not a database` / key verification / VaultLocked) |
 
 Non-zero exit alone is **insufficient**.
 
@@ -156,7 +156,7 @@ These are planning aids only — not contractual or marketed guarantees.
 | `ai-brains doctor` product | Future / T183 |
 | `ai-brains recovery export` CLI | Soft / T183–T184 |
 | Argon2 params in kit schema | Future crypto hygiene |
-| **Wrong-key / K-06 fail-closed requires SQLCipher page encryption** (`bundled-sqlcipher` or equiv.); current `bundled` plain SQLite ignores `PRAGMA key` | crypto/store / future encryption track (security-relevant residual, pre-existing) |
+| ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ | **Closed by T187** — live `bundled-sqlcipher-vendored-openssl`; strict drills |
 | #34.2 DataKey rotation | Open |
 | F-REC-03/04 projection/graph rebuild drills | Soft residual |
 | Hard-fail restore while daemon running | Product residual (today: warn) |

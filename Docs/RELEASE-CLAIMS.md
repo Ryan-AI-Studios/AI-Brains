@@ -27,8 +27,8 @@ Import and expansion of T183 `CLAIMS-CROSSCHECK.md` for product version **0.1.1*
 
 | Claimed capability (honest) | Explicit non-claim boundary |
 |-----------------------------|-----------------------------|
-| Append-only event log as canonical source of truth | Not “SQLCipher page-level encryption is live by default” (**R-F8**) |
-| Bundled SQLite vault + application-level Content Envelope (CE) AES-256-GCM + OS filesystem permissions | Not “full DB encryption” / page-level SQLCipher without F8 qualifier; not a zero-key-safe page vault (**R-F8**, **R-ZERO-KEY**) |
+| Append-only event log as canonical source of truth | Not FIPS-validated crypto; not NIST Purge/Destroy |
+| SQLCipher page-level vault encryption (T187 `bundled-sqlcipher-vendored-openssl`) + application-level Content Envelope (CE) AES-256-GCM + OS filesystem permissions | Not FIPS; not NIST Purge; page key ≠ content DEK; zero key still usable only with `AI_BRAINS_ALLOW_ZERO_KEY=1` (**R-ZERO-KEY** residual is escape-hatch honesty, not missing refuse) |
 | Capture works offline without models, embeddings, or graph databases | Not “intelligence / brain / nightly features work without models” |
 | Optional multi-device **replicate** of encrypted event envelopes via untrusted relay | Not metadata-private sync; not live SQLite file sync; ACK ≠ wipe proof (**R-META**, **R-ACK**) |
 | Optional cloud models when policy allows (`allow_cloud` default **false**) | Not cloud-required capture; not cloud-required product |
@@ -80,7 +80,7 @@ Per T185 L2 and §6.2. These must **not** appear as affirmative product claims i
 | Metadata-private sync | **R-META** |
 | Third-party plugin sandbox / WASI marketplace as shipped | **R-TB**, ADR-0019 |
 | Invented `ai-brains doctor` or `recovery export` CLIs | **R-DOC-CLI** |
-| “Full DB encryption” / live page-level SQLCipher without F8 | **R-F8** |
+| FIPS-validated / NIST Purge page encryption | T187 ships SQLCipher community + OpenSSL vendored — not FIPS/Purge |
 | UI grants authority beyond contracts | Product invariant |
 | SLSA Build L3 / “SLSA certified” / tamper-proof supply chain | **R-SLSA**, L9 |
 | Dedicated SAST product claim (clippy ≠ SAST) | **R-CI-SAST** |
@@ -114,23 +114,23 @@ Explicit product/process absences for version **0.1.1** (T185 §6.3). This secti
 | **Metadata-private sync** | Replication leaves metadata residual (**R-META**) |
 | **Third-party plugin sandbox / WASI host** | TrustedBuiltin only (**R-TB**, ADR-0019) |
 | **systemd / launchd production units** | Ops residual |
-| **Page-level SQLCipher on default builds** | Bundled SQLite + CE + OS perms only (**R-F8**) |
-| **DataKey rotation product feature** | Direction only (**R-34.2**) |
+| **FIPS-validated page encryption / NIST Purge** | SQLCipher community + OpenSSL vendored are not FIPS/Purge claims (T187) |
+| **DataKey rotation product feature** | Direction only (**R-34.2** / **T189**) |
 
 ---
 
-## 5. Encrypted vault language (F8 + R-ZERO-KEY)
+## 5. Encrypted vault language (F8 + T187 + R-ZERO-KEY)
 
-**Normative F8 wording** (COMPATIBILITY §4 / SECURITY-LIMITS §1):
+**Normative F8 wording** (COMPATIBILITY §4 / SECURITY-LIMITS §1) — **updated T187**:
 
-> Vault storage uses **bundled SQLite** combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions. **SQLCipher page-level encryption** remains architectural / feature-gated until CI verification.
+> Vault storage uses **SQLCipher page-level encryption** (`bundled-sqlcipher-vendored-openssl`) combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions. Wrong key fails closed. Zero keys refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1`. Not FIPS; not NIST Purge. Page key ≠ content DEK.
 
 **Required qualifiers for any “encrypted vault” phrasing:**
 
-1. **R-F8** — Do not claim page-level SQLCipher or unqualified “full encryption” while `rusqlite` uses `bundled` (not `bundled-sqlcipher`).
-2. **R-ZERO-KEY** — Daemon default all-zero vault key env is a footgun residual under F8; do not imply missing-key refuse-closed page encryption.
+1. **R-F8 (closed by T187)** — Page-level SQLCipher is **live** on default builds; still forbid FIPS / “perfect deletion” / Purge language.
+2. **R-ZERO-KEY (partial close)** — Missing/zero key is refused at `VaultConnection` unless `AI_BRAINS_ALLOW_ZERO_KEY=1`. Do not claim “no escape hatch”; tests/legacy may set the env.
 3. Application CE AES-256-GCM protects envelope payloads; OS file permissions still matter for the SQLite file and logs.
-4. Wrong-key fail-closed at the **page** layer needs live page encryption (**R-K06**) — not a current default-build claim.
+4. **R-K06 (closed by T187)** — Wrong-key fail-closed at the page layer is live (open / backup verify / recovery drills strict).
 
 ---
 
@@ -150,8 +150,8 @@ Every row in T184 `residuals.md` is dispositioned below. Minimum cite set per L3
 |-------------|------------------|-------------|---------------|
 | **R-12** | Path TOCTOU without openat/cap-std | Cited as non-claim | No claim of cap-std / openat path hardening; #12 residual documented. |
 | **R-34.2** | DataKey rotation / wrap-nonce budget | Cited as non-claim | Direction in ADR-0016/0018 only; not an implemented product feature. |
-| **R-F8** | Page-level SQLCipher not live | Cited as non-claim | F8 SOT; co-qualifies all “encrypted vault” language. |
-| **R-K06** | Wrong-key fail-closed needs page encrypt | Cited as non-claim | Depends on live SQLCipher page encrypt; not default-build claim. |
+| **R-F8** | Page-level SQLCipher live (T187) | **Closed** (evidence) | `bundled-sqlcipher-vendored-openssl`; header not plain; COMPATIBILITY F8 rewritten. |
+| **R-K06** | Wrong-key fail-closed at page layer | **Closed** (evidence) | T181 F-02/K-06 strict; dual-mode plain residual removed. |
 | **R-CE-PRE** | Pre-erase backups remain recoverable | Cited as non-claim | Ticket/wipe ≠ destroy offline copies (T181 E-01). |
 | **R-WAL-CKPT** | WAL checkpoint ≠ NIST Purge | Cited as non-claim | Store honesty; no Purge/Destroy product claim. |
 | **R-ACK** | Sync ACK ≠ wipe proof | Cited as non-claim | ACK is attestation only (ADR-0018 / OPERATIONS). |
@@ -175,7 +175,7 @@ Every row in T184 `residuals.md` is dispositioned below. Minimum cite set per L3
 | **R-CI-SAST** | No dedicated SAST (clippy ≠ SAST) | Cited as non-claim | Do not claim SAST product coverage. |
 | **R-CI-BRANCH** | Branch protection not enabled | Cited as non-claim | Open repo-admin residual; do not claim enforced protection. |
 | **R-SLSA** | No SLSA L3 / optional L1 attest | Cited as non-claim (L3); soft L1 optional | Repo is **public** — GitHub Artifact Attestations may be enabled in soft `release.yml` (L1-oriented fields via `actions/attest`). **Forbidden:** SLSA L3, “certified SLSA,” tamper-proof supply chain. Disposition updates when attest ships or is skipped. |
-| **R-ZERO-KEY** | Daemon default all-zero vault key env | Cited as non-claim | Co-qualifies “encrypted vault” with **R-F8**; future refuse-missing under page encrypt. |
+| **R-ZERO-KEY** | Zero-key refuse + escape hatch honesty | Cited as residual honesty | T187 refuses zero key unless `AI_BRAINS_ALLOW_ZERO_KEY=1`; do not claim “no zero-key path.” |
 | **R-DESKTOP-OPEN** | Desktop opener path residual | Cited as non-claim / honesty | Desktop README honesty; no overclaim of opener isolation. |
 | **R-AUDIT-UNMAINT** | audit unmaintained transitive warnings | Out of scope for claims | Gate still green on exit code; document if policy tightens (L4). |
 

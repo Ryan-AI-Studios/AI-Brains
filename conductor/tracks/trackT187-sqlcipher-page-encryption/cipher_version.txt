@@ -1,0 +1,5 @@
+PRAGMA cipher_version (observed 2026-08-02, Windows MSVC, bundled-sqlcipher-vendored-openssl):
+4.10.0 community
+
+Source: cargo test -p ai-brains-store --lib cipher_version -- --nocapture
+cipher_plaintext_header_size: unset (full header encrypted; AC2)

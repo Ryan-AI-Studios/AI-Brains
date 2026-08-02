@@ -20,30 +20,40 @@ const ZERO_KEY_BYTES: [u8; 32] = [0u8; 32];
 /// ALT_KEY material (32 0xff bytes).
 const ALT_KEY_BYTES: [u8; 32] = [0xffu8; 32];
 
-fn init_vault(vault_path: &Path) {
-    common::hermetic_bin()
+fn hermetic_with_key(vault_path: &Path, key: &str) -> assert_cmd::Command {
+    // T187: --no-project-context + explicit key env (after ambient strip) so
+    // repo `.env` cannot inject AI_BRAINS_KEY. Prefer env over --key argv to
+    // avoid Windows quoting quirks around x'…' material.
+    let mut cmd = common::hermetic_bin();
+    cmd.arg("--no-project-context")
         .arg("--vault-path")
         .arg(vault_path)
+        .env("AI_BRAINS_KEY", key)
+        .arg("--key")
+        .arg(key);
+    cmd
+}
+
+fn init_vault(vault_path: &Path) {
+    hermetic_with_key(vault_path, ZERO_KEY)
         .arg("init")
         .assert()
         .success();
 }
 
 fn init_vault_with_key(vault_path: &Path, key: &str) {
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(vault_path)
-        .arg("--key")
-        .arg(key)
+    hermetic_with_key(vault_path, key)
         .arg("init")
         .assert()
         .success();
 }
 
 fn create_backup(vault_path: &Path) -> PathBuf {
-    let output = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(vault_path)
+    create_backup_with_key(vault_path, ZERO_KEY)
+}
+
+fn create_backup_with_key(vault_path: &Path, key: &str) -> PathBuf {
+    let output = hermetic_with_key(vault_path, key)
         .arg("backup")
         .output()
         .expect("backup must run");
@@ -54,6 +64,9 @@ fn create_backup(vault_path: &Path) -> PathBuf {
     );
     let combined = combined_output(&output);
     assert_no_secret_leakage(&combined, &ZERO_KEY_BYTES);
+    if key == ALT_KEY {
+        assert_no_secret_leakage(&combined, &ALT_KEY_BYTES);
+    }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let backup_path = stdout
         .lines()
@@ -140,9 +153,7 @@ fn backup_restore__seeded_content__present_after_force_restore() {
             "content": "{SEED_CONTENT}"
         }}"#
     );
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&source_vault)
+    hermetic_with_key(&source_vault, ZERO_KEY)
         .arg("ingest")
         .write_stdin(turn_json)
         .assert()
@@ -156,7 +167,7 @@ fn backup_restore__seeded_content__present_after_force_restore() {
 
     init_vault(&dest_vault);
     // Different content on dest so we prove overwrite brought source content.
-    common::hermetic_bin()
+    hermetic_with_key(&dest_vault, ZERO_KEY)
         .env(
             "AI_BRAINS_PROJECT_ID",
             "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -165,17 +176,12 @@ fn backup_restore__seeded_content__present_after_force_restore() {
             "AI_BRAINS_SESSION_ID",
             "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         )
-        .arg("--vault-path")
-        .arg(&dest_vault)
-        .arg("--no-project-context")
         .arg("pin")
         .arg("dest-only content that must be replaced by restore")
         .assert()
         .success();
 
-    let restore_out = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&dest_vault)
+    let restore_out = hermetic_with_key(&dest_vault, ZERO_KEY)
         .arg("backup")
         .arg("restore")
         .arg(&backup_path)
@@ -200,10 +206,7 @@ fn backup_restore__seeded_content__present_after_force_restore() {
     );
 
     // Content smoke via recall.
-    let recall = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&dest_vault)
-        .arg("--no-project-context")
+    let recall = hermetic_with_key(&dest_vault, ZERO_KEY)
         .env(
             "AI_BRAINS_PROJECT_ID",
             "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -235,9 +238,7 @@ fn backup_restore__missing_path__not_found_class() {
     init_vault(&vault);
 
     let missing = dir.path().join("does-not-exist.db.bak");
-    let out = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault)
+    let out = hermetic_with_key(&vault, ZERO_KEY)
         .arg("backup")
         .arg("restore")
         .arg(&missing)
@@ -274,9 +275,7 @@ fn corrupt_backup_case(offset: u64) {
     let backup_path = create_backup(&vault);
     corrupt_at(&backup_path, offset);
 
-    let out = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault)
+    let out = hermetic_with_key(&vault, ZERO_KEY)
         .arg("backup")
         .arg("verify")
         .arg(&backup_path)
@@ -293,107 +292,74 @@ fn corrupt_backup_case(offset: u64) {
     );
 }
 
-/// T181-F-02: wrong SQLCipher key on verify → non-zero + wrong-key class.
+/// T181-F-02 / T187-H-02: wrong SQLCipher key on verify → non-zero + wrong-key class.
 ///
-/// Workspace currently uses `rusqlite` with `bundled` (plain SQLite header
-/// `SQLite format 3`); PRAGMA key is a no-op so cross-key verify may succeed.
-/// We still prove:
-/// 1. `--key` is wired (same-key ALT verify of ALT backup succeeds)
-/// 2. Cross-key verify does not dump key material
-/// 3. When the file is SQLCipher-encrypted, cross-key verify fails with the
-///    wrong-key substring class (F46)
+/// T187: live SQLCipher — strict fail-closed (no plain dual-mode residual).
+/// Uses two **non-zero** keys so the proof does not depend on zero-key escape hatch.
 #[test]
 fn backup_verify__wrong_key__wrong_key_class() {
     let dir = tempdir().unwrap();
-    let zero_vault = dir.path().join("zero.db");
-    let alt_vault = dir.path().join("alt.db");
+    // Separate parent dirs so second-resolution backup filenames cannot collide
+    // (both would otherwise write dir/backups/vault-<same-second>.db.bak).
+    let a_dir = dir.path().join("a");
+    let b_dir = dir.path().join("b");
+    fs::create_dir_all(&a_dir).unwrap();
+    fs::create_dir_all(&b_dir).unwrap();
+    let a_vault = a_dir.join("vault.db");
+    let b_vault = b_dir.join("vault.db");
+    // Distinct non-zero product keys (32 bytes each).
+    const KEY_A: &str = "x'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'";
+    const KEY_B: &str = "x'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'";
+    const KEY_A_BYTES: [u8; 32] = [0xaa; 32];
+    const KEY_B_BYTES: [u8; 32] = [0xbb; 32];
 
-    init_vault(&zero_vault);
-    let zero_backup = create_backup(&zero_vault);
+    init_vault_with_key(&a_vault, KEY_A);
+    let a_backup = create_backup_with_key(&a_vault, KEY_A);
 
-    init_vault_with_key(&alt_vault, ALT_KEY);
-    let alt_backup_out = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&alt_vault)
-        .arg("--key")
-        .arg(ALT_KEY)
-        .arg("backup")
-        .output()
-        .expect("alt backup");
-    assert!(
-        alt_backup_out.status.success(),
-        "alt-key backup must succeed; {}",
-        combined_output(&alt_backup_out)
-    );
-    let alt_backup = PathBuf::from(
-        String::from_utf8_lossy(&alt_backup_out.stdout)
-            .lines()
-            .find_map(|l| l.split("Backup created and verified: ").nth(1))
-            .expect("alt backup path")
-            .trim(),
+    init_vault_with_key(&b_vault, KEY_B);
+    let b_backup = create_backup_with_key(&b_vault, KEY_B);
+    assert_ne!(
+        a_backup, b_backup,
+        "backup paths must not collide across vault parents"
     );
 
     // Positive control: same key verifies.
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&alt_vault)
-        .arg("--key")
-        .arg(ALT_KEY)
+    hermetic_with_key(&b_vault, KEY_B)
         .arg("backup")
         .arg("verify")
-        .arg(&alt_backup)
+        .arg(&b_backup)
         .assert()
         .success()
         .stdout(predicate::str::contains("OK"));
 
-    // Cross-key: zero-key backup under ALT_KEY context.
-    let out = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&alt_vault)
-        .arg("--key")
-        .arg(ALT_KEY)
+    assert!(
+        !is_plain_sqlite_header(&a_backup),
+        "T187: backup must not have plain SQLite header under SQLCipher build"
+    );
+
+    // Cross-key: KEY_A backup verified under KEY_B context must fail closed.
+    let out = hermetic_with_key(&b_vault, KEY_B)
         .arg("backup")
         .arg("verify")
-        .arg(&zero_backup)
+        .arg(&a_backup)
         .output()
         .expect("verify wrong key");
     let msg = combined_output(&out);
-    assert_no_secret_leakage(&msg, &ALT_KEY_BYTES);
-    assert_no_secret_leakage(&msg, &ZERO_KEY_BYTES);
+    assert_no_secret_leakage(&msg, &KEY_A_BYTES);
+    assert_no_secret_leakage(&msg, &KEY_B_BYTES);
 
-    let plain = {
-        let bytes = fs::read(&zero_backup).unwrap_or_default();
-        bytes.starts_with(b"SQLite format 3")
-    };
-
-    if plain {
-        // Residual until SQLCipher feature is enabled in the workspace.
-        assert!(
-            is_plain_sqlite_header(&zero_backup),
-            "pin residual reason: plain SQLite header"
-        );
-        // No panic; exit code is best-effort. Prefer fail when product strengthens.
-        if !out.status.success() {
-            assert!(
-                matches_wrong_key_class(&msg),
-                "actionable fail class if product rejects: {msg}"
-            );
-        }
-    } else {
-        assert!(
-            !out.status.success(),
-            "SQLCipher-active: wrong-key verify must fail non-zero; out={msg}"
-        );
-        assert!(
-            matches_wrong_key_class(&msg),
-            "F-02 must match wrong-key class; pinned message was: {msg}"
-        );
-    }
+    assert!(
+        !out.status.success(),
+        "T187-H-02 / F-02: wrong-key verify must fail non-zero; out={msg}"
+    );
+    assert!(
+        matches_wrong_key_class(&msg),
+        "F-02 must match wrong-key class; pinned message was: {msg}"
+    );
 }
 
 fn is_plain_sqlite_header(path: &Path) -> bool {
-    let bytes = fs::read(path).unwrap_or_default();
-    bytes.starts_with(b"SQLite format 3")
+    ai_brains_store::is_plain_sqlite_header(path)
 }
 
 /// Soft T181-F-03 documentation: daemon warn path is product-side; no hard-fail claim.
@@ -409,9 +375,7 @@ fn backup_restore__dry_run__integrity_ok_no_mutation() {
     let size_before = fs::metadata(&dest).unwrap().len();
     let backup_path = create_backup(&source);
 
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&dest)
+    hermetic_with_key(&dest, ZERO_KEY)
         .arg("backup")
         .arg("restore")
         .arg(&backup_path)

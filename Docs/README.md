@@ -61,7 +61,7 @@ Graph CLI (`ai-brains graph …`) needs a build with `--features graph`. Capture
 
 | Claim you might expect | Reality |
 |------------------------|---------|
-| Page-level SQLCipher / “full DB encryption” live | **No** — vault = **bundled SQLite** + app-level Content Envelope AES-256-GCM + OS permissions. SQLCipher page-level is feature-gated / not live. **Copy:** [COMPATIBILITY.md §4 (F8)](COMPATIBILITY.md) |
+| Page-level SQLCipher live (T187) | **Yes** — `bundled-sqlcipher-vendored-openssl` + app-level Content Envelope AES-256-GCM + OS permissions. **Not** FIPS / NIST Purge. **Copy:** [COMPATIBILITY.md §4 (F8)](COMPATIBILITY.md) |
 | Sandboxed third-party plugins / WASI marketplace | **No** — release connectors are first-party **`TrustedBuiltin` only** ([ADR-0019](DECISIONS/ADR-0019-connector-sandbox-execution-model.md)) |
 | Perfect deletion / NIST Purge·Destroy | **No** — CE wipe is envelope-backed; pre-erase backups remain recoverable |
 | Metadata-private multi-device sync | **No** — optional untrusted relay; metadata residual; ACK ≠ wipe proof (ADR-0018) |

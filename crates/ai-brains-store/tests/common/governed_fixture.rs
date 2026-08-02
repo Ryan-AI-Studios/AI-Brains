@@ -3,10 +3,11 @@
 //! Loads fixed NDJSON envelopes (not EventBuilder) into a tempfile vault and
 //! exports selected projection rows for golden comparison.
 
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_events::Envelope;
 use ai_brains_store::StoreError;
-use ai_brains_store::connection::VaultConnection;
+use ai_brains_store::connection::{ALLOW_ZERO_KEY_ENV, VaultConnection};
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 use serde_json::{Value, json};
 use std::fs;
@@ -54,6 +55,8 @@ pub fn load_envelopes_from_ndjson(
 /// envelopes as-is (fixed event_id / payload_hash).
 pub struct LoadedFixture {
     pub _temp: TempDir,
+    /// Keeps `AI_BRAINS_ALLOW_ZERO_KEY=1` for the fixture lifetime (T187).
+    pub _allow_zero_key: TempEnv,
     pub vault_path: PathBuf,
     pub store: SqliteEventStore,
     pub envelopes: Vec<Envelope>,
@@ -65,6 +68,7 @@ impl LoadedFixture {
     }
 
     pub fn load_from_path(ndjson_path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+        let allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
         let envelopes = load_envelopes_from_ndjson(ndjson_path)?;
         let temp = tempfile::tempdir()?;
         let vault_path = temp.path().join("fixture-vault.db");
@@ -77,6 +81,7 @@ impl LoadedFixture {
         }
         Ok(Self {
             _temp: temp,
+            _allow_zero_key: allow,
             vault_path,
             store,
             envelopes,
