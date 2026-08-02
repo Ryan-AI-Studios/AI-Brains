@@ -13,7 +13,7 @@
 | Internal R1 correctness | subagent | **PASS** | Dual-read, hermetic, capture independence OK |
 | Codex R1 | gpt-5.6-luna high | **PASS WITH P3 CLOSEOUT GAPS** | No P0–P2; mixed-tag test + gate/closeout |
 | Mixed-tag fix | orchestrator | **fixed_pending_verification** | `symbol_dedup__mixed_legacy_and_new_tags__no_double_ingest` |
-| Final Codex | (pending gate green) | — | Fresh re-review after fixes |
+| Final Codex R2 | gpt-5.6-luna high | **PASS WITH DEFERRED P3** | Fresh final gate: no P0–P2; only process P3 (plan E5/E6 after merge, stale gate-full.log artifact) |
 
 ## Findings disposition
 

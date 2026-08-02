@@ -73,7 +73,7 @@ Spec: [spec.md](./spec.md) (F1–F24, AC1–AC11). Disposition: spec §15.
 ## Phase E — Docs + deferred + gate
 
 - [x] **E1** `briefings.rs:122` blend comment → Ledgerful-only; other non-archive nits  
-- [ ] **E2** Strike T142 #1–2 + T186 L13 in `deferred.md` (orchestrator closeout)  
+- [x] **E2** Strike T142 #1–2 + T186 L13 in `deferred.md`  
 - [x] **E3** CHANGELOG hygiene line  
 - [x] **E4** Full gate (local: fmt+clippy green; nextest with ALLOW_ZERO_KEY=1; deny+audit)  
 - [ ] **E5** Conductor ✅ (orchestrator after PR merge)  
