@@ -42,6 +42,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Security
 
+- **T194 Recovery Kit Schema Hygiene:** Pin Argon2id KDF parameters into RecoveryKit JSON under `passphrase.kdf` (algorithm, version, m_cost, t_cost, p_cost). New kits always stamp product params (m=19456, t=2, p=1, v19); unlock uses stored params or fixed `KdfParams::legacy()` dual-read for pre-T194 kits. Removes `Argon2::default()` from the recovery passphrase path. Closes F37 residual.
 - **T190:** Eliminates check-then-open TOCTOU on connector vault open+list (no silent ambient read fallback). Soft-canonicalize remains non-claim for TOCTOU.
 - **T188:** Restore hard-fail while daemon reachable; recovery kit export never prints secrets; passphrase min 8; no `--passphrase` argv; export avoids `migrate()` while daemon up.
 - **T187:** Wrong-key fail-closed at page layer; zero-key refuse by default; legacy plain vaults require explicit `vault encrypt` (no silent auto-encrypt).

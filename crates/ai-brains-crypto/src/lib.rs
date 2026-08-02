@@ -18,6 +18,7 @@ pub use content_key_store::{
 };
 pub use data_key::DataKey;
 pub use errors::{CryptoError, Result};
+pub use key_wrap::{DpapiWrappedKey, KdfParams, PassphraseWrappedKey};
 pub use recovery_kit::RecoveryKit;
 pub use sqlcipher::SqlCipherKey;
 
