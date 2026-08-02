@@ -16,7 +16,6 @@ use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 
@@ -272,10 +271,38 @@ pub fn run_create(
     }
 
     let manifest_path = manifest_path_for(&destination);
-    let mut file = fs::File::create(&manifest_path)?;
-    let body = serde_json::to_string_pretty(&manifest)?;
-    file.write_all(body.as_bytes())?;
-    file.write_all(b"\n")?;
+    let body = format!("{}\n", serde_json::to_string_pretty(&manifest)?);
+    let parent = manifest_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| {
+            format!(
+                "shadow-manifest path has no parent: {}",
+                manifest_path.display()
+            )
+        })?;
+    let file_name = manifest_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| {
+            format!(
+                "shadow-manifest missing UTF-8 name: {}",
+                manifest_path.display()
+            )
+        })?;
+    // T193 P1: nofollow SOOT Replace for shadow-manifest.json.
+    ai_brains_path::write_file_nofollow_under_parent_path(
+        parent,
+        file_name,
+        body.as_bytes(),
+        ai_brains_path::CreateMode::Replace,
+    )
+    .map_err(|e| {
+        format!(
+            "failed to write shadow-manifest {}: {e}",
+            manifest_path.display()
+        )
+    })?;
 
     println!(
         "Shadow vault created at {} ({} event(s), redaction={})",

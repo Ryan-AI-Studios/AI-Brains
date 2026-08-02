@@ -64,10 +64,12 @@ Shared API lives in `ai-brains-path` (`cap_open` module): `open_ambient_vault_di
 
 | Evaluate / residual | Disposition |
 |---------------------|-------------|
-| T188 `artifact_security` write + migrate/shadow dest | **Residual:** pre-check + post-write reparse remains; not vault-root read path |
-| `ai-brains-api-server` token file path | **Out of scope** (explicit residual) |
-| Soft-canonicalize | **Non-claim** for TOCTOU (F10) |
-| Plugin WASI / all ambient CLI paths | **Non-claim** |
+| T188 `artifact_security` write + kit write | **Elevated (T193):** shared write SOOT (`CreateMode::CreateNew` \| `Replace`); parent reparse + ACL order retained |
+| `ai-brains-api-server` token load/write | **Elevated (T193):** ambient parent Dir → nofollow leaf read/write + owner ACL |
+| Migrate report/manifest, shadow-manifest, dogfood/evaluate reports | **Elevated (T193 P1)** via `write_file_nofollow_under_parent_path` |
+| Soft-canonicalize | **Non-claim** for TOCTOU (F10) — permanent residual |
+| Parent `create_dir_all` chain; backup dest tree | **Residual** (F26 / L3); backup adds parent reparse refuse only |
+| Plugin WASI / ambient CLI long-tail | **Non-claim** (inventory residual; see T193 spec §13) |
 
 ### 4. Non-claims
 
@@ -94,7 +96,8 @@ Map capability errors to `VaultFsError`: `ReparseRefused`, `PathEscape`, `Oversi
 
 ### Negative / residual
 
-- Ambient CLI, soft-canon, token path, artifact write path remain honesty residuals.
+- Soft-canon, parent `create_dir_all`, ambient CLI long-tail, perfect Windows all-API TOCTOU remain honesty residuals (T193 residual register).
+- **Write path elevated (T193 short amend):** P0 artifact/token/kit + P1 operator reports use shared nofollow write SOOT; never claim product-wide write TOCTOU closed.
 - Windows junction final-as-file may fail as `Io` (access denied) rather than typed reparse — still fail closed.
 - Multiple `windows-sys` versions may warn under `cargo deny` bans (warn level).
 
@@ -112,5 +115,5 @@ Map capability errors to `VaultFsError`: `ReparseRefused`, `PathEscape`, `Oversi
 ## Relationship to ADR-0019
 
 - **L2:** production `cap-std` allowed for TrustedBuiltin path hardening under **this** ADR.
-- **L10 residual #12:** rewritten as **closed-with-residuals** for connector vault open+list; ambient/soft-canon/token residuals remain.
-- Pointer: ADR-0019 §4 path residual → T190 / ADR-0021.
+- **L10 residual #12:** rewritten as **closed-with-residuals** for connector vault open+list (T190) and high-risk write/token surfaces (T193); soft-canon / ambient long-tail / parent mkdir residuals remain.
+- Pointer: ADR-0019 §4 path residual → T190 / ADR-0021; write residual elevation → T193.

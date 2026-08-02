@@ -18,8 +18,20 @@ fn retention_sentinel_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
     };
     let mut path = home;
     path.push(".ai-brains");
-    if !path.exists() {
+    // T193 P1 (L3): pure-ambient create_dir residual — refuse if path is reparse.
+    if path.exists() {
+        let is_reparse = ai_brains_path::is_reparse_or_symlink(&path)
+            .map_err(|e| format!(".ai-brains path check failed: {e}"))?;
+        if let Err(msg) = ai_brains_path::refuse_if_reparse(&path, is_reparse) {
+            return Err(msg.into());
+        }
+    } else {
         fs::create_dir_all(&path)?;
+        let is_reparse = ai_brains_path::is_reparse_or_symlink(&path)
+            .map_err(|e| format!(".ai-brains path check failed after create: {e}"))?;
+        if let Err(msg) = ai_brains_path::refuse_if_reparse(&path, is_reparse) {
+            return Err(msg.into());
+        }
     }
     path.push(RETENTION_SENTINEL);
     Ok(path)

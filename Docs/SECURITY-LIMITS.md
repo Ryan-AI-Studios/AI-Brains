@@ -79,7 +79,7 @@ See CAPABILITIES models section and T157 policy notes in OPERATIONS.
 | Third-party plugin host / marketplace | **Not shipped** |
 | “Sandboxed plugins” / “WASI isolation” marketing | **Forbidden** until a reviewed host lands |
 | Policy (grants) still applies | TrustedBuiltin is not privilege escalation |
-| Vault path open / TOCTOU (T190) | **Connector vault open+list hardened** (cap-std + component nofollow; no ambient `std::fs::read` fallback). **Not** claimed: all ambient CLI paths; soft-canonicalize as security open; token-file path; artifact write path (pre-check + post-write reparse residual). |
+| Vault path open / TOCTOU (T190 + **T193**) | **Connector vault open+list hardened** (cap-std + component nofollow; no ambient `std::fs::read` fallback). **Write SOOT (T193):** shared `cap_open` CreateNew\|Replace nofollow (temp-rename replace; never Windows TRUNCATE+OPEN_REPARSE); elevated P0 artifact / token / recovery kit + P1 migrate/shadow/dogfood/evaluate operator reports. Handle-bound hardlink refuse. **Not** claimed: product-wide path TOCTOU closed; soft-canonicalize as security open; parent `create_dir_all` chain; ambient CLI long-tail (adapters/context/elevation/discovery/cozo_proxy); perfect all-API Windows TOCTOU. |
 
 ---
 

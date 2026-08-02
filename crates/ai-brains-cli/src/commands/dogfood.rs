@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -257,10 +256,23 @@ fn write_compare_out(
     {
         fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string_pretty(packet)?;
-    let mut file = fs::File::create(path)?;
-    file.write_all(json.as_bytes())?;
-    file.write_all(b"\n")?;
+    let body = format!("{}\n", serde_json::to_string_pretty(packet)?);
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| format!("compare out path has no parent: {}", path.display()))?;
+    let file_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("compare out missing UTF-8 name: {}", path.display()))?;
+    // T193 P1: nofollow SOOT Replace for dogfood compare packet.
+    ai_brains_path::write_file_nofollow_under_parent_path(
+        parent,
+        file_name,
+        body.as_bytes(),
+        ai_brains_path::CreateMode::Replace,
+    )
+    .map_err(|e| format!("failed to write dogfood compare {}: {e}", path.display()))?;
     Ok(())
 }
 
