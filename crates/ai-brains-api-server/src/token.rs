@@ -115,9 +115,37 @@ fn load_token(path: &Path) -> Result<Zeroizing<String>, TokenError> {
     // Fail-closed: re-verify owner ACL on every load so a weakened ACL is not
     // accepted forever after first create (R1-04). Re-apply once if verify fails.
     ensure_owner_acl_on_load(path)?;
-    let raw = std::fs::read_to_string(path).map_err(|source| TokenError::Read {
+
+    // T193 F15 / AC3: ambient parent Dir once → nofollow open leaf → read handle.
+    // Never sole ambient read_to_string after check.
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| TokenError::Read {
+            path: path.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "token path has no parent directory",
+            ),
+        })?;
+    let file_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| TokenError::Read {
+            path: path.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "token path missing UTF-8 file name",
+            ),
+        })?;
+    const MAX_TOKEN_BYTES: u64 = 16 * 1024;
+    let parent_dir =
+        ai_brains_path::open_ambient_dir(parent).map_err(|e| map_cap_to_token_read(path, e))?;
+    let bytes = ai_brains_path::read_file_nofollow_leaf(&parent_dir, file_name, MAX_TOKEN_BYTES)
+        .map_err(|e| map_cap_to_token_read(path, e))?;
+    let raw = String::from_utf8(bytes).map_err(|e| TokenError::Read {
         path: path.display().to_string(),
-        source,
+        source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
     })?;
     let trimmed = raw.trim().to_string();
     if trimmed.is_empty() {
@@ -146,25 +174,54 @@ fn ensure_owner_acl_on_load(path: &Path) -> Result<(), TokenError> {
 }
 
 /// Write token with reparse refuse + owner-only ACL (apply-then-verify fail-closed).
+///
+/// T193 F15 / AC3: SOOT create/replace under ambient parent Dir; no ambient
+/// `std::fs::write` success path.
 pub fn write_token_file(path: &Path, content: &str) -> Result<(), TokenError> {
-    if let Some(parent) = path.parent()
-        && !parent.as_os_str().is_empty()
-    {
-        refuse_reparse(parent)?;
-        std::fs::create_dir_all(parent).map_err(|source| TokenError::CreateDir {
-            path: parent.display().to_string(),
-            source,
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| TokenError::Write {
+            path: path.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "token path has no parent directory",
+            ),
         })?;
-        refuse_reparse(parent)?;
-    }
-
-    refuse_reparse(path)?;
-    refuse_hardlink(path)?;
-
-    std::fs::write(path, content.as_bytes()).map_err(|source| TokenError::Write {
-        path: path.display().to_string(),
+    refuse_reparse(parent)?;
+    std::fs::create_dir_all(parent).map_err(|source| TokenError::CreateDir {
+        path: parent.display().to_string(),
         source,
     })?;
+    refuse_reparse(parent)?;
+
+    refuse_reparse(path)?;
+    // Ambient hardlink pre-check (defense-in-depth); SOOT also refuses handle nlink>1.
+    refuse_hardlink(path)?;
+
+    let file_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| TokenError::Write {
+            path: path.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "token path missing UTF-8 file name",
+            ),
+        })?;
+    // Replace if present (regenerate), CreateNew if missing.
+    let mode = if path.exists() {
+        ai_brains_path::CreateMode::Replace
+    } else {
+        ai_brains_path::CreateMode::CreateNew
+    };
+    ai_brains_path::write_file_nofollow_under_parent_path(
+        parent,
+        file_name,
+        content.as_bytes(),
+        mode,
+    )
+    .map_err(|e| map_cap_to_token_write(path, e))?;
 
     // TOCTOU: re-check reparse after write.
     if let Err(e) = refuse_reparse(path) {
@@ -174,6 +231,48 @@ pub fn write_token_file(path: &Path, content: &str) -> Result<(), TokenError> {
 
     apply_and_verify_owner_acl(path)?;
     Ok(())
+}
+
+fn map_cap_to_token_read(path: &Path, e: ai_brains_path::CapOpenError) -> TokenError {
+    use ai_brains_path::CapOpenError;
+    match e {
+        CapOpenError::ReparseRefused(label) => TokenError::Reparse(format!(
+            "refusing reparse/symlink at {} ({label})",
+            path.display()
+        )),
+        CapOpenError::HardlinkRefused(label) => {
+            TokenError::Hardlink(format!("refusing hardlink at {} ({label})", path.display()))
+        }
+        CapOpenError::NotFound(_) => TokenError::Read {
+            path: path.display().to_string(),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, e.to_string()),
+        },
+        CapOpenError::Oversized { .. } => TokenError::Read {
+            path: path.display().to_string(),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+        },
+        other => TokenError::Read {
+            path: path.display().to_string(),
+            source: std::io::Error::other(other.to_string()),
+        },
+    }
+}
+
+fn map_cap_to_token_write(path: &Path, e: ai_brains_path::CapOpenError) -> TokenError {
+    use ai_brains_path::CapOpenError;
+    match e {
+        CapOpenError::ReparseRefused(label) => TokenError::Reparse(format!(
+            "refusing reparse/symlink at {} ({label})",
+            path.display()
+        )),
+        CapOpenError::HardlinkRefused(label) => {
+            TokenError::Hardlink(format!("refusing hardlink at {} ({label})", path.display()))
+        }
+        other => TokenError::Write {
+            path: path.display().to_string(),
+            source: std::io::Error::other(other.to_string()),
+        },
+    }
 }
 
 fn refuse_reparse(path: &Path) -> Result<(), TokenError> {

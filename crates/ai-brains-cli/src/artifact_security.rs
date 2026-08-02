@@ -228,24 +228,42 @@ pub fn write_protected_artifact(
             ensure_parent_protected(path)?;
         }
 
-        // 4. File reparse check before write.
+        // 4. File reparse check before write (defense-in-depth; SOOT also refuses open-time).
         if let Err(msg) = refuse_if_reparse(path, is_reparse_or_symlink(path)?) {
             return Err(msg.into());
         }
 
-        // 4b. Hardlink check: refuse nlink > 1 (D0.5 still allows regular single-link replace).
+        // 4b. Ambient hardlink pre-check (defense-in-depth). Handle-bound nlink is
+        // enforced inside write_file_nofollow_leaf (T193 AC14 / F10).
         if let Err(msg) = refuse_if_hardlink(path, is_hardlink(path)?) {
             return Err(msg.into());
         }
 
-        // 5. write
-        std::fs::write(path, content).map_err(|e| {
+        // 5. SOOT write under ambient parent Dir (T193 F12 / AC2).
+        // CreateMode::Replace: D0.5 allows regular single-link re-schedule replace.
+        // Never ambient std::fs::write (F7); never Windows TRUNCATE+OPEN_REPARSE (F31).
+        let file_name = path.file_name().and_then(|s| s.to_str()).ok_or_else(|| {
             format!(
-                "Failed to write protected artifact {}: {}",
-                path.display(),
-                e
+                "protected artifact path missing UTF-8 file name: {}",
+                path.display()
             )
         })?;
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .ok_or_else(|| {
+                format!(
+                    "protected artifact path has no parent directory: {}",
+                    path.display()
+                )
+            })?;
+        ai_brains_path::write_file_nofollow_under_parent_path(
+            parent,
+            file_name,
+            content.as_bytes(),
+            ai_brains_path::CreateMode::Replace,
+        )
+        .map_err(|e| map_cap_open_write_err(path, e))?;
 
         // 6. Post-write reparse re-check (TOCTOU). If reparse, best-effort delete.
         let is_reparse_after = is_reparse_or_symlink(path)?;
@@ -268,6 +286,32 @@ pub fn write_protected_artifact(
         })?;
 
         Ok(())
+    }
+}
+
+/// Map SOOT write errors to artifact_security's dyn Error surface.
+#[cfg(windows)]
+fn map_cap_open_write_err(
+    path: &Path,
+    e: ai_brains_path::CapOpenError,
+) -> Box<dyn std::error::Error> {
+    use ai_brains_path::CapOpenError;
+    match e {
+        CapOpenError::ReparseRefused(label) => format!(
+            "refusing to write protected artifact through reparse/symlink at {} ({label})",
+            path.display()
+        )
+        .into(),
+        CapOpenError::HardlinkRefused(label) => format!(
+            "refusing to write through hardlink at {} (link count > 1; {label})",
+            path.display()
+        )
+        .into(),
+        other => format!(
+            "Failed to write protected artifact {}: {other}",
+            path.display()
+        )
+        .into(),
     }
 }
 

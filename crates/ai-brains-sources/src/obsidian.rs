@@ -439,6 +439,8 @@ fn map_cap_open_err(e: CapOpenError) -> ConnectorError {
     map_vault_err(match e {
         CapOpenError::PathEscape(s) => VaultFsError::PathEscape(s),
         CapOpenError::ReparseRefused(s) => VaultFsError::ReparseRefused(s),
+        CapOpenError::HardlinkRefused(s) => VaultFsError::Io(format!("hardlink refused: {s}")),
+        CapOpenError::AlreadyExists(s) => VaultFsError::Io(format!("already exists: {s}")),
         CapOpenError::Oversized { size, max_bytes } => VaultFsError::Oversized { size, max_bytes },
         CapOpenError::NotFound(s) => VaultFsError::NotFound(s),
         CapOpenError::NotAFile(s) | CapOpenError::NotADir(s) | CapOpenError::Io(s) => {

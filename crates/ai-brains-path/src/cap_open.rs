@@ -300,10 +300,7 @@ fn replace_file_nofollow_leaf(
 /// O1: create temp leaf under same parent, write+sync, atomic rename to final.
 fn write_via_temp_rename(parent: &Dir, file_name: &str, bytes: &[u8]) -> Result<(), CapOpenError> {
     let temp_name = unique_temp_leaf_name(file_name);
-    let mut file = match create_file_component_nofollow(parent, &temp_name) {
-        Ok(f) => f,
-        Err(e) => return Err(e),
-    };
+    let mut file = create_file_component_nofollow(parent, &temp_name)?;
     if let Err(e) = write_and_sync_handle(&mut file, &temp_name, bytes) {
         drop(file);
         let _ = parent.remove_file(&temp_name);
