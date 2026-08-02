@@ -5,6 +5,11 @@ pub enum StoreError {
     #[error("Vault is locked or incorrect key provided: {0}")]
     VaultLocked(String),
 
+    /// Existing file has a plain SQLite header; page encryption is not active.
+    /// Operator must run `ai-brains vault encrypt` (sqlcipher_export) — not automatic.
+    #[error("Legacy plaintext vault (SQLite format 3 header): {migrate_hint}")]
+    LegacyPlaintextVault { migrate_hint: String },
+
     #[error("Database connection failed: {0}")]
     ConnectionFailed(String),
 

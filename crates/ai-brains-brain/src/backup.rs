@@ -143,9 +143,13 @@ impl BackupService {
     /// WARNING: This will deadlock if another connection to the same vault
     /// is already open in WAL mode. Prefer `run_backup_from_conn` with the
     /// existing AppContext connection.
+    ///
+    /// T187 F6: source must apply key + verify (never unkeyed open of a vault).
     pub fn run_backup(&self) -> Result<PathBuf, Box<dyn std::error::Error>> {
         let src = rusqlite::Connection::open(&self.vault_path)?;
-        src.execute_batch("PRAGMA busy_timeout = 5000;")?;
+        apply_key_pragmas(&src, &self.key)?;
+        src.query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()))
+            .map_err(|e| format!("Key verification failed on backup source: {e}"))?;
         self.run_backup_from_conn(&src)
     }
 
@@ -306,30 +310,58 @@ impl BackupService {
                     let is_missing_meta_table = err
                         .to_string()
                         .contains("no such table: _aibrains_backup_meta");
-                    let has_core_tables = match rusqlite::Connection::open(&path) {
-                        Ok(conn) => {
-                            let _ = apply_key_pragmas(&conn, &self.key);
-                            has_core_tables(&conn)
-                        }
-                        Err(_) => false,
+                    // T187: do not ignore apply_key failures (wrong key ≠ "missing tables").
+                    let key_probe = match rusqlite::Connection::open(&path) {
+                        Ok(conn) => match apply_key_pragmas(&conn, &self.key) {
+                            Ok(()) => match conn.query_row(
+                                "SELECT count(*) FROM sqlite_master",
+                                [],
+                                |_| Ok(()),
+                            ) {
+                                Ok(()) => Ok(has_core_tables(&conn)),
+                                Err(e) => Err(format!("Key verification failed: {e}")),
+                            },
+                            Err(e) => Err(format!("apply key failed: {e}")),
+                        },
+                        Err(e) => Err(format!("open failed: {e}")),
                     };
-                    if is_missing_meta_table && has_core_tables {
-                        tracing::debug!(
-                            path = %path.display(),
-                            "Backup predates metadata table; core tables present"
-                        );
-                    } else if quiet {
-                        tracing::debug!(
-                            path = %path.display(),
-                            error = %err,
-                            "Could not read backup metadata (quiet)"
-                        );
-                    } else {
-                        tracing::warn!(
-                            path = %path.display(),
-                            error = %err,
-                            "Could not read backup metadata"
-                        );
+                    match key_probe {
+                        Ok(true) if is_missing_meta_table => {
+                            tracing::debug!(
+                                path = %path.display(),
+                                "Backup predates metadata table; core tables present"
+                            );
+                        }
+                        Ok(_) if quiet => {
+                            tracing::debug!(
+                                path = %path.display(),
+                                error = %err,
+                                "Could not read backup metadata (quiet)"
+                            );
+                        }
+                        Ok(_) => {
+                            tracing::warn!(
+                                path = %path.display(),
+                                error = %err,
+                                "Could not read backup metadata"
+                            );
+                        }
+                        Err(key_err) if quiet => {
+                            tracing::debug!(
+                                path = %path.display(),
+                                error = %key_err,
+                                meta_error = %err,
+                                "Backup key/open failure (quiet)"
+                            );
+                        }
+                        Err(key_err) => {
+                            tracing::warn!(
+                                path = %path.display(),
+                                error = %key_err,
+                                meta_error = %err,
+                                "Backup key verification or open failed (not silent skip)"
+                            );
+                        }
                     }
                     HashMap::new()
                 }
@@ -472,6 +504,19 @@ mod tests {
         let count: i32 =
             backup_conn.query_row("SELECT COUNT(*) FROM test", [], |row| row.get(0))?;
         assert_eq!(count, 1);
+
+        // T187: wrong key must fail on backup file
+        let wrong = SqlCipherKey::from_raw(
+            "x'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'".to_string(),
+        );
+        let wrong_conn = rusqlite::Connection::open(&backup_path)?;
+        apply_key_pragmas(&wrong_conn, &wrong)?;
+        let wrong_open =
+            wrong_conn.query_row("SELECT COUNT(*) FROM test", [], |row| row.get::<_, i32>(0));
+        assert!(
+            wrong_open.is_err(),
+            "T187: wrong key must not read backup contents: {wrong_open:?}"
+        );
 
         // Verify integrity
         let integrity: String =

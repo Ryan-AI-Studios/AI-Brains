@@ -14,6 +14,19 @@ This document records the supported installation paths and version pins for the 
 
 All three tools install to `~/.cargo/bin/` via standard `cargo install`. No project-local binaries or generated caches are used.
 
+## SQLCipher / OpenSSL build prereqs (T187)
+
+Default workspace builds use `rusqlite` with **`bundled-sqlcipher-vendored-openssl`**. On **Windows MSVC**, vendored OpenSSL requires **Perl** on `PATH` (`openssl-src` runs `perl ./Configure`).
+
+| Tool | Required? | Notes |
+|------|-----------|--------|
+| **Perl** (Strawberry Perl or equivalent) | **Yes** on Windows MSVC | e.g. `C:\Strawberry\perl\bin` on PATH; verify with `perl -v` |
+| **NASM** | Optional | Only if OpenSSL is built with assembly; vendored path often uses `no-asm` when NASM is absent |
+
+Linux/macOS GHA images typically already provide Perl. Documented for local Windows and `scripts/dev-check.ps1` capability check.
+
+Hermetic note: `OPENSSL_NO_VENDOR`, `OPENSSL_CONFIG_DIR`, and `OPENSSL_STATIC` can change link behavior — prefer defaults for reproducible CI.
+
 ## Full CI Gate
 
 ### Windows (PowerShell)

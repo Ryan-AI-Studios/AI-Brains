@@ -6,7 +6,7 @@ AI-Brains implements a Command Query Responsibility Segregation (CQRS) pattern w
 ## 2. Core Components
 
 ### 2.1 Event Store (`ai-brains-store`)
-The source of truth is an append-only table in a **bundled SQLite** database. Sensitive payloads use application-level **Content Envelope AES-256-GCM**; **SQLCipher page-level encryption is feature-gated / not live** on the default build (see [COMPATIBILITY.md](COMPATIBILITY.md) F8).
+The source of truth is an append-only table in a **SQLCipher-encrypted SQLite** database (T187: `bundled-sqlcipher-vendored-openssl`). Sensitive payloads additionally use application-level **Content Envelope AES-256-GCM** (page key ≠ content DEK; see [COMPATIBILITY.md](COMPATIBILITY.md) F8).
 - **Immutability**: Database triggers prevent updates or deletes to the `events` table.
 - **Schema Versions**: Supports upcasting for backward-compatible event evolution.
 
@@ -85,7 +85,7 @@ To optimize for long-context LLMs, the retrieval layer generates a **Briefing In
 ## 5. Portability and Degradation
 AI-Brains is designed to run in environments with varying levels of service:
 - **Minimum**: SQLite + Lexical Search (Works everywhere).
-- **Hardened**: Content Envelope AES-256-GCM + OS permissions; SQLCipher page-level remains feature-gated (not “full encryption” on default builds — [COMPATIBILITY.md](COMPATIBILITY.md) F8).
+- **Hardened**: SQLCipher page-level encryption (T187) + Content Envelope AES-256-GCM + OS permissions (not FIPS / not NIST Purge — [COMPATIBILITY.md](COMPATIBILITY.md) F8).
 - **Intelligence**: Ollama/Cloud Models + RAPTOR (Full synthesis).
 - **Relational**: LadybugDB (Graph traversal).
 

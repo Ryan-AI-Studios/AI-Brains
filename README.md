@@ -6,7 +6,7 @@ AI-Brains is an event-sourced, privacy-first memory system for AI agents, optimi
 Capture must be fast, durable, encrypted, and independent of every advanced memory feature. The system ensures that your project history is never lost, even if intelligence services are offline.
 
 ## Key Features
-- **Canonical Event Log**: Append-only history in **bundled SQLite**, with application-level **Content Envelope AES-256-GCM** for sensitive payloads and OS filesystem permissions. **SQLCipher page-level encryption is feature-gated / not live** on the default build — see [Docs/COMPATIBILITY.md](./Docs/COMPATIBILITY.md) (F8).
+- **Canonical Event Log**: Append-only history in a **SQLCipher page-encrypted SQLite** vault (T187), with application-level **Content Envelope AES-256-GCM** for sensitive payloads and OS filesystem permissions. Not FIPS / not NIST Purge — see [Docs/COMPATIBILITY.md](./Docs/COMPATIBILITY.md) (F8).
 - **CQRS Architecture**: Commands append events; queries read read-optimized projections.
 - **Privacy First**: Four levels of privacy protection (`CloudOk` to `Sealed`).
 - **Nightly Intelligence**: Background workers for summarization, conflict detection, and cross-agent synthesis (Phase 15).

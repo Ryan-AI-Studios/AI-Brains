@@ -106,11 +106,11 @@ ai-brains --vault-path $vault context
 
 **Normative SOT:** [COMPATIBILITY.md §4](COMPATIBILITY.md)
 
-> Vault storage uses **bundled SQLite** combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions. **SQLCipher page-level encryption** remains architectural / feature-gated until CI verification.
+> Vault storage uses **SQLCipher page-level encryption** (T187: `bundled-sqlcipher-vendored-openssl`) combined with **application-level Content Envelope AES-256-GCM** (P8) and OS filesystem permissions. See [Deviations.md](Deviations.md) §1 and [COMPATIBILITY.md](COMPATIBILITY.md) F8.
 
-Do not claim page-level SQLCipher while the workspace uses `rusqlite` `bundled` (not `bundled-sqlcipher`). See [Deviations.md](Deviations.md) §1.
+**Windows MSVC build:** install **Perl** (Strawberry Perl) and put it on `PATH` before `cargo build` / CI — required for vendored OpenSSL.
 
-CLI `--key` / `AI_BRAINS_KEY` name remains for vault open contracts (SQLCipher-ready); on plain bundled SQLite, page-level wrong-key fail-closed is **not** a live guarantee.
+CLI `--key` / `AI_BRAINS_KEY` must be `x'<64 hex chars>'`. All-zero keys are refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (tests/legacy). Legacy plain SQLite vaults: `ai-brains vault encrypt`.
 
 ---
 
@@ -210,7 +210,7 @@ T2 soft unless promoted. Do not claim WebView2 Isolation. Align runner OS string
 | Situation | Guidance |
 |-----------|----------|
 | Populated vault `init` without `--force` | Exit 1 + structured JSON error (expected) |
-| Wrong vault key | Open/fail behavior depends on encryption mode — F8 dual-mode residual on plain bundled SQLite |
+| Wrong vault key | Fail-closed (`VaultLocked` / key verification class) under live SQLCipher (T187) |
 | Daemon running during restore | Warn path (see RECOVERY-DRILLS F-03) — not a perfect lock claim |
 | Missing recovery kit export CLI | Use library/kit procedures in RECOVERY-DRILLS; do not invent a CLI |
 

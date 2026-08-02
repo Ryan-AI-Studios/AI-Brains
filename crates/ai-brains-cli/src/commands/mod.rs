@@ -35,3 +35,4 @@ pub mod source;
 pub mod stop_session;
 pub mod symbol_bridge;
 pub mod sync;
+pub mod vault;

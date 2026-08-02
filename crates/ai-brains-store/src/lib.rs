@@ -1,8 +1,10 @@
 pub mod config;
 pub mod connection;
+pub mod encrypt;
 pub mod errors;
 pub mod event_store;
 pub mod fts;
+pub mod header;
 pub mod migrations;
 pub mod pragmas;
 pub mod projections;
@@ -11,10 +13,12 @@ pub mod replay;
 pub mod replication_engine;
 pub mod transaction;
 
-pub use connection::VaultConnection;
+pub use connection::{ALLOW_ZERO_KEY_ENV, VaultConnection};
+pub use encrypt::{EncryptOptions, encrypt_plaintext_vault};
 pub use errors::{Result, StoreError};
 pub use event_store::{EventStore, SqliteEventStore};
 pub use fts::{FtsSearch, SearchResult};
+pub use header::{SQLITE_PLAIN_HEADER, is_plain_sqlite_header, legacy_plaintext_migrate_hint};
 pub use migrations::apply_migrations_through;
 pub use replication_engine::{
     ApplyOutcome, EngineError, EngineResult, ReplicateEngine, sign_and_queue_erasure_tombstone,

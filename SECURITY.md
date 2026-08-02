@@ -33,4 +33,4 @@ Target: **90 days** from a confirmed fix landing in a released commit, **or** th
 
 - AI-Brains is licensed under PolyForm Noncommercial 1.0.0 with a small-entity commercial exception — see `LICENSE` and `COMMERCIAL-EXCEPTION.md`.  
 - This project does **not** claim SOC2, ISO, or GDPR certification.  
-- Default builds use **bundled SQLite** plus application-level Content Envelope encryption; page-level SQLCipher is not a live default claim (see SECURITY-LIMITS / COMPATIBILITY F8).
+- Default builds use **SQLCipher page-level encryption** (T187) plus application-level Content Envelope encryption; not FIPS / not NIST Purge (see SECURITY-LIMITS / COMPATIBILITY F8).

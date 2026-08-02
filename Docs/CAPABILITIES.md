@@ -30,7 +30,7 @@ AI final response: I did X
 | Pillar | Behavior |
 |--------|----------|
 | **Capture independence** | CLI → daemon → event log works without models, embeddings, or graph DBs |
-| **Canonical source of truth** | Every state change is an immutable event in an append-only log (bundled SQLite + CE; SQLCipher page-level feature-gated — [COMPATIBILITY.md](COMPATIBILITY.md) F8) |
+| **Canonical source of truth** | Every state change is an immutable event in an append-only log (SQLCipher page-level vault + CE — [COMPATIBILITY.md](COMPATIBILITY.md) F8 / T187) |
 | **CQRS** | Commands append events; queries read projections only |
 | **Capture privacy** | Only user prompts + final assistant responses (no CoT / tool logs) |
 | **Privacy inheritance** | Derived memories inherit the strictest privacy of sources |
@@ -71,7 +71,7 @@ briefing | query | scope | evidence | source | conclusion | decision | review | 
 | Flag / env | Purpose |
 |------------|---------|
 | `--vault-path` / `AI_BRAINS_VAULT_PATH` | Vault database path |
-| `--key` / `AI_BRAINS_KEY` | Vault open key (SQLCipher-ready contract; page-level encryption not live on default `bundled` builds — F8) |
+| `--key` / `AI_BRAINS_KEY` | Vault SQLCipher key (`x'<64 hex>'`). Zero key refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (T187) |
 | `--no-project-context` | CI/hooks: do not load project `.env` or clobber inherited IDs |
 | `--log-format` | `compact` \| `full` \| `json` \| `minimal` \| `off` |
 
@@ -251,7 +251,7 @@ ai-brains backup verify [--full]
 ai-brains backup prune --keep N --older-than <dur>
 ai-brains backup restore <path> [--force] [--dry-run]
 ```
-Backup suite with metadata headers, integrity checks, and restore guarded when the daemon is running (SQLCipher-ready contracts; default build is bundled SQLite — F8). Default retention keeps 10 backups.
+Backup suite with metadata headers, integrity checks, and restore guarded when the daemon is running (SQLCipher-encrypted vaults and backups — T187). Default retention keeps 10 backups. Plain→encrypted migrate: `ai-brains vault encrypt` (`sqlcipher_export`).
 
 ---
 
@@ -259,7 +259,7 @@ Backup suite with metadata headers, integrity checks, and restore guarded when t
 
 - Privacy levels from cloud-ok through sealed; pins default to **`LocalOnly`**
 - Preflight/recall filter non-injectable / sealed content
-- Vault open contracts (SQLCipher-ready); default storage is **bundled SQLite** + Content Envelope — [COMPATIBILITY.md](COMPATIBILITY.md) F8; busy timeout under concurrent CLI access
+- Vault open with SQLCipher page encryption + Content Envelope — [COMPATIBILITY.md](COMPATIBILITY.md) F8 / T187; busy timeout under concurrent CLI access
 - Key via `AI_BRAINS_KEY` / crypto recovery path; `zeroize` for secrets
 
 ---

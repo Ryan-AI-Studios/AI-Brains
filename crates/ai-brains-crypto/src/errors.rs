@@ -26,6 +26,10 @@ pub enum CryptoError {
     #[error("Invalid key length")]
     InvalidKeyLength,
 
+    /// SQLCipher product key format invalid (not `x'<64 hex>'`).
+    #[error("Invalid SQLCipher key format: {0}")]
+    InvalidKeyFormat(String),
+
     /// AEAD authentication failed (tag / AAD / key mismatch). Generic message —
     /// does not distinguish tag vs AAD vs key to avoid oracle leaks.
     #[error("Authentication failed")]

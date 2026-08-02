@@ -2,7 +2,7 @@
 
 This guide covers the day-to-day operations, configuration, and troubleshooting of the AI-Brains system.
 
-> **Current state:** Live track registry and product status live in [`conductor/conductor.md`](../conductor/conductor.md) and the docs index [`Docs/README.md`](README.md). The CLI surface is large (~30+ top-level commands — run `ai-brains --help`); the daemon can auto-launch; nightly can schedule via Windows Task Scheduler; the Ledgerful bridge is live. This guide is an **ops reference** — sections may lag new governed/multi-device commands; prefer `--help` and the docs index when in doubt. Vault encryption honesty: [COMPATIBILITY.md](COMPATIBILITY.md) F8 (bundled SQLite + CE; SQLCipher page-level not live by default).
+> **Current state:** Live track registry and product status live in [`conductor/conductor.md`](../conductor/conductor.md) and the docs index [`Docs/README.md`](README.md). The CLI surface is large (~30+ top-level commands — run `ai-brains --help`); the daemon can auto-launch; nightly can schedule via Windows Task Scheduler; the Ledgerful bridge is live. This guide is an **ops reference** — sections may lag new governed/multi-device commands; prefer `--help` and the docs index when in doubt. Vault encryption: [COMPATIBILITY.md](COMPATIBILITY.md) F8 — **SQLCipher page-level live (T187)** + Content Envelope; not FIPS/Purge.
 
 ## 1. Installation and Setup
 
@@ -534,7 +534,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Variable | Description |
 |---|---|
 | `AI_BRAINS_VAULT_PATH` | Default path to the vault database. |
-| `AI_BRAINS_KEY` | Hex-encoded vault open key (SQLCipher-ready contract; default build is bundled SQLite — see COMPATIBILITY F8). |
+| `AI_BRAINS_KEY` | SQLCipher vault key as `x'<64 hex>'` (T187). Zero key refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (tests/legacy only). |
+| `AI_BRAINS_ALLOW_ZERO_KEY` | When `1`/`true`/`yes`, allow all-zero SQLCipher keys (hermetic tests / legacy dogfood). Production should omit. |
 | `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). |
 | `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). |
 | `LEDGERFUL_TX_ID` | Ledgerful transaction ID for ledger cross-linking (preferred; T142). |

@@ -203,12 +203,9 @@ fn recovery_kit__unlock_to_sqlcipher_key__opens_vault() {
     assert_no_secret_leakage("vault open ok", passphrase);
 }
 
-/// T181-K-06: correct unlock then open with wrong SqlCipherKey fails when
-/// SQLCipher encryption is active. Workspace currently depends on
-/// `rusqlite` with `bundled` (plain SQLite) — file header is
-/// `SQLite format 3` — so wrong-key open may succeed. In that residual
-/// mode we still prove kit→`from_data_key` binding (distinct material +
-/// correct key still opens).
+/// T181-K-06 / T187: correct unlock then open with wrong SqlCipherKey must
+/// fail closed under live SQLCipher (`bundled-sqlcipher-vendored-openssl`).
+/// Also proves kit→`from_data_key` binding (distinct material + correct key opens).
 #[test]
 fn recovery_kit__correct_unlock_wrong_sqlcipher_key__open_fails() {
     let dir = tempdir().unwrap();
@@ -250,30 +247,26 @@ fn recovery_kit__correct_unlock_wrong_sqlcipher_key__open_fails() {
         assert_eq!(v, "bound");
     }
 
+    // T187: SQLCipher live — wrong key must fail closed (no plain residual branch).
     let wrong_open = VaultConnection::open(&vault_path, &wrong_key);
-    if file_looks_sqlcipher_encrypted(&vault_path) {
-        assert!(
-            wrong_open.is_err(),
-            "SQLCipher-active build: wrong SqlCipherKey must fail open"
-        );
-    } else {
-        // Residual (deferred): plain bundled SQLite ignores PRAGMA key.
-        assert!(
-            is_plain_sqlite_header(&vault_path),
-            "expected plain SQLite header when wrong-key open is not fail-closed"
-        );
-        // Binding property still holds: wrong key material differs; correct open works above.
-        let _ = wrong_open;
-    }
+    assert!(
+        !is_plain_sqlite_header(&vault_path),
+        "T187: vault must not have plain SQLite header under SQLCipher build"
+    );
+    assert!(
+        wrong_open.is_err(),
+        "T187 K-06: wrong SqlCipherKey must fail open"
+    );
+    let msg = wrong_open.err().map(|e| e.to_string()).unwrap_or_default();
+    let lower = msg.to_ascii_lowercase();
+    assert!(
+        lower.contains("key") || lower.contains("locked") || lower.contains("not a database"),
+        "K-06 wrong-key class; got: {msg}"
+    );
 }
 
 fn is_plain_sqlite_header(path: &Path) -> bool {
-    let bytes = std::fs::read(path).unwrap_or_default();
-    bytes.starts_with(b"SQLite format 3")
-}
-
-fn file_looks_sqlcipher_encrypted(path: &Path) -> bool {
-    !is_plain_sqlite_header(path)
+    ai_brains_store::is_plain_sqlite_header(path)
 }
 
 /// T181-E-01: pre-erase residual — backup before wipe still opens CE content after live wipe.
