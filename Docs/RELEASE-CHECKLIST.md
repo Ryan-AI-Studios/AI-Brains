@@ -1,8 +1,8 @@
 # Release checklist (human + scripts)
 
-**Product version context:** workspace `Cargo.toml` → currently **0.1.1**  
-**Track:** T185 — Claims Governance, SBOM, and Release Gate  
-**Normative claims:** [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md)  
+**Product version context:** workspace `Cargo.toml` → currently **0.1.1**
+**Track:** T185 — Claims Governance, SBOM, and Release Gate
+**Normative claims:** [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md)
 **Tool pins:** [ci-tooling.md](ci-tooling.md)
 
 This is the **ordered gate** for a dry-run RC or a public `v*` tag. Agent automation may prepare evidence; a **named human** must clear sign-off (L11). Do **not** force-push tags or claim MSI/App Store packaging.
@@ -64,11 +64,11 @@ cargo deny check
 cargo audit
 ```
 
-- [ ] `fmt` pass  
-- [ ] `clippy -D warnings` pass  
-- [ ] `nextest` workspace pass  
-- [ ] `cargo deny check` pass (**L4**)  
-- [ ] `cargo audit` exit 0 only (**L4**, F27 — do not grep for summary line)  
+- [ ] `fmt` pass
+- [ ] `clippy -D warnings` pass
+- [ ] `nextest` workspace pass
+- [ ] `cargo deny check` pass (**L4**)
+- [ ] `cargo audit` exit 0 only (**L4**, F27 — do not grep for summary line)
 - [ ] `ledgerful verify` (full or scope required by process)
 
 ---
@@ -81,9 +81,9 @@ cargo audit
 
 Elevated set: `README.md`, `Docs/ARCHITECTURE.md`, `Docs/CAPABILITIES.md`, `Docs/OPERATIONS.md`, `Docs/README.md`, `Docs/INSTALL.md`, `Docs/SECURITY-LIMITS.md`, `SECURITY.md`, `CHANGELOG.md`, `Docs/RELEASE-CLAIMS.md`, `Docs/RELEASE-CHECKLIST.md`.
 
-- [ ] Script exit 0  
-- [ ] Human spot-check of [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) residual cross-walk still accurate  
-- [ ] No forbidden: SOC2/ISO certified, perfect deletion as product, metadata-private sync, SLSA L3, “fully compliant,” unqualified full DB encryption, invented doctor CLI (recovery export is shipped T188) 
+- [ ] Script exit 0
+- [ ] Human spot-check of [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) residual cross-walk still accurate
+- [ ] No forbidden: SOC2/ISO certified, perfect deletion as product, metadata-private sync, SLSA L3, “fully compliant,” unqualified full DB encryption, doctor auto-remediation / invented default kit path (doctor is shipped T192 as read-only)
 
 Soft historical re-grep (report only): `AGENTS.md`, `Docs/PRD.md`, `Docs/Implementation-Plan.md` body, archives.
 
@@ -97,8 +97,8 @@ Soft historical re-grep (report only): `AGENTS.md`, `Docs/PRD.md`, `Docs/Impleme
 .\scripts\check-version-banners.ps1 -Strict
 ```
 
-- [ ] Soft-warn reviewed  
-- [ ] At **public** release: rename `## [Unreleased]` → `## [<version>] — <date>` and ensure workspace version matches  
+- [ ] Soft-warn reviewed
+- [ ] At **public** release: rename `## [Unreleased]` → `## [<version>] — <date>` and ensure workspace version matches
 
 ---
 
@@ -110,11 +110,11 @@ Soft historical re-grep (report only): `AGENTS.md`, `Docs/PRD.md`, `Docs/Impleme
 .\scripts\generate-sbom.ps1 -IncludeDesktop
 ```
 
-- [ ] `cargo-cyclonedx` **0.5.9+** (Apache-2.0) available  
-- [ ] `dist/sbom/ai-brains-<ver>.cdx.json` present, `specVersion` **1.5**  
-- [ ] `dist/sbom/ai-brainsd-<ver>.cdx.json` present, `specVersion` **1.5**  
-- [ ] Target/features documented (default: host MSVC / package defaults; **not** blind `--all-features`)  
-- [ ] Source-only tag: SBOM optional/soft  
+- [ ] `cargo-cyclonedx` **0.5.9+** (Apache-2.0) available
+- [ ] `dist/sbom/ai-brains-<ver>.cdx.json` present, `specVersion` **1.5**
+- [ ] `dist/sbom/ai-brainsd-<ver>.cdx.json` present, `specVersion` **1.5**
+- [ ] Target/features documented (default: host MSVC / package defaults; **not** blind `--all-features`)
+- [ ] Source-only tag: SBOM optional/soft
 
 ---
 
@@ -124,10 +124,10 @@ Soft historical re-grep (report only): `AGENTS.md`, `Docs/PRD.md`, `Docs/Impleme
 .\scripts\generate-notices.ps1
 ```
 
-- [ ] `cargo-about` **0.9.1+** with `--features cli`  
-- [ ] `dist/THIRD-PARTY.md` non-empty  
-- [ ] Committed `about.toml` + `about.md.hbs` used  
-- [ ] Source-only: may omit if LICENSE + deny policy cover  
+- [ ] `cargo-about` **0.9.1+** with `--features cli`
+- [ ] `dist/THIRD-PARTY.md` non-empty
+- [ ] Committed `about.toml` + `about.md.hbs` used
+- [ ] Source-only: may omit if LICENSE + deny policy cover
 
 ---
 
@@ -137,7 +137,7 @@ Soft historical re-grep (report only): `AGENTS.md`, `Docs/PRD.md`, `Docs/Impleme
 .\scripts\generate-checksums.ps1
 ```
 
-- [ ] `dist/checksums/SHA256SUMS` includes SBOM + NOTICE (+ binaries if present)  
+- [ ] `dist/checksums/SHA256SUMS` includes SBOM + NOTICE (+ binaries if present)
 
 ---
 
@@ -151,9 +151,9 @@ Runner labels must match [COMPATIBILITY.md](COMPATIBILITY.md) tiers:
 | Linux core T1 | **`ubuntu-24.04`** | Yes | T179 GHA run **30683807812** (PR #51) · same handoff |
 | macOS soft | **`macos-15`** | Soft (`continue-on-error`) | Soft pin only; not claimed equal T1 primary |
 
-- [x] Windows smoke evidence present for claimed T1  
-- [x] Linux smoke evidence present for claimed T1  
-- [x] macOS not over-claimed beyond soft pin  
+- [x] Windows smoke evidence present for claimed T1
+- [x] Linux smoke evidence present for claimed T1
+- [x] macOS not over-claimed beyond soft pin
 
 Handoff: `conductor/tracks/trackT179-compatibility-matrix/evidence/HANDOFF-T183-T185.md`
 
@@ -161,11 +161,11 @@ Handoff: `conductor/tracks/trackT179-compatibility-matrix/evidence/HANDOFF-T183-
 
 ## 9. Residual review
 
-- [ ] Open T184 residuals still cited in RELEASE-CLAIMS (not silent)  
-- [ ] Minimum cite set (L3) still covered: R-F8, R-CE-PRE, R-ACK, R-META, R-TB, R-API-VER, R-12, R-34.2, R-CI-SAST, R-CI-BRANCH, R-AUDIT-UNMAINT, R-PIPE-IU, R-UDS-TMP, R-ZERO-KEY, R-DESKTOP-OPEN, R-SLSA, R-DOC-CLI  
-- [ ] **R-SLSA:** L3 non-claim; optional L1-oriented attest only if produced; no “certified SLSA”  
-- [ ] **R-CI-BRANCH:** do not claim enforced branch protection if still open  
-- [ ] Packaging residual: no MSI/notarization/App Store as complete  
+- [ ] Open T184 residuals still cited in RELEASE-CLAIMS (not silent)
+- [ ] Minimum cite set (L3) still covered: R-F8, R-CE-PRE, R-ACK, R-META, R-TB, R-API-VER, R-12, R-34.2, R-CI-SAST, R-CI-BRANCH, R-AUDIT-UNMAINT, R-PIPE-IU, R-UDS-TMP, R-ZERO-KEY, R-DESKTOP-OPEN, R-SLSA, R-DOC-CLI
+- [ ] **R-SLSA:** L3 non-claim; optional L1-oriented attest only if produced; no “certified SLSA”
+- [ ] **R-CI-BRANCH:** do not claim enforced branch protection if still open
+- [ ] Packaging residual: no MSI/notarization/App Store as complete
 
 Register: `conductor/tracks/trackT184-independent-security-review/residuals.md`
 
@@ -175,11 +175,11 @@ Register: `conductor/tracks/trackT184-independent-security-review/residuals.md`
 
 When using `.github/workflows/release.yml` on `v*` tags / `workflow_dispatch`:
 
-- [ ] All `uses:` **SHA-pinned** (F26) — floating majors forbidden **in this file**  
-- [ ] Permissions least-privilege (`contents: write` for assets; `id-token: write` only if attesting)  
-- [ ] Attest via SHA-pinned `actions/attest` only on public (or Enterprise Cloud private) repos  
-- [ ] If attest skipped: record R-SLSA “tooling unavailable / skipped” — not silent  
-- [ ] PR `ci.yml` third-party `uses:` remain full SHA pins (T186 / R-CI-PIN; Dependabot bumps)  
+- [ ] All `uses:` **SHA-pinned** (F26) — floating majors forbidden **in this file**
+- [ ] Permissions least-privilege (`contents: write` for assets; `id-token: write` only if attesting)
+- [ ] Attest via SHA-pinned `actions/attest` only on public (or Enterprise Cloud private) repos
+- [ ] If attest skipped: record R-SLSA “tooling unavailable / skipped” — not silent
+- [ ] PR `ci.yml` third-party `uses:` remain full SHA pins (T186 / R-CI-PIN; Dependabot bumps)
 
 ---
 
@@ -201,9 +201,9 @@ When using `.github/workflows/release.yml` on `v*` tags / `workflow_dispatch`:
 
 ## 12. Commercial / license reminder
 
-- [ ] Redistributors of binaries include product `LICENSE` + generated THIRD-PARTY text  
-- [ ] Commercial redistributors re-read `COMMERCIAL-EXCEPTION.md` limits  
-- [ ] No ad-hoc crate relicense  
+- [ ] Redistributors of binaries include product `LICENSE` + generated THIRD-PARTY text
+- [ ] Commercial redistributors re-read `COMMERCIAL-EXCEPTION.md` limits
+- [ ] No ad-hoc crate relicense
 
 ---
 

@@ -1,9 +1,9 @@
 # AI-Brains documentation index
 
-**Product version:** 0.1.1 (`Cargo.toml` workspace)  
-**Platform matrix:** [COMPATIBILITY.md](COMPATIBILITY.md)  
-**Track status (live):** [`conductor/conductor.md`](../conductor/conductor.md)  
-**Security limits hub:** [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · root [SECURITY.md](../SECURITY.md)  
+**Product version:** 0.1.1 (`Cargo.toml` workspace)
+**Platform matrix:** [COMPATIBILITY.md](COMPATIBILITY.md)
+**Track status (live):** [`conductor/conductor.md`](../conductor/conductor.md)
+**Security limits hub:** [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · root [SECURITY.md](../SECURITY.md)
 **Release claims gate:** [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) · [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md)
 
 This index is the **single entry point** for operators and developers. Prefer it over browsing orphan historical files.
@@ -14,10 +14,10 @@ AI-Brains follows [Diátaxis](https://diataxis.fr/): how-to and tutorial-style p
 
 ## Quick start
 
-1. [Install & first vault](INSTALL.md) (Windows-first how-to)  
-2. [Operations reference](OPERATIONS.md) (full CLI/ops)  
-3. [Workflows](WORKFLOWS.md) (recipes)  
-4. [Capabilities](CAPABILITIES.md) (feature inventory)  
+1. [Install & first vault](INSTALL.md) (Windows-first how-to)
+2. [Operations reference](OPERATIONS.md) (full CLI/ops)
+3. [Workflows](WORKFLOWS.md) (recipes)
+4. [Capabilities](CAPABILITIES.md) (feature inventory)
 5. [Security limits](SECURITY-LIMITS.md) (honest non-claims)
 
 ```powershell
@@ -66,8 +66,8 @@ Graph CLI (`ai-brains graph …`) needs a build with `--features graph`. Capture
 | Perfect deletion / NIST Purge·Destroy | **No** — CE wipe is envelope-backed; pre-erase backups remain recoverable |
 | Metadata-private multi-device sync | **No** — optional untrusted relay; metadata residual; ACK ≠ wipe proof (ADR-0018) |
 | SOC2 / ISO / GDPR certified | **No** |
-| `ai-brains doctor` product CLI | **Not shipped** (a doctor **DTO** may exist in contracts; no CLI) |
-| `ai-brains recovery export` CLI | **Shipped (T188)** — kit to file only; doctor still absent; [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) |
+| `ai-brains doctor` product CLI | **Shipped (T192)** — read-only health matrix; residual = offline kit without `--kit-path` |
+| `ai-brains recovery export` CLI | **Shipped (T188)** — kit to file only; [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) |
 | Unix CLI already defaults to HTTP | **No** — live Unix daemon transport is **UDS**; portable path is loopback HTTP+bearer |
 
 Full executive summary: [SECURITY-LIMITS.md](SECURITY-LIMITS.md).
@@ -126,6 +126,6 @@ Full executive summary: [SECURITY-LIMITS.md](SECURITY-LIMITS.md).
 
 ## Version & license
 
-- **SemVer:** AI-Brains follows Semantic Versioning. **While at 0.x, minor version bumps may include breaking changes.**  
-- **License:** PolyForm Noncommercial 1.0.0 (`LICENSE`) + [COMMERCIAL-EXCEPTION.md](../COMMERCIAL-EXCEPTION.md).  
+- **SemVer:** AI-Brains follows Semantic Versioning. **While at 0.x, minor version bumps may include breaking changes.**
+- **License:** PolyForm Noncommercial 1.0.0 (`LICENSE`) + [COMMERCIAL-EXCEPTION.md](../COMMERCIAL-EXCEPTION.md).
 - Version banners in docs are maintained manually until a release-gate track automates them.

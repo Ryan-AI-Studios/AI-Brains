@@ -41,6 +41,7 @@ impl BackupService {
         self
     }
 
+    /// Resolve the backup directory, creating it if absent (write paths only).
     fn backup_dir(&self) -> Result<PathBuf, Box<dyn std::error::Error>> {
         let parent = self.vault_path.parent().ok_or("Invalid vault path")?;
         let dir = self
@@ -53,10 +54,32 @@ impl BackupService {
         Ok(dir)
     }
 
+    /// Resolve the backup directory without creating it (T192 F17b).
+    ///
+    /// Returns `Ok(None)` when the directory is absent. Never calls
+    /// `create_dir_all`. Used by read-only callers (`list_backups`,
+    /// `find_backup_files`, `preview_backup_path`).
+    fn backup_dir_read_only(&self) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
+        let parent = self.vault_path.parent().ok_or("Invalid vault path")?;
+        let dir = self
+            .custom_output
+            .clone()
+            .unwrap_or_else(|| parent.join("backups"));
+        if !dir.exists() {
+            return Ok(None);
+        }
+        Ok(Some(dir))
+    }
+
     /// Compute the backup path that the next backup would be written to
-    /// without actually writing it.
+    /// without actually writing it or creating the backups directory (F17b).
     pub fn preview_backup_path(&self) -> Result<PathBuf, Box<dyn std::error::Error>> {
-        let backup_dir = self.backup_dir()?;
+        let parent = self.vault_path.parent().ok_or("Invalid vault path")?;
+        let backup_dir = self
+            .custom_output
+            .clone()
+            .unwrap_or_else(|| parent.join("backups"));
+        // Do not create the directory — preview is read-only.
         let timestamp = Utc::now().format("%Y-%m-%dT%H-%M-%S");
         Ok(backup_dir.join(format!("vault-{}.db.bak", timestamp)))
     }
@@ -261,7 +284,9 @@ impl BackupService {
     }
 
     pub fn find_backup_files(&self) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
-        let backup_dir = self.backup_dir()?;
+        let Some(backup_dir) = self.backup_dir_read_only()? else {
+            return Ok(Vec::new());
+        };
         let mut paths = Vec::new();
         for entry in fs::read_dir(&backup_dir)? {
             let entry = entry?;
@@ -279,8 +304,13 @@ impl BackupService {
 
     /// List all backups in the backup directory, reading metadata from each
     /// backup file when possible.
+    ///
+    /// When the backups directory is absent, returns an empty list without
+    /// creating the directory (T192 F17b).
     pub fn list_backups(&self, quiet: bool) -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
-        let backup_dir = self.backup_dir()?;
+        let Some(backup_dir) = self.backup_dir_read_only()? else {
+            return Ok(Vec::new());
+        };
         let mut infos: Vec<BackupInfo> = Vec::new();
 
         for entry in fs::read_dir(&backup_dir)? {
@@ -400,13 +430,25 @@ impl BackupService {
     }
 }
 
-fn has_core_tables(conn: &rusqlite::Connection) -> bool {
-    conn.query_row(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name IN ('events', 'memory_projection') LIMIT 1",
-        [],
-        |_row| Ok(true),
-    )
-    .unwrap_or(false)
+/// True when product core tables (`events` and `memory_projection`) are present.
+///
+/// Used by backup metadata probes and doctor `schema_readable` (T192 F19).
+pub fn has_core_tables(conn: &rusqlite::Connection) -> bool {
+    let has_events = conn
+        .query_row(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = 'events' LIMIT 1",
+            [],
+            |_row| Ok(true),
+        )
+        .unwrap_or(false);
+    let has_mem = conn
+        .query_row(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = 'memory_projection' LIMIT 1",
+            [],
+            |_row| Ok(true),
+        )
+        .unwrap_or(false);
+    has_events && has_mem
 }
 
 pub fn parse_backup_timestamp(s: &str) -> Option<NaiveDateTime> {
@@ -449,7 +491,11 @@ fn normalize_timezone_colons(s: &str) -> String {
     s.to_string()
 }
 
-fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
+/// Parse prune/doctor age thresholds: `Nd` / `Nh` / `Nw` only (no humantime).
+///
+/// Shared by backup prune and doctor `backup_recent` (T192 F17 / F23).
+/// Uses checked multiplication — oversized values return Err (never panic).
+pub fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
     let s = s.trim();
     if s.is_empty() {
         return Err("Empty duration".into());
@@ -459,13 +505,20 @@ fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
     }
     let (num_str, unit) = s.split_at(s.len() - 1);
     let num: u64 = num_str.parse()?;
-    let duration = match unit {
-        "d" => Duration::from_secs(num * 86400),
-        "h" => Duration::from_secs(num * 3600),
-        "w" => Duration::from_secs(num * 86400 * 7),
+    let secs = match unit {
+        "d" => num
+            .checked_mul(86400)
+            .ok_or_else(|| format!("duration overflow for '{s}' (days)"))?,
+        "h" => num
+            .checked_mul(3600)
+            .ok_or_else(|| format!("duration overflow for '{s}' (hours)"))?,
+        "w" => num
+            .checked_mul(86400)
+            .and_then(|d| d.checked_mul(7))
+            .ok_or_else(|| format!("duration overflow for '{s}' (weeks)"))?,
         _ => return Err(format!("Unknown duration unit: {}. Use d, h, or w", unit).into()),
     };
-    Ok(duration)
+    Ok(Duration::from_secs(secs))
 }
 
 #[cfg(test)]
@@ -473,6 +526,22 @@ fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn parse_duration__overflow_days__errors_not_panic() {
+        let err = parse_duration("18446744073709551615d").expect_err("must overflow");
+        assert!(
+            err.to_string().contains("overflow"),
+            "expected overflow error, got {err}"
+        );
+    }
+
+    #[test]
+    fn parse_duration__valid_units() {
+        assert_eq!(parse_duration("7d").expect("7d").as_secs(), 7 * 86400);
+        assert_eq!(parse_duration("2h").expect("2h").as_secs(), 2 * 3600);
+        assert_eq!(parse_duration("1w").expect("1w").as_secs(), 7 * 86400);
+    }
 
     #[test]
     #[allow(non_snake_case)]
@@ -679,6 +748,82 @@ mod tests {
         )?;
         assert!(source.is_some());
 
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_backups__missing_dir__no_create() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+        fs::write(&vault_path, b"placeholder")?;
+        let backups = dir.path().join("backups");
+        assert!(!backups.exists());
+
+        let key = SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        );
+        let service = BackupService::new(vault_path, key);
+        let list = service.list_backups(true)?;
+        assert!(list.is_empty());
+        assert!(
+            !backups.exists(),
+            "list_backups must not create backups/ when absent (T192 F17b)"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn preview_backup_path__missing_dir__no_create() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+        fs::write(&vault_path, b"placeholder")?;
+        let backups = dir.path().join("backups");
+        assert!(!backups.exists());
+
+        let key = SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        );
+        let service = BackupService::new(vault_path, key);
+        let preview = service.preview_backup_path()?;
+        assert!(
+            preview.starts_with(&backups),
+            "preview path should be under backups/: {}",
+            preview.display()
+        );
+        assert!(
+            !backups.exists(),
+            "preview_backup_path must not create backups/ when absent (T192 F17b)"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn run_backup__creates_dir() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+        let backups = dir.path().join("backups");
+        assert!(!backups.exists());
+
+        let key = SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        );
+        let conn = rusqlite::Connection::open(&vault_path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch(
+            "CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
+        )?;
+        drop(conn);
+
+        let service = BackupService::new(vault_path, key);
+        let backup_path = service.run_backup()?;
+        assert!(backup_path.exists());
+        assert!(
+            backups.exists() && backups.is_dir(),
+            "run_backup must still create backups/ for writes"
+        );
         Ok(())
     }
 

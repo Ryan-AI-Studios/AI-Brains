@@ -72,7 +72,9 @@ ai-brains --vault-path $Vault recovery export --output D:\offline\recovery-kit.j
 
 ## 4. At vault initialization — RecoveryKit
 
-**`ai-brains recovery export` is shipped (T188).** Write kit JSON to a restricted offline path (USB / sealed store). **`ai-brains doctor` remains absent.**
+**`ai-brains recovery export` is shipped (T188).** Write kit JSON to a restricted offline path (USB / sealed store).
+
+**`ai-brains doctor` is shipped (T192)** as a read-only health report. Use `--kit-path` (+ passphrase-file) to verify offline kit unlock against the vault key; without `--kit-path`, kit file check is **skipped** (event log alone does not prove offline copy still exists).
 
 ```powershell
 ai-brains --vault-path $Vault recovery export --output E:\offline\recovery-kit.json --passphrase-file $SecurePwFile
@@ -89,7 +91,7 @@ RecoveryKit generation and passphrase/DPAPI unlock also remain **library** (`ai-
 - [ ] Unix kit files are created mode **0600**; on Windows, refuse well-known public paths (`C:\Users\Public`); offline USB paths are allowed.
 - [ ] **Passphrase-file and kit output refuse reparse/symlink/junction paths** (F8b) — use regular files only; existing output **parents** are also refused if reparse/junction.
 - [ ] **Export preflight requires vault+key match** (hard-fail wrong key / missing vault); **event soft-fail only when daemon write is blocked** (F12/F16b) — a successful kit is always for the opened vault.
-- [ ] **`ai-brains doctor` is still not shipped** — recoverability checks remain operator / drill responsibility.
+- [ ] **`ai-brains doctor`** run (human + optional `--json`); with offline kit: `--kit-path` unlock ok. Residual: without kit path, operator still owns offline recoverability.
 
 K-05 proves the **primitive** chain (unlock → `SqlCipherKey::from_data_key` → open). Export CLI proves the operator write path; store the file offline yourself.
 
@@ -171,7 +173,7 @@ These are planning aids only — not contractual or marketed guarantees.
 
 | Residual | Owner |
 |----------|--------|
-| `ai-brains doctor` product | Still absent (deferred #2) |
+| `ai-brains doctor` product | **Shipped (T192)** — residual = offline kit without `--kit-path` |
 | ~~`ai-brains recovery export` CLI~~ | **Closed by T188** |
 | Argon2 params in kit schema | Soft residual (F37): kits from `recovery export` **and** `vault rotate-datakey` use Argon2id v0x13 **m=19456 t=2 p=1** (argon2 0.5.x defaults); not stored in kit JSON |
 | ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ | **Closed by T187** — live `bundled-sqlcipher-vendored-openssl`; strict drills |
@@ -196,4 +198,4 @@ cargo nextest run -p ai-brains-store --test recovery_drills --test content_envel
 
 Pin after implement:
 
-`DECISION: T181 recovery drills prove pre-erase backup residual; not NIST Purge. T188 ships recovery export + restore hard-fail; doctor remains residual.`
+`DECISION: T181 recovery drills prove pre-erase backup residual; not NIST Purge. T188 ships recovery export + restore hard-fail. T192 ships read-only doctor; residual = offline kit without --kit-path.`

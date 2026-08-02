@@ -1,7 +1,7 @@
 # Protocol Compatibility Policy (T180 / P12.2)
 
-**Status:** Active (fixture-first N−1 until a public `v*` release tag exists)  
-**Track:** `conductor/tracks/trackT180-protocol-compat-tests/`  
+**Status:** Active (fixture-first N−1 until a public `v*` release tag exists)
+**Track:** `conductor/tracks/trackT180-protocol-compat-tests/`
 **Related:** T158 daemon wire, T148 R0 events, T161 HTTP `/v1`, T176–T178 sync wire, T179 transport matrix
 
 This document is the policy home for **versioned wire protocols**. It does **not** claim runtime `api_version` enforcement or working schema Upcast migrations.
@@ -36,7 +36,7 @@ Transport (named pipe / UDS / loopback HTTP) is covered by **T179** (`Docs/COMPA
 
 - `BridgePayload` is `#[serde(untagged)]` with a final `Unknown(serde_json::Value)` variant.
 - `VerifyOutcome` uses `flatten` → **cannot** combine with `deny_unknown_fields`.
-- Legacy clients may send a **bare** `BridgeRecord` (no daemon envelope).  
+- Legacy clients may send a **bare** `BridgeRecord` (no daemon envelope).
   `parse_live_request_line` falls back: `DaemonRequest` fail → try `BridgeRecord` → `DaemonRequest::Sync`.
 
 ---
@@ -95,7 +95,7 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | `dogfood compare` / `evaluate governed` | **pretty** | |
 | `agy-hook --schema` / `sync pull --schema` | pretty schema docs | Not versioned wire ops |
 | `--version` | clap **text** | Do **not** pin as JSON |
-| `doctor` | **Absent** | Do not invent |
+| `doctor` | **pretty** (human default) or JSON via `--json` / `--format json` | T192; `DoctorReport` schema_version=1; not governed OutputFormat missing→Json default |
 
 Changing compact ↔ pretty for a pinned command is a **breaking** CLI contract unless gated by a new flag.
 
@@ -249,12 +249,13 @@ Handoff notes for **T183** (release docs) and **T185** (claims/SBOM): document u
 
 ## 12. Non-goals
 
-- Infinite N history / third-party client certification  
-- OpenAPI / full `/v1` jsonschema matrix as DoD  
-- Root `fixtures/protocol/` tree  
-- `doctor` or `--version` JSON pinning  
-- Re-implementing T178 crypto  
-- Changing capture independence or privacy inheritance  
+- Infinite N history / third-party client certification
+- OpenAPI / full `/v1` jsonschema matrix as DoD
+- Root `fixtures/protocol/` tree
+- `--version` JSON pinning (doctor JSON is product `DoctorReport` schema_version=1, not a version pin)
+
+- Re-implementing T178 crypto
+- Changing capture independence or privacy inheritance
 
 ---
 

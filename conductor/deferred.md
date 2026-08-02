@@ -9,12 +9,18 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | Residual | Promoted track |
 |----------|----------------|
 | ~~§59 #8 wrong-key / K-06 needs page encrypt; R-F8 / R-K06; Deviations §1~~ | **Closed by T187** (2026-08-02) |
-| ~~§59 #1 recovery export; #6 restore daemon hard-fail~~ (R-DOC-CLI partial: export shipped; doctor remains) | **Closed by T188** (2026-08-02); **#2 doctor** still open |
+| ~~§59 #1 recovery export; #6 restore daemon hard-fail~~ (R-DOC-CLI partial: export shipped; doctor remains) | **Closed by T188** (2026-08-02); **#2 doctor** → **T192** |
 | ~~**#34.2** DataKey rotation~~ | **Closed by T189** (2026-08-02) PR #67 `9e9465e` |
-| ~~**#12** path TOCTOU / openat / cap-std~~ | **Closed-with-residuals by T190** (2026-08-02): vault open+list + Hermes/Honcho elevated (ADR-0021). Residuals: ambient CLI, soft-canon, token path, T188 write pre/post reparse. |
-| ~~T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail~~ | **Closed by T191** (2026-08-02): dual-read tags + Ledgerful identifier renames + hermetic L13 |
+| ~~**#12** path TOCTOU / openat / cap-std~~ | **Closed-with-residuals by T190** (2026-08-02). Residual elevation → **T193** |
+| ~~T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail~~ | **Closed by T191** (2026-08-02) |
+| **#2** doctor CLI / R-DOC-CLI | **T192** (**Expanded + AI fold-in** 2026-08-02 — F1–F34; implement on go-ahead) |
+| T190 ambient CLI / write / token path residuals | **T193** (placeholder 2026-08-02) |
+| Argon2 params in kit JSON (F37) | **T194** (placeholder 2026-08-02) |
+| R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI | **T195** (placeholder 2026-08-02) |
+| systemd / launchd units; CONTRIBUTING hygiene | **T196** (placeholder 2026-08-02) |
+| R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 
-Suggested order: Doctor residual remains open (no dedicated track yet). T191 closes T142 #1–2 + T186 L13.
+Suggested order: **T192** (doctor, **plan expanded**) → **T194** (kit schema, anytime) → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs). Expand freezes before implement.
 
 ---
 
@@ -631,15 +637,15 @@ P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills
 
 **Residuals remaining (not fixed by T181):**
 
-1. ~~No `recovery export` CLI~~ — **Closed by T188** (2026-08-02): `ai-brains recovery export`  
-2. No `doctor` CLI — remains open (R-DOC-CLI residual)  
-3. Argon2 KDF params not in kit JSON (F37) — future schema  
-4. #34.2 DataKey rotation — open (**T189**)  
-5. F-REC-03/04 projection/graph rebuild drills — soft  
-6. ~~Restore hard-fail while daemon running~~ — **Closed by T188** (robust probe + hard-fail)  
-7. Optional intermediate-hex zeroize tighten in `from_data_key` — soft crypto  
-8. ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ — **Closed by T187** (2026-08-02): live `bundled-sqlcipher-vendored-openssl`; strict F-02/K-06; Deviations §1 resolved; R-F8/R-K06 claims flipped  
-9. Low: rstest preference for F-matrix; store Online Backup mirror vs BackupService; duplicate dry-run smoke/recovery_drills  
+1. ~~No `recovery export` CLI~~ — **Closed by T188** (2026-08-02): `ai-brains recovery export`
+2. No `doctor` CLI — **T192 Expanded** 2026-08-02 (implement on go-ahead; R-DOC-CLI residual until ship)
+3. Argon2 KDF params not in kit JSON (F37) — **T194**
+4. ~~#34.2 DataKey rotation~~ — **Closed by T189**
+5. F-REC-03/04 projection/graph rebuild drills — soft
+6. ~~Restore hard-fail while daemon running~~ — **Closed by T188** (robust probe + hard-fail)
+7. Optional intermediate-hex zeroize tighten in `from_data_key` — soft crypto
+8. ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ — **Closed by T187** (2026-08-02): live `bundled-sqlcipher-vendored-openssl`; strict F-02/K-06; Deviations §1 resolved; R-F8/R-K06 claims flipped
+9. Low: rstest preference for F-matrix; store Online Backup mirror vs BackupService; duplicate dry-run smoke/recovery_drills
 
 **Absorbed (productized, not eliminated):** §34 / T162–T166 / T178 pre-erase backup residual → E-01 drill + docs honesty.
 
@@ -669,13 +675,13 @@ P12.4 complete. Normative: [ADR-0019](../Docs/DECISIONS/ADR-0019-connector-sandb
 
 **Residuals remaining (not fixed by T182):**
 
-1. ~~**#12** path TOCTOU / openat / cap-std residual~~ — **Closed-with-residuals by T190** (2026-08-02)  
+1. ~~**#12** path TOCTOU / openat / cap-std residual~~ — **Closed-with-residuals by T190** (2026-08-02)
 
-2. **CloudOk** constructible-unused / registry does not enforce trust label — future feature-flag non-LocalOnly  
-3. List cursor **#23** — out of scope (consumer-driven)  
-4. Plugin host (subprocess / WASI) — future track under L7/L8 gates  
-5. Harness `AdapterCapability.principal_binding` residual — out of scope  
-6. Optional pin via `ai-brains pin` for ADR-0019 — soft  
+2. **CloudOk** constructible-unused / registry does not enforce trust label — future feature-flag non-LocalOnly
+3. List cursor **#23** — out of scope (consumer-driven)
+4. Plugin host (subprocess / WASI) — future track under L7/L8 gates
+5. Harness `AdapterCapability.principal_binding` residual — out of scope
+6. Optional pin via `ai-brains pin` for ADR-0019 — soft
 
 **Absorbed (productized / locked, not eliminated):** T153 R1-06 (soft tests); T154 cap-std as builtin hardening candidate (not plugin sandbox); vision §7.2 subprocess-first as L7.
 
@@ -702,12 +708,12 @@ P12.5 complete. Normative: `Docs/README.md`, `Docs/INSTALL.md`, `Docs/SECURITY-L
 
 **Residuals (open, not T183 blockers — hand to T185 / future):**
 
-1. Formal claims gate re-grep elevated docs + CLAIMS-CROSSCHECK consumption — **T185**  
-2. Version-banner CI sync — **T185**  
-3. MSI / notarization / App Store packaging — **T185**  
-4. Historical SQLCipher wording outside AC7 elevated set (`AGENTS.md`, PRD body, archives) — soft T185 re-grep  
-5. Implement `doctor` / `recovery export` product CLIs — future (honestly documented as absent)  
-6. #34.2 DataKey rotation; systemd/launchd production units; CONTRIBUTING.md; Common Changelog; T186 suite — unchanged out of scope  
+1. Formal claims gate re-grep elevated docs + CLAIMS-CROSSCHECK consumption — **T185**
+2. Version-banner CI sync — **T185**
+3. MSI / notarization / App Store packaging — **T185**
+4. Historical SQLCipher wording outside AC7 elevated set (`AGENTS.md`, PRD body, archives) — soft T185 re-grep
+5. Implement `doctor` / `recovery export` product CLIs — future (honestly documented as absent)
+6. #34.2 DataKey rotation; systemd/launchd production units; CONTRIBUTING.md; Common Changelog; T186 suite — unchanged out of scope
 
 **Evidence handoff for T185:** `conductor/tracks/trackT183-release-documentation/evidence/CLAIMS-CROSSCHECK.md`
 
@@ -830,11 +836,23 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 **Closed:** §59 #1 recovery export; §59 #6 restore daemon hard-fail; T181-F-03 product hard-fail language.
 
 **Remains open:**
-- **#2 doctor** CLI (R-DOC-CLI residual)
+- **#2 doctor** CLI (R-DOC-CLI residual) → **T192 Expanded** 2026-08-02 (plan only; strike on ship)
 - Live-daemon busy-restore integration drill (unit-injected daemon-up covers safety; optional)
 - Restore still opens AppContext (migrate) before probe (P3 residual; overwrite still blocked)
 - Dry-run notice stdout process-capture (P3 test hardening)
-- Argon2 params in kit JSON (F37); #34.2 DataKey rotation (**T189**)
+- Argon2 params in kit JSON (F37 → **T194**); ~~#34.2~~ closed T189
+
+---
+
+## T192 plan expansion (2026-08-02) — not closed until implement
+
+**Absorbs on ship:** deferred **#2** / R-DOC-CLI doctor half; SECURITY-LIMITS / INSTALL / CAPABILITIES / RECOVERY-DRILLS “doctor absent”; claims script invented-doctor forbid retarget.
+
+**Frozen (see trackT192 spec F1–F34):** read-only `open_read_intent`; no `AppContext::from_cli`; exit 0 for ok|degraded, 1 fail, `--fail-on-degraded`; daemon info-only via T188 robust probe; recoverability via optional `--kit-path` (reparse refuse) + soft `RecoveryKitCreated` with **JSON-quoted** `event_type` query; **F17b** `backup_dir_read_only` for list paths; contracts `DoctorReport` schema_version=1; human format default; **remove** claims rule #54; zero new deps (no humantime — reuse `parse_duration`).
+
+**AI fold-in:** AI1 §1–6 + AI2 M1–M5, L1–L4, L7 accepted; L5 TTY-smart format declined as soft residual.
+
+**Still residual after ship (honest):** offline kit without `--kit-path`; probe = our IPC only; no hook doctor; no auto-fix; TTY-smart format optional later.
 
 
 ## T189 closeout (2026-08-02)

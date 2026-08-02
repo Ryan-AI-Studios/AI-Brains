@@ -7,6 +7,7 @@ pub mod context;
 pub mod daemon;
 pub mod decision;
 pub mod device;
+pub mod doctor;
 pub mod dogfood;
 pub mod erasure;
 pub mod evaluate;
