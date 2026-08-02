@@ -99,13 +99,18 @@ Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite + `recovery export
 
 ## 7. Multi-user / machine residuals
 
-| Residual | Note |
-|----------|------|
-| Loopback HTTP + bearer | Opt-in; local multi-user residual if token shared |
-| Named-pipe IPC (Windows) | Pipe SDDL is **SYSTEM + Administrators + Interactive** (not World). Any **interactive** logon on a multi-user host can open the pipe; pipe messages have **no bearer** (contrast HTTP). Primary model is single-owner desktop. |
-| Unix domain socket | Default path `/tmp/ledgerful-bridge.sock` (ledgerful interop); post-bind mode **0o600**. Residual: predictable path / bind-race if another principal owns the name first. Prefer loopback HTTP + bearer for multi-user Unix hosts. |
-| LocalSystem service token | Windows service residual (see OPERATIONS service notes) |
-| DPAPI seed portability | Windows-only seal; not portable cross-OS |
+**Product fence (ADR-0022):** single-owner desktop / single-vault. Not multi-user-safe IPC. Wire `principal_id` is a **policy label**, not pipe/HTTP authentication.
+
+| Residual | Disposition (T195) | Note |
+|----------|--------------------|------|
+| Loopback HTTP + bearer | Residual if token shared | Opt-in; owner-only token file |
+| **R-PIPE-IU** Named-pipe IPC (Windows) | **(b) opt-in harden + residual** | Default SDDL **SY+BA+IU** (not World). Any **interactive** logon can open the pipe; no pipe bearer. Opt-in `AI_BRAINS_PIPE_ACL=service-only` → SY+BA only (interactive CLI expects **NotRunning** against SYSTEM service pipe). Pipe name `\\.\pipe\ledgerful-bridge` unchanged. |
+| **R-MULTI** | **(c) permanent fence** | No multi-user pipe auth / per-user pipe bearer product claim. See [ADR-0022](DECISIONS/ADR-0022-single-owner-daemon-ipc-fence.md). |
+| **R-UDS-TMP** Unix domain socket | **(a)/(b) mitigate + residual** | Shared resolver: absolute `AI_BRAINS_DAEMON_SOCKET` → valid `$XDG_RUNTIME_DIR` (0700, uid==euid; not created by us) → `/tmp/ledgerful-bridge.sock` + warn. Post-bind **0o600**. Pre-bind/shutdown unlink only owned sockets. Residual: `/tmp` fallback (esp. macOS when XDG unset); not TOCTOU-closed under `/tmp`. Prefer loopback HTTP + bearer on multi-user Unix hosts. |
+| **R-HTTP-SYS** LocalSystem service HTTP | **(a)/(b) mitigate + residual** | Service host **refuses** HTTP unless `AI_BRAINS_HTTP_SERVICE` is truthy (`1`/`true`/`yes`). Opt-in keeps SYSTEM-profile token residual (not Session 1 desktop-readable). Interactive `ai-brainsd --http` unchanged. |
+| DPAPI seed portability | Residual | Windows-only seal; not portable cross-OS |
+
+**Forbidden marketing:** “multi-user safe,” “per-user pipe isolation,” “service HTTP ready for desktop clients,” “UDS TOCTOU-closed under /tmp.”
 
 ---
 

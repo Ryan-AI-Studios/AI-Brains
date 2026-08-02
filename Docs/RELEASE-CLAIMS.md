@@ -158,10 +158,11 @@ Every row in T184 `residuals.md` is dispositioned below. Minimum cite set per L3
 | **R-WAL-CKPT** | WAL checkpoint ≠ NIST Purge | Cited as non-claim | Store honesty; no Purge/Destroy product claim. |
 | **R-ACK** | Sync ACK ≠ wipe proof | Cited as non-claim | ACK is attestation only (ADR-0018 / OPERATIONS). |
 | **R-META** | Sync metadata residual | Cited as non-claim | No metadata-private sync claim. |
-| **R-HTTP-SYS** | LocalSystem HTTP token vs desktop | Cited as non-claim | Service residual; single-owner / OPERATIONS honesty. |
-| **R-MULTI** | Multi-user interactive pipe residual | Cited as non-claim | No multi-user pipe auth product claim; Interactive SID residual. |
-| **R-PIPE-IU** | Pipe SDDL SY+BA+IU (not per-user SID) | Cited as non-claim | No per-user pipe bearer; see “does not include.” |
-| **R-UDS-TMP** | UDS path under /tmp predictable | Cited as non-claim | Prefer HTTP+bearer multi-user Unix; mode 0o600 after bind. |
+| **R-HTTP-SYS** | LocalSystem HTTP token vs desktop | **Mitigated-with-residual (T195)** | Service host **refuses** HTTP unless `AI_BRAINS_HTTP_SERVICE=1\|true\|yes`; opt-in keeps SYSTEM-profile token residual (not desktop-readable). Interactive `--http` unchanged. Not “service HTTP ready for desktop.” |
+| **R-MULTI** | Multi-user interactive pipe residual | **Permanent fence (T195 / ADR-0022)** | Single-owner desktop IPC model; no multi-user pipe auth product claim. Multi-user product needs a **future ADR**. |
+| **R-PIPE-IU** | Pipe SDDL SY+BA+IU (not per-user SID) | **Opt-in harden + residual (T195)** | Default keeps IU (service↔Session1 CLI). `AI_BRAINS_PIPE_ACL=service-only` drops IU. No per-user pipe bearer. Residual: any Interactive logon can open default pipe. |
+| **R-UDS-TMP** | UDS path under /tmp predictable | **Mitigated-with-residual (T195)** | Shared XDG resolver + `AI_BRAINS_DAEMON_SOCKET` + pre-bind ownership hygiene; `/tmp` fallback residual (warn). Post-bind 0o600. Not “UDS TOCTOU-closed under /tmp.” Prefer HTTP+bearer multi-user Unix. |
+| **principal_id** | Wire principal vs IPC auth | Honesty (T195 F25) | Daemon wire `principal_id` is a **policy label** for grants — **not** named-pipe or UDS authentication. |
 | **R-API-VER** | `api_version` unenforced runtime | Cited as non-claim | PROTOCOL-COMPAT honesty; presence ≠ hard reject. |
 | **R-BRIDGE** | Bridge capture policy doc-vs-code | Out of scope for claims | Process residual; do not invent bridge policy product claims beyond PROTOCOL-COMPAT. |
 | **R-DTO-GOLDEN** | DTO goldens / API_VERSION SOOT gaps | Out of scope for claims | Test/fixture hygiene; not a user-facing capability claim. |

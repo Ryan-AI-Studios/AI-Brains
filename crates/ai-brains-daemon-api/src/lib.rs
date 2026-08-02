@@ -1,12 +1,15 @@
-//! Named-pipe daemon request/response protocol (line-delimited JSON).
+//! Named-pipe daemon request/response protocol (line-delimited JSON) plus
+//! shared transport helpers (T195).
 //!
-//! **Design locks (T158 / T159)**
+//! **Design locks (T158 / T159 / T195)**
 //! - Serde: `tag = "type"`, `content = "payload"`, `rename_all = "snake_case"`.
-//! - Dependencies: **serde + ai-brains-contracts only** — no domain logic.
+//! - Protocol DTOs: **serde + ai-brains-contracts** — no vault/domain handlers.
 //! - Unknown `type` fails deserialize (fail-closed; no `#[serde(other)]`).
 //! - Legacy `ping` / `ingest` / `sync` / `shutdown` wire remains deserializable.
 //! - Governed protocol surface is complete; handlers live in `ai-brainsd`
-//!   (T159). This crate remains DTO-only.
+//!   (T159).
+//! - [`transport_path`]: shared UDS path resolver + pure pipe-ACL mode parse
+//!   (daemon + CLI SOOT; F7/F31).
 //! - [`DaemonResponse::unsupported`] is a generic helper for callers that need
 //!   an explicit [`UNSUPPORTED_OPERATION`] reply — not a T159 residual.
 
@@ -32,6 +35,15 @@ use ai_brains_contracts::review::{
 use ai_brains_contracts::scopes::{ResolveScopeRequest, ScopeResolvedResponse};
 use ai_brains_contracts::sources::{InspectSourceRequest, SourceDto};
 use serde::{Deserialize, Serialize};
+
+pub mod transport_path;
+
+pub use transport_path::{
+    DAEMON_SOCKET_FILE_NAME, ENV_DAEMON_SOCKET, ENV_PIPE_ACL, FALLBACK_DAEMON_SOCKET_PATH,
+    PIPE_SDDL_INTERACTIVE, PIPE_SDDL_SERVICE_ONLY, PipeAclMode, PipeAclModeError,
+    ResolveDaemonSocketError, ResolvedDaemonSocket, parse_pipe_acl_mode, pipe_acl_mode_from_env,
+    resolve_daemon_socket_path, sddl_for_pipe_acl_mode,
+};
 
 /// Stable error code when a recognized request cannot be handled by this path.
 pub const UNSUPPORTED_OPERATION: &str = "UNSUPPORTED_OPERATION";

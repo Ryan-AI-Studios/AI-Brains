@@ -53,10 +53,17 @@ On **every T1 tier**, the capture path (CLI → daemon → event log) **must** r
 | OS | Live `DaemonClient` transport | Portable product control plane |
 |----|------------------------------|--------------------------------|
 | **Windows** | Named pipe `\\.\pipe\ledgerful-bridge` | Loopback HTTP + bearer (T161) also available |
-| **Unix (Linux/macOS)** | **Unix domain socket** `/tmp/ledgerful-bridge.sock` | Loopback HTTP + bearer (T161) — preferred multi-OS product surface |
+| **Unix (Linux/macOS)** | **Unix domain socket** (T195 shared resolver) | Loopback HTTP + bearer (T161) — preferred multi-OS product surface |
 
+**Unix UDS path order (daemon bind + CLI connect share the same helper):**
+1. Absolute `AI_BRAINS_DAEMON_SOCKET` (relative → fail closed)
+2. Else valid `$XDG_RUNTIME_DIR/ledgerful-bridge.sock` (dir must exist, mode `0700`, uid == euid; AI-Brains does not create XDG)
+3. Else `/tmp/ledgerful-bridge.sock` + runtime warning (fallback residual, common on macOS)
+
+- Do **not** claim that Unix always lives under `/tmp` — XDG-first when valid.
 - Do **not** claim that Unix already defaults to HTTP — live CLI code uses **UDS**.
 - Portable multi-OS smoke should exercise **HTTP health/bearer** when claiming portable daemon IPC.
+- Prior `/tmp`-hardcoded external clients need `AI_BRAINS_DAEMON_SOCKET` on daemon **and** client when the daemon uses XDG (see CHANGELOG / OPERATIONS).
 - Optional residual (not T179 DoD): unify Unix CLI→daemon to prefer HTTP.
 
 ---

@@ -47,18 +47,45 @@ impl HttpDispatch for DaemonHttpDispatch {
     }
 }
 
+/// Truthy env values shared by `AI_BRAINS_HTTP` and `AI_BRAINS_HTTP_SERVICE` (T195 F33):
+/// `1` / `true` / `yes` (case-insensitive, trimmed).
+pub fn is_http_env_truthy(raw: &str) -> bool {
+    let t = raw.trim();
+    t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
+}
+
 /// True when HTTP should start: `AI_BRAINS_HTTP=1|true|yes` or `--http` in args.
 pub fn http_enabled_from_env_and_args(args: &[String]) -> bool {
     if args.iter().any(|a| a == "--http") {
         return true;
     }
     match std::env::var("AI_BRAINS_HTTP") {
-        Ok(v) => {
-            let t = v.trim();
-            t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
-        }
+        Ok(v) => is_http_env_truthy(&v),
         Err(_) => false,
     }
+}
+
+/// Pure service-HTTP opt-in check (T195 F10/F33).
+///
+/// `None` / non-truthy → refuse service HTTP. Same truthy set as [`is_http_env_truthy`].
+/// Gate is applied only in `windows_service` before [`maybe_start_http`] — not here.
+pub fn service_http_opt_in_from_value(raw: Option<&str>) -> bool {
+    raw.map(is_http_env_truthy).unwrap_or(false)
+}
+
+/// Read `AI_BRAINS_HTTP_SERVICE` and return whether service host may start HTTP.
+pub fn service_http_opt_in_from_env() -> bool {
+    match std::env::var("AI_BRAINS_HTTP_SERVICE") {
+        Ok(v) => service_http_opt_in_from_value(Some(&v)),
+        Err(_) => false,
+    }
+}
+
+/// Composed service-host HTTP gate (T195 F10): start HTTP only when both enabled and opted in.
+///
+/// Pure truth table for unit tests; `windows_service` applies this before [`maybe_start_http`].
+pub fn service_should_start_http(http_enabled: bool, service_opt_in: bool) -> bool {
+    http_enabled && service_opt_in
 }
 
 /// Parse optional `--http-bind <addr>` from argv.
@@ -135,4 +162,63 @@ pub async fn maybe_start_http(
         "AI-Brains HTTP API listening on http://{local}/v1 (bearer required; token file under %USERPROFILE%\\.ai-brains\\http.token)"
     );
     Ok(Some(local))
+}
+
+#[cfg(test)]
+#[allow(non_snake_case, clippy::disallowed_methods)]
+mod tests {
+    use super::*;
+    use ai_brains_core::temp_env::TempEnv;
+
+    #[test]
+    fn is_http_env_truthy__accepts_1_true_yes() {
+        assert!(is_http_env_truthy("1"));
+        assert!(is_http_env_truthy(" true "));
+        assert!(is_http_env_truthy("YES"));
+        assert!(!is_http_env_truthy("0"));
+        assert!(!is_http_env_truthy("no"));
+        assert!(!is_http_env_truthy(""));
+    }
+
+    #[test]
+    fn service_http_opt_in_from_value__without_opt_in__false() {
+        assert!(!service_http_opt_in_from_value(None));
+        assert!(!service_http_opt_in_from_value(Some("")));
+        assert!(!service_http_opt_in_from_value(Some("0")));
+        assert!(!service_http_opt_in_from_value(Some("no")));
+    }
+
+    #[test]
+    fn service_http_opt_in_from_value__with_opt_in__true() {
+        assert!(service_http_opt_in_from_value(Some("1")));
+        assert!(service_http_opt_in_from_value(Some("true")));
+        assert!(service_http_opt_in_from_value(Some("Yes")));
+    }
+
+    #[test]
+    fn service_http_opt_in_from_env__matches_truthy_set() {
+        let _clear = TempEnv::remove("AI_BRAINS_HTTP_SERVICE");
+        assert!(!service_http_opt_in_from_env());
+        {
+            let _g = TempEnv::set("AI_BRAINS_HTTP_SERVICE", "1");
+            assert!(service_http_opt_in_from_env());
+        }
+        {
+            let _g = TempEnv::set("AI_BRAINS_HTTP_SERVICE", "true");
+            assert!(service_http_opt_in_from_env());
+        }
+        {
+            let _g = TempEnv::set("AI_BRAINS_HTTP_SERVICE", "no");
+            assert!(!service_http_opt_in_from_env());
+        }
+    }
+
+    #[test]
+    fn service_should_start_http__truth_table() {
+        // enabled ∧ opt-in → start; any other combo → skip
+        assert!(!service_should_start_http(false, false));
+        assert!(!service_should_start_http(false, true));
+        assert!(!service_should_start_http(true, false));
+        assert!(service_should_start_http(true, true));
+    }
 }
