@@ -174,13 +174,26 @@ fn rotate_datakey_export(
         })?;
     }
 
-    // 1) Export pages under new key (application wraps still under old DataKey).
-    if let Err(e) = sqlcipher_export_encrypted(vault_path, old_sql_key, &dest, new_sql_key) {
+    // Open source under exclusive lock and HOLD it through export + dest rewrap
+    // + verify. Drop only immediately before atomic replace (Windows requires
+    // closed handles on the target path). This closes the concurrent-writer window
+    // Codex R2 P1 flagged (lock must cover replace, not only export).
+    let src = Connection::open(vault_path).map_err(|e| {
+        StoreError::ConnectionFailed(format!("open source for sqlcipher_export: {e}"))
+    })?;
+    apply_pragmas(&src, old_sql_key)?;
+    verify_open(&src)?;
+    take_exclusive_connection_lock(&src)?;
+    let _ = src.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()));
+
+    // 1) Export pages under new key (wraps still under old DataKey until step 2).
+    if let Err(e) = sqlcipher_export_via_attach(&src, &dest, new_sql_key) {
         remove_db_and_sidecars(&dest);
+        drop(src);
         return Err(e);
     }
 
-    // 2) Re-wrap + re-seal on the NEW DB only.
+    // 2) Re-wrap + re-seal on the NEW DB only (source exclusive still held).
     let apply_result = (|| {
         let new_conn = Connection::open(&dest)
             .map_err(|e| StoreError::ConnectionFailed(format!("open exported rotate dest: {e}")))?;
@@ -193,7 +206,6 @@ fn rotate_datakey_export(
 
         // 3) Verify under new key before replace.
         verify_rotation(&new_conn, new_data_key, living)?;
-        // Drop connection before replace.
         drop(new_conn);
 
         Ok::<RotateDataKeyResult, StoreError>(RotateDataKeyResult {
@@ -208,11 +220,15 @@ fn rotate_datakey_export(
         Ok(r) => r,
         Err(e) => {
             remove_db_and_sidecars(&dest);
+            drop(src);
             return Err(e);
         }
     };
 
-    // 4) Atomic replace: on failure, leave dest for recovery but old vault intact.
+    // 4) Release exclusive on old path, then atomic replace (old file openable
+    // until replace succeeds; no concurrent writer could have committed while we held EXCLUSIVE).
+    drop(src);
+
     if let Err(e) = atomic_replace_file(&dest, vault_path) {
         remove_db_and_sidecars(&dest);
         return Err(e);
@@ -229,23 +245,12 @@ fn rotate_datakey_export(
     Ok(result)
 }
 
-fn sqlcipher_export_encrypted(
-    source: &Path,
-    old_key: &SqlCipherKey,
+/// `sqlcipher_export` into `dest` using an already-keyed exclusive source connection.
+fn sqlcipher_export_via_attach(
+    src: &Connection,
     dest: &Path,
     new_key: &SqlCipherKey,
 ) -> Result<()> {
-    let src = Connection::open(source).map_err(|e| {
-        StoreError::ConnectionFailed(format!("open source for sqlcipher_export: {e}"))
-    })?;
-    apply_pragmas(&src, old_key)?;
-    verify_open(&src)?;
-    // F6: exclusive connection lock so concurrent non-daemon writers cannot
-    // commit pages that would be discarded when the temp DB replaces the source.
-    // Use locking_mode=EXCLUSIVE (not an open user txn) so ATTACH/DETACH work.
-    take_exclusive_connection_lock(&src)?;
-    let _ = src.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()));
-
     let dest_sql = sql_quote_path(dest);
     let key_material = new_key.expose_secret();
     let attach = format!("ATTACH DATABASE {dest_sql} AS rotated KEY \"{key_material}\";");
@@ -262,8 +267,6 @@ fn sqlcipher_export_encrypted(
     src.execute_batch("DETACH DATABASE rotated;").map_err(|e| {
         StoreError::ConnectionFailed(format!("DETACH rotated failed ({})", redact_sql_err(e)))
     })?;
-    // Drop connection before atomic replace (releases exclusive; handles closed).
-    drop(src);
     Ok(())
 }
 
@@ -300,8 +303,16 @@ fn rotate_datakey_rekey(
         )));
     }
 
+    // Take exclusive BEFORE snapshot so concurrent writers cannot race the
+    // pre-rotate baseline (Codex R2).
+    let conn = Connection::open(vault_path)
+        .map_err(|e| StoreError::ConnectionFailed(format!("open vault for rekey: {e}")))?;
+    apply_pragmas(&conn, old_sql_key)?;
+    verify_open(&conn)?;
+    take_exclusive_connection_lock(&conn)?;
+    let _ = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()));
+
     let snapshot = vault_path.with_extension("db.pre-rotate.bak");
-    // Prefer unique if exists
     let snapshot = if snapshot.exists() {
         vault_path.with_extension(format!(
             "db.pre-rotate.bak-{}",
@@ -311,13 +322,15 @@ fn rotate_datakey_rekey(
         snapshot
     };
 
-    fs::copy(vault_path, &snapshot).map_err(|e| {
-        StoreError::ConnectionFailed(format!(
+    // Online backup / file copy while exclusive held. Prefer simple file copy
+    // after checkpoint (WAL flushed into main).
+    if let Err(e) = fs::copy(vault_path, &snapshot) {
+        drop(conn);
+        return Err(StoreError::ConnectionFailed(format!(
             "pre-rotate snapshot failed ({}): {e}",
             snapshot.display()
-        ))
-    })?;
-    // Best-effort copy of WAL companions if present
+        )));
+    }
     let wal = sidecar(vault_path, "-wal");
     if wal.exists() {
         let _ = fs::copy(&wal, sidecar(&snapshot, "-wal"));
@@ -328,13 +341,6 @@ fn rotate_datakey_rekey(
     }
 
     let run: Result<RotateDataKeyResult> = (|| {
-        let conn = Connection::open(vault_path)
-            .map_err(|e| StoreError::ConnectionFailed(format!("open vault for rekey: {e}")))?;
-        apply_pragmas(&conn, old_sql_key)?;
-        verify_open(&conn)?;
-        // F6 exclusive for wrap + rekey (single writer until connection drops).
-        take_exclusive_connection_lock(&conn)?;
-
         // Wrap updates under old page key (own txn; commit before rekey).
         let (living, resealed) = {
             let tx = conn
@@ -389,10 +395,12 @@ fn rotate_datakey_rekey(
     match run {
         Ok(r) => {
             // Success: leave snapshot for operator; do not auto-delete.
+            drop(conn);
             Ok(r)
         }
         Err(e) => {
-            // Auto-restore snapshot (F7b).
+            // Release exclusive before file restore (F7b).
+            drop(conn);
             if let Err(restore_err) = restore_snapshot(&snapshot, vault_path) {
                 return Err(StoreError::ConnectionFailed(format!(
                     "rekey failed ({e}); snapshot restore also failed: {restore_err}"

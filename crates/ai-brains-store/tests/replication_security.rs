@@ -1465,7 +1465,7 @@ fn t178_explicit_defers__documented() {
     // defer: L10 CLI naming — T176/T177 surface docs; not crypto suite
     // defer: L15 multi-user — product fence; no multi-user API
     // defer: L16 / PQ implementation — classical only; covered by NC-no-pq-claim
-    // defer: #34.2 DataKey rotation — still open residual
+    // #34.2 DataKey rotation — closed by T189 (vault rotate-datakey / ADR-0020)
     // defer: HPKE / MLS — ADR §18 deferred
     // defer: T178-L3-reject-unbound-pin — no unbound PIN API in v1
     // defer: CAVP/FIPS certification — informal primitive sanity only
