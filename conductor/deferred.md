@@ -12,29 +12,21 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~§59 #1 recovery export; #6 restore daemon hard-fail~~ (R-DOC-CLI partial: export shipped; doctor remains) | **Closed by T188** (2026-08-02); **#2 doctor** still open |
 | ~~**#34.2** DataKey rotation~~ | **Closed by T189** (2026-08-02) PR #67 `9e9465e` |
 | ~~**#12** path TOCTOU / openat / cap-std~~ | **Closed-with-residuals by T190** (2026-08-02): vault open+list + Hermes/Honcho elevated (ADR-0021). Residuals: ambient CLI, soft-canon, token path, T188 write pre/post reparse. |
-| T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail | **T191** (Pending / Expanded 2026-08-02 — product is Ledgerful; residual identifiers + tag dual-read + L13 hermetic) |
+| ~~T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail~~ | **Closed by T191** (2026-08-02): dual-read tags + Ledgerful identifier renames + hermetic L13 |
 
-Suggested order: **T191** (anytime). Doctor residual remains open (no dedicated track yet). T190 shipping closes #12 with residuals.
+Suggested order: Doctor residual remains open (no dedicated track yet). T191 closes T142 #1–2 + T186 L13.
 
 ---
 
 ## From T142 — Ledgerful state-dir + product-name migration (2026-06-29)
 
-### 1. Functional symbol rename: `ChangeGuardHotspot` and friends
-- `struct ChangeGuardHotspot` in `crates/ai-brains-cli/src/commands/safety.rs` — type name still says ChangeGuard; ripples through 5 fn signatures in `safety.rs`.
-- `ChangeGuardVerificationBackend` in `crates/ai-brains-capture/src/verification_gate.rs:66` — public type name.
-- Recommend a single dedicated functional-rename track to batch:
-  - `ChangeGuardHotspot` → `LedgerfulHotspot`
-  - `ChangeGuardVerificationBackend` → `LedgerfulVerificationBackend`
-  - `query_changeguard_*` fn names across `intervention.rs`, `verification_gate.rs`, `recall.rs`, `preflight.rs`, `symbol_bridge.rs`, `nightly.rs`
-  - `ingest_*_from_changeguard`, `refresh_changeguard_index`, `query_changeguard_bridge`
-- Renaming these ripples across call sites and tests; batch in one track to avoid piecemeal churn.
+### ~~1. Functional symbol rename: `ChangeGuardHotspot` and friends~~ — **Closed by T191** (2026-08-02)
+- ~~Type/fn renames across safety, capture verification_gate, brain intervention, retrieval preflight/recall, symbol_bridge, nightly.~~
+- **Resolved:** hard renames to `Ledgerful*` / `query_ledgerful*` / `ingest_*_from_ledgerful` / `refresh_ledgerful_index` / `query_symbols_from_ledgerful` (no deprecated type alias).
 
-### 2. `source_tag: "changeguard:symbol"` dedup identity
-- In `crates/ai-brains-cli/src/commands/symbol_bridge.rs:82,232`.
-- This string is a dedup identity key. Changing it breaks idempotency with already-ingested symbol memories.
-- **Do NOT change without a migration** that backfills the new tag value in existing rows (or a mapping layer that accepts both).
-- Defer until a migration strategy is designed.
+### ~~2. `source_tag: "changeguard:symbol"` dedup identity~~ — **Closed by T191** (2026-08-02)
+- ~~Flip write tag alone would re-ingest duplicates.~~
+- **Resolved:** dual-read (`SOURCE_TAG_SYMBOL_LEGACY` \| `SOURCE_TAG_SYMBOL`) + new writes `ledgerful:symbol`; T167 preserve path unchanged.
 
 ### ~~3. `CHANGEGUARD_TX_ID` in Docs/OPERATIONS.md env table~~ — Resolved (T142 closeout 2026-07-24)
 - ~~`Docs/OPERATIONS.md` still listed only `CHANGEGUARD_TX_ID`.~~
@@ -629,7 +621,7 @@ P12.2 shipped: `Docs/PROTOCOL-COMPAT.md`; elevate T158; additive helper; honesty
 P12 residual after T179 multi-OS GHA. Shipped: shared hermetic helper; ambient denylist; priority+soft suite migration; soft-canonicalize KAT expansion; GHA `--profile ci` (no-fail-fast); wall-clock docs; R-CI-PIN PR `ci.yml` SHA pins.
 
 - **Out of scope (unchanged):** platform tiers; T180; T181 productization; #34.2; R-CI-BRANCH (admin); full long-tail rewrite.
-- **Long-tail residual (L13):** 25 `cargo_bin` sites / 5 files inventoried — not DoD blockers.
+- ~~**Long-tail residual (L13):** 25 `cargo_bin` sites / 5 files inventoried — not DoD blockers.~~ — **Closed by T191**
 
 ### 59. T181 Backup Recovery Drills — **Completed** (2026-08-01)
 
@@ -818,7 +810,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 **Absorbed:** §56/§58 T179 hermetic suite + ambient + soft-canonicalize + no-fail-fast; §62 R-CI-PIN PR pins.
 
 **Explicit non-DoD residuals (remain open elsewhere):**
-1. Long-tail 25 `cargo_bin` sites / 5 files (L13 inventoried)
+1. ~~Long-tail 25 `cargo_bin` sites / 5 files (L13 inventoried)~~ — **Closed by T191**
 2. ~~#12 TOCTOU / openat / cap-std~~ — closed-with-residuals by **T190**
 3. R-CI-BRANCH (repo admin)
 4. Platform tier / desktop T1
