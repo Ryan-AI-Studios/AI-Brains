@@ -447,6 +447,17 @@ fn map_cap_open_err(e: CapOpenError) -> ConnectorError {
     })
 }
 
+/// True when an `Io` message is ENOTDIR / "not a directory" (Unix `O_DIRECTORY` on a file).
+///
+/// Used by `walk_vault` so non-directory entries can fall through to the file path
+/// without treating permission-denied or other real I/O as silent skip.
+fn is_enotdir_message(msg: &str) -> bool {
+    let lower = msg.to_ascii_lowercase();
+    lower.contains("not a directory")
+        || lower.contains("enotdir")
+        || lower.contains("is a file")
+}
+
 /// Recursive directory walk via cap-std [`Dir`] handles; **no** `std::fs::read_dir`.
 ///
 /// Stops when `handles.len() == max_files`. Symlink/reparse entries are skipped
@@ -493,7 +504,9 @@ fn walk_vault(
         };
 
         // Probe type via nofollow open: dir first, then file. Reparse → skip.
-        match open_dir_component_nofollow(current, &name) {
+        // Real I/O errors (permission denied, etc.) MUST surface — do not silent-skip
+        // unreadable subtrees (Codex P2-01). Only ENOTDIR / typed NotADir fall through.
+        let try_as_file = match open_dir_component_nofollow(current, &name) {
             Ok(child_dir) => {
                 if is_ignored_dir_name(&name) {
                     continue;
@@ -516,21 +529,22 @@ fn walk_vault(
                 // Symlink/junction/reparse: skip for list (observe will refuse).
                 continue;
             }
-            Err(CapOpenError::NotADir(_)) | Err(CapOpenError::NotAFile(_)) => {
-                // Not a directory — try as file below.
-            }
+            Err(CapOpenError::NotADir(_)) | Err(CapOpenError::NotAFile(_)) => true,
             Err(CapOpenError::NotFound(_)) => {
                 // Race: entry vanished during walk.
                 continue;
             }
-            Err(other) => {
-                // Open failed for non-dir reasons (e.g. not a dir on Unix O_DIRECTORY).
-                // Fall through to file open for regular files / other types.
-                let _ = other;
+            Err(CapOpenError::Io(ref msg)) if is_enotdir_message(msg) => {
+                // Unix O_DIRECTORY on a regular file → ENOTDIR as Io.
+                true
             }
-        }
+            Err(e) => {
+                // Permission denied / other real open failures on dirs: surface.
+                return Err(map_cap_open_err(e));
+            }
+        };
 
-        if !is_markdown_file(&name) {
+        if !try_as_file || !is_markdown_file(&name) {
             continue;
         }
 
