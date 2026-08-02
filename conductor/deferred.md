@@ -16,11 +16,11 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~**#2** doctor CLI / R-DOC-CLI~~ | **Closed by T192** (2026-08-02) PR #75 `80837da` |
 | ~~T190 ambient CLI / write / token path residuals~~ | **Closed-with-residuals by T193** (2026-08-02) PR #77 `2183127` — P0 write SOOT elevated; soft-canon / parent mkdir / ambient CLI long-tail remain honesty residuals |
 | ~~Argon2 params in kit JSON (F37)~~ | **Closed by T194** (2026-08-02) PR #76 `2c06464` |
-| R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI | **T195** (placeholder 2026-08-02) |
+| ~~R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI~~ | **Closed-with-residuals by T195** (2026-08-02) PR #78 `bd375a8` — opt-in pipe ACL, XDG UDS, service HTTP refuse, ADR-0022 fence; residuals remain honesty (IU default multi-interactive, `/tmp` fallback, service HTTP when opted in) |
 | systemd / launchd units; CONTRIBUTING hygiene | **T196** (placeholder 2026-08-02) |
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 
-Suggested order: ~~**T194** (kit schema)~~ **closed PR #76** → ~~**T193** (path residual)~~ **closed PR #77** → **T195** (daemon multi-user) → **T196** (ops units/docs).
+Suggested order: ~~**T194** (kit schema)~~ **closed PR #76** → ~~**T193** (path residual)~~ **closed PR #77** → ~~**T195** (daemon multi-user)~~ **closed PR #78** → **T196** (ops units/docs).
 
 ---
 
