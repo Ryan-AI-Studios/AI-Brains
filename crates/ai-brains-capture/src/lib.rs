@@ -23,6 +23,6 @@ pub use verification_evidence::{
     verification_gate_source_id,
 };
 pub use verification_gate::{
-    ChangeGuardVerificationBackend, GateDecision, VerificationBackend, VerificationGate,
+    GateDecision, LedgerfulVerificationBackend, VerificationBackend, VerificationGate,
     VerifyResponse,
 };

@@ -126,7 +126,7 @@ pub fn recall(
     let bridge_hits = if options.no_bridge {
         Ok(Vec::new())
     } else {
-        query_changeguard_bridge(&sanitized, project_id, session_id)
+        query_ledgerful_bridge(&sanitized, project_id, session_id)
     };
 
     // Phase 2: Always run local FTS5 as a fallback / supplement.
@@ -294,7 +294,7 @@ fn bridge_search_args(query: &str) -> Vec<&str> {
 }
 
 #[allow(clippy::disallowed_methods)]
-fn query_changeguard_bridge(
+fn query_ledgerful_bridge(
     query: &str,
     _project_id: Option<ai_brains_core::ids::ProjectId>,
     _session_id: Option<ai_brains_core::ids::SessionId>,

@@ -65,11 +65,11 @@ pub trait VerificationBackend: Send + Sync + std::fmt::Debug {
 
 /// Production backend that shells out to `ledgerful bridge export`.
 #[derive(Debug)]
-pub struct ChangeGuardVerificationBackend;
+pub struct LedgerfulVerificationBackend;
 
-impl VerificationBackend for ChangeGuardVerificationBackend {
+impl VerificationBackend for LedgerfulVerificationBackend {
     fn run_verify(&self) -> Result<VerifyResponse, String> {
-        query_changeguard_verification()
+        query_ledgerful_verification()
     }
 }
 
@@ -100,7 +100,7 @@ impl VerificationGate {
     /// Production gate using the real Ledgerful backend.
     pub fn production() -> Self {
         Self::new(
-            Box::new(ChangeGuardVerificationBackend),
+            Box::new(LedgerfulVerificationBackend),
             Self::DEFAULT_THRESHOLD,
         )
     }
@@ -150,7 +150,7 @@ impl VerificationGate {
 /// Call `ledgerful bridge export --hotspots --ledger`, parse the NDJSON
 /// output, and synthesise a [`VerifyResponse`].
 #[allow(clippy::disallowed_methods)]
-fn query_changeguard_verification() -> Result<VerifyResponse, String> {
+fn query_ledgerful_verification() -> Result<VerifyResponse, String> {
     // -- Build the request envelope -----------------------------------------
     let record = BridgeRecord {
         bridge_version: "0.3".to_string(),

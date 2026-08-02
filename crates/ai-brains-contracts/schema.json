@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "BridgeRecord",
-  "description": "Shared contract for AI-Brains and ChangeGuard interoperability",
+  "description": "Shared contract for AI-Brains and Ledgerful interoperability",
   "type": "object",
   "required": [
     "bridge_version",
@@ -20,7 +20,7 @@
     },
     "direction": {
       "enum": ["inbound", "outbound"],
-      "description": "Direction of flow relative to the tool (inbound = ChangeGuard -> AI-Brains)"
+      "description": "Direction of flow relative to the tool (inbound = Ledgerful -> AI-Brains)"
     },
     "timestamp": {
       "type": "string",
@@ -43,7 +43,7 @@
     },
     "tx_id": {
       "type": ["string", "null"],
-      "description": "ChangeGuard ledger transaction ID"
+      "description": "Ledgerful ledger transaction ID"
     },
     "record_kind": {
       "type": "string",

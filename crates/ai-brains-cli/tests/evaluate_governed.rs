@@ -3,6 +3,8 @@
 
 //! T169 — `evaluate governed` CLI exit codes + path refuse.
 
+mod common;
+
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
@@ -14,7 +16,7 @@ fn fixtures_dir() -> PathBuf {
 }
 
 fn cmd() -> Command {
-    Command::cargo_bin("ai-brains").expect("binary")
+    common::hermetic_bin()
 }
 
 #[test]

@@ -33,6 +33,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T191 Hygiene (Ledgerful rename + hermetic long-tail):** Rename residual ChangeGuard type/fn identifiers to Ledgerful (`LedgerfulHotspot`, `LedgerfulVerificationBackend`, `query_ledgerful*`, `ingest_*_from_ledgerful`, `refresh_ledgerful_index`, `query_symbols_from_ledgerful`). Symbol ingest dual-reads `changeguard:symbol` / `ledgerful:symbol` and writes `ledgerful:symbol` only. Hermetic L13: five long-tail CLI tests use `common::hermetic_*`; denylist adds `LEDGERFUL_TX_ID` / `CHANGEGUARD_TX_ID`. Fixtures/docs brand Ledgerful (not ChangeGuard).
 - **T187:** F8 docs/claims flipped to live SQLCipher page encryption (COMPATIBILITY, SECURITY-LIMITS, RELEASE-CLAIMS, ARCHITECTURE, CAPABILITIES, INSTALL, OPERATIONS, Deviations §1 resolved). Not FIPS/Purge.
 - Elevated docs reworded for F8 vault encryption honesty (historical pre-T187 wording retained only in archive tracks).
 - Operations and status docs demoted/banners where historical CLI counts drifted.

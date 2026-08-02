@@ -9,6 +9,11 @@ use uuid::Uuid;
 
 use ai_brains_store::EventStore;
 
+/// Legacy source_tag written by pre-T191 symbol ingest (durable in vault events).
+pub const SOURCE_TAG_SYMBOL_LEGACY: &str = "changeguard:symbol";
+/// Canonical source_tag for new symbol ingest writes (T191 F2).
+pub const SOURCE_TAG_SYMBOL: &str = "ledgerful:symbol";
+
 #[derive(Clone, Debug, Deserialize)]
 struct SymbolRecord {
     file_path: String,
@@ -23,14 +28,14 @@ struct SymbolRecord {
 
 /// Refresh Ledgerful's symbol index, then ingest public symbols into AI-Brains
 /// as MemoryPinned events. Non-fatal; any failure is logged and skipped.
-pub fn ingest_symbols_from_changeguard(
+pub fn ingest_symbols_from_ledgerful(
     ctx: &AppContext,
     project_id: ProjectId,
 ) -> Result<usize, Box<dyn std::error::Error>> {
-    refresh_changeguard_index();
+    refresh_ledgerful_index();
 
     let project_root = std::env::current_dir().ok();
-    let symbols = query_symbols_from_changeguard()?;
+    let symbols = query_symbols_from_ledgerful()?;
     if symbols.is_empty() {
         tracing::info!("No symbols returned from Ledgerful index");
         return Ok(0);
@@ -78,7 +83,7 @@ fn ingest_symbol_records(
             project_id: Some(project_id),
             tx_id: None,
             rank: None,
-            source_tag: Some("changeguard:symbol".to_string()),
+            source_tag: Some(SOURCE_TAG_SYMBOL.to_string()),
             query_text: None,
         }));
 
@@ -112,7 +117,7 @@ fn symbol_content(symbol: &SymbolRecord) -> String {
 
 /// Call `ledgerful index` to refresh the symbol index.
 /// Non-fatal; logs a warning if unavailable.
-fn refresh_changeguard_index() {
+fn refresh_ledgerful_index() {
     #[allow(clippy::disallowed_methods)]
     match std::process::Command::new("ledgerful")
         .arg("index")
@@ -139,7 +144,7 @@ fn refresh_changeguard_index() {
 /// export, so T70 reads the indexed SQLite state directly. Route metadata is
 /// joined from `api_routes` when that table exists.
 #[allow(clippy::disallowed_methods)]
-fn query_symbols_from_changeguard() -> Result<Vec<SymbolRecord>, Box<dyn std::error::Error>> {
+fn query_symbols_from_ledgerful() -> Result<Vec<SymbolRecord>, Box<dyn std::error::Error>> {
     let cwd = std::env::current_dir()?;
     let ledgerful_path = cwd.join(".ledgerful/state/ledger.db");
     let changeguard_path = cwd.join(".changeguard/state/ledger.db");
@@ -238,12 +243,20 @@ fn symbol_already_ingested(event_store: &dyn EventStore, memory_uuid: Uuid) -> b
         .map(|events| {
             events.iter().any(|event| match &event.payload {
                 Payload::MemoryPinned(payload) => {
-                    payload.source_tag.as_deref() == Some("changeguard:symbol")
+                    is_symbol_source_tag(payload.source_tag.as_deref())
                 }
                 _ => false,
             })
         })
         .unwrap_or(false)
+}
+
+/// Dual-read: either legacy or canonical symbol source_tag counts as ingested (F2).
+fn is_symbol_source_tag(tag: Option<&str>) -> bool {
+    matches!(
+        tag,
+        Some(SOURCE_TAG_SYMBOL_LEGACY) | Some(SOURCE_TAG_SYMBOL)
+    )
 }
 
 fn non_empty(value: String) -> Option<String> {
@@ -269,6 +282,7 @@ fn symbol_in_project(file_path: &str, project_root: Option<&std::path::Path>) ->
 }
 
 #[cfg(test)]
+#[allow(non_snake_case)] // test names use `feature__condition__expected` convention
 mod tests {
     use super::*;
     use ai_brains_crypto::{DataKey, SqlCipherKey};
@@ -327,11 +341,8 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn symbol_ingestion_is_idempotent_and_recallable() -> Result<(), Box<dyn std::error::Error>> {
-        let store = setup_store()?;
-        let project_id = ProjectId::new();
-        let symbols = vec![SymbolRecord {
+    fn sample_symbol() -> SymbolRecord {
+        SymbolRecord {
             file_path: "src/routes/user.rs".to_string(),
             qualified_name: "crate::routes::get_user".to_string(),
             symbol_name: "get_user".to_string(),
@@ -339,7 +350,44 @@ mod tests {
             line_start: 42,
             method: Some("GET".to_string()),
             path_pattern: Some("/users/:id".to_string()),
-        }];
+        }
+    }
+
+    fn pin_symbol_with_tag(
+        store: &SqliteEventStore,
+        project_id: ProjectId,
+        symbol: &SymbolRecord,
+        source_tag: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let namespace = Uuid::NAMESPACE_URL;
+        let key = format!("{}:{}", project_id, symbol.qualified_name);
+        let memory_uuid = Uuid::new_v5(&namespace, key.as_bytes());
+        let memory_id = MemoryId::from_uuid(memory_uuid);
+        let envelope = EventBuilder::new(
+            AggregateType::Memory,
+            memory_uuid,
+            Actor::System,
+            Privacy::LocalOnly,
+        )
+        .build(Payload::MemoryPinned(MemoryPinnedPayload {
+            memory_id,
+            content: symbol_content(symbol),
+            session_id: None,
+            project_id: Some(project_id),
+            tx_id: None,
+            rank: None,
+            source_tag: Some(source_tag.to_string()),
+            query_text: None,
+        }))?;
+        store.append_event(&envelope)?;
+        Ok(())
+    }
+
+    #[test]
+    fn symbol_ingestion_is_idempotent_and_recallable() -> Result<(), Box<dyn std::error::Error>> {
+        let store = setup_store()?;
+        let project_id = ProjectId::new();
+        let symbols = vec![sample_symbol()];
 
         assert_eq!(
             ingest_symbol_records(&store, project_id, None, symbols.clone())?,
@@ -366,6 +414,85 @@ mod tests {
             hit.content.contains("route GET /users/:id")
                 && hit.content.contains("crate::routes::get_user")
         }));
+        Ok(())
+    }
+
+    #[test]
+    fn symbol_dedup__legacy_tag_only__no_double_ingest() -> Result<(), Box<dyn std::error::Error>> {
+        let store = setup_store()?;
+        let project_id = ProjectId::new();
+        let symbol = sample_symbol();
+        pin_symbol_with_tag(&store, project_id, &symbol, SOURCE_TAG_SYMBOL_LEGACY)?;
+
+        assert_eq!(
+            ingest_symbol_records(&store, project_id, None, vec![symbol])?,
+            0,
+            "legacy changeguard:symbol tag must count as already ingested"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn symbol_dedup__new_tag_only__no_double_ingest() -> Result<(), Box<dyn std::error::Error>> {
+        let store = setup_store()?;
+        let project_id = ProjectId::new();
+        let symbol = sample_symbol();
+        pin_symbol_with_tag(&store, project_id, &symbol, SOURCE_TAG_SYMBOL)?;
+
+        assert_eq!(
+            ingest_symbol_records(&store, project_id, None, vec![symbol])?,
+            0,
+            "ledgerful:symbol tag must count as already ingested"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn symbol_ingest__writes_ledgerful_symbol_tag() -> Result<(), Box<dyn std::error::Error>> {
+        let store = setup_store()?;
+        let project_id = ProjectId::new();
+        let symbol = sample_symbol();
+        let namespace = Uuid::NAMESPACE_URL;
+        let key = format!("{}:{}", project_id, symbol.qualified_name);
+        let memory_uuid = Uuid::new_v5(&namespace, key.as_bytes());
+
+        assert_eq!(
+            ingest_symbol_records(&store, project_id, None, vec![symbol])?,
+            1
+        );
+
+        let events = store.read_events(memory_uuid)?;
+        let tag = events.iter().find_map(|event| match &event.payload {
+            Payload::MemoryPinned(payload) => payload.source_tag.as_deref(),
+            _ => None,
+        });
+        assert_eq!(
+            tag,
+            Some(SOURCE_TAG_SYMBOL),
+            "new symbol ingest must write ledgerful:symbol"
+        );
+        assert_ne!(tag, Some(SOURCE_TAG_SYMBOL_LEGACY));
+        Ok(())
+    }
+
+    /// F12 mixed: one identity already has a MemoryPinned with the legacy tag;
+    /// a second pin with the new tag on the same aggregate must still dedup
+    /// (either tag counts as symbol-ingested).
+    #[test]
+    fn symbol_dedup__mixed_legacy_and_new_tags__no_double_ingest()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let store = setup_store()?;
+        let project_id = ProjectId::new();
+        let symbol = sample_symbol();
+        pin_symbol_with_tag(&store, project_id, &symbol, SOURCE_TAG_SYMBOL_LEGACY)?;
+        // Second event on same memory with new tag (simulates mixed-era vault).
+        pin_symbol_with_tag(&store, project_id, &symbol, SOURCE_TAG_SYMBOL)?;
+
+        assert_eq!(
+            ingest_symbol_records(&store, project_id, None, vec![symbol])?,
+            0,
+            "mixed legacy+new tags on same identity must still dedup"
+        );
         Ok(())
     }
 }

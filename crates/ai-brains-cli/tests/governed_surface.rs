@@ -2,14 +2,14 @@
 #![allow(clippy::disallowed_methods)]
 #![allow(non_snake_case)]
 
-use assert_cmd::Command;
+mod common;
+
 use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::tempdir;
 
 fn init_vault(vault_path: &std::path::Path) {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("--vault-path")
         .arg(vault_path)
         .arg("init")
@@ -23,8 +23,7 @@ fn cli_scope_resolve__json__includes_authoritative_field() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("scope")
@@ -54,8 +53,7 @@ fn cli_scope_resolve__json__includes_authoritative_field() {
 
 #[test]
 fn cli_conclusion_propose__help_lists_claim_and_evidence() {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("conclusion")
         .arg("propose")
         .arg("--help")
@@ -72,8 +70,7 @@ fn cli_conclusion_propose__help_lists_claim_and_evidence() {
 
 #[test]
 fn cli_scope__help__documents_examples() {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("scope")
         .arg("--help")
         .assert()
@@ -94,8 +91,7 @@ fn cli_review_list__json__items_array_e1() {
     // we expect either items:[] if somehow allowed, or structured deny.
     // Seed is empty: policy deny is OK for this E1 check as long as help works.
     // Call with --local; system principal has no grants → POLICY_DENIED exit 3.
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("review")
@@ -143,8 +139,7 @@ fn cli_erasure_request__daemon_down__exit_code_5() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("erasure")
@@ -209,8 +204,7 @@ fn cli_erasure_request__daemon_down__exit_code_5() {
 
 #[test]
 fn existing_briefing_project__still_ok() {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("briefing")
         .arg("project")
         .arg("--help")
@@ -225,8 +219,7 @@ fn existing_briefing_project__still_ok() {
 
 #[test]
 fn cli_query__help__documents_examples() {
-    Command::cargo_bin("ai-brains")
-        .unwrap()
+    common::hermetic_bin()
         .arg("query")
         .arg("--help")
         .assert()
@@ -241,8 +234,7 @@ fn cli_erasure_request__local_flag__rejected() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("erasure")
@@ -273,8 +265,7 @@ fn cli_erasure_wipe__local_flag__rejected() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("erasure")
@@ -318,8 +309,7 @@ fn cli_erasure_wipe__dry_run_and_confirm__refused() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("erasure")
@@ -366,8 +356,7 @@ fn cli_policy_check__no_grant__exit_code_3() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let output = Command::cargo_bin("ai-brains")
-        .unwrap()
+    let output = common::hermetic_bin()
         .arg("--vault-path")
         .arg(&vault)
         .arg("policy")
