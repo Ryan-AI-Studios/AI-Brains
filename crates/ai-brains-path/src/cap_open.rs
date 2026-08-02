@@ -10,9 +10,12 @@
 //! 1. Lexical resolve (callers: reserved stems, `..` refuse) — F31
 //! 2. `Dir::open_ambient_dir(root)` once for the trusted root — F21
 //! 3. **Per component** open with platform nofollow / refuse-reparse:
-//!    - **Unix:** `OpenOptions` + `custom_flags(O_NOFOLLOW)` (dirs also `O_DIRECTORY`);
+//!    - **All platforms:** set `cap_fs_ext::OpenOptionsFollowExt::follow(FollowSymlinks::No)`.
+//!      Without this, cap-primitives defaults to `FollowSymlinks::Yes` and **software-follows**
+//!      after an OS nofollow probe (manual resolver on macOS / Linux-without-openat2) — F27 P0.
+//!    - **Unix:** also `custom_flags(O_NOFOLLOW)` (dirs also `O_DIRECTORY`);
 //!      map ELOOP → [`CapOpenError::ReparseRefused`].
-//!    - **Windows:** open with `FILE_FLAG_OPEN_REPARSE_POINT` (+ `FILE_FLAG_BACKUP_SEMANTICS`
+//!    - **Windows:** also `FILE_FLAG_OPEN_REPARSE_POINT` (+ `FILE_FLAG_BACKUP_SEMANTICS`
 //!      for directories); if the opened handle has reparse attribute, close and refuse.
 //! 4. Handle-bound `metadata()` for size/`is_file`; capped read on the **same** handle.
 //! 5. **Never** ambient `std::fs::read(path)` after open (F26).
@@ -25,9 +28,21 @@
 use std::io::Read;
 use std::path::Path;
 
+use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt};
 use cap_std::ambient_authority;
 use cap_std::fs::{Dir, File, OpenOptions};
 use thiserror::Error;
+
+/// OpenOptions with product zero-symlink policy: never software-follow.
+///
+/// `cap-std` / `cap-primitives` default `follow = Yes`. OS `O_NOFOLLOW` alone is
+/// insufficient on the manual path resolver (macOS; Linux without openat2).
+fn nofollow_read_options() -> OpenOptions {
+    let mut opts = OpenOptions::new();
+    opts.read(true);
+    opts.follow(FollowSymlinks::No);
+    opts
+}
 
 /// Errors from capability / nofollow open helpers.
 ///
@@ -218,8 +233,7 @@ fn open_dir_component_nofollow_impl(parent: &Dir, name: &str) -> Result<Dir, Cap
     use cap_std::fs::OpenOptionsExt;
     use rustix::fs::OFlags;
 
-    let mut opts = OpenOptions::new();
-    opts.read(true);
+    let mut opts = nofollow_read_options();
     // O_NOFOLLOW refuses final-component symlink; O_DIRECTORY requires a dir.
     opts.custom_flags((OFlags::NOFOLLOW | OFlags::DIRECTORY).bits() as i32);
 
@@ -244,8 +258,7 @@ fn open_file_component_nofollow_impl(parent: &Dir, name: &str) -> Result<File, C
     use cap_std::fs::OpenOptionsExt;
     use rustix::fs::OFlags;
 
-    let mut opts = OpenOptions::new();
-    opts.read(true);
+    let mut opts = nofollow_read_options();
     opts.custom_flags(OFlags::NOFOLLOW.bits() as i32);
 
     let file = parent
@@ -270,12 +283,9 @@ fn open_dir_component_nofollow_impl(parent: &Dir, name: &str) -> Result<Dir, Cap
         FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
     };
 
-    let mut opts = OpenOptions::new();
-    opts.read(true);
+    let mut opts = nofollow_read_options();
     // Open the reparse node itself (do not follow). BACKUP_SEMANTICS required for dirs.
-    opts.custom_flags(
-        FILE_FLAG_OPEN_REPARSE_POINT.0 | FILE_FLAG_BACKUP_SEMANTICS.0,
-    );
+    opts.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT.0 | FILE_FLAG_BACKUP_SEMANTICS.0);
 
     let file = parent
         .open_with(name, &opts)
@@ -295,8 +305,7 @@ fn open_file_component_nofollow_impl(parent: &Dir, name: &str) -> Result<File, C
     use cap_std::fs::OpenOptionsExt;
     use windows::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
 
-    let mut opts = OpenOptions::new();
-    opts.read(true);
+    let mut opts = nofollow_read_options();
     opts.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT.0);
 
     let file = parent
@@ -393,6 +402,32 @@ mod tests {
         assert!(
             matches!(err, CapOpenError::ReparseRefused(_)),
             "expected ReparseRefused, got {err:?}"
+        );
+    }
+
+    /// In-vault target: containment alone would allow follow; F9 still refuses.
+    #[test]
+    fn read_under_root_cap__final_in_vault_symlink__refused() {
+        let dir = tempdir().expect("tempdir");
+        let notes = dir.path().join("notes");
+        fs::create_dir_all(&notes).expect("mkdir");
+        let target = notes.join("real.md");
+        fs::write(&target, b"in-vault secret").expect("target");
+
+        let link = notes.join("alias.md");
+        if !create_file_symlink(&target, &link) {
+            eprintln!(
+                "soft-skip: could not create in-vault file symlink (privilege missing)."
+            );
+            return;
+        }
+
+        let err =
+            read_file_nofollow_components(dir.path(), &["notes", "alias.md"], 1_048_576)
+                .expect_err("in-vault final symlink must refuse (F9), not follow");
+        assert!(
+            matches!(err, CapOpenError::ReparseRefused(_)),
+            "expected ReparseRefused for in-vault symlink, got {err:?}"
         );
     }
 
