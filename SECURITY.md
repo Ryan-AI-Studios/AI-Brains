@@ -4,7 +4,7 @@ Please read the product security limits and honest non-claims before reporting i
 
 **→ [Docs/SECURITY-LIMITS.md](Docs/SECURITY-LIMITS.md)**
 
-That hub summarizes vault encryption honesty (F8), content-envelope erasure limits, optional multi-device replication, cloud defaults, connector trust (`TrustedBuiltin` only), and missing operator CLIs (`doctor`, `recovery export`).
+That hub summarizes vault encryption honesty (F8), content-envelope erasure limits, optional multi-device replication, cloud defaults, connector trust (`TrustedBuiltin` only), recovery export (shipped T188), and missing `doctor` CLI.
 
 Normative detail:
 

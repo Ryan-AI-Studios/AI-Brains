@@ -172,7 +172,7 @@ MSI / notarization / App Store packaging are **not** this guide’s DoD (release
 | Expected command | Status |
 |------------------|--------|
 | `ai-brains doctor` | **Absent** as product CLI. A contracts DTO may exist; that is not a CLI. |
-| `ai-brains recovery export` | **Absent**. Recovery kit **library** primitives + operator drills: [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). |
+| `ai-brains recovery export` | **Shipped (T188)**. Kit JSON to file only; see [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). Doctor still absent. |
 | `ai-brains unlock` / `lock` / `install-hooks` as in Implementation-Plan §8 | Many §8 names are **historical design** — live surface = `ai-brains --help`. |
 
 See [SECURITY-LIMITS.md](SECURITY-LIMITS.md) and [Implementation-Plan.md](Implementation-Plan.md) §8 drift banner.
@@ -211,7 +211,7 @@ T2 soft unless promoted. Do not claim WebView2 Isolation. Align runner OS string
 |-----------|----------|
 | Populated vault `init` without `--force` | Exit 1 + structured JSON error (expected) |
 | Wrong vault key | Fail-closed (`VaultLocked` / key verification class) under live SQLCipher (T187) |
-| Daemon running during restore | Warn path (see RECOVERY-DRILLS F-03) — not a perfect lock claim |
+| Daemon running during restore | **Hard-fail** (T188 F-03) — non-zero, no overwrite; robust probe residual (our IPC only) |
 | Missing recovery kit export CLI | Use library/kit procedures in RECOVERY-DRILLS; do not invent a CLI |
 
 ---

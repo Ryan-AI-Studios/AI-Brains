@@ -250,8 +250,11 @@ ai-brains backup list
 ai-brains backup verify [--full]
 ai-brains backup prune --keep N --older-than <dur>
 ai-brains backup restore <path> [--force] [--dry-run]
+ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force|--overwrite]
 ```
-Backup suite with metadata headers, integrity checks, and restore guarded when the daemon is running (SQLCipher-encrypted vaults and backups — T187). Default retention keeps 10 backups. Plain→encrypted migrate: `ai-brains vault encrypt` (`sqlcipher_export`).
+Backup suite with metadata headers, integrity checks, and restore **hard-fail** when the daemon/service is reachable via robust IPC probe (T188; `--force` never overrides). SQLCipher-encrypted vaults and backups (T187). Default retention keeps 10 backups. Plain→encrypted migrate: `ai-brains vault encrypt` (`sqlcipher_export`).
+
+**Recovery export (T188):** writes RecoveryKit JSON (`schema_version: 1`) to a restricted file path only (never kit JSON on stdout). Passphrase via file or zero-echo TTY (`rpassword`). Argon2id defaults (m=19456, t=2, p=1). **`ai-brains doctor` is not shipped.**
 
 ---
 

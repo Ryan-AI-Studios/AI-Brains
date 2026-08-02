@@ -83,7 +83,7 @@ Elevated set: `README.md`, `Docs/ARCHITECTURE.md`, `Docs/CAPABILITIES.md`, `Docs
 
 - [ ] Script exit 0  
 - [ ] Human spot-check of [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) residual cross-walk still accurate  
-- [ ] No forbidden: SOC2/ISO certified, perfect deletion as product, metadata-private sync, SLSA L3, “fully compliant,” unqualified full DB encryption, invented doctor/recovery-export CLIs  
+- [ ] No forbidden: SOC2/ISO certified, perfect deletion as product, metadata-private sync, SLSA L3, “fully compliant,” unqualified full DB encryption, invented doctor CLI (recovery export is shipped T188) 
 
 Soft historical re-grep (report only): `AGENTS.md`, `Docs/PRD.md`, `Docs/Implementation-Plan.md` body, archives.
 
