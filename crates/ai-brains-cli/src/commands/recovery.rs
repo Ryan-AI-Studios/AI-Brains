@@ -139,7 +139,7 @@ fn resolve_sqlcipher_key(key: Option<String>) -> Result<SqlCipherKey, Box<dyn st
 }
 
 /// Read passphrase from file or TTY double-entry.
-fn acquire_passphrase(
+pub(crate) fn acquire_passphrase(
     passphrase_file: Option<&Path>,
 ) -> Result<Zeroizing<Vec<u8>>, Box<dyn std::error::Error>> {
     match passphrase_file {
@@ -151,7 +151,7 @@ fn acquire_passphrase(
 /// Dry-run: validate passphrase *source* without prompting TTY content (F14).
 ///
 /// Returns a zeroizing buffer (file contents if file path; empty placeholder for TTY).
-fn validate_passphrase_source_dry_run(
+pub(crate) fn validate_passphrase_source_dry_run(
     passphrase_file: Option<&Path>,
 ) -> Result<Zeroizing<Vec<u8>>, Box<dyn std::error::Error>> {
     match passphrase_file {
@@ -270,7 +270,7 @@ fn read_passphrase_tty() -> Result<Zeroizing<Vec<u8>>, Box<dyn std::error::Error
 }
 
 /// Refuse well-known public/shared paths on Windows (F9b).
-fn refuse_public_output_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn refuse_public_output_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(windows)]
     {
         let display = path.to_string_lossy();
@@ -308,7 +308,7 @@ fn refuse_public_output_path(path: &Path) -> Result<(), Box<dyn std::error::Erro
 /// every tempfile path. Codex R2 concern (`linkdir\kit.json` through a
 /// junction) is covered by checking the leaf's direct parent only (plus the
 /// leaf itself in the caller).
-fn refuse_output_parent_chain(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn refuse_output_parent_chain(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let Some(parent) = path.parent() else {
         return Ok(());
     };
@@ -375,7 +375,7 @@ fn vault_preflight_is_always_hard_fail(err: &StoreError) -> bool {
     }
 }
 
-fn write_kit_file(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn write_kit_file(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
     {
