@@ -22,8 +22,9 @@ Vault storage uses **SQLCipher page-level encryption** (T187: `bundled-sqlcipher
 | Application CE AES-256-GCM for sensitive payloads | **Yes** (see ADR-0016); page key ≠ content DEK |
 | OS file permissions matter | **Yes** |
 | Plain→encrypted migrate | Operator `ai-brains vault encrypt` (`sqlcipher_export`) |
+| DataKey rotation ceremony | **Yes** (T189 / ADR-0020 `vault rotate-datakey`); multi-device = per-device residual; not auto-rotate; not Purge of offline kits |
 
-Also: [Deviations.md](Deviations.md) §1 (resolved T187) · [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md)
+Also: [Deviations.md](Deviations.md) §1 (resolved T187) · [ADR-0016](DECISIONS/ADR-0016-content-envelope-cryptography.md) · [ADR-0020](DECISIONS/ADR-0020-datakey-rotation.md)
 
 ---
 

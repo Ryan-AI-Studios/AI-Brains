@@ -458,11 +458,11 @@ T178 **must** ship known-answer tests that fix `schema_version`, ids, label byte
 
 **v1 decision: defer HPKE crate.** Implement explicit **X25519 + HKDF-SHA256 + AES-256-GCM** with **frozen info/AAD labels** so the construction is auditable line-by-line and reuses already-named workspace-adjacent crates. HPKE remains a **hygiene candidate** if security review or interop demands a single standard API (same suite: X25519 / HKDF-SHA256 / AES-256-GCM).
 
-### 19. DataKey rotation (direction only)
+### 19. DataKey rotation (direction + pointer)
 
-- **Direction:** operational DataKey rotation (re-wrap living content DEKs under a new DataKey, and/or counter/nonce ledger for the vault KEK layer) remains a documented hygiene need from ADR-0016 §4.
-- Multi-device replication does **not** close that gap; per-recipient wraps improve the *multi-device* nonce story only.
-- **Implementation residual remains open** (P11 hygiene / deferred #34.2). This ADR freezes **direction**, not code or schema for rotation.
+- **Direction (historical):** operational DataKey rotation (re-wrap living content DEKs under a new DataKey, and/or counter/nonce ledger for the vault KEK layer) was a documented hygiene need from ADR-0016 §4.
+- Multi-device replication does **not** close vault DataKey budget alone; per-recipient wraps improve the *multi-device* nonce story only. Each device still runs a **local** vault DataKey ceremony.
+- **Implementation:** **[ADR-0020](ADR-0020-datakey-rotation.md)** / **T189** ships the product ceremony (`vault rotate-datakey`). This section retains multi-device honesty: peer wraps are **not** mutated by local DataKey rotation; cross-device content re-wrap over relay remains out of T189 scope.
 
 ### 20. Migration and implementation order
 
@@ -558,7 +558,7 @@ Must **not** claim: metadata-private; perfect multi-device deletion; NIST Purge/
 - Metadata still leaks to the relay (sizes, graph, timing) even with L14 padding.
 - Offline / stolen devices retain past decrypt capability until sync or forever for past keys.
 - Hand-composed X25519+HKDF+AES-GCM requires careful label/AAD discipline (mitigated by freeze + T178 KATs; HPKE remains hygiene path).
-- DataKey rotation **implementation** still open (#34.2).
+- DataKey rotation **implementation:** see **ADR-0020** / T189 (local ceremony; multi-device residual = per-device run).
 - Classical-only crypto → harvest-now-decrypt-later residual (L16).
 - Single-owner fence may block future multi-user product until a new ADR.
 - Signed ErasureAck is **self-attestation** only; compromised enrolled peer can false-ACK until revoke (L7 residual — not a wipe proof).
@@ -570,7 +570,7 @@ Must **not** claim: metadata-private; perfect multi-device deletion; NIST Purge/
 | **T176** | `ai-brains-sync` crate; migration `0027+`; device/replicate CLI; wrap table; key storage | **Unblocked** (ADR-0018 Accepted) — not yet implemented |
 | **T177** | Fake relay; two-client converge/reorder/retry | T176 types (design unblocked by T175 Complete) |
 | **T178** | Security tests per threat-model §7 matrix | T176–T177 (design unblocked by T175 Complete) |
-| P11 hygiene | DataKey rotation implementation | Explicit residual; not closed by this ADR |
+| P11 hygiene | DataKey rotation implementation | **ADR-0020 / T189** — local ceremony; multi-device = per-device residual |
 | Future ADR | Multi-principal / MLS if product needs multi-user | L15 fence |
 
 ## Test plan outline (downstream T178)

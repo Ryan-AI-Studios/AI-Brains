@@ -173,9 +173,9 @@ These are planning aids only — not contractual or marketed guarantees.
 |----------|--------|
 | `ai-brains doctor` product | Still absent (deferred #2) |
 | ~~`ai-brains recovery export` CLI~~ | **Closed by T188** |
-| Argon2 params in kit schema | Future crypto hygiene (defaults documented: m=19456,t=2,p=1) |
+| Argon2 params in kit schema | Soft residual (F37): kits from `recovery export` **and** `vault rotate-datakey` use Argon2id v0x13 **m=19456 t=2 p=1** (argon2 0.5.x defaults); not stored in kit JSON |
 | ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ | **Closed by T187** — live `bundled-sqlcipher-vendored-openssl`; strict drills |
-| #34.2 DataKey rotation | Open (T189) |
+| ~~#34.2 DataKey rotation~~ | **Shipped T189 / ADR-0020** (`vault rotate-datakey`); residual: multi-device = per-device ceremony; offline backups/old kits under old key only; rekey opt-in crash residual; Argon2 params not in kit JSON |
 | F-REC-03/04 projection/graph rebuild drills | Soft residual |
 | ~~Hard-fail restore while daemon running~~ | **Closed by T188** (robust probe ≥1s × 3 attempts) |
 | Multi-device CE orchestration | T176–T178 |

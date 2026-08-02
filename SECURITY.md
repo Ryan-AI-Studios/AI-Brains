@@ -4,7 +4,7 @@ Please read the product security limits and honest non-claims before reporting i
 
 **→ [Docs/SECURITY-LIMITS.md](Docs/SECURITY-LIMITS.md)**
 
-That hub summarizes vault encryption honesty (F8), content-envelope erasure limits, optional multi-device replication, cloud defaults, connector trust (`TrustedBuiltin` only), recovery export (shipped T188), and missing `doctor` CLI.
+That hub summarizes vault encryption honesty (F8), content-envelope erasure limits, optional multi-device replication, cloud defaults, connector trust (`TrustedBuiltin` only), recovery export (shipped T188), DataKey rotation (shipped T189 / ADR-0020), and missing `doctor` CLI.
 
 Normative detail:
 
@@ -12,6 +12,7 @@ Normative detail:
 - [Docs/DECISIONS/ADR-0016-content-envelope-cryptography.md](Docs/DECISIONS/ADR-0016-content-envelope-cryptography.md)  
 - [Docs/DECISIONS/ADR-0018-encrypted-event-replication-protocol.md](Docs/DECISIONS/ADR-0018-encrypted-event-replication-protocol.md)  
 - [Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md](Docs/DECISIONS/ADR-0019-connector-sandbox-execution-model.md)  
+- [Docs/DECISIONS/ADR-0020-datakey-rotation.md](Docs/DECISIONS/ADR-0020-datakey-rotation.md) — DataKey rotation ceremony  
 - [Docs/RECOVERY-DRILLS.md](Docs/RECOVERY-DRILLS.md)  
 
 ## Reporting

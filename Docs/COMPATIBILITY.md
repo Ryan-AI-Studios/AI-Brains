@@ -71,7 +71,7 @@ Vault storage uses **SQLCipher page-level encryption** (T187: workspace `rusqlit
 - All-zero keys are refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (tests/legacy only).
 - `PRAGMA cipher_compatibility = 4`; do **not** set `cipher_plaintext_header_size` (full header encrypted).
 - Observed `PRAGMA cipher_version` (2026-08-02 Windows MSVC / `bundled-sqlcipher-vendored-openssl`): **`4.10.0 community`** (unit smoke T187-V-01; track evidence `conductor/tracks/trackT187-sqlcipher-page-encryption/cipher_version.txt`). Re-probe after toolchain upgrades.
-- **Not** FIPS validated; **not** NIST SP 800-88 Purge/Destroy. Page key ≠ content DEK (DataKey rotation is **T189**).
+- **Not** FIPS validated; **not** NIST SP 800-88 Purge/Destroy. Page key bound to DataKey via `SqlCipherKey::from_data_key`; ceremony rotation is **T189 / ADR-0020** (`vault rotate-datakey`).
 
 See `Docs/Deviations.md` §1 (resolved by T187).
 
