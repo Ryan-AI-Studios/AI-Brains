@@ -14,7 +14,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~**#12** path TOCTOU / openat / cap-std~~ | **Closed-with-residuals by T190** (2026-08-02): vault open+list + Hermes/Honcho elevated (ADR-0021). Residuals: ambient CLI, soft-canon, token path, T188 write pre/post reparse. |
 | T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail | **T191** |
 
-Suggested order: T191 (anytime) → T190. Doctor residual remains open (no dedicated track yet).
+Suggested order: **T191** (anytime). Doctor residual remains open (no dedicated track yet). T190 shipping closes #12 with residuals.
 
 ---
 
@@ -848,3 +848,8 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 - ~~#34.2 DataKey rotation~~ closed by T189 PR #67 `9e9465e`.
 - **P3 residual (documented):** Windows exclusive `drop(source)` → `MoveFileEx` micro-window (OS cannot replace open DB). See ADR-0020 / R-34.2 / OPERATIONS.
+
+## T190 residual (2026-08-02)
+
+- **Soft-skip symlink proof** when create privilege missing (F17 / Codex R3 P3) — multi-OS CI re-proves when privilege available; product path fail-closed.
+- **T188 write / token path / ambient CLI** — listed under R-12 residuals; not re-opened as #12.
