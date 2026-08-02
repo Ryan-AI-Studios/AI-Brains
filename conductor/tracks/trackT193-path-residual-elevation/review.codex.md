@@ -35,7 +35,7 @@ Required before completion: obtain a green full gate, complete the SECURITY cros
 
 `write_kit_file` uses the shared SOOT correctly, but recovery tests only cover an unsafe parent reparse. There is no P0 recovery-output test proving that force/replace against a symlink leaf refuses and leaves the target bytes unchanged.
 
-Implementation: [recovery.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/recovery.rs:431)  
+Implementation: [recovery.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/recovery.rs:431)
 Existing test coverage: [recovery.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/recovery.rs:941)
 
 Add a hermetic leaf-symlink force/replace test, with the permitted privilege soft-skip.

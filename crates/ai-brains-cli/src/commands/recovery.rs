@@ -1045,8 +1045,8 @@ mod tests {
             return;
         }
 
-        let err = write_kit_file(&link, b"attacker-kit-payload")
-            .expect_err("symlink leaf must refuse");
+        let err =
+            write_kit_file(&link, b"attacker-kit-payload").expect_err("symlink leaf must refuse");
         let lower = err.to_string().to_ascii_lowercase();
         assert!(
             lower.contains("symlink") || lower.contains("reparse"),
