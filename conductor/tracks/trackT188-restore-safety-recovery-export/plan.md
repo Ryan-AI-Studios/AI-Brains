@@ -103,12 +103,12 @@ Spec: [spec.md](./spec.md) (F1–F28, AC1–AC14).
 ## Phase D — Closeout
 
 - [x] **D1** Targeted nextest + clippy  
-- [ ] **D2** Full gate  
-- [ ] **D3** Manual evidence  
-- [ ] **D4** SECURITY review (passphrase/export/restore)  
-- [ ] **D5** Strike deferred #1/#6; leave #2 doctor  
-- [ ] **D6** conductor ✅  
-- [ ] **D7** Pin decision  
+- [x] **D2** Full gate  
+- [x] **D3** Manual evidence  
+- [x] **D4** SECURITY review (passphrase/export/restore)  
+- [x] **D5** Strike deferred #1/#6; leave #2 doctor  
+- [x] **D6** conductor ✅  
+- [x] **D7** Pin decision  
 
 ---
 
