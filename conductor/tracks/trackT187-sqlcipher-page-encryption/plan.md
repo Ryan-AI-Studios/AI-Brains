@@ -1,6 +1,6 @@
 # T187 Plan — SQLCipher Page Encryption (live)
 
-Status: **Pending / Expanded** (AI fold-in 2026-08-02). **Planning only.**  
+Status: **Completed** (2026-08-02).
 Spec: [spec.md](./spec.md) (F1–F22, AC1–AC13).  
 Ledger TX (overshoot — abandon before real implement if still open): `dc9f932a-ca0b-40c0-8d42-dcf556501633`.
 
