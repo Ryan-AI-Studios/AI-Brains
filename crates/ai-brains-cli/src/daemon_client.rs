@@ -9,10 +9,14 @@ fn resolve_unix_socket_path_for_client() -> String {
         Ok(resolved) => {
             if resolved.used_tmp_fallback {
                 // Match daemon warn: residual when XDG unset/invalid (common on macOS).
+                // References DEFAULT_DAEMON_TRANSPORT_PATH (public fallback SOOT) so the const
+                // stays live on non-Windows production builds (clippy -D dead-code on Linux CI).
                 eprintln!(
                     "warning: XDG_RUNTIME_DIR missing or invalid; using {} for daemon UDS \
-                     (set AI_BRAINS_DAEMON_SOCKET or a valid XDG_RUNTIME_DIR to match the daemon)",
-                    resolved.path.display()
+                     (fallback SOOT {}); set AI_BRAINS_DAEMON_SOCKET or a valid \
+                     XDG_RUNTIME_DIR to match the daemon",
+                    resolved.path.display(),
+                    DEFAULT_DAEMON_TRANSPORT_PATH
                 );
             }
             resolved.path.display().to_string()
