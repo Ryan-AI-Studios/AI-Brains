@@ -14,7 +14,9 @@
 | Codex R1 | `review.codex.r1.md` | FAIL (P1 process closeout + P2 F8b symlink) |
 | Fix Codex P2 | reparse/symlink refuse on passphrase-file + kit output | P2 fixed |
 | Local full gate | fmt / clippy -D warnings / nextest **1749** / deny / audit | **green** |
-| Codex R2 | `review.codex.r2.md` (final gate) | pending at write time → re-run after closeout commit |
+| Codex R2 | `review.codex.r2.md` | FAIL (P2 vault preflight + parent reparse) |
+| Fix R2 P2 | preflight open_read_intent; parent reparse chain | P2 fixed (`72456b1`) |
+| Codex R3 | `review.codex.r3.md` | **PASS WITH DEFERRED P3** (final cross-model gate) |
 
 ## DoD matrix (AC1–AC14)
 
@@ -46,6 +48,8 @@
 | Internal P3-5 AppContext before restore probe | P3 | **deferred** (export F16b only; overwrite still blocked) |
 | Codex R1 P1 process closeout | P1 | **fixed** by AC9 gate + AC10 deferred/conductor |
 | Codex R1 P2 F8b symlink | P2 | **verified_fixed** (`ai_brains_path` reparse refuse) |
+| Codex R2 P2 wrong vault/key soft-success | P2 | **verified_fixed** (preflight hard-fail) |
+| Codex R2 P2 output parent reparse | P2 | **verified_fixed** (parent chain + write_kit_file) |
 
 ## Deferred residuals (append-only register)
 
@@ -64,4 +68,4 @@ cargo audit                                OK (exit 0)
 
 ## Completion decision
 
-Engineering DoD met for product ACs. Governance closeout (conductor ✅, deferred #1/#6 struck) included in this track. Fresh Codex R2 is the final cross-model gate before merge.
+Engineering DoD met for product ACs. Governance closeout (conductor ✅, deferred #1/#6 struck) included. **Codex R3 PASS WITH DEFERRED P3** is the final cross-model gate — ready for PR / CI / squash-merge.
