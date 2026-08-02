@@ -474,4 +474,25 @@ mod tests {
         assert_ne!(tag, Some(SOURCE_TAG_SYMBOL_LEGACY));
         Ok(())
     }
+
+    /// F12 mixed: one identity already has a MemoryPinned with the legacy tag;
+    /// a second pin with the new tag on the same aggregate must still dedup
+    /// (either tag counts as symbol-ingested).
+    #[test]
+    fn symbol_dedup__mixed_legacy_and_new_tags__no_double_ingest()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let store = setup_store()?;
+        let project_id = ProjectId::new();
+        let symbol = sample_symbol();
+        pin_symbol_with_tag(&store, project_id, &symbol, SOURCE_TAG_SYMBOL_LEGACY)?;
+        // Second event on same memory with new tag (simulates mixed-era vault).
+        pin_symbol_with_tag(&store, project_id, &symbol, SOURCE_TAG_SYMBOL)?;
+
+        assert_eq!(
+            ingest_symbol_records(&store, project_id, None, vec![symbol])?,
+            0,
+            "mixed legacy+new tags on same identity must still dedup"
+        );
+        Ok(())
+    }
 }

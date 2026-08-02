@@ -24,7 +24,7 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
         .success();
 
     // 2. Write a mock bridge export file (Ledgerful -> AI-Brains)
-    let pull_file_path = dir.path().join("cg_export.ndjson");
+    let pull_file_path = dir.path().join("lf_export.ndjson");
     let mut pull_file = File::create(&pull_file_path)?;
 
     // Hotspot record
@@ -188,9 +188,9 @@ fn test_cross_repo_e2e_integration_with_ledgerful() -> Result<(), Box<dyn std::e
     let ws_path = dir.path().to_path_buf();
 
     // 1. Initialize Ledgerful in the temp workspace
-    let mut cg_init = std::process::Command::new(binary);
-    cg_init.arg("init").current_dir(&ws_path);
-    let output = cg_init.output()?;
+    let mut lf_init = std::process::Command::new(binary);
+    lf_init.arg("init").current_dir(&ws_path);
+    let output = lf_init.output()?;
     assert!(output.status.success(), "{binary} init failed");
 
     // Create a dummy source file so that scan has something to index
@@ -220,9 +220,9 @@ fn test_cross_repo_e2e_integration_with_ledgerful() -> Result<(), Box<dyn std::e
         .output()?;
 
     // Run ledgerful scan with impact analysis
-    let mut cg_scan = std::process::Command::new(binary);
-    cg_scan.arg("scan").arg("--impact").current_dir(&ws_path);
-    let output = cg_scan.output()?;
+    let mut lf_scan = std::process::Command::new(binary);
+    lf_scan.arg("scan").arg("--impact").current_dir(&ws_path);
+    let output = lf_scan.output()?;
     assert!(output.status.success(), "{} scan failed", binary);
 
     // 2. Initialize AI-Brains vault
@@ -368,7 +368,7 @@ fn test_lineage_bootstrapping_with_existing_hash() -> Result<(), Box<dyn std::er
     }
 
     // 3. Write a mock bridge export file (Ledgerful -> AI-Brains)
-    let pull_file_path = dir.path().join("cg_export_bootstrap.ndjson");
+    let pull_file_path = dir.path().join("lf_export_bootstrap.ndjson");
     let mut pull_file = File::create(&pull_file_path)?;
 
     // Record 1: parent_hash: null (first record, bootstrapped)
