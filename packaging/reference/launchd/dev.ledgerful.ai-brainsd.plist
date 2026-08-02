@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AI-Brains LaunchAgent reference (T196) — NOT a product installer.
+  Label: dev.ledgerful.ai-brainsd
+  Install: ~/Library/LaunchAgents/ (owner-only 0600/0400), then:
+    launchctl bootstrap gui/$UID ~/Library/LaunchAgents/dev.ledgerful.ai-brainsd.plist
+
+  Replace every REPLACE_ME segment with your absolute home path.
+  Prefer the secrets wrapper (ProgramArguments) — never put AI_BRAINS_KEY in this plist.
+  KeepAlive dict SuccessfulExit=false is recommended (bare true = aggressive + suspend risk).
+  ai-brainsd must stay foreground (no daemonize/double-fork/setsid).
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.ledgerful.ai-brainsd</string>
+
+	<!-- Preferred: wrapper sources 0600 env then execs binary (see ai-brainsd.wrapper.sh.example).
+	     Alternative cargo bin (no secrets in env file): /Users/REPLACE_ME/.cargo/bin/ai-brainsd -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/REPLACE_ME/.local/bin/ai-brainsd.wrapper.sh</string>
+	</array>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<!-- Recommended: relaunch only on failure. Bare KeepAlive true is aggressive
+	     (rapid exit → launchd may suspend; ensure ≥10s healthy lifetime if used). -->
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+
+	<key>ProcessType</key>
+	<string>Background</string>
+
+	<!-- Non-secret env only. Absolute vault path may live here OR in the 0600 env file.
+	     Do NOT put AI_BRAINS_KEY / AI_BRAINS_VAULT_KEY / tokens here. -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<!-- Example non-secret absolute vault (uncomment and edit):
+		<key>AI_BRAINS_VAULT_PATH</key>
+		<string>/Users/REPLACE_ME/.ai-brains/vault.db</string>
+		-->
+	</dict>
+
+	<key>StandardOutPath</key>
+	<string>/Users/REPLACE_ME/Library/Logs/ai-brains/ai-brainsd.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/REPLACE_ME/Library/Logs/ai-brains/ai-brainsd.err.log</string>
+</dict>
+</plist>

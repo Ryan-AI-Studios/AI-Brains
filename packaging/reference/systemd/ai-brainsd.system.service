@@ -1,0 +1,46 @@
+# =============================================================================
+# SECONDARY / NOT RECOMMENDED PRIMARY — reference only (T196)
+# =============================================================================
+# This is NOT a product installer and is NOT the preferred Linux model.
+# Prefer packaging/reference/systemd/ai-brainsd.user.service (systemd --user)
+# so vault + UDS align with the single-owner desktop fence (ADR-0022).
+#
+# If you must run a system unit:
+#   - Use a dedicated non-root User= / Group= (never leave as root by default)
+#   - Set absolute AI_BRAINS_VAULT_PATH + secrets via EnvironmentFile 0600
+#   - Set ReadWritePaths= to vault parent + runtime dir before enabling ProtectSystem=strict
+#   - There is no multi-user product IPC claim
+# =============================================================================
+
+[Unit]
+Description=AI-Brains local daemon (system reference unit — NOT product installer)
+# Documentation= — set only if installed docs path exists; no relative packaging paths
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+# REQUIRED: replace with a dedicated non-root identity
+User=ai-brains
+Group=ai-brains
+# Operator: set one ExecStart to the installed binary
+# Examples:
+#   /usr/local/bin/ai-brainsd
+#   /home/REPLACE_ME/.cargo/bin/ai-brainsd   (cargo-bin residual — user-writable)
+ExecStart=/usr/local/bin/ai-brainsd
+EnvironmentFile=-/etc/ai-brains/daemon.env
+# AI_BRAINS_VAULT_PATH must be absolute in the env file
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+# System unit may use stricter FS sandbox IF ReadWritePaths covers vault + runtime
+ProtectSystem=strict
+# REQUIRED when ProtectSystem=strict — adjust to your vault parent + runtime
+ReadWritePaths=/var/lib/ai-brains /run/ai-brains
+# ProtectHome is not used here; do not enable ProtectHome=yes/read-only without a vault plan
+# HTTP stays off — no AI_BRAINS_HTTP / non-loopback
+
+[Install]
+WantedBy=multi-user.target

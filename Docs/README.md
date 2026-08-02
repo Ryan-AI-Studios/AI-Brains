@@ -106,6 +106,8 @@ Full executive summary: [SECURITY-LIMITS.md](SECURITY-LIMITS.md).
 | [Implementation-Plan.md](Implementation-Plan.md) | Historical master plan — **§8 CLI surface may list commands never built**; live CLI = `ai-brains --help` + conductor |
 | [status.md](status.md) | **Historical** freeze (T72 / 2026-06-02) — not live status |
 | [ci-tooling.md](ci-tooling.md) | CI tool pins (+ SBOM / NOTICE tools) |
+| Root [CONTRIBUTING.md](../CONTRIBUTING.md) | Contributor gate, license, conductor/ledgerful, changelog policy |
+| [../packaging/reference/README.md](../packaging/reference/README.md) | Reference systemd / launchd units (not product Unix install) |
 | [hooks.md](hooks.md) / harness hook docs | Adapter integration notes |
 | Root [CHANGELOG.md](../CHANGELOG.md) | Keep a Changelog |
 | Root [README.md](../README.md) | Product intro |

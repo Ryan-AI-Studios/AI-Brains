@@ -70,7 +70,8 @@ AI-Brains uses a hierarchical loading strategy for cross-repository flexibility:
 AI-Brains is licensed under the **PolyForm Noncommercial License 1.0.0** (`LICENSE`), with additional permissions for qualified small entities in `COMMERCIAL-EXCEPTION.md`. Contact: legal@ledgerful.dev.
 
 ## Development
-This project uses a track-based implementation method managed via Ledgerful.
+This project uses a track-based implementation method managed via Ledgerful. Contributor setup, full gate, and process: **[CONTRIBUTING.md](./CONTRIBUTING.md)**. Engineering mandates: [AGENTS.md](./AGENTS.md).
+
 ```powershell
 ./scripts/dev-check.ps1
 ```

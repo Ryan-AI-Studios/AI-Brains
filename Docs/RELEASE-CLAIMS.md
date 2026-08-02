@@ -115,7 +115,7 @@ Explicit product/process absences for version **0.1.1** (T185 §6.3). This secti
 | **Perfect deletion** | CE live wipe only; backups/WAL residuals (**R-CE-PRE**, **R-WAL-CKPT**) |
 | **Metadata-private sync** | Replication leaves metadata residual (**R-META**) |
 | **Third-party plugin sandbox / WASI host** | TrustedBuiltin only (**R-TB**, ADR-0019) |
-| **systemd / launchd production units** | Ops residual |
+| **systemd / launchd production units** | **Reference templates** shipped under `packaging/reference/` (T196); **not** product-managed Unix install; not multi-OS T1 service parity |
 | **FIPS-validated page encryption / NIST Purge** | SQLCipher community + OpenSSL vendored are not FIPS/Purge claims (T187) |
 | **DataKey rotation product feature** | **Implemented with residuals** (**R-34.2** / **T189** / ADR-0020) |
 
