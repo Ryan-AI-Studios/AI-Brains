@@ -87,6 +87,7 @@ RecoveryKit generation and passphrase/DPAPI unlock also remain **library** (`ai-
 - [ ] Store the passphrase in a password manager / HSM / sealed envelope — never in the repo or CI logs. Min length **8 bytes**. Prefer `--passphrase-file` over argv (there is no `--passphrase` flag).
 - [ ] Confirm kit JSON does **not** contain plaintext DataKey (hex/base64); salt/nonce are public.
 - [ ] Unix kit files are created mode **0600**; on Windows, refuse well-known public paths (`C:\Users\Public`); offline USB paths are allowed.
+- [ ] **Passphrase-file and kit output refuse reparse/symlink/junction paths** (F8b) — use regular files only.
 - [ ] **`ai-brains doctor` is still not shipped** — recoverability checks remain operator / drill responsibility.
 
 K-05 proves the **primitive** chain (unlock → `SqlCipherKey::from_data_key` → open). Export CLI proves the operator write path; store the file offline yourself.

@@ -66,12 +66,20 @@ pub fn run_export_with_daemon_state(
     }
 
     // Output exists → refuse unless --force/--overwrite (F9 / AC14).
+    // Note: Path::exists follows reparse; reparse refuse below catches symlink outputs.
     if opts.output.exists() && !opts.force {
         return Err(format!(
             "output exists: {} (pass --force or --overwrite to replace)",
             opts.output.display()
         )
         .into());
+    }
+
+    // F8b defense-in-depth: refuse kit output through reparse/symlink/junction.
+    let out_reparse = ai_brains_path::is_reparse_or_symlink(&opts.output)
+        .map_err(|e| format!("output path check failed ({}): {e}", opts.output.display()))?;
+    if let Err(msg) = ai_brains_path::refuse_if_reparse(&opts.output, out_reparse) {
+        return Err(msg.into());
     }
 
     refuse_public_output_path(&opts.output)?;
@@ -157,7 +165,16 @@ fn validate_passphrase_source_dry_run(
 }
 
 fn read_passphrase_file(path: &Path) -> Result<Zeroizing<Vec<u8>>, Box<dyn std::error::Error>> {
-    let meta = fs::metadata(path)
+    // F8b: refuse symlink/reparse/junction before any follow-open (Codex R1 P2).
+    // is_reparse_or_symlink uses symlink_metadata and does not follow.
+    let is_reparse = ai_brains_path::is_reparse_or_symlink(path)
+        .map_err(|e| format!("passphrase file not readable ({}): {e}", path.display()))?;
+    if let Err(msg) = ai_brains_path::refuse_if_reparse(path, is_reparse) {
+        return Err(msg.into());
+    }
+
+    // Prefer symlink_metadata for size/type so we do not follow (post-refuse defense).
+    let meta = fs::symlink_metadata(path)
         .map_err(|e| format!("passphrase file not readable ({}): {e}", path.display()))?;
     if meta.is_dir() {
         return Err(format!(
@@ -434,6 +451,41 @@ mod tests {
         fs::write(&path, b"12345678\n").unwrap();
         let buf = read_passphrase_file(&path).unwrap();
         assert_eq!(buf.as_slice(), b"12345678");
+    }
+
+    /// F8b / Codex R1 P2: passphrase-file must refuse symlink/reparse paths.
+    #[test]
+    fn recovery_export__passphrase_file_symlink__refuses() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("pw.txt");
+        fs::write(&target, b"test-passphrase-long-enough").unwrap();
+        let link = dir.path().join("pw-link.txt");
+
+        #[cfg(windows)]
+        let created = std::os::windows::fs::symlink_file(&target, &link);
+        #[cfg(not(windows))]
+        let created = std::os::unix::fs::symlink(&target, &link);
+
+        if let Err(e) = created {
+            eprintln!(
+                "skipping recovery_export__passphrase_file_symlink__refuses: {e} \
+                 (needs Developer Mode or elevation on Windows)"
+            );
+            return;
+        }
+
+        assert!(
+            ai_brains_path::is_reparse_or_symlink(&link).expect("symlink_metadata"),
+            "precondition: file symlink must be detected as reparse"
+        );
+
+        let err = read_passphrase_file(&link).unwrap_err().to_string();
+        let lower = err.to_ascii_lowercase();
+        assert!(
+            lower.contains("symlink") || lower.contains("reparse") || lower.contains("junction"),
+            "expected reparse/symlink refuse for passphrase-file, got: {err}"
+        );
     }
 
     #[test]
