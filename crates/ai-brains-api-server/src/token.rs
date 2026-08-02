@@ -276,39 +276,52 @@ fn map_cap_to_token_write(path: &Path, e: ai_brains_path::CapOpenError) -> Token
 }
 
 fn refuse_reparse(path: &Path) -> Result<(), TokenError> {
-    let is_reparse = ai_brains_path::is_reparse_or_symlink(path).unwrap_or(false);
-    if is_reparse {
-        return Err(TokenError::Reparse(format!(
+    // Fail closed on metadata I/O errors (T193 P3). `is_reparse_or_symlink`
+    // already maps NotFound → Ok(false). SOOT open remains authoritative for content.
+    match ai_brains_path::is_reparse_or_symlink(path) {
+        Ok(true) => Err(TokenError::Reparse(format!(
             "refusing reparse/symlink at {}",
             path.display()
-        )));
+        ))),
+        Ok(false) => Ok(()),
+        Err(source) => Err(TokenError::Read {
+            path: path.display().to_string(),
+            source,
+        }),
     }
-    Ok(())
 }
 
 fn refuse_hardlink(path: &Path) -> Result<(), TokenError> {
     #[cfg(windows)]
     {
-        if is_hardlink_windows(path).unwrap_or(false) {
-            return Err(TokenError::Hardlink(format!(
+        match is_hardlink_windows(path) {
+            Ok(true) => Err(TokenError::Hardlink(format!(
                 "refusing hardlink at {}",
                 path.display()
-            )));
+            ))),
+            Ok(false) => Ok(()),
+            Err(source) => Err(TokenError::Read {
+                path: path.display().to_string(),
+                source,
+            }),
         }
     }
     #[cfg(not(windows))]
     {
         use std::os::unix::fs::MetadataExt;
-        if let Ok(meta) = path.symlink_metadata()
-            && meta.nlink() > 1
-        {
-            return Err(TokenError::Hardlink(format!(
+        match path.symlink_metadata() {
+            Ok(meta) if meta.nlink() > 1 => Err(TokenError::Hardlink(format!(
                 "refusing hardlink at {}",
                 path.display()
-            )));
+            ))),
+            Ok(_) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(source) => Err(TokenError::Read {
+                path: path.display().to_string(),
+                source,
+            }),
         }
     }
-    Ok(())
 }
 
 fn apply_and_verify_owner_acl(path: &Path) -> Result<(), TokenError> {

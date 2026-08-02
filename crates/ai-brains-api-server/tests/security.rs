@@ -351,6 +351,48 @@ fn http_token_file__write_and_reload_roundtrip() {
     assert!(token.as_str().len() >= 40, ">=256 bits base64url");
 }
 
+/// T193 AC5/AC13: force/replace write to a symlink leaf must refuse and leave target intact.
+#[test]
+fn http_token_file__symlink_leaf__write_refuses_target_intact() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("secret-target.token");
+    std::fs::write(&target, b"ORIGINAL-SECRET-BYTES").expect("write target");
+    let link = dir.path().join("http.token");
+    let linked = {
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&target, &link).is_ok()
+        }
+        #[cfg(windows)]
+        {
+            std::os::windows::fs::symlink_file(&target, &link).is_ok()
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            false
+        }
+    };
+    if !linked {
+        eprintln!(
+            "soft-skip: could not create file symlink for token refuse test \
+             (Developer Mode / SeCreateSymbolicLinkPrivilege missing)."
+        );
+        return;
+    }
+    let err =
+        write_token_file(&link, "attacker-token-value").expect_err("symlink leaf must refuse");
+    let msg = err.to_string().to_ascii_lowercase();
+    assert!(
+        msg.contains("reparse") || msg.contains("symlink"),
+        "expected reparse/symlink refuse, got: {err}"
+    );
+    let target_bytes = std::fs::read(&target).expect("target still readable");
+    assert_eq!(
+        target_bytes, b"ORIGINAL-SECRET-BYTES",
+        "symlink target content must not be truncated or overwritten (AC13)"
+    );
+}
+
 #[tokio::test]
 async fn http_dispatch_port__mock__returns_daemon_response_shape() {
     let token = test_token();

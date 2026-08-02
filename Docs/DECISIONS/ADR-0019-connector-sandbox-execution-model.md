@@ -144,7 +144,7 @@ Normative locks **L1–L10** (cite as ADR-0019 L*n*):
 
 ### 4. Path residual honesty (L10)
 
-v1 path-bearing connectors use containment resolve + reparse/symlink refuse. **T190 / [ADR-0021](ADR-0021-path-capability-open.md)** hardens TrustedBuiltin **vault-relative open + list** with cap-std component nofollow (closes the primary check-then-open residual for Obsidian vault I/O and Hermes/Honcho export dirs). **Residual #12** is **closed-with-residuals**: ambient CLI paths, soft-canonicalize, api-server token path, and T188 artifact write pre-check/post-write reparse are **not** claimed closed. Soft-canon is never a TOCTOU security open.
+v1 path-bearing connectors use containment resolve + reparse/symlink refuse. **T190 / [ADR-0021](ADR-0021-path-capability-open.md)** hardens TrustedBuiltin **vault-relative open + list** with cap-std component nofollow (closes the primary check-then-open residual for Obsidian vault I/O and Hermes/Honcho export dirs). **T193** elevates **api-server token** load/write, **protected artifact** write, and **recovery kit** write onto the shared nofollow write SOOT. **Residual #12** remains **closed-with-residuals** (not product-wide closed): soft-canonicalize, parent `create_dir_all` chain, ambient CLI long-tail, and perfect all-API Windows TOCTOU are **not** claimed closed. Soft-canon is never a TOCTOU security open.
 
 ### 5. License posture for future hosts (L2, L5 of licenses)
 
@@ -169,7 +169,7 @@ Any new crate still requires implement-day `cargo deny check` including transiti
 
 - No third-party extensibility in v1.  
 - Built-in bugs remain process-level risks.  
-- Path TOCTOU residual (#12) **closed-with-residuals** by T190/ADR-0021 for connector vault open+list; ambient/soft-canon/token/artifact-write residuals remain.  
+- Path TOCTOU residual (#12) **closed-with-residuals** by T190/ADR-0021 (vault open+list) + T193 (token/artifact/kit write SOOT); soft-canon / parent mkdir / ambient CLI long-tail / perfect Windows residuals remain.  
 - CloudOk trust label not registry-enforced.  
 - Future plugin work needs a full track (not a drive-by).
 
