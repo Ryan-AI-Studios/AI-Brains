@@ -301,26 +301,31 @@ fn refuse_public_output_path(path: &Path) -> Result<(), Box<dyn std::error::Erro
 ///
 /// Leaf reparse is checked by the caller; this closes the gap where
 /// `linkdir\kit.json` would write through a junction parent (Codex R2 P2).
+/// Refuse reparse/symlink on the **immediate** parent of `path` (if it exists).
+///
+/// Does **not** walk to filesystem root: on macOS/Linux, system prefixes like
+/// `/var` → `/private/var` are legitimate symlinks and would false-positive
+/// every tempfile path. Codex R2 concern (`linkdir\kit.json` through a
+/// junction) is covered by checking the leaf's direct parent only (plus the
+/// leaf itself in the caller).
 fn refuse_output_parent_chain(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut current = path.parent();
-    while let Some(parent) = current {
-        if parent.as_os_str().is_empty() {
-            break;
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    if parent.as_os_str().is_empty() {
+        return Ok(());
+    }
+    if parent.exists() {
+        let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
+            format!(
+                "output parent path check failed ({}): {e}",
+                parent.display()
+            )
+        })?;
+        if let Err(msg) = ai_brains_path::refuse_if_reparse(parent, is_reparse) {
+            return Err(msg.into());
         }
-        // Only check parents that already exist (create_dir_all may create later).
-        if parent.exists() {
-            let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
-                format!(
-                    "output parent path check failed ({}): {e}",
-                    parent.display()
-                )
-            })?;
-            if let Err(msg) = ai_brains_path::refuse_if_reparse(parent, is_reparse) {
-                return Err(msg.into());
-            }
-            refuse_public_output_path(parent)?;
-        }
-        current = parent.parent();
+        refuse_public_output_path(parent)?;
     }
     Ok(())
 }
@@ -337,10 +342,9 @@ fn preflight_vault_key(
     // open_read_intent: no migrate, no create-missing, no journal_mode mutation.
     match VaultConnection::open_read_intent(vault_path, key) {
         Ok(_conn) => Ok(()),
-        Err(e) if vault_preflight_is_always_hard_fail(&e) => Err(format!(
-            "vault preflight failed (key/vault must match before export): {e}"
-        )
-        .into()),
+        Err(e) if vault_preflight_is_always_hard_fail(&e) => {
+            Err(format!("vault preflight failed (key/vault must match before export): {e}").into())
+        }
         Err(e) if daemon_up => {
             // Busy/IO while daemon holds the vault: allow kit write; event soft-fails later.
             tracing::warn!(
@@ -349,10 +353,9 @@ fn preflight_vault_key(
             );
             Ok(())
         }
-        Err(e) => Err(format!(
-            "vault preflight failed (key/vault must match before export): {e}"
-        )
-        .into()),
+        Err(e) => {
+            Err(format!("vault preflight failed (key/vault must match before export): {e}").into())
+        }
     }
 }
 
@@ -893,7 +896,10 @@ mod tests {
                 || lower.contains("not exist"),
             "expected missing-vault hard-fail, got: {err}"
         );
-        assert!(!out.exists(), "kit file must not be written for missing vault");
+        assert!(
+            !out.exists(),
+            "kit file must not be written for missing vault"
+        );
     }
 
     /// Codex R2 P2: parent reparse/junction/symlink must refuse kit write.
@@ -975,6 +981,11 @@ mod tests {
             !real.join("kit.json").exists(),
             "must not write kit through parent reparse into real dir"
         );
-        assert!(!out.exists() || !fs::symlink_metadata(&out).map(|m| m.is_file()).unwrap_or(false));
+        assert!(
+            !out.exists()
+                || !fs::symlink_metadata(&out)
+                    .map(|m| m.is_file())
+                    .unwrap_or(false)
+        );
     }
 }
