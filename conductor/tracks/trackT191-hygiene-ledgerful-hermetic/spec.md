@@ -2,7 +2,7 @@
 
 - **Track ID:** T191-HygieneLedgerfulHermetic
 - **Phase:** Post-T142 / post-T186 cleanup
-- **Status:** 🔄 **In Progress / Implemented on branch** (2026-08-02; awaiting review + PR)
+- **Status:** ✅ **Completed** (2026-08-02; PR #74 `99e954c`)
 - **Depends on:** T142 product rename (**.ledgerful**, binary `ledgerful`, `LEDGERFUL_TX_ID`); T186 hermetic helper + inventory
 - **Blocks / feeds:** Consistent **Ledgerful** naming in code; hermetic long-tail CLI tests; strike T142 #1–2 + T186 L13
 - **Category:** REFACTOR / TESTING

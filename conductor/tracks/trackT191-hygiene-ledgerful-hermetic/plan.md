@@ -1,6 +1,6 @@
 # T191 Plan — Hygiene Batch (Ledgerful rename + hermetic long-tail)
 
-Status: **Implemented on branch** (2026-08-02). Awaiting final Codex + PR.  
+Status: **Completed** (2026-08-02). PR #74 squash-merged `99e954c`.  
 Spec: [spec.md](./spec.md) (F1–F24, AC1–AC11). Disposition: spec §15.
 
 ## Preconditions
@@ -76,8 +76,8 @@ Spec: [spec.md](./spec.md) (F1–F24, AC1–AC11). Disposition: spec §15.
 - [x] **E2** Strike T142 #1–2 + T186 L13 in `deferred.md`  
 - [x] **E3** CHANGELOG hygiene line  
 - [x] **E4** Full gate (local: fmt+clippy green; nextest with ALLOW_ZERO_KEY=1; deny+audit)  
-- [ ] **E5** Conductor ✅ (orchestrator after PR merge)  
-- [ ] **E6** ledger commit + pin (orchestrator)  
+- [x] **E5** Conductor ✅  
+- [x] **E6** ledger commit + pin  
 
 ---
 
