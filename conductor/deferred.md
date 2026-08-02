@@ -15,7 +15,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail~~ | **Closed by T191** (2026-08-02) |
 | ~~**#2** doctor CLI / R-DOC-CLI~~ | **Closed by T192** (2026-08-02) PR #75 `80837da` |
 | T190 ambient CLI / write / token path residuals | **T193** (placeholder 2026-08-02) |
-| ~~Argon2 params in kit JSON (F37)~~ | **Closed by T194** (implement complete 2026-08-02; PR/ship pending) |
+| ~~Argon2 params in kit JSON (F37)~~ | **Closed by T194** (2026-08-02) PR #76 `2c06464` |
 | R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI | **T195** (placeholder 2026-08-02) |
 | systemd / launchd units; CONTRIBUTING hygiene | **T196** (placeholder 2026-08-02) |
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |

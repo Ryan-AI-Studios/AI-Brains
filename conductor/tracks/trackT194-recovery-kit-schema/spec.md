@@ -2,7 +2,7 @@
 
 - **Track ID:** T194-RecoveryKitSchema
 - **Phase:** Post-T188 / post-T189 crypto hygiene
-- **Status:** 🚧 **Implementation complete** (2026-08-02) — PR/ship closeout pending (C4/D4)
+- **Status:** ✅ **Completed** (2026-08-02) PR #76 `2c06464`
 - **Depends on (hard):** T188 RecoveryKit `schema_version=1` + export CLI; T189 rotation kit re-export; `passphrase::{wrap,unwrap}_key`; `PassphraseWrappedKey`
 - **Depends on (soft):** T181 RECOVERY-DRILLS residual F37; T192 doctor kit unlock (serde dual-read only — no doctor feature work)
 - **Blocks / feeds:** Closes T181/T188/T189 **F37** soft residual; kits survive future `argon2` crate default changes and future product param bumps

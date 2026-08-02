@@ -1,7 +1,6 @@
 # T194 Plan — Recovery Kit Schema Hygiene
 
-Status: **Implementation complete** (2026-08-02). Spec: [spec.md](./spec.md).  
-Ship closeout (C4/D4 Completed + pin + ledger commit) after PR merge.
+Status: **Completed** (2026-08-02). Spec: [spec.md](./spec.md). PR #76 `2c06464`.
 
 ## Preconditions
 
@@ -10,7 +9,7 @@ Ship closeout (C4/D4 Completed + pin + ledger commit) after PR merge.
 - [x] Expand freezes (schema fields, dual-read, DoS caps, no schema_version bump)
 - [x] AI fold-in (AI1 affirm + AI2 M1/L1–L6) — disposition spec §15
 - [x] `ledgerful ledger start T194-RecoveryKitSchema --category SECURITY` *(TX e8844831-decb-43c8-8850-e338dea1ba26)*
-- [ ] Pin decision after implement: `ai-brains pin "DECISION: T194 — RecoveryKit passphrase.kdf pins Argon2id m/t/p/version; legacy dual-read via KdfParams::legacy(); no Argon2::default(); F29 non-default params test"` 
+- [x] Pin decision after implement: `ai-brains pin "DECISION: T194 — RecoveryKit passphrase.kdf pins Argon2id m/t/p/version; legacy dual-read via KdfParams::legacy(); no Argon2::default(); F29 non-default params test"` 
 
 ## Deferred rolled in
 
@@ -65,14 +64,14 @@ Ship closeout (C4/D4 Completed + pin + ledger commit) after PR merge.
   - `Docs/RELEASE-CLAIMS.md` R-34.2 ~154  
   - `Docs/CAPABILITIES.md` ~257  
   - `conductor/deferred.md` F37 rows  
-- [ ] **C4** `conductor.md` status → Completed on ship
+- [x] **C4** `conductor.md` status → Completed on ship (PR #76 `2c06464`)
 
 ### Phase D — Gate + review
 
 - [x] **D1** Full gate: fmt OK; clippy workspace -D warnings OK; nextest workspace **1841** passed (1 skipped); deny ok; audit allowed warnings only; ledgerful verify fast (orchestrator)
 - [x] **D2** Manual/library: generate embeds kdf 19456/2/1; unlock; strip-kdf legacy unlock; F29 non-default KAT (embeds_kdf + legacy_json_without_kdf + non_default tests)
 - [x] **D3** SECURITY review: internal r1 PASS WITH DEFERRED P3 (easy P3 edge tests fixed); Codex r1 process FAIL → fixed metadata; Codex final re-review before ship
-- [ ] **D4** Ledger commit; pin DECISION; strike deferred (on ship)
+- [x] **D4** Ledger commit; pin DECISION; strike deferred (on ship)
 
 ## Verification matrix
 
