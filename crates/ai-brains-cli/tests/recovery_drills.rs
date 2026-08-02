@@ -230,6 +230,214 @@ fn backup_restore__seeded_content__present_after_force_restore() {
     );
 }
 
+/// T188: daemon-down force restore succeeds (integration; live probe offline).
+#[test]
+fn backup_restore__daemon_down_force__succeeds() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let backup_path = create_backup(&vault);
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("backup")
+        .arg("restore")
+        .arg(&backup_path)
+        .arg("--force")
+        .output()
+        .expect("restore force");
+    assert!(
+        out.status.success(),
+        "daemon-down force restore must succeed; out={}",
+        combined_output(&out)
+    );
+    let msg = combined_output(&out);
+    assert!(
+        msg.contains("Vault restored from"),
+        "restore confirmation missing: {msg}"
+    );
+    assert_no_secret_leakage(&msg, &ZERO_KEY_BYTES);
+}
+
+/// T188 recovery export via passphrase-file: unlockable kit, schema_version=1.
+#[test]
+fn recovery_export__passphrase_file__writes_unlockable_kit() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let kit_path = dir.path().join("recovery-kit.json");
+    let pw_path = dir.path().join("passphrase.txt");
+    let passphrase = b"integration-passphrase-ok";
+    fs::write(&pw_path, passphrase).unwrap();
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("recovery")
+        .arg("export")
+        .arg("--output")
+        .arg(&kit_path)
+        .arg("--passphrase-file")
+        .arg(&pw_path)
+        .output()
+        .expect("recovery export");
+    assert!(
+        out.status.success(),
+        "export must succeed; out={}",
+        combined_output(&out)
+    );
+    let combined = combined_output(&out);
+    assert!(
+        combined.contains("dpapi: present") || combined.contains("dpapi: absent"),
+        "must print dpapi status; got: {combined}"
+    );
+    assert!(kit_path.exists(), "kit file must exist");
+
+    let json = fs::read_to_string(&kit_path).unwrap();
+    let kit = ai_brains_crypto::RecoveryKit::from_json(&json).expect("parse kit");
+    assert_eq!(kit.schema_version, 1);
+    let unlocked = kit
+        .unlock_with_passphrase(passphrase)
+        .expect("unlock with same passphrase");
+    assert_eq!(unlocked.expose_secret(), &ZERO_KEY_BYTES);
+
+    // Stdout/stderr must not dump kit or secrets.
+    assert_no_secret_leakage(&combined, &ZERO_KEY_BYTES);
+    assert_no_secret_leakage(&combined, passphrase);
+    ai_brains_crypto::test_support::assert_no_kit_dump(&combined, &json);
+}
+
+/// T188: export stdout has no kit JSON / secrets.
+#[test]
+fn recovery_export__stdout__no_kit_json_or_secrets() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let kit_path = dir.path().join("kit.json");
+    let pw_path = dir.path().join("pw.txt");
+    let passphrase = b"no-leak-passphrase!!";
+    fs::write(&pw_path, passphrase).unwrap();
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("recovery")
+        .arg("export")
+        .arg("--output")
+        .arg(&kit_path)
+        .arg("--passphrase-file")
+        .arg(&pw_path)
+        .output()
+        .expect("export");
+    assert!(out.status.success(), "out={}", combined_output(&out));
+    let combined = combined_output(&out);
+    let json = fs::read_to_string(&kit_path).unwrap();
+    let parsed = ai_brains_crypto::RecoveryKit::from_json(&json).expect("parse kit");
+    // Ciphertext bytes present in kit file but must not appear in operator output.
+    let ct_bytes = parsed.passphrase.ciphertext.as_slice();
+    assert_no_secret_leakage(&combined, ct_bytes);
+    assert_no_secret_leakage(&combined, &ZERO_KEY_BYTES);
+    assert_no_secret_leakage(&combined, passphrase);
+    ai_brains_crypto::test_support::assert_no_kit_dump(&combined, &json);
+    // Coarse markers: full kit JSON body and structural field dumps.
+    assert!(!combined.contains(&json));
+    assert!(
+        !combined.contains("\"ciphertext\""),
+        "operator output must not dump ciphertext JSON fields"
+    );
+}
+
+/// T188: output exists refuses without --force.
+#[test]
+fn recovery_export__output_exists__refuses_without_force() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let kit_path = dir.path().join("kit.json");
+    fs::write(&kit_path, b"already-here").unwrap();
+    let pw_path = dir.path().join("pw.txt");
+    fs::write(&pw_path, b"force-needed-passphrase").unwrap();
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("recovery")
+        .arg("export")
+        .arg("--output")
+        .arg(&kit_path)
+        .arg("--passphrase-file")
+        .arg(&pw_path)
+        .output()
+        .expect("export exists");
+    assert!(!out.status.success(), "must refuse when output exists");
+    let msg = combined_output(&out).to_ascii_lowercase();
+    assert!(
+        msg.contains("exists") || msg.contains("output exists"),
+        "must match exists class; got: {msg}"
+    );
+    // File content unchanged.
+    assert_eq!(fs::read(&kit_path).unwrap(), b"already-here");
+}
+
+/// T188: dry-run does not write kit file.
+#[test]
+fn recovery_export__dry_run__no_file() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let kit_path = dir.path().join("kit.json");
+    let pw_path = dir.path().join("pw.txt");
+    fs::write(&pw_path, b"dry-run-passphrase-ok").unwrap();
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("recovery")
+        .arg("export")
+        .arg("--output")
+        .arg(&kit_path)
+        .arg("--passphrase-file")
+        .arg(&pw_path)
+        .arg("--dry-run")
+        .output()
+        .expect("dry-run export");
+    assert!(
+        out.status.success(),
+        "dry-run must succeed; out={}",
+        combined_output(&out)
+    );
+    assert!(!kit_path.exists(), "dry-run must not write kit file");
+    let msg = combined_output(&out).to_ascii_lowercase();
+    assert!(
+        msg.contains("dry-run") || msg.contains("would write"),
+        "dry-run notice missing: {msg}"
+    );
+}
+
+/// T188: short passphrase fails with passphrase/too short class.
+#[test]
+fn recovery_export__short_passphrase__fails() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let kit_path = dir.path().join("kit.json");
+    let pw_path = dir.path().join("pw.txt");
+    fs::write(&pw_path, b"short").unwrap();
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("recovery")
+        .arg("export")
+        .arg("--output")
+        .arg(&kit_path)
+        .arg("--passphrase-file")
+        .arg(&pw_path)
+        .output()
+        .expect("short passphrase");
+    assert!(!out.status.success());
+    let msg = combined_output(&out).to_ascii_lowercase();
+    assert!(
+        msg.contains("passphrase") && (msg.contains("short") || msg.contains("minimum")),
+        "must match passphrase too short class; got: {msg}"
+    );
+    assert!(!kit_path.exists());
+}
+
 /// T181-R-03: missing backup path → non-zero + not-found class.
 #[test]
 fn backup_restore__missing_path__not_found_class() {

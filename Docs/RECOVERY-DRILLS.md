@@ -37,7 +37,7 @@ See also [failure-drills.md](../conductor/failure-drills.md) F-REC-01/02 and
 | **T181-E-02** | Post-wipe backup: seal → wipe → backup → restore | Open fails (wrap destroyed) | Yes |
 | **T181-F-01** | Corrupt backup (header and/or body) | Non-zero + corruption-class substring | Yes |
 | **T181-F-02** | Wrong SQLCipher key on verify/restore | Non-zero + wrong-key class under live SQLCipher (T187 strict) | Yes (strict) |
-| **T181-F-03** | Daemon running during restore | Warn only (no hard-fail product claim) | Soft / documented |
+| **T181-F-03** | Daemon running during restore | **Hard-fail** (T188): non-zero exit, no vault overwrite; message includes `daemon is running` + `ai-brains daemon stop` + `sc stop AI-Brains-Daemon`. Dry-run allowed with live-restore-will-fail notice. `--force` never overrides probe. | Yes (unit + integration) |
 
 ---
 
@@ -54,31 +54,42 @@ ai-brains --vault-path $Vault backup create --output-dir D:\backups
 ai-brains --vault-path $Vault backup verify $BackupPath
 ai-brains --vault-path $Vault backup verify --full   # all known backups
 
-# Restore
+# Restore (stop daemon/service first for live restore — T188 hard-fail)
 ai-brains --vault-path $Vault backup restore $BackupPath --dry-run
-ai-brains --vault-path $Vault backup restore $BackupPath --force   # non-interactive
+ai-brains daemon stop   # or: sc stop AI-Brains-Daemon
+ai-brains --vault-path $Vault backup restore $BackupPath --force   # non-interactive; --force does not override daemon probe
+
+# Recovery kit export (T188) — kit JSON only to file; never stdout
+ai-brains --vault-path $Vault recovery export --output D:\offline\recovery-kit.json --passphrase-file $env:TEMP\kit-pw.txt
+# Interactive TTY double-entry (zero-echo via rpassword) when --passphrase-file omitted
 ```
 
-**Exit codes:** non-zero on missing path, integrity failure, and (when SQLCipher page encryption is active) wrong key / open failure. Exact wording is stringly (not typed enums); automation matches **substring classes** (see §7).
+**Exit codes:** non-zero on missing path, integrity failure, **daemon running during mutating restore (T188)**, output-exists without force on export, short passphrase, and (when SQLCipher page encryption is active) wrong key / open failure. Exact wording is stringly (not typed enums); automation matches **substring classes** (see §7).
 
 > **Encryption honesty (T187):** workspace `rusqlite` uses **`bundled-sqlcipher-vendored-openssl`**. New vaults are page-encrypted (header is **not** plain `SQLite format 3`). Wrong-key open/verify fails closed. Zero keys refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1`. Legacy plain vaults: `ai-brains vault encrypt` (`sqlcipher_export`). **Not** FIPS / NIST Purge. See [COMPATIBILITY.md](COMPATIBILITY.md) F8 / [Deviations.md](Deviations.md) §1 (resolved).
 
 ---
 
-## 4. At vault initialization — RecoveryKit (operator residual)
+## 4. At vault initialization — RecoveryKit
 
-**Today there is no `ai-brains recovery export` or `ai-brains doctor` CLI product.**
+**`ai-brains recovery export` is shipped (T188).** Write kit JSON to a restricted offline path (USB / sealed store). **`ai-brains doctor` remains absent.**
 
-RecoveryKit generation and passphrase/DPAPI unlock are **library** (`ai-brains-crypto`) capabilities, covered by automated T181-K-* drills.
+```powershell
+ai-brains --vault-path $Vault recovery export --output E:\offline\recovery-kit.json --passphrase-file $SecurePwFile
+# stdout: path + "dpapi: present|absent" only — never kit JSON / DataKey / passphrase
+```
 
-### Checklist (manual / future CLI)
+RecoveryKit generation and passphrase/DPAPI unlock also remain **library** (`ai-brains-crypto`) capabilities (T181-K-* drills). Kits include `schema_version: 1` (serde default for older kits without the field).
 
-- [ ] At vault initialization, **generate and store RecoveryKit JSON out-of-band** (secure offline storage). Without this, a machine that loses DPAPI wrapping cannot passphrase-recover the DataKey.
-- [ ] Store the passphrase in a password manager / HSM / sealed envelope — never in the repo or CI logs.
-- [ ] Confirm kit JSON does **not** contain plaintext DataKey (hex/base64).
-- [ ] Future product: `recovery export` / doctor warnings may land under **T183**; until then this checklist is operator responsibility.
+### Checklist (operator)
 
-K-05 proves the **primitive** chain (unlock → `SqlCipherKey::from_data_key` → open). It does **not** prove that a production operator has exported a kit.
+- [ ] At vault initialization (or soon after), **export and store RecoveryKit JSON out-of-band** (secure offline storage). Without this, a machine that loses DPAPI wrapping cannot passphrase-recover the DataKey.
+- [ ] Store the passphrase in a password manager / HSM / sealed envelope — never in the repo or CI logs. Min length **8 bytes**. Prefer `--passphrase-file` over argv (there is no `--passphrase` flag).
+- [ ] Confirm kit JSON does **not** contain plaintext DataKey (hex/base64); salt/nonce are public.
+- [ ] Unix kit files are created mode **0600**; on Windows, refuse well-known public paths (`C:\Users\Public`); offline USB paths are allowed.
+- [ ] **`ai-brains doctor` is still not shipped** — recoverability checks remain operator / drill responsibility.
+
+K-05 proves the **primitive** chain (unlock → `SqlCipherKey::from_data_key` → open). Export CLI proves the operator write path; store the file offline yourself.
 
 ---
 
@@ -102,7 +113,9 @@ See **ADR-0016** §12 (CE honesty / non-claims) and §4 (DataKey wrap-nonce resi
 
 `PassphraseWrappedKey` stores `ciphertext`, `salt`, and `nonce` only — **no** KDF parameters (`m_cost`, `t_cost`, `p_cost`, algorithm id).
 
-Wrap and unwrap both use `Argon2::default()` at the **generation-time** defaults of the linked `argon2` crate. A future schema may pin params; that is **not** required for T181. Automated **T181-K-07** asserts kit JSON lacks KDF param field names.
+Wrap and unwrap both use `Argon2::default()` at the **generation-time** defaults of the linked `argon2` **0.5.x** crate: **Argon2id**, **m=19456**, **t=2**, **p=1**, version **0x13**. A future schema may pin params in kit JSON; that is **not** required for T181/T188. Automated **T181-K-07** asserts kit JSON lacks KDF param field names.
+
+**Backups** inherit SQLCipher page encryption of the live vault when T187 is active (Online Backup API copies the encrypted DB).
 
 ---
 
@@ -113,6 +126,9 @@ Wrap and unwrap both use `Argon2::default()` at the **generation-time** defaults
 | Missing path (R-03) | `not found` / `Backup file not found` |
 | Corrupt (F-01) | `integrity` / `corrupt` / `not a database` / `query failed` / `Integrity check failed` |
 | Wrong key (F-02) | Fail-closed under live SQLCipher (T187): non-zero + wrong-key class (`not a database` / key verification / VaultLocked) |
+| Daemon busy restore (T188 F-03) | `daemon is running` + stop guidance (`ai-brains daemon stop` and `sc stop` / service name) |
+| Export output exists | `exists` / `output exists` |
+| Passphrase too short | `passphrase` + `short` / min length |
 
 Non-zero exit alone is **insufficient**.
 
@@ -153,14 +169,18 @@ These are planning aids only — not contractual or marketed guarantees.
 
 | Residual | Owner |
 |----------|--------|
-| `ai-brains doctor` product | Future / T183 |
-| `ai-brains recovery export` CLI | Soft / T183–T184 |
-| Argon2 params in kit schema | Future crypto hygiene |
+| `ai-brains doctor` product | Still absent (deferred #2) |
+| ~~`ai-brains recovery export` CLI~~ | **Closed by T188** |
+| Argon2 params in kit schema | Future crypto hygiene (defaults documented: m=19456,t=2,p=1) |
 | ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ | **Closed by T187** — live `bundled-sqlcipher-vendored-openssl`; strict drills |
-| #34.2 DataKey rotation | Open |
+| #34.2 DataKey rotation | Open (T189) |
 | F-REC-03/04 projection/graph rebuild drills | Soft residual |
-| Hard-fail restore while daemon running | Product residual (today: warn) |
+| ~~Hard-fail restore while daemon running~~ | **Closed by T188** (robust probe ≥1s × 3 attempts) |
 | Multi-device CE orchestration | T176–T178 |
+
+### Post-drill improvement (NIST SP 800-184)
+
+After each restore/export drill: record what failed, update this playbook or runbooks, and re-run until the exercise is clean. Planning + exercise + improvement loop — not a product SLA.
 
 ---
 
