@@ -72,6 +72,7 @@ pub struct RotateDataKeyOptions {
 
 /// Plan-only: open with old key, count active wraps + device private rows.
 pub fn plan_rotate_datakey(vault_path: &Path, old_key: &SqlCipherKey) -> Result<RotateDryRunPlan> {
+    enforce_rotate_key_policy(old_key)?;
     let conn = Connection::open(vault_path)
         .map_err(|e| StoreError::ConnectionFailed(format!("open vault for rotate plan: {e}")))?;
     apply_key_pragmas(&conn, old_key)?;
@@ -94,7 +95,9 @@ pub fn rotate_datakey(
     old_data_key: &DataKey,
     new_data_key: &DataKey,
 ) -> Result<RotateDataKeyResult> {
+    enforce_rotate_key_policy(old_sql_key)?;
     let new_sql_key = SqlCipherKey::from_data_key(new_data_key);
+    enforce_rotate_key_policy(&new_sql_key)?;
     if opts.accept_rekey_risk {
         rotate_datakey_rekey(
             &opts.vault_path,
@@ -111,6 +114,35 @@ pub fn rotate_datakey(
             new_data_key,
             &new_sql_key,
         )
+    }
+}
+
+/// Same zero-key / blank / format policy as [`VaultConnection::open`] (T187).
+fn enforce_rotate_key_policy(key: &SqlCipherKey) -> Result<()> {
+    if key.is_blank() {
+        return Err(StoreError::VaultLocked(
+            "blank SQLCipher key refused for rotate".into(),
+        ));
+    }
+    key.validate()
+        .map_err(|e| StoreError::VaultLocked(format!("invalid key format: {e}")))?;
+    if key.is_zero() && !zero_key_allowed() {
+        return Err(StoreError::VaultLocked(
+            "zero key refused for rotate; set a non-zero --key / AI_BRAINS_KEY, or set \
+             AI_BRAINS_ALLOW_ZERO_KEY=1 for tests/legacy only"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
+fn zero_key_allowed() -> bool {
+    match std::env::var(crate::connection::ALLOW_ZERO_KEY_ENV) {
+        Ok(v) => {
+            let t = v.trim();
+            t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
+        }
+        Err(_) => false,
     }
 }
 
@@ -208,6 +240,10 @@ fn sqlcipher_export_encrypted(
     })?;
     apply_pragmas(&src, old_key)?;
     verify_open(&src)?;
+    // F6: exclusive connection lock so concurrent non-daemon writers cannot
+    // commit pages that would be discarded when the temp DB replaces the source.
+    // Use locking_mode=EXCLUSIVE (not an open user txn) so ATTACH/DETACH work.
+    take_exclusive_connection_lock(&src)?;
     let _ = src.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()));
 
     let dest_sql = sql_quote_path(dest);
@@ -225,6 +261,23 @@ fn sqlcipher_export_encrypted(
         })?;
     src.execute_batch("DETACH DATABASE rotated;").map_err(|e| {
         StoreError::ConnectionFailed(format!("DETACH rotated failed ({})", redact_sql_err(e)))
+    })?;
+    // Drop connection before atomic replace (releases exclusive; handles closed).
+    drop(src);
+    Ok(())
+}
+
+/// F6 exclusive: `PRAGMA locking_mode=EXCLUSIVE` + short reserved txn so this
+/// connection holds the exclusive lock until closed. Leaves autocommit so
+/// ATTACH/DETACH/rekey work.
+fn take_exclusive_connection_lock(conn: &Connection) -> Result<()> {
+    conn.execute_batch("PRAGMA locking_mode = EXCLUSIVE;")
+        .map_err(|e| StoreError::ConnectionFailed(format!("locking_mode=EXCLUSIVE failed: {e}")))?;
+    conn.execute_batch("BEGIN IMMEDIATE;").map_err(|e| {
+        StoreError::ConnectionFailed(format!("exclusive lock for rotate failed: {e}"))
+    })?;
+    conn.execute_batch("COMMIT;").map_err(|e| {
+        StoreError::ConnectionFailed(format!("commit exclusive lock bootstrap failed: {e}"))
     })?;
     Ok(())
 }
@@ -279,17 +332,22 @@ fn rotate_datakey_rekey(
             .map_err(|e| StoreError::ConnectionFailed(format!("open vault for rekey: {e}")))?;
         apply_pragmas(&conn, old_sql_key)?;
         verify_open(&conn)?;
+        // F6 exclusive for wrap + rekey (single writer until connection drops).
+        take_exclusive_connection_lock(&conn)?;
 
-        // Wrap updates under old page key.
-        let tx = conn
-            .unchecked_transaction()
-            .map_err(StoreError::DatabaseError)?;
-        let wraps = list_active_content_key_wraps(&tx)?;
-        let living = rewrap_active_wraps(&tx, old_data_key, new_data_key, &wraps)?;
-        let resealed = reseal_device_private(&tx, old_data_key, new_data_key)?;
-        tx.commit().map_err(StoreError::DatabaseError)?;
+        // Wrap updates under old page key (own txn; commit before rekey).
+        let (living, resealed) = {
+            let tx = conn
+                .unchecked_transaction()
+                .map_err(StoreError::DatabaseError)?;
+            let wraps = list_active_content_key_wraps(&tx)?;
+            let living = rewrap_active_wraps(&tx, old_data_key, new_data_key, &wraps)?;
+            let resealed = reseal_device_private(&tx, old_data_key, new_data_key)?;
+            tx.commit().map_err(StoreError::DatabaseError)?;
+            (living, resealed)
+        };
 
-        // F5b journal protocol
+        // F5b journal protocol — rekey must run outside a user transaction.
         let _ = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()));
         conn.execute_batch("PRAGMA journal_mode = DELETE;")
             .map_err(|e| {
@@ -622,38 +680,19 @@ fn sql_quote_path(path: &Path) -> String {
 
 /// Atomically replace `target` with `source` (source is the new vault file).
 ///
+/// **Windows:** `MoveFileExW` with `REPLACE_EXISTING` only — no two-step
+/// rename-aside fallback (Codex P1: crash between renames would leave the
+/// canonical vault path missing, violating F5/F7 crash-safe export).
+///
+/// **Unix:** same-filesystem `rename` is atomic.
+///
 /// After a successful replace, clears `target-wal` / `target-shm` so stale WAL
 /// pages under the old page codec cannot sit beside the new main DB (P1-3 / F5).
+/// On failure the old vault at `target` is left untouched; caller may abandon `source`.
 pub fn atomic_replace_file(source: &Path, target: &Path) -> Result<()> {
     #[cfg(windows)]
     {
-        if let Err(e) = windows_replace_file(source, target) {
-            // Fallback: rename target aside then rename source → target.
-            let bak = target.with_extension("db.rotate-old");
-            if bak.exists() {
-                let _ = fs::remove_file(&bak);
-            }
-            if target.exists() {
-                fs::rename(target, &bak).map_err(|re| {
-                    StoreError::ConnectionFailed(format!(
-                        "atomic replace fallback: move old aside failed ({e}; {re})"
-                    ))
-                })?;
-            }
-            if let Err(re) = fs::rename(source, target) {
-                // Try restore old
-                if bak.exists() {
-                    let _ = fs::rename(&bak, target);
-                }
-                return Err(StoreError::ConnectionFailed(format!(
-                    "atomic replace fallback rename failed: {re}"
-                )));
-            }
-            let _ = fs::remove_file(&bak);
-            // Stale WAL/SHM under old codec must not remain next to new main DB.
-            clear_wal_shm(target);
-            return Ok(());
-        }
+        windows_replace_file(source, target)?;
         clear_wal_shm(target);
         Ok(())
     }

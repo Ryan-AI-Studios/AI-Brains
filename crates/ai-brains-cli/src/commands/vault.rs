@@ -347,6 +347,23 @@ fn resolve_sqlcipher_key(key: Option<String>) -> Result<SqlCipherKey, Box<dyn st
     let sql = SqlCipherKey::from_raw(key_str);
     sql.validate()
         .map_err(|e| format!("invalid vault key: {e}"))?;
+    // T187 / Codex T189 P2: refuse zero key unless escape hatch (matches VaultConnection).
+    if sql.is_zero() {
+        let allow = match std::env::var("AI_BRAINS_ALLOW_ZERO_KEY") {
+            Ok(v) => {
+                let t = v.trim();
+                t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
+            }
+            Err(_) => false,
+        };
+        if !allow {
+            return Err(
+                "zero key refused for vault rotate-datakey; set a non-zero --key / AI_BRAINS_KEY, \
+                 or set AI_BRAINS_ALLOW_ZERO_KEY=1 for tests/legacy only"
+                    .into(),
+            );
+        }
+    }
     Ok(sql)
 }
 
