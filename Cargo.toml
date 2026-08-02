@@ -70,6 +70,9 @@ rpassword = "7.5"
 time = { version = "0.3", features = ["serde", "parsing", "formatting"] }
 dirs = "6.0"
 rand = "0.10"
+cap-std = "4.0"
+# T190: expose FollowSymlinks::No on OpenOptions (cap-std default is Yes / software follow).
+cap-fs-ext = { version = "4.0", features = ["cap-std"] }
 # Multi-device replication (T176 / ADR-0018) — classical ECC only; not PQ.
 ed25519-dalek = { version = "3", features = ["serde", "zeroize", "rand_core"] }
 # NO getrandom feature — panic-free keygen via try_fill_bytes + StaticSecret::from (R25).
@@ -94,4 +97,5 @@ windows = { version = "0.62", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_Registry",
 ] }
+
 

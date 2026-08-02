@@ -14,8 +14,8 @@
 //!   does not change the `Connector` trait).
 //! - **Write-back:** [`Connector::propose_write`] returns an artifact only —
 //!   never mutates the filesystem.
-//! - **Path safety residual:** reparse refuse + containment; residual TOCTOU
-//!   without `openat`/cap-std is accepted and documented (deferred #12 slice).
+//! - **Path safety (T190):** vault list/observe use capability Dir walk +
+//!   component nofollow open (ADR-0021). Soft-canonicalize remains non-claim.
 //! - **Reserved stems:** blanket Windows device-name refuse (see `vault_fs`).
 
 use std::path::{Path, PathBuf};
@@ -23,6 +23,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_core::source::SourceKind;
+use ai_brains_path::{CapOpenError, open_ambient_vault_dir, open_dir_component_nofollow};
 use uuid::Uuid;
 
 use crate::connector::{
@@ -253,7 +254,8 @@ impl Connector for MarkdownObsidianConnector {
         // Reset truncation flag each list.
         self.last_list_truncated.store(false, Ordering::Relaxed);
 
-        refuse_reparse_path(&self.root).map_err(map_vault_err)?;
+        // Ambient open of trusted root once; descent uses Dir handles only (F21/F22).
+        let root_dir = open_ambient_vault_dir(&self.root).map_err(map_cap_open_err)?;
 
         let mut handles: Vec<SourceHandle> = Vec::new();
         let max_files = self.options.max_files;
@@ -271,7 +273,8 @@ impl Connector for MarkdownObsidianConnector {
         let mut truncated = false;
         walk_vault(
             &self.root,
-            &self.root,
+            &root_dir,
+            "",
             0,
             self.options.max_depth,
             self.options.max_file_bytes,
@@ -412,37 +415,6 @@ enum ListEntryAction {
     Skip,
 }
 
-/// Classify reparse-check result for list walks.
-///
-/// Only confirmed reparse/symlink refusal is skipped; other filesystem errors
-/// (permission denied, etc.) must surface as [`ConnectorError::Internal`].
-fn list_entry_reparse_decision(
-    result: Result<(), VaultFsError>,
-) -> Result<ListEntryAction, ConnectorError> {
-    match result {
-        Ok(()) => Ok(ListEntryAction::Proceed),
-        Err(VaultFsError::ReparseRefused(_)) => Ok(ListEntryAction::Skip),
-        Err(other) => Err(map_vault_err(other)),
-    }
-}
-
-/// Classify `symlink_metadata` for list walks.
-///
-/// `NotFound` is skipped (race: entry deleted during walk). All other I/O
-/// errors propagate as Internal.
-fn list_entry_metadata_decision(
-    result: Result<std::fs::Metadata, std::io::Error>,
-    path: &Path,
-) -> Result<Option<std::fs::Metadata>, ConnectorError> {
-    match result {
-        Ok(meta) => Ok(Some(meta)),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(ConnectorError::Internal {
-            detail: format!("symlink_metadata {}: {e}", path.display()),
-        }),
-    }
-}
-
 /// Classify `resolve_under_root` for list walks.
 ///
 /// Path policy refusals (escape, reserved stem, absolute, reparse) skip the
@@ -463,11 +435,36 @@ fn list_entry_resolve_decision(
     }
 }
 
-/// Recursive directory walk; stops when `handles.len() == max_files`.
+fn map_cap_open_err(e: CapOpenError) -> ConnectorError {
+    map_vault_err(match e {
+        CapOpenError::PathEscape(s) => VaultFsError::PathEscape(s),
+        CapOpenError::ReparseRefused(s) => VaultFsError::ReparseRefused(s),
+        CapOpenError::Oversized { size, max_bytes } => VaultFsError::Oversized { size, max_bytes },
+        CapOpenError::NotFound(s) => VaultFsError::NotFound(s),
+        CapOpenError::NotAFile(s) | CapOpenError::NotADir(s) | CapOpenError::Io(s) => {
+            VaultFsError::Io(s)
+        }
+    })
+}
+
+/// True when an `Io` message is ENOTDIR / "not a directory" (Unix `O_DIRECTORY` on a file).
+///
+/// Used by `walk_vault` so non-directory entries can fall through to the file path
+/// without treating permission-denied or other real I/O as silent skip.
+fn is_enotdir_message(msg: &str) -> bool {
+    let lower = msg.to_ascii_lowercase();
+    lower.contains("not a directory") || lower.contains("enotdir") || lower.contains("is a file")
+}
+
+/// Recursive directory walk via cap-std [`Dir`] handles; **no** `std::fs::read_dir`.
+///
+/// Stops when `handles.len() == max_files`. Symlink/reparse entries are skipped
+/// (list); observe/read uses nofollow open and fails closed.
 #[allow(clippy::too_many_arguments)]
 fn walk_vault(
     vault_root: &Path,
-    current: &Path,
+    current: &cap_std::fs::Dir,
+    rel_prefix: &str,
     depth: usize,
     max_depth: usize,
     max_file_bytes: u64,
@@ -484,100 +481,90 @@ fn walk_vault(
         return Ok(());
     }
 
-    // Refuse reparse on the directory we are entering.
-    refuse_reparse_path(current).map_err(map_vault_err)?;
+    // Dir::entries on the open handle — never ambient std::fs::read_dir (F22).
+    let names = ai_brains_path::list_entry_names(current).map_err(map_cap_open_err)?;
 
-    let rd = std::fs::read_dir(current).map_err(|e| ConnectorError::Internal {
-        detail: format!("read_dir {}: {e}", current.display()),
-    })?;
-
-    // Collect entries for deterministic walk order by name.
-    let mut entries: Vec<std::fs::DirEntry> = Vec::new();
-    for ent in rd {
-        let ent = ent.map_err(|e| ConnectorError::Internal {
-            detail: format!("read_dir entry: {e}"),
-        })?;
-        entries.push(ent);
-    }
-    entries.sort_by_key(|e| e.file_name());
-
-    for ent in entries {
+    for name in names {
         if handles.len() >= max_files {
             *truncated = true;
             return Ok(());
         }
-
-        let name_os = ent.file_name();
-        let name = name_os.to_string_lossy();
-        let path = ent.path();
 
         // Skip reserved stems on any component name.
         if is_reserved_windows_stem(&name) {
             continue;
         }
 
-        let file_type = match ent.file_type() {
-            Ok(ft) => ft,
+        let child_rel = if rel_prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{rel_prefix}/{name}")
+        };
+
+        // Probe type via nofollow open: dir first, then file. Reparse → skip.
+        // Real I/O errors (permission denied, etc.) MUST surface — do not silent-skip
+        // unreadable subtrees (Codex P2-01). Only ENOTDIR / typed NotADir fall through.
+        let try_as_file = match open_dir_component_nofollow(current, &name) {
+            Ok(child_dir) => {
+                if is_ignored_dir_name(&name) {
+                    continue;
+                }
+                walk_vault(
+                    vault_root,
+                    &child_dir,
+                    &child_rel,
+                    depth + 1,
+                    max_depth,
+                    max_file_bytes,
+                    max_files,
+                    scope,
+                    handles,
+                    truncated,
+                )?;
+                continue;
+            }
+            Err(CapOpenError::ReparseRefused(_)) => {
+                // Symlink/junction/reparse: skip for list (observe will refuse).
+                continue;
+            }
+            Err(CapOpenError::NotADir(_)) | Err(CapOpenError::NotAFile(_)) => true,
+            Err(CapOpenError::NotFound(_)) => {
+                // Race: entry vanished during walk.
+                continue;
+            }
+            Err(CapOpenError::Io(ref msg)) if is_enotdir_message(msg) => {
+                // Unix O_DIRECTORY on a regular file → ENOTDIR as Io.
+                true
+            }
             Err(e) => {
-                return Err(ConnectorError::Internal {
-                    detail: format!("file_type {}: {e}", path.display()),
-                });
+                // Permission denied / other real open failures on dirs: surface.
+                return Err(map_cap_open_err(e));
             }
         };
 
-        // Symlink/reparse entries: refuse to follow; skip for list (observe will error).
-        if file_type.is_symlink() {
+        if !try_as_file || !is_markdown_file(&name) {
             continue;
         }
-        // Windows junctions may not report is_symlink; extra reparse check.
-        // Only ReparseRefused is skippable; I/O errors from metadata must surface.
-        match list_entry_reparse_decision(refuse_reparse_path(&path))? {
-            ListEntryAction::Proceed => {}
-            ListEntryAction::Skip => continue,
-        }
 
-        if file_type.is_dir() {
-            if is_ignored_dir_name(&name) {
-                continue;
+        match ai_brains_path::open_file_component_nofollow(current, &name) {
+            Ok(file) => {
+                let meta = file.metadata().map_err(|e| ConnectorError::Internal {
+                    detail: format!("metadata {child_rel}: {e}"),
+                })?;
+                if !meta.is_file() || meta.is_symlink() {
+                    continue;
+                }
+                if meta.len() > max_file_bytes {
+                    continue;
+                }
             }
-            walk_vault(
-                vault_root,
-                &path,
-                depth + 1,
-                max_depth,
-                max_file_bytes,
-                max_files,
-                scope,
-                handles,
-                truncated,
-            )?;
-            continue;
+            Err(CapOpenError::ReparseRefused(_))
+            | Err(CapOpenError::NotFound(_))
+            | Err(CapOpenError::NotAFile(_)) => continue,
+            Err(e) => return Err(map_cap_open_err(e)),
         }
 
-        if !file_type.is_file() {
-            continue;
-        }
-        if !is_markdown_file(&name) {
-            continue;
-        }
-
-        // Size cap: skip oversized on list. NotFound races skip; other I/O errors surface.
-        let Some(meta) = list_entry_metadata_decision(std::fs::symlink_metadata(&path), &path)?
-        else {
-            continue;
-        };
-        if meta.len() > max_file_bytes {
-            continue;
-        }
-
-        let rel = match path.strip_prefix(vault_root) {
-            Ok(r) => r,
-            Err(_) => {
-                // Containment failure — skip (should not appear from a root-bounded walk).
-                continue;
-            }
-        };
-        let locator = normalize_locator(&rel.to_string_lossy());
+        let locator = normalize_locator(&child_rel);
         // Double-check resolve: policy refusals skip; I/O errors surface.
         match list_entry_resolve_decision(resolve_under_root(vault_root, &locator))? {
             ListEntryAction::Proceed => {}
@@ -605,79 +592,12 @@ fn walk_vault(
 #[allow(clippy::disallowed_methods)]
 mod unit_tests {
     use super::*;
+    use ai_brains_core::ids::UserId;
+    use ai_brains_core::scope::ScopeRef;
+    use uuid::Uuid;
 
-    #[test]
-    fn list_entry_reparse_decision__ok__proceed() {
-        assert_eq!(
-            list_entry_reparse_decision(Ok(())).expect("ok"),
-            ListEntryAction::Proceed
-        );
-    }
-
-    #[test]
-    fn list_entry_reparse_decision__reparse_refused__skip() {
-        let err = VaultFsError::ReparseRefused("link".into());
-        assert_eq!(
-            list_entry_reparse_decision(Err(err)).expect("skip"),
-            ListEntryAction::Skip
-        );
-    }
-
-    #[test]
-    fn list_entry_reparse_decision__io_error__propagates_internal() {
-        let err = VaultFsError::Io("permission denied".into());
-        let mapped = list_entry_reparse_decision(Err(err)).expect_err("must surface");
-        assert!(
-            matches!(mapped, ConnectorError::Internal { .. }),
-            "expected Internal, got {mapped:?}"
-        );
-        let detail = mapped.to_string().to_ascii_lowercase();
-        assert!(
-            detail.contains("permission denied") || detail.contains("i/o"),
-            "{mapped}"
-        );
-    }
-
-    #[test]
-    fn list_entry_reparse_decision__not_found__propagates_not_swallow() {
-        // NotFound from vault_fs is not a reparse skip; list reparse check
-        // should not treat it as silent continue.
-        let err = VaultFsError::NotFound("gone.md".into());
-        let mapped = list_entry_reparse_decision(Err(err)).expect_err("must surface");
-        assert!(
-            matches!(mapped, ConnectorError::HandleNotFound { .. }),
-            "expected HandleNotFound, got {mapped:?}"
-        );
-    }
-
-    #[test]
-    fn list_entry_metadata_decision__ok__some() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let file = dir.path().join("note.md");
-        std::fs::write(&file, b"hi").expect("write");
-        let meta = std::fs::symlink_metadata(&file).expect("meta");
-        let out = list_entry_metadata_decision(Ok(meta), &file).expect("ok");
-        assert!(out.is_some());
-        assert_eq!(out.expect("some").len(), 2);
-    }
-
-    #[test]
-    fn list_entry_metadata_decision__not_found__none() {
-        let path = Path::new("missing-during-walk.md");
-        let err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
-        let out = list_entry_metadata_decision(Err(err), path).expect("skip race");
-        assert!(out.is_none());
-    }
-
-    #[test]
-    fn list_entry_metadata_decision__permission_denied__propagates_internal() {
-        let path = Path::new("locked.md");
-        let err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
-        let mapped = list_entry_metadata_decision(Err(err), path).expect_err("must surface");
-        assert!(
-            matches!(mapped, ConnectorError::Internal { ref detail } if detail.contains("symlink_metadata")),
-            "expected Internal symlink_metadata, got {mapped:?}"
-        );
+    fn test_scope() -> ScopeRef {
+        ScopeRef::Personal(UserId::from_uuid(Uuid::from_u128(42)))
     }
 
     #[test]
@@ -706,6 +626,124 @@ mod unit_tests {
             list_entry_resolve_decision(Err(err)).expect("skip"),
             ListEntryAction::Skip
         );
+    }
+
+    #[test]
+    fn walk_vault__regular_notes__listed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let notes = dir.path().join("notes");
+        std::fs::create_dir_all(&notes).expect("mkdir");
+        std::fs::write(notes.join("a.md"), b"# a").expect("write");
+        std::fs::write(notes.join("b.md"), b"# b").expect("write");
+
+        let root_dir = open_ambient_vault_dir(dir.path()).expect("open root");
+        let scope = test_scope();
+        let mut handles = Vec::new();
+        let mut truncated = false;
+        walk_vault(
+            dir.path(),
+            &root_dir,
+            "",
+            0,
+            32,
+            1_048_576,
+            10_000,
+            &scope,
+            &mut handles,
+            &mut truncated,
+        )
+        .expect("walk");
+        assert!(!truncated);
+        let locs: Vec<_> = handles.iter().map(|h| h.locator.as_str()).collect();
+        assert!(locs.contains(&"notes/a.md"), "{locs:?}");
+        assert!(locs.contains(&"notes/b.md"), "{locs:?}");
+    }
+
+    #[test]
+    fn walk_vault__intermediate_symlink__refused() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let notes = dir.path().join("notes");
+        std::fs::create_dir_all(&notes).expect("mkdir");
+        std::fs::write(notes.join("ok.md"), b"# ok").expect("write");
+
+        let outside = tempfile::tempdir().expect("outside");
+        std::fs::write(outside.path().join("secret.md"), b"SECRET").expect("outside");
+        let link = notes.join("evil");
+        let created = {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(outside.path(), &link).is_ok()
+            }
+            #[cfg(windows)]
+            {
+                std::os::windows::fs::symlink_dir(outside.path(), &link).is_ok()
+            }
+            #[cfg(not(any(unix, windows)))]
+            {
+                false
+            }
+        };
+        if !created {
+            eprintln!(
+                "soft-skip: could not create dir symlink/junction (privilege missing). \
+                 Intermediate reparse walk refuse covered when privilege available."
+            );
+            return;
+        }
+
+        let root_dir = open_ambient_vault_dir(dir.path()).expect("open root");
+        let scope = test_scope();
+        let mut handles = Vec::new();
+        let mut truncated = false;
+        walk_vault(
+            dir.path(),
+            &root_dir,
+            "",
+            0,
+            32,
+            1_048_576,
+            10_000,
+            &scope,
+            &mut handles,
+            &mut truncated,
+        )
+        .expect("walk must not error; symlink dirs are skipped");
+        let locs: Vec<_> = handles.iter().map(|h| h.locator.as_str()).collect();
+        assert!(locs.contains(&"notes/ok.md"), "{locs:?}");
+        assert!(
+            !locs
+                .iter()
+                .any(|l| l.contains("evil") || l.contains("secret")),
+            "must not list through intermediate symlink: {locs:?}"
+        );
+    }
+
+    #[test]
+    fn walk_vault__no_std_fs_read_dir() {
+        // Behavioral gate: walk succeeds solely via Dir handles. A source search
+        // for `std::fs::read_dir` inside walk_vault is the static complement
+        // (F22 / AC12) — this test proves the new path functions end-to-end.
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("root.md"), b"# r").expect("write");
+        let root_dir = open_ambient_vault_dir(dir.path()).expect("open");
+        let mut handles = Vec::new();
+        let mut truncated = false;
+        let scope = test_scope();
+        walk_vault(
+            dir.path(),
+            &root_dir,
+            "",
+            0,
+            8,
+            4096,
+            100,
+            &scope,
+            &mut handles,
+            &mut truncated,
+        )
+        .expect("walk");
+        assert_eq!(handles.len(), 1);
+        assert_eq!(handles[0].locator, "root.md");
     }
 
     #[test]

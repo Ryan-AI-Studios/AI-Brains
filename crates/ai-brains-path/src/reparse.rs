@@ -3,9 +3,10 @@
 //!
 //! # Residual TOCTOU
 //!
-//! Check-then-open without `openat` / cap-std remains racy if an attacker swaps
-//! a link between detection and open. Callers should still fail closed when a
-//! reparse is detected at check time.
+//! Check-then-open detection alone remains racy if an attacker swaps a link
+//! between detection and open. For TrustedBuiltin vault-relative I/O, prefer
+//! [`crate::cap_open`] component-wise nofollow open (T190 / ADR-0021). This
+//! module remains for pre-checks and non-elevated call sites.
 
 use std::path::Path;
 

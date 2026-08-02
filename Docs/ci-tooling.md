@@ -117,7 +117,7 @@ CLI integration tests must not depend on developer ambient `AI_BRAINS_*` for pas
 
 Each `tests/*.rs` is a separate crate: `mod common;` (or `#[path]`) + `#[allow(dead_code)]` on shared helpers.
 
-Soft-canonicalize (`resolve_best_effort`) is **not** openat/cap-std TOCTOU closure (#12 residual).
+Soft-canonicalize (`resolve_best_effort`) is **not** openat/cap-std TOCTOU closure. TrustedBuiltin vault open+list is hardened under T190 / ADR-0021; soft-canon remains a non-claim for path TOCTOU (R-12 residual).
 
 ## GitHub Actions matrix pins (T179 + T186)
 

@@ -8,6 +8,11 @@ repository.workspace = true
 
 [dependencies]
 thiserror.workspace = true
+cap-std.workspace = true
+cap-fs-ext.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", features = ["fs"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true }
