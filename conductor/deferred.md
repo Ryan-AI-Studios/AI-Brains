@@ -13,14 +13,14 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~**#34.2** DataKey rotation~~ | **Closed by T189** (2026-08-02) PR #67 `9e9465e` |
 | ~~**#12** path TOCTOU / openat / cap-std~~ | **Closed-with-residuals by T190** (2026-08-02). Residual elevation → **T193** |
 | ~~T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail~~ | **Closed by T191** (2026-08-02) |
-| **#2** doctor CLI / R-DOC-CLI | **T192** (**Expanded + AI fold-in** 2026-08-02 — F1–F34; implement on go-ahead) |
+| ~~**#2** doctor CLI / R-DOC-CLI~~ | **Closed by T192** (2026-08-02) PR #75 `80837da` |
 | T190 ambient CLI / write / token path residuals | **T193** (placeholder 2026-08-02) |
 | Argon2 params in kit JSON (F37) | **T194** (placeholder 2026-08-02) |
 | R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI | **T195** (placeholder 2026-08-02) |
 | systemd / launchd units; CONTRIBUTING hygiene | **T196** (placeholder 2026-08-02) |
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 
-Suggested order: **T192** (doctor, **plan expanded**) → **T194** (kit schema, anytime) → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs). Expand freezes before implement.
+Suggested order: **T194** (kit schema, anytime) → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs).
 
 ---
 
@@ -638,7 +638,7 @@ P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills
 **Residuals remaining (not fixed by T181):**
 
 1. ~~No `recovery export` CLI~~ — **Closed by T188** (2026-08-02): `ai-brains recovery export`
-2. No `doctor` CLI — **T192 Expanded** 2026-08-02 (implement on go-ahead; R-DOC-CLI residual until ship)
+2. ~~No `doctor` CLI~~ — **Closed by T192** (2026-08-02) PR #75 `80837da`
 3. Argon2 KDF params not in kit JSON (F37) — **T194**
 4. ~~#34.2 DataKey rotation~~ — **Closed by T189**
 5. F-REC-03/04 projection/graph rebuild drills — soft
@@ -836,7 +836,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 **Closed:** §59 #1 recovery export; §59 #6 restore daemon hard-fail; T181-F-03 product hard-fail language.
 
 **Remains open:**
-- **#2 doctor** CLI (R-DOC-CLI residual) → **T192 Expanded** 2026-08-02 (plan only; strike on ship)
+- ~~**#2 doctor** CLI (R-DOC-CLI residual)~~ — **Closed by T192** (2026-08-02) PR #75 `80837da`
 - Live-daemon busy-restore integration drill (unit-injected daemon-up covers safety; optional)
 - Restore still opens AppContext (migrate) before probe (P3 residual; overwrite still blocked)
 - Dry-run notice stdout process-capture (P3 test hardening)
@@ -844,15 +844,17 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 ---
 
-## T192 plan expansion (2026-08-02) — not closed until implement
+## T192 closeout (2026-08-02) — Doctor CLI shipped
 
-**Absorbs on ship:** deferred **#2** / R-DOC-CLI doctor half; SECURITY-LIMITS / INSTALL / CAPABILITIES / RECOVERY-DRILLS “doctor absent”; claims script invented-doctor forbid retarget.
+**Closed:** deferred **#2** / R-DOC-CLI doctor residual; SECURITY-LIMITS / INSTALL / CAPABILITIES / RECOVERY-DRILLS doctor-absent language; claims invented-doctor rule #54; stale invented recovery-export forbid.
 
-**Frozen (see trackT192 spec F1–F34):** read-only `open_read_intent`; no `AppContext::from_cli`; exit 0 for ok|degraded, 1 fail, `--fail-on-degraded`; daemon info-only via T188 robust probe; recoverability via optional `--kit-path` (reparse refuse) + soft `RecoveryKitCreated` with **JSON-quoted** `event_type` query; **F17b** `backup_dir_read_only` for list paths; contracts `DoctorReport` schema_version=1; human format default; **remove** claims rule #54; zero new deps (no humantime — reuse `parse_duration`).
+**Shipped:** read-only `ai-brains doctor` (`open_read_intent` only; no AppContext migrate); F17b `backup_dir_read_only`; contracts `DoctorReport` schema_version=1; exit 0 for ok|degraded; optional `--kit-path` + soft RecoveryKitCreated event; Codex R2 **PASS WITH DEFERRED P3**. PR #75 `80837da`.
 
-**AI fold-in:** AI1 §1–6 + AI2 M1–M5, L1–L4, L7 accepted; L5 TTY-smart format declined as soft residual.
-
-**Still residual after ship (honest):** offline kit without `--kit-path`; probe = our IPC only; no hook doctor; no auto-fix; TTY-smart format optional later.
+**Honest residuals after ship:**
+- Offline kit without `--kit-path` still operator responsibility
+- Daemon probe = our IPC only (bool; cannot distinguish probe error vs down) — P3
+- Spec F16 erratum: live `event_type` is unquoted after store `trim_matches('"')` (code correct; AC16)
+- No hook doctor; no auto-fix; TTY-smart format optional later
 
 
 ## T189 closeout (2026-08-02)
