@@ -2,9 +2,13 @@
 #![allow(non_snake_case)]
 
 //! RecoveryKit drills (T181-K-*). Library-level only — no CLI export path (F4/F5/F38).
+//! T194: Argon2 KDF params pinned in kit JSON (`passphrase.kdf`).
 
+use ai_brains_crypto::passphrase;
 use ai_brains_crypto::test_support::{assert_no_kit_dump, assert_no_secret_leakage};
-use ai_brains_crypto::{CryptoError, DataKey, RecoveryKit, SqlCipherKey};
+use ai_brains_crypto::{
+    CryptoError, DataKey, KdfParams, PassphraseWrappedKey, RecoveryKit, SqlCipherKey,
+};
 
 /// T181-K-01: kit generate → passphrase unlock equals original DataKey.
 #[test]
@@ -107,36 +111,181 @@ fn recovery_kit__json_and_debug__no_plaintext_key() {
     assert_no_secret_leakage(&debug_str_sql, key.expose_secret());
 }
 
-/// T181-K-07: kit JSON lacks KDF param field names (Argon2 residual F37).
+/// T194 AC1 / inverted T181-K-07: new kits embed `passphrase.kdf` with product params.
 #[test]
-fn recovery_kit__json__lacks_kdf_param_fields() {
+fn recovery_kit__generate__embeds_kdf_params() {
     let key = DataKey::generate();
-    let passphrase = b"pwd-for-k07";
+    let passphrase = b"pwd-for-k07-invert";
     let kit = RecoveryKit::generate(&key, passphrase).unwrap();
     let json = kit.to_json().unwrap();
 
-    for forbidden in [
-        "m_cost",
-        "t_cost",
-        "p_cost",
-        "memory_cost",
-        "time_cost",
-        "parallelism",
-        "argon2id",
-        "Argon2",
-        "kdf_params",
-        "kdf",
-    ] {
+    let kdf = kit
+        .passphrase
+        .kdf
+        .as_ref()
+        .expect("new kits must stamp kdf");
+    assert_eq!(kdf.algorithm, "argon2id");
+    assert_eq!(kdf.version, 19);
+    assert_eq!(kdf.m_cost, 19_456);
+    assert_eq!(kdf.t_cost, 2);
+    assert_eq!(kdf.p_cost, 1);
+
+    // Wire presence (T194 invert of "lacks kdf fields").
+    for required in ["kdf", "argon2id", "m_cost", "t_cost", "p_cost"] {
         assert!(
-            !json.contains(forbidden),
-            "kit JSON must not contain KDF field marker {forbidden:?}; got: {json}"
+            json.contains(required),
+            "kit JSON must contain KDF marker {required:?}; got: {json}"
         );
     }
+    assert!(
+        json.contains("\"m_cost\":19456") || json.contains("\"m_cost\": 19456"),
+        "m_cost must be 19456: {json}"
+    );
+    assert!(
+        json.contains("\"version\":19") || json.contains("\"version\": 19"),
+        "version must be 19: {json}"
+    );
 
-    // Structural fields present (not KDF).
+    // Structural fields still present.
     assert!(json.contains("ciphertext") || json.contains("passphrase"));
     assert!(json.contains("salt"));
     assert!(json.contains("nonce"));
+}
+
+/// T194 smoke: default generate → unlock.
+#[test]
+fn recovery_kit__unlock__generate_roundtrip() {
+    let key = DataKey::generate();
+    let passphrase = b"roundtrip-pass";
+    let kit = RecoveryKit::generate(&key, passphrase).expect("generate");
+    let restored = kit.unlock_with_passphrase(passphrase).expect("unlock");
+    assert_eq!(key.expose_secret(), restored.expose_secret());
+}
+
+/// T194 AC2/F29 (mandatory): stored non-default params used; LEGACY fails on same wrap.
+#[test]
+fn recovery_kit__unlock__non_default_kdf_params__uses_stored_not_legacy() {
+    let key = DataKey::generate();
+    let passphrase = b"non-default-stored-params";
+    let custom = KdfParams {
+        algorithm: "argon2id".into(),
+        version: 19,
+        m_cost: 12_288,
+        t_cost: 3,
+        p_cost: 1,
+    };
+    let (ciphertext, salt, nonce) =
+        passphrase::wrap_key(key.expose_secret(), passphrase, &custom).expect("wrap custom");
+
+    let kit = RecoveryKit {
+        schema_version: 1,
+        dpapi: None,
+        passphrase: PassphraseWrappedKey {
+            ciphertext: ciphertext.clone(),
+            salt,
+            nonce,
+            kdf: Some(custom),
+        },
+    };
+
+    let restored = kit
+        .unlock_with_passphrase(passphrase)
+        .expect("unlock with stored params");
+    assert_eq!(key.expose_secret(), restored.expose_secret());
+
+    let legacy_fail =
+        passphrase::unwrap_key(&ciphertext, passphrase, &salt, &nonce, &KdfParams::legacy());
+    assert!(
+        matches!(legacy_fail, Err(CryptoError::InvalidPassphrase)),
+        "LEGACY must fail on non-default wrap: {legacy_fail:?}"
+    );
+}
+
+/// T194 AC3: omit kdf → LEGACY dual-read unlock.
+#[test]
+fn recovery_kit__legacy_json_without_kdf__unlocks_with_legacy_defaults() {
+    let key = DataKey::generate();
+    let passphrase = b"legacy-omit-kdf";
+    let kit = RecoveryKit::generate(&key, passphrase).expect("generate");
+    let full = kit.to_json().expect("json");
+    let mut v: serde_json::Value = serde_json::from_str(&full).expect("parse");
+    v.get_mut("passphrase")
+        .and_then(|p| p.as_object_mut())
+        .expect("passphrase")
+        .remove("kdf");
+    let legacy = serde_json::to_string(&v).expect("reserialize");
+    assert!(!legacy.contains("\"kdf\""));
+
+    let parsed = RecoveryKit::from_json(&legacy).expect("deserialize");
+    assert!(parsed.passphrase.kdf.is_none());
+    let restored = parsed
+        .unlock_with_passphrase(passphrase)
+        .expect("legacy unlock");
+    assert_eq!(key.expose_secret(), restored.expose_secret());
+}
+
+/// T194 AC3: omit schema_version + kdf.
+#[test]
+fn recovery_kit__legacy_json_without_schema_and_kdf__unlocks() {
+    let key = DataKey::generate();
+    let passphrase = b"legacy-both-gone";
+    let kit = RecoveryKit::generate(&key, passphrase).expect("generate");
+    let full = kit.to_json().expect("json");
+    let mut v: serde_json::Value = serde_json::from_str(&full).expect("parse");
+    let obj = v.as_object_mut().expect("object");
+    obj.remove("schema_version");
+    obj.get_mut("passphrase")
+        .and_then(|p| p.as_object_mut())
+        .expect("passphrase")
+        .remove("kdf");
+    let legacy = serde_json::to_string(&v).expect("reserialize");
+    assert!(!legacy.contains("schema_version"));
+    assert!(!legacy.contains("\"kdf\""));
+
+    let parsed = RecoveryKit::from_json(&legacy).expect("deserialize");
+    assert_eq!(parsed.schema_version, 1);
+    let restored = parsed.unlock_with_passphrase(passphrase).expect("unlock");
+    assert_eq!(key.expose_secret(), restored.expose_secret());
+}
+
+/// T194 AC5: partial kdf (missing m_cost) fails deserialize.
+#[test]
+fn recovery_kit__partial_kdf__deserialize_fails() {
+    let key = DataKey::generate();
+    let kit = RecoveryKit::generate(&key, b"partial").unwrap();
+    let full = kit.to_json().unwrap();
+    let mut v: serde_json::Value = serde_json::from_str(&full).unwrap();
+    v.get_mut("passphrase")
+        .and_then(|p| p.as_object_mut())
+        .and_then(|p| p.get_mut("kdf"))
+        .and_then(|k| k.as_object_mut())
+        .expect("kdf")
+        .remove("m_cost");
+    let bad = serde_json::to_string(&v).unwrap();
+    assert!(matches!(
+        RecoveryKit::from_json(&bad),
+        Err(CryptoError::DeserializationError(_))
+    ));
+}
+
+/// T194 F12: unknown field inside `kdf` fails deserialize (deny_unknown_fields).
+#[test]
+fn recovery_kit__kdf_unknown_field__deserialize_fails() {
+    let key = DataKey::generate();
+    let kit = RecoveryKit::generate(&key, b"unknown-field").unwrap();
+    let full = kit.to_json().unwrap();
+    let mut v: serde_json::Value = serde_json::from_str(&full).unwrap();
+    v.get_mut("passphrase")
+        .and_then(|p| p.as_object_mut())
+        .and_then(|p| p.get_mut("kdf"))
+        .and_then(|k| k.as_object_mut())
+        .expect("kdf")
+        .insert("memory_cost".into(), serde_json::json!(19456));
+    let bad = serde_json::to_string(&v).unwrap();
+    assert!(matches!(
+        RecoveryKit::from_json(&bad),
+        Err(CryptoError::DeserializationError(_))
+    ));
 }
 
 /// T181-K-04 helper surface: simulated CLI log must not dump kit/passphrase/key.

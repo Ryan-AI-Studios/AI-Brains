@@ -15,12 +15,12 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail~~ | **Closed by T191** (2026-08-02) |
 | ~~**#2** doctor CLI / R-DOC-CLI~~ | **Closed by T192** (2026-08-02) PR #75 `80837da` |
 | T190 ambient CLI / write / token path residuals | **T193** (placeholder 2026-08-02) |
-| Argon2 params in kit JSON (F37) | **T194** (placeholder 2026-08-02) |
+| ~~Argon2 params in kit JSON (F37)~~ | **Closed by T194** (implement complete 2026-08-02; PR/ship pending) |
 | R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI | **T195** (placeholder 2026-08-02) |
 | systemd / launchd units; CONTRIBUTING hygiene | **T196** (placeholder 2026-08-02) |
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 
-Suggested order: **T194** (kit schema, anytime) → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs).
+Suggested order: ~~**T194** (kit schema)~~ **implement complete** → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs).
 
 ---
 
@@ -639,7 +639,7 @@ P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills
 
 1. ~~No `recovery export` CLI~~ — **Closed by T188** (2026-08-02): `ai-brains recovery export`
 2. ~~No `doctor` CLI~~ — **Closed by T192** (2026-08-02) PR #75 `80837da`
-3. Argon2 KDF params not in kit JSON (F37) — **T194**
+3. ~~Argon2 KDF params not in kit JSON (F37)~~ — **Closed by T194** (2026-08-02)
 4. ~~#34.2 DataKey rotation~~ — **Closed by T189**
 5. F-REC-03/04 projection/graph rebuild drills — soft
 6. ~~Restore hard-fail while daemon running~~ — **Closed by T188** (robust probe + hard-fail)
@@ -840,7 +840,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 - Live-daemon busy-restore integration drill (unit-injected daemon-up covers safety; optional)
 - Restore still opens AppContext (migrate) before probe (P3 residual; overwrite still blocked)
 - Dry-run notice stdout process-capture (P3 test hardening)
-- Argon2 params in kit JSON (F37 → **T194**); ~~#34.2~~ closed T189
+- ~~Argon2 params in kit JSON (F37)~~ — **Closed by T194** (2026-08-02); ~~#34.2~~ closed T189
 
 ---
 

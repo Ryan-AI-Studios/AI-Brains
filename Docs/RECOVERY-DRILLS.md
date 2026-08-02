@@ -32,7 +32,7 @@ See also [failure-drills.md](../conductor/failure-drills.md) F-REC-01/02 and
 | **T181-K-01..04** | Kit passphrase / DPAPI / wrong passphrase / no plaintext in JSON | Library crypto contracts | Yes (`crypto_recovery`) |
 | **T181-K-05** | Unlock kit → `SqlCipherKey::from_data_key` → open vault/backup | Library primitive chain (**not** full operator CLI export workflow) | Yes |
 | **T181-K-06** | Correct unlock + wrong SqlCipherKey open | Open fails under live SQLCipher (T187 strict; dual-mode plain residual removed) | Yes (strict) |
-| **T181-K-07** | Kit JSON has no Argon2 KDF param fields | Residual honesty (generation-time defaults) | Yes |
+| **T181-K-07** | Kit JSON embeds `passphrase.kdf` (Argon2id params) | T194 pins params; inverted from “lacks fields” residual | Yes |
 | **T181-E-01** | Pre-erase residual: seal → backup → wipe live → restore pre-wipe | Restored CE content still opens | Yes |
 | **T181-E-02** | Post-wipe backup: seal → wipe → backup → restore | Open fails (wrap destroyed) | Yes |
 | **T181-F-01** | Corrupt backup (header and/or body) | Non-zero + corruption-class substring | Yes |
@@ -113,11 +113,17 @@ See **ADR-0016** §12 (CE honesty / non-claims) and §4 (DataKey wrap-nonce resi
 
 ---
 
-## 6. Argon2 residual
+## 6. Argon2 KDF params (T194)
 
-`PassphraseWrappedKey` stores `ciphertext`, `salt`, and `nonce` only — **no** KDF parameters (`m_cost`, `t_cost`, `p_cost`, algorithm id).
+`PassphraseWrappedKey` stores `ciphertext`, `salt`, `nonce`, and **`kdf`** (Argon2id parameters).
 
-Wrap and unwrap both use `Argon2::default()` at the **generation-time** defaults of the linked `argon2` **0.5.x** crate: **Argon2id**, **m=19456**, **t=2**, **p=1**, version **0x13**. A future schema may pin params in kit JSON; that is **not** required for T181/T188. Automated **T181-K-07** asserts kit JSON lacks KDF param field names.
+New kits from `recovery export` / `vault rotate-datakey` / `RecoveryKit::generate` always embed:
+
+```json
+"kdf": { "algorithm": "argon2id", "version": 19, "m_cost": 19456, "t_cost": 2, "p_cost": 1 }
+```
+
+Unlock uses **stored** params when present. Pre-T194 kits **without** `kdf` dual-read fixed legacy constants (same tuple — **not** live `Argon2::default()`). `schema_version` stays **1** (additive field). Automated **T181-K-07** (inverted) asserts presence + values; non-default stored-params KAT proves the stored path.
 
 **Backups** inherit SQLCipher page encryption of the live vault when T187 is active (Online Backup API copies the encrypted DB).
 
@@ -175,9 +181,9 @@ These are planning aids only — not contractual or marketed guarantees.
 |----------|--------|
 | `ai-brains doctor` product | **Shipped (T192)** — residual = offline kit without `--kit-path` |
 | ~~`ai-brains recovery export` CLI~~ | **Closed by T188** |
-| Argon2 params in kit schema | Soft residual (F37): kits from `recovery export` **and** `vault rotate-datakey` use Argon2id v0x13 **m=19456 t=2 p=1** (argon2 0.5.x defaults); not stored in kit JSON |
+| ~~Argon2 params in kit schema (F37)~~ | **Closed by T194** — `passphrase.kdf` pins Argon2id m/t/p/version; legacy kits dual-read `KdfParams::legacy()` |
 | ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ | **Closed by T187** — live `bundled-sqlcipher-vendored-openssl`; strict drills |
-| ~~#34.2 DataKey rotation~~ | **Shipped T189 / ADR-0020** (`vault rotate-datakey`); residual: multi-device = per-device ceremony; offline backups/old kits under old key only; rekey opt-in crash residual; Argon2 params not in kit JSON |
+| ~~#34.2 DataKey rotation~~ | **Shipped T189 / ADR-0020** (`vault rotate-datakey`); residual: multi-device = per-device ceremony; offline backups/old kits under old key only; rekey opt-in crash residual |
 | F-REC-03/04 projection/graph rebuild drills | Soft residual |
 | ~~Hard-fail restore while daemon running~~ | **Closed by T188** (robust probe ≥1s × 3 attempts) |
 | Multi-device CE orchestration | T176–T178 |

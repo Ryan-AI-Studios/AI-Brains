@@ -41,6 +41,10 @@ pub enum CryptoError {
 
     #[error("Recovery kit is missing required components: {0}")]
     RecoveryKitMissing(String),
+
+    /// Stored or supplied Argon2 KDF parameters are invalid or unsupported (T194).
+    #[error("Invalid KDF parameters: {0}")]
+    InvalidKdfParams(String),
 }
 
 pub type Result<T> = std::result::Result<T, CryptoError>;

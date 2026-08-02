@@ -142,8 +142,8 @@ stays 1.
 
 On ship: RELEASE-CLAIMS **R-34.2** → **implemented-with-residuals**. Residuals
 include: multi-device requires per-device ceremony; offline backups/old kits open
-only under the old key; rekey path crash residual; Argon2 params not in kit JSON
-(F24 / F37 soft residual); no NIST Purge of offline media.
+only under the old key; rekey path crash residual; no NIST Purge of offline media.
+~~Argon2 params not in kit JSON (F24 / F37)~~ **closed by T194** (`passphrase.kdf`).
 
 ## Consequences
 
