@@ -75,4 +75,4 @@ cargo audit → allowed warnings only (pre-existing)
 ## Completion decision
 
 **Engineering clearance: YES** (Codex r2 PASS WITH DEFERRED P3).  
-Next: PR + CI green + squash-merge + C4/D4 closeout (conductor Completed, ledger commit, pin, coordinated).
+**Shipped:** PR #76 squash-merged `2c06464`; closeout `a9a4168`; C4/D4 done; pin + ledger committed; coordinated deferred updated.

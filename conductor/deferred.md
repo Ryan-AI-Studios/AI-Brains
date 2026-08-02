@@ -20,7 +20,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | systemd / launchd units; CONTRIBUTING hygiene | **T196** (placeholder 2026-08-02) |
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 
-Suggested order: ~~**T194** (kit schema)~~ **implement complete** → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs).
+Suggested order: ~~**T194** (kit schema)~~ **closed PR #76** → **T193** (path residual) → **T195** (daemon multi-user) → **T196** (ops units/docs).
 
 ---
 
