@@ -10,7 +10,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 |----------|----------------|
 | ~~§59 #8 wrong-key / K-06 needs page encrypt; R-F8 / R-K06; Deviations §1~~ | **Closed by T187** (2026-08-02) |
 | ~~§59 #1 recovery export; #6 restore daemon hard-fail~~ (R-DOC-CLI partial: export shipped; doctor remains) | **Closed by T188** (2026-08-02); **#2 doctor** still open |
-| **#34.2** DataKey rotation | **T189** |
+| **#34.2** DataKey rotation | **T189** (Pending / Expanded 2026-08-02 — freezes F1–F28; ship still open) |
 | **#12** path TOCTOU / openat / cap-std | **T190** |
 | T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail | **T191** |
 

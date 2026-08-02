@@ -562,6 +562,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> Result<ImportP
             | Payload::IngestGateRejected(_)
             | Payload::SystemInitialized(_)
             | Payload::RecoveryKitCreated(_)
+            | Payload::DataKeyRotated(_)
             | Payload::WorkspaceRegistered(_)
             | Payload::RepositoryJoinedWorkspace(_)
             | Payload::ScopeGrantIssued(_)

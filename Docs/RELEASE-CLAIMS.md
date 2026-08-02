@@ -116,7 +116,7 @@ Explicit product/process absences for version **0.1.1** (T185 §6.3). This secti
 | **Third-party plugin sandbox / WASI host** | TrustedBuiltin only (**R-TB**, ADR-0019) |
 | **systemd / launchd production units** | Ops residual |
 | **FIPS-validated page encryption / NIST Purge** | SQLCipher community + OpenSSL vendored are not FIPS/Purge claims (T187) |
-| **DataKey rotation product feature** | Direction only (**R-34.2** / **T189**) |
+| **DataKey rotation product feature** | **Implemented with residuals** (**R-34.2** / **T189** / ADR-0020) |
 
 ---
 
@@ -150,7 +150,7 @@ Every row in T184 `residuals.md` is dispositioned below. Minimum cite set per L3
 | Residual ID | Residual (short) | Disposition | One-line note |
 |-------------|------------------|-------------|---------------|
 | **R-12** | Path TOCTOU without openat/cap-std | Cited as non-claim | No claim of cap-std / openat path hardening; #12 residual documented. |
-| **R-34.2** | DataKey rotation / wrap-nonce budget | Cited as non-claim | Direction in ADR-0016/0018 only; not an implemented product feature. |
+| **R-34.2** | DataKey rotation / wrap-nonce budget | **Implemented-with-residuals** | T189 / ADR-0020: `vault rotate-datakey` (export primary); residuals = multi-device per-device ceremony, offline old kits/backups, rekey opt-in crash residual, Argon2 not in kit JSON, Windows drop→MoveFileEx micro-window (OS handle close required). |
 | **R-F8** | Page-level SQLCipher live (T187) | **Closed** (evidence) | `bundled-sqlcipher-vendored-openssl`; header not plain; COMPATIBILITY F8 rewritten. |
 | **R-K06** | Wrong-key fail-closed at page layer | **Closed** (evidence) | T181 F-02/K-06 strict; dual-mode plain residual removed. |
 | **R-CE-PRE** | Pre-erase backups remain recoverable | Cited as non-claim | Ticket/wipe ≠ destroy offline copies (T181 E-01). |

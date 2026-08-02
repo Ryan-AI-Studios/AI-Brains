@@ -470,6 +470,42 @@ ai-brains recovery export --output E:\offline\kit.json --passphrase-file $Secure
 ```
 `ai-brains doctor` remains **absent**.
 
+### DataKey rotation (T189 / ADR-0020)
+
+Operator ceremony to rotate the vault **DataKey** (KEK) and SQLCipher page key together. Closes the wrap-nonce budget residual under ceremony controls (not automatic).
+
+```text
+1. ai-brains backup create                 # required by default gate (or verified recent backup)
+2. ai-brains daemon stop                   # and service stop if applicable
+3. ai-brains vault rotate-datakey --dry-run
+4. ai-brains vault rotate-datakey --confirm --kit-output ./kit-new.json --passphrase-file ./pw.txt
+5. Unlock-verify NEW kit (passphrase/DPAPI) BEFORE retiring old kits (F32)
+6. Update AI_BRAINS_KEY / secrets store / .env to NEW key (CLI prints STALE warning)
+7. ai-brains daemon start
+8. Verify: capture, recall, open vault with new key
+9. Only then: retire/destroy old kit copies under operator policy
+```
+
+```powershell
+# Prefer export path (default, crash-safe sqlcipher_export)
+ai-brains --vault-path $Vault --key $OldKey vault rotate-datakey --dry-run
+ai-brains --vault-path $Vault --key $OldKey vault rotate-datakey `
+  --confirm --kit-output E:\offline\kit-new.json --passphrase-file $SecurePw `
+  --i-have-backup "I have a backup"   # or rely on a ≤24h verified backup in sibling backups/
+```
+
+| Rule | Detail |
+|------|--------|
+| Daemon | Mutating rotate **hard-fails** if daemon is up (same robust probe as restore) |
+| Backup gate | Default ON: recent non-empty backup opens with **current** key and mtime ≤24h, or exact phrase `--i-have-backup "I have a backup"` (audited `backup_bypassed`) |
+| Kit | `--kit-output` required; **verify unlock of NEW kit before retiring old kits** — if new kit fails, restore from pre-rotation backup with **old** key |
+| Method | Primary = export; opt-in `--accept-rekey-risk` for in-place `PRAGMA rekey` (snapshot + auto-restore; mid-crash residual) |
+| Multi-device | Each device runs its own ceremony; peer wraps untouched |
+| Stale env | Success stdout always includes a **STALE key WARNING** |
+| Windows replace | Exclusive source lock held through export/rewrap/verify; released only immediately before `MoveFileEx` (OS cannot replace an open DB). Tiny concurrent-open residual remains — keep daemon stopped. |
+
+Normative: [ADR-0020](DECISIONS/ADR-0020-datakey-rotation.md). Residual honesty: offline backups/old kits remain decryptable under the **old** key until operators destroy them (not NIST Purge).
+
 ## 7. Safety & Hotspot Sync
 
 Ledgerful scans the codebase for hotspots (frequently-edited, complex files). The bridge re-pins these as AI-Brains memories so they appear in preflight and recall.
@@ -624,7 +660,7 @@ Operator notes for the Tauri desktop adapter. Deep dive, architecture diagrams, 
 - **Not post-quantum.** Device keys and envelope crypto are classical (Ed25519, X25519, HKDF-SHA256, AES-256-GCM). There is **no** post-quantum KEM/signature in the protocol; do not market the path as PQ-secure or post-quantum-ready.
 - **Not NIST SP 800-88 Purge / remote wipe.** Content Erasure (CE) is best-effort multi-device destroy of content-key wraps with peer **ErasureAck** rows. An ACK is a **signed attestation** that a peer applied the tombstone locally — **not wipe proof** of peer disks, backups, or offline devices. Do not claim multi-device NIST Purge as a product property.
 - **Padding is not metadata-private.** Size-bucket padding (`PAD_BUCKETS` 256 / 4096 / 65536) is best-effort traffic shaping only. It does **not** make the relay metadata-private; sizes, counts, timing, and the enrolled device graph remain observable (**pad is not metadata-private**).
-- **#34.2 DataKey rotation still open.** Per-seal content-DEK wraps improve multi-device nonce budget relative to a single long-lived content key, but they **do not** close vault-level **DataKey rotation**. Treat #34.2 as an open residual until a dedicated track ships.
+- **DataKey rotation is local-ceremony only (T189 / ADR-0020).** Per-seal content-DEK wraps improve multi-device nonce budget relative to a single long-lived content key, but they **do not** rotate each peer’s vault DataKey. **Each enrolled device** must run its own `ai-brains vault rotate-datakey` ceremony. Peer content wraps (`peer_content_key_wrap`) are **not** mutated by local rotation.
 
 ### Operational residuals operators should expect
 

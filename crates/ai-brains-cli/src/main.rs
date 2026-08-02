@@ -485,6 +485,42 @@ enum VaultCommands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Rotate vault DataKey (KEK) + SQLCipher page key (T189 / ADR-0020).
+    #[command(
+        after_help = "Safety (non-overridable):\n  - Daemon up → mutating rotate hard-fails (stop daemon first)\n  - --overwrite-kit only overwrites the kit file; never overrides daemon or backup gates\n  - Primary path: crash-safe sqlcipher_export; --accept-rekey-risk enables in-place PRAGMA rekey\n  - Mandatory --kit-output RecoveryKit for the NEW key; verify unlock before retiring old kits\nExamples:\n  ai-brains vault rotate-datakey --dry-run\n  ai-brains vault rotate-datakey --confirm --kit-output ./kit-new.json --passphrase-file ./pw.txt --i-have-backup \"I have a backup\"\nHonesty: multi-device peers need their own ceremony; peer wraps untouched; not NIST Purge of offline backups."
+    )]
+    RotateDatakey {
+        /// Preview living wrap count + device-private 0|1; no mutation
+        #[arg(long)]
+        dry_run: bool,
+        /// Required for non-dry-run apply
+        #[arg(long)]
+        confirm: bool,
+        /// Require a recent verified backup (default true). `--require-backup=false` alone does not bypass; use `--i-have-backup "I have a backup"`.
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        require_backup: bool,
+        /// Exact phrase bypass for backup gate: `I have a backup` (sets backup_bypassed on event)
+        #[arg(long)]
+        i_have_backup: Option<String>,
+        /// Path for NEW RecoveryKit JSON (required on success)
+        #[arg(long)]
+        kit_output: Option<PathBuf>,
+        /// Passphrase file for kit (or TTY double-entry)
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
+        /// Allow overwriting existing kit file only
+        #[arg(long)]
+        overwrite_kit: bool,
+        /// Opt-in in-place PRAGMA rekey (not crash-safe; snapshot + auto-restore)
+        #[arg(long)]
+        accept_rekey_risk: bool,
+        /// Print NEW SqlCipher key to stdout (default off)
+        #[arg(long)]
+        print_key: bool,
+        /// Backup directory for gate (default: sibling `backups/` of vault)
+        #[arg(long)]
+        backup_dir: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -1619,8 +1655,14 @@ fn is_vault_path_free(command: &Commands) -> bool {
         Commands::Shadow { .. }
         | Commands::Migrate { .. }
         | Commands::Evaluate { .. }
-        | Commands::Dogfood { .. }
-        | Commands::Vault { .. } => true,
+        | Commands::Dogfood { .. } => true,
+        // Encrypt may use --source; rotate-datakey needs vault path + async daemon probe.
+        Commands::Vault {
+            command: VaultCommands::Encrypt { .. },
+        } => true,
+        Commands::Vault {
+            command: VaultCommands::RotateDatakey { .. },
+        } => false,
         Commands::AgyHook { schema: true, .. } => true,
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
@@ -1808,6 +1850,9 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     dry_run,
                 })
             }
+            VaultCommands::RotateDatakey { .. } => {
+                unreachable!("vault rotate-datakey is not vault-path-free; handled in async run()")
+            }
         },
         _ => unreachable!("run_sync_path_free only for vault-path-free commands"),
     }
@@ -1841,13 +1886,56 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         };
     }
 
+    // T189: rotate-datakey mutates outside AppContext (daemon probe + no migrate race).
+    if let Commands::Vault {
+        command:
+            VaultCommands::RotateDatakey {
+                dry_run,
+                confirm,
+                require_backup,
+                i_have_backup,
+                kit_output,
+                passphrase_file,
+                overwrite_kit,
+                accept_rekey_risk,
+                print_key,
+                backup_dir,
+            },
+    } = &cli.command
+    {
+        let vault_path = cli
+            .vault_path
+            .clone()
+            .ok_or("vault rotate-datakey requires --vault-path / AI_BRAINS_VAULT_PATH")?;
+        return commands::vault::run_rotate_datakey(commands::vault::RotateDatakeyOptions {
+            vault_path,
+            key: cli.key.clone(),
+            dry_run: *dry_run,
+            confirm: *confirm,
+            require_backup: *require_backup,
+            i_have_backup: i_have_backup.clone(),
+            kit_output: kit_output.clone(),
+            passphrase_file: passphrase_file.clone(),
+            overwrite_kit: *overwrite_kit,
+            accept_rekey_risk: *accept_rekey_risk,
+            print_key: *print_key,
+            backup_dir: backup_dir.clone(),
+        })
+        .await;
+    }
+
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
     match &cli.command {
         Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
         Commands::Evaluate { .. } => unreachable!("evaluate handled in run_sync_path_free"),
         Commands::Dogfood { .. } => unreachable!("dogfood handled in run_sync_path_free"),
-        Commands::Vault { .. } => unreachable!("vault handled in run_sync_path_free"),
+        Commands::Vault {
+            command: VaultCommands::Encrypt { .. },
+        } => unreachable!("vault encrypt handled in run_sync_path_free"),
+        Commands::Vault {
+            command: VaultCommands::RotateDatakey { .. },
+        } => unreachable!("vault rotate-datakey handled before AppContext"),
         Commands::Recovery { .. } => unreachable!("recovery handled before AppContext"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {

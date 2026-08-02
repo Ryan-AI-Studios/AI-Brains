@@ -87,10 +87,10 @@ Sharing a DEK across units is allowed only when product rules require **atomic c
 | Secrets in AAD | Never |
 
 **DataKey wrap-nonce budget (honesty extension):**  
-Content-DEK seals stay low-count by construction (per-unit DEK). The **DataKey → wrap → Content DEK** layer uses the **same AES-256-GCM + random 96-bit nonce pattern as passphrase key-wrap**. **DataKey is the direct AES-GCM key** for content-DEK wrap (**no Argon2 / no passphrase KDF on this path**). That invocation runs **once per content unit created**, under a single key the hierarchy classifies as **vault-lifetime** and **not destroyed on CE** (§1). There is **no** `DataKey` rotation path in the codebase today (`data_key` / `key_wrap` / `recovery_kit`).
+Content-DEK seals stay low-count by construction (per-unit DEK). The **DataKey → wrap → Content DEK** layer uses the **same AES-256-GCM + random 96-bit nonce pattern as passphrase key-wrap**. **DataKey is the direct AES-GCM key** for content-DEK wrap (**no Argon2 / no passphrase KDF on this path**). That invocation runs **once per content unit created**, under a single key the hierarchy classifies as **vault-lifetime** and **not destroyed on CE** (§1).
 
-- **Near-term risk:** Accepted as **out of scope** for v1 — NIST’s ~2³² random-nonce threshold is far beyond plausible personal-vault wrap rates.  
-- **Known future gap:** Operational **DataKey rotation** (re-wrap all living DEKs under a new DataKey, or counter/nonce ledger) is **not** designed here; flag for P8+ hygiene or P11 multi-device work if volume or threat model changes. Do not silently treat content-DEK budget analysis as covering the KEK layer.
+- **Near-term risk:** Accepted as **out of scope** for the original v1 envelope design — NIST’s ~2³² random-nonce threshold is far beyond plausible personal-vault wrap rates.  
+- **Rotation (shipped direction):** Operational **DataKey rotation** is specified and implemented under **[ADR-0020](ADR-0020-datakey-rotation.md)** / **T189** (`vault rotate-datakey`): re-wrap active DEKs, re-seal local device private, change page key via crash-safe `sqlcipher_export` (primary) or opt-in `PRAGMA rekey`. Do not silently treat content-DEK budget analysis as covering the KEK layer without rotation.
 
 ### 5. Wrapping and recovery
 
@@ -183,7 +183,7 @@ For envelope-backed content, after successful governed erase, plaintext is not r
 - Legacy vault history remains non-CE.  
 - Operators must not confuse SQLCipher vault lock with per-item erase.  
 - Dual path (soft forget + CE) increases UX complexity (T165/T166).  
-- **DataKey wrap-nonce count** accumulates over vault lifetime under one non-CE key; v1 accepts realistic-volume margin vs 2³²; **DataKey rotation** is an explicit future gap (no code path today) — §4.  
+- **DataKey wrap-nonce count** accumulates over vault lifetime under one non-CE key until operators run **DataKey rotation** ([ADR-0020](ADR-0020-datakey-rotation.md) / T189); §4 points to that ceremony. 
 - No FIPS-validated module → never market CE as NIST Purge — §12.
 
 ### Follow-on tracks
@@ -194,7 +194,7 @@ For envelope-backed content, after successful governed erase, plaintext is not r
 | T164 | `content_envelope` + `content_key_store` seal/open/wrap/delete |
 | T165 | Governed CE command + verify + keep soft forget for legacy |
 | T166 | Class-based retention preferring CE for envelope classes |
-| P8+ / P11 | Optional **DataKey rotation** / wrap-nonce accounting if volume or multi-device demands it |
+| P8+ / P11 | **DataKey rotation** — **ADR-0020 / T189** (ceremony; not automatic) |
 | T175+ | Multi-device key tombstones / erasure ACK (out of scope here) |
 
 ## Test plan outline (downstream)

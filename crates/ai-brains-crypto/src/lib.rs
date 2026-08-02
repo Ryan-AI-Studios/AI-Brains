@@ -14,7 +14,7 @@ pub use content_envelope::{
 };
 pub use content_key_store::{
     CONTENT_DEK_LEN, ContentDek, NONCE_LEN, WRAP_SCHEMA_VERSION, WrappedContentDek,
-    build_dek_wrap_aad, parse_nonce, unwrap_content_dek, wrap_content_dek,
+    build_dek_wrap_aad, parse_nonce, rotate_content_dek_wrap, unwrap_content_dek, wrap_content_dek,
 };
 pub use data_key::DataKey;
 pub use errors::{CryptoError, Result};

@@ -11,6 +11,7 @@ pub mod projections;
 pub mod query_store;
 pub mod replay;
 pub mod replication_engine;
+pub mod rotate;
 pub mod transaction;
 
 pub use connection::{ALLOW_ZERO_KEY_ENV, VaultConnection};
@@ -20,9 +21,14 @@ pub use event_store::{EventStore, SqliteEventStore};
 pub use fts::{FtsSearch, SearchResult};
 pub use header::{SQLITE_PLAIN_HEADER, is_plain_sqlite_header, legacy_plaintext_migrate_hint};
 pub use migrations::apply_migrations_through;
+pub use projections::content_envelope::{list_active_content_key_wraps, update_content_key_wrap};
 pub use replication_engine::{
     ApplyOutcome, EngineError, EngineResult, ReplicateEngine, sign_and_queue_erasure_tombstone,
     sign_and_queue_revoke, signed_to_blob,
+};
+pub use rotate::{
+    RotateDataKeyOptions, RotateDataKeyResult, RotateDryRunPlan, RotateMethod, atomic_replace_file,
+    plan_rotate_datakey, rotate_datakey,
 };
 pub use transaction::Transaction;
 

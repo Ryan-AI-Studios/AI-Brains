@@ -76,6 +76,33 @@ impl SqlCipherKey {
     pub fn is_blank(&self) -> bool {
         self.material.trim().is_empty()
     }
+
+    /// Parse product SQLCipher material `x'<64 hex>'` into a vault [`DataKey`].
+    ///
+    /// Error messages must **never** include key hex material (T189 F18 / T188 secrecy).
+    pub fn to_data_key(&self) -> Result<DataKey> {
+        self.validate()?;
+        let raw = self.material.as_str();
+        // validate() already enforces x' + 64 hex + '
+        let hex_part = &raw[2..66];
+        if hex_part.len() != 64 {
+            return Err(CryptoError::InvalidKeyFormat(
+                "DataKey hex length must be 64".into(),
+            ));
+        }
+        let bytes = match hex::decode(hex_part) {
+            Ok(b) => b,
+            Err(_) => {
+                return Err(CryptoError::InvalidKeyFormat(
+                    "invalid DataKey hex: non-hex characters in SqlCipherKey material".into(),
+                ));
+            }
+        };
+        let arr: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| CryptoError::InvalidKeyLength)?;
+        Ok(DataKey::from_bytes(arr))
+    }
 }
 
 impl fmt::Debug for SqlCipherKey {
@@ -85,7 +112,7 @@ impl fmt::Debug for SqlCipherKey {
 }
 
 #[cfg(test)]
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::disallowed_methods)]
 mod tests {
     use super::*;
 
@@ -145,5 +172,22 @@ mod tests {
         let key = SqlCipherKey::from_data_key(&DataKey::generate());
         assert!(key.validate().is_ok());
         assert!(!key.is_zero() || key.is_zero()); // random may theoretically be zero
+    }
+
+    #[test]
+    fn sqlcipher_key__to_data_key__roundtrip() {
+        let original = DataKey::from_bytes([0xab; 32]);
+        let sql = SqlCipherKey::from_data_key(&original);
+        let recovered = sql.to_data_key().expect("to_data_key");
+        assert_eq!(recovered.expose_secret(), original.expose_secret());
+    }
+
+    #[test]
+    fn sqlcipher_key__to_data_key__malformed__no_hex_in_error() {
+        let bad = SqlCipherKey::from_raw("x'not-hex-material-should-fail-validation!!'".into());
+        let err = bad.to_data_key().expect_err("must fail");
+        let msg = err.to_string();
+        assert!(!msg.contains("not-hex"));
+        assert!(!msg.contains("0x"));
     }
 }
