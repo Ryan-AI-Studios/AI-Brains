@@ -2,7 +2,7 @@
 
 - **Track ID:** T193-PathResidualElevation
 - **Phase:** Post-T190 residual elevation
-- **Status:** 🚧 **In Progress** (implement Phases B–E; orchestrator owns Completed)
+- **Status:** ✅ **Completed** (2026-08-02) — PR #77 `2183127`
 - **Depends on (hard):** T190 / ADR-0021 Accepted (cap-std 4.0 + `FollowSymlinks::No` SOOT for vault open+list)
 - **Depends on (soft):** T145/T188 write pre/post reparse; T161 token reparse; T188 recovery kit write reparse; T154 `refuse_if_reparse`
 - **Blocks / feeds:** Shrinks **R-12** residual register honestly; does **not** reopen closed vault-root read DoD

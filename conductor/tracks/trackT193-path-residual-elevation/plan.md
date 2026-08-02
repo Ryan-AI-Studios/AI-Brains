@@ -1,6 +1,6 @@
 # T193 Plan — Path Residual Elevation
 
-Status: **In Progress** (implement 2026-08-02). Spec: [spec.md](./spec.md).
+Status: **Completed** (2026-08-02). Spec: [spec.md](./spec.md). PR #77 squash-merged `2183127`.
 
 ## Preconditions
 
