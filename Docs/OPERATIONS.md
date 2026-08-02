@@ -465,7 +465,8 @@ ai-brains backup restore <path> --dry-run     # verify integrity, report, no cha
 ai-brains recovery export --output E:\offline\kit.json --passphrase-file $SecurePw
 # kit JSON only to file; stdout: path + dpapi: present|absent
 # no --passphrase argv; min passphrase 8 bytes; export skips migrate while daemon up
-# passphrase-file and kit output refuse reparse/symlink/junction paths (regular files only)
+# passphrase-file and kit output (incl. existing parents) refuse reparse/symlink/junction
+# preflight: vault+key must match (hard-fail wrong key/missing vault); event soft-fail only when daemon write blocked
 ```
 `ai-brains doctor` remains **absent**.
 

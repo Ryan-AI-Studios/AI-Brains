@@ -13,6 +13,7 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, Payload, RecoveryKitCreatedPayload};
 use ai_brains_store::EventStore;
 use ai_brains_store::SqliteEventStore;
+use ai_brains_store::StoreError;
 use ai_brains_store::connection::VaultConnection;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
@@ -83,6 +84,12 @@ pub fn run_export_with_daemon_state(
     }
 
     refuse_public_output_path(&opts.output)?;
+    // Walk existing parents: refuse reparse/junction and public roots (Codex R2 P2).
+    refuse_output_parent_chain(&opts.output)?;
+
+    // F12/F16b: prove vault+key match before generating kit. Soft-fail event
+    // append is only for daemon-held writer blocks — not wrong key / missing vault.
+    preflight_vault_key(&opts.vault_path, &key, daemon_up)?;
 
     // Generate kit (F3). Never log passphrase/key/kit (F21).
     let kit = RecoveryKit::generate(&data_key, passphrase.as_slice())
@@ -290,12 +297,110 @@ fn refuse_public_output_path(path: &Path) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
+/// Walk existing parents of `path` and refuse reparse/symlink/junction + public roots.
+///
+/// Leaf reparse is checked by the caller; this closes the gap where
+/// `linkdir\kit.json` would write through a junction parent (Codex R2 P2).
+fn refuse_output_parent_chain(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let mut current = path.parent();
+    while let Some(parent) = current {
+        if parent.as_os_str().is_empty() {
+            break;
+        }
+        // Only check parents that already exist (create_dir_all may create later).
+        if parent.exists() {
+            let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
+                format!(
+                    "output parent path check failed ({}): {e}",
+                    parent.display()
+                )
+            })?;
+            if let Err(msg) = ai_brains_path::refuse_if_reparse(parent, is_reparse) {
+                return Err(msg.into());
+            }
+            refuse_public_output_path(parent)?;
+        }
+        current = parent.parent();
+    }
+    Ok(())
+}
+
+/// Preflight: vault must exist and open with the provided key before kit write.
+///
+/// Spec F12/F16b soft-fail is only for daemon-held writer blocks on the event
+/// path — wrong key / missing vault / legacy plaintext always hard-fail.
+fn preflight_vault_key(
+    vault_path: &Path,
+    key: &SqlCipherKey,
+    daemon_up: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // open_read_intent: no migrate, no create-missing, no journal_mode mutation.
+    match VaultConnection::open_read_intent(vault_path, key) {
+        Ok(_conn) => Ok(()),
+        Err(e) if vault_preflight_is_always_hard_fail(&e) => Err(format!(
+            "vault preflight failed (key/vault must match before export): {e}"
+        )
+        .into()),
+        Err(e) if daemon_up => {
+            // Busy/IO while daemon holds the vault: allow kit write; event soft-fails later.
+            tracing::warn!(
+                "vault preflight open soft-allowed while daemon_up (non-key error); \
+                 event append may soft-fail: {e}"
+            );
+            Ok(())
+        }
+        Err(e) => Err(format!(
+            "vault preflight failed (key/vault must match before export): {e}"
+        )
+        .into()),
+    }
+}
+
+/// Errors that must never soft-succeed on export, even when daemon_up.
+fn vault_preflight_is_always_hard_fail(err: &StoreError) -> bool {
+    match err {
+        StoreError::VaultLocked(_) | StoreError::LegacyPlaintextVault { .. } => true,
+        other => {
+            let lower = other.to_string().to_ascii_lowercase();
+            lower.contains("incorrect key")
+                || lower.contains("zero key refused")
+                || lower.contains("legacy plaintext")
+                || lower.contains("key verification failed")
+                || lower.contains("blank sqlcipher")
+                || lower.contains("vault is locked")
+        }
+    }
+}
+
 fn write_kit_file(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
-        && !parent.exists()
     {
-        fs::create_dir_all(parent)?;
+        // Before create_dir_all: refuse if an existing parent is reparse.
+        if parent.exists() {
+            let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
+                format!(
+                    "output parent path check failed ({}): {e}",
+                    parent.display()
+                )
+            })?;
+            if let Err(msg) = ai_brains_path::refuse_if_reparse(parent, is_reparse) {
+                return Err(msg.into());
+            }
+        }
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+        // After create_dir_all: re-check parent is still not reparse (TOCTOU).
+        let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
+            format!(
+                "output parent path check failed ({}): {e}",
+                parent.display()
+            )
+        })?;
+        if let Err(msg) = ai_brains_path::refuse_if_reparse(parent, is_reparse) {
+            return Err(msg.into());
+        }
     }
 
     // Prefer create_new when not overwriting; force path already checked by caller
@@ -703,5 +808,173 @@ mod tests {
         let p = PathBuf::from(r"C:\Users\Public\recovery-kit.json");
         let err = refuse_public_output_path(&p).unwrap_err().to_string();
         assert!(err.to_ascii_lowercase().contains("public"), "got: {err}");
+    }
+
+    /// Codex R2 P2: wrong key must hard-fail export (no soft-success kit).
+    #[test]
+    fn recovery_export__wrong_key_daemon_down__hard_fails() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let _allow = TempEnv::set(ai_brains_store::connection::ALLOW_ZERO_KEY_ENV, "1");
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path().join("vault.db");
+        let zero_key_str =
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string();
+        let zero_key = SqlCipherKey::from_raw(zero_key_str);
+        let conn = VaultConnection::open(&vault, &zero_key).unwrap();
+        conn.migrate().unwrap();
+        drop(conn);
+
+        let out = dir.path().join("kit.json");
+        let pw = dir.path().join("pw.txt");
+        fs::write(&pw, b"test-passphrase-long-enough").unwrap();
+
+        // Vault sealed with zero key; export with ALT_KEY must hard-fail.
+        let alt_key =
+            "x'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'".to_string();
+        let err = run_export_with_daemon_state(
+            ExportOptions {
+                vault_path: vault,
+                key: Some(alt_key),
+                output: out.clone(),
+                passphrase_file: Some(pw),
+                dry_run: false,
+                force: false,
+            },
+            false, // daemon_down
+        )
+        .unwrap_err()
+        .to_string();
+        let lower = err.to_ascii_lowercase();
+        assert!(
+            lower.contains("vault")
+                || lower.contains("key")
+                || lower.contains("locked")
+                || lower.contains("preflight"),
+            "expected vault/key hard-fail, got: {err}"
+        );
+        assert!(
+            !out.exists(),
+            "kit file must not be written when vault preflight hard-fails"
+        );
+    }
+
+    /// Codex R2 P2: missing vault must hard-fail when daemon is down.
+    #[test]
+    fn recovery_export__missing_vault_daemon_down__hard_fails() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let _allow = TempEnv::set(ai_brains_store::connection::ALLOW_ZERO_KEY_ENV, "1");
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path().join("missing-vault.db");
+        let out = dir.path().join("kit.json");
+        let pw = dir.path().join("pw.txt");
+        fs::write(&pw, b"test-passphrase-long-enough").unwrap();
+
+        let err = run_export_with_daemon_state(
+            ExportOptions {
+                vault_path: vault,
+                key: Some(
+                    "x'0000000000000000000000000000000000000000000000000000000000000000'"
+                        .to_string(),
+                ),
+                output: out.clone(),
+                passphrase_file: Some(pw),
+                dry_run: false,
+                force: false,
+            },
+            false,
+        )
+        .unwrap_err()
+        .to_string();
+        let lower = err.to_ascii_lowercase();
+        assert!(
+            lower.contains("vault")
+                || lower.contains("does not exist")
+                || lower.contains("preflight")
+                || lower.contains("not exist"),
+            "expected missing-vault hard-fail, got: {err}"
+        );
+        assert!(!out.exists(), "kit file must not be written for missing vault");
+    }
+
+    /// Codex R2 P2: parent reparse/junction/symlink must refuse kit write.
+    /// Soft-skips when symlink creation privilege is unavailable.
+    #[test]
+    fn recovery_export__output_parent_reparse__refuses() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let _allow = TempEnv::set(ai_brains_store::connection::ALLOW_ZERO_KEY_ENV, "1");
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path().join("vault.db");
+        let key_str =
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string();
+        let key = SqlCipherKey::from_raw(key_str.clone());
+        let conn = VaultConnection::open(&vault, &key).unwrap();
+        conn.migrate().unwrap();
+        drop(conn);
+
+        let real = dir.path().join("real-out");
+        fs::create_dir_all(&real).unwrap();
+        let link = dir.path().join("link-out");
+
+        #[cfg(windows)]
+        let created = {
+            // Directory junctions do not require SeCreateSymbolicLinkPrivilege.
+            let status = std::process::Command::new("cmd")
+                .args([
+                    "/C",
+                    "mklink",
+                    "/J",
+                    &link.to_string_lossy(),
+                    &real.to_string_lossy(),
+                ])
+                .status();
+            match status {
+                Ok(s) if s.success() => Ok(()),
+                Ok(s) => Err(std::io::Error::other(format!("mklink /J exit {s}"))),
+                Err(e) => Err(e),
+            }
+        };
+        #[cfg(not(windows))]
+        let created = std::os::unix::fs::symlink(&real, &link);
+
+        if let Err(e) = created {
+            eprintln!(
+                "skipping recovery_export__output_parent_reparse__refuses: {e} \
+                 (needs Developer Mode / elevation or junction support)"
+            );
+            return;
+        }
+
+        assert!(
+            ai_brains_path::is_reparse_or_symlink(&link).expect("symlink_metadata"),
+            "precondition: parent link must be reparse/junction"
+        );
+
+        let out = link.join("kit.json");
+        let pw = dir.path().join("pw.txt");
+        fs::write(&pw, b"test-passphrase-long-enough").unwrap();
+
+        let err = run_export_with_daemon_state(
+            ExportOptions {
+                vault_path: vault,
+                key: Some(key_str),
+                output: out.clone(),
+                passphrase_file: Some(pw),
+                dry_run: false,
+                force: false,
+            },
+            false,
+        )
+        .unwrap_err()
+        .to_string();
+        let lower = err.to_ascii_lowercase();
+        assert!(
+            lower.contains("symlink") || lower.contains("reparse") || lower.contains("junction"),
+            "expected parent reparse refuse, got: {err}"
+        );
+        assert!(
+            !real.join("kit.json").exists(),
+            "must not write kit through parent reparse into real dir"
+        );
+        assert!(!out.exists() || !fs::symlink_metadata(&out).map(|m| m.is_file()).unwrap_or(false));
     }
 }
