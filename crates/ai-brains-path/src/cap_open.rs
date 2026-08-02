@@ -240,7 +240,7 @@ fn open_dir_component_nofollow_impl(parent: &Dir, name: &str) -> Result<Dir, Cap
 
     let file = parent
         .open_with(name, &opts)
-        .map_err(|e| map_io_err(e, name))?;
+        .map_err(|e| map_unix_dir_open_err(parent, name, e))?;
     // Belt: refuse if somehow a symlink handle.
     let meta = file
         .metadata()
@@ -264,7 +264,7 @@ fn open_file_component_nofollow_impl(parent: &Dir, name: &str) -> Result<File, C
 
     let file = parent
         .open_with(name, &opts)
-        .map_err(|e| map_io_err(e, name))?;
+        .map_err(|e| map_unix_file_open_err(parent, name, e))?;
     let meta = file
         .metadata()
         .map_err(|e| CapOpenError::Io(format!("metadata {name}: {e}")))?;
@@ -275,6 +275,40 @@ fn open_file_component_nofollow_impl(parent: &Dir, name: &str) -> Result<File, C
         return Err(CapOpenError::NotAFile(name.to_string()));
     }
     Ok(file)
+}
+
+/// Classify Unix dir-open failures under nofollow.
+///
+/// Linux often returns **ENOTDIR (20)** for `O_NOFOLLOW|O_DIRECTORY` on a symlink
+/// (rather than ELOOP). Probe `symlink_metadata` so F9 still maps to `ReparseRefused`.
+#[cfg(unix)]
+fn map_unix_dir_open_err(parent: &Dir, name: &str, e: std::io::Error) -> CapOpenError {
+    if let Ok(meta) = parent.symlink_metadata(name) {
+        if meta.file_type().is_symlink() {
+            return CapOpenError::ReparseRefused(name.to_string());
+        }
+        if !meta.is_dir() {
+            return CapOpenError::NotADir(name.to_string());
+        }
+    }
+    map_io_err(e, name)
+}
+
+/// Classify Unix file-open failures under nofollow (ELOOP or symlink metadata).
+#[cfg(unix)]
+fn map_unix_file_open_err(parent: &Dir, name: &str, e: std::io::Error) -> CapOpenError {
+    if is_symlink_loop_error(&e) {
+        return CapOpenError::ReparseRefused(name.to_string());
+    }
+    if let Ok(meta) = parent.symlink_metadata(name) {
+        if meta.file_type().is_symlink() {
+            return CapOpenError::ReparseRefused(name.to_string());
+        }
+        if !meta.is_file() {
+            return CapOpenError::NotAFile(name.to_string());
+        }
+    }
+    map_io_err(e, name)
 }
 
 #[cfg(windows)]
