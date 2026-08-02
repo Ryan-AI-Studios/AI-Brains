@@ -37,3 +37,4 @@ windows-service = "0.8"
 [dev-dependencies]
 tempfile.workspace = true
 ai-brains-control-plane = { path = "../ai-brains-control-plane" }
+ai-brains-core = { path = "../ai-brains-core" }

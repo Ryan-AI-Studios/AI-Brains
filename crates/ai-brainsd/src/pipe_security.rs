@@ -3,28 +3,32 @@
 
 //! Named-pipe security descriptor for `ai-brainsd`.
 //!
-//! # Design (T144 + T184 F-1)
+//! # Design (T144 + T184 F-1 + T195 F3/F4)
 //!
 //! The daemon may run as **LocalSystem** (Session 0 Windows service). CLI clients
 //! run in **Session 1+** as interactive users and must open the pipe. Owner-only
 //! (`OW`) is insufficient when SYSTEM creates the pipe.
 //!
-//! SDDL grants:
+//! Default SDDL (`AI_BRAINS_PIPE_ACL=interactive` or unset) grants:
 //! - **SY** (Local System) — service host
 //! - **BA** (Built-in Administrators) — elevated operators
 //! - **IU** (Interactive) — interactive logon sessions (Session 1+)
+//!
+//! Opt-in `AI_BRAINS_PIPE_ACL=service-only` drops **IU** (SY+BA only). Interactive
+//! CLI then cannot open a SYSTEM service pipe (expects NotRunning); use elevated
+//! BA, `sc query`, or interactive daemon + HTTP+bearer — see OPERATIONS.
 //!
 //! This replaces the prior **WD** (Everyone / World) grant, which contradicted
 //! T144 non-goals (multi-user World was listed as a security risk) and
 //! OPERATIONS prose (“interactive user”).
 //!
-//! **Residual (R-MULTI / R-PIPE-IU):** On a multi-user machine, *any* interactive
-//! logon can open the pipe. Pipe messages still have no bearer (contrast HTTP).
-//! Single-owner desktops are the primary model; multi-user hosts accept residual
-//! risk documented in SECURITY-LIMITS.
+//! **Residual (R-PIPE-IU / R-MULTI):** Default still allows any interactive logon
+//! to open the pipe. Pipe messages still have no bearer (contrast HTTP).
+//! Single-owner desktops are the primary model (ADR-0022).
 
 use std::io;
 
+use ai_brains_daemon_api::{PipeAclMode, pipe_acl_mode_from_env, sddl_for_pipe_acl_mode};
 use windows::{
     Win32::Security::{
         Authorization::ConvertStringSecurityDescriptorToSecurityDescriptorA, PSECURITY_DESCRIPTOR,
@@ -33,16 +37,32 @@ use windows::{
     core::PCSTR,
 };
 
-/// SYSTEM + Administrators + Interactive (not World/Everyone).
-/// See module docs and T184 finding F-1.
-const SDDL: &str = "D:(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;IU)";
-
+/// Build pipe `SECURITY_ATTRIBUTES` from `AI_BRAINS_PIPE_ACL` (default interactive).
+///
+/// Unknown env values fail closed (do not apply an unknown DACL).
 pub fn build_pipe_security_attributes() -> io::Result<SECURITY_ATTRIBUTES> {
+    let mode = pipe_acl_mode_from_env().map_err(|e| io::Error::other(e.to_string()))?;
+    build_pipe_security_attributes_for_mode(mode)
+}
+
+/// Build pipe SA for an explicit ACL mode (unit-tested without env).
+pub fn build_pipe_security_attributes_for_mode(
+    mode: PipeAclMode,
+) -> io::Result<SECURITY_ATTRIBUTES> {
+    let sddl = sddl_for_pipe_acl_mode(mode);
+    security_attributes_from_sddl(sddl)
+}
+
+fn security_attributes_from_sddl(sddl: &str) -> io::Result<SECURITY_ATTRIBUTES> {
     let mut psd: PSECURITY_DESCRIPTOR = PSECURITY_DESCRIPTOR::default();
+
+    // SDDL is ASCII; append NUL for PCSTR.
+    let mut sddl_c = sddl.as_bytes().to_vec();
+    sddl_c.push(0);
 
     let result = unsafe {
         ConvertStringSecurityDescriptorToSecurityDescriptorA(
-            PCSTR(SDDL.as_ptr()),
+            PCSTR(sddl_c.as_ptr()),
             1,
             &mut psd,
             None,
@@ -51,7 +71,7 @@ pub fn build_pipe_security_attributes() -> io::Result<SECURITY_ATTRIBUTES> {
 
     if result.is_err() {
         return Err(io::Error::other(format!(
-            "ConvertStringSecurityDescriptorToSecurityDescriptorA failed: {:?}",
+            "ConvertStringSecurityDescriptorToSecurityDescriptorA failed for {sddl}: {:?}",
             result
         )));
     }
@@ -76,25 +96,15 @@ pub fn build_pipe_security_attributes() -> io::Result<SECURITY_ATTRIBUTES> {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+    use ai_brains_core::temp_env::TempEnv;
+    use ai_brains_daemon_api::{
+        PIPE_SDDL_INTERACTIVE, PIPE_SDDL_SERVICE_ONLY, PipeAclMode, sddl_for_pipe_acl_mode,
+    };
 
-    #[test]
-    fn build_pipe_security_attributes__returns_valid_sa_with_nonnull_sd() {
-        let sa = build_pipe_security_attributes().expect("should build security attributes");
-        assert_eq!(
-            sa.nLength,
-            std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32
-        );
-        assert!(!sa.lpSecurityDescriptor.is_null());
-
+    fn assert_dacl_present(sa: &SECURITY_ATTRIBUTES) {
         let psd = PSECURITY_DESCRIPTOR(sa.lpSecurityDescriptor);
         let valid = unsafe { windows::Win32::Security::IsValidSecurityDescriptor(psd) };
         assert!(valid.as_bool(), "SD must be valid");
-    }
-
-    #[test]
-    fn build_pipe_security_attributes__dacl_present_not_world() {
-        let sa = build_pipe_security_attributes().expect("should build security attributes");
-        let psd = PSECURITY_DESCRIPTOR(sa.lpSecurityDescriptor);
 
         let mut dacl_present = windows::core::BOOL::default();
         let mut dacl_defaulted = windows::core::BOOL::default();
@@ -109,34 +119,74 @@ mod tests {
             )
         };
         assert!(result.is_ok());
-        assert!(
-            dacl_present.as_bool(),
-            "DACL must be present (explicit SY+BA+IU grant)"
-        );
+        assert!(dacl_present.as_bool(), "DACL must be present");
         assert!(!dacl_ptr.is_null(), "DACL pointer must not be null");
+    }
 
-        // Normative SDDL must not grant World/Everyone (WD).
-        assert!(
-            !SDDL.contains(";;;WD)"),
-            "pipe SDDL must not grant Everyone/World (WD); got {SDDL}"
+    #[test]
+    fn build_pipe_security_attributes__default_interactive__valid_sa_with_iu() {
+        let _clear = TempEnv::remove("AI_BRAINS_PIPE_ACL");
+        let sa = build_pipe_security_attributes().expect("should build security attributes");
+        assert_eq!(
+            sa.nLength,
+            std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32
         );
+        assert!(!sa.lpSecurityDescriptor.is_null());
+        assert_dacl_present(&sa);
+
+        let sddl = sddl_for_pipe_acl_mode(PipeAclMode::Interactive);
+        assert_eq!(sddl, PIPE_SDDL_INTERACTIVE);
+        assert!(sddl.contains(";;;IU)"), "default must grant IU");
+        assert!(!sddl.contains(";;;WD)"), "must not grant World");
+        assert!(!sddl.contains("WD"));
+    }
+
+    #[test]
+    fn build_pipe_security_attributes_for_mode__service_only__valid_sa_without_iu() {
+        let sa = build_pipe_security_attributes_for_mode(PipeAclMode::ServiceOnly)
+            .expect("service-only SA");
+        assert_dacl_present(&sa);
+
+        let sddl = sddl_for_pipe_acl_mode(PipeAclMode::ServiceOnly);
+        assert_eq!(sddl, PIPE_SDDL_SERVICE_ONLY);
         assert!(
-            SDDL.contains(";;;IU)"),
-            "pipe SDDL must grant Interactive (IU); got {SDDL}"
+            !sddl.contains(";;;IU)"),
+            "service-only must not grant IU; got {sddl}"
         );
+        assert!(sddl.contains(";;;SY)"));
+        assert!(sddl.contains(";;;BA)"));
+        assert!(!sddl.contains("WD"));
+    }
+
+    #[test]
+    fn build_pipe_security_attributes_for_mode__interactive__valid_sa_with_iu() {
+        let sa = build_pipe_security_attributes_for_mode(PipeAclMode::Interactive)
+            .expect("interactive SA");
+        assert_dacl_present(&sa);
+        let sddl = sddl_for_pipe_acl_mode(PipeAclMode::Interactive);
+        assert!(sddl.contains(";;;IU)"));
+        assert!(!sddl.contains("WD"));
+    }
+
+    #[test]
+    fn build_pipe_security_attributes__unknown_env__fail_closed() {
+        let _g = TempEnv::set("AI_BRAINS_PIPE_ACL", "world");
+        let err = build_pipe_security_attributes().expect_err("unknown mode must fail");
+        let msg = err.to_string();
         assert!(
-            SDDL.contains(";;;SY)"),
-            "pipe SDDL must grant SYSTEM (SY); got {SDDL}"
-        );
-        assert!(
-            SDDL.contains(";;;BA)"),
-            "pipe SDDL must grant Administrators (BA); got {SDDL}"
+            msg.contains("service-only") || msg.contains("PIPE_ACL") || msg.contains("unknown"),
+            "actionable error: {msg}"
         );
     }
 
     #[test]
-    fn pipe_sddl__excludes_world_and_includes_interactive() {
-        assert_eq!(SDDL, "D:(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;IU)");
-        assert!(!SDDL.contains("WD"));
+    fn pipe_sddl__service_only_and_interactive__no_world() {
+        assert_eq!(
+            PIPE_SDDL_INTERACTIVE,
+            "D:(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;IU)"
+        );
+        assert_eq!(PIPE_SDDL_SERVICE_ONLY, "D:(A;;GA;;;SY)(A;;GA;;;BA)");
+        assert!(!PIPE_SDDL_INTERACTIVE.contains("WD"));
+        assert!(!PIPE_SDDL_SERVICE_ONLY.contains("WD"));
     }
 }

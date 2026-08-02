@@ -258,8 +258,10 @@ name = "ai-brains-daemon-api"
 version = "0.1.1"
 dependencies = [
  "ai-brains-contracts",
+ "ai-brains-core",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

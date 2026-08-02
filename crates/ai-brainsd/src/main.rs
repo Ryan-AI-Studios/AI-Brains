@@ -214,24 +214,44 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
     }
 
+    // Unix UDS path shared with CLI via `ai_brains_daemon_api::resolve_daemon_socket_path`
+    // (T195 F7). Held for bind + shutdown unlink hygiene (F8).
+    #[cfg(not(windows))]
+    let unix_socket_path: std::path::PathBuf = {
+        let resolved = ai_brains_daemon_api::resolve_daemon_socket_path().map_err(|e| {
+            format!(
+                "Failed to resolve daemon UDS path: {e}. \
+                 Set AI_BRAINS_DAEMON_SOCKET to an absolute path or fix XDG_RUNTIME_DIR."
+            )
+        })?;
+        if resolved.used_tmp_fallback {
+            eprintln!(
+                "warning: XDG_RUNTIME_DIR missing or invalid (absolute, mode 0700, owned by you); \
+                 binding UDS at {} (T195 /tmp fallback residual). Prefer a valid \
+                 $XDG_RUNTIME_DIR or set AI_BRAINS_DAEMON_SOCKET on daemon and clients.",
+                resolved.path.display()
+            );
+        }
+        resolved.path
+    };
+
     #[cfg(not(windows))]
     {
-        // Path must match CLI `DEFAULT_DAEMON_TRANSPORT_PATH` and ledgerful IpcClient
-        // (`/tmp/ledgerful-bridge.sock`). After bind, restrict mode to 0o600 so only
-        // the owner can connect (T184 F-2). Residual: predictable path under /tmp
-        // (bind race if another user owns the name first) — see SECURITY-LIMITS.
-        let socket_path = "/tmp/ledgerful-bridge.sock";
-        let _ = std::fs::remove_file(socket_path);
+        // Pre-bind: unlink only owned socket; never clobber file/dir/foreign owner (T195 F8).
+        #[cfg(unix)]
+        {
+            ai_brainsd::unix_socket_mode::remove_owned_socket_if_present(&unix_socket_path)?;
+        }
 
-        let listener = tokio::net::UnixListener::bind(socket_path)?;
+        let listener = tokio::net::UnixListener::bind(&unix_socket_path)?;
         #[cfg(unix)]
         {
             // Fail closed on mode set (T184 F-2) — do not leave a world-open socket.
-            ai_brainsd::unix_socket_mode::apply_owner_only_mode(std::path::Path::new(socket_path))?;
+            ai_brainsd::unix_socket_mode::apply_owner_only_mode(&unix_socket_path)?;
         }
         println!(
             "AI-Brains Daemon started. Listening on Unix socket: {}",
-            socket_path
+            unix_socket_path.display()
         );
 
         let writer_clone = writer.clone();
@@ -286,8 +306,18 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     #[cfg(not(windows))]
     {
-        let socket_path = "/tmp/ledgerful-bridge.sock";
-        let _ = std::fs::remove_file(socket_path);
+        // Shutdown unlink: same ownership + socket-type rule as pre-bind (T195 F8 / L1).
+        #[cfg(unix)]
+        {
+            if let Err(e) =
+                ai_brainsd::unix_socket_mode::remove_owned_socket_if_present(&unix_socket_path)
+            {
+                eprintln!(
+                    "warning: could not remove UDS {}: {e}",
+                    unix_socket_path.display()
+                );
+            }
+        }
     }
 
     // Give some time for background tasks to finish

@@ -11,4 +11,6 @@ ai-brains-contracts = { path = "../ai-brains-contracts" }
 serde.workspace = true
 
 [dev-dependencies]
+ai-brains-core = { path = "../ai-brains-core" }
 serde_json.workspace = true
+tempfile.workspace = true

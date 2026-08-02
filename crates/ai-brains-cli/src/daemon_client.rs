@@ -2,6 +2,31 @@ use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+/// Resolve UDS path for CLI connect (T195 F7). Fail closed on invalid env override.
+#[cfg(not(windows))]
+fn resolve_unix_socket_path_for_client() -> String {
+    match ai_brains_daemon_api::resolve_daemon_socket_path() {
+        Ok(resolved) => {
+            if resolved.used_tmp_fallback {
+                // Match daemon warn: residual when XDG unset/invalid (common on macOS).
+                eprintln!(
+                    "warning: XDG_RUNTIME_DIR missing or invalid; using {} for daemon UDS \
+                     (set AI_BRAINS_DAEMON_SOCKET or a valid XDG_RUNTIME_DIR to match the daemon)",
+                    resolved.path.display()
+                );
+            }
+            resolved.path.display().to_string()
+        }
+        Err(e) => {
+            // Fail closed: do not silently fall back to /tmp when override is invalid.
+            eprintln!(
+                "error: {e}; daemon client refusing guessed path (fix AI_BRAINS_DAEMON_SOCKET)"
+            );
+            String::new()
+        }
+    }
+}
+
 /// Default bound for a full request/response cycle on the governed surface.
 pub const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -78,9 +103,10 @@ impl DaemonClientError {
 #[cfg(windows)]
 pub const DEFAULT_DAEMON_TRANSPORT_PATH: &str = r"\\.\pipe\ledgerful-bridge";
 
-/// Live Unix domain socket endpoint used by `DaemonClient` on non-Windows.
+/// Documented Unix UDS fallback when XDG is missing/invalid (T195 F9).
+/// Runtime path is resolved via [`ai_brains_daemon_api::resolve_daemon_socket_path`].
 #[cfg(not(windows))]
-pub const DEFAULT_DAEMON_TRANSPORT_PATH: &str = "/tmp/ledgerful-bridge.sock";
+pub const DEFAULT_DAEMON_TRANSPORT_PATH: &str = ai_brains_daemon_api::FALLBACK_DAEMON_SOCKET_PATH;
 
 pub struct DaemonClient {
     #[cfg(windows)]
@@ -95,8 +121,9 @@ impl DaemonClient {
             // Must match ledgerful's IpcClient (track 0064: aibrains-sync → ledgerful-bridge).
             #[cfg(windows)]
             pipe_path: DEFAULT_DAEMON_TRANSPORT_PATH.to_string(),
+            // T195 F7/F32: same resolver as ai-brainsd Unix bind (not hardcoded /tmp only).
             #[cfg(not(windows))]
-            socket_path: DEFAULT_DAEMON_TRANSPORT_PATH.to_string(),
+            socket_path: resolve_unix_socket_path_for_client(),
         }
     }
 
@@ -455,11 +482,50 @@ mod tests {
     /// T179 F23: live DaemonClient transport is OS-native (pipe vs UDS), not HTTP.
     #[test]
     fn daemon_client__new__uses_os_native_transport_path() {
-        let client = DaemonClient::new();
-        assert_eq!(client.transport_path(), DEFAULT_DAEMON_TRANSPORT_PATH);
         #[cfg(windows)]
-        assert_eq!(client.transport_path(), r"\\.\pipe\ledgerful-bridge");
+        {
+            let client = DaemonClient::new();
+            assert_eq!(client.transport_path(), DEFAULT_DAEMON_TRANSPORT_PATH);
+            assert_eq!(client.transport_path(), r"\\.\pipe\ledgerful-bridge");
+        }
         #[cfg(not(windows))]
-        assert_eq!(client.transport_path(), "/tmp/ledgerful-bridge.sock");
+        {
+            use ai_brains_core::temp_env::TempEnv;
+
+            let _clear_socket = TempEnv::remove("AI_BRAINS_DAEMON_SOCKET");
+            let _clear_xdg = TempEnv::remove("XDG_RUNTIME_DIR");
+            let client = DaemonClient::new();
+            assert_eq!(
+                client.transport_path(),
+                DEFAULT_DAEMON_TRANSPORT_PATH,
+                "without XDG, fallback is /tmp/ledgerful-bridge.sock"
+            );
+            assert_eq!(client.transport_path(), "/tmp/ledgerful-bridge.sock");
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn daemon_client__new__absolute_socket_env__uses_override() {
+        use ai_brains_core::temp_env::TempEnv;
+
+        let abs = "/run/user/1000/custom-bridge.sock";
+        let _set = TempEnv::set("AI_BRAINS_DAEMON_SOCKET", abs);
+        let client = DaemonClient::new();
+        assert_eq!(client.transport_path(), abs);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn daemon_client__new__relative_socket_env__fail_closed_empty_path() {
+        use ai_brains_core::temp_env::TempEnv;
+
+        let _set = TempEnv::set("AI_BRAINS_DAEMON_SOCKET", "relative.sock");
+        let client = DaemonClient::new();
+        assert_eq!(
+            client.transport_path(),
+            "",
+            "invalid override must not guess /tmp"
+        );
     }
 }

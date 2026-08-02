@@ -264,31 +264,43 @@ async fn run_daemon_startup()
     let (ipc_shutdown_tx, _ipc_shutdown_rx) = tokio::sync::broadcast::channel(1);
 
     // Optional loopback HTTP (T161) — third caller of handle_daemon_request.
-    // When explicitly enabled, hard-fail service start on bind/token errors so
-    // operators cannot assume a listening API that never bound (R1-01 / CR1-P2-01).
-    // LocalSystem residual (R1-02): token lands under SYSTEM profile — not for
-    // interactive desktop clients; prefer interactive `ai-brainsd --http`.
+    // T195 F10: service host refuses HTTP unless AI_BRAINS_HTTP_SERVICE is truthy
+    // (same 1/true/yes set as AI_BRAINS_HTTP — F33). Gate lives here only — not
+    // inside shared maybe_start_http (interactive main.rs path unchanged).
+    // When opted in, hard-fail service start on bind/token errors so operators
+    // cannot assume a listening API that never bound (R1-01 / CR1-P2-01).
+    // LocalSystem residual (R-HTTP-SYS): token lands under SYSTEM profile — not
+    // for interactive desktop clients; prefer interactive `ai-brainsd --http`.
     let service_args: Vec<String> = std::env::args().collect();
     if crate::http_adapter::http_enabled_from_env_and_args(&service_args) {
-        tracing::warn!(
-            "HTTP enabled under Windows service (LocalSystem): bearer token is stored under the \
-             SYSTEM profile (%USERPROFILE%\\.ai-brains\\http.token for SYSTEM) with owner-only ACL \
-             and is NOT readable by interactive Session 1 CLI/desktop clients. Use interactive \
-             `ai-brainsd --http` (or `ai-brains daemon start` with AI_BRAINS_HTTP=1) for local \
-             clients. Shared multi-session token is out of scope residual."
-        );
+        if crate::http_adapter::service_http_opt_in_from_env() {
+            tracing::warn!(
+                "HTTP enabled under Windows service (LocalSystem) with AI_BRAINS_HTTP_SERVICE opt-in: \
+                 bearer token is stored under the SYSTEM profile (%USERPROFILE%\\.ai-brains\\http.token \
+                 for SYSTEM) with owner-only ACL and is NOT readable by interactive Session 1 \
+                 CLI/desktop clients. Prefer interactive `ai-brainsd --http` (or `ai-brains daemon start` \
+                 with AI_BRAINS_HTTP=1) for local clients. Shared multi-session token is out of scope."
+            );
+            crate::http_adapter::maybe_start_http(
+                &service_args,
+                writer.clone(),
+                services.clone(),
+                &ipc_shutdown_tx,
+            )
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to start HTTP API in service (hard-fail): {e}");
+                e
+            })?;
+        } else {
+            tracing::warn!(
+                "Service HTTP refused: AI_BRAINS_HTTP (or --http) would enable HTTP, but \
+                 AI_BRAINS_HTTP_SERVICE is not truthy (1/true/yes). Skipping HTTP; named-pipe IPC \
+                 continues. Set AI_BRAINS_HTTP_SERVICE=1 to opt in (token under SYSTEM profile is \
+                 not for Session 1 desktop clients — residual R-HTTP-SYS)."
+            );
+        }
     }
-    crate::http_adapter::maybe_start_http(
-        &service_args,
-        writer.clone(),
-        services.clone(),
-        &ipc_shutdown_tx,
-    )
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to start HTTP API in service (hard-fail): {e}");
-        e
-    })?;
 
     Ok(ServiceDaemonStarted {
         writer,
