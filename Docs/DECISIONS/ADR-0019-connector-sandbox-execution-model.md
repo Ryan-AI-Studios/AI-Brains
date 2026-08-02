@@ -58,11 +58,11 @@ Product vision (§7.2) allows third-party connectors as **capability-scoped exte
 
 Bytecode Alliance security reality in 2026 argues against checkbox sandboxing:
 
-1. **2026-04-09:** large `wasmtime` advisory batch (**12** advisories, including **two Critical** sandbox escapes — Winch; aarch64 Cranelift under specific configs).  
-2. **2026-05-21 High (GHSA-2r75-cxrj-cmph):** **`wasmtime-wasi`** (separate crate) `path_open(TRUNCATE)` bypassed `FilePerms::WRITE` — capability enforcement, not just JIT.  
-3. **2026-06-24 Moderate:** hardlink/rename FilePerms gaps in WASI host.  
-4. Research-day **Extism 1.30.0** pins `wasmtime ^43` while latest was **47.x** — host SDK lag multiplies patch burden.  
-5. **`wasmtime-wasi` depends on `tokio`** as a normal dependency — tensions with the project **sync-core** invariant (tokio only for daemon).  
+1. **2026-04-09:** large `wasmtime` advisory batch (**12** advisories, including **two Critical** sandbox escapes — Winch; aarch64 Cranelift under specific configs).
+2. **2026-05-21 High (GHSA-2r75-cxrj-cmph):** **`wasmtime-wasi`** (separate crate) `path_open(TRUNCATE)` bypassed `FilePerms::WRITE` — capability enforcement, not just JIT.
+3. **2026-06-24 Moderate:** hardlink/rename FilePerms gaps in WASI host.
+4. Research-day **Extism 1.30.0** pins `wasmtime ^43` while latest was **47.x** — host SDK lag multiplies patch burden.
+5. **`wasmtime-wasi` depends on `tokio`** as a normal dependency — tensions with the project **sync-core** invariant (tokio only for daemon).
 
 These are rationale for **deferral**, not a permanent ban. A later track may adopt under L8 gates.
 
@@ -98,20 +98,20 @@ Normative locks **L1–L10** (cite as ADR-0019 L*n*):
 
 ### 1. v1 execution model (L1, L4–L6, L9)
 
-1. **Only `SandboxMode::TrustedBuiltin` may register** in production registries.  
-2. Built-ins are **in-process** Rust, same binary trust as the rest of AI-Brains.  
-3. **Policy (T151) always applies** — TrustedBuiltin is not a privilege escalation.  
-4. **`propose_write` never mutates user files**; it returns a proposal artifact only.  
-5. **LocalOnly** built-ins must not open ambient network as part of observe/list/preview.  
-6. Connectors **never** receive vault key material (DataKey, content DEKs, RecoveryKit secrets).  
-7. **Two-layer sandbox declaration defense:** serde fail-closed + registry refuse non-`TrustedBuiltin`.  
+1. **Only `SandboxMode::TrustedBuiltin` may register** in production registries.
+2. Built-ins are **in-process** Rust, same binary trust as the rest of AI-Brains.
+3. **Policy (T151) always applies** — TrustedBuiltin is not a privilege escalation.
+4. **`propose_write` never mutates user files**; it returns a proposal artifact only.
+5. **LocalOnly** built-ins must not open ambient network as part of observe/list/preview.
+6. Connectors **never** receive vault key material (DataKey, content DEKs, RecoveryKit secrets).
+7. **Two-layer sandbox declaration defense:** serde fail-closed + registry refuse non-`TrustedBuiltin`.
 8. **`CloudOk` is reserved/unused** — constructible today but not used; future non-`LocalOnly` requires explicit feature flag + threat re-review (registry does not enforce trust label in v1).
 
 ### 2. Forbidden without a new ADR (or explicit supersession) (L2–L3)
 
-- Loading arbitrary native libraries (`LoadLibrary` / `dlopen` of user paths) as connectors.  
-- Embedding AGPL connector hosts or requiring AGPL plugins for product features.  
-- Using Node’s experimental WASI (or similar non-Bytecode-Alliance weak hosts) for untrusted plugins.  
+- Loading arbitrary native libraries (`LoadLibrary` / `dlopen` of user paths) as connectors.
+- Embedding AGPL connector hosts or requiring AGPL plugins for product features.
+- Using Node’s experimental WASI (or similar non-Bytecode-Alliance weak hosts) for untrusted plugins.
 - Marketing “third-party plugin marketplace,” “WASI isolation,” or “untrusted code is sandboxed” for the v1 product.
 - Adding production Wasmtime / Extism / cap-std / WASI host dependencies without a new track + ADR update.
 
@@ -119,10 +119,10 @@ Normative locks **L1–L10** (cite as ADR-0019 L*n*):
 
 **Preference order:**
 
-1. **Capability-scoped subprocess** plugins (aligns with vision §7.2), using OS isolation primitives — not bare `std::process::Command`:  
-   - Windows: Job Objects (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`), restricted tokens  
-   - Linux: unprivileged user namespaces + Landlock and/or seccomp  
-   - macOS: sandbox-exec / App Sandbox (evaluate at adopt)  
+1. **Capability-scoped subprocess** plugins (aligns with vision §7.2), using OS isolation primitives — not bare `std::process::Command`:
+   - Windows: Job Objects (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`), restricted tokens
+   - Linux: unprivileged user namespaces + Landlock and/or seccomp
+   - macOS: sandbox-exec / App Sandbox (evaluate at adopt)
 2. **WASI via `wasmtime` + `wasmtime-wasi`** (optionally Extism host SDK) when ecosystem demand and maintenance budget exist.
 
 **All** of the following are required before enabling either path in a release binary:
@@ -144,7 +144,7 @@ Normative locks **L1–L10** (cite as ADR-0019 L*n*):
 
 ### 4. Path residual honesty (L10)
 
-v1 path-bearing connectors use containment resolve + reparse/symlink refuse. **T190 / [ADR-0021](ADR-0021-path-capability-open.md)** hardens TrustedBuiltin **vault-relative open + list** with cap-std component nofollow (closes the primary check-then-open residual for Obsidian vault I/O and Hermes/Honcho export dirs). **Residual #12** is **closed-with-residuals**: ambient CLI paths, soft-canonicalize, api-server token path, and T188 artifact write pre-check/post-write reparse are **not** claimed closed. Soft-canon is never a TOCTOU security open.
+v1 path-bearing connectors use containment resolve + reparse/symlink refuse. **T190 / [ADR-0021](ADR-0021-path-capability-open.md)** hardens TrustedBuiltin **vault-relative open + list** with cap-std component nofollow (closes the primary check-then-open residual for Obsidian vault I/O and Hermes/Honcho export dirs). **T193** elevates **api-server token** load/write, **protected artifact** write, and **recovery kit** write onto the shared nofollow write SOOT. **Residual #12** remains **closed-with-residuals** (not product-wide closed): soft-canonicalize, parent `create_dir_all` chain, ambient CLI long-tail, and perfect all-API Windows TOCTOU are **not** claimed closed. Soft-canon is never a TOCTOU security open.
 
 ### 5. License posture for future hosts (L2, L5 of licenses)
 
@@ -160,17 +160,17 @@ Any new crate still requires implement-day `cargo deny check` including transiti
 
 ### Positive
 
-- Clear release claim: **first-party trusted connectors only**.  
-- T183/T184/T185 can cite a single decision.  
-- Avoids premature Wasmtime + WASI-host CVE surface and tokio-in-core pressure.  
+- Clear release claim: **first-party trusted connectors only**.
+- T183/T184/T185 can cite a single decision.
+- Avoids premature Wasmtime + WASI-host CVE surface and tokio-in-core pressure.
 - Preserves commercial posture (no AGPL host).
 
 ### Negative / residual
 
-- No third-party extensibility in v1.  
-- Built-in bugs remain process-level risks.  
-- Path TOCTOU residual (#12) **closed-with-residuals** by T190/ADR-0021 for connector vault open+list; ambient/soft-canon/token/artifact-write residuals remain.  
-- CloudOk trust label not registry-enforced.  
+- No third-party extensibility in v1.
+- Built-in bugs remain process-level risks.
+- Path TOCTOU residual (#12) **closed-with-residuals** by T190/ADR-0021 (vault open+list) + T193 (token/artifact/kit write SOOT); soft-canon / parent mkdir / ambient CLI long-tail / perfect Windows residuals remain.
+- CloudOk trust label not registry-enforced.
 - Future plugin work needs a full track (not a drive-by).
 
 ### Non-claims (L10)
@@ -191,17 +191,17 @@ This ADR does **not** claim formal security certification, perfect isolation of 
 
 ## Related
 
-- T153–T156 connector implementation  
-- T151 policy / grants  
-- T181 recovery drills (secret non-leakage discipline for future IPC)  
-- [MEMORY-CONTROL-PLANE-VISION §7.2](../MEMORY-CONTROL-PLANE-VISION.md)  
-- T184 independent security review (consumes this decision)  
-- T185 claims gate (no plugin-sandbox overclaim)  
+- T153–T156 connector implementation
+- T151 policy / grants
+- T181 recovery drills (secret non-leakage discipline for future IPC)
+- [MEMORY-CONTROL-PLANE-VISION §7.2](../MEMORY-CONTROL-PLANE-VISION.md)
+- T184 independent security review (consumes this decision)
+- T185 claims gate (no plugin-sandbox overclaim)
 
 ## Acceptance checklist (track)
 
-- [x] Design review clean (or deferred mediums ≤3 with register) — Internal R2 PASS; Codex R1 zero design P0–P2; see track `review.md`  
-- [x] Status → **Accepted** + date (2026-08-01); soft two-layer tests shipped  
-- [x] File promoted under `Docs/DECISIONS/`  
-- [x] Conductor T182 Completed — after design review clean + full gate  
-- [x] Optional pin via `ai-brains pin`  
+- [x] Design review clean (or deferred mediums ≤3 with register) — Internal R2 PASS; Codex R1 zero design P0–P2; see track `review.md`
+- [x] Status → **Accepted** + date (2026-08-01); soft two-layer tests shipped
+- [x] File promoted under `Docs/DECISIONS/`
+- [x] Conductor T182 Completed — after design review clean + full gate
+- [x] Optional pin via `ai-brains pin`

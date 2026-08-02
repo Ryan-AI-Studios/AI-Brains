@@ -14,8 +14,6 @@ use ai_brains_contracts::response::ApiError;
 use ai_brains_control_plane::evaluation::{
     EvaluateOptions, evaluate_scenarios, load_scenarios_dir,
 };
-use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// CLI options for `evaluate governed`.
@@ -126,11 +124,33 @@ fn write_report(
     {
         return fail_path_refused(format!("refusing evaluate report path: {msg}"));
     }
-    let json = serde_json::to_string_pretty(report)?;
-    let mut file = fs::File::create(path)?;
-    file.write_all(json.as_bytes())?;
-    file.write_all(b"\n")?;
-    Ok(())
+    let body = format!("{}\n", serde_json::to_string_pretty(report)?);
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| format!("evaluate report path has no parent: {}", path.display()))?;
+    let file_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("evaluate report missing UTF-8 name: {}", path.display()))?;
+    // T193 P1: nofollow SOOT Replace (overwrite already gated by refuse_unsafe).
+    match ai_brains_path::write_file_nofollow_under_parent_path(
+        parent,
+        file_name,
+        body.as_bytes(),
+        ai_brains_path::CreateMode::Replace,
+    ) {
+        Ok(()) => Ok(()),
+        Err(ai_brains_path::CapOpenError::ReparseRefused(s))
+        | Err(ai_brains_path::CapOpenError::HardlinkRefused(s)) => {
+            fail_path_refused(format!("refusing evaluate report path: {s}"))
+        }
+        Err(other) => Err(format!(
+            "failed to write evaluate report {}: {other}",
+            path.display()
+        )
+        .into()),
+    }
 }
 
 /// Refuse reparse/symlink report paths; refuse overwriting without flag.
@@ -196,7 +216,7 @@ mod tests {
     fn evaluate_cli__refuse_report_equals_vault_path_unit() {
         let dir = tempdir().unwrap();
         let vault = dir.path().join("vault.db");
-        fs::write(&vault, b"x").unwrap();
+        std::fs::write(&vault, b"x").unwrap();
         let err = refuse_report_equals_vault(&vault, &vault).expect_err("must refuse");
         let msg = err.to_string();
         assert!(

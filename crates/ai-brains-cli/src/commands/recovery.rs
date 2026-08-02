@@ -15,7 +15,7 @@ use ai_brains_store::EventStore;
 use ai_brains_store::SqliteEventStore;
 use ai_brains_store::StoreError;
 use ai_brains_store::connection::VaultConnection;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -376,25 +376,18 @@ fn vault_preflight_is_always_hard_fail(err: &StoreError) -> bool {
 }
 
 pub(crate) fn write_kit_file(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(parent) = path.parent()
-        && !parent.as_os_str().is_empty()
-    {
-        // Before create_dir_all: refuse if an existing parent is reparse.
-        if parent.exists() {
-            let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
-                format!(
-                    "output parent path check failed ({}): {e}",
-                    parent.display()
-                )
-            })?;
-            if let Err(msg) = ai_brains_path::refuse_if_reparse(parent, is_reparse) {
-                return Err(msg.into());
-            }
-        }
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
-        // After create_dir_all: re-check parent is still not reparse (TOCTOU).
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| {
+            format!(
+                "kit output path has no parent directory: {}",
+                path.display()
+            )
+        })?;
+
+    // Before create_dir_all: refuse if an existing parent is reparse.
+    if parent.exists() {
         let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
             format!(
                 "output parent path check failed ({}): {e}",
@@ -405,32 +398,72 @@ pub(crate) fn write_kit_file(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn st
             return Err(msg.into());
         }
     }
-
-    // Prefer create_new when not overwriting; force path already checked by caller
-    // (exists + force). When force, truncate existing.
-    let mut opts = OpenOptions::new();
-    opts.write(true);
-    if path.exists() {
-        opts.truncate(true);
-    } else {
-        opts.create_new(true);
+    if !parent.exists() {
+        fs::create_dir_all(parent)?;
+    }
+    // After create_dir_all: re-check parent is still not reparse (TOCTOU).
+    let is_reparse = ai_brains_path::is_reparse_or_symlink(parent).map_err(|e| {
+        format!(
+            "output parent path check failed ({}): {e}",
+            parent.display()
+        )
+    })?;
+    if let Err(msg) = ai_brains_path::refuse_if_reparse(parent, is_reparse) {
+        return Err(msg.into());
     }
 
+    let file_name = path.file_name().and_then(|s| s.to_str()).ok_or_else(|| {
+        format!(
+            "kit output path missing UTF-8 file name: {}",
+            path.display()
+        )
+    })?;
+
+    // Caller already refused existing path without --force. When the leaf exists,
+    // use Replace (temp-rename SOOT); otherwise CreateNew. Never ambient
+    // path.exists()+truncate open (T193 F9 / F31 / AC4).
+    let mode = if path.exists() {
+        ai_brains_path::CreateMode::Replace
+    } else {
+        ai_brains_path::CreateMode::CreateNew
+    };
+
+    ai_brains_path::write_file_nofollow_under_parent_path(parent, file_name, bytes, mode).map_err(
+        |e| -> Box<dyn std::error::Error> {
+            use ai_brains_path::CapOpenError;
+            match e {
+                CapOpenError::ReparseRefused(label) => format!(
+                    "refusing to write kit through reparse/symlink at {} ({label})",
+                    path.display()
+                )
+                .into(),
+                CapOpenError::HardlinkRefused(label) => format!(
+                    "refusing to write kit through hardlink at {} ({label})",
+                    path.display()
+                )
+                .into(),
+                CapOpenError::AlreadyExists(_) => format!(
+                    "failed to create kit file {}: already exists (pass --force)",
+                    path.display()
+                )
+                .into(),
+                other => format!("failed to write kit file {}: {other}", path.display()).into(),
+            }
+        },
+    )?;
+
+    // Unix mode 0o600 is set on SOOT create_new (OpenOptions::mode). Defense-in-depth
+    // re-apply after replace/rename so final leaf is owner-only.
     #[cfg(unix)]
     {
-        use std::os::unix::fs::OpenOptionsExt;
-        opts.mode(0o600);
+        use std::os::unix::fs::PermissionsExt;
+        let meta = fs::metadata(path).map_err(|e| format!("stat kit for chmod: {e}"))?;
+        let mut perms = meta.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(path, perms).map_err(|e| format!("chmod 0600 kit file: {e}"))?;
     }
 
-    let mut file = opts
-        .open(path)
-        .map_err(|e| format!("failed to create kit file {}: {e}", path.display()))?;
-    file.write_all(bytes)
-        .map_err(|e| format!("failed to write kit file: {e}"))?;
-    file.sync_all()
-        .map_err(|e| format!("failed to sync kit file: {e}"))?;
-
-    // Best-effort owner-only ACL on Windows when portable (F9b).
+    // Best-effort owner-only ACL on Windows when portable (F9b / F11).
     #[cfg(windows)]
     {
         if let Err(e) = restrict_windows_acl_best_effort(path) {
@@ -986,6 +1019,43 @@ mod tests {
                 || !fs::symlink_metadata(&out)
                     .map(|m| m.is_file())
                     .unwrap_or(false)
+        );
+    }
+
+    /// T193 AC5/AC13: force/replace kit write to a symlink leaf must refuse and leave target intact.
+    #[test]
+    fn recovery_write_kit_file__symlink_leaf__refuses_target_intact() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("real-kit.json");
+        fs::write(&target, b"ORIGINAL-KIT-BYTES").unwrap();
+        let link = dir.path().join("kit.json");
+
+        #[cfg(unix)]
+        let created = std::os::unix::fs::symlink(&target, &link);
+        #[cfg(windows)]
+        let created = std::os::windows::fs::symlink_file(&target, &link);
+        #[cfg(not(any(unix, windows)))]
+        let created: Result<(), std::io::Error> = Err(std::io::Error::other("unsupported"));
+
+        if let Err(e) = created {
+            eprintln!(
+                "soft-skip recovery_write_kit_file__symlink_leaf__refuses_target_intact: {e} \
+                 (Developer Mode / SeCreateSymbolicLinkPrivilege missing)"
+            );
+            return;
+        }
+
+        let err =
+            write_kit_file(&link, b"attacker-kit-payload").expect_err("symlink leaf must refuse");
+        let lower = err.to_string().to_ascii_lowercase();
+        assert!(
+            lower.contains("symlink") || lower.contains("reparse"),
+            "expected reparse/symlink refuse, got: {err}"
+        );
+        let target_bytes = fs::read(&target).expect("target still readable");
+        assert_eq!(
+            target_bytes, b"ORIGINAL-KIT-BYTES",
+            "symlink target content must not be truncated or overwritten (AC13)"
         );
     }
 }

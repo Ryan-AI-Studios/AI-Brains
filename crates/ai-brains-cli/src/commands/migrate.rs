@@ -43,7 +43,6 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -574,9 +573,8 @@ fn run_confirm_materialize(
     };
     let manifest_path = migrate_manifest_path(&opts.destination);
     refuse_hardlink_write_target(&manifest_path, "migrate-manifest")?;
-    let mut file = fs::File::create(&manifest_path)?;
-    file.write_all(serde_json::to_string_pretty(&manifest)?.as_bytes())?;
-    file.write_all(b"\n")?;
+    let body = format!("{}\n", serde_json::to_string_pretty(&manifest)?);
+    write_operator_file_nofollow(&manifest_path, body.as_bytes(), "migrate-manifest")?;
     *manifest_written = true;
 
     Ok(())
@@ -866,12 +864,48 @@ fn write_report_file(
     {
         fs::create_dir_all(parent)?;
     }
-    // TOCTOU re-check: refuse hardlinked report targets before File::create truncate.
+    // TOCTOU re-check: refuse hardlinked report targets before SOOT write.
     refuse_hardlink_write_target(path, "report")?;
-    let mut file = fs::File::create(path)?;
-    file.write_all(serde_json::to_string_pretty(report)?.as_bytes())?;
-    file.write_all(b"\n")?;
-    Ok(())
+    let body = format!("{}\n", serde_json::to_string_pretty(report)?);
+    write_operator_file_nofollow(path, body.as_bytes(), "report")
+}
+
+/// T193 P1: operator report/manifest write via shared nofollow SOOT (Replace).
+fn write_operator_file_nofollow(
+    path: &Path,
+    bytes: &[u8],
+    label: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| format!("{label} path has no parent directory: {}", path.display()))?;
+    let file_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("{label} path missing UTF-8 file name: {}", path.display()))?;
+    ai_brains_path::write_file_nofollow_under_parent_path(
+        parent,
+        file_name,
+        bytes,
+        ai_brains_path::CreateMode::Replace,
+    )
+    .map_err(|e| -> Box<dyn std::error::Error> {
+        use ai_brains_path::CapOpenError;
+        match e {
+            CapOpenError::ReparseRefused(s) => format!(
+                "refusing {label} write through reparse/symlink at {} ({s})",
+                path.display()
+            )
+            .into(),
+            CapOpenError::HardlinkRefused(s) => format!(
+                "refusing {label} write through hardlink at {} ({s})",
+                path.display()
+            )
+            .into(),
+            other => format!("failed to write {label} {}: {other}", path.display()).into(),
+        }
+    })
 }
 
 // ---------------------------------------------------------------------------
