@@ -555,6 +555,60 @@ mod tests {
     }
 
     #[test]
+    fn recovery_export__daemon_down__appends_recovery_kit_created_event() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let _allow = TempEnv::set(ai_brains_store::connection::ALLOW_ZERO_KEY_ENV, "1");
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path().join("vault.db");
+        let key_str =
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string();
+        let key = SqlCipherKey::from_raw(key_str.clone());
+        let conn = VaultConnection::open(&vault, &key).unwrap();
+        conn.migrate().unwrap();
+        drop(conn);
+
+        let out = dir.path().join("kit.json");
+        let pw_path = dir.path().join("pw.txt");
+        fs::write(&pw_path, b"test-passphrase-long-enough").unwrap();
+
+        run_export_with_daemon_state(
+            ExportOptions {
+                vault_path: vault.clone(),
+                key: Some(key_str.clone()),
+                output: out.clone(),
+                passphrase_file: Some(pw_path),
+                dry_run: false,
+                force: false,
+            },
+            false, // daemon down — migrate + append path
+        )
+        .expect("export must succeed");
+
+        assert!(out.exists(), "kit file must exist");
+
+        let conn = VaultConnection::open(&vault, &key).expect("reopen vault");
+        let store = SqliteEventStore::new(conn);
+        let events = store.read_all_events().expect("read events");
+        let kit_events: Vec<_> = events
+            .iter()
+            .filter(|e| matches!(e.payload, Payload::RecoveryKitCreated(_)))
+            .collect();
+        assert!(
+            !kit_events.is_empty(),
+            "expected at least one RecoveryKitCreated event; got {} total events",
+            events.len()
+        );
+        assert!(
+            matches!(
+                kit_events[0].payload,
+                Payload::RecoveryKitCreated(RecoveryKitCreatedPayload { ref key_id })
+                    if !key_id.is_empty()
+            ),
+            "RecoveryKitCreated payload must include non-empty key_id"
+        );
+    }
+
+    #[test]
     fn recovery_export__daemon_up__no_migrate_kit_ok() {
         let _g = ENV_LOCK.lock().unwrap();
         let _allow = TempEnv::set(ai_brains_store::connection::ALLOW_ZERO_KEY_ENV, "1");

@@ -37,7 +37,7 @@ See also [failure-drills.md](../conductor/failure-drills.md) F-REC-01/02 and
 | **T181-E-02** | Post-wipe backup: seal → wipe → backup → restore | Open fails (wrap destroyed) | Yes |
 | **T181-F-01** | Corrupt backup (header and/or body) | Non-zero + corruption-class substring | Yes |
 | **T181-F-02** | Wrong SQLCipher key on verify/restore | Non-zero + wrong-key class under live SQLCipher (T187 strict) | Yes (strict) |
-| **T181-F-03** | Daemon running during restore | **Hard-fail** (T188): non-zero exit, no vault overwrite; message includes `daemon is running` + `ai-brains daemon stop` + `sc stop AI-Brains-Daemon`. Dry-run allowed with live-restore-will-fail notice. `--force` never overrides probe. | Yes (unit + integration) |
+| **T181-F-03** | Daemon running during restore | **Hard-fail** (T188): non-zero exit, no vault overwrite; message includes `daemon is running` + `ai-brains daemon stop` + `sc stop AI-Brains-Daemon`. Dry-run allowed with live-restore-will-fail notice. `--force` never overrides probe. | Yes (unit-injected daemon-up hard-fail + integration daemon-down restore/export; live-daemon busy restore drill residual) |
 
 ---
 
@@ -194,4 +194,4 @@ cargo nextest run -p ai-brains-store --test recovery_drills --test content_envel
 
 Pin after implement:
 
-`DECISION: T181 recovery drills prove pre-erase backup residual; not NIST Purge; kit export remains operator residual`
+`DECISION: T181 recovery drills prove pre-erase backup residual; not NIST Purge. T188 ships recovery export + restore hard-fail; doctor remains residual.`
