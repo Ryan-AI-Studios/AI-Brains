@@ -92,12 +92,14 @@ pub fn normalize_locator(relative: &str) -> String {
 /// Rejects empty, absolute, `..` escapes, and reserved device stems in **any**
 /// component. Does not require the candidate to exist on disk.
 ///
-/// Does **not** perform reparse checks (path may not exist). Call
-/// [`refuse_reparse_along_path`] before open/observe.
+/// Does **not** open the path or perform open-time reparse refuse. For vault
+/// content I/O use [`read_file_under_root`] (T190 cap-std component nofollow).
+/// [`refuse_reparse_along_path`] remains available for legacy pre-checks but is
+/// **not** the SOOT for read/list (check-then-open residual).
 ///
 /// Containment is **lexical** (no symlink follow). Following reparse here would
 /// turn intermediate symlink escapes into [`VaultFsError::PathEscape`] before
-/// reparse refuse can run (T154 R1-01 / T179 Linux).
+/// open-time refuse can run (T154 R1-01 / T179 Linux).
 pub fn resolve_under_root(root: &Path, relative: &str) -> Result<PathBuf, VaultFsError> {
     let safe_parts = safe_relative_components(relative)?;
     let root_abs = absolute_root(root)?;

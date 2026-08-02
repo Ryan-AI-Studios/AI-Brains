@@ -76,7 +76,8 @@ pub enum CapOpenError {
 /// The root itself is trusted (configured by the operator). Subsequent opens
 /// are relative to this [`Dir`] with component-wise nofollow.
 pub fn open_ambient_vault_dir(root: &Path) -> Result<Dir, CapOpenError> {
-    Dir::open_ambient_dir(root, ambient_authority()).map_err(|e| map_io_err(e, &root.display().to_string()))
+    Dir::open_ambient_dir(root, ambient_authority())
+        .map_err(|e| map_io_err(e, &root.display().to_string()))
 }
 
 /// Open a single directory component under `parent` without following reparse/symlinks.
@@ -374,8 +375,8 @@ mod tests {
         fs::create_dir_all(&notes).expect("mkdir");
         fs::write(notes.join("alpha.md"), b"hello vault").expect("write");
 
-        let bytes =
-            read_file_nofollow_components(dir.path(), &["notes", "alpha.md"], 1_048_576).expect("ok");
+        let bytes = read_file_nofollow_components(dir.path(), &["notes", "alpha.md"], 1_048_576)
+            .expect("ok");
         assert_eq!(bytes, b"hello vault");
     }
 
@@ -396,9 +397,8 @@ mod tests {
             return;
         }
 
-        let err =
-            read_file_nofollow_components(dir.path(), &["notes", "link.md"], 1_048_576)
-                .expect_err("final symlink");
+        let err = read_file_nofollow_components(dir.path(), &["notes", "link.md"], 1_048_576)
+            .expect_err("final symlink");
         assert!(
             matches!(err, CapOpenError::ReparseRefused(_)),
             "expected ReparseRefused, got {err:?}"
@@ -416,15 +416,12 @@ mod tests {
 
         let link = notes.join("alias.md");
         if !create_file_symlink(&target, &link) {
-            eprintln!(
-                "soft-skip: could not create in-vault file symlink (privilege missing)."
-            );
+            eprintln!("soft-skip: could not create in-vault file symlink (privilege missing).");
             return;
         }
 
-        let err =
-            read_file_nofollow_components(dir.path(), &["notes", "alias.md"], 1_048_576)
-                .expect_err("in-vault final symlink must refuse (F9), not follow");
+        let err = read_file_nofollow_components(dir.path(), &["notes", "alias.md"], 1_048_576)
+            .expect_err("in-vault final symlink must refuse (F9), not follow");
         assert!(
             matches!(err, CapOpenError::ReparseRefused(_)),
             "expected ReparseRefused for in-vault symlink, got {err:?}"
@@ -442,18 +439,13 @@ mod tests {
 
         let link = notes.join("evil");
         if !create_dir_symlink(outside.path(), &link) {
-            eprintln!(
-                "soft-skip: could not create dir symlink/junction (privilege missing)."
-            );
+            eprintln!("soft-skip: could not create dir symlink/junction (privilege missing).");
             return;
         }
 
-        let err = read_file_nofollow_components(
-            dir.path(),
-            &["notes", "evil", "file.md"],
-            1_048_576,
-        )
-        .expect_err("intermediate reparse");
+        let err =
+            read_file_nofollow_components(dir.path(), &["notes", "evil", "file.md"], 1_048_576)
+                .expect_err("intermediate reparse");
         assert!(
             matches!(err, CapOpenError::ReparseRefused(_)),
             "expected ReparseRefused, got {err:?}"
@@ -477,7 +469,13 @@ mod tests {
         fs::write(dir.path().join("big.md"), vec![b'x'; 100]).expect("write");
         let err = read_file_nofollow_components(dir.path(), &["big.md"], 50).expect_err("cap");
         assert!(
-            matches!(err, CapOpenError::Oversized { size: 100, max_bytes: 50 }),
+            matches!(
+                err,
+                CapOpenError::Oversized {
+                    size: 100,
+                    max_bytes: 50
+                }
+            ),
             "expected Oversized, got {err:?}"
         );
     }
@@ -486,8 +484,8 @@ mod tests {
     fn read_under_root_cap__open_fail__no_ambient_fallback() {
         let dir = tempdir().expect("tempdir");
         // Missing file: must be NotFound/Io — never ambient-read success.
-        let err = read_file_nofollow_components(dir.path(), &["missing.md"], 1024)
-            .expect_err("missing");
+        let err =
+            read_file_nofollow_components(dir.path(), &["missing.md"], 1024).expect_err("missing");
         assert!(
             matches!(err, CapOpenError::NotFound(_) | CapOpenError::Io(_)),
             "expected NotFound/Io without ambient fallback, got {err:?}"
@@ -508,18 +506,13 @@ mod tests {
 
         let link = notes.join("junc");
         if !create_dir_junction(outside.path(), &link) {
-            eprintln!(
-                "soft-skip: could not create directory junction (privilege or API missing)."
-            );
+            eprintln!("soft-skip: could not create directory junction (privilege or API missing).");
             return;
         }
 
-        let err = read_file_nofollow_components(
-            dir.path(),
-            &["notes", "junc", "file.md"],
-            1_048_576,
-        )
-        .expect_err("junction");
+        let err =
+            read_file_nofollow_components(dir.path(), &["notes", "junc", "file.md"], 1_048_576)
+                .expect_err("junction");
         assert!(
             matches!(err, CapOpenError::ReparseRefused(_)),
             "expected ReparseRefused, got {err:?}"
@@ -545,9 +538,7 @@ mod tests {
         assert!(
             matches!(
                 err,
-                CapOpenError::ReparseRefused(_)
-                    | CapOpenError::NotAFile(_)
-                    | CapOpenError::Io(_)
+                CapOpenError::ReparseRefused(_) | CapOpenError::NotAFile(_) | CapOpenError::Io(_)
             ),
             "expected refuse / fail-closed, got {err:?}"
         );

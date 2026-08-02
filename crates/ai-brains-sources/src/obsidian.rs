@@ -453,9 +453,7 @@ fn map_cap_open_err(e: CapOpenError) -> ConnectorError {
 /// without treating permission-denied or other real I/O as silent skip.
 fn is_enotdir_message(msg: &str) -> bool {
     let lower = msg.to_ascii_lowercase();
-    lower.contains("not a directory")
-        || lower.contains("enotdir")
-        || lower.contains("is a file")
+    lower.contains("not a directory") || lower.contains("enotdir") || lower.contains("is a file")
 }
 
 /// Recursive directory walk via cap-std [`Dir`] handles; **no** `std::fs::read_dir`.
@@ -713,7 +711,9 @@ mod unit_tests {
         let locs: Vec<_> = handles.iter().map(|h| h.locator.as_str()).collect();
         assert!(locs.contains(&"notes/ok.md"), "{locs:?}");
         assert!(
-            !locs.iter().any(|l| l.contains("evil") || l.contains("secret")),
+            !locs
+                .iter()
+                .any(|l| l.contains("evil") || l.contains("secret")),
             "must not list through intermediate symlink: {locs:?}"
         );
     }

@@ -581,9 +581,10 @@ pub fn make_honcho_identity(scope: &ScopeRef, item_id: &str) -> String {
 /// Callers that need a wall-clock bound should wrap via the path-IO timeout
 /// helper (Honcho path connector does this automatically).
 pub fn load_honcho_export_dir(dir: &Path) -> Result<Vec<HonchoConfirmedItem>, ConnectorError> {
-    let root = ai_brains_path::open_ambient_vault_dir(dir).map_err(|e| ConnectorError::Internal {
-        detail: format!("honcho export open {}: {e}", dir.display()),
-    })?;
+    let root =
+        ai_brains_path::open_ambient_vault_dir(dir).map_err(|e| ConnectorError::Internal {
+            detail: format!("honcho export open {}: {e}", dir.display()),
+        })?;
     let names = ai_brains_path::list_entry_names(&root).map_err(|e| ConnectorError::Internal {
         detail: format!("honcho export list {}: {e}", dir.display()),
     })?;
@@ -614,10 +615,11 @@ pub fn load_honcho_export_dir(dir: &Path) -> Result<Vec<HonchoConfirmedItem>, Co
 
     let mut items = Vec::new();
     for name in files {
-        let bytes = ai_brains_path::read_file_nofollow_components(dir, &[name.as_str()], 16 * 1024 * 1024)
-            .map_err(|e| ConnectorError::Internal {
-                detail: format!("honcho export read {name}: {e}"),
-            })?;
+        let bytes =
+            ai_brains_path::read_file_nofollow_components(dir, &[name.as_str()], 16 * 1024 * 1024)
+                .map_err(|e| ConnectorError::Internal {
+                    detail: format!("honcho export read {name}: {e}"),
+                })?;
         let text = String::from_utf8(bytes).map_err(|e| ConnectorError::Internal {
             detail: format!("honcho export utf-8 {name}: {e}"),
         })?;

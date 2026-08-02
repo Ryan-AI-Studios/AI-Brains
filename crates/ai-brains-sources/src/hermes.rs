@@ -647,9 +647,10 @@ where
 /// Callers that need a wall-clock bound should wrap via the path-IO timeout
 /// helper (Hermes/Honcho path connectors do this automatically).
 pub fn load_hermes_export_dir(dir: &Path) -> Result<Vec<HermesSessionSummary>, ConnectorError> {
-    let root = ai_brains_path::open_ambient_vault_dir(dir).map_err(|e| ConnectorError::Internal {
-        detail: format!("hermes export open {}: {e}", dir.display()),
-    })?;
+    let root =
+        ai_brains_path::open_ambient_vault_dir(dir).map_err(|e| ConnectorError::Internal {
+            detail: format!("hermes export open {}: {e}", dir.display()),
+        })?;
     let names = ai_brains_path::list_entry_names(&root).map_err(|e| ConnectorError::Internal {
         detail: format!("hermes export list {}: {e}", dir.display()),
     })?;
@@ -681,10 +682,11 @@ pub fn load_hermes_export_dir(dir: &Path) -> Result<Vec<HermesSessionSummary>, C
 
     let mut items = Vec::new();
     for name in files {
-        let bytes = ai_brains_path::read_file_nofollow_components(dir, &[name.as_str()], 16 * 1024 * 1024)
-            .map_err(|e| ConnectorError::Internal {
-                detail: format!("hermes export read {name}: {e}"),
-            })?;
+        let bytes =
+            ai_brains_path::read_file_nofollow_components(dir, &[name.as_str()], 16 * 1024 * 1024)
+                .map_err(|e| ConnectorError::Internal {
+                    detail: format!("hermes export read {name}: {e}"),
+                })?;
         let text = String::from_utf8(bytes).map_err(|e| ConnectorError::Internal {
             detail: format!("hermes export utf-8 {name}: {e}"),
         })?;
