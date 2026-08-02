@@ -1021,4 +1021,41 @@ mod tests {
                     .unwrap_or(false)
         );
     }
+
+    /// T193 AC5/AC13: force/replace kit write to a symlink leaf must refuse and leave target intact.
+    #[test]
+    fn recovery_write_kit_file__symlink_leaf__refuses_target_intact() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("real-kit.json");
+        fs::write(&target, b"ORIGINAL-KIT-BYTES").unwrap();
+        let link = dir.path().join("kit.json");
+
+        #[cfg(unix)]
+        let created = std::os::unix::fs::symlink(&target, &link);
+        #[cfg(windows)]
+        let created = std::os::windows::fs::symlink_file(&target, &link);
+        #[cfg(not(any(unix, windows)))]
+        let created: Result<(), std::io::Error> = Err(std::io::Error::other("unsupported"));
+
+        if let Err(e) = created {
+            eprintln!(
+                "soft-skip recovery_write_kit_file__symlink_leaf__refuses_target_intact: {e} \
+                 (Developer Mode / SeCreateSymbolicLinkPrivilege missing)"
+            );
+            return;
+        }
+
+        let err = write_kit_file(&link, b"attacker-kit-payload")
+            .expect_err("symlink leaf must refuse");
+        let lower = err.to_string().to_ascii_lowercase();
+        assert!(
+            lower.contains("symlink") || lower.contains("reparse"),
+            "expected reparse/symlink refuse, got: {err}"
+        );
+        let target_bytes = fs::read(&target).expect("target still readable");
+        assert_eq!(
+            target_bytes, b"ORIGINAL-KIT-BYTES",
+            "symlink target content must not be truncated or overwritten (AC13)"
+        );
+    }
 }

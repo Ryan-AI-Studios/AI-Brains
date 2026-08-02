@@ -147,7 +147,7 @@ token write/load → SOOT (+ owner ACL)                // cross-platform
 write_kit_file → SOOT (+ best-effort ACL)            // cross-platform
 ```
 
-`CreateMode`: **`CreateNew` | `Replace`** only.  
+`CreateMode`: **`CreateNew` | `Replace`** only.
 **Removed:** `TruncateExisting` / `CreateOrTruncate` as open flags (unsafe on Windows with reparse flag — F9/F31).
 
 ## 6. Acceptance criteria
