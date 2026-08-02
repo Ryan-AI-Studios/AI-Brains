@@ -345,7 +345,7 @@ pub async fn run(
 
     // --- MADR Ingestion (Phase 18: T41) ---
     tracing::info!("Ingesting structured MADR decisions from Ledgerful...");
-    if let Err(e) = ingest_madr_from_changeguard(ctx, project_id) {
+    if let Err(e) = ingest_madr_from_ledgerful(ctx, project_id) {
         tracing::error!("MADR ingestion failed (non-fatal): {}", e);
         tracing::warn!(
             "MADR ingestion failed: {}. Nightly sweep completed successfully.",
@@ -355,7 +355,7 @@ pub async fn run(
 
     // --- Symbol Bridge (T70) ---
     tracing::info!("[Nightly] Ingesting code symbols from Ledgerful...");
-    match crate::commands::symbol_bridge::ingest_symbols_from_changeguard(ctx, project_id) {
+    match crate::commands::symbol_bridge::ingest_symbols_from_ledgerful(ctx, project_id) {
         Ok(n) => tracing::info!("[Nightly] {} code symbols ingested.", n),
         Err(e) => tracing::warn!("[Nightly] Symbol ingestion failed (non-fatal): {}", e),
     }
@@ -498,7 +498,7 @@ fn write_wrapper_script(content: &str) -> Result<std::path::PathBuf, Box<dyn std
 
 /// Fetch structured MADR records from Ledgerful via bridge IPC and ingest as
 /// Decision domain events into the event store.
-fn ingest_madr_from_changeguard(
+fn ingest_madr_from_ledgerful(
     ctx: &AppContext,
     project_id: ProjectId,
 ) -> Result<(), Box<dyn std::error::Error>> {

@@ -257,7 +257,7 @@ fn build_legacy_preflight(
     let mut has_cg_intelligence = false;
     if !global
         && let Some(ref pid) = project_id_str
-        && let Some(cg_context) = query_changeguard(pid, scope_paths.as_ref())
+        && let Some(cg_context) = query_ledgerful(pid, scope_paths.as_ref())
     {
         sections.push(cg_context);
         has_cg_intelligence = true;
@@ -490,7 +490,7 @@ fn build_legacy_preflight(
     })
 }
 
-fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Option<String> {
+fn query_ledgerful(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Option<String> {
     // 1. Create a temp file
     let temp_file = tempfile::NamedTempFile::new().ok()?;
     let temp_path = temp_file.path().to_path_buf();
@@ -518,7 +518,7 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
     if !output.status.success() {
         // Fail-open: if contextual query fails, fall through to generic query
         if scope_paths.is_some() {
-            return query_changeguard_fallback();
+            return query_ledgerful_fallback();
         }
         return None;
     }
@@ -591,7 +591,7 @@ fn query_changeguard(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Op
 
 /// Fallback: run a generic (non-scoped) hotspot query when contextual query fails.
 /// Implements the fail-open requirement.
-fn query_changeguard_fallback() -> Option<String> {
+fn query_ledgerful_fallback() -> Option<String> {
     let temp_file = tempfile::NamedTempFile::new().ok()?;
     let temp_path = temp_file.path().to_path_buf();
 

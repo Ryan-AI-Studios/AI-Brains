@@ -52,6 +52,9 @@ pub const AMBIENT_DENYLIST: &[&str] = &[
     // CLI env args not in elevation list
     "AI_BRAINS_SCOPE",
     "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID",
+    // Ledgerful TX id (preferred + deprecated alias) — strip ambient pollution
+    "LEDGERFUL_TX_ID",
+    "CHANGEGUARD_TX_ID",
 ];
 
 /// `cargo_bin("ai-brains")` with ambient denylist stripped.

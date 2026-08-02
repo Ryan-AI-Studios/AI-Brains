@@ -1,6 +1,7 @@
 #![allow(clippy::disallowed_methods)]
 
-use assert_cmd::Command;
+mod common;
+
 use predicates::prelude::*;
 use std::io::Write;
 use tempfile::tempdir;
@@ -13,7 +14,7 @@ fn test_madr_ingestion_via_sync_pull() -> Result<(), Box<dyn std::error::Error>>
     let vault_path = dir.path().join("vault.db");
 
     // 1. Initialize the vault
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -47,7 +48,7 @@ fn test_madr_ingestion_via_sync_pull() -> Result<(), Box<dyn std::error::Error>>
     file.flush()?;
 
     // 3. Pull the MADR record via sync
-    let mut pull_cmd = Command::cargo_bin("ai-brains")?;
+    let mut pull_cmd = common::hermetic_bin();
     pull_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -60,7 +61,7 @@ fn test_madr_ingestion_via_sync_pull() -> Result<(), Box<dyn std::error::Error>>
         .stdout(predicate::str::contains("Successfully synced"));
 
     // 4. Verify the MADR was stored in memory_projection via recall
-    let mut recall_cmd = Command::cargo_bin("ai-brains")?;
+    let mut recall_cmd = common::hermetic_bin();
     recall_cmd
         .arg("--vault-path")
         .arg(&vault_path)

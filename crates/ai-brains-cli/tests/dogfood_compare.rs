@@ -3,13 +3,15 @@
 
 //! T170 — `dogfood compare` CLI smoke + basic compare packet.
 
+mod common;
+
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
 use tempfile::tempdir;
 
 fn cmd() -> Command {
-    Command::cargo_bin("ai-brains").expect("binary")
+    common::hermetic_bin()
 }
 
 #[test]

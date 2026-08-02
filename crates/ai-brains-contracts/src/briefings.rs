@@ -119,7 +119,7 @@ pub struct FreshnessSummaryDto {
     pub worst_state: String,
 }
 
-/// Optional Ledgerful / ChangeGuard blend (degrades to null/empty on failure).
+/// Optional Ledgerful blend (degrades to null/empty on failure).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LedgerfulSectionDto {
     #[serde(default)]

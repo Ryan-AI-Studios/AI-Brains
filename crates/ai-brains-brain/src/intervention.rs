@@ -155,7 +155,7 @@ impl RiskReviewAgent {
     /// Returns an empty `Vec` (not an error) when Ledgerful is unreachable
     /// so the agent never disrupts the main pipeline.
     async fn poll_risk_alerts(&self) -> Result<Vec<RiskAlert>, String> {
-        query_changeguard_risk_alerts().await
+        query_ledgerful_risk_alerts().await
     }
 
     // ------------------------------------------------------------------
@@ -195,7 +195,7 @@ impl RiskReviewAgent {
 /// Shell out to `ledgerful bridge export --hotspots` and parse the NDJSON
 /// output for records with `record_kind = "risk_alert"`.
 #[allow(clippy::disallowed_methods)]
-async fn query_changeguard_risk_alerts() -> Result<Vec<RiskAlert>, String> {
+async fn query_ledgerful_risk_alerts() -> Result<Vec<RiskAlert>, String> {
     // Build the request envelope (same pattern as other bridge users).
     let record = BridgeRecord {
         bridge_version: "0.3".to_string(),
@@ -455,7 +455,7 @@ mod tests {
 
     #[test]
     fn blast_radius_returns_empty_when_cozo_unavailable() {
-        // Use a backend that we know is unavailable (no .changeguard/ dir)
+        // Use a backend that we know is unavailable (no .ledgerful/ dir)
         let backend = CozoProxyBackend::new(Some(PathBuf::from("./nonexistent_dir_12345")));
         assert!(!backend.is_available());
 

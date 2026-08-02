@@ -1,4 +1,6 @@
-use assert_cmd::Command;
+mod common;
+
+use ai_brains_core::temp_env::TempEnv;
 use predicates::prelude::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -7,11 +9,13 @@ use tempfile::tempdir;
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>> {
+    // Hermetic CLI init uses zero key; in-process VaultConnection.open needs the same allow.
+    let _allow_zero = TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let dir = tempdir()?;
     let vault_path = dir.path().join("vault.db");
 
     // 1. Initialize the vault
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -74,7 +78,7 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
     pull_file.flush()?;
 
     // 3. Pull the mock records into AI-Brains
-    let mut pull_cmd = Command::cargo_bin("ai-brains")?;
+    let mut pull_cmd = common::hermetic_bin();
     pull_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -112,7 +116,7 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
 
     // Run sync push. It might fail if ledgerful binary isn't in PATH,
     // but the NDJSON export file should have been written to the temp dir.
-    let mut push_cmd = Command::cargo_bin("ai-brains")?;
+    let mut push_cmd = common::hermetic_bin();
     let push_assert = push_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -166,24 +170,16 @@ fn test_cross_repo_sync_pull_and_push() -> Result<(), Box<dyn std::error::Error>
 
 #[test]
 #[allow(clippy::disallowed_methods)]
-fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std::error::Error>> {
-    // Try ledgerful (canonical) first, fall back to changeguard alias
-    let binary = if std::process::Command::new("ledgerful")
-        .arg("--version")
-        .output()
-        .is_ok()
-    {
-        "ledgerful"
-    } else {
-        "changeguard"
-    };
-
+fn test_cross_repo_e2e_integration_with_ledgerful() -> Result<(), Box<dyn std::error::Error>> {
+    let _allow_zero = TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
+    // F17b: ledgerful-only (no changeguard binary fallback); skip if missing.
+    let binary = "ledgerful";
     if std::process::Command::new(binary)
         .arg("--version")
         .output()
         .is_err()
     {
-        println!("Skipping E2E test: {} CLI not found in PATH.", binary);
+        println!("Skipping E2E test: {binary} CLI not found in PATH.");
         return Ok(());
     }
 
@@ -195,7 +191,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     let mut cg_init = std::process::Command::new(binary);
     cg_init.arg("init").current_dir(&ws_path);
     let output = cg_init.output()?;
-    assert!(output.status.success(), "{} init failed", binary);
+    assert!(output.status.success(), "{binary} init failed");
 
     // Create a dummy source file so that scan has something to index
     let dummy_rs = ws_path.join("src").join("main.rs");
@@ -230,7 +226,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     assert!(output.status.success(), "{} scan failed", binary);
 
     // 2. Initialize AI-Brains vault
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -239,7 +235,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
         .success();
 
     // 3. Initialize context in the workspace (which auto-triggers sync pull)
-    let mut context_cmd = Command::cargo_bin("ai-brains")?;
+    let mut context_cmd = common::hermetic_bin();
     let output = context_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -310,7 +306,7 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
     drop(conn);
 
     // 6. Run sync push to export the memory back to Ledgerful
-    let mut push_cmd = Command::cargo_bin("ai-brains")?;
+    let mut push_cmd = common::hermetic_bin();
     push_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -345,11 +341,12 @@ fn test_cross_repo_e2e_integration_with_changeguard() -> Result<(), Box<dyn std:
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn test_lineage_bootstrapping_with_existing_hash() -> Result<(), Box<dyn std::error::Error>> {
+    let _allow_zero = TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let dir = tempdir()?;
     let vault_path = dir.path().join("vault.db");
 
     // 1. Initialize the vault
-    let mut init_cmd = Command::cargo_bin("ai-brains")?;
+    let mut init_cmd = common::hermetic_bin();
     init_cmd
         .arg("--vault-path")
         .arg(&vault_path)
@@ -444,7 +441,7 @@ fn test_lineage_bootstrapping_with_existing_hash() -> Result<(), Box<dyn std::er
     pull_file.flush()?;
 
     // 4. Pull the mock records into AI-Brains. Only record 1 & 2 should succeed.
-    let mut pull_cmd = Command::cargo_bin("ai-brains")?;
+    let mut pull_cmd = common::hermetic_bin();
     pull_cmd
         .arg("--vault-path")
         .arg(&vault_path)

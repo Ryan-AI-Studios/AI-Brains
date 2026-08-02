@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-struct ChangeGuardHotspot {
+struct LedgerfulHotspot {
     path: String,
     score: f64,
     complexity: f64,
@@ -99,7 +99,7 @@ pub fn run(
     Ok(())
 }
 
-fn fetch_hotspots_json(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> {
+fn fetch_hotspots_json(limit: usize) -> Result<Vec<LedgerfulHotspot>, String> {
     let output = std::process::Command::new("ledgerful")
         .args(["hotspots", "--json", "--limit", &limit.to_string()])
         .output()
@@ -123,11 +123,11 @@ fn fetch_hotspots_json(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> 
         .collect::<Vec<_>>()
         .join("\n");
 
-    serde_json::from_str::<Vec<ChangeGuardHotspot>>(&json_str)
+    serde_json::from_str::<Vec<LedgerfulHotspot>>(&json_str)
         .map_err(|e| format!("failed to parse ledgerful JSON: {}", e))
 }
 
-fn fetch_hotspots_text(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> {
+fn fetch_hotspots_text(limit: usize) -> Result<Vec<LedgerfulHotspot>, String> {
     let output = std::process::Command::new("ledgerful")
         .args(["hotspots", "--limit", &limit.to_string()])
         .output()
@@ -155,7 +155,7 @@ fn fetch_hotspots_text(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> 
         {
             let path = parts[5].to_string();
             if !path.is_empty() && path != "File Path" {
-                hotspots.push(ChangeGuardHotspot {
+                hotspots.push(LedgerfulHotspot {
                     path,
                     score,
                     complexity,
@@ -171,7 +171,7 @@ fn fetch_hotspots_text(limit: usize) -> Result<Vec<ChangeGuardHotspot>, String> 
     Ok(hotspots)
 }
 
-fn render_hotspots(hotspots: &[ChangeGuardHotspot]) -> String {
+fn render_hotspots(hotspots: &[LedgerfulHotspot]) -> String {
     let mut lines = vec!["HOTSPOT: Brittle files identified by Ledgerful:".to_string()];
     for (i, h) in hotspots.iter().enumerate() {
         lines.push(format!(
