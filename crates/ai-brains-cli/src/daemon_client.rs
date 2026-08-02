@@ -325,6 +325,16 @@ impl DaemonClient {
         use tokio::net::UnixStream;
         use tokio::time::timeout as tokio_timeout;
 
+        // Invalid AI_BRAINS_DAEMON_SOCKET leaves empty path (fail-closed; no /tmp guess).
+        // Surface as Protocol config error, not NotRunning (T195 internal R1 P3).
+        if self.socket_path.is_empty() {
+            return Err(DaemonClientError::Protocol(
+                "invalid AI_BRAINS_DAEMON_SOCKET (must be absolute); refusing daemon connect \
+                 without a resolved UDS path"
+                    .into(),
+            ));
+        }
+
         let mut stream = match tokio_timeout(timeout, UnixStream::connect(&self.socket_path)).await
         {
             Ok(Ok(s)) => s,
@@ -527,5 +537,26 @@ mod tests {
             "",
             "invalid override must not guess /tmp"
         );
+    }
+
+    #[cfg(not(windows))]
+    #[tokio::test]
+    async fn request_unix__empty_socket_path__protocol_config_error() {
+        let client = DaemonClient {
+            socket_path: String::new(),
+        };
+        let err = client
+            .request(DaemonRequest::Ping)
+            .await
+            .expect_err("empty path must fail");
+        match err {
+            DaemonClientError::Protocol(msg) => {
+                assert!(
+                    msg.contains("AI_BRAINS_DAEMON_SOCKET"),
+                    "expected config message, got {msg}"
+                );
+            }
+            other => panic!("expected Protocol, got {other:?}"),
+        }
     }
 }

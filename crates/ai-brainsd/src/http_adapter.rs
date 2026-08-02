@@ -81,6 +81,13 @@ pub fn service_http_opt_in_from_env() -> bool {
     }
 }
 
+/// Composed service-host HTTP gate (T195 F10): start HTTP only when both enabled and opted in.
+///
+/// Pure truth table for unit tests; `windows_service` applies this before [`maybe_start_http`].
+pub fn service_should_start_http(http_enabled: bool, service_opt_in: bool) -> bool {
+    http_enabled && service_opt_in
+}
+
 /// Parse optional `--http-bind <addr>` from argv.
 pub fn parse_http_bind_arg(args: &[String]) -> Option<String> {
     let mut iter = args.iter();
@@ -204,5 +211,14 @@ mod tests {
             let _g = TempEnv::set("AI_BRAINS_HTTP_SERVICE", "no");
             assert!(!service_http_opt_in_from_env());
         }
+    }
+
+    #[test]
+    fn service_should_start_http__truth_table() {
+        // enabled ∧ opt-in → start; any other combo → skip
+        assert!(!service_should_start_http(false, false));
+        assert!(!service_should_start_http(false, true));
+        assert!(!service_should_start_http(true, false));
+        assert!(service_should_start_http(true, true));
     }
 }
