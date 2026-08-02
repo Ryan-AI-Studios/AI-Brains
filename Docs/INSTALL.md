@@ -119,10 +119,10 @@ CLI `--key` / `AI_BRAINS_KEY` must be `x'<64 hex chars>'`. All-zero keys are ref
 | Platform | Live CLI ↔ daemon transport |
 |----------|----------------------------|
 | Windows | Named pipe (e.g. `\\.\pipe\ledgerful-bridge` for bridge; daemon IPC per OPERATIONS) |
-| Unix | **UDS** (e.g. `/tmp/ledgerful-bridge.sock` for bridge) |
+| Unix | **UDS** via shared resolver: `AI_BRAINS_DAEMON_SOCKET` → valid `$XDG_RUNTIME_DIR/ledgerful-bridge.sock` → `/tmp/ledgerful-bridge.sock` fallback (T195) |
 | Portable multi-OS | Optional loopback **HTTP + bearer** (default off) |
 
-Do **not** document Unix as “already HTTP-default.” Live Unix path is UDS; HTTP is the portable/opt-in surface. Details: [COMPATIBILITY.md](COMPATIBILITY.md), [OPERATIONS.md](OPERATIONS.md).
+Do **not** document Unix as “always `/tmp` only” or “already HTTP-default.” Live Unix path is UDS (XDG-first when valid); HTTP is the portable/opt-in surface. Details: [COMPATIBILITY.md](COMPATIBILITY.md), [OPERATIONS.md](OPERATIONS.md).
 
 ---
 
