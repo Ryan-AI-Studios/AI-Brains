@@ -496,7 +496,7 @@ enum VaultCommands {
         /// Required for non-dry-run apply
         #[arg(long)]
         confirm: bool,
-        /// Require a recent verified backup (default true). Use --require-backup=false only with audit bypass.
+        /// Require a recent verified backup (default true). `--require-backup=false` alone does not bypass; use `--i-have-backup "I have a backup"`.
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         require_backup: bool,
         /// Exact phrase bypass for backup gate: `I have a backup` (sets backup_bypassed on event)

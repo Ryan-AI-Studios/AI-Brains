@@ -11,7 +11,8 @@
 use crate::errors::{Result, StoreError};
 use crate::pragmas::{apply_key_pragmas, apply_pragmas};
 use crate::projections::content_envelope::{
-    self, ContentKeyWrapRow, list_active_content_key_wraps, update_content_key_wrap,
+    self, ContentKeyWrapRow, list_active_content_key_wraps, list_blobs_for_content_key,
+    update_content_key_wrap,
 };
 use crate::projections::replication::{
     self, DevicePrivateKeyRow, list_device_private_key_wraps, put_device_private_key_wrap,
@@ -20,7 +21,7 @@ use ai_brains_core::ids::{ContentKeyId, DeviceId};
 use ai_brains_crypto::content_key_store::{
     WrappedContentDek, parse_nonce, rotate_content_dek_wrap, unwrap_content_dek,
 };
-use ai_brains_crypto::{DataKey, SqlCipherKey};
+use ai_brains_crypto::{DataKey, SealedContent, SqlCipherKey, unwrap_and_open};
 use ai_brains_sync::{SealedDevicePrivate, open_device_private_blob, seal_device_private_blob};
 use rusqlite::Connection;
 use std::fs;
@@ -143,7 +144,7 @@ fn rotate_datakey_export(
 
     // 1) Export pages under new key (application wraps still under old DataKey).
     if let Err(e) = sqlcipher_export_encrypted(vault_path, old_sql_key, &dest, new_sql_key) {
-        let _ = fs::remove_file(&dest);
+        remove_db_and_sidecars(&dest);
         return Err(e);
     }
 
@@ -174,14 +175,14 @@ fn rotate_datakey_export(
     let result = match apply_result {
         Ok(r) => r,
         Err(e) => {
-            let _ = fs::remove_file(&dest);
+            remove_db_and_sidecars(&dest);
             return Err(e);
         }
     };
 
     // 4) Atomic replace: on failure, leave dest for recovery but old vault intact.
     if let Err(e) = atomic_replace_file(&dest, vault_path) {
-        let _ = fs::remove_file(&dest);
+        remove_db_and_sidecars(&dest);
         return Err(e);
     }
 
@@ -213,12 +214,18 @@ fn sqlcipher_export_encrypted(
     let key_material = new_key.expose_secret();
     let attach = format!("ATTACH DATABASE {dest_sql} AS rotated KEY \"{key_material}\";");
     src.execute_batch(&attach).map_err(|e| {
-        StoreError::ConnectionFailed(format!("ATTACH rotated for sqlcipher_export failed: {e}"))
+        StoreError::ConnectionFailed(format!(
+            "ATTACH rotated for sqlcipher_export failed ({})",
+            redact_sql_err(e)
+        ))
     })?;
     src.execute_batch("SELECT sqlcipher_export('rotated');")
-        .map_err(|e| StoreError::ConnectionFailed(format!("sqlcipher_export failed: {e}")))?;
-    src.execute_batch("DETACH DATABASE rotated;")
-        .map_err(|e| StoreError::ConnectionFailed(format!("DETACH rotated failed: {e}")))?;
+        .map_err(|e| {
+            StoreError::ConnectionFailed(format!("sqlcipher_export failed ({})", redact_sql_err(e)))
+        })?;
+    src.execute_batch("DETACH DATABASE rotated;").map_err(|e| {
+        StoreError::ConnectionFailed(format!("DETACH rotated failed ({})", redact_sql_err(e)))
+    })?;
     Ok(())
 }
 
@@ -286,18 +293,28 @@ fn rotate_datakey_rekey(
         let _ = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()));
         conn.execute_batch("PRAGMA journal_mode = DELETE;")
             .map_err(|e| {
-                StoreError::ConnectionFailed(format!("journal_mode=DELETE before rekey: {e}"))
+                StoreError::ConnectionFailed(format!(
+                    "journal_mode=DELETE before rekey ({})",
+                    redact_sql_err(e)
+                ))
             })?;
         let rekey_sql = format!("PRAGMA rekey = \"{}\";", new_sql_key.expose_secret());
-        conn.execute_batch(&rekey_sql)
-            .map_err(|e| StoreError::ConnectionFailed(format!("PRAGMA rekey failed: {e}")))?;
+        conn.execute_batch(&rekey_sql).map_err(|e| {
+            StoreError::ConnectionFailed(format!("PRAGMA rekey failed ({})", redact_sql_err(e)))
+        })?;
         conn.execute_batch("PRAGMA journal_mode = WAL;")
             .map_err(|e| {
-                StoreError::ConnectionFailed(format!("journal_mode=WAL after rekey: {e}"))
+                StoreError::ConnectionFailed(format!(
+                    "journal_mode=WAL after rekey ({})",
+                    redact_sql_err(e)
+                ))
             })?;
         conn.execute_batch("PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;")
             .map_err(|e| {
-                StoreError::ConnectionFailed(format!("restore pragmas after rekey: {e}"))
+                StoreError::ConnectionFailed(format!(
+                    "restore pragmas after rekey ({})",
+                    redact_sql_err(e)
+                ))
             })?;
 
         verify_open(&conn)?;
@@ -332,9 +349,7 @@ fn rotate_datakey_rekey(
 
 fn restore_snapshot(snapshot: &Path, vault_path: &Path) -> Result<()> {
     // Remove live vault + sidecars then copy snapshot back.
-    let _ = fs::remove_file(vault_path);
-    let _ = fs::remove_file(sidecar(vault_path, "-wal"));
-    let _ = fs::remove_file(sidecar(vault_path, "-shm"));
+    remove_db_and_sidecars(vault_path);
     fs::copy(snapshot, vault_path).map_err(|e| {
         StoreError::ConnectionFailed(format!(
             "copy snapshot {} → {}: {e}",
@@ -459,14 +474,85 @@ fn verify_rotation(conn: &Connection, new_key: &DataKey, expected_living: u64) -
             ciphertext: ct.to_vec(),
         };
         let id = parse_content_key_id(&row.content_key_id)?;
+        // DEK unwrap under new DataKey (always).
         unwrap_content_dek(new_key, &wrapped, &id).map_err(|e| {
             StoreError::ConfigError(format!(
                 "verify unwrap failed for {}: {e}",
                 row.content_key_id
             ))
         })?;
+
+        // F6v: open corresponding encrypted_content_blob sample when present.
+        // Zero-blob keys: DEK unwrap alone is sufficient.
+        let blobs = list_blobs_for_content_key(conn, &row.content_key_id)?;
+        for blob in blobs {
+            let blob_id = uuid::Uuid::parse_str(&blob.blob_id).map_err(|e| {
+                StoreError::ConfigError(format!(
+                    "verify: invalid blob_id {} for {}: {e}",
+                    blob.blob_id, row.content_key_id
+                ))
+            })?;
+            let sealed_nonce = parse_nonce(&blob.nonce).map_err(|e| {
+                StoreError::ConfigError(format!(
+                    "verify: invalid blob nonce {} for {}: {e}",
+                    blob.blob_id, row.content_key_id
+                ))
+            })?;
+            let sealed = SealedContent {
+                envelope_schema_version: blob.envelope_schema_version as u32,
+                nonce: sealed_nonce,
+                ciphertext: blob.ciphertext,
+            };
+            unwrap_and_open(new_key, &id, &wrapped, &sealed, blob_id).map_err(|e| {
+                StoreError::ConfigError(format!(
+                    "verify: encrypted_content_blob open failed for {} blob {}: {e}",
+                    row.content_key_id, blob.blob_id
+                ))
+            })?;
+        }
     }
     Ok(())
+}
+
+/// Redact SQLCipher raw-key material (`x'…64 hex…'`) from rusqlite / PRAGMA error strings.
+///
+/// Keyed statements (ATTACH KEY / PRAGMA rekey) may echo the key in error variants; never
+/// forward raw `{e}` to operators or logs without this pass (F26).
+pub(crate) fn redact_sql_err(e: impl std::fmt::Display) -> String {
+    redact_key_hex_in_sql(&e.to_string())
+}
+
+/// Replace `x'<64 ascii hex digits>'` (prefix case-insensitive) with `x'[REDACTED]'`.
+fn redact_key_hex_in_sql(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    while i < s.len() {
+        let rest = &s[i..];
+        let redacted_len = rest
+            .get(..2)
+            .filter(|p| p.eq_ignore_ascii_case("x'"))
+            .and_then(|_| {
+                let after = &rest[2..];
+                let end = after.find('\'')?;
+                let hex = &after[..end];
+                if hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+                    Some(2 + end + 1)
+                } else {
+                    None
+                }
+            });
+        if let Some(len) = redacted_len {
+            out.push_str("x'[REDACTED]'");
+            i += len;
+        } else {
+            let Some(ch) = rest.chars().next() else {
+                break;
+            };
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+    }
+    out
 }
 
 fn verify_open(conn: &Connection) -> Result<()> {
@@ -517,12 +603,27 @@ fn sidecar(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(s)
 }
 
+/// Best-effort remove main DB file and its `-wal` / `-shm` companions.
+fn remove_db_and_sidecars(path: &Path) {
+    let _ = fs::remove_file(path);
+    clear_wal_shm(path);
+}
+
+/// Best-effort clear SQLite WAL/SHM sidecars next to `path` (after replace or abandon).
+fn clear_wal_shm(path: &Path) {
+    let _ = fs::remove_file(sidecar(path, "-wal"));
+    let _ = fs::remove_file(sidecar(path, "-shm"));
+}
+
 fn sql_quote_path(path: &Path) -> String {
     let s = path.to_string_lossy();
     format!("'{}'", s.replace('\'', "''"))
 }
 
 /// Atomically replace `target` with `source` (source is the new vault file).
+///
+/// After a successful replace, clears `target-wal` / `target-shm` so stale WAL
+/// pages under the old page codec cannot sit beside the new main DB (P1-3 / F5).
 pub fn atomic_replace_file(source: &Path, target: &Path) -> Result<()> {
     #[cfg(windows)]
     {
@@ -549,8 +650,11 @@ pub fn atomic_replace_file(source: &Path, target: &Path) -> Result<()> {
                 )));
             }
             let _ = fs::remove_file(&bak);
+            // Stale WAL/SHM under old codec must not remain next to new main DB.
+            clear_wal_shm(target);
             return Ok(());
         }
+        clear_wal_shm(target);
         Ok(())
     }
     #[cfg(not(windows))]
@@ -562,6 +666,7 @@ pub fn atomic_replace_file(source: &Path, target: &Path) -> Result<()> {
                 target.display()
             ))
         })?;
+        clear_wal_shm(target);
         Ok(())
     }
 }
@@ -940,5 +1045,174 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(row.wrap_nonce.as_ref().unwrap(), &w.nonce);
+    }
+
+    #[test]
+    fn redact_sql_err__strips_x_hex_key_material() {
+        let key_hex = "a".repeat(64);
+        let leaked = format!(
+            "ATTACH DATABASE 'x' AS rotated KEY \"x'{key_hex}'\"; failed near x'{key_hex}'"
+        );
+        let redacted = redact_sql_err(&leaked);
+        assert!(
+            !redacted.contains(&key_hex),
+            "hex body must not appear: {redacted}"
+        );
+        assert!(
+            redacted.contains("x'[REDACTED]'"),
+            "expected redaction marker: {redacted}"
+        );
+        // Non-key text preserved
+        assert!(redacted.contains("ATTACH DATABASE"));
+        // Short hex not rewritten
+        let short = "x'abcd'";
+        assert_eq!(redact_sql_err(short), short);
+        // Uppercase X' prefix
+        let upper = format!("X'{key_hex}'");
+        assert_eq!(redact_sql_err(&upper), "x'[REDACTED]'");
+    }
+
+    #[test]
+    fn rotate_datakey__peer_wrap__bytes_unchanged() {
+        let _allow = allow_zero();
+        let dir = tempdir().unwrap();
+        let old = DataKey::from_bytes([0x91; 32]);
+        let new = DataKey::from_bytes([0x92; 32]);
+        let path = seed_vault(dir.path(), &old);
+        let _ = insert_active_ce(&path, &old, b"peer-immutable");
+
+        let peer_row = replication::PeerContentKeyWrapRow {
+            content_key_id: "peer-ck-fixed".into(),
+            recipient_device_id: "peer-recipient-dev".into(),
+            sender_device_id: "peer-sender-dev".into(),
+            schema_version: 1,
+            eph_x25519_public: vec![0xAB; 32],
+            wrap_nonce: vec![0xCD; 12],
+            wrap_ciphertext: vec![0xEF; 48],
+            created_at: CREATED_AT.into(),
+        };
+        {
+            let sql = SqlCipherKey::from_data_key(&old);
+            let conn = VaultConnection::open(&path, &sql).unwrap();
+            let c = conn.lock().unwrap();
+            replication::upsert_peer_content_key_wrap(&c, &peer_row).unwrap();
+        }
+
+        rotate_datakey(
+            &RotateDataKeyOptions {
+                vault_path: path.clone(),
+                accept_rekey_risk: false,
+            },
+            &SqlCipherKey::from_data_key(&old),
+            &old,
+            &new,
+        )
+        .expect("rotate");
+
+        let conn =
+            VaultConnection::open(&path, &SqlCipherKey::from_data_key(&new)).expect("new open");
+        let c = conn.lock().unwrap();
+        let got = replication::get_peer_wrap(&c, "peer-ck-fixed", "peer-recipient-dev")
+            .unwrap()
+            .expect("peer wrap must remain");
+        assert_eq!(
+            got, peer_row,
+            "peer wrap bytes must be unchanged after rotate"
+        );
+        let count: i64 = c
+            .query_row("SELECT count(*) FROM peer_content_key_wrap", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn rotate_datakey__rekey_path__opens_with_new_key() {
+        let _allow = allow_zero();
+        let dir = tempdir().unwrap();
+        let old = DataKey::from_bytes([0xa1; 32]);
+        let new = DataKey::from_bytes([0xa2; 32]);
+        let path = seed_vault(dir.path(), &old);
+        let plaintext = b"rekey living wrap";
+        let (ck, blob_id) = insert_active_ce(&path, &old, plaintext);
+
+        let result = rotate_datakey(
+            &RotateDataKeyOptions {
+                vault_path: path.clone(),
+                accept_rekey_risk: true,
+            },
+            &SqlCipherKey::from_data_key(&old),
+            &old,
+            &new,
+        )
+        .expect("rekey rotate");
+        assert_eq!(result.method, RotateMethod::Rekey);
+        assert_eq!(result.living_wraps_rewrapped, 1);
+
+        assert!(
+            VaultConnection::open(&path, &SqlCipherKey::from_data_key(&old)).is_err(),
+            "old key must fail closed after rekey"
+        );
+        let conn =
+            VaultConnection::open(&path, &SqlCipherKey::from_data_key(&new)).expect("new opens");
+        let c = conn.lock().unwrap();
+        let wrap = content_envelope::get_content_key_wrap(&c, &ck.to_string())
+            .unwrap()
+            .expect("wrap");
+        let nonce = parse_nonce(wrap.wrap_nonce.as_ref().unwrap()).unwrap();
+        let wrapped = WrappedContentDek {
+            wrap_schema_version: wrap.wrap_schema_version as u32,
+            nonce,
+            ciphertext: wrap.wrap_ciphertext.unwrap(),
+        };
+        let blob = content_envelope::get_encrypted_blob(&c, &blob_id.to_string())
+            .unwrap()
+            .expect("blob");
+        let sealed = SealedContent {
+            envelope_schema_version: blob.envelope_schema_version as u32,
+            nonce: parse_nonce(&blob.nonce).unwrap(),
+            ciphertext: blob.ciphertext,
+        };
+        let opened = unwrap_and_open(&new, &ck, &wrapped, &sealed, blob_id).unwrap();
+        assert_eq!(opened.as_slice(), plaintext);
+    }
+
+    #[test]
+    fn rotate_datakey__rekey_path__failure_restores_snapshot() {
+        let _allow = allow_zero();
+        let dir = tempdir().unwrap();
+        let old = DataKey::from_bytes([0xb1; 32]);
+        let wrong_old = DataKey::from_bytes([0xb0; 32]);
+        let new = DataKey::from_bytes([0xb2; 32]);
+        let path = seed_vault(dir.path(), &old);
+        let _ = insert_active_ce(&path, &old, b"rekey-fail-restore");
+
+        let err = rotate_datakey(
+            &RotateDataKeyOptions {
+                vault_path: path.clone(),
+                accept_rekey_risk: true,
+            },
+            &SqlCipherKey::from_data_key(&old),
+            &wrong_old, // wrong DataKey → re-wrap fails after snapshot
+            &new,
+        )
+        .expect_err("rekey must fail with wrong old DataKey");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("restored") || msg.contains("rekey") || msg.contains("re-wrap"),
+            "unexpected error: {msg}"
+        );
+
+        // Snapshot restore: old key still opens living vault.
+        let conn =
+            VaultConnection::open(&path, &SqlCipherKey::from_data_key(&old)).expect("restored");
+        let c = conn.lock().unwrap();
+        let n: i64 = c
+            .query_row("SELECT count(*) FROM content_key_store", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n, 1);
+        // New key must not open restored vault.
+        assert!(VaultConnection::open(&path, &SqlCipherKey::from_data_key(&new)).is_err());
     }
 }

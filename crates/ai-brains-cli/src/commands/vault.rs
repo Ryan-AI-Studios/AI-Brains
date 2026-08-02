@@ -255,6 +255,18 @@ pub fn run_rotate_datakey_with_daemon_state(
 
     // Generate new DataKey (production path).
     let new_data = DataKey::generate();
+
+    // P0-1 / F6 kit-before-mutate: write RecoveryKit for NEW key BEFORE any vault mutation.
+    // If rotate fails after this write, the kit is an orphan for a key never applied —
+    // vault remains unchanged on the export path (rekey auto-restores); safe to delete.
+    let kit = RecoveryKit::generate(&new_data, passphrase.as_slice())
+        .map_err(|e| format!("RecoveryKit generate for new key failed: {e}"))?;
+    drop(passphrase);
+    let kit_json = kit
+        .to_json()
+        .map_err(|e| format!("RecoveryKit serialize failed: {e}"))?;
+    write_kit_file(&kit_output, kit_json.as_bytes())?;
+
     let rotate_result = rotate_datakey(
         &RotateDataKeyOptions {
             vault_path: opts.vault_path.clone(),
@@ -264,16 +276,15 @@ pub fn run_rotate_datakey_with_daemon_state(
         &old_data,
         &new_data,
     )
-    .map_err(|e| format!("DataKey rotation failed: {e}"))?;
-
-    // Kit for NEW key.
-    let kit = RecoveryKit::generate(&new_data, passphrase.as_slice())
-        .map_err(|e| format!("RecoveryKit generate for new key failed: {e}"))?;
-    drop(passphrase);
-    let kit_json = kit
-        .to_json()
-        .map_err(|e| format!("RecoveryKit serialize failed: {e}"))?;
-    write_kit_file(&kit_output, kit_json.as_bytes())?;
+    .map_err(|e| {
+        format!(
+            "DataKey rotation failed: {e}. \
+             RecoveryKit at {} was written for a key that was never applied; \
+             vault is unchanged on the export path (rekey auto-restores from snapshot). \
+             Safe to delete the orphan kit.",
+            kit_output.display()
+        )
+    })?;
 
     // Event best-effort (System + nil aggregate_id).
     let completed_at = OffsetDateTime::now_utc()
@@ -394,9 +405,14 @@ fn check_backup_gate(
         .into());
     }
 
+    // F8 / F8b: only the exact phrase bypasses audit. `--require-backup=false` alone is not a bypass.
     if !require_backup {
-        // Spec: default ON; if operator explicitly disables, treat as bypassed audit.
-        return Ok(true);
+        return Err(format!(
+            "refusing rotate with --require-backup=false without audited phrase: \
+             pass --i-have-backup \"{BYPASS_PHRASE}\" to bypass the backup gate, \
+             or satisfy the backup directory gate (omit --require-backup=false)"
+        )
+        .into());
     }
 
     let dir = backup_dir.map(PathBuf::from).unwrap_or_else(|| {
@@ -648,9 +664,8 @@ mod tests {
         let old_sql = SqlCipherKey::from_data_key(&old);
         let hex_body = &old_sql.expose_secret()[2..66];
 
-        // Capture by running and ensuring return path doesn't leak — unit-level:
-        // verify error paths and that kit JSON is not printed (we only check success path
-        // via kit file existence and that STALE warning constant has no hex).
+        // Pin success stdout constant has no key hex; kit/success path must not format
+        // key material into Err strings (store-layer redact_sql_err covers keyed SQL).
         assert!(!STALE_KEY_WARNING.contains(hex_body));
         assert!(!STALE_KEY_WARNING.contains("x'"));
 
@@ -661,9 +676,9 @@ mod tests {
                 key: Some(old_sql.expose_secret().to_string()),
                 dry_run: false,
                 confirm: true,
-                require_backup: false,
+                require_backup: true,
                 i_have_backup: Some(BYPASS_PHRASE.into()),
-                kit_output: Some(kit_path),
+                kit_output: Some(kit_path.clone()),
                 passphrase_file: Some(write_passphrase_file(dir.path())),
                 overwrite_kit: false,
                 accept_rekey_risk: false,
@@ -673,6 +688,38 @@ mod tests {
             false,
         )
         .expect("rotate");
+
+        // Kit file holds secrets on disk by design; Err paths above must not echo them.
+        assert!(kit_path.exists());
+        let kit_json = fs::read_to_string(&kit_path).unwrap();
+        // Success path without --print-key: no formatted Err containing kit JSON body.
+        assert!(!kit_json.is_empty());
+        // Force a post-kit failure shape: wrong key would fail open earlier; assert
+        // daemon-up error string has no hex body.
+        let err = run_rotate_datakey_with_daemon_state(
+            RotateDatakeyOptions {
+                vault_path: dir.path().join("missing-vault.db"),
+                key: Some(old_sql.expose_secret().to_string()),
+                dry_run: false,
+                confirm: true,
+                require_backup: true,
+                i_have_backup: Some(BYPASS_PHRASE.into()),
+                kit_output: Some(dir.path().join("kit2.json")),
+                passphrase_file: Some(write_passphrase_file(dir.path())),
+                overwrite_kit: false,
+                accept_rekey_risk: false,
+                print_key: false,
+                backup_dir: None,
+            },
+            false,
+        )
+        .expect_err("missing vault");
+        let msg = err.to_string();
+        assert!(
+            !msg.contains(hex_body),
+            "error must not contain key hex: {msg}"
+        );
+        assert!(!msg.contains("x'0000") && !msg.contains(&old_sql.expose_secret()[..10]));
     }
 
     #[test]
@@ -681,6 +728,47 @@ mod tests {
         assert!(STALE_KEY_WARNING.contains("WARNING"));
         assert!(STALE_KEY_WARNING.contains("STALE"));
         assert!(STALE_KEY_WARNING.contains("AI_BRAINS_KEY"));
+        // Constant is exactly what success stdout uses (F34 / AC18).
+        assert_eq!(
+            STALE_KEY_WARNING,
+            "WARNING: AI_BRAINS_KEY / --key is now STALE. \
+Update env/profile/.env to the NEW key before any other vault command. \
+The old key cannot open the rotated vault."
+        );
+    }
+
+    #[test]
+    fn rotate_datakey__require_backup_false__without_phrase__refuses() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let _allow = TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
+        let dir = tempdir().unwrap();
+        let old = DataKey::from_bytes([0xa8; 32]);
+        let path = seed_vault(dir.path(), &old);
+        let old_sql = SqlCipherKey::from_data_key(&old);
+
+        let err = run_rotate_datakey_with_daemon_state(
+            RotateDatakeyOptions {
+                vault_path: path,
+                key: Some(old_sql.expose_secret().to_string()),
+                dry_run: false,
+                confirm: true,
+                require_backup: false,
+                i_have_backup: None,
+                kit_output: Some(dir.path().join("kit.json")),
+                passphrase_file: Some(write_passphrase_file(dir.path())),
+                overwrite_kit: false,
+                accept_rekey_risk: false,
+                print_key: false,
+                backup_dir: None,
+            },
+            false,
+        )
+        .expect_err("must refuse silent bypass");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            msg.contains("i have a backup") || msg.contains("require-backup"),
+            "{msg}"
+        );
     }
 
     #[test]
