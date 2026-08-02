@@ -9,12 +9,12 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | Residual | Promoted track |
 |----------|----------------|
 | ~~§59 #8 wrong-key / K-06 needs page encrypt; R-F8 / R-K06; Deviations §1~~ | **Closed by T187** (2026-08-02) |
-| §59 #1 recovery export; #6 restore daemon hard-fail; soft doctor / R-DOC-CLI | **T188** |
+| ~~§59 #1 recovery export; #6 restore daemon hard-fail~~ (R-DOC-CLI partial: export shipped; doctor remains) | **Closed by T188** (2026-08-02); **#2 doctor** still open |
 | **#34.2** DataKey rotation | **T189** |
 | **#12** path TOCTOU / openat / cap-std | **T190** |
 | T142 #1–2 ChangeGuard renames + source_tag; T186 L13 hermetic long-tail | **T191** |
 
-Suggested order: T187 → T188 → T191 (anytime) → T190 → T189 (design-first).
+Suggested order: T191 (anytime) → T190 → T189 (design-first). Doctor residual remains open (no dedicated track yet).
 
 ---
 
@@ -639,12 +639,12 @@ P12.3 implemented. Normative: `conductor/tracks/trackT181-backup-recovery-drills
 
 **Residuals remaining (not fixed by T181):**
 
-1. No `recovery export` CLI (operator kit out-of-band) — T183/T184  
-2. No `doctor` CLI — T183  
+1. ~~No `recovery export` CLI~~ — **Closed by T188** (2026-08-02): `ai-brains recovery export`  
+2. No `doctor` CLI — remains open (R-DOC-CLI residual)  
 3. Argon2 KDF params not in kit JSON (F37) — future schema  
-4. #34.2 DataKey rotation — open  
+4. #34.2 DataKey rotation — open (**T189**)  
 5. F-REC-03/04 projection/graph rebuild drills — soft  
-6. Restore hard-fail while daemon running — product residual (warn today)  
+6. ~~Restore hard-fail while daemon running~~ — **Closed by T188** (robust probe + hard-fail)  
 7. Optional intermediate-hex zeroize tighten in `from_data_key` — soft crypto  
 8. ~~**Wrong-key / K-06 fail-closed requires SQLCipher page encryption**~~ — **Closed by T187** (2026-08-02): live `bundled-sqlcipher-vendored-openssl`; strict F-02/K-06; Deviations §1 resolved; R-F8/R-K06 claims flipped  
 9. Low: rstest preference for F-matrix; store Online Backup mirror vs BackupService; duplicate dry-run smoke/recovery_drills  
@@ -785,7 +785,7 @@ P12.7 executed. Normative: `conductor/tracks/trackT185-claims-sbom-release-gate/
 2. systemd / launchd production units
 3. PR `ci.yml` full action SHA-pin — **Closed T186** (release.yml was T185)
 4. Branch protection (**R-CI-BRANCH** — repo admin)
-5. doctor / recovery export CLIs; #34.2 DataKey rotation; SQLCipher page-encrypt flip
+5. doctor CLI remains; ~~recovery export~~ **T188**; #34.2 **T189**; ~~SQLCipher page-encrypt~~ **T187**
 6. T186 hermetic CLI suite (parallel)
 7. Soft historical PRD “Storage is encrypted…” line (report-only; not elevated)
 8. **NOTICE noise:** `cargo-about` may still list first-party PolyForm workspace crates despite `private.ignore` (presentation only; deny policy remains SOOT for allowed licenses)
@@ -825,3 +825,21 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 6. Optional: `LEDGERFUL_TX_ID` denylist expansion (Info)
 
 **AI1/AI2 fold-in applied at implement:** A1–A12 accepted (nextest path, terminate syntax, dual inventory, denylist, SHA align, pollution test). Rejected: Fully Compliant claims; actionlint DoD; mandatory checkout v7.
+
+---
+
+## From T188 — Restore Safety + Recovery Operator Surface (2026-08-02)
+
+### 66. T188 Restore Safety + Recovery Operator Surface — **Completed** (2026-08-02)
+
+**Shipped:** mutating `backup restore` hard-fails when robust IPC probe true (3×≥1000ms); dry-run notice while daemon up; `ai-brains recovery export` (passphrase-file / rpassword TTY, min 8, schema_version=1, reparse refuse, kit file only, RecoveryKitCreated best-effort, no migrate while daemon up); R-DOC-CLI partial (export yes, doctor no). Full gate: fmt/clippy/nextest **1749**/deny/audit.
+
+**Closed:** §59 #1 recovery export; §59 #6 restore daemon hard-fail; T181-F-03 product hard-fail language.
+
+**Remains open:**
+- **#2 doctor** CLI (R-DOC-CLI residual)
+- Live-daemon busy-restore integration drill (unit-injected daemon-up covers safety; optional)
+- Restore still opens AppContext (migrate) before probe (P3 residual; overwrite still blocked)
+- Dry-run notice stdout process-capture (P3 test hardening)
+- Argon2 params in kit JSON (F37); #34.2 DataKey rotation (**T189**)
+

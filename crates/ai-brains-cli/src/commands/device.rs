@@ -42,6 +42,8 @@ use time::format_description::well_known::Rfc3339;
 use zeroize::Zeroizing;
 
 /// Parse vault DataKey from SqlCipherKey material `x'<64 hex chars>'`.
+///
+/// Error messages must **never** include key hex material (T188 F7 / AC12).
 pub fn data_key_from_sqlcipher(
     sql_key: &ai_brains_crypto::SqlCipherKey,
 ) -> Result<DataKey, String> {
@@ -53,9 +55,21 @@ pub fn data_key_from_sqlcipher(
             "SqlCipherKey material must be x'<64 hex chars>' for device key wrap".to_string()
         })?;
     if hex_part.len() != 64 {
-        return Err(format!("DataKey hex length {} != 64", hex_part.len()));
+        // Do not echo hex_part — length only.
+        return Err(format!(
+            "DataKey hex length {} != 64 (malformed SqlCipherKey)",
+            hex_part.len()
+        ));
     }
-    let bytes = hex::decode(hex_part).map_err(|e| format!("invalid DataKey hex: {e}"))?;
+    // Decode without putting hex into error strings on failure.
+    let bytes = match hex::decode(hex_part) {
+        Ok(b) => b,
+        Err(_) => {
+            return Err(
+                "invalid DataKey hex: non-hex characters in SqlCipherKey material".to_string(),
+            );
+        }
+    };
     let arr: [u8; 32] = bytes
         .try_into()
         .map_err(|_| "DataKey must be 32 bytes".to_string())?;
@@ -610,6 +624,41 @@ mod tests {
             },
             signature: sig,
         })
+    }
+
+    /// T188 F7 / AC12: malformed key errors must not echo hex key material.
+    #[test]
+    fn data_key_from_sqlcipher__malformed__error_has_no_key_material() {
+        // Valid-looking 64-hex body with one non-hex char so decode fails.
+        // Material is distinctive so leakage is detectable.
+        const MALFORMED_HEX: &str =
+            "deadbeefcafebabe0123456789abcdefdeadbeefcafebabe0123456789abcdeg";
+        assert_eq!(MALFORMED_HEX.len(), 64);
+        let raw = format!("x'{MALFORMED_HEX}'");
+        let key = ai_brains_crypto::SqlCipherKey::from_raw(raw);
+        let err = data_key_from_sqlcipher(&key).expect_err("must reject non-hex");
+        let lower = err.to_ascii_lowercase();
+        assert!(
+            !lower.contains("deadbeef"),
+            "error must not contain key hex material; got: {err}"
+        );
+        assert!(
+            !err.contains(MALFORMED_HEX),
+            "error must not echo full hex body; got: {err}"
+        );
+        assert!(
+            lower.contains("invalid") || lower.contains("hex") || lower.contains("malformed"),
+            "error should be actionable; got: {err}"
+        );
+
+        // Wrong length: also must not echo partial hex.
+        let short = "x'deadbeef'";
+        let key_short = ai_brains_crypto::SqlCipherKey::from_raw(short.to_string());
+        let err_short = data_key_from_sqlcipher(&key_short).expect_err("must reject short");
+        assert!(
+            !err_short.to_ascii_lowercase().contains("deadbeef"),
+            "length error must not echo hex; got: {err_short}"
+        );
     }
 
     #[test]

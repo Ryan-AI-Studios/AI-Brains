@@ -67,7 +67,7 @@ Graph CLI (`ai-brains graph …`) needs a build with `--features graph`. Capture
 | Metadata-private multi-device sync | **No** — optional untrusted relay; metadata residual; ACK ≠ wipe proof (ADR-0018) |
 | SOC2 / ISO / GDPR certified | **No** |
 | `ai-brains doctor` product CLI | **Not shipped** (a doctor **DTO** may exist in contracts; no CLI) |
-| `ai-brains recovery export` CLI | **Not shipped** — kit primitives + [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) |
+| `ai-brains recovery export` CLI | **Shipped (T188)** — kit to file only; doctor still absent; [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) |
 | Unix CLI already defaults to HTTP | **No** — live Unix daemon transport is **UDS**; portable path is loopback HTTP+bearer |
 
 Full executive summary: [SECURITY-LIMITS.md](SECURITY-LIMITS.md).

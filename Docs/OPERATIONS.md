@@ -453,10 +453,22 @@ Backups include an integrity check; corrupt backups are rejected at creation tim
 ### Restore
 ```powershell
 ai-brains backup restore <path>               # interactive confirm + overwrite
-ai-brains backup restore <path> --force       # non-interactive (CI/automation)
-ai-brains backup restore <path> --dry-run     # verify integrity, report, no changes
+ai-brains backup restore <path> --force       # non-interactive (CI/automation); does NOT override daemon probe
+ai-brains backup restore <path> --dry-run     # verify integrity, report, no changes (allowed while daemon up)
 ```
 `--dry-run` runs the integrity check, prints the planned destination, and exits 0 without touching the vault. Use it in scripts before a real restore.
+
+**Restore safety (T188):** mutating restore **hard-fails** (non-zero, no vault overwrite) when a robust IPC probe finds the daemon/service (`timeout ≥1s`, ≥2 retries / 3 total attempts). Message includes `daemon is running` plus both `ai-brains daemon stop` and `sc stop AI-Brains-Daemon`. Dry-run while daemon is up prints a **live restore will fail** notice and still exits 0. Probe residual: detects our named-pipe/UDS only (not third-party lockers).
+
+### Recovery kit export (T188)
+```powershell
+ai-brains recovery export --output E:\offline\kit.json --passphrase-file $SecurePw
+# kit JSON only to file; stdout: path + dpapi: present|absent
+# no --passphrase argv; min passphrase 8 bytes; export skips migrate while daemon up
+# passphrase-file and kit output (incl. existing parents) refuse reparse/symlink/junction
+# preflight: vault+key must match (hard-fail wrong key/missing vault); event soft-fail only when daemon write blocked
+```
+`ai-brains doctor` remains **absent**.
 
 ## 7. Safety & Hotspot Sync
 
@@ -575,7 +587,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Schedule Nightly | `ai-brains nightly --schedule --start-time "03:00"` |
 | Daemon Control | `ai-brains daemon start/status/stop/schedule/unschedule` |
 | Backup Vault | `ai-brains backup` |
-| Restore Vault | `ai-brains backup restore <path>` (use `--force` non-interactive, `--dry-run` to preview) |
+| Restore Vault | `ai-brains backup restore <path>` (use `--force` non-interactive, `--dry-run` to preview; hard-fails if daemon up — T188) |
+| Recovery kit export | `ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force]` (T188; doctor still absent) |
 | Manage Projects | `ai-brains project list/resolve/detect` |
 | Graph Health | `ai-brains graph update` (use `graph rebuild` if stale) |
 

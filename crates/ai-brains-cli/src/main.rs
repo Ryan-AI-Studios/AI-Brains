@@ -191,6 +191,11 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Recovery kit export (operator offline key recovery)
+    Recovery {
+        #[command(subcommand)]
+        command: RecoveryCommands,
+    },
     /// Forget a specific memory (soft delete)
     Forget {
         /// Memory ID to forget
@@ -1229,6 +1234,26 @@ pub enum DaemonCommands {
 }
 
 #[derive(Subcommand, Clone)]
+pub enum RecoveryCommands {
+    /// Write a RecoveryKit JSON file (passphrase-wrapped DataKey; never prints kit JSON)
+    Export {
+        /// Destination path for the RecoveryKit JSON file
+        #[arg(long)]
+        output: PathBuf,
+        /// Read passphrase from a regular file (max 8 KiB). Prefer over interactive TTY.
+        /// Trailing single newline is stripped. Min length 8 bytes after trim.
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
+        /// Validate passphrase source and print would-write path; no file, no event
+        #[arg(long)]
+        dry_run: bool,
+        /// Overwrite output if it already exists
+        #[arg(long, short, visible_alias = "overwrite")]
+        force: bool,
+    },
+}
+
+#[derive(Subcommand, Clone)]
 pub enum BackupCommands {
     /// Create a timestamped backup (default)
     Create {
@@ -1789,6 +1814,33 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+    // T188 F16b: recovery export must not call AppContext::from_cli (always migrate()).
+    // Special-case before vault open+migrate so kit export works while daemon is up.
+    if let Commands::Recovery { command } = &cli.command {
+        return match command {
+            RecoveryCommands::Export {
+                output,
+                passphrase_file,
+                dry_run,
+                force,
+            } => {
+                let vault_path = cli
+                    .vault_path
+                    .clone()
+                    .ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
+                commands::recovery::run_export(commands::recovery::ExportOptions {
+                    vault_path,
+                    key: cli.key.clone(),
+                    output: output.clone(),
+                    passphrase_file: passphrase_file.clone(),
+                    dry_run: *dry_run,
+                    force: *force,
+                })
+                .await
+            }
+        };
+    }
+
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
     match &cli.command {
         Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
@@ -1796,6 +1848,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Evaluate { .. } => unreachable!("evaluate handled in run_sync_path_free"),
         Commands::Dogfood { .. } => unreachable!("dogfood handled in run_sync_path_free"),
         Commands::Vault { .. } => unreachable!("vault handled in run_sync_path_free"),
+        Commands::Recovery { .. } => unreachable!("recovery handled before AppContext"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {
                 project_id,

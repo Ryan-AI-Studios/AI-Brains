@@ -344,11 +344,67 @@ fn verify_single_backup(
     Ok(())
 }
 
+/// Robust daemon probe for destructive restore (T188 F1b).
+///
+/// Per-attempt timeout ≥1000ms; ≥2 retries (3 total attempts) with short
+/// backoff. Returns true if any Ping/Pong succeeds.
+pub async fn probe_restore_daemon_busy(client: &DaemonClient) -> bool {
+    const ATTEMPTS: u32 = 3;
+    const PER_ATTEMPT: std::time::Duration = std::time::Duration::from_millis(1000);
+    const BACKOFF: std::time::Duration = std::time::Duration::from_millis(50);
+
+    for attempt in 0..ATTEMPTS {
+        if client.probe(PER_ATTEMPT).await {
+            return true;
+        }
+        if attempt + 1 < ATTEMPTS {
+            tokio::time::sleep(BACKOFF).await;
+        }
+    }
+    false
+}
+
+/// Error message when mutating restore is blocked because the daemon is up.
+///
+/// Substring classes: `daemon is running`, `ai-brains daemon stop`, and
+/// service stop guidance (`sc stop` + service name).
+fn restore_daemon_busy_message() -> String {
+    "Cannot restore: daemon is running and holds the vault open. \
+     Stop it first with `ai-brains daemon stop`, or if installed as a Windows \
+     service: `sc stop AI-Brains-Daemon` (service hosts `ai-brainsd`). \
+     `--force` does not override this safety check."
+        .to_string()
+}
+
+/// Prominent dry-run notice text when a live restore would fail (F3 / AC3).
+const RESTORE_DRY_RUN_DAEMON_NOTICE: &str = "NOTICE: live restore will fail while the daemon is running. \
+     Stop with `ai-brains daemon stop` or `sc stop AI-Brains-Daemon` before a real restore.";
+
+fn restore_dry_run_daemon_notice() {
+    println!("{RESTORE_DRY_RUN_DAEMON_NOTICE}");
+}
+
 pub async fn run_restore(
     ctx: &AppContext,
     backup_path: PathBuf,
     force: bool,
     dry_run: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = DaemonClient::new();
+    let daemon_up = probe_restore_daemon_busy(&client).await;
+    run_restore_with_daemon_state(ctx, backup_path, force, dry_run, daemon_up).await
+}
+
+/// Core restore path with injectable daemon-up state (T188 unit tests).
+///
+/// Production callers use [`run_restore`], which probes via
+/// [`probe_restore_daemon_busy`]. Tests inject `daemon_up` without live IPC.
+pub async fn run_restore_with_daemon_state(
+    ctx: &AppContext,
+    backup_path: PathBuf,
+    force: bool,
+    dry_run: bool,
+    daemon_up: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !backup_path.exists() {
         return Err(format!("Backup file not found: {}", backup_path.display()).into());
@@ -363,8 +419,11 @@ pub async fn run_restore(
         return Err(format!("Integrity check failed: {}", res).into());
     }
 
-    // --dry-run: report and exit. No prompt, no overwrite.
+    // --dry-run: report and exit. No prompt, no overwrite. Allowed while daemon up (F3).
     if dry_run {
+        if daemon_up {
+            restore_dry_run_daemon_notice();
+        }
         println!(
             "dry-run: backup {} verified ok; would overwrite vault at {} (no changes made).",
             backup_path.display(),
@@ -374,15 +433,9 @@ pub async fn run_restore(
         return Ok(());
     }
 
-    // AC7: Warn if the daemon is running, as restoring may corrupt the
-    // daemon's open connection. The busy_timeout pragma handles lock
-    // contention, but overwriting a file the daemon has open is risky.
-    let client = DaemonClient::new();
-    if client.probe(std::time::Duration::from_millis(200)).await {
-        tracing::warn!(
-            "Daemon is running. Restoring while the daemon has the vault open \
-             may cause corruption. Consider running `ai-brains daemon stop` first."
-        );
+    // T188 F1/F2: hard-fail when daemon is reachable. `--force` never overrides.
+    if daemon_up {
+        return Err(restore_daemon_busy_message().into());
     }
 
     // Interactive confirm unless --force was passed (e.g. in CI/automation).
@@ -456,4 +509,214 @@ fn print_backup_metadata(conn: &rusqlite::Connection) -> Result<(), Box<dyn std:
         println!("  {}: {}", key, meta[key]);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod restore_daemon_tests {
+    #![allow(clippy::disallowed_methods)]
+    #![allow(non_snake_case)]
+
+    use super::*;
+    use ai_brains_core::temp_env::TempEnv;
+    use ai_brains_crypto::SqlCipherKey;
+    use ai_brains_store::connection::VaultConnection;
+    use std::sync::Arc;
+    use std::time::SystemTime;
+
+    const ZERO_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
+
+    fn zero_key() -> SqlCipherKey {
+        SqlCipherKey::from_raw(ZERO_KEY.to_string())
+    }
+
+    /// Build an AppContext over a temp vault. Holds `_allow` for the test duration.
+    fn make_ctx(vault: PathBuf) -> (AppContext, TempEnv) {
+        let allow = TempEnv::set(ai_brains_store::connection::ALLOW_ZERO_KEY_ENV, "1");
+        let key = zero_key();
+        let conn = VaultConnection::open(&vault, &key).expect("open vault");
+        conn.migrate().expect("migrate");
+        (
+            AppContext {
+                vault_path: vault,
+                _key: key,
+                conn: Arc::new(conn),
+            },
+            allow,
+        )
+    }
+
+    fn seed_vault_and_backup(dir: &std::path::Path) -> (AppContext, PathBuf, PathBuf, TempEnv) {
+        let vault = dir.join("vault.db");
+        let (ctx, allow) = make_ctx(vault.clone());
+        // Create a real Online Backup API backup of the empty migrated vault.
+        let service = BackupService::new(vault.clone(), ctx._key.clone());
+        let backup_path = {
+            let conn = ctx.conn.lock().expect("lock");
+            service.run_backup_from_conn(&conn).expect("create backup")
+        };
+        // Marker so overwrite detection is meaningful if restore incorrectly proceeds.
+        {
+            let conn = ctx.conn.lock().expect("lock");
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS _t188_marker (id INTEGER PRIMARY KEY, note TEXT); \
+                 INSERT INTO _t188_marker (note) VALUES ('pre-restore-marker');",
+            )
+            .expect("marker");
+        }
+        (ctx, vault, backup_path, allow)
+    }
+
+    fn vault_bytes(path: &std::path::Path) -> Vec<u8> {
+        fs::read(path).expect("read vault")
+    }
+
+    fn vault_mtime(path: &std::path::Path) -> SystemTime {
+        fs::metadata(path).expect("meta").modified().expect("mtime")
+    }
+
+    #[tokio::test]
+    async fn backup_restore__daemon_running__fails_no_overwrite() {
+        let dir = tempfile::tempdir().unwrap();
+        let (ctx, vault, backup_path, _allow) = seed_vault_and_backup(dir.path());
+        let before = vault_bytes(&vault);
+        let before_mtime = vault_mtime(&vault);
+
+        let result = run_restore_with_daemon_state(
+            &ctx,
+            backup_path,
+            true,  // force must not override probe
+            false, // mutating
+            true,  // daemon_up simulated
+        )
+        .await;
+
+        assert!(result.is_err(), "mutating restore must fail when daemon up");
+        let err = result.unwrap_err().to_string();
+        let lower = err.to_ascii_lowercase();
+        assert!(
+            lower.contains("daemon is running"),
+            "must include 'daemon is running'; got: {err}"
+        );
+        assert!(
+            err.contains("ai-brains daemon stop"),
+            "must include daemon stop guidance; got: {err}"
+        );
+        assert!(
+            err.contains("sc stop")
+                && (err.contains("AI-Brains-Daemon") || err.contains("ai-brainsd")),
+            "must include service stop guidance; got: {err}"
+        );
+        assert!(
+            err.contains("--force") || lower.contains("force"),
+            "should note force does not override; got: {err}"
+        );
+
+        let after = vault_bytes(&vault);
+        assert_eq!(before, after, "vault bytes must be unchanged on hard-fail");
+        assert_eq!(
+            before_mtime,
+            vault_mtime(&vault),
+            "vault mtime must be unchanged on hard-fail"
+        );
+        // Marker must still be present (restore did not overwrite).
+        let conn = ctx.conn.lock().unwrap();
+        let count: i64 = conn
+            .query_row("SELECT count(*) FROM _t188_marker", [], |r| r.get(0))
+            .expect("marker still present");
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn backup_restore__daemon_running_dry_run__ok_with_notice() {
+        let dir = tempfile::tempdir().unwrap();
+        let (ctx, vault, backup_path, _allow) = seed_vault_and_backup(dir.path());
+        let before = vault_bytes(&vault);
+
+        // F3 notice class must be present in the constant printed by dry-run.
+        assert!(
+            RESTORE_DRY_RUN_DAEMON_NOTICE.contains("live restore will fail"),
+            "notice must include live-restore-will-fail class"
+        );
+        assert!(
+            RESTORE_DRY_RUN_DAEMON_NOTICE
+                .to_ascii_lowercase()
+                .contains("daemon"),
+            "notice must mention daemon"
+        );
+
+        let result = run_restore_with_daemon_state(
+            &ctx,
+            backup_path,
+            false,
+            true, // dry_run
+            true, // daemon_up
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "dry-run + daemon up must succeed: {:?}",
+            result.err().map(|e| e.to_string())
+        );
+        assert_eq!(before, vault_bytes(&vault), "dry-run must not mutate vault");
+    }
+
+    #[tokio::test]
+    async fn backup_restore__daemon_down_force__succeeds() {
+        let dir = tempfile::tempdir().unwrap();
+        let (ctx, vault, backup_path, _allow) = seed_vault_and_backup(dir.path());
+
+        let result = run_restore_with_daemon_state(
+            &ctx,
+            backup_path.clone(),
+            true,  // force skips confirm
+            false, // mutating
+            false, // daemon_down
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "daemon-down force restore must succeed: {:?}",
+            result.err().map(|e| e.to_string())
+        );
+        // Marker table is only on live vault; restore overwrites from backup
+        // (which was taken before marker) so marker is gone — proves overwrite.
+        let vault_conn = rusqlite::Connection::open(&vault).unwrap();
+        apply_key_pragmas(&vault_conn, &ctx._key).unwrap();
+        let has_marker: bool = vault_conn
+            .query_row(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='_t188_marker'",
+                [],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+        assert!(
+            !has_marker,
+            "successful restore from pre-marker backup must drop live marker table"
+        );
+        // Backup meta must be dropped from live vault (T109).
+        let has_meta: bool = vault_conn
+            .query_row(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='_aibrains_backup_meta'",
+                [],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+        assert!(
+            !has_meta,
+            "backup meta must be absent on live after restore"
+        );
+        let _ = backup_path;
+    }
+
+    #[test]
+    fn restore_daemon_busy_message__has_required_classes() {
+        let msg = restore_daemon_busy_message();
+        let lower = msg.to_ascii_lowercase();
+        assert!(lower.contains("daemon is running"));
+        assert!(msg.contains("ai-brains daemon stop"));
+        assert!(msg.contains("sc stop"));
+        assert!(msg.contains("AI-Brains-Daemon") || msg.contains("ai-brainsd"));
+    }
 }

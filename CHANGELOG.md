@@ -17,6 +17,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T188 restore safety + recovery export:** `backup restore` hard-fails (non-zero, no overwrite) when robust daemon IPC probe succeeds (`≥1s` timeout × ≥3 attempts); dry-run allowed with live-restore-will-fail notice; `--force` never overrides probe. New `ai-brains recovery export --output … [--passphrase-file] [--dry-run] [--force]` writes RecoveryKit JSON to file only (stdout: path + `dpapi: present|absent`); zero-echo TTY via `rpassword` 7.5.x; `schema_version: 1` on kits; `RecoveryKitCreated` event best-effort. Doctor CLI still absent.
 - **T187 SQLCipher page encryption (live):** workspace `rusqlite` uses `bundled-sqlcipher-vendored-openssl` (+ `backup`, `fallible_uint`); plain-header sniff + `LegacyPlaintextVault`; `ai-brains vault encrypt` via `sqlcipher_export`; zero-key refuse unless `AI_BRAINS_ALLOW_ZERO_KEY=1`; `SqlCipherKey::validate` / `is_zero`; `PRAGMA cipher_version` smoke; Perl prereq docs + `dev-check.ps1`.
 - Claims / SBOM release gate (P12.7 / T185): `Docs/RELEASE-CLAIMS.md`, `Docs/RELEASE-CHECKLIST.md`, `scripts/generate-sbom.ps1`, `scripts/generate-notices.ps1`, `scripts/check-release-claims.ps1`, `scripts/check-version-banners.ps1`, `scripts/generate-checksums.ps1`, `scripts/dev-release-check.ps1`, soft SHA-pinned `.github/workflows/release.yml`, `about.toml` + `about.md.hbs`.
 - Release documentation pack (P12.5): `Docs/README.md` index, `Docs/INSTALL.md`, `Docs/SECURITY-LIMITS.md`, root `SECURITY.md`, claims cross-check evidence.
@@ -37,8 +38,9 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Security
 
+- **T188:** Restore hard-fail while daemon reachable; recovery kit export never prints secrets; passphrase min 8; no `--passphrase` argv; export avoids `migrate()` while daemon up.
 - **T187:** Wrong-key fail-closed at page layer; zero-key refuse by default; legacy plain vaults require explicit `vault encrypt` (no silent auto-encrypt).
-- Documented honest non-claims: no perfect deletion, no metadata-private sync, no third-party plugin sandbox, no invented `doctor` / `recovery export` product CLIs.
+- Documented honest non-claims: no perfect deletion, no metadata-private sync, no third-party plugin sandbox, no invented `doctor` product CLI (recovery export shipped T188).
 - Independent security review (P12.6 / T184): charter + residual register; named-pipe SDDL hardened to SYSTEM+Administrators+Interactive (not World); Unix UDS post-bind mode `0o600`; CI least-privilege `permissions:` + Dependabot; SECURITY.md 90-day disclosure timeline.
 
 ---

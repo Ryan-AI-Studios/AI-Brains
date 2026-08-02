@@ -85,12 +85,13 @@ See CAPABILITIES models section and T157 policy notes in OPERATIONS.
 
 | Product surface | Status |
 |-----------------|--------|
-| `ai-brains recovery export` CLI | **Not shipped** |
-| Recovery kit **library** unlock → open chain | Documented / drilled in [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) (K-05 = primitive, not full operator export workflow) |
+| `ai-brains recovery export` CLI | **Shipped (T188)** — kit JSON to restricted file only; passphrase file or zero-echo TTY; no `--passphrase` argv |
+| Recovery kit **library** unlock → open chain | Documented / drilled in [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) (K-05 = primitive; export is operator CLI) |
 | `ai-brains doctor` CLI | **Not shipped** |
 | `contracts::doctor` DTO | May exist in-tree — **DTO ≠ CLI** |
+| Restore while daemon up | **Hard-fail** (T188); robust probe; `--force` never overrides |
 
-Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite. Do not invent missing commands in runbooks.
+Operator practice: RECOVERY-DRILLS + `ai-brains backup` suite + `recovery export`. Do not invent `doctor` in runbooks.
 
 ---
 
@@ -125,7 +126,7 @@ Do **not** claim in user-facing release prose:
 - “Metadata-private sync”  
 - “Sandboxed third-party plugins” / “WASI-safe plugins”  
 - “SQLCipher page encryption” / “Full encryption” **without** F8 qualifier  
-- Shipped `doctor` or `recovery export` product CLIs  
+- Shipped `doctor` product CLI (recovery export **is** shipped as of T188) 
 
 Formal claims gate: [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md) + [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) (T185; seed evidence was T183 `CLAIMS-CROSSCHECK.md`).
 

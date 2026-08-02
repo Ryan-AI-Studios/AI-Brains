@@ -25,6 +25,7 @@ pub mod policy_cmd;
 pub mod preflight;
 pub mod project;
 pub mod recall;
+pub mod recovery;
 pub mod replicate;
 pub mod retention;
 pub mod review;
