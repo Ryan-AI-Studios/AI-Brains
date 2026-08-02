@@ -46,6 +46,7 @@ chrono.workspace = true
 
 time.workspace = true
 zeroize.workspace = true
+rpassword.workspace = true
 ed25519-dalek.workspace = true
 
 [target.'cfg(windows)'.dependencies]

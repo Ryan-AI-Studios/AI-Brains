@@ -12,10 +12,34 @@ fn recovery_kit__passphrase_unlock__key_equals_original() {
     let key = DataKey::generate();
     let passphrase = b"my-secure-passphrase";
     let kit = RecoveryKit::generate(&key, passphrase).expect("Failed to generate kit");
+    assert_eq!(
+        kit.schema_version, 1,
+        "T188 F19: new kits pin schema_version=1"
+    );
 
     let restored = kit
         .unlock_with_passphrase(passphrase)
         .expect("Failed to unlock");
+    assert_eq!(key.expose_secret(), restored.expose_secret());
+}
+
+/// T188 F19: old kit JSON without schema_version deserializes to 1.
+#[test]
+fn recovery_kit__legacy_json_without_schema_version__defaults_to_1() {
+    let key = DataKey::generate();
+    let passphrase = b"legacy-schema-pass";
+    let kit = RecoveryKit::generate(&key, passphrase).expect("generate");
+    let full = kit.to_json().expect("json");
+    let mut v: serde_json::Value = serde_json::from_str(&full).expect("parse");
+    v.as_object_mut().expect("object").remove("schema_version");
+    let legacy = serde_json::to_string(&v).expect("reserialize");
+    assert!(!legacy.contains("schema_version"));
+
+    let parsed = RecoveryKit::from_json(&legacy).expect("legacy deserialize");
+    assert_eq!(parsed.schema_version, 1);
+    let restored = parsed
+        .unlock_with_passphrase(passphrase)
+        .expect("unlock legacy");
     assert_eq!(key.expose_secret(), restored.expose_secret());
 }
 
