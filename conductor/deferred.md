@@ -24,14 +24,14 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~CLI vault-open SQLCipher spam + key bootstrap~~ | **Closed by T197** (2026-08-03) PR #80 `72dfa62` — no silent zero on CLI 7 sites; hmac spam filtered; doctor skip vs fail; init generate+print |
 | ~~CLI empty states / silent fails / graph exit 0~~ | **Closed by T198** (2026-08-03) PR #81 `5cc0418` — empty success non-blank; dogfood fail_api; graph exit 0→2 FEATURE_UNAVAILABLE |
 | ~~`daemon status` requires vault key~~ | **Closed by T199** (2026-08-03) PR #82 `721d41f` — early-route + shared probe; no key required |
-| Graph default install / feature honesty | **T200** (draft 2026-08-02) |
+| Graph default install / feature honesty | **T200** (expanded+fold-in 2026-08-03 — absorb on implement; prefer docs-only A + CI) |
 | CLI exit-code + error envelope contract | **T201** (draft 2026-08-02) |
 | Recall/briefing/query progressive clarity | **T202** (draft 2026-08-02) |
 | Governed source/evidence discovery lists | **T203** (draft 2026-08-02) |
 | CLI help grouping IA | **T204** (draft 2026-08-02) |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
 
-Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → **T200** (shares FEATURE_UNAVAILABLE; T198 already exit 2) → **T201** → **T202** + **T203** → **T204** (help IA last). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH admin. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (out of T197 CLI 7-site scope; T199 F16 ops honesty only).
+Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → **T200** (P1/P3, **expanded** 2026-08-03 — install policy + optional Cargo default) → **T201** → **T202** + **T203** → **T204** (help IA last). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH admin. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 ops honesty only).
 
 ---
 

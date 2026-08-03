@@ -75,6 +75,20 @@ impl ai_brains_store::EventStore for GraphAwareEventStore {
         Ok(())
     }
 
+    fn append_events(&self, envelopes: &[Envelope]) -> ai_brains_store::errors::Result<()> {
+        self.inner.append_events(envelopes)?;
+        // Non-fatal graph update for each committed envelope (same policy as append_event)
+        match self.hook.lock() {
+            Ok(mut h) => {
+                for envelope in envelopes {
+                    h.apply_and_flush(envelope);
+                }
+            }
+            Err(e) => tracing::warn!("LiveGraphHook: mutex poisoned: {}", e),
+        }
+        Ok(())
+    }
+
     fn read_events(
         &self,
         aggregate_id: uuid::Uuid,

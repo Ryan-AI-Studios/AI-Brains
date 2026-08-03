@@ -210,7 +210,13 @@ SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 ha
 
 ## 9. Graph
 
-Requires **`--features graph`** for full backend; default builds may stub with an install hint.
+Requires a build with **`--features graph`** for the live backend. Recommended source install (INSTALL SOOT):
+
+```powershell
+cargo install --path crates/ai-brains-cli --locked --features graph
+```
+
+**Feature-off honesty (T198):** on default / slim / GitHub Release `ai-brains.exe` builds (no graph feature), every `ai-brains graph *` subcommand exits **2** with a `FEATURE_UNAVAILABLE:` prefix and a reinstall hint for the command above. `graph --help` remains exit **0**. GitHub Release `ai-brains.exe` is currently graph-off; see [INSTALL.md](INSTALL.md).
 
 | Command | Purpose |
 |---------|---------|
@@ -220,7 +226,9 @@ Requires **`--features graph`** for full backend; default builds may stub with a
 | `graph hierarchy <memory_id>` | Synthesis chain |
 | `graph session <session_id>` | Memories in a session |
 
-**Live Graph Hook:** incremental projection on each event append.
+> **Feature-off:** all rows above exit **2** + `FEATURE_UNAVAILABLE` when the binary was built without `--features graph`.
+
+**Live Graph Hook:** incremental projection on each event append (graph-on builds only).
 
 ---
 
@@ -375,7 +383,7 @@ See [EVALUATION/SHADOW-DOGFOOD-GATE.md](EVALUATION/SHADOW-DOGFOOD-GATE.md) and [
 - Not a cloud SaaS memory product by default
 - Not a full IDE replacement
 - Not an MCP server (CLI/hooks only)
-- Graph-heavy features need the **graph** build feature and/or healthy local models
+- Graph-heavy features need a **`--features graph`** build (recommended: `cargo install --path crates/ai-brains-cli --locked --features graph`). Feature-off binaries exit **2** with `FEATURE_UNAVAILABLE` on `graph *` (T198). GitHub Release `ai-brains.exe` is currently graph-off. Healthy local models may still be needed for semantic/embedding paths.
 - Capture **must not** depend on intelligence features
 - Ledgerful bridge **push/IPC enrichment is opt-in** on the Ledgerful side
 - Not a third-party connector plugin host — release connectors are first-party **`TrustedBuiltin` only** ([ADR-0019](DECISIONS/ADR-0019-connector-sandbox-execution-model.md))

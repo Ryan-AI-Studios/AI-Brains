@@ -1755,16 +1755,20 @@ fn test_init_force_overwrites() {
 /// Gated on the `graph` feature because the `graph` subcommand is only
 /// compiled in with that feature. Run with:
 ///   cargo nextest run -p ai-brains-cli --features graph test_graph_health_smoke
+///
+/// T200: pin/recall require project/session env on CI runners (no ambient
+/// `.env`). Use `hermetic_cmd_with_ids` so hermetic denylist + explicit IDs
+/// match the ingested turn (was masked locally when shell `.env` was present).
 #[cfg(feature = "graph")]
 #[test]
 fn test_graph_health_smoke() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
+    const PROJECT_ID: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    const SESSION_ID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
     // 1) Init
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_vault(&vault_path)
         .arg("init")
         .assert()
         .success();
@@ -1779,18 +1783,14 @@ fn test_graph_health_smoke() {
         "role": "user",
         "content": "Anchoring memory for the graph health smoke test."
     }"#;
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_vault(&vault_path)
         .arg("ingest")
         .write_stdin(turn_json)
         .assert()
         .success();
 
     // 3) Pin a memory so the graph has a `MemoryPinned` event to project.
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_cmd_with_ids(&vault_path, PROJECT_ID, SESSION_ID)
         .arg("pin")
         .arg("T74 graph health smoke seed")
         .assert()
@@ -1798,9 +1798,7 @@ fn test_graph_health_smoke() {
 
     // 4) Recall — T67 wiring emits MemoryPinned events for hits, which the
     //    live graph projector (T69) should immediately apply.
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_cmd_with_ids(&vault_path, PROJECT_ID, SESSION_ID)
         .arg("recall")
         .arg("graph health smoke")
         .arg("--format")
@@ -1809,9 +1807,7 @@ fn test_graph_health_smoke() {
         .success();
 
     // 5) `graph update` should report live, non-empty graph state.
-    let output = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    let output = common::hermetic_vault(&vault_path)
         .arg("graph")
         .arg("update")
         .output()
@@ -2808,6 +2804,52 @@ fn test_preflight_stdin_flag_in_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains("--stdin"));
+}
+
+/// T200 F9: both feature-off graph stubs in `main.rs` must reinstall with the
+/// INSTALL primary SOOT (`cargo install --path crates/ai-brains-cli --locked --features graph`).
+/// Guard only — do not edit stubs unless that SOOT changes.
+/// Per-arm proof (Codex R1 P2): each `#[cfg(not(feature = "graph"))] Commands::Graph`
+/// arm must contain the SOOT independently (global count alone is insufficient).
+#[test]
+#[allow(non_snake_case)]
+fn graph_stub__reinstall_hint__matches_install_soot() {
+    let main_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
+    let main_rs = fs::read_to_string(&main_path).expect("read ai-brains-cli src/main.rs");
+    // concat so this test file does not itself contain the contiguous SOOT literal.
+    let soot = concat!(
+        "cargo install --path crates/ai-brains-cli --locked ",
+        "--features graph"
+    );
+    // Per-stub SOOT: each reinstall println must be adjacent to FEATURE_UNAVAILABLE
+    // graph messaging (two dispatch arms in run_sync_path_free + run_with_context).
+    // Exclude enum definition / is_vault_path_free dispatch (cfg Graph without SOOT).
+    let reinstall_prefix = "Reinstall with: ";
+    let mut stub_hits = 0usize;
+    let mut search_from = 0usize;
+    while let Some(rel) = main_rs[search_from..].find(reinstall_prefix) {
+        let abs = search_from + rel;
+        let line_end = main_rs[abs..]
+            .find('\n')
+            .map(|i| abs + i)
+            .unwrap_or(main_rs.len());
+        let line = &main_rs[abs..line_end];
+        if line.contains(soot) {
+            // Confirm surrounding block is a graph feature-off stub (not unrelated reinstall).
+            let ctx_start = abs.saturating_sub(400);
+            let ctx = &main_rs[ctx_start..line_end];
+            assert!(
+                ctx.contains("FEATURE_UNAVAILABLE") && ctx.contains("Commands::Graph"),
+                "SOOT reinstall line must sit in a feature-off Commands::Graph stub; context near byte {abs}"
+            );
+            stub_hits += 1;
+        }
+        search_from = line_end;
+    }
+    assert_eq!(
+        stub_hits, 2,
+        "expected exactly two feature-off Graph stub reinstall SOOT lines; found {stub_hits}"
+    );
 }
 
 /// T122/T198: When built without the graph feature, `ai-brains graph update`

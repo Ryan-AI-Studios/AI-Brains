@@ -101,6 +101,9 @@ if (-not $env:AI_BRAINS_ALLOW_ZERO_KEY) {
 Run-Step "cargo fmt --check" { cargo fmt --check }
 Run-Step "cargo clippy"      { cargo clippy --workspace --all-targets -- -D warnings }
 Run-Step "cargo nextest"     { cargo nextest run --workspace }
+# T200: default nextest is graph-off. Graph health smoke (CI F14 required):
+#   cargo nextest run -p ai-brains-cli --features graph
+# See CONTRIBUTING.md build matrix + Docs/INSTALL.md.
 Run-Step "cargo deny check"  { cargo deny check }
 Run-Step "cargo audit"       { cargo audit }
 
