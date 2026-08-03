@@ -2,6 +2,7 @@
 
 use ai_brains_brain::NightlyService;
 use ai_brains_core::ids::{ProjectId, SessionId};
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_events::{
     Payload, SessionCompletedPayload, SessionStartedPayload, UserPromptRecordedPayload,
@@ -10,7 +11,7 @@ use ai_brains_models::{
     CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, ModelError,
     ModelProvider, Result as ModelResult, TokenizeRequest, TokenizeResponse,
 };
-use ai_brains_store::connection::VaultConnection;
+use ai_brains_store::connection::{ALLOW_ZERO_KEY_ENV, VaultConnection};
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -102,6 +103,8 @@ fn append_completed_session(
 #[allow(non_snake_case)]
 async fn nightly__three_consecutive_summary_errors__aborts_remaining_sessions()
 -> Result<(), Box<dyn std::error::Error>> {
+    // Fixture uses all-zero key (T187/T197 escape hatch for hermetic vaults).
+    let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
     let dir = tempdir()?;
     let db_path = dir.path().join("vault.db");
     let key = SqlCipherKey::from_raw(

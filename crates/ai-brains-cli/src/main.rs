@@ -3,6 +3,7 @@ mod commands;
 mod context;
 mod daemon_client;
 mod elevation;
+mod key_resolve;
 mod live_graph;
 
 /// JSON Schema for `ai-bbrains agy-hook --payload`. Bundled at compile time
@@ -199,7 +200,7 @@ enum Commands {
     },
     /// Read-only operator health report (vault / cipher / backup / recoverability / daemon)
     #[command(
-        after_help = "Read-only: no migrate, no vault/backups create, no secrets on stdout. Does not replace RECOVERY-DRILLS. Offline kit residual without --kit-path is operator responsibility. Daemon probe = our IPC only. --backup-max-age uses Nd/Nh/Nw. No --passphrase argv.\nExamples:\n  ai-brains doctor\n  ai-brains doctor --json\n  ai-brains doctor --kit-path ./kit.json --passphrase-file ./pw.txt\n  ai-brains doctor --fail-on-degraded --backup-max-age 14d --full"
+        after_help = "Read-only: no migrate, no vault/backups create, no secrets on stdout. Does not replace RECOVERY-DRILLS. Offline kit residual without --kit-path is operator responsibility. Daemon probe = our IPC only. --backup-max-age uses Nd/Nh/Nw. No --passphrase argv.\nKey bootstrap: set --key or AI_BRAINS_KEY as x'<64 hex>' (see Docs/INSTALL.md). Missing key → vault_open skipped; wrong key → vault_open fail.\nExamples:\n  ai-brains doctor\n  ai-brains doctor --json\n  ai-brains doctor --kit-path ./kit.json --passphrase-file ./pw.txt\n  ai-brains doctor --fail-on-degraded --backup-max-age 14d --full"
     )]
     Doctor {
         /// Output format: human (default) or json
@@ -1200,13 +1201,13 @@ enum MigrateCommands {
         /// With --confirm: delete existing dest vault + migrate-manifest and recreate
         #[arg(long)]
         force_overwrite: bool,
-        /// Raw SQLCipher key for the source vault (falls back to --key / zero-key)
+        /// SQLCipher product key for the source vault (`x'<64 hex>'`; falls back to --key / AI_BRAINS_KEY; missing → VAULT_KEY_MISSING)
         #[arg(long)]
         source_key: Option<String>,
-        /// Raw SQLCipher key for the destination vault (falls back to --key / zero-key)
+        /// SQLCipher product key for the destination vault (`x'<64 hex>'`; falls back to --key / AI_BRAINS_KEY; missing → VAULT_KEY_MISSING)
         #[arg(long)]
         destination_key: Option<String>,
-        /// Shared SQLCipher key fallback when --source-key / --destination-key omitted
+        /// Shared SQLCipher key when --source-key / --destination-key omitted (also root CLI --key / AI_BRAINS_KEY; no silent zero)
         /// (also accepted as a root CLI flag before `migrate`; this places it after `governed`)
         #[arg(long)]
         key: Option<String>,
@@ -1575,6 +1576,9 @@ fn main() {
 }
 
 fn main_inner() {
+    // T197 F1/F27/F29: silence SQLCipher hmac flood before any vault open.
+    ai_brains_store::sqlcipher_log_policy::install();
+
     let args: Vec<String> = std::env::args().collect();
     // UAC elevated child: restore env + cwd handoff from the non-elevated parent
     // before any .env / project-context logic (parent may have already loaded .env).
@@ -1750,8 +1754,37 @@ fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
                 }
                 std::process::exit(g.exit_code);
             }
+            use crate::key_resolve::{
+                KeyResolveError, VAULT_LOCKED_JSON_CODE, key_resolve_json_code,
+                vault_locked_message,
+            };
             use ai_brains_contracts::response::{ApiError, ApiResult};
-            let api_error = ApiError::new("COMMAND_FAILED", err.to_string());
+            use ai_brains_store::StoreError;
+
+            // T197 F8: map key resolve + vault locked to dedicated JSON codes.
+            let (code, message) = if let Some(e) = err.downcast_ref::<KeyResolveError>() {
+                (key_resolve_json_code(e), e.to_string())
+            } else if let Some(StoreError::VaultLocked(detail)) = err.downcast_ref::<StoreError>() {
+                (VAULT_LOCKED_JSON_CODE, vault_locked_message(detail))
+            } else {
+                let s = err.to_string();
+                // Fallback string-family match when error was stringified mid-path.
+                if s.starts_with("Vault key missing:") {
+                    ("VAULT_KEY_MISSING", s)
+                } else if s.starts_with("Vault key invalid format:") {
+                    ("VAULT_KEY_FORMAT", s)
+                } else if s.starts_with("Vault key refused:") {
+                    ("VAULT_KEY_ZERO", s)
+                } else if s.contains("Vault is locked")
+                    || s.contains("Key verification failed")
+                    || s.starts_with("Vault locked:")
+                {
+                    (VAULT_LOCKED_JSON_CODE, vault_locked_message(&s))
+                } else {
+                    ("COMMAND_FAILED", s)
+                }
+            };
+            let api_error = ApiError::new(code, message);
             let result = ApiResult::<serde_json::Value>::error(api_error);
             if let Ok(json) = serde_json::to_string(&result) {
                 eprintln!("{}", json);
@@ -1813,8 +1846,8 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let _ = copy_events;
                 let copy = !no_copy_events;
                 // Shared key: governed `--key` (after subcommand) then root `--key`.
-                // Per-side inside run_governed: source_key → shared → zero-key;
-                // destination_key → shared → zero-key.
+                // Per-side inside run_governed: source_key → shared → AI_BRAINS_KEY → Missing
+                // (no silent zero; T197 SOOT).
                 let shared_key = key.or(cli.key);
                 commands::migrate::run_governed(commands::migrate::GovernedOptions {
                     source,
@@ -1911,7 +1944,47 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+/// T197 F19: `init` with no key generates a non-zero random product key once.
+fn run_init(
+    vault_path: Option<PathBuf>,
+    key: Option<String>,
+    force: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::key_resolve::{KeyResolveError, resolve_operator_sqlcipher_key};
+    use ai_brains_crypto::{DataKey, SqlCipherKey};
+    use zeroize::Zeroizing;
+
+    let path = vault_path.ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
+
+    // Zeroizing keeps the one-time stdout bootstrap copy off the free-list plaintext.
+    let (sql_key, generated_material): (SqlCipherKey, Option<Zeroizing<String>>) =
+        match resolve_operator_sqlcipher_key(key) {
+            Ok(k) => (k, None),
+            Err(KeyResolveError::Missing) => {
+                // Generate non-zero random key (regenerate if theoretically all-zero).
+                let mut data = DataKey::generate();
+                let mut sql = SqlCipherKey::from_data_key(&data);
+                if sql.is_zero() {
+                    data = DataKey::generate();
+                    sql = SqlCipherKey::from_data_key(&data);
+                }
+                let material = Zeroizing::new(sql.expose_secret().to_string());
+                (sql, Some(material))
+            }
+            Err(e) => return Err(e.into()),
+        };
+
+    let ctx = AppContext::from_resolved_key(path, sql_key)?;
+    let print_key = generated_material.as_ref().map(|z| z.as_str());
+    commands::init::run(&ctx, force, print_key)
+}
+
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+    // T197 F19: init generates a non-zero key when none provided (no silent zero).
+    if let Commands::Init { force } = cli.command.as_ref() {
+        return run_init(cli.vault_path.clone(), cli.key.clone(), *force);
+    }
+
     // T188 F16b: recovery export must not call AppContext::from_cli (always migrate()).
     // Special-case before vault open+migrate so kit export works while daemon is up.
     if let Commands::Recovery { command } = cli.command.as_ref() {
@@ -2020,6 +2093,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         } => unreachable!("vault rotate-datakey handled before AppContext"),
         Commands::Recovery { .. } => unreachable!("recovery handled before AppContext"),
         Commands::Doctor { .. } => unreachable!("doctor handled before AppContext"),
+        Commands::Init { .. } => unreachable!("init handled before AppContext"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {
                 project_id,
@@ -2395,7 +2469,6 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 },
             ),
         },
-        Commands::Init { force } => commands::init::run(&ctx, *force),
         Commands::Ingest { dry_run } => commands::ingest::run(&ctx, *dry_run),
         Commands::Recall {
             query,

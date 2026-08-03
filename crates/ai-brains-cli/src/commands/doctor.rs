@@ -7,10 +7,12 @@ use crate::commands::backup::probe_restore_daemon_busy;
 use crate::commands::device::data_key_from_sqlcipher;
 use crate::commands::recovery::acquire_passphrase;
 use crate::daemon_client::DaemonClient;
+use crate::key_resolve::{KeyResolveError, resolve_operator_sqlcipher_key, vault_locked_message};
 use ai_brains_brain::{BackupService, has_core_tables, parse_duration};
 use ai_brains_contracts::doctor::{CheckSeverity, DoctorReport, DoctorStatus, HealthCheck};
 use ai_brains_crypto::{RecoveryKit, SqlCipherKey};
 use ai_brains_store::ALLOW_ZERO_KEY_ENV;
+use ai_brains_store::StoreError;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::pragmas::cipher_version;
 use chrono::Utc;
@@ -57,11 +59,23 @@ pub fn run_with_daemon_state(
 }
 
 /// Build a full doctor report (pure-ish; may open vault read-only).
+///
+/// T197 F9: missing key → still emit report; `vault_open` = **skipped**; overall
+/// status forced to Fail (exit 1). Format/Zero fail early with F8 messages.
+/// Wrong key → `vault_open` = **fail** with Vault locked hint; no hmac spam.
 pub fn build_report(
     opts: &DoctorOptions,
     daemon_up: bool,
 ) -> Result<DoctorReport, Box<dyn std::error::Error>> {
-    let key = resolve_sqlcipher_key(opts.key.clone())?;
+    // Format / Zero: early clear F8 (prefer not conflate with vault_open).
+    // Missing: continue so vault_exists still runs and report emits (F9).
+    let key_result = resolve_operator_sqlcipher_key(opts.key.clone());
+    let (key_opt, key_missing) = match key_result {
+        Ok(k) => (Some(k), false),
+        Err(KeyResolveError::Missing) => (None, true),
+        Err(e) => return Err(e.into()),
+    };
+
     let vault_path = &opts.vault_path;
     let mut checks: Vec<HealthCheck> = Vec::with_capacity(10);
 
@@ -70,18 +84,22 @@ pub fn build_report(
     let vault_exists_ok = exists_check.severity == CheckSeverity::Ok;
     checks.push(exists_check);
 
-    // 2. vault_open (open_read_intent only)
-    let open_result = if vault_exists_ok {
-        VaultConnection::open_read_intent(vault_path, &key)
-    } else {
-        Err(ai_brains_store::StoreError::ConnectionFailed(
+    // 2. vault_open (open_read_intent only) — F9 missing vs wrong
+    let open_result = match key_opt.as_ref() {
+        None => None,
+        Some(key) if vault_exists_ok => Some(VaultConnection::open_read_intent(vault_path, key)),
+        Some(_) => Some(Err(StoreError::ConnectionFailed(
             "vault missing; open skipped".into(),
-        ))
+        ))),
     };
 
-    checks.push(match &open_result {
-        Ok(_) => HealthCheck::ok_msg("vault_open", "opened read-only"),
-        Err(_) if !vault_exists_ok => HealthCheck::fail(
+    checks.push(match (&open_result, key_missing) {
+        (_, true) => HealthCheck::skip(
+            "vault_open",
+            "skipped: vault key missing — set --key or AI_BRAINS_KEY (see INSTALL)",
+        ),
+        (Some(Ok(_)), false) => HealthCheck::ok_msg("vault_open", "opened read-only"),
+        (Some(Err(_)), false) if !vault_exists_ok => HealthCheck::fail(
             "vault_open",
             "vault not openable (missing, not a regular file, or reparse refused)",
             Some(
@@ -89,15 +107,33 @@ pub fn build_report(
                     .into(),
             ),
         ),
-        Err(e) => HealthCheck::fail(
-            "vault_open",
-            format!("open_read_intent failed: {e}"),
-            Some("verify --key / AI_BRAINS_KEY matches the vault".into()),
-        ),
+        (Some(Err(e)), false) => {
+            let detail = e.to_string();
+            let is_locked = matches!(e, StoreError::VaultLocked(_))
+                || detail.to_ascii_lowercase().contains("vault is locked")
+                || detail.to_ascii_lowercase().contains("key verification");
+            let msg = if is_locked {
+                vault_locked_message("wrong key or cannot decrypt")
+            } else {
+                format!("open_read_intent failed: {detail}")
+            };
+            HealthCheck::fail(
+                "vault_open",
+                msg,
+                Some("verify --key / AI_BRAINS_KEY matches the vault (see INSTALL)".into()),
+            )
+        }
+        (None, false) => HealthCheck::fail("vault_open", "vault open skipped unexpectedly", None),
     });
 
     // Hold VaultConnection for subsequent open-dependent checks (lock per use).
-    let vault_conn = open_result.ok();
+    let vault_conn = open_result.and_then(|r| r.ok());
+    let open_failed = vault_conn.is_none();
+    let skip_reason = if key_missing {
+        "skipped: vault key missing"
+    } else {
+        "skipped: vault open failed"
+    };
 
     // 3. schema_readable
     checks.push(match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
@@ -112,9 +148,7 @@ pub fn build_report(
                 )
             }
         }
-        None if vault_conn.is_none() => {
-            HealthCheck::skip("schema_readable", "skipped: vault open failed")
-        }
+        None if open_failed => HealthCheck::skip("schema_readable", skip_reason),
         None => HealthCheck::fail("schema_readable", "failed to lock vault connection", None),
     });
 
@@ -135,9 +169,7 @@ pub fn build_report(
                 None,
             ),
         },
-        None if vault_conn.is_none() => {
-            HealthCheck::skip("cipher_page", "skipped: vault open failed")
-        }
+        None if open_failed => HealthCheck::skip("cipher_page", skip_reason),
         None => HealthCheck::fail("cipher_page", "failed to lock vault connection", None),
     });
 
@@ -148,16 +180,23 @@ pub fn build_report(
         HealthCheck::ok_msg("daemon_reachable", "down")
     });
 
-    // 6. backup_recent (soft)
-    checks.push(check_backup_recent(vault_path, &key, &opts.backup_max_age));
+    // 6. backup_recent (soft) — needs key
+    checks.push(match key_opt.as_ref() {
+        Some(key) => check_backup_recent(vault_path, key, &opts.backup_max_age),
+        None => HealthCheck::skip("backup_recent", skip_reason),
+    });
 
     // 7. recovery_kit_event (soft) — event_type stored WITHOUT JSON quotes
     //    (event_store.rs trim_matches('"'); live fact vs early F16 draft).
     checks.push(match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
         Some(conn) => check_recovery_kit_event(&conn),
-        None if vault_conn.is_none() => HealthCheck::warn(
+        None if open_failed => HealthCheck::warn(
             "recovery_kit_event",
-            "cannot query events (vault open failed)",
+            if key_missing {
+                "cannot query events (vault key missing)"
+            } else {
+                "cannot query events (vault open failed)"
+            },
             Some("ai-brains recovery export --output <offline-path>".into()),
         ),
         None => HealthCheck::warn(
@@ -168,29 +207,37 @@ pub fn build_report(
     });
 
     // 8. recovery_kit_file
-    checks.push(check_recovery_kit_file(
-        opts.kit_path.as_deref(),
-        opts.passphrase_file.as_deref(),
-        &key,
-    ));
+    checks.push(match key_opt.as_ref() {
+        Some(key) => check_recovery_kit_file(
+            opts.kit_path.as_deref(),
+            opts.passphrase_file.as_deref(),
+            key,
+        ),
+        None => HealthCheck::skip("recovery_kit_file", skip_reason),
+    });
 
     // 9. zero_key_escape (soft)
-    checks.push(check_zero_key_escape(&key));
+    checks.push(match key_opt.as_ref() {
+        Some(key) => check_zero_key_escape(key),
+        None => HealthCheck::skip("zero_key_escape", skip_reason),
+    });
 
     // 10. integrity (optional --full)
     checks.push(if opts.full {
         match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
             Some(conn) => check_integrity(&conn),
-            None if vault_conn.is_none() => {
-                HealthCheck::skip("integrity", "skipped: vault open failed")
-            }
+            None if open_failed => HealthCheck::skip("integrity", skip_reason),
             None => HealthCheck::fail("integrity", "failed to lock vault connection", None),
         }
     } else {
         HealthCheck::skip("integrity", "pass --full to run PRAGMA integrity_check")
     });
 
-    let status = DoctorReport::roll_up(&checks);
+    let mut status = DoctorReport::roll_up(&checks);
+    // F9: missing key must exit 1 (fail status) even when vault_open is only skip.
+    if key_missing {
+        status = DoctorStatus::Fail;
+    }
     let generated_at = Utc::now().to_rfc3339();
 
     Ok(DoctorReport {
@@ -547,18 +594,6 @@ fn check_integrity(conn: &rusqlite::Connection) -> HealthCheck {
     }
 }
 
-fn resolve_sqlcipher_key(key: Option<String>) -> Result<SqlCipherKey, Box<dyn std::error::Error>> {
-    // Same default zero-key path as recovery export / AppContext (tests use ALLOW_ZERO_KEY).
-    let key_str = key.unwrap_or_else(|| {
-        "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
-    });
-    let sql = SqlCipherKey::from_raw(key_str);
-    if let Err(e) = sql.validate() {
-        return Err(format!("invalid vault key: {e}").into());
-    }
-    Ok(sql)
-}
-
 /// Exit code policy (F9): 0 for ok|degraded; 1 for fail; --fail-on-degraded → 1.
 pub fn exit_code_for(report: &DoctorReport, fail_on_degraded: bool) -> i32 {
     match report.status {
@@ -796,4 +831,117 @@ mod tests {
 
     const ZERO_KEY_LITERAL: &str =
         "x'0000000000000000000000000000000000000000000000000000000000000000'";
+    const ALT_KEY_LITERAL: &str =
+        "x'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'";
+
+    /// F9/AC11: missing key → vault_open skipped; overall Fail; report emits.
+    #[test]
+    fn doctor__missing_key__vault_open_skipped_status_fail() {
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+
+        let _clear = TempEnv::remove("AI_BRAINS_KEY");
+        let _clear_allow = TempEnv::remove(ALLOW_ZERO_KEY_ENV);
+        let dir = tempdir().expect("tempdir");
+        let vault = dir.path().join("vault.db");
+        // Create vault with zero key (fixture), then doctor without key.
+        {
+            let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
+            let key = SqlCipherKey::from_raw(ZERO_KEY_LITERAL.to_string());
+            let conn = VaultConnection::open(&vault, &key).expect("open");
+            conn.migrate().expect("migrate");
+        }
+
+        let opts = DoctorOptions {
+            vault_path: vault,
+            key: None,
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let report = build_report(&opts, false).expect("report must emit");
+        assert_eq!(report.status, DoctorStatus::Fail);
+        let open = report
+            .checks
+            .iter()
+            .find(|c| c.name == "vault_open")
+            .expect("vault_open");
+        assert_eq!(open.severity, CheckSeverity::Skip);
+        let msg = open.message.as_deref().unwrap_or("");
+        assert!(
+            msg.contains("key missing") || msg.contains("AI_BRAINS_KEY"),
+            "expected missing-key skip message, got {msg}"
+        );
+        assert_eq!(exit_code_for(&report, false), 1);
+    }
+
+    /// F9/AC11: wrong key → vault_open fail with Vault locked hint.
+    #[test]
+    fn doctor__wrong_key__vault_open_fail() {
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+
+        ai_brains_store::sqlcipher_log_policy::install();
+        let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
+        let dir = tempdir().expect("tempdir");
+        let vault = dir.path().join("vault.db");
+        {
+            let key = SqlCipherKey::from_raw(ZERO_KEY_LITERAL.to_string());
+            let conn = VaultConnection::open(&vault, &key).expect("open");
+            conn.migrate().expect("migrate");
+        }
+
+        let opts = DoctorOptions {
+            vault_path: vault,
+            key: Some(ALT_KEY_LITERAL.to_string()),
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let report = build_report(&opts, false).expect("report");
+        assert_eq!(report.status, DoctorStatus::Fail);
+        let open = report
+            .checks
+            .iter()
+            .find(|c| c.name == "vault_open")
+            .expect("vault_open");
+        assert_eq!(open.severity, CheckSeverity::Fail);
+        let msg = open.message.as_deref().unwrap_or("");
+        assert!(
+            msg.starts_with("Vault locked:") || msg.contains("Vault locked"),
+            "expected Vault locked prefix, got {msg}"
+        );
+    }
+
+    /// Format error fails early (F8) before report.
+    #[test]
+    fn doctor__invalid_format__early_error() {
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+
+        let _clear = TempEnv::remove("AI_BRAINS_KEY");
+        let dir = tempdir().expect("tempdir");
+        let opts = DoctorOptions {
+            vault_path: dir.path().join("vault.db"),
+            key: Some("not-a-key".into()),
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let err = build_report(&opts, false).expect_err("format");
+        let msg = err.to_string();
+        assert!(msg.starts_with("Vault key invalid format:"), "got {msg}");
+    }
 }

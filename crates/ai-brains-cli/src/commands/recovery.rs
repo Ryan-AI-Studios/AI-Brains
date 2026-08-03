@@ -127,15 +127,8 @@ pub fn run_export_with_daemon_state(
 }
 
 fn resolve_sqlcipher_key(key: Option<String>) -> Result<SqlCipherKey, Box<dyn std::error::Error>> {
-    // Same default zero-key path as AppContext::from_cli (tests use ALLOW_ZERO_KEY).
-    let key_str = key.unwrap_or_else(|| {
-        "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
-    });
-    let sql = SqlCipherKey::from_raw(key_str);
-    if let Err(e) = sql.validate() {
-        return Err(format!("invalid vault key: {e}").into());
-    }
-    Ok(sql)
+    // T197: shared operator resolver (no silent zero).
+    Ok(crate::key_resolve::resolve_operator_sqlcipher_key(key)?)
 }
 
 /// Read passphrase from file or TTY double-entry.

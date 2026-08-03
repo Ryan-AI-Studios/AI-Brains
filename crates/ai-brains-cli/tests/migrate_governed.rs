@@ -50,6 +50,7 @@ fn seed_memory_pinned(vault_path: &Path, content: &str, with_project: bool) {
     use ai_brains_store::connection::VaultConnection;
     use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let key = SqlCipherKey::from_raw(ZERO_KEY.to_string());
     let conn = VaultConnection::open(vault_path, &key).expect("open");
     // Already migrated by init; do not re-migrate (source integrity).
@@ -85,6 +86,7 @@ fn seed_memory_pinned(vault_path: &Path, content: &str, with_project: bool) {
 fn open_store(
     vault_path: &Path,
 ) -> Result<ai_brains_store::event_store::SqliteEventStore, Box<dyn std::error::Error>> {
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
     let conn = ai_brains_store::connection::VaultConnection::open(vault_path, &key)?;
     Ok(ai_brains_store::event_store::SqliteEventStore::new(conn))

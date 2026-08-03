@@ -1,3 +1,4 @@
+use crate::key_resolve::resolve_operator_sqlcipher_key;
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
@@ -40,18 +41,27 @@ impl AppContext {
         let path =
             vault_path.ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
 
-        // Default historical all-zero key when --key omitted. T187: VaultConnection
-        // refuses zero keys unless AI_BRAINS_ALLOW_ZERO_KEY=1 (tests/legacy).
-        let key_str = key.unwrap_or_else(|| {
-            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
-        });
-
-        let key = SqlCipherKey::from_raw(key_str);
+        // T197: no silent zero default — Missing / Format / Zero via shared resolver.
+        let key = resolve_operator_sqlcipher_key(key)?;
         let conn = VaultConnection::open(path.clone(), &key)?;
         conn.migrate()?;
 
         Ok(Self {
             vault_path: path,
+            _key: key,
+            conn: Arc::new(conn),
+        })
+    }
+
+    /// Open vault with an already-resolved key (init generate path — F19).
+    pub fn from_resolved_key(
+        vault_path: PathBuf,
+        key: SqlCipherKey,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let conn = VaultConnection::open(vault_path.clone(), &key)?;
+        conn.migrate()?;
+        Ok(Self {
+            vault_path,
             _key: key,
             conn: Arc::new(conn),
         })

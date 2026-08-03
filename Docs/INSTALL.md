@@ -110,7 +110,32 @@ ai-brains --vault-path $vault context
 
 **Windows MSVC build:** install **Perl** (Strawberry Perl) and put it on `PATH` before `cargo build` / CI — required for vendored OpenSSL.
 
-CLI `--key` / `AI_BRAINS_KEY` must be `x'<64 hex chars>'`. All-zero keys are refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (tests/legacy). Legacy plain SQLite vaults: `ai-brains vault encrypt`.
+CLI `--key` / `AI_BRAINS_KEY` must be `x'<64 hex chars>'` (67 characters total, including the `x'` prefix and trailing `'`). All-zero keys are refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (tests/legacy). Legacy plain SQLite vaults: `ai-brains vault encrypt`.
+
+### Key bootstrap (T197)
+
+1. **Generate via init** (recommended): run `ai-brains init --vault-path <path>` with **no** key set. The CLI generates a non-zero random product key, creates the vault, and prints **once** to stdout:
+
+   ```text
+   PowerShell: $env:AI_BRAINS_KEY = "x'<64 hex>'"
+   bash:       export AI_BRAINS_KEY="x'<64 hex>'"
+   ```
+
+   Store that value offline. It is not written to disk by AI-Brains and will not be shown again.
+
+2. **Provide an existing key** (re-init / known vault):
+
+   | Shell | Example |
+   |-------|---------|
+   | PowerShell | `$env:AI_BRAINS_KEY = "x'0123…abcd'"` (double quotes keep the inner single quotes) |
+   | bash | `export AI_BRAINS_KEY="x'0123…abcd'"` |
+   | CLI flag | `ai-brains --key "x'0123…abcd'" doctor` |
+
+3. **dotenv load order** (CLI already does this when `--no-project-context` is unset): project `.env` in the cwd first, then fallback `~/.ai-brains/.env` if `AI_BRAINS_VAULT_PATH` is still unset. Keys may live in either file for local use — **never commit** secrets to git (use a secrets manager or a gitignored env file with mode restricted to your account).
+
+4. **Missing vs wrong key**: missing → `Vault key missing:` / doctor `vault_open` skipped; wrong key → `Vault locked:` / doctor `vault_open` fail. Neither floods stderr with native SQLCipher hmac lines.
+
+5. **Do not** use the all-zero key in production. `AI_BRAINS_ALLOW_ZERO_KEY=1` is an escape hatch for hermetic tests only.
 
 ---
 

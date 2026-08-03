@@ -538,6 +538,8 @@ fn count_events_of_type(
     vault_path: &Path,
     event_type: &str,
 ) -> Result<i64, Box<dyn std::error::Error>> {
+    // T197: hermetic vaults use explicit zero key; open requires ALLOW_ZERO_KEY.
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
     let conn = ai_brains_store::connection::VaultConnection::open(vault_path, &key)?;
     let locked = conn.lock()?;

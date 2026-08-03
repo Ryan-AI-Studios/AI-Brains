@@ -50,6 +50,8 @@ fn ingest_user_turn(vault_path: &Path, content: &str) {
 fn open_store(
     vault_path: &Path,
 ) -> Result<ai_brains_store::event_store::SqliteEventStore, Box<dyn std::error::Error>> {
+    // T197: hermetic zero-key vaults require ALLOW_ZERO_KEY for in-process open.
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
     // Read path only — do not migrate (source/dest already schema-ready).
     let conn = ai_brains_store::connection::VaultConnection::open(vault_path, &key)?;

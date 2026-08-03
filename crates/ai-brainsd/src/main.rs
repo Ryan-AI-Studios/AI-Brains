@@ -25,6 +25,9 @@ const PIPE_NAME: &str = r"\\.\pipe\ledgerful-bridge";
 
 #[allow(clippy::disallowed_methods)]
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // T197 F11/F27: silence SQLCipher hmac flood before any vault open / tokio.
+    ai_brains_store::sqlcipher_log_policy::install();
+
     let args: Vec<String> = std::env::args().collect();
     let run_as_service = args.iter().any(|a| a == "--service");
 

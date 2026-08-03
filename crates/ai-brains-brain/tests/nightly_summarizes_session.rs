@@ -2,18 +2,21 @@
 
 use ai_brains_brain::NightlyService;
 use ai_brains_core::ids::{ProjectId, SessionId};
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_events::{
     Payload, SessionCompletedPayload, SessionStartedPayload, UserPromptRecordedPayload,
 };
 use ai_brains_models::mock::MockProvider;
-use ai_brains_store::connection::VaultConnection;
+use ai_brains_store::connection::{ALLOW_ZERO_KEY_ENV, VaultConnection};
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 use std::sync::Arc;
 use tempfile::tempdir;
 
 #[tokio::test]
 async fn test_nightly_summarizes_session() -> Result<(), Box<dyn std::error::Error>> {
+    // Fixture uses all-zero key (T187/T197 escape hatch for hermetic vaults).
+    let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
     let dir = tempdir()?;
     let db_path = dir.path().join("vault.db");
     let key = SqlCipherKey::from_raw(

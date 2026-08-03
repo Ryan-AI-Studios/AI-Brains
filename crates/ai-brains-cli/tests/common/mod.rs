@@ -62,12 +62,18 @@ pub const AMBIENT_DENYLIST: &[&str] = &[
 /// Callers set `--vault-path` / project / session as needed.
 /// Prefer `hermetic_cmd` or `hermetic_vault` when a vault path is known.
 ///
-/// T187: sets `AI_BRAINS_ALLOW_ZERO_KEY=1` so default zero-key CLI init used by
-/// hermetic tests still opens under live SQLCipher. Production refuses zero keys.
+/// Deterministic all-zero SQLCipher product key used by hermetic fixtures.
+pub const ZERO_SQLCIPHER_KEY: &str =
+    "x'0000000000000000000000000000000000000000000000000000000000000000'";
+
+/// T187/T197: sets explicit zero key + `AI_BRAINS_ALLOW_ZERO_KEY=1` so hermetic
+/// tests open under live SQLCipher without relying on silent zero defaults.
+/// Production refuses zero keys and missing keys (T197 F2).
 pub fn hermetic_bin() -> Command {
     let mut cmd = Command::cargo_bin("ai-brains").expect("ai-brains bin must be built for tests");
     strip_ambient(&mut cmd);
     cmd.env("AI_BRAINS_ALLOW_ZERO_KEY", "1");
+    cmd.env("AI_BRAINS_KEY", ZERO_SQLCIPHER_KEY);
     cmd
 }
 

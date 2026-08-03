@@ -40,6 +40,7 @@ fn http_bind_arg__parses_explicit() {
 
 #[tokio::test]
 async fn http_dispatch__ping__returns_pong() {
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     let spool = dir.path().join("spool");

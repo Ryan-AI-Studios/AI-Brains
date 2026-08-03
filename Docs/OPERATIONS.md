@@ -286,7 +286,7 @@ ai-brains migrate governed --source .\s.db --destination .\d.db --report .\r.jso
 | Copy events | Default **on** for empty dest (`--copy-events`); `--no-copy-events` for import-only. Re-apply into non-empty dest is **import-only** even if `--copy-events` (no duplicate source envelopes). |
 | Re-apply | Non-empty dest requires matching `migrate-manifest.json` `source_fingerprint` (content-based, not mtime). Missing/mismatch → refuse unless `--force-overwrite`. |
 | Force overwrite | With `--confirm`: delete dest db (+ WAL/SHM) and migrate-manifest, then recreate fresh (still subject to live/reparse refuse). |
-| Keys | `--source-key` / `--destination-key` with `--key` fallback. `--key` may be placed **after** `migrate governed` or as a root flag before `migrate`. Resolution: source_key → key → zero-key; destination_key → key → zero-key. Raw SQLCipher key strings only (fixture/shadow pattern). Production DPAPI unlock of arbitrary live vaults is **out of scope** (T168). |
+| Keys | `--source-key` / `--destination-key` with `--key` / `AI_BRAINS_KEY` fallback (T197). `--key` may be placed **after** `migrate governed` or as a root flag before `migrate`. Resolution: source_key → shared key → `AI_BRAINS_KEY` → **Missing** (`VAULT_KEY_MISSING`; no silent zero); same for destination. Product form `x'<64 hex>'` only. Production DPAPI unlock of arbitrary live vaults is **out of scope** (T168). |
 | Report contents | Schema v1 JSON: counts, classification, unresolved reason codes, content hashes (payload_hash samples), `plan_hash` / `report_hash`, CE honesty (`claims_cryptographic_erasure: false`), rollback (`source_modified: false`). **No plaintext bodies.** |
 | Progress | Confirm copy of ≥1000 events emits stderr progress; batch append size 5000. |
 
@@ -586,8 +586,17 @@ Reports `{ nodes, edges, status: "live", note }`. If `status` is not `"live"` or
 ai-brains graph rebuild
 ```
 
-### Vault Locked
-If the vault cannot be opened, ensure the `AI_BRAINS_KEY` environment variable is set or the correct `--key` argument is provided.
+### Vault Locked / Missing Key (T197)
+| Symptom | Cause | Operator action |
+|---------|--------|-----------------|
+| `Vault key missing:` / JSON `VAULT_KEY_MISSING` | Neither `--key` nor `AI_BRAINS_KEY` after trim | Set key (see [INSTALL.md](INSTALL.md) bootstrap) or re-run `ai-brains init` to generate |
+| `Vault key invalid format:` / `VAULT_KEY_FORMAT` | Not product form `x'<64 hex>'` | Fix quoting; bare 64-hex is **not** auto-wrapped |
+| `Vault key refused:` / `VAULT_KEY_ZERO` | Explicit all-zero without allow | Use a non-zero key; tests may set `AI_BRAINS_ALLOW_ZERO_KEY=1` |
+| `Vault locked:` / `VAULT_LOCKED` | Wrong key or cannot decrypt | Fix key material; do not expect multi-line native hmac dumps |
+| Doctor `vault_open` **skipped** | Key missing | Report still emits; exit 1 |
+| Doctor `vault_open` **fail** | Wrong key | Report emits; exit 1 |
+
+CLI loads project `.env` then `~/.ai-brains/.env` fallback (when project context is enabled). Never commit keys.
 
 ### Missing Graph Database
 If the graph features are missing on Windows, verify that the `graph` feature was enabled during build and that the MSVC 4GB image size limit was not exceeded. If it was, the system will gracefully fall back to Lexical search.
@@ -597,8 +606,9 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Variable | Description |
 |---|---|
 | `AI_BRAINS_VAULT_PATH` | Default path to the vault database. |
-| `AI_BRAINS_KEY` | SQLCipher vault key as `x'<64 hex>'` (T187). Zero key refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (tests/legacy only). |
-| `AI_BRAINS_ALLOW_ZERO_KEY` | When `1`/`true`/`yes`, allow all-zero SQLCipher keys (hermetic tests / legacy dogfood). Production should omit. |
+| `AI_BRAINS_KEY` | SQLCipher vault key as product form `x'<64 hex>'` (67 chars; T187/T197). Required for vault-backed commands when `--key` omitted. Missing → `VAULT_KEY_MISSING` (not silent zero). Loaded from process env; project `.env` and `~/.ai-brains/.env` may populate env via CLI dotenv. Never commit. |
+| `AI_BRAINS_ALLOW_ZERO_KEY` | When `1`/`true`/`yes` (case-insensitive), allow all-zero SQLCipher keys (hermetic tests / legacy dogfood only). Production should omit. Explicit zero without this → `VAULT_KEY_ZERO`. |
+| `AI_BRAINS_VAULT_KEY` | **Daemon only** (`ai-brainsd`): vault key env name used by the daemon process (not the CLI resolver). Prefer documenting daemon secrets in a 0600 env file; do not conflate with CLI `AI_BRAINS_KEY` without ensuring both are set when CLI and daemon share a vault. |
 | `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). |
 | `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). |
 | `LEDGERFUL_TX_ID` | Ledgerful transaction ID for ledger cross-linking (preferred; T142). |

@@ -51,7 +51,6 @@ const MIGRATE_MANIFEST_VERSION: u32 = 1;
 const CONTENT_HASH_CAP: usize = 500;
 const COPY_BATCH_SIZE: usize = 5000;
 const PROGRESS_THRESHOLD: usize = 1000;
-const DEFAULT_SQL_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
 
 // ---------------------------------------------------------------------------
 // Options
@@ -266,8 +265,8 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
         ));
     }
 
-    let source_key = resolve_sql_key(opts.source_key.clone(), opts.key.clone());
-    let dest_key = resolve_sql_key(opts.destination_key.clone(), opts.key.clone());
+    let source_key = resolve_sql_key(opts.source_key.clone(), opts.key.clone())?;
+    let dest_key = resolve_sql_key(opts.destination_key.clone(), opts.key.clone())?;
 
     // M5 / #12 — open source read-intent (no journal_mode mutation); never migrate source.
     let source_conn =
@@ -1085,11 +1084,23 @@ fn delete_dest_artifacts(destination: &Path) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-fn resolve_sql_key(specific: Option<String>, fallback: Option<String>) -> SqlCipherKey {
-    let key_str = specific
-        .or(fallback)
-        .unwrap_or_else(|| DEFAULT_SQL_KEY.to_string());
-    SqlCipherKey::from_raw(key_str)
+/// Specific CLI key → shared fallback → `AI_BRAINS_KEY` env → Missing (T197 F10).
+fn resolve_sql_key(
+    specific: Option<String>,
+    fallback: Option<String>,
+) -> Result<SqlCipherKey, crate::key_resolve::KeyResolveError> {
+    let pick = specific
+        .and_then(|s| {
+            let t = s.trim();
+            if t.is_empty() { None } else { Some(s) }
+        })
+        .or_else(|| {
+            fallback.and_then(|s| {
+                let t = s.trim();
+                if t.is_empty() { None } else { Some(s) }
+            })
+        });
+    crate::key_resolve::resolve_operator_sqlcipher_key(pick)
 }
 
 fn created_at_rfc3339() -> String {

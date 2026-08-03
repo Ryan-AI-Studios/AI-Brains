@@ -57,6 +57,8 @@ struct Harness {
 }
 
 async fn start_harness(name: &str) -> Result<Harness, Box<dyn std::error::Error + Send + Sync>> {
+    // T197: explicit zero-key fixtures require ALLOW_ZERO_KEY (no silent ambient).
+    let _allow = ai_brains_core::temp_env::TempEnv::set("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     let dir = unique_dir(name);
     std::fs::create_dir_all(&dir)?;
     let db_path = dir.join("vault.db");
