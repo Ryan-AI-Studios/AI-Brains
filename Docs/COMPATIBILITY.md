@@ -130,7 +130,7 @@ Some minimal/scratch containers lack `/bin/true`. Git automation on Unix require
 8. **Git automation** on Unix requires **`/bin/true`** (absent in some minimal containers).
 9. **Capture independence** holds; brain/nightly features may require local models on any OS.
 10. **arm64** (Win/Linux) is **T3** unless a soft job is added later.
-11. **systemd / launchd** production units are residuals — not T1 claims.
+11. **Reference systemd and launchd unit templates** are provided under `packaging/reference/`; automated installer management on Unix is not claimed; not T1 multi-OS service parity.
 12. **App Store / notarization / MSI** packaging are T183/T185 residuals — not T179 DoD.
 
 ---

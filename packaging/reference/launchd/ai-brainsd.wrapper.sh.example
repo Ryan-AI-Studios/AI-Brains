@@ -1,0 +1,64 @@
+#!/bin/sh
+# AI-Brains launchd secrets wrapper example (T196 F34)
+#
+# Pattern:
+#   1) User LaunchAgent plist (mode 0600) points ProgramArguments at this script.
+#   2) This script sources a 0600 env file (secrets + absolute vault path).
+#   3) exec ai-brainsd in the foreground (no daemonize / double-fork / setsid).
+#
+# NEVER put AI_BRAINS_KEY / AI_BRAINS_VAULT_KEY in a system-wide plist.
+# Install example:
+#   install -m 700 ai-brainsd.wrapper.sh.example ~/.local/bin/ai-brainsd.wrapper.sh
+#   install -m 600 /dev/null ~/.config/ai-brains/daemon.env   # then edit contents
+#   # edit paths below before use
+
+set -eu
+
+# --- operator: adjust these paths ---
+ENV_FILE="${HOME}/.config/ai-brains/daemon.env"
+# cargo install path residual (user-writable); or /usr/local/bin/ai-brainsd
+DAEMON_BIN="${HOME}/.cargo/bin/ai-brainsd"
+
+if [ ! -f "${ENV_FILE}" ]; then
+  echo "ai-brainsd.wrapper: missing env file: ${ENV_FILE}" >&2
+  echo "Create it with mode 0600; set absolute AI_BRAINS_VAULT_PATH (and key vars)." >&2
+  exit 1
+fi
+
+# F34: secrets env must be owner-only (0600 or 0400). Fail closed if mode cannot be read.
+# Portable ls -ld permission string: group+other (chars 5–10) must be ------.
+# shellcheck disable=SC2012
+ls_out=$(ls -ld "${ENV_FILE}") || {
+  echo "ai-brainsd.wrapper: cannot read permissions for: ${ENV_FILE}" >&2
+  exit 1
+}
+mode=$(printf '%s\n' "${ls_out}" | awk '{print $1}')
+if [ -z "${mode}" ] || [ "${#mode}" -lt 10 ]; then
+  echo "ai-brainsd.wrapper: could not parse permissions for: ${ENV_FILE}" >&2
+  exit 1
+fi
+group_other=$(printf '%s' "${mode}" | cut -c5-10)
+if [ "${group_other}" != "------" ]; then
+  echo "ai-brainsd.wrapper: env file must be owner-only (mode 0600 or 0400): ${ENV_FILE} (${mode})" >&2
+  echo "Fix: chmod 600 ${ENV_FILE}" >&2
+  exit 1
+fi
+owner_r=$(printf '%s' "${mode}" | cut -c2)
+if [ "${owner_r}" != "r" ]; then
+  echo "ai-brainsd.wrapper: owner must have read on env file: ${ENV_FILE}" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+set -a
+# shellcheck source=/dev/null
+. "${ENV_FILE}"
+set +a
+
+if [ ! -x "${DAEMON_BIN}" ]; then
+  echo "ai-brainsd.wrapper: daemon binary not executable: ${DAEMON_BIN}" >&2
+  exit 1
+fi
+
+# Foreground — launchd supervises this process
+exec "${DAEMON_BIN}"

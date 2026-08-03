@@ -204,7 +204,8 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             }
                         });
                     }
-                    _ = tokio::signal::ctrl_c() => {
+                    // Windows interactive: Ctrl-C only (SCM service uses windows_service path).
+                    _ = ai_brainsd::shutdown_signal::wait_shutdown_signal() => {
                         println!("\nShutdown signal received. Closing daemon...");
                         let _ = shutdown_tx_clone.send(());
                         break;
@@ -283,7 +284,8 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             }
                         }
                     }
-                    _ = tokio::signal::ctrl_c() => {
+                    // Unix: Ctrl-C (SIGINT) + SIGTERM (systemd/launchd stop) — T196 F36.
+                    _ = ai_brainsd::shutdown_signal::wait_shutdown_signal() => {
                         println!("\nShutdown signal received. Closing daemon...");
                         let _ = shutdown_tx_clone.send(());
                         break;
@@ -293,11 +295,11 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
     }
 
-    // Wait for shutdown signal (Ctrl-C or internal Shutdown request)
+    // Wait for shutdown signal (Ctrl-C / SIGTERM on Unix, or internal Shutdown request)
     let mut shutdown_rx = shutdown_tx.subscribe();
     tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            println!("\nCtrl-C received. Closing daemon...");
+        _ = ai_brainsd::shutdown_signal::wait_shutdown_signal() => {
+            println!("\nShutdown signal received. Closing daemon...");
         }
         _ = shutdown_rx.recv() => {
             println!("Internal shutdown signal received. Closing daemon...");

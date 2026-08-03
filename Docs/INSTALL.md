@@ -198,10 +198,11 @@ When integrating clients or multi-version vaults:
 3. Daemon: expect **UDS**, not “HTTP-only by default.”
 4. Askpass: ensure `/bin/true`.
 5. DPAPI seeds from Windows will **not** open here.
+6. **Optional always-on daemon:** copy-paste **reference** systemd user unit from [`packaging/reference/`](../packaging/reference/README.md) — **not** a product Unix installer; Windows `daemon install` remains the only product-managed service path. Residual: MSI / App Store / notarization still out of scope.
 
 ### macOS
 
-T2 soft unless promoted. Do not claim WebView2 Isolation. Align runner OS string with COMPATIBILITY pins when citing CI.
+T2 soft unless promoted. Do not claim WebView2 Isolation. Align runner OS string with COMPATIBILITY pins when citing CI. Optional LaunchAgent reference templates live under [`packaging/reference/launchd/`](../packaging/reference/README.md) (not product install; not T1 service parity).
 
 ---
 

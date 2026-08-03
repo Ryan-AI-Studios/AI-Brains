@@ -33,6 +33,7 @@ pub mod http_adapter;
 pub mod instance_guard;
 pub mod pipe_error;
 pub mod services;
+pub mod shutdown_signal;
 pub mod unix_socket_mode;
 
 #[cfg(windows)]

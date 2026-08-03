@@ -389,6 +389,20 @@ ai-brains daemon uninstall         # remove the Windows service (requires elevat
 - **Windows service (recommended for persistent daemon):** `daemon install` registers `AI-Brains-Daemon` as a Windows service running as `LocalSystem` in Session 0. Default named-pipe SDDL is `D:(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;IU)` — **Local System + Built-in Administrators + Interactive** (not World/Everyone). That grants Session 1 interactive CLI clients cross-session access while excluding null-session/Everyone. **Residual (R-PIPE-IU):** any interactive logon on a multi-user host can open the default pipe; pipe traffic has no HTTP-style bearer (see SECURITY-LIMITS §7 / ADR-0022). **Opt-in tighter ACL:** set `AI_BRAINS_PIPE_ACL=service-only` in the service environment → SDDL `D:(A;;GA;;;SY)(A;;GA;;;BA)` (no IU). In that mode an **interactive (non-elevated) CLI will typically see daemon NotRunning / cannot open the SYSTEM service pipe even if the service is healthy** — use `sc query AI-Brains-Daemon`, an elevated Administrators client, or run an interactive daemon + HTTP+bearer instead (AC11 honesty). Pipe name remains `\\.\pipe\ledgerful-bridge`. Env vars (vault path, model URLs) are written to `%ProgramData%\AI-Brains\daemon.env` with a restrictive ACL (`SYSTEM:F` + `Administrators:F` only — same model as the nightly SYSTEM wrapper; T145). Requires an elevated PowerShell session.
 - **Deprecated:** `daemon schedule` / `unschedule` (Task Scheduler ONLOGON) still work but are deprecated in favor of `install` / `uninstall`. The Task Scheduler approach had a cross-session pipe access issue where Session 0 daemons were unreachable from Session 1.
 
+#### Unix service units (reference only — T196)
+
+**Windows SCM remains the only product-managed service install** (`daemon install` / `AI-Brains-Daemon`). Linux/macOS operators who want a user session daemon can **copy-paste** reference templates from [`packaging/reference/`](../packaging/reference/README.md):
+
+| Template | Role |
+|----------|------|
+| `packaging/reference/systemd/ai-brainsd.user.service` | Primary Linux: systemd **user** unit |
+| `packaging/reference/systemd/ai-brainsd.system.service` | Secondary system unit (honesty; not recommended primary) |
+| `packaging/reference/launchd/dev.ledgerful.ai-brainsd.plist` | Primary macOS: LaunchAgent |
+| `packaging/reference/launchd/ai-brainsd.wrapper.sh.example` | Secrets via 0600 env + `exec` (never system-wide plist secrets) |
+| `packaging/reference/daemon.env.example` | Sample env (absolute `AI_BRAINS_VAULT_PATH`; no real keys) |
+
+These are **reference / operator templates**, not a product Unix installer and **not** T1 multi-OS service parity. Read the packaging README for linger tradeoff, XDG/UDS honesty, KeepAlive/suspend risk, foreground process model, and SIGTERM graceful stop. Soft check: `scripts/check-reference-units.sh`. There is **no** Unix `daemon install` CLI.
+
 ### Nightly Intelligence Sweep
 ```powershell
 ai-brains --vault-path ./vault.db nightly

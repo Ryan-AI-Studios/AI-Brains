@@ -1,0 +1,33 @@
+[Unit]
+Description=AI-Brains local daemon (user reference unit — not product installer)
+# Documentation= — set only if installed docs path exists on the system
+# Do NOT use relative Documentation=file:packaging/... (resolves under /)
+After=default.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+# Operator: set one ExecStart to the installed binary
+# Examples:
+#   %h/.cargo/bin/ai-brainsd          (cargo install --locked)
+#   /usr/local/bin/ai-brainsd         (system / package install)
+ExecStart=%h/.cargo/bin/ai-brainsd
+# EnvironmentFile is optional for unit start (- prefix), but headless needs absolute vault path
+EnvironmentFile=-%h/.config/ai-brains/daemon.env
+# Optional fixed UDS (must match CLI): Environment=AI_BRAINS_DAEMON_SOCKET=%t/ledgerful-bridge.sock
+# Prefer unset AI_BRAINS_DAEMON_SOCKET when XDG_RUNTIME_DIR is valid (T195)
+# AI_BRAINS_VAULT_PATH must be absolute in the env file (headless required)
+# HTTP stays off — do not enable AI_BRAINS_HTTP / non-loopback here
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+# ProtectHome=yes and ProtectHome=read-only are intentionally NOT set —
+# vault is typically under $HOME and needs write access.
+# Optional stricter FS sandbox (only if you set ReadWritePaths to vault parent + runtime):
+# ProtectSystem=strict
+# ReadWritePaths=%h/.ai-brains %t
+
+[Install]
+WantedBy=default.target
