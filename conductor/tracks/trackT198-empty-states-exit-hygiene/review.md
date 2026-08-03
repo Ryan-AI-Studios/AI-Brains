@@ -13,7 +13,9 @@
 | R1 Completeness | explore subagent | **CLEAN** (no open findings) | 2026-08-03 |
 | R1 Correctness | explore subagent | **CLEAN** (no open findings) | 2026-08-03 |
 | Codex R1 | gpt-5.6-luna | **Code PASS**; P1 process DoD only (D3–D6) | 2026-08-03 |
-| Codex Final | gpt-5.6-luna (pending) | Fresh gate after local full gate green | — |
+| Codex Final | gpt-5.6-luna | **PASS** (no P0–P3) | 2026-08-03 |
+| GHA CI | windows/linux/macos | **all SUCCESS** run 30805086884 | 2026-08-03 |
+| Ship | PR #81 squash-merge | `5cc0418` | 2026-08-03 |
 
 ## Internal findings
 

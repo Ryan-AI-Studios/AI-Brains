@@ -60,10 +60,10 @@ Status: **Implement complete (pending D3–D6 gate/review/commit)** (2026-08-03)
 
 - [x] **D1** CHANGELOG: graph exit 0→2  
 - [x] **D2** Soft OPERATIONS (skipped — soft only; CHANGELOG covers break)  
-- [x] **D3** Full gate (local: fmt, clippy -D warnings, nextest 1907 pass, deny+audit pending closeout)  
-- [x] **D4** Review AC1–AC11 (internal R1 CLEAN ×2; Codex R1 code clean, process residual only)  
-- [ ] **D5** deferred strike; conductor Completed *(after squash-merge)*  
-- [ ] **D6** Pin + ledger commit *(after squash-merge)*  
+- [x] **D3** Full gate (local 1907 nextest; CI windows/linux/macos all SUCCESS)  
+- [x] **D4** Review AC1–AC11 (internal R1 CLEAN ×2; Codex final **PASS**)  
+- [x] **D5** deferred strike; conductor Completed (PR #81 `5cc0418`)  
+- [x] **D6** Pin + ledger commit
 
 ## Verification matrix
 

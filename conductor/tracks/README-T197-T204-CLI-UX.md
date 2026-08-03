@@ -7,7 +7,7 @@ Source: non-destructive global-install CLI audit after T196. Drafts only — imp
 | Order | Track | Priority | One-line |
 |-------|-------|----------|----------|
 | 1 | [T197](trackT197-vault-open-ux-key-bootstrap/spec.md) | P0 | ✅ **Completed 2026-08-03** PR #80 `72dfa62` — silent-zero stop; spam filter; F8; bootstrap docs |
-| 2 | [T198](trackT198-empty-states-exit-hygiene/spec.md) | P1 | Empty bodies + graph non-zero exit |
+| 2 | [T198](trackT198-empty-states-exit-hygiene/spec.md) | P1 | ✅ **Completed 2026-08-03** PR #81 `5cc0418` — empty success non-blank; dogfood fail_api; graph exit 0→2 |
 | 2 | [T199](trackT199-daemon-status-vault-independence/spec.md) | P1 | `daemon status` without vault key |
 | 3 | [T200](trackT200-graph-feature-install-honesty/spec.md) | P1/P3 | Graph default install or FEATURE_UNAVAILABLE |
 | 4 | [T201](trackT201-cli-error-exit-contract/spec.md) | P2 | Exit codes + error envelopes |
