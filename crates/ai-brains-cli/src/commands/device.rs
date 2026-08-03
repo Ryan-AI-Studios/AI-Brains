@@ -324,11 +324,15 @@ pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
 pub fn run_fingerprint(ctx: &AppContext, raw: bool) -> Result<(), Box<dyn std::error::Error>> {
     let conn = ctx.conn.lock()?;
     let devices = replication::list_enrolled_devices(&conn)?;
-    let local = devices
+    let Some(local) = devices
         .iter()
         .find(|d| d.status == "local")
         .or_else(|| devices.first())
-        .ok_or("No enrolled device found. Run `ai-brains device bootstrap` first.")?;
+    else {
+        // F7: align empty enroll with `device list` — stdout + exit 0.
+        println!("No enrolled devices. Run `ai-brains device bootstrap` first.");
+        return Ok(());
+    };
     let mut fp = [0u8; 32];
     if local.fingerprint_sha256.len() != 32 {
         return Err("stored fingerprint is not 32 bytes".into());

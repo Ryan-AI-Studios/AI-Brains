@@ -9,6 +9,10 @@ pub fn list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
         "{:<36} {:<30} {:<25} memories",
         "project_id", "name (alias|UUID)", "alias"
     );
+    if projects.is_empty() {
+        println!("No projects registered. (0 projects)");
+        return Ok(());
+    }
     for (pid, name, alias, count) in projects {
         println!(
             "{:<36} {:<30} {:<25} {}",
@@ -135,7 +139,7 @@ pub fn detect(ctx: &AppContext, export_shell: bool) -> Result<(), Box<dyn std::e
     }
 
     // Nothing found via slug match or .env.
-    let msg = "No project detected. Set an alias with 'project set-alias' or initialize a project with 'init'.";
+    let msg = "No project detected. Set an alias with 'project set-alias', initialize a project with 'init', or run 'ai-brains context'.";
     if export_shell {
         eprintln!("# {}", msg);
     } else {

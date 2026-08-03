@@ -1808,11 +1808,14 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         } => print_schema(SCHEMA_SYNC_PULL, "AI-Brains sync pull NDJSON record"),
         #[cfg(not(feature = "graph"))]
         Commands::Graph { .. } => {
-            println!("The graph subcommand requires a --features graph build.");
+            println!(
+                "{}: The graph subcommand requires a --features graph build.",
+                commands::governed_common::FEATURE_UNAVAILABLE
+            );
             println!(
                 "Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph"
             );
-            Ok(())
+            std::process::exit(commands::governed_common::exit_code_feature_unavailable());
         }
         Commands::Shadow { command } => match command {
             ShadowCommands::Create {
@@ -2806,11 +2809,14 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         },
         #[cfg(not(feature = "graph"))]
         Commands::Graph { .. } => {
-            println!("The graph subcommand requires a --features graph build.");
+            println!(
+                "{}: The graph subcommand requires a --features graph build.",
+                commands::governed_common::FEATURE_UNAVAILABLE
+            );
             println!(
                 "Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph"
             );
-            Ok(())
+            std::process::exit(commands::governed_common::exit_code_feature_unavailable());
         }
     }
 }

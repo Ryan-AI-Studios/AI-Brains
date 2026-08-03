@@ -2810,8 +2810,9 @@ fn test_preflight_stdin_flag_in_help() {
         .stdout(predicate::str::contains("--stdin"));
 }
 
-/// T122: When built without the graph feature, `ai-brains graph update`
-/// prints a helpful hint and exits 0.
+/// T122/T198: When built without the graph feature, `ai-brains graph update`
+/// prints a helpful hint and exits 2 (`EXIT_USAGE` / FEATURE_UNAVAILABLE).
+/// `graph --help` remains exit 0.
 #[cfg(not(feature = "graph"))]
 #[test]
 #[allow(non_snake_case)]
@@ -2823,14 +2824,24 @@ fn graph__default_build__prints_hint() {
         .expect("graph update must run");
 
     assert!(
-        output.status.success(),
-        "graph (stub) must exit 0; stderr={}",
+        !output.status.success(),
+        "graph (stub) must exit non-zero; stderr={}",
         String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "graph (stub) must exit 2 (EXIT_USAGE); got {:?}",
+        output.status.code()
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("requires a --features graph build"),
         "stub must print feature hint; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("FEATURE_UNAVAILABLE"),
+        "stub must prefix FEATURE_UNAVAILABLE; got: {stdout}"
     );
 
     let help_output = common::hermetic_bin()

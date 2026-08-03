@@ -6,9 +6,7 @@
 use crate::artifact_security::{
     is_hardlink, is_reparse_or_symlink, refuse_if_hardlink, refuse_if_reparse,
 };
-use crate::commands::governed_common::{
-    EXIT_INVALID_PAYLOAD, GovernedCliError, OutputFormat, emit_json, fail_api,
-};
+use crate::commands::governed_common::{OutputFormat, emit_json, fail_api};
 use crate::commands::shadow::resolve_live_vault_path;
 use ai_brains_contracts::response::ApiError;
 use ai_brains_path::{paths_refer_to_same_location, resolve_best_effort};
@@ -231,19 +229,25 @@ fn fail_path_refused(message: impl Into<String>) -> Result<(), Box<dyn std::erro
     )
 }
 
+/// Emit INVALID_PAYLOAD on stdout (JSON) and return the governed error box.
+/// Used for non-unit Result maps where `fail_api` alone is awkward.
+fn fail_invalid_payload_err(message: impl Into<String>) -> Box<dyn std::error::Error> {
+    match fail_api(
+        OutputFormat::Json,
+        ApiError::new("INVALID_PAYLOAD", message.into()),
+    ) {
+        Err(e) => e,
+        Ok(()) => Box::new(std::io::Error::other(
+            "INVALID_PAYLOAD fail_api returned Ok",
+        )),
+    }
+}
+
 fn read_json_file(path: &Path) -> Result<Value, Box<dyn std::error::Error>> {
-    let text = fs::read_to_string(path).map_err(|e| {
-        Box::new(GovernedCliError::emitted(
-            EXIT_INVALID_PAYLOAD,
-            format!("failed to read {}: {e}", path.display()),
-        )) as Box<dyn std::error::Error>
-    })?;
-    let value: Value = serde_json::from_str(&text).map_err(|e| {
-        Box::new(GovernedCliError::emitted(
-            EXIT_INVALID_PAYLOAD,
-            format!("invalid JSON {}: {e}", path.display()),
-        )) as Box<dyn std::error::Error>
-    })?;
+    let text = fs::read_to_string(path)
+        .map_err(|e| fail_invalid_payload_err(format!("failed to read {}: {e}", path.display())))?;
+    let value: Value = serde_json::from_str(&text)
+        .map_err(|e| fail_invalid_payload_err(format!("invalid JSON {}: {e}", path.display())))?;
     Ok(value)
 }
 
@@ -415,12 +419,8 @@ pub fn build_compare_packet(
         limitations,
     };
 
-    packet.compare_hash = compute_compare_hash(&packet).map_err(|e| {
-        Box::new(GovernedCliError::emitted(
-            EXIT_INVALID_PAYLOAD,
-            format!("compare_hash failed: {e}"),
-        )) as Box<dyn std::error::Error>
-    })?;
+    packet.compare_hash = compute_compare_hash(&packet)
+        .map_err(|e| fail_invalid_payload_err(format!("compare_hash failed: {e}")))?;
 
     Ok(packet)
 }
@@ -432,10 +432,9 @@ fn parse_stage(stage: Option<&str>) -> Result<String, Box<dyn std::error::Error>
             let upper = s.to_uppercase();
             match upper.as_str() {
                 "B" | "C" => Ok(upper),
-                other => Err(Box::new(GovernedCliError::emitted(
-                    EXIT_INVALID_PAYLOAD,
-                    format!("--stage must be B or C (got {other})"),
-                )) as Box<dyn std::error::Error>),
+                other => Err(fail_invalid_payload_err(format!(
+                    "--stage must be B or C (got {other})"
+                ))),
             }
         }
     }
@@ -447,14 +446,12 @@ fn require_array_field<'a>(
 ) -> Result<&'a Vec<Value>, Box<dyn std::error::Error>> {
     match packet.get(name) {
         Some(Value::Array(arr)) => Ok(arr),
-        Some(_) => Err(Box::new(GovernedCliError::emitted(
-            EXIT_INVALID_PAYLOAD,
-            format!("governed packet field '{name}' must be an array"),
-        )) as Box<dyn std::error::Error>),
-        None => Err(Box::new(GovernedCliError::emitted(
-            EXIT_INVALID_PAYLOAD,
-            format!("governed packet missing required array field '{name}'"),
-        )) as Box<dyn std::error::Error>),
+        Some(_) => Err(fail_invalid_payload_err(format!(
+            "governed packet field '{name}' must be an array"
+        ))),
+        None => Err(fail_invalid_payload_err(format!(
+            "governed packet missing required array field '{name}'"
+        ))),
     }
 }
 
@@ -462,10 +459,9 @@ fn parse_denied_field(packet: &Value) -> Result<bool, Box<dyn std::error::Error>
     match packet.get("denied") {
         None => Ok(false),
         Some(Value::Bool(b)) => Ok(*b),
-        Some(_) => Err(Box::new(GovernedCliError::emitted(
-            EXIT_INVALID_PAYLOAD,
+        Some(_) => Err(fail_invalid_payload_err(
             "governed packet field 'denied' must be a boolean when present",
-        )) as Box<dyn std::error::Error>),
+        )),
     }
 }
 
@@ -528,10 +524,9 @@ fn extract_briefing_packet(raw: &Value) -> Result<Value, Box<dyn std::error::Err
     {
         return extract_briefing_packet(data);
     }
-    Err(Box::new(GovernedCliError::emitted(
-        EXIT_INVALID_PAYLOAD,
+    Err(fail_invalid_payload_err(
         "governed JSON missing decisions/conclusions/warnings (expected ProjectBriefingPacket)",
-    )))
+    ))
 }
 
 fn looks_like_briefing_packet(raw: &Value) -> bool {
@@ -562,16 +557,14 @@ fn parse_legacy_preflight(raw: &Value) -> Result<LegacyParsed, Box<dyn std::erro
     let text = match obj.get("text") {
         Some(Value::String(s)) => s.clone(),
         Some(_) => {
-            return Err(Box::new(GovernedCliError::emitted(
-                EXIT_INVALID_PAYLOAD,
+            return Err(fail_invalid_payload_err(
                 "legacy preflight field 'text' must be a string",
-            )) as Box<dyn std::error::Error>);
+            ));
         }
         None => {
-            return Err(Box::new(GovernedCliError::emitted(
-                EXIT_INVALID_PAYLOAD,
+            return Err(fail_invalid_payload_err(
                 "legacy preflight missing required string field 'text'",
-            )) as Box<dyn std::error::Error>);
+            ));
         }
     };
 
@@ -582,24 +575,21 @@ fn parse_legacy_preflight(raw: &Value) -> Result<LegacyParsed, Box<dyn std::erro
                 u
             } else if let Some(i) = n.as_i64() {
                 if i < 0 {
-                    return Err(Box::new(GovernedCliError::emitted(
-                        EXIT_INVALID_PAYLOAD,
+                    return Err(fail_invalid_payload_err(
                         "legacy preflight field 'word_count' must be a non-negative number",
-                    )) as Box<dyn std::error::Error>);
+                    ));
                 }
                 i as u64
             } else {
-                return Err(Box::new(GovernedCliError::emitted(
-                    EXIT_INVALID_PAYLOAD,
+                return Err(fail_invalid_payload_err(
                     "legacy preflight field 'word_count' must be a finite number",
-                )) as Box<dyn std::error::Error>);
+                ));
             }
         }
         Some(_) => {
-            return Err(Box::new(GovernedCliError::emitted(
-                EXIT_INVALID_PAYLOAD,
+            return Err(fail_invalid_payload_err(
                 "legacy preflight field 'word_count' must be a number when present",
-            )) as Box<dyn std::error::Error>);
+            ));
         }
     };
 
