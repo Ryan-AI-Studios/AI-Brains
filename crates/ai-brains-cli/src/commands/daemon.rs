@@ -611,21 +611,74 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
-fn count_pinned_memories(
-    conn: &crate::context::AppContext,
-) -> Result<u64, Box<dyn std::error::Error>> {
-    let conn_lock = conn.conn.lock()?;
-    let count: u64 = conn_lock.query_row(
+/// Options for vault-independent `daemon status` (T199).
+///
+/// No [`AppContext`]: status must not open/migrate the vault for liveness.
+pub struct StatusOptions {
+    pub vault_path: Option<std::path::PathBuf>,
+    pub key: Option<String>,
+}
+
+/// Optional pinned-memory count via read-intent only (T199 F7 / AC13).
+///
+/// Swallow-only: never propagates errors; never migrates. Returns `None` when
+/// key is missing, vault is not openable, or the query fails.
+fn try_count_pinned_optional(path: &std::path::Path, key: Option<String>) -> Option<u64> {
+    use crate::key_resolve::resolve_operator_sqlcipher_key;
+    use ai_brains_store::connection::VaultConnection;
+
+    let resolved = resolve_operator_sqlcipher_key(key).ok()?;
+    let conn = VaultConnection::open_read_intent(path, &resolved).ok()?;
+    let lock = conn.lock().ok()?;
+    lock.query_row(
         "SELECT COUNT(*) FROM memory_projection WHERE status = 'pinned'",
         [],
         |row| row.get(0),
-    )?;
-    Ok(count)
+    )
+    .ok()
 }
 
-pub async fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+/// Vault section lines for status (T199 F6/F7; soft F12 extract for T201 JSON).
+///
+/// - Stopped → empty (T128)
+/// - Running + no path → empty
+/// - Running + path → Vault / Vault size always; Memories count or skip line
+fn format_status_vault_section(
+    is_running: bool,
+    vault_path: Option<&std::path::Path>,
+    key: Option<String>,
+) -> Vec<String> {
+    if !is_running {
+        return Vec::new();
+    }
+    let Some(path) = vault_path else {
+        return Vec::new();
+    };
+    let mut lines = Vec::with_capacity(3);
+    lines.push(format!("Vault: {}", path.display()));
+    // Honest size: real metadata length, or "unavailable" (never fake 0 B on IO fail).
+    let size_label = match std::fs::metadata(path) {
+        Ok(m) => format_size(m.len()),
+        Err(_) => "unavailable".to_string(),
+    };
+    lines.push(format!("Vault size: {size_label}"));
+    match try_count_pinned_optional(path, key) {
+        Some(n) => lines.push(format!("Memories: {n}")),
+        None => {
+            lines.push("Memories: skipped (vault key missing or vault not openable)".to_string())
+        }
+    }
+    lines
+}
+
+/// Interactive daemon status (T199): liveness IPC without vault key / open.
+pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::Error>> {
     let client = DaemonClient::new();
-    let is_running = client.probe(std::time::Duration::from_millis(200)).await;
+    let is_running = crate::daemon_probe::probe_daemon_reachable(
+        &client,
+        crate::daemon_probe::DaemonProbePolicy::Status,
+    )
+    .await;
 
     if is_running {
         println!("Status: Running");
@@ -633,19 +686,9 @@ pub async fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
         println!("Status: Stopped");
     }
 
-    // T128: show vault info only when daemon is running (caller may be pointing
-    // at a different vault than the one the daemon is serving, so we use the
-    // CLI-resolved path as the best available proxy).
-    if is_running {
-        println!("Vault: {}", ctx.vault_path.display());
-        let size = std::fs::metadata(&ctx.vault_path)
-            .map(|m| m.len())
-            .unwrap_or(0);
-        println!("Vault size: {}", format_size(size));
-        match count_pinned_memories(ctx) {
-            Ok(count) => println!("Memories: {}", count),
-            Err(e) => tracing::warn!("Failed to read memory count: {}", e),
-        }
+    // T128/T199: vault section only when Running and vault path is present.
+    for line in format_status_vault_section(is_running, opts.vault_path.as_deref(), opts.key) {
+        println!("{line}");
     }
 
     // T85: resolve backend addresses from configuration rather than hardcoded ports
@@ -703,26 +746,125 @@ pub async fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
         }
     }
 
-    // Try to report PID
+    // Soft PID report (T199 F8/AC12): tasklist failure must not exit non-zero.
     #[cfg(windows)]
     {
-        let output = std::process::Command::new("tasklist")
+        if let Ok(output) = std::process::Command::new("tasklist")
             .args(["/FI", "IMAGENAME eq ai-brainsd.exe", "/FO", "CSV", "/NH"])
-            .output()?;
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if stdout.contains("ai-brainsd.exe") {
-            // CSV format: "ai-brainsd.exe","PID","Session Name","Session#","Mem Usage"
-            if let Some(line) = stdout.lines().next() {
-                let parts: Vec<&str> = line.split(',').collect();
-                if parts.len() > 1 {
-                    let pid = parts[1].trim_matches('\"');
-                    println!("PID: {}", pid);
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if stdout.contains("ai-brainsd.exe") {
+                // CSV format: "ai-brainsd.exe","PID","Session Name","Session#","Mem Usage"
+                if let Some(line) = stdout.lines().next() {
+                    let parts: Vec<&str> = line.split(',').collect();
+                    if parts.len() > 1 {
+                        let pid = parts[1].trim_matches('\"');
+                        println!("PID: {}", pid);
+                    }
                 }
             }
         }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod status_vault_tests {
+    #![allow(clippy::disallowed_methods)]
+    #![allow(non_snake_case)]
+
+    use super::*;
+    use std::path::Path;
+
+    /// AC13: missing key → None (no panic, no propagate).
+    #[test]
+    fn try_count_pinned_optional__no_key__returns_none() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("missing.db");
+        assert!(try_count_pinned_optional(&path, None).is_none());
+    }
+
+    /// AC13: non-existent vault with key → None (open fails swallowed).
+    #[test]
+    fn try_count_pinned_optional__missing_vault__returns_none() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("no-such.db");
+        // Zero key still fails resolve without ALLOW; use None path for open fail.
+        // Explicit absent path with unresolved-looking key string that resolve rejects.
+        assert!(try_count_pinned_optional(&path, Some("not-a-key".into())).is_none());
+    }
+
+    /// AC6: Stopped → no vault lines.
+    #[test]
+    fn format_status_vault_section__stopped__empty() {
+        let lines = format_status_vault_section(false, Some(Path::new("C:\\vault.db")), None);
+        assert!(
+            lines.is_empty(),
+            "stopped must omit vault section: {lines:?}"
+        );
+    }
+
+    /// Running + no path → omit vault section.
+    #[test]
+    fn format_status_vault_section__running_no_path__empty() {
+        let lines = format_status_vault_section(true, None, None);
+        assert!(
+            lines.is_empty(),
+            "no path must omit vault section: {lines:?}"
+        );
+    }
+
+    /// AC7: Running + path + no key → path/size + Memories skip line.
+    #[test]
+    fn format_status_vault_section__running_path_no_key__skip_memories() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("vault.db");
+        std::fs::write(&path, b"placeholder").expect("write vault stub");
+
+        let lines = format_status_vault_section(true, Some(path.as_path()), None);
+        assert_eq!(
+            lines.len(),
+            3,
+            "expected Vault/size/Memories; got: {lines:?}"
+        );
+        assert!(
+            lines[0].starts_with("Vault: "),
+            "path line; got: {}",
+            lines[0]
+        );
+        assert!(
+            lines[1].starts_with("Vault size: "),
+            "size line; got: {}",
+            lines[1]
+        );
+        assert!(
+            !lines[1].contains("unavailable"),
+            "existing file must report real size; got: {}",
+            lines[1]
+        );
+        assert_eq!(
+            lines[2],
+            "Memories: skipped (vault key missing or vault not openable)"
+        );
+    }
+
+    /// Metadata IO failure must not report a fake 0 B size.
+    #[test]
+    fn format_status_vault_section__running_missing_file__size_unavailable() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("does-not-exist.db");
+        let lines = format_status_vault_section(true, Some(path.as_path()), None);
+        assert!(
+            lines.len() >= 2,
+            "expected Vault + size lines; got: {lines:?}"
+        );
+        assert_eq!(
+            lines[1], "Vault size: unavailable",
+            "missing file must not fake 0 B; got: {lines:?}"
+        );
+    }
 }
 
 /// T84: Stop the daemon, install updated binaries via `cargo install`, then restart.

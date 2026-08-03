@@ -77,6 +77,22 @@ pub fn hermetic_bin() -> Command {
     cmd
 }
 
+/// T199: ambient-stripped binary that **never** sets `AI_BRAINS_KEY` or
+/// `AI_BRAINS_ALLOW_ZERO_KEY` — for proving vault-independent commands (e.g.
+/// `daemon status`) work without a key.
+///
+/// Also passes `--no-project-context` so workspace / home `.env` cannot re-inject
+/// a vault key via dotenv (Codex R1 F15 false-positive fix).
+pub fn hermetic_bin_no_key() -> Command {
+    let mut cmd = Command::cargo_bin("ai-brains").expect("ai-brains bin must be built for tests");
+    strip_ambient(&mut cmd);
+    // Explicit remove in case cargo/runner injects keys outside the denylist path.
+    cmd.env_remove("AI_BRAINS_KEY");
+    cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");
+    cmd.arg("--no-project-context");
+    cmd
+}
+
 /// Hermetic binary with `--vault-path` only (no project/session env).
 pub fn hermetic_vault(vault: &Path) -> Command {
     let mut cmd = hermetic_bin();

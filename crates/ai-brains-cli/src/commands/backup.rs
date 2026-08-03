@@ -382,24 +382,17 @@ fn verify_single_backup(
     Ok(())
 }
 
-/// Robust daemon probe for destructive restore (T188 F1b).
+/// Robust daemon probe for destructive restore (T188 F1b / T199 F4).
 ///
-/// Per-attempt timeout ≥1000ms; ≥2 retries (3 total attempts) with short
-/// backoff. Returns true if any Ping/Pong succeeds.
+/// Thin Safety wrapper over shared SOOT [`crate::daemon_probe::probe_daemon_reachable`]
+/// (3 × ≥1000ms + 50ms backoff). Public name/signature preserved so doctor,
+/// recovery, and vault imports stay unchanged. **Do not weaken below Safety.**
 pub async fn probe_restore_daemon_busy(client: &DaemonClient) -> bool {
-    const ATTEMPTS: u32 = 3;
-    const PER_ATTEMPT: std::time::Duration = std::time::Duration::from_millis(1000);
-    const BACKOFF: std::time::Duration = std::time::Duration::from_millis(50);
-
-    for attempt in 0..ATTEMPTS {
-        if client.probe(PER_ATTEMPT).await {
-            return true;
-        }
-        if attempt + 1 < ATTEMPTS {
-            tokio::time::sleep(BACKOFF).await;
-        }
-    }
-    false
+    crate::daemon_probe::probe_daemon_reachable(
+        client,
+        crate::daemon_probe::DaemonProbePolicy::Safety,
+    )
+    .await
 }
 
 /// Error message when mutating restore is blocked because the daemon is up.
