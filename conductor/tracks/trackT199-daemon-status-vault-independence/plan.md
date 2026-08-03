@@ -1,6 +1,6 @@
 # T199 Plan — Daemon Status Vault Independence
 
-Status: **In Progress** (implement 2026-08-03). Spec: [spec.md](./spec.md).
+Status: ✅ **Completed** 2026-08-03. PR #82 squash-merged `721d41f`. Spec: [spec.md](./spec.md).
 
 ## Preconditions
 
@@ -11,7 +11,7 @@ Status: **In Progress** (implement 2026-08-03). Spec: [spec.md](./spec.md).
 - [x] Research pins (Status 1×300ms; doctor Safety; thin wrapper)  
 - [x] Deferred roll-in  
 - [ ] Pin freezes when vault key available (optional)  
-- [ ] `ledgerful ledger start T199-DaemonStatusVaultIndependence --category FEATURE` *(on go)*
+- [x] `ledgerful ledger start T199-DaemonStatusVaultIndependence --category FEATURE`
 
 ## Deferred rolled in
 
@@ -72,10 +72,10 @@ Status: **In Progress** (implement 2026-08-03). Spec: [spec.md](./spec.md).
 
 - [x] **D1** OPERATIONS: status no key; soft F16/F17  
 - [x] **D2** CHANGELOG  
-- [ ] **D3** Full gate  
-- [ ] **D4** Review AC1–AC13  
-- [ ] **D5** deferred strike; conductor Completed  
-- [ ] **D6** Pin + ledger commit  
+- [x] **D3** Full gate (local 1918 nextest + CI Win/Linux/macOS green)  
+- [x] **D4** Review AC1–AC13 (internal R1 + Codex R2/final)  
+- [x] **D5** deferred strike; conductor Completed  
+- [x] **D6** Pin + ledger commit  
 
 ## Verification matrix
 

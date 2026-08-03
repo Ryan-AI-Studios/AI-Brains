@@ -8,7 +8,7 @@ Source: non-destructive global-install CLI audit after T196. Drafts only — imp
 |-------|-------|----------|----------|
 | 1 | [T197](trackT197-vault-open-ux-key-bootstrap/spec.md) | P0 | ✅ **Completed 2026-08-03** PR #80 `72dfa62` — silent-zero stop; spam filter; F8; bootstrap docs |
 | 2 | [T198](trackT198-empty-states-exit-hygiene/spec.md) | P1 | ✅ **Completed 2026-08-03** PR #81 `5cc0418` — empty success non-blank; dogfood fail_api; graph exit 0→2 |
-| 2 | [T199](trackT199-daemon-status-vault-independence/spec.md) | P1 | **Expanded+fold-in 2026-08-03** — status no key; Status 1×300ms; doctor Safety; soft tasklist |
+| 2 | [T199](trackT199-daemon-status-vault-independence/spec.md) | P1 | ✅ **Completed 2026-08-03** PR #82 `721d41f` — status no key; shared probe; soft tasklist |
 | 3 | [T200](trackT200-graph-feature-install-honesty/spec.md) | P1/P3 | Graph default install or FEATURE_UNAVAILABLE |
 | 4 | [T201](trackT201-cli-error-exit-contract/spec.md) | P2 | Exit codes + error envelopes |
 | 5 | [T202](trackT202-recall-briefing-clarity/spec.md) | P2 | Recall TTY/semantic status; briefing/query clarity |

@@ -13,7 +13,7 @@ Make `ai-brains daemon status` answer IPC/process liveness without vault open or
 | Codex R1 | gpt-5.6-luna high | FAIL engineering: P1 dotenv hermetic false-positive; P2 fake 0 B size; P1 process AC10 |
 | Fix | orchestrator | `hermetic_bin_no_key` adds `--no-project-context`; size → `unavailable` + unit |
 | Codex R2 | gpt-5.6-luna high | **PASS WITH DEFERRED P3** (unreachable only); R1 P1/P2 verified fixed |
-| Final Codex | (after CI green / ship) | pending as final gate |
+| Final Codex | gpt-5.6-luna high (post-merge) | **PASS WITH DEFERRED P3** (same P3 unreachable only; no new >low) |
 
 ## Findings disposition
 
@@ -47,3 +47,9 @@ Make `ai-brains daemon status` answer IPC/process liveness without vault open or
 ## Deferred
 
 - Dead `Status` match arm `unreachable!` (P3) — pattern parity with doctor early-route.
+
+## Ship
+
+- PR #82 squash-merged `721d41f` (2026-08-03)
+- CI: gate-windows / gate-linux / gate-macos SUCCESS
+- Codex final: **PASS WITH DEFERRED P3**
