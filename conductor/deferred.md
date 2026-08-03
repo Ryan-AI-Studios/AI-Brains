@@ -17,12 +17,12 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~T190 ambient CLI / write / token path residuals~~ | **Closed-with-residuals by T193** (2026-08-02) PR #77 `2183127` — P0 write SOOT elevated; soft-canon / parent mkdir / ambient CLI long-tail remain honesty residuals |
 | ~~Argon2 params in kit JSON (F37)~~ | **Closed by T194** (2026-08-02) PR #76 `2c06464` |
 | ~~R-PIPE-IU / R-UDS-TMP / R-HTTP-SYS / R-MULTI~~ | **Closed-with-residuals by T195** (2026-08-02) PR #78 `bd375a8` — opt-in pipe ACL, XDG UDS, service HTTP refuse, ADR-0022 fence; residuals remain honesty (IU default multi-interactive, `/tmp` fallback, service HTTP when opted in) |
-| ~~systemd / launchd units; CONTRIBUTING hygiene~~ | **T196** (**Expanded + AI fold-in** 2026-08-02 — F1–F40 / AC1–AC14; implement on go-ahead; reference units + CONTRIBUTING; not production multi-OS installers) |
+| ~~systemd / launchd units; CONTRIBUTING hygiene~~ | **Closed by T196** (2026-08-02) PR #79 `3f16648` — reference units + CONTRIBUTING; not product multi-OS installers |
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 | MSI / notarization / App Store packaging | Remains packaging residual (not T196) |
-| Common Changelog conversion | **Declined by T196 freezes** (Keep a Changelog retained) — strike on T196 ship |
+| ~~Common Changelog conversion~~ | **Declined by T196** (2026-08-02) Keep a Changelog retained; documented in CONTRIBUTING + CHANGELOG note |
 
-Suggested order: ~~**T194**~~ → ~~**T193**~~ → ~~**T195**~~ → **T196** (**plan expanded**; implement on go).
+Suggested order: ~~**T194**~~ → ~~**T193**~~ → ~~**T195**~~ → ~~**T196**~~ **closed PR #79**. Remaining packaging residual: MSI / notarization / App Store + R-CI-BRANCH admin.
 
 ---
 

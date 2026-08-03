@@ -1,6 +1,6 @@
 # T196 Plan — Service Units + Ops Docs Hygiene
 
-Status: **Expanded + AI fold-in** (plan-only 2026-08-02). Spec: [spec.md](./spec.md).
+Status: **Completed** 2026-08-02 — PR #79 `3f16648`. Spec: [spec.md](./spec.md).
 
 ## Preconditions
 
@@ -11,8 +11,8 @@ Status: **Expanded + AI fold-in** (plan-only 2026-08-02). Spec: [spec.md](./spec
 - [x] Expand freezes F1–F32 + AC1–AC12 + residual disposition matrix  
 - [x] Roll deferred: systemd/launchd + CONTRIBUTING; Common Changelog → **declined**  
 - [x] **AI fold-in** (AI1 affirm; AI2 M1–M7, L1–L7, O2–O4 soft; O1 deferred; O5 no-op) — disposition spec §14; freezes F33–F40; AC13–AC14  
-- [ ] Pin fold-in decision (`ai-brains pin`)  
-- [ ] `ledgerful ledger start T196-ServiceUnitsOpsDocs --category DOCS` *(only on implement go-ahead)*
+- [x] Pin fold-in decision (`ai-brains pin`)  
+- [x] `ledgerful ledger start T196-ServiceUnitsOpsDocs --category DOCS` — TX `19c21fe3`
 
 ## Deferred rolled in
 
@@ -91,16 +91,16 @@ Status: **Expanded + AI fold-in** (plan-only 2026-08-02). Spec: [spec.md](./spec
 
 - [x] **D1** Soft: `scripts/check-reference-units.sh` primary (F24/M7); optional `.ps1` mirror  
 - [x] **D2** Soft if free: Unix SIGTERM alongside `ctrl_c` in `ai-brainsd` (F36) — else residual only  
-- [ ] **D3** Soft claims re-grep if elevated set touched  
-- [ ] **D4** deferred.md strike; conductor **Completed** on ship  
-- [ ] **D5** Manual optional smoke notes in `evidence/` if free — not CI DoD  
-- [ ] **D6** Pin DECISION; ledger commit  
+- [x] **D3** Soft claims re-grep if elevated set touched  
+- [x] **D4** deferred.md strike; conductor **Completed** on ship  
+- [x] **D5** Manual optional smoke notes in `evidence/` if free — not CI DoD (skipped; not DoD)  
+- [x] **D6** Pin DECISION; ledger commit  
 
 ### Phase E — Gate + review
 
-- [ ] **E1** Docs-primary gate; if scripts/soft SIGTERM code: targeted nextest + clippy on `ai-brainsd`  
-- [ ] **E2** Internal review vs AC1–AC14  
-- [ ] **E3** Cross-model only if security-sensitive default regressions (F25)  
+- [x] **E1** Docs-primary gate; if scripts/soft SIGTERM code: targeted nextest + clippy on `ai-brainsd`  
+- [x] **E2** Internal review vs AC1–AC14  
+- [x] **E3** Cross-model Codex R2 **PASS WITH DEFERRED P3**; final gate after ship
 
 ## Verification matrix
 

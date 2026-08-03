@@ -46,3 +46,11 @@ Ledger TX: `19c21fe3-cc52-49d5-a5b2-51938c756128` (DOCS).
 ## Completion decision (engineering)
 
 Engineering DoD met with one deferred P3. Process closeout (PR, CI, conductor Completed, deferred strike, ledger commit, final Codex after ship) follows PR merge.
+
+## Ship record
+
+- **PR:** #79 squash-merged `3f16648` (2026-08-02)
+- **CI:** gate-windows / gate-linux / gate-macos all SUCCESS
+- **conductor / deferred:** Completed + residual strikes on closeout commit
+- **Deferred P3 retained:** SIGTERM child-process delivery test (F36 soft)
+- **Final Codex:** after closeout commit (gate for finished)
