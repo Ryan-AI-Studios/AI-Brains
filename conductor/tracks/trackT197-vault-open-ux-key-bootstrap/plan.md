@@ -1,6 +1,6 @@
 # T197 Plan — Vault Open UX + Key Bootstrap
 
-Status: **Expanded + AI fold-in** (plan-only 2026-08-02). Spec: [spec.md](./spec.md). Series: [README-T197-T204-CLI-UX.md](../README-T197-T204-CLI-UX.md).
+Status: **Completed** 2026-08-03 (PR #80 `72dfa62`). Spec: [spec.md](./spec.md). Series: [README-T197-T204-CLI-UX.md](../README-T197-T204-CLI-UX.md).
 
 ## Preconditions
 
@@ -77,11 +77,11 @@ Status: **Expanded + AI fold-in** (plan-only 2026-08-02). Spec: [spec.md](./spec
 
 ### Phase E — Gate + closeout
 
-- [x] **E1** Full gate *(targeted: store+cli+daemon nextest 676 pass; clippy -D warnings)*  
-- [x] **E2** Review vs AC1–AC13 *(implementer self-check)*  
+- [x] **E1** Full gate *(workspace nextest 1898 pass; clippy -D warnings; deny/audit; CI PR #80 green)*  
+- [x] **E2** Review vs AC1–AC13 *(internal + Codex final PASS WITH DEFERRED P3)*  
 - [x] **E3** CHANGELOG Unreleased  
-- [ ] **E4** deferred strike; conductor Completed *(orchestrator)*  
-- [ ] **E5** Pin DECISION; ledger commit *(orchestrator)*  
+- [x] **E4** deferred strike; conductor Completed *(orchestrator 2026-08-03)*  
+- [x] **E5** Pin DECISION; ledger commit *(orchestrator)*  
 
 ## Verification matrix
 

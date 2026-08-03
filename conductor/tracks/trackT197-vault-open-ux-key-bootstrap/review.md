@@ -58,4 +58,4 @@ ledgerful verify --scope fast              Verification passed
 
 ## Completion decision
 
-Engineering DoD met; Codex final **PASS WITH DEFERRED P3**. Ship via PR; orchestrator updates conductor/deferred/coordinated on merge.
+Engineering DoD met; Codex final **PASS WITH DEFERRED P3**. **Shipped:** PR #80 squash-merged `72dfa62` (2026-08-03). CI gate-windows/linux/macos SUCCESS. Conductor Completed; deferred residual struck.
