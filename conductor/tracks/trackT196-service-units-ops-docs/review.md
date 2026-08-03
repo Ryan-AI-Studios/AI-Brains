@@ -54,3 +54,8 @@ Engineering DoD met with one deferred P3. Process closeout (PR, CI, conductor Co
 - **conductor / deferred:** Completed + residual strikes on closeout commit
 - **Deferred P3 retained:** SIGTERM child-process delivery test (F36 soft)
 - **Final Codex:** after closeout commit (gate for finished)
+
+## Final Codex gate
+- **review.codex-final.md**: **PASS WITH DEFERRED P3** (2026-08-03)
+- Only residual engineering: SIGTERM child-process delivery test P3
+
