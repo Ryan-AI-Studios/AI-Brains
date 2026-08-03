@@ -7,11 +7,15 @@
 - **Decision freeze checked:** A2=no (docs-only A); no `release.yml` graph-on flip; T198 exit 2 + `FEATURE_UNAVAILABLE` preserved
 - **Ledger:** TX open (review did not commit/push)
 
-## Verdict: **CLEAN** (Round 2)
+## Verdict: **CLEAN** (Round 2) → **Shipped** (PR #83 `84f4a23`)
 
 Round 1 blocker **H1 is `verified_fixed`**. CI F14 on Windows and Linux uses the spec-allowed filter  
 `cargo nextest run -p ai-brains-cli --features graph --profile ci -E 'test(graph)'`  
 (with comments documenting full-package Cozo INFO residual). Local filtered graph suite is green on and off. **AC4 / AC9 / AC13 Met.**
+
+**Codex R2:** **PASS WITH DEFERRED P3** (Cozo INFO stdout residual only).  
+**CI:** PR #83 windows/linux/macos all green after hermetic `test_graph_health_smoke` project-id fix.  
+**Completion:** conductor Completed; deferred residual struck; coordinated updated.
 
 **Residual (non-blocking):** M1 graph-on stdout INFO pollution remains a pre-existing product residual; not a regression of install-honesty when the allowed F14 filter path is used. Deferred for a later ops/stdout-contract track.
 

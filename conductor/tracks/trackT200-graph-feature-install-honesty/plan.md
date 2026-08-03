@@ -63,12 +63,12 @@ Status: **In Progress / Implementing** (A2=no docs-only A). Spec: [spec.md](./sp
 
 ### Phase D — CI graph-on (if A2=no) + closeout
 
-- [x] **D0** **Required** CI: `--features graph` nextest for health smoke (F14 hard) — Windows + Linux  
+- [x] **D0** **Required** CI: `--features graph` nextest for health smoke (F14 hard) — Windows + Linux (`-E 'test(graph)'`)  
 - [x] **D1** CHANGELOG  
-- [ ] **D2** Full gate  
-- [ ] **D3** Review AC1–AC13  
-- [ ] **D4** deferred strike; conductor Completed  
-- [ ] **D5** Pin policy + ledger commit  
+- [x] **D2** Full gate — local 1919 nextest + fmt/clippy/deny/audit; CI PR #83 all green  
+- [x] **D3** Review AC1–AC13 — internal R2 CLEAN; Codex R2 PASS WITH DEFERRED P3  
+- [x] **D4** deferred strike; conductor Completed (closeout after merge `84f4a23`)  
+- [x] **D5** Pin policy + ledger commit (closeout)
 
 ## Verification matrix
 

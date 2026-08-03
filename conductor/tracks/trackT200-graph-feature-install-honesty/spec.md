@@ -2,7 +2,7 @@
 
 - **Track ID:** T200-GraphFeatureInstallHonesty
 - **Phase:** Post-T199 CLI UX series (P1/P3)
-- **Status:** 🚧 **In Progress / Implementing** (A2=no docs-only A; no Cargo default flip)
+- **Status:** ✅ **Completed** (2026-08-03) — PR #83 squash-merged `84f4a23`; docs-only A; Codex R2 PASS WITH DEFERRED P3
 - **Depends on:** T66–T69 graph; **T198** FEATURE_UNAVAILABLE + exit 2 (shipped); T196 CONTRIBUTING/INSTALL; capture-independence CI edge check
 - **Blocks / feeds:** Operator install path honesty; **required** CI coverage for graph-on **or** feature-off (A2-gated); T201 may refine feature-unavailable envelopes
 - **Category:** FEATURE / DOCS / INFRA (light)
@@ -11,7 +11,7 @@
 - **Not absorbed:** Cozo remote product; graph schema change; desktop graph UI; MSI packaging; flip release.yml graph-on without gate; full exit matrix (T201); help IA (T204); cargo-binstall metadata
 - **Research date:** 2026-08-03 (expand + live re-scan)
 - **AI fold-in:** AI1 affirms INSTALL primary / cost gate / hint / exit 2 / docs sync. AI2 **M1–M7** accepted; **L1/L3/L8/L10** notes; **O1/O2** declined; **O3** soft residual. Disposition §14.
-- **Ledger:** plan-only (no TX until implement)
+- **Ledger:** TX `718ff569` (DOCS); shipped PR #83
 
 ## 1. Objective
 
