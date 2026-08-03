@@ -2,6 +2,7 @@ mod artifact_security;
 mod commands;
 mod context;
 mod daemon_client;
+mod daemon_probe;
 mod elevation;
 mod key_resolve;
 mod live_graph;
@@ -2044,6 +2045,18 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         .await;
     }
 
+    // T199: daemon status is liveness IPC only — no AppContext / key / vault open.
+    if let Commands::Daemon {
+        command: DaemonCommands::Status,
+    } = cli.command.as_ref()
+    {
+        return commands::daemon::run_status(commands::daemon::StatusOptions {
+            vault_path: cli.vault_path.clone(),
+            key: cli.key.clone(),
+        })
+        .await;
+    }
+
     // T189: rotate-datakey mutates outside AppContext (daemon probe + no migrate race).
     if let Commands::Vault {
         command:
@@ -2773,7 +2786,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Daemon { command } => match command {
             DaemonCommands::Start => commands::daemon::run_start(&ctx),
-            DaemonCommands::Status => commands::daemon::run_status(&ctx).await,
+            DaemonCommands::Status => {
+                unreachable!("status handled before AppContext")
+            }
             DaemonCommands::Schedule {
                 dry_run,
                 run_as_system,
