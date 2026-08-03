@@ -36,6 +36,20 @@ Unix mirror:
 
 The gate covers fmt, clippy (`-D warnings`), nextest, deny, and audit (aligned with `AGENTS.md` / CI). See [Docs/ci-tooling.md](Docs/ci-tooling.md) for pins and job shapes.
 
+### Build matrix (graph feature)
+
+| Build | How | What runs |
+|-------|-----|-----------|
+| **Default (graph-off)** | Workspace tests / slim install without graph | Feature-off smoke (`graph *` → exit **2**, `FEATURE_UNAVAILABLE`) |
+| **Graph-on** | `cargo nextest run -p ai-brains-cli --features graph` | Graph health smoke (`test_graph_health_smoke`) + graph-on paths |
+
+- Default workspace nextest runs **without** the `graph` feature (`ai-brains-cli` `default = []`).
+- Graph health smoke (local or CI F14):  
+  `cargo nextest run -p ai-brains-cli --features graph`  
+  (or filter with `-E 'test(graph)'` when you only need graph-related tests).
+- Install policy and **GitHub Release graph-off** honesty: [Docs/INSTALL.md](Docs/INSTALL.md).
+- **Capture independence** still holds — capture does not depend on graph; graph is an optional CLI feature.
+
 Soft packaging check for reference units (T196):
 
 ```bash

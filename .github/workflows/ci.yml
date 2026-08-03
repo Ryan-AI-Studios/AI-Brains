@@ -102,6 +102,12 @@ jobs:
       - name: cargo nextest (workspace, profile ci)
         run: cargo nextest run --workspace --profile ci
 
+      # T200 F14: required graph-on smoke (default workspace is graph-off / A2=no).
+      # Filter to graph suite: full package with --features graph fails hermetic JSON
+      # stdout tests when Cozo INFO lands on stdout (pre-existing product residual).
+      - name: cargo nextest (ai-brains-cli --features graph, profile ci)
+        run: cargo nextest run -p ai-brains-cli --features graph --profile ci -E "test(graph)"
+
   # ---------------------------------------------------------------------------
   # Linux T1 — check-before-clippy (F31) + deny + audit (exit code only)
   # ---------------------------------------------------------------------------
@@ -157,6 +163,14 @@ jobs:
         run: |
           set -euo pipefail
           cargo nextest run --workspace --exclude ai-brains-desktop --profile ci
+
+      # T200 F14: required graph-on smoke (default workspace is graph-off / A2=no).
+      # Filter to graph suite (spec allows -E 'test(graph)' + known smoke); full package
+      # with graph-on hits pre-existing Cozo INFO stdout pollution in hermetic JSON tests.
+      - name: cargo nextest (ai-brains-cli --features graph, profile ci)
+        run: |
+          set -euo pipefail
+          cargo nextest run -p ai-brains-cli --features graph --profile ci -E 'test(graph)'
 
       - name: cargo deny check
         run: |

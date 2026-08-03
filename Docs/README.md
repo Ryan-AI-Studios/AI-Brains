@@ -21,14 +21,16 @@ AI-Brains follows [Diátaxis](https://diataxis.fr/): how-to and tutorial-style p
 5. [Security limits](SECURITY-LIMITS.md) (honest non-claims)
 
 ```powershell
-# Minimal first vault (capture works without models/graph)
-cargo build --release -p ai-brains-cli
+# Recommended full CLI (includes graph) — INSTALL primary SOOT
+cargo install --path crates/ai-brains-cli --locked --features graph
+
+# Capture-first vault check (works without models/graph; slim build is fine too)
 $vault = Join-Path $env:TEMP "aibrains-first\vault.db"
 ai-brains --vault-path $vault init
 ai-brains --vault-path $vault preflight --summary
 ```
 
-Graph CLI (`ai-brains graph …`) needs a build with `--features graph`. Capture and lexical recall work without it.
+For a **slim** graph-off binary: `cargo install --path crates/ai-brains-cli --locked` — then `ai-brains graph *` exits **2** with `FEATURE_UNAVAILABLE`. GitHub Release `ai-brains.exe` is currently graph-off; see [INSTALL.md](INSTALL.md). Capture and lexical recall work without graph.
 
 ---
 

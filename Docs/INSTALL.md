@@ -33,31 +33,48 @@ Do **not** claim equal primary support without reading COMPATIBILITY tiers.
 
 ## 2. Build or install the CLI
 
-### From source (developer path)
+### Recommended (graph enabled)
+
+Primary path for a full CLI including `ai-brains graph …`:
 
 ```powershell
-# Capture + core CLI (default features)
-cargo build --release -p ai-brains-cli
+cargo install --path crates/ai-brains-cli --locked --features graph
+```
 
-# Graph subcommand available only with feature:
+Developer release build (same feature set):
+
+```powershell
 cargo build --release -p ai-brains-cli --features graph
 ```
 
 Binary path (typical): `target\release\ai-brains.exe`.
 
-### Cargo install
+### Slim / capture-focused (graph-off)
+
+Default Cargo features leave graph **off** (`default = []`). Slim install:
 
 ```powershell
-cargo install --path crates/ai-brains-cli
-# Graph: cargo install --path crates/ai-brains-cli --features graph
+cargo install --path crates/ai-brains-cli --locked
 ```
 
-### Graph feature honesty
+Slim release build:
 
-| Capability | Default build | `--features graph` |
-|------------|---------------|---------------------|
+```powershell
+cargo build --release -p ai-brains-cli
+```
+
+On a graph-off binary, `ai-brains graph *` exits **2** with a `FEATURE_UNAVAILABLE:` prefix and a reinstall hint pointing at the recommended install above. `graph --help` still exits **0**. Capture (`init`, `ingest`, FTS `recall`, `preflight`, `backup`, …) works without graph.
+
+### GitHub Release binary honesty
+
+`ai-brains.exe` from **GitHub Releases** is currently a **graph-off** build (`.github/workflows/release.yml` does not pass `--features graph`). For graph CLI, use the **source** recommended install above. This note applies to **`ai-brains.exe` only**; `ai-brainsd` has no graph feature.
+
+### Graph feature matrix
+
+| Capability | Default / slim / Release `ai-brains.exe` | `--features graph` (recommended source) |
+|------------|------------------------------------------|----------------------------------------|
 | `init`, `ingest`, `recall` (FTS), `preflight`, `backup`, … | Yes | Yes |
-| `ai-brains graph …` | No | Yes |
+| `ai-brains graph …` | No (exit **2**, `FEATURE_UNAVAILABLE`) | Yes |
 
 Capture independence holds without models, embeddings, or graph.
 
