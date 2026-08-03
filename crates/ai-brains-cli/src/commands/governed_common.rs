@@ -27,7 +27,6 @@ use uuid::Uuid;
 #[allow(dead_code)]
 pub const EXIT_SUCCESS: i32 = 0;
 pub const EXIT_INTERNAL: i32 = 1;
-#[allow(dead_code)]
 pub const EXIT_USAGE: i32 = 2;
 pub const EXIT_POLICY_DENIED: i32 = 3;
 pub const EXIT_NOT_FOUND: i32 = 4;
@@ -35,6 +34,14 @@ pub const EXIT_DAEMON_UNAVAILABLE: i32 = 5;
 pub const EXIT_INVALID_PAYLOAD: i32 = 6;
 /// Trust hard-gate failure (T169 evaluate governed). Distinct from EXIT_INTERNAL (tool broke).
 pub const EXIT_HARD_GATE_FAILED: i32 = 7;
+
+/// Structured code for build-feature unavailable (T198 graph stub; T200 install honesty).
+pub const FEATURE_UNAVAILABLE: &str = "FEATURE_UNAVAILABLE";
+
+/// Exit code for feature-unavailable paths (clap-style usage = [`EXIT_USAGE`] = 2).
+pub fn exit_code_feature_unavailable() -> i32 {
+    EXIT_USAGE
+}
 
 /// Map a structured API error code to a CLI exit code.
 pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
@@ -48,6 +55,8 @@ pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
         "PATH_REFUSED" => EXIT_INTERNAL,
         // Evaluate trust gates failed (harness worked; product blocked).
         "HARD_GATE_FAILED" => EXIT_HARD_GATE_FAILED,
+        // Optional feature not in this binary (T198/T200).
+        "FEATURE_UNAVAILABLE" => EXIT_USAGE,
         _ => EXIT_INTERNAL,
     }
 }
@@ -458,6 +467,19 @@ mod tests {
     fn exit_code_for_api_error__invalid_payload__6() {
         let err = ApiError::new("INVALID_PAYLOAD", "bad");
         assert_eq!(exit_code_for_api_error(&err), EXIT_INVALID_PAYLOAD);
+    }
+
+    #[test]
+    fn exit_code_feature_unavailable__returns_exit_usage_2() {
+        assert_eq!(exit_code_feature_unavailable(), EXIT_USAGE);
+        assert_eq!(exit_code_feature_unavailable(), 2);
+    }
+
+    #[test]
+    fn exit_code_for_api_error__feature_unavailable__2() {
+        let err = ApiError::new(FEATURE_UNAVAILABLE, "graph not in this build");
+        assert_eq!(exit_code_for_api_error(&err), EXIT_USAGE);
+        assert_eq!(exit_code_for_api_error(&err), 2);
     }
 
     #[test]

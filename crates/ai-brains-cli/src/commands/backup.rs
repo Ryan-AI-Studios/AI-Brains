@@ -220,6 +220,9 @@ struct VerifyResult {
 #[derive(Debug, serde::Serialize)]
 struct VerifyOutput {
     results: Vec<VerifyResult>,
+    status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
 }
 
 pub fn run_verify(
@@ -239,6 +242,21 @@ pub fn run_verify(
         Some(p) => vec![p],
         None => service.find_backup_files()?,
     };
+
+    // F5: zero discovered backups → non-blank empty success (exit 0).
+    if paths.is_empty() {
+        if format.as_deref() == Some("json") {
+            let output = VerifyOutput {
+                results: Vec::new(),
+                status: "ok".to_string(),
+                message: Some("No backups to verify.".to_string()),
+            };
+            println!("{}", serde_json::to_string(&output)?);
+        } else {
+            println!("No backups to verify.");
+        }
+        return Ok(());
+    }
 
     tracing::info!("Verifying {} backup file(s)...", paths.len());
     let mut results = Vec::new();
@@ -280,7 +298,15 @@ pub fn run_verify(
     }
 
     if format.as_deref() == Some("json") {
-        let output = VerifyOutput { results };
+        let output = VerifyOutput {
+            results,
+            status: if any_failed {
+                "fail".to_string()
+            } else {
+                "ok".to_string()
+            },
+            message: None,
+        };
         println!("{}", serde_json::to_string(&output)?);
     } else {
         for result in &results {
