@@ -1755,16 +1755,20 @@ fn test_init_force_overwrites() {
 /// Gated on the `graph` feature because the `graph` subcommand is only
 /// compiled in with that feature. Run with:
 ///   cargo nextest run -p ai-brains-cli --features graph test_graph_health_smoke
+///
+/// T200: pin/recall require project/session env on CI runners (no ambient
+/// `.env`). Use `hermetic_cmd_with_ids` so hermetic denylist + explicit IDs
+/// match the ingested turn (was masked locally when shell `.env` was present).
 #[cfg(feature = "graph")]
 #[test]
 fn test_graph_health_smoke() {
     let dir = tempdir().unwrap();
     let vault_path = dir.path().join("vault.db");
+    const PROJECT_ID: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    const SESSION_ID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
     // 1) Init
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_vault(&vault_path)
         .arg("init")
         .assert()
         .success();
@@ -1779,18 +1783,14 @@ fn test_graph_health_smoke() {
         "role": "user",
         "content": "Anchoring memory for the graph health smoke test."
     }"#;
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_vault(&vault_path)
         .arg("ingest")
         .write_stdin(turn_json)
         .assert()
         .success();
 
     // 3) Pin a memory so the graph has a `MemoryPinned` event to project.
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_cmd_with_ids(&vault_path, PROJECT_ID, SESSION_ID)
         .arg("pin")
         .arg("T74 graph health smoke seed")
         .assert()
@@ -1798,9 +1798,7 @@ fn test_graph_health_smoke() {
 
     // 4) Recall — T67 wiring emits MemoryPinned events for hits, which the
     //    live graph projector (T69) should immediately apply.
-    common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    common::hermetic_cmd_with_ids(&vault_path, PROJECT_ID, SESSION_ID)
         .arg("recall")
         .arg("graph health smoke")
         .arg("--format")
@@ -1809,9 +1807,7 @@ fn test_graph_health_smoke() {
         .success();
 
     // 5) `graph update` should report live, non-empty graph state.
-    let output = common::hermetic_bin()
-        .arg("--vault-path")
-        .arg(&vault_path)
+    let output = common::hermetic_vault(&vault_path)
         .arg("graph")
         .arg("update")
         .output()
