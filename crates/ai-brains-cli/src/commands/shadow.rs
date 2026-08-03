@@ -66,11 +66,11 @@ pub fn resolve_live_vault_path() -> Option<PathBuf> {
     None
 }
 
-fn default_sql_key(key: Option<String>) -> SqlCipherKey {
-    let key_str = key.unwrap_or_else(|| {
-        "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
-    });
-    SqlCipherKey::from_raw(key_str)
+/// T197: shared operator resolver (no silent zero).
+fn default_sql_key(
+    key: Option<String>,
+) -> Result<SqlCipherKey, crate::key_resolve::KeyResolveError> {
+    crate::key_resolve::resolve_operator_sqlcipher_key(key)
 }
 
 fn source_fingerprint(
@@ -196,7 +196,7 @@ pub fn run_create(
         return Err(format!("source vault does not exist: {}", source.display()).into());
     }
 
-    let sql_key = default_sql_key(key);
+    let sql_key = default_sql_key(key)?;
     // Never migrate the live/source vault — shadow create must not mutate source.
     // Source is assumed already migrated (e.g. via `ai-brains init` / normal use).
     let source_conn = VaultConnection::open(&source, &sql_key)?;

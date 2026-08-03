@@ -26,9 +26,6 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
-/// Default zero-key material (refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1`).
-const ZERO_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
-
 const BACKUP_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 const BYPASS_PHRASE: &str = "I have a backup";
 const STALE_KEY_WARNING: &str = "WARNING: AI_BRAINS_KEY / --key is now STALE. \
@@ -49,8 +46,8 @@ pub struct EncryptCliOptions {
 }
 
 pub fn run_encrypt(opts: EncryptCliOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let key_str = opts.key.unwrap_or_else(|| ZERO_KEY.to_string());
-    let key = SqlCipherKey::try_from_raw(key_str).map_err(|e| e.to_string())?;
+    // T197: shared operator resolver (no silent zero; F8 messages).
+    let key = crate::key_resolve::resolve_operator_sqlcipher_key(opts.key)?;
 
     let source = opts.source;
     if !source.exists() {
@@ -343,28 +340,8 @@ pub fn run_rotate_datakey_with_daemon_state(
 }
 
 fn resolve_sqlcipher_key(key: Option<String>) -> Result<SqlCipherKey, Box<dyn std::error::Error>> {
-    let key_str = key.unwrap_or_else(|| ZERO_KEY.to_string());
-    let sql = SqlCipherKey::from_raw(key_str);
-    sql.validate()
-        .map_err(|e| format!("invalid vault key: {e}"))?;
-    // T187 / Codex T189 P2: refuse zero key unless escape hatch (matches VaultConnection).
-    if sql.is_zero() {
-        let allow = match std::env::var("AI_BRAINS_ALLOW_ZERO_KEY") {
-            Ok(v) => {
-                let t = v.trim();
-                t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
-            }
-            Err(_) => false,
-        };
-        if !allow {
-            return Err(
-                "zero key refused for vault rotate-datakey; set a non-zero --key / AI_BRAINS_KEY, \
-                 or set AI_BRAINS_ALLOW_ZERO_KEY=1 for tests/legacy only"
-                    .into(),
-            );
-        }
-    }
-    Ok(sql)
+    // T197: shared operator resolver covers format + zero refuse (F5/F6).
+    Ok(crate::key_resolve::resolve_operator_sqlcipher_key(key)?)
 }
 
 fn validate_kit_output_path(

@@ -12,6 +12,7 @@ pub mod query_store;
 pub mod replay;
 pub mod replication_engine;
 pub mod rotate;
+pub mod sqlcipher_log_policy;
 pub mod transaction;
 
 pub use connection::{ALLOW_ZERO_KEY_ENV, VaultConnection};

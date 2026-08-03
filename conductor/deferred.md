@@ -21,8 +21,17 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | R-CI-BRANCH (repo admin) | **Not a code track** — admin action only |
 | MSI / notarization / App Store packaging | Remains packaging residual (not T196) |
 | ~~Common Changelog conversion~~ | **Declined by T196** (2026-08-02) Keep a Changelog retained; documented in CONTRIBUTING + CHANGELOG note |
+| ~~CLI vault-open SQLCipher spam + key bootstrap~~ | **T197** (implement 2026-08-03 — PR ship; strike residual on Completed) |
+| CLI empty states / silent fails / graph exit 0 | **T198** (draft 2026-08-02) |
+| `daemon status` requires vault key | **T199** (draft 2026-08-02) |
+| Graph default install / feature honesty | **T200** (draft 2026-08-02) |
+| CLI exit-code + error envelope contract | **T201** (draft 2026-08-02) |
+| Recall/briefing/query progressive clarity | **T202** (draft 2026-08-02) |
+| Governed source/evidence discovery lists | **T203** (draft 2026-08-02) |
+| CLI help grouping IA | **T204** (draft 2026-08-02) |
+| T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
 
-Suggested order: ~~**T194**~~ → ~~**T193**~~ → ~~**T195**~~ → ~~**T196**~~ **closed PR #79**. Remaining packaging residual: MSI / notarization / App Store + R-CI-BRANCH admin.
+Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **shipped (PR)** → **T198** + **T199** (P1) → **T200** → **T201** → **T202** + **T203** → **T204** (help IA last). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH admin. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (out of T197 CLI 7-site scope; ops/T199).
 
 ---
 

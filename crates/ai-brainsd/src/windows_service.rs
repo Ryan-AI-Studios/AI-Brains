@@ -214,6 +214,9 @@ struct ServiceDaemonStarted {
 /// Vault open, writer, optional HTTP. HTTP hard-fails when enabled (R1-01 / CR1-P2-01).
 async fn run_daemon_startup()
 -> Result<ServiceDaemonStarted, Box<dyn std::error::Error + Send + Sync>> {
+    // T197 F11: install log policy before VaultConnection::open (idempotent OnceLock).
+    ai_brains_store::sqlcipher_log_policy::install();
+
     dotenvy::dotenv().ok();
 
     let program_data =

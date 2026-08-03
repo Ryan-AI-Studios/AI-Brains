@@ -54,7 +54,7 @@ assert_cmd = "2.2"
 predicates = "3.1"
 # T187: live SQLCipher page encryption (vendored OpenSSL for Windows MSVC CI).
 # Do not use bare `bundled` alone — PRAGMA key is a no-op without SQLCipher.
-rusqlite = { version = "0.39.0", features = ["bundled-sqlcipher-vendored-openssl", "backup", "fallible_uint"] }
+rusqlite = { version = "0.39.0", features = ["bundled-sqlcipher-vendored-openssl", "backup", "fallible_uint", "trace"] }
 dotenvy = "0.15"
 strip-ansi-escapes = "0.2"
 sha2 = "0.11"
