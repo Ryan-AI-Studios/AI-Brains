@@ -82,7 +82,7 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 | Goal | Command | Notes |
 |------|---------|--------|
 | Health | `doctor`, `daemon status` | Best non-destructive start |
-| Project identity | `context --show`, `project list`, `project detect` | detect can follow wrong/test `.env` |
+| Project identity | `context --show`, `project list`, `project detect` | detect: git slug → vault → env; warns on git/env mismatch |
 | Orient | `preflight --summary` / `--pretty` | Scoped by project id |
 | Search | `recall`, `sync query --quiet` | Scope carefully |
 | Hotspots preview | `safety sync --dry-run` | Prefer dry-run until user wants pin |

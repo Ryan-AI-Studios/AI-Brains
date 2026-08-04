@@ -30,10 +30,11 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Governed source/evidence discovery lists + soft-resolve~~ | **Closed by T203** (2026-08-04) PR #86 `2748d12` — source/evidence list; review soft-resolve exit 2; show F7; Active+LIMIT+1; core FTS sanitizer |
 | ~~CLI help grouping IA~~ | **Closed by T204** (2026-08-04) PR #87 `c3a7d66` — after_long_help groups; F31 order; F33 dangerous; F9 project-id; CAPABILITIES format table |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
-| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205–T216** — T205 **Expanded** (global dotenv KEY gap-fill); T206–T216 still placeholders |
+| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205–T216** — ~~T205 closed~~; **T206 Expanded** (detect honesty); T207–T216 placeholders |
+| ~~project detect test-alias / .env hijack honesty~~ | **Promoted / Expanded T206** (2026-08-04) |
 | ~~Global dotenv KEY skipped when VAULT_PATH set~~ | **Closed by T205** (2026-08-04) PR #88 `6a7fd15` — always-merge global dotenv; F11 empty-home hermetic |
 
-Suggested order: ~~**T196**~~ … ~~**T204**~~ **closed** → ~~**T205**~~ **closed** → **T206**/**T207** → **T208**/**T209** → **T210** → **T211**/**T215** → **T212**–**T214**/**T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); Cozo INFO → **T208**.
+Suggested order: ~~**T196**~~ … ~~**T205**~~ **closed** → **T206** (expanded; wait go) → **T207** → **T208**/**T209** → **T210** → **T211**/**T215** → **T212**–**T214**/**T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); Cozo INFO → **T208**.
 
 ---
 
