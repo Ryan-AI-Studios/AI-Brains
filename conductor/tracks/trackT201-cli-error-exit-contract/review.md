@@ -153,7 +153,7 @@ cargo nextest run -p ai-brains-cli --test exit_contract → 11/11
 |------|--------|
 | PR #84 | Squash-merged `a9e3b85` |
 | CI | gate-windows / gate-linux / gate-macos all SUCCESS |
-| Final Codex product | **PASS** (process P1 closeout addressed this commit) |
+| Final Codex product | **PASS** (`review.codex.final2.md` — clean; no deferred P3) |
 | conductor / deferred | Completed + struck |
 | coordinated | T201 Completed note + deferred strike |
 
