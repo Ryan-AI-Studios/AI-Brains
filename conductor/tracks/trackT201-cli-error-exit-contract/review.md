@@ -147,8 +147,18 @@ ledgerful verify --scope fast                  → Verification passed
 cargo nextest run -p ai-brains-cli --test exit_contract → 11/11
 ```
 
-## Recommended next steps
+## Closeout (2026-08-03 / 2026-08-04)
 
-1. PR + CI green (~28m) → squash-merge.  
-2. Final Codex re-review as completion gate.  
-3. Close D4–D5: deferred strike, conductor Completed, pin, ledger commit.
+| Item | Result |
+|------|--------|
+| PR #84 | Squash-merged `a9e3b85` |
+| CI | gate-windows / gate-linux / gate-macos all SUCCESS |
+| Final Codex product | **PASS** (process P1 closeout addressed this commit) |
+| conductor / deferred | Completed + struck |
+| coordinated | T201 Completed note + deferred strike |
+
+## Residual (non-blocking)
+
+- evidence/source `scope: Option` still exit-6 missing-scope class (F36 leave)
+- non-universal POLICY_DENIED `details.hint` (policy check + review list local only)
+- dual envelopes retained (F9)

@@ -1,6 +1,6 @@
 # T201 Plan — CLI Error Envelope + Exit Code Contract
 
-Status: **In Progress** (implement 2026-08-03). Spec: [spec.md](./spec.md).
+Status: **Completed** (2026-08-03). Spec: [spec.md](./spec.md). PR #84 `a9e3b85`.
 
 ## Preconditions
 
@@ -66,10 +66,10 @@ Status: **In Progress** (implement 2026-08-03). Spec: [spec.md](./spec.md).
 ### Phase D — Gate + closeout
 
 - [x] **D1** Full gate — `cargo fmt --check` OK; `clippy --workspace --all-targets -D warnings` OK; `nextest --workspace` **1931 passed** (1 skipped); `cargo deny check` OK; `cargo audit` OK (warnings only, exit 0)  
-- [x] **D2** Cross-model review (F22/AC13) — Codex R1 product **PASS** (P1 process-only: gates/closeout); disposition in review.md; final Codex after PR green  
-- [x] **D3** Review AC1–AC13 — internal CLEAN; Codex verified product AC; process residual closes with CI + closeout  
-- [ ] **D4** deferred strike; conductor Completed *(after squash-merge)*  
-- [ ] **D5** Pin + ledger commit *(after squash-merge)*  
+- [x] **D2** Cross-model review (F22/AC13) — Codex R1 product PASS; final Codex after merge (process closeout); see review.md  
+- [x] **D3** Review AC1–AC13 — internal CLEAN; product AC all met  
+- [x] **D4** deferred strike; conductor Completed  
+- [x] **D5** Pin + ledger commit
 
 ## Verification matrix
 

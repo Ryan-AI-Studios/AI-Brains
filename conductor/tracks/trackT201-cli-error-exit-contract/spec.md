@@ -2,7 +2,7 @@
 
 - **Track ID:** T201-CliErrorExitContract
 - **Phase:** Post-T200 CLI UX series (P2)
-- **Status:** 📋 **Expanded + AI fold-in / Pending** (plan-only; implement on go)
+- **Status:** ✅ **Completed** (2026-08-03) PR #84 `a9e3b85`
 - **Depends on:** T160 governed exit surface; T192 doctor exits; **T197** vault key codes; **T198** FEATURE_UNAVAILABLE→2; T200 install honesty
 - **Blocks / feeds:** Operator/script reliability; **T203** review soft-default must not reintroduce exit-6 missing-scope class; T204 help may link exit-code doc
 - **Category:** FEATURE / DOCS / CONTRACTS (light)
