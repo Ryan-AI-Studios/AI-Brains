@@ -75,6 +75,7 @@ ai-brains --vault-path ./vault.db recall "authentication logic" --limit 5
 Options worth knowing:
 - `--format pretty` for human-readable scores
 - `--semantic` for vector (embedding) search alongside FTS5
+- With `--semantic`, JSON carries additive `embedding.status` (`ok` / `unreachable` / `error` / `no_stored_embeddings`). Embed backend failure is soft-fail (exit 0; FTS/bridge still return). Model: `AI_BRAINS_EMBEDDING_MODEL` (default `nomic-embed-text-v1.5`); URL: `AI_BRAINS_EMBEDDING_URL` (default `http://127.0.0.1:8083`)
 - `--graph-boost <0.0–1.0>` to weight graph-neighbor hits
 - `--project-id` / `--session-id` to scope
 
@@ -118,7 +119,10 @@ resolved repository scope, or authority sections are empty (`denied` / warnings)
 - Progressive query: `results[]` (handles + ranking), `query_trace_id`, `freshness_summary`,
   optional `denied`.
 
-**CLI surface (dry-run JSON by default)**
+**CLI surface (dry-run)**
+- **Briefing** format: markdown on TTY, json otherwise; explicit `--format` wins.
+- **Progressive / expand / trace**: JSON only (not TTY-markdown).
+
 ```powershell
 ai-brains briefing project --project-id <uuid> --format json
 ai-brains briefing personal --format markdown
@@ -126,6 +130,7 @@ ai-brains query progressive "authority order" --project-id <uuid>
 ai-brains query expand <handle-id> --project-id <uuid>
 ai-brains query trace <trace-id>
 ```
+Missing `--project-id` / `AI_BRAINS_PROJECT_ID` on `query progressive` and `query expand` exits **2** (`EXIT_USAGE`) with a copy-paste example on stderr. `query trace` is excluded (empty-success `null` when missing).
 
 ### Governed command surface (T160)
 
@@ -641,8 +646,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
 | Unified Search | `ai-brains sync query "<topic>"` (searches vault + Ledgerful) |
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
-| Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (JSON packet; see T152 section) |
-| Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` |
+| Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (TTY markdown default / non-TTY json; `--format` wins; see T152/T202) |
+| Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` (progressive/expand require project id; missing → exit **2**) |
 | Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence show` · `source show` · `review list\|resolve` (T160) |
 | Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
 | Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |

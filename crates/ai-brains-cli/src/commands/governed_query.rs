@@ -1,6 +1,7 @@
-//! Thin CLI surface for progressive query / handle expand / query trace (T152-P1-06).
+//! Thin CLI surface for progressive query / handle expand / query trace (T152-P1-06 / T202).
 
 use crate::commands::briefing::cli_principal;
+use crate::commands::governed_common::fail_usage;
 use crate::context::AppContext;
 use ai_brains_control_plane::{
     ExpandHandleRequest, GetQueryTraceRequest, ProgressiveQueryRequest, StorePorts, SystemClock,
@@ -10,6 +11,12 @@ use ai_brains_core::ids::ProjectId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_store::SqliteEventStore;
+
+/// F30 progressive usage message (copy-paste example + env).
+pub const PROGRESSIVE_PROJECT_USAGE: &str = "project id required. Example:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\nOr set AI_BRAINS_PROJECT_ID.";
+
+/// F30 expand usage message (copy-paste example + env).
+pub const EXPAND_PROJECT_USAGE: &str = "project id required. Example:\n  ai-brains query expand <handle-id> --project-id <uuid>\nOr set AI_BRAINS_PROJECT_ID.";
 
 pub struct ProgressiveQueryOptions {
     pub query: String,
@@ -33,9 +40,9 @@ pub fn run_progressive(
     ctx: &AppContext,
     options: ProgressiveQueryOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let project_id = options
-        .project_id
-        .ok_or("project id required (--project-id or AI_BRAINS_PROJECT_ID)")?;
+    let Some(project_id) = options.project_id else {
+        return fail_usage(PROGRESSIVE_PROJECT_USAGE);
+    };
     let store = SqliteEventStore::new((*ctx.conn).clone());
     let ports = StorePorts::from_store(store);
     let clock = SystemClock;
@@ -74,9 +81,9 @@ pub fn run_expand(
     ctx: &AppContext,
     options: ExpandHandleOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let project_id = options
-        .project_id
-        .ok_or("project id required (--project-id or AI_BRAINS_PROJECT_ID)")?;
+    let Some(project_id) = options.project_id else {
+        return fail_usage(EXPAND_PROJECT_USAGE);
+    };
     let store = SqliteEventStore::new((*ctx.conn).clone());
     let ports = StorePorts::from_store(store);
     let policy = ports.production_policy();
@@ -109,6 +116,8 @@ pub fn run_expand(
 }
 
 /// `ai-brains query trace <trace-id>` — fetch a governed query trace (JSON stdout).
+///
+/// F31: project id is not required; missing traces print `null` and exit 0.
 pub fn run_trace(
     ctx: &AppContext,
     options: TraceOptions,
@@ -136,4 +145,24 @@ pub fn run_trace(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn progressive_usage_message__includes_example_and_env() {
+        assert!(PROGRESSIVE_PROJECT_USAGE.contains("query progressive"));
+        assert!(PROGRESSIVE_PROJECT_USAGE.contains("--project-id"));
+        assert!(PROGRESSIVE_PROJECT_USAGE.contains("AI_BRAINS_PROJECT_ID"));
+    }
+
+    #[test]
+    fn expand_usage_message__includes_example_and_env() {
+        assert!(EXPAND_PROJECT_USAGE.contains("query expand"));
+        assert!(EXPAND_PROJECT_USAGE.contains("--project-id"));
+        assert!(EXPAND_PROJECT_USAGE.contains("AI_BRAINS_PROJECT_ID"));
+    }
 }

@@ -2,7 +2,7 @@
 
 **Source of truth** for `ai-brains` process exit codes. Linked from [OPERATIONS.md](OPERATIONS.md), [CAPABILITIES.md](CAPABILITIES.md), and root [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXIT_*`, `exit_code_for_api_error`, `fail_api`).
+Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXIT_*`, `exit_code_for_api_error`, `fail_api`, `fail_usage`).
 
 ## Normative table (product codes 0–7)
 
@@ -10,7 +10,7 @@ Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXI
 |------|----------|------|
 | **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`) |
 | **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail** |
-| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope`); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`) |
+| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope`); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id |
 | **3** | `EXIT_POLICY_DENIED` | `POLICY_DENIED`; `APPROVAL_REQUIRED` |
 | **4** | `EXIT_NOT_FOUND` | `NOT_FOUND` |
 | **5** | `EXIT_DAEMON_UNAVAILABLE` | Daemon required / unreachable for a daemon-required path |
@@ -22,6 +22,10 @@ Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXI
 ### FEATURE_UNAVAILABLE → 2
 
 Optional features not compiled into this binary (notably default-build `graph *` without `--features graph`) exit **2** with a human `FEATURE_UNAVAILABLE:` prefix (and reinstall hint). Same numeric class as clap usage.
+
+### fail_usage → 2 (T202)
+
+`query progressive` and `query expand` require `--project-id` or `AI_BRAINS_PROJECT_ID`. When both are unset, `fail_usage` writes a copy-paste example to **stderr** and exits **2** via `GovernedCliError` / `EXIT_USAGE` (not clap-required; not exit 1). `query trace` is excluded.
 
 ### Doctor (footnote)
 

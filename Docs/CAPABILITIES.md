@@ -168,13 +168,28 @@ ai-brains recall -   # query from stdin
 | Feature | Detail |
 |---------|--------|
 | **FTS5** | Default lexical path; sanitized queries |
-| **Semantic** | `--semantic` + stored embeddings |
+| **Semantic** | `--semantic` + stored embeddings; honors `AI_BRAINS_EMBEDDING_URL` (default `http://127.0.0.1:8083`) and `AI_BRAINS_EMBEDDING_MODEL` (default `nomic-embed-text-v1.5`) |
+| **Embedding status** | With `--semantic`, JSON includes additive `embedding: { status, endpoint?, detail? }`. Closed statuses: `ok` \| `unreachable` \| `error` \| `no_stored_embeddings` \| `skipped`. Soft-fail: embed down never aborts FTS/bridge recall (exit **0**). Pretty TTY prints one status line when `status != ok`. |
 | **Graph boost** | Neighbor score boost (`--graph-boost`) |
 | **Substring fallback** | When FTS empty on small vaults |
 | **Scope** | Project default; `--global`; `--session` / `--session-prefix` / `--session-last` |
 | **Bridge mix** | Ledgerful hits capped so vault memories still surface; `--no-bridge` |
 | **Formats** | Pretty on TTY by default; JSON / NDJSON; per-result `session_id` |
-| **Hints** | Contextual no-results hints on stdout |
+| **Hints** | Contextual no-results hints on stdout (next-action only when embedding status already explains cause) |
+
+### Briefing + progressive query (T202)
+```powershell
+ai-brains briefing project --project-id <uuid>
+ai-brains briefing personal --format json
+ai-brains query progressive "why was graph backend replaced?" --project-id <uuid>
+```
+
+| Feature | Detail |
+|---------|--------|
+| **Briefing format** | TTY default **markdown**; non-TTY **json**; explicit `--format` wins (dogfood always passes `--format json`) |
+| **Denied packets** | `denied=true` always seeds `warnings[]` with `kind: "denied"`; markdown includes `> **Denied:** …` one-liner |
+| **Progressive / expand** | Require project id (`--project-id` or `AI_BRAINS_PROJECT_ID`); missing → exit **2** + copy-paste example on stderr |
+| **Trace** | No project-id gate; missing/unauthorized → `null` exit **0** |
 
 ### Preflight (session-start briefing)
 ```powershell

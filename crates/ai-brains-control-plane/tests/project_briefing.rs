@@ -1704,3 +1704,154 @@ fn project_briefing__never_inject_claim__envelope_privacy_at_least_as_strict() {
         env.privacy
     );
 }
+
+// ---------------------------------------------------------------------------
+// T202 AC6 — denied paths seed kind=denied (no double warning)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn project_briefing__personal_scope_refuse__warnings_kind_denied_exactly_once() {
+    // Personal-scope refuse (~181–188) returns bare empty_denied; helper must seed kind.
+    let (_t, ports) = open_ports();
+    let clock = SystemClock;
+    let user = UserId::new();
+    let human_p = human();
+    register_principal(&ports.writer, &clock, &human_p).unwrap();
+    // Grant on Personal so policy is not the deny reason — force_personal path refuses Project packet.
+    issue_grant(
+        &ports.writer,
+        &clock,
+        human_p.id,
+        ScopeRef::Personal(user),
+        GrantCapability::ReadDecisions,
+        Privacy::LocalOnly,
+    )
+    .unwrap();
+
+    let policy = ports.production_policy();
+    let identity = ports.identity_store();
+    let packet = build_project_briefing(
+        None::<&StoreEventWriter>,
+        &ports.query,
+        &clock,
+        &policy,
+        &identity,
+        ProjectBriefingRequest {
+            principal: human_p,
+            resolve: ScopeResolveInput {
+                cwd: PathBuf::from("."),
+                explicit_project_id: None,
+                force_personal: true,
+                personal_user_id: Some(user),
+                git_metadata: None,
+            },
+            budget: BudgetConfig::default(),
+            privacy: Privacy::LocalOnly,
+            dry_run: true,
+            briefing_id: None,
+            ledgerful: None,
+        },
+    )
+    .unwrap();
+
+    assert!(packet.denied, "Personal scope must deny Project packet");
+    assert!(
+        packet
+            .denial_reason
+            .as_deref()
+            .is_some_and(|r| r.contains("Personal") || r.contains("personal")),
+        "denial_reason should mention Personal; got {:?}",
+        packet.denial_reason
+    );
+    let denied_count = packet
+        .warnings
+        .iter()
+        .filter(|w| w.kind == "denied")
+        .count();
+    assert_eq!(
+        denied_count, 1,
+        "exactly one kind=denied warning (helper seed, no double); got {:?}",
+        packet.warnings
+    );
+}
+
+#[test]
+fn project_briefing__grant_deny__warnings_kind_denied_exactly_once() {
+    let (_t, ports) = open_ports();
+    let clock = SystemClock;
+    let project = ProjectId::new();
+    let agent_p = agent();
+    register_principal(&ports.writer, &clock, &agent_p).unwrap();
+    // No read grants → full grant deny path via empty_denied.
+
+    let policy = ports.production_policy();
+    let identity = ports.identity_store();
+    let packet = build_project_briefing(
+        None::<&StoreEventWriter>,
+        &ports.query,
+        &clock,
+        &policy,
+        &identity,
+        ProjectBriefingRequest {
+            principal: agent_p,
+            resolve: ScopeResolveInput {
+                cwd: PathBuf::from("."),
+                explicit_project_id: Some(project),
+                force_personal: false,
+                personal_user_id: None,
+                git_metadata: None,
+            },
+            budget: BudgetConfig::default(),
+            privacy: Privacy::LocalOnly,
+            dry_run: true,
+            briefing_id: None,
+            ledgerful: None,
+        },
+    )
+    .unwrap();
+
+    assert!(packet.denied);
+    let denied_count = packet
+        .warnings
+        .iter()
+        .filter(|w| w.kind == "denied")
+        .count();
+    assert_eq!(
+        denied_count, 1,
+        "grant-deny must not double-push denied after helper seed; got {:?}",
+        packet.warnings
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T202 AC7 — markdown Denied one-liner with non-empty reason
+// ---------------------------------------------------------------------------
+
+#[test]
+fn project_briefing__denied_markdown__contains_denied_oneliner_and_reason() {
+    let reason = "ReadDecisions/ReadConclusions denied for principal at scope";
+    let packet = ai_brains_contracts::briefings::ProjectBriefingPacket::empty_denied(
+        "briefing-ac7".into(),
+        ai_brains_contracts::briefings::BriefingScopeDto {
+            scope_key: "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".into(),
+            confidence: "High".into(),
+            warnings: vec![],
+            alternatives: vec![],
+            authoritative: true,
+        },
+        reason,
+    );
+    let md = render_project_markdown(&packet);
+    assert!(
+        md.contains("**Denied:**"),
+        "markdown must include Denied one-liner; got:\n{md}"
+    );
+    assert!(
+        md.contains(reason),
+        "markdown must include non-empty denial reason; got:\n{md}"
+    );
+    assert!(
+        !packet.denial_reason.as_deref().unwrap_or("").is_empty(),
+        "denial_reason must be non-empty"
+    );
+}

@@ -1,6 +1,7 @@
-//! Thin CLI surface for typed Project / Personal briefings (T152-P1-06).
+//! Thin CLI surface for typed Project / Personal briefings (T152-P1-06 / T202).
 //!
-//! Defaults to dry-run JSON on stdout. Requires vault path + grants like governed preflight.
+//! Format default (F9): TTY + no `--format` → markdown; non-TTY → json; explicit wins.
+//! Requires vault path + grants like governed preflight.
 
 use crate::context::AppContext;
 use ai_brains_control_plane::{
@@ -13,6 +14,7 @@ use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_store::SqliteEventStore;
+use is_terminal::IsTerminal;
 
 pub struct ProjectBriefingOptions {
     pub project_id: Option<ProjectId>,
@@ -135,12 +137,23 @@ pub fn run_personal(
     )
 }
 
+/// Resolve briefing output format (F9 / AC8).
+///
+/// TTY + no explicit `--format` → markdown; non-TTY → json; explicit wins.
+fn resolve_briefing_format(explicit: Option<&str>, is_tty: bool) -> &str {
+    match explicit {
+        Some(f) => f,
+        None if is_tty => "markdown",
+        None => "json",
+    }
+}
+
 fn emit_output(
     format: Option<&str>,
     markdown: impl FnOnce() -> String,
     json: impl FnOnce() -> Result<String, serde_json::Error>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let fmt = format.unwrap_or("json");
+    let fmt = resolve_briefing_format(format, std::io::stdout().is_terminal());
     if fmt.eq_ignore_ascii_case("markdown") || fmt.eq_ignore_ascii_case("md") {
         println!("{}", markdown());
     } else {
@@ -167,4 +180,32 @@ pub(crate) fn cli_principal() -> ai_brains_core::principal::Principal {
         )),
         "cli-system",
     )
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_briefing_format__explicit_json__returns_json() {
+        assert_eq!(resolve_briefing_format(Some("json"), true), "json");
+        assert_eq!(resolve_briefing_format(Some("json"), false), "json");
+    }
+
+    #[test]
+    fn resolve_briefing_format__explicit_markdown__returns_markdown() {
+        assert_eq!(resolve_briefing_format(Some("markdown"), true), "markdown");
+        assert_eq!(resolve_briefing_format(Some("md"), false), "md");
+    }
+
+    #[test]
+    fn resolve_briefing_format__no_explicit_on_tty__returns_markdown() {
+        assert_eq!(resolve_briefing_format(None, true), "markdown");
+    }
+
+    #[test]
+    fn resolve_briefing_format__no_explicit_not_tty__returns_json() {
+        assert_eq!(resolve_briefing_format(None, false), "json");
+    }
 }

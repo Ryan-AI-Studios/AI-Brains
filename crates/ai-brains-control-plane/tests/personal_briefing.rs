@@ -188,6 +188,32 @@ fn personal_briefing__without_grant__denied() {
     assert!(packet.denied);
     assert!(packet.preferences.is_empty());
     assert!(packet.warnings.iter().any(|w| w.kind == "denied"));
+    let denied_count = packet
+        .warnings
+        .iter()
+        .filter(|w| w.kind == "denied")
+        .count();
+    assert_eq!(
+        denied_count, 1,
+        "T202 F7: empty_denied seeds one denied warning; call site must not double-push; got {:?}",
+        packet.warnings
+    );
+
+    // T202 AC7 — markdown Denied one-liner with non-empty reason
+    let reason = packet
+        .denial_reason
+        .as_deref()
+        .expect("denied packet must set denial_reason");
+    assert!(!reason.is_empty());
+    let md = render_personal_markdown(&packet);
+    assert!(
+        md.contains("**Denied:**"),
+        "markdown must include Denied one-liner; got:\n{md}"
+    );
+    assert!(
+        md.contains(reason),
+        "markdown must include denial reason text; got:\n{md}"
+    );
 }
 
 #[test]
