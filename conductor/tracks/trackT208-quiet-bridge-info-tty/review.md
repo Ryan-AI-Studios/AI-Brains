@@ -221,3 +221,16 @@ No P0/P1/P2 findings. F5 proven without `--quiet` on AC1/AC6. Required DoD met.
 ### Final gate decision
 Cross-model **PASS** with zero open findings greater than low. Fresh clean review on HEAD after F5 strengthen. Engineering clearance for PR/CI.
 
+
+---
+
+## Ship closeout (orchestrator)
+
+- **PR:** #91 squash-merged `9985ab4` (2026-08-04)
+- **CI:** gate-windows / gate-linux / gate-macos all **SUCCESS** (run 30948064566)
+- **Local gate:** nextest workspace CI profile **2068 passed**; clippy workspace `--features graph`; deny; audit; ledgerful verify `--scope fast`
+- **Conductor:** T208 → Completed
+- **Deferred:** T200 Cozo INFO residual struck closed by T208; M4 + F10 remain soft
+- **Coordinated:** coordination.md T206–T208 rows appended
+- **Cross-model final:** Claude **PASS** (Codex rate-limited) — no open findings > low
+

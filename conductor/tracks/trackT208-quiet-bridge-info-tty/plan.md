@@ -1,6 +1,6 @@
 # T208 Plan — Quiet Cozo / bridge INFO
 
-Status: **Implementing — code complete; PR pending**. Spec: [spec.md](./spec.md).
+Status: **Completed** (PR #91 `9985ab4`). Spec: [spec.md](./spec.md).
 
 ## Absorbed
 
@@ -76,7 +76,7 @@ Status: **Implementing — code complete; PR pending**. Spec: [spec.md](./spec.m
 - [x] **D1** CAPABILITIES §9 + OPERATIONS: escape **=debug only** (AC5)  
 - [x] **D2** CHANGELOG minor  
 - [x] **D3** Review + gate with `--features graph` targeted tests  
-- [ ] **D4** PR; conductor Completed; deferred strike T200 Cozo residual; note M4 residual  
+- [x] **D4** PR; conductor Completed; deferred strike T200 Cozo residual; note M4 residual  
 
 ## Test plan
 
@@ -92,7 +92,7 @@ Suite: `quiet_cozo_info` under `#[cfg(feature = "graph")]`. After F29, hermetic_
 
 ## Manual
 
-- [ ] Unset RUST_LOG; graph-on recall pretty empty — Scope/hint only  
+- [x] Unset RUST_LOG; graph-on recall pretty empty — Scope/hint only  
 - [ ] `RUST_LOG=ai_brains_graph=debug` — init returns  
 - [ ] Graph-off binary sanity  
 
