@@ -144,7 +144,7 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | Ledger linkage | `--tx-id` / `LEDGERFUL_TX_ID` (legacy `CHANGEGUARD_TX_ID` fallback) |
 | List projects | `project list` |
 | Aliases | `project set-alias` · `project resolve` |
-| Auto-detect | `project detect` (git / `.ledgerful` / `.env`) |
+| Auto-detect | `project detect` (git slug → vault match → env `PROJECT_ID`); `context` discovery (`.ledgerful` / `.env`) |
 | Stop session | `stop-session` |
 | Env precedence | CLI flags / shell env > elevation handoff (elevated child only) > project `.env` > global `~\.ai-brains\.env` (always merged for gaps; `--no-project-context` skips project only) |
 

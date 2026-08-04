@@ -385,7 +385,7 @@ Output (post-T76): a table with `project_id`, `name (alias|UUID)`, `alias`, and 
 ### Resolving Aliases
 ```powershell
 ai-brains project resolve ai-brains          # exact alias match, falls back to fuzzy
-ai-brains project detect --export            # auto-detect from current git repo
+ai-brains project detect --export            # git slug → vault match → env PROJECT_ID (mismatch warns)
 ```
 
 ## 5. Background Intelligence & Scheduling
