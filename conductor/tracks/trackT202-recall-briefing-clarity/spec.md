@@ -2,7 +2,7 @@
 
 - **Track ID:** T202-RecallBriefingClarity
 - **Phase:** Post-T201 CLI UX series (P2)
-- **Status:** 📋 **Proposed / Expanded + AI fold-in** (plan-only; no implement until go)
+- **Status:** ✅ **Completed** (PR #85 `89ea3ec`, 2026-08-04)
 - **Depends on:** T101 recall TTY pretty; T111/T133 hints; T152 briefing + progressive; T198 empty hygiene; **T201** exit contract (prefer exit **2** for missing required project class)
 - **Blocks / feeds:** Operator cold-start for recall/briefing/query; **T203** owns scope soft-default / discovery lists (do not implement here); T204 help may link examples + broader TTY format defaults (L2)
 - **Category:** FEATURE / CONTRACTS (light additive) / DOCS

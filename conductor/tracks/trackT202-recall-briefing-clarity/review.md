@@ -56,3 +56,7 @@
 - Local full gate: nextest **1976**, fmt, clippy `-D warnings`, deny, audit
 - Conductor Completed; deferred.md T202 row struck; coordinated updated
 - Residual to T204 (F32): broader OutputFormat TTY matrix + progressive after_help examples
+
+## Codex Final — post-closeout (2026-08-04)
+
+**Verdict: PASS WITH DEFERRED P3** — no open >P3 product findings. Deferred P3: T204 residuals (F32), manual checklist optional.
