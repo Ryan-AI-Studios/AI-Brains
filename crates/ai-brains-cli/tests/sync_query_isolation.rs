@@ -60,9 +60,25 @@ fn sync_query_pretty_default_scoped_to_current_project_no_cross_project_results(
 
     assert!(output.status.success(), "sync query must succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
+    // T207: empty pretty always prints next-action hint that *quotes the query*.
+    // Isolation is: no *hit content* from project A — not "query string never appears".
     assert!(
-        !stdout.contains("secret_token_a"),
-        "pretty query should be scoped to project B and not return project A's secret; got: {stdout}"
+        stdout.contains("No results"),
+        "scoped empty pretty must report no hits; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(PROJECT_B) || stdout.contains("project="),
+        "empty pretty should name project B scope; got: {stdout}"
+    );
+    let hit_leaks_secret = stdout.lines().any(|line| {
+        let t = line.trim();
+        t.contains("secret_token_a")
+            && !t.starts_with("No results")
+            && !t.contains("No results for")
+    });
+    assert!(
+        !hit_leaks_secret,
+        "pretty query must not return project A's secret as a hit; got: {stdout}"
     );
 }
 
@@ -88,9 +104,20 @@ fn sync_query_pretty_global_flag_returns_cross_project_results() {
 
     assert!(output.status.success(), "sync query --global must succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
+    // Require a non-empty hit path (content line), not merely the empty-hint query echo.
+    let hit_has_secret = stdout.lines().any(|line| {
+        let t = line.trim();
+        t.contains("secret_token_a")
+            && !t.starts_with("No results")
+            && !t.contains("No results for")
+    });
     assert!(
-        stdout.contains("secret_token_a"),
-        "pretty query --global should return cross-project results; got: {stdout}"
+        hit_has_secret,
+        "pretty query --global should return cross-project hit content; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("No results"),
+        "global with hits must not print empty hint; got: {stdout}"
     );
 }
 

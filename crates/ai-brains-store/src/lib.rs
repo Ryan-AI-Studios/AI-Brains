@@ -72,6 +72,12 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         limit: usize,
     ) -> Result<Vec<(String, String)>>;
     fn list_projects(&self) -> Result<Vec<(String, String, String, usize)>>; // UUID, name, alias, memory_count
+    /// Look up a single project by id. Returns `(name, alias)` when present.
+    /// Alias is empty string when none is set. Does not load the full project list.
+    fn get_project_by_id(
+        &self,
+        project_id: &ai_brains_core::ids::ProjectId,
+    ) -> Result<Option<(String, String)>>;
     fn get_session_memory_ids(&self, session_id: &str) -> Result<Vec<MemoryId>>;
     /// Returns true iff a row with this `memory_id` exists in `memory_projection`.
     /// Used by `forget` to validate `--memory-id` before appending a
