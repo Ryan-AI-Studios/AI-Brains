@@ -61,6 +61,7 @@ fn quiet_cozo__recall_unset_rust_log__no_cozo_init_line() {
 
     // hermetic_bin strips RUST_LOG via denylist. Do NOT re-set RUST_LOG
     // (especially not to "") — empty is ERROR-only, not product default (M3).
+    // F5: default (no --quiet) must already silence Cozo init after F2+F8.
     let out = common::hermetic_vault(&vault)
         .arg("--no-project-context")
         .arg("recall")
@@ -68,7 +69,6 @@ fn quiet_cozo__recall_unset_rust_log__no_cozo_init_line() {
         .arg("--format")
         .arg("pretty")
         .arg("--no-bridge")
-        .arg("--quiet")
         .arg("--limit")
         .arg("1")
         .arg("--global")
@@ -138,6 +138,7 @@ fn quiet_cozo__sync_query_unset_rust_log__no_cozo_init_line() {
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
+    // Soft AC6: default path (no --quiet) must be free of Cozo init (F5 parity).
     let out = common::hermetic_cmd(&vault)
         .arg("sync")
         .arg("query")
@@ -145,7 +146,6 @@ fn quiet_cozo__sync_query_unset_rust_log__no_cozo_init_line() {
         .arg("--format")
         .arg("pretty")
         .arg("--no-bridge")
-        .arg("--quiet")
         .output()
         .expect("sync query under default filter");
 
