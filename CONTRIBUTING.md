@@ -70,6 +70,8 @@ Normative project rules: **[AGENTS.md](AGENTS.md)** (and `Claude.md` pointer). H
 
 Normative process exit codes **0–7**, dual error envelopes (governed Json on stdout vs Human/generic on stderr), doctor/status/vault footnotes: **[Docs/CLI-EXIT-CODES.md](Docs/CLI-EXIT-CODES.md)**.
 
+Root help groups top-level commands by role (presentation only — names unchanged): **Daily**, **Operator**, **Governed**, **Dangerous**, **Harness** (plus Setup). Run `ai-brains --help` for the group inventory and start-here examples; use `--help` on a subcommand for flags and examples.
+
 ## Conductor + ledgerful workflow
 
 Implementation follows **track-by-track** discipline under `conductor/` (see `conductor/conductor.md`).
