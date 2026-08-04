@@ -1,6 +1,6 @@
 # T206 Plan — Project context + detect honesty
 
-Status: **Implemented (pending review/PR)**. Spec: [spec.md](./spec.md).
+Status: **Completed** (PR #89 squash-merged `d727fc5`). Spec: [spec.md](./spec.md).
 
 ## Absorbed
 
@@ -34,7 +34,7 @@ Status: **Implemented (pending review/PR)**. Spec: [spec.md](./spec.md).
 ### A0 — Expand + fold-in (done)
 
 - [x] Live repro + F1–F36 + AC1–AC11  
-- [ ] On go: ledger start + scan --impact  
+- [x] On go: ledger start + scan --impact  
 
 ### A1 — Pure + slug fix (Red → Green)
 
@@ -57,7 +57,7 @@ Status: **Implemented (pending review/PR)**. Spec: [spec.md](./spec.md).
 - [x] **D1** Hermetic AC1–AC5; miss regression; T205 home isolation if needed  
 - [x] **D2** CAPABILITIES F12 exact text; OPERATIONS/skill  
 - [x] **D3** CHANGELOG minor  
-- [ ] **D4** Review + full gate + PR  
+- [x] **D4** Review + full gate + PR #89 squash-merged  
 
 ## Test plan
 
@@ -70,9 +70,9 @@ Status: **Implemented (pending review/PR)**. Spec: [spec.md](./spec.md).
 
 ## Manual
 
-- [ ] AI-Brains + test-alias `.env` → mismatch warn (not only override warn)  
-- [ ] `set-alias … AI-Brains` → detect from git  
-- [ ] Checkout in differently named folder with origin AI-Brains → no false warn if alias matches  
+- [x] AI-Brains + test-alias `.env` → mismatch warn (not only override warn) — post-merge global install  
+- [ ] `set-alias … AI-Brains` → detect from git (optional operator)  
+- [x] Checkout remote-first covered by hermetic AC10
 
 ## Stop-before
 
@@ -83,4 +83,4 @@ Status: **Implemented (pending review/PR)**. Spec: [spec.md](./spec.md).
 
 ## Done when
 
-AC1–AC7 + AC10–AC11 green; review clear; PR merged.
+AC1–AC7 + AC10–AC11 green; review clear; PR #89 merged `d727fc5`.

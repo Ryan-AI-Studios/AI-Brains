@@ -55,4 +55,6 @@ Production code unchanged after Claude PASS. Focused nextest post-fix: 10/10 pro
 | Internal R1 | CLEAN |
 | Cross-model | Claude **PASS** (Codex rate-limited) |
 
-**Completion decision:** Engineering DoD met (AC1–AC7, AC10–AC11). Soft residual F8/F10/F24 only. Ready for PR.
+**Completion decision:** Engineering DoD met (AC1–AC7, AC10–AC11). Soft residual F8/F10/F24 only.
+
+**Shipped:** PR #89 squash-merged `d727fc5` (2026-08-04). CI gate-windows / gate-linux / gate-macos all SUCCESS.
