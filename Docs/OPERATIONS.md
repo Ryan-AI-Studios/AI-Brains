@@ -142,8 +142,15 @@ Thin CLI over control-plane (local default for reads) and named-pipe daemon (pre
 
 ```powershell
 ai-brains scope resolve --format json
+# Discovery (T203) — list before show; soft-fill --scope when context is authoritative
+ai-brains source list --format json
+ai-brains source list --scope Repository:<uuid> --format json
+ai-brains evidence list --scope Repository:<uuid>
+ai-brains evidence list --query keyword --scope Repository:<uuid>
+ai-brains evidence search --query keyword --scope Repository:<uuid>
 ai-brains evidence show <id> --scope Repository:<uuid> --format json
 ai-brains source show <id> --scope Repository:<uuid>
+ai-brains review list --format json                    # soft-default scope or fail_usage exit 2
 ai-brains review list --scope Repository:<uuid>
 ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local
 ai-brains decision propose --statement "..." --scope Repository:<uuid>
@@ -154,6 +161,8 @@ ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confi
 ai-brains policy show --scope Repository:<uuid>
 ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
 ```
+
+**Discovery workflow (T203):** Prefer `source list` / `evidence list` (bounded, Active-only, optional FTS `--query`) to find ids, then `show`. When `--scope` is omitted, CLI soft-fills only if `scope resolve` is **authoritative** (e.g. `AI_BRAINS_PROJECT_ID` set → High). Non-authoritative context → **exit 2** with a `fail_usage` template (`--scope Repository:<uuid>`, `ai-brains scope resolve`); never reintroduces exit **6** for missing scope on these CLI paths.
 
 - Mutations auto-generate `--command-id` when omitted; local propose uses shared CP `id_from_command` (same pre-assigned domain id as daemon).
 - After a mutation is **sent** to the daemon, timeout → non-zero + "outcome unknown; retry same --command-id" (no silent local fallback).
@@ -648,7 +657,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
 | Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (TTY markdown default / non-TTY json; `--format` wins; see T152/T202) |
 | Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` (progressive/expand require project id; missing → exit **2**) |
-| Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence show` · `source show` · `review list\|resolve` (T160) |
+| Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence list\|search\|show` · `source list\|show` · `review list\|resolve` (T160/T203) |
 | Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
 | Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |
 | Policy show / check | `ai-brains policy show\|check` (read-only grants) |

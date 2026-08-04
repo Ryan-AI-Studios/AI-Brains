@@ -8,14 +8,16 @@ use crate::daemon_client::{DaemonClient, DaemonClientError};
 use ai_brains_contracts::response::ApiError;
 use ai_brains_contracts::scopes::{ScopeEvidenceDto, ScopeResolvedResponse};
 use ai_brains_control_plane::{
-    ControlPlaneError, ResolvedScope, ScopeConfidence, is_authoritative, make_principal,
-    scope_identity_key,
+    ControlPlaneError, ResolvedScope, ScopeConfidence, ScopeIdentityStore, ScopeResolveInput,
+    is_authoritative, make_principal, resolve_scope, scope_identity_key,
 };
-use ai_brains_core::ids::PrincipalId;
+use ai_brains_core::ids::{PrincipalId, ProjectId};
 use ai_brains_core::principal::{Principal, PrincipalKind};
 use ai_brains_daemon_api::DaemonResponse;
 use serde::Serialize;
 use std::fmt;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -381,8 +383,88 @@ pub fn ensure_command_id(command_id: Option<&str>) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Scope mapping
+// Scope mapping + soft-resolve (T203)
 // ---------------------------------------------------------------------------
+
+/// Resolve a scope identity key for list/show CLI paths (T203 F6).
+///
+/// Order: explicit `--scope` wins → else soft-resolve from cwd / `AI_BRAINS_PROJECT_ID`
+/// when the result is authoritative and non-empty → else `Err` usage message for
+/// [`fail_usage`] at the call site (exit **2**, never exit **6**).
+pub fn resolve_scope_key_for_cli(
+    explicit: Option<&str>,
+    identity: &impl ScopeIdentityStore,
+) -> Result<String, String> {
+    if let Some(s) = explicit.map(str::trim).filter(|s| !s.is_empty()) {
+        return Ok(s.to_string());
+    }
+
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let explicit_project_id = std::env::var("AI_BRAINS_PROJECT_ID")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .and_then(|s| ProjectId::from_str(&s).ok());
+
+    let input = ScopeResolveInput {
+        cwd,
+        explicit_project_id,
+        force_personal: false,
+        personal_user_id: None,
+        git_metadata: None,
+    };
+
+    let resolved = resolve_scope(&input, identity).map_err(|e| {
+        format!(
+            "scope resolve failed while soft-filling omitted --scope: {e}\n\
+             Provide an explicit scope, for example:\n\
+               --scope Repository:<uuid>\n\
+             Or run: ai-brains scope resolve\n\
+             Non-authoritative context is not filled silently."
+        )
+    })?;
+
+    let key = scope_identity_key(&resolved.scope);
+    let authoritative = is_authoritative(&resolved)
+        && !matches!(
+            resolved.confidence,
+            ScopeConfidence::Low | ScopeConfidence::Ambiguous
+        )
+        && !key.is_empty();
+
+    if authoritative {
+        return Ok(key);
+    }
+
+    Err(soft_resolve_usage_message(&resolved, &key))
+}
+
+fn soft_resolve_usage_message(resolved: &ResolvedScope, key: &str) -> String {
+    let suggested = if key.is_empty() {
+        "Repository:<uuid>".to_string()
+    } else {
+        key.to_string()
+    };
+    let alt_hint = if resolved.alternatives.is_empty() {
+        String::new()
+    } else {
+        let alts: Vec<String> = resolved
+            .alternatives
+            .iter()
+            .map(scope_identity_key)
+            .collect();
+        format!("\nAlternatives: {}", alts.join(", "))
+    };
+    let confidence = confidence_name(resolved.confidence);
+    format!(
+        "missing --scope and context is not authoritative (confidence: {confidence})\n\
+         Provide an explicit scope, for example:\n\
+           --scope {suggested}\n\
+         Or run: ai-brains scope resolve\n\
+         Non-authoritative context is not filled silently.\
+         {alt_hint}"
+    )
+}
 
 /// Map control-plane [`ResolvedScope`] → wire [`ScopeResolvedResponse`] (parity with daemon).
 pub fn map_resolved_scope(resolved: &ResolvedScope) -> ScopeResolvedResponse {

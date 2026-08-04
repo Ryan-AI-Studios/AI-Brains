@@ -52,6 +52,7 @@ fn policy_show__missing_scope__exit_2() {
 
 #[test]
 fn review_list__missing_scope__exit_2() {
+    // T203 F37: soft-resolve fail_usage (runtime exit 2), not clap "required arguments".
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
@@ -68,8 +69,17 @@ fn review_list__missing_scope__exit_2() {
     assert_eq!(
         out.status.code(),
         Some(2),
-        "missing --scope must exit 2 (clap USAGE); stderr={}",
+        "missing --scope must exit 2 (fail_usage); stderr={}",
         String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("required arguments were not provided"),
+        "must not be clap required-argument text: {stderr}"
+    );
+    assert!(
+        stderr.contains("--scope") || stderr.contains("scope resolve"),
+        "fail_usage template expected: {stderr}"
     );
 }
 
@@ -341,7 +351,8 @@ fn policy_show__help__scope_required() {
 }
 
 #[test]
-fn review_list__help__scope_required() {
+fn review_list__help__scope_optional_soft_default() {
+    // T203: --scope is optional; soft-resolve or fail_usage (not clap-required).
     let out = common::hermetic_bin()
         .arg("review")
         .arg("list")
@@ -351,7 +362,19 @@ fn review_list__help__scope_required() {
 
     assert_eq!(out.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert_help_scope_required(&stdout, "review list");
+    assert!(
+        stdout.contains("--scope"),
+        "review list help must still document --scope; got: {stdout}"
+    );
+    // Must not claim required-only Usage line (soft-default).
+    let usage_line = stdout
+        .lines()
+        .find(|l| l.trim_start().starts_with("Usage:"))
+        .unwrap_or("");
+    assert!(
+        !usage_line.contains("--scope") || usage_line.contains("[OPTIONS]"),
+        "review list Usage should not hard-require --scope; usage={usage_line}"
+    );
 }
 
 #[test]

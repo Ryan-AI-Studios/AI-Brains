@@ -366,6 +366,8 @@ async fn replay_spool(
             | DaemonRequest::QueryKnowledge(_)
             | DaemonRequest::InspectEvidence(_)
             | DaemonRequest::InspectSource(_)
+            | DaemonRequest::ListSources(_)
+            | DaemonRequest::ListEvidence(_)
             | DaemonRequest::ListReviewItems(_) => {
                 let _ = fs::remove_file(path).await;
             }

@@ -51,9 +51,10 @@
 //! `Some(true)` proceeds.
 
 use ai_brains_contracts::briefings::{
-    InspectEvidenceRequest, PersonalBriefingRequest as WirePersonalBriefing,
-    PersonalBriefingResponse, ProjectBriefingRequest as WireProjectBriefing,
-    ProjectBriefingResponse, QueryKnowledgeRequest,
+    EvidenceListItemDto, EvidenceListResponse, InspectEvidenceRequest, ListEvidenceRequest,
+    PersonalBriefingRequest as WirePersonalBriefing, PersonalBriefingResponse,
+    ProjectBriefingRequest as WireProjectBriefing, ProjectBriefingResponse, QueryKnowledgeRequest,
+    truncate_evidence_list_summary,
 };
 use ai_brains_contracts::erasure::{
     ERASURE_TICKET_NO_WIPE_WARNING, ErasureAcceptedResponse, RequestErasureRequest,
@@ -64,13 +65,14 @@ use ai_brains_contracts::knowledge::{
     ProposeConclusionRequest as WireProposeConclusion,
     ProposeDecisionRequest as WireProposeDecision,
 };
+use ai_brains_contracts::offset_to_utc;
 use ai_brains_contracts::response::ApiError;
 use ai_brains_contracts::review::{
     ListReviewItemsRequest, ResolveReviewItemRequest, ReviewItemDto, ReviewQueueResponse,
     ReviewResolvedResponse,
 };
 use ai_brains_contracts::scopes::{ResolveScopeRequest, ScopeEvidenceDto, ScopeResolvedResponse};
-use ai_brains_contracts::sources::InspectSourceRequest;
+use ai_brains_contracts::sources::{InspectSourceRequest, ListSourcesRequest, SourceListResponse};
 use ai_brains_control_plane::{
     BudgetConfig, ControlPlaneError, EventWriter, ExpandHandleRequest, GovernedQueryStore,
     PersonalBriefingRequest as CpPersonalBriefing, PolicyContext, PolicyEvaluator,
@@ -78,10 +80,10 @@ use ai_brains_control_plane::{
     ProposeConclusionRequest as CpProposeConclusion, ProposeDecisionRequest as CpProposeDecision,
     ResolvedScope, ScopeConfidence, ScopeResolveInput, StoreContentEnvelopeWipe, StoreEventWriter,
     StorePorts, SystemClock, WipeContentEnvelopeCommand, build_personal_briefing,
-    build_project_briefing, expand_handle, is_authoritative, list_open_review_items_for_scope,
-    make_principal, parse_content_key_id, parse_scope_key, progressive_query, propose_conclusion,
-    propose_decision, resolve_review_item, resolve_scope, scope_identity_key, source_row_to_dto,
-    tombstone_id_from_command, wipe_content_envelope,
+    build_project_briefing, clamp_list_limit, expand_handle, is_authoritative,
+    list_open_review_items_for_scope, make_principal, parse_content_key_id, parse_scope_key,
+    progressive_query, propose_conclusion, propose_decision, resolve_review_item, resolve_scope,
+    scope_identity_key, source_row_to_dto, tombstone_id_from_command, wipe_content_envelope,
 };
 use ai_brains_core::ids::{
     ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, ReviewItemId, SourceId, UserId,
@@ -467,6 +469,113 @@ impl GovernedServices {
             })
             .collect();
         Ok(DaemonResponse::ReviewList(ReviewQueueResponse::new(dtos)))
+    }
+
+    pub fn list_sources(&self, req: ListSourcesRequest) -> Result<DaemonResponse, BoxError> {
+        let ports = self.ports();
+        let principal = resolve_principal(req.principal_id.as_deref());
+        let scope = match req.scope.as_deref() {
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
+            None => {
+                return Ok(DaemonResponse::Error(ApiError::new(
+                    "INVALID_PAYLOAD",
+                    "list_sources requires scope",
+                )));
+            }
+        };
+        let policy = ports.production_policy();
+        let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+        match policy.allow(
+            principal.id,
+            GrantCapability::ReadEvidence,
+            &scope,
+            &policy_ctx,
+        ) {
+            Ok(true) => {}
+            Ok(false) => {
+                return Ok(map_control_plane_error(ControlPlaneError::PolicyDenied(
+                    "ReadEvidence denied for list_sources".into(),
+                )));
+            }
+            Err(e) => return Ok(map_control_plane_error(e)),
+        }
+        let page = clamp_list_limit(req.limit);
+        let scope_key = scope_identity_key(&scope);
+        let mut rows = match ports.query.list_sources_for_scope(&scope_key, page + 1) {
+            Ok(rows) => rows,
+            Err(e) => return Ok(map_control_plane_error(e)),
+        };
+        let more_available = rows.len() > page;
+        if more_available {
+            rows.truncate(page);
+        }
+        let items = rows.iter().map(source_row_to_dto).collect();
+        Ok(DaemonResponse::SourceList(
+            SourceListResponse::new(items).with_more(more_available),
+        ))
+    }
+
+    pub fn list_evidence(&self, req: ListEvidenceRequest) -> Result<DaemonResponse, BoxError> {
+        let ports = self.ports();
+        let principal = resolve_principal(req.principal_id.as_deref());
+        let scope = match req.scope.as_deref() {
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
+            None => {
+                return Ok(DaemonResponse::Error(ApiError::new(
+                    "INVALID_PAYLOAD",
+                    "list_evidence requires scope",
+                )));
+            }
+        };
+        let policy = ports.production_policy();
+        let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+        match policy.allow(
+            principal.id,
+            GrantCapability::ReadEvidence,
+            &scope,
+            &policy_ctx,
+        ) {
+            Ok(true) => {}
+            Ok(false) => {
+                return Ok(map_control_plane_error(ControlPlaneError::PolicyDenied(
+                    "ReadEvidence denied for list_evidence".into(),
+                )));
+            }
+            Err(e) => return Ok(map_control_plane_error(e)),
+        }
+        let page = clamp_list_limit(req.limit);
+        let scope_key = scope_identity_key(&scope);
+        let mut rows =
+            match ports
+                .query
+                .list_evidence_for_scope(&scope_key, req.query.as_deref(), page + 1)
+            {
+                Ok(rows) => rows,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            };
+        let more_available = rows.len() > page;
+        if more_available {
+            rows.truncate(page);
+        }
+        let items: Vec<EvidenceListItemDto> = rows
+            .into_iter()
+            .map(|r| EvidenceListItemDto {
+                id: r.id.to_string(),
+                summary: truncate_evidence_list_summary(&r.summary),
+                status: r.status,
+                source_id: r.source_id.to_string(),
+                recorded_at: Some(offset_to_utc(r.recorded_at)),
+            })
+            .collect();
+        Ok(DaemonResponse::EvidenceList(
+            EvidenceListResponse::new(items).with_more(more_available),
+        ))
     }
 }
 

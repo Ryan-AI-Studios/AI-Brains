@@ -15,9 +15,9 @@
 
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_contracts::briefings::{
-    HandlePreviewDto, InspectEvidenceRequest, PersonalBriefingRequest, PersonalBriefingResponse,
-    ProgressiveQueryResponse, ProjectBriefingRequest, ProjectBriefingResponse,
-    QueryKnowledgeRequest,
+    EvidenceListResponse, HandlePreviewDto, InspectEvidenceRequest, ListEvidenceRequest,
+    PersonalBriefingRequest, PersonalBriefingResponse, ProgressiveQueryResponse,
+    ProjectBriefingRequest, ProjectBriefingResponse, QueryKnowledgeRequest,
 };
 use ai_brains_contracts::erasure::{
     ContentEnvelopeWipedResponse, ErasureAcceptedResponse, RequestErasureRequest,
@@ -33,7 +33,9 @@ use ai_brains_contracts::review::{
     ListReviewItemsRequest, ResolveReviewItemRequest, ReviewQueueResponse, ReviewResolvedResponse,
 };
 use ai_brains_contracts::scopes::{ResolveScopeRequest, ScopeResolvedResponse};
-use ai_brains_contracts::sources::{InspectSourceRequest, SourceDto};
+use ai_brains_contracts::sources::{
+    InspectSourceRequest, ListSourcesRequest, SourceDto, SourceListResponse,
+};
 use serde::{Deserialize, Serialize};
 
 pub mod transport_path;
@@ -62,6 +64,8 @@ pub enum DaemonRequest {
     QueryKnowledge(QueryKnowledgeRequest),
     InspectEvidence(InspectEvidenceRequest),
     InspectSource(InspectSourceRequest),
+    ListSources(ListSourcesRequest),
+    ListEvidence(ListEvidenceRequest),
     ProposeConclusion(ProposeConclusionRequest),
     ProposeDecision(ProposeDecisionRequest),
     ListReviewItems(ListReviewItemsRequest),
@@ -87,6 +91,8 @@ pub enum DaemonResponse {
     QueryKnowledge(ProgressiveQueryResponse),
     EvidencePreview(HandlePreviewDto),
     Source(SourceDto),
+    SourceList(SourceListResponse),
+    EvidenceList(EvidenceListResponse),
     ConclusionProposed(ConclusionProposedResponse),
     DecisionProposed(DecisionProposedResponse),
     ReviewList(ReviewQueueResponse),

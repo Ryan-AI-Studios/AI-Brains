@@ -124,6 +124,14 @@ pub async fn handle_daemon_request(
             let resp = services.list_review_items(req)?;
             Ok(LiveDispatchResult::Response(Box::new(resp)))
         }
+        DaemonRequest::ListSources(req) => {
+            let resp = services.list_sources(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
+        DaemonRequest::ListEvidence(req) => {
+            let resp = services.list_evidence(req)?;
+            Ok(LiveDispatchResult::Response(Box::new(resp)))
+        }
 
         // --- Governed mutations (writer queue) ---
         DaemonRequest::ProposeConclusion(req) => {

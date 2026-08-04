@@ -579,6 +579,80 @@ pub struct InspectEvidenceRequest {
     pub max_chars: Option<usize>,
 }
 
+// ---------------------------------------------------------------------------
+// Evidence discovery list (T203)
+// ---------------------------------------------------------------------------
+
+/// Default max summary characters on evidence list items (F31).
+pub const EVIDENCE_LIST_SUMMARY_MAX_CHARS: usize = 160;
+
+/// One evidence row on a discovery list.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EvidenceListItemDto {
+    pub id: String,
+    pub summary: String,
+    pub status: String,
+    pub source_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recorded_at: Option<DateTime<Utc>>,
+}
+
+/// Evidence discovery list response.
+///
+/// **E1:** `items: []` not null when empty.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EvidenceListResponse {
+    pub api_version: String,
+    #[serde(default)]
+    pub items: Vec<EvidenceListItemDto>,
+    #[serde(default)]
+    pub more_available: bool,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+}
+
+impl EvidenceListResponse {
+    pub fn new(items: Vec<EvidenceListItemDto>) -> Self {
+        Self {
+            api_version: API_VERSION.to_string(),
+            items,
+            more_available: false,
+            warnings: Vec::new(),
+        }
+    }
+
+    pub fn with_more(mut self, more_available: bool) -> Self {
+        self.more_available = more_available;
+        self
+    }
+}
+
+/// List (and optional FTS search) evidence for a scope (daemon protocol — T203).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ListEvidenceRequest {
+    #[serde(default = "default_api_version")]
+    pub api_version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    /// Optional FTS query over evidence summary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+}
+
+/// Truncate evidence list summary to [`EVIDENCE_LIST_SUMMARY_MAX_CHARS`].
+pub fn truncate_evidence_list_summary(summary: &str) -> String {
+    let max = EVIDENCE_LIST_SUMMARY_MAX_CHARS;
+    let count = summary.chars().count();
+    if count <= max {
+        return summary.to_string();
+    }
+    summary.chars().take(max).collect()
+}
+
 #[cfg(test)]
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
@@ -592,6 +666,36 @@ mod tests {
         assert!(decoded.scope.is_none());
         assert!(decoded.max_words.is_none());
         assert!(decoded.governed_briefing.is_none());
+    }
+
+    #[test]
+    fn evidence_list_response__empty_e1() {
+        let resp = EvidenceListResponse::new(vec![]);
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let v: serde_json::Value = serde_json::from_str(&json).expect("value");
+        assert!(v["items"].as_array().expect("items").is_empty());
+        assert_eq!(v["more_available"], false);
+    }
+
+    #[test]
+    fn list_evidence_request__roundtrip() {
+        let req = ListEvidenceRequest {
+            api_version: API_VERSION.to_string(),
+            principal_id: None,
+            scope: Some("Repository:00000000-0000-0000-0000-0000000000a1".into()),
+            query: Some("fts".into()),
+            limit: Some(25),
+        };
+        let json = serde_json::to_string(&req).expect("serialize");
+        let decoded: ListEvidenceRequest = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(decoded, req);
+    }
+
+    #[test]
+    fn truncate_evidence_list_summary__over_160__clips() {
+        let long: String = "a".repeat(200);
+        let out = truncate_evidence_list_summary(&long);
+        assert_eq!(out.chars().count(), EVIDENCE_LIST_SUMMARY_MAX_CHARS);
     }
 
     #[test]

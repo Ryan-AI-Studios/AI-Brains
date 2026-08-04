@@ -7,6 +7,7 @@ pub mod device;
 pub mod errors;
 pub mod evidence;
 pub mod freshness;
+pub mod fts;
 pub mod harness;
 pub mod ids;
 pub mod memory;
@@ -25,3 +26,5 @@ pub mod temp_env;
 pub mod turn;
 pub mod user;
 pub mod validation;
+
+pub use fts::sanitize_fts_query;
