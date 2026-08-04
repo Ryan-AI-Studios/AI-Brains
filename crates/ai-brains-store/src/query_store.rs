@@ -348,6 +348,30 @@ impl QueryStore for VaultConnection {
         Ok(results)
     }
 
+    fn get_project_by_id(&self, project_id: &ProjectId) -> Result<Option<(String, String)>> {
+        let conn = self.lock()?;
+        // Single-id SELECT (F32 / T207): same JOIN pattern as list_projects, no full scan.
+        let sql = "
+            SELECT
+                p.name,
+                COALESCE(a.alias, '') as alias
+            FROM project_projection p
+            LEFT JOIN (
+                SELECT project_id, alias FROM project_alias_projection
+            ) a ON p.project_id = a.project_id
+            WHERE p.project_id = ?
+            LIMIT 1
+        ";
+        let row = conn
+            .query_row(sql, [project_id.to_string()], |row| {
+                let name: String = row.get(0)?;
+                let alias: String = row.get(1)?;
+                Ok((name, alias))
+            })
+            .optional()?;
+        Ok(row)
+    }
+
     fn memory_exists(&self, memory_id: &str) -> Result<bool> {
         let conn = self.lock()?;
         let count: i64 = conn.query_row(

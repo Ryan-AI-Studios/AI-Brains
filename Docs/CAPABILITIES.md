@@ -192,10 +192,10 @@ ai-brains recall -   # query from stdin
 | **Embedding status** | With `--semantic`, JSON includes additive `embedding: { status, endpoint?, detail? }`. Closed statuses: `ok` \| `unreachable` \| `error` \| `no_stored_embeddings` \| `skipped`. Soft-fail: embed down never aborts FTS/bridge recall (exit **0**). Pretty TTY prints one status line when `status != ok`. |
 | **Graph boost** | Neighbor score boost (`--graph-boost`) |
 | **Substring fallback** | When FTS empty on small vaults |
-| **Scope** | Project default; `--global`; `--session` / `--session-prefix` / `--session-last` |
+| **Scope** | Project default (`AI_BRAINS_PROJECT_ID` / flags); `--global` widens to all projects (never auto-widens on empty). Empty **pretty** prints a `Scope:` line (`global` or active `project=<alias-or-name> (<uuid>)` / `project=<uuid>` / `project=(none)`). Scope on non-empty pretty is deferred. |
 | **Bridge mix** | Ledgerful hits capped so vault memories still surface; `--no-bridge` |
 | **Formats** | Pretty on TTY by default; JSON / NDJSON; per-result `session_id` |
-| **Hints** | Contextual no-results hints on stdout (next-action only when embedding status already explains cause) |
+| **Hints** | Empty **pretty** always prints next-action text on stdout (**not TTY-only**), after Scope (and Session only when user `--session` / `--session-prefix` / `--session-last` resolved — generated graph-provenance sessions are omitted on empty). JSON empty still sets `hint` + `effective_session_id` (exit **0**). Next-action only when embedding status already explains cause (T202). `--quiet` does not suppress Scope or the empty hint. |
 
 ### Briefing + progressive query (T202)
 ```powershell
