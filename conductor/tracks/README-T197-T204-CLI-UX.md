@@ -12,7 +12,7 @@ Source: non-destructive global-install CLI audit after T196. Drafts only — imp
 | 3 | [T200](trackT200-graph-feature-install-honesty/spec.md) | P1/P3 | ✅ **Completed 2026-08-03** PR #83 `84f4a23` — docs-only A; INSTALL/Release honesty; F14 CI graph-on |
 | 4 | [T201](trackT201-cli-error-exit-contract/spec.md) | P2 | ✅ **Completed 2026-08-03** PR #84 `a9e3b85` — clap-required scope exit 2; details.hint; BREAKING 6→2; exit_contract suite |
 | 5 | [T202](trackT202-recall-briefing-clarity/spec.md) | P2 | ✅ **Completed 2026-08-04** PR #85 `89ea3ec` — embedding.status; empty_denied; TTY md; progressive exit 2; Codex R2 PASS |
-| 5 | [T203](trackT203-governed-discovery-reads/spec.md) | P2 | source/evidence list; review scope soft-default |
+| 5 | [T203](trackT203-governed-discovery-reads/spec.md) | P2 | ✅ **Completed 2026-08-04** PR #86 `2748d12` — lists + soft-resolve exit 2; Codex R2 PASS |
 | 6 | [T204](trackT204-cli-help-ia/spec.md) | P3 | Grouped `--help` |
 
 ## Audit → track map
@@ -28,7 +28,7 @@ Source: non-destructive global-install CLI audit after T196. Drafts only — imp
 | Empty-state copy (backup verify, project list, dogfood) | **T198** |
 | Unify error envelope + exit table | **T201** |
 | Recall TTY + semantic health | **T202** |
-| Governed discovery lists | **T203** |
+| Governed discovery lists + soft-resolve | **T203** (expanded plan) |
 | Group help IA | **T204** |
 
 ### Scores &lt; 7 (E or C)

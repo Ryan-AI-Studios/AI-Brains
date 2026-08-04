@@ -11,7 +11,8 @@ Ledger TX: `4cb7834a-2eeb-4e5c-8871-d3a92022ff2f`
 | R1 | Internal subagent (read-only) | **CLEAN** — no HIGH/MEDIUM |
 | R1 | Codex `gpt-5.6-luna` high | **FAIL** — P1 daemon list deny missing `details.hint`; process closeout; P2 test gaps |
 | R2 | Codex `gpt-5.6-luna` high (fresh) | **PASS** — prior product P1/P2 verified fixed; process closeout residual OK |
-| Final | Codex product gate | **PASS** (engineering DoD; process E2–E4 at ship) |
+| Final | Codex product gate | **PASS** (engineering DoD) |
+| Ship | Process closeout | conductor/deferred/coordinated updated; PR #86 `2748d12` |
 
 ## Findings disposition
 | ID | Severity | Disposition |
