@@ -186,6 +186,9 @@ impl ProjectBriefingPacket {
         scope: BriefingScopeDto,
         reason: impl Into<String>,
     ) -> Self {
+        // F7/M2: seed kind=denied so every denied path has ≥1 structured warning
+        // (covers Personal-scope refuse and bare helper returns).
+        let reason = reason.into();
         Self {
             api_version: API_VERSION.to_string(),
             briefing_id,
@@ -195,7 +198,12 @@ impl ProjectBriefingPacket {
             decisions: Vec::new(),
             conclusions: Vec::new(),
             constraints: Vec::new(),
-            warnings: Vec::new(),
+            warnings: vec![BriefingWarningDto {
+                kind: "denied".into(),
+                message: reason.clone(),
+                subject_id: None,
+                subject_kind: None,
+            }],
             freshness: FreshnessSummaryDto {
                 total_sources: 0,
                 fresh_count: 0,
@@ -213,7 +221,7 @@ impl ProjectBriefingPacket {
             },
             generated_at: None,
             denied: true,
-            denial_reason: Some(reason.into()),
+            denial_reason: Some(reason),
         }
     }
 }
@@ -307,6 +315,8 @@ impl PersonalContinuityBriefingPacket {
         scope_key: impl Into<String>,
         reason: impl Into<String>,
     ) -> Self {
+        // F7/M2: seed kind=denied so every denied path has ≥1 structured warning.
+        let reason = reason.into();
         Self {
             api_version: API_VERSION.to_string(),
             briefing_id,
@@ -319,7 +329,12 @@ impl PersonalContinuityBriefingPacket {
             },
             open_review_items: Vec::new(),
             grants_applied: Vec::new(),
-            warnings: Vec::new(),
+            warnings: vec![BriefingWarningDto {
+                kind: "denied".into(),
+                message: reason.clone(),
+                subject_id: None,
+                subject_kind: None,
+            }],
             budget: BudgetReportDto {
                 max_words: 0,
                 used_words: 0,
@@ -328,7 +343,7 @@ impl PersonalContinuityBriefingPacket {
             },
             generated_at: None,
             denied: true,
-            denial_reason: Some(reason.into()),
+            denial_reason: Some(reason),
         }
     }
 }
@@ -591,5 +606,35 @@ mod tests {
         let json = serde_json::to_string(&req).expect("serialize");
         let decoded: QueryKnowledgeRequest = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(decoded, req);
+    }
+
+    #[test]
+    fn project_empty_denied__seeds_kind_denied_warning() {
+        let packet = ProjectBriefingPacket::empty_denied(
+            "b1".into(),
+            BriefingScopeDto {
+                scope_key: "Repository:x".into(),
+                confidence: "High".into(),
+                warnings: Vec::new(),
+                alternatives: Vec::new(),
+                authoritative: true,
+            },
+            "no grant",
+        );
+        assert!(packet.denied);
+        assert_eq!(packet.denial_reason.as_deref(), Some("no grant"));
+        assert_eq!(packet.warnings.len(), 1);
+        assert_eq!(packet.warnings[0].kind, "denied");
+        assert_eq!(packet.warnings[0].message, "no grant");
+    }
+
+    #[test]
+    fn personal_empty_denied__seeds_kind_denied_warning() {
+        let packet =
+            PersonalContinuityBriefingPacket::empty_denied("b1".into(), "Personal:u", "denied");
+        assert!(packet.denied);
+        assert_eq!(packet.warnings.len(), 1);
+        assert_eq!(packet.warnings[0].kind, "denied");
+        assert_eq!(packet.warnings[0].message, "denied");
     }
 }

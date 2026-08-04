@@ -16,7 +16,11 @@ pub use lexical::{RetrievalMemory, lexical_search, substring_fallback};
 pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
 };
-pub use recall::{RecallHit, RecallOptions, recall};
+pub use recall::{RecallHit, RecallOptions, RecallOutcome, recall, recall_full};
+pub use semantic::{
+    SemanticOutcome, classify_embedding_error, classify_model_error, embedding_endpoint,
+    embedding_model, public_endpoint_label, semantic_search, status_after_embed_ok,
+};
 pub use sessions::active_sessions;
 
 #[cfg(not(feature = "graph"))]

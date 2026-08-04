@@ -3,7 +3,7 @@ use ai_brains_contracts::recall::{RecallResponse, RecallResult};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, MemoryPinnedPayload, Payload};
-use ai_brains_retrieval::{RecallOptions, recall};
+use ai_brains_retrieval::{RecallOptions, recall_full};
 use ai_brains_store::EventStore;
 use is_terminal::IsTerminal;
 use rusqlite::OptionalExtension;
@@ -162,7 +162,7 @@ pub fn run(
     #[cfg(not(feature = "graph"))]
     let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
 
-    let hits = recall(
+    let outcome = recall_full(
         &ctx.conn,
         graph_search.as_ref(),
         &options.query,
@@ -177,6 +177,8 @@ pub fn run(
             no_bridge: options.no_bridge,
         },
     )?;
+    let hits = outcome.hits;
+    let embedding = outcome.embedding;
 
     // Emit MemoryPinned events for each recall hit so the graph projector can
     // build session -> memory RECALLS edges.
@@ -214,6 +216,9 @@ pub fn run(
         }
     }
 
+    // Own the status string before moving `embedding` into the response.
+    let embedding_status_owned = embedding.as_ref().map(|e| e.status.clone());
+
     let response = RecallResponse {
         results: hits
             .into_iter()
@@ -227,7 +232,10 @@ pub fn run(
             .collect(),
         session_id: effective_session_id.map(|s| s.to_string()),
         hint: None,
+        // F2: include embedding only when --semantic (status may be ok/unreachable/…).
+        embedding,
     };
+    let embedding_status = embedding_status_owned.as_deref();
 
     let format_str = resolve_format(options.format.as_deref(), std::io::stdout().is_terminal());
 
@@ -235,6 +243,13 @@ pub fn run(
         "pretty" => {
             if let Some(ref sid) = response.session_id {
                 println!("Session: {}", sid);
+            }
+            // F6: one embedding status line when --semantic and status != ok.
+            if options.semantic
+                && let Some(ref emb) = response.embedding
+                && emb.status != "ok"
+            {
+                print_embedding_status_line(emb);
             }
             for r in &response.results {
                 let content = if r.content.chars().count() > 500 {
@@ -270,6 +285,7 @@ pub fn run(
                     options.semantic,
                     options.global,
                     options.project_id,
+                    embedding_status,
                 )?
                 && std::io::stdout().is_terminal()
             {
@@ -285,6 +301,7 @@ pub fn run(
                     options.semantic,
                     options.global,
                     options.project_id,
+                    embedding_status,
                 )?;
             }
             println!("{}", serde_json::to_string(&response)?);
@@ -294,15 +311,24 @@ pub fn run(
     Ok(())
 }
 
-/// Build a contextual hint when recall returns zero results (T111).
+/// Pretty TTY one-liner for non-ok embedding status (F6). Does not restate full cause.
+fn print_embedding_status_line(emb: &ai_brains_contracts::recall::EmbeddingStatusDto) {
+    match emb.endpoint.as_deref() {
+        Some(ep) => println!("Embedding: {} ({})", emb.status, ep),
+        None => println!("Embedding: {}", emb.status),
+    }
+}
+
+/// Build a contextual hint when recall returns zero results (T111 / T202 F6).
 fn build_recall_hint(
     conn: &ai_brains_store::VaultConnection,
     query: &str,
     semantic: bool,
     global: bool,
     project_id: Option<ProjectId>,
+    embedding_status: Option<&str>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    let mut hint = build_recall_hint_core(query, semantic, global);
+    let mut hint = build_recall_hint_core(query, semantic, global, embedding_status);
 
     if !global {
         let count = project_memory_count(conn, project_id)?;
@@ -317,17 +343,34 @@ fn build_recall_hint(
     Ok(Some(hint))
 }
 
-fn build_recall_hint_core(query: &str, semantic: bool, global: bool) -> String {
+/// Core empty-result hint. When embedding status is present and not `ok`, omit the
+/// redundant “check embedding model” clause (F6 / F33 / AC15) — next-action only.
+fn build_recall_hint_core(
+    query: &str,
+    semantic: bool,
+    global: bool,
+    embedding_status: Option<&str>,
+) -> String {
     if global {
         format!(
             "No results for '{}' across all projects. The vault may be empty or the query may not match any memories.",
             query
         )
     } else if semantic {
-        format!(
-            "No results for '{}' (semantic search). Try --global to search across all projects, or check if the embedding model is running.",
-            query
-        )
+        // Status field (or pretty line) already explains embed cause when != ok.
+        let status_explains_cause = embedding_status.is_some_and(|s| s != "ok");
+        if status_explains_cause || embedding_status.is_some() {
+            // F33: when embedding present, drop redundant model-check clause.
+            format!(
+                "No results for '{}' (semantic search). Try --global to search across all projects, refine the query, or import more memories.",
+                query
+            )
+        } else {
+            format!(
+                "No results for '{}' (semantic search). Try --global to search across all projects, or check if the embedding model is running.",
+                query
+            )
+        }
     } else {
         format!(
             "No results for '{}'. Try --semantic for embedding-based search, or --global to search across all projects.",
@@ -394,7 +437,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn build_recall_hint__no_semantic_no_global__suggests_semantic_and_global() {
-        let hint = build_recall_hint_core("query", false, false);
+        let hint = build_recall_hint_core("query", false, false, None);
         assert!(
             hint.contains("Try --semantic"),
             "hint should suggest --semantic; got: {}",
@@ -409,8 +452,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn build_recall_hint__semantic_used__suggests_global_and_embedding_model() {
-        let hint = build_recall_hint_core("query", true, false);
+    fn build_recall_hint__semantic_no_status__suggests_embedding_model() {
+        let hint = build_recall_hint_core("query", true, false, None);
         assert!(
             hint.contains("semantic search"),
             "hint should mention semantic search; got: {}",
@@ -418,15 +461,46 @@ mod tests {
         );
         assert!(
             hint.contains("embedding model"),
-            "hint should suggest checking embedding model; got: {}",
+            "hint should suggest checking embedding model when no status; got: {}",
             hint
         );
     }
 
     #[test]
     #[allow(non_snake_case)]
+    fn build_recall_hint__semantic_unreachable_status__next_action_only_no_model_clause() {
+        // AC15 / F6: when status already explains cause, hint is next-action only.
+        let hint = build_recall_hint_core("query", true, false, Some("unreachable"));
+        assert!(
+            hint.contains("--global") || hint.contains("refine") || hint.contains("import"),
+            "hint should offer next actions; got: {}",
+            hint
+        );
+        assert!(
+            !hint.contains("embedding model"),
+            "hint must not restate embedding cause when status present; got: {}",
+            hint
+        );
+        assert!(
+            !hint.contains("unreachable"),
+            "hint must not repeat status string; got: {}",
+            hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__semantic_ok_status__drops_model_check_clause() {
+        // F33: embedding present → soft-shorten even when status is ok.
+        let hint = build_recall_hint_core("query", true, false, Some("ok"));
+        assert!(!hint.contains("embedding model"), "got: {}", hint);
+        assert!(hint.contains("--global"), "got: {}", hint);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
     fn build_recall_hint__global_used__notes_all_projects_empty() {
-        let hint = build_recall_hint_core("query", false, true);
+        let hint = build_recall_hint_core("query", false, true, None);
         assert!(
             hint.contains("across all projects"),
             "hint should note global scope; got: {}",
@@ -437,7 +511,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn recall_hint__no_results_pretty__hint_core_contains_no_results() {
-        let hint = build_recall_hint_core("zzzz", false, false);
+        let hint = build_recall_hint_core("zzzz", false, false, None);
         assert!(
             hint.contains("No results for 'zzzz'"),
             "hint should mention 'zzzz'; got: {}",

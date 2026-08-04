@@ -383,7 +383,8 @@ enum Commands {
     /// Build typed Project / Personal briefing packets (T152)
     ///
     /// Empty-state contract: denied/unresolved scopes return a packet with
-    /// `denied=true` or empty authority sections + warnings (JSON stdout by default).
+    /// `denied=true` or empty authority sections + warnings. Default format is
+    /// markdown on TTY and json otherwise (`--format` wins).
     /// Principal: `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` or well-known System principal
     /// (must be registered + granted). See `AI_BRAINS_GOVERNED_BRIEFING` for preflight.
     #[command(
@@ -656,7 +657,7 @@ enum BriefingCommands {
         /// Skip BriefingGenerated event / cache write (default: true)
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         dry_run: bool,
-        /// Output format: `json` (default) or `markdown`
+        /// Output format: `json` or `markdown` (default: markdown on TTY, json otherwise)
         #[arg(long)]
         format: Option<String>,
     },
@@ -670,7 +671,7 @@ enum BriefingCommands {
         max_words: usize,
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         dry_run: bool,
-        /// Output format: `json` (default) or `markdown`
+        /// Output format: `json` or `markdown` (default: markdown on TTY, json otherwise)
         #[arg(long)]
         format: Option<String>,
     },

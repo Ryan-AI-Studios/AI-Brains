@@ -1,8 +1,8 @@
 //! Deterministic Personal Continuity Briefing (T152 Phase D).
 
 use ai_brains_contracts::briefings::{
-    AppliedGrantDto, BriefingWarningDto, BudgetReportDto, ContinuitySummaryDto,
-    PersonalContinuityBriefingPacket, PersonalPreferenceDto, PersonalReviewItemDto,
+    AppliedGrantDto, BudgetReportDto, ContinuitySummaryDto, PersonalContinuityBriefingPacket,
+    PersonalPreferenceDto, PersonalReviewItemDto,
 };
 use ai_brains_contracts::knowledge::EvidenceHandle;
 use ai_brains_contracts::offset_to_utc;
@@ -111,18 +111,13 @@ where
     let can_enter = can_read_conclusions || can_read_decisions;
 
     if !can_enter {
+        // F7: empty_denied already seeds kind=denied — do not push a second denied warning.
         let mut packet = PersonalContinuityBriefingPacket::empty_denied(
             briefing_id.to_string(),
             scope_key,
             "Personal scope read denied without grant",
         );
         packet.generated_at = Some(offset_to_utc(now));
-        packet.warnings.push(BriefingWarningDto {
-            kind: "denied".into(),
-            message: "No Personal ReadConclusions/ReadDecisions grant for principal".into(),
-            subject_id: None,
-            subject_kind: None,
-        });
         apply_personal_budget(&mut packet, req.budget);
         return Ok(packet);
     }

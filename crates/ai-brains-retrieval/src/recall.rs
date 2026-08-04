@@ -2,7 +2,9 @@ use crate::GraphSearch;
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
 use crate::lexical::{lexical_search, substring_fallback};
+use crate::semantic::classify_embedding_error;
 use ai_brains_contracts::bridge::BridgeRecord;
+use ai_brains_contracts::recall::EmbeddingStatusDto;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_store::VaultConnection;
 
@@ -100,6 +102,14 @@ impl RecallHit {
     }
 }
 
+/// Full recall outcome including optional embedding status (T202).
+#[derive(Debug, Clone)]
+pub struct RecallOutcome {
+    pub hits: Vec<RecallHit>,
+    /// Set when `options.semantic` was true; `None` when semantic was not requested.
+    pub embedding: Option<EmbeddingStatusDto>,
+}
+
 /// Primary recall entry point. Attempts unified IPC recall via Ledgerful
 /// (`bridge query`) first. If IPC is unavailable or fails, falls back to
 /// local FTS5 search. Results from both sources are blended, with privacy
@@ -107,6 +117,8 @@ impl RecallHit {
 ///
 /// When `semantic` is true, also queries via embedding-based semantic search
 /// and blends those results alongside bridge and FTS5 hits.
+///
+/// Thin wrapper around [`recall_full`] for callers that only need hits.
 pub fn recall(
     conn: &VaultConnection,
     graph: Option<&GraphSearch>,
@@ -114,6 +126,20 @@ pub fn recall(
     limit: usize,
     options: RecallOptions,
 ) -> Result<Vec<RecallHit>> {
+    Ok(recall_full(conn, graph, query, limit, options)?.hits)
+}
+
+/// Primary recall entry point with embedding status (T202).
+///
+/// Semantic backend failure does **not** abort whole recall (F3): FTS/bridge
+/// results still return and `embedding` carries a closed status string.
+pub fn recall_full(
+    conn: &VaultConnection,
+    graph: Option<&GraphSearch>,
+    query: &str,
+    limit: usize,
+    options: RecallOptions,
+) -> Result<RecallOutcome> {
     let project_id = options.project_id;
     let session_id = options.session_id;
 
@@ -156,20 +182,34 @@ pub fn recall(
         }
     }
 
-    // Phase 3: Semantic search when requested.
-    let semantic_hits: Vec<RecallHit> = if options.semantic {
-        crate::semantic::semantic_search(conn, query, limit, project_id, session_id).unwrap_or_else(
-            |e| {
-                eprintln!(
-                    "Semantic search failed, continuing with lexical results: {}",
-                    e
-                );
-                Vec::new()
-            },
-        )
-    } else {
-        Vec::new()
-    };
+    // Phase 3: Semantic search when requested (soft-fail; structured status).
+    let (semantic_hits, embedding_status): (Vec<RecallHit>, Option<EmbeddingStatusDto>) =
+        if options.semantic {
+            match crate::semantic::semantic_search(conn, query, limit, project_id, session_id) {
+                Ok(outcome) => {
+                    // F27: warn only for real embed soft-fails (not empty store).
+                    if matches!(outcome.embedding.status.as_str(), "unreachable" | "error") {
+                        tracing::warn!(
+                            status = %outcome.embedding.status,
+                            detail = ?outcome.embedding.detail,
+                            endpoint = ?outcome.embedding.endpoint,
+                            "Semantic search soft-failed; continuing with lexical results"
+                        );
+                    }
+                    (outcome.hits, Some(outcome.embedding))
+                }
+                Err(e) => {
+                    // Unexpected DB/store path: still soft-fail whole semantic arm.
+                    tracing::warn!(
+                        error = %e,
+                        "Semantic search failed, continuing with lexical results"
+                    );
+                    (Vec::new(), Some(classify_embedding_error(&e)))
+                }
+            }
+        } else {
+            (Vec::new(), None)
+        };
 
     #[cfg(not(feature = "graph"))]
     let _ = (graph, options.graph_boost, options.graph_hop_depth);
@@ -277,7 +317,10 @@ pub fn recall(
         blended.truncate(limit);
     }
 
-    Ok(blended)
+    Ok(RecallOutcome {
+        hits: blended,
+        embedding: embedding_status,
+    })
 }
 
 // ---------------------------------------------------------------------------

@@ -202,18 +202,13 @@ where
     )?;
 
     if !can_read_decisions && !can_read_conclusions {
+        // F7: empty_denied already seeds kind=denied — do not push a second denied warning.
         let mut packet = ProjectBriefingPacket::empty_denied(
             briefing_id.to_string(),
             scope_dto,
             "ReadDecisions/ReadConclusions denied for principal at scope",
         );
         packet.generated_at = Some(offset_to_utc(now));
-        packet.warnings.push(BriefingWarningDto {
-            kind: "denied".into(),
-            message: "No read grant for decisions or conclusions at this scope".into(),
-            subject_id: None,
-            subject_kind: None,
-        });
         apply_budget(&mut packet, req.budget);
         maybe_emit_briefing(writer, req.dry_run, &packet, req.privacy)?;
         return Ok(packet);

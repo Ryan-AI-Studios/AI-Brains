@@ -25,6 +25,21 @@ pub struct RecallResult {
     pub session_id: Option<String>,
 }
 
+/// Status of the embedding backend for a semantic recall attempt (T202).
+///
+/// Closed status set: `ok` | `unreachable` | `error` | `no_stored_embeddings` | `skipped`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EmbeddingStatusDto {
+    /// Closed set: ok | unreachable | error | no_stored_embeddings | skipped
+    pub status: String,
+    /// Host URL only (no secrets); omitted when not useful.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
+    /// Soft detail (e.g. `zero_rows`, `all_rows_undecodable`); never secrets.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecallResponse {
     pub results: Vec<RecallResult>,
@@ -35,6 +50,9 @@ pub struct RecallResponse {
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
+    /// Present when `--semantic` was requested (T202 honesty).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding: Option<EmbeddingStatusDto>,
 }
 
 #[cfg(test)]
@@ -49,6 +67,7 @@ mod tests {
             results: vec![],
             session_id: Some("test-session".to_string()),
             hint: None,
+            embedding: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("session_id"));
@@ -63,8 +82,62 @@ mod tests {
             results: vec![],
             session_id: None,
             hint: None,
+            embedding: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(!json.contains("session_id"));
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)]
+    #[allow(non_snake_case)]
+    fn recall_response__omits_none_embedding() {
+        let resp = RecallResponse {
+            results: vec![],
+            session_id: None,
+            hint: None,
+            embedding: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(
+            !json.contains("embedding"),
+            "embedding must be omitted when None; got {json}"
+        );
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)]
+    #[allow(non_snake_case)]
+    fn recall_response__serializes_embedding_status() {
+        let resp = RecallResponse {
+            results: vec![],
+            session_id: None,
+            hint: None,
+            embedding: Some(EmbeddingStatusDto {
+                status: "unreachable".to_string(),
+                endpoint: Some("http://127.0.0.1:8083".to_string()),
+                detail: Some("connection refused".to_string()),
+            }),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"embedding\""));
+        assert!(json.contains("\"status\":\"unreachable\""));
+        assert!(json.contains("127.0.0.1:8083"));
+        assert!(json.contains("connection refused"));
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)]
+    #[allow(non_snake_case)]
+    fn embedding_status_dto__omits_none_optional_fields() {
+        let dto = EmbeddingStatusDto {
+            status: "ok".to_string(),
+            endpoint: None,
+            detail: None,
+        };
+        let json = serde_json::to_string(&dto).unwrap();
+        assert!(!json.contains("endpoint"));
+        assert!(!json.contains("detail"));
+        assert!(json.contains("\"status\":\"ok\""));
     }
 }

@@ -174,6 +174,17 @@ pub fn fail_daemon_response_error(format: OutputFormat, err: ApiError) -> Govern
     fail_api(format, err)
 }
 
+/// Emit a usage-class failure on stderr and return exit **2** (T202 F11).
+///
+/// Prefer this for missing required operator inputs that are not clap-required
+/// (e.g. progressive project id after env bind). `handle_cli_result` already
+/// downcasts [`GovernedCliError`] to the exit code.
+pub fn fail_usage(msg: impl Into<String>) -> GovernedResult {
+    let message = msg.into();
+    eprintln!("{message}");
+    Err(Box::new(GovernedCliError::emitted(EXIT_USAGE, message)))
+}
+
 // ---------------------------------------------------------------------------
 // Output format
 // ---------------------------------------------------------------------------
