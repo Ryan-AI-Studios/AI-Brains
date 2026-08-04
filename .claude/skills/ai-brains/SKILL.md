@@ -5,94 +5,97 @@ description: "Persistent memory and project context vault. Use this skill whenev
 
 # AI-Brains Memory Protocol
 
-This skill provides access to the long-term memory vault. Use it to avoid repeating work and to stay aligned with established architectural decisions.
+Long-term memory vault for project decisions, constraints, and session capture. Prefer vault + preflight over re-deriving architecture from scratch.
 
-## When NOT to use this skill
-- **Generic Knowledge**: Do not use for general "How to" questions (e.g., "How do I use unwrap in Rust?").
-- **Trivial Edits**: Do not use for one-off formatting or simple syntax fixes.
-- **Immediate Context**: Do not use if the answer is already visible in the current session's immediate conversation history.
+## When NOT to use
+- Generic “how do I use X in Rust?” knowledge
+- Trivial one-line formatting fixes
+- Answers already in the current conversation
 
-## Availability & Fallback
-This skill requires the `ai-brains` CLI tool.
-1. **Check**: Run `ai-brains --version`. If it prints usage info, the CLI is available.
-2. **Fallback**: If the CLI is not found, inform the user that ai-brains needs to be installed. Proceed with manual context gathering (README, Cargo.toml, entry points) and do not attempt further vault commands.
+## Availability
+1. `ai-brains --version` — if missing, tell the user to install; fall back to README/Cargo.toml.
+2. Vault ops need a **SQLCipher product key** after T187 page encryption (see Key & path below).
 
-## Infrastructure Invariants (May 2026)
-- **Daemon Auto-Launch**: The CLI automatically spawns `ai-brainsd` in the background if it's unreachable. It inherits vault path and key from the environment.
-- **Ultra-Fast Handshake**: The CLI performs an async Ping/Pong handshake with the daemon in **<10ms**.
-- **Fast-Fail**: Daemon-dependent commands return `exit 1` immediately if the daemon is unreachable and auto-launch fails.
-- **Structured Errors**: All CLI failures emit structured JSON objects (`ApiResult::error`) to stderr.
+## Key & vault path (required for vault commands)
 
-## Workflow Phases
+| Item | Where |
+|------|--------|
+| **Product key** | `AI_BRAINS_KEY` = `x'<64 hex chars>'` (32 random bytes). Never commit. |
+| **Daemon key** | `AI_BRAINS_VAULT_KEY` (service / `daemon.env`; same product form). |
+| **User-global dotenv** | `%USERPROFILE%\.ai-brains\.env` — CLI merges this for **gaps** (does not override shell or project `.env`), including with `--no-project-context`. Preferred place for `AI_BRAINS_VAULT_PATH` + `AI_BRAINS_KEY`. **Quote values** (e.g. `AI_BRAINS_KEY="x'…'"` and forward-slash path) so dotenvy parses correctly. |
+| **Project `.env`** | Prefer **IDs only** via `ai-brains context` (`AI_BRAINS_PROJECT_ID` / `SESSION_ID`). CLI still gap-fills **any** unset keys from project dotenv (including KEY) — do **not** commit secrets; put KEY in global dotenv or shell. |
+| **Vault path** | CLI requires `--vault-path` or `AI_BRAINS_VAULT_PATH` (often from global dotenv). **No** silent home default on the CLI. Daemon may fall back to `~/.ai-brains/vault.db`. |
+| **This machine’s live vault** | Often set via global dotenv (e.g. `C:/dev/ai-brains/vault.db`) — not the source tree `C:\dev\AI-Brains`. |
 
-### Phase 1: Orient (What do I already know?)
-Trigger when starting a new session or entering a new repository.
-1. **Sync Safety**: Run `ai-brains safety sync`.
-   - **Goal**: Ingest recent Ledgerful hotspots to identify brittle files.
-   - **Tip**: Use `--dry-run` to preview what would be synced without pinning.
-2. **Get Orientation**: Run `ai-brains preflight --summary`.
-   - **Goal**: Identify project state and safety constraints via a concise human-centric summary.
-   - **Tip**: Use `--pretty` for full human-readable text, or `--format json` for agent context.
-- **Heuristic**: Keep any additional manual research notes under ~150 words to ensure the memory index remains dominant in your context.
+**Encryption layers (F8):** plain SQLite (legacy) → **SQLCipher page encrypt** (`ai-brains vault encrypt`) → Content Envelope (payload DEK) → OS ACLs. Setting a key does **not** encrypt a plain file; use `vault encrypt`.
 
-### Phase 2: Recall (Search before acting)
-Trigger before starting a development track, architectural change, or when an unfamiliar constant/path is encountered.
-1. **Unified Search**: Run `ai-brains sync query "<topic>" --quiet`
-   - **Goal**: Search both local vault and Ledgerful bridge records in one command.
-   - **Tip**: Use `--quiet` to suppress Ledgerful bridge noise (e.g., file locks).
-2. **Vault Search**: Run `ai-brains recall "<topic>"`
-   - **Goal**: Find project-specific constraints or rejected approaches in the local vault.
-   - **Context**: This command traverses FTS5 with BM25 ranking.
-   - **Readable output**: Use `--format pretty` for human-readable results with scores displayed.
+**Missing key:** vault commands fail with `VAULT_KEY_MISSING`. **Wrong key:** `Vault locked`. Doctor: missing → skip open; wrong → fail.
 
-### Phase 3: Record (Persist after deciding)
-Trigger immediately after a major decision, discovery of a critical constraint, or user correction.
-Run: `ai-brains pin "DECISION: <content>"`
-- **Goal**: Pin "Dense" knowledge (decisions, invariants, constraints).
-- **Format**: Use the format `DECISION: ...`, `CONSTRAINT: ...`, or `INVARIANT: ...`.
-- **Role Selection**: Use the default (assistant) when recording your own reasoning. Use `--role user` when recording a direct correction or instruction from the user.
-- **Tags**: Use `--tag <tag>` (repeatable) to categorize memories (e.g., `--tag architecture --tag database`).
-- **Stdin**: Use `--stdin` to pipe long content instead of a positional argument.
+## Multi-repo model
+- **One vault + one key** for all repos on a machine.
+- **Per-repo** optional project/session identity via `ai-brains context` (local `.env`).
+- Without project context, pass `--project-id` or use `--global` on recall/preflight when appropriate.
 
-### Phase 4: Forget (Correct mistakes)
-Trigger when a memory is wrong, outdated, or was created for testing.
-- **By ID**: `ai-brains forget --memory-id <uuid> -f` — forgets a specific memory (use `-f` to skip confirmation).
-- **By content**: `ai-brains forget --match "<search terms>" -f` — finds and forgets by content match.
-- **List**: `ai-brains forget --list-forgotten` — shows all forgotten memories.
-- **Restore**: `ai-brains forget --restore <uuid>` — un-forgets a memory via compensating event.
+## Infrastructure
+- Daemon may auto-launch; service uses `AI_BRAINS_VAULT_KEY` + path (ProgramData `daemon.env` and/or service Environment).
+- Prefer `ai-brains daemon status` for liveness (vault key not required for status).
+- Errors: dual envelope — governed JSON often on stdout; generic paths on stderr. See `Docs/CLI-EXIT-CODES.md`.
 
-## Integration & Automation
+## Workflow phases (non-destructive first)
 
-### Antigravity (`agy`) CLI
-The system supports the new `agy` CLI via real-time hooks and multi-path discovery.
-- **agy-hook**: Triggered by `agy` to push turns into the vault. Enforces privacy filtering (user/assistant only).
-- **Incremental Import**: `ai-brains antigravity-import` scans tool-specific brain dirs and project-specific tmp chat folders (`session-*.jsonl`). It uses file metadata to skip unchanged sessions, ensuring fast performance even with hundreds of files.
+### Phase 0: Health (do this first on cold start)
+```powershell
+ai-brains doctor
+ai-brains daemon status
+ai-brains context --show   # confirm project id / vault env warnings
+```
+If `doctor` cannot open the vault: fix `AI_BRAINS_KEY` / global dotenv / path before recall.
 
-## Maintenance
-For batch reconciliation across sessions and to update the relational graph, run:
-`ai-brains nightly`
-- **Fast Performance**: The nightly sweep uses incremental scanning to process only new or modified Antigravity data.
-- **Graceful Management**: Use `ai-brains daemon stop` to shutdown the background process before upgrades. Use `--force` if it hangs.
-- **Scheduling**: Use `--schedule` to register as a Windows scheduled task. Use `--unschedule` to remove it.
+### Phase 1: Orient
+1. `ai-brains safety sync --dry-run` — Ledgerful hotspots preview (non-mutating).
+2. `ai-brains preflight --summary` then `--pretty` or `--format json` if needed.
+3. **Verify project:** if warnings say local `.env` overrides shell, trust `context --show`. Wrong `AI_BRAINS_PROJECT_ID` → wrong preflight/recall brain.
 
-## Backup & Restore
-- **Create backup**: `ai-brains backup` (or `ai-brains backup create --output-dir <path>`)
-- **Restore**: `ai-brains backup restore <path>` — verifies integrity before restoring, prompts for confirmation.
+### Phase 2: Recall (search before acting)
+```powershell
+# Prefer explicit project or global when unsure
+ai-brains recall "<topic>" --limit 5 --format pretty
+ai-brains recall "<topic>" --project-id <uuid> --limit 5 --format pretty
+ai-brains recall "<topic>" --global --limit 5 --format pretty
+ai-brains recall "<topic>" --semantic --limit 5 --format pretty   # needs embedding backend
+ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
+```
+- Empty JSON recall includes a **hint** (`--semantic` / `--global`). Pretty empty can look blank except logs — try `--format json` or `--global`.
+- Ignore stale DECISION text that contradicts current docs (e.g. pre-T187 “SQLCipher not live”); prefer Ledgerful ledger rows + `Docs/COMPATIBILITY.md` F8.
 
-## Command Summary
+### Phase 3: Record (mutating)
+`ai-brains pin "DECISION: …"` / `CONSTRAINT:` / `INVARIANT:` — dense knowledge only. Tags: `--tag`. Long text: `--stdin`.
 
-| Action | Command |
-|---|---|
-| Initialize Context | `ai-brains context` (use `--show` to view, `--new-session` reset) |
-| Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
-| Unified Search | `ai-brains sync query` (searches vault + Ledgerful) |
-| Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
-| Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
-| Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |
-| Forget Memory | `ai-brains forget` (use `--match` for search, `--restore` undo) |
-| agy Capture Hook | `ai-brains agy-hook --payload "{...}"` (used by agy CLI hooks) |
-| Import Antigravity | `ai-brains antigravity-import --days 30` (incremental scan) |
-| Nightly Sweep | `ai-brains nightly` (summarization + graph rebuild) |
-| Sync Pull/Push | `ai-brains sync pull`, `ai-brains sync push` (interchange with bridge) |
-| Stop Daemon | `ai-brains daemon stop` (use `--force` to kill process) |
-| Backup Vault | `ai-brains backup` (use `backup restore <path>` to recover) |
+### Phase 4: Forget (mutating)
+`forget --list-forgotten` (read); `--memory-id` / `--match` + `-f`; `--restore <uuid>`.
+
+### Governed discovery (may POLICY_DENIED)
+`scope resolve`, `source list`, `evidence list`, `review list`, `briefing project` need **policy grants** for the principal/scope. Deny + `details.hint` is expected without grants — fall back to preflight/recall. Not a vault-key problem.
+
+## Command summary (agents)
+
+| Goal | Command | Notes |
+|------|---------|--------|
+| Health | `doctor`, `daemon status` | Best non-destructive start |
+| Project identity | `context --show`, `project list`, `project detect` | detect can follow wrong/test `.env` |
+| Orient | `preflight --summary` / `--pretty` | Scoped by project id |
+| Search | `recall`, `sync query --quiet` | Scope carefully |
+| Hotspots preview | `safety sync --dry-run` | Prefer dry-run until user wants pin |
+| Graph health | `graph update` | Needs graph-on install |
+| Pin / forget | `pin`, `forget` | Mutating |
+| Backup | `backup list` (read); `backup create` (write) | Old plain backups may WARN under new key |
+
+## Maintenance (ops; ask before destructive)
+- `nightly`, `backup create`, `recovery export`, `vault encrypt`, `daemon stop` / service control
+- Install CLI graph-on: `cargo install --path crates/ai-brains-cli --locked --features graph`
+
+## Normative docs
+- `Docs/INSTALL.md` — key form, dotenv order, first vault  
+- `Docs/OPERATIONS.md` — daemon/service, env table  
+- `Docs/COMPATIBILITY.md` F8 — encryption honesty  
+- `Docs/CLI-EXIT-CODES.md` — exits and envelopes  

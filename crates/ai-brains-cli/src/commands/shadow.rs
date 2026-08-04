@@ -34,10 +34,14 @@ struct ShadowManifest {
     dry_run: bool,
 }
 
-/// Resolve the live vault path using the same chain as CLI env loading:
-/// 1. `AI_BRAINS_VAULT_PATH` (already loaded by main)
-/// 2. else `~/.ai-brains/.env`
-/// 3. else `None` (only same-path source/dest enforced)
+/// Resolve the live vault path for live-target refuse checks.
+///
+/// Main always merges global `~/.ai-brains/.env` for gaps (including KEY when
+/// path is already set). This helper still re-reads the global file defensively
+/// for `AI_BRAINS_VAULT_PATH` if the process env is unset (e.g. mid-command
+/// tooling) — not a second override loader.
+///
+/// Order: process `AI_BRAINS_VAULT_PATH` → global `.env` path entry → `None`.
 pub fn resolve_live_vault_path() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("AI_BRAINS_VAULT_PATH") {
         let trimmed = p.trim();
@@ -46,7 +50,13 @@ pub fn resolve_live_vault_path() -> Option<PathBuf> {
         }
     }
 
-    let home = dirs::home_dir()?;
+    // Prefer USERPROFILE/HOME so hermetic isolation matches main dotenv load
+    // (dirs 6 on Windows ignores USERPROFILE via Known Folder API).
+    let home = std::env::var_os("USERPROFILE")
+        .filter(|v| !v.is_empty())
+        .or_else(|| std::env::var_os("HOME").filter(|v| !v.is_empty()))
+        .map(PathBuf::from)
+        .or_else(dirs::home_dir)?;
     let env_path = home.join(".ai-brains").join(".env");
     if !env_path.exists() {
         return None;

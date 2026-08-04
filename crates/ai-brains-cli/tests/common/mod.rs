@@ -26,7 +26,8 @@
 #![allow(clippy::disallowed_methods)]
 
 use assert_cmd::Command;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 /// Deterministic default project UUID (smoke-style).
 pub const DEFAULT_PROJECT: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -84,15 +85,48 @@ pub fn hermetic_bin() -> Command {
     cmd
 }
 
-/// T199: ambient-stripped binary that **never** sets `AI_BRAINS_KEY` or
-/// `AI_BRAINS_ALLOW_ZERO_KEY` — for proving vault-independent commands (e.g.
-/// `daemon status`) work without a key.
+/// Process-lifetime empty home used to isolate missing-key / no-key tests.
 ///
-/// Also passes `--no-project-context` so workspace / home `.env` cannot re-inject
-/// a vault key via dotenv (Codex R1 F15 false-positive fix).
+/// **T205 F11:** CLI always merges `~/.ai-brains/.env` for gaps (including under
+/// `--no-project-context`). Developers with a real global KEY would re-inject it
+/// after `env_remove("AI_BRAINS_KEY")` unless home is redirected. This path has
+/// **no** `.ai-brains/.env` and lives for the whole test process.
+fn empty_test_home() -> &'static Path {
+    static HOME: OnceLock<PathBuf> = OnceLock::new();
+    HOME.get_or_init(|| {
+        let dir = tempfile::tempdir().expect("empty test home tempdir");
+        // Keep the directory for process lifetime (do not delete while tests run).
+        dir.keep()
+    })
+    .as_path()
+}
+
+/// Redirect `USERPROFILE` and `HOME` to an empty home with no global dotenv KEY.
+///
+/// Use after stripping `AI_BRAINS_KEY` when the test must observe a true missing-key
+/// path on machines that have a real `~/.ai-brains/.env`. Sets both env vars (F22).
+pub fn isolate_empty_home(cmd: &mut Command) {
+    let home = empty_test_home();
+    cmd.env("USERPROFILE", home);
+    cmd.env("HOME", home);
+}
+
+/// Ambient-stripped binary that **never** sets `AI_BRAINS_KEY` or
+/// `AI_BRAINS_ALLOW_ZERO_KEY` — for proving vault-independent commands (e.g.
+/// `daemon status`) and true missing-key paths.
+///
+/// Isolation strategy (T205 F11 / AC12):
+/// - Strips KEY / ALLOW_ZERO_KEY from the child env.
+/// - Passes `--no-project-context` so **project** `.env` is not loaded.
+/// - Sets `USERPROFILE` + `HOME` to a process-lifetime **empty home** so the
+///   always-on global `~/.ai-brains/.env` merge cannot re-inject a developer KEY.
+///
+/// Global dotenv **still merges** under `--no-project-context`; isolation is the
+/// empty home, not skipping the global loader.
 pub fn hermetic_bin_no_key() -> Command {
     let mut cmd = Command::cargo_bin("ai-brains").expect("ai-brains bin must be built for tests");
     strip_ambient(&mut cmd);
+    isolate_empty_home(&mut cmd);
     // Explicit remove in case cargo/runner injects keys outside the denylist path.
     cmd.env_remove("AI_BRAINS_KEY");
     cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");

@@ -225,8 +225,8 @@ pub fn run_governed(opts: GovernedOptions) -> Result<(), Box<dyn std::error::Err
     let live = resolve_live_vault_path();
     if live.is_none() {
         eprintln!(
-            "note: no live vault resolved (AI_BRAINS_VAULT_PATH unset and ~/.ai-brains/.env \
-             has no vault path); only source/destination same-path checks apply"
+            "note: no live vault resolved (AI_BRAINS_VAULT_PATH unset after env load and \
+             ~/.ai-brains/.env has no vault path); only source/destination same-path checks apply"
         );
     }
 

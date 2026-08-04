@@ -72,17 +72,14 @@ fn doctor__wrong_key__no_hmac_spam_stderr_bounded() {
 }
 
 /// AC11: missing key → vault_open skipped; exit 1; report emits.
+/// T205 F11: use empty-home isolation so developer global KEY cannot re-inject.
 #[test]
 fn doctor__missing_key__vault_open_skipped() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault, ZERO_KEY);
 
-    let mut cmd = common::hermetic_bin();
-    // Strip hermetic default key to exercise Missing path.
-    cmd.env_remove("AI_BRAINS_KEY");
-    let out = cmd
-        .arg("--no-project-context")
+    let out = common::hermetic_bin_no_key()
         .arg("--vault-path")
         .arg(&vault)
         .arg("doctor")
@@ -140,17 +137,13 @@ fn assert_appcontext_missing_key_family(args: &[&str]) {
     let vault = dir.path().join("vault.db");
     init_vault(&vault, ZERO_KEY);
 
-    let mut cmd = common::hermetic_bin();
-    cmd.env_remove("AI_BRAINS_KEY");
-    cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");
-    let mut c = cmd
-        .arg("--no-project-context")
-        .arg("--vault-path")
-        .arg(&vault);
+    // T205 F11: empty home so always-merge global dotenv cannot re-inject KEY.
+    let mut cmd = common::hermetic_bin_no_key();
+    cmd.arg("--vault-path").arg(&vault);
     for a in args {
-        c = c.arg(a);
+        cmd.arg(a);
     }
-    let out = c.output().expect("appcontext missing key");
+    let out = cmd.output().expect("appcontext missing key");
 
     assert_eq!(out.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&out.stderr);
@@ -217,17 +210,13 @@ fn recall__zero_key_without_allow__vault_key_zero() {
 }
 
 /// F19: init without key generates and prints PowerShell/bash examples once.
+/// T205 F11: empty home so global KEY cannot satisfy "missing" and skip bootstrap.
 #[test]
 fn init__missing_key__generates_and_prints_bootstrap() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
 
-    let mut cmd = common::hermetic_bin();
-    cmd.env_remove("AI_BRAINS_KEY");
-    // Allow zero not needed — generated key is non-zero.
-    cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");
-    let out = cmd
-        .arg("--no-project-context")
+    let out = common::hermetic_bin_no_key()
         .arg("--vault-path")
         .arg(&vault)
         .arg("init")
@@ -307,16 +296,13 @@ fn recall__wrong_key__vault_locked_no_hmac_spam() {
 }
 
 /// Smoke: generated init key can open doctor successfully.
+/// T205 F11: empty home so init truly generates (not ambient global KEY).
 #[test]
 fn init__generated_key__opens_doctor() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
 
-    let mut cmd = common::hermetic_bin();
-    cmd.env_remove("AI_BRAINS_KEY");
-    cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");
-    let out = cmd
-        .arg("--no-project-context")
+    let out = common::hermetic_bin_no_key()
         .arg("--vault-path")
         .arg(&vault)
         .arg("init")
