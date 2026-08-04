@@ -11,7 +11,7 @@ Source: non-destructive global-install CLI audit after T196. Drafts only — imp
 | 2 | [T199](trackT199-daemon-status-vault-independence/spec.md) | P1 | ✅ **Completed 2026-08-03** PR #82 `721d41f` — status no key; shared probe; soft tasklist |
 | 3 | [T200](trackT200-graph-feature-install-honesty/spec.md) | P1/P3 | ✅ **Completed 2026-08-03** PR #83 `84f4a23` — docs-only A; INSTALL/Release honesty; F14 CI graph-on |
 | 4 | [T201](trackT201-cli-error-exit-contract/spec.md) | P2 | ✅ **Completed 2026-08-03** PR #84 `a9e3b85` — clap-required scope exit 2; details.hint; BREAKING 6→2; exit_contract suite |
-| 5 | [T202](trackT202-recall-briefing-clarity/spec.md) | P2 | Recall TTY/semantic status; briefing/query clarity |
+| 5 | [T202](trackT202-recall-briefing-clarity/spec.md) | P2 | ✅ **Completed 2026-08-04** PR #85 `89ea3ec` — embedding.status; empty_denied; TTY md; progressive exit 2; Codex R2 PASS |
 | 5 | [T203](trackT203-governed-discovery-reads/spec.md) | P2 | source/evidence list; review scope soft-default |
 | 6 | [T204](trackT204-cli-help-ia/spec.md) | P3 | Grouped `--help` |
 

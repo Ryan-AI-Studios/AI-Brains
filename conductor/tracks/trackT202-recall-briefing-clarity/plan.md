@@ -1,6 +1,6 @@
 # T202 Plan — Recall + Briefing Clarity
 
-Status: **Proposed / Expanded + AI fold-in** (plan-only). Spec: [spec.md](./spec.md).
+Status: **Completed** (PR #85 `89ea3ec`) (plan-only). Spec: [spec.md](./spec.md).
 
 ## Preconditions
 
@@ -85,10 +85,10 @@ Status: **Proposed / Expanded + AI fold-in** (plan-only). Spec: [spec.md](./spec
 - [x] **E1** F18 suite (≥6 locks; lock2 = unreachable specifically)  
 - [x] **E2** CAPABILITIES / OPERATIONS (AC14)  
 - [x] **E3** CHANGELOG minor F9 + additive embedding + progressive exit 2 (AC13)  
-- [ ] **E4** Full gate  
-- [ ] **E5** Review (F22) + soft cross-model  
-- [ ] **E6** deferred.md strike; conductor Completed; optional ISSUES L2  
-- [ ] **E7** Pin decisions if non-obvious  
+- [x] **E4** Full gate  
+- [x] **E5** Review (F22) + soft cross-model  
+- [x] **E6** deferred.md strike; conductor Completed; optional ISSUES L2  
+- [x] **E7** Pin (skipped: vault locked for pin) decisions if non-obvious  
 
 ## Verification matrix
 

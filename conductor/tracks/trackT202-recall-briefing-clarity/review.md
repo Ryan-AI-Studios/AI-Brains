@@ -45,6 +45,14 @@
 | P2-03 parent briefing help JSON default | P2 | **Validated** → fixed parent help + OPERATIONS scope |
 | P2-04 process DoD open | P2 | **Process** — closeout after CI/merge (not product defect) |
 
-## Codex R2 — re-review after fixes (pending)
+## Codex R2 — re-review after fixes (2026-08-04)
 
-Re-run after P1/P2 product fixes + full gate.
+**Verdict: PASS** — all R1 P1/P2 product findings verified fixed; no new P0–P2.
+
+## Ship
+
+- PR **#85** squash-merged `89ea3ec` (2026-08-04)
+- CI: gate-windows / gate-linux / gate-macos **SUCCESS**
+- Local full gate: nextest **1976**, fmt, clippy `-D warnings`, deny, audit
+- Conductor Completed; deferred.md T202 row struck; coordinated updated
+- Residual to T204 (F32): broader OutputFormat TTY matrix + progressive after_help examples

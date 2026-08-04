@@ -26,12 +26,12 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~`daemon status` requires vault key~~ | **Closed by T199** (2026-08-03) PR #82 `721d41f` — early-route + shared probe; no key required |
 | ~~Graph default install / feature honesty~~ | **Closed by T200** (2026-08-03) PR #83 `84f4a23` — docs-only A + INSTALL/Release honesty + F14 CI graph-on filter; residual Cozo INFO stdout pre-existing |
 | ~~CLI exit-code + error envelope contract~~ | **Closed by T201** (2026-08-03) PR #84 `a9e3b85` — clap-required scope exit 2; details.hint; dual envelope docs; exit_contract suite |
-| Recall/briefing/query progressive clarity | **T202** (draft 2026-08-02) |
+| ~~Recall/briefing/query progressive clarity~~ | **Closed by T202** (2026-08-04) PR #85 `89ea3ec` — embedding.status; empty_denied seed; TTY briefing md; progressive exit 2; soft-resolve remains **T203** |
 | Governed source/evidence discovery lists | **T203** (draft 2026-08-02) |
-| CLI help grouping IA | **T204** (draft 2026-08-02) |
+| CLI help grouping IA | **T204** (draft 2026-08-02; also absorbs T202 F32 OutputFormat TTY + progressive after_help) |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
 
-Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → ~~**T200**~~ **closed** → ~~**T201**~~ **closed** → **T202** + **T203** (F27: no reintroduce exit-6 missing-scope) → **T204**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16); graph-on Cozo INFO stdout (T200); evidence/source missing-scope still exit 6 (T201 F36 leave).
+Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → ~~**T200**~~ **closed** → ~~**T201**~~ **closed** → ~~**T202**~~ **closed** → **T203** (F27: no reintroduce exit-6 missing-scope) → **T204**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16); graph-on Cozo INFO stdout (T200); evidence/source missing-scope still exit 6 (T201 F36 leave).
 
 ---
 
