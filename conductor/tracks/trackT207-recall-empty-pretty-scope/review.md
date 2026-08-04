@@ -37,5 +37,15 @@ cargo nextest -p ai-brains-store (get_project_by_id): 3 passed
 | AC1–AC9, AC11–AC12 | Met |
 | AC10 | Deferred residual (non-empty Scope) — not DoD |
 
-## Cross-model
-Pending first Codex (or Claude fallback) audit after this log.
+## Cross-model (final)
+
+| Round | Reviewer | Verdict |
+|-------|----------|---------|
+| R2 | Claude Sonnet (Codex rate-limited) | **PASS** — zero findings |
+| R2b | Claude re-review after isolation fix | **PASS** — zero findings |
+
+## Completion
+
+- Product PR #90 squash-merged `95b516a` (CI Win/Linux/macOS green).
+- Engineering DoD AC1–AC9 + AC11–AC12 met; AC10 residual recorded.
+- Conductor → **Completed**; deferred struck; residuals AC10 + soft L2 noted.

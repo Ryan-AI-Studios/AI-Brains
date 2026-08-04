@@ -30,13 +30,14 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Governed source/evidence discovery lists + soft-resolve~~ | **Closed by T203** (2026-08-04) PR #86 `2748d12` — source/evidence list; review soft-resolve exit 2; show F7; Active+LIMIT+1; core FTS sanitizer |
 | ~~CLI help grouping IA~~ | **Closed by T204** (2026-08-04) PR #87 `c3a7d66` — after_long_help groups; F31 order; F33 dangerous; F9 project-id; CAPABILITIES format table |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
-| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205–T216** — ~~T205 closed~~; ~~T206 closed~~; **T207 expanded** (plan-only); T208–T216 placeholders |
+| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205–T216** — ~~T205 closed~~; ~~T206 closed~~; ~~T207 closed~~; T208–T216 placeholders |
 | ~~project detect test-alias / .env hijack honesty~~ | **Closed by T206** (2026-08-04) PR #89 `d727fc5` — remote-first slug; exact-first; ambiguous exit 1; env mismatch warn |
 | ~~Global dotenv KEY skipped when VAULT_PATH set~~ | **Closed by T205** (2026-08-04) PR #88 `6a7fd15` — always-merge global dotenv; F11 empty-home hermetic |
 | T206 soft residuals (F8/F10/F24) | Soft: no `--json` source; no `context --show` mismatch; resolve exact-first reuse |
-| Recall empty pretty blank + scope opacity (audit FTS 3/3) | **Promoted to T207 expanded + fold-in** (2026-08-04) — F3 always-on empty pretty hint; F4 empty Scope + F32 get_project_by_id; F5 omit generated Session required; F6 no name dupe; AC10 non-empty Scope deferred residual; plan-only until go |
+| ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
+| T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ … ~~**T206**~~ **closed** → **T207** (expanded, plan-only) → **T208**/**T209** → **T210** → **T211**/**T215** → **T212**–**T214**/**T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); Cozo INFO → **T208**.
+Suggested order: ~~**T196**~~ … ~~**T207**~~ **closed** → **T208**/**T209** → **T210** → **T211**/**T215** → **T212**–**T214**/**T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); Cozo INFO → **T208**.
 
 ---
 
