@@ -188,6 +188,77 @@ fn source_list__happy__contains_seeded_source() {
     assert_eq!(items[0]["display_name"], "seeded");
 }
 
+/// AC15 — seed count > limit → `more_available: true` and items.len() == limit.
+#[test]
+fn source_list__over_limit__more_available_true() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope_key = seed_grant_and_source(&vault);
+
+    // Second source so limit=1 yields more_available.
+    let ports = open_seeded_ports(&vault);
+    let clock = SystemClock;
+    let principal = make_principal(
+        PrincipalKind::Human,
+        PrincipalId::from_uuid(Uuid::parse_str(PRINCIPAL).unwrap()),
+        "test-human",
+    );
+    let scope = ScopeRef::Repository(ProjectId::from_uuid(Uuid::parse_str(PROJECT).unwrap()));
+    let fp = Sha256FingerprinterPort::new();
+    observe_source(
+        &ports.writer,
+        &ports.query,
+        &clock,
+        &fp,
+        &AllowAllPolicy,
+        ObserveSourceRequest {
+            principal: principal.id,
+            scope,
+            kind: SourceKind::File,
+            display_name: "second".into(),
+            locator: Some("/second.md".into()),
+            content: SourceContent::Bytes(b"second body\n".to_vec()),
+            privacy: Privacy::LocalOnly,
+            run_invalidation: false,
+        },
+    )
+    .expect("observe second");
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("source")
+        .arg("list")
+        .arg("--scope")
+        .arg(&scope_key)
+        .arg("--limit")
+        .arg("1")
+        .arg("--format")
+        .arg("json")
+        .arg("--local")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .output()
+        .expect("source list limit");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    let items = v["items"].as_array().expect("items");
+    assert_eq!(items.len(), 1, "items must truncate to limit");
+    assert_eq!(
+        v["more_available"], true,
+        "more_available must be true when seed exceeds limit"
+    );
+}
+
 #[test]
 fn evidence_list__empty_and_query_hit() {
     let dir = tempdir().unwrap();

@@ -496,9 +496,10 @@ impl GovernedServices {
         ) {
             Ok(true) => {}
             Ok(false) => {
-                return Ok(map_control_plane_error(ControlPlaneError::PolicyDenied(
-                    "ReadEvidence denied for list_sources".into(),
-                )));
+                // T203 F11: new list paths attach details.hint (parity with CLI local deny).
+                return Ok(policy_denied_with_hint(
+                    "ReadEvidence denied for list_sources",
+                ));
             }
             Err(e) => return Ok(map_control_plane_error(e)),
         }
@@ -543,9 +544,10 @@ impl GovernedServices {
         ) {
             Ok(true) => {}
             Ok(false) => {
-                return Ok(map_control_plane_error(ControlPlaneError::PolicyDenied(
-                    "ReadEvidence denied for list_evidence".into(),
-                )));
+                // T203 F11: new list paths attach details.hint (parity with CLI local deny).
+                return Ok(policy_denied_with_hint(
+                    "ReadEvidence denied for list_evidence",
+                ));
             }
             Err(e) => return Ok(map_control_plane_error(e)),
         }
@@ -980,6 +982,24 @@ pub fn map_control_plane_error(err: ControlPlaneError) -> DaemonResponse {
     DaemonResponse::Error(ApiError::new(code, message))
 }
 
+/// Stable remediation template for POLICY_DENIED `details.hint` (T201 F6 / T203 F11).
+///
+/// Kept in-daemon (not a CLI dep) with the same wording as
+/// `ai_brains_cli::governed_common::POLICY_DENIED_HINT`.
+const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists for this principal on this scope; try `ai-brains policy show --scope …`";
+
+/// Build POLICY_DENIED with non-empty `details.hint` for new discovery list paths.
+fn policy_denied_with_hint(message: impl Into<String>) -> DaemonResponse {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "hint".to_string(),
+        serde_json::Value::String(POLICY_DENIED_HINT.to_string()),
+    );
+    DaemonResponse::Error(
+        ApiError::new("POLICY_DENIED", message).with_details(serde_json::Value::Object(map)),
+    )
+}
+
 /// Store/clock failures that must keep the command_id spool for restart replay.
 ///
 /// Terminal domain outcomes (`PolicyDenied`, `NotFound`, `InvalidPayload`,
@@ -1197,6 +1217,28 @@ mod tests {
             DaemonResponse::Error(err) => {
                 assert_eq!(err.code, "POLICY_DENIED");
                 assert!(err.message.contains("ProposeConclusion"));
+            }
+            other => panic!("expected Error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn policy_denied_with_hint__includes_details_hint() {
+        let resp = policy_denied_with_hint("ReadEvidence denied for list_sources");
+        match resp {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "POLICY_DENIED");
+                assert!(err.message.contains("list_sources"));
+                let hint = err
+                    .details
+                    .as_ref()
+                    .and_then(|d| d.get("hint"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                assert!(
+                    !hint.is_empty() && hint.contains("policy show"),
+                    "expected non-empty details.hint, got {hint:?}"
+                );
             }
             other => panic!("expected Error, got {other:?}"),
         }
