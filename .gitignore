@@ -26,6 +26,8 @@ target
 conductor/
 .env
 *.db
+# Recovery / encrypt plain dumps (never commit)
+vault.db.plain-*
 backups/
 *.db-shm
 *.db-wal

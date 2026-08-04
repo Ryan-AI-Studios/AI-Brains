@@ -78,7 +78,7 @@ fn daemon_status__no_key_with_vault_path__exit_0() {
     let mut cmd = common::hermetic_bin_no_key();
     cmd.env_remove("AI_BRAINS_KEY");
     cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");
-    // hermetic_bin_no_key already adds --no-project-context (dotenv isolation).
+    // hermetic_bin_no_key: empty HOME + --no-project-context (global still merges; home is empty).
     let output = cmd
         .arg("--vault-path")
         .arg(&vault)

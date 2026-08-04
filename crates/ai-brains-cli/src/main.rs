@@ -1634,6 +1634,23 @@ fn should_warn_project_context_override(args: &[String]) -> bool {
     })
 }
 
+/// User home for global dotenv / gap-fill paths.
+///
+/// Prefer `USERPROFILE` then `HOME` (non-empty trim) before `dirs::home_dir()`.
+/// Required for hermetic empty-home isolation: dirs 6 on Windows uses
+/// `SHGetKnownFolderPath` and does not honor a redirected `USERPROFILE`.
+fn resolve_user_home_for_dotenv() -> Option<std::path::PathBuf> {
+    for key in ["USERPROFILE", "HOME"] {
+        if let Ok(value) = std::env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                return Some(std::path::PathBuf::from(trimmed));
+            }
+        }
+    }
+    dirs::home_dir()
+}
+
 fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: bool) {
     let entries = match dotenvy::from_path_iter(path) {
         Ok(entries) => entries,
@@ -1733,8 +1750,9 @@ fn main_inner() {
     // Project .env fills env gaps without overriding shell vars.
     // If no local .env exists, we clear project-specific env vars to prevent
     // stale inheritance from other projects in the same shell session.
-    // T80: --no-project-context disables this whole block so that CI, hooks,
-    // and any non-interactive caller can supply env vars explicitly.
+    // T80: --no-project-context skips *project* discovery only so CI/hooks can
+    // supply IDs explicitly. User-global ~/.ai-brains/.env still merges for gaps
+    // (KEY / VAULT_PATH / models) unless the process already set those vars.
     if !no_project_context {
         let project_env = std::path::Path::new(".env");
         if !project_env.exists() {
@@ -1748,16 +1766,30 @@ fn main_inner() {
             dotenvy::dotenv().ok();
             apply_local_project_context_env(project_env, warn_on_project_context_override);
         }
+    }
 
-        // Fallback to global config in ~/.ai-brains/.env if AI_BRAINS_VAULT_PATH not set yet
-        if std::env::var("AI_BRAINS_VAULT_PATH").is_err()
-            && let Some(mut home) = dirs::home_dir()
+    // Always merge user-global ~/.ai-brains/.env for gaps (KEY, VAULT_PATH, models).
+    // dotenvy does not override vars already set by the shell or project `.env`.
+    // Runs even with --no-project-context so vault key/path work in CI-style flags
+    // without forcing secrets onto the command line. Previously gated on
+    // AI_BRAINS_VAULT_PATH unset only (skipped KEY when path was already present).
+    // Soft-fail parse errors (file absent is fine); never from_path_override.
+    //
+    // Home resolution (T205 F11/F22): prefer USERPROFILE then HOME so hermetic tests
+    // and operators can redirect home. dirs 6 on Windows uses Known Folder API and
+    // ignores USERPROFILE — same pattern as backup.rs retention sentinel.
+    if let Some(mut home) = resolve_user_home_for_dotenv() {
+        home.push(".ai-brains");
+        home.push(".env");
+        if home.exists()
+            && let Err(err) = dotenvy::from_path(&home)
         {
-            home.push(".ai-brains");
-            home.push(".env");
-            if home.exists() {
-                dotenvy::from_path(home).ok();
-            }
+            // Subscriber may not be installed yet; warn is best-effort.
+            tracing::warn!(
+                path = %home.display(),
+                error = %err,
+                "failed to load global ~/.ai-brains/.env (gaps not filled from file)"
+            );
         }
     }
 

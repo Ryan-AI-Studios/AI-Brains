@@ -146,7 +146,7 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | Aliases | `project set-alias` · `project resolve` |
 | Auto-detect | `project detect` (git / `.ledgerful` / `.env`) |
 | Stop session | `stop-session` |
-| Env precedence | Shell env > project `.env` > global `~\.ai-brains\.env` |
+| Env precedence | CLI flags / shell env > elevation handoff (elevated child only) > project `.env` > global `~\.ai-brains\.env` (always merged for gaps; `--no-project-context` skips project only) |
 
 Discovery prefers **`.ledgerful/`**, falls back to legacy **`.changeguard/`**.
 
@@ -368,9 +368,11 @@ Check matrix (fixed order): `vault_exists`, `vault_open` (`open_read_intent` onl
 
 ## 14. Configuration hierarchy
 
-1. Process environment
-2. Project-local `.env` (from `context`)
-3. Global `~\.ai-brains\.env` (vault path, model URLs)
+CLI gap-fill order (after optional elevation handoff override on elevated child only):
+
+1. CLI flags / process (shell) environment
+2. Project-local `.env` when `--no-project-context` is unset (from `context` / cwd)
+3. Global `~\.ai-brains\.env` — **always** merged for gaps (`dotenvy` non-override), including under `--no-project-context` (KEY, vault path, model URLs)
 
 ---
 

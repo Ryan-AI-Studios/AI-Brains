@@ -615,7 +615,7 @@ ai-brains graph rebuild
 | Doctor `vault_open` **skipped** | Key missing | Report still emits; exit 1 |
 | Doctor `vault_open` **fail** | Wrong key | Report emits; exit 1 |
 
-CLI loads project `.env` then `~/.ai-brains/.env` fallback (when project context is enabled). Never commit keys.
+CLI dotenv: project `.env` when `--no-project-context` is unset, then **always** merge user-global `~/.ai-brains/.env` for **gaps** only (non-override; still under `--no-project-context`). Prefer KEY + path in the global file. Never commit keys.
 
 ### Missing Graph Database
 If the graph features are missing on Windows, verify that the `graph` feature was enabled during build and that the MSVC 4GB image size limit was not exceeded. If it was, the system will gracefully fall back to Lexical search.
@@ -625,7 +625,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Variable | Description |
 |---|---|
 | `AI_BRAINS_VAULT_PATH` | Default path to the vault database. |
-| `AI_BRAINS_KEY` | SQLCipher vault key as product form `x'<64 hex>'` (67 chars; T187/T197). Required for vault-backed commands when `--key` omitted. Missing → `VAULT_KEY_MISSING` (not silent zero). Loaded from process env; project `.env` and `~/.ai-brains/.env` may populate env via CLI dotenv. Never commit. |
+| `AI_BRAINS_KEY` | SQLCipher vault key as product form `x'<64 hex>'` (67 chars; T187/T197). Required for vault-backed commands when `--key` omitted. Missing → `VAULT_KEY_MISSING` (not silent zero). CLI gap-fill: shell env > project `.env` > always-merge global `~/.ai-brains/.env` (non-override; still under `--no-project-context`). Never commit. |
 | `AI_BRAINS_ALLOW_ZERO_KEY` | When `1`/`true`/`yes` (case-insensitive), allow all-zero SQLCipher keys (hermetic tests / legacy dogfood only). Production should omit. Explicit zero without this → `VAULT_KEY_ZERO`. |
 | `AI_BRAINS_VAULT_KEY` | **Daemon only** (`ai-brainsd`): vault key env name used by the daemon process (not the CLI resolver). Prefer documenting daemon secrets in a 0600 env file; do not conflate with CLI `AI_BRAINS_KEY` without ensuring both are set when CLI and daemon share a vault. |
 | `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). |

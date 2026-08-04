@@ -148,7 +148,7 @@ CLI `--key` / `AI_BRAINS_KEY` must be `x'<64 hex chars>'` (67 characters total, 
    | bash | `export AI_BRAINS_KEY="x'0123…abcd'"` |
    | CLI flag | `ai-brains --key "x'0123…abcd'" doctor` |
 
-3. **dotenv load order** (CLI already does this when `--no-project-context` is unset): project `.env` in the cwd first, then fallback `~/.ai-brains/.env` if `AI_BRAINS_VAULT_PATH` is still unset. Keys may live in either file for local use — **never commit** secrets to git (use a secrets manager or a gitignored env file with mode restricted to your account).
+3. **dotenv load order:** (1) project `.env` in the cwd when `--no-project-context` is unset (IDs, models — **not** secrets in git); (2) always merge user-global `~/.ai-brains/.env` for **gaps** only (`dotenvy` does not override shell or project-set vars), including under `--no-project-context`. Prefer `AI_BRAINS_VAULT_PATH` + `AI_BRAINS_KEY` in the **user-global** file. Quote values for dotenvy (e.g. `AI_BRAINS_VAULT_PATH="C:/path/vault.db"` and `AI_BRAINS_KEY="x'<64 hex>'"`). **Never commit** secrets (restrict ACL to your account).
 
 4. **Missing vs wrong key**: missing → `Vault key missing:` / doctor `vault_open` skipped; wrong key → `Vault locked:` / doctor `vault_open` fail. Neither floods stderr with native SQLCipher hmac lines.
 
