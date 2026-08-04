@@ -55,8 +55,8 @@ Status: **In Progress / Implemented** (ledger open; orchestrator closeout). Spec
 - [x] Spec F1–F35 + AC1–AC10  
 - [x] AI fold-in §14  
 - [x] Conductor/deferred Planning + fold-in note  
-- [ ] On **go**: `ledgerful ledger start T209-backup-list-sqlcipher-honesty --category FEATURE --message "Classify backup list plain/key/corrupt; ListMode; default quiet summary; --verbose; table tokens"`  
-- [ ] On go: `ledgerful scan --impact`  
+- [x] On **go**: `ledgerful ledger start T209-backup-list-sqlcipher-honesty --category FEATURE --message "Classify backup list plain/key/corrupt; ListMode; default quiet summary; --verbose; table tokens"`  
+- [x] On go: `ledgerful scan --impact`  
 
 ### A1 — Red (TDD)
 
@@ -84,8 +84,8 @@ Status: **In Progress / Implemented** (ledger open; orchestrator closeout). Spec
 
 - [x] **D1** CAPABILITIES §11 + CHANGELOG (AC8)  
 - [x] **D2** Soft OPERATIONS one-liner  
-- [x] **D3** Review + brain/cli nextest → full gate (brain lib + backup_list nextest + clippy -D warnings green; full workspace gate deferred to orchestrator)  
-- [ ] **D4** PR; conductor Completed; deferred strike; soft F35 ISSUES if deferred mediums  
+- [x] **D3** Review + brain/cli nextest → full gate (2081 nextest; clippy/deny/audit green)  
+- [x] **D4** PR #92 squash-merged `02a0d7d`; conductor Completed; deferred strike; soft L3/L4 residuals only 
 
 ## Test plan
 
