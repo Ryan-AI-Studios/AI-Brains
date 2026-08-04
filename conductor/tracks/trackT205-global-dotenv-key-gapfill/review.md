@@ -28,3 +28,10 @@ Always-merge user-global `~/.ai-brains/.env` for gaps; F11 hermetic empty-home i
 
 ## Completion decision
 Engineering DoD met; internal CLEAN; cross-model PASS WITH DEFERRED P3. Ready for PR.
+
+
+## Ship evidence
+- PR #88 squash-merged `6a7fd15` (2026-08-04)
+- CI: gate-windows / gate-linux / gate-macos SUCCESS
+- Local full gate: 2024 nextest pass
+- Cross-model: Claude PASS WITH DEFERRED P3 (Codex rate-limited)
