@@ -75,7 +75,15 @@ briefing | query | scope | evidence | source | conclusion | decision | review | 
 | `--no-project-context` | CI/hooks: do not load project `.env` or clobber inherited IDs |
 | `--log-format` | `compact` \| `full` \| `json` \| `minimal` \| `off` |
 
-Failures emit structured JSON error envelopes on stderr.
+Failures use a **dual envelope** model (see [CLI-EXIT-CODES.md](CLI-EXIT-CODES.md)):
+
+| Path | Shape | Stream |
+|------|-------|--------|
+| Governed **Json** | bare `ApiError` | **stdout** |
+| Governed **Human** / Markdown | `CODE: message` | **stderr** |
+| Generic non-governed (`handle_cli_result`) | full `ApiResult` | **stderr** |
+
+Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor footnotes, vault key exit **1**): [CLI-EXIT-CODES.md](CLI-EXIT-CODES.md).
 
 ---
 

@@ -22,7 +22,8 @@ pub const ERASURE_CE_WIPE_WARNING: &str = ERASURE_TICKET_NO_WIPE_WARNING;
 pub struct RequestOptions {
     pub ids: Vec<String>,
     pub reason: Option<String>,
-    pub scope: Option<String>,
+    /// Required by clap (T201 F4); wire DTO still Option for non-CLI callers.
+    pub scope: String,
     pub format: Option<String>,
     pub principal_id: Option<String>,
     pub command_id: Option<String>,
@@ -74,7 +75,8 @@ pub async fn run_request(options: RequestOptions) -> Result<(), Box<dyn std::err
         principal_id: principal_id_wire(&principal),
         ids: options.ids.clone(),
         reason: options.reason.clone(),
-        scope: options.scope.clone(),
+        // Wire DTO keeps Option for HTTP/IPC; CLI always sends scope after F4.
+        scope: Some(options.scope.clone()),
         command_id: Some(command_id.clone()),
     });
 

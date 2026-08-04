@@ -29,7 +29,7 @@ ai-brains --vault-path C:\path\to\vault.db init           # re-run on empty vaul
 ai-brains --vault-path C:\path\to\vault.db init --force   # explicit overwrite
 ```
 
-When the refused case triggers, the CLI returns a structured JSON error envelope on stderr (the same shape used by every other failure path) and exits 1.
+When the refused case triggers, the CLI returns a structured error envelope on **stderr** via the generic `handle_cli_result` path (full `ApiResult` shape) and exits **1**. Governed Json failures use a different dual-envelope model (bare `ApiError` on **stdout**); see [CLI-EXIT-CODES.md](CLI-EXIT-CODES.md).
 
 ## 2. Ingesting Data
 
@@ -129,7 +129,11 @@ ai-brains query trace <trace-id>
 
 ### Governed command surface (T160)
 
-Thin CLI over control-plane (local default for reads) and named-pipe daemon (preferred for mutations). JSON default for new commands; exit codes: 3=POLICY_DENIED, 4=NOT_FOUND, 5=DAEMON_UNAVAILABLE, 6=INVALID_PAYLOAD.
+Thin CLI over control-plane (local default for reads) and named-pipe daemon (preferred for mutations). JSON default for new commands.
+
+**Exit codes (normative 0–7):** see **[CLI-EXIT-CODES.md](CLI-EXIT-CODES.md)**. Quick map: 0 success / status / doctor ok|degraded; 1 internal / vault key / doctor fail; 2 clap usage + `FEATURE_UNAVAILABLE`; 3 `POLICY_DENIED` / `APPROVAL_REQUIRED`; 4 `NOT_FOUND`; 5 daemon unavailable; 6 `INVALID_PAYLOAD`; 7 hard-gate failed. Missing required `--scope` on clap-required commands exits **2** (not 6).
+
+**Error envelopes (format-dependent):** governed Json → bare `ApiError` on **stdout**; governed Human → `CODE: message` on **stderr**; generic failures → full `ApiResult` on **stderr**.
 
 ```powershell
 ai-brains scope resolve --format json

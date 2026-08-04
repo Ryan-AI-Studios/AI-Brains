@@ -2,7 +2,8 @@
 
 use crate::commands::governed_common::{
     self, OutputFormat, PathDecision, PathFlags, emit_human, emit_json, ensure_command_id,
-    expect_daemon_ok, fail_api, fail_cp, fail_path, principal_id_wire, resolve_principal,
+    expect_daemon_ok, fail_api, fail_cp, fail_path, policy_denied_hint_details, principal_id_wire,
+    resolve_principal,
 };
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
@@ -23,7 +24,7 @@ use ai_brains_store::SqliteEventStore;
 use std::str::FromStr;
 
 pub struct ListOptions {
-    pub scope: Option<String>,
+    pub scope: String,
     pub status: Option<String>,
     pub format: Option<String>,
     pub principal_id: Option<String>,
@@ -72,15 +73,8 @@ fn run_list_local(
     options: &ListOptions,
     format: OutputFormat,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let scope_key = match options.scope.as_deref() {
-        Some(s) => s,
-        None => {
-            return fail_api(
-                format,
-                ApiError::new("INVALID_PAYLOAD", "review list requires --scope"),
-            );
-        }
-    };
+    // clap guarantees --scope (T201 F4).
+    let scope_key = options.scope.as_str();
     let scope = match parse_scope_key(scope_key) {
         Ok(s) => s,
         Err(e) => return fail_cp(format, e),
@@ -103,7 +97,8 @@ fn run_list_local(
                 ApiError::new(
                     "POLICY_DENIED",
                     "ReadConclusions denied for list_review_items",
-                ),
+                )
+                .with_details(policy_denied_hint_details()),
             );
         }
         Err(e) => return fail_cp(format, e),
@@ -143,7 +138,8 @@ async fn run_list_daemon(
     let req = DaemonRequest::ListReviewItems(ListReviewItemsRequest {
         api_version: ai_brains_contracts::review::API_VERSION.to_string(),
         principal_id: principal_id_wire(&principal),
-        scope: options.scope.clone(),
+        // Wire DTO keeps Option for HTTP/IPC; CLI always sends scope after F4.
+        scope: Some(options.scope.clone()),
         status: options.status.clone(),
     });
     let resp = match client.request(req).await {

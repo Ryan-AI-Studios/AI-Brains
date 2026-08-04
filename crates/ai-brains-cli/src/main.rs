@@ -886,7 +886,7 @@ enum ReviewCommands {
     List {
         /// Scope identity key (required)
         #[arg(long)]
-        scope: Option<String>,
+        scope: String,
         /// Optional status filter (e.g. Open)
         #[arg(long)]
         status: Option<String>,
@@ -942,7 +942,7 @@ enum PolicyCommands {
     Show {
         /// Scope identity key (required)
         #[arg(long)]
-        scope: Option<String>,
+        scope: String,
         #[arg(long, default_value = "json")]
         format: Option<String>,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
@@ -982,9 +982,9 @@ enum ErasureCommands {
         /// Human-readable reason
         #[arg(long)]
         reason: Option<String>,
-        /// Scope identity key (required by daemon)
+        /// Scope identity key (required)
         #[arg(long)]
-        scope: Option<String>,
+        scope: String,
         #[arg(long, default_value = "json")]
         format: Option<String>,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]

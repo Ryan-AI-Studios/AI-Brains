@@ -38,6 +38,19 @@ pub const EXIT_HARD_GATE_FAILED: i32 = 7;
 /// Structured code for build-feature unavailable (T198 graph stub; T200 install honesty).
 pub const FEATURE_UNAVAILABLE: &str = "FEATURE_UNAVAILABLE";
 
+/// Stable F6 remediation template for POLICY_DENIED `details.hint` (T201).
+pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists for this principal on this scope; try `ai-brains policy show --scope …`";
+
+/// Build `{"hint": …}` details without `serde_json::json!` (disallowed unwrap in production).
+pub fn policy_denied_hint_details() -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "hint".to_string(),
+        serde_json::Value::String(POLICY_DENIED_HINT.to_string()),
+    );
+    serde_json::Value::Object(map)
+}
+
 /// Exit code for feature-unavailable paths (clap-style usage = [`EXIT_USAGE`] = 2).
 pub fn exit_code_feature_unavailable() -> i32 {
     EXIT_USAGE
@@ -53,6 +66,8 @@ pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
         "APPROVAL_REQUIRED" => EXIT_POLICY_DENIED,
         // Path / live-vault refusals (migrate, shadow reuse) → EXIT_INTERNAL (1).
         "PATH_REFUSED" => EXIT_INTERNAL,
+        // Domain state-machine refusal (known CP code; not silent catch-all).
+        "INVALID_TRANSITION" => EXIT_INTERNAL,
         // Evaluate trust gates failed (harness worked; product blocked).
         "HARD_GATE_FAILED" => EXIT_HARD_GATE_FAILED,
         // Optional feature not in this binary (T198/T200).
@@ -480,6 +495,13 @@ mod tests {
         let err = ApiError::new(FEATURE_UNAVAILABLE, "graph not in this build");
         assert_eq!(exit_code_for_api_error(&err), EXIT_USAGE);
         assert_eq!(exit_code_for_api_error(&err), 2);
+    }
+
+    #[test]
+    fn exit_code_for_api_error__invalid_transition__1() {
+        let err = ApiError::new("INVALID_TRANSITION", "already resolved");
+        assert_eq!(exit_code_for_api_error(&err), EXIT_INTERNAL);
+        assert_eq!(exit_code_for_api_error(&err), 1);
     }
 
     #[test]

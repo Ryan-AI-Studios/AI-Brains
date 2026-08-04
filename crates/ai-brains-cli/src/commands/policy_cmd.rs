@@ -3,7 +3,8 @@
 //! Read-only via grant store. No grant mutation in T160.
 
 use crate::commands::governed_common::{
-    OutputFormat, emit_human, emit_json, fail_api, fail_cp, resolve_principal,
+    OutputFormat, emit_human, emit_json, fail_api, fail_cp, policy_denied_hint_details,
+    resolve_principal,
 };
 use crate::context::AppContext;
 use ai_brains_contracts::response::ApiError;
@@ -14,7 +15,7 @@ use ai_brains_core::scope::GrantCapability;
 use ai_brains_store::SqliteEventStore;
 
 pub struct ShowOptions {
-    pub scope: Option<String>,
+    pub scope: String,
     pub format: Option<String>,
     pub principal_id: Option<String>,
 }
@@ -26,7 +27,7 @@ pub struct CheckOptions {
     pub principal_id: Option<String>,
 }
 
-/// `ai-brains policy show [--scope] [--principal-id]`
+/// `ai-brains policy show --scope … [--principal-id]`
 pub fn run_show(ctx: &AppContext, options: ShowOptions) -> Result<(), Box<dyn std::error::Error>> {
     let format = OutputFormat::parse(options.format.as_deref());
     let principal = resolve_principal(options.principal_id.as_deref());
@@ -34,26 +35,13 @@ pub fn run_show(ctx: &AppContext, options: ShowOptions) -> Result<(), Box<dyn st
     let ports = StorePorts::from_store(store);
     let grant_store = ports.grant_store();
 
-    let scope_key = match options.scope.as_deref() {
-        Some(s) => {
-            // Validate parse when provided
-            if let Err(e) = parse_scope_key(s) {
-                return fail_cp(format, e);
-            }
-            s.to_string()
-        }
-        None => {
-            return fail_api(
-                format,
-                ApiError::new(
-                    "INVALID_PAYLOAD",
-                    "policy show requires --scope (scope identity key)",
-                ),
-            );
-        }
-    };
+    // clap guarantees --scope; validate parse shape only.
+    let scope_key = options.scope.as_str();
+    if let Err(e) = parse_scope_key(scope_key) {
+        return fail_cp(format, e);
+    }
 
-    let applied = grant_store.list_applied_grants(principal.id, &scope_key, None)?;
+    let applied = grant_store.list_applied_grants(principal.id, scope_key, None)?;
     let grants: Vec<ScopeGrantDto> = applied
         .into_iter()
         .map(|g| ScopeGrantDto {
@@ -125,6 +113,7 @@ pub fn run_check(
 
     if !allowed {
         // Exactly one structured document on deny (JSON: ApiError only; exit 3).
+        // F6: structured details.hint for operator remediation (T201).
         return fail_api(
             format,
             ApiError::new(
@@ -133,7 +122,8 @@ pub fn run_check(
                     "{} denied for principal {} on {}",
                     options.capability, principal.id, options.scope
                 ),
-            ),
+            )
+            .with_details(policy_denied_hint_details()),
         );
     }
 

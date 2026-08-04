@@ -25,13 +25,13 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~CLI empty states / silent fails / graph exit 0~~ | **Closed by T198** (2026-08-03) PR #81 `5cc0418` — empty success non-blank; dogfood fail_api; graph exit 0→2 FEATURE_UNAVAILABLE |
 | ~~`daemon status` requires vault key~~ | **Closed by T199** (2026-08-03) PR #82 `721d41f` — early-route + shared probe; no key required |
 | ~~Graph default install / feature honesty~~ | **Closed by T200** (2026-08-03) PR #83 `84f4a23` — docs-only A + INSTALL/Release honesty + F14 CI graph-on filter; residual Cozo INFO stdout pre-existing |
-| CLI exit-code + error envelope contract | **T201** (draft 2026-08-02) |
+| CLI exit-code + error envelope contract | **T201** (expanded+fold-in 2026-08-03 — absorb on implement) |
 | Recall/briefing/query progressive clarity | **T202** (draft 2026-08-02) |
 | Governed source/evidence discovery lists | **T203** (draft 2026-08-02) |
 | CLI help grouping IA | **T204** (draft 2026-08-02) |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
 
-Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → ~~**T200**~~ **closed** → **T201** → **T202** + **T203** → **T204** (help IA last). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH admin. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 ops honesty only); graph-on Cozo INFO stdout (T200 M1 pre-existing).
+Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → ~~**T200**~~ **closed** → **T201** (P2, **expanded+fold-in** 2026-08-03) → **T202** + **T203** (F27: no reintroduce exit-6 missing-scope) → **T204**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16); graph-on Cozo INFO stdout (T200).
 
 ---
 
