@@ -28,10 +28,10 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~CLI exit-code + error envelope contract~~ | **Closed by T201** (2026-08-03) PR #84 `a9e3b85` — clap-required scope exit 2; details.hint; dual envelope docs; exit_contract suite |
 | ~~Recall/briefing/query progressive clarity~~ | **Closed by T202** (2026-08-04) PR #85 `89ea3ec` — embedding.status; empty_denied seed; TTY briefing md; progressive exit 2; soft-resolve remains **T203** |
 | ~~Governed source/evidence discovery lists + soft-resolve~~ | **Closed by T203** (2026-08-04) PR #86 `2748d12` — source/evidence list; review soft-resolve exit 2; show F7; Active+LIMIT+1; core FTS sanitizer |
-| ~~CLI help grouping IA~~ | **Promoted / Expanded T204** (2026-08-04 plan-only) — also absorbs T202 F32 progressive after_help + soft OutputFormat TTY honesty |
+| ~~CLI help grouping IA~~ | **Closed by T204** (2026-08-04) PR #87 `c3a7d66` — after_long_help groups; F31 order; F33 dangerous; F9 project-id; CAPABILITIES format table |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
 
-Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → ~~**T200**~~ **closed** → ~~**T201**~~ **closed** → ~~**T202**~~ **closed** → ~~**T203**~~ **closed** → **T204** (expanded, wait go). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16); graph-on Cozo INFO stdout (T200).
+Suggested order: ~~**T196**~~ **closed** → ~~**T197**~~ **closed** → ~~**T198**~~ **closed** → ~~**T199**~~ **closed** → ~~**T200**~~ **closed** → ~~**T201**~~ **closed** → ~~**T202**~~ **closed** → ~~**T203**~~ **closed** → ~~**T204**~~ **closed**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16); graph-on Cozo INFO stdout (T200).
 
 ---
 

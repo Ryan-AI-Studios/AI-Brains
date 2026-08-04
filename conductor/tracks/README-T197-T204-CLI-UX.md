@@ -13,7 +13,7 @@ Source: non-destructive global-install CLI audit after T196. Drafts only — imp
 | 4 | [T201](trackT201-cli-error-exit-contract/spec.md) | P2 | ✅ **Completed 2026-08-03** PR #84 `a9e3b85` — clap-required scope exit 2; details.hint; BREAKING 6→2; exit_contract suite |
 | 5 | [T202](trackT202-recall-briefing-clarity/spec.md) | P2 | ✅ **Completed 2026-08-04** PR #85 `89ea3ec` — embedding.status; empty_denied; TTY md; progressive exit 2; Codex R2 PASS |
 | 5 | [T203](trackT203-governed-discovery-reads/spec.md) | P2 | ✅ **Completed 2026-08-04** PR #86 `2748d12` — lists + soft-resolve exit 2; Codex R2 PASS |
-| 6 | [T204](trackT204-cli-help-ia/spec.md) | P3 | **Expanded + AI fold-in 2026-08-04** — after_long_help groups; F31 order; subcommand `[dangerous]`; F9 project-id; plan-only until go |
+| 6 | [T204](trackT204-cli-help-ia/spec.md) | P3 | ✅ **Completed 2026-08-04** PR #87 `c3a7d66` — help groups; F31; F33 dangerous; F9; Claude PASS |
 
 ## Audit → track map
 
@@ -29,7 +29,7 @@ Source: non-destructive global-install CLI audit after T196. Drafts only — imp
 | Unify error envelope + exit table | **T201** |
 | Recall TTY + semantic health | **T202** |
 | Governed discovery lists + soft-resolve | **T203** (expanded plan) |
-| Group help IA | **T204** (expanded; clap 4 presentation-only; clap 5 multi-heading residual) |
+| Group help IA | **T204** ✅ closed PR #87 |
 
 ### Scores &lt; 7 (E or C)
 
