@@ -1,11 +1,53 @@
 use ai_brains_crypto::SqlCipherKey;
+use ai_brains_store::is_plain_sqlite_header;
 use ai_brains_store::pragmas::apply_key_pragmas;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+/// Minimum size for a plausible multi-page SQLite/SQLCipher backup (F31).
+pub const MIN_PLAUSIBLE_BACKUP_BYTES: u64 = 512;
+
+/// How a backup file classifies under the current vault key (T209).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
+pub enum BackupReadClass {
+    /// Meta SELECT succeeded under the current key.
+    #[default]
+    Readable,
+    /// Key opens; core tables present (or meta table absent); no usable meta rows.
+    PreT109,
+    /// Plain SQLite header (pre-encrypt residual); no key probe.
+    LegacyPlain,
+    /// Not plain; size ≥ [`MIN_PLAUSIBLE_BACKUP_BYTES`]; key/schema verification failed.
+    KeyMismatch,
+    /// Not plain; open I/O failure, unreadable size, or size &lt; 512 with key fail.
+    Corrupt,
+}
+
+/// Noise / detail mode for [`BackupService::list_backups`] (T209 F14).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ListMode {
+    #[default]
+    Default,
+    Quiet,
+    Verbose,
+}
+
+impl ListMode {
+    /// Quiet wins over verbose when both true (F8/M4). No clap `conflicts_with`.
+    pub fn from_flags(quiet: bool, verbose: bool) -> Self {
+        if quiet {
+            Self::Quiet
+        } else if verbose {
+            Self::Verbose
+        } else {
+            Self::Default
+        }
+    }
+}
 
 pub struct BackupService {
     vault_path: PathBuf,
@@ -25,6 +67,8 @@ pub struct BackupInfo {
     pub path: PathBuf,
     pub timestamp: Option<NaiveDateTime>,
     pub metadata: HashMap<String, String>,
+    /// Classification under the current vault key (T209).
+    pub class: BackupReadClass,
 }
 
 impl BackupService {
@@ -302,12 +346,18 @@ impl BackupService {
         Ok(paths)
     }
 
-    /// List all backups in the backup directory, reading metadata from each
-    /// backup file when possible.
+    /// List all backups in the backup directory, classifying each file and
+    /// reading metadata when possible (T209).
     ///
     /// When the backups directory is absent, returns an empty list without
     /// creating the directory (T192 F17b).
-    pub fn list_backups(&self, quiet: bool) -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
+    ///
+    /// Noise (F5–F8): Corrupt → `warn!` (unless Quiet → `debug!`);
+    /// LegacyPlain/KeyMismatch → `debug!` (Verbose → `warn!`); PreT109 → `debug!`.
+    pub fn list_backups(
+        &self,
+        mode: ListMode,
+    ) -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
         let Some(backup_dir) = self.backup_dir_read_only()? else {
             return Ok(Vec::new());
         };
@@ -334,73 +384,14 @@ impl BackupService {
                 );
             }
 
-            let metadata = match Self::read_backup_metadata(&path, &self.key) {
-                Ok(m) => m,
-                Err(err) => {
-                    let is_missing_meta_table = err
-                        .to_string()
-                        .contains("no such table: _aibrains_backup_meta");
-                    // T187: do not ignore apply_key failures (wrong key ≠ "missing tables").
-                    let key_probe = match rusqlite::Connection::open(&path) {
-                        Ok(conn) => match apply_key_pragmas(&conn, &self.key) {
-                            Ok(()) => match conn.query_row(
-                                "SELECT count(*) FROM sqlite_master",
-                                [],
-                                |_| Ok(()),
-                            ) {
-                                Ok(()) => Ok(has_core_tables(&conn)),
-                                Err(e) => Err(format!("Key verification failed: {e}")),
-                            },
-                            Err(e) => Err(format!("apply key failed: {e}")),
-                        },
-                        Err(e) => Err(format!("open failed: {e}")),
-                    };
-                    match key_probe {
-                        Ok(true) if is_missing_meta_table => {
-                            tracing::debug!(
-                                path = %path.display(),
-                                "Backup predates metadata table; core tables present"
-                            );
-                        }
-                        Ok(_) if quiet => {
-                            tracing::debug!(
-                                path = %path.display(),
-                                error = %err,
-                                "Could not read backup metadata (quiet)"
-                            );
-                        }
-                        Ok(_) => {
-                            tracing::warn!(
-                                path = %path.display(),
-                                error = %err,
-                                "Could not read backup metadata"
-                            );
-                        }
-                        Err(key_err) if quiet => {
-                            tracing::debug!(
-                                path = %path.display(),
-                                error = %key_err,
-                                meta_error = %err,
-                                "Backup key/open failure (quiet)"
-                            );
-                        }
-                        Err(key_err) => {
-                            tracing::warn!(
-                                path = %path.display(),
-                                error = %key_err,
-                                meta_error = %err,
-                                "Backup key verification or open failed (not silent skip)"
-                            );
-                        }
-                    }
-                    HashMap::new()
-                }
-            };
+            let (class, metadata) = classify_backup_read(&path, &self.key);
+            emit_list_noise(&path, class, mode);
 
             infos.push(BackupInfo {
                 path,
                 timestamp,
                 metadata,
+                class,
             });
         }
 
@@ -427,6 +418,139 @@ impl BackupService {
             map.insert(k, v);
         }
         Ok(map)
+    }
+}
+
+/// Classify a backup file under the current key (header-first + F31 size gate).
+///
+/// Public for unit tests (T209 B1–B4). Reuses
+/// [`ai_brains_store::is_plain_sqlite_header`] — no duplicate magic.
+pub fn classify_backup_read(
+    path: &Path,
+    key: &SqlCipherKey,
+) -> (BackupReadClass, HashMap<String, String>) {
+    // F3: plain header → LegacyPlain immediately; no key probe.
+    if is_plain_sqlite_header(path) {
+        return (BackupReadClass::LegacyPlain, HashMap::new());
+    }
+
+    // F31: size for Corrupt vs KeyMismatch after not-plain.
+    let file_len = match fs::metadata(path) {
+        Ok(m) => m.len(),
+        Err(_) => {
+            return (BackupReadClass::Corrupt, HashMap::new());
+        }
+    };
+
+    let conn = match rusqlite::Connection::open(path) {
+        Ok(c) => c,
+        Err(_) => {
+            return (BackupReadClass::Corrupt, HashMap::new());
+        }
+    };
+
+    let key_ok = match apply_key_pragmas(&conn, key) {
+        Ok(()) => conn
+            .query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()))
+            .is_ok(),
+        Err(_) => false,
+    };
+
+    if !key_ok {
+        if file_len < MIN_PLAUSIBLE_BACKUP_BYTES {
+            return (BackupReadClass::Corrupt, HashMap::new());
+        }
+        return (BackupReadClass::KeyMismatch, HashMap::new());
+    }
+
+    // Key opens — read meta if present. Missing meta table / row errors → PreT109
+    // (T120 / F4: openable keyed backup without usable `_aibrains_backup_meta`).
+    match conn.prepare("SELECT key, value FROM _aibrains_backup_meta") {
+        Ok(mut stmt) => {
+            let rows = stmt.query_map([], |row| {
+                let k: String = row.get(0)?;
+                let v: String = row.get(1)?;
+                Ok((k, v))
+            });
+            match rows {
+                Ok(iter) => {
+                    let mut map = HashMap::new();
+                    let mut row_err = false;
+                    for row in iter {
+                        match row {
+                            Ok((k, v)) => {
+                                map.insert(k, v);
+                            }
+                            Err(_) => {
+                                row_err = true;
+                                break;
+                            }
+                        }
+                    }
+                    if row_err {
+                        return (BackupReadClass::PreT109, HashMap::new());
+                    }
+                    (BackupReadClass::Readable, map)
+                }
+                Err(_) => (BackupReadClass::PreT109, HashMap::new()),
+            }
+        }
+        // no such table or other prepare failure with key already verified
+        Err(_) => (BackupReadClass::PreT109, HashMap::new()),
+    }
+}
+
+fn emit_list_noise(path: &Path, class: BackupReadClass, mode: ListMode) {
+    match class {
+        BackupReadClass::Readable => {}
+        BackupReadClass::PreT109 => {
+            tracing::debug!(
+                path = %path.display(),
+                "Backup predates metadata table; core tables present"
+            );
+        }
+        BackupReadClass::LegacyPlain => match mode {
+            ListMode::Verbose => {
+                tracing::warn!(
+                    path = %path.display(),
+                    "Backup is legacy plaintext (not SQLCipher-encrypted with current key)"
+                );
+            }
+            ListMode::Default | ListMode::Quiet => {
+                tracing::debug!(
+                    path = %path.display(),
+                    "Backup is legacy plaintext (list detail suppressed; use --verbose)"
+                );
+            }
+        },
+        BackupReadClass::KeyMismatch => match mode {
+            ListMode::Verbose => {
+                tracing::warn!(
+                    path = %path.display(),
+                    "Backup not readable with current key (key mismatch or unreadable cipher)"
+                );
+            }
+            ListMode::Default | ListMode::Quiet => {
+                tracing::debug!(
+                    path = %path.display(),
+                    "Backup not readable with current key (list detail suppressed; use --verbose)"
+                );
+            }
+        },
+        BackupReadClass::Corrupt => match mode {
+            ListMode::Quiet => {
+                tracing::debug!(
+                    path = %path.display(),
+                    "Backup file appears corrupt or unreadable (quiet)"
+                );
+            }
+            ListMode::Default | ListMode::Verbose => {
+                tracing::warn!(
+                    path = %path.display(),
+                    "Backup file appears corrupt or unreadable"
+                );
+            }
+        },
     }
 }
 
@@ -764,7 +888,7 @@ mod tests {
             "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
         );
         let service = BackupService::new(vault_path, key);
-        let list = service.list_backups(true)?;
+        let list = service.list_backups(ListMode::Quiet)?;
         assert!(list.is_empty());
         assert!(
             !backups.exists(),
@@ -829,7 +953,7 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn list_backups__quiet__uses_debug_for_metadata_failures()
+    fn list_backups__quiet__classifies_short_garbage_as_corrupt()
     -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let vault_path = dir.path().join("vault.db");
@@ -843,14 +967,15 @@ mod tests {
             "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
         );
         let service = BackupService::new(vault_path, key);
-        let backups = service.list_backups(true)?;
+        let backups = service.list_backups(ListMode::Quiet)?;
         assert_eq!(backups.len(), 1);
+        assert_eq!(backups[0].class, BackupReadClass::Corrupt);
         Ok(())
     }
 
     #[test]
     #[allow(non_snake_case)]
-    fn list_backups__not_quiet__uses_warn_for_metadata_failures()
+    fn list_backups__default__classifies_short_garbage_as_corrupt()
     -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let vault_path = dir.path().join("vault.db");
@@ -864,9 +989,104 @@ mod tests {
             "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
         );
         let service = BackupService::new(vault_path, key);
-        let backups = service.list_backups(false)?;
+        let backups = service.list_backups(ListMode::Default)?;
         assert_eq!(backups.len(), 1);
+        assert_eq!(backups[0].class, BackupReadClass::Corrupt);
         Ok(())
+    }
+
+    // --- T209 classify units (B1–B4) ---
+
+    fn zero_key() -> SqlCipherKey {
+        SqlCipherKey::from_raw(
+            "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string(),
+        )
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_backup_read__plain_header__legacy_plain() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let dir = tempdir()?;
+        let path = dir.path().join("vault-2026-01-01T00-00-00.db.bak");
+        // F33: valid plain SQLite magic + padding (header-based; no key success required).
+        let mut bytes = b"SQLite format 3\0".to_vec();
+        bytes.extend_from_slice(&[0u8; 100]);
+        fs::write(&path, &bytes)?;
+
+        let (class, meta) = classify_backup_read(&path, &zero_key());
+        assert_eq!(class, BackupReadClass::LegacyPlain);
+        assert!(meta.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_backup_read__short_garbage__corrupt() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let path = dir.path().join("vault-2026-01-01T00-00-00.db.bak");
+        fs::write(&path, b"not a valid sqlite database")?;
+        assert!(fs::metadata(&path)?.len() < MIN_PLAUSIBLE_BACKUP_BYTES);
+
+        let (class, meta) = classify_backup_read(&path, &zero_key());
+        assert_eq!(class, BackupReadClass::Corrupt);
+        assert!(meta.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_backup_read__large_non_plain_garbage__key_mismatch()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let path = dir.path().join("vault-2026-01-01T00-00-00.db.bak");
+        // ≥512 non-plain random bytes → key/schema fails → KeyMismatch (F31).
+        let bytes = vec![0xABu8; 600];
+        fs::write(&path, &bytes)?;
+        assert!(fs::metadata(&path)?.len() >= MIN_PLAUSIBLE_BACKUP_BYTES);
+        assert!(!is_plain_sqlite_header(&path));
+
+        let (class, meta) = classify_backup_read(&path, &zero_key());
+        assert_eq!(class, BackupReadClass::KeyMismatch);
+        assert!(meta.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_backup_read__real_backup__readable_with_meta()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+        let key = zero_key();
+        let conn = rusqlite::Connection::open(&vault_path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch(
+            "CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
+        )?;
+        drop(conn);
+
+        let service = BackupService::new(vault_path, key.clone());
+        let backup_path = service.run_backup()?;
+
+        let (class, meta) = classify_backup_read(&backup_path, &key);
+        assert_eq!(class, BackupReadClass::Readable);
+        assert!(
+            meta.contains_key("backup_timestamp"),
+            "readable backup must expose meta; keys={:?}",
+            meta.keys().collect::<Vec<_>>()
+        );
+        assert!(meta.contains_key("source_vault_path"));
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_mode__from_flags__quiet_wins_over_verbose() {
+        assert_eq!(ListMode::from_flags(false, false), ListMode::Default);
+        assert_eq!(ListMode::from_flags(true, false), ListMode::Quiet);
+        assert_eq!(ListMode::from_flags(false, true), ListMode::Verbose);
+        assert_eq!(ListMode::from_flags(true, true), ListMode::Quiet);
     }
 
     #[test]

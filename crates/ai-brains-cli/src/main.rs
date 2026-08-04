@@ -1514,9 +1514,12 @@ pub enum BackupCommands {
     },
     /// List all backups with their metadata
     List {
-        /// Suppress WARN-level tracing output for backup metadata read failures.
+        /// Suppress summary and per-file metadata WARNs (table tokens still apply).
         #[arg(long)]
         quiet: bool,
+        /// Per-file detail for non-readable backups (legacy plain / key mismatch / corrupt).
+        #[arg(long)]
+        verbose: bool,
     },
     /// Verify the integrity of backup files
     Verify {
@@ -2880,7 +2883,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 older_than,
                 dry_run,
             }) => commands::backup::run_prune(&ctx, *keep, older_than.clone(), *dry_run),
-            Some(BackupCommands::List { quiet }) => commands::backup::run_list(&ctx, *quiet),
+            Some(BackupCommands::List { quiet, verbose }) => {
+                use ai_brains_brain::ListMode;
+                commands::backup::run_list(&ctx, ListMode::from_flags(*quiet, *verbose))
+            }
             Some(BackupCommands::Verify { path, full, format }) => {
                 commands::backup::run_verify(&ctx, path.clone(), *full, format.clone())
             }

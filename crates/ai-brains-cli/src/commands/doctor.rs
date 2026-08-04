@@ -8,7 +8,7 @@ use crate::commands::device::data_key_from_sqlcipher;
 use crate::commands::recovery::acquire_passphrase;
 use crate::daemon_client::DaemonClient;
 use crate::key_resolve::{KeyResolveError, resolve_operator_sqlcipher_key, vault_locked_message};
-use ai_brains_brain::{BackupService, has_core_tables, parse_duration};
+use ai_brains_brain::{BackupService, ListMode, has_core_tables, parse_duration};
 use ai_brains_contracts::doctor::{CheckSeverity, DoctorReport, DoctorStatus, HealthCheck};
 use ai_brains_crypto::{RecoveryKit, SqlCipherKey};
 use ai_brains_store::ALLOW_ZERO_KEY_ENV;
@@ -302,7 +302,7 @@ fn check_backup_recent(vault_path: &Path, key: &SqlCipherKey, max_age: &str) -> 
     };
 
     let service = BackupService::new(vault_path.to_path_buf(), key.clone());
-    let backups = match service.list_backups(true) {
+    let backups = match service.list_backups(ListMode::Quiet) {
         Ok(b) => b,
         Err(e) => {
             return HealthCheck::warn(

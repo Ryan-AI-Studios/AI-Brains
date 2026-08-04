@@ -327,13 +327,25 @@ Explicit `ledgerful bridge export` / `import` remain pure-local without opt-in. 
 ```powershell
 ai-brains backup
 ai-brains backup create --output-dir D:\backups --dry-run
-ai-brains backup list
+ai-brains backup list [--quiet] [--verbose]
 ai-brains backup verify [--full]
 ai-brains backup prune --keep N --older-than <dur>
 ai-brains backup restore <path> [--force] [--dry-run]
 ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force|--overwrite]
 ```
 Backup suite with metadata headers, integrity checks, and restore **hard-fail** when the daemon/service is reachable via robust IPC probe (T188; `--force` never overrides). SQLCipher-encrypted vaults and backups (T187). Default retention keeps 10 backups. Plain→encrypted migrate: `ai-brains vault encrypt` (`sqlcipher_export`).
+
+**Backup list honesty (T209):** each `vault-*.db.bak` is classified under the current vault key:
+
+| Class | Table token (when meta empty) | Default noise |
+|-------|-------------------------------|---------------|
+| Readable (meta OK) | real metadata values | silent |
+| Pre-T109 (openable, no meta table) | `(no metadata)` | debug only |
+| Legacy plain (SQLite magic header) | `(legacy plain)` | debug + one summary |
+| Key mismatch (size ≥ 512, not plain, key fails) | `(unreadable key)` | debug + one summary |
+| Corrupt (short/unreadable garbage) | `(corrupt)` | per-file `WARN` |
+
+Default list prints one **stderr** summary when any legacy-plain or key-mismatch residuals exist (`not fully readable` … `--verbose` … `verify`). `--verbose` adds per-file detail and omits the summary. `--quiet` suppresses summary and metadata WARNs (table tokens still apply). Dual `--quiet --verbose` → quiet wins. Exit **0** for any mix of classes after a successful scan.
 
 **Recovery export (T188 / T194):** writes RecoveryKit JSON (`schema_version: 1`) to a restricted file path only (never kit JSON on stdout). Passphrase via file or zero-echo TTY (`rpassword`). Kits embed Argon2id params in `passphrase.kdf` (algorithm=argon2id, version=19, m=19456, t=2, p=1); pre-T194 kits without `kdf` dual-read fixed legacy constants.
 

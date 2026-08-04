@@ -1,6 +1,6 @@
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
-use ai_brains_brain::BackupService;
+use ai_brains_brain::{BackupReadClass, BackupService, ListMode};
 use ai_brains_store::pragmas::apply_key_pragmas;
 use std::collections::HashMap;
 use std::fs;
@@ -138,9 +138,19 @@ pub fn run_prune(
     Ok(())
 }
 
-pub fn run_list(ctx: &AppContext, quiet: bool) -> Result<(), Box<dyn std::error::Error>> {
+/// Empty-meta table token for a backup class (T209 F9).
+fn empty_meta_token(class: BackupReadClass) -> &'static str {
+    match class {
+        BackupReadClass::LegacyPlain => "(legacy plain)",
+        BackupReadClass::KeyMismatch => "(unreadable key)",
+        BackupReadClass::Corrupt => "(corrupt)",
+        BackupReadClass::PreT109 | BackupReadClass::Readable => "(no metadata)",
+    }
+}
+
+pub fn run_list(ctx: &AppContext, mode: ListMode) -> Result<(), Box<dyn std::error::Error>> {
     let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
-    let backups = service.list_backups(quiet)?;
+    let backups = service.list_backups(mode)?;
     if backups.is_empty() {
         println!("No backups found.");
         return Ok(());
@@ -150,7 +160,17 @@ pub fn run_list(ctx: &AppContext, quiet: bool) -> Result<(), Box<dyn std::error:
         "{:<35} {:<22} {:<40} {:<14} {:<20}",
         "Filename", "Timestamp", "Source Vault", "Version", "Size (bytes)"
     );
-    for info in backups {
+
+    let mut residual_count = 0usize;
+    for info in &backups {
+        if matches!(
+            info.class,
+            BackupReadClass::LegacyPlain | BackupReadClass::KeyMismatch
+        ) {
+            residual_count = residual_count.saturating_add(1);
+        }
+
+        let token = empty_meta_token(info.class);
         let ts = info
             .timestamp
             .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
@@ -159,17 +179,17 @@ pub fn run_list(ctx: &AppContext, quiet: bool) -> Result<(), Box<dyn std::error:
             .metadata
             .get("source_vault_path")
             .cloned()
-            .unwrap_or_else(|| "(no metadata)".to_string());
+            .unwrap_or_else(|| token.to_string());
         let version = info
             .metadata
             .get("ai_brains_version")
             .cloned()
-            .unwrap_or_else(|| "(no metadata)".to_string());
+            .unwrap_or_else(|| token.to_string());
         let size = info
             .metadata
             .get("backup_file_size_bytes")
             .cloned()
-            .unwrap_or_else(|| "(no metadata)".to_string());
+            .unwrap_or_else(|| token.to_string());
         let filename = info
             .path
             .file_name()
@@ -183,6 +203,14 @@ pub fn run_list(ctx: &AppContext, quiet: bool) -> Result<(), Box<dyn std::error:
             truncate_right(&source, 40),
             truncate(&version, 14),
             size
+        );
+    }
+
+    // F6: one eprintln summary under Default when residual plain/key-mismatch ≥ 1.
+    // Quiet: no summary. Verbose: omit (per-file detail already emitted).
+    if mode == ListMode::Default && residual_count >= 1 {
+        eprintln!(
+            "{residual_count} backup(s) not fully readable (legacy plain or current key): use --verbose or ai-brains backup verify"
         );
     }
     Ok(())
