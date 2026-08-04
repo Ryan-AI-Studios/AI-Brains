@@ -56,6 +56,9 @@ pub const AMBIENT_DENYLIST: &[&str] = &[
     // Ledgerful TX id (preferred + deprecated alias) — strip ambient pollution
     "LEDGERFUL_TX_ID",
     "CHANGEGUARD_TX_ID",
+    // T208 F29: ambient developer RUST_LOG=debug must not false-fail quiet-log ACs.
+    // Tests that need a directive re-set via `.env("RUST_LOG", …)` after strip.
+    "RUST_LOG",
 ];
 
 /// `cargo_bin("ai-brains")` with ambient denylist stripped.

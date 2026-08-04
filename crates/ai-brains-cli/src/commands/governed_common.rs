@@ -73,7 +73,7 @@ pub fn exit_code_for_api_error(err: &ApiError) -> i32 {
         // Evaluate trust gates failed (harness worked; product blocked).
         "HARD_GATE_FAILED" => EXIT_HARD_GATE_FAILED,
         // Optional feature not in this binary (T198/T200).
-        "FEATURE_UNAVAILABLE" => EXIT_USAGE,
+        code if code == FEATURE_UNAVAILABLE => exit_code_feature_unavailable(),
         _ => EXIT_INTERNAL,
     }
 }

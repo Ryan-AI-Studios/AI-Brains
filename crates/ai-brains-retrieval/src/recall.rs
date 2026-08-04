@@ -256,53 +256,52 @@ pub fn recall_full(
     // Graph-based neighbor expansion: for each current hit, fetch 1-hop
     // neighbors and add unseen ones with a boosted score.
     #[cfg(feature = "graph")]
-    if options.graph_hop_depth >= 1 {
-        if let Some(searcher) = graph {
-            let mut graph_hits: Vec<RecallHit> = Vec::new();
-            // Snapshot existing hits to iterate without borrow issues.
-            let existing: Vec<(String, Option<f64>)> = blended
-                .iter()
-                .map(|h| (h.memory_id.clone(), h.score))
-                .collect();
+    if options.graph_hop_depth >= 1
+        && let Some(searcher) = graph
+    {
+        let mut graph_hits: Vec<RecallHit> = Vec::new();
+        // Snapshot existing hits to iterate without borrow issues.
+        let existing: Vec<(String, Option<f64>)> = blended
+            .iter()
+            .map(|h| (h.memory_id.clone(), h.score))
+            .collect();
 
-            for (parent_id, parent_score) in existing {
-                let neighbors = match searcher.get_neighbors(&parent_id) {
-                    Ok(n) => n,
-                    Err(e) => {
-                        eprintln!("Graph neighbor lookup failed for {}: {}", parent_id, e);
-                        continue;
-                    }
-                };
-                for neighbor in neighbors {
-                    if !seen_ids.contains(&neighbor.external_id) {
-                        // Fetch content from memory_projection by external_id.
-                        let content_opt: Option<String> = {
-                            let db = conn.lock().ok();
-                            db.and_then(|c| {
-                                c.query_row(
-                                    "SELECT content FROM memory_projection WHERE memory_id = ?1",
-                                    rusqlite::params![neighbor.external_id],
-                                    |row| row.get::<_, String>(0),
-                                )
-                                .ok()
-                            })
-                        };
-                        if let Some(content) = content_opt {
-                            let boost_score =
-                                Some(parent_score.unwrap_or(0.0) + options.graph_boost);
-                            seen_ids.insert(neighbor.external_id.clone());
-                            graph_hits.push(RecallHit::graph(
-                                neighbor.external_id,
-                                content,
-                                boost_score,
-                                None,
-                            ));
-                        }
+        for (parent_id, parent_score) in existing {
+            let neighbors = match searcher.get_neighbors(&parent_id) {
+                Ok(n) => n,
+                Err(e) => {
+                    eprintln!("Graph neighbor lookup failed for {}: {}", parent_id, e);
+                    continue;
+                }
+            };
+            for neighbor in neighbors {
+                if !seen_ids.contains(&neighbor.external_id) {
+                    // Fetch content from memory_projection by external_id.
+                    let content_opt: Option<String> = {
+                        let db = conn.lock().ok();
+                        db.and_then(|c| {
+                            c.query_row(
+                                "SELECT content FROM memory_projection WHERE memory_id = ?1",
+                                rusqlite::params![neighbor.external_id],
+                                |row| row.get::<_, String>(0),
+                            )
+                            .ok()
+                        })
+                    };
+                    if let Some(content) = content_opt {
+                        let boost_score = Some(parent_score.unwrap_or(0.0) + options.graph_boost);
+                        seen_ids.insert(neighbor.external_id.clone());
+                        graph_hits.push(RecallHit::graph(
+                            neighbor.external_id,
+                            content,
+                            boost_score,
+                            None,
+                        ));
                     }
                 }
             }
-            blended.extend(graph_hits);
         }
+        blended.extend(graph_hits);
     }
 
     // Re-sort by score descending (None scores go last), then truncate.

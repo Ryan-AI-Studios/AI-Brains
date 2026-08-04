@@ -117,7 +117,7 @@ impl CozoProxyBackend {
 
         let available = dir_exists && cli_available;
 
-        tracing::info!(
+        tracing::debug!(
             ledgerful_dir=%ledgerful_dir
                 .as_ref()
                 .map(|p| p.display().to_string())
