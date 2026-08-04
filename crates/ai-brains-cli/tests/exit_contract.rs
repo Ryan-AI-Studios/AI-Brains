@@ -1,0 +1,369 @@
+//! T201 — CLI exit-code + envelope contract hermetic locks (F18 / AC2–AC5 / AC3b / AC8 / AC11).
+#![allow(clippy::disallowed_methods)]
+#![allow(non_snake_case)]
+
+mod common;
+
+use serde_json::Value;
+use tempfile::tempdir;
+
+const SAMPLE_SCOPE: &str = "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+fn init_vault(vault_path: &std::path::Path) {
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault_path)
+        .arg("init")
+        .assert()
+        .success();
+}
+
+// ---------------------------------------------------------------------------
+// (1) / AC2 — policy show missing --scope → exit 2
+// ---------------------------------------------------------------------------
+
+#[test]
+fn policy_show__missing_scope__exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("show")
+        .output()
+        .expect("policy show missing scope");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "missing --scope must exit 2 (clap USAGE); stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// (2) / AC3 — review list missing --scope → exit 2
+// ---------------------------------------------------------------------------
+
+#[test]
+fn review_list__missing_scope__exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("review")
+        .arg("list")
+        .output()
+        .expect("review list missing scope");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "missing --scope must exit 2 (clap USAGE); stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC3b — erasure request missing --scope → exit 2
+// ---------------------------------------------------------------------------
+
+#[test]
+fn erasure_request__missing_scope__exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("erasure")
+        .arg("request")
+        .arg("--id")
+        .arg("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        .output()
+        .expect("erasure request missing scope");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "missing --scope must exit 2 (clap USAGE); stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// (3) / AC4 — POLICY_DENIED exit 3 + details.hint non-empty
+// ---------------------------------------------------------------------------
+
+#[test]
+fn policy_check__deny__exit_3_details_hint() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--capability")
+        .arg("ProposeConclusion")
+        .arg("--scope")
+        .arg(SAMPLE_SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy check deny");
+
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "deny must exit 3; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("must emit ApiError JSON on stdout; got: {stdout} ({e})"));
+    assert_eq!(
+        v.get("code").and_then(|c| c.as_str()),
+        Some("POLICY_DENIED"),
+        "deny envelope code; got {v}"
+    );
+    let hint = v
+        .pointer("/details/hint")
+        .and_then(|h| h.as_str())
+        .unwrap_or("");
+    assert!(
+        !hint.is_empty(),
+        "details.hint must be non-empty string; got {v}"
+    );
+    assert!(
+        hint.contains("policy show") || hint.contains("grant"),
+        "hint should remediate grants; got {hint}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// (4a) / AC8 — graph feature-off exit 2 + FEATURE_UNAVAILABLE
+// ---------------------------------------------------------------------------
+
+#[cfg(not(feature = "graph"))]
+#[test]
+fn graph_update__feature_off__exit_2_feature_unavailable() {
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("graph")
+        .arg("update")
+        .output()
+        .expect("graph update stub");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "graph feature-off must exit 2; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("FEATURE_UNAVAILABLE"),
+        "must prefix FEATURE_UNAVAILABLE; got: {stdout}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// (4b) — vault key missing → exit 1 + VAULT_KEY_* family
+// ---------------------------------------------------------------------------
+
+#[test]
+fn recall__missing_key__exit_1_vault_key_family() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    // T199 helper: ambient strip + no key inject + --no-project-context (dotenv hygiene).
+    let out = common::hermetic_bin_no_key()
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("recall")
+        .arg("anything")
+        .output()
+        .expect("recall missing key");
+
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "vault key missing must exit 1; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("VAULT_KEY_MISSING")
+            || stderr.contains("VAULT_KEY_")
+            || stderr.contains("Vault key missing")
+            || stderr.contains("VAULT_LOCKED"),
+        "expected VAULT_KEY_* / locked family; got {stderr}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// (5) — success exit 0 sample (policy show empty grants)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn policy_show__with_scope_empty_vault__exit_0() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("show")
+        .arg("--scope")
+        .arg(SAMPLE_SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy show with scope");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "policy show with scope on empty vault must exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("must emit grants JSON; got: {stdout} ({e})"));
+    assert!(
+        v.get("grants")
+            .and_then(|g| g.as_array())
+            .map(|a| a.is_empty())
+            .unwrap_or(false),
+        "fresh vault grants should be []; got {v}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// (6) — INVALID_PAYLOAD exit 6 (unknown capability)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn policy_check__unknown_capability__exit_6_invalid_payload() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--capability")
+        .arg("NotARealCapability")
+        .arg("--scope")
+        .arg(SAMPLE_SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy check unknown capability");
+
+    assert_eq!(
+        out.status.code(),
+        Some(6),
+        "unknown capability must exit 6; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("INVALID_PAYLOAD"),
+        "expected INVALID_PAYLOAD envelope; got: {stdout}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC11 — clap help shows --scope required on flipped commands
+// ---------------------------------------------------------------------------
+
+/// Required clap long options appear in the Usage line as `--scope <SCOPE>` without
+/// surrounding `[]`. Optional ones appear as `[--scope <SCOPE>]`.
+fn assert_help_scope_required(stdout: &str, cmd: &str) {
+    let usage_line = stdout
+        .lines()
+        .find(|l| l.trim_start().starts_with("Usage:"))
+        .unwrap_or("");
+    assert!(
+        !usage_line.is_empty(),
+        "{cmd} help must include Usage line; got: {stdout}"
+    );
+    assert!(
+        usage_line.contains("--scope")
+            && !usage_line.contains("[--scope")
+            && !usage_line.contains("[--scope <SCOPE>]"),
+        "{cmd} Usage must require --scope (not optional [--scope]); usage={usage_line}"
+    );
+    assert!(
+        stdout.contains("--scope <SCOPE>") || stdout.contains("--scope <scope>"),
+        "{cmd} help must document --scope <SCOPE>; got: {stdout}"
+    );
+}
+
+#[test]
+fn policy_show__help__scope_required() {
+    let out = common::hermetic_bin()
+        .arg("policy")
+        .arg("show")
+        .arg("--help")
+        .output()
+        .expect("policy show --help");
+
+    assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_help_scope_required(&stdout, "policy show");
+}
+
+#[test]
+fn review_list__help__scope_required() {
+    let out = common::hermetic_bin()
+        .arg("review")
+        .arg("list")
+        .arg("--help")
+        .output()
+        .expect("review list --help");
+
+    assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_help_scope_required(&stdout, "review list");
+}
+
+#[test]
+fn erasure_request__help__scope_required() {
+    let out = common::hermetic_bin()
+        .arg("erasure")
+        .arg("request")
+        .arg("--help")
+        .output()
+        .expect("erasure request --help");
+
+    assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_help_scope_required(&stdout, "erasure request");
+}

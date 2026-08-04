@@ -66,6 +66,10 @@ Normative project rules: **[AGENTS.md](AGENTS.md)** (and `Claude.md` pointer). H
 - **No repo pollution** — default storage under user profile (`~/.ai-brains` / `$env:USERPROFILE\.ai-brains`), not project-local files unless the user opts in.
 - **TDD** — failing tests before implementation for behavioral changes where required by track discipline.
 
+### CLI exit codes
+
+Normative process exit codes **0–7**, dual error envelopes (governed Json on stdout vs Human/generic on stderr), doctor/status/vault footnotes: **[Docs/CLI-EXIT-CODES.md](Docs/CLI-EXIT-CODES.md)**.
+
 ## Conductor + ledgerful workflow
 
 Implementation follows **track-by-track** discipline under `conductor/` (see `conductor/conductor.md`).

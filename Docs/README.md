@@ -40,7 +40,7 @@ For a **slim** graph-off binary: `cargo install --path crates/ai-brains-cli --lo
 |------|------|----------------|
 | **Tutorial / first success** | Learn by doing | Root [README.md](../README.md) quick start · [INSTALL.md](INSTALL.md) first vault |
 | **How-to** | Goal-oriented steps | [INSTALL.md](INSTALL.md) · [WORKFLOWS.md](WORKFLOWS.md) · [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) |
-| **Reference** | Accurate lookup | [OPERATIONS.md](OPERATIONS.md) · [CAPABILITIES.md](CAPABILITIES.md) · CLI `--help` · [PROTOCOL-COMPAT.md](PROTOCOL-COMPAT.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [ci-tooling.md](ci-tooling.md) |
+| **Reference** | Accurate lookup | [OPERATIONS.md](OPERATIONS.md) · [CAPABILITIES.md](CAPABILITIES.md) · [CLI-EXIT-CODES.md](CLI-EXIT-CODES.md) · CLI `--help` · [PROTOCOL-COMPAT.md](PROTOCOL-COMPAT.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [ci-tooling.md](ci-tooling.md) |
 | **Explanation** | Why it is this way | [ARCHITECTURE.md](ARCHITECTURE.md) · [PRD.md](PRD.md) · [MEMORY-CONTROL-PLANE-VISION.md](MEMORY-CONTROL-PLANE-VISION.md) · [DECISIONS/](DECISIONS/) · [Deviations.md](Deviations.md) |
 
 ---

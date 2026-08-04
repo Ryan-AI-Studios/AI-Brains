@@ -394,10 +394,15 @@ fn cli_policy_check__no_grant__exit_code_3() {
         v.get("allowed").is_none(),
         "deny must not also emit CheckResult; got {v}"
     );
-    let open_braces = stdout.matches('{').count();
-    // Pretty ApiError is one object (may have nested objects only if present; ApiError is flat).
+    // T201 F6: structured remediation hint (nested details object is expected).
+    let hint = v
+        .pointer("/details/hint")
+        .and_then(|h| h.as_str())
+        .unwrap_or("");
     assert!(
-        open_braces == 1,
-        "expected single top-level JSON object on deny; braces={open_braces} stdout={stdout}"
+        !hint.is_empty(),
+        "POLICY_DENIED must carry non-empty details.hint; got {v}"
     );
+    // Single top-level document only (from_str already rejects trailing docs).
+    assert!(v.is_object(), "deny envelope must be one object; got {v}");
 }
