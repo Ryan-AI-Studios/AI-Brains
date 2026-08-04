@@ -20,9 +20,10 @@
 #![allow(clippy::disallowed_methods, non_snake_case)]
 
 use ai_brains_contracts::briefings::{
-    BriefingScopeDto, HandlePreviewDto, InspectEvidenceRequest, PersonalBriefingRequest,
-    PersonalBriefingResponse, PersonalContinuityBriefingPacket, ProgressiveQueryResponse,
-    ProjectBriefingPacket, ProjectBriefingRequest, ProjectBriefingResponse, QueryKnowledgeRequest,
+    BriefingScopeDto, EvidenceListResponse, HandlePreviewDto, InspectEvidenceRequest,
+    ListEvidenceRequest, PersonalBriefingRequest, PersonalBriefingResponse,
+    PersonalContinuityBriefingPacket, ProgressiveQueryResponse, ProjectBriefingPacket,
+    ProjectBriefingRequest, ProjectBriefingResponse, QueryKnowledgeRequest,
 };
 use ai_brains_contracts::erasure::{
     ContentEnvelopeWipedResponse, ErasureAcceptedResponse, RequestErasureRequest,
@@ -40,7 +41,9 @@ use ai_brains_contracts::review::{
 use ai_brains_contracts::scopes::{
     API_VERSION, ResolveScopeRequest, ScopeEvidenceDto, ScopeResolvedResponse,
 };
-use ai_brains_contracts::sources::{InspectSourceRequest, SourceDto};
+use ai_brains_contracts::sources::{
+    InspectSourceRequest, ListSourcesRequest, SourceDto, SourceListResponse,
+};
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse, UNSUPPORTED_OPERATION};
 
 fn assert_roundtrip_request(req: DaemonRequest) {
@@ -219,6 +222,39 @@ fn daemon_request__inspect_source__roundtrip() {
         principal_id: None,
         scope: None,
     }));
+}
+
+#[test]
+fn daemon_request__list_sources__roundtrip() {
+    assert_roundtrip_request(DaemonRequest::ListSources(ListSourcesRequest {
+        api_version: API_VERSION.to_string(),
+        principal_id: None,
+        scope: Some("Repository:00000000-0000-0000-0000-0000000000a1".into()),
+        limit: Some(50),
+    }));
+}
+
+#[test]
+fn daemon_request__list_evidence__roundtrip() {
+    assert_roundtrip_request(DaemonRequest::ListEvidence(ListEvidenceRequest {
+        api_version: API_VERSION.to_string(),
+        principal_id: None,
+        scope: Some("Repository:00000000-0000-0000-0000-0000000000a1".into()),
+        query: Some("keyword".into()),
+        limit: Some(25),
+    }));
+}
+
+#[test]
+fn daemon_response__source_list__e1_empty() {
+    assert_roundtrip_response(DaemonResponse::SourceList(SourceListResponse::new(vec![])));
+}
+
+#[test]
+fn daemon_response__evidence_list__e1_empty() {
+    assert_roundtrip_response(DaemonResponse::EvidenceList(EvidenceListResponse::new(
+        vec![],
+    )));
 }
 
 #[test]

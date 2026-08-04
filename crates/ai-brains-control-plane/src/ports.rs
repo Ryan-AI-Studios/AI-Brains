@@ -10,6 +10,20 @@ use time::OffsetDateTime;
 
 use crate::errors::Result;
 
+/// Default page size for governed discovery lists (source / evidence).
+pub const DEFAULT_LIST_LIMIT: usize = 50;
+/// Hard upper bound for governed discovery list `--limit` / request limit.
+pub const MAX_LIST_LIMIT: usize = 200;
+
+/// Clamp an optional list limit to `[1, MAX_LIST_LIMIT]`, defaulting to
+/// [`DEFAULT_LIST_LIMIT`] when unset or zero.
+pub fn clamp_list_limit(raw: Option<usize>) -> usize {
+    match raw {
+        None | Some(0) => DEFAULT_LIST_LIMIT,
+        Some(n) => n.min(MAX_LIST_LIMIT),
+    }
+}
+
 /// Connector trust posture for policy evaluation (stub for T151 Phase A).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectorTrust {
@@ -133,6 +147,16 @@ pub struct SourceRow {
     pub scope: String,
 }
 
+/// Row from `evidence_projection` for scoped discovery lists (T203).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EvidenceListRow {
+    pub id: EvidenceId,
+    pub summary: String,
+    pub status: String,
+    pub source_id: SourceId,
+    pub recorded_at: OffsetDateTime,
+}
+
 /// Row from `claim_conflict_projection`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaimConflictRow {
@@ -175,6 +199,24 @@ pub trait GovernedQueryStore {
 
     /// Load a projected source row by id (None if not registered).
     fn get_source(&self, source_id: SourceId) -> Result<Option<SourceRow>>;
+
+    /// Active sources in `scope_key`, newest first (deterministic id ASC tie-break).
+    ///
+    /// Callers that need pagination should pass `limit + 1` and set
+    /// `more_available` when the result exceeds the page size.
+    fn list_sources_for_scope(&self, scope_key: &str, limit: usize) -> Result<Vec<SourceRow>>;
+
+    /// Active evidence rows owned by sources in `scope_key`.
+    ///
+    /// When `query` is `Some` and sanitizes to a non-empty FTS expression, uses
+    /// `evidence_fts MATCH`. Empty/None query → plain projection list ordered by
+    /// `recorded_at DESC, evidence_id ASC`. Pass `limit + 1` for `more_available`.
+    fn list_evidence_for_scope(
+        &self,
+        scope_key: &str,
+        query: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<EvidenceListRow>>;
 
     /// Latest recorded version id + fingerprint for a source.
     fn latest_source_version(

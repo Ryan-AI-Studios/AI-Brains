@@ -15,8 +15,9 @@ use uuid::Uuid;
 
 use crate::errors::{ControlPlaneError, Result};
 use crate::ports::{
-    ClaimConflictRow, Clock, ConclusionRow, DecisionRow, EventWriter, Fingerprinter,
-    GovernedQueryStore, PolicyContext, PolicyEvaluator, ReviewItemRow, SourceRow, StaleFact,
+    ClaimConflictRow, Clock, ConclusionRow, DecisionRow, EventWriter, EvidenceListRow,
+    Fingerprinter, GovernedQueryStore, PolicyContext, PolicyEvaluator, ReviewItemRow, SourceRow,
+    StaleFact,
 };
 
 /// [`EventWriter`] over a real [`SqliteEventStore`] (transactional multi-append).
@@ -383,6 +384,130 @@ impl GovernedQueryStore for StoreGovernedQuery {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(ControlPlaneError::Query(e.to_string())),
         }
+    }
+
+    fn list_sources_for_scope(&self, scope_key: &str, limit: usize) -> Result<Vec<SourceRow>> {
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT source_id, kind, display_name, locator, last_observed_at, scope
+                 FROM source_projection
+                 WHERE scope = ? AND status = 'Active'
+                 ORDER BY last_observed_at DESC, source_id ASC
+                 LIMIT ?",
+            )
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let limit_i = i64::try_from(limit).unwrap_or(i64::MAX);
+        let rows = stmt
+            .query_map(rusqlite::params![scope_key, limit_i], |row| {
+                let id_s: String = row.get(0)?;
+                let last_observed_s: Option<String> = row.get(4)?;
+                let last_observed_at = last_observed_s.and_then(|s| {
+                    OffsetDateTime::parse(&s, &time::format_description::well_known::Rfc3339).ok()
+                });
+                Ok(SourceRow {
+                    id: SourceId::from_uuid(
+                        Uuid::parse_str(&id_s)
+                            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
+                    ),
+                    kind: row.get(1)?,
+                    display_name: row.get(2)?,
+                    locator: row.get(3)?,
+                    last_observed_at,
+                    scope: row.get(5)?,
+                })
+            })
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row.map_err(|e| ControlPlaneError::Query(e.to_string()))?);
+        }
+        Ok(out)
+    }
+
+    fn list_evidence_for_scope(
+        &self,
+        scope_key: &str,
+        query: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<EvidenceListRow>> {
+        let sanitized = query
+            .map(ai_brains_core::sanitize_fts_query)
+            .filter(|s| !s.is_empty());
+        let conn = self
+            .store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        let limit_i = i64::try_from(limit).unwrap_or(i64::MAX);
+
+        let map_row = |row: &rusqlite::Row<'_>| -> rusqlite::Result<EvidenceListRow> {
+            let id_s: String = row.get(0)?;
+            let source_s: String = row.get(3)?;
+            let recorded_s: String = row.get(4)?;
+            let recorded_at =
+                OffsetDateTime::parse(&recorded_s, &time::format_description::well_known::Rfc3339)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+            Ok(EvidenceListRow {
+                id: EvidenceId::from_uuid(
+                    Uuid::parse_str(&id_s)
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
+                ),
+                summary: row.get(1)?,
+                status: row.get(2)?,
+                source_id: SourceId::from_uuid(
+                    Uuid::parse_str(&source_s)
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?,
+                ),
+                recorded_at,
+            })
+        };
+
+        let mut out = Vec::new();
+        if let Some(fts_q) = sanitized {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT e.evidence_id, e.summary, e.status, e.source_id, e.recorded_at
+                     FROM evidence_fts f
+                     JOIN evidence_projection e ON e.rowid = f.rowid
+                     JOIN source_projection s ON s.source_id = e.source_id
+                     WHERE f.evidence_fts MATCH ?
+                       AND s.scope = ?
+                       AND e.status = 'Active'
+                     ORDER BY e.recorded_at DESC, e.evidence_id ASC
+                     LIMIT ?",
+                )
+                .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            let rows = stmt
+                .query_map(rusqlite::params![fts_q, scope_key, limit_i], map_row)
+                .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            for row in rows {
+                out.push(row.map_err(|e| ControlPlaneError::Query(e.to_string()))?);
+            }
+        } else {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT e.evidence_id, e.summary, e.status, e.source_id, e.recorded_at
+                     FROM evidence_projection e
+                     JOIN source_projection s ON s.source_id = e.source_id
+                     WHERE s.scope = ?
+                       AND e.status = 'Active'
+                     ORDER BY e.recorded_at DESC, e.evidence_id ASC
+                     LIMIT ?",
+                )
+                .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            let rows = stmt
+                .query_map(rusqlite::params![scope_key, limit_i], map_row)
+                .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+            for row in rows {
+                out.push(row.map_err(|e| ControlPlaneError::Query(e.to_string()))?);
+            }
+        }
+        Ok(out)
     }
 
     fn latest_source_version(

@@ -51,9 +51,10 @@
 //! `Some(true)` proceeds.
 
 use ai_brains_contracts::briefings::{
-    InspectEvidenceRequest, PersonalBriefingRequest as WirePersonalBriefing,
-    PersonalBriefingResponse, ProjectBriefingRequest as WireProjectBriefing,
-    ProjectBriefingResponse, QueryKnowledgeRequest,
+    EvidenceListItemDto, EvidenceListResponse, InspectEvidenceRequest, ListEvidenceRequest,
+    PersonalBriefingRequest as WirePersonalBriefing, PersonalBriefingResponse,
+    ProjectBriefingRequest as WireProjectBriefing, ProjectBriefingResponse, QueryKnowledgeRequest,
+    truncate_evidence_list_summary,
 };
 use ai_brains_contracts::erasure::{
     ERASURE_TICKET_NO_WIPE_WARNING, ErasureAcceptedResponse, RequestErasureRequest,
@@ -64,13 +65,14 @@ use ai_brains_contracts::knowledge::{
     ProposeConclusionRequest as WireProposeConclusion,
     ProposeDecisionRequest as WireProposeDecision,
 };
+use ai_brains_contracts::offset_to_utc;
 use ai_brains_contracts::response::ApiError;
 use ai_brains_contracts::review::{
     ListReviewItemsRequest, ResolveReviewItemRequest, ReviewItemDto, ReviewQueueResponse,
     ReviewResolvedResponse,
 };
 use ai_brains_contracts::scopes::{ResolveScopeRequest, ScopeEvidenceDto, ScopeResolvedResponse};
-use ai_brains_contracts::sources::InspectSourceRequest;
+use ai_brains_contracts::sources::{InspectSourceRequest, ListSourcesRequest, SourceListResponse};
 use ai_brains_control_plane::{
     BudgetConfig, ControlPlaneError, EventWriter, ExpandHandleRequest, GovernedQueryStore,
     PersonalBriefingRequest as CpPersonalBriefing, PolicyContext, PolicyEvaluator,
@@ -78,10 +80,10 @@ use ai_brains_control_plane::{
     ProposeConclusionRequest as CpProposeConclusion, ProposeDecisionRequest as CpProposeDecision,
     ResolvedScope, ScopeConfidence, ScopeResolveInput, StoreContentEnvelopeWipe, StoreEventWriter,
     StorePorts, SystemClock, WipeContentEnvelopeCommand, build_personal_briefing,
-    build_project_briefing, expand_handle, is_authoritative, list_open_review_items_for_scope,
-    make_principal, parse_content_key_id, parse_scope_key, progressive_query, propose_conclusion,
-    propose_decision, resolve_review_item, resolve_scope, scope_identity_key, source_row_to_dto,
-    tombstone_id_from_command, wipe_content_envelope,
+    build_project_briefing, clamp_list_limit, expand_handle, is_authoritative,
+    list_open_review_items_for_scope, make_principal, parse_content_key_id, parse_scope_key,
+    progressive_query, propose_conclusion, propose_decision, resolve_review_item, resolve_scope,
+    scope_identity_key, source_row_to_dto, tombstone_id_from_command, wipe_content_envelope,
 };
 use ai_brains_core::ids::{
     ConclusionId, DecisionId, EvidenceId, PrincipalId, ProjectId, ReviewItemId, SourceId, UserId,
@@ -467,6 +469,115 @@ impl GovernedServices {
             })
             .collect();
         Ok(DaemonResponse::ReviewList(ReviewQueueResponse::new(dtos)))
+    }
+
+    pub fn list_sources(&self, req: ListSourcesRequest) -> Result<DaemonResponse, BoxError> {
+        let ports = self.ports();
+        let principal = resolve_principal(req.principal_id.as_deref());
+        let scope = match req.scope.as_deref() {
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
+            None => {
+                return Ok(DaemonResponse::Error(ApiError::new(
+                    "INVALID_PAYLOAD",
+                    "list_sources requires scope",
+                )));
+            }
+        };
+        let policy = ports.production_policy();
+        let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+        match policy.allow(
+            principal.id,
+            GrantCapability::ReadEvidence,
+            &scope,
+            &policy_ctx,
+        ) {
+            Ok(true) => {}
+            Ok(false) => {
+                // T203 F11: new list paths attach details.hint (parity with CLI local deny).
+                return Ok(policy_denied_with_hint(
+                    "ReadEvidence denied for list_sources",
+                ));
+            }
+            Err(e) => return Ok(map_control_plane_error(e)),
+        }
+        let page = clamp_list_limit(req.limit);
+        let scope_key = scope_identity_key(&scope);
+        let mut rows = match ports.query.list_sources_for_scope(&scope_key, page + 1) {
+            Ok(rows) => rows,
+            Err(e) => return Ok(map_control_plane_error(e)),
+        };
+        let more_available = rows.len() > page;
+        if more_available {
+            rows.truncate(page);
+        }
+        let items = rows.iter().map(source_row_to_dto).collect();
+        Ok(DaemonResponse::SourceList(
+            SourceListResponse::new(items).with_more(more_available),
+        ))
+    }
+
+    pub fn list_evidence(&self, req: ListEvidenceRequest) -> Result<DaemonResponse, BoxError> {
+        let ports = self.ports();
+        let principal = resolve_principal(req.principal_id.as_deref());
+        let scope = match req.scope.as_deref() {
+            Some(s) => match parse_scope_key(s) {
+                Ok(sc) => sc,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            },
+            None => {
+                return Ok(DaemonResponse::Error(ApiError::new(
+                    "INVALID_PAYLOAD",
+                    "list_evidence requires scope",
+                )));
+            }
+        };
+        let policy = ports.production_policy();
+        let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+        match policy.allow(
+            principal.id,
+            GrantCapability::ReadEvidence,
+            &scope,
+            &policy_ctx,
+        ) {
+            Ok(true) => {}
+            Ok(false) => {
+                // T203 F11: new list paths attach details.hint (parity with CLI local deny).
+                return Ok(policy_denied_with_hint(
+                    "ReadEvidence denied for list_evidence",
+                ));
+            }
+            Err(e) => return Ok(map_control_plane_error(e)),
+        }
+        let page = clamp_list_limit(req.limit);
+        let scope_key = scope_identity_key(&scope);
+        let mut rows =
+            match ports
+                .query
+                .list_evidence_for_scope(&scope_key, req.query.as_deref(), page + 1)
+            {
+                Ok(rows) => rows,
+                Err(e) => return Ok(map_control_plane_error(e)),
+            };
+        let more_available = rows.len() > page;
+        if more_available {
+            rows.truncate(page);
+        }
+        let items: Vec<EvidenceListItemDto> = rows
+            .into_iter()
+            .map(|r| EvidenceListItemDto {
+                id: r.id.to_string(),
+                summary: truncate_evidence_list_summary(&r.summary),
+                status: r.status,
+                source_id: r.source_id.to_string(),
+                recorded_at: Some(offset_to_utc(r.recorded_at)),
+            })
+            .collect();
+        Ok(DaemonResponse::EvidenceList(
+            EvidenceListResponse::new(items).with_more(more_available),
+        ))
     }
 }
 
@@ -871,6 +982,24 @@ pub fn map_control_plane_error(err: ControlPlaneError) -> DaemonResponse {
     DaemonResponse::Error(ApiError::new(code, message))
 }
 
+/// Stable remediation template for POLICY_DENIED `details.hint` (T201 F6 / T203 F11).
+///
+/// Kept in-daemon (not a CLI dep) with the same wording as
+/// `ai_brains_cli::governed_common::POLICY_DENIED_HINT`.
+const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists for this principal on this scope; try `ai-brains policy show --scope …`";
+
+/// Build POLICY_DENIED with non-empty `details.hint` for new discovery list paths.
+fn policy_denied_with_hint(message: impl Into<String>) -> DaemonResponse {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "hint".to_string(),
+        serde_json::Value::String(POLICY_DENIED_HINT.to_string()),
+    );
+    DaemonResponse::Error(
+        ApiError::new("POLICY_DENIED", message).with_details(serde_json::Value::Object(map)),
+    )
+}
+
 /// Store/clock failures that must keep the command_id spool for restart replay.
 ///
 /// Terminal domain outcomes (`PolicyDenied`, `NotFound`, `InvalidPayload`,
@@ -1088,6 +1217,28 @@ mod tests {
             DaemonResponse::Error(err) => {
                 assert_eq!(err.code, "POLICY_DENIED");
                 assert!(err.message.contains("ProposeConclusion"));
+            }
+            other => panic!("expected Error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn policy_denied_with_hint__includes_details_hint() {
+        let resp = policy_denied_with_hint("ReadEvidence denied for list_sources");
+        match resp {
+            DaemonResponse::Error(err) => {
+                assert_eq!(err.code, "POLICY_DENIED");
+                assert!(err.message.contains("list_sources"));
+                let hint = err
+                    .details
+                    .as_ref()
+                    .and_then(|d| d.get("hint"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                assert!(
+                    !hint.is_empty() && hint.contains("policy show"),
+                    "expected non-empty details.hint, got {hint:?}"
+                );
             }
             other => panic!("expected Error, got {other:?}"),
         }

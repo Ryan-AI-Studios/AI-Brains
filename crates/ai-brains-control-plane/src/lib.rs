@@ -86,9 +86,9 @@ pub use legacy_import::{
 };
 pub use policy::{DefaultPolicyEvaluator, GrantPrincipalStore, PolicyDecisionEntry, reduce_grants};
 pub use ports::{
-    ClaimConflictRow, Clock, ConclusionRow, ConnectorTrust, DecisionRow, EventWriter,
-    Fingerprinter, GovernedQueryStore, PolicyContext, PolicyEvaluator, ProcessingRoute,
-    ReviewItemRow, SourceRow, StaleFact,
+    ClaimConflictRow, Clock, ConclusionRow, ConnectorTrust, DEFAULT_LIST_LIMIT, DecisionRow,
+    EventWriter, EvidenceListRow, Fingerprinter, GovernedQueryStore, MAX_LIST_LIMIT, PolicyContext,
+    PolicyEvaluator, ProcessingRoute, ReviewItemRow, SourceRow, StaleFact, clamp_list_limit,
 };
 pub use query::{
     ExpandHandleRequest, GetQueryTraceRequest, ProgressiveQueryRequest, expand_handle,

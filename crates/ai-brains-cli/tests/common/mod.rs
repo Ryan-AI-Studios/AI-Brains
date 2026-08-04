@@ -69,6 +69,13 @@ pub const ZERO_SQLCIPHER_KEY: &str =
 /// T187/T197: sets explicit zero key + `AI_BRAINS_ALLOW_ZERO_KEY=1` so hermetic
 /// tests open under live SQLCipher without relying on silent zero defaults.
 /// Production refuses zero keys and missing keys (T197 F2).
+///
+/// **T203 soft-resolve (AC4/AC5):** always **strips** ambient `AI_BRAINS_PROJECT_ID`
+/// (denylist). AC4 tests must `.env("AI_BRAINS_PROJECT_ID", …)` after this returns
+/// so soft-resolve sees High/authoritative. AC5 must leave it unset and prefer
+/// `--no-project-context` so workspace `.env` cannot re-inject a project id.
+/// Note: `--no-project-context` alone does **not** clear a shell-exported
+/// `AI_BRAINS_PROJECT_ID` — only this strip (or an explicit `env_remove`) does.
 pub fn hermetic_bin() -> Command {
     let mut cmd = Command::cargo_bin("ai-brains").expect("ai-brains bin must be built for tests");
     strip_ambient(&mut cmd);

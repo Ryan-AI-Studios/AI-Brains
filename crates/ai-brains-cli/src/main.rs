@@ -410,16 +410,18 @@ enum Commands {
         #[command(subcommand)]
         command: ScopeCommands,
     },
-    /// Inspect evidence / handle previews (T160)
+    /// Evidence discovery and handle previews (T160 / T203)
     #[command(
-        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+        after_help = "Examples:\n  ai-brains evidence list --scope Repository:<uuid>\n  ai-brains evidence list --format json\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
     )]
     Evidence {
         #[command(subcommand)]
         command: EvidenceCommands,
     },
-    /// Inspect registered sources (T160)
-    #[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
+    /// Source registry discovery and inspect (T160 / T203)
+    #[command(
+        after_help = "Examples:\n  ai-brains source list --scope Repository:<uuid>\n  ai-brains source list --format json\n  ai-brains source show <id> --scope Repository:<uuid>"
+    )]
     Source {
         #[command(subcommand)]
         command: SourceCommands,
@@ -440,9 +442,9 @@ enum Commands {
         #[command(subcommand)]
         command: DecisionCommands,
     },
-    /// Review queue list / resolve (T160)
+    /// Review queue list / resolve (T160 / T203 soft-default scope)
     #[command(
-        after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+        after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review list --format json\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
     )]
     Review {
         #[command(subcommand)]
@@ -747,17 +749,67 @@ enum ScopeCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+    after_help = "Examples:\n  ai-brains evidence list --scope Repository:<uuid>\n  ai-brains evidence list --format json\n  ai-brains evidence search --query keyword --scope Repository:<uuid>\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
 )]
 enum EvidenceCommands {
+    /// List evidence for a scope (optional FTS --query)
+    #[command(
+        after_help = "Examples:\n  ai-brains evidence list --scope Repository:<uuid>\n  ai-brains evidence list --format json\n  ai-brains evidence list --query keyword --scope Repository:<uuid>"
+    )]
+    List {
+        /// Scope identity key; soft-filled from authoritative context when omitted
+        #[arg(long)]
+        scope: Option<String>,
+        /// Optional FTS query over evidence summary
+        #[arg(long)]
+        query: Option<String>,
+        /// Max items (default 50, max 200)
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
+    /// Search evidence (requires --query; same handler as list)
+    #[command(
+        after_help = "Examples:\n  ai-brains evidence search --query keyword --scope Repository:<uuid>\n  ai-brains evidence search --query keyword --format json"
+    )]
+    Search {
+        /// Scope identity key; soft-filled from authoritative context when omitted
+        #[arg(long)]
+        scope: Option<String>,
+        /// FTS query over evidence summary (required)
+        #[arg(long)]
+        query: String,
+        /// Max items (default 50, max 200)
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
     /// Show a bounded evidence / handle preview
     #[command(
-        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
+        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json\n  ai-brains evidence show <id> --format json"
     )]
     Show {
         /// Evidence or handle id
         id: String,
-        /// Scope identity key (required for policy), e.g. Repository:<uuid>
+        /// Scope identity key; soft-filled from authoritative context when omitted
         #[arg(long)]
         scope: Option<String>,
         /// Output format: json (default) | human | markdown
@@ -779,14 +831,40 @@ enum EvidenceCommands {
 }
 
 #[derive(Subcommand, Clone)]
-#[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
+#[command(
+    after_help = "Examples:\n  ai-brains source list --scope Repository:<uuid>\n  ai-brains source list --format json\n  ai-brains source show <id> --scope Repository:<uuid>"
+)]
 enum SourceCommands {
+    /// List registered sources for a scope
+    #[command(
+        after_help = "Examples:\n  ai-brains source list --scope Repository:<uuid>\n  ai-brains source list --format json"
+    )]
+    List {
+        /// Scope identity key; soft-filled from authoritative context when omitted
+        #[arg(long)]
+        scope: Option<String>,
+        /// Max items (default 50, max 200)
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long)]
+        local: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        require_daemon: bool,
+    },
     /// Show a registered source by id
-    #[command(after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>")]
+    #[command(
+        after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>\n  ai-brains source show <id> --format json"
+    )]
     Show {
         /// Source id
         id: String,
-        /// Scope identity key (required)
+        /// Scope identity key; soft-filled from authoritative context when omitted
         #[arg(long)]
         scope: Option<String>,
         #[arg(long, default_value = "json")]
@@ -879,15 +957,17 @@ enum DecisionCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
+    after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review list --format json\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
 )]
 enum ReviewCommands {
     /// List open review items (E1: items: [] when empty)
-    #[command(after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>")]
+    #[command(
+        after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review list --format json"
+    )]
     List {
-        /// Scope identity key (required)
+        /// Scope identity key; soft-filled from authoritative context when omitted
         #[arg(long)]
-        scope: String,
+        scope: Option<String>,
         /// Optional status filter (e.g. Open)
         #[arg(long)]
         status: Option<String>,
@@ -2209,6 +2289,56 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         Commands::Evidence { command } => match command {
+            EvidenceCommands::List {
+                scope,
+                query,
+                limit,
+                format,
+                principal_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::evidence::run_list(
+                    &ctx,
+                    commands::evidence::ListOptions {
+                        scope: scope.clone(),
+                        query: query.clone(),
+                        limit: *limit,
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
+            EvidenceCommands::Search {
+                scope,
+                query,
+                limit,
+                format,
+                principal_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::evidence::run_list(
+                    &ctx,
+                    commands::evidence::ListOptions {
+                        scope: scope.clone(),
+                        query: Some(query.clone()),
+                        limit: *limit,
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
             EvidenceCommands::Show {
                 id,
                 scope,
@@ -2236,6 +2366,29 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         Commands::Source { command } => match command {
+            SourceCommands::List {
+                scope,
+                limit,
+                format,
+                principal_id,
+                local,
+                daemon,
+                require_daemon,
+            } => {
+                commands::source::run_list(
+                    &ctx,
+                    commands::source::ListOptions {
+                        scope: scope.clone(),
+                        limit: *limit,
+                        format: format.clone(),
+                        principal_id: principal_id.clone(),
+                        local: *local,
+                        daemon: *daemon,
+                        require_daemon: *require_daemon,
+                    },
+                )
+                .await
+            }
             SourceCommands::Show {
                 id,
                 scope,

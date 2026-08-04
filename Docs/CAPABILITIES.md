@@ -48,11 +48,11 @@ AI final response: I did X
 
 Governed memory separates **what was observed** from **what we conclude** and **what we decide**:
 
-| Kind | Operator meaning | CLI (T160) |
-|------|------------------|------------|
-| **Evidence / source** | Observed material with fingerprints and origin | `evidence`, `source` |
+| Kind | Operator meaning | CLI (T160 / T203) |
+|------|------------------|-------------------|
+| **Evidence / source** | Observed material with fingerprints and origin | `evidence list\|search\|show`, `source list\|show` |
 | **Conclusion** | Derived claim that still needs review when required | `conclusion` |
-| **Decision** | Accepted commitment (often after review) | `decision`, `review` |
+| **Decision** | Accepted commitment (often after review) | `decision`, `review list\|resolve` |
 
 **Rules of thumb:** evidence ≠ conclusion; circular or unrooted promotion stays **Unknown** (not silently “Independent”). Corrections use **compensating events**, not silent rewrite of the log. See [ADR-0011](DECISIONS/ADR-0011-separate-evidence-conclusions-decisions.md) and [OPERATIONS.md](OPERATIONS.md) governed command surface.
 
@@ -190,6 +190,27 @@ ai-brains query progressive "why was graph backend replaced?" --project-id <uuid
 | **Denied packets** | `denied=true` always seeds `warnings[]` with `kind: "denied"`; markdown includes `> **Denied:** …` one-liner |
 | **Progressive / expand** | Require project id (`--project-id` or `AI_BRAINS_PROJECT_ID`); missing → exit **2** + copy-paste example on stderr |
 | **Trace** | No project-id gate; missing/unauthorized → `null` exit **0** |
+
+### Governed discovery lists (T203)
+```powershell
+ai-brains source list --scope Repository:<uuid> --format json
+ai-brains source list --format json   # soft-fill when AI_BRAINS_PROJECT_ID / context is authoritative
+ai-brains evidence list --scope Repository:<uuid>
+ai-brains evidence list --query keyword --scope Repository:<uuid>
+ai-brains evidence search --query keyword --scope Repository:<uuid>
+ai-brains review list --format json   # soft-default scope (authoritative) or fail_usage exit 2
+```
+
+| Feature | Detail |
+|---------|--------|
+| **Commands** | `source list`, `evidence list` (optional `--query` FTS), `evidence search` (requires `--query`) |
+| **Bounds** | Default limit **50**, hard clamp **200**; `more_available` via LIMIT+1 |
+| **Empty** | E1 `items: []` (never null); human `(none)`; exit **0** when policy allows |
+| **Policy** | `ReadEvidence` for source/evidence list; `ReadConclusions` for review list; deny → exit **3** + `details.hint` |
+| **Soft-resolve** | Omitted `--scope` fills only when `scope resolve` is authoritative; else **exit 2** `fail_usage` (never exit **6**) |
+| **Show** | `source show` / `evidence show` use the same soft-resolve helper |
+| **Status filter** | Default Active-only on source/evidence projections |
+| **Capture independence** | Projection reads only — no models/embeddings; no control-plane→retrieval dependency |
 
 ### Preflight (session-start briefing)
 ```powershell

@@ -2,8 +2,8 @@
 
 use crate::commands::governed_common::{
     self, OutputFormat, PathDecision, PathFlags, emit_human, emit_json, ensure_command_id,
-    expect_daemon_ok, fail_api, fail_cp, fail_path, policy_denied_hint_details, principal_id_wire,
-    resolve_principal,
+    expect_daemon_ok, fail_api, fail_cp, fail_path, fail_usage, policy_denied_hint_details,
+    principal_id_wire, resolve_principal, resolve_scope_key_for_cli,
 };
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
@@ -24,7 +24,7 @@ use ai_brains_store::SqliteEventStore;
 use std::str::FromStr;
 
 pub struct ListOptions {
-    pub scope: String,
+    pub scope: Option<String>,
     pub status: Option<String>,
     pub format: Option<String>,
     pub principal_id: Option<String>,
@@ -62,19 +62,28 @@ pub async fn run_list(
         Err(e) => return fail_path(format, e),
     };
 
+    let scope_key = {
+        let store = SqliteEventStore::new((*ctx.conn).clone());
+        let ports = StorePorts::from_store(store);
+        let identity = ports.identity_store();
+        match resolve_scope_key_for_cli(options.scope.as_deref(), &identity) {
+            Ok(k) => k,
+            Err(msg) => return fail_usage(msg),
+        }
+    };
+
     match path {
-        PathDecision::Daemon => run_list_daemon(&options, format).await,
-        PathDecision::Local { .. } => run_list_local(ctx, &options, format),
+        PathDecision::Daemon => run_list_daemon(&options, &scope_key, format).await,
+        PathDecision::Local { .. } => run_list_local(ctx, &options, &scope_key, format),
     }
 }
 
 fn run_list_local(
     ctx: &AppContext,
     options: &ListOptions,
+    scope_key: &str,
     format: OutputFormat,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // clap guarantees --scope (T201 F4).
-    let scope_key = options.scope.as_str();
     let scope = match parse_scope_key(scope_key) {
         Ok(s) => s,
         Err(e) => return fail_cp(format, e),
@@ -131,6 +140,7 @@ fn run_list_local(
 
 async fn run_list_daemon(
     options: &ListOptions,
+    scope_key: &str,
     format: OutputFormat,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let principal = resolve_principal(options.principal_id.as_deref());
@@ -138,8 +148,8 @@ async fn run_list_daemon(
     let req = DaemonRequest::ListReviewItems(ListReviewItemsRequest {
         api_version: ai_brains_contracts::review::API_VERSION.to_string(),
         principal_id: principal_id_wire(&principal),
-        // Wire DTO keeps Option for HTTP/IPC; CLI always sends scope after F4.
-        scope: Some(options.scope.clone()),
+        // Wire DTO keeps Option for HTTP/IPC; CLI always sends filled key after soft-resolve.
+        scope: Some(scope_key.to_string()),
         status: options.status.clone(),
     });
     let resp = match client.request(req).await {
