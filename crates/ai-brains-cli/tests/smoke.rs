@@ -830,9 +830,11 @@ fn backup_list__pre_t109_backup__no_warn_on_stderr() {
 
     assert!(output.status.success(), "backup list must exit 0");
     let stderr = String::from_utf8_lossy(&output.stderr);
+    // T209: PreT109 is debug-only; under RUST_LOG=warn there must be no WARN at all
+    // for a single openable meta-stripped residual (AC6).
     assert!(
-        !stderr.contains("WARN") || !stderr.contains("backup metadata"),
-        "pre-T109 backup must not emit metadata WARN; got: {stderr}"
+        !stderr.to_ascii_uppercase().contains("WARN"),
+        "pre-T109 backup must not emit any WARN; got: {stderr}"
     );
 }
 
@@ -866,13 +868,12 @@ fn backup_list__corrupted_new_backup__stays_warn() {
     assert!(output.status.success(), "backup list must exit 0");
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let combined = format!("{stdout}{stderr}");
+    let combined = format!("{stdout}{stderr}").to_lowercase();
     assert!(
-        combined
-            .to_lowercase()
-            .contains("could not read backup metadata")
-            || combined.to_lowercase().contains("file is not a database"),
-        "corrupted backup must emit warning; got: {combined}"
+        combined.contains("corrupt or unreadable")
+            || combined.contains("could not read backup metadata")
+            || combined.contains("file is not a database"),
+        "corrupted backup must emit Corrupt WARN; got: {combined}"
     );
 }
 

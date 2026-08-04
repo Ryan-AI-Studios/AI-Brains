@@ -14,7 +14,9 @@ pub mod memory_synthesis;
 mod recipe_promotion;
 mod retention;
 
-pub use backup::{BackupService, has_core_tables, parse_duration};
+pub use backup::{
+    BackupInfo, BackupReadClass, BackupService, ListMode, has_core_tables, parse_duration,
+};
 use conflict_detection::ConflictDetectionService;
 pub use embeddings::EmbeddingService;
 pub use feedback_loop::FeedbackLoopService;
