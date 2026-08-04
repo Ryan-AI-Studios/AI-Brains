@@ -294,6 +294,15 @@ cargo install --path crates/ai-brains-cli --locked --features graph
 
 **Live Graph Hook:** incremental projection on each event append (graph-on builds only).
 
+**Cozo / bridge lifecycle noise (T208):** on graph-on builds, Cozo proxy init is **quiet by default** (debug-level + default EnvFilter `ai_brains_graph=warn`). Normal `recall` / `sync query` / pin-style paths must not print `CozoProxyBackend initialized` under an unset `RUST_LOG`. Escape hatch for operators debugging graph/Ledgerful bridge availability:
+
+```powershell
+$env:RUST_LOG = 'ai_brains_graph=debug'   # only — =info will not show init after demote
+ai-brains recall "q" --format pretty --limit 1
+```
+
+`--log-format off` still silences all tracing output (including debug).
+
 ---
 
 ## 10. Ledgerful integration

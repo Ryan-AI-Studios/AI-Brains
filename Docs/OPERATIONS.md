@@ -605,6 +605,14 @@ Reports `{ nodes, edges, status: "live", note }`. If `status` is not `"live"` or
 ai-brains graph rebuild
 ```
 
+**Cozo init quiet by default (T208):** graph-on CLI paths construct the Cozo proxy but do **not** print `CozoProxyBackend initialized` under the product default log filter. To see lifecycle/debug for the graph crate only:
+
+```powershell
+$env:RUST_LOG = 'ai_brains_graph=debug'   # =info is not enough after demote
+```
+
+`--log-format off` silences all tracing. Unset `RUST_LOG` (do not set it to empty string) to restore product defaults.
+
 ### Vault Locked / Missing Key (T197)
 | Symptom | Cause | Operator action |
 |---------|--------|-----------------|

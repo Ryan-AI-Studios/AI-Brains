@@ -34,8 +34,18 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+/// Default tracing EnvFilter when `RUST_LOG` is unset (T118 scoped + T208 graph).
+///
+/// `ai_brains_graph=warn` is required defense-in-depth: EnvFilter prefix-matches
+/// `ai_brains=info` onto `ai_brains_graph`, which would otherwise enable graph-crate
+/// INFO. Operators re-enable Cozo lifecycle with `RUST_LOG=ai_brains_graph=debug`.
+const DEFAULT_ENV_FILTER: &str =
+    "warn,ai_brains=info,ai_brains_cli=info,ai_brains_brain=info,ai_brains_graph=warn";
+
 #[cfg(test)]
 mod tests {
+    use super::DEFAULT_ENV_FILTER;
+
     #[test]
     #[allow(non_snake_case)]
     fn log_format_prescan__minimal__recognized() {
@@ -46,6 +56,16 @@ mod tests {
             .map(|w| w[1].to_string())
             .unwrap_or_else(|| "compact".to_string());
         assert_eq!(format, "minimal");
+    }
+
+    /// T208 AC7: default filter must pin `ai_brains_graph=warn` (F8).
+    #[test]
+    #[allow(non_snake_case)]
+    fn default_env_filter__contains_ai_brains_graph_warn() {
+        assert!(
+            DEFAULT_ENV_FILTER.contains("ai_brains_graph=warn"),
+            "DEFAULT_ENV_FILTER must include ai_brains_graph=warn; got: {DEFAULT_ENV_FILTER}"
+        );
     }
 }
 
@@ -1793,9 +1813,10 @@ fn main_inner() {
         }
     }
 
-    let default_filter = tracing_subscriber::EnvFilter::new(
-        "warn,ai_brains=info,ai_brains_cli=info,ai_brains_brain=info",
-    );
+    // T208: `ai_brains_graph=warn` overrides prefix-match from `ai_brains=info`
+    // so graph-crate lifecycle INFO cannot leak on the default CLI filter.
+    // Escape hatch: `RUST_LOG=ai_brains_graph=debug` (Cozo init is debug after F2).
+    let default_filter = tracing_subscriber::EnvFilter::new(DEFAULT_ENV_FILTER);
     let env_filter =
         tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or(default_filter);
 
