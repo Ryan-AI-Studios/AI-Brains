@@ -4,6 +4,7 @@ mod context;
 mod daemon_client;
 mod daemon_probe;
 mod elevation;
+mod help_ia;
 mod key_resolve;
 mod live_graph;
 
@@ -52,17 +53,19 @@ mod tests {
 #[command(name = "ai-brains")]
 #[command(version)]
 #[command(about = "AI-Brains CLI", long_about = None)]
+#[command(after_long_help = help_ia::ROOT_AFTER_LONG_HELP)]
+#[command(after_help = help_ia::ROOT_AFTER_HELP_TIP)]
 struct Cli {
     /// Boxed so Windows debug stacks can parse the large clap `Commands` enum (T192).
     #[command(subcommand)]
     command: Box<Commands>,
 
     /// Path to the vault database
-    #[arg(long, env = "AI_BRAINS_VAULT_PATH")]
+    #[arg(long, env = "AI_BRAINS_VAULT_PATH", help_heading = "Global options")]
     vault_path: Option<PathBuf>,
 
     /// Hex-encoded key for the vault (or dummy)
-    #[arg(long, env = "AI_BRAINS_KEY")]
+    #[arg(long, env = "AI_BRAINS_KEY", help_heading = "Global options")]
     key: Option<String>,
 
     /// Skip auto-discovery of project/session from .env. When set, the CLI
@@ -70,29 +73,37 @@ struct Cli {
     /// env vars or load a project-local `.env` file. Use this in CI, hooks,
     /// or any non-interactive flow where the caller has already configured
     /// the env vars explicitly.
-    #[arg(long, global = true)]
+    #[arg(long, global = true, help_heading = "Global options")]
     no_project_context: bool,
 
     /// Tracing output format: compact (default), full, json, minimal, or off
-    #[arg(long, global = true, default_value = "compact")]
+    #[arg(
+        long,
+        global = true,
+        default_value = "compact",
+        help_heading = "Global options"
+    )]
     log_format: String,
 }
 
 #[derive(Subcommand)]
 enum Commands {
     /// Initialize a new vault
+    #[command(display_order = 0)]
     Init {
         /// Re-initialize even when the vault already contains data
         #[arg(long)]
         force: bool,
     },
     /// Ingest a conversation turn (reads JSON from stdin)
+    #[command(display_order = 50)]
     Ingest {
         /// Preview what would be ingested without writing to the vault
         #[arg(long)]
         dry_run: bool,
     },
     /// Recall memories based on a query
+    #[command(display_order = 10)]
     Recall {
         /// Query string, or `-` to read from stdin
         query: String,
@@ -135,6 +146,7 @@ enum Commands {
         session_last: bool,
     },
     /// Generate preflight context for an LLM
+    #[command(display_order = 11)]
     Preflight {
         #[arg(short, long, default_value_t = 1500)]
         max_words: usize,
@@ -160,6 +172,7 @@ enum Commands {
         stdin: bool,
     },
     /// Run nightly intelligence sweep
+    #[command(display_order = 26)]
     Nightly {
         /// Schedule this as a Windows scheduled task
         #[arg(long)]
@@ -186,6 +199,7 @@ enum Commands {
         dry_run: bool,
     },
     /// Create a timestamped backup of the vault
+    #[command(display_order = 20)]
     Backup {
         #[command(subcommand)]
         command: Option<BackupCommands>,
@@ -195,12 +209,14 @@ enum Commands {
         dry_run: bool,
     },
     /// Recovery kit export (operator offline key recovery)
+    #[command(display_order = 21)]
     Recovery {
         #[command(subcommand)]
         command: RecoveryCommands,
     },
     /// Read-only operator health report (vault / cipher / backup / recoverability / daemon)
     #[command(
+        display_order = 12,
         after_help = "Read-only: no migrate, no vault/backups create, no secrets on stdout. Does not replace RECOVERY-DRILLS. Offline kit residual without --kit-path is operator responsibility. Daemon probe = our IPC only. --backup-max-age uses Nd/Nh/Nw. No --passphrase argv.\nKey bootstrap: set --key or AI_BRAINS_KEY as x'<64 hex>' (see Docs/INSTALL.md). Missing key → vault_open skipped; wrong key → vault_open fail.\nExamples:\n  ai-brains doctor\n  ai-brains doctor --json\n  ai-brains doctor --kit-path ./kit.json --passphrase-file ./pw.txt\n  ai-brains doctor --fail-on-degraded --backup-max-age 14d --full"
     )]
     Doctor {
@@ -226,7 +242,8 @@ enum Commands {
         #[arg(long)]
         full: bool,
     },
-    /// Forget a specific memory (soft delete)
+    /// [dangerous] Forget a specific memory (soft delete)
+    #[command(display_order = 40)]
     Forget {
         /// Memory ID to forget
         #[arg(long)]
@@ -248,11 +265,13 @@ enum Commands {
         dry_run: bool,
     },
     /// Stop an active session
+    #[command(display_order = 16)]
     StopSession {
         /// Session ID to stop
         session_id: String,
     },
     /// Initialize or refresh the project context (writes local .env)
+    #[command(display_order = 15)]
     Context {
         /// Force a fresh project ID even if one is detected
         #[arg(long)]
@@ -268,6 +287,7 @@ enum Commands {
         tx_id: Option<String>,
     },
     /// Pin a high-level decision or constraint directly to the vault
+    #[command(display_order = 14)]
     Pin {
         /// The content to pin (e.g., "DECISION: Switched to SQLite")
         content: Option<String>,
@@ -291,22 +311,26 @@ enum Commands {
         dry_run: bool,
     },
     /// Manage repository safety signals
+    #[command(display_order = 27)]
     Safety {
         #[command(subcommand)]
         command: SafetyCommands,
     },
     /// Sync structured records from external tools (Ledgerful)
+    #[command(display_order = 53)]
     Sync {
         #[command(subcommand)]
         command: SyncCommands,
     },
     /// Import Antigravity conversation logs into the vault
+    #[command(display_order = 51)]
     AntigravityImport {
         /// Only import sessions modified within the last N days
         #[arg(short, long, default_value_t = 30)]
         days: usize,
     },
     /// Process an Antigravity CLI (agy) hook payload
+    #[command(display_order = 52)]
     AgyHook {
         /// The JSON payload from agy
         #[arg(long)]
@@ -317,23 +341,27 @@ enum Commands {
         schema: bool,
     },
     /// Manage the AI-Brains daemon process
+    #[command(display_order = 17)]
     Daemon {
         #[command(subcommand)]
         command: DaemonCommands,
     },
     /// Manage projects and resolve aliases
+    #[command(display_order = 13)]
     Project {
         #[command(subcommand)]
         command: ProjectCommands,
     },
     /// Graph operations
     #[cfg(feature = "graph")]
+    #[command(display_order = 57)]
     Graph {
         #[command(subcommand)]
         command: GraphCommands,
     },
     /// Graph operations (requires --features graph)
     #[cfg(not(feature = "graph"))]
+    #[command(display_order = 57)]
     Graph {
         #[command(subcommand)]
         command: GraphCommands,
@@ -343,6 +371,7 @@ enum Commands {
         args: Vec<String>,
     },
     /// Create a shadow vault copy for safe dogfood evaluation
+    #[command(display_order = 54)]
     Shadow {
         #[command(subcommand)]
         command: ShadowCommands,
@@ -353,6 +382,7 @@ enum Commands {
     /// Destination safety reuses T147 shadow refusals (live vault / parent / reparse). Source is never
     /// migrated. Report has no plaintext bodies.
     #[command(
+        display_order = 58,
         after_help = "Examples:\n  ai-brains migrate governed --source ./src.db --destination ./dest.db --report ./report.json\n  ai-brains migrate governed --source ./src.db --destination ./dest.db --report ./report.json --confirm"
     )]
     Migrate {
@@ -364,6 +394,7 @@ enum Commands {
     /// Exit: 0 hard pass; 1 internal/path refuse; 6 invalid payload; 7 hard-gate fail.
     /// Soft metric misses do not fail unless `--strict-soft`. Never mutates live vault.
     #[command(
+        display_order = 55,
         after_help = "Examples:\n  ai-brains evaluate governed --fixtures fixtures/governed-memory/scenarios\n  ai-brains evaluate governed --fixtures ./scenarios --report ./evaluate-report.json"
     )]
     Evaluate {
@@ -374,6 +405,7 @@ enum Commands {
     ///
     /// Never opens a vault. Never mutates live. Use with `--vault-path` capture inputs only (D26).
     #[command(
+        display_order = 56,
         after_help = "Examples:\n  ai-brains dogfood compare --governed packet.json --legacy preflight.json --out dogfood-compare.json --stage B"
     )]
     Dogfood {
@@ -388,7 +420,8 @@ enum Commands {
     /// Principal: `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` or well-known System principal
     /// (must be registered + granted). See `AI_BRAINS_GOVERNED_BRIEFING` for preflight.
     #[command(
-        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500\n  ai-brains briefing personal --format json"
+        display_order = 31,
+        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500 --project-id <uuid>\n  ai-brains briefing personal --format json\n  # or set AI_BRAINS_PROJECT_ID for project briefing"
     )]
     Briefing {
         #[command(subcommand)]
@@ -396,7 +429,8 @@ enum Commands {
     },
     /// Governed progressive query, handle expand, and query-trace retrieval (T152)
     #[command(
-        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\"\n  ai-brains query expand <handle-id>\n  ai-brains query trace <trace-id>"
+        display_order = 32,
+        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Query {
         #[command(subcommand)]
@@ -405,13 +439,17 @@ enum Commands {
     /// Resolve the active governed scope (T160 / #20)
     ///
     /// Always surfaces authoritative, confidence, warnings, and alternatives.
-    #[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
+    #[command(
+        display_order = 30,
+        after_help = "Examples:\n  ai-brains scope resolve --format json"
+    )]
     Scope {
         #[command(subcommand)]
         command: ScopeCommands,
     },
     /// Evidence discovery and handle previews (T160 / T203)
     #[command(
+        display_order = 33,
         after_help = "Examples:\n  ai-brains evidence list --scope Repository:<uuid>\n  ai-brains evidence list --format json\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json"
     )]
     Evidence {
@@ -420,6 +458,7 @@ enum Commands {
     },
     /// Source registry discovery and inspect (T160 / T203)
     #[command(
+        display_order = 34,
         after_help = "Examples:\n  ai-brains source list --scope Repository:<uuid>\n  ai-brains source list --format json\n  ai-brains source show <id> --scope Repository:<uuid>"
     )]
     Source {
@@ -428,6 +467,7 @@ enum Commands {
     },
     /// Propose conclusions (T160)
     #[command(
+        display_order = 37,
         after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
     )]
     Conclusion {
@@ -436,6 +476,7 @@ enum Commands {
     },
     /// Propose decisions (T160)
     #[command(
+        display_order = 38,
         after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
     )]
     Decision {
@@ -444,6 +485,7 @@ enum Commands {
     },
     /// Review queue list / resolve (T160 / T203 soft-default scope)
     #[command(
+        display_order = 35,
         after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review list --format json\n  ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>"
     )]
     Review {
@@ -452,14 +494,16 @@ enum Commands {
     },
     /// Policy grant inspection (read-only, T160)
     #[command(
+        display_order = 36,
         after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
     )]
     Policy {
         #[command(subcommand)]
         command: PolicyCommands,
     },
-    /// Erasure tickets + content-envelope wipe (daemon-required) (T160/T165)
+    /// [dangerous] Erasure tickets + content-envelope wipe (daemon-required) (T160/T165)
     #[command(
+        display_order = 41,
         after_help = "Examples:\n  ai-brains erasure request --id <id> --scope Repository:<uuid> --format json\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm"
     )]
     Erasure {
@@ -468,6 +512,7 @@ enum Commands {
     },
     /// Class-based retention plan/apply (T166 / P8.4)
     #[command(
+        display_order = 23,
         after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json\nHonesty: projection delete ≠ CE; CE reuses erasure wipe path for envelope classes only; CE apply requires --scope."
     )]
     Retention {
@@ -477,6 +522,7 @@ enum Commands {
     /// Multi-device enrollment (T176 / ADR-0018). Optional; not PQ; not remote wipe; not metadata-private.
     /// Does **not** repurpose `sync` (Ledgerful) or `safety sync` (hotspot pin).
     #[command(
+        display_order = 24,
         after_help = "Examples:\n  ai-brains device bootstrap\n  ai-brains device list\n  ai-brains device fingerprint\n  ai-brains device package-export --out peer.bin\n  ai-brains device enroll --package peer.bin --yes\n  ai-brains device revoke <device-id>\nHonesty: multi-device is optional; classical ECC only (not PQ); ACK ≠ wipe proof; padding ≠ metadata privacy."
     )]
     Device {
@@ -485,6 +531,7 @@ enum Commands {
     },
     /// Multi-device replication status / cursors / push / pull (T177 file fake relay only).
     #[command(
+        display_order = 25,
         after_help = "Examples:\n  ai-brains replicate status\n  ai-brains replicate cursors\n  ai-brains replicate push --fake-relay ./relay\n  ai-brains replicate pull --fake-relay ./relay\nEnv: AI_BRAINS_SYNC_FAKE_RELAY_PATH\nNo `replicate sync` alias — run push then pull.\nHonesty: optional multi-device; not PQ; not remote wipe; not metadata-private."
     )]
     Replicate {
@@ -493,7 +540,8 @@ enum Commands {
     },
     /// Vault operator tools (T187): plain→SQLCipher encrypt via sqlcipher_export
     #[command(
-        after_help = "Examples:\n  ai-brains vault encrypt --vault-path ./plain.db --dry-run\n  ai-brains vault encrypt --vault-path ./plain.db --destination ./enc.db --key \"x'…'\"\n  ai-brains vault encrypt --vault-path ./plain.db --confirm --key \"x'…'\"\nHonesty: not FIPS; not NIST Purge; Online Backup is not used for plain→encrypt."
+        display_order = 22,
+        after_help = "Examples:\n  ai-brains vault encrypt --vault-path ./plain.db --dry-run\n  ai-brains vault encrypt --vault-path ./plain.db --destination ./enc.db --key \"x'...'\"\n  ai-brains vault encrypt --vault-path ./plain.db --confirm --key \"x'...'\"\nHonesty: not FIPS; not NIST Purge; Online Backup is not used for plain→encrypt."
     )]
     Vault {
         #[command(subcommand)]
@@ -503,7 +551,7 @@ enum Commands {
 
 #[derive(Subcommand, Clone)]
 enum VaultCommands {
-    /// Convert a plaintext SQLite vault to SQLCipher page encryption (sqlcipher_export).
+    /// [dangerous] Convert a plaintext SQLite vault to SQLCipher page encryption (sqlcipher_export).
     Encrypt {
         /// Source plaintext vault (defaults to --vault-path / AI_BRAINS_VAULT_PATH)
         #[arg(long)]
@@ -518,7 +566,7 @@ enum VaultCommands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Rotate vault DataKey (KEK) + SQLCipher page key (T189 / ADR-0020).
+    /// [dangerous] Rotate vault DataKey (KEK) + SQLCipher page key (T189 / ADR-0020).
     #[command(
         after_help = "Safety (non-overridable):\n  - Daemon up → mutating rotate hard-fails (stop daemon first)\n  - --overwrite-kit only overwrites the kit file; never overrides daemon or backup gates\n  - Primary path: crash-safe sqlcipher_export; --accept-rekey-risk enables in-place PRAGMA rekey\n  - Mandatory --kit-output RecoveryKit for the NEW key; verify unlock before retiring old kits\nExamples:\n  ai-brains vault rotate-datakey --dry-run\n  ai-brains vault rotate-datakey --confirm --kit-output ./kit-new.json --passphrase-file ./pw.txt --i-have-backup \"I have a backup\"\nHonesty: multi-device peers need their own ceremony; peer wraps untouched; not NIST Purge of offline backups."
     )]
@@ -644,12 +692,12 @@ enum ReplicateCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500\n  ai-brains briefing personal --format json"
+    after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500 --project-id <uuid>\n  ai-brains briefing personal --format json\n  # or set AI_BRAINS_PROJECT_ID for project briefing"
 )]
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
     #[command(
-        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500"
+        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500 --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
@@ -681,12 +729,12 @@ enum BriefingCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\"\n  ai-brains query expand <handle-id>\n  ai-brains query trace <trace-id>"
+    after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
 )]
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
     #[command(
-        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\""
+        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Progressive {
         /// Query text
@@ -700,7 +748,9 @@ enum GovernedQueryCommands {
         dry_run: bool,
     },
     /// Expand an evidence / conclusion / decision handle to a bounded preview
-    #[command(after_help = "Examples:\n  ai-brains query expand <handle-id>")]
+    #[command(
+        after_help = "Examples:\n  ai-brains query expand <handle-id> --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+    )]
     Expand {
         /// Handle id (evidence UUID, conclusion id, or decision id)
         handle_id: String,
@@ -989,7 +1039,7 @@ enum ReviewCommands {
     Resolve {
         /// Review item id
         id: String,
-        /// Resolution: approved | dismissed | deferred | …
+        /// Resolution: approved | dismissed | deferred | ...
         #[arg(long)]
         resolution: String,
         /// Governing scope identity key (required)
@@ -1080,7 +1130,7 @@ enum ErasureCommands {
         #[arg(long)]
         require_daemon: bool,
     },
-    /// Cryptographic erase envelope-backed content (daemon-required; dry-run default)
+    /// [dangerous] Cryptographic erase envelope-backed content (daemon-required; dry-run default)
     #[command(
         after_help = "Honesty:\n  - CE only for content_key_store envelope-backed keys (NOT_ENVELOPE_BACKED otherwise)\n  - Not NIST Purge/Destroy; not physical media sanitization (WAL TRUNCATE is not Purge)\n  - Pre-erase backups/exports remain decryptable if restored\n  - Ticket path and soft forget are not cryptographic erasure\n  - SQLCipher vault lock is not per-item CE\nExamples:\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>\n  ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm"
     )]
@@ -1127,7 +1177,7 @@ enum RetentionCommands {
         #[arg(long, default_value = "json")]
         format: Option<String>,
     },
-    /// Apply retention plan (requires --confirm; CE via daemon T165 wipe)
+    /// [dangerous] Apply retention plan (requires --confirm; CE via daemon T165 wipe)
     #[command(
         after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE (local)\n  - Envelope CE requires daemon + wipe_content_envelope only (T165)\n  - CE candidates require explicit --scope (Repository:<uuid> / Personal:<uuid>); no random default\n  - Projection-only apply may run without daemon or --scope\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json"
     )]
@@ -1251,7 +1301,7 @@ enum EvaluateCommands {
 
 #[derive(Subcommand)]
 enum MigrateCommands {
-    /// Classify legacy events via T167; write differential report; optional dest apply
+    /// [dangerous] Classify legacy events via T167; write differential report; --confirm materializes destination
     Governed {
         /// Path to the source vault database (never migrated)
         #[arg(long)]
@@ -1358,13 +1408,13 @@ pub enum DaemonCommands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Install the daemon as a Windows service (requires elevation)
+    /// [dangerous] Install the daemon as a Windows service (requires elevation)
     Install {
         /// Preview the sc.exe commands without executing them
         #[arg(long)]
         dry_run: bool,
     },
-    /// Uninstall the Windows service (requires elevation)
+    /// [dangerous] Uninstall the Windows service (requires elevation)
     Uninstall {
         /// Preview the sc.exe command without executing it
         #[arg(long)]
@@ -1376,7 +1426,7 @@ pub enum DaemonCommands {
         #[arg(long, short)]
         force: bool,
     },
-    /// Stop daemon, install updated binaries, then restart (run from workspace root)
+    /// [dangerous] Stop daemon, install updated binaries, then restart (run from workspace root)
     Update,
 }
 

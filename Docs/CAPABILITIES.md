@@ -61,10 +61,30 @@ Governed memory separates **what was observed** from **what we conclude** and **
 ## 3. CLI surface
 
 ```text
-init | ingest | recall | preflight | nightly | backup | forget | stop-session
-context | pin | safety | sync | antigravity-import | agy-hook | daemon | project | graph
-briefing | query | scope | evidence | source | conclusion | decision | review | policy | erasure
+Setup:     init
+Daily:     recall | preflight | doctor | project | pin | context | stop-session | daemon
+Operator:  backup | recovery | vault | retention | device | replicate | nightly | safety
+Governed:  scope | briefing | query | evidence | source | review | policy | conclusion | decision
+Dangerous: forget | erasure  (+ dual-ops: retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update)
+Harness:   ingest | antigravity-import | agy-hook | sync | shadow | evaluate | dogfood | graph | migrate
 ```
+
+Canonical inventory is also on `ai-brains --help` (T204 groups). Partial historical one-liners are obsolete.
+
+**Help information architecture (T204):** `ai-brains --help` appends role groups (Setup / Daily / Operator / Governed / Dangerous / Harness), a short Start-here block, and docs pointers. Names are unchanged; `display_order` only reorders the flat Commands list. Dangerous ops carry a `[dangerous]` about marker at the depth where mutation lives (e.g. `forget`, `erasure wipe`, `retention apply`, `vault rotate-datakey`). Short `-h` keeps a one-line tip only.
+
+### OutputFormat defaults by command (consolidated)
+
+Honesty matrix — **no** blanket TTY default flip for governed JSON surfaces.
+
+| Surface | Default TTY | Default non-TTY | Notes |
+|---------|-------------|-----------------|-------|
+| `recall` | pretty | json | Explicit `--format` wins |
+| `preflight` | human | json | TTY default is `human`; `--pretty` / `--format pretty` also human-mode |
+| `briefing` | markdown | json | T202 F9; explicit `--format` wins |
+| `query progressive` / `expand` / `trace` | json | json | No TTY flip |
+| list/show (governed evidence/source/review/...) | json (Human if `--format human`) | json | `OutputFormat::parse` → Json bare |
+| `doctor` | human | human | `--json` / `--format json` override |
 
 **Global options:**
 
