@@ -301,7 +301,7 @@ cargo install --path crates/ai-brains-cli --locked --features graph
 
 | Command | Purpose |
 |---------|---------|
-| `graph update` | Health: nodes, edges, live status |
+| `graph update` | Health report: `nodes`, `edges`, `pinned_memories`, `memory_nodes`, `edge_node_ratio`, `density` (`ok`\|`warn`\|`skip`), `status` (`live`\|`sparse`\|`empty`), `note`, optional `remediation` (T213) |
 | `graph rebuild` | Full resync (recovery) |
 | `graph neighbors <memory_id>` | 1-hop neighbors |
 | `graph hierarchy <memory_id>` | Synthesis chain |
@@ -378,7 +378,7 @@ ai-brains doctor
   [--full]                        # PRAGMA integrity_check
 ```
 
-Check matrix (fixed order): `vault_exists`, `vault_open` (`open_read_intent` only — never migrates), `schema_readable`, `cipher_page`, `daemon_reachable` (info: up/down never fails alone), `backup_recent` (soft), `recovery_kit_event` (soft; event ≠ offline file proof), `recovery_kit_file` (hard when `--kit-path` set; skip otherwise — no default kit path search), `zero_key_escape` (soft / R-ZERO-KEY), `integrity` (only with `--full`). Overall: fail ≻ degraded ≻ ok. Exit 0 for ok|degraded (default); 1 for fail; clap usage 2. Never creates vault or `backups/`; never prints secrets. Residual: offline kit without `--kit-path` remains operator responsibility (see RECOVERY-DRILLS).
+Check matrix (fixed order, **11** checks): `vault_exists`, `vault_open` (`open_read_intent` only — never migrates), `schema_readable`, `cipher_page`, `daemon_reachable` (info: up/down never fails alone), `backup_recent` (soft), `recovery_kit_event` (soft; event ≠ offline file proof), `recovery_kit_file` (hard when `--kit-path` set; skip otherwise — no default kit path search), `zero_key_escape` (soft / R-ZERO-KEY), **`graph_density`** (soft; SQL counts only — warn on empty/sparse/orphan/projection lag; skip when tables missing / open failed / pinned count failed / small empty vault; never alone forces fail; capture-independent even on graph-off binaries), `integrity` (only with `--full`). Overall: fail ≻ degraded ≻ ok. Exit 0 for ok|degraded (default); 1 for fail; clap usage 2. Never creates vault or `backups/`; never prints secrets. Residual: offline kit without `--kit-path` remains operator responsibility (see RECOVERY-DRILLS).
 
 ---
 

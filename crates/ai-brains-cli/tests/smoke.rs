@@ -1826,6 +1826,7 @@ fn test_graph_health_smoke() {
     let nodes = parsed["nodes"].as_i64().unwrap_or(-1);
     let edges = parsed["edges"].as_i64().unwrap_or(-1);
     let status = parsed["status"].as_str().unwrap_or("");
+    let density = parsed["density"].as_str().unwrap_or("");
 
     assert!(
         nodes >= 1,
@@ -1836,6 +1837,18 @@ fn test_graph_health_smoke() {
         "graph must contain at least 1 edge; got: {parsed}"
     );
     assert_eq!(status, "live", "graph status must be 'live'; got: {parsed}");
+    // T213 AC8/AC14: expanded health fields present; hermetic small graph stays ok/live.
+    assert!(
+        parsed.get("pinned_memories").is_some()
+            && parsed.get("memory_nodes").is_some()
+            && parsed.get("edge_node_ratio").is_some()
+            && parsed.get("note").is_some(),
+        "T213 density fields missing: {parsed}"
+    );
+    assert_eq!(
+        density, "ok",
+        "T74 hermetic density must be ok; got: {parsed}"
+    );
 }
 
 /// T76: `backup restore --dry-run` must verify integrity and report the plan,

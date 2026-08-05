@@ -7,6 +7,9 @@ use crate::commands::backup::probe_restore_daemon_busy;
 use crate::commands::device::data_key_from_sqlcipher;
 use crate::commands::recovery::acquire_passphrase;
 use crate::daemon_client::DaemonClient;
+use crate::graph_density::{
+    DensityVerdict, GatherResult, assess_graph_density, gather_density_snapshot,
+};
 use crate::key_resolve::{KeyResolveError, resolve_operator_sqlcipher_key, vault_locked_message};
 use ai_brains_brain::{BackupService, ListMode, has_core_tables, parse_duration};
 use ai_brains_contracts::doctor::{CheckSeverity, DoctorReport, DoctorStatus, HealthCheck};
@@ -77,7 +80,7 @@ pub fn build_report(
     };
 
     let vault_path = &opts.vault_path;
-    let mut checks: Vec<HealthCheck> = Vec::with_capacity(10);
+    let mut checks: Vec<HealthCheck> = Vec::with_capacity(11);
 
     // 1. vault_exists
     let exists_check = check_vault_exists(vault_path);
@@ -222,7 +225,14 @@ pub fn build_report(
         None => HealthCheck::skip("zero_key_escape", skip_reason),
     });
 
-    // 10. integrity (optional --full)
+    // 10. graph_density (soft — never alone forces fail; SQL-only, capture-independent)
+    checks.push(check_graph_density(
+        vault_conn.as_ref(),
+        open_failed,
+        skip_reason,
+    ));
+
+    // 11. integrity (optional --full)
     checks.push(if opts.full {
         match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
             Some(conn) => check_integrity(&conn),
@@ -594,6 +604,60 @@ fn check_integrity(conn: &rusqlite::Connection) -> HealthCheck {
     }
 }
 
+/// Soft density check (T213): SQL counts only; never alone forces `fail`.
+fn check_graph_density(
+    vault_conn: Option<&VaultConnection>,
+    open_failed: bool,
+    skip_reason: &str,
+) -> HealthCheck {
+    if open_failed {
+        return HealthCheck::skip("graph_density", skip_reason);
+    }
+    let Some(vc) = vault_conn else {
+        return HealthCheck::skip("graph_density", "vault connection unavailable");
+    };
+    let conn = match vc.lock() {
+        Ok(c) => c,
+        Err(_) => {
+            return HealthCheck::skip("graph_density", "failed to lock vault connection");
+        }
+    };
+
+    let gather = match gather_density_snapshot(&conn) {
+        Ok(g) => g,
+        Err(e) => {
+            return HealthCheck::warn(
+                "graph_density",
+                format!("graph count query failed: {e}"),
+                Some("ai-brains graph rebuild".into()),
+            );
+        }
+    };
+
+    match gather {
+        GatherResult::TablesMissing => {
+            HealthCheck::skip("graph_density", "tables absent (graph_node/graph_edge)")
+        }
+        GatherResult::PinnedCountFailed { .. } => HealthCheck::skip(
+            "graph_density",
+            "pinned memory count failed (cannot assess empty_lag without pins)",
+        ),
+        GatherResult::Ok(snap) => {
+            let assessment = assess_graph_density(&snap);
+            match assessment.verdict {
+                DensityVerdict::Ok => HealthCheck::ok_msg("graph_density", assessment.message),
+                DensityVerdict::Skip => HealthCheck::skip("graph_density", assessment.message),
+                DensityVerdict::EmptyLag
+                | DensityVerdict::OrphanNodes
+                | DensityVerdict::Sparse
+                | DensityVerdict::ProjectionLag => {
+                    HealthCheck::warn("graph_density", assessment.message, assessment.remediation)
+                }
+            }
+        }
+    }
+}
+
 /// Exit code policy (F9): 0 for ok|degraded; 1 for fail; --fail-on-degraded → 1.
 pub fn exit_code_for(report: &DoctorReport, fail_on_degraded: bool) -> i32 {
     match report.status {
@@ -691,7 +755,7 @@ mod tests {
 
     #[test]
     fn health_check_order_names__fixed_matrix() {
-        // Document expected fixed order for determinism (F30).
+        // Document expected fixed order for determinism (F16/F30; T213 adds graph_density #10).
         let expected = [
             "vault_exists",
             "vault_open",
@@ -702,15 +766,113 @@ mod tests {
             "recovery_kit_event",
             "recovery_kit_file",
             "zero_key_escape",
+            "graph_density",
             "integrity",
         ];
-        assert_eq!(expected.len(), 10);
+        assert_eq!(expected.len(), 11);
+        assert_eq!(expected[9], "graph_density");
+        assert_eq!(expected[10], "integrity");
         // Ensure HealthCheck helpers set ok flag correctly.
         assert!(HealthCheck::skip("integrity", "x").ok);
         assert_eq!(
             HealthCheck::skip("integrity", "x").severity,
             CheckSeverity::Skip
         );
+    }
+
+    /// T213 AC10/AC11: graph_density present; open-failed path is skip (not fail).
+    #[test]
+    fn doctor__graph_density_present__open_failed_is_skip() {
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+
+        let _clear = TempEnv::remove("AI_BRAINS_KEY");
+        let _clear_allow = TempEnv::remove(ALLOW_ZERO_KEY_ENV);
+        let dir = tempdir().expect("tempdir");
+        // Missing vault → open fails; graph_density must skip.
+        let vault = dir.path().join("missing-vault.db");
+        let opts = DoctorOptions {
+            vault_path: vault,
+            key: Some(ZERO_KEY_LITERAL.to_string()),
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
+        let report = build_report(&opts, false).expect("report");
+        assert_eq!(report.checks.len(), 11, "11-check matrix");
+        let names: Vec<&str> = report.checks.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec![
+                "vault_exists",
+                "vault_open",
+                "schema_readable",
+                "cipher_page",
+                "daemon_reachable",
+                "backup_recent",
+                "recovery_kit_event",
+                "recovery_kit_file",
+                "zero_key_escape",
+                "graph_density",
+                "integrity",
+            ]
+        );
+        let density = report
+            .checks
+            .iter()
+            .find(|c| c.name == "graph_density")
+            .expect("graph_density");
+        assert_eq!(density.severity, CheckSeverity::Skip);
+        assert_ne!(density.severity, CheckSeverity::Fail);
+    }
+
+    /// T213: migrated vault with empty small graph → graph_density skip or ok (not fail).
+    #[test]
+    fn doctor__graph_density_on_migrated_vault__not_fail() {
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+
+        let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
+        let dir = tempdir().expect("tempdir");
+        let vault = dir.path().join("vault.db");
+        let key = SqlCipherKey::from_raw(ZERO_KEY_LITERAL.to_string());
+        {
+            let conn = VaultConnection::open(&vault, &key).expect("open");
+            conn.migrate().expect("migrate");
+        }
+        let opts = DoctorOptions {
+            vault_path: vault,
+            key: Some(ZERO_KEY_LITERAL.to_string()),
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let report = build_report(&opts, false).expect("report");
+        let density = report
+            .checks
+            .iter()
+            .find(|c| c.name == "graph_density")
+            .expect("graph_density");
+        assert!(
+            matches!(
+                density.severity,
+                CheckSeverity::Ok | CheckSeverity::Skip | CheckSeverity::Warn
+            ),
+            "density must not hard-fail alone; got {:?}",
+            density.severity
+        );
+        // Message must not look like secrets.
+        let msg = density.message.as_deref().unwrap_or("");
+        assert!(!msg.contains("x'"), "no key material: {msg}");
     }
 
     /// AC8: build_report with daemon_up=true still uses open_read_intent only
