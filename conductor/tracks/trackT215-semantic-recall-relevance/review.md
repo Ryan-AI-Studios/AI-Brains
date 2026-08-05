@@ -42,7 +42,7 @@ Raw: `review.claude.md`. Fresh final gate — no code findings above low.
 | cargo deny check | ok |
 | cargo audit | 19 allowed warnings only (pre-existing) |
 | Manual AC12 | topic-drift query empty post-floor; `--min-score` in help |
-| CI (PR) | pending |
+| CI (PR #96) | **Win/Linux/macOS green** → squash-merged `b5cdc98` |
 
 ## Residual lows / soft deferrals
 
