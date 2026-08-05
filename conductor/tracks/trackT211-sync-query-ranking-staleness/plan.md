@@ -1,6 +1,6 @@
 # T211 Plan — Sync query ranking + stale DECISION demotion
 
-Status: **Ready for PR** (internal CLEAN; Claude PASS WITH DEFERRED P3). Spec: [spec.md](./spec.md).
+Status: **Completed** (PR #94 squash-merged `16990b1`). Spec: [spec.md](./spec.md).
 
 ## Phases
 
@@ -32,8 +32,8 @@ Status: **Ready for PR** (internal CLEAN; Claude PASS WITH DEFERRED P3). Spec: [
 
 - [x] CAPABILITIES (re-rank + plan demotion + ledger-first + heuristic honesty + F40 entry point)
 - [x] CHANGELOG minor
-- [ ] Soft OPERATIONS / skill
-- [ ] deferred.md: strike T211 on ship; note F25 blend residual if not shipped
+- [ ] Soft OPERATIONS / skill (not shipped)
+- [x] deferred.md: strike T211 on ship; note F25 blend residual
 
 ### Phase 4 — Review + gate
 
@@ -41,7 +41,7 @@ Status: **Ready for PR** (internal CLEAN; Claude PASS WITH DEFERRED P3). Spec: [
 - [x] Cross-model Claude **PASS WITH DEFERRED P3** (Codex rate-limited)
 - [x] Manual evidence (path TOCTOU — shipped first + `[plan/stale?]`)
 - [x] Soft AC12 hermetic `--limit 1`
-- [ ] Full CI on PR; squash-merge
+- [x] Full CI on PR green; squash-merge `16990b1`
 
 ## Absorbed audit / AI fold-in
 
@@ -100,12 +100,12 @@ ledgerful ledger start T211-sync-query-ranking-staleness --category FEATURE --me
 
 ## DoD checklist
 
-- [ ] AC1–AC9 + AC11 met (AC10/AC12 soft)
-- [ ] No production unwrap/expect; no regex in retrieval
-- [ ] Isolation + T207 empty regression green
-- [ ] CAPABILITIES + CHANGELOG
-- [ ] Review clean for >low (or deferred ≤3 → deferred.md)
-- [ ] Full gate green; conductor Completed
+- [x] AC1–AC9 + AC11 met (AC12 hermetic shipped; AC10 soft/manual)
+- [x] No production unwrap/expect; no regex in retrieval
+- [x] Isolation + T207 empty regression green
+- [x] CAPABILITIES + CHANGELOG
+- [x] Review clean for >low (Claude PASS WITH DEFERRED P3 → deferred.md)
+- [x] Full gate green; conductor Completed; PR #94 `16990b1`
 
 ## Explicit non-work
 

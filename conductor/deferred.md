@@ -30,10 +30,11 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Governed source/evidence discovery lists + soft-resolve~~ | **Closed by T203** (2026-08-04) PR #86 `2748d12` — source/evidence list; review soft-resolve exit 2; show F7; Active+LIMIT+1; core FTS sanitizer |
 | ~~CLI help grouping IA~~ | **Closed by T204** (2026-08-04) PR #87 `c3a7d66` — after_long_help groups; F31 order; F33 dangerous; F9 project-id; CAPABILITIES format table |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
-| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205–T216** — ~~T205–T210 closed~~; **T211 Planning** (expanded 2026-08-05); T212–T216 placeholders |
+| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205–T216** — ~~T205–T211 closed~~; T212–T216 placeholders (**T215** semantic next ranking slice) |
 | ~~source/evidence/review/briefing POLICY_DENIED bootstrap (audit 3–4)~~ | **Closed by T210** (2026-08-05) PR #93 `d52df25` — `policy bootstrap` discovery Read* LocalOnly; active_grants + get_principal; dual-site hint AC7/AC11; hermetic suite |
 | T210 residuals (skill / soft-resolve success / full admin) | Soft: F23 skill one-liner; AC8 success soft-resolve hermetic (fail path locked); full grant admin/revoke/daemon IssueGrant (F24–F26) |
-| ~~sync query ranking + stale DECISIONs (audit quality 5)~~ | **Promoted -> T211 Planning** (2026-08-05) - pin-type+recency re-rank; plan/stale? demotion; ledger-first; semantic remains **T215** |
+| ~~sync query ranking + stale DECISIONs (audit quality 5)~~ | **Closed by T211** (2026-08-05) PR #94 `16990b1` — `rerank_hits` pin+recency; plan demotion + badge; ledger-first; `--limit` 5; BM25 base=-rank |
+| T211 residuals (F25 blend / double shell / T215) | Soft: full vault↔ledger RRF blend (F25); optional single ledger shell call; semantic/RRF → **T215** (extends `rerank_hits`) |
 | ~~Graph-on Cozo INFO pollutes recall/sync (T200 residual)~~ | **Closed by T208** (2026-08-04) PR #91 `9985ab4` — F2 demote; F8 `ai_brains_graph=warn`; F29 RUST_LOG denylist; AC1 env_remove |
 | T118 smoke `RUST_LOG=""` tests ERROR-only not product default (M4) | Soft residual from T208 fold-in — optional later hygiene, not T208 DoD |
 | T208 soft residuals (F10) | Soft: lazy GraphAwareEventStore construct (not DoD) |
@@ -45,7 +46,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ … ~~**T210**~~ **closed** → **T211** (Planning) / **T215** → **T212**–**T214**/**T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO → T208~~ **closed**; ~~backup list WARN flood → T209~~ **closed**; ~~POLICY_DENIED dead-end → T210~~ **closed**.
+Suggested order: ~~**T196**~~ … ~~**T211**~~ **closed** → **T215** / **T212**–**T214**/**T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO → T208~~ **closed**; ~~backup list WARN flood → T209~~ **closed**; ~~POLICY_DENIED dead-end → T210~~ **closed**; ~~stale DECISION ranking → T211~~ **closed**.
 
 ---
 
