@@ -2371,9 +2371,10 @@ fn preflight__local_env_project_context_overrides_inherited_shell_ids() {
         String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
+    // T214 F38: Scope vocabulary (T207) replaces legacy `Project:` summary line.
     assert!(
-        stdout.contains(&format!("Project: {}", local_project_id)),
-        "preflight should scope to local .env project; got: {stdout}"
+        stdout.contains("Scope: project=") && stdout.contains(local_project_id),
+        "preflight should scope to local .env project via Scope: project=; got: {stdout}"
     );
     assert!(
         !stdout.contains(inherited_project_id),

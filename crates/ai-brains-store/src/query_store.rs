@@ -426,6 +426,54 @@ impl QueryStore for VaultConnection {
         Ok(row)
     }
 
+    fn count_projects_with_pinned(&self) -> Result<u64> {
+        let conn = self.lock()?;
+        // F7 / T214: static SQL — no string interpolation of identifiers.
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(DISTINCT project_id) FROM memory_projection
+             WHERE status = 'pinned' AND project_id IS NOT NULL",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(count as u64)
+    }
+
+    fn count_pinned_memories(&self, project_id: Option<&ProjectId>) -> Result<u64> {
+        let conn = self.lock()?;
+        let count: i64 = match project_id {
+            None => conn.query_row(
+                "SELECT COUNT(*) FROM memory_projection WHERE status = 'pinned'",
+                [],
+                |row| row.get(0),
+            )?,
+            Some(pid) => conn.query_row(
+                "SELECT COUNT(*) FROM memory_projection
+                 WHERE status = 'pinned' AND project_id = ?",
+                params![pid.to_string()],
+                |row| row.get(0),
+            )?,
+        };
+        Ok(count as u64)
+    }
+
+    fn count_active_sessions(&self, project_id: Option<&ProjectId>) -> Result<u64> {
+        let conn = self.lock()?;
+        let count: i64 = match project_id {
+            None => conn.query_row(
+                "SELECT COUNT(*) FROM session_projection WHERE status = 'active'",
+                [],
+                |row| row.get(0),
+            )?,
+            Some(pid) => conn.query_row(
+                "SELECT COUNT(*) FROM session_projection
+                 WHERE status = 'active' AND project_id = ?",
+                params![pid.to_string()],
+                |row| row.get(0),
+            )?,
+        };
+        Ok(count as u64)
+    }
+
     fn memory_exists(&self, memory_id: &str) -> Result<bool> {
         let conn = self.lock()?;
         let count: i64 = conn.query_row(

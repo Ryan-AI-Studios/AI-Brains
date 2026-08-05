@@ -30,7 +30,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Governed source/evidence discovery lists + soft-resolve~~ | **Closed by T203** (2026-08-04) PR #86 `2748d12` — source/evidence list; review soft-resolve exit 2; show F7; Active+LIMIT+1; core FTS sanitizer |
 | ~~CLI help grouping IA~~ | **Closed by T204** (2026-08-04) PR #87 `c3a7d66` — after_long_help groups; F31 order; F33 dangerous; F9 project-id; CAPABILITIES format table |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
-| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205-T216** - ~~T205-T212 + T215 closed~~; ~~T213 density doctor implemented~~; T214/T216 still placeholders |
+| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205-T216** - ~~T205-T212 + T215 closed~~; ~~T213 density doctor closed~~; **T214** expanded plan (preflight global rollup honesty — plan-only); T216 still placeholder |
 | ~~source/evidence/review/briefing POLICY_DENIED bootstrap (audit 3–4)~~ | **Closed by T210** (2026-08-05) PR #93 `d52df25` — `policy bootstrap` discovery Read* LocalOnly; active_grants + get_principal; dual-site hint AC7/AC11; hermetic suite |
 | T210 residuals (skill / soft-resolve success / full admin) | Soft: F23 skill one-liner; AC8 success soft-resolve hermetic (fail path locked); full grant admin/revoke/daemon IssueGrant (F24–F26) |
 | ~~sync query ranking + stale DECISIONs (audit quality 5)~~ | **Closed by T211** (2026-08-05) PR #94 `16990b1` — `rerank_hits` pin+recency; plan demotion + badge; ledger-first; `--limit` 5; BM25 base=-rank |
@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T212**~~ / ~~**T215**~~ / ~~**T213**~~ **closed** -> **T214** / **T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO -> T208~~ **closed**; ~~backup list WARN flood -> T209~~ **closed**; ~~POLICY_DENIED dead-end -> T210~~ **closed**; ~~stale DECISION ranking -> T211~~ **closed**; ~~project list labels -> T212~~ **closed**; ~~semantic relevance -> T215~~ **closed**; ~~graph density honesty -> T213~~ **closed** (ship residuals in T213 closeout section).
+Suggested order: ~~**T196**~~ ... ~~**T212**~~ / ~~**T215**~~ / ~~**T213**~~ **closed** -> **T214** (expanded plan 2026-08-05; implement on go) / **T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO -> T208~~ **closed**; ~~backup list WARN flood -> T209~~ **closed**; ~~POLICY_DENIED dead-end -> T210~~ **closed**; ~~stale DECISION ranking -> T211~~ **closed**; ~~project list labels -> T212~~ **closed**; ~~semantic relevance -> T215~~ **closed**; ~~graph density honesty -> T213~~ **closed** (ship residuals in T213 closeout section); **preflight --global summary** → T214 plan.
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -64,6 +64,23 @@ Suggested order: ~~**T196**~~ ... ~~**T212**~~ / ~~**T215**~~ / ~~**T213**~~ **c
 | rusqlite 0.40+ `table_exists` for F5 probe (L4) | Soft residual (no bump in T213) |
 | Two-tier memory coverage 0.50 soft + 0.10 severe (L6) | Soft declined v1 (0.10 severe floor only) |
 | Auto rebuild / projector more edges / graph default-on / WCC | **Not** T213 — separate product decisions |
+
+### T214 plan expand + AI fold-in (2026-08-05) — preflight global rollup honesty
+
+| Residual | Disposition |
+|----------|-------------|
+| preflight `--global --summary` shows env `Project: uuid` while content is multi-project (audit 6/6) | **Absorbed by T214** — F2 `Scope:`; F3 dispatch mirror recall |
+| Active Sessions always 0 (`Session ID:` marker never in body) | **Absorbed by T214** — F5 `count_active_sessions` QueryStore |
+| Marker counts look like vault totals under max_words | **Absorbed by T214** — F4 dual model + **In context** labels |
+| True multi-project rollup vs honest label only | **Both** — F7/F8 + F2 |
+| AI2 M1 `format!` SQL in `active_sessions` / risk of copy into F7/F8 | **Absorbed** — F27 params![] only; soft residual: refactor `active_sessions` later |
+| AI2 M2 F7 SOOT | **Absorbed** — freeze `count_projects_with_pinned` (not `list_projects`) |
+| AI2 M3–M5 / L2–L3/L5–L6 | **Absorbed** — F37 signature; F38 smoke; F21 word_count; F4 omit Projects project-scoped; F19 CAPABILITIES Scope row |
+| Ledgerful under `--global` | **Not** T214 — F9 |
+| Governed multi-project packet | **Not** T214 — F10 |
+| `PreflightContextResponse` extra keys | **Not** T214 DoD — F11 / T180 |
+| is-terminal → std IsTerminal | Soft residual F24 (L1) |
+| T216 forget-list | Still placeholder after T214 |
 
 ---
 
