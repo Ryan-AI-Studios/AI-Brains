@@ -1,0 +1,430 @@
+//! T210 hermetic locks — `policy bootstrap` discovery grants.
+#![allow(clippy::disallowed_methods)]
+#![allow(non_snake_case)]
+
+mod common;
+
+use serde_json::Value;
+use std::path::Path;
+use tempfile::tempdir;
+
+const PRINCIPAL: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const SCOPE: &str = "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+fn init_vault(vault_path: &Path) {
+    common::hermetic_bin()
+        .arg("--vault-path")
+        .arg(vault_path)
+        .arg("init")
+        .assert()
+        .success();
+}
+
+fn policy_bootstrap(vault: &Path, dry_run: bool) -> assert_cmd::Command {
+    let mut cmd = common::hermetic_bin();
+    cmd.arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("policy")
+        .arg("bootstrap")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json");
+    if dry_run {
+        cmd.arg("--dry-run");
+    }
+    cmd
+}
+
+fn policy_check(vault: &Path, capability: &str) -> assert_cmd::Command {
+    let mut cmd = common::hermetic_bin();
+    cmd.arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--capability")
+        .arg(capability)
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json");
+    cmd
+}
+
+/// AC1 — before bootstrap, ReadEvidence check is denied (exit 3).
+#[test]
+fn policy_bootstrap__before__policy_check_read_evidence_exit_3() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = policy_check(&vault, "ReadEvidence")
+        .output()
+        .expect("policy check");
+
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    assert_eq!(v["code"], "POLICY_DENIED");
+}
+
+/// AC2 — first bootstrap registers principal and issues three discovery grants.
+#[test]
+fn policy_bootstrap__first_run__registers_and_issues_three() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = policy_bootstrap(&vault, false)
+        .output()
+        .expect("policy bootstrap");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    assert_eq!(v["api_version"], "1");
+    assert_eq!(v["principal_id"], PRINCIPAL);
+    assert_eq!(v["scope"], SCOPE);
+    assert_eq!(v["registered"], "registered");
+    assert_eq!(v["dry_run"], false);
+
+    let grants = v["grants"].as_array().expect("grants array");
+    assert_eq!(grants.len(), 3);
+
+    // F30 — sorted alphabetically by capability name.
+    let names: Vec<&str> = grants
+        .iter()
+        .map(|g| g["capability"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["ReadConclusions", "ReadDecisions", "ReadEvidence"]
+    );
+
+    for g in grants {
+        assert_eq!(g["status"], "issued", "grant={g}");
+        assert!(
+            g["grant_id"]
+                .as_str()
+                .map(|s| !s.is_empty())
+                .unwrap_or(false),
+            "issued must include grant_id; got {g}"
+        );
+    }
+}
+
+/// AC3 — after bootstrap, three discovery checks are allowed (exit 0).
+#[test]
+fn policy_bootstrap__after__three_checks_allowed() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let boot = policy_bootstrap(&vault, false).output().expect("bootstrap");
+    assert_eq!(boot.status.code(), Some(0), "bootstrap failed");
+
+    for cap in ["ReadEvidence", "ReadConclusions", "ReadDecisions"] {
+        let out = policy_check(&vault, cap).output().expect("check");
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{cap} denied; stderr={} stdout={}",
+            String::from_utf8_lossy(&out.stderr),
+            String::from_utf8_lossy(&out.stdout)
+        );
+        let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+        assert_eq!(v["allowed"], true, "{cap}: {v}");
+    }
+}
+
+/// AC4 — after bootstrap, source list + review list exit 0 (empty OK).
+#[test]
+fn policy_bootstrap__after__source_and_review_list_exit_0() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let boot = policy_bootstrap(&vault, false).output().expect("bootstrap");
+    assert_eq!(boot.status.code(), Some(0), "bootstrap failed");
+
+    let source = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("source")
+        .arg("list")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg("json")
+        .arg("--local")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .output()
+        .expect("source list");
+    assert_eq!(
+        source.status.code(),
+        Some(0),
+        "source list; stderr={} stdout={}",
+        String::from_utf8_lossy(&source.stderr),
+        String::from_utf8_lossy(&source.stdout)
+    );
+    let sv: Value = serde_json::from_slice(&source.stdout).expect("source json");
+    assert!(sv["items"].as_array().expect("items").is_empty());
+
+    let review = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("review")
+        .arg("list")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg("json")
+        .arg("--local")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .output()
+        .expect("review list");
+    assert_eq!(
+        review.status.code(),
+        Some(0),
+        "review list; stderr={} stdout={}",
+        String::from_utf8_lossy(&review.stderr),
+        String::from_utf8_lossy(&review.stdout)
+    );
+}
+
+/// AC5 — second bootstrap is no-op: already_present + registered already.
+#[test]
+fn policy_bootstrap__second_run__already_present() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let first = policy_bootstrap(&vault, false)
+        .output()
+        .expect("first bootstrap");
+    assert_eq!(first.status.code(), Some(0));
+
+    let second = policy_bootstrap(&vault, false)
+        .output()
+        .expect("second bootstrap");
+    assert_eq!(
+        second.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&second.stderr),
+        String::from_utf8_lossy(&second.stdout)
+    );
+    let v: Value = serde_json::from_slice(&second.stdout).expect("json");
+    assert_eq!(v["registered"], "already");
+    assert_eq!(v["dry_run"], false);
+    let grants = v["grants"].as_array().expect("grants");
+    assert_eq!(grants.len(), 3);
+    for g in grants {
+        assert_eq!(g["status"], "already_present", "grant={g}");
+        assert!(
+            g.get("grant_id").is_none() || g["grant_id"].is_null(),
+            "already_present must omit grant_id; got {g}"
+        );
+    }
+}
+
+/// AC6 / F9 — dry-run reports plan and appends zero events (no register, no issue).
+#[test]
+fn policy_bootstrap__dry_run__no_grants() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = policy_bootstrap(&vault, true)
+        .output()
+        .expect("dry-run bootstrap");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    assert_eq!(v["dry_run"], true);
+    assert_eq!(v["registered"], "would_register");
+    let grants = v["grants"].as_array().expect("grants");
+    assert_eq!(grants.len(), 3);
+    for g in grants {
+        assert_eq!(g["status"], "would_issue", "grant={g}");
+    }
+
+    // Grants still absent — check still deny.
+    let check = policy_check(&vault, "ReadEvidence")
+        .output()
+        .expect("check after dry-run");
+    assert_eq!(
+        check.status.code(),
+        Some(3),
+        "dry-run must not issue grants; stdout={}",
+        String::from_utf8_lossy(&check.stdout)
+    );
+
+    // F9 zero-append lock for register: a second dry-run must still report
+    // would_register (get_principal still None). A buggy dry-run that called
+    // register_principal would flip this to "already" while still printing
+    // would_register on the first response (status computed before mutation).
+    let second_dry = policy_bootstrap(&vault, true)
+        .output()
+        .expect("second dry-run");
+    assert_eq!(second_dry.status.code(), Some(0));
+    let v2: Value = serde_json::from_slice(&second_dry.stdout).expect("json");
+    assert_eq!(
+        v2["registered"], "would_register",
+        "dry-run must not register principal; second dry-run must still would_register; got {v2}"
+    );
+
+    // And the first *real* bootstrap after dry-run must still register (not already).
+    let real = policy_bootstrap(&vault, false)
+        .output()
+        .expect("real bootstrap after dry-run");
+    assert_eq!(real.status.code(), Some(0));
+    let v3: Value = serde_json::from_slice(&real.stdout).expect("json");
+    assert_eq!(
+        v3["registered"], "registered",
+        "first real bootstrap after dry-run must register; got {v3}"
+    );
+}
+
+/// AC7 — deny details.hint mentions bootstrap.
+#[test]
+fn policy_bootstrap__deny_hint__contains_bootstrap() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = policy_check(&vault, "ReadEvidence")
+        .output()
+        .expect("deny check");
+    assert_eq!(out.status.code(), Some(3));
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    let hint = v
+        .pointer("/details/hint")
+        .and_then(|h| h.as_str())
+        .unwrap_or("");
+    assert!(
+        !hint.is_empty() && (hint.contains("bootstrap") || hint.contains("policy bootstrap")),
+        "hint must mention bootstrap; got {hint:?}"
+    );
+}
+
+/// AC8 — omit --scope with --no-project-context → fail_usage exit 2.
+#[test]
+fn policy_bootstrap__no_scope_no_context__exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    // hermetic_bin strips AI_BRAINS_PROJECT_ID; --no-project-context keeps it unset.
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("bootstrap")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("bootstrap no scope");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "soft-resolve fail must exit 2; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("scope") || stderr.contains("--scope"),
+        "usage message should mention scope; got {stderr}"
+    );
+}
+
+/// F2/F3 — bootstrap never issues dangerous caps (Erase / Approve*).
+#[test]
+fn policy_bootstrap__after__dangerous_caps_still_denied() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let boot = policy_bootstrap(&vault, false).output().expect("bootstrap");
+    assert_eq!(boot.status.code(), Some(0));
+
+    for cap in ["Erase", "ApproveConclusion", "ApproveDecision", "Export"] {
+        let out = policy_check(&vault, cap).output().expect("check");
+        assert_eq!(
+            out.status.code(),
+            Some(3),
+            "{cap} must remain denied after discovery bootstrap; stdout={}",
+            String::from_utf8_lossy(&out.stdout)
+        );
+    }
+
+    // policy show lists only the three discovery caps.
+    let show = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("show")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy show");
+    assert_eq!(show.status.code(), Some(0));
+    let v: Value = serde_json::from_slice(&show.stdout).expect("json");
+    let grants = v["grants"].as_array().expect("grants");
+    assert_eq!(
+        grants.len(),
+        3,
+        "expected exactly three discovery grants; got {v}"
+    );
+    let mut caps: Vec<&str> = grants
+        .iter()
+        .map(|g| g["capability"].as_str().unwrap())
+        .collect();
+    caps.sort();
+    assert_eq!(
+        caps,
+        vec!["ReadConclusions", "ReadDecisions", "ReadEvidence"]
+    );
+    for g in grants {
+        let privacy = g["privacy"].as_str().unwrap_or("");
+        assert!(
+            privacy.eq_ignore_ascii_case("LocalOnly") || privacy == "local_only",
+            "F6 LocalOnly; got privacy={privacy:?} grant={g}"
+        );
+    }
+}

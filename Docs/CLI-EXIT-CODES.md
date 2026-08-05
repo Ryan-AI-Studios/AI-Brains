@@ -66,7 +66,7 @@ Do **not** document “all failures always emit JSON on stderr” — that is fa
 
 ### POLICY_DENIED remediation
 
-On **`policy check`** deny and local **list** denies (`review list`, `source list`, `evidence list`), Json envelopes carry a non-empty structured **`details.hint`** string (e.g. point operators at `ai-brains policy show --scope …`). Soft: source/evidence **show** deny also attaches the hint when touched by T203. Other deny sites may still emit bare `POLICY_DENIED` without `details`. Message remains terse. Exit stays **3**.
+On **`policy check`** deny and local **list** denies (`review list`, `source list`, `evidence list`), Json envelopes carry a non-empty structured **`details.hint`** string. Prefer **`ai-brains policy bootstrap --scope …`** first to register the principal (if needed) and issue discovery grants (`ReadEvidence`, `ReadConclusions`, `ReadDecisions`); or inspect with `ai-brains policy show --scope …`. Soft: source/evidence **show** deny also attaches the hint when touched by T203. Other deny sites may still emit bare `POLICY_DENIED` without `details`. Message remains terse. Exit stays **3**.
 
 ## Missing required `--scope` (F4 / F35 / T203)
 

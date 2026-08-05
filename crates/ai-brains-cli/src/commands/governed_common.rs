@@ -40,8 +40,10 @@ pub const EXIT_HARD_GATE_FAILED: i32 = 7;
 /// Structured code for build-feature unavailable (T198 graph stub; T200 install honesty).
 pub const FEATURE_UNAVAILABLE: &str = "FEATURE_UNAVAILABLE";
 
-/// Stable F6 remediation template for POLICY_DENIED `details.hint` (T201).
-pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists for this principal on this scope; try `ai-brains policy show --scope …`";
+/// Stable F6 remediation template for POLICY_DENIED `details.hint` (T201 / T210).
+///
+/// Dual-site SOOT with `ai_brainsd::services::POLICY_DENIED_HINT` — keep wording in sync.
+pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
 
 /// Build `{"hint": …}` details without `serde_json::json!` (disallowed unwrap in production).
 pub fn policy_denied_hint_details() -> serde_json::Value {

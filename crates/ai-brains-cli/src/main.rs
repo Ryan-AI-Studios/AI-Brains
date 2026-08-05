@@ -512,10 +512,10 @@ enum Commands {
         #[command(subcommand)]
         command: ReviewCommands,
     },
-    /// Policy grant inspection (read-only, T160)
+    /// Policy grant inspection + discovery bootstrap (T160/T210)
     #[command(
         display_order = 36,
-        after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+        after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
     )]
     Policy {
         #[command(subcommand)]
@@ -1085,7 +1085,7 @@ enum ReviewCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+    after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
 )]
 enum PolicyCommands {
     /// List applied grants for principal + scope (read-only)
@@ -1114,6 +1114,22 @@ enum PolicyCommands {
         format: Option<String>,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
         principal_id: Option<String>,
+    },
+    /// Register principal (if needed) and issue discovery-class grants on a scope (T210)
+    #[command(
+        after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap --scope Repository:<uuid> --dry-run\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>   # inspect after bootstrap\nIssues exactly ReadEvidence, ReadConclusions, ReadDecisions (Privacy::LocalOnly). Idempotent."
+    )]
+    Bootstrap {
+        /// Scope identity key (optional — soft-resolves when authoritative)
+        #[arg(long)]
+        scope: Option<String>,
+        /// Report plan without appending register/issue events
+        #[arg(long, short = 'n')]
+        dry_run: bool,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
+        #[arg(long, default_value = "json")]
+        format: Option<String>,
     },
 }
 
@@ -2660,6 +2676,20 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     scope: scope.clone(),
                     format: format.clone(),
                     principal_id: principal_id.clone(),
+                },
+            ),
+            PolicyCommands::Bootstrap {
+                scope,
+                dry_run,
+                principal_id,
+                format,
+            } => commands::policy_cmd::run_bootstrap(
+                &ctx,
+                commands::policy_cmd::BootstrapOptions {
+                    scope: scope.clone(),
+                    dry_run: *dry_run,
+                    principal_id: principal_id.clone(),
+                    format: format.clone(),
                 },
             ),
         },

@@ -154,6 +154,16 @@ CLI `--key` / `AI_BRAINS_KEY` must be `x'<64 hex chars>'` (67 characters total, 
 
 5. **Do not** use the all-zero key in production. `AI_BRAINS_ALLOW_ZERO_KEY=1` is an escape hatch for hermetic tests only.
 
+6. **Discovery grants (T210, optional after init):** vault init does **not** auto-issue grants (deny-by-default). Before `source list` / `review list` / briefing discovery sections work for a principal, run once:
+
+   ```powershell
+   ai-brains policy bootstrap --scope "Repository:<project-uuid>"
+   # or omit --scope when AI_BRAINS_PROJECT_ID / project context is authoritative
+   ai-brains policy bootstrap --dry-run   # plan only; zero appends
+   ```
+
+   Issues exactly `ReadEvidence`, `ReadConclusions`, `ReadDecisions` (`Privacy::LocalOnly`). Idempotent. See [OPERATIONS.md](OPERATIONS.md) governed policy bootstrap.
+
 ---
 
 ## 6. Daemon transport honesty

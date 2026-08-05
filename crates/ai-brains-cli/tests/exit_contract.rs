@@ -160,9 +160,10 @@ fn policy_check__deny__exit_3_details_hint() {
         !hint.is_empty(),
         "details.hint must be non-empty string; got {v}"
     );
+    // T210: bootstrap is primary remediation; show remains secondary in the same string.
     assert!(
-        hint.contains("policy show") || hint.contains("grant"),
-        "hint should remediate grants; got {hint}"
+        hint.contains("bootstrap"),
+        "hint must mention policy bootstrap; got {hint}"
     );
 }
 
