@@ -258,6 +258,9 @@ pub fn semantic_search(
                 score: Some(sim),
                 privacy: Some(privacy),
                 session_id,
+                // Semantic arm does not SELECT memory updated_at (F16: None OK).
+                updated_at: None,
+                is_plan_demoted: false,
             },
         ));
     }

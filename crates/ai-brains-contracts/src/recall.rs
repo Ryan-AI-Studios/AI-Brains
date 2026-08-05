@@ -23,6 +23,9 @@ pub struct RecallResult {
     pub score: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// T211 soft F26: content-heuristic staleness (`"plan"` when plan-demoted). Omitted when None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub staleness: Option<String>,
 }
 
 /// Status of the embedding backend for a semantic recall attempt (T202).

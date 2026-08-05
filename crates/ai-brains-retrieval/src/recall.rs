@@ -33,6 +33,10 @@ pub struct RecallHit {
     pub privacy: Option<Privacy>,
     /// Session ID of the source memory, if any.
     pub session_id: Option<String>,
+    /// Memory projection `updated_at` when known (FTS/substring/graph); bridge leaves None (F16).
+    pub updated_at: Option<String>,
+    /// True when this hit is a Plan-class DECISION demoted by ranking (T211 F11).
+    pub is_plan_demoted: bool,
 }
 
 impl RecallHit {
@@ -42,6 +46,7 @@ impl RecallHit {
         content: String,
         score: Option<f64>,
         session_id: Option<String>,
+        updated_at: Option<String>,
     ) -> Self {
         Self {
             memory_id,
@@ -50,11 +55,18 @@ impl RecallHit {
             score,
             privacy: None,
             session_id,
+            updated_at,
+            is_plan_demoted: false,
         }
     }
 
     /// Create a hit from the substring LIKE fallback.
-    pub fn substring(memory_id: String, content: String, session_id: Option<String>) -> Self {
+    pub fn substring(
+        memory_id: String,
+        content: String,
+        session_id: Option<String>,
+        updated_at: Option<String>,
+    ) -> Self {
         Self {
             memory_id,
             content,
@@ -62,6 +74,8 @@ impl RecallHit {
             score: None,
             privacy: None,
             session_id,
+            updated_at,
+            is_plan_demoted: false,
         }
     }
 
@@ -71,6 +85,7 @@ impl RecallHit {
         content: String,
         score: Option<f64>,
         session_id: Option<String>,
+        updated_at: Option<String>,
     ) -> Self {
         Self {
             memory_id,
@@ -79,10 +94,14 @@ impl RecallHit {
             score,
             privacy: None,
             session_id,
+            updated_at,
+            is_plan_demoted: false,
         }
     }
 
     /// Create a hit from the unified IPC bridge.
+    ///
+    /// Bridge timestamps are not memory `updated_at` — leave None (F16).
     pub fn bridge(
         memory_id: String,
         content: String,
@@ -98,6 +117,8 @@ impl RecallHit {
             score,
             privacy,
             session_id,
+            updated_at: None,
+            is_plan_demoted: false,
         }
     }
 }
@@ -164,6 +185,7 @@ pub fn recall_full(
                 memory.content,
                 memory.score,
                 memory.session_id,
+                memory.updated_at,
             )
         })
         .collect();
@@ -176,7 +198,12 @@ pub fn recall_full(
             local_hits = fallback
                 .into_iter()
                 .map(|memory| {
-                    RecallHit::substring(memory.memory_id, memory.content, memory.session_id)
+                    RecallHit::substring(
+                        memory.memory_id,
+                        memory.content,
+                        memory.session_id,
+                        memory.updated_at,
+                    )
                 })
                 .collect();
         }
@@ -276,19 +303,24 @@ pub fn recall_full(
             };
             for neighbor in neighbors {
                 if !seen_ids.contains(&neighbor.external_id) {
-                    // Fetch content from memory_projection by external_id.
-                    let content_opt: Option<String> = {
+                    // Fetch content + updated_at from memory_projection (F16/F38).
+                    let row_opt: Option<(String, Option<String>)> = {
                         let db = conn.lock().ok();
                         db.and_then(|c| {
                             c.query_row(
-                                "SELECT content FROM memory_projection WHERE memory_id = ?1",
+                                "SELECT content, updated_at FROM memory_projection WHERE memory_id = ?1",
                                 rusqlite::params![neighbor.external_id],
-                                |row| row.get::<_, String>(0),
+                                |row| {
+                                    Ok((
+                                        row.get::<_, String>(0)?,
+                                        row.get::<_, Option<String>>(1)?,
+                                    ))
+                                },
                             )
                             .ok()
                         })
                     };
-                    if let Some(content) = content_opt {
+                    if let Some((content, updated_at)) = row_opt {
                         let boost_score = Some(parent_score.unwrap_or(0.0) + options.graph_boost);
                         seen_ids.insert(neighbor.external_id.clone());
                         graph_hits.push(RecallHit::graph(
@@ -296,6 +328,7 @@ pub fn recall_full(
                             content,
                             boost_score,
                             None,
+                            updated_at,
                         ));
                     }
                 }
@@ -304,13 +337,9 @@ pub fn recall_full(
         blended.extend(graph_hits);
     }
 
-    // Re-sort by score descending (None scores go last), then truncate.
-    blended.sort_by(|a, b| match (a.score, b.score) {
-        (Some(sa), Some(sb)) => sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal),
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        (None, None) => std::cmp::Ordering::Equal,
-    });
+    // T211: pin-type + recency composite re-rank (F8). Single post-blend entry
+    // point (F40) — replaces the old Some-scores-first bucket sort. Truncate after.
+    crate::ranking::rerank_hits(&mut blended);
 
     if blended.len() > limit {
         blended.truncate(limit);
@@ -418,12 +447,20 @@ mod tests {
 
     #[test]
     fn recall_hit_fts_constructor() {
-        let hit = RecallHit::fts("mem-1".into(), "test content".into(), Some(0.85), None);
+        let hit = RecallHit::fts(
+            "mem-1".into(),
+            "test content".into(),
+            Some(0.85),
+            None,
+            None,
+        );
         assert_eq!(hit.memory_id, "mem-1");
         assert_eq!(hit.source, "fts");
         assert_eq!(hit.score, Some(0.85));
         assert_eq!(hit.privacy, None);
         assert_eq!(hit.session_id, None);
+        assert_eq!(hit.updated_at, None);
+        assert!(!hit.is_plan_demoted);
     }
 
     #[test]
@@ -433,6 +470,7 @@ mod tests {
             "test content".into(),
             Some(0.85),
             Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string()),
+            None,
         );
         assert_eq!(
             hit.session_id,
@@ -506,8 +544,8 @@ mod tests {
         ];
 
         let local_fts = vec![
-            RecallHit::fts("mem-2".into(), "c2-fts".into(), Some(0.7), None),
-            RecallHit::fts("mem-3".into(), "c3".into(), Some(0.6), None),
+            RecallHit::fts("mem-2".into(), "c2-fts".into(), Some(0.7), None, None),
+            RecallHit::fts("mem-3".into(), "c3".into(), Some(0.6), None, None),
         ];
 
         let mut seen = std::collections::HashSet::new();
@@ -562,6 +600,7 @@ mod tests {
                     format!("vault-{}", i),
                     format!("vault {}", i),
                     Some(0.5),
+                    None,
                     None,
                 )
             })

@@ -190,11 +190,12 @@ ai-brains recall -   # query from stdin
 | **FTS5** | Default lexical path; sanitized queries |
 | **Semantic** | `--semantic` + stored embeddings; honors `AI_BRAINS_EMBEDDING_URL` (default `http://127.0.0.1:8083`) and `AI_BRAINS_EMBEDDING_MODEL` (default `nomic-embed-text-v1.5`) |
 | **Embedding status** | With `--semantic`, JSON includes additive `embedding: { status, endpoint?, detail? }`. Closed statuses: `ok` \| `unreachable` \| `error` \| `no_stored_embeddings` \| `skipped`. Soft-fail: embed down never aborts FTS/bridge recall (exit **0**). Pretty TTY prints one status line when `status != ok`. |
+| **Pin-type re-rank (T211)** | After blend/graph and **before** truncate, hits are re-ranked by a **single composite** (`rerank_hits` — the only post-blend ranking entry point; **T215** semantic/RRF extends it, does not add a second final sort). Kind boosts: CONSTRAINT **+4**, DECISION **+2**, HOTSPOT **+0.5**; plan-class DECISION **−3** (optional sibling-track **−2**); shipped DECISION **+1**; small recency boost from `updated_at`. Sort: effective desc → `updated_at` desc → `memory_id` asc. Content heuristics only — not lifecycle fact (badge `plan/stale?`). |
 | **Graph boost** | Neighbor score boost (`--graph-boost`) |
 | **Substring fallback** | When FTS empty on small vaults |
 | **Scope** | Project default (`AI_BRAINS_PROJECT_ID` / flags); `--global` widens to all projects (never auto-widens on empty). Empty **pretty** prints a `Scope:` line (`global` or active `project=<alias-or-name> (<uuid>)` / `project=<uuid>` / `project=(none)`). Scope on non-empty pretty is deferred. |
 | **Bridge mix** | Ledgerful hits capped so vault memories still surface; `--no-bridge` |
-| **Formats** | Pretty on TTY by default; JSON / NDJSON; per-result `session_id` |
+| **Formats** | Pretty on TTY by default; JSON / NDJSON; per-result `session_id`; optional JSON `staleness: "plan"` when demoted |
 | **Hints** | Empty **pretty** always prints next-action text on stdout (**not TTY-only**), after Scope (and Session only when user `--session` / `--session-prefix` / `--session-last` resolved — generated graph-provenance sessions are omitted on empty). JSON empty still sets `hint` + `effective_session_id` (exit **0**). Next-action only when embedding status already explains cause (T202). `--quiet` does not suppress Scope or the empty hint. |
 
 ### Briefing + progressive query (T202)
@@ -246,9 +247,18 @@ Synthesizes repo safety/hotspots, session turns, memory index, recent dense memo
 ```powershell
 ai-brains sync query "rust" --format pretty
 ai-brains sync query "term" --no-bridge --global --quiet
+ai-brains sync query "path TOCTOU" --limit 5 --format pretty
 ```
 
+| Feature | Detail |
+|---------|--------|
+| **Vault re-rank** | Same `recall_full` + `rerank_hits` path as `recall` (pin-type authority, plan demotion, recency). Default vault **`--limit` / `-l` = 5**. |
+| **Plan badge** | Demoted plan-class DECISION lines show **`[plan/stale?]`** before content (content heuristic ≠ governed lifecycle). |
+| **Ledger-first** | When not `--no-bridge`, vault is recalled first; if ledger JSON probe is non-empty **and** the top vault hit is plan-class, prints banner `Note: vault top hit is plan/stale; ledger results shown first.` then **ledger section before vault**. Fail/empty/missing `ledgerful` → vault-only (no panic). |
+| **Honesty** | Re-rank is presentation only — pins are never auto-forgotten or mutated. **`rerank_hits` is the single post-blend ranking entry point** (F40); semantic embedding relevance / RRF is **T215** and extends that helper rather than adding a second final sort. |
+
 ---
+
 
 ## 8. Nightly intelligence (“Brain mode”)
 

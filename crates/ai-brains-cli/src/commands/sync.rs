@@ -392,39 +392,37 @@ pub async fn run_query(
     quiet: bool,
     global: bool,
     no_bridge: bool,
+    limit: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format.unwrap_or_else(|| "pretty".to_string());
 
-    let (project_id, session_id) = if global {
-        (None, None)
+    let project_id = if global {
+        None
     } else {
         let project_id_str =
             std::env::var("AI_BRAINS_PROJECT_ID").unwrap_or_else(|_| "default-project".to_string());
         use std::str::FromStr;
-        (
-            Some(
-                ai_brains_core::ids::ProjectId::from_str(&project_id_str)
-                    .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new()),
-            ),
-            None,
+        Some(
+            ai_brains_core::ids::ProjectId::from_str(&project_id_str)
+                .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new()),
         )
     };
 
-    if fmt == "ndjson" {
-        #[cfg(feature = "graph")]
-        let graph_vault = ai_brains_graph::GraphVault::new((*ctx.conn).clone());
-        #[cfg(feature = "graph")]
-        let graph_search = Some(ai_brains_graph::queries::GraphSearch::new(&graph_vault));
-        #[cfg(not(feature = "graph"))]
-        let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
+    #[cfg(feature = "graph")]
+    let graph_vault = ai_brains_graph::GraphVault::new((*ctx.conn).clone());
+    #[cfg(feature = "graph")]
+    let graph_search = Some(ai_brains_graph::queries::GraphSearch::new(&graph_vault));
+    #[cfg(not(feature = "graph"))]
+    let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
 
+    if fmt == "ndjson" {
         let project_id = project_id.unwrap_or_else(ai_brains_core::ids::ProjectId::new);
 
         let hits = ai_brains_retrieval::recall(
             &ctx.conn,
             graph_search.as_ref(),
             &query,
-            5,
+            limit,
             ai_brains_retrieval::RecallOptions {
                 project_id: Some(project_id),
                 session_id: None,
@@ -466,74 +464,239 @@ pub async fn run_query(
         return Ok(());
     }
 
-    println!("--- AI-Brains Recall ---");
-    // 1. Local Recall
-    crate::commands::recall::run(
-        ctx,
-        crate::commands::recall::RecallRunOptions {
-            query: query.clone(),
-            limit: 3,
+    // F37: pretty path calls recall_full directly (not recall::run) so hits are
+    // inspectable for F12 ledger-first. Vault arm always skips IPC bridge
+    // (ledger is a separate section below).
+    let outcome = ai_brains_retrieval::recall_full(
+        &ctx.conn,
+        graph_search.as_ref(),
+        &query,
+        limit,
+        ai_brains_retrieval::RecallOptions {
             project_id,
-            session_id,
-            session_last: false,
-            session_prefix: None,
-            format: Some(fmt),
+            session_id: None,
             semantic: false,
             graph_boost: 0.1,
             graph_hop_depth: 1,
             quiet,
             no_bridge: true,
-            global: false,
         },
     )?;
+    let hits = outcome.hits;
 
-    if no_bridge {
-        return Ok(());
-    }
+    // F12: when not --no-bridge, probe ledger JSON for non-empty results.
+    let ledger_section = if no_bridge {
+        None
+    } else {
+        probe_ledger_search(&query, quiet)
+    };
+    let ledger_non_empty = ledger_section
+        .as_ref()
+        .map(|s| s.non_empty)
+        .unwrap_or(false);
+    // F12: ledger-first when top vault hit is Plan-class Decision, OR every
+    // vault Decision hit is Plan (no Shipped/Unknown Decision above plan noise).
+    let top_is_plan = hits.first().is_some_and(|h| h.is_plan_demoted);
+    let every_decision_is_plan = {
+        let decisions: Vec<_> = hits
+            .iter()
+            .filter(|h| {
+                ai_brains_retrieval::classify_pin_kind(&h.content)
+                    == ai_brains_retrieval::PinKind::Decision
+            })
+            .collect();
+        !decisions.is_empty() && decisions.iter().all(|h| h.is_plan_demoted)
+    };
+    let ledger_first = ledger_non_empty && (top_is_plan || every_decision_is_plan);
 
-    println!("\n--- Ledgerful Ledger Search ---");
-    // T91: strip ANSI codes; T90: sanitize for FTS5 before forwarding to ledgerful.
-    let clean_query = ai_brains_retrieval::strip_ansi(&query);
-    let sanitized_query = ai_brains_retrieval::sanitize_fts_query(&clean_query);
-    // T110: suppress ANSI color codes when stdout is not a TTY.
-    use is_terminal::IsTerminal;
-    let is_tty = std::io::stdout().is_terminal();
-    // 2. Ledgerful Query (Attempt to call CLI)
-    let mut cmd = std::process::Command::new("ledgerful");
-    cmd.args(["ledger", "search", &sanitized_query]);
-    if !is_tty {
-        cmd.env("NO_COLOR", "1");
-    }
-
-    if quiet {
-        cmd.stderr(std::process::Stdio::null());
-    }
-
-    let output = cmd.output();
-
-    match output {
-        Ok(out) if out.status.success() => {
-            let stdout_str = String::from_utf8_lossy(&out.stdout);
-            if is_tty {
-                println!("{}", stdout_str);
-            } else {
-                println!("{}", ai_brains_retrieval::strip_ansi(&stdout_str));
-            }
+    let print_vault = || -> Result<(), Box<dyn std::error::Error>> {
+        println!("--- AI-Brains Recall ---");
+        if hits.is_empty() {
+            // T207 empty pretty: Scope + hint, no TTY gate (F37 preserve).
+            crate::commands::recall::print_pretty_empty_sync(ctx, &query, global, project_id)?;
+        } else {
+            crate::commands::recall::print_pretty_hits(&hits);
         }
-        Ok(out) => {
-            if !quiet {
-                tracing::warn!(
-                    "ledgerful search failed: {}",
-                    String::from_utf8_lossy(&out.stderr)
-                );
-            }
+        Ok(())
+    };
+
+    let print_ledger = |section: &LedgerProbeResult| {
+        println!("\n--- Ledgerful Ledger Search ---");
+        if let Some(ref text) = section.display {
+            println!("{}", text);
         }
-        Err(_) => {
-            if !quiet {
-                tracing::info!("ledgerful CLI not found or failed to execute.");
-            }
+    };
+
+    if ledger_first {
+        println!("Note: vault top hit is plan/stale; ledger results shown first.");
+        if let Some(ref section) = ledger_section {
+            print_ledger(section);
+        }
+        println!();
+        print_vault()?;
+    } else {
+        print_vault()?;
+        if let Some(ref section) = ledger_section
+            && (section.non_empty || section.display.is_some())
+        {
+            print_ledger(section);
         }
     }
 
     Ok(())
+}
+
+/// Result of a `ledgerful ledger search --json` probe (T211 F12).
+struct LedgerProbeResult {
+    non_empty: bool,
+    /// Human-readable display text (from re-run without --json, or pretty JSON).
+    display: Option<String>,
+}
+
+/// Probe ledger for non-empty results; fail/empty/missing → vault-only (no panic).
+#[allow(clippy::disallowed_methods)]
+fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProbeResult> {
+    use is_terminal::IsTerminal;
+    let is_tty = std::io::stdout().is_terminal();
+
+    // T91: strip ANSI; T90: sanitize FTS before forwarding.
+    let clean_query = ai_brains_retrieval::strip_ansi(query);
+    let sanitized_query = ai_brains_retrieval::sanitize_fts_query(&clean_query);
+
+    let mut json_cmd = std::process::Command::new("ledgerful");
+    json_cmd.args(["ledger", "search", "--json", &sanitized_query]);
+    if !is_tty {
+        json_cmd.env("NO_COLOR", "1");
+    }
+    if quiet {
+        json_cmd.stderr(std::process::Stdio::null());
+    }
+
+    let json_output = match json_cmd.output() {
+        Ok(out) => out,
+        Err(_) => {
+            if !quiet {
+                tracing::info!("ledgerful CLI not found or failed to execute.");
+            }
+            return None;
+        }
+    };
+
+    if !json_output.status.success() {
+        if !quiet {
+            tracing::warn!(
+                "ledgerful search failed: {}",
+                String::from_utf8_lossy(&json_output.stderr)
+            );
+        }
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&json_output.stdout);
+    let non_empty = ledger_json_non_empty(&stdout);
+
+    // Prefer a human display: re-run without --json when non-empty (or always if free).
+    let display = {
+        let mut human_cmd = std::process::Command::new("ledgerful");
+        human_cmd.args(["ledger", "search", &sanitized_query]);
+        if !is_tty {
+            human_cmd.env("NO_COLOR", "1");
+        }
+        if quiet {
+            human_cmd.stderr(std::process::Stdio::null());
+        }
+        match human_cmd.output() {
+            Ok(out) if out.status.success() => {
+                let s = String::from_utf8_lossy(&out.stdout).into_owned();
+                let s = if is_tty {
+                    s
+                } else {
+                    ai_brains_retrieval::strip_ansi(&s)
+                };
+                if s.trim().is_empty() { None } else { Some(s) }
+            }
+            _ => {
+                // Fall back to raw JSON probe stdout.
+                let s = if is_tty {
+                    stdout.into_owned()
+                } else {
+                    ai_brains_retrieval::strip_ansi(&stdout)
+                };
+                if s.trim().is_empty() { None } else { Some(s) }
+            }
+        }
+    };
+
+    Some(LedgerProbeResult { non_empty, display })
+}
+
+/// F12 non-empty detection: success already checked; JSON array/object with ≥1
+/// entry OR ≥1 non-empty JSON line that parses.
+fn ledger_json_non_empty(stdout: &str) -> bool {
+    let trimmed = stdout.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    // Whole-stdout JSON array or object.
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) {
+        return match v {
+            serde_json::Value::Array(a) => !a.is_empty(),
+            serde_json::Value::Object(o) => !o.is_empty(),
+            _ => false,
+        };
+    }
+
+    // NDJSON / multi-line: any non-empty line that parses as JSON value.
+    for line in stdout.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+            match v {
+                serde_json::Value::Array(a) if !a.is_empty() => return true,
+                serde_json::Value::Object(o) if !o.is_empty() => return true,
+                serde_json::Value::Null
+                | serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_) => {
+                    continue;
+                }
+                serde_json::Value::String(s) if s.is_empty() => continue,
+                serde_json::Value::String(_) => return true,
+                serde_json::Value::Array(_) | serde_json::Value::Object(_) => continue,
+            }
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods)]
+mod tests {
+    use super::ledger_json_non_empty;
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_json_non_empty__array_with_item() {
+        assert!(ledger_json_non_empty(r#"[{"id":1}]"#));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_json_non_empty__empty_array() {
+        assert!(!ledger_json_non_empty("[]"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_json_non_empty__ndjson_object_line() {
+        assert!(ledger_json_non_empty("{\"a\":1}\n"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_json_non_empty__blank() {
+        assert!(!ledger_json_non_empty("  \n"));
+    }
 }

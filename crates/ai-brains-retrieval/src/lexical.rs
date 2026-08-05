@@ -10,6 +10,8 @@ pub struct RetrievalMemory {
     pub content: String,
     pub score: Option<f64>,
     pub session_id: Option<String>,
+    /// Memory projection `updated_at` (RFC3339), when available (T211 recency).
+    pub updated_at: Option<String>,
 }
 
 pub fn lexical_search(
@@ -25,12 +27,13 @@ pub fn lexical_search(
         return Ok(Vec::new());
     }
 
-    let mut sql = "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, fts.rank
+    let mut sql =
+        "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, fts.rank, mp.updated_at
          FROM memory_fts fts
          JOIN memory_projection mp ON mp.rowid = fts.rowid
          LEFT JOIN session_projection sp ON mp.session_id = sp.session_id
          WHERE memory_fts MATCH ? AND mp.status = 'pinned'"
-        .to_string();
+            .to_string();
 
     let mut params_vec: Vec<rusqlite::types::Value> = vec![sanitized.into()];
 
@@ -60,6 +63,7 @@ pub fn lexical_search(
                 content: row.get(1)?,
                 score: row.get(4)?,
                 session_id: row.get(3)?,
+                updated_at: row.get(5)?,
             });
         }
     }
@@ -100,7 +104,7 @@ pub fn substring_fallback(
 
     let pattern = format!("%{}%", escape_like_pattern(query));
 
-    let mut sql = "SELECT memory_id, content, privacy, session_id FROM memory_projection\n         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'".to_string();
+    let mut sql = "SELECT memory_id, content, privacy, session_id, updated_at FROM memory_projection\n         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'".to_string();
     let mut params_vec: Vec<rusqlite::types::Value> = vec![pattern.into()];
 
     if let Some(sid) = session_id {
@@ -142,6 +146,7 @@ pub fn substring_fallback(
                 content: row.get(1)?,
                 score: None,
                 session_id: row.get(3)?,
+                updated_at: row.get(4)?,
             });
         }
     }
