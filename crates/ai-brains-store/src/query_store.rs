@@ -316,6 +316,7 @@ impl QueryStore for VaultConnection {
 
     fn list_projects(&self) -> Result<Vec<(String, String, String, usize)>> {
         let conn = self.lock()?;
+        // F13/F41: deterministic tie-break on project_id ASC.
         let sql = "
             SELECT
                 p.project_id,
@@ -331,7 +332,7 @@ impl QueryStore for VaultConnection {
                 FROM memory_projection
                 GROUP BY project_id
             ) mem ON p.project_id = mem.project_id
-            ORDER BY memory_count DESC
+            ORDER BY memory_count DESC, p.project_id ASC
         ";
         let mut stmt = conn.prepare(sql)?;
         let rows = stmt.query_map([], |row| {
@@ -340,6 +341,59 @@ impl QueryStore for VaultConnection {
             let alias: String = row.get(2)?;
             let count: usize = row.get(3)?;
             Ok((project_id, name, alias, count))
+        })?;
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
+    }
+
+    fn list_projects_detail(&self) -> Result<Vec<crate::ProjectListDetail>> {
+        let conn = self.lock()?;
+        // F6: path via scalar correlated subquery (ORDER BY path ASC LIMIT 1) —
+        // never a plain multi-row JOIN that would duplicate projects.
+        // F7/M4: last_activity = COALESCE(MAX(mp.updated_at), p.updated_at).
+        // F13: ORDER BY memory_count DESC, project_id ASC.
+        let sql = "
+            SELECT
+                p.project_id,
+                p.name,
+                COALESCE(a.alias, '') AS alias,
+                COALESCE(mem.memory_count, 0) AS memory_count,
+                COALESCE(mem.last_activity, p.updated_at) AS last_activity,
+                (
+                    SELECT normalized_path
+                    FROM repository_path_alias_projection r
+                    WHERE r.project_id = p.project_id
+                    ORDER BY r.normalized_path ASC
+                    LIMIT 1
+                ) AS path
+            FROM project_projection p
+            LEFT JOIN project_alias_projection a ON p.project_id = a.project_id
+            LEFT JOIN (
+                SELECT project_id, COUNT(*) AS memory_count, MAX(updated_at) AS last_activity
+                FROM memory_projection
+                GROUP BY project_id
+            ) mem ON p.project_id = mem.project_id
+            ORDER BY memory_count DESC, p.project_id ASC
+        ";
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([], |row| {
+            let project_id: String = row.get(0)?;
+            let name: String = row.get(1)?;
+            let alias: String = row.get(2)?;
+            let memory_count: usize = row.get(3)?;
+            let last_activity: Option<String> = row.get(4)?;
+            let path: Option<String> = row.get(5)?;
+            Ok(crate::ProjectListDetail {
+                project_id,
+                name,
+                alias,
+                memory_count,
+                last_activity: last_activity.unwrap_or_default(),
+                path: path.filter(|p| !p.is_empty()),
+            })
         })?;
         let mut results = Vec::new();
         for row in rows {

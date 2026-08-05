@@ -1398,8 +1398,15 @@ pub enum GraphCommands {
 
 #[derive(Subcommand, Clone)]
 pub enum ProjectCommands {
-    /// List all projects in the vault
-    List,
+    /// List all projects in the vault (label-first; set-alias nudge on stderr)
+    #[command(
+        after_help = "Examples:\n  ai-brains project list\n  ai-brains project list --format json\n  ai-brains project set-alias <uuid> my-project\nColumns (human): label | project_id | memories | last_activity | path\nlast_activity = last memory-projection mutation (pin/forget/ingest), not chat-only.\npath is a registered repo path alias when present; never invented (— / null).\nUnaliased projects: a set-alias example is printed on stderr (not stdout)."
+    )]
+    List {
+        /// Output format: human (default table) or json
+        #[arg(long, default_value = "human", value_parser = ["human", "json"])]
+        format: String,
+    },
     /// Resolve an alias to a project ID
     Resolve {
         /// Project alias to resolve (positional)
@@ -1415,6 +1422,9 @@ pub enum ProjectCommands {
         export: bool,
     },
     /// Set a human-readable alias for a project
+    #[command(
+        after_help = "Examples:\n  ai-brains project list\n  ai-brains project set-alias <uuid> my-project\n  ai-brains project list --format json\nTip: `project list` prints a copy-paste set-alias example on stderr when aliases are missing."
+    )]
     SetAlias {
         /// Project UUID (from `project list`)
         project_id: String,
@@ -3102,7 +3112,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             DaemonCommands::Update => commands::daemon::run_update(&ctx).await,
         },
         Commands::Project { command } => match command {
-            ProjectCommands::List => commands::project::list(&ctx),
+            ProjectCommands::List { format } => commands::project::list(&ctx, format),
             ProjectCommands::Resolve {
                 alias_positional,
                 alias,
