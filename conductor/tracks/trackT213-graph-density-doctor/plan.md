@@ -94,7 +94,7 @@ Defaults: `MIN_PINNED=100`, `MIN_NODES=50`, **`MIN_EDGE_NODE_RATIO=0.50`**, `MIN
 - [x] **Append soft residuals to `conductor/deferred.md`** (L5 — not ISSUES.md): F17/F24/F31 + L4/L6 if still open
 - [x] Internal review → cross-model (Claude final **PASS**; Codex rate-limited)
 - [x] Full CI gate + manual dogfood §9 of spec (2177 nextest; live sparse dogfood)
-- [ ] `ledgerful ledger commit` / PR; mark conductor **Completed**; strike deferred T213 (post-merge)
+- [x] `ledgerful ledger commit` / PR #97 squash-merged `355bf09`; mark conductor **Completed**; deferred T213 residuals recorded
 
 ## Touch map (implement)
 
