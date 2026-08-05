@@ -49,6 +49,30 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
     /// Privacy flag for a memory in `memory_projection`, if present.
     fn get_memory_privacy(&self, memory_id: &MemoryId) -> Result<Option<Privacy>>;
     fn delete_old_turns(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<usize>;
+    /// Inventory list (T216): status + optional project/tag + limit (caller uses limit+1).
+    ///
+    /// Parameterized SQL only (`(sql, params)` SOOT). When `filter.tag` is `Some`,
+    /// SQL pre-filters `content LIKE 'TAGS:%'` (start-anchored); token match is the
+    /// caller's responsibility on list rows (or use [`Self::count_memories`] for totals).
+    fn list_memories(&self, filter: &MemoryListFilter) -> Result<Vec<MemoryListRow>>;
+    /// Total matching rows for a filter (no LIMIT). When `tag` is set, applies
+    /// two-stage TAGS: prefix + case-insensitive exact token match (T216 F12).
+    fn count_memories(&self, filter: &MemoryListFilter) -> Result<u64>;
+    /// Per-project pinned/forgotten counts for global summary (T216 F11/F38).
+    ///
+    /// Only projects with pinned > 0 OR forgotten > 0; excludes null `project_id`.
+    /// Ordered by `(pinned+forgotten) DESC, project_id ASC`.
+    fn count_memories_by_project(&self) -> Result<Vec<(String, u64, u64)>>;
+    /// Count of forgotten memories, optionally scoped to one project (T216 F42).
+    ///
+    /// Mirrors [`Self::count_pinned_memories`]: `None` = vault-wide; `Some` filters
+    /// `memory_projection.project_id = ?`.
+    fn count_forgotten_memories(
+        &self,
+        project_id: Option<&ai_brains_core::ids::ProjectId>,
+    ) -> Result<u64>;
+    /// Legacy forgotten list (T216: thin-wraps [`Self::list_memories`] with a high limit).
+    /// Production CLI uses bounded `list_memories` / `memory list` instead.
     fn list_forgotten_memories(
         &self,
         project_id: Option<ai_brains_core::ids::ProjectId>,
@@ -110,6 +134,51 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
     /// Used by `forget` to validate `--memory-id` before appending a
     /// `MemoryForgotten` event that would otherwise silently no-op.
     fn memory_exists(&self, memory_id: &str) -> Result<bool>;
+}
+
+// ---------------------------------------------------------------------------
+// T216 — memory inventory list / count types
+// ---------------------------------------------------------------------------
+
+/// Status filter for [`QueryStore::list_memories`] / [`QueryStore::count_memories`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemoryListStatus {
+    Pinned,
+    Forgotten,
+}
+
+impl MemoryListStatus {
+    /// Wire / SQL status string (`pinned` | `forgotten`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pinned => "pinned",
+            Self::Forgotten => "forgotten",
+        }
+    }
+}
+
+/// One row from a memory inventory list (T216).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemoryListRow {
+    pub memory_id: String,
+    pub content: String,
+    pub updated_at: String,
+    pub project_id: Option<String>,
+    pub status: String,
+}
+
+/// Filter for memory inventory list/count (T216 F15).
+#[derive(Debug, Clone)]
+pub struct MemoryListFilter {
+    pub status: MemoryListStatus,
+    /// `None` = global (no project predicate); `Some` = project-scoped.
+    pub project_id: Option<ai_brains_core::ids::ProjectId>,
+    /// When `Some`, SQL pre-filter `content LIKE 'TAGS:%'` (start-anchored).
+    /// Token match for count is applied in-store; list callers re-filter.
+    pub tag: Option<String>,
+    /// Query page size (caller typically passes `limit + 1` for more_available).
+    /// For tag candidate over-fetch, pass the elevated candidate cap.
+    pub limit: usize,
 }
 
 /// Row from [`QueryStore::list_projects_detail`] (T212).

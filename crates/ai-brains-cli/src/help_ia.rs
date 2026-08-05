@@ -8,7 +8,7 @@ pub const ROOT_AFTER_LONG_HELP: &str = "\
 Command groups (presentation only — names unchanged):
 
   Setup:     init
-  Daily:     recall, preflight, doctor, project, pin, context, stop-session, daemon
+  Daily:     recall, preflight, doctor, project, pin, memory, context, stop-session, daemon
   Operator:  backup, recovery, vault, retention, device, replicate, nightly, safety
   Governed:  scope, briefing, query, evidence, source, review, policy, conclusion, decision
   Dangerous: forget, erasure; also retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update
@@ -53,9 +53,9 @@ mod tests {
         );
         assert!(
             ROOT_AFTER_LONG_HELP.contains(
-                "Daily:     recall, preflight, doctor, project, pin, context, stop-session, daemon"
+                "Daily:     recall, preflight, doctor, project, pin, memory, context, stop-session, daemon"
             ),
-            "Daily inventory must include stop-session in group text"
+            "Daily inventory must include memory + stop-session in group text"
         );
     }
 
