@@ -26,6 +26,7 @@ fn recall__fts5_empty__substring_fallback_finds_match() -> Result<(), Box<dyn st
             graph_hop_depth: 0,
             quiet: true,
             no_bridge: true,
+            min_semantic_score: None,
         },
     )?;
 

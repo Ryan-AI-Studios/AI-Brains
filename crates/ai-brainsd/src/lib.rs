@@ -275,6 +275,7 @@ impl DaemonWriter {
                 graph_hop_depth: 0,
                 no_bridge: true,
                 quiet: true,
+                min_semantic_score: None,
             },
         )?;
         Ok(hits)

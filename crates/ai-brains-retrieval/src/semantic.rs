@@ -1,4 +1,5 @@
 use crate::errors::{Result, RetrievalError};
+use crate::hybrid::{effective_semantic_min_cosine, filter_by_cosine_floor};
 use crate::privacy_filter::is_injectable_privacy;
 use crate::recall::RecallHit;
 use ai_brains_contracts::recall::EmbeddingStatusDto;
@@ -7,7 +8,15 @@ use ai_brains_models::ModelProvider;
 use ai_brains_store::VaultConnection;
 use rusqlite::params_from_iter;
 
-type EmbeddedMemory = (String, String, Privacy, Option<String>, Vec<u8>);
+/// id, content, privacy, session_id, updated_at, embedding (F16).
+type EmbeddedMemory = (
+    String,
+    String,
+    Privacy,
+    Option<String>,
+    Option<String>,
+    Vec<u8>,
+);
 
 /// Default embedding endpoint (llama.cpp OpenAI-compat style; aligned with nightly).
 pub const DEFAULT_EMBEDDING_URL: &str = "http://127.0.0.1:8083";
@@ -215,6 +224,13 @@ pub fn status_after_embed_ok(
 /// Fetches an embedding for the query via LlamaCppProvider, then computes
 /// cosine similarity against stored embedding BLOBs.
 ///
+/// # Threshold + depth (T215)
+///
+/// Candidates with cosine **&lt;** floor are dropped (F4). Floor comes from
+/// `min_score_override` (soft CLI), else env `AI_BRAINS_SEMANTIC_MIN_SCORE`,
+/// else `0.55`. `limit` is the **candidate depth** for RRF (F9), not the final
+/// recall truncate. Status stays `ok` when all scores are below the floor (F15).
+///
 /// Embed backend failures return `Ok` with empty hits and a classified status
 /// (soft-fail; F3). Database errors still surface as `Err`.
 pub fn semantic_search(
@@ -223,8 +239,10 @@ pub fn semantic_search(
     limit: usize,
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
+    min_score_override: Option<f64>,
 ) -> Result<SemanticOutcome> {
     let endpoint_label = public_endpoint_label(&embedding_endpoint());
+    let floor = effective_semantic_min_cosine(min_score_override);
 
     let query_embedding = match fetch_embedding(query) {
         Ok(v) => v,
@@ -241,7 +259,7 @@ pub fn semantic_search(
     let mut decodable_rows = 0usize;
     let mut scored: Vec<(f64, RecallHit)> = Vec::new();
 
-    for (memory_id, content, privacy, session_id, embedding_bytes) in memories {
+    for (memory_id, content, privacy, session_id, updated_at, embedding_bytes) in memories {
         let Some(emb) = bytes_to_f32_vec(&embedding_bytes) else {
             continue;
         };
@@ -249,31 +267,38 @@ pub fn semantic_search(
         let Some(sim) = cosine_similarity(&query_embedding, &emb) else {
             continue;
         };
+        // Score all decodable rows first; floor applied via shared helper (F-03 / AC2).
         scored.push((
             sim,
-            RecallHit {
+            RecallHit::semantic(
                 memory_id,
                 content,
-                source: "semantic".to_string(),
-                score: Some(sim),
-                privacy: Some(privacy),
+                Some(sim),
+                Some(privacy),
                 session_id,
-                // Semantic arm does not SELECT memory updated_at (F16: None OK).
-                updated_at: None,
-                is_plan_demoted: false,
-            },
+                updated_at,
+            ),
         ));
     }
 
     let embedding = status_after_embed_ok(total_rows, decodable_rows, Some(endpoint_label));
 
-    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-    scored.truncate(limit);
+    // Best-first cosine; ties → memory_id asc (F19).
+    scored.sort_by(|a, b| {
+        let cmp = b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal);
+        if cmp != std::cmp::Ordering::Equal {
+            return cmp;
+        }
+        a.1.memory_id.cmp(&b.1.memory_id)
+    });
 
-    Ok(SemanticOutcome {
-        hits: scored.into_iter().map(|(_, hit)| hit).collect(),
-        embedding,
-    })
+    let mut hits: Vec<RecallHit> = scored.into_iter().map(|(_, hit)| hit).collect();
+    // F4: drop below floor before candidate-depth truncate (AC2 binds production).
+    hits = filter_by_cosine_floor(hits, floor);
+    // Truncate to candidate depth after floor (F9).
+    hits.truncate(limit);
+
+    Ok(SemanticOutcome { hits, embedding })
 }
 
 /// Fetch query embedding. On model/transport failure returns classified status
@@ -322,11 +347,12 @@ fn fetch_pinned_embeddings(
 ) -> Result<Vec<EmbeddedMemory>> {
     let conn = conn.lock()?;
 
-    let mut sql = "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, mp.embedding
+    let mut sql =
+        "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, mp.updated_at, mp.embedding
         FROM memory_projection mp
         LEFT JOIN session_projection sp ON mp.session_id = sp.session_id
         WHERE mp.status = 'pinned' AND mp.embedding IS NOT NULL"
-        .to_string();
+            .to_string();
 
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
 
@@ -351,14 +377,17 @@ fn fetch_pinned_embeddings(
         let content: String = row.get(1)?;
         let privacy_str: String = row.get(2)?;
         let session_id: Option<String> = row.get(3)?;
-        let embedding: Vec<u8> = row.get(4)?;
+        let updated_at: Option<String> = row.get(4)?;
+        let embedding: Vec<u8> = row.get(5)?;
 
         if !is_injectable_privacy(&privacy_str) {
             continue;
         }
 
         let privacy: Privacy = serde_json::from_str(&privacy_str).unwrap_or(Privacy::LocalOnly);
-        results.push((memory_id, content, privacy, session_id, embedding));
+        results.push((
+            memory_id, content, privacy, session_id, updated_at, embedding,
+        ));
     }
 
     Ok(results)

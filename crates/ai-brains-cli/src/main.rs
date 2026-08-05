@@ -143,6 +143,10 @@ enum Commands {
         /// Use semantic (embedding) search alongside FTS5
         #[arg(long)]
         semantic: bool,
+        /// One-shot cosine similarity floor for `--semantic` (default 0.55 /
+        /// `AI_BRAINS_SEMANTIC_MIN_SCORE`). Soft F32.
+        #[arg(long = "min-score")]
+        min_score: Option<f64>,
         /// Score boost added to graph-neighbor hits (default 0.1)
         #[arg(long, default_value_t = 0.1)]
         graph_boost: f64,
@@ -2797,6 +2801,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             session_prefix,
             format,
             semantic,
+            min_score,
             graph_boost,
             graph_hop_depth,
             quiet,
@@ -2833,6 +2838,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     quiet: *quiet,
                     no_bridge: *no_bridge,
                     global: *global,
+                    min_score: *min_score,
                 },
             )
         }

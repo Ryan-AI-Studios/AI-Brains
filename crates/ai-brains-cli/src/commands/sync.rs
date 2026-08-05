@@ -431,6 +431,7 @@ pub async fn run_query(
                 graph_hop_depth: 1,
                 quiet,
                 no_bridge,
+                min_semantic_score: None,
             },
         )?;
 
@@ -480,6 +481,7 @@ pub async fn run_query(
             graph_hop_depth: 1,
             quiet,
             no_bridge: true,
+            min_semantic_score: None,
         },
     )?;
     let hits = outcome.hits;
