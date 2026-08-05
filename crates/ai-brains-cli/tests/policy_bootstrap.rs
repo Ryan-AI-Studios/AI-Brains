@@ -406,7 +406,11 @@ fn policy_bootstrap__after__dangerous_caps_still_denied() {
     assert_eq!(show.status.code(), Some(0));
     let v: Value = serde_json::from_slice(&show.stdout).expect("json");
     let grants = v["grants"].as_array().expect("grants");
-    assert_eq!(grants.len(), 3, "expected exactly three discovery grants; got {v}");
+    assert_eq!(
+        grants.len(),
+        3,
+        "expected exactly three discovery grants; got {v}"
+    );
     let mut caps: Vec<&str> = grants
         .iter()
         .map(|g| g["capability"].as_str().unwrap())
