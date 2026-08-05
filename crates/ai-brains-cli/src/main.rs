@@ -268,7 +268,10 @@ enum Commands {
         full: bool,
     },
     /// [dangerous] Forget a specific memory (soft delete)
-    #[command(display_order = 40)]
+    #[command(
+        display_order = 40,
+        after_help = "Read inventory (not dangerous):\n  ai-brains memory list\n  ai-brains memory list --status forgotten\n  ai-brains forget --list-forgotten --limit 5\nList-forgotten shares the memory list backend (limit default 50, max 200; Scope + --global/--format/--tag).\nSoft-forget is not CE wipe / not NIST Purge — use restore to reverse."
+    )]
     Forget {
         /// Memory ID to forget
         #[arg(long)]
@@ -279,7 +282,7 @@ enum Commands {
         /// Skip confirmation prompts
         #[arg(short, long)]
         force: bool,
-        /// List all forgotten memories
+        /// List forgotten memories (read-only; same backend as `memory list --status forgotten`)
         #[arg(long)]
         list_forgotten: bool,
         /// Restore a forgotten memory
@@ -288,6 +291,27 @@ enum Commands {
         /// Preview what would be forgotten without modifying the vault
         #[arg(long)]
         dry_run: bool,
+        /// Aggregate list across ALL projects (list-forgotten only)
+        #[arg(long)]
+        global: bool,
+        /// Max rows for --list-forgotten (default 50, max 200)
+        #[arg(short = 'l', long)]
+        limit: Option<usize>,
+        /// Output format for --list-forgotten: human (default) or json
+        #[arg(long, default_value = "human", value_parser = ["human", "json"])]
+        format: String,
+        /// Filter list-forgotten by content TAGS: token (heuristic)
+        #[arg(long)]
+        tag: Option<String>,
+        /// Project scope for list-forgotten (env AI_BRAINS_PROJECT_ID)
+        #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
+        project_id: Option<ProjectId>,
+    },
+    /// List pinned/forgotten memories (inventory skim; read-only)
+    #[command(display_order = 18)]
+    Memory {
+        #[command(subcommand)]
+        command: MemoryCommands,
     },
     /// Stop an active session
     #[command(display_order = 16)]
@@ -1399,6 +1423,38 @@ pub enum GraphCommands {
     Session { session_id: String },
     /// Show current graph health: node/edge counts
     Update,
+}
+
+/// T216 memory inventory subcommands.
+#[derive(Subcommand, Clone)]
+pub enum MemoryCommands {
+    /// List pinned or forgotten memories (inventory skim; read-only)
+    #[command(
+        after_help = "Examples:\n  ai-brains memory list\n  ai-brains memory list --status forgotten --limit 5\n  ai-brains memory list --summary\n  ai-brains memory list --summary --global\n  ai-brains memory list --format json --limit 3\n  ai-brains memory list --tag architecture\nDefault status=pinned. --summary always shows Pinned + Forgotten (ignores --status/--limit; --tag filters counts).\nTags are content-prefix heuristic (TAGS: first line), not a schema column.\nSoft-forget list/restore is not CE wipe / not NIST Purge."
+    )]
+    List {
+        /// Status filter: pinned (default) or forgotten
+        #[arg(long, default_value = "pinned")]
+        status: String,
+        /// Max rows (default 50, max 200)
+        #[arg(short = 'l', long)]
+        limit: Option<usize>,
+        /// List across all projects
+        #[arg(long)]
+        global: bool,
+        /// Output format: human (default) or json
+        #[arg(long, default_value = "human", value_parser = ["human", "json"])]
+        format: String,
+        /// Counts mode: Pinned + Forgotten (and by-project under --global)
+        #[arg(long)]
+        summary: bool,
+        /// Filter by content TAGS: token (case-insensitive exact)
+        #[arg(long)]
+        tag: Option<String>,
+        /// Project scope (env AI_BRAINS_PROJECT_ID); required unless --global
+        #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
+        project_id: Option<ProjectId>,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -2951,15 +3007,53 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             list_forgotten,
             restore,
             dry_run,
-        } => commands::forget::run(
-            &ctx,
-            memory_id.clone(),
-            match_query.clone(),
-            *force,
-            *list_forgotten,
-            restore.clone(),
-            *dry_run,
-        ),
+            global,
+            limit,
+            format,
+            tag,
+            project_id,
+        } => {
+            let effective_project_id = if *global { None } else { *project_id };
+            commands::forget::run(
+                &ctx,
+                memory_id.clone(),
+                match_query.clone(),
+                *force,
+                *list_forgotten,
+                restore.clone(),
+                *dry_run,
+                *global,
+                *limit,
+                format.clone(),
+                tag.clone(),
+                effective_project_id,
+            )
+        }
+        Commands::Memory { command } => match command {
+            MemoryCommands::List {
+                status,
+                limit,
+                global,
+                format,
+                summary,
+                tag,
+                project_id,
+            } => {
+                let effective_project_id = if *global { None } else { *project_id };
+                commands::memory::run_list(
+                    &ctx,
+                    commands::memory::MemoryListOptions {
+                        status: status.clone(),
+                        limit: *limit,
+                        global: *global,
+                        format: format.clone(),
+                        summary: *summary,
+                        tag: tag.clone(),
+                        project_id: effective_project_id,
+                    },
+                )
+            }
+        },
         Commands::StopSession { session_id } => {
             commands::stop_session::run(&ctx, session_id.clone())
         }

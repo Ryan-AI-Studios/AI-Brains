@@ -171,11 +171,34 @@ ai-brains pin --stdin --role user --privacy LocalOnly --dry-run
 ```powershell
 ai-brains forget --memory-id <uuid> -f
 ai-brains forget --match "outdated" -f
-ai-brains forget --list-forgotten
+ai-brains forget --list-forgotten --limit 5
 ai-brains forget --restore <uuid>
 ai-brains forget --dry-run …
 ```
 Forgotten items remain in the event log (audit) but drop from FTS / graph / preflight.
+**Soft-forget is not CE wipe / not NIST Purge** — `forget --restore` reverses soft-delete; list/restore do not purge ciphertext.
+
+### Memory inventory (T216)
+```powershell
+ai-brains memory list                          # default status=pinned, limit 50
+ai-brains memory list --status forgotten -l 5
+ai-brains memory list --summary
+ai-brains memory list --summary --global
+ai-brains memory list --format json --limit 3
+ai-brains memory list --tag architecture
+ai-brains forget --list-forgotten --global --format json   # same backend as --status forgotten
+```
+
+| Feature | Detail |
+|---------|--------|
+| **Primary** | `memory list` is **read-only** (not `[dangerous]`); never appends events. |
+| **Scope** | Project default (`AI_BRAINS_PROJECT_ID` / `--project-id`); without project and without `--global` → exit **2**. `--global` → `Scope: global`. |
+| **Status** | `--status pinned\|forgotten` (default **pinned**). `forget --list-forgotten` ≡ `memory list --status forgotten` (+ limit/scope/format/tag). |
+| **Limit** | Default **50**, max **200** (`clamp_list_limit`); `more_available` / `Showing N of T`. **BREAKING:** list-forgotten no longer dumps unbounded rows. |
+| **Summary** | `--summary` always prints **Pinned** + **Forgotten** (ignores `--status`/`--limit`). Under `--global`: by-project table (projects with either count &gt; 0 only; **turn-only projects excluded** — use `project list` for those). With `--tag`, top-line **and** by-project cells use the same two-stage tag filter (F46). |
+| **Tags** | Content-prefix heuristic only (`TAGS:` first line after optional role prefix from `pin --tag`); SQL start-anchored `LIKE 'TAGS:%'` (or `ROLE: TAGS:%`) + case-insensitive exact token. Not a schema column. Sparse token density among `TAGS:` rows can under-fill a page under elevated candidate cap (raise `--limit`). |
+| **Formats** | human table (Scope + preview with role-prefix strip) or `--format json` (`api_version`, items, total, more_available). |
+| **Empty** | `No pinned memories.` / `No forgotten memories.` exit **0**. |
 
 ---
 

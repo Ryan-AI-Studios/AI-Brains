@@ -1,10 +1,77 @@
-use crate::QueryStore;
 use crate::connection::VaultConnection;
 use crate::errors::{Result, StoreError};
+use crate::{MemoryListFilter, MemoryListRow, MemoryListStatus, QueryStore};
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use rusqlite::{OptionalExtension, params};
 use std::str::FromStr;
+
+/// High limit for legacy `list_forgotten_memories` thin-wrap (tests / non-CLI callers).
+/// Production CLI uses bounded `list_memories` via `memory list` / `forget --list-forgotten`.
+const LEGACY_LIST_FORGOTTEN_CAP: usize = 1_000_000;
+
+/// Case-insensitive exact token match on first-line `TAGS: a, b` (T216 F12 stage 2).
+///
+/// Strips one leading USER:/ASSISTANT:/SYSTEM: (capture pin stores
+/// `ASSISTANT: TAGS: a, b\nbody` via turn projection).
+fn content_has_tag_token(content: &str, tag: &str) -> bool {
+    let first = content
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .unwrap_or("")
+        .trim();
+    let mut line = first;
+    for prefix in ["USER:", "ASSISTANT:", "SYSTEM:"] {
+        if let Some(rest) = line.strip_prefix(prefix) {
+            line = rest.trim_start();
+            break;
+        }
+    }
+    let Some(rest) = line.strip_prefix("TAGS:") else {
+        return false;
+    };
+    let needle = tag.trim();
+    if needle.is_empty() {
+        return false;
+    }
+    rest.split(',')
+        .map(str::trim)
+        .any(|tok| !tok.is_empty() && tok.eq_ignore_ascii_case(needle))
+}
+
+/// Build parameterized list/count SQL fragments (T216 F15/F16 SOOT).
+///
+/// Returns `(from_where_sql, params)` without SELECT list or LIMIT/ORDER.
+fn memory_list_from_where(
+    status: MemoryListStatus,
+    project_id: Option<&ProjectId>,
+    tag_sql_prefix: bool,
+) -> (String, Vec<String>) {
+    let status_s = status.as_str().to_string();
+    let mut params: Vec<String> = vec![status_s];
+    let mut sql = String::from(
+        "FROM memory_projection mp \
+         LEFT JOIN session_projection sp ON mp.session_id = sp.session_id \
+         WHERE mp.status = ?",
+    );
+    if let Some(pid) = project_id {
+        let pid_str = pid.to_string();
+        sql.push_str(" AND (sp.project_id = ? OR mp.project_id = ?)");
+        params.push(pid_str.clone());
+        params.push(pid_str);
+    }
+    if tag_sql_prefix {
+        // Start-anchored TAGS: after optional role prefix from turn projection
+        // (`ASSISTANT: TAGS: …`). Never mid-body `%TAGS:%` (F12 / AC10).
+        sql.push_str(
+            " AND (mp.content LIKE 'TAGS:%' \
+              OR mp.content LIKE 'USER: TAGS:%' \
+              OR mp.content LIKE 'ASSISTANT: TAGS:%' \
+              OR mp.content LIKE 'SYSTEM: TAGS:%')",
+        );
+    }
+    (sql, params)
+}
 
 impl QueryStore for VaultConnection {
     fn get_unsummarized_sessions(&self) -> Result<Vec<String>> {
@@ -134,45 +201,145 @@ impl QueryStore for VaultConnection {
         Ok(count)
     }
 
-    fn list_forgotten_memories(
-        &self,
-        project_id: Option<ProjectId>,
-    ) -> Result<Vec<(String, String)>> {
+    fn list_memories(&self, filter: &MemoryListFilter) -> Result<Vec<MemoryListRow>> {
         let conn = self.lock()?;
-        let (sql, params): (String, Vec<String>) = if let Some(pid) = project_id {
-            let pid_str = pid.to_string();
-            (
-                "SELECT mp.memory_id, mp.content FROM memory_projection mp \
-                 LEFT JOIN session_projection sp ON mp.session_id = sp.session_id \
-                 WHERE mp.status = 'forgotten' AND (sp.project_id = ? OR mp.project_id = ?) \
-                 ORDER BY mp.updated_at DESC"
-                    .into(),
-                vec![pid_str.clone(), pid_str],
-            )
-        } else {
-            (
-                "SELECT memory_id, content FROM memory_projection \
-                 WHERE status = 'forgotten' ORDER BY updated_at DESC"
-                    .into(),
-                vec![],
-            )
-        };
-
+        let tag_sql = filter.tag.is_some();
+        let (from_where, mut params) =
+            memory_list_from_where(filter.status, filter.project_id.as_ref(), tag_sql);
+        let limit = filter.limit.max(1);
+        params.push(limit.to_string());
+        let sql = format!(
+            "SELECT mp.memory_id, mp.content, mp.updated_at, \
+                    COALESCE(mp.project_id, sp.project_id) AS project_id, \
+                    mp.status \
+             {from_where} \
+             ORDER BY mp.updated_at DESC, mp.memory_id ASC \
+             LIMIT ?"
+        );
         let mut stmt = conn.prepare(&sql)?;
         let param_refs: Vec<&dyn rusqlite::types::ToSql> = params
             .iter()
             .map(|p| p as &dyn rusqlite::types::ToSql)
             .collect();
         let rows = stmt.query_map(param_refs.as_slice(), |row| {
-            let id: String = row.get(0)?;
+            let memory_id: String = row.get(0)?;
             let content: String = row.get(1)?;
-            Ok((id, content))
+            let updated_at: String = row.get(2)?;
+            let project_id: Option<String> = row.get(3)?;
+            let status: String = row.get(4)?;
+            Ok(MemoryListRow {
+                memory_id,
+                content,
+                updated_at,
+                project_id,
+                status,
+            })
         })?;
         let mut results = Vec::new();
         for row in rows {
             results.push(row?);
         }
         Ok(results)
+    }
+
+    fn count_memories(&self, filter: &MemoryListFilter) -> Result<u64> {
+        let conn = self.lock()?;
+        let tag_sql = filter.tag.is_some();
+        let (from_where, params) =
+            memory_list_from_where(filter.status, filter.project_id.as_ref(), tag_sql);
+
+        // Two-stage tag total: scan TAGS:% candidates and exact-token filter (F12/F43).
+        if let Some(ref tag) = filter.tag {
+            let sql = format!("SELECT mp.content {from_where}");
+            let mut stmt = conn.prepare(&sql)?;
+            let param_refs: Vec<&dyn rusqlite::types::ToSql> = params
+                .iter()
+                .map(|p| p as &dyn rusqlite::types::ToSql)
+                .collect();
+            let rows = stmt.query_map(param_refs.as_slice(), |row| {
+                let content: String = row.get(0)?;
+                Ok(content)
+            })?;
+            let mut count = 0u64;
+            for row in rows {
+                let content = row?;
+                if content_has_tag_token(&content, tag) {
+                    count = count.saturating_add(1);
+                }
+            }
+            return Ok(count);
+        }
+
+        let sql = format!("SELECT COUNT(*) {from_where}");
+        let mut stmt = conn.prepare(&sql)?;
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> = params
+            .iter()
+            .map(|p| p as &dyn rusqlite::types::ToSql)
+            .collect();
+        let count: i64 = stmt.query_row(param_refs.as_slice(), |row| row.get(0))?;
+        Ok(count as u64)
+    }
+
+    fn count_memories_by_project(&self) -> Result<Vec<(String, u64, u64)>> {
+        let conn = self.lock()?;
+        // F38: only projects with pinned>0 OR forgotten>0; exclude null project_id.
+        // memory_projection.project_id only (turn-only projects excluded).
+        let sql = "
+            SELECT project_id,
+                   SUM(CASE WHEN status = 'pinned' THEN 1 ELSE 0 END) AS pinned,
+                   SUM(CASE WHEN status = 'forgotten' THEN 1 ELSE 0 END) AS forgotten
+            FROM memory_projection
+            WHERE status IN ('pinned', 'forgotten')
+              AND project_id IS NOT NULL
+            GROUP BY project_id
+            HAVING pinned > 0 OR forgotten > 0
+            ORDER BY (pinned + forgotten) DESC, project_id ASC
+        ";
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([], |row| {
+            let project_id: String = row.get(0)?;
+            let pinned: i64 = row.get(1)?;
+            let forgotten: i64 = row.get(2)?;
+            Ok((project_id, pinned as u64, forgotten as u64))
+        })?;
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
+    }
+
+    fn count_forgotten_memories(&self, project_id: Option<&ProjectId>) -> Result<u64> {
+        let conn = self.lock()?;
+        let count: i64 = match project_id {
+            None => conn.query_row(
+                "SELECT COUNT(*) FROM memory_projection WHERE status = 'forgotten'",
+                [],
+                |row| row.get(0),
+            )?,
+            Some(pid) => conn.query_row(
+                "SELECT COUNT(*) FROM memory_projection
+                 WHERE status = 'forgotten' AND project_id = ?",
+                params![pid.to_string()],
+                |row| row.get(0),
+            )?,
+        };
+        Ok(count as u64)
+    }
+
+    fn list_forgotten_memories(
+        &self,
+        project_id: Option<ProjectId>,
+    ) -> Result<Vec<(String, String)>> {
+        // Thin-wrap shared list (F37). High cap for legacy callers; CLI uses bounded list.
+        let filter = MemoryListFilter {
+            status: MemoryListStatus::Forgotten,
+            project_id,
+            tag: None,
+            limit: LEGACY_LIST_FORGOTTEN_CAP,
+        };
+        let rows = self.list_memories(&filter)?;
+        Ok(rows.into_iter().map(|r| (r.memory_id, r.content)).collect())
     }
 
     fn resolve_project_id_from_alias(&self, alias: &str) -> Result<Option<ProjectId>> {

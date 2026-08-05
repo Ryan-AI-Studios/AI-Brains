@@ -1,5 +1,6 @@
+use crate::commands::memory::{MemoryListOptions, run_inventory};
 use crate::context::AppContext;
-use ai_brains_core::ids::MemoryId;
+use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
@@ -20,6 +21,8 @@ fn truncate_preview(s: &str) -> String {
     }
 }
 
+/// Forget command. List-forgotten shares the inventory backend (T216 F1/F28).
+#[allow(clippy::too_many_arguments)] // clap dispatch surface; list flags share inventory backend
 pub fn run(
     ctx: &AppContext,
     memory_id: Option<String>,
@@ -28,25 +31,31 @@ pub fn run(
     list_forgotten: bool,
     restore: Option<String>,
     dry_run: bool,
+    // List flags when --list-forgotten (F28)
+    global: bool,
+    limit: Option<usize>,
+    format: String,
+    tag: Option<String>,
+    project_id: Option<ProjectId>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
 
     if list_forgotten {
-        let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
-            .ok()
-            .and_then(|s| s.parse().ok());
-        let memories = ctx.conn.list_forgotten_memories(project_id)?;
-        if memories.is_empty() {
-            println!("No forgotten memories.");
-        } else {
-            println!("Forgotten memories:");
-            for (id, content) in &memories {
-                let first_line = content.lines().next().unwrap_or(content);
-                let truncated: String = first_line.chars().take(80).collect();
-                println!("  {} — {}", id, truncated);
-            }
-        }
-        return Ok(());
+        // F1/F28: forget --list-forgotten ≡ memory list --status forgotten (+ same flags).
+        // Clap-passed project_id — no raw env::var on list path (F4).
+        let effective_project_id = if global { None } else { project_id };
+        return run_inventory(
+            ctx,
+            MemoryListOptions {
+                status: "forgotten".to_string(),
+                limit,
+                global,
+                format,
+                summary: false,
+                tag,
+                project_id: effective_project_id,
+            },
+        );
     }
 
     if let Some(restore_id) = restore {

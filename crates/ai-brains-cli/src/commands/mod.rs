@@ -19,6 +19,7 @@ pub mod governed_query;
 pub mod graph;
 pub mod ingest;
 pub mod init;
+pub mod memory;
 pub mod migrate;
 pub mod nightly;
 pub mod pin;

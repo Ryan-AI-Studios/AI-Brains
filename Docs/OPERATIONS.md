@@ -472,14 +472,17 @@ ai-brains nightly --schedule --run-as-system --start-time "03:00" --dry-run
 
 ## 6. Memory Hygiene
 
-### Soft-Delete
+### Soft-Delete + inventory (T216)
 ```powershell
+ai-brains memory list                         # skim pinned (default limit 50)
+ai-brains memory list --summary               # Pinned + Forgotten counts
+ai-brains memory list --status forgotten -l 5
 ai-brains forget --memory-id <uuid>           # prompt; -f to skip
 ai-brains forget --match "outdated fact" -f   # find by content; -f to forget
-ai-brains forget --list-forgotten             # show everything soft-deleted
+ai-brains forget --list-forgotten --limit 5   # soft-deleted rows (bounded; not CE wipe)
 ai-brains forget --restore <uuid>             # undo with a compensating event
 ```
-Forgotten memories remain in the event log for audit but are excluded from FTS, graph, and preflight.
+Forgotten memories remain in the event log for audit but are excluded from FTS, graph, and preflight. Soft-forget ≠ CE wipe / NIST Purge.
 
 ### Backup
 ```powershell

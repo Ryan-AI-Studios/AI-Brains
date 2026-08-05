@@ -93,22 +93,27 @@ ai-brains --vault-path .ai-brains\vault.db forget --match "temp scaffolding"
 #    non-interactive shells.
 ai-brains --vault-path .ai-brains\vault.db forget --memory-id <uuid> --force
 
-# 3. List everything currently forgotten, so you can audit later.
-ai-brains --vault-path .ai-brains\vault.db forget --list-forgotten
+# 3. List forgotten rows (bounded, Scope-honest; same backend as memory list).
+ai-brains --vault-path .ai-brains\vault.db forget --list-forgotten --limit 20
+# Or skim pinned inventory without a recall query:
+ai-brains --vault-path .ai-brains\vault.db memory list --limit 20
+ai-brains --vault-path .ai-brains\vault.db memory list --summary
 
-# 4. Restore something you forgot by mistake.
+# 4. Restore something you forgot by mistake (soft restore — not CE wipe).
 ai-brains --vault-path .ai-brains\vault.db forget --restore <uuid>
 ```
 
 What you should see:
 
 - `--match` prints a list of matching memories with their UUIDs and
-  status (`active` / `forgotten`).
+  a one-line preview.
 - `--memory-id <unknown>` exits 1 with `Memory <id> not found.`
   (T77 — clear error instead of silent no-op).
-- `--list-forgotten` prints a table of `memory_id`, `forgotten_at`,
-  and a one-line content excerpt.
-- `--restore` flips the projection status back to `active`.
+- `--list-forgotten` / `memory list --status forgotten` print **Scope**,
+  a bounded table (`memory_id`, optional `project` under `--global`,
+  `updated`, preview), and `Showing N of T` when truncated (default
+  limit 50). Soft-forget ≠ CE wipe / NIST Purge.
+- `--restore` flips the projection status back to pinned (soft restore).
 
 ---
 
