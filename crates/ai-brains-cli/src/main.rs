@@ -2872,11 +2872,13 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 (*max_words, scope.clone())
             };
+            // T214 F3: mirror recall — when --global, clear project_id for label + filter parity.
+            let effective_project_id = if *global { None } else { *project_id };
             commands::preflight::run(
                 &ctx,
                 commands::preflight::PreflightRunOptions {
                     max_words: effective_max_words,
-                    project_id: *project_id,
+                    project_id: effective_project_id,
                     pretty: *pretty,
                     format: format.clone(),
                     scope: effective_scope,

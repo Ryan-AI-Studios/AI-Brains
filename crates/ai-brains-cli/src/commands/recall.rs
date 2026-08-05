@@ -468,7 +468,9 @@ fn print_embedding_status_line(emb: &ai_brains_contracts::recall::EmbeddingStatu
 /// - with project + known alias/name → `Scope: project=<alias-or-name> (<full-uuid>)`
 /// - with project, lookup miss → `Scope: project=<full-uuid>`
 /// - no project → `Scope: project=(none)`
-fn format_scope_line(
+///
+/// Shared SOOT for recall empty-pretty and preflight summary (T207 / T214 F13).
+pub(crate) fn format_scope_line(
     global: bool,
     project_id: Option<&ProjectId>,
     name_alias: Option<&(String, String)>,

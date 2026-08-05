@@ -85,6 +85,26 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         &self,
         project_id: &ai_brains_core::ids::ProjectId,
     ) -> Result<Option<(String, String)>>;
+    /// Count of distinct non-null projects that have at least one pinned memory (T214 F7).
+    ///
+    /// Used by `preflight --global --summary` vault rollup. Does **not** use
+    /// `list_projects` (which over-counts unpinned turns).
+    fn count_projects_with_pinned(&self) -> Result<u64>;
+    /// Count of pinned memories, optionally scoped to one project (T214 F8).
+    ///
+    /// `None` = vault-wide; `Some` = filter `memory_projection.project_id = ?`.
+    fn count_pinned_memories(
+        &self,
+        project_id: Option<&ai_brains_core::ids::ProjectId>,
+    ) -> Result<u64>;
+    /// Count of active sessions, optionally scoped to one project (T214 F5).
+    ///
+    /// `None` = vault-wide; `Some` = filter `session_projection.project_id = ?`.
+    /// Prefer this over loading turns via retrieval `active_sessions`.
+    fn count_active_sessions(
+        &self,
+        project_id: Option<&ai_brains_core::ids::ProjectId>,
+    ) -> Result<u64>;
     fn get_session_memory_ids(&self, session_id: &str) -> Result<Vec<MemoryId>>;
     /// Returns true iff a row with this `memory_id` exists in `memory_projection`.
     /// Used by `forget` to validate `--memory-id` before appending a

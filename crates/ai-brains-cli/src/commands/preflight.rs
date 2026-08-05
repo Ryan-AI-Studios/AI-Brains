@@ -2,6 +2,7 @@ use crate::context::AppContext;
 use ai_brains_contracts::preflight::PreflightContextResponse;
 use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
+use ai_brains_store::QueryStore;
 use is_terminal::IsTerminal;
 
 pub struct PreflightRunOptions {
@@ -44,7 +45,7 @@ pub fn run(
     )?;
 
     if options.summary {
-        print_summary(ctx, options.project_id, &context.text);
+        print_summary(ctx, options.global, options.project_id, &context)?;
         return Ok(());
     }
 
@@ -74,26 +75,98 @@ pub fn run(
     Ok(())
 }
 
-fn print_summary(_ctx: &AppContext, project_id: Option<ProjectId>, text: &str) {
-    let project_name = project_id
-        .map(|id| id.to_string())
-        .unwrap_or_else(|| "global".to_string());
+/// Build summary lines (no I/O). Dual count model (T214 F4):
+///
+/// 1. **Vault (SQL):** `Projects:` only when `global` + `projects_with_pinned` is
+///    `Some`; always `Pinned memories` + `Active sessions`.
+/// 2. **In context (budget window):** marker scan of rendered text — labels must
+///    include the literal `"In context"` / `"In-context"` so they cannot be read
+///    as vault totals.
+///
+/// Argument count is intentional: pure formatter mirrors the dual-block fields
+/// one-for-one for unit-testability (T214 F4 / AC locks).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn format_preflight_summary_lines(
+    scope_line: &str,
+    global: bool,
+    projects_with_pinned: Option<u64>,
+    pinned_memories: u64,
+    active_sessions: u64,
+    hotspot_count: usize,
+    decision_count: usize,
+    constraint_count: usize,
+    word_count: usize,
+) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::with_capacity(12);
+    lines.push("--- AI-Brains Preflight Summary ---".to_string());
+    lines.push(scope_line.to_string());
+    // Vault block
+    if global && let Some(n) = projects_with_pinned {
+        lines.push(format!("Projects: {}", n));
+    }
+    lines.push(format!("Pinned memories: {}", pinned_memories));
+    lines.push(format!("Active sessions: {}", active_sessions));
+    // In-context block (AC5: literal "In context" prefix)
+    lines.push(format!("In context hotspots: {}", hotspot_count));
+    lines.push(format!("In context decisions: {}", decision_count));
+    lines.push(format!("In context constraints: {}", constraint_count));
+    lines.push(format!("Total Word Count: {}", word_count));
+    lines.push(String::new());
+    lines.push("Use --pretty or --format json for full context.".to_string());
+    lines
+}
 
-    println!("--- AI-Brains Preflight Summary ---");
-    println!("Project: {}", project_name);
+/// Print preflight summary with honest Scope + dual vault/in-context counts (T214 F37).
+fn print_summary(
+    ctx: &AppContext,
+    global: bool,
+    project_id: Option<ProjectId>,
+    context: &ai_brains_retrieval::PreflightContext,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let name_alias = if !global {
+        match project_id.as_ref() {
+            Some(pid) => ctx.conn.get_project_by_id(pid)?,
+            None => None,
+        }
+    } else {
+        None
+    };
+    let scope_line =
+        super::recall::format_scope_line(global, project_id.as_ref(), name_alias.as_ref());
 
-    // Heuristic counts based on markers in context text
+    let (projects_with_pinned, pinned_memories, active_sessions) = if global {
+        let projects = ctx.conn.count_projects_with_pinned()?;
+        let pinned = ctx.conn.count_pinned_memories(None)?;
+        let sessions = ctx.conn.count_active_sessions(None)?;
+        (Some(projects), pinned, sessions)
+    } else {
+        let pid = project_id.as_ref();
+        let pinned = ctx.conn.count_pinned_memories(pid)?;
+        let sessions = ctx.conn.count_active_sessions(pid)?;
+        (None, pinned, sessions)
+    };
+
+    // Marker scan of budget-window text (F6 / F32: case-sensitive as body).
+    let text = &context.text;
     let hotspot_count = text.matches("HOTSPOT:").count();
     let decision_count = text.matches("DECISION:").count();
     let constraint_count = text.matches("CONSTRAINT:").count();
-    let session_count = text.matches("Session ID:").count();
 
-    println!("Hotspots: {}", hotspot_count);
-    println!("Decisions: {}", decision_count);
-    println!("Constraints: {}", constraint_count);
-    println!("Active Sessions: {}", session_count);
-    println!("Total Word Count: {}", text.split_whitespace().count());
-    println!("\nUse --pretty or --format json for full context.");
+    let lines = format_preflight_summary_lines(
+        &scope_line,
+        global,
+        projects_with_pinned,
+        pinned_memories,
+        active_sessions,
+        hotspot_count,
+        decision_count,
+        constraint_count,
+        context.word_count,
+    );
+    for line in lines {
+        println!("{}", line);
+    }
+    Ok(())
 }
 
 /// Normalize scope paths for Windows: resolve drive case, UNC prefixes, separator consistency.
@@ -121,8 +194,11 @@ fn normalize_scope_paths(paths: &[String]) -> Vec<String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
+    use ai_brains_core::ids::ProjectId;
+    use std::str::FromStr;
 
     #[test]
     fn normalize_scope_paths_filters_empty() {
@@ -159,5 +235,94 @@ mod tests {
         assert_eq!(normalized.len(), 1);
         // Canonicalization should produce a valid path string
         assert!(!normalized[0].is_empty());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_summary_lines__global__scope_and_projects_and_in_context() {
+        let lines =
+            format_preflight_summary_lines("Scope: global", true, Some(2), 5, 1, 3, 4, 1, 100);
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("Scope: global"),
+            "AC8-style: must contain Scope: global; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("Projects: 2"),
+            "global must print Projects line; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("Pinned memories: 5"),
+            "pinned vault count; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("Active sessions: 1"),
+            "active sessions vault count; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("In context hotspots: 3"),
+            "AC5 In context hotspots; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("In context decisions: 4"),
+            "AC5 In context decisions; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("In context constraints: 1"),
+            "AC5 In context constraints; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("Total Word Count: 100"),
+            "word count from field; got:\n{joined}"
+        );
+        assert!(
+            !joined.lines().any(|l| l.starts_with("Project:")),
+            "must not print legacy Project: line; got:\n{joined}"
+        );
+        assert!(
+            joined.contains("Use --pretty or --format json for full context."),
+            "footer required; got:\n{joined}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_summary_lines__project_scoped__no_projects_line() {
+        let pid = ProjectId::from_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa").unwrap();
+        let scope = format!("Scope: project={}", pid);
+        let lines = format_preflight_summary_lines(&scope, false, None, 2, 0, 0, 1, 0, 42);
+        let joined = lines.join("\n");
+        assert!(joined.contains(&format!("Scope: project={}", pid)));
+        assert!(
+            !joined.lines().any(|l| l.starts_with("Projects:")),
+            "project-scoped must omit Projects: line; got:\n{joined}"
+        );
+        assert!(joined.contains("Pinned memories: 2"));
+        assert!(joined.contains("In context decisions: 1"));
+        assert!(!joined.lines().any(|l| l.starts_with("Project:")));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_summary_lines__empty_zeros() {
+        let lines =
+            format_preflight_summary_lines("Scope: global", true, Some(0), 0, 0, 0, 0, 0, 0);
+        let joined = lines.join("\n");
+        assert!(joined.contains("Scope: global"));
+        assert!(joined.contains("Projects: 0"));
+        assert!(joined.contains("Pinned memories: 0"));
+        assert!(joined.contains("Active sessions: 0"));
+        assert!(joined.contains("In context hotspots: 0"));
+        assert!(!joined.is_empty());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_scope_line__via_recall__global_soot() {
+        // AC8: shared SOOT remains Scope: global
+        assert_eq!(
+            super::super::recall::format_scope_line(true, None, None),
+            "Scope: global"
+        );
     }
 }

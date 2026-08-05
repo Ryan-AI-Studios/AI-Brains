@@ -199,7 +199,7 @@ ai-brains recall -   # query from stdin
 | **Pin-type re-rank (T211/T215)** | After blend/graph and **before** truncate, hits are re-ranked by a **single composite** (`rerank_hits` — the only post-blend ranking entry point; T215 extends it via ScoreKind, does not add a second final sort). Kind boosts: CONSTRAINT **+4**, DECISION **+2**, HOTSPOT **+0.5**; plan-class DECISION **−3** (optional sibling-track **−2**); shipped DECISION **+1**; small recency boost from `updated_at` (including semantic-only hits that SELECT `updated_at`). Sort: effective desc → `updated_at` desc → `memory_id` asc. Content heuristics only — not lifecycle fact (badge `plan/stale?`). |
 | **Graph boost** | Neighbor score boost (`--graph-boost`); expansion runs after RRF+bridge merge when `--semantic` |
 | **Substring fallback** | When FTS empty on small vaults |
-| **Scope** | Project default (`AI_BRAINS_PROJECT_ID` / flags); `--global` widens to all projects (never auto-widens on empty). Empty **pretty** prints a `Scope:` line (`global` or active `project=<alias-or-name> (<uuid>)` / `project=<uuid>` / `project=(none)`). Scope on non-empty pretty is deferred. |
+| **Scope** | Project default (`AI_BRAINS_PROJECT_ID` / flags); `--global` widens to all projects (never auto-widens on empty). Empty **pretty** recall and **preflight `--summary`** print a `Scope:` line (`global` or active `project=<alias-or-name> (<uuid>)` / `project=<uuid>` / `project=(none)`). Under `--global`, summary always shows `Scope: global` even if env `AI_BRAINS_PROJECT_ID` is set. Scope on non-empty pretty is deferred. |
 | **Bridge mix** | Ledgerful hits capped so vault memories still surface; `--no-bridge`. Bridge is **outside** RRF (merged after fuse when `--semantic`, first when not); bridge wins on `memory_id` collision. |
 | **Formats** | Pretty on TTY by default; JSON / NDJSON; per-result `session_id`; optional JSON `staleness: "plan"` when demoted. Under `--semantic` after fuse, JSON `score` is RRF (or scaled cosine path for single-list), not raw BM25. |
 | **Hints** | Empty **pretty** always prints next-action text on stdout (**not TTY-only**), after Scope (and Session only when user `--session` / `--session-prefix` / `--session-last` resolved — generated graph-provenance sessions are omitted on empty). JSON empty still sets `hint` + `effective_session_id` (exit **0**). Next-action only when embedding status already explains cause (T202). `--quiet` does not suppress Scope or the empty hint. |
@@ -243,11 +243,21 @@ ai-brains review list --format json   # soft-default scope (authoritative) or fa
 ### Preflight (session-start briefing)
 ```powershell
 ai-brains preflight --summary
+ai-brains preflight --global --summary
 ai-brains preflight --pretty -m 1500
 ai-brains preflight --scope "src/foo.rs" --global
 ai-brains preflight --stdin
 ```
 Synthesizes repo safety/hotspots, session turns, memory index, recent dense memories, under a word budget (default 1500). Index titles use Unicode-safe truncation.
+
+| Feature | Detail |
+|---------|--------|
+| **Scope honesty (T214)** | `--summary` prints T207 `Scope:` vocabulary (`Scope: global` / `Scope: project=…` / `Scope: project=(none)`). Never labels multi-project content as a single env `Project: <uuid>`. |
+| **Dual count model** | **Vault (SQL):** under `--global`, `Projects:` = distinct projects with pinned memories; always `Pinned memories` + `Active sessions` (SQL on projections, capture-independent). **In context:** `HOTSPOT:` / `DECISION:` / `CONSTRAINT:` counts from the budget-window text only — labeled `In context …` so they are not read as vault totals. |
+| **Active sessions** | Rollup uses `session_projection` status=`active` (not a missing text marker). |
+| **Ledgerful hotspots** | Require **project-scoped** preflight; ledgerful bridge is intentionally **off** under `--global`. |
+| **Governed authority** | `--summary` is orientation only (T170 D21). Use `preflight --format json` / `briefing` for governed packet truth — never treat summary counts as authority. |
+| **JSON** | Non-summary `--format json` remains `{text, word_count}` only (T180). |
 
 ### Unified vault + ledger search
 ```powershell
