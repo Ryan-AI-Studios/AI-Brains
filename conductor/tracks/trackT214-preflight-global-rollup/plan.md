@@ -108,8 +108,8 @@ Status: **Planning** (expanded + **AI fold-in 2026-08-05**; plan-only until **go
 - [x] CHANGELOG Unreleased
 - [x] Soft skill one-liner
 - [x] `cargo fmt` / clippy / nextest targeted → full gate
-- [ ] `ledgerful verify`; review.md; pin closeout decisions
-- [ ] conductor → Completed; deferred strike T214
+- [x] `ledgerful verify`; review.md; pin closeout decisions
+- [x] conductor → Completed; deferred strike T214
 
 ## Implement notes
 
