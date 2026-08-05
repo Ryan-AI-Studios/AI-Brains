@@ -4,6 +4,7 @@ mod fts_utils;
 mod lexical;
 mod preflight;
 mod privacy_filter;
+mod ranking;
 mod recall;
 mod semantic;
 mod sessions;
@@ -15,6 +16,10 @@ pub use fts_utils::sanitize_fts_query;
 pub use lexical::{RetrievalMemory, lexical_search, substring_fallback};
 pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
+};
+pub use ranking::{
+    PinKind, StalenessClass, classify_pin_kind, classify_staleness, extract_track_tokens,
+    rerank_hits, strip_assistant_prefix,
 };
 pub use recall::{RecallHit, RecallOptions, RecallOutcome, recall, recall_full};
 pub use semantic::{

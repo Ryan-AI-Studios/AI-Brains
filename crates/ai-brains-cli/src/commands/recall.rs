@@ -223,13 +223,18 @@ pub fn run(
 
     let response = RecallResponse {
         results: hits
-            .into_iter()
+            .iter()
             .map(|h| RecallResult {
-                memory_id: h.memory_id,
-                content: h.content,
-                source: h.source,
+                memory_id: h.memory_id.clone(),
+                content: h.content.clone(),
+                source: h.source.clone(),
                 score: h.score,
-                session_id: h.session_id,
+                session_id: h.session_id.clone(),
+                staleness: if h.is_plan_demoted {
+                    Some("plan".to_string())
+                } else {
+                    None
+                },
             })
             .collect(),
         session_id: effective_session_id.map(|s| s.to_string()),
@@ -243,7 +248,7 @@ pub fn run(
 
     match format_str {
         "pretty" => {
-            if response.results.is_empty() {
+            if hits.is_empty() {
                 // Empty pretty (T207): Scope → (Session if user) → Embedding ≠ ok → hint.
                 // F3: always print hint when format is pretty (no TTY gate).
                 // F5: omit Session when it was generated only for graph provenance.
@@ -291,7 +296,7 @@ pub fn run(
                 );
             } else {
                 // Non-empty pretty: Session + results; no required Scope (AC10 deferred);
-                // no empty hint.
+                // no empty hint. Badge via shared helper (T211 F11/F37).
                 if let Some(ref sid) = response.session_id {
                     println!("Session: {}", sid);
                 }
@@ -302,33 +307,7 @@ pub fn run(
                 {
                     print_embedding_status_line(emb);
                 }
-                for r in &response.results {
-                    let content = if r.content.chars().count() > 500 {
-                        format!("{}...", r.content.chars().take(500).collect::<String>())
-                    } else {
-                        r.content.clone()
-                    };
-                    match &r.session_id {
-                        Some(sid) => {
-                            let prefix = &sid[..sid.len().min(8)];
-                            if let Some(s) = r.score {
-                                println!(
-                                    "[score={:.3} | session={}] {}: {}",
-                                    s, prefix, r.memory_id, content
-                                );
-                            } else {
-                                println!("[session={}] {}: {}", prefix, r.memory_id, content);
-                            }
-                        }
-                        None => {
-                            if let Some(s) = r.score {
-                                println!("[score={:.3}] {}: {}", s, r.memory_id, content);
-                            } else {
-                                println!("{}: {}", r.memory_id, content);
-                            }
-                        }
-                    }
-                }
+                print_pretty_hits(&hits);
             }
         }
         _ => {
@@ -347,6 +326,87 @@ pub fn run(
         }
     }
 
+    Ok(())
+}
+
+/// Format one non-empty pretty hit line (shared by `recall` + `sync query`, T211 F37).
+///
+/// Demoted Plan Decisions show `[plan/stale?]` immediately before content (F11).
+pub fn format_pretty_hit_line(
+    memory_id: &str,
+    content: &str,
+    score: Option<f64>,
+    session_id: Option<&str>,
+    is_plan_demoted: bool,
+) -> String {
+    let content = if content.chars().count() > 500 {
+        format!("{}...", content.chars().take(500).collect::<String>())
+    } else {
+        content.to_string()
+    };
+    let badge = if is_plan_demoted {
+        "[plan/stale?] "
+    } else {
+        ""
+    };
+    match session_id {
+        Some(sid) => {
+            let prefix = &sid[..sid.len().min(8)];
+            if let Some(s) = score {
+                format!(
+                    "[score={:.3} | session={}] {}: {}{}",
+                    s, prefix, memory_id, badge, content
+                )
+            } else {
+                format!("[session={}] {}: {}{}", prefix, memory_id, badge, content)
+            }
+        }
+        None => {
+            if let Some(s) = score {
+                format!("[score={:.3}] {}: {}{}", s, memory_id, badge, content)
+            } else {
+                format!("{}: {}{}", memory_id, badge, content)
+            }
+        }
+    }
+}
+
+/// Print non-empty pretty hits with plan/stale badges (T211).
+pub fn print_pretty_hits(hits: &[ai_brains_retrieval::RecallHit]) {
+    for h in hits {
+        println!(
+            "{}",
+            format_pretty_hit_line(
+                &h.memory_id,
+                &h.content,
+                h.score,
+                h.session_id.as_deref(),
+                h.is_plan_demoted,
+            )
+        );
+    }
+}
+
+/// Print empty pretty recall body for `sync query` (T207 + T211 F37).
+///
+/// Scope + next-action hint; no TTY gate. No session line (sync has no user session).
+pub fn print_pretty_empty_sync(
+    ctx: &AppContext,
+    query: &str,
+    global: bool,
+    project_id: Option<ProjectId>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let name_alias = match project_id {
+        Some(pid) => ctx.conn.get_project_by_id(&pid)?,
+        None => None,
+    };
+    let scope_line = format_scope_line(global, project_id.as_ref(), name_alias.as_ref());
+    let hint =
+        build_recall_hint(&ctx.conn, query, false, global, project_id, None)?.unwrap_or_default();
+    println!(
+        "{}",
+        format_pretty_empty_state(&scope_line, None, None, &hint)
+    );
     Ok(())
 }
 

@@ -1599,6 +1599,9 @@ pub enum SyncCommands {
         /// Skip the Ledgerful bridge query and use only local vault recall.
         #[arg(long)]
         no_bridge: bool,
+        /// Max vault hits after re-rank (default 5; T211 F14/F27).
+        #[arg(short = 'l', long, default_value_t = 5)]
+        limit: usize,
     },
 }
 
@@ -3052,6 +3055,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 quiet,
                 global,
                 no_bridge,
+                limit,
             } => {
                 commands::sync::run_query(
                     &ctx,
@@ -3060,6 +3064,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     *quiet,
                     *global,
                     *no_bridge,
+                    *limit,
                 )
                 .await
             }
