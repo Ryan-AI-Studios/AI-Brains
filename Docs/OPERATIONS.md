@@ -158,9 +158,15 @@ ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>
 ai-brains erasure request --id <id> --scope Repository:<uuid>   # daemon-required; ticket only (not CE)
 ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>           # dry-run (default)
 ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm # execute CE
+ai-brains policy bootstrap --scope Repository:<uuid>   # T210: discovery grants (ReadEvidence/Conclusions/Decisions)
+ai-brains policy bootstrap --scope Repository:<uuid> --dry-run
 ai-brains policy show --scope Repository:<uuid>
 ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
 ```
+
+**Governed policy bootstrap (T210):** After vault open, discovery lists (`source list` / `evidence list` / `review list`) and briefing sections need grants. Run **`ai-brains policy bootstrap --scope Repository:<uuid>`** (or omit `--scope` when project context is authoritative) once per principal+scope. Issues exactly `ReadEvidence`, `ReadConclusions`, `ReadDecisions` with `Privacy::LocalOnly`; registers the principal if missing; idempotent re-run. Does **not** issue Propose*/Approve*/Export/Erase. Does **not** auto-run on `init` (deny-by-default until explicit opt-in). `--dry-run` / `-n` reports the plan with zero event appends.
+
+**Empty vs deny:** list/show hard deny = exit **3** + `details.hint` (mentions bootstrap first). Briefing soft deny = exit **0** + `warnings[].kind=denied` / empty sections. Bootstrap clears both when discovery grants are present.
 
 **Discovery workflow (T203):** Prefer `source list` / `evidence list` (bounded, Active-only, optional FTS `--query`) to find ids, then `show`. When `--scope` is omitted, CLI soft-fills only if `scope resolve` is **authoritative** (e.g. `AI_BRAINS_PROJECT_ID` set → High). Non-authoritative context → **exit 2** with a `fail_usage` template (`--scope Repository:<uuid>`, `ai-brains scope resolve`); never reintroduces exit **6** for missing scope on these CLI paths.
 
@@ -670,7 +676,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence list\|search\|show` · `source list\|show` · `review list\|resolve` (T160/T203) |
 | Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
 | Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |
-| Policy show / check | `ai-brains policy show\|check` (read-only grants) |
+| Policy show / check / bootstrap | `ai-brains policy show\|check` (read-only); `policy bootstrap` (discovery grants, T210) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
 | Pinned Record | `ai-brains pin` (use `--tag` for categories, `--stdin` piped) |
 | Forget Memory | `ai-brains forget` (use `--match` for search, `--restore` undo, `-f` to skip confirm) |

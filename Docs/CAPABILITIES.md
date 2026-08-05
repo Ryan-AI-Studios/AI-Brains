@@ -226,7 +226,8 @@ ai-brains review list --format json   # soft-default scope (authoritative) or fa
 | **Commands** | `source list`, `evidence list` (optional `--query` FTS), `evidence search` (requires `--query`) |
 | **Bounds** | Default limit **50**, hard clamp **200**; `more_available` via LIMIT+1 |
 | **Empty** | E1 `items: []` (never null); human `(none)`; exit **0** when policy allows |
-| **Policy** | `ReadEvidence` for source/evidence list; `ReadConclusions` for review list; deny → exit **3** + `details.hint` |
+| **Policy** | `ReadEvidence` for source/evidence list; `ReadConclusions` for review list; deny → exit **3** + `details.hint` (bootstrap first) |
+| **Bootstrap (T210)** | `ai-brains policy bootstrap [--scope …] [--dry-run]` issues discovery grants only (`ReadEvidence`, `ReadConclusions`, `ReadDecisions`, `LocalOnly`); registers principal if missing; idempotent via `active_grants`; no auto-init |
 | **Soft-resolve** | Omitted `--scope` fills only when `scope resolve` is authoritative; else **exit 2** `fail_usage` (never exit **6**) |
 | **Show** | `source show` / `evidence show` use the same soft-resolve helper |
 | **Status filter** | Default Active-only on source/evidence projections |

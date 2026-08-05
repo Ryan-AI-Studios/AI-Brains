@@ -982,11 +982,11 @@ pub fn map_control_plane_error(err: ControlPlaneError) -> DaemonResponse {
     DaemonResponse::Error(ApiError::new(code, message))
 }
 
-/// Stable remediation template for POLICY_DENIED `details.hint` (T201 F6 / T203 F11).
+/// Stable remediation template for POLICY_DENIED `details.hint` (T201 F6 / T203 F11 / T210 F12).
 ///
 /// Kept in-daemon (not a CLI dep) with the same wording as
-/// `ai_brains_cli::governed_common::POLICY_DENIED_HINT`.
-const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists for this principal on this scope; try `ai-brains policy show --scope …`";
+/// `ai_brains_cli::governed_common::POLICY_DENIED_HINT` — keep dual-site strings in sync.
+const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
 
 /// Build POLICY_DENIED with non-empty `details.hint` for new discovery list paths.
 fn policy_denied_with_hint(message: impl Into<String>) -> DaemonResponse {
@@ -1236,8 +1236,12 @@ mod tests {
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
                 assert!(
-                    !hint.is_empty() && hint.contains("policy show"),
-                    "expected non-empty details.hint, got {hint:?}"
+                    !hint.is_empty() && hint.contains("bootstrap"),
+                    "expected non-empty details.hint mentioning bootstrap, got {hint:?}"
+                );
+                assert!(
+                    hint.contains("policy show") || hint.contains("policy bootstrap"),
+                    "expected secondary show/bootstrap remediation, got {hint:?}"
                 );
             }
             other => panic!("expected Error, got {other:?}"),
