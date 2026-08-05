@@ -1,7 +1,9 @@
 use crate::GraphSearch;
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
+use crate::hybrid::{candidate_depth, rrf_fuse, rrf_k};
 use crate::lexical::{lexical_search, substring_fallback};
+use crate::ranking::ScoreKind;
 use crate::semantic::classify_embedding_error;
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_contracts::recall::EmbeddingStatusDto;
@@ -21,6 +23,9 @@ pub struct RecallOptions {
     /// When true, skip the Ledgerful bridge query entirely and use only
     /// vault FTS5 + semantic search.
     pub no_bridge: bool,
+    /// Optional one-shot override for the semantic cosine floor (soft F32).
+    /// When set, overrides env / default for this recall only.
+    pub min_semantic_score: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,6 +42,32 @@ pub struct RecallHit {
     pub updated_at: Option<String>,
     /// True when this hit is a Plan-class DECISION demoted by ranking (T211 F11).
     pub is_plan_demoted: bool,
+    /// How [`score`](Self::score) enters pin re-rank (T215 F6).
+    pub score_kind: ScoreKind,
+}
+
+/// Stored score for a graph-neighbor hit given the parent's score and kind (T215 F-01 / F13).
+///
+/// `graph_boost` is historically a small additive on FTS/BM25-scale scores (~0.1).
+/// For [`ScoreKind::HigherIsBetter`] (RRF / cosine), divide by [`RELEVANCE_SCALE`] so
+/// the composite effective score gains only `+graph_boost` after scaling — not
+/// `+graph_boost * RELEVANCE_SCALE` (which would swamp rank-1 RRF parents).
+///
+/// - [`ScoreKind::Bm25LowerBetter`]: `parent + graph_boost` (historical FTS path).
+/// - [`ScoreKind::HigherIsBetter`]: `parent + graph_boost / RELEVANCE_SCALE`.
+/// - [`ScoreKind::BridgeHigherIsBetter`]: `parent + graph_boost` (bridge base is raw unscaled).
+pub fn graph_neighbor_stored_score(
+    parent_score: Option<f64>,
+    parent_kind: ScoreKind,
+    graph_boost: f64,
+) -> Option<f64> {
+    use crate::ranking::RELEVANCE_SCALE;
+    let base = parent_score.unwrap_or(0.0);
+    let delta = match parent_kind {
+        ScoreKind::HigherIsBetter => graph_boost / RELEVANCE_SCALE,
+        ScoreKind::Bm25LowerBetter | ScoreKind::BridgeHigherIsBetter => graph_boost,
+    };
+    Some(base + delta)
 }
 
 impl RecallHit {
@@ -57,6 +88,7 @@ impl RecallHit {
             session_id,
             updated_at,
             is_plan_demoted: false,
+            score_kind: ScoreKind::Bm25LowerBetter,
         }
     }
 
@@ -76,16 +108,20 @@ impl RecallHit {
             session_id,
             updated_at,
             is_plan_demoted: false,
+            score_kind: ScoreKind::Bm25LowerBetter,
         }
     }
 
     /// Create a hit added via graph neighbor expansion.
+    ///
+    /// `score_kind` must be inherited from the parent hit (T215 F13 / AC16).
     pub fn graph(
         memory_id: String,
         content: String,
         score: Option<f64>,
         session_id: Option<String>,
         updated_at: Option<String>,
+        score_kind: ScoreKind,
     ) -> Self {
         Self {
             memory_id,
@@ -96,12 +132,14 @@ impl RecallHit {
             session_id,
             updated_at,
             is_plan_demoted: false,
+            score_kind,
         }
     }
 
     /// Create a hit from the unified IPC bridge.
     ///
     /// Bridge timestamps are not memory `updated_at` — leave None (F16).
+    /// Score kind is [`ScoreKind::BridgeHigherIsBetter`] (M1 / F6).
     pub fn bridge(
         memory_id: String,
         content: String,
@@ -119,6 +157,31 @@ impl RecallHit {
             session_id,
             updated_at: None,
             is_plan_demoted: false,
+            score_kind: ScoreKind::BridgeHigherIsBetter,
+        }
+    }
+
+    /// Create a hit from dense embedding cosine similarity (T215 F42).
+    ///
+    /// Score kind is [`ScoreKind::HigherIsBetter`]; `score` is raw cosine in \[0, 1\].
+    pub fn semantic(
+        memory_id: String,
+        content: String,
+        score: Option<f64>,
+        privacy: Option<Privacy>,
+        session_id: Option<String>,
+        updated_at: Option<String>,
+    ) -> Self {
+        Self {
+            memory_id,
+            content,
+            source: "semantic".to_string(),
+            score,
+            privacy,
+            session_id,
+            updated_at,
+            is_plan_demoted: false,
+            score_kind: ScoreKind::HigherIsBetter,
         }
     }
 }
@@ -129,6 +192,10 @@ pub struct RecallOutcome {
     pub hits: Vec<RecallHit>,
     /// Set when `options.semantic` was true; `None` when semantic was not requested.
     pub embedding: Option<EmbeddingStatusDto>,
+    /// When semantic requested: count of semantic hits that passed the cosine
+    /// floor (before RRF). `None` when semantic was not requested. Used for
+    /// pretty F11 honesty (`ok` + zero post-threshold + FTS non-empty).
+    pub semantic_post_threshold_count: Option<usize>,
 }
 
 /// Primary recall entry point. Attempts unified IPC recall via Ledgerful
@@ -210,90 +277,113 @@ pub fn recall_full(
     }
 
     // Phase 3: Semantic search when requested (soft-fail; structured status).
-    let (semantic_hits, embedding_status): (Vec<RecallHit>, Option<EmbeddingStatusDto>) =
-        if options.semantic {
-            match crate::semantic::semantic_search(conn, query, limit, project_id, session_id) {
-                Ok(outcome) => {
-                    // F27: warn only for real embed soft-fails (not empty store).
-                    if matches!(outcome.embedding.status.as_str(), "unreachable" | "error") {
-                        tracing::warn!(
-                            status = %outcome.embedding.status,
-                            detail = ?outcome.embedding.detail,
-                            endpoint = ?outcome.embedding.endpoint,
-                            "Semantic search soft-failed; continuing with lexical results"
-                        );
-                    }
-                    (outcome.hits, Some(outcome.embedding))
-                }
-                Err(e) => {
-                    // Unexpected DB/store path: still soft-fail whole semantic arm.
+    // F9: pass candidate_depth (not final limit) so RRF is not starved.
+    let depth = candidate_depth(limit);
+    let (semantic_hits, embedding_status, semantic_post_threshold_count): (
+        Vec<RecallHit>,
+        Option<EmbeddingStatusDto>,
+        Option<usize>,
+    ) = if options.semantic {
+        match crate::semantic::semantic_search(
+            conn,
+            query,
+            depth,
+            project_id,
+            session_id,
+            options.min_semantic_score,
+        ) {
+            Ok(outcome) => {
+                // F27: warn only for real embed soft-fails (not empty store).
+                if matches!(outcome.embedding.status.as_str(), "unreachable" | "error") {
                     tracing::warn!(
-                        error = %e,
-                        "Semantic search failed, continuing with lexical results"
+                        status = %outcome.embedding.status,
+                        detail = ?outcome.embedding.detail,
+                        endpoint = ?outcome.embedding.endpoint,
+                        "Semantic search soft-failed; continuing with lexical results"
                     );
-                    (Vec::new(), Some(classify_embedding_error(&e)))
                 }
+                let n = outcome.hits.len();
+                (outcome.hits, Some(outcome.embedding), Some(n))
             }
-        } else {
-            (Vec::new(), None)
-        };
+            Err(e) => {
+                // Unexpected DB/store path: still soft-fail whole semantic arm.
+                tracing::warn!(
+                    error = %e,
+                    "Semantic search failed, continuing with lexical results"
+                );
+                (Vec::new(), Some(classify_embedding_error(&e)), Some(0))
+            }
+        }
+    } else {
+        (Vec::new(), None, None)
+    };
 
     #[cfg(not(feature = "graph"))]
     let _ = (graph, options.graph_boost, options.graph_hop_depth);
 
-    // Phase 4: Blend results. Bridge hits come first (higher authority),
-    // followed by semantic hits, then local FTS5 hits. Deduplicate by memory_id.
+    // Phase 4: Blend (T215 F14).
+    // When semantic: RRF(fts, semantic) → merge bridge (cap; bridge wins id) → graph → rerank.
+    // When !semantic: bridge → FTS → graph → rerank (no RRF); ScoreKind still correct.
     let mut seen_ids = std::collections::HashSet::new();
     let mut blended = Vec::new();
 
-    match bridge_hits {
-        Ok(mut bridge) => {
-            // T87: Cap bridge contribution so vault memories always get slots.
-            bridge.truncate(bridge_cap);
-            for hit in bridge {
-                if seen_ids.insert(hit.memory_id.clone()) {
-                    blended.push(hit);
+    let push_bridge = |blended: &mut Vec<RecallHit>,
+                       seen: &mut std::collections::HashSet<String>| {
+        match &bridge_hits {
+            Ok(bridge) => {
+                for hit in bridge.iter().take(bridge_cap) {
+                    if seen.insert(hit.memory_id.clone()) {
+                        blended.push(hit.clone());
+                    }
+                }
+            }
+            Err(e) => {
+                if !options.quiet {
+                    eprintln!(
+                        "Ledgerful bridge query failed, falling back to local FTS5 only: {}",
+                        e
+                    );
                 }
             }
         }
-        Err(e) => {
-            if !options.quiet {
-                eprintln!(
-                    "Ledgerful bridge query failed, falling back to local FTS5 only: {}",
-                    e
-                );
+    };
+
+    if options.semantic {
+        // Top candidate_depth of FTS (already rank-ordered by BM25) for RRF.
+        let fts_for_rrf: Vec<RecallHit> = local_hits.iter().take(depth).cloned().collect();
+        let fused = rrf_fuse(&fts_for_rrf, &semantic_hits, rrf_k());
+
+        // Bridge first (wins on id collision), then fused vault list.
+        push_bridge(&mut blended, &mut seen_ids);
+        for hit in fused {
+            if seen_ids.insert(hit.memory_id.clone()) {
+                blended.push(hit);
             }
         }
-    }
-
-    // Add semantic hits, skipping any already present from the bridge.
-    for hit in semantic_hits {
-        if seen_ids.insert(hit.memory_id.clone()) {
-            blended.push(hit);
-        }
-    }
-
-    // Add local hits, skipping any already present from bridge or semantic.
-    for hit in local_hits {
-        if seen_ids.insert(hit.memory_id.clone()) {
-            blended.push(hit);
+    } else {
+        // !semantic: bridge → FTS/substring (no RRF).
+        push_bridge(&mut blended, &mut seen_ids);
+        for hit in local_hits {
+            if seen_ids.insert(hit.memory_id.clone()) {
+                blended.push(hit);
+            }
         }
     }
 
     // Graph-based neighbor expansion: for each current hit, fetch 1-hop
-    // neighbors and add unseen ones with a boosted score.
+    // neighbors and add unseen ones with a boosted score. After RRF+bridge (F13).
     #[cfg(feature = "graph")]
     if options.graph_hop_depth >= 1
         && let Some(searcher) = graph
     {
         let mut graph_hits: Vec<RecallHit> = Vec::new();
-        // Snapshot existing hits to iterate without borrow issues.
-        let existing: Vec<(String, Option<f64>)> = blended
+        // Snapshot existing hits (id, score, score_kind) for parent inheritance.
+        let existing: Vec<(String, Option<f64>, ScoreKind)> = blended
             .iter()
-            .map(|h| (h.memory_id.clone(), h.score))
+            .map(|h| (h.memory_id.clone(), h.score, h.score_kind))
             .collect();
 
-        for (parent_id, parent_score) in existing {
+        for (parent_id, parent_score, parent_kind) in existing {
             let neighbors = match searcher.get_neighbors(&parent_id) {
                 Ok(n) => n,
                 Err(e) => {
@@ -321,7 +411,13 @@ pub fn recall_full(
                         })
                     };
                     if let Some((content, updated_at)) = row_opt {
-                        let boost_score = Some(parent_score.unwrap_or(0.0) + options.graph_boost);
+                        // F13 / F-01: boost in composite/effective space for HigherIsBetter
+                        // parents so graph_boost (~0.1 BM25-era) is not RELEVANCE_SCALE'd.
+                        let boost_score = graph_neighbor_stored_score(
+                            parent_score,
+                            parent_kind,
+                            options.graph_boost,
+                        );
                         seen_ids.insert(neighbor.external_id.clone());
                         graph_hits.push(RecallHit::graph(
                             neighbor.external_id,
@@ -329,6 +425,7 @@ pub fn recall_full(
                             boost_score,
                             None,
                             updated_at,
+                            parent_kind,
                         ));
                     }
                 }
@@ -338,7 +435,7 @@ pub fn recall_full(
     }
 
     // T211: pin-type + recency composite re-rank (F8). Single post-blend entry
-    // point (F40) — replaces the old Some-scores-first bucket sort. Truncate after.
+    // point (F40) — ScoreKind-aware (T215). Truncate after.
     crate::ranking::rerank_hits(&mut blended);
 
     if blended.len() > limit {
@@ -348,6 +445,7 @@ pub fn recall_full(
     Ok(RecallOutcome {
         hits: blended,
         embedding: embedding_status,
+        semantic_post_threshold_count,
     })
 }
 
@@ -442,8 +540,83 @@ fn query_ledgerful_bridge(
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+#[allow(clippy::disallowed_methods)] // test-only expect/unwrap OK
 mod tests {
     use super::*;
+    use crate::ranking::{PinKind, RELEVANCE_SCALE, StalenessClass, effective_score};
+
+    /// F-01: HigherIsBetter graph boost must not swamp parent RRF after RELEVANCE_SCALE.
+    #[test]
+    #[allow(non_snake_case)]
+    fn graph_neighbor__higher_is_better_boost_does_not_swamp_parent__f01() {
+        let graph_boost = 0.1;
+        // Rank-1 RRF alone under k=60.
+        let parent_raw = 1.0 / 61.0;
+        let parent_score = Some(parent_raw);
+        let neighbor_score =
+            graph_neighbor_stored_score(parent_score, ScoreKind::HigherIsBetter, graph_boost)
+                .expect("score");
+
+        // Stored: parent + boost/SCALE — not parent + raw boost.
+        let expected_stored = parent_raw + graph_boost / RELEVANCE_SCALE;
+        assert!(
+            (neighbor_score - expected_stored).abs() < 1e-12,
+            "neighbor_score={neighbor_score} expected={expected_stored}"
+        );
+
+        let parent_eff = effective_score(
+            parent_score,
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::HigherIsBetter,
+        );
+        let neighbor_eff = effective_score(
+            Some(neighbor_score),
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::HigherIsBetter,
+        );
+        // Effective neighbor is only ~graph_boost above parent (~0.1), not ~50+.
+        let delta = neighbor_eff - parent_eff;
+        assert!(
+            (delta - graph_boost).abs() < 1e-9,
+            "effective delta={delta} must be ~{graph_boost}, not swamp parent"
+        );
+        assert!(
+            delta < 1.0,
+            "graph neighbor must not leapfrog by RELEVANCE_SCALE*boost; delta={delta}"
+        );
+
+        // Legacy bug path: raw +0.1 stored under HigherIsBetter → delta ≈ 50.
+        let buggy_eff = effective_score(
+            Some(parent_raw + graph_boost),
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::HigherIsBetter,
+        );
+        assert!(
+            buggy_eff - parent_eff > 40.0,
+            "sanity: unscaled boost would swamp (got {})",
+            buggy_eff - parent_eff
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn graph_neighbor_stored_score__bm25_and_bridge_add_raw_boost() {
+        let boost = 0.1;
+        let bm25 = graph_neighbor_stored_score(Some(-2.0), ScoreKind::Bm25LowerBetter, boost);
+        assert_eq!(bm25, Some(-1.9));
+        let bridge =
+            graph_neighbor_stored_score(Some(18.0), ScoreKind::BridgeHigherIsBetter, boost);
+        assert_eq!(bridge, Some(18.1));
+    }
 
     #[test]
     fn recall_hit_fts_constructor() {
@@ -461,6 +634,7 @@ mod tests {
         assert_eq!(hit.session_id, None);
         assert_eq!(hit.updated_at, None);
         assert!(!hit.is_plan_demoted);
+        assert_eq!(hit.score_kind, ScoreKind::Bm25LowerBetter);
     }
 
     #[test]
@@ -493,6 +667,23 @@ mod tests {
         assert_eq!(hit.score, Some(0.92));
         assert_eq!(hit.privacy, Some(Privacy::LocalOnly));
         assert_eq!(hit.session_id, None);
+        assert_eq!(hit.score_kind, ScoreKind::BridgeHigherIsBetter);
+    }
+
+    #[test]
+    fn recall_hit_semantic_constructor() {
+        let hit = RecallHit::semantic(
+            "mem-3".into(),
+            "sem content".into(),
+            Some(0.77),
+            Some(Privacy::LocalOnly),
+            Some("sess".into()),
+            Some("2026-01-01T00:00:00Z".into()),
+        );
+        assert_eq!(hit.source, "semantic");
+        assert_eq!(hit.score, Some(0.77));
+        assert_eq!(hit.score_kind, ScoreKind::HigherIsBetter);
+        assert_eq!(hit.updated_at.as_deref(), Some("2026-01-01T00:00:00Z"));
     }
 
     #[test]

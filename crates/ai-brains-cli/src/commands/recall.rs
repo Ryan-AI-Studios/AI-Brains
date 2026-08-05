@@ -23,6 +23,8 @@ pub struct RecallRunOptions {
     pub quiet: bool,
     pub no_bridge: bool,
     pub global: bool,
+    /// Soft F32: one-shot cosine floor override for `--semantic`.
+    pub min_score: Option<f64>,
 }
 
 fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
@@ -36,6 +38,31 @@ fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
             }
         }
     }
+}
+
+/// F11 / AC8: print threshold honesty only when lexical results are present.
+///
+/// Conditions: semantic requested, embedding status `ok`, zero semantic hits
+/// above the cosine floor, and at least one hit from FTS / substring / hybrid
+/// (so "showing lexical" is honest). Bridge-only or non-lexical sources alone
+/// must not trigger the line.
+pub fn should_show_semantic_threshold_honesty(
+    semantic_requested: bool,
+    embedding_status: Option<&str>,
+    semantic_post_threshold_count: Option<usize>,
+    hits: &[ai_brains_retrieval::RecallHit],
+) -> bool {
+    if !semantic_requested {
+        return false;
+    }
+    if embedding_status != Some("ok") {
+        return false;
+    }
+    if semantic_post_threshold_count != Some(0) {
+        return false;
+    }
+    hits.iter()
+        .any(|h| matches!(h.source.as_str(), "fts" | "substring" | "hybrid"))
 }
 
 fn session_prefix_pattern(prefix: &str) -> String {
@@ -177,10 +204,12 @@ pub fn run(
             graph_hop_depth: options.graph_hop_depth,
             quiet: options.quiet,
             no_bridge: options.no_bridge,
+            min_semantic_score: options.min_score,
         },
     )?;
     let hits = outcome.hits;
     let embedding = outcome.embedding;
+    let semantic_post_threshold_count = outcome.semantic_post_threshold_count;
 
     // Emit MemoryPinned events for each recall hit so the graph projector can
     // build session -> memory RECALLS edges.
@@ -301,11 +330,22 @@ pub fn run(
                     println!("Session: {}", sid);
                 }
                 // F6: one embedding status line when --semantic and status != ok.
+                // T215 F11/AC8: ok + zero post-threshold + lexical present → honesty line.
                 if options.semantic
                     && let Some(ref emb) = response.embedding
-                    && emb.status != "ok"
                 {
-                    print_embedding_status_line(emb);
+                    if emb.status != "ok" {
+                        print_embedding_status_line(emb);
+                    } else if should_show_semantic_threshold_honesty(
+                        options.semantic,
+                        Some(emb.status.as_str()),
+                        semantic_post_threshold_count,
+                        &hits,
+                    ) {
+                        println!(
+                            "Embedding: ok (no semantic hits above threshold; showing lexical)"
+                        );
+                    }
                 }
                 print_pretty_hits(&hits);
             }
@@ -808,4 +848,106 @@ mod tests {
 
     // F3 empty pretty TTY independence is locked by hermetic
     // `recall_empty__pretty_non_tty__stdout_contains_no_results` (not a unit stub).
+
+    // -----------------------------------------------------------------------
+    // F11 / AC8 — semantic threshold honesty gate
+    // -----------------------------------------------------------------------
+
+    fn hit_with_source(id: &str, source: &str) -> ai_brains_retrieval::RecallHit {
+        ai_brains_retrieval::RecallHit {
+            memory_id: id.to_string(),
+            content: "c".into(),
+            source: source.to_string(),
+            score: Some(0.01),
+            privacy: None,
+            session_id: None,
+            updated_at: None,
+            is_plan_demoted: false,
+            score_kind: ai_brains_retrieval::ScoreKind::HigherIsBetter,
+        }
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__fts_hits_zero_sem__true__ac8() {
+        let hits = vec![hit_with_source("a", "fts")];
+        assert!(should_show_semantic_threshold_honesty(
+            true,
+            Some("ok"),
+            Some(0),
+            &hits,
+        ));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__hybrid_hits_zero_sem__true__ac8() {
+        let hits = vec![hit_with_source("a", "hybrid")];
+        assert!(should_show_semantic_threshold_honesty(
+            true,
+            Some("ok"),
+            Some(0),
+            &hits,
+        ));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__bridge_only__false__ac8() {
+        // Bridge-only must not claim "showing lexical".
+        let hits = vec![hit_with_source("b", "bridge")];
+        assert!(!should_show_semantic_threshold_honesty(
+            true,
+            Some("ok"),
+            Some(0),
+            &hits,
+        ));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__sem_post_threshold_nonzero__false() {
+        let hits = vec![hit_with_source("a", "fts")];
+        assert!(!should_show_semantic_threshold_honesty(
+            true,
+            Some("ok"),
+            Some(2),
+            &hits,
+        ));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__status_not_ok__false() {
+        let hits = vec![hit_with_source("a", "fts")];
+        assert!(!should_show_semantic_threshold_honesty(
+            true,
+            Some("unreachable"),
+            Some(0),
+            &hits,
+        ));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__semantic_not_requested__false() {
+        let hits = vec![hit_with_source("a", "fts")];
+        assert!(!should_show_semantic_threshold_honesty(
+            false,
+            Some("ok"),
+            Some(0),
+            &hits,
+        ));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn should_show_semantic_threshold_honesty__empty_hits__false() {
+        assert!(!should_show_semantic_threshold_honesty(
+            true,
+            Some("ok"),
+            Some(0),
+            &[],
+        ));
+    }
 }

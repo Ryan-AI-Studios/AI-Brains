@@ -31,6 +31,27 @@ pub const RECENCY_MAX_DAYS: f64 = 365.0;
 /// Recency scale: boost = scale * (1 - d/365).
 pub const RECENCY_SCALE: f64 = 1.0;
 
+/// Scale for cosine / RRF scores into pin-boost composite space (T215 F8).
+///
+/// Rank-1 alone under RRF k=60 is ≈ 1/61 ≈ 0.0164 → ≈ 8.2 after scale.
+/// Bridge Tantivy scores do **not** use this scale ([`ScoreKind::BridgeHigherIsBetter`]).
+pub const RELEVANCE_SCALE: f64 = 500.0;
+
+/// How [`RecallHit::score`](crate::recall::RecallHit::score) should enter the
+/// composite effective score (T215 F6).
+///
+/// Set at every construction site; graph inherits the parent's kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScoreKind {
+    /// FTS5 BM25 rank: more-negative is better. `base = -score` (T211 F33).
+    #[default]
+    Bm25LowerBetter,
+    /// Cosine / RRF fused: higher is better. `base = score * RELEVANCE_SCALE`.
+    HigherIsBetter,
+    /// Bridge Tantivy relevance: higher is better. `base = score` (unscaled; M1).
+    BridgeHigherIsBetter,
+}
+
 /// Marker-derived pin kind (F4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PinKind {
@@ -173,24 +194,30 @@ fn recency_boost(updated_at: Option<&str>) -> f64 {
     RECENCY_SCALE * (1.0 - d / RECENCY_MAX_DAYS)
 }
 
-/// Composite effective score (F8/F9/F33).
+/// Composite effective score (F8/F9/F33 + T215 F6 ScoreKind).
 ///
-/// FTS5 `rank` is **more negative = better BM25**. For higher-is-better
-/// composite sort (effective DESC) we use `base = -score` so stronger matches
-/// rank higher within the same pin class. Unscored hits (`None`) use base `0.0`
-/// (do not leapfrog strong FTS). **F33:** preserve BM25 preference order; do
-/// not reverse which match is better.
+/// # Score polarity ([`ScoreKind`])
+///
+/// - [`ScoreKind::Bm25LowerBetter`]: FTS5 `rank` is more-negative = better.
+///   `base = -score` so stronger matches rank higher (T211 F33).
+/// - [`ScoreKind::HigherIsBetter`]: cosine / RRF. `base = score * RELEVANCE_SCALE`.
+/// - [`ScoreKind::BridgeHigherIsBetter`]: Tantivy relevance. `base = score`
+///   (no scale, no negate) so large bridge scores stay authority-class (M1).
+///
+/// Unscored hits (`None`) use base `0.0` (do not leapfrog strong FTS).
 pub fn effective_score(
     base: Option<f64>,
     kind: PinKind,
     staleness: StalenessClass,
     sibling_demoted: bool,
     updated_at: Option<&str>,
+    score_kind: ScoreKind,
 ) -> f64 {
-    // Negate FTS rank so more-negative BM25 becomes larger positive base.
-    let base_v = match base {
-        Some(s) => -s,
-        None => 0.0,
+    let base_v = match (base, score_kind) {
+        (None, _) => 0.0,
+        (Some(s), ScoreKind::Bm25LowerBetter) => -s,
+        (Some(s), ScoreKind::HigherIsBetter) => s * RELEVANCE_SCALE,
+        (Some(s), ScoreKind::BridgeHigherIsBetter) => s,
     };
     let mut v = base_v + kind_boost(kind);
     if kind == PinKind::Decision {
@@ -265,6 +292,7 @@ pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
                 staleness,
                 sibling,
                 hit.updated_at.as_deref(),
+                hit.score_kind,
             );
             Ranked {
                 effective,
@@ -306,15 +334,34 @@ mod tests {
     use super::*;
 
     fn hit(id: &str, content: &str, score: Option<f64>, updated_at: Option<&str>) -> RecallHit {
+        hit_kind(
+            id,
+            content,
+            score,
+            updated_at,
+            "fts",
+            ScoreKind::Bm25LowerBetter,
+        )
+    }
+
+    fn hit_kind(
+        id: &str,
+        content: &str,
+        score: Option<f64>,
+        updated_at: Option<&str>,
+        source: &str,
+        score_kind: ScoreKind,
+    ) -> RecallHit {
         RecallHit {
             memory_id: id.to_string(),
             content: content.to_string(),
-            source: "fts".to_string(),
+            source: source.to_string(),
             score,
             privacy: None,
             session_id: None,
             updated_at: updated_at.map(str::to_string),
             is_plan_demoted: false,
+            score_kind,
         }
     }
 
@@ -434,6 +481,7 @@ mod tests {
             StalenessClass::Shipped,
             false,
             None,
+            ScoreKind::Bm25LowerBetter,
         );
         let plan_eff = effective_score(
             Some(-3.0),
@@ -441,6 +489,7 @@ mod tests {
             StalenessClass::Plan,
             false,
             None,
+            ScoreKind::Bm25LowerBetter,
         );
         assert!(
             shipped_eff > plan_eff,
@@ -540,6 +589,7 @@ mod tests {
             StalenessClass::Plan,
             true,
             None,
+            ScoreKind::Bm25LowerBetter,
         );
         let without = effective_score(
             Some(0.0),
@@ -547,6 +597,7 @@ mod tests {
             StalenessClass::Plan,
             false,
             None,
+            ScoreKind::Bm25LowerBetter,
         );
         assert!(with_sib < without);
         assert!((with_sib - (0.0 + 2.0 - 3.0 - 2.0)).abs() < 1e-9);
@@ -569,7 +620,14 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn effective_score__none_base_is_zero() {
-        let e = effective_score(None, PinKind::Other, StalenessClass::Unknown, false, None);
+        let e = effective_score(
+            None,
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::Bm25LowerBetter,
+        );
         assert!((e - 0.0).abs() < 1e-9);
     }
 
@@ -584,6 +642,7 @@ mod tests {
             StalenessClass::Unknown,
             false,
             Some(&recent),
+            ScoreKind::Bm25LowerBetter,
         );
         let o = effective_score(
             Some(0.0),
@@ -591,7 +650,228 @@ mod tests {
             StalenessClass::Unknown,
             false,
             Some(&old),
+            ScoreKind::Bm25LowerBetter,
         );
         assert!(r > o, "recent {r} should beat old {o}");
+    }
+
+    /// AC3: HigherIsBetter is not negated; strong semantic beats weak same-kind.
+    #[test]
+    #[allow(non_snake_case)]
+    fn effective_score__higher_is_better_not_negated__ac3() {
+        let strong = effective_score(
+            Some(0.9),
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::HigherIsBetter,
+        );
+        let weak = effective_score(
+            Some(0.2),
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::HigherIsBetter,
+        );
+        assert!(
+            strong > weak,
+            "strong cosine-scaled {strong} must beat weak {weak}"
+        );
+        // 0.9 * 500 = 450; 0.2 * 500 = 100
+        assert!((strong - 450.0).abs() < 1e-9, "strong={strong}");
+        assert!((weak - 100.0).abs() < 1e-9, "weak={weak}");
+
+        let mut hits = vec![
+            hit_kind(
+                "weak",
+                "plain other weak",
+                Some(0.2),
+                None,
+                "semantic",
+                ScoreKind::HigherIsBetter,
+            ),
+            hit_kind(
+                "strong",
+                "plain other strong",
+                Some(0.9),
+                None,
+                "semantic",
+                ScoreKind::HigherIsBetter,
+            ),
+        ];
+        rerank_hits(&mut hits);
+        assert_eq!(hits[0].memory_id, "strong");
+        assert_eq!(hits[1].memory_id, "weak");
+    }
+
+    /// AC9: Plan demotion still works on hybrid-scored hits.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits__plan_demotion_on_hybrid_scores__ac9() {
+        // Same RRF-scale base; plan DECISION must rank below shipped.
+        let mut hits = vec![
+            hit_kind(
+                "mem-plan",
+                "DECISION: plan-only T999 expanded ranking keyword until go",
+                Some(0.02),
+                None,
+                "hybrid",
+                ScoreKind::HigherIsBetter,
+            ),
+            hit_kind(
+                "mem-ship",
+                "DECISION: shipped T999 keyword PR #1 complete",
+                Some(0.02),
+                None,
+                "hybrid",
+                ScoreKind::HigherIsBetter,
+            ),
+        ];
+        rerank_hits(&mut hits);
+        assert_eq!(hits[0].memory_id, "mem-ship");
+        assert_eq!(hits[1].memory_id, "mem-plan");
+        assert!(hits[1].is_plan_demoted);
+        assert!(!hits[0].is_plan_demoted);
+    }
+
+    /// AC15: Within hybrid score space, CONSTRAINT near-tie outranks Other after RELEVANCE_SCALE.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits__constraint_outranks_other_in_hybrid_space__ac15() {
+        // Near-tie RRF scores: CONSTRAINT kind boost (+4) must still win.
+        let mut hits = vec![
+            hit_kind(
+                "other",
+                "plain chat about keyword_rank_token",
+                Some(0.0164),
+                None,
+                "hybrid",
+                ScoreKind::HigherIsBetter,
+            ),
+            hit_kind(
+                "cons",
+                "CONSTRAINT: keyword_rank_token must be safe",
+                Some(0.0160),
+                None,
+                "hybrid",
+                ScoreKind::HigherIsBetter,
+            ),
+        ];
+        // other base ≈ 8.2; cons base ≈ 8.0 + 4 = 12.0 → cons wins.
+        rerank_hits(&mut hits);
+        assert_eq!(hits[0].memory_id, "cons");
+        assert_eq!(hits[1].memory_id, "other");
+    }
+
+    /// AC16: Graph hit inherits parent score_kind (constructor + effective_score path).
+    #[test]
+    #[allow(non_snake_case)]
+    fn graph_hit__inherits_parent_score_kind__ac16() {
+        let fts_parent =
+            RecallHit::fts("p-fts".into(), "parent fts".into(), Some(-2.0), None, None);
+        assert_eq!(fts_parent.score_kind, ScoreKind::Bm25LowerBetter);
+        let g_fts = RecallHit::graph(
+            "g-fts".into(),
+            "graph from fts".into(),
+            Some(-1.5),
+            None,
+            None,
+            fts_parent.score_kind,
+        );
+        assert_eq!(g_fts.score_kind, ScoreKind::Bm25LowerBetter);
+
+        let hybrid_parent = hit_kind(
+            "p-hyb",
+            "parent hybrid",
+            Some(0.03),
+            None,
+            "hybrid",
+            ScoreKind::HigherIsBetter,
+        );
+        let g_hyb = RecallHit::graph(
+            "g-hyb".into(),
+            "graph from hybrid".into(),
+            Some(0.04),
+            None,
+            None,
+            hybrid_parent.score_kind,
+        );
+        assert_eq!(g_hyb.score_kind, ScoreKind::HigherIsBetter);
+
+        // Effective path respects inherited kind (not negated for HigherIsBetter).
+        let eff_hyb = effective_score(
+            g_hyb.score,
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            g_hyb.score_kind,
+        );
+        assert!(
+            (eff_hyb - 0.04 * RELEVANCE_SCALE).abs() < 1e-9,
+            "eff_hyb={eff_hyb}"
+        );
+        let eff_fts = effective_score(
+            g_fts.score,
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            g_fts.score_kind,
+        );
+        assert!((eff_fts - 1.5).abs() < 1e-9, "eff_fts={eff_fts}");
+    }
+
+    /// AC17: Bridge positive relevance outranks weak FTS after rerank (M1 polarity).
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits__bridge_positive_outranks_weak_fts__ac17() {
+        let mut hits = vec![
+            hit_kind(
+                "fts-weak",
+                "plain other weak fts",
+                Some(-0.5),
+                None,
+                "fts",
+                ScoreKind::Bm25LowerBetter,
+            ),
+            hit_kind(
+                "bridge-strong",
+                "plain other bridge authority",
+                Some(18.3),
+                None,
+                "bridge",
+                ScoreKind::BridgeHigherIsBetter,
+            ),
+        ];
+        // Bridge base 18.3 >> FTS base 0.5 after polarity.
+        rerank_hits(&mut hits);
+        assert_eq!(
+            hits[0].memory_id, "bridge-strong",
+            "bridge must not be demoted by BM25 negation"
+        );
+        assert_eq!(hits[1].memory_id, "fts-weak");
+
+        // If bridge were wrongly Bm25LowerBetter, base = -18.3 would lose to 0.5.
+        let wrong = effective_score(
+            Some(18.3),
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::Bm25LowerBetter,
+        );
+        let right = effective_score(
+            Some(18.3),
+            PinKind::Other,
+            StalenessClass::Unknown,
+            false,
+            None,
+            ScoreKind::BridgeHigherIsBetter,
+        );
+        assert!(right > 0.0 && wrong < 0.0);
+        assert!(right > wrong);
     }
 }
