@@ -4,6 +4,7 @@ mod context;
 mod daemon_client;
 mod daemon_probe;
 mod elevation;
+mod graph_density;
 mod help_ia;
 mod key_resolve;
 mod live_graph;

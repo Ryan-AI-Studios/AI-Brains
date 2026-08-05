@@ -604,14 +604,49 @@ $env:LEDGERFUL_BRIDGE = "1"
 ### Recalls return only code files, not session memories
 This is correct FTS5 behavior when no session context has been pinned. After a few ingest+recall cycles, the relevant session memory will surface. The `safety sync` command intentionally pins file paths as memories so the same query can return both kinds of result.
 
-### Graph health check
+### Graph health check (T213 density honesty)
 ```powershell
+# Requires graph-on binary (`cargo install --path crates/ai-brains-cli --locked --features graph`)
 ai-brains graph update
 ```
-Reports `{ nodes, edges, status: "live", note }`. If `status` is not `"live"` or counts are unexpectedly zero, run:
+Success JSON shape (pretty):
+
+```text
+{
+  "nodes": …,
+  "edges": …,
+  "pinned_memories": …,
+  "memory_nodes": …,          // kind = 'memory' only
+  "edge_node_ratio": …,       // edges/nodes (0.0 if nodes==0); fraction, not NetworkX density
+  "density": "ok|warn|skip",  // never "fail" — query errors use the error path
+  "status": "live|sparse|empty",
+  "note": "…human one-liner…",
+  "remediation": "ai-brains graph rebuild"   // omitted when null
+}
+```
+
+| `status` | Meaning |
+|----------|---------|
+| `live` | Density assessor Ok (or small empty vault still reporting live with `density=skip`) |
+| `sparse` | Under-linked (E/N below typed-lineage floor **0.50**), orphan nodes (many nodes, zero edges), or severe memory projection lag |
+| `empty` | Many pinned memories but graph tables empty (empty lag) |
+
+**When to rebuild:** if `status` is `sparse` or `empty`, or `density` is `warn`, run:
+
 ```powershell
 ai-brains graph rebuild
 ```
+
+Do **not** treat non-zero `nodes` alone as healthy — live dogfood historically showed ~1300 nodes / ~95 edges (`E/N ≈ 0.07`) while still reporting `live` before T213.
+
+**Graph-off lag:** default / GitHub Release binaries (no `--features graph`) never run the incremental LiveGraphHook. `graph update` exits **2** (`FEATURE_UNAVAILABLE`). Use doctor for SQL density on any binary:
+
+```powershell
+ai-brains doctor --format json
+# checks include name=graph_density (soft warn → overall degraded; never hard-fail alone)
+```
+
+Empty-lag remediation may mention a graph-on reinstall. Thresholds (soft env, invalid→default): `AI_BRAINS_GRAPH_MIN_PINNED` (100), `AI_BRAINS_GRAPH_MIN_NODES` (50), `AI_BRAINS_GRAPH_MIN_EDGE_RATIO` (0.50), `AI_BRAINS_GRAPH_MIN_MEMORY_COVERAGE` (0.10 severe floor).
 
 **Cozo init quiet by default (T208):** graph-on CLI paths construct the Cozo proxy but do **not** print `CozoProxyBackend initialized` under the product default log filter. To see lifecycle/debug for the graph crate only:
 
@@ -690,7 +725,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Recovery kit export | `ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force]` (T188) |
 | Doctor (health) | `ai-brains doctor [--json] [--kit-path] [--passphrase-file] [--fail-on-degraded] [--backup-max-age 7d] [--full]` (T192; read-only) |
 | Manage Projects | `ai-brains project list/resolve/detect` |
-| Graph Health | `ai-brains graph update` (use `graph rebuild` if stale) |
+| Graph Health | `ai-brains graph update` (`live`\|`sparse`\|`empty`; rebuild if sparse/empty) + doctor `graph_density` |
 
 ## Desktop thin client (T172 + T173 security)
 

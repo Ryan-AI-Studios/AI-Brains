@@ -30,7 +30,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Governed source/evidence discovery lists + soft-resolve~~ | **Closed by T203** (2026-08-04) PR #86 `2748d12` — source/evidence list; review soft-resolve exit 2; show F7; Active+LIMIT+1; core FTS sanitizer |
 | ~~CLI help grouping IA~~ | **Closed by T204** (2026-08-04) PR #87 `c3a7d66` — after_long_help groups; F31 order; F33 dangerous; F9 project-id; CAPABILITIES format table |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
-| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205-T216** - ~~T205-T212 + T215 closed~~; T213/T214/T216 still placeholders |
+| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205-T216** - ~~T205-T212 + T215 closed~~; ~~T213 density doctor implemented~~; T214/T216 still placeholders |
 | ~~source/evidence/review/briefing POLICY_DENIED bootstrap (audit 3–4)~~ | **Closed by T210** (2026-08-05) PR #93 `d52df25` — `policy bootstrap` discovery Read* LocalOnly; active_grants + get_principal; dual-site hint AC7/AC11; hermetic suite |
 | T210 residuals (skill / soft-resolve success / full admin) | Soft: F23 skill one-liner; AC8 success soft-resolve hermetic (fail path locked); full grant admin/revoke/daemon IssueGrant (F24–F26) |
 | ~~sync query ranking + stale DECISIONs (audit quality 5)~~ | **Closed by T211** (2026-08-05) PR #94 `16990b1` — `rerank_hits` pin+recency; plan demotion + badge; ledger-first; `--limit` 5; BM25 base=-rank |
@@ -50,7 +50,20 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T212**~~ / ~~**T215**~~ **closed** -> **T213** / **T214** / **T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO -> T208~~ **closed**; ~~backup list WARN flood -> T209~~ **closed**; ~~POLICY_DENIED dead-end -> T210~~ **closed**; ~~stale DECISION ranking -> T211~~ **closed**; ~~project list labels -> T212~~ **closed**; ~~semantic relevance -> T215~~ **closed**.
+Suggested order: ~~**T196**~~ ... ~~**T212**~~ / ~~**T215**~~ / ~~**T213**~~ **closed** -> **T214** / **T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO -> T208~~ **closed**; ~~backup list WARN flood -> T209~~ **closed**; ~~POLICY_DENIED dead-end -> T210~~ **closed**; ~~stale DECISION ranking -> T211~~ **closed**; ~~project list labels -> T212~~ **closed**; ~~semantic relevance -> T215~~ **closed**; ~~graph density honesty -> T213~~ **closed** (ship residuals in T213 closeout section).
+
+### T213 closeout residuals (2026-08-05) — density doctor shipped
+
+| Residual | Disposition |
+|----------|-------------|
+| ~~graph update effect 6 / false live~~ | **Closed by T213** — pure assessor + status `live`\|`sparse`\|`empty` + doctor `graph_density` |
+| Event↔graph timestamp freshness (F31 / audit2 freshness half) | Soft residual — not DoD |
+| CLI flags for density thresholds (F17) | Soft — env overrides only (`AI_BRAINS_GRAPH_MIN_*`) |
+| Promote `GraphHealthOutput` to `ai-brains-contracts` (F24) | Soft — keep full field names if promoted later |
+| Skill one-liner for density / rebuild | Soft |
+| rusqlite 0.40+ `table_exists` for F5 probe (L4) | Soft residual (no bump in T213) |
+| Two-tier memory coverage 0.50 soft + 0.10 severe (L6) | Soft declined v1 (0.10 severe floor only) |
+| Auto rebuild / projector more edges / graph default-on / WCC | **Not** T213 — separate product decisions |
 
 ---
 

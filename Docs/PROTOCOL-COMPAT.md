@@ -90,7 +90,7 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | Governed mutations (briefing, erasure, …) | **pretty** (`emit_json`) | Machine-clean stdout |
 | `ingest` success response | **compact** | `event_id`, `processed` |
 | `graph` neighbors/hierarchy/session | **compact** | |
-| `graph update` report | **pretty** | |
+| `graph update` report | **pretty** | T213 fields: `nodes`, `edges`, `pinned_memories`, `memory_nodes`, `edge_node_ratio`, `density` (`ok`\|`warn`\|`skip`), `status` (`live`\|`sparse`\|`empty`), `note`, optional `remediation` |
 | `backup create` JSON | **compact** | |
 | `dogfood compare` / `evaluate governed` | **pretty** | |
 | `agy-hook --schema` / `sync pull --schema` | pretty schema docs | Not versioned wire ops |
