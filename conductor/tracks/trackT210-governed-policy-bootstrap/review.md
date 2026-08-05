@@ -63,3 +63,12 @@ cargo build -p ai-brains-cli
 ### Final decision
 
 Engineering DoD clear for PR after full workspace nextest + deny + audit.
+
+## Closeout (2026-08-05)
+
+- PR #93 squash-merged: `d52df25`
+- CI: gate-windows / gate-linux / gate-macos **pass** (run 30965515085)
+- Full local nextest: **2090 passed**
+- Cross-model final: Claude **PASS** (Codex rate-limited; fresh PASS is final gate)
+- Conductor → Completed; deferred.md T210 struck
+- Coordinated `coordination.md` T210 note appended

@@ -1,6 +1,6 @@
 # T210 Plan — Governed policy bootstrap for discovery
 
-Status: **In Progress** (implementing). Spec: [spec.md](./spec.md).
+Status: **Completed** (2026-08-05, PR #93 `d52df25`). Spec: [spec.md](./spec.md).
 
 ## Absorbed
 
@@ -89,7 +89,7 @@ Status: **In Progress** (implementing). Spec: [spec.md](./spec.md).
 - [x] Regression: show/check/init unchanged; T203 governed_discovery_reads green  
 - [x] Internal review log  
 - [x] Cross-model soft (dual-site hint) — Claude PASS (Codex rate-limited)  
-- [ ] Full gate; ledger commit; conductor Completed; deferred strike (post-PR)  
+- [x] Full gate; ledger commit; conductor Completed; deferred strike (post-PR)  
 
 ## Implementation sketch (normative flow — M3)
 

@@ -2,7 +2,7 @@
 
 - **Track ID:** T210-GovernedPolicyBootstrap
 - **Phase:** Post-T209 skill·CLI audit follow-ups (P1)
-- **Status:** 📋 **Proposed / Expanded + AI fold-in** (plan-only until go)
+- **Status:** ✅ **Completed** (2026-08-05, PR #93 `d52df25`)
 - **Depends on:** T151 policy matrix + grants; T160 `policy show|check` (read-only); T187 vault key; T197 key bootstrap; **T201** exit contract + `details.hint`; **T203** discovery lists + soft-resolve; T209 closed
 - **Blocks / feeds:** Operators/agents can actually use `source list` / `evidence list` / `review list` / briefing after vault open without library-only `issue_grant`; residual full grant admin (revoke UI, multi-tenant IdP) stays deferred
 - **Category:** FEATURE / DOCS (skill touch) / CONTRACTS (CLI-local response DoD; contracts lift soft)
