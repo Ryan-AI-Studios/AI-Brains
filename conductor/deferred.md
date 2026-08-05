@@ -30,7 +30,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Governed source/evidence discovery lists + soft-resolve~~ | **Closed by T203** (2026-08-04) PR #86 `2748d12` — source/evidence list; review soft-resolve exit 2; show F7; Active+LIMIT+1; core FTS sanitizer |
 | ~~CLI help grouping IA~~ | **Closed by T204** (2026-08-04) PR #87 `c3a7d66` — after_long_help groups; F31 order; F33 dangerous; F9 project-id; CAPABILITIES format table |
 | T196 P3 SIGTERM child delivery test | Soft residual (F36); not blocking |
-| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205-T216** - ~~T205-T215 closed~~; ~~T214 preflight global rollup closed~~; T216 still placeholder |
+| Non-destructive skill/CLI audit follow-ups (2026-08-04) | **T205-T216** - ~~T205–T216 closed~~; ~~T216 forget-list + inventory skim closed~~ (PR #99 `1980d83`) |
 | ~~source/evidence/review/briefing POLICY_DENIED bootstrap (audit 3–4)~~ | **Closed by T210** (2026-08-05) PR #93 `d52df25` — `policy bootstrap` discovery Read* LocalOnly; active_grants + get_principal; dual-site hint AC7/AC11; hermetic suite |
 | T210 residuals (skill / soft-resolve success / full admin) | Soft: F23 skill one-liner; AC8 success soft-resolve hermetic (fail path locked); full grant admin/revoke/daemon IssueGrant (F24–F26) |
 | ~~sync query ranking + stale DECISIONs (audit quality 5)~~ | **Closed by T211** (2026-08-05) PR #94 `16990b1` — `rerank_hits` pin+recency; plan demotion + badge; ledger-first; `--limit` 5; BM25 base=-rank |
@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T212**~~ / ~~**T215**~~ / ~~**T213**~~ / ~~**T214**~~ **closed** -> **T216**. Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO -> T208~~ **closed**; ~~backup list WARN flood -> T209~~ **closed**; ~~POLICY_DENIED dead-end -> T210~~ **closed**; ~~stale DECISION ranking -> T211~~ **closed**; ~~project list labels -> T212~~ **closed**; ~~semantic relevance -> T215~~ **closed**; ~~graph density honesty -> T213~~ **closed**; ~~preflight --global summary -> T214~~ **closed** (ship residuals in T214 closeout section); **forget-list** → T216 placeholder.
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO -> T208~~ **closed**; ~~backup list WARN flood -> T209~~ **closed**; ~~POLICY_DENIED dead-end -> T210~~ **closed**; ~~stale DECISION ranking -> T211~~ **closed**; ~~project list labels -> T212~~ **closed**; ~~semantic relevance -> T215~~ **closed**; ~~graph density honesty -> T213~~ **closed**; ~~preflight --global summary -> T214~~ **closed**; ~~forget-list + inventory skim -> T216~~ **closed** (PR #99 `1980d83`; soft F24 residuals in T216 closeout).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -80,7 +80,35 @@ Suggested order: ~~**T196**~~ ... ~~**T212**~~ / ~~**T215**~~ / ~~**T213**~~ / ~
 | is-terminal → `std::io::IsTerminal` | Soft residual F24 (L1) |
 | Extract `commands/scope_display.rs` | Soft residual F13 v1 used pub(crate) |
 | Refactor retrieval `active_sessions` off `format!` SQL | Soft residual (pre-existing; not T214 DoD) |
-| T216 forget-list | Still placeholder after T214 |
+| ~~T216 forget-list~~ | **Closed by T216** (2026-08-05) PR #99 `1980d83` |
+
+### T216 closeout residuals (2026-08-05) — forget-list + inventory skim shipped
+
+| Residual | Disposition |
+|----------|-------------|
+| ~~forget list effect 5 (unbounded list-forgotten; no inventory skim)~~ | **Closed by T216** — `memory list` + bounded `forget --list-forgotten` |
+| ~~Counts by project~~ | **Closed** F11 `--summary` (+ global by-project; F46 tag cells) |
+| Counts by tag histogram | Soft F24 — `--tag` filter shipped; Top-N histogram not DoD |
+| Tag schema / pin rewrite | **Not** T216 |
+| Auto-forget / CE wipe / governed discovery / HTTP list | **Not** T216 |
+| `--offset` / cursor pagination | Soft F24 |
+| Shared relative-time helper extract | Soft F24 |
+| Tag matcher CLI/store dual (R1-06) | Soft residual — keep in sync if either changes |
+| ~~AI1 M1–M7 / L1–L6/L8 / F46~~ | **Closed** in T216 ship |
+
+### T216 planning residuals absorption (2026-08-05) — historical
+
+| Residual | Disposition |
+|----------|-------------|
+| forget list effect 5 (unbounded list-forgotten; no inventory skim) | **Absorbed then closed by T216** F1–F48 / AC1–AC20 |
+| Counts by project | **Absorbed** F11 `--summary` (+ global by-project) |
+| Counts by tag | Partial: `--tag` filter F12 hard (two-stage M2); histogram soft F13/F24 (content `TAGS:` only; no migration) |
+| Tag schema / pin rewrite | **Not** T216 |
+| Auto-forget / CE wipe / governed discovery / HTTP list | **Not** T216 |
+| AI1 M1 exit-2 plumbing | **Absorbed** F3 `fail_usage` / `GovernedCliError` |
+| AI1 M2 tag LIKE false-match | **Absorbed** F12/F41/F43 |
+| AI1 M3–M7 / L1–L6/L8 | **Absorbed** F4/F6/F8/F9/F11/F15/F17/F22/F26/F36/F38 |
+| AI2 core affirm | **Affirmed** F45 |
 
 ---
 
