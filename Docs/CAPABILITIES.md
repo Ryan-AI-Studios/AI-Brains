@@ -142,7 +142,11 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | Show only | `context --show` |
 | Rotate project / session | `--new-project` · `--new-session` |
 | Ledger linkage | `--tx-id` / `LEDGERFUL_TX_ID` (legacy `CHANGEGUARD_TX_ID` fallback) |
-| List projects | `project list` |
+| List projects | `project list` — **label-first** human table: `label` \| `project_id` (full) \| `memories` \| `last_activity` \| `path`. Label prefers alias; baked/machine names show as `(no alias)`. Active process `AI_BRAINS_PROJECT_ID` gets a `*` prefix on the label. |
+| List JSON | `project list --format json` — `{ api_version, projects[{project_id,name,alias,label,memory_count,last_activity,path}], unaliased_count }` (pretty). Path is `null` when absent. No dual `--json` flag. |
+| last_activity | Last **memory-projection mutation** (pin / forget / ingest / turn upsert), falling back to project `updated_at` when the project has no memories — **not** “last user chat message only.” Human: relative when age &lt; 365d (`just now` / `Nm` / `Nh` / `Nd`); else `YYYY-MM-DD`. |
+| path column | Registered `repository_path_alias_projection.normalized_path` when present (lexicographically first); never invented from cwd/git. Human `—` / JSON `null` when unknown. |
+| Unaliased nudge | When ≥1 project has no alias, **stderr** prints count + copy-paste `ai-brains project set-alias <uuid> <suggestion>` (highest-memory unaliased). Empty vault: T198 empty line only — **no** footer. Exit 0 always. |
 | Aliases | `project set-alias` · `project resolve` |
 | Auto-detect | `project detect` (git slug → vault match → env `PROJECT_ID`); `context` discovery (`.ledgerful` / `.env`) |
 | Stop session | `stop-session` |

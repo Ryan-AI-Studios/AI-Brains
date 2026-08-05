@@ -3253,12 +3253,9 @@ fn sync_query__daemon_down__no_spawn_attempt() {
     );
 }
 
-/// UX: when a project is registered without an alias, the default name
-/// should be readable in `project list`. The old form was
-/// `Project <full-uuid>` (32 hex chars); the friendly form is
-/// `(no alias) — <short-uuid>` (8-char prefix) plus the full id in the
-/// dedicated column. This test seeds a project via `context`, runs
-/// `project list`, and asserts the new friendly form is present.
+/// UX (T212 F40): when a project is registered without an alias, the human
+/// label is `(no alias)` (stored name may still be baked `(no alias) — short`);
+/// full project_id stays in its own column. Seeds via `context`, runs list.
 #[test]
 fn test_project_list_friendly_default_name() {
     let dir = tempdir().unwrap();
@@ -3296,7 +3293,7 @@ fn test_project_list_friendly_default_name() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("(no alias)"),
-        "project list should show '(no alias) — <short-uuid>' for unnamed projects; got: {stdout}"
+        "project list should show label '(no alias)' for unnamed projects; got: {stdout}"
     );
 }
 

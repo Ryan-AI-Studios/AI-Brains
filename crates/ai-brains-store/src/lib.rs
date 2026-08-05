@@ -72,6 +72,13 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         limit: usize,
     ) -> Result<Vec<(String, String)>>;
     fn list_projects(&self) -> Result<Vec<(String, String, String, usize)>>; // UUID, name, alias, memory_count
+    /// Extended project list for UI/JSON (label-first list command).
+    ///
+    /// `last_activity` is last **memory-projection mutation** (pin/forget/ingest/turn
+    /// upsert), falling back to project `updated_at` when the project has no memories.
+    /// `path` is the lexicographically first registered `normalized_path` for the
+    /// project, or `None` when no path alias exists (never invented).
+    fn list_projects_detail(&self) -> Result<Vec<ProjectListDetail>>;
     /// Look up a single project by id. Returns `(name, alias)` when present.
     /// Alias is empty string when none is set. Does not load the full project list.
     fn get_project_by_id(
@@ -83,6 +90,20 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
     /// Used by `forget` to validate `--memory-id` before appending a
     /// `MemoryForgotten` event that would otherwise silently no-op.
     fn memory_exists(&self, memory_id: &str) -> Result<bool>;
+}
+
+/// Row from [`QueryStore::list_projects_detail`] (T212).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectListDetail {
+    pub project_id: String,
+    pub name: String,
+    /// Empty string when no alias is set.
+    pub alias: String,
+    pub memory_count: usize,
+    /// RFC 3339 timestamp string from SQL, or empty if missing.
+    pub last_activity: String,
+    /// Lexicographically first registered repo path, if any.
+    pub path: Option<String>,
 }
 
 pub trait SyncStateStore: std::marker::Send + std::marker::Sync {

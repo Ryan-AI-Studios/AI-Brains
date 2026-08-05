@@ -1,7 +1,8 @@
 use crate::context::AppContext;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, Payload, ProjectAliasAddedPayload};
-use ai_brains_store::{EventStore, QueryStore};
+use ai_brains_store::{EventStore, ProjectListDetail, QueryStore};
+use serde::Serialize;
 use std::process::Command;
 
 /// Row from `list_projects`: (project_id, name, alias, memory_count).
@@ -15,26 +16,273 @@ pub(crate) enum SlugMatch {
     None,
 }
 
-pub fn list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    let projects = ctx.conn.list_projects()?;
+/// Label column width (chars) for human table (F14).
+const LABEL_COL_CHARS: usize = 30;
+/// Path column width (chars) for human table (F14).
+const PATH_COL_CHARS: usize = 40;
+
+/// T212: list projects label-first (human table or JSON).
+pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let projects = ctx.conn.list_projects_detail()?;
+    let active_id = std::env::var("AI_BRAINS_PROJECT_ID")
+        .ok()
+        .filter(|s| !s.is_empty());
+
+    if format.eq_ignore_ascii_case("json") {
+        return list_json(&projects, active_id.as_deref());
+    }
+
+    // Human default (F5/F15).
     println!(
-        "{:<36} {:<30} {:<25} memories",
-        "project_id", "name (alias|UUID)", "alias"
+        "{:<30} {:<36} {:>8} {:<12} path",
+        "label", "project_id", "memories", "last_activity"
     );
     if projects.is_empty() {
         println!("No projects registered. (0 projects)");
         return Ok(());
     }
-    for (pid, name, alias, count) in projects {
+
+    for row in &projects {
+        let label = display_label(&row.name, &row.alias, &row.project_id);
+        let starred = match active_id.as_deref() {
+            Some(id) if id == row.project_id => format!("*{}", label),
+            _ => label,
+        };
+        let label_disp = truncate_chars(&starred, LABEL_COL_CHARS);
+        let activity = format_last_activity(&row.last_activity);
+        let path_disp = match row.path.as_deref() {
+            Some(p) if !p.is_empty() => truncate_chars(p, PATH_COL_CHARS),
+            _ => "—".to_string(),
+        };
         println!(
-            "{:<36} {:<30} {:<25} {}",
-            pid,
-            &name[..std::cmp::min(30, name.len())],
-            alias,
-            count
+            "{:<30} {:<36} {:>8} {:<12} {}",
+            label_disp, row.project_id, row.memory_count, activity, path_disp
         );
     }
+
+    // F8: no-alias footer on stderr (data stays on stdout).
+    print_unaliased_footer(ctx, &projects)?;
     Ok(())
+}
+
+fn list_json(
+    projects: &[ProjectListDetail],
+    active_id: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let unaliased_count = projects.iter().filter(|p| p.alias.is_empty()).count();
+    let items: Vec<ProjectListJsonRow> = projects
+        .iter()
+        .map(|row| {
+            let label = display_label(&row.name, &row.alias, &row.project_id);
+            let active = active_id.map(|id| id == row.project_id).unwrap_or(false);
+            ProjectListJsonRow {
+                project_id: row.project_id.clone(),
+                name: row.name.clone(),
+                alias: row.alias.clone(),
+                label,
+                memory_count: row.memory_count,
+                last_activity: if row.last_activity.is_empty() {
+                    None
+                } else {
+                    Some(row.last_activity.clone())
+                },
+                path: row.path.clone(),
+                active: if active { Some(true) } else { None },
+            }
+        })
+        .collect();
+
+    let envelope = ProjectListJson {
+        api_version: "1".to_string(),
+        projects: items,
+        unaliased_count,
+    };
+    let pretty = serde_json::to_string_pretty(&envelope)?;
+    println!("{}", pretty);
+    Ok(())
+}
+
+fn print_unaliased_footer(
+    ctx: &AppContext,
+    projects: &[ProjectListDetail],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let unaliased: Vec<&ProjectListDetail> =
+        projects.iter().filter(|p| p.alias.is_empty()).collect();
+    if unaliased.is_empty() {
+        return Ok(());
+    }
+    // Highest-memory unaliased (list is already memory DESC, project_id ASC).
+    let target = unaliased[0];
+    let suggestion = footer_alias_suggestion(ctx);
+    eprintln!("{} project(s) have no alias.", unaliased.len());
+    eprintln!(
+        "Example: ai-brains project set-alias {} {}",
+        target.project_id, suggestion
+    );
+    Ok(())
+}
+
+/// Soft F26: prefer git repo slug when available; else `my-project`.
+fn footer_alias_suggestion(ctx: &AppContext) -> String {
+    let _ = ctx; // reserved for future vault-aware suggestion; slug is cwd-based.
+    if let Ok(cwd) = std::env::current_dir()
+        && let Ok(Some(slug)) = get_git_repo_slug(&cwd)
+    {
+        let cleaned = sanitize_alias_suggestion(&slug);
+        if !cleaned.is_empty() {
+            return cleaned;
+        }
+    }
+    "my-project".to_string()
+}
+
+fn sanitize_alias_suggestion(slug: &str) -> String {
+    // Keep simple slug-like characters; fall back empty → caller uses my-project.
+    let s: String = slug
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else if c == ' ' {
+                '-'
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    s.trim_matches(|c| c == '-' || c == '_').to_string()
+}
+
+// ---------------------------------------------------------------------------
+// Pure display helpers (F4 / F7 / F36) — unit-tested without vault spawn
+// ---------------------------------------------------------------------------
+
+/// F4: human label order — alias → baked `(no alias)` → Project uuid / id → name.
+pub(crate) fn display_label(name: &str, alias: &str, project_id: &str) -> String {
+    if !alias.is_empty() {
+        return alias.to_string();
+    }
+    // Baked UX form: "(no alias) — short" → literal "(no alias)".
+    if name.starts_with("(no alias)") {
+        return "(no alias)".to_string();
+    }
+    if is_non_human_project_name(name, project_id) {
+        return "(no alias)".to_string();
+    }
+    name.to_string()
+}
+
+/// True when name is a non-human machine form: `Project <uuid-ish>` or equals
+/// full/short project_id (F4 step 3). Manual string ops only — no regex (F42).
+fn is_non_human_project_name(name: &str, project_id: &str) -> bool {
+    if name == project_id {
+        return true;
+    }
+    let short = project_id_short(project_id);
+    if !short.is_empty() && name == short {
+        return true;
+    }
+    if let Some(rest) = name.strip_prefix("Project ") {
+        return is_uuid_ish(rest.trim());
+    }
+    false
+}
+
+fn project_id_short(project_id: &str) -> &str {
+    // Project IDs are UUID strings (ASCII). Prefer 8-char prefix; no mid-UTF-8 risk.
+    if project_id.len() >= 8 {
+        &project_id[..8]
+    } else {
+        project_id
+    }
+}
+
+/// UUID-ish: hex + hyphens, length 8..=36 (covers short prefixes and full UUIDs).
+fn is_uuid_ish(s: &str) -> bool {
+    let len = s.len();
+    if !(8..=36).contains(&len) {
+        return false;
+    }
+    s.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
+}
+
+/// F36: char-safe truncate; appends `…` when shortened (F14).
+pub(crate) fn truncate_chars(s: &str, max_chars: usize) -> String {
+    if max_chars == 0 {
+        return String::new();
+    }
+    let count = s.chars().count();
+    if count <= max_chars {
+        return s.to_string();
+    }
+    // Reserve one char for ellipsis when possible.
+    let keep = max_chars.saturating_sub(1);
+    let truncated: String = s.chars().take(keep).collect();
+    format!("{truncated}…")
+}
+
+/// F7: relative when age < 365d (`just now` / `Nm` / `Nh` / `Nd`); else `YYYY-MM-DD`.
+pub(crate) fn format_last_activity(raw: &str) -> String {
+    if raw.is_empty() {
+        return "—".to_string();
+    }
+    let updated = match chrono::DateTime::parse_from_rfc3339(raw) {
+        Ok(dt) => dt.with_timezone(&chrono::Utc),
+        Err(_) => {
+            // Try common SQLite / ISO forms without offset.
+            match chrono::NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S") {
+                Ok(ndt) => ndt.and_utc(),
+                Err(_) => match chrono::NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M:%S") {
+                    Ok(ndt) => ndt.and_utc(),
+                    Err(_) => {
+                        // If it already looks like a date, show as-is truncated.
+                        if raw.len() >= 10 {
+                            return raw.chars().take(10).collect();
+                        }
+                        return "—".to_string();
+                    }
+                },
+            }
+        }
+    };
+    let now = chrono::Utc::now();
+    let duration = now.signed_duration_since(updated);
+    // Future or clock skew → show absolute date.
+    if duration.num_seconds() < 0 {
+        return updated.format("%Y-%m-%d").to_string();
+    }
+    if duration.num_days() >= 365 {
+        return updated.format("%Y-%m-%d").to_string();
+    }
+    if duration.num_seconds() < 60 {
+        "just now".to_string()
+    } else if duration.num_minutes() < 60 {
+        format!("{}m", duration.num_minutes())
+    } else if duration.num_hours() < 24 {
+        format!("{}h", duration.num_hours())
+    } else {
+        format!("{}d", duration.num_days())
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct ProjectListJson {
+    api_version: String,
+    projects: Vec<ProjectListJsonRow>,
+    unaliased_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct ProjectListJsonRow {
+    project_id: String,
+    name: String,
+    alias: String,
+    label: String,
+    memory_count: usize,
+    last_activity: Option<String>,
+    path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    active: Option<bool>,
 }
 
 pub fn resolve(
@@ -590,5 +838,92 @@ mod tests {
                 .any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0"),
             "git_command must set GIT_TERMINAL_PROMPT=0; got {envs:?}"
         );
+    }
+
+    // --- T212 display_label / truncate / last_activity ---
+
+    #[test]
+    fn display_label__nonempty_alias__returns_alias() {
+        assert_eq!(
+            display_label("Some Name", "acme", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "acme"
+        );
+    }
+
+    #[test]
+    fn display_label__baked_no_alias_prefix__literal_no_alias() {
+        let pid = "93e74c21-1111-1111-1111-111111111111";
+        assert_eq!(
+            display_label("(no alias) — 93e74c21", "", pid),
+            "(no alias)"
+        );
+    }
+
+    #[test]
+    fn display_label__project_uuid_name__no_alias() {
+        let pid = "7d97a456-f2f4-43ea-1f11-abcdef012345";
+        assert_eq!(
+            display_label("Project 7d97a456-f2f4-43ea-1f11", "", pid),
+            "(no alias)"
+        );
+        assert_eq!(
+            display_label(&format!("Project {pid}"), "", pid),
+            "(no alias)"
+        );
+    }
+
+    #[test]
+    fn display_label__name_equals_full_or_short_id__no_alias() {
+        let pid = "7d97a456-f2f4-43ea-1f11-abcdef012345";
+        assert_eq!(display_label(pid, "", pid), "(no alias)");
+        assert_eq!(display_label("7d97a456", "", pid), "(no alias)");
+    }
+
+    #[test]
+    fn display_label__true_human_name__as_is() {
+        assert_eq!(
+            display_label(
+                "AI-Brains monorepo",
+                "",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+            ),
+            "AI-Brains monorepo"
+        );
+    }
+
+    #[test]
+    fn truncate_chars__multibyte_at_width__no_panic() {
+        // AC11 / F36: CJK + em-dash near width boundary must not panic.
+        let s = "日本語テストラベル—境界—値";
+        let out = truncate_chars(s, 8);
+        assert!(out.chars().count() <= 8, "got {out:?}");
+        assert!(out.ends_with('…') || out.chars().count() <= 8);
+        // ASCII-only short string unchanged.
+        assert_eq!(truncate_chars("short", 30), "short");
+        // Exact width.
+        assert_eq!(truncate_chars("abcdefghij", 10), "abcdefghij");
+        // One over → ellipsis.
+        let t = truncate_chars("abcdefghijk", 10);
+        assert_eq!(t.chars().count(), 10);
+        assert!(t.ends_with('…'));
+    }
+
+    #[test]
+    fn format_last_activity__empty__em_dash() {
+        assert_eq!(format_last_activity(""), "—");
+    }
+
+    #[test]
+    fn format_last_activity__recent__relative() {
+        let recent = chrono::Utc::now().to_rfc3339();
+        let out = format_last_activity(&recent);
+        assert_eq!(out, "just now", "got {out}");
+    }
+
+    #[test]
+    fn format_last_activity__old__yyyy_mm_dd() {
+        let old = "2020-01-15T12:00:00Z";
+        let out = format_last_activity(old);
+        assert_eq!(out, "2020-01-15", "got {out}");
     }
 }
