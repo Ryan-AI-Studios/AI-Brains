@@ -1,6 +1,6 @@
 # T212 Plan — Project list human labels
 
-Status: **In Progress** (implementing). Spec: [spec.md](./spec.md).
+Status: **Completed** (PR #95 `09e34ba`). Spec: [spec.md](./spec.md).
 
 ## Phases
 
@@ -40,7 +40,7 @@ Status: **In Progress** (implementing). Spec: [spec.md](./spec.md).
 - [x] Manual live vault (label-first, `*` active, footer stderr, JSON shape)
 - [x] Full local gate: fmt + clippy -D warnings + nextest 2127 pass + deny + audit
 - [x] Claude cross-model **PASS** (Codex rate-limited)
-- [ ] PR + CI green + squash-merge
+- [x] PR #95 + CI Win/Linux/macOS green + squash-merge `09e34ba`
 
 ## Absorbed AI fold-in
 
@@ -107,7 +107,7 @@ ledgerful ledger start T212-project-list-human-labels --category FEATURE --messa
 - [x] No production panic on multibyte truncate
 - [x] CAPABILITIES + CHANGELOG
 - [x] Review clean for >low (internal CLEAN + Claude PASS)
-- [ ] Full CI on PR; conductor Completed after merge
+- [x] Full CI on PR green; conductor Completed after merge
 
 ## Explicit non-work
 
