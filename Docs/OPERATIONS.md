@@ -50,6 +50,10 @@ $json = @{
 echo $json | ai-brains --vault-path ./vault.db ingest
 ```
 
+### Capture Privacy / message-only (T234)
+
+Harness importers and hooks must keep **only** user prompts and final assistant text. Shared SOOT: `ai_brains_adapters::message_only` (used by BrainLog `extract_turns`, ProjectChat `parse_project_chat_file` → `filter_turn`, and `agy-hook`). Tool steps (`VIEW_FILE`, `RUN_COMMAND`, tool results), `reasoning`/`thinking`, and system chrome are dropped — including when those steps carry non-empty content. The optional `IngestRequest.thinking` DTO field is never populated by adapters.
+
 ### Antigravity Import
 Bulk-import Antigravity conversation logs from local tool-specific brain dirs.
 ```powershell
@@ -57,14 +61,14 @@ ai-brains antigravity-import --days 30
 ```
 - `--days <N>`: only import sessions modified in the last N days (default 30).
 - Idempotent: skips sessions already in the vault.
-- Tool-only and hidden-thinking entries are filtered out (Mandate #4).
+- Tool-only, tool-output, and hidden-thinking entries are filtered via message-only SOOT (T234 / Capture Privacy).
 
 ### `agy` Hook
 Real-time capture from the Antigravity CLI hooks integration:
 ```powershell
 ai-brains agy-hook --payload '{"transcriptPath": "C:\\path\\to\\session.jsonl", ...}'
 ```
-A well-formed payload returns `{"ok":true,"status":"success",...}`. A malformed payload (e.g. missing `transcriptPath`) returns `{"ok":false,"status":"error","message":"..."}` — the harness hook treats this as a non-fatal failure.
+A well-formed payload returns `{"ok":true,"status":"success",...}`. A malformed payload (e.g. missing `transcriptPath`) returns `{"ok":false,"status":"error","message":"..."}` — the harness hook treats this as a non-fatal failure. Transcript lines are filtered with message-only SOOT (system/tool roles and empty chrome dropped) before delta ingest.
 
 ## 3. Retrieving Memories
 

@@ -1,5 +1,5 @@
 use crate::context::{AppContext, StoreSink};
-use ai_brains_adapters::agy::{generate_deterministic_turn_id, parse_agy_transcript};
+use ai_brains_adapters::agy::{generate_deterministic_turn_id, parse_agy_transcript_message_only};
 use ai_brains_capture::{CaptureContext, CaptureService};
 use ai_brains_contracts::ingest::IngestRequest;
 use ai_brains_core::ids::{HarnessId, ProjectId, SessionId};
@@ -46,13 +46,10 @@ pub fn run(ctx: &AppContext, payload_json: &str) -> Result<(), Box<dyn std::erro
 
     let project_id = project_id.unwrap_or_else(ProjectId::new);
 
-    let turns = parse_agy_transcript(std::path::Path::new(normalized_path.canonical()))?;
-
-    // Phase 3: Filter ingestable turns (Requirement Capture-Privacy)
-    let ingestable_turns: Vec<_> = turns
-        .into_iter()
-        .filter(|t| t.role == "user" || t.role == "assistant")
-        .collect();
+    // Phase 3: Parse + message-only SOOT (T234) — user/assistant text only;
+    // never populate IngestRequest.thinking (F17/F46).
+    let ingestable_turns =
+        parse_agy_transcript_message_only(std::path::Path::new(normalized_path.canonical()))?;
 
     // Phase 4: Delta Sync (Requirement T49.1)
     let query_store = ctx.conn.clone() as std::sync::Arc<dyn ai_brains_store::QueryStore>;
