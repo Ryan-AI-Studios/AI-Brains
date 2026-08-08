@@ -63,12 +63,37 @@ ai-brains antigravity-import --days 30
 - Idempotent: skips sessions already in the vault.
 - Tool-only, tool-output, and hidden-thinking entries are filtered via message-only SOOT (T234 / Capture Privacy).
 
+### Harness detect + install (T235)
+
+Detect which coding harnesses are **installed on this machine** (not “active this session”) and install message-only capture wiring into **user-global** paths.
+
+```powershell
+ai-brains harness status
+ai-brains harness status --format json
+ai-brains harness install --harness agy --dry-run
+ai-brains harness install --harness agy --yes
+ai-brains harness uninstall --harness agy --yes
+ai-brains harness reset-decline --harness all
+```
+
+| Harness | Detect | Install ready |
+|---------|--------|---------------|
+| grok | PATH `grok` or `~/.grok` | Pending (T237) |
+| agy | PATH `agy` or `~/.gemini/...` | **Yes** — Stop → wrapper → `agy-hook` |
+| opencode | PATH / `~/.config/opencode` | Pending (T238) |
+| claude | PATH / `~/.claude` | Pending |
+| codex | PATH / `~/.codex` | Pending |
+
+AGY writer merges only the managed key `ai-brains-capture` into `%USERPROFILE%\.gemini\config\hooks.json` and writes `%USERPROFILE%\.ai-brains\hooks\agy-stop.ps1`. Foreign hooks are preserved; corrupt JSON refuses rewrite (exit 1). Vault is **not** required for `harness` subcommands.
+
+Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks).
+
 ### `agy` Hook
 Real-time capture from the Antigravity CLI hooks integration:
 ```powershell
 ai-brains agy-hook --payload '{"transcriptPath": "C:\\path\\to\\session.jsonl", ...}'
 ```
-A well-formed payload returns `{"ok":true,"status":"success",...}`. A malformed payload (e.g. missing `transcriptPath`) returns `{"ok":false,"status":"error","message":"..."}` — the harness hook treats this as a non-fatal failure. Transcript lines are filtered with message-only SOOT (system/tool roles and empty chrome dropped) before delta ingest.
+A well-formed payload returns `{"ok":true,"status":"success",...}`. A malformed payload (e.g. missing `transcriptPath`) returns `{"ok":false,"status":"error","message":"..."}` — the harness hook treats this as a non-fatal failure. Transcript lines are filtered with message-only SOOT (system/tool roles and empty chrome dropped) before delta ingest. Prefer installing via `ai-brains harness install --harness agy` so Stop events are mapped (conversationId→sessionId, workspacePaths[0]→projectHash).
 
 ## 3. Retrieving Memories
 

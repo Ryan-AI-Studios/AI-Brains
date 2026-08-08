@@ -133,7 +133,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Keep contracts thinking field (AI1 §5)~~ | **Closed by T234** F17/F46 — never populate |
 | OpenCode export filter | **T234** fixture SOOT shipped; **wire T238** |
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
-| Detect + preflight hook install UX | **T235** Placeholder |
+| Detect + preflight hook install UX | **T235** Planning — F1–F42 / AC1–AC23 + §14 AI fold-in (M1 payload map hard; M2–M6; AGY writer; others pending) |
 | AGY2 seamless + history→project binding | **T236** Placeholder (depends T234) |
 | Grok Build hooks + chat_history batch | **T237** Placeholder (depends T234) |
 | OpenCode plugin + export batch | **T238** Placeholder (depends T234) |

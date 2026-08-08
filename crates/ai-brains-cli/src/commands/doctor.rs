@@ -80,7 +80,7 @@ pub fn build_report(
     };
 
     let vault_path = &opts.vault_path;
-    let mut checks: Vec<HealthCheck> = Vec::with_capacity(11);
+    let mut checks: Vec<HealthCheck> = Vec::with_capacity(12);
 
     // 1. vault_exists
     let exists_check = check_vault_exists(vault_path);
@@ -232,7 +232,10 @@ pub fn build_report(
         skip_reason,
     ));
 
-    // 11. integrity (optional --full)
+    // 11. harness_wiring (soft info — never fail/degraded solely for missing hooks; T235 F17)
+    checks.push(check_harness_wiring());
+
+    // 12. integrity (optional --full)
     checks.push(if opts.full {
         match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
             Some(conn) => check_integrity(&conn),
@@ -604,6 +607,57 @@ fn check_integrity(conn: &rusqlite::Connection) -> HealthCheck {
     }
 }
 
+/// Soft harness wiring check (T235). Always Ok severity so missing hooks never
+/// roll up to Degraded/Fail alone (AC9). Message carries info.
+fn check_harness_wiring() -> HealthCheck {
+    let home = crate::harness::resolve_home();
+    let report = crate::harness::collect_status_report(home.as_deref());
+    let present: Vec<&crate::harness::HarnessStatus> =
+        report.harnesses.iter().filter(|h| h.present).collect();
+    if present.is_empty() {
+        return HealthCheck::ok_msg(
+            "harness_wiring",
+            "no coding harnesses detected on this machine",
+        );
+    }
+    let missing: Vec<&str> = present
+        .iter()
+        .filter(|h| {
+            matches!(
+                h.wiring,
+                crate::harness::WiringStatus::Missing
+                    | crate::harness::WiringStatus::Partial
+                    | crate::harness::WiringStatus::Unknown
+            )
+        })
+        .map(|h| h.id.as_str())
+        .collect();
+    let ok_count = present
+        .iter()
+        .filter(|h| h.wiring == crate::harness::WiringStatus::Ok)
+        .count();
+    if missing.is_empty() {
+        HealthCheck::ok_msg(
+            "harness_wiring",
+            format!(
+                "{ok_count}/{} harness(es) wired; message-only capture",
+                present.len()
+            ),
+        )
+    } else {
+        // Still Ok severity (info-level message) — never degrade for missing hooks.
+        HealthCheck::ok_msg(
+            "harness_wiring",
+            format!(
+                "{} present, {} missing AI-Brains wiring ({}); next: ai-brains harness status",
+                present.len(),
+                missing.len(),
+                missing.join(", ")
+            ),
+        )
+    }
+}
+
 /// Soft density check (T213): SQL counts only; never alone forces `fail`.
 fn check_graph_density(
     vault_conn: Option<&VaultConnection>,
@@ -755,7 +809,8 @@ mod tests {
 
     #[test]
     fn health_check_order_names__fixed_matrix() {
-        // Document expected fixed order for determinism (F16/F30; T213 adds graph_density #10).
+        // Document expected fixed order for determinism (F16/F30; T213 graph_density;
+        // T235 harness_wiring #11 before integrity last).
         let expected = [
             "vault_exists",
             "vault_open",
@@ -767,11 +822,13 @@ mod tests {
             "recovery_kit_file",
             "zero_key_escape",
             "graph_density",
+            "harness_wiring",
             "integrity",
         ];
-        assert_eq!(expected.len(), 11);
+        assert_eq!(expected.len(), 12);
         assert_eq!(expected[9], "graph_density");
-        assert_eq!(expected[10], "integrity");
+        assert_eq!(expected[10], "harness_wiring");
+        assert_eq!(expected[11], "integrity");
         // Ensure HealthCheck helpers set ok flag correctly.
         assert!(HealthCheck::skip("integrity", "x").ok);
         assert_eq!(
@@ -804,7 +861,7 @@ mod tests {
         };
         let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
         let report = build_report(&opts, false).expect("report");
-        assert_eq!(report.checks.len(), 11, "11-check matrix");
+        assert_eq!(report.checks.len(), 12, "12-check matrix");
         let names: Vec<&str> = report.checks.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             names,
@@ -819,6 +876,7 @@ mod tests {
                 "recovery_kit_file",
                 "zero_key_escape",
                 "graph_density",
+                "harness_wiring",
                 "integrity",
             ]
         );
