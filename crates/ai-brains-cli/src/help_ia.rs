@@ -12,7 +12,7 @@ Command groups (presentation only — names unchanged):
   Operator:  backup, recovery, vault, retention, device, replicate, nightly, safety
   Governed:  scope, briefing, query, evidence, source, review, policy, conclusion, decision
   Dangerous: forget, erasure; also retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update
-  Harness:   ingest, antigravity-import, agy-hook, sync, shadow, evaluate, dogfood, graph, migrate
+  Harness:   ingest, harness, antigravity-import, agy-hook, sync, shadow, evaluate, dogfood, graph, migrate
 
 Start here:
   ai-brains doctor
@@ -70,6 +70,17 @@ mod tests {
                 && ROOT_AFTER_LONG_HELP.contains("erasure")
                 && ROOT_AFTER_LONG_HELP.contains("retention apply"),
             "Dangerous appendix should list dual-ops class"
+        );
+    }
+
+    #[test]
+    fn root_after_long_help__harness_inventory_includes_harness_cmd() {
+        // T235 F18 / AC10
+        assert!(
+            ROOT_AFTER_LONG_HELP.contains("Harness:")
+                && ROOT_AFTER_LONG_HELP.contains("harness")
+                && ROOT_AFTER_LONG_HELP.contains("agy-hook"),
+            "Harness inventory must include harness command; got:\n{ROOT_AFTER_LONG_HELP}"
         );
     }
 

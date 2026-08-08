@@ -14,9 +14,9 @@ pub fn antigravity_capability() -> AdapterCapability {
     AdapterCapability {
         name: "antigravity".to_string(),
         level: CapabilityLevel::Partial,
-        supports_hooks: false,
+        supports_hooks: true,
         supports_wrapper_mode: false,
-        notes: "Batch import via nightly or antigravity-import command. No real-time hooks. Intended PrincipalKind::Connector binding for import observe; principal_binding deferred until registry wiring."
+        notes: "Batch import via nightly or antigravity-import. Real-time Stop hooks installable via `ai-brains harness install --harness agy` (wrapper maps Stop → agy-hook payload; message-only SOOT). Intended PrincipalKind::Connector binding for import observe; principal_binding deferred until registry wiring."
             .to_string(),
         governed_reads: Vec::new(),
         governed_writes: Vec::new(),

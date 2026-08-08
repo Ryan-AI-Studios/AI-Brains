@@ -5,6 +5,7 @@ mod daemon_client;
 mod daemon_probe;
 mod elevation;
 mod graph_density;
+mod harness;
 mod help_ia;
 mod key_resolve;
 mod live_graph;
@@ -195,6 +196,12 @@ enum Commands {
         /// Read options from stdin as JSON `{"scope":[...],"max_words":N}` instead of CLI flags
         #[arg(long)]
         stdin: bool,
+        /// Never prompt to install harness capture hooks (T235)
+        #[arg(long)]
+        no_hook_prompt: bool,
+        /// Install ready harness hooks without interactive prompt (T235)
+        #[arg(long)]
+        install_hooks: bool,
     },
     /// Run nightly intelligence sweep
     #[command(display_order = 26)]
@@ -388,6 +395,15 @@ enum Commands {
         /// The schema is also at `Docs/schemas/agy-hook-payload.json`.
         #[arg(long)]
         schema: bool,
+    },
+    /// Detect and install harness capture hooks (user-global, message-only)
+    #[command(
+        display_order = 52,
+        after_help = "Examples:\n  ai-brains harness status\n  ai-brains harness status --format json\n  ai-brains harness install --harness agy --dry-run\n  ai-brains harness install --harness agy --yes\n  ai-brains harness uninstall --harness agy --yes\n  ai-brains harness reset-decline --harness all"
+    )]
+    Harness {
+        #[command(subcommand)]
+        command: HarnessCommands,
     },
     /// Manage the AI-Brains daemon process
     #[command(display_order = 17)]
@@ -1266,6 +1282,46 @@ enum RetentionCommands {
 }
 
 #[derive(Subcommand, Clone)]
+enum HarnessCommands {
+    /// Show which harnesses are installed on this machine and wiring status
+    Status {
+        /// Output format: human (default) or json
+        #[arg(long, default_value = "human")]
+        format: String,
+    },
+    /// Install message-only capture hooks (user-global). AGY ready; others pending.
+    Install {
+        /// Harness id: grok | agy | opencode | claude | codex | all
+        #[arg(long)]
+        harness: Option<String>,
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+        /// Print planned paths/snippets; zero writes
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Remove only AI-Brains managed hook markers / wrapper scripts
+    Uninstall {
+        /// Harness id: grok | agy | opencode | claude | codex | all
+        #[arg(long)]
+        harness: Option<String>,
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+        /// Print planned removals; zero writes
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Clear decline stamps so preflight may offer install again
+    ResetDecline {
+        /// Harness id or `all` (default: all)
+        #[arg(long)]
+        harness: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Clone)]
 enum ShadowCommands {
     /// Create a new shadow vault from a source vault
     Create {
@@ -1990,7 +2046,8 @@ fn is_vault_path_free(command: &Commands) -> bool {
         Commands::Shadow { .. }
         | Commands::Migrate { .. }
         | Commands::Evaluate { .. }
-        | Commands::Dogfood { .. } => true,
+        | Commands::Dogfood { .. }
+        | Commands::Harness { .. } => true,
         // Encrypt may use --source; rotate-datakey needs vault path + async daemon probe.
         Commands::Vault {
             command: VaultCommands::Encrypt { .. },
@@ -2075,9 +2132,35 @@ fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
 }
 
 /// Vault-path-free commands: no AppContext (shadow/migrate/evaluate/dogfood,
-/// schema printers, non-graph stub).
+/// harness, schema printers, non-graph stub).
 fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match *cli.command {
+        Commands::Harness { command } => match command {
+            HarnessCommands::Status { format } => {
+                commands::harness::run_status(commands::harness::HarnessStatusOptions { format })
+            }
+            HarnessCommands::Install {
+                harness,
+                yes,
+                dry_run,
+            } => commands::harness::run_install(commands::harness::HarnessInstallOptions {
+                harness,
+                yes,
+                dry_run,
+            }),
+            HarnessCommands::Uninstall {
+                harness,
+                yes,
+                dry_run,
+            } => commands::harness::run_uninstall(commands::harness::HarnessUninstallOptions {
+                harness,
+                yes,
+                dry_run,
+            }),
+            HarnessCommands::ResetDecline { harness } => commands::harness::run_reset_decline(
+                commands::harness::HarnessResetDeclineOptions { harness },
+            ),
+        },
         Commands::AgyHook { schema: true, .. } => {
             print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")
         }
@@ -2378,6 +2461,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
         Commands::Evaluate { .. } => unreachable!("evaluate handled in run_sync_path_free"),
         Commands::Dogfood { .. } => unreachable!("dogfood handled in run_sync_path_free"),
+        Commands::Harness { .. } => unreachable!("harness handled in run_sync_path_free"),
         Commands::Vault {
             command: VaultCommands::Encrypt { .. },
         } => unreachable!("vault encrypt handled in run_sync_path_free"),
@@ -2908,6 +2992,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             summary,
             global,
             stdin: use_stdin,
+            no_hook_prompt,
+            install_hooks,
         } => {
             // T86: --stdin reads a JSON object {"max_words":N,"scope":[...]} from stdin
             let (effective_max_words, effective_scope) = if *use_stdin {
@@ -2940,6 +3026,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     scope: effective_scope,
                     summary: *summary,
                     global: *global,
+                    no_hook_prompt: *no_hook_prompt,
+                    install_hooks: *install_hooks,
+                    stdin_mode: *use_stdin,
                 },
             )
         }

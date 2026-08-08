@@ -66,7 +66,7 @@ Daily:     recall | preflight | doctor | project | pin | context | stop-session 
 Operator:  backup | recovery | vault | retention | device | replicate | nightly | safety
 Governed:  scope | briefing | query | evidence | source | review | policy | conclusion | decision
 Dangerous: forget | erasure  (+ dual-ops: retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update)
-Harness:   ingest | antigravity-import | agy-hook | sync | shadow | evaluate | dogfood | graph | migrate
+Harness:   ingest | harness | antigravity-import | agy-hook | sync | shadow | evaluate | dogfood | graph | migrate
 ```
 
 Canonical inventory is also on `ai-brains --help` (T204 groups). Partial historical one-liners are obsolete.
@@ -132,10 +132,14 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 
 | Integration | Mechanism | Notes |
 |-------------|-----------|--------|
-| **agy (Antigravity CLI)** | `agy-hook --payload '{...}'` | Real-time; `--schema` prints JSON Schema; **message-only SOOT** (T234) |
+| **Detect + install UX (T235)** | `harness status\|install\|uninstall\|reset-decline` | Detect harnesses **installed on machine** (PATH + home); wiring `absent\|missing\|partial\|ok\|backend_pending\|unknown`. User-global only (no repo pollution). Preflight `--summary` shows **Harnesses installed on machine:** sibling section. |
+| **agy (Antigravity CLI)** | `harness install --harness agy` → Stop wrapper → `agy-hook --payload` | **Install ready** (T235): merges `ai-brains-capture` into `~/.gemini/config/hooks.json` + `~/.ai-brains/hooks/agy-stop.ps1` (Stop → mapped payload). Message-only SOOT (T234). `--dry-run` / `--yes`. |
+| **agy-hook** | `agy-hook --payload '{...}'` | Real-time ingest; `--schema` prints JSON Schema |
 | **Antigravity bulk** | `antigravity-import --days N` | Incremental, idempotent; `extract_turns` → message_only |
-| **Claude / Codex / Gemini / etc.** | Hooks/scripts → `ingest` | Multi-harness design; prefer message_only before ingest |
+| **Grok / OpenCode / Claude / Codex** | status + dry-run | Install backends **pending** (T237/T238+); real install does not claim capture ok |
 | **Claude hooks** | `Docs/claude-hooks.md` | User-level scripts under `~\.ai-brains\scripts\` |
+
+**Consent:** TTY preflight may prompt once; decline persists in `~/.ai-brains/harness_hooks.json`. Never prompt when non-TTY, `--no-hook-prompt`, or `preflight --stdin`. Reset with `harness reset-decline`.
 
 ### Daemon write path
 - **`ai-brainsd`** — single-writer queue for concurrent safety
