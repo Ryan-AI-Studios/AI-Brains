@@ -65,4 +65,4 @@ Manual: harness status / install --harness agy --dry-run / unknown foo exit 2
 
 ## Completion decision
 
-Pending clean Codex gate + CI green + squash-merge + conductor Completed.
+**Completed.** Codex final CX4 **PASS**. CI gate-windows/linux/macos green (run 31283622244). Squash-merged PR #101 as `b1a0ecc`. Residual backends T236–T239; soft fullyIdle hard policy T236.

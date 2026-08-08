@@ -1,6 +1,6 @@
 # T235 — Harness detect + preflight hook install UX
 
-- **Status:** 📋 **Planning** (plan-only until **go**; **AI fold-in 2026-08-08**)
+- **Status:** ✅ **Completed** (PR #101 squash-merge `b1a0ecc`; 2026-08-08)
 - **Source:** Research 2026-08-08 series; plan research **2026-08-08** (live probe + official hook docs); AI1 + AI2 review fold-in
 - **Category:** FEATURE / UX
 - **Depends on:** T234 Completed (message-only contract + capability honesty); existing `agy-hook` for AGY install backend

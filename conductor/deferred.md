@@ -133,7 +133,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Keep contracts thinking field (AI1 §5)~~ | **Closed by T234** F17/F46 — never populate |
 | OpenCode export filter | **T234** fixture SOOT shipped; **wire T238** |
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
-| Detect + preflight hook install UX | **T235** Planning — F1–F42 / AC1–AC23 + §14 AI fold-in (M1 payload map hard; M2–M6; AGY writer; others pending) |
+| ~~Detect + preflight hook install UX~~ | **Closed by T235** PR #101 `b1a0ecc` — detect/wiring/`harness *`/AGY F34+writer/preflight/doctor; others backend_pending → T236–T238 |
 | AGY2 seamless + history→project binding | **T236** Placeholder (depends T234) |
 | Grok Build hooks + chat_history batch | **T237** Placeholder (depends T234) |
 | OpenCode plugin + export batch | **T238** Placeholder (depends T234) |
@@ -141,7 +141,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
 | Remove contracts `thinking` field | **Not** T234 (later) |
 
-Suggested harness order: **T234 (done)** → T235 → T236 → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234 (done)** → **T235 (done)** → T236 → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
 
 ### T216 planning residuals absorption (2026-08-05) — historical
 

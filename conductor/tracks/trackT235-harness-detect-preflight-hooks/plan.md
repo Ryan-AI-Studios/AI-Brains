@@ -1,6 +1,6 @@
 # T235 Plan — Harness detect + preflight hook install UX
 
-Status: **Planning** (research + **AI fold-in 2026-08-08**; plan-only until **go**). Spec: [spec.md](./spec.md) F1–F42 / AC1–AC23 / **§14**. Series: [README-T234-T239](../README-T234-T239-HARNESS-INGEST.md).
+Status: **Completed** (PR #101 `b1a0ecc`). Spec: [spec.md](./spec.md) F1–F42 / AC1–AC23 / **§14**. Series: [README-T234-T239](../README-T234-T239-HARNESS-INGEST.md).
 
 ## Goal
 
