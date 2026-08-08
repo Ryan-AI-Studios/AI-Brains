@@ -47,4 +47,5 @@ Shared pure SOOT `ai_brains_adapters::message_only`; migrate `extract_turns` + P
 
 ## Completion decision
 
-Engineering DoD met for AC1–AC16 / F1–F47 (soft F24 deferred). Cross-model final **PASS WITH DEFERRED P3**. Proceed PR → CI → squash-merge → conductor **Completed**.
+Engineering DoD met for AC1–AC16 / F1–F47 (soft F24 deferred). Cross-model final **PASS WITH DEFERRED P3**.  
+PR #100 squash-merged `2ea8897` after CI Win/Linux/macOS green. Conductor **Completed**.

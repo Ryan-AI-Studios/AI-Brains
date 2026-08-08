@@ -1,7 +1,7 @@
 # T234–T239 — Seamless multi-harness session ingest (placeholders)
 
 **Source:** Research 2026-08-08 — Grok Build, OpenCode, Antigravity 2 CLI (`agy`); retire pure-log reliance on old Antigravity.  
-**Status:** T234 **In Progress** (PR); T235–T239 Placeholder — implement after T234 lands.  
+**Status:** T234 **Completed** (PR #100 `2ea8897`); T235–T239 Placeholder — implement after T234.  
 **Prior related:** track033 antigravity import; T48/T49 agy-hook delta; nightly `antigravity-import`; Capture Privacy mandate.  
 **T234 SOOT path:** `crates/ai-brains-adapters/src/message_only.rs` (`filter_turn`, `classify_antigravity_step`, `filter_grok_history_*`, `filter_opencode_message*`, `extract_user_text`, sole-tool JSON guard).
 
@@ -15,7 +15,7 @@ Live hooks provide freshness; durable log/export import on nightly provides comp
 
 | Track | Name | Role | Priority |
 |-------|------|------|----------|
-| **T234** | Message-only capture contract | Shared SOOT filter + capability truth; blocks polluted ingest — **In Progress** | P0 foundation |
+| **T234** | Message-only capture contract | Shared SOOT filter + capability truth — **Completed** | P0 foundation |
 | **T235** | Harness detect + preflight hook UX | Detect Grok / AGY / OpenCode / Claude / Codex; offer install; doctor status | P0 UX |
 | **T236** | AGY 2 seamless ingest | Stop→`agy-hook` + transcript SOOT + **workspace→project binding** (history.jsonl); fixes “not detecting” UX | P1 |
 | **T237** | Grok Build seamless ingest | Hooks (`UserPromptSubmit`/`Stop`/`Session*`) + `chat_history.jsonl` backfill | P1 |

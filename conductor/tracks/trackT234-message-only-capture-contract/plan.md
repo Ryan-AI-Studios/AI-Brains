@@ -1,6 +1,6 @@
 # T234 Plan — Message-only capture contract
 
-Status: **Planning** (expanded + **AI fold-in 2026-08-08**; plan-only until **go**). Spec: [spec.md](./spec.md). Series: [README-T234-T239](../README-T234-T239-HARNESS-INGEST.md).
+Status: **Completed** (2026-08-08; PR #100 `2ea8897`). Spec: [spec.md](./spec.md). Series: [README-T234-T239](../README-T234-T239-HARNESS-INGEST.md).
 
 ## Goal
 
@@ -60,46 +60,46 @@ Status: **Planning** (expanded + **AI fold-in 2026-08-08**; plan-only until **go
 - [x] **AI fold-in** → F7/F10/F11/F17 elevate; F43–F47; AC15–AC16; **§14**
 - [x] deferred + conductor → Planning
 - [x] pin plan-start + fold-in
-- [ ] User **go** before code / ledger TX
+- [x] User **go** before code / ledger TX
 
 ### Phase 1 — Ledger + red
 
-- [ ] `ledgerful doctor` / `ledger status --compact`
-- [ ] `ledgerful ledger start T234-message-only-capture --category ARCHITECTURE --message "shared message-only capture SOOT: user+assistant; drop tools/thinking; UTF-8-safe strip"`
-- [ ] Red pure: filter_turn; AGY/Grok/OpenCode fixtures fail until green
-- [ ] Red: UTF-8 emoji USER_REQUEST strip (AC15)
-- [ ] Red: extract_turns still passes existing tests (baseline)
+- [x] `ledgerful doctor` / `ledger status --compact`
+- [x] `ledgerful ledger start T234-message-only-capture --category ARCHITECTURE --message "shared message-only capture SOOT: user+assistant; drop tools/thinking; UTF-8-safe strip"`
+- [x] Red pure: filter_turn; AGY/Grok/OpenCode fixtures fail until green
+- [x] Red: UTF-8 emoji USER_REQUEST strip (AC15)
+- [x] Red: extract_turns still passes existing tests (baseline)
 
 ### Phase 2 — Pure SOOT module (F1–F6, F10–F11, F37, F43)
 
-- [ ] `message_only.rs`: IngestRole, IngestableTurn, filter_turn
-- [ ] extract_user_text (XML + user_query) **char-boundary safe**
-- [ ] extract_text_from_json_content (string | array; type==text only)
-- [ ] DropReason optional for tests
-- [ ] Unit matrix AC5–AC8, AC15
+- [x] `message_only.rs`: IngestRole, IngestableTurn, filter_turn
+- [x] extract_user_text (XML + user_query) **char-boundary safe**
+- [x] extract_text_from_json_content (string | array; type==text only)
+- [x] DropReason optional for tests
+- [x] Unit matrix AC5–AC8, AC15
 
 ### Phase 3 — Harness filters + fixtures (F7–F9, F21, AC16)
 
-- [ ] filter_antigravity_steps: **strict (source, type)**; drop VIEW_FILE/RUN_COMMAND with content
-- [ ] migrate extract_turns (F12)
-- [ ] filter_grok_history (F8/F37)
-- [ ] filter_opencode_messages (F9 fixture)
-- [ ] Synthetic fixtures under tests/fixtures/message_only/
-- [ ] AC2–AC4, AC16
+- [x] filter_antigravity_steps: **strict (source, type)**; drop VIEW_FILE/RUN_COMMAND with content
+- [x] migrate extract_turns (F12)
+- [x] filter_grok_history (F8/F37)
+- [x] filter_opencode_messages (F9 fixture)
+- [x] Synthetic fixtures under tests/fixtures/message_only/
+- [x] AC2–AC4, AC16
 
 ### Phase 4 — Wire agy path (F13/AC14/F46)
 
-- [ ] parse_agy_transcript output through message_only
-- [ ] agy-hook uses filtered turns; `thinking: None` SOOT
-- [ ] Existing antigravity import path green (AC9)
+- [x] parse_agy_transcript output through message_only
+- [x] agy-hook uses filtered turns; `thinking: None` SOOT
+- [x] Existing antigravity import path green (AC9)
 
 ### Phase 5 — Docs + gate
 
-- [ ] CAPABILITIES Capture Privacy; OPERATIONS; CHANGELOG; thinking DTO honesty (F17); series README
-- [ ] Full gate: fmt; clippy -D warnings; nextest; deny; audit
-- [ ] `ledgerful verify` + ledger commit
-- [ ] conductor **Completed**; deferred strike; pin closeout
-- [ ] PR
+- [x] CAPABILITIES Capture Privacy; OPERATIONS; CHANGELOG; thinking DTO honesty (F17); series README
+- [x] Full gate: fmt; clippy -D warnings; nextest; deny; audit
+- [x] `ledgerful verify` + ledger commit
+- [x] conductor **Completed**; deferred strike; pin closeout
+- [x] PR
 
 ## Stop-before
 
