@@ -404,11 +404,7 @@ fn report_preflight_install(
         }
         Err(e) => {
             eprintln!("harness install failed: {e}");
-            if fail_on_error {
-                Err(e.into())
-            } else {
-                Ok(())
-            }
+            if fail_on_error { Err(e.into()) } else { Ok(()) }
         }
     }
 }
