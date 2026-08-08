@@ -233,121 +233,33 @@ pub fn parse_overview_file(path: &Path) -> Result<Vec<AntigravityStep>> {
     Ok(steps)
 }
 
-/// Extract ingestable turns from Antigravity steps, applying mandate #4
-/// (no hidden thinking or tool logs).
+/// Extract ingestable turns from Antigravity steps via shared message-only SOOT (T234).
 ///
-/// Rules:
-/// - USER_EXPLICIT / USER_INPUT -> role "user", strip XML metadata tags
-/// - MODEL / PLANNER_RESPONSE with non-empty content -> role "assistant"
-/// - MODEL / PLANNER_RESPONSE with only tool_calls (no content) -> skip
-/// - MODEL / TOOL_OUTPUT -> skip
+/// Capture Privacy: user + final assistant text only. Strict `(source, type)` match;
+/// VIEW_FILE / RUN_COMMAND / TOOL_OUTPUT dropped regardless of content.
 pub fn extract_turns(steps: &[AntigravityStep]) -> Vec<AntigravityTurn> {
-    let mut turns = Vec::new();
-
-    for step in steps {
-        match (step.source.as_str(), step.step_type.as_str()) {
-            ("USER_EXPLICIT", "USER_INPUT") => {
-                if let Some(content) = &step.content {
-                    let cleaned = strip_user_xml_tags(content);
-                    if !cleaned.is_empty() {
-                        turns.push(AntigravityTurn {
-                            role: "user".to_string(),
-                            content: cleaned,
-                            created_at: step.created_at.clone(),
-                        });
-                    }
-                }
-            }
-            ("MODEL", "PLANNER_RESPONSE") => {
-                // Only keep responses that have text content (not tool-only calls)
-                if let Some(content) = &step.content
-                    && !content.trim().is_empty()
-                {
-                    turns.push(AntigravityTurn {
-                        role: "assistant".to_string(),
-                        content: content.clone(),
-                        created_at: step.created_at.clone(),
-                    });
-                }
-                // Skip tool_calls-only responses (mandate #4)
-            }
-            // Skip TOOL_OUTPUT, and any other types
-            _ => {}
-        }
-    }
-
-    turns
+    steps
+        .iter()
+        .filter_map(|step| {
+            crate::message_only::classify_antigravity_step(
+                step.source.as_str(),
+                step.step_type.as_str(),
+                step.content.as_deref(),
+                &step.tool_calls,
+                step.created_at.as_deref(),
+            )
+            .map(|turn| AntigravityTurn {
+                role: turn.role.as_str().to_string(),
+                content: turn.content,
+                created_at: turn.source_ts,
+            })
+        })
+        .collect()
 }
 
-/// Strip Antigravity XML metadata tags from user input content.
-/// Removes: <USER_REQUEST>, <ADDITIONAL_METADATA>, <USER_SETTINGS_CHANGE>
-/// and their closing tags, keeping only the user's actual prompt text.
+/// Strip Antigravity XML metadata tags from user input content (delegates to message_only SOOT).
 pub fn strip_user_xml_tags(content: &str) -> String {
-    let mut result = content.to_string();
-
-    // Remove <ADDITIONAL_METADATA>...</ADDITIONAL_METADATA>
-    result = strip_xml_block(&result, "ADDITIONAL_METADATA");
-
-    // Remove <USER_SETTINGS_CHANGE>...</USER_SETTINGS_CHANGE>
-    result = strip_xml_block(&result, "USER_SETTINGS_CHANGE");
-
-    // Extract content from <USER_REQUEST>...</USER_REQUEST> (keep inner text)
-    if let Some(extracted) = extract_xml_content(&result, "USER_REQUEST") {
-        result = extracted;
-    }
-
-    result.trim().to_string()
-}
-
-fn strip_xml_block(content: &str, tag: &str) -> String {
-    let open = format!("<{}>", tag);
-    let close = format!("</{}>", tag);
-
-    let mut result = String::new();
-    let mut remaining = content;
-    let mut in_block = false;
-    let mut depth = 0;
-
-    while let Some(pos) = if in_block {
-        remaining.find(&close).or_else(|| remaining.find(&open))
-    } else {
-        remaining.find(&open)
-    } {
-        if !in_block {
-            result.push_str(&remaining[..pos]);
-            remaining = &remaining[pos + open.len()..];
-            in_block = true;
-            depth = 1;
-        } else if remaining[pos..].starts_with(&close) {
-            depth -= 1;
-            remaining = &remaining[pos + close.len()..];
-            if depth == 0 {
-                in_block = false;
-            }
-        } else {
-            depth += 1;
-            remaining = &remaining[pos + open.len()..];
-        }
-    }
-
-    if !in_block {
-        result.push_str(remaining);
-    }
-
-    result
-}
-
-fn extract_xml_content(content: &str, tag: &str) -> Option<String> {
-    let open = format!("<{}>", tag);
-    let close = format!("</{}>", tag);
-
-    let start = content.find(&open)?;
-    let end = content.find(&close)?;
-    if end <= start {
-        return None;
-    }
-
-    Some(content[start + open.len()..end].trim().to_string())
+    crate::message_only::extract_user_text(content)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -362,7 +274,9 @@ pub struct ProjectChatTurn {
     pub thoughts: Option<String>,
 }
 
-/// Parse a project-specific session-*.jsonl file.
+/// Parse a project-specific session-*.jsonl file via message-only SOOT (T234).
+///
+/// Model type names (`gemini`, `claude`, …) map to assistant; `thoughts` is never stored.
 pub fn parse_project_chat_file(path: &Path) -> Result<Vec<AntigravityTurn>> {
     let content = std::fs::read_to_string(path)?;
     let mut turns = Vec::new();
@@ -377,24 +291,22 @@ pub fn parse_project_chat_file(path: &Path) -> Result<Vec<AntigravityTurn>> {
             continue;
         }
         if let Ok(turn) = serde_json::from_str::<ProjectChatTurn>(line) {
-            // Capture Privacy Mandate: Only capture user and known model roles.
-            // Ignore tool_output, system, and other internal events.
+            // Map harness type → ingest role; tool_output/system drop via filter_turn.
             let role = match turn.turn_type.as_str() {
-                "user" => Some("user"),
+                "user" => "user",
                 "gemini" | "claude" | "gpt-3.5-turbo" | "gpt-4" | "gpt-4o" | "gpt-5.3-codex"
-                | "gpt-5.5-thinking" => Some("assistant"),
-                _ => None,
+                | "gpt-5.5-thinking" | "assistant" => "assistant",
+                // tool_output, system, unknown → not user/assistant; filter_turn drops
+                other => other,
             };
 
-            if let Some(role) = role {
-                // Apply mandate #4 (log only final assistant response, skip internal thoughts)
-                if !turn.content.trim().is_empty() {
-                    turns.push(AntigravityTurn {
-                        role: role.to_string(),
-                        content: turn.content,
-                        created_at: None, // Timestamps are in header or not easily per-turn
-                    });
-                }
+            // thoughts field intentionally ignored (never concatenated into content).
+            if let Some(ingested) = crate::message_only::filter_turn(role, &turn.content) {
+                turns.push(AntigravityTurn {
+                    role: ingested.role.as_str().to_string(),
+                    content: ingested.content,
+                    created_at: None,
+                });
             }
         }
     }
@@ -597,6 +509,8 @@ fn update_source_meta<S: CaptureSink>(sink: &mut S, key: &str, value: &str) {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::disallowed_methods)]
+    // Project test naming: function_or_feature__condition__expected_result
+    #![allow(non_snake_case)]
 
     use super::*;
 
@@ -679,6 +593,30 @@ mod tests {
 
         let turns = extract_turns(&steps);
         assert!(turns.is_empty());
+    }
+
+    #[test]
+    fn extract_turns__view_file_and_run_command_with_content__dropped() {
+        // AC16 / F7 — type-strict drop regardless of content
+        let steps = vec![
+            AntigravityStep {
+                step_index: 1,
+                source: "MODEL".to_string(),
+                step_type: "VIEW_FILE".to_string(),
+                content: Some("secret file body".to_string()),
+                created_at: None,
+                tool_calls: vec![],
+            },
+            AntigravityStep {
+                step_index: 2,
+                source: "MODEL".to_string(),
+                step_type: "RUN_COMMAND".to_string(),
+                content: Some("command stdout".to_string()),
+                created_at: None,
+                tool_calls: vec![],
+            },
+        ];
+        assert!(extract_turns(&steps).is_empty());
     }
 
     #[test]

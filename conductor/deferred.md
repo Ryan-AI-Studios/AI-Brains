@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14); ~~Cozo INFO -> T208~~ **closed**; ~~backup list WARN flood -> T209~~ **closed**; ~~POLICY_DENIED dead-end -> T210~~ **closed**; ~~stale DECISION ranking -> T211~~ **closed**; ~~project list labels -> T212~~ **closed**; ~~semantic relevance -> T215~~ **closed**; ~~graph density honesty -> T213~~ **closed**; ~~preflight --global summary -> T214~~ **closed**; ~~forget-list + inventory skim -> T216~~ **closed** (PR #99 `1980d83`; soft F24 residuals in T216 closeout).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality — placeholders 2026-08-05): FTS rescue, semantic v2, preflight pretty/JSON, governed first-run, graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation. See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -95,6 +95,53 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Shared relative-time helper extract | Soft F24 |
 | Tag matcher CLI/store dual (R1-06) | Soft residual — keep in sync if either changes |
 | ~~AI1 M1–M7 / L1–L6/L8 / F46~~ | **Closed** in T216 ship |
+
+### Post-audit CLI quality placeholders (2026-08-05) — T217–T232
+
+| Residual / finding | Disposition |
+|--------------------|-------------|
+| FTS natural-phrase empty (quality 4) | **T217** Placeholder |
+| Semantic drift / scores (quality 4) | **T218** Placeholder (elevates T215 soft) |
+| Preflight pretty wall (quality 5) | **T219** Placeholder |
+| preflight summary `--format json` lie (quality 3) | **T220** Placeholder (T214 soft) |
+| Governed usefulness 4–5; progressive deny exit 0 | **T221** Placeholder |
+| Graph-off PATH usefulness 3 | **T222** Placeholder |
+| `.env` override double-warn spam | **T223** Placeholder |
+| ASSISTANT: in search paths | **T224** Placeholder |
+| Backup verify noise + legacy fleet | **T225** Placeholder |
+| policy show/check required scope | **T226** Placeholder |
+| Briefing human→JSON; empty personal | **T227** Placeholder |
+| Non-empty pretty Scope (T207 soft) | **T228** Placeholder |
+| Nightly schedule + router :8081/:8083 | **T229** Ops partial + product placeholder |
+| Global summary blank labels | **T230** Placeholder |
+| Dual recall vs sync query mental model | **T231** Placeholder |
+| Doctor graph rebuild vs graph-off | **T232** Placeholder |
+| Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** Placeholder — Option B path aliases + Phase1/2; **blocked on coordinated 0163** (symbols inventory CLI) first |
+| T229 multi-root bridge half | **Absorbed by T233**; T229 keeps router env/health/schedule |
+| Ledgerful scoped symbol inventory (agent DX) | **Coordinated 0163** (Ledgerful) — not AI-Brains; T233 consumes it |
+
+### Harness seamless ingest series (2026-08-08) — T234–T239
+
+| Residual / finding | Disposition |
+|--------------------|-------------|
+| ~~Capture Privacy SOOT missing as shared module~~ | **Closed by T234** — `message_only` F1–F47 / AC1–AC16 |
+| ~~antigravity extract_turns AGY-only partial~~ | **Closed by T234** F7/F12 + ProjectChat `filter_turn` |
+| ~~agy-hook role-only (no tool/thinking strip)~~ | **Closed by T234** F13/AC14 + F15 sole-tool JSON |
+| ~~Live AGY thinking+tool_calls / VIEW_FILE content~~ | **Closed by T234** F5–F7/AC16 |
+| ~~Live Grok reasoning/tool_result/backend_tool_call + array user content~~ | **Closed by T234** fixture SOOT F8/F10/F37 (wire T237) |
+| ~~UTF-8 strip panic risk (AI1 §4)~~ | **Closed by T234** F43/AC15 |
+| ~~Keep contracts thinking field (AI1 §5)~~ | **Closed by T234** F17/F46 — never populate |
+| OpenCode export filter | **T234** fixture SOOT shipped; **wire T238** |
+| Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
+| Detect + preflight hook install UX | **T235** Placeholder |
+| AGY2 seamless + history→project binding | **T236** Placeholder (depends T234) |
+| Grok Build hooks + chat_history batch | **T237** Placeholder (depends T234) |
+| OpenCode plugin + export batch | **T238** Placeholder (depends T234) |
+| Nightly multi-harness import | **T239** Placeholder (depends T234) |
+| Display ASSISTANT: strip | **T224** (orthogonal display) |
+| Remove contracts `thinking` field | **Not** T234 (later) |
+
+Suggested harness order: **T234 (done)** → T235 → T236 → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
 
 ### T216 planning residuals absorption (2026-08-05) — historical
 
