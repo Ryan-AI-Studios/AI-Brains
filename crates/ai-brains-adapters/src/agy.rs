@@ -1,10 +1,11 @@
-use crate::errors::{AdapterError, Result};
+use crate::errors::Result;
+use crate::message_only::{IngestableTurn, filter_agy_simple_turn};
 use ai_brains_core::ids::{SessionId, TurnId};
 use serde::Deserialize;
 use std::path::Path;
 use uuid::Uuid;
 
-/// A single line from the agy JSONL transcript.
+/// A single line from the agy JSONL transcript (raw parse; not yet message-only filtered).
 #[derive(Debug, Clone, Deserialize)]
 pub struct AgyTranscriptLine {
     pub role: String,
@@ -18,6 +19,9 @@ pub struct AgyTurn {
     pub timestamp: Option<String>,
 }
 
+/// Parse agy `{role,content}` JSONL without filtering (raw lines).
+/// Malformed lines are skipped (F26/F41 fail-open), matching antigravity overview style.
+/// Prefer [`filter_agy_turns`] / [`parse_agy_transcript_message_only`] for ingest.
 pub fn parse_agy_transcript(path: &Path) -> Result<Vec<AgyTurn>> {
     let content = std::fs::read_to_string(path)?;
 
@@ -28,8 +32,10 @@ pub fn parse_agy_transcript(path: &Path) -> Result<Vec<AgyTurn>> {
             continue;
         }
 
-        let transcript_line: AgyTranscriptLine = serde_json::from_str(line)
-            .map_err(|e| AdapterError::Other(format!("Failed to parse agy JSONL: {}", e)))?;
+        let Ok(transcript_line) = serde_json::from_str::<AgyTranscriptLine>(line) else {
+            // F41: skip bad JSONL lines; do not fail whole file
+            continue;
+        };
 
         turns.push(AgyTurn {
             role: transcript_line.role,
@@ -39,6 +45,38 @@ pub fn parse_agy_transcript(path: &Path) -> Result<Vec<AgyTurn>> {
     }
 
     Ok(turns)
+}
+
+/// Apply message-only SOOT to raw agy turns (user/assistant text only; drop system/tool).
+pub fn filter_agy_turns(turns: &[AgyTurn]) -> Vec<AgyTurn> {
+    turns
+        .iter()
+        .filter_map(|t| {
+            filter_agy_simple_turn(&t.role, &t.content, t.timestamp.clone()).map(|ing| AgyTurn {
+                role: ing.role.as_str().to_string(),
+                content: ing.content,
+                timestamp: ing.source_ts,
+            })
+        })
+        .collect()
+}
+
+/// Parse + message-only filter in one step (ingest SOOT for hooks / importers).
+pub fn parse_agy_transcript_message_only(path: &Path) -> Result<Vec<AgyTurn>> {
+    let raw = parse_agy_transcript(path)?;
+    Ok(filter_agy_turns(&raw))
+}
+
+/// Map message-only turns back to agy role/content (for callers that already hold SOOT turns).
+pub fn ingestable_to_agy(turns: &[IngestableTurn]) -> Vec<AgyTurn> {
+    turns
+        .iter()
+        .map(|t| AgyTurn {
+            role: t.role.as_str().to_string(),
+            content: t.content.clone(),
+            timestamp: t.source_ts.clone(),
+        })
+        .collect()
 }
 
 pub fn generate_deterministic_turn_id(session_id: &SessionId, index: usize) -> TurnId {

@@ -1,0 +1,7 @@
+{"type":"system","content":"You are Grok."}
+{"type":"user","content":[{"type":"text","text":"<user_query>\nship the feature\n</user_query>"},{"type":"image","url":"http://example.invalid/x.png"}]}
+{"type":"reasoning","content":"I should think carefully about tools"}
+{"type":"backend_tool_call","content":"{\"name\":\"run_terminal_command\"}"}
+{"type":"tool_result","content":"command output leak"}
+{"type":"assistant","content":"Feature shipped."}
+{"type":"assistant","content":[{"type":"text","text":"Also updated docs."},{"type":"tool_call","name":"write","arguments":"{}"}]}

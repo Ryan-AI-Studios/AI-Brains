@@ -109,6 +109,21 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 
 ## 4. Capture & ingest
 
+### Capture Privacy (message-only SOOT — T234)
+
+**Shipped:** shared pure module `ai_brains_adapters::message_only` is the single keep/drop contract for harness → vault content:
+
+| Keep | Drop |
+|------|------|
+| User prompt text (after chrome strip: `<USER_REQUEST>`, `<user_query>`, strip metadata blocks) | Tool calls / tool results / `VIEW_FILE` / `RUN_COMMAND` / backend tools **regardless of content** |
+| Final assistant **visible** text (multipart: text parts only) | `thinking` / `reasoning` / redacted CoT; system chrome; empty after strip |
+
+- **Capture independence:** filter is pure string/JSON — no models, embeddings, or graph.
+- **`IngestRequest.thinking`:** field remains on the contracts DTO for serialization compat; adapters / message_only **never populate** it; event builders never write thinking into the event log.
+- **Wired today:** `antigravity::extract_turns` (BrainLog), `parse_project_chat_file` → `filter_turn` (ProjectChat), and `agy-hook` / `parse_agy_transcript_message_only`.
+- **Fixture-ready (wire in T237/T238):** `filter_grok_history_*`, `filter_opencode_message*`.
+- Seamless multi-harness install/import remains **Partial** until T236–T239.
+
 ### Manual / programmatic
 - **`ingest`** — JSON turn from stdin (`session_id`, `project_id`, `harness_id`, `turn_id`, `role`, `content`, `privacy`)
 - **`--dry-run`** — preview without write (relaxed validation on dry-run path)
@@ -117,9 +132,9 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 
 | Integration | Mechanism | Notes |
 |-------------|-----------|--------|
-| **agy (Antigravity CLI)** | `agy-hook --payload '{...}'` | Real-time; `--schema` prints JSON Schema |
-| **Antigravity bulk** | `antigravity-import --days N` | Incremental, idempotent; filters tool/CoT noise |
-| **Claude / Codex / Gemini / etc.** | Hooks/scripts → `ingest` | Multi-harness design |
+| **agy (Antigravity CLI)** | `agy-hook --payload '{...}'` | Real-time; `--schema` prints JSON Schema; **message-only SOOT** (T234) |
+| **Antigravity bulk** | `antigravity-import --days N` | Incremental, idempotent; `extract_turns` → message_only |
+| **Claude / Codex / Gemini / etc.** | Hooks/scripts → `ingest` | Multi-harness design; prefer message_only before ingest |
 | **Claude hooks** | `Docs/claude-hooks.md` | User-level scripts under `~\.ai-brains\scripts\` |
 
 ### Daemon write path
