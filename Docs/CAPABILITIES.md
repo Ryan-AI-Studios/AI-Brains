@@ -290,7 +290,8 @@ ai-brains review list --format json   # soft-default scope (authoritative) or fa
 ### Preflight (session-start briefing)
 ```powershell
 ai-brains preflight --summary
-ai-brains preflight --global --summary
+ai-brains preflight --summary --format json
+ai-brains preflight --global --summary --format json
 ai-brains preflight --pretty -m 1500
 ai-brains preflight --scope "src/foo.rs" --global
 ai-brains preflight --stdin
@@ -303,8 +304,13 @@ Synthesizes repo safety/hotspots, session turns, memory index, recent dense memo
 | **Dual count model** | **Vault (SQL):** under `--global`, `Projects:` = distinct projects with pinned memories; always `Pinned memories` + `Active sessions` (SQL on projections, capture-independent). **In context:** `HOTSPOT:` / `DECISION:` / `CONSTRAINT:` counts from the budget-window text only — labeled `In context …` so they are not read as vault totals. |
 | **Active sessions** | Rollup uses `session_projection` status=`active` (not a missing text marker). |
 | **Ledgerful hotspots** | Require **project-scoped** preflight; ledgerful bridge is intentionally **off** under `--global`. |
-| **Governed authority** | `--summary` is orientation only (T170 D21). Use `preflight --format json` / `briefing` for governed packet truth — never treat summary counts as authority. |
-| **JSON** | Non-summary `--format json` remains `{text, word_count}` only (T180). |
+| **Governed authority** | `--summary` (human or JSON) is orientation only (T170 D21). Use full `preflight --format json` / `briefing` for governed packet truth — never treat summary counts as authority. |
+| **Full preflight JSON (T180)** | Non-summary `--format json` remains compact `{text, word_count}` only — never grow those keys. |
+| **Summary JSON (T220)** | `--summary --format json` (case-insensitive) emits a **pretty** machine object on stdout (no human banner). Keys: `api_version` (`"1"`), `scope` (`"global"` \| `"project"` \| `"none"`), `project_id` (uuid string or `null`), `projects` (**only when `scope=="global"`**; omitted under project/none — never `null`), `pinned`, `active_sessions`, `in_context_hotspots` / `in_context_decisions` / `in_context_constraints`, `word_count`. |
+| **Summary `scope` three-valued** | `--global` → `"global"` (`project_id: null`, include `projects`); resolved project → `"project"`; unresolved (no global, no project id) → `"none"` (`project_id: null`, omit `projects`). Under `"none"`, vault SQL counts are vault-wide (same as human `Scope: project=(none)` honesty). |
+| **Summary `word_count`** | Full preflight **budget-window** text size (`context.word_count`), **not** the byte/size of the summary JSON payload (parity with human `Total Word Count:`). |
+| **Summary `in_context_*`** | Case-sensitive marker scan of rendered budget text (`HOTSPOT:` / `DECISION:` / `CONSTRAINT:`). Under governed rendering those markers may be absent → counts can be **0** (orientation only; not governed claim authority). |
+| **Summary + install-hooks** | `--install-hooks` still runs side effects on the JSON path; install status lines go to **stderr** so stdout stays one pure JSON document. No interactive install prompt on the JSON path. |
 
 ### Unified vault + ledger search
 ```powershell

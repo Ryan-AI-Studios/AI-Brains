@@ -10,6 +10,7 @@ use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
 use ai_brains_store::QueryStore;
 use is_terminal::IsTerminal;
+use serde::Serialize;
 
 pub struct PreflightRunOptions {
     pub max_words: usize,
@@ -25,6 +26,70 @@ pub struct PreflightRunOptions {
     pub install_hooks: bool,
     /// `preflight --stdin` mode: never prompt (F24 / AC18).
     pub stdin_mode: bool,
+}
+
+/// CLI-local summary JSON envelope (T220). Never grows `PreflightContextResponse`.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub(crate) struct PreflightSummaryJson {
+    pub api_version: String,
+    pub scope: String,
+    pub project_id: Option<String>,
+    /// Present only when `scope == "global"` (omit under project/none).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub projects: Option<u64>,
+    pub pinned: u64,
+    pub active_sessions: u64,
+    pub in_context_hotspots: usize,
+    pub in_context_decisions: usize,
+    pub in_context_constraints: usize,
+    /// Full preflight budget-window word count (`context.word_count`), not summary size.
+    pub word_count: usize,
+}
+
+/// Pure builder for preflight summary JSON (T220 F6). Unit-testable without vault I/O.
+///
+/// Argument count mirrors `format_preflight_summary_lines` dual-block fields one-for-one.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_preflight_summary_json(
+    global: bool,
+    project_id: Option<&ProjectId>,
+    projects_with_pinned: Option<u64>,
+    pinned_memories: u64,
+    active_sessions: u64,
+    hotspot_count: usize,
+    decision_count: usize,
+    constraint_count: usize,
+    word_count: usize,
+) -> PreflightSummaryJson {
+    // F29 three-valued scope: global | project | none (never "project" with null id).
+    let (scope, project_id_str, projects) = if global {
+        ("global".to_string(), None, projects_with_pinned)
+    } else if let Some(pid) = project_id {
+        ("project".to_string(), Some(pid.to_string()), None)
+    } else {
+        ("none".to_string(), None, None)
+    };
+    PreflightSummaryJson {
+        api_version: "1".to_string(),
+        scope,
+        project_id: project_id_str,
+        projects,
+        pinned: pinned_memories,
+        active_sessions,
+        in_context_hotspots: hotspot_count,
+        in_context_decisions: decision_count,
+        in_context_constraints: constraint_count,
+        word_count,
+    }
+}
+
+/// Emit install/status chatter: stdout for human path; stderr when JSON mode (T220 M1).
+fn emit_status(json_mode: bool, msg: &str) {
+    if json_mode {
+        eprintln!("{msg}");
+    } else {
+        println!("{msg}");
+    }
 }
 
 pub fn run(
@@ -57,6 +122,11 @@ pub fn run(
     )?;
 
     if options.summary {
+        // T220 F2: summary honors --format json case-insensitively; else human.
+        let json_mode = options
+            .format
+            .as_deref()
+            .is_some_and(|f| f.eq_ignore_ascii_case("json"));
         print_summary(
             ctx,
             options.global,
@@ -66,6 +136,7 @@ pub fn run(
                 no_hook_prompt: options.no_hook_prompt,
                 install_hooks: options.install_hooks,
                 stdin_mode: options.stdin_mode,
+                json_mode,
             },
         )?;
         return Ok(());
@@ -182,9 +253,14 @@ struct PreflightHarnessGate {
     no_hook_prompt: bool,
     install_hooks: bool,
     stdin_mode: bool,
+    /// T220: summary JSON path — pure stdout JSON; status on stderr; no AskOnce.
+    json_mode: bool,
 }
 
 /// Print preflight summary with honest Scope + dual vault/in-context counts (T214 F37).
+///
+/// When `gate.json_mode` (T220): emit pretty `PreflightSummaryJson` only on stdout;
+/// harness human block is omitted; install status goes to stderr.
 fn print_summary(
     ctx: &AppContext,
     global: bool,
@@ -221,6 +297,25 @@ fn print_summary(
     let decision_count = text.matches("DECISION:").count();
     let constraint_count = text.matches("CONSTRAINT:").count();
 
+    if gate.json_mode {
+        let envelope = build_preflight_summary_json(
+            global,
+            project_id.as_ref(),
+            projects_with_pinned,
+            pinned_memories,
+            active_sessions,
+            hotspot_count,
+            decision_count,
+            constraint_count,
+            context.word_count,
+        );
+        // Pretty summary JSON (memory-list family); T180 full path stays compact.
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        // M1: still run install side effects; never pollute stdout.
+        append_harness_summary_and_maybe_prompt(&gate)?;
+        return Ok(());
+    }
+
     let lines = format_preflight_summary_lines(
         &scope_line,
         global,
@@ -247,10 +342,34 @@ fn append_harness_summary_and_maybe_prompt(
     let home = resolve_home();
     let report = collect_status_report(home.as_deref());
     let harness_lines = format_harness_summary_lines(&report.harnesses);
-    for line in &harness_lines {
-        println!("{}", line);
+    // T220 F8: never print harness human block on stdout under JSON summary.
+    if !gate.json_mode {
+        for line in &harness_lines {
+            println!("{}", line);
+        }
     }
+    // JSON path may still need install-hooks even when harness_lines empty (absent).
+    if harness_lines.is_empty() && !gate.install_hooks {
+        return Ok(());
+    }
+    // Human path: no harness rows → nothing further.
     if harness_lines.is_empty() {
+        // install_hooks with empty report: still report honestly (never silent no-op).
+        if gate.install_hooks {
+            if home.is_some() {
+                emit_status(
+                    gate.json_mode,
+                    "No ready harness present on machine for install-hooks (absent or already ok). next: ai-brains harness status",
+                );
+            } else {
+                // AC8b / M1: USERPROFILE+HOME unset must not silently skip --install-hooks.
+                emit_status(
+                    gate.json_mode,
+                    "No user home resolved (USERPROFILE/HOME unset); install-hooks skipped. next: ai-brains harness status",
+                );
+            }
+            return Ok(());
+        }
         return Ok(());
     }
 
@@ -258,16 +377,23 @@ fn append_harness_summary_and_maybe_prompt(
     // Per-harness decline: declining AGY must not suppress Grok (and vice versa).
     let ready_missing = ready_missing_not_declined(&report.harnesses, &prefs);
 
-    let is_tty = std::io::stdout().is_terminal() && std::io::stdin().is_terminal();
+    // T220 F8: JSON path is always non-interactive (never AskOnce).
+    let is_tty =
+        !gate.json_mode && std::io::stdout().is_terminal() && std::io::stdin().is_terminal();
     // Declined harnesses are already filtered from ready_missing; pass declined=false
     // so remaining ready+missing backends (e.g. Grok when only Agy declined) still prompt.
     let decision = should_prompt_install(
         is_tty,
-        gate.no_hook_prompt,
-        gate.stdin_mode,
+        gate.no_hook_prompt || gate.json_mode,
+        gate.stdin_mode || gate.json_mode,
         !ready_missing.is_empty(),
         false,
-        prefs.auto_install,
+        // JSON summary: never auto-install as a side effect of orientation JSON.
+        if gate.json_mode {
+            false
+        } else {
+            prefs.auto_install
+        },
     );
 
     // Explicit --install-hooks: install **ready backends that are present on machine**
@@ -276,16 +402,20 @@ fn append_harness_summary_and_maybe_prompt(
     if gate.install_hooks {
         if let Some(h) = home.as_ref() {
             let mut installed_any = false;
-            for hid in [HarnessId::Agy, HarnessId::Grok] {
+            // T238: OpenCode is install_ready — include with AGY/Grok (not Claude/Codex pending).
+            for hid in [HarnessId::Agy, HarnessId::Grok, HarnessId::Opencode] {
                 let row = report.harnesses.iter().find(|r| r.id == hid.as_str());
                 let Some(row) = row else { continue };
                 if !row.present || !row.install_ready {
                     continue;
                 }
                 if matches!(row.wiring, WiringStatus::Ok) {
-                    println!(
-                        "{} capture hooks already installed. next: ai-brains harness status",
-                        hid.display_name()
+                    emit_status(
+                        gate.json_mode,
+                        &format!(
+                            "{} capture hooks already installed. next: ai-brains harness status",
+                            hid.display_name()
+                        ),
                     );
                     continue;
                 }
@@ -311,15 +441,23 @@ fn append_harness_summary_and_maybe_prompt(
                             hid.as_str()
                         ),
                         true,
+                        gate.json_mode,
                     )?;
                     installed_any = true;
                 }
             }
             if !installed_any {
-                println!(
-                    "No ready harness present on machine for install-hooks (absent or already ok). next: ai-brains harness status"
+                emit_status(
+                    gate.json_mode,
+                    "No ready harness present on machine for install-hooks (absent or already ok). next: ai-brains harness status",
                 );
             }
+        } else {
+            // Non-empty harness report but no resolvable home (rare) — still not silent.
+            emit_status(
+                gate.json_mode,
+                "No user home resolved (USERPROFILE/HOME unset); install-hooks skipped. next: ai-brains harness status",
+            );
         }
         return Ok(());
     }
@@ -329,10 +467,13 @@ fn append_harness_summary_and_maybe_prompt(
         PromptDecision::PrintNextActionOnly => {
             if !ready_missing.is_empty() {
                 let ids: Vec<&str> = ready_missing.iter().map(|h| h.id.as_str()).collect();
-                println!(
-                    "  next: ai-brains harness install --harness {} --dry-run",
-                    ids.first().copied().unwrap_or("agy")
-                );
+                // JSON path: no harness human block on stdout; skip next-action chatter.
+                if !gate.json_mode {
+                    println!(
+                        "  next: ai-brains harness install --harness {} --dry-run",
+                        ids.first().copied().unwrap_or("agy")
+                    );
+                }
             }
         }
         PromptDecision::AutoInstall => {
@@ -357,11 +498,13 @@ fn append_harness_summary_and_maybe_prompt(
                             label
                         ),
                         false,
+                        gate.json_mode,
                     );
                 }
             }
         }
         PromptDecision::AskOnce => {
+            // JSON mode forces non-interactive above; this arm is human-only.
             eprint!(
                 "Install capture hooks for {}? [Y/n] ",
                 ready_missing
@@ -390,6 +533,7 @@ fn append_harness_summary_and_maybe_prompt(
                             row.id.as_str(),
                             &format!("Installed {} capture hooks.", label),
                             false,
+                            gate.json_mode,
                         );
                     }
                 }
@@ -403,8 +547,9 @@ fn append_harness_summary_and_maybe_prompt(
                 if let Err(e) = save_prefs(h, &p) {
                     eprintln!("could not persist decline: {e}");
                 } else {
-                    println!(
-                        "Declined. Re-enable with: ai-brains harness reset-decline --harness all"
+                    emit_status(
+                        gate.json_mode,
+                        "Declined. Re-enable with: ai-brains harness reset-decline --harness all",
                     );
                 }
             }
@@ -451,20 +596,25 @@ fn ready_missing_not_declined<'a>(
 ///
 /// When `fail_on_error` is true (explicit `--install-hooks`), refuse/error returns
 /// `Err` so the process exits non-zero (F20). Soft consent/auto paths keep preflight exit 0.
+/// When `json_mode` (T220 M1), success/dry-run status lines go to stderr so stdout stays pure JSON.
 fn report_preflight_install(
     result: Result<InstallOutcome, String>,
     harness_label: &str,
     harness_cli_id: &str,
     success_msg: &str,
     fail_on_error: bool,
+    json_mode: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match result {
         Ok(InstallOutcome::Installed { .. }) => {
-            println!("{success_msg}");
+            emit_status(json_mode, success_msg);
             Ok(())
         }
         Ok(InstallOutcome::DryRun { .. }) => {
-            println!("[dry-run] {harness_label} install planned (no writes).");
+            emit_status(
+                json_mode,
+                &format!("[dry-run] {harness_label} install planned (no writes)."),
+            );
             Ok(())
         }
         Ok(InstallOutcome::BackendPending { plan }) => {
@@ -699,6 +849,73 @@ mod tests {
             super::super::recall::format_scope_line(true, None, None),
             "Scope: global"
         );
+    }
+
+    // ---------------------------------------------------------------------------
+    // T220 AC9 — pure summary JSON envelope (global / project / none)
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn build_preflight_summary_json__global__projects_key_present() {
+        let env = build_preflight_summary_json(true, None, Some(2), 5, 1, 3, 4, 1, 100);
+        assert_eq!(env.api_version, "1");
+        assert_eq!(env.scope, "global");
+        assert_eq!(env.project_id, None);
+        assert_eq!(env.projects, Some(2));
+        assert_eq!(env.pinned, 5);
+        assert_eq!(env.active_sessions, 1);
+        assert_eq!(env.in_context_hotspots, 3);
+        assert_eq!(env.in_context_decisions, 4);
+        assert_eq!(env.in_context_constraints, 1);
+        assert_eq!(env.word_count, 100);
+        let s = serde_json::to_string_pretty(&env).expect("serialize");
+        assert!(
+            s.contains("\"projects\""),
+            "global must emit projects key: {s}"
+        );
+        assert!(
+            s.contains("\"api_version\": \"1\""),
+            "api_version; got:\n{s}"
+        );
+        let v: serde_json::Value = serde_json::from_str(&s).expect("parse");
+        assert_eq!(v["scope"], "global");
+        assert!(v["project_id"].is_null());
+        assert_eq!(v["projects"], 2);
+    }
+
+    #[test]
+    fn build_preflight_summary_json__project_scoped__omits_projects_key() {
+        let pid = ProjectId::from_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa").unwrap();
+        let env = build_preflight_summary_json(false, Some(&pid), None, 2, 0, 0, 1, 0, 42);
+        assert_eq!(env.scope, "project");
+        assert_eq!(env.project_id, Some(pid.to_string()));
+        assert_eq!(env.projects, None);
+        let s = serde_json::to_string(&env).expect("serialize");
+        assert!(
+            !s.contains("\"projects\""),
+            "project-scoped must omit projects key (F34); got: {s}"
+        );
+        let v: serde_json::Value = serde_json::from_str(&s).expect("parse");
+        assert_eq!(v["scope"], "project");
+        assert_eq!(v["project_id"], pid.to_string());
+        assert!(v.get("projects").is_none(), "no projects key: {v}");
+    }
+
+    #[test]
+    fn build_preflight_summary_json__none_scope__no_projects_key() {
+        let env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
+        assert_eq!(env.scope, "none");
+        assert_eq!(env.project_id, None);
+        assert_eq!(env.projects, None);
+        let s = serde_json::to_string(&env).expect("serialize");
+        assert!(
+            !s.contains("\"projects\""),
+            "scope none must omit projects key; got: {s}"
+        );
+        let v: serde_json::Value = serde_json::from_str(&s).expect("parse");
+        assert_eq!(v["scope"], "none");
+        assert!(v["project_id"].is_null());
+        assert!(v.get("projects").is_none());
     }
 
     #[test]

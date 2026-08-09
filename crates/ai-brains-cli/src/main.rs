@@ -189,7 +189,10 @@ enum Commands {
         /// Output human-readable text instead of JSON
         #[arg(long)]
         pretty: bool,
-        /// Output format: 'json' or 'human'
+        /// Output format: human | json | pretty.
+        /// With `--summary`, `--format json` (case-insensitive) emits a pretty machine
+        /// envelope; other values stay on the human summary path. Full (non-summary)
+        /// preflight keeps compact `{text, word_count}` for `--format json` (T180/T220).
         #[arg(long)]
         format: Option<String>,
         /// Comma-separated target file/directory paths for contextual risk analysis
