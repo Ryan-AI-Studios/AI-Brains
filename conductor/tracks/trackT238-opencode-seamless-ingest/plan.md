@@ -89,8 +89,8 @@ Ship **real OpenCode install** (global plugin on `session.idle` with **parentID 
 - [x] Full local gate: fmt, clippy workspace, nextest 2373, deny, audit (warnings allowed)
 - [x] Internal + codex-review → final **PASS** (`review.codex.final.md`)
 - [x] Pins: nested export SOOT; synthetic drop; child skip; live SDK messages; no SQLite; msg-id turns
-- [ ] Feature PR + CI green + squash-merge (orchestrator)
-- [ ] `ledgerful ledger commit`; conductor Completed (closeout after merge)
+- [x] Feature PR #106 + CI Win/Linux/macOS green + squash-merge `3378a02`
+- [x] `ledgerful ledger commit`; conductor Completed (closeout)
 
 ## Implement order (risk)
 
