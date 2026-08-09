@@ -135,7 +135,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
 | ~~Detect + preflight hook install UX~~ | **Closed by T235** PR #101 `b1a0ecc` — detect/wiring/`harness *`/AGY F34+writer/preflight/doctor; others backend_pending → T236–T238 |
 | ~~AGY2 seamless + history→project binding~~ | **Closed by T236** PR #102 `d53e4be` — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize / AC6; soft residuals below |
-| Grok Build hooks + chat_history batch | **T237 Planning** — absorb on implement (Stop+SessionEnd + chat_history SOOT + grok-import + install; synthetic drop; summary bind). Plan-only until go. |
+| ~~Grok Build hooks + chat_history batch~~ | **Closed by T237** PR #104 `459fc55` — empty Stop stdout; F11 user_query keep; grok-hook/import/install; subagent skip; dry-run; AC6 anti-hijack |
 | OpenCode plugin + export batch | **T238** Placeholder (depends T234) |
 | Nightly multi-harness import | **T239** Placeholder (depends T234; also scheduled SYSTEM `--skip-import` re-enable) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
@@ -146,7 +146,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | fullyIdle hard continue policy | Soft residual (F7) |
 | Byte-offset watermark / import `--json` | Soft residual (F34 / soft) |
 
-Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)** → **T237 (planning)** → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)** → **T237 (done)** → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
 
 ### T237 planning absorption (2026-08-08)
 
@@ -1066,3 +1066,13 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 - **Soft-skip symlink proof** when create privilege missing (F17 / Codex R3 P3) — multi-OS CI re-proves when privilege available; product path fail-closed. **Kept** as verification residual (R-SOFT-SKIP) after T193 ship.
 - ~~**T188 write / token path / ambient CLI**~~ — **Closed-with-residuals by T193** PR #77 `2183127`: P0 `write_protected_artifact`, token load/write, `recovery::write_kit_file` elevated via shared `cap_open` write SOOT. Remaining honesty residuals: soft-canon, parent `create_dir_all`, P2 ambient CLI long-tail, perfect Windows TOCTOU, R-SOFT-SKIP.
+
+### T237 soft residuals (2026-08-08)
+
+| Item | Notes |
+|------|-------|
+| UserPromptSubmit live (S1) | Not DoD |
+| Opt-in subagent include (S2) | Default skip hard |
+| Fingerprint turn-ids (S8) | Filter-version risk documented |
+| AdapterKind::Grok registry | Optional; grok_capability() exported |
+| Claude/Codex install_ready | Soft S6 / T238+ labels |

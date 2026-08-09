@@ -1,6 +1,6 @@
 # T237 Plan — Grok Build seamless ingest
 
-**Status:** Implementation complete — pending CI/merge closeout.  
+**Status:** Completed (PR #104 `459fc55`).
 **Category:** FEATURE  
 **Depends:** T234 ✅, T235 ✅ (Grok marker/pending), T236 lessons ✅  
 **Research:** live Grok 1.0.0 + user-guide hooks/sessions 2026-08-08; no dep bumps  
