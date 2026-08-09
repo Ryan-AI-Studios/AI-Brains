@@ -423,6 +423,9 @@ enum Commands {
         /// Skip the 5-minute quiescence window (import even if file was modified recently)
         #[arg(long, default_value_t = false)]
         force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
     /// Detect and install harness capture hooks (user-global, message-only)
     #[command(
@@ -3306,7 +3309,11 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::AntigravityImport { days, force } => {
             commands::antigravity_import::run(&ctx, *days, *force)
         }
-        Commands::GrokImport { days, force } => commands::grok_import::run(&ctx, *days, *force),
+        Commands::GrokImport {
+            days,
+            force,
+            dry_run,
+        } => commands::grok_import::run(&ctx, *days, *force, *dry_run),
         Commands::AgyHook { payload, schema } => {
             if *schema {
                 print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")

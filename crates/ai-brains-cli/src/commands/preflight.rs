@@ -1,5 +1,6 @@
 use crate::commands::harness::{PromptDecision, interpret_consent_answer, should_prompt_install};
 use crate::context::AppContext;
+use crate::harness::prefs::HarnessHookPrefs;
 use crate::harness::{
     HarnessId, HarnessStatus, InstallOutcome, WiringStatus, collect_status_report, install_agy,
     install_grok, load_prefs, resolve_home, save_prefs,
@@ -254,24 +255,18 @@ fn append_harness_summary_and_maybe_prompt(
     }
 
     let prefs = home.as_ref().map(|h| load_prefs(h)).unwrap_or_default();
-    let declined_agy = prefs.is_declined(HarnessId::Agy);
-    let ready_missing: Vec<&HarnessStatus> = report
-        .harnesses
-        .iter()
-        .filter(|h| {
-            h.install_ready
-                && matches!(h.wiring, WiringStatus::Missing | WiringStatus::Partial)
-                && !declined_agy
-        })
-        .collect();
+    // Per-harness decline: declining AGY must not suppress Grok (and vice versa).
+    let ready_missing = ready_missing_not_declined(&report.harnesses, &prefs);
 
     let is_tty = std::io::stdout().is_terminal() && std::io::stdin().is_terminal();
+    // Declined harnesses are already filtered from ready_missing; pass declined=false
+    // so remaining ready+missing backends (e.g. Grok when only Agy declined) still prompt.
     let decision = should_prompt_install(
         is_tty,
         gate.no_hook_prompt,
         gate.stdin_mode,
         !ready_missing.is_empty(),
-        declined_agy,
+        false,
         prefs.auto_install,
     );
 
@@ -412,6 +407,29 @@ fn parse_harness_id_soft(s: &str) -> Result<HarnessId, ()> {
         "codex" => Ok(HarnessId::Codex),
         _ => Err(()),
     }
+}
+
+/// Ready-to-install harnesses the user has not declined (per-harness filter).
+///
+/// Declining AGY must not suppress a ready+missing Grok row (and vice versa).
+fn ready_missing_not_declined<'a>(
+    harnesses: &'a [HarnessStatus],
+    prefs: &HarnessHookPrefs,
+) -> Vec<&'a HarnessStatus> {
+    harnesses
+        .iter()
+        .filter(|h| {
+            if !h.install_ready
+                || !matches!(h.wiring, WiringStatus::Missing | WiringStatus::Partial)
+            {
+                return false;
+            }
+            match parse_harness_id_soft(&h.id) {
+                Ok(id) => !prefs.is_declined(id),
+                Err(()) => true,
+            }
+        })
+        .collect()
 }
 
 /// Report AGY install outcomes honestly (F28/AC21 — never claim success on Refused).
@@ -664,5 +682,52 @@ mod tests {
             super::super::recall::format_scope_line(true, None, None),
             "Scope: global"
         );
+    }
+
+    #[test]
+    fn ready_missing_not_declined__agy_declined__keeps_grok() {
+        // Declining AGY must not suppress ready+missing Grok (per-harness decline).
+        let statuses = vec![
+            HarnessStatus {
+                id: "agy".into(),
+                display_name: "AGY".into(),
+                present: true,
+                binary: None,
+                home_path: Some("/tmp/.gemini".into()),
+                wiring: WiringStatus::Missing,
+                install_ready: true,
+                targets: vec![],
+                next_action: "install agy".into(),
+            },
+            HarnessStatus {
+                id: "grok".into(),
+                display_name: "Grok".into(),
+                present: true,
+                binary: None,
+                home_path: Some("/tmp/.grok".into()),
+                wiring: WiringStatus::Missing,
+                install_ready: true,
+                targets: vec![],
+                next_action: "install grok".into(),
+            },
+        ];
+        let mut prefs = HarnessHookPrefs::default();
+        prefs.mark_declined(HarnessId::Agy, "2026-01-01T00:00:00Z");
+        let ready = ready_missing_not_declined(&statuses, &prefs);
+        assert_eq!(ready.len(), 1, "only Grok should remain: {ready:?}");
+        assert_eq!(ready[0].id, "grok");
+
+        // Both declined → empty (should_prompt Skip via !has_ready_missing).
+        prefs.mark_declined(HarnessId::Grok, "2026-01-01T00:00:00Z");
+        let ready_both = ready_missing_not_declined(&statuses, &prefs);
+        assert!(
+            ready_both.is_empty(),
+            "all declined → no prompt candidates: {ready_both:?}"
+        );
+
+        // Neither declined → both candidates.
+        let prefs_none = HarnessHookPrefs::default();
+        let ready_all = ready_missing_not_declined(&statuses, &prefs_none);
+        assert_eq!(ready_all.len(), 2);
     }
 }

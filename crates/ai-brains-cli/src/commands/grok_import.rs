@@ -6,8 +6,17 @@ use ai_brains_capture::CaptureService;
 use ai_brains_core::ids::ProjectId;
 use std::str::FromStr;
 
-pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("Scanning for Grok sessions...");
+pub fn run(
+    ctx: &AppContext,
+    days: usize,
+    force: bool,
+    dry_run: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if dry_run {
+        eprintln!("Scanning for Grok sessions (dry-run — no vault writes)...");
+    } else {
+        eprintln!("Scanning for Grok sessions...");
+    }
 
     let service = CaptureService::new();
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
@@ -35,6 +44,7 @@ pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std
         allow_default_project: false,
         force,
         home_override: None,
+        dry_run,
     };
 
     let query_store = ctx.conn.clone() as std::sync::Arc<dyn ai_brains_store::QueryStore>;
@@ -46,7 +56,12 @@ pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std
 
     print_grok_import_stats(&stats);
 
-    if stats.sessions == 0 {
+    if dry_run {
+        eprintln!(
+            "Grok dry-run complete. found={} (sessions/imported_turns remain 0 — no writes).",
+            stats.found
+        );
+    } else if stats.sessions == 0 {
         eprintln!("No new Grok sessions found to import.");
     } else {
         eprintln!(

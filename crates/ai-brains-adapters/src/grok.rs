@@ -306,6 +306,8 @@ pub struct GrokImportOptions {
     pub force: bool,
     /// Hermetic tests: discover under this home instead of dirs::home_dir / GROK_HOME.
     pub home_override: Option<PathBuf>,
+    /// Discover/filter/count only — no vault writes (F12 `--dry-run`).
+    pub dry_run: bool,
 }
 
 impl GrokImportOptions {
@@ -316,6 +318,7 @@ impl GrokImportOptions {
             allow_default_project: false,
             force: false,
             home_override: None,
+            dry_run: false,
         }
     }
 }
@@ -541,6 +544,42 @@ fn ensure_project_registered<S: CaptureSink>(
     Ok(())
 }
 
+/// Shared live+batch ingest of already-filtered turns.
+///
+/// Capture privacy SOOT: `thinking` is **always** `None` (never store chain-of-thought).
+/// Turn ids use [`generate_grok_turn_id`] on the kept index so hook and batch share SOOT.
+/// Harness is always the static Grok UUID ([`GROK_HARNESS_UUID`]).
+pub fn append_grok_turns<S: CaptureSink>(
+    service: &CaptureService,
+    sink: &mut S,
+    session_id: SessionId,
+    project_id: ProjectId,
+    turns: &[IngestableTurn],
+    start_index: usize,
+    capture_context: &CaptureContext,
+) -> Result<usize> {
+    let harness_id = HarnessId::from_str(GROK_HARNESS_UUID)
+        .map_err(|e| AdapterError::Other(format!("Invalid static Grok harness ID: {e}")))?;
+    let mut count = 0;
+    for (i, turn) in turns.iter().enumerate().skip(start_index) {
+        let turn_id = generate_grok_turn_id(&session_id, i);
+        let request = IngestRequest {
+            session_id,
+            project_id,
+            harness_id,
+            turn_id,
+            role: turn.role.as_str().to_string(),
+            content: turn.content.clone(),
+            privacy: Privacy::LocalOnly,
+            thinking: None,
+            tx_id: None,
+        };
+        service.ingest_request(request, capture_context.clone(), sink)?;
+        count += 1;
+    }
+    Ok(count)
+}
+
 /// Orchestrate import of Grok sessions from discovered chat_history files.
 pub fn import_grok_sessions<S: CaptureSink>(
     query_store: &dyn ai_brains_store::QueryStore,
@@ -596,6 +635,9 @@ pub fn import_grok_sessions<S: CaptureSink>(
         "[Grok] Found {} sessions modified in the last {} days. Scanning for new turns...",
         stats.found, options.days
     );
+    if options.dry_run {
+        eprintln!("[Grok] dry-run mode: scanning only — no vault writes.");
+    }
 
     let grok_harness = HarnessId::from_str(GROK_HARNESS_UUID)
         .map_err(|e| AdapterError::Other(format!("Invalid static Grok harness ID: {e}")))?;
@@ -642,14 +684,18 @@ pub fn import_grok_sessions<S: CaptureSink>(
 
         let turns = parse_chat_history_file(&source.path)?;
         if turns.is_empty() {
-            update_source_meta(sink, &meta_key, &current_meta);
+            if !options.dry_run {
+                update_source_meta(sink, &meta_key, &current_meta);
+            }
             continue;
         }
 
         let max_turn = query_store.get_max_turn_index(&session_id).unwrap_or(None);
         let next_index = max_turn.map(|m| m + 1).unwrap_or(0);
         if turns.len() <= next_index as usize {
-            update_source_meta(sink, &meta_key, &current_meta);
+            if !options.dry_run {
+                update_source_meta(sink, &meta_key, &current_meta);
+            }
             continue;
         }
 
@@ -669,6 +715,19 @@ pub fn import_grok_sessions<S: CaptureSink>(
         } else {
             GrokBindKind::Path
         };
+
+        // Bind counters are derived from discovery (read-only); safe on dry-run.
+        match final_kind {
+            GrokBindKind::Summary => stats.bound_via_summary += 1,
+            GrokBindKind::Path => stats.bound_via_path += 1,
+            GrokBindKind::Unbound => stats.unbound_project += 1,
+            GrokBindKind::Default => {}
+        }
+
+        // F12 dry-run: count/filter only — no start_session / ingest / stop / sync_state.
+        if options.dry_run {
+            continue;
+        }
 
         if needs_create {
             let display = if alias == GROK_UNBOUND_ALIAS {
@@ -696,13 +755,6 @@ pub fn import_grok_sessions<S: CaptureSink>(
             ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
         }
 
-        match final_kind {
-            GrokBindKind::Summary => stats.bound_via_summary += 1,
-            GrokBindKind::Path => stats.bound_via_path += 1,
-            GrokBindKind::Unbound => stats.unbound_project += 1,
-            GrokBindKind::Default => {}
-        }
-
         let capture_context = CaptureContext {
             git_working_dir: std::env::current_dir().ok(),
         };
@@ -719,22 +771,15 @@ pub fn import_grok_sessions<S: CaptureSink>(
             sink,
         )?;
 
-        for (i, turn) in turns.iter().enumerate().skip(next_index as usize) {
-            let turn_id = generate_grok_turn_id(&session_id, i);
-            let request = IngestRequest {
-                session_id,
-                project_id,
-                harness_id: grok_harness,
-                turn_id,
-                role: turn.role.as_str().to_string(),
-                content: turn.content.clone(),
-                privacy: Privacy::LocalOnly,
-                thinking: None,
-                tx_id: None,
-            };
-            service.ingest_request(request, capture_context.clone(), sink)?;
-            stats.imported_turns += 1;
-        }
+        stats.imported_turns += append_grok_turns(
+            service,
+            sink,
+            session_id,
+            project_id,
+            &turns,
+            next_index as usize,
+            &capture_context,
+        )?;
 
         service.stop_session(
             ai_brains_capture::SessionStopCommand {

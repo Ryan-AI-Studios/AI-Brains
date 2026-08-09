@@ -3,16 +3,22 @@
 #![allow(clippy::disallowed_methods, non_snake_case)]
 
 use ai_brains_adapters::{
-    GrokImportOptions, generate_grok_turn_id, import_grok_sessions, normalize_grok_project_hash,
-    parse_chat_history_file, percent_encode_path_component, resolve_chat_history_path,
+    GROK_HARNESS_UUID, GrokImportOptions, append_grok_turns, generate_grok_turn_id,
+    import_grok_sessions, normalize_grok_project_hash, parse_chat_history_file,
+    percent_encode_path_component, resolve_chat_history_path,
 };
-use ai_brains_capture::{CaptureService, CaptureSink};
-use ai_brains_core::ids::{ProjectId, SessionId};
+use ai_brains_capture::{CaptureContext, CaptureService, CaptureSink, SessionStopStatus};
+use ai_brains_core::ids::{HarnessId, ProjectId, SessionId, UserId};
+use ai_brains_core::privacy::Privacy;
 use ai_brains_crypto::{DataKey, SqlCipherKey};
-use ai_brains_events::Envelope;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{
+    Actor, AggregateType, Envelope, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
+};
 use ai_brains_store::{EventStore, QueryStore, SqliteEventStore, VaultConnection};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 use tempfile::tempdir;
 
@@ -123,6 +129,7 @@ fn import_grok__summary_bind__project_matches_git_root() {
         allow_default_project: false,
         force: true,
         home_override: Some(home),
+        dry_run: false,
     };
 
     let stats = import_grok_sessions(&conn, &service, &mut sink, options).expect("import");
@@ -145,7 +152,9 @@ fn import_grok__summary_bind__project_matches_git_root() {
         "bound project must hold imported Grok content: {turns:?}"
     );
     assert!(
-        turns.iter().all(|(_, c)| !c.contains("secret-think") && !c.contains("tool-noise")),
+        turns
+            .iter()
+            .all(|(_, c)| !c.contains("secret-think") && !c.contains("tool-noise")),
         "must not ingest reasoning/tool: {turns:?}"
     );
 
@@ -200,6 +209,7 @@ fn import_grok__no_summary__unbound_not_cwd_env() {
         allow_default_project: false,
         force: true,
         home_override: Some(home),
+        dry_run: false,
     };
 
     let stats = import_grok_sessions(&conn, &service, &mut sink, options).expect("import");
@@ -245,6 +255,7 @@ fn import_grok__force__skips_quiescence() {
             allow_default_project: false,
             force: false,
             home_override: Some(home.clone()),
+            dry_run: false,
         },
     )
     .expect("import skip");
@@ -261,6 +272,7 @@ fn import_grok__force__skips_quiescence() {
             allow_default_project: false,
             force: true,
             home_override: Some(home),
+            dry_run: false,
         },
     )
     .expect("import force");
@@ -293,6 +305,7 @@ fn import_grok__reimport_unchanged__zero_new_turns() {
         allow_default_project: false,
         force: true,
         home_override: Some(home.clone()),
+        dry_run: false,
     };
 
     let first = import_grok_sessions(&conn, &service, &mut sink, opts()).expect("first");
@@ -301,7 +314,10 @@ fn import_grok__reimport_unchanged__zero_new_turns() {
     let turns_after_first = first.imported_turns;
 
     let second = import_grok_sessions(&conn, &service, &mut sink, opts()).expect("second");
-    assert_eq!(second.imported_turns, 0, "re-import must not duplicate turns");
+    assert_eq!(
+        second.imported_turns, 0,
+        "re-import must not duplicate turns"
+    );
     assert!(
         second.skipped_unchanged >= 1 || second.sessions == 0,
         "expect unchanged skip or zero sessions: {second:?}"
@@ -356,6 +372,7 @@ fn import_grok__subagent_session__skipped_counter() {
             allow_default_project: false,
             force: true,
             home_override: Some(home),
+            dry_run: false,
         },
     )
     .expect("import");
@@ -413,6 +430,7 @@ fn import_grok__never_ingests_updates_jsonl() {
             allow_default_project: false,
             force: true,
             home_override: Some(home),
+            dry_run: false,
         },
     )
     .expect("import");
@@ -466,4 +484,289 @@ fn hook_path__parse_and_turn_ids__thinking_none_parity() {
     // Stable across calls (live==batch)
     assert_eq!(id0, generate_grok_turn_id(&session, 0));
     assert_eq!(id1, generate_grok_turn_id(&session, 1));
+}
+
+#[test]
+fn import_grok__dry_run__finds_sessions_zero_vault_turns() {
+    // F12: --dry-run discovers/filters but never writes vault turns or sync_state.
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1";
+    let ws = r"C:\dev\DryRunTest";
+    write_grok_session(&home, ws, sid, HISTORY_FORCE, None);
+
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let stats = import_grok_sessions(
+        &conn,
+        &service,
+        &mut sink,
+        GrokImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home),
+            dry_run: true,
+        },
+    )
+    .expect("dry-run import");
+    assert!(sink.last_error.is_none(), "{:?}", sink.last_error);
+    assert!(
+        stats.found >= 1,
+        "dry-run must still discover sessions: {stats:?}"
+    );
+    assert_eq!(
+        stats.sessions, 0,
+        "dry-run must not count imported sessions"
+    );
+    assert_eq!(
+        stats.imported_turns, 0,
+        "dry-run must not count imported turns"
+    );
+
+    let turns = conn.get_session_turns(sid).expect("turns");
+    assert!(
+        turns.is_empty(),
+        "dry-run must leave vault with zero turns for session: {turns:?}"
+    );
+}
+
+fn register_project_for_test(sink: &mut TestSink, project_id: ProjectId, alias: &str) {
+    let actor = Actor::User(UserId::new());
+    let reg = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        actor.clone(),
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+        project_id,
+        name: alias.to_string(),
+        tx_id: None,
+    }))
+    .expect("ProjectRegistered");
+    sink.append(reg);
+    let alias_ev = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        actor,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ProjectAliasAdded(ProjectAliasAddedPayload {
+        project_id,
+        alias: alias.to_string(),
+    }))
+    .expect("ProjectAliasAdded");
+    sink.append(alias_ev);
+    assert!(sink.last_error.is_none(), "{:?}", sink.last_error);
+}
+
+#[test]
+fn hook_path__vault_ingest__thinking_none() {
+    // AC3: hermetic vault proof that shared append_grok_turns path stores
+    // user+assistant only with thinking:None (never reasoning / CoT).
+    let root = tempdir().unwrap();
+    let home = root.path().join("home");
+    let vault_dir = root.path().join("vault");
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&vault_dir).unwrap();
+
+    let sid = "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2";
+    let ws = r"C:\dev\ThinkingNone";
+    let history = write_grok_session(
+        &home,
+        ws,
+        sid,
+        r#"{"type":"user","content":"<user_query>\nvisible-user\n</user_query>"}
+{"type":"assistant","content":"visible-assistant"}
+{"type":"reasoning","content":"secret-hidden-reasoning"}
+{"type":"tool_result","content":"tool-noise"}
+"#,
+        None,
+    );
+
+    let turns = parse_chat_history_file(&history).expect("parse");
+    assert_eq!(turns.len(), 2, "filter must drop reasoning/tool: {turns:?}");
+    assert_eq!(turns[0].content, "visible-user");
+    assert_eq!(turns[1].content, "visible-assistant");
+
+    let (conn, store) = open_vault(&vault_dir);
+    let mut sink = TestSink {
+        store,
+        last_error: None,
+    };
+    let service = CaptureService::new();
+    let session_id = SessionId::from_uuid(uuid::Uuid::parse_str(sid).unwrap());
+    let project_id = ProjectId::new();
+    let harness_id = HarnessId::from_str(GROK_HARNESS_UUID).expect("grok harness");
+    let capture_context = CaptureContext {
+        git_working_dir: None,
+    };
+
+    // session_projection FK requires project_projection row first.
+    register_project_for_test(&mut sink, project_id, "thinking-none-test");
+
+    service
+        .start_session(
+            ai_brains_capture::SessionStartCommand {
+                session_id,
+                project_id,
+                harness_id,
+                privacy: Privacy::LocalOnly,
+                tx_id: None,
+            },
+            capture_context.clone(),
+            &mut sink,
+        )
+        .expect("start");
+    assert!(
+        sink.last_error.is_none(),
+        "start_session: {:?}",
+        sink.last_error
+    );
+
+    let n = append_grok_turns(
+        &service,
+        &mut sink,
+        session_id,
+        project_id,
+        &turns,
+        0,
+        &capture_context,
+    )
+    .expect("append");
+    assert_eq!(n, 2);
+    assert!(
+        sink.last_error.is_none(),
+        "append_grok_turns: {:?}",
+        sink.last_error
+    );
+
+    service
+        .stop_session(
+            ai_brains_capture::SessionStopCommand {
+                session_id,
+                harness_id,
+                privacy: Privacy::LocalOnly,
+                status: SessionStopStatus::Completed,
+                reason: Some("AC3 thinking-none vault proof".to_string()),
+            },
+            capture_context,
+            &mut sink,
+        )
+        .expect("stop");
+
+    let vault_turns = conn.get_session_turns(sid).expect("session turns");
+    assert_eq!(vault_turns.len(), 2, "user+assistant only: {vault_turns:?}");
+    assert!(
+        vault_turns
+            .iter()
+            .any(|(role, c)| role == "user" && c.contains("visible-user")),
+        "user content present: {vault_turns:?}"
+    );
+    assert!(
+        vault_turns
+            .iter()
+            .any(|(role, c)| role == "assistant" && c.contains("visible-assistant")),
+        "assistant content present: {vault_turns:?}"
+    );
+    assert!(
+        vault_turns
+            .iter()
+            .all(|(_, c)| { !c.contains("secret-hidden-reasoning") && !c.contains("tool-noise") }),
+        "must not store reasoning/tool: {vault_turns:?}"
+    );
+
+    // Event payloads have no thinking field (UserPrompt/AssistantFinal content only).
+    let payloads: Vec<String> = {
+        let raw = conn.lock().expect("lock vault");
+        let mut stmt = raw
+            .prepare(
+                "SELECT payload_json FROM events
+                 WHERE event_type IN ('UserPromptRecorded', 'AssistantFinalRecorded')
+                 ORDER BY occurred_at ASC",
+            )
+            .expect("prepare");
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("query");
+        rows.map(|r| r.expect("row")).collect()
+    };
+    assert_eq!(payloads.len(), 2, "two content events: {payloads:?}");
+    for p in &payloads {
+        let v: serde_json::Value = serde_json::from_str(p).expect("payload json");
+        assert!(
+            v.get("thinking").is_none(),
+            "payload must not have thinking field: {p}"
+        );
+        assert!(
+            !p.contains("secret-hidden-reasoning"),
+            "payload must not carry reasoning: {p}"
+        );
+        assert!(
+            p.contains("visible-user") || p.contains("visible-assistant"),
+            "payload must carry visible content: {p}"
+        );
+    }
+
+    // Full import path (same SOOT) also leaves reasoning out of vault content.
+    let home2 = root.path().join("home2");
+    let vault2 = root.path().join("vault2");
+    fs::create_dir_all(&home2).unwrap();
+    fs::create_dir_all(&vault2).unwrap();
+    let sid2 = "c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3";
+    write_grok_session(
+        &home2,
+        ws,
+        sid2,
+        r#"{"type":"user","content":"<user_query>\nimport-user\n</user_query>"}
+{"type":"assistant","content":"import-assistant"}
+{"type":"reasoning","content":"import-secret-think"}
+"#,
+        None,
+    );
+    let (conn2, store2) = open_vault(&vault2);
+    let mut sink2 = TestSink {
+        store: store2,
+        last_error: None,
+    };
+    let service2 = CaptureService::new();
+    let stats = import_grok_sessions(
+        &conn2,
+        &service2,
+        &mut sink2,
+        GrokImportOptions {
+            days: 30,
+            default_project_id: ProjectId::new(),
+            allow_default_project: false,
+            force: true,
+            home_override: Some(home2),
+            dry_run: false,
+        },
+    )
+    .expect("import path");
+    assert!(stats.imported_turns >= 2);
+    let import_turns = conn2.get_session_turns(sid2).expect("import turns");
+    assert!(
+        import_turns
+            .iter()
+            .all(|(_, c)| !c.contains("import-secret-think")),
+        "batch import must not store reasoning: {import_turns:?}"
+    );
+    assert!(
+        import_turns.iter().any(|(_, c)| c.contains("import-user"))
+            && import_turns
+                .iter()
+                .any(|(_, c)| c.contains("import-assistant")),
+        "batch import must store user+assistant: {import_turns:?}"
+    );
 }

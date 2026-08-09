@@ -36,9 +36,9 @@ pub use config_patch::apply_idempotent_patch;
 pub use errors::{AdapterError, Result};
 pub use grok::{
     GROK_HARNESS_UUID, GROK_UNBOUND_ALIAS, GROK_UNBOUND_DISPLAY_NAME, GrokBindKind,
-    GrokImportOptions, GrokImportStats, GrokSessionSource, discover_grok_sessions,
-    generate_grok_turn_id, grok_capability, grok_env_fallback_allowed, grok_source_meta_key,
-    import_grok_sessions, is_subagent_session, normalize_grok_project_hash,
+    GrokImportOptions, GrokImportStats, GrokSessionSource, append_grok_turns,
+    discover_grok_sessions, generate_grok_turn_id, grok_capability, grok_env_fallback_allowed,
+    grok_source_meta_key, import_grok_sessions, is_subagent_session, normalize_grok_project_hash,
     parse_chat_history_file, percent_decode_component, percent_encode_path_component,
     print_grok_import_stats, resolve_chat_history_path, resolve_grok_home, resolve_grok_project,
 };
