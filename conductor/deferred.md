@@ -134,14 +134,19 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | OpenCode export filter | **T234** fixture SOOT shipped; **wire T238** |
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
 | ~~Detect + preflight hook install UX~~ | **Closed by T235** PR #101 `b1a0ecc` — detect/wiring/`harness *`/AGY F34+writer/preflight/doctor; others backend_pending → T236–T238 |
-| AGY2 seamless + history→project binding | **T236 In Progress** — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize shipped on branch; full gate + review pending |
+| ~~AGY2 seamless + history→project binding~~ | **Closed by T236** PR #102 `d53e4be` — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize / AC6; soft residuals below |
 | Grok Build hooks + chat_history batch | **T237** Placeholder (depends T234) |
 | OpenCode plugin + export batch | **T238** Placeholder (depends T234) |
-| Nightly multi-harness import | **T239** Placeholder (depends T234) |
+| Nightly multi-harness import | **T239** Placeholder (depends T234; also scheduled SYSTEM `--skip-import` re-enable) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
 | Remove contracts `thinking` field | **Not** T234 (later) |
+| T236 re-list test `thread::sleep` | Soft residual (Codex deferred P3) — non-blocking timing order |
+| T236 BrainLog harness id `…0001` vs live agy `…0002` | Soft residual / T239 analytics |
+| T236 batch query Err→None fail-open | Soft residual pre-existing |
+| fullyIdle hard continue policy | Soft residual (F7) |
+| Byte-offset watermark / import `--json` | Soft residual (F34 / soft) |
 
-Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (In Progress)** → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)** → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
 
 ### T236 planning absorption (2026-08-08)
 
