@@ -135,7 +135,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
 | ~~Detect + preflight hook install UX~~ | **Closed by T235** PR #101 `b1a0ecc` — detect/wiring/`harness *`/AGY F34+writer/preflight/doctor; others backend_pending → T236–T238 |
 | ~~AGY2 seamless + history→project binding~~ | **Closed by T236** PR #102 `d53e4be` — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize / AC6; soft residuals below |
-| Grok Build hooks + chat_history batch | **T237** Placeholder (depends T234) |
+| Grok Build hooks + chat_history batch | **T237 Planning** — absorb on implement (Stop+SessionEnd + chat_history SOOT + grok-import + install; synthetic drop; summary bind). Plan-only until go. |
 | OpenCode plugin + export batch | **T238** Placeholder (depends T234) |
 | Nightly multi-harness import | **T239** Placeholder (depends T234; also scheduled SYSTEM `--skip-import` re-enable) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
@@ -146,7 +146,36 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | fullyIdle hard continue policy | Soft residual (F7) |
 | Byte-offset watermark / import `--json` | Soft residual (F34 / soft) |
 
-Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)** → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)** → **T237 (planning)** → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+
+### T237 planning absorption (2026-08-08)
+
+| Residual | Disposition |
+|----------|-------------|
+| T234 wire `filter_grok_history_*` | **Absorb** T237 F4/F11 / AC1–AC2 |
+| T235 Grok backend_pending / install_ready false | **Absorb** F21–F25 / AC9–AC11 |
+| Live synthetic_reason / system-reminder as type:user | **Absorb** F11 / AC2 |
+| T236 wrapper stdout / unbound / path meta / turn-id lessons | **Absorb** F6/F8/F14/F16 (Grok empty stdout ≠ AGY allow JSON) |
+| updates.jsonl as resume authority | **Not content SOOT** — F18 / AC14 (chat_history only) |
+| UserPromptSubmit prompt field unclear in docs | Soft **S1** (not DoD) |
+| Subagent sessions | Default **skip hard F12/AC18**; opt-in soft **S2** |
+| OpenCode / multi-harness nightly / SYSTEM skip-import | T238 / T239 |
+| Claude/Codex install_ready | Soft **S6** (not T237 body; fix pending labels F33) |
+
+### T237 AI review fold-in (2026-08-08)
+
+| Item | Disposition |
+|------|-------------|
+| AI2 **M1** empty Stop stdout (not AGY `decision:allow`) | **F6 hard** / **AC12** |
+| AI2 **M2** user_info/git_status without synthetic_reason; user_query-only keep | **F11 hard** / **AC2** matrix |
+| AI2 **M3** subagent walk pollution | **F12 hard** / **AC18** |
+| AI2 **M4** percent encode/decode helper | **F7 hard** / **AC19** |
+| AI2 **M5** turn-id + source_ts honesty | **F35** / CAPABILITIES; fingerprint **S8** |
+| AI2 **M6** no `$` in command | **F34** / **AC19** |
+| AI2 M7 timeout | **F23** timeout 120 |
+| AI2 M8 Claude/Cursor vendor merge | **F27** caveat |
+| AI2 M9 Phase 1 Red = live chrome | plan reorder |
+| AI1 path scan / foreign hooks / multipart / locks | F7/F22/F4/F15 affirmed |
 
 ### T236 planning absorption (2026-08-08)
 
@@ -161,7 +190,7 @@ Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)**
 | T235 install / F34 map | Keep; regression AC14; **wrapper rewrite F8** |
 | fullyIdle hard policy | Soft residual (F7) |
 | conversations.db primary | Soft / not DoD |
-| Grok/OpenCode/nightly multi | T237 / T238 / T239 |
+| Grok/OpenCode/nightly multi | T237 Planning / T238 / T239 |
 
 ### T236 AI review fold-in (2026-08-08)
 

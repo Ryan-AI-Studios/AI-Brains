@@ -1,7 +1,7 @@
 # T234–T239 — Seamless multi-harness session ingest (placeholders)
 
 **Source:** Research 2026-08-08 — Grok Build, OpenCode, Antigravity 2 CLI (`agy`); retire pure-log reliance on old Antigravity.  
-**Status:** T234 **Completed** (PR #100 `2ea8897`); T235 **Completed** (PR #101 `b1a0ecc`); T236 **Completed** (PR #102 `d53e4be`); T237–T239 Placeholder.  
+**Status:** T234 **Completed** (PR #100 `2ea8897`); T235 **Completed** (PR #101 `b1a0ecc`); T236 **Completed** (PR #102 `d53e4be`); T237 **Implementing** (branch `feat/T237-grok-build-seamless-ingest`); T238–T239 Placeholder.  
 **Prior related:** track033 antigravity import; T48/T49 agy-hook delta; nightly `antigravity-import`; Capture Privacy mandate.  
 **T234 SOOT path:** `crates/ai-brains-adapters/src/message_only.rs` (`filter_turn`, `classify_antigravity_step`, `filter_grok_history_*`, `filter_opencode_message*`, `extract_user_text`, sole-tool JSON guard).
 
@@ -18,7 +18,7 @@ Live hooks provide freshness; durable log/export import on nightly provides comp
 | **T234** | Message-only capture contract | Shared SOOT filter + capability truth — **Completed** | P0 foundation |
 | **T235** | Harness detect + preflight hook UX | **Completed** PR #101 — detect + wiring + `harness *` + preflight/doctor; AGY install ready; Grok/OpenCode/Claude/Codex pending | P0 UX |
 | **T236** | AGY 2 seamless ingest | **Completed** PR #102 — wrapper stdout SOOT + step parse + history bind + turn-id + `--force` + re-summarize + AC6 | P1 |
-| **T237** | Grok Build seamless ingest | Hooks (`UserPromptSubmit`/`Stop`/`Session*`) + `chat_history.jsonl` backfill | P1 |
+| **T237** | Grok Build seamless ingest | **Implementing** — Stop+SessionEnd empty-stdout wrapper + F11 user_query filter + `grok-hook`/`grok-import` + install_ready (not updates; not UserPromptSubmit DoD) | P1 |
 | **T238** | OpenCode seamless ingest | Plugin events + `opencode export` batch (not raw SQLite) | P1 |
 | **T239** | Nightly multi-harness import | Orchestrate AGY+Grok+OpenCode importers; status; skip flags | P1 ops |
 
