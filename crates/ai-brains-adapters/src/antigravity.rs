@@ -171,26 +171,22 @@ fn scan_brain_dir(brain_dir: &Path, sources: &mut Vec<AntigravitySessionSource>)
             .map(|s| s.to_string())
             .unwrap_or_default();
 
-        let overview = path
-            .join(".system_generated")
-            .join("logs")
-            .join("overview.txt");
-        if overview.exists() {
-            sources.push(AntigravitySessionSource {
-                path: overview,
-                session_id: session_id.clone(),
-                format: AntigravityFormat::BrainLog,
-                project_hash: None,
-            });
-        }
-
-        let transcript = path
-            .join(".system_generated")
-            .join("logs")
-            .join("transcript.jsonl");
+        // Prefer transcript.jsonl over overview.txt when both exist (F29 / AC21).
+        // Dual enqueue + count-based delta would otherwise lock overview content and
+        // skip the transcript path that prefers sibling transcript_full.jsonl.
+        let logs = path.join(".system_generated").join("logs");
+        let transcript = logs.join("transcript.jsonl");
+        let overview = logs.join("overview.txt");
         if transcript.exists() {
             sources.push(AntigravitySessionSource {
                 path: transcript,
+                session_id,
+                format: AntigravityFormat::BrainLog,
+                project_hash: None,
+            });
+        } else if overview.exists() {
+            sources.push(AntigravitySessionSource {
+                path: overview,
                 session_id,
                 format: AntigravityFormat::BrainLog,
                 project_hash: None,
@@ -1089,5 +1085,57 @@ mod tests {
         let ws = map.get("c1").unwrap();
         assert_eq!(ws, &normalize_agy_project_hash(r"C:\dev\Dedupe"));
         assert_eq!(ws, &normalize_agy_project_hash(r"c:\dev\dedupe"));
+    }
+
+    #[test]
+    fn scan_brain_dir__transcript_present__skips_overview() {
+        let dir = tempfile::tempdir().unwrap();
+        let brain = dir.path().join("brain");
+        let session = brain.join("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        let logs = session.join(".system_generated").join("logs");
+        std::fs::create_dir_all(&logs).unwrap();
+        std::fs::write(
+            logs.join("overview.txt"),
+            r#"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>\noverview-only\n</USER_REQUEST>","tool_calls":[]}
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            logs.join("transcript.jsonl"),
+            r#"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>\ntranscript-body\n</USER_REQUEST>","tool_calls":[]}
+"#,
+        )
+        .unwrap();
+        // Sibling full file (F29 path preference when transcript is selected)
+        std::fs::write(
+            logs.join("transcript_full.jsonl"),
+            r#"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>\nfull-body-content\n</USER_REQUEST>","tool_calls":[]}
+"#,
+        )
+        .unwrap();
+
+        let mut sources = Vec::new();
+        scan_brain_dir(&brain, &mut sources).unwrap();
+        assert_eq!(
+            sources.len(),
+            1,
+            "must not dual-enqueue overview+transcript"
+        );
+        assert!(
+            sources[0]
+                .path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.eq_ignore_ascii_case("transcript.jsonl")),
+            "expected transcript.jsonl, got {:?}",
+            sources[0].path
+        );
+        let turns = parse_transcript_for_ingest(&sources[0].path).unwrap();
+        assert_eq!(turns.len(), 1);
+        assert!(
+            turns[0].content.contains("full-body-content"),
+            "discovering transcript must allow F29 full prefer; got {:?}",
+            turns[0].content
+        );
     }
 }

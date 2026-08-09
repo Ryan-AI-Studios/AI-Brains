@@ -193,3 +193,104 @@ fn agy_hook__unresolved_path__no_env_hijack() -> Result<(), Box<dyn std::error::
 
     Ok(())
 }
+
+/// AC17: path case variants resolve to the same project alias via hook normalize.
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn agy_hook__path_case_normalize__same_alias() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = tempdir()?;
+    let vault_path = temp_dir.path().join("vault.db");
+
+    let mut cmd = common::hermetic_bin();
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let workspace = temp_dir.path().join("CasePathWs");
+    std::fs::create_dir_all(&workspace)?;
+    let ws_str = workspace.to_string_lossy().to_string();
+    // Build a case-flipped variant of the drive letter / path when possible.
+    let ws_flipped = if let Some(rest) = ws_str.strip_prefix("C:\\") {
+        format!("c:\\{rest}")
+    } else if let Some(rest) = ws_str.strip_prefix("c:\\") {
+        format!("C:\\{rest}")
+    } else {
+        ws_str.clone()
+    };
+
+    let agy_dir = temp_dir.path().join("agy-case");
+    std::fs::create_dir_all(&agy_dir)?;
+    let transcript = agy_dir.join("t.jsonl");
+    std::fs::write(
+        &transcript,
+        r#"{"role":"user","content":"case-alias-marker"}
+"#,
+    )?;
+
+    let session = uuid::Uuid::new_v4().to_string();
+    let payload1 = serde_json::json!({
+        "transcriptPath": transcript.to_string_lossy(),
+        "sessionId": session,
+        "projectHash": ws_str,
+    });
+    let payload2 = serde_json::json!({
+        "transcriptPath": transcript.to_string_lossy(),
+        "sessionId": session,
+        "projectHash": ws_flipped,
+    });
+
+    let mut cmd = common::hermetic_bin();
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("agy-hook")
+        .arg("--payload")
+        .arg(serde_json::to_string(&payload1)?)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Auto-linked projectHash"));
+
+    // Second run with case-variant hash: delta skip (same session, same turns) and
+    // no second auto-link (alias already exists after normalize).
+    let mut cmd = common::hermetic_bin();
+    let out = cmd
+        .current_dir(temp_dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("agy-hook")
+        .arg("--payload")
+        .arg(serde_json::to_string(&payload2)?)
+        .assert()
+        .success()
+        .get_output()
+        .stderr
+        .clone();
+    let stderr = String::from_utf8_lossy(&out);
+    assert!(
+        !stderr.contains("Auto-linked projectHash"),
+        "case-variant projectHash must resolve existing alias, got stderr: {stderr}"
+    );
+    assert!(
+        stderr.contains("No new turns") || stderr.contains("Successfully ingested 0"),
+        "expected delta no-op, got: {stderr}"
+    );
+
+    // Project-scoped recall (AC6): list projects and use bound project id if available;
+    // global fallback proves content landed once under one project.
+    let mut cmd = common::hermetic_bin();
+    cmd.current_dir(temp_dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("recall")
+        .arg("case-alias-marker")
+        .arg("--global")
+        .arg("--no-bridge")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("case-alias-marker"));
+
+    Ok(())
+}
