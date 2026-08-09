@@ -1,7 +1,7 @@
 mod common;
 
 use ai_brains_core::privacy::Privacy;
-use ai_brains_retrieval::lexical_search;
+use ai_brains_retrieval::{LexicalSearchOptions, lexical_search};
 
 #[test]
 fn lexical_search_survives_question_mark() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,7 +11,13 @@ fn lexical_search_survives_question_mark() -> Result<(), Box<dyn std::error::Err
     )?;
 
     // A natural-language question containing '?' must not trigger an FTS5 syntax error.
-    let results = lexical_search(store.connection(), "What is the main purpose?", None, None)?;
+    let results = lexical_search(
+        store.connection(),
+        "What is the main purpose?",
+        None,
+        None,
+        LexicalSearchOptions::default(),
+    )?;
     assert!(
         !results.is_empty(),
         "Query with '?' should return results, not crash"
@@ -24,7 +30,13 @@ fn lexical_search_survives_double_quotes() -> Result<(), Box<dyn std::error::Err
     let store =
         common::store_with_memory("He said hello to the immutable event log", Privacy::CloudOk)?;
 
-    let results = lexical_search(store.connection(), "He said \"hello\"", None, None)?;
+    let results = lexical_search(
+        store.connection(),
+        "He said \"hello\"",
+        None,
+        None,
+        LexicalSearchOptions::default(),
+    )?;
     assert!(
         !results.is_empty(),
         "Query with double quotes should return results, not crash"
@@ -42,7 +54,13 @@ fn lexical_search_survives_asterisk() -> Result<(), Box<dyn std::error::Error>> 
     // Query containing '*' must not trigger an FTS5 syntax error.
     // We assert on absence of error, not result count, because sanitization
     // may alter the query enough to change ranking.
-    let _results = lexical_search(store.connection(), "files matching *pattern", None, None)?;
+    let _results = lexical_search(
+        store.connection(),
+        "files matching *pattern",
+        None,
+        None,
+        LexicalSearchOptions::default(),
+    )?;
     Ok(())
 }
 
@@ -58,6 +76,7 @@ fn lexical_search_survives_comma_heavy_prompt() -> Result<(), Box<dyn std::error
         "bridge query, fts5: syntax near comma",
         None,
         None,
+        LexicalSearchOptions::default(),
     )?;
     assert!(
         !results.is_empty(),
@@ -72,7 +91,13 @@ fn lexical_search_survives_only_special_chars() -> Result<(), Box<dyn std::error
         common::store_with_memory("some test content about architecture", Privacy::CloudOk)?;
 
     // Query that sanitizes down to nothing must return empty gracefully, not crash.
-    let results = lexical_search(store.connection(), "? * \"", None, None)?;
+    let results = lexical_search(
+        store.connection(),
+        "? * \"",
+        None,
+        None,
+        LexicalSearchOptions::default(),
+    )?;
     assert_eq!(
         results.len(),
         0,
@@ -88,7 +113,13 @@ fn lexical_search_survives_bare_fts_operators() -> Result<(), Box<dyn std::error
         Privacy::CloudOk,
     )?;
 
-    let _results = lexical_search(store.connection(), "AND OR NOT NEAR", None, None)?;
+    let _results = lexical_search(
+        store.connection(),
+        "AND OR NOT NEAR",
+        None,
+        None,
+        LexicalSearchOptions::default(),
+    )?;
     // These are valid FTS5 operators; the query should not crash.
     // We don't assert result count because behavior depends on tokenizer,
     // but it MUST NOT return an error.

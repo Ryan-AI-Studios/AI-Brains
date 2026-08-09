@@ -6,7 +6,7 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{
     Actor, AggregateType, MemoryForgottenPayload, MemoryRestoredPayload, Payload,
 };
-use ai_brains_retrieval::lexical_search;
+use ai_brains_retrieval::{LexicalSearchOptions, lexical_search};
 use ai_brains_store::{EventStore, QueryStore};
 use std::str::FromStr;
 
@@ -81,7 +81,14 @@ pub fn run(
         let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
             .ok()
             .and_then(|s| s.parse().ok());
-        let hits = lexical_search(&ctx.conn, &query, project_id, None)?;
+        // T217: forget stays strict R0 (rescue: false) — never OR-widen match.
+        let hits = lexical_search(
+            &ctx.conn,
+            &query,
+            project_id,
+            None,
+            LexicalSearchOptions::default(),
+        )?;
 
         if hits.is_empty() {
             tracing::info!(
@@ -188,7 +195,13 @@ pub fn run(
         let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
             .ok()
             .and_then(|s| s.parse().ok());
-        let hits = lexical_search(&ctx.conn, &id_str, project_id, None)?;
+        let hits = lexical_search(
+            &ctx.conn,
+            &id_str,
+            project_id,
+            None,
+            LexicalSearchOptions::default(),
+        )?;
         let preview = hits
             .iter()
             .find(|h| h.memory_id == id_str)

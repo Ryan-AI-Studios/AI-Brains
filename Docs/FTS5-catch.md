@@ -1,8 +1,10 @@
 # FTS5 Catch: Defensive Query Handling for SQLite Full-Text Search
 
-**Author:** Systematic Command Audit  
-**Date:** 2026-05-20  
+**Author:** Systematic Command Audit
+**Date:** 2026-05-20
 **Scope:** `ai-brains recall` and any downstream consumer that forwards raw user queries into SQLite FTS5
+
+> **T217 note:** This doc covers **syntax safety** (quote tokens so FTS5 operators cannot break). Recall **quality** for multi-token natural phrases (stopword AND → contentful OR ladder, SQL LIMIT, rescue opt-in) is T217 — see CAPABILITIES FTS5 row and `conductor/tracks/trackT217-fts-multitoken-rescue/`.
 
 ---
 
@@ -44,7 +46,7 @@ SQLite FTS5 (Module Version 5) treats the following characters as syntax operato
 
 ## Root Cause in Ledgerful → AI-Brains Flow
 
-1. Ledgerful `ask` receives a natural-language question like:  
+1. Ledgerful `ask` receives a natural-language question like:
    `"What is the main purpose of ChangeGuard?"`
 2. Ledgerful's bridge client forwards this **verbatim** to `ai-brains recall` via the named-pipe IPC.
 3. AI-Brains constructs an FTS5 query using the raw string:
@@ -72,13 +74,13 @@ fn sanitize_for_fts5(input: &str) -> String {
         .replace('"', "")           // Remove double quotes
         .replace('*', "")           // Remove asterisks
         .replace("  ", " ");        // Collapse double spaces
-    
+
     // Trim and ensure non-empty
     cleaned.trim().to_string()
 }
 ```
 
-> **Pros:** Simple, fast, keeps query semantics mostly intact.  
+> **Pros:** Simple, fast, keeps query semantics mostly intact.
 > **Cons:** Slightly alters user intent (question marks are semantically meaningful).
 
 ### Strategy 2: Quote the Entire Query
@@ -95,7 +97,7 @@ fn quote_for_fts5(input: &str) -> String {
 
 Example: `What is ChangeGuard?` → `"What is ChangeGuard?"`
 
-> **Pros:** Zero semantic loss.  
+> **Pros:** Zero semantic loss.
 > **Cons:** FTS5 phrase matching is stricter; it looks for the exact sequence of words in order. This may reduce recall for fuzzy searches.
 
 ### Strategy 3: Hybrid (Recommended for Production)
@@ -112,13 +114,13 @@ pub fn safe_recall(query: &str, db: &Connection) -> Result<Vec<Memory>, Error> {
     if let Ok(results) = query_fts5(&sanitized, db) {
         return Ok(results);
     }
-    
+
     // Attempt 2: exact phrase
     let quoted = quote_for_fts5(query);
     if let Ok(results) = query_fts5(&quoted, db) {
         return Ok(results);
     }
-    
+
     // Attempt 3: keyword-only (strip all non-alphanumeric)
     let keywords: String = query
         .chars()
@@ -148,7 +150,7 @@ fn execute_fts5_safe(db: &Connection, raw_query: &str) -> Result<Vec<Row>, Error
         }
         Err(e) => return Err(e.into()),
     }
-    
+
     // Fallback: quote entire string as a single phrase
     let quoted = format!("\"{}\"", raw_query.replace('"', "\"\""));
     try_fts5(db, &quoted)
@@ -203,8 +205,8 @@ All should return either valid results or a structured JSON error — **never** 
 
 ## Related Issues
 
-- **Ledgerful CG-2:** FTS5 syntax error degrades dual-retrieval in `ask` and `bridge query`.  
-- **Ledgerful CG-1:** Local model unreachable due to `localhost` → `::1` resolution.  
+- **Ledgerful CG-2:** FTS5 syntax error degrades dual-retrieval in `ask` and `bridge query`.
+- **Ledgerful CG-1:** Local model unreachable due to `localhost` → `::1` resolution.
 - **AI-Brains IPC Protocol:** BridgeRecord v0.2 schema assumes every line is valid NDJSON. Error text breaks this invariant.
 
 ---

@@ -2,7 +2,7 @@ use crate::GraphSearch;
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
 use crate::hybrid::{candidate_depth, rrf_fuse, rrf_k};
-use crate::lexical::{lexical_search, substring_fallback};
+use crate::lexical::{LexicalSearchOptions, lexical_search, substring_fallback};
 use crate::ranking::ScoreKind;
 use crate::semantic::classify_embedding_error;
 use ai_brains_contracts::bridge::BridgeRecord;
@@ -231,7 +231,8 @@ pub fn recall_full(
     let project_id = options.project_id;
     let session_id = options.session_id;
 
-    // Sanitize query once for use with both FTS5 and Ledgerful search.
+    // Sanitize for bridge only (T217 F10). Lexical builds MATCH from raw query
+    // so OR rescue is not double-sanitized.
     let sanitized = sanitize_fts_query(query);
 
     // Phase 1: Try unified IPC recall via Ledgerful bridge query.
@@ -243,21 +244,33 @@ pub fn recall_full(
         query_ledgerful_bridge(&sanitized, project_id, session_id)
     };
 
-    // Phase 2: Always run local FTS5 as a fallback / supplement.
-    let mut local_hits: Vec<RecallHit> = lexical_search(conn, &sanitized, project_id, session_id)?
-        .into_iter()
-        .map(|memory| {
-            RecallHit::fts(
-                memory.memory_id,
-                memory.content,
-                memory.score,
-                memory.session_id,
-                memory.updated_at,
-            )
-        })
-        .collect();
+    // F9/T217: candidate depth bounds FTS MATCH LIMIT and semantic pool.
+    let depth = candidate_depth(limit);
 
-    // Phase 2b: If FTS5 returned nothing, try a substring LIKE scan (T105).
+    // Phase 2: Local FTS5 with multi-token rescue ladder (T217; rescue opt-in).
+    let mut local_hits: Vec<RecallHit> = lexical_search(
+        conn,
+        query,
+        project_id,
+        session_id,
+        LexicalSearchOptions {
+            rescue: true,
+            limit: depth,
+        },
+    )?
+    .into_iter()
+    .map(|memory| {
+        RecallHit::fts(
+            memory.memory_id,
+            memory.content,
+            memory.score,
+            memory.session_id,
+            memory.updated_at,
+        )
+    })
+    .collect();
+
+    // Phase 2b: If FTS ladder returned nothing, try a substring LIKE scan (T105).
     // Limited to small project scopes to avoid expensive full-table scans.
     if local_hits.is_empty() {
         let fallback = substring_fallback(conn, query, project_id, session_id, limit)?;
@@ -277,8 +290,6 @@ pub fn recall_full(
     }
 
     // Phase 3: Semantic search when requested (soft-fail; structured status).
-    // F9: pass candidate_depth (not final limit) so RRF is not starved.
-    let depth = candidate_depth(limit);
     let (semantic_hits, embedding_status, semantic_post_threshold_count): (
         Vec<RecallHit>,
         Option<EmbeddingStatusDto>,

@@ -27,4 +27,7 @@ pub mod turn;
 pub mod user;
 pub mod validation;
 
-pub use fts::sanitize_fts_query;
+pub use fts::{
+    LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, is_english_stopword, match_and,
+    match_or, sanitize_fts_query, select_or_tokens, should_suggest_fewer_keywords,
+};

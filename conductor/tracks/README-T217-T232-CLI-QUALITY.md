@@ -1,8 +1,9 @@
 # T217–T232 — Post-audit CLI quality series (placeholders)
 
-**Source:** Non-destructive CLI audit 2026-08-05 (scores &lt; 7 + high-leverage improvements).  
-**Status:** Placeholder / Planning only — **no implementation until go**.  
+**Source:** Non-destructive CLI audit 2026-08-05 (scores &lt; 7 + high-leverage improvements).
+**Status:** Placeholder / Planning only — **no implementation until go**.
 **Prior series:** T205–T216 closed (skill·CLI honesty).
+**In planning:** **T217** FTS multi-token rescue (spec+plan frozen 2026-08-09; dogfood confirmed multi-token false empty).
 
 ## Score → track map
 
@@ -27,17 +28,17 @@
 
 ## Suggested implement order
 
-1. **Ops now (not a code track):** schedule `AI-Brains-Nightly` + ensure `c:\llm\router.bat` on :8081/:8083 — see T229 + `~\.ai-brains\register-nightly-tasks.ps1`.  
-2. **T220** (flag lie), **T217** (empty FTS trap), **T221** (governed dead-end) — honesty.  
-3. **T218** (semantic), **T219** (pretty), **T224** (role strip).  
-4. **T222/T232** graph install + remediation.  
+1. **Ops now (not a code track):** schedule `AI-Brains-Nightly` + ensure `c:\llm\router.bat` on :8081/:8083 — see T229 + `~\.ai-brains\register-nightly-tasks.ps1`.
+2. **T220** (flag lie), **T217** (empty FTS trap), **T221** (governed dead-end) — honesty.
+3. **T218** (semantic), **T219** (pretty), **T224** (role strip).
+4. **T222/T232** graph install + remediation.
 5. **T223, T225–T228, T230–T231** polish.
 
 ## Non-goals of this series
 
-- Tag schema migration / auto-forget / CE wipe  
-- MSI / notarization  
-- clap 5  
+- Tag schema migration / auto-forget / CE wipe
+- MSI / notarization
+- clap 5
 - Full multi-device product fill (device empty states already honest)
 
 ## Registry
