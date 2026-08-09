@@ -3,7 +3,7 @@
 **Track:** T236  
 **Branch:** `feat/T236-agy2-seamless-ingest`  
 **Ledger TX:** `a4f3806b-caef-47a4-bc43-8131ad43fe25`  
-**Status:** Internal review round 1 FAIL → fixes → re-verify; Codex pending  
+**Status:** Codex **PASS WITH DEFERRED P3** (final engineering gate); process closeout after PR merge  
 
 ## Scope
 
@@ -13,37 +13,36 @@ Wrapper stdout SOOT (F8); history.jsonl binding (F9–F13); shared step/legacy p
 
 | Round | Reviewer | Verdict | Notes |
 |-------|----------|---------|-------|
-| IR1 | explore subagent | **FAIL** | P2 dual overview+transcript; AC15 gate open; P3s AC6/AC17/capability/etc. |
-| IR1 fix | orchestrator | — | Prefer transcript over overview in `scan_brain_dir`; unit test; AC17 hook case test |
-| IR2 | (pending re-check after gate) | | |
-| CX1 | Codex | pending | |
+| IR1 | explore subagent | **FAIL** | P2 dual overview+transcript; AC15; P3 AC6/AC17/capability |
+| IR1 fix | orchestrator | — | Prefer transcript over overview; AC17 hook case test |
+| CX1 | Codex | **FAIL** | P2 AC6 unproven; P3 capability Partial; process notes |
+| CX1 fix | orchestrator | — | AC6 turn project_id + scoped recall; capability Full |
+| CX2 | Codex | **PASS WITH DEFERRED P3** | Only sleep-based re-list timing residual |
 
 ## Findings disposition
 
 | ID | Sev | Status | Disposition |
 |----|-----|--------|-------------|
-| F-T236-R01 | P2 | `verified_fixed` | `scan_brain_dir` prefers `transcript.jsonl` over `overview.txt`; unit test proves F29 full path reachable |
-| F-T236-R02 | P2 | open | AC15 full gate — run before PR merge |
-| F-T236-R03 | P3 | deferred | AC6 hermetic project-scoped recall — anti-hijack + global prove binding; full scoped recall soft |
-| F-T236-R04 | P3 | `verified_fixed` | `agy_hook__path_case_normalize__same_alias` added |
-| F-T236-R05 | P3 | deferred | CapabilityLevel remains Partial (scheduled skip-import + connector deferred) — notes aligned |
+| F-T236-R01 | P2 | `verified_fixed` | Prefer transcript over overview in discovery |
+| F-T236-R02 | P2 | `verified_fixed` | Full gate green (fmt/clippy/nextest 2304/deny/audit) |
+| F-T236-R03 / CX AC6 | P2→fixed | `verified_fixed` | turn_projection.project_id + project-scoped recall without --global |
+| F-T236-R04 | P3 | `verified_fixed` | AC17 hook path-case test |
+| F-T236-R05 | P3 | `verified_fixed` | CapabilityLevel::Full |
 | F-T236-R06 | P3 | deferred | Batch query Err→None pre-existing fail-open |
-| F-T236-R07 | P3 | deferred | BrainLog harness id vs live agy harness — residual / T239 |
-| F-T236-R08 | P3 | deferred | sleep in re-list test for timestamp ordering |
+| F-T236-R07 | P3 | deferred | BrainLog harness id vs live agy harness → T239 residual |
+| F-T236-R08 / CX P3 | P3 | deferred | sleep in re-list test for timestamp ordering |
 
-## Internal re-check evidence (post R01/R04 fix)
+## Gate evidence
 
 ```
-cargo nextest run -p ai-brains-adapters -E 'test(scan_brain) or test(history_index) or test(parse_transcript) or test(import_antigravity)'
-→ 10 passed
-
-cargo nextest run -p ai-brains-cli -E 'test(agy_hook)'
-→ path_case + no_env_hijack + schema pass
-
-cargo clippy -p ai-brains-adapters -p ai-brains-cli --all-targets -- -D warnings
-→ OK
+cargo fmt --check OK
+cargo clippy --workspace --all-targets -- -D warnings OK
+cargo nextest run --workspace → 2304 passed (1 skipped)
+cargo deny check OK
+cargo audit → allowed warnings only
+ledgerful verify --scope fast OK (full gate steps)
 ```
 
 ## Completion decision
 
-Not complete until: full workspace gate green, Codex PASS, PR CI green, squash-merge, conductor/deferred/coordinated closeout, ledger commit.
+Engineering DoD met + fresh Codex PASS WITH DEFERRED P3. Track **Completed** after CI green squash-merge + conductor/deferred/coordinated/pins/ledger closeout.
