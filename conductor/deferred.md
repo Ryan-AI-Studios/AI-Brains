@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality — placeholders 2026-08-05): FTS rescue, semantic v2, preflight pretty/JSON, governed first-run, graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation. See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality — placeholders 2026-08-05): **T217 Planning** (FTS rescue); then T220/T221 honesty + remaining placeholders (semantic v2, preflight pretty/JSON, governed first-run, graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -100,7 +100,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 
 | Residual / finding | Disposition |
 |--------------------|-------------|
-| FTS natural-phrase empty (quality 4) | **T217** Placeholder |
+| FTS natural-phrase empty (quality 4) | **T217** Planning (2026-08-09) — stopword AND + OR ladder; plan-only until go |
 | Semantic drift / scores (quality 4) | **T218** Placeholder (elevates T215 soft) |
 | Preflight pretty wall (quality 5) | **T219** Placeholder |
 | preflight summary `--format json` lie (quality 3) | **T220** Placeholder (T214 soft) |

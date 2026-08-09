@@ -11,6 +11,7 @@ mod semantic;
 mod sessions;
 mod word_budget;
 
+pub use ai_brains_core::LEXICAL_MATCH_HARD_CAP;
 pub use ansi::strip_ansi;
 pub use errors::{Result, RetrievalError};
 pub use fts_utils::sanitize_fts_query;
@@ -18,7 +19,9 @@ pub use hybrid::{
     RRF_K, SEMANTIC_MIN_COSINE, candidate_depth, effective_semantic_min_cosine,
     filter_by_cosine_floor, rrf_fuse, rrf_k, semantic_min_cosine,
 };
-pub use lexical::{RetrievalMemory, lexical_search, substring_fallback};
+pub use lexical::{
+    LexicalSearchOptions, RetrievalMemory, lexical_search, match_limit_bound, substring_fallback,
+};
 pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
 };

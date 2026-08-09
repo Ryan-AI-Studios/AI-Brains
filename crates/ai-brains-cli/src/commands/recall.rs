@@ -559,6 +559,9 @@ fn build_recall_hint(
 ///
 /// `project_scoped` (F33 / T207): when true (and not global), insert a short
 /// “Scoped to this project.” clause without repeating alias/id (F4 owns the name).
+///
+/// T217: when non-semantic multi-token query has contentful keywords, append
+/// “try fewer keywords” via core token helpers (AC7 / AC7b).
 fn build_recall_hint_core(
     query: &str,
     semantic: bool,
@@ -573,10 +576,14 @@ fn build_recall_hint_core(
     };
 
     if global {
-        format!(
+        let mut hint = format!(
             "No results for '{}' across all projects. The vault may be empty or the query may not match any memories.",
             query
-        )
+        );
+        if !semantic && ai_brains_core::should_suggest_fewer_keywords(query) {
+            hint.push_str(" try fewer keywords.");
+        }
+        hint
     } else if semantic {
         // Status field (or pretty line) already explains embed cause when != ok.
         let status_explains_cause = embedding_status.is_some_and(|s| s != "ok");
@@ -593,10 +600,15 @@ fn build_recall_hint_core(
             )
         }
     } else {
-        format!(
+        // T217 AC7/AC7b: fewer-keywords only via core helpers (contentful ≥ 1, tokens ≥ 3).
+        let mut hint = format!(
             "No results for '{}'.{} Try --semantic for embedding-based search, or --global to search across all projects.",
             query, scope_clause
-        )
+        );
+        if ai_brains_core::should_suggest_fewer_keywords(query) {
+            hint.push_str(" try fewer keywords.");
+        }
+        hint
     }
 }
 
@@ -737,6 +749,46 @@ mod tests {
         assert!(
             hint.contains("No results for 'zzzz'"),
             "hint should mention 'zzzz'; got: {}",
+            hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__multi_token_contentful_empty__suggests_fewer_keywords() {
+        // AC7: ≥3 tokens + contentful ≥1 → "try fewer keywords" + semantic/global.
+        let hint = build_recall_hint_core(
+            "what did we decide about forget list",
+            false,
+            false,
+            None,
+            false,
+        );
+        assert!(
+            hint.contains("try fewer keywords"),
+            "hint should suggest fewer keywords; got: {}",
+            hint
+        );
+        assert!(
+            hint.contains("--semantic") && hint.contains("--global"),
+            "hint should keep semantic/global guidance; got: {}",
+            hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__all_stopword_multi_token__no_fewer_keywords() {
+        // AC7b: all-stopword multi-token must not suggest fewer keywords.
+        let hint = build_recall_hint_core("what did we do about this", false, false, None, false);
+        assert!(
+            !hint.contains("try fewer keywords"),
+            "all-stopword hint must not suggest fewer keywords; got: {}",
+            hint
+        );
+        assert!(
+            hint.contains("--semantic") || hint.contains("--global"),
+            "hint should still offer next actions; got: {}",
             hint
         );
     }

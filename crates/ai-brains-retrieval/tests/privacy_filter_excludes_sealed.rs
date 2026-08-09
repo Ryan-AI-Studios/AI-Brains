@@ -10,7 +10,13 @@ fn privacy_filter_excludes_sealed() -> Result<(), Box<dyn std::error::Error>> {
         Privacy::Sealed,
     )?;
 
-    let results = lexical_search(store.connection(), "PRIVATE KEY", None, None)?;
+    let results = lexical_search(
+        store.connection(),
+        "PRIVATE KEY",
+        None,
+        None,
+        ai_brains_retrieval::LexicalSearchOptions::default(),
+    )?;
     assert!(results.is_empty());
 
     let project_id = ai_brains_core::ids::ProjectId::from_uuid(uuid::Uuid::nil());

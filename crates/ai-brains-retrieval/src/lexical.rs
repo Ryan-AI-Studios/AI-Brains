@@ -1,6 +1,9 @@
 use crate::errors::Result;
-use crate::fts_utils::sanitize_fts_query;
 use crate::privacy_filter::is_injectable_privacy;
+use ai_brains_core::{
+    LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, match_and, match_or,
+    select_or_tokens,
+};
 use ai_brains_store::VaultConnection;
 use rusqlite::params_from_iter;
 
@@ -14,28 +17,123 @@ pub struct RetrievalMemory {
     pub updated_at: Option<String>,
 }
 
+/// Options for [`lexical_search`] (T217).
+///
+/// - `rescue`: when true, run stopword-AND / contentful-OR ladder after empty R0
+///   (recall only; default **false** so forget stays strict).
+/// - `limit`: SQL `LIMIT` bound; clamped to [`LEXICAL_MATCH_HARD_CAP`] (200).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LexicalSearchOptions {
+    pub rescue: bool,
+    pub limit: usize,
+}
+
+impl Default for LexicalSearchOptions {
+    fn default() -> Self {
+        Self {
+            rescue: false,
+            limit: LEXICAL_MATCH_HARD_CAP,
+        }
+    }
+}
+
+/// Bound for `ORDER BY rank LIMIT ?` on every MATCH.
+pub fn match_limit_bound(caller_limit: usize) -> usize {
+    caller_limit.min(LEXICAL_MATCH_HARD_CAP)
+}
+
+/// Lexical FTS5 search with optional multi-token rescue ladder (T217).
+///
+/// Pass the **raw** query — MATCH expressions are built internally. Do not
+/// pre-sanitize: double-sanitize would break OR rescue expressions.
 pub fn lexical_search(
     conn: &VaultConnection,
-    query: &str,
+    raw_query: &str,
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
+    opts: LexicalSearchOptions,
 ) -> Result<Vec<RetrievalMemory>> {
-    let conn = conn.lock()?;
-
-    let sanitized = sanitize_fts_query(query);
-    if sanitized.is_empty() {
+    let tokens = extract_fts_tokens(raw_query);
+    if tokens.is_empty() {
         return Ok(Vec::new());
     }
+
+    let limit = match_limit_bound(opts.limit);
+
+    // R0: full AND of all extracted tokens
+    let r0_expr = match_and(&tokens);
+    let mut results = match_query(conn, &r0_expr, project_id, session_id, limit)?;
+    if !results.is_empty() {
+        return Ok(results);
+    }
+
+    // Rescue ladder only when opt-in, empty R0, and ≥3 tokens (D1).
+    if !opts.rescue || tokens.len() < 3 {
+        return Ok(results);
+    }
+
+    let contentful = contentful_tokens(&tokens);
+    if contentful.is_empty() {
+        return Ok(results);
+    }
+
+    // R1: AND of contentful tokens when they differ from full token sequence
+    if contentful != tokens {
+        let r1_expr = match_and(&contentful);
+        tracing::debug!(
+            stage = "R1",
+            token_count = tokens.len(),
+            contentful_count = contentful.len(),
+            "FTS multi-token rescue: contentful AND"
+        );
+        results = match_query(conn, &r1_expr, project_id, session_id, limit)?;
+        if !results.is_empty() {
+            return Ok(results);
+        }
+    }
+
+    // R2: OR of selected contentful tokens (cap 8) when ≥2 contentful
+    if contentful.len() >= 2 {
+        let or_tokens = select_or_tokens(&contentful);
+        let r2_expr = match_or(&or_tokens);
+        tracing::debug!(
+            stage = "R2",
+            or_token_count = or_tokens.len(),
+            "FTS multi-token rescue: contentful OR"
+        );
+        results = match_query(conn, &r2_expr, project_id, session_id, limit)?;
+    }
+
+    Ok(results)
+}
+
+/// Execute a parameterized FTS5 MATCH with project/session scope and SQL LIMIT.
+///
+/// `match_expr` must already be a safe expression (quoted tokens only). Does
+/// **not** re-run `sanitize_fts_query` (F9 — OR rescue must not be double-sanitized).
+fn match_query(
+    conn: &VaultConnection,
+    match_expr: &str,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    session_id: Option<ai_brains_core::ids::SessionId>,
+    limit: usize,
+) -> Result<Vec<RetrievalMemory>> {
+    if match_expr.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let conn = conn.lock()?;
 
     let mut sql =
         "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, fts.rank, mp.updated_at
          FROM memory_fts fts
          JOIN memory_projection mp ON mp.rowid = fts.rowid
          LEFT JOIN session_projection sp ON mp.session_id = sp.session_id
-         WHERE memory_fts MATCH ? AND mp.status = 'pinned'"
+         WHERE memory_fts MATCH ? AND mp.status = 'pinned'
+           AND mp.privacy NOT IN ('\"Sealed\"', '\"NeverInject\"', '\"Never Inject\"', '\"Private\"')"
             .to_string();
 
-    let mut params_vec: Vec<rusqlite::types::Value> = vec![sanitized.into()];
+    let mut params_vec: Vec<rusqlite::types::Value> = vec![match_expr.to_string().into()];
 
     if let Some(sid) = session_id {
         sql.push_str(" AND mp.session_id = ?");
@@ -49,13 +147,16 @@ pub fn lexical_search(
         params_vec.push(pid_str.into());
     }
 
-    sql.push_str(" ORDER BY rank");
+    sql.push_str(" ORDER BY rank LIMIT ?");
+    params_vec.push((limit as i64).into());
 
     let mut stmt = conn.prepare(&sql)?;
     let mut rows = stmt.query(params_from_iter(params_vec))?;
     let mut results = Vec::new();
 
     while let Some(row) = rows.next()? {
+        // Defense-in-depth: SQL already excludes non-injectable privacy (so LIMIT
+        // applies to injectable rows). Keep the helper for unknown/legacy labels.
         let privacy: String = row.get(2)?;
         if is_injectable_privacy(&privacy) {
             results.push(RetrievalMemory {
@@ -189,4 +290,25 @@ fn escape_like_pattern(query: &str) -> String {
         .replace('\\', "\\\\")
         .replace('%', "\\%")
         .replace('_', "\\_")
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)] // TDD names use __ separators
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn match_limit_bound__clamps_to_hard_cap() {
+        assert_eq!(match_limit_bound(50), 50);
+        assert_eq!(match_limit_bound(200), 200);
+        assert_eq!(match_limit_bound(500), LEXICAL_MATCH_HARD_CAP);
+        assert_eq!(match_limit_bound(0), 0);
+    }
+
+    #[test]
+    fn lexical_search_options_default__rescue_false_limit_hard_cap() {
+        let opts = LexicalSearchOptions::default();
+        assert!(!opts.rescue);
+        assert_eq!(opts.limit, LEXICAL_MATCH_HARD_CAP);
+    }
 }
