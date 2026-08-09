@@ -7,6 +7,7 @@ mod codex;
 mod config_patch;
 mod errors;
 mod gemini;
+pub mod grok;
 mod hook_output;
 mod install;
 pub mod message_only;
@@ -33,6 +34,14 @@ pub use capability::{AdapterCapability, CapabilityLevel};
 pub use claude::parse_claude_stop_payload;
 pub use config_patch::apply_idempotent_patch;
 pub use errors::{AdapterError, Result};
+pub use grok::{
+    GROK_HARNESS_UUID, GROK_UNBOUND_ALIAS, GROK_UNBOUND_DISPLAY_NAME, GrokBindKind,
+    GrokImportOptions, GrokImportStats, GrokSessionSource, discover_grok_sessions,
+    generate_grok_turn_id, grok_capability, grok_env_fallback_allowed, grok_source_meta_key,
+    import_grok_sessions, is_subagent_session, normalize_grok_project_hash,
+    parse_chat_history_file, percent_decode_component, percent_encode_path_component,
+    print_grok_import_stats, resolve_chat_history_path, resolve_grok_home, resolve_grok_project,
+};
 pub use hook_output::render_hook_output;
 pub use install::install_scope;
 pub use message_only::{
