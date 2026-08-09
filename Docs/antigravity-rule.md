@@ -40,8 +40,8 @@ ai-brains antigravity-import --days 30 --force   # skip 5-minute quiescence
 
 ### Nightly honesty
 
-- Manual `ai-brains nightly` (without `--skip-import`) runs import with unbound anti-hijack.
-- **SYSTEM scheduled nightly** may still use `--skip-import` (T239 may re-enable multi-harness import). Do not assume scheduled Task Scheduler jobs import AGY history today.
+- Manual / user-principal `ai-brains nightly` (without `--skip-import`) runs **multi-harness** import: AGY → Grok → OpenCode (message-only; unbound anti-hijack). Per-source skips: `--skip-import-agy` / `--skip-import-grok` / `--skip-import-opencode`.
+- **SYSTEM scheduled nightly** keeps `--skip-import` by default (T239 D12). Do not assume Session 0 Task Scheduler jobs import AGY (or Grok/OpenCode) history.
 
 ## Mid-session: pin is still recommended
 
@@ -68,13 +68,13 @@ ai-brains preflight --max-words 1000
 | Real-time hook | `agy-hook --payload '{…}'` | Prefer install wrapper; diagnostics on stderr |
 | Import recent | `ai-brains antigravity-import --days 7` | History bind + message-only |
 | Force import | `ai-brains antigravity-import --force` | Skip 5-minute quiescence |
-| Nightly | `ai-brains nightly` | Import unless `--skip-import` |
+| Nightly | `ai-brains nightly` | Multi-harness import (agy→grok→opencode) unless `--skip-import` |
 | Pin | `ai-brains pin "…"` | Mid-session decisions |
 | Recall | `ai-brains recall "topic"` | Project-scoped by default |
 
 ## What NOT to do
 
 - **Do not** expect human ingest lines on AGY Stop **stdout** (wrapper allows stop with JSON only).
-- **Do not** assume scheduled SYSTEM nightly imports AGY (may use `--skip-import`).
+- **Do not** assume scheduled SYSTEM nightly imports AGY/Grok/OpenCode (keeps `--skip-import`).
 - **Do not** rely on env project for non-unbound workspaces (path-derived / history bind).
 - **Do not** skip pinning mid-session for decisions you need immediately.

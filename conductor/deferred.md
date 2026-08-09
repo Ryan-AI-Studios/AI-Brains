@@ -137,7 +137,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~AGY2 seamless + history→project binding~~ | **Closed by T236** PR #102 `d53e4be` — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize / AC6; soft residuals below |
 | ~~Grok Build hooks + chat_history batch~~ | **Closed by T237** PR #104 `459fc55` — empty Stop stdout; F11 user_query keep; grok-hook/import/install; subagent skip; dry-run; AC6 anti-hijack |
 | ~~OpenCode plugin + export batch~~ | **Closed by T238** PR #106 `3378a02` — session.idle plugin; watermark import; never SQLite |
-| Nightly multi-harness import | **T239** Placeholder (depends T234; also scheduled SYSTEM `--skip-import` re-enable) |
+| Nightly multi-harness import | **T239 Planning** — multi-source + status + per-source skip; **SYSTEM default keeps `--skip-import`** (D12; user-schedule = completeness; no silent re-enable) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
 | Remove contracts `thinking` field | **Not** T234 (later) |
 | T236 re-list test `thread::sleep` | Soft residual (Codex deferred P3) — non-blocking timing order |
@@ -146,7 +146,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | fullyIdle hard continue policy | Soft residual (F7) |
 | Byte-offset watermark / import `--json` | Soft residual (F34 / soft) |
 
-Suggested harness order: **T234–T238 done** → **T239** nightly multi-harness. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234–T238 done** → **T239 Planning** (multi-harness nightly). See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
 
 ### T238 soft residuals (2026-08-09)
 
@@ -160,7 +160,7 @@ Suggested harness order: **T234–T238 done** → **T239** nightly multi-harness
 | S6 project-local plugin opt-in | Soft (C7 global default) |
 | S7 import `--json` report | Soft |
 | S8 Claude/Codex install_ready | Soft — labels **T239+** |
-| S9 multi-harness nightly | **T239** |
+| S9 multi-harness nightly | **T239 Planning** (absorb body) |
 | S10 compacting pre-archive hook | Soft / non-goal |
 | S11 opt-in child ingest | Soft (default skip hard) |
 | S12 dual-subscribe `session.status` idle | Soft (idle deprecation honesty) |
@@ -177,7 +177,7 @@ Suggested harness order: **T234–T238 done** → **T239** nightly multi-harness
 | updates.jsonl as resume authority | **Not content SOOT** — F18 / AC14 (chat_history only) |
 | UserPromptSubmit prompt field unclear in docs | Soft **S1** (not DoD) |
 | Subagent sessions | Default **skip hard F12/AC18**; opt-in soft **S2** |
-| OpenCode / multi-harness nightly / SYSTEM skip-import | T238 / T239 |
+| OpenCode / multi-harness nightly / SYSTEM skip-import | OpenCode **closed T238**; multi-nightly + SYSTEM decision **T239 Planning** |
 | Claude/Codex install_ready | Soft **S6** (not T237 body; fix pending labels F33) |
 
 ### T237 AI review fold-in (2026-08-08)
@@ -207,8 +207,25 @@ Suggested harness order: **T234–T238 done** → **T239** nightly multi-harness
 | Never raw SQLite | **Hard** F24 / AC14 / D18 |
 | Stale Opencode-Hooks-Research config shape | **F37** supersede — not implement Stage 2 as written |
 | session.created inject / compacting archive | Soft / non-goal (S10) |
-| multi-harness nightly / SYSTEM skip-import | **T239** |
-| Claude/Codex install_ready | Soft **S8**; pending labels **T239+** (F32) |
+| multi-harness nightly / SYSTEM skip-import | **T239 Planning** (D12 keep SYSTEM skip; multi-import for user/manual nightly) |
+| Claude/Codex install_ready | Soft **S8**; pending labels **T239+** (F32) — **not** T239 body |
+
+### T239 AI review fold-in (2026-08-09)
+
+| Item | Disposition |
+|------|-------------|
+| AI1 **M1** hermetic MultiImportOptions + malformed-fixture AC2 | **Absorbed hard** D20 / F18/F21 / AC1–AC2 |
+| AI1 **M2** one corrupt file aborts source | **Absorbed min** D22 path-in-error; full per-session soft-skip **S-SESSION** |
+| AI1 **M3** per-source StoreSink + partial import counters | **Absorbed hard** D5/D21 / AC13 |
+| AI1 **M4** OpenCode health counters in report/status | **Absorbed hard** D6/F9/AC12 |
+| AI1 **M5** corrupt last_multi_import status | **Absorbed hard** D23/AC11 |
+| AI1 **M6** at = to_rfc3339 | **Absorbed** D8 |
+| AI1 **M7** non-JSON stderr under SYSTEM json log | **Absorbed** D24 document |
+| AI1 **M8** Antigravity-only touch-list | **Absorbed** F10 |
+| AI1 **M9** SYSTEM empty-home ok/0 | Soft **S-HOME** |
+| AI1 **M10** list_capped false-positive | Soft **S-CAP** |
+| AI1 affirms D12/adapters/sync_state/status/deps | Affirmed |
+| AI2 architecture + AC table + typed report + Claude honesty | Affirmed / F24 / F13 |
 
 ### T238 AI review fold-in (2026-08-09)
 
@@ -252,7 +269,7 @@ Suggested harness order: **T234–T238 done** → **T239** nightly multi-harness
 | AI2 M5 transcript_full | **Elevated** F29 / AC21 |
 | AI2 M6 source_meta path | **Elevated** F30 / AC22 |
 | AI2 L1–L5 | F32 / F31 / F12 / F9 / F16 |
-| AI2 L6 scheduled skip-import | D16 honesty; **not** re-enable (T239) |
+| AI2 L6 scheduled skip-import | T236 D16 honesty → **T239 D12:** SYSTEM **keeps** skip-import (user-schedule completeness); no silent re-enable |
 | AI2 L7 watermark | Soft F34 |
 | AI2 “plan.md missing” | Stale — plan.md present |
 

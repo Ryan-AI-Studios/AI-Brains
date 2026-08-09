@@ -65,7 +65,7 @@ ai-brains antigravity-import --days 30 --force
 - Binds `conversationId` → workspace via `history.jsonl` (normalized path alias). Missing history → stable `agy-unbound` / `(unbound AGY)` — **not** cwd `.env` project by default.
 - Idempotent: path-keyed `source_meta` + delta turn index; message-only SOOT.
 - Human stats on **stderr** (bound/unbound/quiescent/unchanged counters). Not a JSON status object.
-- **Scheduled SYSTEM nightly** may still pass `--skip-import` (honesty / T239); manual `nightly` without that flag runs import.
+- **Scheduled SYSTEM nightly** keeps `--skip-import` by default (T239 D12) — it does **not** run AGY/Grok/OpenCode batch import under Session 0. Manual / user-principal `nightly` without that flag runs multi-harness import (agy → grok → opencode).
 
 ### Harness detect + install (T235)
 
@@ -509,7 +509,7 @@ These are **reference / operator templates**, not a product Unix installer and *
 ai-brains --vault-path ./vault.db nightly
 ```
 The nightly job does:
-- Antigravity session import (T33)
+- **Multi-harness session import (T239):** AGY → Grok → OpenCode (message-only; never opens `opencode.db`). Flags: `--skip-import` (all), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`. Fail-open per source; `last_multi_import` sync_state + `nightly --status` Multi-import block. Claude/Codex **not** in batch (T239+). Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)
 - Symbol-bridge ingestion from Ledgerful (T70)
@@ -518,8 +518,10 @@ The nightly job does:
 ### Scheduling Nightly
 ```powershell
 ai-brains nightly --schedule --start-time "03:00"
-ai-brains nightly --status             # show last run timestamp + pending work
+ai-brains nightly --status             # last run + Multi-import block + pending work
 ai-brains nightly --unschedule
+ai-brains nightly --skip-import        # skip all harness importers
+ai-brains nightly --skip-import-opencode
 ```
 
 #### Running the nightly as SYSTEM (`--run-as-system`)
@@ -532,7 +534,7 @@ By default `--schedule` registers a task under the current user, which inherits 
   icacls "$env:ProgramData\AI-Brains\nightly-task.bat"
   ```
   Expect only `SYSTEM` and `Administrators` with full control. If ACL apply or verify fails, scheduling aborts — `schtasks /Create` is not called.
-- The wrapper appends `--no-project-context --skip-import` to the `ai-brains.exe nightly` invocation. SYSTEM has no `.env` to auto-discover and cannot reach your Antigravity session DB, so project-context discovery and the Antigravity import would both fail; these flags skip them.
+- The wrapper appends `--no-project-context --skip-import` to the `ai-brains.exe nightly` invocation. SYSTEM has no user-profile harness homes (AGY/Grok/OpenCode) and no `.env` to auto-discover, so project-context discovery and multi-harness import would both be wrong or empty under Session 0; these flags skip them by default (T239 D12). **Completeness path:** run `nightly` as the interactive user (or user-principal scheduled task) so harness homes are readable.
 - `--run-as-system` **requires Administrator rights** (ProgramData ACL + `/RU SYSTEM`). From a normal shell the CLI **prompts for UAC** and re-launches itself elevated (approve the dialog). You can still use an already-elevated PowerShell if you prefer. If UAC is cancelled or disabled, re-run from an Administrator shell. `--dry-run` does not elevate.
 - **Residual risk (accepted, T145):** the invoked binary typically lives under `%USERPROFILE%\.cargo\bin\` (user-writable by design for `cargo install`). Copying binaries into `ProgramData` is packaging/installer scope, not done here. The primary hijack vector on the *script* path is closed by the ProgramData + ACL model above. The same residual applies to `ai-brainsd.exe` used by `daemon install` / deprecated `daemon schedule --run-as-system`. `daemon.env` uses the same ACL model under `%ProgramData%\AI-Brains\`.
 

@@ -649,25 +649,44 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         };
         let session_id = SessionId::from_uuid(session_uuid);
 
+        // F22/T239: soft-skip corrupt/unreadable session files — path in message; continue.
         let (turns, harness_id): (Vec<TranscriptIngestTurn>, HarnessId) = match source.format {
             AntigravityFormat::BrainLog => {
                 // Shared parser: step-shaped transcript/overview + legacy role/content (F1/F2/F29)
-                let parsed = parse_transcript_for_ingest(&source.path)?;
-                (parsed, antigravity_harness)
+                match parse_transcript_for_ingest(&source.path) {
+                    Ok(parsed) => (parsed, antigravity_harness),
+                    Err(e) => {
+                        eprintln!(
+                            "[Antigravity] skip session {} path={}: {e} — continue (fail-open)",
+                            source.session_id,
+                            source.path.display()
+                        );
+                        continue;
+                    }
+                }
             }
-            AntigravityFormat::ProjectChat => {
-                let chat = parse_project_chat_file(&source.path)?;
-                let mapped = chat
-                    .into_iter()
-                    .map(|t| TranscriptIngestTurn {
-                        role: t.role,
-                        content: t.content,
-                        timestamp: t.created_at,
-                        step_index: None,
-                    })
-                    .collect();
-                (mapped, agy_harness)
-            }
+            AntigravityFormat::ProjectChat => match parse_project_chat_file(&source.path) {
+                Ok(chat) => {
+                    let mapped = chat
+                        .into_iter()
+                        .map(|t| TranscriptIngestTurn {
+                            role: t.role,
+                            content: t.content,
+                            timestamp: t.created_at,
+                            step_index: None,
+                        })
+                        .collect();
+                    (mapped, agy_harness)
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[Antigravity] skip project chat {} path={}: {e} — continue (fail-open)",
+                        source.session_id,
+                        source.path.display()
+                    );
+                    continue;
+                }
+            },
         };
 
         if turns.is_empty() {
@@ -699,109 +718,121 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
             bind_kind = AgyBindKind::Path;
         }
 
-        let (mut project_id, alias, resolved_kind, needs_create) = resolve_agy_project(
-            hash_for_resolve.as_deref(),
-            query_store,
-            options.allow_default_project,
-            options.default_project_id,
-        )?;
+        // T239 D21/F22: bind + capture as one soft-fail unit so prior session stats are kept.
+        let session_result: crate::errors::Result<()> = (|| {
+            let (mut project_id, alias, resolved_kind, needs_create) = resolve_agy_project(
+                hash_for_resolve.as_deref(),
+                query_store,
+                options.allow_default_project,
+                options.default_project_id,
+            )?;
 
-        // Prefer history/path classification for counters when we had a history hit
-        let final_kind =
-            if bind_kind == AgyBindKind::History && resolved_kind != AgyBindKind::Unbound {
-                AgyBindKind::History
-            } else if resolved_kind == AgyBindKind::Default {
-                AgyBindKind::Default
-            } else if resolved_kind == AgyBindKind::Unbound || alias == AGY_UNBOUND_ALIAS {
-                AgyBindKind::Unbound
-            } else {
-                AgyBindKind::Path
-            };
+            // Prefer history/path classification for counters when we had a history hit
+            let final_kind =
+                if bind_kind == AgyBindKind::History && resolved_kind != AgyBindKind::Unbound {
+                    AgyBindKind::History
+                } else if resolved_kind == AgyBindKind::Default {
+                    AgyBindKind::Default
+                } else if resolved_kind == AgyBindKind::Unbound || alias == AGY_UNBOUND_ALIAS {
+                    AgyBindKind::Unbound
+                } else {
+                    AgyBindKind::Path
+                };
 
-        if needs_create {
-            let display = if alias == AGY_UNBOUND_ALIAS {
-                AGY_UNBOUND_DISPLAY_NAME.to_string()
-            } else {
-                path_derived_display_name(&alias)
-            };
-            // If alias was created concurrently, use resolved id
-            if let Ok(Some(existing)) = query_store.resolve_project_id_from_alias(&alias) {
-                project_id = existing;
-            } else {
-                ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
-            }
-        } else if final_kind != AgyBindKind::Default {
-            // Ensure alias link exists for resolved projects when path was re-normalized
-            if query_store
-                .resolve_project_id_from_alias(&alias)
-                .ok()
-                .flatten()
-                .is_none()
-            {
+            if needs_create {
                 let display = if alias == AGY_UNBOUND_ALIAS {
                     AGY_UNBOUND_DISPLAY_NAME.to_string()
                 } else {
                     path_derived_display_name(&alias)
                 };
-                ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
+                // If alias was created concurrently, use resolved id
+                if let Ok(Some(existing)) = query_store.resolve_project_id_from_alias(&alias) {
+                    project_id = existing;
+                } else {
+                    ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
+                }
+            } else if final_kind != AgyBindKind::Default {
+                // Ensure alias link exists for resolved projects when path was re-normalized
+                if query_store
+                    .resolve_project_id_from_alias(&alias)
+                    .ok()
+                    .flatten()
+                    .is_none()
+                {
+                    let display = if alias == AGY_UNBOUND_ALIAS {
+                        AGY_UNBOUND_DISPLAY_NAME.to_string()
+                    } else {
+                        path_derived_display_name(&alias)
+                    };
+                    ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
+                }
             }
-        }
 
-        match final_kind {
-            AgyBindKind::History => stats.bound_via_history += 1,
-            AgyBindKind::Path => stats.bound_via_path += 1,
-            AgyBindKind::Unbound => stats.unbound_project += 1,
-            AgyBindKind::Default => {}
-        }
+            match final_kind {
+                AgyBindKind::History => stats.bound_via_history += 1,
+                AgyBindKind::Path => stats.bound_via_path += 1,
+                AgyBindKind::Unbound => stats.unbound_project += 1,
+                AgyBindKind::Default => {}
+            }
 
-        let capture_context = CaptureContext {
-            git_working_dir: std::env::current_dir().ok(),
-        };
-
-        service.start_session(
-            ai_brains_capture::SessionStartCommand {
-                session_id,
-                project_id,
-                harness_id,
-                privacy: Privacy::LocalOnly,
-                tx_id: None,
-            },
-            capture_context.clone(),
-            sink,
-        )?;
-
-        for (i, turn) in turns.iter().enumerate().skip(next_index as usize) {
-            let turn_id = generate_turn_id_for_ingest(&session_id, i, turn.step_index);
-
-            let request = IngestRequest {
-                session_id,
-                project_id,
-                harness_id,
-                turn_id,
-                role: turn.role.clone(),
-                content: turn.content.clone(),
-                privacy: Privacy::LocalOnly,
-                thinking: None,
-                tx_id: None,
+            let capture_context = CaptureContext {
+                git_working_dir: std::env::current_dir().ok(),
             };
-            service.ingest_request(request, capture_context.clone(), sink)?;
-            stats.imported_turns += 1;
+
+            service.start_session(
+                ai_brains_capture::SessionStartCommand {
+                    session_id,
+                    project_id,
+                    harness_id,
+                    privacy: Privacy::LocalOnly,
+                    tx_id: None,
+                },
+                capture_context.clone(),
+                sink,
+            )?;
+
+            for (i, turn) in turns.iter().enumerate().skip(next_index as usize) {
+                let turn_id = generate_turn_id_for_ingest(&session_id, i, turn.step_index);
+
+                let request = IngestRequest {
+                    session_id,
+                    project_id,
+                    harness_id,
+                    turn_id,
+                    role: turn.role.clone(),
+                    content: turn.content.clone(),
+                    privacy: Privacy::LocalOnly,
+                    thinking: None,
+                    tx_id: None,
+                };
+                service.ingest_request(request, capture_context.clone(), sink)?;
+                stats.imported_turns += 1;
+            }
+
+            service.stop_session(
+                ai_brains_capture::SessionStopCommand {
+                    session_id,
+                    harness_id,
+                    privacy: Privacy::LocalOnly,
+                    status: SessionStopStatus::Completed,
+                    reason: Some("Antigravity multi-path import complete".to_string()),
+                },
+                capture_context,
+                sink,
+            )?;
+
+            update_source_meta(sink, &meta_key, &current_meta);
+            stats.sessions += 1;
+            Ok(())
+        })();
+
+        if let Err(e) = session_result {
+            eprintln!(
+                "[Antigravity] session {} path={} failed: {e} — continue (fail-open; prior sessions kept)",
+                source.session_id,
+                source.path.display()
+            );
         }
-
-        service.stop_session(
-            ai_brains_capture::SessionStopCommand {
-                session_id,
-                harness_id,
-                privacy: Privacy::LocalOnly,
-                status: SessionStopStatus::Completed,
-                reason: Some("Antigravity multi-path import complete".to_string()),
-            },
-            capture_context,
-            sink,
-        )?;
-
-        update_source_meta(sink, &meta_key, &current_meta);
-        stats.sessions += 1;
     }
 
     Ok(stats)
