@@ -148,6 +148,9 @@ pub fn emit_human(text: &str) {
 }
 
 /// Emit structured error for json mode (stdout) or human mode (stderr).
+///
+/// T221 F5: Human/Markdown also print `details.hint` on a following stderr line
+/// when it is a non-empty string (bootstrap remediation for POLICY_DENIED).
 pub fn emit_error(format: OutputFormat, err: &ApiError) -> Result<(), Box<dyn std::error::Error>> {
     match format {
         OutputFormat::Json => {
@@ -157,9 +160,21 @@ pub fn emit_error(format: OutputFormat, err: &ApiError) -> Result<(), Box<dyn st
         }
         OutputFormat::Human | OutputFormat::Markdown => {
             eprintln!("{}: {}", err.code, err.message);
+            if let Some(hint) = api_error_hint(err) {
+                eprintln!("{hint}");
+            }
         }
     }
     Ok(())
+}
+
+/// Extract non-empty `details.hint` string from an [`ApiError`] (T221 F5 / tests).
+pub(crate) fn api_error_hint(err: &ApiError) -> Option<&str> {
+    err.details
+        .as_ref()
+        .and_then(|d| d.get("hint"))
+        .and_then(|h| h.as_str())
+        .filter(|s| !s.is_empty())
 }
 
 /// Emit error and return a [`GovernedCliError`] with the mapped exit code.
@@ -565,6 +580,35 @@ mod tests {
     fn exit_code_for_api_error__policy_denied__3() {
         let err = ApiError::new("POLICY_DENIED", "no grant");
         assert_eq!(exit_code_for_api_error(&err), EXIT_POLICY_DENIED);
+    }
+
+    /// AC4 / F5 — human deny path surfaces details.hint for bootstrap remediation.
+    #[test]
+    fn emit_error__human_with_details_hint__hint_extractable() {
+        let err =
+            ApiError::new("POLICY_DENIED", "no grant").with_details(policy_denied_hint_details());
+        let hint = api_error_hint(&err).expect("hint present");
+        assert!(
+            hint.contains("policy bootstrap"),
+            "hint must mention bootstrap; got {hint}"
+        );
+        assert_eq!(hint, POLICY_DENIED_HINT);
+        // Human path prints CODE then hint (emit_error implementation); unit locks extract + SOOT.
+    }
+
+    #[test]
+    fn emit_error__human_without_hint__no_hint() {
+        let err = ApiError::new("POLICY_DENIED", "no grant");
+        assert!(api_error_hint(&err).is_none());
+    }
+
+    /// AC12 / F33 — ControlPlaneError::PolicyDenied maps to exit 3 via fail_cp path.
+    #[test]
+    fn exit_code_for_cp__policy_denied__3() {
+        let err = ControlPlaneError::PolicyDenied("capability denied".into());
+        assert_eq!(exit_code_for_cp(&err), EXIT_POLICY_DENIED);
+        let api = api_error_from_cp(&err);
+        assert_eq!(api.code, "POLICY_DENIED");
     }
 
     #[test]

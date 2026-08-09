@@ -193,7 +193,7 @@ resolved repository scope, or authority sections are empty (`denied` / warnings)
 - Personal: separate packet (`kind="Personal"`) with `preferences`, `continuity`,
   `open_review_items`, `grants_applied` — never embedded inside Project.
 - Progressive query: `results[]` (handles + ranking), `query_trace_id`, `freshness_summary`,
-  optional `denied`.
+  optional `denied` / `denial_reason` / **`denial_hint`** (bootstrap when denied; omitted otherwise).
 
 **CLI surface (dry-run)**
 - **Briefing** format: markdown on TTY, json otherwise; explicit `--format` wins.
@@ -207,6 +207,8 @@ ai-brains query expand <handle-id> --project-id <uuid>
 ai-brains query trace <trace-id>
 ```
 Missing `--project-id` / `AI_BRAINS_PROJECT_ID` on `query progressive` and `query expand` exits **2** (`EXIT_USAGE`) with a copy-paste example on stderr. `query trace` is excluded (empty-success `null` when missing).
+
+**Progressive / expand policy walls (T221):** `query progressive` with policy deny prints the pretty packet on **stdout** (including `denied: true` and `denial_hint`) and exits **3** — not exit 0 empty-knowledge. Same for `--dry-run`. `query expand` with `kind: "Denied"` exits **3**; `kind: "Unknown"` stays exit **0**. **`Denied` may mean capability miss and/or cross-scope** — exit 3 does not prove which. stderr carries `POLICY_DENIED: …` then bootstrap remediation. First-run: `policy bootstrap --scope Repository:<uuid>` (omit `--principal-id` to grant the default System principal used by progressive/expand).
 
 ### Governed command surface (T160)
 
@@ -242,7 +244,7 @@ ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
 
 **Governed policy bootstrap (T210):** After vault open, discovery lists (`source list` / `evidence list` / `review list`) and briefing sections need grants. Run **`ai-brains policy bootstrap --scope Repository:<uuid>`** (or omit `--scope` when project context is authoritative) once per principal+scope. Issues exactly `ReadEvidence`, `ReadConclusions`, `ReadDecisions` with `Privacy::LocalOnly`; registers the principal if missing; idempotent re-run. Does **not** issue Propose*/Approve*/Export/Erase. Does **not** auto-run on `init` (deny-by-default until explicit opt-in). `--dry-run` / `-n` reports the plan with zero event appends.
 
-**Empty vs deny:** list/show hard deny = exit **3** + `details.hint` (mentions bootstrap first). Briefing soft deny = exit **0** + `warnings[].kind=denied` / empty sections. Bootstrap clears both when discovery grants are present.
+**Empty vs deny:** list/show hard deny = exit **3** + `details.hint` (mentions bootstrap first; human also prints hint after `CODE: message`). **Progressive** hard deny = exit **3** + packet on stdout (`denied: true`, `denial_hint`) + stderr CODE/hint — **not** “no knowledge.” Authorized empty progressive = exit **0**, `denied: false`, empty `results`. Expand `Denied` = exit **3**; expand `Unknown` = exit **0**. Briefing soft deny = exit **0** + `warnings[].kind=denied` / empty sections (do not flip to exit 3). Bootstrap clears discovery walls when grants are present for the **same principal** progressive uses (default System).
 
 **Discovery workflow (T203):** Prefer `source list` / `evidence list` (bounded, Active-only, optional FTS `--query`) to find ids, then `show`. When `--scope` is omitted, CLI soft-fills only if `scope resolve` is **authoritative** (e.g. `AI_BRAINS_PROJECT_ID` set → High). Non-authoritative context → **exit 2** with a `fail_usage` template (`--scope Repository:<uuid>`, `ai-brains scope resolve`); never reintroduces exit **6** for missing scope on these CLI paths.
 

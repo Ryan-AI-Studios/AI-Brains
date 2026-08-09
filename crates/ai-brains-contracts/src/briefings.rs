@@ -415,6 +415,9 @@ pub struct ProgressiveQueryResponse {
     pub denied: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub denial_reason: Option<String>,
+    /// Bootstrap remediation when `denied` (T221 F17). Omitted when not denied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denial_hint: Option<String>,
 }
 
 impl ProgressiveQueryResponse {
@@ -436,6 +439,7 @@ impl ProgressiveQueryResponse {
             conflict_summary: None,
             denied: false,
             denial_reason: None,
+            denial_hint: None,
         }
     }
 }
@@ -549,7 +553,8 @@ impl Default for PersonalBriefingRequest {
 /// Progressive knowledge query over the daemon protocol.
 ///
 /// **E1 response shape** ([`ProgressiveQueryResponse`]): `results: []`, `more_available: false`;
-/// policy deny → `denied: true` or outer `Error(POLICY_DENIED)`, never silent ok with empty.
+/// policy deny → `denied: true` + optional `denial_hint` (bootstrap) or outer `Error(POLICY_DENIED)`,
+/// never silent ok with empty.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct QueryKnowledgeRequest {
     #[serde(default = "default_api_version")]
