@@ -137,7 +137,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~AGY2 seamless + history→project binding~~ | **Closed by T236** PR #102 `d53e4be` — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize / AC6; soft residuals below |
 | ~~Grok Build hooks + chat_history batch~~ | **Closed by T237** PR #104 `459fc55` — empty Stop stdout; F11 user_query keep; grok-hook/import/install; subagent skip; dry-run; AC6 anti-hijack |
 | ~~OpenCode plugin + export batch~~ | **Closed by T238** PR #106 `3378a02` — session.idle plugin; watermark import; never SQLite |
-| Nightly multi-harness import | **T239 Planning** — multi-source + status + per-source skip; **SYSTEM default keeps `--skip-import`** (D12; user-schedule = completeness; no silent re-enable) |
+| ~~Nightly multi-harness import~~ | **Closed by T239** PR #108 `a271a99` — multi-source + status + per-source skip; SYSTEM keeps `--skip-import` (D12) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
 | Remove contracts `thinking` field | **Not** T234 (later) |
 | T236 re-list test `thread::sleep` | Soft residual (Codex deferred P3) — non-blocking timing order |
@@ -146,7 +146,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | fullyIdle hard continue policy | Soft residual (F7) |
 | Byte-offset watermark / import `--json` | Soft residual (F34 / soft) |
 
-Suggested harness order: **T234–T238 done** → **T239 Planning** (multi-harness nightly). See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/Codex install_ready (**T239+**). See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
 
 ### T238 soft residuals (2026-08-09)
 
@@ -160,7 +160,7 @@ Suggested harness order: **T234–T238 done** → **T239 Planning** (multi-harne
 | S6 project-local plugin opt-in | Soft (C7 global default) |
 | S7 import `--json` report | Soft |
 | S8 Claude/Codex install_ready | Soft — labels **T239+** |
-| S9 multi-harness nightly | **T239 Planning** (absorb body) |
+| ~~S9 multi-harness nightly~~ | **Closed by T239** PR #108 `a271a99` |
 | S10 compacting pre-archive hook | Soft / non-goal |
 | S11 opt-in child ingest | Soft (default skip hard) |
 | S12 dual-subscribe `session.status` idle | Soft (idle deprecation honesty) |
@@ -177,7 +177,7 @@ Suggested harness order: **T234–T238 done** → **T239 Planning** (multi-harne
 | updates.jsonl as resume authority | **Not content SOOT** — F18 / AC14 (chat_history only) |
 | UserPromptSubmit prompt field unclear in docs | Soft **S1** (not DoD) |
 | Subagent sessions | Default **skip hard F12/AC18**; opt-in soft **S2** |
-| OpenCode / multi-harness nightly / SYSTEM skip-import | OpenCode **closed T238**; multi-nightly + SYSTEM decision **T239 Planning** |
+| ~~OpenCode / multi-harness nightly / SYSTEM skip-import~~ | OpenCode **closed T238**; multi-nightly + SYSTEM **closed T239** PR #108 |
 | Claude/Codex install_ready | Soft **S6** (not T237 body; fix pending labels F33) |
 
 ### T237 AI review fold-in (2026-08-08)
@@ -207,8 +207,19 @@ Suggested harness order: **T234–T238 done** → **T239 Planning** (multi-harne
 | Never raw SQLite | **Hard** F24 / AC14 / D18 |
 | Stale Opencode-Hooks-Research config shape | **F37** supersede — not implement Stage 2 as written |
 | session.created inject / compacting archive | Soft / non-goal (S10) |
-| multi-harness nightly / SYSTEM skip-import | **T239 Planning** (D12 keep SYSTEM skip; multi-import for user/manual nightly) |
+| ~~multi-harness nightly / SYSTEM skip-import~~ | **Closed by T239** PR #108 (D12 keep SYSTEM skip) |
 | Claude/Codex install_ready | Soft **S8**; pending labels **T239+** (F32) — **not** T239 body |
+
+### T239 closeout residuals (2026-08-09)
+
+| Item | Notes |
+|------|-------|
+| Claude/Codex install_ready | Soft **T239+** / S8 / S-CLAUDE |
+| S-SYS opt-in SYSTEM import | Soft — not DoD |
+| S-DOC doctor/preflight last-import line | Soft |
+| S-HOME SYSTEM empty-home counter | Soft (wrapper default prevents) |
+| S-CAP list_capped false-positive tighten | Soft |
+| S-JSON / S-FORCE / S-BRAINLOG / S-BUDGET | Soft |
 
 ### T239 AI review fold-in (2026-08-09)
 
