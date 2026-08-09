@@ -343,13 +343,16 @@ fn append_harness_summary_and_maybe_prompt(
                         "grok" => install_grok(h, false),
                         _ => continue,
                     };
+                    let label = parse_harness_id_soft(&row.id)
+                        .map(|id| id.display_name())
+                        .unwrap_or(row.id.as_str());
                     let _ = report_preflight_install(
                         result,
-                        row.id.as_str(),
+                        label,
                         row.id.as_str(),
                         &format!(
                             "Auto-installed {} capture hooks (auto_install=true).",
-                            row.id
+                            label
                         ),
                         false,
                     );
@@ -375,11 +378,14 @@ fn append_harness_summary_and_maybe_prompt(
                             "grok" => install_grok(h, false),
                             _ => continue,
                         };
+                        let label = parse_harness_id_soft(&row.id)
+                            .map(|id| id.display_name())
+                            .unwrap_or(row.id.as_str());
                         let _ = report_preflight_install(
                             result,
+                            label,
                             row.id.as_str(),
-                            row.id.as_str(),
-                            &format!("Installed {} capture hooks.", row.id),
+                            &format!("Installed {} capture hooks.", label),
                             false,
                         );
                     }
