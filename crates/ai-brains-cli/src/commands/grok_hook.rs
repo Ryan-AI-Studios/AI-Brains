@@ -52,14 +52,18 @@ pub fn run(ctx: &AppContext, payload_json: &str) -> Result<(), Box<dyn std::erro
     let original_resolved = ctx.resolve_project_id_from_alias(&alias_key)?;
     let mut project_id = original_resolved;
     let newly_bound = original_resolved.is_none();
+    // Env may route this *session's* turns to the cwd project when unbound, but must
+    // never permanently map `grok-unbound` → env project (AC6 anti-hijack for batch).
+    let mut used_env_fallback = false;
 
-    // Env project id only when unbound/empty
+    // Env project id only when unbound/empty and alias not already resolved
     if project_id.is_none()
         && grok_env_fallback_allowed(raw_hash)
         && let Ok(env_pid_str) = std::env::var("AI_BRAINS_PROJECT_ID")
         && let Ok(env_pid) = ProjectId::from_str(&env_pid_str)
     {
         project_id = Some(env_pid);
+        used_env_fallback = true;
     }
 
     let project_id = match project_id {
@@ -122,11 +126,20 @@ pub fn run(ctx: &AppContext, payload_json: &str) -> Result<(), Box<dyn std::erro
         Privacy::LocalOnly,
     )?;
 
-    ctx.ensure_project_alias(&mut sink, project_id, alias_key.clone(), Privacy::LocalOnly)?;
-    if newly_bound {
+    // Persist path/summary aliases only. Env fallback for unbound must not stamp
+    // `grok-unbound` onto the env project (would poison later batch unbound routing).
+    if !used_env_fallback {
+        ctx.ensure_project_alias(&mut sink, project_id, alias_key.clone(), Privacy::LocalOnly)?;
+        if newly_bound {
+            eprintln!(
+                "Auto-linked projectHash {} to project {}",
+                alias_key, project_id
+            );
+        }
+    } else {
         eprintln!(
-            "Auto-linked projectHash {} to project {}",
-            alias_key, project_id
+            "[ai-brains-grok] unbound session routed to env project {} (alias not stamped)",
+            project_id
         );
     }
 

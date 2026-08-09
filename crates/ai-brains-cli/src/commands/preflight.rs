@@ -303,6 +303,8 @@ fn append_harness_summary_and_maybe_prompt(
                     };
                     report_preflight_install(
                         result,
+                        hid.display_name(),
+                        hid.as_str(),
                         &format!(
                             "Installed ready harness hooks ({}). next: ai-brains harness status",
                             hid.as_str()
@@ -343,6 +345,8 @@ fn append_harness_summary_and_maybe_prompt(
                     };
                     let _ = report_preflight_install(
                         result,
+                        row.id.as_str(),
+                        row.id.as_str(),
                         &format!(
                             "Auto-installed {} capture hooks (auto_install=true).",
                             row.id
@@ -373,6 +377,8 @@ fn append_harness_summary_and_maybe_prompt(
                         };
                         let _ = report_preflight_install(
                             result,
+                            row.id.as_str(),
+                            row.id.as_str(),
                             &format!("Installed {} capture hooks.", row.id),
                             false,
                         );
@@ -432,12 +438,14 @@ fn ready_missing_not_declined<'a>(
         .collect()
 }
 
-/// Report AGY install outcomes honestly (F28/AC21 — never claim success on Refused).
+/// Report harness install outcomes honestly (F28/AC21 — never claim success on Refused).
 ///
 /// When `fail_on_error` is true (explicit `--install-hooks`), refuse/error returns
 /// `Err` so the process exits non-zero (F20). Soft consent/auto paths keep preflight exit 0.
 fn report_preflight_install(
     result: Result<InstallOutcome, String>,
+    harness_label: &str,
+    harness_cli_id: &str,
     success_msg: &str,
     fail_on_error: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -447,19 +455,19 @@ fn report_preflight_install(
             Ok(())
         }
         Ok(InstallOutcome::DryRun { .. }) => {
-            println!("[dry-run] AGY install planned (no writes).");
+            println!("[dry-run] {harness_label} install planned (no writes).");
             Ok(())
         }
         Ok(InstallOutcome::BackendPending { plan }) => {
             eprintln!(
-                "AGY install backend pending; no files written. next: {}",
+                "{harness_label} install backend pending; no files written. next: {}",
                 plan.pending_track.unwrap_or("ai-brains harness status")
             );
             Ok(())
         }
         Ok(InstallOutcome::Refused { path, reason }) => {
             eprintln!(
-                "Refused to rewrite {}: {}. Fix or remove the corrupt file, then re-run: ai-brains harness install --harness agy",
+                "Refused to rewrite {}: {}. Fix or remove the corrupt file, then re-run: ai-brains harness install --harness {harness_cli_id}",
                 path.display(),
                 reason
             );
@@ -470,7 +478,7 @@ fn report_preflight_install(
             }
         }
         Err(e) => {
-            eprintln!("harness install failed: {e}");
+            eprintln!("{harness_label} install failed: {e}");
             if fail_on_error { Err(e.into()) } else { Ok(()) }
         }
     }
