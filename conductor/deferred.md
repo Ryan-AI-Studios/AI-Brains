@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77` (FTS multi-token rescue); **T220** 📋 Planning (summary JSON honesty); then **T221** honesty + remaining placeholders (T218 semantic v2, preflight pretty, governed first-run, graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b` (summary JSON honesty); then **T221** honesty + remaining placeholders (T218 semantic v2, preflight pretty, governed first-run, graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -73,7 +73,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Active Sessions always 0~~ | **Closed by T214** — F5 `count_active_sessions` QueryStore |
 | ~~Marker counts as vault totals~~ | **Closed by T214** — F4 **In context** labels |
 | Non-summary pretty Scope header on full preflight body | Soft residual F24 |
-| `preflight --summary --format json` machine object | **T220** 📋 Planning (absorbs F11/F24 soft; plan-only until go) |
+| ~~`preflight --summary --format json` machine object~~ | **Closed by T220** PR #112 `6f4f67b` (pretty envelope; scope none; install-hooks stderr) |
 | Ledgerful under `--global` | Soft residual F9 — product decision |
 | Governed multi-project packet | **Not** T214 — F10 |
 | `PreflightContextResponse` extra keys | **Not** T214 — F11 / T180 freeze |
@@ -96,6 +96,17 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Tag matcher CLI/store dual (R1-06) | Soft residual — keep in sync if either changes |
 | ~~AI1 M1–M7 / L1–L6/L8 / F46~~ | **Closed** in T216 ship |
 
+### T220 closeout residuals (2026-08-09) — summary JSON honesty shipped
+
+| Residual | Disposition |
+|----------|-------------|
+| ~~summary `--format json` human banner flag lie~~ | **Closed by T220** PR #112 `6f4f67b` |
+| Soft skill one-liner for summary JSON | Soft residual F20/F22 |
+| Optional `harnesses[]` in summary JSON | Soft residual F22 |
+| Optional `scope_line` string | Soft residual F22 |
+| is-terminal → `std::io::IsTerminal`; clap ValueEnum ignore_case unify | Soft residual F22 |
+| T219 pretty body wall | **T219** Placeholder (not T220) |
+
 ### Post-audit CLI quality placeholders (2026-08-05) — T217–T232
 
 | Residual / finding | Disposition |
@@ -103,7 +114,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | FTS natural-phrase empty (quality 4) | **T217** ✅ closed PR #110 `1e22e77` |
 | Semantic drift / scores (quality 4) | **T218** Placeholder (elevates T215 soft) |
 | Preflight pretty wall (quality 5) | **T219** Placeholder |
-| preflight summary `--format json` lie (quality 3) | **T220** 📋 Planning (T214 F11/F24 absorb; plan-only until go) |
+| ~~preflight summary `--format json` lie (quality 3)~~ | **Closed by T220** PR #112 `6f4f67b` |
 | Governed usefulness 4–5; progressive deny exit 0 | **T221** Placeholder |
 | Graph-off PATH usefulness 3 | **T222** Placeholder |
 | `.env` override double-warn spam | **T223** Placeholder |

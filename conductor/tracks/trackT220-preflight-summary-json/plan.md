@@ -1,6 +1,6 @@
 # T220 Plan — Preflight summary JSON honesty
 
-**Status:** 🔄 **In Progress** (implementation after go; ledger TX open)  
+**Status:** ✅ **Completed** (PR #112 `6f4f67b` + closeout, 2026-08-09)  
 **Category:** BUGFIX / CONTRACT  
 **Depends:** T214 ✅, T180 ✅, T216 envelope pattern ✅, T235 harness human sibling ✅  
 **Spec:** [spec.md](./spec.md) — includes AI fold-in **§14**
@@ -140,8 +140,8 @@
 - [x] Soft skill one-liner (skipped — soft residual F22 / deferred)
 - [x] Manual dogfood AC12 (live vault summary JSON pure object; full path compact 2-key)
 - [x] review.md written; targeted nextest + clippy + fmt green
-- [ ] Full CI gate via PR; `ledgerful verify` / commit after CI green
-- [ ] conductor → Completed; deferred strike T220 / T214 F11 (closeout PR)
+- [x] Full CI gate via PR #112 (Win/Linux/macOS green); squash `6f4f67b`
+- [x] conductor → Completed; deferred strike T220 / T214 F11 (closeout PR)
 
 ## Implement notes
 
