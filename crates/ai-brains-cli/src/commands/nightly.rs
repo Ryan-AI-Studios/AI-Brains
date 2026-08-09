@@ -275,7 +275,9 @@ pub async fn run(
              Use this on isolated, CI, or per-project vaults to prevent \
              cross-vault contamination from the user's real Antigravity history."
         );
-    } else if let Err(e) = crate::commands::antigravity_import::run(ctx, 30) {
+    } else if let Err(e) = crate::commands::antigravity_import::run(ctx, 30, false) {
+        // allow_default_project=false inside antigravity_import (F12); force=false.
+        // SYSTEM scheduled nightly may still pass --skip-import (D16 / T239).
         tracing::error!("Antigravity import failed: {}", e);
     }
 

@@ -1,10 +1,20 @@
+use crate::agy::{
+    AGY_UNBOUND_ALIAS, AGY_UNBOUND_DISPLAY_NAME, TranscriptIngestTurn, agy_source_meta_key,
+    generate_turn_id_for_ingest, normalize_agy_project_hash, parse_transcript_for_ingest,
+    path_derived_display_name,
+};
 use crate::capability::{AdapterCapability, CapabilityLevel};
 use crate::errors::Result;
 use ai_brains_capture::{CaptureContext, CaptureService, CaptureSink, SessionStopStatus};
 use ai_brains_contracts::ingest::IngestRequest;
-use ai_brains_core::ids::{HarnessId, ProjectId, SessionId, TurnId};
+use ai_brains_core::ids::{HarnessId, ProjectId, SessionId, UserId};
 use ai_brains_core::privacy::Privacy;
+use ai_brains_events::constructors::EventBuilder;
+use ai_brains_events::{
+    Actor, AggregateType, Payload, ProjectAliasAddedPayload, ProjectRegisteredPayload,
+};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
@@ -16,7 +26,7 @@ pub fn antigravity_capability() -> AdapterCapability {
         level: CapabilityLevel::Partial,
         supports_hooks: true,
         supports_wrapper_mode: false,
-        notes: "Batch import via nightly or antigravity-import. Real-time Stop hooks installable via `ai-brains harness install --harness agy` (wrapper maps Stop → agy-hook payload; message-only SOOT). Intended PrincipalKind::Connector binding for import observe; principal_binding deferred until registry wiring."
+        notes: "Live Stop hooks via `ai-brains harness install --harness agy` (wrapper stdout allow-stop JSON; step-shaped + message-only SOOT). Batch `antigravity-import` binds conversationId→workspace via history.jsonl; unbound brains use stable `agy-unbound` / `(unbound AGY)` (allow_default_project=false by default). Prefer transcript_full when present. SYSTEM scheduled nightly may still use --skip-import (T239). Intended PrincipalKind::Connector binding deferred."
             .to_string(),
         governed_reads: Vec::new(),
         governed_writes: Vec::new(),
@@ -25,17 +35,21 @@ pub fn antigravity_capability() -> AdapterCapability {
 }
 
 pub fn manual_import_instructions() -> String {
-    "Antigravity sessions are auto-imported by `ai-brains nightly` or `ai-brains antigravity-import`. Manual pinning is still recommended for decisions during the session.".to_string()
+    "Antigravity sessions are imported by `ai-brains antigravity-import` or manual `ai-brains nightly` (without --skip-import). Scheduled SYSTEM nightly may still pass --skip-import. Reinstall hooks after T236: `ai-brains harness install --harness agy`. Manual pinning is still recommended for decisions mid-session.".to_string()
 }
 
-/// A single step from an Antigravity overview.txt JSONL file.
+/// A single step from an Antigravity overview/transcript JSONL file.
 #[derive(Debug, Clone, Deserialize)]
 pub struct AntigravityStep {
+    #[serde(default)]
     pub step_index: u32,
+    #[serde(default)]
     pub source: String,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", default)]
     pub step_type: String,
+    #[serde(default)]
     pub content: Option<String>,
+    #[serde(default)]
     pub created_at: Option<String>,
     #[serde(default)]
     pub tool_calls: Vec<serde_json::Value>,
@@ -49,18 +63,62 @@ pub struct AntigravityTurn {
     pub created_at: Option<String>,
 }
 
-/// Discover Antigravity brain directories containing overview.txt files.
-/// Scans ~/.gemini/antigravity/brain/ for subdirectories with
-/// .system_generated/logs/overview.txt. Also scans WSL paths.
+/// Options for [`import_antigravity_sessions`] (T236).
+#[derive(Debug, Clone)]
+pub struct AntigravityImportOptions {
+    pub days: usize,
+    pub default_project_id: ProjectId,
+    /// When false (default for non-interactive nightly/import), unbound brains do
+    /// **not** attach to `default_project_id` / cwd env project (F12).
+    pub allow_default_project: bool,
+    /// Skip the 300s quiescence window (F18).
+    pub force: bool,
+    /// Hermetic tests: discover brains + history under this home instead of dirs::home_dir.
+    pub home_override: Option<PathBuf>,
+}
+
+impl AntigravityImportOptions {
+    pub fn new(days: usize, default_project_id: ProjectId) -> Self {
+        Self {
+            days,
+            default_project_id,
+            allow_default_project: false,
+            force: false,
+            home_override: None,
+        }
+    }
+}
+
+/// Import counters (F16) — printed as human stderr; not a JSON status object.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AntigravityImportStats {
+    pub found: usize,
+    pub imported_turns: usize,
+    pub sessions: usize,
+    pub skipped_quiescent: usize,
+    pub skipped_unchanged_meta: usize,
+    pub unbound_project: usize,
+    pub bound_via_history: usize,
+    pub bound_via_path: usize,
+}
+
+/// Discover Antigravity brain directories containing overview.txt / transcript.jsonl.
+/// Scans ~/.gemini/{antigravity,antigravity-cli,antigravity-ide}/brain/ and tmp chats.
 pub fn discover_sessions() -> Result<Vec<AntigravitySessionSource>> {
+    discover_sessions_from_home(dirs::home_dir().as_deref(), true)
+}
+
+/// Discover under an explicit home (hermetic tests / import home_override).
+pub fn discover_sessions_from_home(
+    home: Option<&Path>,
+    include_wsl_legacy: bool,
+) -> Result<Vec<AntigravitySessionSource>> {
     let mut all_sources = Vec::new();
 
-    // Windows-side Home Dir
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = home {
         let gemini_base = home.join(".gemini");
 
-        // 1. Tool Brain Directories
-        let tool_dirs = vec!["antigravity", "antigravity-cli", "antigravity-ide"];
+        let tool_dirs = ["antigravity", "antigravity-cli", "antigravity-ide"];
         for tool in tool_dirs {
             let brain_path = gemini_base.join(tool).join("brain");
             if brain_path.exists() {
@@ -68,17 +126,17 @@ pub fn discover_sessions() -> Result<Vec<AntigravitySessionSource>> {
             }
         }
 
-        // 2. Project Temp Directories
         let tmp_path = gemini_base.join("tmp");
         if tmp_path.exists() {
             scan_tmp_dirs(&tmp_path, &mut all_sources)?;
         }
     }
 
-    // WSL-side Antigravity (Ubuntu) - Legacy Support
-    let wsl_brain = PathBuf::from(r"\\wsl$\Ubuntu\home\ryan\.gemini\antigravity\brain");
-    if wsl_brain.exists() {
-        scan_brain_dir(&wsl_brain, &mut all_sources)?;
+    if include_wsl_legacy {
+        let wsl_brain = PathBuf::from(r"\\wsl$\Ubuntu\home\ryan\.gemini\antigravity\brain");
+        if wsl_brain.exists() {
+            scan_brain_dir(&wsl_brain, &mut all_sources)?;
+        }
     }
 
     Ok(all_sources)
@@ -113,7 +171,6 @@ fn scan_brain_dir(brain_dir: &Path, sources: &mut Vec<AntigravitySessionSource>)
             .map(|s| s.to_string())
             .unwrap_or_default();
 
-        // Check for overview.txt (legacy)
         let overview = path
             .join(".system_generated")
             .join("logs")
@@ -127,7 +184,6 @@ fn scan_brain_dir(brain_dir: &Path, sources: &mut Vec<AntigravitySessionSource>)
             });
         }
 
-        // Check for transcript.jsonl (new agy)
         let transcript = path
             .join(".system_generated")
             .join("logs")
@@ -182,25 +238,6 @@ fn scan_tmp_dirs(tmp_base: &Path, sources: &mut Vec<AntigravitySessionSource>) -
         }
     }
     Ok(())
-}
-
-/// Filter sessions to those modified within the last N days.
-pub fn filter_recent_sessions(paths: &[PathBuf], days: usize) -> Vec<PathBuf> {
-    let cutoff =
-        std::time::SystemTime::now() - std::time::Duration::from_secs(days as u64 * 24 * 60 * 60);
-
-    paths
-        .iter()
-        .filter(|p| {
-            if let Ok(metadata) = std::fs::metadata(p)
-                && let Ok(modified) = metadata.modified()
-            {
-                return modified >= cutoff;
-            }
-            false
-        })
-        .cloned()
-        .collect()
 }
 
 /// Extract the conversation ID (directory name) from an overview.txt path.
@@ -314,54 +351,262 @@ pub fn parse_project_chat_file(path: &Path) -> Result<Vec<AntigravityTurn>> {
     Ok(turns)
 }
 
+// ---------------------------------------------------------------------------
+// History index (F9–F11)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HistoryLine {
+    #[allow(dead_code)]
+    display: Option<String>,
+    timestamp: Option<serde_json::Value>,
+    workspace: Option<String>,
+    conversation_id: Option<String>,
+    #[serde(rename = "type")]
+    #[allow(dead_code)]
+    type_: Option<String>,
+}
+
+/// Load `conversationId → normalized workspace` from history.jsonl (F9).
+///
+/// Rows need non-empty workspace + conversationId. Sort by
+/// `(timestamp_ms asc, line_index asc)`; last wins. Timestamp parse fail → 0.
+pub fn load_agy_history_index(history_path: &Path) -> HashMap<String, String> {
+    let Ok(content) = std::fs::read_to_string(history_path) else {
+        return HashMap::new();
+    };
+
+    let mut rows: Vec<(i64, usize, String, String)> = Vec::new();
+    for (line_index, line) in content.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Ok(rec) = serde_json::from_str::<HistoryLine>(line) else {
+            continue;
+        };
+        let Some(cid) = rec.conversation_id.filter(|s| !s.trim().is_empty()) else {
+            continue;
+        };
+        let Some(ws) = rec.workspace.filter(|s| !s.trim().is_empty()) else {
+            continue;
+        };
+        let ts = parse_history_timestamp_ms(rec.timestamp.as_ref());
+        let normalized = normalize_agy_project_hash(&ws);
+        if normalized == AGY_UNBOUND_ALIAS {
+            continue;
+        }
+        rows.push((ts, line_index, cid, normalized));
+    }
+
+    rows.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+
+    let mut map = HashMap::new();
+    for (_ts, _idx, cid, ws) in rows {
+        map.insert(cid, ws);
+    }
+    map
+}
+
+fn parse_history_timestamp_ms(v: Option<&serde_json::Value>) -> i64 {
+    match v {
+        Some(serde_json::Value::Number(n)) => n
+            .as_i64()
+            .or_else(|| n.as_u64().map(|u| u as i64))
+            .unwrap_or(0),
+        Some(serde_json::Value::String(s)) => s.trim().parse::<i64>().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+/// Load history index from AGY2 + optional legacy paths under home.
+pub fn load_agy_history_index_from_home(home: &Path) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    let primary = home
+        .join(".gemini")
+        .join("antigravity-cli")
+        .join("history.jsonl");
+    let legacy = home
+        .join(".gemini")
+        .join("antigravity")
+        .join("history.jsonl");
+    // Legacy first, primary last so primary wins on same conversationId
+    if legacy.is_file() {
+        for (k, v) in load_agy_history_index(&legacy) {
+            map.insert(k, v);
+        }
+    }
+    if primary.is_file() {
+        for (k, v) in load_agy_history_index(&primary) {
+            map.insert(k, v);
+        }
+    }
+    map
+}
+
+// ---------------------------------------------------------------------------
+// Project resolve (F3 / F12)
+// ---------------------------------------------------------------------------
+
+/// How a session was bound to a project (F16 counters).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgyBindKind {
+    History,
+    Path,
+    Unbound,
+    Default,
+}
+
+/// Resolve AGY project hash/workspace to a project id (shared hook + batch, F3).
+///
+/// Ordered:
+/// 1. Normalize hash
+/// 2. Alias resolve
+/// 3. (Repository path-alias skipped — no API in adapters)
+/// 4. Env default **only** when hash is unbound/empty **and** `allow_default_project`
+/// 5. Path-derived (alias = normalized path) or stable unbound
+pub fn resolve_agy_project(
+    project_hash: Option<&str>,
+    query_store: &dyn ai_brains_store::QueryStore,
+    allow_default_project: bool,
+    default_project_id: ProjectId,
+) -> Result<(ProjectId, String, AgyBindKind, bool)> {
+    // Returns (project_id, alias_key, bind_kind, needs_create)
+    // needs_create=true when alias is new and project must be registered.
+    let raw = project_hash.unwrap_or("").trim();
+    let alias = normalize_agy_project_hash(raw);
+
+    if alias == AGY_UNBOUND_ALIAS {
+        if allow_default_project {
+            return Ok((
+                default_project_id,
+                AGY_UNBOUND_ALIAS.to_string(),
+                AgyBindKind::Default,
+                false,
+            ));
+        }
+        if let Ok(Some(pid)) = query_store.resolve_project_id_from_alias(AGY_UNBOUND_ALIAS) {
+            return Ok((
+                pid,
+                AGY_UNBOUND_ALIAS.to_string(),
+                AgyBindKind::Unbound,
+                false,
+            ));
+        }
+        return Ok((
+            ProjectId::new(),
+            AGY_UNBOUND_ALIAS.to_string(),
+            AgyBindKind::Unbound,
+            true,
+        ));
+    }
+
+    if let Ok(Some(pid)) = query_store.resolve_project_id_from_alias(&alias) {
+        // History vs path: caller sets bind kind; here treat as path/history-resolved alias hit
+        return Ok((pid, alias, AgyBindKind::Path, false));
+    }
+
+    Ok((ProjectId::new(), alias, AgyBindKind::Path, true))
+}
+
+fn ensure_project_registered<S: CaptureSink>(
+    sink: &mut S,
+    project_id: ProjectId,
+    alias: &str,
+    display_name: &str,
+    query_store: &dyn ai_brains_store::QueryStore,
+) -> Result<()> {
+    // Re-check alias in case another source registered it mid-loop
+    if let Ok(Some(_)) = query_store.resolve_project_id_from_alias(alias) {
+        return Ok(());
+    }
+
+    let actor = Actor::User(UserId::new());
+    let reg = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        actor.clone(),
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+        project_id,
+        name: display_name.to_string(),
+        tx_id: None,
+    }))
+    .map_err(|e| crate::errors::AdapterError::Other(format!("ProjectRegistered build: {e}")))?;
+    sink.append(reg);
+
+    let alias_ev = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        actor,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::ProjectAliasAdded(ProjectAliasAddedPayload {
+        project_id,
+        alias: alias.to_string(),
+    }))
+    .map_err(|e| crate::errors::AdapterError::Other(format!("ProjectAliasAdded build: {e}")))?;
+    sink.append(alias_ev);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Import orchestration
+// ---------------------------------------------------------------------------
+
 /// Orchestrates the import of Antigravity sessions from all discovered locations.
-#[allow(clippy::disallowed_methods)]
 pub fn import_antigravity_sessions<S: CaptureSink>(
     query_store: &dyn ai_brains_store::QueryStore,
     service: &CaptureService,
     sink: &mut S,
-    days: usize,
-    default_project_id: ProjectId,
-) -> Result<(usize, usize)> {
-    let all_sources = discover_sessions()?;
+    options: AntigravityImportOptions,
+) -> Result<AntigravityImportStats> {
+    let home = options.home_override.clone().or_else(dirs::home_dir);
+    let include_wsl = options.home_override.is_none();
+    let all_sources = discover_sessions_from_home(home.as_deref(), include_wsl)?;
+
+    let mut stats = AntigravityImportStats::default();
     if all_sources.is_empty() {
-        return Ok((0, 0));
+        return Ok(stats);
     }
 
-    // Filter by recency (optional, but good for performance)
+    let history = home
+        .as_ref()
+        .map(|h| load_agy_history_index_from_home(h))
+        .unwrap_or_default();
+
+    // Filter by recency
     let recent_sources: Vec<AntigravitySessionSource> = all_sources
         .into_iter()
         .filter(|s| {
             if let Ok(metadata) = std::fs::metadata(&s.path)
                 && let Ok(modified) = metadata.modified()
             {
-                let cutoff = SystemTime::now() - Duration::from_secs(days as u64 * 24 * 60 * 60);
+                let cutoff =
+                    SystemTime::now() - Duration::from_secs(options.days as u64 * 24 * 60 * 60);
                 return modified >= cutoff;
             }
             false
         })
         .collect();
 
-    let source_count = recent_sources.len();
-    if source_count == 0 {
-        return Ok((0, 0));
+    stats.found = recent_sources.len();
+    if stats.found == 0 {
+        return Ok(stats);
     }
     eprintln!(
         "[Antigravity] Found {} sessions modified in the last {} days. Scanning for new turns...",
-        source_count, days
+        stats.found, options.days
     );
 
-    // Canonical Antigravity Harness IDs
     let antigravity_harness = HarnessId::from_str("00000000-0000-0000-0000-000000000001")
         .map_err(|e| crate::errors::AdapterError::Other(format!("Invalid static ID: {}", e)))?;
     let agy_harness = HarnessId::from_str("00000000-0000-0000-0000-000000000002")
         .map_err(|e| crate::errors::AdapterError::Other(format!("Invalid static ID: {}", e)))?;
 
-    let mut total_turns = 0;
-    let mut sessions_imported = 0;
-
     for (idx, source) in recent_sources.iter().enumerate() {
-        // Lightweight metadata check to avoid heavy parsing of unchanged files
         let metadata = std::fs::metadata(&source.path).ok();
         let mtime = metadata
             .as_ref()
@@ -371,30 +616,32 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
             .unwrap_or(0);
         let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
 
-        let meta_key = format!("source_meta:{}", source.session_id);
+        let meta_key = agy_source_meta_key(&source.path);
         let stored_meta = query_store.get_sync_state(&meta_key).unwrap_or(None);
         let current_meta = format!("{}:{}", mtime, size);
 
         if stored_meta.as_ref() == Some(&current_meta) {
-            // Already fully ingested and hasn't changed since.
+            stats.skipped_unchanged_meta += 1;
             continue;
         }
 
-        if (idx + 1) % 10 == 0 || idx == 0 || idx == source_count - 1 {
+        if (idx + 1) % 10 == 0 || idx == 0 || idx == stats.found - 1 {
             eprintln!(
                 "[Antigravity] Scanning session {}/{}...",
                 idx + 1,
-                source_count
+                stats.found
             );
         }
 
-        // Quiescence check: Skip if modified in the last 5 minutes (still active)
-        if let Some(modified) = metadata.as_ref().and_then(|m| m.modified().ok())
+        // Quiescence check (F18): skip if modified in the last 5 minutes unless --force
+        if !options.force
+            && let Some(modified) = metadata.as_ref().and_then(|m| m.modified().ok())
             && SystemTime::now()
                 .duration_since(modified)
                 .unwrap_or(Duration::ZERO)
                 < Duration::from_secs(300)
         {
+            stats.skipped_quiescent += 1;
             continue;
         }
 
@@ -404,46 +651,115 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
         };
         let session_id = SessionId::from_uuid(session_uuid);
 
-        let (turns, harness_id) = match source.format {
+        let (turns, harness_id): (Vec<TranscriptIngestTurn>, HarnessId) = match source.format {
             AntigravityFormat::BrainLog => {
-                let steps = parse_overview_file(&source.path)?;
-                (extract_turns(&steps), antigravity_harness)
+                // Shared parser: step-shaped transcript/overview + legacy role/content (F1/F2/F29)
+                let parsed = parse_transcript_for_ingest(&source.path)?;
+                (parsed, antigravity_harness)
             }
-            AntigravityFormat::ProjectChat => (parse_project_chat_file(&source.path)?, agy_harness),
+            AntigravityFormat::ProjectChat => {
+                let chat = parse_project_chat_file(&source.path)?;
+                let mapped = chat
+                    .into_iter()
+                    .map(|t| TranscriptIngestTurn {
+                        role: t.role,
+                        content: t.content,
+                        timestamp: t.created_at,
+                        step_index: None,
+                    })
+                    .collect();
+                (mapped, agy_harness)
+            }
         };
 
         if turns.is_empty() {
-            // Update metadata anyway so we don't keep re-parsing empty/tool-only sessions
             update_source_meta(sink, &meta_key, &current_meta);
             continue;
         }
 
-        // Delta Sync: Check turn count in vault instead of session status (Requirement T49.1)
         let max_turn = query_store.get_max_turn_index(&session_id).unwrap_or(None);
         let next_index = max_turn.map(|m| m + 1).unwrap_or(0);
 
         if turns.len() <= next_index as usize {
-            // No new turns, but file might have changed (e.g. metadata or tool logs).
-            // Update stored metadata to reflect current state so we skip next time.
             update_source_meta(sink, &meta_key, &current_meta);
             continue;
         }
 
-        // Mapping: Use projectHash from source if available, else resolve/default.
-        let project_id = if let Some(ref hash) = source.project_hash {
-            query_store
-                .resolve_project_id_from_alias(hash)
-                .unwrap_or(None)
-                .unwrap_or(default_project_id)
-        } else {
-            default_project_id
-        };
+        // F9/F10: history bind for BrainLog (session_id == conversationId)
+        let mut bind_kind = AgyBindKind::Unbound;
+        let mut hash_for_resolve: Option<String> = source.project_hash.clone();
+
+        if matches!(source.format, AntigravityFormat::BrainLog) {
+            if let Some(ws) = history.get(&source.session_id) {
+                hash_for_resolve = Some(ws.clone());
+                bind_kind = AgyBindKind::History;
+            } else if source.project_hash.is_none() {
+                hash_for_resolve = None;
+                bind_kind = AgyBindKind::Unbound;
+            }
+        } else if source.project_hash.is_some() {
+            bind_kind = AgyBindKind::Path;
+        }
+
+        let (mut project_id, alias, resolved_kind, needs_create) = resolve_agy_project(
+            hash_for_resolve.as_deref(),
+            query_store,
+            options.allow_default_project,
+            options.default_project_id,
+        )?;
+
+        // Prefer history/path classification for counters when we had a history hit
+        let final_kind =
+            if bind_kind == AgyBindKind::History && resolved_kind != AgyBindKind::Unbound {
+                AgyBindKind::History
+            } else if resolved_kind == AgyBindKind::Default {
+                AgyBindKind::Default
+            } else if resolved_kind == AgyBindKind::Unbound || alias == AGY_UNBOUND_ALIAS {
+                AgyBindKind::Unbound
+            } else {
+                AgyBindKind::Path
+            };
+
+        if needs_create {
+            let display = if alias == AGY_UNBOUND_ALIAS {
+                AGY_UNBOUND_DISPLAY_NAME.to_string()
+            } else {
+                path_derived_display_name(&alias)
+            };
+            // If alias was created concurrently, use resolved id
+            if let Ok(Some(existing)) = query_store.resolve_project_id_from_alias(&alias) {
+                project_id = existing;
+            } else {
+                ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
+            }
+        } else if final_kind != AgyBindKind::Default {
+            // Ensure alias link exists for resolved projects when path was re-normalized
+            if query_store
+                .resolve_project_id_from_alias(&alias)
+                .ok()
+                .flatten()
+                .is_none()
+            {
+                let display = if alias == AGY_UNBOUND_ALIAS {
+                    AGY_UNBOUND_DISPLAY_NAME.to_string()
+                } else {
+                    path_derived_display_name(&alias)
+                };
+                ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
+            }
+        }
+
+        match final_kind {
+            AgyBindKind::History => stats.bound_via_history += 1,
+            AgyBindKind::Path => stats.bound_via_path += 1,
+            AgyBindKind::Unbound => stats.unbound_project += 1,
+            AgyBindKind::Default => {}
+        }
 
         let capture_context = CaptureContext {
             git_working_dir: std::env::current_dir().ok(),
         };
 
-        // Start the session
         service.start_session(
             ai_brains_capture::SessionStartCommand {
                 session_id,
@@ -456,12 +772,8 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
             sink,
         )?;
 
-        // Ingest new turns only (Delta Sync)
         for (i, turn) in turns.iter().enumerate().skip(next_index as usize) {
-            let turn_id = TurnId::from_uuid(Uuid::new_v5(
-                &session_id.as_uuid(),
-                format!("turn-{}", i).as_bytes(),
-            ));
+            let turn_id = generate_turn_id_for_ingest(&session_id, i, turn.step_index);
 
             let request = IngestRequest {
                 session_id,
@@ -475,10 +787,9 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
                 tx_id: None,
             };
             service.ingest_request(request, capture_context.clone(), sink)?;
-            total_turns += 1;
+            stats.imported_turns += 1;
         }
 
-        // Mark as completed
         service.stop_session(
             ai_brains_capture::SessionStopCommand {
                 session_id,
@@ -491,18 +802,29 @@ pub fn import_antigravity_sessions<S: CaptureSink>(
             sink,
         )?;
 
-        // Successfully imported all current turns. Store metadata.
         update_source_meta(sink, &meta_key, &current_meta);
-        sessions_imported += 1;
+        stats.sessions += 1;
     }
 
-    Ok((total_turns, sessions_imported))
+    Ok(stats)
+}
+
+/// Print F16 human stats to stderr (never claims a JSON status object).
+pub fn print_import_stats(stats: &AntigravityImportStats) {
+    eprintln!(
+        "[Antigravity] Import stats: found={} imported_turns={} sessions={} skipped_quiescent={} skipped_unchanged_meta={} unbound_project={} bound_via_history={} bound_via_path={}",
+        stats.found,
+        stats.imported_turns,
+        stats.sessions,
+        stats.skipped_quiescent,
+        stats.skipped_unchanged_meta,
+        stats.unbound_project,
+        stats.bound_via_history,
+        stats.bound_via_path
+    );
 }
 
 fn update_source_meta<S: CaptureSink>(sink: &mut S, key: &str, value: &str) {
-    // We try to downcast the sink to something that can handle sync state.
-    // In our CLI implementation, this is StoreSink which has access to SqliteEventStore.
-    // If the sink doesn't support it, we just skip it (performance degrades to legacy behavior).
     sink.set_sync_state(key, value);
 }
 
@@ -513,6 +835,7 @@ mod tests {
     #![allow(non_snake_case)]
 
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn extract_turns_keeps_user_and_assistant_content() {
@@ -712,5 +1035,59 @@ mod tests {
         assert_eq!(turns[1].content, "hi");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn history_index__latest_workspace_wins() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history.jsonl");
+        let mut f = std::fs::File::create(&path).unwrap();
+        // Older timestamp → workspace A
+        writeln!(
+            f,
+            r#"{{"display":"x","timestamp":1000,"workspace":"C:\\dev\\Old","conversationId":"cid-1","type":"chat"}}"#
+        )
+        .unwrap();
+        // Newer timestamp → workspace B wins
+        writeln!(
+            f,
+            r#"{{"display":"y","timestamp":2000,"workspace":"C:\\dev\\New","conversationId":"cid-1","type":"chat"}}"#
+        )
+        .unwrap();
+        // Same timestamp, later line wins
+        writeln!(
+            f,
+            r#"{{"display":"z","timestamp":2000,"workspace":"C:\\dev\\Newest","conversationId":"cid-1","type":"chat"}}"#
+        )
+        .unwrap();
+        // Missing conversationId skipped
+        writeln!(
+            f,
+            r#"{{"display":"n","timestamp":3000,"workspace":"C:\\dev\\NoCid"}}"#
+        )
+        .unwrap();
+
+        let map = load_agy_history_index(&path);
+        assert_eq!(map.len(), 1);
+        let ws = map.get("cid-1").expect("cid-1");
+        let expected = normalize_agy_project_hash(r"C:\dev\Newest");
+        assert_eq!(ws, &expected);
+    }
+
+    #[test]
+    fn history_index__case_normalize_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history.jsonl");
+        std::fs::write(
+            &path,
+            r#"{"timestamp":1,"workspace":"C:\\dev\\Dedupe","conversationId":"c1"}
+{"timestamp":2,"workspace":"c:\\dev\\dedupe","conversationId":"c1"}
+"#,
+        )
+        .unwrap();
+        let map = load_agy_history_index(&path);
+        let ws = map.get("c1").unwrap();
+        assert_eq!(ws, &normalize_agy_project_hash(r"C:\dev\Dedupe"));
+        assert_eq!(ws, &normalize_agy_project_hash(r"c:\dev\dedupe"));
     }
 }

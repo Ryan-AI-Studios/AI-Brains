@@ -1,112 +1,80 @@
-# Antigravity Integration with AI-Brains
+# Antigravity / AGY 2 Integration with AI-Brains
 
-Antigravity does not support session hooks, so AI-Brains cannot automatically capture conversation turns during an active session. However, Antigravity stores full conversation logs at `~/.gemini/antigravity/brain/<id>/.system_generated/logs/overview.txt`. AI-Brains can import these logs via `ai-brains antigravity-import` or automatically during `ai-brains nightly`. During an active session, you must still pin important information manually.
+AI-Brains supports **Antigravity 2 CLI (`agy`)** live capture via Stop hooks and **batch import** of brain logs, with **history.jsonl workspace→project binding** so turns land under the right project.
 
-## What Does NOT Happen Automatically
+## Live hooks (supported)
 
-- Per-turn ingestion of assistant responses
-- Session start preflight context injection
-- Session end finalization
-- Pre-compaction context rescue
-
-These all require hooks (Stop, SessionStart, SessionEnd, PreCompact) which Antigravity does not support.
-
-## Manual Capture Workflow
-
-Since nothing is captured automatically, you are responsible for persisting anything worth remembering. Use `ai-brains pin` for this.
-
-### After Making a Decision
-
-```
-ai-brains pin "DECISION: chose SQLite over LadybugDB for the graph backend because LadybugDB requires MSVC"
-```
-
-### After Discovering a Constraint
-
-```
-ai-brains pin "CONSTRAINT: cargo deny check must pass before every commit — AGPL dependencies are rejected"
-```
-
-### After Recording an Invariant
-
-```
-ai-brains pin "INVARIANT: never update or delete raw events — use compensating events for corrections"
-```
-
-### After a User Correction
-
-```
-ai-brains pin "CONSTRAINT: user prefers single bundled PRs over many small ones" --role user
-```
-
-## Orientation at Session Start
-
-Run these commands at the beginning of every Antigravity session to load context:
+Install (user-global, message-only):
 
 ```powershell
-# 1. Sync safety signals from Ledgerful
-ai-brains safety sync
+ai-brains harness install --harness agy --yes
+# After T236: reinstall once so the Stop wrapper emits allow-stop JSON only on stdout
+ai-brains harness install --harness agy --yes
+```
 
-# 2. Load recent project state and constraints
+| Location | Role |
+|----------|------|
+| `~/.gemini/config/hooks.json` | Official AGY hooks SOOT — managed key `ai-brains-capture` |
+| `~/.ai-brains/hooks/agy-stop.ps1` | Wrapper: maps Stop → `agy-hook` payload; **stdout = only** `{"decision":"allow"}`; diagnostics on stderr |
+| Brain logs | `~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript.jsonl` (+ optional `transcript_full.jsonl`, legacy `overview.txt`) |
+
+**Message-only SOOT:** user prompts + final assistant text only. Tool steps (`VIEW_FILE`, `RUN_COMMAND`, …), thinking/reasoning, and system chrome are dropped.
+
+**Project binding (live):** `workspacePaths[0]` → normalized path alias (or `agy-unbound`). `AI_BRAINS_PROJECT_ID` is used **only** when the hash is empty/`agy-unbound`.
+
+**fullyIdle:** when `false`, the wrapper soft-skips ingest (exit 0 + allow-stop JSON).
+
+## Batch import
+
+```powershell
+ai-brains antigravity-import --days 7
+ai-brains antigravity-import --days 30 --force   # skip 5-minute quiescence
+```
+
+- Discovers brains under `~/.gemini/{antigravity,antigravity-cli,antigravity-ide}/brain/` and project chats under `~/.gemini/tmp/…/chats/`.
+- Binds `conversationId` → workspace via `~/.gemini/antigravity-cli/history.jsonl` (optional legacy `antigravity/history.jsonl`). Latest `(timestamp_ms, line)` wins; paths are normalized.
+- Missing history → stable project alias **`agy-unbound`** / display **`(unbound AGY)`** — does **not** attach unbound brains to the cwd `.env` project by default (`allow_default_project: false`).
+- Prefers sibling **`transcript_full.jsonl`** when present (truncated `transcript.jsonl` may list `truncated_fields`).
+- Human stats on **stderr** (found, imported_turns, sessions, skipped_quiescent, skipped_unchanged_meta, unbound_project, bound_via_history, bound_via_path). **Not** a JSON status object unless a future `--json` is added.
+- **`--force`** skips the 300s quiescence window for recently modified files.
+
+### Nightly honesty
+
+- Manual `ai-brains nightly` (without `--skip-import`) runs import with unbound anti-hijack.
+- **SYSTEM scheduled nightly** may still use `--skip-import` (T239 may re-enable multi-harness import). Do not assume scheduled Task Scheduler jobs import AGY history today.
+
+## Mid-session: pin is still recommended
+
+Hooks capture turns after Stop; they do not replace pinning decisions mid-session:
+
+```
+ai-brains pin "DECISION: …"
+ai-brains pin "CONSTRAINT: …"
+```
+
+## Orientation at session start
+
+```powershell
+ai-brains safety sync
 ai-brains preflight --max-words 1000
 ```
 
-This is what the Claude Code and Gemini hooks do automatically. In Antigravity you must do it yourself.
-
-## Searching Memory
-
-When you need to recall past decisions or constraints:
-
-```powershell
-ai-brains recall "database choice"
-```
-
-This searches the relational graph for pinned memories matching the query.
-
-## Pin Format Reference
-
-| Prefix | Purpose | Example |
-|---|---|---|
-| `DECISION:` | A choice made and why | `DECISION: migrated to SQLite CTEs for graph traversal` |
-| `CONSTRAINT:` | A rule or limitation | `CONSTRAINT: Windows-first paths must handle UNC prefixes` |
-| `INVARIANT:` | An unbreakable rule | `INVARIANT: never unwrap() in production code` |
-
-## Frequency Guidance
-
-Pin early and pin often. Without hooks, there is no safety net. If you close the session without pinning, that knowledge is gone. Prefer many small pins over one large one — each pin is indexed separately for recall.
-
-## Commands Reference
+## Commands reference
 
 | Action | Command | Notes |
 |---|---|---|
-| Orient yourself | `ai-brains preflight --max-words 1000` | Run at session start |
-| Sync safety | `ai-brains safety sync` | Run at session start |
-| Search memory | `ai-brains recall "topic"` | Searches pinned memories |
-| Record a decision | `ai-brains pin "DECISION: ..."` | Manual capture only |
-| Record a constraint | `ai-brains pin "CONSTRAINT: ..."` | Manual capture only |
-| Record user correction | `ai-brains pin "..." --role user` | Marks it as user-sourced |
-| Import Antigravity sessions | `ai-brains antigravity-import --days 7` | Also runs automatically with nightly |
-| Nightly audit | `ai-brains nightly` | Heavy batch — includes Antigravity import |
-| Initialize project | `ai-brains context` | Creates .env with project IDs |
+| Install Stop hook | `ai-brains harness install --harness agy --yes` | Reinstall after T236 for wrapper stdout SOOT |
+| Status | `ai-brains harness status` | Detect + wiring |
+| Real-time hook | `agy-hook --payload '{…}'` | Prefer install wrapper; diagnostics on stderr |
+| Import recent | `ai-brains antigravity-import --days 7` | History bind + message-only |
+| Force import | `ai-brains antigravity-import --force` | Skip 5-minute quiescence |
+| Nightly | `ai-brains nightly` | Import unless `--skip-import` |
+| Pin | `ai-brains pin "…"` | Mid-session decisions |
+| Recall | `ai-brains recall "topic"` | Project-scoped by default |
 
-## Automatic Import via Nightly
+## What NOT to do
 
-When you run `ai-brains nightly`, Antigravity sessions from `~/.gemini/antigravity/brain/` are automatically discovered and imported. This happens **before** summarization, so imported sessions get summarized in the same nightly run.
-
-You can also run `ai-brains antigravity-import` manually to import recent sessions without waiting for nightly:
-
-```powershell
-# Import sessions from the last 7 days
-ai-brains antigravity-import --days 7
-
-# Import sessions from the last 30 days (default)
-ai-brains antigravity-import
-```
-
-Import is idempotent — sessions that already exist in the vault are skipped. Mandate #4 is enforced: hidden thinking and tool-only calls are filtered out; only user prompts and final assistant responses are captured.
-
-## What NOT to Do
-
-- **Do not run `ai-brains ingest`** — it requires structured JSON on stdin and is designed for hook pipelines, not interactive use.
-- **Do not run `ai-brains nightly` as a substitute for pinning** — it summarizes existing sessions but cannot capture a session that has no recorded turns.
-- **Do not assume memory exists for recent sessions** — `antigravity-import` and `nightly` import past sessions, but only after they end. During an active session, pin manually.
+- **Do not** expect human ingest lines on AGY Stop **stdout** (wrapper allows stop with JSON only).
+- **Do not** assume scheduled SYSTEM nightly imports AGY (may use `--skip-import`).
+- **Do not** rely on env project for non-unbound workspaces (path-derived / history bind).
+- **Do not** skip pinning mid-session for decisions you need immediately.

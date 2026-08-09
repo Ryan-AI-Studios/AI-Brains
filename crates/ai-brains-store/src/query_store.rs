@@ -75,10 +75,34 @@ fn memory_list_from_where(
 
 impl QueryStore for VaultConnection {
     fn get_unsummarized_sessions(&self) -> Result<Vec<String>> {
+        // F17 / AC13: re-queue completed sessions that never got a summary OR that
+        // received new turns after summarized_at (OR-query; no projection wipe).
+        // NULL summarized_at with non-null summary_memory_id is treated as needing
+        // re-check via the EXISTS branch when new turns appear (occurred_at > NULL
+        // is unknown in SQL — use IS NULL OR comparison carefully).
         let conn = self.lock()?;
         let mut stmt = conn.prepare(
-            "SELECT session_id FROM session_projection 
-             WHERE status = 'completed' AND summary_memory_id IS NULL",
+            "SELECT sp.session_id FROM session_projection sp
+             WHERE sp.status = 'completed'
+             AND (
+               sp.summary_memory_id IS NULL
+               OR (
+                 sp.summarized_at IS NOT NULL
+                 AND EXISTS (
+                   SELECT 1 FROM turn_projection tp
+                   WHERE tp.session_id = sp.session_id
+                   AND tp.occurred_at > sp.summarized_at
+                 )
+               )
+               OR (
+                 sp.summary_memory_id IS NOT NULL
+                 AND sp.summarized_at IS NULL
+                 AND EXISTS (
+                   SELECT 1 FROM turn_projection tp
+                   WHERE tp.session_id = sp.session_id
+                 )
+               )
+             )",
         )?;
         let rows = stmt.query_map([], |row| row.get(0))?;
         let mut results = Vec::new();

@@ -384,6 +384,9 @@ enum Commands {
         /// Only import sessions modified within the last N days
         #[arg(short, long, default_value_t = 30)]
         days: usize,
+        /// Skip the 5-minute quiescence window (import even if file was modified recently)
+        #[arg(long, default_value_t = false)]
+        force: bool,
     },
     /// Process an Antigravity CLI (agy) hook payload
     #[command(display_order = 52)]
@@ -3271,7 +3274,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .await
             }
         },
-        Commands::AntigravityImport { days } => commands::antigravity_import::run(&ctx, *days),
+        Commands::AntigravityImport { days, force } => {
+            commands::antigravity_import::run(&ctx, *days, *force)
+        }
         Commands::AgyHook { payload, schema } => {
             if *schema {
                 print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")

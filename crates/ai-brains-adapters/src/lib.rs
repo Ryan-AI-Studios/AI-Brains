@@ -15,10 +15,19 @@ mod opencode;
 mod wrapper;
 
 pub use adapter::{AdapterKind, adapter_capability};
+pub use agy::{
+    AGY_UNBOUND_ALIAS, AGY_UNBOUND_DISPLAY_NAME, TranscriptIngestTurn, agy_env_fallback_allowed,
+    agy_source_meta_key, generate_deterministic_turn_id, generate_turn_id_for_ingest,
+    normalize_agy_project_hash, parse_transcript_for_ingest, path_derived_display_name,
+    prefer_full_transcript_path,
+};
 pub use antigravity::{
-    AntigravityStep, AntigravityTurn, antigravity_capability, discover_sessions, extract_turns,
-    filter_recent_sessions, import_antigravity_sessions, manual_import_instructions,
-    parse_overview_file, session_id_from_path, strip_user_xml_tags,
+    AgyBindKind, AntigravityFormat, AntigravityImportOptions, AntigravityImportStats,
+    AntigravitySessionSource, AntigravityStep, AntigravityTurn, antigravity_capability,
+    discover_sessions, discover_sessions_from_home, extract_turns, import_antigravity_sessions,
+    load_agy_history_index, load_agy_history_index_from_home, manual_import_instructions,
+    parse_overview_file, parse_project_chat_file, print_import_stats, resolve_agy_project,
+    session_id_from_path, strip_user_xml_tags,
 };
 pub use capability::{AdapterCapability, CapabilityLevel};
 pub use claude::parse_claude_stop_payload;

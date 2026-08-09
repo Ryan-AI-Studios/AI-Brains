@@ -120,9 +120,9 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 
 - **Capture independence:** filter is pure string/JSON — no models, embeddings, or graph.
 - **`IngestRequest.thinking`:** field remains on the contracts DTO for serialization compat; adapters / message_only **never populate** it; event builders never write thinking into the event log.
-- **Wired today:** `antigravity::extract_turns` (BrainLog), `parse_project_chat_file` → `filter_turn` (ProjectChat), and `agy-hook` / `parse_agy_transcript_message_only`.
+- **Wired today:** shared `parse_transcript_for_ingest` (step-shaped + legacy `{role,content}`, prefer `transcript_full.jsonl`), `antigravity::extract_turns` / import + `agy-hook` (message-only SOOT); ProjectChat → `filter_turn`.
 - **Fixture-ready (wire in T237/T238):** `filter_grok_history_*`, `filter_opencode_message*`.
-- Seamless multi-harness install/import remains **Partial** until T236–T239.
+- AGY live+batch seamless ingest: **Implemented with caveats** (T236). Multi-harness nightly orchestration remains **Partial** until T237–T239.
 
 ### Manual / programmatic
 - **`ingest`** — JSON turn from stdin (`session_id`, `project_id`, `harness_id`, `turn_id`, `role`, `content`, `privacy`)
@@ -133,9 +133,9 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 | Integration | Mechanism | Notes |
 |-------------|-----------|--------|
 | **Detect + install UX (T235)** | `harness status\|install\|uninstall\|reset-decline` | Detect harnesses **installed on machine** (PATH + home); wiring `absent\|missing\|partial\|ok\|backend_pending\|unknown`. User-global only (no repo pollution). Preflight `--summary` shows **Harnesses installed on machine:** sibling section. |
-| **agy (Antigravity CLI)** | `harness install --harness agy` → Stop wrapper → `agy-hook --payload` | **Install ready** (T235): merges `ai-brains-capture` into `~/.gemini/config/hooks.json` + `~/.ai-brains/hooks/agy-stop.ps1` (Stop → mapped payload). Message-only SOOT (T234). `--dry-run` / `--yes`. |
-| **agy-hook** | `agy-hook --payload '{...}'` | Real-time ingest; `--schema` prints JSON Schema |
-| **Antigravity bulk** | `antigravity-import --days N` | Incremental, idempotent; `extract_turns` → message_only |
+| **agy (Antigravity CLI)** | `harness install --harness agy` → Stop wrapper → `agy-hook --payload` | **Implemented (T235+T236):** hooks.json + wrapper; wrapper stdout = allow-stop JSON only; step-shaped + full transcript prefer; path normalize; env fallback only for `agy-unbound`. Reinstall after T236. |
+| **agy-hook** | `agy-hook --payload '{...}'` | Real-time ingest; shared parse + turn-id SOOT; diagnostics on stderr; `--schema` |
+| **Antigravity bulk** | `antigravity-import --days N [--force]` | History.jsonl workspace bind; unbound `agy-unbound`; stats on stderr; `--force` skips 300s quiescence; default `allow_default_project=false`. SYSTEM scheduled nightly may still `--skip-import` (T239). |
 | **Grok / OpenCode / Claude / Codex** | status + dry-run | Install backends **pending** (T237/T238+); real install does not claim capture ok |
 | **Claude hooks** | `Docs/claude-hooks.md` | User-level scripts under `~\.ai-brains\scripts\` |
 
