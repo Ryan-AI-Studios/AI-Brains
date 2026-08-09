@@ -11,6 +11,8 @@
 | R1 | Internal subagent | NEEDS_FIX | P2 AC5 Denied hermetic missing |
 | R2 | Internal re-review | CLEAN | Expand Denied hermetic verified; 9/9 nextest |
 | R3 | Codex gpt-5.4 high | **Product PASS** | No P0–P3 product findings; process-only open gates (DoD checkboxes / deferred strike / full CI) owned by orchestrator closeout |
+| R4 | Closeout | **Completed** | PR #114 squash `b3c4b0f`; CI green; conductor/deferred/series/coordinated updated; soft residuals only |
+| R5 | Codex final (gpt-5.4 high) | **PASS WITH DEFERRED P3** | Fresh post-merge product audit: no open P0–P2; deferred soft F12/F32/F18/F36 |
 
 ## Findings
 

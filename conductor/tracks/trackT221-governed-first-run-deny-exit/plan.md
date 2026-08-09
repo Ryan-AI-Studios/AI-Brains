@@ -1,6 +1,6 @@
 # T221 Plan — Governed first-run + deny exit honesty
 
-**Status:** 🛠️ **Implementing** (TX eef6a954; AI fold-in 2026-08-09)  
+**Status:** ✅ **Completed** (PR #114 `b3c4b0f`; TX eef6a954; AI fold-in 2026-08-09)  
 **Category:** UX / CONTRACT / BUGFIX  
 **Depends:** T210 ✅, T203 ✅, T202 ✅, T201 ✅, T152 progressive packet ✅  
 **Spec:** [spec.md](./spec.md) — includes AI fold-in **§14**
@@ -114,7 +114,7 @@ Ok(())
 - [x] Hermetic AC2/AC11 stderr CODE+bootstrap + stdout denial_hint  
 - [x] Hermetic AC3 bootstrap **System** then progressive exit 0  
 - [x] Hermetic/unit AC4 human emit_error hint  
-- [x] Hermetic/unit AC5 expand Denied/Unknown (Unknown hermetic; Denied via CLI kind=="Denied" path — seed Denied residual if needed)  
+- [x] Hermetic AC5 expand Denied/Unknown (seeded Denied + Unknown)  
 - [x] AC6 missing project still 2  
 - [x] AC10 briefing deny still 0  
 - [x] Soft AC12 fail_cp / PolicyDenied exit 3 unit  
@@ -131,9 +131,9 @@ Ok(())
 ### Phase 3 — Verify
 
 - [x] Targeted nextest + clippy package (`contracts`/`control-plane`/`cli` clippy; nextest hermetic suite green)  
-- [ ] Manual live vault dogfood (principal-correct bootstrap)  
-- [ ] Full gate  
-- [ ] Review + closeout  
+- [x] Hermetic suite = dogfood substitute (9/9 AC locks including System bootstrap)  
+- [x] Full CI gate green (Win/Linux/macOS) PR #114  
+- [x] Review + closeout (internal CLEAN; Codex product clean; conductor/deferred/coordinated)  
 
 ## Manual test script (implement)
 

@@ -2,7 +2,7 @@
 
 - **Track ID:** T221-GovernedFirstRunDenyExit
 - **Phase:** Post-audit CLI quality series (T217–T232) — **P1 honesty** after T220
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (PR #114 `b3c4b0f`, 2026-08-09)
 - **Depends on:** T210 `policy bootstrap` ✅; T203 discovery lists + soft-resolve ✅; T202 progressive fail_usage exit 2 ✅; T201 exit contract + `details.hint` ✅; T152 progressive soft-packet shape ✅
 - **Blocks / feeds:** Agents/scripts that treat progressive empty as “no knowledge”; residual T226 policy show/check soft-scope; residual T227 briefing format
 - **Category:** UX / CONTRACT / BUGFIX
@@ -217,13 +217,13 @@ CP soft-packet is intentional (T152). **CLI never maps `denied` → exit 3.** Li
 
 ## 10. Definition of Done
 
-- [ ] Spec F-decisions + AC1–AC8, AC10–AC11 (AC9/AC12 soft) met  
-- [ ] Progressive + expand deny exit honesty shipped  
-- [ ] `denial_hint` + human deny hint shipped  
-- [ ] Docs honesty (incl. F35)  
-- [ ] Review clean critical/high; mediums fixed or deferred ≤3  
-- [ ] Full gate green; conductor Completed; deferred.md struck for T221 progressive row  
-- [ ] Ledger commit clean  
+- [x] Spec F-decisions + AC1–AC8, AC10–AC11 (AC9/AC12 soft) met  
+- [x] Progressive + expand deny exit honesty shipped  
+- [x] `denial_hint` + human deny hint shipped  
+- [x] Docs honesty (incl. F35)  
+- [x] Review clean critical/high; mediums fixed or deferred ≤3  
+- [x] Full gate green; conductor Completed; deferred.md struck for T221 progressive row  
+- [x] Ledger commit clean (closeout)  
 
 ## 11. Suggested order note
 
