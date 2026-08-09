@@ -1,5 +1,7 @@
 # OpenCode Hooks Research
 
+> **Historical (2026-05).** Superseded by **T238** shipping path in `Docs/OPERATIONS.md` (install + `opencode-hook` + `opencode-import`) and `Docs/CAPABILITIES.md`. Do **not** implement config registration shapes, PowerShell adapter paths, or Stage 2 plans from this document as written — live OpenCode auto-loads `~/.config/opencode/plugins/*.js` without rewriting `opencode.json`.
+
 This document summarizes the research into the OpenCode hook system and the implementation roadmap for AI-Brains.
 
 ## Summary of Findings

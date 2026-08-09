@@ -12,7 +12,7 @@ mod hook_output;
 mod install;
 pub mod message_only;
 mod neutral_event;
-mod opencode;
+pub mod opencode;
 mod wrapper;
 
 pub use adapter::{AdapterKind, adapter_capability};
@@ -45,11 +45,21 @@ pub use grok::{
 pub use hook_output::render_hook_output;
 pub use install::install_scope;
 pub use message_only::{
-    AntigravityStepInput, DropReason, IngestRole, IngestableTurn, classify_antigravity_step,
-    extract_text_from_json_content, extract_user_text, filter_agy_simple_lines,
-    filter_agy_simple_turn, filter_antigravity_steps, filter_grok_history_lines,
-    filter_grok_history_record, filter_opencode_message, filter_opencode_message_lines,
-    filter_opencode_messages, filter_turn, filter_turn_with_ts,
+    AntigravityStepInput, DropReason, IngestRole, IngestableTurn, OpenCodeIngestTurn,
+    classify_antigravity_step, extract_text_from_json_content, extract_user_text,
+    filter_agy_simple_lines, filter_agy_simple_turn, filter_antigravity_steps,
+    filter_grok_history_lines, filter_grok_history_record, filter_opencode_export,
+    filter_opencode_message, filter_opencode_message_lines, filter_opencode_message_with_id,
+    filter_opencode_messages, filter_turn, filter_turn_with_ts, normalize_opencode_export_message,
 };
 pub use neutral_event::NeutralEvent;
+pub use opencode::{
+    OPENCODE_EXPORT_TIMEOUT_SECS, OPENCODE_HARNESS_UUID, OPENCODE_LIST_DEFAULT_CAP,
+    OPENCODE_UNBOUND_ALIAS, OPENCODE_UNBOUND_DISPLAY_NAME, OpenCodeBindKind, OpenCodeImportOptions,
+    OpenCodeImportStats, OpenCodeSessionSource, append_opencode_turns, export_session_via_cli,
+    generate_opencode_turn_id, import_opencode_sessions, normalize_opencode_project_hash,
+    opencode_capability, opencode_env_fallback_allowed, opencode_source_meta_key,
+    parse_export_file, parse_export_json, print_opencode_import_stats, resolve_opencode_config_dir,
+    resolve_opencode_project, session_id_from_opencode,
+};
 pub use wrapper::wrapper_command;

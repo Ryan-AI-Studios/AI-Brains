@@ -77,8 +77,10 @@ ai-brains harness status --format json
 ai-brains harness install --harness agy --dry-run
 ai-brains harness install --harness agy --yes
 ai-brains harness install --harness grok --yes
+ai-brains harness install --harness opencode --yes
 ai-brains harness uninstall --harness agy --yes
 ai-brains harness uninstall --harness grok --yes
+ai-brains harness uninstall --harness opencode --yes
 ai-brains harness reset-decline --harness all
 ```
 
@@ -86,9 +88,9 @@ ai-brains harness reset-decline --harness all
 |---------|--------|---------------|
 | grok | PATH `grok` or `~/.grok` | **Yes (T237)** — Stop+SessionEnd → wrapper (**empty** stdout) → `grok-hook` |
 | agy | PATH `agy` or `~/.gemini/...` | **Yes** — Stop → wrapper (allow-stop JSON stdout) → `agy-hook` |
-| opencode | PATH / `~/.config/opencode` | Pending (T238) |
-| claude | PATH / `~/.claude` | Pending (T238+) |
-| codex | PATH / `~/.codex` | Pending (T238+) |
+| opencode | PATH / `~/.config/opencode` (or `OPENCODE_CONFIG_DIR`) | **Yes (T238)** — managed plugin `session.idle` → `opencode-hook` |
+| claude | PATH / `~/.claude` | Pending (T239+) |
+| codex | PATH / `~/.codex` | Pending (T239+) |
 
 AGY writer merges only the managed key `ai-brains-capture` into `%USERPROFILE%\.gemini\config\hooks.json` and writes `%USERPROFILE%\.ai-brains\hooks\agy-stop.ps1`. Foreign hooks are preserved; corrupt JSON refuses rewrite (exit 1).
 
@@ -102,6 +104,18 @@ ai-brains grok-import --days 30 --force
 ```
 
 **Grok session layout:** `~/.grok/sessions/<percent-encoded-cwd>/<sessionId>/chat_history.jsonl` (+ sibling `summary.json` for bind). Never ingest `updates.jsonl`. User rows kept only when content has non-empty `<user_query>`/`<USER_REQUEST>` body; subagent/worktree sessions skipped by default.
+
+OpenCode writer creates `%USERPROFILE%\.config\opencode\plugins\ai-brains-capture.js` (or `$env:OPENCODE_CONFIG_DIR\plugins\`). Marker must be on the **first non-empty line** (`// AI-Brains managed (T238)`). **Never** rewrites `opencode.json(c)`; **never** deletes foreign plugins; refuse overwrite of same-name file without our header marker. Plugin: `session.idle` → `client.session.get` (fail-closed skip if get throws; parentID skip) → in-flight guard → `client.session.messages` temp export → `ai-brains opencode-hook` via PATH → **unlink temp files**. Fail-open into OpenCode (never throw). Batch backstop does not require the plugin.
+
+```powershell
+ai-brains harness install --harness opencode --dry-run
+ai-brains harness install --harness opencode --yes
+ai-brains opencode-import --days 7
+ai-brains opencode-import --days 7 --force --dry-run
+ai-brains opencode-import --days 7 --max-sessions 100
+```
+
+**OpenCode content SOOT:** nested export `{info,messages}` with message-only filter (drop tool/reasoning/step/snapshot/patch/file/subtask/agent/retry/compaction + synthetic/ignored/editor_context parts). **Never open `opencode.db`**. Watermark: `~/.ai-brains/opencode-import-cursor.json` (corrupt JSON → `cursor_corrupt` warn + empty start; optional additive `last_msg_id`). Missing `opencode` binary → soft skip. Child sessions (`parentID`) skipped. List length ≥100 (vendor default) or at requested cap → `list_capped` stderr warn. Export/list subprocesses killed on 120s timeout.
 
 Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks).
 
@@ -119,6 +133,14 @@ ai-brains grok-hook --payload '{"sessionId":"...","projectHash":"C:\\dev\\AI-Bra
 ai-brains grok-hook --schema
 ```
 `historyPath` may be empty — Rust resolves via `GROK_HOME`/`~/.grok` + percent-encode + `.cwd` + `summary.info.id` fallbacks. Diagnostics on **stderr**. Env `AI_BRAINS_PROJECT_ID` only when project is `grok-unbound`/empty.
+
+### `opencode` Hook
+Real-time capture from the OpenCode managed plugin (`session.idle`):
+```powershell
+ai-brains opencode-hook --payload '{"sessionId":"ses_abc","directory":"C:\\dev\\AI-Brains","worktree":"C:\\dev\\AI-Brains","messagesPath":"C:\\Temp\\oc.json","event":"session.idle"}'
+ai-brains opencode-hook --schema
+```
+Prefer `messagesPath` / `exportPath` (export-shaped JSON). When `parentId` is set → **skipped_child_session** (exit 0). Project bind: worktree → directory → unbound `opencode-unbound`. Env `AI_BRAINS_PROJECT_ID` only when unbound (alias not stamped onto env project). Diagnostics on **stderr**.
 
 ## 3. Retrieving Memories
 
@@ -776,6 +798,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Import Antigravity | `ai-brains antigravity-import --days 30` (incremental scan) |
 | Grok Capture Hook | `ai-brains grok-hook --payload "{...}"` (Stop/SessionEnd wrapper) |
 | Import Grok | `ai-brains grok-import --days 30` (chat_history scan; never updates.jsonl) |
+| OpenCode Capture Hook | `ai-brains opencode-hook --payload "{...}"` (plugin session.idle) |
+| Import OpenCode | `ai-brains opencode-import --days 7` (list+export; never opencode.db) |
 | Nightly Sweep | `ai-brains nightly` (summarization + graph + bridge) |
 | Schedule Nightly | `ai-brains nightly --schedule --start-time "03:00"` |
 | Daemon Control | `ai-brains daemon start/status/stop/schedule/unschedule` |

@@ -25,6 +25,8 @@ pub mod init;
 pub mod memory;
 pub mod migrate;
 pub mod nightly;
+pub mod opencode_hook;
+pub mod opencode_import;
 pub mod pin;
 pub mod policy_cmd;
 pub mod preflight;

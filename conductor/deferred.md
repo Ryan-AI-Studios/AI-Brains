@@ -131,12 +131,12 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Live Grok reasoning/tool_result/backend_tool_call + array user content~~ | **Closed by T234** fixture SOOT F8/F10/F37 (wire T237) |
 | ~~UTF-8 strip panic risk (AI1 §4)~~ | **Closed by T234** F43/AC15 |
 | ~~Keep contracts thinking field (AI1 §5)~~ | **Closed by T234** F17/F46 — never populate |
-| OpenCode export filter | **T234** fixture SOOT shipped; **wire T238** |
+| OpenCode export filter | **T234** flat fixture SOOT shipped; **live nested export + wire → T238 Planning** |
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
 | ~~Detect + preflight hook install UX~~ | **Closed by T235** PR #101 `b1a0ecc` — detect/wiring/`harness *`/AGY F34+writer/preflight/doctor; others backend_pending → T236–T238 |
 | ~~AGY2 seamless + history→project binding~~ | **Closed by T236** PR #102 `d53e4be` — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize / AC6; soft residuals below |
 | ~~Grok Build hooks + chat_history batch~~ | **Closed by T237** PR #104 `459fc55` — empty Stop stdout; F11 user_query keep; grok-hook/import/install; subagent skip; dry-run; AC6 anti-hijack |
-| OpenCode plugin + export batch | **T238** Placeholder (depends T234) |
+| OpenCode plugin + export batch | **T238 Planning** (nested export SOOT; session.idle plugin; watermark import; no SQLite) |
 | Nightly multi-harness import | **T239** Placeholder (depends T234; also scheduled SYSTEM `--skip-import` re-enable) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
 | Remove contracts `thinking` field | **Not** T234 (later) |
@@ -176,6 +176,36 @@ Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)**
 | AI2 M8 Claude/Cursor vendor merge | **F27** caveat |
 | AI2 M9 Phase 1 Red = live chrome | plan reorder |
 | AI1 path scan / foreign hooks / multipart / locks | F7/F22/F4/F15 affirmed |
+
+### T238 planning absorption (2026-08-08)
+
+| Residual | Disposition |
+|----------|-------------|
+| T234 wire `filter_opencode_*` + live export schema | **Absorb** T238 F1–F7 / AC1–AC2 / AC19 (nested `{info,parts}`; part type `tool`) |
+| T235 OpenCode backend_pending / install_ready false | **Absorb** F27–F32 / AC9–AC11 |
+| OpenCode plugin + export batch (deferred) | **Absorb** F8–F26 |
+| Dual-path lessons (unbound / path meta / turn-id / force) | **Absorb** F13–F14, F20–F22 |
+| Multi-MB export cost | **Absorb** F18 watermark + F12/F19 timeout 120 / AC16 |
+| Never raw SQLite | **Hard** F24 / AC14 / D18 |
+| Stale Opencode-Hooks-Research config shape | **F37** supersede — not implement Stage 2 as written |
+| session.created inject / compacting archive | Soft / non-goal (S10) |
+| multi-harness nightly / SYSTEM skip-import | **T239** |
+| Claude/Codex install_ready | Soft **S8**; pending labels **T239+** (F32) |
+
+### T238 AI review fold-in (2026-08-09)
+
+| Item | Disposition |
+|------|-------------|
+| AI1 affirm (timeout, foreign plugins, T239+ labels, implement map) | Affirmed — already F12/F19/F28/F32 |
+| AI2 **M1** child/subagent `session.idle` | **F10 hard** / **AC21** |
+| AI2 **M2** synthetic/ignored/editor_context text | **F2/F3 hard** / **AC22** Phase 1 Red |
+| AI2 **M3** session.idle deprecated | **F34** / S12; batch backstop |
+| AI2 **M4** list cap-100 + projectId | **F17 hard** / **AC23** |
+| AI2 **M5** live SDK messages + in-flight | **F12 hard** (S4 promoted); **F15** |
+| AI2 **M6** full part-type union | **F3** / **AC1** |
+| AI2 **M7** compaction skip key | **S2** rewrite (synthetic + metadata) |
+| AI2 **M8** OPENCODE_CONFIG_DIR | **F40** / F34 |
+| AI2 **M9** prefer worktree | **F20 hard** |
 
 ### T236 planning absorption (2026-08-08)
 

@@ -5,9 +5,9 @@
 use crate::commands::governed_common::{self, GovernedResult};
 use crate::harness::{
     HARNESS_ORDER, HarnessId, InstallOutcome, UninstallOutcome, collect_status_report,
-    f34_map_contract_summary, install_agy, install_grok, install_pending, install_pending_summary,
-    load_prefs, parse_harness_id, resolve_home, save_prefs, uninstall_agy, uninstall_grok,
-    uninstall_pending, wiring_status_label,
+    f34_map_contract_summary, install_agy, install_grok, install_opencode, install_pending,
+    install_pending_summary, load_prefs, parse_harness_id, resolve_home, save_prefs, uninstall_agy,
+    uninstall_grok, uninstall_opencode, uninstall_pending, wiring_status_label,
 };
 use is_terminal::IsTerminal;
 
@@ -62,6 +62,7 @@ pub fn run_status(opts: HarnessStatusOptions) -> GovernedResult {
         println!("Message-only capture: user prompts + final assistant text (T234).");
         println!("AGY ready: ai-brains harness install --harness agy --dry-run");
         println!("Grok ready: ai-brains harness install --harness grok --dry-run");
+        println!("OpenCode ready: ai-brains harness install --harness opencode --dry-run");
     }
     Ok(())
 }
@@ -97,21 +98,29 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
             let result = match id {
                 HarnessId::Agy => install_agy(&home, opts.dry_run),
                 HarnessId::Grok => install_grok(&home, opts.dry_run),
-                _ => unreachable!("install_ready only Agy|Grok"),
+                HarnessId::Opencode => install_opencode(&home, opts.dry_run),
+                _ => unreachable!("install_ready only Agy|Grok|Opencode"),
             };
             match result {
                 Ok(InstallOutcome::DryRun { plan }) => {
                     println!("[dry-run] {} install plan:", id.display_name());
                     println!("  hooks:   {}", plan.hooks_path.display());
-                    println!("  wrapper: {}", plan.wrapper_path.display());
+                    if !plan.wrapper_path.as_os_str().is_empty() {
+                        println!("  wrapper: {}", plan.wrapper_path.display());
+                    }
                     println!("  command: {}", plan.command_line);
-                    if *id == HarnessId::Agy {
-                        println!("  {}", f34_map_contract_summary());
-                    } else {
-                        println!(
+                    match id {
+                        HarnessId::Agy => println!("  {}", f34_map_contract_summary()),
+                        HarnessId::Grok => println!(
                             "  {}",
                             crate::harness::install::grok_stop_stdout_contract_summary()
-                        );
+                        ),
+                        HarnessId::Opencode => {
+                            println!(
+                                "  note: managed plugin session.idle → opencode-hook (no opencode.json rewrite)"
+                            );
+                        }
+                        _ => {}
                     }
                     println!(
                         "  next: ai-brains harness install --harness {} --yes",
@@ -121,7 +130,9 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                 Ok(InstallOutcome::Installed { plan }) => {
                     println!("Installed {} capture hooks:", id.display_name());
                     println!("  hooks:   {}", plan.hooks_path.display());
-                    println!("  wrapper: {}", plan.wrapper_path.display());
+                    if !plan.wrapper_path.as_os_str().is_empty() {
+                        println!("  wrapper: {}", plan.wrapper_path.display());
+                    }
                     println!("  next: ai-brains harness status");
                     match id {
                         HarnessId::Agy => {
@@ -130,6 +141,11 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                         HarnessId::Grok => {
                             println!(
                                 "  note: message-only capture via Stop/SessionEnd → grok-hook (empty Stop stdout)"
+                            );
+                        }
+                        HarnessId::Opencode => {
+                            println!(
+                                "  note: message-only capture via session.idle plugin → opencode-hook (child sessions skipped)"
                             );
                         }
                         _ => {}
@@ -224,7 +240,8 @@ pub fn run_uninstall(opts: HarnessUninstallOptions) -> GovernedResult {
             let result = match id {
                 HarnessId::Agy => uninstall_agy(&home, opts.dry_run),
                 HarnessId::Grok => uninstall_grok(&home, opts.dry_run),
-                _ => unreachable!("install_ready only Agy|Grok"),
+                HarnessId::Opencode => uninstall_opencode(&home, opts.dry_run),
+                _ => unreachable!("install_ready only Agy|Grok|Opencode"),
             };
             match result {
                 Ok(UninstallOutcome::DryRun {

@@ -3,7 +3,7 @@ use crate::context::AppContext;
 use crate::harness::prefs::HarnessHookPrefs;
 use crate::harness::{
     HarnessId, HarnessStatus, InstallOutcome, WiringStatus, collect_status_report, install_agy,
-    install_grok, load_prefs, resolve_home, save_prefs,
+    install_grok, install_opencode, load_prefs, resolve_home, save_prefs,
 };
 use ai_brains_contracts::preflight::PreflightContextResponse;
 use ai_brains_core::ids::ProjectId;
@@ -299,6 +299,7 @@ fn append_harness_summary_and_maybe_prompt(
                     let result = match hid {
                         HarnessId::Agy => install_agy(h, false),
                         HarnessId::Grok => install_grok(h, false),
+                        HarnessId::Opencode => install_opencode(h, false),
                         _ => continue,
                     };
                     report_preflight_install(
@@ -341,6 +342,7 @@ fn append_harness_summary_and_maybe_prompt(
                     let result = match row.id.as_str() {
                         "agy" => install_agy(h, false),
                         "grok" => install_grok(h, false),
+                        "opencode" => install_opencode(h, false),
                         _ => continue,
                     };
                     let label = parse_harness_id_soft(&row.id)
@@ -376,6 +378,7 @@ fn append_harness_summary_and_maybe_prompt(
                         let result = match row.id.as_str() {
                             "agy" => install_agy(h, false),
                             "grok" => install_grok(h, false),
+                            "opencode" => install_opencode(h, false),
                             _ => continue,
                         };
                         let label = parse_harness_id_soft(&row.id)

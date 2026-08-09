@@ -86,7 +86,7 @@ pub fn install_pending_summary(ids: &[HarnessId]) -> String {
         }
     }
     format!(
-        "install backends pending: {}; use --dry-run for plans; AGY/Grok ready via --harness agy|grok",
+        "install backends pending: {}; use --dry-run for plans; AGY/Grok/OpenCode ready via --harness agy|grok|opencode",
         parts.join(", ")
     )
 }
@@ -571,6 +571,326 @@ pub fn uninstall_grok(home: &Path, dry_run: bool) -> Result<UninstallOutcome, St
     }
 }
 
+// ---------------------------------------------------------------------------
+// OpenCode install (T238) — managed plugin file under config/plugins/
+// ---------------------------------------------------------------------------
+
+/// Marker header required to overwrite managed plugin (F29 / AC18).
+pub const OPENCODE_PLUGIN_MARKER: &str = "// AI-Brains managed (T238)";
+
+/// True when the managed marker is on the first non-empty line (header-scoped).
+///
+/// A foreign file that only mentions the marker later in the body is **not** managed.
+pub fn has_opencode_managed_marker_header(content: &str) -> bool {
+    for line in content.lines() {
+        let t = line.trim();
+        if t.is_empty() {
+            continue;
+        }
+        return t == OPENCODE_PLUGIN_MARKER || t.starts_with(OPENCODE_PLUGIN_MARKER);
+    }
+    false
+}
+
+/// Resolve OpenCode config dir: OPENCODE_CONFIG_DIR if set, else home/.config/opencode.
+pub fn opencode_config_dir(home: &Path) -> PathBuf {
+    if let Ok(dir) = std::env::var("OPENCODE_CONFIG_DIR") {
+        let t = dir.trim();
+        if !t.is_empty() {
+            return PathBuf::from(t);
+        }
+    }
+    join_rel(home, ".config/opencode")
+}
+
+pub fn opencode_plugin_path(home: &Path) -> PathBuf {
+    opencode_config_dir(home)
+        .join("plugins")
+        .join("ai-brains-capture.js")
+}
+
+pub fn plan_opencode_install(home: &Path) -> InstallPlan {
+    let hooks_path = opencode_plugin_path(home);
+    InstallPlan {
+        harness: HarnessId::Opencode,
+        hooks_path,
+        wrapper_path: PathBuf::new(),
+        command_line: "opencode-hook via plugin session.idle".to_string(),
+        ready: true,
+        pending_track: None,
+    }
+}
+
+/// Zero-deps ESM plugin body (F8–F15 / F33). Resolves `ai-brains` via PATH.
+pub fn opencode_plugin_js_body() -> String {
+    format!(
+        r#"{marker}
+// Auto-loaded from ~/.config/opencode/plugins/ (or OPENCODE_CONFIG_DIR/plugins/).
+// Live path: session.idle → parentID skip → in-flight → client.session.messages
+//   → (F12 fallback) opencode export 120s → opencode-hook.
+// Fail-open into OpenCode (never throw). Fail-closed child safety on session.get.
+// Batch backstop: ai-brains opencode-import. Temp export files are unlinked after hook.
+
+const inFlight = new Map();
+
+async function unlinkQuiet(p) {{
+  if (!p) return;
+  try {{
+    const fs = await import("node:fs/promises");
+    await fs.unlink(p);
+  }} catch (_) {{
+    /* privacy cleanup best-effort */
+  }}
+}}
+
+async function writeTempExport(sessionID, exportDoc) {{
+  const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const messagesPath = path.join(
+    os.tmpdir(),
+    `ai-brains-oc-${{sessionID.replace(/[^a-zA-Z0-9_-]/g, "_")}}.json`
+  );
+  await fs.writeFile(messagesPath, JSON.stringify(exportDoc), "utf8");
+  return messagesPath;
+}}
+
+/** F12: CLI export fallback with 120s timeout when SDK messages fail. */
+async function exportViaCli(sessionID) {{
+  const {{ spawn }} = await import("node:child_process");
+  const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const outPath = path.join(
+    os.tmpdir(),
+    `ai-brains-oc-export-${{sessionID.replace(/[^a-zA-Z0-9_-]/g, "_")}}.json`
+  );
+  return new Promise((resolve) => {{
+    const child = spawn("opencode", ["export", sessionID], {{
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+    }});
+    let stdout = "";
+    let settled = false;
+    const done = (val) => {{
+      if (settled) return;
+      settled = true;
+      resolve(val);
+    }};
+    child.stdout.on("data", (chunk) => {{
+      stdout += chunk.toString();
+    }});
+    child.on("error", () => done(null));
+    child.on("close", async (code) => {{
+      if (code !== 0 || !stdout.trim()) {{
+        done(null);
+        return;
+      }}
+      try {{
+        await fs.writeFile(outPath, stdout, "utf8");
+        done(outPath);
+      }} catch (_) {{
+        done(null);
+      }}
+    }});
+    setTimeout(() => {{
+      try {{ child.kill(); }} catch (_) {{}}
+      done(null);
+    }}, 120000);
+  }});
+}}
+
+export default function aiBrainsCapture({{ client, directory, worktree }}) {{
+  return {{
+    event: async ({{ event }}) => {{
+      try {{
+        const type = event?.type || event?.name || "";
+        if (type !== "session.idle") return;
+        const sessionID =
+          event?.properties?.sessionID ||
+          event?.properties?.sessionId ||
+          event?.sessionID ||
+          "";
+        if (!sessionID) return;
+
+        if (inFlight.get(sessionID)) return;
+        inFlight.set(sessionID, true);
+        let messagesPath = null;
+        let exportPath = null;
+        try {{
+          let parentID = null;
+          try {{
+            const sess = await client.session.get({{ path: {{ id: sessionID }} }});
+            parentID =
+              sess?.data?.parentID ||
+              sess?.data?.parentId ||
+              sess?.parentID ||
+              sess?.parentId ||
+              null;
+          }} catch (_) {{
+            // fail-closed child safety (AC21): skip ingest when parent lookup fails
+            return;
+          }}
+          if (parentID) return;
+
+          try {{
+            const msgs = await client.session.messages({{
+              path: {{ id: sessionID }},
+            }});
+            const list = msgs?.data || msgs || [];
+            const exportDoc = {{
+              info: {{ id: sessionID, directory, worktree }},
+              messages: Array.isArray(list) ? list : [],
+            }};
+            messagesPath = await writeTempExport(sessionID, exportDoc);
+          }} catch (_) {{
+            messagesPath = null;
+          }}
+
+          // F12 hard: CLI export fallback (120s) if SDK messages failed
+          if (!messagesPath) {{
+            exportPath = await exportViaCli(sessionID);
+          }}
+          if (!messagesPath && !exportPath) return;
+
+          const payload = {{
+            sessionId: sessionID,
+            directory: directory || undefined,
+            worktree: worktree || undefined,
+            parentId: parentID || undefined,
+            messagesPath: messagesPath || undefined,
+            exportPath: exportPath || undefined,
+            event: "session.idle",
+          }};
+
+          const {{ spawn }} = await import("node:child_process");
+          try {{
+            await new Promise((resolve) => {{
+              const child = spawn(
+                "ai-brains",
+                ["opencode-hook", "--payload", JSON.stringify(payload)],
+                {{ stdio: ["ignore", "ignore", "pipe"], shell: false }}
+              );
+              child.on("error", () => resolve());
+              child.on("close", () => resolve());
+              setTimeout(() => {{
+                try {{ child.kill(); }} catch (_) {{}}
+                resolve();
+              }}, 120000);
+            }});
+          }} finally {{
+            // Capture privacy: always delete temp export files after hook (or error/timeout)
+            await unlinkQuiet(messagesPath);
+            await unlinkQuiet(exportPath);
+            messagesPath = null;
+            exportPath = null;
+          }}
+        }} finally {{
+          // Belt-and-suspenders if we returned early after writing temps
+          await unlinkQuiet(messagesPath);
+          await unlinkQuiet(exportPath);
+          inFlight.delete(sessionID);
+        }}
+      }} catch (_) {{
+        /* fail-open */
+      }}
+    }},
+  }};
+}}
+"#,
+        marker = OPENCODE_PLUGIN_MARKER
+    )
+}
+
+/// Install managed OpenCode plugin (F27–F29 / F40). Never rewrites opencode.json(c).
+pub fn install_opencode(home: &Path, dry_run: bool) -> Result<InstallOutcome, String> {
+    let plan = plan_opencode_install(home);
+    if dry_run {
+        return Ok(InstallOutcome::DryRun { plan });
+    }
+
+    // Refuse overwrite if same-name file exists without our *header* marker (F29).
+    if plan.hooks_path.is_file() {
+        let existing = fs::read_to_string(&plan.hooks_path)
+            .map_err(|e| format!("read plugin {}: {e}", plan.hooks_path.display()))?;
+        if !has_opencode_managed_marker_header(&existing) {
+            return Ok(InstallOutcome::Refused {
+                path: plan.hooks_path.clone(),
+                reason: format!(
+                    "refused: {} exists without AI-Brains managed marker header; remove or rename foreign plugin first",
+                    plan.hooks_path.display()
+                ),
+            });
+        }
+    }
+
+    let body = opencode_plugin_js_body();
+    if let Some(parent) = plan.hooks_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("create plugins dir {}: {e}", parent.display()))?;
+    }
+    atomic_write_str(&plan.hooks_path, &body)?;
+
+    let mut prefs = load_prefs(home);
+    let now = chrono::Utc::now().to_rfc3339();
+    let ver = env!("CARGO_PKG_VERSION");
+    prefs.mark_installed(HarnessId::Opencode, now, ver);
+    save_prefs(home, &prefs)?;
+
+    Ok(InstallOutcome::Installed { plan })
+}
+
+/// Uninstall managed OpenCode plugin only; never delete foreign plugins or opencode.json(c).
+pub fn uninstall_opencode(home: &Path, dry_run: bool) -> Result<UninstallOutcome, String> {
+    let hooks_path = opencode_plugin_path(home);
+    let wrapper_path = PathBuf::new();
+
+    if dry_run {
+        return Ok(UninstallOutcome::DryRun {
+            hooks_path,
+            wrapper_path,
+        });
+    }
+
+    let mut removed_anything = false;
+
+    if hooks_path.is_file() {
+        let existing = fs::read_to_string(&hooks_path).unwrap_or_default();
+        if has_opencode_managed_marker_header(&existing) {
+            fs::remove_file(&hooks_path)
+                .map_err(|e| format!("remove plugin {}: {e}", hooks_path.display()))?;
+            removed_anything = true;
+        } else {
+            return Ok(UninstallOutcome::Refused {
+                path: hooks_path,
+                reason: "refused: plugin file lacks AI-Brains managed marker header".into(),
+            });
+        }
+    }
+
+    let mut prefs = load_prefs(home);
+    if prefs
+        .entry(HarnessId::Opencode)
+        .and_then(|e| e.installed_at.clone())
+        .is_some()
+        || removed_anything
+        || prefs.is_backend_pending_requested(HarnessId::Opencode)
+    {
+        prefs.mark_uninstalled(HarnessId::Opencode);
+        save_prefs(home, &prefs)?;
+        removed_anything = true;
+    }
+
+    if removed_anything {
+        Ok(UninstallOutcome::Removed {
+            hooks_path,
+            wrapper_path,
+        })
+    } else {
+        Ok(UninstallOutcome::NothingToDo)
+    }
+}
+
 /// Non-ready harness install: dry-run ok; real install → BackendPending (no fake ok).
 ///
 /// Real install stamps prefs `last_status=backend_pending` so status/preflight report
@@ -728,14 +1048,172 @@ mod tests {
     }
 
     #[test]
-    fn install_pending__opencode_real__stamps_prefs_no_fake_ok() {
+    fn install_pending__claude_real__stamps_prefs_no_fake_ok() {
+        // OpenCode is install_ready (T238); Claude remains pending (T239+).
         let dir = tempdir().expect("tempdir");
         let home = dir.path();
-        let out = install_pending(HarnessId::Opencode, home, false);
+        let out = install_pending(HarnessId::Claude, home, false);
         assert!(matches!(out, InstallOutcome::BackendPending { .. }));
         assert!(!agy_hooks_soot_path(home).exists());
         let prefs = load_prefs(home);
-        assert!(prefs.is_backend_pending_requested(HarnessId::Opencode));
+        assert!(prefs.is_backend_pending_requested(HarnessId::Claude));
+    }
+
+    #[test]
+    fn install_opencode__real__writes_plugin_marker_clears_pending() {
+        // AC9 / AC18 + seam (exportViaCli, cleanup, fail-closed parent get, 120s)
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let plugins = home.join(".config").join("opencode").join("plugins");
+        std::fs::create_dir_all(&plugins).expect("mkdir");
+        let foreign = plugins.join("other-plugin.js");
+        std::fs::write(&foreign, b"export default () => ({});").expect("foreign");
+
+        let out = install_opencode(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+
+        let marker = opencode_plugin_path(home);
+        assert!(marker.is_file());
+        assert!(foreign.is_file(), "foreign plugin preserved");
+        let raw = std::fs::read_to_string(&marker).expect("read");
+        assert!(
+            has_opencode_managed_marker_header(&raw),
+            "marker must be header-scoped"
+        );
+        assert!(raw.contains("session.idle"));
+        assert!(raw.contains("opencode-hook"));
+        assert!(raw.contains("parentID") || raw.contains("parentId"));
+        // F12: CLI export fallback when SDK messages fail
+        assert!(
+            raw.contains("exportViaCli"),
+            "plugin must include CLI export fallback (F12)"
+        );
+        assert!(raw.contains("120000"), "export/hook timeouts 120s");
+        // P1 privacy: temp export cleanup after hook
+        assert!(
+            raw.contains("unlink") || raw.contains("unlinkQuiet"),
+            "plugin must unlink temp export files after hook"
+        );
+        // AC21 fail-closed: session.get throw skips ingest
+        assert!(
+            raw.contains("fail-closed child safety")
+                || (raw.contains("session.get") && raw.contains("return;")),
+            "plugin must fail-closed on parent lookup failure"
+        );
+
+        // Idempotent reinstall
+        let out2 = install_opencode(home, false).expect("reinstall");
+        assert!(matches!(out2, InstallOutcome::Installed { .. }));
+
+        let prefs = load_prefs(home);
+        assert!(
+            prefs
+                .entry(HarnessId::Opencode)
+                .unwrap()
+                .installed_at
+                .is_some()
+        );
+        assert!(!prefs.is_backend_pending_requested(HarnessId::Opencode));
+    }
+
+    #[test]
+    fn install_opencode__marker_only_in_body__refuse() {
+        // Header-scoped marker: foreign file with marker later in body is not managed.
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let path = opencode_plugin_path(home);
+        std::fs::create_dir_all(path.parent().unwrap()).expect("mkdir");
+        let foreign = format!(
+            "export default function foreign() {{ return {{}}; }}\n// note: {}\n",
+            OPENCODE_PLUGIN_MARKER
+        );
+        std::fs::write(&path, &foreign).expect("write");
+        assert!(
+            !has_opencode_managed_marker_header(&foreign),
+            "body-only marker must not count as managed"
+        );
+        let out = install_opencode(home, false).expect("call");
+        match out {
+            InstallOutcome::Refused { path: p, reason } => {
+                assert_eq!(p, path);
+                assert!(
+                    reason.contains("refused") || reason.contains("marker"),
+                    "{reason}"
+                );
+            }
+            other => panic!("expected Refused, got {other:?}"),
+        }
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), foreign);
+    }
+
+    #[test]
+    fn opencode_plugin_js_body__seam_contract() {
+        // Minimum seam proof without JS runtime: body contains required live-path seams.
+        let raw = opencode_plugin_js_body();
+        assert!(raw.contains("exportViaCli"));
+        assert!(raw.contains("unlinkQuiet") || raw.contains("fs.unlink"));
+        assert!(raw.contains("fail-closed child safety"));
+        assert!(raw.contains("120000"));
+        assert!(has_opencode_managed_marker_header(&raw));
+    }
+
+    #[test]
+    fn install_opencode__dry_run__zero_writes() {
+        // AC10
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let before = walk_files(home);
+        let out = install_opencode(home, true).expect("dry-run");
+        assert!(matches!(out, InstallOutcome::DryRun { .. }));
+        assert_eq!(before, walk_files(home));
+    }
+
+    #[test]
+    fn install_opencode__foreign_same_name__refuse() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let marker = opencode_plugin_path(home);
+        std::fs::create_dir_all(marker.parent().unwrap()).expect("mkdir");
+        let original = b"export default function foreign() { return {}; }\n";
+        std::fs::write(&marker, original).expect("write");
+        let out = install_opencode(home, false).expect("call");
+        match out {
+            InstallOutcome::Refused { path, reason } => {
+                assert_eq!(path, marker);
+                assert!(
+                    reason.contains("refused") || reason.contains("marker"),
+                    "{reason}"
+                );
+            }
+            other => panic!("expected Refused, got {other:?}"),
+        }
+        assert_eq!(std::fs::read(&marker).expect("read"), original);
+    }
+
+    #[test]
+    fn uninstall_opencode__removes_managed_keeps_foreign() {
+        // AC11
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let plugins = home.join(".config").join("opencode").join("plugins");
+        std::fs::create_dir_all(&plugins).expect("mkdir");
+        let foreign = plugins.join("foreign.js");
+        std::fs::write(&foreign, b"export default () => ({});").expect("foreign");
+        // Also seed a fake opencode.json that must not be touched
+        let cfg = home.join(".config").join("opencode").join("opencode.json");
+        std::fs::write(&cfg, br#"{"theme":"dark"}"#).expect("cfg");
+
+        install_opencode(home, false).expect("install");
+        assert!(opencode_plugin_path(home).is_file());
+
+        let out = uninstall_opencode(home, false).expect("uninstall");
+        assert!(matches!(out, UninstallOutcome::Removed { .. }));
+        assert!(!opencode_plugin_path(home).exists());
+        assert!(foreign.is_file());
+        assert_eq!(
+            std::fs::read_to_string(&cfg).expect("cfg"),
+            r#"{"theme":"dark"}"#
+        );
     }
 
     #[test]
@@ -861,9 +1339,16 @@ mod tests {
 
     #[test]
     fn install_pending_summary__lists_tracks() {
-        let s = install_pending_summary(&[HarnessId::Grok, HarnessId::Opencode]);
+        let s = install_pending_summary(&[
+            HarnessId::Grok,
+            HarnessId::Opencode,
+            HarnessId::Claude,
+            HarnessId::Codex,
+        ]);
         assert!(s.contains("grok=ready") || s.contains("ready"));
-        assert!(s.contains("T238"));
+        assert!(s.contains("opencode=ready") || s.contains("ready"));
+        assert!(s.contains("T239+"));
+        assert!(!s.contains("T238+"));
         assert!(!s.contains("grok=T237"));
     }
 

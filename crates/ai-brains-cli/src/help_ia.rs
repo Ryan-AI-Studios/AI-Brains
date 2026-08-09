@@ -12,7 +12,7 @@ Command groups (presentation only — names unchanged):
   Operator:  backup, recovery, vault, retention, device, replicate, nightly, safety
   Governed:  scope, briefing, query, evidence, source, review, policy, conclusion, decision
   Dangerous: forget, erasure; also retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update
-  Harness:   ingest, harness, antigravity-import, agy-hook, grok-import, grok-hook, sync, shadow, evaluate, dogfood, graph, migrate
+  Harness:   ingest, harness, antigravity-import, agy-hook, grok-import, grok-hook, opencode-import, opencode-hook, sync, shadow, evaluate, dogfood, graph, migrate
 
 Start here:
   ai-brains doctor
@@ -81,8 +81,10 @@ mod tests {
                 && ROOT_AFTER_LONG_HELP.contains("harness")
                 && ROOT_AFTER_LONG_HELP.contains("agy-hook")
                 && ROOT_AFTER_LONG_HELP.contains("grok-hook")
-                && ROOT_AFTER_LONG_HELP.contains("grok-import"),
-            "Harness inventory must include harness/grok commands; got:\n{ROOT_AFTER_LONG_HELP}"
+                && ROOT_AFTER_LONG_HELP.contains("grok-import")
+                && ROOT_AFTER_LONG_HELP.contains("opencode-hook")
+                && ROOT_AFTER_LONG_HELP.contains("opencode-import"),
+            "Harness inventory must include harness/grok/opencode commands; got:\n{ROOT_AFTER_LONG_HELP}"
         );
     }
 
