@@ -85,7 +85,8 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 
 | Command / path | Style | Notes |
 |----------------|-------|-------|
-| `preflight` JSON (`--format json`) | **compact** (`to_string`) | Keys: `text`, `word_count` |
+| `preflight` JSON (`--format json`, non-summary) | **compact** (`to_string`) | Keys: `text`, `word_count` only (T180 freeze) |
+| `preflight --summary --format json` | **pretty** (`to_string_pretty`) | T220 CLI-local envelope: `api_version`, `scope` (`global`\|`project`\|`none`), `project_id`, optional `projects` (global only), `pinned`, `active_sessions`, `in_context_*`, `word_count` (full budget text). Does **not** grow `PreflightContextResponse`. |
 | `scope resolve --format json` | **pretty** (`to_string_pretty` via `emit_json`) | Governed DTO wire |
 | Governed mutations (briefing, erasure, …) | **pretty** (`emit_json`) | Machine-clean stdout |
 | `ingest` success response | **compact** | `event_id`, `processed` |
