@@ -23,7 +23,9 @@ use uuid::Uuid;
 pub fn antigravity_capability() -> AdapterCapability {
     AdapterCapability {
         name: "antigravity".to_string(),
-        level: CapabilityLevel::Partial,
+        // F21/F23: live hooks + batch history bind + re-summarize shipped → Full.
+        // Residual notes: scheduled SYSTEM --skip-import; connector principal_binding deferred.
+        level: CapabilityLevel::Full,
         supports_hooks: true,
         supports_wrapper_mode: false,
         notes: "Live Stop hooks via `ai-brains harness install --harness agy` (wrapper stdout allow-stop JSON; step-shaped + message-only SOOT). Batch `antigravity-import` binds conversationId→workspace via history.jsonl; unbound brains use stable `agy-unbound` / `(unbound AGY)` (allow_default_project=false by default). Prefer transcript_full when present. SYSTEM scheduled nightly may still use --skip-import (T239). Intended PrincipalKind::Connector binding deferred."

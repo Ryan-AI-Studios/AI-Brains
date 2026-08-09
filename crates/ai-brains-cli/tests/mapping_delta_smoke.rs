@@ -278,15 +278,43 @@ fn agy_hook__path_case_normalize__same_alias() -> Result<(), Box<dyn std::error:
         "expected delta no-op, got: {stderr}"
     );
 
-    // Project-scoped recall (AC6): list projects and use bound project id if available;
-    // global fallback proves content landed once under one project.
+    // AC6: project-scoped recall without --global under the path-derived project.
+    let list = common::hermetic_bin()
+        .current_dir(temp_dir.path())
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("project")
+        .arg("list")
+        .arg("--format")
+        .arg("json")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let list_json: serde_json::Value = serde_json::from_slice(&list)?;
+    let projects = list_json
+        .as_array()
+        .or_else(|| list_json.get("projects").and_then(|v| v.as_array()))
+        .ok_or("project list json shape")?;
+    // Path-derived project is the non-empty one with our content; pick first with id.
+    let bound_pid = projects
+        .iter()
+        .find_map(|p| {
+            p.get("project_id")
+                .or_else(|| p.get("id"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
+        .ok_or("no project_id in project list")?;
+
     let mut cmd = common::hermetic_bin();
     cmd.current_dir(temp_dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
+        .env("AI_BRAINS_PROJECT_ID", &bound_pid)
         .arg("recall")
         .arg("case-alias-marker")
-        .arg("--global")
         .arg("--no-bridge")
         .assert()
         .success()

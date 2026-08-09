@@ -132,6 +132,27 @@ fn import_antigravity__history_bind__project_matches_workspace() {
         .expect("alias should exist");
     assert_ne!(bound, default_pid, "must not use default/env project");
 
+    // AC6: session turns are stored under the bound project (not default).
+    let turns = conn.get_session_turns(cid).expect("session turns");
+    assert!(
+        turns.iter().any(|(_, c)| c.contains("bind-me")),
+        "bound project must hold imported AGY content: {turns:?}"
+    );
+    let turn_project: String = {
+        let raw = conn.lock().expect("lock vault");
+        raw.query_row(
+            "SELECT project_id FROM turn_projection WHERE session_id = ?1 LIMIT 1",
+            [cid],
+            |row| row.get(0),
+        )
+        .expect("turn project_id")
+    };
+    assert_eq!(
+        turn_project,
+        bound.to_string(),
+        "AC6: turn project_id must match history-bound project"
+    );
+
     // Map check pure
     let map = load_agy_history_index(&hist);
     assert_eq!(
