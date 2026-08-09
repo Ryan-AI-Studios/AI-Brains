@@ -1,6 +1,6 @@
 # T239 — Nightly multi-harness import orchestration
 
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (PR #108 squash `a271a99`)
 - **Source:** Series dual-path completeness (T234–T238 shipped); deferred S9 / SYSTEM skip-import honesty
 - **Category:** FEATURE / OPS
 - **Depends on:** T234 ✅; T236 AGY import ✅; T237 `grok-import` ✅; T238 `opencode-import` ✅

@@ -1,6 +1,6 @@
 # T239 Plan — Nightly multi-harness import
 
-**Status:** Engineering complete — awaiting PR CI + squash-merge + closeout  
+**Status:** ✅ Completed (PR #108 `a271a99`)  
 **Category:** FEATURE / OPS  
 **Depends:** T234 ✅, T236 ✅, T237 ✅, T238 ✅  
 
@@ -31,8 +31,8 @@ See `spec.md` and `review.md` for full DoD / review matrix.
 ### Phase 4 — Verify / close
 - [x] Full gate 2385 nextest
 - [x] Internal + Codex (r1 FAIL → fix → r2 **PASS**)
-- [ ] PR + CI green + squash-merge
-- [ ] Conductor Completed + deferred S9 closed + coordinated
+- [x] PR #108 + CI green + squash-merge `a271a99`
+- [x] Conductor Completed + deferred S9 closed + coordinated
 
 ## Soft residuals
 S-SYS, S-JSON, S-DOC, S-SESSION (partially addressed via soft-skip), S-HOME, S-CAP, S-CLAUDE (T239+), S-FORCE, S-BRAINLOG, S-BUDGET
