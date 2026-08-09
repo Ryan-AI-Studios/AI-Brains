@@ -9,7 +9,7 @@ fn antigravity_manual_import() {
     let instructions = manual_import_instructions();
     let patched = apply_idempotent_patch("alpha", "beta");
 
-    assert_eq!(capability.level, CapabilityLevel::Partial);
+    assert_eq!(capability.level, CapabilityLevel::Full);
     assert!(instructions.contains("nightly"));
     assert!(instructions.contains("antigravity-import"));
     assert_eq!(install_scope(), "user");

@@ -52,16 +52,20 @@ echo $json | ai-brains --vault-path ./vault.db ingest
 
 ### Capture Privacy / message-only (T234)
 
-Harness importers and hooks must keep **only** user prompts and final assistant text. Shared SOOT: `ai_brains_adapters::message_only` (used by BrainLog `extract_turns`, ProjectChat `parse_project_chat_file` → `filter_turn`, and `agy-hook`). Tool steps (`VIEW_FILE`, `RUN_COMMAND`, tool results), `reasoning`/`thinking`, and system chrome are dropped — including when those steps carry non-empty content. The optional `IngestRequest.thinking` DTO field is never populated by adapters.
+Harness importers and hooks must keep **only** user prompts and final assistant text. Shared SOOT: `ai_brains_adapters::message_only` + `parse_transcript_for_ingest` (step-shaped AGY2 + legacy role/content; prefer `transcript_full.jsonl`). Used by batch import and `agy-hook`. Tool steps (`VIEW_FILE`, `RUN_COMMAND`, tool results), `reasoning`/`thinking`, and system chrome are dropped. The optional `IngestRequest.thinking` DTO field is never populated by adapters.
 
 ### Antigravity Import
 Bulk-import Antigravity conversation logs from local tool-specific brain dirs.
 ```powershell
 ai-brains antigravity-import --days 30
+ai-brains antigravity-import --days 30 --force
 ```
 - `--days <N>`: only import sessions modified in the last N days (default 30).
-- Idempotent: skips sessions already in the vault.
-- Tool-only, tool-output, and hidden-thinking entries are filtered via message-only SOOT (T234 / Capture Privacy).
+- `--force`: skip the 5-minute quiescence window for recently modified files.
+- Binds `conversationId` → workspace via `history.jsonl` (normalized path alias). Missing history → stable `agy-unbound` / `(unbound AGY)` — **not** cwd `.env` project by default.
+- Idempotent: path-keyed `source_meta` + delta turn index; message-only SOOT.
+- Human stats on **stderr** (bound/unbound/quiescent/unchanged counters). Not a JSON status object.
+- **Scheduled SYSTEM nightly** may still pass `--skip-import` (honesty / T239); manual `nightly` without that flag runs import.
 
 ### Harness detect + install (T235)
 
@@ -79,7 +83,7 @@ ai-brains harness reset-decline --harness all
 | Harness | Detect | Install ready |
 |---------|--------|---------------|
 | grok | PATH `grok` or `~/.grok` | Pending (T237) |
-| agy | PATH `agy` or `~/.gemini/...` | **Yes** — Stop → wrapper → `agy-hook` |
+| agy | PATH `agy` or `~/.gemini/...` | **Yes** — Stop → wrapper (allow-stop JSON stdout) → `agy-hook` |
 | opencode | PATH / `~/.config/opencode` | Pending (T238) |
 | claude | PATH / `~/.claude` | Pending |
 | codex | PATH / `~/.codex` | Pending |
@@ -93,7 +97,7 @@ Real-time capture from the Antigravity CLI hooks integration:
 ```powershell
 ai-brains agy-hook --payload '{"transcriptPath": "C:\\path\\to\\session.jsonl", ...}'
 ```
-A well-formed payload returns `{"ok":true,"status":"success",...}`. A malformed payload (e.g. missing `transcriptPath`) returns `{"ok":false,"status":"error","message":"..."}` — the harness hook treats this as a non-fatal failure. Transcript lines are filtered with message-only SOOT (system/tool roles and empty chrome dropped) before delta ingest. Prefer installing via `ai-brains harness install --harness agy` so Stop events are mapped (conversationId→sessionId, workspacePaths[0]→projectHash).
+Diagnostics (auto-link / ingest counts) go to **stderr**. Prefer `ai-brains harness install --harness agy` so Stop events are mapped (conversationId→sessionId, workspacePaths[0]→projectHash, fullyIdle soft-skip). Shared step parser + path normalize; env project fallback only for empty/`agy-unbound`. Reinstall after T236 so wrapper stdout is allow-stop JSON only (no human prose leak to AGY).
 
 ## 3. Retrieving Memories
 

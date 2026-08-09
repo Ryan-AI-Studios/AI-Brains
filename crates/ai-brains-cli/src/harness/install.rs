@@ -110,25 +110,42 @@ fn managed_hook_entry(command_line: &str) -> Value {
 
 pub use super::fs_util::atomic_write_str;
 
-/// PowerShell wrapper content: map Stop → agy-hook payload (F34/F35 mirror).
-/// Soft-skips exit 0 and emit one stderr line (F34).
+/// Exact stdout contract for AGY Stop allow-stop JSON (T236 F8 / AC18).
+///
+/// Official Stop: `decision: "continue"` re-enters the agent loop; any other
+/// value (including this object) allows stop. Never emit `"continue"` here.
+/// Used by hermetic tests and as documentation SOOT for the installed wrapper body.
+#[must_use]
+pub fn agy_wrapper_allow_stop_stdout() -> &'static str {
+    r#"{"decision":"allow"}"#
+}
+
+/// PowerShell wrapper content: map Stop → agy-hook payload (F34/F35 + T236 F8).
+/// Soft-skips exit 0 with allow-stop JSON on stdout; diagnostics on stderr.
+/// `agy-hook` stdout is captured (never leaked to AGY Stop stdout).
 pub fn agy_wrapper_script_body() -> &'static str {
-    r#"# AI-Brains managed AGY Stop hook wrapper (T235).
+    // Keep allow JSON inline (same string as agy_wrapper_allow_stop_stdout) so the
+    // installed wrapper body is self-contained and hermetic tests can assert both.
+    r#"# AI-Brains managed AGY Stop hook wrapper (T235/T236).
 # Do not edit by hand — reinstall via: ai-brains harness install --harness agy
-# Soft-skips on map failure / fullyIdle:false (exit 0 + one stderr line). Message-only via agy-hook.
+# Soft-skips on map failure / fullyIdle:false (exit 0 + allow-stop JSON on stdout).
+# agy-hook human output is captured; only allow-stop JSON is written to stdout.
 $ErrorActionPreference = 'Continue'
 function Write-Skip([string]$reason) {
     [Console]::Error.WriteLine("[ai-brains-agy] skip: $reason")
 }
+function Write-AllowStop {
+    [Console]::Out.WriteLine('{"decision":"allow"}')
+}
 try {
     $raw = [Console]::In.ReadToEnd()
-    if ([string]::IsNullOrWhiteSpace($raw)) { Write-Skip 'empty stdin'; exit 0 }
+    if ([string]::IsNullOrWhiteSpace($raw)) { Write-Skip 'empty stdin'; Write-AllowStop; exit 0 }
     $stop = $raw | ConvertFrom-Json
-    if ($null -ne $stop.fullyIdle -and [bool]$stop.fullyIdle -eq $false) { Write-Skip 'fullyIdle is false'; exit 0 }
-    if (-not $stop.transcriptPath) { Write-Skip 'missing transcriptPath'; exit 0 }
+    if ($null -ne $stop.fullyIdle -and [bool]$stop.fullyIdle -eq $false) { Write-Skip 'fullyIdle is false'; Write-AllowStop; exit 0 }
+    if (-not $stop.transcriptPath) { Write-Skip 'missing transcriptPath'; Write-AllowStop; exit 0 }
     $sessionId = [string]$stop.conversationId
-    if ([string]::IsNullOrWhiteSpace($sessionId)) { Write-Skip 'missing conversationId'; exit 0 }
-    try { [void][guid]::Parse($sessionId) } catch { Write-Skip 'conversationId is not a UUID'; exit 0 }
+    if ([string]::IsNullOrWhiteSpace($sessionId)) { Write-Skip 'missing conversationId'; Write-AllowStop; exit 0 }
+    try { [void][guid]::Parse($sessionId) } catch { Write-Skip 'conversationId is not a UUID'; Write-AllowStop; exit 0 }
     $projectHash = 'agy-unbound'
     if ($null -ne $stop.workspacePaths) {
         foreach ($p in @($stop.workspacePaths)) {
@@ -143,11 +160,21 @@ try {
     }
     $payload = $payloadObj | ConvertTo-Json -Compress
     $ai = Get-Command ai-brains -ErrorAction SilentlyContinue
-    if (-not $ai) { Write-Skip 'ai-brains not on PATH'; exit 0 }
-    & $ai.Source 'agy-hook' '--payload' $payload
+    if (-not $ai) { Write-Skip 'ai-brains not on PATH'; Write-AllowStop; exit 0 }
+    # Capture hook stdout so human ingest prose never reaches AGY Stop stdout (F8).
+    # Redirect native stdout of the child; merge any residual into stderr diagnostics.
+    $hookOut = & $ai.Source 'agy-hook' '--payload' $payload 2>&1 | ForEach-Object {
+        if ($_ -is [System.Management.Automation.ErrorRecord]) {
+            [Console]::Error.WriteLine($_.ToString())
+        } else {
+            [Console]::Error.WriteLine([string]$_)
+        }
+    }
+    Write-AllowStop
     exit 0
 } catch {
     Write-Skip ("wrapper error: " + $_.Exception.Message)
+    Write-AllowStop
     exit 0
 }
 "#
@@ -200,12 +227,13 @@ pub fn f34_map_contract_summary() -> String {
         Value::Array(vec![Value::String(r"C:\dev\proj".into())]),
     );
     fixture.insert("fullyIdle".into(), Value::Bool(true));
+    let allow = agy_wrapper_allow_stop_stdout();
     match super::map_agy_stop_to_hook_payload(&Value::Object(fixture)) {
         Ok(p) => format!(
-            "F34 map: transcriptPath←Stop.transcriptPath sessionId←Stop.conversationId projectHash←workspacePaths[0]|agy-unbound (sample ok: sessionId={}, projectHash={})",
-            p.session_id, p.project_hash
+            "F34 map: transcriptPath←Stop.transcriptPath sessionId←Stop.conversationId projectHash←workspacePaths[0]|agy-unbound (sample ok: sessionId={}, projectHash={}); F8 allow-stop stdout={}",
+            p.session_id, p.project_hash, allow
         ),
-        Err(e) => format!("F34 map: {}", e.as_str()),
+        Err(e) => format!("F34 map: {}; F8 allow-stop stdout={}", e.as_str(), allow),
     }
 }
 
@@ -493,6 +521,49 @@ mod tests {
         let s = install_pending_summary(&[HarnessId::Grok, HarnessId::Opencode]);
         assert!(s.contains("T237"));
         assert!(s.contains("T238"));
+    }
+
+    #[test]
+    fn agy_wrapper__stdout__allow_stop_json_only() {
+        // AC18 / F8 — wrapper body captures hook stdout and emits allow-stop JSON only.
+        let body = agy_wrapper_script_body();
+        let allow = agy_wrapper_allow_stop_stdout();
+        assert_eq!(allow, r#"{"decision":"allow"}"#);
+        assert!(
+            body.contains(allow),
+            "wrapper must emit allow-stop JSON on stdout"
+        );
+        assert!(
+            !body.contains(r#""continue""#) && !body.contains("decision\":\"continue"),
+            "wrapper must never emit decision continue"
+        );
+        // Soft-skips also emit allow-stop before exit 0
+        assert!(
+            body.contains("Write-AllowStop"),
+            "wrapper must have allow-stop helper for soft-skips"
+        );
+        // Capture / redirect of agy-hook stdout (not unredirected pipe to host stdout)
+        assert!(
+            body.contains("2>&1")
+                || body.contains("hookOut")
+                || body.contains("Out-Null")
+                || body.contains("RedirectStandardOutput"),
+            "wrapper must capture/suppress agy-hook stdout: {body}"
+        );
+        // Diagnostics stay on stderr
+        assert!(body.contains("[Console]::Error.WriteLine"));
+        // Must not pipe agy-hook alone without capture (old T235 shape)
+        assert!(
+            !body.contains("& $ai.Source 'agy-hook' '--payload' $payload\n    exit 0"),
+            "unredirected agy-hook invocation would leak human prose to stdout"
+        );
+        // Install path embeds the same body
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        install_agy(home, false).expect("install");
+        let wrapper = std::fs::read_to_string(agy_wrapper_path(home)).expect("read wrapper");
+        assert!(wrapper.contains(allow));
+        assert!(wrapper.contains("2>&1") || wrapper.contains("hookOut"));
     }
 
     fn walk_files(root: &Path) -> Vec<PathBuf> {

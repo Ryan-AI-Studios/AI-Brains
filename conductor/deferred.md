@@ -134,14 +134,45 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | OpenCode export filter | **T234** fixture SOOT shipped; **wire T238** |
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
 | ~~Detect + preflight hook install UX~~ | **Closed by T235** PR #101 `b1a0ecc` — detect/wiring/`harness *`/AGY F34+writer/preflight/doctor; others backend_pending → T236–T238 |
-| AGY2 seamless + history→project binding | **T236** Placeholder (depends T234) |
+| AGY2 seamless + history→project binding | **T236 In Progress** — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize shipped on branch; full gate + review pending |
 | Grok Build hooks + chat_history batch | **T237** Placeholder (depends T234) |
 | OpenCode plugin + export batch | **T238** Placeholder (depends T234) |
 | Nightly multi-harness import | **T239** Placeholder (depends T234) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
 | Remove contracts `thinking` field | **Not** T234 (later) |
 
-Suggested harness order: **T234 (done)** → **T235 (done)** → T236 → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (In Progress)** → T237 → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+
+### T236 planning absorption (2026-08-08)
+
+| Residual | Disposition |
+|----------|-------------|
+| Live AGY2 transcript step-shaped; agy-hook `{role,content}` only | **Absorbed** T236 F1–F2 / AC1–AC3 (P0) |
+| Batch `project_hash: None` → cwd/default hijack | **Absorbed** F9–F12 / AC5–AC7 |
+| history.jsonl unused | **Absorbed** F9–F11 / AC16–AC17 |
+| Docs “no hooks” | **Absorbed** F20 |
+| Quiescence no `--force` | **Absorbed** F18 / AC9–AC10 |
+| Re-summarize after new turns | **Absorbed** F17 / AC13 (or T239 waiver) |
+| T235 install / F34 map | Keep; regression AC14; **wrapper rewrite F8** |
+| fullyIdle hard policy | Soft residual (F7) |
+| conversations.db primary | Soft / not DoD |
+| Grok/OpenCode/nightly multi | T237 / T238 / T239 |
+
+### T236 AI review fold-in (2026-08-08)
+
+| Item | Disposition |
+|------|-------------|
+| AI1 affirm + serde/fail-open + re-summarize OR | Affirmed / F1 / F17 |
+| AI2 M1 wrapper stdout | **Elevated** F8 / AC18 |
+| AI2 M2 turn-id diverge | **Elevated** F2 / AC19 |
+| AI2 M3 hook normalize | **Elevated** F3 / AC17 hook |
+| AI2 M4 env hijack on live | **Elevated** F3(4) / AC20 / F33 |
+| AI2 M5 transcript_full | **Elevated** F29 / AC21 |
+| AI2 M6 source_meta path | **Elevated** F30 / AC22 |
+| AI2 L1–L5 | F32 / F31 / F12 / F9 / F16 |
+| AI2 L6 scheduled skip-import | D16 honesty; **not** re-enable (T239) |
+| AI2 L7 watermark | Soft F34 |
+| AI2 “plan.md missing” | Stale — plan.md present |
 
 ### T216 planning residuals absorption (2026-08-05) — historical
 

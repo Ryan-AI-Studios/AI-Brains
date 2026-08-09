@@ -59,6 +59,12 @@ mod tests {
 
         assert_eq!(id1, id2);
         assert_ne!(id1, id3);
+        // F2: namespace is turn-{i}, not agy-turn-{i}
+        let legacy = ai_brains_core::ids::TurnId::from_uuid(uuid::Uuid::new_v5(
+            &session_id.as_uuid(),
+            b"agy-turn-0",
+        ));
+        assert_ne!(id1, legacy);
     }
 
     #[test]

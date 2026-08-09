@@ -66,17 +66,20 @@ ai-brains --vault-path .ai-brains\vault.db recall "what did we discuss about the
 
 What you should see:
 
-- `antigravity-import` prints a JSON status object with the number of
-  sessions and turns ingested. If the user's Antigravity history is
-  empty, it exits 0 with a no-op status.
+- `antigravity-import` prints **human** status lines on **stderr**
+  (found / imported_turns / sessions / skipped_quiescent /
+  skipped_unchanged_meta / unbound_project / bound_via_history /
+  bound_via_path). It does **not** emit a JSON status object today.
+  Empty history exits 0 with a no-op message.
 - `recall` ranks user prompts, assistant responses, and pinned
   memories, and the `--format pretty` view shows the top hits in
-  context.
+  context. Prefer project-scoped recall after history binding.
 
 > **Tip — avoid cross-vault contamination.** When running on an
 > isolated, CI, or per-project vault, use
 > `ai-brains nightly --skip-import` instead. `antigravity-import`
-> always reads the *user's* actual Antigravity history.
+> always reads the *user's* actual Antigravity history. SYSTEM
+> scheduled nightly may already pass `--skip-import` (T239).
 
 ---
 

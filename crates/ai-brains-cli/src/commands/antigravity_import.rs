@@ -1,11 +1,13 @@
 use crate::context::{AppContext, StoreSink};
-use ai_brains_adapters::import_antigravity_sessions;
+use ai_brains_adapters::{
+    AntigravityImportOptions, import_antigravity_sessions, print_import_stats,
+};
 use ai_brains_capture::CaptureService;
 use ai_brains_core::ids::ProjectId;
 use std::str::FromStr;
 
-pub fn run(ctx: &AppContext, days: usize) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Scanning for Antigravity sessions...");
+pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("Scanning for Antigravity sessions...");
 
     let service = CaptureService::new();
     let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
@@ -19,26 +21,37 @@ pub fn run(ctx: &AppContext, days: usize) -> Result<(), Box<dyn std::error::Erro
         )),
     };
 
-    // Inherit project ID from environment if available
+    // Default project id from env is only used when allow_default_project is true.
+    // Normative manual import: allow_default_project = false (F12) — unbound brains
+    // go to stable agy-unbound, not cwd .env project.
     let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
         .ok()
         .and_then(|s| ProjectId::from_str(&s).ok())
         .unwrap_or_default();
 
+    let options = AntigravityImportOptions {
+        days,
+        default_project_id: project_id,
+        allow_default_project: false,
+        force,
+        home_override: None,
+    };
+
     let query_store = ctx.conn.clone() as std::sync::Arc<dyn ai_brains_store::QueryStore>;
-    let (total_turns, sessions_imported) =
-        import_antigravity_sessions(query_store.as_ref(), &service, &mut sink, days, project_id)?;
+    let stats = import_antigravity_sessions(query_store.as_ref(), &service, &mut sink, options)?;
 
     if let Some(err) = sink.last_error {
         return Err(format!("Antigravity import encountered an error: {}", err).into());
     }
 
-    if sessions_imported == 0 {
-        println!("No new Antigravity sessions found to import.");
+    print_import_stats(&stats);
+
+    if stats.sessions == 0 {
+        eprintln!("No new Antigravity sessions found to import.");
     } else {
-        println!(
+        eprintln!(
             "Antigravity import complete. Processed {} turn(s) from {} session(s).",
-            total_turns, sessions_imported
+            stats.imported_turns, stats.sessions
         );
     }
 
