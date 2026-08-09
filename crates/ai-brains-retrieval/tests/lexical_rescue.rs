@@ -253,13 +253,17 @@ fn lexical_rescue__r2_or_respects_limit_and_excludes_sealed()
         !results.is_empty(),
         "R2 OR should hit contentful CloudOk pins"
     );
-    for hit in &results {
-        assert!(
-            !hit.content.contains("sealed-noise") && !hit.content.contains("never-inject-noise"),
-            "non-injectable privacy must not appear: {}",
-            hit.content
-        );
-    }
+    assert!(
+        results
+            .iter()
+            .all(|hit| !hit.content.contains("sealed-noise")
+                && !hit.content.contains("never-inject-noise")),
+        "non-injectable privacy must not appear in R2 results: {:?}",
+        results
+            .iter()
+            .map(|h| h.content.as_str())
+            .collect::<Vec<_>>()
+    );
     Ok(())
 }
 

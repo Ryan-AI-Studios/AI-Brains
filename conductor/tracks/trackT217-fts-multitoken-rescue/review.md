@@ -79,7 +79,7 @@ No critical/high/medium findings. Hard DoD items (rescue ladder, forget opt-out,
 
 ### Round 2 — Codex cross-model (gpt-5.6-luna high)
 
-**Date:** 2026-08-09  
+**Date:** 2026-08-09
 **Artifact:** `review.codex.md`
 
 | id | severity | disposition | action |
