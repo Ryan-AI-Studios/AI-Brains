@@ -1,6 +1,6 @@
 # T217 — FTS multi-token / natural-phrase rescue
 
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (2026-08-09; PR #110 `1e22e77`)
 - **Source:** Audit 2026-08-05 — `recall "what did we decide about forget list"` → empty; short token / two-token hits same vault (quality **4**)
 - **Scores:** usefulness 7 · **output quality 4**
 - **Category:** FEATURE / UX
@@ -334,3 +334,4 @@ Sources: `C:\dev\AI-review.md` — AI1 (deep findings) + AI2 (architecture summa
 | T105/T111 sequencing | ladder before substring + hint | F11 |
 
 **Not absorbed:** T218–T232; T233; closed harness series.
+

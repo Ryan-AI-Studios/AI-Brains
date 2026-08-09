@@ -125,8 +125,8 @@ if still empty → T111 hint (+ fewer keywords if |tokens|≥3 && |c|≥1)
 - [x] Full gate
 - [x] Internal review.md clean
 - [x] Cross-model FEATURE review (Codex R2; re-run after stage)
-- [ ] PR + CI + merge
-- [ ] Conductor **Completed**; deferred T217 closed; pin closeout
+- [x] PR + CI + merge (#110)
+- [x] Conductor **Completed**; deferred T217 closed; pin closeout
 
 ## Soft residuals (not DoD)
 
@@ -155,3 +155,4 @@ ai-brains recall "brittle hotspot fix" --no-bridge --limit 5
 ai-brains recall "zzzz_no_such_token_aaa bbb ccc" --no-bridge
 ai-brains forget --match "what did we decide about forget list" --dry-run
 ```
+
