@@ -2,13 +2,12 @@
 
 use crate::context::{AppContext, StoreSink};
 use ai_brains_adapters::grok::{
-    GROK_HARNESS_UUID, GROK_UNBOUND_ALIAS, GROK_UNBOUND_DISPLAY_NAME, generate_grok_turn_id,
+    GROK_HARNESS_UUID, GROK_UNBOUND_ALIAS, GROK_UNBOUND_DISPLAY_NAME, append_grok_turns,
     grok_env_fallback_allowed, normalize_grok_project_hash, parse_chat_history_file,
     resolve_chat_history_path, resolve_grok_home,
 };
 use ai_brains_adapters::path_derived_display_name;
 use ai_brains_capture::{CaptureContext, CaptureService};
-use ai_brains_contracts::ingest::IngestRequest;
 use ai_brains_core::ids::{HarnessId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
@@ -135,29 +134,16 @@ pub fn run(ctx: &AppContext, payload_json: &str) -> Result<(), Box<dyn std::erro
         eprintln!("[ai-brains-grok] event={ev}");
     }
 
-    let mut turn_count = 0;
-    for (i, turn) in ingestable_turns
-        .iter()
-        .enumerate()
-        .skip(next_index as usize)
-    {
-        let turn_id = generate_grok_turn_id(&session_id, i);
-
-        let request = IngestRequest {
-            session_id,
-            project_id,
-            harness_id: grok_harness,
-            turn_id,
-            role: turn.role.as_str().to_string(),
-            content: turn.content.clone(),
-            privacy: Privacy::LocalOnly,
-            thinking: None,
-            tx_id: None,
-        };
-
-        service.ingest_request(request, capture_context.clone(), &mut sink)?;
-        turn_count += 1;
-    }
+    // Shared SOOT with batch import: turn-{i} ids + thinking always None (AC3/AC4).
+    let turn_count = append_grok_turns(
+        &service,
+        &mut sink,
+        session_id,
+        project_id,
+        &ingestable_turns,
+        next_index as usize,
+        &capture_context,
+    )?;
 
     eprintln!(
         "Successfully ingested {} turns from Grok chat_history.",
