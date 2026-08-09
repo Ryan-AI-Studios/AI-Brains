@@ -131,12 +131,12 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Live Grok reasoning/tool_result/backend_tool_call + array user content~~ | **Closed by T234** fixture SOOT F8/F10/F37 (wire T237) |
 | ~~UTF-8 strip panic risk (AI1 §4)~~ | **Closed by T234** F43/AC15 |
 | ~~Keep contracts thinking field (AI1 §5)~~ | **Closed by T234** F17/F46 — never populate |
-| OpenCode export filter | **T234** flat fixture SOOT shipped; **live nested export + wire → T238 Planning** |
+| ~~OpenCode export filter~~ | **Closed by T238** PR #106 `3378a02` — nested normalize + synthetic drop + wire |
 | Capture refuse `thinking: Some` | Soft **F24** residual (adapters always `None`) |
 | ~~Detect + preflight hook install UX~~ | **Closed by T235** PR #101 `b1a0ecc` — detect/wiring/`harness *`/AGY F34+writer/preflight/doctor; others backend_pending → T236–T238 |
 | ~~AGY2 seamless + history→project binding~~ | **Closed by T236** PR #102 `d53e4be` — wrapper stdout / step parse / history bind / turn-id / `--force` / re-summarize / AC6; soft residuals below |
 | ~~Grok Build hooks + chat_history batch~~ | **Closed by T237** PR #104 `459fc55` — empty Stop stdout; F11 user_query keep; grok-hook/import/install; subagent skip; dry-run; AC6 anti-hijack |
-| OpenCode plugin + export batch | **T238 Planning** (nested export SOOT; session.idle plugin; watermark import; no SQLite) |
+| ~~OpenCode plugin + export batch~~ | **Closed by T238** PR #106 `3378a02` — session.idle plugin; watermark import; never SQLite |
 | Nightly multi-harness import | **T239** Placeholder (depends T234; also scheduled SYSTEM `--skip-import` re-enable) |
 | Display ASSISTANT: strip | **T224** (orthogonal display) |
 | Remove contracts `thinking` field | **Not** T234 (later) |
@@ -146,7 +146,25 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | fullyIdle hard continue policy | Soft residual (F7) |
 | Byte-offset watermark / import `--json` | Soft residual (F34 / soft) |
 
-Suggested harness order: **T234 (done)** → **T235 (done)** → **T236 (done)** → **T237 (done)** → T238 → T239. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234–T238 done** → **T239** nightly multi-harness. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+
+### T238 soft residuals (2026-08-09)
+
+| Residual | Disposition |
+|----------|-------------|
+| S1 min-interval debounce beyond in-flight | Soft — not DoD |
+| S2 compaction_continue explicit key polish | Soft (synthetic already dropped) |
+| S3 live `message.updated` incremental | Soft |
+| S4 pure-export live if SDK drifts | Soft (F12 fallback present) |
+| S5 npm `@ai-brains/opencode-plugin` | Soft |
+| S6 project-local plugin opt-in | Soft (C7 global default) |
+| S7 import `--json` report | Soft |
+| S8 Claude/Codex install_ready | Soft — labels **T239+** |
+| S9 multi-harness nightly | **T239** |
+| S10 compacting pre-archive hook | Soft / non-goal |
+| S11 opt-in child ingest | Soft (default skip hard) |
+| S12 dual-subscribe `session.status` idle | Soft (idle deprecation honesty) |
+| msg-id true event-store delta | Soft (index+watermark Grok-class honesty) |
 
 ### T237 planning absorption (2026-08-08)
 

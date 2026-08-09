@@ -1,6 +1,6 @@
 # T238 — OpenCode seamless ingest
 
-- **Status:** 📋 **Planning** (plan-only until go; no production code / ledger TX)
+- **Status:** ✅ **Completed** (PR #106 squash `3378a02`, 2026-08-09)
 - **Source:** Research 2026-08-08 — live OpenCode **1.18.15**, official [plugins](https://opencode.ai/docs/plugins/) + [CLI](https://opencode.ai/docs/cli/) + [SDK](https://opencode.ai/docs/sdk/) docs, live `opencode export` / `session list --format json`, T234 `filter_opencode_*` fixtures, T235 wiring marker, T236/T237 dual-path lessons; crates.io pins under caret (**no intentional dep bump**); `Docs/Opencode-Hooks-Research.md` **stale** (2026-05 config shape wrong — do not implement from it); **AI review fold-in 2026-08-09** (§14)
 - **Category:** FEATURE
 - **Depends on:** T234 (message-only SOOT ✅); T235 (detect/wiring/`harness *` ✅; OpenCode marker + `backend_pending`); T236/T237 lessons (unbound anti-hijack, path-keyed meta, turn-id SOOT, install honesty, capture independence, **subagent skip / synthetic chrome**)
