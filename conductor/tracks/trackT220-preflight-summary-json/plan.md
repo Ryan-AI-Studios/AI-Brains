@@ -1,6 +1,6 @@
 # T220 Plan — Preflight summary JSON honesty
 
-**Status:** 🔄 **In Progress** (implementation after go; ledger TX open)  
+**Status:** ✅ **Completed** (PR #112 `6f4f67b` + closeout, 2026-08-09)  
 **Category:** BUGFIX / CONTRACT  
 **Depends:** T214 ✅, T180 ✅, T216 envelope pattern ✅, T235 harness human sibling ✅  
 **Spec:** [spec.md](./spec.md) — includes AI fold-in **§14**
