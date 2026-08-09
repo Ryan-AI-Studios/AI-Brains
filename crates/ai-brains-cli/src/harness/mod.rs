@@ -13,7 +13,8 @@ pub mod wiring;
 pub use detect::{HARNESS_ORDER, HarnessId, parse_harness_id, resolve_home};
 pub use install::{
     InstallOutcome, UninstallOutcome, f34_map_contract_summary, install_agy, install_grok,
-    install_pending, install_pending_summary, uninstall_agy, uninstall_grok, uninstall_pending,
+    install_opencode, install_pending, install_pending_summary, uninstall_agy, uninstall_grok,
+    uninstall_opencode, uninstall_pending,
 };
 pub use prefs::{load_prefs, save_prefs};
 pub use wiring::{HarnessStatus, WiringStatus, collect_status_report, wiring_status_label};

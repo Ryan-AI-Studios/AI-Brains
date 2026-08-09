@@ -1,0 +1,60 @@
+{
+  "info": {
+    "id": "ses_live_export_ac1",
+    "slug": "ship-t238",
+    "projectID": "proj_abc",
+    "directory": "C:\\dev\\AI-Brains",
+    "title": "Ship T238",
+    "time": {
+      "created": 1700000000000,
+      "updated": 1700000100000
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "id": "msg_user_live_1",
+        "sessionID": "ses_live_export_ac1",
+        "time": { "created": 1700000001000 }
+      },
+      "parts": [
+        { "type": "text", "text": "ship OpenCode seamless ingest" }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "id": "msg_asst_live_1",
+        "sessionID": "ses_live_export_ac1",
+        "mode": "build",
+        "finish": "stop",
+        "time": { "created": 1700000002000, "completed": 1700000003000 }
+      },
+      "parts": [
+        { "type": "step-start" },
+        { "type": "reasoning", "text": "I will plan the steps carefully" },
+        {
+          "type": "tool",
+          "name": "read",
+          "text": "should never ingest tool body even with text field"
+        },
+        { "type": "tool_use", "name": "bash", "input": {} },
+        { "type": "tool_call", "name": "run", "arguments": "{}" },
+        { "type": "tool_result", "output": "stdout leak" },
+        { "type": "snapshot", "hash": "snap-deadbeef" },
+        { "type": "patch", "diff": "+fn x() {}" },
+        {
+          "type": "file",
+          "source": { "text": "file part body must drop" }
+        },
+        { "type": "subtask", "text": "subtask chrome" },
+        { "type": "agent", "name": "worker" },
+        { "type": "retry" },
+        { "type": "compaction" },
+        { "type": "step-finish" },
+        { "type": "text", "text": "OpenCode seamless ingest is ready." }
+      ]
+    }
+  ]
+}

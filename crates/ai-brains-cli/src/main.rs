@@ -19,6 +19,10 @@ const SCHEMA_AGY_HOOK: &str = include_str!("../../../Docs/schemas/agy-hook-paylo
 /// `Docs/schemas/grok-hook-payload.json`.
 const SCHEMA_GROK_HOOK: &str = include_str!("../../../Docs/schemas/grok-hook-payload.json");
 
+/// JSON Schema for `ai-brains opencode-hook --payload`. Source-of-truth at
+/// `Docs/schemas/opencode-hook-payload.json`.
+const SCHEMA_OPENCODE_HOOK: &str = include_str!("../../../Docs/schemas/opencode-hook-payload.json");
+
 /// JSON Schema for the NDJSON records consumed by `ai-bbrains sync pull --from-file`.
 /// Source-of-truth at `Docs/schemas/sync-pull-record.json`.
 const SCHEMA_SYNC_PULL: &str = include_str!("../../../Docs/schemas/sync-pull-record.json");
@@ -426,6 +430,33 @@ enum Commands {
         /// Discover and report what would be imported without writing to the vault
         #[arg(long, default_value_t = false)]
         dry_run: bool,
+    },
+    /// Process an OpenCode plugin hook payload (session.idle → message-only)
+    #[command(display_order = 54)]
+    OpencodeHook {
+        /// The JSON payload from the OpenCode capture plugin
+        #[arg(long)]
+        payload: Option<String>,
+        /// Print the JSON Schema for the expected `--payload` shape and exit.
+        /// The schema is also at `Docs/schemas/opencode-hook-payload.json`.
+        #[arg(long)]
+        schema: bool,
+    },
+    /// Import OpenCode sessions via `opencode session list` + `export` (never opencode.db)
+    #[command(display_order = 53)]
+    OpencodeImport {
+        /// Only import sessions updated within the last N days
+        #[arg(short, long, default_value_t = 7)]
+        days: usize,
+        /// Ignore watermark and reprocess sessions in the days window
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+        /// Max sessions to list/process (OpenCode list default cap is 100)
+        #[arg(long, default_value_t = 100)]
+        max_sessions: usize,
     },
     /// Detect and install harness capture hooks (user-global, message-only)
     #[command(
@@ -2088,6 +2119,7 @@ fn is_vault_path_free(command: &Commands) -> bool {
         } => false,
         Commands::AgyHook { schema: true, .. } => true,
         Commands::GrokHook { schema: true, .. } => true,
+        Commands::OpencodeHook { schema: true, .. } => true,
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
         } => true,
@@ -2198,6 +2230,9 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GrokHook { schema: true, .. } => {
             print_schema(SCHEMA_GROK_HOOK, "AI-Brains grok-hook payload")
+        }
+        Commands::OpencodeHook { schema: true, .. } => {
+            print_schema(SCHEMA_OPENCODE_HOOK, "AI-Brains opencode-hook payload")
         }
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
@@ -3314,6 +3349,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             force,
             dry_run,
         } => commands::grok_import::run(&ctx, *days, *force, *dry_run),
+        Commands::OpencodeImport {
+            days,
+            force,
+            dry_run,
+            max_sessions,
+        } => commands::opencode_import::run(&ctx, *days, *force, *dry_run, *max_sessions),
         Commands::AgyHook { payload, schema } => {
             if *schema {
                 print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")
@@ -3331,6 +3372,18 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 print_schema(SCHEMA_GROK_HOOK, "AI-Brains grok-hook payload")
             } else if let Some(p) = payload {
                 commands::grok_hook::run(&ctx, p)
+            } else {
+                Err(
+                    "Either provide --payload <json> or use --schema to print the payload schema."
+                        .into(),
+                )
+            }
+        }
+        Commands::OpencodeHook { payload, schema } => {
+            if *schema {
+                print_schema(SCHEMA_OPENCODE_HOOK, "AI-Brains opencode-hook payload")
+            } else if let Some(p) = payload {
+                commands::opencode_hook::run(&ctx, p)
             } else {
                 Err(
                     "Either provide --payload <json> or use --schema to print the payload schema."

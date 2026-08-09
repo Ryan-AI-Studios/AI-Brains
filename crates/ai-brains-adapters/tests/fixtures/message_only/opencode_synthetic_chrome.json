@@ -1,0 +1,103 @@
+{
+  "info": {
+    "id": "ses_synthetic_ac22",
+    "directory": "C:\\dev\\AI-Brains"
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "id": "msg_syn_read",
+        "time": { "created": 1700001000000 }
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "Called the Read tool with path docs/foo.md",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "id": "msg_syn_exec",
+        "time": { "created": 1700001001000 }
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "The following was executed by the user",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "id": "msg_ignored",
+        "time": { "created": 1700001002000 }
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "ignored synthetic noise",
+          "ignored": true
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "id": "msg_editor",
+        "time": { "created": 1700001003000 }
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "<system-reminder>Open editor context here</system-reminder>",
+          "metadata": { "kind": "editor_context" }
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "id": "msg_compaction",
+        "time": { "created": 1700001004000 }
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "continue after compaction please",
+          "synthetic": true,
+          "metadata": { "compaction_continue": true }
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "id": "msg_real_bare",
+        "time": { "created": 1700001005000 }
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "what is the status of T238?"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "id": "msg_asst_reply",
+        "time": { "created": 1700001006000 }
+      },
+      "parts": [
+        { "type": "reasoning", "text": "thinking about status" },
+        { "type": "text", "text": "T238 is in progress." }
+      ]
+    }
+  ]
+}

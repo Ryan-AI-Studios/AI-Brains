@@ -56,18 +56,17 @@ impl HarnessId {
         }
     }
 
-    /// AGY (T235/T236) and Grok (T237) have real install writers.
+    /// AGY (T235/T236), Grok (T237), and OpenCode (T238) have real install writers.
     pub fn install_ready(self) -> bool {
-        matches!(self, Self::Agy | Self::Grok)
+        matches!(self, Self::Agy | Self::Grok | Self::Opencode)
     }
 
     /// Pending track id when install_ready is false.
     pub fn pending_track(self) -> Option<&'static str> {
         match self {
-            Self::Grok | Self::Agy => None,
-            Self::Opencode => Some("T238"),
-            Self::Claude => Some("T238+"),
-            Self::Codex => Some("T238+"),
+            Self::Grok | Self::Agy | Self::Opencode => None,
+            Self::Claude => Some("T239+"),
+            Self::Codex => Some("T239+"),
         }
     }
 
@@ -174,6 +173,18 @@ fn detect_one(id: HarnessId, home: Option<&Path>) -> HarnessPresence {
 }
 
 fn first_existing_home_root(home: &Path, id: HarnessId) -> Option<PathBuf> {
+    // F40: relocated OpenCode config counts as home present for detection.
+    if id == HarnessId::Opencode
+        && let Ok(dir) = std::env::var("OPENCODE_CONFIG_DIR")
+    {
+        let t = dir.trim();
+        if !t.is_empty() {
+            let p = PathBuf::from(t);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
     for rel in id.home_rel_paths() {
         let p = join_rel(home, rel);
         if p.exists() {
@@ -285,11 +296,37 @@ mod tests {
     fn install_ready__agy_and_grok() {
         assert!(HarnessId::Agy.install_ready());
         assert!(HarnessId::Grok.install_ready());
-        assert!(!HarnessId::Opencode.install_ready());
+        assert!(HarnessId::Opencode.install_ready());
         assert!(!HarnessId::Claude.install_ready());
         assert!(!HarnessId::Codex.install_ready());
         assert!(HarnessId::Grok.pending_track().is_none());
-        assert_eq!(HarnessId::Claude.pending_track(), Some("T238+"));
-        assert_eq!(HarnessId::Codex.pending_track(), Some("T238+"));
+        assert!(HarnessId::Opencode.pending_track().is_none());
+        assert_eq!(HarnessId::Claude.pending_track(), Some("T239+"));
+        assert_eq!(HarnessId::Codex.pending_track(), Some("T239+"));
+    }
+
+    #[test]
+    fn detect__opencode_config_dir__present_when_exists() {
+        // F40: OPENCODE_CONFIG_DIR that exists makes Opencode home present.
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path().join("empty-home");
+        let config = dir.path().join("relocated-opencode");
+        std::fs::create_dir_all(&home).expect("home");
+        std::fs::create_dir_all(&config).expect("config");
+        let _up = TempEnv::set("USERPROFILE", home.as_os_str());
+        let _home = TempEnv::set("HOME", home.as_os_str());
+        let _path = TempEnv::set("PATH", "");
+        let _oc = TempEnv::set("OPENCODE_CONFIG_DIR", config.as_os_str());
+
+        let rows = detect_all_with(Some(&home));
+        let oc = rows.iter().find(|r| r.id == HarnessId::Opencode).unwrap();
+        assert!(oc.present, "OPENCODE_CONFIG_DIR existing must mark present");
+        assert!(
+            oc.home_path
+                .as_deref()
+                .is_some_and(|p| p.contains("relocated-opencode")),
+            "home_path should be relocated dir: {:?}",
+            oc.home_path
+        );
     }
 }

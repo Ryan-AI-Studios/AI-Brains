@@ -131,14 +131,27 @@ fn probe_agy(home: &Path) -> WiringStatus {
 }
 
 fn probe_opencode(home: &Path) -> WiringStatus {
-    // F6/F7: local plugin file marker
-    let js = join_rel(home, ".config/opencode/plugins/ai-brains-capture.js");
-    let ts = join_rel(home, ".config/opencode/plugins/ai-brains-capture.ts");
-    if js.is_file() || ts.is_file() {
-        WiringStatus::Ok
-    } else {
-        WiringStatus::Missing
+    // F6/F7 / F40: managed plugin under OPENCODE_CONFIG_DIR or ~/.config/opencode.
+    // Header-scoped: foreign same-name file without T238 managed marker is not ok.
+    let config = super::install::opencode_config_dir(home);
+    let js = config.join("plugins").join("ai-brains-capture.js");
+    let ts = config.join("plugins").join("ai-brains-capture.ts");
+    for path in [js, ts] {
+        if !path.is_file() {
+            continue;
+        }
+        match std::fs::read_to_string(&path) {
+            Ok(raw) if super::install::has_opencode_managed_marker_header(&raw) => {
+                return WiringStatus::Ok;
+            }
+            Ok(_) => {
+                // Same-name file without managed header → not our wiring
+                return WiringStatus::Missing;
+            }
+            Err(_) => return WiringStatus::Unknown,
+        }
     }
+    WiringStatus::Missing
 }
 
 fn probe_claude(home: &Path) -> WiringStatus {
@@ -207,11 +220,17 @@ pub fn targets_for(id: HarnessId, home: &Path) -> Vec<String> {
                 .display()
                 .to_string(),
         ],
-        HarnessId::Opencode => vec![
-            join_rel(home, ".config/opencode/plugins/ai-brains-capture.js")
-                .display()
-                .to_string(),
-        ],
+        HarnessId::Opencode => {
+            // F40: honor OPENCODE_CONFIG_DIR when set (same as install/probe)
+            let config = super::install::opencode_config_dir(home);
+            vec![
+                config
+                    .join("plugins")
+                    .join("ai-brains-capture.js")
+                    .display()
+                    .to_string(),
+            ]
+        }
         HarnessId::Claude => vec![
             join_rel(home, ".claude/settings.json")
                 .display()
@@ -329,19 +348,33 @@ mod tests {
     }
 
     #[test]
-    fn wiring__opencode_after_pending_install__backend_pending() {
-        // F5/F14: pending backend still stamps backend_pending when missing marker.
+    fn wiring__opencode_after_real_install__ok() {
+        // T238: OpenCode install_ready → real plugin → wiring ok (not backend_pending).
         let dir = tempdir().expect("tempdir");
         let home = dir.path();
         std::fs::create_dir_all(home.join(".config").join("opencode")).expect("mkdir");
-        let out = super::super::install::install_pending(HarnessId::Opencode, home, false);
-        assert!(matches!(
-            out,
-            super::super::install::InstallOutcome::BackendPending { .. }
-        ));
+        super::super::install::install_opencode(home, false).expect("install");
         assert_eq!(
             probe_wiring(HarnessId::Opencode, home, true),
-            WiringStatus::BackendPending
+            WiringStatus::Ok
+        );
+    }
+
+    #[test]
+    fn wiring__opencode_foreign_same_name__missing() {
+        // Codex R2: same-name file without managed header is not wiring ok
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let plugins = home.join(".config").join("opencode").join("plugins");
+        std::fs::create_dir_all(&plugins).expect("mkdir");
+        std::fs::write(
+            plugins.join("ai-brains-capture.js"),
+            b"export default function foreign() { return {}; }\n",
+        )
+        .expect("write foreign");
+        assert_eq!(
+            probe_wiring(HarnessId::Opencode, home, true),
+            WiringStatus::Missing
         );
     }
 

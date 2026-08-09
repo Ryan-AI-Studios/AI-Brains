@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-brains.dev/schemas/opencode-hook-payload.json",
+  "title": "AI-Brains opencode-hook payload",
+  "description": "JSON payload passed to `ai-brains opencode-hook --payload`. Encodes an OpenCode session for message-only ingest from export-shaped JSON or SDK messages dump.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["sessionId"],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "OpenCode session id (`ses_…` or UUID). Used for delta-sync and turn-id namespace."
+    },
+    "directory": {
+      "type": "string",
+      "description": "Session working directory for project binding (after worktree)."
+    },
+    "worktree": {
+      "type": "string",
+      "description": "Git worktree root; preferred over directory for project alias stability."
+    },
+    "projectHash": {
+      "type": "string",
+      "description": "Optional explicit project path/hash. Prefer worktree/directory when present."
+    },
+    "parentId": {
+      "type": "string",
+      "description": "When set, session is a child/subagent — hook skips ingest (skipped_child_session)."
+    },
+    "exportPath": {
+      "type": "string",
+      "description": "Absolute path to export-shaped JSON `{info,messages}` (tests + export fallback)."
+    },
+    "messagesPath": {
+      "type": "string",
+      "description": "Absolute path to SDK messages dump (export-shaped). Preferred over exportPath for live."
+    },
+    "event": {
+      "type": "string",
+      "description": "Optional plugin event name (session.idle)."
+    }
+  },
+  "examples": [
+    {
+      "sessionId": "ses_abc123",
+      "directory": "C:\\dev\\AI-Brains",
+      "worktree": "C:\\dev\\AI-Brains",
+      "messagesPath": "C:\\Users\\<user>\\AppData\\Local\\Temp\\oc-export.json",
+      "event": "session.idle"
+    }
+  ]
+}

@@ -372,24 +372,79 @@ pub fn filter_grok_history_lines(jsonl: &str) -> Vec<IngestableTurn> {
 }
 
 // ---------------------------------------------------------------------------
-// OpenCode-export-like messages (F9 — fixture-ready for T238)
+// OpenCode-export-like messages (T234 F9 + T238 nested/synthetic)
 // ---------------------------------------------------------------------------
 
-/// Filter one OpenCode-export-like message object.
-pub fn filter_opencode_message(record: &Value) -> Option<IngestableTurn> {
-    let role = record
+/// Map a live nested export message `{info, parts}` to a flat filter-ready record.
+///
+/// Live OpenCode export nests `role` under `info.role`. Flat fixtures (role at top)
+/// are returned as-is. Returns `None` when neither shape yields a role.
+pub fn normalize_opencode_export_message(record: &Value) -> Option<Value> {
+    // Flat fixture / already-normalized: top-level role or type.
+    if record
         .get("role")
         .and_then(|v| v.as_str())
-        .or_else(|| record.get("type").and_then(|v| v.as_str()))?;
+        .or_else(|| record.get("type").and_then(|v| v.as_str()))
+        .is_some()
+    {
+        return Some(record.clone());
+    }
+
+    // Nested live export: `{ info: { role, id, time… }, parts }`
+    let info = record.get("info")?;
+    let role = info.get("role").and_then(|v| v.as_str())?;
+
+    let mut flat = serde_json::Map::new();
+    flat.insert("role".to_string(), Value::String(role.to_string()));
+
+    if let Some(parts) = record.get("parts") {
+        flat.insert("parts".to_string(), parts.clone());
+    } else if let Some(content) = record.get("content") {
+        flat.insert("content".to_string(), content.clone());
+    }
+
+    if let Some(id) = info.get("id") {
+        flat.insert("id".to_string(), id.clone());
+    }
+
+    // Prefer string timestamp; else convert info.time.created ms → RFC3339 (F5).
+    if let Some(ts) = record
+        .get("timestamp")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+        .or_else(|| {
+            info.get("timestamp")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        })
+    {
+        flat.insert("timestamp".to_string(), Value::String(ts));
+    } else if let Some(ms) = info
+        .get("time")
+        .and_then(|t| t.get("created"))
+        .and_then(|v| v.as_i64().or_else(|| v.as_u64().map(|u| u as i64)))
+        && let Some(rfc) = unix_ms_to_rfc3339(ms)
+    {
+        flat.insert("timestamp".to_string(), Value::String(rfc));
+    }
+
+    Some(Value::Object(flat))
+}
+
+/// Filter one OpenCode-export-like message object (flat or nested via normalize).
+pub fn filter_opencode_message(record: &Value) -> Option<IngestableTurn> {
+    let flat = normalize_opencode_export_message(record)?;
+    let role = flat
+        .get("role")
+        .and_then(|v| v.as_str())
+        .or_else(|| flat.get("type").and_then(|v| v.as_str()))?;
 
     match role {
         "user" | "assistant" => {
-            let text = if let Some(parts) = record.get("parts").and_then(|v| v.as_array()) {
-                extract_text_from_parts(parts)
+            let text = if let Some(parts) = flat.get("parts").and_then(|v| v.as_array()) {
+                extract_text_from_opencode_parts(parts)
             } else {
-                record
-                    .get("content")
-                    .and_then(extract_text_from_json_content)
+                flat.get("content").and_then(extract_text_from_json_content)
             }?;
             let text = if role == "user" {
                 extract_user_text(&text)
@@ -407,7 +462,7 @@ pub fn filter_opencode_message(record: &Value) -> Option<IngestableTurn> {
             Some(IngestableTurn {
                 role: ingest_role,
                 content: text,
-                source_ts: record
+                source_ts: flat
                     .get("timestamp")
                     .and_then(|v| v.as_str())
                     .map(str::to_string),
@@ -418,9 +473,50 @@ pub fn filter_opencode_message(record: &Value) -> Option<IngestableTurn> {
     }
 }
 
+/// Message-id (when present) plus filtered turn — for OpenCode turn-id SOOT (F13).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenCodeIngestTurn {
+    pub turn: IngestableTurn,
+    /// Stable `msg_*` id from `info.id` when present.
+    pub msg_id: Option<String>,
+}
+
+/// Filter one OpenCode message and preserve `msg_*` id when available.
+pub fn filter_opencode_message_with_id(record: &Value) -> Option<OpenCodeIngestTurn> {
+    let flat = normalize_opencode_export_message(record)?;
+    let msg_id = flat
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+        .filter(|s| !s.trim().is_empty());
+    let turn = filter_opencode_message(&flat)?;
+    Some(OpenCodeIngestTurn { turn, msg_id })
+}
+
 /// Filter OpenCode-export-like messages array or JSONL.
 pub fn filter_opencode_messages(records: &[Value]) -> Vec<IngestableTurn> {
     records.iter().filter_map(filter_opencode_message).collect()
+}
+
+/// Walk a full live export document `{ info, messages }` (or bare `messages` array).
+///
+/// Fail-open per malformed message. Returns kept turns with optional msg ids.
+pub fn filter_opencode_export(doc: &Value) -> Vec<OpenCodeIngestTurn> {
+    let messages = if let Some(arr) = doc.get("messages").and_then(|v| v.as_array()) {
+        arr.as_slice()
+    } else if let Some(arr) = doc.as_array() {
+        arr
+    } else {
+        return Vec::new();
+    };
+
+    let mut out = Vec::new();
+    for msg in messages {
+        if let Some(t) = filter_opencode_message_with_id(msg) {
+            out.push(t);
+        }
+    }
+    out
 }
 
 /// Filter OpenCode-like JSONL (one message per line).
@@ -439,6 +535,107 @@ pub fn filter_opencode_message_lines(jsonl: &str) -> Vec<IngestableTurn> {
         }
     }
     out
+}
+
+/// True when a text part must be dropped as synthetic chrome (F2/F3 hard).
+///
+/// Prefer structured flags over content heuristics:
+/// `synthetic === true` | `ignored === true` | `metadata.kind === "editor_context"`.
+fn is_synthetic_or_ignored_part(map: &serde_json::Map<String, Value>) -> bool {
+    if map.get("synthetic").and_then(|v| v.as_bool()) == Some(true) {
+        return true;
+    }
+    if map.get("ignored").and_then(|v| v.as_bool()) == Some(true) {
+        return true;
+    }
+    if map
+        .get("metadata")
+        .and_then(|m| m.get("kind"))
+        .and_then(|v| v.as_str())
+        == Some("editor_context")
+    {
+        return true;
+    }
+    false
+}
+
+/// OpenCode-aware part text extract: drops tool/thinking denylist + synthetic/ignored.
+fn extract_text_from_opencode_parts(parts: &[Value]) -> Option<String> {
+    let mut chunks: Vec<String> = Vec::new();
+    for part in parts {
+        match part {
+            Value::String(s) => {
+                let t = s.trim();
+                if !t.is_empty() {
+                    chunks.push(s.clone());
+                }
+            }
+            Value::Object(map) => {
+                if is_synthetic_or_ignored_part(map) {
+                    continue;
+                }
+                let part_type = map.get("type").and_then(|v| v.as_str());
+                if let Some(pt) = part_type
+                    && is_tool_or_thinking_part_type(pt)
+                {
+                    continue;
+                }
+                // tool-shaped without text type
+                if part_type.is_none()
+                    && (map.contains_key("name") || map.contains_key("arguments"))
+                    && !map.contains_key("text")
+                {
+                    continue;
+                }
+                if let Some(t) = map.get("text").and_then(|v| v.as_str()) {
+                    let t = t.trim();
+                    if !t.is_empty() {
+                        chunks.push(t.to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    if chunks.is_empty() {
+        None
+    } else {
+        Some(chunks.join("\n"))
+    }
+}
+
+/// Convert Unix epoch milliseconds to RFC3339 UTC (`…Z`). Returns None on invalid.
+fn unix_ms_to_rfc3339(ms: i64) -> Option<String> {
+    if ms < 0 {
+        return None;
+    }
+    let total_secs = ms / 1000;
+    let millis = (ms % 1000) as u32;
+    // Civil UTC from days since 1970-01-01 (Howard Hinnant algorithm).
+    let days = total_secs.div_euclid(86_400);
+    let tod = total_secs.rem_euclid(86_400) as u32;
+    let hour = tod / 3600;
+    let min = (tod % 3600) / 60;
+    let sec = tod % 60;
+
+    let z = days + 719_468;
+    let era = if z >= 0 {
+        z / 146_097
+    } else {
+        (z - 146_096) / 146_097
+    };
+    let doe = (z - era * 146_097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+
+    Some(format!(
+        "{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}.{millis:03}Z"
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -549,10 +746,16 @@ fn extract_text_from_parts(parts: &[Value]) -> Option<String> {
     }
 }
 
+/// Part types that must never become vault content (tool / thinking / OpenCode chrome).
+///
+/// T238 denylist: tool, tool_use, tool_call, tool_result, reasoning, thinking,
+/// redacted_thinking, step-start, step-finish, compaction, snapshot, patch, agent,
+/// retry, subtask, file (+ legacy function/image types).
 fn is_tool_or_thinking_part_type(part_type: &str) -> bool {
     matches!(
         part_type,
-        "tool_use"
+        "tool"
+            | "tool_use"
             | "tool_call"
             | "tool_result"
             | "function_call"
@@ -563,6 +766,15 @@ fn is_tool_or_thinking_part_type(part_type: &str) -> bool {
             | "reasoning"
             | "redacted_thinking"
             | "backend_tool_call"
+            | "step-start"
+            | "step-finish"
+            | "compaction"
+            | "snapshot"
+            | "patch"
+            | "agent"
+            | "retry"
+            | "subtask"
+            | "file"
     )
 }
 
@@ -959,6 +1171,135 @@ mod tests {
         assert_eq!(turns.len(), 2);
         assert_eq!(turns[0].content, "q");
         assert_eq!(turns[1].content, "a");
+    }
+
+    #[test]
+    fn filter_opencode__nested_export__only_non_synthetic_text() {
+        // AC1 — full part-type union; only user+assistant non-synthetic text kept
+        let doc = json!({
+            "info": {"id": "ses_test", "directory": "C:\\dev\\x"},
+            "messages": [
+                {
+                    "info": {"role": "user", "id": "msg_u1", "time": {"created": 1_700_000_000_000_i64}},
+                    "parts": [{"type": "text", "text": "ship T238"}]
+                },
+                {
+                    "info": {"role": "assistant", "id": "msg_a1", "time": {"created": 1_700_000_001_000_i64}},
+                    "parts": [
+                        {"type": "step-start"},
+                        {"type": "reasoning", "text": "secret chain"},
+                        {"type": "tool", "name": "read", "text": "should not leak"},
+                        {"type": "snapshot", "hash": "abc"},
+                        {"type": "patch", "diff": "+x"},
+                        {"type": "file", "source": {"text": "file body leak"}},
+                        {"type": "subtask", "text": "child work"},
+                        {"type": "agent", "name": "worker"},
+                        {"type": "retry"},
+                        {"type": "compaction"},
+                        {"type": "step-finish"},
+                        {"type": "text", "text": "Done shipping."}
+                    ]
+                }
+            ]
+        });
+        let turns = filter_opencode_export(&doc);
+        assert_eq!(turns.len(), 2);
+        assert_eq!(turns[0].turn.role, IngestRole::User);
+        assert_eq!(turns[0].turn.content, "ship T238");
+        assert_eq!(turns[0].msg_id.as_deref(), Some("msg_u1"));
+        assert_eq!(turns[1].turn.role, IngestRole::Assistant);
+        assert_eq!(turns[1].turn.content, "Done shipping.");
+        assert_eq!(turns[1].msg_id.as_deref(), Some("msg_a1"));
+        for t in &turns {
+            assert!(!t.turn.content.contains("secret"));
+            assert!(!t.turn.content.contains("leak"));
+            assert!(!t.turn.content.contains("child work"));
+        }
+        // F5: source_ts from info.time.created ms
+        assert!(
+            turns[0]
+                .turn
+                .source_ts
+                .as_ref()
+                .is_some_and(|s| s.ends_with('Z') && s.contains('T')),
+            "expected RFC3339: {:?}",
+            turns[0].turn.source_ts
+        );
+    }
+
+    #[test]
+    fn filter_opencode__part_type_tool_with_stray_text__dropped() {
+        // AC19
+        let msg = json!({
+            "info": {"role": "assistant", "id": "msg_t"},
+            "parts": [
+                {"type": "tool", "name": "bash", "text": "stdout dump should not ingest"},
+                {"type": "text", "text": "visible"}
+            ]
+        });
+        let turn = filter_opencode_message(&msg).expect("assistant");
+        assert_eq!(turn.content, "visible");
+        assert!(!turn.content.contains("stdout"));
+    }
+
+    #[test]
+    fn filter_opencode__synthetic_chrome_matrix__zero_user_memories() {
+        // AC22 — synthetic / ignored / editor_context / compaction_continue drop
+        let doc = json!({
+            "messages": [
+                {
+                    "info": {"role": "user", "id": "msg_syn1"},
+                    "parts": [{"type": "text", "text": "Called the Read tool with …", "synthetic": true}]
+                },
+                {
+                    "info": {"role": "user", "id": "msg_syn2"},
+                    "parts": [{"type": "text", "text": "The following was executed by the user", "synthetic": true}]
+                },
+                {
+                    "info": {"role": "user", "id": "msg_ign"},
+                    "parts": [{"type": "text", "text": "ignored chrome", "ignored": true}]
+                },
+                {
+                    "info": {"role": "user", "id": "msg_ed"},
+                    "parts": [{
+                        "type": "text",
+                        "text": "<system-reminder>editor context</system-reminder>",
+                        "metadata": {"kind": "editor_context"}
+                    }]
+                },
+                {
+                    "info": {"role": "user", "id": "msg_cc"},
+                    "parts": [{
+                        "type": "text",
+                        "text": "continue after compaction",
+                        "synthetic": true,
+                        "metadata": {"compaction_continue": true}
+                    }]
+                },
+                {
+                    "info": {"role": "user", "id": "msg_real"},
+                    "parts": [{"type": "text", "text": "real bare user prompt"}]
+                },
+                {
+                    "info": {"role": "assistant", "id": "msg_a"},
+                    "parts": [{"type": "text", "text": "assistant reply"}]
+                }
+            ]
+        });
+        let turns = filter_opencode_export(&doc);
+        assert_eq!(turns.len(), 2, "only real user + assistant: {turns:?}");
+        assert_eq!(turns[0].turn.role, IngestRole::User);
+        assert_eq!(turns[0].turn.content, "real bare user prompt");
+        assert_eq!(turns[1].turn.role, IngestRole::Assistant);
+        assert_eq!(turns[1].turn.content, "assistant reply");
+    }
+
+    #[test]
+    fn normalize_opencode_export_message__flat_passthrough() {
+        let flat = json!({"role": "user", "content": "hi"});
+        let n = normalize_opencode_export_message(&flat).expect("flat");
+        assert_eq!(n["role"], "user");
+        assert_eq!(n["content"], "hi");
     }
 
     #[test]
