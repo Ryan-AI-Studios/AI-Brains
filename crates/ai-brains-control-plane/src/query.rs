@@ -89,6 +89,8 @@ where
     let trace_id = QueryTraceId::new();
 
     if !can_read {
+        // Dual-site SOOT with CLI `POLICY_DENIED_HINT` (governed_common) — keep wording in sync (T221 F17).
+        const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
         let resp = ProgressiveQueryResponse {
             api_version: ai_brains_contracts::briefings::API_VERSION.to_string(),
             results: Vec::new(),
@@ -100,6 +102,7 @@ where
             conflict_summary: None,
             denied: true,
             denial_reason: Some("ReadConclusions/ReadDecisions denied".into()),
+            denial_hint: Some(POLICY_DENIED_HINT.to_string()),
         };
         persist_trace(
             writer,
@@ -383,6 +386,7 @@ where
         conflict_summary,
         denied: false,
         denial_reason: None,
+        denial_hint: None,
     })
 }
 

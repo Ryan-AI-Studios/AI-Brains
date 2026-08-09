@@ -11,7 +11,7 @@ Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXI
 | **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`) |
 | **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail** |
 | **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on policy/erasure); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T203** soft-resolve failure on `source`/`evidence`/`review` list|show when `--scope` omitted and context is not authoritative |
-| **3** | `EXIT_POLICY_DENIED` | `POLICY_DENIED`; `APPROVAL_REQUIRED` |
+| **3** | `EXIT_POLICY_DENIED` | `POLICY_DENIED`; `APPROVAL_REQUIRED`; **`query progressive`** when packet `denied: true` (T221 — pretty `ProgressiveQueryResponse` still on **stdout**); **`query expand`** when preview `kind` is exact **`Denied`** |
 | **4** | `EXIT_NOT_FOUND` | `NOT_FOUND` |
 | **5** | `EXIT_DAEMON_UNAVAILABLE` | Daemon required / unreachable for a daemon-required path |
 | **6** | `EXIT_INVALID_PAYLOAD` | `INVALID_PAYLOAD`; `NOT_ENVELOPE_BACKED`; malformed provided values (ids, unknown capability, bad JSON, dual-flag wipe, dogfood missing file, …) |
@@ -67,6 +67,19 @@ Do **not** document “all failures always emit JSON on stderr” — that is fa
 ### POLICY_DENIED remediation
 
 On **`policy check`** deny and local **list** denies (`review list`, `source list`, `evidence list`), Json envelopes carry a non-empty structured **`details.hint`** string. Prefer **`ai-brains policy bootstrap --scope …`** first to register the principal (if needed) and issue discovery grants (`ReadEvidence`, `ReadConclusions`, `ReadDecisions`); or inspect with `ai-brains policy show --scope …`. Soft: source/evidence **show** deny also attaches the hint when touched by T203. Other deny sites may still emit bare `POLICY_DENIED` without `details`. Message remains terse. Exit stays **3**.
+
+**Human / Markdown** governed deny (`emit_error`): after the `CODE: message` stderr line, a non-empty `details.hint` is printed on the next stderr line (T221 F5).
+
+### Progressive / expand deny (T221)
+
+| Command | Deny signal | Exit | Streams |
+|---------|-------------|------|---------|
+| `query progressive` | packet `denied: true` (incl. `--dry-run`) | **3** | **stdout:** pretty `ProgressiveQueryResponse` (keeps `denied` / `denial_reason` / additive **`denial_hint`** bootstrap string). **stderr:** `POLICY_DENIED: …` then the same bootstrap hint. |
+| `query expand` | preview `kind == "Denied"` (capability miss **and/or** cross-scope — not disambiguated) | **3** | **stdout:** preview JSON. **stderr:** `POLICY_DENIED: …` then bootstrap hint. |
+| `query expand` | `kind == "Unknown"` (handle not found) | **0** | not a policy wall |
+| `briefing project` / `personal` | soft packet `denied: true` | **0** | unchanged (T210 F28) — do not treat like progressive |
+
+Authorized progressive with grants and zero hits stays **`denied: false`**, empty `results`, exit **0** (true empty knowledge).
 
 ## Missing required `--scope` (F4 / F35 / T203)
 

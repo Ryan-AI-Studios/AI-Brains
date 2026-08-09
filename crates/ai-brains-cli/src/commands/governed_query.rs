@@ -1,7 +1,10 @@
-//! Thin CLI surface for progressive query / handle expand / query trace (T152-P1-06 / T202).
+//! Thin CLI surface for progressive query / handle expand / query trace (T152-P1-06 / T202 / T221).
 
 use crate::commands::briefing::cli_principal;
-use crate::commands::governed_common::fail_usage;
+use crate::commands::governed_common::{
+    EXIT_POLICY_DENIED, GovernedCliError, OutputFormat, POLICY_DENIED_HINT, emit_json, fail_cp,
+    fail_usage,
+};
 use crate::context::AppContext;
 use ai_brains_control_plane::{
     ExpandHandleRequest, GetQueryTraceRequest, ProgressiveQueryRequest, StorePorts, SystemClock,
@@ -56,7 +59,8 @@ pub fn run_progressive(
     } else {
         Some(&ports.writer)
     };
-    let resp = progressive_query(
+    // F33: map CP errors (incl. PolicyDenied) via fail_cp → exit 3, never raw `?` → exit 1.
+    let mut resp = match progressive_query(
         writer,
         &ports.query,
         &event_store,
@@ -71,8 +75,25 @@ pub fn run_progressive(
             dry_run: options.dry_run,
             at: None,
         },
-    )?;
-    println!("{}", serde_json::to_string_pretty(&resp)?);
+    ) {
+        Ok(r) => r,
+        Err(e) => return fail_cp(OutputFormat::Json, e),
+    };
+    // F17: ensure in-band bootstrap for stdout-only agents if CP left it empty.
+    if resp.denied && resp.denial_hint.is_none() {
+        resp.denial_hint = Some(POLICY_DENIED_HINT.to_string());
+    }
+    // F2/F3: keep ProgressiveQueryResponse on stdout, then exit 3 on deny (F1/F34).
+    emit_json(&resp)?;
+    if resp.denied {
+        // F4: CODE line then POLICY_DENIED_HINT on stderr.
+        eprintln!("POLICY_DENIED: progressive query denied");
+        eprintln!("{POLICY_DENIED_HINT}");
+        return Err(Box::new(GovernedCliError::emitted(
+            EXIT_POLICY_DENIED,
+            "POLICY_DENIED: progressive query denied",
+        )));
+    }
     Ok(())
 }
 
@@ -91,7 +112,8 @@ pub fn run_expand(
     let scope = ScopeRef::Repository(project_id);
     let event_store = ports.store();
 
-    let preview = expand_handle(
+    // F33: map CP errors via fail_cp (not raw `?`).
+    let preview = match expand_handle(
         &ports.query,
         &event_store,
         &policy,
@@ -102,7 +124,10 @@ pub fn run_expand(
             privacy: Privacy::LocalOnly,
             max_chars: options.max_chars,
         },
-    )?;
+    ) {
+        Ok(p) => p,
+        Err(e) => return fail_cp(OutputFormat::Json, e),
+    };
     // Include applied scope key for operators debugging cross-scope denials.
     let mut value = serde_json::to_value(&preview)?;
     if let Some(obj) = value.as_object_mut() {
@@ -111,7 +136,16 @@ pub fn run_expand(
             serde_json::Value::String(scope_identity_key(&scope)),
         );
     }
-    println!("{}", serde_json::to_string_pretty(&value)?);
+    emit_json(&value)?;
+    // F6/F30: exact kind "Denied" → exit 3 + F4 stderr; Unknown/found stay exit 0.
+    if preview.kind == "Denied" {
+        eprintln!("POLICY_DENIED: expand handle denied");
+        eprintln!("{POLICY_DENIED_HINT}");
+        return Err(Box::new(GovernedCliError::emitted(
+            EXIT_POLICY_DENIED,
+            "POLICY_DENIED: expand handle denied",
+        )));
+    }
     Ok(())
 }
 

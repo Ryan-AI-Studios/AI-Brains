@@ -261,8 +261,8 @@ ai-brains query progressive "why was graph backend replaced?" --project-id <uuid
 | Feature | Detail |
 |---------|--------|
 | **Briefing format** | TTY default **markdown**; non-TTY **json**; explicit `--format` wins (dogfood always passes `--format json`) |
-| **Denied packets** | `denied=true` always seeds `warnings[]` with `kind: "denied"`; markdown includes `> **Denied:** …` one-liner |
-| **Progressive / expand** | Require project id (`--project-id` or `AI_BRAINS_PROJECT_ID`); missing → exit **2** + copy-paste example on stderr |
+| **Denied packets** | Briefing: `denied=true` always seeds `warnings[]` with `kind: "denied"`; markdown includes `> **Denied:** …` one-liner; process exit **0** (soft) |
+| **Progressive / expand** | Require project id (`--project-id` or `AI_BRAINS_PROJECT_ID`); missing → exit **2** + copy-paste example on stderr. **T221 honesty:** progressive policy wall → exit **3** with pretty packet still on stdout (`denied`, `denial_hint` bootstrap); expand `kind: Denied` → exit **3** (capability and/or cross-scope); expand `Unknown` → exit **0**. First-run: `policy bootstrap --scope Repository:<uuid>` (System principal when `--principal-id` omitted) |
 | **Trace** | No project-id gate; missing/unauthorized → `null` exit **0** |
 
 ### Governed discovery lists (T203)
