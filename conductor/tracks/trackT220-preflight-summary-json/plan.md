@@ -140,8 +140,8 @@
 - [x] Soft skill one-liner (skipped — soft residual F22 / deferred)
 - [x] Manual dogfood AC12 (live vault summary JSON pure object; full path compact 2-key)
 - [x] review.md written; targeted nextest + clippy + fmt green
-- [ ] Full CI gate via PR; `ledgerful verify` / commit after CI green
-- [ ] conductor → Completed; deferred strike T220 / T214 F11 (closeout PR)
+- [x] Full CI gate via PR #112 (Win/Linux/macOS green); squash `6f4f67b`
+- [x] conductor → Completed; deferred strike T220 / T214 F11 (closeout PR)
 
 ## Implement notes
 
