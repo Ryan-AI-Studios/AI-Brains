@@ -272,7 +272,25 @@ pub fn filter_antigravity_steps(steps: &[AntigravityStepInput<'_>]) -> Vec<Inges
 // Grok chat_history (F8 / F10 / F37)
 // ---------------------------------------------------------------------------
 
+/// True when raw content contains extractable `<user_query>` or `<USER_REQUEST>` tags (F11).
+fn grok_user_content_has_prompt_tags(raw: &str) -> bool {
+    // Live Grok prompts use `<user_query>`; AGY-style `<USER_REQUEST>` accepted for parity.
+    raw.contains("<user_query") || raw.contains("<USER_REQUEST") || raw.contains("<user_request")
+}
+
+/// Non-null, non-empty `synthetic_reason` → chrome row (F11 / D5 / D15).
+fn grok_has_synthetic_reason(record: &Value) -> bool {
+    match record.get("synthetic_reason") {
+        None | Some(Value::Null) => false,
+        Some(Value::String(s)) => !s.trim().is_empty(),
+        Some(_) => true,
+    }
+}
+
 /// Filter one Grok `chat_history.jsonl` record (`type` + `content` string|array).
+///
+/// **F11 user keep:** only non-empty body from `<user_query>` / `<USER_REQUEST>`;
+/// drop synthetic_reason rows and bare chrome without those tags.
 pub fn filter_grok_history_record(record: &Value) -> Option<IngestableTurn> {
     let type_str = record
         .get("type")
@@ -281,15 +299,24 @@ pub fn filter_grok_history_record(record: &Value) -> Option<IngestableTurn> {
 
     match type_str {
         "user" => {
-            // Synthetic chrome: empty after extract_user_text → drop (F8; fuller taxonomy soft F24).
-            let text = record
+            // F11: any non-empty synthetic_reason → drop (compaction_meta, system_reminder, …).
+            if grok_has_synthetic_reason(record) {
+                return None;
+            }
+            let raw = record
                 .get("content")
                 .and_then(extract_text_from_json_content)
-                .map(|s| extract_user_text(&s))
                 .unwrap_or_default();
+            // Hard rule F11: bare text / chrome without user_query|USER_REQUEST tags → DROP
+            // (even if non-empty after extract_user_text). Live prompts are tag-wrapped.
+            if !grok_user_content_has_prompt_tags(&raw) {
+                return None;
+            }
+            let text = extract_user_text(&raw);
             if text.is_empty() {
                 return None;
             }
+            // D16: Grok live rows often lack timestamps — keep only if field present.
             let ts = record
                 .get("timestamp")
                 .or_else(|| record.get("created_at"))
@@ -801,8 +828,9 @@ mod tests {
 
     #[test]
     fn filter_grok_history__drops_reasoning_tools_system() {
+        // AC1: only user+assistant; bare user without tags is also dropped (F11).
         let jsonl = r#"
-{"type":"user","content":"hello"}
+{"type":"user","content":"<user_query>\nhello\n</user_query>"}
 {"type":"reasoning","content":"chain of thought"}
 {"type":"tool_result","content":"tool out"}
 {"type":"backend_tool_call","content":"{}"}
@@ -828,6 +856,92 @@ mod tests {
         });
         let turn = filter_grok_history_record(&record).expect("user");
         assert_eq!(turn.content, "fix CI");
+    }
+
+    #[test]
+    fn filter_grok_history__f11_synthetic_reason__drops_user() {
+        // AC2(a)
+        let record = json!({
+            "type": "user",
+            "synthetic_reason": "compaction_meta",
+            "content": "<user_query>\nshould not keep\n</user_query>"
+        });
+        assert!(filter_grok_history_record(&record).is_none());
+        let empty_sr = json!({
+            "type": "user",
+            "synthetic_reason": "",
+            "content": "<user_query>\nreal prompt\n</user_query>"
+        });
+        let turn = filter_grok_history_record(&empty_sr).expect("empty synthetic_reason ok");
+        assert_eq!(turn.content, "real prompt");
+    }
+
+    #[test]
+    fn filter_grok_history__f11_user_info_git_status_without_tags__drops() {
+        // AC2(b) — chrome without synthetic_reason and without user_query tags
+        let record = json!({
+            "type": "user",
+            "synthetic_reason": "",
+            "content": "<user_info>\nOS: windows\n</user_info>\n<git_status>\nclean\n</git_status>"
+        });
+        assert!(filter_grok_history_record(&record).is_none());
+    }
+
+    #[test]
+    fn filter_grok_history__f11_system_reminder_project_task__drops() {
+        // AC2(c)
+        for reason in ["system_reminder", "project_instructions", "task_completed"] {
+            let record = json!({
+                "type": "user",
+                "synthetic_reason": reason,
+                "content": [{"type":"text","text":"AGENTS.md blob and skills"}]
+            });
+            assert!(
+                filter_grok_history_record(&record).is_none(),
+                "expected drop for synthetic_reason={reason}"
+            );
+        }
+        // system-reminder style body without synthetic_reason, without user_query
+        let bare = json!({
+            "type": "user",
+            "content": "<system-reminder>\nDo not forget project rules.\n</system-reminder>"
+        });
+        assert!(filter_grok_history_record(&bare).is_none());
+    }
+
+    #[test]
+    fn filter_grok_history__f11_compaction_prose_without_user_query__drops() {
+        // AC2(d)
+        let record = json!({
+            "type": "user",
+            "content": "Continuing from previous context: we were discussing path normalize..."
+        });
+        assert!(filter_grok_history_record(&record).is_none());
+        // Bare non-empty text still dropped (F11 hard rule)
+        let bare = json!({"type": "user", "content": "hello world"});
+        assert!(filter_grok_history_record(&bare).is_none());
+    }
+
+    #[test]
+    fn filter_grok_history__f11_real_user_query__kept() {
+        // AC2 real row kept
+        let record = json!({
+            "type": "user",
+            "content": [{"type":"text","text":"<user_query>\nship T237\n</user_query>"}]
+        });
+        let turn = filter_grok_history_record(&record).expect("kept");
+        assert_eq!(turn.content, "ship T237");
+        assert!(turn.source_ts.is_none());
+    }
+
+    #[test]
+    fn filter_grok_history__user_request_tag__kept() {
+        let record = json!({
+            "type": "user",
+            "content": "<USER_REQUEST>\ndo the thing\n</USER_REQUEST>"
+        });
+        let turn = filter_grok_history_record(&record).expect("USER_REQUEST");
+        assert_eq!(turn.content, "do the thing");
     }
 
     #[test]

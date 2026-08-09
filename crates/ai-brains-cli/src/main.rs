@@ -15,6 +15,10 @@ mod live_graph;
 /// `Docs/schemas/agy-hook-payload.json`; changes there must be mirrored here.
 const SCHEMA_AGY_HOOK: &str = include_str!("../../../Docs/schemas/agy-hook-payload.json");
 
+/// JSON Schema for `ai-brains grok-hook --payload`. Source-of-truth at
+/// `Docs/schemas/grok-hook-payload.json`.
+const SCHEMA_GROK_HOOK: &str = include_str!("../../../Docs/schemas/grok-hook-payload.json");
+
 /// JSON Schema for the NDJSON records consumed by `ai-bbrains sync pull --from-file`.
 /// Source-of-truth at `Docs/schemas/sync-pull-record.json`.
 const SCHEMA_SYNC_PULL: &str = include_str!("../../../Docs/schemas/sync-pull-record.json");
@@ -398,6 +402,30 @@ enum Commands {
         /// The schema is also at `Docs/schemas/agy-hook-payload.json`.
         #[arg(long)]
         schema: bool,
+    },
+    /// Process a Grok Build hook payload (Stop / SessionEnd → chat_history)
+    #[command(display_order = 52)]
+    GrokHook {
+        /// The JSON payload from the Grok capture wrapper
+        #[arg(long)]
+        payload: Option<String>,
+        /// Print the JSON Schema for the expected `--payload` shape and exit.
+        /// The schema is also at `Docs/schemas/grok-hook-payload.json`.
+        #[arg(long)]
+        schema: bool,
+    },
+    /// Import Grok Build chat_history sessions into the vault
+    #[command(display_order = 51)]
+    GrokImport {
+        /// Only import sessions modified within the last N days
+        #[arg(short, long, default_value_t = 30)]
+        days: usize,
+        /// Skip the 5-minute quiescence window (import even if file was modified recently)
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
     /// Detect and install harness capture hooks (user-global, message-only)
     #[command(
@@ -2059,6 +2087,7 @@ fn is_vault_path_free(command: &Commands) -> bool {
             command: VaultCommands::RotateDatakey { .. },
         } => false,
         Commands::AgyHook { schema: true, .. } => true,
+        Commands::GrokHook { schema: true, .. } => true,
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
         } => true,
@@ -2166,6 +2195,9 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         },
         Commands::AgyHook { schema: true, .. } => {
             print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")
+        }
+        Commands::GrokHook { schema: true, .. } => {
+            print_schema(SCHEMA_GROK_HOOK, "AI-Brains grok-hook payload")
         }
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
@@ -3277,11 +3309,28 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::AntigravityImport { days, force } => {
             commands::antigravity_import::run(&ctx, *days, *force)
         }
+        Commands::GrokImport {
+            days,
+            force,
+            dry_run,
+        } => commands::grok_import::run(&ctx, *days, *force, *dry_run),
         Commands::AgyHook { payload, schema } => {
             if *schema {
                 print_schema(SCHEMA_AGY_HOOK, "AI-Brains agy-hook payload")
             } else if let Some(p) = payload {
                 commands::agy_hook::run(&ctx, p)
+            } else {
+                Err(
+                    "Either provide --payload <json> or use --schema to print the payload schema."
+                        .into(),
+                )
+            }
+        }
+        Commands::GrokHook { payload, schema } => {
+            if *schema {
+                print_schema(SCHEMA_GROK_HOOK, "AI-Brains grok-hook payload")
+            } else if let Some(p) = payload {
+                commands::grok_hook::run(&ctx, p)
             } else {
                 Err(
                     "Either provide --payload <json> or use --schema to print the payload schema."

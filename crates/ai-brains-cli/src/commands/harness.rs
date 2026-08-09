@@ -5,9 +5,9 @@
 use crate::commands::governed_common::{self, GovernedResult};
 use crate::harness::{
     HARNESS_ORDER, HarnessId, InstallOutcome, UninstallOutcome, collect_status_report,
-    f34_map_contract_summary, install_agy, install_pending, install_pending_summary, load_prefs,
-    parse_harness_id, resolve_home, save_prefs, uninstall_agy, uninstall_pending,
-    wiring_status_label,
+    f34_map_contract_summary, install_agy, install_grok, install_pending, install_pending_summary,
+    load_prefs, parse_harness_id, resolve_home, save_prefs, uninstall_agy, uninstall_grok,
+    uninstall_pending, wiring_status_label,
 };
 use is_terminal::IsTerminal;
 
@@ -61,6 +61,7 @@ pub fn run_status(opts: HarnessStatusOptions) -> GovernedResult {
         println!();
         println!("Message-only capture: user prompts + final assistant text (T234).");
         println!("AGY ready: ai-brains harness install --harness agy --dry-run");
+        println!("Grok ready: ai-brains harness install --harness grok --dry-run");
     }
     Ok(())
 }
@@ -93,26 +94,52 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
         if id.install_ready() {
             pending_only = false;
             any_ready_attempt = true;
-            match install_agy(&home, opts.dry_run) {
+            let result = match id {
+                HarnessId::Agy => install_agy(&home, opts.dry_run),
+                HarnessId::Grok => install_grok(&home, opts.dry_run),
+                _ => unreachable!("install_ready only Agy|Grok"),
+            };
+            match result {
                 Ok(InstallOutcome::DryRun { plan }) => {
-                    println!("[dry-run] AGY install plan:");
+                    println!("[dry-run] {} install plan:", id.display_name());
                     println!("  hooks:   {}", plan.hooks_path.display());
                     println!("  wrapper: {}", plan.wrapper_path.display());
                     println!("  command: {}", plan.command_line);
-                    println!("  {}", f34_map_contract_summary());
-                    println!("  next: ai-brains harness install --harness agy --yes");
+                    if *id == HarnessId::Agy {
+                        println!("  {}", f34_map_contract_summary());
+                    } else {
+                        println!(
+                            "  {}",
+                            crate::harness::install::grok_stop_stdout_contract_summary()
+                        );
+                    }
+                    println!(
+                        "  next: ai-brains harness install --harness {} --yes",
+                        id.as_str()
+                    );
                 }
                 Ok(InstallOutcome::Installed { plan }) => {
-                    println!("Installed AGY capture hooks:");
+                    println!("Installed {} capture hooks:", id.display_name());
                     println!("  hooks:   {}", plan.hooks_path.display());
                     println!("  wrapper: {}", plan.wrapper_path.display());
                     println!("  next: ai-brains harness status");
-                    println!("  note: message-only capture via Stop → agy-hook (F34 map)");
+                    match id {
+                        HarnessId::Agy => {
+                            println!("  note: message-only capture via Stop → agy-hook (F34 map)");
+                        }
+                        HarnessId::Grok => {
+                            println!(
+                                "  note: message-only capture via Stop/SessionEnd → grok-hook (empty Stop stdout)"
+                            );
+                        }
+                        _ => {}
+                    }
                 }
                 Ok(InstallOutcome::Refused { path, reason }) => {
                     eprintln!("Refused to rewrite {}: {}", path.display(), reason);
                     eprintln!(
-                        "Fix or remove the corrupt file, then re-run: ai-brains harness install --harness agy"
+                        "Fix or remove the corrupt file, then re-run: ai-brains harness install --harness {}",
+                        id.as_str()
                     );
                     return Err(Box::new(governed_common::GovernedCliError::emitted(
                         governed_common::EXIT_INTERNAL,
@@ -120,7 +147,7 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                     )));
                 }
                 Ok(InstallOutcome::BackendPending { .. }) => {
-                    // unreachable for agy
+                    // unreachable for ready backends
                 }
                 Err(e) => {
                     eprintln!("install failed: {e}");
@@ -194,26 +221,31 @@ pub fn run_uninstall(opts: HarnessUninstallOptions) -> GovernedResult {
 
     for id in &ids {
         if id.install_ready() {
-            match uninstall_agy(&home, opts.dry_run) {
+            let result = match id {
+                HarnessId::Agy => uninstall_agy(&home, opts.dry_run),
+                HarnessId::Grok => uninstall_grok(&home, opts.dry_run),
+                _ => unreachable!("install_ready only Agy|Grok"),
+            };
+            match result {
                 Ok(UninstallOutcome::DryRun {
                     hooks_path,
                     wrapper_path,
                 }) => {
-                    println!("[dry-run] AGY uninstall would remove:");
-                    println!("  managed key in {}", hooks_path.display());
+                    println!("[dry-run] {} uninstall would remove:", id.display_name());
+                    println!("  managed artifact {}", hooks_path.display());
                     println!("  wrapper {}", wrapper_path.display());
                 }
                 Ok(UninstallOutcome::Removed {
                     hooks_path,
                     wrapper_path,
                 }) => {
-                    println!("Uninstalled AGY capture hooks:");
+                    println!("Uninstalled {} capture hooks:", id.display_name());
                     println!("  hooks:   {}", hooks_path.display());
                     println!("  wrapper: {}", wrapper_path.display());
                     println!("  next: ai-brains harness status");
                 }
                 Ok(UninstallOutcome::NothingToDo) => {
-                    println!("AGY: nothing to uninstall.");
+                    println!("{}: nothing to uninstall.", id.display_name());
                 }
                 Ok(UninstallOutcome::Refused { path, reason }) => {
                     eprintln!("Refused to rewrite {}: {}", path.display(), reason);

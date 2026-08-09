@@ -120,9 +120,9 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 
 - **Capture independence:** filter is pure string/JSON — no models, embeddings, or graph.
 - **`IngestRequest.thinking`:** field remains on the contracts DTO for serialization compat; adapters / message_only **never populate** it; event builders never write thinking into the event log.
-- **Wired today:** shared `parse_transcript_for_ingest` (step-shaped + legacy `{role,content}`, prefer `transcript_full.jsonl`), `antigravity::extract_turns` / import + `agy-hook` (message-only SOOT); ProjectChat → `filter_turn`.
-- **Fixture-ready (wire in T237/T238):** `filter_grok_history_*`, `filter_opencode_message*`.
-- AGY live+batch seamless ingest: **Implemented with caveats** (T236). Multi-harness nightly orchestration remains **Partial** until T237–T239.
+- **Wired today:** shared `parse_transcript_for_ingest` (step-shaped + legacy `{role,content}`, prefer `transcript_full.jsonl`), `antigravity::extract_turns` / import + `agy-hook` (message-only SOOT); ProjectChat → `filter_turn`; **Grok** `filter_grok_history_*` (F11 user_query-only) + `grok-hook` / `grok-import`.
+- **Fixture-ready (wire in T238):** `filter_opencode_message*`.
+- AGY live+batch seamless ingest: **Implemented with caveats** (T236). Grok Build: **Implemented with caveats** (T237). Multi-harness nightly orchestration remains **Partial** until T238–T239.
 
 ### Manual / programmatic
 - **`ingest`** — JSON turn from stdin (`session_id`, `project_id`, `harness_id`, `turn_id`, `role`, `content`, `privacy`)
@@ -136,7 +136,10 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 | **agy (Antigravity CLI)** | `harness install --harness agy` → Stop wrapper → `agy-hook --payload` | **Implemented (T235+T236):** hooks.json + wrapper; wrapper stdout = allow-stop JSON only; step-shaped + full transcript prefer; path normalize; env fallback only for `agy-unbound`. Reinstall after T236. |
 | **agy-hook** | `agy-hook --payload '{...}'` | Real-time ingest; shared parse + turn-id SOOT; diagnostics on stderr; `--schema` |
 | **Antigravity bulk** | `antigravity-import --days N [--force]` | History.jsonl workspace bind; unbound `agy-unbound`; stats on stderr; `--force` skips 300s quiescence; default `allow_default_project=false`. SYSTEM scheduled nightly may still `--skip-import` (T239). |
-| **Grok / OpenCode / Claude / Codex** | status + dry-run | Install backends **pending** (T237/T238+); real install does not claim capture ok |
+| **Grok Build** | `harness install --harness grok` → Stop/SessionEnd wrapper → `grok-hook` | **Implemented with caveats (T237):** `~/.grok/hooks/ai-brains.json` + `~/.ai-brains/hooks/grok-capture.ps1`. **Stop allow = empty stdout** (never AGY `{"decision":"allow"}`). User keep: non-empty `<user_query>`/`<USER_REQUEST>` only (chrome/`synthetic_reason` dropped). Subagent/worktree sessions skipped by default. `source_ts` usually none → `occurred_at` = ingest time. Turn ids `v5(session,"turn-{i}")` on kept index (filter taxonomy change can shift ids). Vendor-compat: Grok may also load Claude/Cursor hooks. |
+| **grok-hook** | `grok-hook --payload '{...}'` | Live chat_history ingest; path resolve (percent-encode + `.cwd` + summary.id); diagnostics stderr; `--schema` |
+| **Grok bulk** | `grok-import --days N [--force]` | Walks `~/.grok/sessions/**/chat_history.jsonl`; summary bind (`git_root_dir`/`cwd`); unbound `grok-unbound`; never `updates.jsonl`; stats on stderr |
+| **OpenCode / Claude / Codex** | status + dry-run | Install backends **pending** (T238+); real install does not claim capture ok |
 | **Claude hooks** | `Docs/claude-hooks.md` | User-level scripts under `~\.ai-brains\scripts\` |
 
 **Consent:** TTY preflight may prompt once; decline persists in `~/.ai-brains/harness_hooks.json`. Never prompt when non-TTY, `--no-hook-prompt`, or `preflight --stdin`. Reset with `harness reset-decline`.

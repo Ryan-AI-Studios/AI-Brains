@@ -1,8 +1,9 @@
 use crate::commands::harness::{PromptDecision, interpret_consent_answer, should_prompt_install};
 use crate::context::AppContext;
+use crate::harness::prefs::HarnessHookPrefs;
 use crate::harness::{
     HarnessId, HarnessStatus, InstallOutcome, WiringStatus, collect_status_report, install_agy,
-    load_prefs, resolve_home, save_prefs,
+    install_grok, load_prefs, resolve_home, save_prefs,
 };
 use ai_brains_contracts::preflight::PreflightContextResponse;
 use ai_brains_core::ids::ProjectId;
@@ -254,59 +255,68 @@ fn append_harness_summary_and_maybe_prompt(
     }
 
     let prefs = home.as_ref().map(|h| load_prefs(h)).unwrap_or_default();
-    let declined_agy = prefs.is_declined(HarnessId::Agy);
-    let ready_missing: Vec<&HarnessStatus> = report
-        .harnesses
-        .iter()
-        .filter(|h| {
-            h.install_ready
-                && matches!(h.wiring, WiringStatus::Missing | WiringStatus::Partial)
-                && !declined_agy
-        })
-        .collect();
+    // Per-harness decline: declining AGY must not suppress Grok (and vice versa).
+    let ready_missing = ready_missing_not_declined(&report.harnesses, &prefs);
 
     let is_tty = std::io::stdout().is_terminal() && std::io::stdin().is_terminal();
+    // Declined harnesses are already filtered from ready_missing; pass declined=false
+    // so remaining ready+missing backends (e.g. Grok when only Agy declined) still prompt.
     let decision = should_prompt_install(
         is_tty,
         gate.no_hook_prompt,
         gate.stdin_mode,
         !ready_missing.is_empty(),
-        declined_agy,
+        false,
         prefs.auto_install,
     );
 
     // Explicit --install-hooks: install **ready backends that are present on machine**
-    // only (F24). Never write AGY hooks when AGY is absent (Codex CX2 P2).
+    // only (F24). Never write hooks when harness is absent (Codex CX2 P2).
     // F20: parse-refuse / write failure on explicit install → exit 1 (not silent 0).
     if gate.install_hooks {
-        let agy_present_ready = report.harnesses.iter().any(|h| {
-            h.id == "agy"
-                && h.present
-                && h.install_ready
-                && matches!(
-                    h.wiring,
+        if let Some(h) = home.as_ref() {
+            let mut installed_any = false;
+            for hid in [HarnessId::Agy, HarnessId::Grok] {
+                let row = report.harnesses.iter().find(|r| r.id == hid.as_str());
+                let Some(row) = row else { continue };
+                if !row.present || !row.install_ready {
+                    continue;
+                }
+                if matches!(row.wiring, WiringStatus::Ok) {
+                    println!(
+                        "{} capture hooks already installed. next: ai-brains harness status",
+                        hid.display_name()
+                    );
+                    continue;
+                }
+                if matches!(
+                    row.wiring,
                     WiringStatus::Missing
                         | WiringStatus::Partial
                         | WiringStatus::BackendPending
                         | WiringStatus::Unknown
-                )
-        });
-        let agy_already_ok = report
-            .harnesses
-            .iter()
-            .any(|h| h.id == "agy" && h.present && matches!(h.wiring, WiringStatus::Ok));
-        if let Some(h) = home.as_ref() {
-            if agy_already_ok {
-                println!("AGY capture hooks already installed. next: ai-brains harness status");
-            } else if agy_present_ready {
-                report_preflight_install(
-                    install_agy(h, false),
-                    "Installed ready harness hooks (agy). next: ai-brains harness status",
-                    true, // explicit install: fail process on refuse/error
-                )?;
-            } else {
+                ) {
+                    let result = match hid {
+                        HarnessId::Agy => install_agy(h, false),
+                        HarnessId::Grok => install_grok(h, false),
+                        _ => continue,
+                    };
+                    report_preflight_install(
+                        result,
+                        hid.display_name(),
+                        hid.as_str(),
+                        &format!(
+                            "Installed ready harness hooks ({}). next: ai-brains harness status",
+                            hid.as_str()
+                        ),
+                        true,
+                    )?;
+                    installed_any = true;
+                }
+            }
+            if !installed_any {
                 println!(
-                    "No ready harness present on machine for install-hooks (AGY absent or already ok). next: ai-brains harness status"
+                    "No ready harness present on machine for install-hooks (absent or already ok). next: ai-brains harness status"
                 );
             }
         }
@@ -317,17 +327,36 @@ fn append_harness_summary_and_maybe_prompt(
         PromptDecision::Skip => {}
         PromptDecision::PrintNextActionOnly => {
             if !ready_missing.is_empty() {
-                println!("  next: ai-brains harness install --harness agy --dry-run");
+                let ids: Vec<&str> = ready_missing.iter().map(|h| h.id.as_str()).collect();
+                println!(
+                    "  next: ai-brains harness install --harness {} --dry-run",
+                    ids.first().copied().unwrap_or("agy")
+                );
             }
         }
         PromptDecision::AutoInstall => {
             if let Some(h) = home.as_ref() {
                 // Soft path: print refuse/error but do not fail preflight (F9).
-                let _ = report_preflight_install(
-                    install_agy(h, false),
-                    "Auto-installed AGY capture hooks (auto_install=true).",
-                    false,
-                );
+                for row in &ready_missing {
+                    let result = match row.id.as_str() {
+                        "agy" => install_agy(h, false),
+                        "grok" => install_grok(h, false),
+                        _ => continue,
+                    };
+                    let label = parse_harness_id_soft(&row.id)
+                        .map(|id| id.display_name())
+                        .unwrap_or(row.id.as_str());
+                    let _ = report_preflight_install(
+                        result,
+                        label,
+                        row.id.as_str(),
+                        &format!(
+                            "Auto-installed {} capture hooks (auto_install=true).",
+                            label
+                        ),
+                        false,
+                    );
+                }
             }
         }
         PromptDecision::AskOnce => {
@@ -343,20 +372,36 @@ fn append_harness_summary_and_maybe_prompt(
             std::io::stdin().read_line(&mut line)?;
             if interpret_consent_answer(&line) {
                 if let Some(h) = home.as_ref() {
-                    let _ = report_preflight_install(
-                        install_agy(h, false),
-                        "Installed AGY capture hooks.",
-                        false,
-                    );
+                    for row in &ready_missing {
+                        let result = match row.id.as_str() {
+                            "agy" => install_agy(h, false),
+                            "grok" => install_grok(h, false),
+                            _ => continue,
+                        };
+                        let label = parse_harness_id_soft(&row.id)
+                            .map(|id| id.display_name())
+                            .unwrap_or(row.id.as_str());
+                        let _ = report_preflight_install(
+                            result,
+                            label,
+                            row.id.as_str(),
+                            &format!("Installed {} capture hooks.", label),
+                            false,
+                        );
+                    }
                 }
             } else if let Some(h) = home.as_ref() {
                 let mut p = load_prefs(h);
-                p.mark_declined(HarnessId::Agy, chrono::Utc::now().to_rfc3339());
+                for row in &ready_missing {
+                    if let Ok(id) = parse_harness_id_soft(&row.id) {
+                        p.mark_declined(id, chrono::Utc::now().to_rfc3339());
+                    }
+                }
                 if let Err(e) = save_prefs(h, &p) {
                     eprintln!("could not persist decline: {e}");
                 } else {
                     println!(
-                        "Declined. Re-enable with: ai-brains harness reset-decline --harness agy"
+                        "Declined. Re-enable with: ai-brains harness reset-decline --harness all"
                     );
                 }
             }
@@ -365,12 +410,48 @@ fn append_harness_summary_and_maybe_prompt(
     Ok(())
 }
 
-/// Report AGY install outcomes honestly (F28/AC21 — never claim success on Refused).
+fn parse_harness_id_soft(s: &str) -> Result<HarnessId, ()> {
+    match s {
+        "agy" => Ok(HarnessId::Agy),
+        "grok" => Ok(HarnessId::Grok),
+        "opencode" => Ok(HarnessId::Opencode),
+        "claude" => Ok(HarnessId::Claude),
+        "codex" => Ok(HarnessId::Codex),
+        _ => Err(()),
+    }
+}
+
+/// Ready-to-install harnesses the user has not declined (per-harness filter).
+///
+/// Declining AGY must not suppress a ready+missing Grok row (and vice versa).
+fn ready_missing_not_declined<'a>(
+    harnesses: &'a [HarnessStatus],
+    prefs: &HarnessHookPrefs,
+) -> Vec<&'a HarnessStatus> {
+    harnesses
+        .iter()
+        .filter(|h| {
+            if !h.install_ready
+                || !matches!(h.wiring, WiringStatus::Missing | WiringStatus::Partial)
+            {
+                return false;
+            }
+            match parse_harness_id_soft(&h.id) {
+                Ok(id) => !prefs.is_declined(id),
+                Err(()) => true,
+            }
+        })
+        .collect()
+}
+
+/// Report harness install outcomes honestly (F28/AC21 — never claim success on Refused).
 ///
 /// When `fail_on_error` is true (explicit `--install-hooks`), refuse/error returns
 /// `Err` so the process exits non-zero (F20). Soft consent/auto paths keep preflight exit 0.
 fn report_preflight_install(
     result: Result<InstallOutcome, String>,
+    harness_label: &str,
+    harness_cli_id: &str,
     success_msg: &str,
     fail_on_error: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -380,19 +461,19 @@ fn report_preflight_install(
             Ok(())
         }
         Ok(InstallOutcome::DryRun { .. }) => {
-            println!("[dry-run] AGY install planned (no writes).");
+            println!("[dry-run] {harness_label} install planned (no writes).");
             Ok(())
         }
         Ok(InstallOutcome::BackendPending { plan }) => {
             eprintln!(
-                "AGY install backend pending; no files written. next: {}",
+                "{harness_label} install backend pending; no files written. next: {}",
                 plan.pending_track.unwrap_or("ai-brains harness status")
             );
             Ok(())
         }
         Ok(InstallOutcome::Refused { path, reason }) => {
             eprintln!(
-                "Refused to rewrite {}: {}. Fix or remove the corrupt file, then re-run: ai-brains harness install --harness agy",
+                "Refused to rewrite {}: {}. Fix or remove the corrupt file, then re-run: ai-brains harness install --harness {harness_cli_id}",
                 path.display(),
                 reason
             );
@@ -403,7 +484,7 @@ fn report_preflight_install(
             }
         }
         Err(e) => {
-            eprintln!("harness install failed: {e}");
+            eprintln!("{harness_label} install failed: {e}");
             if fail_on_error { Err(e.into()) } else { Ok(()) }
         }
     }
@@ -615,5 +696,52 @@ mod tests {
             super::super::recall::format_scope_line(true, None, None),
             "Scope: global"
         );
+    }
+
+    #[test]
+    fn ready_missing_not_declined__agy_declined__keeps_grok() {
+        // Declining AGY must not suppress ready+missing Grok (per-harness decline).
+        let statuses = vec![
+            HarnessStatus {
+                id: "agy".into(),
+                display_name: "AGY".into(),
+                present: true,
+                binary: None,
+                home_path: Some("/tmp/.gemini".into()),
+                wiring: WiringStatus::Missing,
+                install_ready: true,
+                targets: vec![],
+                next_action: "install agy".into(),
+            },
+            HarnessStatus {
+                id: "grok".into(),
+                display_name: "Grok".into(),
+                present: true,
+                binary: None,
+                home_path: Some("/tmp/.grok".into()),
+                wiring: WiringStatus::Missing,
+                install_ready: true,
+                targets: vec![],
+                next_action: "install grok".into(),
+            },
+        ];
+        let mut prefs = HarnessHookPrefs::default();
+        prefs.mark_declined(HarnessId::Agy, "2026-01-01T00:00:00Z");
+        let ready = ready_missing_not_declined(&statuses, &prefs);
+        assert_eq!(ready.len(), 1, "only Grok should remain: {ready:?}");
+        assert_eq!(ready[0].id, "grok");
+
+        // Both declined → empty (should_prompt Skip via !has_ready_missing).
+        prefs.mark_declined(HarnessId::Grok, "2026-01-01T00:00:00Z");
+        let ready_both = ready_missing_not_declined(&statuses, &prefs);
+        assert!(
+            ready_both.is_empty(),
+            "all declined → no prompt candidates: {ready_both:?}"
+        );
+
+        // Neither declined → both candidates.
+        let prefs_none = HarnessHookPrefs::default();
+        let ready_all = ready_missing_not_declined(&statuses, &prefs_none);
+        assert_eq!(ready_all.len(), 2);
     }
 }

@@ -17,6 +17,8 @@ pub mod governed_common;
 pub mod governed_query;
 #[cfg(feature = "graph")]
 pub mod graph;
+pub mod grok_hook;
+pub mod grok_import;
 pub mod harness;
 pub mod ingest;
 pub mod init;

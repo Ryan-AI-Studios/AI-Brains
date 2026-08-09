@@ -195,6 +195,9 @@ pub fn targets_for(id: HarnessId, home: &Path) -> Vec<String> {
             join_rel(home, ".grok/hooks/ai-brains.json")
                 .display()
                 .to_string(),
+            join_rel(home, ".ai-brains/hooks/grok-capture.ps1")
+                .display()
+                .to_string(),
         ],
         HarnessId::Agy => vec![
             join_rel(home, ".gemini/config/hooks.json")
@@ -316,18 +319,28 @@ mod tests {
     }
 
     #[test]
-    fn wiring__grok_after_pending_install__backend_pending() {
-        // F5/F14: after install request, status must not stay silent `missing`.
+    fn wiring__grok_after_real_install__ok() {
+        // T237: Grok install_ready → real marker → wiring ok (not backend_pending).
         let dir = tempdir().expect("tempdir");
         let home = dir.path();
         std::fs::create_dir_all(home.join(".grok")).expect("mkdir");
-        let out = super::super::install::install_pending(HarnessId::Grok, home, false);
+        super::super::install::install_grok(home, false).expect("install");
+        assert_eq!(probe_wiring(HarnessId::Grok, home, true), WiringStatus::Ok);
+    }
+
+    #[test]
+    fn wiring__opencode_after_pending_install__backend_pending() {
+        // F5/F14: pending backend still stamps backend_pending when missing marker.
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        std::fs::create_dir_all(home.join(".config").join("opencode")).expect("mkdir");
+        let out = super::super::install::install_pending(HarnessId::Opencode, home, false);
         assert!(matches!(
             out,
             super::super::install::InstallOutcome::BackendPending { .. }
         ));
         assert_eq!(
-            probe_wiring(HarnessId::Grok, home, true),
+            probe_wiring(HarnessId::Opencode, home, true),
             WiringStatus::BackendPending
         );
     }
