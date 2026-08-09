@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-brains.dev/schemas/grok-hook-payload.json",
+  "title": "AI-Brains grok-hook payload",
+  "description": "JSON payload passed to `ai-brains grok-hook --payload`. Encodes a Grok Build session for message-only ingest from chat_history.jsonl.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["sessionId", "projectHash"],
+  "properties": {
+    "historyPath": {
+      "type": "string",
+      "description": "Absolute path to chat_history.jsonl. May be empty — resolved from sessionId + workspaceRoot/cwd via GROK_HOME.",
+      "examples": [
+        "C:\\Users\\<user>\\.grok\\sessions\\C%3A%5Cdev%5CAI-Brains\\aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\\chat_history.jsonl"
+      ]
+    },
+    "sessionId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Grok session UUID. Used for delta-sync and turn-id namespace."
+    },
+    "projectHash": {
+      "type": "string",
+      "description": "Workspace path or `grok-unbound` when unbound. Normalized via ai-brains-path for alias keys."
+    },
+    "event": {
+      "type": "string",
+      "description": "Optional hook event name (Stop, SessionEnd)."
+    },
+    "workspaceRoot": {
+      "type": "string",
+      "description": "Optional workspace root for path resolve when historyPath is empty."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Optional cwd fallback for path resolve."
+    }
+  },
+  "examples": [
+    {
+      "historyPath": "",
+      "sessionId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "projectHash": "C:\\dev\\AI-Brains",
+      "event": "Stop",
+      "workspaceRoot": "C:\\dev\\AI-Brains",
+      "cwd": "C:\\dev\\AI-Brains"
+    }
+  ]
+}

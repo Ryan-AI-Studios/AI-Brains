@@ -56,19 +56,18 @@ impl HarnessId {
         }
     }
 
-    /// Only AGY has a real install writer in T235 (F14).
+    /// AGY (T235/T236) and Grok (T237) have real install writers.
     pub fn install_ready(self) -> bool {
-        matches!(self, Self::Agy)
+        matches!(self, Self::Agy | Self::Grok)
     }
 
     /// Pending track id when install_ready is false.
     pub fn pending_track(self) -> Option<&'static str> {
         match self {
-            Self::Grok => Some("T237"),
+            Self::Grok | Self::Agy => None,
             Self::Opencode => Some("T238"),
-            Self::Claude => Some("T237+"),
-            Self::Codex => Some("T237+"),
-            Self::Agy => None,
+            Self::Claude => Some("T238+"),
+            Self::Codex => Some("T238+"),
         }
     }
 
@@ -283,11 +282,14 @@ mod tests {
     }
 
     #[test]
-    fn install_ready__only_agy() {
+    fn install_ready__agy_and_grok() {
         assert!(HarnessId::Agy.install_ready());
-        assert!(!HarnessId::Grok.install_ready());
+        assert!(HarnessId::Grok.install_ready());
         assert!(!HarnessId::Opencode.install_ready());
         assert!(!HarnessId::Claude.install_ready());
         assert!(!HarnessId::Codex.install_ready());
+        assert!(HarnessId::Grok.pending_track().is_none());
+        assert_eq!(HarnessId::Claude.pending_track(), Some("T238+"));
+        assert_eq!(HarnessId::Codex.pending_track(), Some("T238+"));
     }
 }

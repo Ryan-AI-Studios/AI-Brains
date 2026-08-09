@@ -1,0 +1,59 @@
+//! `ai-brains grok-import` — batch import Grok Build chat_history sessions (T237).
+
+use crate::context::{AppContext, StoreSink};
+use ai_brains_adapters::{GrokImportOptions, import_grok_sessions, print_grok_import_stats};
+use ai_brains_capture::CaptureService;
+use ai_brains_core::ids::ProjectId;
+use std::str::FromStr;
+
+pub fn run(ctx: &AppContext, days: usize, force: bool) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("Scanning for Grok sessions...");
+
+    let service = CaptureService::new();
+    let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+
+    let mut sink = StoreSink {
+        store: event_store,
+        last_error: None,
+        #[cfg(feature = "graph")]
+        graph_hook: Some(crate::live_graph::LiveGraphHook::new(
+            std::sync::Arc::clone(&ctx.conn),
+        )),
+    };
+
+    // Default project id from env is only used when allow_default_project is true.
+    // Normative manual import: allow_default_project = false — unbound sessions
+    // go to stable grok-unbound, not cwd .env project.
+    let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
+        .ok()
+        .and_then(|s| ProjectId::from_str(&s).ok())
+        .unwrap_or_default();
+
+    let options = GrokImportOptions {
+        days,
+        default_project_id: project_id,
+        allow_default_project: false,
+        force,
+        home_override: None,
+    };
+
+    let query_store = ctx.conn.clone() as std::sync::Arc<dyn ai_brains_store::QueryStore>;
+    let stats = import_grok_sessions(query_store.as_ref(), &service, &mut sink, options)?;
+
+    if let Some(err) = sink.last_error {
+        return Err(format!("Grok import encountered an error: {}", err).into());
+    }
+
+    print_grok_import_stats(&stats);
+
+    if stats.sessions == 0 {
+        eprintln!("No new Grok sessions found to import.");
+    } else {
+        eprintln!(
+            "Grok import complete. Processed {} turn(s) from {} session(s).",
+            stats.imported_turns, stats.sessions
+        );
+    }
+
+    Ok(())
+}

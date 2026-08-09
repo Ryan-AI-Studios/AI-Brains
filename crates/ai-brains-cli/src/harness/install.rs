@@ -86,7 +86,7 @@ pub fn install_pending_summary(ids: &[HarnessId]) -> String {
         }
     }
     format!(
-        "install backends pending: {}; use --dry-run for plans; AGY ready via --harness agy",
+        "install backends pending: {}; use --dry-run for plans; AGY/Grok ready via --harness agy|grok",
         parts.join(", ")
     )
 }
@@ -331,6 +331,246 @@ pub fn uninstall_agy(home: &Path, dry_run: bool) -> Result<UninstallOutcome, Str
     }
 }
 
+// ---------------------------------------------------------------------------
+// Grok Build install (T237) — dedicated hooks file + empty-stdout Stop wrapper
+// ---------------------------------------------------------------------------
+
+pub fn grok_hooks_marker_path(home: &Path) -> PathBuf {
+    join_rel(home, ".grok/hooks/ai-brains.json")
+}
+
+pub fn grok_wrapper_path(home: &Path) -> PathBuf {
+    join_rel(home, ".ai-brains/hooks/grok-capture.ps1")
+}
+
+/// Build PowerShell -File command with absolute wrapper path (no `$` / `${` — AC19).
+pub fn grok_command_line(wrapper: &Path) -> String {
+    format!(
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
+        wrapper.display()
+    )
+}
+
+pub fn plan_grok_install(home: &Path) -> InstallPlan {
+    let wrapper_path = grok_wrapper_path(home);
+    let hooks_path = grok_hooks_marker_path(home);
+    let command_line = grok_command_line(&wrapper_path);
+    InstallPlan {
+        harness: HarnessId::Grok,
+        hooks_path,
+        wrapper_path,
+        command_line,
+        ready: true,
+        pending_track: None,
+    }
+}
+
+/// Exact stdout contract for Grok Stop allow path (T237 F6 / AC12).
+///
+/// Official Grok Stop: allow = exit 0 with **empty stdout** (or non-JSON).
+/// Never emit `decision` / `continue` / `hookSpecificOutput` / AGY allow JSON.
+#[must_use]
+pub fn grok_wrapper_allow_stop_stdout() -> &'static str {
+    ""
+}
+
+/// One-line Grok Stop stdout contract (dry-run / status honesty).
+pub fn grok_stop_stdout_contract_summary() -> String {
+    let allow = grok_wrapper_allow_stop_stdout();
+    format!(
+        "Grok Stop allow: empty stdout ({} bytes); exit 0; never decision/continue/hookSpecificOutput JSON",
+        allow.len()
+    )
+}
+
+/// PowerShell wrapper: Stop/SessionEnd → grok-hook; host stdout always empty.
+pub fn grok_wrapper_script_body() -> &'static str {
+    r#"# AI-Brains managed Grok Stop/SessionEnd hook (T237)
+# Empty stdout allow path — DO NOT emit decision/continue JSON (Grok Stop ≠ AGY)
+$ErrorActionPreference = 'Continue'
+function Write-Skip([string]$reason) {
+    [Console]::Error.WriteLine("[ai-brains-grok] skip: $reason")
+}
+try {
+    $raw = [Console]::In.ReadToEnd()
+    if ([string]::IsNullOrWhiteSpace($raw)) { Write-Skip 'empty stdin'; exit 0 }
+    $ev = $raw | ConvertFrom-Json
+    $eventName = [string]($ev.hookEventName)
+    if ([string]::IsNullOrWhiteSpace($eventName)) { $eventName = [string]$env:GROK_HOOK_EVENT }
+    $reason = [string]$ev.reason
+    # F3: process end_turn / missing reason / SessionEnd; soft-skip other Stop observe
+    $isSessionEnd = ($eventName -eq 'SessionEnd' -or $eventName -eq 'sessionEnd')
+    if (-not $isSessionEnd) {
+        if (-not [string]::IsNullOrWhiteSpace($reason) -and $reason -ne 'end_turn') {
+            Write-Skip "stop reason=$reason"; exit 0
+        }
+    }
+    $sessionId = [string]$ev.sessionId
+    if ([string]::IsNullOrWhiteSpace($sessionId)) { $sessionId = [string]$env:GROK_SESSION_ID }
+    if ([string]::IsNullOrWhiteSpace($sessionId)) { Write-Skip 'missing sessionId'; exit 0 }
+    $ws = [string]$ev.workspaceRoot
+    if ([string]::IsNullOrWhiteSpace($ws)) { $ws = [string]$ev.cwd }
+    if ([string]::IsNullOrWhiteSpace($ws)) { $ws = [string]$env:GROK_WORKSPACE_ROOT }
+    $projectHash = if ([string]::IsNullOrWhiteSpace($ws)) { 'grok-unbound' } else { $ws }
+    # Resolve history path via ai-brains if possible; pass workspace as projectHash; historyPath optional resolve in Rust
+    $payloadObj = [ordered]@{
+        sessionId   = $sessionId
+        projectHash = $projectHash
+        historyPath = ''
+        event       = $eventName
+        workspaceRoot = $ws
+        cwd = [string]$ev.cwd
+    }
+    # Prefer explicit historyPath if we can build it later — Rust resolves via sessionId+workspace
+    $payload = $payloadObj | ConvertTo-Json -Compress
+    $ai = Get-Command ai-brains -ErrorAction SilentlyContinue
+    if (-not $ai) { Write-Skip 'ai-brains not on PATH'; exit 0 }
+    # Capture ALL child stdout; never forward to host stdout (empty allow)
+    $null = & $ai.Source 'grok-hook' '--payload' $payload 2>&1 | ForEach-Object {
+        if ($_ -is [System.Management.Automation.ErrorRecord]) {
+            [Console]::Error.WriteLine($_.ToString())
+        } else {
+            [Console]::Error.WriteLine([string]$_)
+        }
+    }
+    exit 0
+} catch {
+    Write-Skip ("wrapper error: " + $_.Exception.Message)
+    exit 0
+}
+"#
+}
+
+/// Official Grok Quick Start nested hooks shape for Stop + SessionEnd.
+pub fn grok_hooks_json_body(command_line: &str) -> Result<String, String> {
+    let mut cmd_obj = Map::new();
+    cmd_obj.insert("type".into(), Value::String("command".into()));
+    cmd_obj.insert("command".into(), Value::String(command_line.to_string()));
+    cmd_obj.insert("timeout".into(), Value::Number(120.into()));
+
+    let mut inner_hooks = Map::new();
+    inner_hooks.insert("hooks".into(), Value::Array(vec![Value::Object(cmd_obj)]));
+
+    let event_arr = vec![Value::Object(inner_hooks)];
+    let mut events = Map::new();
+    events.insert("Stop".into(), Value::Array(event_arr.clone()));
+    events.insert("SessionEnd".into(), Value::Array(event_arr));
+
+    let mut root = Map::new();
+    root.insert("hooks".into(), Value::Object(events));
+
+    let body = serde_json::to_string_pretty(&Value::Object(root))
+        .map_err(|e| format!("serialize grok hooks: {e}"))?;
+    Ok(format!("{body}\n"))
+}
+
+/// Load managed Grok marker; Err if present but not a JSON object (refuse rewrite).
+pub fn load_grok_marker_object(path: &Path) -> Result<Option<Map<String, Value>>, String> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let value: Value = serde_json::from_str(&raw).map_err(|e| {
+        format!(
+            "parse {} refused (will not rewrite corrupt ai-brains.json): {e}",
+            path.display()
+        )
+    })?;
+    match value {
+        Value::Object(m) => Ok(Some(m)),
+        _ => Err(format!(
+            "parse {} refused: root must be a JSON object",
+            path.display()
+        )),
+    }
+}
+
+/// Install Grok wiring (or dry-run). Idempotent. Never deletes sibling hook JSON.
+pub fn install_grok(home: &Path, dry_run: bool) -> Result<InstallOutcome, String> {
+    let plan = plan_grok_install(home);
+    if dry_run {
+        return Ok(InstallOutcome::DryRun { plan });
+    }
+
+    // AC19: command must not contain `$` / `${`
+    if plan.command_line.contains('$') {
+        return Err(format!(
+            "refusing Grok install: command contains '$' (Grok expands vars): {}",
+            plan.command_line
+        ));
+    }
+
+    // Refuse rewrite on corrupt existing managed marker (AC16)
+    if let Err(reason) = load_grok_marker_object(&plan.hooks_path) {
+        return Ok(InstallOutcome::Refused {
+            path: plan.hooks_path.clone(),
+            reason,
+        });
+    }
+
+    let body = grok_hooks_json_body(&plan.command_line)?;
+    atomic_write_str(&plan.hooks_path, &body)?;
+    atomic_write_str(&plan.wrapper_path, grok_wrapper_script_body())?;
+
+    let mut prefs = load_prefs(home);
+    let now = chrono::Utc::now().to_rfc3339();
+    let ver = env!("CARGO_PKG_VERSION");
+    // mark_installed clears backend_pending via last_status=installed
+    prefs.mark_installed(HarnessId::Grok, now, ver);
+    save_prefs(home, &prefs)?;
+
+    Ok(InstallOutcome::Installed { plan })
+}
+
+/// Uninstall Grok managed marker + wrapper only; leave foreign sibling JSON files.
+pub fn uninstall_grok(home: &Path, dry_run: bool) -> Result<UninstallOutcome, String> {
+    let hooks_path = grok_hooks_marker_path(home);
+    let wrapper_path = grok_wrapper_path(home);
+
+    if dry_run {
+        return Ok(UninstallOutcome::DryRun {
+            hooks_path,
+            wrapper_path,
+        });
+    }
+
+    let mut removed_anything = false;
+
+    if hooks_path.is_file() {
+        fs::remove_file(&hooks_path)
+            .map_err(|e| format!("remove marker {}: {e}", hooks_path.display()))?;
+        removed_anything = true;
+    }
+
+    if wrapper_path.is_file() {
+        fs::remove_file(&wrapper_path)
+            .map_err(|e| format!("remove wrapper {}: {e}", wrapper_path.display()))?;
+        removed_anything = true;
+    }
+
+    let mut prefs = load_prefs(home);
+    if prefs
+        .entry(HarnessId::Grok)
+        .and_then(|e| e.installed_at.clone())
+        .is_some()
+        || removed_anything
+        || prefs.is_backend_pending_requested(HarnessId::Grok)
+    {
+        prefs.mark_uninstalled(HarnessId::Grok);
+        save_prefs(home, &prefs)?;
+        removed_anything = true;
+    }
+
+    if removed_anything {
+        Ok(UninstallOutcome::Removed {
+            hooks_path,
+            wrapper_path,
+        })
+    } else {
+        Ok(UninstallOutcome::NothingToDo)
+    }
+}
+
 /// Non-ready harness install: dry-run ok; real install → BackendPending (no fake ok).
 ///
 /// Real install stamps prefs `last_status=backend_pending` so status/preflight report
@@ -488,39 +728,143 @@ mod tests {
     }
 
     #[test]
-    fn install_pending__grok_real__stamps_prefs_no_fake_ok() {
+    fn install_pending__opencode_real__stamps_prefs_no_fake_ok() {
         let dir = tempdir().expect("tempdir");
         let home = dir.path();
-        let out = install_pending(HarnessId::Grok, home, false);
+        let out = install_pending(HarnessId::Opencode, home, false);
         assert!(matches!(out, InstallOutcome::BackendPending { .. }));
-        // No managed hook file written
         assert!(!agy_hooks_soot_path(home).exists());
         let prefs = load_prefs(home);
-        assert!(prefs.is_backend_pending_requested(HarnessId::Grok));
+        assert!(prefs.is_backend_pending_requested(HarnessId::Opencode));
     }
 
     #[test]
-    fn install_pending__grok_real__no_fake_ok() {
-        // AC14: no capture wiring files (hooks/plugins); prefs stamp alone is OK.
+    fn install_grok__real__writes_marker_wrapper_clears_pending() {
+        // AC9 / AC11
         let dir = tempdir().expect("tempdir");
         let home = dir.path();
-        let out = install_pending(HarnessId::Grok, home, false);
-        assert!(matches!(out, InstallOutcome::BackendPending { .. }));
+        // Foreign sibling in hooks dir
+        let hooks_dir = home.join(".grok").join("hooks");
+        std::fs::create_dir_all(&hooks_dir).expect("mkdir");
+        let foreign = hooks_dir.join("other-tool.json");
+        std::fs::write(&foreign, br#"{"hooks":{}}"#).expect("foreign");
+
+        let out = install_grok(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+
+        let marker = grok_hooks_marker_path(home);
+        assert!(marker.is_file());
+        assert!(grok_wrapper_path(home).is_file());
+        assert!(foreign.is_file(), "foreign sibling preserved");
+
+        let raw = std::fs::read_to_string(&marker).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        let cmd = v["hooks"]["Stop"][0]["hooks"][0]["command"]
+            .as_str()
+            .expect("command");
+        assert!(cmd.contains("grok-capture.ps1"));
+        assert!(!cmd.contains('$'), "AC19 no dollar in command: {cmd}");
+        assert_eq!(v["hooks"]["Stop"][0]["hooks"][0]["timeout"], 120);
+        assert!(v["hooks"].get("SessionEnd").is_some());
+
+        let prefs = load_prefs(home);
+        assert!(prefs.entry(HarnessId::Grok).unwrap().installed_at.is_some());
+        assert!(!prefs.is_backend_pending_requested(HarnessId::Grok));
+    }
+
+    #[test]
+    fn install_grok__dry_run__zero_writes() {
+        // AC10
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let before = walk_files(home);
+        let out = install_grok(home, true).expect("dry-run");
+        assert!(matches!(out, InstallOutcome::DryRun { .. }));
+        assert_eq!(before, walk_files(home));
+    }
+
+    #[test]
+    fn install_grok__corrupt_marker__refuse() {
+        // AC16
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let marker = grok_hooks_marker_path(home);
+        std::fs::create_dir_all(marker.parent().unwrap()).expect("mkdir");
+        let original = b"{ not valid json !!";
+        std::fs::write(&marker, original).expect("write");
+        let out = install_grok(home, false).expect("call");
+        match out {
+            InstallOutcome::Refused { path, reason } => {
+                assert_eq!(path, marker);
+                assert!(
+                    reason.contains("refused") || reason.contains("parse"),
+                    "{reason}"
+                );
+            }
+            other => panic!("expected Refused, got {other:?}"),
+        }
+        assert_eq!(std::fs::read(&marker).expect("read"), original);
+        assert!(!grok_wrapper_path(home).exists());
+    }
+
+    #[test]
+    fn uninstall_grok__removes_managed_keeps_foreign() {
+        // AC11
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let hooks_dir = home.join(".grok").join("hooks");
+        std::fs::create_dir_all(&hooks_dir).expect("mkdir");
+        let foreign = hooks_dir.join("foreign.json");
+        std::fs::write(&foreign, b"{}").expect("foreign");
+        install_grok(home, false).expect("install");
+        assert!(grok_hooks_marker_path(home).is_file());
+
+        let out = uninstall_grok(home, false).expect("uninstall");
+        assert!(matches!(out, UninstallOutcome::Removed { .. }));
+        assert!(!grok_hooks_marker_path(home).exists());
+        assert!(!grok_wrapper_path(home).exists());
+        assert!(foreign.is_file());
+    }
+
+    #[test]
+    fn grok_wrapper__stdout__empty_allow_not_agy_json() {
+        // AC12
+        let body = grok_wrapper_script_body();
+        let allow = grok_wrapper_allow_stop_stdout();
+        assert_eq!(allow, "");
         assert!(
-            !home
-                .join(".grok")
-                .join("hooks")
-                .join("ai-brains.json")
-                .exists()
+            !body.contains(r#"{"decision":"allow"}"#),
+            "must not emit AGY allow JSON"
         );
-        assert!(!agy_hooks_soot_path(home).exists());
+        assert!(
+            !body.contains("Write-AllowStop"),
+            "must not have AGY allow helper"
+        );
+        // Allow path does not emit decision/continue/hookSpecificOutput as JSON keys
+        assert!(
+            !body.contains(r#""decision""#)
+                && !body.contains("decision:")
+                && !body.contains("hookSpecificOutput"),
+            "wrapper body must not emit Stop decision JSON: {body}"
+        );
+        assert!(body.contains("2>&1"), "must capture grok-hook stdout");
+        assert!(body.contains("[Console]::Error.WriteLine"));
+        assert!(body.contains("grok-hook"));
+        // Install embeds same body
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        install_grok(home, false).expect("install");
+        let wrapper = std::fs::read_to_string(grok_wrapper_path(home)).expect("read");
+        assert!(!wrapper.contains(r#"{"decision":"allow"}"#));
+        assert!(wrapper.contains("2>&1"));
     }
 
     #[test]
     fn install_pending_summary__lists_tracks() {
         let s = install_pending_summary(&[HarnessId::Grok, HarnessId::Opencode]);
-        assert!(s.contains("T237"));
+        assert!(s.contains("grok=ready") || s.contains("ready"));
         assert!(s.contains("T238"));
+        assert!(!s.contains("grok=T237"));
     }
 
     #[test]
