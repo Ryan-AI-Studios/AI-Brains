@@ -940,112 +940,123 @@ pub fn import_opencode_sessions<S: CaptureSink>(
             continue;
         }
 
-        let (mut project_id, alias, kind, needs_create) = resolve_opencode_project(
-            worktree,
-            directory,
-            query_store,
-            options.allow_default_project,
-            options.default_project_id,
-        )?;
+        // T239 D21/F22: soft-fail capture unit; prior sessions + health counters kept.
+        let session_result: crate::errors::Result<()> = (|| {
+            let (mut project_id, alias, kind, needs_create) = resolve_opencode_project(
+                worktree,
+                directory,
+                query_store,
+                options.allow_default_project,
+                options.default_project_id,
+            )?;
 
-        match kind {
-            OpenCodeBindKind::Worktree => stats.bound_via_worktree += 1,
-            OpenCodeBindKind::Directory => stats.bound_via_directory += 1,
-            OpenCodeBindKind::Unbound => stats.unbound_project += 1,
-            OpenCodeBindKind::Default => {}
-        }
+            match kind {
+                OpenCodeBindKind::Worktree => stats.bound_via_worktree += 1,
+                OpenCodeBindKind::Directory => stats.bound_via_directory += 1,
+                OpenCodeBindKind::Unbound => stats.unbound_project += 1,
+                OpenCodeBindKind::Default => {}
+            }
 
-        if options.dry_run {
-            continue;
-        }
+            if options.dry_run {
+                return Ok(());
+            }
 
-        if needs_create {
-            let display = if alias == OPENCODE_UNBOUND_ALIAS {
-                OPENCODE_UNBOUND_DISPLAY_NAME.to_string()
-            } else {
-                path_derived_display_name(&alias)
-            };
-            if let Ok(Some(existing)) = query_store.resolve_project_id_from_alias(&alias) {
-                project_id = existing;
-            } else {
+            if needs_create {
+                let display = if alias == OPENCODE_UNBOUND_ALIAS {
+                    OPENCODE_UNBOUND_DISPLAY_NAME.to_string()
+                } else {
+                    path_derived_display_name(&alias)
+                };
+                if let Ok(Some(existing)) = query_store.resolve_project_id_from_alias(&alias) {
+                    project_id = existing;
+                } else {
+                    ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
+                }
+            } else if kind != OpenCodeBindKind::Default
+                && query_store
+                    .resolve_project_id_from_alias(&alias)
+                    .ok()
+                    .flatten()
+                    .is_none()
+            {
+                let display = if alias == OPENCODE_UNBOUND_ALIAS {
+                    OPENCODE_UNBOUND_DISPLAY_NAME.to_string()
+                } else {
+                    path_derived_display_name(&alias)
+                };
                 ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
             }
-        } else if kind != OpenCodeBindKind::Default
-            && query_store
-                .resolve_project_id_from_alias(&alias)
-                .ok()
-                .flatten()
-                .is_none()
-        {
-            let display = if alias == OPENCODE_UNBOUND_ALIAS {
-                OPENCODE_UNBOUND_DISPLAY_NAME.to_string()
-            } else {
-                path_derived_display_name(&alias)
+
+            let capture_context = CaptureContext {
+                git_working_dir: std::env::current_dir().ok(),
             };
-            ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
-        }
 
-        let capture_context = CaptureContext {
-            git_working_dir: std::env::current_dir().ok(),
-        };
+            service.start_session(
+                ai_brains_capture::SessionStartCommand {
+                    session_id,
+                    project_id,
+                    harness_id: oc_harness,
+                    privacy: Privacy::LocalOnly,
+                    tx_id: None,
+                },
+                capture_context.clone(),
+                sink,
+            )?;
 
-        service.start_session(
-            ai_brains_capture::SessionStartCommand {
+            stats.imported_turns += append_opencode_turns(
+                service,
+                sink,
                 session_id,
                 project_id,
-                harness_id: oc_harness,
-                privacy: Privacy::LocalOnly,
-                tx_id: None,
-            },
-            capture_context.clone(),
-            sink,
-        )?;
+                &turns,
+                next_index as usize,
+                &capture_context,
+            )?;
 
-        stats.imported_turns += append_opencode_turns(
-            service,
-            sink,
-            session_id,
-            project_id,
-            &turns,
-            next_index as usize,
-            &capture_context,
-        )?;
+            service.stop_session(
+                ai_brains_capture::SessionStopCommand {
+                    session_id,
+                    harness_id: oc_harness,
+                    privacy: Privacy::LocalOnly,
+                    status: SessionStopStatus::Completed,
+                    reason: Some("OpenCode export import complete".to_string()),
+                },
+                capture_context,
+                sink,
+            )?;
 
-        service.stop_session(
-            ai_brains_capture::SessionStopCommand {
-                session_id,
-                harness_id: oc_harness,
-                privacy: Privacy::LocalOnly,
-                status: SessionStopStatus::Completed,
-                reason: Some("OpenCode export import complete".to_string()),
-            },
-            capture_context,
-            sink,
-        )?;
+            // Path-keyed source meta
+            let meta_key = opencode_source_meta_key(&source.id);
+            let meta_val = format!("{}:{}", source.updated_ms.unwrap_or(0), turns.len());
+            sink.set_sync_state(&meta_key, &meta_val);
 
-        // Path-keyed source meta
-        let meta_key = opencode_source_meta_key(&source.id);
-        let meta_val = format!("{}:{}", source.updated_ms.unwrap_or(0), turns.len());
-        sink.set_sync_state(&meta_key, &meta_val);
+            if let Some(updated) = source.updated_ms {
+                cursor.sessions.insert(source.id.clone(), updated);
+            } else {
+                cursor.sessions.insert(source.id.clone(), 0);
+            }
+            // Additive non-breaking: remember last msg_* when present (delta remains index-based).
+            if let Some(last_mid) = turns
+                .iter()
+                .rev()
+                .find_map(|t| t.msg_id.as_deref())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
+                cursor
+                    .last_msg_ids
+                    .insert(source.id.clone(), last_mid.to_string());
+            }
+            stats.sessions += 1;
+            Ok(())
+        })();
 
-        if let Some(updated) = source.updated_ms {
-            cursor.sessions.insert(source.id.clone(), updated);
-        } else {
-            cursor.sessions.insert(source.id.clone(), 0);
+        if let Err(e) = session_result {
+            eprintln!(
+                "[OpenCode] session {} failed: {e} — continue (fail-open; prior sessions kept)",
+                source.id
+            );
         }
-        // Additive non-breaking: remember last msg_* when present (delta remains index-based).
-        if let Some(last_mid) = turns
-            .iter()
-            .rev()
-            .find_map(|t| t.msg_id.as_deref())
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            cursor
-                .last_msg_ids
-                .insert(source.id.clone(), last_mid.to_string());
-        }
-        stats.sessions += 1;
     }
 
     if !options.dry_run

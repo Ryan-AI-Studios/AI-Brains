@@ -24,6 +24,7 @@ pub mod ingest;
 pub mod init;
 pub mod memory;
 pub mod migrate;
+pub mod multi_import;
 pub mod nightly;
 pub mod opencode_hook;
 pub mod opencode_import;

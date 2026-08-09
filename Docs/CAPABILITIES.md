@@ -121,7 +121,7 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 - **Capture independence:** filter is pure string/JSON — no models, embeddings, or graph.
 - **`IngestRequest.thinking`:** field remains on the contracts DTO for serialization compat; adapters / message_only **never populate** it; event builders never write thinking into the event log.
 - **Wired today:** shared `parse_transcript_for_ingest` (step-shaped + legacy `{role,content}`, prefer `transcript_full.jsonl`), `antigravity::extract_turns` / import + `agy-hook` (message-only SOOT); ProjectChat → `filter_turn`; **Grok** `filter_grok_history_*` (F11 user_query-only) + `grok-hook` / `grok-import`; **OpenCode** `filter_opencode_*` / `filter_opencode_export` (nested + synthetic drop) + `opencode-hook` / `opencode-import`.
-- AGY live+batch seamless ingest: **Implemented with caveats** (T236). Grok Build: **Implemented with caveats** (T237). OpenCode: **Implemented with caveats** (T238). Multi-harness nightly orchestration remains **Partial** until T239.
+- AGY live+batch seamless ingest: **Implemented with caveats** (T236). Grok Build: **Implemented with caveats** (T237). OpenCode: **Implemented with caveats** (T238). Multi-harness nightly orchestration: **Implemented (T239)** (agy → grok → opencode; Claude/Codex install backends remain **T239+**).
 
 ### Manual / programmatic
 - **`ingest`** — JSON turn from stdin (`session_id`, `project_id`, `harness_id`, `turn_id`, `role`, `content`, `privacy`)
@@ -134,7 +134,7 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 | **Detect + install UX (T235)** | `harness status\|install\|uninstall\|reset-decline` | Detect harnesses **installed on machine** (PATH + home); wiring `absent\|missing\|partial\|ok\|backend_pending\|unknown`. User-global only (no repo pollution). Preflight `--summary` shows **Harnesses installed on machine:** sibling section. |
 | **agy (Antigravity CLI)** | `harness install --harness agy` → Stop wrapper → `agy-hook --payload` | **Implemented (T235+T236):** hooks.json + wrapper; wrapper stdout = allow-stop JSON only; step-shaped + full transcript prefer; path normalize; env fallback only for `agy-unbound`. Reinstall after T236. |
 | **agy-hook** | `agy-hook --payload '{...}'` | Real-time ingest; shared parse + turn-id SOOT; diagnostics on stderr; `--schema` |
-| **Antigravity bulk** | `antigravity-import --days N [--force]` | History.jsonl workspace bind; unbound `agy-unbound`; stats on stderr; `--force` skips 300s quiescence; default `allow_default_project=false`. SYSTEM scheduled nightly may still `--skip-import` (T239). |
+| **Antigravity bulk** | `antigravity-import --days N [--force]` | History.jsonl workspace bind; unbound `agy-unbound`; stats on stderr; `--force` skips 300s quiescence; default `allow_default_project=false`. Nightly multi-import (T239) includes AGY; SYSTEM scheduled nightly keeps `--skip-import`. |
 | **Grok Build** | `harness install --harness grok` → Stop/SessionEnd wrapper → `grok-hook` | **Implemented with caveats (T237):** `~/.grok/hooks/ai-brains.json` + `~/.ai-brains/hooks/grok-capture.ps1`. **Stop allow = empty stdout** (never AGY `{"decision":"allow"}`). User keep: non-empty `<user_query>`/`<USER_REQUEST>` only (chrome/`synthetic_reason` dropped). Subagent/worktree sessions skipped by default. `source_ts` usually none → `occurred_at` = ingest time. Turn ids `v5(session,"turn-{i}")` on kept index (filter taxonomy change can shift ids). Vendor-compat: Grok may also load Claude/Cursor hooks. |
 | **grok-hook** | `grok-hook --payload '{...}'` | Live chat_history ingest; path resolve (percent-encode + `.cwd` + summary.id); diagnostics stderr; `--schema` |
 | **Grok bulk** | `grok-import --days N [--force]` | Walks `~/.grok/sessions/**/chat_history.jsonl`; summary bind (`git_root_dir`/`cwd`); unbound `grok-unbound`; never `updates.jsonl`; stats on stderr |
@@ -329,12 +329,13 @@ ai-brains sync query "path TOCTOU" --limit 5 --format pretty
 ai-brains nightly
 ai-brains nightly --status
 ai-brains nightly --skip-import
+ai-brains nightly --skip-import-grok
 ai-brains nightly --schedule --start-time "03:00"
 ai-brains nightly --schedule --run-as-system --dry-run
 ```
 
 Pipeline includes:
-1. Optional Antigravity import
+1. **Multi-harness session import (T239)** — fixed order **agy → grok → opencode** (message-only adapters; never `opencode.db`). `--skip-import` skips all three; per-source `--skip-import-agy` / `--skip-import-grok` / `--skip-import-opencode`. Fail-open per source with **per-source sinks**. Report persisted as `last_multi_import` (`v:1`); `nightly --status` prints a Multi-import block (missing → `never`; corrupt → `unreadable`; OpenCode `list_capped > 0` surfaces a cap warning). **Claude / Codex are not in the nightly batch** (install backends remain T239+). Import progress may interleave non-JSON on stderr under SYSTEM `--log-format json` (accepted).
 2. Session summarization (chunked; **38,912-token** context with carryover)
 3. Memory synthesis (batch-limited, e.g. 50 memories/run)
 4. Embedding backfill + stale refresh + WAL checkpoint
@@ -342,7 +343,7 @@ Pipeline includes:
 6. **`MemorySynthesized`** events for graph edges
 7. Live graph projection updates
 
-SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config.
+SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config. **SYSTEM keeps `--skip-import` by default** — completeness path is user-principal `nightly --schedule` or manual `nightly` (not Session 0 import).
 
 ---
 

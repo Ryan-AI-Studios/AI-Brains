@@ -1,7 +1,7 @@
 # T234–T239 — Seamless multi-harness session ingest (placeholders)
 
 **Source:** Research 2026-08-08 — Grok Build, OpenCode, Antigravity 2 CLI (`agy`); retire pure-log reliance on old Antigravity.
-**Status:** T234 **Completed** (PR #100 `2ea8897`); T235 **Completed** (PR #101 `b1a0ecc`); T236 **Completed** (PR #102 `d53e4be`); T237 **Completed** (PR #104 `459fc55`); T238 **Completed** (PR #106 `3378a02`); T239 Placeholder.
+**Status:** T234 **Completed** (PR #100 `2ea8897`); T235 **Completed** (PR #101 `b1a0ecc`); T236 **Completed** (PR #102 `d53e4be`); T237 **Completed** (PR #104 `459fc55`); T238 **Completed** (PR #106 `3378a02`); T239 **In progress** (multi-harness nightly: agy→grok→opencode + last_multi_import + SYSTEM skip-import).
 **Prior related:** track033 antigravity import; T48/T49 agy-hook delta; nightly `antigravity-import`; Capture Privacy mandate.
 **T234 SOOT path:** `crates/ai-brains-adapters/src/message_only.rs` (`filter_turn`, `classify_antigravity_step`, `filter_grok_history_*`, `filter_opencode_message*`, `extract_user_text`, sole-tool JSON guard).
 
@@ -20,7 +20,7 @@ Live hooks provide freshness; durable log/export import on nightly provides comp
 | **T236** | AGY 2 seamless ingest | **Completed** PR #102 — wrapper stdout SOOT + step parse + history bind + turn-id + `--force` + re-summarize + AC6 | P1 |
 | **T237** | Grok Build seamless ingest | **Completed** — Stop+SessionEnd empty-stdout wrapper + F11 user_query filter + `grok-hook`/`grok-import` + install_ready (not updates; not UserPromptSubmit DoD) | P1 |
 | **T238** | OpenCode seamless ingest | **Completed** PR #106 — plugin `session.idle` + nested export + synthetic drop + watermark batch (never SQLite) | P1 |
-| **T239** | Nightly multi-harness import | Orchestrate AGY+Grok+OpenCode importers; status; skip flags | P1 ops |
+| **T239** | Nightly multi-harness import | **In progress** — multi-source nightly (agy→grok→opencode); per-source skip; fail-open; `last_multi_import` status; SYSTEM keeps skip-import | P1 ops |
 
 ## Suggested implement order
 

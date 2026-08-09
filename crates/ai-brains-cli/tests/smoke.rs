@@ -2407,13 +2407,65 @@ fn test_nightly_skip_import_flag_accepted() {
         .assert()
         .success();
 
-    // The flag should appear in the help text so users discover it.
+    // Flags should appear in the help text so users discover multi-harness skips (T239).
     common::hermetic_bin()
         .arg("nightly")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("--skip-import"));
+        .stdout(predicate::str::contains("--skip-import"))
+        .stdout(predicate::str::contains("--skip-import-agy"))
+        .stdout(predicate::str::contains("--skip-import-grok"))
+        .stdout(predicate::str::contains("--skip-import-opencode"));
+}
+
+/// T239 F19: `nightly --status` shows Multi-import never when key missing; unreadable when corrupt.
+#[test]
+fn test_nightly_status_multi_import_missing_and_corrupt() {
+    use ai_brains_crypto::{DataKey, SqlCipherKey};
+    use ai_brains_store::{EventStore, SqliteEventStore, VaultConnection};
+
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let key = DataKey::generate();
+    let sql_key = SqlCipherKey::from_data_key(&key);
+    let key_arg = sql_key.expose_secret().to_string();
+
+    {
+        let conn = VaultConnection::open(&vault_path, &sql_key).expect("open");
+        conn.migrate().expect("migrate");
+    }
+
+    // Missing key → never
+    common::hermetic_bin()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--key")
+        .arg(&key_arg)
+        .arg("nightly")
+        .arg("--status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Multi-import: never"));
+
+    // Corrupt value → unreadable
+    {
+        let conn = VaultConnection::open(&vault_path, &sql_key).expect("open");
+        let store = SqliteEventStore::new(conn);
+        store
+            .set_sync_state("last_multi_import", "NOT-JSON{{{")
+            .expect("set corrupt");
+    }
+    common::hermetic_bin()
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--key")
+        .arg(&key_arg)
+        .arg("nightly")
+        .arg("--status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Multi-import: unreadable"));
 }
 
 /// T77: `forget --memory-id=<unknown>` must fail with a clear "not found" error

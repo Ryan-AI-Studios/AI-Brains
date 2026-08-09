@@ -12,6 +12,9 @@ pub async fn run(
     start_time: String,
     status: bool,
     skip_import: bool,
+    skip_import_agy: bool,
+    skip_import_grok: bool,
+    skip_import_opencode: bool,
     run_as_system: bool,
     dry_run: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -42,6 +45,14 @@ pub async fn run(
         println!("Unsummarized sessions remaining: {}", unsummarized.len());
         println!("Sessions summarized in last run: {}", last_count);
         println!("Errors in last run: {}", last_errors);
+        // T239: multi-import block (missing → never; corrupt → unreadable)
+        match crate::commands::multi_import::load_multi_import_status(query_store.as_ref()) {
+            Ok(view) => crate::commands::multi_import::print_multi_import_status(&view),
+            Err(e) => {
+                tracing::warn!(error = %e, "failed to load last_multi_import (non-fatal)");
+                println!("Multi-import: unreadable");
+            }
+        }
         println!("======================");
         return Ok(());
     }
@@ -268,17 +279,42 @@ pub async fn run(
         embedding_model,
     ));
 
-    // Import Antigravity sessions before summarization so they get summarized too
-    if skip_import {
-        tracing::info!(
-            "Skipping Antigravity import (--skip-import). \
-             Use this on isolated, CI, or per-project vaults to prevent \
-             cross-vault contamination from the user's real Antigravity history."
+    // T239: multi-harness import (agy → grok → opencode) before summarization.
+    // Fail-open per source; SYSTEM scheduled nightly keeps --skip-import (D12).
+    {
+        use crate::commands::multi_import::{
+            MultiImportOptions, persist_multi_import_report, run_multi_harness_import,
+        };
+        if skip_import {
+            tracing::info!(
+                "Skipping multi-harness session import (--skip-import). \
+                 Skips AGY, Grok, and OpenCode batch importers. \
+                 Use this on isolated, CI, SYSTEM-scheduled, or per-project vaults \
+                 to prevent cross-vault contamination from real harness history."
+            );
+        } else if skip_import_agy || skip_import_grok || skip_import_opencode {
+            tracing::info!(
+                skip_agy = skip_import_agy,
+                skip_grok = skip_import_grok,
+                skip_opencode = skip_import_opencode,
+                "Multi-harness import with per-source skip flags"
+            );
+        }
+        let opts = MultiImportOptions::production(
+            skip_import,
+            skip_import_agy,
+            skip_import_grok,
+            skip_import_opencode,
         );
-    } else if let Err(e) = crate::commands::antigravity_import::run(ctx, 30, false) {
-        // allow_default_project=false inside antigravity_import (F12); force=false.
-        // SYSTEM scheduled nightly may still pass --skip-import (D16 / T239).
-        tracing::error!("Antigravity import failed: {}", e);
+        let report = run_multi_harness_import(ctx, opts);
+        let store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+        persist_multi_import_report(&store, &report);
+        tracing::info!(
+            agy = %report.agy.status,
+            grok = %report.grok.status,
+            opencode = %report.opencode.status,
+            "Multi-harness import phase complete"
+        );
     }
 
     // F-004: class-matrix dry-run log (plan only; never apply CE on nightly).

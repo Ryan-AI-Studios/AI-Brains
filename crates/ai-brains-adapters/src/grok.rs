@@ -682,7 +682,18 @@ pub fn import_grok_sessions<S: CaptureSink>(
         };
         let session_id = SessionId::from_uuid(session_uuid);
 
-        let turns = parse_chat_history_file(&source.path)?;
+        // F22/T239: soft-skip corrupt history files with path in message.
+        let turns = match parse_chat_history_file(&source.path) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!(
+                    "[Grok] skip session {} path={}: {e} — continue (fail-open)",
+                    source.session_id,
+                    source.path.display()
+                );
+                continue;
+            }
+        };
         if turns.is_empty() {
             if !options.dry_run {
                 update_source_meta(sink, &meta_key, &current_meta);
@@ -699,102 +710,114 @@ pub fn import_grok_sessions<S: CaptureSink>(
             continue;
         }
 
-        let (mut project_id, alias, resolved_kind, needs_create) = resolve_grok_project(
-            source.project_hash.as_deref(),
-            query_store,
-            options.allow_default_project,
-            options.default_project_id,
-        )?;
+        // T239 D21/F22: soft-fail unit so prior session stats are retained.
+        let session_result: crate::errors::Result<()> = (|| {
+            let (mut project_id, alias, resolved_kind, needs_create) = resolve_grok_project(
+                source.project_hash.as_deref(),
+                query_store,
+                options.allow_default_project,
+                options.default_project_id,
+            )?;
 
-        let final_kind = if source.bind_via_summary && resolved_kind != GrokBindKind::Unbound {
-            GrokBindKind::Summary
-        } else if resolved_kind == GrokBindKind::Default {
-            GrokBindKind::Default
-        } else if resolved_kind == GrokBindKind::Unbound || alias == GROK_UNBOUND_ALIAS {
-            GrokBindKind::Unbound
-        } else {
-            GrokBindKind::Path
-        };
-
-        // Bind counters are derived from discovery (read-only); safe on dry-run.
-        match final_kind {
-            GrokBindKind::Summary => stats.bound_via_summary += 1,
-            GrokBindKind::Path => stats.bound_via_path += 1,
-            GrokBindKind::Unbound => stats.unbound_project += 1,
-            GrokBindKind::Default => {}
-        }
-
-        // F12 dry-run: count/filter only — no start_session / ingest / stop / sync_state.
-        if options.dry_run {
-            continue;
-        }
-
-        if needs_create {
-            let display = if alias == GROK_UNBOUND_ALIAS {
-                GROK_UNBOUND_DISPLAY_NAME.to_string()
+            let final_kind = if source.bind_via_summary && resolved_kind != GrokBindKind::Unbound {
+                GrokBindKind::Summary
+            } else if resolved_kind == GrokBindKind::Default {
+                GrokBindKind::Default
+            } else if resolved_kind == GrokBindKind::Unbound || alias == GROK_UNBOUND_ALIAS {
+                GrokBindKind::Unbound
             } else {
-                path_derived_display_name(&alias)
+                GrokBindKind::Path
             };
-            if let Ok(Some(existing)) = query_store.resolve_project_id_from_alias(&alias) {
-                project_id = existing;
-            } else {
+
+            // Bind counters are derived from discovery (read-only); safe on dry-run.
+            match final_kind {
+                GrokBindKind::Summary => stats.bound_via_summary += 1,
+                GrokBindKind::Path => stats.bound_via_path += 1,
+                GrokBindKind::Unbound => stats.unbound_project += 1,
+                GrokBindKind::Default => {}
+            }
+
+            // F12 dry-run: count/filter only — no start_session / ingest / stop / sync_state.
+            if options.dry_run {
+                return Ok(());
+            }
+
+            if needs_create {
+                let display = if alias == GROK_UNBOUND_ALIAS {
+                    GROK_UNBOUND_DISPLAY_NAME.to_string()
+                } else {
+                    path_derived_display_name(&alias)
+                };
+                if let Ok(Some(existing)) = query_store.resolve_project_id_from_alias(&alias) {
+                    project_id = existing;
+                } else {
+                    ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
+                }
+            } else if final_kind != GrokBindKind::Default
+                && query_store
+                    .resolve_project_id_from_alias(&alias)
+                    .ok()
+                    .flatten()
+                    .is_none()
+            {
+                let display = if alias == GROK_UNBOUND_ALIAS {
+                    GROK_UNBOUND_DISPLAY_NAME.to_string()
+                } else {
+                    path_derived_display_name(&alias)
+                };
                 ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
             }
-        } else if final_kind != GrokBindKind::Default
-            && query_store
-                .resolve_project_id_from_alias(&alias)
-                .ok()
-                .flatten()
-                .is_none()
-        {
-            let display = if alias == GROK_UNBOUND_ALIAS {
-                GROK_UNBOUND_DISPLAY_NAME.to_string()
-            } else {
-                path_derived_display_name(&alias)
+
+            let capture_context = CaptureContext {
+                git_working_dir: std::env::current_dir().ok(),
             };
-            ensure_project_registered(sink, project_id, &alias, &display, query_store)?;
-        }
 
-        let capture_context = CaptureContext {
-            git_working_dir: std::env::current_dir().ok(),
-        };
+            service.start_session(
+                ai_brains_capture::SessionStartCommand {
+                    session_id,
+                    project_id,
+                    harness_id: grok_harness,
+                    privacy: Privacy::LocalOnly,
+                    tx_id: None,
+                },
+                capture_context.clone(),
+                sink,
+            )?;
 
-        service.start_session(
-            ai_brains_capture::SessionStartCommand {
+            stats.imported_turns += append_grok_turns(
+                service,
+                sink,
                 session_id,
                 project_id,
-                harness_id: grok_harness,
-                privacy: Privacy::LocalOnly,
-                tx_id: None,
-            },
-            capture_context.clone(),
-            sink,
-        )?;
+                &turns,
+                next_index as usize,
+                &capture_context,
+            )?;
 
-        stats.imported_turns += append_grok_turns(
-            service,
-            sink,
-            session_id,
-            project_id,
-            &turns,
-            next_index as usize,
-            &capture_context,
-        )?;
+            service.stop_session(
+                ai_brains_capture::SessionStopCommand {
+                    session_id,
+                    harness_id: grok_harness,
+                    privacy: Privacy::LocalOnly,
+                    status: SessionStopStatus::Completed,
+                    reason: Some("Grok chat_history import complete".to_string()),
+                },
+                capture_context,
+                sink,
+            )?;
 
-        service.stop_session(
-            ai_brains_capture::SessionStopCommand {
-                session_id,
-                harness_id: grok_harness,
-                privacy: Privacy::LocalOnly,
-                status: SessionStopStatus::Completed,
-                reason: Some("Grok chat_history import complete".to_string()),
-            },
-            capture_context,
-            sink,
-        )?;
+            update_source_meta(sink, &meta_key, &current_meta);
+            stats.sessions += 1;
+            Ok(())
+        })();
 
-        update_source_meta(sink, &meta_key, &current_meta);
-        stats.sessions += 1;
+        if let Err(e) = session_result {
+            eprintln!(
+                "[Grok] session {} path={} failed: {e} — continue (fail-open; prior sessions kept)",
+                source.session_id,
+                source.path.display()
+            );
+        }
     }
 
     Ok(stats)

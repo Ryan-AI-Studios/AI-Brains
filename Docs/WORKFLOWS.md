@@ -77,9 +77,11 @@ What you should see:
 
 > **Tip — avoid cross-vault contamination.** When running on an
 > isolated, CI, or per-project vault, use
-> `ai-brains nightly --skip-import` instead. `antigravity-import`
-> always reads the *user's* actual Antigravity history. SYSTEM
-> scheduled nightly may already pass `--skip-import` (T239).
+> `ai-brains nightly --skip-import` (skips AGY + Grok + OpenCode batch
+> importers). Manual `*-import` commands always read the *user's*
+> actual harness homes. SYSTEM scheduled nightly keeps `--skip-import`
+> by default (T239); use user-context `nightly` for multi-harness
+> completeness.
 
 ---
 
@@ -213,5 +215,6 @@ What you should see:
 
 > **Heads-up.** On isolated/CI/per-project vaults, register
 > nightly with `--skip-import` to avoid reading the user's real
-> Antigravity history. There is no analogous `--skip-import` for
-> `daemon schedule` — the daemon itself does not import.
+> harness history (AGY/Grok/OpenCode). There is no analogous
+> `--skip-import` for `daemon schedule` — the daemon itself does not
+> import.

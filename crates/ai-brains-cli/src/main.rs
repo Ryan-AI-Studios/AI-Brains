@@ -226,11 +226,20 @@ enum Commands {
         /// Show read-only status of the last nightly run and pending work
         #[arg(long, conflicts_with = "schedule", conflicts_with = "unschedule")]
         status: bool,
-        /// Skip the Antigravity session import. Use this on isolated, CI,
-        /// or per-project vaults to prevent cross-vault contamination
-        /// from the user's real Antigravity history.
+        /// Skip all harness session importers (AGY, Grok, OpenCode). Use on
+        /// isolated, CI, SYSTEM-scheduled, or per-project vaults to prevent
+        /// cross-vault contamination from real harness history.
         #[arg(long)]
         skip_import: bool,
+        /// Skip only Antigravity (agy) batch import during nightly
+        #[arg(long)]
+        skip_import_agy: bool,
+        /// Skip only Grok Build batch import during nightly
+        #[arg(long)]
+        skip_import_grok: bool,
+        /// Skip only OpenCode batch import during nightly
+        #[arg(long)]
+        skip_import_opencode: bool,
         /// Schedule the task to run as SYSTEM (no login required). Requires elevation.
         #[arg(long)]
         run_as_system: bool,
@@ -3108,6 +3117,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             start_time,
             status,
             skip_import,
+            skip_import_agy,
+            skip_import_grok,
+            skip_import_opencode,
             run_as_system,
             dry_run,
         } => {
@@ -3118,6 +3130,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 start_time.clone(),
                 *status,
                 *skip_import,
+                *skip_import_agy,
+                *skip_import_grok,
+                *skip_import_opencode,
                 *run_as_system,
                 *dry_run,
             )
