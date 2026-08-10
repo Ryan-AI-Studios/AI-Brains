@@ -30,19 +30,13 @@ const EMPTY_TAG_MSG: &str = "Empty --tag is not allowed.";
 /// First non-empty line; always strip leading USER:/ASSISTANT:/SYSTEM: (case-sensitive
 /// token + whitespace); char-safe truncate with `…` (F9/F31).
 pub(crate) fn preview_line(content: &str, max_chars: usize) -> String {
-    let mut line = content
+    let line = content
         .lines()
         .find(|l| !l.trim().is_empty())
         .unwrap_or("")
-        .trim()
-        .to_string();
-    for prefix in ["USER:", "ASSISTANT:", "SYSTEM:"] {
-        if let Some(rest) = line.strip_prefix(prefix) {
-            line = rest.trim_start().to_string();
-            break;
-        }
-    }
-    truncate_preview_chars(&line, max_chars)
+        .trim();
+    let stripped = super::display_text::strip_role_prefix(line);
+    truncate_preview_chars(stripped, max_chars)
 }
 
 fn truncate_preview_chars(s: &str, max_chars: usize) -> String {
@@ -66,13 +60,7 @@ pub(crate) fn content_has_tag(content: &str, tag: &str) -> bool {
         .find(|l| !l.trim().is_empty())
         .unwrap_or("")
         .trim();
-    let mut line = first;
-    for prefix in ["USER:", "ASSISTANT:", "SYSTEM:"] {
-        if let Some(rest) = line.strip_prefix(prefix) {
-            line = rest.trim_start();
-            break;
-        }
-    }
+    let line = super::display_text::strip_role_prefix(first);
     let Some(rest) = line.strip_prefix("TAGS:") else {
         return false;
     };

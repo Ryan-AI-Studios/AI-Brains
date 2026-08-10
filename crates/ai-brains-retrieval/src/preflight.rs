@@ -6,7 +6,7 @@ use crate::ansi::strip_ansi;
 use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use crate::sessions::active_sessions;
-use crate::word_budget::{trim_to_word_budget, word_count};
+use crate::word_budget::{content_word_count, trim_to_word_budget, word_count};
 use ai_brains_contracts::briefings::{
     BriefingScopeDto, BriefingWarningDto, BudgetReportDto, FreshnessSummaryDto,
     ProjectBriefingPacket,
@@ -112,7 +112,8 @@ fn build_governed_preflight(
         );
         let text = render_governed_packet_markdown(&packet, max_words);
         return Ok(PreflightContext {
-            word_count: word_count(&text),
+            // F32: content words exclude F2b trailing sentinel chrome.
+            word_count: content_word_count(&text),
             text,
         });
     }
@@ -155,7 +156,8 @@ fn build_governed_preflight(
 
     let text = render_governed_packet_markdown(&packet, max_words);
     Ok(PreflightContext {
-        word_count: word_count(&text),
+        // F32: content words exclude F2b trailing sentinel chrome.
+        word_count: content_word_count(&text),
         text,
     })
 }
@@ -485,7 +487,8 @@ fn build_legacy_preflight(
 
     let text = trim_to_word_budget(&sections.join("\n\n"), max_words);
     Ok(PreflightContext {
-        word_count: word_count(&text),
+        // F32: content words exclude F2b trailing sentinel chrome.
+        word_count: content_word_count(&text),
         text,
     })
 }
@@ -793,7 +796,8 @@ fn truncate_turn(content: &str) -> String {
     let mut result = truncated_lines.join("\n");
     result = trim_to_word_budget(&result, 150);
 
-    if word_count(&result) < wc {
+    // F38 soft: avoid double truncation chrome when F2b already appended `…`.
+    if content_word_count(&result) < wc && !result.ends_with('…') && !result.ends_with("...") {
         result.push_str("\n...");
     }
 

@@ -11,6 +11,8 @@ mod semantic;
 mod sessions;
 mod word_budget;
 
+pub use word_budget::{content_word_count, trim_to_word_budget, word_count};
+
 pub use ai_brains_core::LEXICAL_MATCH_HARD_CAP;
 pub use ansi::strip_ansi;
 pub use errors::{Result, RetrievalError};

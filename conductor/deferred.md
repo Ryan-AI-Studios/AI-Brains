@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370` (dual floor + score honesty); next **T219** preflight pretty + remaining placeholders (graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370` (dual floor + score honesty); next **T219** preflight pretty (**Planning** — newline budget + Scope + role strip + section caps; plan-only until go) + remaining placeholders (graph-on install, env-warn quiet, role-prefix strip T224, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -72,7 +72,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~preflight `--global --summary` false Project uuid (audit 6/6)~~ | **Closed by T214** — F2 Scope + F3 dispatch + dual counts |
 | ~~Active Sessions always 0~~ | **Closed by T214** — F5 `count_active_sessions` QueryStore |
 | ~~Marker counts as vault totals~~ | **Closed by T214** — F4 **In context** labels |
-| Non-summary pretty Scope header on full preflight body | Soft residual F24 |
+| Non-summary pretty Scope header on full preflight body | **Absorbed by T219** Planning (F6 hard DoD) |
 | ~~`preflight --summary --format json` machine object~~ | **Closed by T220** PR #112 `6f4f67b` (pretty envelope; scope none; install-hooks stderr) |
 | Ledgerful under `--global` | Soft residual F9 — product decision |
 | Governed multi-project packet | **Not** T214 — F10 |
@@ -105,7 +105,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Optional `harnesses[]` in summary JSON | Soft residual F22 |
 | Optional `scope_line` string | Soft residual F22 |
 | is-terminal → `std::io::IsTerminal`; clap ValueEnum ignore_case unify | Soft residual F22 |
-| T219 pretty body wall | **T219** Placeholder (not T220) |
+| T219 pretty body wall | **T219** **Planning** (F1 newline budget + pretty polish; plan-only until go) |
 
 ### Post-audit CLI quality placeholders (2026-08-05) — T217–T232
 
@@ -113,7 +113,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 |--------------------|-------------|
 | FTS natural-phrase empty (quality 4) | **T217** ✅ closed PR #110 `1e22e77` |
 | ~~Semantic drift / scores (quality 4)~~ | **Closed by T218** PR #116 `fc4d370` — dual floor 0.55/0.60 no-FTS gate; score_kind; pretty rank+sim; hermetic fuse SOOT; soft residual F18/F19/F20/F21/AC15/httpmock-full-recall |
-| Preflight pretty wall (quality 5) | **T219** Placeholder |
+| Preflight pretty wall (quality 5) | **T219** **Planning** — root cause `trim_to_word_budget` join(" "); Scope + role strip + section caps; plan-only until go |
 | ~~preflight summary `--format json` lie (quality 3)~~ | **Closed by T220** PR #112 `6f4f67b` |
 | ~~Governed usefulness 4–5; progressive deny exit 0~~ | **Closed by T221** PR #114 `b3c4b0f` — progressive/expand deny exit 3 + `denial_hint` + human emit_error hint; soft residual F12/F32/F18/F36 |
 | Graph-off PATH usefulness 3 | **T222** Placeholder |
