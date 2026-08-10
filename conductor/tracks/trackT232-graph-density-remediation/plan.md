@@ -1,6 +1,6 @@
 # T232 — Graph density remediation path — Plan
 
-**Status:** 🚧 **Implementing**  
+**Status:** 🚧 **In review** (PR #124; engineering complete)  
 **Category:** FEATURE  
 **Depends:** T213 density assessor; T222 `graph_feature` + `GRAPH_REINSTALL_SOOT`  
 **Feeds:** Operator/agent honesty for sparse/empty graph next actions  
@@ -75,9 +75,9 @@ Thresholds, matrix order, soft severity, capture independence, and no auto-rebui
 
 - [x] Ledger already started: ed9d7672-2b41-4324-ad98-1d0267c4358e (do not start another)
 - [x] Branch: `feat/T232-graph-density-remediation`
-- [ ] `ledgerful doctor` / `ledgerful ledger status --compact` (orchestrator)
-- [ ] `ledgerful scan --impact` (orchestrator)
-- [ ] Manual dogfood baseline (orchestrator)
+- [x] `ledgerful doctor` / `ledgerful ledger status --compact` (orchestrator)
+- [x] `ledgerful scan --impact` (orchestrator)
+- [x] Manual dogfood baseline (orchestrator)
 
 ### Phase 1 — Red + migrate (AC1–6, AC17–18, H1, O1, L3)
 
@@ -116,15 +116,16 @@ Thresholds, matrix order, soft severity, capture independence, and no auto-rebui
 ### Phase 5 — Smoke + manual + gate (AC8–9, AC12–16, AC19)
 
 - [x] Extend smoke SOOT guard (F17/M4)
-- [ ] Manual graph-on: sparse → rebuild (orchestrator dogfood)
+- [x] Manual graph-on: sparse → rebuild (orchestrator dogfood)
 - [x] Units prove feature-off density warn → GRAPH_REINSTALL_SOOT
 - [x] Regression: feature-off graph * exit 2 covered by existing suite
 - [x] No clap/rusqlite lockfile bump
 - [x] `cargo nextest run -p ai-brains-cli` **without** `--features graph` (H1 proof — 771 passed)
 - [x] `cargo nextest run -p ai-brains-cli --features graph -E 'test(graph)'` (38 passed, incl. sparse fixture)
 - [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Full workspace gate / `ledgerful verify` / commit / pin / conductor **Completed** / deferred strike (orchestrator)
-- [ ] `review.md`; cross-model optional (F23)
+- [x] Full workspace gate 2497 + `ledgerful verify --scope full` + commit PR #124
+- [ ] Conductor **Completed** / deferred strike / pin (post-merge closeout)
+- [x] `review.md`; Codex R1 FAIL→fix; R2 pending
 
 ## File touch map
 

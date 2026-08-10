@@ -419,12 +419,15 @@ mod tests {
     }
 
     #[test]
-    fn assess_graph_density_with__small_empty_pinned10__skip() {
-        let a = assess_graph_density_with(&snap(0, 0, 10, None), true);
-        assert_eq!(a.verdict, DensityVerdict::Skip);
-        assert_eq!(a.density, "skip");
-        assert_eq!(a.status, "live");
-        assert!(a.remediation.is_none());
+    fn assess_graph_density_with__small_empty_pinned10__skip_both_capabilities() {
+        // AC5: Skip remediation None on both capability sides; status stays live
+        for available in [true, false] {
+            let a = assess_graph_density_with(&snap(0, 0, 10, None), available);
+            assert_eq!(a.verdict, DensityVerdict::Skip, "available={available}");
+            assert_eq!(a.density, "skip", "available={available}");
+            assert_eq!(a.status, "live", "available={available}");
+            assert!(a.remediation.is_none(), "available={available}");
+        }
     }
 
     #[test]
@@ -487,28 +490,32 @@ mod tests {
     }
 
     #[test]
-    fn assess_graph_density_with__small_ok_nodes10_edges5__ok_live() {
-        // below MIN_NODES — Ok note capability-blind; remediation None
-        let a = assess_graph_density_with(&snap(10, 5, 5, Some(5)), true);
-        assert_eq!(a.verdict, DensityVerdict::Ok);
-        assert_eq!(a.density, "ok");
-        assert_eq!(a.status, "live");
-        assert!(a.remediation.is_none());
-        assert!(
-            a.note.contains("use 'graph rebuild' for full resync"),
-            "Ok note kept informational: {}",
-            a.note
-        );
+    fn assess_graph_density_with__small_ok_nodes10_edges5__ok_live_both_capabilities() {
+        // AC5: Ok remediation None both sides; note capability-blind (M1)
+        for available in [true, false] {
+            let a = assess_graph_density_with(&snap(10, 5, 5, Some(5)), available);
+            assert_eq!(a.verdict, DensityVerdict::Ok, "available={available}");
+            assert_eq!(a.density, "ok", "available={available}");
+            assert_eq!(a.status, "live", "available={available}");
+            assert!(a.remediation.is_none(), "available={available}");
+            assert!(
+                a.note.contains("use 'graph rebuild' for full resync"),
+                "Ok note kept informational (available={available}): {}",
+                a.note
+            );
+        }
     }
 
     #[test]
-    fn assess_graph_density_with__ratio_0_8__ok() {
-        // tree-healthy canary (0.8 ≥ 0.50)
-        let a = assess_graph_density_with(&snap(100, 80, 50, Some(40)), true);
-        assert_eq!(a.verdict, DensityVerdict::Ok);
-        assert_eq!(a.density, "ok");
-        assert_eq!(a.status, "live");
-        assert!(a.remediation.is_none());
+    fn assess_graph_density_with__ratio_0_8__ok_both_capabilities() {
+        // tree-healthy canary (0.8 ≥ 0.50) — AC5 both sides
+        for available in [true, false] {
+            let a = assess_graph_density_with(&snap(100, 80, 50, Some(40)), available);
+            assert_eq!(a.verdict, DensityVerdict::Ok, "available={available}");
+            assert_eq!(a.density, "ok", "available={available}");
+            assert_eq!(a.status, "live", "available={available}");
+            assert!(a.remediation.is_none(), "available={available}");
+        }
     }
 
     #[test]
