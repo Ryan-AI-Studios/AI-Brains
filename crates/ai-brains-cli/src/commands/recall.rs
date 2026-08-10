@@ -227,6 +227,7 @@ pub fn run(
             )
             .build(Payload::MemoryPinned(MemoryPinnedPayload {
                 memory_id,
+                // T224 F7: raw vault content — display-only strip lives in formatters, not events.
                 content: hit.content.clone(),
                 session_id: effective_session_id,
                 project_id: options.project_id,
@@ -255,6 +256,7 @@ pub fn run(
             .iter()
             .map(|h| RecallResult {
                 memory_id: h.memory_id.clone(),
+                // T224 F6: machine JSON keeps raw role prefixes; pretty path strips display-only.
                 content: h.content.clone(),
                 source: h.source.clone(),
                 score: h.score,
@@ -403,6 +405,8 @@ pub fn format_pretty_hit_line(
     cosine: Option<f64>,
     rank: usize,
 ) -> String {
+    // T224 F3: strip role prefix BEFORE 500-char truncate (display-only).
+    let content = crate::commands::display_text::strip_role_prefix(content.trim_start());
     let content = if content.chars().count() > 500 {
         format!("{}...", content.chars().take(500).collect::<String>())
     } else {
@@ -1040,6 +1044,186 @@ mod tests {
             !line.contains("rank="),
             "bridge must not use rank=; got {line}"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // T224 — role-prefix strip on pretty hit body (display-only; before truncate)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__role_prefix_stripped__ac1() {
+        let line = format_pretty_hit_line(
+            "mem-id",
+            "ASSISTANT: DECISION: use SQLCipher",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert!(
+            line.contains("DECISION: use SQLCipher"),
+            "body must remain after strip; got {line}"
+        );
+        // Content after memory id must not still lead with ASSISTANT:
+        let after_id = line
+            .split_once("mem-id: ")
+            .map(|(_, rest)| rest)
+            .unwrap_or(&line);
+        assert!(
+            !after_id.starts_with("ASSISTANT:"),
+            "pretty body must not lead with ASSISTANT:; got {line}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__trim_start_before_strip__ac2b() {
+        let line = format_pretty_hit_line(
+            "mem-ws",
+            "  ASSISTANT: body",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert!(
+            line.contains("mem-ws: body"),
+            "trim_start before strip must yield body; got {line}"
+        );
+        assert!(
+            !line.contains("ASSISTANT:"),
+            "leading whitespace must not leak role token; got {line}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__user_system_strip_mid_lower_leave__ac2() {
+        let user = format_pretty_hit_line(
+            "m-u",
+            "USER: hello world",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert_eq!(user, "m-u: hello world");
+
+        let system = format_pretty_hit_line(
+            "m-s",
+            "SYSTEM: note",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert_eq!(system, "m-s: note");
+
+        let mid = format_pretty_hit_line(
+            "m-mid",
+            "text ASSISTANT: x",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert_eq!(mid, "m-mid: text ASSISTANT: x");
+
+        let lower = format_pretty_hit_line(
+            "m-lo",
+            "assistant: leave me",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert_eq!(lower, "m-lo: assistant: leave me");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__strip_before_truncate__ac1b() {
+        // Prefix + long body: strip must run before 500-char cut so ASSISTANT: is gone
+        // and body starts the display text (not role chrome left by post-truncate strip).
+        let body: String = "X".repeat(600);
+        let content = format!("ASSISTANT: {body}");
+        let line = format_pretty_hit_line(
+            "mem-long",
+            &content,
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        let after_id = line
+            .strip_prefix("mem-long: ")
+            .expect("pretty line must start with memory id");
+        assert!(
+            after_id.starts_with('X'),
+            "strip-before-truncate must start with body, not ASSISTANT:; got {}",
+            &after_id[..after_id.len().min(40)]
+        );
+        assert!(
+            !after_id.starts_with("ASSISTANT:"),
+            "must not lead with role token after truncate; got {}",
+            &after_id[..after_id.len().min(40)]
+        );
+        // Truncated with ASCII ... (existing formatter marker).
+        assert!(
+            after_id.ends_with("..."),
+            "long body must truncate with ...; got len={}",
+            after_id.chars().count()
+        );
+        // 500 body chars + "..."
+        assert_eq!(
+            after_id.chars().count(),
+            503,
+            "500-char take + ... marker; got {}",
+            after_id.chars().count()
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__multibyte_crlf__ac9() {
+        let multibyte = format_pretty_hit_line(
+            "m-mb",
+            "ASSISTANT: 日本語テスト 🚀 end",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert_eq!(multibyte, "m-mb: 日本語テスト 🚀 end");
+
+        let crlf = format_pretty_hit_line(
+            "m-cr",
+            "\r\nASSISTANT: after-crlf",
+            None,
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert_eq!(crlf, "m-cr: after-crlf");
     }
 
     #[test]

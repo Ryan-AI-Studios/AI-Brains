@@ -253,9 +253,9 @@ fn strip_role_on_content_line(line: &str) -> String {
 ///
 /// Multi-line turns (from `truncate_turn`) emit only the first line with a role
 /// prefix; continuation lines must not count as extra turns (T219 M1).
+/// Token list SOOT: [`super::display_text::has_leading_role_prefix`] (T224 AC10).
 fn is_session_turn_start(line: &str) -> bool {
-    let t = line.trim_start();
-    t.starts_with("USER:") || t.starts_with("ASSISTANT:") || t.starts_with("SYSTEM:")
+    super::display_text::has_leading_role_prefix(line.trim_start())
 }
 
 /// Format full preflight body for human/pretty display (T219).

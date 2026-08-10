@@ -1,10 +1,10 @@
 # T217–T232 — Post-audit CLI quality series (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-05 (scores &lt; 7 + high-leverage improvements).
-**Status:** Series active — **T217 + T218 + T219 + T220 + T221 closed**; remaining tracks placeholders.
+**Status:** Series active — **T217 + T218 + T219 + T220 + T221 closed**; **T224 Planning** (plan-only until go); remaining tracks placeholders.
 **Prior series:** T205–T216 closed (skill·CLI honesty).
 **Closed:** **T217** FTS multi-token rescue (PR #110 `1e22e77`); **T218** semantic quality v2 (PR #116 `fc4d370`); **T219** preflight pretty readability (PR #118 `496ddd7`); **T220** preflight summary JSON honesty (PR #112 `6f4f67b`); **T221** governed first-run + deny exit honesty (PR #114 `b3c4b0f`, 2026-08-09).
-**Next honesty:** **T224** (search role strip; reuses T219 helper) / peers.
+**Next honesty:** **T224** 📋 Planning (search role strip; reuses T219 helper) → then graph/install peers.
 
 ## Score → track map
 
@@ -17,7 +17,7 @@
 | Governed first-run + progressive deny exit0 (**4–5 / 5–6**) | **T221** ✅ closed PR #114 | P1 |
 | Graph-off install usefulness (**3** / 9 honesty) | **T222** Graph-on install path | P2 |
 | `.env` override double-warn spam | **T223** Quiet env override warnings | P2 |
-| `ASSISTANT:` in recall/sync/forget dry-run | **T224** Search/display role-prefix strip | P2 |
+| `ASSISTANT:` in recall/sync/forget dry-run | **T224** Search/display role-prefix strip — **Planning** 2026-08-10 | P2 |
 | Backup verify INFO flood + fleet unusable (**7 / 6**) | **T225** Backup verify quiet + encrypted backup nudge | P2 |
 | `policy show/check` require scope (**5–6**) | **T226** Policy soft-resolve scope | P2 |
 | Briefing human→JSON; empty personal (**4–5 / 5–6**) | **T227** Briefing format + substance | P2 |
