@@ -34,7 +34,7 @@ Core F1/F2b word-budget fix, F6 Scope wire, F7/F8 dual strip converge, F9/F10/F1
 | **AC10** | Met | `content_word_count` on `PreflightContext.word_count`; under-1500 still `word_count <= 1500` |
 | **AC11** | Met | CAPABILITIES preflight T219 rows; CHANGELOG T219 entry (F2b + governed F1) |
 | **AC12** | Residual | Plan Phase 6 full CI gate unchecked; not re-run in this review |
-| **AC13** | Residual | Manual dogfood unchecked in plan |
+| **AC13** | Met | Manual dogfood on `target\debug\ai-brains.exe`: multi-line Scope, no ASSISTANT index, `+N more via recall`, JSON 2-key ~88 newlines; plan checkbox marked |
 | **AC14** | Met (body) | Pure unit preserves `#`/`##`; Scope prepend is same `human_mode` wire (no governed hermetic) |
 | **AC15** | Met | Over/under budget sentinel units |
 | **AC16** | Met | Invariant unit `content_word_count == 3` + `\n` |
@@ -165,3 +165,10 @@ Source: `review.codex.md` (gpt-5.4 high, read-only).
 | P3 mid-body F2b budget | **Fixed** — `trim_to_word_budget_no_sentinel` for intermediate safety/index; remaining_budget via `content_word_count` |
 
 Product wiring: Codex affirmed core behavior (F1/F2b/F5/F6/F7/F9/F12/F14/T180). No open product P0–P2 after fixes.
+
+## Codex final product gate
+
+Source: `review.codex.final.md` — **PASS WITH DEFERRED P3**
+- P0/P2 none; product P1 none
+- Prior R1 P2/P3 verified fixed
+- Remaining: process closeout (CI merge, ledger commit, Completed status) + AC13 matrix row drift (fixed this commit)
