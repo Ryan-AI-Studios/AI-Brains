@@ -2,7 +2,7 @@
 
 - **Track ID:** T232-GraphDensityRemediation
 - **Phase:** T217–T232 post-audit CLI quality (P2 honesty)
-- **Status:** 🚧 **In review** (engineering complete; PR #124; closeout after CI green + squash-merge)
+- **Status:** ✅ **Completed** (PR #124 squash-merged `33b28d0`, 2026-08-10)
 - **Depends on:** **T213** density assessor + doctor `graph_density`; **T222** doctor `graph_feature` + `GRAPH_REINSTALL_SOOT` (PR #122 `c1ac594`)
 - **Blocks / feeds:** None hard; improves agent/operator next-action honesty after T222 install path
 - **Category:** FEATURE / UX (doctor + assessor text only)

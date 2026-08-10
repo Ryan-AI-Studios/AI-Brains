@@ -1,6 +1,6 @@
 # T232 — Graph density remediation path — Plan
 
-**Status:** 🚧 **In review** (PR #124; engineering complete)  
+**Status:** ✅ **Completed** (PR #124 `33b28d0`)  
 **Category:** FEATURE  
 **Depends:** T213 density assessor; T222 `graph_feature` + `GRAPH_REINSTALL_SOOT`  
 **Feeds:** Operator/agent honesty for sparse/empty graph next actions  
@@ -124,8 +124,8 @@ Thresholds, matrix order, soft severity, capture independence, and no auto-rebui
 - [x] `cargo nextest run -p ai-brains-cli --features graph -E 'test(graph)'` (38 passed, incl. sparse fixture)
 - [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
 - [x] Full workspace gate 2497 + `ledgerful verify --scope full` + commit PR #124
-- [ ] Conductor **Completed** / deferred strike / pin (post-merge closeout)
-- [x] `review.md`; Codex R1 FAIL→fix; R2 pending
+- [x] Conductor **Completed** / deferred strike / pin (closeout)
+- [x] `review.md`; Codex R1 FAIL→fix; R2 **PASS WITH DEFERRED P3**; final after closeout
 
 ## File touch map
 
