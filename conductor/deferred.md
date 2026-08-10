@@ -117,7 +117,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~preflight summary `--format json` lie (quality 3)~~ | **Closed by T220** PR #112 `6f4f67b` |
 | ~~Governed usefulness 4–5; progressive deny exit 0~~ | **Closed by T221** PR #114 `b3c4b0f` — progressive/expand deny exit 3 + `denial_hint` + human emit_error hint; soft residual F12/F32/F18/F36 |
 | ~~Graph-off PATH usefulness 3~~ | **Closed by T222** PR #122 `c1ac594` — scripts graph-on + doctor `graph_feature`; A2=no; soft residual T232 density remediations |
-| `.env` override double-warn spam | **T223** Placeholder |
+| `.env` override double-warn spam | **T223** Planning + AI fold-in (collapse + quiet shell/project-only + session demote; plan-only until go) |
 | ~~ASSISTANT: in search paths~~ | **Closed by T224** PR #120 `a18fae6` — pretty + forget previews strip; JSON/events raw; soft residual truncate triplication / JSON preview field |
 | Backup verify noise + legacy fleet | **T225** Placeholder |
 | policy show/check required scope | **T226** Placeholder |

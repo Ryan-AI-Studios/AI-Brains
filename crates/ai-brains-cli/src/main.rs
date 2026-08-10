@@ -4,6 +4,7 @@ mod context;
 mod daemon_client;
 mod daemon_probe;
 mod elevation;
+mod env_warn;
 mod graph_density;
 mod harness;
 mod help_ia;
@@ -1897,6 +1898,11 @@ fn resolve_user_home_for_dotenv() -> Option<std::path::PathBuf> {
 }
 
 fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: bool) {
+    use env_warn::{
+        EnvOverrideEmit, PROJECT_ID_KEY, SESSION_ID_KEY, classify_env_overrides,
+        format_override_body, quiet_env_warn_truthy,
+    };
+
     let entries = match dotenvy::from_path_iter(path) {
         Ok(entries) => entries,
         Err(err) => {
@@ -1904,6 +1910,12 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
             return;
         }
     };
+
+    // Collect differ-gate pairs first, then force-set. Stable order PROJECT then SESSION
+    // (do not rely on .env file key order). T223: emit policy only — set_var still always.
+    let mut project_override: Option<(String, String)> = None;
+    let mut session_override: Option<(String, String)> = None;
+    let mut to_set: Vec<(String, String)> = Vec::new();
 
     for entry in entries {
         let (key, value) = match entry {
@@ -1914,33 +1926,59 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
             }
         };
 
-        if key != "AI_BRAINS_PROJECT_ID" && key != "AI_BRAINS_SESSION_ID" {
+        if key != PROJECT_ID_KEY && key != SESSION_ID_KEY {
             continue;
         }
 
-        if warn_on_override {
-            if let Ok(existing) = std::env::var(&key)
-                && existing != value
-            {
-                eprintln!(
-                    "Warning: local .env {} overrides inherited shell value {}.",
-                    key, existing
-                );
-            }
-        } else if let Ok(existing) = std::env::var(&key)
+        if let Ok(existing) = std::env::var(&key)
             && existing != value
         {
-            tracing::debug!(
-                "local .env {} overrides inherited shell value for this command",
-                key
-            );
+            if key == PROJECT_ID_KEY {
+                project_override = Some((key.clone(), existing));
+            } else {
+                session_override = Some((key.clone(), existing));
+            }
         }
 
+        to_set.push((key, value));
+    }
+
+    // Always force-set local IDs (F1 precedence frozen).
+    for (key, value) in to_set {
         // SAFETY: single-threaded CLI startup before worker threads; process env
         // is intentionally mutated for project-context loading.
         unsafe {
             std::env::set_var(key, value);
         }
+    }
+
+    let mut overrides: Vec<(&str, &str)> = Vec::new();
+    if let Some((ref k, ref old)) = project_override {
+        overrides.push((k.as_str(), old.as_str()));
+    }
+    if let Some((ref k, ref old)) = session_override {
+        overrides.push((k.as_str(), old.as_str()));
+    }
+    if overrides.is_empty() {
+        return;
+    }
+
+    // Quiet from process env at apply time (shell or project `.env` already gap-filled).
+    // Global `~/.ai-brains/.env` loads after this function — quiet only there is too late.
+    let quiet = quiet_env_warn_truthy(std::env::var(env_warn::QUIET_ENV_WARN_KEY).ok().as_deref());
+
+    let emit = if !warn_on_override || quiet {
+        Some(EnvOverrideEmit::Debug(format_override_body(&overrides)))
+    } else {
+        classify_env_overrides(&overrides)
+    };
+
+    match emit {
+        Some(EnvOverrideEmit::Stderr(line)) => eprintln!("{line}"),
+        Some(EnvOverrideEmit::Debug(body)) => {
+            tracing::debug!("{body}");
+        }
+        None => {}
     }
 }
 
@@ -2008,6 +2046,10 @@ fn main_inner() {
                 std::env::remove_var("AI_BRAINS_SESSION_ID");
             }
         } else {
+            // Gap-fill only (non-override): shell wins for general keys. PROJECT_ID /
+            // SESSION_ID are force-set below in apply_local_project_context_env so local
+            // project context beats a stale shell. Global ~/.ai-brains/.env merges after
+            // apply — quiet for override warnings must be shell or project `.env` (T223 M1).
             dotenvy::dotenv().ok();
             apply_local_project_context_env(project_env, warn_on_project_context_override);
         }

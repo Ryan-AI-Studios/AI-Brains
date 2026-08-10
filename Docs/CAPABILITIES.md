@@ -175,6 +175,9 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | Auto-detect | `project detect` (git slug → vault match → env `PROJECT_ID`); `context` discovery (`.ledgerful` / `.env`) |
 | Stop session | `stop-session` |
 | Env precedence | CLI flags / shell env > elevation handoff (elevated child only) > project `.env` > global `~\.ai-brains\.env` (always merged for gaps; `--no-project-context` skips project only) |
+| Local ID force-set | Project-local `.env` **always force-sets** `AI_BRAINS_PROJECT_ID` / `AI_BRAINS_SESSION_ID` (cwd project beats a stale shell). Other keys still follow shell > project > global gap-fill. |
+| Override warn (T223) | When shell had a **different** ID value, CLI may print **one** collapsed stderr line: `Warning: local .env overrides inherited shell: AI_BRAINS_PROJECT_ID (was …)[, AI_BRAINS_SESSION_ID (was …)].` **Session-only** override (PROJECT equal/missing) → no stderr; debug only. **Project** differ still warns unless quiet. |
+| Quiet override warn | `AI_BRAINS_QUIET_ENV_WARN=1`/`true`/`yes` (case-insensitive) → no stderr override line (collapsed `debug` only). Honored from **shell env or project `.env` only** (already loaded at emit). Global `~/.ai-brains/.env` alone is **too late** (loads after apply). Distinct from T206 `git/env project mismatch`. |
 
 Discovery prefers **`.ledgerful/`**, falls back to legacy **`.changeguard/`**.
 

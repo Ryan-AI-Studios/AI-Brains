@@ -773,8 +773,9 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | `AI_BRAINS_KEY` | SQLCipher vault key as product form `x'<64 hex>'` (67 chars; T187/T197). Required for vault-backed commands when `--key` omitted. Missing → `VAULT_KEY_MISSING` (not silent zero). CLI gap-fill: shell env > project `.env` > always-merge global `~/.ai-brains/.env` (non-override; still under `--no-project-context`). Never commit. |
 | `AI_BRAINS_ALLOW_ZERO_KEY` | When `1`/`true`/`yes` (case-insensitive), allow all-zero SQLCipher keys (hermetic tests / legacy dogfood only). Production should omit. Explicit zero without this → `VAULT_KEY_ZERO`. |
 | `AI_BRAINS_VAULT_KEY` | **Daemon only** (`ai-brainsd`): vault key env name used by the daemon process (not the CLI resolver). Prefer documenting daemon secrets in a 0600 env file; do not conflate with CLI `AI_BRAINS_KEY` without ensuring both are set when CLI and daemon share a vault. |
-| `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). |
-| `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). |
+| `AI_BRAINS_PROJECT_ID` | Default `project_id` for capture/recall (set by `ai-brains context`). Local `.env` force-sets this over a different shell value (T80/T223). |
+| `AI_BRAINS_SESSION_ID` | Default `session_id` (set by `ai-brains context`). Local `.env` force-sets this over a different shell value; session-only override is demoted to debug (no stderr). |
+| `AI_BRAINS_QUIET_ENV_WARN` | When `1`/`true`/`yes` (case-insensitive, trim), suppress stderr for local `.env` project-context ID override warnings (collapsed debug only). **Must be in shell env or project `.env`** — global `~/.ai-brains/.env` alone does **not** work (global loads after the warning is emitted). Does not affect T206 `git/env project mismatch`. |
 | `LEDGERFUL_TX_ID` | Ledgerful transaction ID for ledger cross-linking (preferred; T142). |
 | `CHANGEGUARD_TX_ID` | Deprecated alias for `LEDGERFUL_TX_ID` (warns and falls back; T142). |
 | `AI_BRAINS_MODEL_URL` | Endpoint for the local LLM completion server (default: `http://127.0.0.1:8081`). |
