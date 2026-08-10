@@ -18,8 +18,8 @@ pub use fts_utils::sanitize_fts_query;
 pub use hybrid::{
     RRF_K, SEMANTIC_MIN_COSINE, SEMANTIC_ONLY_MIN_COSINE, apply_dual_semantic_floor,
     candidate_depth, effective_semantic_min_cosine, effective_semantic_only_min_cosine,
-    filter_by_cosine_floor, has_fts_arm, rrf_fuse, rrf_k, semantic_min_cosine,
-    semantic_only_min_cosine,
+    filter_by_cosine_floor, fuse_local_and_semantic, has_fts_arm, rrf_fuse, rrf_k,
+    semantic_min_cosine, semantic_only_min_cosine,
 };
 pub use lexical::{
     LexicalSearchOptions, RetrievalMemory, lexical_search, match_limit_bound, substring_fallback,

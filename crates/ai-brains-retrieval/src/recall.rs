@@ -1,10 +1,7 @@
 use crate::GraphSearch;
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
-use crate::hybrid::{
-    candidate_depth, effective_semantic_only_min_cosine, filter_by_cosine_floor, has_fts_arm,
-    rrf_fuse, rrf_k,
-};
+use crate::hybrid::{candidate_depth, fuse_local_and_semantic, rrf_k};
 use crate::lexical::{LexicalSearchOptions, lexical_search, substring_fallback};
 use crate::ranking::ScoreKind;
 use crate::semantic::classify_embedding_error;
@@ -373,37 +370,20 @@ pub fn recall_full(
     };
 
     if options.semantic {
-        // F41: RRF FTS list = FTS-only hits; substring merges outside RRF.
-        let fts_only: Vec<RecallHit> = local_hits
-            .iter()
-            .filter(|h| h.source == "fts")
-            .take(depth)
-            .cloned()
-            .collect();
-        let substring_rest: Vec<RecallHit> = local_hits
-            .iter()
-            .filter(|h| h.source != "fts")
-            .cloned()
-            .collect();
-
-        // F2/F3/F37: dual semantic-only floor when no FTS arm (substring-only
-        // does not count). Applied after 0.55 hybrid-arm filter, before RRF.
+        // F37/F41 + dual floor: production SOOT is fuse_local_and_semantic
+        // (apply_dual_semantic_floor + FTS-only RRF + substring outside).
         // semantic_post_threshold_count is already post-0.55 / pre-dual-floor.
-        let mut sem = semantic_hits;
-        if !has_fts_arm(&local_hits) {
-            let only_floor = effective_semantic_only_min_cosine(options.min_semantic_score);
-            sem = filter_by_cosine_floor(sem, only_floor);
-        }
-        let fused = rrf_fuse(&fts_only, &sem, rrf_k());
+        let fused_local = fuse_local_and_semantic(
+            &local_hits,
+            semantic_hits,
+            options.min_semantic_score,
+            depth,
+            rrf_k(),
+        );
 
-        // Bridge first (wins on id), then fused, then substring outside RRF.
+        // Bridge first (wins on id), then fused FTS/semantic + substring rest.
         push_bridge(&mut blended, &mut seen_ids);
-        for hit in fused {
-            if seen_ids.insert(hit.memory_id.clone()) {
-                blended.push(hit);
-            }
-        }
-        for hit in substring_rest {
+        for hit in fused_local {
             if seen_ids.insert(hit.memory_id.clone()) {
                 blended.push(hit);
             }

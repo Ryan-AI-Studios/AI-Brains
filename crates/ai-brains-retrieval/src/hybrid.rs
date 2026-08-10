@@ -4,7 +4,7 @@
 
 use crate::ranking::ScoreKind;
 use crate::recall::RecallHit;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 /// Default RRF constant k (Cormack SIGIR 2009; industry default). Env: `AI_BRAINS_RRF_K`.
 pub const RRF_K: f64 = 60.0;
@@ -84,6 +84,45 @@ pub fn apply_dual_semantic_floor(
     }
     let floor = effective_semantic_only_min_cosine(min_score_override);
     filter_by_cosine_floor(semantic_hits, floor)
+}
+
+/// Production SOOT for dual-floor + FTS-only RRF + substring outside RRF
+/// (T218 F37/F41). Used by [`crate::recall::recall_full`] when semantic is on.
+///
+/// Steps:
+/// 1. Split `local_hits` into FTS-only (RRF arm, depth-capped) and non-FTS
+///    (substring rest merges after RRF).
+/// 2. Apply [`apply_dual_semantic_floor`] (strict 0.60 when no FTS arm).
+/// 3. [`rrf_fuse`] FTS-only with filtered semantic.
+/// 4. Append substring rest by first-seen `memory_id` (bridge merges outside).
+pub fn fuse_local_and_semantic(
+    local_hits: &[RecallHit],
+    semantic_hits: Vec<RecallHit>,
+    min_score_override: Option<f64>,
+    depth: usize,
+    k: f64,
+) -> Vec<RecallHit> {
+    let fts_only: Vec<RecallHit> = local_hits
+        .iter()
+        .filter(|h| h.source == "fts")
+        .take(depth)
+        .cloned()
+        .collect();
+    let substring_rest: Vec<RecallHit> = local_hits
+        .iter()
+        .filter(|h| h.source != "fts")
+        .cloned()
+        .collect();
+    let sem = apply_dual_semantic_floor(local_hits, semantic_hits, min_score_override);
+    let fused = rrf_fuse(&fts_only, &sem, k);
+    let mut out = fused;
+    let mut seen: HashSet<String> = out.iter().map(|h| h.memory_id.clone()).collect();
+    for h in substring_rest {
+        if seen.insert(h.memory_id.clone()) {
+            out.push(h);
+        }
+    }
+    out
 }
 
 fn parse_f64_env(key: &str) -> Option<f64> {
@@ -393,10 +432,20 @@ mod tests {
     // T218 dual floor + gate + cosine preserve
     // -----------------------------------------------------------------------
 
+    /// Strip ambient score/RRF env so dual-floor units use compile-time defaults.
+    fn dual_floor_env_isolation() -> [TempEnv; 3] {
+        [
+            TempEnv::remove("AI_BRAINS_SEMANTIC_MIN_SCORE"),
+            TempEnv::remove("AI_BRAINS_SEMANTIC_ONLY_MIN_SCORE"),
+            TempEnv::remove("AI_BRAINS_RRF_K"),
+        ]
+    }
+
     /// AC1: no FTS + cosines in [0.55, 0.60) → no semantic after dual floor.
     #[test]
     #[allow(non_snake_case)]
     fn dual_floor__no_fts_arm__weak_cosine_dropped__ac1() {
+        let _env = dual_floor_env_isolation();
         let local: Vec<RecallHit> = Vec::new();
         let sem = vec![
             sem_hit("weak-a", "noise a", 0.55),
@@ -420,6 +469,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn dual_floor__no_fts_arm__strong_cosine_retained__ac2() {
+        let _env = dual_floor_env_isolation();
         let local: Vec<RecallHit> = Vec::new();
         let sem = vec![
             sem_hit("strong", "on topic", 0.72),
@@ -435,14 +485,15 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn dual_floor__fts_arm_present__weak_still_eligible__ac3() {
+        let _env = dual_floor_env_isolation();
         let local = vec![fts_hit("lex", "lexical hit", Some(-2.0))];
         let weak = sem_hit("weak-sem", "weak neighbor", 0.57);
         let sem = vec![weak.clone()];
         let after = apply_dual_semantic_floor(&local, sem, None);
         assert_eq!(after.len(), 1);
         assert_eq!(after[0].memory_id, "weak-sem");
-        // And it participates in RRF.
-        let fused = rrf_fuse(&local, &after, RRF_K);
+        // Production SOOT path: fuse_local_and_semantic keeps weak with FTS arm.
+        let fused = fuse_local_and_semantic(&local, vec![weak], None, 15, RRF_K);
         assert!(fused.iter().any(|h| h.memory_id == "weak-sem"));
         assert!(fused.iter().any(|h| h.memory_id == "lex"));
     }
@@ -451,6 +502,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn dual_floor__min_score_override_replaces_both_gates__ac16() {
+        let _env = dual_floor_env_isolation();
         // Override 0.57: re-admits [0.55,0.60) residual that default dual would drop.
         assert!((effective_semantic_min_cosine(Some(0.57)) - 0.57).abs() < 1e-12);
         assert!((effective_semantic_only_min_cosine(Some(0.57)) - 0.57).abs() < 1e-12);
@@ -471,10 +523,11 @@ mod tests {
     }
 
     /// AC18: substring-only local arm applies SEMANTIC_ONLY_MIN; weak dropped;
-    /// substring still merges outside RRF.
+    /// substring still merges outside RRF (production SOOT = fuse_local_and_semantic).
     #[test]
     #[allow(non_snake_case)]
     fn dual_floor__substring_only_applies_strict_floor_and_merges__ac18() {
+        let _env = dual_floor_env_isolation();
         let local = vec![RecallHit::substring(
             "sub-1".into(),
             "substring match content".into(),
@@ -487,42 +540,49 @@ mod tests {
         );
 
         let weak = vec![sem_hit("noise", "off topic", 0.56)];
-        let after_floor = apply_dual_semantic_floor(&local, weak, None);
-        assert!(
-            after_floor.is_empty(),
-            "weak semantic must drop under semantic-only floor"
-        );
-
-        // F41: RRF FTS list empty; fuse semantic-empty → empty; substring merges after.
-        let fts_only: Vec<RecallHit> = local
-            .iter()
-            .filter(|h| h.source == "fts")
-            .cloned()
-            .collect();
-        assert!(fts_only.is_empty());
-        let fused = rrf_fuse(&fts_only, &after_floor, RRF_K);
-        assert!(fused.is_empty());
-
-        let substring_rest: Vec<RecallHit> = local
-            .iter()
-            .filter(|h| h.source != "fts")
-            .cloned()
-            .collect();
-        let mut seen = std::collections::HashSet::new();
-        let mut blended = Vec::new();
-        for hit in fused {
-            if seen.insert(hit.memory_id.clone()) {
-                blended.push(hit);
-            }
-        }
-        for hit in substring_rest {
-            if seen.insert(hit.memory_id.clone()) {
-                blended.push(hit);
-            }
-        }
+        let blended = fuse_local_and_semantic(&local, weak, None, 15, RRF_K);
         assert_eq!(blended.len(), 1);
         assert_eq!(blended[0].source, "substring");
         assert_eq!(blended[0].memory_id, "sub-1");
+        assert!(
+            !blended.iter().any(|h| h.memory_id == "noise"),
+            "weak semantic must drop under semantic-only floor"
+        );
+    }
+
+    /// Production fuse SOOT AC1: empty local + weak [0.55,0.60) → no hits.
+    #[test]
+    #[allow(non_snake_case)]
+    fn fuse_local_and_semantic__no_fts__weak_dropped__ac1() {
+        let _env = dual_floor_env_isolation();
+        let local: Vec<RecallHit> = Vec::new();
+        let sem = vec![
+            sem_hit("weak-a", "noise a", 0.55),
+            sem_hit("weak-b", "noise b", 0.59),
+        ];
+        let out = fuse_local_and_semantic(&local, sem, None, 15, RRF_K);
+        assert!(
+            out.is_empty(),
+            "production fuse must drop weak semantic-only; got {:?}",
+            out.iter().map(|h| h.memory_id.as_str()).collect::<Vec<_>>()
+        );
+    }
+
+    /// Production fuse SOOT AC2: empty local + strong ≥0.60 retained.
+    #[test]
+    #[allow(non_snake_case)]
+    fn fuse_local_and_semantic__no_fts__strong_retained__ac2() {
+        let _env = dual_floor_env_isolation();
+        let local: Vec<RecallHit> = Vec::new();
+        let sem = vec![
+            sem_hit("strong", "on topic", 0.72),
+            sem_hit("border", "border", SEMANTIC_ONLY_MIN_COSINE),
+            sem_hit("weak", "noise", 0.59),
+        ];
+        let out = fuse_local_and_semantic(&local, sem, None, 15, RRF_K);
+        let ids: Vec<&str> = out.iter().map(|h| h.memory_id.as_str()).collect();
+        assert_eq!(ids, vec!["strong", "border"]);
+        assert!(out.iter().all(|h| h.source == "semantic"));
     }
 
     /// T218 F4: rrf_fuse preserves cosine from semantic arm (even when content prefers FTS).

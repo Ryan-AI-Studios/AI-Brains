@@ -7,11 +7,21 @@
 mod common;
 
 use ai_brains_core::privacy::Privacy;
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_retrieval::{
-    SEMANTIC_MIN_COSINE, apply_dual_semantic_floor, filter_by_cosine_floor, has_fts_arm, rrf_fuse,
-    semantic_search_with_embedding,
+    RRF_K, SEMANTIC_MIN_COSINE, apply_dual_semantic_floor, filter_by_cosine_floor,
+    fuse_local_and_semantic, has_fts_arm, rrf_fuse, semantic_search_with_embedding,
 };
 use ai_brains_store::QueryStore;
+
+/// Strip ambient score/RRF env so hermetic dual-floor path uses defaults.
+fn dual_floor_env_isolation() -> [TempEnv; 3] {
+    [
+        TempEnv::remove("AI_BRAINS_SEMANTIC_MIN_SCORE"),
+        TempEnv::remove("AI_BRAINS_SEMANTIC_ONLY_MIN_SCORE"),
+        TempEnv::remove("AI_BRAINS_RRF_K"),
+    ]
+}
 
 /// Pack f32 LE bytes for a unit-ish vector.
 fn f32_le_blob(v: &[f32]) -> Vec<u8> {
@@ -164,5 +174,137 @@ fn semantic_search_with_embedding__below_hybrid_floor_dropped()
         "cosine 0 must be below hybrid floor; got {:?}",
         outcome.hits
     );
+    Ok(())
+}
+
+/// H1: production SOOT `fuse_local_and_semantic` with injection-seam semantic hits.
+///
+/// Covers dual floor + FTS-only RRF + substring outside RRF on the same path
+/// `recall_full` uses when `options.semantic` (no HTTP embed).
+#[test]
+fn fuse_local_and_semantic__production_soot__dual_floor_blend__h1()
+-> Result<(), Box<dyn std::error::Error>> {
+    let _env = dual_floor_env_isolation();
+
+    let store = common::store_with_memory(
+        "DECISION: hermetic dual-floor production fuse path",
+        Privacy::CloudOk,
+    )?;
+    let conn = store.connection();
+    let memory_id: String = {
+        let db = conn.lock()?;
+        db.query_row(
+            "SELECT memory_id FROM memory_projection WHERE status = 'pinned' LIMIT 1",
+            [],
+            |row| row.get(0),
+        )?
+    };
+
+    // Strong synthetic embedding (identical → cosine ≈ 1.0).
+    let strong_vec = vec![0.6f32, 0.8, 0.0, 0.0];
+    conn.store_embedding(&memory_id, &f32_le_blob(&strong_vec))?;
+    let strong_outcome =
+        semantic_search_with_embedding(conn, &strong_vec, 15, None, None, Some(SEMANTIC_MIN_COSINE))?;
+    assert_eq!(strong_outcome.embedding.status, "ok");
+    assert!(!strong_outcome.hits.is_empty());
+    assert!(
+        strong_outcome.hits[0]
+            .cosine
+            .is_some_and(|c| c > 0.9),
+        "strong synthetic cosine; got {:?}",
+        strong_outcome.hits[0].cosine
+    );
+
+    // --- AC1 path: no FTS + weak residual [0.55,0.60) dropped ---
+    let weak_only = vec![ai_brains_retrieval::RecallHit::semantic(
+        "weak-noise".into(),
+        "off topic residual".into(),
+        Some(0.56),
+        None,
+        None,
+        None,
+    )];
+    let ac1 = fuse_local_and_semantic(&[], weak_only, None, 15, RRF_K);
+    assert!(
+        ac1.is_empty(),
+        "production fuse drops weak semantic-only; got {:?}",
+        ac1.iter().map(|h| h.memory_id.as_str()).collect::<Vec<_>>()
+    );
+
+    // --- AC2 path: no FTS + strong from injection seam retained ---
+    let ac2 = fuse_local_and_semantic(&[], strong_outcome.hits.clone(), None, 15, RRF_K);
+    assert_eq!(ac2.len(), 1);
+    assert_eq!(ac2[0].memory_id, memory_id);
+    assert_eq!(ac2[0].source, "semantic");
+    assert!(ac2[0].cosine.is_some_and(|c| c > 0.9));
+
+    // --- AC3 path: FTS arm keeps weak [0.55,0.60) for RRF ---
+    let fts_local = vec![ai_brains_retrieval::RecallHit::fts(
+        "lex-1".into(),
+        "FROM_FTS lexical".into(),
+        Some(-2.0),
+        None,
+        None,
+    )];
+    let weak_sem = vec![ai_brains_retrieval::RecallHit::semantic(
+        "weak-sem".into(),
+        "weak neighbor".into(),
+        Some(0.57),
+        None,
+        None,
+        None,
+    )];
+    let ac3 = fuse_local_and_semantic(&fts_local, weak_sem, None, 15, RRF_K);
+    assert!(
+        ac3.iter().any(|h| h.memory_id == "weak-sem"),
+        "FTS arm must keep weak semantic for RRF"
+    );
+    assert!(ac3.iter().any(|h| h.memory_id == "lex-1"));
+
+    // Hybrid fuse with same id: FTS content + cosine preserved (F4).
+    let hybrid_local = vec![ai_brains_retrieval::RecallHit::fts(
+        memory_id.clone(),
+        "FROM_FTS lexical".into(),
+        Some(-1.0),
+        None,
+        None,
+    )];
+    let hybrid = fuse_local_and_semantic(&hybrid_local, strong_outcome.hits, None, 15, RRF_K);
+    assert_eq!(hybrid.len(), 1);
+    assert_eq!(hybrid[0].source, "hybrid");
+    assert_eq!(hybrid[0].content, "FROM_FTS lexical");
+    assert!(
+        hybrid[0].cosine.is_some_and(|c| c > 0.9),
+        "fused must preserve pre-fuse cosine; got {:?}",
+        hybrid[0].cosine
+    );
+
+    // --- AC18 path: substring-only applies strict floor; substring merges outside RRF ---
+    let sub_local = vec![ai_brains_retrieval::RecallHit::substring(
+        "sub-1".into(),
+        "substring match content".into(),
+        None,
+        None,
+    )];
+    assert!(!has_fts_arm(&sub_local));
+    let ac18 = fuse_local_and_semantic(
+        &sub_local,
+        vec![ai_brains_retrieval::RecallHit::semantic(
+            "noise".into(),
+            "off topic".into(),
+            Some(0.56),
+            None,
+            None,
+            None,
+        )],
+        None,
+        15,
+        RRF_K,
+    );
+    assert_eq!(ac18.len(), 1);
+    assert_eq!(ac18[0].source, "substring");
+    assert_eq!(ac18[0].memory_id, "sub-1");
+    assert!(!ac18.iter().any(|h| h.memory_id == "noise"));
+
     Ok(())
 }
