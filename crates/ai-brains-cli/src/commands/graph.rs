@@ -153,7 +153,9 @@ pub fn update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::GraphHealthOutput;
-    use crate::graph_density::{GraphDensitySnapshot, assess_graph_density};
+    use crate::graph_density::{
+        GraphDensitySnapshot, REMEDIATION_REBUILD, assess_graph_density_with,
+    };
 
     /// T213 AC8: success JSON shape includes expanded density fields + note.
     #[test]
@@ -164,7 +166,7 @@ mod tests {
             pinned_memories: 5,
             memory_nodes: Some(5),
         };
-        let a = assess_graph_density(&snap);
+        let a = assess_graph_density_with(&snap, true);
         assert_eq!(a.status, "live");
         assert_eq!(a.density, "ok");
 
@@ -205,7 +207,7 @@ mod tests {
         ));
     }
 
-    /// T213 AC9: sparse fixture maps status/density + remediation rebuild.
+    /// T213 AC9 / T232 L3: sparse fixture maps status/density + exact rebuild remediation.
     #[test]
     fn graph_health_output__sparse_fixture__status_sparse_with_remediation() {
         let snap = GraphDensitySnapshot {
@@ -214,7 +216,8 @@ mod tests {
             pinned_memories: 8398,
             memory_nodes: Some(500),
         };
-        let a = assess_graph_density(&snap);
+        let a = assess_graph_density_with(&snap, true);
+        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
         let report = GraphHealthOutput {
             nodes: snap.nodes,
             edges: snap.edges,
@@ -231,10 +234,9 @@ mod tests {
                 .expect("json");
         assert_eq!(v["status"], "sparse");
         assert_eq!(v["density"], "warn");
-        assert!(
-            v["remediation"]
-                .as_str()
-                .is_some_and(|r| r.contains("rebuild")),
+        assert_eq!(
+            v["remediation"].as_str(),
+            Some(REMEDIATION_REBUILD),
             "remediation: {}",
             v["remediation"]
         );

@@ -701,7 +701,7 @@ fn check_graph_density(
             return HealthCheck::warn(
                 "graph_density",
                 format!("graph count query failed: {e}"),
-                Some("ai-brains graph rebuild".into()),
+                Some(crate::graph_density::density_remediation(cfg!(feature = "graph")).into()),
             );
         }
     };

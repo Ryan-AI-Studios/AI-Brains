@@ -714,9 +714,15 @@ Success JSON shape (pretty):
 | `sparse` | Under-linked (E/N below typed-lineage floor **0.50**), orphan nodes (many nodes, zero edges), or severe memory projection lag |
 | `empty` | Many pinned memories but graph tables empty (empty lag) |
 
-**When to rebuild:** if `status` is `sparse` or `empty`, or `density` is `warn`, run:
+**When to rebuild (T232 — capability-aware):** if `status` is `sparse` or `empty`, or doctor/`graph update` `density` is `warn`, pick the next action that matches **this binary**:
+
+| Capability | Primary remediation |
+|------------|---------------------|
+| `graph_feature=available` (or graph CLI present; `--features graph`) | `ai-brains graph rebuild` |
+| `graph_feature=unavailable` (default / Release graph-off) | Install a graph-capable binary first: `cargo install --path crates/ai-brains-cli --locked --features graph` (`GRAPH_REINSTALL_SOOT`) — rebuild is a dead-end on graph-off |
 
 ```powershell
+# Graph-on only:
 ai-brains graph rebuild
 ```
 
@@ -728,12 +734,13 @@ Do **not** treat non-zero `nodes` alone as healthy — live dogfood historically
 ai-brains doctor --format json
 # checks include:
 #   name=graph_feature  (soft info: available|unavailable via compile-time cfg; never alone fail/degraded)
-#   name=graph_density  (soft warn → overall degraded; never hard-fail alone)
+#   name=graph_density  (soft warn → overall degraded; never hard-fail alone;
+#                        remediation = rebuild when graph-on, GRAPH_REINSTALL_SOOT when graph-off)
 ```
 
 **Local graph-on rebuild:** `scripts/Build-AIBrains.ps1` and `scripts/build.ps1` build CLI with `--features graph` and probe `graph_feature=available` before finishing (T222). Primary source install SOOT remains `cargo install --path crates/ai-brains-cli --locked --features graph`. Cargo `default = []` is unchanged (slim / Release may stay graph-off).
 
-Empty-lag remediation may mention a graph-on reinstall. Thresholds (soft env, invalid→default): `AI_BRAINS_GRAPH_MIN_PINNED` (100), `AI_BRAINS_GRAPH_MIN_NODES` (50), `AI_BRAINS_GRAPH_MIN_EDGE_RATIO` (0.50), `AI_BRAINS_GRAPH_MIN_MEMORY_COVERAGE` (0.10 severe floor).
+Thresholds (soft env, invalid→default): `AI_BRAINS_GRAPH_MIN_PINNED` (100), `AI_BRAINS_GRAPH_MIN_NODES` (50), `AI_BRAINS_GRAPH_MIN_EDGE_RATIO` (0.50), `AI_BRAINS_GRAPH_MIN_MEMORY_COVERAGE` (0.10 severe floor).
 
 **Cozo init quiet by default (T208):** graph-on CLI paths construct the Cozo proxy but do **not** print `CozoProxyBackend initialized` under the product default log filter. To see lifecycle/debug for the graph crate only:
 
@@ -816,7 +823,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Recovery kit export | `ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force]` (T188) |
 | Doctor (health) | `ai-brains doctor [--json] [--kit-path] [--passphrase-file] [--fail-on-degraded] [--backup-max-age 7d] [--full]` (T192; read-only) |
 | Manage Projects | `ai-brains project list/resolve/detect` |
-| Graph Health | `ai-brains graph update` (`live`\|`sparse`\|`empty`; rebuild if sparse/empty) + doctor `graph_density` |
+| Graph Health | `ai-brains graph update` (`live`\|`sparse`\|`empty`; graph-on rebuild if sparse/empty) + doctor `graph_density` (capability-aware remediation: rebuild vs reinstall SOOT — T232) |
 
 ## Desktop thin client (T172 + T173 security)
 
