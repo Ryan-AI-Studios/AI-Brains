@@ -12,6 +12,7 @@
 | R1 | Internal (explore) | **CLEAN** | No Critical/High/Medium; AC1–AC13 product path pass |
 | R2 | Codex (`review.codex.md`) | **FAIL** (process + 2×P2) | See dispositions below |
 | R3 | Codex re-review (`review.codex.r2.md`) | **PASS WITH DEFERRED P3** | Prior P2 fixed; no new P0–P2; only pre-merge process P3 |
+| R4 | Ship | **Merged** | PR #120 squash `a18fae6`; CI Win/Linux/macOS green; conductor/deferred closeout |
 
 ## Manual dogfood (2026-08-10)
 
