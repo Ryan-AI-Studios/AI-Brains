@@ -203,14 +203,18 @@ fn fuse_local_and_semantic__production_soot__dual_floor_blend__h1()
     // Strong synthetic embedding (identical → cosine ≈ 1.0).
     let strong_vec = vec![0.6f32, 0.8, 0.0, 0.0];
     conn.store_embedding(&memory_id, &f32_le_blob(&strong_vec))?;
-    let strong_outcome =
-        semantic_search_with_embedding(conn, &strong_vec, 15, None, None, Some(SEMANTIC_MIN_COSINE))?;
+    let strong_outcome = semantic_search_with_embedding(
+        conn,
+        &strong_vec,
+        15,
+        None,
+        None,
+        Some(SEMANTIC_MIN_COSINE),
+    )?;
     assert_eq!(strong_outcome.embedding.status, "ok");
     assert!(!strong_outcome.hits.is_empty());
     assert!(
-        strong_outcome.hits[0]
-            .cosine
-            .is_some_and(|c| c > 0.9),
+        strong_outcome.hits[0].cosine.is_some_and(|c| c > 0.9),
         "strong synthetic cosine; got {:?}",
         strong_outcome.hits[0].cosine
     );
