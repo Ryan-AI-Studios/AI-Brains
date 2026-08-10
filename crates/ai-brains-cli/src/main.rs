@@ -1897,7 +1897,18 @@ fn resolve_user_home_for_dotenv() -> Option<std::path::PathBuf> {
     dirs::home_dir()
 }
 
-fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: bool) {
+/// Apply local `.env` force-set for PROJECT_ID/SESSION_ID and emit override policy.
+///
+/// Returns a **deferred** collapsed debug body when the emit path is Debug
+/// (session-only, quiet, or non-warn command). Caller must log it with
+/// `tracing::debug!` **after** the tracing subscriber is installed — this
+/// function runs before subscriber init (T223 Codex R1).
+///
+/// Stderr warnings are emitted immediately (eprintln does not need tracing).
+fn apply_local_project_context_env(
+    path: &std::path::Path,
+    warn_on_override: bool,
+) -> Option<String> {
     use env_warn::{
         EnvOverrideEmit, PROJECT_ID_KEY, SESSION_ID_KEY, classify_env_overrides,
         format_override_body, quiet_env_warn_truthy,
@@ -1906,8 +1917,9 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
     let entries = match dotenvy::from_path_iter(path) {
         Ok(entries) => entries,
         Err(err) => {
+            // Runs before subscriber init; dropped unless deferred path used later.
             tracing::warn!("Failed to parse local .env for project context: {}", err);
-            return;
+            return None;
         }
     };
 
@@ -1960,7 +1972,7 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
         overrides.push((k.as_str(), old.as_str()));
     }
     if overrides.is_empty() {
-        return;
+        return None;
     }
 
     // Quiet from process env at apply time (shell or project `.env` already gap-filled).
@@ -1974,11 +1986,13 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
     };
 
     match emit {
-        Some(EnvOverrideEmit::Stderr(line)) => eprintln!("{line}"),
-        Some(EnvOverrideEmit::Debug(body)) => {
-            tracing::debug!("{body}");
+        Some(EnvOverrideEmit::Stderr(line)) => {
+            eprintln!("{line}");
+            None
         }
-        None => {}
+        // Defer until after tracing subscriber init (main_inner).
+        Some(EnvOverrideEmit::Debug(body)) => Some(body),
+        None => None,
     }
 }
 
@@ -2036,6 +2050,10 @@ fn main_inner() {
     // T80: --no-project-context skips *project* discovery only so CI/hooks can
     // supply IDs explicitly. User-global ~/.ai-brains/.env still merges for gaps
     // (KEY / VAULT_PATH / models) unless the process already set those vars.
+    // Deferred override-debug body (session-only / quiet / non-warn): emit after
+    // tracing subscriber init so RUST_LOG=debug can observe collapsed F3 SOOT (T223).
+    let mut deferred_env_override_debug: Option<String> = None;
+
     if !no_project_context {
         let project_env = std::path::Path::new(".env");
         if !project_env.exists() {
@@ -2051,7 +2069,8 @@ fn main_inner() {
             // project context beats a stale shell. Global ~/.ai-brains/.env merges after
             // apply — quiet for override warnings must be shell or project `.env` (T223 M1).
             dotenvy::dotenv().ok();
-            apply_local_project_context_env(project_env, warn_on_project_context_override);
+            deferred_env_override_debug =
+                apply_local_project_context_env(project_env, warn_on_project_context_override);
         }
     }
 
@@ -2117,6 +2136,11 @@ fn main_inner() {
                 .with_env_filter(env_filter)
                 .init();
         }
+    }
+
+    // T223: deferred collapsed override debug (session-only / quiet / non-warn).
+    if let Some(body) = deferred_env_override_debug {
+        tracing::debug!("{body}");
     }
 
     // Set up a basic signal handler for graceful interruption
