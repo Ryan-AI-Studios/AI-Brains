@@ -264,6 +264,9 @@ pub fn run(
                 } else {
                     None
                 },
+                // T218 F5: narrow wire set bm25|rrf|bridge only (never cosine/hybrid).
+                score_kind: Some(score_kind_wire(h.score_kind).to_string()),
+                cosine: h.cosine,
             })
             .collect(),
         session_id: effective_session_id.map(|s| s.to_string()),
@@ -369,15 +372,36 @@ pub fn run(
     Ok(())
 }
 
+/// Map internal [`ScoreKind`] to the contracts wire `score_kind` (T218 F5).
+///
+/// Closed set: `bm25` | `rrf` | `bridge` only — never `cosine` or `hybrid`.
+pub fn score_kind_wire(kind: ai_brains_retrieval::ScoreKind) -> &'static str {
+    use ai_brains_retrieval::ScoreKind;
+    match kind {
+        ScoreKind::Bm25LowerBetter => "bm25",
+        ScoreKind::HigherIsBetter => "rrf",
+        ScoreKind::BridgeHigherIsBetter => "bridge",
+    }
+}
+
 /// Format one non-empty pretty hit line (shared by `recall` + `sync query`, T211 F37).
 ///
 /// Demoted Plan Decisions show `[plan/stale?]` immediately before content (F11).
+///
+/// **T218 F6:** branch on [`ScoreKind`]:
+/// - `HigherIsBetter` (RRF): primary `rank=#n` + optional `sim=0.XX` (not raw ~0.016)
+/// - `Bm25LowerBetter`: keep `score={:.3}` (negative rank polarity)
+/// - `BridgeHigherIsBetter`: keep readable raw `score={:.3}`
+#[allow(clippy::too_many_arguments)] // Shared pretty SOOT; mirrors hit fields + 1-based rank.
 pub fn format_pretty_hit_line(
     memory_id: &str,
     content: &str,
     score: Option<f64>,
     session_id: Option<&str>,
     is_plan_demoted: bool,
+    score_kind: ai_brains_retrieval::ScoreKind,
+    cosine: Option<f64>,
+    rank: usize,
 ) -> String {
     let content = if content.chars().count() > 500 {
         format!("{}...", content.chars().take(500).collect::<String>())
@@ -389,31 +413,49 @@ pub fn format_pretty_hit_line(
     } else {
         ""
     };
-    match session_id {
-        Some(sid) => {
+
+    let score_part = pretty_score_bracket(score_kind, score, cosine, rank);
+
+    match (score_part.as_deref(), session_id) {
+        (Some(sp), Some(sid)) => {
             let prefix = &sid[..sid.len().min(8)];
-            if let Some(s) = score {
-                format!(
-                    "[score={:.3} | session={}] {}: {}{}",
-                    s, prefix, memory_id, badge, content
-                )
-            } else {
-                format!("[session={}] {}: {}{}", prefix, memory_id, badge, content)
-            }
+            format!("[{sp} | session={prefix}] {memory_id}: {badge}{content}")
         }
-        None => {
-            if let Some(s) = score {
-                format!("[score={:.3}] {}: {}{}", s, memory_id, badge, content)
-            } else {
-                format!("{}: {}{}", memory_id, badge, content)
+        (Some(sp), None) => format!("[{sp}] {memory_id}: {badge}{content}"),
+        (None, Some(sid)) => {
+            let prefix = &sid[..sid.len().min(8)];
+            format!("[session={prefix}] {memory_id}: {badge}{content}")
+        }
+        (None, None) => format!("{memory_id}: {badge}{content}"),
+    }
+}
+
+/// Pretty score/rank fragment inside the hit bracket (T218 F6 / AC4).
+fn pretty_score_bracket(
+    score_kind: ai_brains_retrieval::ScoreKind,
+    score: Option<f64>,
+    cosine: Option<f64>,
+    rank: usize,
+) -> Option<String> {
+    use ai_brains_retrieval::ScoreKind;
+    match score_kind {
+        ScoreKind::HigherIsBetter => {
+            // Never primary-print raw RRF ~0.016; show 1-based rank + optional sim.
+            let mut parts = vec![format!("rank=#{rank}")];
+            if let Some(c) = cosine {
+                parts.push(format!("sim={c:.2}"));
             }
+            Some(parts.join(" | "))
+        }
+        ScoreKind::Bm25LowerBetter | ScoreKind::BridgeHigherIsBetter => {
+            score.map(|s| format!("score={s:.3}"))
         }
     }
 }
 
 /// Print non-empty pretty hits with plan/stale badges (T211).
 pub fn print_pretty_hits(hits: &[ai_brains_retrieval::RecallHit]) {
-    for h in hits {
+    for (i, h) in hits.iter().enumerate() {
         println!(
             "{}",
             format_pretty_hit_line(
@@ -422,6 +464,9 @@ pub fn print_pretty_hits(hits: &[ai_brains_retrieval::RecallHit]) {
                 h.score,
                 h.session_id.as_deref(),
                 h.is_plan_demoted,
+                h.score_kind,
+                h.cosine,
+                i + 1,
             )
         );
     }
@@ -918,6 +963,100 @@ mod tests {
             updated_at: None,
             is_plan_demoted: false,
             score_kind: ai_brains_retrieval::ScoreKind::HigherIsBetter,
+            cosine: None,
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // T218 F6 / AC4 — pretty ScoreKind branch
+    // -----------------------------------------------------------------------
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__higher_is_better__rank_not_raw_rrf__ac4() {
+        let line = format_pretty_hit_line(
+            "mem-1",
+            "content here",
+            Some(0.016393), // raw RRF 1/61 — must NOT be primary
+            Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            false,
+            ai_brains_retrieval::ScoreKind::HigherIsBetter,
+            Some(0.72),
+            1,
+        );
+        assert!(line.contains("rank=#1"), "must show rank; got {line}");
+        assert!(
+            line.contains("sim=0.72"),
+            "must show sim when cosine known; got {line}"
+        );
+        assert!(
+            !line.contains("score=0.016"),
+            "must not primary-print raw RRF; got {line}"
+        );
+        assert!(line.contains("session=aaaaaaaa"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__bm25__keeps_score__ac4() {
+        let line = format_pretty_hit_line(
+            "mem-2",
+            "lexical",
+            Some(-13.7),
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert!(
+            line.contains("score=-13.700"),
+            "BM25 must keep score= polarity; got {line}"
+        );
+        assert!(
+            !line.contains("rank="),
+            "BM25 must not use rank=; got {line}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__bridge__keeps_score__ac4() {
+        let line = format_pretty_hit_line(
+            "mem-3",
+            "bridge hit",
+            Some(0.85),
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::BridgeHigherIsBetter,
+            None,
+            2,
+        );
+        assert!(
+            line.contains("score=0.850"),
+            "bridge keeps raw score; got {line}"
+        );
+        assert!(
+            !line.contains("rank="),
+            "bridge must not use rank=; got {line}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn score_kind_wire__narrow_set_only__ac5() {
+        use ai_brains_retrieval::ScoreKind;
+        assert_eq!(score_kind_wire(ScoreKind::Bm25LowerBetter), "bm25");
+        assert_eq!(score_kind_wire(ScoreKind::HigherIsBetter), "rrf");
+        assert_eq!(score_kind_wire(ScoreKind::BridgeHigherIsBetter), "bridge");
+        // Closed set — never cosine/hybrid as wire kinds.
+        let allowed = ["bm25", "rrf", "bridge"];
+        for k in [
+            ScoreKind::Bm25LowerBetter,
+            ScoreKind::HigherIsBetter,
+            ScoreKind::BridgeHigherIsBetter,
+        ] {
+            assert!(allowed.contains(&score_kind_wire(k)));
         }
     }
 

@@ -362,6 +362,7 @@ mod tests {
             updated_at: updated_at.map(str::to_string),
             is_plan_demoted: false,
             score_kind,
+            cosine: None,
         }
     }
 

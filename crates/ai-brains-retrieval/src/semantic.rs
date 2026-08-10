@@ -221,8 +221,8 @@ pub fn status_after_embed_ok(
 
 /// Perform semantic search over pinned memories with non-null embeddings.
 ///
-/// Fetches an embedding for the query via LlamaCppProvider, then computes
-/// cosine similarity against stored embedding BLOBs.
+/// Fetches an embedding for the query via LlamaCppProvider, then scores stored
+/// BLOBs via [`semantic_search_with_embedding`] (T218 F12 injection seam).
 ///
 /// # Threshold + depth (T215)
 ///
@@ -241,9 +241,6 @@ pub fn semantic_search(
     session_id: Option<ai_brains_core::ids::SessionId>,
     min_score_override: Option<f64>,
 ) -> Result<SemanticOutcome> {
-    let endpoint_label = public_endpoint_label(&embedding_endpoint());
-    let floor = effective_semantic_min_cosine(min_score_override);
-
     let query_embedding = match fetch_embedding(query) {
         Ok(v) => v,
         Err(status) => {
@@ -253,6 +250,35 @@ pub fn semantic_search(
             });
         }
     };
+
+    semantic_search_with_embedding(
+        conn,
+        &query_embedding,
+        limit,
+        project_id,
+        session_id,
+        min_score_override,
+    )
+}
+
+/// Hermetic / production scoring path: cosine vs stored embedding BLOBs with a
+/// precomputed query vector (T218 F12 / AC10 / AC20).
+///
+/// Production [`semantic_search`] fetches the query embedding then calls this.
+/// Tests inject synthetic `f32` LE vectors without network.
+///
+/// Sets [`RecallHit::cosine`] = similarity (T218 F4). Hybrid-arm floor via
+/// [`effective_semantic_min_cosine`] (default 0.55 / `--min-score` replace).
+pub fn semantic_search_with_embedding(
+    conn: &VaultConnection,
+    query_vec: &[f32],
+    limit: usize,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    session_id: Option<ai_brains_core::ids::SessionId>,
+    min_score_override: Option<f64>,
+) -> Result<SemanticOutcome> {
+    let endpoint_label = public_endpoint_label(&embedding_endpoint());
+    let floor = effective_semantic_min_cosine(min_score_override);
 
     let memories = fetch_pinned_embeddings(conn, project_id, session_id)?;
     let total_rows = memories.len();
@@ -264,10 +290,11 @@ pub fn semantic_search(
             continue;
         };
         decodable_rows = decodable_rows.saturating_add(1);
-        let Some(sim) = cosine_similarity(&query_embedding, &emb) else {
+        let Some(sim) = cosine_similarity(query_vec, &emb) else {
             continue;
         };
         // Score all decodable rows first; floor applied via shared helper (F-03 / AC2).
+        // RecallHit::semantic sets cosine = score (pre-fuse sim).
         scored.push((
             sim,
             RecallHit::semantic(
