@@ -722,12 +722,16 @@ ai-brains graph rebuild
 
 Do **not** treat non-zero `nodes` alone as healthy — live dogfood historically showed ~1300 nodes / ~95 edges (`E/N ≈ 0.07`) while still reporting `live` before T213.
 
-**Graph-off lag:** default / GitHub Release binaries (no `--features graph`) never run the incremental LiveGraphHook. `graph update` exits **2** (`FEATURE_UNAVAILABLE`). Use doctor for SQL density on any binary:
+**Graph-off lag:** default / GitHub Release binaries (no `--features graph`) never run the incremental LiveGraphHook. `graph update` exits **2** (`FEATURE_UNAVAILABLE`). Use doctor for capability + SQL density on any binary:
 
 ```powershell
 ai-brains doctor --format json
-# checks include name=graph_density (soft warn → overall degraded; never hard-fail alone)
+# checks include:
+#   name=graph_feature  (soft info: available|unavailable via compile-time cfg; never alone fail/degraded)
+#   name=graph_density  (soft warn → overall degraded; never hard-fail alone)
 ```
+
+**Local graph-on rebuild:** `scripts/Build-AIBrains.ps1` and `scripts/build.ps1` build CLI with `--features graph` and probe `graph_feature=available` before finishing (T222). Primary source install SOOT remains `cargo install --path crates/ai-brains-cli --locked --features graph`. Cargo `default = []` is unchanged (slim / Release may stay graph-off).
 
 Empty-lag remediation may mention a graph-on reinstall. Thresholds (soft env, invalid→default): `AI_BRAINS_GRAPH_MIN_PINNED` (100), `AI_BRAINS_GRAPH_MIN_NODES` (50), `AI_BRAINS_GRAPH_MIN_EDGE_RATIO` (0.50), `AI_BRAINS_GRAPH_MIN_MEMORY_COVERAGE` (0.10 severe floor).
 

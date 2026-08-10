@@ -80,7 +80,7 @@ pub fn build_report(
     };
 
     let vault_path = &opts.vault_path;
-    let mut checks: Vec<HealthCheck> = Vec::with_capacity(12);
+    let mut checks: Vec<HealthCheck> = Vec::with_capacity(13);
 
     // 1. vault_exists
     let exists_check = check_vault_exists(vault_path);
@@ -225,17 +225,20 @@ pub fn build_report(
         None => HealthCheck::skip("zero_key_escape", skip_reason),
     });
 
-    // 10. graph_density (soft — never alone forces fail; SQL-only, capture-independent)
+    // 10. graph_feature (soft info — compile-time; never alone fail/degraded; T222)
+    checks.push(check_graph_feature());
+
+    // 11. graph_density (soft — never alone forces fail; SQL-only, capture-independent)
     checks.push(check_graph_density(
         vault_conn.as_ref(),
         open_failed,
         skip_reason,
     ));
 
-    // 11. harness_wiring (soft info — never fail/degraded solely for missing hooks; T235 F17)
+    // 12. harness_wiring (soft info — never fail/degraded solely for missing hooks; T235 F17)
     checks.push(check_harness_wiring());
 
-    // 12. integrity (optional --full)
+    // 13. integrity (optional --full)
     checks.push(if opts.full {
         match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
             Some(conn) => check_integrity(&conn),
@@ -658,6 +661,21 @@ fn check_harness_wiring() -> HealthCheck {
     }
 }
 
+/// Soft compile-time graph capability signal (T222 F9). Always Ok severity —
+/// never alone fail/degraded. Message `available` | `unavailable`.
+fn check_graph_feature() -> HealthCheck {
+    if cfg!(feature = "graph") {
+        HealthCheck::ok_msg("graph_feature", "available")
+    } else {
+        HealthCheck::new(
+            "graph_feature",
+            CheckSeverity::Ok,
+            Some("unavailable".into()),
+            Some(crate::commands::governed_common::GRAPH_REINSTALL_SOOT.into()),
+        )
+    }
+}
+
 /// Soft density check (T213): SQL counts only; never alone forces `fail`.
 fn check_graph_density(
     vault_conn: Option<&VaultConnection>,
@@ -810,7 +828,7 @@ mod tests {
     #[test]
     fn health_check_order_names__fixed_matrix() {
         // Document expected fixed order for determinism (F16/F30; T213 graph_density;
-        // T235 harness_wiring #11 before integrity last).
+        // T222 graph_feature before graph_density; T235 harness_wiring before integrity last).
         let expected = [
             "vault_exists",
             "vault_open",
@@ -821,14 +839,16 @@ mod tests {
             "recovery_kit_event",
             "recovery_kit_file",
             "zero_key_escape",
+            "graph_feature",
             "graph_density",
             "harness_wiring",
             "integrity",
         ];
-        assert_eq!(expected.len(), 12);
-        assert_eq!(expected[9], "graph_density");
-        assert_eq!(expected[10], "harness_wiring");
-        assert_eq!(expected[11], "integrity");
+        assert_eq!(expected.len(), 13);
+        assert_eq!(expected[9], "graph_feature");
+        assert_eq!(expected[10], "graph_density");
+        assert_eq!(expected[11], "harness_wiring");
+        assert_eq!(expected[12], "integrity");
         // Ensure HealthCheck helpers set ok flag correctly.
         assert!(HealthCheck::skip("integrity", "x").ok);
         assert_eq!(
@@ -861,7 +881,7 @@ mod tests {
         };
         let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
         let report = build_report(&opts, false).expect("report");
-        assert_eq!(report.checks.len(), 12, "12-check matrix");
+        assert_eq!(report.checks.len(), 13, "13-check matrix");
         let names: Vec<&str> = report.checks.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             names,
@@ -875,6 +895,7 @@ mod tests {
                 "recovery_kit_event",
                 "recovery_kit_file",
                 "zero_key_escape",
+                "graph_feature",
                 "graph_density",
                 "harness_wiring",
                 "integrity",
@@ -887,6 +908,25 @@ mod tests {
             .expect("graph_density");
         assert_eq!(density.severity, CheckSeverity::Skip);
         assert_ne!(density.severity, CheckSeverity::Fail);
+    }
+
+    /// T222 AC4–AC6: graph_feature message available|unavailable via compile-time cfg.
+    #[test]
+    fn doctor__graph_feature__message_available_or_unavailable() {
+        let check = check_graph_feature();
+        assert_eq!(check.name, "graph_feature");
+        assert_eq!(check.severity, CheckSeverity::Ok);
+        assert!(check.ok);
+        if cfg!(feature = "graph") {
+            assert_eq!(check.message.as_deref(), Some("available"));
+            assert!(check.remediation.is_none());
+        } else {
+            assert_eq!(check.message.as_deref(), Some("unavailable"));
+            assert_eq!(
+                check.remediation.as_deref(),
+                Some(crate::commands::governed_common::GRAPH_REINSTALL_SOOT)
+            );
+        }
     }
 
     /// T213: migrated vault with empty small graph → graph_density skip or ok (not fail).

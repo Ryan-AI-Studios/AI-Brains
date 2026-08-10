@@ -63,10 +63,10 @@ if ($cliProc) {
     Write-Host "  CLI process(es) stopped." -ForegroundColor Green
 }
 
-# Build release binary
+# Build release binary (T222: CLI with --features graph so PATH is graph-capable)
 Write-Host ""
-Write-Host "Building release binaries..." -ForegroundColor Cyan
-cargo build --release -p ai-brains-cli -p ai-brainsd
+Write-Host "Building release binaries (CLI --features graph)..." -ForegroundColor Cyan
+cargo build --release -p ai-brains-cli --features ai-brains-cli/graph -p ai-brainsd
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build failed with exit code $LASTEXITCODE"
     exit 1
@@ -124,6 +124,44 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Binary responds to --version" -ForegroundColor Green
 } else {
     Write-Warning "Binary may have issues"
+}
+
+# T222 F7: fail-closed graph capability probe (never touch operator vault)
+# SOOT: cargo install --path crates/ai-brains-cli --locked --features graph
+# Primary: doctor --json graph_feature=available (stdout only; --log-format off).
+# Secondary: graph update fail-closed only on exit 2 AND FEATURE_UNAVAILABLE.
+# Unique owned probe dir: assert vault path absent before use; remove only this dir.
+$probeDir = Join-Path $env:TEMP ("ai-brains-graph-probe-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $probeDir -Force | Out-Null
+$probeVault = Join-Path $probeDir "missing.db"
+if (Test-Path $probeVault) {
+    Write-Error "Probe vault path unexpectedly exists: $probeVault"
+    Remove-Item $probeDir -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+$prevVault = $env:AI_BRAINS_VAULT_PATH
+$env:AI_BRAINS_VAULT_PATH = $probeVault
+try {
+    $docOut = & $OutputBin --log-format off doctor --json 2>$null | Out-String
+    $gfOk = $false
+    try {
+        $report = $docOut | ConvertFrom-Json
+        $gf = $report.checks | Where-Object { $_.name -eq 'graph_feature' } | Select-Object -First 1
+        if ($gf -and $gf.message -eq 'available') { $gfOk = $true }
+    } catch { }
+
+    $probe = & $OutputBin --log-format off graph update 2>&1 | Out-String
+    $featureOff = ($LASTEXITCODE -eq 2 -and $probe -match 'FEATURE_UNAVAILABLE')
+    if ($featureOff -or -not $gfOk) {
+        Write-Error "Installed binary is graph-off or graph_feature not available; expected --features graph build"
+        exit 1
+    }
+    Write-Host "Graph feature probe: available" -ForegroundColor Green
+} finally {
+    if ($null -eq $prevVault) { Remove-Item Env:AI_BRAINS_VAULT_PATH -ErrorAction SilentlyContinue }
+    else { $env:AI_BRAINS_VAULT_PATH = $prevVault }
+    # Remove only this invocation's owned probe directory (may contain graph-on created vault).
+    if (Test-Path $probeDir) { Remove-Item $probeDir -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 # T84: Restart the daemon if it was running before the update

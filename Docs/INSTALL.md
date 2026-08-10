@@ -47,6 +47,8 @@ Developer release build (same feature set):
 cargo build --release -p ai-brains-cli --features graph
 ```
 
+**Local PATH rebuild scripts** (`scripts/Build-AIBrains.ps1`, `scripts/build.ps1`) also build the CLI with `--features graph` and run a fail-closed post-install probe (`doctor` `graph_feature=available` + non-`FEATURE_UNAVAILABLE` on `graph update` against a known-missing temp vault path). Use those scripts when you want a graph-capable binary on cargo bin / PATH without hand-rolling the feature flag.
+
 Binary path (typical): `target\release\ai-brains.exe`.
 
 ### Slim / capture-focused (graph-off)
