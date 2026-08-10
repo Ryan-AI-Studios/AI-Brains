@@ -15,6 +15,16 @@ const FORGET_PREVIEW_MAX: usize = 100;
 /// Multi-match list budget (T224 F5 / M4 — shorter skim; gains `…` via preview_line).
 const FORGET_MULTI_PREVIEW_MAX: usize = 80;
 
+/// Match / single Found / UUID human preview (T224 F5 — max 100, role strip).
+fn forget_match_preview(content: &str) -> String {
+    preview_line(content, FORGET_PREVIEW_MAX)
+}
+
+/// Multi-match list human preview (T224 F5/M4 — max 80, role strip, `…` on cut).
+fn forget_multi_preview(content: &str) -> String {
+    preview_line(content, FORGET_MULTI_PREVIEW_MAX)
+}
+
 /// Forget command. List-forgotten shares the inventory backend (T216 F1/F28).
 #[allow(clippy::too_many_arguments)] // clap dispatch surface; list flags share inventory backend
 pub fn run(
@@ -106,7 +116,7 @@ pub fn run(
             );
             for hit in &hits {
                 // T224 F5: shared preview_line SOOT (strip + first non-empty + …).
-                let preview = preview_line(&hit.content, FORGET_PREVIEW_MAX);
+                let preview = forget_match_preview(&hit.content);
                 println!("  {} — {}", hit.memory_id, preview);
             }
             return Ok(());
@@ -114,7 +124,7 @@ pub fn run(
 
         if hits.len() == 1 {
             let hit = &hits[0];
-            let preview = preview_line(&hit.content, FORGET_PREVIEW_MAX);
+            let preview = forget_match_preview(&hit.content);
             println!("Found: {} — {}", hit.memory_id, preview);
 
             if !force {
@@ -139,7 +149,7 @@ pub fn run(
             println!("Found {} matching memories:", hits.len());
             for hit in &hits {
                 // T224 F5/M4: max 80 + role strip; intentional … on cut (was raw 80, no ellipsis).
-                let preview = preview_line(&hit.content, FORGET_MULTI_PREVIEW_MAX);
+                let preview = forget_multi_preview(&hit.content);
                 println!("  {} — {}", hit.memory_id, preview);
             }
             if !force {
@@ -194,7 +204,7 @@ pub fn run(
         let preview = hits
             .iter()
             .find(|h| h.memory_id == id_str)
-            .map(|hit| preview_line(&hit.content, FORGET_PREVIEW_MAX));
+            .map(|hit| forget_match_preview(&hit.content));
 
         if dry_run {
             println!("[dry-run] Would forget memory {}.", id_str);
@@ -233,4 +243,54 @@ pub fn run(
     }
 
     Err("Specify a memory ID, use --match to search, --list-forgotten to view, or --restore to recover.".into())
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    /// AC4/AC6: dry-run match, single Found, UUID previews strip role + max 100.
+    #[test]
+    fn forget_match_preview__role_prefix_stripped__max_100() {
+        assert_eq!(
+            forget_match_preview("ASSISTANT: DECISION: use SQLCipher"),
+            "DECISION: use SQLCipher"
+        );
+        assert_eq!(forget_match_preview("USER: hello"), "hello");
+        assert_eq!(forget_match_preview("SYSTEM: note"), "note");
+        // Leading blank lines still find first non-empty + strip (via preview_line).
+        assert_eq!(
+            forget_match_preview("\n\n  ASSISTANT: body line\nsecond"),
+            "body line"
+        );
+        // Budget lock: over 100 chars → 99 + `…` (preview_line truncate SOOT).
+        let long = format!("ASSISTANT: {}", "x".repeat(120));
+        let out = forget_match_preview(&long);
+        assert!(!out.starts_with("ASSISTANT:"), "must strip; got {out}");
+        assert_eq!(out.chars().count(), FORGET_PREVIEW_MAX);
+        assert!(out.ends_with('…'), "must ellipsis on cut; got {out}");
+        assert_eq!(FORGET_PREVIEW_MAX, 100);
+    }
+
+    /// AC5: multi-match uses max 80 + strip + `…` on cut.
+    #[test]
+    fn forget_multi_preview__role_prefix_stripped__max_80() {
+        assert_eq!(
+            forget_multi_preview("ASSISTANT: DECISION: short"),
+            "DECISION: short"
+        );
+        let long = format!("ASSISTANT: {}", "y".repeat(100));
+        let out = forget_multi_preview(&long);
+        assert!(!out.starts_with("ASSISTANT:"), "must strip; got {out}");
+        assert_eq!(out.chars().count(), FORGET_MULTI_PREVIEW_MAX);
+        assert!(out.ends_with('…'), "must ellipsis on cut; got {out}");
+        assert_eq!(FORGET_MULTI_PREVIEW_MAX, 80);
+        // Mid-line / lowercase leave (same SOOT as preview_line).
+        assert_eq!(
+            forget_multi_preview("text ASSISTANT: still"),
+            "text ASSISTANT: still"
+        );
+        assert_eq!(forget_multi_preview("assistant: leave"), "assistant: leave");
+    }
 }

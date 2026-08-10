@@ -36,7 +36,7 @@ Remove leading `USER:` / `ASSISTANT:` / `SYSTEM:` from **human** search and forg
 - [x] `ledgerful doctor` / `ledgerful ledger status --compact`
 - [x] `ledgerful scan --impact` (expect `recall.rs`, `forget.rs`, maybe `display_text.rs` doc, docs)
 - [x] `ledgerful ledger start T224-search-role-prefix-strip --category UX …` (TX aefb8e8a-919e-4e72-840d-1bda5a761f9f)
-- [ ] `ai-brains preflight --summary`
+- [x] `ai-brains preflight --summary`
 
 ### Phase 1 — Red: pretty strip units (AC1–AC3, AC1b, AC2b, AC9)
 
@@ -69,7 +69,7 @@ let content = if content.chars().count() > 500 {
   - dry-run match / single Found / UUID: `preview_line(&hit.content, 100)`
   - multi-match list: `preview_line(&hit.content, 80)`
 - [x] Remove unused local `truncate_preview` from `forget.rs` **if** no longer referenced (leave ingest/pin alone)
-- [x] Units or path tests: strip + max 80/100; `…` on over-budget (intentional L1) — via `preview_line` units + wiring
+- [x] Units or path tests: strip + max 80/100; `…` on over-budget (intentional L1) — `forget_match_preview` / `forget_multi_preview` pure units + call-site wiring
 - [x] **Do not** edit ingest.rs / pin.rs dry-run (F5b)
 
 ### Phase 4 — JSON / events freeze (AC7–AC8)
@@ -88,22 +88,28 @@ let content = if content.chars().count() > 500 {
 
 ### Phase 6 — Manual + gate (AC12)
 
-- [ ] Manual: pretty recall + forget dry-run clean; JSON still has prefix when stored
-- [ ] Optional: pin/ingest dry-run still show role if present (honesty)
-- [x] `cargo nextest run -p ai-brains-cli` (bin package; no `--lib`) — **761 passed**
+- [x] Manual: pretty recall + forget dry-run clean; JSON still has prefix when stored
+- [x] Optional: pin/ingest dry-run stay raw by design (code freeze F5b; no dry-run edit)
+- [x] `cargo nextest run -p ai-brains-cli` (bin package; no `--lib`) — **761+** passed
 - [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` — clean
 - [x] `cargo fmt --check` — clean
-- [ ] Full gate: fmt / clippy workspace / nextest / deny / audit
-- [ ] `ledgerful verify` per practice
-- [ ] `review.md`; conductor Completed; deferred rows closed
+- [x] Full gate: fmt / clippy workspace / nextest **2487** / deny / audit — **FULL_GATE_OK**
+- [ ] `ledgerful verify` per practice (pre-push / ship)
+- [x] `review.md` (internal CLEAN + Codex R1 findings fixed); conductor Completed + deferred close after merge
 - [ ] ledger commit + pin + PR when ready
+
+### Codex R1 fix follow-up
+
+- [x] P2 forget AC4–AC6 pure units via `forget_match_preview` / `forget_multi_preview`
+- [x] P2 AC10 SOOT: `ROLE_PREFIXES` + `has_leading_role_prefix`; preflight turn-start uses helper
 ## File touch map
 
 | File | Change |
 |------|--------|
 | `crates/ai-brains-cli/src/commands/recall.rs` | F3 strip+trim in `format_pretty_hit_line`; pure units |
-| `crates/ai-brains-cli/src/commands/forget.rs` | Wire `preview_line` at human preview sites; drop local truncate if unused |
-| `crates/ai-brains-cli/src/commands/display_text.rs` | Doc consumers only (O4); **no strip logic change** |
+| `crates/ai-brains-cli/src/commands/forget.rs` | Wire `forget_*_preview` → `preview_line` at human sites; pure units AC4–AC6 |
+| `crates/ai-brains-cli/src/commands/display_text.rs` | O4 rustdoc; `ROLE_PREFIXES` SOOT; `has_leading_role_prefix` |
+| `crates/ai-brains-cli/src/commands/preflight.rs` | Turn-start detection via `has_leading_role_prefix` (AC10) |
 | `crates/ai-brains-cli/src/commands/memory.rs` | **No change** unless `preview_line` already `pub(crate)` (it is) |
 | `ingest.rs` / `pin.rs` | **No change** (M1/F5b) |
 | `Docs/CAPABILITIES.md`, `CHANGELOG.md` | Honesty |
