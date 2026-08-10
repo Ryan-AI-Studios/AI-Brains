@@ -85,6 +85,7 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 
 | Command / path | Style | Notes |
 |----------------|-------|-------|
+| `recall` JSON | **compact** (`to_string`) | Additive T218 (optional, default+skip): per-result `score_kind` (`bm25`\|`rrf`\|`bridge` only) + `cosine`; existing `score` / `source` / `staleness` / response `embedding` unchanged. N−1 clients ignore unknowns. |
 | `preflight` JSON (`--format json`, non-summary) | **compact** (`to_string`) | Keys: `text`, `word_count` only (T180 freeze) |
 | `preflight --summary --format json` | **pretty** (`to_string_pretty`) | T220 CLI-local envelope: `api_version`, `scope` (`global`\|`project`\|`none`), `project_id`, optional `projects` (global only), `pinned`, `active_sessions`, `in_context_*`, `word_count` (full budget text). Does **not** grow `PreflightContextResponse`. |
 | `scope resolve --format json` | **pretty** (`to_string_pretty` via `emit_json`) | Governed DTO wire |

@@ -1,7 +1,10 @@
 use crate::GraphSearch;
 use crate::errors::Result;
 use crate::fts_utils::sanitize_fts_query;
-use crate::hybrid::{candidate_depth, rrf_fuse, rrf_k};
+use crate::hybrid::{
+    candidate_depth, effective_semantic_only_min_cosine, filter_by_cosine_floor, has_fts_arm,
+    rrf_fuse, rrf_k,
+};
 use crate::lexical::{LexicalSearchOptions, lexical_search, substring_fallback};
 use crate::ranking::ScoreKind;
 use crate::semantic::classify_embedding_error;
@@ -44,6 +47,9 @@ pub struct RecallHit {
     pub is_plan_demoted: bool,
     /// How [`score`](Self::score) enters pin re-rank (T215 F6).
     pub score_kind: ScoreKind,
+    /// Pre-fuse cosine similarity when known (T218 F4). RRF writes rank-score into
+    /// [`score`](Self::score); this field preserves dense-arm sim for display / honesty.
+    pub cosine: Option<f64>,
 }
 
 /// Stored score for a graph-neighbor hit given the parent's score and kind (T215 F-01 / F13).
@@ -89,6 +95,7 @@ impl RecallHit {
             updated_at,
             is_plan_demoted: false,
             score_kind: ScoreKind::Bm25LowerBetter,
+            cosine: None,
         }
     }
 
@@ -109,6 +116,7 @@ impl RecallHit {
             updated_at,
             is_plan_demoted: false,
             score_kind: ScoreKind::Bm25LowerBetter,
+            cosine: None,
         }
     }
 
@@ -133,6 +141,7 @@ impl RecallHit {
             updated_at,
             is_plan_demoted: false,
             score_kind,
+            cosine: None,
         }
     }
 
@@ -158,12 +167,14 @@ impl RecallHit {
             updated_at: None,
             is_plan_demoted: false,
             score_kind: ScoreKind::BridgeHigherIsBetter,
+            cosine: None,
         }
     }
 
     /// Create a hit from dense embedding cosine similarity (T215 F42).
     ///
     /// Score kind is [`ScoreKind::HigherIsBetter`]; `score` is raw cosine in \[0, 1\].
+    /// Pre-fuse cosine is also stored on [`RecallHit::cosine`] (T218 F4).
     pub fn semantic(
         memory_id: String,
         content: String,
@@ -182,6 +193,7 @@ impl RecallHit {
             updated_at,
             is_plan_demoted: false,
             score_kind: ScoreKind::HigherIsBetter,
+            cosine: score,
         }
     }
 }
@@ -192,9 +204,10 @@ pub struct RecallOutcome {
     pub hits: Vec<RecallHit>,
     /// Set when `options.semantic` was true; `None` when semantic was not requested.
     pub embedding: Option<EmbeddingStatusDto>,
-    /// When semantic requested: count of semantic hits that passed the cosine
-    /// floor (before RRF). `None` when semantic was not requested. Used for
-    /// pretty F11 honesty (`ok` + zero post-threshold + FTS non-empty).
+    /// When semantic requested: count of semantic hits that passed the **0.55
+    /// hybrid-arm** cosine floor (**before** the dual semantic-only floor and
+    /// before RRF; T218 F11/L3). `None` when semantic was not requested. Used
+    /// for pretty F11 honesty (`ok` + zero post-threshold + FTS non-empty).
     pub semantic_post_threshold_count: Option<usize>,
 }
 
@@ -360,13 +373,37 @@ pub fn recall_full(
     };
 
     if options.semantic {
-        // Top candidate_depth of FTS (already rank-ordered by BM25) for RRF.
-        let fts_for_rrf: Vec<RecallHit> = local_hits.iter().take(depth).cloned().collect();
-        let fused = rrf_fuse(&fts_for_rrf, &semantic_hits, rrf_k());
+        // F41: RRF FTS list = FTS-only hits; substring merges outside RRF.
+        let fts_only: Vec<RecallHit> = local_hits
+            .iter()
+            .filter(|h| h.source == "fts")
+            .take(depth)
+            .cloned()
+            .collect();
+        let substring_rest: Vec<RecallHit> = local_hits
+            .iter()
+            .filter(|h| h.source != "fts")
+            .cloned()
+            .collect();
 
-        // Bridge first (wins on id collision), then fused vault list.
+        // F2/F3/F37: dual semantic-only floor when no FTS arm (substring-only
+        // does not count). Applied after 0.55 hybrid-arm filter, before RRF.
+        // semantic_post_threshold_count is already post-0.55 / pre-dual-floor.
+        let mut sem = semantic_hits;
+        if !has_fts_arm(&local_hits) {
+            let only_floor = effective_semantic_only_min_cosine(options.min_semantic_score);
+            sem = filter_by_cosine_floor(sem, only_floor);
+        }
+        let fused = rrf_fuse(&fts_only, &sem, rrf_k());
+
+        // Bridge first (wins on id), then fused, then substring outside RRF.
         push_bridge(&mut blended, &mut seen_ids);
         for hit in fused {
+            if seen_ids.insert(hit.memory_id.clone()) {
+                blended.push(hit);
+            }
+        }
+        for hit in substring_rest {
             if seen_ids.insert(hit.memory_id.clone()) {
                 blended.push(hit);
             }
@@ -695,6 +732,14 @@ mod tests {
         assert_eq!(hit.score, Some(0.77));
         assert_eq!(hit.score_kind, ScoreKind::HigherIsBetter);
         assert_eq!(hit.updated_at.as_deref(), Some("2026-01-01T00:00:00Z"));
+        // T218 F4: pre-fuse cosine mirrors score on semantic constructor.
+        assert_eq!(hit.cosine, Some(0.77));
+    }
+
+    #[test]
+    fn recall_hit_fts_constructor_has_no_cosine() {
+        let hit = RecallHit::fts("mem-1".into(), "test".into(), Some(-2.0), None, None);
+        assert_eq!(hit.cosine, None);
     }
 
     #[test]

@@ -26,6 +26,13 @@ pub struct RecallResult {
     /// T211 soft F26: content-heuristic staleness (`"plan"` when plan-demoted). Omitted when None.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub staleness: Option<String>,
+    /// T218 F5: how to interpret `score` on the wire.
+    /// Closed set: `"bm25"` | `"rrf"` | `"bridge"` only (never `"cosine"` / `"hybrid"`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub score_kind: Option<String>,
+    /// T218 F4/F5: pre-fuse cosine when known (separate from score_kind; not a kind).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cosine: Option<f64>,
 }
 
 /// Status of the embedding backend for a semantic recall attempt (T202).
@@ -142,5 +149,82 @@ mod tests {
         assert!(!json.contains("endpoint"));
         assert!(!json.contains("detail"));
         assert!(json.contains("\"status\":\"ok\""));
+    }
+
+    /// AC5: score_kind wire closed set; optional cosine; omit when None.
+    #[test]
+    #[allow(clippy::disallowed_methods)]
+    #[allow(non_snake_case)]
+    fn recall_result__score_kind_and_cosine_additive__ac5() {
+        let with = RecallResult {
+            memory_id: "m1".into(),
+            content: "c".into(),
+            source: "hybrid".into(),
+            score: Some(0.016393), // raw RRF — not rescaled
+            session_id: None,
+            staleness: None,
+            score_kind: Some("rrf".into()),
+            cosine: Some(0.72),
+        };
+        let json = serde_json::to_string(&with).unwrap();
+        assert!(json.contains("\"score_kind\":\"rrf\""));
+        assert!(json.contains("\"cosine\":0.72") || json.contains("\"cosine\":0.720"));
+        // AC6: score remains RRF machine value (not fake 0–1 confidence).
+        assert!(json.contains("0.016393") || json.contains("\"score\":0.016"));
+        assert!(!json.contains("\"score_kind\":\"cosine\""));
+        assert!(!json.contains("\"score_kind\":\"hybrid\""));
+
+        // Wire kinds only bm25|rrf|bridge
+        for kind in ["bm25", "rrf", "bridge"] {
+            let r = RecallResult {
+                memory_id: "m".into(),
+                content: "c".into(),
+                source: "fts".into(),
+                score: Some(1.0),
+                session_id: None,
+                staleness: None,
+                score_kind: Some(kind.into()),
+                cosine: None,
+            };
+            let j = serde_json::to_string(&r).unwrap();
+            assert!(j.contains(&format!("\"score_kind\":\"{kind}\"")));
+            assert!(
+                !j.contains("\"cosine\""),
+                "cosine omitted when None; got {j}"
+            );
+        }
+
+        // Deserializes without new fields (N−1).
+        let legacy = r#"{"memory_id":"x","content":"y","source":"fts"}"#;
+        let parsed: RecallResult = serde_json::from_str(legacy).unwrap();
+        assert!(parsed.score_kind.is_none());
+        assert!(parsed.cosine.is_none());
+    }
+
+    /// AC6: score is not rescaled to fake 0–1 confidence when score_kind is rrf.
+    #[test]
+    #[allow(clippy::disallowed_methods)]
+    #[allow(non_snake_case)]
+    fn recall_result__rrf_score_not_rescaled__ac6() {
+        let rrf_raw = 1.0 / 61.0;
+        let r = RecallResult {
+            memory_id: "m".into(),
+            content: "c".into(),
+            source: "semantic".into(),
+            score: Some(rrf_raw),
+            session_id: None,
+            staleness: None,
+            score_kind: Some("rrf".into()),
+            cosine: Some(0.81),
+        };
+        let v: serde_json::Value = serde_json::to_value(&r).unwrap();
+        let score = v["score"].as_f64().unwrap();
+        assert!(
+            (score - rrf_raw).abs() < 1e-12,
+            "JSON score must stay raw RRF ({rrf_raw}), got {score}"
+        );
+        assert!(score < 0.05, "RRF rank-1 alone is ~0.016, not a cosine");
+        assert_eq!(v["score_kind"], "rrf");
+        assert!((v["cosine"].as_f64().unwrap() - 0.81).abs() < 1e-12);
     }
 }

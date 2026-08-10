@@ -153,8 +153,10 @@ enum Commands {
         /// Use semantic (embedding) search alongside FTS5
         #[arg(long)]
         semantic: bool,
-        /// One-shot cosine similarity floor for `--semantic` (default 0.55 /
-        /// `AI_BRAINS_SEMANTIC_MIN_SCORE`). Soft F32.
+        /// One-shot cosine floor for `--semantic`. When set, **replaces** both
+        /// the hybrid-arm default (0.55 / `AI_BRAINS_SEMANTIC_MIN_SCORE`) and the
+        /// semantic-only default (0.60 / `AI_BRAINS_SEMANTIC_ONLY_MIN_SCORE`) with
+        /// this value — not `max()`. Omit to keep dual-floor defaults (T218 F2b/F39).
         #[arg(long = "min-score")]
         min_score: Option<f64>,
         /// Score boost added to graph-neighbor hits (default 0.1)

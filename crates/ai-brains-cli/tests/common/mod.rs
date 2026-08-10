@@ -59,6 +59,11 @@ pub const AMBIENT_DENYLIST: &[&str] = &[
     // T208 F29: ambient developer RUST_LOG=debug must not false-fail quiet-log ACs.
     // Tests that need a directive re-set via `.env("RUST_LOG", …)` after strip.
     "RUST_LOG",
+    // T218 F38 / AC19: ambient score/RRF floors must not pollute hermetic dual-floor ACs.
+    // Tests that need non-default floors set via `.env(...)` after strip.
+    "AI_BRAINS_SEMANTIC_MIN_SCORE",
+    "AI_BRAINS_SEMANTIC_ONLY_MIN_SCORE",
+    "AI_BRAINS_RRF_K",
 ];
 
 /// `cargo_bin("ai-brains")` with ambient denylist stripped.

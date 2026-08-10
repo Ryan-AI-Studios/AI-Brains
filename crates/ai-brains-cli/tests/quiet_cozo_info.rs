@@ -48,6 +48,22 @@ fn ambient_denylist__includes_rust_log() {
     );
 }
 
+/// T218 F38 / AC19: dual-floor and RRF env keys stripped from hermetic ambient.
+#[test]
+fn ambient_denylist__includes_semantic_score_and_rrf_keys__ac19() {
+    for key in [
+        "AI_BRAINS_SEMANTIC_MIN_SCORE",
+        "AI_BRAINS_SEMANTIC_ONLY_MIN_SCORE",
+        "AI_BRAINS_RRF_K",
+    ] {
+        assert!(
+            common::AMBIENT_DENYLIST.contains(&key),
+            "AMBIENT_DENYLIST must include {key} (T218 F38); got: {:?}",
+            common::AMBIENT_DENYLIST
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // AC1 — graph-on recall under unset RUST_LOG has no Cozo init line
 // ---------------------------------------------------------------------------
