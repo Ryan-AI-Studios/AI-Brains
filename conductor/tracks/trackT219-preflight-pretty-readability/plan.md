@@ -117,9 +117,9 @@ ledgerful ledger start T219-preflight-pretty-readability --category UX --message
 - [x] CHANGELOG
 - [x] Soft skill one-liner if free
 - [ ] Full gate + ledgerful verify
-- [ ] Manual AC13
-- [ ] `review.md`; soft cross-model
-- [ ] conductor + deferred closeout; ledger commit
+- [x] Manual AC13 (debug `ai-brains`: multi-line Scope, no ASSISTANT index, JSON 2-key + newlines)
+- [x] `review.md`; internal CLEAN; Codex R1 product clean (P1 process/P2 governance/P3 sentinel addressed)
+- [ ] conductor + deferred closeout; ledger commit (after CI merge)
 
 ## Task checklist
 
@@ -138,7 +138,7 @@ ledgerful ledger start T219-preflight-pretty-readability --category UX --message
 - [x] Phase 3 pretty formatter
 - [x] Phase 4 CLI wire
 - [x] Phase 5 hermetic
-- [ ] Phase 6 docs + full gate + review + ledger commit
+- [ ] Phase 6 docs + full gate + review + ledger commit (docs/review done; gate+closeout pending)
 
 ## Manual test script (post-go)
 
