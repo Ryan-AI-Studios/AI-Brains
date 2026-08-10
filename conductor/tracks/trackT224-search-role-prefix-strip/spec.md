@@ -2,7 +2,7 @@
 
 - **Track ID:** T224-SearchRolePrefixStrip
 - **Phase:** T217–T232 post-audit CLI quality (P2)
-- **Status:** 📋 **Planning** (plan-only until user **go**)
+- **Status:** ✅ **Completed** 2026-08-10 — PR #120 squash-merged `a18fae6`
 - **Depends on:** T216 `preview_line` SOOT; **T219** `commands/display_text.rs` `strip_role_prefix` (landed)
 - **Blocks / feeds:** Operator trust that search/match previews match `memory list` cleanliness; soft residual for T231 unified search UX
 - **Category:** UX / BUGFIX (display-only)

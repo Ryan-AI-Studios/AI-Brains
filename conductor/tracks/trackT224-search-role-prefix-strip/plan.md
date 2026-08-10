@@ -1,6 +1,6 @@
 # T224 — Search/display role-prefix strip — Plan
 
-**Status:** In Progress — implementation 2026-08-10  
+**Status:** ✅ Completed 2026-08-10 — PR #120 `a18fae6`  
 **Category:** UX  
 **Depends:** T219 `display_text::strip_role_prefix` + T216 `memory::preview_line`  
 **Ledger on go:** `ledgerful ledger start T224-search-role-prefix-strip --category UX --message "Strip role prefixes on recall/sync/forget human previews"`
@@ -94,9 +94,9 @@ let content = if content.chars().count() > 500 {
 - [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` — clean
 - [x] `cargo fmt --check` — clean
 - [x] Full gate: fmt / clippy workspace / nextest **2487** / deny / audit — **FULL_GATE_OK**
-- [ ] `ledgerful verify` per practice (pre-push / ship)
-- [x] `review.md` (internal CLEAN + Codex R1 findings fixed); conductor Completed + deferred close after merge
-- [ ] ledger commit + pin + PR when ready
+- [x] `ledgerful verify` per practice (pre-push / ship)
+- [x] `review.md` (internal CLEAN + Codex R2 PASS WITH DEFERRED P3); conductor Completed + deferred closed
+- [x] ledger commit + pin + PR #120 squash-merged `a18fae6`
 
 ### Codex R1 fix follow-up
 
