@@ -249,6 +249,15 @@ fn strip_role_on_content_line(line: &str) -> String {
     super::display_text::strip_role_prefix(line.trim_start()).to_string()
 }
 
+/// True when a trimmed line starts a retrieval session turn (`ROLE: …`).
+///
+/// Multi-line turns (from `truncate_turn`) emit only the first line with a role
+/// prefix; continuation lines must not count as extra turns (T219 M1).
+fn is_session_turn_start(line: &str) -> bool {
+    let t = line.trim_start();
+    t.starts_with("USER:") || t.starts_with("ASSISTANT:") || t.starts_with("SYSTEM:")
+}
+
 /// Format full preflight body for human/pretty display (T219).
 ///
 /// Pure string transform: section caps, F31 notices, role-prefix strip, blank
@@ -278,6 +287,8 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
     let mut out_parts: Vec<String> = Vec::new();
     let mut sessions_emitted: usize = 0;
     let mut sessions_skipped: usize = 0;
+    // Index of the last emitted session part in `out_parts` (F31 M2 placement).
+    let mut last_session_part_idx: Option<usize> = None;
 
     for (header, lines) in sections {
         let kind = header
@@ -310,20 +321,32 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
                 }
             }
             PrettySectionKind::Session => {
+                // Count logical turns (role-leading lines), not physical lines (M1).
+                // Continuation lines of multi-line turns belong to the open turn.
                 let mut turn_count = 0usize;
                 let mut turn_total = 0usize;
+                let mut in_open_turn = false;
                 for line in &lines {
                     if line.trim().is_empty() {
-                        // Preserve blank lines only before turn cap is hit and after a turn.
-                        if turn_count > 0 && turn_count < PRETTY_TURNS_PER_SESSION {
+                        if in_open_turn && turn_count <= PRETTY_TURNS_PER_SESSION {
+                            // Preserve blank only when we still show the open turn body.
                             body_lines.push(String::new());
                         }
                         continue;
                     }
-                    turn_total += 1;
-                    if turn_count < PRETTY_TURNS_PER_SESSION {
+                    if is_session_turn_start(line) {
+                        turn_total += 1;
+                        in_open_turn = true;
+                        if turn_count < PRETTY_TURNS_PER_SESSION {
+                            body_lines.push(strip_role_on_content_line(line));
+                            turn_count += 1;
+                        } else {
+                            // Past cap: do not emit further turns or their continuations.
+                            in_open_turn = false;
+                        }
+                    } else if in_open_turn && turn_count <= PRETTY_TURNS_PER_SESSION {
+                        // Continuation of a displayed turn (multi-line truncate_turn).
                         body_lines.push(strip_role_on_content_line(line));
-                        turn_count += 1;
                     }
                 }
                 // Drop trailing blanks introduced above.
@@ -437,16 +460,22 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
         // Trim trailing whitespace-only from section.
         let section_out = section_out.trim_end().to_string();
         if !section_out.is_empty() {
+            if kind == PrettySectionKind::Session {
+                last_session_part_idx = Some(out_parts.len());
+            }
             out_parts.push(section_out);
         }
     }
 
-    // Sessions count overflow notice (F31) — after last session section content.
+    // Sessions count overflow notice (F31 / M2) — attach to last *session* part,
+    // not the final out_part (which is often Memory Index / Recent).
     if sessions_skipped > 0 {
         let notice = format!("+{sessions_skipped} more sessions");
-        if let Some(last) = out_parts.last_mut() {
-            last.push('\n');
-            last.push_str(&notice);
+        if let Some(idx) = last_session_part_idx {
+            if let Some(part) = out_parts.get_mut(idx) {
+                part.push('\n');
+                part.push_str(&notice);
+            }
         } else {
             out_parts.push(notice);
         }
@@ -1307,10 +1336,21 @@ mod tests {
             out.contains("+1 more sessions"),
             "AC6 sessions count F31; got:\n{out}"
         );
-        // Safety wording must not equal index wording.
+        // L1: exact index N is 3 — reject wrong N without tautology.
         assert!(
-            !out.contains("+2 more via recall") || out.contains("+3 more via recall"),
-            "index N is 3 not 2"
+            !out.contains("+2 more via recall"),
+            "index overflow must be +3 not +2; got:\n{out}"
+        );
+        // M2: sessions notice must appear before Memory Index, not only as trailing index chrome.
+        let sessions_notice_at = out
+            .find("+1 more sessions")
+            .expect("+1 more sessions present");
+        let index_at = out
+            .find("--- Memory Index (Briefing) ---")
+            .expect("Memory Index header present");
+        assert!(
+            sessions_notice_at < index_at,
+            "M2: sessions notice must precede Memory Index; notice@{sessions_notice_at} index@{index_at}\n{out}"
         );
         // No displayed index line begins with ASSISTANT:
         for line in out.lines() {
@@ -1387,5 +1427,70 @@ mod tests {
         assert!(out.contains("1. DECISION: gamma"));
         assert!(!out.lines().any(|l| l.starts_with("ASSISTANT:")));
         assert!(!out.lines().any(|l| l.starts_with("USER:")));
+    }
+
+    /// M1: multi-line turns (truncate_turn shape) count as one turn each.
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__multiline_turns__cap_by_role_starts() {
+        // 3 logical turns, each 3 physical lines → 9 lines total.
+        // Cap is 6 turns; must keep all 3 turns fully (no false +N more turns).
+        let text = "\
+--- Session: bbbb ---
+ASSISTANT: line1 of turn1
+continuation of turn1
+more of turn1
+USER: line1 of turn2
+continuation of turn2
+more of turn2
+SYSTEM: line1 of turn3
+continuation of turn3
+more of turn3
+";
+        let out = format_preflight_pretty_body(text);
+        assert!(
+            !out.contains("more turns in session"),
+            "3 multi-line turns must not trip the 6-turn cap; got:\n{out}"
+        );
+        assert!(out.contains("line1 of turn1"));
+        assert!(out.contains("more of turn1"));
+        assert!(out.contains("line1 of turn2"));
+        assert!(out.contains("more of turn3"));
+        // 7 logical single-line turns → overflow +1.
+        let mut lines = vec!["--- Session: cccc ---".to_string()];
+        for t in 1..=7 {
+            lines.push(format!("ASSISTANT: only turn {t}"));
+        }
+        let out7 = format_preflight_pretty_body(&lines.join("\n"));
+        assert!(
+            out7.contains("+1 more turns in session"),
+            "7 role-starts must overflow by 1; got:\n{out7}"
+        );
+        assert!(out7.contains("only turn 6"));
+        assert!(!out7.contains("only turn 7"));
+    }
+
+    /// M2: +N more sessions attaches to last session, before later Index section.
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__sessions_notice__before_index() {
+        let mut parts = Vec::new();
+        for s in 1..=4 {
+            parts.push(format!(
+                "--- Session: 00000000-0000-0000-0000-00000000000{s} ---\nASSISTANT: s{s} turn"
+            ));
+        }
+        parts.push(
+            "--- Memory Index (Briefing) ---\n1. ASSISTANT: DECISION: keep index".to_string(),
+        );
+        let out = format_preflight_pretty_body(&parts.join("\n\n"));
+        assert!(out.contains("+1 more sessions"), "got:\n{out}");
+        let notice = out.find("+1 more sessions").expect("notice");
+        let index = out.find("--- Memory Index (Briefing) ---").expect("index");
+        assert!(
+            notice < index,
+            "sessions notice must be before Memory Index; notice@{notice} index@{index}\n{out}"
+        );
+        assert!(out.contains("1. DECISION: keep index"));
     }
 }
