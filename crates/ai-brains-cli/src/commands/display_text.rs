@@ -7,6 +7,13 @@
 ///
 /// Mid-line and lowercase tokens are left unchanged (T216 SOOT / T219 F7/F39).
 /// Borrowing helper — no allocation (M3).
+///
+/// **Consumers (T224 O4 — single SOOT; do not fork a second prefix list):**
+/// - [`crate::commands::memory::preview_line`]
+/// - [`crate::commands::memory::content_has_tag`]
+/// - preflight pretty display lines
+/// - [`crate::commands::recall::format_pretty_hit_line`]
+/// - forget human previews (via `preview_line`)
 pub(crate) fn strip_role_prefix(line: &str) -> &str {
     for prefix in ["USER:", "ASSISTANT:", "SYSTEM:"] {
         if let Some(rest) = line.strip_prefix(prefix) {

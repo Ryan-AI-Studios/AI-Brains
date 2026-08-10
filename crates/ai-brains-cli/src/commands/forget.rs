@@ -1,4 +1,4 @@
-use crate::commands::memory::{MemoryListOptions, run_inventory};
+use crate::commands::memory::{MemoryListOptions, preview_line, run_inventory};
 use crate::context::AppContext;
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
@@ -10,16 +10,10 @@ use ai_brains_retrieval::{LexicalSearchOptions, lexical_search};
 use ai_brains_store::{EventStore, QueryStore};
 use std::str::FromStr;
 
-const PREVIEW_MAX_LEN: usize = 100;
-
-fn truncate_preview(s: &str) -> String {
-    if s.chars().count() <= PREVIEW_MAX_LEN {
-        s.to_string()
-    } else {
-        let truncated: String = s.chars().take(PREVIEW_MAX_LEN).collect();
-        format!("{}...", truncated)
-    }
-}
+/// Human match / UUID preview budget (T224 F5 — dry-run, single Found, UUID).
+const FORGET_PREVIEW_MAX: usize = 100;
+/// Multi-match list budget (T224 F5 / M4 — shorter skim; gains `…` via preview_line).
+const FORGET_MULTI_PREVIEW_MAX: usize = 80;
 
 /// Forget command. List-forgotten shares the inventory backend (T216 F1/F28).
 #[allow(clippy::too_many_arguments)] // clap dispatch surface; list flags share inventory backend
@@ -111,7 +105,8 @@ pub fn run(
                 query
             );
             for hit in &hits {
-                let preview = truncate_preview(hit.content.lines().next().unwrap_or(&hit.content));
+                // T224 F5: shared preview_line SOOT (strip + first non-empty + …).
+                let preview = preview_line(&hit.content, FORGET_PREVIEW_MAX);
                 println!("  {} — {}", hit.memory_id, preview);
             }
             return Ok(());
@@ -119,8 +114,8 @@ pub fn run(
 
         if hits.len() == 1 {
             let hit = &hits[0];
-            let first_line = hit.content.lines().next().unwrap_or(&hit.content);
-            println!("Found: {} — {}", hit.memory_id, first_line);
+            let preview = preview_line(&hit.content, FORGET_PREVIEW_MAX);
+            println!("Found: {} — {}", hit.memory_id, preview);
 
             if !force {
                 tracing::info!("Use --force to forget this memory.");
@@ -143,15 +138,9 @@ pub fn run(
         } else {
             println!("Found {} matching memories:", hits.len());
             for hit in &hits {
-                let first_line: String = hit
-                    .content
-                    .lines()
-                    .next()
-                    .unwrap_or(&hit.content)
-                    .chars()
-                    .take(80)
-                    .collect();
-                println!("  {} — {}", hit.memory_id, first_line);
+                // T224 F5/M4: max 80 + role strip; intentional … on cut (was raw 80, no ellipsis).
+                let preview = preview_line(&hit.content, FORGET_MULTI_PREVIEW_MAX);
+                println!("  {} — {}", hit.memory_id, preview);
             }
             if !force {
                 tracing::info!("Use --force to forget all {} memories.", hits.len());
@@ -205,7 +194,7 @@ pub fn run(
         let preview = hits
             .iter()
             .find(|h| h.memory_id == id_str)
-            .map(|hit| truncate_preview(hit.content.lines().next().unwrap_or(&hit.content)));
+            .map(|hit| preview_line(&hit.content, FORGET_PREVIEW_MAX));
 
         if dry_run {
             println!("[dry-run] Would forget memory {}.", id_str);

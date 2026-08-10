@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Changed
+
+- **T224 Search/display role-prefix strip:** Human recall / `sync query` pretty hit lines and forget match/UUID previews strip leading case-sensitive `USER:` / `ASSISTANT:` / `SYSTEM:` via the shared T219 `strip_role_prefix` helper (pretty: `trim_start` then strip **before** 500-char truncate; forget: `memory::preview_line` at max 100 dry-run/single/UUID and max 80 multi-match, with `…` on cut). JSON `RecallResult.content`, bridge Insight, and MemoryPinned event content stay raw; ingest/pin `--dry-run` stay raw write-intent. No second prefix token list.
+
 ### Added
 
 - **T219 Preflight pretty readability:** Fix single-line preflight wall — `trim_to_word_budget` preserves newlines (line walk + whitespace words; CRLF stripped) and appends trailing `…` when over budget (F2b; content `word_count` excludes sentinel). Human/pretty path: T207/T214 `Scope:` header on full body (CLI-only alias lookup), display-only role strip (`strip_role_prefix` shared with `preview_line` / `content_has_tag`), section caps (safety 8 / sessions 3 / turns 6 / index 15) with per-section F31 next-step notices, orphan empty `---` headers omitted, blank line after each emitted header. Non-summary JSON stays compact 2-key `{text, word_count}` with newline-preserving `text` (no Scope/caps chrome). Summary path unchanged. Governed `#`/`##` lines preserved by pretty formatter. Hermetic `tests/preflight_pretty_readability.rs`.
