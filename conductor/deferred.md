@@ -38,7 +38,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~project list UUID-only / set-alias UX (audit quality 7)~~ | **Closed by T212** (2026-08-05) PR #95 `09e34ba` — label-first; last_activity; path subquery; stderr set-alias footer; `--format json`; char-safe truncate; no auto-alias |
 | T212 residuals (AC10 path seed / F24 verbose) | Soft: hermetic path_alias seed (AC10); `--verbose` raw registered name (F24); detect --json remains T206 soft |
 | ~~semantic recall topic drift + bridge polarity (audit 6/5)~~ | **Closed by T215** (2026-08-05) PR #96 `b5cdc98` — RRF hybrid; floor 0.55; ScoreKind M1; F14 pipeline; F11 honesty; AC1–17 |
-| T215 residuals (e2e / soft F24–F29 / ANN) | Soft: hermetic `recall_full` hybrid e2e; F24 always-on ok pretty; F25 JSON fusion metadata; F29 skill one-liner; weighted RRF; ANN (F27); adaptive threshold declined |
+| T215 residuals (e2e / soft F24–F29 / ANN) | ~~hermetic e2e / F25 fusion / score display → **T218 closed** PR #116 `fc4d370`~~; Soft remain: F24 always-on ok pretty; F29 skill one-liner; weighted RRF; ANN (F27); adaptive threshold declined |
 | ~~Graph-on Cozo INFO pollutes recall/sync (T200 residual)~~ | **Closed by T208** (2026-08-04) PR #91 `9985ab4` — F2 demote; F8 `ai_brains_graph=warn`; F29 RUST_LOG denylist; AC1 env_remove |
 | T118 smoke `RUST_LOG=""` tests ERROR-only not product default (M4) | Soft residual from T208 fold-in — optional later hygiene, not T208 DoD |
 | T208 soft residuals (F10) | Soft: lazy GraphAwareEventStore construct (not DoD) |
@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b` (summary JSON honesty); ~~**T221**~~ **closed** PR #114 `b3c4b0f` (progressive deny exit 3 + first-run bootstrap honesty) then remaining placeholders (T218 semantic v2, preflight pretty, graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370` (dual floor + score honesty); next **T219** preflight pretty + remaining placeholders (graph-on install, env-warn quiet, role-prefix strip, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -112,7 +112,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Residual / finding | Disposition |
 |--------------------|-------------|
 | FTS natural-phrase empty (quality 4) | **T217** ✅ closed PR #110 `1e22e77` |
-| Semantic drift / scores (quality 4) | **T218** Placeholder (elevates T215 soft) |
+| ~~Semantic drift / scores (quality 4)~~ | **Closed by T218** PR #116 `fc4d370` — dual floor 0.55/0.60 no-FTS gate; score_kind; pretty rank+sim; hermetic fuse SOOT; soft residual F18/F19/F20/F21/AC15/httpmock-full-recall |
 | Preflight pretty wall (quality 5) | **T219** Placeholder |
 | ~~preflight summary `--format json` lie (quality 3)~~ | **Closed by T220** PR #112 `6f4f67b` |
 | ~~Governed usefulness 4–5; progressive deny exit 0~~ | **Closed by T221** PR #114 `b3c4b0f` — progressive/expand deny exit 3 + `denial_hint` + human emit_error hint; soft residual F12/F32/F18/F36 |
@@ -127,9 +127,9 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Global summary blank labels | **T230** Placeholder |
 | Dual recall vs sync query mental model | **T231** Placeholder |
 | Doctor graph rebuild vs graph-off | **T232** Placeholder |
-| Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** Placeholder — Option B path aliases + Phase1/2; **blocked on coordinated 0163** (symbols inventory CLI) first |
+| Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** Placeholder — Option B path aliases + Phase1/2; **unblocked** (0163 shipped) — plan-only until go |
 | T229 multi-root bridge half | **Absorbed by T233**; T229 keeps router env/health/schedule |
-| Ledgerful scoped symbol inventory (agent DX) | **Coordinated 0163** (Ledgerful) — not AI-Brains; T233 consumes it |
+| ~~Ledgerful scoped symbol inventory (agent DX)~~ | **Closed by coordinated 0163** (2026-08-09) Ledgerful PR #159 `3fe44367` — `ledgerful symbols` scoped JSON; T233 consumes it |
 
 ### Harness seamless ingest series (2026-08-08) — T234–T239
 
@@ -1175,3 +1175,15 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 | F36 trace `applied_policy` string | Soft residual — out of DoD |
 | Dual-site POLICY_DENIED_HINT drift | Comments + hermetic wording; residual |
 
+
+### T218 closeout residuals (2026-08-09) — semantic quality v2 shipped
+
+| Residual | Disposition |
+|----------|-------------|
+| F18 first-line / DECISION-line boost | Soft — not DoD |
+| AC15 response-level `fusion` object (effective rrf_k) | Soft — not DoD |
+| F19 weighted RRF env | Soft residual |
+| F20 ANN / HNSW productization | Soft residual (also T215 F27) |
+| F21 nomic task-prefix re-embed + floor re-tune | Soft residual |
+| F24 skill one-liner | Soft (T215 F29 family) |
+| Optional httpmock full `recall_full` hermetic | Soft — production SOOT is `fuse_local_and_semantic`; F12 preferred injection seam |
