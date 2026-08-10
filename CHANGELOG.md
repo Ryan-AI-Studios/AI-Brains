@@ -21,6 +21,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T232 Graph density remediation path:** Density warn remediations are capability-aware via pure `assess_graph_density_with(snap, graph_cli_available)` (wrapper uses `cfg!(feature = "graph")`). Graph-on warn → exact `REMEDIATION_REBUILD` (`ai-brains graph rebuild`); graph-off warn → exact `GRAPH_REINSTALL_SOOT` only. Empty-lag hybrid retired. Warn notes branch on capability; Ok note stays capability-blind informational. Doctor gather-error path uses `density_remediation(cfg!(…))` (no hardcoded rebuild literal). Thresholds/verdicts/priority/soft severity/matrix order/capture independence unchanged; no auto rebuild; no Cargo default flip. Smoke F17 SOOT guard extended.
 - **T224 Search/display role-prefix strip:** Human recall / `sync query` pretty hit lines and forget match/UUID previews strip leading case-sensitive `USER:` / `ASSISTANT:` / `SYSTEM:` via the shared T219 `strip_role_prefix` helper (pretty: `trim_start` then strip **before** 500-char truncate; forget: `memory::preview_line` at max 100 dry-run/single/UUID and max 80 multi-match, with `…` on cut). JSON `RecallResult.content`, bridge Insight, and MemoryPinned event content stay raw; ingest/pin `--dry-run` stay raw write-intent. No second prefix token list.
 
 ### Added

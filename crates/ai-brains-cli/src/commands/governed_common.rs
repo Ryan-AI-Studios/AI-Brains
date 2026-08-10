@@ -40,8 +40,8 @@ pub const EXIT_HARD_GATE_FAILED: i32 = 7;
 /// Structured code for build-feature unavailable (T198 graph stub; T200 install honesty).
 pub const FEATURE_UNAVAILABLE: &str = "FEATURE_UNAVAILABLE";
 
-/// INSTALL primary reinstall SOOT (T200 F27 / T222 F27) — single source for graph-off stubs,
-/// doctor graph_feature remediation, and empty-lag install substring.
+/// INSTALL primary reinstall SOOT (T200 F27 / T222 F27 / T232 F5) — single source for graph-off
+/// stubs, doctor `graph_feature` remediation, and graph_density warn remediations when graph-off.
 pub const GRAPH_REINSTALL_SOOT: &str =
     "cargo install --path crates/ai-brains-cli --locked --features graph";
 

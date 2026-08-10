@@ -136,26 +136,52 @@ fn counts_suffix(snap: &GraphDensitySnapshot, ratio: f64) -> String {
     )
 }
 
-const REMEDIATION_REBUILD: &str = "ai-brains graph rebuild";
+/// Graph-on primary remediation SOOT for density warn paths (T232 F4).
+pub(crate) const REMEDIATION_REBUILD: &str = "ai-brains graph rebuild";
 
-/// Empty-lag remediation: rebuild primary + install SOOT substring (T222 F27; branching → T232).
-fn remediation_empty_lag() -> String {
-    format!(
-        "ai-brains graph rebuild (if graph CLI unavailable: {})",
+/// Capability-aware primary remediation (warn paths + doctor gather-error).
+pub(crate) fn density_remediation(graph_cli_available: bool) -> &'static str {
+    if graph_cli_available {
+        REMEDIATION_REBUILD
+    } else {
         crate::commands::governed_common::GRAPH_REINSTALL_SOOT
-    )
+    }
+}
+
+fn density_warn_note(message: &str, graph_cli_available: bool, sparse_nuance: bool) -> String {
+    if graph_cli_available {
+        if sparse_nuance {
+            format!("{message}; rebuild if projection lag suspected")
+        } else {
+            format!("{message}; run graph rebuild")
+        }
+    } else {
+        format!("{message}; see remediation to install a graph-capable binary")
+    }
 }
 
 /// Pure density assessment. Thresholds read from env with invalid→default (F17).
 ///
 /// Priority (F11): empty_lag → orphan_nodes → sparse → projection_lag → small skip → Ok.
+/// Capability for remediation/note text uses compile-time `cfg!(feature = "graph")`.
 pub fn assess_graph_density(snap: &GraphDensitySnapshot) -> Assessment {
+    assess_graph_density_with(snap, cfg!(feature = "graph"))
+}
+
+/// Pure density assessment with explicit graph CLI capability (T232 F3).
+///
+/// Thresholds and verdict priority are capability-blind; only remediation/note text branches.
+pub fn assess_graph_density_with(
+    snap: &GraphDensitySnapshot,
+    graph_cli_available: bool,
+) -> Assessment {
     let min_pinned = threshold_min_pinned();
     let min_nodes = threshold_min_nodes();
     let min_ratio = threshold_min_edge_ratio();
     let min_coverage = threshold_min_memory_coverage();
     let ratio = edge_node_ratio(snap.nodes, snap.edges);
     let suffix = counts_suffix(snap, ratio);
+    let remediation = density_remediation(graph_cli_available);
 
     // 1. empty_lag
     if snap.pinned_memories >= min_pinned && snap.nodes == 0 && snap.edges == 0 {
@@ -164,8 +190,8 @@ pub fn assess_graph_density(snap: &GraphDensitySnapshot) -> Assessment {
             verdict: DensityVerdict::EmptyLag,
             density: "warn",
             status: "empty",
-            note: format!("{message}; run graph rebuild (graph-on install if needed)"),
-            remediation: Some(remediation_empty_lag()),
+            note: density_warn_note(&message, graph_cli_available, false),
+            remediation: Some(remediation.into()),
             message,
             edge_node_ratio: ratio,
         };
@@ -178,8 +204,8 @@ pub fn assess_graph_density(snap: &GraphDensitySnapshot) -> Assessment {
             verdict: DensityVerdict::OrphanNodes,
             density: "warn",
             status: "sparse",
-            note: format!("{message}; run graph rebuild"),
-            remediation: Some(REMEDIATION_REBUILD.into()),
+            note: density_warn_note(&message, graph_cli_available, false),
+            remediation: Some(remediation.into()),
             message,
             edge_node_ratio: ratio,
         };
@@ -193,8 +219,8 @@ pub fn assess_graph_density(snap: &GraphDensitySnapshot) -> Assessment {
             verdict: DensityVerdict::Sparse,
             density: "warn",
             status: "sparse",
-            note: format!("{message}; rebuild if projection lag suspected"),
-            remediation: Some(REMEDIATION_REBUILD.into()),
+            note: density_warn_note(&message, graph_cli_available, true),
+            remediation: Some(remediation.into()),
             message,
             edge_node_ratio: ratio,
         };
@@ -215,8 +241,8 @@ pub fn assess_graph_density(snap: &GraphDensitySnapshot) -> Assessment {
             verdict: DensityVerdict::ProjectionLag,
             density: "warn",
             status: "sparse",
-            note: format!("{message}; run graph rebuild"),
-            remediation: Some(REMEDIATION_REBUILD.into()),
+            note: density_warn_note(&message, graph_cli_available, false),
+            remediation: Some(remediation.into()),
             message,
             edge_node_ratio: ratio,
         };
@@ -236,7 +262,7 @@ pub fn assess_graph_density(snap: &GraphDensitySnapshot) -> Assessment {
         };
     }
 
-    // 6. Ok
+    // 6. Ok — note stays capability-blind informational (T232 F7 / M1); no remediation
     let message = format!("graph density ok ({suffix})");
     Assessment {
         verdict: DensityVerdict::Ok,
@@ -324,6 +350,7 @@ pub fn gather_density_snapshot(conn: &Connection) -> Result<GatherResult, String
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
+    use crate::commands::governed_common::GRAPH_REINSTALL_SOOT;
     use ai_brains_core::temp_env::TempEnv;
 
     fn snap(
@@ -341,149 +368,227 @@ mod tests {
     }
 
     #[test]
-    fn assess_graph_density__empty_lag_pinned500_nodes0__warn_empty() {
-        // AC1
-        let a = assess_graph_density(&snap(0, 0, 500, Some(0)));
+    fn density_remediation__graph_on__rebuild() {
+        assert_eq!(density_remediation(true), REMEDIATION_REBUILD);
+        assert_eq!(REMEDIATION_REBUILD, "ai-brains graph rebuild");
+    }
+
+    #[test]
+    fn density_remediation__graph_off__reinstall_soot() {
+        assert_eq!(density_remediation(false), GRAPH_REINSTALL_SOOT);
+    }
+
+    #[test]
+    fn assess_graph_density_with__empty_lag_graph_on__rebuild_only() {
+        let a = assess_graph_density_with(&snap(0, 0, 500, Some(0)), true);
         assert_eq!(a.verdict, DensityVerdict::EmptyLag);
         assert_eq!(a.density, "warn");
         assert_eq!(a.status, "empty");
         assert!(a.message.contains("empty_lag"), "msg={}", a.message);
+        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
         assert!(
-            a.remediation
+            !a.remediation
                 .as_deref()
-                .is_some_and(|r| r.contains("graph rebuild")),
-            "remediation={:?}",
+                .is_some_and(|r| r.contains(GRAPH_REINSTALL_SOOT)),
+            "graph-on empty_lag must not carry reinstall SOOT; remediation={:?}",
             a.remediation
         );
-        assert!(
-            a.remediation.as_deref().is_some_and(|r| {
-                r.contains(crate::commands::governed_common::GRAPH_REINSTALL_SOOT)
-            }),
-            "empty-lag remediation must include GRAPH_REINSTALL_SOOT; remediation={:?}",
-            a.remediation
-        );
+        assert!(a.note.ends_with("; run graph rebuild"), "note={}", a.note);
         assert!(!a.message.contains("x'"), "no secrets: {}", a.message);
     }
 
     #[test]
-    fn assess_graph_density__small_empty_pinned10__skip() {
-        // AC2
-        let a = assess_graph_density(&snap(0, 0, 10, None));
-        assert_eq!(a.verdict, DensityVerdict::Skip);
-        assert_eq!(a.density, "skip");
-        assert_eq!(a.status, "live");
-        assert!(a.remediation.is_none());
-    }
-
-    #[test]
-    fn assess_graph_density__orphan_nodes200_edges0__warn_sparse() {
-        // AC3
-        let a = assess_graph_density(&snap(200, 0, 50, None));
-        assert_eq!(a.verdict, DensityVerdict::OrphanNodes);
+    fn assess_graph_density_with__empty_lag_graph_off__reinstall_soot_only() {
+        let a = assess_graph_density_with(&snap(0, 0, 500, Some(0)), false);
+        assert_eq!(a.verdict, DensityVerdict::EmptyLag);
         assert_eq!(a.density, "warn");
-        assert_eq!(a.status, "sparse");
-        assert!(a.message.contains("orphan_nodes"), "msg={}", a.message);
+        assert_eq!(a.status, "empty");
+        assert_eq!(a.remediation.as_deref(), Some(GRAPH_REINSTALL_SOOT));
+        assert_ne!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
         assert!(
-            a.remediation
-                .as_deref()
-                .is_some_and(|r| r.contains("rebuild")),
-            "orphan remediation must mention rebuild: {:?}",
-            a.remediation
+            a.note
+                .contains("; see remediation to install a graph-capable binary"),
+            "note={}",
+            a.note
+        );
+        assert!(
+            !a.note.contains("run graph rebuild"),
+            "graph-off note must not primary rebuild: {}",
+            a.note
         );
     }
 
     #[test]
-    fn assess_graph_density__live_like_1304_95__warn_sparse() {
-        // AC4 — E/N ≈ 0.073 < 0.50; AC9 remediation mentions rebuild
-        let a = assess_graph_density(&snap(1304, 95, 8398, Some(500)));
+    fn assess_graph_density_with__small_empty_pinned10__skip_both_capabilities() {
+        // AC5: Skip remediation None on both capability sides; status stays live
+        for available in [true, false] {
+            let a = assess_graph_density_with(&snap(0, 0, 10, None), available);
+            assert_eq!(a.verdict, DensityVerdict::Skip, "available={available}");
+            assert_eq!(a.density, "skip", "available={available}");
+            assert_eq!(a.status, "live", "available={available}");
+            assert!(a.remediation.is_none(), "available={available}");
+        }
+    }
+
+    #[test]
+    fn assess_graph_density_with__orphan_graph_on__rebuild() {
+        let a = assess_graph_density_with(&snap(200, 0, 50, None), true);
+        assert_eq!(a.verdict, DensityVerdict::OrphanNodes);
+        assert_eq!(a.density, "warn");
+        assert_eq!(a.status, "sparse");
+        assert!(a.message.contains("orphan_nodes"), "msg={}", a.message);
+        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
+        assert!(a.note.ends_with("; run graph rebuild"), "note={}", a.note);
+    }
+
+    #[test]
+    fn assess_graph_density_with__orphan_graph_off__reinstall_soot() {
+        let a = assess_graph_density_with(&snap(200, 0, 50, None), false);
+        assert_eq!(a.verdict, DensityVerdict::OrphanNodes);
+        assert_eq!(a.remediation.as_deref(), Some(GRAPH_REINSTALL_SOOT));
+        assert!(
+            a.note
+                .contains("; see remediation to install a graph-capable binary"),
+            "note={}",
+            a.note
+        );
+    }
+
+    #[test]
+    fn assess_graph_density_with__sparse_1304_95_graph_on__rebuild() {
+        // E/N ≈ 0.073 < 0.50
+        let a = assess_graph_density_with(&snap(1304, 95, 8398, Some(500)), true);
         assert_eq!(a.verdict, DensityVerdict::Sparse);
         assert_eq!(a.density, "warn");
         assert_eq!(a.status, "sparse");
         assert!(a.message.contains("sparse"), "msg={}", a.message);
         assert!((a.edge_node_ratio - (95.0 / 1304.0)).abs() < 1e-9);
+        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
         assert!(
-            a.remediation
-                .as_deref()
-                .is_some_and(|r| r.contains("rebuild")),
-            "sparse remediation must mention rebuild: {:?}",
-            a.remediation
+            a.note.contains("rebuild if projection lag suspected"),
+            "sparse graph-on note nuance: {}",
+            a.note
         );
     }
 
     #[test]
-    fn assess_graph_density__small_ok_nodes10_edges5__ok_live() {
-        // AC5 — below MIN_NODES
-        let a = assess_graph_density(&snap(10, 5, 5, Some(5)));
-        assert_eq!(a.verdict, DensityVerdict::Ok);
-        assert_eq!(a.density, "ok");
-        assert_eq!(a.status, "live");
-        assert!(a.remediation.is_none());
-        assert!(a.note.contains("Graph"), "note kept: {}", a.note);
+    fn assess_graph_density_with__sparse_1304_95_graph_off__reinstall_soot() {
+        let a = assess_graph_density_with(&snap(1304, 95, 8398, Some(500)), false);
+        assert_eq!(a.verdict, DensityVerdict::Sparse);
+        assert_eq!(a.remediation.as_deref(), Some(GRAPH_REINSTALL_SOOT));
+        assert!(
+            a.note
+                .contains("; see remediation to install a graph-capable binary"),
+            "note={}",
+            a.note
+        );
+        assert!(
+            !a.note.contains("rebuild if projection lag suspected"),
+            "graph-off note must use uniform suffix: {}",
+            a.note
+        );
     }
 
     #[test]
-    fn assess_graph_density__ratio_0_8__ok() {
-        // AC6 — tree-healthy canary (0.8 ≥ 0.50)
-        let a = assess_graph_density(&snap(100, 80, 50, Some(40)));
-        assert_eq!(a.verdict, DensityVerdict::Ok);
-        assert_eq!(a.density, "ok");
-        assert_eq!(a.status, "live");
+    fn assess_graph_density_with__small_ok_nodes10_edges5__ok_live_both_capabilities() {
+        // AC5: Ok remediation None both sides; note capability-blind (M1)
+        for available in [true, false] {
+            let a = assess_graph_density_with(&snap(10, 5, 5, Some(5)), available);
+            assert_eq!(a.verdict, DensityVerdict::Ok, "available={available}");
+            assert_eq!(a.density, "ok", "available={available}");
+            assert_eq!(a.status, "live", "available={available}");
+            assert!(a.remediation.is_none(), "available={available}");
+            assert!(
+                a.note.contains("use 'graph rebuild' for full resync"),
+                "Ok note kept informational (available={available}): {}",
+                a.note
+            );
+        }
     }
 
     #[test]
-    fn assess_graph_density__ratio_0_4__warn_sparse() {
-        // AC6b
-        let a = assess_graph_density(&snap(100, 40, 50, None));
+    fn assess_graph_density_with__ratio_0_8__ok_both_capabilities() {
+        // tree-healthy canary (0.8 ≥ 0.50) — AC5 both sides
+        for available in [true, false] {
+            let a = assess_graph_density_with(&snap(100, 80, 50, Some(40)), available);
+            assert_eq!(a.verdict, DensityVerdict::Ok, "available={available}");
+            assert_eq!(a.density, "ok", "available={available}");
+            assert_eq!(a.status, "live", "available={available}");
+            assert!(a.remediation.is_none(), "available={available}");
+        }
+    }
+
+    #[test]
+    fn assess_graph_density_with__ratio_0_4__warn_sparse() {
+        let a = assess_graph_density_with(&snap(100, 40, 50, None), true);
         assert_eq!(a.verdict, DensityVerdict::Sparse);
         assert_eq!(a.density, "warn");
         assert_eq!(a.status, "sparse");
+        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
     }
 
     #[test]
-    fn assess_graph_density__projection_lag_memory_coverage__warn() {
-        // AC7 — memory_nodes/pinned = 50/1000 = 0.05 < 0.10; dense enough otherwise
-        let a = assess_graph_density(&snap(100, 80, 1000, Some(50)));
+    fn assess_graph_density_with__projection_lag_graph_on__rebuild() {
+        // memory_nodes/pinned = 50/1000 = 0.05 < 0.10; dense enough otherwise
+        let a = assess_graph_density_with(&snap(100, 80, 1000, Some(50)), true);
         assert_eq!(a.verdict, DensityVerdict::ProjectionLag);
         assert_eq!(a.density, "warn");
         assert_eq!(a.status, "sparse");
         assert!(a.message.contains("projection_lag"), "msg={}", a.message);
+        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
+        assert!(a.note.ends_with("; run graph rebuild"), "note={}", a.note);
     }
 
     #[test]
-    fn assess_graph_density__projection_lag_omitted_when_memory_nodes_none() {
-        let a = assess_graph_density(&snap(100, 80, 1000, None));
+    fn assess_graph_density_with__projection_lag_graph_off__reinstall_soot() {
+        let a = assess_graph_density_with(&snap(100, 80, 1000, Some(50)), false);
+        assert_eq!(a.verdict, DensityVerdict::ProjectionLag);
+        assert_eq!(a.remediation.as_deref(), Some(GRAPH_REINSTALL_SOOT));
+        assert!(
+            a.note
+                .contains("; see remediation to install a graph-capable binary"),
+            "note={}",
+            a.note
+        );
+    }
+
+    #[test]
+    fn assess_graph_density_with__projection_lag_omitted_when_memory_nodes_none() {
+        let a = assess_graph_density_with(&snap(100, 80, 1000, None), true);
         assert_eq!(
             a.verdict,
             DensityVerdict::Ok,
             "coverage arm omitted when memory_nodes unknown"
         );
+        assert!(a.remediation.is_none());
     }
 
     #[test]
-    fn assess_graph_density__projection_lag_skipped_when_memory_nodes_zero() {
+    fn assess_graph_density_with__projection_lag_skipped_when_memory_nodes_zero() {
         // kinds may be session/turn only
-        let a = assess_graph_density(&snap(100, 80, 1000, Some(0)));
+        let a = assess_graph_density_with(&snap(100, 80, 1000, Some(0)), true);
         assert_eq!(a.verdict, DensityVerdict::Ok);
+        assert!(a.remediation.is_none());
     }
 
     #[test]
-    fn assess_graph_density__priority_empty_lag_before_orphan() {
+    fn assess_graph_density_with__priority_empty_lag_before_orphan() {
         // empty graph with large pins is empty_lag (nodes=0), not orphan
-        let a = assess_graph_density(&snap(0, 0, 200, Some(0)));
+        let a = assess_graph_density_with(&snap(0, 0, 200, Some(0)), true);
         assert_eq!(a.verdict, DensityVerdict::EmptyLag);
     }
 
     #[test]
-    fn assess_graph_density__priority_orphan_before_sparse() {
+    fn assess_graph_density_with__priority_orphan_before_sparse() {
         // edges==0 → orphan, not sparse
-        let a = assess_graph_density(&snap(100, 0, 10, None));
+        let a = assess_graph_density_with(&snap(100, 0, 10, None), true);
         assert_eq!(a.verdict, DensityVerdict::OrphanNodes);
     }
 
     #[test]
-    fn assess_graph_density__priority_sparse_before_projection_lag() {
+    fn assess_graph_density_with__priority_sparse_before_projection_lag() {
         // ratio 0.1 sparse wins even if coverage also bad
-        let a = assess_graph_density(&snap(100, 10, 1000, Some(10)));
+        let a = assess_graph_density_with(&snap(100, 10, 1000, Some(10)), true);
         assert_eq!(a.verdict, DensityVerdict::Sparse);
     }
 
@@ -509,7 +614,7 @@ mod tests {
     fn threshold_env__valid_override_changes_verdict() {
         // Force MIN_NODES very high so 100 nodes stays Ok
         let _g = TempEnv::set(ENV_MIN_NODES, "1000");
-        let a = assess_graph_density(&snap(100, 10, 50, None));
+        let a = assess_graph_density_with(&snap(100, 10, 50, None), true);
         assert_eq!(
             a.verdict,
             DensityVerdict::Ok,
@@ -593,8 +698,8 @@ mod tests {
     }
 
     #[test]
-    fn assess_graph_density__messages_have_no_secret_markers() {
-        // AC17 string deny
+    fn assess_graph_density_with__messages_have_no_secret_markers() {
+        // AC17 string deny — explicit capability to avoid graph-off CI flakiness
         let cases = [
             snap(0, 0, 500, None),
             snap(200, 0, 10, None),
@@ -602,7 +707,7 @@ mod tests {
             snap(100, 80, 1000, Some(20)),
         ];
         for s in cases {
-            let a = assess_graph_density(&s);
+            let a = assess_graph_density_with(&s, true);
             for text in [
                 a.message.as_str(),
                 a.note.as_str(),

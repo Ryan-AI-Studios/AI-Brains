@@ -2878,6 +2878,11 @@ fn test_preflight_stdin_flag_in_help() {
 /// Guard only — do not hardcode a fourth SOOT copy.
 /// Per-arm proof (Codex R1 P2): each `#[cfg(not(feature = "graph"))] Commands::Graph`
 /// arm must reference the constant independently (global count alone is insufficient).
+///
+/// T232 F17/M4: density + doctor SOOT discipline —
+/// (1) graph_density.rs references GRAPH_REINSTALL_SOOT by name (no free-standing reinstall literal);
+/// (2) doctor.rs has no hardcoded `"ai-brains graph rebuild"` literal;
+/// (3) REMEDIATION_REBUILD value equals exact rebuild SOOT.
 #[test]
 #[allow(non_snake_case)]
 fn graph_stub__reinstall_hint__matches_install_soot() {
@@ -2886,11 +2891,16 @@ fn graph_stub__reinstall_hint__matches_install_soot() {
         fs::read_to_string(manifest.join("src/main.rs")).expect("read ai-brains-cli src/main.rs");
     let governed = fs::read_to_string(manifest.join("src/commands/governed_common.rs"))
         .expect("read governed_common.rs");
+    let density_rs =
+        fs::read_to_string(manifest.join("src/graph_density.rs")).expect("read graph_density.rs");
+    let doctor_rs =
+        fs::read_to_string(manifest.join("src/commands/doctor.rs")).expect("read doctor.rs");
     // concat so this test file does not itself contain the contiguous SOOT literal.
     let soot = concat!(
         "cargo install --path crates/ai-brains-cli --locked ",
         "--features graph"
     );
+    let rebuild_soot = "ai-brains graph rebuild";
     // Constant definition must equal the INSTALL primary SOOT (F27 / T222 AC16).
     assert!(
         governed.contains("GRAPH_REINSTALL_SOOT") && governed.contains(soot),
@@ -2920,6 +2930,30 @@ fn graph_stub__reinstall_hint__matches_install_soot() {
     assert_eq!(
         stub_hits, 2,
         "expected exactly two feature-off Graph stubs using GRAPH_REINSTALL_SOOT; found {stub_hits}"
+    );
+
+    // T232 F17: density references reinstall SOOT by name only (not a free-standing literal).
+    assert!(
+        density_rs.contains("GRAPH_REINSTALL_SOOT"),
+        "graph_density.rs must reference GRAPH_REINSTALL_SOOT by name"
+    );
+    assert!(
+        !density_rs.contains(soot),
+        "graph_density.rs must not embed the cargo install reinstall literal"
+    );
+    // doctor must not hardcode rebuild SOOT — use density_remediation helper.
+    assert!(
+        !doctor_rs.contains(rebuild_soot),
+        "doctor.rs must not contain hardcoded rebuild SOOT literal"
+    );
+    assert!(
+        doctor_rs.contains("density_remediation"),
+        "doctor.rs gather-error path must call density_remediation"
+    );
+    // REMEDIATION_REBUILD const value equals exact rebuild SOOT.
+    assert!(
+        density_rs.contains("REMEDIATION_REBUILD") && density_rs.contains(rebuild_soot),
+        "REMEDIATION_REBUILD in graph_density.rs must equal exact rebuild SOOT"
     );
 }
 
