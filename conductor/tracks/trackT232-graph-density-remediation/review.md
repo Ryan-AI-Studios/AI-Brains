@@ -16,7 +16,7 @@ Capability-aware `graph_density` / assessor remediations:
 | Codex R1 | gpt-5.4 high | **FAIL** — P2 governance + P3 AC5 dual-side |
 | Codex R1 fix | orchestrator | dual Skip/Ok units; In review governance |
 | Codex R2 | gpt-5.4 high | **PASS WITH DEFERRED P3** (process closeout only) |
-| Final Codex | pending closeout PR | fresh clean gate |
+| Final Codex | gpt-5.4 high | **PASS** (no findings; process residual cleared) |
 
 ## AC matrix
 
