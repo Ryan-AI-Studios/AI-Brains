@@ -2,7 +2,7 @@
 
 - **Track ID:** T222-GraphOnInstallPath
 - **Phase:** T217–T232 post-audit CLI quality (P2)
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (PR #122 `c1ac594`, 2026-08-10)
 - **Depends on:** **T200** install honesty (docs SOOT + CI graph-on smoke; A2=no Cargo default); **T198** FEATURE_UNAVAILABLE exit 2; **T213** doctor `graph_density` (SQL-only)
 - **Blocks / feeds:** **T232** density remediation branching (capability-aware rebuild vs reinstall); operator PATH usefulness for `graph *`
 - **Category:** INFRA / DOCS / FEATURE (light doctor check)

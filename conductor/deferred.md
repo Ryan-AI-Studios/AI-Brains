@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370`; ~~**T219**~~ **closed** PR #118 `496ddd7`; ~~**T224**~~ **closed** PR #120 `a18fae6` (search role strip); **T222** **Planning** (graph-on scripts + doctor `graph_feature`); then remaining placeholders (env-warn quiet, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation T232). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370`; ~~**T219**~~ **closed** PR #118 `496ddd7`; ~~**T224**~~ **closed** PR #120 `a18fae6`; ~~**T222**~~ **closed** PR #122 `c1ac594` (graph-on scripts + doctor `graph_feature`); then remaining placeholders (env-warn quiet, backup verify quiet, policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search, density remediation **T232**). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -116,7 +116,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Preflight pretty wall (quality 5)~~ | **Closed by T219** PR #118 `496ddd7` — newline budget + Scope + role strip + section caps; soft residual `--compact` / retrieval JSON strip / T228 |
 | ~~preflight summary `--format json` lie (quality 3)~~ | **Closed by T220** PR #112 `6f4f67b` |
 | ~~Governed usefulness 4–5; progressive deny exit 0~~ | **Closed by T221** PR #114 `b3c4b0f` — progressive/expand deny exit 3 + `denial_hint` + human emit_error hint; soft residual F12/F32/F18/F36 |
-| Graph-off PATH usefulness 3 | **T222** Planning (scripts graph-on + doctor `graph_feature`; A2=no default) |
+| ~~Graph-off PATH usefulness 3~~ | **Closed by T222** PR #122 `c1ac594` — scripts graph-on + doctor `graph_feature`; A2=no; soft residual T232 density remediations |
 | `.env` override double-warn spam | **T223** Placeholder |
 | ~~ASSISTANT: in search paths~~ | **Closed by T224** PR #120 `a18fae6` — pretty + forget previews strip; JSON/events raw; soft residual truncate triplication / JSON preview field |
 | Backup verify noise + legacy fleet | **T225** Placeholder |
