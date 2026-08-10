@@ -157,8 +157,24 @@ pub fn run(
         || format_str.eq_ignore_ascii_case("pretty");
 
     if human_mode {
-        println!("{}", context.text);
+        // F6/F6b: Scope header via CLI-only alias lookup (mirror print_summary).
+        let name_alias = if !options.global {
+            match options.project_id.as_ref() {
+                Some(pid) => ctx.conn.get_project_by_id(pid)?,
+                None => None,
+            }
+        } else {
+            None
+        };
+        let scope = super::recall::format_scope_line(
+            options.global,
+            options.project_id.as_ref(),
+            name_alias.as_ref(),
+        );
+        let pretty_body = format_preflight_pretty_body(&context.text);
+        println!("{scope}\n\n{pretty_body}");
     } else {
+        // JSON path: raw post-F1 context.text + word_count only (no Scope/caps chrome).
         let response = PreflightContextResponse {
             text: context.text,
             word_count: context.word_count,
@@ -166,6 +182,306 @@ pub fn run(
         println!("{}", serde_json::to_string(&response)?);
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Pretty body formatter (T219 F9/F10/F29/F31/F37) — pure, no PrettyOpts
+// ---------------------------------------------------------------------------
+
+/// Display-only caps for human/pretty preflight body (F29 constants-first).
+pub(crate) const PRETTY_SAFETY_MAX_ITEMS: usize = 8;
+pub(crate) const PRETTY_TURNS_PER_SESSION: usize = 6;
+pub(crate) const PRETTY_MAX_SESSIONS: usize = 3;
+pub(crate) const PRETTY_INDEX_MAX: usize = 15;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PrettySectionKind {
+    Safety,
+    Session,
+    Index,
+    Recent,
+    Other,
+}
+
+/// Full-line legacy section header: starts with `---` and ends with `---` after trim.
+/// Does **not** treat `#` / `##` markdown as headers (F14 / AC14).
+fn is_legacy_section_header(line: &str) -> bool {
+    let t = line.trim();
+    t.len() >= 7 && t.starts_with("---") && t.ends_with("---")
+}
+
+fn classify_section_header(header: &str) -> PrettySectionKind {
+    let t = header.trim();
+    if t.contains("Repository Bearings") || t.contains("Bearings & Safety") {
+        PrettySectionKind::Safety
+    } else if t.contains("Memory Index") {
+        PrettySectionKind::Index
+    } else if t.contains("Most Recent Memories") {
+        PrettySectionKind::Recent
+    } else if t.starts_with("--- Session:") || t.starts_with("--- Session ") {
+        PrettySectionKind::Session
+    } else {
+        PrettySectionKind::Other
+    }
+}
+
+/// Split content lines into blank-line-separated item blocks (safety / recent).
+fn split_item_blocks(lines: &[&str]) -> Vec<String> {
+    let mut blocks: Vec<String> = Vec::new();
+    let mut cur: Vec<&str> = Vec::new();
+    for line in lines {
+        if line.trim().is_empty() {
+            if !cur.is_empty() {
+                blocks.push(cur.join("\n"));
+                cur.clear();
+            }
+        } else {
+            cur.push(*line);
+        }
+    }
+    if !cur.is_empty() {
+        blocks.push(cur.join("\n"));
+    }
+    blocks
+}
+
+fn strip_role_on_content_line(line: &str) -> String {
+    super::display_text::strip_role_prefix(line.trim_start()).to_string()
+}
+
+/// True when a trimmed line starts a retrieval session turn (`ROLE: …`).
+///
+/// Multi-line turns (from `truncate_turn`) emit only the first line with a role
+/// prefix; continuation lines must not count as extra turns (T219 M1).
+fn is_session_turn_start(line: &str) -> bool {
+    let t = line.trim_start();
+    t.starts_with("USER:") || t.starts_with("ASSISTANT:") || t.starts_with("SYSTEM:")
+}
+
+/// Format full preflight body for human/pretty display (T219).
+///
+/// Pure string transform: section caps, F31 notices, role-prefix strip, blank
+/// line after each emitted `---` header. Orphan headers with zero content omitted.
+pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
+    // Parse into (optional header, content lines) sections.
+    // Text before the first header is a prologue (Other, no header).
+    let mut sections: Vec<(Option<String>, Vec<String>)> = Vec::new();
+    let mut cur_header: Option<String> = None;
+    let mut cur_lines: Vec<String> = Vec::new();
+
+    for line in text.split('\n') {
+        let line = line.trim_end_matches('\r');
+        if is_legacy_section_header(line) {
+            if cur_header.is_some() || !cur_lines.is_empty() {
+                sections.push((cur_header.take(), std::mem::take(&mut cur_lines)));
+            }
+            cur_header = Some(line.to_string());
+        } else {
+            cur_lines.push(line.to_string());
+        }
+    }
+    if cur_header.is_some() || !cur_lines.is_empty() {
+        sections.push((cur_header, cur_lines));
+    }
+
+    let mut out_parts: Vec<String> = Vec::new();
+    let mut sessions_emitted: usize = 0;
+    let mut sessions_skipped: usize = 0;
+    // Index of the last emitted session part in `out_parts` (F31 M2 placement).
+    let mut last_session_part_idx: Option<usize> = None;
+
+    for (header, lines) in sections {
+        let kind = header
+            .as_deref()
+            .map(classify_section_header)
+            .unwrap_or(PrettySectionKind::Other);
+
+        // Session cap: count session headers; skip overflow sessions.
+        if kind == PrettySectionKind::Session && sessions_emitted >= PRETTY_MAX_SESSIONS {
+            sessions_skipped += 1;
+            continue;
+        }
+
+        let mut body_lines: Vec<String> = Vec::new();
+
+        match kind {
+            PrettySectionKind::Safety => {
+                let raw_refs: Vec<&str> = lines.iter().map(String::as_str).collect();
+                let blocks = split_item_blocks(&raw_refs);
+                let total = blocks.len();
+                let take_n = total.min(PRETTY_SAFETY_MAX_ITEMS);
+                for block in blocks.into_iter().take(take_n) {
+                    let stripped: Vec<String> =
+                        block.lines().map(strip_role_on_content_line).collect();
+                    body_lines.push(stripped.join("\n"));
+                }
+                if total > PRETTY_SAFETY_MAX_ITEMS {
+                    let n = total - PRETTY_SAFETY_MAX_ITEMS;
+                    body_lines.push(format!("+{n} more safety entries — ai-brains memory list"));
+                }
+            }
+            PrettySectionKind::Session => {
+                // Count logical turns (role-leading lines), not physical lines (M1).
+                // Continuation lines of multi-line turns belong to the open turn.
+                let mut turn_count = 0usize;
+                let mut turn_total = 0usize;
+                let mut in_open_turn = false;
+                for line in &lines {
+                    if line.trim().is_empty() {
+                        if in_open_turn && turn_count <= PRETTY_TURNS_PER_SESSION {
+                            // Preserve blank only when we still show the open turn body.
+                            body_lines.push(String::new());
+                        }
+                        continue;
+                    }
+                    if is_session_turn_start(line) {
+                        turn_total += 1;
+                        in_open_turn = true;
+                        if turn_count < PRETTY_TURNS_PER_SESSION {
+                            body_lines.push(strip_role_on_content_line(line));
+                            turn_count += 1;
+                        } else {
+                            // Past cap: do not emit further turns or their continuations.
+                            in_open_turn = false;
+                        }
+                    } else if in_open_turn && turn_count <= PRETTY_TURNS_PER_SESSION {
+                        // Continuation of a displayed turn (multi-line truncate_turn).
+                        body_lines.push(strip_role_on_content_line(line));
+                    }
+                }
+                // Drop trailing blanks introduced above.
+                while body_lines.last().is_some_and(|l| l.is_empty()) {
+                    body_lines.pop();
+                }
+                if turn_total > PRETTY_TURNS_PER_SESSION {
+                    let n = turn_total - PRETTY_TURNS_PER_SESSION;
+                    body_lines.push(format!("+{n} more turns in session"));
+                }
+            }
+            PrettySectionKind::Index => {
+                let mut index_items: Vec<String> = Vec::new();
+                let mut other: Vec<String> = Vec::new();
+                for line in &lines {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    // Numbered index lines: "1. …"
+                    let is_numbered = trimmed.chars().next().is_some_and(|c| c.is_ascii_digit())
+                        && trimmed.contains(". ");
+                    if is_numbered {
+                        // Strip role prefix on the summary portion after "N. ".
+                        if let Some((num, rest)) = trimmed.split_once(". ") {
+                            let stripped = strip_role_on_content_line(rest);
+                            index_items.push(format!("{num}. {stripped}"));
+                        } else {
+                            index_items.push(strip_role_on_content_line(trimmed));
+                        }
+                    } else {
+                        other.push(strip_role_on_content_line(line));
+                    }
+                }
+                let total = index_items.len();
+                let take_n = total.min(PRETTY_INDEX_MAX);
+                for item in index_items.into_iter().take(take_n) {
+                    body_lines.push(item);
+                }
+                if total > PRETTY_INDEX_MAX {
+                    let n = total - PRETTY_INDEX_MAX;
+                    body_lines.push(format!("+{n} more via recall"));
+                }
+                body_lines.extend(other);
+            }
+            PrettySectionKind::Recent => {
+                let raw_refs: Vec<&str> = lines.iter().map(String::as_str).collect();
+                let blocks = split_item_blocks(&raw_refs);
+                // Keep top-3 intent; strip role prefixes on display lines.
+                const RECENT_MAX: usize = 3;
+                for block in blocks.into_iter().take(RECENT_MAX) {
+                    let stripped: Vec<String> =
+                        block.lines().map(strip_role_on_content_line).collect();
+                    // Skip pure notice lines from being role-stripped wrongly — fine.
+                    if stripped.iter().all(|l| l.trim().is_empty()) {
+                        continue;
+                    }
+                    body_lines.push(stripped.join("\n"));
+                }
+                // Preserve trailing recall hint if present as last non-empty block content.
+                for line in &lines {
+                    let t = line.trim();
+                    if t.starts_with("(Use 'recall'") || t.starts_with("(Use \"recall\"") {
+                        body_lines.push(t.to_string());
+                    }
+                }
+            }
+            PrettySectionKind::Other => {
+                for line in &lines {
+                    if line.trim().is_empty() {
+                        body_lines.push(String::new());
+                    } else {
+                        body_lines.push(strip_role_on_content_line(line));
+                    }
+                }
+                // Trim trailing blanks for orphan detection.
+                while body_lines.last().is_some_and(|l| l.is_empty()) {
+                    body_lines.pop();
+                }
+            }
+        }
+
+        // F37 / AC18: omit orphan headers with zero content after caps.
+        let has_content = body_lines.iter().any(|l| !l.trim().is_empty());
+        if header.is_some() && !has_content {
+            continue;
+        }
+
+        if kind == PrettySectionKind::Session {
+            sessions_emitted += 1;
+        }
+
+        let mut section_out = String::new();
+        if let Some(h) = header {
+            // F10: blank line after each emitted --- header.
+            section_out.push_str(h.trim());
+            section_out.push('\n');
+            section_out.push('\n');
+        }
+
+        match kind {
+            PrettySectionKind::Safety | PrettySectionKind::Recent => {
+                section_out.push_str(&body_lines.join("\n\n"));
+            }
+            _ => {
+                // Join with single newlines; preserve intentional blanks already in body_lines.
+                section_out.push_str(&body_lines.join("\n"));
+            }
+        }
+
+        // Trim trailing whitespace-only from section.
+        let section_out = section_out.trim_end().to_string();
+        if !section_out.is_empty() {
+            if kind == PrettySectionKind::Session {
+                last_session_part_idx = Some(out_parts.len());
+            }
+            out_parts.push(section_out);
+        }
+    }
+
+    // Sessions count overflow notice (F31 / M2) — attach to last *session* part,
+    // not the final out_part (which is often Memory Index / Recent).
+    if sessions_skipped > 0 {
+        let notice = format!("+{sessions_skipped} more sessions");
+        if let Some(idx) = last_session_part_idx {
+            if let Some(part) = out_parts.get_mut(idx) {
+                part.push('\n');
+                part.push_str(&notice);
+            }
+        } else {
+            out_parts.push(notice);
+        }
+    }
+
+    out_parts.join("\n\n")
 }
 
 /// Build summary lines (no I/O). Dual count model (T214 F4):
@@ -963,5 +1279,218 @@ mod tests {
         let prefs_none = HarnessHookPrefs::default();
         let ready_all = ready_missing_not_declined(&statuses, &prefs_none);
         assert_eq!(ready_all.len(), 2);
+    }
+
+    // ---------------------------------------------------------------------------
+    // T219 — format_preflight_pretty_body pure units (AC6 / AC14 / AC18)
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__over_cap_sections__f31_wording() {
+        // Safety: 10 blank-separated items → cap 8 + safety notice (not index wording).
+        let mut safety_items = Vec::new();
+        for i in 1..=10 {
+            safety_items.push(format!("CONSTRAINT: safety item {i}"));
+        }
+        let safety = format!(
+            "--- Repository Bearings & Safety ---\n{}",
+            safety_items.join("\n\n")
+        );
+
+        // Index: 18 numbered lines → cap 15 + recall notice.
+        let mut index_lines = vec!["--- Memory Index (Briefing) ---".to_string()];
+        for i in 1..=18 {
+            index_lines.push(format!("{i}. ASSISTANT: DECISION: index item {i}"));
+        }
+        let index = index_lines.join("\n");
+
+        // Sessions: 4 sessions × 8 turns → max 3 sessions + turn notices + sessions notice.
+        let mut sessions = Vec::new();
+        for s in 1..=4 {
+            let mut lines = vec![format!(
+                "--- Session: 00000000-0000-0000-0000-00000000000{s} ---"
+            )];
+            for t in 1..=8 {
+                lines.push(format!("ASSISTANT: turn {t} content for session {s}"));
+            }
+            sessions.push(lines.join("\n"));
+        }
+
+        let text = format!("{safety}\n\n{}\n\n{index}", sessions.join("\n\n"));
+        let out = format_preflight_pretty_body(&text);
+
+        assert!(
+            out.contains("+2 more safety entries — ai-brains memory list"),
+            "AC6 safety F31 wording; got:\n{out}"
+        );
+        assert!(
+            out.contains("+3 more via recall"),
+            "AC6 index F31 wording; got:\n{out}"
+        );
+        assert!(
+            out.contains("+2 more turns in session"),
+            "AC6 session turns F31; got:\n{out}"
+        );
+        assert!(
+            out.contains("+1 more sessions"),
+            "AC6 sessions count F31; got:\n{out}"
+        );
+        // L1: exact index N is 3 — reject wrong N without tautology.
+        assert!(
+            !out.contains("+2 more via recall"),
+            "index overflow must be +3 not +2; got:\n{out}"
+        );
+        // M2: sessions notice must appear before Memory Index, not only as trailing index chrome.
+        let sessions_notice_at = out
+            .find("+1 more sessions")
+            .expect("+1 more sessions present");
+        let index_at = out
+            .find("--- Memory Index (Briefing) ---")
+            .expect("Memory Index header present");
+        assert!(
+            sessions_notice_at < index_at,
+            "M2: sessions notice must precede Memory Index; notice@{sessions_notice_at} index@{index_at}\n{out}"
+        );
+        // No displayed index line begins with ASSISTANT:
+        for line in out.lines() {
+            if line
+                .trim()
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_digit())
+                && line.contains(". ")
+            {
+                let after = line.split_once(". ").map(|(_, r)| r).unwrap_or(line);
+                assert!(
+                    !after.starts_with("ASSISTANT:"),
+                    "index line must strip role; got {line}"
+                );
+            }
+            if line.starts_with("ASSISTANT:") {
+                panic!("session/display line must strip ASSISTANT: prefix; got {line}");
+            }
+        }
+        // Blank line after --- header.
+        assert!(
+            out.contains("--- Repository Bearings & Safety ---\n\n"),
+            "F10 blank after header; got:\n{out}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__governed_markdown__preserves_hash_headers() {
+        // AC14: ## lines are not treated as --- section headers; preserved.
+        let text = "# Project Briefing (governed)\n\n## Decisions\n\n- ship T219\n\n## Constraints\n\n- no unwrap";
+        let out = format_preflight_pretty_body(text);
+        assert!(
+            out.contains("## Decisions"),
+            "must preserve ##; got:\n{out}"
+        );
+        assert!(
+            out.contains("## Constraints"),
+            "must preserve ##; got:\n{out}"
+        );
+        assert!(
+            out.contains("# Project Briefing (governed)"),
+            "must preserve #; got:\n{out}"
+        );
+        assert!(!out.contains("---"), "must not invent --- headers");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__orphan_header__omitted() {
+        // AC18: --- Header --- with zero following items is omitted.
+        let text =
+            "--- Orphan Section ---\n\n--- Repository Bearings & Safety ---\n\nCONSTRAINT: keep me";
+        let out = format_preflight_pretty_body(text);
+        assert!(
+            !out.contains("Orphan Section"),
+            "orphan header must be omitted; got:\n{out}"
+        );
+        assert!(
+            out.contains("--- Repository Bearings & Safety ---"),
+            "non-empty section kept; got:\n{out}"
+        );
+        assert!(out.contains("CONSTRAINT: keep me"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__role_strip_on_session_and_index() {
+        let text = "--- Session: aaaa ---\nASSISTANT: DECISION: alpha\nUSER: beta\n\n--- Memory Index (Briefing) ---\n1. ASSISTANT: DECISION: gamma -- 1 day ago";
+        let out = format_preflight_pretty_body(text);
+        assert!(out.contains("DECISION: alpha"));
+        assert!(out.contains("beta"));
+        assert!(out.contains("1. DECISION: gamma"));
+        assert!(!out.lines().any(|l| l.starts_with("ASSISTANT:")));
+        assert!(!out.lines().any(|l| l.starts_with("USER:")));
+    }
+
+    /// M1: multi-line turns (truncate_turn shape) count as one turn each.
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__multiline_turns__cap_by_role_starts() {
+        // 3 logical turns, each 3 physical lines → 9 lines total.
+        // Cap is 6 turns; must keep all 3 turns fully (no false +N more turns).
+        let text = "\
+--- Session: bbbb ---
+ASSISTANT: line1 of turn1
+continuation of turn1
+more of turn1
+USER: line1 of turn2
+continuation of turn2
+more of turn2
+SYSTEM: line1 of turn3
+continuation of turn3
+more of turn3
+";
+        let out = format_preflight_pretty_body(text);
+        assert!(
+            !out.contains("more turns in session"),
+            "3 multi-line turns must not trip the 6-turn cap; got:\n{out}"
+        );
+        assert!(out.contains("line1 of turn1"));
+        assert!(out.contains("more of turn1"));
+        assert!(out.contains("line1 of turn2"));
+        assert!(out.contains("more of turn3"));
+        // 7 logical single-line turns → overflow +1.
+        let mut lines = vec!["--- Session: cccc ---".to_string()];
+        for t in 1..=7 {
+            lines.push(format!("ASSISTANT: only turn {t}"));
+        }
+        let out7 = format_preflight_pretty_body(&lines.join("\n"));
+        assert!(
+            out7.contains("+1 more turns in session"),
+            "7 role-starts must overflow by 1; got:\n{out7}"
+        );
+        assert!(out7.contains("only turn 6"));
+        assert!(!out7.contains("only turn 7"));
+    }
+
+    /// M2: +N more sessions attaches to last session, before later Index section.
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__sessions_notice__before_index() {
+        let mut parts = Vec::new();
+        for s in 1..=4 {
+            parts.push(format!(
+                "--- Session: 00000000-0000-0000-0000-00000000000{s} ---\nASSISTANT: s{s} turn"
+            ));
+        }
+        parts.push(
+            "--- Memory Index (Briefing) ---\n1. ASSISTANT: DECISION: keep index".to_string(),
+        );
+        let out = format_preflight_pretty_body(&parts.join("\n\n"));
+        assert!(out.contains("+1 more sessions"), "got:\n{out}");
+        let notice = out.find("+1 more sessions").expect("notice");
+        let index = out.find("--- Memory Index (Briefing) ---").expect("index");
+        assert!(
+            notice < index,
+            "sessions notice must be before Memory Index; notice@{notice} index@{index}\n{out}"
+        );
+        assert!(out.contains("1. DECISION: keep index"));
     }
 }

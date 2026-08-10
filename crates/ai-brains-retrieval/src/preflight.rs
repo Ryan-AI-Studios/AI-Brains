@@ -6,7 +6,9 @@ use crate::ansi::strip_ansi;
 use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use crate::sessions::active_sessions;
-use crate::word_budget::{trim_to_word_budget, word_count};
+use crate::word_budget::{
+    content_word_count, trim_to_word_budget, trim_to_word_budget_no_sentinel, word_count,
+};
 use ai_brains_contracts::briefings::{
     BriefingScopeDto, BriefingWarningDto, BudgetReportDto, FreshnessSummaryDto,
     ProjectBriefingPacket,
@@ -112,7 +114,8 @@ fn build_governed_preflight(
         );
         let text = render_governed_packet_markdown(&packet, max_words);
         return Ok(PreflightContext {
-            word_count: word_count(&text),
+            // F32: content words exclude F2b trailing sentinel chrome.
+            word_count: content_word_count(&text),
             text,
         });
     }
@@ -155,7 +158,8 @@ fn build_governed_preflight(
 
     let text = render_governed_packet_markdown(&packet, max_words);
     Ok(PreflightContext {
-        word_count: word_count(&text),
+        // F32: content words exclude F2b trailing sentinel chrome.
+        word_count: content_word_count(&text),
         text,
     })
 }
@@ -326,7 +330,11 @@ fn build_legacy_preflight(
             "--- Repository Bearings & Safety ---\n{}",
             cleaned.join("\n\n")
         );
-        sections.push(trim_to_word_budget(&safety_text, onboarding_budget));
+        // Intermediate subsection trim: no F2b sentinel (final join applies F2b).
+        sections.push(trim_to_word_budget_no_sentinel(
+            &safety_text,
+            onboarding_budget,
+        ));
     }
 
     if !active.is_empty() {
@@ -465,8 +473,8 @@ fn build_legacy_preflight(
             );
         }
 
-        // 3. Assemble with budget awareness
-        let remaining_budget = max_words.saturating_sub(word_count(&sections.join("\n\n")));
+        // 3. Assemble with budget awareness (content words; ignore F2b chrome).
+        let remaining_budget = max_words.saturating_sub(content_word_count(&sections.join("\n\n")));
         let full_text = format!("{}\n\n{}", index_text, detailed_text);
 
         if word_count(&full_text) <= remaining_budget {
@@ -474,7 +482,11 @@ fn build_legacy_preflight(
         } else if word_count(&index_text) <= remaining_budget {
             sections.push(index_text);
         } else {
-            sections.push(trim_to_word_budget(&index_text, remaining_budget));
+            // Intermediate index cut: no F2b; final assembly applies F2b if needed.
+            sections.push(trim_to_word_budget_no_sentinel(
+                &index_text,
+                remaining_budget,
+            ));
             sections.push("... [Index Truncated]".to_string());
         }
     }
@@ -485,7 +497,8 @@ fn build_legacy_preflight(
 
     let text = trim_to_word_budget(&sections.join("\n\n"), max_words);
     Ok(PreflightContext {
-        word_count: word_count(&text),
+        // F32: content words exclude F2b trailing sentinel chrome.
+        word_count: content_word_count(&text),
         text,
     })
 }
@@ -793,7 +806,8 @@ fn truncate_turn(content: &str) -> String {
     let mut result = truncated_lines.join("\n");
     result = trim_to_word_budget(&result, 150);
 
-    if word_count(&result) < wc {
+    // F38 soft: avoid double truncation chrome when F2b already appended `…`.
+    if content_word_count(&result) < wc && !result.ends_with('…') && !result.ends_with("...") {
         result.push_str("\n...");
     }
 
