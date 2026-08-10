@@ -2,7 +2,7 @@
 
 - **Track ID:** T219-PreflightPrettyReadability
 - **Phase:** Post-audit CLI quality series (T217–T232) — P2 after T218
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** 🔄 **In Progress** (implementing on branch `feat/T219-preflight-pretty-readability`)
 - **Depends on:** T214 Scope SOOT ✅; T032 ANSI/dedup/condensation ✅; T216 `preview_line` role-strip SOOT ✅; T220 summary JSON path ✅ (orthogonal); T180 full JSON key freeze ✅
 - **Blocks / feeds:** Operator trust that `--pretty` is scannable; T224 can reuse extracted role-strip helper; residual T228 is **recall** Scope (not this body)
 - **Category:** UX / BUGFIX
@@ -11,7 +11,7 @@
 - **Not absorbed:** Change marker **selection** / ranking policy in `build_legacy_preflight`; ledgerful-on-global (T214 F9); grow `PreflightContextResponse` keys (T180); T224 full recall/sync/forget strip (share helper only); T228 non-empty **recall** Scope; clap 5; MSI; pager DoD
 - **Research date:** 2026-08-09 (live dogfood + word_budget root cause + clig.dev / clap pins / T216 strip SOOT)
 - **AI fold-in:** 2026-08-09 — AI1 affirms F1–F15 core + four blind spots (token invariance, orphan headers, mid-line strip, summary/governed isolation). AI2 **M1–M3** accepted hard; **L1–L5** / **O1–O4** disposition **§14**.
-- **Ledger:** plan-only until go (`ledgerful ledger start` on go)
+- **Ledger:** TX `7c080cb1-f821-43d1-8f17-c7b6b2f75093` (BUGFIX) open until closeout
 
 ## 1. Objective
 

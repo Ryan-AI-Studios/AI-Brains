@@ -35,6 +35,20 @@ fn strip_trailing_truncation_sentinel(input: &str) -> &str {
 /// and blank-line structure (T219 F1/F2). When truncation occurs, append a trailing
 /// `…` on its own line (F2b); the sentinel is not counted toward the budget.
 pub fn trim_to_word_budget(input: &str, max_words: usize) -> String {
+    trim_to_word_budget_inner(input, max_words, true)
+}
+
+/// Subsection / intermediate trim: same newline-preserving budget as
+/// [`trim_to_word_budget`], but **without** the F2b trailing sentinel.
+///
+/// Used when composing multi-section preflight bodies so a partial safety/index
+/// cut does not leave mid-body `…` chrome that would consume one content word of
+/// remaining budget (T219 Codex P3 / internal L2).
+pub fn trim_to_word_budget_no_sentinel(input: &str, max_words: usize) -> String {
+    trim_to_word_budget_inner(input, max_words, false)
+}
+
+fn trim_to_word_budget_inner(input: &str, max_words: usize, with_sentinel: bool) -> String {
     if max_words == 0 {
         return String::new();
     }
@@ -65,7 +79,7 @@ pub fn trim_to_word_budget(input: &str, max_words: usize) -> String {
         }
         out.push_str(&parts.join(" "));
     }
-    if total_words > max_words && !out.ends_with('…') && !out.ends_with("...") {
+    if with_sentinel && total_words > max_words && !out.ends_with('…') && !out.ends_with("...") {
         if !out.is_empty() && !out.ends_with('\n') {
             out.push('\n');
         }
@@ -161,6 +175,15 @@ mod tests {
         assert_eq!(content_word_count("a b c\n…"), 3);
         assert_eq!(content_word_count("a b c\n..."), 3);
         assert_eq!(content_word_count("a b c"), 3);
+    }
+
+    #[test]
+    fn trim_to_word_budget_no_sentinel__over_budget__no_ellipsis() {
+        let out = trim_to_word_budget_no_sentinel("alpha beta gamma delta", 2);
+        assert_eq!(out, "alpha beta");
+        assert!(!out.ends_with('…'));
+        assert!(!out.ends_with("..."));
+        assert_eq!(word_count(&out), 2);
     }
 
     #[test]

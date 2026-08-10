@@ -11,8 +11,6 @@ mod semantic;
 mod sessions;
 mod word_budget;
 
-pub use word_budget::{content_word_count, trim_to_word_budget, word_count};
-
 pub use ai_brains_core::LEXICAL_MATCH_HARD_CAP;
 pub use ansi::strip_ansi;
 pub use errors::{Result, RetrievalError};
@@ -42,6 +40,9 @@ pub use semantic::{
     status_after_embed_ok,
 };
 pub use sessions::active_sessions;
+pub use word_budget::{
+    content_word_count, trim_to_word_budget, trim_to_word_budget_no_sentinel, word_count,
+};
 
 #[cfg(not(feature = "graph"))]
 pub struct MockGraphSearch;

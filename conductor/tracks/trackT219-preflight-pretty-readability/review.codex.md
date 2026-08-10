@@ -1,0 +1,15 @@
+**P0**
+- None.
+
+**P1**
+- T219 does not meet its own completion / DoD evidence yet. The track plan still leaves the full workspace gate, manual AC13 dogfood, review/closeout, and ledger commit unchecked in [plan.md](</C:/dev/AI-Brains/conductor/tracks/trackT219-preflight-pretty-readability/plan.md:119>) and [plan.md](</C:/dev/AI-Brains/conductor/tracks/trackT219-preflight-pretty-readability/plan.md:141>), and the conductor still marks the track in progress in [conductor.md](</C:/dev/AI-Brains/conductor/conductor.md:166>). Under this repo’s rules, that is a clearance blocker even though the code itself is implemented.
+
+**P2**
+- Governance/docs do not agree with the actual branch state. This branch already contains production T219 code in [word_budget.rs](</C:/dev/AI-Brains/crates/ai-brains-retrieval/src/word_budget.rs:37>) and [preflight.rs](</C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/preflight.rs:159>), but the track spec and series/deferred docs still describe T219 as “Planning / plan-only until go” in [spec.md](</C:/dev/AI-Brains/conductor/tracks/trackT219-preflight-pretty-readability/spec.md:5>), [spec.md](</C:/dev/AI-Brains/conductor/tracks/trackT219-preflight-pretty-readability/spec.md:14>), [deferred.md](</C:/dev/AI-Brains/conductor/deferred.md:53>), [deferred.md](</C:/dev/AI-Brains/conductor/deferred.md:108>), [deferred.md](</C:/dev/AI-Brains/conductor/deferred.md:116>), and [README-T217-T232-CLI-QUALITY.md](</C:/dev/AI-Brains/conductor/tracks/README-T217-T232-CLI-QUALITY.md:4>). That fails the “docs/claims/governance agree” check.
+
+**P3**
+- The F2b sentinel is still not fully chrome-only when subsection trims happen before final assembly. `build_legacy_preflight` trims subsection text with `trim_to_word_budget` in [preflight.rs](</C:/dev/AI-Brains/crates/ai-brains-retrieval/src/preflight.rs:331>) and later computes remaining budget with raw `word_count` in [preflight.rs](</C:/dev/AI-Brains/crates/ai-brains-retrieval/src/preflight.rs:471>), while sentinel exclusion only happens for a trailing final sentinel in [word_budget.rs](</C:/dev/AI-Brains/crates/ai-brains-retrieval/src/word_budget.rs:17>) and [word_budget.rs](</C:/dev/AI-Brains/crates/ai-brains-retrieval/src/word_budget.rs:23>). If a safety/index subsection overflows first, that `.` can remain mid-body and consume one word of later index budget. Non-blocking, but real.
+
+**Notes**
+- I did not find additional production wiring gaps in the implemented scope. The branch does satisfy the core T219 behavior changes: newline-preserving trim, shared role-strip helper, pretty formatter caps/notices/orphan omission, Scope header on human full-body output, governed `##` preservation, and compact 2-key non-summary JSON compatibility.
+- I could not independently rerun the full gate from this read-only session; `ai-brains`/`ledgerful` database-backed commands failed to open their local DB files here.
