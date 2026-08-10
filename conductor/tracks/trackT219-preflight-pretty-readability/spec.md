@@ -2,7 +2,7 @@
 
 - **Track ID:** T219-PreflightPrettyReadability
 - **Phase:** Post-audit CLI quality series (T217–T232) — P2 after T218
-- **Status:** 🔄 **In Progress** (implementing on branch `feat/T219-preflight-pretty-readability`)
+- **Status:** ✅ **Completed** (PR #118 squash-merged `496ddd7`)
 - **Depends on:** T214 Scope SOOT ✅; T032 ANSI/dedup/condensation ✅; T216 `preview_line` role-strip SOOT ✅; T220 summary JSON path ✅ (orthogonal); T180 full JSON key freeze ✅
 - **Blocks / feeds:** Operator trust that `--pretty` is scannable; T224 can reuse extracted role-strip helper; residual T228 is **recall** Scope (not this body)
 - **Category:** UX / BUGFIX

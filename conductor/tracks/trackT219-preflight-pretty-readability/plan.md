@@ -1,6 +1,6 @@
 # T219 Plan — Preflight pretty readability
 
-**Status:** 🔄 In Progress (implementation)  
+**Status:** ✅ Completed (PR #118 `496ddd7`)  
 **Category:** UX / BUGFIX  
 **Depends:** T214 ✅, T032 ✅, T216 ✅, T220 ✅ (orthogonal), T180 ✅  
 **Spec:** [spec.md](./spec.md) — includes AI fold-in **§14**
@@ -116,10 +116,10 @@ ledgerful ledger start T219-preflight-pretty-readability --category UX --message
 - [x] CAPABILITIES (pretty + F2b + governed F1 note + F31)
 - [x] CHANGELOG
 - [x] Soft skill one-liner if free
-- [ ] Full gate + ledgerful verify
+- [x] Full gate + ledgerful verify (local 2482 nextest; CI Win/Linux/macOS green PR #118)
 - [x] Manual AC13 (debug `ai-brains`: multi-line Scope, no ASSISTANT index, JSON 2-key + newlines)
-- [x] `review.md`; internal CLEAN; Codex R1 product clean (P1 process/P2 governance/P3 sentinel addressed)
-- [ ] conductor + deferred closeout; ledger commit (after CI merge)
+- [x] `review.md`; internal CLEAN; Codex final **PASS WITH DEFERRED P3**
+- [x] conductor + deferred closeout; ledger commit
 
 ## Task checklist
 
@@ -138,7 +138,7 @@ ledgerful ledger start T219-preflight-pretty-readability --category UX --message
 - [x] Phase 3 pretty formatter
 - [x] Phase 4 CLI wire
 - [x] Phase 5 hermetic
-- [ ] Phase 6 docs + full gate + review + ledger commit (docs/review done; gate+closeout pending)
+- [x] Phase 6 docs + full gate + review + ledger commit
 
 ## Manual test script (post-go)
 
