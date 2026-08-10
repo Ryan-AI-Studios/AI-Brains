@@ -1,10 +1,10 @@
 # T217–T232 — Post-audit CLI quality series (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-05 (scores &lt; 7 + high-leverage improvements).
-**Status:** Series active — **T217 + T218 + T219 + T220 + T221 + T224 closed**; remaining tracks placeholders.
+**Status:** Series active — **T217 + T218 + T219 + T220 + T221 + T224 closed**; **T222 Planning**; remaining tracks placeholders.
 **Prior series:** T205–T216 closed (skill·CLI honesty).
 **Closed:** **T217** FTS multi-token rescue (PR #110 `1e22e77`); **T218** semantic quality v2 (PR #116 `fc4d370`); **T219** preflight pretty readability (PR #118 `496ddd7`); **T220** preflight summary JSON honesty (PR #112 `6f4f67b`); **T221** governed first-run + deny exit honesty (PR #114 `b3c4b0f`); **T224** search role-prefix strip (PR #120 `a18fae6`, 2026-08-10).
-**Next honesty:** graph/install peers (**T222**/**T232**) or polish (**T223**, **T225**–**T228**, **T230**–**T231**).
+**Next honesty:** **T222** graph-on install (Planning) → **T232** density remediation; or polish (**T223**, **T225**–**T228**, **T230**–**T231**).
 
 ## Score → track map
 
@@ -15,7 +15,7 @@
 | Preflight pretty wall (8 / **5**) | **T219** ✅ closed PR #118 | P2 |
 | `preflight --summary --format json` ignored (**4 / 3**) | **T220** ✅ closed PR #112 | P1 |
 | Governed first-run + progressive deny exit0 (**4–5 / 5–6**) | **T221** ✅ closed PR #114 | P1 |
-| Graph-off install usefulness (**3** / 9 honesty) | **T222** Graph-on install path | P2 |
+| Graph-off install usefulness (**3** / 9 honesty) | **T222** Graph-on install path (**Planning**) | P2 |
 | `.env` override double-warn spam | **T223** Quiet env override warnings | P2 |
 | `ASSISTANT:` in recall/sync/forget dry-run | **T224** ✅ closed PR #120 | P2 |
 | Backup verify INFO flood + fleet unusable (**7 / 6**) | **T225** Backup verify quiet + encrypted backup nudge | P2 |
@@ -31,7 +31,7 @@
 
 1. **Ops now (not a code track):** schedule `AI-Brains-Nightly` + ensure `c:\llm\router.bat` on :8081/:8083 — see T229 + `~\.ai-brains\register-nightly-tasks.ps1`.
 2. ~~**T217**~~ **closed**; ~~**T218**~~ **closed** PR #116; ~~**T219**~~ **closed** PR #118; ~~**T220**~~ **closed**; ~~**T221**~~ **closed**; ~~**T224**~~ **closed** PR #120.
-3. **T222/T232** graph install + remediation.
+3. **T222** graph install (Planning) → **T232** density remediation.
 4. **T223, T225–T228, T230–T231** polish.
 
 ## Non-goals of this series

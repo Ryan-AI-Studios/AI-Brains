@@ -42,11 +42,13 @@ The gate covers fmt, clippy (`-D warnings`), nextest, deny, and audit (aligned w
 |-------|-----|-----------|
 | **Default (graph-off)** | Workspace tests / slim install without graph | Feature-off smoke (`graph *` → exit **2**, `FEATURE_UNAVAILABLE`) |
 | **Graph-on** | `cargo nextest run -p ai-brains-cli --features graph` | Graph health smoke (`test_graph_health_smoke`) + graph-on paths |
+| **Local PATH scripts** | `scripts/Build-AIBrains.ps1`, `scripts/build.ps1` | Release CLI with `--features graph` + fail-closed `graph_feature` probe (T222) |
 
 - Default workspace nextest runs **without** the `graph` feature (`ai-brains-cli` `default = []`).
 - Graph health smoke (local or CI F14):  
   `cargo nextest run -p ai-brains-cli --features graph`  
   (or filter with `-E 'test(graph)'` when you only need graph-related tests).
+- Local PATH rebuild scripts are **graph-on** (match INSTALL primary SOOT); they do **not** flip Cargo defaults.
 - Install policy and **GitHub Release graph-off** honesty: [Docs/INSTALL.md](Docs/INSTALL.md).
 - **Capture independence** still holds — capture does not depend on graph; graph is an optional CLI feature.
 

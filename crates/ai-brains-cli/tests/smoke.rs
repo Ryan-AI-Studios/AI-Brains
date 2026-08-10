@@ -2873,49 +2873,53 @@ fn test_preflight_stdin_flag_in_help() {
         .stdout(predicate::str::contains("--stdin"));
 }
 
-/// T200 F9: both feature-off graph stubs in `main.rs` must reinstall with the
-/// INSTALL primary SOOT (`cargo install --path crates/ai-brains-cli --locked --features graph`).
-/// Guard only — do not edit stubs unless that SOOT changes.
+/// T200 F9 / T222 F27: INSTALL primary SOOT lives in `GRAPH_REINSTALL_SOOT`;
+/// both feature-off graph stubs and the constant itself must stay aligned.
+/// Guard only — do not hardcode a fourth SOOT copy.
 /// Per-arm proof (Codex R1 P2): each `#[cfg(not(feature = "graph"))] Commands::Graph`
-/// arm must contain the SOOT independently (global count alone is insufficient).
+/// arm must reference the constant independently (global count alone is insufficient).
 #[test]
 #[allow(non_snake_case)]
 fn graph_stub__reinstall_hint__matches_install_soot() {
-    let main_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
-    let main_rs = fs::read_to_string(&main_path).expect("read ai-brains-cli src/main.rs");
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let main_rs =
+        fs::read_to_string(manifest.join("src/main.rs")).expect("read ai-brains-cli src/main.rs");
+    let governed = fs::read_to_string(manifest.join("src/commands/governed_common.rs"))
+        .expect("read governed_common.rs");
     // concat so this test file does not itself contain the contiguous SOOT literal.
     let soot = concat!(
         "cargo install --path crates/ai-brains-cli --locked ",
         "--features graph"
     );
-    // Per-stub SOOT: each reinstall println must be adjacent to FEATURE_UNAVAILABLE
-    // graph messaging (two dispatch arms in run_sync_path_free + run_with_context).
-    // Exclude enum definition / is_vault_path_free dispatch (cfg Graph without SOOT).
-    let reinstall_prefix = "Reinstall with: ";
+    // Constant definition must equal the INSTALL primary SOOT (F27 / T222 AC16).
+    assert!(
+        governed.contains("GRAPH_REINSTALL_SOOT") && governed.contains(soot),
+        "GRAPH_REINSTALL_SOOT in governed_common.rs must equal INSTALL primary SOOT"
+    );
+    // Both feature-off Graph stubs must consume the constant (not a hard-coded fourth copy).
+    let const_ref = "GRAPH_REINSTALL_SOOT";
+    let reinstall_prefix = "Reinstall with:";
     let mut stub_hits = 0usize;
     let mut search_from = 0usize;
     while let Some(rel) = main_rs[search_from..].find(reinstall_prefix) {
         let abs = search_from + rel;
-        let line_end = main_rs[abs..]
-            .find('\n')
-            .map(|i| abs + i)
-            .unwrap_or(main_rs.len());
-        let line = &main_rs[abs..line_end];
-        if line.contains(soot) {
-            // Confirm surrounding block is a graph feature-off stub (not unrelated reinstall).
+        // Take a window covering the multi-line println!(…) that follows.
+        let window_end = (abs + 200).min(main_rs.len());
+        let window = &main_rs[abs..window_end];
+        if window.contains(const_ref) {
             let ctx_start = abs.saturating_sub(400);
-            let ctx = &main_rs[ctx_start..line_end];
+            let ctx = &main_rs[ctx_start..window_end];
             assert!(
                 ctx.contains("FEATURE_UNAVAILABLE") && ctx.contains("Commands::Graph"),
-                "SOOT reinstall line must sit in a feature-off Commands::Graph stub; context near byte {abs}"
+                "GRAPH_REINSTALL_SOOT reinstall must sit in a feature-off Commands::Graph stub; context near byte {abs}"
             );
             stub_hits += 1;
         }
-        search_from = line_end;
+        search_from = abs + reinstall_prefix.len();
     }
     assert_eq!(
         stub_hits, 2,
-        "expected exactly two feature-off Graph stub reinstall SOOT lines; found {stub_hits}"
+        "expected exactly two feature-off Graph stubs using GRAPH_REINSTALL_SOOT; found {stub_hits}"
     );
 }
 

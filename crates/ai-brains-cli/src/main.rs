@@ -2258,7 +2258,8 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 commands::governed_common::FEATURE_UNAVAILABLE
             );
             println!(
-                "Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph"
+                "Reinstall with: {}",
+                commands::governed_common::GRAPH_REINSTALL_SOOT
             );
             std::process::exit(commands::governed_common::exit_code_feature_unavailable());
         }
@@ -3456,7 +3457,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 commands::governed_common::FEATURE_UNAVAILABLE
             );
             println!(
-                "Reinstall with: cargo install --path crates/ai-brains-cli --locked --features graph"
+                "Reinstall with: {}",
+                commands::governed_common::GRAPH_REINSTALL_SOOT
             );
             std::process::exit(commands::governed_common::exit_code_feature_unavailable());
         }

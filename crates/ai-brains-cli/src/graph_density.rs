@@ -137,7 +137,14 @@ fn counts_suffix(snap: &GraphDensitySnapshot, ratio: f64) -> String {
 }
 
 const REMEDIATION_REBUILD: &str = "ai-brains graph rebuild";
-const REMEDIATION_EMPTY_LAG: &str = "ai-brains graph rebuild (if graph CLI unavailable: cargo install --path crates/ai-brains-cli --locked --features graph)";
+
+/// Empty-lag remediation: rebuild primary + install SOOT substring (T222 F27; branching → T232).
+fn remediation_empty_lag() -> String {
+    format!(
+        "ai-brains graph rebuild (if graph CLI unavailable: {})",
+        crate::commands::governed_common::GRAPH_REINSTALL_SOOT
+    )
+}
 
 /// Pure density assessment. Thresholds read from env with invalid→default (F17).
 ///
@@ -158,7 +165,7 @@ pub fn assess_graph_density(snap: &GraphDensitySnapshot) -> Assessment {
             density: "warn",
             status: "empty",
             note: format!("{message}; run graph rebuild (graph-on install if needed)"),
-            remediation: Some(REMEDIATION_EMPTY_LAG.into()),
+            remediation: Some(remediation_empty_lag()),
             message,
             edge_node_ratio: ratio,
         };
@@ -346,6 +353,13 @@ mod tests {
                 .as_deref()
                 .is_some_and(|r| r.contains("graph rebuild")),
             "remediation={:?}",
+            a.remediation
+        );
+        assert!(
+            a.remediation.as_deref().is_some_and(|r| {
+                r.contains(crate::commands::governed_common::GRAPH_REINSTALL_SOOT)
+            }),
+            "empty-lag remediation must include GRAPH_REINSTALL_SOOT; remediation={:?}",
             a.remediation
         );
         assert!(!a.message.contains("x'"), "no secrets: {}", a.message);

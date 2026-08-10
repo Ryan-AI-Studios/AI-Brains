@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Added
+
+- **T222 Graph-on install path:** Local PATH rebuild scripts (`scripts/Build-AIBrains.ps1`, `scripts/build.ps1`) build CLI with `--features graph` and fail-closed post-install probe (`doctor` `graph_feature=available` + non-`FEATURE_UNAVAILABLE` on `graph update` against a known-missing temp vault). Doctor soft check **`graph_feature`** (compile-time `available`|`unavailable`; Ok severity; remediation = `GRAPH_REINSTALL_SOOT` when unavailable; never alone fail/degraded); matrix **13** checks (`graph_feature` before `graph_density`, includes `harness_wiring`). Single SOOT constant `GRAPH_REINSTALL_SOOT` shared by feature-off stubs, doctor remediation, and empty-lag install substring. **A2=no** — Cargo `default = []` and release.yml unchanged. CAPABILITIES doctor list **11→13**. Feeds T232 density remediation branching.
+
 ### Changed
 
 - **T224 Search/display role-prefix strip:** Human recall / `sync query` pretty hit lines and forget match/UUID previews strip leading case-sensitive `USER:` / `ASSISTANT:` / `SYSTEM:` via the shared T219 `strip_role_prefix` helper (pretty: `trim_start` then strip **before** 500-char truncate; forget: `memory::preview_line` at max 100 dry-run/single/UUID and max 80 multi-match, with `…` on cut). JSON `RecallResult.content`, bridge Insight, and MemoryPinned event content stay raw; ingest/pin `--dry-run` stay raw write-intent. No second prefix token list.
