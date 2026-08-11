@@ -10,7 +10,7 @@ Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXI
 |------|----------|------|
 | **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`) |
 | **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail** |
-| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on policy/erasure); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T203** soft-resolve failure on `source`/`evidence`/`review` list|show when `--scope` omitted and context is not authoritative |
+| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on erasure; missing `--capability` on `policy check`); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T203/T226** soft-resolve failure on `source`/`evidence`/`review` list|show and `policy show|check|bootstrap` when `--scope` omitted and context is not authoritative |
 | **3** | `EXIT_POLICY_DENIED` | `POLICY_DENIED`; `APPROVAL_REQUIRED`; **`query progressive`** when packet `denied: true` (T221 — pretty `ProgressiveQueryResponse` still on **stdout**); **`query expand`** when preview `kind` is exact **`Denied`** |
 | **4** | `EXIT_NOT_FOUND` | `NOT_FOUND` |
 | **5** | `EXIT_DAEMON_UNAVAILABLE` | Daemon required / unreachable for a daemon-required path |
@@ -27,7 +27,7 @@ Optional features not compiled into this binary (notably default-build `graph *`
 
 `query progressive` and `query expand` require `--project-id` or `AI_BRAINS_PROJECT_ID`. When both are unset, `fail_usage` writes a copy-paste example to **stderr** and exits **2** via `GovernedCliError` / `EXIT_USAGE` (not clap-required; not exit 1). `query trace` is excluded.
 
-**T203 soft-resolve:** `source list|show`, `evidence list|search|show`, and `review list` accept optional `--scope`. When omitted, CLI runs `resolve_scope` (cwd + `AI_BRAINS_PROJECT_ID`) and fills only if **authoritative**. Otherwise `fail_usage` on **stderr** (template includes example `--scope Repository:<uuid>`, `ai-brains scope resolve`, and “non-authoritative context is not filled silently”) and exit **2** — **not** clap “required arguments were not provided”, and **not** exit **6** `INVALID_PAYLOAD`.
+**T203/T226 soft-resolve:** `source list|show`, `evidence list|search|show`, `review list`, and **`policy show|check|bootstrap`** accept optional `--scope`. When omitted, CLI runs `resolve_scope` (cwd + `AI_BRAINS_PROJECT_ID`) and fills only if **authoritative**. Otherwise `fail_usage` on **stderr** (template includes example `--scope Repository:<uuid>`, `ai-brains scope resolve`, and “non-authoritative context is not filled silently”) and exit **2** — **not** clap “required arguments were not provided”, and **not** exit **6** `INVALID_PAYLOAD`.
 
 ### Doctor (footnote)
 
@@ -85,9 +85,9 @@ Authorized progressive with grants and zero hits stays **`denied: false`**, empt
 
 After T201, CLI commands that always need a scope use **clap-required** `--scope: String` so forgetting the flag exits **2** (English clap usage on stderr), not **6**.
 
-Still clap-required after T203: `policy show`, `erasure request` (and peers, e.g. `policy check`, `erasure wipe`).
+Still clap-required after T226: `erasure request`, `erasure wipe`, `review resolve` (destructive / mutate / CE). **`policy check --capability`** stays clap-required (only `--scope` softens).
 
-**T203 soft-default (review list + discovery list/show):** `--scope` is **optional** on `review list`, `source list|show`, `evidence list|search|show`. Missing + non-authoritative → runtime **`fail_usage` exit 2** (template class, not clap text). Authoritative context (e.g. `AI_BRAINS_PROJECT_ID`) may soft-fill. **Do not** reintroduce exit-6 missing-scope on these CLI paths.
+**T203/T226 soft-default:** `--scope` is **optional** on `review list`, `source list|show`, `evidence list|search|show`, and **`policy show|check|bootstrap`**. Missing + non-authoritative → runtime **`fail_usage` exit 2** (template class, not clap text). Authoritative context (e.g. `AI_BRAINS_PROJECT_ID`) may soft-fill. **Do not** reintroduce exit-6 missing-scope on these CLI paths.
 
 **F35 — daemon / raw IPC honesty:** HTTP, named-pipe, or other non-CLI callers that omit scope may still receive **`INVALID_PAYLOAD` (exit/map 6)** from defensive daemon arms. The CLI always sends a filled scope after soft-resolve (or fails before send).
 

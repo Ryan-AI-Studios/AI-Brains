@@ -238,8 +238,11 @@ ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>        
 ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid> --confirm # execute CE
 ai-brains policy bootstrap --scope Repository:<uuid>   # T210: discovery grants (ReadEvidence/Conclusions/Decisions)
 ai-brains policy bootstrap --scope Repository:<uuid> --dry-run
+ai-brains policy bootstrap   # omit --scope when project context is authoritative
 ai-brains policy show --scope Repository:<uuid>
+ai-brains policy show --format json   # T226: soft-fill --scope when authoritative
 ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
+ai-brains policy check --capability ReadEvidence --format json   # omit --scope when authoritative
 ```
 
 **Governed policy bootstrap (T210):** After vault open, discovery lists (`source list` / `evidence list` / `review list`) and briefing sections need grants. Run **`ai-brains policy bootstrap --scope Repository:<uuid>`** (or omit `--scope` when project context is authoritative) once per principal+scope. Issues exactly `ReadEvidence`, `ReadConclusions`, `ReadDecisions` with `Privacy::LocalOnly`; registers the principal if missing; idempotent re-run. Does **not** issue Propose*/Approve*/Export/Erase. Does **not** auto-run on `init` (deny-by-default until explicit opt-in). `--dry-run` / `-n` reports the plan with zero event appends.

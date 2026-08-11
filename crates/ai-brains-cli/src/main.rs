@@ -638,7 +638,7 @@ enum Commands {
     /// Policy grant inspection + discovery bootstrap (T160/T210)
     #[command(
         display_order = 36,
-        after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+        after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy show   # omit --scope when project context is authoritative\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative"
     )]
     Policy {
         #[command(subcommand)]
@@ -1208,15 +1208,17 @@ enum ReviewCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+    after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy show   # omit --scope when project context is authoritative\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative"
 )]
 enum PolicyCommands {
     /// List applied grants for principal + scope (read-only)
-    #[command(after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>")]
+    #[command(
+        after_help = "Examples:\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy show   # omit --scope when project context is authoritative"
+    )]
     Show {
-        /// Scope identity key (required)
+        /// Scope identity key (optional — soft-resolves when authoritative)
         #[arg(long)]
-        scope: String,
+        scope: Option<String>,
         #[arg(long, default_value = "json")]
         format: Option<String>,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
@@ -1224,15 +1226,15 @@ enum PolicyCommands {
     },
     /// Dry-run capability allow check
     #[command(
-        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>"
+        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative"
     )]
     Check {
         /// Capability name (e.g. ProposeConclusion)
         #[arg(long)]
         capability: String,
-        /// Scope identity key
+        /// Scope identity key (optional — soft-resolves when authoritative)
         #[arg(long)]
-        scope: String,
+        scope: Option<String>,
         #[arg(long, default_value = "json")]
         format: Option<String>,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]

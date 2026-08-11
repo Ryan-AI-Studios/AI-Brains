@@ -20,14 +20,16 @@ use ai_brains_store::SqliteEventStore;
 use serde::Serialize;
 
 pub struct ShowOptions {
-    pub scope: String,
+    /// Optional — soft-resolves when authoritative (T226).
+    pub scope: Option<String>,
     pub format: Option<String>,
     pub principal_id: Option<String>,
 }
 
 pub struct CheckOptions {
     pub capability: String,
-    pub scope: String,
+    /// Optional — soft-resolves when authoritative (T226).
+    pub scope: Option<String>,
     pub format: Option<String>,
     pub principal_id: Option<String>,
 }
@@ -67,7 +69,7 @@ struct BootstrapGrantEntry {
     grant_id: Option<String>,
 }
 
-/// `ai-brains policy show --scope … [--principal-id]`
+/// `ai-brains policy show [--scope …] [--principal-id]`
 pub fn run_show(ctx: &AppContext, options: ShowOptions) -> Result<(), Box<dyn std::error::Error>> {
     let format = OutputFormat::parse(options.format.as_deref());
     let principal = resolve_principal(options.principal_id.as_deref());
@@ -75,13 +77,19 @@ pub fn run_show(ctx: &AppContext, options: ShowOptions) -> Result<(), Box<dyn st
     let ports = StorePorts::from_store(store);
     let grant_store = ports.grant_store();
 
-    // clap guarantees --scope; validate parse shape only.
-    let scope_key = options.scope.as_str();
-    if let Err(e) = parse_scope_key(scope_key) {
-        return fail_cp(format, e);
-    }
+    // T226: soft-resolve omitted --scope; always canonicalize (F23/M1).
+    let raw_key = match resolve_scope_key_for_cli(options.scope.as_deref(), &ports.identity_store())
+    {
+        Ok(k) => k,
+        Err(msg) => return fail_usage(msg),
+    };
+    let scope_ref = match parse_scope_key(&raw_key) {
+        Ok(s) => s,
+        Err(e) => return fail_cp(format, e),
+    };
+    let scope_key = scope_identity_key(&scope_ref);
 
-    let applied = grant_store.list_applied_grants(principal.id, scope_key, None)?;
+    let applied = grant_store.list_applied_grants(principal.id, &scope_key, None)?;
     let grants: Vec<ScopeGrantDto> = applied
         .into_iter()
         .map(|g| ScopeGrantDto {
@@ -118,17 +126,28 @@ pub fn run_show(ctx: &AppContext, options: ShowOptions) -> Result<(), Box<dyn st
     }
 }
 
-/// `ai-brains policy check --capability ProposeConclusion --scope …`
+/// `ai-brains policy check --capability ProposeConclusion [--scope …]`
 pub fn run_check(
     ctx: &AppContext,
     options: CheckOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let format = OutputFormat::parse(options.format.as_deref());
     let principal = resolve_principal(options.principal_id.as_deref());
-    let scope = match parse_scope_key(&options.scope) {
+
+    // T226: soft-resolve omitted --scope; always canonicalize (F23/M1).
+    let store = SqliteEventStore::new((*ctx.conn).clone());
+    let ports = StorePorts::from_store(store);
+    let raw_key = match resolve_scope_key_for_cli(options.scope.as_deref(), &ports.identity_store())
+    {
+        Ok(k) => k,
+        Err(msg) => return fail_usage(msg),
+    };
+    let scope_ref = match parse_scope_key(&raw_key) {
         Ok(s) => s,
         Err(e) => return fail_cp(format, e),
     };
+    let scope_key = scope_identity_key(&scope_ref);
+
     let capability = match parse_capability_label(&options.capability) {
         Some(c) => c,
         None => {
@@ -142,11 +161,9 @@ pub fn run_check(
         }
     };
 
-    let store = SqliteEventStore::new((*ctx.conn).clone());
-    let ports = StorePorts::from_store(store);
     let policy = ports.production_policy();
     let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
-    let allowed = match policy.allow(principal.id, capability, &scope, &policy_ctx) {
+    let allowed = match policy.allow(principal.id, capability, &scope_ref, &policy_ctx) {
         Ok(v) => v,
         Err(e) => return fail_cp(format, e),
     };
@@ -159,8 +176,8 @@ pub fn run_check(
             ApiError::new(
                 "POLICY_DENIED",
                 format!(
-                    "{} denied for principal {} on {}",
-                    options.capability, principal.id, options.scope
+                    "{} denied for principal {} on {scope_key}",
+                    options.capability, principal.id
                 ),
             )
             .with_details(policy_denied_hint_details()),
@@ -179,15 +196,15 @@ pub fn run_check(
         allowed: true,
         principal_id: principal.id.to_string(),
         capability: options.capability.clone(),
-        scope: options.scope.clone(),
+        scope: scope_key.clone(),
     };
 
     match format {
         OutputFormat::Json => emit_json(&result),
         OutputFormat::Human | OutputFormat::Markdown => {
             emit_human(&format!(
-                "allowed: true ({} on {})",
-                options.capability, options.scope
+                "allowed: true ({} on {scope_key})",
+                options.capability
             ));
             Ok(())
         }
@@ -210,21 +227,14 @@ pub fn run_bootstrap(
     let grant_store = ports.grant_store();
     let clock = SystemClock;
 
-    // F5 / F39 — explicit scope or soft-resolve; fail_usage (exit 2) when missing.
-    let scope_key = match options
-        .scope
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+    // F5 / F39 / T226 F21 — single helper: explicit wins, empty=omit, soft-resolve, fail_usage.
+    let raw_key = match resolve_scope_key_for_cli(options.scope.as_deref(), &ports.identity_store())
     {
-        Some(s) => s.to_string(),
-        None => match resolve_scope_key_for_cli(None, &ports.identity_store()) {
-            Ok(k) => k,
-            Err(msg) => return fail_usage(msg),
-        },
+        Ok(k) => k,
+        Err(msg) => return fail_usage(msg),
     };
 
-    let scope_ref = match parse_scope_key(&scope_key) {
+    let scope_ref = match parse_scope_key(&raw_key) {
         Ok(s) => s,
         Err(e) => return fail_cp(format, e),
     };
