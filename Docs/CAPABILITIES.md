@@ -364,14 +364,23 @@ ai-brains nightly --schedule --run-as-system --dry-run
 
 Pipeline includes:
 1. **Multi-harness session import (T239)** — fixed order **agy → grok → opencode** (message-only adapters; never `opencode.db`). `--skip-import` skips all three; per-source `--skip-import-agy` / `--skip-import-grok` / `--skip-import-opencode`. Fail-open per source with **per-source sinks**. Report persisted as `last_multi_import` (`v:1`); `nightly --status` prints a Multi-import block (missing → `never`; corrupt → `unreadable`; OpenCode `list_capped > 0` surfaces a cap warning). **Claude / Codex are not in the nightly batch** (install backends remain T239+). Import progress may interleave non-JSON on stderr under SYSTEM `--log-format json` (accepted).
-2. Session summarization (chunked; **38,912-token** context with carryover)
-3. Memory synthesis (batch-limited, e.g. 50 memories/run)
-4. Embedding backfill + stale refresh + WAL checkpoint
-5. Ledgerful **symbol bridge** ingest (functions, routes → code-aware recall)
-6. **`MemorySynthesized`** events for graph edges
-7. Live graph projection updates
+2. **Soft model-endpoint probe (T229)** — after multi-import, before summarize; 2s `/health` then `/v1/models`; non-fatal warn if completion (`:8081`) or embedding (`:8083`) is down
+3. Session summarization (chunked; **38,912-token** context with carryover)
+4. Memory synthesis (batch-limited, e.g. 50 memories/run)
+5. Embedding backfill + stale refresh + WAL checkpoint (UTF-8-safe truncate — T229 F5)
+6. Ledgerful **symbol bridge** ingest (functions, routes → code-aware recall)
+7. **`MemorySynthesized`** events for graph edges
+8. Live graph projection updates
 
-SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config. **SYSTEM keeps `--skip-import` by default** — completeness path is user-principal `nightly --schedule` or manual `nightly` (not Session 0 import).
+**`nightly --status` honesty (T229):**
+
+- **Endpoints:** Completion + Embedding **host:port** + model names (env defaults `127.0.0.1:8081` / `:8083`; `user:pass@` redacted; never vault keys)
+- **Soft probe:** `probe=ok|down|timeout|error` per endpoint; status **exit 0** when down
+- **Last task result** (Windows): Task Scheduler numeric result via `Get-ScheduledTaskInfo` (e.g. **101** = process panic/abort; UTF-8 embed truncate fixed T229)
+- Schedule next-run from schtasks CSV (3 columns only — Last Result is **not** CSV col 5)
+- Multi-import block (T239) unchanged
+
+SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config (global dotenv gap-fill T205). **SYSTEM keeps `--skip-import` by default** — completeness path is user-principal `nightly --schedule` or manual `nightly` (not Session 0 import). See [OPERATIONS.md](OPERATIONS.md) dual-path table + local router (`c:\llm\router.bat` / `AI-Brains-Router`).
 
 ---
 

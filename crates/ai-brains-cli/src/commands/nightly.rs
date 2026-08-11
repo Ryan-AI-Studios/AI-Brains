@@ -1,8 +1,20 @@
 use crate::context::AppContext;
 use ai_brains_core::ids::{MemoryId, ProjectId};
+use ai_brains_models::llama_cpp::{LlamaCppProvider, ProbeStatus};
 use ai_brains_store::EventStore;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
+
+/// Soft probe timeout for status + pre-summarize (independent of 120s LLM timeout).
+const NIGHTLY_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Default completion endpoint when env is unset (matches run path).
+const DEFAULT_MODEL_URL: &str = "http://127.0.0.1:8081";
+/// Default embedding endpoint when env is unset (matches run path).
+const DEFAULT_EMBEDDING_URL: &str = "http://127.0.0.1:8083";
+const DEFAULT_COMPLETION_MODEL: &str = "gemma-4-E4B-it-Q6_K.gguf";
+const DEFAULT_EMBEDDING_MODEL: &str = "nomic-embed-text-v1.5";
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
@@ -31,13 +43,34 @@ pub async fn run(
             .get_sync_state("last_nightly_errors")?
             .unwrap_or_else(|| "[]".to_string());
 
-        #[cfg(windows)]
-        let schedule_line = check_schedule_state();
-        #[cfg(not(windows))]
-        let schedule_line = "Scheduled: (unknown on non-Windows)".to_string();
+        let (model_url, completion_model, embedding_url, embedding_model) =
+            resolve_nightly_model_endpoints();
+
+        // Soft probes — never fail status (exit 0 even when down).
+        let completion_probe = {
+            let p = LlamaCppProvider::new(model_url.clone(), completion_model.clone());
+            p.probe_health(NIGHTLY_PROBE_TIMEOUT).await
+        };
+        let embedding_probe = {
+            let p = LlamaCppProvider::new(embedding_url.clone(), embedding_model.clone());
+            p.probe_health(NIGHTLY_PROBE_TIMEOUT).await
+        };
 
         println!("=== Nightly Status ===");
-        println!("{}", schedule_line);
+        #[cfg(windows)]
+        {
+            let next_run = fetch_schedule_next_run(task_name);
+            let last_result = fetch_last_task_result(task_name);
+            for line in
+                format_schedule_status_lines(next_run.as_deref(), last_result.as_deref(), true)
+            {
+                println!("{line}");
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            println!("Scheduled: (unknown on non-Windows)");
+        }
         match last_run {
             Some(ts) => println!("Last nightly run: {}", ts),
             None => println!("Last nightly run: never"),
@@ -45,6 +78,24 @@ pub async fn run(
         println!("Unsummarized sessions remaining: {}", unsummarized.len());
         println!("Sessions summarized in last run: {}", last_count);
         println!("Errors in last run: {}", last_errors);
+        println!(
+            "{}",
+            format_endpoint_line(
+                "Completion",
+                &model_url,
+                &completion_model,
+                completion_probe.as_label(),
+            )
+        );
+        println!(
+            "{}",
+            format_endpoint_line(
+                "Embedding",
+                &embedding_url,
+                &embedding_model,
+                embedding_probe.as_label(),
+            )
+        );
         // T239: multi-import block (missing → never; corrupt → unreadable)
         match crate::commands::multi_import::load_multi_import_status(query_store.as_ref()) {
             Ok(view) => crate::commands::multi_import::print_multi_import_status(&view),
@@ -54,6 +105,7 @@ pub async fn run(
             }
         }
         println!("======================");
+        // Status exit remains 0 when probe is down/timeout/error.
         return Ok(());
     }
 
@@ -240,14 +292,13 @@ pub async fn run(
         );
     }
 
-    let project_id = std::env::var("AI_BRAINS_PROJECT_ID")
-        .ok()
-        .and_then(|s| ProjectId::from_str(&s).ok())
-        .unwrap_or_default();
+    // T229 F13: nil UUID sentinel when env missing/invalid — never ProjectId::default() (random).
+    let project_id =
+        resolve_nightly_project_id(std::env::var("AI_BRAINS_PROJECT_ID").ok().as_deref());
 
-    if project_id == ProjectId::default() {
+    if project_id == ProjectId::from_uuid(uuid::Uuid::nil()) {
         tracing::warn!(
-            "AI_BRAINS_PROJECT_ID not set. Run 'ai-brains context' first. Using default project."
+            "AI_BRAINS_PROJECT_ID not set or invalid. Run 'ai-brains context' first. Using nil project sentinel."
         );
     }
 
@@ -260,23 +311,16 @@ pub async fn run(
         Arc::new(ai_brains_store::SqliteEventStore::new((*ctx.conn).clone()));
     let query_store = ctx.conn.clone() as Arc<dyn ai_brains_store::QueryStore>;
 
-    let model_url = std::env::var("AI_BRAINS_MODEL_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8081".to_string());
-    let completion_model = std::env::var("AI_BRAINS_COMPLETION_MODEL")
-        .unwrap_or_else(|_| "gemma-4-E4B-it-Q6_K.gguf".to_string());
+    let (model_url, completion_model, embedding_url, embedding_model) =
+        resolve_nightly_model_endpoints();
 
-    let embedding_url = std::env::var("AI_BRAINS_EMBEDDING_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8083".to_string());
-    let embedding_model = std::env::var("AI_BRAINS_EMBEDDING_MODEL")
-        .unwrap_or_else(|_| "nomic-embed-text-v1.5".to_string());
-
-    let completion_provider = Arc::new(ai_brains_models::llama_cpp::LlamaCppProvider::new(
-        model_url,
-        completion_model,
+    let completion_provider = Arc::new(LlamaCppProvider::new(
+        model_url.clone(),
+        completion_model.clone(),
     ));
-    let embedding_provider = Arc::new(ai_brains_models::llama_cpp::LlamaCppProvider::new(
-        embedding_url,
-        embedding_model,
+    let embedding_provider = Arc::new(LlamaCppProvider::new(
+        embedding_url.clone(),
+        embedding_model.clone(),
     ));
 
     // T239: multi-harness import (agy → grok → opencode) before summarization.
@@ -315,6 +359,28 @@ pub async fn run(
             opencode = %report.opencode.status,
             "Multi-harness import phase complete"
         );
+    }
+
+    // T229 F2: soft probe after multi-import, before summarize — non-fatal warn if down.
+    {
+        let c = completion_provider
+            .probe_health(NIGHTLY_PROBE_TIMEOUT)
+            .await;
+        if c != ProbeStatus::Ok {
+            tracing::warn!(
+                endpoint = %model_url,
+                probe = c.as_label(),
+                "completion endpoint soft probe failed before summarize (non-fatal)"
+            );
+        }
+        let e = embedding_provider.probe_health(NIGHTLY_PROBE_TIMEOUT).await;
+        if e != ProbeStatus::Ok {
+            tracing::warn!(
+                endpoint = %embedding_url,
+                probe = e.as_label(),
+                "embedding endpoint soft probe failed before summarize (non-fatal)"
+            );
+        }
     }
 
     // F-004: class-matrix dry-run log (plan only; never apply CE on nightly).
@@ -401,24 +467,207 @@ pub async fn run(
     Ok(())
 }
 
+/// Resolve MODEL/EMBED URLs and model names (env with documented defaults).
+fn resolve_nightly_model_endpoints() -> (String, String, String, String) {
+    let model_url =
+        std::env::var("AI_BRAINS_MODEL_URL").unwrap_or_else(|_| DEFAULT_MODEL_URL.to_string());
+    let completion_model = std::env::var("AI_BRAINS_COMPLETION_MODEL")
+        .unwrap_or_else(|_| DEFAULT_COMPLETION_MODEL.to_string());
+    let embedding_url = std::env::var("AI_BRAINS_EMBEDDING_URL")
+        .unwrap_or_else(|_| DEFAULT_EMBEDDING_URL.to_string());
+    let embedding_model = std::env::var("AI_BRAINS_EMBEDDING_MODEL")
+        .unwrap_or_else(|_| DEFAULT_EMBEDDING_MODEL.to_string());
+    (model_url, completion_model, embedding_url, embedding_model)
+}
+
+/// T229 F13: missing/empty/invalid env → nil UUID (never random `ProjectId::default()`).
+pub(crate) fn resolve_nightly_project_id(env_val: Option<&str>) -> ProjectId {
+    let Some(raw) = env_val.map(str::trim).filter(|s| !s.is_empty()) else {
+        return ProjectId::from_uuid(uuid::Uuid::nil());
+    };
+    ProjectId::from_str(raw).unwrap_or_else(|_| ProjectId::from_uuid(uuid::Uuid::nil()))
+}
+
+/// Host:port for status lines; strips `user:pass@`, path, query, and fragment.
+/// Never prints vault keys or token query parameters.
+pub(crate) fn host_port_from_url(url: &str) -> String {
+    let rest = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+        .unwrap_or(url);
+    // Drop credentials if present (`user:pass@host:port`).
+    let hostpart = match rest.rsplit_once('@') {
+        Some((_creds, host)) => host,
+        None => rest,
+    };
+    // Drop path (`/…`), query (`?…`), fragment (`#…`) — keep host:port only.
+    let authority = hostpart
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or(hostpart)
+        .trim();
+    if authority.is_empty() {
+        "(invalid-url)".to_string()
+    } else {
+        authority.to_string()
+    }
+}
+
+/// Format a single endpoint status line (AC3).
+///
+/// Example: `Completion: 127.0.0.1:8081  model=gemma…  probe=ok`
+pub(crate) fn format_endpoint_line(
+    kind: &str,
+    url: &str,
+    model: &str,
+    probe_label: &str,
+) -> String {
+    let host_port = host_port_from_url(url);
+    format!("{kind}: {host_port}  model={model}  probe={probe_label}")
+}
+
+/// Quote-aware CSV field split (T229 F6b) — for next-run only (cols 0–2).
+///
+/// Live Windows `schtasks /FO CSV` has only three columns; do **not** parse Last Result from CSV.
+/// Production callers are `cfg(windows)`; pure helpers stay available for unit tests on all OSes.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn split_csv_fields_quote_aware(line: &str) -> Vec<String> {
+    let mut fields = Vec::new();
+    let mut cur = String::new();
+    let mut in_quotes = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => {
+                if in_quotes {
+                    if chars.peek() == Some(&'"') {
+                        cur.push('"');
+                        let _ = chars.next();
+                    } else {
+                        in_quotes = false;
+                    }
+                } else {
+                    in_quotes = true;
+                }
+            }
+            ',' if !in_quotes => {
+                fields.push(std::mem::take(&mut cur));
+            }
+            _ => cur.push(c),
+        }
+    }
+    fields.push(cur);
+    fields
+}
+
+/// Extract next-run time from a schtasks CSV data line (column 1), or `None` if unusable.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn next_run_from_schtasks_csv_line(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let fields = split_csv_fields_quote_aware(trimmed);
+    let next = fields.get(1).map(|s| s.trim()).filter(|s| !s.is_empty())?;
+    Some(next.to_string())
+}
+
+/// Schedule + Last Result display lines (AC4–AC5).
+///
+/// - Missing next_run → `Scheduled: No …`
+/// - `include_last_result`: Windows only; missing last_result → `unknown`
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn format_schedule_status_lines(
+    next_run: Option<&str>,
+    last_result: Option<&str>,
+    include_last_result: bool,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    match next_run.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(nr) => lines.push(format!("Scheduled: Yes (next run: {nr})")),
+        None => {
+            lines.push("Scheduled: No (run 'ai-brains nightly --schedule' to enable)".to_string())
+        }
+    }
+    if include_last_result {
+        let label = last_result
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("unknown");
+        lines.push(format!("Last task result: {label}"));
+    }
+    lines
+}
+
+/// Parse PowerShell `LastTaskResult` stdout (trim; empty → None).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn parse_last_task_result_ps_stdout(stdout: &str) -> Option<String> {
+    let t = stdout.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
+}
+
+/// Soft parse of English `schtasks /FO LIST /V` `Last Result:` line (locale-sensitive fallback).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn parse_last_result_list_v(stdout: &str) -> Option<String> {
+    for line in stdout.lines() {
+        let line = line.trim();
+        // Accept "Last Result:" with optional spaces around the colon.
+        let lower = line.to_ascii_lowercase();
+        if lower.starts_with("last result")
+            && let Some(rest) = line.split_once(':').map(|(_, r)| r.trim())
+            && !rest.is_empty()
+        {
+            return Some(rest.to_string());
+        }
+    }
+    None
+}
+
 #[cfg(windows)]
-fn check_schedule_state() -> String {
+fn fetch_schedule_next_run(task_name: &str) -> Option<String> {
     let output = std::process::Command::new("schtasks")
-        .args(["/query", "/tn", "AI-Brains-Nightly", "/fo", "CSV", "/nh"])
+        .args(["/query", "/tn", task_name, "/fo", "CSV", "/nh"])
         .output();
     match output {
         Ok(out) if out.status.success() => {
             let stdout = String::from_utf8_lossy(&out.stdout);
             let line = stdout.lines().next().unwrap_or("");
-            let fields: Vec<&str> = line.split(',').collect();
-            let next_run = fields
-                .get(1)
-                .map(|s| s.trim_matches('"'))
-                .unwrap_or("unknown");
-            format!("Scheduled: Yes (next run: {})", next_run)
+            next_run_from_schtasks_csv_line(line)
         }
-        _ => "Scheduled: No (run 'ai-brains nightly --schedule' to enable)".to_string(),
+        _ => None,
     }
+}
+
+/// Windows Last Result: primary Get-ScheduledTaskInfo; fallback LIST /V English label.
+#[cfg(windows)]
+fn fetch_last_task_result(task_name: &str) -> Option<String> {
+    let ps_cmd = format!("(Get-ScheduledTaskInfo -TaskName '{task_name}').LastTaskResult");
+    let ps = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", &ps_cmd])
+        .output();
+    if let Ok(out) = ps
+        && out.status.success()
+    {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if let Some(v) = parse_last_task_result_ps_stdout(&stdout) {
+            return Some(v);
+        }
+    }
+    // Soft fallback: schtasks LIST /V (locale may break → None → status prints unknown).
+    let list = std::process::Command::new("schtasks")
+        .args(["/query", "/tn", task_name, "/fo", "LIST", "/v"])
+        .output();
+    if let Ok(out) = list
+        && out.status.success()
+    {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        return parse_last_result_list_v(&stdout);
+    }
+    None
 }
 
 fn build_schtasks_args(
@@ -454,6 +703,11 @@ const REQUIRED_ENV_VARS: [&str; 5] = [
     "AI_BRAINS_EMBEDDING_MODEL",
 ];
 
+/// Build SYSTEM wrapper content from **current process env**.
+///
+/// T229 F4 (verify-only): main merges global dotenv (`%USERPROFILE%\.ai-brains\.env`, T205)
+/// before subcommands, so MODEL/EMBED keys present only in the global file are already in
+/// `std::env` here and get baked into the wrapper. No extra gap-fill in this function.
 fn generate_nightly_wrapper_script(exe_str: &str) -> Result<String, Box<dyn std::error::Error>> {
     let env_values: Vec<(&str, String)> = REQUIRED_ENV_VARS
         .iter()
@@ -706,33 +960,136 @@ pub fn format_madr_markdown(
 }
 
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod tests {
     use super::*;
 
     #[test]
-    #[allow(non_snake_case)]
     fn nightly_status__schedule_state_parse__extracts_next_run_from_csv() {
-        let csv_line =
-            "\"\\AI-Brains-Nightly\",\"6/25/2026 1:00:00 AM\",\"Ready\",\"Interactive/Background\"";
-        let fields: Vec<&str> = csv_line.split(',').collect();
-        let next_run = fields
-            .get(1)
-            .map(|s| s.trim_matches('"'))
-            .unwrap_or("unknown");
-        assert!(!next_run.is_empty());
-        assert!(next_run.contains("6/25/2026"));
+        // Live schtasks CSV is 3 columns; also exercise quoted commas via quote-aware split.
+        let csv_line = "\"\\AI-Brains-Nightly\",\"6/25/2026 1:00:00 AM\",\"Ready\"";
+        let next_run = next_run_from_schtasks_csv_line(csv_line);
+        assert_eq!(next_run.as_deref(), Some("6/25/2026 1:00:00 AM"));
     }
 
     #[test]
-    #[allow(non_snake_case)]
     fn nightly_status__schedule_state_parse__empty_output_reports_not_scheduled() {
-        let csv_line = "";
-        let fields: Vec<&str> = csv_line.split(',').collect();
-        let next_run = fields
-            .get(1)
-            .map(|s| s.trim_matches('"'))
-            .unwrap_or("unknown");
-        assert_eq!(next_run, "unknown");
+        assert_eq!(next_run_from_schtasks_csv_line(""), None);
+        let lines = format_schedule_status_lines(None, None, true);
+        assert!(lines[0].contains("Scheduled: No"));
+        assert!(lines.iter().any(|l| l.contains("unknown")));
+    }
+
+    /// AC3: host:port + strips user:pass@ credentials.
+    #[test]
+    fn format_endpoint_line__host_port_and_strips_credentials() {
+        let line = format_endpoint_line(
+            "Completion",
+            "http://user:s3cret@127.0.0.1:8081/v1",
+            "gemma-4-E4B-it-Q6_K.gguf",
+            "ok",
+        );
+        assert!(line.contains("127.0.0.1:8081"));
+        assert!(!line.contains("user"));
+        assert!(!line.contains("s3cret"));
+        assert!(line.contains("model=gemma-4-E4B-it-Q6_K.gguf"));
+        assert!(line.contains("probe=ok"));
+        assert!(line.starts_with("Completion:"));
+
+        let plain = host_port_from_url("http://127.0.0.1:8083");
+        assert_eq!(plain, "127.0.0.1:8083");
+
+        // Query/fragment tokens must not appear (F1 secret redaction).
+        let q = host_port_from_url("http://127.0.0.1:8081?token=s3cret#frag");
+        assert_eq!(q, "127.0.0.1:8081");
+        assert!(!q.contains("token"));
+        assert!(!q.contains("s3cret"));
+        assert!(!q.contains("frag"));
+    }
+
+    /// AC4: last_result "101" appears in schedule status lines.
+    #[test]
+    fn format_schedule_status_lines__last_result_101__contains_101() {
+        let lines = format_schedule_status_lines(Some("8/12/2026 3:00:00 AM"), Some("101"), true);
+        assert!(lines[0].contains("Scheduled: Yes"));
+        assert!(lines[0].contains("8/12/2026"));
+        assert!(lines.iter().any(|l| l.contains("101")));
+        assert!(lines.iter().any(|l| l.contains("Last task result: 101")));
+    }
+
+    /// AC5: empty/missing schedule data → unknown / Scheduled No, no panic.
+    #[test]
+    fn format_schedule_status_lines__missing_data__unknown_and_not_scheduled() {
+        let lines = format_schedule_status_lines(None, None, true);
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].starts_with("Scheduled: No"));
+        assert_eq!(lines[1], "Last task result: unknown");
+
+        let no_last = format_schedule_status_lines(Some("tomorrow"), None, false);
+        assert_eq!(no_last.len(), 1);
+        assert!(no_last[0].contains("Scheduled: Yes"));
+    }
+
+    #[test]
+    fn split_csv_fields_quote_aware__quoted_comma_and_escaped_quote() {
+        let fields = split_csv_fields_quote_aware(r#""Task,Name","6/25/2026 1:00:00 AM","Ready""#);
+        assert_eq!(fields.len(), 3);
+        assert_eq!(fields[0], "Task,Name");
+        assert_eq!(fields[1], "6/25/2026 1:00:00 AM");
+        assert_eq!(fields[2], "Ready");
+    }
+
+    #[test]
+    fn parse_last_task_result_ps_stdout__trims_and_rejects_empty() {
+        assert_eq!(
+            parse_last_task_result_ps_stdout("  101\r\n").as_deref(),
+            Some("101")
+        );
+        assert_eq!(parse_last_task_result_ps_stdout("   \n"), None);
+    }
+
+    #[test]
+    fn parse_last_result_list_v__english_label() {
+        let sample = "\
+Folder: \\\n\
+HostName: DESKTOP\n\
+TaskName: \\AI-Brains-Nightly\n\
+Next Run Time: 8/12/2026 3:00:00 AM\n\
+Status: Ready\n\
+Last Run Time: 8/11/2026 3:00:00 AM\n\
+Last Result: 101\n\
+Author: N/A\n";
+        assert_eq!(parse_last_result_list_v(sample).as_deref(), Some("101"));
+        assert_eq!(parse_last_result_list_v("no such field"), None);
+    }
+
+    /// AC13: None / empty / invalid → nil UUID (stable across calls).
+    #[test]
+    fn resolve_nightly_project_id__missing_or_invalid__nil_stable() {
+        let nil = ProjectId::from_uuid(uuid::Uuid::nil());
+        let a = resolve_nightly_project_id(None);
+        let b = resolve_nightly_project_id(None);
+        assert_eq!(a, nil);
+        assert_eq!(b, nil);
+        assert_eq!(a, b);
+        assert_eq!(resolve_nightly_project_id(Some("")), nil);
+        assert_eq!(resolve_nightly_project_id(Some("   ")), nil);
+        assert_eq!(resolve_nightly_project_id(Some("not-a-uuid")), nil);
+        assert_eq!(resolve_nightly_project_id(Some("default-project")), nil);
+    }
+
+    /// AC14: valid UUID → that id; nil equality is the warn-path signal.
+    #[test]
+    fn resolve_nightly_project_id__valid_uuid__returns_that_id() {
+        let raw = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+        let got = resolve_nightly_project_id(Some(raw));
+        assert_eq!(got.to_string(), raw);
+        assert_ne!(got, ProjectId::from_uuid(uuid::Uuid::nil()));
+        // Warn path: compare to nil, not ProjectId::default() (random).
+        assert_eq!(
+            resolve_nightly_project_id(None),
+            ProjectId::from_uuid(uuid::Uuid::nil())
+        );
     }
 
     #[test]
