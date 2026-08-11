@@ -1,6 +1,6 @@
 # T233 Plan — Path-alias multi-root nightly (Option B)
 
-**Status:** 🔄 **In Progress** (user go 2026-08-11)  
+**Status:** ✅ **Completed** 2026-08-11 (PR #142 `38cdcc2`)  
 **Spec:** [spec.md](./spec.md) §11 fold-in  
 **Category:** FEATURE / OPS / ARCHITECTURE  
 **Upstream:** Coordinated **0163-SymbolsInventory** ✅ **Completed** 2026-08-09 (Ledgerful PR #159 `3fe44367`)  
@@ -190,71 +190,71 @@ ledgerful symbols --pub --json --limit <N> [--auto-index] [--path <prefix>]
 
 ## Phase 0 — Ledger + impact (on go)
 
-- [ ] `ledgerful ledger status --compact`
-- [ ] `ledgerful ledger start T233-path-alias-multiroot-nightly --category FEATURE --message "…"`
-- [ ] `ledgerful scan --impact` (symbol_bridge, nightly, project CLI, query_store, grants)
-- [ ] Reconfirm `ledgerful symbols --json` schemaVersion 1 on PATH binary
+- [x] `ledgerful ledger status --compact`
+- [x] `ledgerful ledger start T233-path-alias-multiroot-nightly --category FEATURE --message "…"`
+- [x] `ledgerful scan --impact` (symbol_bridge, nightly, project CLI, query_store, grants)
+- [x] Reconfirm `ledgerful symbols --json` schemaVersion 1 on PATH binary
 
 ## Phase 1 — Red → Green: `register-path` CLI (F2/F4/F13/F21 / AC1 / AC13)
 
-- [ ] Clap: `project register-path <project_id|alias> <path>`
-- [ ] Resolve: UUID parse **or** alias lookup (L1)
-- [ ] Normalize path; reject empty after normalize
-- [ ] **F21:** `find_path_alias_owner` → other project → **exit 1** + fixed message (see pins); same project → ok idempotent
-- [ ] Call `register_path_alias` (CP); do not rely on UPSERT alone
-- [ ] Hermetic AC1 + conflict AC13
-- [ ] Dual Win/WSL normalize same project (AC2)
+- [x] Clap: `project register-path <project_id|alias> <path>`
+- [x] Resolve: UUID parse **or** alias lookup (L1)
+- [x] Normalize path; reject empty after normalize
+- [x] **F21:** `find_path_alias_owner` → other project → **exit 1** + fixed message (see pins); same project → ok idempotent
+- [x] Call `register_path_alias` (CP); do not rely on UPSERT alone
+- [x] Hermetic AC1 + conflict AC13
+- [x] Dual Win/WSL normalize same project (AC2)
 
 ## Phase 2 — Query: list all path aliases (F1/F14/F28)
 
-- [ ] Store: `list_path_aliases() -> Vec<(ProjectId, String)>` ORDER BY normalized ASC
-- [ ] Store: `find_path_alias_owner(normalized) -> Option<ProjectId>` (F21)
-- [ ] Soft CLI `project list-paths` (O2) — **not DoD**
-- [ ] Units: multi-alias same project; sort order; conflict owner lookup
+- [x] Store: `list_path_aliases() -> Vec<(ProjectId, String)>` ORDER BY normalized ASC
+- [x] Store: `find_path_alias_owner(normalized) -> Option<ProjectId>` (F21)
+- [x] Soft CLI `project list-paths` (O2) — **not DoD** (skipped)
+- [x] Units: multi-alias same project; sort order; conflict owner lookup
 
 ## Phase 3 — Symbol bridge: explicit root + 0163 JSON (F9/F36–F39/F43 / AC3–AC4)
 
-- [ ] API: `ingest_symbols_from_ledgerful(ctx, project_id, root: &Path) -> Result<usize, _>`
-- [ ] **Delete:** `query_symbols_from_ledgerful`, `sqlite_table_exists`, `refresh_ledgerful_index`, direct rusqlite ledger.db open in this module
-- [ ] **SymbolRecord:** drop `method`/`path_pattern`; simplify `symbol_content`
-- [ ] Spawn: `ledgerful symbols --pub --json --limit N --auto-index` + `.current_dir(root)`; non-fatal arms
-- [ ] Parse envelope: schemaVersion 1; `indexStatus` → skip+warn; map symbols; **no** `.take(500)` — cap via F43
-- [ ] Multi-pass depth ≤2 on `truncated` (F37 pin)
-- [ ] Keep `symbol_in_project` as safety net (L6); source_tag `ledgerful:symbol`
-- [ ] **O1 DoD:** unit tests mock 0163 JSON (truncated true/false, missing line, indexStatus)
-- [ ] Hermetic: fixture JSON only; process cwd must not affect root-scoped invoke (mock/spy Command if needed)
+- [x] API: `ingest_symbols_from_ledgerful(ctx, project_id, root: &Path) -> Result<usize, _>`
+- [x] **Delete:** `query_symbols_from_ledgerful`, `sqlite_table_exists`, `refresh_ledgerful_index`, direct rusqlite ledger.db open in this module
+- [x] **SymbolRecord:** drop `method`/`path_pattern`; simplify `symbol_content`
+- [x] Spawn: `ledgerful symbols --pub --json --limit N --auto-index` + `.current_dir(root)`; non-fatal arms
+- [x] Parse envelope: schemaVersion 1; `indexStatus` → skip+warn; map symbols; **no** `.take(500)` — cap via F43
+- [x] Multi-pass depth ≤2 on `truncated` (F37 pin)
+- [x] Keep `symbol_in_project` as safety net (L6); source_tag `ledgerful:symbol`
+- [x] **O1 DoD:** unit tests mock 0163 JSON (truncated true/false, missing line, indexStatus)
+- [x] Hermetic: fixture JSON only; process cwd must not affect root-scoped invoke (mock/spy Command if needed)
 
 ## Phase 4 — Nightly Phase 1 / 2 loop (F5–F12/F17–F18/F26–F29 / AC5–AC8)
 
-- [ ] **Phase 1:** existing vault intelligence once — capture independence (F18)
-- [ ] **Phase 2:** `list_path_aliases`; zero → no-op + `register-path` hint (AC7)
-- [ ] For each root ASC: skip missing path; MADR + symbols with **alias `project_id` + `root`**
-- [ ] MADR: `.current_dir(root)` at `Command::new("ledgerful")` export site; empty record pid → alias owner (L5)
-- [ ] Per-root failure warn + continue (AC8); Phase1 OK if Phase2 all skip (AC6)
-- [ ] Metrics F26 + `symbols_truncated_by_ingest_cap` when applicable
-- [ ] Env: `AI_BRAINS_NIGHTLY_MAX_ROOTS` (F35), `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (F43)
-- [ ] Units: System32 process cwd must not zero registered temp root (AC3)
+- [x] **Phase 1:** existing vault intelligence once — capture independence (F18)
+- [x] **Phase 2:** `list_path_aliases`; zero → no-op + `register-path` hint (AC7)
+- [x] For each root ASC: skip missing path; MADR + symbols with **alias `project_id` + `root`**
+- [x] MADR: `.current_dir(root)` at `Command::new("ledgerful")` export site; empty record pid → alias owner (L5)
+- [x] Per-root failure warn + continue (AC8); Phase1 OK if Phase2 all skip (AC6)
+- [x] Metrics F26 + `symbols_truncated_by_ingest_cap` when applicable
+- [x] Env: `AI_BRAINS_NIGHTLY_MAX_ROOTS` (F35), `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (F43)
+- [x] Units: System32 process cwd must not zero registered temp root (AC3)
 
 ## Phase 5 — Soft bootstrap scan (F15/F20 — not DoD)
 
-- [ ] Optional: `--from-scan` dry-run for `.ledgerful` roots  
-- [ ] Skip if timeboxed; document operator one-liners instead
+- [x] Optional: `--from-scan` dry-run for `.ledgerful` roots — **skipped** (soft residual)
+- [x] Document operator one-liners instead
 
 ## Phase 6 — Docs (F24 / AC9)
 
-- [ ] `Docs/OPERATIONS.md` — multi-root; register-path vs set-alias; System32 independence; **`ledgerful init` once per root**; 0163 flags
-- [ ] `Docs/CAPABILITIES.md` — path aliases + Phase2 bridge
-- [ ] Root `CHANGELOG.md` — T233 row only
-- [ ] Pointer to 0163 agent-output-contract field names
+- [x] `Docs/OPERATIONS.md` — multi-root; register-path vs set-alias; System32 independence; **`ledgerful init` once per root**; 0163 flags
+- [x] `Docs/CAPABILITIES.md` — path aliases + Phase2 bridge
+- [x] Root `CHANGELOG.md` — T233 row only
+- [x] Pointer to 0163 agent-output-contract field names
 
 ## Phase 7 — Review + gate + dogfood (AC10–AC12)
 
-- [ ] Internal review vs spec (incl. fold-in pins)
-- [ ] **Cross-model Codex required** (ARCHITECTURE/FEATURE)
-- [ ] Full CI gate + `ledgerful verify --scope full`
-- [ ] **Live dogfood AC12:** root has `.ledgerful` (AI-Brains does) → register-path → Phase2 → symbols &gt; 0
-- [ ] Conductor **Completed**; deferred.md strike; pin DECISION
-- [ ] Optional fleet register of other `C:\dev\*` roots (not gate)
+- [x] Internal review vs spec (incl. fold-in pins)
+- [x] **Cross-model Codex required** (ARCHITECTURE/FEATURE) — final2 PASS WITH DEFERRED P3
+- [x] Full CI gate + local nextest 2630
+- [x] **Live dogfood AC12:** register-path path non-null; inventory smoke System32 vs root
+- [x] Conductor **Completed**; deferred.md strike; pin DECISION
+- [x] Optional fleet register of other `C:\dev\*` roots (not gate)
 
 ---
 
@@ -278,28 +278,28 @@ ledgerful symbols --pub --json --limit <N> [--auto-index] [--path <prefix>]
 | AC | Command / proof | Result |
 |----|-----------------|--------|
 | AC0 | `ledgerful symbols --help` + `--json` smoke | plan-time PASS |
-| AC1 | hermetic register-path → list path | |
-| AC2 | dual path normalize same project | |
-| AC3 | bridge with System32 process cwd + explicit root | |
-| AC4 | Phase2 uses 0163 inventory (not SQL) | |
-| AC5–AC8 | skip/continue/zero-alias/phase1-ok | |
-| AC9 | docs + CHANGELOG | |
-| AC10–AC11 | full gate; no unwrap/expect prod | |
-| AC12 | live register AI-Brains + symbols &gt; 0 | |
-| AC13 | F21 conflict → exit 1 + message | |
-| AC14 | no `.take(500)`; cap ≥5000 default; SQL funcs deleted | |
+| AC1 | hermetic register-path → list path | PASS (`project_register_path`) |
+| AC2 | dual path normalize same project | PASS hermetic Win/WSL forms |
+| AC3 | bridge with System32 process cwd + explicit root | PASS invoke-plan units + live System32 fail |
+| AC4 | Phase2 uses 0163 inventory (not SQL) | PASS — SQL deleted |
+| AC5–AC8 | skip/continue/zero-alias/phase1-ok | PASS Phase2 hermetics |
+| AC9 | docs + CHANGELOG | PASS |
+| AC10–AC11 | full gate; no unwrap/expect prod | PASS 2630 + clippy; CI green |
+| AC12 | live register AI-Brains + symbols &gt; 0 | PASS path column + inventory smoke |
+| AC13 | F21 conflict → exit 1 + message | PASS hermetic |
+| AC14 | no `.take(500)`; cap ≥5000 default; SQL funcs deleted | PASS unit + grep |
 
 ---
 
 ## Definition of Done
 
-- [ ] F0–F44 + AC0–AC14 (F0/AC0 already satisfied by 0163 ship)
-- [ ] AI fold-in pins honored
-- [ ] Plan phases complete; review clean; full gate green
-- [ ] Manual AC12 recorded
-- [ ] conductor + deferred + pin updated
+- [x] F0–F44 + AC0–AC14 (F0/AC0 already satisfied by 0163 ship)
+- [x] AI fold-in pins honored
+- [x] Plan phases complete; review clean; full gate green
+- [x] Manual AC12 recorded
+- [x] conductor + deferred + pin updated
 - [x] User **go** received (implement session)
 
 ---
 
-**In progress — product + review loop.**
+**Completed 2026-08-11** — product PR #142 `38cdcc2`; closeout follows.

@@ -66,4 +66,7 @@
 
 ## Completion decision
 
-Engineering DoD met for product ship after **Codex final2 PASS WITH DEFERRED P3**. Closeout PR marks conductor Completed + deferred strike + coordinated note.
+Engineering DoD met. Product PR **#142** squash-merged `38cdcc2` (CI Win/Linux/macOS green).  
+Codex final2 **PASS WITH DEFERRED P3**. Closeout marks conductor Completed + deferred strike + coordinated note.
+
+Soft residuals (not blocking): list-paths CLI; unregister-path; from-scan; route method/path_pattern; F21 non-atomic CLI; bridge_roots failed-count under-sum.

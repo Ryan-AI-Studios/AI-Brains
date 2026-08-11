@@ -123,12 +123,12 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~policy show/check required scope~~ | **Closed by T226** PR #130 `5919f26` — soft-resolve show\|check + F23 canonicalize; soft residual O1 shared wrapper / bootstrap success soft hermetic |
 | ~~Briefing human→JSON; empty personal~~ | **Closed by T227** PR #132 `40c7cd1` — aliases→md + unknown exit 2; empty honesty; AC6 substance; no pin inject; soft residual F34 OutputFormat surface-wide / #18 / typed constraints |
 | ~~Non-empty pretty Scope (T207 soft)~~ | **Closed by T228** PR #134 `e51d5e4` — always-on pretty Scope empty+non-empty + sync vault; residual F32/F34 → closed by **T231** |
-| ~~Nightly schedule + router :8081/:8083~~ | **Closed by T229** PR #140 `1ec9142` — status endpoints+probe+Last Result; F5 UTF-8 truncate; F13 nil project; OPERATIONS dual schedule; soft residual F8–F12/F14; multi-root remains **T233** |
+| ~~Nightly schedule + router :8081/:8083~~ | **Closed by T229** PR #140 `1ec9142` — status endpoints+probe+Last Result; F5 UTF-8 truncate; F13 nil project; OPERATIONS dual schedule; soft residual F8–F12/F14; multi-root **closed by T233** |
 | ~~Global summary blank labels~~ | **Closed by T230** PR #136 `b3f1a61` — never-blank `display_label` empty/ws name → `(no alias)`; orphan store+unit+live; soft residual F34 whitespace alias / F11 footer / CLI orphan E2E hermetic |
 | ~~Dual recall vs sync query mental model~~ | **Closed by T231** PR #138 `0f3d83f` — A+C decision table + F32/F21 resolve/ndjson honesty + F37 gated empty next-step; soft residual: search noun / recall text→pretty arm / invalid-env clap converge |
 | ~~Doctor graph rebuild vs graph-off~~ | **Closed by T232** PR #124 `33b28d0` — capability remediations (on→rebuild / off→`GRAPH_REINSTALL_SOOT`); empty-lag hybrid retired |
-| Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** 🔄 **In Progress** 2026-08-11 — Option B + 0163 JSON; F21/F43/SQL-delete pins; user go |
-| T229 multi-root bridge half | **Absorbed by T233** (In Progress); T229 keeps router env/health/schedule |
+| ~~Nightly Ledgerful bridge cwd=System32; multi-repo roots~~ | **Closed by T233** PR #142 `38cdcc2` — Option B register-path + Phase2 multi-root; 0163 symbols; soft residual list-paths/unregister-path/from-scan |
+| ~~T229 multi-root bridge half~~ | **Closed by T233** PR #142 `38cdcc2`; T229 keeps router env/health/schedule |
 | ~~Ledgerful scoped symbol inventory (agent DX)~~ | **Closed by coordinated 0163** (2026-08-09) Ledgerful PR #159 `3fe44367` — `ledgerful symbols` scoped JSON; T233 consumes (frozen flags in T233 plan) |
 
 ### Harness seamless ingest series (2026-08-08) — T234–T239
@@ -1207,3 +1207,5 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 ### T225 (2026-08-11) soft residuals
 - F17: verify `--quiet`; JSON `summary` field; structured `VerifyError` / 4-class rollup (O1); optional 3-class substring rollup omitted (M5)
 - Operator still runs `ai-brains backup create` on live encrypted vaults
+
+| T233 soft residual (list-paths / unregister-path / from-scan / route metadata) | Soft: O2 list-paths CLI; F31 unregister-path; F15 from-scan; F44 route method/path_pattern; F21 non-atomic CLI; bridge_roots failed-count under-sum |
