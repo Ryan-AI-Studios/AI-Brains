@@ -119,6 +119,21 @@ fn sync_query_pretty_global_flag_returns_cross_project_results() {
         !stdout.contains("No results"),
         "global with hits must not print empty hint; got: {stdout}"
     );
+    // T228 AC8: non-empty vault section prints Scope: global after vault header.
+    assert!(
+        stdout.contains("Scope: global"),
+        "AC8: non-empty sync query --global pretty must print Scope: global; got: {stdout}"
+    );
+    let vault_header = "--- AI-Brains Recall ---";
+    if let Some(pos) = stdout.find(vault_header) {
+        let after = &stdout[pos + vault_header.len()..];
+        assert!(
+            after.contains("Scope: global"),
+            "AC8: Scope: global must appear after vault header; got: {stdout}"
+        );
+    } else {
+        panic!("expected vault header in sync query pretty output; got: {stdout}");
+    }
 }
 
 #[test]

@@ -351,16 +351,16 @@ fn recall_empty__pretty_quiet__still_scope_and_no_results() {
 }
 
 // ---------------------------------------------------------------------------
-// B7 / AC4 — non-empty pretty shows hits, no empty No results hint
+// B7 / AC1,AC4,AC10,AC11 — non-empty pretty Scope before Session/hits (T228)
 // ---------------------------------------------------------------------------
 
 #[test]
-fn recall_nonempty__pretty__shows_hits_no_empty_hint() {
+fn recall_nonempty__pretty__prints_scope_before_hits() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let unique = "T207unique-memory-seed-xyzzy-content";
+    let unique = "T228unique-memory-seed-xyzzy-content";
     common::hermetic_cmd(&vault)
         .arg("pin")
         .arg(unique)
@@ -386,12 +386,144 @@ fn recall_nonempty__pretty__shows_hits_no_empty_hint() {
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.contains(unique) || stdout.contains("T207unique"),
+        stdout.contains("Scope:"),
+        "AC1/AC10: non-empty pretty must print Scope; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(unique) || stdout.contains("T228unique"),
         "non-empty pretty must show hit content; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("No results"),
+        "AC4: non-empty must not print empty hint; got: {stdout}"
+    );
+    // AC11: first chrome line Scope, second Session; no blank between them.
+    let lines: Vec<&str> = stdout.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert!(
+        lines.len() >= 2,
+        "need Scope + Session chrome at minimum; got: {stdout}"
+    );
+    assert!(
+        lines[0].starts_with("Scope:"),
+        "AC11: first non-empty line must be Scope:; got: {stdout}"
+    );
+    assert!(
+        lines[1].starts_with("Session:"),
+        "AC11: second non-empty line must be Session:; got: {stdout}"
+    );
+    // F26: no blank line between Scope and Session (consecutive in raw stdout).
+    let raw_lines: Vec<&str> = stdout.lines().collect();
+    if let Some(scope_idx) = raw_lines.iter().position(|l| l.starts_with("Scope:")) {
+        assert!(
+            scope_idx + 1 < raw_lines.len(),
+            "Session should follow Scope; got: {stdout}"
+        );
+        assert!(
+            raw_lines[scope_idx + 1].starts_with("Session:"),
+            "F26: Session must immediately follow Scope (no blank); got: {stdout}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// T228 AC2 — non-empty pretty global → Scope: global
+// ---------------------------------------------------------------------------
+
+#[test]
+fn recall_nonempty__pretty_global__scope_global() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let unique = "T228global-memory-seed-xyzzy-content";
+    common::hermetic_cmd(&vault)
+        .arg("pin")
+        .arg(unique)
+        .assert()
+        .success();
+
+    let out = common::hermetic_cmd(&vault)
+        .arg("--log-format")
+        .arg("off")
+        .arg("recall")
+        .arg(unique)
+        .arg("--format")
+        .arg("pretty")
+        .arg("--no-bridge")
+        .arg("--global")
+        .output()
+        .expect("recall non-empty pretty global");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("Scope: global"),
+        "AC2: non-empty pretty --global must print Scope: global; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(unique) || stdout.contains("T228global"),
+        "must still show hit content; got: {stdout}"
+    );
+    let lines: Vec<&str> = stdout.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert!(
+        lines
+            .first()
+            .is_some_and(|l| l.starts_with("Scope: global")),
+        "Scope: global must appear before hits; got: {stdout}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T228 AC6 — --quiet non-empty pretty keeps Scope
+// ---------------------------------------------------------------------------
+
+#[test]
+fn recall_nonempty__pretty_quiet__keeps_scope() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let unique = "T228quiet-memory-seed-xyzzy-content";
+    common::hermetic_cmd(&vault)
+        .arg("pin")
+        .arg(unique)
+        .assert()
+        .success();
+
+    let out = common::hermetic_cmd(&vault)
+        .arg("--log-format")
+        .arg("off")
+        .arg("recall")
+        .arg(unique)
+        .arg("--format")
+        .arg("pretty")
+        .arg("--no-bridge")
+        .arg("--quiet")
+        .output()
+        .expect("recall non-empty pretty quiet");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("Scope:"),
+        "AC6: --quiet must not suppress Scope on non-empty pretty; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(unique) || stdout.contains("T228quiet"),
+        "must still show hit content; got: {stdout}"
     );
     assert!(
         !stdout.contains("No results"),
         "non-empty must not print empty hint; got: {stdout}"
     );
-    // AC10 deferred: Scope not required on non-empty; do not assert presence.
 }

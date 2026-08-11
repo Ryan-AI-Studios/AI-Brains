@@ -517,6 +517,13 @@ pub async fn run_query(
             // T207 empty pretty: Scope + hint, no TTY gate (F37 preserve).
             crate::commands::recall::print_pretty_empty_sync(ctx, &query, global, project_id)?;
         } else {
+            // T228 F12: non-empty vault Scope before hits (inside vault block only).
+            let scope_line = crate::commands::recall::resolve_active_scope_line(
+                ctx.conn.as_ref(),
+                global,
+                project_id.as_ref(),
+            )?;
+            println!("{}", scope_line);
             crate::commands::recall::print_pretty_hits(&hits);
         }
         Ok(())
