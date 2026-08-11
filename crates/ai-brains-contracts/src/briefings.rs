@@ -99,7 +99,11 @@ pub struct BriefingConstraintDto {
 /// Non-current or risk signal (stale, disputed, open conflict, unavailable, denied).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BriefingWarningDto {
-    /// stale | disputed | open_conflict | unavailable | denied | low_confidence | other
+    /// stale | disputed | open_conflict | unavailable | denied | low_confidence |
+    /// empty_authority | empty_continuity | out_of_valid_time | other
+    ///
+    /// `empty_authority` / `empty_continuity` are emitted only when the packet is
+    /// **not** denied (allowed-empty honesty; T227 F8/F9/F31).
     pub kind: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -745,5 +749,22 @@ mod tests {
         assert_eq!(packet.warnings.len(), 1);
         assert_eq!(packet.warnings[0].kind, "denied");
         assert_eq!(packet.warnings[0].message, "denied");
+    }
+
+    #[test]
+    fn briefing_warning_dto__empty_authority_and_continuity__roundtrip() {
+        // T227 F31 soft: new kind tokens serialize/deserialize.
+        for kind in ["empty_authority", "empty_continuity"] {
+            let w = BriefingWarningDto {
+                kind: kind.into(),
+                message: "test".into(),
+                subject_id: None,
+                subject_kind: None,
+            };
+            let json = serde_json::to_string(&w).expect("serialize");
+            let decoded: BriefingWarningDto = serde_json::from_str(&json).expect("deserialize");
+            assert_eq!(decoded.kind, kind);
+            assert_eq!(decoded.message, "test");
+        }
     }
 }

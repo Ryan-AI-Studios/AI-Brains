@@ -1,8 +1,8 @@
 //! Deterministic Personal Continuity Briefing (T152 Phase D).
 
 use ai_brains_contracts::briefings::{
-    AppliedGrantDto, BudgetReportDto, ContinuitySummaryDto, PersonalContinuityBriefingPacket,
-    PersonalPreferenceDto, PersonalReviewItemDto,
+    AppliedGrantDto, BriefingWarningDto, BudgetReportDto, ContinuitySummaryDto,
+    PersonalContinuityBriefingPacket, PersonalPreferenceDto, PersonalReviewItemDto,
 };
 use ai_brains_contracts::knowledge::EvidenceHandle;
 use ai_brains_contracts::offset_to_utc;
@@ -196,6 +196,17 @@ where
         denied: false,
         denial_reason: None,
     };
+    // T227 F9/F27: empty_continuity only when allowed and continuity summary empty.
+    if packet.continuity.summary.is_empty() {
+        packet.warnings.push(BriefingWarningDto {
+            kind: "empty_continuity".into(),
+            message:
+                "Personal continuity summary is empty (session synthesis deferred; no synthetic fill)"
+                    .into(),
+            subject_id: None,
+            subject_kind: None,
+        });
+    }
     apply_personal_budget(&mut packet, req.budget);
 
     if !req.dry_run

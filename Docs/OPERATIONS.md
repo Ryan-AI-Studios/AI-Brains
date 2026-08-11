@@ -196,11 +196,16 @@ resolved repository scope, or authority sections are empty (`denied` / warnings)
   optional `denied` / `denial_reason` / **`denial_hint`** (bootstrap when denied; omitted otherwise).
 
 **CLI surface (dry-run)**
-- **Briefing** format: markdown on TTY, json otherwise; explicit `--format` wins.
+- **Briefing** format (T227): markdown on TTY, json otherwise; explicit `--format` wins.
+  - Aliases `human` / `pretty` / `text` / `markdown` / `md` → markdown; only `json` → JSON.
+  - Unknown `--format` → exit **2** + accepted list on stderr (no silent JSON).
+  - Preflight pins ≠ briefing authority (dual model); empty allowed packets surface next-steps.
 - **Progressive / expand / trace**: JSON only (not TTY-markdown).
 
 ```powershell
+ai-brains briefing project --project-id <uuid> --format human
 ai-brains briefing project --project-id <uuid> --format json
+ai-brains briefing personal --format human
 ai-brains briefing personal --format markdown
 ai-brains query progressive "authority order" --project-id <uuid>
 ai-brains query expand <handle-id> --project-id <uuid>
@@ -806,7 +811,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
 | Unified Search | `ai-brains sync query "<topic>"` (searches vault + Ledgerful) |
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
-| Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (TTY markdown default / non-TTY json; `--format` wins; see T152/T202) |
+| Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (TTY markdown / non-TTY json; T227 aliases human\|pretty\|text\|md → markdown; unknown format exit 2; see T152/T202/T227) |
 | Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` (progressive/expand require project id; missing → exit **2**) |
 | Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence list\|search\|show` · `source list\|show` · `review list\|resolve` (T160/T203) |
 | Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |

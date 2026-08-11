@@ -78,6 +78,7 @@ On **`policy check`** deny and local **list** denies (`review list`, `source lis
 | `query expand` | preview `kind == "Denied"` (capability miss **and/or** cross-scope — not disambiguated) | **3** | **stdout:** preview JSON. **stderr:** `POLICY_DENIED: …` then bootstrap hint. |
 | `query expand` | `kind == "Unknown"` (handle not found) | **0** | not a policy wall |
 | `briefing project` / `personal` | soft packet `denied: true` | **0** | unchanged (T210 F28) — do not treat like progressive |
+| `briefing project` / `personal` | unknown `--format` (not human/pretty/text/markdown/md/json) | **2** | **T227:** `fail_usage` on stderr with accepted list; **zero stdout** (no silent JSON) |
 
 Authorized progressive with grants and zero hits stays **`denied: false`**, empty `results`, exit **0** (true empty knowledge).
 

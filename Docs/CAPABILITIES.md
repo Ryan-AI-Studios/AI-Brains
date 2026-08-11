@@ -81,7 +81,7 @@ Honesty matrix — **no** blanket TTY default flip for governed JSON surfaces.
 |---------|-------------|-----------------|-------|
 | `recall` | pretty | json | Explicit `--format` wins |
 | `preflight` | human | json | TTY default is `human`; `--pretty` / `--format pretty` also human-mode |
-| `briefing` | markdown | json | T202 F9; explicit `--format` wins |
+| `briefing` | markdown | json | T202 F9 + **T227**: `human\|pretty\|text\|markdown\|md` → markdown; only `json` → JSON; unknown → exit **2** |
 | `query progressive` / `expand` / `trace` | json | json | No TTY flip |
 | list/show (governed evidence/source/review/...) | json (Human if `--format human`) | json | `OutputFormat::parse` → Json bare |
 | `doctor` | human | human | `--json` / `--format json` override |
@@ -259,17 +259,20 @@ ai-brains recall -   # query from stdin
 | **Formats** | Pretty on TTY by default; JSON / NDJSON; per-result `session_id`; optional JSON `staleness: "plan"` when demoted; additive `score_kind` + optional `cosine` (T218). Under `--semantic` after fuse, JSON `score` is RRF rank contribution (interpret via `score_kind` + `cosine`), not raw BM25 and not a fake confidence. |
 | **Hints** | Empty **pretty** always prints next-action text on stdout (**not TTY-only**), after Scope (and Session only when user `--session` / `--session-prefix` / `--session-last` resolved — generated graph-provenance sessions are omitted on empty). JSON empty still sets `hint` + `effective_session_id` (exit **0**). Next-action only when embedding status already explains cause (T202). `--quiet` does not suppress Scope or the empty hint. **T217:** when default lexical is empty, raw token count ≥ 3, and ≥1 contentful token remains, append plain-text “try fewer keywords” (via core token helpers; not for all-stopword queries; no emoji). |
 
-### Briefing + progressive query (T202)
+### Briefing + progressive query (T202 / T227)
 ```powershell
-ai-brains briefing project --project-id <uuid>
-ai-brains briefing personal --format json
+ai-brains briefing project --project-id <uuid> --format human
+ai-brains briefing personal --format human
+ai-brains briefing project --project-id <uuid> --format json
 ai-brains query progressive "why was graph backend replaced?" --project-id <uuid>
 ```
 
 | Feature | Detail |
 |---------|--------|
-| **Briefing format** | TTY default **markdown**; non-TTY **json**; explicit `--format` wins (dogfood always passes `--format json`) |
-| **Denied packets** | Briefing: `denied=true` always seeds `warnings[]` with `kind: "denied"`; markdown includes `> **Denied:** …` one-liner; process exit **0** (soft) |
+| **Briefing format (T227)** | TTY default **markdown**; non-TTY **json**. Explicit aliases `human`, `pretty`, `text`, `markdown`, `md` → **markdown**; only `json` → JSON. Unknown `--format` → **exit 2** (`fail_usage`) + accepted list on stderr, **zero stdout**. Dogfood/scripts should pass `--format json` explicitly. |
+| **Dual model (pins ≠ authority)** | Preflight `--summary` pin/marker counts and legacy MemoryPinned memories are **orientation only** — they are **not** injected into briefing authority (`decisions[]` / `conclusions[]`). Briefing is a governed authority probe (Approved decisions + Active/Confirmed conclusions + grants). |
+| **Empty honesty (T227)** | Allowed (`!denied`) empty project → `empty_authority` warning + markdown next-step; allowed empty personal continuity → `empty_continuity` warning + next-step (**no** synthetic summary). **Never** emit empty_* when `denied=true`. |
+| **Denied packets** | Briefing: `denied=true` always seeds `warnings[]` with `kind: "denied"`; markdown includes blank line + `> **Denied:** …` + bootstrap next-step (`policy bootstrap`); process exit **0** (soft; T221). |
 | **Progressive / expand** | Require project id (`--project-id` or `AI_BRAINS_PROJECT_ID`); missing → exit **2** + copy-paste example on stderr. **T221 honesty:** progressive policy wall → exit **3** with pretty packet still on stdout (`denied`, `denial_hint` bootstrap); expand `kind: Denied` → exit **3** (capability and/or cross-scope); expand `Unknown` → exit **0**. First-run: `policy bootstrap --scope Repository:<uuid>` (System principal when `--principal-id` omitted) |
 | **Trace** | No project-id gate; missing/unauthorized → `null` exit **0** |
 
