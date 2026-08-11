@@ -10,6 +10,7 @@ mod harness;
 mod help_ia;
 mod key_resolve;
 mod live_graph;
+mod verify_report;
 
 /// JSON Schema for `ai-bbrains agy-hook --payload`. Bundled at compile time
 /// so `--schema` works regardless of cwd. The source-of-truth file lives at
@@ -1751,6 +1752,9 @@ pub enum BackupCommands {
         /// Output format: 'json' or 'pretty' (default: pretty)
         #[arg(long)]
         format: Option<String>,
+        /// Full per-file OK/FAIL stream (no summary).
+        #[arg(long)]
+        verbose: bool,
     },
 }
 
@@ -3241,9 +3245,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 use ai_brains_brain::ListMode;
                 commands::backup::run_list(&ctx, ListMode::from_flags(*quiet, *verbose))
             }
-            Some(BackupCommands::Verify { path, full, format }) => {
-                commands::backup::run_verify(&ctx, path.clone(), *full, format.clone())
-            }
+            Some(BackupCommands::Verify {
+                path,
+                full,
+                format,
+                verbose,
+            }) => commands::backup::run_verify(&ctx, path.clone(), *full, format.clone(), *verbose),
             None => commands::backup::run_create(&ctx, None, Some(10), *dry_run, true),
         },
         Commands::Forget {

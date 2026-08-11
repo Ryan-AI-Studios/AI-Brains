@@ -1,10 +1,10 @@
 # T217–T232 — Post-audit CLI quality series (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-05 (scores &lt; 7 + high-leverage improvements).
-**Status:** Series active — **T217 + T218 + T219 + T220 + T221 + T222 + T223 + T224 + T232 closed**; remaining tracks placeholders.
+**Status:** Series active — **T217 + T218 + T219 + T220 + T221 + T222 + T223 + T224 + T232 closed**; **T225 Planning**; remaining tracks placeholders.
 **Prior series:** T205–T216 closed (skill·CLI honesty).
 **Closed:** **T217** FTS multi-token rescue (PR #110 `1e22e77`); **T218** semantic quality v2 (PR #116 `fc4d370`); **T219** preflight pretty readability (PR #118 `496ddd7`); **T220** preflight summary JSON honesty (PR #112 `6f4f67b`); **T221** governed first-run + deny exit honesty (PR #114 `b3c4b0f`); **T222** graph-on install path (PR #122 `c1ac594`, 2026-08-10); **T223** quiet env override warnings (PR #126 `7ff8f7f`, 2026-08-10); **T224** search role-prefix strip (PR #120 `a18fae6`, 2026-08-10); **T232** density remediation (PR #124 `33b28d0`, 2026-08-10).
-**Next honesty:** polish **T225**–**T228**, **T230**–**T231** / ops **T229**.
+**Next honesty:** **T225** (Planning) then **T226**–**T228**, **T230**–**T231** / ops **T229**.
 
 ## Score → track map
 
@@ -18,7 +18,7 @@
 | Graph-off install usefulness (**3** / 9 honesty) | **T222** ✅ closed PR #122 | P2 |
 | `.env` override double-warn spam | **T223** ✅ closed PR #126 | P2 |
 | `ASSISTANT:` in recall/sync/forget dry-run | **T224** ✅ closed PR #120 | P2 |
-| Backup verify INFO flood + fleet unusable (**7 / 6**) | **T225** Backup verify quiet + encrypted backup nudge | P2 |
+| Backup verify INFO flood + fleet unusable (**7 / 6**) | **T225** Backup verify quiet + encrypted backup nudge — **Planning** | P2 |
 | `policy show/check` require scope (**5–6**) | **T226** Policy soft-resolve scope | P2 |
 | Briefing human→JSON; empty personal (**4–5 / 5–6**) | **T227** Briefing format + substance | P2 |
 | Non-empty pretty no Scope (T207 residual) | **T228** Non-empty pretty Scope | P3 |
@@ -32,7 +32,7 @@
 1. **Ops now (not a code track):** schedule `AI-Brains-Nightly` + ensure `c:\llm\router.bat` on :8081/:8083 — see T229 + `~\.ai-brains\register-nightly-tasks.ps1`.
 2. ~~**T217**~~ **closed**; ~~**T218**~~ **closed** PR #116; ~~**T219**~~ **closed** PR #118; ~~**T220**~~ **closed**; ~~**T221**~~ **closed**; ~~**T222**~~ **closed** PR #122; ~~**T223**~~ **closed** PR #126; ~~**T224**~~ **closed** PR #120.
 3. ~~**T232**~~ **closed** PR #124 — capability-aware rebuild vs reinstall.
-4. **T225–T228, T230–T231** polish (or ops **T229**).
+4. **T225** (Planning) → implement on go; then **T226–T228, T230–T231** polish (or ops **T229**).
 
 ## Non-goals of this series
 
