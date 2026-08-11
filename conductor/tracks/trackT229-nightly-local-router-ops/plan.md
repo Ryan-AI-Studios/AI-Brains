@@ -1,6 +1,7 @@
 # T229 Plan — Nightly + local router ops
 
-**Status:** Planning + **AI fold-in 2026-08-11** (plan-only until **go**)  
+**Status:** ✅ **Completed** 2026-08-11 — product PR #140 `1ec9142`
+
 **Spec:** [spec.md](./spec.md) §15 disposition  
 **Category:** FEATURE / BUGFIX / OPS / DOCS  
 **Ledger TX (on go):** `ledgerful ledger start T229-nightly-local-router-ops --category FEATURE --message "Nightly probe+LastResult+UTF8 truncate+nil project; no CLI reqwest"`
@@ -65,8 +66,8 @@
 - [x] **Cross-model** Codex R1 FAIL → fix → R2 **PASS** (F5 + all product)
 - [x] Full gate: fmt, clippy `-D warnings`, nextest **2593**, deny, audit
 - [x] `ledgerful verify --scope full` (pre-fix) + ledger TX open
-- [ ] Conductor Completed; deferred + series README strike T229 (closeout PR)
-- [ ] `ai-brains pin "DECISION: T229 closed — …"` (closeout)
+- [x] Conductor Completed; deferred + series README strike T229 (closeout PR)
+- [x] `ai-brains pin "DECISION: T229 closed — …"` (closeout)
 
 ## Explicit non-goals
 
