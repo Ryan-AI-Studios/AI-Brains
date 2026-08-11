@@ -2,7 +2,7 @@
 
 - **Track ID:** T230-GlobalListLabelFill
 - **Phase:** Post-audit CLI quality series (T217–T232) — P3 polish after T228
-- **Status:** 🚧 **Implementing** — code + tests 2026-08-11
+- **Status:** ✅ **Completed** — PR #136 `b3f1a61` 2026-08-11
 - **Depends on:** T212 `display_label` SOOT ✅; T216 memory inventory `--summary --global` by-project table ✅; T207/T214 Scope vocabulary (unchanged)
 - **Blocks / feeds:** Operators can scan multi-project vaults without blank `label` cells; closes audit residual “Global summary blank labels”
 - **Category:** UX / FEATURE (light) / DOCS
@@ -11,7 +11,7 @@
 - **Not absorbed:** Auto-create aliases from git slug (explicit non-goal); orphan project re-registration / data repair; tag histogram (T216 F24 soft); `--offset` cursor; clap 5; T231 unified search; T229 ops; short-UUID-in-label-column alternative (project_id already full); contract DTO key growth; **alias.trim()** collapse (pre-existing whitespace-alias residual — F5/F34)
 - **Research date:** 2026-08-11 (live dogfood + code truth + clig.dev + dep pins)
 - **AI fold-in:** 2026-08-11 — AI1 **M1** (name empty/ws only; **reject** alias.trim), **M2→F29**, **M3**, **L1–L2**, **O1 hard**. AI2 **M1–M3 hard**; **O1–O4 hard**; **L3/O5 soft residual**; **O6** no mandatory cross-model. Disposition **§15**.
-- **Ledger:** plan-only — no TX until go
+- **Ledger:** FEATURE TX `860678cc` committed; decision pinned
 
 ## 1. Objective
 
@@ -232,14 +232,14 @@ Record before/after blank counts on live vault (baseline blank=**15**).
 
 ## 9. Definition of done
 
-- [ ] F1–F35 respected
-- [ ] AC1–AC16 green (AC15 soft only if hermetic deferred with justification)
-- [ ] Live dogfood blank count → **0**
-- [ ] CAPABILITIES + new CHANGELOG
-- [ ] deferred.md + series README + conductor Completed
-- [ ] Full gate green; ledger commit; pin decision
-- [ ] No production `unwrap`/`expect`
-- [ ] No `ProjectRegistered` from list/summary/forget-list
+- [x] F1–F35 respected
+- [x] AC1–AC16 green (AC15 hard hermetic)
+- [x] Live dogfood blank count → **0** (15→0)
+- [x] CAPABILITIES + new CHANGELOG
+- [x] deferred.md + series README + conductor Completed
+- [x] Full gate green (2558); ledger commit; pin decision
+- [x] No production `unwrap`/`expect`
+- [x] No `ProjectRegistered` from list/summary/forget-list
 
 ## 10. Non-goals (restate)
 

@@ -124,7 +124,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Briefing human→JSON; empty personal~~ | **Closed by T227** PR #132 `40c7cd1` — aliases→md + unknown exit 2; empty honesty; AC6 substance; no pin inject; soft residual F34 OutputFormat surface-wide / #18 / typed constraints |
 | ~~Non-empty pretty Scope (T207 soft)~~ | **Closed by T228** PR #134 `e51d5e4` — always-on pretty Scope empty+non-empty + sync vault; soft residual F32 random-UUID fallback / F34 sync always-pretty |
 | Nightly schedule + router :8081/:8083 | **T229** Ops partial + product placeholder |
-| Global summary blank labels | **T230** Placeholder |
+| ~~Global summary blank labels~~ | **Closed by T230** PR #136 `b3f1a61` — never-blank `display_label` empty/ws name → `(no alias)`; orphan store+unit+live; soft residual F34 whitespace alias / F11 footer / CLI orphan E2E hermetic |
 | Dual recall vs sync query mental model | **T231** Placeholder |
 | ~~Doctor graph rebuild vs graph-off~~ | **Closed by T232** PR #124 `33b28d0` — capability remediations (on→rebuild / off→`GRAPH_REINSTALL_SOOT`); empty-lag hybrid retired |
 | Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** Placeholder — Option B path aliases + Phase1/2; **unblocked** (0163 shipped) — plan-only until go |
