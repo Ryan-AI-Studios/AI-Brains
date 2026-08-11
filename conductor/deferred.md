@@ -113,7 +113,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 |--------------------|-------------|
 | FTS natural-phrase empty (quality 4) | **T217** ✅ closed PR #110 `1e22e77` |
 | ~~Semantic drift / scores (quality 4)~~ | **Closed by T218** PR #116 `fc4d370` — dual floor 0.55/0.60 no-FTS gate; score_kind; pretty rank+sim; hermetic fuse SOOT; soft residual F18/F19/F20/F21/AC15/httpmock-full-recall |
-| ~~Preflight pretty wall (quality 5)~~ | **Closed by T219** PR #118 `496ddd7` — newline budget + Scope + role strip + section caps; soft residual `--compact` / retrieval JSON strip / T228 |
+| ~~Preflight pretty wall (quality 5)~~ | **Closed by T219** PR #118 `496ddd7` — newline budget + Scope + role strip + section caps; soft residual `--compact` / retrieval JSON strip; ~~T228~~ **closed PR #134** |
 | ~~preflight summary `--format json` lie (quality 3)~~ | **Closed by T220** PR #112 `6f4f67b` |
 | ~~Governed usefulness 4–5; progressive deny exit 0~~ | **Closed by T221** PR #114 `b3c4b0f` — progressive/expand deny exit 3 + `denial_hint` + human emit_error hint; soft residual F12/F32/F18/F36 |
 | ~~Graph-off PATH usefulness 3~~ | **Closed by T222** PR #122 `c1ac594` — scripts graph-on + doctor `graph_feature`; A2=no; soft residual T232 density remediations |
@@ -122,7 +122,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Backup verify noise + legacy fleet~~ | **Closed by T225** PR #128 `927b8db` — quiet summary + first 5 FAIL — + create nudge; doctor usable/stale; soft residual F17 |
 | ~~policy show/check required scope~~ | **Closed by T226** PR #130 `5919f26` — soft-resolve show\|check + F23 canonicalize; soft residual O1 shared wrapper / bootstrap success soft hermetic |
 | ~~Briefing human→JSON; empty personal~~ | **Closed by T227** PR #132 `40c7cd1` — aliases→md + unknown exit 2; empty honesty; AC6 substance; no pin inject; soft residual F34 OutputFormat surface-wide / #18 / typed constraints |
-| Non-empty pretty Scope (T207 soft) | **T228** Planning (plan-only until go) — always-on pretty Scope + sync vault parity |
+| ~~Non-empty pretty Scope (T207 soft)~~ | **Closed by T228** PR #134 `e51d5e4` — always-on pretty Scope empty+non-empty + sync vault; soft residual F32 random-UUID fallback / F34 sync always-pretty |
 | Nightly schedule + router :8081/:8083 | **T229** Ops partial + product placeholder |
 | Global summary blank labels | **T230** Placeholder |
 | Dual recall vs sync query mental model | **T231** Placeholder |
@@ -1198,7 +1198,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 | clap workspace pin bump | Soft F41 — no bump DoD |
 | Role strip inside retrieval for JSON text | Soft F5 residual |
 | ~~T224 search-path role strip~~ | **Closed by T224** PR #120 `a18fae6` |
-| T228 non-empty recall Scope | Separate track |
+| ~~T228 non-empty recall Scope~~ | **Closed** PR #134 `e51d5e4` |
 | scope_display extract / pager | Soft F22 |
 | truncate_preview triplication (ingest/pin) | Soft F14 residual from T224 — not DoD |
 | Optional JSON `preview` / `--strip-roles` | Soft F6 residual from T224 |

@@ -2,7 +2,7 @@
 
 - **Track ID:** T228-NonemptyPrettyScope
 - **Phase:** Post-audit CLI quality series (T217–T232) — P3 polish after T227
-- **Status:** 📋 **Planning + AI fold-in** (plan-only until go)
+- **Status:** ✅ **Completed** (PR #134 `e51d5e4`, 2026-08-11)
 - **Depends on:** T207 empty pretty Scope + `format_scope_line` ✅; T214 preflight summary Scope SOOT ✅; T219 full-body Scope ✅; T211 `print_pretty_hits` shared with sync ✅
 - **Blocks / feeds:** Operators who get hits no longer wonder “which project is this?”; aligns recall/sync pretty with memory list + preflight; closes T207 AC10 residual
 - **Category:** UX / FEATURE (light) / DOCS
@@ -11,7 +11,7 @@
 - **Not absorbed:** JSON `scope` field / contract growth; auto-`--global`; ranking/FTS; T230 global labels; T231 unified search product merge; T227 F34 surface-wide `OutputFormat` silent-JSON; clap 5 / ValueEnum; color; pager; **sync TTY-independent default pretty** (pre-existing residual); **sync missing-project → random UUID search** (pre-existing — document, optional soft fix)
 - **Research date:** 2026-08-11 (live dogfood + code truth + clig.dev + dep pins)
 - **AI fold-in:** 2026-08-11 — AI1 **M1–M4 hard**; **L1–L2 hard**; **O1 elevate hard** (shared helper). AI2 **M1–M3 hard**; **L1 hard**; **L2/L3/L6 soft**; **O2/O3/O5 hard**; **O1 fold into F29**; **O4 soft residual**; **O6 soft cross-model focus**. Disposition **§15**.
-- **Ledger:** plan-only until go
+- **Ledger:** FEATURE TX `ee28f999-1495-4d82-a45c-665d7ea3c83d` committed; product PR #134 squash-merged `e51d5e4`
 
 ## 1. Objective
 
