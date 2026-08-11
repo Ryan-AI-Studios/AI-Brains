@@ -171,8 +171,9 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | last_activity | Last **memory-projection mutation** (pin / forget / ingest / turn upsert), falling back to project `updated_at` when the project has no memories — **not** “last user chat message only.” Human: relative when age &lt; 365d (`just now` / `Nm` / `Nh` / `Nd`); else `YYYY-MM-DD`. |
 | path column | Registered `repository_path_alias_projection.normalized_path` when present (lexicographically first); never invented from cwd/git. Human `—` / JSON `null` when unknown. |
 | Unaliased nudge | When ≥1 project has no alias, **stderr** prints count + copy-paste `ai-brains project set-alias <uuid> <suggestion>` (highest-memory unaliased). Empty vault: T198 empty line only — **no** footer. Exit 0 always. |
-| Aliases | `project set-alias` · `project resolve` |
-| Auto-detect | `project detect` (git slug → vault match → env `PROJECT_ID`); `context` discovery (`.ledgerful` / `.env`) |
+| Aliases | `project set-alias` · `project resolve` — **human labels** only (not disk roots) |
+| Path aliases (T233) | `project register-path <project_id\|alias> <path>` — filesystem roots for multi-root nightly Phase 2. Normalize via path crate (Win + WSL forms). Same normalized path → one project (conflict exit **1**). Same project re-register idempotent. |
+| Auto-detect | `project detect` (git slug → vault match → env `PROJECT_ID`); `context` discovery (`.ledgerful` / `.env`); path aliases also feed scope detect |
 | Stop session | `stop-session` |
 | Env precedence | CLI flags / shell env > elevation handoff (elevated child only) > project `.env` > global `~\.ai-brains\.env` (always merged for gaps; `--no-project-context` skips project only) |
 | Local ID force-set | Project-local `.env` **always force-sets** `AI_BRAINS_PROJECT_ID` / `AI_BRAINS_SESSION_ID` (cwd project beats a stale shell). Other keys still follow shell > project > global gap-fill. |
@@ -368,7 +369,7 @@ Pipeline includes:
 3. Session summarization (chunked; **38,912-token** context with carryover)
 4. Memory synthesis (batch-limited, e.g. 50 memories/run)
 5. Embedding backfill + stale refresh + WAL checkpoint (UTF-8-safe truncate — T229 F5)
-6. Ledgerful **symbol bridge** ingest (functions, routes → code-aware recall)
+6. **Phase 2 multi-root bridge (T233)** — for each registered path alias (sorted ASC; optional `AI_BRAINS_NIGHTLY_MAX_ROOTS`): MADR export + `ledgerful symbols --pub --json --limit N --auto-index` with **explicit root** (`current_dir`). Zero aliases → no-op + `register-path` hint. Per-root failures warn + continue. Symbol source_tag `ledgerful:symbol` (dual-read legacy `changeguard:symbol`). Cap default **5000** (`AI_BRAINS_NIGHTLY_MAX_SYMBOLS`). No SQL open of `.ledgerful/state/ledger.db`; no System32 cwd dependence.
 7. **`MemorySynthesized`** events for graph edges
 8. Live graph projection updates
 
@@ -549,10 +550,10 @@ End-to-end recipes: [WORKFLOWS.md](WORKFLOWS.md) (“Find something”).
 
 ```text
 CAPTURE          ingest · agy-hook · antigravity-import · daemon queue
-CONTEXT          context · project list/resolve/detect/set-alias · stop-session
+CONTEXT          context · project list/resolve/detect/set-alias/register-path · stop-session
 DENSE MEMORY     pin · forget/restore · safety sync
 RETRIEVAL        recall (FTS · semantic · graph-boost · bridge) · preflight · sync query
-INTELLIGENCE     nightly (summarize · embed · synthesize · symbol bridge)
+INTELLIGENCE     nightly (summarize · embed · synthesize · multi-root Phase2 bridge)
 GRAPH            neighbors · hierarchy · session · update · rebuild · live projector
 INTEGRATION      Ledgerful (search/hotspots/bridge/pipe) · multi-harness hooks
 OPS              init · backup suite · daemon service · schedule · update

@@ -447,23 +447,165 @@ pub async fn run(
         "[Nightly] Graph updated incrementally — run 'graph rebuild' only if you suspect missing edges."
     );
 
-    // --- MADR Ingestion (Phase 18: T41) ---
-    tracing::info!("Ingesting structured MADR decisions from Ledgerful...");
-    if let Err(e) = ingest_madr_from_ledgerful(ctx, project_id) {
-        tracing::error!("MADR ingestion failed (non-fatal): {}", e);
+    // --- Phase 2 multi-root bridge (T233): path aliases = SOOT ---
+    // Phase 1 above used env project_id (nil SOOT T229) for summarize only.
+    run_phase2_multi_root_bridge(ctx)?;
+
+    Ok(())
+}
+
+/// AC7 zero-alias user hint (must mention `register-path`).
+pub(crate) const PHASE2_ZERO_ALIAS_HINT: &str = "\
+[Nightly] Phase 2 skipped: no path aliases. Register roots with:\n  ai-brains project register-path <project_id|alias> <path>";
+
+/// Whether a Phase 2 root path exists on disk (AC5 skip vs bridge).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Phase2RootStatus {
+    Ok,
+    Missing,
+}
+
+/// Classify a registered path alias root for Phase 2 (pure; hermetic tests).
+pub(crate) fn phase2_root_status(path: &str) -> Phase2RootStatus {
+    if std::path::Path::new(path).exists() {
+        Phase2RootStatus::Ok
+    } else {
+        Phase2RootStatus::Missing
+    }
+}
+
+/// One Phase 2 path-alias row: `(project_id, normalized_path)`.
+pub(crate) type Phase2Alias = (ProjectId, String);
+
+/// Partition aliases into existing roots vs missing (skip) paths (AC5).
+pub(crate) fn filter_existing_roots(
+    aliases: Vec<Phase2Alias>,
+) -> (Vec<Phase2Alias>, Vec<Phase2Alias>) {
+    let mut existing = Vec::new();
+    let mut missing = Vec::new();
+    for (id, path) in aliases {
+        match phase2_root_status(&path) {
+            Phase2RootStatus::Ok => existing.push((id, path)),
+            Phase2RootStatus::Missing => missing.push((id, path)),
+        }
+    }
+    (existing, missing)
+}
+
+/// Shared invoke plan for ledgerful CLI with explicit root cwd (AC3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InvokePlan {
+    pub cwd: std::path::PathBuf,
+    pub args: Vec<String>,
+}
+
+/// MADR bridge export plan: `current_dir = root` (never Task Scheduler System32).
+pub(crate) fn madr_export_invoke_plan(root: &std::path::Path, out: &std::path::Path) -> InvokePlan {
+    InvokePlan {
+        cwd: root.to_path_buf(),
+        args: vec![
+            "bridge".to_string(),
+            "export".to_string(),
+            "--out".to_string(),
+            out.to_string_lossy().into_owned(),
+            "--ledger".to_string(),
+        ],
+    }
+}
+
+/// Phase 2: foreach registered path alias, MADR + symbols with explicit root.
+fn run_phase2_multi_root_bridge(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+    use ai_brains_store::QueryStore;
+    use std::path::PathBuf;
+
+    let mut aliases = ctx.conn.list_path_aliases()?;
+    if aliases.is_empty() {
+        tracing::info!(
+            "[Nightly] Phase 2: no path aliases registered; bridge no-op (register-path)"
+        );
+        eprintln!("{PHASE2_ZERO_ALIAS_HINT}");
+        return Ok(());
+    }
+
+    // F28: already ORDER BY normalized_path ASC from store.
+    if let Ok(max_s) = std::env::var("AI_BRAINS_NIGHTLY_MAX_ROOTS")
+        && let Ok(max_n) = max_s.parse::<usize>()
+        && max_n > 0
+        && aliases.len() > max_n
+    {
+        tracing::info!(
+            total = aliases.len(),
+            max = max_n,
+            "[Nightly] Phase 2: truncating roots via AI_BRAINS_NIGHTLY_MAX_ROOTS"
+        );
+        aliases.truncate(max_n);
+    }
+
+    let total = aliases.len();
+    let (existing, missing) = filter_existing_roots(aliases);
+    let mut roots_ok = 0usize;
+    let roots_skipped = missing.len();
+
+    tracing::info!(
+        bridge_roots_total = total,
+        "[Nightly] Phase 2 multi-root bridge starting"
+    );
+
+    for (alias_project_id, normalized_path) in missing {
         tracing::warn!(
-            "MADR ingestion failed: {}. Nightly sweep completed successfully.",
-            e
+            path = %normalized_path,
+            project_id = %alias_project_id,
+            "[Nightly] Phase 2: root missing; skip"
         );
     }
 
-    // --- Symbol Bridge (T70) ---
-    tracing::info!("[Nightly] Ingesting code symbols from Ledgerful...");
-    match crate::commands::symbol_bridge::ingest_symbols_from_ledgerful(ctx, project_id) {
-        Ok(n) => tracing::info!("[Nightly] {} code symbols ingested.", n),
-        Err(e) => tracing::warn!("[Nightly] Symbol ingestion failed (non-fatal): {}", e),
+    for (alias_project_id, normalized_path) in existing {
+        let root = PathBuf::from(&normalized_path);
+
+        tracing::info!(
+            path = %normalized_path,
+            project_id = %alias_project_id,
+            "[Nightly] Phase 2: bridging root"
+        );
+
+        // MADR per root (F27); empty BridgeRecord.project_id → alias owner (F12).
+        if let Err(e) = ingest_madr_from_ledgerful(ctx, alias_project_id, &root) {
+            tracing::warn!(
+                path = %normalized_path,
+                error = %e,
+                "[Nightly] MADR ingestion failed for root (non-fatal; continue)"
+            );
+        }
+
+        match crate::commands::symbol_bridge::ingest_symbols_from_ledgerful(
+            ctx,
+            alias_project_id,
+            &root,
+        ) {
+            Ok(n) => {
+                tracing::info!(
+                    path = %normalized_path,
+                    symbols = n,
+                    "[Nightly] symbols ingested for root"
+                );
+                roots_ok += 1;
+            }
+            Err(e) => {
+                tracing::warn!(
+                    path = %normalized_path,
+                    error = %e,
+                    "[Nightly] Symbol ingestion failed for root (non-fatal; continue)"
+                );
+            }
+        }
     }
 
+    tracing::info!(
+        bridge_roots_total = total,
+        bridge_roots_ok = roots_ok,
+        bridge_roots_skipped = roots_skipped,
+        "[Nightly] Phase 2 multi-root bridge complete"
+    );
     Ok(())
 }
 
@@ -790,9 +932,14 @@ fn write_wrapper_script(content: &str) -> Result<std::path::PathBuf, Box<dyn std
 
 /// Fetch structured MADR records from Ledgerful via bridge IPC and ingest as
 /// Decision domain events into the event store.
+///
+/// `root` is the registered path-alias directory; Ledgerful is spawned with
+/// `.current_dir(root)` so Task Scheduler System32 cwd cannot zero the export.
+/// Empty `BridgeRecord.project_id` falls back to `alias_project_id` (F12).
 fn ingest_madr_from_ledgerful(
     ctx: &AppContext,
-    project_id: ProjectId,
+    alias_project_id: ProjectId,
+    root: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use ai_brains_contracts::bridge::BridgeRecord;
     use std::fs::File;
@@ -800,30 +947,36 @@ fn ingest_madr_from_ledgerful(
 
     let temp_path = {
         let mut p = std::env::temp_dir();
-        p.push("cg_madr_export.ndjson");
+        // Per-root temp name avoids clobber when multi-root (sequential still safer).
+        let safe = alias_project_id.to_string().replace('-', "");
+        p.push(format!("cg_madr_export_{safe}.ndjson"));
         p
     };
 
-    // Call Ledgerful bridge export --ledger to fetch MADR records
+    // Call Ledgerful bridge export --ledger with explicit root (T233 F9/F27).
+    let plan = madr_export_invoke_plan(root, &temp_path);
     let output = std::process::Command::new("ledgerful")
-        .args([
-            "bridge",
-            "export",
-            "--out",
-            temp_path.to_str().ok_or("Invalid temp path")?,
-            "--ledger",
-        ])
+        .current_dir(&plan.cwd)
+        .args(&plan.args)
         .output();
 
     match output {
         Ok(out) if out.status.success() => {}
         Ok(out) => {
             let stderr = String::from_utf8_lossy(&out.stderr);
-            tracing::warn!("Ledgerful bridge export failed: {}", stderr);
+            tracing::warn!(
+                root = %root.display(),
+                "Ledgerful bridge export failed: {}",
+                stderr
+            );
             return Ok(()); // Non-fatal: fail gracefully
         }
         Err(e) => {
-            tracing::warn!("Ledgerful CLI not available: {}", e);
+            tracing::warn!(
+                root = %root.display(),
+                "Ledgerful CLI not available: {}",
+                e
+            );
             return Ok(()); // Non-fatal: fail gracefully
         }
     }
@@ -897,23 +1050,29 @@ fn ingest_madr_from_ledgerful(
             continue; // Skip records without meaningful MADR content
         }
 
-        // Parse record-level IDs
+        // Parse record-level IDs. F12: empty BridgeRecord.project_id → alias owner
+        // (not Phase-1 env/nil alone).
         let record_project_id = if !record.project_id.is_empty() {
             ProjectId::from_str(&record.project_id).ok()
         } else {
             None
         };
+        let effective_project_id = record_project_id.unwrap_or(alias_project_id);
         let record_session_id = record
             .session_id
             .as_ref()
             .and_then(|s| ai_brains_core::ids::SessionId::from_str(s).ok());
-        let tx_id = record
-            .tx_id
-            .as_ref()
-            .map(|s| ai_brains_core::ids::TransactionId::new(s.clone()));
+        let tx_id_raw = record.tx_id.as_deref().filter(|s| !s.is_empty());
+        let tx_id = tx_id_raw.map(|s| ai_brains_core::ids::TransactionId::new(s.to_string()));
 
-        // Build DecisionRecorded event
-        let decision_id = MemoryId::new();
+        // T233 Codex R2 P2: stable decision aggregate id (tx preferred, else content)
+        // so dual path-aliases (Win+WSL) and re-runs do not append duplicate DecisionRecorded.
+        let decision_id =
+            madr_stable_decision_id(effective_project_id, tx_id_raw, &title, &decision, &context);
+        if madr_decision_already_ingested(&event_store, decision_id.as_uuid()) {
+            continue;
+        }
+
         let event = ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Decision,
             decision_id.as_uuid(),
@@ -927,7 +1086,7 @@ fn ingest_madr_from_ledgerful(
                 context,
                 decision,
                 consequences,
-                project_id: record_project_id.or(Some(project_id)),
+                project_id: Some(effective_project_id),
                 session_id: record_session_id,
                 tx_id,
             },
@@ -942,6 +1101,39 @@ fn ingest_madr_from_ledgerful(
 
     tracing::info!("MADR ingestion completed. {} decisions ingested.", ingested);
     Ok(())
+}
+
+/// Stable MemoryId for a MADR decision (T233 multi-root / re-run idempotency).
+///
+/// Prefer `tx_id` when present; otherwise hash title+decision+context under the
+/// effective project. Dual Win/WSL path aliases for the same project therefore
+/// share one aggregate and skip on second root / second nightly.
+pub(crate) fn madr_stable_decision_id(
+    project_id: ProjectId,
+    tx_id: Option<&str>,
+    title: &str,
+    decision: &str,
+    context: &str,
+) -> MemoryId {
+    let key = match tx_id.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(tx) => format!("madr:{}:tx:{}", project_id, tx),
+        None => format!(
+            "madr:{}:content:{}|{}|{}",
+            project_id, title, decision, context
+        ),
+    };
+    MemoryId::from_uuid(uuid::Uuid::new_v5(
+        &uuid::Uuid::NAMESPACE_URL,
+        key.as_bytes(),
+    ))
+}
+
+/// True when the decision aggregate already has events (prior DecisionRecorded).
+fn madr_decision_already_ingested(event_store: &dyn EventStore, decision_uuid: uuid::Uuid) -> bool {
+    event_store
+        .read_events(decision_uuid)
+        .map(|events| !events.is_empty())
+        .unwrap_or(false)
 }
 
 /// Format structured MADR fields into MADR-compliant markdown.
@@ -1090,6 +1282,110 @@ Author: N/A\n";
             resolve_nightly_project_id(None),
             ProjectId::from_uuid(uuid::Uuid::nil())
         );
+    }
+
+    // --- Phase 2 multi-root hermetics (T233-R2 / AC3, AC5, AC7) ---
+
+    /// AC7: zero-alias message points operators at `register-path`.
+    #[test]
+    fn phase2_zero_alias_hint__contains_register_path() {
+        assert!(
+            PHASE2_ZERO_ALIAS_HINT.contains("register-path"),
+            "hint must mention register-path: {PHASE2_ZERO_ALIAS_HINT}"
+        );
+        assert!(PHASE2_ZERO_ALIAS_HINT.contains("Phase 2"));
+    }
+
+    /// AC5: missing path roots are classified as skip.
+    #[test]
+    fn phase2_root_status__missing_path__missing() {
+        let missing = r"C:\path\that\definitely\does\not\exist\ai-brains-t233-missing";
+        assert_eq!(phase2_root_status(missing), Phase2RootStatus::Missing);
+    }
+
+    /// AC5: existing path roots are Ok.
+    #[test]
+    fn phase2_root_status__existing_tempdir__ok() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir
+            .path()
+            .to_str()
+            .ok_or("temp path not utf-8")?
+            .to_string();
+        assert_eq!(phase2_root_status(&path), Phase2RootStatus::Ok);
+        Ok(())
+    }
+
+    /// AC5: filter partitions existing vs missing roots.
+    #[test]
+    fn filter_existing_roots__partitions_missing_and_ok() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let dir = tempfile::tempdir()?;
+        let ok_path = dir
+            .path()
+            .to_str()
+            .ok_or("temp path not utf-8")?
+            .to_string();
+        let missing_path =
+            r"C:\path\that\definitely\does\not\exist\ai-brains-t233-filter".to_string();
+        let id_ok = ProjectId::from_uuid(uuid::Uuid::from_u128(1));
+        let id_miss = ProjectId::from_uuid(uuid::Uuid::from_u128(2));
+        let (existing, missing) = filter_existing_roots(vec![
+            (id_ok, ok_path.clone()),
+            (id_miss, missing_path.clone()),
+        ]);
+        assert_eq!(existing.len(), 1);
+        assert_eq!(existing[0].0, id_ok);
+        assert_eq!(existing[0].1, ok_path);
+        assert_eq!(missing.len(), 1);
+        assert_eq!(missing[0].0, id_miss);
+        assert_eq!(missing[0].1, missing_path);
+        Ok(())
+    }
+
+    /// Codex R2 P2: same tx under same project → same decision id (dual alias / re-run).
+    #[test]
+    fn madr_stable_decision_id__same_tx__same_id() {
+        let pid = ProjectId::from_uuid(uuid::Uuid::from_u128(42));
+        let a = madr_stable_decision_id(pid, Some("tx-abc"), "t", "d", "c");
+        let b = madr_stable_decision_id(pid, Some("tx-abc"), "other", "other", "other");
+        assert_eq!(a, b, "tx_id identity must dominate content");
+    }
+
+    /// Codex R2 P2: content key stable without tx; different content → different id.
+    #[test]
+    fn madr_stable_decision_id__content_key__stable_and_distinct() {
+        let pid = ProjectId::from_uuid(uuid::Uuid::from_u128(7));
+        let a = madr_stable_decision_id(pid, None, "Title", "Decide X", "Ctx");
+        let b = madr_stable_decision_id(pid, None, "Title", "Decide X", "Ctx");
+        let c = madr_stable_decision_id(pid, None, "Title", "Decide Y", "Ctx");
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+        // Different project → different id for same content.
+        let other = ProjectId::from_uuid(uuid::Uuid::from_u128(8));
+        let d = madr_stable_decision_id(other, None, "Title", "Decide X", "Ctx");
+        assert_ne!(a, d);
+    }
+
+    /// AC3: MADR export plan pins cwd to root (not System32 / process cwd).
+    #[test]
+    fn madr_export_invoke_plan__cwd_is_root_and_args_ledger_export() {
+        let root = std::path::PathBuf::from(r"C:\dev\example-root");
+        let out = std::path::PathBuf::from(r"C:\temp\cg_madr_export.ndjson");
+        let plan = madr_export_invoke_plan(&root, &out);
+        assert_eq!(plan.cwd, root);
+        assert!(plan.args.iter().any(|a| a == "bridge"));
+        assert!(plan.args.iter().any(|a| a == "export"));
+        assert!(plan.args.iter().any(|a| a == "--ledger"));
+        assert!(plan.args.iter().any(|a| a == "--out"));
+        let out_pos = plan
+            .args
+            .iter()
+            .position(|a| a == "--out")
+            .expect("--out present");
+        let out_arg = plan.args.get(out_pos + 1).map(String::as_str);
+        let expected = out.to_str().expect("utf-8 out path");
+        assert_eq!(out_arg, Some(expected));
     }
 
     #[test]

@@ -524,8 +524,51 @@ The nightly job does:
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)
 - Embedding backfill (UTF-8-safe truncate, T229 F5 — no mid-character panic)
-- Symbol-bridge ingestion from Ledgerful (T70)
+- **Phase 2 multi-root bridge (T233):** MADR + symbol inventory per **registered path alias** (not process cwd)
 - MemoryPinned / MemorySynthesized event emission (T67, T68) for the live graph
+
+### Multi-root path aliases (T233)
+
+Nightly **Phase 1** (summarize / embed / synthesize) runs once against the vault. **Phase 2** walks every row in `repository_path_alias_projection` (sorted by normalized path ASC) and, for each existing disk root, runs Ledgerful with **explicit `current_dir(root)`**:
+
+1. `ledgerful bridge export --ledger` → MADR decisions (empty record `project_id` → **alias owner**)
+2. `ledgerful symbols --pub --json --limit N --auto-index` → symbol memories (`source_tag=ledgerful:symbol`)
+
+This is independent of Task Scheduler **System32** cwd: roots come from vault path aliases, not from where `schtasks` started the process.
+
+#### `set-alias` vs `register-path`
+
+| Command | What it stores | Used by |
+|---------|----------------|---------|
+| `project set-alias <uuid> <label>` | Human **label** for list/detect | Display, resolve, detect slug |
+| `project register-path <uuid\|alias> <path>` | **Filesystem root** (normalized Win/WSL) | Nightly Phase 2 bridge |
+
+`project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
+
+```powershell
+# Once per repo root (examples)
+ai-brains project register-path <id-or-alias> C:\dev\AI-Brains
+ai-brains project register-path <id-or-alias> C:\dev\ledgerful
+# Dual-checkout optional second form (same project):
+# ai-brains project register-path <id-or-alias> /mnt/c/dev/AI-Brains
+```
+
+- **Conflict (F21):** the same normalized path can only belong to one project — second owner gets **exit 1** + ownership message. Same project re-register is idempotent OK.
+- **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs).
+- **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal).
+- **Env caps:** `AI_BRAINS_NIGHTLY_MAX_ROOTS` (optional list truncate); `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (default **5000**, per-root ingest cap).
+
+#### `ledgerful init` once per root
+
+Path registration alone does not create a Ledgerful ledger. For each root you want symbols from:
+
+```powershell
+cd C:\dev\<repo>
+ledgerful init   # once per root, when missing
+ledgerful symbols --pub --json --limit 5 --auto-index   # smoke
+```
+
+Without prior init / usable index, Phase 2 skips that root with a warn (`indexStatus` unusable or empty inventory).
 
 ### Local dynamic router (T229)
 

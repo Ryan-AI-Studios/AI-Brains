@@ -127,9 +127,9 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Global summary blank labels~~ | **Closed by T230** PR #136 `b3f1a61` — never-blank `display_label` empty/ws name → `(no alias)`; orphan store+unit+live; soft residual F34 whitespace alias / F11 footer / CLI orphan E2E hermetic |
 | ~~Dual recall vs sync query mental model~~ | **Closed by T231** PR #138 `0f3d83f` — A+C decision table + F32/F21 resolve/ndjson honesty + F37 gated empty next-step; soft residual: search noun / recall text→pretty arm / invalid-env clap converge |
 | ~~Doctor graph rebuild vs graph-off~~ | **Closed by T232** PR #124 `33b28d0` — capability remediations (on→rebuild / off→`GRAPH_REINSTALL_SOOT`); empty-lag hybrid retired |
-| Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** Placeholder — Option B path aliases + Phase1/2; **unblocked** (0163 shipped) — plan-only until go |
-| T229 multi-root bridge half | **Absorbed by T233**; T229 keeps router env/health/schedule |
-| ~~Ledgerful scoped symbol inventory (agent DX)~~ | **Closed by coordinated 0163** (2026-08-09) Ledgerful PR #159 `3fe44367` — `ledgerful symbols` scoped JSON; T233 consumes it |
+| Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** 🔄 **In Progress** 2026-08-11 — Option B + 0163 JSON; F21/F43/SQL-delete pins; user go |
+| T229 multi-root bridge half | **Absorbed by T233** (In Progress); T229 keeps router env/health/schedule |
+| ~~Ledgerful scoped symbol inventory (agent DX)~~ | **Closed by coordinated 0163** (2026-08-09) Ledgerful PR #159 `3fe44367` — `ledgerful symbols` scoped JSON; T233 consumes (frozen flags in T233 plan) |
 
 ### Harness seamless ingest series (2026-08-08) — T234–T239
 

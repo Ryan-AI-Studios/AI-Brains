@@ -44,7 +44,7 @@
 
 See `conductor/conductor.md` T217–T232 rows and each `trackT2xx-*/spec.md`.
 
-**Related (ops/architecture, not pure UX):** [T233 path-alias multi-root nightly](trackT233-path-alias-multiroot-nightly/spec.md) — Option B vault paths + nightly Phase2 bridge (closes System32 Ledgerful miss). Upstream coordinated **0163** (`ledgerful symbols`) ✅ **Completed** 2026-08-09 — T233 **unblocked** (still placeholder until go).
+**Related (ops/architecture, not pure UX):** [T233 path-alias multi-root nightly](trackT233-path-alias-multiroot-nightly/spec.md) — Option B vault paths + nightly Phase2 bridge (closes System32 Ledgerful miss). Upstream coordinated **0163** (`ledgerful symbols`) ✅ **Completed** 2026-08-09 — T233 **Planning** 2026-08-11 (plan-only until go).
 
 **Related (harness ingest series):** [T234–T239 seamless multi-harness ingest](README-T234-T239-HARNESS-INGEST.md) — message-only capture, preflight detect/install hooks, AGY2/Grok/OpenCode + nightly multi-import.
 

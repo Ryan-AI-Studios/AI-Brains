@@ -475,6 +475,80 @@ pub fn set_alias(
     Ok(())
 }
 
+/// Register a filesystem path alias for multi-root nightly bridge (T233).
+///
+/// Resolves `project_ref` as UUID or human alias, normalizes `path`, then
+/// pre-checks ownership (F21) before appending `RepositoryPathAliasAdded` via
+/// control-plane `register_path_alias`.
+pub fn register_path(
+    ctx: &AppContext,
+    project_ref: &str,
+    path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let project_id = resolve_project_ref(ctx, project_ref)?;
+
+    let normalized = ai_brains_path::normalize_for_location_compare(path);
+    if normalized.is_empty() {
+        return Err("path normalized to empty; choose a non-empty filesystem path.".into());
+    }
+
+    // F21 conflict pre-check (projection UPSERT alone would steal ownership).
+    if let Some(existing) = ctx.conn.find_path_alias_owner(&normalized)? {
+        if existing == project_id {
+            println!(
+                "Path alias '{}' is already registered to project {}.",
+                normalized, project_id
+            );
+            return Ok(());
+        }
+        eprintln!(
+            "path alias '{}' is already registered to project {}; choose a different path (unregister-path is soft residual F31)",
+            normalized, existing
+        );
+        std::process::exit(1);
+    }
+
+    let event_store = ai_brains_store::SqliteEventStore::new((*ctx.conn).clone());
+    let writer = ai_brains_control_plane::StoreEventWriter::new(event_store);
+    ai_brains_control_plane::register_path_alias(&writer, path, project_id)
+        .map_err(|e| format!("register path alias failed: {e}"))?;
+
+    println!(
+        "Path alias '{}' registered for project {}.",
+        normalized, project_id
+    );
+    Ok(())
+}
+
+/// Resolve `project_ref` as UUID parse **or** human alias lookup.
+fn resolve_project_ref(
+    ctx: &AppContext,
+    project_ref: &str,
+) -> Result<ai_brains_core::ids::ProjectId, Box<dyn std::error::Error>> {
+    use std::str::FromStr;
+
+    if let Ok(pid) = ai_brains_core::ids::ProjectId::from_str(project_ref) {
+        // Verify the project exists when the ref looks like a UUID.
+        let projects = ctx.conn.list_projects()?;
+        let id_str = pid.to_string();
+        if projects.iter().any(|(p, _, _, _)| p == &id_str) {
+            return Ok(pid);
+        }
+        return Err(format!("Project '{}' not found in vault.", project_ref).into());
+    }
+
+    // Alias lookup.
+    if let Some(pid) = ctx.conn.resolve_project_id_from_alias(project_ref)? {
+        return Ok(pid);
+    }
+
+    Err(format!(
+        "Project '{}' not found (not a valid project UUID and not a known alias).",
+        project_ref
+    )
+    .into())
+}
+
 // ---------------------------------------------------------------------------
 // Pure helpers (F33) — unit-tested without vault spawn
 // ---------------------------------------------------------------------------
