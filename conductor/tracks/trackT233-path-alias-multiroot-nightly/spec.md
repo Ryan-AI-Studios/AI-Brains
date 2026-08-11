@@ -2,7 +2,7 @@
 
 - **Track ID:** T233-PathAliasMultiRootNightly
 - **Phase:** Post-audit nightly / Ledgerful bridge honesty
-- **Status:** 🔄 **In Progress** (user **go** 2026-08-11; upstream **0163 Completed**)
+- **Status:** ✅ **Completed** 2026-08-11 (PR #142 `38cdcc2`; upstream **0163 Completed**)
 - **Category:** FEATURE / OPS / ARCHITECTURE
 - **Owner (draft):** Grok
 - **Execution repo:** `C:\dev\AI-Brains`
@@ -219,10 +219,10 @@ ai-brains nightly --status
 ## 10. Definition of Done
 
 - [x] 0163 Completed (AC0)  
-- [ ] F0–F44 + AC1–AC14  
-- [ ] AI fold-in pins honored  
-- [ ] Review (cross-model ARCHITECTURE) + full gate + manual AC12  
-- [ ] conductor / deferred / pin updated  
+- [x] F0–F44 + AC1–AC14  
+- [x] AI fold-in pins honored  
+- [x] Review (cross-model ARCHITECTURE) + full gate + manual AC12  
+- [x] conductor / deferred / pin updated  
 
 ## 11. AI fold-in summary (`C:\dev\AI-review.md`)
 
@@ -239,4 +239,4 @@ Full disposition: [plan.md](./plan.md) § AI fold-in.
 
 ---
 
-**User go received — implementation in progress.**
+**Completed 2026-08-11** — PR #142 squash `38cdcc2`.
