@@ -14,7 +14,7 @@
 | R1 Codex | gpt-5.4 high | **FAIL** (process P2 + help-test P3) | P2 closeout incomplete (expected mid-track); P3 help Usage lock weak |
 | R1 fix | orchestrator | verified_fixed | Strengthened help tests (`!Usage --scope` + soft-resolves phrase); AC7 INVALID_PAYLOAD assert |
 | R2 Codex | gpt-5.4 high | **PASS WITH DEFERRED P3** | Product clean; process closeout residual only |
-| Final Codex | after closeout | pending → see review.codex.final.md | Fresh final gate |
+| Final Codex | gpt-5.4 high | **PASS WITH DEFERRED P3** | O1 soft residual only; process checklist reconciled |
 
 ## Scope audited (claimed vs tree)
 
@@ -84,7 +84,7 @@
 - **description:** Process DoD incomplete at review time (expected mid-track): `conductor.md` T226 still **Planning**; `deferred.md` “policy show/check required scope” not struck; plan Manual evidence still `pending`; this reviewer session did not execute `cargo nextest` (no shell in read-only subagent). Product AC tests are present and coherent; gate/manual evidence remains implementer/orchestrator duty for AC11/DoD.
 - **files:** `conductor/conductor.md`, `conductor/deferred.md`, `conductor/tracks/trackT226-policy-soft-resolve-scope/plan.md`
 - **required_fix:** On finalize — run full CI gate; record manual dogfood §11; strike deferred; mark conductor Completed; ledger commit.
-- **status:** open
+- **status:** verified_fixed — conductor Completed, deferred struck, plan checklist [x], gate/manual recorded
 
 ## Non-findings (explicit)
 

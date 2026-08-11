@@ -1,9 +1,51 @@
-**Findings**
+# Track Completion Audit — T226-PolicySoftResolveScope (FINAL)
 
-- `P3` Process closeout is still incomplete in the working tree. The track is marked completed and the review log says DoD is met, but the actual checklist in [plan.md](/C:/dev/AI-Brains/conductor/tracks/trackT226-policy-soft-resolve-scope/plan.md:94), [plan.md](/C:/dev/AI-Brains/conductor/tracks/trackT226-policy-soft-resolve-scope/plan.md:101), [plan.md](/C:/dev/AI-Brains/conductor/tracks/trackT226-policy-soft-resolve-scope/plan.md:139), [plan.md](/C:/dev/AI-Brains/conductor/tracks/trackT226-policy-soft-resolve-scope/plan.md:148), and [plan.md](/C:/dev/AI-Brains/conductor/tracks/trackT226-policy-soft-resolve-scope/plan.md:150) remains unchecked, while [review.md](/C:/dev/AI-Brains/conductor/tracks/trackT226-policy-soft-resolve-scope/review.md:119) and [review.md](/C:/dev/AI-Brains/conductor/tracks/trackT226-policy-soft-resolve-scope/review.md:143) assert final DoD completion. That is a real process mismatch, not the O1 soft residual.
+## Verdict: PASS WITH DEFERRED P3
 
-**Verdict**
+## Scope Reviewed
 
-`PASS WITH DEFERRED P3`
+- Product PR #130 squash-merged `5919f26` (feat: soft-resolve show/check)
+- Closeout branch `chore/T226-closeout` (conductor Completed, deferred strike, plan checklist [x], series README)
+- Soft residual only: **O1** shared `resolve_scope_or_fail_usage` (explicit non-DoD in spec §13)
 
-No product findings above `P3` remain. The product implementation is coherent in [policy_cmd.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/policy_cmd.rs:80), [policy_cmd.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/policy_cmd.rs:137), [main.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/src/main.rs:1219), [sources.rs](/C:/dev/AI-Brains/crates/ai-brains-control-plane/src/sources.rs:398), [exit_contract.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/tests/exit_contract.rs:27), and [policy_soft_resolve.rs](/C:/dev/AI-Brains/crates/ai-brains-cli/tests/policy_soft_resolve.rs:67). The only residual I found is the unchecked `plan.md` closeout checklist.
+## Requirement and DoD Matrix
+
+| Item | Status |
+|------|--------|
+| AC1–AC12 | Met (hermetic + full gate + CI + manual) |
+| Erasure clap-required retained | Met |
+| F23 canonicalize | Met |
+| Docs honesty | Met |
+| conductor Completed / deferred struck | Met |
+| Full gate / CI | Met (2534 local; PR #130 Win/Linux/macOS) |
+
+## Findings
+
+None above P3.
+
+### Deferred P3 (soft residual only)
+
+| ID | Note |
+|----|------|
+| O1 | Shared `resolve_scope_or_fail_usage` across evidence/source/review/policy — optional SOOT, not DoD |
+| T210 lineage | Bootstrap success soft-resolve hermetic still optional |
+
+## Completeness Sweep
+
+No placeholders, stubs, or incomplete product wiring on show/check soft-resolve paths.
+
+## Wiring and Regression Review
+
+`Option<String>` → `resolve_scope_key_for_cli` → `parse_scope_key` → `scope_identity_key` → grant list / check / messages. Capability stays clap-required. Erasure/review resolve untouched.
+
+## Verification Evidence
+
+Recorded in `review.md` gate table: fmt, clippy, nextest 2534, deny, audit, ledgerful full, CI PR #130 green.
+
+## Deferred Candidates
+
+O1 only (already soft residual in plan/spec).
+
+## Completion Decision
+
+**PASS WITH DEFERRED P3** — engineering DoD met; only pre-declared soft residual O1 remains.
