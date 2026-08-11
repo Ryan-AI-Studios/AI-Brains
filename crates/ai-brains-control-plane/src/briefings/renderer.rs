@@ -1,7 +1,29 @@
 //! Deterministic JSON + Markdown renderers for briefing packets (no LLM).
+//!
+//! Shared by CLI `briefing` and governed preflight (`ai-brains-retrieval`) —
+//! next-step footers flow into both (T227 F29).
 
 use ai_brains_contracts::briefings::{PersonalContinuityBriefingPacket, ProjectBriefingPacket};
 use serde_json::Error as JsonError;
+
+/// Bootstrap next-step after Denied (T227 F10).
+///
+/// Dual-site SOOT with CLI/daemon `POLICY_DENIED_HINT` wording (bootstrap command
+/// and scope ellipsis). Keep in sync when changing bootstrap remediation copy.
+pub const BRIEFING_DENIED_NEXT_STEP: &str = "next: run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+
+/// Empty allowed project authority notice (T227 F8 / F17).
+pub const BRIEFING_EMPTY_AUTHORITY_NOTICE: &str =
+    "_No current authority (decisions/conclusions empty)._";
+
+/// Empty allowed project next-step (T227 F8 / F17).
+pub const BRIEFING_EMPTY_AUTHORITY_NEXT_STEP: &str = "next: seed an Approved decision and Active/Confirmed conclusion (propose + approve/activate), or run `ai-brains policy show --scope …` if grants look wrong";
+
+/// Empty personal continuity notice (T227 F9 / F17).
+pub const BRIEFING_EMPTY_CONTINUITY_NOTICE: &str = "_No personal continuity yet._";
+
+/// Empty personal continuity next-step (T227 F9 / F17). No synthetic summary.
+pub const BRIEFING_EMPTY_CONTINUITY_NEXT_STEP: &str = "next: continuity synthesis is deferred; Confirmed personal preferences appear when ReadConclusions grants and Confirmed conclusions exist on Personal scope";
 
 /// Serialize a project packet to JSON (pretty).
 pub fn render_project_json(packet: &ProjectBriefingPacket) -> Result<String, JsonError> {
@@ -30,6 +52,9 @@ pub fn render_project_markdown(packet: &ProjectBriefingPacket) -> String {
             "> **Denied:** {}",
             packet.denial_reason.as_deref().unwrap_or("policy denied")
         ));
+        // F10/F29: next-step immediately after Denied so preflight word budget keeps it.
+        lines.push(String::new());
+        lines.push(BRIEFING_DENIED_NEXT_STEP.to_string());
     }
     if !packet.scope.warnings.is_empty() {
         lines.push(String::new());
@@ -79,6 +104,13 @@ pub fn render_project_markdown(packet: &ProjectBriefingPacket) -> String {
                 lines.push(format!("  - evidence: `{}`", h.evidence_id));
             }
         }
+    }
+
+    // F8/F27: empty authority only when allowed (never when denied).
+    if !packet.denied && packet.decisions.is_empty() && packet.conclusions.is_empty() {
+        lines.push(String::new());
+        lines.push(BRIEFING_EMPTY_AUTHORITY_NOTICE.to_string());
+        lines.push(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.to_string());
     }
 
     if !packet.constraints.is_empty() {
@@ -141,10 +173,15 @@ pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> St
     lines.push(String::new());
     lines.push(format!("**Scope:** `{}`", packet.scope_key));
     if packet.denied {
+        // F30: blank line before Denied (parity with project renderer).
+        lines.push(String::new());
         lines.push(format!(
             "> **Denied:** {}",
             packet.denial_reason.as_deref().unwrap_or("policy denied")
         ));
+        // F10: bootstrap next-step after Denied.
+        lines.push(String::new());
+        lines.push(BRIEFING_DENIED_NEXT_STEP.to_string());
     }
 
     lines.push(String::new());
@@ -163,6 +200,13 @@ pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> St
         lines.push("_None_".to_string());
     } else {
         lines.push(packet.continuity.summary.clone());
+    }
+
+    // F9/F27: empty continuity honesty only when allowed (never when denied).
+    if !packet.denied && packet.continuity.summary.is_empty() {
+        lines.push(String::new());
+        lines.push(BRIEFING_EMPTY_CONTINUITY_NOTICE.to_string());
+        lines.push(BRIEFING_EMPTY_CONTINUITY_NEXT_STEP.to_string());
     }
 
     if !packet.open_review_items.is_empty() {
@@ -196,4 +240,202 @@ pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> St
     }
 
     lines.join("\n")
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+    use ai_brains_contracts::briefings::{
+        BriefingScopeDto, BudgetReportDto, ContinuitySummaryDto, FreshnessSummaryDto,
+        PersonalContinuityBriefingPacket, ProjectBriefingPacket,
+    };
+
+    fn empty_project(denied: bool) -> ProjectBriefingPacket {
+        ProjectBriefingPacket {
+            api_version: "1".into(),
+            briefing_id: "b1".into(),
+            kind: "Project".into(),
+            scope: BriefingScopeDto {
+                scope_key: "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".into(),
+                confidence: "High".into(),
+                warnings: Vec::new(),
+                alternatives: Vec::new(),
+                authoritative: true,
+            },
+            handoff: None,
+            decisions: Vec::new(),
+            conclusions: Vec::new(),
+            constraints: Vec::new(),
+            warnings: if denied {
+                vec![ai_brains_contracts::briefings::BriefingWarningDto {
+                    kind: "denied".into(),
+                    message: "no grant".into(),
+                    subject_id: None,
+                    subject_kind: None,
+                }]
+            } else {
+                Vec::new()
+            },
+            freshness: FreshnessSummaryDto {
+                total_sources: 0,
+                fresh_count: 0,
+                stale_count: 0,
+                unavailable_count: 0,
+                worst_state: "Unknown".into(),
+            },
+            ledgerful: None,
+            evidence_handles: Vec::new(),
+            budget: BudgetReportDto {
+                max_words: 1500,
+                used_words: 0,
+                truncated_sections: Vec::new(),
+                more_available: false,
+            },
+            generated_at: None,
+            denied,
+            denial_reason: if denied {
+                Some("ReadDecisions/ReadConclusions denied".into())
+            } else {
+                None
+            },
+        }
+    }
+
+    fn empty_personal(denied: bool) -> PersonalContinuityBriefingPacket {
+        PersonalContinuityBriefingPacket {
+            api_version: "1".into(),
+            briefing_id: "b1".into(),
+            kind: "Personal".into(),
+            scope_key: "Personal:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".into(),
+            preferences: Vec::new(),
+            continuity: ContinuitySummaryDto {
+                summary: String::new(),
+                thread_handles: Vec::new(),
+            },
+            open_review_items: Vec::new(),
+            grants_applied: Vec::new(),
+            warnings: if denied {
+                vec![ai_brains_contracts::briefings::BriefingWarningDto {
+                    kind: "denied".into(),
+                    message: "denied".into(),
+                    subject_id: None,
+                    subject_kind: None,
+                }]
+            } else {
+                Vec::new()
+            },
+            budget: BudgetReportDto {
+                max_words: 800,
+                used_words: 0,
+                truncated_sections: Vec::new(),
+                more_available: false,
+            },
+            generated_at: None,
+            denied,
+            denial_reason: if denied {
+                Some("Personal scope read denied without grant".into())
+            } else {
+                None
+            },
+        }
+    }
+
+    #[test]
+    fn render_project_markdown__allowed_empty__emits_empty_authority_next_step() {
+        // AC7
+        let md = render_project_markdown(&empty_project(false));
+        assert!(
+            md.contains(BRIEFING_EMPTY_AUTHORITY_NOTICE),
+            "empty authority notice: {md}"
+        );
+        assert!(
+            md.contains(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP),
+            "empty authority next-step: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_NEXT_STEP),
+            "allowed empty must not get deny next-step: {md}"
+        );
+        assert!(!md.contains("**Denied:**"), "must not show Denied: {md}");
+    }
+
+    #[test]
+    fn render_project_markdown__denied__bootstrap_next_step_no_empty_authority() {
+        // AC7 + AC9
+        let md = render_project_markdown(&empty_project(true));
+        assert!(md.contains("> **Denied:**"), "denied blockquote: {md}");
+        assert!(
+            md.contains(BRIEFING_DENIED_NEXT_STEP),
+            "deny next-step: {md}"
+        );
+        assert!(
+            md.contains("policy bootstrap"),
+            "bootstrap token for preflight budget (F29): {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_EMPTY_AUTHORITY_NOTICE),
+            "denied must not emit empty_authority: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP),
+            "denied must not emit empty_authority next-step: {md}"
+        );
+        // Next-step appears before Decisions so word budget keeps it (F29).
+        let deny_pos = md.find(BRIEFING_DENIED_NEXT_STEP).expect("next-step pos");
+        let decisions_pos = md
+            .find("## Decisions (current authority)")
+            .expect("decisions pos");
+        assert!(
+            deny_pos < decisions_pos,
+            "deny next-step must precede decisions for budget survival"
+        );
+    }
+
+    #[test]
+    fn render_personal_markdown__allowed_empty__emits_empty_continuity_next_step() {
+        // AC8
+        let md = render_personal_markdown(&empty_personal(false));
+        assert!(
+            md.contains(BRIEFING_EMPTY_CONTINUITY_NOTICE),
+            "empty continuity notice: {md}"
+        );
+        assert!(
+            md.contains(BRIEFING_EMPTY_CONTINUITY_NEXT_STEP),
+            "empty continuity next-step: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_NEXT_STEP),
+            "allowed empty must not get deny next-step: {md}"
+        );
+        // No synthetic continuity fill.
+        assert!(
+            md.contains("## Continuity\n_None_"),
+            "continuity stays _None_: {md}"
+        );
+    }
+
+    #[test]
+    fn render_personal_markdown__denied__blank_line_before_denied_and_bootstrap() {
+        // AC9 + AC9b / F30
+        let md = render_personal_markdown(&empty_personal(true));
+        assert!(md.contains("**Scope:**"), "scope line present: {md}");
+        // Blank line between Scope and Denied: "Scope…\n\n> **Denied:**"
+        assert!(
+            md.contains("`\n\n> **Denied:**") || md.contains("\n\n> **Denied:**"),
+            "blank line before Denied required (F30): {md}"
+        );
+        assert!(
+            md.contains(BRIEFING_DENIED_NEXT_STEP),
+            "deny next-step: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_EMPTY_CONTINUITY_NOTICE),
+            "denied must not emit empty_continuity: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_EMPTY_CONTINUITY_NEXT_STEP),
+            "denied must not emit empty_continuity next-step: {md}"
+        );
+    }
 }

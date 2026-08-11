@@ -564,7 +564,7 @@ enum Commands {
     /// (must be registered + granted). See `AI_BRAINS_GOVERNED_BRIEFING` for preflight.
     #[command(
         display_order = 31,
-        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500 --project-id <uuid>\n  ai-brains briefing personal --format json\n  # or set AI_BRAINS_PROJECT_ID for project briefing"
+        after_help = "Examples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  ai-brains briefing personal --format human\n  ai-brains briefing personal --format json\n  # or set AI_BRAINS_PROJECT_ID for project briefing"
     )]
     Briefing {
         #[command(subcommand)]
@@ -835,12 +835,12 @@ enum ReplicateCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500 --project-id <uuid>\n  ai-brains briefing personal --format json\n  # or set AI_BRAINS_PROJECT_ID for project briefing"
+    after_help = "Examples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  ai-brains briefing personal --format human\n  ai-brains briefing personal --format json\n  # or set AI_BRAINS_PROJECT_ID for project briefing"
 )]
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
     #[command(
-        after_help = "Examples:\n  ai-brains briefing project --format json --max-words 1500 --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Examples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
@@ -850,12 +850,14 @@ enum BriefingCommands {
         /// Skip BriefingGenerated event / cache write (default: true)
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         dry_run: bool,
-        /// Output format: `json` or `markdown` (default: markdown on TTY, json otherwise)
+        /// Output format: human, pretty, text, markdown, md, or json (default: markdown on TTY, json otherwise)
         #[arg(long)]
         format: Option<String>,
     },
     /// Build a Personal Continuity Briefing packet
-    #[command(after_help = "Examples:\n  ai-brains briefing personal --format json")]
+    #[command(
+        after_help = "Examples:\n  ai-brains briefing personal --format human\n  ai-brains briefing personal --format json"
+    )]
     Personal {
         /// Personal user id (defaults to principal UUID mapping)
         #[arg(long)]
@@ -864,7 +866,7 @@ enum BriefingCommands {
         max_words: usize,
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         dry_run: bool,
-        /// Output format: `json` or `markdown` (default: markdown on TTY, json otherwise)
+        /// Output format: human, pretty, text, markdown, md, or json (default: markdown on TTY, json otherwise)
         #[arg(long)]
         format: Option<String>,
     },

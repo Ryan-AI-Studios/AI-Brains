@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370`; ~~**T219**~~ **closed** PR #118 `496ddd7`; ~~**T224**~~ **closed** PR #120 `a18fae6`; ~~**T222**~~ **closed** PR #122 `c1ac594`; ~~**T232**~~ **closed** PR #124 `33b28d0`; ~~**T223**~~ **closed** PR #126 `7ff8f7f`; ~~**T225**~~ **closed** PR #128 `927b8db`; remaining placeholders (policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370`; ~~**T219**~~ **closed** PR #118 `496ddd7`; ~~**T224**~~ **closed** PR #120 `a18fae6`; ~~**T222**~~ **closed** PR #122 `c1ac594`; ~~**T232**~~ **closed** PR #124 `33b28d0`; ~~**T223**~~ **closed** PR #126 `7ff8f7f`; ~~**T225**~~ **closed** PR #128 `927b8db`; ~~**T226**~~ **closed** PR #130 `5919f26`; **T227** Planning (briefing format + substance); remaining placeholders (non-empty Scope, nightly+router ops, global labels, unified search). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -121,7 +121,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~ASSISTANT: in search paths~~ | **Closed by T224** PR #120 `a18fae6` — pretty + forget previews strip; JSON/events raw; soft residual truncate triplication / JSON preview field |
 | ~~Backup verify noise + legacy fleet~~ | **Closed by T225** PR #128 `927b8db` — quiet summary + first 5 FAIL — + create nudge; doctor usable/stale; soft residual F17 |
 | ~~policy show/check required scope~~ | **Closed by T226** PR #130 `5919f26` — soft-resolve show\|check + F23 canonicalize; soft residual O1 shared wrapper / bootstrap success soft hermetic |
-| Briefing human→JSON; empty personal | **T227** Placeholder |
+| Briefing human→JSON; empty personal | **T227** Planning (format aliases + empty honesty + granted substance; no pin inject) |
 | Non-empty pretty Scope (T207 soft) | **T228** Placeholder |
 | Nightly schedule + router :8081/:8083 | **T229** Ops partial + product placeholder |
 | Global summary blank labels | **T230** Placeholder |
@@ -730,6 +730,7 @@ Folded into T164 spec/plan (implement on go-ahead):
 ### T152-R1-08 empty personal continuity + constraint scrape
 - Personal continuity summary always empty (#18 session synthesis out of scope).
 - Project constraints substring-scraped from conclusion statements (`CONSTRAINT:`/`INVARIANT:`) rather than typed constraint projection.
+- **T227 Planning:** absorbs **empty honesty + next-step** half (no synthetic fill); #18 synthesis and typed constraint projection remain residual.
 
 ### T152-R2-02 source_versions test strength
 - Production populates source_versions from evidence rows; many tests use synthetic evidence UUIDs without projection rows → empty lists (correct). Strengthen with seeded evidence row assert.

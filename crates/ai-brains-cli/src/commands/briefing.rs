@@ -1,8 +1,10 @@
-//! Thin CLI surface for typed Project / Personal briefings (T152-P1-06 / T202).
+//! Thin CLI surface for typed Project / Personal briefings (T152-P1-06 / T202 / T227).
 //!
-//! Format default (F9): TTY + no `--format` → markdown; non-TTY → json; explicit wins.
-//! Requires vault path + grants like governed preflight.
+//! Format default (F4/F9): TTY + no `--format` → markdown; non-TTY → json; explicit wins.
+//! Human aliases (`human|pretty|text|markdown|md`) → markdown; only `json` → JSON;
+//! unknown → `fail_usage` exit 2 (F1–F3). Requires vault path + grants like governed preflight.
 
+use crate::commands::governed_common::fail_usage;
 use crate::context::AppContext;
 use ai_brains_control_plane::{
     BudgetConfig, PersonalBriefingRequest, ProjectBriefingRequest, ScopeResolveInput, StorePorts,
@@ -28,6 +30,37 @@ pub struct PersonalBriefingOptions {
     pub max_words: usize,
     pub dry_run: bool,
     pub format: Option<String>,
+}
+
+/// Type-safe briefing emit routing (T227 F28).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BriefingFormatKind {
+    Markdown,
+    Json,
+}
+
+/// Classify briefing `--format` (T227 F1–F4, F26).
+///
+/// Trim + lowercase before match. Unknown tokens return `Err` with accepted list
+/// (caller maps to `fail_usage` exit 2).
+fn classify_briefing_format(
+    explicit: Option<&str>,
+    is_tty: bool,
+) -> Result<BriefingFormatKind, String> {
+    match explicit.map(|s| s.trim().to_ascii_lowercase()).as_deref() {
+        None => Ok(if is_tty {
+            BriefingFormatKind::Markdown
+        } else {
+            BriefingFormatKind::Json
+        }),
+        Some("json") => Ok(BriefingFormatKind::Json),
+        Some("markdown") | Some("md") | Some("human") | Some("pretty") | Some("text") => {
+            Ok(BriefingFormatKind::Markdown)
+        }
+        Some(other) => Err(format!(
+            "unknown --format '{other}' (accepted: human, pretty, text, markdown, md, json)"
+        )),
+    }
 }
 
 /// `ai-brains briefing project` — build a typed ProjectBriefingPacket.
@@ -137,29 +170,23 @@ pub fn run_personal(
     )
 }
 
-/// Resolve briefing output format (F9 / AC8).
-///
-/// TTY + no explicit `--format` → markdown; non-TTY → json; explicit wins.
-fn resolve_briefing_format(explicit: Option<&str>, is_tty: bool) -> &str {
-    match explicit {
-        Some(f) => f,
-        None if is_tty => "markdown",
-        None => "json",
-    }
-}
-
 fn emit_output(
     format: Option<&str>,
     markdown: impl FnOnce() -> String,
     json: impl FnOnce() -> Result<String, serde_json::Error>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let fmt = resolve_briefing_format(format, std::io::stdout().is_terminal());
-    if fmt.eq_ignore_ascii_case("markdown") || fmt.eq_ignore_ascii_case("md") {
-        println!("{}", markdown());
-    } else {
-        println!("{}", json()?);
+    match classify_briefing_format(format, std::io::stdout().is_terminal()) {
+        Ok(BriefingFormatKind::Markdown) => {
+            println!("{}", markdown());
+            Ok(())
+        }
+        Ok(BriefingFormatKind::Json) => {
+            println!("{}", json()?);
+            Ok(())
+        }
+        // F3/F25/F32: fail_usage → exit 2, zero stdout (no JSON pollution).
+        Err(msg) => fail_usage(msg),
     }
-    Ok(())
 }
 
 /// Principal for CLI governed surfaces (shared with preflight conventions).
@@ -188,24 +215,81 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resolve_briefing_format__explicit_json__returns_json() {
-        assert_eq!(resolve_briefing_format(Some("json"), true), "json");
-        assert_eq!(resolve_briefing_format(Some("json"), false), "json");
+    fn classify_briefing_format__explicit_json__returns_json() {
+        assert_eq!(
+            classify_briefing_format(Some("json"), true),
+            Ok(BriefingFormatKind::Json)
+        );
+        assert_eq!(
+            classify_briefing_format(Some("json"), false),
+            Ok(BriefingFormatKind::Json)
+        );
     }
 
     #[test]
-    fn resolve_briefing_format__explicit_markdown__returns_markdown() {
-        assert_eq!(resolve_briefing_format(Some("markdown"), true), "markdown");
-        assert_eq!(resolve_briefing_format(Some("md"), false), "md");
+    fn classify_briefing_format__explicit_markdown_aliases__returns_markdown() {
+        for alias in ["markdown", "md", "human", "pretty", "text"] {
+            assert_eq!(
+                classify_briefing_format(Some(alias), true),
+                Ok(BriefingFormatKind::Markdown),
+                "alias {alias}"
+            );
+            assert_eq!(
+                classify_briefing_format(Some(alias), false),
+                Ok(BriefingFormatKind::Markdown),
+                "alias {alias} non-tty"
+            );
+        }
     }
 
     #[test]
-    fn resolve_briefing_format__no_explicit_on_tty__returns_markdown() {
-        assert_eq!(resolve_briefing_format(None, true), "markdown");
+    fn classify_briefing_format__no_explicit_on_tty__returns_markdown() {
+        assert_eq!(
+            classify_briefing_format(None, true),
+            Ok(BriefingFormatKind::Markdown)
+        );
     }
 
     #[test]
-    fn resolve_briefing_format__no_explicit_not_tty__returns_json() {
-        assert_eq!(resolve_briefing_format(None, false), "json");
+    fn classify_briefing_format__no_explicit_not_tty__returns_json() {
+        assert_eq!(
+            classify_briefing_format(None, false),
+            Ok(BriefingFormatKind::Json)
+        );
+    }
+
+    #[test]
+    fn classify_briefing_format__trim_and_case__returns_markdown() {
+        // F26 / AC5b
+        assert_eq!(
+            classify_briefing_format(Some(" markdown"), true),
+            Ok(BriefingFormatKind::Markdown)
+        );
+        assert_eq!(
+            classify_briefing_format(Some("HUMAN"), false),
+            Ok(BriefingFormatKind::Markdown)
+        );
+        assert_eq!(
+            classify_briefing_format(Some("  Pretty  "), true),
+            Ok(BriefingFormatKind::Markdown)
+        );
+    }
+
+    #[test]
+    fn classify_briefing_format__unknown__returns_err_with_accepted_list() {
+        let err = classify_briefing_format(Some("banana"), true).expect_err("unknown");
+        assert!(
+            err.contains("unknown --format 'banana'"),
+            "message must name token: {err}"
+        );
+        assert!(
+            err.contains("human")
+                && err.contains("pretty")
+                && err.contains("text")
+                && err.contains("markdown")
+                && err.contains("md")
+                && err.contains("json"),
+            "message must list accepted values: {err}"
+        );
     }
 }

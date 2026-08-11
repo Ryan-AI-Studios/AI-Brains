@@ -173,6 +173,14 @@ where
                 subject_kind: None,
             });
         }
+        // T227 F8: non-authoritative is !denied with empty authority.
+        packet.warnings.push(BriefingWarningDto {
+            kind: "empty_authority".into(),
+            message: "No current Approved decisions or Active/Confirmed conclusions at this scope"
+                .into(),
+            subject_id: None,
+            subject_kind: None,
+        });
         apply_budget(&mut packet, req.budget);
         maybe_emit_briefing(writer, req.dry_run, &packet, req.privacy)?;
         return Ok(packet);
@@ -444,6 +452,17 @@ where
         denied: false,
         denial_reason: None,
     };
+
+    // T227 F8/F27: empty_authority only when allowed and both authority sections empty.
+    if packet.decisions.is_empty() && packet.conclusions.is_empty() {
+        packet.warnings.push(BriefingWarningDto {
+            kind: "empty_authority".into(),
+            message: "No current Approved decisions or Active/Confirmed conclusions at this scope"
+                .into(),
+            subject_id: None,
+            subject_kind: None,
+        });
+    }
 
     apply_budget(&mut packet, req.budget);
 
