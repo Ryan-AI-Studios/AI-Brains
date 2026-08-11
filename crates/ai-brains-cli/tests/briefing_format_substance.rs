@@ -295,13 +295,10 @@ fn briefing_project__format_banana__exit_2_no_stdout_json() {
         "stderr must include accepted tokens: {stderr}"
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
+    // F3: zero stdout on usage fail (no JSON pollution, no markdown).
     assert!(
-        stdout.trim().is_empty() || !stdout.contains('{'),
-        "stdout must not contain JSON packet on usage fail: {stdout}"
-    );
-    assert!(
-        !stdout.contains("# Project Briefing"),
-        "stdout must not contain markdown on usage fail: {stdout}"
+        stdout.is_empty(),
+        "stdout must be empty on usage fail: {stdout:?}"
     );
 }
 
@@ -329,6 +326,20 @@ fn briefing_project__no_grants__soft_deny_exit_0() {
     );
     let v: Value = serde_json::from_slice(&out.stdout).expect("json");
     assert_eq!(v["denied"], true, "packet={v}");
+    // AC7 soft: denied packets must not carry empty_authority warnings.
+    if let Some(warnings) = v["warnings"].as_array() {
+        for w in warnings {
+            let kind = w["kind"].as_str().unwrap_or("");
+            assert_ne!(
+                kind, "empty_authority",
+                "denied packet must not emit empty_authority; got {v}"
+            );
+            assert_ne!(
+                kind, "empty_continuity",
+                "denied project packet must not emit empty_continuity; got {v}"
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
