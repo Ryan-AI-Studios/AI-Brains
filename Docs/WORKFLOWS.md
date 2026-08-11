@@ -156,7 +156,42 @@ What you should see:
 
 ---
 
-## 5. Find code that changed
+## 5. Find something
+
+Goal: pick the right search command for vault-only vs vault+ledger, human vs agent.
+
+```powershell
+# Human, vault only (TTY pretty; or force --format pretty)
+ai-brains recall "auth middleware decision" --format pretty
+
+# Agent / pipe / scripts (JSON default when non-TTY)
+ai-brains recall "auth middleware decision" --limit 5
+
+# Human: vault memories + Ledgerful ledger pane in one view
+ai-brains sync query "auth middleware" --format pretty
+
+# Semantic / hybrid (embeddings) — recall only, not sync query
+ai-brains recall "auth middleware" --semantic --format pretty
+
+# Machine stream of vault hits
+ai-brains recall "auth middleware" --format json
+# or:
+ai-brains sync query "auth middleware" --format ndjson --no-bridge
+```
+
+What you should see:
+
+- `recall` pretty: `Scope:` + hits (or empty next-step including a `sync query` tip when you need the ledger pane).
+- `sync query` pretty: `--- AI-Brains Recall ---` vault block + optional `--- Ledgerful Ledger Search ---`.
+- Missing/invalid project on `sync query` → `Scope: project=(none)` (vault-wide), not a random UUID.
+- Invalid `AI_BRAINS_PROJECT_ID` on `recall` → clap exit **2** (env parse); on `sync query` → exit **0** with `project=(none)`.
+
+> **Note.** Prefer `sync query` when comparing plan vs shipped / ledger context.
+> Prefer `recall` for agents and for `--semantic`. Full decision table: [CAPABILITIES.md §15](CAPABILITIES.md#15-typical-agent-workflows).
+
+---
+
+## 6. Find code that changed
 
 Goal: see what code in this repo was touched recently, and recall any
 related memory context.
@@ -184,7 +219,7 @@ What you should see:
 
 ---
 
-## 6. Schedule nightly + daemon
+## 7. Schedule nightly + daemon
 
 Goal: register the nightly sweep and the local daemon so they run
 automatically when you log in.

@@ -384,6 +384,27 @@ pub fn run_push(
     Ok(())
 }
 
+/// Resolve project scope for `sync query` (T231 F29/F10).
+///
+/// - `--global` → `None` (vault-wide; Scope: global is separate chrome)
+/// - missing / empty / whitespace / invalid UUID → `None` (Scope: project=(none))
+/// - valid UUID string → `Some`
+///
+/// Never invents a random `ProjectId` and never uses a `"default-project"` literal.
+pub(crate) fn resolve_sync_project_id(
+    global: bool,
+    env_val: Option<&str>,
+) -> Option<ai_brains_core::ids::ProjectId> {
+    if global {
+        return None;
+    }
+    let raw = env_val?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    ai_brains_core::ids::ProjectId::from_str(raw).ok()
+}
+
 #[allow(clippy::disallowed_methods)]
 pub async fn run_query(
     ctx: &AppContext,
@@ -396,17 +417,11 @@ pub async fn run_query(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format.unwrap_or_else(|| "pretty".to_string());
 
-    let project_id = if global {
-        None
-    } else {
-        let project_id_str =
-            std::env::var("AI_BRAINS_PROJECT_ID").unwrap_or_else(|_| "default-project".to_string());
-        use std::str::FromStr;
-        Some(
-            ai_brains_core::ids::ProjectId::from_str(&project_id_str)
-                .unwrap_or_else(|_| ai_brains_core::ids::ProjectId::new()),
-        )
-    };
+    // T231 F29: honest Option project resolve — no "default-project", no ProjectId::new().
+    let project_id = resolve_sync_project_id(
+        global,
+        std::env::var("AI_BRAINS_PROJECT_ID").ok().as_deref(),
+    );
 
     #[cfg(feature = "graph")]
     let graph_vault = ai_brains_graph::GraphVault::new((*ctx.conn).clone());
@@ -416,15 +431,14 @@ pub async fn run_query(
     let graph_search: Option<ai_brains_retrieval::MockGraphSearch> = None;
 
     if fmt == "ndjson" {
-        let project_id = project_id.unwrap_or_else(ai_brains_core::ids::ProjectId::new);
-
+        // T231 F21: pass Option project_id through; BridgeRecord.project_id = "" when None.
         let hits = ai_brains_retrieval::recall(
             &ctx.conn,
             graph_search.as_ref(),
             &query,
             limit,
             ai_brains_retrieval::RecallOptions {
-                project_id: Some(project_id),
+                project_id,
                 session_id: None,
                 semantic: false,
                 graph_boost: 0.1,
@@ -451,7 +465,7 @@ pub async fn run_query(
                 direction: BridgeDirection::Outbound,
                 timestamp,
                 parent_hash: None,
-                project_id: project_id.to_string(),
+                project_id: project_id.map(|p| p.to_string()).unwrap_or_default(),
                 session_id: h.session_id.as_ref().map(|s| s.to_string()),
                 tx_id: None,
                 record_kind: "insight".to_string(),
@@ -683,7 +697,9 @@ fn ledger_json_non_empty(stdout: &str) -> bool {
 #[cfg(test)]
 #[allow(clippy::disallowed_methods)]
 mod tests {
-    use super::ledger_json_non_empty;
+    use super::{ledger_json_non_empty, resolve_sync_project_id};
+    use ai_brains_core::ids::ProjectId;
+    use std::str::FromStr;
 
     #[test]
     #[allow(non_snake_case)]
@@ -707,5 +723,61 @@ mod tests {
     #[allow(non_snake_case)]
     fn ledger_json_non_empty__blank() {
         assert!(!ledger_json_non_empty("  \n"));
+    }
+
+    // --- T231 F29 / AC1–AC4b pure resolve_sync_project_id ---
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_sync_project_id__missing_env__returns_none() {
+        // AC1
+        assert_eq!(resolve_sync_project_id(false, None), None);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_sync_project_id__invalid_string__returns_none_stable() {
+        // AC2: invalid → None; call twice → same (no random UUID)
+        let a = resolve_sync_project_id(false, Some("not-a-uuid"));
+        let b = resolve_sync_project_id(false, Some("not-a-uuid"));
+        assert_eq!(a, None);
+        assert_eq!(b, None);
+        assert_eq!(a, b);
+        // also refuse the old "default-project" literal
+        assert_eq!(
+            resolve_sync_project_id(false, Some("default-project")),
+            None
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_sync_project_id__valid_uuid__returns_some() {
+        // AC3
+        let raw = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+        let got = resolve_sync_project_id(false, Some(raw));
+        let expected = ProjectId::from_str(raw).expect("fixture uuid");
+        assert_eq!(got, Some(expected));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_sync_project_id__global_true__returns_none_regardless_of_env() {
+        // AC4
+        assert_eq!(resolve_sync_project_id(true, None), None);
+        assert_eq!(
+            resolve_sync_project_id(true, Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")),
+            None
+        );
+        assert_eq!(resolve_sync_project_id(true, Some("not-a-uuid")), None);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_sync_project_id__whitespace_only__returns_none() {
+        // AC4b / F38
+        assert_eq!(resolve_sync_project_id(false, Some("")), None);
+        assert_eq!(resolve_sync_project_id(false, Some("   ")), None);
+        assert_eq!(resolve_sync_project_id(false, Some("\t\n")), None);
     }
 }
