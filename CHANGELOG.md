@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Added
+
+- **T229 Nightly + local router ops:** `nightly --status` shows Completion/Embedding host:port + model + soft probe (`ok`/`down`/`timeout`/`error`, 2s via `LlamaCppProvider::probe_health` — no CLI `reqwest`); Windows **Last task result** from `Get-ScheduledTaskInfo` (not CSV col 5); pre-summarize soft probe after multi-import (non-fatal). **F5** UTF-8-safe embed truncate (`floor_char_boundary`, no mid-char panic / Task Scheduler 101). **F13** nightly `AI_BRAINS_PROJECT_ID` resolve → nil UUID sentinel (never random `ProjectId::default()`). Docs: OPERATIONS local router `:8081`/`:8083`, dual schedule paths, Last Result 101; CAPABILITIES §8 status bullets.
+
 ### Changed
 
 - **T231 Unified search UX:** Harden `sync query` project resolve — missing/empty/whitespace/invalid `AI_BRAINS_PROJECT_ID` → `Scope: project=(none)` (never random UUID / never `"default-project"`); NDJSON passes `Option` project and emits empty-string `project_id`. Empty **recall** pretty appends ledger next-step (`sync query`); sync empty does **not** self-mention. Help peer cross-refs; CAPABILITIES §15 decision table (incl. F8 `text` asymmetry + F36 invalid-env asymmetry); WORKFLOWS “Find something”; sync always-pretty default documented intentional. Soft residual: top-level `search` alias; `recall --format text`→pretty arm.

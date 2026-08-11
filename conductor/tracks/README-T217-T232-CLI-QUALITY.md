@@ -1,10 +1,10 @@
 # T217–T232 — Post-audit CLI quality series (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-05 (scores &lt; 7 + high-leverage improvements).
-**Status:** Series active — **T217–T228 + T230–T232 closed**; **T229** ops placeholder remains.
+**Status:** Series active — **T217–T228 + T230–T232 closed**; **T229** 📋 **Planning** (last series track).
 **Prior series:** T205–T216 closed (skill·CLI honesty).
 **Closed:** **T217** FTS multi-token rescue (PR #110 `1e22e77`); **T218** semantic quality v2 (PR #116 `fc4d370`); **T219** preflight pretty readability (PR #118 `496ddd7`); **T220** preflight summary JSON honesty (PR #112 `6f4f67b`); **T221** governed first-run + deny exit honesty (PR #114 `b3c4b0f`); **T222** graph-on install path (PR #122 `c1ac594`, 2026-08-10); **T223** quiet env override warnings (PR #126 `7ff8f7f`, 2026-08-10); **T224** search role-prefix strip (PR #120 `a18fae6`, 2026-08-10); **T232** density remediation (PR #124 `33b28d0`, 2026-08-10). **T225** backup verify quiet + doctor usable nudge (PR #128 `927b8db`, 2026-08-11). **T226** policy show/check soft-resolve (PR #130 `5919f26`, 2026-08-11). **T227** briefing format + substance (PR #132 `40c7cd1`, 2026-08-11). **T228** non-empty pretty Scope (PR #134 `e51d5e4`, 2026-08-11). **T230** global list label fill (PR #136 `b3f1a61`, 2026-08-11). **T231** unified search UX (PR #138 `0f3d83f`, 2026-08-11).
-**Next honesty:** ops **T229** / soft residuals (search alias, text arm).
+**Next honesty:** implement **T229** on go (status URL/probe/Last Result + UTF-8 embed panic fix + OPERATIONS); soft residuals (search alias, text arm) remain optional polish.
 
 ## Score → track map
 
@@ -22,17 +22,17 @@
 | `policy show/check` require scope (**5–6**) | **T226** ✅ closed PR #130 | P2 |
 | Briefing human→JSON; empty personal (**4–5 / 5–6**) | **T227** ✅ closed PR #132 | P2 |
 | ~~Non-empty pretty no Scope (T207 residual)~~ | **T228** ✅ closed PR #134 | P3 |
-| Nightly not scheduled; model env only in project `.env` | **T229** Nightly + local router ops (env/health/schedule) | P0 ops / P2 product |
+| Nightly not scheduled; model env only in project `.env` | **T229** 📋 Planning — ops partial done; product F1–F7 + **F5 UTF-8 panic (exit 101)** | P0 ops / P1 bugfix / P2 product |
 | ~~Global summary blank labels~~ | **T230** ✅ closed PR #136 | P3 |
 | ~~Dual search mental model (recall vs sync query)~~ | **T231** ✅ closed PR #138 | P2 |
 | Doctor says `graph rebuild` but graph-off install | **T232** ✅ closed PR #124 | P2 |
 
 ## Suggested implement order
 
-1. **Ops now (not a code track):** schedule `AI-Brains-Nightly` + ensure `c:\llm\router.bat` on :8081/:8083 — see T229 + `~\.ai-brains\register-nightly-tasks.ps1`.
+1. ~~**Ops schedule**~~ **done on this machine** (AI-Brains-Nightly Ready 03:00; AI-Brains-Router ONLOGON; global dotenv :8081/:8083). Residual: product **T229** (status/probe/Last Result + F5 panic) on **go**.
 2. ~~**T217**~~ **closed**; ~~**T218**~~ **closed** PR #116; ~~**T219**~~ **closed** PR #118; ~~**T220**~~ **closed**; ~~**T221**~~ **closed**; ~~**T222**~~ **closed** PR #122; ~~**T223**~~ **closed** PR #126; ~~**T224**~~ **closed** PR #120.
 3. ~~**T232**~~ **closed** PR #124 — capability-aware rebuild vs reinstall.
-4. ~~**T225**~~ **closed** PR #128; ~~**T226**~~ **closed** PR #130; ~~**T227**~~ **closed** PR #132; ~~**T228**~~ **closed** PR #134; ~~**T230**~~ **closed** PR #136; ~~**T231**~~ **closed** PR #138 — ops **T229** or soft residuals.
+4. ~~**T225**~~ **closed** PR #128; ~~**T226**~~ **closed** PR #130; ~~**T227**~~ **closed** PR #132; ~~**T228**~~ **closed** PR #134; ~~**T230**~~ **closed** PR #136; ~~**T231**~~ **closed** PR #138 — **T229** last open series track.
 
 ## Non-goals of this series
 

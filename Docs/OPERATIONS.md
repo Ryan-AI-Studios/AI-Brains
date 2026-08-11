@@ -520,24 +520,63 @@ ai-brains --vault-path ./vault.db nightly
 ```
 The nightly job does:
 - **Multi-harness session import (T239):** AGY → Grok → OpenCode (message-only; never opens `opencode.db`). Flags: `--skip-import` (all), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`. Fail-open per source; `last_multi_import` sync_state + `nightly --status` Multi-import block. Claude/Codex **not** in batch (T239+). Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
+- Soft model-endpoint probe (T229) after multi-import / before summarize — non-fatal `warn` if completion/embedding endpoints are down
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)
+- Embedding backfill (UTF-8-safe truncate, T229 F5 — no mid-character panic)
 - Symbol-bridge ingestion from Ledgerful (T70)
 - MemoryPinned / MemorySynthesized event emission (T67, T68) for the live graph
+
+### Local dynamic router (T229)
+
+Overnight brain is designed to talk to a **local** llama.cpp-style router rather than cloud APIs:
+
+| Port | Role | Env (defaults) |
+|------|------|----------------|
+| **:8081** | Completion / chat | `AI_BRAINS_MODEL_URL` → `http://127.0.0.1:8081`; `AI_BRAINS_COMPLETION_MODEL` |
+| **:8083** | Embeddings | `AI_BRAINS_EMBEDDING_URL` → `http://127.0.0.1:8083`; `AI_BRAINS_EMBEDDING_MODEL` |
+
+- **Operator script (this machine):** `c:\llm\router.bat` starts the dynamic multi-model router (completion + embedding servers). A separate Task Scheduler entry **`AI-Brains-Router`** (ONLOGON) can keep the router available after reboot; register it with your ops script (e.g. `register-nightly-tasks.ps1`) — `nightly --schedule` does **not** register the router task.
+- **Global dotenv:** put MODEL/EMBED URLs and model names in `%USERPROFILE%\.ai-brains\.env` (merged by T205 before every subcommand). SYSTEM schedule wrappers bake the **process env at schedule time** (including values from that global file).
+- **Health:** llama.cpp prefers `GET /health`; if 404, clients try `GET /v1/models`. Soft probe timeout is **2s** (not the 120s LLM completion timeout).
+- **Logs:** operator wrapper typically appends to `%USERPROFILE%\.ai-brains\nightly-run.log` (this machine’s `nightly-run.cmd`). SYSTEM schedule JSON goes to the Task Scheduler history / wrapper stdout capture under `%ProgramData%\AI-Brains\` when using `--run-as-system`. Prefer `ai-brains nightly --status` for schedule + last result + endpoint probes.
+
+### Dual schedule paths (user multi-import vs SYSTEM skip-import)
+
+| Path | Who | Multi-import | Env / project context |
+|------|-----|--------------|------------------------|
+| **User-principal** (`nightly --schedule`, no `--run-as-system`) | Logged-in user | **ON** by default (AGY → Grok → OpenCode) | Inherits user env + global dotenv; harness homes readable |
+| **SYSTEM** (`nightly --schedule --run-as-system`) | Session 0 | **`--skip-import` baked into wrapper** (T239 D12) | Wrapper bakes vault + model env; no user-profile harness homes |
+
+**Completeness path:** run interactive `ai-brains nightly` or a **user-principal** scheduled task when you need multi-harness import. SYSTEM is for headless summarize/embed when nobody is logged in.
 
 ### Scheduling Nightly
 ```powershell
 ai-brains nightly --schedule --start-time "03:00"
-ai-brains nightly --status             # last run + Multi-import block + pending work
+ai-brains nightly --status             # schedule + Last Result + endpoints/probe + Multi-import
 ai-brains nightly --unschedule
 ai-brains nightly --skip-import        # skip all harness importers
 ai-brains nightly --skip-import-opencode
 ```
 
+`nightly --status` (T229) prints additive human lines:
+
+- **Scheduled** next run (Windows `schtasks` CSV cols 0–2 only)
+- **Last task result** (Windows primary: `Get-ScheduledTaskInfo.LastTaskResult`; soft fallback English `schtasks /FO LIST /V` `Last Result:`)
+- Last nightly run / unsummarized counts / last-run errors
+- **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error`) — credentials in URLs are redacted; vault keys never printed
+- **Multi-import** block (T239)
+
+Status **exit 0** even when a probe is `down` (ops honesty, not a hard fail).
+
+#### Last Result **101** (panic / abort)
+
+Windows Task Scheduler **Last Result 101** means the process aborted (Rust panic / abort). Live dogfood (2026-08-11) saw **101** from embedding backfill panicking on multi-byte UTF-8 mid-character truncate (`content[..4000]`). **T229 F5** fixed that with char-boundary-safe `truncate_for_embed`. After shipping T229, re-run nightly (or wait for the next schedule); a healthy run should clear Last Result to **0**. If 101 persists, inspect the latest nightly log for a new panic site.
+
 #### Running the nightly as SYSTEM (`--run-as-system`)
 By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143 + T145):
 
-- It generates a **wrapper `.bat` script** that bakes in the current values of `AI_BRAINS_VAULT_PATH`, `AI_BRAINS_MODEL_URL`, `AI_BRAINS_COMPLETION_MODEL`, `AI_BRAINS_EMBEDDING_URL`, and `AI_BRAINS_EMBEDDING_MODEL` from your environment (or `.env`). The scheduled task runs that wrapper instead of the bare executable, so SYSTEM gets the same config you have.
+- It generates a **wrapper `.bat` script** that bakes in the current values of `AI_BRAINS_VAULT_PATH`, `AI_BRAINS_MODEL_URL`, `AI_BRAINS_COMPLETION_MODEL`, `AI_BRAINS_EMBEDDING_URL`, and `AI_BRAINS_EMBEDDING_MODEL` from your environment (or global `%USERPROFILE%\.ai-brains\.env` via T205). The scheduled task runs that wrapper instead of the bare executable, so SYSTEM gets the same config you have.
 - **Wrapper location (T145):** `%ProgramData%\AI-Brains\nightly-task.bat` — not the vault parent or `%TEMP%`. Creation refuses symlink/reparse/junction targets at the file path, refuses hardlinks (`nlink > 1`), **and** refuses if the parent directory (e.g. `%ProgramData%\AI-Brains`) exists as a junction/reparse point. Regular single-link existing files may be replaced on re-schedule.
 - **ACL (T145):** after write, the CLI applies an **absolute** DACL via Win32 SDDL/`SetNamedSecurityInfo` (`D:P(A;;FA;;;SY)(A;;FA;;;BA)` — protected, SYSTEM + Administrators full only). This replaces the entire DACL so session leftovers (e.g. `LogonSessionId`) cannot remain. The CLI then verifies with `icacls` query (fail closed). Check with:
   ```powershell
