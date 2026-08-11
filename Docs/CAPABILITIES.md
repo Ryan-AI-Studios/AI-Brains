@@ -223,8 +223,9 @@ ai-brains forget --list-forgotten --global --format json   # same backend as --s
 | **Status** | `--status pinned\|forgotten` (default **pinned**). `forget --list-forgotten` ≡ `memory list --status forgotten` (+ limit/scope/format/tag). |
 | **Limit** | Default **50**, max **200** (`clamp_list_limit`); `more_available` / `Showing N of T`. **BREAKING:** list-forgotten no longer dumps unbounded rows. |
 | **Summary** | `--summary` always prints **Pinned** + **Forgotten** (ignores `--status`/`--limit`). Under `--global`: by-project table (projects with either count &gt; 0 only; **turn-only projects excluded** — use `project list` for those). With `--tag`, top-line **and** by-project cells use the same two-stage tag filter (F46). |
+| **Labels never blank (T230)** | Inventory tables that use `display_label` never emit an empty label: empty/whitespace **name** with empty alias → `(no alias)`. **Orphan** `project_id`s (memories without a `project_projection` row) show the same token. Alias wins over empty name; alias is **not** trimmed. Non-summary list JSON stays **id-only** (no `label` field on items). |
 | **Tags** | Content-prefix heuristic only (`TAGS:` first line after optional role prefix from `pin --tag`); SQL start-anchored `LIKE 'TAGS:%'` (or `ROLE: TAGS:%`) + case-insensitive exact token. Not a schema column. Sparse token density among `TAGS:` rows can under-fill a page under elevated candidate cap (raise `--limit`). |
-| **Formats** | human table (Scope + preview with role-prefix strip) or `--format json` (`api_version`, items, total, more_available). |
+| **Formats** | human table (Scope + preview with role-prefix strip) or `--format json` (`api_version`, items, total, more_available). Summary JSON `by_project[].label` is always a non-empty string when present. |
 | **Empty** | `No pinned memories.` / `No forgotten memories.` exit **0**. |
 
 ---

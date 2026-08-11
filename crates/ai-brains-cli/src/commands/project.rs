@@ -157,13 +157,18 @@ fn sanitize_alias_suggestion(slug: &str) -> String {
 // Pure display helpers (F4 / F7 / F36) — unit-tested without vault spawn
 // ---------------------------------------------------------------------------
 
-/// F4: human label order — alias → baked `(no alias)` → Project uuid / id → name.
+/// F4 / T230: human label order — alias → baked `(no alias)` → empty/ws name →
+/// Project uuid / id → name. Never returns empty string (orphan ids use empty name).
 pub(crate) fn display_label(name: &str, alias: &str, project_id: &str) -> String {
     if !alias.is_empty() {
         return alias.to_string();
     }
     // Baked UX form: "(no alias) — short" → literal "(no alias)".
     if name.starts_with("(no alias)") {
+        return "(no alias)".to_string();
+    }
+    // T230 F32: empty / whitespace-only name → (no alias). Do not trim alias (F5/F34).
+    if name.trim().is_empty() {
         return "(no alias)".to_string();
     }
     if is_non_human_project_name(name, project_id) {
@@ -889,6 +894,42 @@ mod tests {
             ),
             "AI-Brains monorepo"
         );
+    }
+
+    // --- T230 never-blank display_label (empty / whitespace name) ---
+
+    #[test]
+    fn display_label__empty_name__returns_no_alias() {
+        // AC1 + AC16: empty name + empty alias → (no alias); token fits PROJECT_COL_MAX=20 and list label col 30.
+        let pid = "eae2d22b-1111-1111-1111-111111111111";
+        let label = display_label("", "", pid);
+        assert_eq!(label, "(no alias)");
+        assert!(
+            label.chars().count() <= 20,
+            "AC16 (no alias) must fit PROJECT_COL_MAX=20; len={}",
+            label.chars().count()
+        );
+        assert!(
+            label.chars().count() <= 30,
+            "AC16 (no alias) must fit project list label col 30; len={}",
+            label.chars().count()
+        );
+    }
+
+    #[test]
+    fn display_label__whitespace_name__returns_no_alias() {
+        // AC2: whitespace-only name counts as empty (name.trim().is_empty).
+        let pid = "eae2d22b-2222-2222-2222-222222222222";
+        assert_eq!(display_label("   ", "", pid), "(no alias)");
+        assert_eq!(display_label("\t\n  ", "", pid), "(no alias)");
+    }
+
+    #[test]
+    fn display_label__empty_name_with_alias__alias_wins() {
+        // AC3: non-empty alias wins over empty name (alias branch first; no alias.trim).
+        let pid = "eae2d22b-3333-3333-3333-333333333333";
+        assert_eq!(display_label("", "acme", pid), "acme");
+        assert_eq!(display_label("   ", "acme", pid), "acme");
     }
 
     #[test]

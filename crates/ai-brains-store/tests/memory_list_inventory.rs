@@ -198,6 +198,36 @@ fn count_memories_by_project__orders_and_omits_zeros() {
     assert_eq!(b_row.2, 0, "B forgotten");
 }
 
+/// T230 AC8 / F29: store-level orphan inject — pin without register_project.
+/// `count_memories_by_project` groups memory_projection only (no project JOIN),
+/// so orphan project_ids surface for CLI display_label empty-name fill.
+#[test]
+fn count_memories_by_project__orphan_pin_without_register__includes_project_id() {
+    let store = open_store();
+    let orphan = ProjectId::new();
+    // Deliberately do NOT call register_project — orphan project_id.
+    pin_memory(
+        &store,
+        orphan,
+        "DECISION: orphan pin without project_projection",
+    );
+
+    let conn = store.connection();
+    let rows = conn.count_memories_by_project().unwrap();
+    let orphan_s = orphan.to_string();
+    let found = rows
+        .iter()
+        .find(|(pid, _, _)| pid == &orphan_s)
+        .expect("orphan project_id must appear in count_memories_by_project");
+    assert_eq!(found.1, 1, "orphan pinned count");
+    assert_eq!(found.2, 0, "orphan forgotten count");
+    // No project_projection row for orphan (get would be None at CLI layer).
+    assert!(
+        conn.get_project_by_id(&orphan).unwrap().is_none(),
+        "orphan must lack project_projection for AC8 display path"
+    );
+}
+
 #[test]
 fn list_memories__tag_prefix_sql__start_anchored_only() {
     let store = open_store();
