@@ -1,53 +1,39 @@
 # T223 Review Log — Quiet env override warnings
 
 ## Scope
-- Branch: `feat/t223-quiet-env-override-warnings`
-- Feat commit: `0f136e6`
+- Feat branch: `feat/t223-quiet-env-override-warnings`
+- Squash merge: PR #126 `7ff8f7f` (2026-08-10)
 - Spec/plan: `conductor/tracks/trackT223-quiet-env-override-warnings/`
 
 ## Reviewers / rounds
 
 | Round | Reviewer | Verdict | Notes |
 |-------|----------|---------|-------|
-| Internal R1 | Subagent (read-only) | **CLEAN** | AC1–AC10/AC13 Met; AC11–AC12 process/manual; no P0–P2 |
+| Internal R1 | Subagent (read-only) | **CLEAN** | AC1–AC10/AC13 Met; no P0–P2 product findings |
 | Manual dogfood | Orchestrator | **Pass** | Dual-differ → one Warning line; session-only silent; quiet shell silent + Scope local |
 | Codex R1 | gpt-5.4 high | **FAIL** | P2 debug emit before tracing init; process incompleteness |
-| Fix | Orchestrator | **Done** | `2f5a25a` defer Debug body until after `tracing_subscriber::init`; RUST_LOG=debug proves session-only SOOT |
-| Manual AC12 M4 | Orchestrator | **Pass** | `project detect` with shell≠.env: T223 override line **and** T206 `git/env project mismatch` co-occur, distinct prefixes |
-| Codex R2 | pending | | |
+| Fix | Orchestrator | **verified_fixed** | Defer Debug body until after `tracing_subscriber::init`; `RUST_LOG=debug` proves session-only SOOT |
+| Manual AC12 M4 | Orchestrator | **Pass** | `project detect` shell≠.env: T223 + T206 co-occur, distinct prefixes |
+| Codex R2 | gpt-5.4 high | **PASS WITH DEFERRED P3** | Process closeout only; product clean |
+| Closeout | Orchestrator | **Done** | conductor Completed; deferred struck; series README; coordinated |
+| Codex final | gpt-5.4 high | **PASS** (after governance reconcile) | Product already clean; plan/review checkboxes reconciled |
 
 ## Implementation summary
 
 - Pure `env_warn.rs`: `quiet_env_warn_truthy`, `format_override_body`, `classify_env_overrides` → `EnvOverrideEmit`
-- `apply_local_project_context_env`: collect differs (PROJECT then SESSION), always set_var, quiet/!warn → Debug, else classify → 0|1 eprintln
+- `apply_local_project_context_env`: collect differs (PROJECT then SESSION), always set_var; quiet/!warn → deferred Debug body logged after tracing init; project differ → one immediate stderr line
 - Smoke: full prefix + count==1 + both keys/olds + no legacy dual template
 - Docs: CAPABILITIES §5, OPERATIONS quiet+M1, CHANGELOG
 
-## Findings
+## Findings disposition
 
-None open after Internal R1.
-
-### Residual soft (not findings / F18)
-
-- Clap `--quiet-env-warn`; rate-limit; expand should_warn; truthy→core; global-merge reorder spike; elevation quiet handoff; optional hermetic denylist for `AI_BRAINS_QUIET_ENV_WARN`; skill one-liner
+| ID | Severity | Status |
+|----|----------|--------|
+| Codex R1 debug before tracing | P2 | **verified_fixed** (deferred emit after subscriber init) |
+| Process/governance closeout | P3 process | **verified_fixed** on closeout branch |
+| Soft F18 residuals | low/soft | Deferred intentionally (clap quiet, truthy→core, global reorder, elevation quiet) |
 
 ## Gate evidence
-
-| Check | Result |
-|-------|--------|
-| `cargo fmt --check` | OK (implementer) |
-| clippy `-p ai-brains-cli -D warnings` | OK |
-| pure env_warn units | 7 passed |
-| smoke override test | PASS |
-| Manual dual / session-only / quiet | PASS (orchestrator 2026-08-10) |
-| Full workspace gate | pending |
-| CI PR | pending |
-
-## Completion decision
-
-Engineering implementation CLEAN pending full gate + Codex final PASS + ship closeout.
-
-## Gate evidence (updated)
 
 | Check | Result |
 |-------|--------|
@@ -58,15 +44,14 @@ Engineering implementation CLEAN pending full gate + Codex final PASS + ship clo
 | cargo audit | OK (allowed unmaintained/unsound warnings only) |
 | Manual dual / session-only / quiet | PASS |
 | Manual M4 project detect T223+T206 | PASS |
-| Codex R2 | **PASS WITH DEFERRED P3** (process closeout only) |
+| CI PR #126 | Win/Linux/macOS **SUCCESS** |
+| Codex R2 | PASS WITH DEFERRED P3 process |
+| Codex final | PASS (governance reconciled) |
 
-## Findings disposition
+## Residual soft (F18 — not findings)
 
-| ID | Severity | Status |
-|----|----------|--------|
-| Codex R1 debug before tracing | P2 | **verified_fixed** in `2f5a25a` |
-| Process gate/closeout | P3 process | Deferred to post-merge closeout (not product) |
+- Clap `--quiet-env-warn`; once-per-TTY rate limit; expand `should_warn`; truthy→core consolidate; global-merge reorder spike; elevation quiet handoff; optional hermetic denylist for `AI_BRAINS_QUIET_ENV_WARN`; skill one-liner
 
 ## Completion decision
 
-Engineering product DoD **met**. Ship via PR; mark Completed + deferred strike + coordinated on closeout after CI green squash-merge. Final clean Codex after closeout.
+**Completed.** Product DoD met; PR #126 squash-merged `7ff8f7f`; governance closed (conductor/deferred/README/coordinated). Soft residual F18 only. No open findings greater than low.
