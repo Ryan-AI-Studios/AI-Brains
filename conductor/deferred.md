@@ -122,10 +122,10 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Backup verify noise + legacy fleet~~ | **Closed by T225** PR #128 `927b8db` — quiet summary + first 5 FAIL — + create nudge; doctor usable/stale; soft residual F17 |
 | ~~policy show/check required scope~~ | **Closed by T226** PR #130 `5919f26` — soft-resolve show\|check + F23 canonicalize; soft residual O1 shared wrapper / bootstrap success soft hermetic |
 | ~~Briefing human→JSON; empty personal~~ | **Closed by T227** PR #132 `40c7cd1` — aliases→md + unknown exit 2; empty honesty; AC6 substance; no pin inject; soft residual F34 OutputFormat surface-wide / #18 / typed constraints |
-| ~~Non-empty pretty Scope (T207 soft)~~ | **Closed by T228** PR #134 `e51d5e4` — always-on pretty Scope empty+non-empty + sync vault; residual F32/F34 → **T231** Planning |
+| ~~Non-empty pretty Scope (T207 soft)~~ | **Closed by T228** PR #134 `e51d5e4` — always-on pretty Scope empty+non-empty + sync vault; residual F32/F34 → closed by **T231** |
 | Nightly schedule + router :8081/:8083 | **T229** Ops partial + product placeholder |
 | ~~Global summary blank labels~~ | **Closed by T230** PR #136 `b3f1a61` — never-blank `display_label` empty/ws name → `(no alias)`; orphan store+unit+live; soft residual F34 whitespace alias / F11 footer / CLI orphan E2E hermetic |
-| Dual recall vs sync query mental model | **T231** 📋 Planning + AI fold-in (A+C + F32/F21/F37; go for implement) |
+| ~~Dual recall vs sync query mental model~~ | **Closed by T231** PR #138 `0f3d83f` — A+C decision table + F32/F21 resolve/ndjson honesty + F37 gated empty next-step; soft residual: search noun / recall text→pretty arm / invalid-env clap converge |
 | ~~Doctor graph rebuild vs graph-off~~ | **Closed by T232** PR #124 `33b28d0` — capability remediations (on→rebuild / off→`GRAPH_REINSTALL_SOOT`); empty-lag hybrid retired |
 | Nightly Ledgerful bridge cwd=System32; multi-repo roots | **T233** Placeholder — Option B path aliases + Phase1/2; **unblocked** (0163 shipped) — plan-only until go |
 | T229 multi-root bridge half | **Absorbed by T233**; T229 keeps router env/health/schedule |

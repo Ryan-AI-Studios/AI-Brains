@@ -166,3 +166,10 @@ Hermetics correctly use F30: `hermetic_bin` ambient strip + `--no-project-contex
 
 Full gate (orchestrator-observed): fmt OK; clippy workspace -D warnings OK; nextest 2572 passed; deny OK; audit OK; ledgerful verify --scope full OK.
 
+
+---
+
+## Final Codex (closeout) 2026-08-11
+
+**Verdict: PASS** — no findings >P3. Process P3 closed. Soft residuals only.
+
