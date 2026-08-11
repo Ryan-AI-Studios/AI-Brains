@@ -1202,6 +1202,7 @@ fn backup_verify__valid_backup__reports_ok() {
     let vault_path = dir.path().join("vault.db");
 
     common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1209,6 +1210,7 @@ fn backup_verify__valid_backup__reports_ok() {
         .success();
 
     let output = common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1222,6 +1224,7 @@ fn backup_verify__valid_backup__reports_ok() {
         .expect("backup path must be printed");
 
     let verify_output = common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1236,13 +1239,18 @@ fn backup_verify__valid_backup__reports_ok() {
         String::from_utf8_lossy(&verify_output.stderr)
     );
     let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    // T225 M1/AC13: quiet summary includes "0 FAIL" — ban FAIL reason form only.
     assert!(
-        stdout.contains("OK"),
-        "verify must report OK for valid backup; got: {stdout}"
+        stdout.contains("1 OK") || stdout.contains("OK"),
+        "verify must report OK counts for valid backup; got: {stdout}"
     );
     assert!(
-        !stdout.contains("FAIL"),
-        "verify must not report FAIL for valid backup; got: {stdout}"
+        !stdout.contains("FAIL —"),
+        "verify must not report FAIL reasons for valid backup; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("Verified"),
+        "quiet default must emit summary counts; got: {stdout}"
     );
 }
 
@@ -1285,6 +1293,7 @@ fn backup_verify__corrupted_backup__reports_fail() {
     drop(file);
 
     let verify_output = common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1299,7 +1308,7 @@ fn backup_verify__corrupted_backup__reports_fail() {
     );
     let stdout = String::from_utf8_lossy(&verify_output.stdout);
     assert!(
-        stdout.contains("FAIL"),
+        stdout.contains("FAIL —") || stdout.contains("FAIL"),
         "verify must report FAIL for corrupted backup; got: {stdout}"
     );
 }
@@ -1311,6 +1320,7 @@ fn backup_verify_all__mixed__reports_per_file() {
     let vault_path = dir.path().join("vault.db");
 
     common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
@@ -1319,6 +1329,7 @@ fn backup_verify_all__mixed__reports_per_file() {
 
     // Create two valid backups, waiting between them so timestamps differ.
     common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1326,6 +1337,7 @@ fn backup_verify_all__mixed__reports_per_file() {
         .expect("backup create must run");
     std::thread::sleep(std::time::Duration::from_secs(2));
     let _output2 = common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1354,6 +1366,7 @@ fn backup_verify_all__mixed__reports_per_file() {
     drop(file);
 
     let verify_output = common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1366,20 +1379,206 @@ fn backup_verify_all__mixed__reports_per_file() {
         "verify with one corrupted backup must exit non-zero"
     );
     let stdout = String::from_utf8_lossy(&verify_output.stdout);
-    let output_lines: Vec<&str> = stdout
+    // T225 M2: quiet default → summary counts + FAIL preview; no per-file OK.
+    assert!(
+        stdout.contains("1 OK") && stdout.contains("1 FAIL"),
+        "quiet mixed summary must include 1 OK and 1 FAIL; got: {stdout}"
+    );
+    assert!(
+        stdout
+            .lines()
+            .any(|l| l.starts_with("vault-") && l.contains("FAIL —")),
+        "quiet mixed must include at least one FAIL — preview; got: {stdout}"
+    );
+    let per_file_ok = stdout
         .lines()
-        .filter(|l| l.starts_with("vault-") && (l.contains(": OK") || l.contains(": FAIL")))
+        .filter(|l| l.starts_with("vault-") && l.trim().ends_with(": OK"))
+        .count();
+    assert_eq!(
+        per_file_ok, 0,
+        "quiet default must omit per-file OK lines; got: {stdout}"
+    );
+}
+
+/// T225 M2 verbose twin: mixed fleet shows full per-file OK and FAIL streams only.
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify_all__mixed__verbose_per_file_stream() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("second backup create must run");
+
+    let backup_dir = dir.path().join("backups");
+    let mut paths: Vec<PathBuf> = fs::read_dir(&backup_dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
         .collect();
-    let ok_count = output_lines
-        .iter()
-        .filter(|l| l.trim().ends_with(": OK"))
+    paths.sort();
+    let older = &paths[0];
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(older)
+        .unwrap();
+    file.seek(std::io::SeekFrom::Start(100)).unwrap();
+    file.write_all(b"CORRUPTION").unwrap();
+    file.sync_all().unwrap();
+    drop(file);
+
+    let verify_output = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .arg("--verbose")
+        .output()
+        .expect("backup verify --verbose must run");
+
+    assert!(
+        !verify_output.status.success(),
+        "verbose mixed verify must exit non-zero"
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    assert!(
+        !stdout.contains("Verified "),
+        "verbose must not emit summary counts; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("ai-brains backup create"),
+        "verbose must not emit create nudge; got: {stdout}"
+    );
+    let ok_lines = stdout
+        .lines()
+        .filter(|l| l.starts_with("vault-") && l.trim().ends_with(": OK"))
         .count();
-    let fail_count = output_lines
-        .iter()
-        .filter(|l| l.trim().contains(": FAIL"))
+    let fail_lines = stdout
+        .lines()
+        .filter(|l| l.starts_with("vault-") && l.contains(": FAIL"))
         .count();
-    assert_eq!(ok_count, 1, "expected 1 OK; got: {stdout}");
-    assert_eq!(fail_count, 1, "expected 1 FAIL; got: {stdout}");
+    assert_eq!(ok_lines, 1, "verbose expected 1 OK line; got: {stdout}");
+    assert_eq!(fail_lines, 1, "verbose expected 1 FAIL line; got: {stdout}");
+}
+
+/// T225: multi-fail quiet preview caps at 5 FAIL lines + trailer; create nudge when all fail.
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__multi_fail__preview_cap_trailer_and_nudge() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Six plain/garbage backups → all FAIL under verify (ok==0).
+    for i in 1..=6 {
+        let name = format!("vault-2026-01-0{i}T00-00-00.db.bak");
+        let mut bytes = b"SQLite format 3\0".to_vec();
+        bytes.resize(64, 0);
+        fs::write(backup_dir.join(name), &bytes).unwrap();
+    }
+
+    let verify_output = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .output()
+        .expect("backup verify multi-fail must run");
+
+    assert!(
+        !verify_output.status.success(),
+        "all-fail verify must exit non-zero"
+    );
+    let stdout = String::from_utf8_lossy(&verify_output.stdout);
+    let fail_detail = stdout.matches("FAIL —").count();
+    assert_eq!(
+        fail_detail, 5,
+        "quiet preview must show exactly 5 FAIL — lines; got {fail_detail}: {stdout}"
+    );
+    assert!(
+        stdout.contains("more") && stdout.contains("--verbose"),
+        "trailer required when fail > 5; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("ai-brains backup create"),
+        "all-fail must emit create nudge; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("0 OK") && stdout.contains("6 FAIL"),
+        "summary counts; got: {stdout}"
+    );
+}
+
+/// T225 AC2: default product filter (RUST_LOG unset) must not emit Verifying progress INFO.
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__default_rust_log__no_verifying_progress_info() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create");
+
+    // hermetic_bin already strips RUST_LOG; leave unset for product default.
+    let verify_output = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .arg("verify")
+        .output()
+        .expect("backup verify");
+
+    let stderr = String::from_utf8_lossy(&verify_output.stderr);
+    assert!(
+        !stderr.contains("Verifying "),
+        "progress must be debug not INFO under default filter; stderr={stderr}"
+    );
 }
 
 #[test]
@@ -1459,6 +1658,7 @@ fn backup_verify__corrupted_backup__shows_error_reason() {
     fs::write(&bogus, b"not a valid sqlite database").unwrap();
 
     let verify_output = common::hermetic_bin()
+        .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("backup")
@@ -1532,6 +1732,149 @@ fn backup_verify__json_includes_error_field() {
             .unwrap_or(false),
         "fail result must have a non-empty error field; got: {first}"
     );
+}
+
+/// T225 P2-2 / F5/L3: `--verbose --format json` must match `--format json`.
+///
+/// JSON always emits the full results array; verbose is ignored for machine
+/// output. Mixed fleet (one OK + one plain FAIL) proves both status paths.
+#[test]
+#[allow(non_snake_case)]
+fn backup_verify__verbose_json__same_as_json() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+    let backup_dir = dir.path().join("backups");
+
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("init")
+        .assert()
+        .success();
+
+    let create = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("backup")
+        .output()
+        .expect("backup create must run");
+    assert!(create.status.success(), "backup create failed");
+
+    // Plain residual → one FAIL alongside the real OK backup.
+    fs::create_dir_all(&backup_dir).unwrap();
+    let mut plain = b"SQLite format 3\0".to_vec();
+    plain.resize(64, 0);
+    fs::write(backup_dir.join("vault-2026-01-01T00-00-00.db.bak"), &plain).unwrap();
+
+    let run_json = |verbose: bool| {
+        let mut cmd = common::hermetic_bin();
+        cmd.arg("--no-project-context")
+            .arg("--vault-path")
+            .arg(&vault_path)
+            .arg("backup")
+            .arg("verify")
+            .arg("--format")
+            .arg("json");
+        if verbose {
+            cmd.arg("--verbose");
+        }
+        cmd.output().expect("backup verify json must run")
+    };
+
+    let plain_out = run_json(false);
+    let verbose_out = run_json(true);
+
+    assert_eq!(
+        plain_out.status.code(),
+        verbose_out.status.code(),
+        "exit codes must match; plain={:?} verbose={:?}",
+        plain_out.status.code(),
+        verbose_out.status.code()
+    );
+    assert!(
+        !plain_out.status.success(),
+        "mixed verify must exit non-zero"
+    );
+
+    let parse = |stdout: &[u8], label: &str| -> serde_json::Value {
+        let s = String::from_utf8_lossy(stdout);
+        let json_line = s
+            .lines()
+            .find(|l| l.trim_start().starts_with('{'))
+            .unwrap_or_else(|| panic!("{label}: expected JSON object; got: {s}"));
+        serde_json::from_str(json_line)
+            .unwrap_or_else(|e| panic!("{label}: invalid JSON; got: {json_line} ({e})"))
+    };
+
+    let mut plain_json = parse(&plain_out.stdout, "json");
+    let mut verbose_json = parse(&verbose_out.stdout, "verbose json");
+
+    assert_eq!(
+        plain_json["status"].as_str(),
+        Some("fail"),
+        "mixed fleet overall status must be fail; got {}",
+        plain_json["status"]
+    );
+    assert_eq!(
+        plain_json["status"], verbose_json["status"],
+        "overall status must match"
+    );
+
+    let sort_results = |v: &mut serde_json::Value| {
+        if let Some(arr) = v.get_mut("results").and_then(|r| r.as_array_mut()) {
+            arr.sort_by(|a, b| {
+                a["path"]
+                    .as_str()
+                    .unwrap_or("")
+                    .cmp(b["path"].as_str().unwrap_or(""))
+            });
+        }
+    };
+    sort_results(&mut plain_json);
+    sort_results(&mut verbose_json);
+
+    let plain_results = plain_json["results"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let verbose_results = verbose_json["results"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(
+        plain_results.len(),
+        verbose_results.len(),
+        "results length must match"
+    );
+    assert_eq!(plain_results.len(), 2, "mixed fleet expects 2 results");
+    assert_eq!(
+        plain_results, verbose_results,
+        "full results arrays must be equal under --verbose --format json"
+    );
+
+    let mut saw_ok = false;
+    let mut saw_fail = false;
+    for r in &plain_results {
+        assert!(r["path"].is_string(), "result must have path");
+        assert!(r["status"].is_string(), "result must have status");
+        assert!(r["check"].is_string(), "result must have check");
+        assert!(r["tables"].is_array(), "result must have tables array");
+        assert!(r["size_bytes"].is_number(), "result must have size_bytes");
+        match r["status"].as_str() {
+            Some("ok") => saw_ok = true,
+            Some("fail") => {
+                saw_fail = true;
+                assert!(
+                    r["error"].as_str().map(|s| !s.is_empty()).unwrap_or(false),
+                    "fail result must have non-empty error; got: {r}"
+                );
+            }
+            other => panic!("unexpected status {other:?} in {r}"),
+        }
+    }
+    assert!(saw_ok && saw_fail, "mixed fleet needs one ok and one fail");
 }
 
 #[test]

@@ -573,6 +573,8 @@ Backups include an integrity check; corrupt backups are rejected at creation tim
 
 **List honesty (T209):** `ai-brains backup list` labels residual plain / wrong-key backups (`(legacy plain)` / `(unreadable key)`), warns only on short corrupt files, and prints one summary for expected residuals; use `--verbose` for per-file detail or `--quiet` to suppress the summary (see CAPABILITIES §11).
 
+**Verify quiet default (T225):** `ai-brains backup verify` prints counts + first 5 FAIL reasons (use `--verbose` for the full per-file stream). Doctor `backup_recent` ages only usable encrypted backups (Readable/PreT109); all-legacy plain fleets warn + nudge `ai-brains backup create`.
+
 **Recovery drills (T181):** operator playbook, CE pre-erase honesty, RecoveryKit residual, and automated drill matrix live in [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). Run restore + content smoke before releases — not “backup exists” alone.
 
 ### Restore

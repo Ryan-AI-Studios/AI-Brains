@@ -258,7 +258,13 @@ pub fn run_verify(
     path: Option<PathBuf>,
     full: bool,
     format: Option<String>,
+    verbose: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::verify_report::{
+        VERIFY_FAIL_PREVIEW_CAP, format_create_nudge, format_fail_preview, format_verify_counts,
+        should_emit_create_nudge,
+    };
+
     let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
     let check_name = if full {
         "integrity_check"
@@ -286,7 +292,8 @@ pub fn run_verify(
         return Ok(());
     }
 
-    tracing::info!("Verifying {} backup file(s)...", paths.len());
+    // T225 F6: progress logs are debug so product default RUST_LOG stays quiet.
+    tracing::debug!("Verifying {} backup file(s)...", paths.len());
     let mut results = Vec::new();
     let mut any_failed = false;
 
@@ -295,7 +302,7 @@ pub fn run_verify(
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| path.to_string_lossy().to_string());
-        tracing::info!("Verifying {} ({})...", filename, check_name);
+        tracing::debug!("Verifying {} ({})...", filename, check_name);
 
         let size_bytes = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
         let mut tables: Vec<String> = Vec::new();
@@ -305,13 +312,13 @@ pub fn run_verify(
         match verify_single_backup(path, &ctx._key, full, &mut tables) {
             Ok(()) => {
                 status = "ok".to_string();
-                tracing::info!("{}: OK", filename);
+                tracing::debug!("{}: OK", filename);
             }
             Err(err) => {
                 status = "fail".to_string();
                 any_failed = true;
                 error_msg = Some(err.to_string());
-                tracing::info!("{}: FAIL — {}", filename, err);
+                tracing::debug!("{}: FAIL — {}", filename, err);
             }
         }
 
@@ -325,6 +332,7 @@ pub fn run_verify(
         });
     }
 
+    // JSON always full results; --verbose is ignored (T225 F5/L3).
     if format.as_deref() == Some("json") {
         let output = VerifyOutput {
             results,
@@ -336,19 +344,48 @@ pub fn run_verify(
             message: None,
         };
         println!("{}", serde_json::to_string(&output)?);
-    } else {
+    } else if verbose {
+        // T225 F4/L1: full per-file stream only — no summary, trailer, or nudge.
         for result in &results {
             let filename = PathBuf::from(&result.path)
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| result.path.clone());
             if let Some(ref err) = result.error {
-                println!("{}: FAIL — {}", filename, err);
+                println!("{filename}: FAIL — {err}");
             } else if result.status == "ok" {
-                println!("{}: OK", filename);
+                println!("{filename}: OK");
             } else {
-                println!("{}: FAIL", filename);
+                println!("{filename}: FAIL");
             }
+        }
+    } else {
+        // Quiet-by-default: counts + first N FAIL previews + optional create nudge.
+        let total = results.len();
+        let ok = results.iter().filter(|r| r.status == "ok").count();
+        let fail = total.saturating_sub(ok);
+        println!("{}", format_verify_counts(total, ok, fail));
+
+        let fails: Vec<(String, String)> = results
+            .iter()
+            .filter_map(|r| {
+                let err = r.error.as_ref()?;
+                let filename = PathBuf::from(&r.path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| r.path.clone());
+                Some((filename, err.clone()))
+            })
+            .collect();
+        let (preview_lines, trailer) = format_fail_preview(&fails, VERIFY_FAIL_PREVIEW_CAP);
+        for line in preview_lines {
+            println!("{line}");
+        }
+        if let Some(t) = trailer {
+            println!("{t}");
+        }
+        if should_emit_create_nudge(ok, total) {
+            println!("{}", format_create_nudge());
         }
     }
 

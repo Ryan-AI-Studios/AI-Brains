@@ -423,7 +423,7 @@ Explicit `ledgerful bridge export` / `import` remain pure-local without opt-in. 
 ai-brains backup
 ai-brains backup create --output-dir D:\backups --dry-run
 ai-brains backup list [--quiet] [--verbose]
-ai-brains backup verify [--full]
+ai-brains backup verify [--full] [--verbose] [--format json]
 ai-brains backup prune --keep N --older-than <dur>
 ai-brains backup restore <path> [--force] [--dry-run]
 ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force|--overwrite]
@@ -440,7 +440,9 @@ Backup suite with metadata headers, integrity checks, and restore **hard-fail** 
 | Key mismatch (size ≥ 512, not plain, key fails) | `(unreadable key)` | debug + one summary |
 | Corrupt (short/unreadable garbage) | `(corrupt)` | per-file `WARN` |
 
-Default list prints one **stderr** summary when any legacy-plain or key-mismatch residuals exist (`not fully readable` … `--verbose` … `verify`). `--verbose` adds per-file detail and omits the summary. `--quiet` suppresses summary and metadata WARNs (table tokens still apply). Dual `--quiet --verbose` → quiet wins. Exit **0** for any mix of classes after a successful scan.
+Default list prints one **stderr** summary when any legacy-plain or key-mismatch residuals exist (`not fully readable` … `--verbose` … `verify`). `--verbose` adds per-file detail and omits the summary. `--quiet` suppresses summary and metadata WARNs (table tokens still apply). Dual `--quiet --verbose` → quiet wins. Exit **0** for any mix of classes after a successful scan. The list→verify cross-link remains valid; verify is now quiet-by-default (T225).
+
+**Backup verify quiet default (T225):** human `backup verify` prints **counts** (`Verified N backup(s): X OK, Y FAIL.`) plus the first **5** `filename: FAIL — {reason}` lines (T138 reason preserved); OK lines omitted. When fail &gt; 5, a trailer points at `--verbose`. When `ok == 0 && total >= 1`, a create nudge includes `ai-brains backup create`. **`--verbose`** = full per-file OK/FAIL stream only (no summary, trailer, or nudge). **JSON** always returns full `results[]` (verbose ignored). Progress tracing is `debug` (no INFO flood under product default `RUST_LOG`). Any FAIL → exit **1**; empty → exit **0** (`No backups to verify.`).
 
 **Recovery export (T188 / T194):** writes RecoveryKit JSON (`schema_version: 1`) to a restricted file path only (never kit JSON on stdout). Passphrase via file or zero-echo TTY (`rpassword`). Kits embed Argon2id params in `passphrase.kdf` (algorithm=argon2id, version=19, m=19456, t=2, p=1); pre-T194 kits without `kdf` dual-read fixed legacy constants.
 
@@ -456,7 +458,7 @@ ai-brains doctor
   [--full]                        # PRAGMA integrity_check
 ```
 
-Check matrix (fixed order, **13** checks): `vault_exists`, `vault_open` (`open_read_intent` only — never migrates), `schema_readable`, `cipher_page`, `daemon_reachable` (info: up/down never fails alone), `backup_recent` (soft), `recovery_kit_event` (soft; event ≠ offline file proof), `recovery_kit_file` (hard when `--kit-path` set; skip otherwise — no default kit path search), `zero_key_escape` (soft / R-ZERO-KEY), **`graph_feature`** (soft info: `available`|`unavailable` via compile-time `cfg!(feature = "graph")`; remediation = INSTALL primary SOOT when unavailable; never alone fail/degraded), **`graph_density`** (soft; SQL counts only — warn on empty/sparse/orphan/projection lag; skip when tables missing / open failed / pinned count failed / small empty vault; never alone forces fail; capture-independent even on graph-off binaries; T232 capability-aware remediation: graph-on → `ai-brains graph rebuild`, graph-off → `GRAPH_REINSTALL_SOOT`), **`harness_wiring`** (soft info — harness hook presence; never alone fail/degraded), `integrity` (only with `--full`). Overall: fail ≻ degraded ≻ ok. Exit 0 for ok|degraded (default); 1 for fail; clap usage 2. Never creates vault or `backups/`; never prints secrets. Residual: offline kit without `--kit-path` remains operator responsibility (see RECOVERY-DRILLS).
+Check matrix (fixed order, **13** checks): `vault_exists`, `vault_open` (`open_read_intent` only — never migrates), `schema_readable`, `cipher_page`, `daemon_reachable` (info: up/down never fails alone), **`backup_recent`** (soft; T225 class-aware: usable = Readable \| PreT109 only — no usable encrypted under current key → warn + `ai-brains backup create` even if plain timestamps are recent; otherwise ages **newest usable** vs `--backup-max-age`, default 7d), `recovery_kit_event` (soft; event ≠ offline file proof), `recovery_kit_file` (hard when `--kit-path` set; skip otherwise — no default kit path search), `zero_key_escape` (soft / R-ZERO-KEY), **`graph_feature`** (soft info: `available`|`unavailable` via compile-time `cfg!(feature = "graph")`; remediation = INSTALL primary SOOT when unavailable; never alone fail/degraded), **`graph_density`** (soft; SQL counts only — warn on empty/sparse/orphan/projection lag; skip when tables missing / open failed / pinned count failed / small empty vault; never alone forces fail; capture-independent even on graph-off binaries; T232 capability-aware remediation: graph-on → `ai-brains graph rebuild`, graph-off → `GRAPH_REINSTALL_SOOT`), **`harness_wiring`** (soft info — harness hook presence; never alone fail/degraded), `integrity` (only with `--full`). Overall: fail ≻ degraded ≻ ok. Exit 0 for ok|degraded (default); 1 for fail; clap usage 2. Never creates vault or `backups/`; never prints secrets. Residual: offline kit without `--kit-path` remains operator responsibility (see RECOVERY-DRILLS).
 
 ---
 

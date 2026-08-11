@@ -11,7 +11,7 @@ use crate::graph_density::{
     DensityVerdict, GatherResult, assess_graph_density, gather_density_snapshot,
 };
 use crate::key_resolve::{KeyResolveError, resolve_operator_sqlcipher_key, vault_locked_message};
-use ai_brains_brain::{BackupService, ListMode, has_core_tables, parse_duration};
+use ai_brains_brain::{BackupReadClass, BackupService, ListMode, has_core_tables, parse_duration};
 use ai_brains_contracts::doctor::{CheckSeverity, DoctorReport, DoctorStatus, HealthCheck};
 use ai_brains_crypto::{RecoveryKit, SqlCipherKey};
 use ai_brains_store::ALLOW_ZERO_KEY_ENV;
@@ -337,11 +337,32 @@ fn check_backup_recent(vault_path: &Path, key: &SqlCipherKey, max_age: &str) -> 
         );
     }
 
-    let newest = backups.iter().find_map(|b| b.timestamp);
+    // T225 F9: usable = Readable | PreT109. Age newest usable only; ignore
+    // LegacyPlain / KeyMismatch / Corrupt timestamps (even if more recent).
+    let usable: Vec<_> = backups
+        .iter()
+        .filter(|b| {
+            matches!(
+                b.class,
+                BackupReadClass::Readable | BackupReadClass::PreT109
+            )
+        })
+        .collect();
+
+    if usable.is_empty() {
+        return HealthCheck::warn(
+            "backup_recent",
+            "no usable encrypted backup under current key",
+            Some("ai-brains backup create".into()),
+        );
+    }
+
+    // list_backups is sorted Reverse(timestamp); first usable with a timestamp wins.
+    let newest = usable.iter().find_map(|b| b.timestamp);
     let Some(ts) = newest else {
         return HealthCheck::warn(
             "backup_recent",
-            "backups present but timestamps unparseable",
+            "usable backups present but timestamps unparseable",
             Some("ai-brains backup create".into()),
         );
     };
@@ -361,7 +382,7 @@ fn check_backup_recent(vault_path: &Path, key: &SqlCipherKey, max_age: &str) -> 
         HealthCheck::ok_msg(
             "backup_recent",
             format!(
-                "newest backup within {max_age} (timestamp {})",
+                "newest usable backup within {max_age} (timestamp {})",
                 ts.format("%Y-%m-%dT%H:%M:%S")
             ),
         )
@@ -369,7 +390,7 @@ fn check_backup_recent(vault_path: &Path, key: &SqlCipherKey, max_age: &str) -> 
         HealthCheck::warn(
             "backup_recent",
             format!(
-                "newest backup older than {max_age} (timestamp {})",
+                "newest usable backup older than {max_age} (timestamp {})",
                 ts.format("%Y-%m-%dT%H:%M:%S")
             ),
             Some("ai-brains backup create".into()),

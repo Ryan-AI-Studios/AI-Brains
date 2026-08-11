@@ -646,3 +646,342 @@ fn doctor__help__lists_command() {
         .stdout(predicate::str::contains("kit-path"))
         .stdout(predicate::str::contains("fail-on-degraded"));
 }
+
+fn backup_recent_check(report: &DoctorReport) -> &ai_brains_contracts::doctor::HealthCheck {
+    report
+        .checks
+        .iter()
+        .find(|c| c.name == "backup_recent")
+        .expect("backup_recent check present")
+}
+
+/// T225 AC7/M3: all LegacyPlain backups → backup_recent warn + create remediation
+/// even when filenames have recent timestamps.
+#[test]
+fn doctor__backup_recent__all_legacy_plain__warn_create() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let backups = dir.path().join("backups");
+    fs::create_dir_all(&backups).unwrap();
+    // Recent-looking plain SQLite magic files (LegacyPlain under classify).
+    for name in [
+        "vault-2026-08-01T12-00-00.db.bak",
+        "vault-2026-08-02T12-00-00.db.bak",
+    ] {
+        let mut bytes = b"SQLite format 3\0".to_vec();
+        bytes.resize(64, 0);
+        fs::write(backups.join(name), &bytes).unwrap();
+    }
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .output()
+        .expect("doctor");
+    assert!(
+        out.status.success(),
+        "doctor soft warn must exit 0; out={}",
+        combined_output(&out)
+    );
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Warn,
+        "all-plain must warn; msg={:?}",
+        br.message
+    );
+    let msg = br.message.as_deref().unwrap_or("").to_ascii_lowercase();
+    assert!(
+        msg.contains("no usable") || msg.contains("usable encrypted"),
+        "message must indicate no usable encrypted backup; got {:?}",
+        br.message
+    );
+    let rem = br.remediation.as_deref().unwrap_or("");
+    assert!(
+        rem.contains("ai-brains backup create"),
+        "remediation must cite create; got {rem}"
+    );
+}
+
+/// T225 AC8/M3: Readable backup within age → backup_recent ok.
+#[test]
+fn doctor__backup_recent__readable_within_age__ok() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let create = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("backup")
+        .output()
+        .expect("backup create");
+    assert!(
+        create.status.success(),
+        "backup create failed: {}",
+        combined_output(&create)
+    );
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .arg("--backup-max-age")
+        .arg("7d")
+        .output()
+        .expect("doctor");
+    assert!(out.status.success(), "out={}", combined_output(&out));
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Ok,
+        "fresh readable must be ok; msg={:?}",
+        br.message
+    );
+    let msg = br.message.as_deref().unwrap_or("").to_ascii_lowercase();
+    assert!(
+        msg.contains("usable") || msg.contains("within"),
+        "ok message should mention usable/within; got {:?}",
+        br.message
+    );
+}
+
+/// T225 AC8/M3: Readable backup with stale filename timestamp → warn + create.
+#[test]
+fn doctor__backup_recent__readable_stale__warn_create() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let create = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("backup")
+        .output()
+        .expect("backup create");
+    assert!(
+        create.status.success(),
+        "backup create failed: {}",
+        combined_output(&create)
+    );
+
+    let backups = dir.path().join("backups");
+    let entries: Vec<PathBuf> = fs::read_dir(&backups)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .collect();
+    assert_eq!(entries.len(), 1, "expected one backup file");
+    let stale_name = backups.join("vault-2020-01-01T00-00-00.db.bak");
+    fs::rename(&entries[0], &stale_name).expect("rename backup to stale timestamp name");
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .arg("--backup-max-age")
+        .arg("7d")
+        .output()
+        .expect("doctor");
+    assert!(
+        out.status.success(),
+        "soft stale warn exits 0; out={}",
+        combined_output(&out)
+    );
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Warn,
+        "stale usable must warn; msg={:?}",
+        br.message
+    );
+    let msg = br.message.as_deref().unwrap_or("").to_ascii_lowercase();
+    assert!(
+        msg.contains("older") || msg.contains("stale"),
+        "stale message expected; got {:?}",
+        br.message
+    );
+    let rem = br.remediation.as_deref().unwrap_or("");
+    assert!(
+        rem.contains("ai-brains backup create"),
+        "remediation must cite create; got {rem}"
+    );
+}
+
+/// T225 AC8/M3: fresh Readable + plain residuals → ok.
+///
+/// Proves doctor does **not** warn when the newest *usable* backup is within
+/// age. Plain residuals (older or fresher-named) must not force a warn when a
+/// recent usable backup exists. This case is **not** discriminating against
+/// age-only doctors that pick the newest filename overall — see
+/// `doctor__backup_recent__stale_usable_plus_fresher_plain__warns`.
+#[test]
+fn doctor__backup_recent__readable_recent_plus_older_plain__ok() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let create = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("backup")
+        .output()
+        .expect("backup create");
+    assert!(
+        create.status.success(),
+        "backup create failed: {}",
+        combined_output(&create)
+    );
+
+    // Older-named plain residual must not poison usable age.
+    let backups = dir.path().join("backups");
+    let mut plain = b"SQLite format 3\0".to_vec();
+    plain.resize(64, 0);
+    fs::write(backups.join("vault-2019-01-01T00-00-00.db.bak"), &plain).unwrap();
+    // Fresher-named plain must also not become the age source when usable is fresh.
+    fs::write(backups.join("vault-2099-01-01T00-00-00.db.bak"), &plain).unwrap();
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .arg("--backup-max-age")
+        .arg("7d")
+        .output()
+        .expect("doctor");
+    assert!(out.status.success(), "out={}", combined_output(&out));
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Ok,
+        "must age newest usable (readable), not freshest plain; msg={:?}",
+        br.message
+    );
+}
+
+/// T225 P2-1: stale usable + fresher plain residual → warn (ages usable only).
+///
+/// Discriminating mixed-age case: an age-only doctor that picks the newest
+/// filename overall would treat the fresher plain residual as within age and
+/// return Ok. Usable-only aging must warn on the stale Readable/PreT109.
+#[test]
+fn doctor__backup_recent__stale_usable_plus_fresher_plain__warns() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let create = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("backup")
+        .output()
+        .expect("backup create");
+    assert!(
+        create.status.success(),
+        "backup create failed: {}",
+        combined_output(&create)
+    );
+
+    let backups = dir.path().join("backups");
+    let entries: Vec<PathBuf> = fs::read_dir(&backups)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .collect();
+    assert_eq!(entries.len(), 1, "expected one backup file");
+    // Stale usable Readable (key opens; meta present).
+    let stale_name = backups.join("vault-2020-01-01T00-00-00.db.bak");
+    fs::rename(&entries[0], &stale_name).expect("rename backup to stale timestamp name");
+
+    // Fresher plain residual — newest overall timestamp and *within age*
+    // (future date keeps it forever in-window under --backup-max-age 7d so this
+    // test stays discriminating on any calendar day). Age-only doctor would Ok
+    // on this plain; usable-only must still Warn on the stale Readable.
+    let mut plain = b"SQLite format 3\0".to_vec();
+    plain.resize(64, 0);
+    fs::write(backups.join("vault-2099-12-31T23-59-59.db.bak"), &plain).unwrap();
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .arg("--backup-max-age")
+        .arg("7d")
+        .output()
+        .expect("doctor");
+    assert!(
+        out.status.success(),
+        "soft warn must exit 0; out={}",
+        combined_output(&out)
+    );
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Warn,
+        "must age stale usable, not fresher plain; msg={:?}",
+        br.message
+    );
+    let msg = br.message.as_deref().unwrap_or("").to_ascii_lowercase();
+    assert!(
+        msg.contains("older") || msg.contains("stale"),
+        "stale-usable message expected; got {:?}",
+        br.message
+    );
+    let rem = br.remediation.as_deref().unwrap_or("");
+    assert!(
+        rem.contains("ai-brains backup create"),
+        "remediation must cite create; got {rem}"
+    );
+}
+
+/// T225 P2-1: PreT109 (key opens, no `_aibrains_backup_meta`) within age → ok.
+///
+/// Usable includes PreT109; doctor must not require meta rows for backup_recent.
+#[test]
+fn doctor__backup_recent__pret109_within_age__ok() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let create = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("backup")
+        .output()
+        .expect("backup create");
+    assert!(
+        create.status.success(),
+        "backup create failed: {}",
+        combined_output(&create)
+    );
+
+    let backups = dir.path().join("backups");
+    let entries: Vec<PathBuf> = fs::read_dir(&backups)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .collect();
+    assert_eq!(entries.len(), 1, "expected one backup file");
+    let bak = &entries[0];
+
+    // Strip meta table → PreT109; keep recent filename so age is within 7d.
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
+    let conn = rusqlite::Connection::open(bak).expect("open bak");
+    ai_brains_store::pragmas::apply_key_pragmas(&conn, &key).expect("apply key");
+    conn.execute_batch("DROP TABLE IF EXISTS _aibrains_backup_meta;")
+        .expect("drop backup meta for PreT109");
+    drop(conn);
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .arg("--backup-max-age")
+        .arg("7d")
+        .output()
+        .expect("doctor");
+    assert!(out.status.success(), "out={}", combined_output(&out));
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Ok,
+        "PreT109 within age must be usable ok; msg={:?}",
+        br.message
+    );
+    let msg = br.message.as_deref().unwrap_or("").to_ascii_lowercase();
+    assert!(
+        msg.contains("usable") || msg.contains("within"),
+        "ok message should mention usable/within; got {:?}",
+        br.message
+    );
+}
