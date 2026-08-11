@@ -282,20 +282,17 @@ pub fn run(
 
     match format_str {
         "pretty" => {
+            // T228 F2/F29: always-on Scope chrome for pretty (empty + non-empty).
+            let scope_line = resolve_active_scope_line(
+                ctx.conn.as_ref(),
+                options.global,
+                options.project_id.as_ref(),
+            )?;
             if hits.is_empty() {
                 // Empty pretty (T207): Scope → (Session if user) → Embedding ≠ ok → hint.
                 // F3: always print hint when format is pretty (no TTY gate).
                 // F5: omit Session when it was generated only for graph provenance.
                 // F11: --quiet does not suppress Scope or empty hint.
-                let name_alias = match options.project_id {
-                    Some(pid) => ctx.conn.get_project_by_id(&pid)?,
-                    None => None,
-                };
-                let scope_line = format_scope_line(
-                    options.global,
-                    options.project_id.as_ref(),
-                    name_alias.as_ref(),
-                );
                 let session_for_print = if session_was_generated {
                     None
                 } else {
@@ -329,8 +326,10 @@ pub fn run(
                     )
                 );
             } else {
-                // Non-empty pretty: Session + results; no required Scope (AC10 deferred);
-                // no empty hint. Badge via shared helper (T211 F11/F37).
+                // Non-empty pretty (T228): Scope → Session → Embedding? → hits.
+                // F4/F26/F33: no blank between Scope and Session; no empty hint.
+                // Badge via shared helper (T211 F11/F37).
+                println!("{}", scope_line);
                 if let Some(ref sid) = response.session_id {
                     println!("Session: {}", sid);
                 }
@@ -485,11 +484,7 @@ pub fn print_pretty_empty_sync(
     global: bool,
     project_id: Option<ProjectId>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let name_alias = match project_id {
-        Some(pid) => ctx.conn.get_project_by_id(&pid)?,
-        None => None,
-    };
-    let scope_line = format_scope_line(global, project_id.as_ref(), name_alias.as_ref());
+    let scope_line = resolve_active_scope_line(ctx.conn.as_ref(), global, project_id.as_ref())?;
     let hint =
         build_recall_hint(&ctx.conn, query, false, global, project_id, None)?.unwrap_or_default();
     println!(
@@ -511,6 +506,28 @@ fn print_embedding_status_line(emb: &ai_brains_contracts::recall::EmbeddingStatu
     println!("{}", format_embedding_status_line(emb));
 }
 
+/// Resolve the active Scope chrome line for pretty recall / sync (T228 F29/F30).
+///
+/// - `global == true` → `"Scope: global"` **without** calling `get_project_by_id` (F30).
+/// - else if `Some(pid)` → single-id lookup then [`format_scope_line`].
+/// - else → `Scope: project=(none)`.
+///
+/// Shared SOOT for empty + non-empty recall pretty and empty + non-empty sync vault.
+pub(crate) fn resolve_active_scope_line(
+    conn: &impl QueryStore,
+    global: bool,
+    project_id: Option<&ProjectId>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if global {
+        return Ok("Scope: global".to_string());
+    }
+    let name_alias = match project_id {
+        Some(pid) => conn.get_project_by_id(pid)?,
+        None => None,
+    };
+    Ok(format_scope_line(false, project_id, name_alias.as_ref()))
+}
+
 /// Format empty pretty Scope line (F4 / T207).
 ///
 /// - `--global` → `Scope: global`
@@ -519,6 +536,7 @@ fn print_embedding_status_line(emb: &ai_brains_contracts::recall::EmbeddingStatu
 /// - no project → `Scope: project=(none)`
 ///
 /// Shared SOOT for recall empty-pretty and preflight summary (T207 / T214 F13).
+/// Prefer [`resolve_active_scope_line`] at call sites that own a connection.
 pub(crate) fn format_scope_line(
     global: bool,
     project_id: Option<&ProjectId>,
@@ -874,6 +892,45 @@ mod tests {
     #[allow(non_snake_case)]
     fn format_scope_line__global__prints_global() {
         assert_eq!(format_scope_line(true, None, None), "Scope: global");
+    }
+
+    /// T228 AC13 / F30: global short-circuits without requiring a project row.
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_active_scope_line__global__returns_scope_global_without_project_row() {
+        use ai_brains_core::temp_env::TempEnv;
+        use ai_brains_crypto::SqlCipherKey;
+        use ai_brains_store::VaultConnection;
+        use std::sync::Arc;
+
+        const ZERO_KEY: &str =
+            "x'0000000000000000000000000000000000000000000000000000000000000000'";
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vault = dir.path().join("vault.db");
+        let _allow = TempEnv::set(ai_brains_store::ALLOW_ZERO_KEY_ENV, "1");
+        let key = SqlCipherKey::from_raw(ZERO_KEY.to_string());
+        let conn = VaultConnection::open(&vault, &key).expect("open vault");
+        conn.migrate().expect("migrate");
+        let conn = Arc::new(conn);
+
+        // No project row exists. Even with a bogus project_id, global must win
+        // without depending on lookup success (F30 short-circuit).
+        let pid = ProjectId::from_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa").expect("pid");
+        let line = resolve_active_scope_line(conn.as_ref(), true, Some(&pid))
+            .expect("resolve global scope");
+        assert_eq!(line, "Scope: global");
+
+        // Project path still works on empty vault (lookup miss → uuid only).
+        let project_line = resolve_active_scope_line(conn.as_ref(), false, Some(&pid))
+            .expect("resolve project scope");
+        assert_eq!(
+            project_line,
+            "Scope: project=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        );
+
+        let none_line =
+            resolve_active_scope_line(conn.as_ref(), false, None).expect("resolve none scope");
+        assert_eq!(none_line, "Scope: project=(none)");
     }
 
     #[test]
