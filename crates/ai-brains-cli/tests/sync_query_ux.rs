@@ -337,8 +337,7 @@ fn sync_query__ndjson_no_project__project_id_field_empty() {
             .and_then(|c| c.as_str())
             .unwrap_or("");
         assert!(
-            content.contains("ndjson_ac14_token")
-                || v.to_string().contains("ndjson_ac14_token"),
+            content.contains("ndjson_ac14_token") || v.to_string().contains("ndjson_ac14_token"),
             "AC14: vault-wide ndjson record must include seeded content; got {t}"
         );
     }
