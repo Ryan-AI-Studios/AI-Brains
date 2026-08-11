@@ -2,7 +2,7 @@
 
 - **Track ID:** T231-UnifiedSearchUx
 - **Phase:** Post-audit CLI quality series (T217–T232) — P2 polish after T230
-- **Status:** 🚧 **Implementing**
+- **Status:** ✅ **Completed** 2026-08-11 (PR #138 `0f3d83f`)
 - **Depends on:** T101 TTY pretty ✅; T207 empty pretty Scope/hint ✅; T211 ranking + ledger-first ✅; T217 FTS rescue ✅; T224 role strip ✅; T228 always-on Scope + `resolve_active_scope_line` ✅; T230 labels ✅
 - **Blocks / feeds:** Operators know which command to run; closes dual mental model residual; absorbs T228 F32 hard; series CLI-quality close for search IA
 - **Category:** UX / IA / FEATURE (light) / DOCS

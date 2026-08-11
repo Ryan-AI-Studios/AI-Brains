@@ -1,6 +1,6 @@
 # T231 — Unified search UX defaults — Plan
 
-**Status:** 🚧 **Implementing** — hard A+C code + docs in progress 2026-08-11  
+**Status:** ✅ **Completed** 2026-08-11 — PR #138 `0f3d83f`
 **Category:** UX / IA / FEATURE (light)  
 **Depends:** T207 empty pretty · T211 ranking/ledger-first · T228 Scope SOOT · T230 labels
 
@@ -137,11 +137,11 @@ See `spec.md` §4 **F1–F40**. Hard summary:
 ### 5. Verify / close
 
 - [x] Live dogfood F31 (targeted; full gate deferred to review/close)
-- [ ] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; deny ; audit ; `ledgerful verify --scope full`
-- [ ] Primary review → fix loop
-- [ ] Soft cross-model only if scope expands (e.g. text arm)
-- [ ] `conductor.md` → Completed; deferred.md strike dual-search; series README update
-- [ ] `ledgerful ledger commit` + `ai-brains pin "DECISION: T231 …"`
+- [x] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; deny ; audit ; `ledgerful verify --scope full`
+- [x] Primary review → fix loop
+- [x] Soft cross-model (Codex R2 PASS WITH DEFERRED P3; final on closeout) only if scope expands (e.g. text arm)
+- [x] `conductor.md` → Completed; deferred.md strike dual-search; series README update
+- [x] `ledgerful ledger commit` + `ai-brains pin "DECISION: T231 …"`
 
 ## Manual test script (on go)
 
