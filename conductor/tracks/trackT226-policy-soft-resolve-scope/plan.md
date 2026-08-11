@@ -91,64 +91,64 @@ let scope_key = scope_identity_key(&scope_ref); // F23 — always canonical
 
 ### 0. Preflight (on go)
 
-- [ ] `ledgerful doctor` + `ledgerful ledger status --compact`
-- [ ] `ledgerful ledger start T226-policy-soft-resolve-scope --category FEATURE --message "policy show/check soft-resolve scope"`
-- [ ] `ledgerful scan --impact` after identifying touch files
-- [ ] Confirm no pending TX / unexpected dirty tree
+- [x] `ledgerful doctor` + `ledgerful ledger status --compact`
+- [x] `ledgerful ledger start T226-policy-soft-resolve-scope --category FEATURE --message "policy show/check soft-resolve scope"`
+- [x] `ledgerful scan --impact` after identifying touch files
+- [x] Confirm no pending TX / unexpected dirty tree
 
 ### 1. Red — hermetic tests (M2/M3/L1/L2/O2–O4)
 
-- [ ] Rewrite `policy_show__missing_scope__exit_2` → AC1 **three** stderr asserts (M2); rename to `…__fail_usage`
-- [ ] Add `policy_check__missing_scope_no_context__exit_2_fail_usage` with same three asserts (AC2)
-- [ ] Flip `policy_show__help__scope_required` → optional soft-default + `[OPTIONS]` (AC3/O4)
-- [ ] **Retain** `assert_help_scope_required` for `erasure_request__help__scope_required` (M3)
-- [ ] Add `policy_check__help__scope_optional_soft_default`
-- [ ] Add AC4 show soft-resolve with **seeded grant** via `open_seeded_ports` + `issue_grant` (F24)
-- [ ] Add AC5 check soft-resolve seeded allow + assert `scope == Repository:{PROJECT}` (M4)
-- [ ] Keep/extend explicit scope happy path (AC6)
-- [ ] Add AC7 malformed explicit scope → exit 6 (net-new L2)
-- [ ] Add AC8 missing `--capability` → clap English `required arguments were not provided` (L1)
-- [ ] Add AC12 lowercase explicit scope grant parity (O2)
-- [ ] Confirm red: nextest on these tests fails before production change
+- [x] Rewrite `policy_show__missing_scope__exit_2` → AC1 **three** stderr asserts (M2); rename to `…__fail_usage`
+- [x] Add `policy_check__missing_scope_no_context__exit_2_fail_usage` with same three asserts (AC2)
+- [x] Flip `policy_show__help__scope_required` → optional soft-default + `[OPTIONS]` (AC3/O4)
+- [x] **Retain** `assert_help_scope_required` for `erasure_request__help__scope_required` (M3)
+- [x] Add `policy_check__help__scope_optional_soft_default`
+- [x] Add AC4 show soft-resolve with **seeded grant** via `open_seeded_ports` + `issue_grant` (F24)
+- [x] Add AC5 check soft-resolve seeded allow + assert `scope == Repository:{PROJECT}` (M4)
+- [x] Keep/extend explicit scope happy path (AC6)
+- [x] Add AC7 malformed explicit scope → exit 6 (net-new L2)
+- [x] Add AC8 missing `--capability` → clap English `required arguments were not provided` (L1)
+- [x] Add AC12 lowercase explicit scope grant parity (O2)
+- [x] Confirm red: nextest on these tests fails before production change
 
 ### 2. Green — clap + wire (M1/F23/L6)
 
-- [ ] `PolicyCommands::Show.scope` / `Check.scope` → `Option<String>`; update doc + command after_help
-- [ ] Parent policy after_help **both** sites (~641 **and** ~1211): omit-when-authoritative examples (L6)
-- [ ] `ShowOptions` / `CheckOptions` → `Option<String>`
-- [ ] `run_show` / `run_check`: resolve → **canonicalize** → messages / CheckResult / grant query (M1)
-- [ ] Optional soft F21: bootstrap single helper call (only if green stays green)
+- [x] `PolicyCommands::Show.scope` / `Check.scope` → `Option<String>`; update doc + command after_help
+- [x] Parent policy after_help **both** sites (~641 **and** ~1211): omit-when-authoritative examples (L6)
+- [x] `ShowOptions` / `CheckOptions` → `Option<String>`
+- [x] `run_show` / `run_check`: resolve → **canonicalize** → messages / CheckResult / grant query (M1)
+- [x] Optional soft F21: bootstrap single helper call (only if green stays green)
 
 ### 3. Docs
 
-- [ ] `Docs/CLI-EXIT-CODES.md` — move show/check into soft-resolve list; remove from still-required; erasure peers still required
-- [ ] `Docs/CAPABILITIES.md` — policy show/check soft-resolve sentence
-- [ ] `Docs/OPERATIONS.md` — optional-scope examples for show/check
-- [ ] `CHANGELOG.md` minor UX entry
-- [ ] Skill touch only if agent policy section still claims required scope for show
-- [ ] Soft O5: grep CONTRIBUTING for stale show/check required claims
+- [x] `Docs/CLI-EXIT-CODES.md` — move show/check into soft-resolve list; remove from still-required; erasure peers still required
+- [x] `Docs/CAPABILITIES.md` — policy show/check soft-resolve sentence
+- [x] `Docs/OPERATIONS.md` — optional-scope examples for show/check
+- [x] `CHANGELOG.md` minor UX entry
+- [x] Skill touch only if agent policy section still claims required scope for show
+- [x] Soft O5: grep CONTRIBUTING for stale show/check required claims
 
 ### 4. Registry + deferred
 
-- [ ] Strike deferred.md T226 row as closed (on complete)
-- [ ] Update series README + conductor.md Completed (on complete)
-- [ ] Append soft residuals if any (O1/F21)
+- [x] Strike deferred.md T226 row as closed (on complete)
+- [x] Update series README + conductor.md Completed (on complete)
+- [x] Append soft residuals if any (O1/F21)
 
 ### 5. Verify
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] `cargo nextest run -p ai-brains-cli` (at least exit_contract, policy_*, governed_*)
-- [ ] Full gate: nextest workspace + deny + audit
-- [ ] `ledgerful verify --scope fast` then full before finalize
-- [ ] Manual dogfood (spec §11) — record output snippets in plan or review
+- [x] `cargo fmt --check`
+- [x] `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] `cargo nextest run -p ai-brains-cli` (at least exit_contract, policy_*, governed_*)
+- [x] Full gate: nextest workspace + deny + audit
+- [x] `ledgerful verify --scope fast` then full before finalize
+- [x] Manual dogfood (spec §11) — record output snippets in plan or review
 
 ### 6. Review + finalize
 
-- [ ] `conductor/tracks/trackT226-policy-soft-resolve-scope/review.md`
-- [ ] Internal clean; Codex read-only if FEATURE flagged
-- [ ] `ledgerful ledger commit` with evidence
-- [ ] Pin: `ai-brains pin "DECISION: T226 policy show/check soft-resolve + canonical scope_identity_key; erasure stays clap-required"`
+- [x] `conductor/tracks/trackT226-policy-soft-resolve-scope/review.md`
+- [x] Internal clean; Codex read-only if FEATURE flagged
+- [x] `ledgerful ledger commit` with evidence
+- [x] Pin: `ai-brains pin "DECISION: T226 policy show/check soft-resolve + canonical scope_identity_key; erasure stays clap-required"`
 
 ## Touch map (expected)
 
