@@ -651,3 +651,182 @@ fn memory_list__summary_tag__filters_both_counts() {
         "tag filters forgotten to 1; got:\n{stdout}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// T230 — never-blank labels (AC6/AC7/AC9/AC15)
+// ---------------------------------------------------------------------------
+
+/// AC6 human + AC7 JSON: every by-project label non-empty under --summary --global.
+#[test]
+fn memory_list__global_summary__labels_non_empty() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let a = dir.path().join("a");
+    let b = dir.path().join("b");
+    let id_a = register_project(&vault, &a);
+    let id_b = register_project(&vault, &b);
+    pin_memory(&vault, &a, &id_a, "DECISION: T230 A pin for labels");
+    pin_memory(&vault, &b, &id_b, "DECISION: T230 B pin for labels");
+
+    // Human (AC6 + AC12)
+    let (code, stdout, _) = run_memory_list(&vault, &["--summary", "--global"], None);
+    assert_eq!(code, 0, "global summary human exit 0; stdout={stdout}");
+    assert!(
+        stdout.contains("Scope: global"),
+        "AC12 Scope: global; got:\n{stdout}"
+    );
+    for line in stdout.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.is_empty()
+            || trimmed.starts_with("Scope:")
+            || trimmed.starts_with("Pinned:")
+            || trimmed.starts_with("Forgotten:")
+            || trimmed.starts_with("label")
+            || trimmed.starts_with("No projects")
+        {
+            continue;
+        }
+        // Data rows contain a project_id; first 20 chars are the label col.
+        if line.contains(&id_a) || line.contains(&id_b) {
+            let label_field: String = line.chars().take(20).collect();
+            assert!(
+                !label_field.trim().is_empty(),
+                "AC6 blank label cell; line={line:?}\nfull:\n{stdout}"
+            );
+        }
+    }
+
+    // JSON (AC7)
+    let (c2, out2, _) =
+        run_memory_list(&vault, &["--summary", "--global", "--format", "json"], None);
+    assert_eq!(c2, 0, "global summary json exit 0; stdout={out2}");
+    let v: serde_json::Value = serde_json::from_str(&out2).expect("valid summary json");
+    assert_eq!(v["scope"], "global");
+    let by_project = v["by_project"]
+        .as_array()
+        .expect("by_project array under --global");
+    assert!(
+        by_project.len() >= 2,
+        "expect both projects; got {by_project:?}"
+    );
+    for row in by_project {
+        let label = row["label"].as_str().expect("label must be a string");
+        assert!(
+            !label.is_empty(),
+            "AC7 by_project[].label must be non-empty; row={row}"
+        );
+    }
+}
+
+/// AC9: global non-summary human list — project column non-empty (registered OK).
+#[test]
+fn memory_list__global_human__project_col_non_empty() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let a = dir.path().join("a");
+    let b = dir.path().join("b");
+    let id_a = register_project(&vault, &a);
+    let id_b = register_project(&vault, &b);
+    pin_memory(&vault, &a, &id_a, "DECISION: T230 list A");
+    pin_memory(&vault, &b, &id_b, "DECISION: T230 list B");
+
+    let (code, stdout, _) = run_memory_list(&vault, &["--global", "--limit", "5"], None);
+    assert_eq!(code, 0, "global list exit 0; stdout={stdout}");
+    assert!(
+        stdout.contains("Scope: global"),
+        "Scope: global; got:\n{stdout}"
+    );
+    // Header: memory_id (36) + space + project (20) + …
+    let mut data_rows = 0usize;
+    for line in stdout.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("Scope:")
+            || trimmed.starts_with("status=")
+            || trimmed.starts_with("memory_id")
+            || trimmed.starts_with("Showing")
+            || trimmed.starts_with("No pinned")
+            || trimmed.is_empty()
+        {
+            continue;
+        }
+        // Data: memory_id UUID-ish at start, then project col.
+        let chars: Vec<char> = line.chars().collect();
+        if chars.len() < 57 {
+            continue;
+        }
+        // project col is fixed-width after memory_id col (36) + sep space.
+        let project_col: String = chars.iter().skip(37).take(20).collect();
+        if project_col.trim().is_empty()
+            && chars
+                .iter()
+                .take(36)
+                .all(|c| c.is_ascii_hexdigit() || *c == '-')
+        {
+            // Only fail if this looks like a real data row with blank project.
+            panic!("AC9 blank project column; line={line:?}\nfull:\n{stdout}");
+        }
+        if !project_col.trim().is_empty() {
+            data_rows += 1;
+        }
+    }
+    assert!(
+        data_rows >= 1,
+        "AC9 expected ≥1 data row with non-empty project col; stdout:\n{stdout}"
+    );
+}
+
+/// AC15: forget --list-forgotten --global project column non-empty (shared run_inventory).
+#[test]
+fn forget_list_forgotten__global__project_col_non_empty() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "DECISION: T230 forget global unique-token-fgl",
+    );
+    forget_by_match(&vault, &proj, &id, "unique-token-fgl");
+
+    let (code, stdout, _) = run_forget_list(&vault, &["--global", "--limit", "5"], None);
+    assert_eq!(
+        code, 0,
+        "forget list-forgotten global exit 0; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("Scope: global"),
+        "Scope: global; got:\n{stdout}"
+    );
+    let mut data_rows = 0usize;
+    for line in stdout.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("Scope:")
+            || trimmed.starts_with("status=")
+            || trimmed.starts_with("memory_id")
+            || trimmed.starts_with("Showing")
+            || trimmed.starts_with("No forgotten")
+            || trimmed.is_empty()
+        {
+            continue;
+        }
+        let chars: Vec<char> = line.chars().collect();
+        if chars.len() < 57 {
+            continue;
+        }
+        let project_col: String = chars.iter().skip(37).take(20).collect();
+        assert!(
+            !project_col.trim().is_empty(),
+            "AC15 blank project column; line={line:?}\nfull:\n{stdout}"
+        );
+        data_rows += 1;
+    }
+    assert!(
+        data_rows >= 1,
+        "AC15 expected ≥1 forgotten row; stdout:\n{stdout}"
+    );
+}
