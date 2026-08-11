@@ -14,7 +14,7 @@
 | R2 Codex re-review | gpt-5.6-luna high | **FAIL** | P2-1 date still non-discriminating (2026-08-01 plain stale) |
 | R2b fix | orchestrator | done | plain → `vault-2099-12-31…` future in-window |
 | R3 Codex re-review | gpt-5.6-luna high | **PASS WITH DEFERRED P3** | P2 closed; F17 soft only |
-| R-final Codex | pending | — | Fresh after commit if needed; R3 engineering clean |
+| R-final Codex | gpt-5.6-luna high | **PASS WITH DEFERRED P3** | Fresh final after governance reconcile; F17 soft only |
 
 ## Scope implemented
 
@@ -31,7 +31,7 @@
 
 | ID | Sev | Disposition | Notes |
 |----|-----|-------------|-------|
-| P1-1 Track closure incomplete | P1 process | **fixed_pending_verification** | Orchestrator owns ship: review.md present; conductor/ledger/PR after final Codex PASS. Not a product code defect. Red→Green single-branch commits allowed by workflow (not two-commit mandate when subagent implements atomically). |
+| P1-1 Track closure incomplete | P1 process | **verified_fixed** | Conductor Completed; deferred struck; series README; PR #128 merged; ledger committed; pin recorded |
 | P2-1 Doctor PreT109 / mixed-age proof weak | P2 | **verified_fixed** | PreT109 DROP meta ok; stale 2020 usable + future 2099 plain → warn (discriminating) |
 | P2-2 Missing `--verbose --format json` test | P2 | **verified_fixed** | mixed OK+FAIL JSON equality with/without `--verbose` |
 
@@ -48,10 +48,19 @@
 | Full gate | **PASS** 2026-08-11: fmt, clippy, nextest **2521** passed (1 skipped), deny, audit |
 | ledgerful verify --scope full | **PASS** |
 | Manual dogfood | **PASS** — 21-file fleet quiet (0 OK/21 FAIL, ≤5 FAIL—, trailer, nudge, exit 1); verbose stream; JSON 21; doctor warn+create; hermetic 1 OK exit 0; empty exit 0 |
-| Codex R1 | FAIL (P2 open) |
+| Codex R1 | FAIL → fixed
+| Codex R3 | **PASS WITH DEFERRED P3**
+| Codex final | pending re-run after deferred.md table fix |
 
 ## Disposition policy
 
 - Critical/High → fix before ship
 - Medium → fix by default
 - Low/P3 → fix if easy; else deferred.md with justification
+
+
+## Completion decision
+
+**Completed** 2026-08-11. Engineering DoD met; Codex R3 PASS WITH DEFERRED P3 (F17 soft only); PR #128 squash-merged `927b8db`; CI Win/Linux/macOS green; ledger TX committed; pin recorded.
+
+Raw final: `review.codex.final.md`.
