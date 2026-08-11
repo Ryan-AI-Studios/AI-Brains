@@ -340,6 +340,9 @@ ai-brains sync query "path TOCTOU" --limit 5 --format pretty
 
 | Feature | Detail |
 |---------|--------|
+| **When to use** | Human vault **+ Ledgerful ledger** in one view. Agent/JSON → `recall`. Decision table: [§15](#15-typical-agent-workflows). |
+| **Always-pretty default (T231 F33)** | Default format is **pretty** even non-TTY (intentional human-first). Machines use `recall` JSON or explicit `--format ndjson`. `--format text` ≡ pretty path. |
+| **Project resolve (T231 F32)** | Missing/invalid/whitespace `AI_BRAINS_PROJECT_ID` → `Scope: project=(none)` vault-wide — **never** random UUID. `--global` → `Scope: global`. NDJSON `project_id` field is `""` when none. |
 | **Vault re-rank** | Same `recall_full` + `rerank_hits` path as `recall` (pin-type authority, plan demotion, recency). Default vault **`--limit` / `-l` = 5**. |
 | **Plan badge** | Demoted plan-class DECISION lines show **`[plan/stale?]`** before content (content heuristic ≠ governed lifecycle). |
 | **Ledger-first** | When not `--no-bridge`, vault is recalled first; if ledger JSON probe is non-empty **and** the top vault hit is plan-class, prints banner `Note: vault top hit is plan/stale; ledger results shown first.` then **ledger section before vault**. Fail/empty/missing `ledgerful` → vault-only (no panic). |
@@ -505,14 +508,31 @@ CLI gap-fill order (after optional elevation handoff override on elevated child 
 |--------|---------|
 | Session start | `preflight --summary` / `--pretty` |
 | “What did we decide?” | `recall "…" --semantic` |
-| Code + memory | `recall` or `sync query` |
 | Persist a decision | `pin "DECISION: …"` |
 | Correct a memory | `forget` / `restore` |
 | Sync brittle files | `safety sync` |
 | Overnight brain | `nightly` (+ schedule) |
 | Hygiene | `backup` · `project list` |
 
-End-to-end recipes: [WORKFLOWS.md](WORKFLOWS.md).
+### Start here: which search? (T231)
+
+Keep **two** commands — deliberate dual, not accidental dual:
+
+| Intent | Command |
+|--------|---------|
+| Human, vault only, TTY | `recall "…" --format pretty` (or bare `recall` on TTY) |
+| Agent / pipe / scripts | `recall "…"` (JSON) or `--format json` |
+| Human, vault **+ ledger** / plan vs shipped | `sync query "…" --format pretty` |
+| Embeddings / hybrid | `recall "…" --semantic` (not `sync query`) |
+| Machine stream of vault hits | `sync query "…" --format ndjson` **or** `recall --format json` |
+| Invalid `AI_BRAINS_PROJECT_ID` | **`recall`** → clap **exit 2**; **`sync query`** → vault-wide `Scope: project=(none)` exit **0** (F36 — clap env parse vs manual resolve; not converged) |
+| `text` format | **`sync query --format text`** ≡ pretty; **`recall --format text`** → JSON (undocumented fallthrough — F8) |
+
+**Project resolve (T231 F32 fix):** `sync query` missing / empty / whitespace / invalid `AI_BRAINS_PROJECT_ID` → `project_id = None` → `Scope: project=(none)` — **never** a random UUID. Valid UUID → scoped. `--global` → `Scope: global` (vault-wide).
+
+**Sync always-pretty (T231 F33 intentional):** `sync query` defaults to **pretty** even when non-TTY (human-first unified pane). Agents that need JSON should use `recall` (non-TTY default) or explicit `sync query --format ndjson`.
+
+End-to-end recipes: [WORKFLOWS.md](WORKFLOWS.md) (“Find something”).
 
 ---
 

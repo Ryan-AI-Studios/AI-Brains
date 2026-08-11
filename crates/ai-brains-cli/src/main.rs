@@ -135,6 +135,8 @@ enum Commands {
         dry_run: bool,
     },
     /// Recall memories based on a query
+    ///
+    /// Vault-first search (pretty on TTY, JSON when piped). For vault + Ledgerful ledger in one human view, use `sync query` (pretty).
     #[command(display_order = 10)]
     Recall {
         /// Query string, or `-` to read from stdin
@@ -1795,11 +1797,13 @@ pub enum SyncCommands {
         #[arg(long, short)]
         quiet: bool,
     },
-    /// Unified query across AI-Brains and Ledgerful
+    /// Unified query across AI-Brains vault and Ledgerful ledger
+    ///
+    /// Human vault + ledger pane (default format is always pretty). Agent/JSON path is `recall` (TTY pretty / non-TTY json).
     Query {
         /// The query string
         query: String,
-        /// Output format (pretty, text, ndjson)
+        /// Output format (pretty, text, ndjson). Default is always pretty (intentional human-first; agents use `recall` for JSON).
         #[arg(long)]
         format: Option<String>,
         /// Suppress daemon-down error messages

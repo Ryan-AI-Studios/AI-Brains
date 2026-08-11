@@ -307,6 +307,7 @@ pub fn run(
                 } else {
                     None
                 };
+                // T231 F12/F37: empty recall pretty includes ledger next-step (sync empty does not).
                 let hint = build_recall_hint(
                     &ctx.conn,
                     &options.query,
@@ -314,6 +315,7 @@ pub fn run(
                     options.global,
                     options.project_id,
                     embedding_status,
+                    true,
                 )?
                 .unwrap_or_default();
                 println!(
@@ -357,6 +359,7 @@ pub fn run(
         _ => {
             let mut response = response;
             if response.results.is_empty() {
+                // JSON agent path: no sync-query next-step (pretty-only discovery chrome).
                 response.hint = build_recall_hint(
                     &ctx.conn,
                     &options.query,
@@ -364,6 +367,7 @@ pub fn run(
                     options.global,
                     options.project_id,
                     embedding_status,
+                    false,
                 )?;
             }
             println!("{}", serde_json::to_string(&response)?);
@@ -475,9 +479,10 @@ pub fn print_pretty_hits(hits: &[ai_brains_retrieval::RecallHit]) {
     }
 }
 
-/// Print empty pretty recall body for `sync query` (T207 + T211 F37).
+/// Print empty pretty recall body for `sync query` (T207 + T211 F37 + T231 F37).
 ///
 /// Scope + next-action hint; no TTY gate. No session line (sync has no user session).
+/// Does **not** suggest `sync query` (no self-mention on the sync empty path).
 pub fn print_pretty_empty_sync(
     ctx: &AppContext,
     query: &str,
@@ -485,8 +490,9 @@ pub fn print_pretty_empty_sync(
     project_id: Option<ProjectId>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let scope_line = resolve_active_scope_line(ctx.conn.as_ref(), global, project_id.as_ref())?;
-    let hint =
-        build_recall_hint(&ctx.conn, query, false, global, project_id, None)?.unwrap_or_default();
+    // T231 F37/AC8b: include_sync_query_hint = false (no circular self-mention).
+    let hint = build_recall_hint(&ctx.conn, query, false, global, project_id, None, false)?
+        .unwrap_or_default();
     println!(
         "{}",
         format_pretty_empty_state(&scope_line, None, None, &hint)
@@ -595,7 +601,11 @@ fn format_pretty_empty_state(
     lines.join("\n")
 }
 
-/// Build a contextual hint when recall returns zero results (T111 / T202 F6 / T207 F6).
+/// Build a contextual hint when recall returns zero results (T111 / T202 F6 / T207 F6 / T231).
+///
+/// `include_sync_query_hint` (T231 F12/F37): when true, append ledger next-step after the
+/// core hint. Recall empty pretty passes true; `print_pretty_empty_sync` passes false
+/// so sync empty does not self-mention `sync query`.
 fn build_recall_hint(
     conn: &ai_brains_store::VaultConnection,
     query: &str,
@@ -603,10 +613,17 @@ fn build_recall_hint(
     global: bool,
     project_id: Option<ProjectId>,
     embedding_status: Option<&str>,
+    include_sync_query_hint: bool,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let project_scoped = !global && project_id.is_some();
-    let mut hint =
-        build_recall_hint_core(query, semantic, global, embedding_status, project_scoped);
+    let mut hint = build_recall_hint_core(
+        query,
+        semantic,
+        global,
+        embedding_status,
+        project_scoped,
+        include_sync_query_hint,
+    );
 
     if !global {
         let count = project_memory_count(conn, project_id)?;
@@ -629,12 +646,16 @@ fn build_recall_hint(
 ///
 /// T217: when non-semantic multi-token query has contentful keywords, append
 /// “try fewer keywords” via core token helpers (AC7 / AC7b).
+///
+/// T231 F12/F13/F37/F40: when `include_sync_query_hint`, append ledger next-step
+/// after the core lexical/semantic guidance (additive; not a replace).
 fn build_recall_hint_core(
     query: &str,
     semantic: bool,
     global: bool,
     embedding_status: Option<&str>,
     project_scoped: bool,
+    include_sync_query_hint: bool,
 ) -> String {
     let scope_clause = if !global && project_scoped {
         " Scoped to this project."
@@ -642,15 +663,15 @@ fn build_recall_hint_core(
         ""
     };
 
-    if global {
-        let mut hint = format!(
+    let mut hint = if global {
+        let mut h = format!(
             "No results for '{}' across all projects. The vault may be empty or the query may not match any memories.",
             query
         );
         if !semantic && ai_brains_core::should_suggest_fewer_keywords(query) {
-            hint.push_str(" try fewer keywords.");
+            h.push_str(" try fewer keywords.");
         }
-        hint
+        h
     } else if semantic {
         // Status field (or pretty line) already explains embed cause when != ok.
         let status_explains_cause = embedding_status.is_some_and(|s| s != "ok");
@@ -668,14 +689,37 @@ fn build_recall_hint_core(
         }
     } else {
         // T217 AC7/AC7b: fewer-keywords only via core helpers (contentful ≥ 1, tokens ≥ 3).
-        let mut hint = format!(
+        let mut h = format!(
             "No results for '{}'.{} Try --semantic for embedding-based search, or --global to search across all projects.",
             query, scope_clause
         );
         if ai_brains_core::should_suggest_fewer_keywords(query) {
-            hint.push_str(" try fewer keywords.");
+            h.push_str(" try fewer keywords.");
         }
-        hint
+        h
+    };
+
+    // T231 F13/F40: additive ledger next-step (gated by F37).
+    if include_sync_query_hint {
+        let q_display = sync_query_hint_query(query);
+        hint.push_str(&format!(
+            "\nFor vault + Ledgerful ledger in one view: ai-brains sync query \"{}\" --format pretty",
+            q_display
+        ));
+    }
+
+    hint
+}
+
+/// Choose a safe query fragment for the F13 next-step line (T231).
+///
+/// Short single-line queries are echoed; long or multi-line queries become `"…"`.
+fn sync_query_hint_query(query: &str) -> &str {
+    const MAX_LEN: usize = 80;
+    if query.is_empty() || query.contains('\n') || query.contains('\r') || query.len() > MAX_LEN {
+        "…"
+    } else {
+        query
     }
 }
 
@@ -738,7 +782,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn build_recall_hint__no_semantic_no_global__suggests_semantic_and_global() {
-        let hint = build_recall_hint_core("query", false, false, None, false);
+        let hint = build_recall_hint_core("query", false, false, None, false, false);
         assert!(
             hint.contains("Try --semantic"),
             "hint should suggest --semantic; got: {}",
@@ -754,7 +798,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn build_recall_hint__semantic_no_status__suggests_embedding_model() {
-        let hint = build_recall_hint_core("query", true, false, None, false);
+        let hint = build_recall_hint_core("query", true, false, None, false, false);
         assert!(
             hint.contains("semantic search"),
             "hint should mention semantic search; got: {}",
@@ -771,7 +815,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn build_recall_hint__semantic_unreachable_status__next_action_only_no_model_clause() {
         // AC15 / F6: when status already explains cause, hint is next-action only.
-        let hint = build_recall_hint_core("query", true, false, Some("unreachable"), false);
+        let hint = build_recall_hint_core("query", true, false, Some("unreachable"), false, false);
         assert!(
             hint.contains("--global") || hint.contains("refine") || hint.contains("import"),
             "hint should offer next actions; got: {}",
@@ -793,7 +837,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn build_recall_hint__semantic_ok_status__drops_model_check_clause() {
         // F33: embedding present → soft-shorten even when status is ok.
-        let hint = build_recall_hint_core("query", true, false, Some("ok"), false);
+        let hint = build_recall_hint_core("query", true, false, Some("ok"), false, false);
         assert!(!hint.contains("embedding model"), "got: {}", hint);
         assert!(hint.contains("--global"), "got: {}", hint);
     }
@@ -801,7 +845,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn build_recall_hint__global_used__notes_all_projects_empty() {
-        let hint = build_recall_hint_core("query", false, true, None, false);
+        let hint = build_recall_hint_core("query", false, true, None, false, false);
         assert!(
             hint.contains("across all projects"),
             "hint should note global scope; got: {}",
@@ -812,7 +856,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn recall_hint__no_results_pretty__hint_core_contains_no_results() {
-        let hint = build_recall_hint_core("zzzz", false, false, None, false);
+        let hint = build_recall_hint_core("zzzz", false, false, None, false, false);
         assert!(
             hint.contains("No results for 'zzzz'"),
             "hint should mention 'zzzz'; got: {}",
@@ -829,6 +873,7 @@ mod tests {
             false,
             false,
             None,
+            false,
             false,
         );
         assert!(
@@ -847,7 +892,14 @@ mod tests {
     #[allow(non_snake_case)]
     fn build_recall_hint__all_stopword_multi_token__no_fewer_keywords() {
         // AC7b: all-stopword multi-token must not suggest fewer keywords.
-        let hint = build_recall_hint_core("what did we do about this", false, false, None, false);
+        let hint = build_recall_hint_core(
+            "what did we do about this",
+            false,
+            false,
+            None,
+            false,
+            false,
+        );
         assert!(
             !hint.contains("try fewer keywords"),
             "all-stopword hint must not suggest fewer keywords; got: {}",
@@ -864,7 +916,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn build_recall_hint__project_scoped__includes_this_project_clause() {
         // B4 / F6 / F33: project_scoped adds "this project" without requiring alias.
-        let hint = build_recall_hint_core("zzzz", false, false, None, true);
+        let hint = build_recall_hint_core("zzzz", false, false, None, true, false);
         assert!(
             hint.contains("this project") || hint.contains("Scoped to this project"),
             "project-scoped hint must mention scoped clause; got: {}",
@@ -884,6 +936,53 @@ mod tests {
         assert!(
             !hint.contains("test-alias"),
             "core must not embed alias (F4 owns name); got: {}",
+            hint
+        );
+    }
+
+    // --- T231 F12/F13/F37 AC8 ---
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__include_sync_query_hint_true__appends_ledger_next_step() {
+        // AC8: flag true includes F13 substring.
+        let hint = build_recall_hint_core("probe-term", false, false, None, false, true);
+        assert!(
+            hint.contains("sync query"),
+            "AC8: flag true must include sync query next-step; got: {}",
+            hint
+        );
+        assert!(
+            hint.contains("For vault + Ledgerful ledger in one view:"),
+            "AC8: F13 lead-in must be present; got: {}",
+            hint
+        );
+        assert!(
+            hint.contains("probe-term"),
+            "AC8: reasonable-length query echoed in next-step; got: {}",
+            hint
+        );
+        // Core guidance still present (F40 additive).
+        assert!(
+            hint.contains("--semantic") || hint.contains("--global"),
+            "AC8: core hint must remain; got: {}",
+            hint
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_recall_hint__include_sync_query_hint_false__no_sync_query_self_mention() {
+        // AC8b unit: flag false does not include F13.
+        let hint = build_recall_hint_core("probe-term", false, false, None, false, false);
+        assert!(
+            !hint.contains("sync query"),
+            "flag false must not mention sync query; got: {}",
+            hint
+        );
+        assert!(
+            !hint.contains("Ledgerful ledger in one view"),
+            "flag false must not include F13 lead-in; got: {}",
             hint
         );
     }
