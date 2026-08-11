@@ -394,6 +394,9 @@ pub fn source_row_to_dto(row: &SourceRow) -> SourceDto {
 }
 
 /// Rehydrate [`ScopeRef`] from a stored scope identity key.
+///
+/// Kind prefix is matched case-insensitively (`repository:` ≡ `Repository:`);
+/// canonical wire form is always produced by [`scope_identity_key`] (T226 F23/AC12).
 pub fn parse_scope_key(key: &str) -> Result<ScopeRef> {
     use ai_brains_core::ids::{ProjectId, UserId, WorkspaceId};
     use uuid::Uuid;
@@ -404,24 +407,24 @@ pub fn parse_scope_key(key: &str) -> Result<ScopeRef> {
         })
     };
 
-    if let Some(rest) = key.strip_prefix("Repository:") {
-        Ok(ScopeRef::Repository(ProjectId::from_uuid(parse_uuid(
+    let (kind, rest) = key.split_once(':').ok_or_else(|| {
+        ControlPlaneError::InvalidPayload(format!("unparseable scope key: {key}"))
+    })?;
+    match kind.to_ascii_lowercase().as_str() {
+        "repository" => Ok(ScopeRef::Repository(ProjectId::from_uuid(parse_uuid(
             rest,
             "Repository",
-        )?)))
-    } else if let Some(rest) = key.strip_prefix("Workspace:") {
-        Ok(ScopeRef::Workspace(WorkspaceId::from_uuid(parse_uuid(
+        )?))),
+        "workspace" => Ok(ScopeRef::Workspace(WorkspaceId::from_uuid(parse_uuid(
             rest,
             "Workspace",
-        )?)))
-    } else if let Some(rest) = key.strip_prefix("Personal:") {
-        Ok(ScopeRef::Personal(UserId::from_uuid(parse_uuid(
+        )?))),
+        "personal" => Ok(ScopeRef::Personal(UserId::from_uuid(parse_uuid(
             rest, "Personal",
-        )?)))
-    } else {
-        Err(ControlPlaneError::InvalidPayload(format!(
+        )?))),
+        _ => Err(ControlPlaneError::InvalidPayload(format!(
             "unparseable scope key: {key}"
-        )))
+        ))),
     }
 }
 
@@ -450,4 +453,56 @@ pub(crate) fn ensure_valid_time_interval(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)] // repo test naming: feature__condition__expected
+#[allow(clippy::disallowed_methods)] // unit tests may assert with unwrap/expect
+mod parse_scope_key_tests {
+    use super::{parse_scope_key, scope_identity_key};
+    use ai_brains_core::ids::ProjectId;
+    use ai_brains_core::scope::ScopeRef;
+    use uuid::Uuid;
+
+    const PROJECT: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+    #[test]
+    fn parse_scope_key__lowercase_kind__canonical_identity() {
+        let lower = format!("repository:{PROJECT}");
+        let upper = format!("Repository:{PROJECT}");
+        let mixed = format!("RePoSiToRy:{PROJECT}");
+        let s_lower = parse_scope_key(&lower).expect("lowercase kind");
+        let s_upper = parse_scope_key(&upper).expect("canonical kind");
+        let s_mixed = parse_scope_key(&mixed).expect("mixed-case kind");
+        let expected = ScopeRef::Repository(ProjectId::from_uuid(
+            Uuid::parse_str(PROJECT).expect("uuid"),
+        ));
+        assert_eq!(s_lower, expected);
+        assert_eq!(s_upper, expected);
+        assert_eq!(s_mixed, expected);
+        let canon = scope_identity_key(&s_lower);
+        assert_eq!(canon, upper);
+        assert_eq!(scope_identity_key(&s_mixed), upper);
+    }
+
+    #[test]
+    fn parse_scope_key__unknown_kind__invalid_payload() {
+        let err = parse_scope_key("NotAKind:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+            .expect_err("unknown kind");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("unparseable") || msg.contains("NotAKind"),
+            "expected unparseable kind error; got {msg}"
+        );
+    }
+
+    #[test]
+    fn parse_scope_key__malformed_no_colon__invalid_payload() {
+        let err = parse_scope_key("not-a-key").expect_err("no colon");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("unparseable"),
+            "expected unparseable; got {msg}"
+        );
+    }
 }

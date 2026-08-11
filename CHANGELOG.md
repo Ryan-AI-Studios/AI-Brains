@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Changed
+
+- **T226 Policy show/check soft-resolve scope:** `policy show` and `policy check` accept optional `--scope` and soft-fill from authoritative project context (`AI_BRAINS_PROJECT_ID` / cwd identity) via the same `resolve_scope_key_for_cli` helper as discovery lists and `policy bootstrap`. Omit + non-authoritative → `fail_usage` exit **2** (template class, not clap “required arguments”). After resolve, scope is always canonicalized (`parse_scope_key` → `scope_identity_key`) for grant queries, deny messages, and `CheckResult.scope`. `--capability` on check stays clap-required; erasure / `review resolve` stay clap-required. Docs: CLI-EXIT-CODES, CAPABILITIES, OPERATIONS.
+
 ### Added
 
 - **T222 Graph-on install path:** Local PATH rebuild scripts (`scripts/Build-AIBrains.ps1`, `scripts/build.ps1`) build CLI with `--features graph` and fail-closed post-install probe (`doctor` `graph_feature=available` + non-`FEATURE_UNAVAILABLE` on `graph update` against a known-missing temp vault). Doctor soft check **`graph_feature`** (compile-time `available`|`unavailable`; Ok severity; remediation = `GRAPH_REINSTALL_SOOT` when unavailable; never alone fail/degraded); matrix **13** checks (`graph_feature` before `graph_density`, includes `harness_wiring`). Single SOOT constant `GRAPH_REINSTALL_SOOT` shared by feature-off stubs, doctor remediation, and empty-lag install substring. **A2=no** — Cargo `default = []` and release.yml unchanged. CAPABILITIES doctor list **11→13**. Feeds T232 density remediation branching.

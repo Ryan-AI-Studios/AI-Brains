@@ -20,11 +20,12 @@ fn init_vault(vault_path: &std::path::Path) {
 }
 
 // ---------------------------------------------------------------------------
-// (1) / AC2 — policy show missing --scope → exit 2
+// T226 AC1 — policy show omit scope + non-authoritative → fail_usage exit 2
 // ---------------------------------------------------------------------------
 
 #[test]
-fn policy_show__missing_scope__exit_2() {
+fn policy_show__missing_scope_no_context__exit_2_fail_usage() {
+    // T226 F3/M2: soft-resolve fail_usage (runtime exit 2), not clap "required arguments".
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
@@ -35,14 +36,73 @@ fn policy_show__missing_scope__exit_2() {
         .arg(&vault)
         .arg("policy")
         .arg("show")
+        .arg("--format")
+        .arg("json")
         .output()
         .expect("policy show missing scope");
 
     assert_eq!(
         out.status.code(),
         Some(2),
-        "missing --scope must exit 2 (clap USAGE); stderr={}",
+        "missing --scope must exit 2 (fail_usage); stderr={}",
         String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("required arguments were not provided"),
+        "must not be clap required-argument text: {stderr}"
+    );
+    assert!(
+        stderr.contains("--scope") || stderr.contains("scope resolve"),
+        "fail_usage template expected: {stderr}"
+    );
+    assert!(
+        stderr.contains("not filled silently") || stderr.contains("not authoritative"),
+        "non-authoritative note expected: {stderr}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T226 AC2 — policy check omit scope + non-authoritative → fail_usage exit 2
+// ---------------------------------------------------------------------------
+
+#[test]
+fn policy_check__missing_scope_no_context__exit_2_fail_usage() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--capability")
+        .arg("ReadEvidence")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy check missing scope");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "missing --scope must exit 2 (fail_usage); stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("required arguments were not provided"),
+        "must not be clap required-argument text: {stderr}"
+    );
+    assert!(
+        stderr.contains("--scope") || stderr.contains("scope resolve"),
+        "fail_usage template expected: {stderr}"
+    );
+    assert!(
+        stderr.contains("not filled silently") || stderr.contains("not authoritative"),
+        "non-authoritative note expected: {stderr}"
     );
 }
 
@@ -311,11 +371,12 @@ fn policy_check__unknown_capability__exit_6_invalid_payload() {
 }
 
 // ---------------------------------------------------------------------------
-// AC11 — clap help shows --scope required on flipped commands
+// AC11 / T226 AC3 — help: soft-default for show/check; clap-required for erasure
 // ---------------------------------------------------------------------------
 
 /// Required clap long options appear in the Usage line as `--scope <SCOPE>` without
 /// surrounding `[]`. Optional ones appear as `[--scope <SCOPE>]`.
+/// Retained for erasure (T226 F12/M3) — do not use for policy show/check.
 fn assert_help_scope_required(stdout: &str, cmd: &str) {
     let usage_line = stdout
         .lines()
@@ -338,7 +399,10 @@ fn assert_help_scope_required(stdout: &str, cmd: &str) {
 }
 
 #[test]
-fn policy_show__help__scope_required() {
+fn policy_show__help__scope_optional_soft_default() {
+    // T226 AC3/O4: --scope optional; soft-resolve when authoritative.
+    // Clap required form is `Usage: … [OPTIONS] --scope <SCOPE>`; optional is
+    // `Usage: … [OPTIONS]` only (flag documented under Options, not Usage).
     let out = common::hermetic_bin()
         .arg("policy")
         .arg("show")
@@ -348,7 +412,59 @@ fn policy_show__help__scope_required() {
 
     assert_eq!(out.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert_help_scope_required(&stdout, "policy show");
+    assert!(
+        stdout.contains("--scope"),
+        "policy show help must still document --scope; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("soft-resolves") || stdout.contains("soft-resolve"),
+        "policy show help must mention soft-resolve; got: {stdout}"
+    );
+    let usage_line = stdout
+        .lines()
+        .find(|l| l.trim_start().starts_with("Usage:"))
+        .unwrap_or("");
+    assert!(
+        usage_line.contains("[OPTIONS]"),
+        "policy show Usage must include [OPTIONS]; usage={usage_line}"
+    );
+    assert!(
+        !usage_line.contains("--scope"),
+        "policy show Usage must not hard-require --scope (regression lock); usage={usage_line}"
+    );
+}
+
+#[test]
+fn policy_check__help__scope_optional_soft_default() {
+    let out = common::hermetic_bin()
+        .arg("policy")
+        .arg("check")
+        .arg("--help")
+        .output()
+        .expect("policy check --help");
+
+    assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("--scope"),
+        "policy check help must still document --scope; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("soft-resolves") || stdout.contains("soft-resolve"),
+        "policy check help must mention soft-resolve; got: {stdout}"
+    );
+    let usage_line = stdout
+        .lines()
+        .find(|l| l.trim_start().starts_with("Usage:"))
+        .unwrap_or("");
+    assert!(
+        usage_line.contains("[OPTIONS]"),
+        "policy check Usage must include [OPTIONS]; usage={usage_line}"
+    );
+    assert!(
+        !usage_line.contains("--scope"),
+        "policy check Usage must not hard-require --scope (regression lock); usage={usage_line}"
+    );
 }
 
 #[test]
@@ -390,4 +506,79 @@ fn erasure_request__help__scope_required() {
     assert_eq!(out.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert_help_scope_required(&stdout, "erasure request");
+}
+
+// ---------------------------------------------------------------------------
+// T226 AC7 — malformed explicit --scope → exit 6 class (fail_cp)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn policy_show__malformed_explicit_scope__exit_6_class() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("show")
+        .arg("--scope")
+        .arg("not-a-key")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy show malformed scope");
+
+    assert_eq!(
+        out.status.code(),
+        Some(6),
+        "malformed explicit --scope must exit 6; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    // fail_cp Json: ApiError on stdout with INVALID_PAYLOAD (control-plane class).
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("INVALID_PAYLOAD") || stdout.contains("unparseable"),
+        "AC7 must surface control-plane payload error; got: {stdout}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T226 AC8 — policy check missing --capability stays clap-required
+// ---------------------------------------------------------------------------
+
+#[test]
+fn policy_check__missing_capability__clap_required_exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    // Scope may be present or omit; capability stays clap-required (opposite of AC1/AC2).
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--scope")
+        .arg(SAMPLE_SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy check missing capability");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "missing --capability must exit 2 (clap USAGE); stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("required arguments were not provided"),
+        "expected clap English for missing --capability; got: {stderr}"
+    );
 }
