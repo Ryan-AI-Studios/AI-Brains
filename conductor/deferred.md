@@ -50,7 +50,7 @@ Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). 
 | ~~Recall empty pretty blank + scope opacity (audit FTS 3/3)~~ | **Closed by T207** (2026-08-04) PR #90 `95b516a` — F3 always-on empty pretty hint; F4 empty Scope + F32 `get_project_by_id`; F5 omit generated Session; F6 no name dupe |
 | T207 residuals (AC10 / soft L2) | Soft: AC10 non-empty pretty Scope (M3); soft L2 combined count+name query if not shipped |
 
-Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370`; ~~**T219**~~ **closed** PR #118 `496ddd7`; ~~**T224**~~ **closed** PR #120 `a18fae6`; ~~**T222**~~ **closed** PR #122 `c1ac594`; ~~**T232**~~ **closed** PR #124 `33b28d0`; ~~**T223**~~ **closed** PR #126 `7ff8f7f`; **T225** **Planning** (backup verify quiet + doctor usable nudge); remaining placeholders (policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
+Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit series complete). **Next series T217–T232** (post-audit CLI quality): ~~**T217**~~ **closed** PR #110 `1e22e77`; ~~**T220**~~ **closed** PR #112 `6f4f67b`; ~~**T221**~~ **closed** PR #114 `b3c4b0f`; ~~**T218**~~ **closed** PR #116 `fc4d370`; ~~**T219**~~ **closed** PR #118 `496ddd7`; ~~**T224**~~ **closed** PR #120 `a18fae6`; ~~**T222**~~ **closed** PR #122 `c1ac594`; ~~**T232**~~ **closed** PR #124 `33b28d0`; ~~**T223**~~ **closed** PR #126 `7ff8f7f`; ~~**T225**~~ **closed** PR #128 `927b8db`; remaining placeholders (policy soft-scope, briefing format, non-empty Scope, nightly+router ops, global labels, unified search). See [README-T217-T232-CLI-QUALITY.md](tracks/README-T217-T232-CLI-QUALITY.md). Packaging residual: MSI / notarization / App Store + R-CI-BRANCH. Residual honesty: daemon `AI_BRAINS_VAULT_KEY` silent zero (T199 F16 / T205 F14).
 
 ### T213 closeout residuals (2026-08-05) — density doctor shipped
 
@@ -119,7 +119,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~Graph-off PATH usefulness 3~~ | **Closed by T222** PR #122 `c1ac594` — scripts graph-on + doctor `graph_feature`; A2=no; soft residual T232 density remediations |
 | ~~`.env` override double-warn spam~~ | **Closed by T223** PR #126 `7ff8f7f` — one collapsed Warning line; session-only debug; `AI_BRAINS_QUIET_ENV_WARN` shell/project only; soft residual F18 clap/truthy-core/global-reorder |
 | ~~ASSISTANT: in search paths~~ | **Closed by T224** PR #120 `a18fae6` — pretty + forget previews strip; JSON/events raw; soft residual truncate triplication / JSON preview field |
-| Backup verify noise + legacy fleet | **T225** Planning (quiet summary + doctor usable nudge) — plan-only until go |
+| ~~Backup verify noise + legacy fleet~~ | **Closed by T225** PR #128 `927b8db` — quiet summary + first 5 FAIL — + create nudge; doctor usable/stale; soft residual F17 |
 | policy show/check required scope | **T226** Placeholder |
 | Briefing human→JSON; empty personal | **T227** Placeholder |
 | Non-empty pretty Scope (T207 soft) | **T228** Placeholder |
@@ -1202,3 +1202,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 | truncate_preview triplication (ingest/pin) | Soft F14 residual from T224 — not DoD |
 | Optional JSON `preview` / `--strip-roles` | Soft F6 residual from T224 |
 | Promote `strip_role_prefix` to core | Soft residual (retrieval converge) |
+
+### T225 (2026-08-11) soft residuals
+- F17: verify `--quiet`; JSON `summary` field; structured `VerifyError` / 4-class rollup (O1); optional 3-class substring rollup omitted (M5)
+- Operator still runs `ai-brains backup create` on live encrypted vaults

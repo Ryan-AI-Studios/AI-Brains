@@ -1,9 +1,9 @@
 # T225 — Backup verify quiet + encrypted backup nudge — Plan
 
-**Status:** Implementation complete — Codex R3 PASS WITH DEFERRED P3; awaiting PR/CI merge + closeout
+**Status:** ✅ **Completed** 2026-08-11 — PR #128 squash `927b8db`; Codex R3 PASS WITH DEFERRED P3
 **Category:** UX  
 **Depends:** T131 / T138 / T187 / T198 / T209 / T192 doctor  
-**Ledger on go:** `ledgerful ledger start T225-backup-verify-quiet-nudge --category UX --message "Quiet-by-default backup verify summary + doctor usable-backup create nudge"`
+- [x] `ledgerful ledger start/commit T225-backup-verify-quiet-nudge` — TX `2b97a127-cdd6-4973-802a-b4218ac94479` **committed**
 
 ## Goal
 
@@ -92,7 +92,7 @@ No usable encrypted backup under current key. Run: ai-brains backup create
 - [x] `ai-brains preflight --summary`
 - [x] `ledgerful doctor` / `ledgerful ledger status --compact`
 - [x] `ledgerful scan --impact` (expect `backup.rs`, `doctor.rs`, `main.rs`, tests, CAPABILITIES)
-- [x] `ledgerful ledger start T225-backup-verify-quiet-nudge --category UX …` (TX open by orchestrator)
+- [x] `ledgerful ledger start/commit T225-backup-verify-quiet-nudge` — TX `2b97a127-cdd6-4973-802a-b4218ac94479` **committed**
 
 ### Phase 1 — Red: pure formatters (AC1, AC6, F3/F8)
 
@@ -148,7 +148,7 @@ No usable encrypted backup under current key. Run: ai-brains backup create
 - [x] CAPABILITIES §11: quiet default, verbose = full only, doctor usable, list→verify still valid + now quiet
 - [x] CHANGELOG T225
 - [x] Soft OPERATIONS / RECOVERY-DRILLS
-- [ ] conductor / deferred / series README on ship
+- [x] conductor / deferred / series README on ship
 
 ### Phase 6 — Gate + manual (AC11–AC12)
 
