@@ -529,6 +529,8 @@ pub(crate) fn format_endpoint_line(
 /// Quote-aware CSV field split (T229 F6b) — for next-run only (cols 0–2).
 ///
 /// Live Windows `schtasks /FO CSV` has only three columns; do **not** parse Last Result from CSV.
+/// Production callers are `cfg(windows)`; pure helpers stay available for unit tests on all OSes.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn split_csv_fields_quote_aware(line: &str) -> Vec<String> {
     let mut fields = Vec::new();
     let mut cur = String::new();
@@ -559,6 +561,7 @@ pub(crate) fn split_csv_fields_quote_aware(line: &str) -> Vec<String> {
 }
 
 /// Extract next-run time from a schtasks CSV data line (column 1), or `None` if unusable.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn next_run_from_schtasks_csv_line(line: &str) -> Option<String> {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -573,6 +576,7 @@ pub(crate) fn next_run_from_schtasks_csv_line(line: &str) -> Option<String> {
 ///
 /// - Missing next_run → `Scheduled: No …`
 /// - `include_last_result`: Windows only; missing last_result → `unknown`
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn format_schedule_status_lines(
     next_run: Option<&str>,
     last_result: Option<&str>,
@@ -596,6 +600,7 @@ pub(crate) fn format_schedule_status_lines(
 }
 
 /// Parse PowerShell `LastTaskResult` stdout (trim; empty → None).
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn parse_last_task_result_ps_stdout(stdout: &str) -> Option<String> {
     let t = stdout.trim();
     if t.is_empty() {
@@ -606,6 +611,7 @@ pub(crate) fn parse_last_task_result_ps_stdout(stdout: &str) -> Option<String> {
 }
 
 /// Soft parse of English `schtasks /FO LIST /V` `Last Result:` line (locale-sensitive fallback).
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn parse_last_result_list_v(stdout: &str) -> Option<String> {
     for line in stdout.lines() {
         let line = line.trim();
