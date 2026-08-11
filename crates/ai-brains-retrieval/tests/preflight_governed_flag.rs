@@ -272,9 +272,7 @@ fn preflight__governed_grant_denial__empties_authority_sections() {
         ctx.text
     );
     assert!(
-        ctx.text.contains("Denied")
-            || ctx.text.contains("_None_")
-            || ctx.text.contains("denied"),
+        ctx.text.contains("Denied") || ctx.text.contains("_None_") || ctx.text.contains("denied"),
         "denial signal expected: {}",
         ctx.text
     );
