@@ -17,6 +17,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T233 Path-alias multi-root nightly:** `project register-path <id|alias> <path>` → control-plane `register_path_alias` with F21 conflict pre-check (other owner exit **1**; same project idempotent). Store `list_path_aliases` / `find_path_alias_owner`. Nightly **Phase 2** walks registered roots (sorted ASC; optional `AI_BRAINS_NIGHTLY_MAX_ROOTS`) with explicit `current_dir(root)` for MADR + `ledgerful symbols --pub --json` (0163; no SQL inventory; no System32 cwd dependence). Symbol content non-route; ingest cap default 5000 (`AI_BRAINS_NIGHTLY_MAX_SYMBOLS`); multi-pass on truncated. Docs: OPERATIONS multi-root / register-path vs set-alias / `ledgerful init` once per root; CAPABILITIES path aliases + Phase 2.
 - **T229 Nightly + local router ops:** `nightly --status` shows Completion/Embedding host:port + model + soft probe (`ok`/`down`/`timeout`/`error`, 2s via `LlamaCppProvider::probe_health` — no CLI `reqwest`); Windows **Last task result** from `Get-ScheduledTaskInfo` (not CSV col 5); pre-summarize soft probe after multi-import (non-fatal). **F5** UTF-8-safe embed truncate (`floor_char_boundary`, no mid-char panic / Task Scheduler 101). **F13** nightly `AI_BRAINS_PROJECT_ID` resolve → nil UUID sentinel (never random `ProjectId::default()`). Docs: OPERATIONS local router `:8081`/`:8083`, dual schedule paths, Last Result 101; CAPABILITIES §8 status bullets.
 
 ### Changed

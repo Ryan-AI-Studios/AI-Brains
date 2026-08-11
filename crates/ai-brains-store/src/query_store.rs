@@ -384,6 +384,47 @@ impl QueryStore for VaultConnection {
         }
     }
 
+    fn list_path_aliases(&self) -> Result<Vec<(ProjectId, String)>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare(
+            "SELECT project_id, normalized_path
+             FROM repository_path_alias_projection
+             ORDER BY normalized_path ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let project_id: String = row.get(0)?;
+            let normalized_path: String = row.get(1)?;
+            Ok((project_id, normalized_path))
+        })?;
+        let mut results = Vec::new();
+        for row in rows {
+            let (pid_s, path) = row?;
+            let project_id = ProjectId::from_str(&pid_s)
+                .map_err(|e| StoreError::EventReadFailed(e.to_string()))?;
+            results.push((project_id, path));
+        }
+        Ok(results)
+    }
+
+    fn find_path_alias_owner(&self, normalized_path: &str) -> Result<Option<ProjectId>> {
+        let conn = self.lock()?;
+        let res: Option<String> = conn
+            .query_row(
+                "SELECT project_id FROM repository_path_alias_projection
+                 WHERE normalized_path = ?",
+                [normalized_path],
+                |row| row.get(0),
+            )
+            .optional()?;
+
+        match res {
+            Some(s) => Ok(Some(
+                ProjectId::from_str(&s).map_err(|e| StoreError::EventReadFailed(e.to_string()))?,
+            )),
+            None => Ok(None),
+        }
+    }
+
     fn get_max_turn_index(&self, session_id: &SessionId) -> Result<Option<i32>> {
         let conn = self.lock()?;
         let res: Option<i32> = conn

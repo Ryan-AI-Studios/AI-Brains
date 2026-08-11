@@ -1632,6 +1632,16 @@ pub enum ProjectCommands {
         /// Alias name (e.g. "ai-brains", "my-app")
         alias: String,
     },
+    /// Register a filesystem path alias for multi-root nightly bridge (T233)
+    #[command(
+        after_help = "Examples:\n  ai-brains project register-path <uuid> C:\\dev\\AI-Brains\n  ai-brains project register-path my-alias C:\\dev\\ledgerful\n  ai-brains project register-path <uuid> /mnt/c/dev/AI-Brains\nset-alias is a human label; register-path is a disk root for Phase-2 Ledgerful bridge.\nSame normalized path may only belong to one project (conflict exit 1)."
+    )]
+    RegisterPath {
+        /// Project UUID or human alias (from `project list` / `set-alias`)
+        project_ref: String,
+        /// Filesystem path to register (Windows or WSL form; normalized for compare)
+        path: String,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -3521,6 +3531,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             ProjectCommands::Detect { export } => commands::project::detect(&ctx, *export),
             ProjectCommands::SetAlias { project_id, alias } => {
                 commands::project::set_alias(&ctx, project_id, alias)
+            }
+            ProjectCommands::RegisterPath { project_ref, path } => {
+                commands::project::register_path(&ctx, project_ref, path)
             }
         },
         #[cfg(feature = "graph")]

@@ -1,0 +1,15 @@
+**P0**
+- None.
+
+**P1**
+- [symbol_bridge.rs](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:264>) still has a silent-truncation path that violates F37. When the root pass returns `truncated=true`, a child `ledgerful symbols` soft-failure is converted in [symbol_bridge.rs](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:329>) into `Ok((Vec::new(), false))` for nonzero exit, parse failure, or `ParseOutcome::Skip` at lines [349](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:349>), [359](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:359>), [365](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:365>), and [373](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:373>). `multi_pass_at` then treats that child as fully covered, and [collect_symbols_from_passes](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:151>) can clear the original truncation flag. Result: a transient child failure can make nightly report a partial inventory as complete, which is exactly the “never silent complete” case this track is supposed to prevent.
+
+**P2**
+- The track governance/docs still state that T233 is plan-only and must not have production code until `go`, but this branch already contains the production implementation: [main.rs](<C:/dev/AI-Brains/crates/ai-brains-cli/src/main.rs:1639>), [project.rs](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/project.rs:483>), [nightly.rs](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/nightly.rs:517>), and [symbol_bridge.rs](<C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/symbol_bridge.rs:70>). The metadata still says otherwise in [spec.md](<C:/dev/AI-Brains/conductor/tracks/trackT233-path-alias-multiroot-nightly/spec.md:5>), [spec.md](<C:/dev/AI-Brains/conductor/tracks/trackT233-path-alias-multiroot-nightly/spec.md:242>), [plan.md](<C:/dev/AI-Brains/conductor/tracks/trackT233-path-alias-multiroot-nightly/plan.md:3>), [plan.md](<C:/dev/AI-Brains/conductor/tracks/trackT233-path-alias-multiroot-nightly/plan.md:301>), [plan.md](<C:/dev/AI-Brains/conductor/tracks/trackT233-path-alias-multiroot-nightly/plan.md:305>), [conductor.md](<C:/dev/AI-Brains/conductor/conductor.md:180>), and [deferred.md](<C:/dev/AI-Brains/conductor/deferred.md:130>). That leaves the branch out of compliance with the “docs/claims/governance agree” part of the review brief and the track’s own DoD.
+
+**P3**
+- None.
+
+**Assumptions / Limits**
+- I did not rerun `nextest`, `clippy`, or the full gate in this session because the workspace is read-only. I relied on the checked-in code, tests, `review.md`, and the gate results stated in your prompt.
+- I did not find evidence of leftover SQL inventory access or a remaining production `.take(500)` cap in the touched implementation; those parts appear to be removed as intended.

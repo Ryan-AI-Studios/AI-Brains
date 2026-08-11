@@ -81,6 +81,19 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         &self,
         alias: &str,
     ) -> Result<Option<ai_brains_core::ids::ProjectId>>;
+    /// All registered path aliases for nightly multi-root Phase 2 (T233).
+    ///
+    /// Rows from `repository_path_alias_projection`, ordered by
+    /// `normalized_path ASC`. Each entry is `(project_id, normalized_path)`.
+    fn list_path_aliases(&self) -> Result<Vec<(ai_brains_core::ids::ProjectId, String)>>;
+    /// Owner of a normalized path alias, if any (T233 F21 conflict check).
+    ///
+    /// `normalized_path` must already be normalized via
+    /// `ai_brains_path::normalize_for_location_compare`.
+    fn find_path_alias_owner(
+        &self,
+        normalized_path: &str,
+    ) -> Result<Option<ai_brains_core::ids::ProjectId>>;
     fn get_max_turn_index(&self, session_id: &SessionId) -> Result<Option<i32>>;
     fn get_sync_state(&self, key: &str) -> Result<Option<String>>;
     fn get_last_nightly_run(&self) -> Result<Option<String>>;
