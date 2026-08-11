@@ -1,9 +1,9 @@
 # T227 — Briefing format honesty + substance — Plan
 
-**Status:** 🔄 In Progress  
+**Status:** ✅ Completed (PR #132 `40c7cd1`, 2026-08-11)  
 **Category:** UX / FEATURE  
 **Depends:** T152 · T202 · T210 · T221  
-- [x] `ledgerful ledger start T227-briefing-format-substance` (on go)
+- [x] `ledgerful ledger start T227-briefing-format-substance` (FEATURE TX)
 
 ## Goal
 
@@ -131,7 +131,7 @@ See `spec.md` §3 **F1–F36**. Hard summary:
 - [x] Cross-model Codex R1 (product PASS; process P2 = closeout after merge)
 - [x] Full gate + `ledgerful verify --scope full` (2548 + deny/audit)
 - [x] Manual dogfood evidence (help aliases; banana exit 2)
-- [ ] conductor ✅; deferred strike; series README; ledger commit; pin if non-obvious (post-merge closeout)
+- [x] conductor ✅; deferred strike; series README; ledger commit; pin if non-obvious (closeout)
 
 ## Manual dogfood (record on implement)
 

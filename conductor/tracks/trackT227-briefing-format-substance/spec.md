@@ -2,7 +2,7 @@
 
 - **Track ID:** T227-BriefingFormatSubstance
 - **Phase:** Post-audit CLI quality series (T217–T232) — P2 polish after T226
-- **Status:** 🔄 **In Progress**
+- **Status:** ✅ **Completed** (PR #132 `40c7cd1`, 2026-08-11)
 - **Depends on:** T152 briefings ✅; T202 F7–F9 deny + TTY markdown default ✅; T210 bootstrap ✅; T221 soft briefing deny exit 0 kept ✅
 - **Blocks / feeds:** Operators who type `--format human` (preflight/recall vocabulary) stop getting silent JSON; empty allowed briefings stop looking like broken product; next honesty **T228** non-empty recall Scope
 - **Category:** UX / FEATURE (light) / DOCS
@@ -11,7 +11,7 @@
 - **Not absorbed:** #18 session-synthesis continuity fill; inject legacy MemoryPinned / preflight pins into briefing authority; flip briefing soft deny to exit 3 (T221 F7 keep); progressive human pretty (T202 F28); clap 5 / clap ValueEnum DoD; MSI; fix `OutputFormat::parse` silent-JSON for all governed commands (residual); `--quiet` footer suppress
 - **Research date:** 2026-08-11 (live dogfood + code truth + clig.dev / clap pins)
 - **AI fold-in:** 2026-08-11 — AI1 **M1–M4 hard**; **L1–L3** hard; **O1–O2** hard. AI2 **M1–M4 hard** (preflight share, OutputFormat residual, trim pin, warning-kind doc); **L1–L4/L6** hard; **L5** soft; **O3/O5** elevate DoD; **O1/O2/O4/O6** soft residual. Disposition **§15**.
-- **Ledger:** plan-only until go (`ledgerful ledger start` on go)
+- **Ledger:** FEATURE TX committed on closeout; product PR #132 `40c7cd1`
 
 ## 1. Objective
 
