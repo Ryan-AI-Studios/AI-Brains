@@ -120,7 +120,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | ~~`.env` override double-warn spam~~ | **Closed by T223** PR #126 `7ff8f7f` — one collapsed Warning line; session-only debug; `AI_BRAINS_QUIET_ENV_WARN` shell/project only; soft residual F18 clap/truthy-core/global-reorder |
 | ~~ASSISTANT: in search paths~~ | **Closed by T224** PR #120 `a18fae6` — pretty + forget previews strip; JSON/events raw; soft residual truncate triplication / JSON preview field |
 | ~~Backup verify noise + legacy fleet~~ | **Closed by T225** PR #128 `927b8db` — quiet summary + first 5 FAIL — + create nudge; doctor usable/stale; soft residual F17 |
-| policy show/check required scope | **T226** Planning + AI fold-in 2026-08-11 (implement on go) |
+| ~~policy show/check required scope~~ | **Closed by T226** PR #130 `5919f26` — soft-resolve show\|check + F23 canonicalize; soft residual O1 shared wrapper / bootstrap success soft hermetic |
 | Briefing human→JSON; empty personal | **T227** Placeholder |
 | Non-empty pretty Scope (T207 soft) | **T228** Placeholder |
 | Nightly schedule + router :8081/:8083 | **T229** Ops partial + product placeholder |

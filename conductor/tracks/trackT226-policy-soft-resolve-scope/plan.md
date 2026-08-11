@@ -1,9 +1,9 @@
 # T226 — Policy show/check soft-resolve scope — Plan
 
-**Status:** 📋 **Planning + AI fold-in** (plan-only until **go**)  
+**Status:** ✅ **Completed** 2026-08-11  
 **Category:** UX / CONSISTENCY  
 **Depends:** T160 · T201 · T203 · T210  
-- [ ] `ledgerful ledger start T226-policy-soft-resolve-scope` on go
+- [x] `ledgerful ledger start T226-policy-soft-resolve-scope` (tx `20c098ed-…`)
 
 ## Goal
 
@@ -188,8 +188,9 @@ target\debug\ai-brains.exe policy show --format json
   → exit 0, {"api_version":"1","grants":[…]}  (no clap required-arguments)
 ```
 
-## Closeout (fill on complete)
+## Closeout
 
-- PR:
-- Gate: fmt/clippy OK; nextest workspace **2534 passed** (1 skipped); deny/audit/ledgerful pending record
-- Soft residual: O1 shared resolve_scope_or_fail_usage; T210 bootstrap success soft hermetic optional
+- PR: **#130** squash-merged `5919f26`
+- Gate: fmt/clippy OK; nextest workspace **2534 passed** (1 skipped); deny/audit/ledgerful full green; CI Win/Linux/macOS green
+- Soft residual: O1 shared `resolve_scope_or_fail_usage`; T210 bootstrap success soft hermetic optional
+- Reviews: internal CLEAN; Codex R1 FAIL→fix; R2 **PASS WITH DEFERRED P3** (process); final after closeout

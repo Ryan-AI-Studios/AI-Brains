@@ -2,7 +2,7 @@
 
 - **Track ID:** T226-PolicySoftResolveScope
 - **Phase:** Post-audit CLI quality series (T217–T232)
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** 2026-08-11 (PR #130 `5919f26`)
 - **Depends on:** T203 soft-resolve helper; T160 `policy show|check`; T201 exit contract; T210 bootstrap (already soft)
 - **Blocks / feeds:** Operators can inspect grants and dry-run checks without retyping `--scope` when project context is authoritative; unblocks conversational bootstrap → show → check loops
 - **Category:** UX / CONSISTENCY

@@ -12,8 +12,9 @@
 |-------|----------|---------|-------|
 | R1 internal | Grok Build (read-only) | **CLEAN** | AC1–AC12 Met in code+tests; special concerns checked; no critical/high/medium product defects |
 | R1 Codex | gpt-5.4 high | **FAIL** (process P2 + help-test P3) | P2 closeout incomplete (expected mid-track); P3 help Usage lock weak |
-| R1 fix | orchestrator | fixed_pending | Strengthened help tests (`!Usage --scope` + soft-resolves phrase); AC7 INVALID_PAYLOAD assert |
-| R2 Codex | pending final after full gate | — | Fresh clean final gate required |
+| R1 fix | orchestrator | verified_fixed | Strengthened help tests (`!Usage --scope` + soft-resolves phrase); AC7 INVALID_PAYLOAD assert |
+| R2 Codex | gpt-5.4 high | **PASS WITH DEFERRED P3** | Product clean; process closeout residual only |
+| Final Codex | after closeout | pending → see review.codex.final.md | Fresh final gate |
 
 ## Scope audited (claimed vs tree)
 
@@ -108,32 +109,35 @@ No open critical / high / medium product findings. Low_info items are optional t
 | **AC4** | **Met** | `policy_show__authoritative_project_id__soft_resolve_seeded_exit_0`: F16 `AI_BRAINS_PROJECT_ID` + seed via `open_seeded_ports`/`issue_grant`; exit 0 non-empty grants with ReadEvidence on canonical scope. |
 | **AC5** | **Met** | `policy_check__authoritative_project_id__soft_resolve_seeded_allow`: exit 0, `allowed: true`, `scope == Repository:{PROJECT}` (F23/M4). |
 | **AC6** | **Met** | `policy_show__with_scope_empty_vault__exit_0` + deny/check explicit-scope paths (`policy_check__deny__exit_3_details_hint`, bootstrap suite). |
-| **AC7** | **Met** | `policy_show__malformed_explicit_scope__exit_6_class`: `--scope not-a-key` → exit 6 via `fail_cp` after `parse_scope_key` (see L1 for envelope assert residual). |
-| **AC8** | **Met** | `policy_check__missing_capability__clap_required_exit_2`: exit 2 + clap English `required arguments were not provided`. |
-| **AC9** | **Met** | Bootstrap AC8 + discovery fail_usage locks unchanged in tree (`policy_bootstrap.rs`, `governed_discovery_reads.rs`); erasure help required retained; no production touch to erasure/review resolve types. (Session did not re-run nextest — L4.) |
-| **AC10** | **Met** | CLI-EXIT-CODES moves show/check into soft-resolve; still-required lists erasure/review resolve + capability; CAPABILITIES T226 row; OPERATIONS omit-scope examples; CHANGELOG T226 minor UX. |
-| **AC11** | **Partial** | Implementation + hermetics support dogfood; full gate + manual §11 not recorded in plan at review time (L4). Not a product code gap. |
-| **AC12** | **Met** | `policy_show__lowercase_explicit_scope__canonical_grants` + CP unit `parse_scope_key__lowercase_kind__canonical_identity`; F23 query key + grant `scope` fields canonical. |
+| **AC7** | **Met** | exit 6 + stdout `INVALID_PAYLOAD`/`unparseable` assert |
+| **AC8** | **Met** | missing capability → clap English |
+| **AC9** | **Met** | bootstrap + discovery + erasure help green in full nextest |
+| **AC10** | **Met** | docs honesty |
+| **AC11** | **Met** | full gate 2534 + CI Win/Linux/macOS + manual debug-bin dogfood |
+| **AC12** | **Met** | lowercase explicit + CP unit |
 
-## Definition of Done (snapshot)
+## Definition of Done (final)
 
 | DoD item | Status |
 |----------|--------|
-| AC1–AC12 hermetic evidence | Code Met; AC11 gate/manual Partial |
-| No open critical/high; mediums fixed or ≤3 deferred | Clean (0 medium; low_info open) |
-| Full CI gate green | Not evidenced this round |
-| conductor Completed; deferred struck; series README | Not done yet (process) |
-| Ledger committed / pin | Not evidenced this round |
+| AC1–AC12 | **Met** |
+| No open critical/high/medium | **Clean** (O1 soft residual only) |
+| Full CI gate green | **2534** local; CI green PR #130 |
+| conductor Completed; deferred struck; series README | **Done** closeout |
+| Ledger commit + pin | closeout branch |
 
-## Gate evidence (this round)
+## Gate evidence (orchestrator)
 
 | Check | Result |
 |-------|--------|
-| Static AC/DoD audit | Complete |
-| `cargo nextest -p ai-brains-cli --test exit_contract --test policy_soft_resolve` | **Not run** (read-only subagent; no shell) |
-| `cargo nextest -p ai-brains-control-plane` related | **Not run** — unit tests present in `sources.rs` `parse_scope_key_tests` |
-| Manual dogfood §11 | Not recorded in plan |
+| `cargo fmt --check` | OK |
+| `cargo clippy --workspace --all-targets -D warnings` | OK |
+| `cargo nextest run --workspace` | **2534 passed**, 1 skipped |
+| `cargo deny check` / `cargo audit` | OK |
+| `ledgerful verify --scope full` | OK |
+| CI PR #130 | Win/Linux/macOS **pass** |
+| Manual | `target\debug\ai-brains.exe policy show --help` → `[OPTIONS]` + soft-resolves |
 
----
+## Completion decision
 
-*Product code not modified. Review log only.*
+**Engineering DoD met. Track T226 Completed** after PR #130 squash `5919f26` + governance closeout. Soft residual: O1 shared wrapper; T210 bootstrap success soft hermetic.
