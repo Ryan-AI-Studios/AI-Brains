@@ -2381,13 +2381,28 @@ fn preflight__local_env_project_context_overrides_inherited_shell_ids() {
         "preflight must not silently scope to inherited project; got: {stdout}"
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
+    // T223: one collapsed Warning line (PROJECT then SESSION); never legacy dual template.
+    let warn_prefix = "Warning: local .env overrides inherited shell:";
     assert!(
-        stderr.contains("local .env AI_BRAINS_PROJECT_ID overrides inherited shell value"),
-        "preflight should warn about inherited project override; got: {stderr}"
+        stderr.contains(warn_prefix),
+        "preflight should emit collapsed override warning; got: {stderr}"
+    );
+    assert_eq!(
+        stderr.matches(warn_prefix).count(),
+        1,
+        "exactly one Warning: local .env overrides inherited shell: line; got: {stderr}"
     );
     assert!(
-        stderr.contains("local .env AI_BRAINS_SESSION_ID overrides inherited shell value"),
-        "preflight should warn about inherited session override; got: {stderr}"
+        stderr.contains("AI_BRAINS_PROJECT_ID") && stderr.contains(inherited_project_id),
+        "warning must list project key + inherited (old) value; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("AI_BRAINS_SESSION_ID") && stderr.contains(inherited_session_id),
+        "warning must list session key + inherited (old) value; got: {stderr}"
+    );
+    assert!(
+        !stderr.contains("local .env AI_BRAINS_PROJECT_ID overrides inherited shell value"),
+        "must not use legacy dual per-key template; got: {stderr}"
     );
 }
 

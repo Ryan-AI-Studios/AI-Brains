@@ -4,6 +4,7 @@ mod context;
 mod daemon_client;
 mod daemon_probe;
 mod elevation;
+mod env_warn;
 mod graph_density;
 mod harness;
 mod help_ia;
@@ -1896,14 +1897,37 @@ fn resolve_user_home_for_dotenv() -> Option<std::path::PathBuf> {
     dirs::home_dir()
 }
 
-fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: bool) {
+/// Apply local `.env` force-set for PROJECT_ID/SESSION_ID and emit override policy.
+///
+/// Returns a **deferred** collapsed debug body when the emit path is Debug
+/// (session-only, quiet, or non-warn command). Caller must log it with
+/// `tracing::debug!` **after** the tracing subscriber is installed — this
+/// function runs before subscriber init (T223 Codex R1).
+///
+/// Stderr warnings are emitted immediately (eprintln does not need tracing).
+fn apply_local_project_context_env(
+    path: &std::path::Path,
+    warn_on_override: bool,
+) -> Option<String> {
+    use env_warn::{
+        EnvOverrideEmit, PROJECT_ID_KEY, SESSION_ID_KEY, classify_env_overrides,
+        format_override_body, quiet_env_warn_truthy,
+    };
+
     let entries = match dotenvy::from_path_iter(path) {
         Ok(entries) => entries,
         Err(err) => {
+            // Runs before subscriber init; dropped unless deferred path used later.
             tracing::warn!("Failed to parse local .env for project context: {}", err);
-            return;
+            return None;
         }
     };
+
+    // Collect differ-gate pairs first, then force-set. Stable order PROJECT then SESSION
+    // (do not rely on .env file key order). T223: emit policy only — set_var still always.
+    let mut project_override: Option<(String, String)> = None;
+    let mut session_override: Option<(String, String)> = None;
+    let mut to_set: Vec<(String, String)> = Vec::new();
 
     for entry in entries {
         let (key, value) = match entry {
@@ -1914,33 +1938,61 @@ fn apply_local_project_context_env(path: &std::path::Path, warn_on_override: boo
             }
         };
 
-        if key != "AI_BRAINS_PROJECT_ID" && key != "AI_BRAINS_SESSION_ID" {
+        if key != PROJECT_ID_KEY && key != SESSION_ID_KEY {
             continue;
         }
 
-        if warn_on_override {
-            if let Ok(existing) = std::env::var(&key)
-                && existing != value
-            {
-                eprintln!(
-                    "Warning: local .env {} overrides inherited shell value {}.",
-                    key, existing
-                );
-            }
-        } else if let Ok(existing) = std::env::var(&key)
+        if let Ok(existing) = std::env::var(&key)
             && existing != value
         {
-            tracing::debug!(
-                "local .env {} overrides inherited shell value for this command",
-                key
-            );
+            if key == PROJECT_ID_KEY {
+                project_override = Some((key.clone(), existing));
+            } else {
+                session_override = Some((key.clone(), existing));
+            }
         }
 
+        to_set.push((key, value));
+    }
+
+    // Always force-set local IDs (F1 precedence frozen).
+    for (key, value) in to_set {
         // SAFETY: single-threaded CLI startup before worker threads; process env
         // is intentionally mutated for project-context loading.
         unsafe {
             std::env::set_var(key, value);
         }
+    }
+
+    let mut overrides: Vec<(&str, &str)> = Vec::new();
+    if let Some((ref k, ref old)) = project_override {
+        overrides.push((k.as_str(), old.as_str()));
+    }
+    if let Some((ref k, ref old)) = session_override {
+        overrides.push((k.as_str(), old.as_str()));
+    }
+    if overrides.is_empty() {
+        return None;
+    }
+
+    // Quiet from process env at apply time (shell or project `.env` already gap-filled).
+    // Global `~/.ai-brains/.env` loads after this function — quiet only there is too late.
+    let quiet = quiet_env_warn_truthy(std::env::var(env_warn::QUIET_ENV_WARN_KEY).ok().as_deref());
+
+    let emit = if !warn_on_override || quiet {
+        Some(EnvOverrideEmit::Debug(format_override_body(&overrides)))
+    } else {
+        classify_env_overrides(&overrides)
+    };
+
+    match emit {
+        Some(EnvOverrideEmit::Stderr(line)) => {
+            eprintln!("{line}");
+            None
+        }
+        // Defer until after tracing subscriber init (main_inner).
+        Some(EnvOverrideEmit::Debug(body)) => Some(body),
+        None => None,
     }
 }
 
@@ -1998,6 +2050,10 @@ fn main_inner() {
     // T80: --no-project-context skips *project* discovery only so CI/hooks can
     // supply IDs explicitly. User-global ~/.ai-brains/.env still merges for gaps
     // (KEY / VAULT_PATH / models) unless the process already set those vars.
+    // Deferred override-debug body (session-only / quiet / non-warn): emit after
+    // tracing subscriber init so RUST_LOG=debug can observe collapsed F3 SOOT (T223).
+    let mut deferred_env_override_debug: Option<String> = None;
+
     if !no_project_context {
         let project_env = std::path::Path::new(".env");
         if !project_env.exists() {
@@ -2008,8 +2064,13 @@ fn main_inner() {
                 std::env::remove_var("AI_BRAINS_SESSION_ID");
             }
         } else {
+            // Gap-fill only (non-override): shell wins for general keys. PROJECT_ID /
+            // SESSION_ID are force-set below in apply_local_project_context_env so local
+            // project context beats a stale shell. Global ~/.ai-brains/.env merges after
+            // apply — quiet for override warnings must be shell or project `.env` (T223 M1).
             dotenvy::dotenv().ok();
-            apply_local_project_context_env(project_env, warn_on_project_context_override);
+            deferred_env_override_debug =
+                apply_local_project_context_env(project_env, warn_on_project_context_override);
         }
     }
 
@@ -2075,6 +2136,11 @@ fn main_inner() {
                 .with_env_filter(env_filter)
                 .init();
         }
+    }
+
+    // T223: deferred collapsed override debug (session-only / quiet / non-warn).
+    if let Some(body) = deferred_env_override_debug {
+        tracing::debug!("{body}");
     }
 
     // Set up a basic signal handler for graceful interruption
