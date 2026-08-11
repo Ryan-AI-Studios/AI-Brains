@@ -7,11 +7,12 @@ Pretty `Scope:` chrome on non-empty `recall` and `sync query` vault section via 
 | Round | Reviewer | Verdict | Notes |
 |-------|----------|---------|-------|
 | R1 internal | explore subagent | **CLEAN** | AC1–AC13 Met; no P0–P3 fix-required |
-| Completeness | explore subagent | **COMPLETE** | Product checklist 1–5 met; closeout open |
-| Codex R1 | gpt-5.4 high | **PASS WITH DEFERRED P3** | Product complete; process-only P3 (governance still Planning until ship closeout) |
-| Codex final | gpt-5.x high | pending | final gate after Completed closeout |
+| Completeness | explore subagent | **COMPLETE** | Product checklist 1–5 met |
+| Codex R1 | gpt-5.4 high | **PASS WITH DEFERRED P3** | Product complete; process-only P3 (closeout) |
+| Closeout | Orchestrator | **done** | conductor/deferred/series/plan Completed; product PR #134 `e51d5e4` |
+| Codex final | gpt-5.4 high | **PASS** | Fresh final gate after Completed; CX1 closed; F32/F34 intentional only |
 
-## DoD matrix (post R1 + Codex)
+## DoD matrix
 | AC | Status |
 |----|--------|
 | AC1–AC13 | **Met** |
@@ -19,7 +20,7 @@ Pretty `Scope:` chrome on non-empty `recall` and `sync query` vault section via 
 ## Findings disposition
 | ID | Severity | Status | Disposition |
 |----|----------|--------|-------------|
-| CX1 | P3 process | open until closeout | Conductor/deferred/series still Planning — close on ship |
+| CX1 | P3 process | **verified_fixed** | Conductor/deferred/series Completed on closeout |
 
 No product P0–P2. No product P3 fix-required.
 
@@ -44,8 +45,9 @@ cargo clippy --workspace --all-targets -- -D warnings      # clean
 cargo nextest run --workspace                              # 2551 passed (1 skipped)
 cargo deny check                                           # ok
 cargo audit                                                # 0 exit (allowed warnings only)
-# targeted earlier: recall_empty_pretty_scope + sync isolation/ranking + smoke = 96 passed
-# units resolve/format_scope = 9 passed
+ledgerful verify --scope full                              # Verification passed
+CI PR #134: gate-windows / gate-linux / gate-macos         # all SUCCESS
+squash-merged e51d5e4
 ```
 
 ## Manual dogfood
@@ -67,4 +69,4 @@ ai-brains recall "DECISION" --limit 1 --format json --no-bridge
 ```
 
 ## Completion decision
-Product engineering DoD met. Ship product PR; governance Completed + deferred strike + series README + final Codex after merge/closeout.
+Engineering DoD met. Product shipped PR #134 `e51d5e4`. Governance closeout marks Completed + deferred strike + series README + coordinated deferred note. Soft residuals F32/F34 only.

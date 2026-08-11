@@ -1,6 +1,6 @@
 # T228 — Non-empty pretty Scope — Plan
 
-**Status:** 🚧 Implementing (product green; closeout pending PR)  
+**Status:** ✅ **Completed** (PR #134 `e51d5e4`, 2026-08-11)  
 **Category:** UX / FEATURE (light)  
 **Depends:** T207 · T214 · T219 · T211 (shared `print_pretty_hits`)
 
@@ -74,65 +74,65 @@ See `spec.md` §3 **F1–F36**. Hard summary:
 
 ### 0. Preflight (on go)
 
-- [ ] `ledgerful doctor` + `ledgerful ledger status --compact`
-- [ ] `ledgerful ledger start T228-nonempty-pretty-scope --category FEATURE --message "non-empty pretty Scope on recall/sync"`
-- [ ] `ledgerful scan --impact` (include `recall.rs`, `sync.rs`, listed tests)
-- [ ] Confirm clean ledger / tree (or reconcile first)
+- [x] `ledgerful doctor` + `ledgerful ledger status --compact`
+- [x] `ledgerful ledger start T228-nonempty-pretty-scope --category FEATURE --message "non-empty pretty Scope on recall/sync"`
+- [x] `ledgerful scan --impact` (include `recall.rs`, `sync.rs`, listed tests)
+- [x] Confirm clean ledger / tree (or reconcile first)
 
 ### 1. Red — AC10 / AC11 order (AI1 M4, AI2 M3)
 
-- [ ] Update/rename non-empty hermetic → `recall_nonempty__pretty__prints_scope_before_hits`
-- [ ] Assert `Scope:` present + hit content + no `No results`
-- [ ] Assert non-empty lines: `[0].starts_with("Scope:")` && `[1].starts_with("Session:")` (AC11)
-- [ ] Confirm **fails** on current main (red)
+- [x] Update/rename non-empty hermetic → `recall_nonempty__pretty__prints_scope_before_hits`
+- [x] Assert `Scope:` present + hit content + no `No results`
+- [x] Assert non-empty lines: `[0].starts_with("Scope:")` && `[1].starts_with("Session:")` (AC11)
+- [x] Confirm **fails** on current main (red)
 
 ### 2. Green — resolver + non-empty recall (AI1 M1–M3, L1)
 
-- [ ] Implement `pub(crate) resolve_active_scope_line(conn, global, project_id)` (F29/F30)
-- [ ] Wire empty recall + non-empty recall through resolver
-- [ ] Non-empty: print Scope first, then Session, Embedding?, hits — **no blank** (F26)
-- [ ] Remove “AC10 deferred” comment; point to T228
-- [ ] Unit: global → `Scope: global` without project row (AC13)
+- [x] Implement `pub(crate) resolve_active_scope_line(conn, global, project_id)` (F29/F30)
+- [x] Wire empty recall + non-empty recall through resolver
+- [x] Non-empty: print Scope first, then Session, Embedding?, hits — **no blank** (F26)
+- [x] Remove “AC10 deferred” comment; point to T228
+- [x] Unit: global → `Scope: global` without project row (AC13)
 
 ### 3. Red/green — AC2 global + AC6 quiet (AI2 O3/O5)
 
-- [ ] **Hard:** `recall_nonempty__pretty_global__scope_global` → `Scope: global`
-- [ ] **Hard:** `recall_nonempty__pretty_quiet__keeps_scope`
-- [ ] Regression: full `recall_empty_pretty_scope` suite green
-- [ ] Soft: project+alias AC3 if hermetic vault has alias
+- [x] **Hard:** `recall_nonempty__pretty_global__scope_global` → `Scope: global`
+- [x] **Hard:** `recall_nonempty__pretty_quiet__keeps_scope`
+- [x] Regression: full `recall_empty_pretty_scope` suite green
+- [x] Soft: project+alias AC3 if hermetic vault has alias
 
 ### 4. Green — sync non-empty Scope + F31 sweep (AI2 M1/O2)
 
-- [ ] After `--- AI-Brains Recall ---`, non-empty prints Scope via resolver then hits
-- [ ] Refactor `print_pretty_empty_sync` to use resolver
-- [ ] **AC8 hard:** assert `Scope: global` on `sync_query_pretty_global_flag_returns_cross_project_results`
-- [ ] **Verify still green (enumerate):**
-  - [ ] `sync_query_isolation.rs` empty-path isolation (`…default_scoped…`)
-  - [ ] `sync_query_ranking.rs` (all 4)
-  - [ ] `smoke.rs` `sync_query__no_bridge__skips_ledgerful_section`
-  - [ ] `smoke.rs` `recall_pretty__shows_session_prefix` (session= bracket substring)
-- [ ] Ledger-first path (if exercised): Scope only under vault header
-- [ ] **F32:** do **not** silently fix random-UUID fallback unless proven safe; else note residual in CHANGELOG/review
+- [x] After `--- AI-Brains Recall ---`, non-empty prints Scope via resolver then hits
+- [x] Refactor `print_pretty_empty_sync` to use resolver
+- [x] **AC8 hard:** assert `Scope: global` on `sync_query_pretty_global_flag_returns_cross_project_results`
+- [x] **Verify still green (enumerate):**
+  - [x] `sync_query_isolation.rs` empty-path isolation (`…default_scoped…`)
+  - [x] `sync_query_ranking.rs` (all 4)
+  - [x] `smoke.rs` `sync_query__no_bridge__skips_ledgerful_section`
+  - [x] `smoke.rs` `recall_pretty__shows_session_prefix` (session= bracket substring)
+- [x] Ledger-first path (if exercised): Scope only under vault header
+- [x] **F32:** do **not** silently fix random-UUID fallback unless proven safe; else note residual in CHANGELOG/review
 
 ### 5. Docs (AI1 L2, AI2 L1)
 
-- [ ] CAPABILITIES: always-on Scope; remove “deferred (T228)”; sync vault parity
-- [ ] CHANGELOG: **new** T228 minor UX entry only — **do not edit** T207 historical row
-- [ ] Soft: OPERATIONS / skill if Session-only samples
-- [ ] Series README + deferred.md strike on complete
+- [x] CAPABILITIES: always-on Scope; remove “deferred (T228)”; sync vault parity
+- [x] CHANGELOG: **new** T228 minor UX entry only — **do not edit** T207 historical row
+- [x] Soft: OPERATIONS / skill if Session-only samples
+- [x] Series README + deferred.md strike on complete
 
 ### 6. Gate + closeout (on go)
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] `cargo nextest run --workspace` (or `-p ai-brains-cli` + listed packages during work)
-- [ ] `cargo deny check` + `cargo audit`
-- [ ] Manual dogfood (spec §9)
-- [ ] Primary review → fix → verified_fixed
-- [ ] Soft cross-model (F23/O6): order regressions + sync sweep + smoke:459
-- [ ] `ledgerful verify --scope full` + ledger commit
-- [ ] Conductor → Completed; pin DECISION
-- [ ] Document F29 helper + F32 residual status in `review.md`
+- [x] `cargo fmt --check`
+- [x] `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] `cargo nextest run --workspace` (or `-p ai-brains-cli` + listed packages during work)
+- [x] `cargo deny check` + `cargo audit`
+- [x] Manual dogfood (spec §9)
+- [x] Primary review → fix → verified_fixed
+- [x] Soft cross-model (F23/O6): order regressions + sync sweep + smoke:459
+- [x] `ledgerful verify --scope full` + ledger commit
+- [x] Conductor → Completed; pin DECISION
+- [x] Document F29 helper + F32 residual status in `review.md`
 
 ## Out of scope reminders
 
