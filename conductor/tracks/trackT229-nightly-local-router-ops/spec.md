@@ -2,7 +2,7 @@
 
 - **Track ID:** T229-NightlyLocalRouterOps
 - **Phase:** Post-audit CLI quality series (T217–T232) — **last series placeholder** (P0 ops residual + P1 bugfix + P2 product)
-- **Status:** 📋 **Planning** (plan-only until **go**) — AI fold-in 2026-08-11
+- **Status:** ✅ **Completed** 2026-08-11 — PR #140 squash-merged `1ec9142`
 - **Depends on:** T132/T143/T145 schedule wrappers ✅; T135 schedule state on status ✅; T205 global dotenv gap-fill ✅; T239 multi-import + status block ✅; T100/llama_cpp timeouts ✅; T231 F32 random-project honesty (pattern) ✅
 - **Blocks / feeds:** Operators can trust overnight brain against local router; closes audit “nightly not scheduled / model env only in project .env”; unblocks confidence for T233 multi-root (does **not** implement multi-root)
 - **Category:** OPS / FEATURE / BUGFIX / DOCS

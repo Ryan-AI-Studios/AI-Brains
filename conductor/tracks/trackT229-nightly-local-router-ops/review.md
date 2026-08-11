@@ -2,7 +2,7 @@
 
 **Track:** T229-NightlyLocalRouterOps  
 **Category:** FEATURE / BUGFIX / OPS / DOCS  
-**Status:** Internal CLEAN (PASS WITH DEFERRED process P3 only); product code complete
+**Status:** ✅ **Completed** — product PR #140 `1ec9142`; Codex R2 **PASS**; final closeout
 
 ## Reviewers / rounds
 
@@ -78,9 +78,13 @@ Router endpoints unreachable → probe timeout (Windows connect budget); status 
 
 F8 doctor matrix; F9 persist probe; F10 schedule registers Router; F11 Router ONLOGON 267014; F12 JSON status; F14 embed 50ms sleep; optional smart-quote unit.
 
-## Next
+## Final disposition
 
-1. Full workspace gate  
-2. Codex cross-model (F5 focus)  
-3. Product PR → CI → squash-merge  
-4. Closeout PR: conductor Completed + deferred strike + coordinated  
+| Item | Result |
+|------|--------|
+| Product PR | #140 squash-merged `1ec9142` |
+| CI | Win/Linux/macOS green (Linux dead_code fix `3692d26` included) |
+| Codex R2 | **PASS** (no P0–P2) |
+| Series T217–T232 | **Closed** |
+| Soft residuals | F8 doctor ports; F9 persist probe; F10 schedule Router; F11 Router ONLOGON; F12 JSON status; F14 50ms sleep |
+| Multi-root | **T233** (unchanged) |
