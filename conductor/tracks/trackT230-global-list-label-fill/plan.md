@@ -1,6 +1,6 @@
 # T230 — Global inventory label fill — Plan
 
-**Status:** 🚧 **Implementing** — code + tests 2026-08-11  
+**Status:** ✅ **Completed** — PR #136 `b3f1a61` 2026-08-11  
 **Category:** UX / FEATURE (light)  
 **Depends:** T212 `display_label` · T216 memory inventory global summary
 
@@ -109,9 +109,9 @@ See `spec.md` §3 **F1–F35**. Hard summary:
 
 - [x] CAPABILITIES Memory inventory: never-blank labels; orphans `(no alias)`; non-summary JSON id-only
 - [x] **New** CHANGELOG T230 entry only (do not edit T212/T216 historical bullets)
-- [ ] deferred.md strike → closed by T230 (closeout PR after product merge)
-- [ ] series README T230 closed (closeout PR after product merge)
-- [x] conductor.md → **Implementing** (Completed in closeout PR after CI green)
+- [x] deferred.md strike → closed by T230 (closeout)
+- [x] series README T230 closed (closeout)
+- [x] conductor.md → **Completed**
 
 ### 5. Review + gate
 
@@ -119,8 +119,8 @@ See `spec.md` §3 **F1–F35**. Hard summary:
 - [x] Full gate: `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace` **2558 passed** (1 skipped) `; cargo deny check ; cargo audit` (allowed warnings only)
 - [x] Live dogfood F29 third leg recorded
 - [x] Codex product R1: P2 live dogfood → **fixed** (recorded); P2 governance lag → **closeout process** (not product defect)
-- [ ] `ledgerful ledger commit` + pin decision (on product merge)
-- [ ] PR + CI Win/Linux/macOS
+- [x] `ledgerful ledger commit` + pin decision (TX 860678cc)
+- [x] PR #136 + CI Win/Linux/macOS green + squash-merge `b3f1a61`
 
 ### 6. Soft residuals (document, not block)
 
