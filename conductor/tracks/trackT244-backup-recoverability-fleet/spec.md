@@ -1,7 +1,7 @@
 # T244 — Backup recoverability fleet
 
 - **Track ID:** T244-BackupRecoverabilityFleet
-- **Status:** 🚧 **In Progress** (production code under go)
+- **Status:** ✅ **Completed** (2026-08-12 PR #149 `948d2ae`)
 - **Category:** OPS / FEATURE / UX
 - **Owner:** Grok
 - **Source:** CLI audit 2026-08-11 P1 — backup fleet **0 OK / 21 FAIL** legacy; list **Q7**; verify **E7**; doctor `backup_recent` warn; post-T225 residual honesty gap

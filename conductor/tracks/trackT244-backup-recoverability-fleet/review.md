@@ -60,4 +60,7 @@
 
 ## Completion decision
 
-Engineering DoD met; cross-model final **PASS WITH DEFERRED P3** (no open >low). Soft F17/F18 remain intentional. Conductor Completed + deferred close on closeout PR after CI green squash-merge.
+Engineering DoD met; cross-model final **PASS WITH DEFERRED P3** (no open >low). Soft F17/F18 remain intentional.
+
+- **Product PR:** [#149](https://github.com/Ryan-AI-Studios/AI-Brains/pull/149) squash-merged `948d2ae` (2026-08-12). CI gate-windows/linux/macos SUCCESS.
+- **Closeout:** conductor/deferred/series + coordinated AI-T244 row; soft residuals F17/F18 recorded.
