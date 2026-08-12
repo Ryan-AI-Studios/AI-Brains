@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Changed
+
+- **T242 Env override session quiet:** After the first project-context override stderr warn for a given situation, later CLI process spawns with the same fingerprint suppress the warning (debug only). Fingerprint = SHA-256 of normalized `.env` parent + shell old PROJECT/SESSION + `.env` new IDs; 0-byte markers under `~\.ai-brains\cache\env-override-warn\<hex>` (atomic `create_new`; fail-open on IO/no home). **Re-warn** when shell/`.env`/cwd fingerprint changes. `AI_BRAINS_FORCE_ENV_WARN=1`/`true`/`yes` always warns despite marker; `AI_BRAINS_QUIET_ENV_WARN` still absolute suppress and **wins over force**. Session-only differ still no stderr and **no marker**. T223 collapse SOOT / force-set precedence / T206 / T240 identity strings unchanged. Manual cache reset documented in OPERATIONS.
+
 ### Added
 
 - **T240 Project identity convergence:** `project whoami` (human TTY / JSON) surfaces `effective_project_id`, `env_project_id` (post-dotenv), `shell_project_id` (pre-dotenv when differs), `path_alias_project_id`, `detect_project_id`, `git_slug`, `git_toplevel`, `mismatch`, `remediations[]`. `project detect` prefers **path alias** of git toplevel/cwd over git slug (path always wins; stderr notes slug project + 0-mem verify note); then git slug (T206 exact-first/ambiguous); then env; miss exit **1**. `collect_git_identity` keeps slug+toplevel. `--export` comments include `source=path_alias|git_slug|env`. Once-per-process non-fatal **identity mismatch warn** when env Scope ≠ path owner (skip `--no-project-context` / argv `--global` / no path / empty env; never mutates PROJECT_ID). Doctor soft check **`project_identity`** (14-check matrix). Docs: CAPABILITIES / WORKFLOWS triangle + runbook / OPERATIONS set-alias vs register-path SOOT. No auto-merge; no auto `.env` write; F13 detect `--json` / F14 `project use` deferred.
