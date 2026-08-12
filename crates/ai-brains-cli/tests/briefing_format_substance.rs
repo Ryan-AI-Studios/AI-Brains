@@ -326,6 +326,12 @@ fn briefing_project__no_grants__soft_deny_exit_0() {
     );
     let v: Value = serde_json::from_slice(&out.stdout).expect("json");
     assert_eq!(v["denied"], true, "packet={v}");
+    // T241 AC7: denied JSON includes denial_hint with bootstrap; exit still 0.
+    let hint = v["denial_hint"].as_str().unwrap_or("");
+    assert!(
+        !hint.is_empty() && hint.contains("policy bootstrap"),
+        "denied JSON must include denial_hint with policy bootstrap; got {v}"
+    );
     // AC7 soft: denied packets must not carry empty_authority warnings.
     if let Some(warnings) = v["warnings"].as_array() {
         for w in warnings {

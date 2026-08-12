@@ -182,6 +182,10 @@ pub struct ProjectBriefingPacket {
     pub denied: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub denial_reason: Option<String>,
+    /// Operator next-step when denied (T241 F7). Contracts leave `None`; CP sets bootstrap.
+    /// E1: omit when not denied / no hint — never null.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denial_hint: Option<String>,
 }
 
 impl ProjectBriefingPacket {
@@ -192,6 +196,7 @@ impl ProjectBriefingPacket {
     ) -> Self {
         // F7/M2: seed kind=denied so every denied path has ≥1 structured warning
         // (covers Personal-scope refuse and bare helper returns).
+        // T241 F7: denial_hint stays None — CP callers set bootstrap text.
         let reason = reason.into();
         Self {
             api_version: API_VERSION.to_string(),
@@ -226,6 +231,7 @@ impl ProjectBriefingPacket {
             generated_at: None,
             denied: true,
             denial_reason: Some(reason),
+            denial_hint: None,
         }
     }
 }
@@ -311,6 +317,10 @@ pub struct PersonalContinuityBriefingPacket {
     pub denied: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub denial_reason: Option<String>,
+    /// Operator next-step when denied (T241 F7). Contracts leave `None`; CP sets bootstrap.
+    /// E1: omit when not denied / no hint — never null.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denial_hint: Option<String>,
 }
 
 impl PersonalContinuityBriefingPacket {
@@ -320,6 +330,7 @@ impl PersonalContinuityBriefingPacket {
         reason: impl Into<String>,
     ) -> Self {
         // F7/M2: seed kind=denied so every denied path has ≥1 structured warning.
+        // T241 F7: denial_hint stays None — CP callers set bootstrap text.
         let reason = reason.into();
         Self {
             api_version: API_VERSION.to_string(),
@@ -348,6 +359,7 @@ impl PersonalContinuityBriefingPacket {
             generated_at: None,
             denied: true,
             denial_reason: Some(reason),
+            denial_hint: None,
         }
     }
 }
@@ -739,6 +751,13 @@ mod tests {
         assert_eq!(packet.warnings.len(), 1);
         assert_eq!(packet.warnings[0].kind, "denied");
         assert_eq!(packet.warnings[0].message, "no grant");
+        // T241 F7: contracts leave denial_hint None (CP sets bootstrap).
+        assert!(packet.denial_hint.is_none());
+        let json = serde_json::to_value(&packet).expect("ser");
+        assert!(
+            json.get("denial_hint").is_none(),
+            "denial_hint must omit when None; got {json}"
+        );
     }
 
     #[test]
@@ -749,6 +768,8 @@ mod tests {
         assert_eq!(packet.warnings.len(), 1);
         assert_eq!(packet.warnings[0].kind, "denied");
         assert_eq!(packet.warnings[0].message, "denied");
+        // T241 F7: contracts leave denial_hint None.
+        assert!(packet.denial_hint.is_none());
     }
 
     #[test]

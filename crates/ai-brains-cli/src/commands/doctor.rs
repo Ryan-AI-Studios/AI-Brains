@@ -5,6 +5,10 @@
 
 use crate::commands::backup::probe_restore_daemon_busy;
 use crate::commands::device::data_key_from_sqlcipher;
+use crate::commands::governed_common::{
+    DISCOVERY_CAP_LABELS, POLICY_BOOTSTRAP_SOOT_LONG, discovery_active_count, resolve_principal,
+    resolve_scope_key_for_cli,
+};
 use crate::commands::recovery::acquire_passphrase;
 use crate::daemon_client::DaemonClient;
 use crate::graph_density::{
@@ -13,8 +17,10 @@ use crate::graph_density::{
 use crate::key_resolve::{KeyResolveError, resolve_operator_sqlcipher_key, vault_locked_message};
 use ai_brains_brain::{BackupService, ListMode, has_core_tables, is_usable_class, parse_duration};
 use ai_brains_contracts::doctor::{CheckSeverity, DoctorReport, DoctorStatus, HealthCheck};
+use ai_brains_control_plane::StorePorts;
 use ai_brains_crypto::{RecoveryKit, SqlCipherKey};
 use ai_brains_store::ALLOW_ZERO_KEY_ENV;
+use ai_brains_store::SqliteEventStore;
 use ai_brains_store::StoreError;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::pragmas::cipher_version;
@@ -80,7 +86,7 @@ pub fn build_report(
     };
 
     let vault_path = &opts.vault_path;
-    let mut checks: Vec<HealthCheck> = Vec::with_capacity(14);
+    let mut checks: Vec<HealthCheck> = Vec::with_capacity(15);
 
     // 1. vault_exists
     let exists_check = check_vault_exists(vault_path);
@@ -245,7 +251,14 @@ pub fn build_report(
         skip_reason,
     ));
 
-    // 14. integrity (optional --full)
+    // 14. policy_grants (soft — discovery Read* probe; warn incomplete; never alone Fail; T241)
+    checks.push(check_policy_grants(
+        vault_conn.as_ref(),
+        open_failed,
+        skip_reason,
+    ));
+
+    // 15. integrity (optional --full)
     checks.push(if opts.full {
         match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
             Some(conn) => check_integrity(&conn),
@@ -634,6 +647,64 @@ fn check_integrity(conn: &rusqlite::Connection) -> HealthCheck {
     }
 }
 
+/// Soft discovery-grants probe (T241 F1/F1b/F31): when vault open + authoritative
+/// project scope, count ReadEvidence/ReadConclusions/ReadDecisions. Incomplete
+/// (`active_count < 3`) → **warn** + long SOOT; never alone forces **Fail**.
+/// Skip when vault closed / open-failed / no authoritative scope / list error.
+/// No AppContext — StorePorts from VaultConnection clone only.
+fn check_policy_grants(
+    vault_conn: Option<&VaultConnection>,
+    open_failed: bool,
+    skip_reason: &str,
+) -> HealthCheck {
+    if open_failed {
+        return HealthCheck::skip("policy_grants", skip_reason);
+    }
+    let Some(vc) = vault_conn else {
+        return HealthCheck::skip("policy_grants", "vault connection unavailable");
+    };
+
+    let ports = StorePorts::from_store(SqliteEventStore::new(vc.clone()));
+    let scope_key = match resolve_scope_key_for_cli(None, &ports.identity_store()) {
+        Ok(k) => k,
+        Err(_) => {
+            return HealthCheck::skip(
+                "policy_grants",
+                "no authoritative project scope resolved in current context",
+            );
+        }
+    };
+
+    let principal = resolve_principal(None);
+    let grant_store = ports.grant_store();
+    let grants = match grant_store.list_applied_grants(
+        principal.id,
+        &scope_key,
+        Some(&DISCOVERY_CAP_LABELS),
+    ) {
+        Ok(g) => g,
+        Err(_) => {
+            return HealthCheck::skip("policy_grants", "could not list applied grants");
+        }
+    };
+
+    let active_count = discovery_active_count(grants.iter().map(|g| g.capability.as_str()));
+    if active_count < 3 {
+        let message = if active_count == 0 {
+            "discovery grants empty (0 of 3)".to_string()
+        } else {
+            format!("discovery grants incomplete ({active_count} of 3)")
+        };
+        return HealthCheck::warn(
+            "policy_grants",
+            message,
+            Some(POLICY_BOOTSTRAP_SOOT_LONG.to_string()),
+        );
+    }
+
+    HealthCheck::ok_msg("policy_grants", "discovery grants active (3 of 3)")
+}
+
 /// Soft project identity check (T240 F12): env PROJECT_ID ≠ path-alias owner of
 /// cwd/toplevel when both present. Uses vault_conn read-only (no AppContext).
 /// Warn severity may degrade overall status but never alone forces **fail**.
@@ -916,8 +987,8 @@ mod tests {
     #[test]
     fn health_check_order_names__fixed_matrix() {
         // Document expected fixed order for determinism (F16/F30; T213 graph_density;
-        // T222 graph_feature before graph_density; T235 harness_wiring; T240 project_identity
-        // before integrity last).
+        // T222 graph_feature before graph_density; T235 harness_wiring; T240 project_identity;
+        // T241 policy_grants between project_identity and integrity).
         let expected = [
             "vault_exists",
             "vault_open",
@@ -932,19 +1003,188 @@ mod tests {
             "graph_density",
             "harness_wiring",
             "project_identity",
+            "policy_grants",
             "integrity",
         ];
-        assert_eq!(expected.len(), 14);
+        assert_eq!(expected.len(), 15);
         assert_eq!(expected[9], "graph_feature");
         assert_eq!(expected[10], "graph_density");
         assert_eq!(expected[11], "harness_wiring");
         assert_eq!(expected[12], "project_identity");
-        assert_eq!(expected[13], "integrity");
+        assert_eq!(expected[13], "policy_grants");
+        assert_eq!(expected[14], "integrity");
         // Ensure HealthCheck helpers set ok flag correctly.
         assert!(HealthCheck::skip("integrity", "x").ok);
         assert_eq!(
             HealthCheck::skip("integrity", "x").severity,
             CheckSeverity::Skip
+        );
+    }
+
+    /// T241 AC2: no authoritative scope → policy_grants skip.
+    #[test]
+    fn doctor__policy_grants__no_authoritative_scope__skip() {
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+
+        let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
+        let _clear_proj = TempEnv::remove("AI_BRAINS_PROJECT_ID");
+        let dir = tempdir().expect("tempdir");
+        let vault = dir.path().join("vault.db");
+        let key = SqlCipherKey::from_raw(ZERO_KEY_LITERAL.to_string());
+        {
+            let conn = VaultConnection::open(&vault, &key).expect("open");
+            conn.migrate().expect("migrate");
+        }
+        let opts = DoctorOptions {
+            vault_path: vault,
+            key: Some(ZERO_KEY_LITERAL.to_string()),
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let report = build_report(&opts, false).expect("report");
+        let pg = report
+            .checks
+            .iter()
+            .find(|c| c.name == "policy_grants")
+            .expect("policy_grants");
+        assert_eq!(pg.severity, CheckSeverity::Skip);
+        let msg = pg.message.as_deref().unwrap_or("");
+        assert!(
+            msg.contains("no authoritative project scope") || msg.contains("authoritative"),
+            "skip message must note scope; got {msg}"
+        );
+        // Warn alone must not force Fail — skip is fine.
+        assert_ne!(report.status, DoctorStatus::Fail);
+    }
+
+    /// T241 AC1: authoritative + empty discovery grants → policy_grants warn + long SOOT.
+    #[test]
+    fn doctor__policy_grants__authoritative_empty__warn_bootstrap() {
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+
+        let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
+        let _proj = TempEnv::set(
+            "AI_BRAINS_PROJECT_ID",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        );
+        let dir = tempdir().expect("tempdir");
+        let vault = dir.path().join("vault.db");
+        let key = SqlCipherKey::from_raw(ZERO_KEY_LITERAL.to_string());
+        {
+            let conn = VaultConnection::open(&vault, &key).expect("open");
+            conn.migrate().expect("migrate");
+        }
+        let opts = DoctorOptions {
+            vault_path: vault,
+            key: Some(ZERO_KEY_LITERAL.to_string()),
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let report = build_report(&opts, false).expect("report");
+        let pg = report
+            .checks
+            .iter()
+            .find(|c| c.name == "policy_grants")
+            .expect("policy_grants");
+        assert_eq!(pg.severity, CheckSeverity::Warn, "msg={:?}", pg.message);
+        let msg = pg.message.as_deref().unwrap_or("");
+        assert!(
+            msg.contains("empty") || msg.contains("0 of 3"),
+            "empty grants message; got {msg}"
+        );
+        let rem = pg.remediation.as_deref().unwrap_or("");
+        assert!(
+            rem.contains("policy bootstrap"),
+            "rem must contain policy bootstrap; got {rem}"
+        );
+        assert!(
+            rem.contains("omit --scope") || rem.contains("authoritative"),
+            "long SOOT expected; got {rem}"
+        );
+        // Warn → Degraded, never Fail alone.
+        assert_ne!(report.status, DoctorStatus::Fail);
+        assert_eq!(report.status, DoctorStatus::Degraded);
+    }
+
+    /// T241 AC1/F31: partial discovery (1 of 3) still warns incomplete.
+    #[test]
+    fn doctor__policy_grants__partial_one_of_three__warn_incomplete() {
+        use ai_brains_control_plane::{StorePorts, SystemClock, issue_grant, register_principal};
+        use ai_brains_core::ids::ProjectId;
+        use ai_brains_core::privacy::Privacy;
+        use ai_brains_core::scope::{GrantCapability, ScopeRef};
+        use ai_brains_core::temp_env::TempEnv;
+        use tempfile::tempdir;
+        use uuid::Uuid;
+
+        let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
+        let project = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+        let _proj = TempEnv::set("AI_BRAINS_PROJECT_ID", project);
+        let dir = tempdir().expect("tempdir");
+        let vault = dir.path().join("vault.db");
+        let key = SqlCipherKey::from_raw(ZERO_KEY_LITERAL.to_string());
+        {
+            let conn = VaultConnection::open(&vault, &key).expect("open");
+            conn.migrate().expect("migrate");
+            let ports = StorePorts::from_store(SqliteEventStore::new(conn));
+            let clock = SystemClock;
+            // Doctor uses resolve_principal(None) → default System principal.
+            let principal = resolve_principal(None);
+            let _ = register_principal(&ports.writer, &clock, &principal);
+            let scope = ScopeRef::Repository(ProjectId::from_uuid(
+                Uuid::parse_str(project).expect("uuid"),
+            ));
+            issue_grant(
+                &ports.writer,
+                &clock,
+                principal.id,
+                scope,
+                GrantCapability::ReadEvidence,
+                Privacy::LocalOnly,
+            )
+            .expect("issue one discovery grant");
+        }
+        let opts = DoctorOptions {
+            vault_path: vault,
+            key: Some(ZERO_KEY_LITERAL.to_string()),
+            format: "json".into(),
+            json: true,
+            fail_on_degraded: false,
+            kit_path: None,
+            passphrase_file: None,
+            backup_max_age: "7d".into(),
+            full: false,
+        };
+        let report = build_report(&opts, false).expect("report");
+        let pg = report
+            .checks
+            .iter()
+            .find(|c| c.name == "policy_grants")
+            .expect("policy_grants");
+        assert_eq!(pg.severity, CheckSeverity::Warn, "msg={:?}", pg.message);
+        let msg = pg.message.as_deref().unwrap_or("");
+        assert!(
+            msg.contains("incomplete") && msg.contains("1 of 3"),
+            "partial message; got {msg}"
+        );
+        assert!(
+            pg.remediation
+                .as_deref()
+                .unwrap_or("")
+                .contains("policy bootstrap"),
+            "rem must name bootstrap"
         );
     }
 
@@ -972,7 +1212,7 @@ mod tests {
         };
         let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
         let report = build_report(&opts, false).expect("report");
-        assert_eq!(report.checks.len(), 14, "14-check matrix");
+        assert_eq!(report.checks.len(), 15, "15-check matrix");
         let names: Vec<&str> = report.checks.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             names,
@@ -990,6 +1230,7 @@ mod tests {
                 "graph_density",
                 "harness_wiring",
                 "project_identity",
+                "policy_grants",
                 "integrity",
             ]
         );

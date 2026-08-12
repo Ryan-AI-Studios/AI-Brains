@@ -443,6 +443,7 @@ mod tests {
             } else {
                 None
             },
+            denial_hint: None,
         }
     }
 

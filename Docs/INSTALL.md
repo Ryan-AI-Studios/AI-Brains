@@ -156,15 +156,21 @@ CLI `--key` / `AI_BRAINS_KEY` must be `x'<64 hex chars>'` (67 characters total, 
 
 5. **Do not** use the all-zero key in production. `AI_BRAINS_ALLOW_ZERO_KEY=1` is an escape hatch for hermetic tests only.
 
-6. **Discovery grants (T210, optional after init):** vault init does **not** auto-issue grants (deny-by-default). Before `source list` / `review list` / briefing discovery sections work for a principal, run once:
+6. **Discovery grants cold-start (T210 + T241):** vault init does **not** auto-issue grants (deny-by-default). Open vault first, then unlock discovery for a principal:
 
    ```powershell
+   # 1) Confirm empty / incomplete grants (optional)
+   ai-brains policy show --scope "Repository:<project-uuid>"
+   ai-brains doctor   # policy_grants warn when authoritative + incomplete
+   # 2) Plan then apply
+   ai-brains policy bootstrap --dry-run   # omit --scope when project context is authoritative
    ai-brains policy bootstrap --scope "Repository:<project-uuid>"
-   # or omit --scope when AI_BRAINS_PROJECT_ID / project context is authoritative
-   ai-brains policy bootstrap --dry-run   # plan only; zero appends
+   # 3) Verify
+   ai-brains policy show
+   ai-brains briefing project --format json   # denied:false when grants active
    ```
 
-   Issues exactly `ReadEvidence`, `ReadConclusions`, `ReadDecisions` (`Privacy::LocalOnly`). Idempotent. See [OPERATIONS.md](OPERATIONS.md) governed policy bootstrap.
+   Issues exactly `ReadEvidence`, `ReadConclusions`, `ReadDecisions` (`Privacy::LocalOnly`). Idempotent. `policy check` without `--capability` prints the capability catalog (exit 2). Ungoverned `recall` / legacy preflight never require grants. See [OPERATIONS.md](OPERATIONS.md) governed policy bootstrap.
 
 ---
 

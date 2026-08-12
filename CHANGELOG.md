@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Added
+
+- **T241 Policy cold-start bootstrap:** Discoverability around existing T210 `policy bootstrap` (no mutation redesign). Doctor soft check **`policy_grants`** (15-check matrix, after `project_identity`): warn when discovery Read* active_count < 3 under authoritative scope + long SOOT rem; skip without vault/scope; never alone Fail. `policy show` empty human prints short SOOT; JSON additive `next_step` when `grants: []` only. `policy check` `--capability` optional at clap → runtime `fail_usage` catalog (discovery first; exit 2; no clap “required arguments” text). Briefing packets additive `denial_hint` (contracts leave None; CP sets bootstrap on denied). Preflight summary post-hoc grants/next line + optional JSON `grants_status`/`next_step` when project-scoped incomplete (9-arg formatters unchanged). Shared `DISCOVERY_CAP_LABELS` / `CAPABILITY_CATALOG` / SOOT constants. Docs: CAPABILITIES doctor row, INSTALL/OPERATIONS cold-start.
+
 ### Changed
 
 - **T244 Backup recoverability fleet:** Stop false recovery hope for openable-but-not-restorable backups. Classify adds **`Incomplete`** when the key opens but product core tables (`events` + `memory_projection`) are missing; PreT109 now requires cores + absent/unusable meta. Doctor usable = `Readable \| PreT109` only (`is_usable_class`); Incomplete never ages as usable. List residual summary counts all non-usable with SOOT `not recoverable under current key` (token `(no core tables)`); CLI list sorts **usable-first** (brain `list_backups` stays timestamp-desc). Verify requires **both** core tables (`tables_out.len() < 2` → `missing core tables`) while JSON `tables` stays populated from the IN query. CAPABILITIES §11 decision table + OPERATIONS green path create→verify→doctor.

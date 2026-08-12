@@ -6,11 +6,15 @@
 use ai_brains_contracts::briefings::{PersonalContinuityBriefingPacket, ProjectBriefingPacket};
 use serde_json::Error as JsonError;
 
-/// Bootstrap next-step after Denied (T227 F10).
+/// Bootstrap next-step after Denied (T227 F10) — markdown footer.
 ///
 /// Dual-site SOOT with CLI/daemon `POLICY_DENIED_HINT` wording (bootstrap command
 /// and scope ellipsis). Keep in sync when changing bootstrap remediation copy.
 pub const BRIEFING_DENIED_NEXT_STEP: &str = "next: run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+
+/// JSON `denial_hint` short SOOT (T241 F7/F14) — must contain `policy bootstrap`.
+pub const BRIEFING_DENIED_DENIAL_HINT: &str =
+    "next: run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap`";
 
 /// Empty allowed project authority notice (T227 F8 / F17).
 pub const BRIEFING_EMPTY_AUTHORITY_NOTICE: &str =
@@ -299,6 +303,11 @@ mod tests {
             } else {
                 None
             },
+            denial_hint: if denied {
+                Some(BRIEFING_DENIED_DENIAL_HINT.into())
+            } else {
+                None
+            },
         }
     }
 
@@ -335,6 +344,11 @@ mod tests {
             denied,
             denial_reason: if denied {
                 Some("Personal scope read denied without grant".into())
+            } else {
+                None
+            },
+            denial_hint: if denied {
+                Some(BRIEFING_DENIED_DENIAL_HINT.into())
             } else {
                 None
             },

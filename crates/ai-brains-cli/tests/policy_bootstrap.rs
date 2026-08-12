@@ -311,6 +311,166 @@ fn policy_bootstrap__dry_run__no_grants() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// T241 AC4–AC6 — cold-start discoverability around show/check
+// ---------------------------------------------------------------------------
+
+/// T241 AC4 — empty show human contains short SOOT; exit 0.
+#[test]
+fn policy_show__empty_grants__human_contains_bootstrap_soot() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("show")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("policy show human");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "empty show must exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("(none)"),
+        "human empty must show (none); got {stdout}"
+    );
+    assert!(
+        stdout.contains("policy bootstrap"),
+        "human empty must include short SOOT; got {stdout}"
+    );
+    assert!(
+        stdout.contains("policy bootstrap --dry-run")
+            || stdout.contains("`ai-brains policy bootstrap"),
+        "short SOOT dry-run then apply; got {stdout}"
+    );
+}
+
+/// T241 AC5 — empty show JSON has grants:[] + next_step; non-empty omits next_step.
+#[test]
+fn policy_show__empty_and_nonempty__json_next_step() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let empty = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("show")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy show empty json");
+    assert_eq!(empty.status.code(), Some(0));
+    let v: Value = serde_json::from_slice(&empty.stdout).expect("json");
+    let grants = v["grants"].as_array().expect("grants array");
+    assert!(grants.is_empty(), "empty grants:[] expected; got {v}");
+    assert!(
+        !v["grants"].is_null(),
+        "grants must be [] not null; got {v}"
+    );
+    let next = v["next_step"].as_str().unwrap_or("");
+    assert!(
+        next.contains("policy bootstrap"),
+        "empty next_step must name bootstrap; got {v}"
+    );
+
+    let boot = policy_bootstrap(&vault, false).output().expect("bootstrap");
+    assert_eq!(boot.status.code(), Some(0));
+
+    let filled = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("show")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy show filled json");
+    assert_eq!(filled.status.code(), Some(0));
+    let v2: Value = serde_json::from_slice(&filled.stdout).expect("json");
+    let grants2 = v2["grants"].as_array().expect("grants");
+    assert!(
+        !grants2.is_empty(),
+        "after bootstrap grants non-empty; {v2}"
+    );
+    assert!(
+        v2.get("next_step").is_none() || v2["next_step"].is_null(),
+        "non-empty must omit next_step; got {v2}"
+    );
+}
+
+/// T241 AC6/F30 — policy check without --capability → exit 2 + discovery catalog; no clap text.
+#[test]
+fn policy_check__missing_capability__exit_2_catalog_no_clap_required() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy check no capability");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "missing --capability must exit 2; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("required arguments were not provided"),
+        "must not be clap required-arg text: {stderr}"
+    );
+    assert!(
+        stderr.contains("--capability is required") || stderr.contains("Valid capabilities"),
+        "catalog header expected: {stderr}"
+    );
+    for name in ["ReadEvidence", "ReadConclusions", "ReadDecisions"] {
+        assert!(
+            stderr.contains(name),
+            "catalog must list discovery cap {name}; got {stderr}"
+        );
+    }
+}
+
 /// AC7 — deny details.hint mentions bootstrap.
 #[test]
 fn policy_bootstrap__deny_hint__contains_bootstrap() {

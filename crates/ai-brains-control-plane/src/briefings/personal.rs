@@ -117,6 +117,8 @@ where
             scope_key,
             "Personal scope read denied without grant",
         );
+        // T241 F7: CP sets bootstrap denial_hint (contracts leave None).
+        packet.denial_hint = Some(super::renderer::BRIEFING_DENIED_DENIAL_HINT.to_string());
         packet.generated_at = Some(offset_to_utc(now));
         apply_personal_budget(&mut packet, req.budget);
         return Ok(packet);
@@ -195,6 +197,7 @@ where
         generated_at: Some(offset_to_utc(now)),
         denied: false,
         denial_reason: None,
+        denial_hint: None,
     };
     // T227 F9/F27: empty_continuity only when allowed and continuity summary empty.
     if packet.continuity.summary.is_empty() {

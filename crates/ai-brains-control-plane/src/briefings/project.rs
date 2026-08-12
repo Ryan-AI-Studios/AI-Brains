@@ -163,6 +163,7 @@ where
             generated_at: Some(offset_to_utc(now)),
             denied: false,
             denial_reason: None,
+            denial_hint: None,
         };
         // Carry resolver warnings.
         for w in &resolved.warnings {
@@ -188,11 +189,14 @@ where
 
     // Personal scope is not a Project packet (caller should use personal briefing).
     if matches!(resolved.scope, ScopeRef::Personal(_)) {
-        return Ok(ProjectBriefingPacket::empty_denied(
+        let mut packet = ProjectBriefingPacket::empty_denied(
             briefing_id.to_string(),
             scope_dto,
             "Project briefing refuses Personal scope; use Personal Continuity Briefing",
-        ));
+        );
+        // T241 F7: CP sets bootstrap denial_hint (contracts leave None).
+        packet.denial_hint = Some(super::renderer::BRIEFING_DENIED_DENIAL_HINT.to_string());
+        return Ok(packet);
     }
 
     let policy_ctx = PolicyContext::default_for_privacy(req.privacy);
@@ -216,6 +220,8 @@ where
             scope_dto,
             "ReadDecisions/ReadConclusions denied for principal at scope",
         );
+        // T241 F7: CP sets bootstrap denial_hint (contracts leave None).
+        packet.denial_hint = Some(super::renderer::BRIEFING_DENIED_DENIAL_HINT.to_string());
         packet.generated_at = Some(offset_to_utc(now));
         apply_budget(&mut packet, req.budget);
         maybe_emit_briefing(writer, req.dry_run, &packet, req.privacy)?;
@@ -451,6 +457,7 @@ where
         generated_at: Some(offset_to_utc(now)),
         denied: false,
         denial_reason: None,
+        denial_hint: None,
     };
 
     // T227 F8/F27: empty_authority only when allowed and both authority sections empty.
