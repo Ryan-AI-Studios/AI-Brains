@@ -165,7 +165,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 |--------------------|-------------|
 | Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual only: F13 detect `--json`, F14 `project use` |
 | Policy grants empty → governed dead-end | **T241** Placeholder |
-| Env override warn spam (T223 residual) | **T242** 📋 **Planning** 2026-08-12 — session fingerprint marker (cross-process); close on ship |
+| Env override warn spam (T223 residual) | ~~**T242**~~ ✅ **Completed** 2026-08-12 PR #147 `9f3148b` — session fingerprint markers (cross-process). Soft residual only: F16 clap quiet, F17 elevation QUIET/FORCE, F18 truthy→core, F19 global quiet pre-read |
 | Search dual model + progressive first-run | **T243** Placeholder |
 | Backup fleet 0 usable / legacy plain | **T244** Placeholder |
 | Harness wiring=missing | **T245** Placeholder |
@@ -180,7 +180,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **Plan-only until go per track.**
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240 + T242 Completed;** remaining tracks plan-only until go.
 
 ### T238 soft residuals (2026-08-09)
 

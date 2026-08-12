@@ -14,7 +14,8 @@
 | Fix | orchestrator | — | Resolve relative `.env` via `current_dir()`; location hermetic; IoFail unit |
 | Internal R2 | explore subagent | **PASS** | P1/P2 verified; no new >P3 |
 | Codex CX1 | gpt-5.4 high | **PASS** (process P2 only) | No product P0–P1–P3; process P2 = registry/full-gate closeout still open (expected mid-PR) |
-| Codex final | _(after closeout)_ | | Fresh clean gate after PR ship |
+| Ship | PR #147 | **merged** | Squash `9f3148b`; CI Win/Linux/macOS green (run 31596082844); Linux path unit fix included |
+| Codex final | gpt-5.4 high | **PASS WITH DEFERRED P3** | final3: product clean; soft F16–F19 only; governance self-consistent |
 
 ---
 
@@ -40,9 +41,9 @@
 
 ### CX1-P2 — Governance closeout incomplete (process)
 
-- **Status:** `open` until post-CI closeout (not a product defect)
+- **Status:** `verified_fixed` (closeout after PR #147)
 - **Problem:** DoD still requires conductor Completed, deferred residual close, full workspace gate evidence, pin.
-- **Disposition:** Validated process residual; product path clean. Close after CI green + squash merge + closeout PR.
+- **Disposition:** Product PR #147 squash `9f3148b`; CI green; conductor/deferred/README Completed; pin; coordinated note.
 
 ---
 
@@ -72,4 +73,4 @@
 
 ## Completion decision
 
-Engineering + Codex CX1 product path **clean** (no open >low product findings). Process CX1-P2 closed by PR + CI + closeout (conductor Completed, deferred residual, pin).
+**Track complete.** Product PR #147 squash `9f3148b` on main; CI Win/Linux/macOS green. Internal R2 PASS; Codex CX1 product clean; **final Codex PASS WITH DEFERRED P3** (soft F16–F19 only). Pin `5fe6a9e5-021e-4ca1-b11a-b712fa2fd676`. Conductor/deferred/series/coordinated updated.
