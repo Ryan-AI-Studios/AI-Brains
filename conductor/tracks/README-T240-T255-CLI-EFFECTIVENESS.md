@@ -8,7 +8,7 @@
 
 | Finding (E / Q or improvement) | Track | Pri |
 |--------------------------------|-------|-----|
-| Default project wrong (`test-alias` vs git/path); `project detect` **6/7**; path/env/alias/register-path three answers | **T240** 📋 **Planning + AI fold-in** | P0 |
+| Default project wrong (`test-alias` vs git/path); `project detect` **6/7**; path/env/alias/register-path three answers | **T240** ✅ **Completed** PR #144 | P0 |
 | Governed cold-start: briefing **4–5**, progressive query **3**, evidence/source/review **3**, `policy show` empty **6/5**, `policy check` usage **5** | **T241** | P0 |
 | `.env` override warning spam on nearly every command | **T242** | P1 |
 | Dual search mental model; progressive dead-end; T231 soft (search noun / recall text arm) | **T243** | P1 |
