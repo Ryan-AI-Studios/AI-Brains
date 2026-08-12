@@ -151,6 +151,7 @@ export interface ProgressiveQueryResponse {
   conflict_summary?: string | null;
   denied: boolean;
   denial_reason?: string | null;
+  next_step?: string;
 }
 
 export interface HandlePreview {

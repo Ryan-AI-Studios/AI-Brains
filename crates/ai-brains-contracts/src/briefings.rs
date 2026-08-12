@@ -434,6 +434,9 @@ pub struct ProgressiveQueryResponse {
     /// Bootstrap remediation when `denied` (T221 F17). Omitted when not denied.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub denial_hint: Option<String>,
+    /// Ungoverned recall fallback when authorized but empty (T243 F5). Omitted on deny and on hits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_step: Option<String>,
 }
 
 impl ProgressiveQueryResponse {
@@ -456,6 +459,7 @@ impl ProgressiveQueryResponse {
             denied: false,
             denial_reason: None,
             denial_hint: None,
+            next_step: None,
         }
     }
 }

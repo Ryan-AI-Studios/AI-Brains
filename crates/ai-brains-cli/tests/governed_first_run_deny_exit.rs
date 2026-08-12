@@ -170,6 +170,14 @@ fn progressive__deny__stderr_code_and_hint_stdout_denial_hint() {
         v.get("denial_hint").is_some() && !v["denial_hint"].is_null(),
         "denial_hint must be present when denied; got {v}"
     );
+    assert!(
+        hint.contains("recall"),
+        "stdout denial_hint must contain recall fallback; got {v}"
+    );
+    assert!(
+        stderr.contains("recall"),
+        "stderr must include recall fallback; got: {stderr}"
+    );
 }
 
 /// AC3 / F31 — bootstrap System principal (omit --principal-id) then progressive exit 0.
@@ -216,6 +224,21 @@ fn progressive__after_system_bootstrap__exit_0_denied_false() {
     assert!(
         v.get("denial_hint").is_none() || v["denial_hint"].is_null(),
         "denial_hint must be omitted when not denied; got {v}"
+    );
+    let results = v["results"].as_array().expect("results array");
+    assert!(
+        results.is_empty(),
+        "authorized empty query must have empty results; got {v}"
+    );
+    let next = v.get("next_step");
+    assert!(
+        next.is_some() && !next.expect("next_step key").is_null(),
+        "next_step must be a JSON string key (not null); got {v}"
+    );
+    let step = next.and_then(Value::as_str).unwrap_or("");
+    assert!(
+        step.contains("recall"),
+        "next_step must contain recall; got {v}"
     );
 }
 
@@ -323,6 +346,10 @@ fn expand__seeded_no_grants__exit_3_kind_denied() {
     assert!(
         stderr.contains("policy bootstrap") || stderr.contains("bootstrap"),
         "stderr must include bootstrap hint; got: {stderr}"
+    );
+    assert!(
+        !stderr.contains("recall"),
+        "expand deny must not append recall fallback (F20); got: {stderr}"
     );
 }
 
