@@ -1,9 +1,9 @@
 # T243 — Search surface unify
 
-- **Track ID:** T243-SearchSurfaceUnify  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** UX / FEATURE  
-- **Source:** Audit P1 dual mental model; progressive **E3**; T231 soft residuals (search noun; recall text→pretty; invalid-env clap)  
+- **Track ID:** T243-SearchSurfaceUnify
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** UX / FEATURE
+- **Source:** Audit P1 dual mental model; progressive **E3**; T231 soft residuals (search noun; recall text→pretty; invalid-env clap)
 - **Depends on:** T231 decision table; T241 grants for progressive to be usable
 
 ## 1. Objective

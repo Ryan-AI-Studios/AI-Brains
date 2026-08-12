@@ -1,7 +1,7 @@
 # T240–T255 — Post-install CLI effectiveness (placeholders)
 
-**Source:** Non-destructive CLI audit 2026-08-11 (global graph-on install; live vault).  
-**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**.  
+**Source:** Non-destructive CLI audit 2026-08-11 (global graph-on install; live vault).
+**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest.
 
 ## Audit → track map
@@ -29,26 +29,26 @@
 
 ## Suggested implement order
 
-1. **T240** identity (unblocks honest daily scores)  
-2. **T241** policy bootstrap (unblocks governed)  
-3. **T242** env quiet (readability everywhere)  
-4. **T244** backup fleet (recoverability)  
-5. **T245** harness wiring  
-6. **T247** nightly status residual  
-7. **T243** search unify  
-8. **T246** graph pretty  
-9. **T248–T252** presentation polish  
-10. **T253–T255** residuals / soft-after  
+1. **T240** identity (unblocks honest daily scores)
+2. **T241** policy bootstrap (unblocks governed)
+3. **T242** env quiet (readability everywhere)
+4. **T244** backup fleet (recoverability)
+5. **T245** harness wiring
+6. **T247** nightly status residual
+7. **T243** search unify
+8. **T246** graph pretty
+9. **T248–T252** presentation polish
+10. **T253–T255** residuals / soft-after
 
 Parallel after T240+T241 if non-intersecting: T242 ∥ T244 ∥ T245.
 
 ## Non-goals of this series
 
-- MSI / notarization / App Store  
-- clap 5 / forced dep bumps  
-- Re-implement T233 multi-root core  
-- Unbounded dump-all / CE wipe product fill  
-- Concurrent multi-operator register-path atomicity  
+- MSI / notarization / App Store
+- clap 5 / forced dep bumps
+- Re-implement T233 multi-root core
+- Unbounded dump-all / CE wipe product fill
+- Concurrent multi-operator register-path atomicity
 
 ## Registry
 

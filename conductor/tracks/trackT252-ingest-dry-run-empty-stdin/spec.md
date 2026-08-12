@@ -1,9 +1,9 @@
 # T252 — Ingest dry-run empty stdin honesty
 
-- **Track ID:** T252-IngestDryRunEmptyStdin  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** UX / BUGFIX  
-- **Source:** Audit — `ingest --dry-run` no stdin **E5/Q7** (EOF JSON error)  
+- **Track ID:** T252-IngestDryRunEmptyStdin
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** UX / BUGFIX
+- **Source:** Audit — `ingest --dry-run` no stdin **E5/Q7** (EOF JSON error)
 
 ## 1. Objective
 

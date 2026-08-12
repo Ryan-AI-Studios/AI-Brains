@@ -1,9 +1,9 @@
 # T248 — Retention plan human summary
 
-- **Track ID:** T248-RetentionPlanHuman  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** UX  
-- **Source:** Audit — `retention plan` **E7/Q7** JSON-only, empty classes thin for operators  
+- **Track ID:** T248-RetentionPlanHuman
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** UX
+- **Source:** Audit — `retention plan` **E7/Q7** JSON-only, empty classes thin for operators
 
 ## 1. Objective
 

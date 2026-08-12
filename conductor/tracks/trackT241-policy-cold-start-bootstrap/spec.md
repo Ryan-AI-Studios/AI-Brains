@@ -1,11 +1,11 @@
 # T241 — Policy cold-start bootstrap
 
-- **Track ID:** T241-PolicyColdStartBootstrap  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** FEATURE / UX / GOVERNED  
-- **Source:** Audit — briefing **4–5**, progressive **3**, evidence/source/review **3**, policy show **6/5**, policy check **5**; P0 first-run grants  
-- **Depends on:** T210 policy bootstrap exists; T221 deny exit; T226 soft-resolve  
-- **Absorbs:** Guided bootstrap from doctor/preflight when `grants: []`; richer denied briefing; policy show empty guidance; policy check discoverability  
+- **Track ID:** T241-PolicyColdStartBootstrap
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** FEATURE / UX / GOVERNED
+- **Source:** Audit — briefing **4–5**, progressive **3**, evidence/source/review **3**, policy show **6/5**, policy check **5**; P0 first-run grants
+- **Depends on:** T210 policy bootstrap exists; T221 deny exit; T226 soft-resolve
+- **Absorbs:** Guided bootstrap from doctor/preflight when `grants: []`; richer denied briefing; policy show empty guidance; policy check discoverability
 - **Not absorbed:** Full admin grant UI; progressive ranking quality (→ T243)
 
 ## 1. Objective
@@ -14,9 +14,9 @@ First-run (and this machine’s empty-grant vault) can unlock **ReadDecisions / 
 
 ## 2. Problem (live)
 
-- `policy show` → `grants: []`  
-- `briefing project` → Denied authority, empty decisions  
-- `query progressive` → exit **3** POLICY_DENIED  
+- `policy show` → `grants: []`
+- `briefing project` → Denied authority, empty decisions
+- `query progressive` → exit **3** POLICY_DENIED
 - `evidence|source|review list` → exit **3** with bootstrap hint (good hint, still dead-end)
 
 ## 3. Draft decisions

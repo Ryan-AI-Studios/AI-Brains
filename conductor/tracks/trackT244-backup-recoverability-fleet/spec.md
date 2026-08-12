@@ -1,9 +1,9 @@
 # T244 — Backup recoverability fleet
 
-- **Track ID:** T244-BackupRecoverabilityFleet  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** OPS / FEATURE  
-- **Source:** Audit — backup verify **E7**, list **Q7**, 0/21 OK legacy plain; doctor `backup_recent` warn; P1 usable backup  
+- **Track ID:** T244-BackupRecoverabilityFleet
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** OPS / FEATURE
+- **Source:** Audit — backup verify **E7**, list **Q7**, 0/21 OK legacy plain; doctor `backup_recent` warn; P1 usable backup
 - **Depends on:** T225 quiet verify + usable nudge (shipped)
 
 ## 1. Objective

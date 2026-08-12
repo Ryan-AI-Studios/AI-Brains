@@ -1,9 +1,9 @@
 # T251 — Multi-device discoverability
 
-- **Track ID:** T251-DeviceDiscoverability  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** UX  
-- **Source:** Audit — `device status` unrecognized; P2 discoverability; replicate status already good  
+- **Track ID:** T251-DeviceDiscoverability
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** UX
+- **Source:** Audit — `device status` unrecognized; P2 discoverability; replicate status already good
 
 ## 1. Objective
 

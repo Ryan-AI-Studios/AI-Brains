@@ -1,14 +1,14 @@
 # T240 — Project identity convergence
 
-- **Track ID:** T240-ProjectIdentityConvergence  
-- **Status:** 🔄 **Implementing** (product on PR #144; close after CI + final Codex)  
-- **Category:** FEATURE / UX / OPS  
-- **Owner:** Grok  
-- **Source:** CLI audit 2026-08-11 P0; live identity triangle; T206 detect; T233 path aliases; **AI fold-in** `C:\dev\AI-review.md` AI1+AI2  
-- **Depends on:** T206 detect honesty; T212 list path column; T233 `register-path` / `find_path_alias_owner`; T205 local PROJECT_ID force-set  
-- **Blocks / feeds:** Honest daily Scope; unblocks audit scores for recall/preflight; informs T241 scope choice  
-- **Absorbs:** deferred identity row; detect path-blindness; whoami; mismatch warn; AI M1–M3 pins  
-- **Not absorbed:** T241 policy; T242 env quiet; T254 list-paths; auto-merge; auto `.env` write; memory heuristics  
+- **Track ID:** T240-ProjectIdentityConvergence
+- **Status:** 🔄 **Implementing** (product on PR #144; close after CI + final Codex)
+- **Category:** FEATURE / UX / OPS
+- **Owner:** Grok
+- **Source:** CLI audit 2026-08-11 P0; live identity triangle; T206 detect; T233 path aliases; **AI fold-in** `C:\dev\AI-review.md` AI1+AI2
+- **Depends on:** T206 detect honesty; T212 list path column; T233 `register-path` / `find_path_alias_owner`; T205 local PROJECT_ID force-set
+- **Blocks / feeds:** Honest daily Scope; unblocks audit scores for recall/preflight; informs T241 scope choice
+- **Absorbs:** deferred identity row; detect path-blindness; whoami; mismatch warn; AI M1–M3 pins
+- **Not absorbed:** T241 policy; T242 env quiet; T254 list-paths; auto-merge; auto `.env` write; memory heuristics
 
 **Plan:** [plan.md](./plan.md) § AI fold-in
 
@@ -16,10 +16,10 @@
 
 ## 1. Objective
 
-1. Make **all identity signals visible** (`project whoami`).  
-2. Fix **`project detect`** so path-alias (T233) beats empty name-collision projects.  
-3. **Warn** when daily env Scope ≠ path-alias of cwd (no silent auto-switch).  
-4. Document set-alias vs register-path vs `.env` SOOT.  
+1. Make **all identity signals visible** (`project whoami`).
+2. Fix **`project detect`** so path-alias (T233) beats empty name-collision projects.
+3. **Warn** when daily env Scope ≠ path-alias of cwd (no silent auto-switch).
+4. Document set-alias vs register-path vs `.env` SOOT.
 5. Never auto-merge projects.
 
 ## 2. Problem (frozen live 2026-08-11)
@@ -107,10 +107,10 @@ ai-brains preflight --summary   # Scope should match main
 
 ## 8. Definition of Done
 
-- [x] F0–F22 + AC0–AC9 (product implemented; F13/F14 soft deferred)  
-- [x] AI fold-in pins honored  
-- [ ] Cross-model final PASS + CI green + squash (process remaining)  
-- [ ] conductor / deferred / pin closeout  
+- [x] F0–F22 + AC0–AC9 (product implemented; F13/F14 soft deferred)
+- [x] AI fold-in pins honored
+- [ ] Cross-model final PASS + CI green + squash (process remaining)
+- [ ] conductor / deferred / pin closeout
 
 ## 9. AI fold-in summary
 

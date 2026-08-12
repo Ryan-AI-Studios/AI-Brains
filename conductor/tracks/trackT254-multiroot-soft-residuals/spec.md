@@ -1,10 +1,10 @@
 # T254 — Multi-root soft residuals (T233+)
 
-- **Track ID:** T254-MultiRootSoftResiduals  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** FEATURE / OPS  
-- **Source:** T233 soft residual — list-paths, unregister-path, from-scan, route method/path_pattern  
-- **Depends on:** T233 completed  
+- **Track ID:** T254-MultiRootSoftResiduals
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** FEATURE / OPS
+- **Source:** T233 soft residual — list-paths, unregister-path, from-scan, route method/path_pattern
+- **Depends on:** T233 completed
 
 ## 1. Objective
 

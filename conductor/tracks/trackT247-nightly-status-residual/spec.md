@@ -1,14 +1,14 @@
 # T247 — Nightly status residual (latency + Last Result 101)
 
-- **Track ID:** T247-NightlyStatusResidual  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** OPS / BUGFIX / PERF  
-- **Source:** Audit — `nightly --status` **E9/Q8** but **4–6s**; Last Result **101**; T229 soft residuals partial  
-- **Depends on:** T229 status/probe; T233 multi-root; post-install binary  
+- **Track ID:** T247-NightlyStatusResidual
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** OPS / BUGFIX / PERF
+- **Source:** Audit — `nightly --status` **E9/Q8** but **4–6s**; Last Result **101**; T229 soft residuals partial
+- **Depends on:** T229 status/probe; T233 multi-root; post-install binary
 
 ## 1. Objective
 
-1. Status is **fast enough** for interactive use (target &lt;1s without optional deep probe, or `--quick`).  
+1. Status is **fast enough** for interactive use (target &lt;1s without optional deep probe, or `--quick`).
 2. Diagnose and clear **Last Result 101** residual on live schedule after current install (or document root cause if environmental).
 
 ## 2. Draft decisions

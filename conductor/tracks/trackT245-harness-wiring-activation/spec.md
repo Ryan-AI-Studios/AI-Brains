@@ -1,11 +1,11 @@
 # T245 — Harness wiring activation
 
-- **Track ID:** T245-HarnessWiringActivation  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** OPS / FEATURE  
-- **Source:** Audit P1 — harness status excellent (**9/9**) but **wiring=missing** for all ready harnesses  
-- **Depends on:** T235 detect/install UX; T236–T238 backends ready for grok/agy/opencode  
-- **Absorbs:** Operator activation path; preflight install prompts; doctor harness_wiring remediation  
+- **Track ID:** T245-HarnessWiringActivation
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** OPS / FEATURE
+- **Source:** Audit P1 — harness status excellent (**9/9**) but **wiring=missing** for all ready harnesses
+- **Depends on:** T235 detect/install UX; T236–T238 backends ready for grok/agy/opencode
+- **Absorbs:** Operator activation path; preflight install prompts; doctor harness_wiring remediation
 - **Not absorbed:** Claude/Codex install_ready (→ T253)
 
 ## 1. Objective

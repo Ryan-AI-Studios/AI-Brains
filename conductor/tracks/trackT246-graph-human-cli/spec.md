@@ -1,10 +1,10 @@
 # T246 — Graph human CLI presentation
 
-- **Track ID:** T246-GraphHumanCli  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** UX  
-- **Source:** Audit — `graph neighbors` **E7/Q6** raw JSON; hierarchy/session same class  
-- **Depends on:** T222 graph-on; T232 density remediations  
+- **Track ID:** T246-GraphHumanCli
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** UX
+- **Source:** Audit — `graph neighbors` **E7/Q6** raw JSON; hierarchy/session same class
+- **Depends on:** T222 graph-on; T232 density remediations
 
 ## 1. Objective
 

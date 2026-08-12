@@ -1,9 +1,9 @@
 # T250 — Preflight pretty density (pass-2)
 
-- **Track ID:** T250-PreflightPrettyDensity  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** UX  
-- **Source:** Audit — `preflight --pretty` **E7/Q7**; T219 soft residuals (`--compact`, retrieval strip)  
+- **Track ID:** T250-PreflightPrettyDensity
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** UX
+- **Source:** Audit — `preflight --pretty` **E7/Q7**; T219 soft residuals (`--compact`, retrieval strip)
 
 ## 1. Objective
 

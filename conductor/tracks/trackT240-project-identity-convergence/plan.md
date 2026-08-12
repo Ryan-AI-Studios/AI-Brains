@@ -1,8 +1,8 @@
 # T240 Plan — Project identity convergence
 
-**Status:** 🔧 **Implementing** — product `6179e5e` / PR #144; governance + AC6 evidence this follow-up  
-**Spec:** [spec.md](./spec.md) § AI fold-in / F0–F22  
-**Category:** FEATURE / UX / OPS  
+**Status:** 🔧 **Implementing** — product `6179e5e` / PR #144; governance + AC6 evidence this follow-up
+**Spec:** [spec.md](./spec.md) § AI fold-in / F0–F22
+**Category:** FEATURE / UX / OPS
 **Ledger TX:** `0ee32f70-2565-448a-b39e-10ae87f36095`
 
 ---
@@ -37,26 +37,26 @@ Both AIs re-verified code + live triangle; **no Highs**. Verdict: fold M1–M3 +
 
 ### Pins locked by fold-in
 
-1. **Git identity (M1):**  
+1. **Git identity (M1):**
    ```rust
    struct GitIdentity { slug: Option<String>, toplevel: Option<PathBuf> }
    fn collect_git_identity(cwd: &Path) -> Result<GitIdentity, …>
-   ```  
-   Path alias: normalize(toplevel) → `find_path_alias_owner`; else normalize(cwd).  
+   ```
+   Path alias: normalize(toplevel) → `find_path_alias_owner`; else normalize(cwd).
    Keep `GIT_TERMINAL_PROMPT=0`. Update detect + tests.
 
 2. **Conflict F6 (M3):** Path B always wins over slug A. Stderr: note A. If B.mem==0 && A.mem>0: extra “verify path alias (`project list`)” note.
 
-3. **whoami JSON (M3/L2/L9):**  
-   `effective_project_id`, `env_project_id` (post-dotenv), `shell_project_id` (pre-dotenv, if set/differs), `path_alias_project_id`, `detect_project_id`, `git_slug`, `git_toplevel`, `mismatch`, `remediations[]`.  
-   Human default on TTY via `std::io::IsTerminal`; JSON when piped or `--format json`.  
+3. **whoami JSON (M3/L2/L9):**
+   `effective_project_id`, `env_project_id` (post-dotenv), `shell_project_id` (pre-dotenv, if set/differs), `path_alias_project_id`, `detect_project_id`, `git_slug`, `git_toplevel`, `mismatch`, `remediations[]`.
+   Human default on TTY via `std::io::IsTerminal`; JSON when piped or `--format json`.
    Subcommand name `whoami` under `project` — **no** collision with Windows `whoami.exe`.
 
-4. **Mismatch warn (M4/M2/L5):**  
+4. **Mismatch warn (M4/M2/L5):**
    ```text
    Warning: project identity mismatch: daily Scope is '{env}', but path is registered to '{path}'. Run 'ai-brains project whoami'.
-   ```  
-   Skip: `--no-project-context`, `--global` (argv pre-scan), no path alias, no env project.  
+   ```
+   Skip: `--no-project-context`, `--global` (argv pre-scan), no path alias, no env project.
    **Once per process** (`Once`/`OnceLock`) at first vault-using command path that can query aliases — **never** mutates PROJECT_ID.
 
 5. **detect `--export`:** comment includes source (`path_alias` / `git_slug` / `env`).
@@ -134,7 +134,7 @@ Both AIs re-verified code + live triangle; **no Highs**. Verdict: fold M1–M3 +
 
 ### Precedence freeze (post fold-in)
 
-**Daily Scope:** `--project-id` / `--global` → effective env PROJECT_ID (post-dotenv). **Never** auto path.  
+**Daily Scope:** `--project-id` / `--global` → effective env PROJECT_ID (post-dotenv). **Never** auto path.
 **Mismatch warn:** once/process when path owner ≠ env (see pins).
 
 **Detect order:**
@@ -148,8 +148,8 @@ Both AIs re-verified code + live triangle; **no Highs**. Verdict: fold M1–M3 +
 
 ### Conflict rule F6 — **locked**
 
-Path owner **always** wins vs unique slug hit (regardless of memory counts).  
-Stderr always notes slug project.  
+Path owner **always** wins vs unique slug hit (regardless of memory counts).
+Stderr always notes slug project.
 Extra note if path owner 0 mem and slug hit >0 mem → verify `project list` / re-register-path.
 
 ### Deps
@@ -225,12 +225,12 @@ Extra note if path owner 0 mem and slug hit >0 mem → verify `project list` / r
 
 ## Explicit non-goals
 
-- Auto-merge / auto-delete projects / auto-write `.env`  
-- Memory-count heuristics  
-- clap `--global` promote to global arg  
-- T241 / T242 / T254  
-- Remove is-terminal crate workspace-wide  
-- Forced dep bumps  
+- Auto-merge / auto-delete projects / auto-write `.env`
+- Memory-count heuristics
+- clap `--global` promote to global arg
+- T241 / T242 / T254
+- Remove is-terminal crate workspace-wide
+- Forced dep bumps
 
 ---
 
@@ -260,10 +260,10 @@ cargo nextest run -p ai-brains-cli --test project_identity_convergence  # 9 PASS
 
 ## Definition of Done
 
-- [x] F0–F22 + AC0–AC9 product (F13/F14 soft deferred)  
-- [x] AI fold-in pins honored (M1–M3, whoami, once warn, doctor soft, export source)  
-- [ ] Cross-model final PASS; CI green; squash  
-- [ ] conductor / deferred / pin closeout  
+- [x] F0–F22 + AC0–AC9 product (F13/F14 soft deferred)
+- [x] AI fold-in pins honored (M1–M3, whoami, once warn, doctor soft, export source)
+- [ ] Cross-model final PASS; CI green; squash
+- [ ] conductor / deferred / pin closeout
 
 ---
 

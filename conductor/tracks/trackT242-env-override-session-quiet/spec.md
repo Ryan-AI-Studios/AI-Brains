@@ -1,9 +1,9 @@
 # T242 — Env override warning session quiet
 
-- **Track ID:** T242-EnvOverrideSessionQuiet  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** UX / POLISH  
-- **Source:** Audit P1 — warning on nearly every command; T223 residual F18 (clap quiet / session-once)  
+- **Track ID:** T242-EnvOverrideSessionQuiet
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** UX / POLISH
+- **Source:** Audit P1 — warning on nearly every command; T223 residual F18 (clap quiet / session-once)
 - **Depends on:** T223 collapse multi-key line (shipped)
 
 ## 1. Objective

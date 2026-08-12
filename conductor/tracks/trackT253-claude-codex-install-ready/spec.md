@@ -1,10 +1,10 @@
 # T253 — Claude / Codex install_ready (T239+)
 
-- **Track ID:** T253-ClaudeCodexInstallReady  
-- **Status:** 📋 **Placeholder** (plan-only until **go**)  
-- **Category:** FEATURE / HARNESS  
-- **Source:** T238/T239 soft residual S8 / Claude-Codex labels **T239+**; audit harness pending  
-- **Depends on:** T235 detect; message-only contract T234  
+- **Track ID:** T253-ClaudeCodexInstallReady
+- **Status:** 📋 **Placeholder** (plan-only until **go**)
+- **Category:** FEATURE / HARNESS
+- **Source:** T238/T239 soft residual S8 / Claude-Codex labels **T239+**; audit harness pending
+- **Depends on:** T235 detect; message-only contract T234
 
 ## 1. Objective
 
