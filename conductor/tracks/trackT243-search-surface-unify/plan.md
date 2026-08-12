@@ -1,6 +1,6 @@
 # T243 Plan — Search surface unify
 
-**Status:** 📋 **Planning** (plan-only until **go**)  
+**Status:** ✅ **Completed** (PR #153 `7a19d40`)  
 **Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC15 + §12 AI fold-in  
 **Category:** FEATURE / UX / CONTRACT  
 **Ledger:** open on go — `ledgerful ledger start T243-search-surface-unify --category FEATURE`
@@ -175,12 +175,12 @@ ai-brains query progressive "x"
 
 ### Phase 6 — Gate + close
 
-- [ ] Full CI gate (`fmt` / `clippy -D warnings` / nextest / deny / audit)
-- [ ] `ledgerful verify --scope fast` then full as required
-- [ ] Primary review + **hard** cross-model (F25)
-- [ ] `conductor.md` T243 → Completed; deferred.md strike; series README
-- [ ] `ledgerful ledger commit`
-- [ ] Pin decisions (alias → recall; text≡pretty; ranking not rewritten)
+- [x] Full CI gate (`fmt` / `clippy -D warnings` / nextest 2704). deny/audit via CI (Win/Linux/macOS green)
+- [x] `ledgerful verify --scope fast` (fmt/clippy/nextest ok; local deny/audit binaries missing — CI covered)
+- [x] Primary review + **hard** cross-model (F25) — R2 CLEAN; CX2 **PASS**
+- [x] `conductor.md` T243 → Completed; deferred.md strike; series README
+- [x] `ledgerful ledger commit` (`44d4a937-c727-42cf-af59-e674a63bdd48`)
+- [x] Pin decisions (alias → recall; text≡pretty; ranking not rewritten) — pin `6ce315e9-03ed-42f9-bd40-c2a8ac85943f`
 
 ---
 

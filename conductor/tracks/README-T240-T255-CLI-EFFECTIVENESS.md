@@ -1,7 +1,7 @@
 # T240–T255 — Post-install CLI effectiveness (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-11 (global graph-on install; live vault).
-**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**.
+**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**. **T243 Completed** 2026-08-12 PR #153.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest.
 
 ## Audit → track map
@@ -11,7 +11,7 @@
 | Default project wrong (`test-alias` vs git/path); `project detect` **6/7**; path/env/alias/register-path three answers | **T240** ✅ **Completed** PR #144 | P0 |
 | Governed cold-start: briefing **4–5**, progressive query **3**, evidence/source/review **3**, `policy show` empty **6/5**, `policy check` usage **5** | **T241** ✅ **Completed** PR #151 | P0 |
 | `.env` override warning spam on nearly every command | **T242** ✅ **Completed** PR #147 | P1 |
-| Dual search mental model; progressive dead-end; T231 soft (search noun / recall text arm) | **T243** | P1 |
+| Dual search mental model; progressive dead-end; T231 soft (search noun / recall text arm) | **T243** ✅ **Completed** PR #153 | P1 |
 | Backup fleet 0 OK / 21 FAIL legacy; list **Q7**; verify **E7**; doctor `backup_recent` warn / false-usable PreT109 | **T244** ✅ **Completed** PR #149 | P1 |
 | Harness `wiring=missing` despite `install_ready` | **T245** | P1 |
 | Graph neighbors **7/6** JSON-only; hierarchy/session human missing | **T246** | P2 |
