@@ -11,6 +11,51 @@ vault path of `C:\dev\my-project\.ai-brains\vault.db`.
 
 ---
 
+## 0. Project identity triangle (T240)
+
+Three signals can disagree — **daily Scope is always the effective env
+`AI_BRAINS_PROJECT_ID` after local `.env` force-set** (never auto-switched
+to path). Use `project whoami` when Scope looks wrong.
+
+```text
+                    git slug (detect step 2)
+                           │
+                           ▼
+              vault name/alias match ──► may be empty or a thin project
+
+  repo .env PROJECT_ID ──► daily Scope (*)  ← force-set over shell
+
+  path register-path  ──► path_alias owner  ← detect step 1 (wins over slug)
+```
+
+| Signal | What sets it | Used by |
+|--------|--------------|---------|
+| **Env / daily Scope** | Project `.env` `AI_BRAINS_PROJECT_ID` (force-set) or shell / `--project-id` | recall, pin, preflight, most commands |
+| **Path alias** | `project register-path <id\|alias> <path>` | `project detect` (first), nightly multi-root, whoami, mismatch warn |
+| **Git slug** | `origin` remote name (else toplevel dir) | `project detect` when no path owner |
+
+### Operator runbook (identity confusion)
+
+```powershell
+cd C:\dev\your-repo
+ai-brains project whoami --format json
+ai-brains project detect
+ai-brains project list   # label + path columns
+
+# Prefer the real work project for this repo (example):
+# ai-brains project set-alias <main-uuid> MyRepoLabel   # human label only
+# ai-brains project register-path <main-uuid> C:\dev\your-repo
+# Edit .env:
+#   AI_BRAINS_PROJECT_ID=<main-uuid>
+ai-brains preflight --summary   # Scope should match main
+```
+
+If you see `Warning: project identity mismatch…`, Scope and path disagree —
+whoami shows both; rebind `.env` only if you intend the path owner (no
+auto-write).
+
+---
+
 ## 1. First-time setup
 
 Goal: get a fresh vault, register the project, and pin your first

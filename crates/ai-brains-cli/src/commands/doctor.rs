@@ -80,7 +80,7 @@ pub fn build_report(
     };
 
     let vault_path = &opts.vault_path;
-    let mut checks: Vec<HealthCheck> = Vec::with_capacity(13);
+    let mut checks: Vec<HealthCheck> = Vec::with_capacity(14);
 
     // 1. vault_exists
     let exists_check = check_vault_exists(vault_path);
@@ -238,7 +238,14 @@ pub fn build_report(
     // 12. harness_wiring (soft info — never fail/degraded solely for missing hooks; T235 F17)
     checks.push(check_harness_wiring());
 
-    // 13. integrity (optional --full)
+    // 13. project_identity (soft — env vs path alias; never alone forces fail; T240 F12)
+    checks.push(check_project_identity(
+        vault_conn.as_ref(),
+        open_failed,
+        skip_reason,
+    ));
+
+    // 14. integrity (optional --full)
     checks.push(if opts.full {
         match vault_conn.as_ref().and_then(|vc| vc.lock().ok()) {
             Some(conn) => check_integrity(&conn),
@@ -631,6 +638,70 @@ fn check_integrity(conn: &rusqlite::Connection) -> HealthCheck {
     }
 }
 
+/// Soft project identity check (T240 F12): env PROJECT_ID ≠ path-alias owner of
+/// cwd/toplevel when both present. Uses vault_conn read-only (no AppContext).
+/// Warn severity may degrade overall status but never alone forces **fail**.
+fn check_project_identity(
+    vault_conn: Option<&VaultConnection>,
+    open_failed: bool,
+    skip_reason: &str,
+) -> HealthCheck {
+    if open_failed {
+        return HealthCheck::skip("project_identity", skip_reason);
+    }
+    let Some(vc) = vault_conn else {
+        return HealthCheck::skip("project_identity", "vault connection unavailable");
+    };
+
+    let env_id = std::env::var("AI_BRAINS_PROJECT_ID")
+        .ok()
+        .filter(|s| !s.is_empty());
+    let Some(env_id) = env_id else {
+        return HealthCheck::ok_msg(
+            "project_identity",
+            "no AI_BRAINS_PROJECT_ID in env; path/detect not compared",
+        );
+    };
+
+    let cwd = match std::env::current_dir() {
+        Ok(c) => c,
+        Err(e) => {
+            return HealthCheck::skip("project_identity", format!("cannot resolve cwd: {e}"));
+        }
+    };
+
+    let git = crate::commands::project::collect_git_identity(&cwd).unwrap_or_default();
+    let path_owner = match crate::commands::project::resolve_path_alias_for_location(vc, &cwd, &git)
+    {
+        Ok(p) => p,
+        Err(e) => {
+            return HealthCheck::skip("project_identity", format!("path alias lookup failed: {e}"));
+        }
+    };
+
+    let Some(path_id) = path_owner else {
+        return HealthCheck::ok_msg(
+            "project_identity",
+            "no path alias for cwd/toplevel; env Scope not compared to path",
+        );
+    };
+
+    if env_id == path_id {
+        return HealthCheck::ok_msg(
+            "project_identity",
+            format!("env Scope matches path alias owner ({env_id})"),
+        );
+    }
+
+    HealthCheck::warn(
+        "project_identity",
+        format!(
+            "daily Scope env PROJECT_ID={env_id} differs from path alias owner={path_id}"
+        ),
+        Some("Run `ai-brains project whoami`; rebind .env PROJECT_ID if path owner is intended (no auto-switch).".into()),
+    )
+}
+
 /// Soft harness wiring check (T235). Always Ok severity so missing hooks never
 /// roll up to Degraded/Fail alone (AC9). Message carries info.
 fn check_harness_wiring() -> HealthCheck {
@@ -849,7 +920,8 @@ mod tests {
     #[test]
     fn health_check_order_names__fixed_matrix() {
         // Document expected fixed order for determinism (F16/F30; T213 graph_density;
-        // T222 graph_feature before graph_density; T235 harness_wiring before integrity last).
+        // T222 graph_feature before graph_density; T235 harness_wiring; T240 project_identity
+        // before integrity last).
         let expected = [
             "vault_exists",
             "vault_open",
@@ -863,13 +935,15 @@ mod tests {
             "graph_feature",
             "graph_density",
             "harness_wiring",
+            "project_identity",
             "integrity",
         ];
-        assert_eq!(expected.len(), 13);
+        assert_eq!(expected.len(), 14);
         assert_eq!(expected[9], "graph_feature");
         assert_eq!(expected[10], "graph_density");
         assert_eq!(expected[11], "harness_wiring");
-        assert_eq!(expected[12], "integrity");
+        assert_eq!(expected[12], "project_identity");
+        assert_eq!(expected[13], "integrity");
         // Ensure HealthCheck helpers set ok flag correctly.
         assert!(HealthCheck::skip("integrity", "x").ok);
         assert_eq!(
@@ -902,7 +976,7 @@ mod tests {
         };
         let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
         let report = build_report(&opts, false).expect("report");
-        assert_eq!(report.checks.len(), 13, "13-check matrix");
+        assert_eq!(report.checks.len(), 14, "14-check matrix");
         let names: Vec<&str> = report.checks.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             names,
@@ -919,6 +993,7 @@ mod tests {
                 "graph_feature",
                 "graph_density",
                 "harness_wiring",
+                "project_identity",
                 "integrity",
             ]
         );

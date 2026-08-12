@@ -1616,7 +1616,10 @@ pub enum ProjectCommands {
         #[arg(long = "alias", conflicts_with = "alias_positional")]
         alias: Option<String>,
     },
-    /// Auto-detect project from current git repository (fallback: .env AI_BRAINS_PROJECT_ID)
+    /// Auto-detect project: path alias (toplevel/cwd) → git slug → .env PROJECT_ID
+    #[command(
+        after_help = "Precedence (F5):\n  1. Path alias of git toplevel (else cwd)\n  2. Git slug exact-first vault match\n  3. AI_BRAINS_PROJECT_ID if present in vault\n  4. Miss exit 1\nPath always wins over a unique git slug hit (stderr notes the slug project).\n--export includes source=path_alias|git_slug|env. set-alias is a label; register-path is the disk root."
+    )]
     Detect {
         /// Output as shell export statement
         #[arg(long)]
@@ -1641,6 +1644,15 @@ pub enum ProjectCommands {
         project_ref: String,
         /// Filesystem path to register (Windows or WSL form; normalized for compare)
         path: String,
+    },
+    /// Show all project identity signals (env / path alias / git detect)
+    #[command(
+        after_help = "Shows effective daily Scope, shell vs .env PROJECT_ID, path-alias owner, and detect result.\nDoes not rewrite PROJECT_ID. Detect order: path_alias → git_slug → env.\nExamples:\n  ai-brains project whoami\n  ai-brains project whoami --format json\n  ai-brains --no-project-context project whoami --format json"
+    )]
+    Whoami {
+        /// Output format: auto (TTY=human, piped=json), human, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        format: String,
     },
 }
 
@@ -2057,6 +2069,15 @@ fn main_inner() {
     // is cheap and this keeps the env-var logic close to its trigger.
     let no_project_context = args.iter().any(|a| a == "--no-project-context");
     let warn_on_project_context_override = should_warn_project_context_override(&args);
+
+    // T240 L9: capture shell PROJECT_ID before any project-context force-set / clear
+    // so `project whoami` can report shell_project_id when it differs from .env.
+    {
+        let shell = std::env::var("AI_BRAINS_PROJECT_ID")
+            .ok()
+            .filter(|s| !s.is_empty());
+        commands::project::record_shell_project_id(shell);
+    }
 
     // Pre-scan for --log-format so the tracing subscriber can be initialized
     // with the requested format before clap is fully parsed.
@@ -2629,6 +2650,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
+    // T240 F3: once-per-process warn when daily Scope env ≠ path-alias owner (never mutates).
+    commands::project::maybe_warn_identity_mismatch(&ctx);
     match cli.command.as_ref() {
         Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),
@@ -3535,6 +3558,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             ProjectCommands::RegisterPath { project_ref, path } => {
                 commands::project::register_path(&ctx, project_ref, path)
             }
+            ProjectCommands::Whoami { format } => commands::project::whoami(&ctx, format),
         },
         #[cfg(feature = "graph")]
         Commands::Graph { command, .. } => match command {
