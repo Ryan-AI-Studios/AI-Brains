@@ -36,6 +36,7 @@
 | Internal R1 fix | orchestrator | 2026-08-12 | Tests 15/15; skill F22 shipped |
 | Internal R2 | explore subagent | 2026-08-12 | CLEAN |
 | Cross-model CX1 | Codex gpt-5.6-luna high | 2026-08-12 | FAIL (P1 process/evidence; P2 F3 pass-through unit) |
+| Cross-model CX2 | Codex gpt-5.6-luna high | 2026-08-12 | **PASS** (no P0–P3) |
 
 ---
 
