@@ -164,7 +164,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Residual / finding | Disposition |
 |--------------------|-------------|
 | Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual only: F13 detect `--json`, F14 `project use` |
-| Policy grants empty → governed dead-end | **T241** In Progress (2026-08-12) — discoverability DoD implemented (doctor/preflight/show/check/briefing); gate+review residual |
+| Policy grants empty → governed dead-end | ~~**T241**~~ ✅ **Completed** 2026-08-12 PR #151 `930d0ed` — doctor/preflight/show/check/briefing discoverability. Soft residual only: F20 install-grants, F21 skill one-liner, F22 soft-resolve hermetic, L1 after_help dual-site, L2 dual short-SOOT |
 | Env override warn spam (T223 residual) | ~~**T242**~~ ✅ **Completed** 2026-08-12 PR #147 `9f3148b` — session fingerprint markers (cross-process). Soft residual only: F16 clap quiet, F17 elevation QUIET/FORCE, F18 truthy→core, F19 global quiet pre-read |
 | Search dual model + progressive first-run | **T243** Placeholder |
 | Backup fleet 0 usable / legacy plain | ~~**T244**~~ ✅ **Completed** 2026-08-12 PR #149 `948d2ae` — Incomplete + core-table usable SOOT; list residual `not recoverable`; CLI usable-first; verify both cores; live create green path. Soft residual only: F17 verify quiet/JSON summary/structured error; F18 archive helper |
@@ -1193,7 +1193,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 | Residual | Disposition |
 |----------|-------------|
-| F12 doctor `policy_grants` warn | **Absorbed into T241 DoD** (2026-08-12 plan) — matrix 15 + cwd honesty |
+| F12 doctor `policy_grants` warn | ~~**Absorbed into T241 DoD**~~ ✅ **Shipped** T241 PR #151 `930d0ed` — matrix 15 + `policy_grants` warn |
 | F32 `--principal-id` progressive/expand | Soft skip — not DoD |
 | F18 daemon/HTTP progressive 200+denied | Soft residual (CLI is DoD) |
 | F36 trace `applied_policy` string | Soft residual — out of DoD |
@@ -1232,3 +1232,15 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 - Operator still runs `ai-brains backup create` on live encrypted vaults
 
 | T233 soft residual (list-paths / unregister-path / from-scan / route metadata) | Soft: O2 list-paths CLI; F31 unregister-path; F15 from-scan; F44 route method/path_pattern; F21 non-atomic CLI; bridge_roots failed-count under-sum |
+
+## AI-Brains T241 (2026-08-12)
+
+**Closed in AI-Brains** (PR #151 `930d0ed`): Policy cold-start bootstrap discoverability — doctor `policy_grants` matrix 15; show/check UX; briefing `denial_hint`; preflight grants line with project_id-wired probe. Codex CX3 **PASS**.
+
+| Date | Repo | Track | Residual | Notes |
+|------|------|-------|----------|-------|
+| 2026-08-12 | ai-brains | T241 | low | F20 soft: `preflight --install-grants` opt-in | Soft residual; not DoD |
+| 2026-08-12 | ai-brains | T241 | low | F21 soft: skill one-liner for bootstrap | Soft residual; not DoD |
+| 2026-08-12 | ai-brains | T241 | low | F22 soft: bootstrap success soft-resolve hermetic | Soft residual; not DoD |
+| 2026-08-12 | ai-brains | T241 | low | L1 after_help dual-site vs CAPABILITY_CATALOG | Sync comment; clap after_help static |
+| 2026-08-12 | ai-brains | T241 | low | L2 dual short-SOOT constants CLI vs CP | Substring locked by tests |

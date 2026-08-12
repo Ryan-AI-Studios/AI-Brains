@@ -1,9 +1,9 @@
 # T241 Plan — Policy cold-start bootstrap
 
-**Status:** 🔄 **In Progress**  
+**Status:** ✅ **Completed** (2026-08-12) PR #151 squash `930d0ed`  
 **Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC14 + §12 AI fold-in  
 **Category:** FEATURE / UX / GOVERNED  
-**Ledger:** start on go (`T241-policy-cold-start` / FEATURE)
+**Ledger:** FEATURE T241-policy-cold-start committed; closeout DOCS
 
 ---
 
@@ -222,5 +222,5 @@ No Highs. Spec design affirmed. Three AI1 mediums are **must-fold** before go; A
 | Red | unit/hermetic AC1–AC9 written with green | 2026-08-12 |
 | Green | doctor/policy/show/check/briefing/preflight/docs | 2026-08-12 |
 | Live F25 | dry-run 0 → bootstrap 0 → show 3 grants → briefing denied:false → evidence list 0 | 2026-08-12 |
-| Cross-model | pending | |
-| Gate | targeted nextest+clippy packages pass; full workspace gate residual | 2026-08-12 |
+| Cross-model | Internal R2 CLEAN; Codex CX1/CX2 FAIL→fix→**CX3 PASS** | 2026-08-12 |
+| Gate | nextest 2692; fmt/clippy/deny/audit; CI Win/Linux/macOS green PR #151 | 2026-08-12 |
