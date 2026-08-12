@@ -477,8 +477,18 @@ Output (post-T76): a table with `project_id`, `name (alias|UUID)`, `alias`, and 
 ### Resolving Aliases
 ```powershell
 ai-brains project resolve ai-brains          # exact alias match, falls back to fuzzy
-ai-brains project detect --export            # git slug → vault match → env PROJECT_ID (mismatch warns)
+ai-brains project detect --export            # path_alias → git_slug → env PROJECT_ID; export comments include source=
+ai-brains project whoami                     # all identity signals (TTY human / piped JSON)
+ai-brains project whoami --format json
 ```
+
+### Identity SOOT (T240)
+
+- **Daily Scope** = effective `AI_BRAINS_PROJECT_ID` after local `.env` force-set (CLI flags / `--global` unchanged). **Never** silently rewritten to path-alias.
+- **`project detect` order:** (1) path alias of git toplevel else cwd (2) git slug exact-first (T206; ambiguous exit **1** when no path) (3) env post-dotenv if in vault (4) miss exit **1**. Path owner **always** wins over unique slug hit; stderr notes the slug project.
+- **`project whoami`:** shell vs env vs path vs detect + remediations; `--no-project-context` nulls env fields but still resolves path/detect.
+- **Mismatch warn (once/process):** env ≠ path-alias owner → non-fatal stderr + whoami hint. Skip: `--no-project-context`, argv `--global`, no path, empty env.
+- **`set-alias` vs `register-path`:** label vs filesystem root — never conflate (see multi-root section below).
 
 ## 5. Background Intelligence & Scheduling
 
@@ -536,14 +546,14 @@ Nightly **Phase 1** (summarize / embed / synthesize) runs once against the vault
 
 This is independent of Task Scheduler **System32** cwd: roots come from vault path aliases, not from where `schtasks` started the process.
 
-#### `set-alias` vs `register-path`
+#### `set-alias` vs `register-path` (SOOT — do not conflate)
 
 | Command | What it stores | Used by |
 |---------|----------------|---------|
-| `project set-alias <uuid> <label>` | Human **label** for list/detect | Display, resolve, detect slug |
-| `project register-path <uuid\|alias> <path>` | **Filesystem root** (normalized Win/WSL) | Nightly Phase 2 bridge |
+| `project set-alias <uuid> <label>` | Human **label** only | Display, resolve, detect **git slug** name/alias match |
+| `project register-path <uuid\|alias> <path>` | **Filesystem root** (normalized Win/WSL) | Detect **step 1**, nightly Phase 2 bridge, whoami path, mismatch warn |
 
-`project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
+Putting a path string into `set-alias` does **not** register a path alias. `project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
 
 ```powershell
 # Once per repo root (examples)

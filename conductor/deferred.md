@@ -157,7 +157,30 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | fullyIdle hard continue policy | Soft residual (F7) |
 | Byte-offset watermark / import `--json` | Soft residual (F34 / soft) |
 
-Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/Codex install_ready (**T239+**). See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/Codex install_ready → **T253**. See [README-T234-T239-HARNESS-INGEST.md](tracks/README-T234-T239-HARNESS-INGEST.md).
+
+### Post-install CLI effectiveness (2026-08-11 audit) — T240–T255
+
+| Residual / finding | Disposition |
+|--------------------|-------------|
+| Default project identity (env test-alias vs detect vs path) | **T240** 📋 **Planning + AI fold-in** 2026-08-11 — whoami + path-always-wins detect + mismatch once; plan-only until go |
+| Policy grants empty → governed dead-end | **T241** Placeholder |
+| Env override warn spam (T223 residual) | **T242** Placeholder |
+| Search dual model + progressive first-run | **T243** Placeholder |
+| Backup fleet 0 usable / legacy plain | **T244** Placeholder |
+| Harness wiring=missing | **T245** Placeholder |
+| Graph neighbors JSON-only | **T246** Placeholder |
+| Nightly status latency + Last Result 101 | **T247** Placeholder |
+| Retention plan human | **T248** Placeholder |
+| Scope/daemon/doctor presentation | **T249** Placeholder |
+| Preflight pretty density (T219 residual) | **T250** Placeholder |
+| device status missing | **T251** Placeholder |
+| ingest dry-run empty stdin | **T252** Placeholder |
+| Claude/Codex install_ready (T239+) | **T253** Placeholder |
+| T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
+| T229 soft F8–F12/F14 | **T255** Placeholder |
+
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **Plan-only until go per track.**
 
 ### T238 soft residuals (2026-08-09)
 
@@ -170,7 +193,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | S5 npm `@ai-brains/opencode-plugin` | Soft |
 | S6 project-local plugin opt-in | Soft (C7 global default) |
 | S7 import `--json` report | Soft |
-| S8 Claude/Codex install_ready | Soft — labels **T239+** |
+| S8 Claude/Codex install_ready | **T253** Placeholder |
 | ~~S9 multi-harness nightly~~ | **Closed by T239** PR #108 `a271a99` |
 | S10 compacting pre-archive hook | Soft / non-goal |
 | S11 opt-in child ingest | Soft (default skip hard) |

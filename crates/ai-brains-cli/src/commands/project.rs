@@ -136,6 +136,316 @@ fn footer_alias_suggestion(ctx: &AppContext) -> String {
     "my-project".to_string()
 }
 
+// ---------------------------------------------------------------------------
+// T240 — Project identity helpers (GitIdentity, path alias, detect order)
+// ---------------------------------------------------------------------------
+
+use std::path::{Path, PathBuf};
+use std::sync::{Once, OnceLock};
+
+/// Git identity for path-alias + slug detect (T240 M1).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct GitIdentity {
+    pub slug: Option<String>,
+    pub toplevel: Option<PathBuf>,
+}
+
+/// Detect signal source (export comments / whoami).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DetectSource {
+    PathAlias,
+    GitSlug,
+    Env,
+}
+
+impl DetectSource {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::PathAlias => "path_alias",
+            Self::GitSlug => "git_slug",
+            Self::Env => "env",
+        }
+    }
+}
+
+/// Outcome of path-first detect (F5/F6) without process exit.
+#[derive(Debug, Clone)]
+pub(crate) struct DetectOutcome {
+    pub project: ProjectRow,
+    pub source: DetectSource,
+    /// Stderr notes (path vs slug conflict, 0-mem extra).
+    pub notes: Vec<String>,
+    /// Env-fallback git/env mismatch warning (F4/F35).
+    pub env_warn: Option<String>,
+}
+
+/// Pre-dotenv shell `AI_BRAINS_PROJECT_ID` (T240 L9 / whoami).
+static SHELL_PROJECT_ID: OnceLock<Option<String>> = OnceLock::new();
+
+/// Once-per-process identity mismatch warn gate (T240 F3).
+static MISMATCH_WARN_ONCE: Once = Once::new();
+
+/// Record shell PROJECT_ID before `apply_local_project_context_env` force-set.
+pub fn record_shell_project_id(id: Option<String>) {
+    let _ = SHELL_PROJECT_ID.set(id);
+}
+
+/// Pre-dotenv shell project id when captured.
+pub fn shell_project_id_captured() -> Option<String> {
+    SHELL_PROJECT_ID.get().and_then(|o| o.clone())
+}
+
+/// F5b/M1: single `rev-parse --show-toplevel` + remote extract; keep toplevel.
+pub(crate) fn collect_git_identity(path: &Path) -> Result<GitIdentity, Box<dyn std::error::Error>> {
+    let output = git_command()
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(path)
+        .output()?;
+
+    if !output.status.success() {
+        return Ok(GitIdentity::default());
+    }
+
+    let toplevel_str = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if toplevel_str.is_empty() {
+        return Ok(GitIdentity::default());
+    }
+    let toplevel_path = PathBuf::from(&toplevel_str);
+
+    // Prefer origin remote repo name; fall back to toplevel dir name.
+    let remote = git_command()
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()?;
+
+    let slug = if remote.status.success() {
+        let url = String::from_utf8_lossy(&remote.stdout).trim().to_owned();
+        extract_repo_name(&url).filter(|s| !s.is_empty())
+    } else {
+        None
+    };
+
+    let slug = match slug {
+        Some(s) => Some(s),
+        None => toplevel_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.to_string())
+            .filter(|s| !s.is_empty()),
+    };
+
+    Ok(GitIdentity {
+        slug,
+        toplevel: Some(toplevel_path),
+    })
+}
+
+/// Thin wrapper for callers that only need the slug (footer suggestion).
+fn get_git_repo_slug(path: &Path) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    Ok(collect_git_identity(path)?.slug)
+}
+
+/// Normalize + `find_path_alias_owner` for a filesystem path.
+pub(crate) fn resolve_path_alias_project(
+    store: &dyn QueryStore,
+    path: &Path,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let raw = path.to_string_lossy();
+    let normalized = ai_brains_path::normalize_for_location_compare(&raw);
+    if normalized.is_empty() {
+        return Ok(None);
+    }
+    Ok(store
+        .find_path_alias_owner(&normalized)?
+        .map(|pid| pid.to_string()))
+}
+
+/// Path alias of git toplevel else cwd (F5 step 1 / AC9).
+pub(crate) fn resolve_path_alias_for_location(
+    store: &dyn QueryStore,
+    cwd: &Path,
+    git: &GitIdentity,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    if let Some(ref toplevel) = git.toplevel
+        && let Some(owner) = resolve_path_alias_project(store, toplevel)?
+    {
+        return Ok(Some(owner));
+    }
+    resolve_path_alias_project(store, cwd)
+}
+
+/// F6: notes when path owner B is preferred over unique slug hit A.
+///
+/// Always notes A. Extra note when B.mem==0 && A.mem>0.
+pub(crate) fn path_vs_slug_conflict_notes(
+    path_row: &ProjectRow,
+    slug_row: &ProjectRow,
+) -> Vec<String> {
+    let mut notes = Vec::new();
+    let alias_disp = if slug_row.2.is_empty() {
+        "(none)"
+    } else {
+        slug_row.2.as_str()
+    };
+    notes.push(format!(
+        "Note: git slug also matches project {} (alias={}); preferring path alias owner.",
+        slug_row.0, alias_disp
+    ));
+    if path_row.3 == 0 && slug_row.3 > 0 {
+        notes.push(
+            "Note: path-alias owner has 0 memories while git slug match has memories; verify path alias via `project list`."
+                .to_string(),
+        );
+    }
+    notes
+}
+
+fn project_row_by_id(projects: &[ProjectRow], id: &str) -> Option<ProjectRow> {
+    projects.iter().find(|(p, _, _, _)| p == id).cloned()
+}
+
+/// Pure skip logic for mismatch warn (unit-tested; F3b).
+pub(crate) fn should_skip_identity_mismatch_warn(
+    args: &[String],
+    env_project_id: Option<&str>,
+    path_alias_project_id: Option<&str>,
+) -> bool {
+    if args
+        .iter()
+        .any(|a| a == "--no-project-context" || a == "--global")
+    {
+        return true;
+    }
+    let env = env_project_id.filter(|s| !s.is_empty());
+    let path = path_alias_project_id.filter(|s| !s.is_empty());
+    env.is_none() || path.is_none()
+}
+
+/// SOOT mismatch warn line (F3).
+pub(crate) fn identity_mismatch_warn_line(env_id: &str, path_id: &str) -> String {
+    format!(
+        "Warning: project identity mismatch: daily Scope is '{env_id}', but path is registered to '{path_id}'. Run 'ai-brains project whoami'."
+    )
+}
+
+/// Once-per-process warn when env Scope ≠ path alias owner (never mutates PROJECT_ID).
+pub fn maybe_warn_identity_mismatch(ctx: &AppContext) {
+    MISMATCH_WARN_ONCE.call_once(|| {
+        let args: Vec<String> = std::env::args().collect();
+        let env_id = std::env::var("AI_BRAINS_PROJECT_ID")
+            .ok()
+            .filter(|s| !s.is_empty());
+        let cwd = match std::env::current_dir() {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let git = collect_git_identity(&cwd).unwrap_or_default();
+        let path_id =
+            resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git).unwrap_or_default();
+        if should_skip_identity_mismatch_warn(&args, env_id.as_deref(), path_id.as_deref()) {
+            return;
+        }
+        let (Some(env), Some(path)) = (env_id.as_deref(), path_id.as_deref()) else {
+            return;
+        };
+        if env == path {
+            return;
+        }
+        eprintln!("{}", identity_mismatch_warn_line(env, path));
+    });
+}
+
+/// Path-first detect resolution (F5/F6/F7) — no process exit.
+pub(crate) fn resolve_detect(
+    store: &dyn QueryStore,
+    cwd: &Path,
+) -> Result<Option<DetectOutcome>, Box<dyn std::error::Error>> {
+    let git = collect_git_identity(cwd)?;
+    let projects = store.list_projects()?;
+
+    // F5 (1): path alias of toplevel else cwd.
+    let path_owner = resolve_path_alias_for_location(store, cwd, &git)?;
+    if let Some(ref path_id) = path_owner
+        && let Some(path_row) = project_row_by_id(&projects, path_id)
+    {
+        let mut notes = Vec::new();
+        // F6: if unique slug hit differs, note slug project A (path always wins).
+        if let Some(ref slug) = git.slug {
+            match match_projects_for_slug(&projects, slug) {
+                SlugMatch::Unique(slug_row) if slug_row.0 != path_row.0 => {
+                    notes.extend(path_vs_slug_conflict_notes(&path_row, &slug_row));
+                }
+                // Path present: do not fail-closed on ambiguous slug (F7 when no path).
+                _ => {}
+            }
+        }
+        return Ok(Some(DetectOutcome {
+            project: path_row,
+            source: DetectSource::PathAlias,
+            notes,
+            env_warn: None,
+        }));
+    }
+
+    // F5 (2): git slug exact-first (T206) when no path owner.
+    if let Some(ref slug) = git.slug {
+        match match_projects_for_slug(&projects, slug) {
+            // Unique git match wins over wrong env (AC1).
+            SlugMatch::Unique(row) => {
+                return Ok(Some(DetectOutcome {
+                    project: row,
+                    source: DetectSource::GitSlug,
+                    notes: Vec::new(),
+                    env_warn: None,
+                }));
+            }
+            // F5/F18/AC4: ambiguous ≥2 → signal via special notes + caller exits 1.
+            SlugMatch::Ambiguous(matched) => {
+                // Encode ambiguity as empty project id sentinel for caller.
+                return Ok(Some(DetectOutcome {
+                    project: (String::new(), String::new(), String::new(), matched.len()),
+                    source: DetectSource::GitSlug,
+                    notes: ambiguous_slug_notes(slug, &matched),
+                    env_warn: None,
+                }));
+            }
+            SlugMatch::None => {}
+        }
+    }
+
+    // F5 (3): process AI_BRAINS_PROJECT_ID if in vault.
+    if let Ok(pid_str) = std::env::var("AI_BRAINS_PROJECT_ID")
+        && !pid_str.is_empty()
+        && let Some(row) = project_row_by_id(&projects, &pid_str)
+    {
+        let warn = env_fallback_warning(git.slug.as_deref().unwrap_or(""), &row.0, &row.1, &row.2);
+        return Ok(Some(DetectOutcome {
+            project: row,
+            source: DetectSource::Env,
+            notes: Vec::new(),
+            env_warn: warn,
+        }));
+    }
+
+    // F5 (4): miss.
+    Ok(None)
+}
+
+fn ambiguous_slug_notes(slug: &str, matched: &[ProjectRow]) -> Vec<String> {
+    let mut notes = vec![format!(
+        "Ambiguous match for '{slug}' — multiple candidates found in vault:"
+    )];
+    for (pid, name, alias, count) in matched {
+        notes.push(format!("  {pid} | {name} | {alias} | {count} memories"));
+    }
+    notes
+}
+
+/// True when resolve_detect encoded slug ambiguity (empty project id).
+fn is_ambiguous_detect(outcome: &DetectOutcome) -> bool {
+    outcome.source == DetectSource::GitSlug && outcome.project.0.is_empty()
+}
+
 fn sanitize_alias_suggestion(slug: &str) -> String {
     // Keep simple slug-like characters; fall back empty → caller uses my-project.
     let s: String = slug
@@ -331,78 +641,91 @@ pub fn resolve(
 }
 
 pub fn detect(ctx: &AppContext, export_shell: bool) -> Result<(), Box<dyn std::error::Error>> {
-    // F2: (1) Resolve git identity slug (F31 remote-first).
     let current_dir = std::env::current_dir()?;
-    let repo_slug = get_git_repo_slug(&current_dir)?;
+    let outcome = resolve_detect(ctx.conn.as_ref(), &current_dir)?;
 
-    // F2: (2) Vault match (exact-first F3).
-    if let Some(ref slug) = repo_slug {
-        let projects = ctx.conn.list_projects()?;
-        match match_projects_for_slug(&projects, slug) {
-            // AC1: unique git match wins over wrong env PROJECT_ID.
-            SlugMatch::Unique((pid, name, alias, count)) => {
-                if export_shell {
-                    println!("export AI_BRAINS_PROJECT_ID={}", pid);
-                    println!(
-                        "# AI-Brains project detected: {} | alias={} | memories={} | from git",
-                        name, alias, count
+    let Some(outcome) = outcome else {
+        // F5 (4): Miss exit 1.
+        let msg = "No project detected. Set an alias with 'project set-alias', initialize a project with 'init', or run 'ai-brains context'.";
+        if export_shell {
+            eprintln!("# {}", msg);
+        } else {
+            eprintln!("{}", msg);
+        }
+        std::process::exit(1);
+    };
+
+    // Ambiguous slug (no path): fail-closed exit 1 (T206 AC4).
+    if is_ambiguous_detect(&outcome) {
+        if export_shell {
+            for (i, line) in outcome.notes.iter().enumerate() {
+                if i == 0 {
+                    eprintln!(
+                        "# Ambiguous match — multiple candidates; set AI_BRAINS_PROJECT_ID manually"
                     );
                 } else {
-                    println!(
-                        "Detected project from git: {} ({}) | alias={} | memories={}",
-                        name, pid, alias, count
-                    );
+                    eprintln!("# {}", line.trim_start());
                 }
-                return Ok(());
             }
-            // F5/F18/AC4: ambiguous ≥2 → stderr candidates (sorted), exit 1.
-            SlugMatch::Ambiguous(matched) => {
-                if export_shell {
-                    eprintln!(
-                        "# Ambiguous match for '{}' — multiple candidates; set AI_BRAINS_PROJECT_ID manually",
-                        slug
-                    );
-                    for (pid, name, alias, count) in &matched {
-                        eprintln!("#   {} | {} | {} | {} memories", pid, name, alias, count);
-                    }
-                } else {
-                    eprintln!(
-                        "Ambiguous match for '{}' — multiple candidates found in vault:",
-                        slug
-                    );
-                    for (pid, name, alias, count) in &matched {
-                        eprintln!("  {} | {} | {} | {} memories", pid, name, alias, count);
-                    }
-                }
-                std::process::exit(1);
-            }
-            SlugMatch::None => {
-                // Fall through to env fallback.
+        } else {
+            for line in &outcome.notes {
+                eprintln!("{}", line);
             }
         }
+        std::process::exit(1);
     }
 
-    // F2: (3) Process AI_BRAINS_PROJECT_ID if in vault (F4 warn when slug known + mismatch).
-    if let Ok(pid_str) = std::env::var("AI_BRAINS_PROJECT_ID")
-        && !pid_str.is_empty()
-    {
-        let projects = ctx.conn.list_projects()?;
-        if let Some((pid, name, alias, _count)) = projects.iter().find(|(p, _, _, _)| p == &pid_str)
-        {
-            let warn = env_fallback_warning(repo_slug.as_deref().unwrap_or(""), pid, name, alias);
+    let (pid, name, alias, count) = &outcome.project;
+    let source = outcome.source.as_str();
+
+    // Conflict notes always on stderr (even with --export).
+    for note in &outcome.notes {
+        eprintln!("{}", note);
+    }
+
+    match outcome.source {
+        DetectSource::PathAlias => {
             if export_shell {
-                if let Some(ref w) = warn {
+                println!("export AI_BRAINS_PROJECT_ID={}", pid);
+                println!(
+                    "# AI-Brains project detected: {} | alias={} | memories={} | from path_alias | source={}",
+                    name, alias, count, source
+                );
+            } else {
+                println!(
+                    "Detected project from path alias: {} ({}) | alias={} | memories={}",
+                    name, pid, alias, count
+                );
+            }
+        }
+        DetectSource::GitSlug => {
+            if export_shell {
+                println!("export AI_BRAINS_PROJECT_ID={}", pid);
+                println!(
+                    "# AI-Brains project detected: {} | alias={} | memories={} | from git | source={}",
+                    name, alias, count, source
+                );
+            } else {
+                println!(
+                    "Detected project from git: {} ({}) | alias={} | memories={}",
+                    name, pid, alias, count
+                );
+            }
+        }
+        DetectSource::Env => {
+            if export_shell {
+                if let Some(ref w) = outcome.env_warn {
                     for line in w.lines() {
                         println!("# {}", line);
                     }
                 }
                 println!("export AI_BRAINS_PROJECT_ID={}", pid);
                 println!(
-                    "# AI-Brains project detected from .env: {} | alias={} (from .env)",
-                    name, alias
+                    "# AI-Brains project detected from .env: {} | alias={} (from .env) | source={}",
+                    name, alias, source
                 );
             } else {
-                if let Some(ref w) = warn {
+                if let Some(ref w) = outcome.env_warn {
                     eprintln!("{}", w);
                 }
                 println!(
@@ -410,18 +733,163 @@ pub fn detect(ctx: &AppContext, export_shell: bool) -> Result<(), Box<dyn std::e
                     name, pid, alias
                 );
             }
-            return Ok(());
         }
     }
+    Ok(())
+}
 
-    // F2: (4) Miss exit 1.
-    let msg = "No project detected. Set an alias with 'project set-alias', initialize a project with 'init', or run 'ai-brains context'.";
-    if export_shell {
-        eprintln!("# {}", msg);
+/// T240 F4: show all identity signals (human on TTY; JSON when piped or `--format json`).
+pub fn whoami(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use std::io::IsTerminal;
+
+    let no_project_context = std::env::args().any(|a| a == "--no-project-context");
+    let report = build_whoami_report(ctx, no_project_context)?;
+
+    let use_json = match format.to_ascii_lowercase().as_str() {
+        "json" => true,
+        "human" => false,
+        _ => !std::io::stdout().is_terminal(), // auto
+    };
+
+    if use_json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
-        eprintln!("{}", msg);
+        emit_whoami_human(&report);
     }
-    std::process::exit(1);
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct WhoamiReport {
+    effective_project_id: Option<String>,
+    env_project_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shell_project_id: Option<String>,
+    path_alias_project_id: Option<String>,
+    detect_project_id: Option<String>,
+    git_slug: Option<String>,
+    git_toplevel: Option<String>,
+    mismatch: bool,
+    remediations: Vec<String>,
+}
+
+fn build_whoami_report(
+    ctx: &AppContext,
+    no_project_context: bool,
+) -> Result<WhoamiReport, Box<dyn std::error::Error>> {
+    let cwd = std::env::current_dir()?;
+    let git = collect_git_identity(&cwd)?;
+
+    // env post-dotenv (null under --no-project-context per F17).
+    let env_project_id = if no_project_context {
+        None
+    } else {
+        std::env::var("AI_BRAINS_PROJECT_ID")
+            .ok()
+            .filter(|s| !s.is_empty())
+    };
+
+    // Daily Scope = effective env after dotenv (F1); null when --no-project-context.
+    let effective_project_id = env_project_id.clone();
+
+    // shell pre-dotenv when set and differs from env (or env null).
+    let shell_raw = shell_project_id_captured();
+    let shell_project_id = match (shell_raw.as_ref(), env_project_id.as_ref()) {
+        (Some(shell), Some(env)) if shell != env => Some(shell.clone()),
+        (Some(shell), None) => Some(shell.clone()),
+        _ => None,
+    };
+
+    let path_alias_project_id = resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git)?;
+
+    let detect_outcome = resolve_detect(ctx.conn.as_ref(), &cwd)?;
+    let detect_project_id = detect_outcome
+        .as_ref()
+        .filter(|o| !is_ambiguous_detect(o))
+        .map(|o| o.project.0.clone());
+
+    let mismatch = match (env_project_id.as_deref(), path_alias_project_id.as_deref()) {
+        (Some(e), Some(p)) => e != p,
+        _ => false,
+    };
+
+    let mut remediations = Vec::new();
+    if mismatch {
+        remediations.push(
+            "Daily Scope comes from .env / shell AI_BRAINS_PROJECT_ID (not auto-switched to path)."
+                .to_string(),
+        );
+        if let Some(ref path_id) = path_alias_project_id {
+            remediations.push(format!(
+                "To bind daily Scope to the path owner, set AI_BRAINS_PROJECT_ID={path_id} in project .env (operator rebind; no auto-write)."
+            ));
+        }
+        remediations.push(
+            "set-alias is a human label; register-path is the filesystem root (do not conflate)."
+                .to_string(),
+        );
+        remediations
+            .push("Run `ai-brains project list` to inspect aliases and path column.".to_string());
+    }
+    if detect_outcome.as_ref().is_some_and(is_ambiguous_detect) {
+        remediations.push(
+            "Detect git slug is ambiguous — set AI_BRAINS_PROJECT_ID or register-path / set-alias uniquely."
+                .to_string(),
+        );
+    }
+    if detect_project_id.is_none() && path_alias_project_id.is_none() {
+        remediations.push(
+            "No detect hit — run `ai-brains context`, `project set-alias`, or `project register-path`."
+                .to_string(),
+        );
+    }
+
+    Ok(WhoamiReport {
+        effective_project_id,
+        env_project_id,
+        shell_project_id,
+        path_alias_project_id,
+        detect_project_id,
+        git_slug: git.slug,
+        git_toplevel: git.toplevel.map(|p| p.display().to_string()),
+        mismatch,
+        remediations,
+    })
+}
+
+fn emit_whoami_human(report: &WhoamiReport) {
+    fn fmt_opt(v: &Option<String>) -> &str {
+        v.as_deref().unwrap_or("(none)")
+    }
+    println!(
+        "effective_project_id:  {}",
+        fmt_opt(&report.effective_project_id)
+    );
+    println!("env_project_id:        {}", fmt_opt(&report.env_project_id));
+    if let Some(ref shell) = report.shell_project_id {
+        println!("shell_project_id:      {}", shell);
+    } else {
+        println!("shell_project_id:      (none or same as env)");
+    }
+    println!(
+        "path_alias_project_id: {}",
+        fmt_opt(&report.path_alias_project_id)
+    );
+    println!(
+        "detect_project_id:     {}",
+        fmt_opt(&report.detect_project_id)
+    );
+    println!("git_slug:              {}", fmt_opt(&report.git_slug));
+    println!("git_toplevel:          {}", fmt_opt(&report.git_toplevel));
+    println!("mismatch:              {}", report.mismatch);
+    if report.remediations.is_empty() {
+        println!("remediations:          (none)");
+    } else {
+        println!("remediations:");
+        for r in &report.remediations {
+            println!("  - {}", r);
+        }
+    }
 }
 
 pub fn set_alias(
@@ -643,50 +1111,6 @@ pub(crate) fn git_command() -> Command {
     c
 }
 
-/// F31 / AC10: prefer origin remote repo name; fall back to toplevel dir name.
-fn get_git_repo_slug(path: &std::path::Path) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    // 1. git rev-parse --show-toplevel (fail → None)
-    let output = git_command()
-        .args(["rev-parse", "--show-toplevel"])
-        .current_dir(path)
-        .output()?;
-
-    if !output.status.success() {
-        return Ok(None);
-    }
-
-    let toplevel = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    if toplevel.is_empty() {
-        return Ok(None);
-    }
-    let toplevel_path = std::path::Path::new(&toplevel);
-
-    // 2. git remote get-url origin → extract_repo_name (success → Some)
-    let remote = git_command()
-        .args(["remote", "get-url", "origin"])
-        .current_dir(path)
-        .output()?;
-
-    if remote.status.success() {
-        let url = String::from_utf8_lossy(&remote.stdout).trim().to_owned();
-        if let Some(slug) = extract_repo_name(&url)
-            && !slug.is_empty()
-        {
-            return Ok(Some(slug));
-        }
-    }
-
-    // 3. Fallback: toplevel directory file_name
-    if let Some(name) = toplevel_path.file_name().and_then(|n| n.to_str()) {
-        let cleaned = name.to_string();
-        if !cleaned.is_empty() {
-            return Ok(Some(cleaned));
-        }
-    }
-
-    Ok(None)
-}
-
 /// Extract the repository name from a git remote URL (F32).
 ///
 /// Supports HTTPS, SSH scp-style (`git@host:user/repo`), and ssh:// with port.
@@ -736,6 +1160,7 @@ pub(crate) fn extract_repo_name(url: &str) -> Option<String> {
 
 #[cfg(test)]
 #[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods)] // unit tests may use expect/panic
 mod tests {
     use super::*;
 
@@ -917,6 +1342,83 @@ mod tests {
                 .any(|(k, v)| k == "GIT_TERMINAL_PROMPT" && v == "0"),
             "git_command must set GIT_TERMINAL_PROMPT=0; got {envs:?}"
         );
+    }
+
+    // --- T240 identity helpers ---
+
+    #[test]
+    fn path_vs_slug_conflict_notes__path_wins__always_notes_slug() {
+        let path_row = ("path-id".to_string(), "Path".into(), "p".into(), 5);
+        let slug_row = ("slug-id".to_string(), "Slug".into(), "s".into(), 10);
+        let notes = path_vs_slug_conflict_notes(&path_row, &slug_row);
+        assert_eq!(notes.len(), 1);
+        assert!(notes[0].contains("slug-id"));
+        assert!(notes[0].contains("preferring path alias owner"));
+    }
+
+    #[test]
+    fn path_vs_slug_conflict_notes__zero_mem_path__extra_verify_note() {
+        let path_row = ("path-id".to_string(), "Path".into(), "".into(), 0);
+        let slug_row = ("slug-id".to_string(), "Slug".into(), "s".into(), 3);
+        let notes = path_vs_slug_conflict_notes(&path_row, &slug_row);
+        assert_eq!(notes.len(), 2);
+        assert!(notes[1].contains("0 memories"));
+        assert!(notes[1].contains("project list"));
+    }
+
+    #[test]
+    fn path_vs_slug_conflict_notes__path_has_mem__no_extra() {
+        let path_row = ("path-id".to_string(), "Path".into(), "".into(), 1);
+        let slug_row = ("slug-id".to_string(), "Slug".into(), "s".into(), 99);
+        let notes = path_vs_slug_conflict_notes(&path_row, &slug_row);
+        assert_eq!(notes.len(), 1);
+    }
+
+    #[test]
+    fn should_skip_identity_mismatch_warn__flags_and_missing() {
+        let args_npc = vec!["ai-brains".into(), "--no-project-context".into()];
+        assert!(should_skip_identity_mismatch_warn(
+            &args_npc,
+            Some("env"),
+            Some("path")
+        ));
+        let args_global = vec!["ai-brains".into(), "recall".into(), "--global".into()];
+        assert!(should_skip_identity_mismatch_warn(
+            &args_global,
+            Some("env"),
+            Some("path")
+        ));
+        assert!(should_skip_identity_mismatch_warn(&[], None, Some("path")));
+        assert!(should_skip_identity_mismatch_warn(&[], Some("env"), None));
+        assert!(!should_skip_identity_mismatch_warn(
+            &[],
+            Some("env"),
+            Some("path")
+        ));
+    }
+
+    #[test]
+    fn identity_mismatch_warn_line__soot_text() {
+        let line = identity_mismatch_warn_line("env-id", "path-id");
+        assert!(line.contains("project identity mismatch"));
+        assert!(line.contains("env-id"));
+        assert!(line.contains("path-id"));
+        assert!(line.contains("project whoami"));
+    }
+
+    #[test]
+    fn collect_git_identity__non_git_cwd__none_none() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let id = collect_git_identity(dir.path()).expect("collect");
+        assert!(id.slug.is_none());
+        assert!(id.toplevel.is_none());
+    }
+
+    #[test]
+    fn detect_source__as_str__stable() {
+        assert_eq!(DetectSource::PathAlias.as_str(), "path_alias");
+        assert_eq!(DetectSource::GitSlug.as_str(), "git_slug");
+        assert_eq!(DetectSource::Env.as_str(), "env");
     }
 
     // --- T212 display_label / truncate / last_activity ---
