@@ -1,9 +1,8 @@
 # T240 Review Log — Project identity convergence
 
 ## Scope
-- Branch: `agent/T240-project-identity-convergence` @ `6179e5e` (+ governance follow-up)
+- Product squash: PR #144 → `29b9b59` on `main`
 - Product: whoami + path-first detect + once mismatch warn + doctor soft `project_identity` + docs
-- PR: https://github.com/Ryan-AI-Studios/AI-Brains/pull/144
 
 ## Internal review rounds
 
@@ -12,7 +11,6 @@
 - **Findings fixed:**
   - P3 Detect clap one-liner stale → path-first help + after_help
   - P2/P3 AC9 subdir hermetic + F6 0-mem e2e note hermetic added
-- **Deferred product soft:** F13 detect `--json`, F14 `project use`
 
 ### Disposition table
 
@@ -27,22 +25,25 @@
 ## Cross-model Codex
 
 ### R1 (`review.codex.md`) — FAIL process P2 (no code P0–P1)
-1. **P2 governance stale:** conductor/spec/plan still said plan-only / DoD unchecked despite product commit → **fixed** this follow-up (status Implementing; evidence filled; AC6 recorded).
-2. **P2 AC6 unproven in tracked evidence:** temporary operator rebind live proof → **fixed**:
-   - BEFORE: Scope test-alias `441837f6…`, mismatch warn
-   - AFTER rebind to `7d97a456…`: Scope main, mismatch false, 9305 pins
-   - RESTORED test-alias (no permanent operator config change in this session)
+1. P2 governance stale → fixed (Implementing + evidence)
+2. P2 AC6 unproven → fixed (temp rebind live proof; restored)
 
-### Final Codex
-- Pending after governance fix commit.
+### R2 (`review.codex.r2.md`) — no P0–P2
+- Only P3 trailing whitespace → fixed
+
+### Final (`review.codex.final.md`) — **PASS**
+- P0–P3: none
 
 ## Gates (observed)
-- `cargo fmt` (applied) + `clippy --workspace --all-targets -- -D warnings` PASS
-- `cargo nextest run --workspace` **2647** PASS (1 skipped)
-- `cargo deny check` PASS
-- `cargo audit` allowed warnings only
-- Hermetics: project_identity_convergence 9/9; project_detect_honesty green
-- Live dogfood: whoami triangle + path detect + AC6 rebind proof
+- Local: fmt, clippy -D, nextest **2647**, deny, audit allowed warnings
+- Hermetics: project_identity_convergence 9/9; T206 honesty green
+- Live: whoami triangle; detect → path owner 7d97a456; AC6 rebind Scope main / mismatch false
+- CI: PR #144 Win/Linux/macOS green (run 31550998087)
+- Codex final: **PASS**
+
+## Soft deferred (not DoD)
+- F13 detect `--json` schemaVersion + source
+- F14 `project use`
 
 ## Completion decision
-Product engineering DoD met pending: final Codex PASS, CI green on PR #144, squash merge, conductor Completed + pin.
+**Completed** after final Codex PASS, CI green, squash merge `29b9b59`, conductor/deferred/coordinated updates, pin.
