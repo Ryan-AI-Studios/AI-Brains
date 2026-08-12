@@ -1,6 +1,6 @@
 # T244 Plan — Backup recoverability fleet
 
-**Status:** 🚧 **In Progress** (production code under go)  
+**Status:** ✅ **Completed** (2026-08-12 PR #149 `948d2ae`)  
 **Spec:** [spec.md](./spec.md) F0–F29 / AC1–AC17 + §12 AI fold-in  
 **Category:** OPS / FEATURE / UX  
 **Ledger:** `526e64a0-39ee-474b-b373-820f8a846948`
@@ -137,12 +137,12 @@ No Highs. Spec design affirmed (AI1). Three AI2 mediums are **must-fold** before
 
 ### Phase 6 — Gate + close
 
-- [ ] Full CI gate (fmt, clippy -D warnings, nextest workspace, deny, audit)
-- [ ] `ledgerful verify --scope full`
-- [ ] Primary review + **hard cross-model** on F1/F4 classify + doctor usable (F25)
-- [ ] Update `conductor.md` T244 → Completed; deferred.md close fleet row; series README
-- [ ] `ledgerful ledger commit`
-- [ ] Pin: `DECISION: T244 Incomplete + core-table usable SOOT; F5 len<2; F7 CLI-only sort; residual not recoverable`
+- [x] Full CI gate (fmt, clippy -D warnings, nextest workspace 2681, deny, audit) + CI Win/Linux/macOS PR #149
+- [x] `ledgerful verify --scope fast` (pre-push) + local full gate commands
+- [x] Primary review + **hard cross-model** on F1/F4 classify + doctor usable (F25) — Codex CX2 PASS WITH DEFERRED P3
+- [x] Update `conductor.md` T244 → Completed; deferred.md close fleet row; series README (closeout PR)
+- [x] `ledgerful ledger commit` (`526e64a0-39ee-474b-b373-820f8a846948`)
+- [x] Pin: `DECISION: T244 Incomplete + core-table usable SOOT; F5 len<2; F7 CLI-only sort; residual not recoverable` (`3956b1ac-…`)
 
 ---
 
