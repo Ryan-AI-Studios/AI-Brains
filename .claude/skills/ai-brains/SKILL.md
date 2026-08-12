@@ -63,6 +63,7 @@ ai-brains recall "<topic>" --limit 5 --format pretty
 ai-brains recall "<topic>" --project-id <uuid> --limit 5 --format pretty
 ai-brains recall "<topic>" --global --limit 5 --format pretty
 ai-brains recall "<topic>" --semantic --limit 5 --format pretty   # needs embedding backend
+ai-brains search "<topic>" --limit 5 --format pretty              # visible alias of recall
 ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 ```
 - Empty JSON recall includes a **hint** (`--semantic` / `--global`). Pretty empty can look blank except logs — try `--format json` or `--global`.
@@ -84,7 +85,7 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 | Health | `doctor`, `daemon status` | Best non-destructive start |
 | Project identity | `context --show`, `project list`, `project detect` | detect: git slug → vault → env; warns on git/env mismatch |
 | Orient | `preflight --summary` / `--pretty` | Scoped by project id |
-| Search | `recall`, `sync query --quiet` | Scope carefully |
+| Search | `recall` / `search` (alias), `sync query --quiet` | Scope carefully; `search` is vault-first recall, not ledger or progressive |
 | Hotspots preview | `safety sync --dry-run` | Prefer dry-run until user wants pin |
 | Graph health | `graph update` | Needs graph-on install |
 | Pin / forget | `pin`, `forget` | Mutating |

@@ -50,6 +50,9 @@ pub const GRAPH_REINSTALL_SOOT: &str =
 /// Dual-site SOOT with `ai_brainsd::services::POLICY_DENIED_HINT` — keep wording in sync.
 pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
 
+// CLI-only progressive→recall fallback (T243 F13). Not dual-site.
+pub const PROGRESSIVE_RECALL_FALLBACK: &str = "Ungoverned vault search: ai-brains recall \"…\"";
+
 /// Discovery-class capability labels (T210 bootstrap / T241 probe) — Read* only.
 pub const DISCOVERY_CAP_LABELS: [&str; 3] = ["ReadEvidence", "ReadConclusions", "ReadDecisions"];
 
@@ -635,6 +638,15 @@ mod tests {
     fn exit_code_for_api_error__policy_denied__3() {
         let err = ApiError::new("POLICY_DENIED", "no grant");
         assert_eq!(exit_code_for_api_error(&err), EXIT_POLICY_DENIED);
+    }
+
+    /// AC12 — dual-site POLICY_DENIED_HINT wording must stay unchanged (T243).
+    #[test]
+    fn policy_denied_hint__wording__unchanged() {
+        assert_eq!(
+            POLICY_DENIED_HINT,
+            "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)"
+        );
     }
 
     /// AC4 / F5 — human deny path surfaces details.hint for bootstrap remediation.

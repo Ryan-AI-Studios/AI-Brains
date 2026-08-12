@@ -29,7 +29,9 @@ pub struct RecallRunOptions {
 
 fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
     match explicit {
-        Some(f) => f,
+        Some("text") | Some("pretty") => "pretty",
+        Some("json") => "json",
+        Some(other) => other, // pass-through; caller `_` arm → JSON
         None => {
             if is_tty {
                 "pretty"
@@ -765,6 +767,22 @@ mod tests {
     fn resolve_format__explicit_pretty__returns_pretty() {
         assert_eq!(resolve_format(Some("pretty"), true), "pretty");
         assert_eq!(resolve_format(Some("pretty"), false), "pretty");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_format__explicit_text__returns_pretty() {
+        // T243 F3 / AC3: `--format text` is an honesty alias of pretty (TTY or not).
+        assert_eq!(resolve_format(Some("text"), true), "pretty");
+        assert_eq!(resolve_format(Some("text"), false), "pretty");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn resolve_format__explicit_unknown__passthrough() {
+        // T243 F3 / AI2 L2: do not catch-all unknown formats to json here.
+        assert_eq!(resolve_format(Some("ndjson"), true), "ndjson");
+        assert_eq!(resolve_format(Some("ndjson"), false), "ndjson");
     }
 
     #[test]

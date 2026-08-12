@@ -103,6 +103,7 @@ where
             denied: true,
             denial_reason: Some("ReadConclusions/ReadDecisions denied".into()),
             denial_hint: Some(POLICY_DENIED_HINT.to_string()),
+            next_step: None,
         };
         persist_trace(
             writer,
@@ -387,6 +388,7 @@ where
         denied: false,
         denial_reason: None,
         denial_hint: None,
+        next_step: None,
     })
 }
 

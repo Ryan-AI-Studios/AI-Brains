@@ -543,19 +543,22 @@ CLI gap-fill order (after optional elevation handoff override on elevated child 
 | Overnight brain | `nightly` (+ schedule) |
 | Hygiene | `backup` · `project list` |
 
-### Start here: which search? (T231)
+### Start here: which search? (T231 / T243)
 
-Keep **two** commands — deliberate dual, not accidental dual:
+Three surfaces, three corpora — not three UIs on one index:
 
 | Intent | Command |
 |--------|---------|
-| Human, vault only, TTY | `recall "…" --format pretty` (or bare `recall` on TTY) |
-| Agent / pipe / scripts | `recall "…"` (JSON) or `--format json` |
+| Human, vault only | `recall "…"` / `search "…"` (TTY pretty; `search` is a visible alias of `recall`) |
+| Agent / pipe / scripts | `recall "…"` JSON (or `search`) |
 | Human, vault **+ ledger** / plan vs shipped | `sync query "…" --format pretty` |
+| Governed conclusions / decisions | `query progressive "…"` (Approved decisions + Confirmed/Active conclusions; needs discovery grants; **not** vault FTS) |
 | Embeddings / hybrid | `recall "…" --semantic` (not `sync query`) |
 | Machine stream of vault hits | `sync query "…" --format ndjson` **or** `recall --format json` |
-| Invalid `AI_BRAINS_PROJECT_ID` | **`recall`** → clap **exit 2**; **`sync query`** → vault-wide `Scope: project=(none)` exit **0** (F36 — clap env parse vs manual resolve; not converged) |
-| `text` format | **`sync query --format text`** ≡ pretty; **`recall --format text`** → JSON (undocumented fallthrough — F8) |
+| Invalid `AI_BRAINS_PROJECT_ID` | **`recall` / `search`** → clap **exit 2**; **`sync query`** → vault-wide `Scope: project=(none)` exit **0** (F36 — clap env parse vs manual resolve; not converged) |
+| `text` format | **`recall` and `sync query`**: `text` ≡ pretty |
+
+`evidence search` is a nested evidence noun, not the top-level `search` alias.
 
 **Project resolve (T231 F32 fix):** `sync query` missing / empty / whitespace / invalid `AI_BRAINS_PROJECT_ID` → `project_id = None` → `Scope: project=(none)` — **never** a random UUID. Valid UUID → scoped. `--global` → `Scope: global` (vault-wide).
 
