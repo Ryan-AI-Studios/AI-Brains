@@ -1,7 +1,7 @@
 # T242 — Env override warning session quiet
 
 - **Track ID:** T242-EnvOverrideSessionQuiet
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (PR #147 squash `9f3148b`, 2026-08-12)
 - **Category:** UX / POLISH
 - **Owner:** Grok
 - **Source:** CLI audit 2026-08-11 P1 — warning on nearly every command; T223 residual F18 (once-per-TTY / clap quiet / truthy-core / global-reorder / elevation)
@@ -11,7 +11,7 @@
 - **Not absorbed:** T206 `git/env project mismatch` wording/path; T240 identity mismatch SOOT/behavior (may **share** marker infrastructure only if zero risk); dotenv force-set precedence (F1 frozen); global-before-project reorder as DoD (T223 O1/F1); truthy-parser consolidation to core as DoD; T241 policy; clap 5; daemon dotenv
 - **Research date:** 2026-08-12 (live dogfood + main.rs/`env_warn.rs` truth + dotenvy pin + T223/T240 residuals + web)
 - **AI fold-in:** 2026-08-12 — `C:\dev\AI-review.md` AI1 + AI2. No Highs. **Hard:** AI2 M1–M3 (smoke home redirect, atomic `create_new`, home resolve inside apply); AI1 M1–M4 shape (sha2+hex fingerprint, decide policy, fail-open, FORCE). **Hard lows:** L1 cwd=.env parent; L4 empty marker; L6 key-match fields; L8 marker only on Stderr; L9 full decision table. **Soft:** L2 manual cleanup docs; L3 single `env_warn_truthy`; L5 AtomicBool; L7 `--no-project-context` pin. **Decline:** AI1 chrono RFC3339 marker payload (F29 / empty file wins). Disposition **§13**.
-- **Ledger:** plan-only until go (`ledgerful ledger start T242-env-override-session-quiet --category UX`)
+- **Ledger:** shipped TX `1b39b40a-2b0f-446b-8763-388720ec106a` (+ Linux unit fix `89e1b859-156e-4c76-bf5a-8ebb68bc2be5`)
 
 ---
 
@@ -95,7 +95,7 @@ T223 F18 already named this: *“once-per-TTY rate limit”* / *“Rate-limiting
 
 | ID | Decision |
 |----|----------|
-| **F0 — Plan-only** | No production code until user **go**. |
+| **F0 — Plan-only** | ~~No production code until user **go**.~~ **Satisfied** — go received; shipped PR #147. |
 | **F1 — Precedence frozen (hard)** | Do **not** change load order, ID force-set, gap-fill of other keys, global merge, or `--no-project-context`. Only **whether** stderr is emitted for an already-classified Stderr case. |
 | **F2 — T223 preserve (hard)** | Collapse SOOT, session-only → Debug, `AI_BRAINS_QUIET_ENV_WARN` absolute suppress, deferred debug after tracing init, T206 distinct — all **unchanged**. |
 | **F3 — Cross-process session quiet (hard DoD)** | Marker logic runs **only** when `classify` returns `EnvOverrideEmit::Stderr` (session-only `Debug` / empty `None` **never** consult or write markers — AI2 L8). Atomic claim via **`OpenOptions::create_new(true)`** (AI2 M2): existence = seen. **Reorder:** for Stderr path (after quiet/force pure decide): if not quiet and not force → `create_dir_all` best-effort then `create_new(marker)`; **Ok** → emit Stderr; **AlreadyExists** → demote Debug; other IO err → **fail-open Stderr** (no silent drop). Force → Stderr without requiring create success. Quiet → Debug, no marker write required. |
@@ -294,12 +294,12 @@ fn try_claim_marker(home: &Path, hex: &str) -> MarkerClaim;
 
 ## 12. Definition of Done
 
-- [ ] F0–F31 decisions honored (soft F16–F19 not required)
-- [ ] AC1–AC16 green
-- [ ] Manual AC13 recorded in plan.md
-- [ ] deferred.md residual closed; conductor Completed
-- [ ] Full gate + review clean (or mediums justified ≤3)
-- [ ] Pin: `ai-brains pin "DECISION: T242 …"`
+- [x] F0–F31 decisions honored (soft F16–F19 not required)
+- [x] AC1–AC16 green
+- [x] Manual AC13 recorded in plan.md
+- [x] deferred.md residual closed; conductor Completed
+- [x] Full gate + review clean (or mediums justified ≤3)
+- [x] Pin: `ai-brains pin "DECISION: T242 …"`
 
 ---
 
@@ -338,4 +338,4 @@ fn try_claim_marker(home: &Path, hex: &str) -> MarkerClaim;
 
 ---
 
-**Plan-only until go.** Say **go T242** to implement.
+**Shipped 2026-08-12.** PR #147 squash `9f3148b`. Soft residual only: F16–F19.

@@ -1,9 +1,9 @@
 # T242 Plan — Env override session quiet
 
-**Status:** 🚧 **Implementing** (go received)  
+**Status:** ✅ **Completed** (PR #147 squash `9f3148b`)  
 **Spec:** [spec.md](./spec.md) F0–F31 / AC1–AC16 + §13 AI fold-in  
 **Category:** UX / POLISH  
-**Ledger TX:** `1b39b40a-2b0f-446b-8763-388720ec106a`
+**Ledger TX:** `1b39b40a-2b0f-446b-8763-388720ec106a` (+ Linux unit fix `89e1b859-156e-4c76-bf5a-8ebb68bc2be5`)
 
 ---
 
@@ -120,19 +120,19 @@ No Highs. Spec design affirmed. Three AI2 mediums are **must-fold** before go; A
 - [x] CAPABILITIES: session quiet, FORCE, re-warn, quiet wins, global late
 - [x] OPERATIONS: FORCE env row + `Remove-Item` cache reset (AI2 L2)
 - [x] CHANGELOG T242
-- [ ] deferred.md close residual; README series; conductor Completed (orchestrator after PR)
+- [x] deferred.md close residual; README series; conductor Completed (closeout after PR #147)
 
 ### Phase 4 — Review + gate
 
-- [ ] Internal review.md
-- [ ] Soft cross-model (F28)
-- [ ] Full CI gate; AC15 re-run smoke twice locally
-- [ ] Manual AC13 evidence
-- [ ] ledger commit + pin
+- [x] Internal review.md (R1 FAIL → fix → R2 PASS)
+- [x] Soft cross-model (F28) Codex CX1 product clean; process closeout
+- [x] Full CI gate; AC15 re-run smoke twice locally; GH CI Win/Linux/macOS green
+- [x] Manual AC13 evidence
+- [x] ledger commit + pin
 
 ---
 
-## Manual evidence (fill on go)
+## Manual evidence (recorded 2026-08-12)
 
 ```powershell
 1..3 | ForEach-Object { ai-brains preflight --summary 2>&1 | Select-String 'Warning: local' }
@@ -155,7 +155,7 @@ Evidence (2026-08-12): cleared `%USERPROFILE%\.ai-brains\cache\env-override-warn
 
 ---
 
-## Targeted checks (on go)
+## Targeted checks (executed)
 
 ```powershell
 cargo nextest run -p ai-brains-cli --lib env_warn
@@ -178,4 +178,4 @@ cargo clippy -p ai-brains-cli --all-targets -- -D warnings
 
 ---
 
-**Plan-only until go.**
+**Completed** — PR #147 squash `9f3148b`; soft residual F16–F19 only.
