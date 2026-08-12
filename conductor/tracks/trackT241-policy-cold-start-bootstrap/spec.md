@@ -1,7 +1,7 @@
 # T241 — Policy cold-start bootstrap
 
 - **Track ID:** T241-PolicyColdStartBootstrap
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (2026-08-12) PR #151 squash `930d0ed`
 - **Category:** FEATURE / UX / GOVERNED
 - **Source:** Audit — briefing **4–5**, progressive **3**, evidence/source/review **3**, `policy show` empty **6/5**, `policy check` usage **5**; P0 first-run grants
 - **Depends on:** T210 `policy bootstrap` (shipped); T221 deny exit **3** + soft residual doctor F12; T226 soft-resolve scope; T227 briefing denied next-step (markdown only); T240 identity (authoritative Scope for doctor/preflight)
