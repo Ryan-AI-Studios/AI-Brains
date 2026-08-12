@@ -15,6 +15,8 @@
 | R1-S3 | medium | verified_fixed | Deny hermetic did not lock `next_step` omit | `v.get("next_step").is_none()` |
 | R1-N1 | low | verified_fixed | Soft F22 skill one-liner | `.claude/skills/ai-brains/SKILL.md` |
 | R1-N2 | low | deferred | F23 non-empty recall footer; F24 daemon `next_step` | Spec residuals |
+| CX1-P1 | high (process) | out_of_scope | Track not yet marked Completed / gate / CX pending at review time | Expected mid-loop; cleared by dogfood + full gate + final CX |
+| CX1-P2 | medium | fixed_pending_verification | F3 `Some(other) => other` had no unit | `resolve_format__explicit_unknown__passthrough` |
 
 ### Status legend
 
@@ -33,7 +35,7 @@
 | Internal R1 correctness | explore subagent | 2026-08-12 | NEEDS_FIX (same AC1/AC2/deny hermetic) |
 | Internal R1 fix | orchestrator | 2026-08-12 | Tests 15/15; skill F22 shipped |
 | Internal R2 | explore subagent | 2026-08-12 | CLEAN |
-| Cross-model CX1 | pending | | |
+| Cross-model CX1 | Codex gpt-5.6-luna high | 2026-08-12 | FAIL (P1 process/evidence; P2 F3 pass-through unit) |
 
 ---
 

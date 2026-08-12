@@ -137,11 +137,41 @@ No Highs. Spec design affirmed. AI1 mediums restate F2/F3/F4/F5 (already planned
 
 ### Phase 5 — Live dogfood (go only)
 
-- [ ] `ai-brains search --help` — alias visible
-- [ ] `ai-brains search "<known pin>" --format pretty --limit 1` — hits
-- [ ] `ai-brains recall "<q>" --format text --limit 1` — `Scope:` chrome
-- [ ] Live progressive (grants already present, §2.1): confirm JSON `next_step` contains `recall`; record snippet (F30)
-- [ ] Record exact commands + outputs below
+- [x] `ai-brains search --help` — alias visible
+- [x] `ai-brains search "<known pin>" --format pretty --limit 1` — hits
+- [x] `ai-brains recall "<q>" --format text --limit 1` — `Scope:` chrome
+- [x] Live progressive: no-grants deny exit 3 + `denial_hint` contains bootstrap **and** `recall`; after bootstrap, authorized empty `next_step` contains `recall` (F30)
+- [x] Record exact commands + outputs below
+
+#### F30 record (2026-08-12, debug binary, project `test-alias`)
+
+```text
+ai-brains search --help
+  → Usage: ai-brains.exe recall [OPTIONS] <QUERY>
+    About: Alias: `search`. Vault-first. Peer sync query + query progressive.
+
+ai-brains search "search surface unify" --format pretty --limit 1 --no-bridge
+  → Scope: project=test-alias (…)
+    hit (vault memory)
+
+ai-brains recall "search surface unify" --format text --limit 1 --no-bridge
+  → Scope: project=test-alias (…)  (pretty chrome, not leading `{`)
+
+# grants were empty on this machine at go; deny path first:
+ai-brains query progressive "why was graph backend replaced?"
+  → exit 3, denied:true
+    denial_hint: "…policy bootstrap… Ungoverned vault search: ai-brains recall \"…\""
+    stderr: POLICY_DENIED: … / POLICY_DENIED_HINT / PROGRESSIVE_RECALL_FALLBACK
+    next_step omitted
+
+ai-brains policy bootstrap --dry-run ; ai-brains policy bootstrap
+  → 3 Read* issued
+
+ai-brains query progressive "x"
+  → exit 0, denied:false, results:[]
+    "next_step": "Ungoverned vault search: ai-brains recall \"…\""
+    denial_hint omitted
+```
 
 ### Phase 6 — Gate + close
 

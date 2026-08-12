@@ -779,6 +779,14 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
+    fn resolve_format__explicit_unknown__passthrough() {
+        // T243 F3 / AI2 L2: do not catch-all unknown formats to json here.
+        assert_eq!(resolve_format(Some("ndjson"), true), "ndjson");
+        assert_eq!(resolve_format(Some("ndjson"), false), "ndjson");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
     fn resolve_format__no_explicit_on_tty__returns_pretty() {
         assert_eq!(resolve_format(None, true), "pretty");
     }
