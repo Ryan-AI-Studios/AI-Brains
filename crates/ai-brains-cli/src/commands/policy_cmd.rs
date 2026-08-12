@@ -4,8 +4,9 @@
 //! issue discovery grants only). No domain logic in the CLI.
 
 use crate::commands::governed_common::{
-    OutputFormat, emit_human, emit_json, fail_api, fail_cp, fail_usage, policy_denied_hint_details,
-    resolve_principal, resolve_scope_key_for_cli,
+    DISCOVERY_CAP_LABELS, OutputFormat, POLICY_BOOTSTRAP_SOOT_SHORT,
+    capability_required_usage_message, emit_human, emit_json, fail_api, fail_cp, fail_usage,
+    policy_denied_hint_details, resolve_principal, resolve_scope_key_for_cli,
 };
 use crate::context::AppContext;
 use ai_brains_contracts::response::ApiError;
@@ -27,7 +28,8 @@ pub struct ShowOptions {
 }
 
 pub struct CheckOptions {
-    pub capability: String,
+    /// Optional — missing → fail_usage catalog (T241 F6); not clap-required.
+    pub capability: Option<String>,
     /// Optional — soft-resolves when authoritative (T226).
     pub scope: Option<String>,
     pub format: Option<String>,
@@ -42,11 +44,15 @@ pub struct BootstrapOptions {
 }
 
 /// Discovery-class capabilities issued by `policy bootstrap` (F2 — hard set).
+/// Labels live in `governed_common::DISCOVERY_CAP_LABELS` (T241 F6b).
 const DISCOVERY_CAPS: [GrantCapability; 3] = [
     GrantCapability::ReadEvidence,
     GrantCapability::ReadConclusions,
     GrantCapability::ReadDecisions,
 ];
+
+// Compile-time lock: enum array length matches shared labels.
+const _: () = assert!(DISCOVERY_CAPS.len() == DISCOVERY_CAP_LABELS.len());
 
 /// CLI-local bootstrap response (F10 / F19 — not a contracts DTO).
 #[derive(Debug, Serialize)]
@@ -100,7 +106,11 @@ pub fn run_show(ctx: &AppContext, options: ShowOptions) -> Result<(), Box<dyn st
             privacy: g.privacy,
         })
         .collect();
-    let resp = ScopeGrantsResponse::new(grants);
+    let mut resp = ScopeGrantsResponse::new(grants);
+    // T241 F5/F32: next_step only when grants empty.
+    if resp.grants.is_empty() {
+        resp.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
+    }
     match format {
         OutputFormat::Json => emit_json(&resp),
         OutputFormat::Human | OutputFormat::Markdown => {
@@ -109,6 +119,7 @@ pub fn run_show(ctx: &AppContext, options: ShowOptions) -> Result<(), Box<dyn st
                     "grants for principal {} on {scope_key}: (none)",
                     principal.id
                 ));
+                emit_human(POLICY_BOOTSTRAP_SOOT_SHORT);
             } else {
                 emit_human(&format!(
                     "grants for principal {} on {scope_key}:",
@@ -134,6 +145,13 @@ pub fn run_check(
     let format = OutputFormat::parse(options.format.as_deref());
     let principal = resolve_principal(options.principal_id.as_deref());
 
+    // T241 F6: only omitted `--capability` (None) → fail_usage catalog (exit 2).
+    // Explicit empty/whitespace still goes through parse → INVALID_PAYLOAD (not usage).
+    let Some(cap_raw) = options.capability.as_deref() else {
+        return fail_usage(capability_required_usage_message());
+    };
+    let cap_label = cap_raw.trim();
+
     // T226: soft-resolve omitted --scope; always canonicalize (F23/M1).
     let store = SqliteEventStore::new((*ctx.conn).clone());
     let ports = StorePorts::from_store(store);
@@ -148,14 +166,14 @@ pub fn run_check(
     };
     let scope_key = scope_identity_key(&scope_ref);
 
-    let capability = match parse_capability_label(&options.capability) {
+    let capability = match parse_capability_label(cap_label) {
         Some(c) => c,
         None => {
             return fail_api(
                 format,
                 ApiError::new(
                     "INVALID_PAYLOAD",
-                    format!("unknown capability: {}", options.capability),
+                    format!("unknown capability: {cap_label}"),
                 ),
             );
         }
@@ -176,8 +194,8 @@ pub fn run_check(
             ApiError::new(
                 "POLICY_DENIED",
                 format!(
-                    "{} denied for principal {} on {scope_key}",
-                    options.capability, principal.id
+                    "{cap_label} denied for principal {} on {scope_key}",
+                    principal.id
                 ),
             )
             .with_details(policy_denied_hint_details()),
@@ -195,17 +213,14 @@ pub fn run_check(
     let result = CheckResult {
         allowed: true,
         principal_id: principal.id.to_string(),
-        capability: options.capability.clone(),
+        capability: cap_label.to_string(),
         scope: scope_key.clone(),
     };
 
     match format {
         OutputFormat::Json => emit_json(&result),
         OutputFormat::Human | OutputFormat::Markdown => {
-            emit_human(&format!(
-                "allowed: true ({} on {scope_key})",
-                options.capability
-            ));
+            emit_human(&format!("allowed: true ({cap_label} on {scope_key})"));
             Ok(())
         }
     }

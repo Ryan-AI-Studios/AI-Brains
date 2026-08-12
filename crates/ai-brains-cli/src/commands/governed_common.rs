@@ -50,6 +50,56 @@ pub const GRAPH_REINSTALL_SOOT: &str =
 /// Dual-site SOOT with `ai_brainsd::services::POLICY_DENIED_HINT` — keep wording in sync.
 pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
 
+/// Discovery-class capability labels (T210 bootstrap / T241 probe) — Read* only.
+pub const DISCOVERY_CAP_LABELS: [&str; 3] = ["ReadEvidence", "ReadConclusions", "ReadDecisions"];
+
+/// Full capability catalog for `policy check` fail_usage + after_help (T241 F6b).
+/// Discovery trio first, then remaining stable order.
+pub const CAPABILITY_CATALOG: &[&str] = &[
+    "ReadEvidence (discovery)",
+    "ReadConclusions (discovery)",
+    "ReadDecisions (discovery)",
+    "ApproveConclusion",
+    "ApproveDecision",
+    "Erase",
+    "Export",
+    "ProposeConclusion",
+    "ProposeDecision",
+];
+
+/// Short bootstrap SOOT (T241 F14) — show human, preflight, briefing denial_hint.
+pub const POLICY_BOOTSTRAP_SOOT_SHORT: &str =
+    "next: run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap`";
+
+/// Long bootstrap SOOT (T241 F14) — doctor remediation only.
+pub const POLICY_BOOTSTRAP_SOOT_LONG: &str = "next: run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
+
+/// Usage message when `--capability` is omitted on `policy check` (T241 F6/F30).
+pub fn capability_required_usage_message() -> String {
+    let mut lines = Vec::with_capacity(1 + CAPABILITY_CATALOG.len());
+    lines.push("--capability is required. Valid capabilities:".to_string());
+    for cap in CAPABILITY_CATALOG {
+        lines.push(format!("  {cap}"));
+    }
+    lines.join("\n")
+}
+
+/// Count unique discovery labels present among applied grants (T241 F1/F31).
+pub fn discovery_active_count<'a, I>(capabilities: I) -> usize
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    let mut present = std::collections::BTreeSet::new();
+    for cap in capabilities {
+        for label in &DISCOVERY_CAP_LABELS {
+            if cap.eq_ignore_ascii_case(label) {
+                present.insert(*label);
+            }
+        }
+    }
+    present.len()
+}
+
 /// Build `{"hint": …}` details without `serde_json::json!` (disallowed unwrap in production).
 pub fn policy_denied_hint_details() -> serde_json::Value {
     let mut map = serde_json::Map::new();

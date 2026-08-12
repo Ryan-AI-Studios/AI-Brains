@@ -1230,6 +1230,7 @@ fn project_briefing__word_budget_over_limit__truncates_warnings() {
         generated_at: None,
         denied: false,
         denial_reason: None,
+        denial_hint: None,
     };
     apply_budget(
         &mut packet,

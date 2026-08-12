@@ -227,6 +227,7 @@ fn empty_governed_packet(scope_key: &str, warning: &str) -> ProjectBriefingPacke
         generated_at: None,
         denied: false,
         denial_reason: None,
+        denial_hint: None,
     }
 }
 

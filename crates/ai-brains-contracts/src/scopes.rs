@@ -8,6 +8,8 @@
 //!   `warnings` / `alternatives` always present as arrays (possibly empty) — never omit
 //!   fields to imply full repo authority.
 //! - Grant list: `grants: []` not null.
+//! - `next_step` (T241): present only when `grants` is empty (CLI sets bootstrap SOOT);
+//!   omitted when non-empty. Never null.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -32,6 +34,9 @@ pub struct ScopeGrantsResponse {
     pub api_version: String,
     #[serde(default)]
     pub grants: Vec<ScopeGrantDto>,
+    /// Bootstrap next-step when grants empty (T241 F5). Omitted when non-empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_step: Option<String>,
 }
 
 impl ScopeGrantsResponse {
@@ -39,6 +44,7 @@ impl ScopeGrantsResponse {
         Self {
             api_version: API_VERSION.to_string(),
             grants,
+            next_step: None,
         }
     }
 }

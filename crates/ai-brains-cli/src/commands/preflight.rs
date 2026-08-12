@@ -1,3 +1,6 @@
+use crate::commands::governed_common::{
+    DISCOVERY_CAP_LABELS, POLICY_BOOTSTRAP_SOOT_SHORT, discovery_active_count, resolve_principal,
+};
 use crate::commands::harness::{PromptDecision, interpret_consent_answer, should_prompt_install};
 use crate::context::AppContext;
 use crate::harness::prefs::HarnessHookPrefs;
@@ -6,9 +9,11 @@ use crate::harness::{
     install_grok, install_opencode, load_prefs, resolve_home, save_prefs,
 };
 use ai_brains_contracts::preflight::PreflightContextResponse;
+use ai_brains_control_plane::{StorePorts, parse_scope_key, scope_identity_key};
 use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
 use ai_brains_store::QueryStore;
+use ai_brains_store::SqliteEventStore;
 use is_terminal::IsTerminal;
 use serde::Serialize;
 
@@ -44,6 +49,12 @@ pub(crate) struct PreflightSummaryJson {
     pub in_context_constraints: usize,
     /// Full preflight budget-window word count (`context.word_count`), not summary size.
     pub word_count: usize,
+    /// T241 F3: present when project-scoped discovery grants incomplete (`active_count < 3`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grants_status: Option<String>,
+    /// T241 F3: short bootstrap SOOT when discovery incomplete; omit when complete/global.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_step: Option<String>,
 }
 
 /// Pure builder for preflight summary JSON (T220 F6). Unit-testable without vault I/O.
@@ -80,7 +91,67 @@ pub(crate) fn build_preflight_summary_json(
         in_context_decisions: decision_count,
         in_context_constraints: constraint_count,
         word_count,
+        grants_status: None,
+        next_step: None,
     }
+}
+
+/// Format a post-hoc discovery-grants summary line (T241 F3 / AC9).
+///
+/// Returns `None` when complete (`active_count == 3`) so callers omit OK density.
+pub(crate) fn format_grants_incomplete_line(active_count: usize) -> Option<String> {
+    if active_count >= 3 {
+        return None;
+    }
+    let status = if active_count == 0 {
+        "discovery grants empty (0 of 3)".to_string()
+    } else {
+        format!("discovery grants incomplete ({active_count} of 3)")
+    };
+    Some(format!("{status}; {POLICY_BOOTSTRAP_SOOT_SHORT}"))
+}
+
+/// Status string for incomplete discovery only (T241 F3 JSON `grants_status`).
+pub(crate) fn format_grants_status(active_count: usize) -> Option<String> {
+    if active_count >= 3 {
+        return None;
+    }
+    if active_count == 0 {
+        Some("discovery grants empty (0 of 3)".to_string())
+    } else {
+        Some(format!("discovery grants incomplete ({active_count} of 3)"))
+    }
+}
+
+/// Probe discovery grant active_count for project-scoped preflight (T241 F3).
+///
+/// Uses the **same** `project_id` that scopes the summary (flag/env/`--project-id`),
+/// not a separate ambient soft-resolve that could disagree with an explicit id.
+/// Global / missing project / list errors → `None` (no grants line).
+fn probe_discovery_active_count(
+    ctx: &AppContext,
+    global: bool,
+    project_id: Option<&ProjectId>,
+) -> Option<usize> {
+    if global {
+        return None;
+    }
+    let pid = project_id?;
+    let ports = StorePorts::from_store(SqliteEventStore::new((*ctx.conn).clone()));
+    // Canonical Repository scope for the summary's project (CX2: do not re-resolve ambient).
+    let raw_scope = format!("Repository:{pid}");
+    let scope_key = match parse_scope_key(&raw_scope) {
+        Ok(s) => scope_identity_key(&s),
+        Err(_) => return None,
+    };
+    let principal = resolve_principal(None);
+    let grants = ports
+        .grant_store()
+        .list_applied_grants(principal.id, &scope_key, Some(&DISCOVERY_CAP_LABELS))
+        .ok()?;
+    Some(discovery_active_count(
+        grants.iter().map(|g| g.capability.as_str()),
+    ))
 }
 
 /// Emit install/status chatter: stdout for human path; stderr when JSON mode (T220 M1).
@@ -613,8 +684,11 @@ fn print_summary(
     let decision_count = text.matches("DECISION:").count();
     let constraint_count = text.matches("CONSTRAINT:").count();
 
+    // T241 F3: post-hoc discovery grants line (does not change 9-arg formatters).
+    let grants_count = probe_discovery_active_count(ctx, global, project_id.as_ref());
+
     if gate.json_mode {
-        let envelope = build_preflight_summary_json(
+        let mut envelope = build_preflight_summary_json(
             global,
             project_id.as_ref(),
             projects_with_pinned,
@@ -625,6 +699,12 @@ fn print_summary(
             constraint_count,
             context.word_count,
         );
+        if let Some(n) = grants_count {
+            envelope.grants_status = format_grants_status(n);
+            if envelope.grants_status.is_some() {
+                envelope.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
+            }
+        }
         // Pretty summary JSON (memory-list family); T180 full path stays compact.
         println!("{}", serde_json::to_string_pretty(&envelope)?);
         // M1: still run install side effects; never pollute stdout.
@@ -632,7 +712,7 @@ fn print_summary(
         return Ok(());
     }
 
-    let lines = format_preflight_summary_lines(
+    let mut lines = format_preflight_summary_lines(
         &scope_line,
         global,
         projects_with_pinned,
@@ -643,6 +723,11 @@ fn print_summary(
         constraint_count,
         context.word_count,
     );
+    if let Some(n) = grants_count
+        && let Some(line) = format_grants_incomplete_line(n)
+    {
+        lines.push(line);
+    }
     for line in lines {
         println!("{}", line);
     }
@@ -1039,6 +1124,41 @@ mod tests {
     #[test]
     fn format_preflight_summary_lines__arity_nine_args() {
         let _ = format_preflight_summary_lines("Scope: global", true, Some(0), 0, 0, 0, 0, 0, 0);
+    }
+
+    /// T241 AC9: post-hoc grants line for incomplete discovery; complete omits.
+    #[test]
+    fn format_grants_incomplete_line__empty_and_partial__contains_bootstrap() {
+        let empty = format_grants_incomplete_line(0).expect("empty line");
+        assert!(empty.contains("empty") || empty.contains("0 of 3"));
+        assert!(empty.contains("policy bootstrap"));
+        assert!(empty.contains(POLICY_BOOTSTRAP_SOOT_SHORT));
+
+        let partial = format_grants_incomplete_line(2).expect("partial line");
+        assert!(partial.contains("incomplete") && partial.contains("2 of 3"));
+        assert!(partial.contains("policy bootstrap"));
+
+        assert!(
+            format_grants_incomplete_line(3).is_none(),
+            "complete grants omit density line"
+        );
+    }
+
+    /// T241 AC9: 9-arg formatters still compile; post-hoc append does not change arity.
+    #[test]
+    fn preflight_summary__post_hoc_grants_append__nine_arg_formatters() {
+        let mut lines =
+            format_preflight_summary_lines("Scope: project=aaa", false, None, 0, 0, 0, 0, 0, 0);
+        let before = lines.len();
+        if let Some(g) = format_grants_incomplete_line(0) {
+            lines.push(g);
+        }
+        assert_eq!(lines.len(), before + 1);
+        assert!(lines.last().unwrap().contains("policy bootstrap"));
+
+        let env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
+        assert!(env.grants_status.is_none());
+        assert!(env.next_step.is_none());
     }
 
     #[test]

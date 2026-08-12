@@ -164,7 +164,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Residual / finding | Disposition |
 |--------------------|-------------|
 | Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual only: F13 detect `--json`, F14 `project use` |
-| Policy grants empty → governed dead-end | **T241** Placeholder |
+| Policy grants empty → governed dead-end | **T241** In Progress (2026-08-12) — discoverability DoD implemented (doctor/preflight/show/check/briefing); gate+review residual |
 | Env override warn spam (T223 residual) | ~~**T242**~~ ✅ **Completed** 2026-08-12 PR #147 `9f3148b` — session fingerprint markers (cross-process). Soft residual only: F16 clap quiet, F17 elevation QUIET/FORCE, F18 truthy→core, F19 global quiet pre-read |
 | Search dual model + progressive first-run | **T243** Placeholder |
 | Backup fleet 0 usable / legacy plain | ~~**T244**~~ ✅ **Completed** 2026-08-12 PR #149 `948d2ae` — Incomplete + core-table usable SOOT; list residual `not recoverable`; CLI usable-first; verify both cores; live create green path. Soft residual only: F17 verify quiet/JSON summary/structured error; F18 archive helper |
@@ -1193,7 +1193,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 | Residual | Disposition |
 |----------|-------------|
-| F12 doctor `policy_grants` warn | Soft skip — matrix/cwd risk (M4); not DoD |
+| F12 doctor `policy_grants` warn | **Absorbed into T241 DoD** (2026-08-12 plan) — matrix 15 + cwd honesty |
 | F32 `--principal-id` progressive/expand | Soft skip — not DoD |
 | F18 daemon/HTTP progressive 200+denied | Soft residual (CLI is DoD) |
 | F36 trace `applied_policy` string | Soft residual — out of DoD |

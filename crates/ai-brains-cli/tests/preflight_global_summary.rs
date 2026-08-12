@@ -282,3 +282,76 @@ fn preflight_global_summary__init_only_empty__zeros_exit_0() {
         "AC9: Active sessions 0; got:\n{stdout}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// T241 AC9 — project-scoped summary post-hoc grants line (wired CLI path)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn preflight_summary__project_scoped_empty_grants__next_bootstrap_line() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("proj-grants");
+    let id = register_project(&vault, &proj);
+
+    // Human: incomplete discovery → grants line with short SOOT.
+    let (code, stdout, stderr) = run_summary(&vault, &[], Some(&id));
+    assert_eq!(code, 0, "project summary exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("policy bootstrap")
+            && (stdout.contains("discovery grants empty")
+                || stdout.contains("discovery grants incomplete")),
+        "T241 AC9 human must post-hoc append grants/next line; got:\n{stdout}"
+    );
+
+    // Global must not include grants line.
+    let (gcode, gstdout, gstderr) = run_summary(&vault, &["--global"], Some(&id));
+    assert_eq!(gcode, 0, "global summary exit 0; stderr={gstderr}");
+    assert!(
+        !gstdout.contains("discovery grants empty")
+            && !gstdout.contains("discovery grants incomplete"),
+        "T241 F3: global must omit grants line; got:\n{gstdout}"
+    );
+
+    // JSON summary: additive grants_status / next_step when incomplete.
+    let (jcode, jstdout, jstderr) = run_summary(&vault, &["--format", "json"], Some(&id));
+    assert_eq!(jcode, 0, "json summary exit 0; stderr={jstderr}");
+    let v: serde_json::Value = serde_json::from_str(&jstdout).expect("summary json");
+    let status = v["grants_status"].as_str().unwrap_or("");
+    assert!(
+        status.contains("discovery grants"),
+        "JSON grants_status expected; got {v}"
+    );
+    let next = v["next_step"].as_str().unwrap_or("");
+    assert!(
+        next.contains("policy bootstrap"),
+        "JSON next_step must name bootstrap; got {v}"
+    );
+
+    // CX2: explicit --project-id (no AI_BRAINS_PROJECT_ID) must still probe that project.
+    let mut cmd = hermetic();
+    cmd.arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env_remove("AI_BRAINS_PROJECT_ID")
+        .arg("preflight")
+        .arg("--project-id")
+        .arg(&id)
+        .arg("--summary");
+    let out = cmd.output().expect("preflight --project-id summary");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let flag_stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        flag_stdout.contains("policy bootstrap")
+            && (flag_stdout.contains("discovery grants empty")
+                || flag_stdout.contains("discovery grants incomplete")),
+        "explicit --project-id must wire grants probe to that scope; got:\n{flag_stdout}"
+    );
+}

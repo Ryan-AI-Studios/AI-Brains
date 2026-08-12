@@ -1230,13 +1230,14 @@ enum PolicyCommands {
         principal_id: Option<String>,
     },
     /// Dry-run capability allow check
+    // after_help catalog must stay in sync with governed_common::CAPABILITY_CATALOG (T241 F6b).
     #[command(
-        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative"
+        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative\n\nValid capabilities (discovery first):\n  ReadEvidence (discovery)\n  ReadConclusions (discovery)\n  ReadDecisions (discovery)\n  ApproveConclusion\n  ApproveDecision\n  Erase\n  Export\n  ProposeConclusion\n  ProposeDecision"
     )]
     Check {
-        /// Capability name (e.g. ProposeConclusion)
+        /// Capability name (e.g. ProposeConclusion, ReadEvidence). Required at runtime (catalog on omit).
         #[arg(long)]
-        capability: String,
+        capability: Option<String>,
         /// Scope identity key (optional — soft-resolves when authoritative)
         #[arg(long)]
         scope: Option<String>,

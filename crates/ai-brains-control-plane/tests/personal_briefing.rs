@@ -846,6 +846,7 @@ fn personal_briefing__word_budget__includes_open_review_items() {
         generated_at: None,
         denied: false,
         denial_reason: None,
+        denial_hint: None,
     };
 
     apply_personal_budget(
