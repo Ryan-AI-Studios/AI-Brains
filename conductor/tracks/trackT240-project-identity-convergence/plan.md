@@ -1,6 +1,6 @@
 # T240 Plan — Project identity convergence
 
-**Status:** 🔧 **Implementing** — product `6179e5e` / PR #144; governance + AC6 evidence this follow-up
+**Status:** ✅ **Completed** — PR #144 squash `29b9b59`
 **Spec:** [spec.md](./spec.md) § AI fold-in / F0–F22
 **Category:** FEATURE / UX / OPS
 **Ledger TX:** `0ee32f70-2565-448a-b39e-10ae87f36095`
@@ -216,10 +216,10 @@ Extra note if path owner 0 mem and slug hit >0 mem → verify `project list` / r
 ## Phase 5 — Review + gate + dogfood
 
 - [x] Internal review vs fold-in pins (CLEAN; P3 help + AC9/0-mem hermetics fixed)
-- [ ] **Cross-model Codex** — r1 process P2s addressed; need final PASS
-- [x] Full local gate (fmt, clippy -D, nextest 2647, deny, audit)
+- [x] **Cross-model Codex** — r1 process P2s fixed; r2 clean; **final PASS**
+- [x] Full local gate (fmt, clippy -D, nextest 2647, deny, audit) + CI Win/Linux/macOS green
 - [x] Live: whoami triangle; detect → 7d97…; temp operator `.env` rebind → Scope main (AC6; restored)
-- [ ] Conductor Completed; deferred; pin DECISION (after squash)
+- [x] Conductor Completed; deferred; pin DECISION
 
 ---
 
@@ -262,9 +262,9 @@ cargo nextest run -p ai-brains-cli --test project_identity_convergence  # 9 PASS
 
 - [x] F0–F22 + AC0–AC9 product (F13/F14 soft deferred)
 - [x] AI fold-in pins honored (M1–M3, whoami, once warn, doctor soft, export source)
-- [ ] Cross-model final PASS; CI green; squash
-- [ ] conductor / deferred / pin closeout
+- [x] Cross-model final PASS; CI green; squash `29b9b59`
+- [x] conductor / deferred / pin closeout
 
 ---
 
-**Implementation complete pending review / cross-model / operator dogfood.**
+**Completed 2026-08-12 — PR #144 squash `29b9b59`.**

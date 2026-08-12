@@ -163,7 +163,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 
 | Residual / finding | Disposition |
 |--------------------|-------------|
-| Default project identity (env test-alias vs detect vs path) | **T240** 🔄 **Implementing** 2026-08-11 — PR #144 product; AC6 proven; final Codex/CI pending; F13/F14 soft residual |
+| Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual only: F13 detect `--json`, F14 `project use` |
 | Policy grants empty → governed dead-end | **T241** Placeholder |
 | Env override warn spam (T223 residual) | **T242** Placeholder |
 | Search dual model + progressive first-run | **T243** Placeholder |
