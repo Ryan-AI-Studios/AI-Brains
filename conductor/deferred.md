@@ -166,7 +166,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual only: F13 detect `--json`, F14 `project use` |
 | Policy grants empty → governed dead-end | ~~**T241**~~ ✅ **Completed** 2026-08-12 PR #151 `930d0ed` — doctor/preflight/show/check/briefing discoverability. Soft residual only: F20 install-grants, F21 skill one-liner, F22 soft-resolve hermetic, L1 after_help dual-site, L2 dual short-SOOT |
 | Env override warn spam (T223 residual) | ~~**T242**~~ ✅ **Completed** 2026-08-12 PR #147 `9f3148b` — session fingerprint markers (cross-process). Soft residual only: F16 clap quiet, F17 elevation QUIET/FORCE, F18 truthy→core, F19 global quiet pre-read |
-| Search dual model + progressive first-run | **T243** Placeholder |
+| Search dual model + progressive first-run | ~~**T243**~~ ✅ **Completed** 2026-08-12 PR #153 `7a19d40` — `search`→recall alias; `text`≡pretty; progressive `next_step`/deny recall honesty. Soft residual only: F23 non-empty recall footer, F24 daemon/HTTP `next_step` |
 | Backup fleet 0 usable / legacy plain | ~~**T244**~~ ✅ **Completed** 2026-08-12 PR #149 `948d2ae` — Incomplete + core-table usable SOOT; list residual `not recoverable`; CLI usable-first; verify both cores; live create green path. Soft residual only: F17 verify quiet/JSON summary/structured error; F18 archive helper |
 | Harness wiring=missing | **T245** Placeholder |
 | Graph neighbors JSON-only | **T246** Placeholder |
@@ -180,7 +180,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240 + T242 + T244 Completed;** remaining tracks plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240 + T241 + T242 + T243 + T244 Completed.** Remaining tracks plan-only until go.
 
 ### T238 soft residuals (2026-08-09)
 

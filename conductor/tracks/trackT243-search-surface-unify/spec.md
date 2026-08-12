@@ -2,7 +2,7 @@
 
 - **Track ID:** T243-SearchSurfaceUnify
 - **Phase:** Post-install CLI effectiveness series (T240–T255) — P1
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (PR #153 `7a19d40`)
 - **Category:** FEATURE / UX / CONTRACT (light, additive `next_step` only)
 - **Owner:** Grok
 - **Source:** Audit 2026-08-11 P1 dual search mental model; progressive first-run **E3**; T231 soft residuals (search noun; recall text→pretty; invalid-env clap); T241 feed “progressive ranking quality”
