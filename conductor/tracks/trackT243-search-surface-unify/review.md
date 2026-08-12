@@ -16,7 +16,7 @@
 | R1-N1 | low | verified_fixed | Soft F22 skill one-liner | `.claude/skills/ai-brains/SKILL.md` |
 | R1-N2 | low | deferred | F23 non-empty recall footer; F24 daemon `next_step` | Spec residuals |
 | CX1-P1 | high (process) | out_of_scope | Track not yet marked Completed / gate / CX pending at review time | Expected mid-loop; cleared by dogfood + full gate + final CX |
-| CX1-P2 | medium | fixed_pending_verification | F3 `Some(other) => other` had no unit | `resolve_format__explicit_unknown__passthrough` |
+| CX1-P2 | medium | verified_fixed | F3 `Some(other) => other` had no unit | `resolve_format__explicit_unknown__passthrough` (6/6 resolve_format units) |
 
 ### Status legend
 
