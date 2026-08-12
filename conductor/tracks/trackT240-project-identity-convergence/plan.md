@@ -1,9 +1,9 @@
 # T240 Plan — Project identity convergence
 
-**Status:** 🔧 **Implementing** (code + hermetics green; cross-model / full gate / dogfood for close)  
+**Status:** 🔧 **Implementing** — product `6179e5e` / PR #144; governance + AC6 evidence this follow-up  
 **Spec:** [spec.md](./spec.md) § AI fold-in / F0–F22  
 **Category:** FEATURE / UX / OPS  
-**Ledger TX:** `0ee32f70-2565-448a-b39e-10ae87f36095` (T240-project-identity-convergence FEATURE) — left open for coordinator
+**Ledger TX:** `0ee32f70-2565-448a-b39e-10ae87f36095`
 
 ---
 
@@ -182,8 +182,8 @@ Extra note if path owner 0 mem and slug hit >0 mem → verify `project list` / r
 
 - [x] `ledgerful ledger status --compact` (coordinator)
 - [x] `ledgerful ledger start T240-… --category FEATURE --message "…"` → TX `0ee32f70-…`
-- [ ] `ledgerful scan --impact` (project.rs, main env, doctor) — coordinator
-- [ ] Reconfirm live triangle — operator dogfood
+- [x] `ledgerful scan --impact` (project.rs, main env, doctor)
+- [x] Reconfirm live triangle — whoami + detect dogfood
 
 ## Phase 1 — Red → Green: identity helpers (M1/M3/O1)
 
@@ -215,11 +215,11 @@ Extra note if path owner 0 mem and slug hit >0 mem → verify `project list` / r
 
 ## Phase 5 — Review + gate + dogfood
 
-- [ ] Internal review vs fold-in pins
-- [ ] **Cross-model Codex required** (FEATURE / high UX)
-- [ ] Full gate
-- [ ] Live: whoami full triangle; detect → 7d97…; operator `.env` rebind → Scope main (AC6)
-- [ ] Conductor Completed; deferred; pin DECISION
+- [x] Internal review vs fold-in pins (CLEAN; P3 help + AC9/0-mem hermetics fixed)
+- [ ] **Cross-model Codex** — r1 process P2s addressed; need final PASS
+- [x] Full local gate (fmt, clippy -D, nextest 2647, deny, audit)
+- [x] Live: whoami triangle; detect → 7d97…; temp operator `.env` rebind → Scope main (AC6; restored)
+- [ ] Conductor Completed; deferred; pin DECISION (after squash)
 
 ---
 
@@ -239,31 +239,31 @@ Extra note if path owner 0 mem and slug hit >0 mem → verify `project list` / r
 | AC | Proof | Result |
 |----|-------|--------|
 | AC0 triangle | plan-time | PASS |
-| AC1 docs = code | CAPABILITIES whoami + detect order; WORKFLOWS §0; OPERATIONS identity SOOT | PASS (docs updated) |
-| AC2 whoami fields | `project_whoami__json__fields_present` + `project_whoami__env_differs_path__mismatch_true` | PASS |
-| AC3 detect path prefer | `project_detect__path_alias_wins_over_unique_slug` + case normalize | PASS (hermetic); live pending |
-| AC4 mismatch once | `project_list__identity_mismatch__warn_on_stderr` + skip under `--no-project-context` | PASS |
-| AC5 T206 green | `cargo nextest run -p ai-brains-cli --test project_detect_honesty` (9/9) | PASS |
-| AC6 operator rebind | live dogfood | pending operator |
-| AC7–AC8 gate + no silent Scope | clippy `-D warnings` + hermetics; no PROJECT_ID mutation in warn | PASS clippy + hermetics; full workspace gate pending coordinator |
+| AC1 docs = code | CAPABILITIES whoami + detect order; WORKFLOWS §0; OPERATIONS identity SOOT | PASS |
+| AC2 whoami fields | hermetic JSON + live whoami | PASS |
+| AC3 detect path prefer | hermetic path wins + live detect → 7d97a456 (9305 mem) | PASS |
+| AC4 mismatch once | hermetic list stderr + live mismatch warn for test-alias | PASS |
+| AC5 T206 green | project_detect_honesty nextest | PASS |
+| AC6 operator rebind | temp rebind PROJECT_ID=7d97… → Scope main, mismatch false, 9305 pins; restored test-alias | PASS |
+| AC7–AC8 gate + no silent Scope | full local gate 2647; warn never mutates PROJECT_ID | PASS |
 
-### Commands proved (implementer)
+### Commands proved
 
 ```
-cargo clippy -p ai-brains-cli --all-targets -- -D warnings   # PASS
-cargo nextest run -p ai-brains-cli --test project_detect_honesty --test project_register_path --test project_identity_convergence  # 21 PASS
-cargo nextest run -p ai-brains-cli project_   # 96 PASS
-cargo nextest run -p ai-brains-cli --test doctor_cli  # 22 PASS
+cargo clippy --workspace --all-targets -- -D warnings   # PASS
+cargo nextest run --workspace  # 2647 PASS
+cargo deny check; cargo audit  # deny ok; audit allowed warnings
+cargo nextest run -p ai-brains-cli --test project_identity_convergence  # 9 PASS
 ```
 
 ---
 
 ## Definition of Done
 
-- [ ] F0–F22 + AC0–AC8  
+- [x] F0–F22 + AC0–AC9 product (F13/F14 soft deferred)  
 - [x] AI fold-in pins honored (M1–M3, whoami, once warn, doctor soft, export source)  
-- [ ] Cross-model clean; full gate; dogfood  
-- [ ] conductor / deferred / pin  
+- [ ] Cross-model final PASS; CI green; squash  
+- [ ] conductor / deferred / pin closeout  
 
 ---
 

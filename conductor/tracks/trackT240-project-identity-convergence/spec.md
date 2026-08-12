@@ -1,7 +1,7 @@
 # T240 — Project identity convergence
 
 - **Track ID:** T240-ProjectIdentityConvergence  
-- **Status:** 📋 **Planning + AI fold-in** (plan-only until user **go**)  
+- **Status:** 🔄 **Implementing** (product on PR #144; close after CI + final Codex)  
 - **Category:** FEATURE / UX / OPS  
 - **Owner:** Grok  
 - **Source:** CLI audit 2026-08-11 P0; live identity triangle; T206 detect; T233 path aliases; **AI fold-in** `C:\dev\AI-review.md` AI1+AI2  
@@ -107,10 +107,10 @@ ai-brains preflight --summary   # Scope should match main
 
 ## 8. Definition of Done
 
-- [ ] F0–F22 + AC0–AC9  
-- [ ] AI fold-in pins honored  
-- [ ] Cross-model + full gate + dogfood  
-- [ ] conductor / deferred / pin  
+- [x] F0–F22 + AC0–AC9 (product implemented; F13/F14 soft deferred)  
+- [x] AI fold-in pins honored  
+- [ ] Cross-model final PASS + CI green + squash (process remaining)  
+- [ ] conductor / deferred / pin closeout  
 
 ## 9. AI fold-in summary
 
@@ -129,4 +129,4 @@ Full disposition: [plan.md](./plan.md) § AI fold-in.
 
 ---
 
-**Still plan-only. Say `go` to implement.**
+**Product shipped on branch `agent/T240-project-identity-convergence` (PR #144). Closeout after CI + final Codex.**
