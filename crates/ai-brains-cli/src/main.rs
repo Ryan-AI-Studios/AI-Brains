@@ -5,6 +5,7 @@ mod daemon_client;
 mod daemon_probe;
 mod elevation;
 mod env_warn;
+mod env_warn_session;
 mod graph_density;
 mod harness;
 mod help_ia;
@@ -1934,19 +1935,26 @@ fn resolve_user_home_for_dotenv() -> Option<std::path::PathBuf> {
 /// Apply local `.env` force-set for PROJECT_ID/SESSION_ID and emit override policy.
 ///
 /// Returns a **deferred** collapsed debug body when the emit path is Debug
-/// (session-only, quiet, or non-warn command). Caller must log it with
-/// `tracing::debug!` **after** the tracing subscriber is installed — this
+/// (session-only, quiet, seen-fingerprint, or non-warn command). Caller must log
+/// it with `tracing::debug!` **after** the tracing subscriber is installed — this
 /// function runs before subscriber init (T223 Codex R1).
 ///
 /// Stderr warnings are emitted immediately (eprintln does not need tracing).
+/// T242: cross-process session quiet via atomic marker under user home cache.
 fn apply_local_project_context_env(
     path: &std::path::Path,
     warn_on_override: bool,
 ) -> Option<String> {
     use env_warn::{
-        EnvOverrideEmit, PROJECT_ID_KEY, SESSION_ID_KEY, classify_env_overrides,
-        format_override_body, quiet_env_warn_truthy,
+        EnvOverrideEmit, EnvOverrideFingerprint, EnvWarnPolicy, FORCE_ENV_WARN_KEY, PROJECT_ID_KEY,
+        SESSION_ID_KEY, classify_env_overrides, compute_fingerprint_hex, decide_env_override_emit,
+        env_warn_truthy, format_override_body, override_body_from_stderr_line,
     };
+    use env_warn_session::{MarkerClaim, try_claim_marker};
+    use std::sync::atomic::AtomicBool;
+
+    /// Defensive once-per-process belt so a re-entered apply never double-eprintln.
+    static ENV_OVERRIDE_STDERR_EMITTED: AtomicBool = AtomicBool::new(false);
 
     let entries = match dotenvy::from_path_iter(path) {
         Ok(entries) => entries,
@@ -1959,8 +1967,11 @@ fn apply_local_project_context_env(
 
     // Collect differ-gate pairs first, then force-set. Stable order PROJECT then SESSION
     // (do not rely on .env file key order). T223: emit policy only — set_var still always.
+    // T242: also retain `.env` values by key match for fingerprint (F4/F24).
     let mut project_override: Option<(String, String)> = None;
     let mut session_override: Option<(String, String)> = None;
+    let mut new_project: Option<String> = None;
+    let mut new_session: Option<String> = None;
     let mut to_set: Vec<(String, String)> = Vec::new();
 
     for entry in entries {
@@ -1986,6 +1997,12 @@ fn apply_local_project_context_env(
             }
         }
 
+        if key == PROJECT_ID_KEY {
+            new_project = Some(value.clone());
+        } else {
+            new_session = Some(value.clone());
+        }
+
         to_set.push((key, value));
     }
 
@@ -2009,25 +2026,80 @@ fn apply_local_project_context_env(
         return None;
     }
 
-    // Quiet from process env at apply time (shell or project `.env` already gap-filled).
-    // Global `~/.ai-brains/.env` loads after this function — quiet only there is too late.
-    let quiet = quiet_env_warn_truthy(std::env::var(env_warn::QUIET_ENV_WARN_KEY).ok().as_deref());
+    // Quiet / force from process env at apply time (shell or project `.env` already
+    // gap-filled). Global `~/.ai-brains/.env` loads after this function — quiet only
+    // there is too late.
+    let quiet = env_warn_truthy(std::env::var(env_warn::QUIET_ENV_WARN_KEY).ok().as_deref());
+    let force = env_warn_truthy(std::env::var(FORCE_ENV_WARN_KEY).ok().as_deref());
 
-    let emit = if !warn_on_override || quiet {
-        Some(EnvOverrideEmit::Debug(format_override_body(&overrides)))
-    } else {
-        classify_env_overrides(&overrides)
-    };
-
-    match emit {
-        Some(EnvOverrideEmit::Stderr(line)) => {
-            eprintln!("{line}");
-            None
-        }
-        // Defer until after tracing subscriber init (main_inner).
-        Some(EnvOverrideEmit::Debug(body)) => Some(body),
-        None => None,
+    // Non-warn commands: always deferred Debug; never claim markers (F3/F30).
+    if !warn_on_override {
+        return Some(format_override_body(&overrides));
     }
+
+    let classified = classify_env_overrides(&overrides);
+    let decided = decide_env_override_emit(classified, EnvWarnPolicy { quiet, force });
+
+    match decided {
+        None => None,
+        Some(EnvOverrideEmit::Debug(body)) => Some(body),
+        Some(EnvOverrideEmit::Stderr(line)) => {
+            if force {
+                emit_env_override_stderr_once(&ENV_OVERRIDE_STDERR_EMITTED, &line);
+                return None;
+            }
+
+            // !force Stderr candidate: atomic marker claim (F3/F5).
+            // F4: fingerprint cwd = location-normalized **absolute** `.env` parent.
+            // `main_inner` passes relative `Path::new(".env")` whose `.parent()` is
+            // empty — resolve against process cwd so different projects do not share
+            // an empty-cwd fingerprint (T242 internal R1 P1).
+            let env_abs = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                match std::env::current_dir() {
+                    Ok(cwd) => cwd.join(path),
+                    Err(_) => path.to_path_buf(),
+                }
+            };
+            let parent = env_abs.parent().unwrap_or(env_abs.as_path());
+            let raw_parent = parent.to_string_lossy();
+            let normalized_cwd = ai_brains_path::normalize_for_location_compare(&raw_parent);
+            let fingerprint = compute_fingerprint_hex(&EnvOverrideFingerprint {
+                normalized_cwd: &normalized_cwd,
+                old_shell_project: project_override.as_ref().map(|(_, old)| old.as_str()),
+                old_shell_session: session_override.as_ref().map(|(_, old)| old.as_str()),
+                new_env_project: new_project.as_deref(),
+                new_env_session: new_session.as_deref(),
+            });
+
+            let Some(home) = resolve_user_home_for_dotenv() else {
+                emit_env_override_stderr_once(&ENV_OVERRIDE_STDERR_EMITTED, &line);
+                return None;
+            };
+
+            match try_claim_marker(&home, &fingerprint) {
+                MarkerClaim::Claimed | MarkerClaim::IoFail => {
+                    emit_env_override_stderr_once(&ENV_OVERRIDE_STDERR_EMITTED, &line);
+                    None
+                }
+                MarkerClaim::Exists => {
+                    // Seen fingerprint → demote Debug body (F31 strip Warning prefix).
+                    Some(override_body_from_stderr_line(&line))
+                }
+            }
+        }
+    }
+}
+
+/// F9 once-per-process belt: at most one stderr override warning per process.
+fn emit_env_override_stderr_once(flag: &std::sync::atomic::AtomicBool, line: &str) {
+    use std::sync::atomic::Ordering;
+    // swap returns previous: false → first emit; true → already emitted, skip.
+    if flag.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    eprintln!("{line}");
 }
 
 fn main() {

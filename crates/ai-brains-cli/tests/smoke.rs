@@ -2689,15 +2689,19 @@ fn preflight__local_env_project_context_overrides_inherited_shell_ids() {
     )
     .unwrap();
 
-    common::hermetic_bin()
-        .current_dir(dir.path())
+    // T242 F14/F15: redirect home so session markers never touch operator ~/.ai-brains.
+    let mut init = common::hermetic_bin();
+    common::isolate_empty_home(&mut init);
+    init.current_dir(dir.path())
         .arg("--vault-path")
         .arg(&vault_path)
         .arg("init")
         .assert()
         .success();
 
-    let output = common::hermetic_bin()
+    let mut preflight = common::hermetic_bin();
+    common::isolate_empty_home(&mut preflight);
+    let output = preflight
         .current_dir(dir.path())
         .env("AI_BRAINS_PROJECT_ID", inherited_project_id)
         .env("AI_BRAINS_SESSION_ID", inherited_session_id)

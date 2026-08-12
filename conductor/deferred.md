@@ -165,7 +165,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 |--------------------|-------------|
 | Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual only: F13 detect `--json`, F14 `project use` |
 | Policy grants empty → governed dead-end | **T241** Placeholder |
-| Env override warn spam (T223 residual) | **T242** Placeholder |
+| Env override warn spam (T223 residual) | **T242** 📋 **Planning** 2026-08-12 — session fingerprint marker (cross-process); close on ship |
 | Search dual model + progressive first-run | **T243** Placeholder |
 | Backup fleet 0 usable / legacy plain | **T244** Placeholder |
 | Harness wiring=missing | **T245** Placeholder |
