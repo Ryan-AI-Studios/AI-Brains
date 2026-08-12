@@ -1,6 +1,5 @@
 use crate::commands::governed_common::{
     DISCOVERY_CAP_LABELS, POLICY_BOOTSTRAP_SOOT_SHORT, discovery_active_count, resolve_principal,
-    resolve_scope_key_for_cli,
 };
 use crate::commands::harness::{PromptDecision, interpret_consent_answer, should_prompt_install};
 use crate::context::AppContext;
@@ -10,7 +9,7 @@ use crate::harness::{
     install_grok, install_opencode, load_prefs, resolve_home, save_prefs,
 };
 use ai_brains_contracts::preflight::PreflightContextResponse;
-use ai_brains_control_plane::StorePorts;
+use ai_brains_control_plane::{StorePorts, parse_scope_key, scope_identity_key};
 use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
 use ai_brains_store::QueryStore;
@@ -126,17 +125,25 @@ pub(crate) fn format_grants_status(active_count: usize) -> Option<String> {
 
 /// Probe discovery grant active_count for project-scoped preflight (T241 F3).
 ///
-/// Global / non-authoritative / list errors → `None` (no grants line).
+/// Uses the **same** `project_id` that scopes the summary (flag/env/`--project-id`),
+/// not a separate ambient soft-resolve that could disagree with an explicit id.
+/// Global / missing project / list errors → `None` (no grants line).
 fn probe_discovery_active_count(
     ctx: &AppContext,
     global: bool,
     project_id: Option<&ProjectId>,
 ) -> Option<usize> {
-    if global || project_id.is_none() {
+    if global {
         return None;
     }
+    let pid = project_id?;
     let ports = StorePorts::from_store(SqliteEventStore::new((*ctx.conn).clone()));
-    let scope_key = resolve_scope_key_for_cli(None, &ports.identity_store()).ok()?;
+    // Canonical Repository scope for the summary's project (CX2: do not re-resolve ambient).
+    let raw_scope = format!("Repository:{pid}");
+    let scope_key = match parse_scope_key(&raw_scope) {
+        Ok(s) => scope_identity_key(&s),
+        Err(_) => return None,
+    };
     let principal = resolve_principal(None);
     let grants = ports
         .grant_store()

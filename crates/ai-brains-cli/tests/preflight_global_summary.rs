@@ -329,4 +329,29 @@ fn preflight_summary__project_scoped_empty_grants__next_bootstrap_line() {
         next.contains("policy bootstrap"),
         "JSON next_step must name bootstrap; got {v}"
     );
+
+    // CX2: explicit --project-id (no AI_BRAINS_PROJECT_ID) must still probe that project.
+    let mut cmd = hermetic();
+    cmd.arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env_remove("AI_BRAINS_PROJECT_ID")
+        .arg("preflight")
+        .arg("--project-id")
+        .arg(&id)
+        .arg("--summary");
+    let out = cmd.output().expect("preflight --project-id summary");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let flag_stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        flag_stdout.contains("policy bootstrap")
+            && (flag_stdout.contains("discovery grants empty")
+                || flag_stdout.contains("discovery grants incomplete")),
+        "explicit --project-id must wire grants probe to that scope; got:\n{flag_stdout}"
+    );
 }
