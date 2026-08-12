@@ -135,10 +135,9 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Recall memories based on a query
-    ///
-    /// Vault-first search (pretty on TTY, JSON when piped). For vault + Ledgerful ledger in one human view, use `sync query` (pretty).
-    #[command(display_order = 10)]
+    /// Vault-first search (pretty on TTY, JSON when piped). Alias: `search`.
+    /// For vault + Ledgerful ledger: `sync query`. Governed conclusions/decisions: `query progressive`.
+    #[command(visible_alias = "search", display_order = 10)]
     Recall {
         /// Query string, or `-` to read from stdin
         query: String,
@@ -152,7 +151,7 @@ enum Commands {
         /// Conflicts with --session-last.
         #[arg(long, conflicts_with = "session_last")]
         session_prefix: Option<String>,
-        /// Output format: 'json' or 'pretty' (default: pretty on TTY, json otherwise)
+        /// Output format: json | pretty | text (default: pretty on TTY, json otherwise)
         #[arg(long)]
         format: Option<String>,
         /// Use semantic (embedding) search alongside FTS5
@@ -576,7 +575,7 @@ enum Commands {
     /// Governed progressive query, handle expand, and query-trace retrieval (T152)
     #[command(
         display_order = 32,
-        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Query {
         #[command(subcommand)]
@@ -877,12 +876,12 @@ enum BriefingCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+    after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
 )]
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
     #[command(
-        after_help = "Examples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Progressive {
         /// Query text
@@ -1824,6 +1823,7 @@ pub enum SyncCommands {
     /// Unified query across AI-Brains vault and Ledgerful ledger
     ///
     /// Human vault + ledger pane (default format is always pretty). Agent/JSON path is `recall` (TTY pretty / non-TTY json).
+    /// Vault-only search: `recall` / `search`. Governed conclusions/decisions: `query progressive`.
     Query {
         /// The query string
         query: String,

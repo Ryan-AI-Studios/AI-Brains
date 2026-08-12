@@ -17,6 +17,7 @@ Command groups (presentation only — names unchanged):
 Start here:
   ai-brains doctor
   ai-brains recall \"what did we decide\"
+  ai-brains search \"what did we decide\"  # alias of recall
   ai-brains scope resolve --format json
 
 Docs: Docs/INSTALL.md | Docs/CLI-EXIT-CODES.md | CONTRIBUTING.md
