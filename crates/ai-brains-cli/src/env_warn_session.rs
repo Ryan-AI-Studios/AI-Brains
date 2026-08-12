@@ -76,11 +76,21 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn marker_path__under_ai_brains_cache() {
-        let home = Path::new(r"C:\Users\test");
+        // Platform-agnostic: Path::join uses OS separators (Linux CI must not hardcode `\`).
+        let home = Path::new("home-root");
         let path = marker_path(home, "deadbeef");
         assert_eq!(
             path,
-            PathBuf::from(r"C:\Users\test\.ai-brains\cache\env-override-warn\deadbeef")
+            PathBuf::from("home-root")
+                .join(".ai-brains")
+                .join("cache")
+                .join("env-override-warn")
+                .join("deadbeef")
+        );
+        assert!(
+            path.ends_with(Path::new("env-override-warn").join("deadbeef")),
+            "marker leaf must be env-override-warn/<hex>; got {}",
+            path.display()
         );
     }
 
