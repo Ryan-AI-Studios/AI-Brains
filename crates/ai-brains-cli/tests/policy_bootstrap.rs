@@ -420,8 +420,57 @@ fn policy_show__empty_and_nonempty__json_next_step() {
         "after bootstrap grants non-empty; {v2}"
     );
     assert!(
-        v2.get("next_step").is_none() || v2["next_step"].is_null(),
-        "non-empty must omit next_step; got {v2}"
+        v2.get("next_step").is_none(),
+        "non-empty must omit next_step key (not null); got {v2}"
+    );
+    let raw = String::from_utf8_lossy(&filled.stdout);
+    assert!(
+        !raw.contains("next_step"),
+        "serialized JSON must omit next_step entirely; got {raw}"
+    );
+}
+
+/// T241 CX1 P2 — explicit empty `--capability` is INVALID_PAYLOAD (exit 6), not usage catalog.
+#[test]
+fn policy_check__empty_capability_string__invalid_payload_not_usage() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--capability")
+        .arg("")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy check empty capability");
+
+    assert_eq!(
+        out.status.code(),
+        Some(6),
+        "empty capability must be INVALID_PAYLOAD exit 6; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined.contains("INVALID_PAYLOAD") || combined.contains("unknown capability"),
+        "expected INVALID_PAYLOAD/unknown capability; got {combined}"
+    );
+    assert!(
+        !combined.contains("required arguments were not provided"),
+        "must not use clap required-arg English; got {combined}"
     );
 }
 

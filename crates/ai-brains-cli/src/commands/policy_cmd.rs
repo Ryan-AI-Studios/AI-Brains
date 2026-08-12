@@ -145,15 +145,12 @@ pub fn run_check(
     let format = OutputFormat::parse(options.format.as_deref());
     let principal = resolve_principal(options.principal_id.as_deref());
 
-    // T241 F6: missing --capability → fail_usage catalog (exit 2), not clap required-arg.
-    let Some(cap_label) = options
-        .capability
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    else {
+    // T241 F6: only omitted `--capability` (None) → fail_usage catalog (exit 2).
+    // Explicit empty/whitespace still goes through parse → INVALID_PAYLOAD (not usage).
+    let Some(cap_raw) = options.capability.as_deref() else {
         return fail_usage(capability_required_usage_message());
     };
+    let cap_label = cap_raw.trim();
 
     // T226: soft-resolve omitted --scope; always canonicalize (F23/M1).
     let store = SqliteEventStore::new((*ctx.conn).clone());

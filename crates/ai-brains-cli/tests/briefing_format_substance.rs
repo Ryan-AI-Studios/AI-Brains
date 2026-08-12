@@ -348,6 +348,42 @@ fn briefing_project__no_grants__soft_deny_exit_0() {
     }
 }
 
+/// T241 AC7 / CX1 P2 — personal soft deny JSON also includes denial_hint (CP path).
+#[test]
+fn briefing_personal__no_grants__soft_deny_denial_hint() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = briefing_personal(&vault)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("briefing personal soft deny");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "soft deny must stay exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    // Packet may be top-level or nested under "packet".
+    let denied = v["denied"]
+        .as_bool()
+        .or_else(|| v["packet"]["denied"].as_bool())
+        .unwrap_or(false);
+    assert!(denied, "personal without grants should be denied; got {v}");
+    let hint = v["denial_hint"]
+        .as_str()
+        .or_else(|| v["packet"]["denial_hint"].as_str())
+        .unwrap_or("");
+    assert!(
+        !hint.is_empty() && hint.contains("policy bootstrap"),
+        "personal denied JSON must include denial_hint with policy bootstrap; got {v}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // AC11 — help lists aliases + human example
 // ---------------------------------------------------------------------------
