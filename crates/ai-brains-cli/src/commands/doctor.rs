@@ -11,7 +11,7 @@ use crate::graph_density::{
     DensityVerdict, GatherResult, assess_graph_density, gather_density_snapshot,
 };
 use crate::key_resolve::{KeyResolveError, resolve_operator_sqlcipher_key, vault_locked_message};
-use ai_brains_brain::{BackupReadClass, BackupService, ListMode, has_core_tables, parse_duration};
+use ai_brains_brain::{BackupService, ListMode, has_core_tables, is_usable_class, parse_duration};
 use ai_brains_contracts::doctor::{CheckSeverity, DoctorReport, DoctorStatus, HealthCheck};
 use ai_brains_crypto::{RecoveryKit, SqlCipherKey};
 use ai_brains_store::ALLOW_ZERO_KEY_ENV;
@@ -344,16 +344,12 @@ fn check_backup_recent(vault_path: &Path, key: &SqlCipherKey, max_age: &str) -> 
         );
     }
 
-    // T225 F9: usable = Readable | PreT109. Age newest usable only; ignore
-    // LegacyPlain / KeyMismatch / Corrupt timestamps (even if more recent).
+    // T225 F9 / T244 F4: usable = is_usable_class (Readable | PreT109; cores
+    // required). Age newest usable only; ignore Incomplete / plain / key / corrupt
+    // timestamps (even if more recent).
     let usable: Vec<_> = backups
         .iter()
-        .filter(|b| {
-            matches!(
-                b.class,
-                BackupReadClass::Readable | BackupReadClass::PreT109
-            )
-        })
+        .filter(|b| is_usable_class(b.class))
         .collect();
 
     if usable.is_empty() {

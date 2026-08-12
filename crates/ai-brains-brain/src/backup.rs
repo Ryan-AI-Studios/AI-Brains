@@ -11,20 +11,32 @@ use std::time::Duration;
 /// Minimum size for a plausible multi-page SQLite/SQLCipher backup (F31).
 pub const MIN_PLAUSIBLE_BACKUP_BYTES: u64 = 512;
 
-/// How a backup file classifies under the current vault key (T209).
+/// How a backup file classifies under the current vault key (T209 / T244).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
 pub enum BackupReadClass {
-    /// Meta SELECT succeeded under the current key.
+    /// Key opens; both core tables present; meta SELECT succeeded under the current key.
     #[default]
     Readable,
-    /// Key opens; core tables present (or meta table absent); no usable meta rows.
+    /// Key opens; both core tables present; meta table/rows unusable or absent (T244 F2).
     PreT109,
+    /// Key opens but product core tables (`events` + `memory_projection`) are missing (T244 F1).
+    Incomplete,
     /// Plain SQLite header (pre-encrypt residual); no key probe.
     LegacyPlain,
     /// Not plain; size ≥ [`MIN_PLAUSIBLE_BACKUP_BYTES`]; key/schema verification failed.
     KeyMismatch,
     /// Not plain; open I/O failure, unreadable size, or size &lt; 512 with key fail.
     Corrupt,
+}
+
+/// Doctor / list usable SOOT (T244 F4): Readable | PreT109 only (both imply core tables).
+pub fn is_usable_class(class: BackupReadClass) -> bool {
+    matches!(class, BackupReadClass::Readable | BackupReadClass::PreT109)
+}
+
+/// List residual summary SOOT (T244 F6): every non-usable class.
+pub fn residual_for_summary(class: BackupReadClass) -> bool {
+    !is_usable_class(class)
 }
 
 /// Noise / detail mode for [`BackupService::list_backups`] (T209 F14).
@@ -463,8 +475,14 @@ pub fn classify_backup_read(
         return (BackupReadClass::KeyMismatch, HashMap::new());
     }
 
-    // Key opens — read meta if present. Missing meta table / row errors → PreT109
-    // (T120 / F4: openable keyed backup without usable `_aibrains_backup_meta`).
+    // T244 F1: key opens but missing product cores → Incomplete (never usable).
+    if !has_core_tables(&conn) {
+        return (BackupReadClass::Incomplete, HashMap::new());
+    }
+
+    // Key opens + cores present — read meta if present. Missing meta table / row
+    // errors → PreT109 (T120 / T244 F2: openable keyed backup with cores but
+    // without usable `_aibrains_backup_meta`).
     match conn.prepare("SELECT key, value FROM _aibrains_backup_meta") {
         Ok(mut stmt) => {
             let rows = stmt.query_map([], |row| {
@@ -509,6 +527,21 @@ fn emit_list_noise(path: &Path, class: BackupReadClass, mode: ListMode) {
                 "Backup predates metadata table; core tables present"
             );
         }
+        // T244 F27: Incomplete noise matches LegacyPlain (debug Default/Quiet, warn Verbose).
+        BackupReadClass::Incomplete => match mode {
+            ListMode::Verbose => {
+                tracing::warn!(
+                    path = %path.display(),
+                    "Backup missing core tables (events / memory_projection); not restorable"
+                );
+            }
+            ListMode::Default | ListMode::Quiet => {
+                tracing::debug!(
+                    path = %path.display(),
+                    "Backup missing core tables (events / memory_projection; list detail suppressed; use --verbose)"
+                );
+            }
+        },
         BackupReadClass::LegacyPlain => match mode {
             ListMode::Verbose => {
                 tracing::warn!(
@@ -1061,8 +1094,11 @@ mod tests {
         let key = zero_key();
         let conn = rusqlite::Connection::open(&vault_path)?;
         apply_key_pragmas(&conn, &key)?;
+        // T244 F1/F3: Readable requires both product core tables + meta.
         conn.execute_batch(
-            "CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
+            "CREATE TABLE events (id INTEGER PRIMARY KEY);
+             CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);
+             CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
         )?;
         drop(conn);
 
@@ -1077,6 +1113,107 @@ mod tests {
             meta.keys().collect::<Vec<_>>()
         );
         assert!(meta.contains_key("source_vault_path"));
+        Ok(())
+    }
+
+    // --- T244 usable / residual helpers + classify core-table gate ---
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn is_usable_class__readable_and_pret109__true_others_false() {
+        assert!(is_usable_class(BackupReadClass::Readable));
+        assert!(is_usable_class(BackupReadClass::PreT109));
+        assert!(!is_usable_class(BackupReadClass::Incomplete));
+        assert!(!is_usable_class(BackupReadClass::LegacyPlain));
+        assert!(!is_usable_class(BackupReadClass::KeyMismatch));
+        assert!(!is_usable_class(BackupReadClass::Corrupt));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn residual_for_summary__complements_is_usable_class() {
+        let classes = [
+            BackupReadClass::Readable,
+            BackupReadClass::PreT109,
+            BackupReadClass::Incomplete,
+            BackupReadClass::LegacyPlain,
+            BackupReadClass::KeyMismatch,
+            BackupReadClass::Corrupt,
+        ];
+        for class in classes {
+            assert_eq!(
+                residual_for_summary(class),
+                !is_usable_class(class),
+                "residual SOOT must be !usable for {class:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_backup_read__openable_without_core_tables__incomplete()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // T244 F13: SQLCipher + junk table only → Incomplete (not PreT109/Readable).
+        let dir = tempdir()?;
+        let path = dir.path().join("vault-2026-01-01T00-00-00.db.bak");
+        let key = zero_key();
+        let conn = rusqlite::Connection::open(&path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch("CREATE TABLE junk(x);")?;
+        drop(conn);
+
+        let (class, meta) = classify_backup_read(&path, &key);
+        assert_eq!(class, BackupReadClass::Incomplete);
+        assert!(meta.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_backup_read__openable_with_core_tables_no_meta__pre_t109()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // T244 F2: key opens + both cores + no meta → PreT109 (usable).
+        let dir = tempdir()?;
+        let path = dir.path().join("vault-2026-01-01T00-00-00.db.bak");
+        let key = zero_key();
+        let conn = rusqlite::Connection::open(&path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY);
+             CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);",
+        )?;
+        drop(conn);
+
+        let (class, meta) = classify_backup_read(&path, &key);
+        assert_eq!(class, BackupReadClass::PreT109);
+        assert!(meta.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_backup_read__meta_without_core_tables__incomplete_not_readable()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Meta alone must not count as Readable when cores are missing (F1 before meta).
+        let dir = tempdir()?;
+        let path = dir.path().join("vault-2026-01-01T00-00-00.db.bak");
+        let key = zero_key();
+        let conn = rusqlite::Connection::open(&path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch(
+            "CREATE TABLE junk(x);
+             CREATE TABLE _aibrains_backup_meta (key TEXT PRIMARY KEY, value TEXT);
+             INSERT INTO _aibrains_backup_meta (key, value) VALUES ('backup_timestamp', 'x');",
+        )?;
+        drop(conn);
+
+        let (class, meta) = classify_backup_read(&path, &key);
+        assert_eq!(class, BackupReadClass::Incomplete);
+        assert!(
+            meta.is_empty(),
+            "Incomplete skips meta map; keys={:?}",
+            meta.keys().collect::<Vec<_>>()
+        );
         Ok(())
     }
 

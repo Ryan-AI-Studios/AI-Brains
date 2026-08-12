@@ -1,7 +1,11 @@
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
-use ai_brains_brain::{BackupReadClass, BackupService, ListMode};
+use ai_brains_brain::{
+    BackupInfo, BackupReadClass, BackupService, ListMode, is_usable_class, residual_for_summary,
+};
 use ai_brains_store::pragmas::apply_key_pragmas;
+use chrono::NaiveDateTime;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -138,23 +142,34 @@ pub fn run_prune(
     Ok(())
 }
 
-/// Empty-meta table token for a backup class (T209 F9).
-fn empty_meta_token(class: BackupReadClass) -> &'static str {
+/// Table token when class-specific metadata is absent (T209 F9 / T244 F8).
+fn backup_class_token(class: BackupReadClass) -> &'static str {
     match class {
         BackupReadClass::LegacyPlain => "(legacy plain)",
         BackupReadClass::KeyMismatch => "(unreadable key)",
         BackupReadClass::Corrupt => "(corrupt)",
+        BackupReadClass::Incomplete => "(no core tables)",
         BackupReadClass::PreT109 | BackupReadClass::Readable => "(no metadata)",
     }
 }
 
+/// CLI list sort key (T244 F7): usable-first, then Reverse(ts) with None last, path tiebreak.
+/// Brain `list_backups` stays timestamp-desc for doctor.
+fn list_sort_key(info: &BackupInfo) -> (u8, Reverse<Option<NaiveDateTime>>, PathBuf) {
+    let priority = if is_usable_class(info.class) { 0 } else { 1 };
+    (priority, Reverse(info.timestamp), info.path.clone())
+}
+
 pub fn run_list(ctx: &AppContext, mode: ListMode) -> Result<(), Box<dyn std::error::Error>> {
     let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
-    let backups = service.list_backups(mode)?;
+    let mut backups = service.list_backups(mode)?;
     if backups.is_empty() {
         println!("No backups found.");
         return Ok(());
     }
+
+    // T244 F7: usable-first presentation only in CLI list (not brain list_backups).
+    backups.sort_by_key(list_sort_key);
 
     println!(
         "{:<35} {:<22} {:<40} {:<14} {:<20}",
@@ -163,14 +178,12 @@ pub fn run_list(ctx: &AppContext, mode: ListMode) -> Result<(), Box<dyn std::err
 
     let mut residual_count = 0usize;
     for info in &backups {
-        if matches!(
-            info.class,
-            BackupReadClass::LegacyPlain | BackupReadClass::KeyMismatch
-        ) {
+        // T244 F6: residual = all non-usable (Incomplete / plain / key / corrupt).
+        if residual_for_summary(info.class) {
             residual_count = residual_count.saturating_add(1);
         }
 
-        let token = empty_meta_token(info.class);
+        let token = backup_class_token(info.class);
         let ts = info
             .timestamp
             .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
@@ -206,11 +219,11 @@ pub fn run_list(ctx: &AppContext, mode: ListMode) -> Result<(), Box<dyn std::err
         );
     }
 
-    // F6: one eprintln summary under Default when residual plain/key-mismatch ≥ 1.
+    // F6: one eprintln summary under Default when any residual ≥ 1.
     // Quiet: no summary. Verbose: omit (per-file detail already emitted).
     if mode == ListMode::Default && residual_count >= 1 {
         eprintln!(
-            "{residual_count} backup(s) not fully readable (legacy plain or current key): use --verbose or ai-brains backup verify"
+            "{residual_count} backup(s) not recoverable under current key (legacy plain / incomplete / key / corrupt): use --verbose or ai-brains backup verify"
         );
     }
     Ok(())
@@ -441,7 +454,8 @@ fn verify_single_backup(
     }
     tables_out.sort();
 
-    if tables_out.is_empty() {
+    // T244 F5: require both core tables; keep IN query so JSON `tables` stays populated.
+    if tables_out.len() < 2 {
         return Err("backup is missing core tables".into());
     }
     Ok(())
@@ -814,5 +828,107 @@ mod restore_daemon_tests {
         assert!(msg.contains("ai-brains daemon stop"));
         assert!(msg.contains("sc stop"));
         assert!(msg.contains("AI-Brains-Daemon") || msg.contains("ai-brainsd"));
+    }
+}
+
+#[cfg(test)]
+mod list_sort_tests {
+    #![allow(non_snake_case)]
+
+    use super::{backup_class_token, list_sort_key};
+    use ai_brains_brain::{BackupInfo, BackupReadClass};
+    use chrono::NaiveDateTime;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    fn info(path: &str, class: BackupReadClass, ts: Option<&str>) -> BackupInfo {
+        BackupInfo {
+            path: PathBuf::from(path),
+            timestamp: ts.and_then(|s| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok()),
+            metadata: HashMap::new(),
+            class,
+        }
+    }
+
+    #[test]
+    fn list_sort_key__usable_ranked_before_residuals() {
+        let usable_old = info(
+            "a/vault-2020-01-01T00-00-00.db.bak",
+            BackupReadClass::Readable,
+            Some("2020-01-01 00:00:00"),
+        );
+        let residual_new = info(
+            "b/vault-2099-01-01T00-00-00.db.bak",
+            BackupReadClass::Incomplete,
+            Some("2099-01-01 00:00:00"),
+        );
+        let pret = info(
+            "c/vault-2021-01-01T00-00-00.db.bak",
+            BackupReadClass::PreT109,
+            Some("2021-01-01 00:00:00"),
+        );
+        let plain = info(
+            "d/vault-2025-01-01T00-00-00.db.bak",
+            BackupReadClass::LegacyPlain,
+            Some("2025-01-01 00:00:00"),
+        );
+
+        let mut items = [&residual_new, &plain, &usable_old, &pret];
+        items.sort_by_key(|b| list_sort_key(b));
+        assert_eq!(items[0].class, BackupReadClass::PreT109); // 2021 before 2020 within usable
+        assert_eq!(items[1].class, BackupReadClass::Readable);
+        assert_eq!(items[2].class, BackupReadClass::Incomplete); // residual band, newer first
+        assert_eq!(items[3].class, BackupReadClass::LegacyPlain);
+    }
+
+    #[test]
+    fn list_sort_key__none_timestamp_last_within_band() {
+        let with_ts = info(
+            "a/vault-2026-01-01T00-00-00.db.bak",
+            BackupReadClass::Incomplete,
+            Some("2026-01-01 00:00:00"),
+        );
+        let no_ts = info(
+            "b/vault-unparseable.db.bak",
+            BackupReadClass::Incomplete,
+            None,
+        );
+        let mut items = [&no_ts, &with_ts];
+        items.sort_by_key(|b| list_sort_key(b));
+        assert!(items[0].timestamp.is_some());
+        assert!(items[1].timestamp.is_none());
+    }
+
+    #[test]
+    fn list_sort_key__path_tiebreak_when_class_and_ts_equal() {
+        let a = info(
+            "a/vault-2026-01-01T00-00-00.db.bak",
+            BackupReadClass::LegacyPlain,
+            Some("2026-01-01 00:00:00"),
+        );
+        let b = info(
+            "b/vault-2026-01-01T00-00-00.db.bak",
+            BackupReadClass::LegacyPlain,
+            Some("2026-01-01 00:00:00"),
+        );
+        let mut items = [&b, &a];
+        items.sort_by_key(|i| list_sort_key(i));
+        assert!(items[0].path < items[1].path);
+    }
+
+    #[test]
+    fn backup_class_token__incomplete__no_core_tables() {
+        assert_eq!(
+            backup_class_token(BackupReadClass::Incomplete),
+            "(no core tables)"
+        );
+        assert_eq!(
+            backup_class_token(BackupReadClass::LegacyPlain),
+            "(legacy plain)"
+        );
+        assert_eq!(
+            backup_class_token(BackupReadClass::PreT109),
+            "(no metadata)"
+        );
     }
 }
