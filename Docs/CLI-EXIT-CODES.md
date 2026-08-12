@@ -74,13 +74,15 @@ On **`policy check`** deny and local **list** denies (`review list`, `source lis
 
 | Command | Deny signal | Exit | Streams |
 |---------|-------------|------|---------|
-| `query progressive` | packet `denied: true` (incl. `--dry-run`) | **3** | **stdout:** pretty `ProgressiveQueryResponse` (keeps `denied` / `denial_reason` / additive **`denial_hint`** bootstrap string). **stderr:** `POLICY_DENIED: …` then the same bootstrap hint. |
+| `query progressive` | packet `denied: true` (incl. `--dry-run`) | **3** | **stdout:** pretty `ProgressiveQueryResponse` (keeps `denied` / `denial_reason` / additive **`denial_hint`** bootstrap string plus ungoverned `recall` fallback). **stderr:** `POLICY_DENIED: …` then bootstrap hint then `Ungoverned vault search: ai-brains recall "…"`. `next_step` omitted. |
 | `query expand` | preview `kind == "Denied"` (capability miss **and/or** cross-scope — not disambiguated) | **3** | **stdout:** preview JSON. **stderr:** `POLICY_DENIED: …` then bootstrap hint. |
 | `query expand` | `kind == "Unknown"` (handle not found) | **0** | not a policy wall |
 | `briefing project` / `personal` | soft packet `denied: true` | **0** | unchanged (T210 F28) — do not treat like progressive |
 | `briefing project` / `personal` | unknown `--format` (not human/pretty/text/markdown/md/json) | **2** | **T227:** `fail_usage` on stderr with accepted list; **zero stdout** (no silent JSON) |
 
-Authorized progressive with grants and zero hits stays **`denied: false`**, empty `results`, exit **0** (true empty knowledge).
+Authorized progressive with grants and zero hits stays **`denied: false`**, empty `results`, exit **0** (T221 F14 — true empty *governed* knowledge). **T243:** that packet includes additive **`next_step`** naming ungoverned `ai-brains recall "…"` (`denial_hint` omitted). Hits omit `next_step`. Empty governed ≠ empty vault.
+
+Invalid `AI_BRAINS_PROJECT_ID`: **`recall` / `search`** → clap **exit 2**; **`sync query`** → exit **0** with `Scope: project=(none)` (T231 F36 — not converged).
 
 ## Missing required `--scope` (F4 / F35 / T203)
 

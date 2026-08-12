@@ -54,14 +54,43 @@ fn search__help__exit_0_alias_visible() {
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
     let lower = stdout.to_ascii_lowercase();
-    let has_alias = stdout.contains("[aliases: search]")
-        || stdout.contains("Aliases: search")
-        || lower.contains("alias");
-    let has_vault_first =
-        lower.contains("vault-first") || lower.contains("recall") || stdout.contains("sync query");
+    // clap 4.6 `search --help` is Recall help: Usage stays `recall`;
+    // alias is in the about text (`Alias: \`search\``). Parent `--help`
+    // is where clap lists `[aliases: search]`.
+    let has_alias = stdout.contains("Alias: `search`")
+        || stdout.contains("[aliases: search]")
+        || stdout.contains("Aliases: search");
+    let is_recall_surface = stdout.contains("Usage:")
+        && stdout.contains("recall")
+        && lower.contains("vault-first")
+        && stdout.contains("--no-bridge");
     assert!(
-        has_alias || has_vault_first,
-        "search --help must show vault-first recall help and/or [aliases: search]; got:\n{stdout}"
+        has_alias,
+        "AC1/F2: search --help must name the search alias; got:\n{stdout}"
+    );
+    assert!(
+        is_recall_surface,
+        "AC1/F2: search --help must be the Recall surface (Usage recall + vault-first + --no-bridge); got:\n{stdout}"
+    );
+}
+
+#[test]
+fn root_help__lists_search_as_recall_alias() {
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--help")
+        .output()
+        .expect("root --help");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "root --help must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("[aliases: search]") || stdout.contains("Aliases: search"),
+        "F2: parent --help must list search as a visible alias of recall; got:\n{stdout}"
     );
 }
 
@@ -96,20 +125,27 @@ fn search__format_json_no_bridge__api_version_and_hits_array() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let v = parse_last_json_object(&stdout);
 
-    // Wire field is `results` (RecallResponse). Spec AC2 said `hits`; search is
-    // recall — do not invent a `hits` key. `api_version` is not on this packet.
-    let hits = v.get("hits").and_then(|h| h.as_array());
-    let results = v.get("results").and_then(|r| r.as_array());
+    // Live RecallResponse wire is `results` (no `api_version`, no `hits`).
+    // Spec AC2 said api_version+hits; search *is* recall — lock the live shape
+    // so a mis-route to progressive (also has `results`) fails.
+    let results = v
+        .get("results")
+        .and_then(|r| r.as_array())
+        .expect("Recall JSON must expose results as an array");
     assert!(
-        results.is_some() || hits.is_some(),
-        "Recall JSON must expose results (or hits) as an array; full={v}"
+        results.iter().all(|item| item.is_object()),
+        "results must be an array of objects; full={v}"
     );
-    if let Some(arr) = results {
-        assert!(
-            arr.is_empty() || arr.iter().all(|item| item.is_object()),
-            "results must be an array of objects; full={v}"
-        );
-    }
+    assert!(
+        v.get("hits").is_none(),
+        "Recall JSON must not invent a hits key; full={v}"
+    );
+    assert!(
+        v.get("denied").is_none()
+            && v.get("applied_scope").is_none()
+            && v.get("query_trace_id").is_none(),
+        "search JSON must be RecallResponse, not ProgressiveQueryResponse; full={v}"
+    );
 }
 
 // ---------------------------------------------------------------------------

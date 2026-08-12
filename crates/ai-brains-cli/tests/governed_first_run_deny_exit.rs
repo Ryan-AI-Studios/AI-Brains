@@ -178,6 +178,11 @@ fn progressive__deny__stderr_code_and_hint_stdout_denial_hint() {
         stderr.contains("recall"),
         "stderr must include recall fallback; got: {stderr}"
     );
+    // F5/F5b: deny uses denial_hint only — next_step omitted (not null).
+    assert!(
+        v.get("next_step").is_none(),
+        "denied packet must omit next_step key; got {v}"
+    );
 }
 
 /// AC3 / F31 — bootstrap System principal (omit --principal-id) then progressive exit 0.

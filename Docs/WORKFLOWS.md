@@ -203,17 +203,21 @@ What you should see:
 
 ## 5. Find something
 
-Goal: pick the right search command for vault-only vs vault+ledger, human vs agent.
+Goal: pick the right search command for vault-only vs vault+ledger vs governed conclusions, human vs agent.
 
 ```powershell
-# Human, vault only (TTY pretty; or force --format pretty)
+# Human, vault only (TTY pretty; or force --format pretty). `search` is an alias of `recall`.
 ai-brains recall "auth middleware decision" --format pretty
+ai-brains search "auth middleware decision" --format pretty
 
 # Agent / pipe / scripts (JSON default when non-TTY)
 ai-brains recall "auth middleware decision" --limit 5
 
 # Human: vault memories + Ledgerful ledger pane in one view
 ai-brains sync query "auth middleware" --format pretty
+
+# Governed conclusions / decisions (needs discovery grants; not vault FTS)
+ai-brains query progressive "why was graph backend replaced?" --project-id <uuid>
 
 # Semantic / hybrid (embeddings) — recall only, not sync query
 ai-brains recall "auth middleware" --semantic --format pretty
@@ -226,13 +230,16 @@ ai-brains sync query "auth middleware" --format ndjson --no-bridge
 
 What you should see:
 
-- `recall` pretty: `Scope:` + hits (or empty next-step including a `sync query` tip when you need the ledger pane).
+- `recall` / `search` pretty: `Scope:` + hits (or empty next-step including a `sync query` tip when you need the ledger pane). `--format text` is pretty (same as `sync query --format text`).
 - `sync query` pretty: `--- AI-Brains Recall ---` vault block + optional `--- Ledgerful Ledger Search ---`.
+- `query progressive`: JSON `ProgressiveQueryResponse`. Deny → exit **3**, `denied: true`, bootstrap + ungoverned `recall` hint. Authorized empty → exit **0**, `denied: false`, `results: []`, `next_step` names `recall` (empty governed ≠ empty vault).
 - Missing/invalid project on `sync query` → `Scope: project=(none)` (vault-wide), not a random UUID.
-- Invalid `AI_BRAINS_PROJECT_ID` on `recall` → clap exit **2** (env parse); on `sync query` → exit **0** with `project=(none)`.
+- Invalid `AI_BRAINS_PROJECT_ID` on `recall` / `search` → clap exit **2** (env parse); on `sync query` → exit **0** with `project=(none)`.
 
 > **Note.** Prefer `sync query` when comparing plan vs shipped / ledger context.
-> Prefer `recall` for agents and for `--semantic`. Full decision table: [CAPABILITIES.md §15](CAPABILITIES.md#15-typical-agent-workflows).
+> Prefer `recall` / `search` for agents and for `--semantic`.
+> Prefer `query progressive` only when you need approved decisions / confirmed conclusions with evidence handles.
+> Full decision table: [CAPABILITIES.md §15](CAPABILITIES.md#15-typical-agent-workflows).
 
 ---
 
