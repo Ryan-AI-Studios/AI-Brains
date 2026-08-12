@@ -927,6 +927,128 @@ fn doctor__backup_recent__stale_usable_plus_fresher_plain__warns() {
     );
 }
 
+/// T244 AC3: Incomplete-only fleet → no usable + create (not stale-on-Incomplete).
+#[test]
+fn doctor__backup_recent__all_incomplete__warn_no_usable() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let backups = dir.path().join("backups");
+    fs::create_dir_all(&backups).unwrap();
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
+    for name in [
+        "vault-2026-08-01T12-00-00.db.bak",
+        "vault-2026-08-02T12-00-00.db.bak",
+    ] {
+        let path = backups.join(name);
+        let conn = rusqlite::Connection::open(&path).expect("open incomplete");
+        ai_brains_store::pragmas::apply_key_pragmas(&conn, &key).expect("key");
+        conn.execute_batch("CREATE TABLE junk(x);").expect("junk");
+    }
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .output()
+        .expect("doctor");
+    assert!(
+        out.status.success(),
+        "soft warn must exit 0; out={}",
+        combined_output(&out)
+    );
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Warn,
+        "all-Incomplete must warn; msg={:?}",
+        br.message
+    );
+    let msg = br.message.as_deref().unwrap_or("").to_ascii_lowercase();
+    assert!(
+        msg.contains("no usable") || msg.contains("usable encrypted"),
+        "must be no-usable (not stale-on-Incomplete); got {:?}",
+        br.message
+    );
+    assert!(
+        !msg.contains("older"),
+        "must not age Incomplete as usable; got {:?}",
+        br.message
+    );
+    let rem = br.remediation.as_deref().unwrap_or("");
+    assert!(
+        rem.contains("ai-brains backup create"),
+        "create-only remediation; got {rem}"
+    );
+    assert!(
+        !rem.contains("verify"),
+        "remediation must stay create-only; got {rem}"
+    );
+}
+
+/// T244 AC5: stale usable + fresher Incomplete → ages usable only / still warn stale.
+#[test]
+fn doctor__backup_recent__stale_usable_plus_fresher_incomplete__warns() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let create = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("backup")
+        .output()
+        .expect("backup create");
+    assert!(
+        create.status.success(),
+        "backup create failed: {}",
+        combined_output(&create)
+    );
+
+    let backups = dir.path().join("backups");
+    let entries: Vec<PathBuf> = fs::read_dir(&backups)
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .collect();
+    assert_eq!(entries.len(), 1, "expected one backup file");
+    let stale_name = backups.join("vault-2020-01-01T00-00-00.db.bak");
+    fs::rename(&entries[0], &stale_name).expect("rename backup to stale timestamp name");
+
+    // Fresher Incomplete residual — must not become the age source.
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(ZERO_KEY.to_string());
+    let incomplete = backups.join("vault-2099-12-31T23-59-59.db.bak");
+    let conn = rusqlite::Connection::open(&incomplete).expect("open incomplete");
+    ai_brains_store::pragmas::apply_key_pragmas(&conn, &key).expect("key");
+    conn.execute_batch("CREATE TABLE junk(x);").expect("junk");
+    drop(conn);
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--json")
+        .arg("--backup-max-age")
+        .arg("7d")
+        .output()
+        .expect("doctor");
+    assert!(
+        out.status.success(),
+        "soft warn must exit 0; out={}",
+        combined_output(&out)
+    );
+    let report: DoctorReport = serde_json::from_slice(&out.stdout).expect("DoctorReport JSON");
+    let br = backup_recent_check(&report);
+    assert_eq!(
+        br.severity,
+        ai_brains_contracts::doctor::CheckSeverity::Warn,
+        "must age stale usable, not fresher Incomplete; msg={:?}",
+        br.message
+    );
+    let msg = br.message.as_deref().unwrap_or("").to_ascii_lowercase();
+    assert!(
+        msg.contains("older") || msg.contains("stale"),
+        "stale-usable message expected; got {:?}",
+        br.message
+    );
+}
+
 /// T225 P2-1: PreT109 (key opens, no `_aibrains_backup_meta`) within age → ok.
 ///
 /// Usable includes PreT109; doctor must not require meta rows for backup_recent.

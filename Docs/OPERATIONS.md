@@ -668,12 +668,26 @@ Forgotten memories remain in the event log for audit but are excluded from FTS, 
 ```powershell
 ai-brains backup                                # create with timestamped default path
 ai-brains backup create --output-dir D:\backups # custom directory
+ai-brains backup create --no-prune              # keep full fleet (no default keep-10 prune)
+ai-brains backup list
+ai-brains backup verify
+ai-brains doctor --backup-max-age 7d
 ```
 Backups include an integrity check; corrupt backups are rejected at creation time.
 
-**List honesty (T209):** `ai-brains backup list` labels residual plain / wrong-key backups (`(legacy plain)` / `(unreadable key)`), warns only on short corrupt files, and prints one summary for expected residuals; use `--verbose` for per-file detail or `--quiet` to suppress the summary (see CAPABILITIES §11).
+**Recoverability green path (T244):** after encrypt or when doctor/list show zero usable encrypted backups (legacy plain wall, Incomplete shells missing `events`/`memory_projection`, wrong key), create under the current key then prove recovery:
 
-**Verify quiet default (T225):** `ai-brains backup verify` prints counts + first 5 FAIL reasons (use `--verbose` for the full per-file stream). Doctor `backup_recent` ages only usable encrypted backups (Readable/PreT109); all-legacy plain fleets warn + nudge `ai-brains backup create`.
+```powershell
+ai-brains backup create --no-prune   # or default keep-10 if prune is OK
+ai-brains backup verify              # expect ≥1 OK
+ai-brains doctor                     # backup_recent should ok (or age-warn only)
+```
+
+Do not treat “backup file exists” or list timestamp as recovery proof — verify must pass core-table checks.
+
+**List honesty (T209 / T244):** `ai-brains backup list` labels residual plain / incomplete / wrong-key / corrupt (`(legacy plain)` / `(no core tables)` / `(unreadable key)` / `(corrupt)`), sorts **usable-first**, warns only on short corrupt files, and prints one residual summary (`not recoverable under current key`); use `--verbose` for per-file detail or `--quiet` to suppress the summary (see CAPABILITIES §11 decision table).
+
+**Verify quiet default (T225 / T244):** `ai-brains backup verify` prints counts + first 5 FAIL reasons (use `--verbose` for the full per-file stream). Both core tables required (`missing core tables`). Doctor `backup_recent` ages only usable encrypted backups (Readable/PreT109 with cores); Incomplete/plain fleets warn + nudge `ai-brains backup create` only.
 
 **Recovery drills (T181):** operator playbook, CE pre-erase honesty, RecoveryKit residual, and automated drill matrix live in [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). Run restore + content smoke before releases — not “backup exists” alone.
 

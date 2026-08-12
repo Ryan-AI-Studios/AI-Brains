@@ -116,7 +116,7 @@ fn backup_list_honesty__plain_unset_rust_log__legacy_plain_no_per_file_warn() {
     );
     // Summary expected for ≥1 residual.
     assert!(
-        stderr.contains("not fully readable"),
+        stderr.contains("not recoverable under current key"),
         "AC1: default summary expected; stderr={stderr}"
     );
 }
@@ -174,7 +174,7 @@ fn backup_list_honesty__two_plain__at_most_one_summary() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     let summary_lines: Vec<_> = stderr
         .lines()
-        .filter(|l| l.contains("not fully readable"))
+        .filter(|l| l.contains("not recoverable under current key"))
         .collect();
     assert!(
         summary_lines.len() <= 1,
@@ -187,8 +187,8 @@ fn backup_list_honesty__two_plain__at_most_one_summary() {
         "AC3: exactly one summary for 2 plain; stderr={stderr}"
     );
     assert!(
-        summary_lines[0].contains("2 backup(s) not fully readable")
-            || summary_lines[0].contains("not fully readable"),
+        summary_lines[0].contains("2 backup(s) not recoverable under current key")
+            || summary_lines[0].contains("not recoverable under current key"),
         "AC3: summary content; line={}",
         summary_lines[0]
     );
@@ -224,7 +224,7 @@ fn backup_list_honesty__verbose_plain__per_file_detail() {
     // Prefer omit summary under verbose (F7).
     let summary_count = stderr
         .lines()
-        .filter(|l| l.contains("not fully readable"))
+        .filter(|l| l.contains("not recoverable under current key"))
         .count();
     assert_eq!(
         summary_count, 0,
@@ -254,7 +254,7 @@ fn backup_list_honesty__quiet__no_summary() {
         "AC5: quiet still shows table tokens; stdout={stdout}"
     );
     assert!(
-        !stderr.contains("not fully readable"),
+        !stderr.contains("not recoverable under current key"),
         "AC5: quiet must not print summary; stderr={stderr}"
     );
 }
@@ -277,7 +277,7 @@ fn backup_list_honesty__quiet_and_verbose__quiet_wins() {
         "dual flags still show tokens; stdout={stdout}"
     );
     assert!(
-        !stderr.contains("not fully readable"),
+        !stderr.contains("not recoverable under current key"),
         "AC5: quiet wins — no summary; stderr={stderr}"
     );
     // Quiet: no per-file legacy WARN either.
@@ -350,7 +350,7 @@ fn backup_list_honesty__large_key_mismatch__summary_not_warn_flood() {
         "AC9: table token (unreadable key); stdout={stdout}"
     );
     assert!(
-        stderr.contains("not fully readable"),
+        stderr.contains("not recoverable under current key"),
         "AC9: summary expected; stderr={stderr}"
     );
 
@@ -365,4 +365,246 @@ fn backup_list_honesty__large_key_mismatch__summary_not_warn_flood() {
         !per_file_key_warn,
         "AC9: no per-file KeyMismatch WARN under default; stderr={stderr}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// T244 — Incomplete residual honesty + usable-first list order
+// ---------------------------------------------------------------------------
+
+fn write_incomplete_bak(backup_dir: &Path, name: &str) {
+    // F13: SQLCipher open + junk table only (no events / memory_projection).
+    let path = backup_dir.join(name);
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(common::ZERO_SQLCIPHER_KEY.to_string());
+    let conn = rusqlite::Connection::open(&path).expect("open incomplete bak");
+    ai_brains_store::pragmas::apply_key_pragmas(&conn, &key).expect("key");
+    conn.execute_batch("CREATE TABLE junk(x);")
+        .expect("junk table");
+}
+
+fn write_single_core_bak(backup_dir: &Path, name: &str, only: &str) {
+    let path = backup_dir.join(name);
+    let key = ai_brains_crypto::SqlCipherKey::from_raw(common::ZERO_SQLCIPHER_KEY.to_string());
+    let conn = rusqlite::Connection::open(&path).expect("open single-core bak");
+    ai_brains_store::pragmas::apply_key_pragmas(&conn, &key).expect("key");
+    conn.execute_batch(&format!("CREATE TABLE {only} (id INTEGER PRIMARY KEY);"))
+        .expect("single core table");
+}
+
+#[test]
+fn backup_list_honesty__incomplete__token_and_residual_summary() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let backup_dir = ensure_backups_dir(&vault);
+    write_incomplete_bak(&backup_dir, "vault-2026-01-01T00-00-00.db.bak");
+
+    let out = list_output(&vault, &[], None);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "list must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+
+    assert!(
+        stdout.contains("(no core tables)"),
+        "T244 AC1: Incomplete token; stdout={stdout}"
+    );
+    assert!(
+        stderr.contains("not recoverable under current key"),
+        "T244 AC6: Incomplete must count in residual summary; stderr={stderr}"
+    );
+    assert!(
+        stderr.contains("1 backup(s) not recoverable under current key"),
+        "T244 residual count includes Incomplete; stderr={stderr}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC17 — Incomplete noise: debug under Default, warn under Verbose (RUST_LOG=warn)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn backup_list_honesty__incomplete_default_rust_log_warn__no_per_file_warn() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let backup_dir = ensure_backups_dir(&vault);
+    write_incomplete_bak(&backup_dir, "vault-2026-01-01T00-00-00.db.bak");
+
+    // Default list + RUST_LOG=warn: Incomplete is debug only (no per-file WARN flood).
+    let out = list_output(&vault, &[], Some("warn"));
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "list must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+
+    assert!(
+        stdout.contains("(no core tables)"),
+        "AC17: Incomplete token; stdout={stdout}"
+    );
+    assert!(
+        stderr.contains("not recoverable under current key"),
+        "AC17: residual summary still ok under default; stderr={stderr}"
+    );
+
+    // Per-file Incomplete WARN is Verbose-only; Default must not emit it at warn filter.
+    let stderr_lower = stderr.to_ascii_lowercase();
+    let per_file_incomplete_warn = stderr_lower.contains("missing core tables")
+        || stderr_lower.contains("backup missing core tables")
+        || stderr_lower.contains("not restorable");
+    assert!(
+        !per_file_incomplete_warn,
+        "AC17: default must not emit per-file Incomplete WARN; stderr={stderr}"
+    );
+}
+
+#[test]
+fn backup_list_honesty__incomplete_verbose_rust_log_warn__per_file_warn() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let backup_dir = ensure_backups_dir(&vault);
+    write_incomplete_bak(&backup_dir, "vault-2026-01-01T00-00-00.db.bak");
+
+    let out = list_output(&vault, &["--verbose"], Some("warn"));
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "list must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let combined = format!("{stdout}{stderr}");
+
+    assert!(
+        stdout.contains("(no core tables)"),
+        "AC17: token still present under verbose; stdout={stdout}"
+    );
+    // emit_list_noise Incomplete Verbose: "Backup missing core tables ...; not restorable"
+    let combined_lower = combined.to_ascii_lowercase();
+    assert!(
+        combined_lower.contains("missing core tables") || combined_lower.contains("not restorable"),
+        "AC17: verbose must emit per-file Incomplete WARN; combined={combined}"
+    );
+}
+
+#[test]
+fn backup_list_honesty__mixed_usable_and_residual__usable_first() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    // Create a real Readable backup first.
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("backup")
+        .assert()
+        .success();
+
+    let backup_dir = ensure_backups_dir(&vault);
+    // Fresher-named Incomplete residual — chronological sort would put it first.
+    write_incomplete_bak(&backup_dir, "vault-2099-12-31T23-59-59.db.bak");
+    write_plain_bak(&backup_dir, "vault-2099-12-30T00-00-00.db.bak");
+
+    let out = list_output(&vault, &[], None);
+    assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let lines: Vec<&str> = stdout
+        .lines()
+        .filter(|l| l.contains("vault-") && l.contains(".db.bak"))
+        .collect();
+    assert!(lines.len() >= 3, "expected ≥3 backup rows; stdout={stdout}");
+    // Usable Readable row first (no residual tokens in meta columns).
+    assert!(
+        !lines[0].contains("(no core tables)")
+            && !lines[0].contains("(legacy plain)")
+            && !lines[0].contains("(unreadable key)")
+            && !lines[0].contains("(corrupt)"),
+        "T244 AC7: first data row must be usable; line={}",
+        lines[0]
+    );
+    let residual_body = lines[1..].join("\n");
+    assert!(
+        residual_body.contains("(no core tables)") || residual_body.contains("(legacy plain)"),
+        "residuals after usable; lines={lines:?}"
+    );
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("2 backup(s) not recoverable under current key"),
+        "two residuals (incomplete + plain); stderr={stderr}"
+    );
+}
+
+#[test]
+fn backup_verify__incomplete_and_single_core__missing_core_tables() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let backup_dir = ensure_backups_dir(&vault);
+    write_incomplete_bak(&backup_dir, "vault-2026-01-01T00-00-00.db.bak");
+    write_single_core_bak(&backup_dir, "vault-2026-01-02T00-00-00.db.bak", "events");
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("backup")
+        .arg("verify")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("verify");
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "verify must fail; out={}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("missing core tables"),
+        "T244 AC8: fail reason; stdout={stdout}"
+    );
+    // JSON tables still populated from IN query (single-core → one name; zero-core → []).
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).expect("json");
+    let results = v["results"].as_array().expect("results array");
+    assert_eq!(results.len(), 2, "two backup results");
+    for r in results {
+        assert!(
+            r["tables"].is_array(),
+            "tables field must remain an array; got {r}"
+        );
+        assert_eq!(
+            r["status"].as_str().unwrap_or(""),
+            "fail",
+            "JSON status is lowercase fail; got {r}"
+        );
+        let err = r["error"].as_str().unwrap_or("");
+        assert!(
+            err.contains("missing core tables"),
+            "error must mention missing core tables; got {err}"
+        );
+    }
+    // Single-core shell should still list the one present table name in JSON.
+    let single = results
+        .iter()
+        .find(|r| {
+            r["tables"]
+                .as_array()
+                .map(|t| t.len() == 1)
+                .unwrap_or(false)
+        })
+        .expect("one result with single table entry");
+    assert_eq!(single["tables"][0], "events");
 }

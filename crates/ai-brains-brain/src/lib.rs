@@ -15,7 +15,8 @@ mod recipe_promotion;
 mod retention;
 
 pub use backup::{
-    BackupInfo, BackupReadClass, BackupService, ListMode, has_core_tables, parse_duration,
+    BackupInfo, BackupReadClass, BackupService, ListMode, has_core_tables, is_usable_class,
+    parse_duration, residual_for_summary,
 };
 use conflict_detection::ConflictDetectionService;
 pub use embeddings::EmbeddingService;
