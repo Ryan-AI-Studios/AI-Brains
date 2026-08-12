@@ -10,7 +10,7 @@ Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXI
 |------|----------|------|
 | **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`) |
 | **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail** |
-| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on erasure; missing `--capability` on `policy check`); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T203/T226** soft-resolve failure on `source`/`evidence`/`review` list|show and `policy show|check|bootstrap` when `--scope` omitted and context is not authoritative |
+| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on erasure); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T241** `policy check` omit `--capability` → capability catalog (not clap “required arguments”); **T203/T226** soft-resolve failure on `source`/`evidence`/`review` list|show and `policy show|check|bootstrap` when `--scope` omitted and context is not authoritative |
 | **3** | `EXIT_POLICY_DENIED` | `POLICY_DENIED`; `APPROVAL_REQUIRED`; **`query progressive`** when packet `denied: true` (T221 — pretty `ProgressiveQueryResponse` still on **stdout**); **`query expand`** when preview `kind` is exact **`Denied`** |
 | **4** | `EXIT_NOT_FOUND` | `NOT_FOUND` |
 | **5** | `EXIT_DAEMON_UNAVAILABLE` | Daemon required / unreachable for a daemon-required path |
@@ -86,7 +86,7 @@ Authorized progressive with grants and zero hits stays **`denied: false`**, empt
 
 After T201, CLI commands that always need a scope use **clap-required** `--scope: String` so forgetting the flag exits **2** (English clap usage on stderr), not **6**.
 
-Still clap-required after T226: `erasure request`, `erasure wipe`, `review resolve` (destructive / mutate / CE). **`policy check --capability`** stays clap-required (only `--scope` softens).
+Still clap-required after T226: `erasure request`, `erasure wipe`, `review resolve` (destructive / mutate / CE). **T241:** `policy check --capability` is **optional at clap**; omit → runtime **`fail_usage` exit 2** with discovery-first capability catalog (not clap “required arguments were not provided”). Only `--scope` softens via soft-resolve; capability omission is a separate catalog usage path.
 
 **T203/T226 soft-default:** `--scope` is **optional** on `review list`, `source list|show`, `evidence list|search|show`, and **`policy show|check|bootstrap`**. Missing + non-authoritative → runtime **`fail_usage` exit 2** (template class, not clap text). Authoritative context (e.g. `AI_BRAINS_PROJECT_ID`) may soft-fill. **Do not** reintroduce exit-6 missing-scope on these CLI paths.
 

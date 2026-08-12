@@ -547,16 +547,16 @@ fn policy_show__malformed_explicit_scope__exit_6_class() {
 }
 
 // ---------------------------------------------------------------------------
-// T226 AC8 — policy check missing --capability stays clap-required
+// T241 AC6/F30 — policy check missing --capability → fail_usage catalog (not clap)
 // ---------------------------------------------------------------------------
 
 #[test]
-fn policy_check__missing_capability__clap_required_exit_2() {
+fn policy_check__missing_capability__fail_usage_catalog_exit_2() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    // Scope may be present or omit; capability stays clap-required (opposite of AC1/AC2).
+    // T241 F6: --capability is Option; omit → fail_usage catalog (exit 2), not clap required-arg.
     let out = common::hermetic_bin()
         .arg("--no-project-context")
         .arg("--vault-path")
@@ -573,12 +573,22 @@ fn policy_check__missing_capability__clap_required_exit_2() {
     assert_eq!(
         out.status.code(),
         Some(2),
-        "missing --capability must exit 2 (clap USAGE); stderr={}",
+        "missing --capability must exit 2 (fail_usage); stderr={}",
         String::from_utf8_lossy(&out.stderr)
     );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("required arguments were not provided"),
-        "expected clap English for missing --capability; got: {stderr}"
+        !stderr.contains("required arguments were not provided"),
+        "must not use clap required-arg English; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("ReadEvidence")
+            && stderr.contains("ReadConclusions")
+            && stderr.contains("ReadDecisions"),
+        "catalog must list discovery capabilities; got: {stderr}"
+    );
+    assert!(
+        stderr.contains("--capability is required") || stderr.contains("Valid capabilities"),
+        "fail_usage catalog header expected; got: {stderr}"
     );
 }

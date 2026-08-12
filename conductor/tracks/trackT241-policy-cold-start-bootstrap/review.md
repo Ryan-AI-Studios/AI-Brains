@@ -10,7 +10,10 @@
 
 | ID | Severity | Status | Summary | Notes |
 |----|----------|--------|---------|-------|
-| — | — | — | (empty until first review) | |
+| H1 | high | verified_fixed | Stale exit_contract hermetic locked clap-required capability text | Renamed/rewrote to fail_usage catalog; forbids clap required-arg English |
+| M1 | medium | verified_fixed | CLI-EXIT-CODES + CAPABILITIES still said clap-required capability | Updated to T241 optional + catalog fail_usage |
+| L1 | low | deferred | after_help catalog string dual-site vs CAPABILITY_CATALOG | Sync comment added on main.rs; clap after_help cannot call runtime fn easily |
+| L2 | low | deferred | Dual short-SOOT constants CLI vs CP | Substring `policy bootstrap` locked by tests; cross-crate const not free |
 
 ### Status legend
 
@@ -25,7 +28,9 @@
 
 | Pass | Reviewer | Date | Result |
 |------|----------|------|--------|
-| Internal R1 | — | — | pending |
+| Internal R1 | explore subagent | 2026-08-12 | NEEDS_FIX (H1 high, M1 medium) |
+| Internal R1 fix | orchestrator | 2026-08-12 | H1+M1 fixed; exit_contract + policy_bootstrap hermetics PASS |
+| Internal R2 | — | — | pending after commit |
 | Cross-model | — | — | pending (F24 hard) |
 
 ---
