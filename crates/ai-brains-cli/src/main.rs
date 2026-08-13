@@ -58,6 +58,7 @@ const DEFAULT_ENV_FILTER: &str =
 #[cfg(test)]
 mod tests {
     use super::DEFAULT_ENV_FILTER;
+    use clap::Parser;
 
     #[test]
     #[allow(non_snake_case)]
@@ -79,6 +80,54 @@ mod tests {
             DEFAULT_ENV_FILTER.contains("ai_brains_graph=warn"),
             "DEFAULT_ENV_FILTER must include ai_brains_graph=warn; got: {DEFAULT_ENV_FILTER}"
         );
+    }
+
+    /// T247 AC7/AC13: `--quick` requires `--status` (clap exit 2; no vault work).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_quick__without_status__clap_requires_status() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from(["ai-brains", "nightly", "--quick"]) {
+            Ok(_) => panic!("expected clap to reject --quick without --status"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::MissingRequiredArgument);
+    }
+
+    /// T247 AC7: `--quick` conflicts with `--schedule` / `--unschedule`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_quick__with_schedule__clap_conflicts() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--status",
+            "--quick",
+            "--schedule",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --quick with --schedule"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    /// T247 F1: `--status --quick` is a valid parse (no runtime `if !status && quick`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_quick__with_status__parses() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "nightly", "--status", "--quick"])
+        {
+            Ok(c) => c,
+            Err(e) => panic!("expected --status --quick to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Nightly { status, quick, .. } => {
+                assert!(status);
+                assert!(quick);
+            }
+            _ => panic!("expected Commands::Nightly"),
+        }
     }
 }
 
@@ -235,6 +284,9 @@ enum Commands {
         /// Show read-only status of the last nightly run and pending work
         #[arg(long, conflicts_with = "schedule", conflicts_with = "unschedule")]
         status: bool,
+        /// Skip HTTP probes (requires --status)
+        #[arg(long, requires = "status", conflicts_with_all = ["schedule", "unschedule"])]
+        quick: bool,
         /// Skip all harness session importers (AGY, Grok, OpenCode). Use on
         /// isolated, CI, SYSTEM-scheduled, or per-project vaults to prevent
         /// cross-vault contamination from real harness history.
@@ -3306,6 +3358,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             unschedule,
             start_time,
             status,
+            quick,
             skip_import,
             skip_import_agy,
             skip_import_grok,
@@ -3325,6 +3378,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 *skip_import_opencode,
                 *run_as_system,
                 *dry_run,
+                *quick,
             )
             .await
         }

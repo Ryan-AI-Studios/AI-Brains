@@ -601,7 +601,7 @@ Overnight brain is designed to talk to a **local** llama.cpp-style router rather
 
 - **Operator script (this machine):** `c:\llm\router.bat` starts the dynamic multi-model router (completion + embedding servers). A separate Task Scheduler entry **`AI-Brains-Router`** (ONLOGON) can keep the router available after reboot; register it with your ops script (e.g. `register-nightly-tasks.ps1`) — `nightly --schedule` does **not** register the router task.
 - **Global dotenv:** put MODEL/EMBED URLs and model names in `%USERPROFILE%\.ai-brains\.env` (merged by T205 before every subcommand). SYSTEM schedule wrappers bake the **process env at schedule time** (including values from that global file).
-- **Health:** llama.cpp prefers `GET /health`; if 404, clients try `GET /v1/models`. Soft probe timeout is **2s** (not the 120s LLM completion timeout).
+- **Health:** llama.cpp prefers `GET /health`; if 404, clients try `GET /v1/models`. Nightly **run** pre-summarize probe timeout is **2s** (not the 120s LLM completion timeout). Default `nightly --status` probes run **in parallel** at **750 ms**; `--status --quick` skips HTTP.
 - **Logs:** operator wrapper typically appends to `%USERPROFILE%\.ai-brains\nightly-run.log` (this machine’s `nightly-run.cmd`). SYSTEM schedule JSON goes to the Task Scheduler history / wrapper stdout capture under `%ProgramData%\AI-Brains\` when using `--run-as-system`. Prefer `ai-brains nightly --status` for schedule + last result + endpoint probes.
 
 ### Dual schedule paths (user multi-import vs SYSTEM skip-import)
@@ -617,24 +617,41 @@ Overnight brain is designed to talk to a **local** llama.cpp-style router rather
 ```powershell
 ai-brains nightly --schedule --start-time "03:00"
 ai-brains nightly --status             # schedule + Last Result + endpoints/probe + Multi-import
+ai-brains nightly --status --quick     # same, skip HTTP probes (probe=skipped)
 ai-brains nightly --unschedule
 ai-brains nightly --skip-import        # skip all harness importers
 ai-brains nightly --skip-import-opencode
 ```
 
-`nightly --status` (T229) prints additive human lines:
+`nightly --status` (T247) prints additive human lines:
 
-- **Scheduled** next run (Windows `schtasks` CSV cols 0–2 only)
-- **Last task result** (Windows primary: `Get-ScheduledTaskInfo.LastTaskResult`; soft fallback English `schtasks /FO LIST /V` `Last Result:`)
+- **Scheduled** next run — **LIST /V primary** (one `schtasks /FO LIST /V` spawn: next-run + last-run + last-result + Task To Run). CSV next-run is fallback only (3 columns — never Last Result). LIST /V non-zero (task missing) → `Scheduled: No`; no PowerShell.
+- **Last task result** — from that LIST /V parse. PowerShell `Get-ScheduledTaskInfo` is Last Result fallback **only when LIST /V succeeded but last_result parse missed (locale)**.
+- **Last scheduled run** (Task Scheduler Last Run Time) is printed separately from vault **Last nightly run**. They can disagree (e.g. the task fired but the action target was missing, so the vault never advanced).
 - Last nightly run / unsummarized counts / last-run errors
-- **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error`) — credentials in URLs are redacted; vault keys never printed
+- **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error` on default `--status`; **`--quick` prints `probe=skipped`** — no HTTP). Credentials in URLs are redacted; vault keys never printed
 - **Multi-import** block (T239)
+- Missing action: if Task To Run’s first quoted `.cmd` / `.bat` / `.exe` does not exist → `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`
 
-Status **exit 0** even when a probe is `down` (ops honesty, not a hard fail).
+`--quick` requires `--status`. Without `--status` → clap exit **2**. `--quick` still opens the vault and still prints schedule + last-run.
 
-#### Last Result **101** (panic / abort)
+Default status probes run **in parallel** with a **750 ms** timeout (not sequential 2s+2s). Nightly **run** pre-summarize probe stays **2s**.
 
-Windows Task Scheduler **Last Result 101** means the process aborted (Rust panic / abort). Live dogfood (2026-08-11) saw **101** from embedding backfill panicking on multi-byte UTF-8 mid-character truncate (`content[..4000]`). **T229 F5** fixed that with char-boundary-safe `truncate_for_embed`. After shipping T229, re-run nightly (or wait for the next schedule); a healthy run should clear Last Result to **0**. If 101 persists, inspect the latest nightly log for a new panic site.
+Status **exit 0** when probes are down / timeout / missing action / nonzero Last Result.
+
+#### Last Result **1** vs **101** vs Event ID **101**
+
+These are three different tokens:
+
+| Token | Meaning |
+|-------|---------|
+| Last Result **1** | Process exit 1 or scheduler “Incorrect function” — missing/bad action, CLI `fail_api`, `.cmd` not found. **Live residual on this class of machine.** |
+| Last Result **101** | Child process exit 101 = Rust panic/abort. T229 F5 UTF-8 truncate panic is **cleared**. Do **not** treat Last Result 101 as Task Scheduler Event ID 101. |
+| Task Scheduler **Event ID 101** | Operational log: task failed to start (permissions / principal). Different namespace. |
+
+Do **not** wait for the next schedule to “clear 101.” If Last Result is **1** because Task To Run points at a missing `nightly-run.cmd`, the next schedule will fire the same missing path and stay at **1**.
+
+When status prints `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`, that dry-run is **non-mutating**. Product user-principal schedule is `'<exe>' nightly` (not a `.cmd`). Do **not** write `%USERPROFILE%\.ai-brains\nightly-run.cmd` as the product remediator. Recreating a historical ops `.cmd` is out of scope (T255/F16). `--status` does not unschedule, reschedule, or write wrappers.
 
 #### Running the nightly as SYSTEM (`--run-as-system`)
 By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143 + T145):
