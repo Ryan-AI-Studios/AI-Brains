@@ -106,16 +106,11 @@ fn probe_grok(home: &Path) -> WiringStatus {
 }
 
 fn probe_agy(home: &Path) -> WiringStatus {
-    // F7: top-level key `ai-brains-capture` in either hooks.json location.
-    let paths = [
-        join_rel(home, ".gemini/config/hooks.json"),
-        join_rel(home, ".gemini/antigravity-cli/hooks.json"),
-    ];
-    for p in &paths {
-        if !p.is_file() {
-            continue;
-        }
-        match std::fs::read_to_string(p) {
+    // F7b: wiring=ok on documented IDE config key or CLI plugin bundle only.
+    // Never treat undocumented top-level antigravity-cli/hooks.json as ok.
+    let ide = super::install::agy_ide_hooks_path(home);
+    if ide.is_file() {
+        match std::fs::read_to_string(&ide) {
             Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
                 Ok(v) => {
                     if v.get("ai-brains-capture").is_some() {
@@ -127,7 +122,32 @@ fn probe_agy(home: &Path) -> WiringStatus {
             Err(_) => return WiringStatus::Unknown,
         }
     }
+    if agy_cli_plugin_bundle_ok(home) {
+        return WiringStatus::Ok;
+    }
     WiringStatus::Missing
+}
+
+/// Documented CLI bundle: `plugin.json` name `ai-brains-capture` AND `hooks.json` file.
+fn agy_cli_plugin_bundle_ok(home: &Path) -> bool {
+    let Some(dir) = super::install::agy_cli_plugin_dir(home) else {
+        return false;
+    };
+    let plugin_json = dir.join("plugin.json");
+    let hooks_json = dir.join("hooks.json");
+    if !plugin_json.is_file() || !hooks_json.is_file() {
+        return false;
+    }
+    match std::fs::read_to_string(&plugin_json) {
+        Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+            Ok(v) => v
+                .get("name")
+                .and_then(|n| n.as_str())
+                .is_some_and(|n| n == super::install::AGY_CLI_PLUGIN_NAME),
+            Err(_) => false,
+        },
+        Err(_) => false,
+    }
 }
 
 fn probe_opencode(home: &Path) -> WiringStatus {
@@ -212,14 +232,21 @@ pub fn targets_for(id: HarnessId, home: &Path) -> Vec<String> {
                 .display()
                 .to_string(),
         ],
-        HarnessId::Agy => vec![
-            join_rel(home, ".gemini/config/hooks.json")
-                .display()
-                .to_string(),
-            join_rel(home, ".ai-brains/hooks/agy-stop.ps1")
-                .display()
-                .to_string(),
-        ],
+        HarnessId::Agy => {
+            let mut t = vec![
+                join_rel(home, ".gemini/config/hooks.json")
+                    .display()
+                    .to_string(),
+                join_rel(home, ".ai-brains/hooks/agy-stop.ps1")
+                    .display()
+                    .to_string(),
+            ];
+            if let Some(dir) = super::install::agy_cli_plugin_dir(home) {
+                t.push(dir.join("plugin.json").display().to_string());
+                t.push(dir.join("hooks.json").display().to_string());
+            }
+            t
+        }
         HarnessId::Opencode => {
             // F40: honor OPENCODE_CONFIG_DIR when set (same as install/probe)
             let config = super::install::opencode_config_dir(home);
@@ -428,6 +455,87 @@ mod tests {
                 "target not under home: {t}"
             );
         }
+    }
+
+    #[test]
+    fn probe_agy__only_toplevel_cli_hooks_with_managed_key__not_ok() {
+        // AC18: undocumented top-level antigravity-cli/hooks.json alone is not wiring=ok.
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let hooks = home
+            .join(".gemini")
+            .join("antigravity-cli")
+            .join("hooks.json");
+        std::fs::create_dir_all(hooks.parent().unwrap()).expect("mkdir");
+        std::fs::write(&hooks, br#"{"ai-brains-capture":{"Stop":[]}}"#).expect("write");
+        assert_eq!(
+            probe_wiring(HarnessId::Agy, home, true),
+            WiringStatus::Missing
+        );
+    }
+
+    #[test]
+    fn probe_agy__plugin_bundle_only__ok() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let bundle = home
+            .join(".gemini")
+            .join("antigravity-cli")
+            .join("plugins")
+            .join("ai-brains-capture");
+        std::fs::create_dir_all(&bundle).expect("mkdir");
+        std::fs::write(
+            bundle.join("plugin.json"),
+            br#"{"name":"ai-brains-capture"}"#,
+        )
+        .expect("plugin");
+        std::fs::write(bundle.join("hooks.json"), br#"{"Stop":[]}"#).expect("hooks");
+        assert_eq!(probe_wiring(HarnessId::Agy, home, true), WiringStatus::Ok);
+    }
+
+    #[test]
+    fn targets_for__agy__when_cli_dir_exists__lists_bundle_not_toplevel() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        std::fs::create_dir_all(home.join(".gemini").join("antigravity-cli")).expect("mkdir");
+        let targets = targets_for(HarnessId::Agy, home);
+        assert!(
+            targets
+                .iter()
+                .any(|t| Path::new(t).ends_with(Path::new("config").join("hooks.json")))
+        );
+        assert!(
+            targets
+                .iter()
+                .any(|t| Path::new(t).ends_with("agy-stop.ps1"))
+        );
+        assert!(
+            targets
+                .iter()
+                .any(|t| Path::new(t).ends_with("plugin.json"))
+        );
+        assert!(targets.iter().any(|t| {
+            Path::new(t).ends_with(Path::new("ai-brains-capture").join("hooks.json"))
+        }));
+        assert!(
+            !targets.iter().any(|t| {
+                Path::new(t).ends_with(Path::new("antigravity-cli").join("hooks.json"))
+            }),
+            "must not list undocumented top-level CLI hooks.json: {targets:?}"
+        );
+    }
+
+    #[test]
+    fn targets_for__agy__when_cli_dir_absent__ide_and_wrapper_only() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let targets = targets_for(HarnessId::Agy, home);
+        assert_eq!(targets.len(), 2);
+        assert!(
+            !targets
+                .iter()
+                .any(|t| Path::new(t).ends_with("plugin.json"))
+        );
     }
 
     #[test]
