@@ -254,6 +254,33 @@ fn graph_update__feature_off__exit_2_feature_unavailable() {
     );
 }
 
+/// T246 AC11: new `--format pretty` still hits the feature-off stub (exit 2).
+#[cfg(not(feature = "graph"))]
+#[test]
+fn graph_neighbors__format_pretty__feature_off_exit_2_feature_unavailable() {
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("graph")
+        .arg("neighbors")
+        .arg("x")
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("graph neighbors stub");
+
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "graph neighbors feature-off must exit 2; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("FEATURE_UNAVAILABLE"),
+        "must prefix FEATURE_UNAVAILABLE; got: {stdout}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // (4b) — vault key missing → exit 1 + VAULT_KEY_* family
 // ---------------------------------------------------------------------------

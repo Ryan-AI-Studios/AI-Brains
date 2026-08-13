@@ -1,5 +1,6 @@
 use crate::errors::{GraphError, Result};
 use crate::vault::GraphVault;
+use rusqlite::OptionalExtension;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -176,6 +177,65 @@ impl<'a> GraphSearch<'a> {
             results.push(row.map_err(|e| GraphError::DbError(e.to_string()))?);
         }
         Ok(results)
+    }
+
+    /// SYNTHESIZED_FROM descendants with shortest-path depth (pretty hierarchy).
+    ///
+    /// `MIN(depth)` collapses diamond paths so each child appears once.
+    /// Does not change [`get_synthesized_hierarchy`] (JSON + DISTINCT ids).
+    pub fn get_synthesized_hierarchy_with_depth(&self, root: &str) -> Result<Vec<(String, i64)>> {
+        let conn = self
+            .vault
+            .connection()
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let mut stmt = conn
+            .prepare_cached(
+                "WITH RECURSIVE r(node_id, depth) AS (
+                SELECT node_id, 0 FROM graph_node WHERE external_id = ? AND kind = 'memory'
+                UNION ALL
+                SELECT e.dst_id, r.depth + 1
+                FROM r
+                JOIN graph_edge e ON e.src_id = r.node_id AND e.label = 'SYNTHESIZED_FROM'
+                WHERE r.depth < 10
+            )
+            SELECT n.external_id, MIN(r.depth) AS depth
+            FROM r
+            JOIN graph_node n ON n.node_id = r.node_id
+            WHERE r.depth > 0
+            GROUP BY n.external_id
+            ORDER BY MIN(r.depth), n.external_id",
+            )
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([root], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row.map_err(|e| GraphError::DbError(e.to_string()))?);
+        }
+        Ok(results)
+    }
+
+    /// Kind of a graph node, or `None` when `external_id` is missing.
+    pub fn node_kind(&self, external_id: &str) -> Result<Option<String>> {
+        let conn = self
+            .vault
+            .connection()
+            .lock()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        let kind = conn
+            .query_row(
+                "SELECT kind FROM graph_node WHERE external_id = ?1 LIMIT 1",
+                [external_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| GraphError::DbError(e.to_string()))?;
+        Ok(kind)
     }
 
     /// Count edges matching (src external_id, dst external_id, label).
