@@ -168,7 +168,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Env override warn spam (T223 residual) | ~~**T242**~~ ✅ **Completed** 2026-08-12 PR #147 `9f3148b` — session fingerprint markers (cross-process). Soft residual only: F16 clap quiet, F17 elevation QUIET/FORCE, F18 truthy→core, F19 global quiet pre-read |
 | Search dual model + progressive first-run | ~~**T243**~~ ✅ **Completed** 2026-08-12 PR #153 `7a19d40` — `search`→recall alias; `text`≡pretty; progressive `next_step`/deny recall honesty. Soft residual only: F23 non-empty recall footer, F24 daemon/HTTP `next_step` |
 | Backup fleet 0 usable / legacy plain | ~~**T244**~~ ✅ **Completed** 2026-08-12 PR #149 `948d2ae` — Incomplete + core-table usable SOOT; list residual `not recoverable`; CLI usable-first; verify both cores; live create green path. Soft residual only: F17 verify quiet/JSON summary/structured error; F18 archive helper |
-| Harness wiring=missing | **T245** Placeholder |
+| Harness wiring=missing | ~~**T245**~~ ✅ **Completed** 2026-08-12 PR #155 `f05e2f6` — `all-ready`; AGY IDE + CLI plugin bundle (not top-level CLI hooks.json); PATH bake; S12 idle+status; doctor ready-vs-pending. Soft residual only: `pending_track` still T239+; doctor message helper-only |
 | Graph neighbors JSON-only | **T246** Placeholder |
 | Nightly status latency + Last Result 101 | **T247** Placeholder |
 | Retention plan human | **T248** Placeholder |
@@ -180,7 +180,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240 + T241 + T242 + T243 + T244 Completed.** Remaining tracks plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T245 Completed.** Remaining tracks plan-only until go.
 
 ### T238 soft residuals (2026-08-09)
 
@@ -197,7 +197,7 @@ Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-C
 | ~~S9 multi-harness nightly~~ | **Closed by T239** PR #108 `a271a99` |
 | S10 compacting pre-archive hook | Soft / non-goal |
 | S11 opt-in child ingest | Soft (default skip hard) |
-| S12 dual-subscribe `session.status` idle | Soft (idle deprecation honesty) |
+| ~~S12 dual-subscribe `session.status` idle~~ | **Closed by T245** — idle **or** status+`"idle"` (not deprecation) |
 | msg-id true event-store delta | Soft (index+watermark Grok-class honesty) |
 
 ### T237 planning absorption (2026-08-08)
