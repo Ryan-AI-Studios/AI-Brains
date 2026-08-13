@@ -361,6 +361,7 @@ ai-brains sync query "path TOCTOU" --limit 5 --format pretty
 ```powershell
 ai-brains nightly
 ai-brains nightly --status
+ai-brains nightly --status --quick
 ai-brains nightly --skip-import
 ai-brains nightly --skip-import-grok
 ai-brains nightly --schedule --start-time "03:00"
@@ -377,13 +378,16 @@ Pipeline includes:
 7. **`MemorySynthesized`** events for graph edges
 8. Live graph projection updates
 
-**`nightly --status` honesty (T229):**
+**`nightly --status` honesty (T247):**
 
 - **Endpoints:** Completion + Embedding **host:port** + model names (env defaults `127.0.0.1:8081` / `:8083`; `user:pass@` redacted; never vault keys)
-- **Soft probe:** `probe=ok|down|timeout|error` per endpoint; status **exit 0** when down
-- **Last task result** (Windows): Task Scheduler numeric result via `Get-ScheduledTaskInfo` (e.g. **101** = process panic/abort; UTF-8 embed truncate fixed T229)
-- Schedule next-run from schtasks CSV (3 columns only — Last Result is **not** CSV col 5)
+- **Soft probe:** `probe=ok|down|timeout|error` on default `--status`; **`--quick` prints `probe=skipped`** (string; no HTTP; no `ProbeStatus::Skipped`)
+- Default probes **parallel 750 ms**; run-path pre-summarize still **2s**
+- **Last task result** via **LIST /V primary** (CSV is next-run fallback only; never col 5). Decode **1** vs **101** vs Event ID **101**. Hint is a following line.
+- **Last scheduled run** (scheduler) vs vault **Last nightly run** both printed
+- Missing action target (quoted `.cmd` / `.bat` / `.exe` that does not exist) + `next: ai-brains nightly --schedule --dry-run`
 - Multi-import block (T239) unchanged
+- Status **exit 0** when down / timeout / missing action / nonzero last result
 
 SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config (global dotenv gap-fill T205). **SYSTEM keeps `--skip-import` by default** — completeness path is user-principal `nightly --schedule` or manual `nightly` (not Session 0 import). See [OPERATIONS.md](OPERATIONS.md) dual-path table + local router (`c:\llm\router.bat` / `AI-Brains-Router`).
 

@@ -6,8 +6,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Soft probe timeout for status + pre-summarize (independent of 120s LLM timeout).
+/// Soft probe timeout for nightly **run** pre-summarize (independent of 120s LLM timeout).
 const NIGHTLY_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+/// Interactive `nightly --status` probe timeout (parallel; Windows closed-loopback may wait the full window).
+const NIGHTLY_STATUS_PROBE_TIMEOUT: Duration = Duration::from_millis(750);
 
 /// Default completion endpoint when env is unset (matches run path).
 const DEFAULT_MODEL_URL: &str = "http://127.0.0.1:8081";
@@ -29,6 +31,7 @@ pub async fn run(
     skip_import_opencode: bool,
     run_as_system: bool,
     dry_run: bool,
+    quick: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let task_name = "AI-Brains-Nightly";
 
@@ -46,24 +49,35 @@ pub async fn run(
         let (model_url, completion_model, embedding_url, embedding_model) =
             resolve_nightly_model_endpoints();
 
-        // Soft probes — never fail status (exit 0 even when down).
-        let completion_probe = {
-            let p = LlamaCppProvider::new(model_url.clone(), completion_model.clone());
-            p.probe_health(NIGHTLY_PROBE_TIMEOUT).await
-        };
-        let embedding_probe = {
-            let p = LlamaCppProvider::new(embedding_url.clone(), embedding_model.clone());
-            p.probe_health(NIGHTLY_PROBE_TIMEOUT).await
+        // Soft probes — never fail status (exit 0 even when down / timeout / skipped).
+        // `--quick` must not construct LlamaCppProvider or call probe_health (F19).
+        let (completion_label, embedding_label) = if quick {
+            ("skipped", "skipped")
+        } else {
+            let (c, e) = tokio::join!(
+                async {
+                    let p = LlamaCppProvider::new(model_url.clone(), completion_model.clone());
+                    p.probe_health(NIGHTLY_STATUS_PROBE_TIMEOUT).await
+                },
+                async {
+                    let p = LlamaCppProvider::new(embedding_url.clone(), embedding_model.clone());
+                    p.probe_health(NIGHTLY_STATUS_PROBE_TIMEOUT).await
+                },
+            );
+            (c.as_label(), e.as_label())
         };
 
         println!("=== Nightly Status ===");
         #[cfg(windows)]
         {
-            let next_run = fetch_schedule_next_run(task_name);
-            let last_result = fetch_last_task_result(task_name);
-            for line in
-                format_schedule_status_lines(next_run.as_deref(), last_result.as_deref(), true)
-            {
+            let snap = fetch_schedule_snapshot(task_name);
+            for line in format_status_schedule_block(
+                snap.next_run.as_deref(),
+                snap.last_result.as_deref(),
+                snap.last_run_time.as_deref(),
+                snap.task_to_run.as_deref(),
+                true,
+            ) {
                 println!("{line}");
             }
         }
@@ -84,7 +98,7 @@ pub async fn run(
                 "Completion",
                 &model_url,
                 &completion_model,
-                completion_probe.as_label(),
+                completion_label,
             )
         );
         println!(
@@ -93,7 +107,7 @@ pub async fn run(
                 "Embedding",
                 &embedding_url,
                 &embedding_model,
-                embedding_probe.as_label(),
+                embedding_label,
             )
         );
         // T239: multi-import block (missing → never; corrupt → unreadable)
@@ -737,8 +751,131 @@ pub(crate) fn format_schedule_status_lines(
             .filter(|s| !s.is_empty())
             .unwrap_or("unknown");
         lines.push(format!("Last task result: {label}"));
+        if let Some(hint) = explain_last_task_result(label) {
+            lines.push(hint.to_string());
+        }
     }
     lines
+}
+
+/// Windows status schedule block: Scheduled → Last task result → hint? → Last scheduled run → action missing?
+///
+/// Vault `Last nightly run:` is printed by the caller after this block (F5).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn format_status_schedule_block(
+    next_run: Option<&str>,
+    last_result: Option<&str>,
+    last_run_time: Option<&str>,
+    task_to_run: Option<&str>,
+    include_last_result: bool,
+) -> Vec<String> {
+    let mut lines = format_schedule_status_lines(next_run, last_result, include_last_result);
+    if let Some(t) = last_run_time.map(str::trim).filter(|s| !s.is_empty()) {
+        lines.push(format!("Last scheduled run: {t}"));
+    }
+    lines.extend(format_status_action_missing(task_to_run));
+    lines
+}
+
+/// Parsed English `schtasks /FO LIST /V` fields (T247 F3).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct SchtasksListV {
+    pub next_run: Option<String>,
+    pub last_run_time: Option<String>,
+    pub last_result: Option<String>,
+    pub task_to_run: Option<String>,
+}
+
+/// Skip empty / `N/A` / `"N/A"` LIST /V values.
+fn list_v_usable_value(raw: &str) -> Option<String> {
+    let t = raw.trim();
+    if t.is_empty() {
+        return None;
+    }
+    let unquoted = t.trim_matches('"').trim();
+    if unquoted.eq_ignore_ascii_case("n/a") {
+        return None;
+    }
+    Some(t.to_string())
+}
+
+/// Parse English `schtasks /query /fo LIST /v` stdout into one struct.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn parse_schtasks_list_v(stdout: &str) -> SchtasksListV {
+    let mut parsed = SchtasksListV::default();
+    for line in stdout.lines() {
+        let line = line.trim();
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        let key = key.trim().to_ascii_lowercase();
+        let value = list_v_usable_value(value);
+        match key.as_str() {
+            "next run time" => parsed.next_run = value,
+            "last run time" => parsed.last_run_time = value,
+            "last result" => parsed.last_result = value,
+            "task to run" => parsed.task_to_run = value,
+            _ => {}
+        }
+    }
+    parsed
+}
+
+/// Operator hint for a Task Scheduler Last Result code (F4).
+///
+/// Hint is a **following line**, not a suffix on `Last task result: N`.
+pub(crate) fn explain_last_task_result(raw: &str) -> Option<&'static str> {
+    let s = raw.trim();
+    let code = if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        u32::from_str_radix(hex, 16).ok()?
+    } else {
+        s.parse::<u32>().ok()?
+    };
+    match code {
+        0 => None,
+        1 => Some("process failed / missing action / CLI error"),
+        101 => Some("Rust panic/abort"),
+        267009 => Some("task still running (SCHED_S_TASK_RUNNING)"),
+        267014 => Some("task terminated (SCHED_S_TASK_TERMINATED)"),
+        _ => None,
+    }
+}
+
+/// First quoted `.cmd` / `.bat` / `.exe` token from Task To Run (F6).
+///
+/// Accepts `"` or `'` quotes; unquoted / non-script tokens → `None`.
+pub(crate) fn first_quoted_action_target(task_to_run: &str) -> Option<String> {
+    let quote_pos = task_to_run.find(['"', '\''])?;
+    let quote = task_to_run.as_bytes().get(quote_pos).copied()?;
+    let rest = task_to_run.get(quote_pos + 1..)?;
+    let end = rest.find(quote as char)?;
+    let token = rest.get(..end)?;
+    if token.is_empty() {
+        return None;
+    }
+    let lower = token.to_ascii_lowercase();
+    if lower.ends_with(".cmd") || lower.ends_with(".bat") || lower.ends_with(".exe") {
+        Some(token.to_string())
+    } else {
+        None
+    }
+}
+
+/// Missing-action status lines (F6). Existing product exe + args → no lines.
+pub(crate) fn format_status_action_missing(task_to_run: Option<&str>) -> Vec<String> {
+    let Some(raw) = task_to_run.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Vec::new();
+    };
+    let Some(path) = first_quoted_action_target(raw) else {
+        return Vec::new();
+    };
+    if std::path::Path::new(&path).exists() {
+        return Vec::new();
+    }
+    vec![
+        format!("Action target missing: {path}"),
+        "next: ai-brains nightly --schedule --dry-run".to_string(),
+    ]
 }
 
 /// Parse PowerShell `LastTaskResult` stdout (trim; empty → None).
@@ -753,7 +890,8 @@ pub(crate) fn parse_last_task_result_ps_stdout(stdout: &str) -> Option<String> {
 }
 
 /// Soft parse of English `schtasks /FO LIST /V` `Last Result:` line (locale-sensitive fallback).
-#[cfg_attr(not(windows), allow(dead_code))]
+/// T247 production uses `parse_schtasks_list_v`; this helper stays for T229 unit coverage.
+#[allow(dead_code)]
 pub(crate) fn parse_last_result_list_v(stdout: &str) -> Option<String> {
     for line in stdout.lines() {
         let line = line.trim();
@@ -784,9 +922,33 @@ fn fetch_schedule_next_run(task_name: &str) -> Option<String> {
     }
 }
 
-/// Windows Last Result: primary Get-ScheduledTaskInfo; fallback LIST /V English label.
+/// Windows schedule snapshot: LIST /V first; PS Last Result only after successful LIST /V
+/// with a missing `last_result`; CSV next-run only when LIST /V missed `next_run`.
+/// Non-zero LIST /V (task missing) → all None, **no** PowerShell (F3).
 #[cfg(windows)]
-fn fetch_last_task_result(task_name: &str) -> Option<String> {
+fn fetch_schedule_snapshot(task_name: &str) -> SchtasksListV {
+    let list = std::process::Command::new("schtasks")
+        .args(["/query", "/tn", task_name, "/fo", "LIST", "/v"])
+        .output();
+    match list {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let mut parsed = parse_schtasks_list_v(&stdout);
+            if parsed.last_result.is_none() {
+                parsed.last_result = fetch_last_task_result_ps(task_name);
+            }
+            if parsed.next_run.is_none() {
+                parsed.next_run = fetch_schedule_next_run(task_name);
+            }
+            parsed
+        }
+        _ => SchtasksListV::default(),
+    }
+}
+
+/// Last Result fallback: `Get-ScheduledTaskInfo` only (locale miss after successful LIST /V).
+#[cfg(windows)]
+fn fetch_last_task_result_ps(task_name: &str) -> Option<String> {
     let ps_cmd = format!("(Get-ScheduledTaskInfo -TaskName '{task_name}').LastTaskResult");
     let ps = std::process::Command::new("powershell")
         .args(["-NoProfile", "-Command", &ps_cmd])
@@ -795,19 +957,7 @@ fn fetch_last_task_result(task_name: &str) -> Option<String> {
         && out.status.success()
     {
         let stdout = String::from_utf8_lossy(&out.stdout);
-        if let Some(v) = parse_last_task_result_ps_stdout(&stdout) {
-            return Some(v);
-        }
-    }
-    // Soft fallback: schtasks LIST /V (locale may break → None → status prints unknown).
-    let list = std::process::Command::new("schtasks")
-        .args(["/query", "/tn", task_name, "/fo", "LIST", "/v"])
-        .output();
-    if let Ok(out) = list
-        && out.status.success()
-    {
-        let stdout = String::from_utf8_lossy(&out.stdout);
-        return parse_last_result_list_v(&stdout);
+        return parse_last_task_result_ps_stdout(&stdout);
     }
     None
 }
@@ -1238,6 +1388,224 @@ mod tests {
             Some("101")
         );
         assert_eq!(parse_last_task_result_ps_stdout("   \n"), None);
+    }
+
+    #[test]
+    fn parse_schtasks_list_v__english_fixture__extracts_next_last_result_and_action() {
+        let sample = "\
+Folder: \\\n\
+HostName: DESKTOP\n\
+TaskName: \\AI-Brains-Nightly\n\
+Next Run Time: 8/14/2026 3:00:00 AM\n\
+Status: Ready\n\
+Logon Mode: Interactive only\n\
+Last Run Time: 8/13/2026 3:00:01 AM\n\
+Last Result: 1\n\
+Author: N/A\n\
+Task To Run: \"C:\\Users\\RyanB\\.ai-brains\\nightly-run.cmd\"\n\
+Start In: N/A\n";
+        let parsed = parse_schtasks_list_v(sample);
+        assert_eq!(parsed.next_run.as_deref(), Some("8/14/2026 3:00:00 AM"));
+        assert_eq!(
+            parsed.last_run_time.as_deref(),
+            Some("8/13/2026 3:00:01 AM")
+        );
+        assert_eq!(parsed.last_result.as_deref(), Some("1"));
+        assert_eq!(
+            parsed.task_to_run.as_deref(),
+            Some(r#""C:\Users\RyanB\.ai-brains\nightly-run.cmd""#)
+        );
+    }
+
+    #[test]
+    fn parse_schtasks_list_v__missing_english_labels__fields_none() {
+        let garbled = "\
+Ordner: \\\n\
+Nächster Start: 14.08.2026 03:00:00\n\
+Letztes Ergebnis: 1\n\
+Auszuführende Aufgabe: C:\\x.cmd\n";
+        let parsed = parse_schtasks_list_v(garbled);
+        assert_eq!(parsed.next_run, None);
+        assert_eq!(parsed.last_run_time, None);
+        assert_eq!(parsed.last_result, None);
+        assert_eq!(parsed.task_to_run, None);
+
+        let na = "\
+Next Run Time: N/A\n\
+Last Run Time: \"N/A\"\n\
+Last Result: N/A\n\
+Task To Run: N/A\n";
+        assert_eq!(parse_schtasks_list_v(na), SchtasksListV::default());
+    }
+
+    #[test]
+    fn explain_last_task_result__0__no_hint() {
+        assert_eq!(explain_last_task_result("0"), None);
+        assert_eq!(explain_last_task_result("  0  "), None);
+    }
+
+    #[test]
+    fn explain_last_task_result__1__mentions_fail_or_missing() {
+        let hint = match explain_last_task_result("1") {
+            Some(h) => h,
+            None => panic!("expected hint for Last Result 1"),
+        };
+        let lower = hint.to_ascii_lowercase();
+        assert!(
+            lower.contains("fail") || lower.contains("missing"),
+            "hint must mention fail/missing: {hint}"
+        );
+    }
+
+    #[test]
+    fn explain_last_task_result__101__mentions_panic() {
+        let hint = match explain_last_task_result("101") {
+            Some(h) => h,
+            None => panic!("expected hint for Last Result 101"),
+        };
+        assert!(
+            hint.to_ascii_lowercase().contains("panic"),
+            "hint must mention panic: {hint}"
+        );
+    }
+
+    #[test]
+    fn explain_last_task_result__0x65__equiv_101() {
+        assert_eq!(
+            explain_last_task_result("0x65"),
+            explain_last_task_result("101")
+        );
+        assert_eq!(
+            explain_last_task_result("0X65"),
+            explain_last_task_result("101")
+        );
+    }
+
+    #[test]
+    fn explain_last_task_result__267009__running_sched_s() {
+        let hint = match explain_last_task_result("267009") {
+            Some(h) => h,
+            None => panic!("expected hint for 267009"),
+        };
+        assert!(
+            hint.to_ascii_lowercase().contains("running"),
+            "hint must mention running: {hint}"
+        );
+        assert!(
+            hint.contains("SCHED_S_TASK_RUNNING"),
+            "hint must mention SCHED_S_TASK_RUNNING: {hint}"
+        );
+    }
+
+    #[test]
+    fn explain_last_task_result__0x41301__equiv_267009() {
+        assert_eq!(
+            explain_last_task_result("0x41301"),
+            explain_last_task_result("267009")
+        );
+    }
+
+    #[test]
+    fn explain_last_task_result__267014__terminated() {
+        let hint = match explain_last_task_result("267014") {
+            Some(h) => h,
+            None => panic!("expected hint for 267014"),
+        };
+        assert!(
+            hint.to_ascii_lowercase().contains("terminated"),
+            "hint must mention terminated: {hint}"
+        );
+        assert!(
+            hint.contains("SCHED_S_TASK_TERMINATED"),
+            "hint must mention SCHED_S_TASK_TERMINATED: {hint}"
+        );
+        assert_eq!(
+            explain_last_task_result("0x41306"),
+            explain_last_task_result("267014")
+        );
+    }
+
+    #[test]
+    fn explain_last_task_result__99__none() {
+        assert_eq!(explain_last_task_result("99"), None);
+        assert_eq!(explain_last_task_result("not-a-code"), None);
+    }
+
+    #[test]
+    fn format_status_schedule_block__order__result_hint_then_last_scheduled() {
+        let lines = format_status_schedule_block(
+            Some("8/14/2026 3:00:00 AM"),
+            Some("101"),
+            Some("8/13/2026 3:00:01 AM"),
+            None,
+            true,
+        );
+        assert_eq!(lines[0], "Scheduled: Yes (next run: 8/14/2026 3:00:00 AM)");
+        assert_eq!(lines[1], "Last task result: 101");
+        assert!(
+            lines[2].to_ascii_lowercase().contains("panic"),
+            "hint must be a following line: {lines:?}"
+        );
+        assert_eq!(lines[3], "Last scheduled run: 8/13/2026 3:00:01 AM");
+    }
+
+    #[test]
+    fn format_status_action_missing__absent_cmd__next_step_dry_run() {
+        let dir = match tempfile::tempdir() {
+            Ok(d) => d,
+            Err(e) => panic!("tempdir: {e}"),
+        };
+        let missing = dir.path().join("nightly-run.cmd");
+        let task = format!("\"{}\"", missing.display());
+        let lines = format_status_action_missing(Some(&task));
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("Action target missing:"),
+            "expected missing line: {joined}"
+        );
+        assert!(
+            joined.contains("nightly --schedule --dry-run"),
+            "expected dry-run next step: {joined}"
+        );
+    }
+
+    #[test]
+    fn format_status_action_missing__product_exe_nightly__no_missing_line() {
+        let dir = match tempfile::tempdir() {
+            Ok(d) => d,
+            Err(e) => panic!("tempdir: {e}"),
+        };
+        let exe = dir.path().join("ai-brains.exe");
+        if let Err(e) = std::fs::write(&exe, b"") {
+            panic!("touch exe: {e}");
+        }
+        let task = format!("\"{}\" nightly", exe.display());
+        let lines = format_status_action_missing(Some(&task));
+        assert!(
+            lines.is_empty(),
+            "existing product exe must not report missing: {lines:?}"
+        );
+    }
+
+    #[test]
+    fn format_status_action_missing__unquoted_or_non_script__no_missing_line() {
+        assert!(format_status_action_missing(Some(r"C:\missing\nightly-run.cmd")).is_empty());
+        assert!(format_status_action_missing(Some(r#""C:\notes.txt""#)).is_empty());
+        assert!(format_status_action_missing(None).is_empty());
+    }
+
+    #[test]
+    fn format_endpoint_line__quick__probe_skipped() {
+        let line = format_endpoint_line(
+            "Completion",
+            "http://127.0.0.1:8081",
+            "gemma-4-E4B-it-Q6_K.gguf",
+            "skipped",
+        );
+        assert!(
+            line.contains("probe=skipped"),
+            "string-literal skipped label: {line}"
+        );
     }
 
     #[test]
