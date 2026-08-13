@@ -170,7 +170,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Backup fleet 0 usable / legacy plain | ~~**T244**~~ ✅ **Completed** 2026-08-12 PR #149 `948d2ae` — Incomplete + core-table usable SOOT; list residual `not recoverable`; CLI usable-first; verify both cores; live create green path. Soft residual only: F17 verify quiet/JSON summary/structured error; F18 archive helper |
 | Harness wiring=missing | ~~**T245**~~ ✅ **Completed** 2026-08-12 PR #155 `f05e2f6` — `all-ready`; AGY IDE + CLI plugin bundle (not top-level CLI hooks.json); PATH bake; S12 idle+status; doctor ready-vs-pending. Soft residual only: `pending_track` still T239+; doctor message helper-only |
 | Graph neighbors JSON-only | **T246** Placeholder |
-| Nightly status latency + Last Result 101 | **T247** Placeholder |
+| Nightly status latency + Last Result 101 | ~~**T247**~~ ✅ **Completed** 2026-08-13 PR #157 `43191ff` — `--quick`; parallel 750ms; LIST/V honesty; live missing `.cmd` named. Soft residual only: F11–F16 → **T255** |
 | Retention plan human | **T248** Placeholder |
 | Scope/daemon/doctor presentation | **T249** Placeholder |
 | Preflight pretty density (T219 residual) | **T250** Placeholder |
@@ -180,7 +180,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T245 Completed.** Remaining tracks plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T245, T247 Completed.** Remaining tracks plan-only until go.
 
 ### T238 soft residuals (2026-08-09)
 
