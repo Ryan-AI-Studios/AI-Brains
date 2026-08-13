@@ -5,8 +5,11 @@
 
 mod common;
 
+#[cfg(feature = "graph")]
 use std::collections::BTreeSet;
+#[cfg(feature = "graph")]
 use std::path::Path;
+#[cfg(feature = "graph")]
 use tempfile::tempdir;
 
 #[cfg(not(feature = "graph"))]
