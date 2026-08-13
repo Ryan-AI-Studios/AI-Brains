@@ -29,7 +29,7 @@
 | Internal R1 correctness | explore subagent | 2026-08-13 | **CLEAN** |
 | Orchestrator manual AC8–AC10 | built `target\debug\ai-brains.exe` | 2026-08-13 | **PASS** — `--quick` 167 ms `probe=skipped` exit 0; default 926 ms (completion timeout / embedding ok) exit 0; missing `.cmd` + Last scheduled run 8/13 vs vault 2026-08-02; `--quick` without `--status` exit 2 |
 | Cross-model CX1 | Codex gpt-5.6-luna high | 2026-08-13 | **Product CLEAN** — no P0/P2/P3 code findings. P1-01 process closeout (this PR). |
-| Cross-model CX2 (final) | Codex gpt-5.6-luna high | 2026-08-13 | Pending closeout commit — re-run as final gate |
+| Cross-model CX2 (final) | Codex gpt-5.6-luna high | 2026-08-13 | **PASS** — no P0–P3. CX1 P1-01 resolved by closeout `f68e917`. |
 
 ---
 
