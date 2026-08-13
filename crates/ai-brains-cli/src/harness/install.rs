@@ -1,10 +1,13 @@
 //! AGY install/uninstall writer: hooks.json merge + wrapper (F15, F28, F36, F37).
 
-use super::detect::{HarnessId, join_rel};
+use super::detect::{HarnessId, join_rel, resolve_on_path};
 use super::prefs::{MANAGED_KEY, load_prefs, save_prefs};
 use serde_json::{Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+/// Official AGY CLI plugin bundle directory name (F7 / AC19).
+pub const AGY_CLI_PLUGIN_NAME: &str = "ai-brains-capture";
 
 /// Planned write targets (dry-run / install).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,6 +50,70 @@ pub enum UninstallOutcome {
 
 pub fn agy_hooks_soot_path(home: &Path) -> PathBuf {
     join_rel(home, ".gemini/config/hooks.json")
+}
+
+/// Official AGY IDE hooks path — alias of [`agy_hooks_soot_path`] (F7).
+#[must_use]
+pub fn agy_ide_hooks_path(home: &Path) -> PathBuf {
+    agy_hooks_soot_path(home)
+}
+
+/// Staged CLI plugin bundle dir when `~/.gemini/antigravity-cli` already exists (F7).
+///
+/// Does **not** create `antigravity-cli`. Returns `None` when that directory is absent
+/// so install will not invent a CLI home just to host plugins.
+#[must_use]
+pub fn agy_cli_plugin_dir(home: &Path) -> Option<PathBuf> {
+    let cli_home = join_rel(home, ".gemini/antigravity-cli");
+    if cli_home.is_dir() {
+        Some(cli_home.join("plugins").join(AGY_CLI_PLUGIN_NAME))
+    } else {
+        None
+    }
+}
+
+/// True for the installed CLI file name `ai-brains` / `ai-brains.exe` (F8 / AC21).
+///
+/// Case-insensitive. False for cargo-nextest hashes (`ai_brains_cli-hash.exe`) and
+/// unrelated binaries (`rustc.exe`). Callers must pass a file **name**, not a path.
+#[must_use]
+pub fn is_ai_brains_exe(filename: &str) -> bool {
+    filename.eq_ignore_ascii_case("ai-brains") || filename.eq_ignore_ascii_case("ai-brains.exe")
+}
+
+/// Absolute `ai-brains` path to bake into wrappers / plugin spawn (F8).
+///
+/// `current_exe()` error → `None` (no unwrap). If the current file name is the
+/// installed CLI, use that path; otherwise resolve `ai-brains` on `PATH`.
+#[must_use]
+pub fn resolve_cli_exe_for_wrapper() -> Option<PathBuf> {
+    match std::env::current_exe() {
+        Ok(path) => {
+            let ours = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(is_ai_brains_exe);
+            if ours {
+                Some(path)
+            } else {
+                resolve_on_path("ai-brains")
+            }
+        }
+        Err(_) => None,
+    }
+}
+
+/// OpenCode idle SOOT (F9 / AC20): `session.idle` **or** (`session.status` + `"idle"`).
+///
+/// No aliases (`done` / `finished` / `complete`). `retry` and `busy` are not idle.
+/// `session.idle` is idle regardless of `status_type`.
+#[must_use]
+pub fn opencode_is_idle_event(event_type: &str, status_type: Option<&str>) -> bool {
+    if event_type.eq_ignore_ascii_case("session.idle") {
+        return true;
+    }
+    event_type.eq_ignore_ascii_case("session.status")
+        && status_type.is_some_and(|s| s.eq_ignore_ascii_case("idle"))
 }
 
 pub fn agy_wrapper_path(home: &Path) -> PathBuf {
@@ -120,13 +187,33 @@ pub fn agy_wrapper_allow_stop_stdout() -> &'static str {
     r#"{"decision":"allow"}"#
 }
 
+/// PowerShell: set `$aiExe` from a baked path (single-quoted) or PATH (F8).
+fn ps_resolve_ai_brains(cli_exe: Option<&Path>, on_missing: &str) -> String {
+    match cli_exe {
+        Some(path) => {
+            let quoted = path.display().to_string().replace('\'', "''");
+            format!(
+                "    $aiExe = '{quoted}'\n    if (-not (Test-Path -LiteralPath $aiExe)) {{\n        $ai = Get-Command ai-brains -ErrorAction SilentlyContinue\n        if (-not $ai) {{ {on_missing} }}\n        $aiExe = $ai.Source\n    }}\n"
+            )
+        }
+        None => format!(
+            "    $ai = Get-Command ai-brains -ErrorAction SilentlyContinue\n    if (-not $ai) {{ {on_missing} }}\n    $aiExe = $ai.Source\n"
+        ),
+    }
+}
+
 /// PowerShell wrapper content: map Stop → agy-hook payload (F34/F35 + T236 F8).
 /// Soft-skips exit 0 with allow-stop JSON on stdout; diagnostics on stderr.
 /// `agy-hook` stdout is captured (never leaked to AGY Stop stdout).
-pub fn agy_wrapper_script_body() -> &'static str {
+pub fn agy_wrapper_script_body(cli_exe: Option<&Path>) -> String {
     // Keep allow JSON inline (same string as agy_wrapper_allow_stop_stdout) so the
     // installed wrapper body is self-contained and hermetic tests can assert both.
-    r#"# AI-Brains managed AGY Stop hook wrapper (T235/T236).
+    let resolve = ps_resolve_ai_brains(
+        cli_exe,
+        "Write-Skip 'ai-brains not on PATH'; Write-AllowStop; exit 0",
+    );
+    let mut body = String::from(
+        r#"# AI-Brains managed AGY Stop hook wrapper (T235/T236).
 # Do not edit by hand — reinstall via: ai-brains harness install --harness agy
 # Soft-skips on map failure / fullyIdle:false (exit 0 + allow-stop JSON on stdout).
 # agy-hook human output is captured; only allow-stop JSON is written to stdout.
@@ -159,11 +246,13 @@ try {
         projectHash    = $projectHash
     }
     $payload = $payloadObj | ConvertTo-Json -Compress
-    $ai = Get-Command ai-brains -ErrorAction SilentlyContinue
-    if (-not $ai) { Write-Skip 'ai-brains not on PATH'; Write-AllowStop; exit 0 }
-    # Capture hook stdout so human ingest prose never reaches AGY Stop stdout (F8).
+"#,
+    );
+    body.push_str(&resolve);
+    body.push_str(
+        r#"    # Capture hook stdout so human ingest prose never reaches AGY Stop stdout (F8).
     # Redirect native stdout of the child; merge any residual into stderr diagnostics.
-    $hookOut = & $ai.Source 'agy-hook' '--payload' $payload 2>&1 | ForEach-Object {
+    $hookOut = & $aiExe 'agy-hook' '--payload' $payload 2>&1 | ForEach-Object {
         if ($_ -is [System.Management.Automation.ErrorRecord]) {
             [Console]::Error.WriteLine($_.ToString())
         } else {
@@ -177,7 +266,9 @@ try {
     Write-AllowStop
     exit 0
 }
-"#
+"#,
+    );
+    body
 }
 
 /// Merge managed key into hooks map (F37). Preserves foreign keys.
@@ -259,7 +350,11 @@ pub fn install_agy(home: &Path, dry_run: bool) -> Result<InstallOutcome, String>
     let body = serde_json::to_string_pretty(&Value::Object(map))
         .map_err(|e| format!("serialize hooks.json: {e}"))?;
     atomic_write_str(&plan.hooks_path, &format!("{body}\n"))?;
-    atomic_write_str(&plan.wrapper_path, agy_wrapper_script_body())?;
+    atomic_write_str(
+        &plan.wrapper_path,
+        &agy_wrapper_script_body(resolve_cli_exe_for_wrapper().as_deref()),
+    )?;
+    write_agy_cli_plugin_bundle(home, &plan.command_line)?;
 
     // Prefs stamp
     let mut prefs = load_prefs(home);
@@ -269,6 +364,60 @@ pub fn install_agy(home: &Path, dry_run: bool) -> Result<InstallOutcome, String>
     save_prefs(home, &prefs)?;
 
     Ok(InstallOutcome::Installed { plan })
+}
+
+/// Owned CLI plugin bundle (`plugin.json` + `hooks.json`) when CLI home exists (F7).
+///
+/// Never creates `antigravity-cli`. Never writes top-level `antigravity-cli/hooks.json`.
+fn write_agy_cli_plugin_bundle(home: &Path, command_line: &str) -> Result<(), String> {
+    let Some(dir) = agy_cli_plugin_dir(home) else {
+        return Ok(());
+    };
+    atomic_write_str(&dir.join("plugin.json"), &agy_cli_plugin_json_body()?)?;
+    atomic_write_str(
+        &dir.join("hooks.json"),
+        &agy_cli_plugin_hooks_body(command_line)?,
+    )?;
+    Ok(())
+}
+
+fn agy_cli_plugin_json_body() -> Result<String, String> {
+    let mut obj = Map::new();
+    obj.insert(
+        "$schema".into(),
+        Value::String("https://antigravity.google/schemas/v1/plugin.json".into()),
+    );
+    obj.insert(
+        "name".into(),
+        Value::String(AGY_CLI_PLUGIN_NAME.to_string()),
+    );
+    obj.insert(
+        "description".into(),
+        Value::String("AI-Brains message-only capture (Stop hook)".into()),
+    );
+    let body = serde_json::to_string_pretty(&Value::Object(obj))
+        .map_err(|e| format!("serialize plugin.json: {e}"))?;
+    Ok(format!("{body}\n"))
+}
+
+fn agy_cli_plugin_hooks_body(command_line: &str) -> Result<String, String> {
+    let mut map = Map::new();
+    merge_agy_hooks_map(&mut map, command_line);
+    let body = serde_json::to_string_pretty(&Value::Object(map))
+        .map_err(|e| format!("serialize plugin hooks.json: {e}"))?;
+    Ok(format!("{body}\n"))
+}
+
+/// Delete only `plugins/ai-brains-capture/` (F18). Leaves `antigravity-cli` and siblings.
+fn remove_agy_cli_plugin_bundle(home: &Path) -> Result<bool, String> {
+    let Some(dir) = agy_cli_plugin_dir(home) else {
+        return Ok(false);
+    };
+    if !dir.exists() {
+        return Ok(false);
+    }
+    fs::remove_dir_all(&dir).map_err(|e| format!("remove plugin bundle {}: {e}", dir.display()))?;
+    Ok(true)
 }
 
 /// Uninstall AGY managed key + wrapper; leave `{}` if empty (F15/F28/AC23).
@@ -306,6 +455,10 @@ pub fn uninstall_agy(home: &Path, dry_run: bool) -> Result<UninstallOutcome, Str
     if wrapper_path.is_file() {
         fs::remove_file(&wrapper_path)
             .map_err(|e| format!("remove wrapper {}: {e}", wrapper_path.display()))?;
+        removed_anything = true;
+    }
+
+    if remove_agy_cli_plugin_bundle(home)? {
         removed_anything = true;
     }
 
@@ -384,8 +537,10 @@ pub fn grok_stop_stdout_contract_summary() -> String {
 }
 
 /// PowerShell wrapper: Stop/SessionEnd → grok-hook; host stdout always empty.
-pub fn grok_wrapper_script_body() -> &'static str {
-    r#"# AI-Brains managed Grok Stop/SessionEnd hook (T237)
+pub fn grok_wrapper_script_body(cli_exe: Option<&Path>) -> String {
+    let resolve = ps_resolve_ai_brains(cli_exe, "Write-Skip 'ai-brains not on PATH'; exit 0");
+    let mut body = String::from(
+        r#"# AI-Brains managed Grok Stop/SessionEnd hook (T237)
 # Empty stdout allow path — DO NOT emit decision/continue JSON (Grok Stop ≠ AGY)
 $ErrorActionPreference = 'Continue'
 function Write-Skip([string]$reason) {
@@ -423,10 +578,12 @@ try {
     }
     # Prefer explicit historyPath if we can build it later — Rust resolves via sessionId+workspace
     $payload = $payloadObj | ConvertTo-Json -Compress
-    $ai = Get-Command ai-brains -ErrorAction SilentlyContinue
-    if (-not $ai) { Write-Skip 'ai-brains not on PATH'; exit 0 }
-    # Capture ALL child stdout; never forward to host stdout (empty allow)
-    $null = & $ai.Source 'grok-hook' '--payload' $payload 2>&1 | ForEach-Object {
+"#,
+    );
+    body.push_str(&resolve);
+    body.push_str(
+        r#"    # Capture ALL child stdout; never forward to host stdout (empty allow)
+    $null = & $aiExe 'grok-hook' '--payload' $payload 2>&1 | ForEach-Object {
         if ($_ -is [System.Management.Automation.ErrorRecord]) {
             [Console]::Error.WriteLine($_.ToString())
         } else {
@@ -438,7 +595,9 @@ try {
     Write-Skip ("wrapper error: " + $_.Exception.Message)
     exit 0
 }
-"#
+"#,
+    );
+    body
 }
 
 /// Official Grok Quick Start nested hooks shape for Stop + SessionEnd.
@@ -510,7 +669,10 @@ pub fn install_grok(home: &Path, dry_run: bool) -> Result<InstallOutcome, String
 
     let body = grok_hooks_json_body(&plan.command_line)?;
     atomic_write_str(&plan.hooks_path, &body)?;
-    atomic_write_str(&plan.wrapper_path, grok_wrapper_script_body())?;
+    atomic_write_str(
+        &plan.wrapper_path,
+        &grok_wrapper_script_body(resolve_cli_exe_for_wrapper().as_deref()),
+    )?;
 
     let mut prefs = load_prefs(home);
     let now = chrono::Utc::now().to_rfc3339();
@@ -621,17 +783,35 @@ pub fn plan_opencode_install(home: &Path) -> InstallPlan {
     }
 }
 
-/// Zero-deps ESM plugin body (F8–F15 / F33). Resolves `ai-brains` via PATH.
-pub fn opencode_plugin_js_body() -> String {
+/// Zero-deps ESM plugin body (F8–F15 / F33 / F9). Bakes `ai-brains` spawn when given.
+pub fn opencode_plugin_js_body(cli_exe: Option<&Path>) -> String {
+    // Retain F9 SOOT in the production binary; the JS filter below mirrors it.
+    let _ = (
+        opencode_is_idle_event("session.idle", None),
+        opencode_is_idle_event("session.status", Some("idle")),
+        opencode_is_idle_event("session.status", Some("retry")),
+        opencode_is_idle_event("session.status", Some("busy")),
+        opencode_is_idle_event("session.status", Some("done")),
+    );
+    let baked_decl =
+        match cli_exe.and_then(|p| serde_json::to_string(&p.display().to_string()).ok()) {
+            Some(json) => format!("const bakedCli = {json};\n"),
+            None => String::new(),
+        };
+    let spawn_cli = if baked_decl.is_empty() {
+        r#""ai-brains""#.to_string()
+    } else {
+        r#"bakedCli || "ai-brains""#.to_string()
+    };
     format!(
         r#"{marker}
 // Auto-loaded from ~/.config/opencode/plugins/ (or OPENCODE_CONFIG_DIR/plugins/).
-// Live path: session.idle → parentID skip → in-flight → client.session.messages
+// Live path: session.idle or session.status idle → parentID skip → in-flight → client.session.messages
 //   → (F12 fallback) opencode export 120s → opencode-hook.
 // Fail-open into OpenCode (never throw). Fail-closed child safety on session.get.
 // Batch backstop: ai-brains opencode-import. Temp export files are unlinked after hook.
 
-const inFlight = new Map();
+{baked_decl}const inFlight = new Map();
 
 async function unlinkQuiet(p) {{
   if (!p) return;
@@ -705,7 +885,13 @@ export default function aiBrainsCapture({{ client, directory, worktree }}) {{
     event: async ({{ event }}) => {{
       try {{
         const type = event?.type || event?.name || "";
-        if (type !== "session.idle") return;
+        const statusType = event?.properties?.status?.type; // the STRING, not the object
+        const typeLc = String(type).toLowerCase();
+        const isIdle =
+          typeLc === "session.idle" ||
+          (typeLc === "session.status" &&
+            String(statusType == null ? "" : statusType).toLowerCase() === "idle");
+        if (!isIdle) return;
         const sessionID =
           event?.properties?.sessionID ||
           event?.properties?.sessionId ||
@@ -767,7 +953,7 @@ export default function aiBrainsCapture({{ client, directory, worktree }}) {{
           try {{
             await new Promise((resolve) => {{
               const child = spawn(
-                "ai-brains",
+                {spawn_cli},
                 ["opencode-hook", "--payload", JSON.stringify(payload)],
                 {{ stdio: ["ignore", "ignore", "pipe"], shell: false }}
               );
@@ -798,7 +984,9 @@ export default function aiBrainsCapture({{ client, directory, worktree }}) {{
   }};
 }}
 "#,
-        marker = OPENCODE_PLUGIN_MARKER
+        marker = OPENCODE_PLUGIN_MARKER,
+        baked_decl = baked_decl,
+        spawn_cli = spawn_cli,
     )
 }
 
@@ -824,7 +1012,7 @@ pub fn install_opencode(home: &Path, dry_run: bool) -> Result<InstallOutcome, St
         }
     }
 
-    let body = opencode_plugin_js_body();
+    let body = opencode_plugin_js_body(resolve_cli_exe_for_wrapper().as_deref());
     if let Some(parent) = plan.hooks_path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("create plugins dir {}: {e}", parent.display()))?;
@@ -1081,6 +1269,7 @@ mod tests {
             "marker must be header-scoped"
         );
         assert!(raw.contains("session.idle"));
+        assert!(raw.contains("session.status"));
         assert!(raw.contains("opencode-hook"));
         assert!(raw.contains("parentID") || raw.contains("parentId"));
         // F12: CLI export fallback when SDK messages fail
@@ -1149,12 +1338,28 @@ mod tests {
     #[test]
     fn opencode_plugin_js_body__seam_contract() {
         // Minimum seam proof without JS runtime: body contains required live-path seams.
-        let raw = opencode_plugin_js_body();
+        let raw = opencode_plugin_js_body(None);
         assert!(raw.contains("exportViaCli"));
         assert!(raw.contains("unlinkQuiet") || raw.contains("fs.unlink"));
         assert!(raw.contains("fail-closed child safety"));
         assert!(raw.contains("120000"));
         assert!(has_opencode_managed_marker_header(&raw));
+        assert!(raw.contains("session.idle"));
+        assert!(raw.contains("session.status"));
+        assert!(raw.contains("statusType"));
+        assert!(
+            raw.contains(
+                r#"spawn(
+                "ai-brains","#
+            ) || raw.contains(r#"spawn("ai-brains""#),
+            "None bake must PATH-spawn ai-brains"
+        );
+        assert!(raw.contains(r#"spawn("opencode", ["export""#));
+        assert!(!raw.contains("const bakedCli"));
+        assert!(
+            !raw.contains(r#"if (type !== "session.idle") return;"#),
+            "F9: must not exclusive-filter session.idle"
+        );
     }
 
     #[test]
@@ -1307,7 +1512,7 @@ mod tests {
     #[test]
     fn grok_wrapper__stdout__empty_allow_not_agy_json() {
         // AC12
-        let body = grok_wrapper_script_body();
+        let body = grok_wrapper_script_body(None);
         let allow = grok_wrapper_allow_stop_stdout();
         assert_eq!(allow, "");
         assert!(
@@ -1355,7 +1560,7 @@ mod tests {
     #[test]
     fn agy_wrapper__stdout__allow_stop_json_only() {
         // AC18 / F8 — wrapper body captures hook stdout and emits allow-stop JSON only.
-        let body = agy_wrapper_script_body();
+        let body = agy_wrapper_script_body(None);
         let allow = agy_wrapper_allow_stop_stdout();
         assert_eq!(allow, r#"{"decision":"allow"}"#);
         assert!(
@@ -1393,6 +1598,275 @@ mod tests {
         let wrapper = std::fs::read_to_string(agy_wrapper_path(home)).expect("read wrapper");
         assert!(wrapper.contains(allow));
         assert!(wrapper.contains("2>&1") || wrapper.contains("hookOut"));
+    }
+
+    #[test]
+    fn agy_cli_plugin_dir__when_cli_dir_exists__some_bundle() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cli = home.join(".gemini").join("antigravity-cli");
+        std::fs::create_dir_all(&cli).expect("mkdir");
+        let got = agy_cli_plugin_dir(home).expect("some");
+        assert_eq!(got, cli.join("plugins").join("ai-brains-capture"));
+        assert!(
+            !got.exists(),
+            "helper must not create the plugin bundle directory"
+        );
+    }
+
+    #[test]
+    fn agy_cli_plugin_dir__when_cli_dir_absent__none() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        assert!(agy_cli_plugin_dir(home).is_none());
+        assert!(
+            !home.join(".gemini").join("antigravity-cli").exists(),
+            "must not invent antigravity-cli"
+        );
+    }
+
+    #[test]
+    fn is_ai_brains_exe__ai_brains__true() {
+        assert!(is_ai_brains_exe("ai-brains"));
+        assert!(is_ai_brains_exe("AI-BRAINS"));
+    }
+
+    #[test]
+    fn is_ai_brains_exe__ai_brains_exe__true() {
+        assert!(is_ai_brains_exe("ai-brains.exe"));
+        assert!(is_ai_brains_exe("AI-BRAINS.EXE"));
+    }
+
+    #[test]
+    fn is_ai_brains_exe__ai_brains_cli_hash__false() {
+        assert!(!is_ai_brains_exe("ai_brains_cli-hash.exe"));
+    }
+
+    #[test]
+    fn is_ai_brains_exe__rustc__false() {
+        assert!(!is_ai_brains_exe("rustc.exe"));
+    }
+
+    #[test]
+    fn opencode_is_idle_event__session_idle__true() {
+        assert!(opencode_is_idle_event("session.idle", None));
+        assert!(opencode_is_idle_event("SESSION.IDLE", Some("busy")));
+    }
+
+    #[test]
+    fn opencode_is_idle_event__status_idle__true() {
+        assert!(opencode_is_idle_event("session.status", Some("idle")));
+        assert!(opencode_is_idle_event("SESSION.STATUS", Some("IDLE")));
+    }
+
+    #[test]
+    fn opencode_is_idle_event__status_retry__false() {
+        assert!(!opencode_is_idle_event("session.status", Some("retry")));
+    }
+
+    #[test]
+    fn opencode_is_idle_event__status_busy__false() {
+        assert!(!opencode_is_idle_event("session.status", Some("busy")));
+    }
+
+    #[test]
+    fn opencode_is_idle_event__status_done__false() {
+        assert!(!opencode_is_idle_event("session.status", Some("done")));
+    }
+
+    #[test]
+    fn agy_wrapper_script_body__some_path__contains_baked() {
+        let fake = Path::new(r"C:\fake\ai-brains.exe");
+        let body = agy_wrapper_script_body(Some(fake));
+        assert!(
+            body.contains(r"$aiExe = 'C:\fake\ai-brains.exe'"),
+            "baked single-quoted path missing: {body}"
+        );
+        assert!(body.contains("Test-Path"));
+        assert!(body.contains("& $aiExe 'agy-hook'"));
+    }
+
+    #[test]
+    fn agy_wrapper_script_body__none__get_command_fallback() {
+        let body = agy_wrapper_script_body(None);
+        assert!(body.contains("Get-Command ai-brains"));
+        assert!(!body.contains(r"$aiExe = 'C:\fake\ai-brains.exe'"));
+        assert!(!body.contains("const bakedCli"));
+    }
+
+    #[test]
+    fn grok_wrapper_script_body__some_path__contains_baked() {
+        let fake = Path::new(r"C:\fake\ai-brains.exe");
+        let body = grok_wrapper_script_body(Some(fake));
+        assert!(
+            body.contains(r"$aiExe = 'C:\fake\ai-brains.exe'"),
+            "baked single-quoted path missing: {body}"
+        );
+        assert!(body.contains("Test-Path"));
+        assert!(body.contains("& $aiExe 'grok-hook'"));
+    }
+
+    #[test]
+    fn grok_wrapper_script_body__none__get_command_fallback() {
+        let body = grok_wrapper_script_body(None);
+        assert!(body.contains("Get-Command ai-brains"));
+        assert!(!body.contains(r"$aiExe = 'C:\fake\ai-brains.exe'"));
+    }
+
+    #[test]
+    fn opencode_plugin_js_body__some_path__contains_baked() {
+        let fake = Path::new(r"C:\fake\ai-brains.exe");
+        let body = opencode_plugin_js_body(Some(fake));
+        let expected = serde_json::to_string(r"C:\fake\ai-brains.exe").expect("json");
+        assert!(
+            body.contains(&format!("const bakedCli = {expected};")),
+            "baked JSON path missing: {body}"
+        );
+        assert!(body.contains(r#"bakedCli || "ai-brains""#));
+        assert!(
+            body.contains(r#"spawn("opencode", ["export""#),
+            "must not bake the opencode export spawn"
+        );
+        assert!(body.contains("// AI-Brains managed (T238)"));
+    }
+
+    #[test]
+    fn opencode_plugin_js_body__none__spawn_ai_brains() {
+        let body = opencode_plugin_js_body(None);
+        assert!(
+            body.contains(
+                r#"spawn(
+                "ai-brains","#
+            ) || body.contains(r#"spawn("ai-brains""#),
+            "None bake must PATH-spawn ai-brains; got spawn site missing"
+        );
+        assert!(!body.contains("const bakedCli"));
+        assert!(body.contains("// AI-Brains managed (T238)"));
+    }
+
+    #[test]
+    fn grok_command_line__no_dollar() {
+        let cmd = grok_command_line(Path::new(r"C:\Users\t\.ai-brains\hooks\grok-capture.ps1"));
+        assert!(cmd.contains("powershell.exe"));
+        assert!(cmd.contains("-File"));
+        assert!(!cmd.contains('$'), "AC6 no dollar in command: {cmd}");
+    }
+
+    #[test]
+    fn install_agy__with_cli_dir__writes_ide_and_bundle_not_toplevel() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cli = home.join(".gemini").join("antigravity-cli");
+        std::fs::create_dir_all(&cli).expect("mkdir cli");
+
+        let out = install_agy(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+
+        let ide = agy_ide_hooks_path(home);
+        assert!(ide.is_file(), "IDE config/hooks.json must exist");
+        let raw = std::fs::read_to_string(&ide).expect("read ide");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        assert!(v.get("ai-brains-capture").is_some());
+
+        let bundle = agy_cli_plugin_dir(home).expect("bundle dir");
+        let plugin_json = bundle.join("plugin.json");
+        let bundle_hooks = bundle.join("hooks.json");
+        assert!(plugin_json.is_file());
+        assert!(bundle_hooks.is_file());
+
+        let plugin: Value =
+            serde_json::from_str(&std::fs::read_to_string(&plugin_json).expect("plugin"))
+                .expect("plugin json");
+        let name = plugin["name"].as_str().expect("name");
+        assert_eq!(name, "ai-brains-capture");
+        assert!(
+            name.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+            "AC19 name must match ^[a-zA-Z0-9-_]+$: {name}"
+        );
+        assert_eq!(
+            plugin["$schema"].as_str(),
+            Some("https://antigravity.google/schemas/v1/plugin.json")
+        );
+
+        let bundle_v: Value =
+            serde_json::from_str(&std::fs::read_to_string(&bundle_hooks).expect("hooks"))
+                .expect("bundle hooks json");
+        let ide_cmd = v["ai-brains-capture"]["Stop"][0]["command"]
+            .as_str()
+            .expect("ide cmd");
+        let bundle_cmd = bundle_v["ai-brains-capture"]["Stop"][0]["command"]
+            .as_str()
+            .expect("bundle cmd");
+        assert_eq!(ide_cmd, bundle_cmd, "bundle Stop command must match IDE");
+
+        assert!(
+            !cli.join("hooks.json").exists(),
+            "must not write undocumented top-level antigravity-cli/hooks.json"
+        );
+        assert_eq!(
+            super::super::wiring::probe_wiring(HarnessId::Agy, home, true),
+            super::super::wiring::WiringStatus::Ok
+        );
+    }
+
+    #[test]
+    fn install_agy__without_cli_dir__only_ide_config() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let out = install_agy(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        assert!(agy_ide_hooks_path(home).is_file());
+        assert!(agy_wrapper_path(home).is_file());
+        assert!(
+            !home.join(".gemini").join("antigravity-cli").exists(),
+            "must not create antigravity-cli"
+        );
+        assert!(
+            !home
+                .join(".gemini")
+                .join("antigravity-cli")
+                .join("plugins")
+                .exists()
+        );
+        assert!(agy_cli_plugin_dir(home).is_none());
+    }
+
+    #[test]
+    fn uninstall_agy__removes_bundle_keeps_sibling_plugin() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cli = home.join(".gemini").join("antigravity-cli");
+        let sibling = cli.join("plugins").join("other-plugin");
+        std::fs::create_dir_all(&sibling).expect("mkdir sibling");
+        std::fs::write(sibling.join("plugin.json"), br#"{"name":"other-plugin"}"#)
+            .expect("sibling plugin");
+
+        install_agy(home, false).expect("install");
+        let hooks = agy_ide_hooks_path(home);
+        let mut map = load_hooks_map(&hooks).expect("load");
+        map.insert("foreign".to_string(), serde_json::json!({"Stop":[]}));
+        let body = serde_json::to_string_pretty(&Value::Object(map)).unwrap();
+        atomic_write_str(&hooks, &body).unwrap();
+
+        let out = uninstall_agy(home, false).expect("uninstall");
+        assert!(matches!(out, UninstallOutcome::Removed { .. }));
+
+        let raw = std::fs::read_to_string(&hooks).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        assert!(v.get("ai-brains-capture").is_none());
+        assert!(v.get("foreign").is_some());
+        assert!(!agy_wrapper_path(home).exists());
+
+        let bundle = cli.join("plugins").join("ai-brains-capture");
+        assert!(!bundle.exists(), "our bundle dir must be removed");
+        assert!(sibling.is_dir(), "sibling plugin must remain");
+        assert!(
+            sibling.join("plugin.json").is_file(),
+            "sibling plugin.json must remain"
+        );
+        assert!(cli.is_dir(), "must not delete antigravity-cli");
+        assert!(!cli.join("hooks.json").exists());
     }
 
     fn walk_files(root: &Path) -> Vec<PathBuf> {

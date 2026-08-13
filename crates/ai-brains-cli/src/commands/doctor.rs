@@ -782,42 +782,71 @@ fn check_harness_wiring() -> HealthCheck {
             "no coding harnesses detected on this machine",
         );
     }
-    let missing: Vec<&str> = present
+    HealthCheck::ok_msg(
+        "harness_wiring",
+        doctor_harness_wiring_message(&report.harnesses),
+    )
+}
+
+/// F6 / AC8 / AC9: ready vs pending doctor copy. Soft message only.
+///
+/// Uses literal `T253` (do not call `HarnessId::pending_track()`, which still says T239+).
+pub(crate) fn doctor_harness_wiring_message(statuses: &[crate::harness::HarnessStatus]) -> String {
+    let present: Vec<&crate::harness::HarnessStatus> =
+        statuses.iter().filter(|h| h.present).collect();
+    if present.is_empty() {
+        return "no coding harnesses detected on this machine".to_string();
+    }
+
+    let ready_missing: Vec<&str> = present
         .iter()
-        .filter(|h| {
-            matches!(
-                h.wiring,
-                crate::harness::WiringStatus::Missing
-                    | crate::harness::WiringStatus::Partial
-                    | crate::harness::WiringStatus::Unknown
-            )
-        })
+        .filter(|h| h.install_ready && h.wiring != crate::harness::WiringStatus::Ok)
         .map(|h| h.id.as_str())
         .collect();
-    let ok_count = present
+    let pending_present: Vec<&str> = present
         .iter()
-        .filter(|h| h.wiring == crate::harness::WiringStatus::Ok)
+        .filter(|h| !h.install_ready)
+        .map(|h| h.id.as_str())
+        .collect();
+    let ok_ready = present
+        .iter()
+        .filter(|h| h.install_ready && h.wiring == crate::harness::WiringStatus::Ok)
         .count();
-    if missing.is_empty() {
-        HealthCheck::ok_msg(
-            "harness_wiring",
-            format!(
-                "{ok_count}/{} harness(es) wired; message-only capture",
-                present.len()
-            ),
-        )
-    } else {
-        // Still Ok severity (info-level message) — never degrade for missing hooks.
-        HealthCheck::ok_msg(
-            "harness_wiring",
-            format!(
-                "{} present, {} missing AI-Brains wiring ({}); next: ai-brains harness status",
-                present.len(),
-                missing.len(),
-                missing.join(", ")
-            ),
-        )
+    let ready_present = present.iter().filter(|h| h.install_ready).count();
+
+    if !ready_missing.is_empty() {
+        let mut msg = format!(
+            "{ok_ready}/{ready_present} ready wired, {} ready missing ({}); next: ai-brains harness install --harness all-ready --dry-run",
+            ready_missing.len(),
+            ready_missing.join(", ")
+        );
+        if !pending_present.is_empty() {
+            msg.push_str(&format!(
+                " {} backend pending (T253): {}",
+                pending_present.len(),
+                pending_present.join(", ")
+            ));
+        }
+        return msg;
     }
+
+    if ready_present == 0 {
+        return format!(
+            "{} backend pending (T253): {}",
+            pending_present.len(),
+            pending_present.join(", ")
+        );
+    }
+
+    if !pending_present.is_empty() {
+        return format!(
+            "{ok_ready}/{ready_present} ready wired ({} pending backend support: {})",
+            pending_present.len(),
+            pending_present.join(", ")
+        );
+    }
+
+    format!("{ok_ready}/{ready_present} ready wired; message-only capture")
 }
 
 /// Soft compile-time graph capability signal (T222 F9). Always Ok severity —
@@ -1536,5 +1565,80 @@ mod tests {
         let err = build_report(&opts, false).expect_err("format");
         let msg = err.to_string();
         assert!(msg.starts_with("Vault key invalid format:"), "got {msg}");
+    }
+
+    fn dummy_harness_status(
+        id: &str,
+        present: bool,
+        install_ready: bool,
+        wiring: crate::harness::WiringStatus,
+    ) -> crate::harness::HarnessStatus {
+        crate::harness::HarnessStatus {
+            id: id.to_string(),
+            display_name: id.to_string(),
+            present,
+            binary: None,
+            home_path: None,
+            wiring,
+            install_ready,
+            targets: vec!["dummy".into()],
+            next_action: "dummy".into(),
+        }
+    }
+
+    #[test]
+    fn doctor_harness_wiring_message__separates_ready_from_pending() {
+        use crate::harness::WiringStatus;
+        let statuses = vec![
+            dummy_harness_status("grok", true, true, WiringStatus::Missing),
+            dummy_harness_status("agy", true, true, WiringStatus::Missing),
+            dummy_harness_status("opencode", true, true, WiringStatus::Partial),
+            dummy_harness_status("claude", true, false, WiringStatus::Missing),
+            dummy_harness_status("codex", true, false, WiringStatus::Unknown),
+        ];
+        let msg = doctor_harness_wiring_message(&statuses);
+        assert!(
+            msg.contains("0/3 ready wired, 3 ready missing (grok, agy, opencode)"),
+            "ready-missing listed separately; got {msg}"
+        );
+        assert!(
+            msg.contains("ai-brains harness install --harness all-ready --dry-run"),
+            "next SOOT must be exact all-ready dry-run; got {msg}"
+        );
+        assert!(
+            msg.contains("2 backend pending (T253): claude, codex"),
+            "pending must be T253, not lumped as installable; got {msg}"
+        );
+        assert!(
+            !msg.contains("5 missing"),
+            "must not treat Claude/Codex as installable missing; got {msg}"
+        );
+    }
+
+    #[test]
+    fn doctor_harness_wiring_message__ready_ok_pending__not_missing_wiring() {
+        use crate::harness::WiringStatus;
+        let statuses = vec![
+            dummy_harness_status("grok", true, true, WiringStatus::Ok),
+            dummy_harness_status("agy", true, true, WiringStatus::Ok),
+            dummy_harness_status("opencode", true, true, WiringStatus::Ok),
+            dummy_harness_status("claude", true, false, WiringStatus::Missing),
+            dummy_harness_status("codex", true, false, WiringStatus::Unknown),
+        ];
+        let msg = doctor_harness_wiring_message(&statuses);
+        assert!(
+            msg.contains("3/3 ready wired"),
+            "ready backends are wired; got {msg}"
+        );
+        assert!(
+            msg.contains("2 pending backend support: claude, codex"),
+            "F6 all-ok+pending branch (no T253 token on this arm); got {msg}"
+        );
+        assert!(
+            !msg.contains("missing wiring")
+                && !msg.contains("ready missing")
+                && !msg.contains("5 missing"),
+            "must not say missing wiring for grok/agy/opencode; got {msg}"
+        );
     }
 }

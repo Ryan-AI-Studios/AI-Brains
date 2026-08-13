@@ -479,7 +479,7 @@ enum Commands {
     /// Detect and install harness capture hooks (user-global, message-only)
     #[command(
         display_order = 52,
-        after_help = "Examples:\n  ai-brains harness status\n  ai-brains harness status --format json\n  ai-brains harness install --harness agy --dry-run\n  ai-brains harness install --harness agy --yes\n  ai-brains harness uninstall --harness agy --yes\n  ai-brains harness reset-decline --harness all"
+        after_help = "Examples:\n  ai-brains harness status\n  ai-brains harness status --format json\n  ai-brains harness install --harness agy --dry-run\n  ai-brains harness install --harness all-ready --dry-run\n  ai-brains harness install --harness agy --yes\n  ai-brains harness uninstall --harness agy --yes\n  ai-brains harness reset-decline --harness all"
     )]
     Harness {
         #[command(subcommand)]

@@ -71,6 +71,16 @@ ai-brains antigravity-import --days 30 --force
 
 Detect which coding harnesses are **installed on this machine** (not “active this session”) and install message-only capture wiring into **user-global** paths.
 
+**Activation (T245)** — ready backends (grok → agy → opencode) in one pass. Non-TTY agents must pass `--yes`. `all-ready` skips Claude/Codex (pending T253).
+
+```powershell
+ai-brains harness install --harness all-ready --dry-run
+ai-brains harness install --harness all-ready --yes
+ai-brains harness status
+```
+
+Re-run `harness install` after `cargo install` / a CLI upgrade so baked wrapper and OpenCode `ai-brains` spawn paths update.
+
 ```powershell
 ai-brains harness status
 ai-brains harness status --format json
@@ -88,11 +98,11 @@ ai-brains harness reset-decline --harness all
 |---------|--------|---------------|
 | grok | PATH `grok` or `~/.grok` | **Yes (T237)** — Stop+SessionEnd → wrapper (**empty** stdout) → `grok-hook` |
 | agy | PATH `agy` or `~/.gemini/...` | **Yes** — Stop → wrapper (allow-stop JSON stdout) → `agy-hook` |
-| opencode | PATH / `~/.config/opencode` (or `OPENCODE_CONFIG_DIR`) | **Yes (T238)** — managed plugin `session.idle` → `opencode-hook` |
-| claude | PATH / `~/.claude` | Pending (T239+) |
-| codex | PATH / `~/.codex` | Pending (T239+) |
+| opencode | PATH / `~/.config/opencode` (or `OPENCODE_CONFIG_DIR`) | **Yes (T238)** — managed plugin `session.idle` **or** idle `session.status` → `opencode-hook` |
+| claude | PATH / `~/.claude` | Pending (T253) |
+| codex | PATH / `~/.codex` | Pending (T253) |
 
-AGY writer merges only the managed key `ai-brains-capture` into `%USERPROFILE%\.gemini\config\hooks.json` and writes `%USERPROFILE%\.ai-brains\hooks\agy-stop.ps1`. Foreign hooks are preserved; corrupt JSON refuses rewrite (exit 1).
+AGY writer **always** merges managed key `ai-brains-capture` into `%USERPROFILE%\.gemini\config\hooks.json` (creates `config/` only) and writes `%USERPROFILE%\.ai-brains\hooks\agy-stop.ps1`. **Iff** `%USERPROFILE%\.gemini\antigravity-cli` already exists, also stage the CLI plugin bundle `%USERPROFILE%\.gemini\antigravity-cli\plugins\ai-brains-capture\{plugin.json,hooks.json}` (same Stop command as IDE). Never create `antigravity-cli` just to host plugins. Never write undocumented top-level `antigravity-cli\hooks.json`. Uninstall removes the managed IDE key only (foreign keys stay; empty `{}` left if last) and deletes **only** `plugins\ai-brains-capture\` — not `antigravity-cli` or sibling plugins. Foreign IDE hooks are preserved; corrupt JSON refuses rewrite (exit 1). PATH bake: wrappers + OpenCode `ai-brains` spawn use the installing exe absolute path with PATH fallback.
 
 Grok writer creates `%USERPROFILE%\.grok\hooks\ai-brains.json` (dedicated file; sibling `*.json` preserved) and `%USERPROFILE%\.ai-brains\hooks\grok-capture.ps1`. Command line is absolute PowerShell `-File` with **no `$`**. **Grok Stop allow contract:** exit 0 with **empty host stdout** — never emit AGY-style `{"decision":"allow"}` (undefined for Grok Stop). Wrapper captures `grok-hook` stdout to stderr only. Vault is **not** required for `harness` subcommands.
 
@@ -105,7 +115,7 @@ ai-brains grok-import --days 30 --force
 
 **Grok session layout:** `~/.grok/sessions/<percent-encoded-cwd>/<sessionId>/chat_history.jsonl` (+ sibling `summary.json` for bind). Never ingest `updates.jsonl`. User rows kept only when content has non-empty `<user_query>`/`<USER_REQUEST>` body; subagent/worktree sessions skipped by default.
 
-OpenCode writer creates `%USERPROFILE%\.config\opencode\plugins\ai-brains-capture.js` (or `$env:OPENCODE_CONFIG_DIR\plugins\`). Marker must be on the **first non-empty line** (`// AI-Brains managed (T238)`). **Never** rewrites `opencode.json(c)`; **never** deletes foreign plugins; refuse overwrite of same-name file without our header marker. Plugin: `session.idle` → `client.session.get` (fail-closed skip if get throws; parentID skip) → in-flight guard → `client.session.messages` temp export → `ai-brains opencode-hook` via PATH → **unlink temp files**. Fail-open into OpenCode (never throw). Batch backstop does not require the plugin.
+OpenCode writer creates `%USERPROFILE%\.config\opencode\plugins\ai-brains-capture.js` (or `$env:OPENCODE_CONFIG_DIR\plugins\`). Marker must be on the **first non-empty line** (`// AI-Brains managed (T238)` — do not bump the marker). **Never** rewrites `opencode.json(c)`; **never** deletes foreign plugins; refuse overwrite of same-name file without our header marker. Plugin dual-subscribe: `session.idle` **or** `session.status` with `status.type == "idle"` (exact; no aliases). `session.idle` is **not** deprecated — dual-subscribe is resilience. Then `client.session.get` (fail-closed skip if get throws; parentID skip) → shared in-flight guard → `client.session.messages` temp export → `ai-brains opencode-hook` (baked exe path, PATH fallback) → **unlink temp files**. Fail-open into OpenCode (never throw). Batch backstop does not require the plugin.
 
 ```powershell
 ai-brains harness install --harness opencode --dry-run
@@ -117,7 +127,7 @@ ai-brains opencode-import --days 7 --max-sessions 100
 
 **OpenCode content SOOT:** nested export `{info,messages}` with message-only filter (drop tool/reasoning/step/snapshot/patch/file/subtask/agent/retry/compaction + synthetic/ignored/editor_context parts). **Never open `opencode.db`**. Watermark: `~/.ai-brains/opencode-import-cursor.json` (corrupt JSON → `cursor_corrupt` warn + empty start; optional additive `last_msg_id`). Missing `opencode` binary → soft skip. Child sessions (`parentID`) skipped. List length ≥100 (vendor default) or at requested cap → `list_capped` stderr warn. Export/list subprocesses killed on 120s timeout.
 
-Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks).
+Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks). Splits ready-missing (grok/agy/opencode unwired) from T253 pending (claude/codex); next-action is `ai-brains harness install --harness all-ready --dry-run`. Severity remains soft ok.
 
 ### `agy` Hook
 Real-time capture from the Antigravity CLI hooks integration:
@@ -135,7 +145,7 @@ ai-brains grok-hook --schema
 `historyPath` may be empty — Rust resolves via `GROK_HOME`/`~/.grok` + percent-encode + `.cwd` + `summary.info.id` fallbacks. Diagnostics on **stderr**. Env `AI_BRAINS_PROJECT_ID` only when project is `grok-unbound`/empty.
 
 ### `opencode` Hook
-Real-time capture from the OpenCode managed plugin (`session.idle`):
+Real-time capture from the OpenCode managed plugin (`session.idle` **or** idle `session.status`):
 ```powershell
 ai-brains opencode-hook --payload '{"sessionId":"ses_abc","directory":"C:\\dev\\AI-Brains","worktree":"C:\\dev\\AI-Brains","messagesPath":"C:\\Temp\\oc.json","event":"session.idle"}'
 ai-brains opencode-hook --schema

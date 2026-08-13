@@ -110,14 +110,20 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                     }
                     println!("  command: {}", plan.command_line);
                     match id {
-                        HarnessId::Agy => println!("  {}", f34_map_contract_summary()),
+                        HarnessId::Agy => {
+                            if let Some(dir) = crate::harness::install::agy_cli_plugin_dir(&home) {
+                                println!("  plugin:  {}", dir.join("plugin.json").display());
+                                println!("  bundle:  {}", dir.join("hooks.json").display());
+                            }
+                            println!("  {}", f34_map_contract_summary());
+                        }
                         HarnessId::Grok => println!(
                             "  {}",
                             crate::harness::install::grok_stop_stdout_contract_summary()
                         ),
                         HarnessId::Opencode => {
                             println!(
-                                "  note: managed plugin session.idle → opencode-hook (no opencode.json rewrite)"
+                                "  note: managed plugin session.idle or session.status idle → opencode-hook (no opencode.json rewrite)"
                             );
                         }
                         _ => {}
@@ -318,10 +324,23 @@ pub fn run_reset_decline(opts: HarnessResetDeclineOptions) -> GovernedResult {
     Ok(())
 }
 
-fn resolve_harness_list(raw: Option<&str>) -> Result<Vec<HarnessId>, Box<dyn std::error::Error>> {
+/// Ready backends in `HARNESS_ORDER` (F1 / F5) — grok, agy, opencode; no extra sort.
+fn ready_harness_ids() -> Vec<HarnessId> {
+    HARNESS_ORDER
+        .iter()
+        .copied()
+        .filter(|id| id.install_ready())
+        .collect()
+}
+
+/// Resolve `--harness` list tokens. `all-ready` is matched before parse (F5).
+pub(crate) fn resolve_harness_list(
+    raw: Option<&str>,
+) -> Result<Vec<HarnessId>, Box<dyn std::error::Error>> {
     match raw {
         None => Ok(vec![]),
         Some("all") => Ok(HARNESS_ORDER.to_vec()),
+        Some("all-ready") => Ok(ready_harness_ids()),
         Some(s) => Ok(vec![parse_harness_id_or_usage(s)?]),
     }
 }
@@ -442,6 +461,40 @@ mod tests {
             .downcast_ref::<governed_common::GovernedCliError>()
             .expect("GovernedCliError");
         assert_eq!(g.exit_code, governed_common::EXIT_USAGE);
+    }
+
+    #[test]
+    fn parse_unknown_harness__allready__usage_exit_code() {
+        let err = parse_harness_id_or_usage("allready").expect_err("must fail");
+        let g = err
+            .downcast_ref::<governed_common::GovernedCliError>()
+            .expect("GovernedCliError");
+        assert_eq!(g.exit_code, governed_common::EXIT_USAGE);
+    }
+
+    #[test]
+    fn resolve_harness_list__all_ready__returns_grok_agy_opencode() {
+        let ids = resolve_harness_list(Some("all-ready")).expect("all-ready");
+        assert_eq!(
+            ids,
+            vec![HarnessId::Grok, HarnessId::Agy, HarnessId::Opencode]
+        );
+    }
+
+    #[test]
+    fn resolve_harness_list__all__returns_five_ids() {
+        let ids = resolve_harness_list(Some("all")).expect("all");
+        assert_eq!(ids.as_slice(), HARNESS_ORDER);
+        assert_eq!(ids.len(), 5);
+    }
+
+    #[test]
+    fn parse_harness_id__all_ready__err() {
+        let err = parse_harness_id("all-ready").expect_err("list token is not a HarnessId");
+        assert!(
+            err.contains("unknown harness"),
+            "expected unknown-harness usage, got {err}"
+        );
     }
 
     #[test]

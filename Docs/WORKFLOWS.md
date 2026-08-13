@@ -201,6 +201,43 @@ What you should see:
 
 ---
 
+## Activate harness capture
+
+Goal: wire ready coding harnesses (grok, agy, opencode) for message-only
+capture. User-global only — never repo-local hooks.
+
+```powershell
+# 1. Preview writes (zero files created).
+ai-brains harness install --harness all-ready --dry-run
+
+# 2. Install (non-TTY agents must pass --yes).
+ai-brains harness install --harness all-ready --yes
+
+# 3. Confirm grok / agy / opencode report wiring=ok.
+ai-brains harness status
+
+# 4. Doctor should not list grok/agy/opencode as ready-missing.
+ai-brains doctor
+```
+
+What you should see:
+
+- Dry-run prints three plans (grok → agy → opencode) and writes nothing.
+- After `--yes`, `harness status` shows those three **ok**. Claude/Codex
+  stay pending (T253) — `all-ready` skips them.
+- `doctor` `harness_wiring` (soft ok) splits ready-missing vs T253 pending.
+  After a successful install it should not list grok/agy/opencode as
+  ready-missing; next-action is `all-ready --dry-run` only while ready
+  backends are still unwired.
+- **C7:** writes stay user-global (`~/.grok/hooks`, `~/.gemini/config`,
+  optional `~/.gemini/antigravity-cli/plugins/ai-brains-capture/` iff
+  that CLI home already exists, `~/.config/opencode/plugins`,
+  `~/.ai-brains/hooks`). No repo `.grok/hooks`.
+
+Re-run install after `cargo install` so baked `ai-brains` paths update.
+
+---
+
 ## 5. Find something
 
 Goal: pick the right search command for vault-only vs vault+ledger vs governed conclusions, human vs agent.
