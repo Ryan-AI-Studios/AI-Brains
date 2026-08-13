@@ -472,6 +472,21 @@ fn graph_hierarchy_session__missing_wrong_kind_empty__f3_copy() {
     let missing_out = String::from_utf8_lossy(&missing.stdout);
     assert!(missing_out.contains("No graph node"));
 
+    let missing_session = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("session")
+        .arg("00000000-0000-0000-0000-000000000000")
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("session missing");
+    let missing_session_out = String::from_utf8_lossy(&missing_session.stdout);
+    assert!(
+        missing_session_out.contains("No graph node"),
+        "session missing must say No graph node; got: {missing_session_out}"
+    );
+    assert!(missing_session_out.contains("next: ai-brains graph update"));
+
     let wrong_h = common::hermetic_vault(&vault)
         .arg("graph")
         .arg("hierarchy")
