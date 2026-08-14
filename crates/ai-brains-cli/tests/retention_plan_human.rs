@@ -241,3 +241,37 @@ fn retention_apply__confirm_format_json_and_human__empty_fixture() {
         "apply human title missing; got:\n{human_stdout}"
     );
 }
+
+#[test]
+fn retention_apply__confirm_format_auto__pretty_json_not_human() {
+    let _env = isolate_retention_env();
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("retention")
+        .arg("apply")
+        .arg("--confirm")
+        .arg("--format")
+        .arg("auto")
+        .output()
+        .expect("retention apply --confirm --format auto");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "apply --format auto must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !stdout.contains("Retention apply"),
+        "apply auto must not TTY-switch to human; got:\n{stdout}"
+    );
+    let v = parse_pretty_json_object(&stdout);
+    assert_eq!(v["api_version"], "1");
+    assert_eq!(v["mode"], "apply");
+}
