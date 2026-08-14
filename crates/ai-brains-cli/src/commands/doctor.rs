@@ -1149,7 +1149,7 @@ mod tests {
             HealthCheck::warn(
                 "graph_density",
                 "sparse",
-                Some("ai-brains graph rebuild".into()),
+                Some("see graph density remediation".into()),
             ),
             HealthCheck::ok_msg("harness_wiring", "ok"),
             HealthCheck::ok_msg("project_identity", "ok"),
