@@ -171,7 +171,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Harness wiring=missing | ~~**T245**~~ ✅ **Completed** 2026-08-12 PR #155 `f05e2f6` — `all-ready`; AGY IDE + CLI plugin bundle (not top-level CLI hooks.json); PATH bake; S12 idle+status; doctor ready-vs-pending. Soft residual only: `pending_track` still T239+; doctor message helper-only |
 | Graph neighbors JSON-only | ~~**T246**~~ ✅ **Completed** 2026-08-13 PR #159 `06cdcde` — TTY pretty; frozen JSON keys; crate `*_with_depth`; F9 sort in PROTOCOL-COMPAT. Soft residual only: F17 tree/mermaid/TTY-auto update/batch `node_kinds`; F18 projector completeness; F19 T213 F31 freshness |
 | Nightly status latency + Last Result 101 | ~~**T247**~~ ✅ **Completed** 2026-08-13 PR #157 `43191ff` — `--quick`; parallel 750ms; LIST/V honesty; live missing `.cmd` named. Soft residual only: F11–F16 → **T255** |
-| Retention plan human | **T248** Placeholder |
+| Retention plan human | ~~**T248**~~ ✅ **Completed** 2026-08-14 PR #161 `c633781` — TTY `auto` human; JSON keys frozen; `memory_legacy` → `skip`; apply default JSON. Soft residual only: F16–F18 |
 | Scope/daemon/doctor presentation | **T249** Placeholder |
 | Preflight pretty density (T219 residual) | **T250** Placeholder |
 | device status missing | **T251** Placeholder |
@@ -180,7 +180,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T247 Completed.** Remaining tracks plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T248 Completed.** Remaining tracks plan-only until go.
 
 ### T238 soft residuals (2026-08-09)
 
