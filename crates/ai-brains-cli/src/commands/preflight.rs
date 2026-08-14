@@ -377,9 +377,13 @@ pub(crate) fn strip_pretty_chrome(line: &str) -> &str {
     {
         let inner = &rest[..close];
         if inner.chars().count() <= 32 {
-            let after = rest[close + 1..].trim_start();
-            if super::display_text::has_leading_role_prefix(after) {
-                return super::display_text::strip_role_prefix(after);
+            let after_paren = &rest[close + 1..];
+            // F5: `)` then whitespace then a leading role token (fail-closed).
+            if after_paren.starts_with(|c: char| c.is_whitespace()) {
+                let after = after_paren.trim_start();
+                if super::display_text::has_leading_role_prefix(after) {
+                    return super::display_text::strip_role_prefix(after);
+                }
             }
         }
     }
@@ -1917,6 +1921,14 @@ ASSISTANT: turn 2 content for session 2";
         assert_eq!(inner.chars().count(), 33);
         let line = format!("({inner}) ASSISTANT: x");
         assert_eq!(strip_pretty_chrome(&line), line.as_str());
+    }
+
+    #[test]
+    fn strip_pretty_chrome__no_whitespace_after_paren__fail_closed() {
+        assert_eq!(
+            strip_pretty_chrome("(note)ASSISTANT: body"),
+            "(note)ASSISTANT: body"
+        );
     }
 
     #[test]

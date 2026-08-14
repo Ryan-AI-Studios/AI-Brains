@@ -420,7 +420,8 @@ fn preflight_pretty__long_session_recent__line_capped_140() {
         .lines()
         .find(|l| {
             l.contains("T250SEEDLONG")
-                && !(l.trim().chars().next().is_some_and(|c| c.is_ascii_digit()) && l.contains(". "))
+                && !(l.trim().chars().next().is_some_and(|c| c.is_ascii_digit())
+                    && l.contains(". "))
         })
         .expect("seed Recent/Session display line");
     assert!(
@@ -440,11 +441,10 @@ fn preflight_pretty__long_session_recent__line_capped_140() {
         stdout.contains("Scope:"),
         "AC10 Scope still present; got:\n{stdout}"
     );
-    for line in stdout.lines() {
-        if line.trim().starts_with("ASSISTANT:") {
-            panic!("AC10: no display line may begin with ASSISTANT:; got {line}\n{stdout}");
-        }
-    }
+    assert!(
+        !stdout.lines().any(|l| l.trim().starts_with("ASSISTANT:")),
+        "AC10: no display line may begin with ASSISTANT:; got:\n{stdout}"
+    );
 }
 
 // ---------------------------------------------------------------------------
