@@ -229,12 +229,15 @@ Missing `--project-id` / `AI_BRAINS_PROJECT_ID` on `query progressive` and `quer
 
 Thin CLI over control-plane (local default for reads) and named-pipe daemon (preferred for mutations). JSON default for new commands.
 
+**Scope resolve (T249):** default `--format auto` is TTY human (`scope:` / `confidence:` / evidence) and pipe JSON. Scripts should pass `--format json`. Tokens are case-sensitive (`JSON` / `Pretty` exit **2**). When the human report is not authoritative, last line may be `next: ai-brains project whoami`.
+
 **Exit codes (normative 0–7):** see **[CLI-EXIT-CODES.md](CLI-EXIT-CODES.md)**. Quick map: 0 success / status / doctor ok|degraded; 1 internal / vault key / doctor fail; 2 clap usage + `FEATURE_UNAVAILABLE`; 3 `POLICY_DENIED` / `APPROVAL_REQUIRED`; 4 `NOT_FOUND`; 5 daemon unavailable; 6 `INVALID_PAYLOAD`; 7 hard-gate failed. Missing required `--scope` on clap-required commands exits **2** (not 6).
 
 **Error envelopes (format-dependent):** governed Json → bare `ApiError` on **stdout**; governed Human → `CODE: message` on **stderr**; generic failures → full `ApiResult` on **stderr**.
 
 ```powershell
-ai-brains scope resolve --format json
+ai-brains scope resolve                 # TTY: human
+ai-brains scope resolve --format json   # scripts: pretty JSON
 # Discovery (T203) — list before show; soft-fill --scope when context is authoritative
 ai-brains source list --format json
 ai-brains source list --scope Repository:<uuid> --format json
@@ -513,6 +516,7 @@ ai-brains daemon install           # install as Windows service (requires elevat
 ai-brains daemon uninstall         # remove the Windows service (requires elevation)
 ```
 - **`daemon status` vault independence (T199):** Status answers “is the daemon process / IPC up?” via a single-shot Ping→Pong probe. It does **not** require `--key` / `AI_BRAINS_KEY`, does **not** open or migrate the vault for liveness, and exits **0** for both Running and Stopped. Optional `--vault-path` when Running prints path + size (filesystem metadata only); pinned memory count is attempted only if a key is available — otherwise `Memories: skipped (vault key missing or vault not openable)`.
+- **`daemon status` next-step (T249):** When Stopped, last line is `next: ai-brains daemon start`. When Running, `next:` is omitted. No `--format`. Exit **0** both states. Status remains keyless liveness — it does **not** start or stop the daemon and does **not** detect the Windows service.
 - **Governed IPC (T159/T165):** propose/resolve/erasure-ticket/wipe mutations go through the writer queue; scope/briefing/query/inspect are off-queue reads. Spool durable crash recovery for governed mutations **only** when the request includes `command_id` (filename `{op}_{sanitized_command_id}.json`). Briefings over the daemon are dry-run. Ticket erasure returns `accepted` only after a durable `ErasureTicketAccepted` event (still **not** CE). Content-envelope wipe is `WipeContentEnvelope` / HTTP `POST /v1/erasure/wipe` (dry-run default; execute needs `confirm=true`). Principal: wire `principal_id` UUID → System if well-known CLI System UUID, else Human; if wire omitted, `AI_BRAINS_DAEMON_PRINCIPAL_ID`, else System default. CLI always passes resolved `principal_id` on daemon wire (T160). Production policy only (`production_policy`).
 - **Loopback HTTP API (T161):** optional authenticated REST surface under `/v1` that reuses the same `handle_daemon_request` path as named-pipe IPC (no second writer). **Default off.** Enable with `AI_BRAINS_HTTP=1` or `ai-brainsd --http`. Binds `127.0.0.1:7432` by default (`AI_BRAINS_HTTP_PORT`). Bearer token lives at `%USERPROFILE%\.ai-brains\http.token` (created on first enable; path logged, token never printed). Owner-only Windows ACL `D:P(A;;FA;;;OW)`. All data routes require `Authorization: Bearer <token>`; `GET /health` and `GET /v1/health` are unauthenticated liveness only (`{"status":"ok"}`). Non-loopback bind requires **both** `--http-bind <addr>` and `AI_BRAINS_HTTP_ALLOW_NON_LOOPBACK=1`. CORS is deny-by-default (no `Access-Control-Allow-Origin: *`). Body limit 1 MiB → HTTP 413. Loopback is **not** zero-trust — always use bearer auth; do not expose without reverse-proxy/mTLS planning (out of scope for v1). Mutations accept optional `X-Command-Id` when the JSON body omits `command_id`. If HTTP is explicitly enabled and bind/token start fails, the daemon **hard-fails** (does not continue as if HTTP were up). Post-spawn serve death is logged only (bind already succeeded). Interactive `ai-brainsd --http` is unchanged by T195.
 - **HTTP under Windows LocalSystem service (T195 F10 / R-HTTP-SYS):** When `ai-brainsd` runs as the **Windows service** (`LocalSystem` / Session 0), the service host **refuses to start HTTP** unless `AI_BRAINS_HTTP_SERVICE` is truthy (`1`/`true`/`yes` — same set as `AI_BRAINS_HTTP`). If `AI_BRAINS_HTTP` would enable HTTP but the opt-in is missing, the service **logs a warn, skips HTTP, and continues named-pipe IPC**. When opted in, `%USERPROFILE%` is the **SYSTEM profile**, so `http.token` is SYSTEM-owned with an owner-only ACL — **Interactive desktop/CLI clients cannot read that token.** HTTP under the service host is **not** intended for Session 1 local clients and is **not** claimed “ready for desktop.” Prefer an **interactive** daemon (`ai-brainsd --http` or `ai-brains daemon start` with `AI_BRAINS_HTTP=1`) for desktop clients. A multi-session shared token path is **out of scope**. If HTTP is opted in and bind/token setup fails (or other fatal startup fails), the service **does not report `Running` to SCM** — `StartPending` until failure, then **`Stopped` with `ServiceSpecific(1)`**. Operators should treat `sc start` / Services MMC failures as a real start failure.
@@ -700,6 +704,7 @@ ai-brains backup create --no-prune              # keep full fleet (no default ke
 ai-brains backup list
 ai-brains backup verify
 ai-brains doctor --backup-max-age 7d
+ai-brains doctor --summary           # T249: compact 15-check skim
 ```
 Backups include an integrity check; corrupt backups are rejected at creation time.
 
@@ -737,7 +742,7 @@ ai-brains recovery export --output E:\offline\kit.json --passphrase-file $Secure
 # passphrase-file and kit output (incl. existing parents) refuse reparse/symlink/junction
 # preflight: vault+key must match (hard-fail wrong key/missing vault); event soft-fail only when daemon write blocked
 ```
-`ai-brains doctor` is **shipped (T192)** as a read-only health report. Use it for vault open/cipher/backup age / optional kit unlock checks; it does **not** replace RECOVERY-DRILLS or invent a default kit path.
+`ai-brains doctor` is **shipped (T192)** as a read-only health report. Use it for vault open/cipher/backup age / optional kit unlock checks; it does **not** replace RECOVERY-DRILLS or invent a default kit path. **`--summary` (T249)** is the skim path: an opt-in compact view of the same 15-check report (warn+fail attention, or `No issues.`). Default `doctor` stays the full listing. `--summary --json` / `--format json --summary` still emit the full `DoctorReport` (`schema_version=1`).
 
 ### DataKey rotation (T189 / ADR-0020)
 
@@ -875,7 +880,9 @@ Do **not** treat non-zero `nodes` alone as healthy — live dogfood historically
 **Graph-off lag:** default / GitHub Release binaries (no `--features graph`) never run the incremental LiveGraphHook. `graph update` exits **2** (`FEATURE_UNAVAILABLE`). Use doctor for capability + SQL density on any binary:
 
 ```powershell
+ai-brains doctor --summary           # skim (human-only; warn+fail or No issues.)
 ai-brains doctor --format json
+# --summary --json / --format json --summary still emit full DoctorReport
 # checks include:
 #   name=graph_feature  (soft info: available|unavailable via compile-time cfg; never alone fail/degraded)
 #   name=graph_density  (soft warn → overall degraded; never hard-fail alone;
@@ -970,7 +977,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Backup Vault | `ai-brains backup` |
 | Restore Vault | `ai-brains backup restore <path>` (use `--force` non-interactive, `--dry-run` to preview; hard-fails if daemon up — T188) |
 | Recovery kit export | `ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force]` (T188) |
-| Doctor (health) | `ai-brains doctor [--json] [--kit-path] [--passphrase-file] [--fail-on-degraded] [--backup-max-age 7d] [--full]` (T192; read-only) |
+| Doctor (health) | `ai-brains doctor [--summary] [--json] [--kit-path] [--passphrase-file] [--fail-on-degraded] [--backup-max-age 7d] [--full]` (T192/T249; `--summary` skim; JSON still full report) |
 | Manage Projects | `ai-brains project list/resolve/detect` |
 | Graph Health | `ai-brains graph update` (`live`\|`sparse`\|`empty`; graph-on rebuild if sparse/empty) + doctor `graph_density` (capability-aware remediation: rebuild vs reinstall SOOT — T232) |
 

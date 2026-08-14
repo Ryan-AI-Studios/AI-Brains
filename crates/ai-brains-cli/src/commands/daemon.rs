@@ -671,6 +671,15 @@ fn format_status_vault_section(
     lines
 }
 
+/// Next-step line for `daemon status` (T249). Printed only when Stopped.
+pub(crate) fn status_next_line(is_running: bool) -> Option<&'static str> {
+    if is_running {
+        None
+    } else {
+        Some("next: ai-brains daemon start")
+    }
+}
+
 /// Interactive daemon status (T199): liveness IPC without vault key / open.
 pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::Error>> {
     let client = DaemonClient::new();
@@ -767,6 +776,10 @@ pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::E
         }
     }
 
+    if let Some(line) = status_next_line(is_running) {
+        println!("{line}");
+    }
+
     Ok(())
 }
 
@@ -777,6 +790,20 @@ mod status_vault_tests {
 
     use super::*;
     use std::path::Path;
+
+    /// T249 AC7: Stopped prints next-step; Running omits it.
+    #[test]
+    fn status_next_line__stopped__daemon_start() {
+        assert_eq!(
+            status_next_line(false),
+            Some("next: ai-brains daemon start")
+        );
+    }
+
+    #[test]
+    fn status_next_line__running__none() {
+        assert!(status_next_line(true).is_none());
+    }
 
     /// AC13: missing key → None (no panic, no propagate).
     #[test]

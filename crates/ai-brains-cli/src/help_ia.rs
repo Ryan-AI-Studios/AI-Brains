@@ -16,8 +16,10 @@ Command groups (presentation only — names unchanged):
 
 Start here:
   ai-brains doctor
+  ai-brains doctor --summary
   ai-brains recall \"what did we decide\"
   ai-brains search \"what did we decide\"  # alias of recall
+  ai-brains scope resolve
   ai-brains scope resolve --format json
 
 Docs: Docs/INSTALL.md | Docs/CLI-EXIT-CODES.md | CONTRIBUTING.md
@@ -86,6 +88,14 @@ mod tests {
                 && ROOT_AFTER_LONG_HELP.contains("opencode-hook")
                 && ROOT_AFTER_LONG_HELP.contains("opencode-import"),
             "Harness inventory must include harness/grok/opencode commands; got:\n{ROOT_AFTER_LONG_HELP}"
+        );
+    }
+
+    #[test]
+    fn root_after_long_help__keeps_scope_resolve_format_json() {
+        assert!(
+            ROOT_AFTER_LONG_HELP.contains("ai-brains scope resolve --format json"),
+            "T204/T249 Start-here json lock must remain; got:\n{ROOT_AFTER_LONG_HELP}"
         );
     }
 

@@ -634,6 +634,132 @@ fn doctor__recovery_kit_created_event__ok_not_false_warn() {
     );
 }
 
+/// T249 AC10: default `doctor` (no `--summary`) still prints the 15-check listing.
+#[test]
+fn doctor__default_listing__checks_15_includes_vault_exists() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .output()
+        .expect("doctor default");
+    assert!(
+        out.status.success(),
+        "default doctor must exit 0; out={}",
+        combined_output(&out)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("checks=15"),
+        "default listing must keep checks=15; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("vault_exists"),
+        "default listing must include vault_exists; got:\n{stdout}"
+    );
+}
+
+/// T249 AC11: JSON wins for `--summary --json` and `--format json --summary`.
+#[test]
+fn doctor__summary_json__full_doctor_report() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let flag_json = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--summary")
+        .arg("--json")
+        .output()
+        .expect("doctor --summary --json");
+    assert!(
+        flag_json.status.success(),
+        "--summary --json must exit 0; out={}",
+        combined_output(&flag_json)
+    );
+    let report_flag: DoctorReport =
+        serde_json::from_slice(&flag_json.stdout).expect("DoctorReport from --summary --json");
+    assert_eq!(report_flag.schema_version, 1);
+    assert_eq!(
+        report_flag.checks.len(),
+        15,
+        "JSON-win must emit the full 15-check matrix, not a compact DTO; got {}",
+        report_flag.checks.len()
+    );
+
+    let format_json = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--format")
+        .arg("json")
+        .arg("--summary")
+        .output()
+        .expect("doctor --format json --summary");
+    assert!(
+        format_json.status.success(),
+        "--format json --summary must exit 0; out={}",
+        combined_output(&format_json)
+    );
+    let report_format: DoctorReport = serde_json::from_slice(&format_json.stdout)
+        .expect("DoctorReport from --format json --summary");
+    assert_eq!(report_format.schema_version, 1);
+    assert_eq!(
+        report_format.checks.len(),
+        15,
+        "JSON-win must emit the full 15-check matrix, not a compact DTO; got {}",
+        report_format.checks.len()
+    );
+}
+
+/// T249 AC12: `--summary` is accepted; degraded stays 0 unless `--fail-on-degraded`.
+#[test]
+fn doctor__summary__accepted_degraded_exit_and_fail_on_degraded() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let summary = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--summary")
+        .output()
+        .expect("doctor --summary");
+    assert_ne!(
+        summary.status.code(),
+        Some(2),
+        "--summary must not be clap-unknown; stderr={}",
+        String::from_utf8_lossy(&summary.stderr)
+    );
+    assert_eq!(
+        summary.status.code(),
+        Some(0),
+        "degraded + --summary must exit 0; out={}",
+        combined_output(&summary)
+    );
+    let stdout = String::from_utf8_lossy(&summary.stdout);
+    assert!(
+        stdout.contains("ok=") && stdout.contains("warn="),
+        "summary header missing counts; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("checks="),
+        "summary must not use the default checks= header; got:\n{stdout}"
+    );
+
+    let fail = hermetic_with_key(&vault, ZERO_KEY)
+        .arg("doctor")
+        .arg("--summary")
+        .arg("--fail-on-degraded")
+        .output()
+        .expect("doctor --summary --fail-on-degraded");
+    assert_eq!(
+        fail.status.code(),
+        Some(1),
+        "degraded + --summary --fail-on-degraded must exit 1; out={}",
+        combined_output(&fail)
+    );
+}
+
 /// AC1: doctor appears in --help.
 #[test]
 fn doctor__help__lists_command() {

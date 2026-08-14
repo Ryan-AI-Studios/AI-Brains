@@ -40,6 +40,7 @@ pub struct DoctorOptions {
     pub passphrase_file: Option<PathBuf>,
     pub backup_max_age: String,
     pub full: bool,
+    pub summary: bool,
 }
 
 /// Production entry: probe daemon, run checks, emit report, map exit code.
@@ -63,7 +64,7 @@ pub fn run_with_daemon_state(
     daemon_up: bool,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     let report = build_report(&opts, daemon_up)?;
-    emit_report(&report, &opts.format, opts.json)?;
+    emit_report(&report, &opts.format, opts.json, opts.summary)?;
     Ok(exit_code_for(&report, opts.fail_on_degraded))
 }
 
@@ -928,15 +929,63 @@ pub fn exit_code_for(report: &DoctorReport, fail_on_degraded: bool) -> i32 {
     }
 }
 
+/// Compact human summary of the same `DoctorReport` (T249). Warn+fail only.
+pub(crate) fn format_doctor_summary(report: &DoctorReport) -> String {
+    let mut ok = 0usize;
+    let mut warn = 0usize;
+    let mut fail = 0usize;
+    let mut skip = 0usize;
+    for c in &report.checks {
+        match c.severity {
+            CheckSeverity::Ok => ok += 1,
+            CheckSeverity::Warn => warn += 1,
+            CheckSeverity::Fail => fail += 1,
+            CheckSeverity::Skip => skip += 1,
+        }
+    }
+    let mut lines = Vec::new();
+    lines.push(format!(
+        "doctor: status={}  vault={}  ok={} warn={} fail={} skip={}",
+        status_label(report.status),
+        report.vault_path,
+        ok,
+        warn,
+        fail,
+        skip
+    ));
+    if warn + fail == 0 {
+        lines.push("No issues.".into());
+    } else {
+        lines.push("attention:".into());
+        for c in &report.checks {
+            if !matches!(c.severity, CheckSeverity::Warn | CheckSeverity::Fail) {
+                continue;
+            }
+            let sev = severity_label(c.severity);
+            let msg = c.message.as_deref().unwrap_or("");
+            lines.push(format!("  [{sev}] {} — {msg}", c.name));
+            if let Some(rem) = &c.remediation {
+                lines.push(format!("         remediation: {rem}"));
+            }
+        }
+    }
+    format!("{}\n", lines.join("\n"))
+}
+
 fn emit_report(
     report: &DoctorReport,
     format: &str,
     force_json: bool,
+    summary: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let use_json = force_json || format.eq_ignore_ascii_case("json");
     if use_json {
         let json = serde_json::to_string_pretty(report)?;
         println!("{json}");
+        return Ok(());
+    }
+    if summary {
+        print!("{}", format_doctor_summary(report));
         return Ok(());
     }
     // Human
@@ -1050,6 +1099,134 @@ mod tests {
         );
     }
 
+    fn fifteen_names() -> [&'static str; 15] {
+        [
+            "vault_exists",
+            "vault_open",
+            "schema_readable",
+            "cipher_page",
+            "daemon_reachable",
+            "backup_recent",
+            "recovery_kit_event",
+            "recovery_kit_file",
+            "zero_key_escape",
+            "graph_feature",
+            "graph_density",
+            "harness_wiring",
+            "project_identity",
+            "policy_grants",
+            "integrity",
+        ]
+    }
+
+    fn attention_block(out: &str) -> &str {
+        out.split_once("attention:")
+            .map(|(_, rest)| rest)
+            .unwrap_or("")
+    }
+
+    #[test]
+    fn format_doctor_summary__degraded_15__header_counts_attention_warn_fail() {
+        let checks = vec![
+            HealthCheck::ok_msg("vault_exists", "present"),
+            HealthCheck::ok_msg("vault_open", "read-only"),
+            HealthCheck::ok_msg("schema_readable", "ok"),
+            HealthCheck::ok_msg("cipher_page", "ok"),
+            HealthCheck::ok_msg("daemon_reachable", "down"),
+            HealthCheck::warn(
+                "backup_recent",
+                "no backups",
+                Some("ai-brains backup create".into()),
+            ),
+            HealthCheck::warn(
+                "recovery_kit_event",
+                "no kit event",
+                Some("export a recovery kit".into()),
+            ),
+            HealthCheck::skip("recovery_kit_file", "no --kit-path"),
+            HealthCheck::ok_msg("zero_key_escape", "ok"),
+            HealthCheck::ok_msg("graph_feature", "available"),
+            HealthCheck::warn(
+                "graph_density",
+                "sparse",
+                Some("see graph density remediation".into()),
+            ),
+            HealthCheck::ok_msg("harness_wiring", "ok"),
+            HealthCheck::ok_msg("project_identity", "ok"),
+            HealthCheck::fail(
+                "policy_grants",
+                "empty",
+                Some("ai-brains policy bootstrap".into()),
+            ),
+            HealthCheck::skip("integrity", "not requested"),
+        ];
+        assert_eq!(
+            checks.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(),
+            fifteen_names()
+        );
+        let report = DoctorReport {
+            schema_version: 1,
+            status: DoctorReport::roll_up(&checks),
+            checks,
+            vault_path: "C:\\vault.db".into(),
+            generated_at: "2026-08-14T00:00:00Z".into(),
+        };
+        let out = format_doctor_summary(&report);
+        assert!(
+            out.starts_with("doctor: status=fail  vault=C:\\vault.db  ok=9 warn=3 fail=1 skip=2"),
+            "header mismatch:\n{out}"
+        );
+        assert!(out.contains("ok="), "got:\n{out}");
+        assert!(out.contains("warn="), "got:\n{out}");
+        assert!(out.contains("fail="), "got:\n{out}");
+        assert!(out.contains("skip="), "got:\n{out}");
+        assert!(out.contains("attention:"), "got:\n{out}");
+        let attention = attention_block(&out);
+        assert!(attention.contains("backup_recent"), "got:\n{out}");
+        assert!(attention.contains("recovery_kit_event"), "got:\n{out}");
+        assert!(attention.contains("graph_density"), "got:\n{out}");
+        assert!(attention.contains("policy_grants"), "got:\n{out}");
+        assert!(
+            !attention.contains("recovery_kit_file"),
+            "skip listed in attention:\n{out}"
+        );
+        assert!(
+            !attention.contains("integrity"),
+            "skip listed in attention:\n{out}"
+        );
+        assert!(
+            !attention.contains("vault_exists"),
+            "ok listed in attention:\n{out}"
+        );
+        assert!(
+            out.contains("         remediation: ai-brains backup create"),
+            "remediation indent missing:\n{out}"
+        );
+        assert!(!out.contains("No issues."), "got:\n{out}");
+    }
+
+    #[test]
+    fn format_doctor_summary__all_ok__no_issues() {
+        let checks: Vec<HealthCheck> = fifteen_names()
+            .into_iter()
+            .map(|n| HealthCheck::ok_msg(n, "ok"))
+            .collect();
+        let report = DoctorReport {
+            schema_version: 1,
+            status: DoctorStatus::Ok,
+            checks,
+            vault_path: "C:\\vault.db".into(),
+            generated_at: "2026-08-14T00:00:00Z".into(),
+        };
+        let out = format_doctor_summary(&report);
+        assert!(
+            out.contains("doctor: status=ok  vault=C:\\vault.db  ok=15 warn=0 fail=0 skip=0"),
+            "header mismatch:\n{out}"
+        );
+        assert!(out.contains("No issues."), "got:\n{out}");
+        assert!(!out.contains("attention:"), "got:\n{out}");
+    }
+
     /// T241 AC2: no authoritative scope → policy_grants skip.
     #[test]
     fn doctor__policy_grants__no_authoritative_scope__skip() {
@@ -1075,6 +1252,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let report = build_report(&opts, false).expect("report");
         let pg = report
@@ -1120,6 +1298,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let report = build_report(&opts, false).expect("report");
         let pg = report
@@ -1195,6 +1374,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let report = build_report(&opts, false).expect("report");
         let pg = report
@@ -1238,6 +1418,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let _allow = TempEnv::set(ALLOW_ZERO_KEY_ENV, "1");
         let report = build_report(&opts, false).expect("report");
@@ -1315,6 +1496,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let report = build_report(&opts, false).expect("report");
         let density = report
@@ -1362,6 +1544,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         // daemon_up=true (simulates busy probe) — must not hard-fail or migrate.
         let report = build_report(&opts, true).expect("build_report");
@@ -1484,6 +1667,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let report = build_report(&opts, false).expect("report must emit");
         assert_eq!(report.status, DoctorStatus::Fail);
@@ -1527,6 +1711,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let report = build_report(&opts, false).expect("report");
         assert_eq!(report.status, DoctorStatus::Fail);
@@ -1561,6 +1746,7 @@ mod tests {
             passphrase_file: None,
             backup_max_age: "7d".into(),
             full: false,
+            summary: false,
         };
         let err = build_report(&opts, false).expect_err("format");
         let msg = err.to_string();
