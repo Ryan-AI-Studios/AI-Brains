@@ -178,7 +178,10 @@ ai-brains preflight --max-words 1500
 ```
 - `--summary` for a concise statistical summary
 - `--pretty` / `--format human` for human-readable text
+- `--pretty --compact` for a tighter skim (JSON and `--summary` ignore `--compact`)
 - `--scope "src/foo.rs,src/bar.rs"` for contextual risk analysis on a specific path set
+
+Default `--pretty` Session/Recent lines are capped at 140 Unicode chars; Safety is full-length unless `--compact`.
 
 ### Governed briefings & progressive query (T152)
 

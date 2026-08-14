@@ -80,7 +80,7 @@ Honesty matrix — **no** blanket TTY default flip for governed JSON surfaces.
 | Surface | Default TTY | Default non-TTY | Notes |
 |---------|-------------|-----------------|-------|
 | `recall` | pretty | json | Explicit `--format` wins |
-| `preflight` | human | json | TTY default is `human`; `--pretty` / `--format pretty` also human-mode |
+| `preflight` | human | json | TTY default is `human`; `--pretty` / `--format pretty` also human-mode. `--compact` is a bool flag (not a format token) and is ignored on JSON. |
 | `briefing` | markdown | json | T202 F9 + **T227**: `human\|pretty\|text\|markdown\|md` → markdown; only `json` → JSON; unknown → exit **2** |
 | `query progressive` / `expand` / `trace` | json | json | No TTY flip |
 | list/show (governed evidence/source/review/...) | json (Human if `--format human`) | json | `OutputFormat::parse` → Json bare |
@@ -317,6 +317,7 @@ ai-brains preflight --summary
 ai-brains preflight --summary --format json
 ai-brains preflight --global --summary --format json
 ai-brains preflight --pretty -m 1500
+ai-brains preflight --pretty --compact
 ai-brains preflight --scope "src/foo.rs" --global
 ai-brains preflight --stdin
 ```
@@ -327,6 +328,9 @@ Synthesizes repo safety/hotspots, session turns, memory index, recent dense memo
 | **Scope honesty (T214)** | `--summary` prints T207 `Scope:` vocabulary (`Scope: global` / `Scope: project=…` / `Scope: project=(none)`). Never labels multi-project content as a single env `Project: <uuid>`. |
 | **Full-body Scope (T219)** | Human/pretty full body (not summary) also prefixes the same T207/T214 `Scope:` line + blank line before the budget-window body. **JSON path does not** add Scope chrome. |
 | **Pretty multi-line body (T219)** | Human/`--pretty` / `--format human\|pretty` preserves section newlines (word budget no longer space-joins). Blank line after each emitted `--- Section ---` header. Display-only caps: safety **8** items, sessions **3**, turns/session **6**, Memory Index **15**; orphan empty `---` headers omitted. |
+| **Pretty density (T250)** | Default human/`--pretty` line-caps **Session** turns and **Most Recent Memories** at **140** Unicode chars (`…` when truncated). T219 item counts stay **8** / **6** / **3** / **15** / recent **3**. Safety, Memory Index, `---` headers, and `+N` notices are **not** line-capped on the default path. Default `--pretty` still shows full Safety lines (~150–220); only `--compact` first-line-caps Safety. Governed `#`/`##` still not treated as `---` headers; Other/governed body lines are not line-capped. |
+| **`--compact` (T250)** | Tighter display caps: safety **3** / turns **2** / sessions **1** / index **5** / recent **2**. First-line-only on Safety/Recent; line-cap **100** on Session + Recent + Safety first line. F31 `+N` notices still fire with compact N. Compact Recent keeps the `(Use 'recall'…)` hint. |
+| **JSON / `--summary` ignore `--compact`** | `--compact --format json` stays T180 2-key `{text, word_count}` with uncapped `text`. `--summary --compact` stays the T214 summary banner. |
 | **Role strip display-only (T219/T224)** | Pretty path strips leading case-sensitive `USER:` / `ASSISTANT:` / `SYSTEM:` on index/session/display lines (shared `strip_role_prefix`; same SOOT as `memory list` preview, recall/`sync query` pretty hits, and forget human previews). Stored vault content and non-summary JSON `text` may still embed role labels where assembly emits them. |
 | **Per-section +N notices (T219 F31)** | Overflow notices (plain ASCII): safety → `+N more safety entries — ai-brains memory list`; index → `+N more via recall`; turns → `+N more turns in session`; sessions → `+N more sessions`. |
 | **Word budget + F2b (T219)** | `trim_to_word_budget` preserves newlines; over-budget appends trailing `…` on its own line (content `word_count` excludes the sentinel). Applies to full pretty body, non-summary JSON `text`, and governed markdown re-budget (same helper). |

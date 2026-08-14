@@ -31,6 +31,8 @@ pub struct PreflightRunOptions {
     pub install_hooks: bool,
     /// `preflight --stdin` mode: never prompt (F24 / AC18).
     pub stdin_mode: bool,
+    /// Tighter pretty item/line caps (human/pretty only). JSON and `--summary` ignore this.
+    pub compact: bool,
 }
 
 /// CLI-local summary JSON envelope (T220). Never grows `PreflightContextResponse`.
@@ -242,7 +244,11 @@ pub fn run(
             options.project_id.as_ref(),
             name_alias.as_ref(),
         );
-        let pretty_body = format_preflight_pretty_body(&context.text);
+        let pretty_body = if options.compact {
+            format_preflight_pretty_body_with(&context.text, &PrettyCaps::compact())
+        } else {
+            format_preflight_pretty_body(&context.text)
+        };
         println!("{scope}\n\n{pretty_body}");
     } else {
         // JSON path: raw post-F1 context.text + word_count only (no Scope/caps chrome).
@@ -256,7 +262,7 @@ pub fn run(
 }
 
 // ---------------------------------------------------------------------------
-// Pretty body formatter (T219 F9/F10/F29/F31/F37) — pure, no PrettyOpts
+// Pretty body formatter (T219 F9/F10/F29/F31/F37 + T250 PrettyCaps)
 // ---------------------------------------------------------------------------
 
 /// Display-only caps for human/pretty preflight body (F29 constants-first).
@@ -264,6 +270,49 @@ pub(crate) const PRETTY_SAFETY_MAX_ITEMS: usize = 8;
 pub(crate) const PRETTY_TURNS_PER_SESSION: usize = 6;
 pub(crate) const PRETTY_MAX_SESSIONS: usize = 3;
 pub(crate) const PRETTY_INDEX_MAX: usize = 15;
+pub(crate) const PRETTY_RECENT_MAX: usize = 3;
+pub(crate) const PRETTY_LINE_MAX: usize = 140;
+pub(crate) const PRETTY_COMPACT_LINE_MAX: usize = 100;
+
+/// Human/pretty display caps (T250). JSON / `--summary` never consult this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PrettyCaps {
+    pub safety_max: usize,
+    pub turns_per_session: usize,
+    pub max_sessions: usize,
+    pub index_max: usize,
+    pub recent_max: usize,
+    /// Session + Recent (and Safety when `first_line_only`).
+    pub line_max: usize,
+    /// Safety / Recent: emit first non-empty line of each taken item only.
+    pub first_line_only: bool,
+}
+
+impl PrettyCaps {
+    pub(crate) fn standard() -> Self {
+        Self {
+            safety_max: PRETTY_SAFETY_MAX_ITEMS,
+            turns_per_session: PRETTY_TURNS_PER_SESSION,
+            max_sessions: PRETTY_MAX_SESSIONS,
+            index_max: PRETTY_INDEX_MAX,
+            recent_max: PRETTY_RECENT_MAX,
+            line_max: PRETTY_LINE_MAX,
+            first_line_only: false,
+        }
+    }
+
+    pub(crate) fn compact() -> Self {
+        Self {
+            safety_max: 3,
+            turns_per_session: 2,
+            max_sessions: 1,
+            index_max: 5,
+            recent_max: 2,
+            line_max: PRETTY_COMPACT_LINE_MAX,
+            first_line_only: true,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PrettySectionKind {
@@ -316,8 +365,55 @@ fn split_item_blocks(lines: &[&str]) -> Vec<String> {
     blocks
 }
 
-fn strip_role_on_content_line(line: &str) -> String {
-    super::display_text::strip_role_prefix(line.trim_start()).to_string()
+/// Pretty-only timestamp-then-role chrome strip (T250 F5).
+///
+/// `(inner) ROLE: body` → role-stripped body when `inner` is ≤32 chars and the
+/// text after `)` (then whitespace) has a leading role token. Inner >32 is
+/// fail-closed (not a timestamp). Does not change [`super::display_text::strip_role_prefix`].
+pub(crate) fn strip_pretty_chrome(line: &str) -> &str {
+    let trimmed = line.trim_start();
+    if let Some(rest) = trimmed.strip_prefix('(')
+        && let Some(close) = rest.find(')')
+    {
+        let inner = &rest[..close];
+        if inner.chars().count() <= 32 {
+            let after = rest[close + 1..].trim_start();
+            if super::display_text::has_leading_role_prefix(after) {
+                return super::display_text::strip_role_prefix(after);
+            }
+        }
+    }
+    super::display_text::strip_role_prefix(trimmed)
+}
+
+fn first_non_empty_line(block: &str) -> &str {
+    block.lines().find(|l| !l.trim().is_empty()).unwrap_or("")
+}
+
+fn is_recall_hint_line(line: &str) -> bool {
+    let t = line.trim();
+    t.starts_with("(Use 'recall'") || t.starts_with("(Use \"recall\"")
+}
+
+/// Chrome-strip then optional Unicode line-cap. Headers / F31 notices never call this.
+fn display_pretty_line(line: &str, line_cap: Option<usize>) -> String {
+    let stripped = strip_pretty_chrome(line);
+    match line_cap {
+        Some(max) => super::display_text::truncate_preview_chars(stripped, max),
+        None => stripped.to_string(),
+    }
+}
+
+fn emit_item_block(block: &str, caps: &PrettyCaps, line_cap: Option<usize>) -> String {
+    if caps.first_line_only {
+        display_pretty_line(first_non_empty_line(block), line_cap)
+    } else {
+        block
+            .lines()
+            .map(|l| display_pretty_line(l, line_cap))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 /// True when a trimmed line starts a retrieval session turn (`ROLE: …`).
@@ -325,15 +421,21 @@ fn strip_role_on_content_line(line: &str) -> String {
 /// Multi-line turns (from `truncate_turn`) emit only the first line with a role
 /// prefix; continuation lines must not count as extra turns (T219 M1).
 /// Token list SOOT: [`super::display_text::has_leading_role_prefix`] (T224 AC10).
+/// Counts the **original** retrieval-emitted line (before chrome strip).
 fn is_session_turn_start(line: &str) -> bool {
     super::display_text::has_leading_role_prefix(line.trim_start())
 }
 
-/// Format full preflight body for human/pretty display (T219).
+/// Format full preflight body for human/pretty display (T219 / T250 standard).
 ///
-/// Pure string transform: section caps, F31 notices, role-prefix strip, blank
+/// Pure string transform: section caps, F31 notices, chrome/role strip, blank
 /// line after each emitted `---` header. Orphan headers with zero content omitted.
 pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
+    format_preflight_pretty_body_with(text, &PrettyCaps::standard())
+}
+
+/// Format full preflight body with explicit [`PrettyCaps`] (T250).
+pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -> String {
     // Parse into (optional header, content lines) sections.
     // Text before the first header is a prologue (Other, no header).
     let mut sections: Vec<(Option<String>, Vec<String>)> = Vec::new();
@@ -368,7 +470,7 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
             .unwrap_or(PrettySectionKind::Other);
 
         // Session cap: count session headers; skip overflow sessions.
-        if kind == PrettySectionKind::Session && sessions_emitted >= PRETTY_MAX_SESSIONS {
+        if kind == PrettySectionKind::Session && sessions_emitted >= caps.max_sessions {
             sessions_skipped += 1;
             continue;
         }
@@ -380,26 +482,27 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
                 let raw_refs: Vec<&str> = lines.iter().map(String::as_str).collect();
                 let blocks = split_item_blocks(&raw_refs);
                 let total = blocks.len();
-                let take_n = total.min(PRETTY_SAFETY_MAX_ITEMS);
+                let take_n = total.min(caps.safety_max);
+                // Compact first-line-caps Safety; standard does not line-cap Safety.
+                let safety_cap = caps.first_line_only.then_some(caps.line_max);
                 for block in blocks.into_iter().take(take_n) {
-                    let stripped: Vec<String> =
-                        block.lines().map(strip_role_on_content_line).collect();
-                    body_lines.push(stripped.join("\n"));
+                    body_lines.push(emit_item_block(&block, caps, safety_cap));
                 }
-                if total > PRETTY_SAFETY_MAX_ITEMS {
-                    let n = total - PRETTY_SAFETY_MAX_ITEMS;
+                if total > caps.safety_max {
+                    let n = total - caps.safety_max;
                     body_lines.push(format!("+{n} more safety entries — ai-brains memory list"));
                 }
             }
             PrettySectionKind::Session => {
-                // Count logical turns (role-leading lines), not physical lines (M1).
+                // Count logical turns on original lines (before chrome).
                 // Continuation lines of multi-line turns belong to the open turn.
                 let mut turn_count = 0usize;
                 let mut turn_total = 0usize;
                 let mut in_open_turn = false;
+                let session_cap = Some(caps.line_max);
                 for line in &lines {
                     if line.trim().is_empty() {
-                        if in_open_turn && turn_count <= PRETTY_TURNS_PER_SESSION {
+                        if in_open_turn && turn_count <= caps.turns_per_session {
                             // Preserve blank only when we still show the open turn body.
                             body_lines.push(String::new());
                         }
@@ -408,24 +511,24 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
                     if is_session_turn_start(line) {
                         turn_total += 1;
                         in_open_turn = true;
-                        if turn_count < PRETTY_TURNS_PER_SESSION {
-                            body_lines.push(strip_role_on_content_line(line));
+                        if turn_count < caps.turns_per_session {
+                            body_lines.push(display_pretty_line(line, session_cap));
                             turn_count += 1;
                         } else {
                             // Past cap: do not emit further turns or their continuations.
                             in_open_turn = false;
                         }
-                    } else if in_open_turn && turn_count <= PRETTY_TURNS_PER_SESSION {
+                    } else if in_open_turn && turn_count <= caps.turns_per_session {
                         // Continuation of a displayed turn (multi-line truncate_turn).
-                        body_lines.push(strip_role_on_content_line(line));
+                        body_lines.push(display_pretty_line(line, session_cap));
                     }
                 }
                 // Drop trailing blanks introduced above.
                 while body_lines.last().is_some_and(|l| l.is_empty()) {
                     body_lines.pop();
                 }
-                if turn_total > PRETTY_TURNS_PER_SESSION {
-                    let n = turn_total - PRETTY_TURNS_PER_SESSION;
+                if turn_total > caps.turns_per_session {
+                    let n = turn_total - caps.turns_per_session;
                     body_lines.push(format!("+{n} more turns in session"));
                 }
             }
@@ -441,24 +544,24 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
                     let is_numbered = trimmed.chars().next().is_some_and(|c| c.is_ascii_digit())
                         && trimmed.contains(". ");
                     if is_numbered {
-                        // Strip role prefix on the summary portion after "N. ".
+                        // Chrome/role strip on the summary portion after "N. " (never line-cap).
                         if let Some((num, rest)) = trimmed.split_once(". ") {
-                            let stripped = strip_role_on_content_line(rest);
+                            let stripped = display_pretty_line(rest, None);
                             index_items.push(format!("{num}. {stripped}"));
                         } else {
-                            index_items.push(strip_role_on_content_line(trimmed));
+                            index_items.push(display_pretty_line(trimmed, None));
                         }
                     } else {
-                        other.push(strip_role_on_content_line(line));
+                        other.push(display_pretty_line(line, None));
                     }
                 }
                 let total = index_items.len();
-                let take_n = total.min(PRETTY_INDEX_MAX);
+                let take_n = total.min(caps.index_max);
                 for item in index_items.into_iter().take(take_n) {
                     body_lines.push(item);
                 }
-                if total > PRETTY_INDEX_MAX {
-                    let n = total - PRETTY_INDEX_MAX;
+                if total > caps.index_max {
+                    let n = total - caps.index_max;
                     body_lines.push(format!("+{n} more via recall"));
                 }
                 body_lines.extend(other);
@@ -466,31 +569,36 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
             PrettySectionKind::Recent => {
                 let raw_refs: Vec<&str> = lines.iter().map(String::as_str).collect();
                 let blocks = split_item_blocks(&raw_refs);
-                // Keep top-3 intent; strip role prefixes on display lines.
-                const RECENT_MAX: usize = 3;
-                for block in blocks.into_iter().take(RECENT_MAX) {
-                    let stripped: Vec<String> =
-                        block.lines().map(strip_role_on_content_line).collect();
-                    // Skip pure notice lines from being role-stripped wrongly — fine.
-                    if stripped.iter().all(|l| l.trim().is_empty()) {
+                let recent_cap = Some(caps.line_max);
+                let mut taken = 0usize;
+                for block in blocks {
+                    if is_recall_hint_line(&block) {
                         continue;
                     }
-                    body_lines.push(stripped.join("\n"));
+                    if taken >= caps.recent_max {
+                        continue;
+                    }
+                    let emitted = emit_item_block(&block, caps, recent_cap);
+                    if emitted.lines().all(|l| l.trim().is_empty()) {
+                        continue;
+                    }
+                    body_lines.push(emitted);
+                    taken += 1;
                 }
-                // Preserve trailing recall hint if present as last non-empty block content.
+                // Preserve trailing recall hint (AI1 L4) — never line-capped.
                 for line in &lines {
-                    let t = line.trim();
-                    if t.starts_with("(Use 'recall'") || t.starts_with("(Use \"recall\"") {
-                        body_lines.push(t.to_string());
+                    if is_recall_hint_line(line) {
+                        body_lines.push(line.trim().to_string());
                     }
                 }
             }
             PrettySectionKind::Other => {
+                // Chrome/role-strip only. Do not line-cap or item-cap Other / `#` / `##`.
                 for line in &lines {
                     if line.trim().is_empty() {
                         body_lines.push(String::new());
                     } else {
-                        body_lines.push(strip_role_on_content_line(line));
+                        body_lines.push(display_pretty_line(line, None));
                     }
                 }
                 // Trim trailing blanks for orphan detection.
@@ -1612,5 +1720,265 @@ more of turn3
             "sessions notice must be before Memory Index; notice@{notice} index@{index}\n{out}"
         );
         assert!(out.contains("1. DECISION: keep index"));
+    }
+
+    // ---------------------------------------------------------------------------
+    // T250 — PrettyCaps line-cap, chrome strip, compact (AC1–AC9)
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn pretty_caps_standard__t219_item_caps() {
+        let c = PrettyCaps::standard();
+        assert_eq!(c.safety_max, 8);
+        assert_eq!(c.turns_per_session, 6);
+        assert_eq!(c.max_sessions, 3);
+        assert_eq!(c.index_max, 15);
+        assert_eq!(c.recent_max, 3);
+        assert_eq!(c.line_max, 140);
+        assert!(!c.first_line_only);
+    }
+
+    #[test]
+    fn format_preflight_pretty_body_with__session_line_over_140__capped_ellipsis() {
+        let body = "x".repeat(200);
+        let text = format!("--- Session: aaaa ---\nASSISTANT: {body}");
+        let out = format_preflight_pretty_body_with(&text, &PrettyCaps::standard());
+        let display = out
+            .lines()
+            .find(|l| l.contains('x'))
+            .expect("session body line");
+        assert!(
+            display.chars().count() <= 140,
+            "AC1 session line must be ≤140; got {} `{display}`",
+            display.chars().count()
+        );
+        assert!(display.ends_with('…'), "truncated session must end with …");
+        assert!(!display.starts_with("ASSISTANT:"));
+    }
+
+    #[test]
+    fn format_preflight_pretty_body_with__recent_line_over_140__capped_ellipsis() {
+        let body = "x".repeat(200);
+        let text = format!(
+            "--- Most Recent Memories ---\n\n(just now) ASSISTANT: {body}\n\n(Use 'recall' to fetch details for other index items)"
+        );
+        let out = format_preflight_pretty_body_with(&text, &PrettyCaps::standard());
+        let display = out
+            .lines()
+            .find(|l| l.contains('x'))
+            .expect("recent body line");
+        assert!(
+            display.chars().count() <= 140,
+            "AC1 recent line must be ≤140; got {} `{display}`",
+            display.chars().count()
+        );
+        assert!(display.ends_with('…'), "truncated recent must end with …");
+        assert!(out.contains("(Use 'recall' to fetch details for other index items)"));
+    }
+
+    #[test]
+    fn format_preflight_pretty_body_with__session_line_80__unchanged() {
+        let body = "y".repeat(80);
+        let text = format!("--- Session: aaaa ---\nASSISTANT: {body}");
+        let out = format_preflight_pretty_body_with(&text, &PrettyCaps::standard());
+        assert!(
+            out.contains(&body),
+            "80-char line must be unchanged; got:\n{out}"
+        );
+        assert!(
+            !out.contains('…'),
+            "80-char line must not truncate; got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn pretty_caps_compact__item_caps_and_f31_and_recent_hint() {
+        let safety = "--- Repository Bearings & Safety ---\n\
+CONSTRAINT: safety item 1\n\n\
+CONSTRAINT: safety item 2\n\n\
+CONSTRAINT: safety item 3\n\n\
+CONSTRAINT: safety item 4\n\n\
+CONSTRAINT: safety item 5\n\n\
+CONSTRAINT: safety item 6\n\n\
+CONSTRAINT: safety item 7\n\n\
+CONSTRAINT: safety item 8\n\n\
+CONSTRAINT: safety item 9\n\n\
+CONSTRAINT: safety item 10";
+        let sessions = "--- Session: 00000000-0000-0000-0000-000000000001 ---\n\
+ASSISTANT: turn 1 content for session 1\n\
+ASSISTANT: turn 2 content for session 1\n\
+ASSISTANT: turn 3 content for session 1\n\
+ASSISTANT: turn 4 content for session 1\n\n\
+--- Session: 00000000-0000-0000-0000-000000000002 ---\n\
+ASSISTANT: turn 1 content for session 2\n\
+ASSISTANT: turn 2 content for session 2";
+        let index = "--- Memory Index (Briefing) ---\n\
+1. ASSISTANT: DECISION: index item 1\n\
+2. ASSISTANT: DECISION: index item 2\n\
+3. ASSISTANT: DECISION: index item 3\n\
+4. ASSISTANT: DECISION: index item 4\n\
+5. ASSISTANT: DECISION: index item 5\n\
+6. ASSISTANT: DECISION: index item 6\n\
+7. ASSISTANT: DECISION: index item 7\n\
+8. ASSISTANT: DECISION: index item 8";
+        let recent = "--- Most Recent Memories ---\n\n\
+(just now) ASSISTANT: first item line\nsecond line of first item\n\n\
+(just now) ASSISTANT: second item line\nsecond line of second item\n\n\
+(just now) ASSISTANT: third item should drop\n\n\
+(Use 'recall' to fetch details for other index items)";
+        let text = format!("{safety}\n\n{sessions}\n\n{index}\n\n{recent}");
+        let out = format_preflight_pretty_body_with(&text, &PrettyCaps::compact());
+
+        assert!(
+            out.contains("+7 more safety entries — ai-brains memory list"),
+            "AC3 compact safety F31; got:\n{out}"
+        );
+        assert!(out.contains("safety item 3"), "got:\n{out}");
+        assert!(
+            !out.contains("safety item 4"),
+            "compact safety cap 3; got:\n{out}"
+        );
+        assert!(
+            out.contains("+2 more turns in session"),
+            "AC3 compact turns F31; got:\n{out}"
+        );
+        assert!(out.contains("turn 2 content for session 1"), "got:\n{out}");
+        assert!(
+            !out.contains("turn 3 content for session 1"),
+            "compact turns cap 2; got:\n{out}"
+        );
+        assert!(
+            out.contains("+1 more sessions"),
+            "AC3 compact sessions F31; got:\n{out}"
+        );
+        assert!(
+            !out.contains("turn 1 content for session 2"),
+            "compact max_sessions 1; got:\n{out}"
+        );
+        assert!(
+            out.contains("+3 more via recall"),
+            "AC3 compact index F31; got:\n{out}"
+        );
+        assert!(out.contains("5. DECISION: index item 5"), "got:\n{out}");
+        assert!(
+            !out.contains("index item 6"),
+            "compact index cap 5; got:\n{out}"
+        );
+        assert!(out.contains("first item line"), "got:\n{out}");
+        assert!(out.contains("second item line"), "got:\n{out}");
+        assert!(
+            !out.contains("second line of first item"),
+            "compact first_line_only Recent; got:\n{out}"
+        );
+        assert!(
+            !out.contains("third item should drop"),
+            "compact recent cap 2; got:\n{out}"
+        );
+        assert!(
+            out.contains("(Use 'recall' to fetch details for other index items)"),
+            "AC3 keep recall hint; got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn strip_pretty_chrome__just_now_assistant__strips_to_decision() {
+        assert_eq!(
+            strip_pretty_chrome("(just now) ASSISTANT: DECISION: x"),
+            "DECISION: x"
+        );
+    }
+
+    #[test]
+    fn strip_pretty_chrome__ten_hr_ago_user__strips_to_hi() {
+        assert_eq!(strip_pretty_chrome("(10 hr ago) USER: hi"), "hi");
+    }
+
+    #[test]
+    fn strip_pretty_chrome__999_mo_ago_assistant__strips_to_x() {
+        assert_eq!(strip_pretty_chrome("(999 mo ago) ASSISTANT: x"), "x");
+    }
+
+    #[test]
+    fn strip_pretty_chrome__mid_line_assistant__unchanged() {
+        assert_eq!(
+            strip_pretty_chrome("text ASSISTANT: x"),
+            "text ASSISTANT: x"
+        );
+    }
+
+    #[test]
+    fn strip_pretty_chrome__lowercase_assistant__unchanged() {
+        assert_eq!(strip_pretty_chrome("assistant: leave"), "assistant: leave");
+    }
+
+    #[test]
+    fn strip_pretty_chrome__inner_33_chars_with_role__fail_closed() {
+        let inner = "abcdefghijklmnopqrstuvwxyz0123456";
+        assert_eq!(inner.chars().count(), 33);
+        let line = format!("({inner}) ASSISTANT: x");
+        assert_eq!(strip_pretty_chrome(&line), line.as_str());
+    }
+
+    #[test]
+    fn format_preflight_pretty_body__long_header_and_notice__not_line_capped() {
+        let long_h = "H".repeat(160);
+        let header = format!("--- {long_h} ---");
+        let text = format!("{header}\nkeep-other-body");
+        let out = format_preflight_pretty_body(&text);
+        assert!(
+            out.contains(&long_h),
+            "AC6 header must stay full length; got:\n{out}"
+        );
+
+        let safety = "--- Repository Bearings & Safety ---\n\
+CONSTRAINT: s1\n\nCONSTRAINT: s2\n\nCONSTRAINT: s3\n\nCONSTRAINT: s4\n\n\
+CONSTRAINT: s5\n\nCONSTRAINT: s6\n\nCONSTRAINT: s7\n\nCONSTRAINT: s8\n\n\
+CONSTRAINT: s9\n\nCONSTRAINT: s10";
+        let out_s = format_preflight_pretty_body(safety);
+        let notice = "+2 more safety entries — ai-brains memory list";
+        assert!(
+            out_s.contains(notice),
+            "AC6 full F31 wording; got:\n{out_s}"
+        );
+        let notice_line = out_s
+            .lines()
+            .find(|l| l.contains("more safety entries"))
+            .expect("notice line");
+        assert_eq!(notice_line, notice);
+        assert!(!notice_line.contains('…'));
+    }
+
+    #[test]
+    fn format_preflight_pretty_body_with__governed_hash_headers__full_body_both_caps() {
+        let body = "z".repeat(200);
+        let text = format!(
+            "# Project Briefing (governed)\n\n## Decisions\n\n{body}\n\n## Constraints\n\n- no unwrap"
+        );
+        let std = format_preflight_pretty_body_with(&text, &PrettyCaps::standard());
+        assert!(
+            std.contains("## Decisions"),
+            "standard must keep ##; got:\n{std}"
+        );
+        assert!(
+            std.contains("# Project Briefing (governed)"),
+            "standard must keep #; got:\n{std}"
+        );
+        assert!(
+            std.contains(&body),
+            "AC7 200-char ## body stays full on standard; got:\n{std}"
+        );
+        let cmp = format_preflight_pretty_body_with(&text, &PrettyCaps::compact());
+        assert!(
+            cmp.contains("## Decisions"),
+            "compact must keep ##; got:\n{cmp}"
+        );
+        assert!(
+            cmp.contains("# Project Briefing (governed)"),
+            "compact must keep #; got:\n{cmp}"
+        );
+        assert!(
+            cmp.contains(&body),
+            "AC7 200-char ## body stays full on compact; got:\n{cmp}"
+        );
     }
 }

@@ -294,3 +294,265 @@ fn preflight_pretty__summary_smoke__dual_model_unchanged() {
         "AC8: summary must not dump full pretty body; got:\n{stdout}"
     );
 }
+
+/// Unique 200+ char, 6+ word seed so retrieval does not drop it as low-signal.
+fn t250_long_seed() -> String {
+    format!(
+        "T250SEEDLONG unique pretty line-cap sentence that must stay visible after chrome strip {}",
+        "word ".repeat(40).trim_end()
+    )
+}
+
+fn seed_t250_long_and_overflow(vault: &Path) -> (std::path::PathBuf, String, String) {
+    let dir = vault.parent().expect("vault parent").to_path_buf();
+    let proj = dir.join("proj-t250");
+    let id = register_project(vault, &proj);
+    let long = t250_long_seed();
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "CONSTRAINT: t250 compact overflow safety item one must stay injectable",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "CONSTRAINT: t250 compact overflow safety item two must stay injectable",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "CONSTRAINT: t250 compact overflow safety item three must stay injectable",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "HOTSPOT: t250 compact overflow safety item four score=8 crates/ai-brains-cli",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "HOTSPOT: t250 compact overflow safety item five score=7 crates/ai-brains-cli",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "HOTSPOT: t250 compact overflow safety item six score=6 crates/ai-brains-cli",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item one must appear in memory index",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item two must appear in memory index",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item three must appear in memory index",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item four must appear in memory index",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item five must appear in memory index",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item six must appear in memory index",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item seven must appear in memory index",
+    );
+    pin_memory(
+        vault,
+        &proj,
+        &id,
+        "DECISION: t250 compact overflow index item eight must appear in memory index",
+    );
+    // Pin last so retrieval Recent (top-3 by updated_at) includes the full 200+ char body.
+    pin_memory(vault, &proj, &id, &long);
+    (proj, id, long)
+}
+
+// ---------------------------------------------------------------------------
+// T250 AC10 — default --pretty Session/Recent line-cap 140
+// ---------------------------------------------------------------------------
+
+#[test]
+fn preflight_pretty__long_session_recent__line_capped_140() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let (_proj, id, seed) = seed_t250_long_and_overflow(&vault);
+
+    let (code, stdout, stderr) = run_preflight(&vault, &["--pretty", "-m", "3000"], Some(&id));
+    assert_eq!(code, 0, "pretty exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("T250SEEDLONG"),
+        "AC10 seed prefix present; got:\n{stdout}"
+    );
+    // Index titles use 60-char `...` and are not the T250 line-cap path. Prefer
+    // the Recent/Session display line (not `N. … -- just now`).
+    let seed_line = stdout
+        .lines()
+        .find(|l| {
+            l.contains("T250SEEDLONG")
+                && !(l.trim().chars().next().is_some_and(|c| c.is_ascii_digit()) && l.contains(". "))
+        })
+        .expect("seed Recent/Session display line");
+    assert!(
+        seed_line.chars().count() <= 140,
+        "AC10 seed line ≤140 chars; got {} `{seed_line}`",
+        seed_line.chars().count()
+    );
+    assert!(
+        seed_line.ends_with('…'),
+        "AC10 truncated seed line must end with …; got `{seed_line}`"
+    );
+    assert!(
+        !stdout.contains(&seed),
+        "AC10 pretty must not emit the full 200+ char seed; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("Scope:"),
+        "AC10 Scope still present; got:\n{stdout}"
+    );
+    for line in stdout.lines() {
+        if line.trim().starts_with("ASSISTANT:") {
+            panic!("AC10: no display line may begin with ASSISTANT:; got {line}\n{stdout}");
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// T250 AC11 — --compact --pretty tighter caps + F31
+// ---------------------------------------------------------------------------
+
+#[test]
+fn preflight_pretty__compact__tighter_caps_and_f31() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let (_proj, id, _seed) = seed_t250_long_and_overflow(&vault);
+
+    let (std_code, std_out, std_err) =
+        run_preflight(&vault, &["--pretty", "-m", "3000"], Some(&id));
+    assert_eq!(std_code, 0, "standard pretty exit 0; stderr={std_err}");
+
+    let (code, stdout, stderr) =
+        run_preflight(&vault, &["--compact", "--pretty", "-m", "3000"], Some(&id));
+    assert_eq!(code, 0, "compact pretty exit 0; stderr={stderr}");
+    assert!(
+        stdout.lines().count() < std_out.lines().count(),
+        "AC11 compact must emit fewer lines than standard; compact={} standard={}\ncompact:\n{stdout}\nstandard:\n{std_out}",
+        stdout.lines().count(),
+        std_out.lines().count()
+    );
+    let has_safety_notice = stdout.contains("more safety entries");
+    let has_recall_notice = stdout.contains("more via recall");
+    assert!(
+        has_safety_notice || has_recall_notice,
+        "AC11 expect F31 +N more safety and/or +N more via recall; got:\n{stdout}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T250 AC12 — --compact --format json ignores compact; uncapped text
+// ---------------------------------------------------------------------------
+
+#[test]
+fn preflight_pretty__compact_json__uncapped_text_two_keys() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let (_proj, id, seed) = seed_t250_long_and_overflow(&vault);
+
+    let (code, stdout, stderr) = run_preflight(
+        &vault,
+        &["--compact", "--format", "json", "-m", "3000"],
+        Some(&id),
+    );
+    assert_eq!(code, 0, "compact json exit 0; stderr={stderr}");
+
+    let line = stdout.trim();
+    let v: serde_json::Value = serde_json::from_str(line).unwrap_or_else(|e| {
+        panic!("AC12: must be valid JSON; err={e}; stdout:\n{stdout}");
+    });
+    let obj = v.as_object().expect("object");
+    assert_eq!(
+        obj.len(),
+        2,
+        "AC12: exactly text + word_count keys; got {:?}",
+        obj.keys().collect::<Vec<_>>()
+    );
+    assert!(obj.contains_key("text"), "AC12: text key");
+    assert!(obj.contains_key("word_count"), "AC12: word_count key");
+    let text = obj["text"].as_str().expect("text string");
+    assert!(
+        text.contains(&seed),
+        "AC12: JSON text must keep full seeded body; snippet: {:?}",
+        text.chars().take(240).collect::<String>()
+    );
+    assert!(
+        !text.starts_with("Scope:"),
+        "AC12: JSON text must not include CLI Scope chrome"
+    );
+    assert!(
+        !stdout.contains("Scope:"),
+        "AC12: no Scope chrome on JSON stdout; got:\n{stdout}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T250 AC13 — --summary --compact still summary (not pretty body)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn preflight_pretty__summary_compact__dual_model_unchanged() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let (_proj, id, _seed) = seed_t250_long_and_overflow(&vault);
+
+    let (code, stdout, stderr) = run_preflight(&vault, &["--summary", "--compact"], Some(&id));
+    assert_eq!(code, 0, "summary --compact exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("--- AI-Brains Preflight Summary ---"),
+        "AC13: summary banner; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("Pinned memories:"),
+        "AC13: vault pinned line; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("In context"),
+        "AC13: in-context dual block; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("--- Repository Bearings"),
+        "AC13: summary must not dump pretty body; got:\n{stdout}"
+    );
+}

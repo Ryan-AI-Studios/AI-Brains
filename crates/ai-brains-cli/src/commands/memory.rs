@@ -36,19 +36,7 @@ pub(crate) fn preview_line(content: &str, max_chars: usize) -> String {
         .unwrap_or("")
         .trim();
     let stripped = super::display_text::strip_role_prefix(line);
-    truncate_preview_chars(stripped, max_chars)
-}
-
-fn truncate_preview_chars(s: &str, max_chars: usize) -> String {
-    if max_chars == 0 {
-        return String::new();
-    }
-    if s.chars().count() <= max_chars {
-        return s.to_string();
-    }
-    let keep = max_chars.saturating_sub(1);
-    let truncated: String = s.chars().take(keep).collect();
-    format!("{truncated}…")
+    super::display_text::truncate_preview_chars(stripped, max_chars)
 }
 
 /// Parse first line if `TAGS: …` (after optional role prefix), split comma, trim,

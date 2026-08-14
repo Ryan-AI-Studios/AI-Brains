@@ -218,6 +218,27 @@ mod tests {
         assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
 
+    /// T250: `--compact` is a boolean flag on Preflight (not a `--format` token).
+    #[test]
+    #[allow(non_snake_case)]
+    fn preflight__compact_pretty__parses() {
+        use clap::Parser;
+        let cli =
+            match super::Cli::try_parse_from(["ai-brains", "preflight", "--pretty", "--compact"]) {
+                Ok(c) => c,
+                Err(e) => panic!("expected preflight --pretty --compact to parse: {e}"),
+            };
+        match *cli.command {
+            super::Commands::Preflight {
+                compact, pretty, ..
+            } => {
+                assert!(compact);
+                assert!(pretty);
+            }
+            _ => panic!("expected Commands::Preflight"),
+        }
+    }
+
     /// T249 F1: omitted `--format` must default to `auto` (not the pre-T249 `json`).
     #[test]
     #[allow(non_snake_case)]
@@ -342,7 +363,10 @@ enum Commands {
         session_last: bool,
     },
     /// Generate preflight context for an LLM
-    #[command(display_order = 11)]
+    #[command(
+        display_order = 11,
+        after_help = "Default --pretty caps Session and Recent display lines at 140 characters. Safety is not line-capped on default pretty; only --compact first-line-caps Safety (100).\nJSON and --summary ignore --compact.\nExamples:\n  ai-brains preflight --pretty\n  ai-brains preflight --pretty --compact\n  ai-brains preflight --format json\n  ai-brains preflight --summary"
+    )]
     Preflight {
         #[arg(short, long, default_value_t = 1500)]
         max_words: usize,
@@ -357,6 +381,9 @@ enum Commands {
         /// preflight keeps compact `{text, word_count}` for `--format json` (T180/T220).
         #[arg(long)]
         format: Option<String>,
+        /// Tighter pretty item/line caps (human/pretty only). JSON and `--summary` ignore this.
+        #[arg(long)]
+        compact: bool,
         /// Comma-separated target file/directory paths for contextual risk analysis
         #[arg(long, env = "AI_BRAINS_SCOPE", value_delimiter = ',')]
         scope: Vec<String>,
@@ -3472,6 +3499,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             project_id,
             pretty,
             format,
+            compact,
             scope,
             summary,
             global,
@@ -3507,6 +3535,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     project_id: effective_project_id,
                     pretty: *pretty,
                     format: format.clone(),
+                    compact: *compact,
                     scope: effective_scope,
                     summary: *summary,
                     global: *global,
