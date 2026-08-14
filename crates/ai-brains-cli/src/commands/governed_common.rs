@@ -597,36 +597,46 @@ pub fn expect_daemon_ok(
     }
 }
 
-/// Print human-friendly scope resolution (always surfaces authoritative / warnings / alternatives).
-pub fn emit_scope_human(resp: &ScopeResolvedResponse) {
+/// Format human-friendly scope resolution (T160 field order + T249 next-step).
+pub(crate) fn format_scope_human(resp: &ScopeResolvedResponse) -> String {
     let auth = if resp.authoritative {
         "authoritative"
     } else {
         "NOT authoritative"
     };
-    println!("scope: {}", resp.scope);
-    println!("confidence: {} ({auth})", resp.confidence);
+    let mut lines = Vec::new();
+    lines.push(format!("scope: {}", resp.scope));
+    lines.push(format!("confidence: {} ({auth})", resp.confidence));
     if !resp.warnings.is_empty() {
-        println!("warnings:");
+        lines.push("warnings:".into());
         for w in &resp.warnings {
-            println!("  - {w}");
+            lines.push(format!("  - {w}"));
         }
     }
     if !resp.alternatives.is_empty() {
-        println!("alternatives:");
+        lines.push("alternatives:".into());
         for a in &resp.alternatives {
-            println!("  - {a}");
+            lines.push(format!("  - {a}"));
         }
     }
     if !resp.evidence.is_empty() {
-        println!("evidence:");
+        lines.push("evidence:".into());
         for e in &resp.evidence {
-            println!("  - {}: {}", e.signal, e.detail);
+            lines.push(format!("  - {}: {}", e.signal, e.detail));
         }
     }
     if !resp.authoritative {
-        println!("note: non-authoritative resolution — do not treat as full grant (scope #20)");
+        lines.push(
+            "note: non-authoritative resolution — do not treat as full grant (scope #20)".into(),
+        );
+        lines.push("next: ai-brains project whoami".into());
     }
+    format!("{}\n", lines.join("\n"))
+}
+
+/// Print human-friendly scope resolution (always surfaces authoritative / warnings / alternatives).
+pub fn emit_scope_human(resp: &ScopeResolvedResponse) {
+    print!("{}", format_scope_human(resp));
 }
 
 #[cfg(test)]
@@ -739,6 +749,65 @@ mod tests {
     #[test]
     fn ensure_command_id__provided__preserved() {
         assert_eq!(ensure_command_id(Some("my-cmd")), "my-cmd");
+    }
+
+    #[test]
+    fn format_scope_human__authoritative__has_scope_no_next() {
+        let mut resp = ScopeResolvedResponse::new(
+            "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "High",
+            true,
+        );
+        resp.evidence.push(ScopeEvidenceDto {
+            signal: "explicit_project_id".into(),
+            detail: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".into(),
+        });
+        let out = format_scope_human(&resp);
+        assert!(out.contains("scope:"), "got:\n{out}");
+        assert!(
+            out.contains(" (authoritative)"),
+            "authoritative label missing:\n{out}"
+        );
+        assert!(
+            !out.contains("NOT authoritative"),
+            "authoritative must not say NOT:\n{out}"
+        );
+        assert!(out.contains("evidence:"), "got:\n{out}");
+        assert!(
+            out.contains("explicit_project_id"),
+            "evidence signal missing:\n{out}"
+        );
+        assert!(
+            !out.contains("next:"),
+            "authoritative must omit next:\n{out}"
+        );
+    }
+
+    #[test]
+    fn format_scope_human__non_authoritative__note_and_whoami_next() {
+        let mut resp = ScopeResolvedResponse::new("", "Low", false);
+        resp.evidence.push(ScopeEvidenceDto {
+            signal: "cwd".into(),
+            detail: "heuristic".into(),
+        });
+        let out = format_scope_human(&resp);
+        assert!(
+            out.contains("scope:"),
+            "empty scope still prints scope:\n{out}"
+        );
+        assert!(out.contains("NOT authoritative"), "got:\n{out}");
+        assert!(
+            out.contains(
+                "note: non-authoritative resolution — do not treat as full grant (scope #20)"
+            ),
+            "T160 note missing:\n{out}"
+        );
+        let last = out
+            .lines()
+            .rev()
+            .find(|l| !l.is_empty())
+            .expect("non-empty line");
+        assert_eq!(last, "next: ai-brains project whoami");
     }
 
     #[test]

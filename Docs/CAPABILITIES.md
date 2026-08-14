@@ -84,11 +84,13 @@ Honesty matrix — **no** blanket TTY default flip for governed JSON surfaces.
 | `briefing` | markdown | json | T202 F9 + **T227**: `human\|pretty\|text\|markdown\|md` → markdown; only `json` → JSON; unknown → exit **2** |
 | `query progressive` / `expand` / `trace` | json | json | No TTY flip |
 | list/show (governed evidence/source/review/...) | json (Human if `--format human`) | json | `OutputFormat::parse` → Json bare |
-| `doctor` | human | human | `--json` / `--format json` override |
+| `scope resolve` | human | json | T249: `--format auto` (default). TTY human (`scope:` / `confidence:` / evidence). Pipe / `--format json` pretty JSON. Keys frozen. Tokens case-sensitive (`JSON`/`Pretty` exit 2). |
+| `doctor` | human | human | `--json` / `--format json` override (full `DoctorReport`). `--summary` is opt-in compact of the same 15-check report (warn+fail attention or `No issues.`). Does **not** TTY-switch. |
+| `daemon status` | human | human | No `--format`. Stopped last line: `next: ai-brains daemon start`. Running omits `next:`. Exit **0** both states. Keyless liveness (T199). |
 | `retention plan` | human | json | T248: `--format auto` (default). TTY human class matrix; pipe / `--format json` pretty JSON. Keys frozen. |
 | `retention apply` | json | json | Default JSON (dangerous). `--format auto` does **not** TTY-switch. Opt-in `--format human`. Confirm/scope gates unchanged. |
 
-Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty vault still prints the schedule). Scripts should pass `--format json`. `retention apply` stays JSON unless `--format human` is explicit.
+Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty vault still prints the schedule). Scripts should pass `--format json`. `retention apply` stays JSON unless `--format human` is explicit. `scope resolve` on a TTY is human; scripts should pass `--format json`. Default `doctor` stays the full 15-check listing.
 
 **Global options:**
 
@@ -495,8 +497,9 @@ Default list prints one **stderr** summary when any non-usable residual exists (
 
 ```text
 ai-brains doctor
-  [--format human|json]           # default human
+  [--format human|json]           # default human (does not TTY-switch)
   [--json]                        # force JSON (overrides --format)
+  [--summary]                     # opt-in compact of the same 15-check report
   [--fail-on-degraded]            # exit 1 when status=degraded
   [--kit-path <path>] [--passphrase-file <path>]
   [--backup-max-age <Nd|Nh|Nw>]   # default 7d

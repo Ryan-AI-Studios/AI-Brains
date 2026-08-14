@@ -164,6 +164,78 @@ mod tests {
             };
         assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
+
+    /// T249 AC5: unknown `--format` is clap InvalidValue (exit 2), not silent JSON.
+    #[test]
+    #[allow(non_snake_case)]
+    fn scope_resolve__format_xml__clap_invalid_value() {
+        use clap::Parser;
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "scope",
+            "resolve",
+            "--format",
+            "xml",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T249 AC16: `--format` tokens are case-sensitive (`JSON` is not `json`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn scope_resolve__format_JSON__clap_invalid_value() {
+        use clap::Parser;
+        use clap::error::ErrorKind;
+        let err =
+            match super::Cli::try_parse_from(["ai-brains", "scope", "resolve", "--format", "JSON"])
+            {
+                Ok(_) => panic!("expected clap to reject --format JSON"),
+                Err(e) => e,
+            };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T249 AC16: `--format` tokens are case-sensitive (`Pretty` is not `pretty`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn scope_resolve__format_Pretty__clap_invalid_value() {
+        use clap::Parser;
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "scope",
+            "resolve",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T249 F1: omitted `--format` must default to `auto` (not the pre-T249 `json`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn scope_resolve__default_format__auto() {
+        use clap::Parser;
+        let cli = match super::Cli::try_parse_from(["ai-brains", "scope", "resolve"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected scope resolve with no --format to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Scope {
+                command: super::ScopeCommands::Resolve { format, .. },
+            } => {
+                assert_eq!(format, "auto");
+            }
+            _ => panic!("expected Scope::Resolve"),
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -362,7 +434,7 @@ enum Commands {
     /// Read-only operator health report (vault / cipher / backup / recoverability / daemon)
     #[command(
         display_order = 12,
-        after_help = "Read-only: no migrate, no vault/backups create, no secrets on stdout. Does not replace RECOVERY-DRILLS. Offline kit residual without --kit-path is operator responsibility. Daemon probe = our IPC only. --backup-max-age uses Nd/Nh/Nw. No --passphrase argv.\nKey bootstrap: set --key or AI_BRAINS_KEY as x'<64 hex>' (see Docs/INSTALL.md). Missing key → vault_open skipped; wrong key → vault_open fail.\nExamples:\n  ai-brains doctor\n  ai-brains doctor --json\n  ai-brains doctor --kit-path ./kit.json --passphrase-file ./pw.txt\n  ai-brains doctor --fail-on-degraded --backup-max-age 14d --full"
+        after_help = "Read-only: no migrate, no vault/backups create, no secrets on stdout. Does not replace RECOVERY-DRILLS. Offline kit residual without --kit-path is operator responsibility. Daemon probe = our IPC only. --backup-max-age uses Nd/Nh/Nw. No --passphrase argv.\nKey bootstrap: set --key or AI_BRAINS_KEY as x'<64 hex>' (see Docs/INSTALL.md). Missing key → vault_open skipped; wrong key → vault_open fail.\nExamples:\n  ai-brains doctor\n  ai-brains doctor --summary\n  ai-brains doctor --json\n  ai-brains doctor --kit-path ./kit.json --passphrase-file ./pw.txt\n  ai-brains doctor --fail-on-degraded --backup-max-age 14d --full"
     )]
     Doctor {
         /// Output format: human (default) or json
@@ -386,6 +458,9 @@ enum Commands {
         /// Run PRAGMA integrity_check (slow path)
         #[arg(long)]
         full: bool,
+        /// Compact human summary (warn+fail only). JSON still emits the full report.
+        #[arg(long)]
+        summary: bool,
     },
     /// [dangerous] Forget a specific memory (soft delete)
     #[command(
@@ -673,7 +748,7 @@ enum Commands {
     /// Always surfaces authoritative, confidence, warnings, and alternatives.
     #[command(
         display_order = 30,
-        after_help = "Examples:\n  ai-brains scope resolve --format json"
+        after_help = "Examples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
     )]
     Scope {
         #[command(subcommand)]
@@ -999,14 +1074,22 @@ enum GovernedQueryCommands {
 }
 
 #[derive(Subcommand, Clone)]
-#[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
+#[command(
+    after_help = "Examples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
+)]
 enum ScopeCommands {
     /// Resolve the active governed scope for the working context
-    #[command(after_help = "Examples:\n  ai-brains scope resolve --format json")]
+    #[command(
+        after_help = "Examples:\n  ai-brains scope resolve\n  ai-brains scope resolve --format json"
+    )]
     Resolve {
-        /// Output format: json (default) | human | markdown
-        #[arg(long, default_value = "json")]
-        format: Option<String>,
+        /// Output format: auto (TTY human / pipe json), pretty/human/text/markdown/md, or json
+        #[arg(
+            long,
+            default_value = "auto",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
         /// Working directory hint (defaults to cwd)
         #[arg(long)]
         cwd: Option<String>,
@@ -2782,6 +2865,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         passphrase_file,
         backup_max_age,
         full,
+        summary,
     } = cli.command.as_ref()
     {
         let vault_path = cli
@@ -2798,6 +2882,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             passphrase_file: passphrase_file.clone(),
             backup_max_age: backup_max_age.clone(),
             full: *full,
+            summary: *summary,
         })
         .await;
     }

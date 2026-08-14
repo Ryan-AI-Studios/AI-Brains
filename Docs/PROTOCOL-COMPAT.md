@@ -88,7 +88,7 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | `recall` JSON | **compact** (`to_string`) | Additive T218 (optional, default+skip): per-result `score_kind` (`bm25`\|`rrf`\|`bridge` only) + `cosine`; existing `score` / `source` / `staleness` / response `embedding` unchanged. N−1 clients ignore unknowns. |
 | `preflight` JSON (`--format json`, non-summary) | **compact** (`to_string`) | Keys: `text`, `word_count` only (T180 freeze) |
 | `preflight --summary --format json` | **pretty** (`to_string_pretty`) | T220 CLI-local envelope: `api_version`, `scope` (`global`\|`project`\|`none`), `project_id`, optional `projects` (global only), `pinned`, `active_sessions`, `in_context_*`, `word_count` (full budget text). Does **not** grow `PreflightContextResponse`. |
-| `scope resolve --format json` | **pretty** (`to_string_pretty` via `emit_json`) | Governed DTO wire |
+| `scope resolve --format json` | **pretty** (`to_string_pretty` via `emit_json`) | T249 TTY/pipe split — default `auto` is TTY human / pipe JSON. JSON **keys unchanged**: `api_version`, `scope`, `confidence`, `authoritative`, `evidence`, `warnings`, `alternatives`. Human path is **not** a wire contract. `--format` tokens are **case-sensitive** (`JSON` / `Pretty` exit 2). |
 | Governed mutations (briefing, erasure, …) | **pretty** (`emit_json`) | Machine-clean stdout |
 | `ingest` success response | **compact** | `event_id`, `processed` |
 | `graph` neighbors/hierarchy/session | TTY **pretty** human; **compact** JSON when piped or `--format json` | **keys unchanged**. T246 adds `--format` so the TTY/pipe split is gated (changing compact↔pretty without a flag remains breaking). |
@@ -98,7 +98,7 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | `dogfood compare` / `evaluate governed` | **pretty** | |
 | `agy-hook --schema` / `sync pull --schema` | pretty schema docs | Not versioned wire ops |
 | `--version` | clap **text** | Do **not** pin as JSON |
-| `doctor` | **pretty** (human default) or JSON via `--json` / `--format json` | T192; `DoctorReport` schema_version=1; not governed OutputFormat missing→Json default |
+| `doctor` | **pretty** (human default) or JSON via `--json` / `--format json` | T192; `DoctorReport` schema_version=1; `--summary` is human-only presentation (same 15-check report). JSON still full schema_version=1. Not governed OutputFormat missing→Json default. Does **not** TTY-switch. |
 | `retention plan` | TTY **pretty** human; **pretty** JSON (`to_string_pretty` / `emit_json`) when piped or `--format json` | T248. **keys unchanged**: `api_version`, `generated_at`, `mode`, `horizons`, `classes`, `totals`, `cascade`, `warnings`, `errors_count`, optional `errors`. Human path is **not** a wire contract. `--format` tokens are **case-sensitive** (`JSON` / `Pretty` exit 2). |
 | `retention apply` | **pretty** JSON by default | `--format auto` does **not** TTY-switch. Opt-in `--format human` is not the parse contract. Confirm/scope gates unchanged. |
 

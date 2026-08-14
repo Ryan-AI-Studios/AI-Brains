@@ -11,11 +11,12 @@ use ai_brains_control_plane::{ScopeResolveInput, StorePorts, resolve_scope};
 use ai_brains_core::ids::{ProjectId, UserId};
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use ai_brains_store::SqliteEventStore;
+use is_terminal::IsTerminal;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 pub struct ResolveOptions {
-    pub format: Option<String>,
+    pub format: String,
     pub cwd: Option<String>,
     pub project_id: Option<ProjectId>,
     pub force_personal: bool,
@@ -25,12 +26,31 @@ pub struct ResolveOptions {
     pub require_daemon: bool,
 }
 
+/// Resolve `scope resolve --format` (T249). Clap rejects unknowns; `_` is fail-closed json.
+pub(crate) fn resolve_scope_format(explicit: &str, is_tty: bool) -> &'static str {
+    match explicit {
+        "pretty" | "human" | "text" | "markdown" | "md" => "human",
+        "json" => "json",
+        "auto" if is_tty => "human",
+        "auto" => "json",
+        _ => "json",
+    }
+}
+
+fn scope_output_format(resolved: &str) -> OutputFormat {
+    match resolved {
+        "human" => OutputFormat::Human,
+        _ => OutputFormat::Json,
+    }
+}
+
 /// `ai-brains scope resolve`
 pub async fn run_resolve(
     ctx: &AppContext,
     options: ResolveOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let format = OutputFormat::parse(options.format.as_deref());
+    let resolved = resolve_scope_format(&options.format, std::io::stdout().is_terminal());
+    let format = scope_output_format(resolved);
     let flags = PathFlags {
         local: options.local,
         daemon: options.daemon,
@@ -118,5 +138,64 @@ async fn run_resolve_daemon(
             }
         },
         other => Err(format!("unexpected daemon response: {other:?}").into()),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_scope_format__auto_tty__human() {
+        assert_eq!(resolve_scope_format("auto", true), "human");
+    }
+
+    #[test]
+    fn resolve_scope_format__auto_pipe__json() {
+        assert_eq!(resolve_scope_format("auto", false), "json");
+    }
+
+    #[test]
+    fn resolve_scope_format__pretty__human_regardless_of_tty() {
+        assert_eq!(resolve_scope_format("pretty", true), "human");
+        assert_eq!(resolve_scope_format("pretty", false), "human");
+    }
+
+    #[test]
+    fn resolve_scope_format__human__human_regardless_of_tty() {
+        assert_eq!(resolve_scope_format("human", true), "human");
+        assert_eq!(resolve_scope_format("human", false), "human");
+    }
+
+    #[test]
+    fn resolve_scope_format__text__human_regardless_of_tty() {
+        assert_eq!(resolve_scope_format("text", true), "human");
+        assert_eq!(resolve_scope_format("text", false), "human");
+    }
+
+    #[test]
+    fn resolve_scope_format__markdown__human_regardless_of_tty() {
+        assert_eq!(resolve_scope_format("markdown", true), "human");
+        assert_eq!(resolve_scope_format("markdown", false), "human");
+    }
+
+    #[test]
+    fn resolve_scope_format__md__human_regardless_of_tty() {
+        assert_eq!(resolve_scope_format("md", true), "human");
+        assert_eq!(resolve_scope_format("md", false), "human");
+    }
+
+    #[test]
+    fn resolve_scope_format__json__json_regardless_of_tty() {
+        assert_eq!(resolve_scope_format("json", true), "json");
+        assert_eq!(resolve_scope_format("json", false), "json");
+    }
+
+    #[test]
+    fn resolve_scope_format__unknown__fail_closed_json() {
+        assert_eq!(resolve_scope_format("xml", true), "json");
+        assert_eq!(resolve_scope_format("JSON", false), "json");
+        assert_eq!(resolve_scope_format("Pretty", true), "json");
     }
 }
