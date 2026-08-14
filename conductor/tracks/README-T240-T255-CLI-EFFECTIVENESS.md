@@ -1,7 +1,7 @@
 # T240–T255 — Post-install CLI effectiveness (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-11 (global graph-on install; live vault).
-**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**. **T243 Completed** 2026-08-12 PR #153. **T245 Completed** 2026-08-12 PR #155. **T247 Completed** 2026-08-13 PR #157.
+**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**. **T243 Completed** 2026-08-12 PR #153. **T245 Completed** 2026-08-12 PR #155. **T247 Completed** 2026-08-13 PR #157. **T246 Completed** 2026-08-13 PR #159.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest.
 
 ## Audit → track map
@@ -14,7 +14,7 @@
 | Dual search mental model; progressive dead-end; T231 soft (search noun / recall text arm) | **T243** ✅ **Completed** PR #153 | P1 |
 | Backup fleet 0 OK / 21 FAIL legacy; list **Q7**; verify **E7**; doctor `backup_recent` warn / false-usable PreT109 | **T244** ✅ **Completed** PR #149 | P1 |
 | Harness `wiring=missing` despite `install_ready` | **T245** ✅ **Completed** PR #155 | P1 |
-| Graph neighbors **7/6** JSON-only; hierarchy/session human missing | **T246** | P2 |
+| Graph neighbors **7/6** JSON-only; hierarchy/session human missing | **T246** ✅ **Completed** PR #159 — TTY pretty; frozen JSON keys; crate `*_with_depth`; update human opt-in | P2 |
 | `nightly --status` 4–6s; Last Result **101** residual | **T247** ✅ **Completed** PR #157 — live Last Result **1** named; `"skipped"` literal; LIST/V struct | P1–P2 |
 | `retention plan` **7/7** JSON-only / empty classes thin | **T248** | P2 |
 | `scope resolve` always JSON **Q7**; `daemon status` **Q7**; no `doctor --summary` | **T249** | P2 |
