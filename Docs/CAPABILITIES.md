@@ -405,11 +405,11 @@ cargo install --path crates/ai-brains-cli --locked --features graph
 
 | Command | Purpose |
 |---------|---------|
-| `graph update` | Health report: `nodes`, `edges`, `pinned_memories`, `memory_nodes`, `edge_node_ratio`, `density` (`ok`\|`warn`\|`skip`), `status` (`live`\|`sparse`\|`empty`), `note`, optional `remediation` (T213) |
-| `graph rebuild` | Full resync (recovery) |
-| `graph neighbors <memory_id>` | 1-hop neighbors |
-| `graph hierarchy <memory_id>` | Synthesis chain |
-| `graph session <session_id>` | Memories in a session |
+| `graph update` | Health report: default remains **pretty JSON** (T213 keys: `nodes`, `edges`, `pinned_memories`, `memory_nodes`, `edge_node_ratio`, `density` (`ok`\|`warn`\|`skip`), `status` (`live`\|`sparse`\|`empty`), `note`, optional `remediation`). Opt-in `--format human` prints labeled lines. `--format auto` does **not** TTY-switch (stays JSON). Feature-off still exit **2**. |
+| `graph rebuild` | Full resync (recovery). T246 does **not** rebuild automatically. |
+| `graph neighbors <memory_id>` | 1-hop neighbors. TTY pretty human (or `--format pretty`/`human`/`text`); **compact** JSON when piped or `--format json`. `--limit`/`-l` (pretty default 50 max 200; JSON unlimited unless `--limit` given). Pretty columns DIR/LABEL/ID/KIND/PREVIEW (preview only for `memory` kind). Empty pretty distinguishes no graph node vs present-but-empty edges; always prints `next: ai-brains graph update`. JSON keys unchanged. |
+| `graph hierarchy <memory_id>` | Synthesis chain. Same TTY/pipe `--format` / `--limit` as neighbors. Empty pretty distinguishes no graph node vs leaf (`No SYNTHESIZED_FROM children`). JSON keys unchanged. |
+| `graph session <session_id>` | Memories in a session. Same TTY/pipe `--format` / `--limit` as neighbors. Empty pretty distinguishes no graph node vs no session memories. JSON keys unchanged. |
 
 > **Feature-off:** all rows above exit **2** + `FEATURE_UNAVAILABLE` when the binary was built without `--features graph`.
 

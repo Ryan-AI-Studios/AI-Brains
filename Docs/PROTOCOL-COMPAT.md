@@ -91,8 +91,9 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | `scope resolve --format json` | **pretty** (`to_string_pretty` via `emit_json`) | Governed DTO wire |
 | Governed mutations (briefing, erasure, …) | **pretty** (`emit_json`) | Machine-clean stdout |
 | `ingest` success response | **compact** | `event_id`, `processed` |
-| `graph` neighbors/hierarchy/session | **compact** | |
-| `graph update` report | **pretty** | T213 fields: `nodes`, `edges`, `pinned_memories`, `memory_nodes`, `edge_node_ratio`, `density` (`ok`\|`warn`\|`skip`), `status` (`live`\|`sparse`\|`empty`), `note`, optional `remediation` |
+| `graph` neighbors/hierarchy/session | TTY **pretty** human; **compact** JSON when piped or `--format json` | **keys unchanged**. T246 adds `--format` so the TTY/pipe split is gated (changing compact↔pretty without a flag remains breaking). |
+| Array order (`graph` neighbors/hierarchy/session) | sorted (T246) | Array order: sorted for determinism (neighbors: direction→label→id; hierarchy/session: lexicographic). Pre-T246: SQL encounter order. |
+| `graph update` report | **pretty** | T213 fields: `nodes`, `edges`, `pinned_memories`, `memory_nodes`, `edge_node_ratio`, `density` (`ok`\|`warn`\|`skip`), `status` (`live`\|`sparse`\|`empty`), `note`, optional `remediation`. Opt-in `--format human` is **not** the default and is not the T74 parse contract. `--format auto` stays pretty JSON (no TTY switch). |
 | `backup create` JSON | **compact** | |
 | `dogfood compare` / `evaluate governed` | **pretty** | |
 | `agy-hook --schema` / `sync pull --schema` | pretty schema docs | Not versioned wire ops |

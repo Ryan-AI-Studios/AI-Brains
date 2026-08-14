@@ -129,6 +129,26 @@ mod tests {
             _ => panic!("expected Commands::Nightly"),
         }
     }
+
+    /// T246 AC12: unknown `--format` is clap InvalidValue (exit 2), not resolve passthrough.
+    #[test]
+    #[allow(non_snake_case)]
+    fn graph_neighbors__format_xml__clap_invalid_value() {
+        use clap::Parser;
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "graph",
+            "neighbors",
+            "--format",
+            "xml",
+            "id",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
 }
 
 #[derive(Parser)]
@@ -1605,17 +1625,48 @@ enum MigrateCommands {
 }
 
 #[derive(Subcommand, Clone)]
+#[command(
+    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged)."
+)]
 pub enum GraphCommands {
     /// Rebuild graph from all events
     Rebuild,
     /// Show 1-hop graph neighbors of a memory
-    Neighbors { memory_id: String },
+    Neighbors {
+        memory_id: String,
+        /// Output format: auto (TTY pretty / pipe json), pretty/human/text, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json"])]
+        format: String,
+        /// Max rows (pretty default 50, max 200; JSON unlimited unless set)
+        #[arg(short = 'l', long)]
+        limit: Option<usize>,
+    },
     /// Show recursive SYNTHESIZED_FROM hierarchy of a memory
-    Hierarchy { memory_id: String },
+    Hierarchy {
+        memory_id: String,
+        /// Output format: auto (TTY pretty / pipe json), pretty/human/text, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json"])]
+        format: String,
+        /// Max rows (pretty default 50, max 200; JSON unlimited unless set)
+        #[arg(short = 'l', long)]
+        limit: Option<usize>,
+    },
     /// Show all memories in a session via graph edges
-    Session { session_id: String },
+    Session {
+        session_id: String,
+        /// Output format: auto (TTY pretty / pipe json), pretty/human/text, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json"])]
+        format: String,
+        /// Max rows (pretty default 50, max 200; JSON unlimited unless set)
+        #[arg(short = 'l', long)]
+        limit: Option<usize>,
+    },
     /// Show current graph health: node/edge counts
-    Update,
+    Update {
+        /// Output format: json (default pretty-JSON), auto (same as json), or human
+        #[arg(long, default_value = "json", value_parser = ["json", "auto", "human"])]
+        format: String,
+    },
 }
 
 /// T216 memory inventory subcommands.
@@ -3690,10 +3741,22 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(feature = "graph")]
         Commands::Graph { command, .. } => match command {
             GraphCommands::Rebuild => commands::graph::rebuild(&ctx),
-            GraphCommands::Neighbors { memory_id } => commands::graph::neighbors(&ctx, memory_id),
-            GraphCommands::Hierarchy { memory_id } => commands::graph::hierarchy(&ctx, memory_id),
-            GraphCommands::Session { session_id } => commands::graph::session(&ctx, session_id),
-            GraphCommands::Update => commands::graph::update(&ctx),
+            GraphCommands::Neighbors {
+                memory_id,
+                format,
+                limit,
+            } => commands::graph::neighbors(&ctx, memory_id, format, *limit),
+            GraphCommands::Hierarchy {
+                memory_id,
+                format,
+                limit,
+            } => commands::graph::hierarchy(&ctx, memory_id, format, *limit),
+            GraphCommands::Session {
+                session_id,
+                format,
+                limit,
+            } => commands::graph::session(&ctx, session_id, format, *limit),
+            GraphCommands::Update { format } => commands::graph::update(&ctx, format),
         },
         #[cfg(not(feature = "graph"))]
         Commands::Graph { .. } => {

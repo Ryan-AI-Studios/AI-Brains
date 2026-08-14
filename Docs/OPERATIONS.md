@@ -885,6 +885,8 @@ ai-brains doctor --format json
 
 Thresholds (soft env, invalid→default): `AI_BRAINS_GRAPH_MIN_PINNED` (100), `AI_BRAINS_GRAPH_MIN_NODES` (50), `AI_BRAINS_GRAPH_MIN_EDGE_RATIO` (0.50), `AI_BRAINS_GRAPH_MIN_MEMORY_COVERAGE` (0.10 severe floor).
 
+**Reading neighbors / hierarchy / session (T246):** on a TTY (or `--format pretty` / `human` / `text`) these print a human table; piped stdout or `--format json` stays **compact** JSON for scripts. Empty pretty distinguishes **No graph node** from **No neighbors** / leaf / no session memories — next step is `ai-brains graph update` (which already names rebuild when sparse). T246 does **not** auto-rebuild. Do not wait for empty neighbors on a fresh pin to “clear” — the projection can be sparse. `graph update --format human` is labeled lines; default JSON is unchanged.
+
 **Cozo init quiet by default (T208):** graph-on CLI paths construct the Cozo proxy but do **not** print `CozoProxyBackend initialized` under the product default log filter. To see lifecycle/debug for the graph crate only:
 
 ```powershell
