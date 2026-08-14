@@ -301,7 +301,8 @@ Operators and docs must keep these mechanisms distinct. Normative design is [ADR
 Retention is a **class-and-risk matrix**, not a single global clock. Dry-run **before** destroy is mandatory.
 
 ```powershell
-ai-brains retention plan --format json
+ai-brains retention plan                 # TTY: human class matrix
+ai-brains retention plan --format json   # pretty JSON (scripts)
 ai-brains retention apply --confirm --format json
 ```
 
@@ -328,7 +329,7 @@ ai-brains retention apply --confirm --format json
 | `secret` | B | 7d | `ce_wipe` |
 | `review_trace` | A | 90d from terminal `updated_at` | projection cleanup if closed |
 | `query_trace` | A | 30d | projection delete by `recorded_at` |
-| `memory_legacy` | A | none auto | pinned → `held` |
+| `memory_legacy` | A | none auto | `skip` (v1 none auto; stream A never scanned; pinned→held only if a subject were classified) |
 | `orphaned_envelope` | B | 7d (active wrap, **0** blobs) | CE destroy wrap only |
 | `unclassified` | either | skip apply | listed in dry-run only |
 

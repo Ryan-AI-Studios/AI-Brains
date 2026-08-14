@@ -149,6 +149,21 @@ mod tests {
         };
         assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
+
+    /// T248 AC10: unknown `--format` is clap InvalidValue (exit 2), not silent JSON.
+    #[test]
+    #[allow(non_snake_case)]
+    fn retention_plan__format_xml__clap_invalid_value() {
+        use clap::Parser;
+        use clap::error::ErrorKind;
+        let err =
+            match super::Cli::try_parse_from(["ai-brains", "retention", "plan", "--format", "xml"])
+            {
+                Ok(_) => panic!("expected clap to reject --format xml"),
+                Err(e) => e,
+            };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
 }
 
 #[derive(Parser)]
@@ -730,7 +745,7 @@ enum Commands {
     /// Class-based retention plan/apply (T166 / P8.4)
     #[command(
         display_order = 23,
-        after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json\nHonesty: projection delete ≠ CE; CE reuses erasure wipe path for envelope classes only; CE apply requires --scope."
+        after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json\nHonesty: projection delete ≠ CE; CE reuses erasure wipe path for envelope classes only; CE apply requires --scope."
     )]
     Retention {
         #[command(subcommand)]
@@ -1406,22 +1421,34 @@ enum ErasureCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\n  ai-brains retention apply --confirm --scope Repository:<uuid>\nNightly: AI_BRAINS_RETENTION_APPLY_CE only logs intent; CE is CLI+daemon+confirm+scope only."
+    after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json\n  ai-brains retention apply --confirm\n  ai-brains retention apply --confirm --scope Repository:<uuid>\nNightly: AI_BRAINS_RETENTION_APPLY_CE only logs intent; CE is CLI+daemon+confirm+scope only."
 )]
 enum RetentionCommands {
     /// Dry-run class matrix report (no disposal)
-    #[command(after_help = "Examples:\n  ai-brains retention plan --format json")]
+    #[command(
+        after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json"
+    )]
     Plan {
-        #[arg(long, default_value = "json")]
-        format: Option<String>,
+        /// Output format: auto (TTY human / pipe json), pretty/human/text/markdown/md, or json
+        #[arg(
+            long,
+            default_value = "auto",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
     },
     /// [dangerous] Apply retention plan (requires --confirm; CE via daemon T165 wipe)
     #[command(
-        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE (local)\n  - Envelope CE requires daemon + wipe_content_envelope only (T165)\n  - CE candidates require explicit --scope (Repository:<uuid> / Personal:<uuid>); no random default\n  - Projection-only apply may run without daemon or --scope\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json"
+        after_help = "Honesty:\n  - Default refuse without --confirm\n  - Legacy projection delete is not CE (local)\n  - Envelope CE requires daemon + wipe_content_envelope only (T165)\n  - CE candidates require explicit --scope (Repository:<uuid> / Personal:<uuid>); no random default\n  - Projection-only apply may run without daemon or --scope\n  - Not NIST Purge; pre-erase backups residual\nExamples:\n  ai-brains retention apply --confirm --format json\n  ai-brains retention apply --confirm --format human\n  ai-brains retention apply --confirm --scope Repository:<uuid> --format json"
     )]
     Apply {
-        #[arg(long, default_value = "json")]
-        format: Option<String>,
+        /// Output format: json (default pretty-JSON), auto (same as json), or human/pretty/text/md
+        #[arg(
+            long,
+            default_value = "json",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
         /// Execute disposal (required). Without this flag the command refuses.
         #[arg(long = "confirm", action = clap::ArgAction::SetTrue)]
         confirm: bool,
