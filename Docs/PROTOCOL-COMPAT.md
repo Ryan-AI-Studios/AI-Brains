@@ -99,6 +99,8 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | `agy-hook --schema` / `sync pull --schema` | pretty schema docs | Not versioned wire ops |
 | `--version` | clap **text** | Do **not** pin as JSON |
 | `doctor` | **pretty** (human default) or JSON via `--json` / `--format json` | T192; `DoctorReport` schema_version=1; not governed OutputFormat missing→Json default |
+| `retention plan` | TTY **pretty** human; **pretty** JSON (`to_string_pretty` / `emit_json`) when piped or `--format json` | T248. **keys unchanged**: `api_version`, `generated_at`, `mode`, `horizons`, `classes`, `totals`, `cascade`, `warnings`, `errors_count`, optional `errors`. Human path is **not** a wire contract. `--format` tokens are **case-sensitive** (`JSON` / `Pretty` exit 2). |
+| `retention apply` | **pretty** JSON by default | `--format auto` does **not** TTY-switch. Opt-in `--format human` is not the parse contract. Confirm/scope gates unchanged. |
 
 Changing compact ↔ pretty for a pinned command is a **breaking** CLI contract unless gated by a new flag.
 

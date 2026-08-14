@@ -85,6 +85,10 @@ Honesty matrix — **no** blanket TTY default flip for governed JSON surfaces.
 | `query progressive` / `expand` / `trace` | json | json | No TTY flip |
 | list/show (governed evidence/source/review/...) | json (Human if `--format human`) | json | `OutputFormat::parse` → Json bare |
 | `doctor` | human | human | `--json` / `--format json` override |
+| `retention plan` | human | json | T248: `--format auto` (default). TTY human class matrix; pipe / `--format json` pretty JSON. Keys frozen. |
+| `retention apply` | json | json | Default JSON (dangerous). `--format auto` does **not** TTY-switch. Opt-in `--format human`. Confirm/scope gates unchanged. |
+
+Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty vault still prints the schedule). Scripts should pass `--format json`. `retention apply` stays JSON unless `--format human` is explicit.
 
 **Global options:**
 
