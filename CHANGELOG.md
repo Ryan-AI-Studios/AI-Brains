@@ -17,6 +17,7 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T251 Device discoverability:** first-class `device status` prints the same enrolled roster as `device list` and **always** appends `next: ai-brains replicate status` (empty and enrolled). Human-only (no `--format`). `device list` / `fingerprint` / `replicate status` unchanged. Docs: CAPABILITIES OutputFormat, PROTOCOL-COMPAT §5, OPERATIONS, CLI-EXIT-CODES, INSTALL §7.
 - **T250 Preflight pretty density:** default `--pretty` line-caps Session/Recent at 140; `--compact` tighter item caps + first-line Safety/Recent (line-cap 100). JSON and `--summary` ignore `--compact`. Pretty-only timestamp-role chrome strip. Docs: CAPABILITIES + OPERATIONS.
 - **T249 Scope / daemon / doctor presentation:** `scope resolve` TTY human (`--format auto`); pretty JSON when piped or `--format json` (keys frozen; tokens case-sensitive). `daemon status` prints `next: ai-brains daemon start` when Stopped. `doctor --summary` compact warn+fail attention; `--json` / `--format json` stay the full `DoctorReport`.
 - **T248 Retention plan human:** `retention plan` TTY human class matrix (`--format auto`); pretty JSON when piped or `--format json` (keys frozen). Empty vault prints `Nothing to dispose.` plus the 9-class horizon matrix. `memory_legacy` zero-row mechanism is `skip`. `retention apply` stays default JSON; `--format human` is opt-in. Docs: CAPABILITIES OutputFormat, PROTOCOL-COMPAT §5, OPERATIONS.

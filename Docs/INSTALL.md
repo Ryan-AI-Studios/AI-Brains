@@ -194,6 +194,8 @@ Do **not** document Unix as “always `/tmp` only” or “already HTTP-default.
 | Multi-machine restore | Use passphrase / recovery kit paths — not DPAPI blob copy |
 | Multi-device event replication | Optional: `ai-brains device` / `ai-brains replicate` ([ADR-0018](DECISIONS/ADR-0018-encrypted-event-replication-protocol.md)) |
 
+Tip: `ai-brains device status` shows enrolled devices and always ends with `next: ai-brains replicate status`.
+
 ---
 
 ## 8. Three “sync” surfaces (name collision)
