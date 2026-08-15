@@ -257,6 +257,23 @@ mod tests {
             _ => panic!("expected Scope::Resolve"),
         }
     }
+
+    /// T251 F1: first-class `device status` (not a List alias).
+    #[test]
+    #[allow(non_snake_case)]
+    fn device_status__parses() {
+        use clap::Parser;
+        let cli = match super::Cli::try_parse_from(["ai-brains", "device", "status"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected device status to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Device {
+                command: super::DeviceCommands::Status,
+            } => {}
+            _ => panic!("expected DeviceCommands::Status"),
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -857,7 +874,7 @@ enum Commands {
     /// Does **not** repurpose `sync` (Ledgerful) or `safety sync` (hotspot pin).
     #[command(
         display_order = 24,
-        after_help = "Examples:\n  ai-brains device bootstrap\n  ai-brains device list\n  ai-brains device fingerprint\n  ai-brains device package-export --out peer.bin\n  ai-brains device enroll --package peer.bin --yes\n  ai-brains device revoke <device-id>\nHonesty: multi-device is optional; classical ECC only (not PQ); ACK ≠ wipe proof; padding ≠ metadata privacy."
+        after_help = "Examples:\n  ai-brains device bootstrap\n  ai-brains device list\n  ai-brains device status\n  ai-brains device fingerprint\n  ai-brains device package-export --out peer.bin\n  ai-brains device enroll --package peer.bin --yes\n  ai-brains device revoke <device-id>\nHonesty: multi-device is optional; classical ECC only (not PQ); ACK ≠ wipe proof; padding ≠ metadata privacy."
     )]
     Device {
         #[command(subcommand)]
@@ -953,6 +970,8 @@ enum DeviceCommands {
     },
     /// List enrolled devices (active + local)
     List,
+    /// Enrolled roster + pointer to `replicate status`
+    Status,
     /// Generate keys + write enrollment package (new machine; does not enroll into a peer vault)
     PackageExport {
         /// Output path for the enrollment package bytes (public only by default)
@@ -3712,6 +3731,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             DeviceCommands::Bootstrap => commands::device::run_bootstrap(&ctx),
             DeviceCommands::Fingerprint { raw } => commands::device::run_fingerprint(&ctx, *raw),
             DeviceCommands::List => commands::device::run_list(&ctx),
+            DeviceCommands::Status => commands::device::run_status(&ctx),
             DeviceCommands::PackageExport {
                 out,
                 write_private_key,

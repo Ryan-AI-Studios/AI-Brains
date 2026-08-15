@@ -1029,6 +1029,8 @@ Operator notes for the Tauri desktop adapter. Deep dive, architecture diagrams, 
 | Gap / reorder | Sync gaps buffer until fill or signed `GapSkipAudit`; no corrupt apply past gap |
 | Capture independence | `ai-brains-capture` has **no** dependency on `ai-brains-sync` |
 
+**Discoverability:** `ai-brains device status` prints the enrolled roster (same as `device list`) and always ends with `next: ai-brains replicate status`.
+
 ### Related docs
 
 - [ADR-0018](DECISIONS/ADR-0018-encrypted-event-replication-protocol.md) — protocol normative

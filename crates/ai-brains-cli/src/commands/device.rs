@@ -320,6 +320,11 @@ pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
+/// T198 F7 plural empty-enroll success copy (list / status / fingerprint).
+const EMPTY_ENROLL_HINT: &str = "No enrolled devices. Run `ai-brains device bootstrap` first.";
+/// T251 F2: always-appended pointer after the roster on `device status`.
+const DEVICE_STATUS_NEXT: &str = "next: ai-brains replicate status";
+
 /// Print local device dual-key fingerprint (R24).
 pub fn run_fingerprint(ctx: &AppContext, raw: bool) -> Result<(), Box<dyn std::error::Error>> {
     let conn = ctx.conn.lock()?;
@@ -330,7 +335,7 @@ pub fn run_fingerprint(ctx: &AppContext, raw: bool) -> Result<(), Box<dyn std::e
         .or_else(|| devices.first())
     else {
         // F7: align empty enroll with `device list` — stdout + exit 0.
-        println!("No enrolled devices. Run `ai-brains device bootstrap` first.");
+        println!("{EMPTY_ENROLL_HINT}");
         return Ok(());
     };
     let mut fp = [0u8; 32];
@@ -346,12 +351,12 @@ pub fn run_fingerprint(ctx: &AppContext, raw: bool) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
-/// List enrolled devices.
-pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+/// Shared enrolled-roster emit used by `device list` and `device status`.
+fn emit_device_roster(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     let conn = ctx.conn.lock()?;
     let devices = replication::list_enrolled_devices(&conn)?;
     if devices.is_empty() {
-        println!("No enrolled devices. Run `ai-brains device bootstrap` first.");
+        println!("{EMPTY_ENROLL_HINT}");
         return Ok(());
     }
     println!(
@@ -371,6 +376,18 @@ pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
             format_fingerprint_hyphen(&fp)
         );
     }
+    Ok(())
+}
+
+/// List enrolled devices.
+pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+    emit_device_roster(ctx)
+}
+
+/// Enrolled roster plus a pointer to `replicate status` (T251).
+pub fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+    emit_device_roster(ctx)?;
+    println!("{DEVICE_STATUS_NEXT}");
     Ok(())
 }
 

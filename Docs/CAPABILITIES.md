@@ -87,10 +87,13 @@ Honesty matrix — **no** blanket TTY default flip for governed JSON surfaces.
 | `scope resolve` | human | json | T249: `--format auto` (default). TTY human (`scope:` / `confidence:` / evidence). Pipe / `--format json` pretty JSON. Keys frozen. Tokens case-sensitive (`JSON`/`Pretty` exit 2). |
 | `doctor` | human | human | `--json` / `--format json` override (full `DoctorReport`). `--summary` is opt-in compact of the same 15-check report (warn+fail attention or `No issues.`). Does **not** TTY-switch. |
 | `daemon status` | human | human | No `--format`. Stopped last line: `next: ai-brains daemon start`. Running omits `next:`. Exit **0** both states. Keyless liveness (T199). |
+| `device list` | human | human | Human table only. No `--format`. Empty = T198 `No enrolled devices. Run \`ai-brains device bootstrap\` first.` |
+| `device status` | human | human | Human-only. Same roster as `device list` + **always** `next: ai-brains replicate status` (empty and enrolled). No `--format` (unknown flags clap exit **2**). Not a JSON DTO. |
+| `replicate status` | human | human | `--format json` is the machine enrollment path (keys frozen; unchanged). Does **not** TTY-switch. |
 | `retention plan` | human | json | T248: `--format auto` (default). TTY human class matrix; pipe / `--format json` pretty JSON. Keys frozen. |
 | `retention apply` | json | json | Default JSON (dangerous). `--format auto` does **not** TTY-switch. Opt-in `--format human`. Confirm/scope gates unchanged. |
 
-Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty vault still prints the schedule). Scripts should pass `--format json`. `retention apply` stays JSON unless `--format human` is explicit. `scope resolve` on a TTY is human; scripts should pass `--format json`. Default `doctor` stays the full 15-check listing.
+Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty vault still prints the schedule). Scripts should pass `--format json`. `retention apply` stays JSON unless `--format human` is explicit. `scope resolve` on a TTY is human; scripts should pass `--format json`. Default `doctor` stays the full 15-check listing. `device list` / `device status` are human-only (no `--format`). Machine enrollment is `replicate status --format json` (keys frozen).
 
 **Global options:**
 
