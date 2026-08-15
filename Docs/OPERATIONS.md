@@ -49,6 +49,7 @@ $json = @{
 
 echo $json | ai-brains --vault-path ./vault.db ingest
 ```
+Empty / whitespace-only / TTY stdin is usage **exit 2** plus a copy-paste example — not EOF `COMMAND_FAILED`. Pipe JSON (the `ConvertTo-Json` sample above).
 
 ### Capture Privacy / message-only (T234)
 

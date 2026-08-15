@@ -1,7 +1,7 @@
 # T240–T255 — Post-install CLI effectiveness (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-11 (global graph-on install; live vault).
-**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**. **T243 Completed** 2026-08-12 PR #153. **T245 Completed** 2026-08-12 PR #155. **T247 Completed** 2026-08-13 PR #157. **T246 Completed** 2026-08-13 PR #159. **T248 Completed** 2026-08-14 PR #161. **T249 Completed** 2026-08-14 PR #163. **T250 Completed** 2026-08-14 PR #165. **T251 Completed** 2026-08-14 PR #167.
+**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**. **T243 Completed** 2026-08-12 PR #153. **T245 Completed** 2026-08-12 PR #155. **T247 Completed** 2026-08-13 PR #157. **T246 Completed** 2026-08-13 PR #159. **T248 Completed** 2026-08-14 PR #161. **T249 Completed** 2026-08-14 PR #163. **T250 Completed** 2026-08-14 PR #165. **T251 Completed** 2026-08-14 PR #167. **T252 Completed** 2026-08-15 (empty/TTY ingest stdin honesty).
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest.
 
 ## Audit → track map
@@ -20,7 +20,7 @@
 | `scope resolve` always JSON **Q7**; `daemon status` **Q7**; no `doctor --summary` | **T249** ✅ **Completed** PR #163 — TTY `auto` human; JSON keys frozen; Stopped `next:`; real `--summary` | P2 |
 | `preflight --pretty` density **7/7** (second pass after T219) | **T250** ✅ **Completed** PR #165 — line-cap 140; `--compact`; JSON ignore; governed Other uncapped | P3 |
 | `device status` missing; multi-device discoverability | **T251** ✅ **Completed** 2026-08-14 PR #167 — first-class `status` = roster + always `next:`; no product fill | P3 |
-| `ingest --dry-run` empty stdin **5/7** | **T252** | P3 |
+| `ingest --dry-run` empty stdin **5/7** | **T252** ✅ **Completed** 2026-08-15 — `fail_usage` exit 2 + example; mid-payload exit 1 | P3 |
 | Claude/Codex `install_ready` (**T239+** residual) | **T253** | P2 |
 | T233 soft: list-paths / unregister-path / from-scan / route method | **T254** | P3 |
 | T229 soft: doctor model ports / JSON status / embed sleep (F8–F12/F14) | **T255** | P3 |

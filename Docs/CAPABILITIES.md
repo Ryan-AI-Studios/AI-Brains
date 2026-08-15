@@ -133,8 +133,8 @@ Normative exit codes **0–7** (including `FEATURE_UNAVAILABLE`→**2**, doctor 
 - AGY live+batch seamless ingest: **Implemented with caveats** (T236). Grok Build: **Implemented with caveats** (T237). OpenCode: **Implemented with caveats** (T238). Multi-harness nightly orchestration: **Implemented (T239)** (agy → grok → opencode; Claude/Codex install backends remain **T253**).
 
 ### Manual / programmatic
-- **`ingest`** — JSON turn from stdin (`session_id`, `project_id`, `harness_id`, `turn_id`, `role`, `content`, `privacy`)
-- **`--dry-run`** — preview without write (relaxed validation on dry-run path)
+- **`ingest`** — JSON turn from stdin (`session_id`, `project_id`, `harness_id`, `turn_id`, `role`, `content`, `privacy`). Empty / whitespace-only / TTY stdin → **exit 2** `fail_usage` with a copy-paste example payload (not EOF `COMMAND_FAILED`). Mid-payload parse (`{`, truncated object) stays **exit 1**.
+- **`--dry-run`** — preview without write (relaxed validation on dry-run path). Same empty/TTY usage **exit 2** as live `ingest`.
 
 ### Harness integrations
 

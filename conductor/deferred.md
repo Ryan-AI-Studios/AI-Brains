@@ -175,12 +175,27 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Scope/daemon/doctor presentation | ~~**T249**~~ ✅ **Completed** 2026-08-14 PR #163 `5fd264a` — TTY `auto` human; JSON keys frozen; Stopped `next:`; real `--summary`. Soft residual only: F12 daemon json/uptime/sc query / is-terminal std / shared resolver / color; F13 T241 leftovers / T226 O1 / T255 / T250 |
 | Preflight pretty density (T219 residual) | ~~**T250**~~ ✅ **Completed** 2026-08-14 PR #165 `bf23f0e` — Session/Recent line-cap 140; `--compact`; JSON/summary ignore; chrome strip. Soft residual only: F12 is-terminal std / clap pin / JSON role strip / pager / governed section caps / `--max-line` / skill / HOTSPOT float / auto-compact |
 | device status missing | ~~**T251**~~ ✅ **Completed** 2026-08-14 PR #167 `038098e` — first-class `status` = roster + always `next:`; plural T198 only; CLI-EXIT-CODES footnote. Soft residual only: F12 |
-| ingest dry-run empty stdin | **T252** Placeholder |
+| ingest dry-run empty stdin | ~~**T252**~~ ✅ **Completed** 2026-08-15 — empty/TTY/`trim` stdin → `fail_usage` exit **2** + example JSON; mid-payload stays `COMMAND_FAILED` exit **1**. Soft residual only: F12 vault-free dry-run / `--schema` / `IsTerminal` migrate / shared stdin helper / `events[0]` panic / T253–T255 |
 | Claude/Codex install_ready (T239+) | **T253** Placeholder |
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T251 Completed.** Remaining tracks plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T252 Completed.** Remaining tracks plan-only until go.
+
+### T252 closeout residuals (2026-08-15)
+
+Specified softs (F12), not review deferrals:
+
+| Residual | Disposition |
+|----------|-------------|
+| Vault-free `ingest --dry-run` / `run_sync_path_free` | Soft — F9 vault still required |
+| `ingest --schema` | Soft — T83 siblings; not DoD |
+| `std::io::IsTerminal` migrate | Soft — T249 F12 |
+| clap 4.6 workspace pin | Soft — lock 4.6.1 stays |
+| T86 `read_json_from_stdin` swallow | Soft — preflight `--stdin`, not ingest |
+| Shared `read_stdin_trimmed` SOOT | Soft — isolation |
+| `outcome.events[0]` if `events` empty | Soft — pre-existing live path |
+| T253–T255 | Peer placeholders |
 
 ### T251 soft residuals (2026-08-14)
 

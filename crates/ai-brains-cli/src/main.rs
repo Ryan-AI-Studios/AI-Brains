@@ -323,7 +323,10 @@ enum Commands {
         force: bool,
     },
     /// Ingest a conversation turn (reads JSON from stdin)
-    #[command(display_order = 50)]
+    #[command(
+        display_order = 50,
+        after_help = "Pipe a JSON turn on stdin. Empty or TTY stdin exits 2 with a usage example.\nExample payload:\n{\n  \"session_id\": \"00000000-0000-0000-0000-000000000001\",\n  \"project_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"harness_id\": \"00000000-0000-0000-0000-000000000002\",\n  \"turn_id\": \"00000000-0000-0000-0000-000000000003\",\n  \"role\": \"user\",\n  \"content\": \"hello\",\n  \"privacy\": \"CloudOk\"\n}\n  echo '{\"session_id\":\"00000000-0000-0000-0000-000000000001\",\"project_id\":\"00000000-0000-0000-0000-000000000000\",\"harness_id\":\"00000000-0000-0000-0000-000000000002\",\"turn_id\":\"00000000-0000-0000-0000-000000000003\",\"role\":\"user\",\"content\":\"hello\",\"privacy\":\"CloudOk\"}' | ai-brains ingest --dry-run"
+    )]
     Ingest {
         /// Preview what would be ingested without writing to the vault
         #[arg(long)]

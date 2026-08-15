@@ -5,6 +5,12 @@ use std::io::{self, Read};
 
 const PREVIEW_MAX_LEN: usize = 100;
 
+pub(crate) const INGEST_EMPTY_STDIN_USAGE: &str = "stdin is empty or not piped. Pipe a JSON turn. Example:\n  echo '{\"session_id\":\"00000000-0000-0000-0000-000000000001\",\"project_id\":\"00000000-0000-0000-0000-000000000000\",\"harness_id\":\"00000000-0000-0000-0000-000000000002\",\"turn_id\":\"00000000-0000-0000-0000-000000000003\",\"role\":\"user\",\"content\":\"hello\",\"privacy\":\"CloudOk\"}' | ai-brains ingest --dry-run";
+
+pub(crate) fn ingest_stdin_needs_usage(is_tty: bool, raw: Option<&str>) -> bool {
+    is_tty || raw.is_none_or(|s| s.trim().is_empty())
+}
+
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
@@ -32,8 +38,19 @@ fn truncate_preview(s: &str) -> String {
 }
 
 pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::commands::governed_common::fail_usage;
+    use is_terminal::IsTerminal;
+
+    if io::stdin().is_terminal() {
+        return fail_usage(INGEST_EMPTY_STDIN_USAGE);
+    }
+
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
+
+    if ingest_stdin_needs_usage(false, Some(&input)) {
+        return fail_usage(INGEST_EMPTY_STDIN_USAGE);
+    }
 
     if dry_run {
         let req: DryRunIngestRequest =
@@ -99,4 +116,45 @@ pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Er
     };
     println!("{}", serde_json::to_string(&response)?);
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ingest_stdin_needs_usage__tty_or_blank__true() {
+        assert!(ingest_stdin_needs_usage(true, None));
+        assert!(ingest_stdin_needs_usage(false, Some("")));
+        assert!(ingest_stdin_needs_usage(false, Some(" \n")));
+    }
+
+    #[test]
+    fn ingest_stdin_needs_usage__payload__false() {
+        assert!(!ingest_stdin_needs_usage(false, Some("{")));
+        let valid = r#"{"session_id":"00000000-0000-0000-0000-000000000001","project_id":"00000000-0000-0000-0000-000000000000","harness_id":"00000000-0000-0000-0000-000000000002","turn_id":"00000000-0000-0000-0000-000000000003","role":"user","content":"hello","privacy":"CloudOk"}"#;
+        assert!(!ingest_stdin_needs_usage(false, Some(valid)));
+    }
+
+    #[test]
+    fn ingest_empty_stdin_usage__contains_example_keys() {
+        for key in [
+            "session_id",
+            "project_id",
+            "harness_id",
+            "turn_id",
+            "role",
+            "content",
+            "privacy",
+        ] {
+            assert!(
+                INGEST_EMPTY_STDIN_USAGE.contains(key),
+                "usage const missing {key}"
+            );
+        }
+        assert!(INGEST_EMPTY_STDIN_USAGE.contains("ai-brains ingest --dry-run"));
+        assert!(INGEST_EMPTY_STDIN_USAGE.contains("'{"));
+        assert!(INGEST_EMPTY_STDIN_USAGE.contains("}'"));
+    }
 }
