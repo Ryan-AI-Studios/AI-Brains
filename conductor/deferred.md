@@ -173,14 +173,22 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Nightly status latency + Last Result 101 | ~~**T247**~~ ✅ **Completed** 2026-08-13 PR #157 `43191ff` — `--quick`; parallel 750ms; LIST/V honesty; live missing `.cmd` named. Soft residual only: F11–F16 → **T255** |
 | Retention plan human | ~~**T248**~~ ✅ **Completed** 2026-08-14 PR #161 `c633781` — TTY `auto` human; JSON keys frozen; `memory_legacy` → `skip`; apply default JSON. Soft residual only: F16–F18 |
 | Scope/daemon/doctor presentation | ~~**T249**~~ ✅ **Completed** 2026-08-14 PR #163 `5fd264a` — TTY `auto` human; JSON keys frozen; Stopped `next:`; real `--summary`. Soft residual only: F12 daemon json/uptime/sc query / is-terminal std / shared resolver / color; F13 T241 leftovers / T226 O1 / T255 / T250 |
-| Preflight pretty density (T219 residual) | **T250** Placeholder |
+| Preflight pretty density (T219 residual) | ~~**T250**~~ ✅ **Completed** 2026-08-14 PR #165 `bf23f0e` — Session/Recent line-cap 140; `--compact`; JSON/summary ignore; chrome strip. Soft residual only: F12 is-terminal std / clap pin / JSON role strip / pager / governed section caps / `--max-line` / skill / HOTSPOT float / auto-compact |
 | device status missing | **T251** Placeholder |
 | ingest dry-run empty stdin | **T252** Placeholder |
 | Claude/Codex install_ready (T239+) | **T253** Placeholder |
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T249 Completed.** Remaining tracks plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T250 Completed.** Remaining tracks plan-only until go.
+
+### T250 soft residuals (2026-08-14)
+
+Specified softs, not review deferrals:
+
+| Residual | Disposition |
+|----------|-------------|
+| F12 is-terminal → std / clap 4.6 workspace pin / retrieval JSON role strip / pager / governed section caps / `--max-line` / T241 `--install-grants` / skill one-liner / HOTSPOT float-score reformat / auto-compact from terminal height | Soft — not DoD |
 
 ### T249 soft residuals (2026-08-14)
 
@@ -189,7 +197,7 @@ Specified softs, not review deferrals:
 | Residual | Disposition |
 |----------|-------------|
 | F12 Daemon uptime / `sc query` / `--format json` / `--quick` / compact doctor JSON DTO / T214 is-terminal → std / shared `resolve_*_format` / T204 Start-here rewrite that removes json / color / pager / `comfy-table` | Soft — not DoD |
-| F13 T241 F20–F22 leftovers / T226 O1 shared resolve wrapper / T255 nightly/router / T250 preflight density | Peer tracks |
+| F13 T241 F20–F22 leftovers / T226 O1 shared resolve wrapper / T255 nightly/router / ~~T250 preflight density~~ | Peer tracks (T250 closed) |
 
 ### T238 soft residuals (2026-08-09)
 
@@ -1225,7 +1233,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 | Item | Notes |
 |------|-------|
-| `--compact` flag / PrettyOpts | Soft F11/F30 — constants-first shipped |
+| `--compact` flag / PrettyOpts | ~~**T250**~~ ✅ **Completed** PR #165 `bf23f0e` — `--compact` + small `PrettyCaps` |
 | is-terminal → `std::io::IsTerminal` | Soft F22 |
 | clap workspace pin bump | Soft F41 — no bump DoD |
 | Role strip inside retrieval for JSON text | Soft F5 residual |
