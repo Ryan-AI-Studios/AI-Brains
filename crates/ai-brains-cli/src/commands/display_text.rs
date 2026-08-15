@@ -35,6 +35,22 @@ pub(crate) fn strip_role_prefix(line: &str) -> &str {
     line
 }
 
+/// Unicode-safe preview/line cap with a single `…` (T216 / T250).
+///
+/// `max_chars == 0` → empty. Under-budget strings are cloned unchanged.
+/// Over-budget: keep `max_chars.saturating_sub(1)` chars + Unicode ellipsis.
+pub(crate) fn truncate_preview_chars(s: &str, max_chars: usize) -> String {
+    if max_chars == 0 {
+        return String::new();
+    }
+    if s.chars().count() <= max_chars {
+        return s.to_string();
+    }
+    let keep = max_chars.saturating_sub(1);
+    let truncated: String = s.chars().take(keep).collect();
+    format!("{truncated}…")
+}
+
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
@@ -70,5 +86,32 @@ mod tests {
         assert!(!has_leading_role_prefix("text ASSISTANT: x"));
         assert!(!has_leading_role_prefix("assistant: x"));
         assert!(!has_leading_role_prefix("no prefix"));
+    }
+
+    #[test]
+    fn truncate_preview_chars__max_zero__empty() {
+        assert_eq!(truncate_preview_chars("anything", 0), "");
+    }
+
+    #[test]
+    fn truncate_preview_chars__under_max__unchanged() {
+        assert_eq!(truncate_preview_chars("short", 80), "short");
+    }
+
+    #[test]
+    fn truncate_preview_chars__emdash_over_max__ellipsis_no_panic() {
+        let s = "———————————————";
+        let out = truncate_preview_chars(s, 10);
+        assert_eq!(out.chars().count(), 10, "got {out:?}");
+        assert!(out.ends_with('…'), "got {out:?}");
+    }
+
+    #[test]
+    fn truncate_preview_chars__cjk_over_max__no_mid_char_slice() {
+        let s = "日本語テストプレビュー境界値チェック用の長い行です";
+        let out = truncate_preview_chars(s, 10);
+        assert_eq!(out.chars().count(), 10, "got {out:?}");
+        assert!(out.ends_with('…'), "got {out:?}");
+        assert_eq!(out.chars().next(), Some('日'));
     }
 }
