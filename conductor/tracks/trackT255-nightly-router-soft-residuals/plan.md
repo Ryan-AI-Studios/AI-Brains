@@ -1,10 +1,27 @@
 # T255 Plan — Nightly / router soft residuals (T229+ / T247+)
 
 **Status:** 📋 **Planning** (plan-only until **go**)
-**Spec:** [spec.md](./spec.md) F0–F33 / AC1–AC14
+**Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC16 + §12 AI fold-in
 **Category:** OPS / POLISH / UX
 **Ledger TX (planning):** `5d3d182d-f689-4673-9a03-733f5a178f3c` (DOCS)
+**Ledger TX (fold-in):** `6a1380e9-3c04-4d0f-b8d9-69f2dcb1a265` (DOCS)
 **Ledger TX (implement):** open on **go** (`ledgerful ledger start T255-nightly-router-soft-residuals --category FEATURE`)
+
+---
+
+## AI fold-in (2026-08-16) — `C:\dev\AI-review.md` AI1 + AI2
+
+No Highs. AI2 affirms F2/F10/F11/F12/F21. AI1 seven blind spots: six folded, one declined as stated (`first_quoted` already `pub(crate)`). Disposition in spec **§12**.
+
+### Pins locked by fold-in
+
+1. **AC3/F5:** one key list — include `action_target` + `errors_last_run_unreadable`.
+2. **F20/F35:** thread raw `Option` from `get_sync_state`; do not coalesce `"0"`/`"[]"` before the JSON builder.
+3. **F34:** snapshot `{ found, snap }`. Nightly `scheduled` = `next_run.is_some()`. Router `scheduled` = `found` (ONLOGON).
+4. **F21:** pass precomputed action fields; helper stays where it is.
+5. **AC9:** hermetic asserts only stable keys (not host `schtasks`).
+6. **F25/F37:** Nightly `after_help` is required.
+7. **AC15/AC16:** blank-status Router line; non-Windows JSON `null`.
 
 ---
 
@@ -52,6 +69,14 @@
 | Shared `resolve_*_format` | T249 F12 | **Declined** F3 / F33 |
 | Live reschedule missing `.cmd` | T247 F10 | **Stop-before** F30 — not DoD |
 | PATH reinstall | live | **Not absorbed** F29 |
+| AC3/§5.1 key mismatch | AI1 BS1 | **Absorbed** F5 / AC3 |
+| Coalesced `"0"`/`"[]"` | AI1 BS2 | **Absorbed** F20 / F35 |
+| Router ONLOGON scheduled | AI1 BS3 + O1 | **Absorbed** F34 / F9 |
+| `first_quoted` “private” | AI1 BS4 | **Declined as stated** — already `pub(crate)`; **absorbed intent** F21 precompute |
+| AC9 host schtasks flake | AI1 BS5 | **Absorbed** AC9 wording |
+| Blank-status Router line | AI1 BS6 | **Absorbed** AC15 |
+| Nightly `after_help` | AI1 BS7 | **Absorbed** F37 |
+| Shared format helper | AI1 (implicit) / T249 | **Declined** F3 |
 
 ---
 
@@ -64,7 +89,8 @@
 | Status branch | `nightly.rs` `if status` | Human only | Call `nightly_status`; additive Router lines; JSON emit |
 | **New** | `commands/nightly_status.rs` | — | resolver + JSON types + Router formatter + units |
 | LIST /V | `SchtasksListV` in `nightly.rs` | 4 fields | Additive `status: Option<String>` (F8). Keep parser here (T247 tests) |
-| Fetch | `fetch_schedule_snapshot(task_name)` | Nightly only | Second call `"AI-Brains-Router"` |
+| Fetch | `fetch_schedule_snapshot(task_name)` | `SchtasksListV`; miss ≡ default | **F34** `{ found, snap }`; second call `"AI-Brains-Router"` |
+| Sync state | `nightly.rs:42-47` | `unwrap_or "0"` / `"[]"` | **F20/F35** thread `Option` into builder; human may still print 0/[] |
 | Multi-import | `multi_import.rs` | print human | Reuse view/report in JSON (no schema fork) |
 | Doctor / embeddings / models | — | 15 checks / 50 ms / probe | **No** |
 | Docs | CAPABILITIES / OPERATIONS / CLI-EXIT-CODES / CHANGELOG | T247 human | F25 |
@@ -78,37 +104,42 @@
 - [ ] `ledgerful scan --impact` — expect `nightly.rs` / `main.rs` / new `nightly_status.rs`
 - [ ] Confirm `embeddings.rs` and `doctor.rs` are **not** in the touch set
 
-## Phase 1 — Red → Green: format clap + resolver (F3 / F4 / AC1–AC2)
+## Phase 1 — Red → Green: format clap + resolver (F3 / F4 / F37 / AC1–AC2)
 
 - [ ] Units in `nightly_status.rs` for `resolve_nightly_status_format` (AC1)
 - [ ] clap `--format` on `Nightly`: default `human`, `requires = "status"`, conflicts schedule/unschedule, T248 token set
-- [ ] Clap tests next to existing `nightly_quick__*` : no-status, `xml`, `JSON`
+- [ ] **Required** Nightly `after_help` (F37): `--format json` + “default human; pipes stay human”
+- [ ] Clap tests next to existing `nightly_quick__*` : no-status, `xml`, `JSON` (copy T248/T249 template)
 - [ ] Targeted: `cargo nextest run -p ai-brains-cli --lib nightly` ; clippy `-p ai-brains-cli`
 
-## Phase 2 — Red → Green: JSON builder (F1 / F5 / F6 / F19 / F20 / AC3–AC4 / AC9 / AC14)
+## Phase 2 — Red → Green: JSON builder (F1 / F5 / F6 / F19 / F20 / F35 / F36 / AC3–AC4 / AC9 / AC14 / AC16)
 
 - [ ] `NightlyStatusJson` + `EndpointJson` + `RouterJson` + `MultiImportJson` in `nightly_status.rs`
 - [ ] Pure builder from already-fetched fields (no HTTP inside the builder)
-- [ ] `--quick` fixture `probe: "skipped"`
-- [ ] `errors_last_run` parse (F20); `multi_import` never/unreadable/ok (F19)
-- [ ] Hermetic: `--format json` one object, no `=== Nightly Status ===`, exit 0
+- [ ] Thread raw `Option` for last_count / last_errors (F20/F35); AC3 includes `action_target` + `errors_last_run_unreadable`
+- [ ] Same `host_port` / model / probe tuple as human (F36); `--quick` fixture `probe: "skipped"`
+- [ ] `multi_import` never/unreadable/ok (F19)
+- [ ] Hermetic AC9: `--format json` one object, no `=== Nightly Status ===`; assert **only** `schema_version` / endpoints / `multi_import`
 - [ ] Hermetic: omitted `--format` still human (AC10)
+- [ ] AC16: non-Windows / no-scheduler builder → `scheduled` + `router` JSON `null`
 
-## Phase 3 — Red → Green: Router line + Status: parse (F7–F10 / F8 / AC5–AC7)
+## Phase 3 — Red → Green: Router line + Status: parse + foundness (F7–F10 / F8 / F34 / AC5–AC7 / AC15)
 
 - [ ] Additive `SchtasksListV.status`; update English fixture unit (AC5)
-- [ ] `format_router_status_lines` : running+267009; missing → `not scheduled` (no next:)
-- [ ] `nightly.rs` status branch: second `fetch_schedule_snapshot("AI-Brains-Router")`; print after endpoints
-- [ ] JSON `router` object / `scheduled: false` / non-Windows `null`
+- [ ] `fetch_schedule_snapshot` returns `{ found, snap }` (F34)
+- [ ] `format_router_status_lines`: running+267009; `found == false` → `not scheduled` (no next:); ONLOGON `found` + no next_run → still scheduled
+- [ ] AC15: status missing + last_result → `Router: last result: 267009` + following hint
+- [ ] `nightly.rs` status branch: second snapshot `"AI-Brains-Router"`; print after endpoints; precompute action fields for JSON
+- [ ] JSON `router.scheduled = found`; non-Windows `null`
 - [ ] Do **not** run T247 F6 missing-action on Router (F10)
 
 ## Phase 4 — Docs (F25 / AC12)
 
-- [ ] CAPABILITIES T247 honesty + `--format json` + default human + Router read-only
-- [ ] OPERATIONS examples + “doctor is not the model-port matrix”
+- [ ] CAPABILITIES: **one additive** T247 honesty bullet (format + default human + Router)
+- [ ] OPERATIONS: `--format json` example + “doctor is not the model-port matrix”
 - [ ] CLI-EXIT-CODES nightly status exit **0** footnote
-- [ ] Root CHANGELOG T255 row (note: piped default stays **human**, not a silent JSON break)
-- [ ] conductor + deferred closeout **only at track complete** (not this planning commit)
+- [ ] Root CHANGELOG T255 row (**must** say piped default stays **human**)
+- [ ] conductor + deferred closeout **only at track complete** (not this fold-in commit)
 
 ## Phase 5 — Review / gate (F27 / AC11 / AC13)
 

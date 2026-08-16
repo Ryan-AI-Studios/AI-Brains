@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can script `nightly --status` and see the Router task without mutating it. Closes the T240–T255 placeholder series.
 - **Absorbs:** T229 F12 / T247 F11 JSON status; T229 F11 / T247 F15 **read-only** Router Last Result line
 - **Not absorbed (DoD):** T229 F8 / T247 F12 doctor 16th model-port check; T229 F9 / T247 F13 persist probe in `sync_state`; T229 F10 / T247 F16 product `nightly-run.cmd` / register Router from `--schedule`; T229 F14 / T247 F14 50ms embed sleep; T247 O12 `--quick --no-vault`; T253 F34 Claude/Codex nightly; T167; T240 F13/F14; clap 5 / pin bumps; contracts DTO; daemon; live task mutate
-- **Research date:** 2026-08-15 (source HEAD `1f7b014` + live dogfood + T229/T247 code truth + crates pins)
-- **AI fold-in:** pending `C:\dev\AI-review.md` after this plan
-- **Ledger:** planning DOCS TX `5d3d182d-f689-4673-9a03-733f5a178f3c`. Implement starts a FEATURE TX on **go**.
+- **Research date:** 2026-08-15 (source HEAD `1f7b014` at plan; fold-in against `12cb898`)
+- **AI fold-in:** 2026-08-16 `C:\dev\AI-review.md` **T255** AI1 + AI2. No Highs. **Agree hard:** AI1 BS1 AC3/§5.1 key reconcile; AI1 BS2 thread raw `Option` sync_state (do not coalesce `"0"`/`"[]"` before the builder); AI1 BS3+O1 snapshot `found` flag + Router `scheduled` ≠ `next_run`; AI1 BS5/AC9 host-tolerant scheduler keys; AI1 BS7 Nightly `after_help` required. **Agree:** AI1 BS6 blank-status Router unit (AC15); AI1 O2 same host/model/probe tuple; AI1 O3 MultiImport parse-or-warn idiom for F20; AI1 O4 clap template + CHANGELOG default-human; AI1 O5 additive docs not a new section; AI1 O6 non-Windows JSON unit (AC16). **Decline:** AI1 BS4 “make `first_quoted_action_target` pub(crate)” — already `pub(crate)` at `nightly.rs:872`; pass precomputed action fields into the builder instead. AI2 “1968 lines” — file is **1819** lines. AI2 JSON example omitting `errors_last_run_unreadable` / `router.task_to_run` — keep both (BS1). Disposition **§12**.
+- **Ledger:** planning DOCS TX `5d3d182d-f689-4673-9a03-733f5a178f3c`. Fold-in DOCS TX `6a1380e9-3c04-4d0f-b8d9-69f2dcb1a265`. Implement starts a FEATURE TX on **go**.
 - **Isolation:** Do **not** reopen T229 F5 truncate, T247 `--quick` / 750 ms / LIST /V / missing-action, T239 multi-import, T253 Claude/Codex nightly. Do **not** mutate `AI-Brains-Nightly` or `AI-Brains-Router`, do **not** write `%USERPROFILE%\.ai-brains\nightly-run.cmd`, do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -65,7 +65,7 @@
 | Timeouts | `NIGHTLY_PROBE_TIMEOUT` 2s; `NIGHTLY_STATUS_PROBE_TIMEOUT` 750 ms | Do not change. |
 | Endpoints | `DEFAULT_MODEL_URL` `:8081`; `DEFAULT_EMBEDDING_URL` `:8083` | `resolve_nightly_model_endpoints` |
 | Format helpers | `format_endpoint_line` / `format_schedule_status_lines` / `format_status_schedule_block` | Human SOOT. Keep. |
-| LIST /V | `SchtasksListV` + `parse_schtasks_list_v` + `fetch_schedule_snapshot(task_name)` | Already parameterized by task name. **Reuse** for Router. No `status` field today. |
+| LIST /V | `SchtasksListV` + `parse_schtasks_list_v` + `fetch_schedule_snapshot(task_name)` | Already parameterized by task name. **Reuse** for Router. No `status` / `found` today. Miss and all-N/A both return `SchtasksListV::default()` (`:970`) — **F34** must distinguish. English fixture already has `Status: Ready` (AC5 additive). |
 | Decode | `explain_last_task_result` | 0 / 1 / 101 / 267009 / 267014 — reuse, do not fork. |
 | `--quick` | clap `requires = "status"` | `probe=skipped` string literal (T247 F1/F19). Keep. |
 | Multi-import | `multi_import.rs` `MultiImportStatusView` / `MultiImportReport` | never / unreadable / Report v1. Reuse in JSON. |
@@ -105,11 +105,11 @@
 | **F2 — Human freeze** | Default `--format human`. Piped `nightly --status` **stays human** (`=== Nightly Status ===`). Do **not** silently switch pipes to JSON (T229/T247 contract). |
 | **F3 — `--format auto`** | Available. TTY → human; pipe → json. Local `resolve_nightly_status_format` copied from T248/T249 (pretty/human/text/markdown/md → human; json → json; `_` fail-closed json). **Do not** extract a shared `resolve_*_format` (T249 pin). |
 | **F4 — clap** | `--format` **requires** `--status`; `conflicts_with_all = ["schedule", "unschedule"]`. `value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]`. Default **`human`**. Unknown / `JSON` / `Pretty` → clap `InvalidValue` exit **2** (T249 AC16). No manual `if` in `nightly::run`. |
-| **F5 — JSON keys** | Frozen object (pretty-printed). `schema_version` **1**. Keys in §6. Sort object keys by the struct field order below (do not `BTreeMap` scramble). `null` for missing optional scheduler fields. |
+| **F5 — JSON keys** | Frozen object (pretty-printed). `schema_version` **1**. **SoT is AC3 + §5.1 together** (AI1 BS1): include `action_target` and `errors_last_run_unreadable` in both. Sort by struct field order (do not `BTreeMap` scramble). `null` for missing optional scheduler fields. |
 | **F6 — Exit 0** | JSON and human status exit **0** for down / timeout / missing action / nonzero Last Result / Router 267009. Usage (`--format` without `--status`, unknown token) → **2**. |
 | **F7 — Router display** | Additive human lines after Completion/Embedding, before Multi-import. Reuse `fetch_schedule_snapshot("AI-Brains-Router")` + `explain_last_task_result`. Do **not** register, start, stop, or rewrite the Router task. |
 | **F8 — SchtasksListV.status** | Additive `status: Option<String>` parsed from English `Status:`. Existing units stay green (`Default` / extra field). Missing → omit human status word, JSON `null`. |
-| **F9 — Router missing** | Task missing (LIST /V non-zero) → human `Router: not scheduled` (no `next:`). JSON `router.scheduled = false`. Do **not** suggest `nightly --schedule` (that does not register Router). |
+| **F9 — Router missing** | `found == false` (LIST /V non-zero / spawn fail) → human `Router: not scheduled` (no `next:`). JSON `router.scheduled = false`. ONLOGON with `found == true` and `next_run == None` is **still scheduled** (do **not** use Nightly’s `next_run.is_some()`). Do **not** suggest `nightly --schedule` (that does not register Router). |
 | **F10 — Router Task To Run** | Live value is **unquoted** `C:\llm\router.bat`. Do **not** apply T247 F6 first-quoted-token missing-action to Router (would miss unquoted paths). JSON may include raw `task_to_run`. No Router “action missing” human line. |
 | **F11 — Decline doctor ports** | Do **not** add a 16th doctor check. T192/T249 lock 15 names + `DoctorReport`. Status is the model-port matrix. Docs say so. |
 | **F12 — Decline persist probe** | `--status` does not write `sync_state`. Last-run counters stay as they are. |
@@ -120,12 +120,12 @@
 | **F17 — `--quick` unchanged** | Still skips `LlamaCppProvider` / `probe_health`. Still `resolve_nightly_model_endpoints`. JSON `probe` is `"skipped"`. |
 | **F18 — Probe timeouts unchanged** | Status 750 ms `join!`; run 2s. No models crate change. No `ProbeStatus::Skipped`. |
 | **F19 — Multi-import JSON** | Reuse `MultiImportStatusView`: `{ "status": "never" }` / `{ "status": "unreadable" }` / `{ "status": "ok", "at", "agy", "grok", "opencode" }` with existing `SourceImportReport` fields. Do not fork the report schema. |
-| **F20 — errors_last_run** | Vault value is a string (live `"[]"`). JSON: parse as `serde_json::Value`; if array, emit it; else emit the raw string under `errors_last_run` and set `errors_last_run_unreadable: true`. Never panic. |
-| **F21 — Module** | New helpers + JSON types + Router formatter + format resolver + their units live in `crates/ai-brains-cli/src/commands/nightly_status.rs`. `nightly.rs` prints / dispatches only. **Do not** move T229/T247 tests out of `nightly.rs`. |
+| **F20 — errors_last_run** | Thread raw `Option<String>` from `get_sync_state` (AI1 BS2). **Do not** `unwrap_or_else(\|\| "[]")` before the builder. `None` → JSON `errors_last_run: null`, `errors_last_run_unreadable: false` (absent ≠ corrupt). `Some` valid JSON array → emit the array, flag false. `Some` non-array / parse fail → emit the raw string, flag **true**. Human path may still display `"[]"` when missing (T247 chrome freeze). Never panic. Same parse-or-warn idiom as `load_multi_import_status` (AI1 O3). |
+| **F21 — Module** | New helpers + JSON types + Router formatter + format resolver + their units live in `crates/ai-brains-cli/src/commands/nightly_status.rs`. `nightly.rs` prints / dispatches only. **Do not** move T229/T247 tests out of `nightly.rs`. Builder takes **precomputed** `action_target` / `action_target_missing` / `next_step` (call `first_quoted_action_target` + `exists` in `nightly.rs`). Helper is **already** `pub(crate)` (`:872`) — do not “promote” it; do not re-stat the path in the builder. |
 | **F22 — Capture independence** | Status/docs only. No events. No models on the `--quick` / JSON-build path beyond existing probe. |
 | **F23 — Pins / crates** | No clap 5, no lock bumps, no new crates, workspace **0.1.1**. No CLI `reqwest` / `wiremock`. |
 | **F24 — Contracts** | No DTO. PROTOCOL-COMPAT untouched. CHANGELOG + CAPABILITIES + OPERATIONS + CLI-EXIT-CODES. |
-| **F25 — Help / docs** | CAPABILITIES T247 honesty bullets + `--format json` / default human / Router line; OPERATIONS examples; root CHANGELOG T255 row; CLI-EXIT-CODES status footnote; clap after_help on Nightly if one exists or one additive Operator line. |
+| **F25 — Help / docs** | CAPABILITIES: **one additive** T247 honesty bullet (`--format json` / default human / Router read-only) — not a new section (AI1 O5). OPERATIONS: one `--format json` example + “doctor is not the model-port matrix”. Root CHANGELOG T255 row **must** say piped default stays human. CLI-EXIT-CODES status footnote. **Required** Nightly clap `after_help` (none today): `--format json` example + “default human; pipes stay human” (AI1 BS7). |
 | **F26 — Tests** | Naming `function_or_feature__condition__expected_result`. Units for format resolver, JSON keys, Router missing/running, `Status:` parse. Clap AC for requires / unknown / `JSON`. Hermetic: `--format json` parses + has no `=== Nightly Status ===`. Existing T229/T247 units stay green. No `unwrap`/`expect`/`panic` in production. |
 | **F27 — Cross-model** | FEATURE (new operator JSON contract). After Phase-1 review clean, run read-only `codex-review`. |
 | **F28 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals go to `conductor/deferred.md`. |
@@ -134,6 +134,10 @@
 | **F31 — is-terminal** | `is_terminal::IsTerminal` on stdout, same as T248/T249. Do not migrate the crate. |
 | **F32 — Non-Windows** | Omit scheduler + Router lines (T229). JSON `scheduled: null` / `router: null` on non-Windows (not fake `false`). |
 | **F33 — Decline extras** | T167; T240 F13/F14; T254 F12; T249 F12 shared format helper; T253 Unix wrappers; color/pager; `comfy-table`; doctor compact JSON DTO. |
+| **F34 — Snapshot foundness** | `fetch_schedule_snapshot` returns `{ found: bool, snap: SchtasksListV }`. `found =` LIST /V **success** (task exists). Non-zero / spawn fail → `found: false` + default fields. Success with all-N/A → `found: true`. Nightly JSON `scheduled` stays `next_run.is_some()` (matches human `Scheduled: Yes/No`). Router JSON `scheduled` = `found` (ONLOGON has no next run). |
+| **F35 — last_nightly_count Option** | Thread raw `Option<String>` (AI1 BS2). Do **not** coalesce missing to `"0"` before the builder. `None` / non-`usize` → JSON `sessions_summarized_last_run: null`. Human may still print `0` when missing. |
+| **F36 — Same endpoint tuple** | JSON `completion` / `embedding` consume the same `host_port_from_url` + model + probe-label tuple the human `format_endpoint_line` uses (AI1 O2). `--quick` label is still the string `"skipped"`. |
+| **F37 — after_help required** | Nightly has **no** `after_help` today (`main.rs` `:480`). Add one small block. Not optional. |
 
 ---
 
@@ -143,18 +147,20 @@
 |----|-------|
 | **AC1** | Unit: `resolve_nightly_status_format("auto", true) == "human"`; `("auto", false) == "json"`; pretty/human/text/markdown/md → human; `json` → json regardless of TTY |
 | **AC2** | Clap: `nightly --format json` without `--status` → `InvalidValue`/`MissingRequiredArgument` class, exit **2**. `nightly --status --format xml` → `InvalidValue`. `nightly --status --format JSON` → `InvalidValue` (T249 AC16) |
-| **AC3** | Unit: JSON value from a fixture snapshot contains frozen keys `schema_version`, `scheduled`, `next_run`, `last_task_result`, `last_task_result_hint`, `last_scheduled_run`, `action_target_missing`, `next_step`, `last_nightly_run`, `unsummarized_sessions`, `sessions_summarized_last_run`, `errors_last_run`, `completion`, `embedding`, `multi_import`, `router`. `schema_version == 1` |
+| **AC3** | Unit: JSON value from a fixture snapshot contains **every** frozen key: `schema_version`, `scheduled`, `next_run`, `last_task_result`, `last_task_result_hint`, `last_scheduled_run`, `action_target`, `action_target_missing`, `next_step`, `last_nightly_run`, `unsummarized_sessions`, `sessions_summarized_last_run`, `errors_last_run`, `errors_last_run_unreadable`, `completion`, `embedding`, `multi_import`, `router` (and `router.task_to_run` when scheduled). `schema_version == 1` |
 | **AC4** | Unit: completion/embedding objects are `{ host_port, model, probe }`. `--quick` fixture `probe == "skipped"` |
 | **AC5** | Unit: `parse_schtasks_list_v` English fixture now also fills `status` (`Ready` / `Running`) without breaking existing next/last/result/task-to-run asserts |
-| **AC6** | Unit: Router running + 267009 → human contains `Router:` and `267009` and the T247 running hint; JSON `router.scheduled == true`, `router.last_result == "267009"` |
-| **AC7** | Unit: Router LIST miss (all None) → human `Router: not scheduled`; JSON `router.scheduled == false`; **no** `next: ai-brains nightly --schedule` |
+| **AC6** | Unit: Router `found` + status `Running` + 267009 → human contains `Router:` and `267009` and the T247 running hint **on the following line**; JSON `router.scheduled == true`, `router.last_result == "267009"` |
+| **AC7** | Unit: Router `found == false` → human `Router: not scheduled`; JSON `router.scheduled == false`; **no** `next: ai-brains nightly --schedule`. Separate unit: `found == true`, `next_run == None`, last_result present (ONLOGON) → `router.scheduled == true` |
 | **AC8** | Existing T247 units stay green: `Last task result: 101` substring; `probe=skipped`; missing `.cmd` + `nightly --schedule --dry-run`; `--quick` requires `--status` |
-| **AC9** | Hermetic / process: `nightly --status --format json` on a temp vault exits **0**, stdout is one JSON object (no `=== Nightly Status ===`), includes `completion` + `embedding` |
+| **AC9** | Hermetic / process: `nightly --status --format json` on a temp vault exits **0**, stdout is one JSON object (no `=== Nightly Status ===`). Assert **only** stable keys: `schema_version`, `completion`, `embedding`, `multi_import` (never on a fresh vault). **Do not** assert host `scheduled` / `router` / Last Result — those spawn live `schtasks` against this machine (AI1 BS5). |
 | **AC10** | Hermetic: default `nightly --status` (no `--format`) still prints `=== Nightly Status ===` (human), even if stdout is not a TTY |
 | **AC11** | Manual (source bin): `nightly --status --format json` shows Nightly last result **1**, `action_target_missing: true`, Router **267009** / Running, embedding host `:8083`. Exit 0. Do **not** mutate tasks |
 | **AC12** | Docs: CAPABILITIES + OPERATIONS + root CHANGELOG T255 + CLI-EXIT-CODES status footnote. Doctor still documented as 15 checks |
 | **AC13** | No contracts DTO; no pin bumps; no new CLI dep; `embeddings.rs` untouched; doctor 15-check unit still passes; full gate green |
 | **AC14** | `--format json --quick` does not construct `LlamaCppProvider` (same F19). JSON `probe` is `"skipped"` |
+| **AC15** | Unit: Router `found`, `status == None`, last_result `267009` → human first line is `Router: last result: 267009` (no `Running`); hint still follows (AI1 BS6) |
+| **AC16** | Unit (or `#[cfg(not(windows))]`): JSON builder with no scheduler input emits `scheduled: null` and `router: null`, never `false` (AI1 O6 / F32) |
 
 ---
 
@@ -191,10 +197,11 @@
 }
 ```
 
-- Non-Windows: `scheduled`, scheduler strings, and `router` are JSON `null` (F32).
+- Non-Windows: `scheduled`, scheduler strings, and `router` are JSON `null` (F32 / AC16).
 - `next_step` is present **only** when `action_target_missing` is true; otherwise `null`.
 - `last_nightly_run` is `null` when vault says never (human prints `never`).
-- `sessions_summarized_last_run` is the parsed `last_nightly_count` integer when the string is a `usize`, else `null` + do not invent 0 from garbage.
+- `sessions_summarized_last_run`: `null` when the sync_state key is **missing** or not a `usize`. Do **not** invent `0` from a missing key (F35). A stored `"0"` is a real zero.
+- `errors_last_run`: `null` + `errors_last_run_unreadable: false` when the key is missing; array when valid JSON array; raw string + `true` when corrupt (F20).
 
 ### 5.2 Human Router lines
 
@@ -206,10 +213,11 @@ task still running (SCHED_S_TASK_RUNNING)
 Multi-import: never
 ```
 
-When status is missing but last_result present: `Router: last result: 267009`.
-When not scheduled: single line `Router: not scheduled`.
+When status is missing but last_result present: `Router: last result: 267009` (AC15).
+When `found == false`: single line `Router: not scheduled`.
+When `found == true` and ONLOGON (`next_run` N/A): still print `Router:` (status word if present) + last result — **not** `not scheduled`.
 
-Hint is a **following** line (same T247 F4 rule). AC8’s Nightly `Last task result: 101` is a different line — do not suffix.
+Hint is a **following** line (same T247 F4 rule). Reuse `explain_last_task_result` — do not fork. AC8’s Nightly `Last task result: 101` is a different line — do not suffix.
 
 ### 5.3 Default format is human
 
@@ -278,16 +286,21 @@ ledgerful verify --scope full
 | Live task “fix” temptation | **F14/F30** stop-before |
 | PATH-behind false AC fail | **F29** `cargo run` / hermetic |
 | `SchtasksListV` field add breaks tests | **F8** `Default`; update explicit structs only if they fail |
+| AC3/§5.1 key drift | **F5** single SoT; AC3 lists every key including `action_target` + `errors_last_run_unreadable` |
+| Missing sync_state coalesced to 0/[] | **F20/F35** thread `Option` |
+| Router ONLOGON `scheduled: false` | **F34** `found` flag; Router ≠ Nightly derivation |
+| Hermetic AC9 flakes on host tasks | **AC9** assert only stable keys |
+| Nightly help gap | **F25/F37** required `after_help` |
 
 ---
 
 ## 9. Implement order (on go)
 
-1. Red→Green F3/F4/AC1–AC2 format resolver + clap  
-2. Red→Green F5/F19/F20/AC3–AC4/AC9/AC14 JSON builder  
-3. Red→Green F7–F10/F8/AC5–AC7 Router line + `status` field  
-4. Wire `nightly.rs` status branch (human additive + JSON emit)  
-5. Docs F25 / AC12  
+1. Red→Green F3/F4/AC1–AC2 format resolver + clap + F37 `after_help`  
+2. Red→Green F5/F19/F20/F35/F36/AC3–AC4/AC9/AC14/AC16 JSON builder (raw `Option`, same endpoint tuple)  
+3. Red→Green F7–F10/F8/F34/AC5–AC7/AC15 Router line + `status` + snapshot `found`  
+4. Wire `nightly.rs` status branch (human additive + JSON emit; precompute action fields)  
+5. Docs F25 / AC12 (additive bullets + CHANGELOG default-human)  
 6. Manual AC10–AC11 (no live mutate) → review → full gate → Complete  
 
 ---
@@ -314,8 +327,8 @@ ledgerful verify --scope full
 |------|--------|
 | **new** `commands/nightly_status.rs` | format resolver, JSON types, Router formatter, units |
 | `commands/mod.rs` | `mod nightly_status` |
-| `commands/nightly.rs` | call JSON/router helpers; additive human Router lines; thread `format` |
-| `main.rs` | clap `--format` on `Nightly`; dispatch the string |
+| `commands/nightly.rs` | call JSON/router helpers; additive human Router lines; thread `format`; **F34** snapshot `{ found, snap }`; thread raw `Option` sync_state; precompute action fields |
+| `main.rs` | clap `--format` on `Nightly`; dispatch the string; **required** `after_help` (F37) |
 | `Docs/OPERATIONS.md` | `--format json`; default human; Router read-only line |
 | `Docs/CAPABILITIES.md` | status honesty bullets |
 | `Docs/CLI-EXIT-CODES.md` | nightly status exit **0** footnote |
@@ -325,10 +338,51 @@ ledgerful verify --scope full
 
 ---
 
-## 12. AI fold-in disposition
+## 12. AI fold-in disposition (2026-08-16)
 
-Reserved for the post-plan `C:\dev\AI-review.md` pass. Planning pins above are code-truth + live dogfood.
+Source: `C:\dev\AI-review.md` — **AI1** (code-truth + 7 blind spots) + **AI2** (affirms F2/F10/F11/F12/F21). No Highs. No blockers.
+
+### AI1
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **BS1** AC3 vs §5.1 keys | **Agree hard** | AC3 + F5 list `action_target` and `errors_last_run_unreadable` |
+| **BS2** `unwrap_or "0"`/`"[]"` | **Agree hard** | F20 / F35 thread raw `Option` |
+| **BS3** Router `scheduled` ≠ `next_run` | **Agree hard** | F9 / F34 `found` flag |
+| **BS4** `first_quoted` private | **Decline as stated** | Already `pub(crate)` `:872`. **Agree the intent:** pass precomputed action fields (F21) |
+| **BS5** AC9 host schtasks | **Agree hard** | AC9 stable keys only |
+| **BS6** blank-status Router line | **Agree** | AC15 |
+| **BS7** Nightly `after_help` | **Agree hard** | F25 / F37 required |
+| **O1** snapshot foundness | **Agree hard** | F34 |
+| **O2** same endpoint tuple | **Agree** | F36 |
+| **O3** MultiImport parse idiom | **Agree** | F20 wording |
+| **O4** clap template + CHANGELOG human | **Agree** | F2 / F4 / Phase 4 already; keep |
+| **O5** additive docs | **Agree** | F25 |
+| **O6** non-Windows JSON unit | **Agree** | AC16 |
+
+### AI2
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **BS1** default human vs auto | **Affirm** | Already F2 / §5.3 |
+| **BS2** unquoted Router path | **Affirm** | Already F10 |
+| **BS3** CQRS / no persist probe | **Affirm** | Already F12 |
+| **BS4** doctor 15-check | **Affirm** | Already F11 |
+| **BS5** non-Windows null | **Affirm** | Already F32; **plus** AC16 |
+| **BS6** module split | **Affirm** | F21; line count is **1819** not 1968 |
+| JSON example omitting two keys | **Decline as SoT** | Keep `errors_last_run_unreadable` + `router.task_to_run` (AI1 BS1) |
+| “Ready for implementation” | **Affirm as plan-ready** | Still **plan-only until go** |
+
+### Pins locked by fold-in
+
+1. **F5/AC3:** one key list; include `action_target` + `errors_last_run_unreadable`.
+2. **F20/F35:** raw `Option<String>` from `get_sync_state`; human may still print `0`/`[]`.
+3. **F34:** snapshot `{ found, snap }`; Nightly `scheduled` = `next_run.is_some()`; Router `scheduled` = `found`.
+4. **F21:** precompute action fields; do not restat in the builder.
+5. **AC9:** hermetic asserts only `schema_version` / endpoints / `multi_import`.
+6. **F25/F37:** Nightly `after_help` is required.
+7. **AC15/AC16:** blank-status Router line; non-Windows JSON nulls.
 
 ---
 
-**Planning 2026-08-15.** Soft residuals F8–F12/F14 from T229 and F11–F16 from T247 are now **absorbed or explicitly declined**. Plan-only until **go**.
+**Planning + fold-in 2026-08-16.** Still **plan-only until go**.
