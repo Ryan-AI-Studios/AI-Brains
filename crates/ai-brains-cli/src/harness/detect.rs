@@ -56,17 +56,17 @@ impl HarnessId {
         }
     }
 
-    /// AGY (T235/T236), Grok (T237), and OpenCode (T238) have real install writers.
+    /// AGY, Grok, OpenCode, Claude, and Codex have real install writers (T253).
     pub fn install_ready(self) -> bool {
-        matches!(self, Self::Agy | Self::Grok | Self::Opencode)
+        match self {
+            Self::Agy | Self::Grok | Self::Opencode | Self::Claude | Self::Codex => true,
+        }
     }
 
     /// Pending track id when install_ready is false.
     pub fn pending_track(self) -> Option<&'static str> {
         match self {
-            Self::Grok | Self::Agy | Self::Opencode => None,
-            Self::Claude => Some("T239+"),
-            Self::Codex => Some("T239+"),
+            Self::Grok | Self::Agy | Self::Opencode | Self::Claude | Self::Codex => None,
         }
     }
 
@@ -294,15 +294,18 @@ mod tests {
 
     #[test]
     fn install_ready__agy_and_grok() {
+        // AC1 / T253 F2: all five backends are install_ready; pending_track is None.
         assert!(HarnessId::Agy.install_ready());
         assert!(HarnessId::Grok.install_ready());
         assert!(HarnessId::Opencode.install_ready());
-        assert!(!HarnessId::Claude.install_ready());
-        assert!(!HarnessId::Codex.install_ready());
+        assert!(HarnessId::Claude.install_ready());
+        assert!(HarnessId::Codex.install_ready());
         assert!(HarnessId::Grok.pending_track().is_none());
         assert!(HarnessId::Opencode.pending_track().is_none());
-        assert_eq!(HarnessId::Claude.pending_track(), Some("T239+"));
-        assert_eq!(HarnessId::Codex.pending_track(), Some("T239+"));
+        assert!(HarnessId::Claude.pending_track().is_none());
+        assert!(HarnessId::Codex.pending_track().is_none());
+        assert_ne!(HarnessId::Claude.pending_track(), Some("T253"));
+        assert_ne!(HarnessId::Codex.pending_track(), Some("T239+"));
     }
 
     #[test]

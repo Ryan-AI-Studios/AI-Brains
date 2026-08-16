@@ -790,8 +790,6 @@ fn check_harness_wiring() -> HealthCheck {
 }
 
 /// F6 / AC8 / AC9: ready vs pending doctor copy. Soft message only.
-///
-/// Uses literal `T253` (do not call `HarnessId::pending_track()`, which still says T239+).
 pub(crate) fn doctor_harness_wiring_message(statuses: &[crate::harness::HarnessStatus]) -> String {
     let present: Vec<&crate::harness::HarnessStatus> =
         statuses.iter().filter(|h| h.present).collect();
@@ -1825,6 +1823,32 @@ mod tests {
                 && !msg.contains("ready missing")
                 && !msg.contains("5 missing"),
             "must not say missing wiring for grok/agy/opencode; got {msg}"
+        );
+    }
+
+    #[test]
+    fn doctor_harness_wiring_message__all_five_ready_ok__no_t253_pending() {
+        // AC13 / T253 F21: all five present + install_ready + wiring Ok → no pending clause.
+        use crate::harness::WiringStatus;
+        let statuses = vec![
+            dummy_harness_status("grok", true, true, WiringStatus::Ok),
+            dummy_harness_status("agy", true, true, WiringStatus::Ok),
+            dummy_harness_status("opencode", true, true, WiringStatus::Ok),
+            dummy_harness_status("claude", true, true, WiringStatus::Ok),
+            dummy_harness_status("codex", true, true, WiringStatus::Ok),
+        ];
+        let msg = doctor_harness_wiring_message(&statuses);
+        assert!(
+            msg.contains("5/5 ready wired"),
+            "all five ready-wired; got {msg}"
+        );
+        assert!(
+            !msg.contains("T253"),
+            "AC13: no T253 token when all five ready; got {msg}"
+        );
+        assert!(
+            !msg.to_ascii_lowercase().contains("backend pending"),
+            "AC13: no backend pending clause when all five ready; got {msg}"
         );
     }
 }

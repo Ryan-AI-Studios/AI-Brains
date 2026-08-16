@@ -186,17 +186,29 @@ fn probe_claude(home: &Path) -> WiringStatus {
     }
     match std::fs::read_to_string(&settings) {
         Ok(raw) => {
-            // Managed token/path under ~/.ai-brains/hooks/
             let lower = raw.to_ascii_lowercase();
-            if lower.contains(".ai-brains") && lower.contains("hooks")
-                || lower.contains("ai-brains-capture")
-            {
-                WiringStatus::Ok
-            } else if raw.contains("\"hooks\"") {
-                // Hooks present but not ours → partial signal not required; missing ours.
-                WiringStatus::Missing
-            } else {
-                WiringStatus::Missing
+            // Legacy substring OR so existing fixtures still work (F20).
+            let legacy = (lower.contains(".ai-brains") && lower.contains("hooks"))
+                || lower.contains("ai-brains-capture");
+            match serde_json::from_str::<serde_json::Value>(&raw) {
+                Ok(v) => {
+                    let named = super::install::hooks_json_has_managed_name(&v);
+                    let path_tok =
+                        super::install::json_value_contains_token(&v, "claude-capture.ps1")
+                            || super::install::json_value_contains_token(&v, ".ai-brains");
+                    if named || path_tok || legacy {
+                        WiringStatus::Ok
+                    } else {
+                        WiringStatus::Missing
+                    }
+                }
+                Err(_) => {
+                    if legacy {
+                        WiringStatus::Ok
+                    } else {
+                        WiringStatus::Missing
+                    }
+                }
             }
         }
         Err(_) => WiringStatus::Unknown,
@@ -206,15 +218,17 @@ fn probe_claude(home: &Path) -> WiringStatus {
 fn probe_codex(home: &Path) -> WiringStatus {
     let hooks = join_rel(home, ".codex/hooks.json");
     if !hooks.is_file() {
-        // Schema may live elsewhere; soft unknown only when home present but unreadable.
         return WiringStatus::Missing;
     }
     match std::fs::read_to_string(&hooks) {
         Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
             Ok(v) => {
-                if v.get("ai-brains-capture").is_some()
-                    || raw.to_ascii_lowercase().contains("ai-brains")
-                {
+                let named = super::install::hooks_json_has_managed_name(&v);
+                let path_tok = super::install::json_value_contains_token(&v, "codex-capture.ps1")
+                    || super::install::json_value_contains_token(&v, ".ai-brains");
+                let legacy = v.get("ai-brains-capture").is_some()
+                    || raw.to_ascii_lowercase().contains("ai-brains");
+                if named || path_tok || legacy {
                     WiringStatus::Ok
                 } else {
                     WiringStatus::Missing
@@ -267,8 +281,16 @@ pub fn targets_for(id: HarnessId, home: &Path) -> Vec<String> {
             join_rel(home, ".claude/settings.json")
                 .display()
                 .to_string(),
+            join_rel(home, ".ai-brains/hooks/claude-capture.ps1")
+                .display()
+                .to_string(),
         ],
-        HarnessId::Codex => vec![join_rel(home, ".codex/hooks.json").display().to_string()],
+        HarnessId::Codex => vec![
+            join_rel(home, ".codex/hooks.json").display().to_string(),
+            join_rel(home, ".ai-brains/hooks/codex-capture.ps1")
+                .display()
+                .to_string(),
+        ],
     }
 }
 
@@ -576,6 +598,58 @@ mod tests {
                     "target not under home: {t}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn wiring__claude_after_real_install__ok() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        std::fs::create_dir_all(home.join(".claude")).expect("mkdir");
+        super::super::install::install_claude(home, false).expect("install");
+        assert_eq!(
+            probe_wiring(HarnessId::Claude, home, true),
+            WiringStatus::Ok
+        );
+    }
+
+    #[test]
+    fn wiring__codex_after_real_install__ok() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        std::fs::create_dir_all(home.join(".codex")).expect("mkdir");
+        super::super::install::install_codex(home, false).expect("install");
+        assert_eq!(probe_wiring(HarnessId::Codex, home, true), WiringStatus::Ok);
+    }
+
+    #[test]
+    fn targets_for__claude_and_codex__include_wrapper() {
+        // F20 / AC19
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let claude = targets_for(HarnessId::Claude, home);
+        let codex = targets_for(HarnessId::Codex, home);
+        assert!(
+            claude
+                .iter()
+                .any(|t| Path::new(t).ends_with("settings.json"))
+        );
+        assert!(
+            claude
+                .iter()
+                .any(|t| Path::new(t).ends_with("claude-capture.ps1"))
+        );
+        assert!(codex.iter().any(|t| Path::new(t).ends_with("hooks.json")));
+        assert!(
+            codex
+                .iter()
+                .any(|t| Path::new(t).ends_with("codex-capture.ps1"))
+        );
+        for t in claude.iter().chain(codex.iter()) {
+            assert!(
+                Path::new(t).starts_with(home) || t.contains(&home.display().to_string()),
+                "AC19 target not under temp home: {t}"
+            );
         }
     }
 }

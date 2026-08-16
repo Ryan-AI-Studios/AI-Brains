@@ -153,7 +153,7 @@ pub fn install_pending_summary(ids: &[HarnessId]) -> String {
         }
     }
     format!(
-        "install backends pending: {}; use --dry-run for plans; AGY/Grok/OpenCode ready via --harness agy|grok|opencode",
+        "install backends pending: {}; use --dry-run for plans; all five ready via --harness <id>",
         parts.join(", ")
     )
 }
@@ -1079,6 +1079,668 @@ pub fn uninstall_opencode(home: &Path, dry_run: bool) -> Result<UninstallOutcome
     }
 }
 
+// ---------------------------------------------------------------------------
+// Claude Code install (T253) — user-global settings.json + empty-stdout wrapper
+// ---------------------------------------------------------------------------
+
+const CLAUDE_MANAGED_EVENTS: &[&str] = &["UserPromptSubmit", "Stop", "SessionEnd"];
+const CODEX_MANAGED_EVENTS: &[&str] = &["UserPromptSubmit", "Stop"];
+const MANAGED_HANDLER_TIMEOUT: u64 = 30;
+
+pub fn claude_settings_path(home: &Path) -> PathBuf {
+    join_rel(home, ".claude/settings.json")
+}
+
+pub fn claude_wrapper_path(home: &Path) -> PathBuf {
+    join_rel(home, ".ai-brains/hooks/claude-capture.ps1")
+}
+
+/// Exact stdout contract for Claude Stop allow path (T253 F8 / AC6).
+///
+/// Official Claude Stop: omit `decision`; empty stdout + exit 0 allows stop.
+#[must_use]
+pub fn claude_wrapper_allow_stop_stdout() -> &'static str {
+    ""
+}
+
+/// One-line Claude Stop stdout contract (dry-run / status honesty).
+pub fn claude_stop_stdout_contract_summary() -> String {
+    let allow = claude_wrapper_allow_stop_stdout();
+    format!(
+        "Claude Stop allow: empty stdout ({} bytes); exit 0; never decision/continue/hookSpecificOutput JSON",
+        allow.len()
+    )
+}
+
+pub fn plan_claude_install(home: &Path) -> InstallPlan {
+    let wrapper_path = claude_wrapper_path(home);
+    let hooks_path = claude_settings_path(home);
+    InstallPlan {
+        harness: HarnessId::Claude,
+        hooks_path,
+        wrapper_path: wrapper_path.clone(),
+        command_line: claude_exec_command_display(&wrapper_path),
+        ready: true,
+        pending_track: None,
+    }
+}
+
+fn claude_exec_command_display(wrapper: &Path) -> String {
+    format!(
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
+        wrapper.display()
+    )
+}
+
+/// Exec-form handler: `command` + `args` (official Windows Claude shape).
+fn claude_managed_handler(wrapper: &Path) -> Value {
+    let mut handler = Map::new();
+    handler.insert("type".into(), Value::String("command".into()));
+    handler.insert("command".into(), Value::String("powershell.exe".into()));
+    handler.insert(
+        "args".into(),
+        Value::Array(vec![
+            Value::String("-NoProfile".into()),
+            Value::String("-ExecutionPolicy".into()),
+            Value::String("Bypass".into()),
+            Value::String("-File".into()),
+            Value::String(wrapper.display().to_string()),
+        ]),
+    );
+    handler.insert(
+        "timeout".into(),
+        Value::Number(MANAGED_HANDLER_TIMEOUT.into()),
+    );
+    handler.insert(
+        "name".into(),
+        Value::String(super::prefs::MANAGED_KEY.to_string()),
+    );
+    Value::Object(handler)
+}
+
+/// PowerShell wrapper: UPS/Stop/SessionEnd → claude-hook; host stdout always empty.
+pub fn claude_wrapper_script_body(cli_exe: Option<&Path>) -> String {
+    let resolve = ps_resolve_ai_brains(cli_exe, "Write-Skip 'ai-brains not on PATH'; exit 0");
+    let mut body = String::from(
+        r#"# AI-Brains managed Claude UserPromptSubmit/Stop/SessionEnd hook (T253)
+# Empty stdout allow path — do not emit block/continue JSON (Claude Stop ≠ AGY)
+$ErrorActionPreference = 'Continue'
+function Write-Skip([string]$reason) {
+    [Console]::Error.WriteLine("[ai-brains-claude] skip: $reason")
+}
+try {
+    $raw = [Console]::In.ReadToEnd()
+    if ([string]::IsNullOrWhiteSpace($raw)) { Write-Skip 'empty stdin'; exit 0 }
+    $ev = $raw | ConvertFrom-Json
+    $eventName = [string]$ev.hook_event_name
+    # F23: missing snake_case Claude fields or Grok camelCase-only → fail-open
+    if ([string]::IsNullOrWhiteSpace($eventName)) { Write-Skip 'unrecognized stdin (missing hook_event_name)'; exit 0 }
+    $sessionId = [string]$ev.session_id
+    if ([string]::IsNullOrWhiteSpace($sessionId)) { $sessionId = 'claude-unbound' }
+    $cwd = [string]$ev.cwd
+    $projectHash = if ([string]::IsNullOrWhiteSpace($cwd)) { 'claude-unbound' } else { $cwd }
+    $payloadObj = [ordered]@{
+        sessionId            = $sessionId
+        projectHash          = $projectHash
+        event                = $eventName
+        prompt               = [string]$ev.prompt
+        lastAssistantMessage = [string]$ev.last_assistant_message
+    }
+    $payload = $payloadObj | ConvertTo-Json -Compress
+"#,
+    );
+    body.push_str(&resolve);
+    body.push_str(
+        r#"    # Capture ALL child stdout; never forward to host stdout (empty allow)
+    $null = & $aiExe 'claude-hook' '--payload' $payload 2>&1 | ForEach-Object {
+        if ($_ -is [System.Management.Automation.ErrorRecord]) {
+            [Console]::Error.WriteLine($_.ToString())
+        } else {
+            [Console]::Error.WriteLine([string]$_)
+        }
+    }
+    exit 0
+} catch {
+    Write-Skip ("wrapper error: " + $_.Exception.Message)
+    exit 0
+}
+"#,
+    );
+    body
+}
+
+/// Install Claude wiring (or dry-run). Map-only merge. Idempotent.
+pub fn install_claude(home: &Path, dry_run: bool) -> Result<InstallOutcome, String> {
+    let plan = plan_claude_install(home);
+    if dry_run {
+        return Ok(InstallOutcome::DryRun { plan });
+    }
+
+    let mut root = match load_json_object_map(&plan.hooks_path) {
+        Ok(m) => m,
+        Err(reason) => {
+            return Ok(InstallOutcome::Refused {
+                path: plan.hooks_path.clone(),
+                reason,
+            });
+        }
+    };
+
+    let handler = claude_managed_handler(&plan.wrapper_path);
+    if let Err(reason) = merge_official_event_handlers(
+        &mut root,
+        CLAUDE_MANAGED_EVENTS,
+        &handler,
+        super::prefs::MANAGED_KEY,
+    ) {
+        return Ok(InstallOutcome::Refused {
+            path: plan.hooks_path.clone(),
+            reason,
+        });
+    }
+
+    write_json_object_map(&plan.hooks_path, &root)?;
+    atomic_write_str(
+        &plan.wrapper_path,
+        &claude_wrapper_script_body(resolve_cli_exe_for_wrapper().as_deref()),
+    )?;
+    stamp_installed(home, HarnessId::Claude)?;
+    Ok(InstallOutcome::Installed { plan })
+}
+
+/// Uninstall Claude managed handlers + wrapper; leave `{}` / empty hooks; foreign stay.
+pub fn uninstall_claude(home: &Path, dry_run: bool) -> Result<UninstallOutcome, String> {
+    let hooks_path = claude_settings_path(home);
+    let wrapper_path = claude_wrapper_path(home);
+    uninstall_official_hooks(home, HarnessId::Claude, hooks_path, wrapper_path, dry_run)
+}
+
+// ---------------------------------------------------------------------------
+// Codex CLI install (T253) — hooks.json only; never rewrite config.toml
+// ---------------------------------------------------------------------------
+
+pub fn codex_hooks_path(home: &Path) -> PathBuf {
+    join_rel(home, ".codex/hooks.json")
+}
+
+pub fn codex_wrapper_path(home: &Path) -> PathBuf {
+    join_rel(home, ".ai-brains/hooks/codex-capture.ps1")
+}
+
+pub fn codex_config_toml_path(home: &Path) -> PathBuf {
+    join_rel(home, ".codex/config.toml")
+}
+
+/// Exact host stdout for Codex UPS/Stop (T253 F9 / AC6).
+///
+/// No leading/trailing whitespace. Never `decision` / `additionalContext`.
+#[must_use]
+pub fn codex_wrapper_continue_stdout() -> &'static str {
+    r#"{"continue":true}"#
+}
+
+/// One-line Codex stdout + trust contract (dry-run / status honesty).
+pub fn codex_stop_stdout_contract_summary() -> String {
+    format!(
+        "Codex Stop/UPS stdout: {}; exit 0; next: in Codex run /hooks and trust ai-brains-capture",
+        codex_wrapper_continue_stdout()
+    )
+}
+
+/// True when `~/.codex/config.toml` has `[features].hooks = false` (read-only).
+///
+/// Never writes the file. `codex_hooks` is ignored (deprecated alias).
+#[must_use]
+pub fn codex_features_hooks_disabled(home: &Path) -> bool {
+    let path = codex_config_toml_path(home);
+    let Ok(raw) = fs::read_to_string(path) else {
+        return false;
+    };
+    let mut in_features = false;
+    for line in raw.lines() {
+        let t = line.trim();
+        if t.starts_with('[') {
+            in_features = t.eq_ignore_ascii_case("[features]");
+            continue;
+        }
+        if !in_features {
+            continue;
+        }
+        let lower = t.to_ascii_lowercase();
+        let Some((key, value)) = lower.split_once('=') else {
+            continue;
+        };
+        if key.trim() == "hooks" && value.trim().starts_with("false") {
+            return true;
+        }
+    }
+    false
+}
+
+/// Warn string when Codex feature flag opts out of hooks.
+#[must_use]
+pub fn codex_hooks_disabled_warn() -> &'static str {
+    "warn: Codex [features].hooks = false; next: set hooks = true (or remove the key)"
+}
+
+pub fn codex_command_line(wrapper: &Path) -> String {
+    format!(
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
+        wrapper.display()
+    )
+}
+
+pub fn plan_codex_install(home: &Path) -> InstallPlan {
+    let wrapper_path = codex_wrapper_path(home);
+    let hooks_path = codex_hooks_path(home);
+    let mut command_line = codex_command_line(&wrapper_path);
+    if codex_features_hooks_disabled(home) {
+        command_line.push_str("  # ");
+        command_line.push_str(codex_hooks_disabled_warn());
+    }
+    InstallPlan {
+        harness: HarnessId::Codex,
+        hooks_path,
+        wrapper_path,
+        command_line,
+        ready: true,
+        pending_track: None,
+    }
+}
+
+/// Command-string handler (no `args` — Codex docs use a single command string).
+fn codex_managed_handler(wrapper: &Path) -> Value {
+    let mut handler = Map::new();
+    handler.insert("type".into(), Value::String("command".into()));
+    handler.insert("command".into(), Value::String(codex_command_line(wrapper)));
+    handler.insert(
+        "timeout".into(),
+        Value::Number(MANAGED_HANDLER_TIMEOUT.into()),
+    );
+    handler.insert(
+        "name".into(),
+        Value::String(super::prefs::MANAGED_KEY.to_string()),
+    );
+    Value::Object(handler)
+}
+
+/// PowerShell wrapper: UPS/Stop → codex-hook; host stdout is exactly continue JSON.
+pub fn codex_wrapper_script_body(cli_exe: Option<&Path>) -> String {
+    let resolve = ps_resolve_ai_brains(
+        cli_exe,
+        "Write-Skip 'ai-brains not on PATH'; Write-Continue; exit 0",
+    );
+    let mut body = String::from(
+        r#"# AI-Brains managed Codex UserPromptSubmit/Stop hook (T253)
+# Host stdout is exactly {"continue":true} — never block / additionalContext
+$ErrorActionPreference = 'Continue'
+function Write-Skip([string]$reason) {
+    [Console]::Error.WriteLine("[ai-brains-codex] skip: $reason")
+}
+function Write-Continue {
+    [Console]::Out.Write('{"continue":true}')
+}
+try {
+    $raw = [Console]::In.ReadToEnd()
+    if ([string]::IsNullOrWhiteSpace($raw)) { Write-Skip 'empty stdin'; Write-Continue; exit 0 }
+    $ev = $raw | ConvertFrom-Json
+    $eventName = [string]$ev.hook_event_name
+    if ([string]::IsNullOrWhiteSpace($eventName)) { Write-Skip 'unrecognized stdin (missing hook_event_name)'; Write-Continue; exit 0 }
+    $sessionId = [string]$ev.session_id
+    if ([string]::IsNullOrWhiteSpace($sessionId)) { $sessionId = 'codex-unbound' }
+    $cwd = [string]$ev.cwd
+    $projectHash = if ([string]::IsNullOrWhiteSpace($cwd)) { 'codex-unbound' } else { $cwd }
+    $payloadObj = [ordered]@{
+        sessionId            = $sessionId
+        projectHash          = $projectHash
+        event                = $eventName
+        prompt               = [string]$ev.prompt
+        lastAssistantMessage = [string]$ev.last_assistant_message
+    }
+    $payload = $payloadObj | ConvertTo-Json -Compress
+"#,
+    );
+    body.push_str(&resolve);
+    body.push_str(
+        r#"    # Capture ALL child streams; then emit continue JSON only
+    $null = & $aiExe 'codex-hook' '--payload' $payload 2>&1 | ForEach-Object {
+        if ($_ -is [System.Management.Automation.ErrorRecord]) {
+            [Console]::Error.WriteLine($_.ToString())
+        } else {
+            [Console]::Error.WriteLine([string]$_)
+        }
+    }
+    Write-Continue
+    exit 0
+} catch {
+    Write-Skip ("wrapper error: " + $_.Exception.Message)
+    Write-Continue
+    exit 0
+}
+"#,
+    );
+    body
+}
+
+/// Install Codex wiring (or dry-run). Never creates or edits `config.toml`.
+pub fn install_codex(home: &Path, dry_run: bool) -> Result<InstallOutcome, String> {
+    let plan = plan_codex_install(home);
+    if dry_run {
+        return Ok(InstallOutcome::DryRun { plan });
+    }
+
+    let mut root = match load_json_object_map(&plan.hooks_path) {
+        Ok(m) => m,
+        Err(reason) => {
+            return Ok(InstallOutcome::Refused {
+                path: plan.hooks_path.clone(),
+                reason,
+            });
+        }
+    };
+    if root.is_empty() && !plan.hooks_path.exists() {
+        // Missing file → start from { "hooks": {} } (F6).
+        root.insert("hooks".into(), Value::Object(Map::new()));
+    }
+
+    let handler = codex_managed_handler(&plan.wrapper_path);
+    if let Err(reason) = merge_official_event_handlers(
+        &mut root,
+        CODEX_MANAGED_EVENTS,
+        &handler,
+        super::prefs::MANAGED_KEY,
+    ) {
+        return Ok(InstallOutcome::Refused {
+            path: plan.hooks_path.clone(),
+            reason,
+        });
+    }
+
+    write_json_object_map(&plan.hooks_path, &root)?;
+    atomic_write_str(
+        &plan.wrapper_path,
+        &codex_wrapper_script_body(resolve_cli_exe_for_wrapper().as_deref()),
+    )?;
+    stamp_installed(home, HarnessId::Codex)?;
+    Ok(InstallOutcome::Installed { plan })
+}
+
+/// Uninstall Codex managed handlers + wrapper; never touch `config.toml`.
+pub fn uninstall_codex(home: &Path, dry_run: bool) -> Result<UninstallOutcome, String> {
+    let hooks_path = codex_hooks_path(home);
+    let wrapper_path = codex_wrapper_path(home);
+    uninstall_official_hooks(home, HarnessId::Codex, hooks_path, wrapper_path, dry_run)
+}
+
+/// Load a JSON object file. Missing → empty map. Parse fail / `//` comments → Err.
+fn load_json_object_map(path: &Path) -> Result<Map<String, Value>, String> {
+    if !path.exists() {
+        return Ok(Map::new());
+    }
+    let raw = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    if json_has_line_comments(&raw) {
+        return Err(format!(
+            "parse {} refused (JSONC // comments are not supported; will not rewrite)",
+            path.display()
+        ));
+    }
+    let value: Value = serde_json::from_str(&raw).map_err(|e| {
+        format!(
+            "parse {} refused (will not rewrite corrupt JSON): {e}",
+            path.display()
+        )
+    })?;
+    match value {
+        Value::Object(m) => Ok(m),
+        _ => Err(format!(
+            "parse {} refused: root must be a JSON object",
+            path.display()
+        )),
+    }
+}
+
+/// Detect `//` comments outside JSON strings. Not a JSONC parser.
+fn json_has_line_comments(raw: &str) -> bool {
+    let mut in_string = false;
+    let mut escape = false;
+    let bytes = raw.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_string {
+            if escape {
+                escape = false;
+            } else if b == b'\\' {
+                escape = true;
+            } else if b == b'"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if b == b'"' {
+            in_string = true;
+            i += 1;
+            continue;
+        }
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+fn write_json_object_map(path: &Path, root: &Map<String, Value>) -> Result<(), String> {
+    let body = serde_json::to_string_pretty(&Value::Object(root.clone()))
+        .map_err(|e| format!("serialize {}: {e}", path.display()))?;
+    atomic_write_str(path, &format!("{body}\n"))
+}
+
+fn stamp_installed(home: &Path, id: HarnessId) -> Result<(), String> {
+    let mut prefs = load_prefs(home);
+    let now = chrono::Utc::now().to_rfc3339();
+    let ver = env!("CARGO_PKG_VERSION");
+    prefs.mark_installed(id, now, ver);
+    save_prefs(home, &prefs)
+}
+
+/// Merge named handlers into `root["hooks"]` (official 3-level shape).
+fn merge_official_event_handlers(
+    root: &mut Map<String, Value>,
+    events: &[&str],
+    handler: &Value,
+    managed_name: &str,
+) -> Result<(), String> {
+    let hooks_entry = root
+        .entry("hooks".to_string())
+        .or_insert_with(|| Value::Object(Map::new()));
+    let hooks = match hooks_entry {
+        Value::Object(m) => m,
+        _ => return Err("refused: top-level \"hooks\" must be a JSON object".into()),
+    };
+    for event in events {
+        merge_named_handler_into_event(hooks, event, handler, managed_name)?;
+    }
+    Ok(())
+}
+
+fn merge_named_handler_into_event(
+    hooks: &mut Map<String, Value>,
+    event: &str,
+    handler: &Value,
+    managed_name: &str,
+) -> Result<(), String> {
+    let entry = hooks
+        .entry(event.to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    let arr = match entry {
+        Value::Array(a) => a,
+        _ => {
+            return Err(format!(
+                "refused: hooks.{event} must be an array of matcher groups"
+            ));
+        }
+    };
+    for group in arr.iter_mut() {
+        let Some(obj) = group.as_object_mut() else {
+            continue;
+        };
+        let Some(inner) = obj.get_mut("hooks") else {
+            continue;
+        };
+        let Some(handlers) = inner.as_array_mut() else {
+            continue;
+        };
+        for existing in handlers.iter_mut() {
+            if existing.get("name").and_then(|n| n.as_str()) == Some(managed_name) {
+                *existing = handler.clone();
+                return Ok(());
+            }
+        }
+    }
+    let mut group = Map::new();
+    group.insert("hooks".into(), Value::Array(vec![handler.clone()]));
+    arr.push(Value::Object(group));
+    Ok(())
+}
+
+fn remove_named_handlers_from_hooks(hooks: &mut Map<String, Value>, managed_name: &str) {
+    let keys: Vec<String> = hooks.keys().cloned().collect();
+    let mut empty_events = Vec::new();
+    for event in keys {
+        let Some(Value::Array(groups)) = hooks.get_mut(&event) else {
+            continue;
+        };
+        for group in groups.iter_mut() {
+            let Some(obj) = group.as_object_mut() else {
+                continue;
+            };
+            let Some(Value::Array(handlers)) = obj.get_mut("hooks") else {
+                continue;
+            };
+            handlers.retain(|h| h.get("name").and_then(|n| n.as_str()) != Some(managed_name));
+        }
+        groups.retain(|group| match group.get("hooks") {
+            Some(Value::Array(h)) => !h.is_empty(),
+            _ => true,
+        });
+        if groups.is_empty() {
+            empty_events.push(event);
+        }
+    }
+    for event in empty_events {
+        hooks.remove(&event);
+    }
+}
+
+fn uninstall_official_hooks(
+    home: &Path,
+    id: HarnessId,
+    hooks_path: PathBuf,
+    wrapper_path: PathBuf,
+    dry_run: bool,
+) -> Result<UninstallOutcome, String> {
+    if dry_run {
+        return Ok(UninstallOutcome::DryRun {
+            hooks_path,
+            wrapper_path,
+        });
+    }
+
+    let mut removed_anything = false;
+
+    if hooks_path.exists() {
+        let mut root = match load_json_object_map(&hooks_path) {
+            Ok(m) => m,
+            Err(reason) => {
+                return Ok(UninstallOutcome::Refused {
+                    path: hooks_path,
+                    reason,
+                });
+            }
+        };
+        let before = serde_json::to_string(&root).unwrap_or_default();
+        if let Some(Value::Object(hooks)) = root.get_mut("hooks") {
+            remove_named_handlers_from_hooks(hooks, super::prefs::MANAGED_KEY);
+        }
+        let after = serde_json::to_string(&root).unwrap_or_default();
+        if before != after {
+            write_json_object_map(&hooks_path, &root)?;
+            removed_anything = true;
+        }
+    }
+
+    if wrapper_path.is_file() {
+        fs::remove_file(&wrapper_path)
+            .map_err(|e| format!("remove wrapper {}: {e}", wrapper_path.display()))?;
+        removed_anything = true;
+    }
+
+    let mut prefs = load_prefs(home);
+    if prefs
+        .entry(id)
+        .and_then(|e| e.installed_at.clone())
+        .is_some()
+        || removed_anything
+    {
+        prefs.mark_uninstalled(id);
+        save_prefs(home, &prefs)?;
+        removed_anything = true;
+    }
+
+    if removed_anything {
+        Ok(UninstallOutcome::Removed {
+            hooks_path,
+            wrapper_path,
+        })
+    } else {
+        Ok(UninstallOutcome::NothingToDo)
+    }
+}
+
+/// True when parsed hooks contain a handler named `ai-brains-capture`.
+#[must_use]
+pub fn hooks_json_has_managed_name(root: &Value) -> bool {
+    let Some(hooks) = root.get("hooks").and_then(|h| h.as_object()) else {
+        return false;
+    };
+    for groups in hooks.values() {
+        let Some(arr) = groups.as_array() else {
+            continue;
+        };
+        for group in arr {
+            let Some(handlers) = group.get("hooks").and_then(|h| h.as_array()) else {
+                continue;
+            };
+            for handler in handlers {
+                if handler.get("name").and_then(|n| n.as_str()) == Some(super::prefs::MANAGED_KEY) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Walk string values for a case-insensitive token (wrapper path / legacy probe).
+#[must_use]
+pub fn json_value_contains_token(root: &Value, token: &str) -> bool {
+    let needle = token.to_ascii_lowercase();
+    json_value_contains_token_inner(root, &needle)
+}
+
+fn json_value_contains_token_inner(value: &Value, needle: &str) -> bool {
+    match value {
+        Value::String(s) => s.to_ascii_lowercase().contains(needle),
+        Value::Array(a) => a.iter().any(|v| json_value_contains_token_inner(v, needle)),
+        Value::Object(m) => m
+            .values()
+            .any(|v| json_value_contains_token_inner(v, needle)),
+        _ => false,
+    }
+}
+
 /// Non-ready harness install: dry-run ok; real install → BackendPending (no fake ok).
 ///
 /// Real install stamps prefs `last_status=backend_pending` so status/preflight report
@@ -1237,7 +1899,7 @@ mod tests {
 
     #[test]
     fn install_pending__claude_real__stamps_prefs_no_fake_ok() {
-        // OpenCode is install_ready (T238); Claude remains pending (T239+).
+        // T253: Claude is install_ready; this stub still stamps prefs if called directly.
         let dir = tempdir().expect("tempdir");
         let home = dir.path();
         let out = install_pending(HarnessId::Claude, home, false);
@@ -1552,7 +2214,14 @@ mod tests {
         ]);
         assert!(s.contains("grok=ready") || s.contains("ready"));
         assert!(s.contains("opencode=ready") || s.contains("ready"));
-        assert!(s.contains("T239+"));
+        assert!(s.contains("claude=ready") || s.contains("ready"));
+        assert!(s.contains("codex=ready") || s.contains("ready"));
+        assert!(
+            s.contains("all five ready") || s.contains("--harness"),
+            "footer lists ready backends via --harness; got {s}"
+        );
+        assert!(!s.contains("T239+"));
+        assert!(!s.contains("T253"));
         assert!(!s.contains("T238+"));
         assert!(!s.contains("grok=T237"));
     }
@@ -1867,6 +2536,417 @@ mod tests {
         );
         assert!(cli.is_dir(), "must not delete antigravity-cli");
         assert!(!cli.join("hooks.json").exists());
+    }
+
+    #[test]
+    fn install_claude__dry_run__zero_writes() {
+        // AC2
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let before = walk_files(home);
+        let out = install_claude(home, true).expect("dry-run");
+        match out {
+            InstallOutcome::DryRun { plan } => {
+                assert!(
+                    plan.hooks_path.starts_with(home),
+                    "AC19 {}",
+                    plan.hooks_path.display()
+                );
+                assert!(
+                    plan.wrapper_path.starts_with(home),
+                    "AC19 {}",
+                    plan.wrapper_path.display()
+                );
+                assert!(plan.hooks_path.ends_with("settings.json"));
+                assert!(plan.wrapper_path.ends_with("claude-capture.ps1"));
+            }
+            other => panic!("expected DryRun, got {other:?}"),
+        }
+        assert_eq!(before, walk_files(home), "dry-run must not write files");
+    }
+
+    #[test]
+    fn install_codex__dry_run__zero_writes() {
+        // AC2
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let before = walk_files(home);
+        let out = install_codex(home, true).expect("dry-run");
+        match out {
+            InstallOutcome::DryRun { plan } => {
+                assert!(
+                    plan.hooks_path.starts_with(home),
+                    "AC19 {}",
+                    plan.hooks_path.display()
+                );
+                assert!(
+                    plan.wrapper_path.starts_with(home),
+                    "AC19 {}",
+                    plan.wrapper_path.display()
+                );
+                assert!(plan.hooks_path.ends_with("hooks.json"));
+                assert!(plan.wrapper_path.ends_with("codex-capture.ps1"));
+            }
+            other => panic!("expected DryRun, got {other:?}"),
+        }
+        assert_eq!(before, walk_files(home), "dry-run must not write files");
+        assert!(
+            !codex_config_toml_path(home).exists(),
+            "dry-run must not create config.toml"
+        );
+    }
+
+    #[test]
+    fn install_claude__real__merges_foreign_exec_form_idempotent() {
+        // AC3
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let settings = claude_settings_path(home);
+        std::fs::create_dir_all(settings.parent().unwrap()).expect("mkdir");
+        std::fs::write(
+            &settings,
+            br#"{
+  "theme": "dark",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "echo foreign" }]
+      }
+    ]
+  }
+}
+"#,
+        )
+        .expect("seed");
+
+        let out1 = install_claude(home, false).expect("install");
+        assert!(matches!(out1, InstallOutcome::Installed { .. }));
+        assert!(claude_wrapper_path(home).is_file());
+        assert!(
+            claude_settings_path(home).starts_with(home),
+            "AC19 settings under temp home"
+        );
+
+        let raw = std::fs::read_to_string(&settings).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        assert_eq!(v["theme"], "dark", "foreign top-level theme preserved");
+        assert!(
+            v["hooks"].get("PreToolUse").is_some(),
+            "foreign PreToolUse group preserved"
+        );
+        for event in ["UserPromptSubmit", "Stop", "SessionEnd"] {
+            let handler = &v["hooks"][event][0]["hooks"][0];
+            assert_eq!(handler["name"], "ai-brains-capture");
+            assert_eq!(handler["type"], "command");
+            assert_eq!(handler["command"], "powershell.exe");
+            assert_eq!(handler["timeout"], 30);
+            let args = handler["args"].as_array().expect("exec-form args");
+            let args_s: Vec<&str> = args.iter().filter_map(|a| a.as_str()).collect();
+            assert_eq!(args_s[0], "-NoProfile");
+            assert_eq!(args_s[1], "-ExecutionPolicy");
+            assert_eq!(args_s[2], "Bypass");
+            assert_eq!(args_s[3], "-File");
+            assert!(
+                args_s[4].ends_with("claude-capture.ps1"),
+                "wrapper path in args: {:?}",
+                args_s[4]
+            );
+        }
+        assert!(
+            v["hooks"]["UserPromptSubmit"][0].get("matcher").is_none(),
+            "UPS/Stop omit matcher"
+        );
+        assert!(v["hooks"]["Stop"][0].get("matcher").is_none());
+
+        let out2 = install_claude(home, false).expect("reinstall");
+        assert!(matches!(out2, InstallOutcome::Installed { .. }));
+        let raw2 = std::fs::read_to_string(&settings).expect("read2");
+        let v2: Value = serde_json::from_str(&raw2).expect("json2");
+        assert_eq!(v2["theme"], "dark");
+        assert_eq!(
+            v2["hooks"]["UserPromptSubmit"]
+                .as_array()
+                .map(|a| a.len())
+                .unwrap_or(0),
+            1,
+            "idempotent: one UPS matcher-group"
+        );
+        assert_eq!(
+            super::super::wiring::probe_wiring(HarnessId::Claude, home, true),
+            super::super::wiring::WiringStatus::Ok
+        );
+        let prefs = load_prefs(home);
+        assert!(
+            prefs
+                .entry(HarnessId::Claude)
+                .unwrap()
+                .installed_at
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn install_codex__real__hooks_ups_stop_no_config_toml() {
+        // AC4
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let out = install_codex(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+
+        let hooks = codex_hooks_path(home);
+        assert!(hooks.is_file());
+        assert!(hooks.starts_with(home), "AC19");
+        assert!(codex_wrapper_path(home).is_file());
+        assert!(
+            !codex_config_toml_path(home).exists(),
+            "must not create config.toml"
+        );
+
+        let raw = std::fs::read_to_string(&hooks).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        for event in ["UserPromptSubmit", "Stop"] {
+            let handler = &v["hooks"][event][0]["hooks"][0];
+            assert_eq!(handler["name"], "ai-brains-capture");
+            assert_eq!(handler["type"], "command");
+            assert_eq!(handler["timeout"], 30);
+            let cmd = handler["command"].as_str().expect("command string");
+            assert!(cmd.contains("powershell.exe"));
+            assert!(cmd.contains("codex-capture.ps1"));
+            assert!(
+                handler.get("args").is_none(),
+                "Codex must not write args exec-form: {handler}"
+            );
+        }
+        assert!(
+            v["hooks"].get("SessionEnd").is_none(),
+            "Codex must not wire SessionEnd"
+        );
+        assert_eq!(
+            super::super::wiring::probe_wiring(HarnessId::Codex, home, true),
+            super::super::wiring::WiringStatus::Ok
+        );
+    }
+
+    #[test]
+    fn install_codex__hooks_false_config__writes_hooks_leaves_toml() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let cfg = codex_config_toml_path(home);
+        std::fs::create_dir_all(cfg.parent().unwrap()).expect("mkdir");
+        let original = b"[features]\njs_repl = false\nhooks = false\n";
+        std::fs::write(&cfg, original).expect("write toml");
+
+        assert!(codex_features_hooks_disabled(home));
+        let plan = plan_codex_install(home);
+        assert!(
+            plan.command_line.contains("hooks = false")
+                || plan.command_line.contains("set hooks = true"),
+            "plan warns when hooks disabled: {}",
+            plan.command_line
+        );
+
+        let out = install_codex(home, false).expect("install");
+        assert!(matches!(out, InstallOutcome::Installed { .. }));
+        assert!(codex_hooks_path(home).is_file());
+        assert_eq!(std::fs::read(&cfg).expect("read toml"), original);
+        assert!(
+            !std::fs::read_to_string(&cfg)
+                .expect("toml str")
+                .contains("codex_hooks")
+        );
+    }
+
+    #[test]
+    fn uninstall_claude__removes_managed_keeps_foreign() {
+        // AC5
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let settings = claude_settings_path(home);
+        std::fs::create_dir_all(settings.parent().unwrap()).expect("mkdir");
+        std::fs::write(
+            &settings,
+            br#"{"theme":"dark","hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"echo"}]}]}}"#,
+        )
+        .expect("seed");
+        install_claude(home, false).expect("install");
+        assert!(claude_wrapper_path(home).is_file());
+
+        let out = uninstall_claude(home, false).expect("uninstall");
+        assert!(matches!(out, UninstallOutcome::Removed { .. }));
+        assert!(!claude_wrapper_path(home).exists());
+
+        let raw = std::fs::read_to_string(&settings).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        assert_eq!(v["theme"], "dark");
+        assert!(v["hooks"].get("PreToolUse").is_some());
+        assert!(v["hooks"].get("UserPromptSubmit").is_none());
+        assert!(v["hooks"].get("Stop").is_none());
+        assert!(v["hooks"].get("SessionEnd").is_none());
+        let prefs = load_prefs(home);
+        assert!(
+            prefs
+                .entry(HarnessId::Claude)
+                .unwrap()
+                .installed_at
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn uninstall_codex__removes_managed_keeps_foreign() {
+        // AC5
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let hooks = codex_hooks_path(home);
+        std::fs::create_dir_all(hooks.parent().unwrap()).expect("mkdir");
+        std::fs::write(
+            &hooks,
+            br#"{"keep":true,"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"echo"}]}]}}"#,
+        )
+        .expect("seed");
+        let cfg = codex_config_toml_path(home);
+        std::fs::write(&cfg, b"[features]\njs_repl = false\n").expect("toml");
+        let toml_before = std::fs::read(&cfg).expect("toml bytes");
+
+        install_codex(home, false).expect("install");
+        let out = uninstall_codex(home, false).expect("uninstall");
+        assert!(matches!(out, UninstallOutcome::Removed { .. }));
+        assert!(!codex_wrapper_path(home).exists());
+
+        let raw = std::fs::read_to_string(&hooks).expect("read");
+        let v: Value = serde_json::from_str(&raw).expect("json");
+        assert_eq!(v["keep"], true);
+        assert!(v["hooks"].get("PreToolUse").is_some());
+        assert!(v["hooks"].get("UserPromptSubmit").is_none());
+        assert!(v["hooks"].get("Stop").is_none());
+        assert_eq!(std::fs::read(&cfg).expect("toml after"), toml_before);
+    }
+
+    #[test]
+    fn claude_and_codex_wrapper__capture_then_emit_contract() {
+        // AC6
+        let claude = claude_wrapper_script_body(None);
+        let codex = codex_wrapper_script_body(None);
+        assert_eq!(claude_wrapper_allow_stop_stdout(), "");
+        assert_eq!(codex_wrapper_continue_stdout(), r#"{"continue":true}"#);
+        assert!(claude.contains("2>&1"), "Claude must capture child 2>&1");
+        assert!(codex.contains("2>&1"), "Codex must capture child 2>&1");
+        assert!(
+            claude.contains("[Console]::Error.WriteLine"),
+            "Claude child output to stderr"
+        );
+        assert!(codex.contains("[Console]::Error.WriteLine"));
+        assert!(
+            !claude.contains("Write-Host"),
+            "Claude must not Write-Host hook output"
+        );
+        assert!(
+            !codex.contains("Write-Host"),
+            "Codex must not Write-Host hook output"
+        );
+        assert!(
+            !claude.contains("decision"),
+            "Claude wrapper has no decision"
+        );
+        assert!(!codex.contains("decision"), "Codex wrapper has no decision");
+        assert!(
+            !claude.contains("render_hook_output"),
+            "must not call render_hook_output"
+        );
+        assert!(
+            !codex.contains("render_hook_output"),
+            "must not call render_hook_output"
+        );
+        assert!(!claude.contains("wrapper_command"));
+        assert!(!codex.contains("wrapper_command"));
+        assert!(
+            claude.contains("hook_event_name"),
+            "Claude maps official snake_case"
+        );
+        assert!(claude.contains("claude-unbound"));
+        assert!(claude.contains("claude-hook"));
+        assert!(codex.contains("codex-hook"));
+        assert!(
+            codex.contains(r#"{"continue":true}"#),
+            "Codex body emits continue const"
+        );
+        assert!(
+            !claude.contains(r#"{"continue":true}"#),
+            "Claude must not emit Codex continue JSON"
+        );
+    }
+
+    #[test]
+    fn install_claude__corrupt_settings__refuse_unchanged() {
+        // AC18
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let settings = claude_settings_path(home);
+        std::fs::create_dir_all(settings.parent().unwrap()).expect("mkdir");
+        let original = b"{ not valid json !!";
+        std::fs::write(&settings, original).expect("write");
+        let out = install_claude(home, false).expect("call");
+        match out {
+            InstallOutcome::Refused { path, reason } => {
+                assert_eq!(path, settings);
+                assert!(
+                    reason.contains("refused") || reason.contains("parse"),
+                    "{reason}"
+                );
+            }
+            other => panic!("expected Refused, got {other:?}"),
+        }
+        assert_eq!(std::fs::read(&settings).expect("read"), original);
+        assert!(!claude_wrapper_path(home).exists());
+    }
+
+    #[test]
+    fn install_claude__jsonc_comments__refuse_unchanged() {
+        // AC18
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let settings = claude_settings_path(home);
+        std::fs::create_dir_all(settings.parent().unwrap()).expect("mkdir");
+        let original = b"{\n  // jsonc comment\n  \"theme\": \"dark\"\n}\n";
+        std::fs::write(&settings, original).expect("write");
+        let out = install_claude(home, false).expect("call");
+        match out {
+            InstallOutcome::Refused { path, reason } => {
+                assert_eq!(path, settings);
+                assert!(
+                    reason.contains("refused") || reason.contains("//"),
+                    "{reason}"
+                );
+            }
+            other => panic!("expected Refused, got {other:?}"),
+        }
+        assert_eq!(std::fs::read(&settings).expect("read"), original);
+        assert!(!claude_wrapper_path(home).exists());
+    }
+
+    #[test]
+    fn install_codex__corrupt_hooks__refuse_unchanged() {
+        // AC18
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let hooks = codex_hooks_path(home);
+        std::fs::create_dir_all(hooks.parent().unwrap()).expect("mkdir");
+        let original = b"{ not valid json !!";
+        std::fs::write(&hooks, original).expect("write");
+        let out = install_codex(home, false).expect("call");
+        match out {
+            InstallOutcome::Refused { path, reason } => {
+                assert_eq!(path, hooks);
+                assert!(
+                    reason.contains("refused") || reason.contains("parse"),
+                    "{reason}"
+                );
+            }
+            other => panic!("expected Refused, got {other:?}"),
+        }
+        assert_eq!(std::fs::read(&hooks).expect("read"), original);
+        assert!(!codex_wrapper_path(home).exists());
     }
 
     fn walk_files(root: &Path) -> Vec<PathBuf> {
