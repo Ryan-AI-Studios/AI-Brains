@@ -26,6 +26,7 @@ use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::pragmas::cipher_version;
 use chrono::Utc;
 use std::fs;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process;
 
@@ -572,7 +573,7 @@ fn unlock_kit(
 ) -> Result<ai_brains_crypto::DataKey, Box<dyn std::error::Error>> {
     // Prefer passphrase when a source is available (file or we will try TTY).
     // If no passphrase-file and stdin is not a TTY, fall back to DPAPI-only.
-    let try_passphrase = passphrase_file.is_some() || is_terminal::is_terminal(std::io::stdin());
+    let try_passphrase = passphrase_file.is_some() || std::io::stdin().is_terminal();
 
     if try_passphrase {
         match acquire_passphrase(passphrase_file) {

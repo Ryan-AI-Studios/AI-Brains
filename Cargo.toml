@@ -82,7 +82,6 @@ axum = "0.8.9"
 tower = "0.5"
 tower-http = { version = "0.6.6", features = ["limit", "cors", "trace"] }
 http-body-util = "0.1"
-is-terminal = "0.4"
 regex = "1.12"
 windows = { version = "0.62", features = [
     "Win32_Security_Cryptography",

@@ -4,18 +4,9 @@ use crate::commands::multi_import::{MultiImportStatusView, SourceImportReport};
 use crate::commands::nightly::{explain_last_task_result, host_port_from_url};
 use serde::Serialize;
 
-/// Local copy of the T248/T249 format resolver (T249 pin: do not extract a shared helper).
-///
-/// pretty/human/text/markdown/md → human; json → json; auto + TTY → human;
-/// auto + pipe → json; unknown → json (fail-closed).
+/// Nightly `--status` format tokens (shared human/json map).
 pub(crate) fn resolve_nightly_status_format(explicit: &str, is_tty: bool) -> &'static str {
-    match explicit {
-        "pretty" | "human" | "text" | "markdown" | "md" => "human",
-        "json" => "json",
-        "auto" if is_tty => "human",
-        "auto" => "json",
-        _ => "json",
-    }
+    crate::commands::format_resolve::resolve_human_json_format(explicit, is_tty)
 }
 
 #[derive(Debug, Clone, Serialize)]

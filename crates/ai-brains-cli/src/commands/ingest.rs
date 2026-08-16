@@ -39,7 +39,7 @@ fn truncate_preview(s: &str) -> String {
 
 pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Error>> {
     use crate::commands::governed_common::fail_usage;
-    use is_terminal::IsTerminal;
+    use std::io::IsTerminal;
 
     if io::stdin().is_terminal() {
         return fail_usage(INGEST_EMPTY_STDIN_USAGE);

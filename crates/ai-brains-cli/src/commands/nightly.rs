@@ -2,7 +2,7 @@ use crate::context::AppContext;
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_models::llama_cpp::{LlamaCppProvider, ProbeStatus};
 use ai_brains_store::EventStore;
-use is_terminal::IsTerminal;
+use std::io::IsTerminal;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -336,7 +336,13 @@ pub async fn run(
                 }
             }
         } else {
-            format!("'{}' nightly", exe_str)
+            let cmd = format!("'{}' nightly", exe_str);
+            if dry_run {
+                let args = build_schtasks_args(&cmd, task_name, &start_time, false);
+                println!("{}", format_schedule_dry_run_preview(&args));
+                return Ok(());
+            }
+            cmd
         };
 
         let args = build_schtasks_args(&task_command, task_name, &start_time, run_as_system);
@@ -1120,6 +1126,10 @@ fn build_schtasks_args(
     }
     args.push("/f".to_string());
     args
+}
+
+fn format_schedule_dry_run_preview(args: &[String]) -> String {
+    format!("[dry-run] Would execute:\n  schtasks {}", args.join(" "))
 }
 
 const REQUIRED_ENV_VARS: [&str; 5] = [
@@ -2008,6 +2018,27 @@ Author: N/A\n";
         let task_command = &args[tr + 1];
         assert!(task_command.contains("--no-project-context"));
         assert!(task_command.contains("--skip-import"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn user_principal_schedule_dry_run_preview__quoted_exe_nightly_no_ru() {
+        let args = build_schtasks_args(
+            r"'C:\fake\ai-brains.exe' nightly",
+            "AI-Brains-Nightly",
+            "03:00",
+            false,
+        );
+        let preview = format_schedule_dry_run_preview(&args);
+        assert!(preview.starts_with("[dry-run] Would execute:"), "{preview}");
+        assert!(preview.contains("/tr"), "{preview}");
+        assert!(
+            preview.contains(r"'C:\fake\ai-brains.exe' nightly"),
+            "{preview}"
+        );
+        assert!(!preview.contains("/ru"), "{preview}");
+        assert!(preview.contains("/f"), "{preview}");
+        assert!(preview.contains("/create"), "{preview}");
     }
 
     #[test]

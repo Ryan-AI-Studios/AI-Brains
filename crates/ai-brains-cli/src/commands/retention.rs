@@ -44,8 +44,8 @@ use ai_brains_core::scope::ScopeRef;
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use ai_brains_store::SqliteEventStore;
 use chrono::{DateTime, Utc};
-use is_terminal::IsTerminal;
 use std::collections::BTreeMap;
+use std::io::IsTerminal;
 
 pub struct PlanOptions {
     pub format: String,
@@ -300,13 +300,7 @@ pub fn resolve_retention_apply_scope(
 
 /// Resolve plan/apply `--format` (T248). Clap rejects unknowns; `_` is fail-closed json.
 pub(crate) fn resolve_retention_format(explicit: &str, is_tty: bool) -> &'static str {
-    match explicit {
-        "pretty" | "human" | "text" | "markdown" | "md" => "human",
-        "json" => "json",
-        "auto" if is_tty => "human",
-        "auto" => "json",
-        _ => "json",
-    }
+    crate::commands::format_resolve::resolve_human_json_format(explicit, is_tty)
 }
 
 fn retention_output_format(resolved: &str) -> OutputFormat {

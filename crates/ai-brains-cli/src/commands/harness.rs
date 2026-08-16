@@ -10,7 +10,7 @@ use crate::harness::{
     resolve_home, save_prefs, uninstall_agy, uninstall_claude, uninstall_codex, uninstall_grok,
     uninstall_opencode, uninstall_pending, wiring_status_label,
 };
-use is_terminal::IsTerminal;
+use std::io::IsTerminal;
 
 #[derive(Debug, Clone)]
 pub struct HarnessStatusOptions {

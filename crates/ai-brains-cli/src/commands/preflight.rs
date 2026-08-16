@@ -14,8 +14,8 @@ use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
 use ai_brains_store::QueryStore;
 use ai_brains_store::SqliteEventStore;
-use is_terminal::IsTerminal;
 use serde::Serialize;
+use std::io::IsTerminal;
 
 pub struct PreflightRunOptions {
     pub max_words: usize,

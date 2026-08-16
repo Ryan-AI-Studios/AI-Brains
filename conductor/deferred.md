@@ -77,7 +77,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Ledgerful under `--global` | Soft residual F9 — product decision |
 | Governed multi-project packet | **Not** T214 — F10 |
 | `PreflightContextResponse` extra keys | **Not** T214 — F11 / T180 freeze |
-| is-terminal → `std::io::IsTerminal` | Soft residual F24 (L1) |
+| is-terminal → `std::io::IsTerminal` | **Closed 2026-08-16** |
 | Extract `commands/scope_display.rs` | Soft residual F13 v1 used pub(crate) |
 | Refactor retrieval `active_sessions` off `format!` SQL | Soft residual (pre-existing; not T214 DoD) |
 | ~~T216 forget-list~~ | **Closed by T216** (2026-08-05) PR #99 `1980d83` |
@@ -104,7 +104,7 @@ Suggested order: ~~**T196**~~ ... ~~**T216**~~ **closed** (T205–T216 audit ser
 | Soft skill one-liner for summary JSON | Soft residual F20/F22 |
 | Optional `harnesses[]` in summary JSON | Soft residual F22 |
 | Optional `scope_line` string | Soft residual F22 |
-| is-terminal → `std::io::IsTerminal`; clap ValueEnum ignore_case unify | Soft residual F22 |
+| clap ValueEnum ignore_case unify | Soft residual F22. **Closed 2026-08-16:** is-terminal → std |
 | ~~T219 pretty body wall~~ | **Closed by T219** PR #118 `496ddd7` |
 
 ### Post-audit CLI quality placeholders (2026-08-05) — T217–T232
@@ -193,8 +193,8 @@ Specified softs (F12) plus declined bag — not product blockers:
 | Doctor 16th model-port check | Declined F11 — frozen 15-check; status is the matrix |
 | 50ms embed sleep | Declined F13 — reopen only with nightly-run timings |
 | Product `.cmd` / schedule Router | Declined F14 / F30 — operator confirm |
-| Shared `resolve_*_format` | T249 F12 — local copy stays |
-| `std::io::IsTerminal` migrate | T249 F12 |
+| Shared `resolve_*_format` | **Closed 2026-08-16** — `format_resolve::resolve_human_json_format`; graph stays local (`pretty`) |
+| `std::io::IsTerminal` migrate | **Closed 2026-08-16** — `is-terminal` crate removed from CLI |
 | PATH reinstall | Operator / F29 — PATH `ai-brains` still pre-T247 |
 | Live reschedule of missing `.cmd` | F30 — not automatic Close |
 | T253 Claude/Codex nightly | Not absorbed F16 |
@@ -233,7 +233,7 @@ Specified softs (F12), not review deferrals:
 |----------|-------------|
 | Vault-free `ingest --dry-run` / `run_sync_path_free` | Soft — F9 vault still required |
 | `ingest --schema` | Soft — T83 siblings; not DoD |
-| `std::io::IsTerminal` migrate | Soft — T249 F12 |
+| `std::io::IsTerminal` migrate | **Closed 2026-08-16** |
 | clap 4.6 workspace pin | Soft — lock 4.6.1 stays |
 | T86 `read_json_from_stdin` swallow | Soft — preflight `--stdin`, not ingest |
 | Shared `read_stdin_trimmed` SOOT | Soft — isolation |
@@ -256,7 +256,7 @@ Specified softs, not review deferrals:
 
 | Residual | Disposition |
 |----------|-------------|
-| F12 is-terminal → std / clap 4.6 workspace pin / retrieval JSON role strip / pager / governed section caps / `--max-line` / T241 `--install-grants` / skill one-liner / HOTSPOT float-score reformat / auto-compact from terminal height | Soft — not DoD |
+| F12 clap 4.6 workspace pin / retrieval JSON role strip / pager / governed section caps / `--max-line` / T241 `--install-grants` / skill one-liner / HOTSPOT float-score reformat / auto-compact from terminal height | Soft — not DoD. **Closed 2026-08-16:** is-terminal → std |
 
 ### T249 soft residuals (2026-08-14)
 
@@ -264,7 +264,7 @@ Specified softs, not review deferrals:
 
 | Residual | Disposition |
 |----------|-------------|
-| F12 Daemon uptime / `sc query` / `--format json` / `--quick` / compact doctor JSON DTO / T214 is-terminal → std / shared `resolve_*_format` / T204 Start-here rewrite that removes json / color / pager / `comfy-table` | Soft — not DoD |
+| F12 Daemon uptime / `sc query` / `--format json` / `--quick` / compact doctor JSON DTO / T204 Start-here rewrite that removes json / color / pager / `comfy-table` | Soft — not DoD. **Closed 2026-08-16:** T214 is-terminal → std; shared `resolve_*_format` (graph stays local) |
 | F13 T241 F20–F22 leftovers / T226 O1 shared resolve wrapper / ~~T255 nightly/router~~ / ~~T250 preflight density~~ | Peer tracks (T250 + T255 closed) |
 
 ### T238 soft residuals (2026-08-09)
@@ -753,9 +753,9 @@ Folded into T166 spec/plan (implement on go-ahead):
 - Zero new deps; Phase 8 rollup closes with T166 dry-run evidence.
 - **Review fold-in (2026-07-29):** **R11** pinned holds; **R12** `RetentionApplied` on apply; **R13** stream A/B de-dupe (no double-count; future `subject_kind=turn`); **R14** terminal `updated_at` clocks; **R15** hierarchy parent resynthesis mark (auto, not review queue); **R16** orphan wraps at **7d** (not 24h).
 
-### 39. T167 design freezes absorbed into track (2026-07-29 expansion + review fold-in)
+### 39. T167 design freezes absorbed into track (2026-07-29 expansion + review fold-in) — **Closed 2026-08-16**
 
-Folded into T167 spec/plan (`trackT167-legacy-memory-classification-import/`) — implement on go-ahead:
+Importer shipped with T168 (`legacy_import.rs` + `migrate governed`). Track closeout 2026-08-16: no residual standalone importer. Historical L-locks:
 
 - **L1** classify/dry-run default (full plan + plan_hash even on dry-run); apply needs confirm. **L2** no live-vault default (T168 owns CLI).
 - **L3** uuid v5 domain ids; plan-determinism (not applied envelope event_id) is the contract. **L4** under-promote.

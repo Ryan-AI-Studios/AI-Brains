@@ -2353,7 +2353,7 @@ pub enum SafetyCommands {
 /// T86: Read a plain-text query from stdin until EOF.
 /// Returns an error if stdin is a terminal (avoids hanging in interactive shells).
 fn read_query_from_stdin() -> Result<String, Box<dyn std::error::Error>> {
-    use is_terminal::IsTerminal;
+    use std::io::IsTerminal;
     use std::io::Read;
     if std::io::stdin().is_terminal() {
         return Err(
@@ -2374,7 +2374,7 @@ fn read_query_from_stdin() -> Result<String, Box<dyn std::error::Error>> {
 /// T86: Read a JSON object from stdin until EOF.
 /// Returns an error if stdin is a terminal.
 fn read_json_from_stdin() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    use is_terminal::IsTerminal;
+    use std::io::IsTerminal;
     use std::io::Read;
     if std::io::stdin().is_terminal() {
         return Err("stdin is a terminal — pipe JSON input when using --stdin.".into());
