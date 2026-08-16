@@ -218,7 +218,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 
 | Finding | Track |
 |---------|-------|
-| `--help` prints live `AI_BRAINS_KEY` (quality 3) | **T256** — **Planned 2026-08-16** (not implemented). Spec F0–F19 / AC1–AC11: `hide_env_values` on `Cli.key`; hermetic dummy payload must not appear; last-PR Cursor N/A (#169 empty). |
+| `--help` prints live `AI_BRAINS_KEY` (quality 3) | **T256** — **Planned + fold-in 2026-08-16** (not implemented). F0–F19 / AC1–AC12: `hide_env_values` on `Cli.key`; exact `[env: AI_BRAINS_KEY]`; `help` subcommand AC12; last-PR Cursor N/A (#169 empty). |
 | Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
 | Daily Scope `test-alias` `441837f6` vs path owner `3581317d` | **T258** |
 | Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259** |

@@ -7,17 +7,18 @@
 - **Source:** Non-destructive CLI audit 2026-08-16 — `ai-brains --help` quality **3**
 - **Depends on:** T197 key bootstrap (`AI_BRAINS_KEY=x'<64 hex>'`); clap 4 `env` feature; T204 help IA (do not reopen)
 - **Blocks / feeds:** Any future help IA; T257 JSON hygiene does **not** absorb this
-- **Absorbs:** `--help` / `-h` print live `AI_BRAINS_KEY`; opportunity “never print `x'<hex>'` in help”; T181 `assert_no_secret_leakage` as the proof helper
+- **Absorbs:** `--help` / `-h` / `help` print live `AI_BRAINS_KEY`; opportunity “never print `x'<hex>'` in help”; T181 `assert_no_secret_leakage` as the proof helper
 - **Not absorbed:** daemon `AI_BRAINS_VAULT_KEY` sidecar; recovery kit; doctor kit-path; `init` generate-and-print (intentional once); `AI_BRAINS_VAULT_PATH` / `AI_BRAINS_PROJECT_ID` env display (not secrets)
-- **Research date:** 2026-08-16 (source HEAD `d6749b6`; clap lock **4.6.1** / clap_builder **4.6.0**)
-- **Ledger:** planning DOCS TX `0cb0fe21-2325-4b22-917a-4b649d6dadef`. Implement starts a **SECURITY** TX on **go**.
+- **Research date:** 2026-08-16 (dogfood HEAD `d6749b6`; review/fold HEAD `4bea645`; clap lock **4.6.1** / clap_builder **4.6.0**)
+- **AI fold-in:** 2026-08-16 `agy-review.md` + `opencode-review.md`. No Blockers/Majors. **Agree hard:** OC-m1 `help` subcommand AC12; OC-m3 exact `[env: AI_BRAINS_KEY]`. **Agree:** OC-m2 red-vs-guard; OC-m4 rustic illustrative; OC-O5 concat stdout+stderr; Agy-m1 HEAD note. **Already covered:** Agy-m2 AC6/F14; Agy-O1 dummy key F8. Disposition **§12**.
+- **Ledger:** planning DOCS TX `0cb0fe21-2325-4b22-917a-4b649d6dadef`. Fold-in DOCS TX `84d66be2-7402-4bd2-bc1a-7ca7aa04f2fe`. Implement starts a **SECURITY** TX on **go**.
 - **Isolation:** Do **not** print, commit, or log a live key. Do **not** reopen T197 resolve, T204 group labels, T240 F2, T255 declines. Do **not** bump clap / add crates.
 
 ---
 
 ## 1. Objective
 
-`--help` / `-h` (and any clap help that inherits global `--key`) must **never** echo the live vault key or any other secret env default. Keep documenting the **variable name**. How the key is *used* (T197) does not change.
+`--help` / `-h` / `help` (and any clap help that inherits global `--key`) must **never** echo the live vault key or any other secret env default. Keep documenting the **variable name** as `[env: AI_BRAINS_KEY]`. How the key is *used* (T197) does not change.
 
 This is a capture-independence unblock: agent transcripts, screenshots of “start here” help, CI `--help` dumps, and support paste-bins currently receive the SQLCipher product key. The vault stays local-first only if help does not leak it.
 
@@ -31,11 +32,13 @@ Classified without printing values (PowerShell match only):
 
 | Surface | Observation |
 |---------|-------------|
-| HEAD | `d6749b6` — T252–T255 closeout (#169). Tree dirty: conductor placeholders / series READMEs from T256–T271 registration (unrelated to product crates). Ahead of `origin/main` by **0**. |
+| HEAD | Plan-time dogfood: `d6749b6` (#169). Reviews + this fold-in: `4bea645` (T256 plan + T257–T271 registry). Product `src/` for `--key` **unchanged** since `d6749b6`. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` |
 | `ai-brains --help` | `AI_BRAINS_KEY` **present**; `AI_BRAINS_KEY=x'` **true**; env-equals **true**. Length 6181. **Leak confirmed.** |
 | `ai-brains -h` | Same leak class. Length 5064. |
+| `ai-brains help` | Same as `--help` (len 6181, `has_xquote_assign=True`). Re-verified at fold-in. **Leak confirmed.** F1 fixes the same render path; **AC12** locks the spelling. |
 | `ai-brains recall --help` | `AI_BRAINS_KEY` **absent**. `--key` is **not** `global = true`, so subcommand help does not inherit it today. |
+| `ai-brains --not-a-real-flag` | Usage-on-error: `has_name=False` (len 137). **No leak today.** AC6 is a **guard**, not a red demonstration. |
 | `AI_BRAINS_VAULT_PATH=` | Also shown on root help. **Not a secret.** Leave. |
 | Preflight | Scope `test-alias` `441837f6` vs path owner `3581317d` (T258). Identity warn on every command (T257). Do not “fix” here. |
 | Last GitHub PR | [#169](https://github.com/Ryan-AI-Studios/AI-Brains/pull/169) merged 2026-08-16. `gh pr view --comments`, `/reviews`, `/comments` all **empty**. HEAD is `main` (no open PR). Open PRs #68–#72 are Dependabot only. **last-PR Cursor: N/A.** |
@@ -45,7 +48,7 @@ Classified without printing values (PowerShell match only):
 
 | Residual | Why it is a product hole / why decline |
 |----------|----------------------------------------|
-| Root `--help` / `-h` echo `AI_BRAINS_KEY=x'<64 hex>'` | Audit quality **3**. Lands in agent sessions (this planning skill forbids pasting `--help` for that reason). **DoD.** |
+| Root `--help` / `-h` / `help` echo `AI_BRAINS_KEY=x'<64 hex>'` | Audit quality **3**. `help` is clap’s default help subcommand (same 6181-byte render as `--help`). **DoD** (AC1/AC2/AC12). |
 | Subcommand help | Does not show `--key` today (not global). Still lock a dummy-key hermetic on `doctor --help` so a later `global = true` cannot regress silently. **DoD as belt-and-suspenders.** |
 | `init` prints generated key | Intentional one-shot. **Decline.** |
 | Hide every clap `env` value | Would hide `AI_BRAINS_PROJECT_ID` / vault path (useful). **Decline.** Secrets only. |
@@ -76,12 +79,12 @@ Classified without printing values (PowerShell match only):
 |-----|------------------|--------|
 | `clap` | workspace **4.5** / lock **4.6.1** (builder **4.6.0**) | **No bump.** `Arg::hide_env_values` is on **4.6.0** (`clap_builder-4.6.0/src/builder/arg.rs:2667`, `cfg(feature = "env")`). Feature `env` already enabled. |
 | crates.io clap | latest **4.6.6** (2026-08-06). **No clap 5.** | Forbidden future-bump guard. Snapshot — re-verify at execute. |
-| Official docs | clap 4.6.0 `Arg::hide_env_values(true)` example: `$ CONNECT=super_secret connect --help` omits `[default: CONNECT=super_secret]`. Derive: `hide_env_values = true` (same as historical structopt; rustic `RUSTIC_KEY` uses this). | **This is the implementation.** |
+| Official docs | clap 4.6.0 `Arg::hide_env_values(true)` example: `$ CONNECT=super_secret connect --help` omits the value. Derive: `hide_env_values` is **not** a `MagicAttrName` in clap_derive **4.6.1** (`item.rs` `None` arm) → forwards to `.hide_env_values(true)`. Help template `help_template.rs:770-785`: name `env.0` always emitted; `env_val` empty when `is_hide_env_values_set()`. | **This is the implementation.** Load-bearing = local clap source, not rustic. |
 | `serde_json` / `tokio` | unchanged | **No bump.** |
 | rustc / edition | **1.95.0** / **2024** | Unchanged. |
 | workspace version | **0.1.1** | **No bump.** |
 | New crates | — | **Zero.** |
-| Best practice | OWASP / CISA: never echo secrets in help/debug. Reference CLIs (rustic, structopt cookbook) hide env **values** and keep the **name**. Do not invent `(set)`/`(unset)` chrome unless clap stops showing the name. | Fits this repo: one attribute, existing leak helper. |
+| Best practice | OWASP / CISA: never echo secrets in help/debug. rustic `RUSTIC_KEY` / structopt cookbook are **illustrative** (not independently re-fetched at fold-in; not a crate dep). Do not invent `(set)`/`(unset)` chrome unless clap stops showing the name. | Fits this repo: one attribute, existing leak helper. |
 
 ---
 
@@ -91,19 +94,19 @@ Classified without printing values (PowerShell match only):
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a **SECURITY** TX. |
 | **F1 — Knob** | On `Cli.key` only: `hide_env_values = true` next to `env = "AI_BRAINS_KEY"`. Keep `long`, `help_heading`. Do **not** set `hide_env = true` (that hides the name). Do **not** set `global = true`. |
-| **F2 — Chrome** | After the change, root help still contains `[env: AI_BRAINS_KEY]` (name). It must **not** contain `AI_BRAINS_KEY=` followed by the live / dummy value, `x'<payload>'` of that value, or the raw 64-hex payload. Clap’s native “name without `=value`” **is** the `(set)` equivalent. Do not invent custom `(set)`/`(unset)` text. |
-| **F3 — Surfaces** | Redact `-h` and `--help` on the root parser. Hermetic `doctor --help` with a dummy key must also be clean (defense if inheritance changes). `recall --help` stays a regression lock (name may be absent today). |
+| **F2 — Chrome** | After the change, root `--help` / `-h` / `help` **must** contain the exact slot `[env: AI_BRAINS_KEY]` (clap `help_template.rs:781-785`). A bare `AI_BRAINS_KEY` somewhere in after_help is **not** enough. Must **not** contain `AI_BRAINS_KEY=` + live/dummy value, that value’s `x'<payload>'`, or the raw 64-hex. Clap’s native “name without `=value`” **is** the `(set)` equivalent. Do not invent custom `(set)`/`(unset)` text. |
+| **F3 — Surfaces** | Redact `-h`, `--help`, and clap’s default `help` subcommand on the root parser (**AC12**). Hermetic `doctor --help` with a dummy key must also be clean (defense if inheritance changes). `recall --help` stays a regression lock (name may be absent today). |
 | **F4 — Resolve freeze** | Do not change `key_resolve.rs`, dotenv merge, T197 missing/zero/format codes, or how `--key` wins over env. |
 | **F5 — Non-secrets stay visible** | `AI_BRAINS_VAULT_PATH=`, `AI_BRAINS_PROJECT_ID=`, `LEDGERFUL_TX_ID=`, principal / scope env display stay as clap default. |
 | **F6 — Init print** | `init` may still print a **newly generated** key once. That is not help. |
 | **F7 — Daemon key** | `AI_BRAINS_VAULT_KEY` is not a CLI clap `env`. Do not add a clap arg just to hide it. |
-| **F8 — Tests** | New file `crates/ai-brains-cli/tests/cli_help_secret_redaction.rs`. Dummy key **must not** be the all-zero fixture (doctor after_help / INSTALL mention `x'<64 hex>'`; zero-hex is too collision-prone). Use a distinctive 64-hex payload + `assert_no_secret_leakage` on the **bytes**. Also assert no `AI_BRAINS_KEY=x'` substring. |
+| **F8 — Tests** | New file `crates/ai-brains-cli/tests/cli_help_secret_redaction.rs`. Dummy key **must not** be the all-zero fixture (doctor after_help / INSTALL mention `x'<64 hex>'`; zero-hex is too collision-prone). Use a distinctive 64-hex payload + `assert_no_secret_leakage` on the **bytes**. Also assert no `AI_BRAINS_KEY=x'` substring. **Always** concatenate stdout+stderr into one `&str` before the helper (help is stdout; usage errors are stderr). |
 | **F9 — Unset** | `hermetic_bin_no_key()` + `--help`: still documents `AI_BRAINS_KEY` (name). Combined stdout/stderr must not contain a dummy payload (there is none). |
 | **F10 — T204 freeze** | Do not edit `help_ia.rs` or existing `cli_help_ia.rs` group-label ACs except if a new assertion is added **additively** (prefer the new file). |
 | **F11 — Docs** | CAPABILITIES `--key` row: one honesty clause that help never echoes the live value. INSTALL format examples stay placeholders (`x'<64 hex>'`). Root CHANGELOG T256 row. No PROTOCOL-COMPAT / contracts DTO. |
 | **F12 — Pins / crates** | No clap 5, no lock bump, no new crates, workspace **0.1.1**. |
 | **F13 — Capture independence** | Help/docs only. No events. No vault open on `--help`. |
-| **F14 — Error usage** | Hermetic unknown-flag (`ai-brains --not-a-real-flag`) combined output with dummy `AI_BRAINS_KEY` must not contain the payload. If clap usage-on-error still prints env values, that is **in scope** (same attribute or documented clap limitation + follow-up). Do not ship a silent residual leak. |
+| **F14 — Error usage** | Hermetic unknown-flag (`ai-brains --not-a-real-flag`) combined output with dummy `AI_BRAINS_KEY` must not contain the payload. **Live today (fold-in):** usage-on-error is a short `Usage:` line and does **not** mention `AI_BRAINS_KEY` at all — AC6 is a **guard**, not a red demo. If a later clap bump starts echoing env on error, F1 still applies; do not ship a silent residual leak. |
 | **F15 — Stop-before** | Never print a live `AI_BRAINS_KEY` in review logs, plan evidence, or PR text. Dummy keys in tests only. |
 | **F16 — Cross-model** | SECURITY. After Phase-1 review clean, run read-only `codex-review`. |
 | **F17 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals go to `conductor/deferred.md`. |
@@ -116,22 +119,24 @@ Classified without printing values (PowerShell match only):
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Hermetic: `hermetic_bin()` + `.env("AI_BRAINS_KEY", DUMMY)` + `--help` exits **0**. Combined stdout+stderr does **not** contain `DUMMY`’s 64-hex (via `assert_no_secret_leakage` on the decoded bytes) and does **not** contain `AI_BRAINS_KEY=x'`. **Does** contain `[env: AI_BRAINS_KEY]` or `AI_BRAINS_KEY` as the documented name. `DUMMY` ≠ `ZERO_SQLCIPHER_KEY`. |
-| **AC2** | Same as AC1 for `-h`. |
-| **AC3** | `hermetic_bin_no_key()` + `--help` exits **0**. Output contains `AI_BRAINS_KEY`. No dummy payload (none set). |
-| **AC4** | `hermetic_bin()` + dummy + `doctor --help` combined output has no dummy payload / no `AI_BRAINS_KEY=x'`. Format string `x'<64 hex>'` in doctor after_help **may** remain. |
-| **AC5** | `hermetic_bin()` + dummy + `recall --help` combined output has no dummy payload. |
-| **AC6** | `hermetic_bin()` + dummy + `--not-a-real-flag` (expect non-zero): combined output has no dummy payload (F14). |
+| **AC1** | **Red today.** Hermetic: `hermetic_bin()` + `.env("AI_BRAINS_KEY", DUMMY)` + `--help` exits **0**. Combined stdout+stderr does **not** contain `DUMMY`’s 64-hex (`assert_no_secret_leakage` on the decoded bytes) and does **not** contain `AI_BRAINS_KEY=x'`. **Does** contain the exact substring `[env: AI_BRAINS_KEY]` (not merely `AI_BRAINS_KEY` in after_help). `DUMMY` ≠ `ZERO_SQLCIPHER_KEY`. |
+| **AC2** | **Red today.** Same as AC1 for `-h`. |
+| **AC3** | **Guard (green today).** `hermetic_bin_no_key()` + `--help` exits **0**. Combined output contains `[env: AI_BRAINS_KEY]`. No dummy payload (none set). |
+| **AC4** | **Guard (green today).** `hermetic_bin()` + dummy + `doctor --help` combined output has no dummy payload / no `AI_BRAINS_KEY=x'`. Format string `x'<64 hex>'` in doctor after_help **may** remain. |
+| **AC5** | **Guard (green today).** `hermetic_bin()` + dummy + `recall --help` combined output has no dummy payload. |
+| **AC6** | **Guard (green today).** `hermetic_bin()` + dummy + `--not-a-real-flag` (expect non-zero): combined stdout+stderr has no dummy payload (F14). |
 | **AC7** | Existing `cli_help_ia` group-label tests stay green (T204). |
 | **AC8** | `key_resolve` unit suite stays green (no resolve change). |
 | **AC9** | Docs: CAPABILITIES `--key` honesty + root CHANGELOG T256. INSTALL placeholders unchanged. |
 | **AC10** | No contracts DTO; no pin bumps; no new crate; `key_resolve.rs` / `init.rs` / `help_ia.rs` untouched (or only a comment if forced). |
-| **AC11** | Manual (source bin, **do not paste values**): classify `--help` the same way as §2.1 — `has_xquote_assign` **false**, `has_AI_BRAINS_KEY` **true**. PATH-behind may still leak (F18). |
+| **AC11** | Manual (source bin, **do not paste values**): classify `--help`, `-h`, and `help` the same way as §2.1 — `has_xquote_assign` **false**, exact `[env: AI_BRAINS_KEY]` present. PATH-behind may still leak (F18). |
+| **AC12** | **Red today.** Same as AC1 for clap’s default `help` subcommand (`ai-brains help`, no extra args). Same dummy, same exact `[env: AI_BRAINS_KEY]`, no payload. |
 
-Test names (TDD; fail first):
+Test names (TDD). **Must fail red before F1:** AC1, AC2, AC12. **Expected green before F1 (guards):** AC3–AC6.
 
 - `root_long_help__dummy_key_env__does_not_echo_payload`
 - `root_short_help__dummy_key_env__does_not_echo_payload`
+- `root_help_subcommand__dummy_key_env__does_not_echo_payload`
 - `root_long_help__key_unset__still_names_env`
 - `doctor_help__dummy_key_env__does_not_echo_payload`
 - `recall_help__dummy_key_env__does_not_echo_payload`
@@ -186,8 +191,8 @@ A regex scrub on help output can hide a later second leak site and fights clap. 
 
 ## 7. Verification plan
 
-1. **Red:** add `cli_help_secret_redaction.rs` ACs. `cargo nextest run -p ai-brains-cli --test cli_help_secret_redaction` must **fail** on current tree (root `--help` echoes dummy).
-2. **Green:** F1 attribute. Same test **pass**. AC7/AC8 green.
+1. **Red:** add `cli_help_secret_redaction.rs`. Filter must **fail** because AC1/AC2/AC12 fail (root `--help` / `-h` / `help` echo dummy). Do **not** chase a red on AC3/AC5/AC6 — those are green guards today.
+2. **Green:** F1 attribute. AC1/AC2/AC12 pass. Guards stay green. AC7/AC8 green.
 3. **Docs:** AC9.
 4. Targeted: `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; nextest that test + `cli_help_ia` + `key_resolve` units.
 5. Phase-1 review → `review.md`. SECURITY → `codex-review`.
@@ -215,7 +220,7 @@ Entire `conductor/deferred.md` scanned 2026-08-16 (post-P12 through T255 closeou
 
 | Item | Disposition |
 |------|-------------|
-| `--help` prints live `AI_BRAINS_KEY` (audit quality 3) | **Absorb** F1–F3 / AC1–AC2 |
+| `--help` prints live `AI_BRAINS_KEY` (audit quality 3) | **Absorb** F1–F3 / AC1–AC2 / **AC12** (`help` subcommand) |
 | T181 `assert_no_secret_leakage` | **Absorb** F8 as proof helper (do not fork) |
 | Doctor after_help “no secrets on stdout” | **Decline as DoD** — already a doctor claim; this track is root clap help. Doctor `--help` still locked by AC4. |
 | `init` generate-and-print | **Decline** F6 (intentional) |
@@ -239,8 +244,8 @@ Entire `conductor/deferred.md` scanned 2026-08-16 (post-P12 through T255 closeou
 
 ## 10. Implement order (on go)
 
-1. Phase 0: re-verify clap lock + `hide_env_values` still on builder; rescan `deferred.md` + last PR Cursor.
-2. Red: `cli_help_secret_redaction.rs` (AC1–AC6 names).
+1. Phase 0: re-verify clap lock + `hide_env_values` still on builder; rescan `deferred.md` + last PR Cursor. Confirm HEAD vs `4bea645` plan commit (product `--key` unchanged).
+2. Red: `cli_help_secret_redaction.rs`. **Expect fail** on AC1/AC2/AC12 only. Guards AC3–AC6 stay green.
 3. Green: F1 attribute on `Cli.key`.
 4. Docs AC9.
 5. Targeted clippy + nextest.
@@ -275,3 +280,39 @@ Entire `conductor/deferred.md` scanned 2026-08-16 (post-P12 through T255 closeou
 | `conductor/deferred.md` | Absorb note |
 
 Do **not** touch: `key_resolve.rs`, `init.rs`, `help_ia.rs`, `daemon.rs` wrapper env, `ai-brainsd`, contracts, `project.rs` (hotspot #1).
+
+---
+
+## 13. AI fold-in disposition (2026-08-16)
+
+Sources: `agy-review.md` (Antigravity) + `opencode-review.md` (OpenCode). No other plan `*-review.md` in the track dir. No Blockers / Majors. Re-verified at fold-in HEAD `4bea645`: `Cli.key` still lacks `hide_env_values`; `ai-brains help` leaks (`has_xquote_assign=True`, len 6181); `--not-a-real-flag` has no `AI_BRAINS_KEY`; clap_builder **4.6.0** `help_template.rs:770-785` drops only `=value`; clap_derive **4.6.1** forwards `hide_env_values` (not a `MagicAttrName`). Reviews re-confirmed deferred + last-PR Cursor N/A — **no leftover to mint**.
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** `help` subcommand untested | **Agree hard** | F3 / **AC12** / test `root_help_subcommand__dummy_key_env__does_not_echo_payload`. Live leak confirmed. |
+| **m2** AC3/AC5/AC6 green before fix | **Agree** | §4 / §7: AC1/AC2/AC12 are the red demos; AC3–AC6 (and AC4) are **guards**. |
+| **m3** exact `[env: AI_BRAINS_KEY]` | **Agree hard** | F2 / AC1 / AC2 / AC3 / AC12 — exact slot, not a loose name match. |
+| **m4** rustic not independently verified | **Agree** | §2.4: rustic/structopt **illustrative**. Load-bearing = local clap source. |
+| **O5** concat stdout+stderr | **Agree** | F8 — helper takes one `&str`. |
+
+### Antigravity
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** spec HEAD `d6749b6` vs `4bea645` | **Agree** | §2.1: dogfood SHA vs review/fold SHA. Product `--key` unchanged. Phase 0 checkbox. |
+| **m2** AC6 usage-on-error defense | **Already covered** | F14 / AC6. **Tightened:** live usage has `has_name=False` — guard, not red. |
+| **O1** distinctive dummy key | **Already covered** | F8 / §5.2 (`deadbeef…` ≠ `ZERO_SQLCIPHER_KEY`). |
+
+### Pins locked by fold-in
+
+1. **AC12 / F3:** clap default `help` is a root leak surface; same hermetic as `--help`.
+2. **F2 / AC1:** assert exact `[env: AI_BRAINS_KEY]` (template `env.0`, empty `env_val`).
+3. **§7:** Phase-1 nextest **must** fail on AC1/AC2/AC12 only. Do not chase red on AC3–AC6.
+4. **F8:** always `stdout + stderr` before `assert_no_secret_leakage`.
+5. **§2.4:** clap local source is SoT; rustic is a flavor citation.
+
+---
+
+**Planning + fold-in 2026-08-16.** Still **plan-only until go**.

@@ -1,10 +1,25 @@
 # T256 Plan — Help redacts secrets
 
 **Status:** **Pending** (planned; F0 until go)
-**Spec:** [spec.md](./spec.md) F0–F19 / AC1–AC11
+**Spec:** [spec.md](./spec.md) F0–F19 / AC1–AC12 + §13 fold-in
 **Category:** SECURITY / UX
 **Ledger TX (planning):** `0cb0fe21-2325-4b22-917a-4b649d6dadef` (DOCS)
+**Ledger TX (fold-in):** `84d66be2-7402-4bd2-bc1a-7ca7aa04f2fe` (DOCS)
 **Ledger TX (implement):** start **SECURITY** on go
+
+---
+
+## AI fold-in (2026-08-16) — `agy-review.md` + `opencode-review.md`
+
+No Blockers/Majors. OpenCode four minors + one opportunity folded. Agy HEAD note folded; Agy AC6/dummy already covered. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **AC12:** `ai-brains help` (default help subcommand) — live leak, same render as `--help`.
+2. **AC1/F2:** exact `[env: AI_BRAINS_KEY]`, not a loose name match.
+3. **Phase 1:** red = AC1/AC2/AC12 only. AC3–AC6 are guards (green today).
+4. **F8:** concatenate stdout+stderr before `assert_no_secret_leakage`.
+5. **§2.4:** clap local source is SoT; rustic is illustrative.
 
 ---
 
@@ -12,9 +27,9 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `d6749b6` on `main`; 0 ahead of `origin/main`. Dirty: conductor series docs from T256–T271 registration (not product crates). |
+| HEAD / tree | Plan-time dogfood `d6749b6`. Reviews + fold-in `4bea645`. Product `--key` unchanged. |
 | T256 stub | Placeholder upgraded in place to **Planned** |
-| PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe`. Root `--help` / `-h`: `has_xquote_assign=True`. `recall --help`: no `AI_BRAINS_KEY`. |
+| PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe`. Root `--help` / `-h` / `help`: `has_xquote_assign=True` (help len 6181). `recall --help`: no key. `--not-a-real-flag`: no name. |
 | `--key` site | `main.rs:432` `env = "AI_BRAINS_KEY"` — **no** `hide_env_values` |
 | clap | workspace 4.5 / lock **4.6.1** / builder **4.6.0**. `Arg::hide_env_values` present (`:2667`, `feature = "env"`). crates.io latest **4.6.6**. **No clap 5.** Snapshot — re-verify at execute. |
 | rustc / workspace | 1.95.0 / **0.1.1** |
@@ -35,6 +50,7 @@
 - [ ] `cargo search clap` / crates.io: still no clap 5 (or this track is not that bump).
 - [ ] Rescan **entire** `conductor/deferred.md` for new open help/secret rows.
 - [ ] Last merged PR + open HEAD PR Cursor comments. Mint placeholder if a leftover fits nowhere.
+- [ ] Confirm product `Cli.key` still has no `hide_env_values` (unchanged since `d6749b6` / `4bea645`).
 - [ ] `ledgerful ledger start T256-help-redact-secrets --category SECURITY`
 - [ ] Do **not** `cargo install`, rewrite `.env`, or paste a live key.
 
@@ -43,14 +59,15 @@
 ## Phase 1 — Red
 
 - [ ] Add `crates/ai-brains-cli/tests/cli_help_secret_redaction.rs` with dummy ≠ `ZERO_SQLCIPHER_KEY`.
-- [ ] `root_long_help__dummy_key_env__does_not_echo_payload`
-- [ ] `root_short_help__dummy_key_env__does_not_echo_payload`
-- [ ] `root_long_help__key_unset__still_names_env` (`hermetic_bin_no_key`)
-- [ ] `doctor_help__dummy_key_env__does_not_echo_payload`
-- [ ] `recall_help__dummy_key_env__does_not_echo_payload`
-- [ ] `unknown_flag__dummy_key_env__does_not_echo_payload`
-- [ ] Proof helper: `assert_no_secret_leakage` + no `AI_BRAINS_KEY=x'`
-- [ ] `cargo nextest run -p ai-brains-cli --test cli_help_secret_redaction` **fails** (red)
+- [ ] `root_long_help__dummy_key_env__does_not_echo_payload` (**must red**)
+- [ ] `root_short_help__dummy_key_env__does_not_echo_payload` (**must red**)
+- [ ] `root_help_subcommand__dummy_key_env__does_not_echo_payload` (**must red** — `help`)
+- [ ] `root_long_help__key_unset__still_names_env` (`hermetic_bin_no_key`) — **guard, green ok**
+- [ ] `doctor_help__dummy_key_env__does_not_echo_payload` — **guard, green ok**
+- [ ] `recall_help__dummy_key_env__does_not_echo_payload` — **guard, green ok**
+- [ ] `unknown_flag__dummy_key_env__does_not_echo_payload` — **guard, green ok**
+- [ ] Proof helper: concat stdout+stderr → `assert_no_secret_leakage` + no `AI_BRAINS_KEY=x'` + exact `[env: AI_BRAINS_KEY]` on AC1/AC2/AC12
+- [ ] `cargo nextest run -p ai-brains-cli --test cli_help_secret_redaction` **fails** because AC1/AC2/AC12 fail (do not chase red on guards)
 
 ---
 
@@ -78,7 +95,7 @@
 - [ ] Phase-1 review → `conductor/tracks/trackT256-help-redact-secrets/review.md`
 - [ ] Medium+ not silently dropped
 - [ ] SECURITY `codex-review` → `review.codex.md` until clean
-- [ ] Manual AC11: classify-only (`has_xquote_assign` false, name still present). **Do not paste values.**
+- [ ] Manual AC11: classify `--help` / `-h` / `help` only (`has_xquote_assign` false, exact `[env: AI_BRAINS_KEY]`). **Do not paste values.**
 - [ ] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; `cargo nextest run --workspace` ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
 - [ ] Note skip if deny/audit not installed locally (same class as T255)
 
@@ -96,7 +113,7 @@
 
 ## DoD (checkable)
 
-- [ ] AC1–AC11 evidenced
+- [ ] AC1–AC12 evidenced
 - [ ] No live key in review / PR / chat
 - [ ] `key_resolve.rs` / `init.rs` / `help_ia.rs` untouched
 - [ ] No clap 5 / new crate / pin bump
@@ -110,7 +127,7 @@
 
 | Item | Action |
 |------|--------|
-| Audit `--help` key leak | DoD AC1–AC2 |
+| Audit `--help` key leak | DoD AC1–AC2 / AC12 (`help`) |
 | T181 leak helper | F8 |
 | Doctor “no secrets on stdout” | Decline as DoD; AC4 still locks doctor help |
 | T257–T271 peers | Point, do not steal |
