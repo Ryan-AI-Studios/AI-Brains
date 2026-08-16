@@ -163,7 +163,7 @@ Live paths written (user-global only):
 - [x] Internal review.md until clean (R2 PASS)
 - [x] Cross-model `codex-review` (FEATURE) — CX1 FAIL P2 → CX2 FAIL help → **CX3 PASS**
 - [x] Conductor → Completed; deferred.md absorb line
-- [ ] `ledgerful ledger commit` (after git commit)
+- [x] `ledgerful ledger commit` (after git commit)
 
 ---
 
