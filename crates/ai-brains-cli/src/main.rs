@@ -429,7 +429,12 @@ struct Cli {
     vault_path: Option<PathBuf>,
 
     /// Hex-encoded key for the vault (or dummy)
-    #[arg(long, env = "AI_BRAINS_KEY", help_heading = "Global options")]
+    #[arg(
+        long,
+        env = "AI_BRAINS_KEY",
+        hide_env_values = true,
+        help_heading = "Global options"
+    )]
     key: Option<String>,
 
     /// Skip auto-discovery of project/session from .env. When set, the CLI

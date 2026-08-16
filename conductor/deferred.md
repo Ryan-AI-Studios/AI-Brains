@@ -199,6 +199,53 @@ Specified softs (F12) plus declined bag — not product blockers:
 | Live reschedule of missing `.cmd` | F30 — not automatic Close |
 | T253 Claude/Codex nightly | Not absorbed F16 |
 
+### Conductor planning skills (2026-08-16)
+
+Project copies of Helping Hands `plan` / `review-track` / `foldin`, adapted for this repo:
+
+| Skill | Path |
+|-------|------|
+| **plan-track** | `.agents/skills/plan-track/SKILL.md` |
+| **review-track** | `.agents/skills/review-track/SKILL.md` |
+| **fold-in** | `.agents/skills/fold-in/SKILL.md` |
+| **implement-track** | `.agents/skills/implement-track/SKILL.md` — from `hands/.agents/skills/implement`. Same-repo (no `hands\` split); TDD; `deferred.md`; **no** push/`gh pr merge` to `main` without owner; stop if spec is still a Placeholder. |
+
+Adaptations (not a copy): same-repo product+conductor (no `hands\` split); `trackTNN-<kebab>`; `deferred.md` not ISSUES.md; plan reviews are `*-review.md` so they do not collide with post-implement `review.md` / `review.codex.md`; F0 plan-only until go; no full-gate plan review. Standing orders (2026-08-16 tighten): live `src/` baseline; ledgerful + ai-brains required as appropriate; knowledge stale — current pins/docs + online best-practice/implementation research (N/A must be written). Plan pass must scan **entire** `deferred.md` and the **last merged PR** (+ open PR on HEAD) for Cursor/Bugbot comments; absorb, point at an existing Pending placeholder, or **mint a new placeholder** if the leftover fits nowhere.
+
+### Post-T255 live CLI audit (2026-08-16) — T256–T271
+
+Non-destructive dogfood after T255 closeout. Placeholder series registered in `conductor/conductor.md` (status **Pending**). Map: [README-T256-T271-CLI-AUDIT.md](tracks/README-T256-T271-CLI-AUDIT.md). Registration ledger `1d9511b5-798b-4d6c-b0c9-ebb4b07d0b69`.
+
+| Finding | Track |
+|---------|-------|
+| ~~`--help` prints live `AI_BRAINS_KEY` (quality 3)~~ | **T256 Completed 2026-08-16.** Soft residual: PATH `ai-brains` stays leaky until operator `cargo install` (F18). |
+| Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
+| Daily Scope `test-alias` `441837f6` vs path owner `3581317d` | **T258** |
+| Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259** |
+| Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260** |
+| `recall ""` 5.7 s | **T261** |
+| Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
+| Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review) | **T263** |
+| `preflight --global` blends other repos (5/4, summary 7/6) | **T264** |
+| `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
+| Format maze; list-paths 7/5; retention default 6/5 | **T266** |
+| harness/whoami self-next; list footer leftover-as-AI-Brains (8/6) | **T267** |
+| `scan-roots` cwd-only (4/5) | **T268** |
+| Nightly human mixes Router 267009; completion probe timeout | **T269** |
+| `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
+| `sync query` ledger pane false-empty (5/5) | **T271** |
+
+### T256 closeout residuals (2026-08-16)
+
+Specified softs (F18) — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` still leaky until reinstall | Soft F18 — operator `cargo install`; tests use hermetic/source bin |
+| `AI_BRAINS_VAULT_PATH=` on help | Intentional F5 |
+| `init` one-shot print | Declined F6 |
+| Daemon `AI_BRAINS_VAULT_KEY` sidecar | Declined F7 |
+
 ### T254 closeout residuals (2026-08-15)
 
 Specified softs (F12) plus deferred review lows — not product blockers:
