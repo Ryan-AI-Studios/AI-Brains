@@ -3,6 +3,7 @@
 **Source:** Non-destructive CLI audit 2026-08-11 (global graph-on install; live vault).
 **Status:** ✅ **T240–T255 Completed.** Series closer. **T243** PR #153. **T245** PR #155. **T247** PR #157. **T246** PR #159. **T248** PR #161. **T249** PR #163. **T250** PR #165. **T251** PR #167. **T252** 2026-08-15. **T253** 2026-08-15. **T254** 2026-08-15. **T255** 2026-08-16.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest.
+**Next series:** [T256–T271 live CLI audit](README-T256-T271-CLI-AUDIT.md) — Pending placeholders from the 2026-08-16 non-destructive dogfood.
 
 ## Audit → track map
 
