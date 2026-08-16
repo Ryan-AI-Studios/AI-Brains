@@ -203,8 +203,8 @@ What you should see:
 
 ## Activate harness capture
 
-Goal: wire ready coding harnesses (grok, agy, opencode) for message-only
-capture. User-global only — never repo-local hooks.
+Goal: wire ready coding harnesses (grok, agy, opencode, claude, codex) for
+message-only capture. User-global only — never repo-local hooks.
 
 ```powershell
 # 1. Preview writes (zero files created).
@@ -213,26 +213,32 @@ ai-brains harness install --harness all-ready --dry-run
 # 2. Install (non-TTY agents must pass --yes).
 ai-brains harness install --harness all-ready --yes
 
-# 3. Confirm grok / agy / opencode report wiring=ok.
+# 3. Confirm grok / agy / opencode / claude / codex report wiring=ok.
 ai-brains harness status
 
-# 4. Doctor should not list grok/agy/opencode as ready-missing.
+# 4. In Codex, review and trust the managed hook (required for live fire).
+#    /hooks  →  trust ai-brains-capture
+
+# 5. Doctor should not list those five as ready-missing / T253-pending.
 ai-brains doctor
 ```
 
 What you should see:
 
-- Dry-run prints three plans (grok → agy → opencode) and writes nothing.
-- After `--yes`, `harness status` shows those three **ok**. Claude/Codex
-  stay pending (T253) — `all-ready` skips them.
-- `doctor` `harness_wiring` (soft ok) splits ready-missing vs T253 pending.
-  After a successful install it should not list grok/agy/opencode as
-  ready-missing; next-action is `all-ready --dry-run` only while ready
-  backends are still unwired.
+- Dry-run prints **five** plans (grok → agy → opencode → claude → codex)
+  and writes nothing.
+- After `--yes`, `harness status` shows those five **ok** when the binaries
+  are present. `wiring=ok` for Codex means files exist — live fire still
+  needs `/hooks` trust of `ai-brains-capture`.
+- `doctor` `harness_wiring` (soft ok) has **no** T253 pending clause when
+  Claude/Codex are install_ready. After a successful install it should not
+  list the five as ready-missing; next-action is `all-ready --dry-run` only
+  while ready backends are still unwired.
 - **C7:** writes stay user-global (`~/.grok/hooks`, `~/.gemini/config`,
   optional `~/.gemini/antigravity-cli/plugins/ai-brains-capture/` iff
   that CLI home already exists, `~/.config/opencode/plugins`,
-  `~/.ai-brains/hooks`). No repo `.grok/hooks`.
+  `~/.claude/settings.json`, `~/.codex/hooks.json`,
+  `~/.ai-brains/hooks`). No repo `.claude/` / `.codex/` hooks.
 
 Re-run install after `cargo install` so baked `ai-brains` paths update.
 

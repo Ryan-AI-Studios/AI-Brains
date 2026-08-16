@@ -185,32 +185,22 @@ fn probe_claude(home: &Path) -> WiringStatus {
         return WiringStatus::Missing;
     }
     match std::fs::read_to_string(&settings) {
-        Ok(raw) => {
-            let lower = raw.to_ascii_lowercase();
-            // Legacy substring OR so existing fixtures still work (F20).
-            let legacy = (lower.contains(".ai-brains") && lower.contains("hooks"))
-                || lower.contains("ai-brains-capture");
-            match serde_json::from_str::<serde_json::Value>(&raw) {
-                Ok(v) => {
-                    let named = super::install::hooks_json_has_managed_name(&v);
-                    let path_tok =
-                        super::install::json_value_contains_token(&v, "claude-capture.ps1")
-                            || super::install::json_value_contains_token(&v, ".ai-brains");
-                    if named || path_tok || legacy {
-                        WiringStatus::Ok
-                    } else {
-                        WiringStatus::Missing
-                    }
-                }
-                Err(_) => {
-                    if legacy {
-                        WiringStatus::Ok
-                    } else {
-                        WiringStatus::Missing
-                    }
+        Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+            Ok(v) => {
+                // F20: Ok only on managed handler name or this wrapper token.
+                // Generic `.ai-brains` / `ai-brains` substring is not enough
+                // (Grok merge of Claude settings would false-ok).
+                let named = super::install::hooks_json_has_managed_name(&v);
+                let path_tok = super::install::json_value_contains_token(&v, "claude-capture.ps1");
+                if named || path_tok {
+                    WiringStatus::Ok
+                } else {
+                    WiringStatus::Missing
                 }
             }
-        }
+            // Unparseable settings: Missing (not Ok on a generic substring).
+            Err(_) => WiringStatus::Missing,
+        },
         Err(_) => WiringStatus::Unknown,
     }
 }
@@ -223,12 +213,10 @@ fn probe_codex(home: &Path) -> WiringStatus {
     match std::fs::read_to_string(&hooks) {
         Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
             Ok(v) => {
+                // F20: Ok only on managed handler name or this wrapper token.
                 let named = super::install::hooks_json_has_managed_name(&v);
-                let path_tok = super::install::json_value_contains_token(&v, "codex-capture.ps1")
-                    || super::install::json_value_contains_token(&v, ".ai-brains");
-                let legacy = v.get("ai-brains-capture").is_some()
-                    || raw.to_ascii_lowercase().contains("ai-brains");
-                if named || path_tok || legacy {
+                let path_tok = super::install::json_value_contains_token(&v, "codex-capture.ps1");
+                if named || path_tok {
                     WiringStatus::Ok
                 } else {
                     WiringStatus::Missing
@@ -620,6 +608,49 @@ mod tests {
         std::fs::create_dir_all(home.join(".codex")).expect("mkdir");
         super::super::install::install_codex(home, false).expect("install");
         assert_eq!(probe_wiring(HarnessId::Codex, home, true), WiringStatus::Ok);
+    }
+
+    #[test]
+    fn wiring__claude_settings_grok_ai_brains_path_only__missing() {
+        // F20: grok-capture / `.ai-brains/hooks/grok-capture.ps1` must not
+        // false-ok Claude (no managed name, no claude-capture.ps1).
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let settings = home.join(".claude").join("settings.json");
+        std::fs::create_dir_all(settings.parent().unwrap()).expect("mkdir");
+        std::fs::write(
+            &settings,
+            br#"{
+              "hooks": {
+                "Stop": [{
+                  "hooks": [{
+                    "type": "command",
+                    "name": "grok-capture",
+                    "command": "C:\\Users\\x\\.ai-brains\\hooks\\grok-capture.ps1"
+                  }]
+                }]
+              }
+            }"#,
+        )
+        .expect("write");
+        assert_eq!(
+            probe_wiring(HarnessId::Claude, home, true),
+            WiringStatus::Missing
+        );
+    }
+
+    #[test]
+    fn wiring__codex_hooks_generic_ai_brains_substring__missing() {
+        // F20: a docs mention of `ai-brains` is not managed Codex wiring.
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let hooks = home.join(".codex").join("hooks.json");
+        std::fs::create_dir_all(hooks.parent().unwrap()).expect("mkdir");
+        std::fs::write(&hooks, br#"{"note":"see ai-brains docs"}"#).expect("write");
+        assert_eq!(
+            probe_wiring(HarnessId::Codex, home, true),
+            WiringStatus::Missing
+        );
     }
 
     #[test]

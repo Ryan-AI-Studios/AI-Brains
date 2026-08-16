@@ -1,6 +1,7 @@
 # T253 Plan — Claude / Codex install_ready
 
-**Status:** 📋 **Planning** (plan-only until **go**)  
+**Status:** ✅ **Completed** 2026-08-15
+
 **Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC20 + §12 AI fold-in  
 **Category:** FEATURE / HARNESS  
 **Ledger TX (planning):** `3cadc357-5c06-46c6-b22d-6812bb9a2110` (DOCS)  
@@ -78,85 +79,91 @@ No Highs. AI1 mostly affirms F5/F8/F9/F17/F22/F23. AI2 code-status table matches
 
 ## Phase 0 — Ledger + impact (on go)
 
-- [ ] `ledgerful ledger status --compact`
-- [ ] `ledgerful ledger start T253-claude-codex-install-ready --category FEATURE`
-- [ ] `ledgerful scan --impact` + inspect `install.rs` / `detect.rs` / `harness.rs` / adapters
-- [ ] Confirm no other agent editing those files
-- [ ] Re-fetch official hook pages if >7 days since 2026-08-15 freeze
+- [x] `ledgerful ledger status --compact` — 0 pending, 0 drift (2026-08-15)
+- [x] `ledgerful ledger start T253-claude-codex-install-ready --category FEATURE` — TX `bf495396-a8b4-4014-932b-f40c181df28f`
+- [x] `ledgerful scan --impact` — CLEAN tree at `a66eba4f`; inspected install.rs / detect.rs / harness.rs / adapters
+- [x] Confirm no other agent editing those files — split implementers (A: install/detect/dispatch; B: hooks/imports/docs)
+- [x] Re-fetch official hook pages if >7 days since 2026-08-15 freeze — same day; re-fetched Claude + Codex pages to confirm 3-level hooks + exec-form + `{"continue":true}` / empty Stop
 
 ---
 
 ## Phase 1 — Red (TDD)
 
-- [ ] AC1 `install_ready` / `pending_track() == None` units (fail) — detect.rs 296–305
-- [ ] AC6 wrapper capture-then-emit units (fail — helpers missing); assert `2>&1` + no `decision`
-- [ ] AC7 message-only filter cases (Claude JSONL + Codex `response_item`) via `filter_turn`
-- [ ] AC8/AC9 payload map + Grok-shaped skip
-- [ ] AC2 dry-run zero-write
-- [ ] AC12 all-ready five ids (harness.rs 476–482)
-- [ ] AC13 doctor no-T253-pending when all five ready
-- [ ] F2 red: `install_pending_summary__lists_tracks` must **not** require `T239+`
-- [ ] Commit red allowed
+- [x] AC1 `install_ready` / `pending_track() == None` units — detect.rs
+- [x] AC6 wrapper capture-then-emit units; assert `2>&1` + no `decision`
+- [x] AC7 message-only filter cases (Claude JSONL + Codex `response_item`) via `filter_turn`
+- [x] AC8/AC9 payload map + Grok-shaped skip
+- [x] AC2 dry-run zero-write
+- [x] AC12 all-ready five ids
+- [x] AC13 doctor no-T253-pending when all five ready
+- [x] F2: `install_pending_summary__lists_tracks` does **not** require `T239+`
+- [x] Commit red allowed (writers `0587cb9`)
 
 ---
 
 ## Phase 2 — Green (writers + flip)
 
-- [ ] F4 **first in this commit:** exhaustive Claude/Codex match arms (no `_ => unreachable!`)
-- [ ] F2 flip `install_ready` / `pending_track() = None` + summary footer + doctor comment
-- [ ] F5 `install_claude` / uninstall (Map merge settings.json, exec-form args, wrapper, bake)
-- [ ] F4 / F3 dispatch + `all-ready`
-- [ ] F8 / F9 wrapper bodies
-- [ ] F20 probe + `targets_for` include wrappers
-- [ ] F21 doctor/preflight strings + tests
-- [ ] AC3–AC5 / AC12 / AC14 / AC18 / AC19 green
+- [x] F4 exhaustive Claude/Codex match arms (no `_ => unreachable!`)
+- [x] F2 flip `install_ready` / `pending_track() = None` + summary footer + doctor comment
+- [x] F5 `install_claude` / uninstall (Map merge settings.json, exec-form args, wrapper, bake)
+- [x] F4 / F3 dispatch + `all-ready`
+- [x] F8 / F9 wrapper bodies
+- [x] F20 probe + `targets_for` include wrappers
+- [x] F21 doctor/preflight strings + tests
+- [x] AC3–AC5 / AC12 / AC14 / AC18 / AC19 green
 
 ---
 
 ## Phase 3 — Hook + import CLIs
 
-- [ ] F14 `claude-hook` / `codex-hook` + schemas
-- [ ] F10 / F11 live maps
-- [ ] F13 `claude-import`
-- [ ] F12 `codex-import` fail-open
-- [ ] F15 / F16 turn ids, thinking None, binding
-- [ ] F23 Grok fail-open
-- [ ] F25 adapter notes (keep Full)
-- [ ] clap `main.rs` + help_ia AC15
-- [ ] AC7–AC11 / AC17
+- [x] F14 `claude-hook` / `codex-hook` + schemas
+- [x] F10 / F11 live maps
+- [x] F13 `claude-import`
+- [x] F12 `codex-import` fail-open
+- [x] F15 / F16 turn ids, thinking None, binding
+- [x] F23 Grok fail-open
+- [x] F25 adapter notes (keep Full)
+- [x] clap `main.rs` + help_ia AC15
+- [x] AC7–AC11 / AC17
 
 ---
 
 ## Phase 4 — Docs
 
-- [ ] F30 CAPABILITIES / OPERATIONS / WORKFLOWS / CHANGELOG / skill
-- [ ] Research-doc stale banners (Claude + Codex)
-- [ ] Grep product docs for `T239+` / `backend pending` / `codex_hooks` on these two harnesses
-- [ ] Confirm **no** nightly source list growth (F17)
+- [x] F30 CAPABILITIES / OPERATIONS / WORKFLOWS / CHANGELOG / skill
+- [x] Research-doc stale banners (Claude + Codex)
+- [x] Grep product docs for `T239+` / `backend pending` / `codex_hooks` on these two harnesses
+- [x] Confirm **no** nightly source list growth (F17)
 
 ---
 
 ## Phase 5 — Manual (on go only)
 
-- [ ] AC20: `harness install --harness claude --dry-run` then `--yes`
-- [ ] Same for `codex` (or one `all-ready --yes`)
-- [ ] `harness status` both `ok`; preflight no pending next
-- [ ] Confirm `config.toml` bytes unchanged (except we never touch it)
-- [ ] Confirm zero new files under `C:\dev\AI-Brains`
-- [ ] Record `/hooks` trust next-action in this plan
-- [ ] Optional live Stop fire (F34)
+- [x] AC20: `harness install --harness claude --dry-run` then `--yes` (2026-08-15, `target\debug\ai-brains.exe`)
+- [x] Same for `codex` (`--dry-run` then `--yes`)
+- [x] `harness status` both `ok` + `install_ready=true`; `preflight --summary` all five `wiring=ok (ready)` — no pending next
+- [x] `~\.codex\config.toml` SHA256 `630F5B5E…FA53FE` unchanged; `[features].hooks` was not false
+- [x] Zero repo-local hooks: no `C:\dev\AI-Brains\.claude\settings.json` / `.codex\hooks.json`
+- [x] `/hooks` trust next-action: install printed `next: in Codex run /hooks and trust ai-brains-capture`
+- [x] Optional live Stop fire (F34) — **not required**; skipped
+
+Live paths written (user-global only):
+- `C:\Users\RyanB\.claude\settings.json` (name `ai-brains-capture`, exec-form `args`)
+- `C:\Users\RyanB\.ai-brains\hooks\claude-capture.ps1`
+- `C:\Users\RyanB\.codex\hooks.json` (UPS+Stop, no SessionEnd)
+- `C:\Users\RyanB\.ai-brains\hooks\codex-capture.ps1`
 
 ---
 
 ## Phase 6 — Gate + review
 
-- [ ] `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace`
-- [ ] `cargo deny check ; cargo audit` (if those binaries are on PATH)
-- [ ] `ledgerful verify --scope full`
-- [ ] Internal review.md until clean
-- [ ] Cross-model `codex-review` (FEATURE)
-- [ ] Conductor → Completed; deferred.md absorb line
-- [ ] `ledgerful ledger commit`
+- [x] `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace` — PASS (2907 passed, 1 skipped)
+- [x] `cargo deny check ; cargo audit` — **not on PATH** (same T251/T252 residual)
+- [x] `ledgerful verify --scope full` — fmt/clippy/nextest ok; deny/audit fail missing binaries
+- [x] Internal review.md until clean (R2 PASS)
+- [x] Cross-model `codex-review` (FEATURE) — CX1 FAIL P2 → CX2 FAIL help → **CX3 PASS**
+- [x] Conductor → Completed; deferred.md absorb line
+- [ ] `ledgerful ledger commit` (after git commit)
 
 ---
 

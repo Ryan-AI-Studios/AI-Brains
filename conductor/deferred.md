@@ -168,19 +168,32 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | Env override warn spam (T223 residual) | ~~**T242**~~ ✅ **Completed** 2026-08-12 PR #147 `9f3148b` — session fingerprint markers (cross-process). Soft residual only: F16 clap quiet, F17 elevation QUIET/FORCE, F18 truthy→core, F19 global quiet pre-read |
 | Search dual model + progressive first-run | ~~**T243**~~ ✅ **Completed** 2026-08-12 PR #153 `7a19d40` — `search`→recall alias; `text`≡pretty; progressive `next_step`/deny recall honesty. Soft residual only: F23 non-empty recall footer, F24 daemon/HTTP `next_step` |
 | Backup fleet 0 usable / legacy plain | ~~**T244**~~ ✅ **Completed** 2026-08-12 PR #149 `948d2ae` — Incomplete + core-table usable SOOT; list residual `not recoverable`; CLI usable-first; verify both cores; live create green path. Soft residual only: F17 verify quiet/JSON summary/structured error; F18 archive helper |
-| Harness wiring=missing | ~~**T245**~~ ✅ **Completed** 2026-08-12 PR #155 `f05e2f6` — `all-ready`; AGY IDE + CLI plugin bundle (not top-level CLI hooks.json); PATH bake; S12 idle+status; doctor ready-vs-pending. Soft residual only: `pending_track` still T239+; doctor message helper-only |
+| Harness wiring=missing | ~~**T245**~~ ✅ **Completed** 2026-08-12 PR #155 `f05e2f6` — `all-ready`; AGY IDE + CLI plugin bundle (not top-level CLI hooks.json); PATH bake; S12 idle+status; doctor ready-vs-pending. Soft residual: doctor message helper-only. `pending_track` T239+ **closed by T253**. |
 | Graph neighbors JSON-only | ~~**T246**~~ ✅ **Completed** 2026-08-13 PR #159 `06cdcde` — TTY pretty; frozen JSON keys; crate `*_with_depth`; F9 sort in PROTOCOL-COMPAT. Soft residual only: F17 tree/mermaid/TTY-auto update/batch `node_kinds`; F18 projector completeness; F19 T213 F31 freshness |
 | Nightly status latency + Last Result 101 | ~~**T247**~~ ✅ **Completed** 2026-08-13 PR #157 `43191ff` — `--quick`; parallel 750ms; LIST/V honesty; live missing `.cmd` named. Soft residual only: F11–F16 → **T255** |
 | Retention plan human | ~~**T248**~~ ✅ **Completed** 2026-08-14 PR #161 `c633781` — TTY `auto` human; JSON keys frozen; `memory_legacy` → `skip`; apply default JSON. Soft residual only: F16–F18 |
 | Scope/daemon/doctor presentation | ~~**T249**~~ ✅ **Completed** 2026-08-14 PR #163 `5fd264a` — TTY `auto` human; JSON keys frozen; Stopped `next:`; real `--summary`. Soft residual only: F12 daemon json/uptime/sc query / is-terminal std / shared resolver / color; F13 T241 leftovers / T226 O1 / T255 / T250 |
 | Preflight pretty density (T219 residual) | ~~**T250**~~ ✅ **Completed** 2026-08-14 PR #165 `bf23f0e` — Session/Recent line-cap 140; `--compact`; JSON/summary ignore; chrome strip. Soft residual only: F12 is-terminal std / clap pin / JSON role strip / pager / governed section caps / `--max-line` / skill / HOTSPOT float / auto-compact |
 | device status missing | ~~**T251**~~ ✅ **Completed** 2026-08-14 PR #167 `038098e` — first-class `status` = roster + always `next:`; plural T198 only; CLI-EXIT-CODES footnote. Soft residual only: F12 |
-| ingest dry-run empty stdin | ~~**T252**~~ ✅ **Completed** 2026-08-15 — empty/TTY/`trim` stdin → `fail_usage` exit **2** + example JSON; mid-payload stays `COMMAND_FAILED` exit **1**. Soft residual only: F12 vault-free dry-run / `--schema` / `IsTerminal` migrate / shared stdin helper / `events[0]` panic / T253–T255 |
-| Claude/Codex install_ready (T239+) | **T253** 📋 **Planning** 2026-08-15 — writers + UPS/Stop message-only; no nightly. Plan-only until go. |
+| ingest dry-run empty stdin | ~~**T252**~~ ✅ **Completed** 2026-08-15 — empty/TTY/`trim` stdin → `fail_usage` exit **2** + example JSON; mid-payload stays `COMMAND_FAILED` exit **1**. Soft residual only: F12 vault-free dry-run / `--schema` / `IsTerminal` migrate / shared stdin helper / `events[0]` panic / T254–T255 |
+| Claude/Codex install_ready (T239+) | ~~**T253**~~ ✅ **Completed** 2026-08-15 — writers + UPS/Stop message-only; `install_ready` true; `all-ready` five; no nightly. Soft residual only: F34 nightly sources / Codex SessionEnd / Unix wrappers / unified PS1 |
 | T233 soft list-paths/unregister/from-scan | **T254** Placeholder |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T252 Completed.** **T253 Planning.** T254–T255 plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T253 Completed.** T254–T255 plan-only until go.
+
+### T253 closeout residuals (2026-08-15)
+
+Specified softs (F34) plus deferred review lows — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Nightly Claude/Codex sources + skip flags | Soft F34 — T239 D16 stays |
+| Codex SessionEnd ingest (3s) | Soft F34 |
+| Unix `.sh` wrappers / unified PS1 template | Soft F34 |
+| Doctor helper `backend pending (T253)` on synthetic `install_ready=false` | Deferred P3 — no production id is pending |
+| Uninstall `serde_json::to_string(...).unwrap_or_default()` | Deferred P3 — not `unwrap!` |
+| Historical research banners mention `codex_hooks` as the stale claim | Deferred P3 |
 
 ### T252 closeout residuals (2026-08-15)
 
@@ -195,7 +208,7 @@ Specified softs (F12), not review deferrals:
 | T86 `read_json_from_stdin` swallow | Soft — preflight `--stdin`, not ingest |
 | Shared `read_stdin_trimmed` SOOT | Soft — isolation |
 | `outcome.events[0]` if `events` empty | Soft — pre-existing live path |
-| T253 | Planning — Claude/Codex install_ready |
+| T253 | Closed — Claude/Codex install_ready |
 | T254–T255 | Peer placeholders |
 
 ### T251 soft residuals (2026-08-14)
@@ -234,7 +247,7 @@ Specified softs, not review deferrals:
 | S5 npm `@ai-brains/opencode-plugin` | Soft |
 | S6 project-local plugin opt-in | Soft (C7 global default) |
 | S7 import `--json` report | Soft |
-| S8 Claude/Codex install_ready | **T253** Planning |
+| S8 Claude/Codex install_ready | ~~**T253**~~ ✅ Closed |
 | ~~S9 multi-harness nightly~~ | **Closed by T239** PR #108 `a271a99` |
 | S10 compacting pre-archive hook | Soft / non-goal |
 | S11 opt-in child ingest | Soft (default skip hard) |

@@ -72,7 +72,7 @@ ai-brains antigravity-import --days 30 --force
 
 Detect which coding harnesses are **installed on this machine** (not “active this session”) and install message-only capture wiring into **user-global** paths.
 
-**Activation (T245)** — ready backends (grok → agy → opencode) in one pass. Non-TTY agents must pass `--yes`. `all-ready` skips Claude/Codex (pending T253).
+**Activation (T245+T253)** — ready backends (grok → agy → opencode → **claude → codex**) in one pass (`all-ready` is five). Non-TTY agents must pass `--yes`.
 
 ```powershell
 ai-brains harness install --harness all-ready --dry-run
@@ -89,9 +89,13 @@ ai-brains harness install --harness agy --dry-run
 ai-brains harness install --harness agy --yes
 ai-brains harness install --harness grok --yes
 ai-brains harness install --harness opencode --yes
+ai-brains harness install --harness claude --yes
+ai-brains harness install --harness codex --yes
 ai-brains harness uninstall --harness agy --yes
 ai-brains harness uninstall --harness grok --yes
 ai-brains harness uninstall --harness opencode --yes
+ai-brains harness uninstall --harness claude --yes
+ai-brains harness uninstall --harness codex --yes
 ai-brains harness reset-decline --harness all
 ```
 
@@ -100,8 +104,8 @@ ai-brains harness reset-decline --harness all
 | grok | PATH `grok` or `~/.grok` | **Yes (T237)** — Stop+SessionEnd → wrapper (**empty** stdout) → `grok-hook` |
 | agy | PATH `agy` or `~/.gemini/...` | **Yes** — Stop → wrapper (allow-stop JSON stdout) → `agy-hook` |
 | opencode | PATH / `~/.config/opencode` (or `OPENCODE_CONFIG_DIR`) | **Yes (T238)** — managed plugin `session.idle` **or** idle `session.status` → `opencode-hook` |
-| claude | PATH / `~/.claude` | Pending (T253) |
-| codex | PATH / `~/.codex` | Pending (T253) |
+| claude | PATH / `~/.claude` | **Yes (T253)** — UPS+Stop+SessionEnd → wrapper (empty Stop stdout) → `claude-hook`. No SessionStart injection. |
+| codex | PATH / `~/.codex` | **Yes (T253)** — UPS+Stop → wrapper (`{"continue":true}`) → `codex-hook`. Feature key **`hooks`** (not `codex_hooks`). After install run Codex `/hooks` and trust `ai-brains-capture`. |
 
 AGY writer **always** merges managed key `ai-brains-capture` into `%USERPROFILE%\.gemini\config\hooks.json` (creates `config/` only) and writes `%USERPROFILE%\.ai-brains\hooks\agy-stop.ps1`. **Iff** `%USERPROFILE%\.gemini\antigravity-cli` already exists, also stage the CLI plugin bundle `%USERPROFILE%\.gemini\antigravity-cli\plugins\ai-brains-capture\{plugin.json,hooks.json}` (same Stop command as IDE). Never create `antigravity-cli` just to host plugins. Never write undocumented top-level `antigravity-cli\hooks.json`. Uninstall removes the managed IDE key only (foreign keys stay; empty `{}` left if last) and deletes **only** `plugins\ai-brains-capture\` — not `antigravity-cli` or sibling plugins. Foreign IDE hooks are preserved; corrupt JSON refuses rewrite (exit 1). PATH bake: wrappers + OpenCode `ai-brains` spawn use the installing exe absolute path with PATH fallback.
 
@@ -128,7 +132,7 @@ ai-brains opencode-import --days 7 --max-sessions 100
 
 **OpenCode content SOOT:** nested export `{info,messages}` with message-only filter (drop tool/reasoning/step/snapshot/patch/file/subtask/agent/retry/compaction + synthetic/ignored/editor_context parts). **Never open `opencode.db`**. Watermark: `~/.ai-brains/opencode-import-cursor.json` (corrupt JSON → `cursor_corrupt` warn + empty start; optional additive `last_msg_id`). Missing `opencode` binary → soft skip. Child sessions (`parentID`) skipped. List length ≥100 (vendor default) or at requested cap → `list_capped` stderr warn. Export/list subprocesses killed on 120s timeout.
 
-Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks). Splits ready-missing (grok/agy/opencode unwired) from T253 pending (claude/codex); next-action is `ai-brains harness install --harness all-ready --dry-run`. Severity remains soft ok.
+Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks). After T253, the pending-backend clause is gone when Claude/Codex are install_ready; next-action is `ai-brains harness install --harness all-ready --dry-run` for any ready-missing wiring. Severity remains soft ok.
 
 ### `agy` Hook
 Real-time capture from the Antigravity CLI hooks integration:
@@ -152,6 +156,31 @@ ai-brains opencode-hook --payload '{"sessionId":"ses_abc","directory":"C:\\dev\\
 ai-brains opencode-hook --schema
 ```
 Prefer `messagesPath` / `exportPath` (export-shaped JSON). When `parentId` is set → **skipped_child_session** (exit 0). Project bind: worktree → directory → unbound `opencode-unbound`. Env `AI_BRAINS_PROJECT_ID` only when unbound (alias not stamped onto env project). Diagnostics on **stderr**.
+
+### `claude` Hook + import
+Real-time capture from Claude Code UserPromptSubmit / Stop / SessionEnd (T253). Live path ingests payload text only — **do not** parse `transcript_path`.
+```powershell
+ai-brains harness install --harness claude --dry-run
+ai-brains harness install --harness claude --yes
+ai-brains claude-hook --payload '{"sessionId":"...","projectHash":"C:\\dev\\AI-Brains","event":"Stop","lastAssistantMessage":"Done."}'
+ai-brains claude-hook --schema
+ai-brains claude-import --days 30
+ai-brains claude-import --days 30 --force --dry-run
+```
+`--schema` is vault-path-free. Mid-payload garbage (invalid JSON) exits **1** with JSON. Unrecognized / Grok-shaped stdin exits **0** (no ingest; stderr once). Empty/whitespace prompt or last message skips that role (exit 0). Bind: `cwd` → `ai_brains_path::normalize_project_path` → path alias; `AI_BRAINS_PROJECT_ID` only when unbound. Unbound alias `claude-unbound`. Batch walks `~/.claude/projects/<encoded-cwd>/*.jsonl` (skip `subagents/` / `isSidechain=true`). `--force` skips 300s quiescence. Not in nightly.
+
+### `codex` Hook + import
+Real-time capture from Codex UserPromptSubmit / Stop (T253). Feature key is **`hooks`** (not `codex_hooks`). Live fire requires operator **`/hooks` trust** of `ai-brains-capture` — `wiring=ok` is files only.
+```powershell
+ai-brains harness install --harness codex --dry-run
+ai-brains harness install --harness codex --yes
+# next: in Codex run /hooks and trust ai-brains-capture
+ai-brains codex-hook --payload '{"sessionId":"...","projectHash":"C:\\dev\\AI-Brains","event":"Stop","lastAssistantMessage":"Looks good.","turnId":"turn_1"}'
+ai-brains codex-hook --schema
+ai-brains codex-import --days 30
+ai-brains codex-import --days 30 --force --dry-run
+```
+`--schema` is vault-path-free. Mid-payload garbage exits **1** with JSON. Missing fields exit **0**. Empty/whitespace prompt or last message skips that role. Bind same as Claude; unbound `codex-unbound`. Batch walks `~/.codex/sessions/**/rollout-*.jsonl` (or `CODEX_HOME`); keep only `response_item` + `payload.type=message` + user/assistant; drop `event_msg` / `session_meta` / unknown; malformed line skipped. Format is **not vendor-stable** — soft-skip rather than fake complete. Never edit `config.toml`. Not in nightly.
 
 ## 3. Retrieving Memories
 
@@ -548,7 +577,7 @@ These are **reference / operator templates**, not a product Unix installer and *
 ai-brains --vault-path ./vault.db nightly
 ```
 The nightly job does:
-- **Multi-harness session import (T239):** AGY → Grok → OpenCode (message-only; never opens `opencode.db`). Flags: `--skip-import` (all), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`. Fail-open per source; `last_multi_import` sync_state + `nightly --status` Multi-import block. Claude/Codex **not** in batch (T239+). Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
+- **Multi-harness session import (T239):** AGY → Grok → OpenCode (message-only; never opens `opencode.db`). Flags: `--skip-import` (all), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`. Fail-open per source; `last_multi_import` sync_state + `nightly --status` Multi-import block. Claude/Codex **not** in nightly batch (T253 live + `claude-import` / `codex-import` only). Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
 - Soft model-endpoint probe (T229) after multi-import / before summarize — non-fatal `warn` if completion/embedding endpoints are down
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)

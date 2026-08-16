@@ -1186,6 +1186,11 @@ try {
         prompt               = [string]$ev.prompt
         lastAssistantMessage = [string]$ev.last_assistant_message
     }
+    $uuid = [string]$ev.uuid
+    if (-not [string]::IsNullOrWhiteSpace($uuid)) { $payloadObj['uuid'] = $uuid }
+    $turnId = [string]$ev.turn_id
+    if ([string]::IsNullOrWhiteSpace($turnId)) { $turnId = [string]$ev.turnId }
+    if (-not [string]::IsNullOrWhiteSpace($turnId)) { $payloadObj['turnId'] = $turnId }
     $payload = $payloadObj | ConvertTo-Json -Compress
 "#,
     );
@@ -1397,6 +1402,11 @@ try {
         prompt               = [string]$ev.prompt
         lastAssistantMessage = [string]$ev.last_assistant_message
     }
+    $uuid = [string]$ev.uuid
+    if (-not [string]::IsNullOrWhiteSpace($uuid)) { $payloadObj['uuid'] = $uuid }
+    $turnId = [string]$ev.turn_id
+    if ([string]::IsNullOrWhiteSpace($turnId)) { $turnId = [string]$ev.turnId }
+    if (-not [string]::IsNullOrWhiteSpace($turnId)) { $payloadObj['turnId'] = $turnId }
     $payload = $payloadObj | ConvertTo-Json -Compress
 "#,
     );
@@ -2863,6 +2873,14 @@ mod tests {
         assert!(
             claude.contains("hook_event_name"),
             "Claude maps official snake_case"
+        );
+        assert!(
+            claude.contains("$ev.uuid") && claude.contains("turnId"),
+            "Claude passes through vendor uuid/turn_id (F15)"
+        );
+        assert!(
+            codex.contains("$ev.uuid") && codex.contains("turnId"),
+            "Codex passes through vendor uuid/turn_id (F15)"
         );
         assert!(claude.contains("claude-unbound"));
         assert!(claude.contains("claude-hook"));

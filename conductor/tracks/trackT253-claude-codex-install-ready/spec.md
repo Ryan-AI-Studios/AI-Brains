@@ -1,7 +1,7 @@
 # T253 — Claude / Codex install_ready (T239+)
 
 - **Track ID:** T253-ClaudeCodexInstallReady
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** 2026-08-15
 - **Category:** FEATURE / HARNESS
 - **Owner:** Grok
 - **Source:** T238/T239 soft residual S8 / Claude-Codex labels **T239+**; T245 F13 fence; CLI-effectiveness series leftover; audit harness pending

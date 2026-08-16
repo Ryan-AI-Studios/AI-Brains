@@ -2,8 +2,8 @@ mod adapter;
 pub mod agy;
 mod antigravity;
 mod capability;
-mod claude;
-mod codex;
+pub mod claude;
+pub mod codex;
 mod config_patch;
 mod errors;
 mod gemini;
@@ -31,7 +31,27 @@ pub use antigravity::{
     session_id_from_path, strip_user_xml_tags,
 };
 pub use capability::{AdapterCapability, CapabilityLevel};
-pub use claude::parse_claude_stop_payload;
+pub use claude::{
+    CLAUDE_HARNESS_UUID, CLAUDE_UNBOUND_ALIAS, CLAUDE_UNBOUND_DISPLAY_NAME, ClaudeBindKind,
+    ClaudeHookMapped, ClaudeHookPayload, ClaudeImportOptions, ClaudeImportStats, ClaudeIngestTurn,
+    ClaudeSessionSource, accept_claude_live_payload, append_claude_turns, claude_capability,
+    claude_env_fallback_allowed, claude_source_meta_key, decode_claude_project_folder,
+    discover_claude_sessions, filter_claude_jsonl_lines, filter_claude_jsonl_record,
+    generate_claude_live_turn_id, generate_claude_turn_id, import_claude_sessions,
+    is_claude_sidechain_path, map_claude_hook_payload, normalize_claude_project_hash,
+    parse_claude_hook_payload_strict, parse_claude_jsonl_file, parse_claude_stop_payload,
+    print_claude_import_stats, resolve_claude_home, resolve_claude_project, session_id_from_claude,
+};
+pub use codex::{
+    CODEX_HARNESS_UUID, CODEX_UNBOUND_ALIAS, CODEX_UNBOUND_DISPLAY_NAME, CodexBindKind,
+    CodexHookMapped, CodexHookPayload, CodexImportOptions, CodexImportStats, CodexIngestTurn,
+    CodexSessionSource, accept_codex_live_payload, append_codex_turns, codex_capability,
+    codex_env_fallback_allowed, codex_source_meta_key, discover_codex_sessions,
+    filter_codex_rollout_lines, filter_codex_rollout_record, generate_codex_live_turn_id,
+    generate_codex_turn_id, import_codex_sessions, map_codex_hook_payload,
+    normalize_codex_project_hash, parse_codex_hook_payload_strict, parse_codex_rollout_file,
+    print_codex_import_stats, resolve_codex_home, resolve_codex_project, session_id_from_codex,
+};
 pub use config_patch::apply_idempotent_patch;
 pub use errors::{AdapterError, Result};
 pub use grok::{

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-brains.dev/schemas/claude-hook-payload.json",
+  "title": "AI-Brains claude-hook payload",
+  "description": "JSON payload passed to `ai-brains claude-hook --payload`. Live path ingests `prompt` (UserPromptSubmit) and/or `lastAssistantMessage` (Stop / SessionEnd) after T234 message-only filter. Does not parse transcript_path. Mid-payload garbage (invalid JSON) exits 1 with JSON; unrecognized / Grok-shaped stdin exits 0 with no ingest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sessionId", "projectHash", "event"],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Claude session id (UUID preferred). Used for delta-sync and turn-id namespace."
+    },
+    "projectHash": {
+      "type": "string",
+      "description": "Normalized cwd path or `claude-unbound` when unbound. Alias key via ai-brains-path."
+    },
+    "event": {
+      "type": "string",
+      "description": "Hook event name (UserPromptSubmit, Stop, SessionEnd)."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "UserPromptSubmit prompt text. Empty/whitespace skips the user role (exit 0)."
+    },
+    "lastAssistantMessage": {
+      "type": "string",
+      "description": "Stop / SessionEnd last assistant text. Empty/whitespace skips the assistant role (exit 0). Live SOOT — do not wait on transcript_path."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Optional working directory; used for projectHash when the wrapper did not set it."
+    },
+    "turnId": {
+      "type": "string",
+      "description": "Optional stable turn id from the vendor payload."
+    },
+    "uuid": {
+      "type": "string",
+      "description": "Optional Claude record uuid; preferred in live turn-id `{event}:{uuid}`."
+    }
+  },
+  "examples": [
+    {
+      "sessionId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "projectHash": "C:\\dev\\AI-Brains",
+      "event": "UserPromptSubmit",
+      "prompt": "fix the path",
+      "cwd": "C:\\dev\\AI-Brains"
+    },
+    {
+      "sessionId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "projectHash": "C:\\dev\\AI-Brains",
+      "event": "Stop",
+      "lastAssistantMessage": "Done.",
+      "uuid": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    }
+  ]
+}

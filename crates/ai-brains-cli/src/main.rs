@@ -26,6 +26,14 @@ const SCHEMA_GROK_HOOK: &str = include_str!("../../../Docs/schemas/grok-hook-pay
 /// `Docs/schemas/opencode-hook-payload.json`.
 const SCHEMA_OPENCODE_HOOK: &str = include_str!("../../../Docs/schemas/opencode-hook-payload.json");
 
+/// JSON Schema for `ai-brains claude-hook --payload`. Source-of-truth at
+/// `Docs/schemas/claude-hook-payload.json`.
+const SCHEMA_CLAUDE_HOOK: &str = include_str!("../../../Docs/schemas/claude-hook-payload.json");
+
+/// JSON Schema for `ai-brains codex-hook --payload`. Source-of-truth at
+/// `Docs/schemas/codex-hook-payload.json`.
+const SCHEMA_CODEX_HOOK: &str = include_str!("../../../Docs/schemas/codex-hook-payload.json");
+
 /// JSON Schema for the NDJSON records consumed by `ai-bbrains sync pull --from-file`.
 /// Source-of-truth at `Docs/schemas/sync-pull-record.json`.
 const SCHEMA_SYNC_PULL: &str = include_str!("../../../Docs/schemas/sync-pull-record.json");
@@ -272,6 +280,52 @@ mod tests {
                 command: super::DeviceCommands::Status,
             } => {}
             _ => panic!("expected DeviceCommands::Status"),
+        }
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn claude_hook_schema__include_str__draft_2020_12() {
+        let parsed: serde_json::Value = serde_json::from_str(super::SCHEMA_CLAUDE_HOOK)
+            .unwrap_or_else(|e| panic!("valid JSON: {e}"));
+        assert_eq!(
+            parsed["$schema"].as_str(),
+            Some("https://json-schema.org/draft/2020-12/schema")
+        );
+        assert_eq!(parsed["additionalProperties"], false);
+        assert_eq!(
+            parsed["title"].as_str(),
+            Some("AI-Brains claude-hook payload")
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn codex_hook_schema__include_str__draft_2020_12() {
+        let parsed: serde_json::Value = serde_json::from_str(super::SCHEMA_CODEX_HOOK)
+            .unwrap_or_else(|e| panic!("valid JSON: {e}"));
+        assert_eq!(
+            parsed["$schema"].as_str(),
+            Some("https://json-schema.org/draft/2020-12/schema")
+        );
+        assert_eq!(parsed["additionalProperties"], false);
+        assert_eq!(
+            parsed["title"].as_str(),
+            Some("AI-Brains codex-hook payload")
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn claude_and_codex_hook__schema_flag__parses() {
+        for args in [
+            vec!["ai-brains", "claude-hook", "--schema"],
+            vec!["ai-brains", "codex-hook", "--schema"],
+            vec!["ai-brains", "claude-import", "--days", "7", "--dry-run"],
+            vec!["ai-brains", "codex-import", "--force"],
+        ] {
+            super::Cli::try_parse_from(&args)
+                .unwrap_or_else(|e| panic!("expected {args:?} to parse: {e}"));
         }
     }
 }
@@ -684,6 +738,54 @@ enum Commands {
         /// Max sessions to list/process (OpenCode list default cap is 100)
         #[arg(long, default_value_t = 100)]
         max_sessions: usize,
+    },
+    /// Process a Claude Code hook payload (UserPromptSubmit / Stop / SessionEnd)
+    #[command(display_order = 56)]
+    ClaudeHook {
+        /// The JSON payload from the Claude capture wrapper
+        #[arg(long)]
+        payload: Option<String>,
+        /// Print the JSON Schema for the expected `--payload` shape and exit.
+        /// The schema is also at `Docs/schemas/claude-hook-payload.json`.
+        #[arg(long)]
+        schema: bool,
+    },
+    /// Import Claude Code project JSONL sessions into the vault
+    #[command(display_order = 55)]
+    ClaudeImport {
+        /// Only import sessions modified within the last N days
+        #[arg(short, long, default_value_t = 30)]
+        days: usize,
+        /// Skip the 5-minute quiescence window (import even if file was modified recently)
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+    /// Process a Codex CLI hook payload (UserPromptSubmit / Stop)
+    #[command(display_order = 58)]
+    CodexHook {
+        /// The JSON payload from the Codex capture wrapper
+        #[arg(long)]
+        payload: Option<String>,
+        /// Print the JSON Schema for the expected `--payload` shape and exit.
+        /// The schema is also at `Docs/schemas/codex-hook-payload.json`.
+        #[arg(long)]
+        schema: bool,
+    },
+    /// Import Codex rollout JSONL sessions into the vault (fail-open)
+    #[command(display_order = 57)]
+    CodexImport {
+        /// Only import sessions modified within the last N days
+        #[arg(short, long, default_value_t = 30)]
+        days: usize,
+        /// Skip the 5-minute quiescence window (import even if file was modified recently)
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
     /// Detect and install harness capture hooks (user-global, message-only)
     #[command(
@@ -1605,9 +1707,9 @@ enum HarnessCommands {
         #[arg(long, default_value = "human")]
         format: String,
     },
-    /// Install message-only capture hooks (user-global). AGY ready; others pending.
+    /// Install message-only capture hooks (user-global). All five ready: grok, agy, opencode, claude, codex.
     Install {
-        /// Harness id: grok | agy | opencode | claude | codex | all
+        /// Harness id: grok | agy | opencode | claude | codex | all | all-ready
         #[arg(long)]
         harness: Option<String>,
         /// Skip confirmation prompt
@@ -1619,7 +1721,7 @@ enum HarnessCommands {
     },
     /// Remove only AI-Brains managed hook markers / wrapper scripts
     Uninstall {
-        /// Harness id: grok | agy | opencode | claude | codex | all
+        /// Harness id: grok | agy | opencode | claude | codex | all | all-ready
         #[arg(long)]
         harness: Option<String>,
         /// Skip confirmation prompt
@@ -2578,6 +2680,8 @@ fn is_vault_path_free(command: &Commands) -> bool {
         Commands::AgyHook { schema: true, .. } => true,
         Commands::GrokHook { schema: true, .. } => true,
         Commands::OpencodeHook { schema: true, .. } => true,
+        Commands::ClaudeHook { schema: true, .. } => true,
+        Commands::CodexHook { schema: true, .. } => true,
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
         } => true,
@@ -2691,6 +2795,12 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::OpencodeHook { schema: true, .. } => {
             print_schema(SCHEMA_OPENCODE_HOOK, "AI-Brains opencode-hook payload")
+        }
+        Commands::ClaudeHook { schema: true, .. } => {
+            print_schema(SCHEMA_CLAUDE_HOOK, "AI-Brains claude-hook payload")
+        }
+        Commands::CodexHook { schema: true, .. } => {
+            print_schema(SCHEMA_CODEX_HOOK, "AI-Brains codex-hook payload")
         }
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
@@ -3861,6 +3971,40 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 print_schema(SCHEMA_OPENCODE_HOOK, "AI-Brains opencode-hook payload")
             } else if let Some(p) = payload {
                 commands::opencode_hook::run(&ctx, p)
+            } else {
+                Err(
+                    "Either provide --payload <json> or use --schema to print the payload schema."
+                        .into(),
+                )
+            }
+        }
+        Commands::ClaudeImport {
+            days,
+            force,
+            dry_run,
+        } => commands::claude_import::run(&ctx, *days, *force, *dry_run),
+        Commands::CodexImport {
+            days,
+            force,
+            dry_run,
+        } => commands::codex_import::run(&ctx, *days, *force, *dry_run),
+        Commands::ClaudeHook { payload, schema } => {
+            if *schema {
+                print_schema(SCHEMA_CLAUDE_HOOK, "AI-Brains claude-hook payload")
+            } else if let Some(p) = payload {
+                commands::claude_hook::run(&ctx, p)
+            } else {
+                Err(
+                    "Either provide --payload <json> or use --schema to print the payload schema."
+                        .into(),
+                )
+            }
+        }
+        Commands::CodexHook { payload, schema } => {
+            if *schema {
+                print_schema(SCHEMA_CODEX_HOOK, "AI-Brains codex-hook payload")
+            } else if let Some(p) = payload {
+                commands::codex_hook::run(&ctx, p)
             } else {
                 Err(
                     "Either provide --payload <json> or use --schema to print the payload schema."
