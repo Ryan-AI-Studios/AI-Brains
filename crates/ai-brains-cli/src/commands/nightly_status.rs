@@ -140,6 +140,8 @@ pub(crate) fn emit_nightly_status_json(
 /// Human Router lines (T255 F7/F10/AC6/AC7/AC15). Hint is a following line.
 ///
 /// Do not apply Nightly first-quoted missing-action / `next:` to Router.
+/// Production call site is Windows-only; unit tests keep this live on Unix.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn format_router_status_lines(
     found: bool,
     status: Option<&str>,
