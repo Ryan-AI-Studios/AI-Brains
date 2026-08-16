@@ -382,6 +382,7 @@ ai-brains sync query "path TOCTOU" --limit 5 --format pretty
 ai-brains nightly
 ai-brains nightly --status
 ai-brains nightly --status --quick
+ai-brains nightly --status --format json
 ai-brains nightly --skip-import
 ai-brains nightly --skip-import-grok
 ai-brains nightly --schedule --start-time "03:00"
@@ -408,6 +409,7 @@ Pipeline includes:
 - Missing action target (quoted `.cmd` / `.bat` / `.exe` that does not exist) + `next: ai-brains nightly --schedule --dry-run`
 - Multi-import block (T239) unchanged
 - Status **exit 0** when down / timeout / missing action / nonzero last result
+- **JSON / Router (T255):** `--format json` emits a CLI-local machine object. Default `--format human`; piped `nightly --status` stays human. Additive read-only `Router:` Last Result line — does **not** register, start, or repair `AI-Brains-Router`. `doctor` remains the frozen **15**-check matrix (not the model-port matrix)
 
 SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config (global dotenv gap-fill T205). **SYSTEM keeps `--skip-import` by default** — completeness path is user-principal `nightly --schedule` or manual `nightly` (not Session 0 import). See [OPERATIONS.md](OPERATIONS.md) dual-path table + local router (`c:\llm\router.bat` / `AI-Brains-Router`).
 

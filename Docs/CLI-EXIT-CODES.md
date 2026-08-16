@@ -48,6 +48,10 @@ Optional features not compiled into this binary (notably default-build `graph *`
 
 `ai-brains device status` exits **0** for empty and enrolled vaults (roster report, not a failure — like `daemon status`). Unexpected extra args / unknown `--format` stay generic clap **2**.
 
+### Nightly status
+
+`ai-brains nightly --status` (human or `--format json`) exits **0** when probes are down / timeout / missing action / nonzero Last Result / Router 267009 (status report, not a failure — like `device status`). `--format` without `--status`, unknown `--format`, or `JSON`/`Pretty` → clap exit **2**.
+
 ### Path aliases (T254)
 
 | Outcome | Exit |

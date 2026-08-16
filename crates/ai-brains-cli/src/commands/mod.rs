@@ -31,6 +31,7 @@ pub mod memory;
 pub mod migrate;
 pub mod multi_import;
 pub mod nightly;
+pub mod nightly_status;
 pub mod opencode_hook;
 pub mod opencode_import;
 pub mod pin;

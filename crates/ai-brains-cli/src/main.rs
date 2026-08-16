@@ -138,6 +138,89 @@ mod tests {
         }
     }
 
+    /// T255 AC2: `--format` requires `--status`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_format__without_status__clap_requires_status() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from(["ai-brains", "nightly", "--format", "json"]) {
+            Ok(_) => panic!("expected clap to reject --format without --status"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::MissingRequiredArgument);
+    }
+
+    /// T255 AC2: unknown `--format` is clap InvalidValue (exit 2).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__format_xml__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--status",
+            "--format",
+            "xml",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T255 AC2 / T249 AC16: `--format` tokens are case-sensitive (`Pretty` is not `pretty`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--status",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T255 AC2 / T249 AC16: `--format` tokens are case-sensitive (`JSON` is not `json`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--status",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T255 F2: omitted `--format` defaults to `human` (pipes stay human).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__default_format__human() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "nightly", "--status"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected nightly --status to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Nightly { status, format, .. } => {
+                assert!(status);
+                assert_eq!(format, "human");
+            }
+            _ => panic!("expected Commands::Nightly"),
+        }
+    }
+
     /// T246 AC12: unknown `--format` is clap InvalidValue (exit 2), not resolve passthrough.
     #[test]
     #[allow(non_snake_case)]
@@ -478,7 +561,10 @@ enum Commands {
         install_hooks: bool,
     },
     /// Run nightly intelligence sweep
-    #[command(display_order = 26)]
+    #[command(
+        display_order = 26,
+        after_help = "Default --format is human; pipes stay human (do not silently switch to JSON).\nScripts: pass --format json.\nExamples:\n  ai-brains nightly --status\n  ai-brains nightly --status --format json\n  ai-brains nightly --status --quick --format json"
+    )]
     Nightly {
         /// Schedule this as a Windows scheduled task
         #[arg(long)]
@@ -495,6 +581,15 @@ enum Commands {
         /// Skip HTTP probes (requires --status)
         #[arg(long, requires = "status", conflicts_with_all = ["schedule", "unschedule"])]
         quick: bool,
+        /// Output format for --status (default human; pipes stay human)
+        #[arg(
+            long,
+            default_value = "human",
+            requires = "status",
+            conflicts_with_all = ["schedule", "unschedule"],
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
         /// Skip all harness session importers (AGY, Grok, OpenCode). Use on
         /// isolated, CI, SYSTEM-scheduled, or per-project vaults to prevent
         /// cross-vault contamination from real harness history.
@@ -3716,6 +3811,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             start_time,
             status,
             quick,
+            format,
             skip_import,
             skip_import_agy,
             skip_import_grok,
@@ -3736,6 +3832,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 *run_as_system,
                 *dry_run,
                 *quick,
+                format.clone(),
             )
             .await
         }

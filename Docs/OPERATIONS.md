@@ -661,6 +661,7 @@ Overnight brain is designed to talk to a **local** llama.cpp-style router rather
 ai-brains nightly --schedule --start-time "03:00"
 ai-brains nightly --status             # schedule + Last Result + endpoints/probe + Multi-import
 ai-brains nightly --status --quick     # same, skip HTTP probes (probe=skipped)
+ai-brains nightly --status --format json   # machine object (default human; pipes stay human)
 ai-brains nightly --unschedule
 ai-brains nightly --skip-import        # skip all harness importers
 ai-brains nightly --skip-import-opencode
@@ -673,10 +674,13 @@ ai-brains nightly --skip-import-opencode
 - **Last scheduled run** (Task Scheduler Last Run Time) is printed separately from vault **Last nightly run**. They can disagree (e.g. the task fired but the action target was missing, so the vault never advanced).
 - Last nightly run / unsummarized counts / last-run errors
 - **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error` on default `--status`; **`--quick` prints `probe=skipped`** — no HTTP). Credentials in URLs are redacted; vault keys never printed
+- **Router** (T255, read-only) — Last Result for `AI-Brains-Router`. Does **not** register, start, or repair that task
 - **Multi-import** block (T239)
 - Missing action: if Task To Run’s first quoted `.cmd` / `.bat` / `.exe` does not exist → `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`
 
 `--quick` requires `--status`. Without `--status` → clap exit **2**. `--quick` still opens the vault and still prints schedule + last-run.
+
+`--format json` emits a CLI-local machine object. Default `--format` is **human**; piped `nightly --status` stays human. `doctor` is not the model-port matrix; `nightly --status` is.
 
 Default status probes run **in parallel** with a **750 ms** timeout (not sequential 2s+2s). Nightly **run** pre-summarize probe stays **2s**.
 
@@ -694,7 +698,7 @@ These are three different tokens:
 
 Do **not** wait for the next schedule to “clear 101.” If Last Result is **1** because Task To Run points at a missing `nightly-run.cmd`, the next schedule will fire the same missing path and stay at **1**.
 
-When status prints `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`, that dry-run is **non-mutating**. Product user-principal schedule is `'<exe>' nightly` (not a `.cmd`). Do **not** write `%USERPROFILE%\.ai-brains\nightly-run.cmd` as the product remediator. Recreating a historical ops `.cmd` is out of scope (T255/F16). `--status` does not unschedule, reschedule, or write wrappers.
+When status prints `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`, that dry-run is **non-mutating**. Product user-principal schedule is `'<exe>' nightly` (not a `.cmd`). Do **not** write `%USERPROFILE%\.ai-brains\nightly-run.cmd` as the product remediator. Recreating a historical ops `.cmd` is out of scope (T255/F14). `--status` does not unschedule, reschedule, or write wrappers.
 
 #### Running the nightly as SYSTEM (`--run-as-system`)
 By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143 + T145):

@@ -2,6 +2,7 @@ use crate::context::AppContext;
 use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_models::llama_cpp::{LlamaCppProvider, ProbeStatus};
 use ai_brains_store::EventStore;
+use is_terminal::IsTerminal;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,6 +33,7 @@ pub async fn run(
     run_as_system: bool,
     dry_run: bool,
     quick: bool,
+    format: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let task_name = "AI-Brains-Nightly";
 
@@ -39,12 +41,8 @@ pub async fn run(
         let query_store = ctx.conn.clone() as Arc<dyn ai_brains_store::QueryStore>;
         let unsummarized = query_store.get_unsummarized_sessions()?;
         let last_run = query_store.get_last_nightly_run()?;
-        let last_count = query_store
-            .get_sync_state("last_nightly_count")?
-            .unwrap_or_else(|| "0".to_string());
-        let last_errors = query_store
-            .get_sync_state("last_nightly_errors")?
-            .unwrap_or_else(|| "[]".to_string());
+        let last_count_raw = query_store.get_sync_state("last_nightly_count")?;
+        let last_errors_raw = query_store.get_sync_state("last_nightly_errors")?;
 
         let (model_url, completion_model, embedding_url, embedding_model) =
             resolve_nightly_model_endpoints();
@@ -67,15 +65,103 @@ pub async fn run(
             (c.as_label(), e.as_label())
         };
 
+        let resolved = crate::commands::nightly_status::resolve_nightly_status_format(
+            &format,
+            std::io::stdout().is_terminal(),
+        );
+
+        #[cfg(windows)]
+        let nightly_sched = fetch_schedule_snapshot(task_name);
+        #[cfg(windows)]
+        let router_sched = fetch_schedule_snapshot("AI-Brains-Router");
+
+        #[cfg(windows)]
+        let task_to_run = nightly_sched.snap.task_to_run.clone();
+        #[cfg(not(windows))]
+        let task_to_run: Option<String> = None;
+
+        let multi_import =
+            match crate::commands::multi_import::load_multi_import_status(query_store.as_ref()) {
+                Ok(view) => view,
+                Err(e) => {
+                    tracing::warn!(error = %e, "failed to load last_multi_import (non-fatal)");
+                    crate::commands::multi_import::MultiImportStatusView::Unreadable
+                }
+            };
+
+        if resolved == "json" {
+            let action_target = task_to_run.as_deref().and_then(first_quoted_action_target);
+            let action_target_missing = action_target
+                .as_ref()
+                .is_some_and(|p| !std::path::Path::new(p).exists());
+            let next_step = if action_target_missing {
+                Some("ai-brains nightly --schedule --dry-run".to_string())
+            } else {
+                None
+            };
+
+            #[cfg(windows)]
+            let scheduled = Some(nightly_sched.snap.next_run.is_some());
+            #[cfg(not(windows))]
+            let scheduled = None;
+            #[cfg(windows)]
+            let next_run = nightly_sched.snap.next_run.clone();
+            #[cfg(not(windows))]
+            let next_run = None;
+            #[cfg(windows)]
+            let last_task_result = nightly_sched.snap.last_result.clone();
+            #[cfg(not(windows))]
+            let last_task_result = None;
+            #[cfg(windows)]
+            let last_scheduled_run = nightly_sched.snap.last_run_time.clone();
+            #[cfg(not(windows))]
+            let last_scheduled_run = None;
+
+            #[cfg(windows)]
+            let router = Some(crate::commands::nightly_status::RouterStatusInput {
+                found: router_sched.found,
+                status: router_sched.snap.status.clone(),
+                last_result: router_sched.snap.last_result.clone(),
+                task_to_run: router_sched.snap.task_to_run.clone(),
+            });
+            #[cfg(not(windows))]
+            let router = None;
+
+            let input = crate::commands::nightly_status::NightlyStatusInput {
+                scheduled,
+                next_run,
+                last_task_result,
+                last_scheduled_run,
+                action_target,
+                action_target_missing,
+                next_step,
+                last_nightly_run: last_run,
+                unsummarized_sessions: unsummarized.len(),
+                last_count_raw,
+                last_errors_raw,
+                completion_url: model_url,
+                completion_model,
+                completion_probe: completion_label.to_string(),
+                embedding_url,
+                embedding_model,
+                embedding_probe: embedding_label.to_string(),
+                multi_import,
+                router,
+            };
+            let status_json = crate::commands::nightly_status::build_nightly_status_json(input);
+            let pretty = crate::commands::nightly_status::emit_nightly_status_json(&status_json)?;
+            println!("{pretty}");
+            return Ok(());
+        }
+
         println!("=== Nightly Status ===");
         #[cfg(windows)]
         {
-            let snap = fetch_schedule_snapshot(task_name);
             for line in format_status_schedule_block(
-                snap.next_run.as_deref(),
-                snap.last_result.as_deref(),
-                snap.last_run_time.as_deref(),
-                snap.task_to_run.as_deref(),
+                nightly_sched.snap.next_run.as_deref(),
+                nightly_sched.snap.last_result.as_deref(),
+                nightly_sched.snap.last_run_time.as_deref(),
+                nightly_sched.snap.task_to_run.as_deref(),
                 true,
             ) {
                 println!("{line}");
@@ -90,8 +176,14 @@ pub async fn run(
             None => println!("Last nightly run: never"),
         }
         println!("Unsummarized sessions remaining: {}", unsummarized.len());
-        println!("Sessions summarized in last run: {}", last_count);
-        println!("Errors in last run: {}", last_errors);
+        println!(
+            "Sessions summarized in last run: {}",
+            last_count_raw.as_deref().unwrap_or("0")
+        );
+        println!(
+            "Errors in last run: {}",
+            last_errors_raw.as_deref().unwrap_or("[]")
+        );
         println!(
             "{}",
             format_endpoint_line(
@@ -110,14 +202,17 @@ pub async fn run(
                 embedding_label,
             )
         );
-        // T239: multi-import block (missing → never; corrupt → unreadable)
-        match crate::commands::multi_import::load_multi_import_status(query_store.as_ref()) {
-            Ok(view) => crate::commands::multi_import::print_multi_import_status(&view),
-            Err(e) => {
-                tracing::warn!(error = %e, "failed to load last_multi_import (non-fatal)");
-                println!("Multi-import: unreadable");
+        #[cfg(windows)]
+        {
+            for line in crate::commands::nightly_status::format_router_status_lines(
+                router_sched.found,
+                router_sched.snap.status.as_deref(),
+                router_sched.snap.last_result.as_deref(),
+            ) {
+                println!("{line}");
             }
         }
+        crate::commands::multi_import::print_multi_import_status(&multi_import);
         println!("======================");
         // Status exit remains 0 when probe is down/timeout/error.
         return Ok(());
@@ -809,6 +904,7 @@ pub(crate) struct SchtasksListV {
     pub last_run_time: Option<String>,
     pub last_result: Option<String>,
     pub task_to_run: Option<String>,
+    pub status: Option<String>,
 }
 
 /// Skip empty / `N/A` / `"N/A"` LIST /V values.
@@ -840,6 +936,7 @@ pub(crate) fn parse_schtasks_list_v(stdout: &str) -> SchtasksListV {
             "last run time" => parsed.last_run_time = value,
             "last result" => parsed.last_result = value,
             "task to run" => parsed.task_to_run = value,
+            "status" => parsed.status = value,
             _ => {}
         }
     }
@@ -947,11 +1044,18 @@ fn fetch_schedule_next_run(task_name: &str) -> Option<String> {
     }
 }
 
+/// LIST /V foundness (F34): `found` is true only when the spawn succeeds.
+#[cfg(windows)]
+struct ScheduleSnapshot {
+    found: bool,
+    snap: SchtasksListV,
+}
+
 /// Windows schedule snapshot: LIST /V first; PS Last Result only after successful LIST /V
 /// with a missing `last_result`; CSV next-run only when LIST /V missed `next_run`.
-/// Non-zero LIST /V (task missing) → all None, **no** PowerShell (F3).
+/// Non-zero LIST /V (task missing) → `found: false`, all None, **no** PowerShell (F3/F34).
 #[cfg(windows)]
-fn fetch_schedule_snapshot(task_name: &str) -> SchtasksListV {
+fn fetch_schedule_snapshot(task_name: &str) -> ScheduleSnapshot {
     let list = std::process::Command::new("schtasks")
         .args(["/query", "/tn", task_name, "/fo", "LIST", "/v"])
         .output();
@@ -965,9 +1069,15 @@ fn fetch_schedule_snapshot(task_name: &str) -> SchtasksListV {
             if parsed.next_run.is_none() {
                 parsed.next_run = fetch_schedule_next_run(task_name);
             }
-            parsed
+            ScheduleSnapshot {
+                found: true,
+                snap: parsed,
+            }
         }
-        _ => SchtasksListV::default(),
+        _ => ScheduleSnapshot {
+            found: false,
+            snap: SchtasksListV::default(),
+        },
     }
 }
 
@@ -1440,6 +1550,23 @@ Start In: N/A\n";
             parsed.task_to_run.as_deref(),
             Some(r#""C:\Users\RyanB\.ai-brains\nightly-run.cmd""#)
         );
+        assert_eq!(parsed.status.as_deref(), Some("Ready"));
+    }
+
+    #[test]
+    fn parse_schtasks_list_v__english_fixture__extracts_status_running() {
+        let sample = "\
+TaskName: \\AI-Brains-Router\n\
+Next Run Time: N/A\n\
+Status: Running\n\
+Last Run Time: 8/16/2026 8:00:00 AM\n\
+Last Result: 267009\n\
+Task To Run: C:\\llm\\router.bat\n";
+        let parsed = parse_schtasks_list_v(sample);
+        assert_eq!(parsed.status.as_deref(), Some("Running"));
+        assert_eq!(parsed.last_result.as_deref(), Some("267009"));
+        assert_eq!(parsed.task_to_run.as_deref(), Some(r"C:\llm\router.bat"));
+        assert_eq!(parsed.next_run, None);
     }
 
     #[test]
