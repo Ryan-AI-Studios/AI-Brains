@@ -1,10 +1,29 @@
 # T254 Plan — Multi-root soft residuals (T233+)
 
 **Status:** 📋 **Planning** (plan-only until **go**)  
-**Spec:** [spec.md](./spec.md) F0–F36 / AC1–AC18  
+**Spec:** [spec.md](./spec.md) F0–F39 / AC1–AC19 + §10 AI fold-in  
 **Category:** FEATURE / OPS  
 **Ledger TX (planning):** `3d30be0a-be88-4cf8-8d44-8d1316bb939a` (DOCS)  
+**Ledger TX (fold-in):** `391a8aae-e859-4fe2-81b5-d35affe8d190` (DOCS)  
 **Ledger TX (on go):** `ledgerful ledger start T254-multiroot-soft-residuals --category FEATURE --message "list-paths + unregister-path Removed event + scan-roots dry-run; refuse-steal; no endpoints ingest"`
+
+---
+
+## AI fold-in (2026-08-15) — `C:\dev\AI-review.md` AI1 + AI2
+
+No Highs. AI1 affirms F3/F6/F7/F9/F16/F21/F24. AI2 code-status table matches spec §2.3 (HEAD now `dc16d3a`, 7 ahead). Disposition in spec **§10**.
+
+### Pins locked by fold-in
+
+1. **No camino** in `ai-brains-cli` / `ai-brains-path`. Display = `std::path` + `to_string_lossy`.
+2. **F10 join:** `list_path_aliases` + one `list_projects` HashMap + `display_label`. No N+1. No new SQL.
+3. **Owner-scoped DELETE** on Removed (`path` AND `project_id`). AC19 foreign Removed is a no-op.
+4. **CLI-EXIT-CODES.md** is in F28 / AC15 / F35.
+5. **`project_paths.rs` returns `Err` / `fail_usage`.** No `process::exit`. Do not refactor `register_path` exit.
+6. **scan-roots:** one-shot alias HashMap; normalize each hit; unit the cap/unreadable helper.
+7. **Removed payload ≡ Added** `{ project_id, normalized_path }`.
+8. **`--format auto`** reuses whoami `IsTerminal`.
+9. **Decline** `list_path_alias_details`, `path_is_same_or_inside` for scan.
 
 ---
 
@@ -23,7 +42,7 @@
 | F21 copy | AC13 asserts `unregister-path is soft residual F31` |
 | Nightly metrics | `bridge_roots_total/ok/skipped` only |
 | Projection | UPSERT steal on `normalized_path` |
-| Pins | clap lock **4.6.1**, serde_json **1.0.150**, dirs **6.0.0**, uuid **1.23.1**, camino **1.2.5** — **no bumps** |
+| Pins | clap lock **4.6.1**, serde_json **1.0.150**, dirs **6.0.0**, uuid **1.23.1** — **no bumps**. camino is desktop-only — **do not add** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.1** |
 | Hotspots | `project.rs` **#1** — new code in `project_paths.rs` |
 | Ledger | 0 pending at scan; planning TX `3d30be0a` |
@@ -49,6 +68,12 @@
 | T229 F8–F12/F14 | T255 | **Not absorbed** |
 | T253 PATH-behind pending | live harness status | **Not absorbed** |
 | clap 5 / pin bumps | series | **Not absorbed** F26 |
+| camino “prefer for UTF-8 display” | plan pin table | **Struck** — AI2 BS1; not a cli dep |
+| New `list_path_alias_details` SQL | AI2 BS2 | **Declined** F38 — HashMap join |
+| `path_is_same_or_inside` on scan | AI2 opp 4 | **Declined** F21 |
+| Refactor `register_path` `process::exit` | AI2 BS5 | **Declined** F37 |
+| CLI-EXIT-CODES.md | AI2 BS3 | **Absorbed** F28 / AC15 |
+| Owner-scoped Removed DELETE | AI2 BS4 | **Absorbed** F2 / AC19 |
 | Auto-register from scan | F33 / T233 F33 | **Not absorbed** F23 |
 | Forget symbols on unregister | tempting | **Not absorbed** F16 |
 | New doctor check | optional | **Not absorbed** F34 |
@@ -64,8 +89,8 @@
 | Events tests | `event_kind_from_payload.rs` / goldens if any | Added not listed | Add Removed round-trip |
 | CP | `grants.rs` `register_path_alias` | Append Added | **+ `unregister_path_alias`** |
 | Legacy import | `legacy_import.rs` skip arm | Added skipped | Removed joins skip arm |
-| Projection | `repository_identity.rs` | UPSERT steal | DELETE on Removed; refuse-steal UPDATE |
-| Query | `query_store.rs` | list + find exist | **Reuse**; no new SQL unless tests need |
+| Projection | `repository_identity.rs` | UPSERT steal | Owner-scoped DELETE on Removed; refuse-steal UPDATE |
+| Query | `query_store.rs` | list + find exist | **Reuse** `list_path_aliases` + `list_projects` HashMap join (F10/F38). No new SQL |
 | Replay | `replay.rs` | Truncates table | No change |
 | CLI enum | `main.rs` `ProjectCommands` | 6 variants | **+ ListPaths + UnregisterPath + ScanRoots** |
 | CLI impl | **new** `commands/project_paths.rs` | — | list / unregister / scan |
@@ -86,20 +111,20 @@
 
 ## Phase 1 — Red → Green: `list-paths` (F1 / F9–F12 / AC1–AC3)
 
-- [ ] Hermetic failing tests: empty vault; two aliases ASC; JSON keys; `project list` still first-path-only
-- [ ] Clap `ListPaths { format }` default `auto`
-- [ ] Implement in `project_paths.rs`; dispatch in `main.rs`
+- [ ] Hermetic failing tests: empty vault; two aliases ASC; JSON keys include `label`+`alias`; `project list` still first-path-only
+- [ ] Clap `ListPaths { format }` default `auto` (whoami `IsTerminal`)
+- [ ] Implement in `project_paths.rs`; dispatch in `main.rs`; join via `list_projects` HashMap + `display_label`
 - [ ] Empty next-step mentions `register-path`
 - [ ] Targeted: `cargo nextest run -p ai-brains-cli -E 'test(list_paths)'` ; clippy `-p ai-brains-cli`
 
 ## Phase 2 — Red → Green: unregister (F2 / F7 / F8 / F13–F19 / AC4–AC9 / AC16)
 
-- [ ] Events: payload + EventKind + KnownPayload + exports; unit round-trip
-- [ ] Store: apply DELETE; refuse-steal UPSERT; rebuild tests
+- [ ] Events: payload **≡ Added shape** + EventKind + KnownPayload + exports; **new** Added+Removed round-trip (`event_kind_from_payload.rs` has no Added case today)
+- [ ] Store: owner-scoped DELETE; refuse-steal UPSERT; rebuild + **AC19** foreign Removed in `path_aliases.rs`
 - [ ] CP: `unregister_path_alias`; normalize empty → InvalidPayload
-- [ ] CLI: `unregister-path <path> [--project] [--dry-run]`
+- [ ] CLI: `unregister-path <path> [--project] [--dry-run]` returns `Err` (no `process::exit`)
 - [ ] Missing → exit 0; owner mismatch → exit 1; dry-run no append
-- [ ] Replace F21 residual string; update `register_path__conflict_other_project__exit_1`
+- [ ] Replace F21 residual string; update `register_path__conflict_other_project__exit_1`; new suite in `tests/project_path_aliases.rs`
 - [ ] `legacy_import` skip arm includes Removed (compile-driven)
 - [ ] Targeted: events + store + cli hermetics + `grant_isolation` if it touches aliases
 
@@ -107,7 +132,8 @@
 
 - [ ] Hermetic temp tree: `.ledgerful` child hits; plain child misses; `.changeguard`-only misses; event count unchanged
 - [ ] Already-registered child shows `registered_project_id`
-- [ ] Cap 200 documented; unreadable child warn + continue
+- [ ] Cap 200 + unreadable: **unit the helper** (not Windows ACL integration)
+- [ ] One-shot `list_path_aliases` HashMap; normalize hits; no `path_is_same_or_inside`
 - [ ] `--help` says dry-run / never writes
 - [ ] Targeted cli hermetics
 
@@ -123,6 +149,7 @@
 - [ ] OPERATIONS table + unregister / scan-roots + refuse-steal one-liner
 - [ ] WORKFLOWS triangle
 - [ ] CHANGELOG Unreleased Added
+- [ ] **CLI-EXIT-CODES.md** F35 rows (empty-success 0; conflict/mismatch 1; usage 2)
 - [ ] `register-path` / new after_help
 - [ ] conductor + deferred closeout **only at track complete** (not this planning commit)
 
@@ -150,6 +177,10 @@
 | 8 | Forget symbols? | **No** |
 | 9 | New doctor check? | **No** |
 | 10 | T255 / T240 F13–F14 / T167? | **No** |
+| 11 | New SQL details helper? | **No** — HashMap join |
+| 12 | Add camino? | **No** |
+| 13 | `path_is_same_or_inside`? | **No** |
+| 14 | Refactor register_path exit? | **No** |
 
 ---
 
