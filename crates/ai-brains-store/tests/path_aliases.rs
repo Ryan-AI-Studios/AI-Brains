@@ -8,7 +8,10 @@ use ai_brains_crypto::DataKey;
 use ai_brains_events::{
     Actor, AggregateType, Payload,
     constructors::EventBuilder,
-    payload::{ProjectRegisteredPayload, RepositoryPathAliasAddedPayload},
+    payload::{
+        ProjectRegisteredPayload, RepositoryPathAliasAddedPayload,
+        RepositoryPathAliasRemovedPayload,
+    },
 };
 use ai_brains_store::QueryStore;
 use ai_brains_store::connection::VaultConnection;
@@ -59,6 +62,23 @@ fn add_path_alias(store: &SqliteEventStore, project_id: ProjectId, normalized_pa
     ))
     .unwrap();
     store.append_event(&ev).expect("path alias");
+}
+
+fn remove_path_alias(store: &SqliteEventStore, project_id: ProjectId, normalized_path: &str) {
+    let ev = EventBuilder::new(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::RepositoryPathAliasRemoved(
+        RepositoryPathAliasRemovedPayload {
+            project_id,
+            normalized_path: normalized_path.to_string(),
+        },
+    ))
+    .unwrap();
+    store.append_event(&ev).expect("path alias removed");
 }
 
 #[test]
@@ -143,4 +163,118 @@ fn find_path_alias_owner__two_projects__lookup_is_exclusive() {
     // ASC sort across projects
     assert_eq!(listed[0].1, "c:/dev/a");
     assert_eq!(listed[1].1, "c:/dev/b");
+}
+
+#[test]
+fn path_alias_removed__owner_match__row_deleted() {
+    let store = open_store();
+    let owner = ProjectId::new();
+    register_project(&store, owner, "Owner");
+    add_path_alias(&store, owner, "c:/dev/owned");
+    remove_path_alias(&store, owner, "c:/dev/owned");
+
+    let found = store
+        .connection()
+        .find_path_alias_owner("c:/dev/owned")
+        .expect("find");
+    assert_eq!(found, None);
+
+    let listed = store.connection().list_path_aliases().expect("list");
+    assert!(
+        listed.iter().all(|(_, path)| path != "c:/dev/owned"),
+        "removed path must not appear in list: {listed:?}"
+    );
+}
+
+#[test]
+fn path_alias_removed__foreign_owner__row_unchanged() {
+    let store = open_store();
+    let owner = ProjectId::new();
+    let other = ProjectId::new();
+    register_project(&store, owner, "A");
+    register_project(&store, other, "B");
+    add_path_alias(&store, owner, "c:/dev/owned");
+    remove_path_alias(&store, other, "c:/dev/owned");
+
+    let found = store
+        .connection()
+        .find_path_alias_owner("c:/dev/owned")
+        .expect("find");
+    assert_eq!(found, Some(owner));
+
+    let listed = store.connection().list_path_aliases().expect("list");
+    assert_eq!(listed, vec![(owner, "c:/dev/owned".to_string())]);
+}
+
+#[test]
+fn path_alias_added__other_owner_conflict__does_not_steal() {
+    let store = open_store();
+    let owner = ProjectId::new();
+    let other = ProjectId::new();
+    register_project(&store, owner, "A");
+    register_project(&store, other, "B");
+    add_path_alias(&store, owner, "c:/dev/contested");
+    add_path_alias(&store, other, "c:/dev/contested");
+
+    let found = store
+        .connection()
+        .find_path_alias_owner("c:/dev/contested")
+        .expect("find");
+    assert_eq!(found, Some(owner));
+}
+
+#[test]
+fn rebuild_projections__added_then_removed__path_absent() {
+    let mut store = open_store();
+    let owner = ProjectId::new();
+    register_project(&store, owner, "Owner");
+    add_path_alias(&store, owner, "c:/dev/gone");
+    remove_path_alias(&store, owner, "c:/dev/gone");
+
+    store.rebuild_projections().expect("rebuild");
+
+    let found = store
+        .connection()
+        .find_path_alias_owner("c:/dev/gone")
+        .expect("find");
+    assert_eq!(found, None);
+}
+
+#[test]
+fn rebuild_projections__added_removed_added_other__final_owner() {
+    let mut store = open_store();
+    let first = ProjectId::new();
+    let second = ProjectId::new();
+    register_project(&store, first, "A");
+    register_project(&store, second, "B");
+    add_path_alias(&store, first, "c:/dev/handoff");
+    remove_path_alias(&store, first, "c:/dev/handoff");
+    add_path_alias(&store, second, "c:/dev/handoff");
+
+    store.rebuild_projections().expect("rebuild");
+
+    let found = store
+        .connection()
+        .find_path_alias_owner("c:/dev/handoff")
+        .expect("find");
+    assert_eq!(found, Some(second));
+}
+
+#[test]
+fn rebuild_projections__added_a_removed_b__still_a() {
+    let mut store = open_store();
+    let owner = ProjectId::new();
+    let other = ProjectId::new();
+    register_project(&store, owner, "A");
+    register_project(&store, other, "B");
+    add_path_alias(&store, owner, "c:/dev/kept");
+    remove_path_alias(&store, other, "c:/dev/kept");
+
+    store.rebuild_projections().expect("rebuild");
+
+    let found = store
+        .connection()
+        .find_path_alias_owner("c:/dev/kept")
+        .expect("find");
+    assert_eq!(found, Some(owner));
 }

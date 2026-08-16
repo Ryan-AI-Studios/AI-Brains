@@ -579,6 +579,7 @@ pub fn classify_legacy(events: &[Envelope], opts: &ImportOpts) -> Result<ImportP
             | Payload::ClaimConflictResolved(_)
             | Payload::RepositoryIdentityRegistered(_)
             | Payload::RepositoryPathAliasAdded(_)
+            | Payload::RepositoryPathAliasRemoved(_)
             | Payload::PolicyDecisionRecorded(_)
             | Payload::DeviceEnrolled(_)
             | Payload::DeviceRevoked(_) => {

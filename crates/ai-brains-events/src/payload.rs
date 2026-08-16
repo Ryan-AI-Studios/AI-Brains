@@ -685,6 +685,15 @@ pub struct RepositoryPathAliasAddedPayload {
     pub normalized_path: String,
 }
 
+/// Compensating unregister for a path alias (T254). Same field shape as Added.
+///
+/// Projection DELETE is owner-scoped (`normalized_path` AND `project_id`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RepositoryPathAliasRemovedPayload {
+    pub project_id: ProjectId,
+    pub normalized_path: String,
+}
+
 /// Policy matrix allow/deny audit row (T151) — reason codes only, never claim/statement text.
 ///
 /// Projected into `policy_decision_log` so `rebuild_projections` rehydrates audit history.
@@ -819,6 +828,7 @@ pub enum Payload {
     ClaimConflictResolved(ClaimConflictResolvedPayload),
     RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
     RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload),
+    RepositoryPathAliasRemoved(RepositoryPathAliasRemovedPayload),
     PolicyDecisionRecorded(PolicyDecisionRecordedPayload),
     /// Multi-device membership add (T176); dual-write with signed control side store.
     DeviceEnrolled(DeviceEnrolledPayload),
@@ -889,6 +899,7 @@ enum KnownPayload {
     ClaimConflictResolved(ClaimConflictResolvedPayload),
     RepositoryIdentityRegistered(RepositoryIdentityRegisteredPayload),
     RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload),
+    RepositoryPathAliasRemoved(RepositoryPathAliasRemovedPayload),
     PolicyDecisionRecorded(PolicyDecisionRecordedPayload),
     DeviceEnrolled(DeviceEnrolledPayload),
     DeviceRevoked(DeviceRevokedPayload),
@@ -954,6 +965,7 @@ fn is_known_payload_type(type_str: &str) -> bool {
             | "ClaimConflictResolved"
             | "RepositoryIdentityRegistered"
             | "RepositoryPathAliasAdded"
+            | "RepositoryPathAliasRemoved"
             | "PolicyDecisionRecorded"
             | "DeviceEnrolled"
             | "DeviceRevoked"
@@ -1022,6 +1034,7 @@ impl From<KnownPayload> for Payload {
                 Payload::RepositoryIdentityRegistered(p)
             }
             KnownPayload::RepositoryPathAliasAdded(p) => Payload::RepositoryPathAliasAdded(p),
+            KnownPayload::RepositoryPathAliasRemoved(p) => Payload::RepositoryPathAliasRemoved(p),
             KnownPayload::PolicyDecisionRecorded(p) => Payload::PolicyDecisionRecorded(p),
             KnownPayload::DeviceEnrolled(p) => Payload::DeviceEnrolled(p),
             KnownPayload::DeviceRevoked(p) => Payload::DeviceRevoked(p),
@@ -1094,6 +1107,9 @@ impl Payload {
             }
             Payload::RepositoryPathAliasAdded(p) => {
                 KnownPayload::RepositoryPathAliasAdded(p.clone())
+            }
+            Payload::RepositoryPathAliasRemoved(p) => {
+                KnownPayload::RepositoryPathAliasRemoved(p.clone())
             }
             Payload::PolicyDecisionRecorded(p) => KnownPayload::PolicyDecisionRecorded(p.clone()),
             Payload::DeviceEnrolled(p) => KnownPayload::DeviceEnrolled(p.clone()),

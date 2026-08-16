@@ -185,7 +185,10 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 | path column | Registered `repository_path_alias_projection.normalized_path` when present (lexicographically first); never invented from cwd/git. Human `—` / JSON `null` when unknown. |
 | Unaliased nudge | When ≥1 project has no alias, **stderr** prints count + copy-paste `ai-brains project set-alias <uuid> <suggestion>` (highest-memory unaliased). Empty vault: T198 empty line only — **no** footer. Exit 0 always. |
 | Aliases | `project set-alias` · `project resolve` — **human labels** only (not disk roots) |
-| Path aliases (T233) | `project register-path <project_id\|alias> <path>` — filesystem roots for multi-root nightly Phase 2. Normalize via path crate (Win + WSL forms). Same normalized path → one project (conflict exit **1**). Same project re-register idempotent. |
+| Path aliases (T233/T254) | `project register-path <project_id\|alias> <path>` — filesystem roots for multi-root nightly Phase 2. Normalize via path crate (Win + WSL forms). Same normalized path → one project (conflict exit **1**; stderr names `unregister-path`). Same project re-register idempotent. CLI F21 is the operator gate; projection `ON CONFLICT` **refuses to steal** from another project. |
+| List all path aliases (T254) | `project list-paths` — every registered root (not just `project list` first-path). `--format auto` (TTY human / pipe JSON) / `human` / `json`. JSON `{ api_version:"1", paths:[{project_id,label,alias,normalized_path,exists}] }` ASC by path. Empty: `No path aliases registered.` + `next: ai-brains project register-path <project_id\|alias> <path>` (exit **0**). |
+| Unregister path (T254) | `project unregister-path <path> [--project <id\|alias>] [--dry-run]` — compensating `RepositoryPathAliasRemoved`. Path unique. Missing path idempotent exit **0**. Owner mismatch exit **1**. Does **not** forget `MemoryPinned` / `ledgerful:symbol` history. Reversible via `register-path`. |
+| Scan Ledgerful roots (T254) | `project scan-roots [path]` — dry-run. Immediate children (plus scan root) that contain `.ledgerful`. Never appends events. Never writes `.env`. Never auto-registers. `.changeguard` alone is **not** a hit. Cap 200 children. JSON `{ api_version, scan_root, truncated, roots:[{path,registered_project_id,exists,suggested}] }`. |
 | Auto-detect (T240) | `project detect` order: **(1)** path alias of git toplevel else cwd → **(2)** git slug exact-first (T206; ambiguous exit **1** when no path) → **(3)** env `PROJECT_ID` post-dotenv if in vault → **(4)** miss exit **1**. Path owner **always** wins over unique slug hit; stderr notes the slug project (extra note when path has 0 memories and slug has &gt;0). `--export` comments include `source=path_alias` / `git_slug` / `env`. |
 | Whoami (T240) | `project whoami` — all identity signals: `effective_project_id`, `env_project_id` (post-dotenv; null under `--no-project-context`), `shell_project_id` (pre-dotenv when set/differs), `path_alias_project_id`, `detect_project_id`, `git_slug`, `git_toplevel`, `mismatch`, `remediations[]`. Human default on TTY (`IsTerminal`); JSON when piped or `--format json`. Does **not** rewrite `PROJECT_ID`. |
 | Mismatch warn (T240) | Once per process when daily Scope env ≠ path-alias owner (after vault open): `Warning: project identity mismatch: daily Scope is '{env}', but path is registered to '{path}'. Run 'ai-brains project whoami'.` Skip: `--no-project-context`, argv `--global`, no path alias, empty env. **Never** auto-switches Scope. |
@@ -391,7 +394,7 @@ Pipeline includes:
 3. Session summarization (chunked; **38,912-token** context with carryover)
 4. Memory synthesis (batch-limited, e.g. 50 memories/run)
 5. Embedding backfill + stale refresh + WAL checkpoint (UTF-8-safe truncate — T229 F5)
-6. **Phase 2 multi-root bridge (T233)** — for each registered path alias (sorted ASC; optional `AI_BRAINS_NIGHTLY_MAX_ROOTS`): MADR export + `ledgerful symbols --pub --json --limit N --auto-index` with **explicit root** (`current_dir`). Zero aliases → no-op + `register-path` hint. Per-root failures warn + continue. Symbol source_tag `ledgerful:symbol` (dual-read legacy `changeguard:symbol`). Cap default **5000** (`AI_BRAINS_NIGHTLY_MAX_SYMBOLS`). No SQL open of `.ledgerful/state/ledger.db`; no System32 cwd dependence.
+6. **Phase 2 multi-root bridge (T233/T254)** — for each registered path alias (sorted ASC; optional `AI_BRAINS_NIGHTLY_MAX_ROOTS`): MADR export + `ledgerful symbols --pub --json --limit N --auto-index` with **explicit root** (`current_dir`). Zero aliases → no-op + `register-path` hint. Per-root failures warn + continue. Logs `bridge_roots_total/ok/skipped/failed` (`ok + skipped + failed` accounts for every considered root; missing = skipped; symbol `Err` = failed; MADR-fail + symbols-ok = ok). Symbol source_tag `ledgerful:symbol` (dual-read legacy `changeguard:symbol`). Cap default **5000** (`AI_BRAINS_NIGHTLY_MAX_SYMBOLS`). No SQL open of `.ledgerful/state/ledger.db`; no System32 cwd dependence. Route catalog remains `ledgerful endpoints` (not symbols).
 7. **`MemorySynthesized`** events for graph edges
 8. Live graph projection updates
 
@@ -594,7 +597,7 @@ End-to-end recipes: [WORKFLOWS.md](WORKFLOWS.md) (“Find something”).
 
 ```text
 CAPTURE          ingest · agy-hook · antigravity-import · daemon queue
-CONTEXT          context · project list/resolve/detect/whoami/set-alias/register-path · stop-session
+CONTEXT          context · project list/resolve/detect/whoami/set-alias/register-path/list-paths/unregister-path/scan-roots · stop-session
 DENSE MEMORY     pin · forget/restore · safety sync
 RETRIEVAL        recall (FTS · semantic · graph-boost · bridge) · preflight · sync query
 INTELLIGENCE     nightly (summarize · embed · synthesize · multi-root Phase2 bridge)

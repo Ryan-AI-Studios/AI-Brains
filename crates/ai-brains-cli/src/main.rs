@@ -2002,7 +2002,7 @@ pub enum ProjectCommands {
     },
     /// Register a filesystem path alias for multi-root nightly bridge (T233)
     #[command(
-        after_help = "Examples:\n  ai-brains project register-path <uuid> C:\\dev\\AI-Brains\n  ai-brains project register-path my-alias C:\\dev\\ledgerful\n  ai-brains project register-path <uuid> /mnt/c/dev/AI-Brains\nset-alias is a human label; register-path is a disk root for Phase-2 Ledgerful bridge.\nSame normalized path may only belong to one project (conflict exit 1)."
+        after_help = "Examples:\n  ai-brains project register-path <uuid> C:\\dev\\AI-Brains\n  ai-brains project register-path my-alias C:\\dev\\ledgerful\n  ai-brains project register-path <uuid> /mnt/c/dev/AI-Brains\nset-alias is a human label; register-path is a disk root for Phase-2 Ledgerful bridge.\nSame normalized path may only belong to one project (conflict exit 1).\nCorrection: ai-brains project unregister-path <path>"
     )]
     RegisterPath {
         /// Project UUID or human alias (from `project list` / `set-alias`)
@@ -2018,6 +2018,39 @@ pub enum ProjectCommands {
         /// Output format: auto (TTY=human, piped=json), human, or json
         #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
         format: String,
+    },
+    /// List every registered filesystem path alias (all roots, not just project-list first path)
+    #[command(
+        after_help = "Examples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format json\nproject list still shows only the first path per project. This command lists all roots."
+    )]
+    ListPaths {
+        /// Output format: auto (TTY=human, piped=json), human, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        format: String,
+    },
+    /// Discover immediate child directories that contain .ledgerful (dry-run; never writes)
+    #[command(
+        after_help = "Dry-run only. Never appends events. Never writes .env. Never auto-registers.\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --format json"
+    )]
+    ScanRoots {
+        /// Directory to scan (default: cwd). Immediate children only.
+        path: Option<String>,
+        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        format: String,
+    },
+    /// Unregister a filesystem path alias (compensating Removed event; does not forget symbols)
+    #[command(
+        after_help = "Path is unique. Missing path is idempotent exit 0.\nDoes not delete MemoryPinned / ledgerful:symbol history.\nExamples:\n  ai-brains project unregister-path C:\\dev\\AI-Brains\n  ai-brains project unregister-path --dry-run C:\\dev\\AI-Brains\n  ai-brains project unregister-path --project my-alias C:\\dev\\AI-Brains"
+    )]
+    UnregisterPath {
+        /// Filesystem path to unregister (Windows or WSL form; normalized for compare)
+        path: String,
+        /// Optional project UUID or alias; if owner ≠ this ref, exit 1
+        #[arg(long)]
+        project: Option<String>,
+        /// Print what would happen; do not append an event
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -4045,6 +4078,17 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 commands::project::register_path(&ctx, project_ref, path)
             }
             ProjectCommands::Whoami { format } => commands::project::whoami(&ctx, format),
+            ProjectCommands::ListPaths { format } => {
+                commands::project_paths::list_paths(&ctx, format)
+            }
+            ProjectCommands::ScanRoots { path, format } => {
+                commands::project_paths::scan_roots(&ctx, path.as_deref(), format)
+            }
+            ProjectCommands::UnregisterPath {
+                path,
+                project,
+                dry_run,
+            } => commands::project_paths::unregister_path(&ctx, path, project.as_deref(), *dry_run),
         },
         #[cfg(feature = "graph")]
         Commands::Graph { command, .. } => match command {

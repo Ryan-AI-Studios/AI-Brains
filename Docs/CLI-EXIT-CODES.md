@@ -8,9 +8,9 @@ Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXI
 
 | Exit | Constant | When |
 |------|----------|------|
-| **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `device status` report (empty or enrolled); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`) |
-| **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail** |
-| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on erasure); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T241** `policy check` omit `--capability` → capability catalog (not clap “required arguments”); **T203/T226** soft-resolve failure on `source`/`evidence`/`review` list|show and `policy show|check|bootstrap` when `--scope` omitted and context is not authoritative; **T252** empty / whitespace-only / TTY stdin on `ingest` / `ingest --dry-run` → `fail_usage` (not EOF `COMMAND_FAILED`) |
+| **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `device status` report (empty or enrolled); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`); **T254** empty `project list-paths`; not-registered `project unregister-path`; `project scan-roots` (including truncated / no hits) |
+| **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail**; **T254** `register-path` conflict (other owner) and `unregister-path --project` owner mismatch |
+| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on erasure); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T241** `policy check` omit `--capability` → capability catalog (not clap “required arguments”); **T203/T226** soft-resolve failure on `source`/`evidence`/`review` list|show and `policy show|check|bootstrap` when `--scope` omitted and context is not authoritative; **T252** empty / whitespace-only / TTY stdin on `ingest` / `ingest --dry-run` → `fail_usage` (not EOF `COMMAND_FAILED`); **T254** empty path after normalize; unknown `--format` on `list-paths` / `scan-roots` |
 | **3** | `EXIT_POLICY_DENIED` | `POLICY_DENIED`; `APPROVAL_REQUIRED`; **`query progressive`** when packet `denied: true` (T221 — pretty `ProgressiveQueryResponse` still on **stdout**); **`query expand`** when preview `kind` is exact **`Denied`** |
 | **4** | `EXIT_NOT_FOUND` | `NOT_FOUND` |
 | **5** | `EXIT_DAEMON_UNAVAILABLE` | Daemon required / unreachable for a daemon-required path |
@@ -47,6 +47,17 @@ Optional features not compiled into this binary (notably default-build `graph *`
 ### Device status
 
 `ai-brains device status` exits **0** for empty and enrolled vaults (roster report, not a failure — like `daemon status`). Unexpected extra args / unknown `--format` stay generic clap **2**.
+
+### Path aliases (T254)
+
+| Outcome | Exit |
+|---------|------|
+| `project list-paths` empty or populated | **0** |
+| `project unregister-path` missing path (idempotent) / `--dry-run` | **0** |
+| `project scan-roots` (hits, empty, truncated) | **0** |
+| `project register-path` other-owner conflict | **1** |
+| `project unregister-path --project` owner mismatch | **1** |
+| Empty path after normalize / unknown `--format` / clap usage | **2** |
 
 ### Exit 130 (OS footnote)
 

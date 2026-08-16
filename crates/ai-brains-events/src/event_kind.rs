@@ -83,9 +83,10 @@ pub enum EventKind {
     ClaimConflictOpened,
     ClaimConflictResolved,
 
-    // Repository identity / path aliases (T151) — rehydrate on rebuild_projections
+    // Repository identity / path aliases (T151 / T254) — rehydrate on rebuild_projections
     RepositoryIdentityRegistered,
     RepositoryPathAliasAdded,
+    RepositoryPathAliasRemoved,
 
     // Policy audit (T151) — rehydrate policy_decision_log on rebuild_projections
     PolicyDecisionRecorded,
@@ -160,6 +161,7 @@ impl EventKind {
             EventKind::ClaimConflictResolved => "ClaimConflictResolved",
             EventKind::RepositoryIdentityRegistered => "RepositoryIdentityRegistered",
             EventKind::RepositoryPathAliasAdded => "RepositoryPathAliasAdded",
+            EventKind::RepositoryPathAliasRemoved => "RepositoryPathAliasRemoved",
             EventKind::PolicyDecisionRecorded => "PolicyDecisionRecorded",
             EventKind::DeviceEnrolled => "DeviceEnrolled",
             EventKind::DeviceRevoked => "DeviceRevoked",
@@ -228,6 +230,7 @@ impl EventKind {
             "ClaimConflictResolved" => EventKind::ClaimConflictResolved,
             "RepositoryIdentityRegistered" => EventKind::RepositoryIdentityRegistered,
             "RepositoryPathAliasAdded" => EventKind::RepositoryPathAliasAdded,
+            "RepositoryPathAliasRemoved" => EventKind::RepositoryPathAliasRemoved,
             "PolicyDecisionRecorded" => EventKind::PolicyDecisionRecorded,
             "DeviceEnrolled" => EventKind::DeviceEnrolled,
             "DeviceRevoked" => EventKind::DeviceRevoked,
@@ -320,6 +323,7 @@ impl From<&crate::payload::Payload> for EventKind {
             Payload::ClaimConflictResolved(_) => EventKind::ClaimConflictResolved,
             Payload::RepositoryIdentityRegistered(_) => EventKind::RepositoryIdentityRegistered,
             Payload::RepositoryPathAliasAdded(_) => EventKind::RepositoryPathAliasAdded,
+            Payload::RepositoryPathAliasRemoved(_) => EventKind::RepositoryPathAliasRemoved,
             Payload::PolicyDecisionRecorded(_) => EventKind::PolicyDecisionRecorded,
             Payload::DeviceEnrolled(_) => EventKind::DeviceEnrolled,
             Payload::DeviceRevoked(_) => EventKind::DeviceRevoked,

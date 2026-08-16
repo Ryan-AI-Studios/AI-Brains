@@ -506,6 +506,24 @@ pub(crate) fn filter_existing_roots(
     (existing, missing)
 }
 
+/// Phase 2 root accounting after MAX_ROOTS truncate (T254 F6 / AC13).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Phase2RootCounts {
+    pub total: usize,
+    pub ok: usize,
+    pub skipped: usize,
+    pub failed: usize,
+}
+
+/// Account one existing-root symbol result. Missing roots are counted separately as skipped.
+pub(crate) fn account_phase2_symbol_result(counts: &mut Phase2RootCounts, symbol_ok: bool) {
+    if symbol_ok {
+        counts.ok += 1;
+    } else {
+        counts.failed += 1;
+    }
+}
+
 /// Shared invoke plan for ledgerful CLI with explicit root cwd (AC3).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InvokePlan {
@@ -557,8 +575,13 @@ fn run_phase2_multi_root_bridge(ctx: &AppContext) -> Result<(), Box<dyn std::err
 
     let total = aliases.len();
     let (existing, missing) = filter_existing_roots(aliases);
-    let mut roots_ok = 0usize;
     let roots_skipped = missing.len();
+    let mut counts = Phase2RootCounts {
+        total,
+        ok: 0,
+        skipped: roots_skipped,
+        failed: 0,
+    };
 
     tracing::info!(
         bridge_roots_total = total,
@@ -602,7 +625,7 @@ fn run_phase2_multi_root_bridge(ctx: &AppContext) -> Result<(), Box<dyn std::err
                     symbols = n,
                     "[Nightly] symbols ingested for root"
                 );
-                roots_ok += 1;
+                account_phase2_symbol_result(&mut counts, true);
             }
             Err(e) => {
                 tracing::warn!(
@@ -610,14 +633,16 @@ fn run_phase2_multi_root_bridge(ctx: &AppContext) -> Result<(), Box<dyn std::err
                     error = %e,
                     "[Nightly] Symbol ingestion failed for root (non-fatal; continue)"
                 );
+                account_phase2_symbol_result(&mut counts, false);
             }
         }
     }
 
     tracing::info!(
-        bridge_roots_total = total,
-        bridge_roots_ok = roots_ok,
-        bridge_roots_skipped = roots_skipped,
+        bridge_roots_total = counts.total,
+        bridge_roots_ok = counts.ok,
+        bridge_roots_skipped = counts.skipped,
+        bridge_roots_failed = counts.failed,
         "[Nightly] Phase 2 multi-root bridge complete"
     );
     Ok(())
@@ -1709,6 +1734,23 @@ Author: N/A\n";
         assert_eq!(missing[0].0, id_miss);
         assert_eq!(missing[0].1, missing_path);
         Ok(())
+    }
+
+    /// AC13: symbol Ok / Err / missing-skip account for every considered root.
+    #[test]
+    fn phase2_root_counts__one_ok_one_failed_one_skipped__add_up() {
+        let mut counts = Phase2RootCounts {
+            total: 3,
+            ok: 0,
+            skipped: 1,
+            failed: 0,
+        };
+        account_phase2_symbol_result(&mut counts, true);
+        account_phase2_symbol_result(&mut counts, false);
+        assert_eq!(counts.ok, 1);
+        assert_eq!(counts.skipped, 1);
+        assert_eq!(counts.failed, 1);
+        assert_eq!(counts.ok + counts.skipped + counts.failed, counts.total);
     }
 
     /// Codex R2 P2: same tx under same project → same decision id (dual alias / re-run).

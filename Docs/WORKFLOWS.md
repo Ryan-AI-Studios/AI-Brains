@@ -32,6 +32,9 @@ to path). Use `project whoami` when Scope looks wrong.
 |--------|--------------|---------|
 | **Env / daily Scope** | Project `.env` `AI_BRAINS_PROJECT_ID` (force-set) or shell / `--project-id` | recall, pin, preflight, most commands |
 | **Path alias** | `project register-path <id\|alias> <path>` | `project detect` (first), nightly multi-root, whoami, mismatch warn |
+| **All roots** | `project list-paths` | See every registered filesystem root (`project list` stays first-path-only) |
+| **Unbind root** | `project unregister-path <path>` | Free a mistaken bind; symbols stay |
+| **Discover roots** | `project scan-roots [path]` | Dry-run `.ledgerful` children; copy suggested `register-path` |
 | **Git slug** | `origin` remote name (else toplevel dir) | `project detect` when no path owner |
 
 ### Operator runbook (identity confusion)
@@ -40,11 +43,15 @@ to path). Use `project whoami` when Scope looks wrong.
 cd C:\dev\your-repo
 ai-brains project whoami --format json
 ai-brains project detect
-ai-brains project list   # label + path columns
+ai-brains project list   # label + first path column
+ai-brains project list-paths   # every registered root
+ai-brains project scan-roots C:\dev   # dry-run .ledgerful discovery; never writes
 
 # Prefer the real work project for this repo (example):
 # ai-brains project set-alias <main-uuid> MyRepoLabel   # human label only
 # ai-brains project register-path <main-uuid> C:\dev\your-repo
+# ai-brains project unregister-path --dry-run C:\dev\wrong-root
+# ai-brains project unregister-path C:\dev\wrong-root
 # Edit .env:
 #   AI_BRAINS_PROJECT_ID=<main-uuid>
 ai-brains preflight --summary   # Scope should match main

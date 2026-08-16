@@ -11,7 +11,8 @@ use ai_brains_core::source::SourceKind;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::payload::{
     ConclusionProposedPayload, DeviceEnrolledPayload, DeviceRevokedPayload, MemoryPinnedPayload,
-    PolicyDecisionRecordedPayload, SessionStartedPayload, SourceRegisteredPayload,
+    PolicyDecisionRecordedPayload, RepositoryPathAliasAddedPayload,
+    RepositoryPathAliasRemovedPayload, SessionStartedPayload, SourceRegisteredPayload,
 };
 use ai_brains_events::{Actor, AggregateType, EventKind, Payload};
 use serde_json::json;
@@ -203,5 +204,62 @@ fn rotate_datakey__event__system_aggregate_nil_id() {
             assert!(!dbg.contains("passphrase"));
         }
         other => panic!("expected DataKeyRotated, got {other:?}"),
+    }
+}
+
+#[test]
+fn event_kind_from_payload__path_alias_added_and_removed__round_trip() {
+    let project_id = ProjectId::new();
+    let normalized_path = "c:/dev/alias".to_string();
+
+    let added = Payload::RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload {
+        project_id,
+        normalized_path: normalized_path.clone(),
+    });
+    let removed = Payload::RepositoryPathAliasRemoved(RepositoryPathAliasRemovedPayload {
+        project_id,
+        normalized_path,
+    });
+
+    assert_eq!(EventKind::from(&added), EventKind::RepositoryPathAliasAdded);
+    assert_eq!(
+        EventKind::from(&removed),
+        EventKind::RepositoryPathAliasRemoved
+    );
+
+    let added_json = serde_json::to_value(&added).expect("serialize added");
+    assert_eq!(
+        added_json.get("type").and_then(|t| t.as_str()),
+        Some("RepositoryPathAliasAdded")
+    );
+    let added_back: Payload = serde_json::from_value(added_json).expect("deserialize added");
+    assert_eq!(
+        EventKind::from(&added_back),
+        EventKind::RepositoryPathAliasAdded
+    );
+    match &added_back {
+        Payload::RepositoryPathAliasAdded(p) => {
+            assert_eq!(p.project_id, project_id);
+            assert_eq!(p.normalized_path, "c:/dev/alias");
+        }
+        other => panic!("expected RepositoryPathAliasAdded, got {other:?}"),
+    }
+
+    let removed_json = serde_json::to_value(&removed).expect("serialize removed");
+    assert_eq!(
+        removed_json.get("type").and_then(|t| t.as_str()),
+        Some("RepositoryPathAliasRemoved")
+    );
+    let removed_back: Payload = serde_json::from_value(removed_json).expect("deserialize removed");
+    assert_eq!(
+        EventKind::from(&removed_back),
+        EventKind::RepositoryPathAliasRemoved
+    );
+    match &removed_back {
+        Payload::RepositoryPathAliasRemoved(p) => {
+            assert_eq!(p.project_id, project_id);
+            assert_eq!(p.normalized_path, "c:/dev/alias");
+        }
+        other => panic!("expected RepositoryPathAliasRemoved, got {other:?}"),
     }
 }

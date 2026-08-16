@@ -600,6 +600,9 @@ This is independent of Task Scheduler **System32** cwd: roots come from vault pa
 |---------|----------------|---------|
 | `project set-alias <uuid> <label>` | Human **label** only | Display, resolve, detect **git slug** name/alias match |
 | `project register-path <uuid\|alias> <path>` | **Filesystem root** (normalized Win/WSL) | Detect **step 1**, nightly Phase 2 bridge, whoami path, mismatch warn |
+| `project list-paths` | **All** registered roots | Operator inventory (not just `project list` first-path) |
+| `project unregister-path <path>` | Compensating **Removed** event | Frees the path for another project; symbols stay |
+| `project scan-roots [path]` | Dry-run `.ledgerful` discovery | Suggested `register-path` commands; never writes |
 
 Putting a path string into `set-alias` does **not** register a path alias. `project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
 
@@ -611,9 +614,11 @@ ai-brains project register-path <id-or-alias> C:\dev\ledgerful
 # ai-brains project register-path <id-or-alias> /mnt/c/dev/AI-Brains
 ```
 
-- **Conflict (F21):** the same normalized path can only belong to one project — second owner gets **exit 1** + ownership message. Same project re-register is idempotent OK.
-- **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs).
-- **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal).
+- **Conflict (F21):** the same normalized path can only belong to one project — second owner gets **exit 1** + ownership message naming `ai-brains project unregister-path <path>`. Same project re-register is idempotent OK. Projection **refuses to steal** if a raced other-owner `Added` is applied.
+- **Correct a wrong bind:** `project unregister-path --dry-run <path>` then `project unregister-path <path>`. Does **not** forget ingested symbols; Phase 2 simply stops walking the path. Then `register-path` to the intended project.
+- **Discover roots:** `project scan-roots C:\dev` lists immediate children (plus the scan root) that contain `.ledgerful`. Dry-run — never registers, never writes `.env`. `.changeguard` leftover dirs are **not** hits.
+- **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs). `project list-paths` prints the empty next-step.
+- **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal). Nightly logs `bridge_roots_failed` on symbol ingest error so totals add up.
 - **Env caps:** `AI_BRAINS_NIGHTLY_MAX_ROOTS` (optional list truncate); `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (default **5000**, per-root ingest cap).
 
 #### `ledgerful init` once per root

@@ -220,8 +220,9 @@ fn register_path__conflict_other_project__exit_1() {
         stderr.contains("path alias")
             && stderr.contains("already registered to project")
             && stderr.contains(&id_a)
-            && stderr.contains("unregister-path is soft residual F31"),
-        "AC13: conflict message exact class; got: {stderr}"
+            && stderr.contains("project unregister-path")
+            && !stderr.contains("soft residual F31"),
+        "AC13/AC7: conflict names real unregister-path command; got: {stderr}"
     );
 }
 
