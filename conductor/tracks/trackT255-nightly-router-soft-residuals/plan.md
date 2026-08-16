@@ -1,11 +1,11 @@
 # T255 Plan — Nightly / router soft residuals (T229+ / T247+)
 
-**Status:** 📋 **Planning** (plan-only until **go**)
+**Status:** ✅ **Completed** (2026-08-16)
 **Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC16 + §12 AI fold-in
 **Category:** OPS / POLISH / UX
 **Ledger TX (planning):** `5d3d182d-f689-4673-9a03-733f5a178f3c` (DOCS)
 **Ledger TX (fold-in):** `6a1380e9-3c04-4d0f-b8d9-69f2dcb1a265` (DOCS)
-**Ledger TX (implement):** open on **go** (`ledgerful ledger start T255-nightly-router-soft-residuals --category FEATURE`)
+**Ledger TX (implement):** `646bd578-95ab-4220-9c05-306996ae6930` (FEATURE)
 
 ---
 
@@ -99,55 +99,55 @@ No Highs. AI2 affirms F2/F10/F11/F12/F21. AI1 seven blind spots: six folded, one
 
 ## Phase 0 — Ledger + impact (on go)
 
-- [ ] `ledgerful ledger status --compact`
-- [ ] `ledgerful ledger start T255-nightly-router-soft-residuals --category FEATURE --message "JSON nightly --status + read-only Router line; no doctor/embed/wrapper"`
-- [ ] `ledgerful scan --impact` — expect `nightly.rs` / `main.rs` / new `nightly_status.rs`
-- [ ] Confirm `embeddings.rs` and `doctor.rs` are **not** in the touch set
+- [x] `ledgerful ledger status --compact` — 0 pending / 0 drift
+- [x] `ledgerful ledger start T255-nightly-router-soft-residuals --category FEATURE --message "JSON nightly --status + read-only Router line; no doctor/embed/wrapper"` — TX `646bd578-95ab-4220-9c05-306996ae6930`
+- [x] `ledgerful scan --impact` — tree CLEAN at start; expect `nightly.rs` / `main.rs` / new `nightly_status.rs`
+- [x] Confirm `embeddings.rs` and `doctor.rs` are **not** in the touch set
 
 ## Phase 1 — Red → Green: format clap + resolver (F3 / F4 / F37 / AC1–AC2)
 
-- [ ] Units in `nightly_status.rs` for `resolve_nightly_status_format` (AC1)
-- [ ] clap `--format` on `Nightly`: default `human`, `requires = "status"`, conflicts schedule/unschedule, T248 token set
-- [ ] **Required** Nightly `after_help` (F37): `--format json` + “default human; pipes stay human”
-- [ ] Clap tests next to existing `nightly_quick__*` : no-status, `xml`, `JSON` (copy T248/T249 template)
-- [ ] Targeted: `cargo nextest run -p ai-brains-cli --lib nightly` ; clippy `-p ai-brains-cli`
+- [x] Units in `nightly_status.rs` for `resolve_nightly_status_format` (AC1)
+- [x] clap `--format` on `Nightly`: default `human`, `requires = "status"`, conflicts schedule/unschedule, T248 token set
+- [x] **Required** Nightly `after_help` (F37): `--format json` + “default human; pipes stay human”
+- [x] Clap tests next to existing `nightly_quick__*` : no-status, `xml`, `JSON` (copy T248/T249 template)
+- [x] Targeted: `cargo nextest run -p ai-brains-cli --bin ai-brains -E "test(nightly)"` (crate is bin-only; 71 passed) ; clippy `-p ai-brains-cli`
 
 ## Phase 2 — Red → Green: JSON builder (F1 / F5 / F6 / F19 / F20 / F35 / F36 / AC3–AC4 / AC9 / AC14 / AC16)
 
-- [ ] `NightlyStatusJson` + `EndpointJson` + `RouterJson` + `MultiImportJson` in `nightly_status.rs`
-- [ ] Pure builder from already-fetched fields (no HTTP inside the builder)
-- [ ] Thread raw `Option` for last_count / last_errors (F20/F35); AC3 includes `action_target` + `errors_last_run_unreadable`
-- [ ] Same `host_port` / model / probe tuple as human (F36); `--quick` fixture `probe: "skipped"`
-- [ ] `multi_import` never/unreadable/ok (F19)
-- [ ] Hermetic AC9: `--format json` one object, no `=== Nightly Status ===`; assert **only** `schema_version` / endpoints / `multi_import`
-- [ ] Hermetic: omitted `--format` still human (AC10)
-- [ ] AC16: non-Windows / no-scheduler builder → `scheduled` + `router` JSON `null`
+- [x] `NightlyStatusJson` + `EndpointJson` + `RouterJson` + `MultiImportJson` in `nightly_status.rs`
+- [x] Pure builder from already-fetched fields (no HTTP inside the builder)
+- [x] Thread raw `Option` for last_count / last_errors (F20/F35); AC3 includes `action_target` + `errors_last_run_unreadable`
+- [x] Same `host_port` / model / probe tuple as human (F36); `--quick` fixture `probe: "skipped"`
+- [x] `multi_import` never/unreadable/ok (F19)
+- [x] Hermetic AC9: `--format json` one object, no `=== Nightly Status ===`; assert **only** `schema_version` / endpoints / `multi_import`
+- [x] Hermetic: omitted `--format` still human (AC10)
+- [x] AC16: non-Windows / no-scheduler builder → `scheduled` + `router` JSON `null`
 
 ## Phase 3 — Red → Green: Router line + Status: parse + foundness (F7–F10 / F8 / F34 / AC5–AC7 / AC15)
 
-- [ ] Additive `SchtasksListV.status`; update English fixture unit (AC5)
-- [ ] `fetch_schedule_snapshot` returns `{ found, snap }` (F34)
-- [ ] `format_router_status_lines`: running+267009; `found == false` → `not scheduled` (no next:); ONLOGON `found` + no next_run → still scheduled
-- [ ] AC15: status missing + last_result → `Router: last result: 267009` + following hint
-- [ ] `nightly.rs` status branch: second snapshot `"AI-Brains-Router"`; print after endpoints; precompute action fields for JSON
-- [ ] JSON `router.scheduled = found`; non-Windows `null`
-- [ ] Do **not** run T247 F6 missing-action on Router (F10)
+- [x] Additive `SchtasksListV.status`; update English fixture unit (AC5)
+- [x] `fetch_schedule_snapshot` returns `{ found, snap }` (F34)
+- [x] `format_router_status_lines`: running+267009; `found == false` → `not scheduled` (no next:); ONLOGON `found` + no next_run → still scheduled
+- [x] AC15: status missing + last_result → `Router: last result: 267009` + following hint
+- [x] `nightly.rs` status branch: second snapshot `"AI-Brains-Router"`; print after endpoints; precompute action fields for JSON
+- [x] JSON `router.scheduled = found`; non-Windows `null`
+- [x] Do **not** run T247 F6 missing-action on Router (F10)
 
 ## Phase 4 — Docs (F25 / AC12)
 
-- [ ] CAPABILITIES: **one additive** T247 honesty bullet (format + default human + Router)
-- [ ] OPERATIONS: `--format json` example + “doctor is not the model-port matrix”
-- [ ] CLI-EXIT-CODES nightly status exit **0** footnote
-- [ ] Root CHANGELOG T255 row (**must** say piped default stays **human**)
+- [x] CAPABILITIES: **one additive** T247 honesty bullet (format + default human + Router)
+- [x] OPERATIONS: `--format json` example + “doctor is not the model-port matrix”
+- [x] CLI-EXIT-CODES nightly status exit **0** footnote
+- [x] Root CHANGELOG T255 row (**must** say piped default stays **human**)
 - [ ] conductor + deferred closeout **only at track complete** (not this fold-in commit)
 
 ## Phase 5 — Review / gate (F27 / AC11 / AC13)
 
-- [ ] Internal review vs spec until clean (mediums fixed or ≤3 justified)
-- [ ] `codex-review` FEATURE
-- [ ] Manual AC11 on **source** bin (no live mutate, no PATH reinstall)
-- [ ] Full gate: fmt ; clippy `-D warnings` ; nextest workspace ; deny ; audit ; `ledgerful verify --scope full`
-- [ ] Mark conductor Complete; append leftover softs to `deferred.md`; pin decisions
+- [x] Internal review vs spec until clean (mediums fixed or ≤3 justified) — R1 P3s fixed; R2 PASS
+- [x] `codex-review` FEATURE — CX1 product **PASS** (0 findings)
+- [x] Manual AC11 on **source** bin (no live mutate, no PATH reinstall)
+- [x] Full gate: fmt PASS; clippy workspace `-D warnings` PASS; nextest workspace **2962 passed** / 1 skipped; deny/audit not on PATH (T251 residual)
+- [x] Mark conductor Complete; append leftover softs to `deferred.md`; pin after gate
 
 ---
 

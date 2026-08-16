@@ -1,7 +1,7 @@
 # T255 — Nightly / router soft residuals (T229+ / T247+)
 
 - **Track ID:** T255-NightlyRouterSoftResiduals
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** (2026-08-16; FEATURE TX `646bd578`)
 - **Category:** OPS / POLISH / UX
 - **Owner:** Grok
 - **Source:** T229 soft F8–F12/F14 + T247 soft F11–F16 / O12. Series closer for T240–T255.
