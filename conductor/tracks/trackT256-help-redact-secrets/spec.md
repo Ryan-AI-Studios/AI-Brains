@@ -1,7 +1,7 @@
 # T256 — Help redacts secrets
 
 - **Track ID:** T256-HelpRedactSecrets
-- **Status:** **Planned** (requirements written; conductor row stays **Pending**. F0 = plan-only until go)
+- **Status:** **Completed** (2026-08-16; SECURITY TX `6d57d26e-63d6-4fc6-a4c3-e6b4d949da3c`)
 - **Category:** SECURITY / UX
 - **Owner:** Grok
 - **Source:** Non-destructive CLI audit 2026-08-16 — `ai-brains --help` quality **3**

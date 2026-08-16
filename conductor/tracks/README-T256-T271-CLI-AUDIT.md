@@ -1,7 +1,7 @@
 # T256–T271 — Post-T255 live CLI audit (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-16 (graph-on PATH install; live vault `C:\dev\ai-brains\vault.db`; agent non-TTY).
-**Status:** **Pending** placeholders. **T256 Planned** 2026-08-16 (spec+plan; F0 until go). Remaining T257–T271 still placeholders. No product implementation in planning.
+**Status:** **T256 Completed** 2026-08-16. Remaining T257–T271 still placeholders.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest; **T240–T255** CLI effectiveness (closer T255 2026-08-16).
 **Ledger (registration):** DOCS TX `1d9511b5-798b-4d6c-b0c9-ebb4b07d0b69`.
 

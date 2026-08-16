@@ -218,7 +218,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 
 | Finding | Track |
 |---------|-------|
-| `--help` prints live `AI_BRAINS_KEY` (quality 3) | **T256** — **Planned + fold-in 2026-08-16** (not implemented). F0–F19 / AC1–AC12: `hide_env_values` on `Cli.key`; exact `[env: AI_BRAINS_KEY]`; `help` subcommand AC12; last-PR Cursor N/A (#169 empty). |
+| ~~`--help` prints live `AI_BRAINS_KEY` (quality 3)~~ | **T256 Completed 2026-08-16.** Soft residual: PATH `ai-brains` stays leaky until operator `cargo install` (F18). |
 | Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
 | Daily Scope `test-alias` `441837f6` vs path owner `3581317d` | **T258** |
 | Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259** |
@@ -234,6 +234,17 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
 | `sync query` ledger pane false-empty (5/5) | **T271** |
+
+### T256 closeout residuals (2026-08-16)
+
+Specified softs (F18) — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` still leaky until reinstall | Soft F18 — operator `cargo install`; tests use hermetic/source bin |
+| `AI_BRAINS_VAULT_PATH=` on help | Intentional F5 |
+| `init` one-shot print | Declined F6 |
+| Daemon `AI_BRAINS_VAULT_KEY` sidecar | Declined F7 |
 
 ### T254 closeout residuals (2026-08-15)
 
