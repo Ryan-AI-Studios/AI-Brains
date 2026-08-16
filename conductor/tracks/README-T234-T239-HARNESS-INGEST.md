@@ -20,7 +20,7 @@ Live hooks provide freshness; durable log/export import on nightly provides comp
 | **T236** | AGY 2 seamless ingest | **Completed** PR #102 — wrapper stdout SOOT + step parse + history bind + turn-id + `--force` + re-summarize + AC6 | P1 |
 | **T237** | Grok Build seamless ingest | **Completed** — Stop+SessionEnd empty-stdout wrapper + F11 user_query filter + `grok-hook`/`grok-import` + install_ready (not updates; not UserPromptSubmit DoD) | P1 |
 | **T238** | OpenCode seamless ingest | **Completed** PR #106 — plugin `session.idle` + nested export + synthetic drop + watermark batch (never SQLite) | P1 |
-| **T239** | Nightly multi-harness import | **Completed** PR #108 — multi-source nightly (agy→grok→opencode); per-source skip; fail-open; `last_multi_import` status; SYSTEM keeps skip-import | P1 ops |
+| **T239** | Nightly multi-harness import | **Completed** PR #108 — multi-source nightly (agy→grok→opencode); per-source skip; fail-open; `last_multi_import` status; SYSTEM keeps skip-import. Claude/Codex install_ready → **T253 Planning** (not nightly) | P1 ops |
 
 ## Suggested implement order
 
