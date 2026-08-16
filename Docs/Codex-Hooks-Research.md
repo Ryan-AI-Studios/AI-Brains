@@ -1,5 +1,7 @@
 # Codex Hooks Research
 
+> **Historical.** T253 wrappers supersede this research as product SOOT. Hooks default-on via `features.hooks` (not `codex_hooks`). SessionStart injection is not DoD. Use `ai-brains harness install --harness codex` + `codex-hook` / `codex-import`. Live fire still requires Codex `/hooks` trust of `ai-brains-capture`.
+
 This document summarizes the research into the Codex hook system and how to implement it for AI-Brains.
 
 ## Summary of Findings

@@ -8,9 +8,9 @@ Implementation map: `crates/ai-brains-cli/src/commands/governed_common.rs` (`EXI
 
 | Exit | Constant | When |
 |------|----------|------|
-| **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `device status` report (empty or enrolled); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`) |
-| **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail** |
-| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on erasure); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T241** `policy check` omit `--capability` → capability catalog (not clap “required arguments”); **T203/T226** soft-resolve failure on `source`/`evidence`/`review` list|show and `policy show|check|bootstrap` when `--scope` omitted and context is not authoritative |
+| **0** | `EXIT_SUCCESS` | Success; empty-success; `daemon status` report (Running or Stopped); `device status` report (empty or enrolled); `doctor` **ok** or **degraded** (unless `--fail-on-degraded`); **T254** empty `project list-paths`; not-registered `project unregister-path`; `project scan-roots` (including truncated / no hits) |
+| **1** | `EXIT_INTERNAL` | Internal / catch-all; `PATH_REFUSED`; `COMMAND_FAILED`; `INVALID_TRANSITION`; vault/key codes (`VAULT_KEY_*` / `VAULT_LOCKED`); `doctor` **fail**; **T254** `register-path` conflict (other owner) and `unregister-path --project` owner mismatch |
+| **2** | `EXIT_USAGE` | Clap missing/invalid usage (e.g. missing required `--scope` on erasure); `FEATURE_UNAVAILABLE` (e.g. default-build `graph *`); `fail_usage` for `query progressive` / `query expand` missing project id; **T241** `policy check` omit `--capability` → capability catalog (not clap “required arguments”); **T203/T226** soft-resolve failure on `source`/`evidence`/`review` list|show and `policy show|check|bootstrap` when `--scope` omitted and context is not authoritative; **T252** empty / whitespace-only / TTY stdin on `ingest` / `ingest --dry-run` → `fail_usage` (not EOF `COMMAND_FAILED`); **T254** empty path after normalize; unknown `--format` on `list-paths` / `scan-roots` |
 | **3** | `EXIT_POLICY_DENIED` | `POLICY_DENIED`; `APPROVAL_REQUIRED`; **`query progressive`** when packet `denied: true` (T221 — pretty `ProgressiveQueryResponse` still on **stdout**); **`query expand`** when preview `kind` is exact **`Denied`** |
 | **4** | `EXIT_NOT_FOUND` | `NOT_FOUND` |
 | **5** | `EXIT_DAEMON_UNAVAILABLE` | Daemon required / unreachable for a daemon-required path |
@@ -29,6 +29,8 @@ Optional features not compiled into this binary (notably default-build `graph *`
 
 **T203/T226 soft-resolve:** `source list|show`, `evidence list|search|show`, `review list`, and **`policy show|check|bootstrap`** accept optional `--scope`. When omitted, CLI runs `resolve_scope` (cwd + `AI_BRAINS_PROJECT_ID`) and fills only if **authoritative**. Otherwise `fail_usage` on **stderr** (template includes example `--scope Repository:<uuid>`, `ai-brains scope resolve`, and “non-authoritative context is not filled silently”) and exit **2** — **not** clap “required arguments were not provided”, and **not** exit **6** `INVALID_PAYLOAD`.
 
+**T252 ingest empty/TTY:** `ingest` and `ingest --dry-run` treat empty, whitespace-only, or interactive TTY stdin as `fail_usage` — human text on **stderr** (copy-paste example JSON + `ai-brains ingest --dry-run`), **zero stdout**, exit **2**. Do **not** emit `COMMAND_FAILED` / `Invalid JSON: EOF`. Mid-payload parse (`{`, truncated object, non-empty garbage) stays exit **1** `COMMAND_FAILED` / `Invalid JSON` via the generic `handle_cli_result` envelope on stderr.
+
 ### Doctor (footnote)
 
 | Outcome | Exit |
@@ -45,6 +47,21 @@ Optional features not compiled into this binary (notably default-build `graph *`
 ### Device status
 
 `ai-brains device status` exits **0** for empty and enrolled vaults (roster report, not a failure — like `daemon status`). Unexpected extra args / unknown `--format` stay generic clap **2**.
+
+### Nightly status
+
+`ai-brains nightly --status` (human or `--format json`) exits **0** when probes are down / timeout / missing action / nonzero Last Result / Router 267009 (status report, not a failure — like `device status`). `--format` without `--status`, unknown `--format`, or `JSON`/`Pretty` → clap exit **2**.
+
+### Path aliases (T254)
+
+| Outcome | Exit |
+|---------|------|
+| `project list-paths` empty or populated | **0** |
+| `project unregister-path` missing path (idempotent) / `--dry-run` | **0** |
+| `project scan-roots` (hits, empty, truncated) | **0** |
+| `project register-path` other-owner conflict | **1** |
+| `project unregister-path --project` owner mismatch | **1** |
+| Empty path after normalize / unknown `--format` / clap usage | **2** |
 
 ### Exit 130 (OS footnote)
 
@@ -104,4 +121,4 @@ Malformed *provided* scope values (bad identity key shape, unknown capability la
 
 - [OPERATIONS.md](OPERATIONS.md) — operator CLI reference  
 - [CAPABILITIES.md](CAPABILITIES.md) — feature inventory  
-- T160 governed surface; T192 doctor; T197 vault key; T198 `FEATURE_UNAVAILABLE`→2  
+- T160 governed surface; T192 doctor; T197 vault key; T198 `FEATURE_UNAVAILABLE`→2; T252 ingest empty/TTY `fail_usage`

@@ -4,7 +4,7 @@
 **Status:** Series **closed** — **T217–T232** all ✅ **Completed** (2026-08-11).
 **Prior series:** T205–T216 closed (skill·CLI honesty).
 **Closed:** **T217** FTS multi-token rescue (PR #110 `1e22e77`); **T218** semantic quality v2 (PR #116 `fc4d370`); **T219** preflight pretty readability (PR #118 `496ddd7`); **T220** preflight summary JSON honesty (PR #112 `6f4f67b`); **T221** governed first-run + deny exit honesty (PR #114 `b3c4b0f`); **T222** graph-on install path (PR #122 `c1ac594`, 2026-08-10); **T223** quiet env override warnings (PR #126 `7ff8f7f`, 2026-08-10); **T224** search role-prefix strip (PR #120 `a18fae6`, 2026-08-10); **T232** density remediation (PR #124 `33b28d0`, 2026-08-10). **T225** backup verify quiet + doctor usable nudge (PR #128 `927b8db`, 2026-08-11). **T226** policy show/check soft-resolve (PR #130 `5919f26`, 2026-08-11). **T227** briefing format + substance (PR #132 `40c7cd1`, 2026-08-11). **T228** non-empty pretty Scope (PR #134 `e51d5e4`, 2026-08-11). **T230** global list label fill (PR #136 `b3f1a61`, 2026-08-11). **T231** unified search UX (PR #138 `0f3d83f`, 2026-08-11). **T229** nightly + local router ops (PR #140 `1ec9142`, 2026-08-11) — last series track.
-**Next honesty:** series soft residuals rolled into **T240–T255** ([README](README-T240-T255-CLI-EFFECTIVENESS.md)); multi-root **T233** ✅ closed; T233 soft → **T254**; T229 soft → **T255**.
+**Next honesty:** series soft residuals rolled into **T240–T255** ([README](README-T240-T255-CLI-EFFECTIVENESS.md)); multi-root **T233** ✅ closed; T233 soft → **T254** ✅; T229 soft → **T255 Planning**.
 
 ## Score → track map
 

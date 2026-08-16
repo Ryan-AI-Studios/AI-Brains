@@ -185,20 +185,22 @@ fn probe_claude(home: &Path) -> WiringStatus {
         return WiringStatus::Missing;
     }
     match std::fs::read_to_string(&settings) {
-        Ok(raw) => {
-            // Managed token/path under ~/.ai-brains/hooks/
-            let lower = raw.to_ascii_lowercase();
-            if lower.contains(".ai-brains") && lower.contains("hooks")
-                || lower.contains("ai-brains-capture")
-            {
-                WiringStatus::Ok
-            } else if raw.contains("\"hooks\"") {
-                // Hooks present but not ours → partial signal not required; missing ours.
-                WiringStatus::Missing
-            } else {
-                WiringStatus::Missing
+        Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+            Ok(v) => {
+                // F20: Ok only on managed handler name or this wrapper token.
+                // Generic `.ai-brains` / `ai-brains` substring is not enough
+                // (Grok merge of Claude settings would false-ok).
+                let named = super::install::hooks_json_has_managed_name(&v);
+                let path_tok = super::install::json_value_contains_token(&v, "claude-capture.ps1");
+                if named || path_tok {
+                    WiringStatus::Ok
+                } else {
+                    WiringStatus::Missing
+                }
             }
-        }
+            // Unparseable settings: Missing (not Ok on a generic substring).
+            Err(_) => WiringStatus::Missing,
+        },
         Err(_) => WiringStatus::Unknown,
     }
 }
@@ -206,15 +208,15 @@ fn probe_claude(home: &Path) -> WiringStatus {
 fn probe_codex(home: &Path) -> WiringStatus {
     let hooks = join_rel(home, ".codex/hooks.json");
     if !hooks.is_file() {
-        // Schema may live elsewhere; soft unknown only when home present but unreadable.
         return WiringStatus::Missing;
     }
     match std::fs::read_to_string(&hooks) {
         Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
             Ok(v) => {
-                if v.get("ai-brains-capture").is_some()
-                    || raw.to_ascii_lowercase().contains("ai-brains")
-                {
+                // F20: Ok only on managed handler name or this wrapper token.
+                let named = super::install::hooks_json_has_managed_name(&v);
+                let path_tok = super::install::json_value_contains_token(&v, "codex-capture.ps1");
+                if named || path_tok {
                     WiringStatus::Ok
                 } else {
                     WiringStatus::Missing
@@ -267,8 +269,16 @@ pub fn targets_for(id: HarnessId, home: &Path) -> Vec<String> {
             join_rel(home, ".claude/settings.json")
                 .display()
                 .to_string(),
+            join_rel(home, ".ai-brains/hooks/claude-capture.ps1")
+                .display()
+                .to_string(),
         ],
-        HarnessId::Codex => vec![join_rel(home, ".codex/hooks.json").display().to_string()],
+        HarnessId::Codex => vec![
+            join_rel(home, ".codex/hooks.json").display().to_string(),
+            join_rel(home, ".ai-brains/hooks/codex-capture.ps1")
+                .display()
+                .to_string(),
+        ],
     }
 }
 
@@ -576,6 +586,101 @@ mod tests {
                     "target not under home: {t}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn wiring__claude_after_real_install__ok() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        std::fs::create_dir_all(home.join(".claude")).expect("mkdir");
+        super::super::install::install_claude(home, false).expect("install");
+        assert_eq!(
+            probe_wiring(HarnessId::Claude, home, true),
+            WiringStatus::Ok
+        );
+    }
+
+    #[test]
+    fn wiring__codex_after_real_install__ok() {
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        std::fs::create_dir_all(home.join(".codex")).expect("mkdir");
+        super::super::install::install_codex(home, false).expect("install");
+        assert_eq!(probe_wiring(HarnessId::Codex, home, true), WiringStatus::Ok);
+    }
+
+    #[test]
+    fn wiring__claude_settings_grok_ai_brains_path_only__missing() {
+        // F20: grok-capture / `.ai-brains/hooks/grok-capture.ps1` must not
+        // false-ok Claude (no managed name, no claude-capture.ps1).
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let settings = home.join(".claude").join("settings.json");
+        std::fs::create_dir_all(settings.parent().unwrap()).expect("mkdir");
+        std::fs::write(
+            &settings,
+            br#"{
+              "hooks": {
+                "Stop": [{
+                  "hooks": [{
+                    "type": "command",
+                    "name": "grok-capture",
+                    "command": "C:\\Users\\x\\.ai-brains\\hooks\\grok-capture.ps1"
+                  }]
+                }]
+              }
+            }"#,
+        )
+        .expect("write");
+        assert_eq!(
+            probe_wiring(HarnessId::Claude, home, true),
+            WiringStatus::Missing
+        );
+    }
+
+    #[test]
+    fn wiring__codex_hooks_generic_ai_brains_substring__missing() {
+        // F20: a docs mention of `ai-brains` is not managed Codex wiring.
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let hooks = home.join(".codex").join("hooks.json");
+        std::fs::create_dir_all(hooks.parent().unwrap()).expect("mkdir");
+        std::fs::write(&hooks, br#"{"note":"see ai-brains docs"}"#).expect("write");
+        assert_eq!(
+            probe_wiring(HarnessId::Codex, home, true),
+            WiringStatus::Missing
+        );
+    }
+
+    #[test]
+    fn targets_for__claude_and_codex__include_wrapper() {
+        // F20 / AC19
+        let dir = tempdir().expect("tempdir");
+        let home = dir.path();
+        let claude = targets_for(HarnessId::Claude, home);
+        let codex = targets_for(HarnessId::Codex, home);
+        assert!(
+            claude
+                .iter()
+                .any(|t| Path::new(t).ends_with("settings.json"))
+        );
+        assert!(
+            claude
+                .iter()
+                .any(|t| Path::new(t).ends_with("claude-capture.ps1"))
+        );
+        assert!(codex.iter().any(|t| Path::new(t).ends_with("hooks.json")));
+        assert!(
+            codex
+                .iter()
+                .any(|t| Path::new(t).ends_with("codex-capture.ps1"))
+        );
+        for t in claude.iter().chain(codex.iter()) {
+            assert!(
+                Path::new(t).starts_with(home) || t.contains(&home.display().to_string()),
+                "AC19 target not under temp home: {t}"
+            );
         }
     }
 }

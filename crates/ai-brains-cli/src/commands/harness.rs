@@ -5,11 +5,12 @@
 use crate::commands::governed_common::{self, GovernedResult};
 use crate::harness::{
     HARNESS_ORDER, HarnessId, InstallOutcome, UninstallOutcome, collect_status_report,
-    f34_map_contract_summary, install_agy, install_grok, install_opencode, install_pending,
-    install_pending_summary, load_prefs, parse_harness_id, resolve_home, save_prefs, uninstall_agy,
-    uninstall_grok, uninstall_opencode, uninstall_pending, wiring_status_label,
+    f34_map_contract_summary, install_agy, install_claude, install_codex, install_grok,
+    install_opencode, install_pending, install_pending_summary, load_prefs, parse_harness_id,
+    resolve_home, save_prefs, uninstall_agy, uninstall_claude, uninstall_codex, uninstall_grok,
+    uninstall_opencode, uninstall_pending, wiring_status_label,
 };
-use is_terminal::IsTerminal;
+use std::io::IsTerminal;
 
 #[derive(Debug, Clone)]
 pub struct HarnessStatusOptions {
@@ -63,6 +64,8 @@ pub fn run_status(opts: HarnessStatusOptions) -> GovernedResult {
         println!("AGY ready: ai-brains harness install --harness agy --dry-run");
         println!("Grok ready: ai-brains harness install --harness grok --dry-run");
         println!("OpenCode ready: ai-brains harness install --harness opencode --dry-run");
+        println!("Claude ready: ai-brains harness install --harness claude --dry-run");
+        println!("Codex ready: ai-brains harness install --harness codex --dry-run");
     }
     Ok(())
 }
@@ -99,7 +102,8 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                 HarnessId::Agy => install_agy(&home, opts.dry_run),
                 HarnessId::Grok => install_grok(&home, opts.dry_run),
                 HarnessId::Opencode => install_opencode(&home, opts.dry_run),
-                _ => unreachable!("install_ready only Agy|Grok|Opencode"),
+                HarnessId::Claude => install_claude(&home, opts.dry_run),
+                HarnessId::Codex => install_codex(&home, opts.dry_run),
             };
             match result {
                 Ok(InstallOutcome::DryRun { plan }) => {
@@ -126,7 +130,23 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                                 "  note: managed plugin session.idle or session.status idle → opencode-hook (no opencode.json rewrite)"
                             );
                         }
-                        _ => {}
+                        HarnessId::Claude => println!(
+                            "  {}",
+                            crate::harness::install::claude_stop_stdout_contract_summary()
+                        ),
+                        HarnessId::Codex => {
+                            println!(
+                                "  {}",
+                                crate::harness::install::codex_stop_stdout_contract_summary()
+                            );
+                            if crate::harness::install::codex_features_hooks_disabled(&home) {
+                                println!(
+                                    "  {}",
+                                    crate::harness::install::codex_hooks_disabled_warn()
+                                );
+                            }
+                            println!("  next: in Codex run /hooks and trust ai-brains-capture");
+                        }
                     }
                     println!(
                         "  next: ai-brains harness install --harness {} --yes",
@@ -154,7 +174,23 @@ pub fn run_install(opts: HarnessInstallOptions) -> GovernedResult {
                                 "  note: message-only capture via session.idle plugin → opencode-hook (child sessions skipped)"
                             );
                         }
-                        _ => {}
+                        HarnessId::Claude => {
+                            println!(
+                                "  note: message-only capture via UserPromptSubmit/Stop/SessionEnd → claude-hook (empty Stop stdout)"
+                            );
+                        }
+                        HarnessId::Codex => {
+                            println!(
+                                "  note: message-only capture via UserPromptSubmit/Stop → codex-hook"
+                            );
+                            if crate::harness::install::codex_features_hooks_disabled(&home) {
+                                println!(
+                                    "  {}",
+                                    crate::harness::install::codex_hooks_disabled_warn()
+                                );
+                            }
+                            println!("  next: in Codex run /hooks and trust ai-brains-capture");
+                        }
                     }
                 }
                 Ok(InstallOutcome::Refused { path, reason }) => {
@@ -247,7 +283,8 @@ pub fn run_uninstall(opts: HarnessUninstallOptions) -> GovernedResult {
                 HarnessId::Agy => uninstall_agy(&home, opts.dry_run),
                 HarnessId::Grok => uninstall_grok(&home, opts.dry_run),
                 HarnessId::Opencode => uninstall_opencode(&home, opts.dry_run),
-                _ => unreachable!("install_ready only Agy|Grok|Opencode"),
+                HarnessId::Claude => uninstall_claude(&home, opts.dry_run),
+                HarnessId::Codex => uninstall_codex(&home, opts.dry_run),
             };
             match result {
                 Ok(UninstallOutcome::DryRun {
@@ -324,7 +361,7 @@ pub fn run_reset_decline(opts: HarnessResetDeclineOptions) -> GovernedResult {
     Ok(())
 }
 
-/// Ready backends in `HARNESS_ORDER` (F1 / F5) — grok, agy, opencode; no extra sort.
+/// Ready backends in `HARNESS_ORDER` (F1 / F5) — five ids after T253; no extra sort.
 fn ready_harness_ids() -> Vec<HarnessId> {
     HARNESS_ORDER
         .iter()
@@ -474,11 +511,19 @@ mod tests {
 
     #[test]
     fn resolve_harness_list__all_ready__returns_grok_agy_opencode() {
+        // AC12 / T253 F2: all-ready is HARNESS_ORDER (five ids).
         let ids = resolve_harness_list(Some("all-ready")).expect("all-ready");
         assert_eq!(
             ids,
-            vec![HarnessId::Grok, HarnessId::Agy, HarnessId::Opencode]
+            vec![
+                HarnessId::Grok,
+                HarnessId::Agy,
+                HarnessId::Opencode,
+                HarnessId::Claude,
+                HarnessId::Codex
+            ]
         );
+        assert_eq!(ids.as_slice(), crate::harness::HARNESS_ORDER);
     }
 
     #[test]

@@ -26,6 +26,14 @@ const SCHEMA_GROK_HOOK: &str = include_str!("../../../Docs/schemas/grok-hook-pay
 /// `Docs/schemas/opencode-hook-payload.json`.
 const SCHEMA_OPENCODE_HOOK: &str = include_str!("../../../Docs/schemas/opencode-hook-payload.json");
 
+/// JSON Schema for `ai-brains claude-hook --payload`. Source-of-truth at
+/// `Docs/schemas/claude-hook-payload.json`.
+const SCHEMA_CLAUDE_HOOK: &str = include_str!("../../../Docs/schemas/claude-hook-payload.json");
+
+/// JSON Schema for `ai-brains codex-hook --payload`. Source-of-truth at
+/// `Docs/schemas/codex-hook-payload.json`.
+const SCHEMA_CODEX_HOOK: &str = include_str!("../../../Docs/schemas/codex-hook-payload.json");
+
 /// JSON Schema for the NDJSON records consumed by `ai-bbrains sync pull --from-file`.
 /// Source-of-truth at `Docs/schemas/sync-pull-record.json`.
 const SCHEMA_SYNC_PULL: &str = include_str!("../../../Docs/schemas/sync-pull-record.json");
@@ -125,6 +133,89 @@ mod tests {
             super::Commands::Nightly { status, quick, .. } => {
                 assert!(status);
                 assert!(quick);
+            }
+            _ => panic!("expected Commands::Nightly"),
+        }
+    }
+
+    /// T255 AC2: `--format` requires `--status`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_format__without_status__clap_requires_status() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from(["ai-brains", "nightly", "--format", "json"]) {
+            Ok(_) => panic!("expected clap to reject --format without --status"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::MissingRequiredArgument);
+    }
+
+    /// T255 AC2: unknown `--format` is clap InvalidValue (exit 2).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__format_xml__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--status",
+            "--format",
+            "xml",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T255 AC2 / T249 AC16: `--format` tokens are case-sensitive (`Pretty` is not `pretty`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--status",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T255 AC2 / T249 AC16: `--format` tokens are case-sensitive (`JSON` is not `json`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--status",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T255 F2: omitted `--format` defaults to `human` (pipes stay human).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_status__default_format__human() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "nightly", "--status"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected nightly --status to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Nightly { status, format, .. } => {
+                assert!(status);
+                assert_eq!(format, "human");
             }
             _ => panic!("expected Commands::Nightly"),
         }
@@ -274,6 +365,52 @@ mod tests {
             _ => panic!("expected DeviceCommands::Status"),
         }
     }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn claude_hook_schema__include_str__draft_2020_12() {
+        let parsed: serde_json::Value = serde_json::from_str(super::SCHEMA_CLAUDE_HOOK)
+            .unwrap_or_else(|e| panic!("valid JSON: {e}"));
+        assert_eq!(
+            parsed["$schema"].as_str(),
+            Some("https://json-schema.org/draft/2020-12/schema")
+        );
+        assert_eq!(parsed["additionalProperties"], false);
+        assert_eq!(
+            parsed["title"].as_str(),
+            Some("AI-Brains claude-hook payload")
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn codex_hook_schema__include_str__draft_2020_12() {
+        let parsed: serde_json::Value = serde_json::from_str(super::SCHEMA_CODEX_HOOK)
+            .unwrap_or_else(|e| panic!("valid JSON: {e}"));
+        assert_eq!(
+            parsed["$schema"].as_str(),
+            Some("https://json-schema.org/draft/2020-12/schema")
+        );
+        assert_eq!(parsed["additionalProperties"], false);
+        assert_eq!(
+            parsed["title"].as_str(),
+            Some("AI-Brains codex-hook payload")
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn claude_and_codex_hook__schema_flag__parses() {
+        for args in [
+            vec!["ai-brains", "claude-hook", "--schema"],
+            vec!["ai-brains", "codex-hook", "--schema"],
+            vec!["ai-brains", "claude-import", "--days", "7", "--dry-run"],
+            vec!["ai-brains", "codex-import", "--force"],
+        ] {
+            super::Cli::try_parse_from(&args)
+                .unwrap_or_else(|e| panic!("expected {args:?} to parse: {e}"));
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -323,7 +460,10 @@ enum Commands {
         force: bool,
     },
     /// Ingest a conversation turn (reads JSON from stdin)
-    #[command(display_order = 50)]
+    #[command(
+        display_order = 50,
+        after_help = "Pipe a JSON turn on stdin. Empty or TTY stdin exits 2 with a usage example.\nExample payload:\n{\n  \"session_id\": \"00000000-0000-0000-0000-000000000001\",\n  \"project_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"harness_id\": \"00000000-0000-0000-0000-000000000002\",\n  \"turn_id\": \"00000000-0000-0000-0000-000000000003\",\n  \"role\": \"user\",\n  \"content\": \"hello\",\n  \"privacy\": \"CloudOk\"\n}\n  echo '{\"session_id\":\"00000000-0000-0000-0000-000000000001\",\"project_id\":\"00000000-0000-0000-0000-000000000000\",\"harness_id\":\"00000000-0000-0000-0000-000000000002\",\"turn_id\":\"00000000-0000-0000-0000-000000000003\",\"role\":\"user\",\"content\":\"hello\",\"privacy\":\"CloudOk\"}' | ai-brains ingest --dry-run"
+    )]
     Ingest {
         /// Preview what would be ingested without writing to the vault
         #[arg(long)]
@@ -421,7 +561,10 @@ enum Commands {
         install_hooks: bool,
     },
     /// Run nightly intelligence sweep
-    #[command(display_order = 26)]
+    #[command(
+        display_order = 26,
+        after_help = "Default --format is human; pipes stay human (do not silently switch to JSON).\nScripts: pass --format json.\nExamples:\n  ai-brains nightly --status\n  ai-brains nightly --status --format json\n  ai-brains nightly --status --quick --format json"
+    )]
     Nightly {
         /// Schedule this as a Windows scheduled task
         #[arg(long)]
@@ -438,6 +581,15 @@ enum Commands {
         /// Skip HTTP probes (requires --status)
         #[arg(long, requires = "status", conflicts_with_all = ["schedule", "unschedule"])]
         quick: bool,
+        /// Output format for --status (default human; pipes stay human)
+        #[arg(
+            long,
+            default_value = "human",
+            requires = "status",
+            conflicts_with_all = ["schedule", "unschedule"],
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
         /// Skip all harness session importers (AGY, Grok, OpenCode). Use on
         /// isolated, CI, SYSTEM-scheduled, or per-project vaults to prevent
         /// cross-vault contamination from real harness history.
@@ -681,6 +833,54 @@ enum Commands {
         /// Max sessions to list/process (OpenCode list default cap is 100)
         #[arg(long, default_value_t = 100)]
         max_sessions: usize,
+    },
+    /// Process a Claude Code hook payload (UserPromptSubmit / Stop / SessionEnd)
+    #[command(display_order = 56)]
+    ClaudeHook {
+        /// The JSON payload from the Claude capture wrapper
+        #[arg(long)]
+        payload: Option<String>,
+        /// Print the JSON Schema for the expected `--payload` shape and exit.
+        /// The schema is also at `Docs/schemas/claude-hook-payload.json`.
+        #[arg(long)]
+        schema: bool,
+    },
+    /// Import Claude Code project JSONL sessions into the vault
+    #[command(display_order = 55)]
+    ClaudeImport {
+        /// Only import sessions modified within the last N days
+        #[arg(short, long, default_value_t = 30)]
+        days: usize,
+        /// Skip the 5-minute quiescence window (import even if file was modified recently)
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
+    /// Process a Codex CLI hook payload (UserPromptSubmit / Stop)
+    #[command(display_order = 58)]
+    CodexHook {
+        /// The JSON payload from the Codex capture wrapper
+        #[arg(long)]
+        payload: Option<String>,
+        /// Print the JSON Schema for the expected `--payload` shape and exit.
+        /// The schema is also at `Docs/schemas/codex-hook-payload.json`.
+        #[arg(long)]
+        schema: bool,
+    },
+    /// Import Codex rollout JSONL sessions into the vault (fail-open)
+    #[command(display_order = 57)]
+    CodexImport {
+        /// Only import sessions modified within the last N days
+        #[arg(short, long, default_value_t = 30)]
+        days: usize,
+        /// Skip the 5-minute quiescence window (import even if file was modified recently)
+        #[arg(long, default_value_t = false)]
+        force: bool,
+        /// Discover and report what would be imported without writing to the vault
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
     /// Detect and install harness capture hooks (user-global, message-only)
     #[command(
@@ -1602,9 +1802,9 @@ enum HarnessCommands {
         #[arg(long, default_value = "human")]
         format: String,
     },
-    /// Install message-only capture hooks (user-global). AGY ready; others pending.
+    /// Install message-only capture hooks (user-global). All five ready: grok, agy, opencode, claude, codex.
     Install {
-        /// Harness id: grok | agy | opencode | claude | codex | all
+        /// Harness id: grok | agy | opencode | claude | codex | all | all-ready
         #[arg(long)]
         harness: Option<String>,
         /// Skip confirmation prompt
@@ -1616,7 +1816,7 @@ enum HarnessCommands {
     },
     /// Remove only AI-Brains managed hook markers / wrapper scripts
     Uninstall {
-        /// Harness id: grok | agy | opencode | claude | codex | all
+        /// Harness id: grok | agy | opencode | claude | codex | all | all-ready
         #[arg(long)]
         harness: Option<String>,
         /// Skip confirmation prompt
@@ -1897,7 +2097,7 @@ pub enum ProjectCommands {
     },
     /// Register a filesystem path alias for multi-root nightly bridge (T233)
     #[command(
-        after_help = "Examples:\n  ai-brains project register-path <uuid> C:\\dev\\AI-Brains\n  ai-brains project register-path my-alias C:\\dev\\ledgerful\n  ai-brains project register-path <uuid> /mnt/c/dev/AI-Brains\nset-alias is a human label; register-path is a disk root for Phase-2 Ledgerful bridge.\nSame normalized path may only belong to one project (conflict exit 1)."
+        after_help = "Examples:\n  ai-brains project register-path <uuid> C:\\dev\\AI-Brains\n  ai-brains project register-path my-alias C:\\dev\\ledgerful\n  ai-brains project register-path <uuid> /mnt/c/dev/AI-Brains\nset-alias is a human label; register-path is a disk root for Phase-2 Ledgerful bridge.\nSame normalized path may only belong to one project (conflict exit 1).\nCorrection: ai-brains project unregister-path <path>"
     )]
     RegisterPath {
         /// Project UUID or human alias (from `project list` / `set-alias`)
@@ -1913,6 +2113,39 @@ pub enum ProjectCommands {
         /// Output format: auto (TTY=human, piped=json), human, or json
         #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
         format: String,
+    },
+    /// List every registered filesystem path alias (all roots, not just project-list first path)
+    #[command(
+        after_help = "Examples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format json\nproject list still shows only the first path per project. This command lists all roots."
+    )]
+    ListPaths {
+        /// Output format: auto (TTY=human, piped=json), human, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        format: String,
+    },
+    /// Discover immediate child directories that contain .ledgerful (dry-run; never writes)
+    #[command(
+        after_help = "Dry-run only. Never appends events. Never writes .env. Never auto-registers.\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --format json"
+    )]
+    ScanRoots {
+        /// Directory to scan (default: cwd). Immediate children only.
+        path: Option<String>,
+        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        format: String,
+    },
+    /// Unregister a filesystem path alias (compensating Removed event; does not forget symbols)
+    #[command(
+        after_help = "Path is unique. Missing path is idempotent exit 0.\nDoes not delete MemoryPinned / ledgerful:symbol history.\nExamples:\n  ai-brains project unregister-path C:\\dev\\AI-Brains\n  ai-brains project unregister-path --dry-run C:\\dev\\AI-Brains\n  ai-brains project unregister-path --project my-alias C:\\dev\\AI-Brains"
+    )]
+    UnregisterPath {
+        /// Filesystem path to unregister (Windows or WSL form; normalized for compare)
+        path: String,
+        /// Optional project UUID or alias; if owner ≠ this ref, exit 1
+        #[arg(long)]
+        project: Option<String>,
+        /// Print what would happen; do not append an event
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -2120,7 +2353,7 @@ pub enum SafetyCommands {
 /// T86: Read a plain-text query from stdin until EOF.
 /// Returns an error if stdin is a terminal (avoids hanging in interactive shells).
 fn read_query_from_stdin() -> Result<String, Box<dyn std::error::Error>> {
-    use is_terminal::IsTerminal;
+    use std::io::IsTerminal;
     use std::io::Read;
     if std::io::stdin().is_terminal() {
         return Err(
@@ -2141,7 +2374,7 @@ fn read_query_from_stdin() -> Result<String, Box<dyn std::error::Error>> {
 /// T86: Read a JSON object from stdin until EOF.
 /// Returns an error if stdin is a terminal.
 fn read_json_from_stdin() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    use is_terminal::IsTerminal;
+    use std::io::IsTerminal;
     use std::io::Read;
     if std::io::stdin().is_terminal() {
         return Err("stdin is a terminal — pipe JSON input when using --stdin.".into());
@@ -2575,6 +2808,8 @@ fn is_vault_path_free(command: &Commands) -> bool {
         Commands::AgyHook { schema: true, .. } => true,
         Commands::GrokHook { schema: true, .. } => true,
         Commands::OpencodeHook { schema: true, .. } => true,
+        Commands::ClaudeHook { schema: true, .. } => true,
+        Commands::CodexHook { schema: true, .. } => true,
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
         } => true,
@@ -2688,6 +2923,12 @@ fn run_sync_path_free(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::OpencodeHook { schema: true, .. } => {
             print_schema(SCHEMA_OPENCODE_HOOK, "AI-Brains opencode-hook payload")
+        }
+        Commands::ClaudeHook { schema: true, .. } => {
+            print_schema(SCHEMA_CLAUDE_HOOK, "AI-Brains claude-hook payload")
+        }
+        Commands::CodexHook { schema: true, .. } => {
+            print_schema(SCHEMA_CODEX_HOOK, "AI-Brains codex-hook payload")
         }
         Commands::Sync {
             command: SyncCommands::Pull { schema: true, .. },
@@ -3570,6 +3811,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             start_time,
             status,
             quick,
+            format,
             skip_import,
             skip_import_agy,
             skip_import_grok,
@@ -3590,6 +3832,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 *run_as_system,
                 *dry_run,
                 *quick,
+                format.clone(),
             )
             .await
         }
@@ -3865,6 +4108,40 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 )
             }
         }
+        Commands::ClaudeImport {
+            days,
+            force,
+            dry_run,
+        } => commands::claude_import::run(&ctx, *days, *force, *dry_run),
+        Commands::CodexImport {
+            days,
+            force,
+            dry_run,
+        } => commands::codex_import::run(&ctx, *days, *force, *dry_run),
+        Commands::ClaudeHook { payload, schema } => {
+            if *schema {
+                print_schema(SCHEMA_CLAUDE_HOOK, "AI-Brains claude-hook payload")
+            } else if let Some(p) = payload {
+                commands::claude_hook::run(&ctx, p)
+            } else {
+                Err(
+                    "Either provide --payload <json> or use --schema to print the payload schema."
+                        .into(),
+                )
+            }
+        }
+        Commands::CodexHook { payload, schema } => {
+            if *schema {
+                print_schema(SCHEMA_CODEX_HOOK, "AI-Brains codex-hook payload")
+            } else if let Some(p) = payload {
+                commands::codex_hook::run(&ctx, p)
+            } else {
+                Err(
+                    "Either provide --payload <json> or use --schema to print the payload schema."
+                        .into(),
+                )
+            }
+        }
         Commands::Daemon { command } => match command {
             DaemonCommands::Start => commands::daemon::run_start(&ctx),
             DaemonCommands::Status => {
@@ -3898,6 +4175,17 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 commands::project::register_path(&ctx, project_ref, path)
             }
             ProjectCommands::Whoami { format } => commands::project::whoami(&ctx, format),
+            ProjectCommands::ListPaths { format } => {
+                commands::project_paths::list_paths(&ctx, format)
+            }
+            ProjectCommands::ScanRoots { path, format } => {
+                commands::project_paths::scan_roots(&ctx, path.as_deref(), format)
+            }
+            ProjectCommands::UnregisterPath {
+                path,
+                project,
+                dry_run,
+            } => commands::project_paths::unregister_path(&ctx, path, project.as_deref(), *dry_run),
         },
         #[cfg(feature = "graph")]
         Commands::Graph { command, .. } => match command {

@@ -5,9 +5,9 @@ use crate::graph_density::{
 use ai_brains_control_plane::clamp_list_limit;
 use ai_brains_graph::{GraphRebuilder, GraphSearch, GraphVault, NeighborHit};
 use ai_brains_store::SqliteEventStore;
-use is_terminal::IsTerminal;
 use rusqlite::OptionalExtension;
 use serde::Serialize;
+use std::io::IsTerminal;
 
 const PRETTY_NEXT: &str = "next: ai-brains graph update";
 

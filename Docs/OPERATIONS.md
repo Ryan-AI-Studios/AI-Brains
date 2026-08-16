@@ -49,6 +49,7 @@ $json = @{
 
 echo $json | ai-brains --vault-path ./vault.db ingest
 ```
+Empty / whitespace-only / TTY stdin is usage **exit 2** plus a copy-paste example — not EOF `COMMAND_FAILED`. Pipe JSON (the `ConvertTo-Json` sample above).
 
 ### Capture Privacy / message-only (T234)
 
@@ -71,7 +72,7 @@ ai-brains antigravity-import --days 30 --force
 
 Detect which coding harnesses are **installed on this machine** (not “active this session”) and install message-only capture wiring into **user-global** paths.
 
-**Activation (T245)** — ready backends (grok → agy → opencode) in one pass. Non-TTY agents must pass `--yes`. `all-ready` skips Claude/Codex (pending T253).
+**Activation (T245+T253)** — ready backends (grok → agy → opencode → **claude → codex**) in one pass (`all-ready` is five). Non-TTY agents must pass `--yes`.
 
 ```powershell
 ai-brains harness install --harness all-ready --dry-run
@@ -88,9 +89,13 @@ ai-brains harness install --harness agy --dry-run
 ai-brains harness install --harness agy --yes
 ai-brains harness install --harness grok --yes
 ai-brains harness install --harness opencode --yes
+ai-brains harness install --harness claude --yes
+ai-brains harness install --harness codex --yes
 ai-brains harness uninstall --harness agy --yes
 ai-brains harness uninstall --harness grok --yes
 ai-brains harness uninstall --harness opencode --yes
+ai-brains harness uninstall --harness claude --yes
+ai-brains harness uninstall --harness codex --yes
 ai-brains harness reset-decline --harness all
 ```
 
@@ -99,8 +104,8 @@ ai-brains harness reset-decline --harness all
 | grok | PATH `grok` or `~/.grok` | **Yes (T237)** — Stop+SessionEnd → wrapper (**empty** stdout) → `grok-hook` |
 | agy | PATH `agy` or `~/.gemini/...` | **Yes** — Stop → wrapper (allow-stop JSON stdout) → `agy-hook` |
 | opencode | PATH / `~/.config/opencode` (or `OPENCODE_CONFIG_DIR`) | **Yes (T238)** — managed plugin `session.idle` **or** idle `session.status` → `opencode-hook` |
-| claude | PATH / `~/.claude` | Pending (T253) |
-| codex | PATH / `~/.codex` | Pending (T253) |
+| claude | PATH / `~/.claude` | **Yes (T253)** — UPS+Stop+SessionEnd → wrapper (empty Stop stdout) → `claude-hook`. No SessionStart injection. |
+| codex | PATH / `~/.codex` | **Yes (T253)** — UPS+Stop → wrapper (`{"continue":true}`) → `codex-hook`. Feature key **`hooks`** (not `codex_hooks`). After install run Codex `/hooks` and trust `ai-brains-capture`. |
 
 AGY writer **always** merges managed key `ai-brains-capture` into `%USERPROFILE%\.gemini\config\hooks.json` (creates `config/` only) and writes `%USERPROFILE%\.ai-brains\hooks\agy-stop.ps1`. **Iff** `%USERPROFILE%\.gemini\antigravity-cli` already exists, also stage the CLI plugin bundle `%USERPROFILE%\.gemini\antigravity-cli\plugins\ai-brains-capture\{plugin.json,hooks.json}` (same Stop command as IDE). Never create `antigravity-cli` just to host plugins. Never write undocumented top-level `antigravity-cli\hooks.json`. Uninstall removes the managed IDE key only (foreign keys stay; empty `{}` left if last) and deletes **only** `plugins\ai-brains-capture\` — not `antigravity-cli` or sibling plugins. Foreign IDE hooks are preserved; corrupt JSON refuses rewrite (exit 1). PATH bake: wrappers + OpenCode `ai-brains` spawn use the installing exe absolute path with PATH fallback.
 
@@ -127,7 +132,7 @@ ai-brains opencode-import --days 7 --max-sessions 100
 
 **OpenCode content SOOT:** nested export `{info,messages}` with message-only filter (drop tool/reasoning/step/snapshot/patch/file/subtask/agent/retry/compaction + synthetic/ignored/editor_context parts). **Never open `opencode.db`**. Watermark: `~/.ai-brains/opencode-import-cursor.json` (corrupt JSON → `cursor_corrupt` warn + empty start; optional additive `last_msg_id`). Missing `opencode` binary → soft skip. Child sessions (`parentID`) skipped. List length ≥100 (vendor default) or at requested cap → `list_capped` stderr warn. Export/list subprocesses killed on 120s timeout.
 
-Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks). Splits ready-missing (grok/agy/opencode unwired) from T253 pending (claude/codex); next-action is `ai-brains harness install --harness all-ready --dry-run`. Severity remains soft ok.
+Preflight summary appends a **Harnesses installed on machine:** block when ≥1 harness is not absent. Flags: `--no-hook-prompt`, `--install-hooks`. Doctor soft check: `harness_wiring` (never fails solely for missing hooks). After T253, the pending-backend clause is gone when Claude/Codex are install_ready; next-action is `ai-brains harness install --harness all-ready --dry-run` for any ready-missing wiring. Severity remains soft ok.
 
 ### `agy` Hook
 Real-time capture from the Antigravity CLI hooks integration:
@@ -151,6 +156,31 @@ ai-brains opencode-hook --payload '{"sessionId":"ses_abc","directory":"C:\\dev\\
 ai-brains opencode-hook --schema
 ```
 Prefer `messagesPath` / `exportPath` (export-shaped JSON). When `parentId` is set → **skipped_child_session** (exit 0). Project bind: worktree → directory → unbound `opencode-unbound`. Env `AI_BRAINS_PROJECT_ID` only when unbound (alias not stamped onto env project). Diagnostics on **stderr**.
+
+### `claude` Hook + import
+Real-time capture from Claude Code UserPromptSubmit / Stop / SessionEnd (T253). Live path ingests payload text only — **do not** parse `transcript_path`.
+```powershell
+ai-brains harness install --harness claude --dry-run
+ai-brains harness install --harness claude --yes
+ai-brains claude-hook --payload '{"sessionId":"...","projectHash":"C:\\dev\\AI-Brains","event":"Stop","lastAssistantMessage":"Done."}'
+ai-brains claude-hook --schema
+ai-brains claude-import --days 30
+ai-brains claude-import --days 30 --force --dry-run
+```
+`--schema` is vault-path-free. Mid-payload garbage (invalid JSON) exits **1** with JSON. Unrecognized / Grok-shaped stdin exits **0** (no ingest; stderr once). Empty/whitespace prompt or last message skips that role (exit 0). Bind: `cwd` → `ai_brains_path::normalize_project_path` → path alias; `AI_BRAINS_PROJECT_ID` only when unbound. Unbound alias `claude-unbound`. Batch walks `~/.claude/projects/<encoded-cwd>/*.jsonl` (skip `subagents/` / `isSidechain=true`). `--force` skips 300s quiescence. Not in nightly.
+
+### `codex` Hook + import
+Real-time capture from Codex UserPromptSubmit / Stop (T253). Feature key is **`hooks`** (not `codex_hooks`). Live fire requires operator **`/hooks` trust** of `ai-brains-capture` — `wiring=ok` is files only.
+```powershell
+ai-brains harness install --harness codex --dry-run
+ai-brains harness install --harness codex --yes
+# next: in Codex run /hooks and trust ai-brains-capture
+ai-brains codex-hook --payload '{"sessionId":"...","projectHash":"C:\\dev\\AI-Brains","event":"Stop","lastAssistantMessage":"Looks good.","turnId":"turn_1"}'
+ai-brains codex-hook --schema
+ai-brains codex-import --days 30
+ai-brains codex-import --days 30 --force --dry-run
+```
+`--schema` is vault-path-free. Mid-payload garbage exits **1** with JSON. Missing fields exit **0**. Empty/whitespace prompt or last message skips that role. Bind same as Claude; unbound `codex-unbound`. Batch walks `~/.codex/sessions/**/rollout-*.jsonl` (or `CODEX_HOME`); keep only `response_item` + `payload.type=message` + user/assistant; drop `event_msg` / `session_meta` / unknown; malformed line skipped. Format is **not vendor-stable** — soft-skip rather than fake complete. Never edit `config.toml`. Not in nightly.
 
 ## 3. Retrieving Memories
 
@@ -547,7 +577,7 @@ These are **reference / operator templates**, not a product Unix installer and *
 ai-brains --vault-path ./vault.db nightly
 ```
 The nightly job does:
-- **Multi-harness session import (T239):** AGY → Grok → OpenCode (message-only; never opens `opencode.db`). Flags: `--skip-import` (all), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`. Fail-open per source; `last_multi_import` sync_state + `nightly --status` Multi-import block. Claude/Codex **not** in batch (T239+). Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
+- **Multi-harness session import (T239):** AGY → Grok → OpenCode (message-only; never opens `opencode.db`). Flags: `--skip-import` (all), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`. Fail-open per source; `last_multi_import` sync_state + `nightly --status` Multi-import block. Claude/Codex **not** in nightly batch (T253 live + `claude-import` / `codex-import` only). Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
 - Soft model-endpoint probe (T229) after multi-import / before summarize — non-fatal `warn` if completion/embedding endpoints are down
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)
@@ -570,6 +600,9 @@ This is independent of Task Scheduler **System32** cwd: roots come from vault pa
 |---------|----------------|---------|
 | `project set-alias <uuid> <label>` | Human **label** only | Display, resolve, detect **git slug** name/alias match |
 | `project register-path <uuid\|alias> <path>` | **Filesystem root** (normalized Win/WSL) | Detect **step 1**, nightly Phase 2 bridge, whoami path, mismatch warn |
+| `project list-paths` | **All** registered roots | Operator inventory (not just `project list` first-path) |
+| `project unregister-path <path>` | Compensating **Removed** event | Frees the path for another project; symbols stay |
+| `project scan-roots [path]` | Dry-run `.ledgerful` discovery | Suggested `register-path` commands; never writes |
 
 Putting a path string into `set-alias` does **not** register a path alias. `project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
 
@@ -581,9 +614,11 @@ ai-brains project register-path <id-or-alias> C:\dev\ledgerful
 # ai-brains project register-path <id-or-alias> /mnt/c/dev/AI-Brains
 ```
 
-- **Conflict (F21):** the same normalized path can only belong to one project — second owner gets **exit 1** + ownership message. Same project re-register is idempotent OK.
-- **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs).
-- **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal).
+- **Conflict (F21):** the same normalized path can only belong to one project — second owner gets **exit 1** + ownership message naming `ai-brains project unregister-path <path>`. Same project re-register is idempotent OK. Projection **refuses to steal** if a raced other-owner `Added` is applied.
+- **Correct a wrong bind:** `project unregister-path --dry-run <path>` then `project unregister-path <path>`. Does **not** forget ingested symbols; Phase 2 simply stops walking the path. Then `register-path` to the intended project.
+- **Discover roots:** `project scan-roots C:\dev` lists immediate children (plus the scan root) that contain `.ledgerful`. Dry-run — never registers, never writes `.env`. `.changeguard` leftover dirs are **not** hits.
+- **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs). `project list-paths` prints the empty next-step.
+- **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal). Nightly logs `bridge_roots_failed` on symbol ingest error so totals add up.
 - **Env caps:** `AI_BRAINS_NIGHTLY_MAX_ROOTS` (optional list truncate); `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (default **5000**, per-root ingest cap).
 
 #### `ledgerful init` once per root
@@ -626,6 +661,7 @@ Overnight brain is designed to talk to a **local** llama.cpp-style router rather
 ai-brains nightly --schedule --start-time "03:00"
 ai-brains nightly --status             # schedule + Last Result + endpoints/probe + Multi-import
 ai-brains nightly --status --quick     # same, skip HTTP probes (probe=skipped)
+ai-brains nightly --status --format json   # machine object (default human; pipes stay human)
 ai-brains nightly --unschedule
 ai-brains nightly --skip-import        # skip all harness importers
 ai-brains nightly --skip-import-opencode
@@ -638,10 +674,13 @@ ai-brains nightly --skip-import-opencode
 - **Last scheduled run** (Task Scheduler Last Run Time) is printed separately from vault **Last nightly run**. They can disagree (e.g. the task fired but the action target was missing, so the vault never advanced).
 - Last nightly run / unsummarized counts / last-run errors
 - **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error` on default `--status`; **`--quick` prints `probe=skipped`** — no HTTP). Credentials in URLs are redacted; vault keys never printed
+- **Router** (T255, read-only) — Last Result for `AI-Brains-Router`. Does **not** register, start, or repair that task
 - **Multi-import** block (T239)
 - Missing action: if Task To Run’s first quoted `.cmd` / `.bat` / `.exe` does not exist → `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`
 
 `--quick` requires `--status`. Without `--status` → clap exit **2**. `--quick` still opens the vault and still prints schedule + last-run.
+
+`--format json` emits a CLI-local machine object. Default `--format` is **human**; piped `nightly --status` stays human. `doctor` is not the model-port matrix; `nightly --status` is.
 
 Default status probes run **in parallel** with a **750 ms** timeout (not sequential 2s+2s). Nightly **run** pre-summarize probe stays **2s**.
 
@@ -659,7 +698,7 @@ These are three different tokens:
 
 Do **not** wait for the next schedule to “clear 101.” If Last Result is **1** because Task To Run points at a missing `nightly-run.cmd`, the next schedule will fire the same missing path and stay at **1**.
 
-When status prints `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`, that dry-run is **non-mutating**. Product user-principal schedule is `'<exe>' nightly` (not a `.cmd`). Do **not** write `%USERPROFILE%\.ai-brains\nightly-run.cmd` as the product remediator. Recreating a historical ops `.cmd` is out of scope (T255/F16). `--status` does not unschedule, reschedule, or write wrappers.
+When status prints `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`, that dry-run is **non-mutating**. Product user-principal schedule is `'<exe>' nightly` (not a `.cmd`). Do **not** write `%USERPROFILE%\.ai-brains\nightly-run.cmd` as the product remediator. Recreating a historical ops `.cmd` is out of scope (T255/F14). `--status` does not unschedule, reschedule, or write wrappers.
 
 #### Running the nightly as SYSTEM (`--run-as-system`)
 By default `--schedule` registers a task under the current user, which inherits that user's environment variables. The optional `--run-as-system` flag registers the task with `/RU SYSTEM` so it runs without anyone logged in (T132). Because the `SYSTEM` account does **not** inherit User-level environment variables, the CLI handles this specially (T143 + T145):

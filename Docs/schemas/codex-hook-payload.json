@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-brains.dev/schemas/codex-hook-payload.json",
+  "title": "AI-Brains codex-hook payload",
+  "description": "JSON payload passed to `ai-brains codex-hook --payload`. Live path ingests `prompt` (UserPromptSubmit) and/or `lastAssistantMessage` (Stop) after T234 message-only filter. Does not parse transcript_path. Mid-payload garbage (invalid JSON) exits 1 with JSON; missing fields exit 0 with no ingest. Feature key is `hooks` (not `codex_hooks`).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sessionId", "projectHash", "event"],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Codex session id (UUID preferred). Used for delta-sync and turn-id namespace."
+    },
+    "projectHash": {
+      "type": "string",
+      "description": "Normalized cwd path or `codex-unbound` when unbound. Alias key via ai-brains-path."
+    },
+    "event": {
+      "type": "string",
+      "description": "Hook event name (UserPromptSubmit, Stop)."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "UserPromptSubmit prompt text. Empty/whitespace skips the user role (exit 0)."
+    },
+    "lastAssistantMessage": {
+      "type": "string",
+      "description": "Stop last assistant text. Empty/whitespace skips the assistant role (exit 0)."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Optional working directory; used for projectHash when the wrapper did not set it."
+    },
+    "turnId": {
+      "type": "string",
+      "description": "Optional Codex turn_id; preferred in live turn-id `{event}:{turn_id}`."
+    },
+    "uuid": {
+      "type": "string",
+      "description": "Optional record uuid (accepted for parity with Claude payload)."
+    }
+  },
+  "examples": [
+    {
+      "sessionId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "projectHash": "C:\\dev\\AI-Brains",
+      "event": "UserPromptSubmit",
+      "prompt": "summarize the diff",
+      "cwd": "C:\\dev\\AI-Brains"
+    },
+    {
+      "sessionId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "projectHash": "C:\\dev\\AI-Brains",
+      "event": "Stop",
+      "lastAssistantMessage": "Looks good.",
+      "turnId": "turn_abc"
+    }
+  ]
+}

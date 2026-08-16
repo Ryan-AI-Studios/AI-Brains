@@ -211,6 +211,22 @@ struct ServiceDaemonStarted {
     ipc_shutdown_tx: tokio::sync::broadcast::Sender<()>,
 }
 
+/// Operator log under ProgramData. Never write key material (`x'…'`).
+fn write_service_startup_log(msg: &str) {
+    let safe = if msg.contains("x'") {
+        "startup failed (details omitted; contained key-shaped text)"
+    } else {
+        msg
+    };
+    let program_data =
+        std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+    let path = PathBuf::from(program_data)
+        .join("AI-Brains")
+        .join("service-startup.log");
+    let body = format!("{safe}\n");
+    let _ = std::fs::write(&path, body.as_bytes());
+}
+
 /// Vault open, writer, optional HTTP. HTTP hard-fails when enabled (R1-01 / CR1-P2-01).
 async fn run_daemon_startup()
 -> Result<ServiceDaemonStarted, Box<dyn std::error::Error + Send + Sync>> {
@@ -251,13 +267,16 @@ async fn run_daemon_startup()
             path
         });
 
-    let vault_key_str = std::env::var("AI_BRAINS_VAULT_KEY").unwrap_or_else(|_| {
-        "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
-    });
-
-    let key = ai_brains_crypto::SqlCipherKey::from_raw(vault_key_str);
-    let conn = ai_brains_store::connection::VaultConnection::open(vault_path, &key)?;
-    conn.migrate()?;
+    let key = crate::vault_key::resolve_daemon_sqlcipher_key().inspect_err(|e| {
+        write_service_startup_log(&e.to_string());
+    })?;
+    let conn =
+        ai_brains_store::connection::VaultConnection::open(&vault_path, &key).inspect_err(|e| {
+            write_service_startup_log(&format!("vault open failed: {e}"));
+        })?;
+    conn.migrate().inspect_err(|e| {
+        write_service_startup_log(&format!("vault migrate failed: {e}"));
+    })?;
 
     let event_store =
         std::sync::Arc::new(ai_brains_store::event_store::SqliteEventStore::new(conn));

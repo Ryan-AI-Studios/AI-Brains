@@ -16,7 +16,7 @@ use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_store::SqliteEventStore;
-use is_terminal::IsTerminal;
+use std::io::IsTerminal;
 
 pub struct ProjectBriefingOptions {
     pub project_id: Option<ProjectId>,

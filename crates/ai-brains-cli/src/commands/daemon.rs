@@ -491,6 +491,18 @@ fn report_elevated_outcome(exit_code: u32, action: &str) -> Result<(), Box<dyn s
     Err(format!("Elevated {action} process exited with code {exit_code}: {detail}").into())
 }
 
+/// dotenvy-safe sidecar line. Paths use `/` so `\a` in `\ai-brains` is not BEL.
+/// Values are double-quoted so `x'<hex>'` is not eaten as a single-quoted token.
+pub(crate) fn format_daemon_env_line(key: &str, val: &str) -> String {
+    let normalized = if key == "AI_BRAINS_VAULT_PATH" {
+        val.replace('\\', "/")
+    } else {
+        val.to_string()
+    };
+    let escaped = normalized.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("{key}=\"{escaped}\"")
+}
+
 fn generate_env_sidecar() -> Option<String> {
     let keys = [
         "AI_BRAINS_VAULT_PATH",
@@ -503,10 +515,20 @@ fn generate_env_sidecar() -> Option<String> {
     let mut lines = Vec::new();
     let mut found_any = false;
     for key in &keys {
-        if let Ok(val) = std::env::var(key)
-            && !val.is_empty()
-        {
-            lines.push(format!("{key}={val}"));
+        let val = if *key == "AI_BRAINS_VAULT_KEY" {
+            std::env::var("AI_BRAINS_VAULT_KEY")
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+                .or_else(|| {
+                    std::env::var("AI_BRAINS_KEY")
+                        .ok()
+                        .filter(|v| !v.trim().is_empty())
+                })
+        } else {
+            std::env::var(key).ok().filter(|v| !v.is_empty())
+        };
+        if let Some(val) = val {
+            lines.push(format_daemon_env_line(key, &val));
             found_any = true;
         }
     }
@@ -967,7 +989,7 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
 }
 
 #[cfg(test)]
-#[allow(clippy::disallowed_methods)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
 
@@ -997,6 +1019,20 @@ mod tests {
     fn parse_host_port_no_port_returns_none() {
         assert!(parse_host_port("http://localhost/").is_none());
         assert!(parse_host_port("localhost").is_none());
+    }
+
+    #[test]
+    fn format_daemon_env_line__windows_path__forward_slash_quoted() {
+        let line = format_daemon_env_line("AI_BRAINS_VAULT_PATH", r"C:\dev\ai-brains\vault.db");
+        assert_eq!(line, r#"AI_BRAINS_VAULT_PATH="C:/dev/ai-brains/vault.db""#);
+        assert!(!line.contains('\\'), "{line}");
+    }
+
+    #[test]
+    fn format_daemon_env_line__product_key__double_quoted_x_form() {
+        let key = "x'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'";
+        let line = format_daemon_env_line("AI_BRAINS_VAULT_KEY", key);
+        assert_eq!(line, format!(r#"AI_BRAINS_VAULT_KEY="{key}""#));
     }
 
     /// T103: schedule_inner with dry_run must return Ok without executing

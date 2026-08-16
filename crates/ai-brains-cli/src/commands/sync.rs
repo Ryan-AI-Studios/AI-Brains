@@ -579,7 +579,7 @@ struct LedgerProbeResult {
 /// Probe ledger for non-empty results; fail/empty/missing → vault-only (no panic).
 #[allow(clippy::disallowed_methods)]
 fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProbeResult> {
-    use is_terminal::IsTerminal;
+    use std::io::IsTerminal;
     let is_tty = std::io::stdout().is_terminal();
 
     // T91: strip ANSI; T90: sanitize FTS before forwarding.

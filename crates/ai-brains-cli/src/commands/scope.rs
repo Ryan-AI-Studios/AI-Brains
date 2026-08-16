@@ -11,7 +11,7 @@ use ai_brains_control_plane::{ScopeResolveInput, StorePorts, resolve_scope};
 use ai_brains_core::ids::{ProjectId, UserId};
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use ai_brains_store::SqliteEventStore;
-use is_terminal::IsTerminal;
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -28,13 +28,7 @@ pub struct ResolveOptions {
 
 /// Resolve `scope resolve --format` (T249). Clap rejects unknowns; `_` is fail-closed json.
 pub(crate) fn resolve_scope_format(explicit: &str, is_tty: bool) -> &'static str {
-    match explicit {
-        "pretty" | "human" | "text" | "markdown" | "md" => "human",
-        "json" => "json",
-        "auto" if is_tty => "human",
-        "auto" => "json",
-        _ => "json",
-    }
+    crate::commands::format_resolve::resolve_human_json_format(explicit, is_tty)
 }
 
 fn scope_output_format(resolved: &str) -> OutputFormat {

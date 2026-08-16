@@ -2,7 +2,8 @@
 //!
 //! All state changes append via [`EventWriter`]. Repository identity and path
 //! aliases are event-sourced (`RepositoryIdentityRegistered` /
-//! `RepositoryPathAliasAdded`) so `rebuild_projections` rehydrates them.
+//! `RepositoryPathAliasAdded` / `RepositoryPathAliasRemoved`) so
+//! `rebuild_projections` rehydrates them.
 
 use ai_brains_core::ids::{GrantId, PrincipalId, ProjectId, WorkspaceId};
 use ai_brains_core::principal::{Principal, PrincipalKind};
@@ -11,8 +12,9 @@ use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_core::source::SourceKind;
 use ai_brains_events::payload::{
     PrincipalRegisteredPayload, RepositoryIdentityRegisteredPayload,
-    RepositoryJoinedWorkspacePayload, RepositoryPathAliasAddedPayload, ScopeGrantIssuedPayload,
-    ScopeGrantRevokedPayload, WorkspaceRegisteredPayload,
+    RepositoryJoinedWorkspacePayload, RepositoryPathAliasAddedPayload,
+    RepositoryPathAliasRemovedPayload, ScopeGrantIssuedPayload, ScopeGrantRevokedPayload,
+    WorkspaceRegisteredPayload,
 };
 use ai_brains_events::{Actor, AggregateType, Payload};
 use ai_brains_git::hash_remote_url;
@@ -244,6 +246,33 @@ pub fn register_path_alias<W: EventWriter>(
         Actor::System,
         Privacy::LocalOnly,
         Payload::RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload {
+            project_id,
+            normalized_path: normalized,
+        }),
+    )?;
+    writer.append_events(&[event])
+}
+
+/// Unregister a normalized path alias for a project (Windows + WSL forms are both OK).
+///
+/// Appends compensating `RepositoryPathAliasRemoved`. Projection delete is owner-scoped.
+pub fn unregister_path_alias<W: EventWriter>(
+    writer: &W,
+    path: &str,
+    project_id: ProjectId,
+) -> Result<()> {
+    let normalized = normalize_for_location_compare(path);
+    if normalized.is_empty() {
+        return Err(ControlPlaneError::InvalidPayload(
+            "path alias normalized to empty".into(),
+        ));
+    }
+    let event = build_event(
+        AggregateType::Project,
+        project_id.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+        Payload::RepositoryPathAliasRemoved(RepositoryPathAliasRemovedPayload {
             project_id,
             normalized_path: normalized,
         }),

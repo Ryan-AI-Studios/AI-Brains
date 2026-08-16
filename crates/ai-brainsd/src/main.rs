@@ -1,4 +1,3 @@
-use ai_brains_crypto::SqlCipherKey;
 #[cfg(windows)]
 use ai_brains_daemon_api::DaemonRequest;
 use ai_brains_daemon_api::DaemonResponse;
@@ -75,11 +74,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             path
         });
 
-    let vault_key_str = std::env::var("AI_BRAINS_VAULT_KEY").unwrap_or_else(|_| {
-        "x'0000000000000000000000000000000000000000000000000000000000000000'".to_string()
-    });
-
-    let key = SqlCipherKey::from_raw(vault_key_str);
+    let key = ai_brainsd::vault_key::resolve_daemon_sqlcipher_key()?;
     let conn = VaultConnection::open(vault_path, &key)?;
     conn.migrate()?;
 

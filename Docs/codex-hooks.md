@@ -1,5 +1,7 @@
 # AI-Brains Hook System for Codex CLI
 
+> **Historical.** T253 wrappers supersede this document as product SOOT. Hooks default-on via `features.hooks` (not `codex_hooks`). SessionStart injection is not DoD. Use `ai-brains harness install --harness codex` + `codex-hook` / `codex-import`. Live fire still requires Codex `/hooks` trust of `ai-brains-capture`.
+
 This document covers the Codex CLI adapter for AI-Brains. The adapter is Windows-first, user-level, and JSON-only on stdout so it does not break Codex's hook protocol.
 
 ## Current Capability

@@ -1,7 +1,8 @@
-//! Repository identity + path-alias projections (T151).
+//! Repository identity + path-alias projections (T151 / T254).
 //!
-//! Materialized from [`RepositoryIdentityRegistered`] / [`RepositoryPathAliasAdded`]
-//! so `rebuild_projections` rehydrates durable scope-resolution keys.
+//! Materialized from [`RepositoryIdentityRegistered`], [`RepositoryPathAliasAdded`],
+//! and owner-scoped [`RepositoryPathAliasRemoved`] so `rebuild_projections`
+//! rehydrates durable scope-resolution keys. Other-owner Added does not steal.
 
 use crate::errors::{Result, StoreError};
 use crate::projections::Projection;
@@ -54,7 +55,15 @@ impl Projection for RepositoryIdentityProjection {
                 tx.execute(
                     "INSERT INTO repository_path_alias_projection (normalized_path, project_id)
                      VALUES (?, ?)
-                     ON CONFLICT(normalized_path) DO UPDATE SET project_id = excluded.project_id",
+                     ON CONFLICT(normalized_path) DO UPDATE SET project_id = excluded.project_id
+                     WHERE repository_path_alias_projection.project_id = excluded.project_id",
+                    rusqlite::params![p.normalized_path, p.project_id.to_string()],
+                )?;
+            }
+            Payload::RepositoryPathAliasRemoved(p) => {
+                tx.execute(
+                    "DELETE FROM repository_path_alias_projection
+                     WHERE normalized_path = ? AND project_id = ?",
                     rusqlite::params![p.normalized_path, p.project_id.to_string()],
                 )?;
             }

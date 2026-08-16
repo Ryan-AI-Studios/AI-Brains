@@ -52,7 +52,7 @@ fn combined(output: &std::process::Output) -> String {
     s
 }
 
-/// AC1 / AC11: `install --harness all-ready --dry-run` plans three ready backends and writes nothing.
+/// T253 AC12: `install --harness all-ready --dry-run` plans five ready backends and writes nothing.
 #[test]
 fn harness_wiring_activation__all_ready_dry_run__zero_writes() {
     let (dir, mut cmd) = hermetic_harness_home();
@@ -72,17 +72,20 @@ fn harness_wiring_activation__all_ready_dry_run__zero_writes() {
     );
     let stdout = String::from_utf8_lossy(&out.stdout).to_ascii_lowercase();
     assert!(
-        stdout.contains("grok") && stdout.contains("agy") && stdout.contains("opencode"),
-        "stdout must mention grok AND agy AND opencode plans; got: {stdout}"
+        stdout.contains("grok")
+            && stdout.contains("agy")
+            && stdout.contains("opencode")
+            && stdout.contains("claude")
+            && stdout.contains("codex"),
+        "stdout must mention five ready plans; got: {stdout}"
     );
     assert!(
         stdout.contains("[dry-run]"),
         "must print dry-run plans; got: {stdout}"
     );
-    let lower = text.to_ascii_lowercase();
     assert!(
-        !lower.contains("claude") && !lower.contains("codex"),
-        "all-ready must not mention writing Claude/Codex files; got: {text}"
+        stdout.contains("/hooks") && stdout.contains("ai-brains-capture"),
+        "Codex dry-run must print /hooks trust next-action; got: {stdout}"
     );
     let after = walk_files(home);
     assert_eq!(
@@ -264,8 +267,32 @@ fn harness_wiring_activation__all_ready_yes__with_cli_dir__bundle_and_ok() {
             .join("ai-brains-capture.js")
             .is_file()
     );
-    assert!(!home.join(".claude").exists(), "claude untouched");
-    assert!(!home.join(".codex").exists(), "codex untouched");
+    assert!(
+        home.join(".claude").join("settings.json").is_file(),
+        "claude settings.json written"
+    );
+    assert!(
+        home.join(".ai-brains")
+            .join("hooks")
+            .join("claude-capture.ps1")
+            .is_file(),
+        "claude wrapper written"
+    );
+    assert!(
+        home.join(".codex").join("hooks.json").is_file(),
+        "codex hooks.json written"
+    );
+    assert!(
+        home.join(".ai-brains")
+            .join("hooks")
+            .join("codex-capture.ps1")
+            .is_file(),
+        "codex wrapper written"
+    );
+    assert!(
+        !home.join(".codex").join("config.toml").exists(),
+        "must not create Codex config.toml"
+    );
 
     let plugin: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(bundle.join("plugin.json")).expect("read"))
@@ -278,7 +305,8 @@ fn harness_wiring_activation__all_ready_yes__with_cli_dir__bundle_and_ok() {
         .expect("status");
     assert_eq!(status.status.code(), Some(0), "{}", combined(&status));
     let report: serde_json::Value = serde_json::from_slice(&status.stdout).expect("status json");
-    for id in ["grok", "agy", "opencode"] {
+    assert_eq!(report["schema_version"], 1, "AC14 schema_version frozen");
+    for id in ["grok", "agy", "opencode", "claude", "codex"] {
         let row = report["harnesses"]
             .as_array()
             .expect("harnesses")
@@ -286,6 +314,7 @@ fn harness_wiring_activation__all_ready_yes__with_cli_dir__bundle_and_ok() {
             .find(|h| h["id"] == id)
             .unwrap_or_else(|| panic!("missing {id}"));
         assert_eq!(row["wiring"], "ok", "{id} wiring={row}");
+        assert_eq!(row["install_ready"], true, "{id} install_ready={row}");
     }
 }
 

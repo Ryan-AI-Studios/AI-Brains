@@ -86,7 +86,7 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 | Project identity | `context --show`, `project list`, `project detect` | detect: git slug → vault → env; warns on git/env mismatch |
 | Orient | `preflight --summary` / `--pretty` | Scoped by project id |
 | Search | `recall` / `search` (alias), `sync query --quiet` | Scope carefully; `search` is vault-first recall, not ledger or progressive |
-| Harness capture | `harness install --harness all-ready --dry-run` then `--yes` | Ready grok/agy/opencode only; Claude/Codex pending (T253) |
+| Harness capture | `harness install --harness all-ready --dry-run` then `--yes` | Five ready (grok → agy → opencode → claude → codex). Codex live fire needs `/hooks` trust. No nightly Claude/Codex. |
 | Hotspots preview | `safety sync --dry-run` | Prefer dry-run until user wants pin |
 | Graph health | `graph update` | Needs graph-on install |
 | Pin / forget | `pin`, `forget` | Mutating |

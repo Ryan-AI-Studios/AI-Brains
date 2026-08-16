@@ -5,8 +5,8 @@ use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, MemoryPinnedPayload, Payload};
 use ai_brains_retrieval::{RecallOptions, recall_full};
 use ai_brains_store::{EventStore, QueryStore};
-use is_terminal::IsTerminal;
 use rusqlite::OptionalExtension;
+use std::io::IsTerminal;
 use std::str::FromStr;
 
 pub struct RecallRunOptions {

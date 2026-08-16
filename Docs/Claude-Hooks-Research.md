@@ -1,5 +1,7 @@
 # Claude Code Hooks Research
 
+> **Historical.** T253 wrappers supersede this research as product SOOT. Hooks default-on via `features.hooks` (not `codex_hooks`). SessionStart injection is not DoD. Use `ai-brains harness install --harness claude` + `claude-hook` / `claude-import`.
+
 This document summarizes the research into where Claude Code stores its global hooks and configuration.
 
 ## Summary of Findings

@@ -16,7 +16,7 @@ use ai_brains_store::SqliteEventStore;
 use ai_brains_store::StoreError;
 use ai_brains_store::connection::VaultConnection;
 use std::fs::{self, File};
-use std::io::{self, Read, Write};
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -153,7 +153,7 @@ pub(crate) fn validate_passphrase_source_dry_run(
             read_passphrase_file(path)
         }
         None => {
-            if !is_terminal::is_terminal(io::stdin()) {
+            if !io::stdin().is_terminal() {
                 return Err("dry-run: no --passphrase-file and stdin is not a TTY; \
                      cannot validate interactive passphrase source"
                     .into());
@@ -231,7 +231,7 @@ fn trim_trailing_newline(buf: &mut Vec<u8>) {
 }
 
 fn read_passphrase_tty() -> Result<Zeroizing<Vec<u8>>, Box<dyn std::error::Error>> {
-    if !is_terminal::is_terminal(io::stdin()) {
+    if !io::stdin().is_terminal() {
         return Err(
             "no --passphrase-file and stdin is not a TTY; cannot prompt for passphrase \
              (use --passphrase-file <path>)"

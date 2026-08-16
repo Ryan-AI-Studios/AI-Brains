@@ -960,7 +960,8 @@ pub fn register_path(
         return Err("path normalized to empty; choose a non-empty filesystem path.".into());
     }
 
-    // F21 conflict pre-check (projection UPSERT alone would steal ownership).
+    // F21 conflict pre-check (CLI check-then-write). Projection refuse-steal
+    // keeps a raced other-owner Added from moving the row (T254 F7).
     if let Some(existing) = ctx.conn.find_path_alias_owner(&normalized)? {
         if existing == project_id {
             println!(
@@ -970,8 +971,8 @@ pub fn register_path(
             return Ok(());
         }
         eprintln!(
-            "path alias '{}' is already registered to project {}; choose a different path (unregister-path is soft residual F31)",
-            normalized, existing
+            "path alias '{}' is already registered to project {}; choose a different path or run: ai-brains project unregister-path {}",
+            normalized, existing, normalized
         );
         std::process::exit(1);
     }

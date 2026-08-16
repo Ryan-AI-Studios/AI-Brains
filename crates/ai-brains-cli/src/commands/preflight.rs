@@ -14,8 +14,8 @@ use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
 use ai_brains_store::QueryStore;
 use ai_brains_store::SqliteEventStore;
-use is_terminal::IsTerminal;
 use serde::Serialize;
+use std::io::IsTerminal;
 
 pub struct PreflightRunOptions {
     pub max_words: usize,
@@ -915,7 +915,8 @@ fn append_harness_summary_and_maybe_prompt(
     if gate.install_hooks {
         if let Some(h) = home.as_ref() {
             let mut installed_any = false;
-            // T238: OpenCode is install_ready — include with AGY/Grok (not Claude/Codex pending).
+            // T238/T253: OpenCode is install_ready. Claude/Codex writers are on
+            // `harness install`; do not expand this --install-hooks loop (hotspot).
             for hid in [HarnessId::Agy, HarnessId::Grok, HarnessId::Opencode] {
                 let row = report.harnesses.iter().find(|r| r.id == hid.as_str());
                 let Some(row) = row else { continue };

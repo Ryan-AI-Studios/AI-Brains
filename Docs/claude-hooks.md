@@ -1,5 +1,7 @@
 # AI-Brains Hook System for Claude Code
 
+> **Historical.** T253 wrappers supersede this document as product SOOT. Hooks default-on via `features.hooks` (not `codex_hooks`). SessionStart injection is not DoD. Use `ai-brains harness install --harness claude` + `claude-hook` / `claude-import`.
+
 This document details the configuration, architecture, and troubleshooting steps for the project-aware memory hooks used with Claude Code.
 
 ## Overview
