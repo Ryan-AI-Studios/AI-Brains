@@ -100,7 +100,7 @@ Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty v
 | Flag / env | Purpose |
 |------------|---------|
 | `--vault-path` / `AI_BRAINS_VAULT_PATH` | Vault database path |
-| `--key` / `AI_BRAINS_KEY` | Vault SQLCipher key (`x'<64 hex>'`). Zero key refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (T187) |
+| `--key` / `AI_BRAINS_KEY` | Vault SQLCipher key (`x'<64 hex>'`). Zero key refused unless `AI_BRAINS_ALLOW_ZERO_KEY=1` (T187). Root `--help` / `-h` / `help` document `[env: AI_BRAINS_KEY]` and never echo the live value (T256) |
 | `--no-project-context` | CI/hooks: do not load project `.env` or clobber inherited IDs |
 | `--log-format` | `compact` \| `full` \| `json` \| `minimal` \| `off` |
 
