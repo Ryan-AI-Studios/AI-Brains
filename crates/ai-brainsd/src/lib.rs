@@ -35,6 +35,7 @@ pub mod pipe_error;
 pub mod services;
 pub mod shutdown_signal;
 pub mod unix_socket_mode;
+pub mod vault_key;
 
 #[cfg(windows)]
 pub mod pipe_security;
