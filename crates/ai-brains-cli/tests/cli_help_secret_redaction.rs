@@ -17,6 +17,8 @@ const DUMMY_KEY_BYTES: [u8; 32] = [
 
 const ENV_SLOT: &str = "[env: AI_BRAINS_KEY]";
 const KEY_ASSIGN_PREFIX: &str = "AI_BRAINS_KEY=x'";
+/// F5: non-secret vault-path env still shows clap `=value` (empty when unset).
+const VAULT_PATH_ENV_ASSIGN: &str = "[env: AI_BRAINS_VAULT_PATH=";
 
 fn combined_output(output: &Output) -> String {
     let mut s = String::new();
@@ -51,12 +53,15 @@ fn assert_root_help_redacted(args: &[&str]) {
         String::from_utf8_lossy(&out.stderr)
     );
     let combined = combined_output(&out);
-    // Leak first (the red AC). Exact `[env: AI_BRAINS_KEY]` only appears after
-    // hide_env_values (today clap emits `[env: AI_BRAINS_KEY=…]`).
+    // Leak first: without hide_env_values clap echoes `[env: AI_BRAINS_KEY=…]`.
     assert_key_not_echoed(&combined);
     assert!(
         combined.contains(ENV_SLOT),
         "root help must contain exact {ENV_SLOT}; args={args:?}"
+    );
+    assert!(
+        combined.contains(VAULT_PATH_ENV_ASSIGN),
+        "root help must still show vault-path env =value; args={args:?}"
     );
 }
 
@@ -88,11 +93,15 @@ fn root_long_help__key_unset__still_names_env() {
     );
     let combined = combined_output(&out);
     assert_key_not_echoed(&combined);
-    // Same clap slot as AC1: `[env: AI_BRAINS_KEY]` only after hide_env_values
-    // (unset today is `[env: AI_BRAINS_KEY=]`, so this is green-after-F1).
+    // After hide_env_values the slot is `[env: AI_BRAINS_KEY]` (no `=`).
+    // Pre-F1 unset clap emitted `[env: AI_BRAINS_KEY=]`.
     assert!(
         combined.contains(ENV_SLOT),
         "unset-key --help must still name {ENV_SLOT}"
+    );
+    assert!(
+        combined.contains(VAULT_PATH_ENV_ASSIGN),
+        "unset-key --help must still show vault-path env =value"
     );
 }
 
