@@ -1,7 +1,7 @@
 # T254 — Multi-root soft residuals (T233+)
 
 - **Track ID:** T254-MultiRootSoftResiduals
-- **Status:** 📋 **Planning** (plan-only until **go**)
+- **Status:** ✅ **Completed** 2026-08-15
 - **Category:** FEATURE / OPS
 - **Owner:** Grok
 - **Source:** T233 soft residual — O2 `list-paths`, F31 `unregister-path`, F15 `--from-scan`, T233-F44 route `method`/`path_pattern`, plus honesty leftovers `bridge_roots_failed` and F21 projection steal
@@ -11,7 +11,7 @@
 - **Not absorbed (DoD):** T233-F44 SymbolRecord / `ledgerful endpoints` ingest; concurrent atomic F21 (multi-operator); T229/T255 router residuals; T240 F13 detect `--json` / F14 `project use`; T167 importer; T253 nightly Claude/Codex; clap 5 / pin bumps; daemon/DTO/T180 rewrite; auto-register / auto `.env` write
 - **Research date:** 2026-08-15 (source HEAD `012b37c` at plan; fold-in against `dc16d3a`)
 - **AI fold-in:** 2026-08-15 `C:\dev\AI-review.md` **T254** AI1 + AI2. No Highs. **Agree hard:** AI2 drop camino (not a cli/path dep; F26 forbids adding it); AI2 F10 label+alias via in-memory `list_projects` join (not N+1, not new SQL); AI2 CLI-EXIT-CODES in F28/AC15; AI2 owner-scoped Removed DELETE + AC19; AI2 new CLI returns `Err` (no `process::exit` in `project_paths.rs`); AI2 scan-roots one-shot HashMap lookup; AI2 unreadable/cap unit on helper. **Agree:** AI1 F24/F7/F16/F21 bounds; AI2 Removed payload ≡ Added; AI2 `--format auto` reuse whoami `IsTerminal`; AI2 split hermetics; rebuild tests stay in `path_aliases.rs`. **Decline:** AI2 new `list_path_alias_details` SQL helper; AI2 `path_is_same_or_inside` for scan (exact normalize match); refactor `register_path` `process::exit` (F8 copy-only). Disposition **§10**.
-- **Ledger:** plan-only until go. Planning TX `3d30be0a-be88-4cf8-8d44-8d1316bb939a` (DOCS). Fold-in TX `391a8aae-e859-4fe2-81b5-d35affe8d190` (DOCS). Implement go starts a new FEATURE TX: `ledgerful ledger start T254-multiroot-soft-residuals --category FEATURE`
+- **Ledger:** FEATURE TX `4e796ab0-aefd-4de4-9023-d62fbd278dd0` (go 2026-08-15). Planning TX `3d30be0a-be88-4cf8-8d44-8d1316bb939a` (DOCS). Fold-in TX `391a8aae-e859-4fe2-81b5-d35affe8d190` (DOCS).
 - **Isolation:** Do **not** reopen T233 Phase 2 / 0163 SQL delete / ingest cap. Do **not** write repo-local `.ledgerful` or hooks (C7). Do **not** delete or update raw events. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** auto-register test projects (T233 F33).
 
 ---
@@ -238,12 +238,12 @@ ai-brains project register-path <other-id> C:\dev\AI-Brains
 
 ## 9. Definition of Done
 
-- [ ] User **go** + FEATURE TX
-- [ ] F0–F39 + AC1–AC19
-- [ ] AI fold-in (§10) honored
-- [ ] Internal review clean; Codex FEATURE review; full gate
-- [ ] conductor / deferred / pin updated
-- [ ] No repo-local hook or `.ledgerful` writes from this track
+- [x] User **go** + FEATURE TX
+- [x] F0–F39 + AC1–AC19
+- [x] AI fold-in (§10) honored
+- [x] Internal review clean; Codex FEATURE review; full gate
+- [x] conductor / deferred / pin updated
+- [x] No repo-local hook or `.ledgerful` writes from this track
 
 ---
 

@@ -177,10 +177,23 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 | device status missing | ~~**T251**~~ ✅ **Completed** 2026-08-14 PR #167 `038098e` — first-class `status` = roster + always `next:`; plural T198 only; CLI-EXIT-CODES footnote. Soft residual only: F12 |
 | ingest dry-run empty stdin | ~~**T252**~~ ✅ **Completed** 2026-08-15 — empty/TTY/`trim` stdin → `fail_usage` exit **2** + example JSON; mid-payload stays `COMMAND_FAILED` exit **1**. Soft residual only: F12 vault-free dry-run / `--schema` / `IsTerminal` migrate / shared stdin helper / `events[0]` panic / T254–T255 |
 | Claude/Codex install_ready (T239+) | ~~**T253**~~ ✅ **Completed** 2026-08-15 — writers + UPS/Stop message-only; `install_ready` true; `all-ready` five; no nightly. Soft residual only: F34 nightly sources / Codex SessionEnd / Unix wrappers / unified PS1 |
-| T233 soft list-paths/unregister/from-scan | **T254** Planning 2026-08-15 — list-paths + unregister Removed event + scan-roots dry-run; decline T233-F44 routes; plan-only until go |
+| T233 soft list-paths/unregister/from-scan | ~~**T254**~~ ✅ **Completed** 2026-08-15 — list-paths + unregister Removed + scan-roots dry-run; refuse-steal; decline T233-F44. Soft residual only: F12 |
 | T229 soft F8–F12/F14 | **T255** Placeholder |
 
-Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T253 Completed.** T254 Planning. T255 plan-only until go.
+Series README: [README-T240-T255-CLI-EFFECTIVENESS.md](tracks/README-T240-T255-CLI-EFFECTIVENESS.md). **T240–T254 Completed.** T255 plan-only until go.
+
+### T254 closeout residuals (2026-08-15)
+
+Specified softs (F12) plus deferred review lows — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| AC3 `--format auto` TTY/pipe not hermetic | Soft F12 — same `IsTerminal` as whoami; suite forces json/human |
+| AC13 helper-vs-loop wiring | Soft F12 — unit drives helper; loop calls helper on Ok/Err |
+| F16 no pin/symbol assertion after unregister | Soft F12 — unregister only appends Removed |
+| Scan/dry-run alias-count vs event-log length | Soft F12 — product claim is no aliases written |
+| Concurrent multi-operator F21 atomicity | Declined F5 — refuse-steal is the safety net |
+| T233-F44 `ledgerful endpoints` ingest | Declined F4 |
 
 ### T253 closeout residuals (2026-08-15)
 
@@ -209,7 +222,7 @@ Specified softs (F12), not review deferrals:
 | Shared `read_stdin_trimmed` SOOT | Soft — isolation |
 | `outcome.events[0]` if `events` empty | Soft — pre-existing live path |
 | T253 | Closed — Claude/Codex install_ready |
-| T254 | Planning 2026-08-15 |
+| T254 | Closed — list-paths / unregister / scan-roots |
 | T255 | Peer placeholder |
 
 ### T251 soft residuals (2026-08-14)
@@ -1286,7 +1299,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 - F17: verify `--quiet`; JSON `summary` field; structured `VerifyError` / 4-class rollup (O1); optional 3-class substring rollup omitted (M5)
 - Operator still runs `ai-brains backup create` on live encrypted vaults
 
-| T233 soft residual (list-paths / unregister-path / from-scan / route metadata) | **T254 Planning** — ship O2/F31/F15 + refuse-steal + `bridge_roots_failed`; **decline** T233-F44 endpoints ingest + concurrent F21 atomicity |
+| T233 soft residual (list-paths / unregister-path / from-scan / route metadata) | ~~**T254**~~ ✅ **Completed** 2026-08-15 — O2/F31/F15 + refuse-steal + `bridge_roots_failed`; **declined** T233-F44 + concurrent F21 |
 
 ## AI-Brains T241 (2026-08-12)
 

@@ -1,11 +1,11 @@
 # T254 Plan — Multi-root soft residuals (T233+)
 
-**Status:** 📋 **Planning** (plan-only until **go**)  
-**Spec:** [spec.md](./spec.md) F0–F39 / AC1–AC19 + §10 AI fold-in  
-**Category:** FEATURE / OPS  
-**Ledger TX (planning):** `3d30be0a-be88-4cf8-8d44-8d1316bb939a` (DOCS)  
-**Ledger TX (fold-in):** `391a8aae-e859-4fe2-81b5-d35affe8d190` (DOCS)  
-**Ledger TX (on go):** `ledgerful ledger start T254-multiroot-soft-residuals --category FEATURE --message "list-paths + unregister-path Removed event + scan-roots dry-run; refuse-steal; no endpoints ingest"`
+**Status:** ✅ **Completed** 2026-08-15
+**Spec:** [spec.md](./spec.md) F0–F39 / AC1–AC19 + §10 AI fold-in
+**Category:** FEATURE / OPS
+**Ledger TX (planning):** `3d30be0a-be88-4cf8-8d44-8d1316bb939a` (DOCS)
+**Ledger TX (fold-in):** `391a8aae-e859-4fe2-81b5-d35affe8d190` (DOCS)
+**Ledger TX (implement):** `4e796ab0-aefd-4de4-9023-d62fbd278dd0` (FEATURE)
 
 ---
 
@@ -104,62 +104,62 @@ No Highs. AI1 affirms F3/F6/F7/F9/F16/F21/F24. AI2 code-status table matches spe
 
 ## Phase 0 — Ledger + impact (on go)
 
-- [ ] `ledgerful ledger status --compact` (0 pending)
-- [ ] `ledgerful ledger start T254-multiroot-soft-residuals --category FEATURE --message "…"`
-- [ ] `ledgerful scan --impact` (project.rs, nightly.rs, grants.rs, events, repository_identity.rs)
-- [ ] Confirm `project.rs` still hotspot #1 — do not add the new commands there
+- [x] `ledgerful ledger status --compact` (0 pending)
+- [x] `ledgerful ledger start T254-multiroot-soft-residuals --category FEATURE --message "…"` → TX `4e796ab0-aefd-4de4-9023-d62fbd278dd0`
+- [x] `ledgerful scan --impact` (project.rs, nightly.rs, grants.rs, events, repository_identity.rs) — overall LOW; `project.rs` still hotspot #1
+- [x] Confirm `project.rs` still hotspot #1 — do not add the new commands there
 
 ## Phase 1 — Red → Green: `list-paths` (F1 / F9–F12 / AC1–AC3)
 
-- [ ] Hermetic failing tests: empty vault; two aliases ASC; JSON keys include `label`+`alias`; `project list` still first-path-only
-- [ ] Clap `ListPaths { format }` default `auto` (whoami `IsTerminal`)
-- [ ] Implement in `project_paths.rs`; dispatch in `main.rs`; join via `list_projects` HashMap + `display_label`
-- [ ] Empty next-step mentions `register-path`
-- [ ] Targeted: `cargo nextest run -p ai-brains-cli -E 'test(list_paths)'` ; clippy `-p ai-brains-cli`
+- [x] Hermetic failing tests: empty vault; two aliases ASC; JSON keys include `label`+`alias`; `project list` still first-path-only
+- [x] Clap `ListPaths { format }` default `auto` (whoami `IsTerminal`)
+- [x] Implement in `project_paths.rs`; dispatch in `main.rs`; join via `list_projects` HashMap + `display_label`
+- [x] Empty next-step mentions `register-path`
+- [x] Targeted: `cargo nextest run -p ai-brains-cli -E 'test(list_paths)'` ; clippy `-p ai-brains-cli`
 
 ## Phase 2 — Red → Green: unregister (F2 / F7 / F8 / F13–F19 / AC4–AC9 / AC16)
 
-- [ ] Events: payload **≡ Added shape** + EventKind + KnownPayload + exports; **new** Added+Removed round-trip (`event_kind_from_payload.rs` has no Added case today)
-- [ ] Store: owner-scoped DELETE; refuse-steal UPSERT; rebuild + **AC19** foreign Removed in `path_aliases.rs`
-- [ ] CP: `unregister_path_alias`; normalize empty → InvalidPayload
-- [ ] CLI: `unregister-path <path> [--project] [--dry-run]` returns `Err` (no `process::exit`)
-- [ ] Missing → exit 0; owner mismatch → exit 1; dry-run no append
-- [ ] Replace F21 residual string; update `register_path__conflict_other_project__exit_1`; new suite in `tests/project_path_aliases.rs`
-- [ ] `legacy_import` skip arm includes Removed (compile-driven)
-- [ ] Targeted: events + store + cli hermetics + `grant_isolation` if it touches aliases
+- [x] Events: payload **≡ Added shape** + EventKind + KnownPayload + exports; **new** Added+Removed round-trip (`event_kind_from_payload.rs` has no Added case today)
+- [x] Store: owner-scoped DELETE; refuse-steal UPSERT; rebuild + **AC19** foreign Removed in `path_aliases.rs`
+- [x] CP: `unregister_path_alias`; normalize empty → InvalidPayload
+- [x] CLI: `unregister-path <path> [--project] [--dry-run]` returns `Err` (no `process::exit`)
+- [x] Missing → exit 0; owner mismatch → exit 1; dry-run no append
+- [x] Replace F21 residual string; update `register_path__conflict_other_project__exit_1`; new suite in `tests/project_path_aliases.rs`
+- [x] `legacy_import` skip arm includes Removed (compile-driven)
+- [x] Targeted: events + store + cli hermetics + `grant_isolation` if it touches aliases
 
 ## Phase 3 — Red → Green: `scan-roots` (F3 / F20–F23 / AC10–AC12)
 
-- [ ] Hermetic temp tree: `.ledgerful` child hits; plain child misses; `.changeguard`-only misses; event count unchanged
-- [ ] Already-registered child shows `registered_project_id`
-- [ ] Cap 200 + unreadable: **unit the helper** (not Windows ACL integration)
-- [ ] One-shot `list_path_aliases` HashMap; normalize hits; no `path_is_same_or_inside`
-- [ ] `--help` says dry-run / never writes
-- [ ] Targeted cli hermetics
+- [x] Hermetic temp tree: `.ledgerful` child hits; plain child misses; `.changeguard`-only misses; event count unchanged
+- [x] Already-registered child shows `registered_project_id`
+- [x] Cap 200 + unreadable: **unit the helper** (not Windows ACL integration)
+- [x] One-shot `list_path_aliases` HashMap; normalize hits; no `path_is_same_or_inside`
+- [x] `--help` says dry-run / never writes
+- [x] Targeted cli hermetics
 
 ## Phase 4 — `bridge_roots_failed` (F6 / AC13)
 
-- [ ] Counter + tracing field
-- [ ] Unit: one missing + one symbol-err + one ok → numbers add up
-- [ ] Do not change MADR-fail-but-symbols-ok = ok
+- [x] Counter + tracing field
+- [x] Unit: one missing + one symbol-err + one ok → numbers add up
+- [x] Do not change MADR-fail-but-symbols-ok = ok
 
 ## Phase 5 — Docs (F28 / AC15)
 
-- [ ] CAPABILITIES path-alias row + CONTEXT inventory
-- [ ] OPERATIONS table + unregister / scan-roots + refuse-steal one-liner
-- [ ] WORKFLOWS triangle
-- [ ] CHANGELOG Unreleased Added
-- [ ] **CLI-EXIT-CODES.md** F35 rows (empty-success 0; conflict/mismatch 1; usage 2)
-- [ ] `register-path` / new after_help
-- [ ] conductor + deferred closeout **only at track complete** (not this planning commit)
+- [x] CAPABILITIES path-alias row + CONTEXT inventory
+- [x] OPERATIONS table + unregister / scan-roots + refuse-steal one-liner
+- [x] WORKFLOWS triangle
+- [x] CHANGELOG Unreleased Added
+- [x] **CLI-EXIT-CODES.md** F35 rows (empty-success 0; conflict/mismatch 1; usage 2)
+- [x] `register-path` / new after_help
+- [x] conductor + deferred closeout **only at track complete** (not this planning commit)
 
 ## Phase 6 — Review / gate (F30 / AC14 / AC17 / AC18)
 
-- [ ] Internal review vs spec until clean (mediums fixed or ≤3 justified)
-- [ ] `codex-review` FEATURE
-- [ ] Manual: `list-paths` on live vault (empty + next); `scan-roots C:\dev` (17-ish `.ledgerful`, 0 writes); optional `--dry-run` unregister of a temp register in a **temp vault** (do not mutate live aliases without user ask)
-- [ ] Full gate: `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit ; ledgerful verify --scope full`
-- [ ] Pin decisions; conductor Complete; deferred strike
+- [x] Internal review vs spec until clean (mediums fixed or ≤3 justified)
+- [x] `codex-review` FEATURE
+- [x] Manual: `list-paths` on live vault (empty + next); `scan-roots C:\dev` (17-ish `.ledgerful`, 0 writes); optional `--dry-run` unregister of a temp register in a **temp vault** (do not mutate live aliases without user ask)
+- [x] Full gate: `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit ; ledgerful verify --scope full`
+- [x] Pin decisions; conductor Complete; deferred strike
 
 ---
 
@@ -188,10 +188,10 @@ No Highs. AI1 affirms F3/F6/F7/F9/F16/F21/F24. AI2 code-status table matches spe
 
 | Step | Command | Expected | Result |
 |------|---------|----------|--------|
-| Empty list | `ai-brains project list-paths` | Empty + `next: … register-path` | |
-| Scan | `ai-brains project scan-roots C:\dev` | `.ledgerful` children listed; no vault write | |
-| Hermetic register/list/unregister | nextest `project_path_aliases` | AC1–AC12 green | |
-| Live register | **only if user asks** | do not auto-bind the 17 roots | |
+| Empty list | `cargo run -q -p ai-brains-cli -- --no-project-context project list-paths --format human` | Empty + `next: … register-path` | **PASS** 2026-08-15 — `No path aliases registered.` + next-step. `--format json` `{api_version:"1",paths:[]}` |
+| Scan | `cargo run -q -p ai-brains-cli -- --no-project-context project scan-roots C:\dev --format json` | `.ledgerful` children listed; no vault write | **PASS** 2026-08-15 — 18 roots (C:\dev itself + 17 children matching spec §2.1); all `registered_project_id: null`; `truncated: false`; list-paths still empty after scan |
+| Hermetic register/list/unregister | nextest `project_path_aliases` + `project_register_path` | AC1–AC12 green | **PASS** — 18 passed |
+| Live register | **only if user asks** | do not auto-bind the 17 roots | not run |
 
 ---
 
