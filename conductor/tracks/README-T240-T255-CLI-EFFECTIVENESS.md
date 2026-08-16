@@ -1,7 +1,7 @@
 # T240–T255 — Post-install CLI effectiveness (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-11 (global graph-on install; live vault).
-**Status:** 📋 **Placeholder series** — plan-only until each track gets **go**. **T243 Completed** 2026-08-12 PR #153. **T245 Completed** 2026-08-12 PR #155. **T247 Completed** 2026-08-13 PR #157. **T246 Completed** 2026-08-13 PR #159. **T248 Completed** 2026-08-14 PR #161. **T249 Completed** 2026-08-14 PR #163. **T250 Completed** 2026-08-14 PR #165. **T251 Completed** 2026-08-14 PR #167. **T252 Completed** 2026-08-15 (empty/TTY ingest stdin honesty). **T253 Completed** 2026-08-15 (Claude/Codex install_ready). **T254 Completed** 2026-08-15 (T233 list-paths / unregister / scan-roots).
+**Status:** 📋 **T255 Planning** — plan-only until **go**. **T240–T254 Completed.** **T243** PR #153. **T245** PR #155. **T247** PR #157. **T246** PR #159. **T248** PR #161. **T249** PR #163. **T250** PR #165. **T251** PR #167. **T252** 2026-08-15. **T253** 2026-08-15. **T254** 2026-08-15.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest.
 
 ## Audit → track map
@@ -23,7 +23,7 @@
 | `ingest --dry-run` empty stdin **5/7** | **T252** ✅ **Completed** 2026-08-15 — `fail_usage` exit 2 + example; mid-payload exit 1 | P3 |
 | Claude/Codex `install_ready` (**T239+** residual) | **T253** ✅ **Completed** 2026-08-15 — writers + UPS/Stop message-only; `all-ready` five; no nightly | P2 |
 | T233 soft: list-paths / unregister-path / from-scan / route method | **T254** ✅ **Completed** — list/unregister/scan-roots; decline routes | P3 |
-| T229 soft: doctor model ports / JSON status / embed sleep (F8–F12/F14) | **T255** | P3 |
+| T229 soft: doctor model ports / JSON status / embed sleep (F8–F12/F14) | **T255** 📋 **Planning** — JSON status + read-only Router line; decline doctor 16th / persist probe / embed sleep / product wrapper | P3 |
 
 **Scored ≥8 and not tracked here unless improvement-listed:** `doctor`, `recall` FTS/semantic/empty, most `preflight --summary*`, `project list`, `memory list`, `harness status` (activation → T245), `pin --dry-run`, `graph update` (pretty → T246), `sync query`, `replicate status`, `safety sync --dry-run`.
 
@@ -38,7 +38,7 @@
 7. **T243** search unify
 8. **T246** graph pretty
 9. **T248–T252** presentation polish
-10. **T253–T254** Completed. **T255** still placeholder.
+10. **T253–T254** Completed. **T255** Planning — last series track; plan-only until go.
 
 Parallel after T240+T241 if non-intersecting: T242 ∥ T244 ∥ T245.
 
