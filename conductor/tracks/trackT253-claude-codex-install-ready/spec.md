@@ -10,8 +10,8 @@
 - **Absorbs:** deferred.md “Claude/Codex install_ready (T239+)”; placeholder F1–F3 / AC1–AC2; T245 F13 fence + `pending_track` still `T239+`; T235 F14 Claude/Codex `backend_pending`; T239 D16 *labels only* (not nightly expansion)
 - **Not absorbed (DoD):** Nightly multi-import of Claude/Codex (T239 D16 stays); SessionStart preflight injection; PreCompact archive; StopFailure ingest; SubagentStop / child ingest; project-scope hooks / Codex project trust as default; rewriting `parse_ingest_request` / T180 / T114 / T107; clap 5 / pin bumps; vault-free hook CLIs; MSI / MDM managed hooks; replacing historical `scripts/target-claude-hook.ps1` / `target-codex-hook.ps1` in-place (new wrappers only)
 - **Research date:** 2026-08-15 (live binaries + official hook docs + crate pins + T234–T245 residuals)
-- **AI fold-in:** none yet — fold in `C:\dev\AI-review.md` if the user asks, then lock disposition in **§12**
-- **Ledger:** plan-only until go. Planning TX `3cadc357-5c06-46c6-b22d-6812bb9a2110` (DOCS). Implement go starts a new FEATURE TX: `ledgerful ledger start T253-claude-codex-install-ready --category FEATURE`
+- **AI fold-in:** 2026-08-15 `C:\dev\AI-review.md` **T253** AI1 + AI2. No Highs. **Agree hard:** AI1 wrapper stdout isolation (capture hook CLI `2>&1` / no leaked PS warnings, then emit exact F8/F9 bytes); AI2 exhaustive `HarnessId` match in `harness.rs` (no reachable `unreachable!` after F2); AI2 `pending_track()` → **`None`** (not `"T253"`); AI2 `install_pending_summary` + `T239+` tests flip; AC6 asserts capture-then-emit. **Agree:** AI1 exec-form / bake / `--schema` already F5/F14; AI1 F22 `/hooks` + F23 Grok fail-open + F17 nightly; AI1/AI2 map-only merge + AC18; AI2 `filter_turn` SOOT + named test sites + workspace **0.1.1**. **Decline:** AI2 set `pending_track` to `"T253"` (would keep doctor pending); AI2 unify all four PS1 templates (AGY/Grok regression); AI2 `hook_output.rs` / `wrapper.rs` for Codex Stop (`HookResponse` / `{binary} ingest` ≠ `{"continue":true}`); AI2 runtime schema-from-serde (keep `include_str!` file SOOT). Disposition **§12**.
+- **Ledger:** plan-only until go. Planning TX `3cadc357-5c06-46c6-b22d-6812bb9a2110` (DOCS). Fold-in TX `4bd66b61-0f55-4343-8177-ec75289c6d70` (DOCS). Implement go starts a new FEATURE TX: `ledgerful ledger start T253-claude-codex-install-ready --category FEATURE`
 - **Isolation:** Do **not** add Claude/Codex to `run_multi_harness_import`. Do **not** rewrite T234 filter core (add harness helpers). Do **not** change `CapabilityLevel::Full` (tests lock it — honesty is **notes** + docs). Do **not** write repo-local `.claude/` or `.codex/` hooks (C7). Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -150,14 +150,14 @@ Supersede those claims in CAPABILITIES/OPERATIONS and a short honesty banner on 
 |----|----------|
 | **F0 — Plan-only** | No production code and **no live `harness install` without `--dry-run`** until **go**. Do not write `~\.claude\settings.json`, `~\.codex\hooks.json`, or `~\.ai-brains\hooks\claude-*.ps1` / `codex-*.ps1` until go. Dry-run research OK. |
 | **F1 — Product is ready** | Do **not** leave Claude/Codex `install_ready=false` after implement. Official 2026 surfaces support T234-safe capture. “Stay pending” only if go-time research finds a block (then halt — Stop-Before). |
-| **F2 — Flip readiness** | `HarnessId::Claude` and `HarnessId::Codex`: `install_ready() → true`; `pending_track() → None`. Update `install_ready__agy_and_grok` and every `T239+` / pending-only assert. |
+| **F2 — Flip readiness** | `HarnessId::Claude` and `HarnessId::Codex`: `install_ready() → true`; `pending_track() → None` (**not** `"T253"` — AI2 mid-state declined). Same commit: `detect.rs` tests 296–305; `harness.rs` all-ready tests 476–482 → five ids; `install.rs` `install_pending__claude_*` comment + `install_pending_summary__lists_tracks` (**drop** `assert!(s.contains("T239+"))`); footer no longer “AGY/Grok/OpenCode ready via…”. Doctor F6: delete the “do not call `pending_track()` (still T239+)” comment; AC13 empty pending clause. |
 | **F3 — `all-ready` / `all`** | After F2, `all-ready` iterates grok → agy → opencode → **claude → codex** (HARNESS_ORDER, no extra sort). `all` already includes them. |
-| **F4 — Dispatch** | Replace `install_pending` / `uninstall_pending` for Claude/Codex with `install_claude` / `install_codex` / uninstall twins. Extend harness.rs match arms; keep the `unreachable!` only for theoretically ready-but-unmatched ids. |
-| **F5 — Claude install writer** | Merge user-global `~/.claude/settings.json` (create `{}` if missing). Managed handler **name** `ai-brains-capture`. Events **UserPromptSubmit + Stop + SessionEnd**. Same wrapper `~\.ai-brains\hooks\claude-capture.ps1`. Exec-form `powershell.exe` + `-File`. PATH bake (T245 F8). Preserve foreign hook groups. Idempotent. Parse-fail → refuse rewrite exit 1. |
-| **F6 — Codex install writer** | Merge user-global `~\.codex\hooks.json` (create `{ "hooks": {} }` if missing). Managed **name** `ai-brains-capture`. Events **UserPromptSubmit + Stop** only (SessionEnd not DoD). Wrapper `~\.ai-brains\hooks\codex-capture.ps1`. Same bake + refuse-on-corrupt. **Never** edit `config.toml`. If `[features].hooks = false` is set, still write `hooks.json` and **warn** + next `set hooks = true` (or remove the key). Never write `codex_hooks`. |
+| **F4 — Dispatch (exhaustive)** | Replace `install_pending` / `uninstall_pending` for Claude/Codex with `install_claude` / `install_codex` / uninstall twins. **`harness.rs` install + uninstall matches list all five `HarnessId` variants** (Agy/Grok/Opencode/Claude/Codex). **No `_ => unreachable!(…)`** — a sixth id is a compile error (AGENTS.md: `unreachable!` is a panic; AI2 BS1). Same commit as F2. |
+| **F5 — Claude install writer** | Merge user-global `~/.claude/settings.json` (create `{}` if missing). **`serde_json::Map` only** — never a typed settings struct (AI1 BS2). Managed handler **name** `ai-brains-capture`. Events **UserPromptSubmit + Stop + SessionEnd**. Same wrapper `~\.ai-brains\hooks\claude-capture.ps1`. Exec-form `powershell.exe` + `args` (`-NoProfile`, `-ExecutionPolicy`, `Bypass`, `-File`, wrapper) — AI1 opp 1 already required. PATH bake (T245 F8). Preserve foreign top-level keys + foreign hook groups. Idempotent. Parse-fail / JSONC `//` → refuse rewrite exit 1 (no JSONC parser). |
+| **F6 — Codex install writer** | Merge user-global `~\.codex\hooks.json` (create `{ "hooks": {} }` if missing). **`serde_json::Map` only.** Managed **name** `ai-brains-capture`. Events **UserPromptSubmit + Stop** only (SessionEnd not DoD). Wrapper `~\.ai-brains\hooks\codex-capture.ps1`. Same bake + refuse-on-corrupt. **Never** edit `config.toml`. If `[features].hooks = false` is set, still write `hooks.json` and **warn** + next `set hooks = true` (or remove the key). Never write `codex_hooks`. |
 | **F7 — C7 / consent** | User-global only. `--yes` / TTY / `auto_install` unchanged. Never write repo `.claude/settings.json` or `.codex/hooks.json`. Hermetic targets under temp home. |
-| **F8 — Claude Stop stdout** | Wrapper: suppress `claude-hook` stdout; host stdout **empty**; **exit 0**. Never `decision`, `continue`, `hookSpecificOutput`, exit 2. Diagnostics stderr only. Dedicated `claude_wrapper_*` helpers (do **not** reuse AGY allow JSON or Grok empty helper by name — may share a “empty stdout” string helper if that is clearer). |
-| **F9 — Codex Stop / UPS stdout** | Wrapper: suppress hook CLI stdout; host stdout is **exactly** `{"continue":true}` (no trailing junk); **exit 0**. Never `decision: "block"`, never `additionalContext`. Dedicated `codex_wrapper_continue_stdout()`. Hermetic body test. |
+| **F8 — Claude Stop stdout** | Grok pattern (install.rs ~585): capture **all** child streams (`2>&1` / pipe to stderr); host stdout **empty**; **exit 0**. Never `decision`, `continue`, `hookSpecificOutput`, exit 2. `$ErrorActionPreference` must not print to stdout. Dedicated `claude_wrapper_*` (do **not** reuse AGY allow JSON). |
+| **F9 — Codex Stop / UPS stdout** | Same child-stream capture as F8, **then** host stdout is **exactly** `{"continue":true}` (no leading/trailing whitespace, no PS warning). **exit 0**. Never `decision: "block"`, never `additionalContext`. Dedicated `codex_wrapper_continue_stdout()`. **Do not** call `ai_brains_adapters::hook_output::render_hook_output` (emits `HookResponse {success,result,error}`) or `wrapper::wrapper_command` (`"{binary} ingest"`). |
 | **F10 — Claude live content** | **Assistant SOOT:** `last_assistant_message` (official). **User SOOT:** `UserPromptSubmit.prompt` after `extract_user_text` / `filter_turn`. SessionEnd: ingest `last_assistant_message` if present (safety net); do **not** block on transcript completeness. Optional overlay of transcript user/assistant via `filter_turn` is allowed for SessionEnd **only** when records are `type=user\|assistant` with `message.content` text — drop every other `type`. Transcript lag means Stop must **not** wait on the file for the current assistant. |
 | **F11 — Codex live content** | **User SOOT:** `UserPromptSubmit.prompt` + `filter_turn(user, …)`. **Assistant SOOT:** `Stop.last_assistant_message` + `filter_turn(assistant, …)`. **Do not** parse `transcript_path` on the live path (unstable). Empty prompt / empty last message → skip that role. |
 | **F12 — Codex batch import (hard, fail-open)** | `codex-import [--days N] [--force] [--dry-run]`. Walk `~\.codex\sessions\**\rollout-*.jsonl` (or `CODEX_HOME`). Keep only records `type=response_item` whose `payload.type=message` and `payload.role` is `user`/`assistant`. Run `filter_turn`. Drop `event_msg` / `session_meta` / unknown. Malformed line → skip. **Honesty:** format is not a vendor-stable API; if it drifts, import soft-skips rather than claiming 0-session success as “complete.” |
@@ -179,10 +179,10 @@ Supersede those claims in CAPABILITIES/OPERATIONS and a short honesty banner on 
 | **F28 — Secrets** | Never write keys/tokens into hook files. Never print `AI_BRAINS_KEY`. |
 | **F29 — Zero new crates / no clap 5** | No pin bumps. |
 | **F30 — Docs (hard)** | CAPABILITIES (table + §8 honesty); OPERATIONS activation + path table; WORKFLOWS “Activate” includes claude/codex; CHANGELOG T253; skill one-liner; CLI-EXIT-CODES only if new usage exits; research-doc banners. |
-| **F31 — High findings if…** | Fake `install_ready` without writers; SessionStart injection; ingest tools/thinking; Codex `decision:block` / AGY allow JSON on Codex Stop; force-edit `config.toml`; write `codex_hooks`; repo-local hooks; nightly schema change; clap 5 / new crates; unwrap in production; Grok-invoked Claude wrapper blocks stop; print vault key. |
+| **F31 — High findings if…** | Fake `install_ready` without writers; SessionStart injection; ingest tools/thinking; Codex `decision:block` / AGY allow JSON on Codex Stop; `render_hook_output` / `wrapper_command` as Codex Stop stdout; force-edit `config.toml`; write `codex_hooks`; repo-local hooks; nightly schema change; clap 5 / new crates; reachable `unreachable!` after F2; unwrap in production; Grok-invoked Claude wrapper blocks stop; print vault key; wrapper leaks hook CLI / PS warnings onto host stdout. |
 | **F32 — Parallel** | Touches `detect.rs`, `install.rs`, `wiring.rs`, `commands/harness.rs`, `doctor.rs` tests, `main.rs` clap, new hook/import command modules, adapters `claude.rs`/`codex.rs`/`message_only` helpers, docs, hermetics. T252 shipped — no ingest rewrite. T254/T255 do not overlap. |
 | **F33 — Soft residuals** | See **F34**. |
-| **F34 — Soft (not DoD)** | Nightly Claude/Codex sources + skip flags; Codex SessionEnd ingest (3s); Claude PreCompact; UserPromptSubmit-only vs transcript-only experiment after live dogfood; Unix `.sh` wrappers; plugin-packaged hooks; `commandWindows` dual command; fingerprint turn-ids if filter churn; HTTP/MCP hook types; is-terminal migrate. |
+| **F34 — Soft (not DoD)** | Nightly Claude/Codex sources + skip flags; Codex SessionEnd ingest (3s); Claude PreCompact; UserPromptSubmit-only vs transcript-only experiment after live dogfood; Unix `.sh` wrappers; plugin-packaged hooks; `commandWindows` dual command; fingerprint turn-ids if filter churn; HTTP/MCP hook types; is-terminal migrate; shared `ps_wrapper_template` across AGY/Grok/Claude/Codex (AI2 opp 2 — reuse `ps_resolve_ai_brains` + bake only). |
 
 ---
 
@@ -211,10 +211,10 @@ Supersede those claims in CAPABILITIES/OPERATIONS and a short honesty banner on 
 |----|-----------|
 | **AC1** | Units: `HarnessId::Claude.install_ready()` and `Codex.install_ready()` are true; `pending_track()` is `None`. |
 | **AC2** | Hermetic: `install_claude(home, true)` / `install_codex(home, true)` → `DryRun`, temp home file set unchanged. |
-| **AC3** | Hermetic: real `install_claude` creates/merges `settings.json` with named `ai-brains-capture` on UPS+Stop+SessionEnd; foreign `PreToolUse` group preserved; second run idempotent; `probe_wiring` = `Ok`. |
+| **AC3** | Hermetic: real `install_claude` creates/merges `settings.json` with named `ai-brains-capture` on UPS+Stop+SessionEnd; **foreign top-level keys** (e.g. `theme`) **and** foreign `PreToolUse` group preserved; handler is exec-form `command`+`args`; second run idempotent; `probe_wiring` = `Ok`. |
 | **AC4** | Hermetic: real `install_codex` writes `hooks.json` UPS+Stop named handler; **does not** create/modify `config.toml`; probe `Ok`. |
 | **AC5** | Hermetic: uninstall removes only managed handlers + wrapper; foreign remain. |
-| **AC6** | Wrapper body unit: Claude empty stdout + exit-0 contract string; Codex stdout == `{"continue":true}`; neither contains `decision`. |
+| **AC6** | Wrapper body unit: both wrappers capture child `2>&1` (Grok pattern) and never `Write-Host` hook output. Claude host stdout empty + `exit 0`. Codex host emit is **only** `{"continue":true}` (const `codex_wrapper_continue_stdout()`). Neither contains `decision`. Neither calls `render_hook_output`. |
 | **AC7** | `claude_filter` / `codex_filter`: user+assistant kept; tool/thinking/system dropped; `thinking` None on ingest request. |
 | **AC8** | Claude UPS `prompt` + Stop `last_assistant_message` map to hook payload; Grok-shaped stdin → skip (F23). |
 | **AC9** | Codex UPS `prompt` + Stop `last_assistant_message` map; missing fields → skip. |
@@ -251,6 +251,7 @@ Supersede those claims in CAPABILITIES/OPERATIONS and a short honesty banner on 
 | Risk | Mitigation |
 |------|------------|
 | Codex Stop JSON contract drift | Pin `{"continue":true}`; hermetic; docs; fail-open |
+| Wrapper leaks hook/PS stdout | F8/F9 Grok `2>&1` capture; AC6 |
 | Codex `/hooks` trust forgotten | Install stdout + OPERATIONS recipe |
 | Grok fires Claude wrapper | F23 skip |
 | Transcript format drift (Codex batch) | Fail-open keep-list; honesty |
@@ -291,7 +292,30 @@ Supersede those claims in CAPABILITIES/OPERATIONS and a short honesty banner on 
 
 ## 12. AI fold-in disposition
 
-None yet. If `C:\dev\AI-review.md` is provided for T253, fold agreed items here (same protocol as T245/T252). Until then this section is a placeholder.
+Source: `C:\dev\AI-review.md` (2026-08-15) AI1 + AI2. No Highs. Code-status table in AI2 §1 matches this spec’s §2.3 (no claim drift).
+
+| Review item | Disposition |
+|-------------|-------------|
+| AI1 BS1 / Codex extra stdout (PS warnings, hook CLI) | **Agree hard — F8/F9/AC6.** Capture child `2>&1` like Grok (~585), then emit exact contract (empty / `{"continue":true}`). |
+| AI1 BS2 / foreign `settings.json` fields | **Agree — F5/F6/AC3/AC18.** `Map` merge only; refuse corrupt; no typed struct; no JSONC parser. |
+| AI1 BS3 / `/hooks` trust vs `wiring=ok` | **Already F22 / AC20.** |
+| AI1 BS4 / Grok merges Claude settings | **Already F23 / AC8.** |
+| AI1 BS5 / nightly boundary | **Already F17 / F34.** |
+| AI1 opp 1 exec-form `command`+`args` | **Already F5.** AC3 now asserts `args`. |
+| AI1 opp 2 PATH bake | **Already F5/F6 / T245 F8.** |
+| AI1 opp 3 `--schema` + schema files | **Already F14.** File `include_str!` SOOT (not serde-generated). |
+| AI2 BS1 / `unreachable!` at harness.rs:102/250 | **Agree hard — F4.** Exhaustive five-variant match; no wildcard `unreachable!`. Same commit as F2. |
+| AI2 BS2 / set `pending_track()` to `"T253"` | **Decline mid-state.** F2 → **`None`**. Doctor pending clause goes empty (AC13). `"T253"` would keep a fake pending backend. |
+| AI2 BS3 / `install_pending_summary` + `T239+` test | **Agree hard — F2.** Footer + `install_pending_summary__lists_tracks`. |
+| AI2 BS4 / named test sites | **Agree — F2** lists detect 296–305, harness all-ready 476–482, install 1239–1248 / 1546–1558. |
+| AI2 BS5 / naive Claude parse + no Codex parser | **Already F25 / AC7–AC9.** Route through `filter_turn`. |
+| AI2 BS6 / stale `Docs/claude-hooks.md` + `codex-hooks.md` | **Already F19 / F30 / AC16.** |
+| AI2 opp 1 `filter_turn` SOOT | **Already F10/F11/F25.** Do not rewrite T234 core. |
+| AI2 opp 2 one `ps_wrapper_template` for all four | **Decline DoD — F34.** Reuse `ps_resolve_ai_brains` + bake only; AGY/Grok allow contracts stay dedicated. |
+| AI2 opp 3 `hook_output.rs` + `wrapper.rs` | **Decline — F9 / F31.** `render_hook_output` is `HookResponse`; `wrapper_command` is `{binary} ingest`. |
+| AI2 opp 4 generate schema from serde | **Decline new infra.** `--schema` prints `Docs/schemas/*-hook-payload.json` via `include_str!` (Grok pattern). |
+| AI2 opp 5 probe Unknown-on-unreadable | **Already F20.** Do not edit hotspot `preflight.rs` beyond harness-line passthrough. |
+| AI2 workspace version 0.1.1 | **Agree** — research pin only; no crate version bump. |
 
 ---
 
