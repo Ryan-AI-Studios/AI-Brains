@@ -11,11 +11,12 @@ vault path of `C:\dev\my-project\.ai-brains\vault.db`.
 
 ---
 
-## 0. Project identity triangle (T240)
+## 0. Project identity triangle (T240 / T258)
 
 Three signals can disagree — **daily Scope is always the effective env
 `AI_BRAINS_PROJECT_ID` after local `.env` force-set** (never auto-switched
-to path). Use `project whoami` when Scope looks wrong.
+to path). Use `project whoami` when Scope looks wrong. Rebind with
+`project adopt-path` (print-only) / `--write-env --yes`.
 
 ```text
                     git slug (detect step 2)
@@ -47,19 +48,20 @@ ai-brains project list   # label + first path column
 ai-brains project list-paths   # every registered root
 ai-brains project scan-roots C:\dev   # dry-run .ledgerful discovery; never writes
 
-# Prefer the real work project for this repo (example):
-# ai-brains project set-alias <main-uuid> MyRepoLabel   # human label only
-# ai-brains project register-path <main-uuid> C:\dev\your-repo
+# Prefer the real work project for this repo (the path-alias owner):
+# ai-brains project set-alias <path-owner-uuid> MyRepoLabel   # human label only
+# ai-brains project register-path <path-owner-uuid> C:\dev\your-repo
 # ai-brains project unregister-path --dry-run C:\dev\wrong-root
 # ai-brains project unregister-path C:\dev\wrong-root
-# Edit .env:
-#   AI_BRAINS_PROJECT_ID=<main-uuid>
-ai-brains preflight --summary   # Scope should match main
+ai-brains project adopt-path --format human
+ai-brains project adopt-path --write-env --yes   # confirmable; only AI_BRAINS_PROJECT_ID
+ai-brains preflight --summary   # Scope should match the path owner
 ```
 
 If you see `Warning: project identity mismatch…`, Scope and path disagree —
-whoami shows both; rebind `.env` only if you intend the path owner (no
-auto-write).
+whoami shows both. Default `adopt-path` is print-only; `--write-env --yes`
+is the confirmable write (T240 F2: no silent auto-switch). `context` is
+not the remediator.
 
 ---
 

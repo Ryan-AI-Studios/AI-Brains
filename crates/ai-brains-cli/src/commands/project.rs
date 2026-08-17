@@ -819,17 +819,19 @@ fn build_whoami_report(
             "Daily Scope comes from .env / shell AI_BRAINS_PROJECT_ID (not auto-switched to path)."
                 .to_string(),
         );
+        remediations.push(
+            "Run `ai-brains project adopt-path` (print-only) or `ai-brains project adopt-path --write-env --yes`."
+                .to_string(),
+        );
         if let Some(ref path_id) = path_alias_project_id {
             remediations.push(format!(
-                "To bind daily Scope to the path owner, set AI_BRAINS_PROJECT_ID={path_id} in project .env (operator rebind; no auto-write)."
+                "To bind daily Scope to the path owner, set AI_BRAINS_PROJECT_ID={path_id} in project .env."
             ));
         }
         remediations.push(
             "set-alias is a human label; register-path is the filesystem root (do not conflate)."
                 .to_string(),
         );
-        remediations
-            .push("Run `ai-brains project list` to inspect aliases and path column.".to_string());
     }
     if detect_outcome.as_ref().is_some_and(is_ambiguous_detect) {
         remediations.push(
