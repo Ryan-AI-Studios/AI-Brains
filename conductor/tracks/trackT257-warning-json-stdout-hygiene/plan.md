@@ -1,6 +1,6 @@
 # T257 Plan — Warning + JSON stdout hygiene
 
-**Status:** **Pending** (requirements written; spec **Planned** + fold-in)
+**Status:** **In Progress** (F0 lifted 2026-08-17; FEATURE TX `d086c5f3-6918-49e6-a1fd-377a743ee7fc`)
 **Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC17 + §13 fold-in
 **Category:** UX / CONTRACTS-adjacent
 **Ledger TX (planning):** `b033f134-fb4a-4eb4-bf07-b46087a83a71` (DOCS)

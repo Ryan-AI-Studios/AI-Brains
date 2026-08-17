@@ -1398,6 +1398,29 @@ mod tests {
             Some("env"),
             Some("path")
         ));
+        let args_whoami = vec![
+            "ai-brains".into(),
+            "project".into(),
+            "whoami".into(),
+        ];
+        assert!(
+            should_skip_identity_mismatch_warn(&args_whoami, Some("env"), Some("path")),
+            "AC1: consecutive project whoami must skip"
+        );
+        let args_adopt = vec![
+            "ai-brains".into(),
+            "project".into(),
+            "adopt-path".into(),
+        ];
+        assert!(
+            should_skip_identity_mismatch_warn(&args_adopt, Some("env"), Some("path")),
+            "AC1: consecutive project adopt-path must skip"
+        );
+        let args_list = vec!["ai-brains".into(), "project".into(), "list".into()];
+        assert!(
+            !should_skip_identity_mismatch_warn(&args_list, Some("env"), Some("path")),
+            "AC1: project list stays false"
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 # T257 — Identity warning + JSON stdout hygiene
 
 - **Track ID:** T257-WarningJsonStdoutHygiene
-- **Status:** **Planned** (plan-only until go; conductor stays **Pending**)
+- **Status:** **In Progress** (F0 lifted 2026-08-17; FEATURE TX `d086c5f3-6918-49e6-a1fd-377a743ee7fc`)
 - **Category:** UX / CONTRACTS-adjacent (CLI-local; no DTO bump)
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — friction #1; `scope resolve` **6/5**; `scope --format json` **7/6**; opportunity “warnings on stderr; JSON one object”
