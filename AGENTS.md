@@ -54,13 +54,14 @@
 - **Fixtures**: Each test spawns its own Axum router on `127.0.0.1:0`. Full details in the onboarding skill.
 
 ## Git
-- **Forbid**: push to `main`/`master`, force-push without explicit approval, destructive operations without explicit approval, committing secrets/`.env`.
+- **Forbid**: `git push origin main`/`master`, force-push without explicit approval, destructive operations without explicit approval, committing secrets/`.env`.
 - **Require**: inspect diff before commit, commit only intentional files, keep unrelated fixes separate where practical, clear ledger status before push.
   - **Push Hygiene**: `git fetch --all --prune` before staging; reconcile if `origin/main` moved; stage only intended scope; prune conservatively. The pre-push hook runs `ledgerful verify --scope fast` + `ledgerful ledger status` — treat it as the authoritative publish gate.
+  - **Implement-track publish**: `/implement-track` / go / execute is standing approval to push `track/T<NN>-*`, open a PR, wait for GHA `CI`, `gh pr merge --squash --delete-branch`, and prune merged track branches. Never `git push origin main`. Procedure lives in the implement-track skill.
 
 ## Stop-Before
 Halt and ask the user before proceeding with any of:
-- Destructive git operation, force-push, push to `main`/`master`.
+- Destructive git operation, force-push, `git push origin main`/`master` (squash-merge via implement-track is the approved path to `main`).
 - Missing secrets or unavailable external service with no documented mock.
 - Ambiguous or conflicting specs not resolvable from code + plan.
 - Broad unrelated failures (triage first; do not broadly clean up).

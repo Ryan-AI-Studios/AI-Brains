@@ -124,7 +124,7 @@ No Blockers. One Major (hermetic `--format auto` → JSON). Disposition in spec 
 - [x] `deferred.md`: strike the daily-Scope row; keep F14 remainder + T259/T267 pointers
 - [x] FEATURE TX commit
 - [x] Optional pin: `DECISION: T258 project adopt-path is the path-owner remediator; default print-only; --write-env --yes touches only AI_BRAINS_PROJECT_ID; T240 F2 stands`
-- [x] PR only if owner asks (no push to `main` without owner)
+- [x] Publish: feature PR + wait GHA + squash-merge + prune (implement-track standing approval)
 
 ---
 
