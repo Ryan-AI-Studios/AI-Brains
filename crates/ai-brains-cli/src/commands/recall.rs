@@ -25,6 +25,8 @@ pub struct RecallRunOptions {
     pub global: bool,
     /// Soft F32: one-shot cosine floor override for `--semantic`.
     pub min_score: Option<f64>,
+    /// Mix T70 code-symbol stubs into results (default: exclude).
+    pub symbols: bool,
 }
 
 fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
@@ -207,6 +209,7 @@ pub fn run(
             quiet: options.quiet,
             no_bridge: options.no_bridge,
             min_semantic_score: options.min_score,
+            include_symbols: options.symbols,
         },
     )?;
     let hits = outcome.hits;
@@ -412,6 +415,7 @@ pub fn format_pretty_hit_line(
     rank: usize,
 ) -> String {
     // T224 F3: strip role prefix BEFORE 500-char truncate (display-only).
+    let is_symbol = ai_brains_retrieval::is_symbol_stub_content(content);
     let content = crate::commands::display_text::strip_role_prefix(content.trim_start());
     let content = if content.chars().count() > 500 {
         format!("{}...", content.chars().take(500).collect::<String>())
@@ -420,6 +424,8 @@ pub fn format_pretty_hit_line(
     };
     let badge = if is_plan_demoted {
         "[plan/stale?] "
+    } else if is_symbol {
+        "[symbol] "
     } else {
         ""
     };
@@ -1399,6 +1405,34 @@ mod tests {
             1,
         );
         assert_eq!(crlf, "m-cr: after-crlf");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_pretty_hit_line__symbol_badge_outside_slice__ac4() {
+        let stub = format!("Function {} (src/x.rs:1)", "a".repeat(600));
+        let line = format_pretty_hit_line(
+            "m-sym",
+            &stub,
+            Some(-1.0),
+            None,
+            false,
+            ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
+            None,
+            1,
+        );
+        assert!(
+            line.contains("[symbol] "),
+            "F4: [symbol] badge chrome; got {line}"
+        );
+        assert!(
+            line.contains("m-sym: [symbol] Function"),
+            "F4: badge sits outside the 500-char slice; got {line}"
+        );
+        assert!(
+            !line.contains("[symbol] [symbol]"),
+            "badge must not be counted inside the truncated slice; got {line}"
+        );
     }
 
     #[test]

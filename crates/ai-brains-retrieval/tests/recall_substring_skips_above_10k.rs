@@ -27,6 +27,7 @@ fn recall__substring_fallback_skipped_above_10k_threshold() -> Result<(), Box<dy
         Some(project_id),
         None,
         5,
+        false,
     )?;
 
     assert!(

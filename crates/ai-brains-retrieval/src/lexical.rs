@@ -26,6 +26,9 @@ pub struct RetrievalMemory {
 pub struct LexicalSearchOptions {
     pub rescue: bool,
     pub limit: usize,
+    /// When true, append the T260 GLOB stub exclusion (recall path only).
+    /// Default **false** so `forget --match` still finds stubs (F10).
+    pub exclude_symbol_stubs: bool,
 }
 
 impl Default for LexicalSearchOptions {
@@ -33,6 +36,7 @@ impl Default for LexicalSearchOptions {
         Self {
             rescue: false,
             limit: LEXICAL_MATCH_HARD_CAP,
+            exclude_symbol_stubs: false,
         }
     }
 }
@@ -62,7 +66,14 @@ pub fn lexical_search(
 
     // R0: full AND of all extracted tokens
     let r0_expr = match_and(&tokens);
-    let mut results = match_query(conn, &r0_expr, project_id, session_id, limit)?;
+    let mut results = match_query(
+        conn,
+        &r0_expr,
+        project_id,
+        session_id,
+        limit,
+        opts.exclude_symbol_stubs,
+    )?;
     if !results.is_empty() {
         return Ok(results);
     }
@@ -86,7 +97,14 @@ pub fn lexical_search(
             contentful_count = contentful.len(),
             "FTS multi-token rescue: contentful AND"
         );
-        results = match_query(conn, &r1_expr, project_id, session_id, limit)?;
+        results = match_query(
+            conn,
+            &r1_expr,
+            project_id,
+            session_id,
+            limit,
+            opts.exclude_symbol_stubs,
+        )?;
         if !results.is_empty() {
             return Ok(results);
         }
@@ -101,7 +119,14 @@ pub fn lexical_search(
             or_token_count = or_tokens.len(),
             "FTS multi-token rescue: contentful OR"
         );
-        results = match_query(conn, &r2_expr, project_id, session_id, limit)?;
+        results = match_query(
+            conn,
+            &r2_expr,
+            project_id,
+            session_id,
+            limit,
+            opts.exclude_symbol_stubs,
+        )?;
     }
 
     Ok(results)
@@ -117,6 +142,7 @@ fn match_query(
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
     limit: usize,
+    exclude_symbol_stubs: bool,
 ) -> Result<Vec<RetrievalMemory>> {
     if match_expr.is_empty() {
         return Ok(Vec::new());
@@ -145,6 +171,10 @@ fn match_query(
         let pid_str = pid.to_string();
         params_vec.push(pid_str.clone().into());
         params_vec.push(pid_str.into());
+    }
+
+    if exclude_symbol_stubs {
+        sql.push_str(&crate::symbol_stub::symbol_stub_sql_exclusion("mp.content"));
     }
 
     sql.push_str(" ORDER BY rank LIMIT ?");
@@ -184,6 +214,7 @@ pub fn substring_fallback(
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
     limit: usize,
+    exclude_symbol_stubs: bool,
 ) -> Result<Vec<RetrievalMemory>> {
     let conn = conn.lock()?;
 
@@ -223,6 +254,10 @@ pub fn substring_fallback(
         let pid_str = pid.to_string();
         params_vec.push(pid_str.clone().into());
         params_vec.push(pid_str.into());
+    }
+
+    if exclude_symbol_stubs {
+        sql.push_str(&crate::symbol_stub::symbol_stub_sql_exclusion("content"));
     }
 
     sql.push_str(" ORDER BY updated_at DESC LIMIT ?");
@@ -310,5 +345,6 @@ mod unit_tests {
         let opts = LexicalSearchOptions::default();
         assert!(!opts.rescue);
         assert_eq!(opts.limit, LEXICAL_MATCH_HARD_CAP);
+        assert!(!opts.exclude_symbol_stubs);
     }
 }

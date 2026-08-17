@@ -523,6 +523,9 @@ enum Commands {
         /// Use the most recent active session for recall.
         #[arg(long, conflicts_with = "session_id", conflicts_with = "session_prefix")]
         session_last: bool,
+        /// Include T70 code-symbol stubs in the mix (default: exclude).
+        #[arg(long)]
+        symbols: bool,
     },
     /// Generate preflight context for an LLM
     #[command(
@@ -3767,6 +3770,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             no_bridge,
             global,
             session_last,
+            symbols,
         } => {
             // T86: `-` as the query reads the query string from stdin until EOF
             let effective_query = if query == "-" {
@@ -3798,6 +3802,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     no_bridge: *no_bridge,
                     global: *global,
                     min_score: *min_score,
+                    symbols: *symbols,
                 },
             )
         }

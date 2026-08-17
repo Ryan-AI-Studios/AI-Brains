@@ -1098,6 +1098,7 @@ mod tests {
                 semantic: false,
                 graph_boost: 0.0,
                 graph_hop_depth: 0,
+                include_symbols: true,
                 ..Default::default()
             },
         )?;

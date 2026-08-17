@@ -1,7 +1,7 @@
 # T260 — Recall: demote code-symbol stubs
 
 - **Track ID:** T260-RecallDemoteSymbolStubs
-- **Status:** **Planned** (Pending; plan-only until go)
+- **Status:** **Completed** (2026-08-17)
 - **Category:** FEATURE / UX / RETRIEVAL
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — recall default **5/4**; `--semantic` **6/6**; `--global` **3/3**; real-project semantic **4/3**; opportunity “demote symbol stubs”

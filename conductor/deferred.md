@@ -222,7 +222,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6)~~ | **T257 Completed 2026-08-17.** JSON-effective silent + scope token + remediator skip. T240 list hermetic stands. Soft: PATH `cargo install` (F13); T223 env-override still separate (F17). |
 | ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
 | ~~Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots~~ | **T259 Completed 2026-08-17.** Inventory `--project`/`--shared-only` + `rebind-path` print-only / `--write --yes` one-tx. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. Soft: leftover memory reclassify by path; PATH `cargo install`; `project.rs` `resolve_project_ref` duplicate. |
-| Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260 Planned+fold-in 2026-08-17.** Default exclude via `symbol_content` + **GLOB** ⊆ detector (F19). `--symbols` mix. Dedupe after `rerank_hits`. Leftover-**project** exclusion stays **T264**. F0 until go. |
+| ~~Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3)~~ | **T260 Completed 2026-08-17.** Default exclude via `symbol_content` + **GLOB** ⊆ detector (F19). `--symbols` mix. Dedupe after `rerank_hits`. Leftover-**project** exclusion stays **T264**. |
 | `recall ""` 5.7 s | **T261** |
 | Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
 | Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review) | **T263** |
@@ -246,6 +246,18 @@ Specified softs — not product blockers:
 | Compact JSON uses `note_machine_stdout` not pretty | Intentional — T265/T266 |
 | Human warn prints **after** the table | F6; T240 asserts presence not order |
 
+### T260 closeout residuals (2026-08-17)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Leftover-project `--global` / preflight blender | **T264** |
+| `source_tag` on `memory_projection` | Soft — store/replay track |
+| AC8 hermetic does not force embed `ok` + zero post-threshold | Soft — default exclude already makes F11+stub impossible |
+| PATH `ai-brains` still ranks stubs until reinstall | Soft F18 — operator `cargo install` |
+| `--symbols-only` / `sync query --symbols` | Declined F16 |
+
 ### T259 closeout residuals (2026-08-17)
 
 Specified softs — not product blockers:
@@ -253,7 +265,7 @@ Specified softs — not product blockers:
 | Residual | Disposition |
 |----------|-------------|
 | Reclassify leftover memories onto dest by path/provenance | Soft — F5; later importer if ever |
-| `--global` leftover-first / blender | **T260 / T264** |
+| `--global` leftover-first / blender | Symbol monopoly **T260 Completed**. Leftover-**project** / preflight blender stays **T264**. |
 | `project list` footer leftover-as-AI-Brains | **T267 F3** |
 | `project.rs` private `resolve_project_ref` duplicate | Soft — F12 hotspot freeze |
 | No-owner / dest-missing JSON is generic `COMMAND_FAILED` | Soft — F8/AC7/AC8; T257 owns JSON interleave |

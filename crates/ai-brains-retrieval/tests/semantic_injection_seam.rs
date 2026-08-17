@@ -56,7 +56,7 @@ fn semantic_search_with_embedding__synthetic_blob__no_network__ac20()
     let vec = vec![1.0f32, 0.0, 0.0, 0.0];
     conn.store_embedding(&memory_id, &f32_le_blob(&vec))?;
 
-    let outcome = semantic_search_with_embedding(conn, &vec, 15, None, None, None)?;
+    let outcome = semantic_search_with_embedding(conn, &vec, 15, None, None, None, false)?;
     assert_eq!(
         outcome.embedding.status, "ok",
         "synthetic BLOBs must score without network; detail={:?}",
@@ -96,8 +96,15 @@ fn hybrid_fuse__injection_seam_synthetic_blobs__ac10() -> Result<(), Box<dyn std
     let stored = vec![0.6f32, 0.8, 0.0, 0.0];
     conn.store_embedding(&memory_id, &f32_le_blob(&stored))?;
 
-    let outcome =
-        semantic_search_with_embedding(conn, &stored, 15, None, None, Some(SEMANTIC_MIN_COSINE))?;
+    let outcome = semantic_search_with_embedding(
+        conn,
+        &stored,
+        15,
+        None,
+        None,
+        Some(SEMANTIC_MIN_COSINE),
+        false,
+    )?;
     assert_eq!(outcome.embedding.status, "ok");
     assert!(!outcome.hits.is_empty());
     let sem = &outcome.hits;
@@ -167,7 +174,7 @@ fn semantic_search_with_embedding__below_hybrid_floor_dropped()
     // Orthogonal-ish vectors: e1 vs e2 → cosine 0.
     conn.store_embedding(&memory_id, &f32_le_blob(&[1.0, 0.0, 0.0, 0.0]))?;
     let outcome =
-        semantic_search_with_embedding(conn, &[0.0, 1.0, 0.0, 0.0], 15, None, None, None)?;
+        semantic_search_with_embedding(conn, &[0.0, 1.0, 0.0, 0.0], 15, None, None, None, false)?;
     assert_eq!(outcome.embedding.status, "ok");
     assert!(
         outcome.hits.is_empty(),
@@ -210,6 +217,7 @@ fn fuse_local_and_semantic__production_soot__dual_floor_blend__h1()
         None,
         None,
         Some(SEMANTIC_MIN_COSINE),
+        false,
     )?;
     assert_eq!(strong_outcome.embedding.status, "ok");
     assert!(!strong_outcome.hits.is_empty());

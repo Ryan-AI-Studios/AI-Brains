@@ -9,6 +9,7 @@ mod ranking;
 mod recall;
 mod semantic;
 mod sessions;
+mod symbol_stub;
 mod word_budget;
 
 pub use ai_brains_core::LEXICAL_MATCH_HARD_CAP;
@@ -28,8 +29,8 @@ pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
 };
 pub use ranking::{
-    PinKind, RELEVANCE_SCALE, ScoreKind, StalenessClass, classify_pin_kind, classify_staleness,
-    extract_track_tokens, rerank_hits, strip_assistant_prefix,
+    PinKind, RELEVANCE_SCALE, SYMBOL_PENALTY, ScoreKind, StalenessClass, classify_pin_kind,
+    classify_staleness, extract_track_tokens, rerank_hits, strip_assistant_prefix,
 };
 pub use recall::{
     RecallHit, RecallOptions, RecallOutcome, graph_neighbor_stored_score, recall, recall_full,
@@ -40,6 +41,10 @@ pub use semantic::{
     status_after_embed_ok,
 };
 pub use sessions::active_sessions;
+pub use symbol_stub::{
+    SYMBOL_KINDS, dedupe_symbol_stubs, is_symbol_stub_content, retain_non_symbol_stubs,
+    symbol_stub_sql_exclusion,
+};
 pub use word_budget::{
     content_word_count, trim_to_word_budget, trim_to_word_budget_no_sentinel, word_count,
 };

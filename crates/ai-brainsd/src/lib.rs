@@ -277,6 +277,7 @@ impl DaemonWriter {
                 no_bridge: true,
                 quiet: true,
                 min_semantic_score: None,
+                include_symbols: false,
             },
         )?;
         Ok(hits)
