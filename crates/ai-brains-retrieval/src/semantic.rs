@@ -240,6 +240,7 @@ pub fn semantic_search(
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
     min_score_override: Option<f64>,
+    exclude_symbol_stubs: bool,
 ) -> Result<SemanticOutcome> {
     let query_embedding = match fetch_embedding(query) {
         Ok(v) => v,
@@ -258,6 +259,7 @@ pub fn semantic_search(
         project_id,
         session_id,
         min_score_override,
+        exclude_symbol_stubs,
     )
 }
 
@@ -276,11 +278,12 @@ pub fn semantic_search_with_embedding(
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
     min_score_override: Option<f64>,
+    exclude_symbol_stubs: bool,
 ) -> Result<SemanticOutcome> {
     let endpoint_label = public_endpoint_label(&embedding_endpoint());
     let floor = effective_semantic_min_cosine(min_score_override);
 
-    let memories = fetch_pinned_embeddings(conn, project_id, session_id)?;
+    let memories = fetch_pinned_embeddings(conn, project_id, session_id, exclude_symbol_stubs)?;
     let total_rows = memories.len();
     let mut decodable_rows = 0usize;
     let mut scored: Vec<(f64, RecallHit)> = Vec::new();
@@ -371,6 +374,7 @@ fn fetch_pinned_embeddings(
     conn: &VaultConnection,
     project_id: Option<ai_brains_core::ids::ProjectId>,
     session_id: Option<ai_brains_core::ids::SessionId>,
+    exclude_symbol_stubs: bool,
 ) -> Result<Vec<EmbeddedMemory>> {
     let conn = conn.lock()?;
 
@@ -393,6 +397,10 @@ fn fetch_pinned_embeddings(
         let pid_str = pid.to_string();
         params.push(pid_str.clone().into());
         params.push(pid_str.into());
+    }
+
+    if exclude_symbol_stubs {
+        sql.push_str(&crate::symbol_stub::symbol_stub_sql_exclusion("mp.content"));
     }
 
     let mut stmt = conn.prepare(&sql)?;

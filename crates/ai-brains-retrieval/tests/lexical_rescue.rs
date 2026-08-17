@@ -24,6 +24,7 @@ fn lexical_rescue__natural_phrase_empty_r0__hits_with_rescue()
         LexicalSearchOptions {
             rescue: true,
             limit: 50,
+            exclude_symbol_stubs: false,
         },
     )?;
     assert!(
@@ -58,6 +59,7 @@ fn lexical_rescue__natural_phrase__empty_when_rescue_false()
         LexicalSearchOptions {
             rescue: false,
             limit: 50,
+            exclude_symbol_stubs: false,
         },
     )?;
     assert!(
@@ -82,6 +84,7 @@ fn lexical_rescue__gibberish_multi_token__empty() -> Result<(), Box<dyn std::err
         LexicalSearchOptions {
             rescue: true,
             limit: 50,
+            exclude_symbol_stubs: false,
         },
     )?;
     assert!(
@@ -143,6 +146,7 @@ fn lexical_rescue__stopword_phrase__hits_via_r1_contentful_and()
         LexicalSearchOptions {
             rescue: true,
             limit: 50,
+            exclude_symbol_stubs: false,
         },
     )?;
     assert!(
@@ -191,6 +195,7 @@ fn lexical_rescue__sql_limit_bound_respects_caller_and_hard_cap()
         LexicalSearchOptions {
             rescue: false,
             limit: 2,
+            exclude_symbol_stubs: false,
         },
     )?;
     assert!(
@@ -242,6 +247,7 @@ fn lexical_rescue__r2_or_respects_limit_and_excludes_sealed()
         LexicalSearchOptions {
             rescue: true,
             limit: 2,
+            exclude_symbol_stubs: false,
         },
     )?;
     assert!(

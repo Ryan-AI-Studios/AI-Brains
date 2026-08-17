@@ -27,6 +27,7 @@ fn recall__fts5_empty__substring_fallback_finds_match() -> Result<(), Box<dyn st
             quiet: true,
             no_bridge: true,
             min_semantic_score: None,
+            include_symbols: false,
         },
     )?;
 

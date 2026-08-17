@@ -446,6 +446,7 @@ pub async fn run_query(
                 quiet,
                 no_bridge,
                 min_semantic_score: None,
+                include_symbols: false,
             },
         )?;
 
@@ -497,6 +498,7 @@ pub async fn run_query(
             quiet,
             no_bridge: true,
             min_semantic_score: None,
+            include_symbols: false,
         },
     )?;
     let hits = outcome.hits;

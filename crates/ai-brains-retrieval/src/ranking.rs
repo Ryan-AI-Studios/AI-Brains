@@ -30,6 +30,9 @@ pub const SIBLING_PLAN_PENALTY: f64 = 2.0;
 pub const RECENCY_MAX_DAYS: f64 = 365.0;
 /// Recency scale: boost = scale * (1 - d/365).
 pub const RECENCY_SCALE: f64 = 1.0;
+/// T70 stub penalty in composite/effective units (T260 F9). Applied when
+/// [`crate::symbol_stub::is_symbol_stub_content`] is true — not raw cosine.
+pub const SYMBOL_PENALTY: f64 = 16.0;
 
 /// Scale for cosine / RRF scores into pin-boost composite space (T215 F8).
 ///
@@ -286,7 +289,7 @@ pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
             let is_plan = kind == PinKind::Decision && staleness == StalenessClass::Plan;
             let sibling = is_plan && tokens.iter().any(|t| shipped_tokens.contains(t));
             hit.is_plan_demoted = is_plan;
-            let effective = effective_score(
+            let mut effective = effective_score(
                 hit.score,
                 kind,
                 staleness,
@@ -294,6 +297,9 @@ pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
                 hit.updated_at.as_deref(),
                 hit.score_kind,
             );
+            if crate::symbol_stub::is_symbol_stub_content(&hit.content) {
+                effective -= SYMBOL_PENALTY;
+            }
             Ranked {
                 effective,
                 updated_at: hit.updated_at.clone(),
@@ -874,5 +880,32 @@ mod tests {
         );
         assert!(right > 0.0 && wrong < 0.0);
         assert!(right > wrong);
+    }
+
+    /// T260 AC7: when a T70 stub is included (leak or `--symbols`), composite
+    /// `SYMBOL_PENALTY` must put it below a same-query DECISION even if BM25
+    /// is much stronger (−19.3 vs −6.0, live `--global` gap).
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits__included_symbol_below_decision__ac7() {
+        let mut hits = vec![
+            hit("mem-stub", "Module foo (src/foo.rs:1)", Some(-19.3), None),
+            hit(
+                "mem-dec",
+                "DECISION: we chose foo for the bar path",
+                Some(-6.0),
+                None,
+            ),
+        ];
+        rerank_hits(&mut hits);
+        assert_eq!(
+            hits[0].memory_id,
+            "mem-dec",
+            "DECISION must outrank T70 stub after SYMBOL_PENALTY; order={:?}",
+            hits.iter()
+                .map(|h| h.memory_id.as_str())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(hits[1].memory_id, "mem-stub");
     }
 }

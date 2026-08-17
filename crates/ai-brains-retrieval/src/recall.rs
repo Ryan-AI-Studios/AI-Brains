@@ -26,6 +26,9 @@ pub struct RecallOptions {
     /// Optional one-shot override for the semantic cosine floor (soft F32).
     /// When set, overrides env / default for this recall only.
     pub min_semantic_score: Option<f64>,
+    /// When true, keep T70 code-symbol stubs in the mix (CLI `--symbols`).
+    /// Default **false**: exclude stubs from the candidate set (T260 F1).
+    pub include_symbols: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -256,6 +259,7 @@ pub fn recall_full(
 
     // F9/T217: candidate depth bounds FTS MATCH LIMIT and semantic pool.
     let depth = candidate_depth(limit);
+    let exclude_stubs = !options.include_symbols;
 
     // Phase 2: Local FTS5 with multi-token rescue ladder (T217; rescue opt-in).
     let mut local_hits: Vec<RecallHit> = lexical_search(
@@ -266,6 +270,7 @@ pub fn recall_full(
         LexicalSearchOptions {
             rescue: true,
             limit: depth,
+            exclude_symbol_stubs: exclude_stubs,
         },
     )?
     .into_iter()
@@ -279,11 +284,15 @@ pub fn recall_full(
         )
     })
     .collect();
+    if exclude_stubs {
+        crate::symbol_stub::retain_non_symbol_stubs(&mut local_hits);
+    }
 
     // Phase 2b: If FTS ladder returned nothing, try a substring LIKE scan (T105).
     // Limited to small project scopes to avoid expensive full-table scans.
     if local_hits.is_empty() {
-        let fallback = substring_fallback(conn, query, project_id, session_id, limit)?;
+        let fallback =
+            substring_fallback(conn, query, project_id, session_id, limit, exclude_stubs)?;
         if !fallback.is_empty() {
             local_hits = fallback
                 .into_iter()
@@ -296,6 +305,9 @@ pub fn recall_full(
                     )
                 })
                 .collect();
+            if exclude_stubs {
+                crate::symbol_stub::retain_non_symbol_stubs(&mut local_hits);
+            }
         }
     }
 
@@ -312,6 +324,7 @@ pub fn recall_full(
             project_id,
             session_id,
             options.min_semantic_score,
+            exclude_stubs,
         ) {
             Ok(outcome) => {
                 // F27: warn only for real embed soft-fails (not empty store).
@@ -323,8 +336,12 @@ pub fn recall_full(
                         "Semantic search soft-failed; continuing with lexical results"
                     );
                 }
-                let n = outcome.hits.len();
-                (outcome.hits, Some(outcome.embedding), Some(n))
+                let mut hits = outcome.hits;
+                if exclude_stubs {
+                    crate::symbol_stub::retain_non_symbol_stubs(&mut hits);
+                }
+                let n = hits.len();
+                (hits, Some(outcome.embedding), Some(n))
             }
             Err(e) => {
                 // Unexpected DB/store path: still soft-fail whole semantic arm.
@@ -398,6 +415,12 @@ pub fn recall_full(
         }
     }
 
+    // T260 F8 / §5.3: drop stub-shaped bridge Insights *before* they can seed
+    // graph neighbors. Retain again after graph for stub-shaped neighbors.
+    if exclude_stubs {
+        crate::symbol_stub::retain_non_symbol_stubs(&mut blended);
+    }
+
     // Graph-based neighbor expansion: for each current hit, fetch 1-hop
     // neighbors and add unseen ones with a boosted score. After RRF+bridge (F13).
     #[cfg(feature = "graph")]
@@ -462,9 +485,15 @@ pub fn recall_full(
         blended.extend(graph_hits);
     }
 
+    if exclude_stubs {
+        crate::symbol_stub::retain_non_symbol_stubs(&mut blended);
+    }
+
     // T211: pin-type + recency composite re-rank (F8). Single post-blend entry
-    // point (F40) — ScoreKind-aware (T215). Truncate after.
+    // point (F40) — ScoreKind-aware (T215). Truncate after. T260 F3: stub
+    // content-dedupe runs after this sort, never before.
     crate::ranking::rerank_hits(&mut blended);
+    crate::symbol_stub::dedupe_symbol_stubs(&mut blended);
 
     if blended.len() > limit {
         blended.truncate(limit);
