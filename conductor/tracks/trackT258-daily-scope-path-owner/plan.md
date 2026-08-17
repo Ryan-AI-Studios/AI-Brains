@@ -1,11 +1,11 @@
 # T258 Plan — Daily Scope = path owner
 
-**Status:** **Pending** (Planned spec; plan-only until go)
+**Status:** **In Progress** (go 2026-08-16)
 **Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC16 + §13 fold-in
 **Category:** FEATURE / UX / OPS
 **Ledger TX (planning):** `f7b86f91-b914-4a93-b951-217c14157e6c` (DOCS)
 **Ledger TX (fold-in):** `f38d51f7-fb9e-4c2b-85cb-379cd76b74a8` (DOCS)
-**Ledger TX (implement):** start **FEATURE** on go
+**Ledger TX (implement):** `6962a7b8-ff3a-4c0b-90cb-b3167d993335` (FEATURE)
 
 ---
 
@@ -47,13 +47,13 @@ No Blockers. One Major (hermetic `--format auto` → JSON). Disposition in spec 
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `ProjectCommands` in `main.rs`. Confirm still no `AdoptPath`.
-- [ ] Re-run `project whoami --format json` (classify IDs only). Confirm mismatch still env ≠ path.
-- [ ] Re-check lock clap + dotenvy docs.rs: still no write API; still no clap 5 (or this track is not that bump).
-- [ ] Rescan **entire** `conductor/deferred.md` for new open identity / `.env`-write rows.
-- [ ] Last merged PR + open HEAD PR Cursor comments. Mint placeholder if a leftover fits nowhere.
-- [ ] `ledgerful ledger start T258-daily-scope-path-owner --category FEATURE`
-- [ ] Do **not** `cargo install`, write live `.env`, alias `7d97a456`, or merge projects.
+- [x] Re-read `ProjectCommands` in `main.rs`. Confirm still no `AdoptPath`.
+- [x] Re-run `project whoami --format json` (classify IDs only). Confirm mismatch still env ≠ path.
+- [x] Re-check lock clap + dotenvy docs.rs: still no write API; still no clap 5 (or this track is not that bump).
+- [x] Rescan **entire** `conductor/deferred.md` for new open identity / `.env`-write rows.
+- [x] Last merged PR + open HEAD PR Cursor comments. Mint placeholder if a leftover fits nowhere.
+- [x] `ledgerful ledger start T258-daily-scope-path-owner --category FEATURE`
+- [x] Do **not** `cargo install`, write live `.env`, alias `7d97a456`, or merge projects.
 
 ---
 
