@@ -1,6 +1,6 @@
 # T257 Plan — Warning + JSON stdout hygiene
 
-**Status:** **In Progress** (F0 lifted 2026-08-17; FEATURE TX `d086c5f3-6918-49e6-a1fd-377a743ee7fc`)
+**Status:** **Completed** 2026-08-17 (FEATURE TX `d086c5f3-6918-49e6-a1fd-377a743ee7fc`)
 **Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC17 + §13 fold-in
 **Category:** UX / CONTRACTS-adjacent
 **Ledger TX (planning):** `b033f134-fb4a-4eb4-bf07-b46087a83a71` (DOCS)
@@ -129,22 +129,22 @@ No Blockers / Majors. One informational SHA note folded. Dual-site inject and `p
 - [x] `cargo nextest run -p ai-brains-cli --test warning_json_stdout_hygiene` — **9 passed**
 - [x] `cargo nextest run -p ai-brains-cli --test project_identity_convergence` — **all passed** (AC4 green)
 - [x] Targeted T249 scope format + T255 nightly status tests — **all passed**
-- [ ] Phase-1 review → FEATURE `codex-review`
-- [ ] Manual AC16 classify-only (source bin; no live `.env`; no key paste)
-- [ ] Full workspace gate on finalize
-- [ ] conductor **Completed**; deferred closeout; pin
+- [x] Phase-1 review → FEATURE `codex-review` — CX1 product PASS; P2 process-timing (closeout after gate)
+- [x] Manual AC16 classify-only (source bin; no live `.env`; no key paste) — token present; stderr empty; concat parses
+- [x] Full workspace gate on finalize — `dev-check.ps1` exit 0 (3026 passed, 1 skipped); `ledgerful verify --scope full` exit 0
+- [x] conductor **Completed**; deferred closeout; pin
 
 ---
 
 ## Definition of Done
 
-- [ ] F0–F26 honored (F0 lifted only after go)
-- [ ] AC1–AC17 evidenced (AC16 manual classify; AC17 both scope emit sites)
-- [ ] T240 AC4 still green
-- [ ] No contracts field; no clap 5; no new crates
-- [ ] `project.rs` did not grow (extract allowed)
-- [ ] No live `.env` write; no `cargo install`; no leftover path mutate
-- [ ] FEATURE TX committed; conductor Completed; deferred T257 row closed
+- [x] F0–F26 honored (F0 lifted only after go)
+- [x] AC1–AC17 evidenced (AC16 manual classify; AC17 both scope emit sites)
+- [x] T240 AC4 still green
+- [x] No contracts field; no clap 5; no new crates
+- [x] `project.rs` did not grow (1514; extract allowed)
+- [x] No live `.env` write; no `cargo install`; no leftover path mutate
+- [x] FEATURE TX committed; conductor Completed; deferred T257 row closed
 
 ---
 

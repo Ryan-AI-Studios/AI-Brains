@@ -30,7 +30,7 @@ Identity SOOT stays human stderr. JSON-effective commands suppress the line so `
 | AC13 npc + global skip | Met | existing T240 npc + `recall_global__mismatch__no_soot` |
 | AC14 scope human stderr SOOT | Met | `scope_resolve_human__mismatch__stderr_soot_stdout_clean` |
 | AC15 inject idempotent | Met | `inject_identity_mismatch_token__already_present__no_duplicate` |
-| AC16 live classify | Pending finalize | source bin; no `.env` write |
+| AC16 live classify | Met | source `target\debug\ai-brains.exe scope resolve --format json --local`: token present (`env=441837f6…` / `path=3581317d…`), stdout no SOOT, stderr empty, concat `ConvertFrom-Json` succeeds. No `.env` write. PATH binary still pre-T257 (F13). |
 | AC17 both scope emit sites | Met | `scope.rs` local `:95` + daemon `:132` |
 | F0–F26 | Met (F0 lifted by `/implement-track`) | See spec; no T258/T259 steal |
 | T240 AC4 | Met | listed above |
@@ -38,11 +38,11 @@ Identity SOOT stays human stderr. JSON-effective commands suppress the line so `
 
 ## Findings
 
-None open.
+None open (product).
 
-| ID | Severity | Description | Status |
-|----|----------|-------------|--------|
-| — | — | — | — |
+| ID | Severity | Description | Source | Status |
+|----|----------|-------------|--------|--------|
+| CX1-P2 | medium (process) | Conductor/deferred/plan still In Progress at review time | Codex | **Already expected** — closeout is Phase 5 after full gate. Not a product defect. |
 
 ## Completeness
 
@@ -60,3 +60,16 @@ None open.
 | T223 env-override can still trail JSON | F17 decline |
 | Human warn now **after** the table | F6; T240 asserts presence not order |
 | `scope` human still says `next: whoami` (T249) | Keep |
+
+## Gates
+
+- `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` — exit 0
+- `warning_json_stdout_hygiene` — 9/9
+- `project_identity_convergence` + T249 + T255 targeted — green
+- `.\scripts\dev-check.ps1` — **SUCCESS** (3026 passed, 1 skipped)
+- `ledgerful verify --scope full` — exit 0
+- Codex CX1 — product PASS; P2 process-timing (closed after gate)
+
+## Cross-model
+
+`review.codex.md` — orchestrator rewrite of Codex CX1. No product P0–P3. CX1-P2 closeout timing resolved by this finalize.
