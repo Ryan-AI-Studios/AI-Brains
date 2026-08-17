@@ -9,7 +9,7 @@ use crate::commands::project::{collect_git_identity, resolve_path_alias_for_loca
 use crate::context::AppContext;
 use serde::Serialize;
 use std::io::IsTerminal;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const PROJECT_ID_KEY: &str = "AI_BRAINS_PROJECT_ID";
 
@@ -103,14 +103,6 @@ fn use_json_output(format: &str) -> Result<bool, Box<dyn std::error::Error>> {
     }
 }
 
-fn absolute_env_path(cwd: &Path) -> PathBuf {
-    let joined = cwd.join(".env");
-    match std::path::absolute(&joined) {
-        Ok(abs) => abs,
-        Err(_) => joined,
-    }
-}
-
 /// Print-only remediator, or confirmable write of cwd `.env` PROJECT_ID.
 pub fn run(
     ctx: &AppContext,
@@ -124,7 +116,6 @@ pub fn run(
 
     let cwd = std::env::current_dir()?;
     let env_path = cwd.join(".env");
-    let env_path_abs = absolute_env_path(&cwd);
     let git = collect_git_identity(&cwd)?;
     let path_owner = resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git)?;
 
@@ -157,7 +148,7 @@ pub fn run(
         let report = AdoptPathJson {
             api_version: "1".to_string(),
             action: "adopt-path".to_string(),
-            env_path: env_path_abs.display().to_string(),
+            env_path: env_path.display().to_string(),
             from_project_id: from_project_id.clone(),
             to_project_id: Some(to.clone()),
             written,
@@ -175,15 +166,12 @@ pub fn run(
     }
 
     if written {
-        println!(
-            "Set AI_BRAINS_PROJECT_ID={to} in {}",
-            env_path_abs.display()
-        );
+        println!("Set AI_BRAINS_PROJECT_ID={to} in {}", env_path.display());
         println!("Other keys left untouched.");
     } else {
         println!(
             "Would set AI_BRAINS_PROJECT_ID={to} in {}",
-            env_path_abs.display()
+            env_path.display()
         );
         println!("from: {}", from_project_id.as_deref().unwrap_or("(none)"));
         println!("to:   {to}");

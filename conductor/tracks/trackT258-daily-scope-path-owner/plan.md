@@ -1,6 +1,6 @@
 # T258 Plan — Daily Scope = path owner
 
-**Status:** **In Progress** (go 2026-08-16)
+**Status:** **Completed** 2026-08-16
 **Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC16 + §13 fold-in
 **Category:** FEATURE / UX / OPS
 **Ledger TX (planning):** `f7b86f91-b914-4a93-b951-217c14157e6c` (DOCS)
@@ -59,82 +59,82 @@ No Blockers. One Major (hermetic `--format auto` → JSON). Disposition in spec 
 
 ## Phase 1 — Red
 
-- [ ] Add `crates/ai-brains-cli/tests/project_adopt_path.rs` (hermetic tempdir + `register_path` helpers from T240 tests).
-- [ ] `project_adopt_path__print_only__names_owner_no_write` (**must red** — unknown subcommand). Fixture uses `--format human` (F26).
-- [ ] `project_adopt_path__write_env_without_yes__exit_2_no_write` (**must red**; `--format human`)
-- [ ] `project_adopt_path__write_env_yes__rewrites_only_project_id` (**must red**; `--format human`)
-- [ ] `project_adopt_path__missing_env__write_creates_project_id_only` (**must red**; `--format human`)
-- [ ] `cargo nextest run -p ai-brains-cli --test project_adopt_path` **fails** because `adopt-path` does not exist. Do not chase a green by asserting JSON on `auto` or by weakening ACs.
+- [x] Add `crates/ai-brains-cli/tests/project_adopt_path.rs` (hermetic tempdir + `register_path` helpers from T240 tests).
+- [x] `project_adopt_path__print_only__names_owner_no_write` (**must red** — unknown subcommand). Fixture uses `--format human` (F26).
+- [x] `project_adopt_path__write_env_without_yes__exit_2_no_write` (**must red**; `--format human`)
+- [x] `project_adopt_path__write_env_yes__rewrites_only_project_id` (**must red**; `--format human`)
+- [x] `project_adopt_path__missing_env__write_creates_project_id_only` (**must red**; `--format human`)
+- [x] `cargo nextest run -p ai-brains-cli --test project_adopt_path` **fails** because `adopt-path` does not exist. Do not chase a green by asserting JSON on `auto` or by weakening ACs.
 
 ---
 
 ## Phase 2 — Green (clap + print-only)
 
-- [ ] `commands/project_adopt.rs` + `mod.rs`
-- [ ] `ProjectCommands::AdoptPath` `{ write_env, yes, format }` with `--yes` `requires = "write_env"`
-- [ ] Dispatch in `main.rs`
-- [ ] Print-only path using `resolve_path_alias_for_location` (reuse T240)
-- [ ] Human chrome + already-bound SOOT (§5.1)
-- [ ] AC1 / AC2 / AC12 / AC13 green
-- [ ] AC3 / AC4 still red until Phase 3
+- [x] `commands/project_adopt.rs` + `mod.rs`
+- [x] `ProjectCommands::AdoptPath` `{ write_env, yes, format }` with `--yes` `requires = "write_env"`
+- [x] Dispatch in `main.rs`
+- [x] Print-only path using `resolve_path_alias_for_location` (reuse T240)
+- [x] Human chrome + already-bound SOOT (§5.1)
+- [x] AC1 / AC2 / AC12 / AC13 green
+- [x] AC3 / AC4 still red until Phase 3
 
 ---
 
 ## Phase 3 — Green (write)
 
-- [ ] Pure `rewrite_project_id_line` + unit tests (preserve KEY/SESSION)
-- [ ] `refuse_if_reparse` before `fs::write`
-- [ ] `--write-env --yes` AC3 / AC4 / AC5 / AC6 / AC14 / **AC16** (`--no-project-context` file already-bound)
-- [ ] No events; no `context::run`; no session rotate
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] Pure `rewrite_project_id_line` + unit tests (preserve KEY/SESSION)
+- [x] `refuse_if_reparse` before `fs::write`
+- [x] `--write-env --yes` AC3 / AC4 / AC5 / AC6 / AC14 / **AC16** (`--no-project-context` file already-bound)
+- [x] No events; no `context::run`; no session rotate
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
 
 ---
 
 ## Phase 4 — Whoami remediations
 
-- [ ] `build_whoami_report` mismatch bullets: F10 / AC7
-- [ ] Do **not** change `identity_mismatch_warn_line` (AC8)
-- [ ] `cargo nextest run -p ai-brains-cli --test project_identity_convergence` green
-- [ ] adopt-path + remediations tests green
+- [x] `build_whoami_report` mismatch bullets: F10 / AC7
+- [x] Do **not** change `identity_mismatch_warn_line` (AC8)
+- [x] `cargo nextest run -p ai-brains-cli --test project_identity_convergence` green
+- [x] adopt-path + remediations tests green
 
 ---
 
 ## Phase 5 — Docs
 
-- [ ] `Docs/CAPABILITIES.md` adopt-path row; whoami remediations honesty
-- [ ] `Docs/WORKFLOWS.md` §0: `project adopt-path` / `--write-env --yes`; drop `7d97a456` + `AI-Brains` example
-- [ ] Root `CHANGELOG.md` T258 row
-- [ ] No PROTOCOL-COMPAT / contracts
+- [x] `Docs/CAPABILITIES.md` adopt-path row; whoami remediations honesty
+- [x] `Docs/WORKFLOWS.md` §0: `project adopt-path` / `--write-env --yes`; drop `7d97a456` + `AI-Brains` example
+- [x] Root `CHANGELOG.md` T258 row
+- [x] No PROTOCOL-COMPAT / contracts
 
 ---
 
 ## Phase 6 — Review + gate
 
-- [ ] Phase-1 review → `conductor/tracks/trackT258-daily-scope-path-owner/review.md`
-- [ ] Medium+ not silently dropped
-- [ ] FEATURE `codex-review` → `review.codex.md`
-- [ ] Manual AC15: source-bin print-only in this repo names `3581317d-…`; live `.env` hash unchanged
-- [ ] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; `cargo nextest run --workspace` ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
+- [x] Phase-1 review → `conductor/tracks/trackT258-daily-scope-path-owner/review.md`
+- [x] Medium+ not silently dropped
+- [x] FEATURE `codex-review` → `review.codex.md`
+- [x] Manual AC15: source-bin print-only in this repo names `3581317d-…`; live `.env` hash unchanged
+- [x] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; `cargo nextest run --workspace` ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
 
 ---
 
 ## Phase 7 — Close
 
-- [ ] conductor T258 → **Completed** with evidence
-- [ ] `deferred.md`: strike the daily-Scope row; keep F14 remainder + T259/T267 pointers
-- [ ] FEATURE TX commit
-- [ ] Optional pin: `DECISION: T258 project adopt-path is the path-owner remediator; default print-only; --write-env --yes touches only AI_BRAINS_PROJECT_ID; T240 F2 stands`
-- [ ] PR only if owner asks (no push to `main` without owner)
+- [x] conductor T258 → **Completed** with evidence
+- [x] `deferred.md`: strike the daily-Scope row; keep F14 remainder + T259/T267 pointers
+- [x] FEATURE TX commit
+- [x] Optional pin: `DECISION: T258 project adopt-path is the path-owner remediator; default print-only; --write-env --yes touches only AI_BRAINS_PROJECT_ID; T240 F2 stands`
+- [x] PR only if owner asks (no push to `main` without owner)
 
 ---
 
 ## DoD (checkable)
 
-- [ ] AC1–AC16 evidenced
-- [ ] Hermetic human-chrome tests pass `--format human` (F26)
-- [ ] Live repo `.env` not written by this track unless owner asked
-- [ ] `context.rs` behavior untouched
-- [ ] T240 warn SOOT untouched
-- [ ] No clap 5 / new crate / pin bump
-- [ ] T240 identity suite still green
-- [ ] T257 / T259 / leftover alias not stolen
+- [x] AC1–AC16 evidenced
+- [x] Hermetic human-chrome tests pass `--format human` (F26)
+- [x] Live repo `.env` not written by this track unless owner asked
+- [x] `context.rs` behavior untouched
+- [x] T240 warn SOOT untouched
+- [x] No clap 5 / new crate / pin bump
+- [x] T240 identity suite still green
+- [x] T257 / T259 / leftover alias not stolen

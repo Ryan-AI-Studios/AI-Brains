@@ -163,7 +163,7 @@ Suggested harness order: **T234–T239 series complete**. Soft residual: Claude/
 
 | Residual / finding | Disposition |
 |--------------------|-------------|
-| Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual: F13 detect `--json`; F14 `project use` **path-owner slice → T258 Planned** (`adopt-path`); general `use <uuid>` remains soft |
+| Default project identity (env test-alias vs detect vs path) | ~~**T240**~~ ✅ **Completed** 2026-08-12 PR #144 `29b9b59` — whoami + path-first detect + mismatch warn. Soft residual: F13 detect `--json`; F14 `project use` **path-owner slice → T258 Completed** (`adopt-path`); general `use <uuid>` remains soft |
 | Policy grants empty → governed dead-end | ~~**T241**~~ ✅ **Completed** 2026-08-12 PR #151 `930d0ed` — doctor/preflight/show/check/briefing discoverability. Soft residual only: F20 install-grants, F21 skill one-liner, F22 soft-resolve hermetic, L1 after_help dual-site, L2 dual short-SOOT |
 | Env override warn spam (T223 residual) | ~~**T242**~~ ✅ **Completed** 2026-08-12 PR #147 `9f3148b` — session fingerprint markers (cross-process). Soft residual only: F16 clap quiet, F17 elevation QUIET/FORCE, F18 truthy→core, F19 global quiet pre-read |
 | Search dual model + progressive first-run | ~~**T243**~~ ✅ **Completed** 2026-08-12 PR #153 `7a19d40` — `search`→recall alias; `text`≡pretty; progressive `next_step`/deny recall honesty. Soft residual only: F23 non-empty recall footer, F24 daemon/HTTP `next_step` |
@@ -220,7 +220,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 |---------|-------|
 | ~~`--help` prints live `AI_BRAINS_KEY` (quality 3)~~ | **T256 Completed 2026-08-16.** Soft residual: PATH `ai-brains` stays leaky until operator `cargo install` (F18). |
 | Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
-| Daily Scope `test-alias` `441837f6` vs path owner `3581317d` | **T258 Planned 2026-08-16** + fold-in. `project adopt-path` (print-only; `--write-env --yes`). F26 hermetic `--format human`. T240 F2 stands. Live operator rebind out of band. |
+| ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
 | Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259** |
 | Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260** |
 | `recall ""` 5.7 s | **T261** |

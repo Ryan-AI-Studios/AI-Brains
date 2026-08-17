@@ -1,7 +1,7 @@
 # T258 — Daily Scope = path owner (no silent switch)
 
 - **Track ID:** T258-DailyScopePathOwner
-- **Status:** **In Progress** (go 2026-08-16; FEATURE TX `6962a7b8-ff3a-4c0b-90cb-b3167d993335`)
+- **Status:** **Completed** 2026-08-16 (FEATURE TX `6962a7b8-ff3a-4c0b-90cb-b3167d993335`)
 - **Category:** FEATURE / UX / OPS
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — non-working default identity; opportunity “rebind daily Scope to `3581317d`”
