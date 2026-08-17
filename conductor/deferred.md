@@ -220,7 +220,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 |---------|-------|
 | ~~`--help` prints live `AI_BRAINS_KEY` (quality 3)~~ | **T256 Completed 2026-08-16.** Soft residual: PATH `ai-brains` stays leaky until operator `cargo install` (F18). |
 | Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
-| Daily Scope `test-alias` `441837f6` vs path owner `3581317d` | **T258 Planned 2026-08-16.** `project adopt-path` (print-only; `--write-env --yes`). T240 F2 stands. Live operator rebind out of band. |
+| Daily Scope `test-alias` `441837f6` vs path owner `3581317d` | **T258 Planned 2026-08-16** + fold-in. `project adopt-path` (print-only; `--write-env --yes`). F26 hermetic `--format human`. T240 F2 stands. Live operator rebind out of band. |
 | Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259** |
 | Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260** |
 | `recall ""` 5.7 s | **T261** |

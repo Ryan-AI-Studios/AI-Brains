@@ -1,10 +1,25 @@
 # T258 Plan — Daily Scope = path owner
 
 **Status:** **Pending** (Planned spec; plan-only until go)
-**Spec:** [spec.md](./spec.md) F0–F25 / AC1–AC15
+**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC16 + §13 fold-in
 **Category:** FEATURE / UX / OPS
 **Ledger TX (planning):** `f7b86f91-b914-4a93-b951-217c14157e6c` (DOCS)
+**Ledger TX (fold-in):** `f38d51f7-fb9e-4c2b-85cb-379cd76b74a8` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on go
+
+---
+
+## AI fold-in (2026-08-16) — `opencode-review.md`
+
+No Blockers. One Major (hermetic `--format auto` → JSON). Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F26 / AC1–AC6 / AC15:** force `--format human` in hermetic human-chrome fixtures.
+2. **AC5 / §5.1:** already-bound human SOOT (`Already bound to path owner` / `No .env write.`).
+3. **AC16:** `--no-project-context` uses the **file** PROJECT_ID for already-bound (F7).
+4. **F10:** remediations drop `project list`.
+5. **§2.4:** `project.rs` is **1547** lines.
 
 ---
 
@@ -45,11 +60,11 @@
 ## Phase 1 — Red
 
 - [ ] Add `crates/ai-brains-cli/tests/project_adopt_path.rs` (hermetic tempdir + `register_path` helpers from T240 tests).
-- [ ] `project_adopt_path__print_only__names_owner_no_write` (**must red** — unknown subcommand)
-- [ ] `project_adopt_path__write_env_without_yes__exit_2_no_write` (**must red**)
-- [ ] `project_adopt_path__write_env_yes__rewrites_only_project_id` (**must red**)
-- [ ] `project_adopt_path__missing_env__write_creates_project_id_only` (**must red**)
-- [ ] `cargo nextest run -p ai-brains-cli --test project_adopt_path` **fails** because `adopt-path` does not exist. Do not chase a green by weakening ACs.
+- [ ] `project_adopt_path__print_only__names_owner_no_write` (**must red** — unknown subcommand). Fixture uses `--format human` (F26).
+- [ ] `project_adopt_path__write_env_without_yes__exit_2_no_write` (**must red**; `--format human`)
+- [ ] `project_adopt_path__write_env_yes__rewrites_only_project_id` (**must red**; `--format human`)
+- [ ] `project_adopt_path__missing_env__write_creates_project_id_only` (**must red**; `--format human`)
+- [ ] `cargo nextest run -p ai-brains-cli --test project_adopt_path` **fails** because `adopt-path` does not exist. Do not chase a green by asserting JSON on `auto` or by weakening ACs.
 
 ---
 
@@ -59,6 +74,7 @@
 - [ ] `ProjectCommands::AdoptPath` `{ write_env, yes, format }` with `--yes` `requires = "write_env"`
 - [ ] Dispatch in `main.rs`
 - [ ] Print-only path using `resolve_path_alias_for_location` (reuse T240)
+- [ ] Human chrome + already-bound SOOT (§5.1)
 - [ ] AC1 / AC2 / AC12 / AC13 green
 - [ ] AC3 / AC4 still red until Phase 3
 
@@ -68,7 +84,7 @@
 
 - [ ] Pure `rewrite_project_id_line` + unit tests (preserve KEY/SESSION)
 - [ ] `refuse_if_reparse` before `fs::write`
-- [ ] `--write-env --yes` AC3 / AC4 / AC5 / AC6 / AC14
+- [ ] `--write-env --yes` AC3 / AC4 / AC5 / AC6 / AC14 / **AC16** (`--no-project-context` file already-bound)
 - [ ] No events; no `context::run`; no session rotate
 - [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
 
@@ -114,7 +130,8 @@
 
 ## DoD (checkable)
 
-- [ ] AC1–AC15 evidenced
+- [ ] AC1–AC16 evidenced
+- [ ] Hermetic human-chrome tests pass `--format human` (F26)
 - [ ] Live repo `.env` not written by this track unless owner asked
 - [ ] `context.rs` behavior untouched
 - [ ] T240 warn SOOT untouched

@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Honest scores for recall, preflight, briefing, query, memory, pin. T259 leftover split stays separate. T267 whoami remediator string lands here.
 - **Absorbs:** Default Scope `test-alias` `441837f6` (592 mem) vs path owner `C:\dev\ai-brains` `3581317d` (2,700); T240 F14 path-owner slice of `project use`; whoami remediations that only say “hand-edit `.env`”; stale T240 runbook that still points at `7d97a456`
 - **Not absorbed:** Auto-merge projects; silent `.env` write (T240 F2); splitting `7d97a456` (T259); general `project use <uuid>` (F14 remainder); T257 warn/JSON placement; T267 harness next / list footer
-- **Research date:** 2026-08-16 (HEAD `e055e29`)
-- **Ledger:** planning DOCS TX `f7b86f91-b914-4a93-b951-217c14157e6c`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-16 (plan HEAD `e055e29`; fold-in HEAD `d5bed64`)
+- **AI fold-in:** 2026-08-16 `opencode-review.md` only (no agy/grok/claude plan review). No Blockers. **Agree hard:** OC-M1 hermetic `--format human` (AC1–AC6). **Agree:** OC-m2 export-prefix soft residual; OC-m3 `project.rs` **1547** lines; OC-m4 already-bound human chrome; OC-m5 `keys_touched` meaning; OC-O6 `--no-project-context` AC16; OC-O7 drop list remediations bullet. Disposition **§13**.
+- **Ledger:** planning DOCS TX `f7b86f91-b914-4a93-b951-217c14157e6c`. Fold-in DOCS TX `f38d51f7-fb9e-4c2b-85cb-379cd76b74a8`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** write the live repo `.env`. Do **not** `cargo install`. Do **not** alias `7d97a456` as `AI-Brains`. Do **not** reopen T240 F2, T255 declines, T257, T259. Do **not** bump clap / add crates.
 
 ---
@@ -90,7 +91,7 @@ T240 made this **visible**. It did not make daily commands **correct**. `preflig
 | Reparse refuse | `ai_brains_path::is_reparse_or_symlink` / `refuse_if_reparse` | Use on write path. |
 | `fail_usage` | `governed_common.rs` `EXIT_USAGE = 2` | Project commands today return `Err` (exit 1) or clap exit 2. Prefer clap `requires` for `--yes`; product exit **2** when `--write-env` lacks `--yes`. |
 | help_ia | `help_ia.rs` | No project-subcommand lock for whoami. Additive after_help only. |
-| Hotspots | `project.rs` **#1** (1401 lines); `context.rs` **#4** | Adopt logic → **`project_adopt.rs`**. Whoami remediations = **minimal** string edit in `project.rs`. **Do not** grow `context.rs`. |
+| Hotspots | `project.rs` **#1** (**1547** total lines; 1401 non-blank). `context.rs` **#4** (183 total / 164 non-blank). | Adopt logic → **`project_adopt.rs`**. Whoami remediations = **minimal** string edit in `project.rs`. **Do not** grow `context.rs`. |
 
 ### 2.5 Dependency / standards research (2026-08-16)
 
@@ -123,10 +124,10 @@ T240 made this **visible**. It did not make daily commands **correct**. `preflig
 | **F7 — Already bound** | When env PROJECT_ID (post-dotenv, or the file’s PROJECT_ID if `--no-project-context`) **equals** path owner: exit **0**, `already_bound: true`, **no** file rewrite. |
 | **F8 — No path owner** | Exit **1**. Stderr: register the cwd/toplevel via `project register-path`. No write. |
 | **F9 — Path owner source** | Same helper as whoami: `resolve_path_alias_for_location` (git toplevel else cwd → `find_path_alias_owner`). Adopt **that** UUID. No `--project-id` override (that would be `project use`). |
-| **F10 — Whoami remediations** | On mismatch, remediations[] **must** name `ai-brains project adopt-path` (print-only) and the exact `AI_BRAINS_PROJECT_ID=<path-id>` assignment. Must **not** say “run `project whoami`”. Warn line stays T240 SOOT (points at whoami) — T257 owns warn placement. |
+| **F10 — Whoami remediations** | On mismatch, remediations[] **must** name `ai-brains project adopt-path` (print-only) and the exact `AI_BRAINS_PROJECT_ID=<path-id>` assignment, plus the two honesty lines (no auto-switch; set-alias ≠ register-path). Must **not** say “run `project whoami`”. Must **not** include `project list` (T267 owns the list footer). Warn line stays T240 SOOT (points at whoami) — T257 owns warn placement. |
 | **F11 — `context` freeze** | Do not edit `context.rs` except a one-line honesty comment if forced. Docs must say: `context` initializes / rotates; it is **not** adopt-path. |
 | **F12 — Module** | New `crates/ai-brains-cli/src/commands/project_adopt.rs`. Dispatch from `main.rs`. Pure rewrite helper unit-tested. `project.rs` only: remediations string + `pub(crate)` reuse of path-resolve if needed. |
-| **F13 — Format** | `--format auto\|human\|json` (same parser as whoami). TTY human / pipe JSON. Frozen JSON keys §5.1. |
+| **F13 — Format** | `--format auto\|human\|json` (same parser as whoami `project.rs:748-752`: `auto` → JSON when stdout is **not** a TTY). Frozen JSON keys §5.1. |
 | **F14 — Reparse** | Before write: `is_reparse_or_symlink` + `refuse_if_reparse` on the `.env` path. Exit **1**. |
 | **F15 — No events / no merge** | Capture independence. No `ProjectAliasAdded`. No memory move. `441837f6` pins stay on `441837f6`. |
 | **F16 — No leftover alias** | Never recommend `set-alias 7d97a456 AI-Brains`. Never adopt shell leftover. |
@@ -139,6 +140,7 @@ T240 made this **visible**. It did not make daily commands **correct**. `preflig
 | **F23 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
 | **F24 — PATH-behind** | Live PATH binary may lack adopt-path until `cargo install`. Tests/manual AC use `cargo run` / hermetic bin. |
 | **F25 — Decline extras** | T257 warn/JSON; T259 split; T267 harness/list footer; silent switch; merge; `project use <uuid>`; `context --new-project` as remediator; writing global dotenv; clap 5. |
+| **F26 — Hermetic format** | AC1–AC6 fixtures that assert human chrome **must** pass `--format human`. `Command.output()` / nextest stdout is a pipe, so `auto` emits JSON (same as whoami / `project_paths.rs:70`). AC13 is the JSON lock. Do not assert `AI_BRAINS_PROJECT_ID=<B>` on `auto`. |
 
 ---
 
@@ -146,13 +148,13 @@ T240 made this **visible**. It did not make daily commands **correct**. `preflig
 
 | AC | Proof |
 |----|-------|
-| **AC1** | **Red today** (command missing). Hermetic: two projects; cwd registered to B; `.env` has `PROJECT_ID=A` plus a dummy `AI_BRAINS_KEY=x'deadbeef…'` and `AI_BRAINS_SESSION_ID=<uuid>`. `project adopt-path` (no write flags) exits **0**. Stdout names B and contains `AI_BRAINS_PROJECT_ID=<B>`. File bytes **unchanged**. |
-| **AC2** | **Red today.** Same fixture. `project adopt-path --write-env` (no `--yes`) exits **2**. File unchanged. Stderr mentions `--yes`. |
-| **AC3** | **Red today.** Same fixture. `project adopt-path --write-env --yes` exits **0**. File `PROJECT_ID` is B. KEY line and SESSION line **byte-identical**. No new `HARNESS_ID` invented. |
-| **AC4** | **Red today.** Registered path, **no** `.env`. `--write-env --yes` creates `.env` whose only assignment is `AI_BRAINS_PROJECT_ID=<B>\n`. |
-| **AC5** | Hermetic already-bound (`.env` PROJECT_ID = path owner): exit **0**, `already_bound` (human text or JSON), file unchanged. |
-| **AC6** | Hermetic **no** path alias: exit **1**, no write, stderr mentions `register-path`. |
-| **AC7** | Whoami mismatch remediations (JSON) contain `project adopt-path` and `AI_BRAINS_PROJECT_ID=<path-id>`. Combined remediations string does **not** contain `` `ai-brains project whoami` ``. Existing T240 field ACs stay green. |
+| **AC1** | **Red today** (command missing). Hermetic: two projects; cwd registered to B; `.env` has `PROJECT_ID=A` plus a dummy `AI_BRAINS_KEY=x'deadbeef…'` and `AI_BRAINS_SESSION_ID=<uuid>`. `project adopt-path --format human` (no write flags) exits **0**. Stdout names B and contains the exact line `AI_BRAINS_PROJECT_ID=<B>` (F26 — **not** `auto`). File bytes **unchanged**. |
+| **AC2** | **Red today.** Same fixture. `project adopt-path --format human --write-env` (no `--yes`) exits **2**. File unchanged. Stderr mentions `--yes`. |
+| **AC3** | **Red today.** Same fixture. `project adopt-path --format human --write-env --yes` exits **0**. File `PROJECT_ID` is B. KEY line and SESSION line **byte-identical**. No new `HARNESS_ID` invented. |
+| **AC4** | **Red today.** Registered path, **no** `.env`. `--format human --write-env --yes` creates `.env` whose only assignment is `AI_BRAINS_PROJECT_ID=<B>\n`. |
+| **AC5** | Hermetic already-bound (`.env` PROJECT_ID = path owner). `--format human`: exit **0**, stdout contains `Already bound to path owner` and the path-owner UUID, **no** `Would set` / `Re-run with --write-env`. File unchanged. `--format json` (same fixture or AC13 sibling): `already_bound: true`, `written: false`, `from_project_id` == `to_project_id`. |
+| **AC6** | Hermetic **no** path alias: `--format human` exit **1**, no write, stderr mentions `register-path`. |
+| **AC7** | Whoami mismatch remediations (JSON) contain `project adopt-path` and `AI_BRAINS_PROJECT_ID=<path-id>`. Combined remediations string does **not** contain `` `ai-brains project whoami` `` and does **not** contain `project list`. Existing T240 field ACs stay green. |
 | **AC8** | `project_identity_convergence` suite stays green (warn still says `project whoami`). |
 | **AC9** | `context.rs` untouched (or comment-only). `cargo nextest` context/T82 tests stay green. |
 | **AC10** | No contracts DTO; no pin bumps; no new crate. No event appended on write (hermetic: event count unchanged aside from fixture seed). |
@@ -160,7 +162,8 @@ T240 made this **visible**. It did not make daily commands **correct**. `preflig
 | **AC12** | `--yes` without `--write-env` is clap usage (exit **2**). |
 | **AC13** | `--format json` print-only: one object, keys §5.1, `written: false`. Stdout parses (T257 still owns mismatch-warn interleave). |
 | **AC14** | Write on a `.env` that `refuse_if_reparse` would trip: exit **1**, no replace. Unit-test the helper with `is_reparse=true`; hermetic symlink only if cheap on Windows. |
-| **AC15** | Manual (source bin, **do not write live `.env`**): `cargo run -p ai-brains-cli -- project adopt-path` in this repo is print-only and names `3581317d-601e-44f7-ab84-fde90aa12d3c`. Confirm live `.env` mtime/hash unchanged. |
+| **AC15** | Manual (source bin, **do not write live `.env`**): `cargo run -p ai-brains-cli -- project adopt-path --format human` in this repo is print-only and names `3581317d-601e-44f7-ab84-fde90aa12d3c`. Confirm live `.env` mtime/hash unchanged. (Force `human` — agent stdout is often a pipe.) |
+| **AC16** | Hermetic `--no-project-context`: `.env` already has path owner B; process env `AI_BRAINS_PROJECT_ID` is a different A. `project adopt-path --format human` exits **0**, `already_bound` (F7 file-id branch), file unchanged. Does **not** treat shell A as the bind source. |
 
 Test names (TDD). **Must fail red before F1 exists:** AC1–AC4 (command unknown → clap exit 2, not our contract). After clap lands and before write helper: AC1 print-only can go green; AC3/AC4 stay red until rewrite.
 
@@ -173,6 +176,7 @@ Test names (TDD). **Must fail red before F1 exists:** AC1–AC4 (command unknown
 - `project_whoami__mismatch__remediations_name_adopt_path`
 - `project_adopt_path__yes_without_write_env__clap_exit_2`
 - `project_adopt_path__format_json__print_only_keys`
+- `project_adopt_path__no_project_context__file_project_id_already_bound`
 - `rewrite_project_id_in_env__preserves_other_keys` (unit)
 - `rewrite_project_id_in_env__refuse_reparse` (unit)
 
@@ -196,6 +200,15 @@ Other keys would be left untouched.
 Re-run with --write-env --yes to apply.
 ```
 
+Human already-bound (SOOT — AC5):
+
+```text
+Already bound to path owner <path-owner>
+No .env write.
+```
+
+Must **not** print the print-only `Would set` / `Re-run with --write-env` block when `already_bound`.
+
 JSON (frozen):
 
 ```json
@@ -211,13 +224,14 @@ JSON (frozen):
 }
 ```
 
-`to_project_id` is null only on AC6 (no path owner). `keys_touched` is always that one name (even when `written: false`).
+`to_project_id` is null only on AC6 (no path owner). `keys_touched` is the key set the action **would or does** touch — always `["AI_BRAINS_PROJECT_ID"]`, including when `written: false` or `already_bound: true`. It is not “keys mutated on this invocation.”
 
 ### 5.2 Rewrite helper (pure)
 
 `rewrite_project_id_line(existing: &str, new_id: &str) -> String`
 
-- If a line starts with `AI_BRAINS_PROJECT_ID` (optional `export ` prefix **not** required; match `context.rs` `starts_with("AI_BRAINS_PROJECT_ID")`): replace that line with `AI_BRAINS_PROJECT_ID={new_id}`.
+- If a line starts with `AI_BRAINS_PROJECT_ID` (match `context.rs` `starts_with("AI_BRAINS_PROJECT_ID")`): replace that line with `AI_BRAINS_PROJECT_ID={new_id}`.
+- `export AI_BRAINS_PROJECT_ID=…` is **not** matched (same as `context.rs`). Soft residual §11 — do not dual-write a second unexported line *and* claim export-form replace as DoD.
 - Else append `\nAI_BRAINS_PROJECT_ID={new_id}\n` (keep existing trailing newline rules from `context.rs`).
 - Do not parse values through dotenvy (quotes/comments stay on **other** lines).
 - Unquoted UUID write form (same as `context.rs`).
@@ -240,7 +254,7 @@ Replace the hand-edit bullet with:
 2. `Run \`ai-brains project adopt-path\` (print-only) or \`ai-brains project adopt-path --write-env --yes\`.`
 3. `To bind daily Scope to the path owner, set AI_BRAINS_PROJECT_ID=<path-id> in project .env.`
 4. set-alias vs register-path. *(keep)*
-5. Drop “Run `project list`” as the **primary** remediator (list is inspection; T267 still owns list footer). Keep list as optional last bullet or drop — prefer **drop** so remediations are the adopt verb + assignment only, plus the two honesty lines.
+5. **Drop** “Run `project list`”. Remediations are the adopt verb + assignment + the two honesty lines only. T267 owns the list footer.
 
 ---
 
@@ -264,8 +278,8 @@ Replace the hand-edit bullet with:
 ## 7. Verification plan
 
 1. **Red:** add `project_adopt_path.rs`. Filter **fails** because `adopt-path` is unknown (clap exit 2) — that **is** the red for AC1–AC4. Do not “fix” by asserting clap’s unknown-subcommand text as the product contract.
-2. **Green clap:** add `AdoptPath` so AC1 (print-only) and AC2/AC12 (usage) can pass; AC3/AC4 still red until rewrite.
-3. **Green write:** helper + `--write-env --yes`. AC3–AC6, AC13–AC14.
+2. **Green clap:** add `AdoptPath` so AC1 (print-only `--format human`) and AC2/AC12 (usage) can pass; AC3/AC4 still red until rewrite. Do **not** assert human chrome on `--format auto` (F26).
+3. **Green write:** helper + `--write-env --yes`. AC3–AC6, AC13–AC14, **AC16**.
 4. **Whoami:** AC7 remediations. AC8 T240 suite green.
 5. **Docs:** AC11.
 6. Targeted: `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; nextest `project_adopt_path` + `project_identity_convergence` + context tests.
@@ -351,6 +365,7 @@ Entire `conductor/deferred.md` scanned 2026-08-16 (post-P12 through T256 closeou
 | T257 warn on adopt-path JSON | Peer track |
 | `3581317d` set-alias is a path string | Honesty only; T212/T267 |
 | Live operator rebind of this repo | Out of band |
+| `export AI_BRAINS_PROJECT_ID=` prefix | Same `starts_with` as `context.rs` — not DoD. dotenvy last-wins if a second unexported line is appended |
 
 ---
 
@@ -372,3 +387,29 @@ Entire `conductor/deferred.md` scanned 2026-08-16 (post-P12 through T256 closeou
 | `conductor/tracks/README-T256-T271-CLI-AUDIT.md` | T258 planned note |
 
 Do **not** touch: `context.rs` (behavior), `key_resolve.rs`, `env_warn.rs`, contracts, daemon, `project_paths.rs` (unless a tiny `pub(crate)` reuse is forced), live `.env`.
+
+---
+
+## 13. AI fold-in disposition (2026-08-16)
+
+Source: `opencode-review.md` (OpenCode) only. No `agy-review.md` / `grok-review.md` / `claude-review.md` / `codex-plan-review.md`. No Blockers. Re-verified at fold-in HEAD `d5bed64`: `whoami` format parser `project.rs:748-752` (`auto` → `!stdout().is_terminal()`); `context.rs:64` `starts_with("AI_BRAINS_PROJECT_ID")` (no `export `); `project.rs` **1547** total lines; `requires =` already at `main.rs:587`; `resolve_path_alias_for_location` `project.rs:264`. Review re-confirmed deferred + last-PR Cursor N/A — **no leftover to mint**.
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **M1** AC1–AC6 human strings vs `--format auto` on a pipe | **Agree hard** | **F26** / AC1–AC6 / AC15 force `--format human`. Live: same `IsTerminal` as whoami / `project_paths.rs:70`. Hermetic `Command.output()` is never a TTY. |
+| **m2** `export ` prefix not matched | **Agree** (soft) | §5.2 honesty + §11 residual. Match `context.rs`. Not DoD. |
+| **m3** `project.rs` line-count 1401 vs 1547 | **Agree** | §2.4: **1547** total (`Get-Content`.Count). 1401 was `Measure-Object -Line` (non-blank). New-module decision unchanged. |
+| **m4** already-bound human body unspecified | **Agree** | §5.1 human already-bound SOOT + AC5. |
+| **m5** `keys_touched` when `written: false` | **Agree** | §5.1: would-or-does-touch, not mutated-this-invocation. |
+| **O6** `--no-project-context` file-id already-bound | **Agree** | **AC16** / test `project_adopt_path__no_project_context__file_project_id_already_bound`. Pins F7 file branch. |
+| **O7** drop `project list` remediations bullet | **Agree** | F10 / §5.4 item 5 is **drop**, not optional. |
+
+### Pins locked by fold-in
+
+1. **F26 / AC1–AC6 / AC15:** hermetic human-chrome fixtures pass `--format human`. Never assert `AI_BRAINS_PROJECT_ID=<B>` on `auto`.
+2. **AC5 / §5.1:** already-bound human is `Already bound to path owner` + `No .env write.` — not the `Would set` block.
+3. **AC16 / F7:** `--no-project-context` already-bound reads the **file** PROJECT_ID, not the shell env.
+4. **F10 / §5.4:** remediations do not include `project list`.
+5. **§2.4:** `project.rs` is 1547 lines; adopt still goes in `project_adopt.rs`.
