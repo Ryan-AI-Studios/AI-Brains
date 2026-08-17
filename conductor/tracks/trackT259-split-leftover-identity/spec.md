@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Honest nightly Phase 2 per leftover repo; detect/whoami/adopt-path in those repos. `--global` recall stays T260/T264 (historical pins stay on leftover). T267 list footer stays T267.
 - **Absorbs:** Shared-ID inventory (11 roots on `7d97a456`); confirmable per-path rebind (unregister leftover + register dest); honesty that unregister ≠ move memories; never recommend `set-alias 7d97a456 AI-Brains` on **new T259 surfaces**
 - **Not absorbed:** Daily Scope rebind (T258 Completed); T267 list-footer algorithm; T260 ranking; T264 global isolation; T268 scan-roots parent/`--root`; T257 warn/JSON; memory reclassification / CE wipe / auto-merge; minting dest projects; live vault mutate this planning pass
-- **Research date:** 2026-08-17 (plan HEAD `049064d`)
-- **Ledger:** planning DOCS TX `49463c65-1759-4110-b1f3-14beda6dfe58`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-17 (plan HEAD `049064d`; fold-in HEAD `e46a2e1`)
+- **AI fold-in:** 2026-08-17 `opencode-review.md` + `agy-review.md` (no grok/claude/codex-plan). No Blockers. **Agree hard:** OC-M1 `from_project_id` is `"<uuid>"` never null. **Agree:** OC-m2 1-off count drift (re-snapshot); OC-m3 PATH vs source adopt-path; OC-O4 intersection AC17; OC-O5 empty-filter AC16; AGY-m1 CP `from != to` InvalidPayload; AGY-O1 `resolve_project_ref` **must** be `pub(crate)`. Disposition **§13**.
+- **Ledger:** planning DOCS TX `49463c65-1759-4110-b1f3-14beda6dfe58`. Fold-in DOCS TX `79be45ed-5222-465b-90d0-ae999ae51d72`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** unregister live leftover paths. Do **not** `set-alias 7d97a456 AI-Brains`. Do **not** write live `.env`. Do **not** `cargo install`. Do **not** reopen T240 F2, T255 declines, T257, T258, T267. Do **not** bump clap / add crates.
 
 ---
@@ -36,12 +37,12 @@ This advances the north star because capture independence and the append-only lo
 | Signal | Observation |
 |--------|-------------|
 | HEAD | `049064d` — T258 Completed (`#171`). Tree CLEAN. `main` = `origin/main`. |
-| PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (mtime 2026-08-16 08:04). **PATH-behind T258** (whoami remediations still say hand-edit + `project list`, not `adopt-path`). **Do not `cargo install`.** |
+| PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (mtime 2026-08-16 08:04). **PATH binary** remediations still say hand-edit + `project list`. **Source** at HEAD already emits adopt-path (`project.rs:823–824`). Do not conclude adopt-path is absent from source. **Do not `cargo install`.** |
 | `preflight --summary` | Scope `test-alias` (`441837f6`); mismatch warn → whoami. T258 adopt-path exists in source; live `.env` not rebound this pass. |
-| `project whoami --format json` | env/effective `441837f6`; **shell leftover `7d97a456`**; path/detect `3581317d`. `mismatch: true`. |
-| `project list --format json` | 39 projects; `unaliased_count` **27**. `7d97a456` **18,028** mem, alias empty, first path `C:\dev\crawlx`. `3581317d` **2,713** mem, path `C:\dev\ai-brains`. `441837f6` **594** mem, `test-alias`, path null, active `*`. |
+| `project whoami --format json` | env/effective `441837f6`; **shell leftover `7d97a456`**; path/detect `3581317d`. `mismatch: true`. Source remediations name `adopt-path`. |
+| `project list --format json` | 39 projects; `unaliased_count` **27**. `7d97a456` **18,028** mem, alias empty, first path `C:\dev\crawlx`. Fold-in re-snapshot (2026-08-17): `3581317d` **2,753** mem; `441837f6` **595** mem, `test-alias`, path null, active `*`. Load-bearing leftover / root counts unchanged. |
 | `project list` stderr footer | `27 project(s) have no alias.` / `Example: ai-brains project set-alias 7d97a456-f2f4-43ea-1f13-211af684ad37 AI-Brains`. **Harmful.** T267 F3 owns the algorithm. |
-| `memory list --summary --global` | Pinned **35,520**. Top row leftover **18,028** (~51% of vault). Then ledgerful 4,457 / ai-brains 2,713 / stl 2,403 / test-alias 565. |
+| `memory list --summary --global` | Plan-time pinned **35,520**. Fold-in re-snapshot **35,561** (1-off drift; leftover still **18,028**). Top row leftover ~51%. Phase 0 re-counts totals; do not treat vault totals as load-bearing. |
 | `project list-paths --format json` | **17** roots / **7** owner IDs. **`7d97a456` owns 11.** `3581317d` owns 1 (`C:\dev\ai-brains`). Six other IDs own 1 each. |
 | Leftover 11 roots (all `exists: true`) | `C:\dev\crawlx`, `dedupe`, `degoo`, `family`, `gimp`, `homebrew-tap`, `kinledger`, `ledgerful-action`, `ledgerful-frontend`, `ledgerful-web`, `wondermaker`. |
 | Dest projects for those folders | **None** in `project list` (no name/alias/path match except leftover’s first-path crawlx). Operator must create dest out of band (`context` in that repo) **before** rebind. |
@@ -53,13 +54,13 @@ This advances the north star because capture independence and the append-only lo
 ### 2.2 Live identity triangle (re-verified)
 
 ```text
-  repo .env PROJECT_ID ──► 441837f6  test-alias     594 mem   daily Scope *
+  repo .env PROJECT_ID ──► 441837f6  test-alias     595 mem   daily Scope *
                            ▲ T258 adopt-path is the remediator (source). Live .env not rebound.
 
   shell (pre-dotenv)   ──► 7d97a456  (no alias)  18,028 mem  first-path=C:\dev\crawlx
                            ▲ leftover dump. 11 C:\dev\* roots. Do not set-alias AI-Brains.
 
-  path alias / detect  ──► 3581317d  2,713 mem   path=C:\dev\ai-brains
+  path alias / detect  ──► 3581317d  2,753 mem   path=C:\dev\ai-brains
                            ▲ this repo. T258. Do not rebind this path onto leftover.
 ```
 
@@ -130,13 +131,13 @@ T254 made every root **listable**. It did not make a shared leftover ID **filter
 | **F3 — Verb** | `ai-brains project rebind-path <path> --to <project-id\|alias>`. Not `split-path` (implies memory split). Not `unregister`+`register` as the documented happy path. Not `adopt-path` (that is `.env`). Not `project use`. |
 | **F4 — Print-only default** | Default rebind is print-only (no events). Write requires **both** `--write` and `--yes`. `--yes` clap-`requires` `--write`. `--write` without `--yes` → exit **2**, no events, stderr names `--yes`. No `--dry-run` twin (T254 unregister keeps `--dry-run`; do not fork that onto rebind). |
 | **F5 — Memories stay** | Rebind never moves, copies, forgets, or CE-wipes memories. JSON always `memories_moved: false`. Human always says historical memories stay on `from`. Hermetic: dest and from `memory_count` unchanged aside from fixture seed. |
-| **F6 — One transaction** | Write path calls new CP `rebind_path_alias` → `append_events(&[Removed(from), Added(to)])` (store already one SQLite tx). Do **not** call `project.rs` `register_path` (`process::exit`). Do **not** two separate CLI appends. |
+| **F6 — One transaction** | Write path calls new CP `rebind_path_alias` → `append_events(&[Removed(from), Added(to)])` (store already one SQLite tx). Helper **must** reject `from == to` with `ControlPlaneError::InvalidPayload` (same family as empty-path on register/unregister) so a programmatic caller cannot append a no-op Removed+Added pair. CLI still short-circuits already-bound (F7) and never calls the helper in that case. Do **not** call `project.rs` `register_path` (`process::exit`). Do **not** two separate CLI appends. |
 | **F7 — Already bound** | If current owner == dest: exit **0**, `already_bound: true`, `written: false`, **no** events. |
 | **F8 — No owner** | Path not in projection → exit **1**, no events, stderr names `register-path`. (Unlike unregister missing-path exit 0 — rebind has nothing to rebind.) |
 | **F9 — Dest must exist** | `--to` unresolved or UUID not in `list_projects` → exit **1**, no events. Do **not** mint `ProjectRegistered`. Do **not** call `context` / `ensure_project_and_session_exists`. Runbook: create dest via `context` in that repo first. |
 | **F10 — One path** | No bulk. No `--all`. No “split leftover” that walks 11 roots. Operator confirms **per path**. |
 | **F11 — No `.env`** | Rebind never writes `.env` / global dotenv. T240 F2 stands. T258 adopt-path remains the Scope remediator. |
-| **F12 — Module** | New `crates/ai-brains-cli/src/commands/project_rebind.rs`. list-paths filters stay in `project_paths.rs`. `project.rs` **untouched**. `context.rs` **untouched**. Promote `project_paths::resolve_project_ref` to `pub(crate)` only if needed. |
+| **F12 — Module** | New `crates/ai-brains-cli/src/commands/project_rebind.rs`. list-paths filters stay in `project_paths.rs`. `project.rs` **untouched**. `context.rs` **untouched**. Promote `project_paths::resolve_project_ref` to **`pub(crate)`** and reuse it from rebind + `--project` — do **not** duplicate the helper. |
 | **F13 — Format** | `--format auto\|human\|json` (same parser as list-paths / adopt-path: `auto` → JSON when stdout is **not** a TTY). Frozen JSON keys §5.1. |
 | **F14 — Hermetic format** | ACs that assert human chrome **must** pass `--format human`. `Command.output()` is a pipe → `auto` is JSON (T258 F26). |
 | **F15 — No new events / no merge** | Capture independence. Existing kinds only (`RepositoryPathAliasRemoved` / `Added`). No `MemoryMoved`. No auto-merge leftover → dest. |
@@ -147,7 +148,7 @@ T254 made every root **listable**. It did not make a shared leftover ID **filter
 | **F20 — Tests** | New `crates/ai-brains-cli/tests/project_rebind_path.rs` (+ list-paths filter cases there or additive in `project_path_aliases.rs`). T254 / T240 / T258 suites stay green. |
 | **F21 — Cross-model** | FEATURE / identity. After Phase-1 review clean, run read-only `codex-review`. |
 | **F22 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
-| **F23 — PATH-behind** | Live PATH binary may lack rebind / T258 adopt-path until `cargo install`. Tests/manual AC use `cargo run` / hermetic bin. |
+| **F23 — PATH vs source** | Live PATH binary may lack T259 rebind **and** T258 adopt-path remediations until `cargo install`. Source at HEAD already emits adopt-path (`project.rs:823–824`). Phase 0 re-reads **source**, not PATH, before concluding a verb is missing. Tests/manual AC use `cargo run` / hermetic bin. |
 | **F24 — Decline extras** | T257 warn/JSON; T258 `.env`; T260 ranking; T264 `--global` blender; T267 footer algorithm; T268 scan-roots rewrite; dest mint; bulk split; memory reclassify; silent switch; clap 5; live leftover mutate. |
 | **F25 — Filter empty** | `--project` / `--shared-only` with zero rows: human `No path aliases match.` (not the T254 empty-register next-step). Exit **0**. JSON `paths: []`. |
 | **F26 — `--to` required** | clap required `--to`. Missing `--to` is clap usage exit **2**. |
@@ -173,6 +174,9 @@ T254 made every root **listable**. It did not make a shared leftover ID **filter
 | **AC13** | Docs: CAPABILITIES rebind + filters; WORKFLOWS leftover runbook (no `7d97`+`AI-Brains`); OPERATIONS honesty; CHANGELOG T259; CLI-EXIT-CODES; CONTEXT inventory includes `rebind-path`. |
 | **AC14** | Manual (source bin, **do not mutate live leftover**): `cargo run -p ai-brains-cli -- project list-paths --shared-only --format human` lists the 11 leftover roots under `7d97a456` and does **not** list `C:\dev\ai-brains`. `rebind-path C:\dev\crawlx --to <any> --format human` is print-only (confirm live alias rows unchanged via a second `list-paths --format json` hash/count). |
 | **AC15** | New T259 `--help` / human error strings do not contain `set-alias` + leftover UUID + `AI-Brains` together. |
+| **AC16** | Hermetic: `--project` of a real project that owns **zero** paths, or `--shared-only` on a vault with no multi-root owner. `--format human` exits **0**, stdout contains `No path aliases match.` (not the T254 empty-register next-step). `--format json`: `paths: []`. Pins F25. |
+| **AC17** | Same fixture as AC1 (one shared owner with two paths, one singleton). `project list-paths --project <shared-uuid> --shared-only --format json` returns **exactly** the two shared-owner rows. `--project <singleton-uuid> --shared-only --format json` returns `paths: []` (intersection). |
+| **AC18** | CP unit: `rebind_path_alias(..., from, from)` returns `InvalidPayload`; no events appended. CLI already-bound (AC6) never reaches this helper. |
 
 Test names (TDD). **Must fail red before F3 exists:** AC3–AC5 (command unknown → clap exit 2). After clap lands and before CP helper: AC3 print-only can go green; AC5 stays red until write.
 
@@ -180,6 +184,7 @@ Test names (TDD). **Must fail red before F3 exists:** AC3–AC5 (command unknown
 - `list_paths__project_filter__only_that_owner`
 - `list_paths__project_unknown__exit_1`
 - `list_paths__filter_empty__no_match_exit_0`
+- `list_paths__project_and_shared_only__intersection`
 - `project_rebind_path__print_only__names_from_to_no_events`
 - `project_rebind_path__write_without_yes__exit_2_no_events`
 - `project_rebind_path__write_yes__rebinds_owner_memories_stay`
@@ -189,6 +194,7 @@ Test names (TDD). **Must fail red before F3 exists:** AC3–AC5 (command unknown
 - `project_rebind_path__yes_without_write__clap_exit_2`
 - `project_rebind_path__format_json__print_only_keys`
 - `rebind_path_alias__appends_removed_then_added` (CP unit)
+- `rebind_path_alias__from_eq_to__invalid_payload` (CP unit)
 
 ---
 
@@ -225,7 +231,7 @@ JSON (print-only and write):
 {
   "api_version": "1",
   "path": "<normalized>",
-  "from_project_id": "<uuid-or-null-if-no-owner>",
+  "from_project_id": "<uuid>",
   "to_project_id": "<uuid>",
   "already_bound": false,
   "written": false,
@@ -234,12 +240,14 @@ JSON (print-only and write):
 }
 ```
 
-Write success: `written: true`, `events_appended: 2`. Already-bound / print-only: `events_appended: 0`. No-owner fail is stderr + exit 1 (not this object).
+Write success: `written: true`, `events_appended: 2`. Already-bound / print-only: `events_appended: 0`. No-owner fail is stderr + exit 1 (not this object). `from_project_id` is always a UUID on this object — the no-owner path never emits JSON (F8 / AC7).
 
 ### 5.2 CP helper
 
 ```text
 rebind_path_alias(writer, path, from, to)
+  if from == to → Err(InvalidPayload)
+  if path normalizes empty → Err(InvalidPayload)  // same as register/unregister
   Removed { project_id: from, normalized_path }
   Added   { project_id: to,   normalized_path }
   writer.append_events(&[removed, added])
@@ -344,9 +352,9 @@ Entire `conductor/deferred.md` scanned 2026-08-17 (post-P12 through T258 closeou
 
 1. Phase 0 re-verify live commands + deferred rescan + clap pin.
 2. Red: `project_rebind_path` tests (AC3–AC5 must fail unknown-command).
-3. list-paths `--project` / `--shared-only` (AC1–AC2).
+3. list-paths `--project` / `--shared-only` (AC1–AC2 / AC16–AC17).
 4. `RebindPath` clap + `project_rebind.rs` print-only (AC3/AC4/AC6–AC10).
-5. CP `rebind_path_alias` + `--write --yes` (AC5).
+5. CP `rebind_path_alias` + `--write --yes` (AC5 / AC18).
 6. Docs + CONTEXT inventory (AC13/AC15).
 7. Review loop + FEATURE `codex-review` + full gate.
 
@@ -362,7 +370,7 @@ Entire `conductor/deferred.md` scanned 2026-08-17 (post-P12 through T258 closeou
 | Suggest dest via `detect` of the *path* (not cwd) | Implicit dest is dangerous; `--to` required |
 | Bulk `--all-shared` | F10 one path |
 | Dest mint `--create` | F9; `context` exists |
-| Unify dual `resolve_project_ref` | Pre-existing duplication |
+| Unify `project.rs` copy of `resolve_project_ref` | Soft — T259 only promotes the `project_paths` helper to `pub(crate)` (F12). The `project.rs` duplicate stays (hotspot freeze). |
 | Atomic tmp+rename / two-event crash mid-tx | Store `append_events` is already one tx |
 | PATH `cargo install` | F23 operator |
 
@@ -374,7 +382,7 @@ Entire `conductor/deferred.md` scanned 2026-08-17 (post-P12 through T258 closeou
 |------|--------|
 | `crates/ai-brains-cli/src/main.rs` | `ListPaths` flags; `RebindPath` + dispatch |
 | `crates/ai-brains-cli/src/commands/mod.rs` | `project_rebind` |
-| `crates/ai-brains-cli/src/commands/project_paths.rs` | `--project` / `--shared-only`; maybe `pub(crate) resolve_project_ref` |
+| `crates/ai-brains-cli/src/commands/project_paths.rs` | `--project` / `--shared-only`; `pub(crate) resolve_project_ref` (F12 hard) |
 | `crates/ai-brains-cli/src/commands/project_rebind.rs` | **New** |
 | `crates/ai-brains-control-plane/src/grants.rs` (+ lib export) | `rebind_path_alias` |
 | `crates/ai-brains-cli/tests/project_rebind_path.rs` | **New** hermetics |
@@ -387,6 +395,29 @@ Do **not** touch: `project.rs` (footer/hotspot), `context.rs`, `project_adopt.rs
 
 ---
 
-## 13. Fold-in
+## 13. AI fold-in disposition (2026-08-17)
 
-(empty until `/review-track` + `/fold-in`)
+Inputs: `opencode-review.md` (HEAD `e46a2e1`), `agy-review.md` (wrote against `049064d`). No `grok-review.md` / `claude-review.md` / `codex-plan-review.md`. Review files **not** edited.
+
+Both reviews: **no Blockers.** OpenCode one Major (schema null). AGY none. Deferred scan and last-PR Cursor (#171 empty) reaffirmed by both; no leftover to mint.
+
+| ID | Finding | Disposition | Where |
+|----|---------|-------------|--------|
+| **OC-M1** | §5.1 `from_project_id` `"<uuid-or-null-if-no-owner>"` is unreachable; F8/AC7 are stderr+exit 1 | **Agree hard** | §5.1 pin `"<uuid>"`; JSON never emitted on no-owner |
+| **OC-m2** | Vault totals 1-off vs live (35,521 / 595 / 566 at review) | **Agree** | §2.1 fold-in re-snapshot (leftover **18,028** still exact; `3581317d` **2,753**; `441837f6` **595**; global pinned **35,561**). Totals are not load-bearing. Phase 0 re-counts. |
+| **OC-m3** | “PATH-behind T258” can be read as adopt-path missing from source | **Agree** | F23 + §2.1 PATH vs source. Source remediations `project.rs:823–824`. |
+| **OC-O4** | F2 intersection (`--project` + `--shared-only`) has no AC/test | **Agree** | **AC17** + `list_paths__project_and_shared_only__intersection` |
+| **OC-O5** | F25 empty-filter has a named test but no AC row | **Agree** | **AC16** |
+| **AGY-m1** | CP `rebind_path_alias` should reject `from == to` | **Agree** | F6 + §5.2 + **AC18** + `rebind_path_alias__from_eq_to__invalid_payload`. Matches existing empty-path `InvalidPayload` on register/unregister. CLI F7 still short-circuits. |
+| **AGY-O1** | Promote `resolve_project_ref` to `pub(crate)` | **Agree** (pin hard) | F12 **must** promote; do not duplicate. `project.rs` copy stays (hotspot freeze). |
+| Deferred / last-PR | Both reviews affirm §9 | **Already covered** | No new placeholder. `#171` comments/reviews/inline empty. |
+
+### Pins locked by fold-in
+
+1. **§5.1 / AC10:** `from_project_id` is `"<uuid>"`. No-owner never produces this object.
+2. **F6 / AC18:** CP helper `from == to` → `InvalidPayload`, no events.
+3. **AC16 / F25:** empty filter human `No path aliases match.` / JSON `paths: []` / exit 0.
+4. **AC17 / F2:** `--project` + `--shared-only` is intersection.
+5. **F12:** `project_paths::resolve_project_ref` is `pub(crate)`; rebind reuses it.
+6. **F23 / §2.1:** Phase 0 inspects **source** for T258 remediations; PATH-behind is the installed binary only.
+7. **§2.1 totals:** leftover 18,028 / 11 roots / 17 paths / 7 owners stay load-bearing. Other memory totals drift and are re-checked at Phase 0.

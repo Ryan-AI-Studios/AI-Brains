@@ -221,7 +221,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~`--help` prints live `AI_BRAINS_KEY` (quality 3)~~ | **T256 Completed 2026-08-16.** Soft residual: PATH `ai-brains` stays leaky until operator `cargo install` (F18). |
 | Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
 | ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
-| Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259 Planned 2026-08-17.** Inventory `list-paths --project/--shared-only` + `rebind-path` print-only / `--write --yes` (Removed+Added one tx). Memories stay (F5). List footer algorithm stays **T267**. `--global` leftover-first stays **T260/T264**. Live leftover not mutated. F0 until go. |
+| Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259 Planned+fold-in 2026-08-17.** Inventory + `rebind-path`. Fold: `from_project_id` uuid-only; CP `from!=to` InvalidPayload; AC16 empty-filter; AC17 intersection. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. F0 until go. |
 | Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260** |
 | `recall ""` 5.7 s | **T261** |
 | Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
