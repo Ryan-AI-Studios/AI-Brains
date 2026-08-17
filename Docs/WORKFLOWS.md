@@ -35,6 +35,8 @@ to path). Use `project whoami` when Scope looks wrong. Rebind with
 | **Path alias** | `project register-path <id\|alias> <path>` | `project detect` (first), nightly multi-root, whoami, mismatch warn |
 | **All roots** | `project list-paths` | See every registered filesystem root (`project list` stays first-path-only) |
 | **Unbind root** | `project unregister-path <path>` | Free a mistaken bind; symbols stay |
+| **Rebind root** | `project rebind-path <path> --to <dest>` | Move one path to dest (print-only; `--write --yes`). Memories stay |
+| **Shared leftover inventory** | `project list-paths --shared-only` / `--project <id>` | See multi-root leftover IDs without scrolling every root |
 | **Discover roots** | `project scan-roots [path]` | Dry-run `.ledgerful` children; copy suggested `register-path` |
 | **Git slug** | `origin` remote name (else toplevel dir) | `project detect` when no path owner |
 
@@ -62,6 +64,27 @@ If you see `Warning: project identity mismatch…`, Scope and path disagree —
 whoami shows both. Default `adopt-path` is print-only; `--write-env --yes`
 is the confirmable write (T240 F2: no silent auto-switch). `context` is
 not the remediator.
+
+### Leftover identity split (T259)
+
+A leftover dump UUID (historically `7d97a456-…`) can own many unrelated
+`C:\dev\*` roots. Inventory, then rebind **one path at a time**. Do **not**
+`set-alias` that leftover UUID as `AI-Brains`. Rebind does **not** move
+historical memories.
+
+```powershell
+ai-brains project list-paths --shared-only --format human
+ai-brains project list-paths --project <leftover-uuid> --format human
+
+# In the leftover repo, mint/ensure dest first (out of band):
+#   cd C:\dev\crawlx
+#   ai-brains context
+
+ai-brains project rebind-path C:\dev\crawlx --to <dest-uuid> --format human
+ai-brains project rebind-path C:\dev\crawlx --to <dest-uuid> --write --yes
+```
+
+Do **not** rebind `C:\dev\ai-brains` off its real path owner as leftover cleanup.
 
 ---
 

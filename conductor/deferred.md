@@ -221,7 +221,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~`--help` prints live `AI_BRAINS_KEY` (quality 3)~~ | **T256 Completed 2026-08-16.** Soft residual: PATH `ai-brains` stays leaky until operator `cargo install` (F18). |
 | Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
 | ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
-| Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots | **T259 Planned+fold-in 2026-08-17.** Inventory + `rebind-path`. Fold: `from_project_id` uuid-only; CP `from!=to` InvalidPayload; AC16 empty-filter; AC17 intersection. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. F0 until go. |
+| ~~Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots~~ | **T259 Completed 2026-08-17.** Inventory `--project`/`--shared-only` + `rebind-path` print-only / `--write --yes` one-tx. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. Soft: leftover memory reclassify by path; PATH `cargo install`; `project.rs` `resolve_project_ref` duplicate. |
 | Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260** |
 | `recall ""` 5.7 s | **T261** |
 | Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
@@ -234,6 +234,20 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
 | `sync query` ledger pane false-empty (5/5) | **T271** |
+
+### T259 closeout residuals (2026-08-17)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Reclassify leftover memories onto dest by path/provenance | Soft — F5; later importer if ever |
+| `--global` leftover-first / blender | **T260 / T264** |
+| `project list` footer leftover-as-AI-Brains | **T267 F3** |
+| `project.rs` private `resolve_project_ref` duplicate | Soft — F12 hotspot freeze |
+| No-owner / dest-missing JSON is generic `COMMAND_FAILED` | Soft — F8/AC7/AC8; T257 owns JSON interleave |
+| PATH `ai-brains` lacks rebind until reinstall | Soft F23 — operator `cargo install` |
+| Live leftover roots still on `7d97a456` | Operator out of band (`context` then `rebind-path --write --yes` per path) |
 
 ### T256 closeout residuals (2026-08-16)
 

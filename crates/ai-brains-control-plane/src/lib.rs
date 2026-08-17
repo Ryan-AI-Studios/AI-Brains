@@ -68,9 +68,9 @@ pub use decisions::{
 };
 pub use errors::{ControlPlaneError, Result};
 pub use grants::{
-    RemoteIdentityKey, issue_grant, join_repository, register_path_alias, register_principal,
-    register_workspace, revoke_grant, set_repository_ledgerful_id, unregister_path_alias,
-    upsert_repository_identity,
+    RemoteIdentityKey, issue_grant, join_repository, rebind_path_alias, register_path_alias,
+    register_principal, register_workspace, revoke_grant, set_repository_ledgerful_id,
+    unregister_path_alias, upsert_repository_identity,
 };
 pub use invalidation::{
     InvalidationResult, SourceUnavailableRequest, invalidate_dependents_for_changed_source,

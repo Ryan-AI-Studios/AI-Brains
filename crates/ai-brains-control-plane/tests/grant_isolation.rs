@@ -4,17 +4,19 @@
 use ai_brains_control_plane::{
     ControlPlaneError, PolicyEvaluator, ProposeConclusionRequest, RemoteIdentityKey,
     ScopeIdentityStore, StorePorts, SystemClock, issue_grant, join_repository, make_principal,
-    propose_conclusion, register_path_alias, register_principal, register_workspace, revoke_grant,
-    scope_identity_key, upsert_repository_identity,
+    propose_conclusion, rebind_path_alias, register_path_alias, register_principal,
+    register_workspace, revoke_grant, scope_identity_key, upsert_repository_identity,
 };
 use ai_brains_core::ids::{EvidenceId, PrincipalId, ProjectId, UserId, WorkspaceId};
 use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_crypto::DataKey;
+use ai_brains_events::Payload;
 use ai_brains_git::hash_remote_url;
 use ai_brains_store::SqliteEventStore;
 use ai_brains_store::connection::VaultConnection;
+use ai_brains_store::event_store::EventStore;
 use tempfile::NamedTempFile;
 
 fn open_ports() -> (NamedTempFile, StorePorts) {
@@ -285,6 +287,69 @@ fn grant_isolation__path_alias_registration() {
     let win = ai_brains_path::normalize_for_location_compare(r"C:\Dev\AliasProj");
     let found = id_store.find_by_path_alias(&win).unwrap();
     assert_eq!(found, Some(project));
+}
+
+#[test]
+fn rebind_path_alias__from_eq_to__invalid_payload() {
+    let (_t, ports) = open_ports();
+    let from = ProjectId::new();
+    let err = rebind_path_alias(&ports.writer, r"C:\Dev\Same", from, from).unwrap_err();
+    assert!(
+        matches!(err, ControlPlaneError::InvalidPayload(_)),
+        "AC18: from==to is InvalidPayload; got {err:?}"
+    );
+    let events = EventStore::read_all_events(&ports.store()).unwrap();
+    assert!(
+        events.iter().all(|e| {
+            !matches!(
+                e.payload,
+                Payload::RepositoryPathAliasRemoved(_) | Payload::RepositoryPathAliasAdded(_)
+            )
+        }),
+        "AC18: no path events appended"
+    );
+}
+
+#[test]
+fn rebind_path_alias__appends_removed_then_added() {
+    let (_t, ports) = open_ports();
+    let from = ProjectId::new();
+    let to = ProjectId::new();
+    assert_ne!(from, to);
+    register_path_alias(&ports.writer, r"C:\Dev\MoveMe", from).unwrap();
+    rebind_path_alias(&ports.writer, r"C:\Dev\MoveMe", from, to).unwrap();
+
+    let events = EventStore::read_all_events(&ports.store()).unwrap();
+    let path_events: Vec<&Payload> = events
+        .iter()
+        .filter_map(|e| match &e.payload {
+            p @ (Payload::RepositoryPathAliasRemoved(_) | Payload::RepositoryPathAliasAdded(_)) => {
+                Some(p)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        path_events.len(),
+        3,
+        "register Added + rebind Removed+Added"
+    );
+    match path_events[1] {
+        Payload::RepositoryPathAliasRemoved(p) => {
+            assert_eq!(p.project_id, from);
+        }
+        other => panic!("second path event must be Removed; got {other:?}"),
+    }
+    match path_events[2] {
+        Payload::RepositoryPathAliasAdded(p) => {
+            assert_eq!(p.project_id, to);
+        }
+        other => panic!("third path event must be Added; got {other:?}"),
+    }
+
+    let id_store = ports.identity_store();
+    let key = ai_brains_path::normalize_for_location_compare(r"C:\Dev\MoveMe");
+    assert_eq!(id_store.find_by_path_alias(&key).unwrap(), Some(to));
 }
 
 #[test]
