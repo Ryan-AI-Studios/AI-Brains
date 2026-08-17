@@ -39,6 +39,7 @@ pub mod pin;
 pub mod policy_cmd;
 pub mod preflight;
 pub mod project;
+pub mod project_adopt;
 pub mod project_paths;
 pub mod recall;
 pub mod recovery;

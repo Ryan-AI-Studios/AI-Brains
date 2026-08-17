@@ -2119,6 +2119,21 @@ pub enum ProjectCommands {
         #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
         format: String,
     },
+    /// Bind daily Scope to the path-alias owner of this repo (print-only by default)
+    #[command(
+        after_help = "Default is print-only (does not write .env). Never silent auto-switch (T240 F2).\nWrite requires both --write-env and --yes. Touches only AI_BRAINS_PROJECT_ID.\ncontext initializes / rotates; it is not adopt-path.\nExamples:\n  ai-brains project adopt-path --format human\n  ai-brains project adopt-path --write-env --yes"
+    )]
+    AdoptPath {
+        /// Rewrite cwd .env AI_BRAINS_PROJECT_ID (requires --yes)
+        #[arg(long)]
+        write_env: bool,
+        /// Confirm the .env write (requires --write-env)
+        #[arg(long, requires = "write_env")]
+        yes: bool,
+        /// Output format: auto (TTY=human, piped=json), human, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        format: String,
+    },
     /// List every registered filesystem path alias (all roots, not just project-list first path)
     #[command(
         after_help = "Examples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format json\nproject list still shows only the first path per project. This command lists all roots."
@@ -4180,6 +4195,11 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 commands::project::register_path(&ctx, project_ref, path)
             }
             ProjectCommands::Whoami { format } => commands::project::whoami(&ctx, format),
+            ProjectCommands::AdoptPath {
+                write_env,
+                yes,
+                format,
+            } => commands::project_adopt::run(&ctx, *write_env, *yes, format),
             ProjectCommands::ListPaths { format } => {
                 commands::project_paths::list_paths(&ctx, format)
             }
