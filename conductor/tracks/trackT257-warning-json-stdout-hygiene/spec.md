@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Scripted / agent `2>&1` parse of every JSON-effective command. Unblocks honest scores for scope / nightly JSON / whoami JSON. Does **not** fix daily Scope (T258) or leftover `7d97a456` (T259).
 - **Absorbs:** Same identity warning on nearly every vault-open command; merged stdout+stderr is not one JSON object; `scope` JSON `"warnings": []` while the human just saw a mismatch; whoami prints “run whoami”; dry-run / table mid-block under merged streams; T259 residual “T257 owns JSON interleave” (identity-warn half only)
 - **Not absorbed:** Fixing the underlying mismatch (T258); leftover split (T259 Completed); format-default maze (T266); preflight `{text, word_count}` envelope (T265); T223/T242 env-override warn; T206 git/env detect warn; clap 5 / new crates
-- **Research date:** 2026-08-17 (plan HEAD `ed329b1`)
-- **Ledger:** planning DOCS TX `b033f134-fb4a-4eb4-bf07-b46087a83a71`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-17 (plan dogfood HEAD `ed329b1`; fold-in HEAD `2b3f859`)
+- **AI fold-in:** 2026-08-17 `agy-review.md` only (no opencode/grok/claude/codex-plan). No Blockers / Majors. **Agree:** Agy-m1 HEAD note. **Already covered / tightened:** Agy-m2 both `scope.rs` emit sites (F3/F24/**AC17**); Agy-O1 `print_json_stdout` lives in `identity_warn.rs` (F8/F11). Disposition **§13**.
+- **Ledger:** planning DOCS TX `b033f134-fb4a-4eb4-bf07-b46087a83a71`. Fold-in DOCS TX `886450fe-3c49-4b44-9073-f5d598297d5a`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** write the live repo `.env`. Do **not** `cargo install`. Do **not** reopen T240 F2, T255 declines, T258, T259, T266. Do **not** bump clap / add crates. Do **not** print `AI_BRAINS_KEY`.
 
 ---
@@ -35,7 +36,7 @@ This advances the north star because capture independence includes **agent trans
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `ed329b1` — T259 Completed (`#172`). Tree CLEAN. `main` = `origin/main`. |
+| HEAD | Plan-time dogfood: `ed329b1` (T259 `#172`). This fold-in: `2b3f859` (T257 plan docs). Product `src/` for warn/`emit_json`/`scope.rs` **unchanged** since `ed329b1`. Tree CLEAN at fold-in. `main` ahead of `origin/main` by **1**. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (mtime **2026-08-16 08:04**, 24 796 672 bytes). **PATH-behind** T256/T258/T259. Whoami remediations still say “operator rebind; no auto-write” + `project list`. **Do not `cargo install`.** |
 | Source / debug | `target\debug\ai-brains.exe` (mtime 2026-08-16 22:26). Whoami remediations **name `adopt-path`**. Same identity warn on stderr. |
 | `preflight --summary` | Scope `test-alias` (`441837f6`); 568 pinned; warn → whoami. Live `.env` not rebound (T258 out of band). |
@@ -114,15 +115,15 @@ Training data is not a pin. “I think clap already does JSON hygiene” is not 
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a **FEATURE** TX. |
 | **F1 — stdout purity** | The T240 SOOT line **never** appears on stdout (before `{`, mid-object, after `}`, or inside a table / dry-run preview). |
 | **F2 — JSON-effective silent** | When the command emits JSON on stdout, do **not** eprintln the SOOT line. Concat(stdout, stderr) of a successful JSON command must `serde_json::from_str` as one value. |
-| **F3 — scope token** | If mismatch fired and the surface is `scope resolve` JSON, push **exactly one** stable token onto `warnings[]` (local **and** daemon wire, before `emit_json`). Token SOOT: `project_identity_mismatch env=<uuid> path=<uuid>`. Must **not** contain `Warning:` or the T240 sentence. |
+| **F3 — scope token** | If mismatch fired and the surface is `scope resolve` JSON, push **exactly one** stable token onto `warnings[]` via a shared inject helper **before** each `emit_json(&wire)` in `scope.rs`. Token SOOT: `project_identity_mismatch env=<uuid> path=<uuid>`. Must **not** contain `Warning:` or the T240 sentence. |
 | **F4 — do not spray** | Do **not** inject the token into briefing / retention / erasure / evidence / review / conclusion `warnings[]`. Those arrays are domain honesty (T165/T166/T180). |
 | **F5 — remediator skip** | `should_skip` is true when argv is `project whoami` or `project adopt-path` (consecutive tokens). whoami JSON keeps `mismatch: true`. Do not add the SOOT string to `remediations[]`. |
 | **F6 — once / delay** | Keep `Once` + F3b skips. **Do not** eprintln at `main.rs:3275`. Record pending state; `handle_cli_result` flushes human SOOT only when pending && !machine_stdout && !skipped. |
 | **F7 — T240 AC4 stands** | Human `project list` (hermetic) **still** prints SOOT on stderr. Updating that test to “never warn” is a regression. |
-| **F8 — `print_json_stdout`** | One helper: `to_string_pretty` + `println!` + `note_machine_stdout()`. Hook CLI **stdout** pretty printers under `commands/` (emit_json, emit_error JSON, whoami, nightly_status, list/paths/adopt/rebind, preflight, memory, graph, briefing, harness **status**, replicate, governed_query). **Not** harness file writes. **Not** `print_schema`. |
+| **F8 — `print_json_stdout`** | One helper **in `identity_warn.rs`**: `to_string_pretty` + `println!` + `note_machine_stdout()`. Hook CLI **stdout** pretty printers under `commands/` (emit_json, emit_error JSON, whoami, nightly_status, list/paths/adopt/rebind, preflight, memory, graph, briefing, harness **status**, replicate, governed_query). **Not** harness file writes. **Not** `print_schema`. Do **not** put the helper in `format_resolve.rs`. |
 | **F9 — contracts** | No new field on `ScopeResolvedResponse`. No `ai-brains-contracts` bump. PROTOCOL-COMPAT: keys unchanged; document additive token in CAPABILITIES. |
 | **F10 — pins** | No clap 5, no lock bumps, no new crates, workspace **0.1.1**. |
-| **F11 — hotspot** | New module `crates/ai-brains-cli/src/commands/identity_warn.rs` (pending state, skip, token, flush, `print_json_stdout` **or** print helper next to `format_resolve` if print is shared). Do **not** grow `project.rs` with new verbs. Moving existing warn fns **out** of `project.rs` is the intended shrink. |
+| **F11 — hotspot** | New module `crates/ai-brains-cli/src/commands/identity_warn.rs` (pending state, skip, token, flush, **`print_json_stdout`**). Do **not** grow `project.rs` with new verbs. Moving existing warn fns **out** of `project.rs` is the intended shrink. |
 | **F12 — capture independence** | Warn/docs only. No events. No models. No graph. No `.env` write. |
 | **F13 — PATH-behind** | Do **not** `cargo install` unless the user asks. Tests use hermetic / `cargo run` / debug bin. |
 | **F14 — T240 F2** | No silent Scope switch. No live `.env` rewrite. |
@@ -135,7 +136,7 @@ Training data is not a pin. “I think clap already does JSON hygiene” is not 
 | **F21 — debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `deferred.md`. |
 | **F22 — tests** | Naming `function_or_feature__condition__expected_result`. New hermetic file `tests/warning_json_stdout_hygiene.rs`. Do not rewrite T240 / T249 / T255 suites except if a skip change breaks an **asserted** stderr line (only `project list` does). No `unwrap`/`expect`/`panic` in production. |
 | **F23 — is-terminal** | `std::io::IsTerminal` (already migrated 2026-08-16). Do not add `is-terminal` crate. |
-| **F24 — daemon scope** | Inject token on the CLI after `ScopeResolved` returns, same as local. Do not change the daemon resolver. |
+| **F24 — both scope emit sites** | Live `scope.rs` has **two** `emit_json(&wire)` calls: `run_resolve_local` **:94** and `run_resolve_daemon` **:128**. Both must call the shared inject helper first. Do **not** change the daemon resolver / `ai-brainsd`. Default hermetic `scope resolve` is local; AC17 is the daemon-arm lock. |
 | **F25 — token idempotent** | Inject only if `warnings` does not already start with `project_identity_mismatch`. Never duplicate. |
 | **F26 — decline extras** | T258 live rebind; T259 leftover mutate; T260–T271 except the absorb row; clap ValueEnum; color/pager; `comfy-table`; shared format-policy (T266). |
 
@@ -161,6 +162,7 @@ Training data is not a pin. “I think clap already does JSON hygiene” is not 
 | **AC14** | Hermetic: `scope resolve --format human` mismatch: human stdout has no T240 SOOT; stderr **has** T240 SOOT (human non-remediator). |
 | **AC15** | Unit: inject helper does not duplicate the token if `warnings` already contains it. |
 | **AC16** | Manual (source bin, classify-only): live `scope resolve --format json` split + concat parse; do **not** paste keys; do **not** write `.env`. |
+| **AC17** | Both `scope.rs` JSON arms call the same inject helper before `emit_json`: `run_resolve_local` (`:94` today) and `run_resolve_daemon` (`:128` today). Proof = review grep / unit on the helper (AC2/AC15). **No** live-daemon hermetic required. |
 
 ---
 
@@ -284,9 +286,9 @@ Entire `conductor/deferred.md` scanned 2026-08-17 (post-P12 through T259 closeou
 
 ## 10. Implement order (on go)
 
-1. Phase 0: re-read `maybe_warn` / `emit_json` / `handle_cli_result`; rescan `deferred.md` + last PR Cursor; clap still 4.6.x.
+1. Phase 0: re-read `maybe_warn` / `emit_json` / both `scope.rs` emit sites / `handle_cli_result`; rescan `deferred.md` + last PR Cursor; clap still 4.6.x.
 2. Red: `warning_json_stdout_hygiene.rs` + identity_warn units (AC1/AC2/AC3/AC5/AC9 must red).
-3. Green: extract `identity_warn.rs`; record/flush; token inject; `print_json_stdout` hooks.
+3. Green: extract `identity_warn.rs`; record/flush; token inject on **both** scope emit sites (AC17); `print_json_stdout` in that module.
 4. Docs AC11.
 5. Targeted clippy + nextest (new file + T240 + T249 + T255).
 6. Review + FEATURE `codex-review`.
@@ -317,7 +319,7 @@ Entire `conductor/deferred.md` scanned 2026-08-17 (post-P12 through T259 closeou
 | `crates/ai-brains-cli/src/commands/project.rs` | Move warn fns out; whoami JSON uses `print_json_stdout` |
 | `crates/ai-brains-cli/src/main.rs` | `record_*` at :3275; `flush_*` in `handle_cli_result` |
 | `crates/ai-brains-cli/src/commands/governed_common.rs` | `emit_json` / JSON `emit_error` → helper |
-| `crates/ai-brains-cli/src/commands/scope.rs` | Inject token before emit (local + daemon) |
+| `crates/ai-brains-cli/src/commands/scope.rs` | Shared inject before **both** `emit_json(&wire)` (`run_resolve_local` + `run_resolve_daemon`) |
 | `crates/ai-brains-cli/src/commands/nightly_status.rs` | JSON emit notes machine |
 | Other `commands/*` stdout pretty printers | Call helper (F8) |
 | `crates/ai-brains-cli/tests/warning_json_stdout_hygiene.rs` | **New** hermetic ACs |
@@ -333,4 +335,25 @@ Do **not** touch: `key_resolve.rs`, `help_ia.rs`, `ai-brainsd` resolver, contrac
 
 ---
 
-**Planning 2026-08-17.** Still **plan-only until go**.
+## 13. AI fold-in disposition (2026-08-17)
+
+Source: `agy-review.md` (Antigravity) only. No `opencode-review.md` / `grok-review.md` / `claude-review.md` / `codex-plan-review.md` in the track dir. No Blockers / Majors. Re-verified at fold-in HEAD `2b3f859`: `maybe_warn` still `eprintln!` + `Once` at `project.rs:332`; `main.rs:3275` still before the command match; `emit_json` still one `to_string_pretty` + `println!`; `scope.rs` still two emit sites (`run_resolve_local:94`, `run_resolve_daemon:128`); `warnings[]` still empty on live PATH `scope resolve --format json`. Review re-confirmed deferred + last-PR Cursor N/A — **no leftover to mint**. Product `src/` unchanged since plan dogfood `ed329b1`.
+
+### Antigravity
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** spec HEAD `ed329b1` vs `2b3f859` | **Agree** | §2.1: plan-time dogfood SHA vs fold-in SHA. Product warn/`emit_json`/`scope.rs` unchanged. Phase 0 checkbox. |
+| **m2** dual local + daemon inject | **Already covered** | F3 / F24. **Tightened:** F24 names `run_resolve_local` **:94** and `run_resolve_daemon` **:128**; **AC17** locks both arms. No live-daemon hermetic. |
+| **O1** `print_json_stdout` in `identity_warn.rs` | **Already covered** | F8 / F11. **Tightened:** helper **must** live in `identity_warn.rs`; do not put it in `format_resolve.rs`. |
+
+### Pins locked by fold-in
+
+1. **§2.1:** dogfood HEAD `ed329b1` vs fold HEAD `2b3f859`; product src unchanged.
+2. **F24 / AC17:** both `scope.rs` `emit_json(&wire)` sites get the shared inject helper.
+3. **F8 / F11:** `print_json_stdout` lives in `identity_warn.rs`, not `format_resolve.rs`.
+4. **F0** until go. No product crate edits this pass.
+
+---
+
+**Planning + fold-in 2026-08-17.** Still **plan-only until go**.

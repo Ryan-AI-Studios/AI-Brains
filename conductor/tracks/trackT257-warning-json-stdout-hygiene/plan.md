@@ -1,10 +1,23 @@
 # T257 Plan — Warning + JSON stdout hygiene
 
-**Status:** **Pending** (requirements written; spec **Planned**)
-**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC16
+**Status:** **Pending** (requirements written; spec **Planned** + fold-in)
+**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC17 + §13 fold-in
 **Category:** UX / CONTRACTS-adjacent
 **Ledger TX (planning):** `b033f134-fb4a-4eb4-bf07-b46087a83a71` (DOCS)
+**Ledger TX (fold-in):** `886450fe-3c49-4b44-9073-f5d598297d5a` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go** only
+
+---
+
+## AI fold-in (2026-08-17) — `agy-review.md` only
+
+No Blockers / Majors. One informational SHA note folded. Dual-site inject and `print_json_stdout` location already in F3/F8/F24 — tightened. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **§2.1:** plan dogfood `ed329b1` vs fold `2b3f859`; product src unchanged.
+2. **F24 / AC17:** `run_resolve_local` **and** `run_resolve_daemon` call the shared inject helper before `emit_json`.
+3. **F8 / F11:** `print_json_stdout` lives in `identity_warn.rs` (not `format_resolve.rs`).
 
 ---
 
@@ -12,7 +25,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `ed329b1` T259 `#172`. CLEAN. `main` = `origin/main`. |
+| HEAD / tree | Plan dogfood `ed329b1`. Fold-in `2b3f859`. Product src unchanged. CLEAN. `main` ahead of origin by **1**. |
 | T257 stub | Placeholder upgraded in place to **Planned** |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (2026-08-16 08:04). Split: warn **stderr only**; JSON stdout **parses**. `2>&1` concat **fails** (`Additional text… W`). PATH whoami remediations pre-T258. |
 | Source / debug | `target\debug\ai-brains.exe` (2026-08-16 22:26). Remediations name **adopt-path**. Same stderr SOOT. |
@@ -56,7 +69,9 @@
 
 - [ ] Re-read `maybe_warn_identity_mismatch` (`project.rs`) and the `:3275` call. Confirm still `eprintln!` before the command `match` (or note drift).
 - [ ] Re-read `emit_json` — still `to_string_pretty` + one `println!`.
+- [ ] Re-read `scope.rs` **both** `emit_json(&wire)` sites (`run_resolve_local` + `run_resolve_daemon`). Confirm line numbers vs F24 (or note drift).
 - [ ] Re-read `handle_cli_result` — still the Ok/Err join for `run` and `run_sync_path_free`.
+- [ ] Confirm product warn/`emit_json`/`scope.rs` still match plan dogfood `ed329b1` (fold-in `2b3f859` was docs-only).
 - [ ] Re-read **source** whoami remediations (~823): adopt-path present even if PATH is old.
 - [ ] Split-stream dogfood `scope resolve --format json` (classify only). Confirm stderr SOOT + empty `warnings[]` still, or note drift.
 - [ ] Re-check lock clap + crates.io: still no clap 5 (or this track is not that bump).
@@ -97,7 +112,8 @@
 
 - [ ] `print_json_stdout` + `note_machine_stdout` (F8).
 - [ ] Wire `emit_json` / JSON `emit_error`.
-- [ ] Inject AC2 token in `scope.rs` local + daemon before emit (F3/F24/F25).
+- [ ] Shared inject helper; call it in `run_resolve_local` **and** `run_resolve_daemon` before `emit_json` (F3/F24/F25/**AC17**). Do not wire local only.
+- [ ] `print_json_stdout` lives in `identity_warn.rs` (F8/F11) — not `format_resolve.rs`.
 - [ ] whoami / nightly_status / remaining F8 stdout pretty sites call the helper.
 - [ ] AC3 / AC5 / AC7 / AC9 green. Nightly keys unchanged (F15).
 - [ ] Dry-run AC8: stdout preview has no SOOT.
@@ -123,7 +139,7 @@
 ## Definition of Done
 
 - [ ] F0–F26 honored (F0 lifted only after go)
-- [ ] AC1–AC16 evidenced (AC16 manual classify)
+- [ ] AC1–AC17 evidenced (AC16 manual classify; AC17 both scope emit sites)
 - [ ] T240 AC4 still green
 - [ ] No contracts field; no clap 5; no new crates
 - [ ] `project.rs` did not grow (extract allowed)
@@ -132,4 +148,4 @@
 
 ---
 
-**Planning 2026-08-17.** Still **plan-only until go**.
+**Planning + fold-in 2026-08-17.** Still **plan-only until go**.
