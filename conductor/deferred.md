@@ -208,7 +208,7 @@ Project copies of Helping Hands `plan` / `review-track` / `foldin`, adapted for 
 | **plan-track** | `.agents/skills/plan-track/SKILL.md` |
 | **review-track** | `.agents/skills/review-track/SKILL.md` |
 | **fold-in** | `.agents/skills/fold-in/SKILL.md` |
-| **implement-track** | `.agents/skills/implement-track/SKILL.md` — from `hands/.agents/skills/implement`. Same-repo (no `hands\` split); TDD; `deferred.md`; `/implement-track` **always** publishes (feature PR + wait GHA + squash-merge + prune). Never `git push origin main` / force-push. Stop if spec is still a Placeholder. |
+| **implement-track** | `.agents/skills/implement-track/SKILL.md` — from `hands/.agents/skills/implement`. Same-repo (no `hands\` split); TDD; `deferred.md`; `/implement-track` **always** publishes: push branch → PR → **watch GHA `CI` until every job is green** → squash-merge → prune. Never `git push origin main` / force-push. Stop if spec is still a Placeholder. |
 
 Adaptations (not a copy): same-repo product+conductor (no `hands\` split); `trackTNN-<kebab>`; `deferred.md` not ISSUES.md; plan reviews are `*-review.md` so they do not collide with post-implement `review.md` / `review.codex.md`; F0 plan-only until go; no full-gate plan review. Standing orders (2026-08-16 tighten): live `src/` baseline; ledgerful + ai-brains required as appropriate; knowledge stale — current pins/docs + online best-practice/implementation research (N/A must be written). Plan pass must scan **entire** `deferred.md` and the **last merged PR** (+ open PR on HEAD) for Cursor/Bugbot comments; absorb, point at an existing Pending placeholder, or **mint a new placeholder** if the leftover fits nowhere.
 

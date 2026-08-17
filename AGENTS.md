@@ -57,7 +57,7 @@
 - **Forbid**: `git push origin main`/`master`, force-push without explicit approval, destructive operations without explicit approval, committing secrets/`.env`.
 - **Require**: inspect diff before commit, commit only intentional files, keep unrelated fixes separate where practical, clear ledger status before push.
   - **Push Hygiene**: `git fetch --all --prune` before staging; reconcile if `origin/main` moved; stage only intended scope; prune conservatively. The pre-push hook runs `ledgerful verify --scope fast` + `ledgerful ledger status` — treat it as the authoritative publish gate.
-  - **Implement-track publish**: `/implement-track` / go / execute is standing approval to push `track/T<NN>-*`, open a PR, wait for GHA `CI`, `gh pr merge --squash --delete-branch`, and prune merged track branches. Never `git push origin main`. Procedure lives in the implement-track skill.
+  - **Implement-track publish (always):** `/implement-track` / go / execute is standing approval. **Do not ask.** A local Completed is not done. Always: push `track/T<NN>-*`, open a PR to `main` if none, **watch GHA workflow `CI` until every job is green** (`gh run watch --exit-status`), `gh pr merge --squash --delete-branch`, `git fetch --all --prune`, point local `main` at `origin/main`, delete merged local `track/T*` only. Never `git push origin main`. Never force-push. Never delete Dependabot remotes/PRs. Procedure: `.agents/skills/implement-track/SKILL.md` Phase 6.
 
 ## Stop-Before
 Halt and ask the user before proceeding with any of:
