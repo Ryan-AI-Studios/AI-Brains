@@ -41,6 +41,7 @@ pub mod preflight;
 pub mod project;
 pub mod project_adopt;
 pub mod project_paths;
+pub mod project_rebind;
 pub mod recall;
 pub mod recovery;
 pub mod replicate;

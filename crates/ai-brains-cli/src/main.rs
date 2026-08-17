@@ -2136,9 +2136,35 @@ pub enum ProjectCommands {
     },
     /// List every registered filesystem path alias (all roots, not just project-list first path)
     #[command(
-        after_help = "Examples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format json\nproject list still shows only the first path per project. This command lists all roots."
+        after_help = "Examples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format json\n  ai-brains project list-paths --project <id|alias>\n  ai-brains project list-paths --shared-only\nproject list still shows only the first path per project. This command lists all roots.\n--shared-only keeps owners that appear on two or more roots. Combined with --project is an intersection.\nEmpty filter prints 'No path aliases match.' (exit 0)."
     )]
     ListPaths {
+        /// Filter to one project UUID or alias
+        #[arg(long)]
+        project: Option<String>,
+        /// Keep only owners that appear on two or more registered paths
+        #[arg(long)]
+        shared_only: bool,
+        /// Output format: auto (TTY=human, piped=json), human, or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        format: String,
+    },
+    /// Move one path alias to another existing project (print-only by default)
+    #[command(
+        after_help = "Default is print-only (does not append events). Write requires both --write and --yes.\nDoes not move historical memories. Does not write .env (use adopt-path for daily Scope).\nDoes not mint the dest project — run `ai-brains context` in that repo first.\nExamples:\n  ai-brains project rebind-path C:\\dev\\crawlx --to <dest-uuid> --format human\n  ai-brains project rebind-path C:\\dev\\crawlx --to <dest-uuid> --write --yes"
+    )]
+    RebindPath {
+        /// Filesystem path to rebind (Windows or WSL form; normalized for compare)
+        path: String,
+        /// Destination project UUID or alias (must already exist)
+        #[arg(long)]
+        to: String,
+        /// Append Removed+Added events (requires --yes)
+        #[arg(long)]
+        write: bool,
+        /// Confirm the write (requires --write)
+        #[arg(long, requires = "write")]
+        yes: bool,
         /// Output format: auto (TTY=human, piped=json), human, or json
         #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
         format: String,
@@ -4200,9 +4226,20 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 yes,
                 format,
             } => commands::project_adopt::run(&ctx, *write_env, *yes, format),
-            ProjectCommands::ListPaths { format } => {
-                commands::project_paths::list_paths(&ctx, format)
+            ProjectCommands::ListPaths {
+                project,
+                shared_only,
+                format,
+            } => {
+                commands::project_paths::list_paths(&ctx, format, project.as_deref(), *shared_only)
             }
+            ProjectCommands::RebindPath {
+                path,
+                to,
+                write,
+                yes,
+                format,
+            } => commands::project_rebind::run(&ctx, path, to, *write, *yes, format),
             ProjectCommands::ScanRoots { path, format } => {
                 commands::project_paths::scan_roots(&ctx, path.as_deref(), format)
             }

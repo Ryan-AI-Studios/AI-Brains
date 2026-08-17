@@ -95,7 +95,16 @@ struct ListPathRow {
 }
 
 /// List every registered filesystem path alias (all roots, not first-path-only).
-pub fn list_paths(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+///
+/// `--project` and `--shared-only` filter which rows appear; unfiltered JSON
+/// keys stay T254 F10. `--shared-only` = owner appears ≥2 times in the full
+/// alias list. Combined flags are an intersection.
+pub fn list_paths(
+    ctx: &AppContext,
+    format: &str,
+    project: Option<&str>,
+    shared_only: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let use_json = use_json_output(format)?;
 
     let aliases = ctx.conn.list_path_aliases()?;
@@ -105,9 +114,28 @@ pub fn list_paths(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::err
         by_id.insert(id, (name, alias));
     }
 
+    let mut owner_counts: HashMap<String, usize> = HashMap::new();
+    for (project_id, _) in &aliases {
+        *owner_counts.entry(project_id.to_string()).or_insert(0) += 1;
+    }
+
+    let filter_project = if let Some(pref) = project {
+        Some(resolve_project_ref(ctx, pref)?.to_string())
+    } else {
+        None
+    };
+
     let mut rows = Vec::with_capacity(aliases.len());
     for (project_id, normalized_path) in aliases {
         let id = project_id.to_string();
+        if let Some(ref wanted) = filter_project
+            && &id != wanted
+        {
+            continue;
+        }
+        if shared_only && owner_counts.get(&id).copied().unwrap_or(0) < 2 {
+            continue;
+        }
         let (name, alias) = by_id
             .get(&id)
             .cloned()
@@ -123,6 +151,8 @@ pub fn list_paths(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::err
         });
     }
 
+    let filter_applied = project.is_some() || shared_only;
+
     if use_json {
         let envelope = ListPathsJson {
             api_version: "1".to_string(),
@@ -133,8 +163,12 @@ pub fn list_paths(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::err
     }
 
     if rows.is_empty() {
-        println!("No path aliases registered.");
-        println!("next: ai-brains project register-path <project_id|alias> <path>");
+        if filter_applied {
+            println!("No path aliases match.");
+        } else {
+            println!("No path aliases registered.");
+            println!("next: ai-brains project register-path <project_id|alias> <path>");
+        }
         return Ok(());
     }
 
@@ -388,7 +422,7 @@ pub fn unregister_path(
 }
 
 /// Resolve `project_ref` as UUID parse **or** human alias lookup.
-fn resolve_project_ref(
+pub(crate) fn resolve_project_ref(
     ctx: &AppContext,
     project_ref: &str,
 ) -> Result<ai_brains_core::ids::ProjectId, Box<dyn std::error::Error>> {

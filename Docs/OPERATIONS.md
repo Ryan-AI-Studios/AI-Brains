@@ -535,6 +535,7 @@ ai-brains project whoami --format json
 - **`project detect` order:** (1) path alias of git toplevel else cwd (2) git slug exact-first (T206; ambiguous exit **1** when no path) (3) env post-dotenv if in vault (4) miss exit **1**. Path owner **always** wins over unique slug hit; stderr notes the slug project.
 - **`project whoami`:** shell vs env vs path vs detect + remediations; `--no-project-context` nulls env fields but still resolves path/detect. On mismatch, remediations name `project adopt-path` (print-only / `--write-env --yes`).
 - **`project adopt-path` (T258):** print-only remediator for the path-alias owner. `--write-env --yes` rewrites only `AI_BRAINS_PROJECT_ID` in cwd `.env`. Never silent auto-switch. `context` is not the remediator.
+- **`project rebind-path` (T259):** print-only remediator that would move **one** path alias to an existing dest. `--write --yes` appends Removed+Added in one transaction. **Does not move memories.** Does not write `.env`. Does not mint dest. Unregister/rebind ≠ forget / CE wipe.
 - **Mismatch warn (once/process):** env ≠ path-alias owner → non-fatal stderr + whoami hint. Skip: `--no-project-context`, argv `--global`, no path, empty env.
 - **`set-alias` vs `register-path`:** label vs filesystem root — never conflate (see multi-root section below).
 
@@ -601,8 +602,9 @@ This is independent of Task Scheduler **System32** cwd: roots come from vault pa
 |---------|----------------|---------|
 | `project set-alias <uuid> <label>` | Human **label** only | Display, resolve, detect **git slug** name/alias match |
 | `project register-path <uuid\|alias> <path>` | **Filesystem root** (normalized Win/WSL) | Detect **step 1**, nightly Phase 2 bridge, whoami path, mismatch warn |
-| `project list-paths` | **All** registered roots | Operator inventory (not just `project list` first-path) |
+| `project list-paths` | **All** registered roots | Operator inventory (not just `project list` first-path). `--project` / `--shared-only` filter leftover multi-root IDs |
 | `project unregister-path <path>` | Compensating **Removed** event | Frees the path for another project; symbols stay |
+| `project rebind-path <path> --to <dest>` | Removed (from) + Added (to) in **one tx** | Confirmable per-path split; memories stay on from |
 | `project scan-roots [path]` | Dry-run `.ledgerful` discovery | Suggested `register-path` commands; never writes |
 
 Putting a path string into `set-alias` does **not** register a path alias. `project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
@@ -616,7 +618,7 @@ ai-brains project register-path <id-or-alias> C:\dev\ledgerful
 ```
 
 - **Conflict (F21):** the same normalized path can only belong to one project — second owner gets **exit 1** + ownership message naming `ai-brains project unregister-path <path>`. Same project re-register is idempotent OK. Projection **refuses to steal** if a raced other-owner `Added` is applied.
-- **Correct a wrong bind:** `project unregister-path --dry-run <path>` then `project unregister-path <path>`. Does **not** forget ingested symbols; Phase 2 simply stops walking the path. Then `register-path` to the intended project.
+- **Correct a wrong bind:** prefer `project rebind-path <path> --to <dest>` (print-only, then `--write --yes`) so unregister+register cannot be half-applied. The two-step `unregister-path` then `register-path` remains available but is not the happy path. Neither command forgets ingested symbols; Phase 2 simply stops walking the path for the from-project.
 - **Discover roots:** `project scan-roots C:\dev` lists immediate children (plus the scan root) that contain `.ledgerful`. Dry-run — never registers, never writes `.env`. `.changeguard` leftover dirs are **not** hits.
 - **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs). `project list-paths` prints the empty next-step.
 - **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal). Nightly logs `bridge_roots_failed` on symbol ingest error so totals add up.

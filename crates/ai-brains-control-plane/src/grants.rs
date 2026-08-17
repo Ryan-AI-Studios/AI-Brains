@@ -280,6 +280,50 @@ pub fn unregister_path_alias<W: EventWriter>(
     writer.append_events(&[event])
 }
 
+/// Rebind a normalized path alias from one project to another in one append.
+///
+/// Appends compensating `RepositoryPathAliasRemoved` (from) then
+/// `RepositoryPathAliasAdded` (to). Rejects `from == to` and empty path.
+pub fn rebind_path_alias<W: EventWriter>(
+    writer: &W,
+    path: &str,
+    from: ProjectId,
+    to: ProjectId,
+) -> Result<()> {
+    if from == to {
+        return Err(ControlPlaneError::InvalidPayload(
+            "rebind from and to project ids must differ".into(),
+        ));
+    }
+    let normalized = normalize_for_location_compare(path);
+    if normalized.is_empty() {
+        return Err(ControlPlaneError::InvalidPayload(
+            "path alias normalized to empty".into(),
+        ));
+    }
+    let removed = build_event(
+        AggregateType::Project,
+        from.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+        Payload::RepositoryPathAliasRemoved(RepositoryPathAliasRemovedPayload {
+            project_id: from,
+            normalized_path: normalized.clone(),
+        }),
+    )?;
+    let added = build_event(
+        AggregateType::Project,
+        to.as_uuid(),
+        Actor::System,
+        Privacy::LocalOnly,
+        Payload::RepositoryPathAliasAdded(RepositoryPathAliasAddedPayload {
+            project_id: to,
+            normalized_path: normalized,
+        }),
+    )?;
+    writer.append_events(&[removed, added])
+}
+
 /// Input for identity upsert: raw remote URL (will normalize+hash) or precomputed hash.
 #[derive(Debug, Clone)]
 pub enum RemoteIdentityKey {
