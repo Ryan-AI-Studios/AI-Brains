@@ -1,7 +1,7 @@
 # T256–T271 — Post-T255 live CLI audit (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-16 (graph-on PATH install; live vault `C:\dev\ai-brains\vault.db`; agent non-TTY).
-**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. Remaining T260–T271 still placeholders.
+**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. **T260 Planned** 2026-08-17 (Pending; F0 until go). Remaining T261–T271 still placeholders.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest; **T240–T255** CLI effectiveness (closer T255 2026-08-16).
 **Ledger (registration):** DOCS TX `1d9511b5-798b-4d6c-b0c9-ebb4b07d0b69`.
 
@@ -17,7 +17,7 @@ Every non-working item, friction point, significant opportunity, and command wit
 | Identity warning on every command; interleaves JSON (`scope resolve` default + `--format json`) | friction; scope 6/5, json **7/6**; opp: stderr-only | **T257 Completed** | P0 |
 | Daily Scope is `test-alias` `441837f6` (592) not path owner `3581317d` (2,700) | non-working default; opp: rebind path owner | **T258 Completed** | P0 |
 | Leftover identity `7d97a456` holds **18,028** memories across many `C:\dev\*` roots | opp: split leftover; poisons `--global` | **T259 Completed** | P0 |
-| Recall ranking: symbol stubs beat decisions (`Module sqlite_backend`, `Struct Project`) | default **5/4**; `--semantic` **6/6**; `--global` **3/3**; real-project semantic **4/3**; opp: demote symbols | **T260** | P0 |
+| Recall ranking: symbol stubs beat decisions (`Module sqlite_backend`, `Struct Project`) | default **5/4**; `--semantic` **6/6**; `--global` **3/3**; real-project semantic **4/3**; opp: demote symbols | **T260 Planned** | P0 |
 | Empty `recall ""` took **5.7 s** | friction | **T261** | P2 |
 | Graph unused as daily tool: 21k nodes / 945 edges; recent pin no node; hierarchy empty | neighbors **4/5**; hierarchy **3/4**; opp: live projection | **T262** | P1 |
 | Governed store empty (0 evidence / conclusions / decisions) while vault has hundreds of `DECISION:` pins | briefing **4/6** + **3/6**; progressive **3/5**; expand **6/6**; trace **5/4**; evidence/source/review **3/5**; opp: connect or stop advertising | **T263** | P0 |

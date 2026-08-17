@@ -222,7 +222,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6)~~ | **T257 Completed 2026-08-17.** JSON-effective silent + scope token + remediator skip. T240 list hermetic stands. Soft: PATH `cargo install` (F13); T223 env-override still separate (F17). |
 | ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
 | ~~Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots~~ | **T259 Completed 2026-08-17.** Inventory `--project`/`--shared-only` + `rebind-path` print-only / `--write --yes` one-tx. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. Soft: leftover memory reclassify by path; PATH `cargo install`; `project.rs` `resolve_project_ref` duplicate. |
-| Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260** |
+| Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260 Planned 2026-08-17.** Default exclude via `symbol_content` format (no `source_tag` column). `--symbols` restores mix. `--global` identical-content dedupe. Leftover-**project** exclusion stays **T264**. F0 until go. |
 | `recall ""` 5.7 s | **T261** |
 | Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
 | Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review) | **T263** |
