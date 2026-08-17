@@ -149,8 +149,7 @@ pub async fn run(
                 router,
             };
             let status_json = crate::commands::nightly_status::build_nightly_status_json(input);
-            let pretty = crate::commands::nightly_status::emit_nightly_status_json(&status_json)?;
-            println!("{pretty}");
+            crate::commands::identity_warn::print_json_stdout(&status_json)?;
             return Ok(());
         }
 

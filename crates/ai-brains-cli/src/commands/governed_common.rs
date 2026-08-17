@@ -195,9 +195,7 @@ pub type GovernedResult = Result<(), Box<dyn std::error::Error>>;
 
 /// Emit machine-clean JSON on stdout only.
 pub fn emit_json(value: &impl Serialize) -> Result<(), Box<dyn std::error::Error>> {
-    let s = serde_json::to_string_pretty(value)?;
-    println!("{s}");
-    Ok(())
+    crate::commands::identity_warn::print_json_stdout(value)
 }
 
 /// Emit human text on stdout.
@@ -213,8 +211,7 @@ pub fn emit_error(format: OutputFormat, err: &ApiError) -> Result<(), Box<dyn st
     match format {
         OutputFormat::Json => {
             // Scripts parse one stream: JSON error envelope on stdout.
-            let s = serde_json::to_string_pretty(err)?;
-            println!("{s}");
+            crate::commands::identity_warn::print_json_stdout(err)?;
         }
         OutputFormat::Human | OutputFormat::Markdown => {
             eprintln!("{}: {}", err.code, err.message);

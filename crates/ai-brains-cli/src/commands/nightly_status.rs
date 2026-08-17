@@ -131,6 +131,7 @@ pub(crate) fn build_nightly_status_json(input: NightlyStatusInput) -> NightlySta
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn emit_nightly_status_json(
     status: &NightlyStatusJson,
 ) -> Result<String, serde_json::Error> {

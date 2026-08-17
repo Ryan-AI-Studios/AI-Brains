@@ -114,6 +114,7 @@ pub fn run(ctx: &AppContext, dry_run: bool) -> Result<(), Box<dyn std::error::Er
             .unwrap_or_else(|| outcome.events[0].event_id.to_string()),
         processed: true,
     };
+    crate::commands::identity_warn::note_machine_stdout();
     println!("{}", serde_json::to_string(&response)?);
     Ok(())
 }

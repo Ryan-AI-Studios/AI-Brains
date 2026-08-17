@@ -93,8 +93,11 @@ fn mismatch_fixture() -> MismatchFixture {
     let work = dir.path().join("work");
     fs::create_dir_all(&work).expect("work dir");
     register_path(&vault, &id_path, work.to_str().expect("utf8"));
-    fs::write(work.join(".env"), format!("AI_BRAINS_PROJECT_ID={id_env}\n"))
-        .expect("write work .env");
+    fs::write(
+        work.join(".env"),
+        format!("AI_BRAINS_PROJECT_ID={id_env}\n"),
+    )
+    .expect("write work .env");
 
     MismatchFixture {
         _dir: dir,
@@ -149,10 +152,7 @@ fn assert_no_soot(text: &str, stream: &str) {
 #[test]
 fn scope_resolve_json__mismatch__stdout_parses_token_no_soot() {
     let fx = mismatch_fixture();
-    let out = run_in_fixture(
-        &fx,
-        &["scope", "resolve", "--format", "json", "--local"],
-    );
+    let out = run_in_fixture(&fx, &["scope", "resolve", "--format", "json", "--local"]);
     assert_exit_0(&out, "scope resolve --format json");
     let stdout = stdout_str(&out);
     let stderr = stderr_str(&out);
@@ -181,10 +181,7 @@ fn scope_resolve_json__mismatch__stdout_parses_token_no_soot() {
 #[test]
 fn scope_resolve_json__mismatch__concat_streams_parse() {
     let fx = mismatch_fixture();
-    let out = run_in_fixture(
-        &fx,
-        &["scope", "resolve", "--format", "json", "--local"],
-    );
+    let out = run_in_fixture(&fx, &["scope", "resolve", "--format", "json", "--local"]);
     assert_exit_0(&out, "scope resolve --format json");
     let combined = format!("{}{}", stdout_str(&out), stderr_str(&out));
     serde_json::from_str::<serde_json::Value>(combined.trim())
@@ -239,10 +236,7 @@ fn whoami_human__mismatch__no_stderr_soot() {
 #[test]
 fn nightly_status_json__mismatch__no_soot_no_warnings_key() {
     let fx = mismatch_fixture();
-    let out = run_in_fixture(
-        &fx,
-        &["nightly", "--status", "--format", "json", "--quick"],
-    );
+    let out = run_in_fixture(&fx, &["nightly", "--status", "--format", "json", "--quick"]);
     assert_exit_0(&out, "nightly --status --format json --quick");
     let stdout = stdout_str(&out);
     let stderr = stderr_str(&out);
@@ -262,10 +256,7 @@ fn nightly_status_json__mismatch__no_soot_no_warnings_key() {
 #[test]
 fn scope_resolve_human__mismatch__stderr_soot_stdout_clean() {
     let fx = mismatch_fixture();
-    let out = run_in_fixture(
-        &fx,
-        &["scope", "resolve", "--format", "human", "--local"],
-    );
+    let out = run_in_fixture(&fx, &["scope", "resolve", "--format", "human", "--local"]);
     assert_exit_0(&out, "scope resolve --format human");
     let stdout = stdout_str(&out);
     let stderr = stderr_str(&out);

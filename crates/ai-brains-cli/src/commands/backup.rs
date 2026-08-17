@@ -298,6 +298,7 @@ pub fn run_verify(
                 status: "ok".to_string(),
                 message: Some("No backups to verify.".to_string()),
             };
+            crate::commands::identity_warn::note_machine_stdout();
             println!("{}", serde_json::to_string(&output)?);
         } else {
             println!("No backups to verify.");
@@ -356,6 +357,7 @@ pub fn run_verify(
             },
             message: None,
         };
+        crate::commands::identity_warn::note_machine_stdout();
         println!("{}", serde_json::to_string(&output)?);
     } else if verbose {
         // T225 F4/L1: full per-file stream only — no summary, trailer, or nudge.

@@ -256,6 +256,7 @@ pub fn run(
             text: context.text,
             word_count: context.word_count,
         };
+        crate::commands::identity_warn::note_machine_stdout();
         println!("{}", serde_json::to_string(&response)?);
     }
     Ok(())
@@ -818,7 +819,7 @@ fn print_summary(
             }
         }
         // Pretty summary JSON (memory-list family); T180 full path stays compact.
-        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        crate::commands::identity_warn::print_json_stdout(&envelope)?;
         // M1: still run install side effects; never pollute stdout.
         append_harness_summary_and_maybe_prompt(&gate)?;
         return Ok(());

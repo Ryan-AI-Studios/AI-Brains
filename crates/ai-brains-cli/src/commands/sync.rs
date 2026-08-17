@@ -474,6 +474,7 @@ pub async fn run_query(
             };
 
             let json = serde_json::to_string(&record)?;
+            crate::commands::identity_warn::note_machine_stdout();
             println!("{}", json);
         }
         return Ok(());

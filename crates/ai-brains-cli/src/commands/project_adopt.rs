@@ -155,7 +155,7 @@ pub fn run(
             already_bound,
             keys_touched: vec![PROJECT_ID_KEY.to_string()],
         };
-        println!("{}", serde_json::to_string_pretty(&report)?);
+        crate::commands::identity_warn::print_json_stdout(&report)?;
         return Ok(());
     }
 

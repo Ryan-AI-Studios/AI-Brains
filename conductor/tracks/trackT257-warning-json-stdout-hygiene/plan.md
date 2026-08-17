@@ -67,68 +67,68 @@ No Blockers / Majors. One informational SHA note folded. Dual-site inject and `p
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `maybe_warn_identity_mismatch` (`project.rs`) and the `:3275` call. Confirm still `eprintln!` before the command `match` (or note drift).
-- [ ] Re-read `emit_json` — still `to_string_pretty` + one `println!`.
-- [ ] Re-read `scope.rs` **both** `emit_json(&wire)` sites (`run_resolve_local` + `run_resolve_daemon`). Confirm line numbers vs F24 (or note drift).
-- [ ] Re-read `handle_cli_result` — still the Ok/Err join for `run` and `run_sync_path_free`.
-- [ ] Confirm product warn/`emit_json`/`scope.rs` still match plan dogfood `ed329b1` (fold-in `2b3f859` was docs-only).
-- [ ] Re-read **source** whoami remediations (~823): adopt-path present even if PATH is old.
-- [ ] Split-stream dogfood `scope resolve --format json` (classify only). Confirm stderr SOOT + empty `warnings[]` still, or note drift.
-- [ ] Re-check lock clap + crates.io: still no clap 5 (or this track is not that bump).
-- [ ] Rescan **entire** `conductor/deferred.md` for new open warn / JSON-interleave rows.
-- [ ] Last merged PR + open HEAD PR Cursor comments. Mint placeholder if a leftover fits nowhere.
-- [ ] `ledgerful ledger start T257-warning-json-stdout-hygiene --category FEATURE`
-- [ ] Do **not** `cargo install`, write live `.env`, `set-alias 7d97a456 AI-Brains`, or mutate scheduled tasks.
+- [x] Re-read `maybe_warn_identity_mismatch` (`project.rs`) and the `:3275` call. Confirm still `eprintln!` before the command `match` (or note drift). **Confirmed** `eprintln!` + `Once` at `project.rs:332`; `main.rs:3275` before `match`.
+- [x] Re-read `emit_json` — still `to_string_pretty` + one `println!`. **Confirmed** (`governed_common.rs:197`).
+- [x] Re-read `scope.rs` **both** `emit_json(&wire)` sites (`run_resolve_local` + `run_resolve_daemon`). Confirm line numbers vs F24 (or note drift). **Confirmed** local `:94` / daemon `:128`.
+- [x] Re-read `handle_cli_result` — still the Ok/Err join for `run` and `run_sync_path_free`. **Confirmed** `:2868`.
+- [x] Confirm product warn/`emit_json`/`scope.rs` still match plan dogfood `ed329b1` (fold-in `2b3f859` was docs-only). **Match** at go HEAD `ca75751`.
+- [x] Re-read **source** whoami remediations (~823): adopt-path present even if PATH is old. **Present** `:823`.
+- [x] Split-stream dogfood `scope resolve --format json` (classify only). Confirm stderr SOOT + empty `warnings[]` still, or note drift. **Confirmed** debug bin: stdout `{` + `"warnings": []`; stderr T240 SOOT; concat `ConvertFrom-Json` fails `Additional text… W`.
+- [x] Re-check lock clap + crates.io: still no clap 5 (or this track is not that bump). lock **4.6.1** / builder **4.6.0** / crates.io **4.6.6**. No clap 5.
+- [x] Rescan **entire** `conductor/deferred.md` for new open warn / JSON-interleave rows. T257 Planned row + T259 soft pointer only.
+- [x] Last merged PR + open HEAD PR Cursor comments. Mint placeholder if a leftover fits nowhere. **#172** comments/reviews/inline empty; open PRs Dependabot only. **N/A.**
+- [x] `ledgerful ledger start T257-warning-json-stdout-hygiene --category FEATURE` — TX `d086c5f3-6918-49e6-a1fd-377a743ee7fc`
+- [x] Do **not** `cargo install`, write live `.env`, `set-alias 7d97a456 AI-Brains`, or mutate scheduled tasks.
 
 ---
 
 ## Phase 1 — Red
 
-- [ ] Add `crates/ai-brains-cli/src/commands/identity_warn.rs` as a thin move **or** write units first against `pub(crate)` fns still in `project.rs` if extract is Phase 2. Prefer extract in Phase 2; Phase 1 may add units next to existing skip tests **or** in the new module if created empty-with-tests.
-- [ ] Add `crates/ai-brains-cli/tests/warning_json_stdout_hygiene.rs` (hermetic tempdir + T240 register-path helpers).
-- [ ] `scope_resolve_json__mismatch__stdout_parses_token_no_soot` (**must red**)
-- [ ] `scope_resolve_json__mismatch__concat_streams_parse` (**must red** — AC9)
-- [ ] `whoami_json__mismatch__no_stderr_soot` (**must red**)
-- [ ] `whoami_human__mismatch__no_stderr_soot` (**must red**)
-- [ ] `nightly_status_json__mismatch__no_soot_no_warnings_key` (**must red** on stderr SOOT)
-- [ ] `scope_resolve_human__mismatch__stderr_soot_stdout_clean` (may be **green** today — guard)
-- [ ] Re-run T240 `project_list__env_differs_path__mismatch_warn` — **must stay green** after green phase (F7)
-- [ ] Units: `should_skip` whoami/adopt-path (**must red**); `identity_mismatch_json_token` (**green ok** if written first)
-- [ ] `cargo nextest run -p ai-brains-cli --test warning_json_stdout_hygiene` **fails** on AC3/AC5/AC9 (do not chase red by asserting “stderr still has warn”).
+- [x] Units first against `pub(crate)` skip in `project.rs`; extract in Phase 2. Commit `4c5a718`.
+- [x] Add `crates/ai-brains-cli/tests/warning_json_stdout_hygiene.rs` (hermetic tempdir + T240 register-path helpers).
+- [x] `scope_resolve_json__mismatch__stdout_parses_token_no_soot` (**red** — stderr SOOT)
+- [x] `scope_resolve_json__mismatch__concat_streams_parse` (**red** — trailing `Warning:`)
+- [x] `whoami_json__mismatch__no_stderr_soot` (**red**)
+- [x] `whoami_human__mismatch__no_stderr_soot` (**red**)
+- [x] `nightly_status_json__mismatch__no_soot_no_warnings_key` (**red** on stderr SOOT)
+- [x] `scope_resolve_human__mismatch__stderr_soot_stdout_clean` (**green** today — guard)
+- [x] Re-run T240 `project_list__identity_mismatch__warn_on_stderr` — **stayed green** after green (F7)
+- [x] Units: `should_skip` whoami/adopt-path (**red** at `project.rs:1406`); token units written with green module
+- [x] `cargo nextest run -p ai-brains-cli --test warning_json_stdout_hygiene` **failed 5/9** (AC3/AC5/AC6/AC7/AC9). Guards AC8/AC13/AC14 already green.
 
 ---
 
 ## Phase 2 — Green (record / skip / flush)
 
-- [ ] Extract warn helpers → `identity_warn.rs` (F11). `project.rs` calls stay thin.
-- [ ] `record_identity_mismatch` at `main.rs:3275` (no eprintln).
-- [ ] Extend `should_skip` for `project whoami` / `project adopt-path` (AC1).
-- [ ] `flush_identity_mismatch_warn` from `handle_cli_result` (Ok and Err).
-- [ ] AC4 / AC6 / AC13 / AC14 path compiles; list still warns.
+- [x] Extract warn helpers → `identity_warn.rs` (F11). `project.rs` **1514** lines (was ~1549).
+- [x] `record_identity_mismatch` at `main.rs` vault-open (no eprintln).
+- [x] Extend `should_skip` for `project whoami` / `project adopt-path` (AC1).
+- [x] `flush_identity_mismatch_warn` from `handle_cli_result` (Ok and Err).
+- [x] AC4 / AC6 / AC13 / AC14 path compiles; list still warns.
 
 ---
 
 ## Phase 3 — Green (JSON silence + token)
 
-- [ ] `print_json_stdout` + `note_machine_stdout` (F8).
-- [ ] Wire `emit_json` / JSON `emit_error`.
-- [ ] Shared inject helper; call it in `run_resolve_local` **and** `run_resolve_daemon` before `emit_json` (F3/F24/F25/**AC17**). Do not wire local only.
-- [ ] `print_json_stdout` lives in `identity_warn.rs` (F8/F11) — not `format_resolve.rs`.
-- [ ] whoami / nightly_status / remaining F8 stdout pretty sites call the helper.
-- [ ] AC3 / AC5 / AC7 / AC9 green. Nightly keys unchanged (F15).
-- [ ] Dry-run AC8: stdout preview has no SOOT.
+- [x] `print_json_stdout` + `note_machine_stdout` (F8).
+- [x] Wire `emit_json` / JSON `emit_error`.
+- [x] Shared inject helper; `run_resolve_local` **and** `run_resolve_daemon` before `emit_json` (AC17).
+- [x] `print_json_stdout` lives in `identity_warn.rs` (F8/F11) — not `format_resolve.rs`.
+- [x] whoami / nightly_status / remaining F8 stdout pretty sites call the helper. Compact JSON sites (`recall`/`backup`/`ingest`/preflight full) call `note_machine_stdout`.
+- [x] AC3 / AC5 / AC7 / AC9 green. Nightly keys unchanged (F15).
+- [x] Dry-run AC8: stdout preview has no SOOT.
 
 ---
 
 ## Phase 4 — Docs + gate
 
-- [ ] CAPABILITIES mismatch-warn row (JSON-effective silent + token + remediator skip)
-- [ ] PROTOCOL-COMPAT scope row: keys unchanged; additive token
-- [ ] Root CHANGELOG T257
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] `cargo nextest run -p ai-brains-cli --test warning_json_stdout_hygiene`
-- [ ] `cargo nextest run -p ai-brains-cli --test project_identity_convergence`
-- [ ] Targeted T249 scope format + T255 nightly status tests
+- [x] CAPABILITIES mismatch-warn row (JSON-effective silent + token + remediator skip)
+- [x] PROTOCOL-COMPAT scope row: keys unchanged; additive token
+- [x] Root CHANGELOG T257
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` — exit 0
+- [x] `cargo nextest run -p ai-brains-cli --test warning_json_stdout_hygiene` — **9 passed**
+- [x] `cargo nextest run -p ai-brains-cli --test project_identity_convergence` — **all passed** (AC4 green)
+- [x] Targeted T249 scope format + T255 nightly status tests — **all passed**
 - [ ] Phase-1 review → FEATURE `codex-review`
 - [ ] Manual AC16 classify-only (source bin; no live `.env`; no key paste)
 - [ ] Full workspace gate on finalize
