@@ -41,7 +41,7 @@ pub fn run_status(opts: HarnessStatusOptions) -> GovernedResult {
     let report = collect_status_report(home.as_deref());
     let fmt = opts.format.to_ascii_lowercase();
     if fmt == "json" {
-        println!("{}", serde_json::to_string_pretty(&report)?);
+        crate::commands::identity_warn::print_json_stdout(&report)?;
     } else {
         println!("Harnesses installed on machine:");
         println!("  home: {}", report.home);

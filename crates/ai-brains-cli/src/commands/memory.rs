@@ -373,8 +373,7 @@ fn emit_list_json(
         total,
         items,
     };
-    println!("{}", serde_json::to_string_pretty(&envelope)?);
-    Ok(())
+    crate::commands::identity_warn::print_json_stdout(&envelope)
 }
 
 #[allow(clippy::too_many_arguments)] // local human renderer; keeps call site explicit
@@ -479,8 +478,7 @@ fn emit_summary_json(
         forgotten,
         by_project,
     };
-    println!("{}", serde_json::to_string_pretty(&envelope)?);
-    Ok(())
+    crate::commands::identity_warn::print_json_stdout(&envelope)
 }
 
 fn emit_summary_human(

@@ -1,3 +1,4 @@
+use crate::commands::identity_warn::print_json_stdout;
 use crate::context::AppContext;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, Payload, ProjectAliasAddedPayload};
@@ -97,9 +98,7 @@ fn list_json(
         projects: items,
         unaliased_count,
     };
-    let pretty = serde_json::to_string_pretty(&envelope)?;
-    println!("{}", pretty);
-    Ok(())
+    print_json_stdout(&envelope)
 }
 
 fn print_unaliased_footer(
@@ -141,7 +140,7 @@ fn footer_alias_suggestion(ctx: &AppContext) -> String {
 // ---------------------------------------------------------------------------
 
 use std::path::{Path, PathBuf};
-use std::sync::{Once, OnceLock};
+use std::sync::OnceLock;
 
 /// Git identity for path-alias + slug detect (T240 M1).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -182,8 +181,10 @@ pub(crate) struct DetectOutcome {
 /// Pre-dotenv shell `AI_BRAINS_PROJECT_ID` (T240 L9 / whoami).
 static SHELL_PROJECT_ID: OnceLock<Option<String>> = OnceLock::new();
 
-/// Once-per-process identity mismatch warn gate (T240 F3).
-static MISMATCH_WARN_ONCE: Once = Once::new();
+#[cfg(test)]
+pub(crate) use crate::commands::identity_warn::{
+    identity_mismatch_warn_line, should_skip_identity_mismatch_warn,
+};
 
 /// Record shell PROJECT_ID before `apply_local_project_context_env` force-set.
 pub fn record_shell_project_id(id: Option<String>) {
@@ -302,57 +303,6 @@ pub(crate) fn path_vs_slug_conflict_notes(
 
 fn project_row_by_id(projects: &[ProjectRow], id: &str) -> Option<ProjectRow> {
     projects.iter().find(|(p, _, _, _)| p == id).cloned()
-}
-
-/// Pure skip logic for mismatch warn (unit-tested; F3b).
-pub(crate) fn should_skip_identity_mismatch_warn(
-    args: &[String],
-    env_project_id: Option<&str>,
-    path_alias_project_id: Option<&str>,
-) -> bool {
-    if args
-        .iter()
-        .any(|a| a == "--no-project-context" || a == "--global")
-    {
-        return true;
-    }
-    let env = env_project_id.filter(|s| !s.is_empty());
-    let path = path_alias_project_id.filter(|s| !s.is_empty());
-    env.is_none() || path.is_none()
-}
-
-/// SOOT mismatch warn line (F3).
-pub(crate) fn identity_mismatch_warn_line(env_id: &str, path_id: &str) -> String {
-    format!(
-        "Warning: project identity mismatch: daily Scope is '{env_id}', but path is registered to '{path_id}'. Run 'ai-brains project whoami'."
-    )
-}
-
-/// Once-per-process warn when env Scope ≠ path alias owner (never mutates PROJECT_ID).
-pub fn maybe_warn_identity_mismatch(ctx: &AppContext) {
-    MISMATCH_WARN_ONCE.call_once(|| {
-        let args: Vec<String> = std::env::args().collect();
-        let env_id = std::env::var("AI_BRAINS_PROJECT_ID")
-            .ok()
-            .filter(|s| !s.is_empty());
-        let cwd = match std::env::current_dir() {
-            Ok(c) => c,
-            Err(_) => return,
-        };
-        let git = collect_git_identity(&cwd).unwrap_or_default();
-        let path_id =
-            resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git).unwrap_or_default();
-        if should_skip_identity_mismatch_warn(&args, env_id.as_deref(), path_id.as_deref()) {
-            return;
-        }
-        let (Some(env), Some(path)) = (env_id.as_deref(), path_id.as_deref()) else {
-            return;
-        };
-        if env == path {
-            return;
-        }
-        eprintln!("{}", identity_mismatch_warn_line(env, path));
-    });
 }
 
 /// Path-first detect resolution (F5/F6/F7) — no process exit.
@@ -752,7 +702,7 @@ pub fn whoami(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::
     };
 
     if use_json {
-        println!("{}", serde_json::to_string_pretty(&report)?);
+        print_json_stdout(&report)?;
     } else {
         emit_whoami_human(&report);
     }
@@ -1398,6 +1348,21 @@ mod tests {
             Some("env"),
             Some("path")
         ));
+        let args_whoami = vec!["ai-brains".into(), "project".into(), "whoami".into()];
+        assert!(
+            should_skip_identity_mismatch_warn(&args_whoami, Some("env"), Some("path")),
+            "AC1: consecutive project whoami must skip"
+        );
+        let args_adopt = vec!["ai-brains".into(), "project".into(), "adopt-path".into()];
+        assert!(
+            should_skip_identity_mismatch_warn(&args_adopt, Some("env"), Some("path")),
+            "AC1: consecutive project adopt-path must skip"
+        );
+        let args_list = vec!["ai-brains".into(), "project".into(), "list".into()];
+        assert!(
+            !should_skip_identity_mismatch_warn(&args_list, Some("env"), Some("path")),
+            "AC1: project list stays false"
+        );
     }
 
     #[test]

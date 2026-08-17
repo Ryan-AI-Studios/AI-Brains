@@ -26,6 +26,7 @@ pub mod graph;
 pub mod grok_hook;
 pub mod grok_import;
 pub mod harness;
+pub mod identity_warn;
 pub mod ingest;
 pub mod init;
 pub mod memory;

@@ -219,7 +219,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | Finding | Track |
 |---------|-------|
 | ~~`--help` prints live `AI_BRAINS_KEY` (quality 3)~~ | **T256 Completed 2026-08-16.** Soft residual: PATH `ai-brains` stays leaky until operator `cargo install` (F18). |
-| Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6) | **T257** |
+| ~~Identity warn on every command / JSON interleave (`scope` 6/5, json 7/6)~~ | **T257 Completed 2026-08-17.** JSON-effective silent + scope token + remediator skip. T240 list hermetic stands. Soft: PATH `cargo install` (F13); T223 env-override still separate (F17). |
 | ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
 | ~~Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots~~ | **T259 Completed 2026-08-17.** Inventory `--project`/`--shared-only` + `rebind-path` print-only / `--write --yes` one-tx. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. Soft: leftover memory reclassify by path; PATH `cargo install`; `project.rs` `resolve_project_ref` duplicate. |
 | Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3) | **T260** |
@@ -234,6 +234,17 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
 | `sync query` ledger pane false-empty (5/5) | **T271** |
+
+### T257 closeout residuals (2026-08-17)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` still noisy until reinstall | Soft F13 — operator `cargo install` |
+| T223 env-override can still trail JSON | Decline F17 — separate SOOT |
+| Compact JSON uses `note_machine_stdout` not pretty | Intentional — T265/T266 |
+| Human warn prints **after** the table | F6; T240 asserts presence not order |
 
 ### T259 closeout residuals (2026-08-17)
 

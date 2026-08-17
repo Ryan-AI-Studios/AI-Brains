@@ -372,6 +372,7 @@ pub fn run(
                     false,
                 )?;
             }
+            crate::commands::identity_warn::note_machine_stdout();
             println!("{}", serde_json::to_string(&response)?);
         }
     }

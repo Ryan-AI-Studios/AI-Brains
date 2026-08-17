@@ -2866,6 +2866,7 @@ fn is_vault_path_free(command: &Commands) -> bool {
 }
 
 fn handle_cli_result(res: Result<(), Box<dyn std::error::Error>>) {
+    commands::identity_warn::flush_identity_mismatch_warn();
     match res {
         Ok(()) => {
             // Elevated UAC child: leave a success marker the parent can print
@@ -3271,8 +3272,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let ctx = AppContext::from_cli(cli.vault_path.clone(), cli.key.clone())?;
-    // T240 F3: once-per-process warn when daily Scope env ≠ path-alias owner (never mutates).
-    commands::project::maybe_warn_identity_mismatch(&ctx);
+    // T240 F3 / T257 F6: record mismatch; flush after the command (handle_cli_result).
+    commands::identity_warn::record_identity_mismatch(&ctx);
     match cli.command.as_ref() {
         Commands::Shadow { .. } => unreachable!("shadow handled in run_sync_path_free"),
         Commands::Migrate { .. } => unreachable!("migrate handled in run_sync_path_free"),

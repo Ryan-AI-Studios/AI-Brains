@@ -119,10 +119,7 @@ pub fn run_status(
                 "optional multi-device; not PQ; not remote wipe; not metadata-private".to_string(),
             ),
         );
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&serde_json::Value::Object(out))?
-        );
+        crate::commands::identity_warn::print_json_stdout(&serde_json::Value::Object(out))?;
         return Ok(());
     }
 
@@ -167,10 +164,7 @@ pub fn run_cursors(ctx: &AppContext, format_json: bool) -> Result<(), Box<dyn st
     let cursors = replication::list_cursors(&conn)?;
     if format_json {
         let rows: Vec<serde_json::Value> = cursors.iter().map(cursor_to_json).collect();
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&serde_json::Value::Array(rows))?
-        );
+        crate::commands::identity_warn::print_json_stdout(&serde_json::Value::Array(rows))?;
         return Ok(());
     }
     if cursors.is_empty() {
@@ -248,6 +242,7 @@ pub fn run_push(
             "relay".to_string(),
             serde_json::Value::String(format!("file:{}", path.display())),
         );
+        crate::commands::identity_warn::note_machine_stdout();
         println!(
             "{}",
             serde_json::to_string(&serde_json::Value::Object(out))?
@@ -288,6 +283,7 @@ pub fn run_pull(
             "relay".to_string(),
             serde_json::Value::String(format!("file:{}", path.display())),
         );
+        crate::commands::identity_warn::note_machine_stdout();
         println!(
             "{}",
             serde_json::to_string(&serde_json::Value::Object(out))?

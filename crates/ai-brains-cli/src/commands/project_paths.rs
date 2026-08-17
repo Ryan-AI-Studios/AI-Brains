@@ -158,7 +158,7 @@ pub fn list_paths(
             api_version: "1".to_string(),
             paths: rows,
         };
-        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        crate::commands::identity_warn::print_json_stdout(&envelope)?;
         return Ok(());
     }
 
@@ -303,8 +303,7 @@ fn emit_scan_json(
         truncated,
         roots,
     };
-    println!("{}", serde_json::to_string_pretty(&envelope)?);
-    Ok(())
+    crate::commands::identity_warn::print_json_stdout(&envelope)
 }
 
 fn emit_scan_human(roots: Vec<ScanRootRow>) {

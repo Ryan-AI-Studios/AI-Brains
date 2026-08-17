@@ -181,7 +181,9 @@ fn emit_output(
             Ok(())
         }
         Ok(BriefingFormatKind::Json) => {
-            println!("{}", json()?);
+            let s = json()?;
+            crate::commands::identity_warn::note_machine_stdout();
+            println!("{s}");
             Ok(())
         }
         // F3/F25/F32: fail_usage → exit 2, zero stdout (no JSON pollution).

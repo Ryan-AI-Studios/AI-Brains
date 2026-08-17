@@ -88,7 +88,7 @@ pub fn run(
             memories_moved: false,
             events_appended,
         };
-        println!("{}", serde_json::to_string_pretty(&report)?);
+        crate::commands::identity_warn::print_json_stdout(&report)?;
         return Ok(());
     }
 

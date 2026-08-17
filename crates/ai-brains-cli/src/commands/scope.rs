@@ -89,9 +89,12 @@ fn run_resolve_local(
         Ok(r) => r,
         Err(e) => return fail_cp(format, e),
     };
-    let wire = governed_common::map_resolved_scope(&resolved);
+    let mut wire = governed_common::map_resolved_scope(&resolved);
     match format {
-        OutputFormat::Json => emit_json(&wire),
+        OutputFormat::Json => {
+            crate::commands::identity_warn::inject_identity_mismatch_warning(&mut wire.warnings);
+            emit_json(&wire)
+        }
         OutputFormat::Human | OutputFormat::Markdown => {
             emit_scope_human(&wire);
             Ok(())
@@ -124,8 +127,13 @@ async fn run_resolve_daemon(
     };
     let resp = expect_daemon_ok(format, resp)?;
     match resp {
-        DaemonResponse::ScopeResolved(wire) => match format {
-            OutputFormat::Json => emit_json(&wire),
+        DaemonResponse::ScopeResolved(mut wire) => match format {
+            OutputFormat::Json => {
+                crate::commands::identity_warn::inject_identity_mismatch_warning(
+                    &mut wire.warnings,
+                );
+                emit_json(&wire)
+            }
             OutputFormat::Human | OutputFormat::Markdown => {
                 emit_scope_human(&wire);
                 Ok(())

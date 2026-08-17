@@ -271,6 +271,9 @@ pub fn neighbors(
     let graph_vault = GraphVault::new((*ctx.conn).clone());
     let searcher = GraphSearch::new(&graph_vault);
     let resolved = resolve_graph_format(format, std::io::stdout().is_terminal());
+    if resolved != "pretty" {
+        crate::commands::identity_warn::note_machine_stdout();
+    }
     let kind = searcher.node_kind(memory_id)?;
 
     if kind.is_none() {
@@ -315,6 +318,9 @@ pub fn hierarchy(
     let graph_vault = GraphVault::new((*ctx.conn).clone());
     let searcher = GraphSearch::new(&graph_vault);
     let resolved = resolve_graph_format(format, std::io::stdout().is_terminal());
+    if resolved != "pretty" {
+        crate::commands::identity_warn::note_machine_stdout();
+    }
     let kind = searcher.node_kind(memory_id)?;
 
     match kind.as_deref() {
@@ -387,6 +393,9 @@ pub fn session(
     let graph_vault = GraphVault::new((*ctx.conn).clone());
     let searcher = GraphSearch::new(&graph_vault);
     let resolved = resolve_graph_format(format, std::io::stdout().is_terminal());
+    if resolved != "pretty" {
+        crate::commands::identity_warn::note_machine_stdout();
+    }
     let kind = searcher.node_kind(session_id)?;
 
     match kind.as_deref() {
@@ -510,7 +519,7 @@ pub fn update(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::
     if format == "human" {
         emit_graph_health_human(&report);
     } else {
-        println!("{}", serde_json::to_string_pretty(&report)?);
+        crate::commands::identity_warn::print_json_stdout(&report)?;
     }
     Ok(())
 }

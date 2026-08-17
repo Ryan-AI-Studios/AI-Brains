@@ -194,9 +194,10 @@ pub fn run_trace(
         },
     )?;
     match trace {
-        Some(t) => println!("{}", serde_json::to_string_pretty(&t)?),
+        Some(t) => crate::commands::identity_warn::print_json_stdout(&t)?,
         None => {
             // Empty-state contract: missing or unauthorized → null JSON.
+            crate::commands::identity_warn::note_machine_stdout();
             println!("null");
         }
     }
