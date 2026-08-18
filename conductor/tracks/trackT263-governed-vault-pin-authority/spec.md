@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Daily “what did we decide” stays `recall` / `search`. Governed briefing/progressive stay *Approved / Active-Confirmed* only. Preflight leftover blender stays **T264**. Format maze stays **T266**. Harness/whoami/list next stays **T267**.
 - **Absorbs:** Audit T263 row (3 grants / 0 authority); T227 empty_authority next that still says “seed an Approved decision”; Personal denied bootstrap-as-required; expand `Unknown` empty preview; evidence/source/review authorized-empty `items: []` with no remediator
 - **Not absorbed:** Policy bootstrap mutation (T210/T241 closed); H2 live pin→DecisionProposed; silent Approve; `AI_BRAINS_GOVERNED_BRIEFING` on production preflight (T170); T167/T168 live migrate; Scope default (T258); leftover `--global` (T264); format maze (T266); T240 F2; T255 declines
-- **Research date:** 2026-08-18 (HEAD `b2aae2d` T262 `#177`; live dogfood + crates.io + clig.dev + T167 classify + T180 P-CLI)
-- **AI fold-in:** none yet (plan-track only)
-- **Ledger:** planning DOCS TX on commit. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-18 (plan dogfood HEAD `b2aae2d` T262 `#177`; plan commit `a8cf801`)
+- **AI fold-in:** 2026-08-18 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). **B 0 / M 0.** **Agree:** Agy **m2** empty-authority one-line **≤140** chars (**F29** / **AC14**); OpenCode Personal deny is `personal.rs:121` + `BRIEFING_DENIED_NEXT_STEP` (**F4** / **F23** / **AC3**). **Already covered:** Agy **O1** = F8 / §5.4; T243 progressive; skill honesty; Cursor N/A. **Agree note:** Agy **m1** / OpenCode HEAD (`b2aae2d` product vs `a8cf801` plan). **Decline:** fill expand `Denied` preview; treat T250 as the footer trimmer. Disposition **§13**.
+- **Ledger:** planning DOCS TX `bcc514c0-8f84-48d6-b8d7-779195d7c630`. Fold-in DOCS TX `32e9608c-3317-4bfd-b168-44a9485c1123`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** run `policy bootstrap` on the live vault. Do **not** `migrate governed --confirm`. Do **not** enable `AI_BRAINS_GOVERNED_BRIEFING`. Do **not** `cargo install`. Do **not** write live `.env`. Do **not** reopen T240 F2 / T255 declines. Do **not** scrape `MemoryPinned` into briefing authority (T227 F3 stands).
 
 ---
@@ -37,9 +37,9 @@ No models. No new crates. No clap 5. No live bootstrap / migrate as DoD.
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `b2aae2d` — T262 Completed (`#177`). Tree **CLEAN**. `main` == `origin/main`. |
+| HEAD | **Plan dogfood:** `b2aae2d` T262 `#177` (product `src/` unchanged since). **Plan commit:** `a8cf801`. **This fold-in:** same product `src/` as `a8cf801`. `main` ahead of `origin/main` by the plan docs commit. Tree CLEAN at fold-in. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` version **0.1.1**. **Do not `cargo install`.** Progressive deny on daily Scope printed packet + `POLICY_DENIED` (stderr mixed in capture); T221 contract is exit **3** — treat PATH-behind as out of scope. |
-| `preflight --summary` | Scope path owner `3581317d` (`C:\dev\ai-brains`); **2952** pinned. `discovery grants empty (0 of 3); next: policy bootstrap`. T241 works on the **daily** Scope. |
+| `preflight --summary` | Scope path owner `3581317d` (`C:\dev\ai-brains`). Plan snapshot **2952** pinned; OpenCode re-scan **2953**; fold-in **2994**. `discovery grants empty (0 of 3)`. Vault growth is not a plan error (Agy m1 class). |
 | `policy show` (daily) | `grants: []` + `next_step` bootstrap. |
 | `doctor --summary` | `policy_grants` **warn** `discovery grants empty (0 of 3)`. Other warns: backup_recent, recovery_kit, graph_density (T262 residual / T213 floor). |
 | `briefing project --format human` (daily) | **Denied** ReadDecisions/ReadConclusions + T227/T241 bootstrap next. Exit **0** (soft deny). |
@@ -92,7 +92,7 @@ No models. No new crates. No clap 5. No live bootstrap / migrate as DoD.
 | T167 pins | `legacy_import.rs` ~682 | `ImportActionKind::Evidence` + `REASON_LEGACY_PIN`. |
 | T167 decisions | same ~1024 | Typed decision events → Decision + Review. Not pin text. |
 | T170 D21 | OPERATIONS + deferred #44 | Never use `preflight --summary` as governed authority. |
-| Hotspots | `project.rs` #1; `personal.rs` #9 | Do not touch `project.rs`. Prefer `renderer.rs` over `personal.rs`. |
+| Hotspots | `project.rs` #1; `personal.rs` #9 | Do not touch `project.rs`. New Personal deny constants live in `renderer.rs`; `personal.rs:121` is a **one-line** hint swap (OpenCode live). |
 
 ### 2.4 Dependency / standards research (2026-08-18)
 
@@ -120,9 +120,9 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
 | **F1 — H1 only** | This track is honesty. H2 live promotion is **out**. |
-| **F2 — empty_authority next** | Change `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` so the **primary** remediator is `ai-brains recall` / `search`. Must contain `recall`. Must **not** lead with “seed an Approved decision”. Optional second sentence may mention propose+approve for *typed* authority only. |
+| **F2 — empty_authority next** | Change `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` so the **primary** remediator is `ai-brains recall` / `search`. Must contain `recall`. Must **not** lead with “seed an Approved decision”. Optional second sentence may mention propose+approve for *typed* authority only. **Length: F29.** |
 | **F3 — Dual-model stands** | T227 F3: briefing authority sections stay Approved / Active-Confirmed only. **Never** inject pin text, pin counts, or `MemoryPinned` rows into `decisions[]` / `conclusions[]`. `empty_authority` kind stays. Notice string may stay. |
-| **F4 — Personal deny next** | When `briefing personal` is `denied`, next-step / `denial_hint` must say Personal continuity is **optional / unused** and name `recall` for daily decisions. Must **not** lead with `policy bootstrap --scope Personal:…`. Allowed-empty `empty_continuity` next may stay (T227 F9) or add a recall clause — must not invent continuity (#18 stays deferred). |
+| **F4 — Personal deny next** | When `briefing personal` is `denied`, markdown next-step **and** JSON `denial_hint` must say Personal continuity is **optional / unused** and name `recall`. Must **not** lead with `policy bootstrap` (including `--scope Personal:…`). New constants `BRIEFING_PERSONAL_DENIED_NEXT_STEP` + `BRIEFING_PERSONAL_DENIED_DENIAL_HINT` live in `renderer.rs`. `render_personal_markdown` denied branch uses the Personal next (today it prints `BRIEFING_DENIED_NEXT_STEP`). `personal.rs:121` swaps only the hint constant (today `BRIEFING_DENIED_DENIAL_HINT` — T241 F7 stays on **project**). Update hermetic `briefing_personal__no_grants__soft_deny_denial_hint` to assert `recall`, not `policy bootstrap`. Allowed-empty `empty_continuity` next may stay (T227 F9). Do not invent continuity (#18). |
 | **F5 — Repository deny unchanged** | Project briefing / progressive / list **POLICY_DENIED** keep T221/T241 bootstrap. Exit codes unchanged (briefing soft **0**; progressive/expand Denied **3**; lists **3**). |
 | **F6 — Trace `null` frozen** | `query trace` missing/unauthorized stays stdout `null` + exit **0**. Do **not** wrap. Strengthen clap `after_help` + CAPABILITIES/OPERATIONS one-liner. |
 | **F7 — Expand Unknown preview** | When `kind == "Unknown"`, `preview` is a non-empty SOOT (e.g. `Handle not found.`). Exit **0** stays. No new JSON keys. `applied_scope` stays. |
@@ -141,12 +141,13 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 | **F20 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
 | **F21 — PATH-behind** | Do not `cargo install` unless the user asks. Tests/manual AC use `cargo run` / hermetic bin. |
 | **F22 — Stop-before** | Even after go: no live bootstrap, no live migrate, no `.env` rewrite, no `nightly` mutate, no T240 F2 silent Scope switch. |
-| **F23 — Hotspots** | Do not edit `project.rs`. Prefer `renderer.rs` + `governed_query.rs` + `governed_common.rs` + list emit helpers. Touch `personal.rs` only if renderer cannot specialize Personal deny. |
+| **F23 — Hotspots** | Do not edit `project.rs`. Constants + `render_personal_markdown` in `renderer.rs`. **Required one-line** in `personal.rs:121` (hint swap). No other `personal.rs` edits. |
 | **F24 — Soft vault pin count** | Optional later: SQL COUNT of pinned `DECISION:`/`CONSTRAINT:` prefixes on empty_authority. **Not DoD.** Must not enter authority arrays. |
 | **F25 — Soft daemon/HTTP list next** | Same class as T243 F24. CLI is DoD. |
 | **F26 — Soft wrap trace** | Only if a later track owns a P-CLI version bump. Not T263. |
 | **F27 — `#18` continuity fill** | Stays deferred. No synthetic personal summary. |
 | **F28 — T266 / T264 / T267** | Format maze, leftover `--global`, harness/whoami/list next — **not** this track. |
+| **F29 — Empty-authority length** | `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` is **one line** (no `\n`) and **`chars().count() <= 140`**. Agy m2: shared preflight footer must stay short. T250 `PRETTY_LINE_MAX=140` is Session/Recent chrome — **not** the trimmer for this footer (`trim_to_word_budget` / T227 F29). The cap still keeps one pretty line. Unit **AC14**. |
 
 ---
 
@@ -156,7 +157,7 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 |----|-------|
 | **AC1** | Unit: `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` contains `recall` and does **not** start with `seed an Approved`. Renderer allowed-empty markdown contains the new constant and **not** the old lead-in. |
 | **AC2** | Unit: denied **project** markdown still contains `policy bootstrap` and does **not** contain `empty_authority` (T227 AC7 stands). |
-| **AC3** | Unit: denied **personal** markdown names `recall` and does **not** lead with `policy bootstrap --scope Personal`. Exit still **0**. |
+| **AC3** | Unit: denied **personal** markdown names `recall` and does **not** contain `policy bootstrap`. Hermetic `briefing_personal__no_grants__soft_deny_denial_hint`: exit **0**, `denial_hint` contains `recall`, does **not** contain `policy bootstrap`. Project denied hermetic still requires bootstrap (F5 / T241). |
 | **AC4** | Hermetic: granted-empty project briefing (`--format human` / markdown) prints `empty_authority` + recall next; JSON warning kind still `empty_authority`; `decisions`/`conclusions` stay `[]`. |
 | **AC5** | Hermetic or unit: `query expand` unknown UUID → `kind: Unknown`, `preview` non-empty SOOT, exit **0**. |
 | **AC6** | Hermetic: `query trace` unknown UUID → stdout is the JSON token `null` (byte-equal after trim), exit **0**. |
@@ -167,6 +168,7 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 | **AC11** | Docs: CAPABILITIES §15 dual-model row + WORKFLOWS + skill one-liner + CHANGELOG T263. OPERATIONS empty-vs-deny mentions granted-empty → recall. |
 | **AC12** | No new crate. No clap 5. No `unwrap`/`expect`/`panic` in production. `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings` clean on go. |
 | **AC13** | Manual (source/hermetic bin, not PATH): leftover granted Scope briefing names recall; daily Scope deny still bootstrap; expand/trace as AC5/AC6. |
+| **AC14** | Unit: `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.chars().count() <= 140` and `!contains('\n')`. |
 
 ---
 
@@ -185,7 +187,7 @@ Briefing and `query progressive` read **only** the second table. T241 grants unl
 
 `render_project_markdown` is consumed by CLI briefing **and** governed preflight (T227 F29). Changing `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` flows into both. That is intended: preflight must not keep “seed Approved” after T263.
 
-Word-budget: deny next-step stays **before** `## Decisions`. Empty-authority next stays after the notice (current order). New string must stay short enough to survive T250 line-cap when it appears in preflight pretty.
+Word-budget: deny next-step stays **before** `## Decisions`. Empty-authority next stays after the notice (current order). Preflight trims via `trim_to_word_budget` (T227 F29), **not** T250 `PRETTY_LINE_MAX` (Session/Recent only). Empty packets are short so the footer survives; still lock **F29** ≤140 / one line (Agy m2).
 
 ### 5.3 Personal UUID
 
@@ -224,10 +226,11 @@ Failing tests first (names):
 1. `briefing_empty_authority_next_step__contains_recall_not_seed_approved`
 2. `render_project_markdown__allowed_empty__names_recall`
 3. `render_personal_markdown__denied__names_recall_not_personal_bootstrap` (new)
-4. `expand_unknown__preview_nonempty`
-5. `apply_authorized_empty_list_next__empty_items__sets_recall`
-6. `root_after_long_help__tip_names_recall_not_progressive`
-7. Hermetic: `briefing_format_substance` granted-empty / `governed_first_run_deny_exit` deny regression / new `governed_vault_pin_honesty` for expand + lists
+4. `briefing_empty_authority_next_step__one_line_at_most_140_chars` (F29 / AC14)
+5. `expand_unknown__preview_nonempty`
+6. `apply_authorized_empty_list_next__empty_items__sets_recall`
+7. `root_after_long_help__tip_names_recall_not_progressive`
+8. Hermetic: update `briefing_personal__no_grants__soft_deny_denial_hint` (AC3); granted-empty briefing; `governed_first_run_deny_exit` deny regression; new `governed_vault_pin_honesty` for expand + lists
 
 Then green: renderer constants, expand preview SOOT, list overlay, help tip, docs.
 
@@ -242,7 +245,7 @@ Then green: renderer constants, expand preview SOOT, list overlay, help tip, doc
 | Agents still run progressive first | Help tip + skill + CAPABILITIES. Cannot fix unread docs. |
 | Operator expects H2 | Spec §5.5 + CHANGELOG “pins are not authority.” |
 | Contracts ripple | Prefer CLI overlay; no required DTO. |
-| `personal.rs` hotspot | Renderer-only if possible. |
+| `personal.rs` hotspot | One-line `:121` only (F23). |
 | PATH-behind | Hermetic/source bin for AC13. |
 
 ---
@@ -251,7 +254,7 @@ Then green: renderer constants, expand preview SOOT, list overlay, help tip, doc
 
 | Item | Disposition |
 |------|-------------|
-| Audit T263 (3 grants / 0 authority) | **Absorb** F1–F10 / AC1–AC13 |
+| Audit T263 (3 grants / 0 authority) | **Absorb** F1–F10 / AC1–AC14 |
 | T227 empty_authority “seed Approved” | **Absorb** F2 / AC1 / AC4 |
 | T227 F3 no pin inject | **Affirm** F3 |
 | T227 F34 OutputFormat surface-wide | **Decline → T266** |
@@ -280,8 +283,8 @@ Then green: renderer constants, expand preview SOOT, list overlay, help tip, doc
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify constants + leftover granted briefing + clap pins + deferred rescan.
-2. Red: AC1–AC10 tests (expect fail on next-step / preview / tip).
-3. Green: renderer + Personal deny + expand preview + list overlay + help tip.
+2. Red: AC1–AC10 + AC14 tests (expect fail on next-step / preview / tip / length).
+3. Green: renderer + Personal deny (`personal.rs:121`) + expand preview + list overlay + help tip.
 4. Docs: CAPABILITIES / WORKFLOWS / OPERATIONS / skill / CHANGELOG.
 5. Targeted clippy/nextest on cli + control-plane + hermetics.
 6. Review loop + FEATURE codex-review.
@@ -308,7 +311,8 @@ Then green: renderer constants, expand preview SOOT, list overlay, help tip, doc
 
 | Path | Change |
 |------|--------|
-| `crates/ai-brains-control-plane/src/briefings/renderer.rs` | F2 / F4 constants + units |
+| `crates/ai-brains-control-plane/src/briefings/renderer.rs` | F2 / F4 / F29 constants + units |
+| `crates/ai-brains-control-plane/src/briefings/personal.rs` | F4 **one line** `:121` hint swap |
 | `crates/ai-brains-cli/src/commands/governed_query.rs` | F7 expand preview (or CP expand_handle) |
 | `crates/ai-brains-cli/src/commands/governed_common.rs` | F8 helper; reuse fallback |
 | `crates/ai-brains-cli/src/commands/evidence.rs` / `source.rs` / `review.rs` | F8 overlay at emit |
@@ -318,4 +322,39 @@ Then green: renderer constants, expand preview SOOT, list overlay, help tip, doc
 | `.claude/skills/ai-brains/SKILL.md` + onboarding recall blurb if it still oversells progressive | F10 |
 | `conductor/conductor.md` / `deferred.md` / `README-T256-T271-CLI-AUDIT.md` | Planned row |
 
-Do **not** touch: `project.rs`, `legacy_import.rs`, `policy bootstrap`, graph, nightly, `.env`.
+Do **not** touch: `project.rs` (beyond F23 ban), `legacy_import.rs`, `policy bootstrap`, graph, nightly, `.env`. `personal.rs` = **one line** at `:121` only.
+
+---
+
+## 13. AI fold-in disposition (2026-08-18)
+
+Sources: `agy-review.md` + `opencode-review.md`. No Highs / Blockers / Majors. Inputs **not** edited.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `b2aae2d` vs `a8cf801` | **Agree note** | §2.1 — plan commit vs product src |
+| **m2** preflight token / length | **Agree hard** | **F29** / **AC14** ≤140 one line. T250 is not the trimmer (§5.2) |
+| **O1** central `apply_authorized_empty_list_next` | **Already covered** | F8 / §5.4 |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| HEAD / pin-count drift | **Agree note** | Same as Agy m1; pins 2952→2994 live vault |
+| Personal deny = `personal.rs:121` + shared bootstrap constants | **Agree hard** | **F4** / **F23** / **AC3** — new Personal constants; update T241 hermetic |
+| Expand `Denied` also empty preview | **Decline** | Audit hole is `Unknown` (F7). Denied is exit **3** + kind. Re-trigger: operator asks for Denied preview copy |
+| T243 / skill already honest | **Already covered** | F9 / F10 |
+| clap 4.6.1 / 4.6.6; serde_json 1.0.150 / 1.0.151 | **Affirm** | F15; re-verify at execute |
+| Cursor #177 empty / §9 | **Affirm** | No leftover to mint |
+| Isolation / H2 decline | **Affirm** | F0 / F11 / F22 |
+
+### Pins locked by fold-in
+
+1. **F29 / AC14:** empty-authority next-step ≤140 chars, no newline.
+2. **F4 / F23 / AC3:** Personal deny constants in `renderer.rs`; `personal.rs:121` hint swap only; hermetic asserts `recall` not `policy bootstrap`.
+3. **§2.1:** `b2aae2d` product vs `a8cf801` plan.
+4. **O1:** still F8 helper — do not invent a second overlay.
+
+**Planning + fold-in 2026-08-18.** Still **plan-only until go**.

@@ -272,6 +272,9 @@ Specified softs — not product blockers:
 | Personal unused vs bootstrap | **Absorb** — deny next names `recall`, not Personal bootstrap |
 | T264 / T266 / T267 | **Decline** — stay Pending placeholders |
 | last-PR Cursor #177 | **N/A** — empty |
+| Agy m2 empty-authority length | **Folded** T263 F29 / AC14 (≤140 / one line) |
+| OpenCode Personal deny = `personal.rs:121` | **Folded** T263 F4 / F23 / AC3 |
+| Expand `Denied` empty preview | **Decline** — Unknown is DoD; Denied stays exit 3 |
 
 ### T261 closeout residuals (2026-08-17)
 

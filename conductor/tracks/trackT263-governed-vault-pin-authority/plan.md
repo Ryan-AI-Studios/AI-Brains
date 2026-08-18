@@ -1,10 +1,24 @@
 # T263 Plan — Governed honesty (H1 only)
 
 **Status:** **Pending** (Planned requirements; not In Progress)
-**Spec:** [spec.md](./spec.md) F0–F28 / AC1–AC13
+**Spec:** [spec.md](./spec.md) F0–F29 / AC1–AC14 + §13 fold-in
 **Category:** FEATURE / UX
-**Ledger TX (planning):** DOCS on commit
+**Ledger TX (planning):** `bcc514c0-8f84-48d6-b8d7-779195d7c630` (DOCS)
+**Ledger TX (fold-in):** `32e9608c-3317-4bfd-b168-44a9485c1123` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Agy **m2** folded as **F29** / **AC14** (≤140 / one line). OpenCode Personal deny live path folded as **F4** / **F23** / **AC3**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F29 / AC14:** `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` ≤140 chars, no newline.
+2. **F4 / F23 / AC3:** Personal constants in `renderer.rs`; `personal.rs:121` one-line hint swap; update `briefing_personal__no_grants__soft_deny_denial_hint`.
+3. **§2.1:** `b2aae2d` product vs `a8cf801` plan.
+4. **O1:** still F8 helper.
 
 ---
 
@@ -12,7 +26,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `b2aae2d` T262 `#177`. CLEAN. `main` == `origin/main`. |
+| HEAD / tree | Plan dogfood `b2aae2d`. Plan commit `a8cf801`. Fold-in docs on that product src. |
 | T263 stub | Placeholder upgraded in place to **Planned** |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **0.1.1**. **Do not `cargo install`.** |
 | Live hole | Daily `3581317d`: **0 of 3** grants (T241). Leftover `441837f6` (`test-alias`): **3 grants**, briefing **empty_authority** + “seed an Approved decision”. Progressive authorized-empty already names `recall` (T243). Expand `Unknown` `preview: ""`. Trace `null`. Personal deny → bootstrap on `Personal:a1b2a1b2-…`. |
@@ -32,10 +46,11 @@
 
 | Item | Source | Plan action |
 |------|--------|-------------|
-| 3 grants / 0 authority | audit T263 | **DoD** H1 F1–F10 / AC1–AC13 |
+| 3 grants / 0 authority | audit T263 | **DoD** H1 F1–F10 / AC1–AC14 |
 | Briefing “seed Approved” | T227 F8 live | **Absorb** F2 / AC1 / AC4 |
 | Dual-model no pin inject | T227 F3 | **Affirm** F3 |
-| Personal unused vs bootstrap | placeholder F3 | **Absorb** F4 / AC3 |
+| Personal unused vs bootstrap | placeholder F3 | **Absorb** F4 / F23 / AC3 (`personal.rs:121`) |
+| Empty-authority length | Agy m2 | **Absorb** F29 / AC14 |
 | Expand empty preview | audit expand 6/6 | **Absorb** F7 / AC5 |
 | Trace literal `null` | placeholder F2 | **Decline wrap** F6 / AC6 document |
 | List `items: []` no remediator | audit 3/5 | **Absorb** F8 / AC7 |
@@ -68,9 +83,11 @@
 - [ ] `briefing_empty_authority_next_step__contains_recall_not_seed_approved`
 - [ ] `render_project_markdown__allowed_empty__names_recall` (update T227 unit)
 - [ ] `render_personal_markdown__denied__names_recall_not_personal_bootstrap`
+- [ ] `briefing_empty_authority_next_step__one_line_at_most_140_chars` (AC14)
 - [ ] `expand_unknown__preview_nonempty`
 - [ ] `apply_authorized_empty_list_next__empty_items__sets_recall`
 - [ ] `root_after_long_help__tip_names_recall_not_progressive`
+- [ ] Update hermetic `briefing_personal__no_grants__soft_deny_denial_hint` (AC3 — must fail on current bootstrap hint)
 - [ ] Hermetic granted-empty briefing + expand + lists (`governed_vault_pin_honesty` or extend existing)
 - [ ] Confirm red: old seed-Approved string still in src so new asserts fail
 
@@ -79,7 +96,8 @@
 ## Phase 2 — Green
 
 - [ ] Rewrite `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` (F2)
-- [ ] Specialize Personal deny next / hint (F4) without changing Repository deny (F5)
+- [ ] Specialize Personal deny next / hint (F4): renderer constants + `personal.rs:121` only; Repository deny unchanged (F5)
+- [ ] Enforce F29 ≤140 one-line empty-authority next
 - [ ] Fill expand `Unknown` preview SOOT (F7)
 - [ ] List overlay helper + evidence/source/review emit (F8)
 - [ ] Help tip (F10)
@@ -111,8 +129,8 @@
 
 ## Definition of done
 
-- [ ] AC1–AC13
-- [ ] F0–F28 honored (H2 / live bootstrap / GOVERNED_BRIEFING / clap 5 / T240 F2 not done)
+- [ ] AC1–AC14
+- [ ] F0–F29 honored (H2 / live bootstrap / GOVERNED_BRIEFING / clap 5 / T240 F2 not done)
 - [ ] No product commits from this **planning** pass
 - [ ] Medium+ review findings not silently dropped
 
