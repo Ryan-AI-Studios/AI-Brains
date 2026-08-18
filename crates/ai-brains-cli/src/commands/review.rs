@@ -1,9 +1,9 @@
 //! `ai-brains review list|resolve` — review queue surface (T160).
 
 use crate::commands::governed_common::{
-    self, OutputFormat, PathDecision, PathFlags, emit_human, emit_json, ensure_command_id,
-    expect_daemon_ok, fail_api, fail_cp, fail_path, fail_usage, policy_denied_hint_details,
-    principal_id_wire, resolve_principal, resolve_scope_key_for_cli,
+    self, OutputFormat, PathDecision, PathFlags, apply_authorized_empty_list_next, emit_human,
+    emit_json, ensure_command_id, expect_daemon_ok, fail_api, fail_cp, fail_path, fail_usage,
+    policy_denied_hint_details, principal_id_wire, resolve_principal, resolve_scope_key_for_cli,
 };
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
@@ -170,7 +170,11 @@ fn emit_list(
     resp: &ReviewQueueResponse,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match format {
-        OutputFormat::Json => emit_json(resp),
+        OutputFormat::Json => {
+            let mut value = serde_json::to_value(resp)?;
+            apply_authorized_empty_list_next(&mut value);
+            emit_json(&value)
+        }
         OutputFormat::Human | OutputFormat::Markdown => {
             if resp.items.is_empty() {
                 emit_human("review items: (none)");

@@ -3,7 +3,7 @@
 use crate::commands::briefing::cli_principal;
 use crate::commands::governed_common::{
     EXIT_POLICY_DENIED, GovernedCliError, OutputFormat, POLICY_DENIED_HINT,
-    PROGRESSIVE_RECALL_FALLBACK, emit_json, fail_cp, fail_usage,
+    PROGRESSIVE_RECALL_FALLBACK, UNKNOWN_HANDLE_PREVIEW, emit_json, fail_cp, fail_usage,
 };
 use crate::context::AppContext;
 use ai_brains_contracts::briefings::ProgressiveQueryResponse;
@@ -37,6 +37,26 @@ pub struct ExpandHandleOptions {
 
 pub struct TraceOptions {
     pub trace_id: String,
+}
+
+/// Fill `preview` when expand JSON is `kind=Unknown` with an empty preview (T263 F7).
+pub(crate) fn apply_unknown_expand_preview(value: &mut serde_json::Value) {
+    let Some(obj) = value.as_object_mut() else {
+        return;
+    };
+    if obj.get("kind").and_then(|k| k.as_str()) != Some("Unknown") {
+        return;
+    }
+    let empty = obj
+        .get("preview")
+        .and_then(|p| p.as_str())
+        .is_none_or(|s| s.is_empty());
+    if empty {
+        obj.insert(
+            "preview".to_string(),
+            serde_json::Value::String(UNKNOWN_HANDLE_PREVIEW.to_string()),
+        );
+    }
 }
 
 /// Progressive deny/empty honesty (T243 F33). Mutate before `emit_json`.
@@ -158,6 +178,7 @@ pub fn run_expand(
             serde_json::Value::String(scope_identity_key(&scope)),
         );
     }
+    apply_unknown_expand_preview(&mut value);
     emit_json(&value)?;
     // F6/F30: exact kind "Denied" → exit 3 + F4 stderr; Unknown/found stay exit 0.
     if preview.kind == "Denied" {
@@ -205,7 +226,7 @@ pub fn run_trace(
 }
 
 #[cfg(test)]
-#[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
 
@@ -267,6 +288,23 @@ mod tests {
             "authorized empty must omit denial_hint; got {:?}",
             resp.denial_hint
         );
+    }
+
+    #[test]
+    fn expand_unknown__preview_nonempty() {
+        // T263 AC5 / F7
+        let mut value = serde_json::json!({
+            "kind": "Unknown",
+            "preview": "",
+            "handle_id": "00000000-0000-0000-0000-000000000000",
+        });
+        apply_unknown_expand_preview(&mut value);
+        let preview = value["preview"].as_str().unwrap_or("");
+        assert!(
+            !preview.is_empty(),
+            "Unknown preview must be a non-empty SOOT; got {value}"
+        );
+        assert_eq!(value["kind"], "Unknown");
     }
 
     #[test]

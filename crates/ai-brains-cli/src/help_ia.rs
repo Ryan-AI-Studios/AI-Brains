@@ -23,7 +23,7 @@ Start here:
   ai-brains scope resolve --format json
 
 Docs: Docs/INSTALL.md | Docs/CLI-EXIT-CODES.md | CONTRIBUTING.md
-Tip: use --help on a subcommand for examples (e.g. query progressive --project-id ...).
+Tip: use --help on a subcommand for examples (e.g. recall \"what did we decide\").
 ";
 
 /// One-line tip for short help (F5/M5). clap shows `after_help` on both `-h` and `--help`.
@@ -100,6 +100,31 @@ mod tests {
         assert!(
             ROOT_AFTER_LONG_HELP.contains("ai-brains scope resolve --format json"),
             "T204/T249 Start-here json lock must remain; got:\n{ROOT_AFTER_LONG_HELP}"
+        );
+    }
+
+    #[test]
+    fn root_after_long_help__tip_names_recall_not_progressive() {
+        // T263 AC9 / F10
+        assert!(
+            ROOT_AFTER_LONG_HELP.contains("recall \"what did we decide\""),
+            "Start-here must keep recall what-did-we-decide; got:\n{ROOT_AFTER_LONG_HELP}"
+        );
+        let tip_line = ROOT_AFTER_LONG_HELP
+            .lines()
+            .find(|l| l.starts_with("Tip:"))
+            .unwrap_or("");
+        assert!(
+            !tip_line.is_empty(),
+            "ROOT_AFTER_LONG_HELP must have a Tip line; got:\n{ROOT_AFTER_LONG_HELP}"
+        );
+        assert!(
+            !tip_line.contains("query progressive"),
+            "Tip must not exemplify query progressive; got {tip_line}"
+        );
+        assert!(
+            tip_line.contains("recall"),
+            "Tip should exemplify recall; got {tip_line}"
         );
     }
 

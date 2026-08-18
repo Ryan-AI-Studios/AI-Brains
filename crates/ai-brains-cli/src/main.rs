@@ -989,7 +989,7 @@ enum Commands {
     /// Governed progressive query, handle expand, and query-trace retrieval (T152)
     #[command(
         display_order = 32,
-        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints the JSON token null and exits 0 (not an object).\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Query {
         #[command(subcommand)]
@@ -1292,7 +1292,7 @@ enum BriefingCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+    after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints the JSON token null and exits 0 (not an object).\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
 )]
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
@@ -1323,7 +1323,9 @@ enum GovernedQueryCommands {
         max_chars: usize,
     },
     /// Fetch a governed query trace by id (null when missing or unauthorized)
-    #[command(after_help = "Examples:\n  ai-brains query trace <trace-id>")]
+    #[command(
+        after_help = "Missing or unauthorized traces print the JSON token null and exit 0 (not an object). Vault-first: `recall` / `search`.\nExamples:\n  ai-brains query trace <trace-id>"
+    )]
     Trace { trace_id: String },
 }
 

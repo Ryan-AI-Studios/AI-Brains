@@ -312,8 +312,8 @@ What you should see:
 - Invalid `AI_BRAINS_PROJECT_ID` on `recall` / `search` → clap exit **2** (env parse); on `sync query` → exit **0** with `project=(none)`.
 
 > **Note.** Prefer `sync query` when comparing plan vs shipped / ledger context.
-> Prefer `recall` / `search` for agents and for `--semantic`.
-> Prefer `query progressive` only when you need approved decisions / confirmed conclusions with evidence handles.
+> Prefer `recall` / `search` for agents, `--semantic`, and **“what did we decide?”** (vault pins).
+> Prefer `query progressive` only when you need *typed* Approved decisions / Active-Confirmed conclusions with evidence handles. Discovery grants do **not** turn pins into that authority.
 > Full decision table: [CAPABILITIES.md §15](CAPABILITIES.md#15-typical-agent-workflows).
 
 ---
