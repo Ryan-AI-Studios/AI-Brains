@@ -9,9 +9,9 @@
 - **Blocks / feeds:** A just-pinned DECISION is queryable via `graph neighbors` / `graph hierarchy` without a manual rebuild. Density floors stay T213. Governed honesty stays **T263**. Next-action for harness/whoami/list stays **T267**.
 - **Absorbs:** Audit T262 row (sparse E/N, 4h pin no node, neighbors 4/5, hierarchy 3/4); T213 “projector more edges / auto rebuild” product half (ID alignment only); T246 **F18** projector / LiveGraphHook completeness; T261 closeout “graph sparse / 4h pin”
 - **Not absorbed:** Density threshold retune (T213 floors stay); Cargo default-on graph feature (T200); Cozo INFO (T208 closed); nightly auto-`graph rebuild`; neighbor UUID prefix match; T267 harness/whoami/list next; T263 governed authority
-- **Research date:** 2026-08-17 (plan dogfood HEAD `da785c1` T261 `#176`)
-- **AI fold-in:** none yet (reserved §13)
-- **Ledger:** planning DOCS TX `41977238-d85e-4e8a-bc80-3baba4937c90`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-17 (plan dogfood HEAD `da785c1` T261 `#176`; plan commit `f58b4a9`)
+- **AI fold-in:** 2026-08-17 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). No Blockers / Majors. **Agree:** OpenCode **O2** AC2 asserts `node_kind(event_id) == None` (F9); OpenCode **O1** / Agy **O1** `memory_exists` Err → F1b + unit (**AC19** / **F18**). **Already covered:** Agy-m2 / OpenCode **m2** literals (AC18 / §12); OpenCode **m3** COUNT on miss-only (F18 / §5.5). **Agree note:** Agy-m1 / OpenCode **m1** HEAD (`da785c1` product vs `f58b4a9` plan). Disposition **§13**.
+- **Ledger:** planning DOCS TX `41977238-d85e-4e8a-bc80-3baba4937c90`. Fold-in DOCS TX `4ea8db83-618e-4b28-af8b-4bc5e7b886d7`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** run live `graph rebuild`. Do **not** remint historical `memory_projection` IDs. Do **not** retune T213 floors. Do **not** reopen T240 F2 / T255 declines. Do **not** `cargo install`, write live `.env`, bump clap, or add crates.
 
 ---
@@ -34,7 +34,7 @@ No models. No new crates. No contracts DTO. No live rebuild as DoD.
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `da785c1` T261 `#176`. `main == origin/main`. Tree **CLEAN** at plan start. |
+| HEAD | **Plan dogfood:** `da785c1` T261 `#176` (product `src/` unchanged since). **Plan commit:** `f58b4a9`. **This fold-in:** same product `src/` as `f58b4a9`. `main` ahead of `origin/main` by the plan docs commit. Tree CLEAN at fold-in. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (mtime **2026-08-17 18:20**, 24 848 896 bytes). **Pre-T260** (`--symbols` unknown). Graph-on (T246 pretty works). **Do not `cargo install`.** |
 | Source debug | `target\debug\ai-brains.exe` (mtime **2026-08-17 21:32**, 40 987 136 bytes). Newer than PATH (T261). Graph projector / pin / hook **unchanged** since T246 for this hole. |
 | `preflight --summary` | Scope path owner `3581317d` (`C:\dev\ai-brains`); **2902** pinned. Discovery grants empty (T263). |
@@ -116,7 +116,7 @@ No models. No new crates. No contracts DTO. No live rebuild as DoD.
 | **F15 — Density floors** | Do not change T213 constants or env names. Do not claim live E/N ≥ 0.50 as DoD. Doctor check count stays (T255 declined 16th). |
 | **F16 — Graph default-on** | Cargo `default = []` stays. T200 closed. |
 | **F17 — No prefix match** | `graph neighbors` / `hierarchy` / `session` stay exact `external_id`. Prefix is T125-class and not this audit hole. |
-| **F18 — `memory_exists`** | Missing-node pretty calls `ctx.conn.memory_exists(id)` (same as `forget.rs`). Query error → treat as unknown (F1b), `warn`, do not fail the read (exit 0). |
+| **F18 — `memory_exists`** | Missing-node pretty calls `vault_memory_present(ctx.conn.memory_exists(id))` in `graph.rs` (Agy **O1** / OpenCode **O1**). Helper: `Ok(true)` → F1a; `Ok(false)` / `Err` → F1b unknown; `Err` also `tracing::warn`. **Do not** `?` the `Result` (forget.rs does — that would fail neighbors). Exit **0**. Miss-only (OpenCode **m3**). |
 | **F19 — Pins / crates** | No clap 5, no lock bumps, no new crates, workspace **0.1.1**. No CLI `reqwest`. rusqlite stays **0.39.0**. |
 | **F20 — Cross-model** | FEATURE (event payload + projector + CLI contract). After Phase-1 review clean, run read-only `codex-review`. |
 | **F21 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals go to `conductor/deferred.md`. |
@@ -142,7 +142,7 @@ No models. No new crates. No contracts DTO. No live rebuild as DoD.
 | AC | Proof |
 |----|-------|
 | **AC1** | Unit (events): JSON without `turn_id` deserializes to `UserPromptRecordedPayload.turn_id == None`. JSON with `turn_id` round-trips. Same for `AssistantFinalRecorded`. |
-| **AC2** | Unit (graph): `UserPromptRecorded` + `Some(turn_id)` + session → `node_kind(turn_id) == Some("memory")` and one `RECALLS` session→memory. No `kind=turn` node for that event. |
+| **AC2** | Unit (graph): `UserPromptRecorded` + `Some(turn_id)` + session → `node_kind(turn_id) == Some("memory")` and one `RECALLS` session→memory. **`node_kind(&envelope.event_id.to_string()) == None`** (F9: do not also emit a turn node; OpenCode **O2**). |
 | **AC3** | Unit (graph): same payload with `turn_id: None` → `node_kind(printed_random_uuid) == None`; turn node id equals `envelope.event_id` (not a hasher hex). |
 | **AC4** | Unit/store: `TurnProjection` with `Some(turn_id)` inserts `memory_projection.memory_id == turn_id` string. |
 | **AC5** | Unit/store: `turn_id: None` still inserts **a** memory row (legacy `MemoryId::new()`). Do not assert the UUID equals anything on the envelope. |
@@ -159,6 +159,7 @@ No models. No new crates. No contracts DTO. No live rebuild as DoD.
 | **AC16** | Docs: CAPABILITIES + OPERATIONS + PROTOCOL-COMPAT human-next note + CHANGELOG T262. |
 | **AC17** | T246 `empty_pretty__…graph_update` replaced by F1/F29 asserts (AC8/AC9). T74 piped `graph update` still parses as JSON. |
 | **AC18** | Capture hand-built test payloads compile with explicit `turn_id: None` (or `Some` in AC4). No `unwrap`/`expect`/`panic` in production. |
+| **AC19** | Unit: `vault_memory_present(Err("locked")) == false`; missing-node pretty with that false is the F1b unknown copy (no `rebuild` / `update`). Do not require a live SQLCipher lock. OpenCode **O1**. |
 
 ---
 
@@ -192,7 +193,7 @@ Store projection rebuild would remint every historical turn memory, breaking emb
 
 ### 5.5 Pretty helpers
 
-Replace the single `PRETTY_NEXT` constant with case helpers. `neighbors` / `hierarchy` / `session` pass `memory_exists` only on the **missing-node** branch (one extra indexed COUNT). Leaf/empty-edge branches do not query and do not print `next:`.
+Replace the single `PRETTY_NEXT` constant with case helpers. `neighbors` / `hierarchy` / `session` call `vault_memory_present(ctx.conn.memory_exists(id))` only on the **missing-node** branch (one extra indexed COUNT). **Never** `?` that Result (F18 / AC19). Leaf/empty-edge branches do not query and do not print `next:`.
 
 ### 5.6 Density after this track
 
@@ -234,7 +235,7 @@ Store:
 
 Graph:
 
-- `projector__user_prompt_with_turn_id__memory_node_and_recalls__ac2`
+- `projector__user_prompt_with_turn_id__memory_node_and_recalls__ac2` (includes `node_kind(event_id) == None`)
 - `projector__user_prompt_legacy_none__turn_node_is_event_id__ac3`
 - keep `test_projector_links_pinned_recall_memory_to_session`
 
@@ -242,6 +243,7 @@ CLI units (`graph.rs`):
 
 - `pretty_no_graph_node__vault_memory__next_rebuild__ac8`
 - `pretty_no_graph_node__unknown_id__no_rebuild__ac8`
+- `vault_memory_present__query_err__false_unknown_copy__ac19`
 - `pretty_hierarchy_leaf__no_update_or_rebuild__ac9`
 - `empty_pretty__json_keys_frozen__ac10` (or keep existing JSON unit)
 
@@ -276,7 +278,7 @@ Full `conductor/deferred.md` scan 2026-08-17. `ISSUES.md` does **not** exist.
 
 | Residual | Disposition |
 |----------|-------------|
-| Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 (audit T262) | **Absorb** F1–F12 / AC1–AC18 |
+| Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 (audit T262) | **Absorb** F1–F12 / AC1–AC19 |
 | T213 auto rebuild / projector more edges / graph default-on / WCC | **Partial:** projector ID alignment **absorb** (F6–F10). Auto rebuild / default-on / WCC **decline** F4/F15/F16 |
 | T213 F31 event↔graph freshness | **Decline** (soft). Missing-node + `memory_exists` is enough honesty. |
 | T213 CLI density flags / `GraphHealthOutput` contracts / rusqlite `table_exists` / two-tier 0.50+0.10 | **Decline** (stay soft / already declined v1) |
@@ -339,7 +341,7 @@ Full `conductor/deferred.md` scan 2026-08-17. `ISSUES.md` does **not** exist.
 | `crates/ai-brains-store/tests/*` | AC4/AC5 + literals `turn_id: None` |
 | `crates/ai-brains-graph/src/projector.rs` | F9 + F10 |
 | `crates/ai-brains-graph/tests/*` | AC2/AC3 |
-| `crates/ai-brains-cli/src/commands/graph.rs` | F1/F18/F29 helpers; `memory_exists` on miss |
+| `crates/ai-brains-cli/src/commands/graph.rs` | F1/F18/F29 helpers; `vault_memory_present` + `memory_exists` on miss |
 | `crates/ai-brains-cli/src/commands/pin.rs` | Comment only (F12) |
 | `crates/ai-brains-brain/tests/*` + `ai-brains-retrieval/tests/common.rs` | `turn_id: None` on literals |
 | `Docs/CAPABILITIES.md` `Docs/OPERATIONS.md` `Docs/PROTOCOL-COMPAT.md` `CHANGELOG.md` | F25 |
@@ -350,6 +352,37 @@ Full `conductor/deferred.md` scan 2026-08-17. `ISSUES.md` does **not** exist.
 
 ---
 
-## 13. AI fold-in
+## 13. AI fold-in disposition (2026-08-17)
 
-Reserved for `/fold-in` after `/review-track`.
+Source: `agy-review.md` + `opencode-review.md`. No grok / claude / `codex-plan-review`. No Blockers / Majors.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `da785c1` vs `f58b4a9` | **Agree note** | §2.1 + header: plan dogfood vs plan commit |
+| **m2** ~15 payload literals | **Already covered** | AC18 / §8 / §12 |
+| **O1** `memory_exists` Err fail-open | **Agree** (behavior was F18; unit was missing) | F18 names `vault_memory_present`; **AC19** |
+| Deferred / last-PR tables | **Affirm** | §9 stands; #176 empty |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD drift | **Agree note** | Same as Agy-m1 |
+| **m2** payload literals | **Already covered** | AC18 |
+| **m3** `memory_exists` on read path | **Already covered** | F18 / §5.5 miss-only; COUNT already used by `forget.rs:184` |
+| **O1** unit the Err path | **Agree hard** | **AC19** + §7 test name |
+| **O2** AC2 `node_kind(event_id) == None` | **Agree hard** | AC2 wording + projector test must assert it |
+| Deferred / last-PR / pins | **Affirm** | §9; clap 4.6.1 / no clap 5; #176 empty |
+
+### Pins locked by fold-in
+
+1. **AC2 / F9:** `Some(turn_id)` path asserts `node_kind(envelope.event_id.to_string()) == None`.
+2. **F18 / AC19:** `vault_memory_present` maps `Err` → F1b; never `?` on neighbors/hierarchy/session.
+3. **§2.1:** plan dogfood `da785c1` vs plan commit `f58b4a9`.
+4. **AC18:** ~15 hand-built payload literals stay explicit `turn_id: None`.
+
+---
+
+**Planning + fold-in 2026-08-17.** Still **plan-only until go**.

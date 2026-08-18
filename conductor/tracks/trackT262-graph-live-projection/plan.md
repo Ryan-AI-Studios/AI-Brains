@@ -1,10 +1,24 @@
 # T262 Plan — Graph live projection
 
 **Status:** **Pending** (requirements written; spec **Planned**)
-**Spec:** [spec.md](./spec.md) F0–F35 / AC1–AC18
+**Spec:** [spec.md](./spec.md) F0–F35 / AC1–AC19 + §13 fold-in
 **Category:** FEATURE / BUGFIX
 **Ledger TX (planning):** `41977238-d85e-4e8a-bc80-3baba4937c90` (DOCS)
+**Ledger TX (fold-in):** `4ea8db83-618e-4b28-af8b-4bc5e7b886d7` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-17) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. OpenCode **O2** folded as AC2 `node_kind(event_id) == None`. OpenCode **O1** / Agy **O1** folded as **AC19** (`vault_memory_present` Err → F1b). Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **AC2 / F9:** `Some(turn_id)` path asserts no turn node at `envelope.event_id`.
+2. **F18 / AC19:** never `?` `memory_exists` on graph reads.
+3. **§2.1:** `da785c1` product vs `f58b4a9` plan.
+4. **AC18:** payload literals `turn_id: None`.
 
 ---
 
@@ -12,7 +26,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `da785c1` T261 `#176`. `main == origin/main`. CLEAN. |
+| HEAD / tree | Plan dogfood `da785c1`. Plan commit `f58b4a9`. Fold-in docs on that product src. |
 | T262 stub | Placeholder upgraded in place to **Planned** |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (2026-08-17 18:20). Pre-T260 (`--symbols` unknown). Graph-on T246 pretty. **Do not `cargo install`.** |
 | Source debug | `target\debug\ai-brains.exe` (2026-08-17 21:32) — newer (T261). Projector/pin/hook same hole. |
@@ -33,7 +47,7 @@
 
 | Item | Source | Plan action |
 |------|--------|-------------|
-| Sparse graph / 4h pin no node / neighbors 4/5 / hierarchy 3/4 | audit T262 | **DoD** F1–F12 / AC1–AC18 |
+| Sparse graph / 4h pin no node / neighbors 4/5 / hierarchy 3/4 | audit T262 | **DoD** F1–F12 / AC1–AC19 |
 | T246 F18 projector completeness | T246 soft | **DoD** F6–F11 / AC2 / AC6–AC7 |
 | T213 projector more edges | T213 “not T213” | **Partial** F9 (typed RECALLS from capture). No invented edges. |
 | T246 F3 `next: graph update` | T246 AC3 | **Supersede** F1 / F31 / AC8–AC9 |
@@ -45,6 +59,8 @@
 | T263–T271 / T240 F2 / T255 | deferred / standing | **Decline** |
 | last-PR Cursor | #176 | **N/A** — no leftover to mint |
 | `DefaultHasher` as node id | live `projector.rs` | **Absorb** F10 / AC3 |
+| AC2 no turn node | OpenCode O2 | **Absorb** AC2 `node_kind(event_id) == None` |
+| `memory_exists` Err unit | Agy O1 / OpenCode O1 | **Absorb** F18 helper + AC19 |
 
 ---
 
@@ -65,8 +81,9 @@
 
 - [ ] Events AC1 serde units (`turn_id` missing / present) — names in spec §7.
 - [ ] Store AC4/AC5 turn projection units.
-- [ ] Graph AC2/AC3 projector units.
+- [ ] Graph AC2/AC3 projector units (AC2 includes `node_kind(event_id) == None`).
 - [ ] CLI AC8/AC9/AC10 pretty + JSON units (replace T246 `…graph_update` asserts).
+- [ ] CLI AC19 `vault_memory_present(Err(_)) == false` + unknown copy.
 - [ ] Hermetic graph-on AC6/AC7 pin → neighbors (tempdir; `--features graph`).
 - [ ] Confirm red: missing field / hasher id / `PRETTY_NEXT` still `graph update`.
 
@@ -78,7 +95,7 @@
 - [ ] F7 capture `build_*` set `Some(request.turn_id)`.
 - [ ] F8 `TurnProjection` branch.
 - [ ] F9/F10 projector (memory+RECALLS vs event_id turn node).
-- [ ] F1/F18/F29 pretty helpers + `ctx.conn.memory_exists` on miss only.
+- [ ] F1/F18/F29 pretty helpers + `vault_memory_present(ctx.conn.memory_exists(id))` on miss only (never `?`).
 - [ ] F12 pin comment.
 - [ ] Compile-fix ~15 payload literals with `turn_id: None` (AC18).
 - [ ] No `unwrap`/`expect`/`panic` in production. Graph apply stays non-fatal.
@@ -116,7 +133,7 @@
 
 ## Definition of done
 
-- [ ] AC1–AC18 green or explicitly Phase-0 retargeted in spec (not silently dropped).
+- [ ] AC1–AC19 green or explicitly Phase-0 retargeted in spec (not silently dropped).
 - [ ] F0–F35 honored (declines stay declined).
 - [ ] No live `graph rebuild`. No historical memory_id remint.
 - [ ] T213 floors unchanged. T246 JSON keys unchanged.
