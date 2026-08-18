@@ -14,18 +14,20 @@ impl Projection for TurnProjection {
             .format(&Rfc3339)
             .map_err(|e| StoreError::EventReadFailed(e.to_string()))?;
 
-        let (session_id, role, content, tx_id) = match &envelope.payload {
+        let (session_id, role, content, tx_id, turn_id) = match &envelope.payload {
             Payload::UserPromptRecorded(p) => (
                 p.session_id.to_string(),
                 "user",
                 p.content.clone(),
                 p.tx_id.as_ref().map(|t| t.to_string()),
+                p.turn_id,
             ),
             Payload::AssistantFinalRecorded(p) => (
                 p.session_id.to_string(),
                 "assistant",
                 p.content.clone(),
                 p.tx_id.as_ref().map(|t| t.to_string()),
+                p.turn_id,
             ),
             _ => return Ok(()),
         };
@@ -57,8 +59,13 @@ impl Projection for TurnProjection {
             ],
         )?;
 
-        // Also project into memory for lexical search (recall)
-        let memory_id = ai_brains_core::ids::MemoryId::new();
+        // Also project into memory for lexical search (recall).
+        // T262: when capture logged turn_id, that UUID is the memory id.
+        // Legacy events without the field keep T147 #10 MemoryId::new().
+        let memory_id = match turn_id {
+            Some(tid) => ai_brains_core::ids::MemoryId::from_uuid(tid.as_uuid()),
+            None => ai_brains_core::ids::MemoryId::new(),
+        };
         let privacy = serde_json::to_string(&envelope.privacy)
             .map_err(|e| StoreError::EventReadFailed(e.to_string()))?;
 

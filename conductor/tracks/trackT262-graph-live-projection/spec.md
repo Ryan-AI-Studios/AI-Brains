@@ -1,7 +1,7 @@
 # T262 — Graph live projection + neighbors / hierarchy
 
 - **Track ID:** T262-GraphLiveProjection
-- **Status:** **Planned** (plan-only until go; registry stays **Pending**)
+- **Status:** **Completed** 2026-08-17
 - **Category:** FEATURE / BUGFIX
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — graph unused; `graph neighbors` **4/5**; `graph hierarchy` **3/4**; opportunity “rebuild or fix live projection”

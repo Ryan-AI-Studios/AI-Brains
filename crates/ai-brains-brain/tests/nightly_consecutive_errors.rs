@@ -80,6 +80,7 @@ fn append_completed_session(
             session_id,
             content: content.to_string(),
             tx_id: None,
+            turn_id: None,
         }))?,
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,

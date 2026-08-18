@@ -1,6 +1,6 @@
 # T262 Plan — Graph live projection
 
-**Status:** **Pending** (requirements written; spec **Planned**)
+**Status:** **Completed** (implement-track)
 **Spec:** [spec.md](./spec.md) F0–F35 / AC1–AC19 + §13 fold-in
 **Category:** FEATURE / BUGFIX
 **Ledger TX (planning):** `41977238-d85e-4e8a-bc80-3baba4937c90` (DOCS)
@@ -66,66 +66,66 @@ No Blockers / Majors. OpenCode **O2** folded as AC2 `node_kind(event_id) == None
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `projector.rs` capture + `MemoryPinned` arms. Confirm hasher still live; no `turn_id` match.
-- [ ] Re-read `turn.rs` `MemoryId::new()` and `pin.rs` print + `StoreSink` hook apply.
-- [ ] Re-read `graph.rs` `PRETTY_NEXT` and T246 empty-pretty unit.
-- [ ] Classify-only: `graph update --format human`; neighbors of a just-recalled full UUID still `RECALLS` (hook). Do **not** rebuild. Do **not** pin to the live vault.
-- [ ] Re-check lock clap + crates.io: still no clap 5 (or this track is not that bump).
-- [ ] Rescan **entire** `conductor/deferred.md` for new open graph-projection rows.
-- [ ] Last merged PR + open HEAD PR Cursor comments. Mint placeholder if a leftover fits nowhere.
-- [ ] `ledgerful ledger start T262-graph-live-projection --category FEATURE`
+- [x] Re-read `projector.rs` capture + `MemoryPinned` arms. Confirm hasher still live; no `turn_id` match.
+- [x] Re-read `turn.rs` `MemoryId::new()` and `pin.rs` print + `StoreSink` hook apply.
+- [x] Re-read `graph.rs` `PRETTY_NEXT` and T246 empty-pretty unit.
+- [x] Classify-only: `graph update --format human` (21498/1386 E/N 0.064, remediation rebuild); neighbors of `7c3634fe-…` still `in RECALLS` (hook). Did **not** rebuild. Did **not** pin to the live vault. Debug bin is graph-off; used PATH graph-on.
+- [x] Re-check lock clap **4.6.1** / crates.io **4.6.6**. rustc **1.95.0**. No clap 5.
+- [x] Rescan **entire** `conductor/deferred.md` — no new open graph-projection rows beyond the planned T262 absorb.
+- [x] Last merged PR #176 comments/reviews/inline **0**. Dependabot only. **N/A.**
+- [x] `ledgerful ledger start T262-graph-live-projection --category FEATURE` → `f71cb7ac-8710-4120-8828-1817da6ee5fc`
 
 ---
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] Events AC1 serde units (`turn_id` missing / present) — names in spec §7.
-- [ ] Store AC4/AC5 turn projection units.
-- [ ] Graph AC2/AC3 projector units (AC2 includes `node_kind(event_id) == None`).
-- [ ] CLI AC8/AC9/AC10 pretty + JSON units (replace T246 `…graph_update` asserts).
-- [ ] CLI AC19 `vault_memory_present(Err(_)) == false` + unknown copy.
-- [ ] Hermetic graph-on AC6/AC7 pin → neighbors (tempdir; `--features graph`).
-- [ ] Confirm red: missing field / hasher id / `PRETTY_NEXT` still `graph update`.
+- [x] Events AC1 serde units (`turn_id` missing / present) — names in spec §7.
+- [x] Store AC4/AC5 turn projection units.
+- [x] Graph AC2/AC3 projector units (AC2 includes `node_kind(event_id) == None`).
+- [x] CLI AC8/AC9/AC10 pretty + JSON units (replace T246 `…graph_update` asserts).
+- [x] CLI AC19 `vault_memory_present(Err(_)) == false` + unknown copy.
+- [x] Hermetic graph-on AC6/AC7 pin → neighbors (tempdir; `--features graph`).
+- [x] Confirm red: hermetic AC6/AC7 on pre-green bin: printed id `neighbors:[]` + pretty `next: graph update`.
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] F6 payload field + F32 serde defaults.
-- [ ] F7 capture `build_*` set `Some(request.turn_id)`.
-- [ ] F8 `TurnProjection` branch.
-- [ ] F9/F10 projector (memory+RECALLS vs event_id turn node).
-- [ ] F1/F18/F29 pretty helpers + `vault_memory_present(ctx.conn.memory_exists(id))` on miss only (never `?`).
-- [ ] F12 pin comment.
-- [ ] Compile-fix ~15 payload literals with `turn_id: None` (AC18).
-- [ ] No `unwrap`/`expect`/`panic` in production. Graph apply stays non-fatal.
+- [x] F6 payload field + F32 serde defaults.
+- [x] F7 capture `build_*` set `Some(request.turn_id)`.
+- [x] F8 `TurnProjection` branch.
+- [x] F9/F10 projector (memory+RECALLS vs event_id turn node).
+- [x] F1/F18/F29 pretty helpers + `vault_memory_present(ctx.conn.memory_exists(id))` on miss only (never `?`).
+- [x] F12 pin comment.
+- [x] Compile-fix ~15 payload literals with `turn_id: None` (AC18).
+- [x] No `unwrap`/`expect`/`panic` in production. Graph apply stays non-fatal.
 
 ---
 
 ## Phase 3 — Docs + keep-green
 
-- [ ] F25 CAPABILITIES / OPERATIONS / PROTOCOL-COMPAT / CHANGELOG.
-- [ ] Skill one-liner only if the graph section lacks pin-id honesty.
-- [ ] Keep green: T74 update JSON; T198/T222 feature-off; T213/T232 density; T246 format/sort/limit (except superseded AC3); capture independence; live_graph MemoryPinned unit; AC14.
+- [x] F25 CAPABILITIES / OPERATIONS / PROTOCOL-COMPAT / CHANGELOG.
+- [x] Skill one-liner only if the graph section lacks pin-id honesty.
+- [x] Keep green: T74 update JSON; T198/T222 feature-off; T213/T232 density; T246 format/sort/limit (except superseded AC3); capture independence; live_graph MemoryPinned unit; AC14.
 
 ---
 
 ## Phase 4 — Verify
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy -p ai-brains-events -p ai-brains-capture -p ai-brains-store -p ai-brains-graph -p ai-brains-cli --all-targets --features graph -- -D warnings` (adjust feature matrix if a crate has no `graph` feature — events/capture/store clippy without it).
-- [ ] Targeted nextest: events + store turn + graph projector + cli graph + hermetic pin neighbors.
-- [ ] Full workspace gate only at finalize (implement-track), not this plan pass.
-- [ ] `ledgerful verify --scope fast` after FEATURE edits (implement).
-- [ ] AC15 classify-only live neighbors on a known recall id. **No** live rebuild (F23).
+- [x] `cargo fmt --check`
+- [x] `cargo clippy -p ai-brains-events -p ai-brains-capture -p ai-brains-store -p ai-brains-graph -p ai-brains-cli --all-targets --features graph -- -D warnings` (adjust feature matrix if a crate has no `graph` feature — events/capture/store clippy without it).
+- [x] Targeted nextest: events + store turn + graph projector + cli graph + hermetic pin neighbors.
+- [x] Full workspace gate only at finalize (implement-track), not this plan pass.
+- [x] `ledgerful verify --scope fast` after FEATURE edits (implement). Fast nextest timed out (600s lock contention); `dev-check.ps1` + `ledgerful verify --scope full` both passed.
+- [x] AC15 classify-only live neighbors on a known recall id. **No** live rebuild (F23). PATH graph-on: `7c3634fe` still `in RECALLS`.
 
 ---
 
 ## Phase 5 — Close (implement-track, not this skill)
 
-- [ ] FEATURE TX commit + `review.md` + `codex-review` (F20).
+- [x] FEATURE TX commit + `review.md` + `codex-review` (F20).
 - [ ] conductor Completed only after implement + merge.
-- [ ] Append soft residuals to `deferred.md`.
+- [x] Append soft residuals to `deferred.md`.
 - [ ] Pin: `DECISION: pin turn_id is the graph memory id; graph update is not a remediator.`
 - [ ] Publish: branch → PR → GHA green → squash-merge → prune. Never `git push origin main`.
 

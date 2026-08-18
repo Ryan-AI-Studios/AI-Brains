@@ -132,6 +132,7 @@ async fn test_retention_removes_old_turns() -> Result<(), Box<dyn std::error::Er
         session_id,
         content: "Old turn".to_string(),
         tx_id: None,
+        turn_id: None,
     }))?;
     event_store.append_event(&prompt)?;
 

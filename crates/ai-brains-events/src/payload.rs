@@ -1,7 +1,7 @@
 use ai_brains_core::ids::{
     BriefingId, ConclusionId, ConflictId, ContentKeyId, DecisionId, DeviceId, EvidenceId, GrantId,
     MemoryId, PrincipalId, ProjectId, QueryTraceId, RecipeId, ReplicationEventId, ReviewItemId,
-    SessionId, SourceId, SourceVersionId, TombstoneId, TransactionId, WorkspaceId,
+    SessionId, SourceId, SourceVersionId, TombstoneId, TransactionId, TurnId, WorkspaceId,
 };
 use ai_brains_core::model_provenance::ModelProvenance;
 use ai_brains_core::privacy::Privacy;
@@ -62,6 +62,8 @@ pub struct UserPromptRecordedPayload {
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tx_id: Option<TransactionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<TurnId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +72,8 @@ pub struct AssistantFinalRecordedPayload {
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tx_id: Option<TransactionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<TurnId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -17,6 +17,7 @@ pub fn build_user_prompt(
         session_id: request.session_id,
         content: request.content.clone(),
         tx_id: request.tx_id.clone(),
+        turn_id: Some(request.turn_id),
     }))
     .map_err(Into::into)
 }

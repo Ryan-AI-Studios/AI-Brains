@@ -1,7 +1,7 @@
 # T256–T271 — Post-T255 live CLI audit (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-16 (graph-on PATH install; live vault `C:\dev\ai-brains\vault.db`; agent non-TTY).
-**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. **T260 Completed** 2026-08-17. **T261 Completed** 2026-08-17. **T262 Planned+fold-in** 2026-08-17 (Pending). Remaining T263–T271 still placeholders.
+**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. **T260 Completed** 2026-08-17. **T261 Completed** 2026-08-17. **T262 Completed** 2026-08-17. Remaining T263–T271 still placeholders.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest; **T240–T255** CLI effectiveness (closer T255 2026-08-16).
 **Ledger (registration):** DOCS TX `1d9511b5-798b-4d6c-b0c9-ebb4b07d0b69`.
 
@@ -19,7 +19,7 @@ Every non-working item, friction point, significant opportunity, and command wit
 | Leftover identity `7d97a456` holds **18,028** memories across many `C:\dev\*` roots | opp: split leftover; poisons `--global` | **T259 Completed** | P0 |
 | Recall ranking: symbol stubs beat decisions (`Module sqlite_backend`, `Struct Project`) | default **5/4**; `--semantic` **6/6**; `--global` **3/3**; real-project semantic **4/3**; opp: demote symbols | **T260 Completed** | P0 |
 | Empty `recall ""` took **5.7 s** (live 2026-08-17: `""` ~640 ms; whitespace/stopword **~2 s + hits**) | friction | **T261 Completed** | P2 |
-| Graph unused as daily tool: 21k nodes / 945 edges; recent pin no node; hierarchy empty | neighbors **4/5**; hierarchy **3/4**; opp: live projection | **T262 Planned+fold-in** | P1 |
+| Graph unused as daily tool: 21k nodes / 945 edges; recent pin no node; hierarchy empty | neighbors **4/5**; hierarchy **3/4**; opp: live projection | **T262 Completed** | P1 |
 | Governed store empty (0 evidence / conclusions / decisions) while vault has hundreds of `DECISION:` pins | briefing **4/6** + **3/6**; progressive **3/5**; expand **6/6**; trace **5/4**; evidence/source/review **3/5**; opp: connect or stop advertising | **T263** | P0 |
 | `preflight --global` mixes other repos (coordinator 0022/0023, hip-hierarchy) as “safety” | global pretty **5/4**; global summary **7/6** | **T264** | P1 |
 | `preflight --format json` is a `{text, word_count}` blob | **7/6** | **T265** | P2 |

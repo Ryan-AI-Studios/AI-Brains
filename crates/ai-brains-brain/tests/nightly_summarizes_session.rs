@@ -66,6 +66,7 @@ async fn test_nightly_summarizes_session() -> Result<(), Box<dyn std::error::Err
             session_id,
             content: "Hello".to_string(),
             tx_id: None,
+            turn_id: None,
         }))?,
         ai_brains_events::constructors::EventBuilder::new(
             ai_brains_events::AggregateType::Session,
