@@ -223,7 +223,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
 | ~~Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots~~ | **T259 Completed 2026-08-17.** Inventory `--project`/`--shared-only` + `rebind-path` print-only / `--write --yes` one-tx. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. Soft: leftover memory reclassify by path; PATH `cargo install`; `project.rs` `resolve_project_ref` duplicate. |
 | ~~Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3)~~ | **T260 Completed 2026-08-17.** Default exclude via `symbol_content` + **GLOB** ⊆ detector (F19). `--symbols` mix. Dedupe after `rerank_hits`. Leftover-**project** exclusion stays **T264**. |
-| `recall ""` 5.7 s | **T261** |
+| `recall ""` 5.7 s | **T261 Planned 2026-08-17.** Live re-dogfood: `""` ~640 ms; whitespace/stopword **~2 s + hits** (LIKE/MATCH-all + `MemoryPinned`). Spec/plan upgraded. Status stays **Pending** until go. |
 | Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
 | Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review) | **T263** |
 | `preflight --global` blends other repos (5/4, summary 7/6) | **T264** |
