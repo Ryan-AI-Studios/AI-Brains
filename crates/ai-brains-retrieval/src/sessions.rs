@@ -12,6 +12,8 @@ pub struct SessionTurn {
 pub struct SessionContext {
     pub session_id: String,
     pub turns: Vec<SessionTurn>,
+    /// Owning project when `session_projection.project_id` is set (T264 F10).
+    pub project_id: Option<String>,
 }
 
 pub fn active_sessions(
@@ -20,33 +22,41 @@ pub fn active_sessions(
 ) -> Result<Vec<SessionContext>> {
     let conn = conn.lock()?;
 
-    let sql = if let Some(pid) = project_id {
-        format!(
-            "SELECT session_id, privacy
+    if let Some(pid) = project_id {
+        let pid = pid.to_string();
+        let mut stmt = conn.prepare(
+            "SELECT session_id, privacy, project_id
              FROM session_projection
              WHERE status = 'active'
-             AND project_id = '{}'
+             AND project_id = ?
              ORDER BY updated_at DESC",
-            pid
-        )
+        )?;
+        let rows = stmt.query(rusqlite::params![pid])?;
+        collect_sessions(&conn, rows)
     } else {
-        "SELECT session_id, privacy
-         FROM session_projection
-         WHERE status = 'active'
-         ORDER BY updated_at DESC"
-            .to_string()
-    };
+        let mut stmt = conn.prepare(
+            "SELECT session_id, privacy, project_id
+             FROM session_projection
+             WHERE status = 'active'
+             ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query([])?;
+        collect_sessions(&conn, rows)
+    }
+}
 
-    let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query([])?;
+fn collect_sessions(
+    conn: &rusqlite::Connection,
+    mut rows: rusqlite::Rows<'_>,
+) -> Result<Vec<SessionContext>> {
     let mut active = Vec::new();
 
     while let Some(row) = rows.next()? {
         let privacy: String = row.get(1)?;
         if is_injectable_privacy(&privacy) {
             let session_id: String = row.get(0)?;
+            let project_id: Option<String> = row.get(2)?;
 
-            // Fetch last 5 turns for this session
             let mut turn_stmt = conn.prepare(
                 "SELECT role, content
                  FROM turn_projection
@@ -62,10 +72,13 @@ pub fn active_sessions(
                     content: turn_row.get(1)?,
                 });
             }
-            // Reverse to get chronological order
             turns.reverse();
 
-            active.push(SessionContext { session_id, turns });
+            active.push(SessionContext {
+                session_id,
+                turns,
+                project_id,
+            });
         }
     }
 

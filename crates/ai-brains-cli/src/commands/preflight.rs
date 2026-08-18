@@ -16,6 +16,7 @@ use ai_brains_store::QueryStore;
 use ai_brains_store::SqliteEventStore;
 use serde::Serialize;
 use std::io::IsTerminal;
+use std::str::FromStr;
 
 pub struct PreflightRunOptions {
     pub max_words: usize,
@@ -57,6 +58,9 @@ pub(crate) struct PreflightSummaryJson {
     /// T241 F3: short bootstrap SOOT when discovery incomplete; omit when complete/global.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_step: Option<String>,
+    /// T264 F8: distinct non-unknown projects in the emitted global body. Global only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub in_context_project_span: Option<u32>,
 }
 
 /// Pure builder for preflight summary JSON (T220 F6). Unit-testable without vault I/O.
@@ -95,6 +99,7 @@ pub(crate) fn build_preflight_summary_json(
         word_count,
         grants_status: None,
         next_step: None,
+        in_context_project_span: None,
     }
 }
 
@@ -154,6 +159,16 @@ fn probe_discovery_active_count(
     Some(discovery_active_count(
         grants.iter().map(|g| g.capability.as_str()),
     ))
+}
+
+/// Resolve an 8-hex project tag via `list_projects` prefix + `get_project_by_id`.
+fn resolve_project_tag_prefix(ctx: &AppContext, tag8: &str) -> Option<(String, String, String)> {
+    let projects = ctx.conn.list_projects().ok()?;
+    let ids: Vec<&str> = projects.iter().map(|(id, _, _, _)| id.as_str()).collect();
+    let id = super::preflight_pretty::unique_project_id_for_tag(ids, tag8)?;
+    let pid = ProjectId::from_str(&id).ok()?;
+    let (name, alias) = ctx.conn.get_project_by_id(&pid).ok()??;
+    Some((id, name, alias))
 }
 
 /// Emit install/status chatter: stdout for human path; stderr when JSON mode (T220 M1).
@@ -244,8 +259,19 @@ pub fn run(
             options.project_id.as_ref(),
             name_alias.as_ref(),
         );
-        let pretty_body = if options.compact {
-            format_preflight_pretty_body_with(&context.text, &PrettyCaps::compact())
+        let caps = if options.compact {
+            PrettyCaps::compact()
+        } else {
+            PrettyCaps::standard()
+        };
+        let pretty_body = if options.global {
+            format_preflight_pretty_body_resolved(
+                &context.text,
+                &caps,
+                Some(&|tag8: &str| resolve_project_tag_prefix(ctx, tag8)),
+            )
+        } else if options.compact {
+            format_preflight_pretty_body_with(&context.text, &caps)
         } else {
             format_preflight_pretty_body(&context.text)
         };
@@ -400,22 +426,47 @@ fn is_recall_hint_line(line: &str) -> bool {
     t.starts_with("(Use 'recall'") || t.starts_with("(Use \"recall\"")
 }
 
+/// Lookup for T264 pretty tag upgrade: 8-hex prefix → (project_id, name, alias).
+type ProjectTagLookup<'a> = dyn Fn(&str) -> Option<(String, String, String)> + 'a;
+
 /// Chrome-strip then optional Unicode line-cap. Headers / F31 notices never call this.
-fn display_pretty_line(line: &str, line_cap: Option<usize>) -> String {
-    let stripped = strip_pretty_chrome(line);
-    match line_cap {
+/// Peels a leading `[8hex]`/`[unknown]` first so timestamp/role chrome still strips (F4).
+fn display_pretty_line(
+    line: &str,
+    line_cap: Option<usize>,
+    lookup: Option<&ProjectTagLookup<'_>>,
+) -> String {
+    let (tag, rest) = super::preflight_pretty::peel_global_tag(line);
+    let stripped = strip_pretty_chrome(rest);
+    let capped = match line_cap {
         Some(max) => super::display_text::truncate_preview_chars(stripped, max),
         None => stripped.to_string(),
+    };
+    match tag {
+        Some(t) => {
+            let upgraded = super::preflight_pretty::upgrade_tag_with_lookup(&t, lookup);
+            if capped.is_empty() {
+                upgraded
+            } else {
+                format!("{upgraded} {capped}")
+            }
+        }
+        None => capped,
     }
 }
 
-fn emit_item_block(block: &str, caps: &PrettyCaps, line_cap: Option<usize>) -> String {
+fn emit_item_block(
+    block: &str,
+    caps: &PrettyCaps,
+    line_cap: Option<usize>,
+    lookup: Option<&ProjectTagLookup<'_>>,
+) -> String {
     if caps.first_line_only {
-        display_pretty_line(first_non_empty_line(block), line_cap)
+        display_pretty_line(first_non_empty_line(block), line_cap, lookup)
     } else {
         block
             .lines()
-            .map(|l| display_pretty_line(l, line_cap))
+            .map(|l| display_pretty_line(l, line_cap, lookup))
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -441,6 +492,15 @@ pub(crate) fn format_preflight_pretty_body(text: &str) -> String {
 
 /// Format full preflight body with explicit [`PrettyCaps`] (T250).
 pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -> String {
+    format_preflight_pretty_body_resolved(text, caps, None)
+}
+
+/// Pretty body + optional T264 tag upgrade (`lookup` receives the 8-hex inner).
+pub(crate) fn format_preflight_pretty_body_resolved(
+    text: &str,
+    caps: &PrettyCaps,
+    lookup: Option<&ProjectTagLookup<'_>>,
+) -> String {
     // Parse into (optional header, content lines) sections.
     // Text before the first header is a prologue (Other, no header).
     let mut sections: Vec<(Option<String>, Vec<String>)> = Vec::new();
@@ -491,7 +551,7 @@ pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -
                 // Compact first-line-caps Safety; standard does not line-cap Safety.
                 let safety_cap = caps.first_line_only.then_some(caps.line_max);
                 for block in blocks.into_iter().take(take_n) {
-                    body_lines.push(emit_item_block(&block, caps, safety_cap));
+                    body_lines.push(emit_item_block(&block, caps, safety_cap, lookup));
                 }
                 if total > caps.safety_max {
                     let n = total - caps.safety_max;
@@ -517,7 +577,7 @@ pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -
                         turn_total += 1;
                         in_open_turn = true;
                         if turn_count < caps.turns_per_session {
-                            body_lines.push(display_pretty_line(line, session_cap));
+                            body_lines.push(display_pretty_line(line, session_cap, lookup));
                             turn_count += 1;
                         } else {
                             // Past cap: do not emit further turns or their continuations.
@@ -525,7 +585,7 @@ pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -
                         }
                     } else if in_open_turn && turn_count <= caps.turns_per_session {
                         // Continuation of a displayed turn (multi-line truncate_turn).
-                        body_lines.push(display_pretty_line(line, session_cap));
+                        body_lines.push(display_pretty_line(line, session_cap, lookup));
                     }
                 }
                 // Drop trailing blanks introduced above.
@@ -545,19 +605,29 @@ pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -
                     if trimmed.is_empty() {
                         continue;
                     }
-                    // Numbered index lines: "1. …"
-                    let is_numbered = trimmed.chars().next().is_some_and(|c| c.is_ascii_digit())
-                        && trimmed.contains(". ");
+                    // Peel leading `[8hex]` so numbered detection still sees "1. …" (F2/F4).
+                    let (tag, rest) = super::preflight_pretty::peel_global_tag(trimmed);
+                    let rest_t = rest.trim();
+                    let is_numbered = rest_t.chars().next().is_some_and(|c| c.is_ascii_digit())
+                        && rest_t.contains(". ");
                     if is_numbered {
                         // Chrome/role strip on the summary portion after "N. " (never line-cap).
-                        if let Some((num, rest)) = trimmed.split_once(". ") {
-                            let stripped = display_pretty_line(rest, None);
-                            index_items.push(format!("{num}. {stripped}"));
+                        let numbered = if let Some((num, after)) = rest_t.split_once(". ") {
+                            let stripped = display_pretty_line(after, None, None);
+                            format!("{num}. {stripped}")
                         } else {
-                            index_items.push(display_pretty_line(trimmed, None));
+                            display_pretty_line(rest_t, None, None)
+                        };
+                        match tag {
+                            Some(t) => {
+                                let upgraded =
+                                    super::preflight_pretty::upgrade_tag_with_lookup(&t, lookup);
+                                index_items.push(format!("{upgraded} {numbered}"));
+                            }
+                            None => index_items.push(numbered),
                         }
                     } else {
-                        other.push(display_pretty_line(line, None));
+                        other.push(display_pretty_line(line, None, lookup));
                     }
                 }
                 let total = index_items.len();
@@ -583,7 +653,7 @@ pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -
                     if taken >= caps.recent_max {
                         continue;
                     }
-                    let emitted = emit_item_block(&block, caps, recent_cap);
+                    let emitted = emit_item_block(&block, caps, recent_cap, lookup);
                     if emitted.lines().all(|l| l.trim().is_empty()) {
                         continue;
                     }
@@ -603,7 +673,7 @@ pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -
                     if line.trim().is_empty() {
                         body_lines.push(String::new());
                     } else {
-                        body_lines.push(display_pretty_line(line, None));
+                        body_lines.push(display_pretty_line(line, None, lookup));
                     }
                 }
                 // Trim trailing blanks for orphan detection.
@@ -626,7 +696,27 @@ pub(crate) fn format_preflight_pretty_body_with(text: &str, caps: &PrettyCaps) -
         let mut section_out = String::new();
         if let Some(h) = header {
             // F10: blank line after each emitted --- header.
-            section_out.push_str(h.trim());
+            let rendered = if kind == PrettySectionKind::Session {
+                let t = h.trim();
+                let inner = t
+                    .rsplit_once('[')
+                    .and_then(|(_, rest)| rest.split_once(']'))
+                    .map(|(i, _)| i);
+                let resolved = inner.and_then(|i| {
+                    if i == "unknown" {
+                        None
+                    } else {
+                        lookup.and_then(|f| f(i))
+                    }
+                });
+                let refs = resolved
+                    .as_ref()
+                    .map(|(id, n, a)| (id.as_str(), n.as_str(), a.as_str()));
+                super::preflight_pretty::upgrade_session_header_tag(t, refs)
+            } else {
+                h.trim().to_string()
+            };
+            section_out.push_str(&rendered);
             section_out.push('\n');
             section_out.push('\n');
         }
@@ -812,6 +902,9 @@ fn print_summary(
             constraint_count,
             context.word_count,
         );
+        if global {
+            envelope.in_context_project_span = context.in_context_project_span;
+        }
         if let Some(n) = grants_count {
             envelope.grants_status = format_grants_status(n);
             if envelope.grants_status.is_some() {
@@ -836,6 +929,19 @@ fn print_summary(
         constraint_count,
         context.word_count,
     );
+    // T264 F7: post-hoc span line — do not grow the 9-arg formatter (T214 AC19).
+    if global {
+        let n = context.in_context_project_span.unwrap_or(0);
+        let span_line = format!("In context spans {n} projects");
+        if let Some(idx) = lines
+            .iter()
+            .position(|l| l.starts_with("In context constraints:"))
+        {
+            lines.insert(idx + 1, span_line);
+        } else {
+            lines.push(span_line);
+        }
+    }
     if let Some(n) = grants_count
         && let Some(line) = format_grants_incomplete_line(n)
     {
@@ -1892,6 +1998,24 @@ ASSISTANT: turn 2 content for session 2";
             strip_pretty_chrome("(just now) ASSISTANT: DECISION: x"),
             "DECISION: x"
         );
+    }
+
+    #[test]
+    fn peel_global_tag__tagged_timestamp_role__chrome_still_strips_remainder() {
+        // AC3 chrome half (peel lives in preflight_pretty to avoid a module cycle).
+        let (_tag, rest) = super::super::preflight_pretty::peel_global_tag(
+            "[3581317d] (just now) ASSISTANT: DECISION: x see [3581317d]",
+        );
+        assert_eq!(
+            strip_pretty_chrome(rest),
+            "DECISION: x see [3581317d]",
+            "chrome still strips after leading tag peel"
+        );
+        assert_eq!(
+            strip_pretty_chrome("(just now) ASSISTANT: DECISION: y"),
+            "DECISION: y"
+        );
+        assert_eq!(strip_pretty_chrome("ASSISTANT: DECISION: z"), "DECISION: z");
     }
 
     #[test]
