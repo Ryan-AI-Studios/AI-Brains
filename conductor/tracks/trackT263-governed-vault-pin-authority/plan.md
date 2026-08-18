@@ -67,54 +67,54 @@ No Blockers / Majors. Agy **m2** folded as **F29** / **AC14** (≤140 / one line
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `renderer.rs` empty/deny constants and T227 units.
-- [ ] Re-read `governed_query.rs` expand + `run_trace` F31.
-- [ ] Re-read `legacy_import.rs` pin → Evidence (H2 still invalid).
-- [ ] Classify-only dogfood: leftover granted briefing still `empty_authority`; daily deny still bootstrap. **Do not** `policy bootstrap`. **Do not** pin. **Do not** migrate.
-- [ ] Re-check lock clap **4.6.1** / crates.io current. rustc **1.95.0**. No clap 5.
-- [ ] Rescan **entire** `conductor/deferred.md`.
-- [ ] Last merged PR comments/reviews/inline. Mint a placeholder only if a real leftover fits nowhere.
-- [ ] `ledgerful ledger start T263-governed-vault-pin-authority --category FEATURE`
+- [x] Re-read `renderer.rs` empty/deny constants and T227 units.
+- [x] Re-read `governed_query.rs` expand + `run_trace` F31.
+- [x] Re-read `legacy_import.rs` pin → Evidence (H2 still invalid).
+- [x] Classify-only dogfood: leftover granted briefing still `empty_authority`; daily deny still bootstrap. **Do not** `policy bootstrap`. **Do not** pin. **Do not** migrate.
+- [x] Re-check lock clap **4.6.1** / crates.io **4.6.6**. rustc **1.95.0**. No clap 5.
+- [x] Rescan **entire** `conductor/deferred.md`.
+- [x] Last merged PR comments/reviews/inline. Mint a placeholder only if a real leftover fits nowhere. (#177 empty)
+- [x] `ledgerful ledger start T263-governed-vault-pin-authority --category FEATURE` → `6c40de3d-10ce-4524-a3e4-0c6488493446`
 
 ---
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] `briefing_empty_authority_next_step__contains_recall_not_seed_approved`
-- [ ] `render_project_markdown__allowed_empty__names_recall` (update T227 unit)
-- [ ] `render_personal_markdown__denied__names_recall_not_personal_bootstrap`
-- [ ] `briefing_empty_authority_next_step__one_line_at_most_140_chars` (AC14)
-- [ ] `expand_unknown__preview_nonempty`
-- [ ] `apply_authorized_empty_list_next__empty_items__sets_recall`
-- [ ] `root_after_long_help__tip_names_recall_not_progressive`
-- [ ] Update hermetic `briefing_personal__no_grants__soft_deny_denial_hint` (AC3 — must fail on current bootstrap hint)
-- [ ] Hermetic granted-empty briefing + expand + lists (`governed_vault_pin_honesty` or extend existing)
-- [ ] Confirm red: old seed-Approved string still in src so new asserts fail
+- [x] `briefing_empty_authority_next_step__contains_recall_not_seed_approved`
+- [x] `render_project_markdown__allowed_empty__names_recall` (update T227 unit)
+- [x] `render_personal_markdown__denied__names_recall_not_personal_bootstrap`
+- [x] `briefing_empty_authority_next_step__one_line_at_most_140_chars` (AC14)
+- [x] `expand_unknown__preview_nonempty`
+- [x] `apply_authorized_empty_list_next__empty_items__sets_recall`
+- [x] `root_after_long_help__tip_names_recall_not_progressive`
+- [x] Update hermetic `briefing_personal__no_grants__soft_deny_denial_hint` (AC3 — must fail on current bootstrap hint)
+- [x] Hermetic granted-empty briefing + expand + lists (`governed_vault_pin_honesty` or extend existing)
+- [x] Confirm red: old seed-Approved string still in src so new asserts fail (155 chars; red commit `159c095`)
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] Rewrite `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` (F2)
-- [ ] Specialize Personal deny next / hint (F4): renderer constants + `personal.rs:121` only; Repository deny unchanged (F5)
-- [ ] Enforce F29 ≤140 one-line empty-authority next
-- [ ] Fill expand `Unknown` preview SOOT (F7)
-- [ ] List overlay helper + evidence/source/review emit (F8)
-- [ ] Help tip (F10)
-- [ ] Docs: CAPABILITIES §15, WORKFLOWS, OPERATIONS, skill, CHANGELOG (AC11)
-- [ ] Trace after_help honesty only (F6)
-- [ ] No `project.rs`. No `legacy_import.rs`. No live bootstrap.
+- [x] Rewrite `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` (F2)
+- [x] Specialize Personal deny next / hint (F4): renderer constants + `personal.rs:121` only; Repository deny unchanged (F5)
+- [x] Enforce F29 ≤140 one-line empty-authority next
+- [x] Fill expand `Unknown` preview SOOT (F7)
+- [x] List overlay helper + evidence/source/review emit (F8)
+- [x] Help tip (F10)
+- [x] Docs: CAPABILITIES §15, WORKFLOWS, OPERATIONS, skill, CHANGELOG (AC11)
+- [x] Trace after_help honesty only (F6)
+- [x] No `project.rs`. No `legacy_import.rs`. No live bootstrap.
 
 ---
 
 ## Phase 3 — Verify
 
-- [ ] `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings`
-- [ ] Targeted nextest: renderer units + hermetics AC1–AC10
-- [ ] T227 deny AC2 still green
-- [ ] T243 progressive hint AC10 still green
+- [x] `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings`
+- [x] Targeted nextest: renderer units + hermetics AC1–AC10
+- [x] T227 deny AC2 still green
+- [x] T243 progressive hint AC10 still green
 - [ ] `ledgerful verify --scope fast`
-- [ ] Manual AC13 on source/hermetic bin (not PATH)
+- [x] Manual AC13 on source/hermetic bin (not PATH)
 
 ---
 

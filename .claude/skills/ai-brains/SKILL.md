@@ -57,6 +57,8 @@ If `doctor` cannot open the vault: fix `AI_BRAINS_KEY` / global dotenv / path be
 3. **Verify project:** if warnings say local `.env` overrides shell, trust `context --show`. Wrong `AI_BRAINS_PROJECT_ID` → wrong preflight/recall brain.
 
 ### Phase 2: Recall (search before acting)
+
+**Daily “what did we decide?” is `recall` / `search`.** Briefing and `query progressive` read only Approved decisions + Active/Confirmed conclusions. Discovery grants do not turn vault pins into that authority.
 ```powershell
 # Prefer explicit project or global when unsure
 ai-brains recall "<topic>" --limit 5 --format pretty
@@ -76,7 +78,7 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 `forget --list-forgotten` (read); `--memory-id` / `--match` + `-f`; `--restore <uuid>`.
 
 ### Governed discovery (may POLICY_DENIED)
-`scope resolve`, `source list`, `evidence list`, `review list`, `briefing project` need **policy grants** for the principal/scope. Deny + `details.hint` is expected without grants — fall back to preflight/recall. Not a vault-key problem.
+`scope resolve`, `source list`, `evidence list`, `review list`, `briefing project` need **policy grants** for the principal/scope. Deny + `details.hint` is expected without grants — fall back to preflight/recall. Granted-empty briefing/lists still mean “no Approved/Active authority” — use `recall`, not “seed an Approved decision.” Personal briefing deny is optional continuity, not a required bootstrap. Not a vault-key problem.
 
 ## Command summary (agents)
 

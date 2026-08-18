@@ -20,8 +20,20 @@ pub const BRIEFING_DENIED_DENIAL_HINT: &str =
 pub const BRIEFING_EMPTY_AUTHORITY_NOTICE: &str =
     "_No current authority (decisions/conclusions empty)._";
 
-/// Empty allowed project next-step (T227 F8 / F17).
-pub const BRIEFING_EMPTY_AUTHORITY_NEXT_STEP: &str = "next: seed an Approved decision and Active/Confirmed conclusion (propose + approve/activate), or run `ai-brains policy show --scope …` if grants look wrong";
+/// Empty allowed project next-step (T227 F8 / F17; T263 F2 / F29).
+///
+/// Vault pins are not governed authority. Daily decisions: `recall` / `search`.
+/// One line, ≤140 chars (preflight footer).
+pub const BRIEFING_EMPTY_AUTHORITY_NEXT_STEP: &str =
+    "next: `ai-brains recall` / `search` for vault pins; typed Approved needs propose + approve";
+
+/// Personal deny markdown next-step (T263 F4) — unused/optional, not a required bootstrap.
+pub const BRIEFING_PERSONAL_DENIED_NEXT_STEP: &str =
+    "next: Personal continuity is optional; daily decisions: `ai-brains recall` / `search`";
+
+/// Personal deny JSON `denial_hint` (T263 F4 / F23). Must contain `recall`, not `policy bootstrap`.
+pub const BRIEFING_PERSONAL_DENIED_DENIAL_HINT: &str =
+    "Personal continuity is optional; daily decisions: `ai-brains recall` / `search`";
 
 /// Empty personal continuity notice (T227 F9 / F17).
 pub const BRIEFING_EMPTY_CONTINUITY_NOTICE: &str = "_No personal continuity yet._";
@@ -183,9 +195,9 @@ pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> St
             "> **Denied:** {}",
             packet.denial_reason.as_deref().unwrap_or("policy denied")
         ));
-        // F10: bootstrap next-step after Denied.
+        // T263 F4: Personal deny names recall (not repository bootstrap).
         lines.push(String::new());
-        lines.push(BRIEFING_DENIED_NEXT_STEP.to_string());
+        lines.push(BRIEFING_PERSONAL_DENIED_NEXT_STEP.to_string());
     }
 
     lines.push(String::new());
@@ -348,7 +360,7 @@ mod tests {
                 None
             },
             denial_hint: if denied {
-                Some(BRIEFING_DENIED_DENIAL_HINT.into())
+                Some(BRIEFING_PERSONAL_DENIED_DENIAL_HINT.into())
             } else {
                 None
             },
@@ -408,7 +420,10 @@ mod tests {
     fn render_personal_markdown__denied__names_recall_not_personal_bootstrap() {
         // T263 AC3 / F4
         let md = render_personal_markdown(&empty_personal(true));
-        assert!(md.contains("recall"), "personal deny must name recall: {md}");
+        assert!(
+            md.contains("recall"),
+            "personal deny must name recall: {md}"
+        );
         assert!(
             !md.contains("policy bootstrap"),
             "personal deny must not lead with policy bootstrap: {md}"
@@ -494,7 +509,7 @@ mod tests {
     }
 
     #[test]
-    fn render_personal_markdown__denied__blank_line_before_denied_and_bootstrap() {
+    fn render_personal_markdown__denied__blank_line_before_denied_and_recall() {
         // AC9 + AC9b / F30
         let md = render_personal_markdown(&empty_personal(true));
         assert!(md.contains("**Scope:**"), "scope line present: {md}");
@@ -504,8 +519,12 @@ mod tests {
             "blank line before Denied required (F30): {md}"
         );
         assert!(
-            md.contains(BRIEFING_DENIED_NEXT_STEP),
-            "deny next-step: {md}"
+            md.contains(BRIEFING_PERSONAL_DENIED_NEXT_STEP),
+            "personal deny next-step: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_NEXT_STEP),
+            "personal deny must not reuse repository bootstrap next: {md}"
         );
         assert!(
             !md.contains(BRIEFING_EMPTY_CONTINUITY_NOTICE),

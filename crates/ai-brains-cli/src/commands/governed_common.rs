@@ -57,8 +57,30 @@ pub const PROGRESSIVE_RECALL_FALLBACK: &str = "Ungoverned vault search: ai-brain
 ///
 /// When JSON has an empty `items` array and is not a deny/error envelope, set
 /// `next_step` (if absent) to [`PROGRESSIVE_RECALL_FALLBACK`]. Does not change DTOs.
-pub fn apply_authorized_empty_list_next(_value: &mut serde_json::Value) {
-    // T263 F8 — green fills next_step for empty authorized lists.
+pub fn apply_authorized_empty_list_next(value: &mut serde_json::Value) {
+    let Some(obj) = value.as_object_mut() else {
+        return;
+    };
+    if obj.get("denied").and_then(|d| d.as_bool()) == Some(true) {
+        return;
+    }
+    if obj.get("code").and_then(|c| c.as_str()) == Some("POLICY_DENIED") {
+        return;
+    }
+    let empty_items = obj
+        .get("items")
+        .and_then(|i| i.as_array())
+        .is_some_and(|a| a.is_empty());
+    if !empty_items {
+        return;
+    }
+    if obj.contains_key("next_step") {
+        return;
+    }
+    obj.insert(
+        "next_step".to_string(),
+        serde_json::Value::String(PROGRESSIVE_RECALL_FALLBACK.to_string()),
+    );
 }
 
 /// Expand Unknown preview SOOT (T263 F7) — CLI overlay on existing `preview` string.

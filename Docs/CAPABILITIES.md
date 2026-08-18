@@ -297,10 +297,10 @@ ai-brains query progressive "why was graph backend replaced?" --project-id <uuid
 |---------|--------|
 | **Briefing format (T227)** | TTY default **markdown**; non-TTY **json**. Explicit aliases `human`, `pretty`, `text`, `markdown`, `md` → **markdown**; only `json` → JSON. Unknown `--format` → **exit 2** (`fail_usage`) + accepted list on stderr, **zero stdout**. Dogfood/scripts should pass `--format json` explicitly. |
 | **Dual model (pins ≠ authority)** | Preflight `--summary` pin/marker counts and legacy MemoryPinned memories are **orientation only** — they are **not** injected into briefing authority (`decisions[]` / `conclusions[]`). Briefing is a governed authority probe (Approved decisions + Active/Confirmed conclusions + grants). |
-| **Empty honesty (T227)** | Allowed (`!denied`) empty project → `empty_authority` warning + markdown next-step; allowed empty personal continuity → `empty_continuity` warning + next-step (**no** synthetic summary). **Never** emit empty_* when `denied=true`. |
-| **Denied packets** | Briefing: `denied=true` always seeds `warnings[]` with `kind: "denied"`; markdown includes blank line + `> **Denied:** …` + bootstrap next-step (`policy bootstrap`); process exit **0** (soft; T221). |
-| **Progressive / expand** | Require project id (`--project-id` or `AI_BRAINS_PROJECT_ID`); missing → exit **2** + copy-paste example on stderr. **T221 honesty:** progressive policy wall → exit **3** with pretty packet still on stdout (`denied`, `denial_hint` bootstrap); expand `kind: Denied` → exit **3** (capability and/or cross-scope); expand `Unknown` → exit **0**. First-run: `policy bootstrap --scope Repository:<uuid>` (System principal when `--principal-id` omitted) |
-| **Trace** | No project-id gate; missing/unauthorized → `null` exit **0** |
+| **Empty honesty (T227 / T263)** | Allowed (`!denied`) empty project → `empty_authority` warning + markdown next-step naming **`recall` / `search`** (vault pins are not Approved). Allowed empty personal continuity → `empty_continuity` warning + next-step (**no** synthetic summary). **Never** emit empty_* when `denied=true`. |
+| **Denied packets** | Project briefing: `denied=true` seeds `warnings[]` `kind: "denied"` + bootstrap next-step (`policy bootstrap`); exit **0**. Personal briefing deny names **`recall`** (optional continuity; not a required bootstrap); exit **0**. |
+| **Progressive / expand** | Require project id (`--project-id` or `AI_BRAINS_PROJECT_ID`); missing → exit **2** + copy-paste example on stderr. **T221 honesty:** progressive policy wall → exit **3** with pretty packet still on stdout (`denied`, `denial_hint` bootstrap); expand `kind: Denied` → exit **3** (capability and/or cross-scope); expand `Unknown` → exit **0** with non-empty `preview`. First-run: `policy bootstrap --scope Repository:<uuid>` (System principal when `--principal-id` omitted) |
+| **Trace** | No project-id gate; missing/unauthorized → JSON token `null` exit **0** (not an object) |
 
 ### Governed discovery lists (T203)
 ```powershell
@@ -316,7 +316,7 @@ ai-brains review list --format json   # soft-default scope (authoritative) or fa
 |---------|--------|
 | **Commands** | `source list`, `evidence list` (optional `--query` FTS), `evidence search` (requires `--query`) |
 | **Bounds** | Default limit **50**, hard clamp **200**; `more_available` via LIMIT+1 |
-| **Empty** | E1 `items: []` (never null); human `(none)`; exit **0** when policy allows |
+| **Empty** | E1 `items: []` (never null); human `(none)`; exit **0** when policy allows; authorized-empty JSON adds `next_step` naming `recall` (T263; vault pins are not governed evidence) |
 | **Policy** | `ReadEvidence` for source/evidence list; `ReadConclusions` for review list; deny → exit **3** + `details.hint` (bootstrap first) |
 | **Bootstrap (T210)** | `ai-brains policy bootstrap [--scope …] [--dry-run]` issues discovery grants only (`ReadEvidence`, `ReadConclusions`, `ReadDecisions`, `LocalOnly`); registers principal if missing; idempotent via `active_grants`; no auto-init |
 | **Soft-resolve** | Omitted `--scope` fills only when `scope resolve` is authoritative; else **exit 2** `fail_usage` (never exit **6**) |
@@ -583,7 +583,8 @@ Three surfaces, three corpora — not three UIs on one index:
 | Human, vault only | `recall "…"` / `search "…"` (TTY pretty; `search` is a visible alias of `recall`) |
 | Agent / pipe / scripts | `recall "…"` JSON (or `search`) |
 | Human, vault **+ ledger** / plan vs shipped | `sync query "…" --format pretty` |
-| Governed conclusions / decisions | `query progressive "…"` (Approved decisions + Confirmed/Active conclusions; needs discovery grants; **not** vault FTS) |
+| “What did we decide?” (daily) | **`recall` / `search`** (vault `DECISION:` / `CONSTRAINT:` pins). Briefing / `query progressive` read **only** Approved decisions + Active/Confirmed conclusions — grants do not copy pins into authority. |
+| Governed conclusions / decisions | `query progressive "…"` (Approved + Active/Confirmed only; needs discovery grants; **not** vault FTS). Granted-empty → `next_step` names `recall`. |
 | Embeddings / hybrid | `recall "…" --semantic` (not `sync query`) |
 | Machine stream of vault hits | `sync query "…" --format ndjson` **or** `recall --format json` |
 | Invalid `AI_BRAINS_PROJECT_ID` | **`recall` / `search`** → clap **exit 2**; **`sync query`** → vault-wide `Scope: project=(none)` exit **0** (F36 — clap env parse vs manual resolve; not converged) |

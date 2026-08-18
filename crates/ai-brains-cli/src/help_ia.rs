@@ -23,7 +23,7 @@ Start here:
   ai-brains scope resolve --format json
 
 Docs: Docs/INSTALL.md | Docs/CLI-EXIT-CODES.md | CONTRIBUTING.md
-Tip: use --help on a subcommand for examples (e.g. query progressive --project-id ...).
+Tip: use --help on a subcommand for examples (e.g. recall \"what did we decide\").
 ";
 
 /// One-line tip for short help (F5/M5). clap shows `after_help` on both `-h` and `--help`.

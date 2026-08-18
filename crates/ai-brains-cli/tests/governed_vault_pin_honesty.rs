@@ -114,12 +114,18 @@ fn briefing_project__granted_empty__empty_authority_names_recall() {
         md.contains("empty_authority") || md.contains("No current authority"),
         "granted-empty must keep empty_authority notice: {md}"
     );
-    assert!(md.contains("recall"), "granted-empty next must name recall: {md}");
+    assert!(
+        md.contains("recall"),
+        "granted-empty next must name recall: {md}"
+    );
     assert!(
         !md.contains("seed an Approved"),
         "granted-empty must not keep seed-Approved lead-in: {md}"
     );
-    assert!(!md.contains("**Denied:**"), "granted-empty is allowed: {md}");
+    assert!(
+        !md.contains("**Denied:**"),
+        "granted-empty is allowed: {md}"
+    );
 
     let json = common::hermetic_bin()
         .arg("--no-project-context")
@@ -155,7 +161,7 @@ fn briefing_project__granted_empty__empty_authority_names_recall() {
         })
         .unwrap_or_default();
     assert!(
-        kinds.iter().any(|k| *k == "empty_authority"),
+        kinds.contains(&"empty_authority"),
         "JSON warning kind must stay empty_authority; got {v}"
     );
 }
@@ -218,7 +224,10 @@ fn query_trace__unknown__stdout_null_exit_0() {
         String::from_utf8_lossy(&out.stdout)
     );
     let trimmed = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    assert_eq!(trimmed, "null", "trace empty-success must be the token null; got {trimmed:?}");
+    assert_eq!(
+        trimmed, "null",
+        "trace empty-success must be the token null; got {trimmed:?}"
+    );
 }
 
 /// AC7 — authorized-empty lists emit additive next_step naming recall.
@@ -251,7 +260,9 @@ fn discovery_lists__authorized_empty__next_step_names_recall() {
             String::from_utf8_lossy(&out.stdout)
         );
         let v = stdout_json(&out);
-        let items = v["items"].as_array().unwrap_or_else(|| panic!("{noun} items; {v}"));
+        let items = v["items"]
+            .as_array()
+            .unwrap_or_else(|| panic!("{noun} items; {v}"));
         assert!(items.is_empty(), "{noun} items must stay []; got {v}");
         let step = v["next_step"].as_str().unwrap_or("");
         assert!(
