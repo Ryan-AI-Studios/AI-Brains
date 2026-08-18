@@ -230,60 +230,12 @@ fn query_trace__unknown__stdout_null_exit_0() {
     );
 }
 
-/// AC7 — authorized-empty lists emit additive next_step naming recall.
-#[test]
-fn discovery_lists__authorized_empty__next_step_names_recall() {
-    let dir = tempdir().unwrap();
-    let vault = dir.path().join("vault.db");
-    init_vault(&vault);
-    seed_discovery_grants(&vault);
-
-    for noun in ["evidence", "source", "review"] {
-        let out = common::hermetic_bin()
-            .arg("--no-project-context")
-            .arg("--vault-path")
-            .arg(&vault)
-            .arg(noun)
-            .arg("list")
-            .arg("--scope")
-            .arg(SCOPE)
-            .arg("--format")
-            .arg("json")
-            .arg("--local")
-            .output()
-            .unwrap_or_else(|_| panic!("{noun} list"));
-        assert_eq!(
-            out.status.code(),
-            Some(0),
-            "{noun} authorized-empty must exit 0; stderr={} stdout={}",
-            String::from_utf8_lossy(&out.stderr),
-            String::from_utf8_lossy(&out.stdout)
-        );
-        let v = stdout_json(&out);
-        let items = v["items"]
-            .as_array()
-            .unwrap_or_else(|| panic!("{noun} items; {v}"));
-        assert!(items.is_empty(), "{noun} items must stay []; got {v}");
-        let step = v["next_step"].as_str().unwrap_or("");
-        assert!(
-            step.contains("recall"),
-            "{noun} authorized-empty next_step must name recall; got {v}"
-        );
-    }
-}
-
-/// AC8 — denied lists stay exit 3 + bootstrap; no authorized-empty next_step.
-#[test]
-fn evidence_list__no_grants__exit_3_bootstrap_no_empty_next() {
-    let dir = tempdir().unwrap();
-    let vault = dir.path().join("vault.db");
-    init_vault(&vault);
-
-    let out = common::hermetic_bin()
+fn list_json(vault: &Path, noun: &str) -> std::process::Output {
+    common::hermetic_bin()
         .arg("--no-project-context")
         .arg("--vault-path")
-        .arg(&vault)
-        .arg("evidence")
+        .arg(vault)
+        .arg(noun)
         .arg("list")
         .arg("--scope")
         .arg(SCOPE)
@@ -291,28 +243,96 @@ fn evidence_list__no_grants__exit_3_bootstrap_no_empty_next() {
         .arg("json")
         .arg("--local")
         .output()
-        .expect("evidence list deny");
+        .unwrap_or_else(|_| panic!("{noun} list"))
+}
+
+fn assert_authorized_empty_list_next(noun: &str) {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    let out = list_json(&vault, noun);
     assert_eq!(
         out.status.code(),
-        Some(3),
-        "denied list stays exit 3; stderr={} stdout={}",
+        Some(0),
+        "{noun} authorized-empty must exit 0; stderr={} stdout={}",
         String::from_utf8_lossy(&out.stderr),
         String::from_utf8_lossy(&out.stdout)
     );
     let v = stdout_json(&out);
-    assert_eq!(v["code"], "POLICY_DENIED", "packet={v}");
+    let items = v["items"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{noun} items; {v}"));
+    assert!(items.is_empty(), "{noun} items must stay []; got {v}");
+    let step = v["next_step"].as_str().unwrap_or("");
+    assert!(
+        step.contains("recall"),
+        "{noun} authorized-empty next_step must name recall; got {v}"
+    );
+}
+
+fn assert_denied_list_bootstrap_no_empty_next(noun: &str) {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let out = list_json(&vault, noun);
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "{noun} denied list stays exit 3; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v = stdout_json(&out);
+    assert_eq!(v["code"], "POLICY_DENIED", "{noun} packet={v}");
     let hint = v["details"]["hint"].as_str().unwrap_or("");
     assert!(
         hint.contains("policy bootstrap") || hint.contains("bootstrap"),
-        "denied list must keep bootstrap hint; got {v}"
+        "{noun} denied list must keep bootstrap hint; got {v}"
     );
     assert!(
         v.get("next_step").is_none(),
-        "denied list must not get authorized-empty next_step; got {v}"
+        "{noun} denied list must not get authorized-empty next_step; got {v}"
     );
     let blob = v.to_string();
     assert!(
         !blob.contains("empty_authority"),
-        "denied list must not mention empty_authority; got {v}"
+        "{noun} denied list must not mention empty_authority; got {v}"
     );
+}
+
+/// AC7 — authorized-empty evidence list emits additive next_step naming recall.
+#[test]
+fn evidence_list__authorized_empty__next_step_names_recall() {
+    assert_authorized_empty_list_next("evidence");
+}
+
+/// AC7 — authorized-empty source list emits additive next_step naming recall.
+#[test]
+fn source_list__authorized_empty__next_step_names_recall() {
+    assert_authorized_empty_list_next("source");
+}
+
+/// AC7 — authorized-empty review list emits additive next_step naming recall.
+#[test]
+fn review_list__authorized_empty__next_step_names_recall() {
+    assert_authorized_empty_list_next("review");
+}
+
+/// AC8 — denied evidence list stays exit 3 + bootstrap; no authorized-empty next_step.
+#[test]
+fn evidence_list__no_grants__exit_3_bootstrap_no_empty_next() {
+    assert_denied_list_bootstrap_no_empty_next("evidence");
+}
+
+/// AC8 — denied source list stays exit 3 + bootstrap; no authorized-empty next_step.
+#[test]
+fn source_list__no_grants__exit_3_bootstrap_no_empty_next() {
+    assert_denied_list_bootstrap_no_empty_next("source");
+}
+
+/// AC8 — denied review list stays exit 3 + bootstrap; no authorized-empty next_step.
+#[test]
+fn review_list__no_grants__exit_3_bootstrap_no_empty_next() {
+    assert_denied_list_bootstrap_no_empty_next("review");
 }
