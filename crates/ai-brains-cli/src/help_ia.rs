@@ -104,6 +104,31 @@ mod tests {
     }
 
     #[test]
+    fn root_after_long_help__tip_names_recall_not_progressive() {
+        // T263 AC9 / F10
+        assert!(
+            ROOT_AFTER_LONG_HELP.contains("recall \"what did we decide\""),
+            "Start-here must keep recall what-did-we-decide; got:\n{ROOT_AFTER_LONG_HELP}"
+        );
+        let tip_line = ROOT_AFTER_LONG_HELP
+            .lines()
+            .find(|l| l.starts_with("Tip:"))
+            .unwrap_or("");
+        assert!(
+            !tip_line.is_empty(),
+            "ROOT_AFTER_LONG_HELP must have a Tip line; got:\n{ROOT_AFTER_LONG_HELP}"
+        );
+        assert!(
+            !tip_line.contains("query progressive"),
+            "Tip must not exemplify query progressive; got {tip_line}"
+        );
+        assert!(
+            tip_line.contains("recall"),
+            "Tip should exemplify recall; got {tip_line}"
+        );
+    }
+
+    #[test]
     fn root_after_help_tip__is_one_line_without_full_group_wall() {
         let tip = ROOT_AFTER_HELP_TIP.trim();
         assert!(

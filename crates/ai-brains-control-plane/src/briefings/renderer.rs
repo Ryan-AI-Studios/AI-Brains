@@ -356,6 +356,70 @@ mod tests {
     }
 
     #[test]
+    fn briefing_empty_authority_next_step__contains_recall_not_seed_approved() {
+        // T263 AC1 / F2
+        assert!(
+            BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.contains("recall"),
+            "empty_authority next must name recall; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+        assert!(
+            !BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.starts_with("seed an Approved"),
+            "must not lead with seed-Approved; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+        assert!(
+            !BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.starts_with("next: seed an Approved"),
+            "must not lead with seed-Approved; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+    }
+
+    #[test]
+    fn briefing_empty_authority_next_step__one_line_at_most_140_chars() {
+        // T263 AC14 / F29
+        assert!(
+            !BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.contains('\n'),
+            "empty_authority next must be one line; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP:?}"
+        );
+        let n = BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.chars().count();
+        assert!(
+            n <= 140,
+            "empty_authority next must be <=140 chars (got {n}): {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+    }
+
+    #[test]
+    fn render_project_markdown__allowed_empty__names_recall() {
+        // T263 AC1
+        let md = render_project_markdown(&empty_project(false));
+        assert!(
+            md.contains(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP),
+            "allowed empty must emit new next-step: {md}"
+        );
+        assert!(
+            md.contains("recall"),
+            "allowed empty markdown must name recall: {md}"
+        );
+        assert!(
+            !md.contains("seed an Approved"),
+            "allowed empty must not keep old seed-Approved lead-in: {md}"
+        );
+    }
+
+    #[test]
+    fn render_personal_markdown__denied__names_recall_not_personal_bootstrap() {
+        // T263 AC3 / F4
+        let md = render_personal_markdown(&empty_personal(true));
+        assert!(md.contains("recall"), "personal deny must name recall: {md}");
+        assert!(
+            !md.contains("policy bootstrap"),
+            "personal deny must not lead with policy bootstrap: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_NEXT_STEP),
+            "personal deny must not reuse repository bootstrap next: {md}"
+        );
+    }
+
+    #[test]
     fn render_project_markdown__allowed_empty__emits_empty_authority_next_step() {
         // AC7
         let md = render_project_markdown(&empty_project(false));

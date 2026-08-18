@@ -39,6 +39,11 @@ pub struct TraceOptions {
     pub trace_id: String,
 }
 
+/// Fill `preview` when expand JSON is `kind=Unknown` with an empty preview (T263 F7).
+pub(crate) fn apply_unknown_expand_preview(_value: &mut serde_json::Value) {
+    // T263 F7 — green writes UNKNOWN_HANDLE_PREVIEW.
+}
+
 /// Progressive deny/empty honesty (T243 F33). Mutate before `emit_json`.
 pub(crate) fn apply_progressive_search_hints(resp: &mut ProgressiveQueryResponse) {
     if resp.denied {
@@ -267,6 +272,23 @@ mod tests {
             "authorized empty must omit denial_hint; got {:?}",
             resp.denial_hint
         );
+    }
+
+    #[test]
+    fn expand_unknown__preview_nonempty() {
+        // T263 AC5 / F7
+        let mut value = serde_json::json!({
+            "kind": "Unknown",
+            "preview": "",
+            "handle_id": "00000000-0000-0000-0000-000000000000",
+        });
+        apply_unknown_expand_preview(&mut value);
+        let preview = value["preview"].as_str().unwrap_or("");
+        assert!(
+            !preview.is_empty(),
+            "Unknown preview must be a non-empty SOOT; got {value}"
+        );
+        assert_eq!(value["kind"], "Unknown");
     }
 
     #[test]

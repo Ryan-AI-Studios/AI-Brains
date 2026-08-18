@@ -53,6 +53,17 @@ pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists;
 // CLI-only progressive→recall fallback (T243 F13). Not dual-site.
 pub const PROGRESSIVE_RECALL_FALLBACK: &str = "Ungoverned vault search: ai-brains recall \"…\"";
 
+/// CLI overlay for authorized-empty discovery lists (T263 F8).
+///
+/// When JSON has an empty `items` array and is not a deny/error envelope, set
+/// `next_step` (if absent) to [`PROGRESSIVE_RECALL_FALLBACK`]. Does not change DTOs.
+pub fn apply_authorized_empty_list_next(_value: &mut serde_json::Value) {
+    // T263 F8 — green fills next_step for empty authorized lists.
+}
+
+/// Expand Unknown preview SOOT (T263 F7) — CLI overlay on existing `preview` string.
+pub const UNKNOWN_HANDLE_PREVIEW: &str = "Handle not found.";
+
 /// Discovery-class capability labels (T210 bootstrap / T241 probe) — Read* only.
 pub const DISCOVERY_CAP_LABELS: [&str; 3] = ["ReadEvidence", "ReadConclusions", "ReadDecisions"];
 
@@ -648,6 +659,46 @@ mod tests {
     }
 
     /// AC12 — dual-site POLICY_DENIED_HINT wording must stay unchanged (T243).
+    #[test]
+    fn apply_authorized_empty_list_next__empty_items__sets_recall() {
+        // T263 AC7 / F8
+        let mut value = serde_json::json!({
+            "items": [],
+            "more_available": false,
+        });
+        apply_authorized_empty_list_next(&mut value);
+        let step = value["next_step"].as_str().unwrap_or("");
+        assert!(
+            !step.is_empty() && step.contains("recall"),
+            "authorized-empty list must set next_step with recall; got {value}"
+        );
+        assert_eq!(
+            value["items"].as_array().map(Vec::len),
+            Some(0),
+            "items must stay empty; got {value}"
+        );
+    }
+
+    #[test]
+    fn apply_authorized_empty_list_next__nonempty_or_denied__omits_next_step() {
+        let mut nonempty = serde_json::json!({"items": [{"id": "1"}]});
+        apply_authorized_empty_list_next(&mut nonempty);
+        assert!(
+            nonempty.get("next_step").is_none(),
+            "non-empty items must not get next_step; got {nonempty}"
+        );
+        let mut denied = serde_json::json!({
+            "code": "POLICY_DENIED",
+            "message": "no grant",
+            "items": [],
+        });
+        apply_authorized_empty_list_next(&mut denied);
+        assert!(
+            denied.get("next_step").is_none(),
+            "denied envelope must not get authorized-empty next_step; got {denied}"
+        );
+    }
+
     #[test]
     fn policy_denied_hint__wording__unchanged() {
         assert_eq!(

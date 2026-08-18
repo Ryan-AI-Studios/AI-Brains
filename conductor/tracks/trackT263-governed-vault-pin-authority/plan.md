@@ -1,11 +1,11 @@
 # T263 Plan — Governed honesty (H1 only)
 
-**Status:** **Pending** (Planned requirements; not In Progress)
+**Status:** **In Progress**
 **Spec:** [spec.md](./spec.md) F0–F29 / AC1–AC14 + §13 fold-in
 **Category:** FEATURE / UX
 **Ledger TX (planning):** `bcc514c0-8f84-48d6-b8d7-779195d7c630` (DOCS)
 **Ledger TX (fold-in):** `32e9608c-3317-4bfd-b168-44a9485c1123` (DOCS)
-**Ledger TX (implement):** FEATURE on **go**
+**Ledger TX (implement):** `6c40de3d-10ce-4524-a3e4-0c6488493446` (FEATURE)
 
 ---
 

@@ -379,8 +379,12 @@ fn briefing_personal__no_grants__soft_deny_denial_hint() {
         .or_else(|| v["packet"]["denial_hint"].as_str())
         .unwrap_or("");
     assert!(
-        !hint.is_empty() && hint.contains("policy bootstrap"),
-        "personal denied JSON must include denial_hint with policy bootstrap; got {v}"
+        !hint.is_empty() && hint.contains("recall"),
+        "personal denied JSON denial_hint must name recall; got {v}"
+    );
+    assert!(
+        !hint.contains("policy bootstrap"),
+        "personal denied JSON must not recommend policy bootstrap; got {v}"
     );
 }
 
