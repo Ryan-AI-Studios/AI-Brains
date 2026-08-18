@@ -223,7 +223,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Daily Scope `test-alias` `441837f6` vs path owner `3581317d`~~ | **T258 Completed 2026-08-16.** `project adopt-path` print-only; `--write-env --yes` one-key rewrite. T240 F2 stands. Soft: general `project use <uuid>` (F14 remainder); no-owner JSON is `COMMAND_FAILED` not frozen object; AC10 event-count inspection-only; live operator rebind + PATH `cargo install` out of band. T259 leftover / T267 list footer unchanged. |
 | ~~Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots~~ | **T259 Completed 2026-08-17.** Inventory `--project`/`--shared-only` + `rebind-path` print-only / `--write --yes` one-tx. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. Soft: leftover memory reclassify by path; PATH `cargo install`; `project.rs` `resolve_project_ref` duplicate. |
 | ~~Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3)~~ | **T260 Completed 2026-08-17.** Default exclude via `symbol_content` + **GLOB** ⊆ detector (F19). `--symbols` mix. Dedupe after `rerank_hits`. Leftover-**project** exclusion stays **T264**. |
-| `recall ""` 5.7 s | **T261 Planned+fold-in 2026-08-17.** Live: `""` ~640 ms; whitespace/stopword **~2 s + hits**. F19 contraction per-token; AC5 `skipped` wire exact. Status stays **Pending** until go. |
+| ~~`recall ""` 5.7 s~~ | **T261 Completed 2026-08-17.** 0-contentful → T207 empty; no LIKE/bridge/embed/graph. FEATURE TX `4a317118-21c5-4667-9f8d-ae10157f20e2`. |
 | Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
 | Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review) | **T263** |
 | `preflight --global` blends other repos (5/4, summary 7/6) | **T264** |
@@ -245,6 +245,18 @@ Specified softs — not product blockers:
 | T223 env-override can still trail JSON | Decline F17 — separate SOOT |
 | Compact JSON uses `note_machine_stdout` not pretty | Intentional — T265/T266 |
 | Human warn prints **after** the table | F6; T240 asserts presence not order |
+
+### T261 closeout residuals (2026-08-17)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Skip CLI graph-vault open on contentless | Soft §11 — SQLCipher open dominates |
+| Skip T207 `<10` memory COUNT on contentless | Soft F9 — keep small-vault sentence |
+| PATH `ai-brains` still LIKE/MATCH-all until reinstall | Soft F12 — operator `cargo install` |
+| Leftover-project `--global` / preflight blender | **T264** |
+| Graph sparse / 4h pin no node | **T262** |
 
 ### T260 closeout residuals (2026-08-17)
 

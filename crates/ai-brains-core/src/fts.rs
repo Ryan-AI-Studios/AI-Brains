@@ -107,6 +107,14 @@ pub fn should_suggest_fewer_keywords(query: &str) -> bool {
     tokens.len() >= 3 && !contentful_tokens(&tokens).is_empty()
 }
 
+/// True when the query has zero contentful tokens (T261 F1).
+///
+/// Covers empty, whitespace, punctuation-only, all-stopword, and single-char-only
+/// queries. Apostrophe fragments are per-token (F19) — no contraction exception.
+pub fn is_contentless_query(query: &str) -> bool {
+    contentful_tokens(&extract_fts_tokens(query)).is_empty()
+}
+
 #[cfg(test)]
 #[allow(non_snake_case)] // TDD names use __ separators
 mod tests {
@@ -313,5 +321,37 @@ mod tests {
     fn sanitize_fts_query__equals_match_and_extract() {
         let q = "what_about forget-list?";
         assert_eq!(sanitize_fts_query(q), match_and(&extract_fts_tokens(q)));
+    }
+
+    // --- T261 contentless gate ---
+
+    #[test]
+    fn is_contentless_query__empty_whitespace_punct_stopword_single_char__true() {
+        assert!(is_contentless_query(""));
+        assert!(is_contentless_query(" \t\n"));
+        assert!(is_contentless_query("..."));
+        assert!(is_contentless_query("the"));
+        assert!(is_contentless_query("a"));
+        assert!(is_contentless_query("the the the"));
+        assert!(is_contentless_query("what is the"));
+    }
+
+    #[test]
+    fn is_contentless_query__ok_and_negator_phrase__false() {
+        assert!(!is_contentless_query("ok"));
+        assert!(!is_contentless_query("not ok"));
+        assert!(!is_contentless_query("forget"));
+        assert!(!is_contentless_query("forget list"));
+        assert!(!is_contentless_query("what not to forget"));
+        assert!(!is_contentless_query("  ok  "));
+    }
+
+    #[test]
+    fn is_contentless_query__contraction_fragments__per_token__ac13() {
+        // F19: apostrophes are separators. Fragments are per-token.
+        assert!(is_contentless_query("can't"));
+        assert!(is_contentless_query("what's"));
+        assert!(!is_contentless_query("i'll"));
+        assert!(!is_contentless_query("don't"));
     }
 }

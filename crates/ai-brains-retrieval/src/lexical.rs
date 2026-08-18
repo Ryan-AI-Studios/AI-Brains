@@ -1,8 +1,8 @@
 use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use ai_brains_core::{
-    LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, match_and, match_or,
-    select_or_tokens,
+    LEXICAL_MATCH_HARD_CAP, contentful_tokens, extract_fts_tokens, is_contentless_query, match_and,
+    match_or, select_or_tokens,
 };
 use ai_brains_store::VaultConnection;
 use rusqlite::params_from_iter;
@@ -216,6 +216,11 @@ pub fn substring_fallback(
     limit: usize,
     exclude_symbol_stubs: bool,
 ) -> Result<Vec<RetrievalMemory>> {
+    // T261 F7 / AC14: contentless (incl. whitespace) must not COUNT + LIKE.
+    if is_contentless_query(query) {
+        return Ok(Vec::new());
+    }
+
     let conn = conn.lock()?;
 
     // CPU guard: skip substring scan for large projects.
@@ -227,10 +232,6 @@ pub fn substring_fallback(
             "Skipping substring fallback: project has {} memories (>10000 threshold)",
             count
         );
-        return Ok(Vec::new());
-    }
-
-    if query.is_empty() {
         return Ok(Vec::new());
     }
 
