@@ -1,13 +1,133 @@
 # T262 Plan — Graph live projection
 
-**Status:** **Pending** (placeholder)
-**Spec:** [spec.md](./spec.md)
+**Status:** **Pending** (requirements written; spec **Planned**)
+**Spec:** [spec.md](./spec.md) F0–F35 / AC1–AC18
 **Category:** FEATURE / BUGFIX
+**Ledger TX (planning):** `41977238-d85e-4e8a-bc80-3baba4937c90` (DOCS)
+**Ledger TX (implement):** FEATURE on **go**
 
-- [ ] Go / FEATURE TX
-- [ ] Diagnose T69 hook vs the 4h missing node (read-only first)
-- [ ] Fix next-action `update` → `rebuild` on missing node
-- [ ] Hierarchy empty human
-- [ ] Hermetic pin→neighbors
-- [ ] Rebuild cost note before any live rebuild
-- [ ] Gate + review
+---
+
+## Preflight (plan time — 2026-08-17)
+
+| Check | Result |
+|-------|--------|
+| HEAD / tree | `da785c1` T261 `#176`. `main == origin/main`. CLEAN. |
+| T262 stub | Placeholder upgraded in place to **Planned** |
+| PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (2026-08-17 18:20). Pre-T260 (`--symbols` unknown). Graph-on T246 pretty. **Do not `cargo install`.** |
+| Source debug | `target\debug\ai-brains.exe` (2026-08-17 21:32) — newer (T261). Projector/pin/hook same hole. |
+| Live hole | Hook **works** for recall `MemoryPinned` (`7c3634fe` → `in RECALLS`). Pin path emits capture events **without** `turn_id`; `TurnProjection` uses `MemoryId::new()`; projector `DefaultHasher` → `kind=turn`. Neighbors/hierarchy missing-node next is still `graph update`. `graph update` human: 21477 / 1363 / E/N **0.063** / remediation **rebuild**. |
+| SoT | `projector.rs` capture arms; `turn.rs:61`; `pin.rs` print + `StoreSink`; `PRETTY_NEXT` in `graph.rs:12`. |
+| clap / rusqlite / serde_json | lock clap **4.6.1** / crates.io **4.6.6**; rusqlite **0.39.0**; serde_json lock **1.0.150** / crates.io **1.0.151**. rustc **1.95.0**. **No clap 5.** Snapshot — re-verify at execute. |
+| Last PR Cursor | #176 comments/reviews/inline **0**. Dependabot only. **N/A.** |
+| `deferred.md` | Full scan. Overlap: audit T262 **absorb**; T213 projector half **absorb** / auto-rebuild **decline**; T246 F18 **absorb** / F3 supersede; T147 #10 **partial**; T267+ **decline**. |
+| ai-brains | `preflight --summary` ok (3581317d / 2902). Recall PATH still stubs. No prior pin-id pin. |
+| ledgerful | doctor ready (hygiene warns). 0 pending at start. Hotspot **#1** `project.rs` — do not touch. Index incremental completed. |
+| Research | Rust `DefaultHasher` not durable; Azure event sourcing: replayable ids from events; T213 typed-sparse; CLIG next-action honesty. |
+| `ISSUES.md` | **Does not exist** |
+| Live rebuild / `.env` / nightly | **Not run** / **not written** / **not scheduled** this pass. |
+
+---
+
+## Absorbed deferred
+
+| Item | Source | Plan action |
+|------|--------|-------------|
+| Sparse graph / 4h pin no node / neighbors 4/5 / hierarchy 3/4 | audit T262 | **DoD** F1–F12 / AC1–AC18 |
+| T246 F18 projector completeness | T246 soft | **DoD** F6–F11 / AC2 / AC6–AC7 |
+| T213 projector more edges | T213 “not T213” | **Partial** F9 (typed RECALLS from capture). No invented edges. |
+| T246 F3 `next: graph update` | T246 AC3 | **Supersede** F1 / F31 / AC8–AC9 |
+| T88 print turn_id | T88 | **Absorb** F12 |
+| T147 #10 random turn memory_id | T147 | **Partial** F8/F27 (`None` stays random) |
+| T213 auto rebuild / default-on / WCC | T213 | **Decline** F4/F16 |
+| T213 F31 freshness | T213/T246 F19 | **Decline** (soft) |
+| T267 harness/whoami/list | audit | **Decline** F30 |
+| T263–T271 / T240 F2 / T255 | deferred / standing | **Decline** |
+| last-PR Cursor | #176 | **N/A** — no leftover to mint |
+| `DefaultHasher` as node id | live `projector.rs` | **Absorb** F10 / AC3 |
+
+---
+
+## Phase 0 — on go (re-verify)
+
+- [ ] Re-read `projector.rs` capture + `MemoryPinned` arms. Confirm hasher still live; no `turn_id` match.
+- [ ] Re-read `turn.rs` `MemoryId::new()` and `pin.rs` print + `StoreSink` hook apply.
+- [ ] Re-read `graph.rs` `PRETTY_NEXT` and T246 empty-pretty unit.
+- [ ] Classify-only: `graph update --format human`; neighbors of a just-recalled full UUID still `RECALLS` (hook). Do **not** rebuild. Do **not** pin to the live vault.
+- [ ] Re-check lock clap + crates.io: still no clap 5 (or this track is not that bump).
+- [ ] Rescan **entire** `conductor/deferred.md` for new open graph-projection rows.
+- [ ] Last merged PR + open HEAD PR Cursor comments. Mint placeholder if a leftover fits nowhere.
+- [ ] `ledgerful ledger start T262-graph-live-projection --category FEATURE`
+
+---
+
+## Phase 1 — Red (failing tests first)
+
+- [ ] Events AC1 serde units (`turn_id` missing / present) — names in spec §7.
+- [ ] Store AC4/AC5 turn projection units.
+- [ ] Graph AC2/AC3 projector units.
+- [ ] CLI AC8/AC9/AC10 pretty + JSON units (replace T246 `…graph_update` asserts).
+- [ ] Hermetic graph-on AC6/AC7 pin → neighbors (tempdir; `--features graph`).
+- [ ] Confirm red: missing field / hasher id / `PRETTY_NEXT` still `graph update`.
+
+---
+
+## Phase 2 — Green
+
+- [ ] F6 payload field + F32 serde defaults.
+- [ ] F7 capture `build_*` set `Some(request.turn_id)`.
+- [ ] F8 `TurnProjection` branch.
+- [ ] F9/F10 projector (memory+RECALLS vs event_id turn node).
+- [ ] F1/F18/F29 pretty helpers + `ctx.conn.memory_exists` on miss only.
+- [ ] F12 pin comment.
+- [ ] Compile-fix ~15 payload literals with `turn_id: None` (AC18).
+- [ ] No `unwrap`/`expect`/`panic` in production. Graph apply stays non-fatal.
+
+---
+
+## Phase 3 — Docs + keep-green
+
+- [ ] F25 CAPABILITIES / OPERATIONS / PROTOCOL-COMPAT / CHANGELOG.
+- [ ] Skill one-liner only if the graph section lacks pin-id honesty.
+- [ ] Keep green: T74 update JSON; T198/T222 feature-off; T213/T232 density; T246 format/sort/limit (except superseded AC3); capture independence; live_graph MemoryPinned unit; AC14.
+
+---
+
+## Phase 4 — Verify
+
+- [ ] `cargo fmt --check`
+- [ ] `cargo clippy -p ai-brains-events -p ai-brains-capture -p ai-brains-store -p ai-brains-graph -p ai-brains-cli --all-targets --features graph -- -D warnings` (adjust feature matrix if a crate has no `graph` feature — events/capture/store clippy without it).
+- [ ] Targeted nextest: events + store turn + graph projector + cli graph + hermetic pin neighbors.
+- [ ] Full workspace gate only at finalize (implement-track), not this plan pass.
+- [ ] `ledgerful verify --scope fast` after FEATURE edits (implement).
+- [ ] AC15 classify-only live neighbors on a known recall id. **No** live rebuild (F23).
+
+---
+
+## Phase 5 — Close (implement-track, not this skill)
+
+- [ ] FEATURE TX commit + `review.md` + `codex-review` (F20).
+- [ ] conductor Completed only after implement + merge.
+- [ ] Append soft residuals to `deferred.md`.
+- [ ] Pin: `DECISION: pin turn_id is the graph memory id; graph update is not a remediator.`
+- [ ] Publish: branch → PR → GHA green → squash-merge → prune. Never `git push origin main`.
+
+---
+
+## Definition of done
+
+- [ ] AC1–AC18 green or explicitly Phase-0 retargeted in spec (not silently dropped).
+- [ ] F0–F35 honored (declines stay declined).
+- [ ] No live `graph rebuild`. No historical memory_id remint.
+- [ ] T213 floors unchanged. T246 JSON keys unchanged.
+- [ ] Medium+ review findings not silently dropped.
+- [ ] Registry stays **Pending** until implement-track marks Completed.
+
+---
+
+## Stop-before
+
+- Live `graph rebuild` / nightly schedule mutate
+- `cargo install` / silent `.env` / leftover rebind
+- Scope exceeds this track (T263–T271, T240 F2, T255, prefix match, default-on)
+- Ambiguous conflict with a new fold-in finding
