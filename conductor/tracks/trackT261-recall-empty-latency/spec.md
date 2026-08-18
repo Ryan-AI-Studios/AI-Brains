@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Daily `recall` / `search` / `sync query` vault arm stop burning seconds (and writing `MemoryPinned`) on queries with nothing to search. Graph live projection stays **T262**. Leftover-project `--global` stays **T264**. Ledger pane stays **T271**.
 - **Absorbs:** Empty / whitespace / punctuation-only / all-stopword / single-char-only queries running T105 LIKE, T217 R0 MATCH, Ledgerful `--auto-index` bridge, `--semantic` embed, graph expansion, and `MemoryPinned` appends
 - **Not absorbed:** Ranking quality (T260 Completed); FTS rescue correctness (T217 closed); leftover-project isolation (T264); graph projection (T262); format maze (T266)
-- **Research date:** 2026-08-17 (HEAD `1842df0` T260 `#175`)
-- **AI fold-in:** none yet
-- **Ledger:** planning DOCS TX `afe06292-7680-4d1f-b22e-a8a447f0a423`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-17 (plan dogfood HEAD `1842df0` T260 `#175`; plan commit `20bdd90`)
+- **AI fold-in:** 2026-08-17 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). No Blockers / Majors. **Agree:** OpenCode **O2** contraction fragments are per-token (**F19** / **AC13**); OpenCode **O3.1** AC5 wire is exact (`endpoint == None`); OpenCode **O1** FTS5 citation = live `fts.rs` + Elastic `match_none` (sqlite.org page not SoT). **Already covered:** Agy-O1 substring-before-COUNT (F7/AC14); Agy-m2 DTO detail (F6); OpenCode **O3.2** hint COUNT (F9 / §11). **Agree note:** Agy-m1 HEAD (`1842df0` product vs `20bdd90` plan). Disposition **§13**.
+- **Ledger:** planning DOCS TX `afe06292-7680-4d1f-b22e-a8a447f0a423`. Fold-in DOCS TX `90a94ca0-7f0f-4989-a7af-443b4df7ff11`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** change `forget --match`. Do **not** reopen T217 rescue, T105 10k guard (contentful miss), T207 hint copy, T240 F2, T255 declines, T260 GLOB. Do **not** `cargo install`, write live `.env`, bump clap, or add crates.
 
 ---
@@ -32,7 +32,7 @@ No models on the default path. No new events. No DTO keys. No forgotten-match ch
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `1842df0` — T260 `#175` squash-merged. Tree **CLEAN**. `main` == `origin/main` (`00`). |
+| HEAD | **Plan dogfood:** `1842df0` T260 `#175` (product `src/` unchanged since). **Plan commit:** `20bdd90`. **This fold-in:** same product `src/` as `20bdd90`. `main` ahead of `origin/main` by the plan docs commit. Tree CLEAN at fold-in. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` (mtime **2026-08-17 18:20**, 24 848 896 bytes). **Pre-T260** (`--symbols` unknown). T257 on PATH. **Do not `cargo install`.** |
 | Source debug | `target\debug\ai-brains.exe` (mtime **2026-08-17 19:34**, 40 980 480 bytes). Newer than PATH. |
 | `preflight --summary` | Scope path owner `3581317d` (`C:\dev\ai-brains`); **2854** pinned. Discovery grants empty (T263). |
@@ -88,7 +88,7 @@ No models on the default path. No new events. No DTO keys. No forgotten-match ch
 |-------|------------------|-----|
 | clap 4 required positional `""` | crates.io clap **4.6.6** (2026-08-06). clap 5 **not** current. A required `String` accepts empty; it is not “missing.” Do not add a value parser that rejects `""` (that would turn F1 into clap exit 2). | Keep required `<QUERY>`; empty is a valid value. |
 | Empty search = match-all is a known footgun | NEST / elasticsearch-net **#2179**: empty query rewrite became match-all. Elastic `match_none` exists specifically to mean “run the request, return nothing.” | F1 is `match_none`, not match-all. Do **not** skip the command (exit 2) — return the T207 empty envelope. |
-| SQLite FTS5 MATCH | sqlite.org/fts5.html — MATCH is token-based. Empty MATCH is not a documented “no documents” shortcut; LIKE `% %` **is** match-almost-all. | We already skip MATCH on empty tokens. The live hole is LIKE + stopword R0, not MATCH `''`. |
+| SQLite FTS5 MATCH | Live `fts.rs` unicode61 split + `contentful_tokens` is the SoT (OpenCode **O1**). A fetch of sqlite.org/fts5.html returned nav-only / unusable citation — do **not** treat that page as evidence. LIKE `% %` **is** match-almost-all. Elastic `match_none` remains the industry pattern. | We already skip MATCH on empty tokens. The live hole is LIKE + stopword R0, not MATCH `''`. |
 | T105 LIKE | Live src + sqlite LIKE ASCII case-fold. No API change. | Keep for contentful misses. Gate contentless **before** COUNT. |
 | N/A | Windows schtasks / SQLCipher page encrypt / new crates | This track does not schedule, encrypt, or add deps. |
 
@@ -117,6 +117,7 @@ No models on the default path. No new events. No DTO keys. No forgotten-match ch
 | **F16** | Default `graph_hop_depth=1` stays for contentful queries. Contentless never reaches graph. |
 | **F17** | JSON empty: `results: []`, existing `hint` with `No results`, optional `embedding` only when `--semantic` (F6). T180 compact / N−1 ignore unknowns. |
 | **F18** | All-stopword / single-char becoming empty is an **intentional behavior change** (today they match-all). Document in CAPABILITIES + CHANGELOG. Negators stay contentful (`not` / `no` / `never` — T217 F22). |
+| **F19** | Apostrophe / contraction split is T217 unicode61 **per token**, not a whole-word exception. `"can't"` / `"what's"` → contentless; `"i'll"` (`ll`) / `"don't"` (`don`) → contentful. Do not add a contraction special-case. |
 
 ---
 
@@ -128,7 +129,7 @@ No models on the default path. No new events. No DTO keys. No forgotten-match ch
 | **AC2** | `recall_full("   ", …)` → empty hits (not substring match-all). |
 | **AC3** | `recall_full("the the the", …)` and `recall_full("what is the", …)` → empty hits. |
 | **AC4** | `recall_full("ok", …)` / `"forget list"` / `"what not to forget"` still search (contentful). Existing T105 `"llo worl"` still finds via substring. |
-| **AC5** | `recall_full("", …, semantic: true)` → empty hits; `embedding.status == "skipped"`; `detail == Some("contentless_query")`; hermetic must not call the embed provider. |
+| **AC5** | `recall_full("", …, semantic: true)` → empty hits; `embedding.status == "skipped"`; `detail == Some("contentless_query")`; **`endpoint == None`**; hermetic must not call the embed provider. Retrieval’s first emission of the closed-set `skipped` value. |
 | **AC6** | Hermetic CLI `recall "" --format pretty` → exit 0, `Scope:`, `No results for ''`. |
 | **AC7** | Hermetic CLI `recall "   " --format pretty` → **No results**, **no** hit lines (regression vs live 2026-08-17). |
 | **AC8** | Hermetic CLI `recall "the the the" --format pretty` → No results (not a stopword dump). |
@@ -136,7 +137,7 @@ No models on the default path. No new events. No DTO keys. No forgotten-match ch
 | **AC10** | Hermetic `search "" --format pretty` same empty chrome as recall (T243 alias). |
 | **AC11** | Piped `recall -` with empty/whitespace stdin → F1 empty envelope, exit **0** (not T86 empty-stdin error). |
 | **AC12** | TTY `recall -` still errors (T86 hang guard). Keep the existing hermetic if present; do not weaken. |
-| **AC13** | `is_contentless_query` units: `""` / `" \t\n"` / `"..."` / `"the"` / `"a"` → true; `"ok"` / `"not ok"` / `"forget"` → false. |
+| **AC13** | `is_contentless_query` units: `""` / `" \t\n"` / `"..."` / `"the"` / `"a"` / `"can't"` / `"what's"` → true; `"ok"` / `"not ok"` / `"forget"` / `"i'll"` / `"don't"` → false. Fragments are per-token (F19). |
 | **AC14** | `substring_fallback("   ", …)` returns `[]` **without** requiring a 10k-row vault (early contentless return). Existing T105 10k skip test stays green. |
 | **AC15** | `lexical_search("the the the", rescue: false)` still **runs** MATCH (forget path). Do not add F1 to `lexical_search`. |
 | **AC16** | Contentless `recall_full` does not invoke bridge / semantic fetch / graph neighbor (unit: empty outcome + no error; CLI: no `MemoryPinned` because 0 hits). |
@@ -156,6 +157,8 @@ pub fn is_contentless_query(query: &str) -> bool {
 ```
 
 Do not invent a second stopword list. Do not trim-only (`"the"` is contentless; `"  ok  "` is not).
+
+Apostrophes are separators (F19). `extract_fts_tokens("can't")` → `["can","t"]` (stopword + `len<2`) → contentless. `"i'll"` → `["i","ll"]` → `ll` is contentful. `"don't"` → `["don","t"]` → `don` is contentful. No contraction exception.
 
 ### 5.2 `recall_full` early return
 
@@ -213,6 +216,7 @@ Core (`fts.rs`):
 
 - `is_contentless_query__empty_whitespace_punct_stopword_single_char__true`
 - `is_contentless_query__ok_and_negator_phrase__false`
+- `is_contentless_query__contraction_fragments__per_token__ac13`
 
 Retrieval (`tests/recall_empty_latency.rs` + `lexical.rs` unit):
 
@@ -325,3 +329,38 @@ Full `conductor/deferred.md` scan 2026-08-17. `ISSUES.md` does **not** exist.
 | `conductor/conductor.md` / `deferred.md` / README-T256–T271 | Planned note. **Pending** until go. |
 
 Do **not** touch: `project.rs`, `forget.rs` match path, `ranking.rs`, `symbol_stub.rs`, contracts DTO fields, migrations.
+
+---
+
+## 13. AI fold-in disposition (2026-08-17)
+
+Sources: `agy-review.md` (Antigravity) and `opencode-review.md` (OpenCode). No `grok-review.md` / `claude-review.md` / `codex-plan-review.md`. No Blockers. No Majors. Re-verified at fold-in: `extract_fts_tokens` still splits on non-alnum (`fts.rs:28–34`); `contentful_tokens` still drops stopwords + `len < 2` (`:46–59`); `substring_fallback` still COUNTs then `query.is_empty()` (`lexical.rs:222–235`); retrieval `grep "skipped"` = **0** matches; `EmbeddingStatusDto` closed set includes `skipped` (`contracts/src/recall.rs:40–50`); `format_embedding_status_line` prints `Embedding: skipped` when `endpoint=None` (`recall.rs:513–518`). Review re-confirmed deferred + last-PR Cursor **#175** empty — **no leftover to mint**. Product `src/` unchanged this pass.
+
+### Antigravity
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** spec HEAD `1842df0` vs plan commit `20bdd90` | **Agree** | §2.1: plan-dogfood SHA vs plan-commit SHA. Product src unchanged. |
+| **m2** `detail = Some("contentless_query")` DTO-legal | **Already covered** | F6 / AC5. No new field. |
+| **O1** substring return before `COUNT(*)` | **Already covered** | F7 / AC14 / §5.3. |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **O1** sqlite.org/fts5.html citation unusable | **Agree** | §2.4: SoT is live `fts.rs` + Elastic `match_none`. Do not treat the truncated FTS5 page as evidence. |
+| **O2** contraction fragments (`can't` vs `i'll`) | **Agree** | **F19** + **AC13** + §5.1. Per-token, no apostrophe special-case. |
+| **O3.1** first retrieval `skipped` emission | **Agree** | **AC5** now also asserts `endpoint == None`. |
+| **O3.2** `build_recall_hint` still COUNTs `< 10` | **Already covered** | F9 / §11 — keep the small-vault sentence. |
+
+### Pins locked by fold-in
+
+1. **F19 / AC13:** contraction / apostrophe fragments are T217 per-token. `"can't"` / `"what's"` contentless; `"i'll"` / `"don't"` contentful.
+2. **AC5:** `--semantic` contentless wire is exactly `status=skipped`, `detail=contentless_query`, `endpoint=None`.
+3. **§2.4:** FTS5 empty-MATCH evidence is live `fts.rs`, not sqlite.org nav HTML.
+4. **F7 / AC14:** substring contentless return stays **before** `COUNT(*)` (Agy-O1 already planned).
+5. **F0** until go. No product crate edits this pass.
+
+---
+
+**Planning + fold-in 2026-08-17.** Still **plan-only until go**.
