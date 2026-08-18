@@ -18,13 +18,18 @@ promotion is declined. No live bootstrap / migrate / `.env` / `cargo install`.
 
 | Round | Source | Verdict |
 |-------|--------|---------|
-| R1 | Implementer vs AC1–AC14 / F0–F29 / DoD | pending (fill after explore) |
-| R1b | Independent explore | pending |
-| CX1 | Codex FEATURE | pending |
+| R1 | Implementer vs AC1–AC14 / F0–F29 / DoD | PASS |
+| R1b | Independent explore | **PASS WITH DEFERRED P3** then P3-2 reclassified by CX1 |
+| CX1 | Codex FEATURE `gpt-5.6-luna` high | Product **FAIL** P2 list-loop + AC8 evidence-only; P1 process-timing |
+| CX2 | Codex re-review after P2 split | **PASS** — CX1-P2 `verified_fixed`; no new product findings |
 
 ## Findings
 
-(none yet)
+| ID | Severity | Description | Status | Evidence |
+|----|----------|-------------|--------|----------|
+| R1b-P3-1 | low-info | Personal denied unit name still said “bootstrap” after F4 | `verified_fixed` | Renamed to `render_personal_markdown__denied__blank_line_before_denied_and_recall` |
+| CX1-P1 | — | Closeout still In Progress / verify-full not yet run | `out_of_scope` | Process-timing (T257/T261 class). Not a product defect. |
+| CX1-P2 | medium | AC7 used a for-loop; AC8 only evidence deny | `verified_fixed` | Independent tests per noun. Hermetic 9/9. CX2 source-verified. |
 
 ## DoD matrix (implementer)
 
@@ -59,7 +64,12 @@ promotion is declined. No live bootstrap / migrate / `.env` / `cargo install`.
 
 ## Full gate (observed)
 
-pending
+- `.\scripts\dev-check.ps1` **[SUCCESS] CI Gate passed!** nextest **3085** (1 skipped) on pre-P2-split tree; deny 0.20.2; audit 0.22.2
+- After CX1-P2 split: `binary(governed_vault_pin_honesty)` **9/9**; `ledgerful verify --scope full` **passed** (fmt 2.8s / clippy 27.9s / nextest 232.2s / deny 11.4s / audit 2.9s)
+
+## Pin
+
+`10a609e5-a1ec-4215-afb4-edd80f83ad05` — DECISION: T263 H1 only — vault pins are not governed authority.
 
 ## Residual / decline
 

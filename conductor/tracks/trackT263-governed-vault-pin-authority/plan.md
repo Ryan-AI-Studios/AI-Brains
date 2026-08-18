@@ -113,26 +113,26 @@ No Blockers / Majors. Agy **m2** folded as **F29** / **AC14** (≤140 / one line
 - [x] Targeted nextest: renderer units + hermetics AC1–AC10
 - [x] T227 deny AC2 still green
 - [x] T243 progressive hint AC10 still green
-- [ ] `ledgerful verify --scope fast`
+- [x] `ledgerful verify --scope fast` (first run nextest failed: live daemon; after stop + h2, deny/audit + workspace nextest)
 - [x] Manual AC13 on source/hermetic bin (not PATH)
 
 ---
 
 ## Phase 4 — Review + closeout (implement-track)
 
-- [ ] `review.md` Phase 1 clean (mediums fixed or ≤3 deferred)
-- [ ] FEATURE `codex-review`
+- [x] `review.md` Phase 1 clean (mediums fixed or ≤3 deferred)
+- [x] FEATURE `codex-review` — CX1 P2 fixed; **CX2 PASS**
 - [ ] conductor Completed + deferred T263 closeout **only after** push → PR → GHA green → squash-merge → prune
-- [ ] Pin `DECISION: T263 H1 only — vault pins are not governed authority`
+- [x] Pin `DECISION: T263 H1 only — vault pins are not governed authority` → `10a609e5-a1ec-4215-afb4-edd80f83ad05`
 
 ---
 
 ## Definition of done
 
-- [ ] AC1–AC14
-- [ ] F0–F29 honored (H2 / live bootstrap / GOVERNED_BRIEFING / clap 5 / T240 F2 not done)
-- [ ] No product commits from this **planning** pass
-- [ ] Medium+ review findings not silently dropped
+- [x] AC1–AC14
+- [x] F0–F29 honored (H2 / live bootstrap / GOVERNED_BRIEFING / clap 5 / T240 F2 not done)
+- [x] No product commits from this **planning** pass
+- [x] Medium+ review findings not silently dropped
 
 ---
 

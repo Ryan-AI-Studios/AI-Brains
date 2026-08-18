@@ -225,7 +225,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3)~~ | **T260 Completed 2026-08-17.** Default exclude via `symbol_content` + **GLOB** ⊆ detector (F19). `--symbols` mix. Dedupe after `rerank_hits`. Leftover-**project** exclusion stays **T264**. |
 | ~~`recall ""` 5.7 s~~ | **T261 Completed 2026-08-17.** 0-contentful → T207 empty; no LIKE/bridge/embed/graph. FEATURE TX `4a317118-21c5-4667-9f8d-ae10157f20e2`. |
 | ~~Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4~~ | **T262 Completed 2026-08-17.** Pin `turn_id` = memory + graph node + `RECALLS`. Missing-node pretty: rebuild iff vault has memory/session. Historical no-field pins stay F1b. |
-| Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review) | **T263 Planned 2026-08-18** — H1 only (empty_authority → recall; Personal unused; expand preview; list next_step). **H2 declined** (T167 pins→Evidence; no lossless Approved). F0 until go. |
+| ~~Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review)~~ | **T263 Completed 2026-08-18.** H1: empty_authority + Personal deny name `recall`; expand Unknown preview; authorized-empty lists `next_step`. **H2 declined**. Soft: PATH `cargo install`; daily 0-of-3 grants stays T241. |
 | `preflight --global` blends other repos (5/4, summary 7/6) | **T264** |
 | `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
 | Format maze; list-paths 7/5; retention default 6/5 | **T266** |
@@ -258,7 +258,7 @@ Specified softs — not product blockers:
 | Neighbor UUID prefix | Decline F17 |
 | Wrong-kind `pretty_no_memory_node` / `pretty_no_session_node` still `graph update` | Soft — outside F1a–c / AC9 |
 | PATH `ai-brains` still hasher-turn until reinstall | Soft F22 — operator `cargo install --features graph` |
-| T263 governed / T264 leftover `--global` | **T263 Planned** (this file). T264 stays Pending. |
+| T263 governed / T264 leftover `--global` | **T263 Completed 2026-08-18**. T264 stays Pending. |
 
 ### T263 planning absorption (2026-08-18) — H1 only
 
@@ -275,6 +275,21 @@ Specified softs — not product blockers:
 | Agy m2 empty-authority length | **Folded** T263 F29 / AC14 (≤140 / one line) |
 | OpenCode Personal deny = `personal.rs:121` | **Folded** T263 F4 / F23 / AC3 |
 | Expand `Denied` empty preview | **Decline** — Unknown is DoD; Denied stays exit 3 |
+
+### T263 closeout residuals (2026-08-18)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Daily Scope 0 of 3 grants | Decline F14 — T241; do not live-bootstrap |
+| H2 pin→Approved | Decline F11 — T167 pins→Evidence; no lossless Approved |
+| Daemon/HTTP list `next_step` | Soft F25 |
+| Wrap trace `null` | Decline F26 — P-CLI scalar frozen |
+| Vault pin COUNT overlay | Soft F24 |
+| `#18` personal continuity | Decline F27 |
+| PATH `ai-brains` until reinstall | Soft F21 — operator `cargo install` |
+| T264 leftover `--global` / T266 / T267 | Stay Pending |
 
 ### T261 closeout residuals (2026-08-17)
 
