@@ -2413,11 +2413,8 @@ fn read_query_from_stdin() -> Result<String, Box<dyn std::error::Error>> {
     std::io::stdin()
         .read_to_string(&mut buf)
         .map_err(|e| format!("Failed to read from stdin: {e}"))?;
-    let query = buf.trim().to_string();
-    if query.is_empty() {
-        return Err("Query read from stdin is empty.".into());
-    }
-    Ok(query)
+    // T261 F2: piped trim-empty becomes `""` (then recall_full F1). TTY refuse stays.
+    Ok(buf.trim().to_string())
 }
 
 /// T86: Read a JSON object from stdin until EOF.

@@ -7,6 +7,7 @@ use crate::ranking::ScoreKind;
 use crate::semantic::classify_embedding_error;
 use ai_brains_contracts::bridge::BridgeRecord;
 use ai_brains_contracts::recall::EmbeddingStatusDto;
+use ai_brains_core::is_contentless_query;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_store::VaultConnection;
 
@@ -243,6 +244,23 @@ pub fn recall_full(
 ) -> Result<RecallOutcome> {
     let project_id = options.project_id;
     let session_id = options.session_id;
+
+    // T261 F7: 0-contentful is T207 empty — no bridge / LIKE / embed / graph.
+    if is_contentless_query(query) {
+        return Ok(RecallOutcome {
+            hits: Vec::new(),
+            embedding: if options.semantic {
+                Some(EmbeddingStatusDto {
+                    status: "skipped".to_string(),
+                    endpoint: None,
+                    detail: Some("contentless_query".to_string()),
+                })
+            } else {
+                None
+            },
+            semantic_post_threshold_count: if options.semantic { Some(0) } else { None },
+        });
+    }
 
     // Sanitize for bridge only (T217 F10). Lexical builds MATCH from raw query
     // so OR rescue is not double-sanitized.
