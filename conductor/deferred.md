@@ -306,6 +306,17 @@ Specified softs — not product blockers:
 | T240 F2 / T255 | **Decline** F28 |
 | last-PR Cursor #178 | **N/A** — empty |
 
+### T264 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 AC5 every-keyword-line | **Folded** F30 / AC5 item-first-line + two-line pin. Per-line retag declined |
+| OpenCode m1 / Agy m2 F24 wrap | **Folded** `truncate_chars(32)` + `]` sanitize in `preflight_pretty.rs` |
+| OpenCode m2 whole-line upgrade | **Folded** F4 / AC4 leading-only |
+| OpenCode m3 AC14 age-out | **Folded** pass-with-observed-data |
+| Agy m1 HEAD `d8be361` vs `bc10f3e` | **Note** §2.1 |
+| Agy O1 `params![]` | **Already** F10 |
+
 ### T261 closeout residuals (2026-08-17)
 
 Specified softs — not product blockers:

@@ -1,7 +1,7 @@
 # T256–T271 — Post-T255 live CLI audit (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-16 (graph-on PATH install; live vault `C:\dev\ai-brains\vault.db`; agent non-TTY).
-**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. **T260 Completed** 2026-08-17. **T261 Completed** 2026-08-17. **T262 Completed** 2026-08-17. **T263 Completed** 2026-08-18 (H1 only; H2 declined). **T264 Planned** 2026-08-18 (label+cap; leftover recall drop declined). Remaining T265–T271 still placeholders.
+**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. **T260 Completed** 2026-08-17. **T261 Completed** 2026-08-17. **T262 Completed** 2026-08-17. **T263 Completed** 2026-08-18 (H1 only; H2 declined). **T264 Planned+fold-in** 2026-08-18 (label+cap; AC5 first-line; leftover recall drop declined). Remaining T265–T271 still placeholders.
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest; **T240–T255** CLI effectiveness (closer T255 2026-08-16).
 **Ledger (registration):** DOCS TX `1d9511b5-798b-4d6c-b0c9-ebb4b07d0b69`.
 

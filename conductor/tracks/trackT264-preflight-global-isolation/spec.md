@@ -9,9 +9,9 @@
 - **Blocks / feeds:** `--global` stays a **rollup**, not this-repo law. Full JSON envelope stays **T265**. Format maze stays **T266**. List footer leftover-as-AI-Brains stays **T267**.
 - **Absorbs:** Audit T264 row (Safety blender + summary mix); T214 residual “true multi-project rollup or honest label”; T219 F13 *global-only* exception (project-scoped selection stays); T260/T261/T262 closeout leftover-**project** `--global` pointer **as preflight isolation** (not recall drop); T214 `active_sessions` `format!` SQL on the file we must touch
 - **Not absorbed:** Drop leftover `7d97a456` from `recall --global` (changes `--global` meaning); T265 structured `sections[]`; T266 format maze; T267 footer; ledgerful-on-global (T214 F9); grow `PreflightContextResponse` (T180); T240 F2; T255 declines; clap 5
-- **Research date:** 2026-08-18 (plan dogfood HEAD `d8be361` T263 `#178`)
-- **AI fold-in:** none yet (plan pass)
-- **Ledger:** planning DOCS TX `a0500604-b8ff-47b9-b24d-9c0923b8855e`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-18 (plan dogfood HEAD `d8be361` T263 `#178`; plan commit `bc10f3e`)
+- **AI fold-in:** 2026-08-18 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). **B 0 / M 1 / m 4 / O 1.** **Agree hard:** OpenCode **M1** AC5 item-first-line + two-line pin (**F30** / **AC5**). **Agree:** OpenCode **m1**/Agy **m2** F24 `truncate_chars(32)` + `]` sanitize in `preflight_pretty.rs`; OpenCode **m2** upgrade leading tag only (**F4** / **AC4**); OpenCode **m3** AC14 pass-with-observed-data; Agy **m1** HEAD `d8be361` vs `bc10f3e`. **Already covered:** Agy **O1** = F10 `params![]`. **Decline:** per-line tagging of continuation keywords. Disposition **§13**.
+- **Ledger:** planning DOCS TX `a0500604-b8ff-47b9-b24d-9c0923b8855e`. Fold-in DOCS TX `7d6ad8f5-0caf-4506-9903-ab3b0f062f2c`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env`. Do **not** drop leftover from `--global` recall. Do **not** enable `AI_BRAINS_GOVERNED_BRIEFING`. Do **not** reopen T240 F2 / T255 declines. Do **not** grow T180 `{text, word_count}` keys.
 
 ---
@@ -37,7 +37,7 @@ No models. No new crates. No clap 5. No T180 key growth. No leftover-project dro
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `d8be361` T263 `#178` on `main`. Tree CLEAN. `origin/main` even (`00`). |
+| HEAD | **Plan dogfood:** `d8be361` T263 `#178` (product `src/` unchanged since). **Plan commit:** `bc10f3e`. **This fold-in:** same product `src/` as `bc10f3e`. `main` ahead of `origin/main` by the plan docs commit. Tree CLEAN at fold-in. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **0.1.1**. Compact / summary JSON exist (T250/T220). **Do not `cargo install`.** Preflight `--global` assembly is retrieval (unchanged by T263) — PATH dogfood matches source class. |
 | `preflight --summary` (daily) | Scope path owner `3581317d` (`C:\dev\ai-brains`). Pinned **2995**. Grants **0 of 3** (T241; not this track). |
 | `preflight --global --summary` | `Scope: global`. **Projects: 53**. Pinned **36632**. Active sessions **40**. **In context decisions: 22** / constraints: 4 / hotspots: 0. Word count **1500**. **No project span.** |
@@ -105,9 +105,9 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
 | **F1 — Global only** | Tags + per-project caps apply iff `global == true`. Project-scoped / unresolved pretty, JSON, and summary stay T214/T219/T220/T250. |
-| **F2 — Tag in retrieval text** | When global, retrieval prefixes Safety items, Index lines, Recent entries, and Session **headers** with `[` + first 8 hex chars of `COALESCE(m.project_id, s.project_id)` + `]`. Missing/unparseable id → `[unknown]`. Session **turns** are **not** tagged (header is the owner; keeps T250 leading chrome strip). |
+| **F2 — Tag in retrieval text** | When global, retrieval prefixes the **first line** of each Safety item, Index line, Recent entry, and Session **header** with `[` + first 8 hex chars of `COALESCE(m.project_id, s.project_id)` + `]`. Missing/unparseable id → `[unknown]`. Continuation lines of a multi-line item are **not** retagged (F30). Session **turns** are **not** tagged (header is the owner; keeps T250 leading chrome strip). |
 | **F3 — Pretty upgrades the tag** | Human/pretty (not JSON, not summary) rewrites `\[[0-9a-fA-F]{8}\]` / `[unknown]` via `get_project_by_id` + T230 `display_label`. Fallback stays the 8-char (or `unknown`). Do **not** edit `project.rs` — **call** `display_label`. |
-| **F4 — Peel before chrome** | Pretty must strip / remember the `[tag]` **before** `strip_pretty_chrome` / `strip_role_prefix`, then reattach the (possibly upgraded) tag. Units lock `(ts) ROLE:` and leading `ROLE:` still strip when a tag is present. |
+| **F4 — Peel before chrome** | Pretty must strip / remember the **leading** `[tag]` **before** `strip_pretty_chrome` / `strip_role_prefix`, then reattach the (possibly upgraded) tag. Upgrade runs **only** on that peeled token — never a whole-line `\[[0-9a-fA-F]{8}\]` replace (body-internal `[3581317d]` stays). Units lock `(ts) ROLE:` and leading `ROLE:` still strip when a tag is present. |
 | **F5 — Per-project caps (retrieval)** | After recency ORDER BY, apply **round-robin by first-seen project** then next slot per project. Ceilings (global only): Safety **2 / project**, vault **8**; Index **3 / project**, vault **15**; Recent **1 / project**, vault **3**; Sessions **1 / project**, then existing pretty session cap (3 / compact 1). Fetch window > vault cap (Safety SELECT LIMIT **40**, not 10) so later projects can fill. LIKE / `dedup_hotspots` / low-signal / privacy filters **unchanged**. |
 | **F6 — Algorithm SOOT** | Pure `take_round_robin(items, per_project, max_total)` in **`ai-brains-retrieval/src/preflight_global.rs`**. Recency order inside each project bucket. Emit i-th item from each first-seen project, `i = 0..per_project`, stop at `max_total`. Not “first 8 of blended LIMIT 10”. |
 | **F7 — Summary span** | Under `--global` only, after `In context constraints:` print `In context spans N projects` where `N` = distinct non-`unknown` project ids that contributed at least one **emitted** Safety/Index/Recent/Session item (post-cap, pre-pretty). `N == 0` still prints (`spans 0 projects`) so the line is stable. Project-scoped: **omit** the line. |
@@ -121,18 +121,19 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 | **F15 — Decline GOVERNED_BRIEFING** | T170 D21. Governed `--global` stays empty packet. |
 | **F16 — Pins / crates** | No clap 5, no lock bumps, no new crates, workspace **0.1.1**. |
 | **F17 — Capture independence** | SQL + string labels only. No models, embeddings, graph, or new events. |
-| **F18 — Tests** | Naming `function_or_feature__condition__expected_result`. Pure round-robin + peel/upgrade units. Hermetic two-project vault for pretty labels + summary span + JSON key + project-scoped negative (no `[8hex]`). Existing T214/T220/T250 hermetics stay green. No `unwrap`/`expect`/`panic` in production. |
+| **F18 — Tests** | Naming `function_or_feature__condition__expected_result`. Pure round-robin + peel/upgrade units (leading-only + F24 sanitize). Hermetic two-project vault for pretty labels + two-line continuation pin (F30) + summary span + JSON key + project-scoped negative (no `[8hex]`). Existing T214/T220/T250 hermetics stay green. No `unwrap`/`expect`/`panic` in production. |
 | **F19 — Cross-model** | FEATURE (operator `--global` body + additive summary key). After Phase-1 review clean, run read-only `codex-review`. |
 | **F20 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
 | **F21 — PATH-behind** | Do not `cargo install` unless the user asks. Tests/manual AC use `cargo run` / hermetic bin. |
 | **F22 — Stop-before** | Even after go: no live `.env`, no leftover rebind, no `policy bootstrap`, no T240 F2 silent Scope switch, no `nightly` mutate. |
 | **F23 — Hotspots / files** | Do **not** edit `project.rs`. New retrieval helpers in `preflight_global.rs`. New CLI pretty peel/upgrade in **`preflight_pretty.rs`** (or equivalent sibling) — do not grow hotspot `#9` `preflight.rs` except dispatch + summary line/JSON field. `sessions.rs` + `build_legacy_preflight` are required. |
-| **F24 — Tag grammar** | Tag is `[` + exactly 8 ASCII hex chars + `]` or literal `[unknown]`. No `]` inside labels after pretty upgrade: `display_label` output is truncated at **32** chars and any `]` replaced with `·` before wrap. |
+| **F24 — Tag grammar** | Tag is `[` + exactly 8 ASCII hex chars + `]` or literal `[unknown]`. `display_label` (`project.rs:422`) returns the name **verbatim** — it does **not** truncate or sanitize. The wrap in **`preflight_pretty.rs`** must call existing `truncate_chars(..., 32)` then replace `]` with `·` before wrapping. Do **not** edit `project.rs`. |
 | **F25 — Compact / line-cap** | T250 `PrettyCaps` numbers stay. Caps in **F5** run in retrieval *before* pretty. Compact may show fewer items but never unlabeled foreign lines under `--global`. |
 | **F26 — Contracts** | PROTOCOL-COMPAT: one additive row for summary optional `in_context_project_span`. T180 compact 2-key test stays green. CHANGELOG + CAPABILITIES. |
 | **F27 — T266 / T267 / T268+** | Format maze, list footer, scan-roots — **not** this track. |
 | **F28 — T240 F2 / T255** | Stay closed unless owner reopens. |
 | **F29 — Word-budget honesty** | Tags count as words in `trim_to_word_budget`. Do not change the helper. Default `-m` 1500 still applies. |
+| **F30 — Item-first-line only** | AC5 / pretty honesty is **item first line + Session header**, not every line that happens to contain `CONSTRAINT:` / `DECISION:` / `HOTSPOT:`. A two-line pin may keep the keyword on line 2 untagged. **Decline** per-line retag (chrome noise; contradicts §5.3). Re-trigger: owner asks for per-line tags. |
 
 ---
 
@@ -142,9 +143,9 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 |----|-------|
 | **AC1** | Pure: `take_round_robin` on 5 leftover + 5 other (recency leftover-first), `per_project=2`, `max=8` emits **2 leftover then 2 other** (interleaved by round), never 5 leftover. |
 | **AC2** | Pure: empty input → empty; all-unknown project ids still respect `max_total`; `per_project=1` emits at most one per id. |
-| **AC3** | Unit: `peel_global_tag("[3581317d] (just now) ASSISTANT: DECISION: x")` → tag + remainder whose chrome strip is `DECISION: x`. Untagged `(just now) ASSISTANT:` still strips (T250 AC stands). |
-| **AC4** | Unit: `upgrade_global_tag` with alias `acme` → `[acme]`; missing project → original 8-char; `]` in name sanitized (F24). |
-| **AC5** | Hermetic two-project vault: pin `CONSTRAINT: alpha-only` in A and `CONSTRAINT: beta-only` in B. `preflight --global --pretty --no-hook-prompt` stdout contains both bodies **and** a `[` tag on each Safety item. No Safety/Index/Recent/Session-header line that has `CONSTRAINT:` / `DECISION:` / `HOTSPOT:` **without** a leading `[`. |
+| **AC3** | Unit: `peel_global_tag("[3581317d] (just now) ASSISTANT: DECISION: x")` → tag + remainder whose chrome strip is `DECISION: x`. Untagged `(just now) ASSISTANT:` still strips (T250 AC stands). A remainder that still contains `[3581317d]` is **not** peeled again. |
+| **AC4** | Unit: `upgrade_global_tag` with alias `acme` → `[acme]`; missing project → original 8-char; `]` in name sanitized via `truncate_chars(32)` + `]`→`·` (F24). Whole-line input `"[3581317d] see [aaaaaaaa] later"` upgrades **only** the leading tag; `[aaaaaaaa]` in the body stays. |
+| **AC5** | Hermetic two-project vault: pin single-line `CONSTRAINT: alpha-only` in A, single-line `CONSTRAINT: beta-only` in B, **and** a two-line pin in A whose **second** line contains `CONSTRAINT: continuation`. `--global --pretty --no-hook-prompt` contains both projects' first-line bodies **and** a leading `[` on each Safety/Index/Recent **item first line** and each Session **header**. Do **not** require a leading `[` on continuation lines (F30). Assert the two-line pin's first line is tagged and its continuation line is present. |
 | **AC6** | Same fixture, **no** `--global`, `--pretty`: stdout has **neither** `[`+8 hex `]` tags **nor** the span line. Both constraints do **not** appear together unless they share the scoped project (project-scoped negative). |
 | **AC7** | Hermetic: `--global --summary` contains `In context spans N projects` with `N >= 2` on the two-project fixture. Project-scoped `--summary` does **not** contain `spans`. |
 | **AC8** | Hermetic: `--global --summary --format json` parses; `in_context_project_span` is a number `>= 2`; T220 required keys still present; no human banner. Project-scoped summary JSON **omits** the key. |
@@ -153,7 +154,7 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 | **AC11** | Unit/hermetic: `--global --pretty --compact` Safety/Session lines that remain are still tagged. T250 compact numbers still apply (≤3 Safety items, ≤1 session). |
 | **AC12** | Existing `preflight_global_summary` / `preflight_summary_json` / `preflight_pretty_readability` stay green (Scope: global, T220 keys, 140-cap, compact). |
 | **AC13** | Docs: CAPABILITIES `--global` rollup bullet (label + per-project cap + span); PROTOCOL-COMPAT summary optional key; CHANGELOG T264. |
-| **AC14** | Manual (source bin, classify-only): `preflight --global --pretty --compact -m 400` Session `d6fb6231` (or current foreign session) shows a **non-AI-Brains** label/id; T260 Safety line shows this-repo label/id. Exit **0**. Do **not** pin. Do **not** `cargo install`. |
+| **AC14** | Manual (source bin, classify-only): `preflight --global --pretty --compact -m 400` exits **0**. T260 (or current this-repo) Safety line shows this-repo label/id. If a **foreign** Session is in the pretty window, it shows a non-AI-Brains label/id. If none is in the window (recency aged out, same class as audit 0022/0023), **pass-with-observed-data**: record the Session ids that *did* appear. Do **not** fail AC14 solely because `d6fb6231` dropped out. Do **not** pin. Do **not** `cargo install`. |
 
 ---
 
@@ -170,6 +171,8 @@ First-fit (“take 2 leftover, then others”) still lets compact’s first 3 be
 ### 5.3 Session header vs turn tags
 
 Turns emit `ROLE: …`. A turn-level `[tag]` breaks T250 leading chrome. The header `--- Session: {uuid} [3581317d] ---` is enough: every turn under it is that project. Pretty classifies the header as Session; F31 `+N more turns` unchanged.
+
+Same ownership rule for multi-line Safety/Recent items (F30 / OpenCode M1): the **first line** carries the tag; continuation lines inherit the owner. Per-line retag is declined.
 
 ### 5.4 Span vs marker counts
 
@@ -195,6 +198,7 @@ Turns emit `ROLE: …`. A turn-level `[tag]` breaks T250 leading chrome. The hea
 - Live leftover `rebind-path` / `.env` / `policy bootstrap`
 - T240 F2 silent Scope switch; T255 doctor-16th / product `.cmd`
 - Changing T250 `PrettyCaps` numbers or `trim_to_word_budget`
+- Per-line tagging of continuation lines that happen to contain `CONSTRAINT:` / `DECISION:` / `HOTSPOT:` (F30)
 
 ---
 
@@ -205,8 +209,8 @@ Turns emit `ROLE: …`. A turn-level `[tag]` breaks T250 leading chrome. The hea
 1. `take_round_robin__leftover_then_other__interleaves_per_project` (AC1)
 2. `take_round_robin__empty_and_unknown__respects_max` (AC2)
 3. `peel_global_tag__tagged_timestamp_role__chrome_still_strips` (AC3)
-4. `upgrade_global_tag__alias_missing_and_bracket` (AC4)
-5. `preflight_global_isolation__two_projects__pretty_labels_and_no_unlabeled_safety` (AC5)
+4. `upgrade_global_tag__alias_missing_and_bracket` (AC4) — includes body-internal `[8hex]` not upgraded + F24 sanitize
+5. `preflight_global_isolation__two_projects__pretty_labels_and_no_unlabeled_safety` (AC5) — includes two-line continuation pin
 6. `preflight_global_isolation__project_scoped__no_tags_no_span` (AC6)
 7. `preflight_global_isolation__summary_span_and_json_key` (AC7–AC8)
 8. `preflight_global_isolation__three_a_one_b__b_appears_a_capped` (AC10)
@@ -253,6 +257,13 @@ Manual AC14 on source bin only.
 | T240 F2 / T255 declines | **Decline** F28 |
 | last-PR Cursor #178 | **N/A** — comments/reviews/inline empty; nothing to mint |
 | MSI / clap 5 / ISSUES.md | **N/A** / forbidden / does not exist |
+| OpenCode M1 AC5 every-keyword-line | **Absorb** F30 / AC5 scoped to item-first-line + two-line fixture |
+| OpenCode m1 / Agy m2 F24 wrap | **Absorb** F24 caller = `truncate_chars` + `]` sanitize in `preflight_pretty.rs` |
+| OpenCode m2 whole-line upgrade | **Absorb** F4 / AC4 leading-only |
+| OpenCode m3 AC14 age-out | **Absorb** AC14 pass-with-observed-data |
+| Agy m1 HEAD drift | **Agree note** — §2.1 `d8be361` vs `bc10f3e` |
+| Agy O1 `params![]` | **Already covered** F10 |
+| Per-line continuation tags | **Decline** F30 |
 
 ---
 
@@ -297,4 +308,40 @@ Manual AC14 on source bin only.
 | Existing T214/T220/T250 tests | Must stay green (AC12) |
 | `Docs/CAPABILITIES.md` / `Docs/PROTOCOL-COMPAT.md` / root `CHANGELOG` | F26 / AC13 |
 | `conductor/conductor.md` / `deferred.md` / README-T256–T271 | Registry + absorb notes |
-| **Do not touch** | `project.rs` (call only), contracts `PreflightContextResponse`, `word_budget.rs`, `query_ledgerful`, governed packet builder, clap pins, live `.env` |
+| **Do not touch** | `project.rs` (call only — `display_label` + `truncate_chars`), contracts `PreflightContextResponse`, `word_budget.rs`, `query_ledgerful`, governed packet builder, clap pins, live `.env` |
+
+---
+
+## 13. AI fold-in disposition (2026-08-18)
+
+Sources: `agy-review.md` + `opencode-review.md`. **B 0 / M 1.** Inputs **not** edited.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `d8be361` vs `bc10f3e` | **Agree note** | §2.1 — plan dogfood vs plan commit |
+| **m2** `]` sanitize in upgraded labels | **Agree** | **F24** already required it; lock caller = `truncate_chars(32)` + `]`→`·` in `preflight_pretty.rs` (live `display_label` does not sanitize) |
+| **O1** `sessions.rs` `params![]` | **Already covered** | **F10** |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **M1** AC5 every-keyword-line vs F2 first-line | **Agree hard** | **F30** / **AC5** scoped to item first line + Session header; two-line continuation pin in hermetic. **Decline** per-line retag |
+| **m1** Phase 2 misses F24 truncate/sanitize | **Agree** | plan Phase 2 checklist names `truncate_chars(32)` + `]` sanitize |
+| **m2** upgrade whole-line `[8hex]` | **Agree** | **F4** / **AC3** / **AC4** — leading peel only; body-internal token stays |
+| **m3** AC14 `d6fb6231` ages out | **Agree** | **AC14** pass-with-observed-data |
+| Baseline / deferred / Cursor #178 | **Affirm** | §9 N/A; no leftover to mint |
+| Pins clap 4.6.1 / 4.6.6; serde_json 1.0.150 / 1.0.151 | **Affirm** | F16; re-verify at execute |
+
+### Pins locked by fold-in
+
+1. **F30 / AC5:** honesty is item-first-line + Session header. Two-line pin required. No per-line retag.
+2. **F4 / AC3 / AC4:** upgrade the peeled leading tag only; body-internal `[8hex]` unchanged.
+3. **F24:** wrap calls `truncate_chars(..., 32)` then `]` → `·`. `display_label` stays verbatim.
+4. **AC14:** missing foreign Session in the window is pass-with-observed-data, not fail.
+5. **§2.1:** `d8be361` product vs `bc10f3e` plan.
+6. **O1:** still F10 — do not treat as new work.
+
+**Planning + fold-in 2026-08-18.** Still **plan-only until go**.
