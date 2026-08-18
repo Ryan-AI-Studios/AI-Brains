@@ -4,7 +4,7 @@ use crate::graph_density::{
 };
 use ai_brains_control_plane::clamp_list_limit;
 use ai_brains_graph::{GraphRebuilder, GraphSearch, GraphVault, NeighborHit};
-use ai_brains_store::SqliteEventStore;
+use ai_brains_store::{QueryStore, SqliteEventStore};
 use rusqlite::OptionalExtension;
 use serde::Serialize;
 use std::io::IsTerminal;
@@ -67,8 +67,46 @@ pub(crate) fn resolve_graph_format(explicit: &str, is_tty: bool) -> &'static str
     }
 }
 
-pub(crate) fn pretty_no_graph_node(id: &str) -> String {
-    format!("No graph node for {id}.\n{PRETTY_NEXT}")
+/// Maps `memory_exists` onto F1. Never `?` this Result on graph reads (F18 / AC19).
+pub(crate) fn vault_memory_present<E: std::fmt::Display>(result: Result<bool, E>) -> bool {
+    match result {
+        Ok(true) => true,
+        Ok(false) => false,
+        Err(err) => {
+            tracing::warn!(error = %err, "memory_exists failed; treating id as unknown");
+            false
+        }
+    }
+}
+
+/// Session missing-node: vault has the id if it is a memory **or** a session
+/// (CX1-P2 — `memory_exists` alone lies for `graph session <session_id>`).
+fn session_projection_present(ctx: &AppContext, session_id: &str) -> Result<bool, String> {
+    let conn = ctx
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to lock vault: {e}"))?;
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM session_projection WHERE session_id = ?1",
+            [session_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("session_projection lookup failed: {e}"))?;
+    Ok(count > 0)
+}
+
+fn vault_has_session_or_memory(ctx: &AppContext, id: &str) -> bool {
+    vault_memory_present(ctx.conn.memory_exists(id))
+        || vault_memory_present(session_projection_present(ctx, id))
+}
+
+pub(crate) fn pretty_no_graph_node(id: &str, vault_has_memory: bool) -> String {
+    if vault_has_memory {
+        format!("No graph node for {id}.\nnext: ai-brains graph rebuild")
+    } else {
+        format!("No graph node for {id} (not a vault memory id).")
+    }
 }
 
 pub(crate) fn pretty_no_memory_node(id: &str) -> String {
@@ -80,15 +118,15 @@ pub(crate) fn pretty_no_session_node(id: &str) -> String {
 }
 
 pub(crate) fn pretty_no_neighbors(id: &str) -> String {
-    format!("No neighbors for {id}.\n{PRETTY_NEXT}")
+    format!("No neighbors for {id}.")
 }
 
 pub(crate) fn pretty_hierarchy_leaf() -> String {
-    format!("No SYNTHESIZED_FROM children (leaf).\n{PRETTY_NEXT}")
+    "No SYNTHESIZED_FROM children (leaf).".to_string()
 }
 
 pub(crate) fn pretty_session_empty() -> String {
-    format!("No memories in this session via graph edges.\n{PRETTY_NEXT}")
+    "No memories in this session via graph edges.".to_string()
 }
 
 fn dir_display(direction: &str) -> &str {
@@ -278,7 +316,8 @@ pub fn neighbors(
 
     if kind.is_none() {
         if resolved == "pretty" {
-            println!("{}", pretty_no_graph_node(memory_id));
+            let present = vault_memory_present(ctx.conn.memory_exists(memory_id));
+            println!("{}", pretty_no_graph_node(memory_id, present));
         } else {
             println!("{}", format_neighbors_json(memory_id, &[])?);
         }
@@ -326,7 +365,8 @@ pub fn hierarchy(
     match kind.as_deref() {
         None => {
             if resolved == "pretty" {
-                println!("{}", pretty_no_graph_node(memory_id));
+                let present = vault_memory_present(ctx.conn.memory_exists(memory_id));
+                println!("{}", pretty_no_graph_node(memory_id, present));
             } else {
                 println!(
                     "{}",
@@ -401,7 +441,8 @@ pub fn session(
     match kind.as_deref() {
         None => {
             if resolved == "pretty" {
-                println!("{}", pretty_no_graph_node(session_id));
+                let present = vault_has_session_or_memory(ctx, session_id);
+                println!("{}", pretty_no_graph_node(session_id, present));
             } else {
                 println!(
                     "{}",
@@ -724,33 +765,72 @@ mod tests {
     }
 
     #[test]
-    fn empty_pretty__missing_and_present__exact_f3_and_graph_update() {
+    fn pretty_no_graph_node__vault_memory__next_rebuild__ac8() {
+        let text = pretty_no_graph_node("abc", true);
         assert_eq!(
-            pretty_no_graph_node("abc"),
-            "No graph node for abc.\nnext: ai-brains graph update"
+            text,
+            "No graph node for abc.\nnext: ai-brains graph rebuild"
         );
-        assert_eq!(
-            pretty_no_neighbors("abc"),
-            "No neighbors for abc.\nnext: ai-brains graph update"
-        );
-        assert_eq!(
-            pretty_no_memory_node("abc"),
-            "No memory node for abc.\nnext: ai-brains graph update"
-        );
-        assert_eq!(
-            pretty_no_session_node("abc"),
-            "No session node for abc.\nnext: ai-brains graph update"
-        );
-        assert_eq!(
-            pretty_hierarchy_leaf(),
-            "No SYNTHESIZED_FROM children (leaf).\nnext: ai-brains graph update"
-        );
-        assert_eq!(
-            pretty_session_empty(),
-            "No memories in this session via graph edges.\nnext: ai-brains graph update"
-        );
-        assert!(pretty_no_graph_node("abc").contains("graph update"));
-        assert!(pretty_no_neighbors("abc").contains("graph update"));
+        assert!(text.contains("graph rebuild"));
+        assert!(!text.contains("graph update"));
+    }
+
+    #[test]
+    fn pretty_no_graph_node__unknown_id__no_rebuild__ac8() {
+        let text = pretty_no_graph_node("abc", false);
+        assert_eq!(text, "No graph node for abc (not a vault memory id).");
+        assert!(text.contains("not a vault memory id"));
+        assert!(!text.contains("rebuild"));
+        assert!(!text.contains("update"));
+        assert!(!text.contains("next:"));
+    }
+
+    #[test]
+    fn vault_memory_present__query_err__false_unknown_graph_copy__ac19() {
+        assert!(!vault_memory_present(Err("locked")));
+        let text = pretty_no_graph_node("abc", vault_memory_present(Err("locked")));
+        assert!(text.contains("not a vault memory id"));
+        assert!(!text.contains("rebuild"));
+        assert!(!text.contains("update"));
+    }
+
+    #[test]
+    fn pretty_hierarchy_leaf__no_graph_update_or_rebuild__ac9() {
+        assert!(!pretty_hierarchy_leaf().contains("graph update"));
+        assert!(!pretty_hierarchy_leaf().contains("graph rebuild"));
+        assert!(!pretty_no_neighbors("abc").contains("graph update"));
+        assert!(!pretty_no_neighbors("abc").contains("graph rebuild"));
+        assert!(!pretty_session_empty().contains("graph update"));
+        assert!(!pretty_session_empty().contains("graph rebuild"));
+    }
+
+    #[test]
+    fn empty_pretty__json_keys_frozen__ac10() {
+        let neighbors = format_neighbors_json("abc", &[]).expect("json");
+        let v: serde_json::Value = serde_json::from_str(&neighbors).expect("parse");
+        let keys: Vec<&str> = v
+            .as_object()
+            .expect("obj")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(keys, vec!["memory_id", "neighbors"]);
+        assert_eq!(v["neighbors"], serde_json::json!([]));
+
+        let hierarchy = serde_json::to_string(&HierarchyOutput {
+            root: "abc",
+            synthesized_from: Vec::new(),
+        })
+        .expect("hier");
+        let h: serde_json::Value = serde_json::from_str(&hierarchy).expect("parse hier");
+        let h_keys: Vec<&str> = h
+            .as_object()
+            .expect("obj")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(h_keys, vec!["root", "synthesized_from"]);
+        assert_eq!(h["synthesized_from"], serde_json::json!([]));
     }
 
     #[test]

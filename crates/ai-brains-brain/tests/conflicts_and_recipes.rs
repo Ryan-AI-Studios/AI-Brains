@@ -89,6 +89,7 @@ async fn test_conflict_and_recipe_detection() -> Result<(), Box<dyn std::error::
         session_id,
         content: "We decided to change the dev port to 9000 because 8080 is blocked by the new security policy. Also, here is the workaround: 1. Stop service. 2. Run port-fix.ps1. 3. Restart.".to_string(),
         tx_id: None,
+        turn_id: None,
     }))?;
     event_store.append_event(&prompt_event)?;
 

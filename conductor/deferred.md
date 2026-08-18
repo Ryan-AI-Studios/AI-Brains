@@ -224,7 +224,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Leftover `7d97a456` 18,028 memories / many `C:\dev\*` roots~~ | **T259 Completed 2026-08-17.** Inventory `--project`/`--shared-only` + `rebind-path` print-only / `--write --yes` one-tx. Memories stay (F5). Footer **T267**. `--global` **T260/T264**. Soft: leftover memory reclassify by path; PATH `cargo install`; `project.rs` `resolve_project_ref` duplicate. |
 | ~~Recall symbol stubs beat decisions (5/4, global 3/3, real semantic 4/3)~~ | **T260 Completed 2026-08-17.** Default exclude via `symbol_content` + **GLOB** ⊆ detector (F19). `--symbols` mix. Dedupe after `rerank_hits`. Leftover-**project** exclusion stays **T264**. |
 | ~~`recall ""` 5.7 s~~ | **T261 Completed 2026-08-17.** 0-contentful → T207 empty; no LIKE/bridge/embed/graph. FEATURE TX `4a317118-21c5-4667-9f8d-ae10157f20e2`. |
-| Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4 | **T262** |
+| ~~Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4~~ | **T262 Completed 2026-08-17.** Pin `turn_id` = memory + graph node + `RECALLS`. Missing-node pretty: rebuild iff vault has memory/session. Historical no-field pins stay F1b. |
 | Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review) | **T263** |
 | `preflight --global` blends other repos (5/4, summary 7/6) | **T264** |
 | `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
@@ -246,6 +246,20 @@ Specified softs — not product blockers:
 | Compact JSON uses `note_machine_stdout` not pretty | Intentional — T265/T266 |
 | Human warn prints **after** the table | F6; T240 asserts presence not order |
 
+### T262 closeout residuals (2026-08-17)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| `DecisionRecorded` still `_ => {}` in projector | Soft F24 — pin is ingest |
+| T213 F31 last-event vs last-graph timestamp | Decline — honesty is F1 + exists |
+| Historical backfill `MemoryPinned` for 36k pins | Decline F35 — invents events |
+| Neighbor UUID prefix | Decline F17 |
+| Wrong-kind `pretty_no_memory_node` / `pretty_no_session_node` still `graph update` | Soft — outside F1a–c / AC9 |
+| PATH `ai-brains` still hasher-turn until reinstall | Soft F22 — operator `cargo install --features graph` |
+| T263 governed / T264 leftover `--global` | Decline |
+
 ### T261 closeout residuals (2026-08-17)
 
 Specified softs — not product blockers:
@@ -256,7 +270,7 @@ Specified softs — not product blockers:
 | Skip T207 `<10` memory COUNT on contentless | Soft F9 — keep small-vault sentence |
 | PATH `ai-brains` still LIKE/MATCH-all until reinstall | Soft F12 — operator `cargo install` |
 | Leftover-project `--global` / preflight blender | **T264** |
-| Graph sparse / 4h pin no node | **T262** |
+| Graph sparse / 4h pin no node | **T262 Completed 2026-08-17** |
 
 ### T260 closeout residuals (2026-08-17)
 

@@ -452,7 +452,10 @@ fn graph_neighbors__present_empty__pretty_no_neighbors() {
         out.contains("No neighbors for mem-leaf."),
         "present-empty must say No neighbors; got: {out}"
     );
-    assert!(out.contains("next: ai-brains graph update"));
+    assert!(
+        !out.contains("graph update") && !out.contains("graph rebuild"),
+        "honest empty edges have no remediator; got: {out}"
+    );
 }
 
 #[cfg(feature = "graph")]
@@ -474,6 +477,11 @@ fn graph_hierarchy_session__missing_wrong_kind_empty__f3_copy() {
         .expect("hierarchy missing");
     let missing_out = String::from_utf8_lossy(&missing.stdout);
     assert!(missing_out.contains("No graph node"));
+    assert!(
+        missing_out.contains("not a vault memory id"),
+        "unknown id must not suggest rebuild; got: {missing_out}"
+    );
+    assert!(!missing_out.contains("graph update") && !missing_out.contains("graph rebuild"));
 
     let missing_session = common::hermetic_vault(&vault)
         .arg("graph")
@@ -488,7 +496,14 @@ fn graph_hierarchy_session__missing_wrong_kind_empty__f3_copy() {
         missing_session_out.contains("No graph node"),
         "session missing must say No graph node; got: {missing_session_out}"
     );
-    assert!(missing_session_out.contains("next: ai-brains graph update"));
+    assert!(
+        missing_session_out.contains("not a vault memory id"),
+        "unknown session id is F1b; got: {missing_session_out}"
+    );
+    assert!(
+        !missing_session_out.contains("graph update")
+            && !missing_session_out.contains("graph rebuild")
+    );
 
     let wrong_h = common::hermetic_vault(&vault)
         .arg("graph")

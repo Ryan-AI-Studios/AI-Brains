@@ -190,12 +190,14 @@ pub fn append_turn(
             session_id,
             content: content.to_string(),
             tx_id: None,
+            turn_id: None,
         })
     } else {
         Payload::AssistantFinalRecorded(ai_brains_events::payload::AssistantFinalRecordedPayload {
             session_id,
             content: content.to_string(),
             tx_id: None,
+            turn_id: None,
         })
     };
 

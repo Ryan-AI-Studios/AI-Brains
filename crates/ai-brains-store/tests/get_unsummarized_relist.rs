@@ -63,6 +63,7 @@ fn get_unsummarized__new_turns_after_summary__relisted() {
             session_id,
             content: "first".into(),
             tx_id: None,
+            turn_id: None,
         }))
         .unwrap(),
         EventBuilder::new(
@@ -132,6 +133,7 @@ fn get_unsummarized__new_turns_after_summary__relisted() {
                 session_id,
                 content: "second after summary".into(),
                 tx_id: None,
+                turn_id: None,
             }))
             .unwrap(),
         )

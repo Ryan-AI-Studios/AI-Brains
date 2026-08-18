@@ -114,7 +114,7 @@ pub fn run(
         return Err(format!("Failed to pin memory: {}", err).into());
     }
 
-    // The projection stores turn_id as memory_id; print it so `forget --memory-id` works.
+    // T262: ingest turn_id is memory_projection.memory_id and the graph memory node.
     println!("Memory {} successfully pinned to vault.", turn_id);
     Ok(())
 }

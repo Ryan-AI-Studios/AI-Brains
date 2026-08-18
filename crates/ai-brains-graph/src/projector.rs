@@ -55,46 +55,10 @@ impl<'a> GraphProjector<'a> {
                 });
             }
             Payload::UserPromptRecorded(p) => {
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                use std::hash::Hasher;
-                hasher.write(p.session_id.to_string().as_bytes());
-                hasher.write(p.content.as_bytes());
-                hasher.write(envelope.occurred_at.to_string().as_bytes());
-                let turn_id = format!("{:x}", hasher.finish());
-
-                self.node_buffer.push(GraphNode {
-                    id: turn_id.clone(),
-                    label: "Turn".to_string(),
-                    category: "turn".to_string(),
-                    metadata: serde_json::json!({}),
-                });
-                self.edge_buffer.push(GraphEdge {
-                    source: turn_id,
-                    target: p.session_id.to_string(),
-                    relation: "IN_SESSION".to_string(),
-                    confidence: 1.0,
-                });
+                self.project_capture_turn(p.turn_id.as_ref(), &p.session_id, envelope);
             }
             Payload::AssistantFinalRecorded(p) => {
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                use std::hash::Hasher;
-                hasher.write(p.session_id.to_string().as_bytes());
-                hasher.write(p.content.as_bytes());
-                hasher.write(envelope.occurred_at.to_string().as_bytes());
-                let turn_id = format!("{:x}", hasher.finish());
-
-                self.node_buffer.push(GraphNode {
-                    id: turn_id.clone(),
-                    label: "Turn".to_string(),
-                    category: "turn".to_string(),
-                    metadata: serde_json::json!({}),
-                });
-                self.edge_buffer.push(GraphEdge {
-                    source: turn_id,
-                    target: p.session_id.to_string(),
-                    relation: "IN_SESSION".to_string(),
-                    confidence: 1.0,
-                });
+                self.project_capture_turn(p.turn_id.as_ref(), &p.session_id, envelope);
             }
             Payload::MemoryPinned(p) => {
                 self.node_buffer.push(GraphNode {
@@ -338,5 +302,50 @@ impl<'a> GraphProjector<'a> {
         }
 
         Ok(())
+    }
+
+    /// T262: capture turns with a logged `turn_id` become memory nodes (F9).
+    /// Legacy events without the field keep a rebuild-stable turn node at `event_id` (F10).
+    fn project_capture_turn(
+        &mut self,
+        turn_id: Option<&ai_brains_core::ids::TurnId>,
+        session_id: &ai_brains_core::ids::SessionId,
+        envelope: &Envelope,
+    ) {
+        if let Some(tid) = turn_id {
+            let memory_id = tid.to_string();
+            self.node_buffer.push(GraphNode {
+                id: memory_id.clone(),
+                label: "Memory".to_string(),
+                category: "memory".to_string(),
+                metadata: serde_json::json!({}),
+            });
+            self.node_buffer.push(GraphNode {
+                id: session_id.to_string(),
+                label: "Session".to_string(),
+                category: "session".to_string(),
+                metadata: serde_json::json!({}),
+            });
+            self.edge_buffer.push(GraphEdge {
+                source: session_id.to_string(),
+                target: memory_id,
+                relation: "RECALLS".to_string(),
+                confidence: 1.0,
+            });
+        } else {
+            let turn_node_id = envelope.event_id.to_string();
+            self.node_buffer.push(GraphNode {
+                id: turn_node_id.clone(),
+                label: "Turn".to_string(),
+                category: "turn".to_string(),
+                metadata: serde_json::json!({}),
+            });
+            self.edge_buffer.push(GraphEdge {
+                source: turn_node_id,
+                target: session_id.to_string(),
+                relation: "IN_SESSION".to_string(),
+                confidence: 1.0,
+            });
+        }
     }
 }

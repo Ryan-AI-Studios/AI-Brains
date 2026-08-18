@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T262 Graph live projection identity:** `pin` / ingest capture events carry additive `turn_id`. That UUID is `memory_projection.memory_id` and the graph `memory` node with a session `RECALLS` edge — no `graph rebuild` for new pins. Legacy events without the field keep a rebuild-stable `turn` node at `event_id` (not the printed ingest id). Missing-node pretty: rebuild **iff** the vault has the memory; unknown / leaf / empty edges have no remediator. `graph update` stays health-only. JSON keys unchanged. Docs: CAPABILITIES §9 + OPERATIONS + PROTOCOL-COMPAT.
+
 - **T261 Contentless recall is T207 empty:** `recall` / `search` / `sync query` vault arm treat zero contentful tokens (`""`, whitespace, punctuation-only, all-stopwords, single-char-only) as the existing empty envelope. No FTS rescue, substring LIKE, Ledgerful bridge, embed HTTP, graph expansion, or `MemoryPinned`. `--semantic` sets `embedding.status=skipped` / `detail=contentless_query` / `endpoint=None`. Piped `recall -` with empty/whitespace stdin is this envelope (exit **0**). `forget --match` stays unfiltered. Docs: CAPABILITIES Recall table.
 
 - **T260 Recall demotes T70 symbol stubs:** default `recall` / `search` exclude code-symbol one-liners (`Module sqlite_backend (path:line)`) from the candidate set so decisions and session memory win. `--symbols` restores a mix; pretty `[symbol]` is display chrome only (no DTO field). Identical stub content is deduped after `rerank_hits`. `forget --match` stays unfiltered. Docs: CAPABILITIES Recall table.

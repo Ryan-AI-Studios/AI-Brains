@@ -79,6 +79,7 @@ async fn test_nightly_summarizes_large_session_via_chunking()
                 session_id,
                 content: turn_content.to_string(),
                 tx_id: None,
+                turn_id: None,
             }))?,
         );
     }

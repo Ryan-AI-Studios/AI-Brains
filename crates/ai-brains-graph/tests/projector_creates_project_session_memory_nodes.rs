@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 mod common;
 
 use ai_brains_core::ids::MemoryId;
@@ -91,5 +93,107 @@ fn test_projector_links_pinned_recall_memory_to_session() -> Result<(), Box<dyn 
     let memories = search.get_session_memories(&session_id)?;
 
     assert_eq!(memories, vec![memory_id.to_string()]);
+    Ok(())
+}
+
+#[test]
+fn projector__user_prompt_with_turn_id__memory_node_and_recalls__ac2()
+-> Result<(), Box<dyn std::error::Error>> {
+    use ai_brains_core::ids::TurnId;
+    use ai_brains_events::UserPromptRecordedPayload;
+
+    let store = common::setup_store()?;
+    let (session_id, _project_id) = common::append_session(&store)?;
+    let session_uuid = Uuid::parse_str(&session_id)?;
+    let turn_id = TurnId::new();
+
+    let envelope = EventBuilder::new(
+        AggregateType::Session,
+        session_uuid,
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::UserPromptRecorded(UserPromptRecordedPayload {
+        session_id: ai_brains_core::ids::SessionId::from_uuid(session_uuid),
+        content: "DECISION: t262 ac2".to_string(),
+        tx_id: None,
+        turn_id: Some(turn_id),
+    }))?;
+    store.append_event(&envelope)?;
+
+    let conn = std::sync::Arc::new(store.connection().clone());
+    let backend = Box::new(ai_brains_graph::SqliteGraphBackend::new(conn));
+    let mut projector = GraphProjector::new(backend);
+    for event in store.read_all_events()? {
+        projector.apply(&event)?;
+    }
+    projector.flush()?;
+
+    let vault = GraphVault::new(store.connection().clone());
+    let search = GraphSearch::new(&vault);
+    assert_eq!(
+        search.node_kind(&turn_id.to_string())?,
+        Some("memory".to_string())
+    );
+    assert_eq!(
+        search.node_kind(&envelope.event_id.to_string())?,
+        None,
+        "F9: Some(turn_id) must not also emit a turn node at event_id"
+    );
+    assert_eq!(
+        search.count_edge(&session_id, &turn_id.to_string(), "RECALLS")?,
+        1
+    );
+    Ok(())
+}
+
+#[test]
+fn projector__user_prompt_legacy_none__turn_node_is_event_id__ac3()
+-> Result<(), Box<dyn std::error::Error>> {
+    use ai_brains_core::ids::TurnId;
+    use ai_brains_events::UserPromptRecordedPayload;
+
+    let store = common::setup_store()?;
+    let (session_id, _project_id) = common::append_session(&store)?;
+    let session_uuid = Uuid::parse_str(&session_id)?;
+    let printed = TurnId::new();
+
+    let envelope = EventBuilder::new(
+        AggregateType::Session,
+        session_uuid,
+        Actor::System,
+        Privacy::LocalOnly,
+    )
+    .build(Payload::UserPromptRecorded(UserPromptRecordedPayload {
+        session_id: ai_brains_core::ids::SessionId::from_uuid(session_uuid),
+        content: "legacy hasher path".to_string(),
+        tx_id: None,
+        turn_id: None,
+    }))?;
+    store.append_event(&envelope)?;
+
+    let conn = std::sync::Arc::new(store.connection().clone());
+    let backend = Box::new(ai_brains_graph::SqliteGraphBackend::new(conn));
+    let mut projector = GraphProjector::new(backend);
+    for event in store.read_all_events()? {
+        projector.apply(&event)?;
+    }
+    projector.flush()?;
+
+    let vault = GraphVault::new(store.connection().clone());
+    let search = GraphSearch::new(&vault);
+    assert_eq!(
+        search.node_kind(&printed.to_string())?,
+        None,
+        "printed random uuid is not a graph node on the legacy path"
+    );
+    assert_eq!(
+        search.node_kind(&envelope.event_id.to_string())?,
+        Some("turn".to_string())
+    );
+    assert_eq!(
+        search.count_edge(&envelope.event_id.to_string(), &session_id, "IN_SESSION")?,
+        1
+    );
     Ok(())
 }

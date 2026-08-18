@@ -69,6 +69,7 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
         session_id: session_1_id,
         content: "Fixed a bug in the auth layer by adding a retry loop.".to_string(),
         tx_id: None,
+        turn_id: None,
     }))?;
     event_store.append_event(&prompt_1)?;
 
@@ -108,6 +109,7 @@ async fn test_raptor_synthesis() -> Result<(), Box<dyn std::error::Error>> {
         session_id: session_2_id,
         content: "Optimized the auth database queries to reduce latency.".to_string(),
         tx_id: None,
+        turn_id: None,
     }))?;
     event_store.append_event(&prompt_2)?;
 
@@ -259,6 +261,7 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
         session_id: session_1_id,
         content: "Working on auth.".to_string(),
         tx_id: None,
+        turn_id: None,
     }))?;
     event_store.append_event(&prompt_1)?;
 
@@ -298,6 +301,7 @@ async fn test_crag_rejects_unsupported_synthesis() -> Result<(), Box<dyn std::er
         session_id: session_2_id,
         content: "Optimizing auth.".to_string(),
         tx_id: None,
+        turn_id: None,
     }))?;
     event_store.append_event(&prompt_2)?;
 
