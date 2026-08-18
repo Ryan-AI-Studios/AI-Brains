@@ -39,6 +39,7 @@ pub mod opencode_import;
 pub mod pin;
 pub mod policy_cmd;
 pub mod preflight;
+pub mod preflight_pretty;
 pub mod project;
 pub mod project_adopt;
 pub mod project_paths;

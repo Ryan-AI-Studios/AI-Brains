@@ -4,6 +4,12 @@ use std::path::PathBuf;
 use crate::GraphSearch;
 use crate::ansi::strip_ansi;
 use crate::errors::Result;
+use crate::preflight_global::{
+    GLOBAL_INDEX_FETCH, GLOBAL_INDEX_MAX, GLOBAL_INDEX_PER_PROJECT, GLOBAL_RECENT_MAX,
+    GLOBAL_RECENT_PER_PROJECT, GLOBAL_SAFETY_FETCH, GLOBAL_SAFETY_MAX, GLOBAL_SAFETY_PER_PROJECT,
+    GLOBAL_SESSION_MAX, GLOBAL_SESSION_PER_PROJECT, prefix_first_line, project_key, project_tag,
+    span_count, take_round_robin,
+};
 use crate::privacy_filter::is_injectable_privacy;
 use crate::sessions::active_sessions;
 use crate::word_budget::{
@@ -27,6 +33,9 @@ use ai_brains_store::VaultConnection;
 pub struct PreflightContext {
     pub text: String,
     pub word_count: usize,
+    /// Distinct non-unknown project ids in the emitted global body (T264 F9).
+    /// `Some` iff `global`; governed empty-global is `Some(0)`.
+    pub in_context_project_span: Option<u32>,
 }
 
 /// Env flag: `AI_BRAINS_GOVERNED_BRIEFING=1` enables typed ProjectBriefingPacket path.
@@ -117,6 +126,8 @@ fn build_governed_preflight(
             // F32: content words exclude F2b trailing sentinel chrome.
             word_count: content_word_count(&text),
             text,
+            // F9: governed empty-global → Some(0); unresolved is not global.
+            in_context_project_span: if global { Some(0) } else { None },
         });
     }
 
@@ -161,6 +172,7 @@ fn build_governed_preflight(
         // F32: content words exclude F2b trailing sentinel chrome.
         word_count: content_word_count(&text),
         text,
+        in_context_project_span: None,
     })
 }
 
@@ -270,23 +282,27 @@ fn build_legacy_preflight(
 
     // --- Onboarding & Safety Section (Max 15% of budget) ---
     let onboarding_budget = (max_words * 15) / 100;
-    let mut safety_entries: Vec<(String, String)> = Vec::new(); // (content, updated_at)
+    let mut safety_raw: Vec<(String, String, Option<String>)> = Vec::new(); // content, ts, project
     let mut safety_ids: HashSet<String> = HashSet::new();
+    let mut span_ids: Vec<String> = Vec::new();
 
     let safety_sql = if global {
-        "SELECT m.memory_id, m.content, m.updated_at FROM memory_projection m
+        "SELECT m.memory_id, m.content, m.updated_at, COALESCE(m.project_id, s.project_id)
+         FROM memory_projection m
+         LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
          AND m.status = 'pinned'
-         ORDER BY m.updated_at DESC LIMIT 10"
+         ORDER BY m.updated_at DESC LIMIT 40"
     } else {
-        "SELECT m.memory_id, m.content, m.updated_at FROM memory_projection m
+        "SELECT m.memory_id, m.content, m.updated_at, COALESCE(m.project_id, s.project_id)
+         FROM memory_projection m
          LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
          AND m.status = 'pinned'
          AND (s.project_id = ? OR m.project_id = ?)
          ORDER BY m.updated_at DESC LIMIT 10"
     };
-
+    const _: () = assert!(GLOBAL_SAFETY_FETCH == 40);
     let mut safety_stmt = conn.prepare(safety_sql)?;
     let mut safety_rows = if global {
         safety_stmt.query([])?
@@ -303,6 +319,7 @@ fn build_legacy_preflight(
         let memory_id: String = row.get(0)?;
         let content: String = row.get(1)?;
         let updated_at: String = row.get(2)?;
+        let item_project: Option<String> = row.get(3)?;
 
         // Suppress vault HOTSPOTs if we already have fresh intelligence from the bridge
         if has_cg_intelligence && content.contains("HOTSPOT:") {
@@ -310,26 +327,40 @@ fn build_legacy_preflight(
         }
 
         safety_ids.insert(memory_id);
-        safety_entries.push((strip_ansi(&content), updated_at));
+        safety_raw.push((strip_ansi(&content), updated_at, item_project));
     }
 
     // Deduplicate hotspot entries by file path: keep only the most recent score per path.
     // ORDER BY updated_at DESC ensures first occurrence is the freshest.
-    let safety_entries = dedup_hotspots(safety_entries);
+    let mut safety_entries = dedup_hotspots_keyed(safety_raw);
+    if global {
+        safety_entries = take_round_robin(
+            safety_entries,
+            |(_, pid)| project_key(pid.as_deref()),
+            GLOBAL_SAFETY_PER_PROJECT,
+            GLOBAL_SAFETY_MAX,
+        );
+    }
 
+    let mut safety_cleaned: Vec<String> = Vec::new();
+    let mut safety_for_skip: Vec<String> = Vec::new();
     if !safety_entries.is_empty() {
-        let cleaned: Vec<String> = safety_entries
-            .iter()
-            .map(|entry| {
-                entry
-                    .strip_prefix("ASSISTANT: ")
-                    .unwrap_or(entry)
-                    .to_string()
-            })
-            .collect();
+        for (entry, pid) in &safety_entries {
+            let stripped = entry.strip_prefix("ASSISTANT: ").unwrap_or(entry);
+            safety_for_skip.push(stripped.to_string());
+            let tagged = if global {
+                if let Some(id) = pid.as_deref() {
+                    span_ids.push(id.to_string());
+                }
+                prefix_first_line(stripped, pid.as_deref())
+            } else {
+                stripped.to_string()
+            };
+            safety_cleaned.push(tagged);
+        }
         let safety_text = format!(
             "--- Repository Bearings & Safety ---\n{}",
-            cleaned.join("\n\n")
+            safety_cleaned.join("\n\n")
         );
         // Intermediate subsection trim: no F2b sentinel (final join applies F2b).
         sections.push(trim_to_word_budget_no_sentinel(
@@ -338,10 +369,30 @@ fn build_legacy_preflight(
         ));
     }
 
+    let active = if global {
+        take_round_robin(
+            active,
+            |s| project_key(s.project_id.as_deref()),
+            GLOBAL_SESSION_PER_PROJECT,
+            GLOBAL_SESSION_MAX,
+        )
+    } else {
+        active
+    };
+
     if !active.is_empty() {
         let mut session_texts = Vec::new();
         for session in &active {
-            let mut session_lines = vec![format!("--- Session: {} ---", session.session_id)];
+            let header = if global {
+                format!(
+                    "--- Session: {} {} ---",
+                    session.session_id,
+                    project_tag(session.project_id.as_deref())
+                )
+            } else {
+                format!("--- Session: {} ---", session.session_id)
+            };
+            let mut session_lines = vec![header];
             let had_turns = !session.turns.is_empty();
             for turn in &session.turns {
                 let content = &turn.content;
@@ -355,7 +406,7 @@ fn build_legacy_preflight(
                 }
                 // Skip CONSTRAINT/INVARIANT already shown in safety
                 if (content.contains("CONSTRAINT:") || content.contains("INVARIANT:"))
-                    && safety_entries.iter().any(|e| e.contains(content.as_str()))
+                    && safety_for_skip.iter().any(|e| e.contains(content.as_str()))
                 {
                     continue;
                 }
@@ -368,6 +419,9 @@ fn build_legacy_preflight(
             }
             // Include session if it has unfiltered turns, or if it was empty to begin with
             if session_lines.len() > 1 || !had_turns {
+                if global && let Some(id) = session.project_id.as_deref() {
+                    span_ids.push(id.to_string());
+                }
                 session_texts.push(session_lines.join("\n"));
             }
         }
@@ -378,12 +432,13 @@ fn build_legacy_preflight(
 
     // --- General Memory Index (scoped to current project when project_id is known) ---
     let index_sql = if global {
-        "SELECT m.memory_id, m.content, m.privacy, m.updated_at
+        "SELECT m.memory_id, m.content, m.privacy, m.updated_at, COALESCE(m.project_id, s.project_id)
          FROM memory_projection m
+         LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE m.status = 'pinned'
          ORDER BY m.updated_at DESC"
     } else {
-        "SELECT m.memory_id, m.content, m.privacy, m.updated_at
+        "SELECT m.memory_id, m.content, m.privacy, m.updated_at, COALESCE(m.project_id, s.project_id)
          FROM memory_projection m
          LEFT JOIN session_projection s ON m.session_id = s.session_id
          WHERE m.status = 'pinned'
@@ -402,7 +457,7 @@ fn build_legacy_preflight(
             Option::<String>::None
         ])?
     };
-    let mut collected: Vec<(String, String)> = Vec::new(); // (content, updated_at)
+    let mut collected: Vec<(String, String, Option<String>)> = Vec::new(); // content, ts, project
 
     while let Some(row) = rows.next()? {
         let memory_id: String = row.get(0)?;
@@ -419,16 +474,24 @@ fn build_legacy_preflight(
 
         let content: String = row.get(1)?;
         let updated_at: String = row.get(3)?;
+        let item_project: Option<String> = row.get(4)?;
         let content = strip_ansi(&content);
 
         // Skip low-signal entries
         if is_low_signal(&content) {
             continue;
         }
+        if global {
+            if collected.len() >= GLOBAL_INDEX_FETCH {
+                break;
+            }
+            collected.push((content, updated_at, item_project));
+            continue;
+        }
         let candidate = if collected.is_empty() {
             content.clone()
         } else {
-            let mut parts: Vec<String> = collected.iter().map(|(c, _)| c.clone()).collect();
+            let mut parts: Vec<String> = collected.iter().map(|(c, _, _)| c.clone()).collect();
             parts.push(content.clone());
             parts.join("\n\n")
         };
@@ -436,37 +499,72 @@ fn build_legacy_preflight(
         if word_count(&candidate) > max_words {
             break;
         }
-        collected.push((content, updated_at));
+        collected.push((content, updated_at, item_project));
     }
 
-    if !collected.is_empty() {
+    let index_items = if global {
+        take_round_robin(
+            collected.clone(),
+            |(_, _, pid)| project_key(pid.as_deref()),
+            GLOBAL_INDEX_PER_PROJECT,
+            GLOBAL_INDEX_MAX,
+        )
+    } else {
+        collected.clone()
+    };
+    let recent_items = if global {
+        take_round_robin(
+            collected.clone(),
+            |(_, _, pid)| project_key(pid.as_deref()),
+            GLOBAL_RECENT_PER_PROJECT,
+            GLOBAL_RECENT_MAX,
+        )
+    } else {
+        collected.iter().take(3).cloned().collect()
+    };
+
+    if !index_items.is_empty() {
         // 1. Build the index section with relative timestamps
         let mut index_lines = vec!["--- Memory Index (Briefing) ---".to_string()];
-        for (i, (content, updated_at)) in collected.iter().enumerate() {
+        for (i, (content, updated_at, pid)) in index_items.iter().enumerate() {
             let first_line = content.lines().next().unwrap_or("Untitled Memory");
             let summary = truncate_index_summary(first_line);
             let ts = relative_timestamp(updated_at);
-            if ts.is_empty() {
-                index_lines.push(format!("{}. {}", i + 1, summary));
+            let line = if ts.is_empty() {
+                format!("{}. {}", i + 1, summary)
             } else {
-                index_lines.push(format!("{}. {} -- {}", i + 1, summary, ts));
+                format!("{}. {} -- {}", i + 1, summary, ts)
+            };
+            if global {
+                if let Some(id) = pid.as_deref() {
+                    span_ids.push(id.to_string());
+                }
+                index_lines.push(prefix_first_line(&line, pid.as_deref()));
+            } else {
+                index_lines.push(line);
             }
         }
         let index_text = index_lines.join("\n");
 
         // 2. Build the detailed section (top 3 most recent memories)
         let mut detailed_text = String::new();
-        let top_memories: Vec<_> = collected.iter().take(3).collect();
-        if !top_memories.is_empty() {
+        if !recent_items.is_empty() {
             let mut detailed_entries = Vec::new();
-            for (content, updated_at) in &top_memories {
+            for (content, updated_at, pid) in &recent_items {
                 let ts = relative_timestamp(updated_at);
                 let entry = if ts.is_empty() {
                     content.to_string()
                 } else {
                     format!("({}) {}", ts, content)
                 };
-                detailed_entries.push(entry);
+                if global {
+                    if let Some(id) = pid.as_deref() {
+                        span_ids.push(id.to_string());
+                    }
+                    detailed_entries.push(prefix_first_line(&entry, pid.as_deref()));
+                } else {
+                    detailed_entries.push(entry);
+                }
             }
             detailed_text = format!(
                 "--- Most Recent Memories ---\n\n{}\n\n(Use 'recall' to fetch details for other index items)",
@@ -501,6 +599,11 @@ fn build_legacy_preflight(
         // F32: content words exclude F2b trailing sentinel chrome.
         word_count: content_word_count(&text),
         text,
+        in_context_project_span: if global {
+            Some(span_count(span_ids))
+        } else {
+            None
+        },
     })
 }
 
@@ -684,16 +787,25 @@ fn extract_hotspot_paths(content: &str) -> Vec<String> {
 
 /// Deduplicate hotspot entries by keeping only the first (most recent) entry per file path.
 /// Non-hotspot entries (CONSTRAINT, INVARIANT) pass through unchanged.
+#[cfg(test)]
 fn dedup_hotspots(entries: Vec<(String, String)>) -> Vec<String> {
+    dedup_hotspots_keyed(entries.into_iter().map(|(c, t)| (c, t, ())).collect())
+        .into_iter()
+        .map(|(c, _)| c)
+        .collect()
+}
+
+/// Like [`dedup_hotspots`] but preserves a caller-supplied key (T264 project id).
+fn dedup_hotspots_keyed<T: Clone>(entries: Vec<(String, String, T)>) -> Vec<(String, T)> {
     let mut seen_paths: HashSet<String> = HashSet::new();
     let mut result = Vec::new();
 
-    for (content, _updated_at) in &entries {
+    for (content, _updated_at, extra) in &entries {
         if content.contains("HOTSPOT:") {
             let paths = extract_hotspot_paths(content);
             if paths.is_empty() {
                 // Can't parse paths — keep the entry as-is
-                result.push(content.clone());
+                result.push((content.clone(), extra.clone()));
                 continue;
             }
             let new_paths: Vec<String> = paths
@@ -714,12 +826,12 @@ fn dedup_hotspots(entries: Vec<(String, String)>) -> Vec<String> {
                         }
                     }
                 }
-                result.push(rebuilt_lines.join("\n"));
+                result.push((rebuilt_lines.join("\n"), extra.clone()));
             }
             // If all paths already seen, skip this entry entirely
         } else {
             // CONSTRAINTS, INVARIANTS, etc. — always keep
-            result.push(content.clone());
+            result.push((content.clone(), extra.clone()));
         }
     }
 

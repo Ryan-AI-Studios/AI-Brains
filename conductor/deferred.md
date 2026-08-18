@@ -226,7 +226,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~`recall ""` 5.7 s~~ | **T261 Completed 2026-08-17.** 0-contentful → T207 empty; no LIKE/bridge/embed/graph. FEATURE TX `4a317118-21c5-4667-9f8d-ae10157f20e2`. |
 | ~~Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4~~ | **T262 Completed 2026-08-17.** Pin `turn_id` = memory + graph node + `RECALLS`. Missing-node pretty: rebuild iff vault has memory/session. Historical no-field pins stay F1b. |
 | ~~Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review)~~ | **T263 Completed 2026-08-18.** H1: empty_authority + Personal deny name `recall`; expand Unknown preview; authorized-empty lists `next_step`. **H2 declined**. Soft: PATH `cargo install`; daily 0-of-3 grants stays T241. |
-| `preflight --global` blends other repos (5/4, summary 7/6) | **T264 Planned 2026-08-18.** Label + per-project caps + summary span. Recall leftover drop declined (F11). |
+| ~~`preflight --global` blends other repos (5/4, summary 7/6)~~ | **T264 Completed 2026-08-18.** Label + per-project caps + summary span. Recall leftover drop declined (F11). Soft: Index fetch 80; span vs word-budget; pretty formatter still in `preflight.rs`. |
 | `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
 | Format maze; list-paths 7/5; retention default 6/5 | **T266** |
 | harness/whoami self-next; list footer leftover-as-AI-Brains (8/6) | **T267** |
@@ -258,7 +258,7 @@ Specified softs — not product blockers:
 | Neighbor UUID prefix | Decline F17 |
 | Wrong-kind `pretty_no_memory_node` / `pretty_no_session_node` still `graph update` | Soft — outside F1a–c / AC9 |
 | PATH `ai-brains` still hasher-turn until reinstall | Soft F22 — operator `cargo install --features graph` |
-| T263 governed / T264 leftover `--global` | **T263 Completed 2026-08-18**. **T264 Planned 2026-08-18**. |
+| T263 governed / T264 leftover `--global` | **T263 Completed 2026-08-18**. **T264 Completed 2026-08-18**. |
 
 ### T263 planning absorption (2026-08-18) — H1 only
 
@@ -289,7 +289,7 @@ Specified softs — not product blockers:
 | Vault pin COUNT overlay | Soft F24 |
 | `#18` personal continuity | Decline F27 |
 | PATH `ai-brains` until reinstall | Soft F21 — operator `cargo install` |
-| T264 leftover `--global` / T266 / T267 | **T264 Planned 2026-08-18** (preflight only). T266 / T267 stay Pending. |
+| T264 leftover `--global` / T266 / T267 | **T264 Completed 2026-08-18** (preflight only). T266 / T267 stay Pending. |
 
 ### T264 planning absorption (2026-08-18) — label + cap; no recall drop
 
@@ -317,6 +317,21 @@ Specified softs — not product blockers:
 | Agy m1 HEAD `d8be361` vs `bc10f3e` | **Note** §2.1 |
 | Agy O1 `params![]` | **Already** F10 |
 
+### T264 closeout residuals (2026-08-18)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Index fetch window 80 leftover-heavy | Soft R1b-P3-1 — tags still honest |
+| Span may count Recent later trimmed by word budget | Soft R1b-P3-2 — F7 post-cap pre-pretty |
+| Pretty formatter still in hotspot `preflight.rs` | Soft R1b-P3-3 — peel logic is sibling |
+| AC5 does not independently assert Index/Recent tags | Soft R1b-P3-4 |
+| Pretty 8-hex collision keeps raw tag | Intentional CX2 — no arbitrary alias |
+| Recall leftover-first under `--global` | Decline F11 — not a silent exclude |
+| PATH `ai-brains` until reinstall | Soft F21 — operator `cargo install` |
+| T266 / T267 | Decline F27 |
+
 ### T261 closeout residuals (2026-08-17)
 
 Specified softs — not product blockers:
@@ -326,7 +341,7 @@ Specified softs — not product blockers:
 | Skip CLI graph-vault open on contentless | Soft §11 — SQLCipher open dominates |
 | Skip T207 `<10` memory COUNT on contentless | Soft F9 — keep small-vault sentence |
 | PATH `ai-brains` still LIKE/MATCH-all until reinstall | Soft F12 — operator `cargo install` |
-| Leftover-project `--global` / preflight blender | **T264 Planned 2026-08-18** (preflight label+cap; recall drop declined) |
+| Leftover-project `--global` / preflight blender | **T264 Completed 2026-08-18** (preflight label+cap; recall drop declined) |
 | Graph sparse / 4h pin no node | **T262 Completed 2026-08-17** |
 
 ### T260 closeout residuals (2026-08-17)
@@ -335,7 +350,7 @@ Specified softs — not product blockers:
 
 | Residual | Disposition |
 |----------|-------------|
-| Leftover-project `--global` / preflight blender | **T264 Planned 2026-08-18** (preflight label+cap; recall drop declined) |
+| Leftover-project `--global` / preflight blender | **T264 Completed 2026-08-18** (preflight label+cap; recall drop declined) |
 | `source_tag` on `memory_projection` | Soft — store/replay track |
 | AC8 hermetic does not force embed `ok` + zero post-threshold | Soft — default exclude already makes F11+stub impossible |
 | PATH `ai-brains` still ranks stubs until reinstall | Soft F18 — operator `cargo install` |
@@ -348,7 +363,7 @@ Specified softs — not product blockers:
 | Residual | Disposition |
 |----------|-------------|
 | Reclassify leftover memories onto dest by path/provenance | Soft — F5; later importer if ever |
-| `--global` leftover-first / blender | Symbol monopoly **T260 Completed**. Preflight blender **T264 Planned 2026-08-18** (label+cap; recall drop declined). |
+| `--global` leftover-first / blender | Symbol monopoly **T260 Completed**. Preflight blender **T264 Completed 2026-08-18** (label+cap; recall drop declined). |
 | `project list` footer leftover-as-AI-Brains | **T267 F3** |
 | `project.rs` private `resolve_project_ref` duplicate | Soft — F12 hotspot freeze |
 | No-owner / dest-missing JSON is generic `COMMAND_FAILED` | Soft — F8/AC7/AC8; T257 owns JSON interleave |

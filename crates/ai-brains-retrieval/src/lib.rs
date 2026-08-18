@@ -4,6 +4,7 @@ mod fts_utils;
 mod hybrid;
 mod lexical;
 mod preflight;
+mod preflight_global;
 mod privacy_filter;
 mod ranking;
 mod recall;

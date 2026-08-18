@@ -1,6 +1,6 @@
 # T264 Plan — Preflight global isolation
 
-**Status:** **Pending** (Planned in spec; plan-only until go)
+**Status:** **In Progress** (FEATURE TX `02ee555e-b659-4999-87b2-8477f23169f9`)
 **Spec:** [spec.md](./spec.md) F0–F30 / AC1–AC14 + §13 fold-in
 **Category:** UX / FEATURE
 **Ledger TX (planning):** `a0500604-b8ff-47b9-b24d-9c0923b8855e` (DOCS)
@@ -67,56 +67,56 @@ No Blockers. OpenCode **M1** folded as **F30** / **AC5** (item-first-line + two-
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `build_legacy_preflight` Safety/Index SQL and `sessions.rs`.
-- [ ] Re-read `format_preflight_pretty_body_with` + `strip_pretty_chrome` + T230 `display_label`.
-- [ ] Classify-only dogfood: `--global --pretty --compact -m 400` still unlabeled foreign Session. **Do not** pin. **Do not** `cargo install`.
-- [ ] Re-check lock clap **4.6.1** / crates.io current. rustc **1.95.0**. No clap 5.
-- [ ] Rescan **entire** `conductor/deferred.md`.
-- [ ] Last merged PR comments/reviews/inline. Mint a placeholder only if a real leftover fits nowhere.
-- [ ] `ledgerful ledger start T264-preflight-global-isolation --category FEATURE`
+- [x] Re-read `build_legacy_preflight` Safety/Index SQL and `sessions.rs`.
+- [x] Re-read `format_preflight_pretty_body_with` + `strip_pretty_chrome` + T230 `display_label`.
+- [x] Classify-only dogfood: `--global --pretty --compact -m 400` still unlabeled foreign Session. **Do not** pin. **Do not** `cargo install`.
+- [x] Re-check lock clap **4.6.1** / crates.io **4.6.6**. rustc **1.95.0**. No clap 5.
+- [x] Rescan **entire** `conductor/deferred.md`.
+- [x] Last merged PR #178 comments/reviews/inline **0**. N/A.
+- [x] `ledgerful ledger start T264-preflight-global-isolation --category FEATURE` → `02ee555e-b659-4999-87b2-8477f23169f9`
 
 ---
 
 ## Phase 1 — Red
 
-- [ ] `take_round_robin__leftover_then_other__interleaves_per_project` (AC1)
-- [ ] `take_round_robin__empty_and_unknown__respects_max` (AC2)
-- [ ] `peel_global_tag__tagged_timestamp_role__chrome_still_strips` (AC3) — remainder `[8hex]` not re-peeled
-- [ ] `upgrade_global_tag__alias_missing_and_bracket` (AC4) — F24 sanitize + body-internal `[aaaaaaaa]` unchanged
-- [ ] Hermetic `preflight_global_isolation.rs`: AC5–AC8 / AC10 / AC11 (failing) — AC5 includes two-line continuation pin
+- [x] `take_round_robin__leftover_then_other__interleaves_per_project` (AC1) — failed on blended take, then green
+- [x] `take_round_robin__empty_and_unknown__respects_max` (AC2)
+- [x] `peel_global_tag__tagged_timestamp_role__chrome_still_strips` (AC3) — remainder `[8hex]` not re-peeled
+- [x] `upgrade_global_tag__alias_missing_and_bracket` (AC4) — F24 sanitize + body-internal `[aaaaaaaa]` unchanged
+- [x] Hermetic `preflight_global_isolation.rs`: AC5–AC8 / AC10 / AC11 — AC5 includes two-line continuation pin
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] `preflight_global.rs`: `take_round_robin` + `[8hex]` / `[unknown]` prefix + span count
-- [ ] `build_legacy_preflight`: SELECT `COALESCE(m.project_id, s.project_id)`; Safety LIMIT **40** when global; apply F5 caps; write tags into text
-- [ ] `SessionContext.project_id`; `active_sessions` both arms `params![]`
-- [ ] `PreflightContext.in_context_project_span`
-- [ ] Summary line F7 + JSON F8
-- [ ] `preflight_pretty.rs`: peel **leading** tag → chrome → `display_label` → `truncate_chars(..., 32)` → replace `]` with `·` → reattach (no `project.rs` edit; do not regex-replace `[8hex]` over the whole line)
-- [ ] Wire pretty dispatch; do not grow `preflight.rs` except summary/JSON/dispatch
-- [ ] `lib.rs` / `mod.rs` modules
+- [x] `preflight_global.rs`: `take_round_robin` + `[8hex]` / `[unknown]` prefix + span count
+- [x] `build_legacy_preflight`: SELECT `COALESCE(m.project_id, s.project_id)`; Safety LIMIT **40** when global; apply F5 caps; write tags into text
+- [x] `SessionContext.project_id`; `active_sessions` both arms `params![]`
+- [x] `PreflightContext.in_context_project_span`
+- [x] Summary line F7 + JSON F8
+- [x] `preflight_pretty.rs`: peel **leading** tag → chrome → `display_label` → `truncate_chars(..., 32)` → replace `]` with `·` → reattach (no `project.rs` edit; do not regex-replace `[8hex]` over the whole line)
+- [x] Wire pretty dispatch; do not grow `preflight.rs` except summary/JSON/dispatch
+- [x] `lib.rs` / `mod.rs` modules
 
 ---
 
 ## Phase 3 — Verify
 
-- [ ] Targeted: `cargo nextest run -p ai-brains-retrieval -p ai-brains-cli --lib --bins` + new hermetic file
-- [ ] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Confirm T214 / T220 / T250 hermetics + `t180_c_preflight_json_keys` green
-- [ ] Manual AC14 source bin (classify-only). Foreign Session missing → pass-with-observed-data, not fail.
-- [ ] Docs: CAPABILITIES + PROTOCOL-COMPAT + CHANGELOG
-- [ ] `ledgerful scan --impact` ; `ledgerful verify --scope fast`
+- [x] Targeted: retrieval AC1/AC2 units + CLI peel/upgrade/chrome + hermetic isolation + T214/T220/T250/T180
+- [x] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings` exit 0
+- [x] Confirm T214 / T220 / T250 hermetics + `t180_c_preflight_json_keys` green
+- [x] Manual AC14 source bin (classify-only). See evidence below.
+- [x] Docs: CAPABILITIES + PROTOCOL-COMPAT + CHANGELOG
+- [x] `ledgerful scan --impact` ; `ledgerful verify --scope fast` (fmt dirtied then cleaned; clippy/nextest/deny/audit ok)
 
 ---
 
 ## Phase 4 — Review + publish (implement-track)
 
-- [ ] `review.md` Phase-1 clean (medium+ not dropped)
-- [ ] `codex-review` (FEATURE)
-- [ ] Full gate per AGENTS.md
-- [ ] conductor **Completed**; deferred closeout row
+- [x] `review.md` Phase-1 clean (medium+ not dropped)
+- [x] `codex-review` (FEATURE) — CX1 P2 identity → CX2 P2 pretty collision → **CX3 PASS WITH DEFERRED P3**
+- [x] Full gate: `dev-check.ps1` SUCCESS nextest 3100 (1 skipped); `ledgerful verify --scope full` passed
+- [x] conductor **Completed**; deferred closeout row
 - [ ] Push `track/T264-*` (never `main`); PR; watch GHA; squash-merge; prune
 
 ---

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T264 Preflight global isolation:** `--global` preflight labels Safety/Index/Recent first lines and Session headers with `[8hex]` (pretty upgrades via `display_label`). Per-project caps stop one repo occupying the whole Safety/Session window. Summary adds `In context spans N projects` + optional JSON `in_context_project_span` (global only). Project-scoped pretty stays unlabeled. Does not drop leftover from `recall --global`. Docs: CAPABILITIES + PROTOCOL-COMPAT.
+
 - **T263 Governed honesty (H1):** Granted-empty project briefing `empty_authority` next names `recall` / `search` (vault pins are not Approved authority; ≤140 / one line). Personal deny next/hint names `recall` (not Personal `policy bootstrap`). `query expand` `Unknown` preview is `Handle not found.` (exit **0**). Authorized-empty `evidence`/`source`/`review` list JSON adds `next_step` pointing at ungoverned `recall`. Help Tip exemplifies `recall`. `query trace` still prints scalar `null`. No live pin→Approved promotion. Docs: CAPABILITIES §15 + WORKFLOWS + OPERATIONS.
 
 - **T262 Graph live projection identity:** `pin` / ingest capture events carry additive `turn_id`. That UUID is `memory_projection.memory_id` and the graph `memory` node with a session `RECALLS` edge — no `graph rebuild` for new pins. Legacy events without the field keep a rebuild-stable `turn` node at `event_id` (not the printed ingest id). Missing-node pretty: rebuild **iff** the vault has the memory; unknown / leaf / empty edges have no remediator. `graph update` stays health-only. JSON keys unchanged. Docs: CAPABILITIES §9 + OPERATIONS + PROTOCOL-COMPAT.
