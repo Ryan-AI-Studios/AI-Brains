@@ -1,11 +1,126 @@
 # T265 Plan — Preflight JSON envelope
 
-**Status:** **Pending** (placeholder)
-**Spec:** [spec.md](./spec.md)
-**Category:** UX / CONTRACTS
+**Status:** **Planned** (Pending in registry; plan-only until go)
+**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC16
+**Category:** UX / CONTRACTS / FEATURE
+**Ledger TX (planning):** `5fa57d64-9fac-4a8e-932a-d0f23c29f347` (DOCS)
+**Ledger TX (on go):** `ledgerful ledger start T265-preflight-json-envelope --category FEATURE --message "Additive sections[] on preflight --format json; keep text+word_count required compact"`
 
-- [ ] Go / FEATURE TX
-- [ ] Re-read T180 2-key freeze
-- [ ] Additive vs json-v2 vs documented decline
-- [ ] E1 empty-state if new keys
-- [ ] Gate + review
+---
+
+## Preflight (plan time — 2026-08-19)
+
+| Check | Result |
+|-------|--------|
+| HEAD / tree | `2a00ce3` T267 `#181` CLEAN. `main` = `origin/main`. |
+| T265 stub | Placeholder upgraded in place to **Planned** |
+| PATH `ai-brains` | **0.1.1** PATH-behind (mtime 2026-08-18). JSON still 2-key. **Do not `cargo install`.** |
+| Source JSON | `preflight --format json -m 200` → keys `text`,`word_count` len **2**; Bearings + Session; 22 newlines; `word_count=200`. **Live hole.** |
+| SoT | contracts `PreflightContextResponse`; CLI emit `preflight.rs:279–286`; T180-C `len==2`; pretty classifier `:360`. |
+| clap / serde_json | lock clap **4.6.1** / crates.io **4.6.6**; serde_json lock **1.0.150** / crates.io **1.0.151**. rustc **1.95.0**. **No clap 5.** Snapshot — re-verify at execute. |
+| Last PR Cursor | #181 comments/reviews **empty**. #179 Bugbot Medium still true → **T272**. No open PR on `main`. |
+| `deferred.md` | Full scan. Overlap: audit T265 **absorb**; T214 extra keys **absorb**; T220/T264/T266 freeze **absorb as lift**; T257 compact **affirm**; T272 / T268–T271 / T240 F2 / T255 **decline**. |
+| ai-brains | `preflight --summary` 3581317d / pin count **volatile** (3089) / grants 0 of 3 (T241). |
+| ledgerful | doctor ready (hygiene warns). 0 pending 0 drift. Hotspot **#1** `project.rs` — do not edit. **#7** CLI `preflight.rs` 2148 — sibling. Retrieval `preflight.rs` T272 — do not edit. Index incremental completed (0 file delta). |
+| Research | clig.dev JSON structure + additive future-proofing; serde ignore-unknown; T180 extra-field policy. json-v2 declined. |
+| `ISSUES.md` | **Does not exist** |
+| Live `.env` / bootstrap / nightly mutate / pin | **Not written** / **not run** / **not scheduled** / **not pinned** this pass. |
+
+---
+
+## Absorbed deferred
+
+| Item | Source | Plan action |
+|------|--------|-------------|
+| `{text, word_count}` blob (7/6) | audit T265 | **DoD** F1–F8 / AC1–AC4 |
+| T214 `PreflightContextResponse` extra keys | T214 F11 residual | **Absorb** `sections` only |
+| T220 / T264 / T266 “do not grow T180” | peers | **Absorb** as freeze this track lifts |
+| T257 compact + `note_machine_stdout` | T257 | **Affirm** F15 |
+| T220 summary JSON | T220 | **Decline** F9 / AC10 — leave |
+| json-v2 / typed arrays | placeholder fork | **Decline** F10 |
+| T272 `safety_ids` | Cursor #179 | **Decline** F11 — already minted |
+| T268 / T269 / T270 / T271 | series | **Decline** F24 |
+| T240 F2 / T255 bag | standing | **Decline** F23 |
+| last-PR Cursor #181 | empty | **N/A** |
+
+---
+
+## Phase 0 — on go (re-verify)
+
+- [ ] Re-read `PreflightContextResponse`, CLI JSON arm `:279–286`, T180-C, T219 AC7, T250 AC12, T264 AC9.
+- [ ] Confirm source `preflight --format json -m 200` is still 2-key.
+- [ ] Confirm T272 still at retrieval `preflight.rs:329` + `:467`.
+- [ ] Re-check lock clap **4.6.1** / crates.io clap. rustc **1.95.0**. No clap 5. serde_json lock vs crates.io.
+- [ ] Rescan **entire** `conductor/deferred.md`.
+- [ ] Last merged PR Cursor comments — #181 leftover none; T272 still the #179 mint.
+- [ ] `ledgerful ledger start T265-preflight-json-envelope --category FEATURE`
+
+---
+
+## Phase 1 — Red (failing tests first)
+
+- [ ] Unit `split_preflight_sections__legacy_headers__ids_in_order` (AC3)
+- [ ] Unit `split_preflight_sections__two_sessions__two_section_rows` (AC4)
+- [ ] Unit `split_preflight_sections__no_headers__empty` (AC5)
+- [ ] Unit `split_preflight_sections__governed_marker__one_section` (AC6)
+- [ ] Unit `preflight_context_response__n_minus_1_two_key__sections_default_empty` (AC7)
+- [ ] Unit `split_preflight_sections__ledgerful_and_other` (AC15)
+- [ ] Confirm T180-C still fails the new `sections` assert (or still `len==2` until green)
+
+---
+
+## Phase 2 — Green (DTO + split + emit)
+
+- [ ] Grow `PreflightContextResponse` + nested `{id,title,items}`; `#[serde(default)]` on `sections`; **no** `deny_unknown_fields`
+- [ ] Add `commands/preflight_json.rs` + `pub mod` (F12)
+- [ ] Wire JSON arm to sibling; keep `to_string` + `note_machine_stdout`
+- [ ] AC1 / AC2 / AC16
+- [ ] No retrieval `preflight.rs` edits
+
+---
+
+## Phase 3 — Existing `len==2` tests
+
+- [ ] T219 AC7: keep newlines + no Scope; drop `len==2`; assert `sections` array (AC8)
+- [ ] T250 AC12: keep uncapped seed; drop `len==2` (AC8)
+- [ ] T264 AC9: keep `[8hex]`; drop `len==2` (AC9)
+- [ ] T220 summary hermetics stay green (AC10)
+- [ ] Dogfood extra-key still scans `text` (AC14)
+- [ ] Empty-vault hermetic AC11
+
+---
+
+## Phase 4 — Docs
+
+- [ ] CAPABILITIES full JSON row: required `text`/`word_count`; additive `sections`; E1 `[]`; compact; ids
+- [ ] PROTOCOL-COMPAT §5 + T180-C row
+- [ ] Root CHANGELOG T265
+- [ ] clap `--format` docstring + after_help one-liner (F26)
+- [ ] Rewrite T220 “Never grows…” comment in `preflight.rs` (F9)
+
+---
+
+## DoD (checkable)
+
+- [ ] F0–F26 honored (especially F10 json-v2 decline, F11 retrieval freeze, F12 sibling, F25 no version key)
+- [ ] AC1–AC16 green
+- [ ] T272 file untouched
+- [ ] `project.rs` / `governed_common.rs` untouched
+- [ ] No clap 5 / no lock bumps / no new crates
+- [ ] Phase-1 review clean; `codex-review` (F18)
+- [ ] Full gate; FEATURE TX committed; PR squash-merged (implement-track)
+
+---
+
+## Stop-before
+
+- Scope exceeds F1–F8 (typed arrays, json-v2, retrieval/T272, summary envelope, pretty refactor)
+- Missing secrets / live `.env` write
+- T240 F2 / T255 reopen
+- Push to `main`
+
+---
+
+## Not this track
+
+T268 scan-roots; T269 nightly/Router; T270 classify; T271 ledger pane; T272 safety_ids; T241 grants; PATH `cargo install`.

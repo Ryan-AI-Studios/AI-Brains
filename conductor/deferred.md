@@ -227,7 +227,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Graph sparse; 4h pin no node; neighbors 4/5; hierarchy 3/4~~ | **T262 Completed 2026-08-17.** Pin `turn_id` = memory + graph node + `RECALLS`. Missing-node pretty: rebuild iff vault has memory/session. Historical no-field pins stay F1b. |
 | ~~Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review)~~ | **T263 Completed 2026-08-18.** H1: empty_authority + Personal deny name `recall`; expand Unknown preview; authorized-empty lists `next_step`. **H2 declined**. Soft: PATH `cargo install`; daily 0-of-3 grants stays T241. |
 | ~~`preflight --global` blends other repos (5/4, summary 7/6)~~ | **T264 Completed 2026-08-18.** Label + per-project caps + summary span. Recall leftover drop declined (F11). Soft: Index fetch 80; span vs word-budget; pretty formatter still in `preflight.rs`. |
-| `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
+| `preflight --format json` `{text, word_count}` blob (7/6) | **T265 Planned 2026-08-19** — additive `sections[]`; T180 required keys stay |
 | ~~Format maze; list-paths 7/5; retention default 6/5~~ | **T266 Completed 2026-08-18.** Inventory tokens + four-family table; auto default stays. Nightly pipes / graph-update JSON unchanged. |
 | ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
 | `scan-roots` cwd-only (4/5) | **T268** |
@@ -382,7 +382,7 @@ Specified softs — not product blockers:
 | Live leftover still owns many `C:\dev\*` roots | T259 operator rebind — out of band |
 | Daily 0 of 3 grants | T241 |
 | T268 scan-roots parent / `--root` | Peer — still Pending |
-| T265 / T269 / T270 / T271 / T272 | Decline F11 — still placeholders |
+| T265 / T269 / T270 / T271 / T272 | Decline F11 — T265 **Planned 2026-08-19**; others still placeholders |
 | Codex `/hooks` next on install | Keep F7 — not self-next of status |
 
 ### T267 planning absorption (2026-08-18) — remediator honesty; no leftover UUID
@@ -399,6 +399,22 @@ Specified softs — not product blockers:
 | T265 / T268 / T269 / T270 / T271 / T272 | **Decline** F11 |
 | last-PR Cursor #180 | **N/A** — empty |
 | T240 F2 / T255 bag | **Decline** F12 |
+
+### T265 planning absorption (2026-08-19) — additive `sections[]`; no json-v2
+
+| Item | Disposition |
+|------|-------------|
+| Audit `{text, word_count}` blob (7/6) | **Absorb** F1–F8 / AC1–AC4 — compact required keys stay; always-present `sections[]` |
+| T214 residual extra keys on `PreflightContextResponse` | **Absorb** — `sections` only; no `api_version`/`schema_version` on this DTO (F25) |
+| T220 / T264 / T266 “do not grow T180 2-key” | **Absorb as lift** — T180-C comment is “without a track”; T265 is that track. Summary path stays T220 (F9) |
+| T257 compact + `note_machine_stdout` | **Affirm** F15 |
+| json-v2 / `--structured` | **Decline** F10 — agents already pass `--format json`; serde/dogfood ignore extras |
+| Typed `constraints[]` / `decisions[]` | **Decline** F10 — governed `briefing` / T170 D21 |
+| Retrieval assembly / T272 `safety_ids` | **Decline** F11 — still true at `preflight.rs:329` + `:467` |
+| T268 / T269 / T270 / T271 | **Decline** F24 |
+| T240 F2 / T255 bag | **Decline** F23 |
+| last-PR Cursor #181 | **N/A** — comments/reviews empty |
+| clap `value_parser` on preflight `--format` | **Decline** F14 — T220 F13 case-sensitive parser would regress `--format JSON` |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
