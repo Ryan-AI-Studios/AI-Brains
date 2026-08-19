@@ -501,6 +501,7 @@ Specified softs — not product blockers:
 | last-PR Cursor #183 dash-query Medium | **Mint T273** — still true at `sync_query_ledger.rs:157`; fits no T268–T272 placeholder |
 | T240 F2 / T255 bag | **Decline** F27 |
 | clap 5 / pin bumps / camino / DTO | **Decline** F9 / F10 |
+| T268 fold-in 2026-08-19 (agy+opencode) | **Folded** F21/F22/F28/F29/F2-empty + AC16–AC17. **Declined** silent `--root`+PATH ignore (XOR); JSON `parent_hint`; remint T273. No B/M. |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 

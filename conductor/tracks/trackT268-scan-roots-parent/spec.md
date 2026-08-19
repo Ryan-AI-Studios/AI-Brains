@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Operators can discover sibling `.ledgerful` roots without inventing a new default. **T273** minted here from last-PR Cursor (not this DoD).
 - **Absorbs:** deferred.md “`scan-roots` cwd-only (4/5)”; placeholder F1–F4; already-registered `suggested` is a no-op `register-path`
 - **Not absorbed (DoD):** Auto-register / `--apply`; leftover rebind (T259); default scan root = `C:\dev` (T254 F21 stands); T266 format maze; T269/T270/T272; last-PR #183 dash-query (**T273**); clap 5 / pin bumps; contracts DTO; `project.rs` hotspot growth
-- **Research date:** 2026-08-19 (source HEAD `a4ac170`)
-- **Ledger:** planning DOCS TX `7cccacdb-e7fb-41e4-b073-ea4cfb3b3e1a`. Implement starts a FEATURE TX on **go**.
+- **Research date:** 2026-08-19 (source HEAD `a4ac170`; fold-in against `d00fb17`)
+- **AI fold-in:** 2026-08-19 `agy-review.md` + `opencode-review.md`. No Blockers/Majors. **Agree:** git spawn fail-open (F22); volume-root/UNC/case (F21/AC12); pure `parent_scan_hint` (F28); Windows hint separators (F29); empty-scan hint is intentional (F2). **Already covered:** empty `--root` copy; `—` glyph; after_help `--root`; `suggested: ""` not null; clap XOR. **Decline:** “`--root` + PATH silently ignores” (XOR already F20); JSON `parent_hint` key (F10); mint T273 again (already minted). Disposition **§13**.
+- **Ledger:** planning DOCS TX `7cccacdb-e7fb-41e4-b073-ea4cfb3b3e1a`. Fold-in DOCS TX `52dc7831-9393-4b30-ac82-099bfbf2d435`. Implement starts a FEATURE TX on **go**.
 - **Isolation:** Do **not** reopen T254 F20–F23 scan bounds (`.ledgerful` only, include marked scan root, immediate children, cap 200, one-shot HashMap). Do **not** write events, `.env`, or repo-local `.ledgerful`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** `cargo install`.
 
 ---
@@ -96,8 +97,8 @@
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
 | **F1 — `--root` XOR positional** | Add `#[arg(long, value_name = "DIR", conflicts_with = "path")] root: Option<String>` on `ScanRoots`. Resolve `root.as_deref().or(path.as_deref())` into today’s `scan_roots` `path` argument. Default remains **cwd** when both absent. |
-| **F2 — Human parent hint** | Only when **all** of: (a) implicit cwd (both `path` and `root` absent); (b) **zero** hits with `registered_project_id.is_none()`; (c) `collect_git_identity(scan_root).toplevel` is `Some`; (d) `toplevel.parent()` exists and is **not** a volume root (`C:\` / `/`). Print after the table (or after the empty-hits line): `next: ai-brains project scan-roots --root <parent>`. Parent is **`toplevel.parent()`**, not `cwd.parent()` (subdir cwd would hint the repo, not sibling roots). |
-| **F3 — No re-register suggestion** | If `registered_project_id` is `Some`, JSON `suggested` is `""`; human suggested column is `—`. Any owner counts (including leftover). Unregistered hits keep today’s `register-path <project-id-or-alias> <path>`. Rows stay listed. |
+| **F2 — Human parent hint** | Only when **all** of: (a) implicit cwd (both `path` and `root` absent); (b) **zero** hits with `registered_project_id.is_none()` — **including zero total hits** (intentional: a git worktree with no `.ledgerful` still gets the parent remediator); (c) best-effort git toplevel is `Some` (F22); (d) `toplevel.parent()` exists and is **not** a volume/share root (F21). Print after the table (or after `No .ledgerful roots found.`): `next: ai-brains project scan-roots --root <parent>`. Parent is **`toplevel.parent()`**, not `cwd.parent()`. |
+| **F3 — No re-register suggestion** | If `registered_project_id` is `Some`, JSON `suggested` is `""` (**not** `null` — `ScanRootRow.suggested` is `String`; existing tests use `as_str().unwrap_or("")`). Human suggested column is `—` (U+2014, same glyph as `registered_to` at `project_paths.rs:309`). Any owner counts. Unregistered hits keep `register-path <project-id-or-alias> <path>`. Rows stay listed. |
 | **F4 — Dry-run freeze** | Never append events. Never write `.env`. No `--apply` / `--from-scan` write flag. T254 F3/F23 stand. |
 | **F5 — Scan bounds freeze** | T254 F20–F23 unchanged: `.ledgerful` only (not `.changeguard`); include marked scan root; immediate children; cap 200; one-shot HashMap; exact `normalize_for_location_compare`. |
 | **F6 — Format freeze** | T266 `value_parser` + `is_json_output` stay. Do not flip `auto` / pipe JSON. |
@@ -113,15 +114,18 @@
 | **F16 — PATH-behind** | Do not `cargo install`. Tests/manual AC use hermetic / `cargo run`. |
 | **F17 — last-PR #183** | Dash-leading `sync query` → Ledgerful flags. **Mint T273.** Do not absorb. |
 | **F18 — Peer placeholders** | T269 nightly/router, T270 retention classify, T272 Safety skip: **do not steal**. |
-| **F19 — Empty `--root`** | Same as empty positional: `fail_usage` exit **2**. |
-| **F20 — Both set** | clap `conflicts_with` → exit **2**. No manual `if` in `scan_roots`. |
-| **F21 — Volume-root parent** | No F2 hint. Pure unit on a helper (`parent_scan_hint`). |
-| **F22 — Git spawn** | F2 may call `collect_git_identity` on the **human** implicit-cwd path only. JSON implicit-cwd does **not** spawn git (no hint to emit). |
+| **F19 — Empty `--root`** | Dispatch forwards `Some("")` into today’s `scan_roots` empty-path arm. Same `fail_usage` copy as positional: `scan-roots path is empty; pass a directory or omit to use the current directory`. Exit **2**. |
+| **F20 — Both set** | clap `conflicts_with = "path"` → exit **2**. No silent ignore. No manual `if` in `scan_roots`. |
+| **F21 — Volume/share-root parent** | No F2 hint when parent is: Unix `/`; Windows drive root `X:\` / `X:` (**case-insensitive** `c:\` == `C:\`); UNC share root `\\server\share` (exactly two components after `\\` / `//`). `Path::parent().is_some()` alone is **not** enough for UNC. Predicate lives on the pure helper (F28). |
+| **F22 — Git spawn fail-open** | Human implicit-cwd only. `collect_git_identity(scan_root).unwrap_or_default()` — same as `identity_warn.rs:100` and `doctor.rs:742`. Git missing / spawn `Err` / non-repo → `toplevel: None` → no hint; **scan still exits 0**. JSON implicit-cwd does **not** spawn git. |
 | **F23 — Tests** | Naming `function_or_feature__condition__expected_result`. Hermetics in `project_path_aliases.rs`. Clap units in `main.rs` beside T266 ScanRoots cases. No `unwrap`/`expect`/`panic` in production. |
 | **F24 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
 | **F25 — Cross-model** | `suggested` empty is a CLI contract change (scripts that always exec `suggested` would no-op). After Phase-1 clean, run read-only `codex-review`. |
 | **F26 — Exit codes** | Success (including empty + hint) **0**. Usage (empty `--root`, clap conflict, bad `--format`) **2**. T254 F35 otherwise. |
 | **F27 — T240 F2 / T255 bag** | Do not reopen. |
+| **F28 — Pure hint helper** | `parent_scan_hint(implicit_cwd: bool, unregistered_count: usize, git_toplevel: Option<&Path>) -> Option<PathBuf>` in `project_paths.rs`. No filesystem I/O, no git spawn. Units cover the full decision matrix. Caller supplies toplevel after F22. |
+| **F29 — Hint display separators** | Printed `--root` path uses native separators on Windows (`/` → `\`) so git’s `C:/dev` toplevel does not print `C:/dev` in the remediator. **Do not** run the hint through `normalize_for_location_compare` (compare key: lowercases, UNC rewrite). |
+| **F30 — Dispatch** | `root.as_deref().or(path.as_deref())`. Implicit cwd ⇔ both `None`. Empty string still hits F19. |
 
 ---
 
@@ -140,10 +144,12 @@
 | **AC9** | `scan-roots` still does not create aliases (existing `scan_roots__never_writes_events`) |
 | **AC10** | T254/T266 scan hermetics stay green: changeguard-only miss; grandchild miss; marked scan-root included; `--format pretty` / `json` / `JSON` clap units |
 | **AC11** | Clap / usage: `--root` with empty value (if expressible) or empty positional still exit **2** with today’s empty-path copy class |
-| **AC12** | Unit: `parent_scan_hint(None, …)` / volume-root parent → `None`. Git toplevel `C:\dev\AI-Brains` → `Some(C:\dev)` (path-compare, not live disk) |
-| **AC13** | Docs: after_help names `--root`; CAPABILITIES/OPERATIONS/CHANGELOG additive. `project.rs` line count does not grow by scan logic |
+| **AC12** | Unit (no disk): `parent_scan_hint` → `None` when `implicit_cwd` is false, `unregistered_count > 0`, toplevel `None`, or parent is `/`, `C:\`, `c:\`, `C:`, `\\server\share`. Toplevel `C:\dev\AI-Brains` → `Some` whose display (F29) is `C:\dev` |
+| **AC13** | Docs: after_help names `--root` (example `scan-roots --root C:\dev` **and** positional `C:\dev`); CAPABILITIES/OPERATIONS/CHANGELOG additive. `project.rs` line count does not grow by scan logic |
 | **AC14** | No production `unwrap`/`expect`/`panic`. No pin bumps. No contracts DTO |
 | **AC15** | Manual (source bin): implicit cwd in this repo prints parent `next:` to `C:\dev`; `scan-roots --root C:\dev --format human` lists siblings; already-registered AI-Brains row has `—` suggested. Exit 0. **Do not** register or rebind |
+| **AC16** | Unit: `parent_scan_hint(true, 0, None)` → `None` (F22 fail-open: git `Err` mapped to default). Hermetic optional: implicit-cwd human still exit **0** when `GIT` is missing from PATH (or skip with reason if CI always has git) |
+| **AC17** | Unit: `parent_scan_hint(true, 0, Some(repo))` with zero hits (vacuous unregistered) still returns the parent — F2 empty-scan is intentional |
 
 ---
 
@@ -163,7 +169,15 @@ T254 AC and agents already expect `suggested` on every row. Empty string keeps t
 
 ### 5.4 Capture independence
 
-No new events. F2 git spawn is a `rev-parse` already used by detect/whoami/footer — human implicit-cwd only.
+No new events. F2 git spawn is a `rev-parse` already used by detect/whoami/footer — human implicit-cwd only, fail-open (F22).
+
+### 5.5 Hint helper (fold-in)
+
+```text
+parent_scan_hint(implicit_cwd, unregistered_count, git_toplevel) -> Option<PathBuf>
+```
+
+No I/O. Volume/share-root predicate is inside the helper (F21). Display `\` rewrite is a thin wrapper used only when printing F2.
 
 ---
 
@@ -215,7 +229,10 @@ TDD: land failing AC4/AC6/AC1 tests first (Red), then `--root` + empty suggested
 | Drive-root `--root C:\` | **F21** no hint |
 | JSON key growth | **F10** human-only hint |
 | Growing hotspot `project.rs` | **F7** |
-| Git spawn on every JSON scan | **F22** human implicit-cwd only |
+| Git spawn on every JSON scan | **F22** human implicit-cwd only; spawn `Err` → no hint |
+| Git missing aborts the scan | **F22** `unwrap_or_default()` |
+| UNC `\\server\share` hinted as parent | **F21** share-root predicate |
+| Hint prints `C:/dev` | **F29** display `\` only; not compare-normalize |
 | Stealing T273 / T272 | **F17/F18** |
 | PATH-behind false AC | **F16** hermetic / `cargo run` |
 
@@ -253,8 +270,8 @@ Entire `conductor/deferred.md` scanned 2026-08-19. Closed/strikethrough rows sta
 ## 10. Implement order (on go)
 
 1. Red→Green F3/AC4/AC5 empty `suggested` for registered (pure `scan_rows_for_hits` + hermetic)  
-2. Red→Green F1/F19/F20/AC1/AC2/AC11 `--root` clap XOR + dispatch  
-3. Red→Green F2/F21/F22/AC6/AC7/AC12 parent hint helper + human-only emit  
+2. Red→Green F1/F19/F20/F30/AC1/AC2/AC11 `--root` clap XOR + dispatch `root.or(path)`  
+3. Red→Green F2/F21/F22/F28/F29/AC6/AC7/AC12/AC16/AC17 `parent_scan_hint` + fail-open git + human-only emit  
 4. Docs F11 / AC13  
 5. Manual AC15 (no live mutate) → review → `codex-review` (F25) → full gate → Complete  
 
@@ -286,4 +303,45 @@ Entire `conductor/deferred.md` scanned 2026-08-19. Closed/strikethrough rows sta
 
 ---
 
-**Planning 2026-08-19.** Still **plan-only until go**.
+## 13. AI fold-in (2026-08-19)
+
+Sources: `agy-review.md` (HEAD `d00fb17`) + `opencode-review.md` (stated HEAD `a4ac170`; plan files were already `d00fb17`). No Blockers. No Majors. Verdict both: **Planned**.
+
+### agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** volume-root tests (`C:\`, UNC, `/`) | **Agree** | F21 / AC12 |
+| **m2** empty `--root ""` copy | **Already covered** | F19 / AC11 — pin the live `fail_usage` string |
+| **m3** human `—` == `registered_to` glyph | **Already covered** | F3 |
+| **O1** pure `parent_scan_hint(...)` | **Agree** | F28 |
+| **O2** after_help `--root C:\dev` | **Already covered** | F11 / AC13 |
+| last-PR #183 / T273 | **Already covered** | F17 — minted at plan time |
+
+### opencode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** git spawn `Err` fails the scan | **Agree** | F22 `unwrap_or_default()`; AC16 |
+| **m2** drive-letter case + UNC share root | **Agree** | F21 / AC12 (same bag as agy m1) |
+| **m3** git `C:/dev` in the hint | **Partial** | F29 display `\` rewrite. **Decline** `normalize_for_location_compare` for the printed hint (compare key lowercases / UNC-rewrites) |
+| **m4** `suggested: ""` not null; `root.or(path)` | **Already covered** | F3 / F1 / F30 — extra pin that JSON is `""` not `null` |
+| **O** zero total hits vacuously triggers F2 | **Agree** | F2 (b) + AC17 — intentional |
+| **note** `--root X PATH` silently ignores | **Decline as stated** | F20 clap XOR already exit **2**; AC1. Re-trigger only if clap `conflicts_with` is dropped |
+| “add JSON `parent_hint`” (looks-solid AC5) | **Decline** | F10 / AC8 — no new envelope keys |
+| mint T273 during fold-in | **Already covered** | T273 exists at `conductor.md` T273; do not remint |
+| deferred “T254 F12 = volume-root” | **Decline misread** | T254 F12 is list-paths first-path-only / TTY hermetic, not scan parent |
+
+### Pins locked by fold-in
+
+1. **F22:** `collect_git_identity(...).unwrap_or_default()`; scan must not fail because git is missing.
+2. **F21:** volume/share-root = `/` + case-insensitive `X:\`/`X:` + UNC `\\server\share`. Not `parent().is_some()` alone.
+3. **F28:** `parent_scan_hint(implicit_cwd, unregistered_count, git_toplevel) -> Option<PathBuf>` is pure.
+4. **F29:** Windows hint print uses `\`; not `normalize_for_location_compare`.
+5. **F2 (b):** zero total hits still hints — AC17.
+6. **F3:** JSON `suggested` is `""`, never `null`.
+7. **F10:** no JSON `next_step` / `parent_hint` key.
+
+---
+
+**Planning + fold-in 2026-08-19.** Still **plan-only until go**.

@@ -1,9 +1,26 @@
 # T268 Plan — scan-roots parent / `--root`
 
 **Status:** **Pending** (Planned; not Placeholder; not In Progress)
-**Spec:** [spec.md](./spec.md) F0–F27 / AC1–AC15
+**Spec:** [spec.md](./spec.md) F0–F30 / AC1–AC17 + §13 AI fold-in
 **Category:** UX
 **Ledger TX (planning):** `7cccacdb-e7fb-41e4-b073-ea4cfb3b3e1a` (DOCS)
+**Ledger TX (fold-in):** `52dc7831-9393-4b30-ac82-099bfbf2d435` (DOCS)
+
+---
+
+## AI fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+No Highs / Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F22:** git spawn `unwrap_or_default()` — scan does not fail if git is missing.
+2. **F21:** `/` + case-insensitive `X:\` + UNC `\\server\share`.
+3. **F28:** pure `parent_scan_hint(implicit_cwd, unregistered_count, git_toplevel)`.
+4. **F29:** hint print `\` on Windows; not `normalize_for_location_compare`.
+5. **F2 (b) / AC17:** empty scan still hints.
+6. **F3:** JSON `suggested` is `""`, never `null`.
+7. **F10:** no JSON `parent_hint` / `next_step`.
 
 ---
 
@@ -70,8 +87,8 @@
 - [ ] Red: clap `--root` + positional conflict (AC1)
 - [ ] Green: `ScanRoots.root` `conflicts_with = "path"` + dispatch `root.or(path)`
 - [ ] Red: implicit-cwd git + zero unregistered → human `next: … --root` (AC6)
-- [ ] Green: `parent_scan_hint` + human-only emit (no JSON key)
-- [ ] AC2 / AC3 / AC7 / AC8 / AC9 / AC10 / AC12 stay or land
+- [ ] Green: F28 `parent_scan_hint` + F22 fail-open + F29 `\` display + human-only emit
+- [ ] AC2 / AC3 / AC7 / AC8 / AC9 / AC10 / AC12 / AC16 / AC17 stay or land
 - [ ] after_help + CAPABILITIES / OPERATIONS / CHANGELOG (AC13)
 - [ ] Manual AC15 (no register / rebind / `.env`)
 - [ ] Phase-1 review → `codex-review` (F25) → full gate
@@ -81,7 +98,8 @@
 
 ## Definition of Done
 
-- [ ] F0–F27 + AC1–AC15
+- [ ] F0–F30 + AC1–AC17
+- [ ] §13 fold-in pins honored
 - [ ] Medium+ review findings not silently dropped
 - [ ] T273 remains a separate Pending placeholder
 - [ ] No product commits under this DOCS TX
