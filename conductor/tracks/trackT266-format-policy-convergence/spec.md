@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can predict `--format` on inventory. Preflight envelope stays **T265**. List footer leftover-as-AI-Brains stays **T267**. scan-roots parent/`--root` stays **T268**. Retention classify stays **T270**.
 - **Absorbs:** Audit T266 row (format maze; list-paths JSON wall; retention default JSON on this agent’s non-TTY); T227 F34 *pointer only* (do not flip governed `OutputFormat::parse`); T249/T255 shared-resolver closeout; incomplete CAPABILITIES OutputFormat table; missing PROTOCOL-COMPAT list-paths/scan-roots rows; three forked `use_json_output` helpers
 - **Not absorbed:** T265 `sections[]` / T180 2-key; T246 F6 `graph update` default JSON (T74); T255 F2 nightly pipes-stay-human; T248 apply default JSON; T227 F34 silent-JSON surface-wide; T240 F2; T255 declines; clap 5 / new crates; T267 footer; T268 scan behavior; T270 classify; T272 safety_ids Index skip
-- **Research date:** 2026-08-18 (HEAD `4088106` T264 `#179`)
-- **AI fold-in:** —
-- **Ledger:** planning DOCS TX `201a3883-3053-4487-ba46-8942565eeae5`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-18 (plan dogfood HEAD `4088106` T264 `#179`; plan commit `8c3b7e1`)
+- **AI fold-in:** 2026-08-18 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). **B 0 / M 0 / m 5 / O 3.** **Agree hard:** OpenCode **m1** name AC4 human-half test; OpenCode **m2** refresh five `--format` arg docs; OpenCode **m3** AC3 no-filter pin. **Agree:** Agy **m1** HEAD note; Agy **m2** AC7 JSON/Pretty InvalidValue on whoami/adopt/rebind; Agy **O1** `is_json_output` (**F27**); OpenCode **O1** AC14 non-empty pretty; OpenCode **O2** Phase 3 row list. **Decline:** none. Disposition **§13**.
+- **Ledger:** planning DOCS TX `201a3883-3053-4487-ba46-8942565eeae5`. Fold-in DOCS TX `0be907dc-a219-45d7-8f73-19043d4e6775`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env`. Do **not** flip `graph update` / nightly / recall / retention apply / governed list defaults. Do **not** grow T180 `{text, word_count}`. Do **not** reopen T240 F2 / T255 declines. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -37,7 +37,7 @@ No models. No new crates. No clap 5. No T180 key growth.
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `4088106` — T264 `#179` squash on `main`. Tree **CLEAN**. In sync with `origin/main`. T266 still Placeholder until this plan. |
+| HEAD | **Plan dogfood:** `4088106` T264 `#179` (product `src/` unchanged since). **Plan commit:** `8c3b7e1`. **This fold-in:** same product `src/` as `8c3b7e1`. `main` ahead of `origin/main` by the plan docs commit. Tree CLEAN at fold-in. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **0.1.1**. Format flags for list-paths exist (T254). **Do not `cargo install`.** |
 | This session | Agent **non-TTY**. Same class as the 2026-08-16 audit. |
 | `project list-paths` (source, no `--format`) | **124-line pretty JSON** (`api_version=1`, 53-ish roots). Audit “126-line wall” is live. |
@@ -118,10 +118,10 @@ No models. No new crates. No clap 5. No T180 key growth.
 | **F1 — Taxonomy (four families)** | **A auto:** TTY human / pipe JSON (`scope resolve`, `retention plan`, `list-paths`, `scan-roots`, `whoami`, `adopt-path`, `rebind-path`, graph neighbors/hierarchy/session, preflight, briefing, recall). **B always-human:** pipes stay human (`nightly --status`, `doctor`, `daemon status`, `memory list`, `project list`, `device list`/`status`, `harness status`). **C always-JSON:** default JSON, opt-in human (`retention apply`, `graph update`). **D governed:** `OutputFormat::parse` silent-JSON (evidence/source/review/policy/…). CAPABILITIES lists **every** row. |
 | **F2 — Nightly exception** | Family B. Default `--format human`; piped `nightly --status` **stays human** (T255 F2/AC10). Do **not** silently switch pipes to JSON. Scripts pass `--format json`. The table must call this out by name (audit stub + T255 contract). |
 | **F3 — Inventory token map** | `list-paths`, `scan-roots`, `whoami`, `adopt-path`, `rebind-path` clap `value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]`. Default stays **`auto`**. Unknown / `JSON` / `Pretty` → clap `InvalidValue` exit **2** (T249 AC16). No lowercase coerce. |
-| **F4 — Shared resolver** | Those five commands call `format_resolve::resolve_human_json_format` (or a one-line wrapper that compares to `"json"`). **Delete** the three `use_json_output` functions. whoami: replace only the format `match` in `project.rs` — **no** other hotspot edits. |
+| **F4 — Shared resolver** | Those five commands call `format_resolve::is_json_output` (**F27**), which wraps `resolve_human_json_format(...) == "json"`. **Delete** the three `use_json_output` functions. whoami: replace only the format `match` in `project.rs` — **no** other hotspot edits. |
 | **F5 — JSON keys frozen** | `--format json` envelopes unchanged: list-paths `{api_version, paths:[{project_id,label,alias,normalized_path,exists}]}`; scan-roots `{api_version, scan_root, truncated, roots:[…]}`; whoami / adopt / rebind existing keys. Pretty-printed. No new required keys. |
 | **F6 — Human is not a wire contract** | Tables / labeled lines may gain columns later. Scripts pin `--format json`. `markdown`/`md` tokens resolve to the **same table** as `human` (shared resolver) — do not invent a markdown renderer. |
-| **F7 — Help** | list-paths + scan-roots `after_help` must say: default `auto` = TTY table / pipe JSON; agents that want a table pass `--format human`; scripts pass `--format json`. Examples already exist — extend, do not replace T254/T259 filter examples. |
+| **F7 — Help** | list-paths + scan-roots `after_help` must say: default `auto` = TTY table / pipe JSON; agents that want a table pass `--format human`; scripts pass `--format json`. Examples already exist — extend, do not replace T254/T259 filter examples. **Also** refresh the five clap `/// Output format:` docstrings (whoami / adopt-path / list-paths / rebind-path; add one on scan-roots which has none today) so they name the T248/T249 token set and do not still say “human, or json” after F3. |
 | **F8 — Decline graph-update TTY-auto** | T246 F6 / T74 stand. Default JSON. `auto` stays JSON. `--format human` remains opt-in labeled lines. Soft F17 stays soft. |
 | **F9 — Decline retention apply flip** | T248: apply default JSON; `auto` does not TTY-switch. Dangerous / scripted. |
 | **F10 — Decline recall default** | T101/T243: TTY pretty / pipe json. Not inventory. Do not change `resolve_format`. |
@@ -132,7 +132,7 @@ No models. No new crates. No clap 5. No T180 key growth.
 | **F15 — Cursor #179** | T264 `safety_ids` over-exclude is **T272**, not this track. Do not edit `ai-brains-retrieval`. |
 | **F16 — clap / crates** | No clap 5. No lock bumps. No new crates. Workspace **0.1.1**. No ValueEnum DoD. |
 | **F17 — Contracts** | No `ai-brains-contracts` DTO. PROTOCOL-COMPAT **additive** list-paths + scan-roots rows (TTY/pipe + frozen keys). CHANGELOG T266 row. CLI-EXIT-CODES unchanged (exit 2 already usage). |
-| **F18 — Tests** | Naming `function_or_feature__condition__expected_result`. Clap AC for list-paths (and one sibling) `pretty` parses, `xml`/`JSON`/`Pretty` InvalidValue. Hermetic: `--format pretty` list-paths contains the human header `path` + `project_id` and is **not** JSON; `--format json` parses `api_version == "1"`. Existing T254/T259 hermetics stay green. No `unwrap`/`expect`/`panic` in production. |
+| **F18 — Tests** | Naming `function_or_feature__condition__expected_result`. Clap AC for all five inventory commands (`pretty` parses; `JSON`/`Pretty` InvalidValue). Hermetics: AC3 unfiltered empty pretty; AC4 **named** json + human halves; AC14 non-empty pretty; AC5 scan-roots pretty. Existing T254/T259 hermetics stay green. No `unwrap`/`expect`/`panic` in production. |
 | **F19 — Cross-model** | FEATURE (operator format contract). After Phase-1 review clean, run read-only `codex-review`. |
 | **F20 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals go to `conductor/deferred.md`. |
 | **F21 — PATH-behind** | Do **not** `cargo install` unless the user asks. Tests/manual AC use `cargo run` / hermetic bin. |
@@ -141,6 +141,7 @@ No models. No new crates. No clap 5. No T180 key growth.
 | **F24 — Graph local resolver** | `resolve_graph_format` stays in `graph.rs`. Do not force it through `resolve_human_json_format` (pretty ≠ human). |
 | **F25 — Harness / memory / project list** | Family B. Document in the table. Do **not** add `auto` or change defaults. |
 | **F26 — Decline extras** | Color / pager / `comfy-table`; clap ValueEnum unify; `std` IsTerminal already shipped; doctor compact JSON DTO; T204 Start-here rewrite that reorders F31 groups (additive one-liner in CAPABILITIES only). |
+| **F27 — `is_json_output`** | Add `pub(crate) fn is_json_output(explicit: &str, is_tty: bool) -> bool` in `format_resolve.rs` as `resolve_human_json_format(explicit, is_tty) == "json"`. Inventory + whoami call this; do **not** change `resolve_human_json_format` behavior. One unit: `is_json_output("pretty", false) == false`. |
 
 ---
 
@@ -150,17 +151,18 @@ No models. No new crates. No clap 5. No T180 key growth.
 |----|-------|
 | **AC1** | Existing `resolve_human_json_format` units stay green (auto TTY/pipe, pretty aliases, json, fail-closed). No behavior change to the helper. |
 | **AC2** | Clap: `project list-paths --format xml` → `InvalidValue` exit **2**. `--format JSON` → `InvalidValue`. `--format Pretty` → `InvalidValue`. `--format pretty` **parses** (not InvalidValue). Same four asserts for `project scan-roots`. |
-| **AC3** | Hermetic: `list-paths --format pretty` on empty vault contains `No path aliases registered.` and `next: ai-brains project register-path` and does **not** start with `{`. |
-| **AC4** | Hermetic: `list-paths --format json` (two aliases) parses one object, `api_version == "1"`, `paths` is an array (T254 keys present). `--format human` on the same vault prints the `path` header and does not parse as JSON. |
+| **AC3** | Hermetic: `list-paths --format pretty` on empty vault **with no `--project` / `--shared-only`** contains `No path aliases registered.` and `next: ai-brains project register-path` and does **not** start with `{`. Do **not** pass a filter — filtered empty prints `No path aliases match.` (`project_paths.rs` `:165–172`). |
+| **AC4** | Two named hermetics on the **same** two-alias vault (do not satisfy this AC with the JSON half alone): `list_paths__format_json__api_version_1` parses one object, `api_version == "1"`, `paths` is an array (T254 keys present); `list_paths__format_human__table_not_json` prints the `path` header and does not parse as JSON. |
 | **AC5** | Hermetic: `scan-roots --format pretty` on a temp dir with one `.ledgerful` child contains the `path` / `registered_to` header (or `No .ledgerful roots found.`) and is not JSON. `--format json` parses `api_version`, `scan_root`, `truncated`, `roots`. |
-| **AC6** | Unit or compile: `use_json_output` **does not exist** in `project_paths.rs` / `project_adopt.rs` / `project_rebind.rs`. Call sites go through `resolve_human_json_format`. |
-| **AC7** | Clap: `project whoami --format pretty` parses. `project adopt-path --format pretty` parses. `project rebind-path C:\x --to y --format pretty` parses (does not run the remediator in the clap unit). |
+| **AC6** | Unit or compile: `use_json_output` **does not exist** in `project_paths.rs` / `project_adopt.rs` / `project_rebind.rs`. Call sites go through `is_json_output` (F27). |
+| **AC7** | Clap: `project whoami --format pretty` parses; `--format JSON` / `--format Pretty` → `InvalidValue`. Same four asserts (`pretty` parses + `xml` optional / `JSON` / `Pretty`) for `adopt-path` and `rebind-path` (rebind needs dummy path + `--to`; clap unit only). |
 | **AC8** | Existing T254/T259 list-paths / scan-roots / rebind hermetics stay green. T258 adopt-path hermetics stay green. T240 whoami hermetics stay green. |
 | **AC9** | T74 / T246: piped `graph update` (graph-on) still parses as JSON when `--format` omitted. Do not add a failing assert that it is a table. |
 | **AC10** | Hermetic or process: default `nightly --status --quick` (no `--format`) still prints `=== Nightly Status ===` when stdout is not a TTY. |
-| **AC11** | Docs: CAPABILITIES OutputFormat table lists Families A–D and names nightly as Family B (pipes stay human). PROTOCOL-COMPAT has list-paths + scan-roots rows. Root CHANGELOG has a T266 row. list-paths + scan-roots `after_help` mention `--format human` for agents. |
+| **AC11** | Docs: CAPABILITIES OutputFormat table lists Families A–D and names nightly as Family B (pipes stay human). Required rows: list-paths, scan-roots, whoami, adopt-path, rebind-path, graph neighbors/update, nightly, harness status, memory list, project list. PROTOCOL-COMPAT has list-paths + scan-roots rows. Root CHANGELOG has a T266 row. list-paths + scan-roots `after_help` mention `--format human` for agents. The five clap `--format` arg docs name `pretty` (F7). |
 | **AC12** | No contracts DTO. No pin bumps. No new crates. `OutputFormat::parse` unchanged (unit or grep). `ai-brains-retrieval` untouched. |
 | **AC13** | Manual (source bin, this agent non-TTY): `project list-paths --format human` is a table; default `project list-paths` is JSON; `retention plan --format human` is the T248 matrix; `nightly --status --quick` stays human. Do **not** pin. Do **not** `cargo install`. |
+| **AC14** | Hermetic: `list_paths__format_pretty__table_not_json` on the same two-alias vault as AC4 — `--format pretty` prints the `path` header and does not parse as JSON (pretty ≡ human on a non-empty vault). |
 
 ---
 
@@ -180,13 +182,13 @@ Resolver output is only `"human"` or `"json"`. Inventory printers already branch
 
 ```rust
 // project.rs whoami — replace the match only
-let use_json = crate::commands::format_resolve::resolve_human_json_format(
+let use_json = crate::commands::format_resolve::is_json_output(
     format,
     std::io::stdout().is_terminal(),
-) == "json";
+);
 ```
 
-Do not move `build_whoami_report` / `display_label` / detect order.
+Do not move `build_whoami_report` / `display_label` / detect order. Same helper in `project_paths` / `project_adopt` / `project_rebind`.
 
 ### 5.3 CAPABILITIES table shape (additive rewrite of the existing matrix)
 
@@ -222,8 +224,8 @@ TDD: failing clap + hermetic names first (Phase 1), then wire resolver (Phase 2)
 
 | Phase | Proof |
 |-------|-------|
-| Red | AC2 / AC3 / AC7 clap+hermetic fail because `pretty` is not in `value_parser` |
-| Green | F3–F4; AC1–AC8 green; AC6 forks gone |
+| Red | AC2 / AC3 / AC4-named / AC7 / AC14 fail because `pretty` is not in `value_parser` |
+| Green | F3–F4 / F27; AC1–AC8 + AC14 green; AC6 forks gone |
 | Freeze | AC9 graph update; AC10 nightly human pipe |
 | Docs | AC11 |
 | Manual | AC13 source bin, classify-only |
@@ -274,9 +276,9 @@ TDD: failing clap + hermetic names first (Phase 1), then wire resolver (Phase 2)
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify pins + deferred rescan + confirm `pretty` still clap-rejects on list-paths.
-2. Red: AC2/AC3/AC7 tests.
-3. Green: expand five `value_parser`s; wire resolver; delete three forks; whoami match only.
-4. Docs: CAPABILITIES + PROTOCOL-COMPAT + CHANGELOG + after_help.
+2. Red: AC2 / AC3 / AC4-named / AC7 / AC14 tests.
+3. Green: expand five `value_parser`s; add `is_json_output` (F27); delete three forks; whoami match only.
+4. Docs: CAPABILITIES (enumerate F1 rows) + PROTOCOL-COMPAT + CHANGELOG + after_help + five arg docs (F7).
 5. Confirm AC9/AC10 still green without product edits.
 6. Targeted clippy/nextest; Phase-1 review; codex-review; full gate; publish.
 
@@ -299,16 +301,51 @@ TDD: failing clap + hermetic names first (Phase 1), then wire resolver (Phase 2)
 
 | Path | Why |
 |------|-----|
-| `crates/ai-brains-cli/src/main.rs` | Five `value_parser` lists + clap AC tests + after_help |
-| `crates/ai-brains-cli/src/commands/project_paths.rs` | Delete `use_json_output`; call shared resolver |
+| `crates/ai-brains-cli/src/main.rs` | Five `value_parser` lists + five `--format` arg docs + clap AC tests + after_help |
+| `crates/ai-brains-cli/src/commands/project_paths.rs` | Delete `use_json_output`; call `is_json_output` |
 | `crates/ai-brains-cli/src/commands/project_adopt.rs` | Same |
 | `crates/ai-brains-cli/src/commands/project_rebind.rs` | Same |
 | `crates/ai-brains-cli/src/commands/project.rs` | whoami format match **only** |
-| `crates/ai-brains-cli/src/commands/format_resolve.rs` | Read-only unless a one-line `== "json"` wrapper is cleaner |
-| `crates/ai-brains-cli/tests/project_path_aliases.rs` | AC3–AC5 hermetics |
+| `crates/ai-brains-cli/src/commands/format_resolve.rs` | Add `is_json_output` (F27); do not change `resolve_human_json_format` |
+| `crates/ai-brains-cli/tests/project_path_aliases.rs` | AC3–AC5 + AC14 hermetics |
 | `Docs/CAPABILITIES.md` | Family table |
 | `Docs/PROTOCOL-COMPAT.md` | list-paths + scan-roots rows |
 | `CHANGELOG.md` | T266 row |
 | `conductor/conductor.md` | T266 Planned note (status stays Pending until implement) |
 | `conductor/deferred.md` | Absorb/decline + T272 pointer |
 | **Do not touch** | `governed_common.rs` `OutputFormat::parse`; `graph.rs` resolver; `nightly.rs` default; `recall.rs`; `ai-brains-retrieval`; `ai-brains-contracts`; `project.rs` beyond the whoami match |
+
+---
+
+## 13. AI fold-in disposition (2026-08-18)
+
+Source: `agy-review.md` + `opencode-review.md`. No grok / claude / `codex-plan-review.md`. **B 0 / M 0.** Online research: **N/A** (findings are local test names, clap docstrings, and the empty-vault filter branch — no new pin or API claim).
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `4088106` vs `8c3b7e1` | **Agree** | §2.1 note: plan dogfood vs plan commit |
+| **m2** clap JSON/Pretty on all 5 | **Agree** | AC2 already list-paths + scan-roots; **AC7** now includes `JSON`/`Pretty` InvalidValue for whoami / adopt-path / rebind-path |
+| **O1** `is_json_output` helper | **Agree** | **F27** / F4 / AC6 / §5.2 |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** AC4 human half unnamed | **Agree hard** | AC4 names `list_paths__format_human__table_not_json`; Phase 1 lists both halves |
+| **m2** `--format` arg help stale after F3 | **Agree hard** | F7 + AC11 + Phase 3: five clap docstrings (scan-roots currently has none) |
+| **m3** AC3 filter-dependent empty copy | **Agree hard** | AC3: no `--project` / `--shared-only`; plan Phase 1 trap note |
+| **O1** non-empty `--format pretty` hermetic | **Agree** | **AC14** `list_paths__format_pretty__table_not_json` |
+| **O2** Phase 3 CAPABILITIES row list | **Agree** | AC11 required rows + plan Phase 3 enumerate |
+
+### Pins locked by fold-in
+
+1. **AC4:** two named tests; JSON half alone does not close the AC.
+2. **AC3:** unfiltered empty vault only (`No path aliases registered.`).
+3. **F7 / AC11:** arg docs + after_help; CAPABILITIES lists the missing rows.
+4. **F27:** `is_json_output` is the inventory call site (not a second resolver).
+5. **AC7 / AC14:** remaining three clap case-sensitivity + non-empty pretty ≡ human.
+6. **§2.1:** `4088106` product vs `8c3b7e1` plan.
+
+**Planning + fold-in 2026-08-18.** Still **plan-only until go**.

@@ -345,6 +345,19 @@ Specified softs — not product blockers:
 | T240 F2 / T255 bag | **Decline** F14 |
 | last-PR Cursor #179 safety_ids over-exclude Index | **Mint T272** — still true at `preflight.rs:329` + `:467`; fits no T265–T271 placeholder |
 
+### T266 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 AC4 human half unnamed | **Folded** AC4 `list_paths__format_human__table_not_json` |
+| OpenCode m2 `--format` arg help stale | **Folded** F7 / AC11 / Phase 3 five docstrings |
+| OpenCode m3 AC3 filter-dependent empty copy | **Folded** AC3 no `--project`/`--shared-only` |
+| Agy m1 HEAD `4088106` vs `8c3b7e1` | **Note** §2.1 |
+| Agy m2 clap JSON/Pretty on remaining 3 | **Folded** AC7 |
+| Agy O1 `is_json_output` | **Folded** F27 |
+| OpenCode O1 non-empty pretty hermetic | **Folded** AC14 |
+| OpenCode O2 CAPABILITIES missing-row list | **Folded** AC11 + Phase 3 |
+
 ### T261 closeout residuals (2026-08-17)
 
 Specified softs — not product blockers:
