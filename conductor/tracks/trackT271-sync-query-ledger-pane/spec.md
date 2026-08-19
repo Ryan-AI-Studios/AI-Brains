@@ -1,7 +1,7 @@
 # T271 — sync query ledger pane
 
 - **Track ID:** T271-SyncQueryLedgerPane
-- **Status:** **Planned** (Pending until go; plan-only)
+- **Status:** **Completed** 2026-08-19
 - **Category:** BUGFIX / UX
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — `sync query` **5/5**; friction “ledger pane empty”

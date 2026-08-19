@@ -233,7 +233,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | `scan-roots` cwd-only (4/5) | **T268** |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
-| `sync query` ledger pane false-empty (5/5) | **T271 Planned+fold-in 2026-08-19.** Live: vault hits + `No ledger entries found matching '"capture" "independence"'`. Ledgerful `search capture` ≥1 (fold-in 9). Spec/plan + AC17–AC19. Status stays Pending until go. |
+| ~~`sync query` ledger pane false-empty (5/5)~~ | **T271 Completed 2026-08-19.** Stop FTS-quoting `ledgerful ledger search`; first-seen token rescue; named misses. Soft: PATH `cargo install`; Ledgerful token-OR; picker vs sequential probe. |
 
 ### T257 closeout residuals (2026-08-17)
 
@@ -472,6 +472,20 @@ Specified softs — not product blockers:
 | Agy/OpenCode HEAD `e48eaa7` vs `33f72cf` | **Note** §2.1 |
 | Agy m2 `pub mod` | **Already** F10 |
 | Agy O1 two-phase probe | **Already** F9 / F17 |
+
+### T271 closeout residuals (2026-08-19)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `cargo install` | F16 — operator |
+| Ledgerful token-OR / stop phrase-wrapping | F23 — other repo |
+| AC5 picker `cfg(test)` vs sequential probe | R1b P3-3 / CX2 P3-1 — extra procs if collect-then-pick |
+| T211 human re-run JSON fallback | R1b P3-8 — F17 still re-runs human on hits |
+| T211 F25 blend / double shell | declined F11 |
+| Rescue scoring / merge all token tables | spec §11 |
+| T268 / T269 / T270 / T272 | declined F12 |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 

@@ -507,7 +507,7 @@ pub async fn run_query(
     let ledger_section = if no_bridge {
         None
     } else {
-        probe_ledger_search(&query, quiet)
+        crate::commands::sync_query_ledger::probe_ledger_search(&query, quiet)
     };
     let ledger_non_empty = ledger_section
         .as_ref()
@@ -546,8 +546,11 @@ pub async fn run_query(
         Ok(())
     };
 
-    let print_ledger = |section: &LedgerProbeResult| {
+    let print_ledger = |section: &crate::commands::sync_query_ledger::LedgerProbeResult| {
         println!("\n--- Ledgerful Ledger Search ---");
+        if let Some(ref banner) = section.banner {
+            println!("{}", banner);
+        }
         if let Some(ref text) = section.display {
             println!("{}", text);
         }
@@ -572,161 +575,12 @@ pub async fn run_query(
     Ok(())
 }
 
-/// Result of a `ledgerful ledger search --json` probe (T211 F12).
-struct LedgerProbeResult {
-    non_empty: bool,
-    /// Human-readable display text (from re-run without --json, or pretty JSON).
-    display: Option<String>,
-}
-
-/// Probe ledger for non-empty results; fail/empty/missing → vault-only (no panic).
-#[allow(clippy::disallowed_methods)]
-fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProbeResult> {
-    use std::io::IsTerminal;
-    let is_tty = std::io::stdout().is_terminal();
-
-    // T91: strip ANSI; T90: sanitize FTS before forwarding.
-    let clean_query = ai_brains_retrieval::strip_ansi(query);
-    let sanitized_query = ai_brains_retrieval::sanitize_fts_query(&clean_query);
-
-    let mut json_cmd = std::process::Command::new("ledgerful");
-    json_cmd.args(["ledger", "search", "--json", &sanitized_query]);
-    if !is_tty {
-        json_cmd.env("NO_COLOR", "1");
-    }
-    if quiet {
-        json_cmd.stderr(std::process::Stdio::null());
-    }
-
-    let json_output = match json_cmd.output() {
-        Ok(out) => out,
-        Err(_) => {
-            if !quiet {
-                tracing::info!("ledgerful CLI not found or failed to execute.");
-            }
-            return None;
-        }
-    };
-
-    if !json_output.status.success() {
-        if !quiet {
-            tracing::warn!(
-                "ledgerful search failed: {}",
-                String::from_utf8_lossy(&json_output.stderr)
-            );
-        }
-        return None;
-    }
-
-    let stdout = String::from_utf8_lossy(&json_output.stdout);
-    let non_empty = ledger_json_non_empty(&stdout);
-
-    // Prefer a human display: re-run without --json when non-empty (or always if free).
-    let display = {
-        let mut human_cmd = std::process::Command::new("ledgerful");
-        human_cmd.args(["ledger", "search", &sanitized_query]);
-        if !is_tty {
-            human_cmd.env("NO_COLOR", "1");
-        }
-        if quiet {
-            human_cmd.stderr(std::process::Stdio::null());
-        }
-        match human_cmd.output() {
-            Ok(out) if out.status.success() => {
-                let s = String::from_utf8_lossy(&out.stdout).into_owned();
-                let s = if is_tty {
-                    s
-                } else {
-                    ai_brains_retrieval::strip_ansi(&s)
-                };
-                if s.trim().is_empty() { None } else { Some(s) }
-            }
-            _ => {
-                // Fall back to raw JSON probe stdout.
-                let s = if is_tty {
-                    stdout.into_owned()
-                } else {
-                    ai_brains_retrieval::strip_ansi(&stdout)
-                };
-                if s.trim().is_empty() { None } else { Some(s) }
-            }
-        }
-    };
-
-    Some(LedgerProbeResult { non_empty, display })
-}
-
-/// F12 non-empty detection: success already checked; JSON array/object with ≥1
-/// entry OR ≥1 non-empty JSON line that parses.
-fn ledger_json_non_empty(stdout: &str) -> bool {
-    let trimmed = stdout.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    // Whole-stdout JSON array or object.
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) {
-        return match v {
-            serde_json::Value::Array(a) => !a.is_empty(),
-            serde_json::Value::Object(o) => !o.is_empty(),
-            _ => false,
-        };
-    }
-
-    // NDJSON / multi-line: any non-empty line that parses as JSON value.
-    for line in stdout.lines() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-            match v {
-                serde_json::Value::Array(a) if !a.is_empty() => return true,
-                serde_json::Value::Object(o) if !o.is_empty() => return true,
-                serde_json::Value::Null
-                | serde_json::Value::Bool(_)
-                | serde_json::Value::Number(_) => {
-                    continue;
-                }
-                serde_json::Value::String(s) if s.is_empty() => continue,
-                serde_json::Value::String(_) => return true,
-                serde_json::Value::Array(_) | serde_json::Value::Object(_) => continue,
-            }
-        }
-    }
-    false
-}
-
 #[cfg(test)]
 #[allow(clippy::disallowed_methods)]
 mod tests {
-    use super::{ledger_json_non_empty, resolve_sync_project_id};
+    use super::resolve_sync_project_id;
     use ai_brains_core::ids::ProjectId;
     use std::str::FromStr;
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn ledger_json_non_empty__array_with_item() {
-        assert!(ledger_json_non_empty(r#"[{"id":1}]"#));
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn ledger_json_non_empty__empty_array() {
-        assert!(!ledger_json_non_empty("[]"));
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn ledger_json_non_empty__ndjson_object_line() {
-        assert!(ledger_json_non_empty("{\"a\":1}\n"));
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn ledger_json_non_empty__blank() {
-        assert!(!ledger_json_non_empty("  \n"));
-    }
 
     // --- T231 F29 / AC1–AC4b pure resolve_sync_project_id ---
 

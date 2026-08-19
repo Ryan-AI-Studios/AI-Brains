@@ -1,6 +1,6 @@
 # T271 Plan — sync query ledger pane
 
-**Status:** **Pending** (Planned+fold-in; plan-only until go)
+**Status:** **Completed** 2026-08-19 (FEATURE TX `67ed4a3e-d354-4d7c-abf2-36792d46d0b8`)
 **Spec:** [spec.md](./spec.md) F0–F23 / AC1–AC19 + §13 fold-in
 **Category:** BUGFIX / UX
 **Ledger TX (planning):** `68c42d13-b398-4c36-8d1b-8fc74d3b6516` (DOCS)
@@ -71,81 +71,81 @@ No Blockers / Majors. Both verdicts **Planned**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `probe_ledger_search`, `sanitize_fts_query`, Ledgerful `search.rs` phrase wrap.
-- [ ] Confirm source `sync query "capture independence"` still prints `'"capture" "independence"'`.
-- [ ] Confirm `ledgerful ledger search capture` still ≥1.
-- [ ] Confirm T272 still at retrieval `preflight.rs:329` + `:467`.
-- [ ] Re-check lock clap **4.6.1** / crates.io clap. rustc **1.95.0**. No clap 5. serde_json lock vs crates.io.
-- [ ] Rescan **entire** `conductor/deferred.md`.
-- [ ] Last merged PR Cursor comments — leftover none or mint.
-- [ ] `ledgerful ledger start T271-sync-query-ledger-pane --category FEATURE`
+- [x] Re-read `probe_ledger_search`, `sanitize_fts_query`, Ledgerful `search.rs` phrase wrap.
+- [x] Confirm source `sync query "capture independence"` still prints `'"capture" "independence"'` (pre-green).
+- [x] Confirm `ledgerful ledger search capture` still ≥1 (9 rows).
+- [x] Confirm T272 still at retrieval `preflight.rs:329` + `:467`.
+- [x] Re-check lock clap **4.6.1** / serde_json **1.0.150**. rustc **1.95.0**. No clap 5.
+- [x] Rescan **entire** `conductor/deferred.md`.
+- [x] Last merged PR #182 Cursor comments **0**.
+- [x] `ledgerful ledger start T271-sync-query-ledger-pane --category FEATURE` → `67ed4a3e-d354-4d7c-abf2-36792d46d0b8`
 
 ---
 
 ## Phase 1 — red (failing units)
 
-- [ ] Add `pub mod sync_query_ledger` (empty module ok if tests compile against the planned fn names).
-- [ ] `ledger_forward_query__user_phrase__not_fts_quoted`
-- [ ] `ledger_forward_query__empty__returns_empty`
-- [ ] `ledger_forward_query__ansi_stripped`
-- [ ] `ledger_rescue_tokens__capture_independence__first_seen_capture`
-- [ ] `ledger_rescue_pick__first_token_empty_second_hits__selects_second`
-- [ ] `ledger_miss_copy__ran_empty__uses_user_query_not_quotes`
-- [ ] `is_windows_system_cwd__system32_and_syswow64__true`
-- [ ] `ledger_miss_copy__never_ran__did_not_run`
-- [ ] `ledger_miss_copy__empty_query__did_not_run`
-- [ ] `ledger_classify_outcome__nonzero_git_stderr__never_ran`
-- [ ] `ledger_classify_outcome__nonzero_other_stderr__failed`
-- [ ] `ledger_rescue_banner__phrase_empty_token_hit__locked_sentence`
-- [ ] Commit red allowed.
+- [x] Add `pub mod sync_query_ledger` (empty module ok if tests compile against the planned fn names).
+- [x] `ledger_forward_query__user_phrase__not_fts_quoted`
+- [x] `ledger_forward_query__empty__returns_empty`
+- [x] `ledger_forward_query__ansi_stripped`
+- [x] `ledger_rescue_tokens__capture_independence__first_seen_capture`
+- [x] `ledger_rescue_pick__first_token_empty_second_hits__selects_second`
+- [x] `ledger_miss_copy__ran_empty__uses_user_query_not_quotes`
+- [x] `is_windows_system_cwd__system32_and_syswow64__true`
+- [x] `ledger_miss_copy__never_ran__did_not_run`
+- [x] `ledger_miss_copy__empty_query__did_not_run`
+- [x] `ledger_classify_outcome__nonzero_git_stderr__never_ran`
+- [x] `ledger_classify_outcome__nonzero_other_stderr__failed`
+- [x] `ledger_rescue_banner__phrase_empty_token_hit__locked_sentence`
+- [x] Red proven (T90-quoted stub failed AC1/AC3/AC6/AC8 as designed).
 
 ---
 
 ## Phase 2 — green (sibling + dispatch)
 
-- [ ] Implement forwarder (strip_ansi + trim only).
-- [ ] Implement miss copy + System32 predicate.
-- [ ] Move `probe_ledger_search` + `ledger_json_non_empty` + their tests into the sibling.
-- [ ] Token rescue F6 (max 3, first-seen, `--json` then human of winner). Import `ai_brains_core::{contentful_tokens, extract_fts_tokens}` — not retrieval.
-- [ ] F19 classifier + first-line 140-char cap (local; do not import `project.rs::truncate_chars`).
-- [ ] `sync.rs` print: F7 banner; F1 miss lines; F8 quiet; T211 reorder uses rescued `non_empty`.
-- [ ] No `sanitize_fts_query` on the ledger argv.
-- [ ] No production `unwrap`/`expect`/`panic`.
-- [ ] PowerShell `;` only in any docs snippets.
+- [x] Implement forwarder (strip_ansi + trim only).
+- [x] Implement miss copy + System32 predicate.
+- [x] Move `probe_ledger_search` + `ledger_json_non_empty` + their tests into the sibling.
+- [x] Token rescue F6 (max 3, first-seen, `--json` then human of winner). Import `ai_brains_core::{contentful_tokens, extract_fts_tokens}` — not retrieval.
+- [x] F19 classifier + first-line 140-char cap (local; do not import `project.rs::truncate_chars`).
+- [x] `sync.rs` print: F7 banner; F1 miss lines; F8 quiet; T211 reorder uses rescued `non_empty`.
+- [x] No `sanitize_fts_query` on the ledger argv.
+- [x] No production `unwrap`/`expect`/`panic`.
+- [x] PowerShell `;` only in any docs snippets.
 
 ---
 
 ## Phase 3 — stay green
 
-- [ ] `ledger_json_non_empty` units (AC10).
-- [ ] `sync_query__no_bridge__skips_ledgerful_section` (AC11).
-- [ ] T211 `sync_query_ranking` + T231 `sync_query_ux` hermetics (AC12).
-- [ ] Grep CLI tests for `'"capture" "independence"'` snapshots — update only if they encode the bug.
-- [ ] `cargo nextest run -p ai-brains-cli` targeted; `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`.
+- [x] `ledger_json_non_empty` units (AC10).
+- [x] `sync_query__no_bridge__skips_ledgerful_section` (AC11).
+- [x] T211 `sync_query_ranking` + T231 `sync_query_ux` hermetics (AC12).
+- [x] Grep CLI tests for `'"capture" "independence"'` snapshots — none except T271 units.
+- [x] Targeted nextest PASS; `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` exit 0.
 
 ---
 
 ## Phase 4 — docs + closeout (on go)
 
-- [ ] CAPABILITIES honesty bullet (phrase + rescue + miss classes).
-- [ ] CHANGELOG T271 row.
-- [ ] Manual AC13–AC15 (`cargo run`, not PATH unless user installed).
-- [ ] `conductor.md` stays **Pending** until implement closeout → then Completed.
-- [ ] Append residuals to `deferred.md`.
-- [ ] Primary review → `review.md`. Cross-model optional (F20).
+- [x] CAPABILITIES honesty bullet (phrase + rescue + miss classes).
+- [x] CHANGELOG T271 row (root `CHANGELOG.md`; no `Docs/CHANGELOG.md`).
+- [x] Manual AC13–AC15 (`cargo run`, not PATH). AC13: F7 banner + 9 capture rows; no T90 quotes. AC14: no ledger section. AC15: `ledger search capture` ≥1.
+- [x] `conductor.md` Completed after full gate.
+- [x] Append residuals to `deferred.md`.
+- [x] Primary review → `review.md`. Codex CX2 PASS WITH DEFERRED P3.
 - [ ] FEATURE TX commit. Push **branch** + PR only from **implement-track**. Never `git push origin main`.
 
 ---
 
 ## Definition of done
 
-- [ ] AC1–AC12 + AC17–AC19 automated green.
-- [ ] AC13 live dogfood: no T90-quoted empty chrome; ≥1 ledger hit or F7 banner+token hits.
-- [ ] AC14 `--no-bridge` still vault-only.
-- [ ] AC16 docs.
-- [ ] No product `unwrap`/`expect`/`panic`.
-- [ ] `sync.rs` not grown with the new helpers (sibling exists).
-- [ ] Medium+ review findings not silently dropped.
+- [x] AC1–AC12 + AC17–AC19 automated green.
+- [x] AC13 live dogfood: F7 banner + 9 capture rows; no T90 quotes.
+- [x] AC14 `--no-bridge` still vault-only.
+- [x] AC16 docs.
+- [x] No product `unwrap`/`expect`/`panic`.
+- [x] `sync.rs` not grown with the new helpers (sibling exists).
+- [x] Medium+ review findings not silently dropped (CX1 P1-1 FP; P2s fixed).
 - [ ] Ledger FEATURE TX committed; no pending drift.
 
 ---
