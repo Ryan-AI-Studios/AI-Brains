@@ -215,7 +215,7 @@
 | T268 | scan-roots parent / `--root` | **Pending** | — | [T268](tracks/trackT268-scan-roots-parent/spec.md) | **Placeholder 2026-08-16:** cwd-only scan (4/5); suggests re-registering an existing path. |
 | T269 | Nightly vs Router status split | **Pending** | — | [T269](tracks/trackT269-nightly-router-status-split/spec.md) | **Placeholder 2026-08-16:** human mixes Last Result 0 with Router 267009; completion probe timeout vs daemon Open. |
 | T270 | Retention live classification | **Pending** | — | [T270](tracks/trackT270-retention-live-classification/spec.md) | **Placeholder 2026-08-16:** plan 6/5; 0 candidates on 35,300 memories. Honesty or read-only classify overlay. |
-| T271 | sync query ledger pane | **Pending** | — | [T271](tracks/trackT271-sync-query-ledger-pane/spec.md) | **Placeholder 2026-08-16:** ledger pane false-empty (5/5) for `capture independence` in this repo. |
+| T271 | sync query ledger pane | **Pending** | — | [T271](tracks/trackT271-sync-query-ledger-pane/spec.md) | **Planned 2026-08-19:** stop FTS-quoting `ledgerful ledger search` (Ledgerful already phrase-wraps); first-seen token rescue when phrase empty; never-ran vs ran-empty copy. Live hole: `'"capture" "independence"'`. Status stays Pending until go. |
 | T272 | Preflight `--global` Safety skip vs Index | **Pending** | — | [T272](tracks/trackT272-preflight-global-safety-index-skip/spec.md) | **Placeholder 2026-08-18:** Cursor Bugbot #179 Medium. `safety_ids` filled from Safety LIMIT 40 before cap; Index/Recent skip the 32 capped-out ids. |
 
 

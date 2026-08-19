@@ -233,7 +233,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | `scan-roots` cwd-only (4/5) | **T268** |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
-| `sync query` ledger pane false-empty (5/5) | **T271** |
+| `sync query` ledger pane false-empty (5/5) | **T271 Planned 2026-08-19.** Live: vault hits + `No ledger entries found matching '"capture" "independence"'`. Ledgerful `search capture` = 5; phrase/quoted = `[]`. Spec/plan upgraded (FTS-quote lift + first-seen token rescue + miss classes). Status stays Pending until go. |
 
 ### T257 closeout residuals (2026-08-17)
 
@@ -442,6 +442,23 @@ Specified softs — not product blockers:
 | Agy/OpenCode HEAD `2a00ce3` vs `7192070` | **Note** §2.1 |
 | Agy m2 `pub(crate) mod` | **Partial** F12 sibling `pub mod` |
 | Agy O1 contracts `SECTION_ID_*` | **Partial** CLI sibling consts only |
+
+### T271 planning absorption (2026-08-19) — FTS-quote lift + token rescue
+
+| Item | Disposition |
+|------|-------------|
+| Audit ledger pane false-empty (5/5) | **Absorb** F1–F7 / AC1–AC9 / AC13 |
+| Stub F1 never-ran vs ran-empty | **Absorb** F1 / F8 / AC6 / AC8 |
+| Stub F2 System32 | **Absorb** F2 / AC7 (guard; not the live repro) |
+| T90 sanitize on ledger argv | **Absorb as lift** — vault MATCH keeps T90; probe must not quote |
+| T91 strip ANSI | **Affirm** F5 / AC2 |
+| T95 project isolation | **Decline** — vault-only; ledger is cwd/`gix` |
+| T211 F12 empty → vault-only | **Partial** F9 — reorder + `--json` stay; miss/rescue display changes |
+| T211 F25 blend / double shell | **Decline** F11 |
+| T217 vault OR rescue | **Decline** — CLI sequential token rescue only |
+| T268 / T269 / T270 / T272 | **Decline** F12 |
+| T240 F2 / T255 bag | **Decline** F12 |
+| last-PR Cursor #182 | **N/A** — comments/reviews empty |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
