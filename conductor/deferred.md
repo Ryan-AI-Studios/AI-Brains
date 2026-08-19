@@ -369,7 +369,7 @@ Specified softs — not product blockers:
 | Harness status no `value_parser` | Soft F25 — Family B |
 | TTY/`auto` hermetics still force `human`/`json` | Soft T254 F12 |
 | PATH until reinstall | Soft F21 — operator `cargo install` |
-| T267 footer / T268 scan / T270 classify | **T267 Planned 2026-08-18**. T268 / T270 stay Pending. |
+| T267 footer / T268 scan / T270 classify | **T267 Planned+fold-in 2026-08-18**. T268 / T270 stay Pending. |
 
 ### T267 planning absorption (2026-08-18) — remediator honesty; no leftover UUID
 
@@ -385,6 +385,20 @@ Specified softs — not product blockers:
 | T265 / T268 / T269 / T270 / T271 / T272 | **Decline** F11 |
 | last-PR Cursor #180 | **N/A** — empty |
 | T240 F2 / T255 bag | **Decline** F12 |
+
+### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m3 AC10 existing hermetic missing | **Folded** AC10 `harness_install__success__next_is_status` |
+| Agy m2 preflight Ok unit | **Folded** F8 required + AC15 |
+| Leftover live 11 paths (OpenCode said 1) | **Folded** AC7 multi-path+orphan / AC16 leftover-only |
+| OpenCode m1 line count 1511/1368 | **Folded** AC12 total lines |
+| OpenCode m2 pin count | **Folded** §2.1 volatile |
+| Agy O1 / OpenCode O1 collect_git_identity | **Folded** F10 |
+| OpenCode O3 after_help | **Partial** F14 optional |
+| OpenCode O2 ledgerful hygiene | **Decline** — not T267 |
+| last-PR Cursor #180 | **N/A** — still empty |
 
 ### T261 closeout residuals (2026-08-17)
 

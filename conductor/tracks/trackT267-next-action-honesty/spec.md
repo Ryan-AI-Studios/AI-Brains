@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Operators get a command they have not just successfully run. Scan-roots parent/`--root` stays **T268**. Preflight envelope stays **T265**. Ledger pane stays **T271**. Safety-skip leftover stays **T272**.
 - **Absorbs:** Audit T267 row (`harness status` self-next; list footer leftover-as-AI-Brains); T259 F3 / closeout footer pointer; T212 F8 footer stays, algorithm changes; T235 F40 install/uninstall next stays `harness status`; T258 F10 whoami remediations **already shipped** (affirm + regression)
 - **Not absorbed:** T258 adopt-path verb; T259 leftover split / memory move; T268 scan-roots; T240 F2 silent Scope; T255 declines; clap 5 / new crates; T272 `safety_ids`; doctor/T240 “run `project whoami`” warn
-- **Research date:** 2026-08-18 (HEAD `fa90981` T266 `#180`)
-- **Ledger:** planning DOCS TX `50c39329-176a-4075-95c1-7638bb6885c0`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-18 (plan dogfood HEAD `fa90981` T266 `#180`; plan commit `d4555f2`)
+- **AI fold-in:** 2026-08-18 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). **B 0 / M 0 / m 5 / O 4.** **Agree hard:** OpenCode **m3** AC10 additive named hermetic; leftover live `path_count` is **11** (not 1) — AC7/AC16 split. **Agree:** Agy **m1** HEAD note; Agy **m2** AC15 Ok-row unit; Agy **O1** / OpenCode implicit pure picker; OpenCode **m1** line-count 1511/1368; OpenCode **m2** pin count volatile; OpenCode **O1** call `collect_git_identity` (already `pub(crate)`). **Partial:** OpenCode **O3** after_help optional. **Decline:** OpenCode **O2** ledgerful hygiene; OpenCode “leftover is single-path so F3(2) picks it”. Disposition **§13**.
+- **Ledger:** planning DOCS TX `50c39329-176a-4075-95c1-7638bb6885c0`. Fold-in DOCS TX `205fba7b-98aa-4823-93b2-e02d1c9cc353`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env`. Do **not** `set-alias 7d97a456 … AI-Brains`. Do **not** reopen T240 F2 / T255 declines. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -35,13 +36,13 @@ No models. No new crates. No clap 5. No events.
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `fa90981` — T266 squash `#180`. Branch `main`. Tree **CLEAN**. In sync with `origin/main` (`0 0`). |
+| HEAD | **Plan dogfood:** `fa90981` T266 `#180` (product `src/` for the holes). **Plan commit / this fold-in:** `d4555f2` (docs only). Product `src/` unchanged since `fa90981`. |
 | PATH `ai-brains` | `0.1.1` (`C:\Users\RyanB\.cargo\bin\ai-brains.exe`). Same holes as source for this track (T266 did not touch next-action). **Do not `cargo install`.** |
-| This session | Agent **non-TTY**. `preflight --summary`: Scope `3581317d` / 3046 pins / grants **0 of 3**. Five harnesses **wiring=ok**. Preflight harness block **already omits** `next:` on ok (T235 `format_harness_summary_lines`). |
+| This session | Agent **non-TTY**. `preflight --summary` pin count is **volatile** (plan 3046 → review 3047 → fold-in 3058). Scope `3581317d`. Grants **0 of 3**. Five harnesses **wiring=ok**. Preflight harness block **already omits** `next:` on ok. Do **not** lock the pin count. |
 | `harness status` (PATH) | 5/5 `present=yes wiring=ok`. **Each row** `next: ai-brains harness status`. Trailer still prints five `X ready: … install --harness X --dry-run`. **Live hole.** |
 | `project whoami --format human` | `effective`/`env`/`path`/`detect` = `3581317d`. `shell_project_id` leftover `7d97a456`. `mismatch: false`. `remediations: (none)`. T258 F10 already shipped — no “run whoami”. |
 | `project list` footer | `27 project(s) have no alias.` / `Example: ai-brains project set-alias 7d97a456-f2f4-43ea-1f13-211af684ad37 AI-Brains`. **Live hole.** |
-| List rows | Leftover `7d97a456`: **18032**, alias empty, path `C:\dev\crawlx`. Path owner `3581317d`: **3047**, **alias already `C:\dev\ai-brains`**, path `C:\dev\ai-brains`. `unaliased_count=27`. Only **one** unaliased row has a path (leftover). |
+| List rows | Leftover `7d97a456`: **18032**, alias empty, `ProjectListDetail.path` = first path `C:\dev\crawlx`. **`list-paths --project 7d97a456` = 11 roots** (crawlx, dedupe, degoo, family, gimp, homebrew-tap, kinledger, ledgerful-action, ledgerful-frontend, ledgerful-web, wondermaker). Path owner `3581317d`: alias already `C:\dev\ai-brains`. `unaliased_count=27`. Only one **unaliased list row** shows a path column — that is first-path, **not** `path_count==1`. F3(2) does **not** pick leftover on this vault; F3(3) orphan wins. |
 | Last GitHub PR | [#180](https://github.com/Ryan-AI-Studios/AI-Brains/pull/180) T266. Issue comments **[]**. Review comments **[]**. Reviews **[]**. Open PRs on `main`: none (Dependabot only, other heads). |
 | #179 Cursor leftover | T272 still true (`preflight.rs:329` insert before `:336` cap). Already a Pending placeholder. **Do not remint.** |
 | Identity / grants | Daily Scope rebound to path owner. 0 of 3 grants is T241, not this track. |
@@ -78,8 +79,9 @@ No models. No new crates. No clap 5. No events.
 | Whoami remediations | `project.rs` **:763–781** | T258: adopt-path + `AI_BRAINS_PROJECT_ID=` + honesty. No `` `ai-brains project whoami` ``. |
 | T212 hermetics | `tests/project_list_labels.rs` AC3–AC5 | Footer on stderr; JSON has no footer; empty vault no footer. **Stay green.** |
 | T258 hermetic | `tests/project_adopt_path.rs` AC7 | Whoami remediations name adopt-path. **Stay green.** |
-| Hotspot | `project.rs` **#1** (3.970, **1368** lines) | Extract footer to **`project_list_footer.rs`**. Do not grow detect/whoami. |
-| `preflight.rs` | hotspot **#9** | Do **not** change except a unit if an Ok-row next assert is missing. |
+| Hotspot | `project.rs` **#1** (3.970, **1511** total / **1368** non-blank) | Extract footer to **`project_list_footer.rs`**. AC12 measures **total** lines vs HEAD. |
+| `get_git_repo_slug` | `project.rs` **:245** private | Footer uses **`collect_git_identity`** (`:200`, already `pub(crate)`). Do not require widening the wrapper. |
+| `preflight.rs` | hotspot **#9** (2002 non-blank) | Ok-row unit **required** (AC15). Existing units: absent + Missing only. Do **not** rewrite summary (T265). |
 | `governed_common.rs` | hotspot **#5** | Do not edit. |
 | Contracts / T180 | no `next_action` DTO | CLI-local `StatusReport` only. |
 
@@ -115,13 +117,13 @@ No models. No new crates. No clap 5. No events.
 | **F5 — JSON keys frozen** | `StatusReport` / `HarnessStatus` keys + `schema_version: 1` stay. `next_action` remains a required non-empty string. Value **`none`** for Ok is the contract change. Do **not** omit the key. Do **not** add a footer to `project list --format json`. |
 | **F6 — Ready trailer** | The five `X ready: install --dry-run` lines print only for harnesses that are **present and not Ok**. If every present harness is Ok, print **none** of them. Message-only / install-ready one-liners after that stay. |
 | **F7 — Install/uninstall next** | After a successful install or uninstall, keep `next: ai-brains harness status`. That is a different command. Backend-pending / Codex `/hooks` lines stay. |
-| **F8 — Preflight** | `format_harness_summary_lines` already omits Ok `next:`. Add a unit if missing. Do **not** rewrite preflight pretty/summary JSON (T265). |
+| **F8 — Preflight** | `format_harness_summary_lines` already omits Ok `next:`. **Required** unit `format_harness_summary_lines__ok__omits_next` (AC15). Do **not** rewrite preflight pretty/summary JSON (T265). |
 | **F9 — No leftover UUID** | Product code must **not** special-case `7d97a456-f2f4-43ea-1f13-211af684ad37`. The F3/F3b rules make leftover-as-AI-Brains impossible on this machine and any other. |
-| **F10 — Module** | New `crates/ai-brains-cli/src/commands/project_list_footer.rs` (`pub(crate)` pick + suggestion + print). `project.rs` `list()` calls it. Keep `sanitize_alias_suggestion` in `project.rs` (T206 env-fallback). **Do not** grow detect / whoami / `display_label`. **Do not** edit `context.rs`. **Do not** grow `ProjectListDetail`. |
+| **F10 — Module** | New `crates/ai-brains-cli/src/commands/project_list_footer.rs`. `pick_unaliased_footer_target` + `footer_alias_suggestion` are **pure** (`pub(crate)`, no `AppContext`, no IO). Print wrapper does I/O. Slug/owner come from **`collect_git_identity`** + `resolve_path_alias_for_location` (already `pub(crate)`). Do **not** require widening private `get_git_repo_slug`. Keep `sanitize_alias_suggestion` in `project.rs` (T206). **Do not** grow detect / whoami / `display_label`. **Do not** edit `context.rs`. **Do not** grow `ProjectListDetail`. |
 | **F11 — Decline peers** | T265 envelope; T268 scan-roots; T269 Router split; T270 classify; T271 ledger pane; T272 `safety_ids`. |
 | **F12 — Decline T240 F2 / T255** | No silent Scope/`.env`. No doctor 16th. No product `.cmd`. No live `schtasks`. |
 | **F13 — clap / crates** | No clap 5. No lock bumps. No new crates. Workspace **0.1.1**. Family B stays (T266 F25): do **not** add `--format auto` to `harness status` or `project list`. |
-| **F14 — Docs** | CAPABILITIES: harness ok → omit/`none`; list footer pick + “cwd slug only for cwd owner”. Root CHANGELOG T267. list `after_help` honesty (example is not “largest memory + cwd slug”). PROTOCOL-COMPAT **additive** one sentence on `next_action: "none"` for ok. CLI-EXIT-CODES unchanged. |
+| **F14 — Docs** | CAPABILITIES: harness ok → omit/`none`; list footer pick + “cwd slug only for cwd owner”. Root CHANGELOG T267. PROTOCOL-COMPAT **additive** one sentence on `next_action: "none"` for ok. CLI-EXIT-CODES unchanged. `project list` `after_help` is **already neutral** (`main.rs:2419` — “a set-alias example is printed on stderr”). Optional one-liner polish only; **not** a correctness DoD. |
 | **F15 — Tests** | Naming `function_or_feature__condition__expected_result`. Units for `next_action_for` + footer pick/suggestion. Hermetics in new `tests/next_action_honesty.rs` (or additive in `project_list_labels.rs` / harness suite). T212 / T235 / T258 / T240 suites stay green. No `unwrap`/`expect`/`panic` in production. |
 | **F16 — Cross-model** | FEATURE / operator remediator. After Phase-1 review clean, run read-only `codex-review`. |
 | **F17 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
@@ -143,14 +145,16 @@ No models. No new crates. No clap 5. No events.
 | **AC4** | Hermetic: one harness present + missing marker. Human contains `next: ai-brains harness install --harness <id> --dry-run`. JSON that row’s `next_action` is that command (not `none`). |
 | **AC5** | Existing `project_whoami__mismatch__remediations_name_adopt_path` stays green. Combined remediations still omit `` `ai-brains project whoami` `` and `project list`. |
 | **AC6** | Hermetic: leftover-shaped project (high memory, path `C:\dev\crawlx`, no alias) **and** cwd registered to an **unaliased** path-owner. Git slug `AI-Brains` (or fixture slug). `project list` stderr `Example:` contains the **path-owner** id + the slug, and does **not** pair leftover id with the slug. |
-| **AC7** | Hermetic: leftover-shaped unaliased + cwd path-owner **already aliased** + fixture slug `AI-Brains`. Stderr contains `set-alias` but **not** `set-alias <leftover-id> AI-Brains`. If leftover is picked (no single-path / orphan), suggestion is `crawlx` (path basename), not `AI-Brains`. |
+| **AC7** | Hermetic **this-vault shape**: leftover-shaped unaliased with **≥2** registered paths + cwd path-owner **already aliased** + fixture slug `AI-Brains` + **one unaliased orphan**. Stderr `Example:` names the **orphan** id (F3(3)). Does **not** contain `set-alias <leftover-id>` and does **not** contain leftover+`AI-Brains`. Named: `project_list__footer__multipath_leftover_plus_orphan__picks_orphan`. |
 | **AC8** | `project_list_labels` AC3 / AC4 / AC5 stay green (one unaliased still named; empty no footer; JSON no footer). |
 | **AC9** | Same fixture as AC2: human stdout has **no** `install --harness` ready-trailer lines. AC4 fixture still prints the install remediator for the missing id. |
-| **AC10** | Existing install-success hermetic (or additive): after `harness install --yes` on a ready id, stdout still contains `next: ai-brains harness status`. |
-| **AC11** | Docs: CAPABILITIES harness ok = omit/`none`; list footer F3/F3b; CHANGELOG T267; `project list` `after_help` no longer implies “largest unaliased + cwd slug”. PROTOCOL-COMPAT one sentence on `next_action: "none"`. |
-| **AC12** | No contracts DTO. No pin bumps. No new crate. Grep product `src/` has no `7d97a456-f2f4-43ea-1f13-211af684ad37`. `project.rs` line count does not grow vs HEAD (footer extracted). |
+| **AC10** | **Additive** hermetic `harness_install__success__next_is_status` — **no** existing test asserts that string today (`install.rs` only matches `InstallOutcome::Installed`). After `harness install --harness <ready> --yes` on a temp home, stdout contains `next: ai-brains harness status`. |
+| **AC11** | Docs: CAPABILITIES harness ok = omit/`none`; list footer F3/F3b; CHANGELOG T267; PROTOCOL-COMPAT one sentence on `next_action: "none"`. `after_help` polish is **optional** (F14). |
+| **AC12** | No contracts DTO. No pin bumps. No new crate. Grep product `src/` has no `7d97a456-f2f4-43ea-1f13-211af684ad37`. `project.rs` **total** line count (`(Get-Content).Count`, HEAD **1511**) does not grow. |
 | **AC13** | Manual (source bin): `harness status` on this machine omits per-row `next:` for the five ok harnesses. `project list` stderr example is **not** leftover+`AI-Brains`. Do **not** pin. Do **not** `cargo install`. Do **not** write `.env`. |
-| **AC14** | Units (no vault): `pick_unaliased_footer_target` + `footer_alias_suggestion` cover F3 order and F3b (cwd slug only when ids match). |
+| **AC14** | Units (no vault, **pure**): `pick_unaliased_footer_target` + `footer_alias_suggestion` cover F3 order and F3b (cwd slug only when ids match). |
+| **AC15** | Unit `format_harness_summary_lines__ok__omits_next`: Ok row prints `wiring=ok` and does **not** contain `next:`. Missing sibling (existing) still prints install `--dry-run`. |
+| **AC16** | Hermetic last-resort: leftover-shaped unaliased (one or more paths) + cwd owner **aliased** + slug `AI-Brains` + **no** orphan / no other unaliased. `Example:` is leftover id + path basename (`crawlx`), **not** `AI-Brains`. Named: `project_list__footer__leftover_only__basename_not_cwd_slug`. |
 
 ---
 
@@ -178,7 +182,7 @@ else first candidate with path_count == 0
 else candidates[0]   // still memory-DESC from list_projects_detail
 ```
 
-`path_count` is computed from `list_path_aliases` (already loaded or one extra query). Do not add a SQL column this track.
+`path_count` is computed from `list_path_aliases` (already loaded or one extra query). Do not add a SQL column this track. Do **not** treat `ProjectListDetail.path` as count — that field is first path only. Live leftover has **11** aliases, so F3(2) skips it and F3(3) picks the first orphan.
 
 ### 5.3 Footer suggestion (pure)
 
@@ -226,9 +230,9 @@ TDD: failing units + hermetics first (Phase 1), then `next_action_for` + human o
 
 | Phase | Proof |
 |-------|-------|
-| Red | AC1 / AC2 / AC3 / AC6 / AC7 / AC14 fail on today’s strings |
-| Green harness | F1 / F5 / F6; AC1–AC4 / AC9 / AC10 |
-| Green footer | F3 / F3b / F10; AC6–AC8 / AC14 |
+| Red | AC1 / AC2 / AC3 / AC6 / AC7 / AC10 / AC14 / AC15 / AC16 fail on today’s strings |
+| Green harness | F1 / F5 / F6; AC1–AC4 / AC9 / AC10 / AC15 |
+| Green footer | F3 / F3b / F10; AC6–AC8 / AC14 / AC16 |
 | Freeze | AC5 whoami; AC8 T212; AC10 install next |
 | Docs | AC11 / AC12 |
 | Manual | AC13 source bin, classify-only |
@@ -243,7 +247,8 @@ TDD: failing units + hermetics first (Phase 1), then `next_action_for` + human o
 |------|------------|
 | Scripts parse `next_action` and exec it in a loop | Value becomes `none` (not a command). Document in CAPABILITIES + PROTOCOL-COMPAT. |
 | Scripts grepped `next: ai-brains harness status` on ok status | Human change is allowed (CLIG). Install-success path still prints that line (F7 / AC10). |
-| T212 AC3 over-fit to leftover-first | AC8: single-unaliased fixture still names that id. AC6/AC7 are the new cases. |
+| T212 AC3 over-fit to leftover-first | AC8: single-unaliased fixture still names that id. AC6/AC7/AC16 are the new cases. |
+| Treating leftover first-path as `path_count==1` | Live leftover has **11** aliases. AC7 requires ≥2 paths + orphan. |
 | Hotspot `project.rs` churn | F10 extract. AC12 line-count does not grow. |
 | Accidental leftover UUID constant | F9 / AC12 grep. |
 | Accidental T265 / T268 / T272 steal | F11. Stop-before if a review asks to flip those. |
@@ -279,10 +284,10 @@ TDD: failing units + hermetics first (Phase 1), then `next_action_for` + human o
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify pins + deferred rescan + confirm `next_action_for(Ok)` still returns `harness status` and list footer still leftover+`AI-Brains`.
-2. Red: AC1 / AC2 / AC3 / AC6 / AC7 / AC14 tests.
-3. Green harness: `none` token + human omit + trailer F6.
-4. Green footer: extract module; F3/F3b; T212 stay green.
-5. Docs: CAPABILITIES + CHANGELOG + after_help + PROTOCOL-COMPAT sentence.
+2. Red: AC1 / AC2 / AC3 / AC6 / AC7 / AC10 / AC14 / AC15 / AC16 tests.
+3. Green harness: `none` token + human omit + trailer F6 + AC15 unit.
+4. Green footer: extract module; F3/F3b via `collect_git_identity`; T212 stay green; AC7 + AC16.
+5. Docs: CAPABILITIES + CHANGELOG + PROTOCOL-COMPAT sentence. after_help optional.
 6. Targeted clippy/nextest; Phase-1 review; codex-review; full gate; publish.
 
 ---
@@ -309,12 +314,50 @@ TDD: failing units + hermetics first (Phase 1), then `next_action_for` + human o
 | `crates/ai-brains-cli/src/commands/project_list_footer.rs` | **New.** Pick + suggestion + print |
 | `crates/ai-brains-cli/src/commands/mod.rs` | `pub mod project_list_footer` |
 | `crates/ai-brains-cli/src/commands/project.rs` | Replace footer body with call; do not grow whoami/detect |
-| `crates/ai-brains-cli/src/commands/preflight.rs` | Optional Ok-row unit only |
-| `crates/ai-brains-cli/src/main.rs` | `project list` `after_help` honesty only |
-| `crates/ai-brains-cli/tests/next_action_honesty.rs` | New hermetics AC2–AC4 / AC6 / AC7 / AC9 |
+| `crates/ai-brains-cli/src/commands/preflight.rs` | **Required** AC15 Ok-row unit only (no summary rewrite) |
+| `crates/ai-brains-cli/src/main.rs` | `after_help` optional one-liner (F14) |
+| `crates/ai-brains-cli/tests/next_action_honesty.rs` | New hermetics AC2–AC4 / AC6 / AC7 / AC9 / AC10 / AC16 |
 | `Docs/CAPABILITIES.md` | Harness ok + list footer |
 | `Docs/PROTOCOL-COMPAT.md` | Additive `next_action: "none"` |
 | `CHANGELOG.md` | T267 row |
 | `conductor/conductor.md` | T267 Planned note (status stays Pending until implement) |
 | `conductor/deferred.md` | Absorb/decline |
 | **Do not touch** | `governed_common.rs`; `context.rs`; `ai-brains-retrieval`; `ai-brains-contracts`; `project.rs` remediations; doctor whoami string; graph next; nightly; scan-roots behavior |
+
+---
+
+## 13. AI fold-in disposition (2026-08-18)
+
+Source: `agy-review.md` + `opencode-review.md`. No grok / claude / `codex-plan-review.md`. **B 0 / M 0.** Online research: **N/A** for new APIs (no pin/DTO change). Live re-verify: leftover `list-paths --project 7d97a456` = **11** roots; `project.rs` **1511** total / **1368** non-blank; `get_git_repo_slug` still private; no install-success next-string hermetic; `format_harness_summary_lines` has no Ok unit; `after_help` already neutral.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `fa90981` vs `d4555f2` | **Agree** | §2.1: plan dogfood vs plan/fold-in commit |
+| **m2** preflight Ok-row unit | **Agree** | **F8** required + **AC15** `format_harness_summary_lines__ok__omits_next` |
+| **O1** pure picker/suggestion | **Agree** | **F10** — no `AppContext` / no IO on pick + suggestion |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** `project.rs` 1368 vs 1511 | **Agree** | §2.3 + **AC12**: 1511 total / 1368 non-blank; measure total |
+| **m2** pin count 3046 vs 3047 | **Agree** | §2.1: volatile (fold-in **3058**); do not lock |
+| **m3** AC10 “existing hermetic” missing | **Agree hard** | **AC10** additive `harness_install__success__next_is_status` |
+| **O1** widen `get_git_repo_slug` | **Agree** (cheaper form) | Call `collect_git_identity` (already `pub(crate)`). Widening the wrapper is optional equivalent |
+| **O2** ledgerful doctor hygiene | **Decline** | Not T267. Same standing hygiene as T266 fold-in |
+| **O3** `after_help` already neutral | **Partial** | **F14** / **AC11**: optional one-liner; not correctness DoD |
+| “leftover `path_count==1` so F3(2) picks it” | **Decline** (false) | Live leftover has **11** aliases. **AC7** = multi-path + orphan; **AC16** = leftover-only last resort |
+
+### Pins locked by fold-in
+
+1. **AC10** is additive and named. Do not hunt an existing install-success next assert.
+2. **AC15** Ok-row preflight unit is required (not “if missing”).
+3. **AC7** leftover fixture must have **≥2** paths + an orphan. **AC16** covers leftover-only basename.
+4. **AC12** uses **total** line count (HEAD 1511).
+5. Footer slug/owner via **`collect_git_identity`**, not a required `get_git_repo_slug` visibility bump.
+6. `after_help` is optional polish. CAPABILITIES + CHANGELOG + PROTOCOL-COMPAT stay required.
+7. §2.1: `fa90981` product vs `d4555f2` docs. Pin count is volatile.
+
+**Planning + fold-in 2026-08-18.** Still **plan-only until go**.
