@@ -217,7 +217,7 @@ fn preflight_pretty__multi_section__multiline_scope_no_assistant_prefix() {
 }
 
 // ---------------------------------------------------------------------------
-// AC7 — non-summary JSON: exactly text + word_count; multi-section text has \n
+// AC7 — non-summary JSON: required text + word_count + sections array; multi-section text has \n
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -237,14 +237,13 @@ fn preflight_pretty__json_format__two_keys_and_newlines_in_text() {
         panic!("AC7: must be valid JSON; err={e}; stdout:\n{stdout}");
     });
     let obj = v.as_object().expect("object");
-    assert_eq!(
-        obj.len(),
-        2,
-        "AC7: exactly text + word_count keys; got {:?}",
-        obj.keys().collect::<Vec<_>>()
-    );
     assert!(obj.contains_key("text"), "AC7: text key");
     assert!(obj.contains_key("word_count"), "AC7: word_count key");
+    assert!(
+        obj.get("sections").and_then(|s| s.as_array()).is_some(),
+        "AC7: sections is array; got {:?}",
+        obj.keys().collect::<Vec<_>>()
+    );
 
     let text = obj["text"].as_str().expect("text string");
     assert!(
@@ -502,14 +501,13 @@ fn preflight_pretty__compact_json__uncapped_text_two_keys() {
         panic!("AC12: must be valid JSON; err={e}; stdout:\n{stdout}");
     });
     let obj = v.as_object().expect("object");
-    assert_eq!(
-        obj.len(),
-        2,
-        "AC12: exactly text + word_count keys; got {:?}",
-        obj.keys().collect::<Vec<_>>()
-    );
     assert!(obj.contains_key("text"), "AC12: text key");
     assert!(obj.contains_key("word_count"), "AC12: word_count key");
+    assert!(
+        obj.get("sections").and_then(|s| s.as_array()).is_some(),
+        "AC12: sections is array; got {:?}",
+        obj.keys().collect::<Vec<_>>()
+    );
     let text = obj["text"].as_str().expect("text string");
     assert!(
         text.contains(&seed),

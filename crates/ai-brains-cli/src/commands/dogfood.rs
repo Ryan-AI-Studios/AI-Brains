@@ -1021,6 +1021,25 @@ mod tests {
     }
 
     #[test]
+    fn parse_legacy_preflight__extra_sections_key__counts_markers_from_text() {
+        // AC14 — extra `sections` is ignored; markers still come from `text`.
+        let raw = json!({
+            "text": "DECISION: keep compact\nCONSTRAINT: stay additive",
+            "word_count": 6,
+            "sections": [{
+                "id": "safety",
+                "title": "--- Repository Bearings & Safety ---",
+                "items": ["DECISION: keep compact"]
+            }]
+        });
+        let parsed = parse_legacy_preflight(&raw).expect("extra sections key is ignored");
+        assert_eq!(parsed.decision_marker_count, 1);
+        assert_eq!(parsed.constraint_marker_count, 1);
+        assert_eq!(parsed.hotspot_marker_count, 0);
+        assert_eq!(parsed.word_count, 6);
+    }
+
+    #[test]
     fn content_fingerprint__excludes_briefing_id_and_generated_at() {
         let mut a = sample_packet();
         let mut b = sample_packet();

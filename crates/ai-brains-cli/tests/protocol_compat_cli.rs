@@ -76,10 +76,12 @@ fn t180_c_preflight_json_keys__cli_format_json__compact_stable_keys()
     let obj = v.as_object().expect("object");
     assert!(obj.contains_key("text"), "stable key text");
     assert!(obj.contains_key("word_count"), "stable key word_count");
-    assert_eq!(
-        obj.len(),
-        2,
-        "preflight JSON must not grow silent keys without a track"
+    let sections = obj
+        .get("sections")
+        .expect("additive sections (T265; T180-C lifted the 2-key length freeze)");
+    assert!(
+        sections.is_array(),
+        "sections must be an array (never null); got {sections}"
     );
     Ok(())
 }

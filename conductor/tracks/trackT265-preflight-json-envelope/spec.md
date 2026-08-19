@@ -1,7 +1,7 @@
 # T265 — Preflight JSON structured envelope
 
 - **Track ID:** T265-PreflightJsonEnvelope
-- **Status:** **Planned** (Pending in registry; plan-only until go)
+- **Status:** **Completed** (2026-08-19)
 - **Category:** UX / CONTRACTS / FEATURE
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — `preflight --format json` **7/6**; `{text, word_count}` blob
