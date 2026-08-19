@@ -1,7 +1,7 @@
 # T266 — Format policy convergence
 
 - **Track ID:** T266-FormatPolicyConvergence
-- **Status:** **Planned** (Pending in registry; plan-only until go)
+- **Status:** **Completed** (2026-08-18)
 - **Category:** UX / FEATURE
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — friction “format policy is a maze”; `project list-paths` **7/5**; `retention plan` default **6/5**

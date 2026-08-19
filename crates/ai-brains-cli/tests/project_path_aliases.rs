@@ -319,6 +319,186 @@ fn list_paths__unknown_format__exit_2() {
         .code(2);
 }
 
+fn two_alias_vault(dir: &Path) -> std::path::PathBuf {
+    let vault = dir.join("vault.db");
+    init_vault(&vault);
+    let id_a = register_project(&vault, &dir.join("proj-a"));
+    let id_b = register_project(&vault, &dir.join("proj-b"));
+    set_alias(&vault, &id_a, "alpha");
+    set_alias(&vault, &id_b, "zeta");
+    let aaa = dir.join("aaa-root");
+    let zzz = dir.join("zzz-root");
+    fs::create_dir_all(&aaa).unwrap();
+    fs::create_dir_all(&zzz).unwrap();
+    register_path(&vault, &id_a, aaa.to_str().expect("utf8")).success();
+    register_path(&vault, &id_b, zzz.to_str().expect("utf8")).success();
+    vault
+}
+
+fn list_paths_stdout(vault: &Path, format: &str) -> String {
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("project")
+        .arg("list-paths")
+        .arg("--format")
+        .arg(format)
+        .output()
+        .expect("list-paths");
+    assert!(
+        out.status.success(),
+        "list-paths --format {format} must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+// ---------------------------------------------------------------------------
+// T266 AC3 / AC4 / AC14 — inventory tokens
+// ---------------------------------------------------------------------------
+
+#[test]
+fn list_paths__format_pretty__human_empty_copy() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let stdout = list_paths_stdout(&vault, "pretty");
+    assert!(
+        stdout.contains("No path aliases registered."),
+        "AC3: unfiltered empty copy; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("next: ai-brains project register-path"),
+        "AC3: next-step; got: {stdout}"
+    );
+    assert!(
+        !stdout.trim_start().starts_with('{'),
+        "AC3: must not be JSON; got: {stdout}"
+    );
+}
+
+#[test]
+fn list_paths__format_json__api_version_1() {
+    let dir = tempdir().unwrap();
+    let vault = two_alias_vault(dir.path());
+    let stdout = list_paths_stdout(&vault, "json");
+    let v: serde_json::Value = serde_json::from_str(&stdout).unwrap_or_else(|e| {
+        panic!("AC4 json: one object; {e}; stdout={stdout}");
+    });
+    assert!(v.is_object(), "AC4: envelope must be an object; got {v}");
+    assert_eq!(v["api_version"], "1");
+    let paths = v["paths"].as_array().expect("paths array");
+    assert_eq!(paths.len(), 2, "AC4: two aliases; got {paths:?}");
+    for row in paths {
+        let obj = row.as_object().expect("path object");
+        for key in ["project_id", "label", "alias", "normalized_path", "exists"] {
+            assert!(obj.contains_key(key), "T254 F10 key {key} missing: {row}");
+        }
+    }
+}
+
+#[test]
+fn list_paths__format_human__table_not_json() {
+    let dir = tempdir().unwrap();
+    let vault = two_alias_vault(dir.path());
+    let stdout = list_paths_stdout(&vault, "human");
+    assert!(
+        stdout.contains("path"),
+        "AC4 human: path header; got: {stdout}"
+    );
+    assert!(
+        serde_json::from_str::<serde_json::Value>(stdout.trim()).is_err(),
+        "AC4 human: must not parse as JSON; got: {stdout}"
+    );
+}
+
+#[test]
+fn list_paths__format_pretty__table_not_json() {
+    let dir = tempdir().unwrap();
+    let vault = two_alias_vault(dir.path());
+    let stdout = list_paths_stdout(&vault, "pretty");
+    assert!(stdout.contains("path"), "AC14: path header; got: {stdout}");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(stdout.trim()).is_err(),
+        "AC14: pretty ≡ human, not JSON; got: {stdout}"
+    );
+}
+
+#[test]
+fn scan_roots__format_pretty__not_json() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let tree = dir.path().join("tree");
+    let hit = tree.join("hit-child");
+    fs::create_dir_all(&hit).unwrap();
+    fs::write(hit.join(".ledgerful"), b"").unwrap();
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(&tree)
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("scan-roots pretty");
+    assert!(
+        out.status.success(),
+        "AC5 pretty must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("path") || stdout.contains("No .ledgerful roots found."),
+        "AC5: table header or empty copy; got: {stdout}"
+    );
+    assert!(
+        serde_json::from_str::<serde_json::Value>(stdout.trim()).is_err(),
+        "AC5: pretty must not be JSON; got: {stdout}"
+    );
+}
+
+#[test]
+fn scan_roots__format_json__api_version_1() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let tree = dir.path().join("tree");
+    let hit = tree.join("hit-child");
+    fs::create_dir_all(&hit).unwrap();
+    fs::write(hit.join(".ledgerful"), b"").unwrap();
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(&tree)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("scan-roots json");
+    assert!(
+        out.status.success(),
+        "AC5 json must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("scan json object");
+    assert_eq!(v["api_version"], "1");
+    assert!(v.get("scan_root").is_some(), "AC5: scan_root key");
+    assert!(v["truncated"].is_boolean(), "AC5: truncated bool");
+    assert!(v["roots"].is_array(), "AC5: roots array");
+}
+
 // ---------------------------------------------------------------------------
 // AC10–AC12 — scan-roots dry-run
 // ---------------------------------------------------------------------------

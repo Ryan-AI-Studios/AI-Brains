@@ -1,6 +1,6 @@
 # T266 Plan — Format policy convergence
 
-**Status:** **Pending** (Planned in spec; plan-only until go)
+**Status:** **In Progress** (implement 2026-08-18; FEATURE TX `9aec5831-b7a6-4eb6-85b8-49168cf7b07a`)
 **Spec:** [spec.md](./spec.md) F0–F27 / AC1–AC14 + §13 fold-in
 **Category:** UX / FEATURE
 **Ledger TX (planning):** `201a3883-3053-4487-ba46-8942565eeae5` (DOCS)
@@ -65,72 +65,72 @@ No Blockers / Majors. OpenCode **m1–m3** folded as named AC4 human-half, F7 ar
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `format_resolve.rs`, three `use_json_output` sites, whoami match, five clap `value_parser`s.
-- [ ] Confirm `project list-paths --format pretty` is still clap `InvalidValue` on source bin.
-- [ ] Classify-only dogfood: default list-paths still JSON on this agent; `--format human` still a table. **Do not** pin. **Do not** `cargo install`.
-- [ ] Re-check lock clap **4.6.1** / crates.io current. rustc **1.95.0**. No clap 5.
-- [ ] Rescan **entire** `conductor/deferred.md`.
-- [ ] Last merged PR Cursor comments — disposition any new leftover (mint if it fits nowhere).
-- [ ] `ledgerful ledger start T266-format-policy-convergence --category FEATURE`
+- [x] Re-read `format_resolve.rs`, three `use_json_output` sites, whoami match, five clap `value_parser`s.
+- [x] Confirm `project list-paths --format pretty` is still clap `InvalidValue` on source bin. (red: 5 pretty-parse tests failed with possible values `auto, human, json`)
+- [x] Classify-only dogfood: default list-paths still JSON on this agent; `--format human` still a table. **Do not** pin. **Do not** `cargo install`.
+- [x] Re-check lock clap **4.6.1** / crates.io **4.6.6**. rustc **1.95.0**. No clap 5.
+- [x] Rescan **entire** `conductor/deferred.md`.
+- [x] Last merged PR Cursor comments — #179 leftover already **T272**. No new leftover.
+- [x] `ledgerful ledger start T266-format-policy-convergence --category FEATURE` → `9aec5831-b7a6-4eb6-85b8-49168cf7b07a`
 
 ---
 
 ## Phase 1 — Red
 
-- [ ] `list_paths__format_pretty__human_empty_copy` (AC3) — **no** `--project` / `--shared-only` (filtered empty is `No path aliases match.`)
-- [ ] `list_paths__format_json__api_version_1` (AC4 json half) — extend existing json hermetic if needed
-- [ ] `list_paths__format_human__table_not_json` (AC4 human half — required; do not skip)
-- [ ] `list_paths__format_pretty__table_not_json` (AC14 non-empty pretty ≡ human)
-- [ ] `scan_roots__format_pretty__not_json` (AC5)
-- [ ] Clap units in `main.rs` (AC2 / AC7): list-paths + scan-roots `pretty` parses and `xml` / `JSON` / `Pretty` InvalidValue; whoami / adopt-path / rebind-path `pretty` parses **and** `JSON` / `Pretty` InvalidValue
-- [ ] `cargo nextest run -p ai-brains-cli` — new tests **fail** (pretty not in parser)
-- [ ] Commit red allowed
+- [x] `list_paths__format_pretty__human_empty_copy` (AC3) — **no** `--project` / `--shared-only` (filtered empty is `No path aliases match.`)
+- [x] `list_paths__format_json__api_version_1` (AC4 json half) — extend existing json hermetic if needed
+- [x] `list_paths__format_human__table_not_json` (AC4 human half — required; do not skip)
+- [x] `list_paths__format_pretty__table_not_json` (AC14 non-empty pretty ≡ human)
+- [x] `scan_roots__format_pretty__not_json` (AC5)
+- [x] Clap units in `main.rs` (AC2 / AC7): list-paths + scan-roots `pretty` parses and `xml` / `JSON` / `Pretty` InvalidValue; whoami / adopt-path / rebind-path `pretty` parses **and** `JSON` / `Pretty` InvalidValue
+- [x] `cargo nextest run -p ai-brains-cli` — new tests **fail** (pretty not in parser) — 5 pretty-parse FAIL, InvalidValue already PASS
+- [x] Commit red allowed (bundled with green on this implement)
 
 ---
 
 ## Phase 2 — Green (resolver + tokens)
 
-- [ ] Expand five `value_parser` lists to T248/T249 set (F3)
-- [ ] `format_resolve.rs`: add `is_json_output` (F27) + one unit; do not change `resolve_human_json_format`
-- [ ] `project_paths.rs` / `project_adopt.rs` / `project_rebind.rs`: delete `use_json_output`; call `is_json_output` (F4 / AC6)
-- [ ] `project.rs` whoami: replace format `match` only with `is_json_output` (F4 / §5.2). Do not touch `display_label` / detect / report struct
-- [ ] Do **not** edit `governed_common.rs` `OutputFormat::parse`
-- [ ] Do **not** edit `graph.rs` / nightly default / recall / retrieval
-- [ ] Targeted: `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; `cargo nextest run -p ai-brains-cli`
-- [ ] AC1 / AC8 / AC9 / AC10 still green
-- [ ] Commit green allowed
+- [x] Expand five `value_parser` lists to T248/T249 set (F3)
+- [x] `format_resolve.rs`: add `is_json_output` (F27) + one unit; do not change `resolve_human_json_format`
+- [x] `project_paths.rs` / `project_adopt.rs` / `project_rebind.rs`: delete `use_json_output`; call `is_json_output` (F4 / AC6)
+- [x] `project.rs` whoami: replace format `match` only with `is_json_output` (F4 / §5.2). Do not touch `display_label` / detect / report struct
+- [x] Do **not** edit `governed_common.rs` `OutputFormat::parse`
+- [x] Do **not** edit `graph.rs` / nightly default / recall / retrieval
+- [x] Targeted: `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; `cargo nextest run -p ai-brains-cli` — clippy 0; 23 clap/resolver + 67 hermetic keep-green
+- [x] AC1 / AC8 / AC9 / AC10 still green
+- [x] Commit green allowed
 
 ---
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES OutputFormat table = Families A–D; nightly named Family B (F1 / F2 / AC11). **Add missing rows:** list-paths, scan-roots, whoami, adopt-path, rebind-path, graph neighbors/update, nightly, harness status, memory list, project list
-- [ ] PROTOCOL-COMPAT additive list-paths + scan-roots rows (F17)
-- [ ] list-paths + scan-roots `after_help`: TTY table / pipe JSON; `--format human` for agents (F7)
-- [ ] Five clap `--format` arg docs name `auto | pretty | human | text | json | markdown | md` (F7). Add the missing docstring on `ScanRoots`
-- [ ] Root CHANGELOG T266 row
-- [ ] Do **not** reorder T204 Start-here groups (F26)
+- [x] CAPABILITIES OutputFormat table = Families A–D; nightly named Family B (F1 / F2 / AC11). **Add missing rows:** list-paths, scan-roots, whoami, adopt-path, rebind-path, graph neighbors/update, nightly, harness status, memory list, project list
+- [x] PROTOCOL-COMPAT additive list-paths + scan-roots rows (F17)
+- [x] list-paths + scan-roots `after_help`: TTY table / pipe JSON; `--format human` for agents (F7)
+- [x] Five clap `--format` arg docs name `auto | pretty | human | text | json | markdown | md` (F7). Add the missing docstring on `ScanRoots`
+- [x] Root CHANGELOG T266 row
+- [x] Do **not** reorder T204 Start-here groups (F26)
 
 ---
 
 ## Phase 4 — Review + gate (on go)
 
-- [ ] Internal review → `review.md`
-- [ ] Medium+ not silently dropped
-- [ ] `codex-review` (F19)
-- [ ] Manual AC13 (source bin)
-- [ ] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
-- [ ] Conductor T266 → Completed only after implement-track publish (push branch → PR → GHA green → squash-merge). Planning does **not** complete the track.
+- [x] Internal review → `review.md`
+- [x] Medium+ not silently dropped
+- [x] `codex-review` (F19) — product PASS; process P1 closeout now done
+- [x] Manual AC13 (source bin)
+- [x] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full` — nextest 3126 + verify passed
+- [x] Conductor T266 → Completed in this commit; publish is Phase 6 (push → PR → GHA → squash).
 
 ---
 
 ## Definition of done
 
-- [ ] AC1–AC14 pass with evidence
-- [ ] F0–F27 honored (declines written)
-- [ ] No product commits under this planning TX
-- [ ] T272 placeholder exists for #179 (not silently dropped)
-- [ ] `conductor/ISSUES.md` not created
+- [x] AC1–AC14 pass with evidence
+- [x] F0–F27 honored (declines written)
+- [x] No product commits under this planning TX
+- [x] T272 placeholder exists for #179 (not silently dropped)
+- [x] `conductor/ISSUES.md` not created
 
 ---
 

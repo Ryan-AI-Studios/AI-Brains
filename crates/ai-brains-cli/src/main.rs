@@ -349,6 +349,351 @@ mod tests {
         }
     }
 
+    /// T266 AC2: `--format pretty` parses on list-paths (not InvalidValue).
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_paths__format_pretty__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "list-paths",
+            "--format",
+            "pretty",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected list-paths --format pretty to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::ListPaths { format, .. },
+            } => {
+                assert_eq!(format, "pretty");
+            }
+            _ => panic!("expected ProjectCommands::ListPaths"),
+        }
+    }
+
+    /// T266 AC2: unknown `--format` is clap InvalidValue (exit 2).
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_paths__format_xml__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "list-paths",
+            "--format",
+            "xml",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC2: `--format` tokens are case-sensitive (`JSON` is not `json`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_paths__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "list-paths",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC2: `--format` tokens are case-sensitive (`Pretty` is not `pretty`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn list_paths__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "list-paths",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC2: `--format pretty` parses on scan-roots (not InvalidValue).
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__format_pretty__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "scan-roots",
+            "--format",
+            "pretty",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected scan-roots --format pretty to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::ScanRoots { format, .. },
+            } => {
+                assert_eq!(format, "pretty");
+            }
+            _ => panic!("expected ProjectCommands::ScanRoots"),
+        }
+    }
+
+    /// T266 AC2: unknown `--format` is clap InvalidValue on scan-roots.
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__format_xml__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "scan-roots",
+            "--format",
+            "xml",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC2: `--format JSON` is clap InvalidValue on scan-roots.
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "scan-roots",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC2: `--format Pretty` is clap InvalidValue on scan-roots.
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "scan-roots",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC7: `--format pretty` parses on whoami.
+    #[test]
+    #[allow(non_snake_case)]
+    fn whoami__format_pretty__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "whoami",
+            "--format",
+            "pretty",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected whoami --format pretty to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::Whoami { format },
+            } => {
+                assert_eq!(format, "pretty");
+            }
+            _ => panic!("expected ProjectCommands::Whoami"),
+        }
+    }
+
+    /// T266 AC7: `--format JSON` is clap InvalidValue on whoami.
+    #[test]
+    #[allow(non_snake_case)]
+    fn whoami__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "whoami",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC7: `--format Pretty` is clap InvalidValue on whoami.
+    #[test]
+    #[allow(non_snake_case)]
+    fn whoami__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "whoami",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC7: `--format pretty` parses on adopt-path.
+    #[test]
+    #[allow(non_snake_case)]
+    fn adopt_path__format_pretty__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "adopt-path",
+            "--format",
+            "pretty",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected adopt-path --format pretty to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::AdoptPath { format, .. },
+            } => {
+                assert_eq!(format, "pretty");
+            }
+            _ => panic!("expected ProjectCommands::AdoptPath"),
+        }
+    }
+
+    /// T266 AC7: `--format JSON` is clap InvalidValue on adopt-path.
+    #[test]
+    #[allow(non_snake_case)]
+    fn adopt_path__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "adopt-path",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC7: `--format Pretty` is clap InvalidValue on adopt-path.
+    #[test]
+    #[allow(non_snake_case)]
+    fn adopt_path__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "adopt-path",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC7: `--format pretty` parses on rebind-path (dummy path + `--to`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn rebind_path__format_pretty__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "rebind-path",
+            r"C:\dev\dummy",
+            "--to",
+            "dest",
+            "--format",
+            "pretty",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected rebind-path --format pretty to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::RebindPath { format, .. },
+            } => {
+                assert_eq!(format, "pretty");
+            }
+            _ => panic!("expected ProjectCommands::RebindPath"),
+        }
+    }
+
+    /// T266 AC7: `--format JSON` is clap InvalidValue on rebind-path.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rebind_path__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "rebind-path",
+            r"C:\dev\dummy",
+            "--to",
+            "dest",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T266 AC7: `--format Pretty` is clap InvalidValue on rebind-path.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rebind_path__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "rebind-path",
+            r"C:\dev\dummy",
+            "--to",
+            "dest",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
     /// T251 F1: first-class `device status` (not a List alias).
     #[test]
     #[allow(non_snake_case)]
@@ -2120,8 +2465,8 @@ pub enum ProjectCommands {
         after_help = "Shows effective daily Scope, shell vs .env PROJECT_ID, path-alias owner, and detect result.\nDoes not rewrite PROJECT_ID. Detect order: path_alias → git_slug → env.\nExamples:\n  ai-brains project whoami\n  ai-brains project whoami --format json\n  ai-brains --no-project-context project whoami --format json"
     )]
     Whoami {
-        /// Output format: auto (TTY=human, piped=json), human, or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
     },
     /// Bind daily Scope to the path-alias owner of this repo (print-only by default)
@@ -2135,13 +2480,13 @@ pub enum ProjectCommands {
         /// Confirm the .env write (requires --write-env)
         #[arg(long, requires = "write_env")]
         yes: bool,
-        /// Output format: auto (TTY=human, piped=json), human, or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
     },
     /// List every registered filesystem path alias (all roots, not just project-list first path)
     #[command(
-        after_help = "Examples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format json\n  ai-brains project list-paths --project <id|alias>\n  ai-brains project list-paths --shared-only\nproject list still shows only the first path per project. This command lists all roots.\n--shared-only keeps owners that appear on two or more roots. Combined with --project is an intersection.\nEmpty filter prints 'No path aliases match.' (exit 0)."
+        after_help = "Default --format auto = TTY table / pipe JSON. Agents that want a table pass --format human. Scripts pass --format json.\nExamples:\n  ai-brains project list-paths\n  ai-brains project list-paths --format human\n  ai-brains project list-paths --format json\n  ai-brains project list-paths --project <id|alias>\n  ai-brains project list-paths --shared-only\nproject list still shows only the first path per project. This command lists all roots.\n--shared-only keeps owners that appear on two or more roots. Combined with --project is an intersection.\nEmpty filter prints 'No path aliases match.' (exit 0)."
     )]
     ListPaths {
         /// Filter to one project UUID or alias
@@ -2150,8 +2495,8 @@ pub enum ProjectCommands {
         /// Keep only owners that appear on two or more registered paths
         #[arg(long)]
         shared_only: bool,
-        /// Output format: auto (TTY=human, piped=json), human, or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
     },
     /// Move one path alias to another existing project (print-only by default)
@@ -2170,18 +2515,19 @@ pub enum ProjectCommands {
         /// Confirm the write (requires --write)
         #[arg(long, requires = "write")]
         yes: bool,
-        /// Output format: auto (TTY=human, piped=json), human, or json
-        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
     },
     /// Discover immediate child directories that contain .ledgerful (dry-run; never writes)
     #[command(
-        after_help = "Dry-run only. Never appends events. Never writes .env. Never auto-registers.\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --format json"
+        after_help = "Default --format auto = TTY table / pipe JSON. Agents that want a table pass --format human. Scripts pass --format json.\nDry-run only. Never appends events. Never writes .env. Never auto-registers.\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --format human\n  ai-brains project scan-roots --format json"
     )]
     ScanRoots {
         /// Directory to scan (default: cwd). Immediate children only.
         path: Option<String>,
-        #[arg(long, default_value = "auto", value_parser = ["auto", "human", "json"])]
+        /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
+        #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
     },
     /// Unregister a filesystem path alias (compensating Removed event; does not forget symbols)
