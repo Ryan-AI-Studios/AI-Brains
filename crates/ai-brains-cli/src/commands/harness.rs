@@ -4,11 +4,11 @@
 
 use crate::commands::governed_common::{self, GovernedResult};
 use crate::harness::{
-    HARNESS_ORDER, HarnessId, InstallOutcome, UninstallOutcome, collect_status_report,
-    f34_map_contract_summary, install_agy, install_claude, install_codex, install_grok,
-    install_opencode, install_pending, install_pending_summary, load_prefs, parse_harness_id,
-    resolve_home, save_prefs, uninstall_agy, uninstall_claude, uninstall_codex, uninstall_grok,
-    uninstall_opencode, uninstall_pending, wiring_status_label,
+    HARNESS_ORDER, HarnessId, InstallOutcome, UninstallOutcome, WiringStatus,
+    collect_status_report, f34_map_contract_summary, install_agy, install_claude, install_codex,
+    install_grok, install_opencode, install_pending, install_pending_summary, load_prefs,
+    parse_harness_id, resolve_home, save_prefs, uninstall_agy, uninstall_claude, uninstall_codex,
+    uninstall_grok, uninstall_opencode, uninstall_pending, wiring_status_label,
 };
 use std::io::IsTerminal;
 
@@ -36,6 +36,17 @@ pub struct HarnessResetDeclineOptions {
     pub harness: Option<String>,
 }
 
+fn ready_trailer_label(id: &str) -> &str {
+    match id {
+        "agy" => "AGY",
+        "grok" => "Grok",
+        "opencode" => "OpenCode",
+        "claude" => "Claude",
+        "codex" => "Codex",
+        other => other,
+    }
+}
+
 pub fn run_status(opts: HarnessStatusOptions) -> GovernedResult {
     let home = resolve_home();
     let report = collect_status_report(home.as_deref());
@@ -55,17 +66,21 @@ pub fn run_status(opts: HarnessStatusOptions) -> GovernedResult {
                 wiring_status_label(h.wiring),
                 h.install_ready
             );
-            if h.present {
+            if h.present && h.next_action != "none" {
                 println!("    next: {}", h.next_action);
             }
         }
         println!();
         println!("Message-only capture: user prompts + final assistant text (T234).");
-        println!("AGY ready: ai-brains harness install --harness agy --dry-run");
-        println!("Grok ready: ai-brains harness install --harness grok --dry-run");
-        println!("OpenCode ready: ai-brains harness install --harness opencode --dry-run");
-        println!("Claude ready: ai-brains harness install --harness claude --dry-run");
-        println!("Codex ready: ai-brains harness install --harness codex --dry-run");
+        for h in &report.harnesses {
+            if h.present && h.wiring != WiringStatus::Ok {
+                println!(
+                    "{} ready: ai-brains harness install --harness {} --dry-run",
+                    ready_trailer_label(&h.id),
+                    h.id
+                );
+            }
+        }
     }
     Ok(())
 }

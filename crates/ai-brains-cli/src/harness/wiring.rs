@@ -286,7 +286,7 @@ pub fn targets_for(id: HarnessId, home: &Path) -> Vec<String> {
 pub fn next_action_for(id: HarnessId, wiring: WiringStatus) -> String {
     match wiring {
         WiringStatus::Absent => "n/a (not installed on machine)".to_string(),
-        WiringStatus::Ok => "ai-brains harness status".to_string(),
+        WiringStatus::Ok => "none".to_string(),
         WiringStatus::BackendPending => format!(
             "backend pending ({}); see Docs/CAPABILITIES.md",
             id.pending_track().unwrap_or("track TBD")
@@ -682,5 +682,21 @@ mod tests {
                 "AC19 target not under temp home: {t}"
             );
         }
+    }
+
+    /// T267 AC1: Ok is done; Missing still names install --dry-run; Absent stays n/a.
+    #[test]
+    fn next_action_for__ok__none() {
+        assert_eq!(next_action_for(HarnessId::Grok, WiringStatus::Ok), "none");
+        let missing = next_action_for(HarnessId::Grok, WiringStatus::Missing);
+        assert!(
+            missing.contains("install --harness grok --dry-run"),
+            "Missing must name install --dry-run; got: {missing}"
+        );
+        let absent = next_action_for(HarnessId::Grok, WiringStatus::Absent);
+        assert!(
+            absent.starts_with("n/a"),
+            "Absent must start with n/a; got: {absent}"
+        );
     }
 }

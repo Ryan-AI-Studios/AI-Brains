@@ -229,7 +229,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~`preflight --global` blends other repos (5/4, summary 7/6)~~ | **T264 Completed 2026-08-18.** Label + per-project caps + summary span. Recall leftover drop declined (F11). Soft: Index fetch 80; span vs word-budget; pretty formatter still in `preflight.rs`. |
 | `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
 | ~~Format maze; list-paths 7/5; retention default 6/5~~ | **T266 Completed 2026-08-18.** Inventory tokens + four-family table; auto default stays. Nightly pipes / graph-update JSON unchanged. |
-| harness/whoami self-next; list footer leftover-as-AI-Brains (8/6) | **T267** |
+| ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
 | `scan-roots` cwd-only (4/5) | **T268** |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
@@ -330,7 +330,7 @@ Specified softs — not product blockers:
 | Pretty 8-hex collision keeps raw tag | Intentional CX2 — no arbitrary alias |
 | Recall leftover-first under `--global` | Decline F11 — not a silent exclude |
 | PATH `ai-brains` until reinstall | Soft F21 — operator `cargo install` |
-| T266 / T267 | **T266 Completed 2026-08-18**. T267 stays Pending. |
+| T266 / T267 | **T266 Completed 2026-08-18**. **T267 Completed 2026-08-18**. |
 
 ### T266 planning absorption (2026-08-18) — taxonomy + tokens; no default flip
 
@@ -369,7 +369,50 @@ Specified softs — not product blockers:
 | Harness status no `value_parser` | Soft F25 — Family B |
 | TTY/`auto` hermetics still force `human`/`json` | Soft T254 F12 |
 | PATH until reinstall | Soft F21 — operator `cargo install` |
-| T267 footer / T268 scan / T270 classify | Decline F13 |
+| T267 footer / T268 scan / T270 classify | **T267 Completed 2026-08-18**. T268 / T270 stay Pending. |
+
+### T267 closeout residuals (2026-08-18)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Harness status no `value_parser` | Soft T266 F25 — Family B |
+| PATH until reinstall | Soft F18 — operator `cargo install` |
+| Live leftover still owns many `C:\dev\*` roots | T259 operator rebind — out of band |
+| Daily 0 of 3 grants | T241 |
+| T268 scan-roots parent / `--root` | Peer — still Pending |
+| T265 / T269 / T270 / T271 / T272 | Decline F11 — still placeholders |
+| Codex `/hooks` next on install | Keep F7 — not self-next of status |
+
+### T267 planning absorption (2026-08-18) — remediator honesty; no leftover UUID
+
+| Item | Disposition |
+|------|-------------|
+| Audit harness self-next; list leftover-as-AI-Brains | **Absorb** F1 / F3 / F3b / F6 / AC2–AC4 / AC6–AC7 |
+| T259 footer algorithm | **Absorb** F3 / F3b / F9 — no hardcoded leftover UUID |
+| T258 whoami remediations | **Affirm** F2 / AC5 — already adopt-path |
+| T212 footer chrome | **Partial** F22 — stderr example stays; pick changes |
+| T235 F40 install next = status | **Affirm** F7 / AC10 |
+| Shared “don’t next yourself” helper | **Decline** F4 |
+| Doctor / T240 “run whoami” | **Decline** F21 |
+| T265 / T268 / T269 / T270 / T271 / T272 | **Decline** F11 |
+| last-PR Cursor #180 | **N/A** — empty |
+| T240 F2 / T255 bag | **Decline** F12 |
+
+### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m3 AC10 existing hermetic missing | **Folded** AC10 `harness_install__success__next_is_status` |
+| Agy m2 preflight Ok unit | **Folded** F8 required + AC15 |
+| Leftover live 11 paths (OpenCode said 1) | **Folded** AC7 multi-path+orphan / AC16 leftover-only |
+| OpenCode m1 line count 1511/1368 | **Folded** AC12 total lines |
+| OpenCode m2 pin count | **Folded** §2.1 volatile |
+| Agy O1 / OpenCode O1 collect_git_identity | **Folded** F10 |
+| OpenCode O3 after_help | **Partial** F14 optional |
+| OpenCode O2 ledgerful hygiene | **Decline** — not T267 |
+| last-PR Cursor #180 | **N/A** — still empty |
 
 ### T261 closeout residuals (2026-08-17)
 
@@ -403,7 +446,7 @@ Specified softs — not product blockers:
 |----------|-------------|
 | Reclassify leftover memories onto dest by path/provenance | Soft — F5; later importer if ever |
 | `--global` leftover-first / blender | Symbol monopoly **T260 Completed**. Preflight blender **T264 Completed 2026-08-18** (label+cap; recall drop declined). |
-| `project list` footer leftover-as-AI-Brains | **T267 F3** |
+| `project list` footer leftover-as-AI-Brains | **T267 Completed** F3/F3b |
 | `project.rs` private `resolve_project_ref` duplicate | Soft — F12 hotspot freeze |
 | No-owner / dest-missing JSON is generic `COMMAND_FAILED` | Soft — F8/AC7/AC8; T257 owns JSON interleave |
 | PATH `ai-brains` lacks rebind until reinstall | Soft F23 — operator `cargo install` |
