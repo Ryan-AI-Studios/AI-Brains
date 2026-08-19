@@ -230,7 +230,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~`preflight --format json` `{text, word_count}` blob (7/6)~~ | **T265 Completed 2026-08-19.** Additive `sections[]`; T180 required keys stay. Soft: PATH `cargo install`; pretty walker duplication (F12). |
 | ~~Format maze; list-paths 7/5; retention default 6/5~~ | **T266 Completed 2026-08-18.** Inventory tokens + four-family table; auto default stays. Nightly pipes / graph-update JSON unchanged. |
 | ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
-| `scan-roots` cwd-only (4/5) | **T268** |
+| `scan-roots` cwd-only (4/5) | **T268 Planned 2026-08-19** (`--root` XOR positional; empty suggested when registered; human parent hint). |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
 | ~~`sync query` ledger pane false-empty (5/5)~~ | **T271 Completed 2026-08-19.** Stop FTS-quoting `ledgerful ledger search`; first-seen token rescue; named misses. Soft: PATH `cargo install`; Ledgerful token-OR; picker vs sequential probe. |
@@ -485,7 +485,22 @@ Specified softs — not product blockers:
 | T211 human re-run JSON fallback | R1b P3-8 — F17 still re-runs human on hits |
 | T211 F25 blend / double shell | declined F11 |
 | Rescue scoring / merge all token tables | spec §11 |
-| T268 / T269 / T270 / T272 | declined F12 |
+| T268 / T269 / T270 / T272 | declined F12. **T268 Planned 2026-08-19.** **T273 minted** from #183 Cursor (dash-query). |
+
+### T268 planning absorption (2026-08-19) — `--root` + empty suggested; no default flip
+
+| Item | Disposition |
+|------|-------------|
+| Audit cwd-only scan (4/5) + re-register suggestion | **Absorb** F1–F3 / AC1–AC7 |
+| T254 positional `[PATH]` already exists | **Affirm** — `--root` is XOR named alias, not a new scan engine |
+| T254 F21 default = cwd | **Affirm** F15 — do not default to `C:\dev` |
+| T254 F20–F23 bounds | **Affirm** F5 |
+| T254 F12 closeout (TTY auto hermetic, etc.) | **Decline** — not parent/`suggested` |
+| Leftover `7d97a456` sibling roots | **Decline** F12 — T259 `rebind-path` |
+| T266 format / T269 / T270 / T272 | **Decline** F6 / F18 |
+| last-PR Cursor #183 dash-query Medium | **Mint T273** — still true at `sync_query_ledger.rs:157`; fits no T268–T272 placeholder |
+| T240 F2 / T255 bag | **Decline** F27 |
+| clap 5 / pin bumps / camino / DTO | **Decline** F9 / F10 |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
