@@ -86,8 +86,8 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | Command / path | Style | Notes |
 |----------------|-------|-------|
 | `recall` JSON | **compact** (`to_string`) | Additive T218 (optional, default+skip): per-result `score_kind` (`bm25`\|`rrf`\|`bridge` only) + `cosine`; existing `score` / `source` / `staleness` / response `embedding` unchanged. N−1 clients ignore unknowns. |
-| `preflight` JSON (`--format json`, non-summary) | **compact** (`to_string`) | Keys: `text`, `word_count` only (T180 freeze) |
-| `preflight --summary --format json` | **pretty** (`to_string_pretty`) | T220 CLI-local envelope: `api_version`, `scope` (`global`\|`project`\|`none`), `project_id`, optional `projects` (global only), `pinned`, `active_sessions`, `in_context_*`, `word_count` (full budget text). T264 additive optional `in_context_project_span` (global only; omitted under project/none). Does **not** grow `PreflightContextResponse`. |
+| `preflight` JSON (`--format json`, non-summary) | **compact** (`to_string`) | Required keys: `text`, `word_count` (T180). Additive T265: always-present `sections` array (`{id,title,items}[]`; E1 `[]`). Compact unchanged. N−1 2-key files deserialize with `sections: []`. |
+| `preflight --summary --format json` | **pretty** (`to_string_pretty`) | T220 CLI-local envelope: `api_version`, `scope` (`global`\|`project`\|`none`), `project_id`, optional `projects` (global only), `pinned`, `active_sessions`, `in_context_*`, `word_count` (full budget text). T264 additive optional `in_context_project_span` (global only; omitted under project/none). Summary path does **not** grow into `PreflightContextResponse` (no `sections` on this object). |
 | `scope resolve --format json` | **pretty** (`to_string_pretty` via `emit_json`) | T249 TTY/pipe split — default `auto` is TTY human / pipe JSON. JSON **keys unchanged**: `api_version`, `scope`, `confidence`, `authoritative`, `evidence`, `warnings`, `alternatives`. T257: `warnings[]` may include the additive token `project_identity_mismatch env=<uuid> path=<uuid>` when daily Scope ≠ path owner (not a new key; E1 empty remains `[]`). Human path is **not** a wire contract. `--format` tokens are **case-sensitive** (`JSON` / `Pretty` exit 2). |
 | Governed mutations (briefing, erasure, …) | **pretty** (`emit_json`) | Machine-clean stdout |
 | `ingest` success response | **compact** | `event_id`, `processed` |
@@ -197,7 +197,7 @@ Before a wire break:
 
 | T180 id | Assert |
 |---------|--------|
-| `T180-C-preflight-json-keys` | compact JSON keys `text`, `word_count` |
+| `T180-C-preflight-json-keys` | compact JSON keys `text`, `word_count`; additive `sections` array (T265 lifted the silent-growth `len==2` lock, not the required keys) |
 | `T180-C-scope-json-pretty` | scope resolve JSON uses pretty style + stable keys |
 | `T180-C-stdin-dry-run-deny` | dry-run ingest rejects unknown fields |
 | `T180-C-stdin-prod-open` | production ingest tolerates unknown fields |

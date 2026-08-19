@@ -875,7 +875,7 @@ enum Commands {
     /// Generate preflight context for an LLM
     #[command(
         display_order = 11,
-        after_help = "Default --pretty caps Session and Recent display lines at 140 characters. Safety is not line-capped on default pretty; only --compact first-line-caps Safety (100).\nJSON and --summary ignore --compact.\nExamples:\n  ai-brains preflight --pretty\n  ai-brains preflight --pretty --compact\n  ai-brains preflight --format json\n  ai-brains preflight --summary"
+        after_help = "Default --pretty caps Session and Recent display lines at 140 characters. Safety is not line-capped on default pretty; only --compact first-line-caps Safety (100).\nJSON and --summary ignore --compact.\nFull `--format json` is compact `{text, word_count, sections}` (T265). `--summary --format json` stays the T220 pretty envelope.\nExamples:\n  ai-brains preflight --pretty\n  ai-brains preflight --pretty --compact\n  ai-brains preflight --format json\n  ai-brains preflight --summary"
     )]
     Preflight {
         #[arg(short, long, default_value_t = 1500)]
@@ -888,7 +888,8 @@ enum Commands {
         /// Output format: human | json | pretty.
         /// With `--summary`, `--format json` (case-insensitive) emits a pretty machine
         /// envelope; other values stay on the human summary path. Full (non-summary)
-        /// preflight keeps compact `{text, word_count}` for `--format json` (T180/T220).
+        /// preflight is compact `{text, word_count, sections}` (T180 required keys + T265
+        /// additive `sections`). `--summary --format json` stays T220.
         #[arg(long)]
         format: Option<String>,
         /// Tighter pretty item/line caps (human/pretty only). JSON and `--summary` ignore this.

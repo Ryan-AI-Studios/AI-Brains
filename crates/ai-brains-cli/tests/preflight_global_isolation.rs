@@ -449,14 +449,13 @@ fn preflight_global_isolation__compact_json__two_keys_and_hex_tags() {
     let v: serde_json::Value =
         serde_json::from_str(stdout.trim()).unwrap_or_else(|e| panic!("AC9 parse: {e}; {stdout}"));
     let obj = v.as_object().expect("object");
-    assert_eq!(
-        obj.len(),
-        2,
-        "AC9 compact JSON still 2 keys; got {:?}",
-        obj.keys().collect::<Vec<_>>()
-    );
     assert!(obj.contains_key("text"));
     assert!(obj.contains_key("word_count"));
+    assert!(
+        obj.get("sections").and_then(|s| s.as_array()).is_some(),
+        "AC9: sections is array; got {:?}",
+        obj.keys().collect::<Vec<_>>()
+    );
     let text = v["text"].as_str().unwrap_or("");
     assert!(
         has_hex8_tag(text),

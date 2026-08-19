@@ -8,7 +8,6 @@ use crate::harness::{
     HarnessId, HarnessStatus, InstallOutcome, WiringStatus, collect_status_report, install_agy,
     install_grok, install_opencode, load_prefs, resolve_home, save_prefs,
 };
-use ai_brains_contracts::preflight::PreflightContextResponse;
 use ai_brains_control_plane::{StorePorts, parse_scope_key, scope_identity_key};
 use ai_brains_core::ids::ProjectId;
 use ai_brains_retrieval::build_preflight;
@@ -36,7 +35,8 @@ pub struct PreflightRunOptions {
     pub compact: bool,
 }
 
-/// CLI-local summary JSON envelope (T220). Never grows `PreflightContextResponse`.
+/// CLI-local summary JSON envelope (T220). Summary DTO stays CLI-local; full JSON
+/// may add `sections` (T265).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub(crate) struct PreflightSummaryJson {
     pub api_version: String,
@@ -277,11 +277,11 @@ pub fn run(
         };
         println!("{scope}\n\n{pretty_body}");
     } else {
-        // JSON path: raw post-F1 context.text + word_count only (no Scope/caps chrome).
-        let response = PreflightContextResponse {
-            text: context.text,
-            word_count: context.word_count,
-        };
+        // JSON path: raw post-F1 context.text + word_count + additive sections (T265).
+        // No Scope/caps chrome. Sibling owns the split; this arm does not inline
+        // `sections` construction.
+        let response =
+            super::preflight_json::build_preflight_json(context.text, context.word_count);
         crate::commands::identity_warn::note_machine_stdout();
         println!("{}", serde_json::to_string(&response)?);
     }

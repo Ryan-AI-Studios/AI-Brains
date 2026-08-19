@@ -135,6 +135,10 @@ fn preflight_summary_json__format_json__pure_object_no_banner() {
     let v = parse_summary_json(&stdout);
     // AC2 required keys
     assert_eq!(v["api_version"], "1");
+    assert!(
+        v.get("sections").is_none(),
+        "AC10: summary JSON has no sections key"
+    );
     assert!(v.get("scope").is_some(), "scope key");
     assert!(
         v.get("project_id").is_some(),
