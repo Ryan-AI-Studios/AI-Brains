@@ -233,7 +233,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | `scan-roots` cwd-only (4/5) | **T268** |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
-| `sync query` ledger pane false-empty (5/5) | **T271 Planned 2026-08-19.** Live: vault hits + `No ledger entries found matching '"capture" "independence"'`. Ledgerful `search capture` = 5; phrase/quoted = `[]`. Spec/plan upgraded (FTS-quote lift + first-seen token rescue + miss classes). Status stays Pending until go. |
+| `sync query` ledger pane false-empty (5/5) | **T271 Planned+fold-in 2026-08-19.** Live: vault hits + `No ledger entries found matching '"capture" "independence"'`. Ledgerful `search capture` ≥1 (fold-in 9). Spec/plan + AC17–AC19. Status stays Pending until go. |
 
 ### T257 closeout residuals (2026-08-17)
 
@@ -459,6 +459,19 @@ Specified softs — not product blockers:
 | T268 / T269 / T270 / T272 | **Decline** F12 |
 | T240 F2 / T255 bag | **Decline** F12 |
 | last-PR Cursor #182 | **N/A** — comments/reviews empty |
+
+### T271 fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m F18 empty-query unit | **Folded** AC17 + AC1 empty-forward |
+| OpenCode m F19 classifier units | **Folded** AC18 / AC19 + F19 mapping |
+| OpenCode O F19 140-char cap | **Folded** F19 first line then 140; no `project.rs` import |
+| OpenCode O `ai_brains_core` FTS import | **Folded** F6 / §2.3 / §5.4 |
+| OpenCode O capture count 5→9 | **Folded** §2.1 volatile ≥1; AC15 already ≥1 |
+| Agy/OpenCode HEAD `e48eaa7` vs `33f72cf` | **Note** §2.1 |
+| Agy m2 `pub mod` | **Already** F10 |
+| Agy O1 two-phase probe | **Already** F9 / F17 |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 

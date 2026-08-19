@@ -1,10 +1,25 @@
 # T271 Plan — sync query ledger pane
 
-**Status:** **Pending** (Planned; plan-only until go)
-**Spec:** [spec.md](./spec.md) F0–F23 / AC1–AC16
+**Status:** **Pending** (Planned+fold-in; plan-only until go)
+**Spec:** [spec.md](./spec.md) F0–F23 / AC1–AC19 + §13 fold-in
 **Category:** BUGFIX / UX
 **Ledger TX (planning):** `68c42d13-b398-4c36-8d1b-8fc74d3b6516` (DOCS)
+**Ledger TX (fold-in):** `5eb051c2-abb3-4ab6-95f5-80bd12167d19` (DOCS)
 **Ledger TX (on go):** FEATURE — open then
+
+---
+
+## AI fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Both verdicts **Planned**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **AC17 / F18:** `ledger_miss_copy__empty_query__did_not_run` + AC1 empty-forward.
+2. **AC18 / AC19 / F19:** pure classifier; git/work-directory/layout → never-ran; other nonzero → failed; first stderr line, **140** chars.
+3. **F6:** `use ai_brains_core::{contentful_tokens, extract_fts_tokens}` (retrieval re-exports only `sanitize_fts_query`).
+4. **AC15:** `ledger search capture` ≥1 (count is volatile: plan 5 / fold-in 9).
+5. **F10:** `pub mod sync_query_ledger` already required (Agy m2).
 
 ---
 
@@ -12,11 +27,11 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `e48eaa7` CLEAN; `main == origin/main` |
+| HEAD / tree | Plan dogfood `e48eaa7`. Fold-in HEAD `33f72cf` (plan commit). Local `main` 1 ahead of `origin/main`. |
 | T271 stub | Placeholder upgraded in place to **Planned** |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-18. **Do not `cargo install`.** |
 | Live hole | `sync query "capture independence" --quiet` → vault hits + `No ledger entries found matching '"capture" "independence"'` |
-| Ledgerful control | `ledger search capture` = **5** hits; phrase / quoted phrase = `[]`; `OR` argv = `[]` (phrase wrap) |
+| Ledgerful control | `ledger search capture` ≥1 (plan **5**, fold-in **9**, volatile); phrase / quoted phrase = `[]`; `OR` argv = `[]` (phrase wrap) |
 | SoT | `sync.rs:584` `probe_ledger_search`; `sanitize_fts_query`; Ledgerful `search.rs:26` `format!("\"{query}\"")` |
 | Hotspot | `sync.rs` **#2** (786 lines) → sibling `sync_query_ledger.rs`. `project.rs` #1 — do not edit |
 | clap / serde_json | lock clap **4.6.1** / crates.io **4.6.6**; serde_json lock **1.0.150** / crates.io **1.0.151**. rustc **1.95.0**. **No clap 5.** Snapshot — re-verify at execute |
@@ -47,6 +62,10 @@
 | T268 / T269 / T270 / T272 | series | **Decline** F12 |
 | T240 F2 / T255 bag | standing | **Decline** F12 |
 | last-PR Cursor #182 | empty | **N/A** |
+| F18 empty-query unit | OpenCode m | **Folded** AC17 + AC1 empty-forward |
+| F19 classifier + 140 cap | OpenCode m / O | **Folded** AC18 / AC19 / F19 |
+| `ai_brains_core` FTS import | OpenCode O | **Folded** F6 / Phase 2 |
+| Agy m2 `pub mod` | Agy | **Already** F10 |
 
 ---
 
@@ -67,12 +86,16 @@
 
 - [ ] Add `pub mod sync_query_ledger` (empty module ok if tests compile against the planned fn names).
 - [ ] `ledger_forward_query__user_phrase__not_fts_quoted`
+- [ ] `ledger_forward_query__empty__returns_empty`
 - [ ] `ledger_forward_query__ansi_stripped`
 - [ ] `ledger_rescue_tokens__capture_independence__first_seen_capture`
 - [ ] `ledger_rescue_pick__first_token_empty_second_hits__selects_second`
 - [ ] `ledger_miss_copy__ran_empty__uses_user_query_not_quotes`
 - [ ] `is_windows_system_cwd__system32_and_syswow64__true`
 - [ ] `ledger_miss_copy__never_ran__did_not_run`
+- [ ] `ledger_miss_copy__empty_query__did_not_run`
+- [ ] `ledger_classify_outcome__nonzero_git_stderr__never_ran`
+- [ ] `ledger_classify_outcome__nonzero_other_stderr__failed`
 - [ ] `ledger_rescue_banner__phrase_empty_token_hit__locked_sentence`
 - [ ] Commit red allowed.
 
@@ -83,7 +106,8 @@
 - [ ] Implement forwarder (strip_ansi + trim only).
 - [ ] Implement miss copy + System32 predicate.
 - [ ] Move `probe_ledger_search` + `ledger_json_non_empty` + their tests into the sibling.
-- [ ] Token rescue F6 (max 3, first-seen, `--json` then human of winner).
+- [ ] Token rescue F6 (max 3, first-seen, `--json` then human of winner). Import `ai_brains_core::{contentful_tokens, extract_fts_tokens}` — not retrieval.
+- [ ] F19 classifier + first-line 140-char cap (local; do not import `project.rs::truncate_chars`).
 - [ ] `sync.rs` print: F7 banner; F1 miss lines; F8 quiet; T211 reorder uses rescued `non_empty`.
 - [ ] No `sanitize_fts_query` on the ledger argv.
 - [ ] No production `unwrap`/`expect`/`panic`.
@@ -115,7 +139,7 @@
 
 ## Definition of done
 
-- [ ] AC1–AC12 automated green.
+- [ ] AC1–AC12 + AC17–AC19 automated green.
 - [ ] AC13 live dogfood: no T90-quoted empty chrome; ≥1 ledger hit or F7 banner+token hits.
 - [ ] AC14 `--no-bridge` still vault-only.
 - [ ] AC16 docs.

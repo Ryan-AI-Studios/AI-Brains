@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Human vault+ledger search is honest. Does **not** unblock T268 scan-roots, T269 nightly split, T270 retention, T272 Safety skip.
 - **Absorbs:** Live `--- Ledgerful Ledger Search --- No ledger entries found matching '"capture" "independence"'` from `C:\dev\AI-Brains` while `ledgerful ledger search capture` returns rows; T90 FTS-quoting on a subprocess that **already** phrase-wraps; stub F1 never-ran vs ran-empty copy; stub F2 System32 cwd guard
 - **Not absorbed:** Vault ranking (T260/T211); T217 vault OR rescue; T211 F25 vault↔ledger RRF blend; nightly `verification_gate` cwd; Ledgerful crate changes; `sync query --symbols` (T260 F16); clap 5 / new crates
-- **Research date:** 2026-08-19 (live dogfood + Ledgerful `search.rs` + sqlite.org/fts5.html + crates.io pins)
-- **Ledger:** planning DOCS TX `68c42d13-b398-4c36-8d1b-8fc74d3b6516`. Implement starts a FEATURE TX on **go**.
+- **Research date:** 2026-08-19 (plan dogfood product HEAD `e48eaa7`; this fold-in `33f72cf`)
+- **AI fold-in:** 2026-08-19 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). **B 0 / M 0.** **Agree hard:** OpenCode F18 empty-query unit (AC17); OpenCode F19 classifier units (AC18/AC19) + first-line **140**-char cap. **Agree:** OpenCode core FTS import path (`ai_brains_core::{contentful_tokens, extract_fts_tokens}`); OpenCode capture-count snapshot is volatile (≥1). **Already covered:** Agy m2 `pub mod` (F10 / touch map); Agy O1 two-phase JSON+human (F9/F17). **Note:** Agy m1 / OpenCode HEAD — plan snapshot was `e48eaa7`; working HEAD is the plan commit `33f72cf`. Disposition **§13**.
+- **Ledger:** planning DOCS TX `68c42d13-b398-4c36-8d1b-8fc74d3b6516`. Fold-in DOCS TX `5eb051c2-abb3-4ab6-95f5-80bd12167d19`. Implement starts a FEATURE TX on **go**.
 - **Isolation:** Do **not** edit vault `sanitize_fts_query` callers (recall/FTS MATCH). Do **not** edit retrieval `preflight.rs` (T272). Do **not** grow hotspot `sync.rs` with the new helpers. Do **not** `cargo install`, pin to the live vault, rewrite `.env`, or mutate schtasks.
 
 ---
@@ -31,14 +32,14 @@
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `e48eaa7` — T265 Completed (PR #182). Tree **CLEAN**. `main == origin/main` (0/0). |
+| HEAD | Plan dogfood `e48eaa7` (T265 PR #182, product `src/` unchanged). Fold-in working HEAD `33f72cf` (this plan commit). Local `main` **1** ahead of `origin/main`. Tree **CLEAN**. |
 | PATH `ai-brains` | **0.1.1**, mtime **2026-08-18 20:08**. Pre-T265 (JSON still 2-key). **PATH-behind — do not `cargo install`.** Ledger probe code is the same as HEAD (`sync.rs` untouched by T265). |
 | Source `--version` | `ai-brains 0.1.1` (workspace). rustc **1.95.0**. |
 | Daily Scope | `3581317d` (`C:\dev\ai-brains`) — T258 rebound. Grants **0 of 3** (T241, not this track). Pin count **volatile** (~3099). |
 | cwd | `C:\dev\AI-Brains`. `ledgerful doctor` work root + state dir = this repo `.ledgerful`. **Not System32.** |
 | `ledgerful ledger search "capture independence"` | `No ledger entries found matching 'capture independence'.` JSON `[]`. |
 | `ledgerful ledger search '"capture" "independence"'` | `No ledger entries found matching '"capture" "independence"'.` JSON `[]`. **Exact audit chrome.** |
-| `ledgerful ledger search capture` | **5** hits (T10/T12/T234/T44/T262). |
+| `ledgerful ledger search capture` | **≥1** (volatile: plan-time **5**; fold-in **9**). AC15 is ≥1, not a frozen count. |
 | `ledgerful ledger search independence` | **1** hit (T199 daemon vault independence — **wrong topic**). |
 | `ledgerful ledger search "capture OR independence"` | Empty (Ledgerful phrase-wraps the whole string, so `OR` is a literal). |
 | `ledgerful ledger search T234` | **2** hits. Search works. |
@@ -78,7 +79,7 @@ T90 still belongs on **vault FTS MATCH**. It does **not** belong on the Ledgerfu
 | Ledger probe | `probe_ledger_search` `:584–657` | `Command::new("ledgerful")` + `["ledger","search","--json", sanitized]`. Then human re-run. |
 | Non-empty detect | `ledger_json_non_empty` `:661` | Pretty JSON array **or** NDJSON object lines. Keep. |
 | Sanitize | `ai_brains_core::fts::sanitize_fts_query` | `match_and(extract_fts_tokens)` → `"tok" "tok"`. Vault SoT. |
-| Contentful tokens | `contentful_tokens` / `extract_fts_tokens` | Reuse for rescue. **First-seen** order (not `select_or_tokens` length-sort). |
+| Contentful tokens | `ai_brains_core::{contentful_tokens, extract_fts_tokens}` (crate-root re-export; `lib.rs:30–32`) | Rescue import **must not** go through `ai_brains_retrieval` — that crate re-exports **only** `sanitize_fts_query`. CLI already depends on `ai-brains-core`. **First-seen** order (not `select_or_tokens` length-sort). |
 | `--no-bridge` | clap `SyncCommands::Query` `main.rs:2730` | T124. Skip probe entirely. Hermetic `sync_query__no_bridge__skips_ledgerful_section`. |
 | `--limit` | vault only, default **5** (T211 F27) | Ledgerful `--limit` stays its default **10**. Do not retarget. |
 | `--quiet` | T81 | Suppress spawn-fail tracing. Quiet + never-ran → omit pane (today’s `None`). |
@@ -126,7 +127,7 @@ Could not verify: Ledgerful crates.io (it is a sibling local product, not a regi
 | **F3 — `--no-bridge`** | Unchanged (T124). No ledger section. Existing hermetic stays green. |
 | **F4 — Capture independence** | Vault `recall_full` always runs first in the non-reorder path (T211 F12 reorder still allowed when ledger is non-empty **and** vault top is plan-class). Ledger miss/fail **never** blanks vault. No events. No models. |
 | **F5 — Do not FTS-sanitize the argv** | Probe/human/rescue pass `strip_ansi(query).trim()` (T91). **Never** `sanitize_fts_query` on `ledgerful ledger search`. Vault MATCH keeps T90. |
-| **F6 — Token rescue** | After a **successful** phrase probe of the user query returns empty: take `contentful_tokens(extract_fts_tokens(user))`. If `len >= 2`, retry each token (max **3**, **first-seen** order) via `--json`. First `ledger_json_non_empty` wins → human re-run **that token** + banner. If all empty → ran-empty with the **user** query. Length-sort (`select_or_tokens`) is **declined**: it would pick `independence` first and surface T199. |
+| **F6 — Token rescue** | After a **successful** phrase probe of the user query returns empty: take `contentful_tokens(extract_fts_tokens(user))` via `use ai_brains_core::{contentful_tokens, extract_fts_tokens}` (not `ai_brains_retrieval`). If `len >= 2`, retry each token (max **3**, **first-seen** order) via `--json`. First `ledger_json_non_empty` wins → human re-run **that token** + banner. If all empty → ran-empty with the **user** query. Length-sort (`select_or_tokens`) is **declined**: it would pick `independence` first and surface T199. |
 | **F7 — Banner** | Only when rescue fires and hits: `Note: no phrase match for '<user>'; showing hits for '<token>'.` User/token are the stripped strings (no added FTS quotes). |
 | **F8 — Quiet** | `--quiet` + never-ran/failed → omit ledger section (today’s `None` + T81). `--quiet` + ran-empty or hits → still print the pane (content, not a warning). |
 | **F9 — T211 F12 lift (display only)** | Keep `--json` probe + `ledger_json_non_empty` + ledger-first reorder when `non_empty`. Change: missing/fail print a miss line unless `--quiet`; empty phrase may rescue. Do **not** change ranking, vault limit, or plan-class detection. |
@@ -135,11 +136,11 @@ Could not verify: Ledgerful crates.io (it is a sibling local product, not a regi
 | **F12 — Decline peers** | T268 / T269 / T270 / T272 / T240 F2 / T255 bag / T264 leftover recall drop. |
 | **F13 — Pins / crates** | No lock bumps. No new crates. Workspace **0.1.1**. |
 | **F14 — Docs** | CAPABILITIES: one honesty bullet (Ledgerful phrase search + token rescue + miss classes). Root CHANGELOG T271 row. Optional one-line OPERATIONS. No PROTOCOL-COMPAT (no DTO). |
-| **F15 — Tests** | Naming `function_or_feature__condition__expected_result`. Units first (red). No `unwrap`/`expect`/`panic` in production. No PATH-hijack hermetic required (Windows-flaky); banner/forwarder/miss are pure. Existing T124 / T211 / T231 hermetics stay green. |
+| **F15 — Tests** | Naming `function_or_feature__condition__expected_result`. Units first (red) including AC17 empty-query + AC18/AC19 classifier. No `unwrap`/`expect`/`panic` in production. No PATH-hijack hermetic required (Windows-flaky); banner/forwarder/miss/classifier are pure. Existing T124 / T211 / T231 hermetics stay green. |
 | **F16 — PATH-behind** | Do not `cargo install` unless the user asks. Manual AC uses `cargo run` / hermetic bin. |
 | **F17 — Human re-run** | Hits (phrase or rescued token): still re-run without `--json` for the table (T211). On phrase-empty before rescue, do **not** print Ledgerful’s empty line as a first pane. |
 | **F18 — Empty user query** | After strip+trim, if empty → never-ran/failed class: `Ledger search did not run: query is empty.` Do **not** apply `is_contentless_query` (stopwords) to the ledger argv — that is a vault T261 gate. |
-| **F19 — Non-git stderr** | If spawn succeeds but status not success and stderr mentions git / work directory / layout, that is **never-ran** copy (surface first stderr line, truncated), not ran-empty. |
+| **F19 — Non-git stderr** | Pure classifier (no subprocess): spawn-err → **never-ran**; success+empty after rescue → **ran-empty**; nonzero + stderr (case-insensitive) contains `git` / `work directory` / `layout` → **never-ran**; other nonzero → **failed**. Surface the **first stderr line**, then cap at **140** chars (T250 `PRETTY_LINE_MAX` / T263 one-line). Empty stderr on nonzero → `Ledger search failed.` Do **not** import `project.rs::truncate_chars` (hotspot #1) — local cap in the sibling. |
 | **F20 — Review** | BUGFIX / UX. Primary review required. Cross-model **optional** (no contracts DTO, no architecture). |
 | **F21 — Debt file** | `conductor/ISSUES.md` does **not** exist. Residuals → `conductor/deferred.md`. |
 | **F22 — Subprocess cap** | Worst case: 1 phrase JSON + 3 token JSON + 1 human = **5**. Phrase hit stays **2** (today). No sleep-for-async. |
@@ -151,7 +152,7 @@ Could not verify: Ledgerful crates.io (it is a sibling local product, not a regi
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Unit: `ledger_forward_query("capture independence")` == `capture independence` (no added `"`). |
+| **AC1** | Unit: `ledger_forward_query("capture independence")` == `capture independence` (no added `"`). Also `ledger_forward_query("")` / whitespace / `"\\n"` → `""`. |
 | **AC2** | Unit: ANSI-colored `"capture independence"` → same as AC1 after `strip_ansi` (T91). |
 | **AC3** | Unit: `sanitize_fts_query` is **not** in the forwarder (assert forwarded ≠ `"capture" "independence"`). |
 | **AC4** | Unit: `ledger_rescue_tokens("capture independence")` == `["capture", "independence"]` (first-seen). **Not** `["independence", "capture"]`. |
@@ -167,6 +168,9 @@ Could not verify: Ledgerful crates.io (it is a sibling local product, not a regi
 | **AC14** | Manual: `sync query "capture independence" --no-bridge` → no ledger section. |
 | **AC15** | Manual: `ledgerful ledger search capture` still ≥1 (control — we did not break Ledgerful). |
 | **AC16** | Docs: CAPABILITIES + CHANGELOG mention phrase + rescue + miss classes. |
+| **AC17** | Unit: `ledger_miss_copy__empty_query__did_not_run` — empty forward → never-ran copy contains `query is empty` and `did not run`; not `No ledger entries found matching`. |
+| **AC18** | Unit: `ledger_classify_outcome__nonzero_git_stderr__never_ran` — fixture stderr `Failed to find work directory for repository` → **never-ran** (no subprocess). |
+| **AC19** | Unit: `ledger_classify_outcome__nonzero_other_stderr__failed` — fixture stderr `fts5: syntax error near "."` → **failed**; first line capped at 140 chars. |
 
 ---
 
@@ -208,6 +212,8 @@ Print path: Hits → optional F7 banner + human table. Miss → one line (F1). Q
 
 `independence` is longer than `capture`. `select_or_tokens` would rescue T199 (daemon vault independence) first — off-topic for the product constraint. First-seen keeps the operator’s lead word.
 
+Import (OpenCode O, verified): `use ai_brains_core::{contentful_tokens, extract_fts_tokens};` — `ai_brains_retrieval` re-exports only `sanitize_fts_query` (`fts_utils.rs`).
+
 ---
 
 ## 6. Non-goals
@@ -228,13 +234,17 @@ Print path: Hits → optional F7 banner + human table. Miss → one line (F1). Q
 Red first (named tests in `sync_query_ledger.rs`):
 
 1. `ledger_forward_query__user_phrase__not_fts_quoted` (AC1/AC3)
-2. `ledger_forward_query__ansi_stripped` (AC2)
-3. `ledger_rescue_tokens__capture_independence__first_seen_capture` (AC4)
-4. `ledger_rescue_pick__first_token_empty_second_hits__selects_second` (AC5)
-5. `ledger_miss_copy__ran_empty__uses_user_query_not_quotes` (AC6)
-6. `is_windows_system_cwd__system32_and_syswow64__true` (AC7)
-7. `ledger_miss_copy__never_ran__did_not_run` (AC8)
-8. `ledger_rescue_banner__phrase_empty_token_hit__locked_sentence` (AC9)
+2. `ledger_forward_query__empty__returns_empty` (AC1)
+3. `ledger_forward_query__ansi_stripped` (AC2)
+4. `ledger_rescue_tokens__capture_independence__first_seen_capture` (AC4)
+5. `ledger_rescue_pick__first_token_empty_second_hits__selects_second` (AC5)
+6. `ledger_miss_copy__ran_empty__uses_user_query_not_quotes` (AC6)
+7. `is_windows_system_cwd__system32_and_syswow64__true` (AC7)
+8. `ledger_miss_copy__never_ran__did_not_run` (AC8)
+9. `ledger_miss_copy__empty_query__did_not_run` (AC17)
+10. `ledger_classify_outcome__nonzero_git_stderr__never_ran` (AC18)
+11. `ledger_classify_outcome__nonzero_other_stderr__failed` (AC19)
+12. `ledger_rescue_banner__phrase_empty_token_hit__locked_sentence` (AC9)
 
 Green: implement forwarder + miss copy + probe in the sibling; `sync.rs` calls it.
 
@@ -289,7 +299,7 @@ Entire `conductor/deferred.md` scanned 2026-08-19.
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify (live hole still quoted-empty; Ledgerful still phrase-wraps; pins).
-2. Red units AC1–AC9 in the sibling (may `mod` first with `#[cfg(test)]` stubs).
+2. Red units AC1–AC9 + AC17–AC19 in the sibling (may `mod` first with `#[cfg(test)]` stubs).
 3. Green: forwarder, miss copy, System32, rescue, move probe + `ledger_json_non_empty`.
 4. Wire `sync.rs` print/reorder. Keep T124/T211/T231 green.
 5. Docs F14. Targeted nextest `-p ai-brains-cli`.
@@ -325,3 +335,38 @@ Entire `conductor/deferred.md` scanned 2026-08-19.
 | `conductor/tracks/README-T256-T271-CLI-AUDIT.md` | T271 Planned. |
 
 **Do not touch:** retrieval `preflight.rs`, `fts.rs` sanitizer body, `project.rs`, Ledgerful sources, contracts, daemon, `.env`, schtasks.
+
+---
+
+## 13. AI fold-in disposition (2026-08-19)
+
+Sources: `agy-review.md` + `opencode-review.md`. No Blockers / Majors. Both verdicts **Planned**. Fold-in working HEAD `33f72cf`. T272 still `:329` + `:467`. `ledger search capture` fold-in count **9** (volatile).
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `e48eaa7` vs `33f72cf` | **Agree (note)** | §2.1 records both snapshots |
+| **m2** `pub mod sync_query_ledger` | **Already covered** | F10 + §12 touch map already require `commands/mod.rs` `pub mod` |
+| **O1** JSON then human | **Already covered** | F9 / F17 two-phase probe |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m** F18 empty-query unit | **Agree hard** | AC17 + `ledger_miss_copy__empty_query__did_not_run`; AC1 empty-forward |
+| **m** F19 classifier untested | **Agree hard** | AC18 / AC19 pure classifier units; F19 names the mapping |
+| **m** plan HEAD stale | **Agree (note)** | Same as Agy m1 |
+| **O** capture count 5→≥9 | **Agree** | §2.1 / plan preflight: ≥1 volatile; AC15 already ≥1 |
+| **O** import `ai_brains_core` | **Agree** | F6 / §2.3 / §5.4 |
+| **O** F19 truncate unbound | **Agree** | F19 first line then **140** chars; no `project.rs` import |
+
+### Pins locked by fold-in
+
+1. **AC17 / F18:** empty forward is a required never-ran unit, not prose-only.
+2. **AC18 / AC19 / F19:** classifier is a pure helper; git/work-directory/layout stderr → never-ran; other nonzero → failed; first line, 140-char cap.
+3. **F6:** `use ai_brains_core::{contentful_tokens, extract_fts_tokens}`.
+4. **AC15:** control is ≥1, not a frozen hit count.
+5. **F10:** `pub mod` stays (Agy m2 already there).
+
+**Planning + fold-in 2026-08-19.** Still **plan-only until go**.
