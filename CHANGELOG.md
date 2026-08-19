@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T271 Sync query ledger pane:** `sync query` forwards the operator string to `ledgerful ledger search` (Ledgerful already phrase-wraps). T90 FTS quotes stay on vault MATCH only. Multi-token phrase misses retry up to 3 first-seen contentful tokens with an honest banner. Named misses: never-ran / failed / ran-empty (user query, never `'"tok" "tok"'`). `--no-bridge` still skips the pane. Docs: CAPABILITIES unified search.
+
 - **T265 Preflight JSON envelope:** Non-summary `preflight --format json` stays compact with required `text` / `word_count` and additive always-present `sections[]` (`{id, title, items}`; E1 `[]`). Section `id` is a string closed set (`safety`/`session`/`index`/`recent`/`ledgerful`/`empty_repo`/`governed`/`other`) split from the same `text`. `--summary --format json` stays T220 (no `sections`). No `json-v2`. Docs: CAPABILITIES + PROTOCOL-COMPAT T180-C.
 
 - **T267 Next-action remediator honesty:** `harness status` wiring=ok omits human `next:` and sets JSON `next_action` to `none`. Ready-trailer install lines print only for present && not Ok. After install/uninstall, `next:` stays `harness status`. `project list` stderr footer picks cwd path-owner, then single-path, then orphan, then leftover; cwd git slug only when the picked id is that owner (leftover dump is never suggested as `AI-Brains`). Whoami remediations stay T258 `adopt-path`. Docs: CAPABILITIES + PROTOCOL-COMPAT `next_action: "none"`.

@@ -233,7 +233,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | `scan-roots` cwd-only (4/5) | **T268** |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
-| `sync query` ledger pane false-empty (5/5) | **T271** |
+| ~~`sync query` ledger pane false-empty (5/5)~~ | **T271 Completed 2026-08-19.** Stop FTS-quoting `ledgerful ledger search`; first-seen token rescue; named misses. Soft: PATH `cargo install`; Ledgerful token-OR; picker vs sequential probe. |
 
 ### T257 closeout residuals (2026-08-17)
 
@@ -442,6 +442,50 @@ Specified softs — not product blockers:
 | Agy/OpenCode HEAD `2a00ce3` vs `7192070` | **Note** §2.1 |
 | Agy m2 `pub(crate) mod` | **Partial** F12 sibling `pub mod` |
 | Agy O1 contracts `SECTION_ID_*` | **Partial** CLI sibling consts only |
+
+### T271 planning absorption (2026-08-19) — FTS-quote lift + token rescue
+
+| Item | Disposition |
+|------|-------------|
+| Audit ledger pane false-empty (5/5) | **Absorb** F1–F7 / AC1–AC9 / AC13 |
+| Stub F1 never-ran vs ran-empty | **Absorb** F1 / F8 / AC6 / AC8 |
+| Stub F2 System32 | **Absorb** F2 / AC7 (guard; not the live repro) |
+| T90 sanitize on ledger argv | **Absorb as lift** — vault MATCH keeps T90; probe must not quote |
+| T91 strip ANSI | **Affirm** F5 / AC2 |
+| T95 project isolation | **Decline** — vault-only; ledger is cwd/`gix` |
+| T211 F12 empty → vault-only | **Partial** F9 — reorder + `--json` stay; miss/rescue display changes |
+| T211 F25 blend / double shell | **Decline** F11 |
+| T217 vault OR rescue | **Decline** — CLI sequential token rescue only |
+| T268 / T269 / T270 / T272 | **Decline** F12 |
+| T240 F2 / T255 bag | **Decline** F12 |
+| last-PR Cursor #182 | **N/A** — comments/reviews empty |
+
+### T271 fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m F18 empty-query unit | **Folded** AC17 + AC1 empty-forward |
+| OpenCode m F19 classifier units | **Folded** AC18 / AC19 + F19 mapping |
+| OpenCode O F19 140-char cap | **Folded** F19 first line then 140; no `project.rs` import |
+| OpenCode O `ai_brains_core` FTS import | **Folded** F6 / §2.3 / §5.4 |
+| OpenCode O capture count 5→9 | **Folded** §2.1 volatile ≥1; AC15 already ≥1 |
+| Agy/OpenCode HEAD `e48eaa7` vs `33f72cf` | **Note** §2.1 |
+| Agy m2 `pub mod` | **Already** F10 |
+| Agy O1 two-phase probe | **Already** F9 / F17 |
+
+### T271 closeout residuals (2026-08-19)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `cargo install` | F16 — operator |
+| Ledgerful token-OR / stop phrase-wrapping | F23 — other repo |
+| AC5 picker `cfg(test)` vs sequential probe | R1b P3-3 / CX2 P3-1 — extra procs if collect-then-pick |
+| T211 human re-run JSON fallback | R1b P3-8 — F17 still re-runs human on hits |
+| T211 F25 blend / double shell | declined F11 |
+| Rescue scoring / merge all token tables | spec §11 |
+| T268 / T269 / T270 / T272 | declined F12 |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
