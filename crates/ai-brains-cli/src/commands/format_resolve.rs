@@ -15,10 +15,20 @@ pub(crate) fn resolve_human_json_format(explicit: &str, is_tty: bool) -> &'stati
     }
 }
 
+/// T266 F27: inventory / whoami call site. Does not change resolver behavior.
+pub(crate) fn is_json_output(explicit: &str, is_tty: bool) -> bool {
+    resolve_human_json_format(explicit, is_tty) == "json"
+}
+
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    use super::resolve_human_json_format;
+    use super::{is_json_output, resolve_human_json_format};
+
+    #[test]
+    fn is_json_output__pretty_pipe__false() {
+        assert!(!is_json_output("pretty", false));
+    }
 
     #[test]
     fn resolve_human_json_format__auto_tty__human() {

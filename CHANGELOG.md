@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T266 Format policy convergence:** Inventory `list-paths` / `scan-roots` / `whoami` / `adopt-path` / `rebind-path` accept the T248/T249 token set (`auto\|pretty\|human\|text\|json\|markdown\|md`) via shared `is_json_output`. Default stays `auto` (TTY table / pipe JSON). `--format pretty` is a table. `JSON`/`Pretty` stay clap InvalidValue exit **2**. Nightly pipes stay human. `graph update` stays JSON. Docs: CAPABILITIES four-family table + PROTOCOL-COMPAT list-paths/scan-roots.
+
 - **T264 Preflight global isolation:** `--global` preflight labels Safety/Index/Recent first lines and Session headers with `[8hex]` (pretty upgrades via `display_label`). Per-project caps stop one repo occupying the whole Safety/Session window. Summary adds `In context spans N projects` + optional JSON `in_context_project_span` (global only). Project-scoped pretty stays unlabeled. Does not drop leftover from `recall --global`. Docs: CAPABILITIES + PROTOCOL-COMPAT.
 
 - **T263 Governed honesty (H1):** Granted-empty project briefing `empty_authority` next names `recall` / `search` (vault pins are not Approved authority; ≤140 / one line). Personal deny next/hint names `recall` (not Personal `policy bootstrap`). `query expand` `Unknown` preview is `Handle not found.` (exit **0**). Authorized-empty `evidence`/`source`/`review` list JSON adds `next_step` pointing at ungoverned `recall`. Help Tip exemplifies `recall`. `query trace` still prints scalar `null`. No live pin→Approved promotion. Docs: CAPABILITIES §15 + WORKFLOWS + OPERATIONS.

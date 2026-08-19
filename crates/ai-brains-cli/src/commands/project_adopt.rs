@@ -91,18 +91,6 @@ fn file_project_id(env_path: &Path) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-fn use_json_output(format: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    match format.to_ascii_lowercase().as_str() {
-        "json" => Ok(true),
-        "human" => Ok(false),
-        "auto" => Ok(!std::io::stdout().is_terminal()),
-        other => fail_usage(format!(
-            "unknown --format '{other}' (expected auto, human, or json)"
-        ))
-        .map(|()| false),
-    }
-}
-
 /// Print-only remediator, or confirmable write of cwd `.env` PROJECT_ID.
 pub fn run(
     ctx: &AppContext,
@@ -143,7 +131,8 @@ pub fn run(
         false
     };
 
-    let use_json = use_json_output(format)?;
+    let use_json =
+        crate::commands::format_resolve::is_json_output(format, std::io::stdout().is_terminal());
     if use_json {
         let report = AdoptPathJson {
             api_version: "1".to_string(),

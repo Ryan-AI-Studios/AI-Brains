@@ -695,11 +695,8 @@ pub fn whoami(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::
     let no_project_context = std::env::args().any(|a| a == "--no-project-context");
     let report = build_whoami_report(ctx, no_project_context)?;
 
-    let use_json = match format.to_ascii_lowercase().as_str() {
-        "json" => true,
-        "human" => false,
-        _ => !std::io::stdout().is_terminal(), // auto
-    };
+    let use_json =
+        crate::commands::format_resolve::is_json_output(format, std::io::stdout().is_terminal());
 
     if use_json {
         print_json_stdout(&report)?;

@@ -63,18 +63,6 @@ pub(crate) fn discover_scan_hits(
     }
 }
 
-fn use_json_output(format: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    match format.to_ascii_lowercase().as_str() {
-        "json" => Ok(true),
-        "human" => Ok(false),
-        "auto" => Ok(!std::io::stdout().is_terminal()),
-        other => crate::commands::governed_common::fail_usage(format!(
-            "unknown --format '{other}' (expected auto, human, or json)"
-        ))
-        .map(|()| false),
-    }
-}
-
 // ---------------------------------------------------------------------------
 // list-paths (F1 / F9–F12)
 // ---------------------------------------------------------------------------
@@ -105,7 +93,8 @@ pub fn list_paths(
     project: Option<&str>,
     shared_only: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let use_json = use_json_output(format)?;
+    let use_json =
+        crate::commands::format_resolve::is_json_output(format, std::io::stdout().is_terminal());
 
     let aliases = ctx.conn.list_path_aliases()?;
     let projects = ctx.conn.list_projects()?;
@@ -212,7 +201,8 @@ pub fn scan_roots(
     path: Option<&str>,
     format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let use_json = use_json_output(format)?;
+    let use_json =
+        crate::commands::format_resolve::is_json_output(format, std::io::stdout().is_terminal());
 
     let scan_root = match path {
         Some(p) if !p.is_empty() => PathBuf::from(p),

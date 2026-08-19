@@ -228,7 +228,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Governed 3 grants / 0 authority (briefing, progressive, evidence, source, review)~~ | **T263 Completed 2026-08-18.** H1: empty_authority + Personal deny name `recall`; expand Unknown preview; authorized-empty lists `next_step`. **H2 declined**. Soft: PATH `cargo install`; daily 0-of-3 grants stays T241. |
 | ~~`preflight --global` blends other repos (5/4, summary 7/6)~~ | **T264 Completed 2026-08-18.** Label + per-project caps + summary span. Recall leftover drop declined (F11). Soft: Index fetch 80; span vs word-budget; pretty formatter still in `preflight.rs`. |
 | `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
-| Format maze; list-paths 7/5; retention default 6/5 | **T266** |
+| ~~Format maze; list-paths 7/5; retention default 6/5~~ | **T266 Completed 2026-08-18.** Inventory tokens + four-family table; auto default stays. Nightly pipes / graph-update JSON unchanged. |
 | harness/whoami self-next; list footer leftover-as-AI-Brains (8/6) | **T267** |
 | `scan-roots` cwd-only (4/5) | **T268** |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
@@ -330,7 +330,46 @@ Specified softs — not product blockers:
 | Pretty 8-hex collision keeps raw tag | Intentional CX2 — no arbitrary alias |
 | Recall leftover-first under `--global` | Decline F11 — not a silent exclude |
 | PATH `ai-brains` until reinstall | Soft F21 — operator `cargo install` |
-| T266 / T267 | Decline F27 |
+| T266 / T267 | **T266 Completed 2026-08-18**. T267 stays Pending. |
+
+### T266 planning absorption (2026-08-18) — taxonomy + tokens; no default flip
+
+| Item | Disposition |
+|------|-------------|
+| Audit maze; list-paths JSON wall; retention pipe JSON | **Absorb** F1–F7 — wall is `auto` + non-TTY; remediator is `--format human` + `pretty` token |
+| Shared `resolve_human_json_format` | **Absorb** F4 — delete three `use_json_output` forks |
+| T227 F34 OutputFormat surface-wide | **Decline** F11 |
+| T246 F17 / F6 graph update TTY-auto | **Decline** F8 — T74 |
+| T255 F2 nightly pipes | **Affirm** F2 |
+| T265 envelope / T267 footer / T268 scan / T270 classify | **Decline** F12–F13 |
+| T240 F2 / T255 bag | **Decline** F14 |
+| last-PR Cursor #179 safety_ids over-exclude Index | **Mint T272** — still true at `preflight.rs:329` + `:467`; fits no T265–T271 placeholder |
+
+### T266 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 AC4 human half unnamed | **Folded** AC4 `list_paths__format_human__table_not_json` |
+| OpenCode m2 `--format` arg help stale | **Folded** F7 / AC11 / Phase 3 five docstrings |
+| OpenCode m3 AC3 filter-dependent empty copy | **Folded** AC3 no `--project`/`--shared-only` |
+| Agy m1 HEAD `4088106` vs `8c3b7e1` | **Note** §2.1 |
+| Agy m2 clap JSON/Pretty on remaining 3 | **Folded** AC7 |
+| Agy O1 `is_json_output` | **Folded** F27 |
+| OpenCode O1 non-empty pretty hermetic | **Folded** AC14 |
+| OpenCode O2 CAPABILITIES missing-row list | **Folded** AC11 + Phase 3 |
+
+### T266 closeout residuals (2026-08-18)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| T246 F17 TTY-auto `graph update` | Soft F8 — T74 default JSON |
+| T227 F34 `parse_or_fail` | Decline F11 — governed contract |
+| Harness status no `value_parser` | Soft F25 — Family B |
+| TTY/`auto` hermetics still force `human`/`json` | Soft T254 F12 |
+| PATH until reinstall | Soft F21 — operator `cargo install` |
+| T267 footer / T268 scan / T270 classify | Decline F13 |
 
 ### T261 closeout residuals (2026-08-17)
 
