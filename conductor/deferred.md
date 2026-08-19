@@ -416,6 +416,20 @@ Specified softs — not product blockers:
 | last-PR Cursor #181 | **N/A** — comments/reviews empty |
 | clap `value_parser` on preflight `--format` | **Decline** F14 — T220 F13 case-sensitive parser would regress `--format JSON` |
 
+### T265 fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode F6 session `\n`-join → one item | **Folded** F6 / AC3. Turn-split via `is_session_turn_start` declined |
+| OpenCode F5 `contains` vs `starts_with` | **Folded** F5 copies pretty; Ledgerful `contains("Ledgerful Intelligence")` |
+| OpenCode AC15 live Ledgerful variants | **Folded** AC15 plain + Fallback strings |
+| OpenCode preamble before first `---` | **Folded** F6 / AC5 `leading_preamble__discarded` |
+| OpenCode AC11 no fabricate `empty_repo` | **Folded** AC11 / F5 |
+| OpenCode `preflight_contextual_risk` | **Folded** plan Phase 3 stays green |
+| Agy/OpenCode HEAD `2a00ce3` vs `7192070` | **Note** §2.1 |
+| Agy m2 `pub(crate) mod` | **Partial** F12 sibling `pub mod` |
+| Agy O1 contracts `SECTION_ID_*` | **Partial** CLI sibling consts only |
+
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

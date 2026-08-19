@@ -1,10 +1,26 @@
 # T265 Plan — Preflight JSON envelope
 
 **Status:** **Planned** (Pending in registry; plan-only until go)
-**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC16
+**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC16 + §13 fold-in
 **Category:** UX / CONTRACTS / FEATURE
 **Ledger TX (planning):** `5fa57d64-9fac-4a8e-932a-d0f23c29f347` (DOCS)
+**Ledger TX (fold-in):** `d6aa8b35-5970-4fa5-ba49-6168c11fe656` (DOCS)
 **Ledger TX (on go):** `ledgerful ledger start T265-preflight-json-envelope --category FEATURE --message "Additive sections[] on preflight --format json; keep text+word_count required compact"`
+
+---
+
+## AI fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. OpenCode F5 match rules + F6 session collapse folded as F5/F6/AC3/AC15. AC5 preamble-discard unit required. Agy `pub(crate) mod` is sibling `pub mod`. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F5:** pretty `contains` / `starts_with` + Ledgerful `contains("Ledgerful Intelligence")`.
+2. **F6 / AC3:** Session `\n`-joined turns → `items.len()==1`. No JSON turn-split.
+3. **AC15:** live plain + Fallback Ledgerful header strings.
+4. **AC5:** `split_preflight_sections__leading_preamble__discarded`.
+5. **AC11:** never fabricate `empty_repo`.
+6. **F12:** `pub mod` matching siblings; CLI `pub(crate) const` ids optional; no contracts const DoD.
 
 ---
 
@@ -12,7 +28,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `2a00ce3` T267 `#181` CLEAN. `main` = `origin/main`. |
+| HEAD / tree | Plan dogfood `2a00ce3`. Plan/fold-in docs `7192070`. Product `src/` unchanged. |
 | T265 stub | Placeholder upgraded in place to **Planned** |
 | PATH `ai-brains` | **0.1.1** PATH-behind (mtime 2026-08-18). JSON still 2-key. **Do not `cargo install`.** |
 | Source JSON | `preflight --format json -m 200` → keys `text`,`word_count` len **2**; Bearings + Session; 22 newlines; `word_count=200`. **Live hole.** |
@@ -42,6 +58,11 @@
 | T268 / T269 / T270 / T271 | series | **Decline** F24 |
 | T240 F2 / T255 bag | standing | **Decline** F23 |
 | last-PR Cursor #181 | empty | **N/A** |
+| OpenCode F6 session collapse | review | **Absorb** F6 / AC3 — one item; no turn-split DoD |
+| OpenCode F5 match rules | review | **Absorb** F5 / AC15 live variants |
+| OpenCode preamble / AC11 fabricate | review | **Absorb** F6 / AC5 / AC11 |
+| Agy m2 `pub(crate) mod` | review | **Partial** F12 sibling `pub mod` |
+| Agy O1 contracts consts | review | **Partial** CLI sibling only |
 
 ---
 
@@ -62,6 +83,7 @@
 - [ ] Unit `split_preflight_sections__legacy_headers__ids_in_order` (AC3)
 - [ ] Unit `split_preflight_sections__two_sessions__two_section_rows` (AC4)
 - [ ] Unit `split_preflight_sections__no_headers__empty` (AC5)
+- [ ] Unit `split_preflight_sections__leading_preamble__discarded` (AC5)
 - [ ] Unit `split_preflight_sections__governed_marker__one_section` (AC6)
 - [ ] Unit `preflight_context_response__n_minus_1_two_key__sections_default_empty` (AC7)
 - [ ] Unit `split_preflight_sections__ledgerful_and_other` (AC15)
@@ -72,7 +94,7 @@
 ## Phase 2 — Green (DTO + split + emit)
 
 - [ ] Grow `PreflightContextResponse` + nested `{id,title,items}`; `#[serde(default)]` on `sections`; **no** `deny_unknown_fields`
-- [ ] Add `commands/preflight_json.rs` + `pub mod` (F12)
+- [ ] Add `commands/preflight_json.rs` + `pub mod` matching siblings (F12); F5 match table; F6 session one-item
 - [ ] Wire JSON arm to sibling; keep `to_string` + `note_machine_stdout`
 - [ ] AC1 / AC2 / AC16
 - [ ] No retrieval `preflight.rs` edits
@@ -86,7 +108,8 @@
 - [ ] T264 AC9: keep `[8hex]`; drop `len==2` (AC9)
 - [ ] T220 summary hermetics stay green (AC10)
 - [ ] Dogfood extra-key still scans `text` (AC14)
-- [ ] Empty-vault hermetic AC11
+- [ ] Empty-vault hermetic AC11 (no fabricated `empty_repo`)
+- [ ] `preflight_contextual_risk.rs` `test_preflight_json_output_with_scope` stays green (`"word_count":`)
 
 ---
 
@@ -102,7 +125,7 @@
 
 ## DoD (checkable)
 
-- [ ] F0–F26 honored (especially F10 json-v2 decline, F11 retrieval freeze, F12 sibling, F25 no version key)
+- [ ] F0–F26 honored (especially F5 match table, F6 session one-item, F10 json-v2 decline, F11 retrieval freeze, F12 sibling `pub mod`, F25 no version key)
 - [ ] AC1–AC16 green
 - [ ] T272 file untouched
 - [ ] `project.rs` / `governed_common.rs` untouched

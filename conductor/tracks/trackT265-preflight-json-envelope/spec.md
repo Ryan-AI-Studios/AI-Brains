@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Agents can `jq '.sections[] | select(.id=="safety")'` without scraping markdown. Scan-roots stays **T268**. Nightly/Router split stays **T269**. Retention classify stays **T270**. Ledger pane stays **T271**. Safety-skip leftover stays **T272**.
 - **Absorbs:** Audit T265 row (full non-summary `--format json` is a paste blob); T220/T264 “do not grow `PreflightContextResponse`” *as the standing freeze until this track*; T180-C `obj.len()==2` *as the silent-growth guard this track is allowed to lift*; T214 residual “`PreflightContextResponse` extra keys”; compact JSON “uses `note_machine_stdout` not pretty” (T257) — keep compact
 - **Not absorbed:** `--summary --format json` (T220 closed); `--global` isolation (T264 closed); format maze (T266 closed); T272 `safety_ids`; clap 5 / new crates; typed `constraints[]` / governed packet on this surface; `json-v2` opt-in flag
-- **Research date:** 2026-08-19 (plan dogfood HEAD `2a00ce3` T267 `#181`)
-- **AI fold-in:** none yet (plan-track only)
-- **Ledger:** planning DOCS TX `5fa57d64-9fac-4a8e-932a-d0f23c29f347`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-19 (plan dogfood HEAD `2a00ce3` T267 `#181`; plan commit / this fold-in `7192070`)
+- **AI fold-in:** 2026-08-19 `agy-review.md` + `opencode-review.md` (no grok/claude/codex-plan). **B 0 / M 0 / m 5 / O 4.** **Agree hard:** OpenCode F6 session collapse (same as Index); OpenCode F5 match rules copy pretty + AC15 live Ledgerful variants. **Agree:** Agy/OpenCode HEAD note; OpenCode leading preamble discard; OpenCode AC11 no-fabricate; OpenCode `preflight_contextual_risk` stays green. **Partial:** Agy **m2** `pub(crate) mod` — match siblings `pub mod` (`commands` is already crate-private). **Partial:** Agy **O1** contracts id constants — CLI sibling `pub(crate) const` only, not a contracts public API DoD. **Decline:** session turn-split via pretty `is_session_turn_start` as DoD. Disposition **§13**.
+- **Ledger:** planning DOCS TX `5fa57d64-9fac-4a8e-932a-d0f23c29f347`. Fold-in DOCS TX `d6aa8b35-5970-4fa5-ba49-6168c11fe656`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env`. Do **not** enable `AI_BRAINS_GOVERNED_BRIEFING`. Do **not** edit `ai-brains-retrieval/src/preflight.rs` (T272). Do **not** reopen T240 F2 / T255 declines. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** flip nightly pipes / graph-update JSON.
 
 ---
@@ -37,7 +37,7 @@ No models. No new crates. No clap 5. No `json-v2`. No typed authority arrays (th
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `2a00ce3` T267 `#181`. Tree CLEAN. `main` = `origin/main` (0 ahead). |
+| HEAD | **Plan dogfood:** `2a00ce3` T267 `#181` (product `src/` for the hole). **Plan commit / this fold-in:** `7192070` (docs only). Product `src/` unchanged since `2a00ce3`. Tree CLEAN at fold-in. `main` ahead of `origin/main` by the plan docs commit. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **0.1.1** (mtime 2026-08-18 20:08 — **PATH-behind** T267). `--format json -m 80` → keys `['text','word_count']` len **2**. **Do not `cargo install`.** |
 | Source `cargo run -p ai-brains-cli -- preflight --format json -m 200` | keys `['text','word_count']` len **2**. `word_count=200`. `text` starts `--- Repository Bearings & Safety ---\n…`. Has `--- Session:`. No Memory Index at `-m 200` (budget). **22** newlines. Compact (one JSON document). **Live hole.** |
 | `preflight --summary` | Scope path owner `3581317d` (`C:\dev\ai-brains`). Pinned **3089** (**volatile** — do not lock). Grants **0 of 3** (T241). Five harnesses wiring=ok. |
@@ -106,14 +106,14 @@ No models. No new crates. No clap 5. No `json-v2`. No typed authority arrays (th
 | **F2 — `sections` shape** | Each element: `{ "id": string, "title": string, "items": string[] }`. Field order: `id`, `title`, `items`. `id` is a **string** (not a rust enum on the wire). Closed set for **this** schema: `safety` \| `session` \| `index` \| `recent` \| `ledgerful` \| `empty_repo` \| `governed` \| `other`. Unknown future ids must still deserialize (no `deny_unknown_fields`). |
 | **F3 — E1** | `sections` is never `null` and never omitted. Empty → `[]`. Empty body under a header → `items: []`. N−1 2-key JSON deserializes with `sections: []` via `#[serde(default)]`. |
 | **F4 — Split from `text`** | Pure `split_preflight_sections(text: &str) -> Vec<PreflightSection>` in new `commands/preflight_json.rs`. Input is `context.text` **after** retrieval assembly (post T219 F2b). Do **not** re-query SQL. Do **not** apply PrettyCaps. Do **not** strip role prefixes (JSON `text` may keep them — T219 honesty). |
-| **F5 — Header table** | Full-line `---` … `---` (same rule as `is_legacy_section_header`). Map: Bearings/Safety → `safety`; `--- Session:` / `--- Session ` → `session` (one section **per** session header); Memory Index → `index`; Most Recent Memories → `recent`; Ledgerful Intelligence → `ledgerful`; New Repository Detected → `empty_repo`; else → `other`. `title` is the trimmed header line (including `[8hex]` on global Session headers). |
-| **F6 — Items** | Body after the header, **blank-line-separated blocks** (same idea as pretty `split_item_blocks`). Trim each block. Drop empty blocks. Index numbered lists without blank lines become **one** item — acceptable v1 (section `id` is the agent win). Trailing F2b `…` / `... [Index Truncated]` stay in the current section’s items. |
+| **F5 — Header match (copy pretty)** | Full-line `---` … `---` (`is_legacy_section_header`: trim, len ≥ 7, starts and ends with `---`). After trim: **`contains`** `"Repository Bearings"` **or** `"Bearings & Safety"` → `safety`; **`contains`** `"Memory Index"` → `index`; **`contains`** `"Most Recent Memories"` → `recent`; **`starts_with`** `"--- Session:"` **or** `"--- Session "` → `session` (one section **per** session header); **`contains`** `"Ledgerful Intelligence"` → `ledgerful` (covers live `:698` Contextual Risk, `:703` plain, `:761` Fallback); **`contains`** `"New Repository Detected"` → `empty_repo`; else → `other`. Do **not** fabricate `empty_repo` without that header. `title` is the trimmed header line (including `[8hex]` on global Session headers). |
+| **F6 — Items** | Body after the header, **blank-line-separated blocks** (pretty `split_item_blocks`). Trim each block. Drop empty blocks. Retrieval joins session turns with `\n` (`session_lines.join("\n")` `:425`) and Index lines with `\n` — **both collapse to one item** in v1 (section `id` is the agent win). Do **not** call pretty `is_session_turn_start` for JSON items this track. Trailing F2b `…` / `... [Index Truncated]` stay in the current section’s items. Text **before the first `---` header** is discarded (not a fabricated `other` section). Retrieval always starts with a header or governed markdown (F7). |
 | **F7 — No headers** | If `text` has no `---` header: `sections = []` **unless** it contains `# Project Briefing (governed)` → one section `{id:"governed", title:"Project Briefing (governed)", items:[full text]}`. Do **not** scrape `#` / `##` as general headers (T219 F14). Governed authority stays `briefing --format json`. |
 | **F8 — `text` / `word_count` freeze** | Semantics unchanged: retrieval budget-window; no Scope chrome; `--compact` ignored; T264 `[8hex]` remains **inside** `text` (and in `title`/`items` when those lines were tagged). `word_count` is still content words of `text`, not of the JSON payload. |
 | **F9 — T220 summary** | `--summary --format json` stays pretty `PreflightSummaryJson`. No `sections` on that path. Rewrite the “Never grows `PreflightContextResponse`” comment to “Summary DTO stays CLI-local; full JSON may add `sections` (T265).” |
 | **F10 — Decline json-v2 / typed arrays** | No `--format json-v2`. No `constraints[]` / `decisions[]` / `hotspots[]` on this DTO. Dogfood still marker-scans `text`. |
 | **F11 — Decline retrieval / T272** | Do **not** edit `crates/ai-brains-retrieval/src/preflight.rs`. `safety_ids` skip stays T272. Do not grow `retrieval::PreflightContext`. |
-| **F12 — Hotspot** | New `crates/ai-brains-cli/src/commands/preflight_json.rs` (`pub mod` in `mod.rs`). CLI `preflight.rs` JSON arm becomes a short call. Do **not** grow pretty/summary/grants. Do **not** edit `project.rs` / `governed_common.rs`. Do **not** unify pretty’s walker with the JSON splitter this track (copy the header table; pretty stays). |
+| **F12 — Hotspot** | New `crates/ai-brains-cli/src/commands/preflight_json.rs`. `mod.rs` uses **`pub mod preflight_json`** — same visibility as `preflight` / `preflight_pretty` / `project_list_footer`. Root is `mod commands` (crate-private); a `pub(crate) mod` would be equivalent but inconsistent. Optional `pub(crate) const` id strings live in this sibling for units — **not** a contracts public API. CLI `preflight.rs` JSON arm becomes a short call. Do **not** grow pretty/summary/grants. Do **not** edit `project.rs` / `governed_common.rs`. Do **not** unify pretty’s walker with the JSON splitter this track (copy F5; pretty stays). |
 | **F13 — Contracts** | Update `ai-brains-contracts` DTO + crate docs. PROTOCOL-COMPAT §5 + T180-C row: required `text`/`word_count`; additive `sections`; compact unchanged. CHANGELOG T265. CAPABILITIES: stop “never grow those keys.” CLI-EXIT-CODES unchanged (exit 0). No daemon/HTTP handler change (type unused there). |
 | **F14 — Format parser** | Keep string + case-insensitive human/pretty. Unknown / `json` / `JSON` → JSON path. Do **not** add clap `value_parser` (T220 F13 / T249 AC16 class). |
 | **F15 — Stdout purity** | Success: stdout (trim one trailing newline) is **exactly one** compact JSON document. `note_machine_stdout` stays. Env/identity warns stay stderr (T257). |
@@ -137,19 +137,19 @@ No models. No new crates. No clap 5. No `json-v2`. No typed authority arrays (th
 |----|-------|
 | **AC1** | Hermetic: `preflight --format json` exit 0; stdout trim is **one** JSON object; **no** pretty newlines at document level (`trim` contains no raw `\n` **or** T180-C’s existing “compact” assert still holds). Required keys `text`, `word_count`, `sections`. `sections` is an array (never null). |
 | **AC2** | Named: `t180_c_preflight_json_keys__cli_format_json__compact_stable_keys` still asserts compact + `text` + `word_count`, and **now** asserts `sections` is array. **Does not** assert `obj.len()==2`. |
-| **AC3** | Pure unit: fixture text with Bearings + one Session + Memory Index + Recent → four (or more) sections with ids `safety`, `session`, `index`, `recent` in encounter order. `title` matches the header line. `items` non-empty for bodies. Named: `split_preflight_sections__legacy_headers__ids_in_order`. |
+| **AC3** | Pure unit: fixture text with Bearings + one Session + Memory Index + Recent → four (or more) sections with ids `safety`, `session`, `index`, `recent` in encounter order. `title` matches the header line. `items` non-empty for bodies. Session body uses `\n`-joined turns (no blank lines) → that session’s `items.len() == 1` (F6). Named: `split_preflight_sections__legacy_headers__ids_in_order`. |
 | **AC4** | Pure unit: two `--- Session: … ---` headers → **two** `id=="session"` sections. Named: `split_preflight_sections__two_sessions__two_section_rows`. |
-| **AC5** | Pure unit: no `---` header and no governed marker → `sections` empty. Named: `split_preflight_sections__no_headers__empty`. |
+| **AC5** | Pure unit: no `---` header and no governed marker → `sections` empty. Named: `split_preflight_sections__no_headers__empty`. Additive named: `split_preflight_sections__leading_preamble__discarded` — `"preamble\n--- Repository Bearings & Safety ---\nCONSTRAINT: x"` yields one `safety` section and **no** `other` for the preamble (F6). |
 | **AC6** | Pure unit: text contains `# Project Briefing (governed)` and no `---` headers → exactly one section `id=="governed"`. Named: `split_preflight_sections__governed_marker__one_section`. |
 | **AC7** | Unit: `serde_json::from_str::<PreflightContextResponse>(r#"{"text":"DECISION: one","word_count":2}"#)` succeeds; `sections` is empty. Named: `preflight_context_response__n_minus_1_two_key__sections_default_empty`. |
 | **AC8** | T219 `preflight_pretty__json_format__two_keys_and_newlines_in_text`: still asserts `text` has `\n` and no `Scope:` chrome; **stop** asserting `len==2`; assert `sections` is array. T250 AC12 same (uncapped `text` still contains seed). |
 | **AC9** | T264 `preflight_global_isolation__compact_json__two_keys_and_hex_tags`: still asserts `[8hex]` in `text`; **stop** asserting `len==2`; `sections` present. |
 | **AC10** | Hermetic `--summary --format json`: still pretty T220 object; **no** `sections` key; still `api_version=="1"`. Named existing suite stays green. |
-| **AC11** | Hermetic empty new vault (no pins): JSON parses; `text`/`word_count` present; `sections` is `[]` **or** one `empty_repo` if the new-repo header is in `text` (do not require both). |
+| **AC11** | Hermetic empty new vault (no pins): JSON parses; `text`/`word_count` present; `sections` is `[]` **or** one `empty_repo` **iff** `--- AI-Brains: New Repository Detected ---` is in `text`. Splitter must **not** fabricate `empty_repo` when that header is absent (F5). |
 | **AC12** | Docs: CAPABILITIES full JSON row names required keys + `sections` ids + E1 `[]` + compact; PROTOCOL-COMPAT §5 + T180-C row; CHANGELOG T265; clap `--format` docstring (F26). No pin bumps. No new crate. `deny_unknown_fields` absent on this DTO. Retrieval `preflight.rs` **untouched** (diff). |
 | **AC13** | Manual (source bin, this agent non-TTY): `preflight --format json -m 200` parses; `jq`/python shows `sections` with a `safety` id when Bearings is in `text`. Do **not** pin. Do **not** `cargo install`. |
 | **AC14** | Existing T220 summary hermetics + T214/T241 grants summary JSON stay green. Dogfood `parse_legacy_preflight` unit with extra `sections` key still counts markers from `text`. |
-| **AC15** | Pure unit: Ledgerful Intelligence header → `id=="ledgerful"`. Unknown `--- Foo Bar ---` → `id=="other"`. Named: `split_preflight_sections__ledgerful_and_other`. |
+| **AC15** | Pure unit using **live** header strings: `--- Ledgerful Intelligence ---` **and** `--- Ledgerful Intelligence (Fallback - Contextual Unavailable) ---` both → `id=="ledgerful"` (`contains` covers Contextual Risk too). Unknown `--- Foo Bar ---` → `id=="other"`. Named: `split_preflight_sections__ledgerful_and_other`. |
 | **AC16** | CLI `preflight.rs` JSON arm does not inline serde struct construction of `sections` (call the sibling). `preflight_json.rs` exists. Pretty `classify_section_header` **may** remain in `preflight.rs` (F12 — no pretty refactor required). |
 
 ---
@@ -178,7 +178,13 @@ Retrieval `preflight.rs` is T272’s file (`safety_ids` pre-cap). T264 caps live
 
 ### 5.5 Hotspot
 
-CLI `preflight.rs` is **2148** lines, hotspot **#7**. New types + split + emit helper in `preflight_json.rs`. `mod.rs` adds `pub mod preflight_json`. JSON arm in `run` stays a few lines.
+CLI `preflight.rs` is **2148** lines, hotspot **#7**. New types + split + emit helper in `preflight_json.rs`. `mod.rs` adds `pub mod preflight_json` (sibling convention). JSON arm in `run` stays a few lines.
+
+### 5.6 Match rules + session items (fold-in)
+
+Pretty `classify_section_header` (`:360–373`) uses `contains` for Bearings/Index/Recent and `starts_with` for Session. JSON copies that. Ledgerful is not in the pretty enum (falls through to Other on the pretty path); JSON maps `contains("Ledgerful Intelligence")` so all three live headers (`:698` / `:703` / `:761`) share `id=ledgerful`.
+
+Session items: `session_lines.join("\n")` — no blank lines between turns — so F6 blank-line split yields **one item**. Same class as Index. Do not steal pretty’s `is_session_turn_start` (display turn counting, chrome-aware).
 
 ---
 
@@ -189,7 +195,7 @@ CLI `preflight.rs` is **2148** lines, hotspot **#7**. New types + split + emit h
 - Pretty-print of full preflight JSON
 - `--summary` envelope keys
 - Retrieval SQL / T264 caps / T272 `safety_ids`
-- Pretty walker unification
+- Pretty walker unification / JSON per-turn session split (`is_session_turn_start`)
 - clap `value_parser` on `--format`
 - clap 5 / lock bumps / new crates
 - T240 F2 / T255 doctor 16th / product `.cmd` / live tasks
@@ -302,6 +308,37 @@ TDD: failing pure split + N−1 deserialize + T180-C length (Phase 1), then cont
 
 ---
 
-## 13. AI fold-in
+## 13. AI fold-in disposition (2026-08-19)
 
-None this pass. Review-track writes `agy-review.md` / `opencode-review.md` only. Fold-in later.
+Source: `agy-review.md` + `opencode-review.md`. No grok / claude / `codex-plan-review.md`. **B 0 / M 0.** Online research: **N/A** for new APIs (no pin/DTO change this fold; serde ignore-unknown + clig additive already in §2.4). Live re-verify: `session_lines.join("\n")` at retrieval `:425`; pretty classifier `:360–373`; Ledgerful headers `:698` / `:703` / `:761`; `mod commands` private; `pub mod preflight_pretty`; `is_session_turn_start` is pretty turn-count only; `preflight_contextual_risk.rs:125` asserts `"word_count":` substring.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `2a00ce3` vs `7192070` | **Agree** | §2.1: plan dogfood vs plan/fold-in commit |
+| **m2** `pub(crate) mod preflight_json` | **Partial** | **F12**: `pub mod` matching siblings. Root `mod commands` is already crate-private |
+| **O1** contracts `SECTION_ID_*` consts | **Partial** | CLI sibling `pub(crate) const` for units. **Not** a contracts public API DoD (F2 wire ids stay strings) |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m** F6 session blank-line collapse | **Agree hard** | **F6** / **AC3**: Session **and** Index are one item when no blank lines. Do **not** add `is_session_turn_start` JSON split |
+| **m** F5 match rules unspecified | **Agree hard** | **F5** copies pretty `contains` / `starts_with`; Ledgerful `contains("Ledgerful Intelligence")`. **AC15** uses live plain + Fallback strings |
+| **m** plan HEAD `2a00ce3` | **Agree** | Same as Agy m1 |
+| **O** AC11 either/or | **Agree** | **AC11** / **F5**: map header if present; never fabricate `empty_repo` |
+| **O** `preflight_contextual_risk.rs:125` | **Agree** | Plan Phase 3: stays green (`"word_count":` substring) |
+| **O** leading content before first `---` | **Agree** | **F6** / **AC5** named `split_preflight_sections__leading_preamble__discarded` |
+
+### Pins locked by fold-in
+
+1. **F5** match table is `contains` vs `starts_with` as pretty, plus Ledgerful `contains`.
+2. **F6** Session + Index may be **one item**. No JSON turn-split DoD.
+3. **AC15** fixtures are live retrieval header strings (plain + Fallback).
+4. **AC5** preamble-discard unit is required.
+5. **AC11** does not fabricate `empty_repo`.
+6. **F12** `pub mod` like siblings; optional CLI `pub(crate) const` ids; no contracts const DoD.
+7. §2.1: `2a00ce3` product vs `7192070` docs.
+
+**Planning + fold-in 2026-08-19.** Still **plan-only until go**.
