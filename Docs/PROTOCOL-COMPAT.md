@@ -105,6 +105,7 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | `retention apply` | **pretty** JSON by default | `--format auto` does **not** TTY-switch. Opt-in `--format human` is not the parse contract. Confirm/scope gates unchanged. |
 | `device list` | **human** table only | No `--format`. Not a wire contract. Empty = T198 `No enrolled devices. Run \`ai-brains device bootstrap\` first.` Additive T251; **not** a compact↔pretty flip. |
 | `device status` | **human** only | Same roster as `device list` + **always** `next: ai-brains replicate status` (empty and enrolled). No `--format` (unknown flags clap exit **2**). Not a wire contract. Not a JSON DTO. Additive T251; **not** a compact↔pretty flip. |
+| `harness status --format json` | **pretty** (`to_string_pretty`) | CLI-local `StatusReport` `schema_version: 1`. Keys unchanged (`id`/`wiring`/`next_action` required). Additive T267: `wiring=ok` → `next_action: "none"` (key stays; do not omit). Human path is **not** a wire contract (ok rows omit `next:`). |
 | `replicate status --format json` | existing JSON | Machine enrollment path. **keys unchanged**. Do not treat `device status` as a compact↔pretty flip of this surface. |
 
 Changing compact ↔ pretty for a pinned command is a **breaking** CLI contract unless gated by a new flag.

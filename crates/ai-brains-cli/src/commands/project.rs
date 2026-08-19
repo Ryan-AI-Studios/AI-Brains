@@ -62,7 +62,7 @@ pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Er
     }
 
     // F8: no-alias footer on stderr (data stays on stdout).
-    print_unaliased_footer(ctx, &projects)?;
+    crate::commands::project_list_footer::print_unaliased_footer(ctx, &projects)?;
     Ok(())
 }
 
@@ -99,40 +99,6 @@ fn list_json(
         unaliased_count,
     };
     print_json_stdout(&envelope)
-}
-
-fn print_unaliased_footer(
-    ctx: &AppContext,
-    projects: &[ProjectListDetail],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let unaliased: Vec<&ProjectListDetail> =
-        projects.iter().filter(|p| p.alias.is_empty()).collect();
-    if unaliased.is_empty() {
-        return Ok(());
-    }
-    // Highest-memory unaliased (list is already memory DESC, project_id ASC).
-    let target = unaliased[0];
-    let suggestion = footer_alias_suggestion(ctx);
-    eprintln!("{} project(s) have no alias.", unaliased.len());
-    eprintln!(
-        "Example: ai-brains project set-alias {} {}",
-        target.project_id, suggestion
-    );
-    Ok(())
-}
-
-/// Soft F26: prefer git repo slug when available; else `my-project`.
-fn footer_alias_suggestion(ctx: &AppContext) -> String {
-    let _ = ctx; // reserved for future vault-aware suggestion; slug is cwd-based.
-    if let Ok(cwd) = std::env::current_dir()
-        && let Ok(Some(slug)) = get_git_repo_slug(&cwd)
-    {
-        let cleaned = sanitize_alias_suggestion(&slug);
-        if !cleaned.is_empty() {
-            return cleaned;
-        }
-    }
-    "my-project".to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -239,11 +205,6 @@ pub(crate) fn collect_git_identity(path: &Path) -> Result<GitIdentity, Box<dyn s
         slug,
         toplevel: Some(toplevel_path),
     })
-}
-
-/// Thin wrapper for callers that only need the slug (footer suggestion).
-fn get_git_repo_slug(path: &Path) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    Ok(collect_git_identity(path)?.slug)
 }
 
 /// Normalize + `find_path_alias_owner` for a filesystem path.
@@ -396,7 +357,7 @@ fn is_ambiguous_detect(outcome: &DetectOutcome) -> bool {
     outcome.source == DetectSource::GitSlug && outcome.project.0.is_empty()
 }
 
-fn sanitize_alias_suggestion(slug: &str) -> String {
+pub(crate) fn sanitize_alias_suggestion(slug: &str) -> String {
     // Keep simple slug-like characters; fall back empty → caller uses my-project.
     let s: String = slug
         .chars()

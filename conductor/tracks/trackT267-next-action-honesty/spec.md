@@ -1,7 +1,7 @@
 # T267 — Next-action remediator honesty
 
 - **Track ID:** T267-NextActionHonesty
-- **Status:** **Planned** (plan-only until go; conductor stays **Pending**)
+- **Status:** **Completed** (FEATURE TX `ce462dfb-bf75-4f63-9b8c-9356f886b457`)
 - **Category:** UX / FEATURE
 - **Owner:** —
 - **Source:** Audit 2026-08-16 — `harness status` **8/6**; `project list` **8/6**; opportunity “next-action is the remediator”; stub also named whoami→whoami

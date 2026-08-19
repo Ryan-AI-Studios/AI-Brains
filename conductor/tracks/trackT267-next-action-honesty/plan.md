@@ -67,86 +67,86 @@ No Blockers / Majors. OpenCode **m3** folded as named additive AC10. Leftover li
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] Re-read `next_action_for`, `run_status`, `print_unaliased_footer`, `format_harness_summary_lines`.
-- [ ] Confirm source `harness status` still prints `next: ai-brains harness status` on ok rows.
-- [ ] Confirm source `project list` stderr still `set-alias 7d97a456 … AI-Brains`.
-- [ ] Confirm whoami remediations still omit `` `ai-brains project whoami` ``.
-- [ ] Re-check lock clap **4.6.1** / crates.io clap. rustc **1.95.0**. No clap 5.
-- [ ] Rescan **entire** `conductor/deferred.md`.
-- [ ] Last merged PR Cursor comments — #180 leftover none; T272 still the #179 mint.
-- [ ] `ledgerful ledger start T267-next-action-honesty --category FEATURE`
+- [x] Re-read `next_action_for`, `run_status`, `print_unaliased_footer`, `format_harness_summary_lines`.
+- [x] Confirm source `harness status` still prints `next: ai-brains harness status` on ok rows.
+- [x] Confirm source `project list` stderr still `set-alias 7d97a456 … AI-Brains`.
+- [x] Confirm whoami remediations still omit `` `ai-brains project whoami` ``.
+- [x] Re-check lock clap **4.6.1** / crates.io clap. rustc **1.95.0**. No clap 5.
+- [x] Rescan **entire** `conductor/deferred.md`.
+- [x] Last merged PR Cursor comments — #180 leftover none; T272 still the #179 mint.
+- [x] `ledgerful ledger start T267-next-action-honesty --category FEATURE` (`ce462dfb-bf75-4f63-9b8c-9356f886b457`)
 
 ---
 
 ## Phase 1 — Red
 
-- [ ] `next_action_for__ok__none` (AC1)
-- [ ] `harness_status__all_ok__omits_self_next` (AC2)
-- [ ] `harness_status__all_ok__json_next_action_none` (AC3)
-- [ ] `pick_unaliased_footer_target__cwd_owner_unaliased__wins` (AC14 / AC6)
-- [ ] `footer_alias_suggestion__non_owner__not_cwd_slug` (AC14)
-- [ ] `format_harness_summary_lines__ok__omits_next` (AC15)
-- [ ] Hermetic AC6 / AC7 (`project_list__footer__multipath_leftover_plus_orphan__picks_orphan`) / AC16 (`project_list__footer__leftover_only__basename_not_cwd_slug`)
-- [ ] `harness_install__success__next_is_status` (AC10) — **additive; does not exist today**
-- [ ] `cargo nextest run -p ai-brains-cli` — new tests **fail** (Ok still `harness status`; leftover still first)
-- [ ] Commit red allowed
+- [x] `next_action_for__ok__none` (AC1)
+- [x] `harness_status__all_ok__omits_self_next` (AC2)
+- [x] `harness_status__all_ok__json_next_action_none` (AC3)
+- [x] `pick_unaliased_footer_target__cwd_owner_unaliased__wins` (AC14 / AC6)
+- [x] `footer_alias_suggestion__non_owner__not_cwd_slug` (AC14)
+- [x] `format_harness_summary_lines__ok__omits_next` (AC15)
+- [x] Hermetic AC6 / AC7 (`project_list__footer__multipath_leftover_plus_orphan__picks_orphan`) / AC16 (`project_list__footer__leftover_only__basename_not_cwd_slug`)
+- [x] `harness_install__success__next_is_status` (AC10) — **additive; does not exist today**
+- [x] `cargo nextest run -p ai-brains-cli` — new tests **fail** (Ok still `harness status`; leftover still first)
+- [x] Commit red allowed
 
 ---
 
 ## Phase 2 — Green (harness)
 
-- [ ] `next_action_for` Ok → `"none"` (F1)
-- [ ] `run_status` omit `next:` when none/Ok (F1)
-- [ ] F6 trailer: only present && !Ok
-- [ ] Do **not** change install/uninstall success next (F7)
-- [ ] Preflight: **required** AC15 Ok-row unit; do not rewrite summary (F8)
-- [ ] Additive AC10 hermetic `harness_install__success__next_is_status`
-- [ ] Targeted: `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; AC1–AC4 / AC9 / AC10 / AC15 green
-- [ ] Commit green allowed
+- [x] `next_action_for` Ok → `"none"` (F1)
+- [x] `run_status` omit `next:` when none/Ok (F1)
+- [x] F6 trailer: only present && !Ok
+- [x] Do **not** change install/uninstall success next (F7)
+- [x] Preflight: **required** AC15 Ok-row unit; do not rewrite summary (F8)
+- [x] Additive AC10 hermetic `harness_install__success__next_is_status`
+- [x] Targeted: `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; AC1–AC4 / AC9 / AC10 / AC15 green
+- [x] Commit green allowed
 
 ---
 
 ## Phase 3 — Green (footer)
 
-- [ ] Add `project_list_footer.rs` + `mod` (F10). Pure pick/suggestion. Slug via `collect_git_identity`
-- [ ] Implement F3 pick + F3b suggestion (no leftover UUID). `path_count` from `list_path_aliases`, not first-path
-- [ ] `project.rs` `list()` calls helper; delete old footer body
-- [ ] T212 AC3/AC4/AC5 stay green (AC8)
-- [ ] T258 AC7 stays green (AC5)
-- [ ] AC6 / AC7 / AC14 / AC16 green
-- [ ] `project.rs` **total** line count does not grow vs 1511 (AC12)
-- [ ] Commit green allowed
+- [x] Add `project_list_footer.rs` + `mod` (F10). Pure pick/suggestion. Slug via `collect_git_identity`
+- [x] Implement F3 pick + F3b suggestion (no leftover UUID). `path_count` from `list_path_aliases`, not first-path
+- [x] `project.rs` `list()` calls helper; delete old footer body
+- [x] T212 AC3/AC4/AC5 stay green (AC8)
+- [x] T258 AC7 stays green (AC5)
+- [x] AC6 / AC7 / AC14 / AC16 green
+- [x] `project.rs` **total** line count does not grow vs 1511 (AC12) — now **1472**
+- [x] Commit green allowed
 
 ---
 
 ## Phase 4 — Docs
 
-- [ ] CAPABILITIES: harness ok omit/`none`; list footer F3/F3b (F14 / AC11)
-- [ ] PROTOCOL-COMPAT additive `next_action: "none"` (F14)
-- [ ] `project list` `after_help`: **optional** one-liner (F14). Current text is already neutral
-- [ ] Root CHANGELOG T267 row
-- [ ] Do **not** reorder T204 Start-here groups
+- [x] CAPABILITIES: harness ok omit/`none`; list footer F3/F3b (F14 / AC11)
+- [x] PROTOCOL-COMPAT additive `next_action: "none"` (F14)
+- [x] `project list` `after_help`: **optional** one-liner (F14). Current text is already neutral
+- [x] Root CHANGELOG T267 row
+- [x] Do **not** reorder T204 Start-here groups
 
 ---
 
 ## Phase 5 — Review + gate (on go)
 
-- [ ] Internal review → `review.md`
-- [ ] Medium+ not silently dropped
-- [ ] `codex-review` (F16)
-- [ ] Manual AC13 (source bin)
-- [ ] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
-- [ ] Conductor T267 → Completed in the implement commit; publish is implement-track Phase 6
+- [x] Internal review → `review.md`
+- [x] Medium+ not silently dropped
+- [x] `codex-review` (F16) — CX1 P1-01 git-hard-fail fixed; CX2 PASS
+- [x] Manual AC13 (source bin)
+- [x] Full gate: `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
+- [x] Conductor T267 → Completed in the implement commit; publish is implement-track Phase 6
 
 ---
 
 ## Definition of done
 
-- [ ] AC1–AC16 pass with evidence
-- [ ] F0–F22 honored (declines written)
-- [ ] No product commits under this planning TX
-- [ ] T272 still the #179 leftover (not reminted)
-- [ ] `conductor/ISSUES.md` not created
+- [x] AC1–AC16 pass with evidence
+- [x] F0–F22 honored (declines written)
+- [x] No product commits under this planning TX
+- [x] T272 still the #179 leftover (not reminted)
+- [x] `conductor/ISSUES.md` not created
 
 ---
 

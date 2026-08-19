@@ -1,7 +1,7 @@
 # T256–T271 — Post-T255 live CLI audit (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-16 (graph-on PATH install; live vault `C:\dev\ai-brains\vault.db`; agent non-TTY).
-**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. **T260 Completed** 2026-08-17. **T261 Completed** 2026-08-17. **T262 Completed** 2026-08-17. **T263 Completed** 2026-08-18 (H1 only; H2 declined). **T264 Completed** 2026-08-18 (label+cap+span; leftover recall drop declined). **T266 Completed** 2026-08-18 (inventory tokens + four-family table; auto default stays). **T267 Planned+fold-in** 2026-08-18 (harness `none` + list footer; AC7/AC16 leftover path-count; whoami affirm T258). Remaining T265 / T268–T271 still placeholders. **T272** minted from #179 Cursor leftover (not this series’ original map).
+**Status:** **T256 Completed** 2026-08-16. **T257 Completed** 2026-08-17. **T258 Completed** 2026-08-16. **T259 Completed** 2026-08-17. **T260 Completed** 2026-08-17. **T261 Completed** 2026-08-17. **T262 Completed** 2026-08-17. **T263 Completed** 2026-08-18 (H1 only; H2 declined). **T264 Completed** 2026-08-18 (label+cap+span; leftover recall drop declined). **T266 Completed** 2026-08-18 (inventory tokens + four-family table; auto default stays). **T267 Completed** 2026-08-18 (harness `none` + list footer; AC7/AC16 leftover path-count; whoami affirm T258). Remaining T265 / T268–T271 still placeholders. **T272** minted from #179 Cursor leftover (not this series’ original map).
 **Prior closed series:** T217–T232 CLI quality; T233 multi-root; T234–T239 harness ingest; **T240–T255** CLI effectiveness (closer T255 2026-08-16).
 **Ledger (registration):** DOCS TX `1d9511b5-798b-4d6c-b0c9-ebb4b07d0b69`.
 
@@ -24,7 +24,7 @@ Every non-working item, friction point, significant opportunity, and command wit
 | `preflight --global` mixes other repos (coordinator 0022/0023, hip-hierarchy) as “safety” | global pretty **5/4**; global summary **7/6** | **T264** | P1 |
 | `preflight --format json` is a `{text, word_count}` blob | **7/6** | **T265** | P2 |
 | Format policy maze (human vs JSON default; list-paths JSON wall; retention default JSON on non-TTY) | friction; list-paths **7/5**; retention plan **6/5** | **T266 Completed** | P1 |
-| Next-action is the command you just ran (`harness status`; `whoami` → whoami); `project list` suggests aliasing `7d97a456` as `AI-Brains` | harness **8/6**; list **8/6**; opp: real remediator | **T267 Planned+fold-in** | P1 |
+| Next-action is the command you just ran (`harness status`; `whoami` → whoami); `project list` suggests aliasing `7d97a456` as `AI-Brains` | harness **8/6**; list **8/6**; opp: real remediator | **T267 Completed** | P1 |
 | `project scan-roots` only scans cwd; suggests re-registering an existing path | **4/5** | **T268** | P2 |
 | Nightly human mixes Nightly Last Result **0** with Router **267009**; full status completion `probe=timeout` while daemon says Open | friction (nightly scores ≥7) | **T269** | P2 |
 | `retention plan` 0 candidates across 35,300 memories (`memory_legacy / none_auto`) | **6/5** | **T270** | P2 |

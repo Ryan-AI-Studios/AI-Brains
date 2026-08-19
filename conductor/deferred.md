@@ -229,7 +229,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~`preflight --global` blends other repos (5/4, summary 7/6)~~ | **T264 Completed 2026-08-18.** Label + per-project caps + summary span. Recall leftover drop declined (F11). Soft: Index fetch 80; span vs word-budget; pretty formatter still in `preflight.rs`. |
 | `preflight --format json` `{text, word_count}` blob (7/6) | **T265** |
 | ~~Format maze; list-paths 7/5; retention default 6/5~~ | **T266 Completed 2026-08-18.** Inventory tokens + four-family table; auto default stays. Nightly pipes / graph-update JSON unchanged. |
-| harness/whoami self-next; list footer leftover-as-AI-Brains (8/6) | **T267 Planned 2026-08-18** — harness ok → `none`/omit; list footer F3/F3b; whoami remediations **affirm T258**. |
+| ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
 | `scan-roots` cwd-only (4/5) | **T268** |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
@@ -330,7 +330,7 @@ Specified softs — not product blockers:
 | Pretty 8-hex collision keeps raw tag | Intentional CX2 — no arbitrary alias |
 | Recall leftover-first under `--global` | Decline F11 — not a silent exclude |
 | PATH `ai-brains` until reinstall | Soft F21 — operator `cargo install` |
-| T266 / T267 | **T266 Completed 2026-08-18**. **T267 Planned 2026-08-18**. |
+| T266 / T267 | **T266 Completed 2026-08-18**. **T267 Completed 2026-08-18**. |
 
 ### T266 planning absorption (2026-08-18) — taxonomy + tokens; no default flip
 
@@ -369,7 +369,21 @@ Specified softs — not product blockers:
 | Harness status no `value_parser` | Soft F25 — Family B |
 | TTY/`auto` hermetics still force `human`/`json` | Soft T254 F12 |
 | PATH until reinstall | Soft F21 — operator `cargo install` |
-| T267 footer / T268 scan / T270 classify | **T267 Planned+fold-in 2026-08-18**. T268 / T270 stay Pending. |
+| T267 footer / T268 scan / T270 classify | **T267 Completed 2026-08-18**. T268 / T270 stay Pending. |
+
+### T267 closeout residuals (2026-08-18)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Harness status no `value_parser` | Soft T266 F25 — Family B |
+| PATH until reinstall | Soft F18 — operator `cargo install` |
+| Live leftover still owns many `C:\dev\*` roots | T259 operator rebind — out of band |
+| Daily 0 of 3 grants | T241 |
+| T268 scan-roots parent / `--root` | Peer — still Pending |
+| T265 / T269 / T270 / T271 / T272 | Decline F11 — still placeholders |
+| Codex `/hooks` next on install | Keep F7 — not self-next of status |
 
 ### T267 planning absorption (2026-08-18) — remediator honesty; no leftover UUID
 
@@ -432,7 +446,7 @@ Specified softs — not product blockers:
 |----------|-------------|
 | Reclassify leftover memories onto dest by path/provenance | Soft — F5; later importer if ever |
 | `--global` leftover-first / blender | Symbol monopoly **T260 Completed**. Preflight blender **T264 Completed 2026-08-18** (label+cap; recall drop declined). |
-| `project list` footer leftover-as-AI-Brains | **T267 F3** |
+| `project list` footer leftover-as-AI-Brains | **T267 Completed** F3/F3b |
 | `project.rs` private `resolve_project_ref` duplicate | Soft — F12 hotspot freeze |
 | No-owner / dest-missing JSON is generic `COMMAND_FAILED` | Soft — F8/AC7/AC8; T257 owns JSON interleave |
 | PATH `ai-brains` lacks rebind until reinstall | Soft F23 — operator `cargo install` |

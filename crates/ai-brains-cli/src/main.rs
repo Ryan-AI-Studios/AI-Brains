@@ -2416,7 +2416,7 @@ pub enum MemoryCommands {
 pub enum ProjectCommands {
     /// List all projects in the vault (label-first; set-alias nudge on stderr)
     #[command(
-        after_help = "Examples:\n  ai-brains project list\n  ai-brains project list --format json\n  ai-brains project set-alias <uuid> my-project\nColumns (human): label | project_id | memories | last_activity | path\nlast_activity = last memory-projection mutation (pin/forget/ingest), not chat-only.\npath is a registered repo path alias when present; never invented (— / null).\nUnaliased projects: a set-alias example is printed on stderr (not stdout)."
+        after_help = "Examples:\n  ai-brains project list\n  ai-brains project list --format json\n  ai-brains project set-alias <uuid> my-project\nColumns (human): label | project_id | memories | last_activity | path\nlast_activity = last memory-projection mutation (pin/forget/ingest), not chat-only.\npath is a registered repo path alias when present; never invented (— / null).\nUnaliased projects: a set-alias example is printed on stderr (not stdout).\nThe example prefers the cwd path-owner; the cwd git slug is used only for that owner."
     )]
     List {
         /// Output format: human (default table) or json

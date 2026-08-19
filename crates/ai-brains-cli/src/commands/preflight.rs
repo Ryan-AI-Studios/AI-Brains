@@ -1340,6 +1340,32 @@ mod tests {
         assert!(joined.contains("ai-brains harness install --harness agy --dry-run"));
     }
 
+    /// T267 AC15: Ok row prints wiring=ok and omits next:.
+    #[test]
+    fn format_harness_summary_lines__ok__omits_next() {
+        let statuses = vec![HarnessStatus {
+            id: "grok".into(),
+            display_name: "Grok".into(),
+            present: true,
+            binary: None,
+            home_path: Some("/tmp/.grok".into()),
+            wiring: WiringStatus::Ok,
+            install_ready: true,
+            targets: vec![],
+            next_action: "none".into(),
+        }];
+        let lines = format_harness_summary_lines(&statuses);
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("wiring=ok"),
+            "Ok row must print wiring=ok; got:\n{joined}"
+        );
+        assert!(
+            !joined.contains("next:"),
+            "Ok row must omit next:; got:\n{joined}"
+        );
+    }
+
     /// AC19: format_preflight_summary_lines arity unchanged (compiles with 9 args).
     #[test]
     fn format_preflight_summary_lines__arity_nine_args() {
