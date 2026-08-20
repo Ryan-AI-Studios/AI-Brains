@@ -519,6 +519,18 @@ Specified softs — not product blockers:
 | T240 F2 / T255 bag / clap 5 / DTO | **Decline** F9 / F10 |
 | Historical deferred (CE wipe, connector cursor, `anyhow` allowlist, MSI, archive changeguard) | **Decline** — not query argv |
 
+### T273 fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode **B-1** AC10 `-- --limit --no-bridge` | **Folded** F21 / AC10 — `sync query --no-bridge -- --limit` (live exit 2 vs exit 0) |
+| Agy m1 helper needle `"--"` | **Folded** AC4 / F19 |
+| Agy m2 `after_help` contrast | **Folded** F6 / AC12 |
+| OpenCode O-1 AC8 `ErrorKind` | **Folded** F22 |
+| OpenCode O-2 quiet optional | **Folded** F23 / AC14 required |
+| Agy O1 `pub(crate)` / O2 recall residual | **Already** F11 / F7 |
+| OpenCode m-1 | **Already** closed by B-1 |
+
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

@@ -1,10 +1,25 @@
 # T273 Plan — sync query dash-leading Ledgerful flags
 
 **Status:** **Pending** (spec **Planned**; plan-only until go)
-**Spec:** [spec.md](./spec.md) F0–F20 / AC1–AC13
+**Spec:** [spec.md](./spec.md) F0–F23 / AC1–AC14 + §13 AI fold-in
 **Category:** BUGFIX
 **Ledger TX (planning):** `1d4391ae-3769-4cfa-9d04-8be1c7f138bd` (DOCS)
+**Ledger TX (fold-in):** `0d001d8e-0608-4ba0-8ac2-fb9d836c71b4` (DOCS)
 **Ledger TX (on go):** BUGFIX — open then
+
+---
+
+## AI fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+Agy: **Planned**, no B/M. OpenCode: **Planned after fixes**, **B-1** (AC10 flag order). Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F21 / AC10:** `sync query --no-bridge -- --limit` (flags before `--`). Never `-- --limit --no-bridge`.
+2. **F23 / AC14:** `--quiet -- --limit` required; pane must print.
+3. **AC4:** needle `"--"`.
+4. **F22 / AC8:** `ErrorKind::MissingRequiredArgument`.
+5. **F6:** `after_help` contrasts needle vs vault `--limit 10`.
 
 ---
 
@@ -41,6 +56,10 @@
 | T90 on ledger argv | T90 / T271 F5 | **Affirm** F3 |
 | Query `after_help` missing | live `main.rs` Query | **DoD** F6 / AC12 |
 | T271 miss classes / `--no-bridge` / quiet | T271 | **Affirm** F4 / AC6 / AC10 |
+| AC10 flags after `--` | OpenCode B-1 | **Folded** F21 / AC10 — `--no-bridge -- --limit` |
+| `"--"` helper needle | Agy m1 | **Folded** AC4 |
+| AC8 ErrorKind | OpenCode O-1 | **Folded** F22 |
+| Quiet honesty optional | OpenCode O-2 | **Folded** AC14 required |
 
 ## Declined (written)
 
@@ -77,9 +96,9 @@
 - [ ] Unit `ledger_search_argv__json_dash_limit__end_of_options_before_query` (AC1)
 - [ ] Unit `ledger_search_argv__human_dash_limit__no_json_flag` (AC2)
 - [ ] Unit `ledger_search_argv__plain_phrase__still_emits_double_dash` (AC3)
-- [ ] rstest AC4 needles (`--days`, `--breaking`, `--json`, `-l`, `-d`, `-b`)
+- [ ] rstest AC4 needles (`--days`, `--breaking`, `--json`, `-l`, `-d`, `-b`, `"--"`)
 - [ ] Clap `sync_query__posix_end_of_options__limit_is_query` (AC7)
-- [ ] Clap `sync_query__bare_limit_flag__still_requires_value` (AC8)
+- [ ] Clap `sync_query__bare_limit_flag__still_requires_value` asserts `ErrorKind::MissingRequiredArgument` (AC8 / F22)
 - [ ] Prove they fail on current tree before green
 
 ---
@@ -89,7 +108,7 @@
 - [ ] `pub(crate) fn ledger_search_argv(query: &str, json: bool) -> Vec<String>`
 - [ ] `run_ledger_search` uses **only** that helper (JSON + human)
 - [ ] Empty-query never-ran still happens **before** spawn (T271 F18)
-- [ ] Query `after_help` names `sync query -- --limit` and that `--limit` is the vault cap (F6)
+- [ ] Query `after_help` contrasts `sync query -- --limit` (needle) vs `sync query "text" --limit 10` (vault cap) (F6 / AC12)
 - [ ] No T90; no `allow_hyphen_values` on Query.query; no `sync.rs` / `project.rs` / `recall.rs` edits
 
 ---
@@ -108,9 +127,9 @@
 ## Phase 4 — Manual (on go)
 
 - [ ] AC9: `cargo run -p ai-brains-cli -- sync query -- --limit` → ledger hits **or** ran-empty `'--limit'`; **not** `--limit <LIMIT>` required
-- [ ] AC10: same + `--no-bridge` → no ledger section
+- [ ] AC10: `cargo run -p ai-brains-cli -- sync query --no-bridge -- --limit` → Recall, **no** ledger pane (flags **before** `--`)
 - [ ] AC11: `ledgerful ledger search --json -- --limit` ≥1
-- [ ] Optional: `--quiet -- --limit` still **prints** the pane (hits, not omitted Failed)
+- [ ] AC14 (required): `cargo run -p ai-brains-cli -- sync query --quiet -- --limit` **prints** the ledger pane
 
 ---
 
@@ -126,7 +145,7 @@
 
 ## Definition of done
 
-- [ ] AC1–AC13 green or manual-recorded
+- [ ] AC1–AC14 green or manual-recorded
 - [ ] T271 suite still green
 - [ ] F0 was respected (no product commits as “planning”)
 - [ ] Ledger BUGFIX TX committed; 0 pending / 0 drift
