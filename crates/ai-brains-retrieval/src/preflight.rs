@@ -282,8 +282,7 @@ fn build_legacy_preflight(
 
     // --- Onboarding & Safety Section (Max 15% of budget) ---
     let onboarding_budget = (max_words * 15) / 100;
-    let mut safety_raw: Vec<(String, String, Option<String>)> = Vec::new(); // content, ts, project
-    let mut safety_ids: HashSet<String> = HashSet::new();
+    let mut safety_raw: Vec<(String, String, (Option<String>, String))> = Vec::new(); // content, ts, (project, memory_id)
     let mut span_ids: Vec<String> = Vec::new();
 
     let safety_sql = if global {
@@ -326,8 +325,7 @@ fn build_legacy_preflight(
             continue;
         }
 
-        safety_ids.insert(memory_id);
-        safety_raw.push((strip_ansi(&content), updated_at, item_project));
+        safety_raw.push((strip_ansi(&content), updated_at, (item_project, memory_id)));
     }
 
     // Deduplicate hotspot entries by file path: keep only the most recent score per path.
@@ -336,16 +334,22 @@ fn build_legacy_preflight(
     if global {
         safety_entries = take_round_robin(
             safety_entries,
-            |(_, pid)| project_key(pid.as_deref()),
+            |(_, (pid, _))| project_key(pid.as_deref()),
             GLOBAL_SAFETY_PER_PROJECT,
             GLOBAL_SAFETY_MAX,
         );
     }
 
+    // Rebuild safety_ids from emitted entries so capped-out pins remain visible in Index (T272)
+    let safety_ids: HashSet<String> = safety_entries
+        .iter()
+        .map(|(_, (_, id))| id.clone())
+        .collect();
+
     let mut safety_cleaned: Vec<String> = Vec::new();
     let mut safety_for_skip: Vec<String> = Vec::new();
     if !safety_entries.is_empty() {
-        for (entry, pid) in &safety_entries {
+        for (entry, (pid, _)) in &safety_entries {
             let stripped = entry.strip_prefix("ASSISTANT: ").unwrap_or(entry);
             safety_for_skip.push(stripped.to_string());
             let tagged = if global {
@@ -1037,5 +1041,44 @@ mod tests {
             "should have filtered out crates/path1 from second entry"
         );
         assert!(result[1].contains("crates/path3"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn dedup_hotspots_keyed__duplicate_path__skip_set_omits_dropped_id() {
+        // AC1 — skip ids come from remaining extras after keyed dedup, not a pre-insert set.
+        let keep = "keep-id".to_string();
+        let drop = "drop-id".to_string();
+        let entries = vec![
+            (
+                "ASSISTANT: HOTSPOT: Codebase Hotspots\n\
+                 | Rank | Score | File Path |\n\
+                 |------+-------+------------------------------|\n\
+                 | 1 | 0.5 | crates/ai-brains-cli/src/main.rs |"
+                    .to_string(),
+                "2026-08-20T12:00:00Z".to_string(),
+                ((), keep.clone()),
+            ),
+            (
+                "ASSISTANT: HOTSPOT: Codebase Hotspots\n\
+                 | Rank | Score | File Path |\n\
+                 |------+-------+------------------------------|\n\
+                 | 1 | 0.3 | crates/ai-brains-cli/src/main.rs |"
+                    .to_string(),
+                "2026-08-20T11:00:00Z".to_string(),
+                ((), drop.clone()),
+            ),
+        ];
+        let remaining = dedup_hotspots_keyed(entries);
+        let skip: HashSet<String> = remaining.iter().map(|(_, (_, id))| id.clone()).collect();
+        assert!(
+            skip.contains(&keep),
+            "kept extra id must remain in skip set; remaining={remaining:?} skip={skip:?}"
+        );
+        assert!(
+            !skip.contains(&drop),
+            "dropped duplicate extra id must not enter skip set; remaining={remaining:?} skip={skip:?}"
+        );
+        assert_eq!(skip.len(), 1, "exactly the kept extra; skip={skip:?}");
     }
 }

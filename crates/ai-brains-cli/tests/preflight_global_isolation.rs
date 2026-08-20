@@ -138,6 +138,59 @@ fn safety_section(stdout: &str) -> String {
     out.join("\n")
 }
 
+fn index_section(stdout: &str) -> String {
+    let mut out = Vec::new();
+    let mut in_index = false;
+    for line in stdout.lines() {
+        let t = line.trim();
+        if t.contains("Memory Index") {
+            in_index = true;
+            continue;
+        }
+        if in_index && t.starts_with("--- ") {
+            break;
+        }
+        if in_index {
+            out.push(line);
+        }
+    }
+    out.join("\n")
+}
+
+fn three_a_one_b_fixture(dir: &Path) -> std::path::PathBuf {
+    let vault = dir.join("vault.db");
+    init_vault(&vault);
+    let proj_a = dir.join("proj-a");
+    let proj_b = dir.join("proj-b");
+    let id_a = register_project(&vault, &proj_a);
+    let id_b = register_project(&vault, &proj_b);
+    pin_memory(
+        &vault,
+        &proj_b,
+        &id_b,
+        "CONSTRAINT: B-only bearing must survive A recency monopoly under global",
+    );
+    pin_memory(
+        &vault,
+        &proj_a,
+        &id_a,
+        "CONSTRAINT: A-one newer bearing must be capped at two per project",
+    );
+    pin_memory(
+        &vault,
+        &proj_a,
+        &id_a,
+        "CONSTRAINT: A-two newer bearing must be capped at two per project",
+    );
+    pin_memory(
+        &vault,
+        &proj_a,
+        &id_a,
+        "CONSTRAINT: A-three newer bearing must be capped at two per project",
+    );
+    vault
+}
+
 fn two_project_fixture(
     dir: &Path,
 ) -> (
@@ -332,38 +385,9 @@ fn preflight_global_isolation__summary_span_and_json_key() {
 
 #[test]
 fn preflight_global_isolation__three_a_one_b__b_appears_a_capped() {
-    // AC10
+    // AC10 / T272 AC4
     let dir = tempdir().unwrap();
-    let vault = dir.path().join("vault.db");
-    init_vault(&vault);
-    let proj_a = dir.path().join("proj-a");
-    let proj_b = dir.path().join("proj-b");
-    let id_a = register_project(&vault, &proj_a);
-    let id_b = register_project(&vault, &proj_b);
-    pin_memory(
-        &vault,
-        &proj_b,
-        &id_b,
-        "CONSTRAINT: B-only bearing must survive A recency monopoly under global",
-    );
-    pin_memory(
-        &vault,
-        &proj_a,
-        &id_a,
-        "CONSTRAINT: A-one newer bearing must be capped at two per project",
-    );
-    pin_memory(
-        &vault,
-        &proj_a,
-        &id_a,
-        "CONSTRAINT: A-two newer bearing must be capped at two per project",
-    );
-    pin_memory(
-        &vault,
-        &proj_a,
-        &id_a,
-        "CONSTRAINT: A-three newer bearing must be capped at two per project",
-    );
+    let vault = three_a_one_b_fixture(dir.path());
 
     let (code, stdout, stderr) =
         run_preflight(&vault, &["--global", "--pretty", "--no-hook-prompt"], None);
@@ -384,6 +408,93 @@ fn preflight_global_isolation__three_a_one_b__b_appears_a_capped() {
     assert!(
         a_count <= 2,
         "AC10 at most 2 Safety items from A; got {a_count}\n{safety}\nfull:\n{stdout}"
+    );
+}
+
+#[test]
+fn preflight_global_isolation__capped_out_safety__appears_in_index() {
+    // T272 AC2 — required red: A-one is capped out of Safety but must remain in Index.
+    let dir = tempdir().unwrap();
+    let vault = three_a_one_b_fixture(dir.path());
+
+    let (code, stdout, stderr) = run_preflight(
+        &vault,
+        &["--global", "--pretty", "--no-hook-prompt", "-m", "1500"],
+        None,
+    );
+    assert_eq!(code, 0, "AC2 exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("Memory Index"),
+        "AC2 Memory Index header present under -m 1500; got:\n{stdout}"
+    );
+    let safety = safety_section(&stdout);
+    let index = index_section(&stdout);
+    assert!(
+        !safety.contains("A-one"),
+        "AC2 A-one must not appear in Safety; got:\n{safety}\nfull:\n{stdout}"
+    );
+    assert!(
+        index.contains("A-one"),
+        "AC2 A-one (capped-out Safety pin) must appear in Index; got:\n{index}\nfull:\n{stdout}"
+    );
+    assert!(
+        safety.contains("A-two"),
+        "AC2 A-two stays in Safety; got:\n{safety}"
+    );
+    assert!(
+        safety.contains("A-three"),
+        "AC2 A-three stays in Safety; got:\n{safety}"
+    );
+    assert!(
+        safety.contains("B-only"),
+        "AC2 B-only stays in Safety; got:\n{safety}"
+    );
+}
+
+#[test]
+fn preflight_global_isolation__project_scoped__shown_safety_not_in_index() {
+    // T272 AC3 — regression guard (F27); may already pass on LIMIT 10 / no round-robin.
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj-scoped");
+    let id = register_project(&vault, &proj);
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "CONSTRAINT: scoped-shown-alpha must stay in Safety and skip Index",
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "CONSTRAINT: scoped-shown-beta must stay in Safety and skip Index",
+    );
+
+    let (code, stdout, stderr) = run_preflight(
+        &vault,
+        &["--pretty", "--no-hook-prompt", "-m", "1500"],
+        Some(&id),
+    );
+    assert_eq!(code, 0, "AC3 exit 0; stderr={stderr}");
+    let safety = safety_section(&stdout);
+    let index = index_section(&stdout);
+    assert!(
+        safety.contains("scoped-shown-alpha"),
+        "AC3 alpha in Safety; got:\n{safety}\nfull:\n{stdout}"
+    );
+    assert!(
+        safety.contains("scoped-shown-beta"),
+        "AC3 beta in Safety; got:\n{safety}\nfull:\n{stdout}"
+    );
+    assert!(
+        !index.contains("scoped-shown-alpha"),
+        "AC3 alpha unique needle must not appear in Index; got:\n{index}\nfull:\n{stdout}"
+    );
+    assert!(
+        !index.contains("scoped-shown-beta"),
+        "AC3 beta unique needle must not appear in Index; got:\n{index}\nfull:\n{stdout}"
     );
 }
 

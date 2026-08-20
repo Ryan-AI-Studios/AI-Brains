@@ -583,6 +583,48 @@ Specified softs — not product blockers:
 | T269 / T270 / T272 | Peers — not stolen |
 | F22 ErrorKind pin | Execute correction documented; unit locks live `InvalidValue` + `--limit <LIMIT>` |
 
+### T272 planning absorption (2026-08-20) — skip emitted Safety ids; no T264 retune
+
+| Item | Disposition |
+|------|-------------|
+| #179 Bugbot Medium `safety_ids` filled from LIMIT 40 before `take_round_robin` 8 | **Absorb** F1 / AC2 — still true at `preflight.rs:329` + `:467` (HEAD `9008074`) |
+| Placeholder F1–F4 | **Absorb** post-cap skip / project-scoped shown / no leftover recall drop / hermetic capped-out in Index |
+| Post-`dedup_hotspots` over-exclude (insert then drop) | **Absorb** F1 / AC1 — same SOOT as the cap |
+| T264 Index fetch 80 leftover-heavy (R1b-P3-1) | **Decline** F17 |
+| Session `HOTSPOT:` content skip | **Decline** F18 (soft) |
+| T265 json-v2 / CLI splitter / T180 2-key | **Decline** F7 — text may gain Index lines; keys frozen |
+| T270 / T273 F7 `bridge_search_args` | **Decline** F16 — peers |
+| last-PR Cursor #186 | **N/A** — comments/reviews empty. **No T274** |
+| T240 F2 / T255 bag / clap 5 / rusqlite 0.40 / DTO / `cargo install` | **Decline** |
+| Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` | **Decline** — not skip-set |
+
+### T272 fold-in (2026-08-20) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m HEAD `9008074` vs `9fcfcd8` | **Folded** §2.1 — product tree identical |
+| OpenCode m AC3 not Phase-1 red | **Folded** F27 — guard; AC2 is the required red |
+| OpenCode m AC1 failure claim | **Already** F3 / AC1 extras-through-dedup |
+| OpenCode O A-one not in Safety / optional helper | **Already** AC2 / F9 |
+| Agy m1 AC2 word budget | **Folded** F26 / AC2 `-m 1500` + `Memory Index` header |
+| Agy m2 AC1 extras keep freshest id | **Folded** AC1 concrete `T` |
+| Agy O1 `index_section` | **Already** AC2 / plan |
+| Agy O2 rebuild comment | **Folded** F28 |
+| No B/M | Nothing to decline |
+
+### T272 closeout residuals (2026-08-20)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Session `HOTSPOT:` content skip | F18 — independent of `safety_ids`; may still hide a capped-out hotspot from Sessions |
+| T264 Index fetch 80 leftover-heavy (R1b-P3-1) | F17 — not this HashSet |
+| Live `-m` windows without an Index header | Word budget; hermetic AC2 (`-m 1500` + `Memory Index`) is DoD |
+| PATH `ai-brains` until `cargo install` | F14 — operator; tests/manual used `cargo run` / hermetic |
+| T270 retention classify / T273 F7 `bridge_search_args` | Peers |
+| rusqlite `table_exists` 0.40 | T213 L4 — not this track |
+
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
