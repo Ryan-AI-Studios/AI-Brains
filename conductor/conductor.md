@@ -217,7 +217,7 @@
 | T270 | Retention live classification | **Pending** | — | [T270](tracks/trackT270-retention-live-classification/spec.md) | **Placeholder 2026-08-16:** plan 6/5; 0 candidates on 35,300 memories. Honesty or read-only classify overlay. |
 | T271 | sync query ledger pane | ✅ **Completed** | Grok | [T271](tracks/trackT271-sync-query-ledger-pane/spec.md) | **Completed 2026-08-19:** stop FTS-quoting `ledgerful ledger search`; first-seen token rescue (cap 3, `len>=2`); named misses never-ran/failed/ran-empty. F2 Windows-only. Internal R1/R1b + Codex CX2 **PASS WITH DEFERRED P3**. `dev-check` nextest **3167** (1 skipped). FEATURE TX `67ed4a3e-d354-4d7c-abf2-36792d46d0b8`. Soft: PATH `cargo install`; Ledgerful token-OR. |
 | T272 | Preflight `--global` Safety skip vs Index | **Pending** | — | [T272](tracks/trackT272-preflight-global-safety-index-skip/spec.md) | **Placeholder 2026-08-18:** Cursor Bugbot #179 Medium. `safety_ids` filled from Safety LIMIT 40 before cap; Index/Recent skip the 32 capped-out ids. |
-| T273 | sync query dash-leading Ledgerful flags | **Pending** | — | [T273](tracks/trackT273-sync-query-ledger-dash-flags/spec.md) | **Placeholder 2026-08-19:** Cursor Bugbot #183 Medium. T271 `run_ledger_search` passes raw query after `--json`; `--limit`/`--days`/`--breaking` parse as Ledgerful flags. Minted from T268 last-PR pass. |
+| T273 | sync query dash-leading Ledgerful flags | **Pending** | — | [T273](tracks/trackT273-sync-query-ledger-dash-flags/spec.md) | **Planned 2026-08-19:** POSIX `--` before `ledgerful ledger search` QUERY (always-on argv helper). Layer-1 our clap already needs `sync query -- --limit`. #184 Linux Path units declined (already `cfg(windows)`). Recall `bridge_search_args` soft. F0 until go. |
 
 
 ---
