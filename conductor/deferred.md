@@ -583,6 +583,21 @@ Specified softs — not product blockers:
 | T269 / T270 / T272 | Peers — not stolen |
 | F22 ErrorKind pin | Execute correction documented; unit locks live `InvalidValue` + `--limit <LIMIT>` |
 
+### T272 planning absorption (2026-08-20) — skip emitted Safety ids; no T264 retune
+
+| Item | Disposition |
+|------|-------------|
+| #179 Bugbot Medium `safety_ids` filled from LIMIT 40 before `take_round_robin` 8 | **Absorb** F1 / AC2 — still true at `preflight.rs:329` + `:467` (HEAD `9008074`) |
+| Placeholder F1–F4 | **Absorb** post-cap skip / project-scoped shown / no leftover recall drop / hermetic capped-out in Index |
+| Post-`dedup_hotspots` over-exclude (insert then drop) | **Absorb** F1 / AC1 — same SOOT as the cap |
+| T264 Index fetch 80 leftover-heavy (R1b-P3-1) | **Decline** F17 |
+| Session `HOTSPOT:` content skip | **Decline** F18 (soft) |
+| T265 json-v2 / CLI splitter / T180 2-key | **Decline** F7 — text may gain Index lines; keys frozen |
+| T270 / T273 F7 `bridge_search_args` | **Decline** F16 — peers |
+| last-PR Cursor #186 | **N/A** — comments/reviews empty. **No T274** |
+| T240 F2 / T255 bag / clap 5 / rusqlite 0.40 / DTO / `cargo install` | **Decline** |
+| Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` | **Decline** — not skip-set |
+
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
