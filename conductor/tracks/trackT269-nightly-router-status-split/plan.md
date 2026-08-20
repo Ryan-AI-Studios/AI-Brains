@@ -1,11 +1,11 @@
 # T269 Plan — Nightly vs Router status split + probe honesty
 
-**Status:** **Pending** (Planned; not In Progress)
+**Status:** **Completed**
 **Spec:** [spec.md](./spec.md) F0–F27 / AC1–AC13 + §13 AI fold-in
 **Category:** OPS / UX / BUGFIX
 **Ledger TX (planning):** `7f7f7fd2-5ce1-4892-94d0-451699366dd0` (DOCS)
 **Ledger TX (fold-in):** `6c22c5b1-463f-492f-a656-4514742b412f` (DOCS)
-**Ledger TX (implement):** on **go** (BUGFIX)
+**Ledger TX (implement):** `50098557-f967-4281-ab52-bb19c095719c` (BUGFIX)
 
 ---
 
@@ -46,13 +46,13 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `nightly.rs` status branch + `format_endpoint_line` + `NIGHTLY_STATUS_PROBE_TIMEOUT` and `nightly_status.rs` Router/JSON helpers
-- [ ] Rescan `deferred.md` for new open rows that overlap
-- [ ] Confirm #185 still empty / no new Cursor leftover that needs a mint
-- [ ] Re-dogfood `nightly --status --quick` and full `--status` vs `daemon status` (do not mutate tasks)
-- [ ] Re-check clap lock vs crates.io (**no bump** unless execute proves otherwise)
-- [ ] BUGFIX TX start
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
+- [x] Re-read `nightly.rs` status branch + `format_endpoint_line` + `NIGHTLY_STATUS_PROBE_TIMEOUT` and `nightly_status.rs` Router/JSON helpers
+- [x] Rescan `deferred.md` for new open rows that overlap
+- [x] Confirm #185 still empty / no new Cursor leftover that needs a mint
+- [x] Re-dogfood `nightly --status --quick` and full `--status` vs `daemon status` (do not mutate tasks)
+- [x] Re-check clap lock vs crates.io (**no bump** unless execute proves otherwise)
+- [x] BUGFIX TX start `50098557-f967-4281-ab52-bb19c095719c`
 
 ---
 
@@ -84,50 +84,50 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] AC1 unit: heading const `Nightly: AI-Brains-Nightly`
-- [ ] AC2 rstest `#[case]`: timeout → `timeout (750ms)`; skipped/ok/down/error/`""`/`"TIMEOUT"`/`"timeout-ish"` unchanged
-- [ ] AC6 clap: `nightly --help` contains `AI-Brains-Nightly`, `267009` or `SCHED_S_TASK_RUNNING`, `750`, `TCP`, and `/health`
-- [ ] Commit red allowed
+- [x] AC1 unit: heading const `Nightly: AI-Brains-Nightly`
+- [x] AC2 rstest `#[case]`: timeout → `timeout (750ms)`; skipped/ok/down/error/`""`/`"TIMEOUT"`/`"timeout-ish"` unchanged
+- [x] AC6 clap: `nightly --help` contains `AI-Brains-Nightly`, `267009` or `SCHED_S_TASK_RUNNING`, `750`, `TCP`, and `/health`
+- [x] Red proven on current tree (heading `""`; timeout identity; after_help missing needles; hermetic AC8 missing heading)
 
 ## Phase 2 — Green (helpers + call site)
 
-- [ ] `NIGHTLY_TASK_HEADING` + `format_probe_label_human` in `nightly_status.rs`
-- [ ] Status human: print heading after banner **outside** `#[cfg(windows)]`; wrap Completion/Embedding labels with `NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis()`
-- [ ] JSON path: raw `as_label` / `"skipped"` unchanged
-- [ ] Additive Nightly `after_help` (keep T255 format examples)
-- [ ] Do **not** edit `format_status_schedule_block` / Router formatter / probe Duration consts / `format_endpoint_line` signature
+- [x] `NIGHTLY_TASK_HEADING` + `format_probe_label_human` in `nightly_status.rs`
+- [x] Status human: print heading after banner **outside** `#[cfg(windows)]`; wrap Completion/Embedding labels with `NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis()`
+- [x] JSON path: raw `as_label` / `"skipped"` unchanged
+- [x] Additive Nightly `after_help` (keep T255 format examples)
+- [x] Do **not** edit `format_status_schedule_block` / Router formatter / probe Duration consts / `format_endpoint_line` signature
 
 ## Phase 3 — Regressions + hermetic
 
-- [ ] AC3/AC4/AC5/AC7/AC9/AC13 existing units green
-- [ ] AC8 all-OS hermetic in `tests/nightly_status.rs` (not `cfg(windows)`): heading + `probe=skipped`, no `(750ms)`
-- [ ] `cargo nextest run -p ai-brains-cli --lib nightly_status` ; `--lib nightly` ; `-E "test(nightly)"`
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] AC3/AC4/AC5/AC7/AC9/AC13 existing units green
+- [x] AC8 all-OS hermetic in `tests/nightly_status.rs` (not `cfg(windows)`): heading + `probe=skipped`, no `(750ms)`
+- [x] `cargo nextest run -p ai-brains-cli -E "test(nightly)"` **90 passed** (crate is bins-only; `--lib` is N/A)
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
 
 ## Phase 4 — Docs + manual
 
-- [ ] CAPABILITIES additive honesty bullet
-- [ ] OPERATIONS heading + 750 ms vs TCP
-- [ ] CHANGELOG T269 row
-- [ ] AC10 manual: full `--status` heading + 267009 + timeout suffix if live timeout; `daemon status` may be Open; **do not** mutate tasks
-- [ ] AC11 docs present
+- [x] CAPABILITIES additive honesty bullet
+- [x] OPERATIONS heading + 750 ms vs TCP
+- [x] CHANGELOG T269 row
+- [x] AC10 manual: full `--status` heading + 267009 + `probe=timeout (750ms)`; `daemon status` Open; **did not** mutate tasks
+- [x] AC11 docs present
 
 ## Phase 5 — Review + gate + publish
 
-- [ ] Phase-1 review → `review.md` until clean
-- [ ] Codex read-only (F23)
-- [ ] Full gate: `cargo fmt --check` ; clippy `-D warnings` ; nextest workspace ; deny ; audit ; `ledgerful verify --scope full`
-- [ ] Conductor **Completed**; deferred closeout; pin
+- [x] Phase-1 review → `review.md` until clean
+- [x] Codex read-only (F23) — CX1 FAIL P2 adjacency (fixed); CX2 product **PASS**
+- [x] Full gate: `.\scripts\dev-check.ps1` nextest **3217** passed, 1 skipped; `ledgerful verify --scope full` passed (fmt 2.3s / clippy 1.8s / nextest 114.5s / deny 2.5s / audit 2.7s)
+- [x] Conductor **Completed**; deferred closeout; pin
 - [ ] implement-track Phase 6: push `track/T269-*` → PR → watch GHA `CI` green → squash-merge → prune. Never `git push origin main`
 
 ---
 
 ## Definition of done
 
-- [ ] AC1–AC13 proven (units + hermetic + manual AC10 + docs)
-- [ ] T247/T255 nightly units still green
-- [ ] JSON keys / probe tokens / 750 ms / `--quick` skipped unchanged
-- [ ] No `cargo install`; no schtasks mutate; no `.env`; no contracts DTO
-- [ ] Medium+ review findings not silently dropped
+- [x] AC1–AC13 proven (units + hermetic + manual AC10 + docs)
+- [x] T247/T255 nightly units still green
+- [x] JSON keys / probe tokens / 750 ms / `--quick` skipped unchanged
+- [x] No `cargo install`; no schtasks mutate; no `.env`; no contracts DTO
+- [x] Medium+ review findings not silently dropped (CX1 P2 adjacency fixed; CX2 PASS)
 - [ ] Ledger BUGFIX TX committed; 0 pending / 0 unaudited drift
 - [ ] PR merged; local `main` at `origin/main`

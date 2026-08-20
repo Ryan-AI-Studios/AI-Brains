@@ -177,6 +177,7 @@ dependencies = [
  "predicates",
  "regex",
  "rpassword",
+ "rstest",
  "rusqlite",
  "serde",
  "serde_json",

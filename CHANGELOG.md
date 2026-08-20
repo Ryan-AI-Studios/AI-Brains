@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T269 Nightly vs Router status split:** Human `nightly --status` prints `Nightly: AI-Brains-Nightly` so Last Result **0** is not mixed with `Router: … 267009` (`SCHED_S_TASK_RUNNING`, success). Human `probe=timeout` is labeled `timeout (750ms)` (HTTP `/health` budget). JSON probe tokens, the 750 ms budget, and `--quick` `probe=skipped` are unchanged. Docs: CAPABILITIES T247/T255 honesty + OPERATIONS.
+
 - **T273 Sync query dash-leading ledger flags:** `sync query` always inserts POSIX `--` before the `ledgerful ledger search` QUERY so needles such as `--limit` / `--days` are search text, not Ledgerful flags. Operator form: `ai-brains sync query -- --limit` (vault flags `--quiet` / `--no-bridge` / `--limit N` stay **before** `--`). Vault `--limit` is unchanged. Docs: CAPABILITIES ledger pane.
 
 - **T268 scan-roots parent / `--root`:** `project scan-roots --root DIR` is a named XOR of the existing positional path (both set → clap exit **2**). Default stays cwd. Already-registered hits keep the owner and set JSON `suggested` to `""` (human `—`) instead of a no-op `register-path`. Implicit-cwd human scans with zero unregistered hits may print `next: ai-brains project scan-roots --root <git-toplevel-parent>` (fail-open if git is missing; no hint for volume/share roots; JSON keys unchanged). Docs: CAPABILITIES + OPERATIONS.

@@ -61,3 +61,4 @@ assert_cmd.workspace = true
 predicates.workspace = true
 serde_json.workspace = true
 regex.workspace = true
+rstest = "0.25"

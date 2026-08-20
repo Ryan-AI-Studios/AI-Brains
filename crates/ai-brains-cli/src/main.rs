@@ -607,6 +607,37 @@ mod tests {
         );
     }
 
+    /// T269 AC6: after_help names Nightly heading, 267009/SCHED, 750 ms, TCP, and `/health`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly__help__names_nightly_heading_and_probe_budget() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "nightly", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("AI-Brains-Nightly"),
+            "AC6: after_help names AI-Brains-Nightly; got: {help}"
+        );
+        assert!(
+            help.contains("267009") || help.contains("SCHED_S_TASK_RUNNING"),
+            "AC6: after_help names 267009 or SCHED_S_TASK_RUNNING; got: {help}"
+        );
+        assert!(
+            help.contains("750"),
+            "AC6: after_help names 750 ms budget; got: {help}"
+        );
+        assert!(
+            help.contains("TCP"),
+            "AC6: after_help names TCP vs HTTP; got: {help}"
+        );
+        assert!(
+            help.contains("/health"),
+            "AC6: after_help names /health; got: {help}"
+        );
+    }
+
     /// T273 AC12: after_help names POSIX `-- --limit` and contrasts vault `--limit 10`.
     #[test]
     #[allow(non_snake_case)]
@@ -1058,7 +1089,7 @@ enum Commands {
     /// Run nightly intelligence sweep
     #[command(
         display_order = 26,
-        after_help = "Default --format is human; pipes stay human (do not silently switch to JSON).\nScripts: pass --format json.\nExamples:\n  ai-brains nightly --status\n  ai-brains nightly --status --format json\n  ai-brains nightly --status --quick --format json"
+        after_help = "Default --format is human; pipes stay human (do not silently switch to JSON).\nScripts: pass --format json.\nNightly Last Result is AI-Brains-Nightly. Router 267009 is SCHED_S_TASK_RUNNING (success; ONLOGON keep-alive).\nprobe=timeout is HTTP /health within 750 ms. daemon status Open is TCP connect.\nExamples:\n  ai-brains nightly --status\n  ai-brains nightly --status --format json\n  ai-brains nightly --status --quick --format json"
     )]
     Nightly {
         /// Schedule this as a Windows scheduled task

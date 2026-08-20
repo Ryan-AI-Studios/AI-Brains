@@ -1,7 +1,7 @@
 # T269 — Nightly vs Router status split + probe honesty
 
 - **Track ID:** T269-NightlyRouterStatusSplit
-- **Status:** **Planned** (Pending in `conductor.md`; plan-only until go)
+- **Status:** **Completed** (2026-08-20)
 - **Category:** OPS / UX / BUGFIX
 - **Owner:** Grok
 - **Source:** Audit 2026-08-16 — friction: human mixes Nightly Last Result **0** with Router **267009**; full `--status` Completion `probe=timeout` while `daemon status` says LLM backend **Open**
