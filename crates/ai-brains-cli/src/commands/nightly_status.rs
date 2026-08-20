@@ -4,6 +4,18 @@ use crate::commands::multi_import::{MultiImportStatusView, SourceImportReport};
 use crate::commands::nightly::{explain_last_task_result, host_port_from_url};
 use serde::Serialize;
 
+/// Human heading so Nightly Last Result is not read as the Router task (T269 F1).
+pub(crate) const NIGHTLY_TASK_HEADING: &str = "Nightly: AI-Brains-Nightly";
+
+/// Suffix the HTTP `/health` budget on the exact `timeout` token only (T269 F3 / F27).
+pub(crate) fn format_probe_label_human(label: &str, budget_ms: u128) -> String {
+    if label == "timeout" {
+        format!("timeout ({budget_ms}ms)")
+    } else {
+        label.to_string()
+    }
+}
+
 /// Nightly `--status` format tokens (shared human/json map).
 pub(crate) fn resolve_nightly_status_format(explicit: &str, is_tty: bool) -> &'static str {
     crate::commands::format_resolve::resolve_human_json_format(explicit, is_tty)
@@ -360,6 +372,39 @@ mod tests {
         );
         assert_eq!(router["scheduled"], true);
         assert_eq!(router["task_to_run"], r"C:\llm\router.bat");
+    }
+
+    #[test]
+    fn nightly_task_heading__equals_nightly_ai_brains_nightly() {
+        assert_eq!(NIGHTLY_TASK_HEADING, "Nightly: AI-Brains-Nightly");
+    }
+
+    #[test]
+    fn format_probe_label_human__timeout__budget_suffix() {
+        assert_eq!(format_probe_label_human("timeout", 750), "timeout (750ms)");
+    }
+
+    #[rstest::rstest]
+    #[case("skipped")]
+    #[case("ok")]
+    #[case("down")]
+    #[case("error")]
+    #[case("")]
+    #[case("TIMEOUT")]
+    #[case("timeout-ish")]
+    fn format_probe_label_human__passthrough_labels__unchanged(#[case] label: &str) {
+        assert_eq!(format_probe_label_human(label, 750), label);
+    }
+
+    #[test]
+    fn build_nightly_status_json__timeout_probe__raw_token_no_budget_suffix() {
+        let mut input = fixture_input();
+        input.completion_probe = "timeout".to_string();
+        let status = build_nightly_status_json(input);
+        assert_eq!(status.completion.probe, "timeout");
+        let value = to_value(&status);
+        assert_eq!(value["completion"]["probe"], "timeout");
+        assert_ne!(value["completion"]["probe"], "timeout (750ms)");
     }
 
     #[test]

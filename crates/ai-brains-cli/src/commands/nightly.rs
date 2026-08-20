@@ -154,6 +154,7 @@ pub async fn run(
         }
 
         println!("=== Nightly Status ===");
+        println!("{}", crate::commands::nightly_status::NIGHTLY_TASK_HEADING);
         #[cfg(windows)]
         {
             for line in format_status_schedule_block(
@@ -183,13 +184,21 @@ pub async fn run(
             "Errors in last run: {}",
             last_errors_raw.as_deref().unwrap_or("[]")
         );
+        let completion_human = crate::commands::nightly_status::format_probe_label_human(
+            completion_label,
+            NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis(),
+        );
+        let embedding_human = crate::commands::nightly_status::format_probe_label_human(
+            embedding_label,
+            NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis(),
+        );
         println!(
             "{}",
             format_endpoint_line(
                 "Completion",
                 &model_url,
                 &completion_model,
-                completion_label,
+                &completion_human,
             )
         );
         println!(
@@ -198,7 +207,7 @@ pub async fn run(
                 "Embedding",
                 &embedding_url,
                 &embedding_model,
-                embedding_label,
+                &embedding_human,
             )
         );
         #[cfg(windows)]

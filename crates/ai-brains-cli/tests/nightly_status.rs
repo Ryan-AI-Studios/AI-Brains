@@ -89,6 +89,26 @@ fn nightly_status__default_format__human_header_even_if_piped() {
         stdout.contains("=== Nightly Status ==="),
         "piped default must stay human; got: {stdout}"
     );
+    let lines: Vec<&str> = stdout.lines().collect();
+    let banner = lines
+        .iter()
+        .position(|line| *line == "=== Nightly Status ===");
+    let Some(i) = banner else {
+        panic!("AC8: banner line missing; got: {stdout}");
+    };
+    assert_eq!(
+        lines.get(i + 1).copied(),
+        Some("Nightly: AI-Brains-Nightly"),
+        "AC8: heading must be the next line after the banner; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("probe=skipped"),
+        "AC8: --quick stays probe=skipped; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("(750ms)"),
+        "AC8: --quick must not print budget suffix; got: {stdout}"
+    );
 }
 
 /// AC14: `--format json --quick` skips probes (`probe` is the string `skipped`).
