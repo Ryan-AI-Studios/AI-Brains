@@ -505,6 +505,89 @@ mod tests {
         assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
 
+    /// T268 AC1: `--root DIR PATH` is clap ArgumentConflict (exit 2).
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__root_and_path__clap_argument_conflict() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "scan-roots",
+            "--root",
+            r"C:\dev",
+            r"C:\other",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --root with positional PATH"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    /// T268 AC1: `PATH --root DIR` is the same XOR.
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__path_then_root__clap_argument_conflict() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "scan-roots",
+            r"C:\other",
+            "--root",
+            r"C:\dev",
+        ]) {
+            Ok(_) => panic!("expected clap to reject positional PATH with --root"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    /// T268 F1: `--root DIR` alone parses into the named field.
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__root_flag__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "project",
+            "scan-roots",
+            "--root",
+            r"C:\dev",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected scan-roots --root to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::ScanRoots { root, path, .. },
+            } => {
+                assert_eq!(root.as_deref(), Some(r"C:\dev"));
+                assert!(path.is_none(), "positional stays None when --root is set");
+            }
+            _ => panic!("expected ProjectCommands::ScanRoots"),
+        }
+    }
+
+    /// T268 AC13: after_help names `--root` and both C:\\dev examples.
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__help__names_root_and_positional() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "project", "scan-roots", "--help"])
+        {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("--root"),
+            "AC13: after_help names --root; got: {help}"
+        );
+        assert!(
+            help.contains(r"C:\dev") || help.contains("C:\\dev"),
+            "AC13: after_help keeps C:\\dev examples; got: {help}"
+        );
+    }
+
     /// T266 AC7: `--format pretty` parses on whoami.
     #[test]
     #[allow(non_snake_case)]
@@ -2522,11 +2605,14 @@ pub enum ProjectCommands {
     },
     /// Discover immediate child directories that contain .ledgerful (dry-run; never writes)
     #[command(
-        after_help = "Default --format auto = TTY table / pipe JSON. Agents that want a table pass --format human. Scripts pass --format json.\nDry-run only. Never appends events. Never writes .env. Never auto-registers.\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --format human\n  ai-brains project scan-roots --format json"
+        after_help = "Default --format auto = TTY table / pipe JSON. Agents that want a table pass --format human. Scripts pass --format json.\nDry-run only. Never appends events. Never writes .env. Never auto-registers.\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\n`--root DIR` is a named alias of the positional path (not both). Default is cwd — not the parent.\nAlready-registered hits list the owner; suggested is empty (human —). Use unregister-path / rebind-path to move a bind.\nWhen the implicit-cwd scan has no unregistered hits, human output may print `next: ai-brains project scan-roots --root <git-parent>`.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --root C:\\dev\n  ai-brains project scan-roots --format human\n  ai-brains project scan-roots --format json"
     )]
     ScanRoots {
         /// Directory to scan (default: cwd). Immediate children only.
         path: Option<String>,
+        /// Named alias of PATH (conflicts with positional)
+        #[arg(long, value_name = "DIR", conflicts_with = "path")]
+        root: Option<String>,
         /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
         #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
@@ -4592,8 +4678,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 yes,
                 format,
             } => commands::project_rebind::run(&ctx, path, to, *write, *yes, format),
-            ProjectCommands::ScanRoots { path, format } => {
-                commands::project_paths::scan_roots(&ctx, path.as_deref(), format)
+            ProjectCommands::ScanRoots { path, root, format } => {
+                commands::project_paths::scan_roots(
+                    &ctx,
+                    root.as_deref().or(path.as_deref()),
+                    format,
+                )
             }
             ProjectCommands::UnregisterPath {
                 path,

@@ -605,7 +605,7 @@ This is independent of Task Scheduler **System32** cwd: roots come from vault pa
 | `project list-paths` | **All** registered roots | Operator inventory (not just `project list` first-path). `--project` / `--shared-only` filter leftover multi-root IDs |
 | `project unregister-path <path>` | Compensating **Removed** event | Frees the path for another project; symbols stay |
 | `project rebind-path <path> --to <dest>` | Removed (from) + Added (to) in **one tx** | Confirmable per-path split; memories stay on from |
-| `project scan-roots [path]` | Dry-run `.ledgerful` discovery | Suggested `register-path` commands; never writes |
+| `project scan-roots [path]` / `--root DIR` | Dry-run `.ledgerful` discovery | Unregistered hits suggest `register-path`; registered suggested is empty; never writes |
 
 Putting a path string into `set-alias` does **not** register a path alias. `project list` **path** column shows a registered path alias when present; it is never invented from cwd/git. Labels like `C:\dev\foo` in the label column are **not** path aliases unless you also ran `register-path`.
 
@@ -619,7 +619,7 @@ ai-brains project register-path <id-or-alias> C:\dev\ledgerful
 
 - **Conflict (F21):** the same normalized path can only belong to one project — second owner gets **exit 1** + ownership message naming `ai-brains project unregister-path <path>`. Same project re-register is idempotent OK. Projection **refuses to steal** if a raced other-owner `Added` is applied.
 - **Correct a wrong bind:** prefer `project rebind-path <path> --to <dest>` (print-only, then `--write --yes`) so unregister+register cannot be half-applied. The two-step `unregister-path` then `register-path` remains available but is not the happy path. Neither command forgets ingested symbols; Phase 2 simply stops walking the path for the from-project.
-- **Discover roots:** `project scan-roots C:\dev` lists immediate children (plus the scan root) that contain `.ledgerful`. Dry-run — never registers, never writes `.env`. `.changeguard` leftover dirs are **not** hits.
+- **Discover roots:** `project scan-roots C:\dev` or `project scan-roots --root C:\dev` lists immediate children (plus the scan root) that contain `.ledgerful`. `--root` XOR positional (both set → exit **2**). Default is cwd — not the parent. Dry-run — never registers, never writes `.env`. `.changeguard` leftover dirs are **not** hits. Already-registered rows list the owner and leave `suggested` empty (human `—`). From inside a git worktree, implicit-cwd human output with no unregistered hits may print `next: ai-brains project scan-roots --root <parent-of-toplevel>` so sibling roots under that parent can be scanned.
 - **Zero aliases:** Phase 2 is a no-op + stderr hint to run `register-path` (Phase 1 still runs). `project list-paths` prints the empty next-step.
 - **Missing root / Ledgerful failure:** per-root warn + continue (non-fatal). Nightly logs `bridge_roots_failed` on symbol ingest error so totals add up.
 - **Env caps:** `AI_BRAINS_NIGHTLY_MAX_ROOTS` (optional list truncate); `AI_BRAINS_NIGHTLY_MAX_SYMBOLS` (default **5000**, per-root ingest cap).
