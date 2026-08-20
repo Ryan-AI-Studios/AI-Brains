@@ -232,7 +232,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
 | `scan-roots` cwd-only (4/5) | ✅ **T268 Completed 2026-08-19** — `--root` XOR positional; empty suggested when registered; human parent hint. Soft: PATH reinstall; leftover `7d97a456` (T259); JSON `next_step` declined. |
 | ~~Nightly human mixes Router 267009; completion probe timeout~~ | ✅ **T269 Completed 2026-08-20** — human `Nightly:` heading + `probe=timeout (750ms)`; JSON frozen; 750 ms not raised |
-| `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
+| `retention plan` 0 candidates on 35,300 memories (6/5) | **T270 Planned 2026-08-20** — inventory overlay (pinned→held); go still required |
 | ~~`sync query` ledger pane false-empty (5/5)~~ | **T271 Completed 2026-08-19.** Stop FTS-quoting `ledgerful ledger search`; first-seen token rescue; named misses. Soft: PATH `cargo install`; Ledgerful token-OR; picker vs sequential probe. |
 
 ### T257 closeout residuals (2026-08-17)
@@ -611,6 +611,23 @@ Specified softs — not product blockers:
 | Agy O1 `index_section` | **Already** AC2 / plan |
 | Agy O2 rebuild comment | **Folded** F28 |
 | No B/M | Nothing to decline |
+
+### T270 planning absorption (2026-08-20) — inventory overlay; no migrate
+
+| Item | Disposition |
+|------|-------------|
+| Audit 6/5 zero candidates on ~35k (live **38,208** pinned) | **Absorb** F1–F11 / AC1–AC13 — COUNT + ≤5 samples; pinned→held; other→skip |
+| Placeholder F1 honesty sentence only | **Partial** — warning const **plus** overlay (sentence-only insufficient) |
+| Placeholder F2 optional overlay | **Absorb** — chosen over migrate governed |
+| Placeholder F3 `none_auto` / F4 apply confirm | **Affirm** |
+| T166 §5.1.5 stream-A memory_legacy | **Absorb as inventory** (not per-row age wipe / not `soft_forget`) |
+| T167 `classify_legacy` / `migrate governed` remediator | **Decline** F18 |
+| T248 empty-check `candidates==0` / Work-all-classes | **Lift** F8/F9 — `Nothing to dispose.` = no CE/projection; Work = dispose mechanisms only |
+| T248 F16 doctor / F17 engine leftovers / nightly restyle | **Decline** |
+| Identity mismatch `7d97a456` vs `fcb8a40f` (agent observation) | **Decline** F19 — T240/T257/T258 `adopt-path`; this cwd `whoami` mismatch false; **no T274** |
+| last-PR Cursor #187 | **N/A** — comments/reviews empty |
+| T273 F7 / leftover rebind / T240 F2 / clap 5 / rusqlite 0.40 | **Decline** |
+| Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` | **Decline** |
 
 ### T272 closeout residuals (2026-08-20)
 
