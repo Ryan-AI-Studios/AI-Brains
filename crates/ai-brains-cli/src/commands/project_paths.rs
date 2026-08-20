@@ -636,6 +636,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn parent_scan_hint__parent_drive_root_C__none() {
         assert!(
@@ -644,6 +645,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn parent_scan_hint__parent_drive_root_c_lower__none() {
         assert!(
@@ -652,6 +654,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn parent_scan_hint__parent_drive_letter_only__none() {
         assert!(
@@ -660,6 +663,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn parent_scan_hint__parent_unc_share_root__none() {
         assert!(
