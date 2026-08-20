@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can tell **two tasks** apart and can tell HTTP `/health` budget-timeout from “backend down.” Does **not** unblock T270 retention classify or T272 Safety skip.
 - **Absorbs:** deferred.md “Nightly human mixes Router 267009; completion probe timeout”; placeholder F1–F5
 - **Not absorbed (DoD):** Raise 750 ms (T255 F18 / llama.cpp `/health` queue); unify daemon TCP with HTTP; JSON `probe_budget_ms` / schema bump; doctor 16th; persist probe; product `.cmd` / schedule-Router; `--quick --no-vault`; T270 / T272; T273 F7 `bridge_search_args`; clap 5 / pin bumps; contracts DTO
-- **Research date:** 2026-08-20 (source HEAD `6825343`)
-- **AI fold-in:** none yet (planning pass). Disposition lands in **§13** after review-track.
-- **Ledger:** planning DOCS TX `7f7f7fd2-5ce1-4892-94d0-451699366dd0`. Implement starts a **BUGFIX** TX on **go**.
+- **Research date:** 2026-08-20 (source HEAD `6825343` at plan; fold-in against `5bfc088` — product tree identical)
+- **AI fold-in:** 2026-08-20 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Agree:** OpenCode m line counts (2124/593 total); OpenCode HEAD note `5bfc088`; Agy m1 unknown-label pass-through (AC2 extra cases); Agy m2 all-OS heading (F1 print **outside** `#[cfg(windows)]`; AC8 hermetic not windows-only); Agy O2 AC6 needles `TCP` + `/health`. **Already covered:** Agy O1 `NIGHTLY_TASK_HEADING` (F1 / AC1 / §5.2); OpenCode O docs.rs (F10 live `main.rs:1058`). **Decline:** none of the B/M (none filed). Disposition **§13**.
+- **Ledger:** planning DOCS TX `7f7f7fd2-5ce1-4892-94d0-451699366dd0`. Fold-in DOCS TX `6c22c5b1-463f-492f-a656-4514742b412f`. Implement starts a **BUGFIX** TX on **go**.
 - **Isolation:** Do **not** reopen T247 `--quick` / 750 ms `join!` / LIST /V / missing-action, T255 JSON keys / Router line format / `found` vs `next_run`, T229 F5 truncate, T239 multi-import. Do **not** mutate `AI-Brains-Nightly` or `AI-Brains-Router`. Do **not** `cargo install`, pin to the live vault as implement, rewrite `.env`, or print `AI_BRAINS_KEY`.
 
 ---
@@ -33,7 +33,7 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `6825343` — T273 squash-merged (#185). Tree **CLEAN**. `main` == `origin/main`. |
+| HEAD | Plan dogfood at `6825343` (T273 #185). Fold-in against `5bfc088` (this planning docs commit). Product `src/` is identical; tree **CLEAN**. `main` == `origin/main`. |
 | PATH `ai-brains` | **0.1.1**. `nightly --status --quick` already has T255 Router line. **Do not `cargo install`.** Tests/manual AC use `cargo run` / hermetic / PATH (PATH is current enough for this chrome). |
 | PATH `--status --quick` | `Last task result: 0` (no `Nightly:` heading). Then `Router: Running  last result: 267009` + `task still running (SCHED_S_TASK_RUNNING)`. `probe=skipped`. Multi-import 2026-08-20 ok. **Live hole 1 confirmed.** |
 | PATH `--status --format json` (full, not `--quick`) | `last_task_result: "0"` vs `router.last_result: "267009"` / `task_to_run: C:\llm\router.bat`. `completion.probe: "timeout"`. `embedding.probe: "ok"`. Exit **0**. JSON already split. |
@@ -61,16 +61,16 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 | Item | Location | Notes |
 |------|----------|-------|
 | Status branch | `nightly.rs` `run` `if status` ~40–217 | Human `println!` after JSON early-return. No `Nightly:` heading. |
-| Banner | `println!("=== Nightly Status ===")` ~156 | Keep. Heading goes **after** this, **before** `format_status_schedule_block`. |
+| Banner | `println!("=== Nightly Status ===")` ~156 | Keep. Heading `println!` is the **next** line, **outside** `#[cfg(windows)]`. Then the windows schedule block / `not(windows)` `Scheduled: (unknown on non-Windows)`. |
 | Schedule block | `format_status_schedule_block` ~890 | `Scheduled:` → `Last task result:` → hint? → `Last scheduled run` → action missing. **Do not change internals** (T247 units lock `lines[1] == "Last task result: 101"`). |
 | Endpoint line | `format_endpoint_line` ~800 | `{kind}: {host_port}  model={model}  probe={label}`. **Keep 4-arg signature.** Wrap the label on the **human** call site only. |
 | Probe timeout | `NIGHTLY_STATUS_PROBE_TIMEOUT` ~13 = **750 ms**; run-path `NIGHTLY_PROBE_TIMEOUT` = **2s** | Do not change either. Pass `.as_millis()` into the human wrapper. |
 | Probe labels | `ProbeStatus::as_label` → `ok\|down\|timeout\|error`; `--quick` string `"skipped"` (T247 F19) | JSON uses raw label. Human timeout gets ` (750ms)` suffix. |
 | Router lines | `nightly_status.rs` `format_router_status_lines` ~146 | Exact `Router: Running  last result: 267009` (T255 AC6). **Do not restyle.** |
 | JSON builder | `build_nightly_status_json` | Frozen keys in `FROZEN_KEYS`. `completion.probe` is the raw label. |
-| clap | `main.rs` `Nightly` ~1059 | `after_help` format examples only. Additive honesty. `#[command(after_help = …)]` still clap **4** (`docs.rs/clap/4.6.6` `Command::after_help`). |
+| clap | `main.rs` `Nightly` ~1059 | `after_help` format examples only. Additive honesty. `#[command(after_help = …)]` still clap **4**. API proven live here + T268/T273 AC tests (`main.rs:610–645`). docs.rs 4.6.6 page may truncate on fetch — not a pin change. |
 | Tests | `nightly.rs` T229/T247 units; `nightly_status.rs` T255 units | Stay green. New units in `nightly_status.rs`. |
-| Hotspots | `project.rs` **#1** (4.027); `sync.rs` #2; `daemon.rs` **#10** | Do **not** touch. `nightly.rs` **1964** lines / `nightly_status.rs` **554** — not top-10. New helpers in `nightly_status.rs`. |
+| Hotspots | `project.rs` **#1** (4.027); `sync.rs` #2; `daemon.rs` **#10** | Do **not** touch. `nightly.rs` **2124** total / **1964** non-blank; `nightly_status.rs` **593** total / **554** non-blank — not top-10. New helpers in `nightly_status.rs`. |
 | Doctor / embeddings / daemon probe | `doctor.rs` 15; `embeddings.rs` 50 ms; `daemon.rs` TCP | Untouched. |
 
 ### 2.4 Dependency / standards research (2026-08-20)
@@ -110,7 +110,7 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 | ID | Decision |
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `7f7f7fd2`. Implement starts a **BUGFIX** TX. |
-| **F1 — Nightly heading** | Human status prints `Nightly: AI-Brains-Nightly` immediately after `=== Nightly Status ===` and **before** `format_status_schedule_block`. Same string on Windows and non-Windows (task name is a product constant; Unix still has no schtasks block). Do **not** rename `Last task result:` (T247 substring lock). |
+| **F1 — Nightly heading** | Human status prints `Nightly: AI-Brains-Nightly` immediately after `=== Nightly Status ===`. The `println!` is **outside** `#[cfg(windows)]` (Agy m2) so Ubuntu/macOS CI see it, then the windows schedule block **or** `Scheduled: (unknown on non-Windows)`. Const is `pub(crate) NIGHTLY_TASK_HEADING` in `nightly_status.rs` (Agy O1). Do **not** nest the heading inside the windows-only arm. Do **not** rename `Last task result:` (T247 substring lock). |
 | **F2 — `--quick`** | Still `probe=skipped` (string literal). No HTTP. No `(750ms)` suffix on skipped / ok / down / error. |
 | **F3 — Timeout label (human only)** | When the raw probe label is `"timeout"`, human `format_endpoint_line` receives `timeout ({ms}ms)` where `{ms}` is `NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis()` (**750** today). JSON / `--format json` keep the raw token `"timeout"`. |
 | **F4 — Do not raise 750 ms** | Affirm T255 F18 / T247 parallel 750 ms. Evidence: llama.cpp #20684; live daemon Open vs HTTP timeout. Run-path probe stays **2s**. |
@@ -119,7 +119,7 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 | **F7 — `format_status_schedule_block` frozen** | Do not inject the heading inside the helper (T247 `lines[1] == Last task result: 101`). Print heading at the status call site. |
 | **F8 — `format_endpoint_line` signature frozen** | Still 4 args. New `format_probe_label_human(label, budget_ms) -> String` in `nightly_status.rs`. Human path wraps; JSON path does not. |
 | **F9 — Module** | New helpers + their units live in `nightly_status.rs`. `nightly.rs` prints / dispatches only. **Do not** move T229/T247 tests out of `nightly.rs`. **Do not** grow `project.rs` / `sync.rs` / `daemon.rs`. |
-| **F10 — after_help additive** | Keep T255 format examples. Add honesty: Nightly Last Result is `AI-Brains-Nightly`; Router **267009** is `SCHED_S_TASK_RUNNING` (success; ONLOGON keep-alive); `probe=timeout` is HTTP `/health` within **750 ms**; `daemon status` Open is TCP connect. |
+| **F10 — after_help additive** | Keep T255 format examples. Add honesty: Nightly Last Result is `AI-Brains-Nightly`; Router **267009** is `SCHED_S_TASK_RUNNING` (success; ONLOGON keep-alive); `probe=timeout` is HTTP `/health` within **750 ms**; `daemon status` Open is TCP connect. AC6 **requires** the needles `TCP` and `/health` (Agy O2), not only `750`. |
 | **F11 — Docs** | CAPABILITIES T247/T255 honesty: one additive bullet (not a new section). OPERATIONS: heading + timeout-budget sentence. Root CHANGELOG T269 row. CLI-EXIT-CODES unchanged (status still exit **0**). |
 | **F12 — Exit 0** | Unchanged. Timeout / 267009 / down are still success for `--status`. |
 | **F13 — Capture independence** | Status/docs only. No events. No `sync_state` probe write (T255 F12). |
@@ -131,12 +131,12 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 | **F19 — Decline doctor 16th / persist probe / embed sleep / wrapper / `--no-vault`** | T255 F11–F15 stand. |
 | **F20 — Decline T270 / T272 / T273 F7** | Peers. `bridge_search_args` dash-query stays T273 soft residual. |
 | **F21 — Decline JSON budget field** | Human + docs + after_help are the remediator. Soft residual if scripts treat `timeout` as “server dead.” |
-| **F22 — Tests** | Naming `function_or_feature__condition__expected_result`. Units for heading const, probe wrapper (timeout vs skipped/ok/down/error), after_help needles. Existing T247/T255 units stay green. Hermetic `--quick` contains heading + `probe=skipped` and does **not** contain `(750ms)`. No `unwrap`/`expect`/`panic` in production. |
+| **F22 — Tests** | Naming `function_or_feature__condition__expected_result`. Units for heading const, AC2 pass-through cases, AC6 after_help needles (`TCP` + `/health`). Existing T247/T255 units stay green. AC8 all-OS hermetic `--quick` contains heading + `probe=skipped` and does **not** contain `(750ms)`. No `unwrap`/`expect`/`panic` in production. |
 | **F23 — Cross-model** | Honesty UX on the status path (easy T255 regression). After Phase-1 review clean, run read-only `codex-review`. |
 | **F24 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals go to `conductor/deferred.md`. |
 | **F25 — last-PR Cursor** | #185 empty → N/A. #184 Linux Path already declined (no T274). |
-| **F26 — Non-Windows** | Heading still prints. Scheduler / Router lines still omitted (T229/T255). JSON `scheduled`/`router` still `null`. |
-| **F27 — Helper purity** | `format_probe_label_human` is pure (`&str`, `u128` millis → `String`). No I/O. Compare with `== "timeout"` (the `as_label` token), not `contains`. |
+| **F26 — Non-Windows** | Heading still prints (F1, outside `cfg(windows)`). Scheduler / Router lines still omitted (T229/T255). JSON `scheduled`/`router` still `null`. AC8 hermetic is the existing all-OS `tests/nightly_status.rs` file (T255 AC10 header test) — **not** `#[cfg(windows)]`. |
+| **F27 — Helper purity** | `format_probe_label_human` is pure (`&str`, `u128` millis → `String`). No I/O. Compare with `== "timeout"` (the `as_label` token), **not** `contains`, **not** case-fold. `"TIMEOUT"`, `"timeout-ish"`, `""`, and any other string pass through unchanged (Agy m1). |
 
 ---
 
@@ -145,13 +145,13 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 | AC | Proof |
 |----|-------|
 | **AC1** | Unit: `NIGHTLY_TASK_HEADING` (or helper) equals `Nightly: AI-Brains-Nightly` |
-| **AC2** | Unit: `format_probe_label_human("timeout", 750) == "timeout (750ms)"`. `"skipped"` / `"ok"` / `"down"` / `"error"` round-trip unchanged (rstest `#[case]`) |
+| **AC2** | Unit (rstest `#[case]`): `format_probe_label_human("timeout", 750) == "timeout (750ms)"`. Pass-through (unchanged): `"skipped"`, `"ok"`, `"down"`, `"error"`, `""`, `"TIMEOUT"`, `"timeout-ish"` (F27 exact `== "timeout"`) |
 | **AC3** | Existing T247: `format_status_schedule_block` still has `Last task result: 101` as today (do not insert heading into the vec) |
 | **AC4** | Existing T255: `format_router_status_lines(true, Some("Running"), Some("267009"))` first line still `Router: Running  last result: 267009`; hint still the following line |
 | **AC5** | Existing T255 JSON fixture: `completion.probe == "skipped"` (or whatever the fixture sets); a timeout fixture (if added) serializes `"timeout"` **without** ` (750ms)` |
-| **AC6** | Clap: `nightly --help` after_help contains `AI-Brains-Nightly`, `267009` or `SCHED_S_TASK_RUNNING`, and `750` |
+| **AC6** | Clap: `nightly --help` after_help contains `AI-Brains-Nightly`; `267009` or `SCHED_S_TASK_RUNNING`; `750`; **`TCP`**; and **`/health`** (F10 / Agy O2). Keep T255 format examples. |
 | **AC7** | Existing T247: `format_endpoint_line(…, "skipped")` still contains `probe=skipped` and does **not** require the wrapper |
-| **AC8** | Hermetic / process: `nightly --status --quick` (temp vault) stdout contains `Nightly: AI-Brains-Nightly` and `probe=skipped` and does **not** contain `(750ms)`. Exit **0**. May contain live `Router:` (host schtasks — do **not** assert 267009) |
+| **AC8** | All-OS hermetic in `crates/ai-brains-cli/tests/nightly_status.rs` (extend T255 `nightly_status__default_format__human_header_even_if_piped`; **not** `#[cfg(windows)]`): `--status --quick` contains `Nightly: AI-Brains-Nightly` and `probe=skipped` and does **not** contain `(750ms)`. Exit **0**. Do **not** assert live `267009` (T255 AC9 lesson). Ubuntu/macOS CI is the F26 proof. |
 | **AC9** | Hermetic: `nightly --status --format json --quick` stdout is JSON, `completion.probe == "skipped"`, no `=== Nightly Status ===`. Frozen keys still present |
 | **AC10** | Manual (source or PATH): full `nightly --status` (not `--quick`) shows `Nightly: AI-Brains-Nightly`, `Last task result: 0` (volatile), `Router: … 267009`, and if Completion is timeout then `probe=timeout (750ms)`. `daemon status` may still say Open. Exit **0**. Do **not** mutate tasks |
 | **AC11** | Docs: CAPABILITIES additive T247/T255 bullet; OPERATIONS heading + 750 ms vs TCP sentence; root CHANGELOG T269 row |
@@ -183,6 +183,16 @@ Multi-import: …
 ```
 
 `--quick` Completion/Embedding stay `probe=skipped` (no budget suffix).
+
+Non-Windows (F1 / F26):
+
+```text
+=== Nightly Status ===
+Nightly: AI-Brains-Nightly
+Scheduled: (unknown on non-Windows)
+Last nightly run: …
+…
+```
 
 ### 5.2 Helper sketch (not implement)
 
@@ -229,7 +239,7 @@ No `MemoryPinned`, no probe persistence, no models on `--quick`. Router fetch st
 
 ## 7. Verification plan
 
-TDD: failing units **first** (heading const, probe wrapper cases, after_help needles), then wire the call site.
+TDD: failing units **first** (heading const, AC2 rstest including `"TIMEOUT"` / `"timeout-ish"`, after_help needles including `TCP` + `/health`), then wire the call site. AC8 extends the existing all-OS hermetic.
 
 ```powershell
 # Red → green
@@ -340,6 +350,33 @@ Entire `conductor/deferred.md` scanned 2026-08-20. `ISSUES.md` does not exist.
 
 ---
 
-## 13. Fold-in disposition
+## 13. Fold-in disposition (2026-08-20)
 
-Empty until `/review-track` + `/fold-in`. Do not edit `*-review.md` from this planning pass.
+Inputs: `agy-review.md` + `opencode-review.md`. **Do not edit those files.** Live re-check: `nightly.rs` 2124 total / 1964 non-blank; `nightly_status.rs` 593 / 554; banner `:156`; `not(windows)` `:169–171`; T247 `lines[1] == "Last task result: 101"` `:1705`; `format_endpoint_line` 4-arg `:800`; `ProbeStatus::as_label` exact tokens; hermetic `tests/nightly_status.rs` is **not** `cfg(windows)`; Nightly `after_help` `main.rs:1058–1062`. Pins unchanged (clap lock 4.6.1 / crates.io 4.6.6, no clap 5).
+
+### OpenCode
+
+| Item | Disposition |
+|------|-------------|
+| **m** stale line counts 1964/554 vs 2124/593 | **Folded** §2.3 / plan preflight — both counts: `.Count` total vs `Measure-Object -Line` non-blank. Helpers still belong in `nightly_status.rs`. |
+| **m/O** research HEAD `6825343` vs `5bfc088` | **Folded** §2.1 — product tree identical; fold-in against `5bfc088`. |
+| **O** docs.rs clap 4.6.6 truncated | **Already** F10 — `Command::after_help` proven live at `main.rs:1058` + T268/T273 tests `:610–645`. Note in §2.3 clap row. |
+
+### Agy
+
+| Item | Disposition |
+|------|-------------|
+| **m1** exact `== "timeout"`; other tokens pass through | **Folded** F27 + AC2 extra cases (`""`, `"TIMEOUT"`, `"timeout-ish"`). Not `contains`, not case-fold. |
+| **m2** heading on non-Windows / Ubuntu+macOS CI | **Folded** F1 print **outside** `#[cfg(windows)]`; F26; AC8 extends all-OS `tests/nightly_status.rs` (no `cfg(windows)`). |
+| **O1** `NIGHTLY_TASK_HEADING` const in `nightly_status.rs` | **Already** F1 / AC1 / §5.2 sketch. |
+| **O2** after_help TCP vs HTTP `/health` | **Folded** AC6 needles **require** `TCP` and `/health` (F10 prose already said it). |
+
+### Pins locked by fold-in
+
+1. **F1:** heading `println!` is **not** inside `#[cfg(windows)]`.
+2. **F27 / AC2:** suffix iff `label == "timeout"`; `"TIMEOUT"` / `"timeout-ish"` / `""` unchanged.
+3. **AC8:** all-OS hermetic in `tests/nightly_status.rs`; do not windows-gate the heading assert.
+4. **AC6:** after_help must contain `TCP` and `/health` (plus existing 750 / Nightly / 267009-or-SCHED needles).
+5. Line counts: 2124 / 593 total. No hotspot claim change.
+
+**Decline:** none of the B/M (none filed). No T274. last-PR #185 still N/A.

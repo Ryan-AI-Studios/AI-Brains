@@ -531,6 +531,19 @@ Specified softs — not product blockers:
 | Agy O1 `pub(crate)` / O2 recall residual | **Already** F11 / F7 |
 | OpenCode m-1 | **Already** closed by B-1 |
 
+### T269 fold-in (2026-08-20) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m line counts 2124/593 vs 1964/554 | **Folded** — both: total `.Count` vs non-blank `-Line` |
+| OpenCode m/O HEAD `6825343` vs `5bfc088` | **Folded** — product tree identical |
+| OpenCode O docs.rs truncated | **Already** F10 live `main.rs` after_help |
+| Agy m1 `== "timeout"` pass-through | **Folded** F27 / AC2 extra cases |
+| Agy m2 non-Windows heading | **Folded** F1 outside `cfg(windows)` / AC8 all-OS hermetic |
+| Agy O1 heading const | **Already** F1 / AC1 |
+| Agy O2 after_help TCP vs `/health` | **Folded** AC6 required needles |
+| No B/M | Nothing to decline |
+
 ### T269 planning absorption (2026-08-20) — Nightly heading + timeout budget; no 750 ms raise
 
 | Item | Disposition |

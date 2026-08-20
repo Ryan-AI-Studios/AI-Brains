@@ -1,10 +1,25 @@
 # T269 Plan — Nightly vs Router status split + probe honesty
 
 **Status:** **Pending** (Planned; not In Progress)
-**Spec:** [spec.md](./spec.md) F0–F27 / AC1–AC13 + §13 reserved for fold-in
+**Spec:** [spec.md](./spec.md) F0–F27 / AC1–AC13 + §13 AI fold-in
 **Category:** OPS / UX / BUGFIX
 **Ledger TX (planning):** `7f7f7fd2-5ce1-4892-94d0-451699366dd0` (DOCS)
+**Ledger TX (fold-in):** `6c22c5b1-463f-492f-a656-4514742b412f` (DOCS)
 **Ledger TX (implement):** on **go** (BUGFIX)
+
+---
+
+## AI fold-in (2026-08-20) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F1:** heading `println!` is **outside** `#[cfg(windows)]`.
+2. **F27 / AC2:** suffix iff `label == "timeout"`; `"TIMEOUT"` / `"timeout-ish"` / `""` pass through.
+3. **AC8:** all-OS hermetic in `tests/nightly_status.rs` (not `cfg(windows)`).
+4. **AC6:** after_help needles include `TCP` and `/health`.
+5. Line counts: `nightly.rs` **2124** total / `nightly_status.rs` **593** total.
 
 ---
 
@@ -12,7 +27,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `6825343` CLEAN; `main` == `origin/main` |
+| HEAD / tree | Plan dogfood `6825343`; fold-in `5bfc088` (docs-only; product tree identical). CLEAN; `main` == `origin/main` |
 | T229 / T247 / T255 | ✅ in source: JSON, Router line, 750 ms, `--quick` |
 | PATH `ai-brains` | `0.1.1`. `--status --quick`: `Last task result: 0` (no Nightly heading) + `Router: Running  last result: 267009`. Full JSON: `completion.probe=timeout` vs daemon **Open** |
 | `AI-Brains-Nightly` | Ready; Last Result **0**; `/tr` quoted `ai-brains.exe nightly` |
@@ -21,7 +36,7 @@
 | Open PR on HEAD | none (Dependabot remotes only) |
 | Pins | clap lock **4.6.1** (crates.io 4.6.6; **no clap 5**); serde_json **1.0.150**; tokio **1.52.3** — **no bumps** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.1** |
-| Hotspots | `project.rs` **#1** — do not grow. `nightly.rs` 1964 lines, not top-10 → helpers in `nightly_status.rs` |
+| Hotspots | `project.rs` **#1** — do not grow. `nightly.rs` **2124** total / **1964** non-blank, not top-10 → helpers in `nightly_status.rs` (**593** / **554**) |
 | Ledger | 0 pending at scan; planning TX `7f7f7fd2` |
 | `ISSUES.md` | **Does not exist** |
 | ledgerful search | `NIGHTLY_STATUS_PROBE_TIMEOUT` at `nightly.rs:13` |
@@ -69,15 +84,15 @@
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] AC1 unit: heading `Nightly: AI-Brains-Nightly`
-- [ ] AC2 rstest `#[case]`: timeout → `timeout (750ms)`; skipped/ok/down/error unchanged
-- [ ] AC6 clap: `nightly --help` contains `AI-Brains-Nightly`, `267009` or `SCHED_S_TASK_RUNNING`, and `750`
+- [ ] AC1 unit: heading const `Nightly: AI-Brains-Nightly`
+- [ ] AC2 rstest `#[case]`: timeout → `timeout (750ms)`; skipped/ok/down/error/`""`/`"TIMEOUT"`/`"timeout-ish"` unchanged
+- [ ] AC6 clap: `nightly --help` contains `AI-Brains-Nightly`, `267009` or `SCHED_S_TASK_RUNNING`, `750`, `TCP`, and `/health`
 - [ ] Commit red allowed
 
 ## Phase 2 — Green (helpers + call site)
 
 - [ ] `NIGHTLY_TASK_HEADING` + `format_probe_label_human` in `nightly_status.rs`
-- [ ] Status human: print heading after banner; wrap Completion/Embedding labels with `NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis()`
+- [ ] Status human: print heading after banner **outside** `#[cfg(windows)]`; wrap Completion/Embedding labels with `NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis()`
 - [ ] JSON path: raw `as_label` / `"skipped"` unchanged
 - [ ] Additive Nightly `after_help` (keep T255 format examples)
 - [ ] Do **not** edit `format_status_schedule_block` / Router formatter / probe Duration consts / `format_endpoint_line` signature
@@ -85,7 +100,7 @@
 ## Phase 3 — Regressions + hermetic
 
 - [ ] AC3/AC4/AC5/AC7/AC9/AC13 existing units green
-- [ ] AC8 hermetic `--quick`: heading + `probe=skipped`, no `(750ms)`
+- [ ] AC8 all-OS hermetic in `tests/nightly_status.rs` (not `cfg(windows)`): heading + `probe=skipped`, no `(750ms)`
 - [ ] `cargo nextest run -p ai-brains-cli --lib nightly_status` ; `--lib nightly` ; `-E "test(nightly)"`
 - [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
 
