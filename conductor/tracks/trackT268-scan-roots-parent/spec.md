@@ -1,9 +1,9 @@
 # T268 — scan-roots parent / `--root`
 
 - **Track ID:** T268-ScanRootsParent
-- **Status:** **Pending** (requirements written; **Planned**, not Placeholder). Plan-only until go.
+- **Status:** ✅ **Completed** (2026-08-19).
 - **Category:** UX
-- **Owner:** —
+- **Owner:** Grok
 - **Source:** Audit 2026-08-16 — `project scan-roots` **4/5**. Live re-scan 2026-08-19.
 - **Depends on:** T254 ✅ scan-roots dry-run; T266 ✅ `--format` tokens on ScanRoots
 - **Blocks / feeds:** Operators can discover sibling `.ledgerful` roots without inventing a new default. **T273** minted here from last-PR Cursor (not this DoD).

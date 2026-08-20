@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T268 scan-roots parent / `--root`:** `project scan-roots --root DIR` is a named XOR of the existing positional path (both set → clap exit **2**). Default stays cwd. Already-registered hits keep the owner and set JSON `suggested` to `""` (human `—`) instead of a no-op `register-path`. Implicit-cwd human scans with zero unregistered hits may print `next: ai-brains project scan-roots --root <git-toplevel-parent>` (fail-open if git is missing; no hint for volume/share roots; JSON keys unchanged). Docs: CAPABILITIES + OPERATIONS.
+
 - **T271 Sync query ledger pane:** `sync query` forwards the operator string to `ledgerful ledger search` (Ledgerful already phrase-wraps). T90 FTS quotes stay on vault MATCH only. Multi-token phrase misses retry up to 3 first-seen contentful tokens with an honest banner. Named misses: never-ran / failed / ran-empty (user query, never `'"tok" "tok"'`). `--no-bridge` still skips the pane. Docs: CAPABILITIES unified search.
 
 - **T265 Preflight JSON envelope:** Non-summary `preflight --format json` stays compact with required `text` / `word_count` and additive always-present `sections[]` (`{id, title, items}`; E1 `[]`). Section `id` is a string closed set (`safety`/`session`/`index`/`recent`/`ledgerful`/`empty_repo`/`governed`/`other`) split from the same `text`. `--summary --format json` stays T220 (no `sections`). No `json-v2`. Docs: CAPABILITIES + PROTOCOL-COMPAT T180-C.

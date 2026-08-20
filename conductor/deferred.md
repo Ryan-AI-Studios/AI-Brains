@@ -230,7 +230,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~`preflight --format json` `{text, word_count}` blob (7/6)~~ | **T265 Completed 2026-08-19.** Additive `sections[]`; T180 required keys stay. Soft: PATH `cargo install`; pretty walker duplication (F12). |
 | ~~Format maze; list-paths 7/5; retention default 6/5~~ | **T266 Completed 2026-08-18.** Inventory tokens + four-family table; auto default stays. Nightly pipes / graph-update JSON unchanged. |
 | ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
-| `scan-roots` cwd-only (4/5) | **T268 Planned 2026-08-19** (`--root` XOR positional; empty suggested when registered; human parent hint). |
+| `scan-roots` cwd-only (4/5) | ✅ **T268 Completed 2026-08-19** — `--root` XOR positional; empty suggested when registered; human parent hint. Soft: PATH reinstall; leftover `7d97a456` (T259); JSON `next_step` declined. |
 | Nightly human mixes Router 267009; completion probe timeout | **T269** |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
 | ~~`sync query` ledger pane false-empty (5/5)~~ | **T271 Completed 2026-08-19.** Stop FTS-quoting `ledgerful ledger search`; first-seen token rescue; named misses. Soft: PATH `cargo install`; Ledgerful token-OR; picker vs sequential probe. |
@@ -502,6 +502,7 @@ Specified softs — not product blockers:
 | T240 F2 / T255 bag | **Decline** F27 |
 | clap 5 / pin bumps / camino / DTO | **Decline** F9 / F10 |
 | T268 fold-in 2026-08-19 (agy+opencode) | **Folded** F21/F22/F28/F29/F2-empty + AC16–AC17. **Declined** silent `--root`+PATH ignore (XOR); JSON `parent_hint`; remint T273. No B/M. |
+| T268 implement residuals (2026-08-19) | PATH `cargo install` (F16); leftover `7d97a456` sibling owners (T259 `rebind-path`); JSON `next_step` declined F10; default=parent declined F15; WORKFLOWS.md `--root` mention out of F11 required docs; T273 dash-query still Pending. |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 

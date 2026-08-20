@@ -10,6 +10,7 @@ mod common;
 
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 use tempfile::tempdir;
 
 fn hermetic() -> assert_cmd::Command {
@@ -670,6 +671,435 @@ fn scan_roots__already_registered__shows_project_id() {
         row["registered_project_id"].as_str(),
         Some(project_id.as_str()),
         "AC11: registered_project_id matches owner; row={row}"
+    );
+}
+
+fn git_init_repo(repo: &Path) {
+    fs::create_dir_all(repo).expect("repo dir");
+    let status = Command::new("git")
+        .args(["init"])
+        .current_dir(repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .status()
+        .expect("git init");
+    assert!(status.success(), "git init failed");
+    let _ = Command::new("git")
+        .args(["config", "user.email", "t268@example.com"])
+        .current_dir(repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .status();
+    let _ = Command::new("git")
+        .args(["config", "user.name", "T268 Test"])
+        .current_dir(repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .status();
+}
+
+fn scan_roots_json_keys(v: &serde_json::Value) -> Vec<String> {
+    let mut keys: Vec<String> = v
+        .as_object()
+        .expect("scan json object")
+        .keys()
+        .cloned()
+        .collect();
+    keys.sort();
+    keys
+}
+
+#[test]
+fn scan_roots__already_registered__suggested_empty() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let project_id = register_project(&vault, &dir.path().join("proj"));
+    let tree = dir.path().join("tree");
+    let hit = tree.join("hit-child");
+    fs::create_dir_all(&hit).unwrap();
+    fs::write(hit.join(".ledgerful"), b"").unwrap();
+    register_path(&vault, &project_id, hit.to_str().expect("utf8")).success();
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(&tree)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("scan-roots json");
+    assert!(out.status.success());
+    let v: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&out.stdout)).expect("json");
+    let roots = v["roots"].as_array().expect("roots");
+    let row = roots
+        .iter()
+        .find(|r| r["path"].as_str().is_some_and(|p| p.contains("hit-child")))
+        .expect("registered hit listed");
+    assert_eq!(
+        row["registered_project_id"].as_str(),
+        Some(project_id.as_str()),
+        "AC4: owner stays; row={row}"
+    );
+    assert_eq!(
+        row["suggested"].as_str(),
+        Some(""),
+        "AC4: JSON suggested is empty string, not null; row={row}"
+    );
+    assert!(
+        !row["suggested"].is_null(),
+        "AC4/F3: suggested key stays; never null"
+    );
+}
+
+#[test]
+fn scan_roots__already_registered__human_suggested_em_dash() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let project_id = register_project(&vault, &dir.path().join("proj"));
+    let tree = dir.path().join("tree");
+    let hit = tree.join("hit-child");
+    fs::create_dir_all(&hit).unwrap();
+    fs::write(hit.join(".ledgerful"), b"").unwrap();
+    register_path(&vault, &project_id, hit.to_str().expect("utf8")).success();
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(&tree)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("scan-roots human");
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("—"),
+        "AC4: human suggested column is em dash; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("register-path"),
+        "AC4: registered row must not suggest register-path; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(&project_id),
+        "AC4: owner still listed; got: {stdout}"
+    );
+}
+
+#[test]
+fn scan_roots__root_flag_matches_positional_json() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let tree = dir.path().join("tree");
+    let hit = tree.join("hit-child");
+    fs::create_dir_all(&hit).unwrap();
+    fs::write(hit.join(".ledgerful"), b"").unwrap();
+    let tree_str = tree.to_str().expect("utf8");
+
+    let positional = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(tree_str)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("positional json");
+    let via_root = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg("--root")
+        .arg(tree_str)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("--root json");
+    assert!(
+        positional.status.success() && via_root.status.success(),
+        "AC2: both forms exit 0; pos_err={} root_err={}",
+        String::from_utf8_lossy(&positional.stderr),
+        String::from_utf8_lossy(&via_root.stderr)
+    );
+    let v_pos: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&positional.stdout)).expect("pos json");
+    let v_root: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&via_root.stdout)).expect("root json");
+    assert_eq!(
+        v_pos["roots"], v_root["roots"],
+        "AC2: --root and positional produce the same roots"
+    );
+    assert_eq!(
+        v_pos["scan_root"], v_root["scan_root"],
+        "AC2: scan_root matches"
+    );
+}
+
+#[test]
+fn scan_roots__implicit_cwd__scans_current_dir_not_parent() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let tree = dir.path().join("tree");
+    let hit = tree.join("hit-child");
+    fs::create_dir_all(&hit).unwrap();
+    fs::write(hit.join(".ledgerful"), b"").unwrap();
+    fs::write(dir.path().join(".ledgerful"), b"").unwrap();
+
+    let out = hermetic()
+        .current_dir(&tree)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("implicit cwd json");
+    assert!(
+        out.status.success(),
+        "AC3: implicit cwd must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&out.stdout)).expect("json");
+    let roots = v["roots"].as_array().expect("roots");
+    assert_eq!(
+        roots.len(),
+        1,
+        "AC3: default is cwd (tree), not parent; roots={roots:?}"
+    );
+    let path = roots[0]["path"].as_str().unwrap_or("");
+    assert!(
+        path.contains("hit-child"),
+        "AC3: cwd child hit listed; path={path}"
+    );
+}
+
+#[test]
+fn scan_roots__json_envelope_keys_frozen() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let tree = dir.path().join("tree");
+    fs::create_dir_all(&tree).unwrap();
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(&tree)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("scan-roots json");
+    assert!(out.status.success());
+    let v: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&out.stdout)).expect("json");
+    assert_eq!(
+        scan_roots_json_keys(&v),
+        ["api_version", "roots", "scan_root", "truncated"],
+        "AC8: envelope keys stay T254 F22; no next_step/hint"
+    );
+}
+
+#[test]
+fn scan_roots__empty_root_flag__exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg("--root")
+        .arg("")
+        .output()
+        .expect("empty --root");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "AC11: empty --root is usage; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        err.contains("scan-roots path is empty"),
+        "AC11: same empty-path copy; got: {err}"
+    );
+}
+
+#[test]
+fn scan_roots__empty_positional__exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg("")
+        .output()
+        .expect("empty positional");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "AC11: empty positional is usage; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        err.contains("scan-roots path is empty"),
+        "AC11: same empty-path copy; got: {err}"
+    );
+}
+
+#[test]
+fn scan_roots__implicit_cwd_registered_git__human_parent_hint() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let repo = dir.path().join("repo");
+    git_init_repo(&repo);
+    fs::write(repo.join(".ledgerful"), b"").unwrap();
+    let project_id = register_project(&vault, &dir.path().join("proj"));
+    register_path(&vault, &project_id, repo.to_str().expect("utf8")).success();
+
+    let human = hermetic()
+        .current_dir(&repo)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("implicit human");
+    assert!(
+        human.status.success(),
+        "AC6: implicit-cwd human exits 0; stderr={}",
+        String::from_utf8_lossy(&human.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        stdout.contains("next: ai-brains project scan-roots --root"),
+        "AC6: parent remediator; got: {stdout}"
+    );
+    let parent_name = repo
+        .parent()
+        .and_then(|p| p.file_name())
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    assert!(
+        stdout.contains(&parent_name),
+        "AC6: hint names the git parent ({parent_name}); got: {stdout}"
+    );
+
+    let json = hermetic()
+        .current_dir(&repo)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("implicit json");
+    assert!(json.status.success());
+    let v: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&json.stdout)).expect("json");
+    assert!(
+        v.get("next_step").is_none(),
+        "AC6: JSON has no next_step key; got {v}"
+    );
+    assert_eq!(
+        scan_roots_json_keys(&v),
+        ["api_version", "roots", "scan_root", "truncated"],
+        "AC8: JSON keys frozen on implicit-cwd too"
+    );
+}
+
+#[test]
+fn scan_roots__explicit_root_on_git_repo__no_parent_hint() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let repo = dir.path().join("repo");
+    git_init_repo(&repo);
+    fs::write(repo.join(".ledgerful"), b"").unwrap();
+    let project_id = register_project(&vault, &dir.path().join("proj"));
+    register_path(&vault, &project_id, repo.to_str().expect("utf8")).success();
+
+    let via_root = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg("--root")
+        .arg(&repo)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("--root human");
+    let via_pos = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(&repo)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("positional human");
+    assert!(via_root.status.success() && via_pos.status.success());
+    let root_out = String::from_utf8_lossy(&via_root.stdout);
+    let pos_out = String::from_utf8_lossy(&via_pos.stdout);
+    assert!(
+        !root_out.contains("next:"),
+        "AC7: explicit --root has no parent next:; got: {root_out}"
+    );
+    assert!(
+        !pos_out.contains("next:"),
+        "AC7: explicit positional has no parent next:; got: {pos_out}"
     );
 }
 

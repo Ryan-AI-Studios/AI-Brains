@@ -1,10 +1,11 @@
 # T268 Plan — scan-roots parent / `--root`
 
-**Status:** **Pending** (Planned; not Placeholder; not In Progress)
+**Status:** ✅ **Completed** (2026-08-19)
 **Spec:** [spec.md](./spec.md) F0–F30 / AC1–AC17 + §13 AI fold-in
 **Category:** UX
 **Ledger TX (planning):** `7cccacdb-e7fb-41e4-b073-ea4cfb3b3e1a` (DOCS)
 **Ledger TX (fold-in):** `52dc7831-9393-4b30-ac82-099bfbf2d435` (DOCS)
+**Ledger TX (implement):** `b1f31b8e-43e2-4e2e-a4cf-9825b45b859a` (FEATURE)
 
 ---
 
@@ -45,11 +46,11 @@ No Highs / Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `project_paths.rs` `scan_roots` / `scan_rows_for_hits` / `emit_scan_human` and `ScanRoots` clap
-- [ ] Rescan `deferred.md` for new open rows that overlap
-- [ ] Confirm T273 still the right home for #183 (do not absorb)
-- [ ] FEATURE TX (not this DOCS TX)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
+- [x] Re-read `project_paths.rs` `scan_roots` / `scan_rows_for_hits` / `emit_scan_human` and `ScanRoots` clap
+- [x] Rescan `deferred.md` for new open rows that overlap
+- [x] Confirm T273 still the right home for #183 (do not absorb)
+- [x] FEATURE TX `b1f31b8e-43e2-4e2e-a4cf-9825b45b859a`
 
 ---
 
@@ -81,29 +82,31 @@ No Highs / Blockers / Majors. Disposition in spec **§13**.
 
 ## Tasks (on go)
 
-- [ ] F0 go + FEATURE TX
-- [ ] Red: `scan_roots__already_registered__suggested_empty` (AC4)
-- [ ] Green: `scan_rows_for_hits` empty suggested when owner set
-- [ ] Red: clap `--root` + positional conflict (AC1)
-- [ ] Green: `ScanRoots.root` `conflicts_with = "path"` + dispatch `root.or(path)`
-- [ ] Red: implicit-cwd git + zero unregistered → human `next: … --root` (AC6)
-- [ ] Green: F28 `parent_scan_hint` + F22 fail-open + F29 `\` display + human-only emit
-- [ ] AC2 / AC3 / AC7 / AC8 / AC9 / AC10 / AC12 / AC16 / AC17 stay or land
-- [ ] after_help + CAPABILITIES / OPERATIONS / CHANGELOG (AC13)
-- [ ] Manual AC15 (no register / rebind / `.env`)
-- [ ] Phase-1 review → `codex-review` (F25) → full gate
-- [ ] conductor **Completed** only after merge hygiene (implement-track Phase 6)
+- [x] F0 go + FEATURE TX `b1f31b8e-43e2-4e2e-a4cf-9825b45b859a`
+- [x] Red: `scan_roots__already_registered__suggested_empty` (AC4)
+- [x] Green: `scan_rows_for_hits` empty suggested when owner set
+- [x] Red: clap `--root` + positional conflict (AC1)
+- [x] Green: `ScanRoots.root` `conflicts_with = "path"` + dispatch `root.or(path)`
+- [x] Red: implicit-cwd git + zero unregistered → human `next: … --root` (AC6)
+- [x] Green: F28 `parent_scan_hint` + F22 fail-open + F29 `\` display + human-only emit
+- [x] AC2 / AC3 / AC7 / AC8 / AC9 / AC10 / AC12 / AC16 / AC17 stay or land
+- [x] after_help + CAPABILITIES / OPERATIONS / CHANGELOG (AC13)
+- [x] Manual AC15 (no register / rebind / `.env`)
+- [x] Phase-1 review → `codex-review` (F25) CX2 PASS → full gate
+- [x] conductor **Completed** after local DoD + gate; Phase 6 publish follows
 
 ---
 
 ## Definition of Done
 
-- [ ] F0–F30 + AC1–AC17
-- [ ] §13 fold-in pins honored
-- [ ] Medium+ review findings not silently dropped
-- [ ] T273 remains a separate Pending placeholder
-- [ ] No product commits under this DOCS TX
-- [ ] Status stays **Pending** until implement-track go
+- [x] F0–F30 + AC1–AC17
+- [x] §13 fold-in pins honored
+- [x] Medium+ review findings not silently dropped (CX1 P1 tests fixed)
+- [x] T273 remains a separate Pending placeholder
+- [x] No product commits under this DOCS TX
+- [x] Implemented after go; FEATURE TX
+
+**Evidence:** `dev-check.ps1` **[SUCCESS]** nextest **3193** passed (1 skipped). `ledgerful verify --scope full` passed (fmt 2.5s / clippy 6.1s / nextest 115.2s / deny 4.1s / audit 2.7s). Manual AC15: implicit cwd `next: … --root C:\dev` + suggested `—`; `--root C:\dev` siblings; XOR EXIT=2.
 
 ---
 
