@@ -568,6 +568,64 @@ mod tests {
         }
     }
 
+    /// T273 AC7: POSIX `--` makes `--limit` the query string (layer 1).
+    #[test]
+    #[allow(non_snake_case)]
+    fn sync_query__posix_end_of_options__limit_is_query() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "sync", "query", "--", "--limit"])
+        {
+            Ok(c) => c,
+            Err(e) => panic!("expected sync query -- --limit to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Sync {
+                command: super::SyncCommands::Query { query, .. },
+            } => {
+                assert_eq!(query, "--limit");
+            }
+            _ => panic!("expected SyncCommands::Query"),
+        }
+    }
+
+    /// T273 AC8 / F22: bare `--limit` is still the vault cap (empty option value).
+    ///
+    /// clap 4.6.1 reports this as `InvalidValue` (EmptyValue was folded in clap 4).
+    /// T247 `MissingRequiredArgument` is a `requires` relationship, not this case.
+    #[test]
+    #[allow(non_snake_case)]
+    fn sync_query__bare_limit_flag__still_requires_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from(["ai-brains", "sync", "query", "--limit"]) {
+            Ok(_) => panic!("expected clap to reject --limit without a value"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+        let msg = err.to_string();
+        assert!(
+            msg.contains("--limit <LIMIT>"),
+            "AC8: vault --limit still stands; got: {msg}"
+        );
+    }
+
+    /// T273 AC12: after_help names POSIX `-- --limit` and contrasts vault `--limit 10`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn sync_query__help__contrasts_needle_and_vault_limit() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "sync", "query", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("sync query -- --limit"),
+            "AC12: after_help names POSIX -- --limit; got: {help}"
+        );
+        assert!(
+            help.contains("--limit 10"),
+            "AC12: after_help contrasts vault --limit 10; got: {help}"
+        );
+    }
+
     /// T268 AC13: after_help names `--root` and both C:\\dev examples.
     #[test]
     #[allow(non_snake_case)]
@@ -2800,6 +2858,9 @@ pub enum SyncCommands {
     ///
     /// Human vault + ledger pane (default format is always pretty). Agent/JSON path is `recall` (TTY pretty / non-TTY json).
     /// Vault-only search: `recall` / `search`. Governed conclusions/decisions: `query progressive`.
+    #[command(
+        after_help = "Dash-leading needles need POSIX `--` so clap does not treat them as flags.\n  ai-brains sync query -- --limit     searches for the text `--limit`\n  ai-brains sync query \"text\" --limit 10   sets the vault hit cap to 10\nFlags (--quiet, --no-bridge, --limit N) go before `--`.\nExamples:\n  ai-brains sync query -- --limit\n  ai-brains sync query --quiet -- --limit\n  ai-brains sync query --no-bridge -- --limit"
+    )]
     Query {
         /// The query string
         query: String,

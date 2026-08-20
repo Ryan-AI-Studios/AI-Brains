@@ -502,7 +502,44 @@ Specified softs — not product blockers:
 | T240 F2 / T255 bag | **Decline** F27 |
 | clap 5 / pin bumps / camino / DTO | **Decline** F9 / F10 |
 | T268 fold-in 2026-08-19 (agy+opencode) | **Folded** F21/F22/F28/F29/F2-empty + AC16–AC17. **Declined** silent `--root`+PATH ignore (XOR); JSON `parent_hint`; remint T273. No B/M. |
-| T268 implement residuals (2026-08-19) | PATH `cargo install` (F16); leftover `7d97a456` sibling owners (T259 `rebind-path`); JSON `next_step` declined F10; default=parent declined F15; WORKFLOWS.md `--root` mention out of F11 required docs; T273 dash-query still Pending. |
+| T268 implement residuals (2026-08-19) | PATH `cargo install` (F16); leftover `7d97a456` sibling owners (T259 `rebind-path`); JSON `next_step` declined F10; default=parent declined F15; WORKFLOWS.md `--root` mention out of F11 required docs; T273 dash-query **Planned 2026-08-19**. |
+
+### T273 planning absorption (2026-08-19) — POSIX `--` on ledger argv; no T90
+
+| Item | Disposition |
+|------|-------------|
+| #183 Bugbot Medium dash QUERY as Ledgerful flags | **Absorb** F1–F4 / AC1–AC5 / AC9 — always-on `--` before QUERY |
+| Rescue never starts after clap fail | **Absorb** F4 — T271 F6 stands; argv is the remediator |
+| T90 on ledger argv | **Affirm decline** F3 |
+| Our Query `allow_hyphen_values` / steal vault `--limit` | **Decline** F5 / AC8 — clap 4.6.6 known flags win; operator uses `sync query -- --limit` |
+| last-PR Cursor #184 Linux Path units | **Decline** F8 — already `#[cfg(windows)]` at `project_paths.rs:639+`; T268 review P1 fixed; **no T274** |
+| recall `bridge_search_args` (`ledgerful search`) | **Decline as DoD** F7 — soft residual, same `--` insert |
+| T269 / T270 / T272 | **Decline** F9 |
+| T211 F25 / T217 MATCH OR / Ledgerful token-OR | **Decline** F10 |
+| T240 F2 / T255 bag / clap 5 / DTO | **Decline** F9 / F10 |
+| Historical deferred (CE wipe, connector cursor, `anyhow` allowlist, MSI, archive changeguard) | **Decline** — not query argv |
+
+### T273 fold-in (2026-08-19) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode **B-1** AC10 `-- --limit --no-bridge` | **Folded** F21 / AC10 — `sync query --no-bridge -- --limit` (live exit 2 vs exit 0) |
+| Agy m1 helper needle `"--"` | **Folded** AC4 / F19 |
+| Agy m2 `after_help` contrast | **Folded** F6 / AC12 |
+| OpenCode O-1 AC8 `ErrorKind` | **Folded** F22 — execute: clap 4.6.1 empty `--limit` is `InvalidValue` (not T247 `MissingRequiredArgument`) |
+| OpenCode O-2 quiet optional | **Folded** F23 / AC14 required |
+| Agy O1 `pub(crate)` / O2 recall residual | **Already** F11 / F7 |
+| OpenCode m-1 | **Already** closed by B-1 |
+
+### T273 implement residuals (2026-08-20)
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` | F16 — operator; tests/manual used `cargo run` |
+| `bridge_search_args` (`ledgerful search` code) dash-query | F7 — retrieval crate; same `--` insert; not this DoD |
+| Ledgerful QUERY `allow_hyphen_values` / token-OR | Other repo; `--` is our remediator (T271 F23) |
+| T269 / T270 / T272 | Peers — not stolen |
+| F22 ErrorKind pin | Execute correction documented; unit locks live `InvalidValue` + `--limit <LIMIT>` |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 

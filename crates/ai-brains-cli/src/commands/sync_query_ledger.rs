@@ -38,6 +38,18 @@ pub(crate) fn ledger_forward_query(raw: &str) -> String {
     ai_brains_retrieval::strip_ansi(raw).trim().to_string()
 }
 
+/// Argv for `ledgerful ledger search` (T273 F1/F2). Always inserts POSIX `--`
+/// before QUERY so dash-leading needles are not Ledgerful flags.
+pub(crate) fn ledger_search_argv(query: &str, json: bool) -> Vec<String> {
+    let mut args = vec!["ledger".to_string(), "search".to_string()];
+    if json {
+        args.push("--json".to_string());
+    }
+    args.push("--".to_string());
+    args.push(query.to_string());
+    args
+}
+
 /// First-seen contentful tokens for rescue (F6). Not length-sorted.
 pub(crate) fn ledger_rescue_tokens(user: &str) -> Vec<String> {
     use ai_brains_core::{contentful_tokens, extract_fts_tokens};
@@ -153,11 +165,7 @@ fn run_ledger_search(
     is_tty: bool,
 ) -> std::io::Result<std::process::Output> {
     let mut cmd = std::process::Command::new("ledgerful");
-    if json {
-        cmd.args(["ledger", "search", "--json", query]);
-    } else {
-        cmd.args(["ledger", "search", query]);
-    }
+    cmd.args(ledger_search_argv(query, json));
     if !is_tty {
         cmd.env("NO_COLOR", "1");
     }
@@ -359,9 +367,124 @@ mod tests {
         ledger_classify_outcome, ledger_first_stderr_line, ledger_forward_query,
         ledger_json_non_empty, ledger_miss_copy_failed, ledger_miss_copy_never_ran,
         ledger_miss_copy_ran_empty, ledger_quiet_omits_pane, ledger_rescue_banner,
-        ledger_rescue_pick, ledger_rescue_tokens, path_is_windows_system_dir,
+        ledger_rescue_pick, ledger_rescue_tokens, ledger_search_argv, path_is_windows_system_dir,
     };
     use std::path::Path;
+
+    /// T273 AC1: JSON argv always inserts `--` immediately before a dash needle.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_dash_limit__end_of_options_before_query() {
+        assert_eq!(
+            ledger_search_argv("--limit", true),
+            vec!["ledger", "search", "--json", "--", "--limit"]
+        );
+    }
+
+    /// T273 AC2: human re-run omits `--json` but still ends options before QUERY.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__human_dash_limit__no_json_flag() {
+        assert_eq!(
+            ledger_search_argv("--limit", false),
+            vec!["ledger", "search", "--", "--limit"]
+        );
+    }
+
+    /// T273 AC3: non-dash phrases still get always-on `--`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__plain_phrase__still_emits_double_dash() {
+        let got = ledger_search_argv("capture independence", true);
+        assert_eq!(
+            got,
+            vec!["ledger", "search", "--json", "--", "capture independence"]
+        );
+        let query_at = got.len() - 1;
+        assert_eq!(
+            got.get(query_at.saturating_sub(1)).map(String::as_str),
+            Some("--")
+        );
+        assert_eq!(got.last().map(String::as_str), Some("capture independence"));
+    }
+
+    /// T273 AC4: `--days` is QUERY, not Ledgerful `-d/--days`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_dash_days__needle_after_terminator() {
+        assert_ledger_search_argv_needle("--days");
+    }
+
+    /// T273 AC4: `--breaking` is QUERY, not Ledgerful `-b/--breaking`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_dash_breaking__needle_after_terminator() {
+        assert_ledger_search_argv_needle("--breaking");
+    }
+
+    /// T273 AC4: `--json` as QUERY is not a second Ledgerful `--json`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_dash_json__needle_after_terminator() {
+        assert_ledger_search_argv_needle("--json");
+    }
+
+    /// T273 AC4: short `-l` is QUERY, not Ledgerful `--limit`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_short_l__needle_after_terminator() {
+        assert_ledger_search_argv_needle("-l");
+    }
+
+    /// T273 AC4: short `-d` is QUERY, not Ledgerful `--days`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_short_d__needle_after_terminator() {
+        assert_ledger_search_argv_needle("-d");
+    }
+
+    /// T273 AC4: short `-b` is QUERY, not Ledgerful `--breaking`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_short_b__needle_after_terminator() {
+        assert_ledger_search_argv_needle("-b");
+    }
+
+    /// T273 AC4 / F19: needle `"--"` is last; terminator sits immediately before it.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_search_argv__json_double_dash_needle__terminator_then_needle() {
+        let got = ledger_search_argv("--", true);
+        assert_eq!(got, vec!["ledger", "search", "--json", "--", "--"]);
+        assert_eq!(got.last().map(String::as_str), Some("--"));
+        assert_ne!(
+            got.get(got.len().saturating_sub(2)).map(String::as_str),
+            Some("search"),
+            "needle must not sit next to search without a terminator"
+        );
+    }
+
+    fn assert_ledger_search_argv_needle(needle: &str) {
+        let got = ledger_search_argv(needle, true);
+        assert_eq!(
+            got.last().map(String::as_str),
+            Some(needle),
+            "last argv must be the needle {needle:?}; got {got:?}"
+        );
+        let term_at = got.len().saturating_sub(2);
+        assert_eq!(
+            got.get(term_at).map(String::as_str),
+            Some("--"),
+            "option-terminator must sit immediately before {needle:?}; got {got:?}"
+        );
+        assert_ne!(
+            got.get(got.len().saturating_sub(2))
+                .map(String::as_str)
+                .filter(|s| *s != "--"),
+            Some("search"),
+            "needle must not be adjacent to search without terminator; got {got:?}"
+        );
+    }
 
     #[test]
     #[allow(non_snake_case)]

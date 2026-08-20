@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T273 Sync query dash-leading ledger flags:** `sync query` always inserts POSIX `--` before the `ledgerful ledger search` QUERY so needles such as `--limit` / `--days` are search text, not Ledgerful flags. Operator form: `ai-brains sync query -- --limit` (vault flags `--quiet` / `--no-bridge` / `--limit N` stay **before** `--`). Vault `--limit` is unchanged. Docs: CAPABILITIES ledger pane.
+
 - **T268 scan-roots parent / `--root`:** `project scan-roots --root DIR` is a named XOR of the existing positional path (both set → clap exit **2**). Default stays cwd. Already-registered hits keep the owner and set JSON `suggested` to `""` (human `—`) instead of a no-op `register-path`. Implicit-cwd human scans with zero unregistered hits may print `next: ai-brains project scan-roots --root <git-toplevel-parent>` (fail-open if git is missing; no hint for volume/share roots; JSON keys unchanged). Docs: CAPABILITIES + OPERATIONS.
 
 - **T271 Sync query ledger pane:** `sync query` forwards the operator string to `ledgerful ledger search` (Ledgerful already phrase-wraps). T90 FTS quotes stay on vault MATCH only. Multi-token phrase misses retry up to 3 first-seen contentful tokens with an honest banner. Named misses: never-ran / failed / ran-empty (user query, never `'"tok" "tok"'`). `--no-bridge` still skips the pane. Docs: CAPABILITIES unified search.

@@ -999,7 +999,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Initialize Vault | `ai-brains init` (use `--force` to overwrite populated vault) |
 | Show Context | `ai-brains context --show` |
 | Sync Safety Signals | `ai-brains safety sync` (use `--dry-run` to preview) |
-| Unified Search | `ai-brains sync query "<topic>"` (searches vault + Ledgerful) |
+| Unified Search | `ai-brains sync query "<topic>"` (searches vault + Ledgerful). Dash needles: `sync query -- --limit` |
 | Get Orientation | `ai-brains preflight` (use `--pretty` for full text, `--summary` for stats) |
 | Typed Project/Personal Briefing | `ai-brains briefing project\|personal` (TTY markdown / non-TTY json; T227 aliases human\|pretty\|text\|md → markdown; unknown format exit 2; see T152/T202/T227) |
 | Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` (progressive/expand require project id; missing → exit **2**) |
