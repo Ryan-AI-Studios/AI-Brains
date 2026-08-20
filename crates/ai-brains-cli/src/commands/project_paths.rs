@@ -686,8 +686,8 @@ mod tests {
         let hint = parent_scan_hint(true, 0, Some(Path::new("/home/dev/AI-Brains")))
             .expect("F2: sibling parent of /home/dev/AI-Brains");
         assert_eq!(
-            hint.as_deref(),
-            Some(Path::new("/home/dev")),
+            hint.as_path(),
+            Path::new("/home/dev"),
             "AC12: Unix parent is /home/dev"
         );
     }
