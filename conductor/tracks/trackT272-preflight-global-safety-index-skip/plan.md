@@ -1,10 +1,11 @@
 # T272 Plan — Preflight `--global` Safety skip vs Index
 
-**Status:** **Pending** (Planned in spec; plan-only until go)
+**Status:** **Completed** (local DoD; registry Completed lands in the publish squash)
 **Spec:** [spec.md](./spec.md) F0–F28 / AC1–AC11 + §13 AI fold-in
 **Category:** BUGFIX / UX
 **Ledger TX (planning):** `997faa2e-3005-4c2a-90c6-f36e933f9dfc` (DOCS)
 **Ledger TX (fold-in):** `99591213-9117-4323-89b2-c7fd1754cb0c` (DOCS)
+**Ledger TX (implement):** `56cb6203-46da-473c-8ab5-c73f0a9df8c3` (BUGFIX)
 
 ---
 
@@ -72,73 +73,75 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `build_legacy_preflight` Safety fetch + `safety_ids.insert` + Index skip
-- [ ] Confirm `:329` still pre-cap insert and `:467` still `contains`
-- [ ] Rescan **entire** `conductor/deferred.md`
-- [ ] Last merged PR Cursor comments (plus open PR on HEAD)
-- [ ] Re-check lock clap **4.6.1** / serde_json **1.0.150** / rusqlite **0.39.0**. rustc **1.95.0**. No clap 5
-- [ ] BUGFIX TX start
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
+- [x] Re-read `build_legacy_preflight` Safety fetch + `safety_ids.insert` + Index skip
+- [x] Confirm `:329` still pre-cap insert and `:467` still `contains`
+- [x] Rescan **entire** `conductor/deferred.md`
+- [x] Last merged PR Cursor comments (plus open PR on HEAD)
+- [x] Re-check lock clap **4.6.1** / serde_json **1.0.150** / rusqlite **0.39.0**. rustc **1.95.0**. No clap 5
+- [x] BUGFIX TX start (`56cb6203-46da-473c-8ab5-c73f0a9df8c3`)
 
 ---
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] AC1 unit `dedup_hotspots_keyed__duplicate_path__skip_set_omits_dropped_id` (extras-through-dedup; compile-fail red if a missing helper is named)
-- [ ] AC2 hermetic `preflight_global_isolation__capped_out_safety__appears_in_index` (`index_section`; **`-m 1500`**; `Memory Index` present; A-one absent Safety / present Index) — **required red**
-- [ ] AC3 hermetic `preflight_global_isolation__project_scoped__shown_safety_not_in_index` — **guard** (F27); may already pass; do not fail Phase 1 solely because it is green
-- [ ] Prove **AC2** fails on current tree (A-one missing from Index because all 4 fetch ids are skipped)
+- [x] AC1 unit `dedup_hotspots_keyed__duplicate_path__skip_set_omits_dropped_id` (extras-through-dedup; compile-fail red if a missing helper is named)
+- [x] AC2 hermetic `preflight_global_isolation__capped_out_safety__appears_in_index` (`index_section`; **`-m 1500`**; `Memory Index` present; A-one absent Safety / present Index) — **required red**
+- [x] AC3 hermetic `preflight_global_isolation__project_scoped__shown_safety_not_in_index` — **guard** (F27); may already pass; do not fail Phase 1 solely because it is green
+- [x] Prove **AC2** fails on current tree (A-one missing from Index because all 4 fetch ids are skipped)
+
+Evidence (red): AC2 panicked `AC2 Memory Index header present under -m 1500` — Safety showed A-three/B-only/A-two; Index absent because all 4 fetch ids were in pre-cap `safety_ids`. AC3 already PASS (guard). AC1 PASS against remaining extras.
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] `safety_raw` extra = `(Option<String>, String)` project + `memory_id`
-- [ ] Round-robin key `|(_, (pid, _))| project_key(pid.as_deref())`
-- [ ] Rebuild `safety_ids` from remaining extras; **remove** fetch-loop insert
-- [ ] F28 one-line comment above the HashSet collect
-- [ ] Keep HOTSPOT-if-cg `continue` before `safety_raw.push`
-- [ ] Keep `safety_for_skip` post-cap
-- [ ] No `GLOBAL_*` / LIKE / tag / span-formula edits
-- [ ] No `project.rs` / CLI `preflight.rs` / `preflight_json.rs` edits
+- [x] `safety_raw` extra = `(Option<String>, String)` project + `memory_id`
+- [x] Round-robin key `|(_, (pid, _))| project_key(pid.as_deref())`
+- [x] Rebuild `safety_ids` from remaining extras; **remove** fetch-loop insert
+- [x] F28 one-line comment above the HashSet collect
+- [x] Keep HOTSPOT-if-cg `continue` before `safety_raw.push`
+- [x] Keep `safety_for_skip` post-cap
+- [x] No `GLOBAL_*` / LIKE / tag / span-formula edits
+- [x] No `project.rs` / CLI `preflight.rs` / `preflight_json.rs` edits
 
 ---
 
 ## Phase 3 — Stay green + docs
 
-- [ ] T264 AC5 / AC10 hermetics (AC4 / AC5)
-- [ ] T265 compact JSON 2-key (AC6)
-- [ ] `--global --summary` span line (AC7)
-- [ ] Session CONSTRAINT skip still post-cap (AC11)
-- [ ] CAPABILITIES T264 additive clause + CHANGELOG T272 (AC8)
-- [ ] `cargo clippy -p ai-brains-retrieval --all-targets -- -D warnings`
-- [ ] `cargo nextest run -p ai-brains-retrieval --lib` + `ai-brains-cli -E "test(preflight_global_isolation)"`
+- [x] T264 AC5 / AC10 hermetics (AC4 / AC5)
+- [x] T265 compact JSON 2-key (AC6)
+- [x] `--global --summary` span line (AC7)
+- [x] Session CONSTRAINT skip still post-cap (AC11)
+- [x] CAPABILITIES T264 additive clause + CHANGELOG T272 (AC8)
+- [x] `cargo clippy -p ai-brains-retrieval --all-targets -- -D warnings`
+- [x] `cargo nextest run -p ai-brains-retrieval --lib` + `ai-brains-cli -E "test(preflight_global_isolation)"` (8/8 isolation PASS; 3/3 dedup units PASS)
 
 ---
 
 ## Phase 4 — Manual (on go)
 
-- [ ] AC10: `cargo run -q -p ai-brains-cli -- preflight --global --pretty --no-hook-prompt` exit **0**; Safety tagged; Index pass-with-observed-data if budgeted out
-- [ ] Do **not** pin, `cargo install`, rewrite `.env`, or mutate schtasks
+- [x] AC10: `cargo run -q -p ai-brains-cli -- preflight --global --pretty --no-hook-prompt` exit **0**; Safety tagged; Index pass-with-observed-data if budgeted out
+- [x] Do **not** pin, `cargo install`, rewrite `.env`, or mutate schtasks
 
 ---
 
 ## Phase 5 — Review + publish
 
-- [ ] `conductor/<track>/review.md` (post-execute)
-- [ ] Medium+ not silently dropped
-- [ ] Residuals appended to `deferred.md`
-- [ ] Codex read-only (F22) after Phase-1 clean
-- [ ] Local gate: `dev-check.ps1` + `ledgerful verify --scope full`
+- [x] `conductor/<track>/review.md` (post-execute)
+- [x] Medium+ not silently dropped
+- [x] Residuals appended to `deferred.md`
+- [x] Codex read-only (F22) after Phase-1 clean (CX1 product PASS; process P1 = Phase 6)
+- [x] Local gate: `dev-check.ps1` + `ledgerful verify --scope full` (nextest **3220** passed / 1 skipped)
 - [ ] conductor **Completed** only after implement-track Phase 6 (push → PR → GHA green → squash-merge → prune)
-- [ ] Never `git push origin main` / force-push
+- [x] Never `git push origin main` / force-push
 
 ---
 
 ## Definition of done
 
-- [ ] AC1–AC11 green or manual-recorded
-- [ ] T264 AC5/AC10 + T265 2-key still green
-- [ ] F0 was respected (no product commits as “planning”)
+- [x] AC1–AC11 green or manual-recorded
+- [x] T264 AC5/AC10 + T265 2-key still green
+- [x] F0 was respected (no product commits as “planning”)
 - [ ] Ledger BUGFIX TX committed on go; 0 pending / 0 drift
 - [ ] Spec header + registry Completed **after** merge hygiene

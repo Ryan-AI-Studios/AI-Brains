@@ -612,6 +612,19 @@ Specified softs — not product blockers:
 | Agy O2 rebuild comment | **Folded** F28 |
 | No B/M | Nothing to decline |
 
+### T272 closeout residuals (2026-08-20)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Session `HOTSPOT:` content skip | F18 — independent of `safety_ids`; may still hide a capped-out hotspot from Sessions |
+| T264 Index fetch 80 leftover-heavy (R1b-P3-1) | F17 — not this HashSet |
+| Live `-m` windows without an Index header | Word budget; hermetic AC2 (`-m 1500` + `Memory Index`) is DoD |
+| PATH `ai-brains` until `cargo install` | F14 — operator; tests/manual used `cargo run` / hermetic |
+| T270 retention classify / T273 F7 `bridge_search_args` | Peers |
+| rusqlite `table_exists` 0.40 | T213 L4 — not this track |
+
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

@@ -1,9 +1,9 @@
 # T272 — Preflight `--global` Safety skip must not hide capped-out Index rows
 
 - **Track ID:** T272-PreflightGlobalSafetyIndexSkip
-- **Status:** **Planned** (Pending in registry; plan-only until go)
+- **Status:** **Completed**
 - **Category:** BUGFIX / UX
-- **Owner:** —
+- **Owner:** Grok
 - **Source:** Cursor Bugbot on PR [#179](https://github.com/Ryan-AI-Studios/AI-Brains/pull/179) (T264) — Medium “Safety IDs over-exclude Index” (`c5c3a0d4-408f-4ff8-8d39-b3961707fe1a`)
 - **Depends on:** T264 ✅ Completed (label+cap+span; PR #179)
 - **Blocks / feeds:** `--global` rollup is complete: a CONSTRAINT pin capped out of Safety **8** can still appear in Index/Recent. Does **not** unblock T270 retention classify.
