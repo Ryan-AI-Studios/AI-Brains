@@ -1,9 +1,24 @@
 # T272 Plan — Preflight `--global` Safety skip vs Index
 
 **Status:** **Pending** (Planned in spec; plan-only until go)
-**Spec:** [spec.md](./spec.md) F0–F25 / AC1–AC11
+**Spec:** [spec.md](./spec.md) F0–F28 / AC1–AC11 + §13 AI fold-in
 **Category:** BUGFIX / UX
-**Ledger TX (planning):** (this pass, DOCS)
+**Ledger TX (planning):** `997faa2e-3005-4c2a-90c6-f36e933f9dfc` (DOCS)
+**Ledger TX (fold-in):** `99591213-9117-4323-89b2-c7fd1754cb0c` (DOCS)
+
+---
+
+## AI fold-in (2026-08-20) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F26 / AC2:** explicit `-m 1500` + `Memory Index` header present.
+2. **F27 / AC3:** regression guard, not Phase-1 red.
+3. **F28:** one-line rebuild comment.
+4. **§2.1:** plan dogfood `9008074`; fold-in `9fcfcd8` (docs-only; product `src/` identical).
+5. **AC1:** extras-through-dedup; skip ids from remaining extras.
 
 ---
 
@@ -11,7 +26,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `9008074` CLEAN; `main` == `origin/main` (T269 #186 merged) |
+| HEAD / tree | Plan dogfood `9008074`; fold-in `9fcfcd8` (docs-only; product tree identical). CLEAN at fold-in. `main` ahead of `origin/main` by the plan docs commit |
 | T272 stub | Placeholder upgraded in place to **Planned** |
 | PATH `ai-brains` | **0.1.1**. T264 tags live. **Do not `cargo install`.** |
 | Live hole | `preflight.rs:329` insert on LIMIT 40 **before** `:337` round-robin 8; `:467` Index skip. `ledgerful search` hits those three lines |
@@ -69,10 +84,10 @@
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] AC1 unit `dedup_hotspots_keyed__duplicate_path__skip_set_omits_dropped_id`
-- [ ] AC2 hermetic `preflight_global_isolation__capped_out_safety__appears_in_index` (`index_section` helper; A-one absent Safety / present Index)
-- [ ] AC3 hermetic `preflight_global_isolation__project_scoped__shown_safety_not_in_index`
-- [ ] Prove they fail on current tree (A-one missing from Index because all 4 fetch ids are skipped)
+- [ ] AC1 unit `dedup_hotspots_keyed__duplicate_path__skip_set_omits_dropped_id` (extras-through-dedup; compile-fail red if a missing helper is named)
+- [ ] AC2 hermetic `preflight_global_isolation__capped_out_safety__appears_in_index` (`index_section`; **`-m 1500`**; `Memory Index` present; A-one absent Safety / present Index) — **required red**
+- [ ] AC3 hermetic `preflight_global_isolation__project_scoped__shown_safety_not_in_index` — **guard** (F27); may already pass; do not fail Phase 1 solely because it is green
+- [ ] Prove **AC2** fails on current tree (A-one missing from Index because all 4 fetch ids are skipped)
 
 ---
 
@@ -81,6 +96,7 @@
 - [ ] `safety_raw` extra = `(Option<String>, String)` project + `memory_id`
 - [ ] Round-robin key `|(_, (pid, _))| project_key(pid.as_deref())`
 - [ ] Rebuild `safety_ids` from remaining extras; **remove** fetch-loop insert
+- [ ] F28 one-line comment above the HashSet collect
 - [ ] Keep HOTSPOT-if-cg `continue` before `safety_raw.push`
 - [ ] Keep `safety_for_skip` post-cap
 - [ ] No `GLOBAL_*` / LIKE / tag / span-formula edits

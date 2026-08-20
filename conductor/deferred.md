@@ -598,6 +598,20 @@ Specified softs — not product blockers:
 | T240 F2 / T255 bag / clap 5 / rusqlite 0.40 / DTO / `cargo install` | **Decline** |
 | Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` | **Decline** — not skip-set |
 
+### T272 fold-in (2026-08-20) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m HEAD `9008074` vs `9fcfcd8` | **Folded** §2.1 — product tree identical |
+| OpenCode m AC3 not Phase-1 red | **Folded** F27 — guard; AC2 is the required red |
+| OpenCode m AC1 failure claim | **Already** F3 / AC1 extras-through-dedup |
+| OpenCode O A-one not in Safety / optional helper | **Already** AC2 / F9 |
+| Agy m1 AC2 word budget | **Folded** F26 / AC2 `-m 1500` + `Memory Index` header |
+| Agy m2 AC1 extras keep freshest id | **Folded** AC1 concrete `T` |
+| Agy O1 `index_section` | **Already** AC2 / plan |
+| Agy O2 rebuild comment | **Folded** F28 |
+| No B/M | Nothing to decline |
+
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

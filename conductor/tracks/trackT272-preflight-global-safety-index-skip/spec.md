@@ -9,8 +9,9 @@
 - **Blocks / feeds:** `--global` rollup is complete: a CONSTRAINT pin capped out of Safety **8** can still appear in Index/Recent. Does **not** unblock T270 retention classify.
 - **Absorbs:** #179 Bugbot Medium; placeholder F1–F4; latent post-`dedup_hotspots` over-exclude (same SOOT: skip **emitted** ids)
 - **Not absorbed (DoD):** T264 leftover-project drop from `recall --global` (F11 stands); T264 caps / LIMIT 40 / LIKE / labels / span formula; T265 `sections[]` / T180 2-key; T219 project-scoped selection; T264 Index fetch-80 leftover-heavy; session `HOTSPOT:` content skip; clap 5 / pin bumps
-- **Research date:** 2026-08-20 (source HEAD `9008074` T269 `#186`)
-- **Ledger:** planning DOCS TX (this pass). Implement starts a **BUGFIX** TX on **go**.
+- **Research date:** 2026-08-20 (plan dogfood HEAD `9008074` T269 `#186`; fold-in against `9fcfcd8` — docs-only; product `src/` identical)
+- **AI fold-in:** 2026-08-20 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Agree:** OpenCode m HEAD snapshot (`9008074` → fold-in `9fcfcd8`); OpenCode m AC3 is a regression guard not Phase-1 red; Agy m1 AC2 explicit `-m 1500`; Agy m2 AC1 extras-through-dedup; Agy O2 one-line rebuild comment. **Already covered:** OpenCode m3 AC1 red-is-provable (F3 / AC1 helper-or-dedup); OpenCode O1 A-one not in Safety (AC2); OpenCode O2 / Agy O1 `index_section` + optional helper (F9 / AC2). **Decline:** none of the B/M (none filed). Disposition **§13**.
+- **Ledger:** planning DOCS TX `997faa2e-3005-4c2a-90c6-f36e933f9dfc`. Fold-in DOCS TX `99591213-9117-4323-89b2-c7fd1754cb0c`. Implement starts a **BUGFIX** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env`. Do **not** drop leftover from `--global` recall. Do **not** enable `AI_BRAINS_GOVERNED_BRIEFING`. Do **not** reopen T240 F2 / T255 declines. Do **not** grow CLI hotspot `preflight.rs` / `project.rs`. Do **not** retune `GLOBAL_*` caps. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -35,7 +36,7 @@ No models. No new crates. No clap 5. No leftover-project drop from `recall --glo
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `9008074` — T269 `#186` squash. `main` == `origin/main`. Tree **CLEAN**. |
+| HEAD | **Plan dogfood:** `9008074` T269 `#186` (product `src/` unchanged since). **This fold-in:** `9fcfcd8` (docs-only planning commit; **ahead 1** of `origin/main`). Product tree identical. Tree **CLEAN** at fold-in. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **0.1.1**. T264 labels are in PATH (Safety `[C:\dev\ledgerful]` / Sessions `[C:\dev\stl]` / `[C:\dev\ai-brains]`). **Do not `cargo install`.** Skip-set lives in retrieval — PATH and source share the hole. |
 | `preflight --summary` (daily) | Scope path owner `3581317d`. Pinned **3224**. Grants **0 of 3** (T241; not this track). |
 | `preflight --global --pretty --compact -m 400` | T264 tags present. Compact + 400 words: Safety + Sessions; Index often absent (budget). Not the skip hole. |
@@ -137,6 +138,9 @@ No models. No new crates. No clap 5. No leftover-project drop from `recall --glo
 | **F23 — Docs** | CAPABILITIES T264 row: one additive clause (Index/Recent skip = post-cap Safety ids). Root CHANGELOG T272 row. PROTOCOL-COMPAT unchanged. |
 | **F24 — Span honesty** | `in_context_project_span` still counts **emitted** Safety/Index/Recent/Session items. Capped-out pins that land in Index may raise `N`. Do **not** freeze `N`. T264 AC7 `N >= 2` stands. |
 | **F25 — Helper purity** | Rebuild is a `HashSet` from remaining extras. No I/O. Compare ids with `HashSet::contains` (existing). |
+| **F26 — AC2 word budget** | Hermetic AC2 **must** pass `-m 1500` explicitly (clap default is already `default_value_t = 1500` at `main.rs:1053`). Assert stdout contains `Memory Index` so `trim_to_word_budget` did not eat the section. Do **not** use `-m 800` / compact (live `-m 800` hid Index). |
+| **F27 — AC3 is a guard, not Phase-1 red** | Project-scoped LIMIT 10 / no round-robin: fetch ≈ shown, so AC3 may **already pass** on the current tree. Keep it. Do **not** fail Phase 1 because it is green. Behavioral red is **AC2** (and AC1 if it names a missing helper). |
+| **F28 — Rebuild comment** | One line above the post-pipeline `HashSet` collect: `// Rebuild safety_ids from emitted entries so capped-out pins remain visible in Index (T272)`. No essay. |
 
 ---
 
@@ -144,9 +148,9 @@ No models. No new crates. No clap 5. No leftover-project drop from `recall --glo
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Retrieval unit: two HOTSPOT rows share a path; extras carry distinct `memory_id`s. After `dedup_hotspots_keyed`, skip set contains **only** the kept id (not the dropped duplicate). |
-| **AC2** | Hermetic (reuse AC10 pin order: B-only, A-one, A-two, A-three): `--global --pretty --no-hook-prompt`. Safety section does **not** contain `A-one`. Index section **does** contain `A-one`. `A-two` / `A-three` / `B-only` stay in Safety (T264 AC10 still true). |
-| **AC3** | Hermetic project-scoped (no `--global`): two CONSTRAINT pins in the scoped project both appear in Safety and **neither** unique needle appears in Index. |
+| **AC1** | Retrieval unit next to existing `dedup_hotspots` tests: two HOTSPOT rows share `crates/…` path; extras `T = ((), String)` (or `(Option<String>, String)`) carry distinct ids (`keep`, `drop`); first row is freshest. After `dedup_hotspots_keyed`, remaining extras contain **only** `keep`. Collect skip ids from **remaining extras** (not a pre-insert HashSet). Optional `emitted_safety_ids` helper (F9) is compile-fail red if named before it exists. |
+| **AC2** | Hermetic (reuse AC10 pin order: B-only, A-one, A-two, A-three): `--global --pretty --no-hook-prompt -m 1500` (F26). Stdout contains `Memory Index`. Safety section does **not** contain `A-one`. Index section **does** contain `A-one`. `A-two` / `A-three` / `B-only` stay in Safety (T264 AC10 still true). |
+| **AC3** | Hermetic project-scoped (no `--global`): two CONSTRAINT pins in the scoped project both appear in Safety and **neither** unique needle appears in Index. **Regression guard** (F27) — may already be green. |
 | **AC4** | Existing `preflight_global_isolation__three_a_one_b__b_appears_a_capped` (T264 AC10) stays green (`a_count <= 2`, B in Safety). |
 | **AC5** | Existing T264 AC5 labels + two-line continuation stay green. |
 | **AC6** | Existing T265 compact `--format json` 2-key (`t180_c_preflight_json_keys` or isolation `compact_json__two_keys`) stays green. |
@@ -188,6 +192,7 @@ if global {
         GLOBAL_SAFETY_MAX,
     );
 }
+// Rebuild safety_ids from emitted entries so capped-out pins remain visible in Index (T272)
 let safety_ids: HashSet<String> = safety_entries
     .iter()
     .map(|(_, (_, id))| id.clone())
@@ -230,11 +235,11 @@ No `MemoryPinned`, no governed packet, no models. HashSet membership only.
 
 **Red first (names):**
 
-1. `dedup_hotspots_keyed__duplicate_path__skip_set_omits_dropped_id` (AC1)
-2. `preflight_global_isolation__capped_out_safety__appears_in_index` (AC2)
-3. `preflight_global_isolation__project_scoped__shown_safety_not_in_index` (AC3)
+1. `dedup_hotspots_keyed__duplicate_path__skip_set_omits_dropped_id` (AC1) — extras-through-dedup + collect remaining; compile-fail red if it names a missing helper
+2. `preflight_global_isolation__capped_out_safety__appears_in_index` (AC2) — **the** behavioral red: `-m 1500`; A-one missing from Index today
+3. `preflight_global_isolation__project_scoped__shown_safety_not_in_index` (AC3) — **guard**; may already pass (F27)
 
-Prove AC2 fails on current tree: A-one missing from Index (skip of all 4 fetch ids). Then green: carry extra + rebuild HashSet.
+Prove **AC2** fails on current tree: A-one missing from Index (skip of all 4 fetch ids) **and** `Memory Index` is present (`-m 1500`). Do not require AC3 to fail. Then green: carry extra + rebuild HashSet + F28 comment.
 
 Stay green: T264 AC5/AC10, T265 2-key, isolation compact tags, `dedup_hotspots` unit (T=`()`).
 
@@ -265,7 +270,8 @@ ledgerful verify --scope full
 | `dedup_hotspots` unit type error | Keep `T=()` test helper; only production extra grows |
 | CLI hotspot / `project.rs` edits | F9 forbid |
 | T180 2-key break | AC6 |
-| Word-budget hides Index on live `-m 800` | AC10 pass-with-observed-data; hermetic AC2 is the proof |
+| Word-budget hides Index on live `-m 800` | AC10 pass-with-observed-data; hermetic AC2 is the proof (`-m 1500` + `Memory Index` header, F26) |
+| AC3 already green, Phase 1 looks “not red” | F27 — AC2 is the required red |
 | Span `N` changes | F24 — allowed |
 
 ---
@@ -302,8 +308,8 @@ Entire `conductor/deferred.md` scanned 2026-08-20. `ISSUES.md` does not exist.
 ## 10. Implement order (on go)
 
 1. Phase 0: re-verify `:329`/`:467` + deferred rescan + BUGFIX TX.
-2. **Red:** AC1 unit (dropped hotspot id still in a pre-rebuild mental HashSet — write the unit against a helper or against `dedup` output); AC2 hermetic (fails: A-one absent from Index); AC3 project-scoped negative.
-3. **Green:** carry `(project_id, memory_id)` through `safety_raw` / dedup / round-robin; rebuild `safety_ids`; remove fetch-loop insert.
+2. **Red:** AC1 extras-through-dedup unit (helper compile-fail if named); **AC2** hermetic with `-m 1500` (fails: A-one absent from Index). Run AC3; if already green, keep as guard (F27).
+3. **Green:** carry `(project_id, memory_id)` through `safety_raw` / dedup / round-robin; rebuild `safety_ids`; remove fetch-loop insert; F28 one-line comment.
 4. Confirm AC4–AC7/AC11 stay green.
 5. Docs AC8; manual AC10.
 6. Phase-1 review → Codex (F22) → gate → publish (implement-track Phase 6).
@@ -327,10 +333,45 @@ Entire `conductor/deferred.md` scanned 2026-08-20. `ISSUES.md` does not exist.
 
 | Path | Change |
 |------|--------|
-| `crates/ai-brains-retrieval/src/preflight.rs` | Carry `memory_id` in extra; rebuild `safety_ids` after pipeline; AC1 unit |
-| `crates/ai-brains-cli/tests/preflight_global_isolation.rs` | `index_section` helper; AC2 + AC3 hermetics |
+| `crates/ai-brains-retrieval/src/preflight.rs` | Carry `memory_id` in extra; rebuild `safety_ids` after pipeline; F28 comment; AC1 unit |
+| `crates/ai-brains-cli/tests/preflight_global_isolation.rs` | `index_section` helper; AC2 (`-m 1500`) + AC3 guard |
 | `Docs/CAPABILITIES.md` | Additive T264 skip-emitted clause |
 | `CHANGELOG.md` | T272 row |
 | `conductor/conductor.md` | T272 Planned (registry stays **Pending** until go) |
 | `conductor/deferred.md` | Absorb/decline notes |
 | **Do not touch** | `project.rs`, CLI `preflight.rs` / `preflight_json.rs`, `preflight_global.rs` constants, `sessions.rs`, contracts DTO, clap pins, live `.env` |
+
+---
+
+## 13. Fold-in disposition (2026-08-20)
+
+Inputs: `agy-review.md` + `opencode-review.md`. **Do not edit those files.** Live re-check: `preflight.rs:329` insert / `:335` dedup / `:337–342` round-robin / `:467` Index skip; clap `max_words` `default_value_t = 1500` at `main.rs:1053`; `safety_section` exists, `index_section` does not; `dedup_hotspots_keyed` already clones extra `T`. Pins unchanged (clap lock 4.6.1 / crates.io 4.6.6, no clap 5).
+
+### OpenCode
+
+| Item | Disposition |
+|------|-------------|
+| **m** plan HEAD `9008074` vs live `9fcfcd8` | **Folded** §2.1 — product tree identical; fold-in against `9fcfcd8`. (Reviewer typo `9fcf1a` → actual `9fcfcd8`.) |
+| **m** AC3 listed as Phase-1 red but likely already green | **Folded** F27 / AC3 / §7 / plan Phase 1 — guard, not required red. Behavioral red is AC2. |
+| **m** AC1 needs a concrete failure claim | **Already** F3 / AC1 — extras-through-dedup + collect remaining; helper name is compile-fail red if used before it exists. Tightened AC1 wording. |
+| **O** assert A-one not in Safety | **Already** AC2. |
+| **O** optional `emitted_ids` helper | **Already** F9. |
+
+### Agy
+
+| Item | Disposition |
+|------|-------------|
+| **m1** AC2 word budget so Index is not trimmed | **Folded** F26 / AC2 — explicit `-m 1500` + assert `Memory Index` header. Default is already 1500; live `-m 800` hid Index. |
+| **m2** AC1 extras on `dedup_hotspots_keyed` keep freshest `memory_id` | **Folded** AC1 concrete extras `T` + remaining-only collect. |
+| **O1** `index_section` helper | **Already** AC2 / plan Phase 1 / touch map. |
+| **O2** one-line comment at rebuild | **Folded** F28 / §5.2 sketch. |
+
+### Pins locked by fold-in
+
+1. **F26 / AC2:** hermetic args include `-m 1500`; stdout contains `Memory Index`.
+2. **F27 / AC3:** regression guard; Phase 1 does not require it to fail.
+3. **F28:** one-line rebuild comment at the HashSet collect.
+4. **§2.1:** plan dogfood `9008074` vs fold-in `9fcfcd8` (docs-only).
+5. **AC1:** extras survive `dedup_hotspots_keyed`; skip ids = remaining extras only.
+
+**Decline:** none of the B/M (none filed). No T274. last-PR #186 still N/A.
