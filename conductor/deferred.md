@@ -231,7 +231,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~Format maze; list-paths 7/5; retention default 6/5~~ | **T266 Completed 2026-08-18.** Inventory tokens + four-family table; auto default stays. Nightly pipes / graph-update JSON unchanged. |
 | ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
 | `scan-roots` cwd-only (4/5) | ✅ **T268 Completed 2026-08-19** — `--root` XOR positional; empty suggested when registered; human parent hint. Soft: PATH reinstall; leftover `7d97a456` (T259); JSON `next_step` declined. |
-| Nightly human mixes Router 267009; completion probe timeout | **T269** |
+| Nightly human mixes Router 267009; completion probe timeout | **T269 Planned 2026-08-20** — human `Nightly:` heading + `probe=timeout (750ms)`; JSON frozen; 750 ms not raised |
 | `retention plan` 0 candidates on 35,300 memories (6/5) | **T270** |
 | ~~`sync query` ledger pane false-empty (5/5)~~ | **T271 Completed 2026-08-19.** Stop FTS-quoting `ledgerful ledger search`; first-seen token rescue; named misses. Soft: PATH `cargo install`; Ledgerful token-OR; picker vs sequential probe. |
 
@@ -530,6 +530,23 @@ Specified softs — not product blockers:
 | OpenCode O-2 quiet optional | **Folded** F23 / AC14 required |
 | Agy O1 `pub(crate)` / O2 recall residual | **Already** F11 / F7 |
 | OpenCode m-1 | **Already** closed by B-1 |
+
+### T269 planning absorption (2026-08-20) — Nightly heading + timeout budget; no 750 ms raise
+
+| Item | Disposition |
+|------|-------------|
+| Audit human mixes Last Result 0 with Router 267009 | **Absorb** F1 / AC1 / AC8 / AC10 — `Nightly: AI-Brains-Nightly` before schedule block |
+| Completion `probe=timeout` vs daemon Open | **Absorb as label** F3 / F4 / AC2 / AC6 — human `timeout (750ms)`; do **not** raise 750 ms (llama.cpp #20684 `/health` queue; T255 F18) |
+| `--quick` skipped | **Absorb** F2 |
+| JSON already split | **Affirm** F5 — no `probe_budget_ms` |
+| T255 Router line / JSON keys / 750 ms `join!` | **Affirm** F4 / F5 / F6 — do not restyle Router |
+| T255 doctor 16th / persist probe / embed sleep / `.cmd` / `--no-vault` | **Decline** F19 |
+| Unify daemon TCP with HTTP `/health` | **Decline** F18 — T199 |
+| T270 / T272 / T273 F7 `bridge_search_args` | **Decline** F20 |
+| last-PR Cursor #185 | **N/A** — comments/reviews empty |
+| last-PR #184 Linux Path units | **Decline** — already `#[cfg(windows)]`; **no T274** |
+| T240 F2 / clap 5 / DTO / `cargo install` / live schtasks mutate | **Decline** F14 / F16 / F17 |
+| Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` | **Decline** — not status chrome |
 
 ### T273 implement residuals (2026-08-20)
 
