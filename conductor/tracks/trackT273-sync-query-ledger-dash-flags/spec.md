@@ -1,9 +1,9 @@
 # T273 — `sync query` dash-leading strings must not be Ledgerful flags
 
 - **Track ID:** T273-SyncQueryLedgerDashFlags
-- **Status:** **Planned** (Pending in registry; plan-only until go)
+- **Status:** **Completed** (2026-08-20)
 - **Category:** BUGFIX
-- **Owner:** —
+- **Owner:** Grok
 - **Source:** Cursor Bugbot on PR [#183](https://github.com/Ryan-AI-Studios/AI-Brains/pull/183) (T271) — Medium “Dash queries parsed as ledgerful flags”
 - **Depends on:** T271 ✅ Completed (FTS-quote lift + token rescue)
 - **Blocks / feeds:** Operators can search the ledger for needles that look like flags (`--limit`, `--days`, `--breaking`, `--json`). Does **not** unblock T269 nightly split, T270 retention, T272 Safety skip.
@@ -136,7 +136,7 @@ Could not verify: crates.io Ledgerful (sibling local product). Verified against 
 | **F19 — Empty query vs needle `"--"`** | Empty after strip+trim → never-ran **before** argv is built (T271 F18). Helper **may** be unit-tested with needle `"--"` (AC4): argv ends `…, "--", "--"` — the last token is QUERY, not a second terminator. Production `sync query -- --` is a rare one-token needle; do not special-case. |
 | **F20 — Human `--json` flag stays ours-not** | `sync query --json` remains unexpected (no Query `--json`). Operator who wants needle `--json` uses `sync query -- --json`. After F1, Ledgerful sees `--json -- --json`. |
 | **F21 — Flags before `--`** | Layer-1 clap: `--quiet` / `--no-bridge` / `--limit N` / `--format` must appear **before** the POSIX `--` that starts a dash needle. Manual ACs and `after_help` never put those flags after `--`. |
-| **F22 — AC8 ErrorKind** | Clap unit for `sync query --limit` (no value) asserts `err.kind() == clap::error::ErrorKind::MissingRequiredArgument` (in-tree pattern `main.rs` T247). Not merely `is_err`. |
+| **F22 — AC8 ErrorKind** | Clap unit for `sync query --limit` (no value) asserts `err.kind() == clap::error::ErrorKind::InvalidValue` and the message contains `--limit <LIMIT>`. Execute-time: clap 4.6.1 reports empty option value as `InvalidValue` (clap 4 folded `EmptyValue`). T247 `MissingRequiredArgument` is a `requires` relationship (`--quick` needs `--status`), not this case. Live CLI exit **2**. Not merely `is_err`. |
 | **F23 — Quiet honesty is required** | After green, `sync query --quiet -- --limit` **prints** the ledger pane (Success hits or ran-empty). `--quiet` must not omit it (that would still look like `--no-bridge`). AC14 is DoD, not optional. |
 
 ---
@@ -152,7 +152,7 @@ Could not verify: crates.io Ledgerful (sibling local product). Verified against 
 | **AC5** | Unit: `ledger_forward_query` / rescue / miss-copy / classifier T271 tests stay green (no T90 quotes; empty query still never-ran **before** argv) |
 | **AC6** | Hermetic `sync_query__no_bridge__skips_ledgerful_section` still: has `AI-Brains Recall`, **no** `Ledgerful Ledger Search` |
 | **AC7** | Clap: `Cli::try_parse_from(["ai-brains","sync","query","--","--limit"])` → `Query.query == "--limit"` (layer 1 lock) |
-| **AC8** | Clap: `try_parse_from(["ai-brains","sync","query","--limit"])` → `Err` with `kind() == ErrorKind::MissingRequiredArgument` (vault flag stands). Live CLI exit **2**. |
+| **AC8** | Clap: `try_parse_from(["ai-brains","sync","query","--limit"])` → `Err` with `kind() == ErrorKind::InvalidValue` and message contains `--limit <LIMIT>` (vault flag stands). Live CLI exit **2**. |
 | **AC9** | Manual (on go): `cargo run -p ai-brains-cli -- sync query -- --limit` from this repo → ledger pane has **≥1** table row **or** ran-empty quoting `'--limit'`. Must **not** print `a value is required for '--limit <LIMIT>'` |
 | **AC10** | Manual: `cargo run -p ai-brains-cli -- sync query --no-bridge -- --limit` → Recall section, **no** `Ledgerful Ledger Search`. Flags **before** `--` (F21). Do **not** run `sync query -- --limit --no-bridge` (clap exit 2, stray positional). |
 | **AC11** | Manual: `ledgerful ledger search --json -- --limit` still ≥1 (control — we did not break Ledgerful) |
@@ -212,7 +212,7 @@ T271 F18: empty after strip+trim → never-ran **before** spawn. F19: do not bui
 Red first, then green.
 
 1. **Red units (commit allowed):** `ledger_search_argv__json_dash_limit__end_of_options_before_query`; `ledger_search_argv__human_dash_limit__no_json_flag`; `ledger_search_argv__plain_phrase__still_emits_double_dash`; rstest cases for `--days` / `--breaking` / `--json` / `-l` / `"--"` (AC4).
-2. **Red clap (commit allowed):** `sync_query__posix_end_of_options__limit_is_query`; `sync_query__bare_limit_flag__still_requires_value` asserts `ErrorKind::MissingRequiredArgument` (AC8 / F22).
+2. **Red clap (commit allowed):** `sync_query__posix_end_of_options__limit_is_query`; `sync_query__bare_limit_flag__still_requires_value` asserts `ErrorKind::InvalidValue` + `--limit <LIMIT>` (AC8 / F22).
 3. **Green:** implement `ledger_search_argv` + wire `run_ledger_search` + Query `after_help` (F6 contrast).
 4. **Stay green:** T271 unit suite; `sync_query__no_bridge__*`; T211/T231 hermetics.
 5. **Manual on go:** AC9, **AC10** (`--no-bridge -- --limit`), AC11, **AC14** (`--quiet -- --limit` prints pane).
@@ -327,7 +327,7 @@ Sources: `agy-review.md` (stated HEAD `f3f6cbd`) + `opencode-review.md` (stated 
 1. **F21 / AC10:** flags (`--no-bridge`, `--quiet`, `--limit N`) **before** POSIX `--`. Never `sync query -- --limit --no-bridge`.
 2. **F23 / AC14:** `--quiet -- --limit` is a required manual AC; pane must print.
 3. **AC4:** needle `"--"` → last argv is `"--"`, terminator immediately before it.
-4. **F22 / AC8:** clap unit asserts `ErrorKind::MissingRequiredArgument`, not merely `is_err`.
+4. **F22 / AC8:** clap unit asserts `ErrorKind::InvalidValue` + `--limit <LIMIT>` (clap 4 empty option value). T247 `MissingRequiredArgument` is a different construct.
 5. **F6 / AC12:** `after_help` contrasts `sync query -- --limit` (needle) vs `sync query "text" --limit 10` (vault cap).
 6. **F11:** `pub(crate) fn ledger_search_argv` (already planned).
 

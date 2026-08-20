@@ -526,10 +526,20 @@ Specified softs — not product blockers:
 | OpenCode **B-1** AC10 `-- --limit --no-bridge` | **Folded** F21 / AC10 — `sync query --no-bridge -- --limit` (live exit 2 vs exit 0) |
 | Agy m1 helper needle `"--"` | **Folded** AC4 / F19 |
 | Agy m2 `after_help` contrast | **Folded** F6 / AC12 |
-| OpenCode O-1 AC8 `ErrorKind` | **Folded** F22 |
+| OpenCode O-1 AC8 `ErrorKind` | **Folded** F22 — execute: clap 4.6.1 empty `--limit` is `InvalidValue` (not T247 `MissingRequiredArgument`) |
 | OpenCode O-2 quiet optional | **Folded** F23 / AC14 required |
 | Agy O1 `pub(crate)` / O2 recall residual | **Already** F11 / F7 |
 | OpenCode m-1 | **Already** closed by B-1 |
+
+### T273 implement residuals (2026-08-20)
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` | F16 — operator; tests/manual used `cargo run` |
+| `bridge_search_args` (`ledgerful search` code) dash-query | F7 — retrieval crate; same `--` insert; not this DoD |
+| Ledgerful QUERY `allow_hyphen_values` / token-OR | Other repo; `--` is our remediator (T271 F23) |
+| T269 / T270 / T272 | Peers — not stolen |
+| F22 ErrorKind pin | Execute correction documented; unit locks live `InvalidValue` + `--limit <LIMIT>` |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`
 

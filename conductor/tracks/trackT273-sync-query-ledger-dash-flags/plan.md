@@ -1,11 +1,11 @@
 # T273 Plan — sync query dash-leading Ledgerful flags
 
-**Status:** **Pending** (spec **Planned**; plan-only until go)
+**Status:** **Completed** (local gate green 2026-08-20; publish Phase 6)
 **Spec:** [spec.md](./spec.md) F0–F23 / AC1–AC14 + §13 AI fold-in
 **Category:** BUGFIX
 **Ledger TX (planning):** `1d4391ae-3769-4cfa-9d04-8be1c7f138bd` (DOCS)
 **Ledger TX (fold-in):** `0d001d8e-0608-4ba0-8ac2-fb9d836c71b4` (DOCS)
-**Ledger TX (on go):** BUGFIX — open then
+**Ledger TX (implement):** `20892666-f2ed-4710-b05f-371b02200567` (BUGFIX)
 
 ---
 
@@ -18,7 +18,7 @@ Agy: **Planned**, no B/M. OpenCode: **Planned after fixes**, **B-1** (AC10 flag 
 1. **F21 / AC10:** `sync query --no-bridge -- --limit` (flags before `--`). Never `-- --limit --no-bridge`.
 2. **F23 / AC14:** `--quiet -- --limit` required; pane must print.
 3. **AC4:** needle `"--"`.
-4. **F22 / AC8:** `ErrorKind::MissingRequiredArgument`.
+4. **F22 / AC8:** `ErrorKind::InvalidValue` + `--limit <LIMIT>` (clap 4 empty option value; T247 analog was wrong).
 5. **F6:** `after_help` contrasts needle vs vault `--limit 10`.
 
 ---
@@ -80,73 +80,74 @@ Agy: **Planned**, no B/M. OpenCode: **Planned after fixes**, **B-1** (AC10 flag 
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `run_ledger_search` + live `ledgerful ledger search --help`
-- [ ] Confirm `ledgerful ledger search --json -- --limit` still exit 0
-- [ ] Confirm source `sync query -- --limit` still prints `--limit <LIMIT>` required
-- [ ] Re-check lock clap **4.6.1** / serde_json **1.0.150**. rustc **1.95.0**. No clap 5
-- [ ] Rescan **entire** `conductor/deferred.md`
-- [ ] Last merged PR Cursor comments (plus open PR on HEAD)
-- [ ] BUGFIX TX start
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
+- [x] Re-read `run_ledger_search` + live `ledgerful ledger search --help`
+- [x] Confirm `ledgerful ledger search --json -- --limit` still exit 0
+- [x] Confirm source `sync query -- --limit` still prints `--limit <LIMIT>` required (pre-green)
+- [x] Re-check lock clap **4.6.1** / serde_json **1.0.150**. rustc **1.95.0**. No clap 5 (crates.io clap 4.6.6)
+- [x] Rescan **entire** `conductor/deferred.md`
+- [x] Last merged PR Cursor comments (plus open PR on HEAD) — #184 Linux units declined F8; #183 is this track
+- [x] BUGFIX TX start `20892666-f2ed-4710-b05f-371b02200567`
 
 ---
 
 ## Phase 1 — Red (commit allowed)
 
-- [ ] Unit `ledger_search_argv__json_dash_limit__end_of_options_before_query` (AC1)
-- [ ] Unit `ledger_search_argv__human_dash_limit__no_json_flag` (AC2)
-- [ ] Unit `ledger_search_argv__plain_phrase__still_emits_double_dash` (AC3)
-- [ ] rstest AC4 needles (`--days`, `--breaking`, `--json`, `-l`, `-d`, `-b`, `"--"`)
-- [ ] Clap `sync_query__posix_end_of_options__limit_is_query` (AC7)
-- [ ] Clap `sync_query__bare_limit_flag__still_requires_value` asserts `ErrorKind::MissingRequiredArgument` (AC8 / F22)
-- [ ] Prove they fail on current tree before green
+- [x] Unit `ledger_search_argv__json_dash_limit__end_of_options_before_query` (AC1)
+- [x] Unit `ledger_search_argv__human_dash_limit__no_json_flag` (AC2)
+- [x] Unit `ledger_search_argv__plain_phrase__still_emits_double_dash` (AC3)
+- [x] AC4 needles (`--days`, `--breaking`, `--json`, `-l`, `-d`, `-b`, `"--"`) as separate tests (no rstest dep on cli crate; F13)
+- [x] Clap `sync_query__posix_end_of_options__limit_is_query` (AC7)
+- [x] Clap `sync_query__bare_limit_flag__still_requires_value` asserts `ErrorKind::InvalidValue` + `--limit <LIMIT>` (AC8 / F22)
+- [x] Prove they fail on current tree before green (E0432 unresolved `ledger_search_argv`)
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] `pub(crate) fn ledger_search_argv(query: &str, json: bool) -> Vec<String>`
-- [ ] `run_ledger_search` uses **only** that helper (JSON + human)
-- [ ] Empty-query never-ran still happens **before** spawn (T271 F18)
-- [ ] Query `after_help` contrasts `sync query -- --limit` (needle) vs `sync query "text" --limit 10` (vault cap) (F6 / AC12)
-- [ ] No T90; no `allow_hyphen_values` on Query.query; no `sync.rs` / `project.rs` / `recall.rs` edits
+- [x] `pub(crate) fn ledger_search_argv(query: &str, json: bool) -> Vec<String>`
+- [x] `run_ledger_search` uses **only** that helper (JSON + human)
+- [x] Empty-query never-ran still happens **before** spawn (T271 F18)
+- [x] Query `after_help` contrasts `sync query -- --limit` (needle) vs `sync query "text" --limit 10` (vault cap) (F6 / AC12)
+- [x] No T90; no `allow_hyphen_values` on Query.query; no `sync.rs` / `project.rs` / `recall.rs` edits
 
 ---
 
 ## Phase 3 — Stay green + docs
 
-- [ ] T271 units AC1–AC19 (forwarder / rescue / miss / classifier / json_non_empty)
-- [ ] `sync_query__no_bridge__skips_ledgerful_section` (AC6)
-- [ ] T211 ranking + T231 resolve hermetics (AC13)
-- [ ] CAPABILITIES T271 pane bullet + CHANGELOG T273 row (AC12)
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] `cargo nextest run -p ai-brains-cli --lib` + named clap/argv tests
+- [x] T271 units AC1–AC19 (forwarder / rescue / miss / classifier / json_non_empty)
+- [x] `sync_query__no_bridge__skips_ledgerful_section` (AC6)
+- [x] T211 ranking + T231 resolve hermetics (AC13)
+- [x] CAPABILITIES T271 pane bullet + CHANGELOG T273 row (AC12)
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] `cargo nextest run -p ai-brains-cli --bins` + named clap/argv tests (crate has no `--lib`)
 
 ---
 
 ## Phase 4 — Manual (on go)
 
-- [ ] AC9: `cargo run -p ai-brains-cli -- sync query -- --limit` → ledger hits **or** ran-empty `'--limit'`; **not** `--limit <LIMIT>` required
-- [ ] AC10: `cargo run -p ai-brains-cli -- sync query --no-bridge -- --limit` → Recall, **no** ledger pane (flags **before** `--`)
-- [ ] AC11: `ledgerful ledger search --json -- --limit` ≥1
-- [ ] AC14 (required): `cargo run -p ai-brains-cli -- sync query --quiet -- --limit` **prints** the ledger pane
+- [x] AC9: `cargo run -p ai-brains-cli -- sync query -- --limit` → ledger hits **or** ran-empty `'--limit'`; **not** `--limit <LIMIT>` required
+- [x] AC10: `cargo run -p ai-brains-cli -- sync query --no-bridge -- --limit` → Recall, **no** ledger pane (flags **before** `--`)
+- [x] AC11: `ledgerful ledger search --json -- --limit` ≥1
+- [x] AC14 (required): `cargo run -p ai-brains-cli -- sync query --quiet -- --limit` **prints** the ledger pane
 
 ---
 
 ## Phase 5 — Review + publish
 
-- [ ] `conductor/<track>/review.md` (post-execute)
-- [ ] Medium+ not silently dropped
-- [ ] Residuals appended to `deferred.md`
-- [ ] conductor **Completed** only after implement-track Phase 6 (push → PR → GHA green → squash-merge → prune)
+- [x] `conductor/<track>/review.md` (post-execute)
+- [x] Medium+ not silently dropped
+- [x] Residuals appended to `deferred.md`
+- [x] Local gate: `dev-check.ps1` 3206 passed / 1 skipped; `ledgerful verify --scope full` passed
+- [ ] conductor **Completed** after implement-track Phase 6 (push → PR → GHA green → squash-merge → prune)
 - [ ] Never `git push origin main` / force-push
 
 ---
 
 ## Definition of done
 
-- [ ] AC1–AC14 green or manual-recorded
-- [ ] T271 suite still green
-- [ ] F0 was respected (no product commits as “planning”)
+- [x] AC1–AC14 green or manual-recorded
+- [x] T271 suite still green
+- [x] F0 was respected (no product commits as “planning”)
 - [ ] Ledger BUGFIX TX committed; 0 pending / 0 drift
 - [ ] Spec header + registry Completed **after** merge hygiene
