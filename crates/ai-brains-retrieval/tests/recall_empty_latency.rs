@@ -249,6 +249,7 @@ fn lexical_search__all_stopword__still_matches__ac15() -> Result<(), Box<dyn std
             rescue: false,
             limit: 5,
             exclude_symbol_stubs: false,
+            prefer_authority: false,
         },
     )?;
     assert!(

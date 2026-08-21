@@ -289,6 +289,7 @@ pub fn recall_full(
             rescue: true,
             limit: depth,
             exclude_symbol_stubs: exclude_stubs,
+            prefer_authority: true,
         },
     )?
     .into_iter()
@@ -312,17 +313,20 @@ pub fn recall_full(
         let fallback =
             substring_fallback(conn, query, project_id, session_id, limit, exclude_stubs)?;
         if !fallback.is_empty() {
-            local_hits = fallback
-                .into_iter()
-                .map(|memory| {
-                    RecallHit::substring(
-                        memory.memory_id,
-                        memory.content,
-                        memory.session_id,
-                        memory.updated_at,
-                    )
-                })
-                .collect();
+            local_hits = crate::session_chrome::prefer_authority_hits(
+                fallback
+                    .into_iter()
+                    .map(|memory| {
+                        RecallHit::substring(
+                            memory.memory_id,
+                            memory.content,
+                            memory.session_id,
+                            memory.updated_at,
+                        )
+                    })
+                    .collect(),
+                depth,
+            );
             if exclude_stubs {
                 crate::symbol_stub::retain_non_symbol_stubs(&mut local_hits);
             }
@@ -511,6 +515,7 @@ pub fn recall_full(
     // point (F40) — ScoreKind-aware (T215). Truncate after. T260 F3: stub
     // content-dedupe runs after this sort, never before.
     crate::ranking::rerank_hits(&mut blended);
+    crate::session_chrome::dedupe_session_chrome(&mut blended);
     crate::symbol_stub::dedupe_symbol_stubs(&mut blended);
 
     if blended.len() > limit {

@@ -325,8 +325,8 @@ pub fn semantic_search_with_embedding(
     let mut hits: Vec<RecallHit> = scored.into_iter().map(|(_, hit)| hit).collect();
     // F4: drop below floor before candidate-depth truncate (AC2 binds production).
     hits = filter_by_cosine_floor(hits, floor);
-    // Truncate to candidate depth after floor (F9).
-    hits.truncate(limit);
+    // T274 F9: authority prefer-fill, then cap candidate depth (replaces bare truncate).
+    hits = crate::session_chrome::prefer_authority_hits(hits, limit);
 
     Ok(SemanticOutcome { hits, embedding })
 }
