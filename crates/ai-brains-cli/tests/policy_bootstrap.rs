@@ -639,6 +639,59 @@ fn policy_bootstrap__after__dangerous_caps_still_denied() {
     }
 }
 
+/// T275 AC3 / F3 — denied JSON keeps `denied: true`, empty arrays (not null), bootstrap hint; exit 0.
+#[test]
+fn briefing_project__no_grants__json_denied_empty_arrays() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("briefing")
+        .arg("project")
+        .arg("--project-id")
+        .arg(PROJECT)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("briefing json deny");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "briefing deny stays exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("briefing json");
+    assert_eq!(v["denied"], true, "packet={v}");
+    let decisions = v["decisions"].as_array();
+    assert!(
+        decisions.is_some() && !v["decisions"].is_null(),
+        "decisions must be [] not null; got {v}"
+    );
+    assert!(
+        decisions.expect("decisions array").is_empty(),
+        "denied decisions must be empty; got {v}"
+    );
+    let conclusions = v["conclusions"].as_array();
+    assert!(
+        conclusions.is_some() && !v["conclusions"].is_null(),
+        "conclusions must be [] not null; got {v}"
+    );
+    assert!(
+        conclusions.expect("conclusions array").is_empty(),
+        "denied conclusions must be empty; got {v}"
+    );
+    let hint = v["denial_hint"].as_str().unwrap_or("");
+    assert!(
+        hint.contains("policy bootstrap"),
+        "denial_hint must name policy bootstrap; got {v}"
+    );
+}
+
 /// T275 AC4 — CLI System `policy bootstrap` then `briefing project` JSON `denied: false`.
 ///
 /// Omit `--principal-id` so bootstrap matches `cli_principal()` System default
