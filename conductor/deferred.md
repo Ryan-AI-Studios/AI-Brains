@@ -8,8 +8,8 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 
 | Item | Track |
 |------|-------|
-| recall/search/semantic/preflight/memory-list session dumps over pins | **T274** |
-| briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275** |
+| recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
+| briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Planned** |
 | leftover `7d97a456` ~18k / `--global` junk | **T276** (T259 residual) |
 | 22/22 backup FAIL; no usable encrypted file | **T277** |
 | graph sparse + neighbors blank preview | **T278** |
@@ -51,6 +51,25 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode o3 grep `classify_pin_kind` | **Folded** Phase 0 |
 | last-PR #188 Cursor | **Affirm T284** — no T285 |
 | No B/M | Nothing to decline of B/M |
+
+### T275 planning absorption (2026-08-21) — grant-wall + CLI bootstrap lock; no auto-grant
+
+| Item | Disposition |
+|------|-------------|
+| Audit briefing/progressive/lists POLICY_DENIED (0 of 3) | **Absorb** F1–F6 / AC1–AC5 |
+| Denied human `_None_` looks like empty vault | **Absorb** F1/F2 / AC1 |
+| CLI `policy bootstrap` → briefing/evidence untested (T210 gap) | **Absorb** F5/F6 / AC4/AC5 (System principal; T221 F31) |
+| T241 F21 skill one-liner | **Absorb** F23 docs |
+| T241 F20 `preflight --install-grants` | **Decline** F9 — mutation stays `policy bootstrap` |
+| Auto-grant on `init` / first preflight | **Decline** F8 — T210 F13 |
+| T280 deny hint `--scope …` vs doctor omit | **Decline** F11 → **T280** |
+| T263 H2 pin→Approved | **Decline** F12 |
+| leftover `7d97a456` | **Decline** → **T276** |
+| last-PR Cursor #189 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Affirm T284** — no T285 |
+| T240 F2 / T255 750 ms / clap 5 / rusqlite 0.40 | **Decline** |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276 |
+| Live operator bootstrap | **F10** — `--dry-run` only unless owner confirms at go |
 
 ### T274 closeout residuals (2026-08-21)
 
