@@ -52,6 +52,18 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | last-PR #188 Cursor | **Affirm T284** — no T285 |
 | No B/M | Nothing to decline of B/M |
 
+### T274 closeout residuals (2026-08-21)
+
+| Residual | Disposition |
+|----------|-------------|
+| Detector tests not `rstest #[case]` (F27 style) | **Defer** low — cases covered |
+| AC6 dump buried `decision:` not `CONSTRAINT:` | **Defer** low — CONSTRAINT would Safety-steal (T279) |
+| SQL GLOB misses lowercase `decision:` | **F8 documented** — detector/prefer-fill SoT |
+| AC16 unit is helper, not `semantic_search_with_embedding` | **Defer** low — spec: no HTTP |
+| PATH `ai-brains` until `cargo install` | F21 |
+| Live vault still dumps until install | F21 |
+| Restore drill needs daemon Stopped | Unrelated T188; not T274 |
+
 ### T270 closeout residuals (2026-08-21)
 
 Specified softs — not product blockers:

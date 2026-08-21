@@ -125,11 +125,11 @@ fn recall__unique_pin_needle__hit_one() {
         "AC14: JSON results must be non-empty; stdout={stdout}"
     );
     let first_raw = hits[0].as_str();
-    let first = first_raw.strip_prefix("ASSISTANT: ").unwrap_or(first_raw);
     assert!(
-        first.starts_with("DECISION:"),
-        "AC14: JSON hit #1 must be the pin (leading DECISION: after ASSISTANT: strip); hits={hits:?}"
+        first_raw.starts_with("ASSISTANT: DECISION:") || first_raw.starts_with("DECISION:"),
+        "AC14: JSON hit #1 must be the pin (raw DECISION:); hits={hits:?}"
     );
+    let first = first_raw.strip_prefix("ASSISTANT: ").unwrap_or(first_raw);
     assert!(
         !first.starts_with("## Objective"),
         "AC14: JSON hit #1 must not be session chrome; hits={hits:?}"

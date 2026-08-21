@@ -452,6 +452,7 @@ fn build_legacy_preflight(
         &mut collected_ids,
         max_words,
         true,
+        None,
     )?;
     let mut pass2_ids: Vec<String> = collected_ids.iter().cloned().collect();
     pass2_ids.sort();
@@ -468,6 +469,26 @@ fn build_legacy_preflight(
         &mut collected_ids,
         max_words,
         false,
+        None,
+    )?;
+
+    // Most Recent stays recency-ordered (T274 Index two-pass must not retitle this section).
+    let mut recent_raw: Vec<(String, String, Option<String>)> = Vec::new();
+    let mut recent_ids: HashSet<String> = HashSet::new();
+    let recency_sql = index_select_sql(global, "");
+    let recent_cap = if global { GLOBAL_INDEX_FETCH } else { 3 };
+    drain_index_pass(
+        &conn,
+        &recency_sql,
+        global,
+        project_id_str.as_deref(),
+        &[],
+        &safety_ids,
+        &mut recent_raw,
+        &mut recent_ids,
+        usize::MAX,
+        false,
+        Some(recent_cap),
     )?;
 
     let index_items = if global {
@@ -482,13 +503,13 @@ fn build_legacy_preflight(
     };
     let recent_items = if global {
         take_round_robin(
-            collected.clone(),
+            recent_raw,
             |(_, _, pid)| project_key(pid.as_deref()),
             GLOBAL_RECENT_PER_PROJECT,
             GLOBAL_RECENT_MAX,
         )
     } else {
-        collected.iter().take(3).cloned().collect()
+        recent_raw
     };
 
     if !index_items.is_empty() {
@@ -602,6 +623,7 @@ fn drain_index_pass(
     collected_ids: &mut HashSet<String>,
     max_words: usize,
     authority_only: bool,
+    max_count: Option<usize>,
 ) -> Result<()> {
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
     if !global {
@@ -640,6 +662,11 @@ fn drain_index_pass(
         }
         if authority_only && classify_pin_kind(&content) == PinKind::Other {
             continue;
+        }
+        if let Some(n) = max_count
+            && collected.len() >= n
+        {
+            break;
         }
         if global {
             if collected.len() >= GLOBAL_INDEX_FETCH {

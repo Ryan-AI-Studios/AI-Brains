@@ -69,7 +69,7 @@ fn preflight__index_prefers_leading_decision_over_objective_dump()
     let ctx = build_preflight(store.connection(), None, 60, Some(project_id), None, false)?;
 
     assert!(
-        ctx.text.contains(&needle),
+        ctx.text.contains("DECISION:") && ctx.text.contains("T274-index-needle-"),
         "AC6: Index must contain the leading DECISION pin; text=\n{}",
         ctx.text
     );

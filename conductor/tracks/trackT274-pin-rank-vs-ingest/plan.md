@@ -1,6 +1,6 @@
 # T274 Plan — Pins vs harness ingest ranking
 
-**Status:** **Pending** (Planned; F0 until **go**)
+**Status:** **In Progress** (go 2026-08-21; FEATURE TX `a5e94797`)
 **Spec:** [spec.md](./spec.md) F0–F36 / AC1–AC17 + §13 AI fold-in
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger TX (planning):** `9c1049c0-5520-430d-a1f0-01aba355082e` (DOCS)
@@ -49,15 +49,15 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `classify_pin_kind` / `rerank_hits` / `match_query` / Index loop `:437` / `recall.rs` post-blend
-- [ ] Grep `classify_pin_kind` callers/tests (OpenCode o3). Fold-in: ranking units leading-only; `sync.rs:523` inherits F2 — do not edit `sync.rs`
-- [ ] Rescan `conductor/deferred.md` for new open rows that overlap
-- [ ] Confirm #188 Mediums still T284-only / no new Cursor leftover that needs a mint
-- [ ] Re-dogfood `recall "what did we decide about retention"` + `preflight --summary` (expect hole until green)
-- [ ] Re-check clap/rusqlite/chrono lock vs crates.io (**no bump** unless execute proves otherwise)
-- [ ] FEATURE TX start
-- [ ] Do **not** pin the live vault; do **not** `cargo install`; do **not** bootstrap grants; do **not** retune Safety SQL
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
+- [x] Re-read `classify_pin_kind` / `rerank_hits` / `match_query` / Index loop `:437` / `recall.rs` post-blend
+- [x] Grep `classify_pin_kind` callers/tests (OpenCode o3). Fold-in: ranking units leading-only; `sync.rs:523` inherits F2 — do not edit `sync.rs`
+- [x] Rescan `conductor/deferred.md` for new open rows that overlap
+- [x] Confirm #188 Mediums still T284-only / no new Cursor leftover that needs a mint
+- [x] Re-dogfood `recall "what did we decide about retention"` + `preflight --summary` (expect hole until green) — PATH still 0/0/0 @ 3324 until this binary is installed (F21)
+- [x] Re-check clap/rusqlite/chrono lock vs crates.io (**no bump** unless execute proves otherwise) — clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0
+- [x] FEATURE TX start `a5e94797-f17d-45bc-b591-a2399fa42da5`
+- [x] Do **not** pin the live vault; do **not** `cargo install`; do **not** bootstrap grants; do **not** retune Safety SQL
 
 ---
 
@@ -94,44 +94,44 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ### Red (commit allowed)
 
-- [ ] AC1 `classify_pin_kind__buried_decision__other` (and leading/INVARIANT cases)
-- [ ] AC3 `rerank_hits__leading_decision_outranks_session_chrome`
-- [ ] AC4 `recall_full__chrome_monopoly__authority_pin_is_hit_one`
-- [ ] AC6 `preflight__index_prefers_leading_decision_over_objective_dump`
-- [ ] AC14 hermetic CLI `recall__unique_pin_needle__hit_one`
+- [x] AC1 `classify_pin_kind__buried_decision__other` (and leading/INVARIANT cases)
+- [x] AC3 `rerank_hits__leading_decision_outranks_session_chrome`
+- [x] AC4 `recall_full__chrome_monopoly__authority_pin_is_hit_one`
+- [x] AC6 `preflight__index_prefers_leading_decision_over_objective_dump`
+- [x] AC14 hermetic CLI `recall__unique_pin_needle__hit_one`
 
 ### Green
 
-- [ ] `session_chrome.rs` detector + GLOB fragment + first-line dedupe (AC2 / AC5 / AC17)
-- [ ] F2 leading-line + F3 INVARIANT in `classify_pin_kind`
-- [ ] F6 `SESSION_CHROME_PENALTY` inside `rerank_hits`
-- [ ] F7 two-pass `match_query` (authority GLOB then fill; skip pass 2 if pass1 full)
-- [ ] F35 bound `NOT IN` `?` placeholders (no UUID interpolation)
-- [ ] F36 `authority_glob_sql(column)`
-- [ ] F9 semantic in-memory prefer (AC16)
-- [ ] F10 `dedupe_session_chrome` after `rerank_hits` (chrome only)
-- [ ] F11 Index two-pass in `retrieval/src/preflight.rs`
-- [ ] Docs F32 (CAPABILITIES / CHANGELOG / PROTOCOL-COMPAT one-liner)
-- [ ] Confirm AC8–AC13 still green (T211 / T260 / T216 / T207 / forget unfiltered / JSON keys)
+- [x] `session_chrome.rs` detector + GLOB fragment + first-line dedupe (AC2 / AC5 / AC17)
+- [x] F2 leading-line + F3 INVARIANT in `classify_pin_kind`
+- [x] F6 `SESSION_CHROME_PENALTY` inside `rerank_hits`
+- [x] F7 two-pass `match_query` (authority GLOB then fill; skip pass 2 if pass1 full)
+- [x] F35 bound `NOT IN` `?` placeholders (no UUID interpolation)
+- [x] F36 `authority_glob_sql(column)`
+- [x] F9 semantic in-memory prefer (AC16)
+- [x] F10 `dedupe_session_chrome` after `rerank_hits` (chrome only)
+- [x] F11 Index two-pass in `retrieval/src/preflight.rs`
+- [x] Docs F32 (CAPABILITIES / CHANGELOG / PROTOCOL-COMPAT one-liner)
+- [x] Confirm AC8–AC13 still green (T211 / T260 / T216 / T207 / forget unfiltered / JSON keys)
 
 ### Verify
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] targeted nextest (retrieval lib + hermetic AC14/AC6)
-- [ ] `ledgerful verify --scope fast` then full gate at closeout
-- [ ] Phase-1 review → `codex-review` (F28)
+- [x] `cargo fmt --check`
+- [x] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
+- [x] targeted nextest (retrieval lib + hermetic AC14/AC6)
+- [x] `ledgerful verify --scope fast` then full gate at closeout — fmt/clippy/deny/audit + nextest **3247** passed (daemon Stopped)
+- [x] Phase-1 review → `codex-review` (F28) — `review.codex.md`; P2-2 fixed
 - [ ] conductor **Completed** only after implement-track Phase 6 (push / PR / GHA / squash)
 
 ---
 
 ## DoD (checkable after go)
 
-- [ ] Unique hermetic pin needle is recall hit **#1** (AC14)
-- [ ] Chrome monopoly still admits the pin into `candidate_depth` (AC4)
-- [ ] Preflight Index lists the pin; `--summary` `in_context_decisions >= 1` (AC6/AC7)
-- [ ] `sync query` vault top is the pin (AC15)
-- [ ] Safety SQL unchanged (T279); `memory list` ORDER unchanged (T216)
-- [ ] No new Recall JSON required keys; no clap 5; no rusqlite 0.40
-- [ ] `project.rs` / CLI `preflight.rs` / `sync.rs` untouched
-- [ ] Medium+ review findings not silently dropped
+- [x] Unique hermetic pin needle is recall hit **#1** (AC14)
+- [x] Chrome monopoly still admits the pin into `candidate_depth` (AC4)
+- [x] Preflight Index lists the pin; `--summary` `in_context_decisions >= 1` (AC6/AC7)
+- [x] `sync query` vault top is the pin (AC15)
+- [x] Safety SQL unchanged (T279); `memory list` ORDER unchanged (T216)
+- [x] No new Recall JSON required keys; no clap 5; no rusqlite 0.40
+- [x] `project.rs` / CLI `preflight.rs` / `sync.rs` untouched
+- [x] Medium+ review findings not silently dropped
