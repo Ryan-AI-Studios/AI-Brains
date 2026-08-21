@@ -908,4 +908,72 @@ mod tests {
         );
         assert_eq!(hits[1].memory_id, "mem-stub");
     }
+
+    /// T274 AC1: leading markers only. Buried `decision:` / JSON keys → Other.
+    /// `INVARIANT:` at the start of the first contentful line → Constraint.
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_pin_kind__buried_decision__other() {
+        assert_eq!(
+            classify_pin_kind("DECISION: needle"),
+            PinKind::Decision,
+            "leading DECISION: remains Decision"
+        );
+        assert_eq!(
+            classify_pin_kind("ASSISTANT: DECISION: x"),
+            PinKind::Decision
+        );
+        assert_eq!(
+            classify_pin_kind("INVARIANT: rule"),
+            PinKind::Constraint,
+            "leading INVARIANT: is Constraint (F3)"
+        );
+        assert_eq!(
+            classify_pin_kind("## Objective\nReview T274.\nSomeone buried decision: in a skill."),
+            PinKind::Other,
+            "buried decision: in a session dump is Other"
+        );
+        assert_eq!(
+            classify_pin_kind("{\"decision\": \"ship it\", \"decisions\": []}"),
+            PinKind::Other,
+            "JSON decision key is not a leading pin"
+        );
+        assert_eq!(classify_pin_kind("hotspot: file"), PinKind::Hotspot);
+        assert_eq!(classify_pin_kind("just a chat turn"), PinKind::Other);
+        assert_eq!(
+            classify_pin_kind("decision: lowercase marker"),
+            PinKind::Decision,
+            "case-insensitive leading decision:"
+        );
+    }
+
+    /// T274 AC3: chrome BM25 −12 must lose to leading DECISION BM25 −2 after penalty.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits__leading_decision_outranks_session_chrome() {
+        let mut hits = vec![
+            hit(
+                "mem-chrome",
+                "## Objective\nT274 dump of the ranking remediator",
+                Some(-12.0),
+                None,
+            ),
+            hit(
+                "mem-pin",
+                "DECISION: we chose the T274 ranking remediator",
+                Some(-2.0),
+                None,
+            ),
+        ];
+        rerank_hits(&mut hits);
+        assert_eq!(
+            hits[0].memory_id,
+            "mem-pin",
+            "leading DECISION must outrank ## Objective chrome; order={:?}",
+            hits.iter()
+                .map(|h| h.memory_id.as_str())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(hits[1].memory_id, "mem-chrome");
+    }
 }
