@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can believe `Nothing to dispose.` because the matrix shows the vault’s pins as **held**. Does **not** unblock leftover-identity mismatch quiet, T273 F7 `bridge_search_args`, or nightly CE.
 - **Absorbs:** deferred.md “`retention plan` 0 candidates on 35,300 memories”; placeholder F1–F4; T166 §5.1.5 stream-A `memory_legacy` scan that was never coded; T248 empty-check lift (`Nothing to dispose.` = no **dispose** work)
 - **Not absorbed (DoD):** `retention apply` mutation; CE wipe; `classify_legacy` / `migrate governed`; auto-forget pins; T166 horizon retune; T248 format tokens / apply JSON default; doctor 16th; clap 5 / pin bumps; contracts new keys; leftover `7d97a456` vs `fcb8a40f` mismatch (T240/T257/T258)
-- **Research date:** 2026-08-20 (source HEAD `fdd4924` T272 `#187`)
-- **AI fold-in:** none yet (plan pass)
-- **Ledger:** planning DOCS TX `3ebebd1f-58e1-4663-b559-75f900edfc95`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-20 (plan dogfood HEAD `fdd4924` T272 `#187`; fold-in against `70d61cd` — docs-only; product `src/` identical)
+- **AI fold-in:** 2026-08-20 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Agree:** Agy m1 forgotten-only sample SQL (AC1/AC4); Agy m2 `classes` sort after merge (F30 / AC17); Agy O1 notes const (F31). **Already covered:** Agy O2 SQL `LIMIT 5` (F5 / AC16); OpenCode O4 `ISSUES.md` (F24); OpenCode SOOT `:755/:771` is `collect_candidates` — merge stays **after** `build_report` (F6). **Fold snapshot:** OpenCode m HEAD `70d61cd`; OpenCode m nightly `:511–535`; OpenCode O pin-count / hotspot / search line drift. **Decline:** OpenCode deferred-table misread that F8 lifts to `totals.candidates == 0` — F8 is **dispose-work** (`ce_wipe + projection_delete`). Disposition **§13**.
+- **Ledger:** planning DOCS TX `3ebebd1f-58e1-4663-b559-75f900edfc95`. Fold-in DOCS TX `56696e5a-9104-46c6-9313-447d2bacb7d1`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** run live `retention apply --confirm`. Do **not** call `classify_legacy` / `migrate governed`. Do **not** `cargo install`, rewrite `.env`, pin-as-implement to the live vault, or mutate schtasks. Do **not** grow hotspot `project.rs` / `sync.rs` / `preflight.rs`. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -33,11 +33,11 @@ This unblocks daily honesty for class-based retention: T248 made the matrix read
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `fdd4924` — T272 squash-merged (#187). Tree **CLEAN**. `main` == `origin/main` (`0 0`). |
+| HEAD | **Plan dogfood:** `fdd4924` T272 `#187` (product `src/` unchanged since). **This fold-in:** `70d61cd` (docs-only planning commit; **ahead 1** of `origin/main`). Product tree identical. Tree **CLEAN** at fold-in. |
 | PATH `ai-brains` | **0.1.1**. `retention plan --format human` is the T248 matrix. **Do not `cargo install`.** Tests/manual AC use `cargo run` / hermetic / PATH (PATH already has T248). |
 | PATH `retention plan --format human` | `Nothing to dispose.` `memory_legacy none_auto skip 0`. Totals all **0**. Four honesty shorts. **No** inventory of pins. **Live hole confirmed.** |
 | PATH `retention plan --format json` | `api_version=1`, `classes=[]` (len **0**), `totals.candidates=0`, **4** warnings. |
-| `memory list --summary --global` | **Pinned 38,208** / Forgotten **29**. Leftover `7d97a456` still **18,035** pinned. Path `C:\dev\ledgerful` is `fcb8a40f` (**4,753**). This cwd path owner `3581317d` (**3,255**). |
+| `memory list --summary --global` | **Pinned 38,208** at plan (OpenCode review: **38,210** — volatile; Forgotten **29**). Leftover `7d97a456` still **18,035** pinned. Path `C:\dev\ledgerful` is `fcb8a40f` (**4,753**). This cwd path owner `3581317d` (**3,255**). |
 | `project whoami` | `mismatch: false`. Effective/path/detect `3581317d`. Shell leftover `7d97a456` overridden by local `.env`. |
 | Last GitHub PR | [#187](https://github.com/Ryan-AI-Studios/AI-Brains/pull/187) T272 (2026-08-20). Issue comments **0**, reviews **[]**, inline **[]**. **last-PR Cursor: N/A (empty).** Open PRs: Dependabot remotes only (not this HEAD). **No T274 from #187.** |
 | Identity / doctor ambient | Scope `3581317d`; discovery grants 0 of 3 (T241); ledgerful doctor leftover `.changeguard` / sig-pin / timings. 0 pending / 0 drift at plan scan. Do not “fix” here. |
@@ -64,7 +64,7 @@ Placeholder F2 (“honesty sentence **or** overlay”) is **resolved at this pla
 | Plan CLI | `commands/retention.rs` `run_plan` | `plan_retention` + `emit_report`. Read-only. |
 | Pretty | `format_retention_pretty` `:403` | Empty check `:417`. Work table `:422–438` all non-zero classes. Matrix fills zeros via `zero_row_mechanism` (`memory_legacy` → `skip`). |
 | Honesty shorts | `honesty_short_label` `:360` | Known T166/T248 constants; unknown echoed. |
-| Engine | `class_based_retention.rs` `plan_retention` `:234` / `collect_candidates` `:269` / `build_report` `:604` / `prepare_retention_apply` `:755` | `collect_candidates` also used by apply prepare + in-process `apply_retention`. **SOOT:** merge inventory in **one** assemble helper used by plan **and** prepare. |
+| Engine | `class_based_retention.rs` `plan_retention` `:234` / `collect_candidates` `:269` (OpenCode search also `:239/:240/:990`; prepare call `:771`) / `build_report` `:604` / `prepare_retention_apply` `:755` | `collect_candidates` also used by apply prepare + in-process `apply_retention`. **SOOT:** merge inventory **after** `build_report` in **one** assemble helper used by plan **and** prepare. Do **not** push inventory rows into `collect_candidates` (F5). |
 | Stream A SQL | `store/projections/retention.rs` | `list_old_turns`, traces, reviews, decisions. `list_pinned_memory_ids` is R11 envelope hold only. **No** memory COUNT helper. |
 | Fixture insert | CP test `insert_memory` | Columns `memory_id, content, privacy, status, level, created_at, updated_at`. Statuses used: `pinned`, `active`. |
 | Contracts | `ai-brains-contracts/src/retention.rs` | `CLASS_MEMORY_LEGACY`, horizon `"none_auto"`, `api_version` **1**, sparse `classes`. **No** new required keys. |
@@ -73,9 +73,9 @@ Placeholder F2 (“honesty sentence **or** overlay”) is **resolved at this pla
 | Existing R11 | `retention_plan__pinned_memory__held` | Envelope hold. Overlay is **additive** (`would_held >= 1` stays). |
 | Empty CP | `retention_plan__empty_vault__zero_counts` | Only exact `candidates == 0`. Stays if overlay is zero on empty projection. |
 | clap Plan | `main.rs` `RetentionCommands::Plan` `:2283` | `--format` default `auto`; `after_help` TTY + json examples. Additive honesty. |
-| Nightly log | `nightly.rs` `:509–531` | `plan_retention` totals. Untouched format. |
-| Hotspots | `project.rs` **#1** (4.008); `sync.rs` #2; `preflight.rs` #7 | **Do not touch.** `class_based_retention.rs` **1204** lines; CLI `retention.rs` **902**; store `retention.rs` **450** — not top-10. Helpers stay in those files (no new crate). |
-| Apply | `prepare_retention_apply` match | `held`/`skip` already no-op. Inventory must **not** invent `turn` / `content_key_id`. |
+| Nightly log | `nightly.rs` `:511–535` (plan cited `:509–531`; OpenCode m2 — import `:511`, call `:514`, totals eprintln `:524–531`, fail `:533–535`) | `plan_retention` totals. Untouched format. |
+| Hotspots | `project.rs` **#1** (plan 4.008; OpenCode review 3.999 — still #1); `sync.rs` #2; `preflight.rs` #7 | **Do not touch.** `class_based_retention.rs` **1204** lines; CLI `retention.rs` **902**; store `retention.rs` **450** — not top-10. Helpers stay in those files (no new crate). |
+| Apply | `prepare_retention_apply` match (`run_apply` `:146`) | `held`/`skip` already no-op. Inventory must **not** invent `turn` / `content_key_id`. |
 
 ### 2.4 Dependency / standards research (2026-08-20)
 
@@ -114,13 +114,13 @@ Placeholder F2 (“honesty sentence **or** overlay”) is **resolved at this pla
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `3ebebd1f`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `3ebebd1f`. Fold-in is DOCS TX `56696e5a`. Implement starts a **FEATURE** TX. |
 | **F1 — Overlay, not migrate** | Read-only **inventory overlay**: `COUNT` of `memory_projection` by status + ≤**5** truncated sample ids. **Do not** call `classify_legacy`, `migrate governed`, or walk the event log. T167/T168 stay importers. |
 | **F2 — Held vs skip** | `status = 'pinned'` → `held` (R11). Any other status (`forgotten`, `active`, …) → `skip` (`none_auto`). **Never** `soft_forget` / `projection_delete` / `ce_wipe` from this overlay. |
 | **F3 — none_auto stands** | No auto-forget of pins. Apply loop already no-ops `held`/`skip`. Overlay rows have **no** `turn` / `content_key_id`. |
 | **F4 — Apply still gated** | `retention apply` default JSON + `--confirm`. Do **not** live-apply as this track’s dogfood. Prepare **does** merge the same overlay so apply JSON matches plan (held counts in `RetentionApplied` if someone applies). |
-| **F5 — Do not materialize N candidates** | Store helper returns `{ pinned: u64, other: u64, sample_ids: Vec<String> }` via `COUNT` + `ORDER BY memory_id LIMIT 5`. **Forbidden** to push one `Candidate` per memory into `collect_candidates` (38k no-op apply loop / retain filter). |
-| **F6 — Assemble SOOT** | `plan_retention`, `prepare_retention_apply`, and in-process `apply_retention` all: `collect_candidates` → `build_report` → `merge_memory_legacy_inventory`. One helper. Stream B never emits `memory_legacy` today; if it ever does, **merge into the existing bucket** (at most one `memory_legacy` class). |
+| **F5 — Do not materialize N candidates** | Store helper returns `{ pinned: u64, other: u64, sample_ids: Vec<String> }` via `COUNT` + SQL `ORDER BY memory_id LIMIT 5` (Agy O2 — **not** fetch-all then slice in Rust). Sample query: if `pinned > 0` then `status = 'pinned'`; else `status != 'pinned'` (Agy m1). **Forbidden** to push one `Candidate` per memory into `collect_candidates` (38k no-op apply loop / retain filter). |
+| **F6 — Assemble SOOT** | `plan_retention`, `prepare_retention_apply`, and in-process `apply_retention` all: `collect_candidates` → `build_report` → `merge_memory_legacy_inventory`. One helper. Merge is **after** `build_report`, not inside `collect_candidates` (OpenCode `:771` is the prepare *call* to collect, not the overlay). Stream B never emits `memory_legacy` today; if it ever does, **merge into the existing bucket** (at most one `memory_legacy` class). |
 | **F7 — JSON keys frozen** | `api_version` **1**. No new required keys on `RetentionPlanReport`. Overlay is a normal `classes[]` bucket + totals + an extra `warnings[]` string when inventory &gt; 0. Empty vault stays `classes: []` / candidates 0 (T248 AC8 / CP empty test). |
 | **F8 — Pretty empty-check lift** | `Nothing to dispose.` iff `would_ce_wipe + would_projection_delete == 0` (not `candidates == 0`). Inventory-only vaults still print it. T248 empty-vault unit stays green (no overlay). |
 | **F9 — Work table is dispose-only** | Human `Work` lists classes whose mechanism is `ce_wipe` or `projection_delete` only. `held`/`skip` inventory is **Class matrix** (and totals), never Work. No `next:` when dispose-work is 0 (T248 F11 already). |
@@ -144,6 +144,8 @@ Placeholder F2 (“honesty sentence **or** overlay”) is **resolved at this pla
 | **F27 — Docs** | CAPABILITIES T248 row additive sentence; OPERATIONS `memory_legacy` inventory vs skip-zero; PROTOCOL-COMPAT §5: live vaults may emit a `memory_legacy` bucket (keys unchanged; human path still not a wire contract); root CHANGELOG T270 row. |
 | **F28 — Existing tests** | Empty-vault CP + T248 pretty/JSON hermetics stay green. Envelope R11 `would_held >= 1` stays (overlay additive). Do not weaken body-plaintext asserts. |
 | **F29 — CLI file growth** | Pretty lift + honesty map in `retention.rs`. Engine merge in `class_based_retention.rs`. SQL in `projections/retention.rs`. **Do not** grow `project.rs`. |
+| **F30 — `classes` sort after merge** | After upsert, sort `report.classes` by `class` (byte/`str` order, same as `build_report`'s `BTreeMap`). Do **not** leave `memory_legacy` appended after `raw_turn`. Human matrix still iterates `CANONICAL_CLASSES` (order unchanged). JSON `classes[]` must be deterministic (AGENTS.md sort emitted collections). |
+| **F31 — Notes const** | `pub(crate) const NOTE_MEMORY_LEGACY_INVENTORY: &str = "inventory overlay; none_auto; pinned held (R11); other skip";` in `class_based_retention.rs` (Agy O1). Merge notes use this string. Tests assert it. |
 
 ---
 
@@ -151,10 +153,10 @@ Placeholder F2 (“honesty sentence **or** overlay”) is **resolved at this pla
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Store unit: fixture 3 pinned + 2 `active` + 1 `forgotten` → inventory `pinned=3`, `other=3`, `sample_ids.len()==3` (pinned, sorted, truncated). Empty table → zeros / empty samples. **No** full-id dump. |
+| **AC1** | Store unit: fixture 3 pinned + 2 `active` + 1 `forgotten` → inventory `pinned=3`, `other=3`, `sample_ids.len()==3` (pinned, sorted, truncated). **Second case (Agy m1):** pinned=0 and other&gt;0 → `sample_ids.len()==min(5, other)` from `status != 'pinned' ORDER BY memory_id ASC LIMIT 5`. Empty table → zeros / empty samples. **No** full-id dump. Helper SQL contains `LIMIT 5` (not Rust `.take(5)` on an unbounded SELECT). |
 | **AC2** | CP: empty vault still `totals.candidates == 0` and `classes` empty (existing test). |
 | **AC3** | CP rstest `#[case]`: only-pinned → `memory_legacy` mechanism `held`, `would_held == N`, `would_ce_wipe == 0`, `would_projection_delete == 0`, warning const present, JSON has **no** pin body. |
-| **AC4** | CP: only-`forgotten` (or only-`active`) → mechanism `skip`, `would_skip >= N`, `would_held == 0`, still no dispose mechanisms. |
+| **AC4** | CP: only-`forgotten` (or only-`active`) → mechanism `skip`, `would_skip >= N`, `would_held == 0`, still no dispose mechanisms. `sample_ids` non-empty when N&gt;0 (Agy m1 fallback). Notes contain `NOTE_MEMORY_LEGACY_INVENTORY` (F31). |
 | **AC5** | CP: mixed pinned+other → one `memory_legacy` bucket, `totals.candidates == pinned+other`, `would_held`/`would_skip` split, dominant mechanism `held` if pinned &gt; 0. |
 | **AC6** | Unit: `format_retention_pretty` on inventory-only report (`would_held=3`, ce=0, pd=0) contains `Nothing to dispose.`, matrix `memory_legacy` count **3** and `held`, honesty short `memory_legacy inventory ≠ auto-forget`, **no** `Work` header, **no** `next: ai-brains retention apply`. Exact Totals line includes `held=3`. |
 | **AC7** | Existing T248 empty pretty unit still: `Nothing to dispose.`, zero-row `memory_legacy` **skip** (not held), Totals all zeros, no next. |
@@ -166,7 +168,8 @@ Placeholder F2 (“honesty sentence **or** overlay”) is **resolved at this pla
 | **AC13** | Manual (source or PATH): live `retention plan --format human` shows `memory_legacy` COUNT matching **pinned ≥ 1** (volatile ~38208) **and** `Nothing to dispose.` **and** no `next: apply`. JSON `totals.would_held >= 1`. Do **not** apply. |
 | **AC14** | Docs: CAPABILITIES + OPERATIONS + PROTOCOL-COMPAT §5 + CHANGELOG T270 |
 | **AC15** | Existing `cargo nextest run -p ai-brains-control-plane class_based_retention` + CLI retention units + `retention_plan_human` stay green (F28) |
-| **AC16** | No `Candidate` per memory: store helper source contains `LIMIT 5` (or equivalent) and `COUNT`. Review/grep DoD. |
+| **AC16** | No `Candidate` per memory: store helper source contains SQL `LIMIT 5` and `COUNT` (Agy O2 — not unbounded SELECT + Rust slice). Review/grep DoD. |
+| **AC17** | CP (regression guard, not Phase-1 required red): old `raw_turn` + ≥1 pinned memory → `classes` sorted by `class`; `memory_legacy` index &lt; `raw_turn` index. F30. |
 
 ---
 
@@ -204,17 +207,20 @@ When **also** old turns exist, `Nothing to dispose.` is omitted, `Work` lists **
 ### 5.2 Merge algorithm
 
 ```text
-inv = COUNT pinned + COUNT status<>pinned + LIMIT 5 pinned ids (else other ids)
+inv = COUNT pinned + COUNT status<>pinned
+     + SQL LIMIT 5 ids: pinned if pinned>0 else status != 'pinned'
+       ORDER BY memory_id ASC
 if inv.total == 0: return report
 totals.candidates += inv.total
 totals.would_held += inv.pinned
 totals.would_skip += inv.other
 mechanism = held if pinned > 0 else skip
-upsert classes memory_legacy { candidate_count, mechanism, sample_ids, notes }
+upsert classes memory_legacy { candidate_count, mechanism, sample_ids, notes: NOTE_MEMORY_LEGACY_INVENTORY }
 warnings.push(RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY) if missing
+sort classes by class (F30)
 ```
 
-Notes (deterministic, sorted): e.g. `inventory overlay; none_auto; pinned held (R11); other skip`.
+Notes SOOT: `NOTE_MEMORY_LEGACY_INVENTORY` (F31).
 
 ### 5.3 Why not per-row candidates
 
@@ -222,7 +228,7 @@ Notes (deterministic, sorted): e.g. `inventory overlay; none_auto; pinned held (
 
 ### 5.4 Nightly
 
-`[Nightly] Retention class dry-run: candidates=38237 … held=38208 (no apply)` becomes true. Leave the format (F20). Soft residual: operators may misread `candidates` as dispose-work — honesty warning + human `Nothing to dispose.` are the remediator on the CLI; nightly is a one-liner.
+`[Nightly] Retention class dry-run: candidates=38237 … held=38208 (no apply)` becomes true (`nightly.rs` `:511–535`). Leave the format (F20). Soft residual: operators may misread `candidates` as dispose-work — honesty warning + human `Nothing to dispose.` are the remediator on the CLI; nightly is a one-liner.
 
 ---
 
@@ -244,14 +250,15 @@ Notes (deterministic, sorted): e.g. `inventory overlay; none_auto; pinned held (
 
 ## 7. Verification plan (TDD)
 
-**Red first (must fail on HEAD `fdd4924`):**
+**Red first (must fail on product HEAD `fdd4924`):**
 
-1. AC1 store inventory helper (module does not exist / counts 0).
+1. AC1 store inventory helper (module does not exist / counts 0) — include pinned=0 other&gt;0 sample case (Agy m1).
 2. AC3 CP pinned-only → `memory_legacy` held (today no class).
 3. AC6 pretty inventory-only → `Nothing to dispose.` **and** held count (today empty-check uses `candidates==0`; Work would list held if we only merged JSON).
 4. AC9 hermetic pin + plan (today `skip 0`).
 5. AC10 plan does not append (green even now — keep as regression).
 6. AC12 after_help needle (today missing).
+7. AC17 class-sort is a **green-phase guard** (OpenCode/T272 analog): not required red until merge exists.
 
 **Then green:** store helper, merge helper, pretty lift, honesty map, after_help, docs.
 
@@ -315,8 +322,8 @@ On go finalize: full AGENTS.md gate + `ledgerful verify --scope full`.
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify live hole + deferred rescan + #187 still empty.
-2. Red: AC1/AC3/AC6/AC9/AC12 (required red). AC2/AC7/AC8/AC10/AC11 may already be green.
-3. Green: store helper → merge SOOT → pretty F8/F9 → honesty map → after_help.
+2. Red: AC1/AC3/AC6/AC9/AC12 (required red). AC2/AC7/AC8/AC10/AC11 may already be green. AC17 is a merge-sort guard (not Phase-1 red).
+3. Green: store helper (F5 SQL LIMIT 5 + m1 fallback) → merge SOOT (F6/F30/F31) → pretty F8/F9 → honesty map → after_help.
 4. Docs F27. Targeted nextest + clippy.
 5. Review loop + codex-review. No live apply.
 6. FEATURE TX commit; implement-track Phase 6 publish.
@@ -359,4 +366,35 @@ On go finalize: full AGENTS.md gate + `ledgerful verify --scope full`.
 
 ## 13. AI fold-in
 
-None this pass. Future `agy-review.md` / `opencode-review.md` fold via `/fold-in`.
+Inputs: `agy-review.md` + `opencode-review.md` (2026-08-20). **Do not edit those files.** Product tree at fold-in = plan dogfood `fdd4924`. **B 0 / M 0.**
+
+### Pins locked by fold-in
+
+1. **F5 / AC1:** forgotten-only / active-only samples use SQL `status != 'pinned' ORDER BY memory_id ASC LIMIT 5` (Agy m1). Mixed fixtures still sample pinned first.
+2. **F5 / AC16:** `LIMIT 5` is in SQL, not a Rust slice of an unbounded SELECT (Agy O2).
+3. **F30 / AC17:** after merge, `classes` sorted by `class`. Guard, not Phase-1 red.
+4. **F31:** `NOTE_MEMORY_LEGACY_INVENTORY` const in `class_based_retention.rs` (Agy O1).
+5. **F6:** merge **after** `build_report`. OpenCode `:771` is `collect_candidates` inside prepare — not a license to invent inventory `Candidate`s there.
+6. **F8 stands:** `Nothing to dispose.` = `would_ce_wipe + would_projection_delete == 0`. OpenCode deferred-table “lifts to `totals.candidates == 0`” is **wrong** and **declined**.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** sample fallback when `pinned==0` | **Folded** F5 / AC1 second case / AC4 `sample_ids` non-empty |
+| Agy | **m2** `classes` sort after upsert | **Folded** F30 / AC17 |
+| Agy | **O1** notes const | **Folded** F31 |
+| Agy | **O2** SQL `LIMIT 5` | **Already** F5 / AC16 — tightened “not Rust `.take` on unbounded SELECT” |
+| OpenCode | B / M | None filed — live line/symbol table **affirmed** |
+| OpenCode | **m** HEAD `70d61cd` vs plan `fdd4924` | **Folded** §2.1 — product tree identical |
+| OpenCode | **m** nightly `:509–531` vs `:511–535` | **Folded** §2.3 / §5.4 |
+| OpenCode | **O1** pinned 38,210 vs 38,208 | **Folded** §2.1 volatile |
+| OpenCode | **O2** hotspot 3.999 vs 4.008 | **Folded** §2.3 snapshot |
+| OpenCode | **O3** search `:239/:240/:269/:990` | **Folded** §2.3 — `:771` still prepare collect |
+| OpenCode | **O4** `ISSUES.md` missing | **Already** F24 |
+| OpenCode | deferred table “F8 → `candidates==0`” | **Decline** — F8 is dispose-work; re-trigger only if owner reopens T248 empty-check |
+| OpenCode | “SOOT is collect_candidates `:771`” | **Partial / already F6** — call site yes; overlay merge stays after `build_report` |
+| both | last-PR #187 Cursor | **Affirm N/A** — no T274 |
+
+No Blockers/Majors to decline. No new placeholder minted.

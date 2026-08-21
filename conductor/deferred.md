@@ -612,6 +612,23 @@ Specified softs — not product blockers:
 | Agy O2 rebuild comment | **Folded** F28 |
 | No B/M | Nothing to decline |
 
+### T270 fold-in (2026-08-20) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 forgotten-only sample SQL | **Folded** F5 / AC1 second case / AC4 |
+| Agy m2 `classes` sort after upsert | **Folded** F30 / AC17 |
+| Agy O1 notes const | **Folded** F31 |
+| Agy O2 SQL `LIMIT 5` | **Already** F5 / AC16 |
+| OpenCode m HEAD `70d61cd` vs `fdd4924` | **Folded** §2.1 — product tree identical |
+| OpenCode m nightly line drift | **Folded** `:511–535` |
+| OpenCode O pin-count / hotspot / search lines | **Folded** snapshots |
+| OpenCode O4 `ISSUES.md` | **Already** F24 |
+| OpenCode deferred “F8 → `candidates==0`” | **Declined** — F8 is dispose-work |
+| OpenCode SOOT = `collect_candidates` `:771` | **Partial** — call site yes; merge after `build_report` (F6) |
+| last-PR #187 Cursor | **N/A** — still empty. **No T274** |
+| No B/M | Nothing to decline of B/M |
+
 ### T270 planning absorption (2026-08-20) — inventory overlay; no migrate
 
 | Item | Disposition |

@@ -1,10 +1,26 @@
 # T270 Plan — Retention live `memory_legacy` inventory overlay
 
 **Status:** **Pending** (requirements written; not In Progress)
-**Spec:** [spec.md](./spec.md) F0–F29 / AC1–AC16
+**Spec:** [spec.md](./spec.md) F0–F31 / AC1–AC17 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `3ebebd1f-58e1-4663-b559-75f900edfc95` (DOCS)
+**Ledger TX (fold-in):** `56696e5a-9104-46c6-9313-447d2bacb7d1` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go**
+
+---
+
+## AI fold-in (2026-08-20) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F5 / AC1:** `pinned==0` → sample SQL `status != 'pinned' ORDER BY memory_id ASC LIMIT 5`.
+2. **F5 / AC16:** `LIMIT 5` in SQL (not unbounded SELECT + Rust slice).
+3. **F30 / AC17:** `classes` sorted by `class` after merge (green-phase guard).
+4. **F31:** `NOTE_MEMORY_LEGACY_INVENTORY` const.
+5. **F6:** merge after `build_report`, not inside `collect_candidates`.
+6. **F8:** dispose-work empty-check — do **not** revert to `candidates==0`.
 
 ---
 
@@ -12,19 +28,19 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `fdd4924` T272 `#187`. CLEAN. `main` == `origin/main` |
+| HEAD / tree | Plan dogfood `fdd4924`; fold-in `70d61cd` (docs-only; product tree identical). CLEAN; `main` ahead of `origin/main` by planning+fold docs |
 | T166 / T248 | ✅ engine + human matrix in source. Stream-A `memory_legacy` **not** scanned |
 | PATH `ai-brains` | `0.1.1`. `retention plan --format human`: `Nothing to dispose.` / `memory_legacy skip 0`. JSON `classes=[]` `candidates=0` |
-| Live vault | `memory list --summary --global`: **Pinned 38,208** / Forgotten 29 |
+| Live vault | `memory list --summary --global`: **Pinned 38,208** at plan (review **38,210** volatile) / Forgotten 29 |
 | `whoami` | `mismatch: false`; effective `3581317d`; shell leftover `7d97a456` overridden |
 | Last PR comments | #187 T272 — **empty** (N/A). **No T274** |
 | Open PR on HEAD | none (Dependabot remotes only) |
 | Pins | clap lock **4.6.1** (crates.io 4.6.6; **no clap 5**); serde_json **1.0.150**; chrono **0.4.44**; rusqlite **0.39.0** — **no bumps** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.1** |
-| Hotspots | `project.rs` **#1** — do not grow. CLI `retention.rs` **902**; CP `class_based_retention.rs` **1204**; store `retention.rs` **450** — not top-10 |
-| Ledger | 0 pending at scan; planning TX `3ebebd1f` |
-| `ISSUES.md` | **Does not exist** |
-| ledgerful search | `collect_candidates` at `class_based_retention.rs:234/:269/:771/:990` |
+| Hotspots | `project.rs` **#1** (4.008 plan / 3.999 review) — do not grow. CLI `retention.rs` **902**; CP `class_based_retention.rs` **1204**; store `retention.rs` **450** — not top-10 |
+| Ledger | 0 pending at scan; planning TX `3ebebd1f`; fold-in TX `56696e5a` |
+| `ISSUES.md` | **Does not exist** (F24) |
+| ledgerful search | `collect_candidates` at `:234/:269/:771/:990` (OpenCode also `:239/:240`) |
 | Online | ISO 27001 A.8.10 record-against-schedule; clap 4.6.6 `after_help`; restic dry-run analogy |
 
 ---
@@ -68,20 +84,21 @@
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] AC1 store unit: `memory_legacy_inventory__pinned_and_other__counts_and_limit_5`
+- [ ] AC1 store unit: `memory_legacy_inventory__pinned_and_other__counts_and_limit_5` **plus** pinned=0 other&gt;0 sample case
 - [ ] AC3 CP: `retention_plan__pinned_memories__memory_legacy_held_inventory`
-- [ ] AC4 rstest `#[case]` forgotten/active → skip
+- [ ] AC4 rstest `#[case]` forgotten/active → skip + non-empty samples
 - [ ] AC5 mixed pinned+other → one bucket + split totals
 - [ ] AC6 unit: `format_retention_pretty__held_inventory_only__nothing_to_dispose_no_work_no_next`
 - [ ] AC9 hermetic: pin then `retention plan --format human` / `json`
 - [ ] AC12: `retention plan --help` contains `none_auto` or `inventory`
 - [ ] **Required red:** AC3 + AC6 + AC9 (HEAD has skip 0 / empty-check on `candidates==0` / no helper)
-- [ ] AC2 / AC7 / AC8 / AC10 / AC11 may already be green (regression guards — F27 T272 analog)
+- [ ] AC2 / AC7 / AC8 / AC10 / AC11 may already be green (regression guards)
+- [ ] AC17 class-sort is a **green-phase guard** (not Phase-1 required red)
 
 ## Phase 2 — Green (helper + merge + pretty)
 
-- [ ] `MemoryLegacyInventory` + `memory_legacy_inventory` in `projections/retention.rs` (`COUNT` + `ORDER BY memory_id LIMIT 5`)
-- [ ] `merge_memory_legacy_inventory` in `class_based_retention.rs`; call from `plan_retention`, `prepare_retention_apply`, `apply_retention`
+- [ ] `MemoryLegacyInventory` + `memory_legacy_inventory` in `projections/retention.rs` (`COUNT` + SQL `ORDER BY memory_id LIMIT 5`; pinned vs `status != 'pinned'` fallback)
+- [ ] `NOTE_MEMORY_LEGACY_INVENTORY` + `merge_memory_legacy_inventory` in `class_based_retention.rs`; call from `plan_retention`, `prepare_retention_apply`, `apply_retention`; **sort `classes` after merge** (F30)
 - [ ] Contracts honesty const; pretty F8/F9; `honesty_short_label` F10
 - [ ] Additive Plan `after_help`
 - [ ] Do **not** push per-memory `Candidate`; do **not** edit `collect_candidates` retain for this; do **not** call `classify_legacy`
@@ -92,6 +109,7 @@
 - [ ] AC2 empty CP; AC7 empty pretty; AC8 empty JSON hermetic
 - [ ] AC10 plan does not append events
 - [ ] AC11 apply without `--confirm` still exit-6 class
+- [ ] AC17: old turn + pinned → `classes` sorted (`memory_legacy` before `raw_turn`)
 - [ ] Existing envelope R11 `would_held >= 1` + no plaintext body
 - [ ] `cargo nextest run -p ai-brains-control-plane class_based_retention`
 - [ ] `cargo nextest run -p ai-brains-cli -E "test(retention_plan)"`
