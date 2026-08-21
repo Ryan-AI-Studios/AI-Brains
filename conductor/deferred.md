@@ -21,6 +21,22 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284** |
 | device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
 
+### T274 planning absorption (2026-08-21) — leading-line + two-pass; no Safety steal
+
+| Item | Disposition |
+|------|-------------|
+| Audit recall/search/semantic/preflight Index/summary dumps over pins | **Absorb** F1–F12 / AC1–AC7 / AC14 |
+| `memory list` just-now ingest | **Partial** F13 — T216 recency stays |
+| `sync query` vault dumps | **Absorb** F14 / AC15 via `recall_full` |
+| T211 F4 anywhere-in-body `decision:` | **Lift** F2 — buried JSON/skill text → Other |
+| T260 demote-only fails when depth is all chrome | **Absorb** F7 two-pass (not hard-exclude transcripts) |
+| Preflight Safety = `## Objective` | **Decline → T279** |
+| briefing/progressive POLICY_DENIED | **Decline → T275** |
+| leftover `7d97a456` | **Decline → T276** |
+| last-PR Cursor #188 Work / apply samples | **Decline → T284** (2 Mediums; still true on `14d42af`) |
+| T240 F2 / T263 H2 / T211 F25 / T218 floors / clap 5 / rusqlite 0.40 | **Decline** |
+| Identity mismatch quiet (T242 analog) | **Not this track** — T258 adopt-path; leftover data T276 |
+
 ### T270 closeout residuals (2026-08-21)
 
 Specified softs — not product blockers:
