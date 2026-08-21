@@ -18,11 +18,11 @@ use ai_brains_contracts::retention::{
     self, CLASS_DECISION_APPROVED, CLASS_EVIDENCE, CLASS_MEMORY_LEGACY, CLASS_ORPHANED_ENVELOPE,
     CLASS_QUERY_TRACE, CLASS_RAW_TURN, CLASS_REVIEW_TRACE, CLASS_SECRET, CLASS_UNCLASSIFIED,
     MECHANISM_CE_WIPE, MECHANISM_HELD, MECHANISM_PROJECTION_DELETE, MECHANISM_SKIP,
-    RETENTION_HONESTY_LEGACY_NOT_CE, RETENTION_HONESTY_NOT_NIST_PURGE,
-    RETENTION_HONESTY_PRE_ERASE_BACKUP, RETENTION_HONESTY_STREAM_INDEPENDENCE,
-    RETENTION_HONESTY_TICKET_NOT_CE, RetentionCascade, RetentionClassBucket, RetentionPlanReport,
-    RetentionReportMode, RetentionTotals, default_horizon_labels, is_canonical_class, truncate_id,
-    truncate_sample_ids,
+    RETENTION_HONESTY_LEGACY_NOT_CE, RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY,
+    RETENTION_HONESTY_NOT_NIST_PURGE, RETENTION_HONESTY_PRE_ERASE_BACKUP,
+    RETENTION_HONESTY_STREAM_INDEPENDENCE, RETENTION_HONESTY_TICKET_NOT_CE, RetentionCascade,
+    RetentionClassBucket, RetentionPlanReport, RetentionReportMode, RetentionTotals,
+    default_horizon_labels, is_canonical_class, truncate_id, truncate_sample_ids,
 };
 use ai_brains_core::ids::ContentKeyId;
 use ai_brains_core::principal::Principal;
@@ -46,6 +46,10 @@ use crate::sources::build_event;
 
 /// Namespace for retention apply command_id → audit aggregate id.
 pub const NS_RETENTION_APPLY: &str = "ai-brains.command.retention_apply";
+
+/// Notes attached to the live `memory_legacy` inventory overlay (T270 F31).
+pub(crate) const NOTE_MEMORY_LEGACY_INVENTORY: &str =
+    "inventory overlay; none_auto; pinned held (R11); other skip";
 
 // ---------------------------------------------------------------------------
 // Config (env-driven; no migration)
@@ -238,7 +242,7 @@ pub fn plan_retention(
     let now = Utc::now();
     let generated_at = now.to_rfc3339();
     let candidates = collect_candidates(store, config, now)?;
-    Ok(build_report(
+    let mut report = build_report(
         RetentionReportMode::DryRun,
         &generated_at,
         config,
@@ -248,7 +252,9 @@ pub fn plan_retention(
         },
         0,
         Vec::new(),
-    ))
+    );
+    merge_memory_legacy_inventory(store, &mut report)?;
+    Ok(report)
 }
 
 fn estimate_cascade(store: &SqliteEventStore, candidates: &[Candidate]) -> Result<u64> {
@@ -702,6 +708,86 @@ fn honesty_warnings(has_ce: bool) -> Vec<String> {
     w
 }
 
+fn merge_memory_legacy_inventory(
+    store: &SqliteEventStore,
+    report: &mut RetentionPlanReport,
+) -> Result<()> {
+    let inv = {
+        let conn = store
+            .connection()
+            .lock()
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?;
+        ret_scan::memory_legacy_inventory(&conn)
+            .map_err(|e| ControlPlaneError::Query(e.to_string()))?
+    };
+    let total = inv.total();
+    if total == 0 {
+        return Ok(());
+    }
+
+    report.totals.candidates = report.totals.candidates.saturating_add(total);
+    report.totals.would_held = report.totals.would_held.saturating_add(inv.pinned);
+    report.totals.would_skip = report.totals.would_skip.saturating_add(inv.other);
+
+    let mechanism = if inv.pinned > 0 {
+        MECHANISM_HELD
+    } else {
+        MECHANISM_SKIP
+    };
+    let overlay_samples = truncate_sample_ids(inv.sample_ids.iter());
+
+    if let Some(bucket) = report
+        .classes
+        .iter_mut()
+        .find(|c| c.class == CLASS_MEMORY_LEGACY)
+    {
+        bucket.candidate_count = bucket.candidate_count.saturating_add(total);
+        bucket.mechanism = mechanism.to_string();
+        if bucket.sample_ids.is_empty() {
+            bucket.sample_ids = overlay_samples;
+        } else {
+            let mut merged = bucket.sample_ids.clone();
+            for s in overlay_samples {
+                if merged.len() >= 5 {
+                    break;
+                }
+                if !merged.contains(&s) {
+                    merged.push(s);
+                }
+            }
+            bucket.sample_ids = merged;
+        }
+        if !bucket
+            .notes
+            .iter()
+            .any(|n| n == NOTE_MEMORY_LEGACY_INVENTORY)
+        {
+            bucket.notes.push(NOTE_MEMORY_LEGACY_INVENTORY.to_string());
+        }
+    } else {
+        report.classes.push(RetentionClassBucket {
+            class: CLASS_MEMORY_LEGACY.to_string(),
+            candidate_count: total,
+            mechanism: mechanism.to_string(),
+            sample_ids: overlay_samples,
+            notes: vec![NOTE_MEMORY_LEGACY_INVENTORY.to_string()],
+        });
+    }
+
+    if !report
+        .warnings
+        .iter()
+        .any(|w| w == RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY)
+    {
+        report
+            .warnings
+            .push(RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY.to_string());
+    }
+
+    report.classes.sort_by(|a, b| a.class.cmp(&b.class));
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Apply
 // ---------------------------------------------------------------------------
@@ -829,6 +915,7 @@ pub fn prepare_retention_apply<W: EventWriter>(
         0,
         Vec::new(),
     );
+    merge_memory_legacy_inventory(store, &mut report)?;
 
     if deferred_ce {
         report.warnings.push(format!(
@@ -1047,6 +1134,7 @@ where
         0,
         Vec::new(),
     );
+    merge_memory_legacy_inventory(store, &mut report)?;
     if !ce_keys.is_empty() {
         report.warnings.push(format!(
             "ce_pending={} (RetentionApplied pre-mutation; CE-first wipe then projections)",

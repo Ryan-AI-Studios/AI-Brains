@@ -241,6 +241,21 @@ mod tests {
         assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
 
+    /// T270 AC12: `retention plan --help` names inventory / none_auto.
+    #[test]
+    #[allow(non_snake_case)]
+    fn retention_plan__help__names_inventory_or_none_auto() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "retention", "plan", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("none_auto") || help.contains("inventory"),
+            "AC12: after_help names none_auto or inventory; got: {help}"
+        );
+    }
+
     /// T248 AC10: unknown `--format` is clap InvalidValue (exit 2), not silent JSON.
     #[test]
     #[allow(non_snake_case)]
@@ -2283,7 +2298,7 @@ enum ErasureCommands {
 enum RetentionCommands {
     /// Dry-run class matrix report (no disposal)
     #[command(
-        after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json"
+        after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json\nmemory_legacy is inventory (none_auto); pins held; plan does not forget."
     )]
     Plan {
         /// Output format: auto (TTY human / pipe json), pretty/human/text/markdown/md, or json

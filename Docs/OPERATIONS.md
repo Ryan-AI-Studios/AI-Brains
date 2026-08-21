@@ -365,7 +365,7 @@ ai-brains retention apply --confirm --format json
 | `secret` | B | 7d | `ce_wipe` |
 | `review_trace` | A | 90d from terminal `updated_at` | projection cleanup if closed |
 | `query_trace` | A | 30d | projection delete by `recorded_at` |
-| `memory_legacy` | A | none auto | `skip` (v1 none auto; stream A never scanned; pinned→held only if a subject were classified) |
+| `memory_legacy` | A | none auto | Inventory overlay (T270): `held` for pinned rows, `skip` for other statuses. COUNT + ≤5 sample ids. Plan does not auto-forget. Zero-row (empty vault) still displays `skip`. |
 | `orphaned_envelope` | B | 7d (active wrap, **0** blobs) | CE destroy wrap only |
 | `unclassified` | either | skip apply | listed in dry-run only |
 

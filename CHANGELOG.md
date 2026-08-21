@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T270 Retention live `memory_legacy` inventory:** `retention plan` overlays a COUNT of live `memory_projection` rows (`pinned`→`held`, other statuses→`skip`) so a vault with tens of thousands of pins is no longer `skip 0` next to `Nothing to dispose.` That sentence now means no CE wipe and no projection delete. Samples are SQL `LIMIT 5`. Apply still requires `--confirm`. Docs: CAPABILITIES T248 row, OPERATIONS class matrix, PROTOCOL-COMPAT §5.
+
 - **T272 Preflight `--global` Safety skip vs Index:** Index/Recent skip only the Safety rows that were **emitted** (post HOTSPOT-suppress, path-dedup, and T264 round-robin). A CONSTRAINT fetched for Safety then capped out of the 8-slot window can still appear in Index. Fetch LIMIT 40, per-project caps, tags, and T180 JSON keys are unchanged. Docs: CAPABILITIES T264 skip-emitted clause.
 
 - **T269 Nightly vs Router status split:** Human `nightly --status` prints `Nightly: AI-Brains-Nightly` so Last Result **0** is not mixed with `Router: … 267009` (`SCHED_S_TASK_RUNNING`, success). Human `probe=timeout` is labeled `timeout (750ms)` (HTTP `/health` budget). JSON probe tokens, the 750 ms budget, and `--quick` `probe=skipped` are unchanged. Docs: CAPABILITIES T247/T255 honesty + OPERATIONS.

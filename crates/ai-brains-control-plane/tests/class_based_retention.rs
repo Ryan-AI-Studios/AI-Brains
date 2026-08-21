@@ -3,6 +3,10 @@
 
 //! T166 — class-based retention plan/apply tests.
 
+use ai_brains_contracts::retention::{
+    CLASS_MEMORY_LEGACY, CLASS_RAW_TURN, MECHANISM_HELD, MECHANISM_SKIP,
+    RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY,
+};
 use ai_brains_control_plane::{
     AllowAllPolicy, MAX_RETENTION_HORIZON_DAYS, RetentionApplyCommand, RetentionConfig,
     StoreContentEnvelopeWipe, StorePorts, SystemClock, apply_retention,
@@ -23,6 +27,7 @@ use ai_brains_store::projections::content_envelope::{
     self, ALGORITHM_AES_256_GCM, ENVELOPE_SCHEMA_VERSION, EncryptedBlobRow,
 };
 use chrono::{Duration, Utc};
+use rstest::rstest;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
@@ -158,6 +163,165 @@ fn insert_decision(store: &SqliteEventStore, decision_id: &str, state: &str, upd
 // ---------------------------------------------------------------------------
 // Plan tests
 // ---------------------------------------------------------------------------
+
+#[test]
+fn retention_plan__pinned_memories__memory_legacy_held_inventory() {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let body = "t270-pin-body-must-not-appear";
+    insert_memory(
+        store,
+        "aaaaaaaa-aaaa-aaaa-aaaa-000000000001",
+        "pinned",
+        body,
+    );
+    insert_memory(
+        store,
+        "aaaaaaaa-aaaa-aaaa-aaaa-000000000002",
+        "pinned",
+        body,
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    let legacy = report
+        .classes
+        .iter()
+        .find(|c| c.class == CLASS_MEMORY_LEGACY)
+        .expect("memory_legacy bucket");
+    assert_eq!(legacy.mechanism, MECHANISM_HELD);
+    assert_eq!(legacy.candidate_count, 2);
+    assert_eq!(report.totals.would_held, 2);
+    assert_eq!(report.totals.would_ce_wipe, 0);
+    assert_eq!(report.totals.would_projection_delete, 0);
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|w| w == RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY),
+        "inventory honesty const missing: {:?}",
+        report.warnings
+    );
+    assert!(
+        legacy
+            .notes
+            .iter()
+            .any(|n| n == "inventory overlay; none_auto; pinned held (R11); other skip"),
+        "F31 notes missing: {:?}",
+        legacy.notes
+    );
+    let json = serde_json::to_string(&report).unwrap();
+    assert!(!json.contains(body), "pin body leaked: {json}");
+}
+
+#[rstest]
+#[case("forgotten")]
+#[case("active")]
+fn retention_plan__non_pinned_status__memory_legacy_skip(#[case] status: &str) {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    insert_memory(
+        store,
+        "bbbbbbbb-bbbb-bbbb-bbbb-000000000001",
+        status,
+        "t270-skip-body-must-not-appear",
+    );
+    insert_memory(
+        store,
+        "bbbbbbbb-bbbb-bbbb-bbbb-000000000002",
+        status,
+        "t270-skip-body-must-not-appear",
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    let legacy = report
+        .classes
+        .iter()
+        .find(|c| c.class == CLASS_MEMORY_LEGACY)
+        .expect("memory_legacy bucket");
+    assert_eq!(legacy.mechanism, MECHANISM_SKIP);
+    assert!(
+        report.totals.would_skip >= 2,
+        "would_skip expected >= 2; totals={:?}",
+        report.totals
+    );
+    assert_eq!(report.totals.would_held, 0);
+    assert_eq!(report.totals.would_ce_wipe, 0);
+    assert_eq!(report.totals.would_projection_delete, 0);
+    assert!(
+        !legacy.sample_ids.is_empty(),
+        "forgotten/active-only samples must be non-empty: {legacy:?}"
+    );
+    assert!(
+        legacy
+            .notes
+            .iter()
+            .any(|n| n == "inventory overlay; none_auto; pinned held (R11); other skip"),
+        "F31 notes missing: {:?}",
+        legacy.notes
+    );
+}
+
+#[test]
+fn retention_plan__mixed_pinned_and_other__one_bucket_split_totals() {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    insert_memory(store, "cccccccc-cccc-cccc-cccc-000000000001", "pinned", "a");
+    insert_memory(store, "cccccccc-cccc-cccc-cccc-000000000002", "pinned", "b");
+    insert_memory(store, "cccccccc-cccc-cccc-cccc-000000000003", "pinned", "c");
+    insert_memory(store, "cccccccc-cccc-cccc-cccc-000000000004", "active", "d");
+    insert_memory(
+        store,
+        "cccccccc-cccc-cccc-cccc-000000000005",
+        "forgotten",
+        "e",
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    let buckets: Vec<_> = report
+        .classes
+        .iter()
+        .filter(|c| c.class == CLASS_MEMORY_LEGACY)
+        .collect();
+    assert_eq!(buckets.len(), 1, "one memory_legacy bucket: {report:?}");
+    assert_eq!(buckets[0].mechanism, MECHANISM_HELD);
+    assert_eq!(buckets[0].candidate_count, 5);
+    assert_eq!(report.totals.candidates, 5);
+    assert_eq!(report.totals.would_held, 3);
+    assert_eq!(report.totals.would_skip, 2);
+}
+
+#[test]
+fn retention_plan__raw_turn_and_pinned__classes_sorted_memory_legacy_before_raw_turn() {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let sid = Uuid::new_v4().to_string();
+    let old = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old);
+    insert_memory(
+        store,
+        "dddddddd-dddd-dddd-dddd-000000000001",
+        "pinned",
+        "t270-sort",
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    let names: Vec<&str> = report.classes.iter().map(|c| c.class.as_str()).collect();
+    let mut sorted = names.clone();
+    sorted.sort();
+    assert_eq!(names, sorted, "classes must be sorted by class: {names:?}");
+    let legacy_idx = names
+        .iter()
+        .position(|c| *c == CLASS_MEMORY_LEGACY)
+        .expect("memory_legacy present");
+    let turn_idx = names
+        .iter()
+        .position(|c| *c == CLASS_RAW_TURN)
+        .expect("raw_turn present");
+    assert!(
+        legacy_idx < turn_idx,
+        "memory_legacy must sort before raw_turn: {names:?}"
+    );
+}
 
 #[test]
 fn retention_plan__empty_vault__zero_counts() {
@@ -861,6 +1025,90 @@ fn retention_apply__projections_append_audit_before_ce() {
         1,
         "R12: exactly one pre-mutation RetentionApplied before finalize"
     );
+}
+
+#[test]
+fn retention_apply__pinned_inventory__held_in_report_no_delete() {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    insert_memory(
+        store,
+        "aaaaaaaa-aaaa-aaaa-aaaa-0000000000aa",
+        "pinned",
+        "apply-overlay-body",
+    );
+    insert_memory(
+        store,
+        "aaaaaaaa-aaaa-aaaa-aaaa-0000000000bb",
+        "forgotten",
+        "apply-overlay-skip",
+    );
+
+    let outcome = prepare_retention_apply(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-t270-overlay",
+        true,
+        false,
+    )
+    .unwrap();
+    let report = &outcome.report;
+    let legacy = report
+        .classes
+        .iter()
+        .find(|c| c.class == CLASS_MEMORY_LEGACY)
+        .expect("memory_legacy on apply prepare");
+    assert_eq!(legacy.mechanism, MECHANISM_HELD);
+    assert_eq!(legacy.candidate_count, 2);
+    assert_eq!(report.totals.would_held, 1);
+    assert_eq!(report.totals.would_skip, 1);
+    assert_eq!(report.totals.would_ce_wipe, 0);
+    assert_eq!(report.totals.would_projection_delete, 0);
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|w| w == RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY),
+        "apply prepare must carry inventory honesty: {:?}",
+        report.warnings
+    );
+    assert!(
+        legacy
+            .notes
+            .iter()
+            .any(|n| n == "inventory overlay; none_auto; pinned held (R11); other skip"),
+        "F31 notes missing on apply: {:?}",
+        legacy.notes
+    );
+    assert!(
+        outcome.pending_ce_keys.is_empty(),
+        "inventory must not enqueue CE: {outcome:?}"
+    );
+    assert!(
+        outcome.turns_to_delete.is_empty(),
+        "inventory must not enqueue projection deletes: {outcome:?}"
+    );
+
+    let conn = store.connection().lock().unwrap();
+    let pinned: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM memory_projection WHERE status = 'pinned'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let forgotten: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM memory_projection WHERE status = 'forgotten'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(pinned, 1, "apply prepare must not forget pins");
+    assert_eq!(forgotten, 1, "apply prepare must not delete forgotten rows");
+    let json = serde_json::to_string(report).unwrap();
+    assert!(!json.contains("apply-overlay-body"));
 }
 
 #[test]

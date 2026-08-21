@@ -238,6 +238,53 @@ pub fn delete_decisions(conn: &Connection, ids: &[String]) -> Result<usize> {
     Ok(total)
 }
 
+/// Live `memory_projection` inventory overlay (T270). COUNT + ≤5 sample ids.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MemoryLegacyInventory {
+    pub pinned: u64,
+    pub other: u64,
+    pub sample_ids: Vec<String>,
+}
+
+impl MemoryLegacyInventory {
+    pub fn total(&self) -> u64 {
+        self.pinned.saturating_add(self.other)
+    }
+}
+
+/// Count `memory_projection` by pinned vs other and sample up to 5 ids (SQL `LIMIT 5`).
+///
+/// Sample query prefers `status = 'pinned'` when any pins exist; otherwise
+/// `status != 'pinned' ORDER BY memory_id ASC LIMIT 5`.
+pub fn memory_legacy_inventory(conn: &Connection) -> Result<MemoryLegacyInventory> {
+    let pinned: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM memory_projection WHERE status = 'pinned'",
+        [],
+        |r| r.get(0),
+    )?;
+    let other: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM memory_projection WHERE status != 'pinned'",
+        [],
+        |r| r.get(0),
+    )?;
+    let sample_sql = if pinned > 0 {
+        "SELECT memory_id FROM memory_projection WHERE status = 'pinned' ORDER BY memory_id ASC LIMIT 5"
+    } else {
+        "SELECT memory_id FROM memory_projection WHERE status != 'pinned' ORDER BY memory_id ASC LIMIT 5"
+    };
+    let mut stmt = conn.prepare(sample_sql)?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    let mut sample_ids = Vec::new();
+    for r in rows {
+        sample_ids.push(r?);
+    }
+    Ok(MemoryLegacyInventory {
+        pinned: pinned as u64,
+        other: other as u64,
+        sample_ids,
+    })
+}
+
 /// Memory ids with status `pinned` (R11 holds).
 pub fn list_pinned_memory_ids(conn: &Connection) -> Result<BTreeSet<String>> {
     let mut stmt = conn.prepare(
