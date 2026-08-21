@@ -37,6 +37,21 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | T240 F2 / T263 H2 / T211 F25 / T218 floors / clap 5 / rusqlite 0.40 | **Decline** |
 | Identity mismatch quiet (T242 analog) | **Not this track** — T258 adopt-path; leftover data T276 |
 
+### T274 fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 parameterized pass-2 `NOT IN` | **Folded** F35 / AC17 |
+| Agy m2 chrome-only first-line dedupe | **Already** F10; AC5 tightened |
+| Agy O1 `AUTHORITY_GLOB_SQL` const | **Folded as helper** F36 (column arg) |
+| Agy O2 skip pass 2 when pass1 full | **Already** F7 / §5.2 |
+| OpenCode m1 HEAD `9a99117` vs `deabae7` | **Folded** §2.1 |
+| OpenCode o1 summary 1/1/1 vs 0/0/0 | **Folded** volatile; fold-in 0/0/0 @ 3324 |
+| OpenCode o2 hotspot 3.999 vs 3.990 | **Folded** snapshot |
+| OpenCode o3 grep `classify_pin_kind` | **Folded** Phase 0 |
+| last-PR #188 Cursor | **Affirm T284** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
 ### T270 closeout residuals (2026-08-21)
 
 Specified softs — not product blockers:

@@ -1,10 +1,25 @@
 # T274 Plan — Pins vs harness ingest ranking
 
 **Status:** **Pending** (Planned; F0 until **go**)
-**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC17
+**Spec:** [spec.md](./spec.md) F0–F36 / AC1–AC17 + §13 AI fold-in
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger TX (planning):** `9c1049c0-5520-430d-a1f0-01aba355082e` (DOCS)
+**Ledger TX (fold-in):** `c483e45a-cf54-4d50-b15b-3d7128f9b5d0` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go**
+
+---
+
+## AI fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F35 / AC17:** pass-2 `NOT IN` is `?` placeholders + `params_vec` (Agy m1).
+2. **F36:** `authority_glob_sql(column)` helper (Agy O1 as helper, not `mp.content` const).
+3. **F10 / AC5:** chrome-only first-line collapse (Agy m2 already).
+4. **F7:** skip pass 2 when pass1 full (Agy O2 already).
+5. **§2.1:** HEAD `9a99117`; summary counts volatile.
 
 ---
 
@@ -12,10 +27,10 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `deabae7` CLEAN; `main` ahead of `origin/main` by **1** (placeholder mint). Product `src/` = T270 `#188` `14d42af` |
+| HEAD / tree | Plan dogfood `deabae7`; fold-in `9a99117` (docs-only; product tree identical to `14d42af`). CLEAN |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. T270 on PATH. **Do not `cargo install`.** |
 | Source debug | Older (2026-08-20 22:16). Dogfood used PATH |
-| `preflight --summary` | 3297 pinned; **0** in-context decisions/hotspots/constraints |
+| `preflight --summary` | Plan 3297 / **0/0/0**. OpenCode **1/1/1**. Fold-in **3324 / 0/0/0**. Hole stands |
 | `recall "what did we decide about retention"` | T248 reviews + JSON + `## Objective` — **no pin top-5** |
 | `recall "DECISION: T270"` | Five Objective/review dumps; pin **not in candidate set** |
 | `memory list --limit 5` | All `## Objective` / Track Plan Review / T248 Review, 18m, `status=pinned` |
@@ -25,7 +40,7 @@
 | Pins | clap lock **4.6.1** (crates.io 4.6.6; **no clap 5**); serde_json **1.0.150**; chrono **0.4.44**; rusqlite **0.39.0** — **no bumps** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.1** |
 | Hotspots | `project.rs` **#1** (3.990) — do not grow. CLI `preflight.rs` #7 **2027** lines — do not grow. `sync.rs` #2 — do not grow. `ranking.rs` **858**; retrieval `preflight.rs` **1003**; `recall.rs` **861** |
-| Ledger | 0 pending at scan; planning TX `9c1049c0` |
+| Ledger | 0 pending at scan; planning TX `9c1049c0`; fold-in TX `c483e45a` |
 | `ISSUES.md` | **Does not exist** (F29) |
 | ledgerful search | `rerank_hits` `ranking.rs:248` / `recall.rs:512`; `classify_pin_kind` `:84` |
 | Online | SQLite FTS5 BM25; ES function_score + 2025-12 multiplicative boost warning; clap 4.6.6; rusqlite 0.40.2 **not** bumped |
@@ -36,6 +51,7 @@
 
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
 - [ ] Re-read `classify_pin_kind` / `rerank_hits` / `match_query` / Index loop `:437` / `recall.rs` post-blend
+- [ ] Grep `classify_pin_kind` callers/tests (OpenCode o3). Fold-in: ranking units leading-only; `sync.rs:523` inherits F2 — do not edit `sync.rs`
 - [ ] Rescan `conductor/deferred.md` for new open rows that overlap
 - [ ] Confirm #188 Mediums still T284-only / no new Cursor leftover that needs a mint
 - [ ] Re-dogfood `recall "what did we decide about retention"` + `preflight --summary` (expect hole until green)
@@ -89,9 +105,11 @@
 - [ ] `session_chrome.rs` detector + GLOB fragment + first-line dedupe (AC2 / AC5 / AC17)
 - [ ] F2 leading-line + F3 INVARIANT in `classify_pin_kind`
 - [ ] F6 `SESSION_CHROME_PENALTY` inside `rerank_hits`
-- [ ] F7 two-pass `match_query` (authority GLOB then fill)
+- [ ] F7 two-pass `match_query` (authority GLOB then fill; skip pass 2 if pass1 full)
+- [ ] F35 bound `NOT IN` `?` placeholders (no UUID interpolation)
+- [ ] F36 `authority_glob_sql(column)`
 - [ ] F9 semantic in-memory prefer (AC16)
-- [ ] F10 chrome first-line collapse after `rerank_hits`
+- [ ] F10 `dedupe_session_chrome` after `rerank_hits` (chrome only)
 - [ ] F11 Index two-pass in `retrieval/src/preflight.rs`
 - [ ] Docs F32 (CAPABILITIES / CHANGELOG / PROTOCOL-COMPAT one-liner)
 - [ ] Confirm AC8–AC13 still green (T211 / T260 / T216 / T207 / forget unfiltered / JSON keys)

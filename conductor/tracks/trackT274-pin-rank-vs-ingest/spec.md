@@ -10,8 +10,8 @@
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “recall/search/semantic/preflight/memory-list session dumps over pins”; T260 lesson that demote-only fails when `candidate_depth` is all noise; T211 F4 anywhere-in-body marker scan (lift to leading-line)
 - **Not absorbed (DoD):** T279 Safety vs `safety sync` hotspots; T275 bootstrap; T276 leftover `7d97a456`; T284 #188 Work/samples; T263 H2 pin→Approved; T240 F2 silent Scope; T216 list ORDER flip; T211 F25 vault↔ledger RRF; T218 floors / ANN; T260 `--symbols`; clap 5 / rusqlite 0.40 / new crates / DTO keys
 - **Research date:** 2026-08-21 (plan dogfood HEAD `deabae7`; product `src/` = T270 `#188` `14d42af`)
-- **AI fold-in:** none yet (plan pass)
-- **Ledger:** planning DOCS TX `9c1049c0-5520-430d-a1f0-01aba355082e`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-21 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Agree:** Agy m1 parameterized pass-2 `NOT IN` (F35 / AC17); Agy O1 authority GLOB helper (F36). **Already:** Agy m2 chrome-only dedupe (F10 / AC5); Agy O2 pass-1 full → skip pass 2 (F7 / §5.2). **Fold snapshot:** OpenCode m1 HEAD `9a99117`; o1 summary counts volatile; o2 hotspot score; o3 `classify_pin_kind` grep on go. Disposition **§13**.
+- **Ledger:** planning DOCS TX `9c1049c0-5520-430d-a1f0-01aba355082e`. Fold-in DOCS TX `c483e45a-cf54-4d50-b15b-3d7128f9b5d0`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`, rewrite `.env`, pin-as-implement to the live vault, bootstrap live grants, rebind leftover paths, or live `retention apply --confirm`. Do **not** grow hotspot `project.rs` / CLI `preflight.rs` / `sync.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** raise `candidate_depth` (T261). Do **not** retune T218 cosine floors.
 
 ---
@@ -34,10 +34,10 @@ This unblocks the daily product: T260 stopped T70 stubs; T211’s +2 DECISION bo
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `deabae7` — mint T274–T284 placeholders. **Ahead of `origin/main` by 1** (docs). Product `src/` identical to T270 squash `14d42af` (`#188`). Tree **CLEAN** at plan start. |
+| HEAD | **Plan dogfood:** `deabae7` mint T274–T284. **This fold-in:** `9a99117` (`docs(conductor): plan T274 pins vs harness ingest ranking`; parent `deabae7`). Product `src/` identical to T270 squash `14d42af` (`#188`) — `git diff 14d42af HEAD` on ranking/lexical/recall/preflight is empty. Tree **CLEAN** at fold-in. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-21 05:55**, 25 368 576 bytes, **0.1.1**. T270 is on PATH. **Do not `cargo install`.** |
 | Source debug | `target\debug\ai-brains.exe` mtime **2026-08-20 22:16** — older than PATH. Plan dogfood used **PATH**. Tests/manual AC use `cargo run` / hermetic. |
-| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`); **Pinned 3297**; Active sessions **3**; **In context hotspots/decisions/constraints = 0**; grants 0 of 3 (T275). **Hole confirmed.** |
+| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). **Plan:** Pinned **3297**, in-context **0/0/0**. **OpenCode review:** **1/1/1** (same 3297). **This fold-in:** Pinned **3324**, in-context **0/0/0**, word_count **805**. Counts are **volatile** (window of dumps). Hole stands: 3k pins vs ~0–1 in-context. Grants 0 of 3 (T275). |
 | `recall "what did we decide about retention" --no-bridge --limit 5` | T248 reviews (BM25 **−8.67 / −8.65**), JSON `"decisions": [...]` summary, T270 `## Objective`, chat crumb. **No pin in top-5.** |
 | `recall "T270" --no-bridge --limit 5` | Chat crumbs + JSON init summary + T270/T272 plan-review dumps. **No DECISION pin.** |
 | `recall "DECISION: T270" --no-bridge --limit 5` | Five `## Objective` / T264-review dumps. Scores **−1.47 … −0.92** (weak BM25). Unique pin **not in candidate set**. |
@@ -45,7 +45,7 @@ This unblocks the daily product: T260 stopped T70 stubs; T211’s +2 DECISION bo
 | `memory list --limit 5` | All **18m**, previews `## Objective`, `## Objective`, `# Track Plan Review: T270`, two `### Track 248 Review`. `status=pinned`. Recency inventory is **honest** (T216) and **useless** as a decision index. |
 | `preflight --pretty -m 400` | Safety = T272 **`## Objective`**. Sessions = T270/T271 Objective dumps. Index cut by budget. |
 | Last GitHub PR | [#188](https://github.com/Ryan-AI-Studios/AI-Brains/pull/188) T270 (2026-08-21). Cursor Bugbot **2 Mediums** (Work table hides dispose; apply samples prefer inventory) — already **T284**. Open PRs: Dependabot remotes only. **No leftover to mint.** |
-| Identity / doctor | `whoami` not re-run this pass; summary Scope `3581317d`. ledgerful doctor 5 warn (legacy `.changeguard` / sig-pin / timings / :8081). 0 pending / 0 drift. Hotspot **#1** `project.rs` **3.990**. CLI `preflight.rs` **#7**. |
+| Identity / doctor | Summary Scope `3581317d`. ledgerful doctor 5 warn (legacy `.changeguard` / sig-pin / timings / :8081). 0 pending / 0 drift. Hotspot **#1** `project.rs` (plan **3.990**; T270 review **3.999** — still #1). CLI `preflight.rs` **#7**. |
 | `ISSUES.md` | **Does not exist.** |
 
 ### 2.2 Why pins lose (code + BM25)
@@ -113,12 +113,13 @@ Placeholder F “outrank” is resolved at this plan: **leading-marker classific
 | `function_score` filter + weight | [ES function_score](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-function-score-query) (current) | Filter “is authority pin” then score. Prefer-fill is the SQLite edition. |
 | RRF already shipped | T215/T218; PatentLLM hybrid RAG (2026-05) | **No** second RRF. F40 stands. `--semantic` still fuses then `rerank_hits`. |
 | clap 4 current | docs.rs/clap/4.6.6 | No new args. clap 5 not released. |
+| Bind `NOT IN` lists; do not interpolate values | [SQLite expr parameters](https://www.sqlite.org/lang_expr.html); rusqlite `params_from_iter` (live `lexical.rs:184`) | Pass-2 ids are `?` placeholders (Agy m1 / F35). Empty list → skip the clause (SQLite allows `NOT IN ()` but we do not emit it). |
 
 **N/A:** SQLCipher, schtasks, T180 2-key DTO, Windows service, llama.cpp `/health`.
 
 **Could not verify:** exact live `DECISION:` pin COUNT for T270 (FTS never returned it). Hermetic unique needle is the proof, not live vault archaeology. Semantic e2e depends on :8083 (up this session); hermetic AC does **not** require HTTP.
 
-**ledgerful / ai-brains:** `preflight --summary` 0/0/0 vs 3297 pins; recall dogfood above; `ledgerful doctor` work root this repo; ledger 0 pending / 0 drift; `index --incremental`; `search "rerank_hits"` → `ranking.rs:248` / `recall.rs:512`; `search "classify_pin_kind"` → `:84`; `scan --impact` CLEAN at `deabae7`; `hotspots` project.rs #1. Semantic `ask` skipped (search hit).
+**ledgerful / ai-brains:** fold-in `preflight --summary` 0/0/0 vs **3324** pins (plan 3297 / OpenCode 1/1/1 — volatile); `ledgerful ledger status --compact` 0 pending / 0 drift; `search "classify_pin_kind"` → `:84` + tests (all leading) + `sync.rs:523` (F2 lift inherits; **do not** edit `sync.rs`). Semantic `ask` skipped (search hit).
 
 ---
 
@@ -126,17 +127,17 @@ Placeholder F “outrank” is resolved at this plan: **leading-marker classific
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `9c1049c0`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `9c1049c0`. Fold-in is DOCS TX `c483e45a`. Implement starts a **FEATURE** TX. |
 | **F1 — Rank, do not delete** | Session ingest stays in the vault and stays recallable. **Do not** hard-exclude transcripts from default recall the way T260 excludes stubs. **Do not** forget/migrate them. |
 | **F2 — Lift T211 F4 to leading-line** | `classify_pin_kind`: after `strip_assistant_prefix` + trim, inspect the **first contentful line** only. Marker must **start** that line (optional leading whitespace). Case-insensitive `constraint:` / `decision:` / `invariant:` / `hotspot:`. Buried JSON `"decisions": [` and skill-body mentions → **Other**. `ASSISTANT: DECISION:` still Decision (existing unit). |
 | **F3 — INVARIANT ≡ Constraint** | Leading `INVARIANT:` → `PinKind::Constraint` (Safety SQL already treats it as a bearings marker). Kind boost stays `KIND_CONSTRAINT` (+4). |
 | **F4 — KIND_* magnitudes frozen** | Do **not** change `KIND_DECISION` / `KIND_CONSTRAINT` / `KIND_HOTSPOT` / `PLAN_PENALTY` / `RECENCY_SCALE`. Hole is classification + candidate set + chrome penalty, not “+2 was too small.” |
 | **F5 — Session chrome detector** | New `session_chrome.rs`. Closed list on the first contentful line after `strip_assistant_prefix`: (1) `## Objective`; (2) `# Track Plan Review`; (3) `### Track ` **and** `Review` (case-insensitive); (4) `# AI-Brains Onboarding`; (5) starts with ` ```json`. In-memory may also treat a line starting with `{` **and** containing `"decisions":` in the first 500 chars as chrome. **Not** every markdown heading. Detector is SoT. |
 | **F6 — SESSION_CHROME_PENALTY** | `16.0` composite units (same scale as `SYMBOL_PENALTY`). Applied inside `rerank_hits` when detector is true. **F40 stands** — no second final sort. |
-| **F7 — Lexical two-pass (required)** | Same MATCH expression. **Pass 1:** MATCH + authority GLOB (`DECISION:` / `CONSTRAINT:` / `INVARIANT:` at start, plus `ASSISTANT: ` variants) `ORDER BY rank LIMIT depth`. **Pass 2:** MATCH excluding pass-1 ids, `ORDER BY rank LIMIT remainder`. Chrome may appear in pass 2. If pass 1 is empty, pass 2 is today’s behavior (chrome-only queries still return chrome — no T207 lie). T260 GLOB exclude still applies when `exclude_symbol_stubs`. |
+| **F7 — Lexical two-pass (required)** | Same MATCH expression. **Pass 1:** MATCH + authority GLOB (`DECISION:` / `CONSTRAINT:` / `INVARIANT:` at start, plus `ASSISTANT: ` variants) `ORDER BY rank LIMIT depth`. If `pass1.len() >= depth`, **return pass1** (Agy O2 — no second MATCH). **Pass 2:** MATCH excluding pass-1 ids, `ORDER BY rank LIMIT remainder`. Chrome may appear in pass 2. If pass 1 is empty, pass 2 is today’s behavior (chrome-only queries still return chrome — no T207 lie). T260 GLOB exclude still applies when `exclude_symbol_stubs`. |
 | **F8 — GLOB is a subset** | SQL GLOB is case-sensitive prefix (`DECISION:*`, `ASSISTANT: DECISION:*`, …). Detector is case-insensitive SoT (T260 F19 analog). In-memory prefer-fill / penalty catch lowercase `decision:`. |
 | **F9 — Semantic arm** | No second embedding SQL. After semantic fetch, **in-memory** prefer-fill: authority hits first, then others, cap `candidate_depth`. Then existing RRF / floors (T218 **untouched**). |
-| **F10 — Near-dup chrome** | After `rerank_hits`, collapse session-chrome rows that share the **same first contentful line** (keep first / highest effective already sorted). Non-chrome rows never collapse this way. T260 `dedupe_symbol_stubs` still runs. Distinct `DECISION:` pins never collapse. |
+| **F10 — Near-dup chrome** | After `rerank_hits`, `dedupe_session_chrome` collapses rows the **detector** flags as chrome that share the **same first contentful line** (keep first / highest effective already sorted). Non-chrome rows **never** collapse, even if they share opening punctuation (`DECISION:`). T260 `dedupe_symbol_stubs` still runs. Distinct `DECISION:` pins never collapse. (Agy m2 — already this rule; helper name locked.) |
 | **F11 — Preflight Index two-pass** | `retrieval/src/preflight.rs` Index: collect leading-marker pins (`classify_pin_kind` ≠ Other, or detector-false + leading GLOB) by `updated_at DESC`, then recency-fill other injectable pinned rows excluding those ids, until **existing** word budget / T264 global caps. **Do not** retune `GLOBAL_INDEX_FETCH` 80 (T272 F17). **Do not** change Safety SQL (T279). T272 `safety_ids` skip stands. |
 | **F12 — Summary counts follow Index** | CLI `matches("DECISION:")` on the assembled window **stays**. Hermetic pin in Index → `in_context_decisions >= 1`. Do **not** grow CLI `preflight.rs`. |
 | **F13 — Memory list recency freeze** | Default `memory list` stays `updated_at DESC` (T216). **Not DoD** to pin-first. Manual “first 5 **or** pin `updated` ≥ ingest” is honesty, not a sort change. No `--kind` flag. |
@@ -156,11 +157,13 @@ Placeholder F “outrank” is resolved at this plan: **leading-marker classific
 | **F27 — Tests** | Naming `function_or_feature__condition__expected_result`. rstest for detector cases. No `unwrap`/`expect`/`panic` in production. `TempEnv` if tests touch ranking envs. |
 | **F28 — Cross-model** | Retrieval ranking is FEATURE. After Phase-1 clean, run read-only `codex-review`. |
 | **F29 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
-| **F30 — File growth** | `session_chrome.rs` new. `classify_pin_kind` + penalty call in `ranking.rs`. Two-pass in `lexical.rs` `match_query` (or a helper in that file). Index two-pass in `retrieval/preflight.rs`. Dedupe call in `recall.rs`. **Do not** grow `project.rs`, CLI `preflight.rs`, `sync.rs`. |
+| **F30 — File growth** | `session_chrome.rs` new (detector + F36 helper + F10 dedupe). `classify_pin_kind` + penalty call in `ranking.rs`. Two-pass + F35 binds in `lexical.rs` `match_query` (or a helper in that file). Index two-pass in `retrieval/preflight.rs`. Dedupe call in `recall.rs`. **Do not** grow `project.rs`, CLI `preflight.rs`, `sync.rs`. |
 | **F31 — Existing tests stay green** | T211 leading `DECISION:` / `ASSISTANT: DECISION:` units; T260 GLOB/exclude; T216 list recency; T248/T270 retention; T272 Index skip; T207 empty; T218 floor units. Add **new** units for buried-marker → Other (today would be Decision). |
 | **F32 — Docs** | CAPABILITIES pin-type row: leading-line + chrome penalty + two-pass. CHANGELOG T274. PROTOCOL-COMPAT: no new required keys (N−1 ignore). WORKFLOWS “what did we decide” still `recall`. |
 | **F33 — PowerShell** | `;` not `&&`. |
 | **F34 — substring fallback** | T105/T261: LIKE on small vaults. Apply detector penalty/prefer-fill in memory after substring; do **not** skip LIKE. `--global` leftover skip-LIKE (10k) stays. |
+| **F35 — Pass-2 ids are bound** | Pass-2 `mp.memory_id NOT IN (?,?,…)` uses dynamically generated `?` placeholders and appends ids onto `params_vec` (same `params_from_iter` as live `match_query`). **Forbidden** to `format!` UUID strings into the SQL. `pass1` empty → omit the `NOT IN` clause (do not emit `NOT IN ()`). (Agy m1.) |
+| **F36 — Authority GLOB helper** | `session_chrome.rs` owns `authority_glob_sql(column: &str) -> String` (T260 `symbol_stub_sql_exclusion` shape: identifier-checked, bind-free GLOB list). Callers pass `mp.content` / `m.content`. **Not** a hardcoded `mp.content` const (Index/lexical column names differ). (Agy O1 folded as helper, not a frozen `mp.` const.) |
 
 ---
 
@@ -172,7 +175,7 @@ Placeholder F “outrank” is resolved at this plan: **leading-marker classific
 | **AC2** | Unit rstest `#[case]`: detector true for the five closed prefixes (+ optional `{`+`"decisions":`); false for `DECISION: …` and `CONSTRAINT: …` and a normal chat sentence. |
 | **AC3** | `rerank_hits`: chrome hit BM25 **−12** (better FTS) vs leading `DECISION:` BM25 **−2** → pin **first**. Penalty applied. **Required red.** |
 | **AC4** | Retrieval hermetic: 15 chrome rows MATCH the query + 1 leading `DECISION: T274-rank-needle-<uuid>` that also MATCHes → `recall_full` `--limit 5` hit **#1** is the pin (`memory_id` + content starts with `DECISION:`). Proves two-pass, not only rerank. **Required red.** |
-| **AC5** | Two chrome rows, identical first line `## Objective` → after pipeline one chrome row remains (plus the pin if present). Distinct DECISION pins with different bodies stay two. |
+| **AC5** | Two chrome rows, identical first line `## Objective` → after pipeline one chrome row remains (plus the pin if present). Two leading `DECISION:` pins with **different** bodies stay two even if both start with `DECISION:` (Agy m2 / F10). |
 | **AC6** | Hermetic preflight: pin `DECISION: T274-index-needle-<uuid>` + newer `## Objective` dump containing buried `CONSTRAINT:`. Index contains the pin; dump does **not** monopolize Index (pin present even if dump is newer). Safety SQL **unasserted** (T279). **Required red.** |
 | **AC7** | Same fixture: `preflight --summary` (or in-process summary counts on `context.text`) `in_context_decisions >= 1`. Existing T220 AC5 still green. |
 | **AC8** | T211 `rerank_hits__plan_below_shipped_same_track__ac1` still passes (leading DECISION unchanged). |
@@ -184,7 +187,7 @@ Placeholder F “outrank” is resolved at this plan: **leading-marker classific
 | **AC14** | Hermetic CLI: `ai-brains recall "T274-rank-needle-<uuid>" --limit 5 --format pretty --no-bridge` hit #1 is the pin (not `## Objective`). EXIT 0. **Required red** (CLI). |
 | **AC15** | Hermetic `sync query "T274-rank-needle-<uuid>" --no-bridge --limit 5`: vault section top is the pin. Ledger pane may be empty — **do not** assert ledger. |
 | **AC16** | Unit: semantic-arm prefer-fill (authority first in a shuffled `Vec<RecallHit>` before fuse) — **no** live HTTP. `--semantic` CLI e2e optional if :8083 down. |
-| **AC17** | Lexical SQL for pass 1 contains `GLOB` + `LIMIT` (not unbounded SELECT + Rust-only filter). Helper/unit reads the SQL string or explains via a `#[cfg(test)]` fragment. |
+| **AC17** | Lexical SQL for pass 1 contains `GLOB` + `LIMIT` (not unbounded SELECT + Rust-only filter). Pass-2 SQL, when `pass1` is non-empty, contains `NOT IN (` with **only** `?` placeholders (count == `pass1.len()`) — no UUID literals in the string (F35). Helper/unit reads the SQL string or a `#[cfg(test)]` fragment. Guard, not Phase-1 red. |
 
 ---
 
@@ -213,9 +216,9 @@ pass2 = MATCH expr AND id NOT IN pass1 AND status=pinned [AND NOT symbol] ORDER 
 return pass1 ++ pass2   -- rerank_hits will sort
 ```
 
-`NOT IN` for a 15-id list is fine. Empty `NOT IN ()` skip pass2 filter. Parameterize MATCH expr once (T90 sanitize already done by caller).
+Pass-2 ids: `format!(" AND mp.memory_id NOT IN ({})", (0..pass1.len()).map(|_| "?").collect::<Vec<_>>().join(", "))` then `params_vec.extend(pass1_ids)` (F35). Empty `pass1` → skip the clause (do not emit `NOT IN ()`). Parameterize MATCH expr once (T90 sanitize already done by caller).
 
-Authority GLOB (bind-free, identifier-checked like `symbol_stub_sql_exclusion`):
+Authority GLOB via `authority_glob_sql("mp.content")` (F36; bind-free, identifier-checked like `symbol_stub_sql_exclusion`):
 
 ```
 col GLOB 'DECISION:*' OR col GLOB 'CONSTRAINT:*' OR col GLOB 'INVARIANT:*'
@@ -282,7 +285,7 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 | GLOB misses lowercase `decision:` | Detector SoT + in-memory prefer on blended hits (F8). |
 | Chrome detector overfits | Closed list; rstest cases; markdown `# Heading` without those prefixes stays Other **without** penalty. |
 | Index fills only old pins | Recency-fill after authority until **existing** budget. |
-| Buried-marker tests fail | Intentional F2 lift; update only tests that asserted anywhere-in-body (none found besides leftmost-on-leading-line). |
+| Buried-marker tests fail | Intentional F2 lift. Fold-in grep: ranking units are all leading-line; production caller `sync.rs:523` inherits F2 (chrome-with-buried-`decision:` is no longer Plan-class — honest). Phase 0 re-grep `classify_pin_kind` (OpenCode o3). |
 | `forget` would hide chrome | F18 — unfiltered. |
 | Hotspot `preflight.rs` CLI | Retrieval crate only. |
 | Semantic HTTP flake | AC16 unit-only. |
@@ -352,9 +355,9 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 
 | Path | Change |
 |------|--------|
-| `crates/ai-brains-retrieval/src/session_chrome.rs` | **New** detector + GLOB fragment + first-line dedupe |
+| `crates/ai-brains-retrieval/src/session_chrome.rs` | **New** detector + `authority_glob_sql` + `dedupe_session_chrome` |
 | `crates/ai-brains-retrieval/src/ranking.rs` | F2 leading-line; F3 INVARIANT; F6 penalty; units AC1/AC3 |
-| `crates/ai-brains-retrieval/src/lexical.rs` | F7 two-pass |
+| `crates/ai-brains-retrieval/src/lexical.rs` | F7 two-pass; F35 bound `NOT IN` |
 | `crates/ai-brains-retrieval/src/recall.rs` | F10 after `rerank_hits`; F9 hook if semantic list is local |
 | `crates/ai-brains-retrieval/src/lib.rs` | export detector if tests/CLI need it |
 | `crates/ai-brains-retrieval/src/preflight.rs` | F11 Index two-pass |
@@ -366,3 +369,37 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 | `conductor/conductor.md` / `deferred.md` | Planned / absorb |
 
 **Do not touch:** `project.rs`, CLI `preflight.rs`, `sync.rs`, `forget.rs` MATCH, contracts DTO required keys, `class_based_retention.rs`, live `.env`.
+
+---
+
+## 13. AI fold-in
+
+Inputs: `agy-review.md` + `opencode-review.md` (2026-08-21). **Do not edit those files.** Product tree at fold-in = T270 `#188` `14d42af`. Plan commit `9a99117`. **B 0 / M 0.**
+
+### Pins locked by fold-in
+
+1. **F35 / AC17:** pass-2 `NOT IN` uses `?` placeholders + `params_vec` (Agy m1). Empty pass1 omits the clause.
+2. **F36:** `authority_glob_sql(column)` in `session_chrome.rs` (Agy O1 as helper, not a frozen `mp.content` const).
+3. **F10 / AC5:** `dedupe_session_chrome` collapses **detector** chrome only; two `DECISION:` pins stay two (Agy m2 already F10).
+4. **F7 / §5.2:** `pass1.len() >= depth` → skip pass 2 (Agy O2 already).
+5. **§2.1:** HEAD `9a99117`; summary counts volatile (plan 0/0/0 @ 3297; OpenCode 1/1/1; fold-in 0/0/0 @ 3324).
+6. **Phase 0:** re-grep `classify_pin_kind` (OpenCode o3). Fold-in grep: ranking units leading-only; `sync.rs:523` inherits F2 — do not edit `sync.rs`.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** parameterized pass-2 `NOT IN` | **Folded** F35 / AC17 |
+| Agy | **m2** chrome-only first-line dedupe | **Already** F10; **tightened** AC5 two-`DECISION:` stay two |
+| Agy | **O1** `AUTHORITY_GLOB_SQL` const | **Folded as helper** F36 — column argument (`mp.content` vs `m.content`); not a hardcoded `mp.` const |
+| Agy | **O2** skip pass 2 when pass1 full | **Already** F7 / §5.2 — F7 table now states it |
+| OpenCode | B / M | None filed — live line/symbol table **affirmed** |
+| OpenCode | **m1** HEAD `9a99117` vs plan `deabae7` | **Folded** §2.1 — product tree identical |
+| OpenCode | **o1** summary 1/1/1 vs plan 0/0/0 | **Folded** §2.1 volatile; fold-in re-dogfood **0/0/0 @ 3324** |
+| OpenCode | **o2** hotspot 3.999 vs 3.990 | **Folded** §2.1 snapshot; #1 unchanged |
+| OpenCode | **o3** grep `classify_pin_kind` tests on go | **Folded** Phase 0 + §8; fold-in grep already leading-only + `sync.rs:523` |
+| both | last-PR #188 Cursor | **Affirm T284** — no T285 |
+| both | deferred table | **Affirm** — no new absorb |
+
+No Blockers/Majors to decline. No new placeholder minted.
