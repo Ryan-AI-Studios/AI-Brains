@@ -9,6 +9,7 @@ use std::path::Path;
 use tempfile::tempdir;
 
 const PRINCIPAL: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const PROJECT: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const SCOPE: &str = "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
 fn init_vault(vault_path: &Path) {
@@ -636,4 +637,192 @@ fn policy_bootstrap__after__dangerous_caps_still_denied() {
             "F6 LocalOnly; got privacy={privacy:?} grant={g}"
         );
     }
+}
+
+/// T275 AC3 / F3 — denied JSON keeps `denied: true`, empty arrays (not null), bootstrap hint; exit 0.
+#[test]
+fn briefing_project__no_grants__json_denied_empty_arrays() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("briefing")
+        .arg("project")
+        .arg("--project-id")
+        .arg(PROJECT)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("briefing json deny");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "briefing deny stays exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("briefing json");
+    assert_eq!(v["denied"], true, "packet={v}");
+    let decisions = v["decisions"].as_array();
+    assert!(
+        decisions.is_some() && !v["decisions"].is_null(),
+        "decisions must be [] not null; got {v}"
+    );
+    assert!(
+        decisions.expect("decisions array").is_empty(),
+        "denied decisions must be empty; got {v}"
+    );
+    let conclusions = v["conclusions"].as_array();
+    assert!(
+        conclusions.is_some() && !v["conclusions"].is_null(),
+        "conclusions must be [] not null; got {v}"
+    );
+    assert!(
+        conclusions.expect("conclusions array").is_empty(),
+        "denied conclusions must be empty; got {v}"
+    );
+    let hint = v["denial_hint"].as_str().unwrap_or("");
+    assert!(
+        hint.contains("policy bootstrap"),
+        "denial_hint must name policy bootstrap; got {v}"
+    );
+}
+
+/// T275 AC4 — CLI System `policy bootstrap` then `briefing project` JSON `denied: false`.
+///
+/// Omit `--principal-id` so bootstrap matches `cli_principal()` System default
+/// (T210 `bbbb…` Human trap; F31 / F36).
+#[test]
+fn policy_bootstrap__after_system__briefing_project_denied_false() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let boot = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("bootstrap")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy bootstrap");
+    assert_eq!(
+        boot.status.code(),
+        Some(0),
+        "bootstrap failed; stderr={} stdout={}",
+        String::from_utf8_lossy(&boot.stderr),
+        String::from_utf8_lossy(&boot.stdout)
+    );
+
+    let json = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("briefing")
+        .arg("project")
+        .arg("--project-id")
+        .arg(PROJECT)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("briefing json");
+    assert_eq!(
+        json.status.code(),
+        Some(0),
+        "briefing json; stderr={} stdout={}",
+        String::from_utf8_lossy(&json.stderr),
+        String::from_utf8_lossy(&json.stdout)
+    );
+    let v: Value = serde_json::from_slice(&json.stdout).expect("briefing json");
+    assert_eq!(v["denied"], false, "packet={v}");
+
+    let human = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("briefing")
+        .arg("project")
+        .arg("--project-id")
+        .arg(PROJECT)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("briefing human");
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "briefing human; stderr={} stdout={}",
+        String::from_utf8_lossy(&human.stderr),
+        String::from_utf8_lossy(&human.stdout)
+    );
+    let md = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        !md.contains("**Denied:**"),
+        "human must not show Denied after System bootstrap: {md}"
+    );
+}
+
+/// T275 AC5 — same System bootstrap path: `evidence list` JSON exit 0 (`items` may be `[]`).
+///
+/// Omit `--principal-id` so bootstrap matches `cli_principal()` System default
+/// (T210 `bbbb…` Human trap; F31 / F36).
+#[test]
+fn policy_bootstrap__after_system__evidence_list_exit_0() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let boot = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("bootstrap")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy bootstrap");
+    assert_eq!(
+        boot.status.code(),
+        Some(0),
+        "bootstrap failed; stderr={} stdout={}",
+        String::from_utf8_lossy(&boot.stderr),
+        String::from_utf8_lossy(&boot.stdout)
+    );
+
+    let evidence = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("evidence")
+        .arg("list")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg("json")
+        .arg("--local")
+        .output()
+        .expect("evidence list");
+    assert_eq!(
+        evidence.status.code(),
+        Some(0),
+        "evidence list; stderr={} stdout={}",
+        String::from_utf8_lossy(&evidence.stderr),
+        String::from_utf8_lossy(&evidence.stdout)
+    );
+    let v: Value = serde_json::from_slice(&evidence.stdout).expect("evidence json");
+    assert!(
+        v["items"].as_array().is_some(),
+        "items must be an array (empty OK); got {v}"
+    );
 }

@@ -8,8 +8,8 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 
 | Item | Track |
 |------|-------|
-| recall/search/semantic/preflight/memory-list session dumps over pins | **T274** |
-| briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275** |
+| recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
+| briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
 | leftover `7d97a456` ~18k / `--global` junk | **T276** (T259 residual) |
 | 22/22 backup FAIL; no usable encrypted file | **T277** |
 | graph sparse + neighbors blank preview | **T278** |
@@ -51,6 +51,51 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode o3 grep `classify_pin_kind` | **Folded** Phase 0 |
 | last-PR #188 Cursor | **Affirm T284** — no T285 |
 | No B/M | Nothing to decline of B/M |
+
+### T275 planning absorption (2026-08-21) — grant-wall + CLI bootstrap lock; no auto-grant
+
+| Item | Disposition |
+|------|-------------|
+| Audit briefing/progressive/lists POLICY_DENIED (0 of 3) | **Absorb** F1–F6 / AC1–AC5 |
+| Denied human `_None_` looks like empty vault | **Absorb** F1/F2 / AC1 |
+| CLI `policy bootstrap` → briefing/evidence untested (T210 gap) | **Absorb** F5/F6 / AC4/AC5 (System principal; T221 F31) |
+| T241 F21 skill one-liner | **Absorb** F23 docs |
+| T241 F20 `preflight --install-grants` | **Decline** F9 — mutation stays `policy bootstrap` |
+| Auto-grant on `init` / first preflight | **Decline** F8 — T210 F13 |
+| T280 deny hint `--scope …` vs doctor omit | **Decline** F11 → **T280** |
+| T263 H2 pin→Approved | **Decline** F12 |
+| leftover `7d97a456` | **Decline** → **T276** |
+| last-PR Cursor #189 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Affirm T284** — no T285 |
+| T240 F2 / T255 750 ms / clap 5 / rusqlite 0.40 | **Decline** |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276 |
+| Live operator bootstrap | **F10** — `--dry-run` only unless owner confirms at go |
+
+### T275 fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 GRANT_WALL ≤140 | **Already** F2 / AC2 — frozen **88** chars |
+| Agy m2 personal deny no project bootstrap | **Folded** F35 / AC16 |
+| Agy O1 AC4 principal-trap comment | **Folded** F36 |
+| Agy O2 const adjacency | **Folded** F37 |
+| OpenCode m1 HEAD `c576b58` vs `8cb1ce0` | **Folded** §2.1 — product crates identical |
+| OpenCode m2 Bootstrap `:2211` | **Folded** §2.3 |
+| OpenCode m3 `empty_denied` `:218` | **Folded** §2.3 |
+| OpenCode m4 JSON no grant-wall prose | **Already** F3 — `denied: true`; do not extend `denial_hint` |
+| OpenCode m5 preflight budget analog | **Folded** F29 — renderer order only; no `preflight.rs` growth |
+| OpenCode m6 F16 “Domain in CLI” | **Folded** F16 — CP `renderer.rs` |
+| last-PR #189 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
+### T275 closeout residuals (2026-08-21)
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F18 |
+| Live vault still 0 of 3 grants | F10 — owner did not confirm live bootstrap; hermetic is DoD |
+| T280 deny hint still `--scope …` vs doctor omit | Peer |
+| Personal denied `_None_` left | F32 optional; F35 contamination locked |
 
 ### T274 closeout residuals (2026-08-21)
 

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T275 Discovery grants first-run:** Denied `briefing project --format human` is a grant wall (not `_None_` empty vault); pins remain via `recall` / `search`. Hermetic CLI `policy bootstrap` (System principal — omit `--principal-id`) unlocks `briefing project` `denied: false` and `evidence list` exit 0. No auto-grant on init/preflight. JSON deny shape unchanged (`denied: true`, empty arrays). Docs: CAPABILITIES denied packets, OPERATIONS grant-wall sentence.
+
 - **T274 Pins vs harness ingest ranking:** `recall` / `search` / `sync query` vault and preflight Index prefer leading `DECISION:` / `CONSTRAINT:` / `INVARIANT:` pins over session dumps (`## Objective`, review-track chrome). Classification is leading-line only; chrome gets a −16 composite penalty; lexical MATCH and Index are two-pass (authority GLOB then fill). Duplicate chrome first-lines collapse. `forget --match` and `memory list` recency stay unfiltered. No new Recall JSON keys. Docs: CAPABILITIES pin-type row, PROTOCOL-COMPAT recall compact keys.
 
 - **T270 Retention live `memory_legacy` inventory:** `retention plan` overlays a COUNT of live `memory_projection` rows (`pinned`→`held`, other statuses→`skip`) so a vault with tens of thousands of pins is no longer `skip 0` next to `Nothing to dispose.` That sentence now means no CE wipe and no projection delete. Samples are SQL `LIMIT 5`. Apply still requires `--confirm`. Docs: CAPABILITIES T248 row, OPERATIONS class matrix, PROTOCOL-COMPAT §5.
