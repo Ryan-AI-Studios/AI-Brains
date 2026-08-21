@@ -11,7 +11,7 @@
 - **Not absorbed (DoD):** Silent exclude leftover from `--global` (T264 F11); memory rewrite / `MemoryMoved` (T259 F5); live leftover `rebind-path --write --yes` without owner confirm; T240 F2 `.env`; T258 adopt-path (cwd already `mismatch: false`); T282 shell leftover on `context --show`; T283 `project list` cwd-first; T274 chrome penalty retune; T275 grants; T279 Safety; T280 hint; T284 #188; clap 5 / rusqlite 0.40 / DTO keys; `--exclude-project` flag
 - **Research date:** 2026-08-21 (plan dogfood HEAD `a5562cc` T275 `#190`; product `src/` = T275)
 - **AI fold-in:** (none yet — plan review later)
-- **Ledger:** planning DOCS TX (this pass). Implement starts a **FEATURE** TX on **go**.
+- **Ledger:** planning DOCS TX `d5b9a9cc-fa83-4ce9-a74f-aaf77eb591fe`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`, rewrite `.env`, rebind live leftover paths, bootstrap live grants, pin-as-implement to the live vault, or live `retention apply --confirm`. Do **not** grow hotspot `project.rs` / CLI `preflight.rs` / `sync.rs` (except one `RecallOptions` field) / `governed_common.rs` / `ranking.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** raise `candidate_depth` (T261). Do **not** hardcode leftover UUID `7d97a456-…` in retrieval SQL.
 
 ---

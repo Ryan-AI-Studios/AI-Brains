@@ -3,7 +3,7 @@
 **Status:** **Pending** (Planned; F0 until **go**)
 **Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC16
 **Category:** FEATURE / UX / RETRIEVAL
-**Ledger TX (planning):** (this pass, DOCS)
+**Ledger TX (planning):** `d5b9a9cc-fa83-4ce9-a74f-aaf77eb591fe` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go**
 
 ---
