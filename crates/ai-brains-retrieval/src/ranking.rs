@@ -33,6 +33,10 @@ pub const RECENCY_SCALE: f64 = 1.0;
 /// T70 stub penalty in composite/effective units (T260 F9). Applied when
 /// [`crate::symbol_stub::is_symbol_stub_content`] is true — not raw cosine.
 pub const SYMBOL_PENALTY: f64 = 16.0;
+/// Session-chrome penalty in composite/effective units (T274 F6). Applied when
+/// [`crate::session_chrome::is_session_chrome`] is true. Same scale as
+/// [`SYMBOL_PENALTY`].
+pub const SESSION_CHROME_PENALTY: f64 = crate::session_chrome::SESSION_CHROME_PENALTY;
 
 /// Scale for cosine / RRF scores into pin-boost composite space (T215 F8).
 ///
@@ -77,29 +81,37 @@ pub fn strip_assistant_prefix(content: &str) -> &str {
     content.strip_prefix("ASSISTANT: ").unwrap_or(content)
 }
 
-/// Classify pin kind from content markers (case-insensitive, first match wins).
-///
-/// Leftmost marker among CONSTRAINT / DECISION / HOTSPOT wins. Leading
-/// `ASSISTANT: ` is stripped once before scan.
-pub fn classify_pin_kind(content: &str) -> PinKind {
-    let stripped = strip_assistant_prefix(content);
-    let lower = stripped.to_ascii_lowercase();
+/// First non-empty line after [`strip_assistant_prefix`] + trim (T274 F2).
+pub fn first_contentful_line(content: &str) -> &str {
+    let stripped = strip_assistant_prefix(content).trim();
+    stripped
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("")
+}
 
-    let mut best: Option<(usize, PinKind)> = None;
-    for (needle, kind) in [
-        ("constraint:", PinKind::Constraint),
-        ("decision:", PinKind::Decision),
-        ("hotspot:", PinKind::Hotspot),
-    ] {
-        if let Some(pos) = lower.find(needle) {
-            match best {
-                None => best = Some((pos, kind)),
-                Some((best_pos, _)) if pos < best_pos => best = Some((pos, kind)),
-                _ => {}
-            }
-        }
+/// Classify pin kind from the **first contentful line** only (T274 F2).
+///
+/// Marker must start that line (optional leading whitespace already trimmed).
+/// Case-insensitive `constraint:` / `decision:` / `invariant:` / `hotspot:`.
+/// Leading `INVARIANT:` maps to [`PinKind::Constraint`] (F3). Buried JSON
+/// `"decision":` and skill-body mentions are [`PinKind::Other`]. Leading
+/// `ASSISTANT: ` is stripped once before the line scan.
+pub fn classify_pin_kind(content: &str) -> PinKind {
+    let line = first_contentful_line(content);
+    let lower = line.to_ascii_lowercase();
+    if lower.starts_with("constraint:") {
+        PinKind::Constraint
+    } else if lower.starts_with("decision:") {
+        PinKind::Decision
+    } else if lower.starts_with("invariant:") {
+        PinKind::Constraint
+    } else if lower.starts_with("hotspot:") {
+        PinKind::Hotspot
+    } else {
+        PinKind::Other
     }
-    best.map(|(_, k)| k).unwrap_or(PinKind::Other)
 }
 
 /// Classify Decision staleness from ASCII-lower content heuristics (F5).
@@ -299,6 +311,9 @@ pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
             );
             if crate::symbol_stub::is_symbol_stub_content(&hit.content) {
                 effective -= SYMBOL_PENALTY;
+            }
+            if crate::session_chrome::is_session_chrome(&hit.content) {
+                effective -= SESSION_CHROME_PENALTY;
             }
             Ranked {
                 effective,

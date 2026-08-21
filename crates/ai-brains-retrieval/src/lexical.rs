@@ -29,6 +29,9 @@ pub struct LexicalSearchOptions {
     /// When true, append the T260 GLOB stub exclusion (recall path only).
     /// Default **false** so `forget --match` still finds stubs (F10).
     pub exclude_symbol_stubs: bool,
+    /// When true, run T274 lexical two-pass: authority GLOB first, then fill
+    /// (recall path only). Default **false** so `forget --match` stays unfiltered (F18).
+    pub prefer_authority: bool,
 }
 
 impl Default for LexicalSearchOptions {
@@ -37,6 +40,7 @@ impl Default for LexicalSearchOptions {
             rescue: false,
             limit: LEXICAL_MATCH_HARD_CAP,
             exclude_symbol_stubs: false,
+            prefer_authority: false,
         }
     }
 }
@@ -73,6 +77,7 @@ pub fn lexical_search(
         session_id,
         limit,
         opts.exclude_symbol_stubs,
+        opts.prefer_authority,
     )?;
     if !results.is_empty() {
         return Ok(results);
@@ -104,6 +109,7 @@ pub fn lexical_search(
             session_id,
             limit,
             opts.exclude_symbol_stubs,
+            opts.prefer_authority,
         )?;
         if !results.is_empty() {
             return Ok(results);
@@ -126,16 +132,26 @@ pub fn lexical_search(
             session_id,
             limit,
             opts.exclude_symbol_stubs,
+            opts.prefer_authority,
         )?;
     }
 
     Ok(results)
 }
 
+enum AuthorityFilter {
+    None,
+    Prefer,
+    ExcludeIds(Vec<String>),
+}
+
 /// Execute a parameterized FTS5 MATCH with project/session scope and SQL LIMIT.
 ///
 /// `match_expr` must already be a safe expression (quoted tokens only). Does
 /// **not** re-run `sanitize_fts_query` (F9 — OR rescue must not be double-sanitized).
+///
+/// When `prefer_authority` is true (recall path), T274 two-pass: authority GLOB
+/// `LIMIT depth`, then fill remainder excluding pass-1 ids (F7 / F35).
 fn match_query(
     conn: &VaultConnection,
     match_expr: &str,
@@ -143,13 +159,103 @@ fn match_query(
     session_id: Option<ai_brains_core::ids::SessionId>,
     limit: usize,
     exclude_symbol_stubs: bool,
+    prefer_authority: bool,
 ) -> Result<Vec<RetrievalMemory>> {
     if match_expr.is_empty() {
         return Ok(Vec::new());
     }
+    if prefer_authority {
+        let pass1 = match_query_filtered(
+            conn,
+            match_expr,
+            project_id,
+            session_id,
+            limit,
+            exclude_symbol_stubs,
+            AuthorityFilter::Prefer,
+        )?;
+        if pass1.len() >= limit {
+            return Ok(pass1);
+        }
+        let remainder = limit.saturating_sub(pass1.len());
+        let ids: Vec<String> = pass1.iter().map(|m| m.memory_id.clone()).collect();
+        let pass2 = match_query_filtered(
+            conn,
+            match_expr,
+            project_id,
+            session_id,
+            remainder,
+            exclude_symbol_stubs,
+            AuthorityFilter::ExcludeIds(ids),
+        )?;
+        let mut out = pass1;
+        out.extend(pass2);
+        return Ok(out);
+    }
+    match_query_filtered(
+        conn,
+        match_expr,
+        project_id,
+        session_id,
+        limit,
+        exclude_symbol_stubs,
+        AuthorityFilter::None,
+    )
+}
+
+fn match_query_filtered(
+    conn: &VaultConnection,
+    match_expr: &str,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    session_id: Option<ai_brains_core::ids::SessionId>,
+    limit: usize,
+    exclude_symbol_stubs: bool,
+    authority: AuthorityFilter,
+) -> Result<Vec<RetrievalMemory>> {
+    if match_expr.is_empty() || limit == 0 {
+        return Ok(Vec::new());
+    }
 
     let conn = conn.lock()?;
+    let (sql, params_vec) = match_sql_and_params(
+        match_expr,
+        project_id,
+        session_id,
+        limit,
+        exclude_symbol_stubs,
+        &authority,
+    );
 
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query(params_from_iter(params_vec))?;
+    let mut results = Vec::new();
+
+    while let Some(row) = rows.next()? {
+        // Defense-in-depth: SQL already excludes non-injectable privacy (so LIMIT
+        // applies to injectable rows). Keep the helper for unknown/legacy labels.
+        let privacy: String = row.get(2)?;
+        if is_injectable_privacy(&privacy) {
+            results.push(RetrievalMemory {
+                memory_id: row.get(0)?,
+                content: row.get(1)?,
+                score: row.get(4)?,
+                session_id: row.get(3)?,
+                updated_at: row.get(5)?,
+            });
+        }
+    }
+
+    Ok(results)
+}
+
+fn match_sql_and_params(
+    match_expr: &str,
+    project_id: Option<ai_brains_core::ids::ProjectId>,
+    session_id: Option<ai_brains_core::ids::SessionId>,
+    limit: usize,
+    exclude_symbol_stubs: bool,
+    authority: &AuthorityFilter,
+) -> (String, Vec<rusqlite::types::Value>) {
     let mut sql =
         "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, fts.rank, mp.updated_at
          FROM memory_fts fts
@@ -177,29 +283,37 @@ fn match_query(
         sql.push_str(&crate::symbol_stub::symbol_stub_sql_exclusion("mp.content"));
     }
 
-    sql.push_str(" ORDER BY rank LIMIT ?");
-    params_vec.push((limit as i64).into());
-
-    let mut stmt = conn.prepare(&sql)?;
-    let mut rows = stmt.query(params_from_iter(params_vec))?;
-    let mut results = Vec::new();
-
-    while let Some(row) = rows.next()? {
-        // Defense-in-depth: SQL already excludes non-injectable privacy (so LIMIT
-        // applies to injectable rows). Keep the helper for unknown/legacy labels.
-        let privacy: String = row.get(2)?;
-        if is_injectable_privacy(&privacy) {
-            results.push(RetrievalMemory {
-                memory_id: row.get(0)?,
-                content: row.get(1)?,
-                score: row.get(4)?,
-                session_id: row.get(3)?,
-                updated_at: row.get(5)?,
-            });
+    match authority {
+        AuthorityFilter::None => {}
+        AuthorityFilter::Prefer => {
+            sql.push_str(&crate::session_chrome::authority_glob_sql("mp.content"));
+        }
+        AuthorityFilter::ExcludeIds(ids) => {
+            if let Some(clause) = crate::session_chrome::bound_not_in_sql("mp.memory_id", ids.len())
+            {
+                sql.push_str(&clause);
+                for id in ids {
+                    params_vec.push(id.clone().into());
+                }
+            }
         }
     }
 
-    Ok(results)
+    sql.push_str(" ORDER BY rank LIMIT ?");
+    params_vec.push((limit as i64).into());
+    (sql, params_vec)
+}
+
+#[cfg(test)]
+pub(crate) fn match_pass_sql_for_test(prefer: bool, exclude_n: usize) -> String {
+    let filter = if prefer {
+        AuthorityFilter::Prefer
+    } else if exclude_n > 0 {
+        AuthorityFilter::ExcludeIds((0..exclude_n).map(|i| format!("id-{i}")).collect())
+    } else {
+        AuthorityFilter::None
+    };
+    match_sql_and_params("needle", None, None, 15, false, &filter).0
 }
 
 /// Substring fallback when FTS5 returns no results.
@@ -347,5 +461,32 @@ mod unit_tests {
         assert!(!opts.rescue);
         assert_eq!(opts.limit, LEXICAL_MATCH_HARD_CAP);
         assert!(!opts.exclude_symbol_stubs);
+        assert!(!opts.prefer_authority);
+    }
+
+    #[test]
+    fn match_sql__pass1_glob_limit__pass2_bound_not_in() {
+        let pass1 = match_pass_sql_for_test(true, 0);
+        assert!(
+            pass1.contains("GLOB") && pass1.contains("LIMIT"),
+            "AC17: pass-1 SQL has GLOB + LIMIT; got {pass1}"
+        );
+        assert!(
+            !pass1.contains("memory_id NOT IN"),
+            "AC17: pass-1 has no id NOT IN; got {pass1}"
+        );
+        let pass2 = match_pass_sql_for_test(false, 2);
+        assert!(
+            pass2.contains("NOT IN (?,?)"),
+            "AC17: pass-2 NOT IN uses ? placeholders only; got {pass2}"
+        );
+        assert!(
+            !pass2.contains("id-0") && !pass2.contains("id-1"),
+            "AC17: no id literals in SQL; got {pass2}"
+        );
+        assert!(
+            pass2.contains("LIMIT"),
+            "AC17: pass-2 still LIMIT; got {pass2}"
+        );
     }
 }

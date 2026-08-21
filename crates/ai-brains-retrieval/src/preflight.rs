@@ -11,6 +11,8 @@ use crate::preflight_global::{
     span_count, take_round_robin,
 };
 use crate::privacy_filter::is_injectable_privacy;
+use crate::ranking::{PinKind, classify_pin_kind};
+use crate::session_chrome::{bound_not_in_sql, index_marker_glob_sql};
 use crate::sessions::active_sessions;
 use crate::word_budget::{
     content_word_count, trim_to_word_budget, trim_to_word_budget_no_sentinel, word_count,
@@ -435,76 +437,38 @@ fn build_legacy_preflight(
     }
 
     // --- General Memory Index (scoped to current project when project_id is known) ---
-    let index_sql = if global {
-        "SELECT m.memory_id, m.content, m.privacy, m.updated_at, COALESCE(m.project_id, s.project_id)
-         FROM memory_projection m
-         LEFT JOIN session_projection s ON m.session_id = s.session_id
-         WHERE m.status = 'pinned'
-         ORDER BY m.updated_at DESC"
-    } else {
-        "SELECT m.memory_id, m.content, m.privacy, m.updated_at, COALESCE(m.project_id, s.project_id)
-         FROM memory_projection m
-         LEFT JOIN session_projection s ON m.session_id = s.session_id
-         WHERE m.status = 'pinned'
-         AND (s.project_id = ? OR m.project_id = ?)
-         ORDER BY m.updated_at DESC"
-    };
-
-    let mut stmt = conn.prepare(index_sql)?;
-    let mut rows = if global {
-        stmt.query([])?
-    } else if let Some(ref pid) = project_id_str {
-        stmt.query(rusqlite::params![pid, pid])?
-    } else {
-        stmt.query(rusqlite::params![
-            Option::<String>::None,
-            Option::<String>::None
-        ])?
-    };
+    // T274 F11: leading-marker pins first, then recency-fill other injectable rows.
     let mut collected: Vec<(String, String, Option<String>)> = Vec::new(); // content, ts, project
-
-    while let Some(row) = rows.next()? {
-        let memory_id: String = row.get(0)?;
-        let privacy: String = row.get(2)?;
-
-        // Skip entries already shown in the safety section
-        if safety_ids.contains(&memory_id) {
-            continue;
-        }
-
-        if !is_injectable_privacy(&privacy) {
-            continue;
-        }
-
-        let content: String = row.get(1)?;
-        let updated_at: String = row.get(3)?;
-        let item_project: Option<String> = row.get(4)?;
-        let content = strip_ansi(&content);
-
-        // Skip low-signal entries
-        if is_low_signal(&content) {
-            continue;
-        }
-        if global {
-            if collected.len() >= GLOBAL_INDEX_FETCH {
-                break;
-            }
-            collected.push((content, updated_at, item_project));
-            continue;
-        }
-        let candidate = if collected.is_empty() {
-            content.clone()
-        } else {
-            let mut parts: Vec<String> = collected.iter().map(|(c, _, _)| c.clone()).collect();
-            parts.push(content.clone());
-            parts.join("\n\n")
-        };
-
-        if word_count(&candidate) > max_words {
-            break;
-        }
-        collected.push((content, updated_at, item_project));
-    }
+    let mut collected_ids: HashSet<String> = HashSet::new();
+    let pass1_sql = index_select_sql(global, &index_marker_glob_sql("m.content"));
+    drain_index_pass(
+        &conn,
+        &pass1_sql,
+        global,
+        project_id_str.as_deref(),
+        &[],
+        &safety_ids,
+        &mut collected,
+        &mut collected_ids,
+        max_words,
+        true,
+    )?;
+    let mut pass2_ids: Vec<String> = collected_ids.iter().cloned().collect();
+    pass2_ids.sort();
+    let pass2_extra = bound_not_in_sql("m.memory_id", pass2_ids.len()).unwrap_or_default();
+    let pass2_sql = index_select_sql(global, &pass2_extra);
+    drain_index_pass(
+        &conn,
+        &pass2_sql,
+        global,
+        project_id_str.as_deref(),
+        &pass2_ids,
+        &safety_ids,
+        &mut collected,
+        &mut collected_ids,
+        max_words,
+        false,
+    )?;
 
     let index_items = if global {
         take_round_robin(
@@ -609,6 +573,96 @@ fn build_legacy_preflight(
             None
         },
     })
+}
+
+fn index_select_sql(global: bool, extra: &str) -> String {
+    let scope = if global {
+        "WHERE m.status = 'pinned'"
+    } else {
+        "WHERE m.status = 'pinned' AND (s.project_id = ? OR m.project_id = ?)"
+    };
+    format!(
+        "SELECT m.memory_id, m.content, m.privacy, m.updated_at, COALESCE(m.project_id, s.project_id)
+         FROM memory_projection m
+         LEFT JOIN session_projection s ON m.session_id = s.session_id
+         {scope}{extra}
+         ORDER BY m.updated_at DESC"
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn drain_index_pass(
+    conn: &rusqlite::Connection,
+    sql: &str,
+    global: bool,
+    project_id: Option<&str>,
+    extra_ids: &[String],
+    safety_ids: &HashSet<String>,
+    collected: &mut Vec<(String, String, Option<String>)>,
+    collected_ids: &mut HashSet<String>,
+    max_words: usize,
+    authority_only: bool,
+) -> Result<()> {
+    let mut params: Vec<rusqlite::types::Value> = Vec::new();
+    if !global {
+        match project_id {
+            Some(pid) => {
+                params.push(pid.to_string().into());
+                params.push(pid.to_string().into());
+            }
+            None => {
+                params.push(rusqlite::types::Value::Null);
+                params.push(rusqlite::types::Value::Null);
+            }
+        }
+    }
+    for id in extra_ids {
+        params.push(id.clone().into());
+    }
+
+    let mut stmt = conn.prepare(sql)?;
+    let mut rows = stmt.query(rusqlite::params_from_iter(params))?;
+    while let Some(row) = rows.next()? {
+        let memory_id: String = row.get(0)?;
+        let privacy: String = row.get(2)?;
+        if safety_ids.contains(&memory_id) || collected_ids.contains(&memory_id) {
+            continue;
+        }
+        if !is_injectable_privacy(&privacy) {
+            continue;
+        }
+        let content: String = row.get(1)?;
+        let updated_at: String = row.get(3)?;
+        let item_project: Option<String> = row.get(4)?;
+        let content = strip_ansi(&content);
+        if is_low_signal(&content) {
+            continue;
+        }
+        if authority_only && classify_pin_kind(&content) == PinKind::Other {
+            continue;
+        }
+        if global {
+            if collected.len() >= GLOBAL_INDEX_FETCH {
+                break;
+            }
+            collected_ids.insert(memory_id);
+            collected.push((content, updated_at, item_project));
+            continue;
+        }
+        let candidate = if collected.is_empty() {
+            content.clone()
+        } else {
+            let mut parts: Vec<String> = collected.iter().map(|(c, _, _)| c.clone()).collect();
+            parts.push(content.clone());
+            parts.join("\n\n")
+        };
+        if word_count(&candidate) > max_words {
+            break;
+        }
+        collected_ids.insert(memory_id);
+        collected.push((content, updated_at, item_project));
+    }
+    Ok(())
 }
 
 fn query_ledgerful(_project_id: &str, scope_paths: Option<&Vec<String>>) -> Option<String> {

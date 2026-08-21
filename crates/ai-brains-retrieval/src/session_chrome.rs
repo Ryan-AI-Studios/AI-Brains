@@ -1,0 +1,256 @@
+//! Session-chrome detector, authority GLOB, prefer-fill, and first-line collapse (T274).
+//!
+//! Detector is source of truth (F8). SQL `GLOB` is a case-sensitive prefix subset.
+
+use crate::ranking::{PinKind, classify_pin_kind, first_contentful_line, strip_assistant_prefix};
+use crate::recall::RecallHit;
+use std::collections::BTreeSet;
+
+/// Composite penalty applied in [`crate::ranking::rerank_hits`] when the detector
+/// is true (same scale as [`crate::ranking::SYMBOL_PENALTY`]).
+pub const SESSION_CHROME_PENALTY: f64 = 16.0;
+
+/// True for closed-list harness session dumps (first contentful line).
+pub fn is_session_chrome(content: &str) -> bool {
+    let line = first_contentful_line(content);
+    let lower = line.to_ascii_lowercase();
+    if lower.starts_with("## objective") {
+        return true;
+    }
+    if lower.starts_with("# track plan review") {
+        return true;
+    }
+    if lower.starts_with("### track") && lower.contains("review") {
+        return true;
+    }
+    if lower.starts_with("# ai-brains onboarding") {
+        return true;
+    }
+    if lower.starts_with("```json") {
+        return true;
+    }
+    let head: String = strip_assistant_prefix(content)
+        .trim()
+        .chars()
+        .take(500)
+        .collect();
+    line.starts_with('{') && head.contains("\"decisions\":")
+}
+
+/// Leading DECISION / CONSTRAINT / INVARIANT (F3 maps INVARIANT → Constraint).
+pub fn is_authority_pin_content(content: &str) -> bool {
+    matches!(
+        classify_pin_kind(content),
+        PinKind::Decision | PinKind::Constraint
+    )
+}
+
+/// Bind-free `AND (col GLOB …)` for decision-class authority prefixes (F36).
+///
+/// `column` must be a SQL identifier (`content` / `mp.content` / `m.content`).
+/// HOTSPOT is **not** included (recall pass 1 is DECISION/CONSTRAINT/INVARIANT).
+pub fn authority_glob_sql(column: &str) -> String {
+    debug_assert!(
+        is_safe_sql_ident(column),
+        "authority_glob_sql column must be a SQL identifier"
+    );
+    let prefixes = [
+        "DECISION:",
+        "CONSTRAINT:",
+        "INVARIANT:",
+        "ASSISTANT: DECISION:",
+        "ASSISTANT: CONSTRAINT:",
+        "ASSISTANT: INVARIANT:",
+    ];
+    let parts: Vec<String> = prefixes
+        .iter()
+        .map(|p| format!("{column} GLOB '{p}*'"))
+        .collect();
+    format!(" AND ({})", parts.join(" OR "))
+}
+
+/// Index pass-1 GLOB: [`authority_glob_sql`] plus leading HOTSPOT (F11).
+pub fn index_marker_glob_sql(column: &str) -> String {
+    debug_assert!(
+        is_safe_sql_ident(column),
+        "index_marker_glob_sql column must be a SQL identifier"
+    );
+    let auth = authority_glob_sql(column);
+    // authority_glob_sql returns ` AND (…)` — extend the group with HOTSPOT prefixes.
+    let inner = auth
+        .strip_prefix(" AND (")
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or(auth.as_str());
+    format!(" AND ({inner} OR {column} GLOB 'HOTSPOT:*' OR {column} GLOB 'ASSISTANT: HOTSPOT:*')")
+}
+
+/// `AND col NOT IN (?,?,…)` with `n` placeholders. `n == 0` → omit (F35).
+pub fn bound_not_in_sql(column: &str, n: usize) -> Option<String> {
+    debug_assert!(
+        is_safe_sql_ident(column),
+        "bound_not_in_sql column must be a SQL identifier"
+    );
+    if n == 0 {
+        return None;
+    }
+    let placeholders = vec!["?"; n].join(",");
+    Some(format!(" AND {column} NOT IN ({placeholders})"))
+}
+
+/// Collapse detector-chrome rows that share the same first contentful line.
+///
+/// Non-chrome rows never collapse (two `DECISION:` pins stay two). Call after
+/// [`crate::ranking::rerank_hits`].
+pub fn dedupe_session_chrome(hits: &mut Vec<RecallHit>) {
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    hits.retain(|h| {
+        if !is_session_chrome(&h.content) {
+            return true;
+        }
+        let key = first_contentful_line(&h.content).to_ascii_lowercase();
+        seen.insert(key)
+    });
+}
+
+/// Authority hits first (relative order preserved), then others, cap `depth` (F9).
+pub fn prefer_authority_hits(hits: Vec<RecallHit>, depth: usize) -> Vec<RecallHit> {
+    let mut auth = Vec::new();
+    let mut other = Vec::new();
+    for h in hits {
+        if is_authority_pin_content(&h.content) {
+            auth.push(h);
+        } else {
+            other.push(h);
+        }
+    }
+    auth.extend(other);
+    auth.truncate(depth);
+    auth
+}
+
+fn is_safe_sql_ident(column: &str) -> bool {
+    let mut parts = column.split('.');
+    let all_ok = parts.all(|p| {
+        let mut chars = p.chars();
+        match chars.next() {
+            Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+                chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+            }
+            _ => false,
+        }
+    });
+    all_ok && !column.is_empty() && !column.starts_with('.') && !column.ends_with('.')
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+    use crate::ranking::ScoreKind;
+    use crate::recall::RecallHit;
+
+    fn hit(id: &str, content: &str) -> RecallHit {
+        RecallHit {
+            memory_id: id.to_string(),
+            content: content.to_string(),
+            source: "fts".to_string(),
+            score: Some(-1.0),
+            privacy: None,
+            session_id: None,
+            updated_at: None,
+            is_plan_demoted: false,
+            score_kind: ScoreKind::Bm25LowerBetter,
+            cosine: None,
+        }
+    }
+
+    #[test]
+    fn is_session_chrome__closed_prefixes__true() {
+        assert!(is_session_chrome("## Objective\nbody"));
+        assert!(is_session_chrome("# Track Plan Review: T274"));
+        assert!(is_session_chrome("### Track 248 Review"));
+        assert!(is_session_chrome("# AI-Brains Onboarding"));
+        assert!(is_session_chrome("```json\n{\"a\":1}\n```"));
+        assert!(is_session_chrome("{\"decisions\": [\"x\"]}"));
+    }
+
+    #[test]
+    fn is_session_chrome__authority_and_chat__false() {
+        assert!(!is_session_chrome("DECISION: we chose X"));
+        assert!(!is_session_chrome("CONSTRAINT: must be safe"));
+        assert!(!is_session_chrome("just a chat turn about ranking"));
+        assert!(!is_session_chrome("# Heading without chrome prefixes"));
+    }
+
+    #[test]
+    fn authority_glob_sql__glob_not_like() {
+        let sql = authority_glob_sql("mp.content");
+        assert!(sql.contains("GLOB"), "F36: must use GLOB; got {sql}");
+        assert!(
+            !sql.to_ascii_uppercase().contains("LIKE"),
+            "F36: must not emit LIKE; got {sql}"
+        );
+        assert!(sql.contains("DECISION:*"));
+        assert!(sql.contains("CONSTRAINT:*"));
+        assert!(sql.contains("INVARIANT:*"));
+        assert!(sql.contains("ASSISTANT: DECISION:*"));
+        assert!(
+            !sql.contains("HOTSPOT"),
+            "F7: HOTSPOT is not recall pass-1; got {sql}"
+        );
+    }
+
+    #[test]
+    fn bound_not_in_sql__placeholders_no_literals() {
+        assert!(bound_not_in_sql("mp.memory_id", 0).is_none());
+        let sql = bound_not_in_sql("mp.memory_id", 3).expect("n=3");
+        assert!(
+            sql.contains("NOT IN (?,?,?)"),
+            "F35: only ? placeholders; got {sql}"
+        );
+        assert!(!sql.contains('-'), "F35: no UUID literals; got {sql}");
+    }
+
+    #[test]
+    fn dedupe_session_chrome__identical_first_line__one_chrome_two_pins() {
+        let mut hits = vec![
+            hit("c1", "## Objective\nfirst dump"),
+            hit("c2", "## Objective\nsecond dump"),
+            hit("p1", "DECISION: first pin body"),
+            hit("p2", "DECISION: second pin body"),
+        ];
+        dedupe_session_chrome(&mut hits);
+        let chrome: Vec<_> = hits
+            .iter()
+            .filter(|h| h.content.starts_with("## Objective"))
+            .collect();
+        assert_eq!(
+            chrome.len(),
+            1,
+            "AC5: identical chrome first line collapses"
+        );
+        assert_eq!(chrome[0].memory_id, "c1");
+        assert_eq!(
+            hits.iter()
+                .filter(|h| h.content.starts_with("DECISION:"))
+                .count(),
+            2,
+            "AC5: distinct DECISION pins never collapse"
+        );
+    }
+
+    #[test]
+    fn prefer_authority_hits__authority_first_then_cap() {
+        let shuffled = vec![
+            hit("c1", "## Objective\ndump one"),
+            hit("p1", "DECISION: pin one"),
+            hit("c2", "## Objective\ndump two"),
+            hit("p2", "CONSTRAINT: pin two"),
+        ];
+        let out = prefer_authority_hits(shuffled, 3);
+        assert_eq!(out.len(), 3);
+        assert_eq!(out[0].memory_id, "p1");
+        assert_eq!(out[1].memory_id, "p2");
+        assert_eq!(out[2].memory_id, "c1");
+    }
+}

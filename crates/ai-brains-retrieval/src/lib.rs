@@ -9,6 +9,7 @@ mod privacy_filter;
 mod ranking;
 mod recall;
 mod semantic;
+mod session_chrome;
 mod sessions;
 mod symbol_stub;
 mod word_budget;
@@ -30,8 +31,9 @@ pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
 };
 pub use ranking::{
-    PinKind, RELEVANCE_SCALE, SYMBOL_PENALTY, ScoreKind, StalenessClass, classify_pin_kind,
-    classify_staleness, extract_track_tokens, rerank_hits, strip_assistant_prefix,
+    PinKind, RELEVANCE_SCALE, SESSION_CHROME_PENALTY, SYMBOL_PENALTY, ScoreKind, StalenessClass,
+    classify_pin_kind, classify_staleness, extract_track_tokens, first_contentful_line,
+    rerank_hits, strip_assistant_prefix,
 };
 pub use recall::{
     RecallHit, RecallOptions, RecallOutcome, graph_neighbor_stored_score, recall, recall_full,
@@ -40,6 +42,10 @@ pub use semantic::{
     SemanticOutcome, classify_embedding_error, classify_model_error, embedding_endpoint,
     embedding_model, public_endpoint_label, semantic_search, semantic_search_with_embedding,
     status_after_embed_ok,
+};
+pub use session_chrome::{
+    authority_glob_sql, bound_not_in_sql, dedupe_session_chrome, index_marker_glob_sql,
+    is_authority_pin_content, is_session_chrome, prefer_authority_hits,
 };
 pub use sessions::active_sessions;
 pub use symbol_stub::{
