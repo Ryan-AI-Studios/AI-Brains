@@ -2,6 +2,41 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
+
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
+
+| Item | Track |
+|------|-------|
+| recall/search/semantic/preflight/memory-list session dumps over pins | **T274** |
+| briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275** |
+| leftover `7d97a456` ~18k / `--global` junk | **T276** (T259 residual) |
+| 22/22 backup FAIL; no usable encrypted file | **T277** |
+| graph sparse + neighbors blank preview | **T278** |
+| preflight Safety = review-track Objective | **T279** |
+| deny/`policy show` `--scope …` vs doctor omit | **T280** |
+| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
+| `context --show` misses leftover shell | **T282** |
+| `project list` leftover-first | **T283** |
+| #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284** |
+| device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
+
+### T270 closeout residuals (2026-08-21)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Nightly one-liner `candidates=` includes held | F20 — not restyled |
+| `active` / unknown statuses lumped in `other` skip | Intentional v1 |
+| `list_pinned_memory_ids` still loads all ids for R11 | Pre-existing; not this overlay |
+| JSON still omits zero buckets for the other eight classes | T248 F5 |
+| PATH `ai-brains` until `cargo install` | F16 — installed 2026-08-21 |
+| Leftover project 18k pins still owned by `7d97a456` | **T276** |
+| Doctor retention check | T248 F16 |
+| rusqlite `table_exists` 0.40 | T213 L4 |
+| last-PR Cursor #188 Work table / apply samples | **T284** |
+
 ## Post-P12 backlog promotion (2026-08-01)
 
 Placeholder tracks registered in `conductor/conductor.md` (status **Pending**). Residual detail below remains until each track closes:
@@ -626,23 +661,8 @@ Specified softs — not product blockers:
 | OpenCode O4 `ISSUES.md` | **Already** F24 |
 | OpenCode deferred “F8 → `candidates==0`” | **Declined** — F8 is dispose-work |
 | OpenCode SOOT = `collect_candidates` `:771` | **Partial** — call site yes; merge after `build_report` (F6) |
-| last-PR #187 Cursor | **N/A** — still empty. **No T274** |
+| last-PR #187 Cursor | **N/A** — still empty. (T274 later minted 2026-08-21 as pin-vs-ingest, not from #187) |
 | No B/M | Nothing to decline of B/M |
-
-### T270 closeout residuals (2026-08-21)
-
-Specified softs — not product blockers:
-
-| Residual | Disposition |
-|----------|-------------|
-| Nightly one-liner `candidates=` includes held | F20 — not restyled |
-| `active` / unknown statuses lumped in `other` skip | Intentional v1 |
-| `list_pinned_memory_ids` still loads all ids for R11 | Pre-existing; not this overlay |
-| JSON still omits zero buckets for the other eight classes | T248 F5 |
-| PATH `ai-brains` until `cargo install` | F16 |
-| Leftover project 18k pins still owned by `7d97a456` | T259 operator |
-| Doctor retention check | T248 F16 |
-| rusqlite `table_exists` 0.40 | T213 L4 |
 
 ### T270 planning absorption (2026-08-20) — inventory overlay; no migrate
 
@@ -656,7 +676,7 @@ Specified softs — not product blockers:
 | T167 `classify_legacy` / `migrate governed` remediator | **Decline** F18 |
 | T248 empty-check `candidates==0` / Work-all-classes | **Lift** F8/F9 — `Nothing to dispose.` = no CE/projection; Work = dispose mechanisms only |
 | T248 F16 doctor / F17 engine leftovers / nightly restyle | **Decline** |
-| Identity mismatch `7d97a456` vs `fcb8a40f` (agent observation) | **Decline** F19 — T240/T257/T258 `adopt-path`; this cwd `whoami` mismatch false; **no T274** |
+| Identity mismatch `7d97a456` vs `fcb8a40f` (agent observation) | **Decline** F19 at T270 plan — T240/T257/T258; leftover data residual **T276** (2026-08-21) |
 | last-PR Cursor #187 | **N/A** — comments/reviews empty |
 | T273 F7 / leftover rebind / T240 F2 / clap 5 / rusqlite 0.40 | **Decline** |
 | Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` | **Decline** |
