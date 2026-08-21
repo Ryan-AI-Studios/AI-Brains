@@ -71,6 +71,23 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276 |
 | Live operator bootstrap | **F10** — `--dry-run` only unless owner confirms at go |
 
+### T275 fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 GRANT_WALL ≤140 | **Already** F2 / AC2 — frozen **88** chars |
+| Agy m2 personal deny no project bootstrap | **Folded** F35 / AC16 |
+| Agy O1 AC4 principal-trap comment | **Folded** F36 |
+| Agy O2 const adjacency | **Folded** F37 |
+| OpenCode m1 HEAD `c576b58` vs `8cb1ce0` | **Folded** §2.1 — product crates identical |
+| OpenCode m2 Bootstrap `:2211` | **Folded** §2.3 |
+| OpenCode m3 `empty_denied` `:218` | **Folded** §2.3 |
+| OpenCode m4 JSON no grant-wall prose | **Already** F3 — `denied: true`; do not extend `denial_hint` |
+| OpenCode m5 preflight budget analog | **Folded** F29 — renderer order only; no `preflight.rs` growth |
+| OpenCode m6 F16 “Domain in CLI” | **Folded** F16 — CP `renderer.rs` |
+| last-PR #189 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |

@@ -1,10 +1,27 @@
 # T275 Plan — Discovery grants first-run (grant-wall + CLI bootstrap lock)
 
 **Status:** **Pending** (Planned; plan-only until **go**)
-**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC15
+**Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC16 + §13 AI fold-in
 **Category:** FEATURE / UX / GOVERNED
 **Ledger TX (planning):** `e13a4e01-3dd6-4adc-ae57-be75e7e98ba9` (DOCS)
+**Ledger TX (fold-in):** `79f6e233-42ba-4660-b7c5-5560579ddece` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go**
+
+---
+
+## AI fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F2 / AC2:** `BRIEFING_DENIED_GRANT_WALL` exact 88-char string; `.chars().count() <= 140`; no `\n`.
+2. **F35 / AC16:** personal denied must not contain project grant-wall / bootstrap consts (Agy m2).
+3. **F36:** AC4/AC5 comment — omit `--principal-id` = `cli_principal()` System (Agy O1).
+4. **F37:** GRANT_WALL + HIDDEN immediately after `BRIEFING_DENIED_DENIAL_HINT` (Agy O2).
+5. **F16:** strings in CP `renderer.rs`, not CLI domain (OpenCode m6).
+6. **F29:** AC2 is renderer order only; no preflight.rs budget hermetic (OpenCode m5).
+7. **§2.1 / §2.3:** HEAD `c576b58`; Bootstrap `:2211`; `empty_denied` `:218`.
 
 ---
 
@@ -12,7 +29,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `8cb1ce0` T274 `#189`. CLEAN. In sync with `origin/main` |
+| HEAD / tree | Plan dogfood `8cb1ce0`; fold-in `c576b58` (docs-only; product tree identical). CLEAN; `main` ahead of `origin/main` by planning docs |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. T270 on PATH. **Do not `cargo install`.** |
 | Source debug | 2026-08-21 07:46. Tests/manual use `cargo run` / hermetic |
 | `preflight --summary` | Pinned **3325**; in-context 0/0/0; **grants 0 of 3** + short SOOT |
@@ -25,12 +42,12 @@
 | `doctor --summary` | `policy_grants` warn 0 of 3 + long SOOT omit-`--scope` |
 | Last PR comments | #189 T274 — **empty** (N/A). #188 Mediums stay **T284**. No T285 |
 | Open PR on HEAD | none (Dependabot remotes only) |
-| Pins | clap lock **4.6.1** (crates.io 4.6.6; **no clap 5**); serde_json **1.0.150**; chrono **0.4.44** (crates.io 0.4.45); rusqlite **0.39.0** (crates.io 0.40.2) — **no bumps** |
+| Pins | clap lock **4.6.1** (crates.io 4.6.6; **no clap 5**); serde_json **1.0.150** (crates.io **1.0.151**); chrono **0.4.44** (crates.io 0.4.45); rusqlite **0.39.0** (crates.io 0.40.2) — **no bumps** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.1** |
 | Hotspots | `project.rs` **#1** (3.990) — do not grow. `governed_common.rs` #5 — do not grow (hint freeze). CLI `preflight.rs` #7 **2027** — do not grow. `doctor.rs` **1738** — do not grow. `renderer.rs` **497** — **DoD touch**. `policy_cmd.rs` **356** — call only |
-| Ledger | 0 pending at scan; planning TX `e13a4e01` |
+| Ledger | 0 pending at scan; planning TX `e13a4e01`; fold-in TX `79f6e233` |
 | `ISSUES.md` | **Does not exist** (F27) |
-| ledgerful search | `run_bootstrap` `policy_cmd.rs:234`; `empty_denied` `project.rs:217`; `issue_grant` callers include T263 seed + `run_bootstrap` |
+| ledgerful search | `run_bootstrap` `policy_cmd.rs:234`; `empty_denied` `project.rs:218` (OpenCode m3); `issue_grant` callers include T263 seed + `run_bootstrap` |
 | Online | clig.dev first-run + dry-run; Entra/Orca/OSO default-deny + least privilege; clap 4.6.6; rusqlite 0.40.2 **not** bumped |
 
 ---
@@ -38,7 +55,7 @@
 ## Phase 0 — on go (re-verify)
 
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `renderer.rs` denied `_None_` (`:93–130`), `run_bootstrap`, `cli_principal`, `project.rs` empty_denied
+- [ ] Re-read `renderer.rs` denied `_None_` (`:93–130`), `run_bootstrap`, `cli_principal`, `project.rs` `empty_denied` `:218`, clap Bootstrap `:2211`
 - [ ] Confirm T210 `policy_bootstrap.rs` still lacks briefing/evidence; T221 AC3 progressive-after-bootstrap; T263 granted-empty
 - [ ] Rescan `conductor/deferred.md` for new open rows that overlap
 - [ ] Confirm #189 still empty / #188 still T284 / no new Cursor leftover that needs a mint
@@ -79,18 +96,20 @@
 ## Phase 1 — Red (TDD)
 
 - [ ] Renderer unit `render_project_markdown__denied__no_none_placeholder` (AC1) — **required red**
-- [ ] Renderer unit grant-wall ≤140 / order before Decisions (AC2)
-- [ ] Hermetic `policy_bootstrap__after_system__briefing_project_denied_false` (AC4) — lock if already green
-- [ ] Hermetic `policy_bootstrap__after_system__evidence_list_exit_0` (AC5) — lock if already green
+- [ ] Renderer unit grant-wall 88 chars / ≤140 / order before Decisions (AC2)
+- [ ] Hermetic `policy_bootstrap__after_system__briefing_project_denied_false` (AC4) — lock if already green; **F36 comment** omit `--principal-id`
+- [ ] Hermetic `policy_bootstrap__after_system__evidence_list_exit_0` (AC5) — lock if already green; same F36 comment
 - [ ] Allowed-empty still `_None_` or empty_authority (AC6) — write as green-guard if needed
+- [ ] Personal deny regression `render_personal_markdown__denied__names_recall_not_personal_bootstrap` + new consts (AC16 / F35) — extend T263 unit
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] `BRIEFING_DENIED_GRANT_WALL` + hidden placeholder const in `renderer.rs`
+- [ ] F37: `BRIEFING_DENIED_GRANT_WALL` + `BRIEFING_DENIED_HIDDEN` immediately after `BRIEFING_DENIED_DENIAL_HINT`
 - [ ] Denied branch: no `_None_`; grant-wall after bootstrap next, before Decisions
 - [ ] Allowed-empty path unchanged
+- [ ] F35: personal denied path does not import/print project grant-wall consts
 - [ ] No production `unwrap`/`expect`/`panic`
 - [ ] Do not edit `POLICY_DENIED_HINT` / daemon / `query.rs` twins
 - [ ] Do not add clap flags
@@ -121,7 +140,7 @@
 
 ## DoD
 
-- [ ] AC1–AC14 green (AC15 recorded)
+- [ ] AC1–AC16 green (AC15 recorded)
 - [ ] No live grant append without owner confirm
 - [ ] T280 hint strings unchanged
 - [ ] T263 H1/H2 isolation held
