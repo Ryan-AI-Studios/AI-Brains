@@ -432,6 +432,90 @@ mod tests {
             !md.contains(BRIEFING_DENIED_NEXT_STEP),
             "personal deny must not reuse repository bootstrap next: {md}"
         );
+        // T275 AC16 / F35 — project grant-wall consts must not leak into Personal deny.
+        assert!(
+            !md.contains("This is a grant wall"),
+            "personal deny must not contain project grant-wall: {md}"
+        );
+        assert!(
+            !md.contains("_(hidden until discovery grants)_"),
+            "personal deny must not contain project hidden placeholder: {md}"
+        );
+    }
+
+    #[test]
+    fn render_project_markdown__denied__no_none_placeholder() {
+        // T275 AC1
+        let md = render_project_markdown(&empty_project(true));
+        assert!(
+            !md.contains("_None_"),
+            "denied project must not look like an empty vault: {md}"
+        );
+        assert!(
+            md.contains(
+                "This is a grant wall, not an empty vault. Pins remain via `ai-brains recall` / `search`."
+            ),
+            "denied markdown must emit grant-wall: {md}"
+        );
+        assert!(md.contains("recall"), "grant-wall must name recall: {md}");
+        assert!(md.contains("> **Denied:**"), "denied blockquote: {md}");
+        assert!(
+            md.contains("policy bootstrap"),
+            "bootstrap stays primary next-step: {md}"
+        );
+        assert!(
+            md.contains("_(hidden until discovery grants)_"),
+            "denied empty sections use hidden placeholder: {md}"
+        );
+    }
+
+    #[test]
+    fn briefing_denied_grant_wall__88_chars_order_before_decisions() {
+        // T275 AC2 / F2 / F29 — renderer order, not a preflight budget hermetic.
+        const GRANT_WALL: &str = "This is a grant wall, not an empty vault. Pins remain via `ai-brains recall` / `search`.";
+        assert!(
+            !GRANT_WALL.contains('\n'),
+            "grant-wall must be one line; got {GRANT_WALL:?}"
+        );
+        let n = GRANT_WALL.chars().count();
+        assert_eq!(n, 88, "frozen GRANT_WALL must be 88 chars (got {n})");
+        assert!(n <= 140, "grant-wall must be <=140 chars (got {n})");
+        let md = render_project_markdown(&empty_project(true));
+        let next_pos = md.find(BRIEFING_DENIED_NEXT_STEP).expect("next-step pos");
+        let wall_pos = md.find(GRANT_WALL).expect("grant-wall pos");
+        let decisions_pos = md
+            .find("## Decisions (current authority)")
+            .expect("decisions pos");
+        assert!(
+            next_pos < wall_pos,
+            "grant-wall must follow bootstrap next: {md}"
+        );
+        assert!(
+            wall_pos < decisions_pos,
+            "grant-wall must precede ## Decisions: {md}"
+        );
+    }
+
+    #[test]
+    fn render_project_markdown__allowed_empty__keeps_none_not_grant_wall() {
+        // T275 AC6 — grant-wall / hidden are denied-only.
+        let md = render_project_markdown(&empty_project(false));
+        assert!(
+            md.contains("_None_"),
+            "allowed empty still emits _None_: {md}"
+        );
+        assert!(
+            md.contains(BRIEFING_EMPTY_AUTHORITY_NOTICE),
+            "allowed empty still emits empty_authority: {md}"
+        );
+        assert!(
+            !md.contains("This is a grant wall"),
+            "grant-wall is denied-only: {md}"
+        );
+        assert!(
+            !md.contains("_(hidden until discovery grants)_"),
+            "hidden placeholder is denied-only: {md}"
+        );
     }
 
     #[test]
