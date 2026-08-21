@@ -1,7 +1,7 @@
 # T275 — Discovery grants must unlock briefing/progressive (or stop looking empty)
 
 - **Track ID:** T275-PolicyGrantsFirstRun
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** 2026-08-21
 - **Category:** FEATURE / UX / GOVERNED
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — `briefing project` **8/3**, `query progressive` **8/3**, `evidence`/`source`/`review list` **6/3**, `policy check` **7/7**, `briefing personal` **5/7**. Placeholder minted with T274–T284 (`deabae7`).

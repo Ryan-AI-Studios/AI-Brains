@@ -1,6 +1,6 @@
 # T275 Plan — Discovery grants first-run (grant-wall + CLI bootstrap lock)
 
-**Status:** **Pending** (Planned; plan-only until **go**)
+**Status:** **Completed** 2026-08-21
 **Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC16 + §13 AI fold-in
 **Category:** FEATURE / UX / GOVERNED
 **Ledger TX (planning):** `e13a4e01-3dd6-4adc-ae57-be75e7e98ba9` (DOCS)
@@ -54,15 +54,15 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `renderer.rs` denied `_None_` (`:93–130`), `run_bootstrap`, `cli_principal`, `project.rs` `empty_denied` `:218`, clap Bootstrap `:2211`
-- [ ] Confirm T210 `policy_bootstrap.rs` still lacks briefing/evidence; T221 AC3 progressive-after-bootstrap; T263 granted-empty
-- [ ] Rescan `conductor/deferred.md` for new open rows that overlap
-- [ ] Confirm #189 still empty / #188 still T284 / no new Cursor leftover that needs a mint
-- [ ] Re-dogfood `policy bootstrap --dry-run` + `briefing project --format human` (expect `_None_` until green). **Do not** live bootstrap unless owner confirmed
-- [ ] Re-check clap/rusqlite/chrono lock vs crates.io (**no bump** unless execute proves otherwise)
-- [ ] FEATURE TX start
-- [ ] Do **not** `cargo install`; do **not** edit `POLICY_DENIED_HINT`; do **not** grow doctor/preflight/project.rs
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `renderer.rs` denied `_None_` (`:93–130`), `run_bootstrap` `:234`, `cli_principal`, `project.rs` `empty_denied` `:218`, clap Bootstrap `:2211`
+- [x] Confirm T210 `policy_bootstrap.rs` lacked briefing/evidence; T221 AC3 progressive-after-bootstrap present; T263 granted-empty present
+- [x] Rescan `conductor/deferred.md` — T275 rows already absorbed; no new overlapping open rows
+- [x] Confirm #189 comments/reviews still empty (N/A); #188 Mediums stay T284; no mint
+- [x] Re-dogfood `policy bootstrap --dry-run` (`would_issue` ×3) + `briefing project --format human` (`_None_` on PATH). **Did not** live bootstrap (owner did not confirm)
+- [x] Re-check clap lock **4.6.1** (crates.io 4.6.6), rusqlite **0.39.0** (0.40.2), chrono **0.4.44** (0.4.45) — **no bump**
+- [x] FEATURE TX `1f2c1ddb-5657-4af9-9a30-8285efca8895`
+- [x] Did **not** `cargo install`; did **not** edit `POLICY_DENIED_HINT`; did **not** grow doctor/preflight/project.rs
 
 ---
 
@@ -95,54 +95,54 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] Renderer unit `render_project_markdown__denied__no_none_placeholder` (AC1) — **required red**
-- [ ] Renderer unit grant-wall 88 chars / ≤140 / order before Decisions (AC2)
-- [ ] Hermetic `policy_bootstrap__after_system__briefing_project_denied_false` (AC4) — lock if already green; **F36 comment** omit `--principal-id`
-- [ ] Hermetic `policy_bootstrap__after_system__evidence_list_exit_0` (AC5) — lock if already green; same F36 comment
-- [ ] Allowed-empty still `_None_` or empty_authority (AC6) — write as green-guard if needed
-- [ ] Personal deny regression `render_personal_markdown__denied__names_recall_not_personal_bootstrap` + new consts (AC16 / F35) — extend T263 unit
+- [x] Renderer unit `render_project_markdown__denied__no_none_placeholder` (AC1) — **required red** (failed on `_None_`)
+- [x] Renderer unit grant-wall 88 chars / ≤140 / order before Decisions (AC2) — red (grant-wall pos missing)
+- [x] Hermetic `policy_bootstrap__after_system__briefing_project_denied_false` (AC4) — lock; **F36 comment** omit `--principal-id`
+- [x] Hermetic `policy_bootstrap__after_system__evidence_list_exit_0` (AC5) — lock; same F36 comment
+- [x] Allowed-empty still `_None_` or empty_authority (AC6) — green-guard `render_project_markdown__allowed_empty__keeps_none_not_grant_wall`
+- [x] Personal deny regression `render_personal_markdown__denied__names_recall_not_personal_bootstrap` + new consts (AC16 / F35) — extend T263 unit
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] F37: `BRIEFING_DENIED_GRANT_WALL` + `BRIEFING_DENIED_HIDDEN` immediately after `BRIEFING_DENIED_DENIAL_HINT`
-- [ ] Denied branch: no `_None_`; grant-wall after bootstrap next, before Decisions
-- [ ] Allowed-empty path unchanged
-- [ ] F35: personal denied path does not import/print project grant-wall consts
-- [ ] No production `unwrap`/`expect`/`panic`
-- [ ] Do not edit `POLICY_DENIED_HINT` / daemon / `query.rs` twins
-- [ ] Do not add clap flags
+- [x] F37: `BRIEFING_DENIED_GRANT_WALL` + `BRIEFING_DENIED_HIDDEN` immediately after `BRIEFING_DENIED_DENIAL_HINT`
+- [x] Denied branch: no `_None_`; grant-wall after bootstrap next, before Decisions
+- [x] Allowed-empty path unchanged
+- [x] F35: personal denied path does not import/print project grant-wall consts
+- [x] No production `unwrap`/`expect`/`panic`
+- [x] Do not edit `POLICY_DENIED_HINT` / daemon / `query.rs` twins
+- [x] Do not add clap flags
 
 ---
 
 ## Phase 3 — Docs + registry
 
-- [ ] CAPABILITIES: Denied = grant wall; bootstrap then briefing; pins via `recall`
-- [ ] OPERATIONS: grant-wall sentence on cold-start
-- [ ] CHANGELOG minor
-- [ ] `conductor.md` stays **Pending** until implement closeout; this planning pass sets Planned in spec only
-- [ ] `deferred.md` absorb notes (planning pass already)
+- [x] CAPABILITIES: Denied = grant wall; bootstrap then briefing; pins via `recall`
+- [x] OPERATIONS: grant-wall sentence on cold-start
+- [x] CHANGELOG minor
+- [x] `conductor.md` **In Progress** during implement; Completed only after gate + review + publish
+- [x] `deferred.md` absorb notes (planning pass already)
 
 ---
 
 ## Phase 4 — Verify (implement, not plan)
 
-- [ ] Targeted: `cargo nextest run -p ai-brains-control-plane --lib` renderer tests
-- [ ] `cargo nextest run -p ai-brains-cli --test policy_bootstrap --test governed_first_run_deny_exit --test governed_vault_pin_honesty`
-- [ ] `cargo clippy -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Manual hermetic: bootstrap → briefing not Denied; evidence list exit 0
-- [ ] Live vault: `--dry-run` only unless owner confirmed (AC15)
-- [ ] Review log `review.md`; cross-model F26
-- [ ] Full gate at closeout only
+- [x] Targeted: `cargo nextest run -p ai-brains-control-plane --lib` renderer tests — 8 passed
+- [x] `cargo nextest run -p ai-brains-cli --test policy_bootstrap --test governed_first_run_deny_exit --test governed_vault_pin_honesty` — 33 passed; AC3 lock +1 passed
+- [x] `cargo clippy -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings` — exit 0
+- [x] Manual hermetic: AC4/AC5 cargo nextest (bootstrap → briefing not Denied; evidence list exit 0)
+- [x] Live vault: `--dry-run` only (AC15; owner did not confirm)
+- [x] Review log `review.md`; R1 + R1b **PASS**; Codex CX1 product **PASS** (P1-1/P2-1 process)
+- [x] Full gate: `.\scripts\dev-check.ps1` **SUCCESS** nextest **3253** passed / 1 skipped; `ledgerful verify --scope full` exit 0
 
 ---
 
 ## DoD
 
-- [ ] AC1–AC16 green (AC15 recorded)
-- [ ] No live grant append without owner confirm
-- [ ] T280 hint strings unchanged
-- [ ] T263 H1/H2 isolation held
-- [ ] Conductor T275 **Completed** only after go + gate + review + publish
-- [ ] Pin decisions after implement
+- [x] AC1–AC16 green (AC15 recorded)
+- [x] No live grant append without owner confirm
+- [x] T280 hint strings unchanged
+- [x] T263 H1/H2 isolation held
+- [x] Conductor T275 **Completed** after go + gate + review (publish Phase 6 next)
+- [x] Pin decisions after implement

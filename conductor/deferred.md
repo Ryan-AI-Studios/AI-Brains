@@ -9,7 +9,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Item | Track |
 |------|-------|
 | recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
-| briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Planned** |
+| briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
 | leftover `7d97a456` ~18k / `--global` junk | **T276** (T259 residual) |
 | 22/22 backup FAIL; no usable encrypted file | **T277** |
 | graph sparse + neighbors blank preview | **T278** |
@@ -87,6 +87,15 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode m6 F16 “Domain in CLI” | **Folded** F16 — CP `renderer.rs` |
 | last-PR #189 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M |
+
+### T275 closeout residuals (2026-08-21)
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F18 |
+| Live vault still 0 of 3 grants | F10 — owner did not confirm live bootstrap; hermetic is DoD |
+| T280 deny hint still `--scope …` vs doctor omit | Peer |
+| Personal denied `_None_` left | F32 optional; F35 contamination locked |
 
 ### T274 closeout residuals (2026-08-21)
 
