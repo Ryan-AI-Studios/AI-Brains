@@ -10,7 +10,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 |------|-------|
 | recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
 | briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
-| leftover `7d97a456` ~18k / `--global` junk | **T276** (T259 residual) |
+| leftover `7d97a456` ~18k / `--global` junk | **T276 Planned** (prefer-fill + labels; T264 F11 no drop) |
 | 22/22 backup FAIL; no usable encrypted file | **T277** |
 | graph sparse + neighbors blank preview | **T278** |
 | preflight Safety = review-track Objective | **T279** |
@@ -96,6 +96,21 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Live vault still 0 of 3 grants | F10 — owner did not confirm live bootstrap; hermetic is DoD |
 | T280 deny hint still `--scope …` vs doctor omit | Peer |
 | Personal denied `_None_` left | F32 optional; F35 contamination locked |
+
+### T276 planning absorption (2026-08-21) — prefer-fill + labels; no silent exclude
+
+| Item | Disposition |
+|------|-------------|
+| Audit leftover `7d97a456` ~18k / `--global` junk | **Absorb** F1–F6 / AC1–AC5 |
+| T264 leftover-first recall / filter-flag residual | **Partial** — prefer-fill + pretty tags **DoD**; `--exclude-project` **decline F20** |
+| T259 leftover memory reclassify | **Decline F7** — memories stay |
+| Live leftover 11 `C:\dev\*` roots | **F9** Stop-Before; hermetic is DoD |
+| whoami mismatch:false | **Already T258** — F10; shell leftover **T282** |
+| `project list` leftover-first | **Decline → T283** |
+| last-PR Cursor #190 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Affirm T284** — no T285 |
+| Identity mismatch `7d97a456` vs `fcb8a40f` | **Partial** — leftover volume this track (F2 cwd preferred); adopt-path T258; no T285 |
+| T240 F2 / T274 chrome / clap 5 / rusqlite 0.40 | **Decline** |
 
 ### T274 closeout residuals (2026-08-21)
 

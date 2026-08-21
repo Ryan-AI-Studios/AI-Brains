@@ -1,7 +1,7 @@
 # T274–T284 — Post-T270 live CLI quality (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-21 (PATH graph-on `ai-brains` **0.1.1** installed from HEAD `14d42af`; live vault `C:\dev\ai-brains\vault.db`; daemon Running; agent non-TTY). Plus last-PR Cursor Bugbot on [#188](https://github.com/Ryan-AI-Studios/AI-Brains/pull/188) (T270).
-**Status:** **T274 Completed** 2026-08-21 (`#189`). **T275 Completed** 2026-08-21. T276–T284 remain **Placeholder**. F0 = plan-only until **go**.
+**Status:** **T274 Completed** 2026-08-21 (`#189`). **T275 Completed** 2026-08-21 (`#190`). **T276 Planned** 2026-08-21 (Pending until go). T277–T284 remain **Placeholder**. F0 = plan-only until **go**.
 **Prior closed series:** T256–T273 CLI audit (closer T270/T273 2026-08-21).
 **Ledger (registration):** DOCS TX `89a8a2b9-d69d-471f-857b-b9e634138499`.
 
@@ -18,7 +18,7 @@ Scores below are **Usefulness / Effectiveness** from that audit (1–10). Every 
 | `memory list --limit 5` is “just now” ingest, not pins; `sync query` vault half same dumps | 8/**7**, 9/**7** | **T274 Completed** (list ORDER stays T216; vault follows `recall_full`) | P0 |
 | Briefing/progressive/evidence/source/review POLICY_DENIED; looks like “no decisions” | 8/**3**, 8/**3**, 6/**3** | **T275 Completed** | P0 |
 | `policy bootstrap --dry-run` would_issue ×3 but daily path still deny | opp | **T275 Completed** (hermetic unlock; live apply owner-confirm) | P0 |
-| Leftover `7d97a456` ~18k pins / many `C:\dev\*` roots; `--global` recall junk | 7/**3**; list-paths 8/**7** | **T276** | P0 |
+| Leftover `7d97a456` ~18k pins / many `C:\dev\*` roots; `--global` recall junk | 7/**3**; list-paths 8/**7** | **T276 Planned** | P0 |
 | No usable encrypted backup (22/22 FAIL) | opp; doctor warn | **T277** | P1 |
 | Graph sparse E/N ~0.11; neighbors preview blank | 7/**7**, 6/**6** | **T278** | P1 |
 | Preflight Safety ≠ `safety sync --dry-run` hotspots | friction / opp | **T279** | P1 |
@@ -47,13 +47,12 @@ Scores below are **Usefulness / Effectiveness** from that audit (1–10). Every 
 
 ## Suggested implement order
 
-1. **T274 Completed.** **T275 Completed.** Next: **T276** leftover / **plan-track T276** first (Placeholder)
+1. **T274 Completed.** **T275 Completed.** **T276 Planned** — wait for **go** (prefer-fill + labels; not a Placeholder)
 2. **T284** (T270 Work/samples regression) — correctness
-3. **T276** leftover rebind — unblocks `--global`
-4. **T277** backup create usable
-5. **T279** / **T280** / **T282** / **T283** presentation
-6. **T278** graph density
-7. **T281** nightly remaining dual-probe sentence
+3. **T277** backup create usable
+4. **T279** / **T280** / **T282** / **T283** presentation
+5. **T278** graph density
+6. **T281** nightly remaining dual-probe sentence
 
 Do **not** `/implement-track` a Placeholder. Run `/plan-track TNN` first.
 
