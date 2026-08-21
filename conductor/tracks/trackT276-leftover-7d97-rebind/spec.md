@@ -9,9 +9,9 @@
 - **Blocks / feeds:** `--global` unique owner pins can enter `candidate_depth`. Leftover hits are labeled, not hidden. Path-alias split stays T259. List row order **T283**. `context --show` shell leftover **T282**. Safety **T279**. Grants **T275**.
 - **Absorbs:** Placeholder problem text + Manual DoD (hermetic unique-owner pin vs leftover); deferred.md “leftover `7d97a456` ~18k / `--global` junk”; T264 soft “Recall leftover-first under `--global`” (**filter flag declined as DoD**); T259 leftover-memory-reclassify **declined** (F5); T270 closeout “18k pins still owned by `7d97a456`”; identity-mismatch observation `7d97a456` vs `fcb8a40f` as **leftover data**, not a new identity model
 - **Not absorbed (DoD):** Silent exclude leftover from `--global` (T264 F11); memory rewrite / `MemoryMoved` (T259 F5); live leftover `rebind-path --write --yes` without owner confirm; T240 F2 `.env`; T258 adopt-path (cwd already `mismatch: false`); T282 shell leftover on `context --show`; T283 `project list` cwd-first; T274 chrome penalty retune; T275 grants; T279 Safety; T280 hint; T284 #188; clap 5 / rusqlite 0.40 / DTO keys; `--exclude-project` flag
-- **Research date:** 2026-08-21 (plan dogfood HEAD `a5562cc` T275 `#190`; product `src/` = T275)
-- **AI fold-in:** (none yet — plan review later)
-- **Ledger:** planning DOCS TX `d5b9a9cc-fa83-4ce9-a74f-aaf77eb591fe`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-21 (plan dogfood HEAD `a5562cc` T275 `#190`; product `src/` = T275). Fold-in against `61fd3cb` (plan docs; crates identical to `a5562cc`).
+- **AI fold-in:** 2026-08-21 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Agree:** Agy m1 tag-before-score (F4 / AC4); Agy m2 HashSet dedupe (F38 / AC1); Agy O2 preferred-full skip (F39). **Already:** Agy O1 `format_pretty_hit_line` `project_tag` (F18). **Clarify:** OpenCode m1 two `lexical_search` is F1 — COALESCE SELECT stays **F15 for tags**, not the fill route. **Agree:** OpenCode m2 both arms `prefer_authority: true` + bridge stays `project_id` None (F40); OpenCode m3 AC3 is pre-rerank (F41). **Decline:** OpenCode O1 empty-hint “Try --global” (live `build_recall_hint_core` global arm does not say that); OpenCode `display_label` at CP `briefings/project.rs:383` (live is CLI `project.rs:383`); leftover UUID `7d97a51a` typo (`7d97a456`). Disposition **§13**.
+- **Ledger:** planning DOCS TX `d5b9a9cc-fa83-4ce9-a74f-aaf77eb591fe`. Fold-in DOCS TX `30332efc-0716-4f22-ab89-5879cde7aa2e`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`, rewrite `.env`, rebind live leftover paths, bootstrap live grants, pin-as-implement to the live vault, or live `retention apply --confirm`. Do **not** grow hotspot `project.rs` / CLI `preflight.rs` / `sync.rs` (except one `RecallOptions` field) / `governed_common.rs` / `ranking.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** raise `candidate_depth` (T261). Do **not** hardcode leftover UUID `7d97a456-…` in retrieval SQL.
 
 ---
@@ -122,12 +122,12 @@ This unblocks the daily product: T259 made leftover **inventory + rebind** possi
 | ID | Decision |
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a **FEATURE** TX. |
-| **F1 — Prefer-fill (required)** | When `preferred_project_id` is `Some` (CLI `--global` with a pre-clear effective project): run T274 `lexical_search` **scoped** to preferred (limit = `candidate_depth`) **and** unscoped global (same depth). Merge: preferred hits first, then global excluding those `memory_id`s, truncate to depth, **then** existing `rerank_hits` / chrome dedupe. Do **not** exclude leftover. |
+| **F1 — Prefer-fill (required)** | When `preferred_project_id` is `Some` (CLI `--global` with a pre-clear effective project): two public `lexical_search` calls (each T274 `prefer_authority: true`, limit = `candidate_depth`) — scoped to preferred, then unscoped global. Merge in `prefer_project.rs` (F38/F39) **then** existing `rerank_hits`. Do **not** exclude leftover. Do **not** add a third MATCH inside `match_query`. |
 | **F2 — Preferred id** | Preferred = CLI `project_id` **before** T112 `--global` clear (env / AppContext effective). Retrieval **must not** hardcode `7d97a456-f2f4-43ea-1f13-211af684ad37`. Works for leftover **and** `fcb8a40f` when that repo is cwd. |
 | **F3 — Skip when none** | `preferred_project_id == None` (true vault-wide, no `.env`) → current unscoped path only. No fill. Pretty tags still apply if `RecallHit.project_id` is present. |
-| **F4 — Pretty tags `--global` only** | Pretty `--global` (recall / search / sync vault pretty) prefixes each hit with T264 grammar: `[` + 8 hex + `]` or upgraded `display_label` (truncate 32, `]` → `·`). Project-scoped pretty has **no** `[8hex]` tags (T264 F1 analog). |
+| **F4 — Pretty tags `--global` only** | Pretty `--global` (recall / search / sync vault pretty) prefixes each hit with T264 grammar: `[` + 8 hex + `]` or upgraded `display_label` (truncate 32, `]` → `·`). **Order (Agy m1):** leading tag, **one space**, then the existing `[score=…]` / `[rank=#n]` bracket. Example: `[3581317d] [score=-21.237 \| session=…] <uuid>: …`. Project-scoped pretty has **no** `[8hex]` tags (T264 F1 analog). |
 | **F5 — JSON E1 freeze** | `RecallResult` **no** `project_id` key. Machine agents use scoped recall or parse pretty. N−1 ignore extras still holds. |
-| **F6 — T264 F11** | Do **not** `AND project_id != leftover` (or any project) on `--global`. AC3 leftover matching dump still appears. |
+| **F6 — T264 F11** | Do **not** `AND project_id != leftover` (or any project) on `--global`. AC3 leftover matching dump still appears in the **pre-rerank** candidate merge when preferred did not fill `depth` (F39/F41). |
 | **F7 — T259 F5** | No memory move / copy / forget / CE. `rebind-path` unchanged. |
 | **F8 — T240 F2** | No `.env` write. No silent Scope switch. |
 | **F9 — Live leftover Stop-Before** | Plan + implement **must not** `rebind-path --write --yes` / `unregister-path` against live leftover roots unless the owner confirms in the go prompt. Hermetic is sufficient DoD. |
@@ -136,10 +136,10 @@ This unblocks the daily product: T259 made leftover **inventory + rebind** possi
 | **F12 — T274 isolation** | `SESSION_CHROME_PENALTY`, authority GLOB, `classify_pin_kind` **untouched**. T274 two-pass stays inside each MATCH. |
 | **F13 — Depth** | Do **not** raise `candidate_depth`. |
 | **F14 — Ranking.rs** | **Do not edit.** Prefer-fill is the lever (T260/T274: pin must **enter** the set). No leftover penalty constant. |
-| **F15 — Internal project_id** | `RetrievalMemory.project_id: Option<String>` + `RecallHit.project_id: Option<String>` from `COALESCE(mp.project_id, sp.project_id)`. Constructors default `None`; lexical maps Some. Bridge/graph inherit or None. |
-| **F16 — Merge module** | New `crates/ai-brains-retrieval/src/prefer_project.rs` (`merge_preferred_then_global`). Do not grow `ranking.rs`. Keep `lexical.rs` two-pass only. |
-| **F17 — CLI wiring** | `RecallRunOptions.preferred_project_id`. `main.rs` when `*global`: keep pre-clear id as preferred; still pass `project_id: None` into scoped filter. `search` same. |
-| **F18 — Pretty helper** | New CLI `recall_global.rs` **or** extend `format_pretty_hit_line` with `project_tag: Option<&str>` (existing units pass `None`). Reuse `preflight_pretty::{peel_global_tag, upgrade}` + `display_label`. **Do not** grow `project.rs`. |
+| **F15 — Internal project_id (tags, not fill)** | `RetrievalMemory.project_id: Option<String>` + `RecallHit.project_id: Option<String>` from `COALESCE(mp.project_id, sp.project_id)` (mig **0015**). **OpenCode m1 clarify:** COALESCE is **only** so F4 can tag leftover vs owner. Prefer-fill is F1 two `lexical_search` calls — do **not** treat COALESCE as a SQL prefer-fill. Constructors default `None`; lexical maps Some. Bridge/graph inherit or None. |
+| **F16 — Merge module** | New `crates/ai-brains-retrieval/src/prefer_project.rs` (`merge_preferred_then_global`). Do not grow `ranking.rs`. Keep `lexical.rs` two-pass **inside** each call (F12). |
+| **F17 — CLI wiring** | `RecallRunOptions.preferred_project_id`. `main.rs` when `*global`: keep pre-clear clap `project_id` as preferred; still pass `project_id: None` into scoped filter + bridge. `search` same. Live order: `.env` force-set `:3268` → `Cli::parse()` `:3356` (`env = AI_BRAINS_PROJECT_ID` `:1017`) → T112 clear `:4322`. |
+| **F18 — Pretty helper** | Extend `format_pretty_hit_line` with `project_tag: Option<&str>` (existing units pass `None`). Shared by `print_pretty_hits` (recall + sync). Optional thin `recall_global.rs` for upgrade/lookup only. Reuse `preflight_pretty` peel/upgrade + CLI `project.rs` `display_label` **`:383`** (not CP briefings). **Do not** grow `project.rs`. |
 | **F19 — Sync** | Hotspot #2: pass `preferred_project_id` on `recall_full` only. Pretty tags via existing `print_pretty_hits`. No new sync pane. |
 | **F20 — No `--exclude-project`** | Not DoD. Soft residual. |
 | **F21 — Pins / crates** | No clap 5, no rusqlite 0.40, no chrono 0.4.45, no new crates, workspace **0.1.1**. |
@@ -159,6 +159,10 @@ This unblocks the daily product: T259 made leftover **inventory + rebind** possi
 | **F35 — Existing tests stay green** | T274 `recall_pin_rank`; T259 `project_rebind_path` / `project_path_aliases`; T264 `preflight_global_isolation`; T243 search; T228 Scope; T260 stubs. |
 | **F36 — No leftover UUID in SQL/help errors** | Runbook may name `7d97a456` as the live dump. New T276 `--help` / stderr **must not** recommend `set-alias 7d97 … AI-Brains` (T259 F1 / T267). |
 | **F37 — Event sourcing** | No `MemoryMoved`. Path rebind remains T259 compensating pair. |
+| **F38 — HashSet dedupe (Agy m2)** | `merge_preferred_then_global` tracks seen `memory_id` with `HashSet<String>` (not `Vec::contains`). A hit in both preferred and global appears **once** (preferred wins). AC1 asserts overlap → len unique. |
+| **F39 — Preferred-full skip (Agy O2)** | After taking preferred, if `preferred.len() >= depth`, truncate preferred to `depth` and **return without scanning global** (T274 pass-1-full analog). Not a leftover SQL exclude (F6). AC3 applies only when remainder &gt; 0. |
+| **F40 — Both arms + bridge (OpenCode m2)** | Both `lexical_search` calls set `LexicalSearchOptions { prefer_authority: true, … }` (same as today’s recall path `:288–292`). `query_ledgerful_bridge` keeps `options.project_id` (**None** when `--global`); never pass `preferred_project_id` as a bridge/SQL scope. |
+| **F41 — AC3 is pre-rerank (OpenCode m3)** | “Leftover still appears” is the **merge output before** `rerank_hits`. Post-rerank top-5 may be all-owner. That is intended (label, do not drop). Comment next to the merge so a leftover-free top-5 is not filed as a drop regression. |
 
 ---
 
@@ -166,10 +170,10 @@ This unblocks the daily product: T259 made leftover **inventory + rebind** possi
 
 | AC | Criterion | Proof |
 |----|-----------|-------|
-| **AC1** | Pure: `merge_preferred_then_global(preferred[3], global[15 chrome + 1 preferred id], depth=15)` emits preferred ids first, no dupes, len ≤ 15 | Unit in `prefer_project.rs` |
+| **AC1** | Pure: `merge_preferred_then_global(preferred[3], global[15 chrome + 1 overlapping preferred id], depth=15)` emits preferred ids first; overlapping id **once** (`HashSet`, F38); len ≤ 15. Second case: `preferred.len() >= depth` → output is truncated preferred only, global not appended (F39) | Unit in `prefer_project.rs` |
 | **AC2** | Hermetic two-project vault: leftover-like B has **15** chrome rows MATCHing needle; owner A has **one** leading `DECISION: <unique-needle>`. `recall_full` with `project_id: None`, `preferred_project_id: Some(A)`, `limit: 5` → hit **#1** is the A pin | Retrieval hermetic (required red before merge exists) |
-| **AC3** | Same fixture: at least one B chrome row **still appears** in the untruncated-before-rerank merge **or** in top-15 candidates (not silently dropped). `--global` still searches B | Same hermetic |
-| **AC4** | CLI hermetic `--global --format pretty --no-bridge --limit 5`: owner pin line contains `[` tag (`[`+8 hex or upgraded label). Project-scoped (no `--global`) stdout has **neither** `[`+8 hex `]` on hits | CLI hermetic |
+| **AC3** | Same fixture (preferred has **1** pin, so remainder &gt; 0): at least one B chrome row appears in the **merge output before** `rerank_hits` (F41). Not a SQL drop. Post-rerank top-5 **may** be all-owner | Same hermetic |
+| **AC4** | CLI hermetic `--global --format pretty --no-bridge --limit 5`: owner pin line has leading `[`+8 hex or upgraded label, **then one space**, **then** `[score=` or `[rank=#` (Agy m1 / F4). Project-scoped (no `--global`) stdout has **neither** `[`+8 hex `]` on hits | CLI hermetic |
 | **AC5** | `--format json --global`: parsed object has `results[]` **without** `project_id` key; `serde` still works | CLI hermetic |
 | **AC6** | `preferred_project_id: None` + unscoped: T274 chrome-monopoly AC still holds **or** current unscoped behavior (no prefer-fill crash) | Retrieval unit / T274 stays green |
 | **AC7** | T274 `recall_full__chrome_monopoly__authority_pin_is_hit_one` stays green (scoped or default_opts `preferred=None`) | Regression |
@@ -186,6 +190,8 @@ This unblocks the daily product: T259 made leftover **inventory + rebind** possi
 Test names (TDD). **Must fail red before merge exists:** AC2 (owner pin absent or not #1).
 
 - `merge_preferred_then_global__preferred_first_no_dupes`
+- `merge_preferred_then_global__overlap_id__once`
+- `merge_preferred_then_global__preferred_fills_depth__skips_global`
 - `merge_preferred_then_global__preferred_none__identity`
 - `recall_full__global_prefer__owner_pin_beats_leftover_chrome`
 - `recall_full__global_prefer__leftover_still_in_candidates`
@@ -217,6 +223,10 @@ rerank_hits(&mut local_hits)  // unchanged
 
 Do **not** nest a third SQL pass inside `match_query`. Do **not** `AND mp.project_id != leftover`.
 
+`merge_preferred_then_global`: `HashSet<String>` seen ids (F38). If `preferred.len() >= depth`, truncate and return (F39) — leftover absence then is the depth cap, not a filter.
+
+COALESCE on the lexical SELECT is **orthogonal** (F15): it fills `RecallHit.project_id` so F4 can tag leftover vs owner. Dropping it would make leftover pretty-tags `[unknown]`.
+
 ### 5.2 Why not demote leftover in `rerank_hits`
 
 T274: chrome −16 only helps if the pin **entered**. Additive leftover penalty would fight BM25 of 18k and special-case one UUID (F2). Prefer-fill is the T260 lesson.
@@ -229,7 +239,7 @@ Reuse T264 first-line tag grammar so preflight and recall look like one product.
 [3581317d] [score=-21.237 | session=26aab1e0] <uuid>: DECISION: …
 ```
 
-or upgraded `[C:\dev\ai-brains]` after `display_label` + sanitize. Leftover with empty alias → `[(no alias)]` or raw `[7d97a456]` if upgrade collides — **T264 F24/F33**. Frozen: leading tag **before** the score bracket (scanable). AC4 asserts `[` + hex-or-label.
+or upgraded `[C:\dev\ai-brains]` after `display_label` + sanitize. Leftover with empty alias → `[(no alias)]` or raw `[7d97a456]` if upgrade collides — **T264 F24/F33**. Frozen (Agy m1): leading tag **before** the score bracket, **one space**, no extra blank. AC4 asserts that order.
 
 ### 5.4 Operator leftover runbook (docs only — not executed)
 
@@ -262,7 +272,7 @@ Not leftover. Prefer-fill uses **cwd effective project**. An agent in `C:\dev\le
 
 **Phase 1 red (required before green):** AC2 retrieval hermetic (owner pin not #1 today with `preferred` ignored). AC1 unit can go red on missing helper.
 
-Then green: SELECT project_id → merge helper → CLI preferred wiring → pretty tags.
+Then green: SELECT COALESCE project_id (tags) → merge helper (F38/F39) → `recall_full` second `lexical_search` (F40) → CLI preferred wiring → pretty tags (F4 order).
 
 **Stay green:** AC6–AC9, AC13, T274, T259, T264, T243, T228.
 
@@ -317,7 +327,7 @@ Entire `conductor/deferred.md` scanned 2026-08-21 (post-P12 through T275 closeou
 
 ## 10. Implement order (on go)
 
-1. Phase 0 re-verify `main.rs` T112 clear, `RecallHit` / lexical SELECT, leftover 11 roots, deferred.md, #190 still empty, #188 still T284.
+1. Phase 0 re-verify T112 clear `:4322`, clap env `:1017` after force-set `:3268` / parse `:3356`, lexical SELECT `:259`, `format_pretty_hit_line` `:407`, leftover 11 roots, #190 empty, #188 T284.
 2. Red: AC2 hermetic + AC1 merge unit.
 3. Green: `RetrievalMemory`/`RecallHit.project_id` + `prefer_project.rs` + `recall_full` second search.
 4. CLI preferred wiring + pretty tags (AC4/AC5). Sync one field (AC15).
@@ -346,7 +356,7 @@ Entire `conductor/deferred.md` scanned 2026-08-21 (post-P12 through T275 closeou
 
 | Path | Change |
 |------|--------|
-| `crates/ai-brains-retrieval/src/prefer_project.rs` | **New** merge + units AC1 |
+| `crates/ai-brains-retrieval/src/prefer_project.rs` | **New** merge (F38 HashSet, F39 skip) + units AC1 |
 | `crates/ai-brains-retrieval/src/lexical.rs` | SELECT `COALESCE(mp.project_id, sp.project_id)`; `RetrievalMemory.project_id` |
 | `crates/ai-brains-retrieval/src/recall.rs` | `RecallOptions.preferred_project_id`; `RecallHit.project_id`; `recall_full` merge |
 | `crates/ai-brains-retrieval/src/lib.rs` | `mod prefer_project` |
@@ -363,6 +373,49 @@ Do **not** touch: `project.rs` (footer/hotspot), `ranking.rs`, CLI `preflight.rs
 
 ---
 
-## 13. AI fold-in disposition
+## 13. AI fold-in disposition (2026-08-21)
 
-*(empty until `/fold-in` — plan reviews are inputs, not edited here)*
+Sources: `agy-review.md` + `opencode-review.md` (HEAD `61fd3cb`). **B 0 / M 0.** Review files are inputs — **do not edit**.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** tag before `[score=]` / one space | **Agree** | **F4 / AC4** — leading tag, one space, then score/rank bracket |
+| **m2** HashSet dedupe in merge | **Agree** | **F38 / AC1** + unit `merge_preferred_then_global__overlap_id__once` |
+| **O1** `format_pretty_hit_line` `project_tag: Option<&str>` | **Already** | **F18** — shared with `print_pretty_hits` / sync |
+| **O2** skip global when preferred fills depth | **Agree** | **F39** + AC1/AC3 remainder condition |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** two `lexical_search` not SQL prefer-fill; drop COALESCE | **Partial** | Fill route **already F1**. COALESCE **kept F15** for F4 tags (mig 0015 `mp.project_id`). Do not drop the column. |
+| **m2** `prefer_authority: true` both arms; bridge `project_id` None | **Agree** | **F40** + Phase 0 |
+| **m3** AC3 is pre-rerank; top-5 may be all-owner | **Agree** | **F41 / AC3** |
+| **O1** empty-hint still says `Try --global` | **Decline** | Live `build_recall_hint_core` **`:675–683`**: global arm is “across all projects”, not `Try --global`. Re-trigger: if that arm grows a `--global` suggestion. |
+| **B2** (summary) pre-clear clap id | **Already F2/F17** | Phase 0: force-set `:3268` → parse `:3356` → clear `:4322` |
+| HEAD / counts / line undercount | **Agree snapshot** | Fold HEAD `61fd3cb`; vault totals volatile; `Measure-Object -Line` CRLF undercount — hotspot rank still holds |
+| `display_label` at CP `briefings/project.rs:383` | **Decline citation** | Live is CLI `project.rs:383`. CP has no `display_label`. |
+| leftover UUID `7d97a51a` | **Decline typo** | Live leftover is `7d97a456-f2f4-43ea-1f13-211af684ad37` |
+
+### Declined / not new design
+
+| Item | Why |
+|------|-----|
+| Drop lexical COALESCE | F15/F4 — tags need `RecallHit.project_id` on leftover hits |
+| Empty-hint rewrite | Live already honest when `global == true` |
+| `--exclude-project` / memory move / live rebind / T240 F2 | Unchanged F20 / F7 / F9 / F8 |
+| last-PR #190 Cursor | Still N/A empty; **no T285** |
+| serde_json 1.0.151 / clap 4.6.6 / rusqlite 0.40.2 | **No bump** (F21) |
+
+### Pins locked by fold-in
+
+1. **F4 / AC4:** tag, one space, then `[score=` / `[rank=#`.
+2. **F38 / AC1:** `HashSet<String>` seen ids; overlap once.
+3. **F39:** preferred-full skip; AC3 only when remainder &gt; 0.
+4. **F15:** COALESCE stays for tags; prefer-fill is two `lexical_search` (F1).
+5. **F40:** `prefer_authority: true` on both arms; bridge uses `project_id` None.
+6. **F41:** AC3 is pre-`rerank_hits`.
+7. **F18:** `project_tag: Option<&str>` on `format_pretty_hit_line` (Agy O1 already).
+8. **§2.1 / F17:** HEAD `61fd3cb`; clap parse after `.env` force-set.

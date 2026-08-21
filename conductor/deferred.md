@@ -112,6 +112,23 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Identity mismatch `7d97a456` vs `fcb8a40f` | **Partial** — leftover volume this track (F2 cwd preferred); adopt-path T258; no T285 |
 | T240 F2 / T274 chrome / clap 5 / rusqlite 0.40 | **Decline** |
 
+### T276 fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 tag before score, one space | **Folded** F4 / AC4 |
+| Agy m2 HashSet merge dedupe | **Folded** F38 / AC1 |
+| Agy O1 `format_pretty_hit_line` `project_tag` | **Already** F18 |
+| Agy O2 preferred-full skip | **Folded** F39 |
+| OpenCode m1 drop COALESCE / two-search only | **Partial** — fill already F1; COALESCE **kept** F15 for tags |
+| OpenCode m2 both arms + bridge None | **Folded** F40 |
+| OpenCode m3 AC3 pre-rerank | **Folded** F41 |
+| OpenCode O1 empty-hint Try `--global` | **Decline** — live global arm already honest |
+| OpenCode CP `display_label` `:383` | **Decline citation** — CLI `project.rs:383` |
+| leftover UUID `7d97a51a` | **Decline typo** — live `7d97a456` |
+| last-PR #190 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |

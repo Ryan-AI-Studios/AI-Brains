@@ -1,10 +1,28 @@
 # T276 Plan — Leftover `7d97a456` must not starve `--global`
 
 **Status:** **Pending** (Planned; F0 until **go**)
-**Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC16
+**Spec:** [spec.md](./spec.md) F0–F41 / AC1–AC16 + §13 AI fold-in
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger TX (planning):** `d5b9a9cc-fa83-4ce9-a74f-aaf77eb591fe` (DOCS)
+**Ledger TX (fold-in):** `30332efc-0716-4f22-ab89-5879cde7aa2e` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go**
+
+---
+
+## AI fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F4 / AC4:** leading project tag, one space, then `[score=` / `[rank=#`.
+2. **F38 / AC1:** merge `HashSet<String>` seen ids; overlap once.
+3. **F39:** skip global scan when preferred fills `depth`; AC3 only when remainder &gt; 0.
+4. **F15:** COALESCE SELECT stays for tags; prefer-fill is two `lexical_search` (F1). Do not drop the column.
+5. **F40:** `prefer_authority: true` on both arms; bridge uses `project_id` None.
+6. **F41:** AC3 is pre-`rerank_hits`.
+7. **F18:** `format_pretty_hit_line(..., project_tag: Option<&str>)` (Agy O1 already).
+8. **Decline:** OpenCode O1 empty-hint; CP `display_label` citation; leftover UUID `7d97a51a` typo.
 
 ---
 
@@ -12,7 +30,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `a5562cc` T275 `#190`. CLEAN; `main` = `origin/main` |
+| HEAD / tree | **Plan dogfood:** `a5562cc` T275 `#190`. **This fold-in:** `61fd3cb` (plan docs; product crates identical). CLEAN; `main` ahead of `origin/main` by planning docs |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. **T270** on PATH. **Do not `cargo install`.** |
 | Source debug | 2026-08-21 18:34 (T275). Tests/manual use `cargo run` / hermetic |
 | `preflight --summary` | Pinned **3352**; in-context 0/0/0; grants **0 of 3**; Scope `3581317d` |
@@ -36,7 +54,9 @@
 ## Phase 0 — on go (re-verify)
 
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `main.rs` T112 `--global` clear (`:4320–4326`), `RecallOptions` / `RecallHit`, lexical SELECT (`:259`), `format_pretty_hit_line` (`:407`), `rebind_path_alias`
+- [ ] Re-read `main.rs` force-set `:3268`, `Cli::parse()` `:3356`, clap `env = AI_BRAINS_PROJECT_ID` `:1017`, T112 clear `:4322` (preferred = pre-clear id)
+- [ ] Re-read `recall_full` lexical_search `:283–292` (`prefer_authority: true`) and bridge `:275–276` (`project_id` — must stay None when global, F40)
+- [ ] Re-read lexical SELECT `:259–265` (COALESCE is F15 tags, not fill); `format_pretty_hit_line` `:407` (F4/F18 tag arg)
 - [ ] Confirm leftover still 11 shared roots (`list-paths --shared-only --format json`); do **not** `--write --yes`
 - [ ] Rescan `conductor/deferred.md` — T276 rows already absorbed; no new overlapping open rows
 - [ ] Confirm #190 comments/reviews still empty (N/A); #188 Mediums stay T284; no mint
@@ -73,15 +93,18 @@
 | #188 Work/samples | T284 |
 | clap 5 / rusqlite 0.40 / DTO / `cargo install` | F21 / F22 |
 | T274 chrome / `ranking.rs` / depth raise | F12 / F14 / F13 |
+| Empty-hint `Try --global` when already global | Live `build_recall_hint_core` `:675` already honest (OpenCode O1) |
 
 ---
 
 ## Phase 1 — Red (TDD)
 
 - [ ] Unit `merge_preferred_then_global__preferred_first_no_dupes` (AC1) — red until helper exists
+- [ ] Unit `merge_preferred_then_global__overlap_id__once` (F38)
+- [ ] Unit `merge_preferred_then_global__preferred_fills_depth__skips_global` (F39)
 - [ ] Retrieval hermetic `recall_full__global_prefer__owner_pin_beats_leftover_chrome` (AC2) — **required red**
 - [ ] Retrieval `recall_full__global_prefer__leftover_still_in_candidates` (AC3)
-- [ ] CLI hermetic `recall__global_pretty__tags_project` (AC4)
+- [ ] CLI hermetic `recall__global_pretty__tags_project` (AC4 — tag then space then `[score=` / `[rank=#`)
 - [ ] CLI `recall__global_json__no_project_id_key` (AC5)
 - [ ] CLI `recall__scoped_pretty__no_global_tag` (AC9)
 
@@ -92,7 +115,8 @@
 - [ ] `RetrievalMemory` + lexical SELECT `COALESCE(mp.project_id, sp.project_id)`
 - [ ] `RecallHit.project_id` (constructors default `None`)
 - [ ] `RecallOptions.preferred_project_id` (Default `None`)
-- [ ] `prefer_project.rs` merge; `recall_full` second `lexical_search` when preferred is Some
+- [ ] `prefer_project.rs` merge (F38 HashSet, F39 skip); `recall_full` second `lexical_search` when preferred is Some (`prefer_authority: true` both, F40)
+- [ ] Comment at merge: AC3 is pre-rerank (F41)
 - [ ] CLI `main.rs`: `--global` threads pre-clear id as preferred; scoped `project_id` stays `None`
 - [ ] Pretty `--global` leading tag (reuse T264 peel/upgrade + `display_label`)
 - [ ] Sync `recall_full` one field (AC15)
