@@ -232,7 +232,7 @@ Non-destructive dogfood after T255 closeout. Placeholder series registered in `c
 | ~~harness/whoami self-next; list footer leftover-as-AI-Brains (8/6)~~ | **T267 Completed 2026-08-18.** harness ok → `none`/omit; list footer F3/F3b; git probe best-effort. Whoami remediations **affirm T258**. Soft: PATH `cargo install`; leftover roots. |
 | `scan-roots` cwd-only (4/5) | ✅ **T268 Completed 2026-08-19** — `--root` XOR positional; empty suggested when registered; human parent hint. Soft: PATH reinstall; leftover `7d97a456` (T259); JSON `next_step` declined. |
 | ~~Nightly human mixes Router 267009; completion probe timeout~~ | ✅ **T269 Completed 2026-08-20** — human `Nightly:` heading + `probe=timeout (750ms)`; JSON frozen; 750 ms not raised |
-| `retention plan` 0 candidates on 35,300 memories (6/5) | **T270 Planned 2026-08-20** — inventory overlay (pinned→held); go still required |
+| ~~`retention plan` 0 candidates on 35,300 memories (6/5)~~ | ✅ **T270 Completed 2026-08-21** — COUNT overlay pinned→held / other→skip; `Nothing to dispose.` = no CE/projection. Soft: PATH `cargo install`; nightly `candidates=` includes held. |
 | ~~`sync query` ledger pane false-empty (5/5)~~ | **T271 Completed 2026-08-19.** Stop FTS-quoting `ledgerful ledger search`; first-seen token rescue; named misses. Soft: PATH `cargo install`; Ledgerful token-OR; picker vs sequential probe. |
 
 ### T257 closeout residuals (2026-08-17)
@@ -629,6 +629,21 @@ Specified softs — not product blockers:
 | last-PR #187 Cursor | **N/A** — still empty. **No T274** |
 | No B/M | Nothing to decline of B/M |
 
+### T270 closeout residuals (2026-08-21)
+
+Specified softs — not product blockers:
+
+| Residual | Disposition |
+|----------|-------------|
+| Nightly one-liner `candidates=` includes held | F20 — not restyled |
+| `active` / unknown statuses lumped in `other` skip | Intentional v1 |
+| `list_pinned_memory_ids` still loads all ids for R11 | Pre-existing; not this overlay |
+| JSON still omits zero buckets for the other eight classes | T248 F5 |
+| PATH `ai-brains` until `cargo install` | F16 |
+| Leftover project 18k pins still owned by `7d97a456` | T259 operator |
+| Doctor retention check | T248 F16 |
+| rusqlite `table_exists` 0.40 | T213 L4 |
+
 ### T270 planning absorption (2026-08-20) — inventory overlay; no migrate
 
 | Item | Disposition |
@@ -656,7 +671,7 @@ Specified softs — not product blockers:
 | T264 Index fetch 80 leftover-heavy (R1b-P3-1) | F17 — not this HashSet |
 | Live `-m` windows without an Index header | Word budget; hermetic AC2 (`-m 1500` + `Memory Index`) is DoD |
 | PATH `ai-brains` until `cargo install` | F14 — operator; tests/manual used `cargo run` / hermetic |
-| T270 retention classify / T273 F7 `bridge_search_args` | Peers |
+| ~~T270 retention classify~~ / T273 F7 `bridge_search_args` | **T270 Completed 2026-08-21.** T273 F7 remains a peer residual |
 | rusqlite `table_exists` 0.40 | T213 L4 — not this track |
 
 ### T267 fold-in (2026-08-18) — `agy-review.md` + `opencode-review.md`

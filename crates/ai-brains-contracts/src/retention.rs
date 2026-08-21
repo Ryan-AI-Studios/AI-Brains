@@ -75,6 +75,10 @@ pub const RETENTION_HONESTY_STREAM_INDEPENDENCE: &str =
 pub const RETENTION_HONESTY_TICKET_NOT_CE: &str =
     "erasure ticket and soft forget are not cryptographic erasure";
 
+/// Live `memory_projection` inventory overlay (T270). Pins are held, not auto-forgotten.
+pub const RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY: &str =
+    "memory_legacy inventory is none_auto; pins held; apply does not auto-forget";
+
 /// Future turn↔envelope join convention (document only until capture seals turns).
 pub const TURN_ENVELOPE_SUBJECT_KIND: &str = "turn";
 

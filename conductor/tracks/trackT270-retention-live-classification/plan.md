@@ -1,6 +1,6 @@
 # T270 Plan — Retention live `memory_legacy` inventory overlay
 
-**Status:** **Pending** (requirements written; not In Progress)
+**Status:** **Completed**
 **Spec:** [spec.md](./spec.md) F0–F31 / AC1–AC17 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `3ebebd1f-58e1-4663-b559-75f900edfc95` (DOCS)
@@ -47,13 +47,13 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
-- [ ] Re-read `collect_candidates` / `build_report` / `prepare_retention_apply` / `format_retention_pretty` empty-check
-- [ ] Rescan `conductor/deferred.md` for new open rows that overlap
-- [ ] Confirm #187 still empty / no new Cursor leftover that needs a mint
-- [ ] Re-dogfood `retention plan --format human` and `--format json` vs `memory list --summary --global` (do **not** apply)
-- [ ] Re-check clap/rusqlite/chrono lock vs crates.io (**no bump** unless execute proves otherwise)
-- [ ] FEATURE TX start
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact`
+- [x] Re-read `collect_candidates` / `build_report` / `prepare_retention_apply` / `format_retention_pretty` empty-check
+- [x] Rescan `conductor/deferred.md` for new open rows that overlap
+- [x] Confirm #187 still empty / no new Cursor leftover that needs a mint
+- [x] Re-dogfood `retention plan --format human` and `--format json` vs `memory list --summary --global` (do **not** apply)
+- [x] Re-check clap/rusqlite/chrono lock vs crates.io (**no bump** unless execute proves otherwise)
+- [x] FEATURE TX start `20ad711c-ff41-4262-9dd0-887a6eb54c03`
 
 ---
 
@@ -84,67 +84,67 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 1 — Red (failing tests first)
 
-- [ ] AC1 store unit: `memory_legacy_inventory__pinned_and_other__counts_and_limit_5` **plus** pinned=0 other&gt;0 sample case
-- [ ] AC3 CP: `retention_plan__pinned_memories__memory_legacy_held_inventory`
-- [ ] AC4 rstest `#[case]` forgotten/active → skip + non-empty samples
-- [ ] AC5 mixed pinned+other → one bucket + split totals
-- [ ] AC6 unit: `format_retention_pretty__held_inventory_only__nothing_to_dispose_no_work_no_next`
-- [ ] AC9 hermetic: pin then `retention plan --format human` / `json`
-- [ ] AC12: `retention plan --help` contains `none_auto` or `inventory`
-- [ ] **Required red:** AC3 + AC6 + AC9 (HEAD has skip 0 / empty-check on `candidates==0` / no helper)
-- [ ] AC2 / AC7 / AC8 / AC10 / AC11 may already be green (regression guards)
-- [ ] AC17 class-sort is a **green-phase guard** (not Phase-1 required red)
+- [x] AC1 store unit: `memory_legacy_inventory__pinned_and_other__counts_and_limit_5` **plus** pinned=0 other&gt;0 sample case
+- [x] AC3 CP: `retention_plan__pinned_memories__memory_legacy_held_inventory`
+- [x] AC4 rstest `#[case]` forgotten/active → skip + non-empty samples
+- [x] AC5 mixed pinned+other → one bucket + split totals
+- [x] AC6 unit: `format_retention_pretty__held_inventory_only__nothing_to_dispose_no_work_no_next`
+- [x] AC9 hermetic: pin then `retention plan --format human` / `json`
+- [x] AC12: `retention plan --help` contains `none_auto` or `inventory`
+- [x] **Required red:** AC3 + AC6 + AC9 (HEAD has skip 0 / empty-check on `candidates==0` / no helper)
+- [x] AC2 / AC7 / AC8 / AC10 / AC11 may already be green (regression guards)
+- [x] AC17 class-sort is a **green-phase guard** (not Phase-1 required red)
 
 ## Phase 2 — Green (helper + merge + pretty)
 
-- [ ] `MemoryLegacyInventory` + `memory_legacy_inventory` in `projections/retention.rs` (`COUNT` + SQL `ORDER BY memory_id LIMIT 5`; pinned vs `status != 'pinned'` fallback)
-- [ ] `NOTE_MEMORY_LEGACY_INVENTORY` + `merge_memory_legacy_inventory` in `class_based_retention.rs`; call from `plan_retention`, `prepare_retention_apply`, `apply_retention`; **sort `classes` after merge** (F30)
-- [ ] Contracts honesty const; pretty F8/F9; `honesty_short_label` F10
-- [ ] Additive Plan `after_help`
-- [ ] Do **not** push per-memory `Candidate`; do **not** edit `collect_candidates` retain for this; do **not** call `classify_legacy`
-- [ ] Do **not** grow `project.rs` / `preflight.rs` / `sync.rs` / `nightly.rs` / `legacy_import.rs`
+- [x] `MemoryLegacyInventory` + `memory_legacy_inventory` in `projections/retention.rs` (`COUNT` + SQL `ORDER BY memory_id LIMIT 5`; pinned vs `status != 'pinned'` fallback)
+- [x] `NOTE_MEMORY_LEGACY_INVENTORY` + `merge_memory_legacy_inventory` in `class_based_retention.rs`; call from `plan_retention`, `prepare_retention_apply`, `apply_retention`; **sort `classes` after merge** (F30)
+- [x] Contracts honesty const; pretty F8/F9; `honesty_short_label` F10
+- [x] Additive Plan `after_help`
+- [x] Do **not** push per-memory `Candidate`; do **not** edit `collect_candidates` retain for this; do **not** call `classify_legacy`
+- [x] Do **not** grow `project.rs` / `preflight.rs` / `sync.rs` / `nightly.rs` / `legacy_import.rs`
 
 ## Phase 3 — Regressions + hermetic
 
-- [ ] AC2 empty CP; AC7 empty pretty; AC8 empty JSON hermetic
-- [ ] AC10 plan does not append events
-- [ ] AC11 apply without `--confirm` still exit-6 class
-- [ ] AC17: old turn + pinned → `classes` sorted (`memory_legacy` before `raw_turn`)
-- [ ] Existing envelope R11 `would_held >= 1` + no plaintext body
-- [ ] `cargo nextest run -p ai-brains-control-plane class_based_retention`
-- [ ] `cargo nextest run -p ai-brains-cli -E "test(retention_plan)"`
-- [ ] `cargo clippy -p ai-brains-store -p ai-brains-control-plane -p ai-brains-cli -p ai-brains-contracts --all-targets -- -D warnings`
+- [x] AC2 empty CP; AC7 empty pretty; AC8 empty JSON hermetic
+- [x] AC10 plan does not append events
+- [x] AC11 apply without `--confirm` still exit-6 class
+- [x] AC17: old turn + pinned → `classes` sorted (`memory_legacy` before `raw_turn`)
+- [x] Existing envelope R11 `would_held >= 1` + no plaintext body
+- [x] `cargo nextest run -p ai-brains-control-plane class_based_retention`
+- [x] `cargo nextest run -p ai-brains-cli -E "test(retention_plan)"`
+- [x] `cargo clippy -p ai-brains-store -p ai-brains-control-plane -p ai-brains-cli -p ai-brains-contracts --all-targets -- -D warnings`
 
 ## Phase 4 — Docs + manual
 
-- [ ] CAPABILITIES T248 row: inventory overlay sentence
-- [ ] OPERATIONS `memory_legacy` none_auto + held pins
-- [ ] PROTOCOL-COMPAT §5: live vaults may emit `memory_legacy` bucket; keys frozen
-- [ ] Root CHANGELOG T270 row
-- [ ] AC13 live human+json (source or PATH); **do not apply**
+- [x] CAPABILITIES T248 row: inventory overlay sentence
+- [x] OPERATIONS `memory_legacy` none_auto + held pins
+- [x] PROTOCOL-COMPAT §5: live vaults may emit `memory_legacy` bucket; keys frozen
+- [x] Root CHANGELOG T270 row
+- [x] AC13 live human+json (source or PATH); **do not apply**
 
 ## Phase 5 — Review + publish (on go)
 
-- [ ] `review.md` primary loop until clean
-- [ ] `codex-review` (honesty UX)
-- [ ] Full AGENTS.md gate + `ledgerful verify --scope full`
-- [ ] FEATURE TX commit; conductor **Completed**; deferred residuals
+- [x] `review.md` primary loop until clean
+- [x] `codex-review` (honesty UX) CX2 product PASS
+- [x] Full AGENTS.md gate + `ledgerful verify --scope full`
+- [x] FEATURE TX commit; conductor **Completed**; deferred residuals
 - [ ] implement-track Phase 6: push `track/T270-*` → PR → watch GHA `CI` green → squash-merge → prune. Never `git push origin main`
 
 ---
 
 ## Definition of Done (checkable)
 
-- [ ] Live/hermetic `retention plan` shows `memory_legacy` held count ≥ 1 on a pinned vault
-- [ ] Same run still prints `Nothing to dispose.` when ce_wipe+projection_delete == 0
-- [ ] No `Work` table / no `next: apply` for inventory-only
-- [ ] JSON `api_version` 1; no new required keys; pin bodies absent
-- [ ] `retention plan` appends **zero** events
-- [ ] Store helper uses `COUNT` + `LIMIT 5` (AC16)
-- [ ] Empty vault T248/CP tests still green
-- [ ] Docs F27 landed
-- [ ] No live apply; no `cargo install`; no `.env` rewrite; no `project.rs` growth
-- [ ] Ledger FEATURE TX committed; 0 pending / 0 drift
+- [x] Live/hermetic `retention plan` shows `memory_legacy` held count ≥ 1 on a pinned vault
+- [x] Same run still prints `Nothing to dispose.` when ce_wipe+projection_delete == 0
+- [x] No `Work` table / no `next: apply` for inventory-only
+- [x] JSON `api_version` 1; no new required keys; pin bodies absent
+- [x] `retention plan` appends **zero** events
+- [x] Store helper uses `COUNT` + `LIMIT 5` (AC16)
+- [x] Empty vault T248/CP tests still green
+- [x] Docs F27 landed
+- [x] No live apply; no `cargo install`; no `.env` rewrite; no `project.rs` growth
+- [x] Ledger FEATURE TX committed; 0 pending / 0 drift
 
 ---
 
@@ -152,7 +152,7 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 | Command | Result |
 |---------|--------|
-| `cargo run -p ai-brains-cli -- retention plan --format human` | |
-| `cargo run -p ai-brains-cli -- retention plan --format json` (totals/classes only) | |
-| `ai-brains memory list --summary --global` (counts) | |
-| Event count before/after plan (hermetic) | |
+| `cargo run -p ai-brains-cli -- retention plan --format human` | EXIT 0. `Nothing to dispose.` `memory_legacy` held 38342. Totals skip=29 held=38313. No Work / no next. Honesty short present. |
+| `cargo run -p ai-brains-cli -- retention plan --format json` (totals/classes only) | `api_version=1` `mode=dry_run` one `memory_legacy` bucket `would_held=38313` `would_ce_wipe=0` 5 sample ids. |
+| `ai-brains memory list --summary --global` (counts) | Pinned ~38k (volatile); Forgotten 29. Overlay held matches pins-scale; skip=29. |
+| Event count before/after plan (hermetic) | AC10: `memory list --summary` stdout identical before/after `retention plan`. |

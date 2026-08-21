@@ -30,10 +30,10 @@ use ai_brains_contracts::retention::{
     CANONICAL_CLASSES, CLASS_DECISION_APPROVED, CLASS_EVIDENCE, CLASS_MEMORY_LEGACY,
     CLASS_ORPHANED_ENVELOPE, CLASS_QUERY_TRACE, CLASS_RAW_TURN, CLASS_REVIEW_TRACE, CLASS_SECRET,
     CLASS_UNCLASSIFIED, MECHANISM_CE_WIPE, MECHANISM_PROJECTION_DELETE, MECHANISM_SKIP,
-    RETENTION_HONESTY_LEGACY_NOT_CE, RETENTION_HONESTY_NOT_NIST_PURGE,
-    RETENTION_HONESTY_PRE_ERASE_BACKUP, RETENTION_HONESTY_STREAM_INDEPENDENCE,
-    RETENTION_HONESTY_TICKET_NOT_CE, RetentionClassBucket, RetentionPlanReport, is_canonical_class,
-    truncate_id,
+    RETENTION_HONESTY_LEGACY_NOT_CE, RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY,
+    RETENTION_HONESTY_NOT_NIST_PURGE, RETENTION_HONESTY_PRE_ERASE_BACKUP,
+    RETENTION_HONESTY_STREAM_INDEPENDENCE, RETENTION_HONESTY_TICKET_NOT_CE, RetentionClassBucket,
+    RetentionPlanReport, is_canonical_class, truncate_id,
 };
 use ai_brains_control_plane::{
     RetentionConfig, StorePorts, cascade_memory_ids_for_keys, execute_retention_projection_deletes,
@@ -373,6 +373,9 @@ fn honesty_short_label(warning: &str) -> String {
     if warning == RETENTION_HONESTY_PRE_ERASE_BACKUP {
         return "pre-erase backups remain decryptable".into();
     }
+    if warning == RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY {
+        return "memory_legacy inventory ≠ auto-forget".into();
+    }
     warning.to_string()
 }
 
@@ -414,8 +417,8 @@ pub(crate) fn format_retention_pretty(report: &RetentionPlanReport) -> String {
     ));
     lines.push(String::new());
 
-    let empty = report.classes.is_empty() || report.totals.candidates == 0;
-    if empty {
+    let dispose_work = report.totals.would_ce_wipe + report.totals.would_projection_delete;
+    if dispose_work == 0 {
         lines.push("Nothing to dispose.".into());
         lines.push(String::new());
     } else {
@@ -426,6 +429,9 @@ pub(crate) fn format_retention_pretty(report: &RetentionPlanReport) -> String {
         ));
         for c in &report.classes {
             if c.candidate_count == 0 {
+                continue;
+            }
+            if c.mechanism != MECHANISM_CE_WIPE && c.mechanism != MECHANISM_PROJECTION_DELETE {
                 continue;
             }
             lines.push(format!(
@@ -670,6 +676,79 @@ mod tests {
         // Apply always passes is_tty: false; auto must not TTY-switch.
         assert_eq!(resolve_retention_format("auto", false), "json");
         assert_eq!(resolve_retention_format("auto", true), "human");
+    }
+
+    #[test]
+    fn format_retention_pretty__held_inventory_only__nothing_to_dispose_no_work_no_next() {
+        use ai_brains_contracts::retention::{
+            CLASS_MEMORY_LEGACY, MECHANISM_HELD, RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY,
+            RetentionCascade, RetentionPlanReport, RetentionTotals, default_horizon_labels,
+        };
+        let report = RetentionPlanReport {
+            api_version: "1".into(),
+            generated_at: "2026-08-21T00:00:00Z".into(),
+            mode: "dry_run".into(),
+            horizons: default_horizon_labels(),
+            classes: vec![RetentionClassBucket {
+                class: CLASS_MEMORY_LEGACY.into(),
+                candidate_count: 3,
+                mechanism: MECHANISM_HELD.into(),
+                sample_ids: vec![
+                    "aaaaaaaa-aaaa-aaaa-aaaa-000000000001".into(),
+                    "aaaaaaaa-aaaa-aaaa-aaaa-000000000002".into(),
+                    "aaaaaaaa-aaaa-aaaa-aaaa-000000000003".into(),
+                ],
+                notes: vec!["inventory overlay; none_auto; pinned held (R11); other skip".into()],
+            }],
+            totals: RetentionTotals {
+                candidates: 3,
+                would_ce_wipe: 0,
+                would_projection_delete: 0,
+                would_skip: 0,
+                would_held: 3,
+            },
+            cascade: RetentionCascade::default(),
+            warnings: {
+                let mut w = RetentionPlanReport::honesty_warnings(false);
+                w.push(RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY.into());
+                w
+            },
+            errors_count: 0,
+            errors: Vec::new(),
+        };
+        let text = format_retention_pretty(&report);
+        assert!(
+            text.contains("Nothing to dispose."),
+            "inventory-only must still say nothing to dispose; got:\n{text}"
+        );
+        let legacy_line = text
+            .lines()
+            .find(|l| l.contains(CLASS_MEMORY_LEGACY))
+            .unwrap_or("");
+        assert!(
+            legacy_line.contains(MECHANISM_HELD),
+            "matrix memory_legacy must be held; line={legacy_line}"
+        );
+        assert!(
+            legacy_line.split_whitespace().any(|t| t == "3"),
+            "matrix memory_legacy count must be 3; line={legacy_line}"
+        );
+        assert!(
+            text.contains("memory_legacy inventory ≠ auto-forget"),
+            "honesty short missing; got:\n{text}"
+        );
+        assert!(
+            !text.contains("\nWork\n") && !text.lines().any(|l| l == "Work"),
+            "inventory-only must omit Work header; got:\n{text}"
+        );
+        assert!(
+            !text.contains("next: ai-brains retention apply"),
+            "inventory-only must omit next:; got:\n{text}"
+        );
+        assert!(
+            text.contains("Totals  candidates=3 ce_wipe=0 projection_delete=0 skip=0 held=3"),
+            "exact Totals line missing; got:\n{text}"
+        );
     }
 
     #[test]

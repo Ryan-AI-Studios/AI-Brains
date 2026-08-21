@@ -1,7 +1,7 @@
 # T270 — Retention plan must inventory live `memory_legacy` rows
 
 - **Track ID:** T270-RetentionLiveClassification
-- **Status:** **Planned** (Pending until go)
+- **Status:** **Completed**
 - **Category:** FEATURE / UX / HONESTY
 - **Owner:** Grok
 - **Source:** Audit 2026-08-16 — `retention plan` **6/5**; 0 candidates across ~35k memories (live 2026-08-20: **38,208** pinned)

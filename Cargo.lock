@@ -218,6 +218,7 @@ dependencies = [
  "ai-brains-sources",
  "ai-brains-store",
  "chrono",
+ "rstest",
  "rusqlite",
  "serde",
  "serde_json",
