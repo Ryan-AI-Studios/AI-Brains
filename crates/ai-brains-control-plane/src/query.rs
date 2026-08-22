@@ -25,7 +25,7 @@ use crate::sources::{build_event, parse_scope_key, scope_identity_key};
 
 /// Dual-site SOOT with CLI `POLICY_DENIED_HINT` (governed_common) — keep wording in sync
 /// (T221 F17 / T280 F1 / F33). Module-level so AC3 can `assert_eq!` without query I/O.
-const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
 
 /// Progressive query request.
 #[derive(Debug, Clone)]

@@ -162,8 +162,8 @@ fn progressive__deny__stderr_code_and_hint_stdout_denial_hint() {
     assert_eq!(v["denied"], true);
     let hint = v["denial_hint"].as_str().unwrap_or("");
     assert!(
-        hint.contains("bootstrap") || stdout.contains("bootstrap"),
-        "stdout denial_hint must carry bootstrap; got {v}"
+        hint.contains("policy bootstrap") && !hint.contains("--scope …"),
+        "stdout denial_hint must name bootstrap and omit --scope ellipsis; got {v}"
     );
     // Field present (not omitted) when denied.
     assert!(

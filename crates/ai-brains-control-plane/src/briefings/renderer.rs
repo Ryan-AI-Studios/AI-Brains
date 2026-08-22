@@ -6,11 +6,11 @@
 use ai_brains_contracts::briefings::{PersonalContinuityBriefingPacket, ProjectBriefingPacket};
 use serde_json::Error as JsonError;
 
-/// Bootstrap next-step after Denied (T227 F10) — markdown footer.
+/// Bootstrap next-step after Denied (T227 F10 / T280 F2) — markdown footer.
 ///
-/// Dual-site SOOT with CLI/daemon `POLICY_DENIED_HINT` wording (bootstrap command
-/// and scope ellipsis). Keep in sync when changing bootstrap remediation copy.
-pub const BRIEFING_DENIED_NEXT_STEP: &str = "next: run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+/// Equals JSON `denial_hint` SHORT (no required `--scope …`). T275 grant-wall
+/// still follows this line. HINT (POLICY_DENIED envelope) is a separate family.
+pub const BRIEFING_DENIED_NEXT_STEP: &str = BRIEFING_DENIED_DENIAL_HINT;
 
 /// JSON `denial_hint` short SOOT (T241 F7/F14) — must contain `policy bootstrap`.
 pub const BRIEFING_DENIED_DENIAL_HINT: &str =
@@ -577,10 +577,7 @@ mod tests {
         let decisions_pos = md
             .find("## Decisions (current authority)")
             .expect("decisions pos");
-        assert!(
-            denied_pos < next_pos,
-            "Denied must precede next-step: {md}"
-        );
+        assert!(denied_pos < next_pos, "Denied must precede next-step: {md}");
         assert!(
             next_pos < wall_pos,
             "next-step must precede grant-wall: {md}"

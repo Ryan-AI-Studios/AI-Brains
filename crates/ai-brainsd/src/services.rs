@@ -986,7 +986,7 @@ pub fn map_control_plane_error(err: ControlPlaneError) -> DaemonResponse {
 ///
 /// Kept in-daemon (not a CLI dep) with the same wording as
 /// `ai_brains_cli::governed_common::POLICY_DENIED_HINT` — keep dual-site strings in sync.
-const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
 
 /// Build POLICY_DENIED with non-empty `details.hint` for new discovery list paths.
 fn policy_denied_with_hint(message: impl Into<String>) -> DaemonResponse {

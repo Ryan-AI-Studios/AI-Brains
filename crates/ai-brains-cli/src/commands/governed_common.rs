@@ -47,8 +47,8 @@ pub const GRAPH_REINSTALL_SOOT: &str =
 
 /// Stable F6 remediation template for POLICY_DENIED `details.hint` (T201 / T210).
 ///
-/// Dual-site SOOT with `ai_brainsd::services::POLICY_DENIED_HINT` — keep wording in sync.
-pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+/// Dual-site SOOT with `ai_brainsd::services::POLICY_DENIED_HINT` — keep wording in sync (T280 F1).
+pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
 
 // CLI-only progressive→recall fallback (T243 F13). Not dual-site.
 pub const PROGRESSIVE_RECALL_FALLBACK: &str = "Ungoverned vault search: ai-brains recall \"…\"";
