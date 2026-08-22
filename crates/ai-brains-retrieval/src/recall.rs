@@ -55,6 +55,9 @@ pub struct RecallHit {
     /// Pre-fuse cosine similarity when known (T218 F4). RRF writes rank-score into
     /// [`score`](Self::score); this field preserves dense-arm sim for display / honesty.
     pub cosine: Option<f64>,
+    /// `COALESCE(mp.project_id, sp.project_id)` for T276 `--global` pretty tags (F15).
+    /// Not a JSON `RecallResult` key (F5). Bridge/graph constructors default `None`.
+    pub project_id: Option<String>,
 }
 
 /// Stored score for a graph-neighbor hit given the parent's score and kind (T215 F-01 / F13).
@@ -101,6 +104,7 @@ impl RecallHit {
             is_plan_demoted: false,
             score_kind: ScoreKind::Bm25LowerBetter,
             cosine: None,
+            project_id: None,
         }
     }
 
@@ -122,6 +126,7 @@ impl RecallHit {
             is_plan_demoted: false,
             score_kind: ScoreKind::Bm25LowerBetter,
             cosine: None,
+            project_id: None,
         }
     }
 
@@ -147,6 +152,7 @@ impl RecallHit {
             is_plan_demoted: false,
             score_kind,
             cosine: None,
+            project_id: None,
         }
     }
 
@@ -173,6 +179,7 @@ impl RecallHit {
             is_plan_demoted: false,
             score_kind: ScoreKind::BridgeHigherIsBetter,
             cosine: None,
+            project_id: None,
         }
     }
 
@@ -199,6 +206,7 @@ impl RecallHit {
             is_plan_demoted: false,
             score_kind: ScoreKind::HigherIsBetter,
             cosine: score,
+            project_id: None,
         }
     }
 }
@@ -284,29 +292,50 @@ pub fn recall_full(
     let exclude_stubs = !options.include_symbols;
 
     // Phase 2: Local FTS5 with multi-token rescue ladder (T217; rescue opt-in).
-    let mut local_hits: Vec<RecallHit> = lexical_search(
-        conn,
-        query,
-        project_id,
-        session_id,
-        LexicalSearchOptions {
-            rescue: true,
-            limit: depth,
-            exclude_symbol_stubs: exclude_stubs,
-            prefer_authority: true,
-        },
-    )?
-    .into_iter()
-    .map(|memory| {
-        RecallHit::fts(
-            memory.memory_id,
-            memory.content,
-            memory.score,
-            memory.session_id,
-            memory.updated_at,
+    // T276 F1/F40: when preferred is Some, two lexical_search calls (each T274
+    // two-pass, prefer_authority: true), then merge before rerank (F41).
+    let lexical_opts = LexicalSearchOptions {
+        rescue: true,
+        limit: depth,
+        exclude_symbol_stubs: exclude_stubs,
+        prefer_authority: true,
+    };
+    let fts_to_hits = |memories: Vec<crate::lexical::RetrievalMemory>| -> Vec<RecallHit> {
+        memories
+            .into_iter()
+            .map(|memory| {
+                let project = memory.project_id.clone();
+                let mut hit = RecallHit::fts(
+                    memory.memory_id,
+                    memory.content,
+                    memory.score,
+                    memory.session_id,
+                    memory.updated_at,
+                );
+                hit.project_id = project;
+                hit
+            })
+            .collect()
+    };
+    let mut local_hits: Vec<RecallHit> = if let Some(preferred) = options.preferred_project_id {
+        let scoped = lexical_search(conn, query, Some(preferred), session_id, lexical_opts)?;
+        let unscoped = lexical_search(conn, query, None, session_id, lexical_opts)?;
+        // AC3 leftover-in-candidates is this merge (pre-rerank_hits). A leftover-free
+        // post-rerank top-5 is not a silent-exclude regression (F41).
+        crate::prefer_project::merge_preferred_then_global(
+            fts_to_hits(scoped),
+            fts_to_hits(unscoped),
+            depth,
         )
-    })
-    .collect();
+    } else {
+        fts_to_hits(lexical_search(
+            conn,
+            query,
+            project_id,
+            session_id,
+            lexical_opts,
+        )?)
+    };
     if exclude_stubs {
         crate::symbol_stub::retain_non_symbol_stubs(&mut local_hits);
     }
@@ -321,12 +350,15 @@ pub fn recall_full(
                 fallback
                     .into_iter()
                     .map(|memory| {
-                        RecallHit::substring(
+                        let project = memory.project_id.clone();
+                        let mut hit = RecallHit::substring(
                             memory.memory_id,
                             memory.content,
                             memory.session_id,
                             memory.updated_at,
-                        )
+                        );
+                        hit.project_id = project;
+                        hit
                     })
                     .collect(),
                 depth,
@@ -521,6 +553,15 @@ pub fn recall_full(
     crate::ranking::rerank_hits(&mut blended);
     crate::session_chrome::dedupe_session_chrome(&mut blended);
     crate::symbol_stub::dedupe_symbol_stubs(&mut blended);
+
+    // T276: prefer-fill must survive truncate. `rerank_hits` is BM25-led, so leftover
+    // authority dumps can bury the cwd pin after it entered the candidate window.
+    // Stable-partition preferred-project hits to the front (not a leftover SQL drop;
+    // F14 leftover penalty stays out of ranking.rs). AC3 leftover still follows.
+    if let Some(pref) = options.preferred_project_id {
+        let pref_s = pref.to_string();
+        blended.sort_by_key(|h| u8::from(h.project_id.as_deref() != Some(pref_s.as_str())));
+    }
 
     if blended.len() > limit {
         blended.truncate(limit);

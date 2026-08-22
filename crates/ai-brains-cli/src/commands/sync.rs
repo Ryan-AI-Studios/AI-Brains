@@ -550,7 +550,12 @@ pub async fn run_query(
                 project_id.as_ref(),
             )?;
             println!("{}", scope_line);
-            crate::commands::recall::print_pretty_hits(&hits);
+            if global {
+                let tags = crate::commands::recall_global::tags_for_hits(&ctx.conn, &hits)?;
+                crate::commands::recall::print_pretty_hits_with_tags(&hits, &tags);
+            } else {
+                crate::commands::recall::print_pretty_hits(&hits);
+            }
         }
         Ok(())
     };

@@ -208,6 +208,7 @@ pub fn rrf_fuse(fts_hits: &[RecallHit], semantic_hits: &[RecallHit], k: f64) -> 
             is_plan_demoted: false,
             score_kind: ScoreKind::HigherIsBetter,
             cosine,
+            project_id: base.project_id.clone(),
         });
     }
 

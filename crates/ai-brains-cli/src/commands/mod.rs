@@ -47,6 +47,7 @@ pub mod project_list_footer;
 pub mod project_paths;
 pub mod project_rebind;
 pub mod recall;
+pub mod recall_global;
 pub mod recovery;
 pub mod replicate;
 pub mod retention;

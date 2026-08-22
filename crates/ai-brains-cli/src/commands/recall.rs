@@ -361,7 +361,12 @@ pub fn run(
                         );
                     }
                 }
-                print_pretty_hits(&hits);
+                if options.global {
+                    let tags = crate::commands::recall_global::tags_for_hits(&ctx.conn, &hits)?;
+                    print_pretty_hits_with_tags(&hits, &tags);
+                } else {
+                    print_pretty_hits(&hits);
+                }
             }
         }
         _ => {
@@ -416,6 +421,7 @@ pub fn format_pretty_hit_line(
     score_kind: ai_brains_retrieval::ScoreKind,
     cosine: Option<f64>,
     rank: usize,
+    project_tag: Option<&str>,
 ) -> String {
     // T224 F3: strip role prefix BEFORE 500-char truncate (display-only).
     let is_symbol = ai_brains_retrieval::is_symbol_stub_content(content);
@@ -435,7 +441,7 @@ pub fn format_pretty_hit_line(
 
     let score_part = pretty_score_bracket(score_kind, score, cosine, rank);
 
-    match (score_part.as_deref(), session_id) {
+    let line = match (score_part.as_deref(), session_id) {
         (Some(sp), Some(sid)) => {
             let prefix = &sid[..sid.len().min(8)];
             format!("[{sp} | session={prefix}] {memory_id}: {badge}{content}")
@@ -446,6 +452,10 @@ pub fn format_pretty_hit_line(
             format!("[session={prefix}] {memory_id}: {badge}{content}")
         }
         (None, None) => format!("{memory_id}: {badge}{content}"),
+    };
+    match project_tag {
+        Some(tag) if !tag.is_empty() => format!("{tag} {line}"),
+        _ => line,
     }
 }
 
@@ -473,8 +483,19 @@ fn pretty_score_bracket(
 }
 
 /// Print non-empty pretty hits with plan/stale badges (T211).
+///
+/// `project_tags` is T276 `--global` chrome: one optional leading tag per hit,
+/// same length as `hits` (or empty → no tags).
 pub fn print_pretty_hits(hits: &[ai_brains_retrieval::RecallHit]) {
+    print_pretty_hits_with_tags(hits, &[]);
+}
+
+pub fn print_pretty_hits_with_tags(
+    hits: &[ai_brains_retrieval::RecallHit],
+    project_tags: &[Option<String>],
+) {
     for (i, h) in hits.iter().enumerate() {
+        let tag = project_tags.get(i).and_then(|t| t.as_deref());
         println!(
             "{}",
             format_pretty_hit_line(
@@ -486,6 +507,7 @@ pub fn print_pretty_hits(hits: &[ai_brains_retrieval::RecallHit]) {
                 h.score_kind,
                 h.cosine,
                 i + 1,
+                tag,
             )
         );
     }
@@ -1152,6 +1174,7 @@ mod tests {
             is_plan_demoted: false,
             score_kind: ai_brains_retrieval::ScoreKind::HigherIsBetter,
             cosine: None,
+            project_id: None,
         }
     }
 
@@ -1171,6 +1194,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::HigherIsBetter,
             Some(0.72),
             1,
+            None,
         );
         assert!(line.contains("rank=#1"), "must show rank; got {line}");
         assert!(
@@ -1196,6 +1220,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert!(
             line.contains("score=-13.700"),
@@ -1219,6 +1244,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::BridgeHigherIsBetter,
             None,
             2,
+            None,
         );
         assert!(
             line.contains("score=0.850"),
@@ -1246,6 +1272,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert!(
             line.contains("DECISION: use SQLCipher"),
@@ -1274,6 +1301,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert!(
             line.contains("mem-ws: body"),
@@ -1297,6 +1325,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert_eq!(user, "m-u: hello world");
 
@@ -1309,6 +1338,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert_eq!(system, "m-s: note");
 
@@ -1321,6 +1351,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert_eq!(mid, "m-mid: text ASSISTANT: x");
 
@@ -1333,6 +1364,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert_eq!(lower, "m-lo: assistant: leave me");
     }
@@ -1353,6 +1385,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         let after_id = line
             .strip_prefix("mem-long: ")
@@ -1394,6 +1427,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert_eq!(multibyte, "m-mb: 日本語テスト 🚀 end");
 
@@ -1406,6 +1440,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert_eq!(crlf, "m-cr: after-crlf");
     }
@@ -1423,6 +1458,7 @@ mod tests {
             ai_brains_retrieval::ScoreKind::Bm25LowerBetter,
             None,
             1,
+            None,
         );
         assert!(
             line.contains("[symbol] "),

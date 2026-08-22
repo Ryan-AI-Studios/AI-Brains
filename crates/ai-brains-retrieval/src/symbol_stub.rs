@@ -127,6 +127,7 @@ mod tests {
             is_plan_demoted: false,
             score_kind: ScoreKind::Bm25LowerBetter,
             cosine: None,
+            project_id: None,
         }
     }
 

@@ -3,6 +3,7 @@ mod errors;
 mod fts_utils;
 mod hybrid;
 mod lexical;
+mod prefer_project;
 mod preflight;
 mod preflight_global;
 mod privacy_filter;
@@ -27,6 +28,7 @@ pub use hybrid::{
 pub use lexical::{
     LexicalSearchOptions, RetrievalMemory, lexical_search, match_limit_bound, substring_fallback,
 };
+pub use prefer_project::merge_preferred_then_global;
 pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
 };
