@@ -10,7 +10,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 |------|-------|
 | recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
 | briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
-| leftover `7d97a456` ~18k / `--global` junk | **T276 Planned** (prefer-fill + labels; T264 F11 no drop) |
+| leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
 | 22/22 backup FAIL; no usable encrypted file | **T277** |
 | graph sparse + neighbors blank preview | **T278** |
 | preflight Safety = review-track Objective | **T279** |
@@ -128,6 +128,19 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | leftover UUID `7d97a51a` | **Decline typo** — live `7d97a456` |
 | last-PR #190 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M |
+
+### T276 closeout residuals (2026-08-22) — prefer-fill + labels shipped
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F22 |
+| Live leftover 11 `C:\dev\*` roots still on `7d97a456` | F9 — owner did not confirm `--write --yes` |
+| `--exclude-project` clap flag | F20 decline |
+| Leftover memory reclassify / `MemoryMoved` | F7 / T259 F5 |
+| JSON `project_id` on `RecallResult` | F5 T180 freeze |
+| Semantic-only prefer-fill e2e | F32; lexical AC2 is the hole |
+| `project list` leftover-first | **T283** |
+| `context --show` leftover shell | **T282** |
 
 ### T274 closeout residuals (2026-08-21)
 

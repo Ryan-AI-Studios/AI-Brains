@@ -1,7 +1,7 @@
 # T276 — Leftover `7d97a456` must not starve `--global` (label, do not drop)
 
 - **Track ID:** T276-Leftover7d97Rebind
-- **Status:** **Planned** (plan-only until go; conductor stays **Pending**)
+- **Status:** **Completed** (2026-08-22)
 - **Category:** FEATURE / UX / RETRIEVAL
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — `recall --global` **7/3**; `project list-paths` **8/7**; leftover ~18k pins; many `C:\dev\*` path aliases. Placeholder minted with T274–T284 (`deabae7`).

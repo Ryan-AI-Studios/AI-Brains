@@ -1,6 +1,6 @@
 # T276 Plan — Leftover `7d97a456` must not starve `--global`
 
-**Status:** **Pending** (Planned; F0 until **go**)
+**Status:** **Completed** (FEATURE TX `6846ad81-4892-41fd-935c-82030dcaf0ac`)
 **Spec:** [spec.md](./spec.md) F0–F41 / AC1–AC16 + §13 AI fold-in
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger TX (planning):** `d5b9a9cc-fa83-4ce9-a74f-aaf77eb591fe` (DOCS)
@@ -53,17 +53,17 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `main.rs` force-set `:3268`, `Cli::parse()` `:3356`, clap `env = AI_BRAINS_PROJECT_ID` `:1017`, T112 clear `:4322` (preferred = pre-clear id)
-- [ ] Re-read `recall_full` lexical_search `:283–292` (`prefer_authority: true`) and bridge `:275–276` (`project_id` — must stay None when global, F40)
-- [ ] Re-read lexical SELECT `:259–265` (COALESCE is F15 tags, not fill); `format_pretty_hit_line` `:407` (F4/F18 tag arg)
-- [ ] Confirm leftover still 11 shared roots (`list-paths --shared-only --format json`); do **not** `--write --yes`
-- [ ] Rescan `conductor/deferred.md` — T276 rows already absorbed; no new overlapping open rows
-- [ ] Confirm #190 comments/reviews still empty (N/A); #188 Mediums stay T284; no mint
-- [ ] Re-dogfood `cargo run -p ai-brains-cli -- recall "what did we decide" --global --limit 5 --format pretty --no-bridge` (source has T274). PATH-behind noted
-- [ ] Re-check clap lock **4.6.1** (crates.io 4.6.6), rusqlite **0.39.0** (0.40.2), chrono **0.4.44** (0.4.45) — **no bump**
-- [ ] FEATURE TX on go
-- [ ] Did **not** `cargo install`; did **not** edit `ranking.rs` / `project.rs` / `POLICY_DENIED_HINT`; did **not** live-rebind leftover
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `main.rs` force-set `:3268`, `Cli::parse()` `:3356`, clap `env = AI_BRAINS_PROJECT_ID` `:1017`, T112 clear `:4322` (preferred = pre-clear id)
+- [x] Re-read `recall_full` lexical_search (`prefer_authority: true`) and bridge (`project_id` — stays None when global, F40)
+- [x] Re-read lexical SELECT (COALESCE is F15 tags, not fill); `format_pretty_hit_line` (F4/F18 tag arg)
+- [x] Confirm leftover still 11 shared roots (`list-paths --shared-only --format json`); do **not** `--write --yes`
+- [x] Rescan `conductor/deferred.md` — T276 rows already absorbed; no new overlapping open rows
+- [x] Confirm #190 comments/reviews still empty (N/A); #188 Mediums stay T284; no mint
+- [x] Re-dogfood PATH `--global` unlabeled; hermetic/source bin for ACs. PATH-behind noted
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX on go `6846ad81-4892-41fd-935c-82030dcaf0ac`
+- [x] Did **not** `cargo install`; did **not** edit ranking product logic / `project.rs` / `POLICY_DENIED_HINT`; did **not** live-rebind leftover
 
 ---
 
@@ -99,58 +99,58 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] Unit `merge_preferred_then_global__preferred_first_no_dupes` (AC1) — red until helper exists
-- [ ] Unit `merge_preferred_then_global__overlap_id__once` (F38)
-- [ ] Unit `merge_preferred_then_global__preferred_fills_depth__skips_global` (F39)
-- [ ] Retrieval hermetic `recall_full__global_prefer__owner_pin_beats_leftover_chrome` (AC2) — **required red**
-- [ ] Retrieval `recall_full__global_prefer__leftover_still_in_candidates` (AC3)
-- [ ] CLI hermetic `recall__global_pretty__tags_project` (AC4 — tag then space then `[score=` / `[rank=#`)
-- [ ] CLI `recall__global_json__no_project_id_key` (AC5)
-- [ ] CLI `recall__scoped_pretty__no_global_tag` (AC9)
+- [x] Unit `merge_preferred_then_global__preferred_first_no_dupes` (AC1) — red until helper exists
+- [x] Unit `merge_preferred_then_global__overlap_id__once` (F38)
+- [x] Unit `merge_preferred_then_global__preferred_fills_depth__skips_global` (F39)
+- [x] Retrieval hermetic `recall_full__global_prefer__owner_pin_beats_leftover_chrome` (AC2) — **required red**
+- [x] Retrieval `recall_full__global_prefer__leftover_still_in_candidates` (AC3)
+- [x] CLI hermetic `recall__global_pretty__tags_project` (AC4 — tag then space then `[score=` / `[rank=#`)
+- [x] CLI `recall__global_json__no_project_id_key` (AC5)
+- [x] CLI `recall__scoped_pretty__no_global_tag` (AC9)
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] `RetrievalMemory` + lexical SELECT `COALESCE(mp.project_id, sp.project_id)`
-- [ ] `RecallHit.project_id` (constructors default `None`)
-- [ ] `RecallOptions.preferred_project_id` (Default `None`)
-- [ ] `prefer_project.rs` merge (F38 HashSet, F39 skip); `recall_full` second `lexical_search` when preferred is Some (`prefer_authority: true` both, F40)
-- [ ] Comment at merge: AC3 is pre-rerank (F41)
-- [ ] CLI `main.rs`: `--global` threads pre-clear id as preferred; scoped `project_id` stays `None`
-- [ ] Pretty `--global` leading tag (reuse T264 peel/upgrade + `display_label`)
-- [ ] Sync `recall_full` one field (AC15)
-- [ ] No production `unwrap`/`expect`/`panic`
-- [ ] Do not edit `ranking.rs` / `project.rs` / leftover live aliases
+- [x] `RetrievalMemory` + lexical SELECT `COALESCE(mp.project_id, sp.project_id)`
+- [x] `RecallHit.project_id` (constructors default `None`)
+- [x] `RecallOptions.preferred_project_id` (Default `None`)
+- [x] `prefer_project.rs` merge (F38 HashSet, F39 skip); `recall_full` second `lexical_search` when preferred is Some (`prefer_authority: true` both, F40)
+- [x] Comment at merge: AC3 is pre-rerank (F41)
+- [x] CLI `main.rs`: `--global` threads pre-clear id as preferred; scoped `project_id` stays `None`
+- [x] Pretty `--global` leading tag (reuse T264 peel/upgrade + `display_label`)
+- [x] Sync `recall_full` one field (AC15)
+- [x] No production `unwrap`/`expect`/`panic`
+- [x] Do not edit `ranking.rs` product logic / `project.rs` / leftover live aliases
 
 ---
 
 ## Phase 3 — Docs + registry
 
-- [ ] CAPABILITIES: `--global` prefer-fill + labels; leftover split still `rebind-path`
-- [ ] OPERATIONS: one sentence (memories stay; `--global` labeled)
-- [ ] CHANGELOG minor
-- [ ] `conductor.md` **In Progress** during implement; Completed only after gate + review + publish
-- [ ] `deferred.md` absorb notes (planning pass already)
+- [x] CAPABILITIES: `--global` prefer-fill + labels; leftover split still `rebind-path`
+- [x] OPERATIONS: one sentence (memories stay; `--global` labeled)
+- [x] CHANGELOG minor
+- [x] `conductor.md` **In Progress** during implement; Completed only after gate + review + publish
+- [x] `deferred.md` absorb notes (planning pass already)
 
 ---
 
 ## Phase 4 — Verify (implement, not plan)
 
-- [ ] Targeted: `cargo nextest run -p ai-brains-retrieval --test recall_pin_rank --test recall_global_prefer`
-- [ ] `cargo nextest run -p ai-brains-cli --test recall_global_prefer --test project_rebind_path --test preflight_global_isolation`
-- [ ] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Manual hermetic AC2/AC4; live `list-paths --shared-only` print-only (AC12)
-- [ ] Review log `review.md`; FEATURE `codex-review` (F27)
-- [ ] Full gate at closeout only (`.\scripts\dev-check.ps1` + `ledgerful verify --scope full`)
+- [x] Targeted: `cargo nextest run -p ai-brains-retrieval --test recall_pin_rank --test recall_global_prefer`
+- [x] `cargo nextest run -p ai-brains-cli --test recall_global_prefer --test project_rebind_path --test preflight_global_isolation`
+- [x] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
+- [x] Manual hermetic AC2/AC4; live `list-paths --shared-only` print-only (AC12)
+- [x] Review log `review.md`; FEATURE `codex-review` (F27) CX2 PASS WITH P3-1
+- [x] Full gate at closeout only (`.\scripts\dev-check.ps1` + `ledgerful verify --scope full`)
 
 ---
 
 ## DoD
 
-- [ ] AC1–AC16 green (AC12 recorded; live write only if owner confirmed)
-- [ ] No silent leftover exclude (AC3)
-- [ ] No T240 F2 `.env`; no hardcoded leftover UUID in SQL
-- [ ] T274 / T259 / T264 suites stay green
+- [x] AC1–AC16 green (AC12 recorded; live write only if owner confirmed)
+- [x] No silent leftover exclude (AC3)
+- [x] No T240 F2 `.env`; no hardcoded leftover UUID in SQL
+- [x] T274 / T259 / T264 suites stay green
 - [ ] Conductor T276 **Completed** only after go + gate + review + publish (Phase 6)
 - [ ] Pin decisions after implement
