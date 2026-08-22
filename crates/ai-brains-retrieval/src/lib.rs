@@ -6,6 +6,7 @@ mod lexical;
 mod prefer_project;
 mod preflight;
 mod preflight_global;
+mod preflight_safety;
 mod privacy_filter;
 mod ranking;
 mod recall;

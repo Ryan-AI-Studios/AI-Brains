@@ -84,6 +84,14 @@ pub fn index_marker_glob_sql(column: &str) -> String {
     format!(" AND ({inner} OR {column} GLOB 'HOTSPOT:*' OR {column} GLOB 'ASSISTANT: HOTSPOT:*')")
 }
 
+/// Safety GLOB: leading CONSTRAINT / INVARIANT / HOTSPOT only (T279 F1).
+///
+/// Does **not** include `DECISION:` — that belongs to Index (`index_marker_glob_sql`).
+/// T279 red stub: empty so AC1 fails until green.
+pub fn safety_marker_glob_sql(_column: &str) -> String {
+    String::new()
+}
+
 /// `AND col NOT IN (?,?,…)` with `n` placeholders. `n == 0` → omit (F35).
 pub fn bound_not_in_sql(column: &str, n: usize) -> Option<String> {
     debug_assert!(
@@ -181,6 +189,33 @@ mod tests {
         assert!(!is_session_chrome("CONSTRAINT: must be safe"));
         assert!(!is_session_chrome("just a chat turn about ranking"));
         assert!(!is_session_chrome("# Heading without chrome prefixes"));
+    }
+
+    #[test]
+    fn safety_marker_glob_sql__includes_constraint_not_decision() {
+        let sql = safety_marker_glob_sql("m.content");
+        assert!(
+            sql.contains("CONSTRAINT:*"),
+            "AC1: CONSTRAINT:* GLOB; got {sql}"
+        );
+        assert!(
+            sql.contains("INVARIANT:*"),
+            "AC1: INVARIANT:* GLOB; got {sql}"
+        );
+        assert!(sql.contains("HOTSPOT:*"), "AC1: HOTSPOT:* GLOB; got {sql}");
+        assert!(
+            sql.contains("ASSISTANT: CONSTRAINT:*"),
+            "AC1: ASSISTANT: CONSTRAINT:* GLOB; got {sql}"
+        );
+        assert!(
+            !sql.contains("DECISION:"),
+            "AC1: Safety GLOB must not include DECISION:; got {sql}"
+        );
+        assert!(sql.contains("GLOB"), "AC1: must use GLOB; got {sql}");
+        assert!(
+            !sql.to_ascii_uppercase().contains("LIKE"),
+            "AC1: must not emit LIKE; got {sql}"
+        );
     }
 
     #[test]

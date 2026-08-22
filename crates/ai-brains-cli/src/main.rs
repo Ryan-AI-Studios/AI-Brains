@@ -622,6 +622,21 @@ mod tests {
         );
     }
 
+    /// T279 F30: after_help names Safety live hotspots + dry-run empty.
+    #[test]
+    #[allow(non_snake_case)]
+    fn preflight__help__names_session_safety_hotspots() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "preflight", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("hotspots") && help.contains("safety sync --dry-run"),
+            "F30: after_help names live hotspots and dry-run empty; got: {help}"
+        );
+    }
+
     /// T278 F30: after_help names session PREVIEW caption shape.
     #[test]
     #[allow(non_snake_case)]
