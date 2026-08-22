@@ -105,6 +105,47 @@ fn pin__graph_on__printed_id_neighbors_pretty__ac7() {
     );
 }
 
+/// T278 AC3: pin → neighbors pretty PREVIEW includes session memory caption (no rebuild).
+#[cfg(feature = "graph")]
+#[test]
+fn pin__graph_on__neighbors_pretty__session_preview_nonblank() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    let memory_id = pin_decision(&vault);
+
+    let pretty = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg(&memory_id)
+        .arg("--format")
+        .arg("pretty")
+        .output()
+        .expect("neighbors pretty");
+    assert!(
+        pretty.status.success(),
+        "neighbors pretty failed: {}",
+        String::from_utf8_lossy(&pretty.stderr)
+    );
+    let pretty_out = String::from_utf8_lossy(&pretty.stdout);
+    assert!(
+        pretty_out.contains("session"),
+        "pretty must name session KIND; got: {pretty_out}"
+    );
+    assert!(
+        pretty_out.contains("memories"),
+        "session PREVIEW must include memories; got: {pretty_out}"
+    );
+    let preview_has_text = pretty_out.lines().any(|line| {
+        line.contains("session")
+            && line.contains("memories")
+            && line.chars().any(|c| !c.is_whitespace())
+    });
+    assert!(
+        preview_has_text,
+        "session PREVIEW row must have a non-whitespace caption; got: {pretty_out}"
+    );
+}
+
 /// CX1-P2: a vault session missing from graph_node must get rebuild, not F1b.
 #[cfg(feature = "graph")]
 #[test]

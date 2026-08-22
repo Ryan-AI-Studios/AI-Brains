@@ -1,12 +1,12 @@
 # T278 Plan — Session neighbor PREVIEW + honest density
 
-**Status:** **Pending** (Planned). F0 = plan-only until **go**.
+**Status:** **In Progress**
 **Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC14 + §13 AI fold-in
 **Category:** FEATURE / UX
 **Ledger TX (planning):** `977c5e7e-1043-4d5d-ab52-7803cd231f6a` (DOCS)
 **Ledger TX (fold-in Agy):** `384ed242-bb9d-4125-9079-3f40b8d5486a` (DOCS)
 **Ledger TX (fold-in OpenCode):** `0765b916-9f38-417b-a698-b39b657078dd` (DOCS)
-**Ledger TX (implement):** start **FEATURE** on **go**
+**Ledger TX (implement):** FEATURE `13cc210d-e29b-48b0-b370-2f858a092eb9`
 
 ---
 
@@ -90,12 +90,12 @@ No Blockers / Majors either harness. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `format_session_neighbor_preview__zero_and_blank__zero_memories_no_dot` — AC1
-- [ ] `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1 (`(1,"preview")` + CJK)
-- [ ] `format_neighbors_pretty__session_recalls__preview_shows_memories` — AC2
-- [ ] `pin__graph_on__neighbors_pretty__session_preview_nonblank` — AC3
-- [ ] `pick_first_nonempty__blank_then_hello__some_hello` — AC14
-- [ ] Commit red allowed
+- [x] `format_session_neighbor_preview__zero_and_blank__zero_memories_no_dot` — AC1
+- [x] `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1 (`(1,"preview")` + CJK)
+- [x] `format_neighbors_pretty__session_recalls__preview_shows_memories` — AC2
+- [x] `pin__graph_on__neighbors_pretty__session_preview_nonblank` — AC3
+- [x] `pick_first_nonempty__blank_then_hello__some_hello` — AC14
+- [x] Commit red allowed
 
 ## Phase 2 — Green
 

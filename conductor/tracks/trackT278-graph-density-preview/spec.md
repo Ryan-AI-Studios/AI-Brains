@@ -1,7 +1,7 @@
 # T278 — Graph neighbor previews must be readable; density stays honest
 
 - **Track ID:** T278-GraphDensityPreview
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **In Progress**
 - **Category:** FEATURE / UX
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — `graph update` **7/7** sparse E/N ~0.11; `graph neighbors` **6/6** RECALLS with blank PREVIEW. Placeholder minted with T274–T284.

@@ -249,6 +249,16 @@ fn memory_preview(ctx: &AppContext, memory_id: &str) -> Result<String, Box<dyn s
     }))
 }
 
+/// T278 F2: `{n} memories` plus optional ` · first` (trim-empty first → no dot), cap 80.
+pub(crate) fn format_session_neighbor_preview(_n: usize, _first_preview: &str) -> String {
+    String::new()
+}
+
+/// T278 F34: skip items whose trim is empty; return the first remaining as-is.
+pub(crate) fn pick_first_nonempty(_previews: &[String]) -> Option<String> {
+    None
+}
+
 fn pretty_neighbor_rows(
     ctx: &AppContext,
     searcher: &GraphSearch<'_>,
@@ -762,6 +772,104 @@ mod tests {
             hit_keys,
             std::collections::BTreeSet::from(["external_id", "label", "direction"])
         );
+    }
+
+    #[test]
+    fn format_session_neighbor_preview__zero_and_blank__zero_memories_no_dot() {
+        assert_eq!(format_session_neighbor_preview(0, ""), "0 memories");
+        let ws = format_session_neighbor_preview(2, "   ");
+        assert_eq!(ws, "2 memories");
+        assert!(!ws.contains(" · "));
+    }
+
+    #[test]
+    fn format_session_neighbor_preview__count_and_first__dot_and_cap_80() {
+        let one = format_session_neighbor_preview(1, "preview");
+        assert!(one.contains("1 memories"), "got {one:?}");
+        assert!(one.contains("preview"), "got {one:?}");
+        assert!(one.contains(" · "), "got {one:?}");
+        let three = format_session_neighbor_preview(3, "hello");
+        assert!(three.contains("3 memories"), "got {three:?}");
+        assert!(three.contains("hello"), "got {three:?}");
+        assert!(three.contains(" · "), "got {three:?}");
+        let long = "a".repeat(200);
+        let capped = format_session_neighbor_preview(1, &long);
+        assert!(
+            capped.chars().count() <= 80,
+            "ASCII cap chars={} got {capped:?}",
+            capped.chars().count()
+        );
+        assert!(capped.ends_with('…'), "got {capped:?}");
+        let cjk = "日本語テストプレビュー境界値チェック用の長い行です".repeat(8);
+        let cjk_out = format_session_neighbor_preview(1, &cjk);
+        assert!(
+            cjk_out.chars().count() <= 80,
+            "CJK cap chars={} got {cjk_out:?}",
+            cjk_out.chars().count()
+        );
+        assert!(cjk_out.ends_with('…'), "got {cjk_out:?}");
+    }
+
+    #[test]
+    fn format_neighbors_pretty__session_recalls__preview_shows_memories() {
+        let mut rows = fixture_neighbor_rows();
+        rows[0].preview = format_session_neighbor_preview(2, "pin text");
+        let text = format_neighbors_pretty("root-id", &rows, 50);
+        assert!(text.contains("DIR"));
+        assert!(text.contains("in "));
+        assert!(text.contains("RECALLS"));
+        assert!(text.contains("session"));
+        assert!(
+            text.contains("2 memories"),
+            "session PREVIEW must show count; got: {text}"
+        );
+        let raw = format_neighbors_json(
+            "root-id",
+            &[NeighborHit {
+                external_id: "3b4e95b8-a011-48a8-b5ea-72e36c6a2458".into(),
+                label: "RECALLS".into(),
+                direction: "incoming".into(),
+            }],
+        )
+        .expect("json");
+        let v: serde_json::Value = serde_json::from_str(&raw).expect("parse");
+        assert_eq!(
+            v.as_object()
+                .expect("obj")
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            vec!["memory_id", "neighbors"]
+        );
+        let hit_keys: std::collections::BTreeSet<&str> = v["neighbors"][0]
+            .as_object()
+            .expect("hit")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            hit_keys,
+            std::collections::BTreeSet::from(["external_id", "label", "direction"])
+        );
+        assert_eq!(v["neighbors"][0]["direction"], "incoming");
+        assert_eq!(v["neighbors"][0]["external_id"], "3b4e95b8-a011-48a8-b5ea-72e36c6a2458");
+    }
+
+    #[test]
+    fn pick_first_nonempty__blank_then_hello__some_hello() {
+        let blank = [String::new(), "  ".into(), "hello".into()];
+        let pick = pick_first_nonempty(&blank);
+        assert_eq!(pick.as_deref(), Some("hello"));
+        assert_eq!(
+            pick_first_nonempty(&[String::from("pin")]).as_deref(),
+            Some("pin")
+        );
+        assert_eq!(pick_first_nonempty(&["".into(), "   ".into()]), None);
+        assert_eq!(pick_first_nonempty(&[]), None);
+        let caption = format_session_neighbor_preview(3, pick.as_deref().unwrap_or(""));
+        assert!(caption.contains("3 memories"), "got {caption:?}");
+        assert!(caption.contains("hello"), "got {caption:?}");
+        assert!(caption.contains(" · "), "got {caption:?}");
     }
 
     #[test]
