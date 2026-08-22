@@ -1,11 +1,11 @@
 # T279 Plan — Preflight Safety vs live hotspots
 
-**Status:** **Pending** (Planned — requirements written; F0 until **go**)
+**Status:** **Completed** (implement 2026-08-22)
 **Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC14 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `4d4dd4b0-1884-4bfc-a0dd-8543aa5de1a5` (DOCS)
 **Ledger TX (fold-in Agy+OpenCode):** `2b834a4e-ea61-4142-a6c5-a03a9a7eb108` (DOCS)
-**Ledger TX (implement):** FEATURE on **go**
+**Ledger TX (implement):** FEATURE `a9c3fdbd-a516-4b8e-b1a9-f3534f057ab4`
 
 ---
 
@@ -48,19 +48,19 @@ No Blockers / Majors either harness. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read Safety SQL (`retrieval/src/preflight.rs` ~`:290–305`), skip-set ~`:345–349`, emit ~`:351–376`, HOTSPOT suppress ~`:325–327`
-- [ ] Re-read `query_ledgerful` ~`:695` — **do not edit** (F11)
-- [ ] Re-read CLI `safety.rs` `fetch_hotspots_json` ~`:102–128` + clap `SafetyCommands::Sync` default **5**
-- [ ] Re-read `index_marker_glob_sql` (`session_chrome.rs` ~`:73`) — **do not reuse** (includes DECISION)
-- [ ] Confirm T272 AC2/AC3 still in `preflight_global_isolation.rs`
-- [ ] Confirm T219 `preflight_pretty__summary_smoke__dual_model_unchanged` (`:266`) and `preflight_pretty__summary_compact__dual_model_unchanged` (`:532`) still assert no Bearings on `--summary`
-- [ ] Rescan `conductor/deferred.md` — T279 rows absorbed; no new overlapping open rows
-- [ ] Confirm #194 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `safety sync --dry-run` + `preflight --pretty --compact -m 400` **read-only**. **Did not** pin. **Did not** `safety sync` without `--dry-run`
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX on go
-- [ ] Did **not** `cargo install`; did **not** grow `project.rs` / CLI `preflight.rs` / `doctor.rs` / `sync.rs` / `safety.rs`
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read Safety SQL (`retrieval/src/preflight.rs` ~`:290–305`), skip-set ~`:345–349`, emit ~`:351–376`, HOTSPOT suppress ~`:325–327`
+- [x] Re-read `query_ledgerful` ~`:695` — **do not edit** (F11)
+- [x] Re-read CLI `safety.rs` `fetch_hotspots_json` ~`:102–128` + clap `SafetyCommands::Sync` default **5**
+- [x] Re-read `index_marker_glob_sql` (`session_chrome.rs` ~`:73`) — **do not reuse** (includes DECISION)
+- [x] Confirm T272 AC2/AC3 still in `preflight_global_isolation.rs`
+- [x] Confirm T219 `preflight_pretty__summary_smoke__dual_model_unchanged` (`:266`) and `preflight_pretty__summary_compact__dual_model_unchanged` (`:532`) still assert no Bearings on `--summary`
+- [x] Rescan `conductor/deferred.md` — T279 rows absorbed; no new overlapping open rows
+- [x] Confirm #194 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `safety sync --dry-run` + `preflight --pretty --compact -m 400` **read-only**. **Did not** pin. **Did not** `safety sync` without `--dry-run`
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX `a9c3fdbd-a516-4b8e-b1a9-f3534f057ab4`
+- [x] Did **not** `cargo install`; did **not** grow `project.rs` / CLI `preflight.rs` / `doctor.rs` / `sync.rs` / `safety.rs`
 
 ---
 
@@ -89,60 +89,60 @@ No Blockers / Majors either harness. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `safety_marker_glob_sql__includes_constraint_not_decision` — AC1
-- [ ] `format_safety_hotspot_line__path_and_score__hotspot_prefix` — AC2
-- [ ] `parse_hotspots_json__log_then_array__one_path` — AC9
-- [ ] `preflight__buried_constraint_dump__not_in_safety` — AC3
-- [ ] `preflight__no_bearings__emits_safety_sync_remediator` — AC4
-- [ ] `safety_empty_const__no_hotspot_marker` — AC14
-- [ ] `skip_live_hotspots_env__truthy__no_spawn` — AC8
-- [ ] Commit red allowed
+- [x] `safety_marker_glob_sql__includes_constraint_not_decision` — AC1
+- [x] `format_safety_hotspot_line__path_and_score__hotspot_prefix` — AC2
+- [x] `parse_hotspots_json__log_then_array__one_path` — AC9
+- [x] `preflight__buried_constraint_dump__not_in_safety` — AC3
+- [x] `preflight__no_bearings__emits_safety_sync_remediator` — AC4
+- [x] `safety_empty_const__no_hotspot_marker` — AC14
+- [x] `skip_live_hotspots_env__truthy__no_spawn` — AC8
+- [x] Commit red allowed (`df173a7`)
 
 ## Phase 2 — Green
 
-- [ ] F1 `safety_marker_glob_sql` in `session_chrome.rs`; Safety SQL uses it (not LIKE, not `index_marker_glob_sql`)
-- [ ] F14 `preflight_safety.rs`: parse (F36 line-finder), `format_safety_hotspot_line`, `SAFETY_EMPTY`, skip-env, fail-open fetch
-- [ ] F2 prepend live lines (project-scoped, limit 5) **without** memory_ids (F5)
-- [ ] F3 always-emit header + empty or body; F37 still `trim_to_word_budget_no_sentinel(..., onboarding_budget)`
-- [ ] F7 suppress vault HOTSPOT when live inject non-empty
-- [ ] F13 `hermetic_bin` sets `AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS=1`; denylist includes the key
-- [ ] F30 preflight `after_help` additive (`main.rs`)
-- [ ] AC5/AC6/AC7/AC11/AC12 stay green
-- [ ] Commit green
+- [x] F1 `safety_marker_glob_sql` in `session_chrome.rs`; Safety SQL uses it (not LIKE, not `index_marker_glob_sql`)
+- [x] F14 `preflight_safety.rs`: parse (F36 line-finder), `format_safety_hotspot_line`, `SAFETY_EMPTY`, skip-env, fail-open fetch
+- [x] F2 prepend live lines (project-scoped, limit 5) **without** memory_ids (F5)
+- [x] F3 always-emit header + empty or body; F37 still `trim_to_word_budget_no_sentinel(..., onboarding_budget)`
+- [x] F7 suppress vault HOTSPOT when live inject non-empty (leading `PinKind::Hotspot`; Intelligence substring kept)
+- [x] F13 `hermetic_bin` sets `AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS=1`; denylist includes the key
+- [x] F30 preflight `after_help` additive (`main.rs`)
+- [x] AC5/AC6/AC7/AC11/AC12 stay green
+- [x] Commit green (`0766239`); fixture skip (`4e4cc5a`); F7/cap (`8fd6eab`)
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES: Safety = live hotspots (project-scoped) + leading GLOB; empty names `safety sync --dry-run`
-- [ ] OPERATIONS one sentence (preflight vs `safety sync --dry-run`; pin is mutating)
-- [ ] PROTOCOL-COMPAT: no new required keys
-- [ ] CHANGELOG T279
-- [ ] Skill one-liner if preflight section exists
-- [ ] conductor Completed only on implement closeout — **not** this planning pass
+- [x] CAPABILITIES: Safety = live hotspots (project-scoped) + leading GLOB; empty names `safety sync --dry-run`
+- [x] OPERATIONS one sentence (preflight vs `safety sync --dry-run`; pin is mutating)
+- [x] PROTOCOL-COMPAT: no new required keys
+- [x] CHANGELOG T279
+- [x] Skill one-liner if preflight section exists (tracked `.claude`; untracked `.agents` copy)
+- [x] conductor Completed on implement closeout
 
 ## Phase 4 — Verify
 
-- [ ] Targeted nextest: `-p ai-brains-retrieval` safety units; `--test preflight_global_isolation`; new AC3/AC4 hermetic; T219 summary test
-- [ ] `cargo clippy -p ai-brains-retrieval --all-targets -- -D warnings` ; `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] `cargo fmt --check`
-- [ ] Primary review → `review.md`; mediums not silently dropped
-- [ ] Cross-model `codex-review` (F23)
-- [ ] Full workspace gate at closeout only
-- [ ] Classify-only live `cargo run -p ai-brains-cli -- preflight --pretty --compact -m 400` (AC10). **No** live pin. **No** `safety sync` without `--dry-run`
+- [x] Targeted nextest: `-p ai-brains-retrieval` safety units; `--test preflight_global_isolation`; new AC3/AC4 hermetic; T219 summary test
+- [x] `cargo clippy -p ai-brains-retrieval --all-targets -- -D warnings` ; `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] `cargo fmt --check`
+- [x] Primary review → `review.md`; mediums not silently dropped
+- [x] Cross-model `codex-review` (F23) CX1 FAIL → fixes; CX2 **PASS WITH DEFERRED P3**
+- [x] Full workspace gate: `dev-check.ps1` nextest **3294** passed / 1 skipped; `ledgerful verify --scope full` exit 0
+- [x] Classify-only live `cargo run -p ai-brains-cli -- preflight --pretty --compact -m 400` (AC10). **No** live pin. **No** `safety sync` without `--dry-run`
 
 ## DoD (checkable)
 
-- [ ] Hermetic: buried CONSTRAINT dump **not** in Safety; leading CONSTRAINT **is** (AC3)
-- [ ] Hermetic: no bearings → Safety header + `safety sync --dry-run` (AC4)
-- [ ] GLOB helper excludes DECISION (AC1)
-- [ ] Live line unit `HOTSPOT:` + `{:.2}` (AC2)
-- [ ] JSON parse fail-open (AC9)
-- [ ] Skip-env no spawn (AC8)
-- [ ] T272 AC2 green (AC5)
-- [ ] `--summary` still no Bearings header (AC6)
-- [ ] Live classify-only AC10 (cargo run, not PATH)
-- [ ] No live `safety sync` without `--dry-run`
-- [ ] No `cargo install`
-- [ ] Diff omits `project.rs` / CLI `preflight.rs` / `doctor.rs` / `sync.rs` / `safety.rs` (AC13)
+- [x] Hermetic: buried CONSTRAINT dump **not** in Safety; leading CONSTRAINT **is** (AC3)
+- [x] Hermetic: no bearings → Safety header + `safety sync --dry-run` (AC4)
+- [x] GLOB helper excludes DECISION (AC1)
+- [x] Live line unit `HOTSPOT:` + `{:.2}` (AC2)
+- [x] JSON parse fail-open (AC9)
+- [x] Skip-env no spawn (AC8)
+- [x] T272 AC2 green (AC5)
+- [x] `--summary` still no Bearings header (AC6)
+- [x] Live classify-only AC10 (cargo run, not PATH)
+- [x] No live `safety sync` without `--dry-run`
+- [x] No `cargo install`
+- [x] Diff omits `project.rs` / CLI `preflight.rs` / `doctor.rs` / `sync.rs` / `safety.rs` (AC13)
 - [ ] implement-track Phase 6: push `track/T279-*` → PR → watch GHA `CI` green → squash-merge → prune (never `git push origin main`)
 
 ## Stop-before

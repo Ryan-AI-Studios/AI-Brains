@@ -1,7 +1,7 @@
 # T279 — Preflight Safety must not be a captured review-track prompt
 
 - **Track ID:** T279-PreflightSafetyVsHotspots
-- **Status:** **Planned** (Pending until **go**; F0)
+- **Status:** **Completed** (2026-08-22)
 - **Category:** UX / HONESTY
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — friction: `preflight --pretty` “Repository Bearings & Safety” was a T272 review-track Objective dump; `safety sync --dry-run` listed `project.rs` etc. Placeholder minted with T274–T284.

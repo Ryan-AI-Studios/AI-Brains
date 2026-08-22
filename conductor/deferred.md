@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Planned** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -13,7 +13,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
 | 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
-| preflight Safety = review-track Objective | **T279 Planned** 2026-08-22 |
+| preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
 | `context --show` misses leftover shell | **T282** |
@@ -318,6 +318,22 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode O1 `--global` empty wording | **Decline** — one `SAFETY_EMPTY` |
 | last-PR #194 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M |
+
+### T279 closeout residuals (2026-08-22) — Safety GLOB + live hotspots + honest empty
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` | F20 — tests/manual use `cargo run` |
+| Intelligence + Safety path dup if bridge later fills | F11 |
+| CLI `safety.rs` vs retrieval JSON parse drift | F29 |
+| Unbounded `ledgerful hotspots` wait | F35 |
+| Session `HOTSPOT:` skip | F32 / T272 F18 |
+| Safety SQL still no `is_injectable_privacy` | CX1 P0-1 **out of scope** — pre-existing; Index already filters |
+| `--global` empty remediator is cwd dry-run | OpenCode O1 declined |
+| Live leftover 11 roots | T276 F9 |
+| Live 0 of 3 grants | T275 F10 |
+| T280–T283 peers | F17 |
+| `agy-review.md` trailing whitespace lines 3–6 | CX2 P3 — plan-review artifact; do not edit `*-review.md` |
 
 ### T274 closeout residuals (2026-08-21)
 
