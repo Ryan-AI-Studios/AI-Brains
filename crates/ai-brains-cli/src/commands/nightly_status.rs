@@ -1,7 +1,9 @@
 //! T255 nightly `--status` JSON builder, format resolver, and Router display helpers.
 
 use crate::commands::multi_import::{MultiImportStatusView, SourceImportReport};
-use crate::commands::nightly::{explain_last_task_result, host_port_from_url};
+use crate::commands::nightly::{
+    explain_last_task_result, format_endpoint_line, host_port_from_url,
+};
 use serde::Serialize;
 
 /// Human heading so Nightly Last Result is not read as the Router task (T269 F1).
@@ -14,6 +16,33 @@ pub(crate) fn format_probe_label_human(label: &str, budget_ms: u128) -> String {
     } else {
         label.to_string()
     }
+}
+
+/// Human contrast when Completion probe is the raw `timeout` token (T281 F1).
+pub(crate) const HTTP_VS_TCP_CONTRAST: &str = "HTTP /health 750ms ≠ daemon TCP";
+
+/// Some iff `raw_label` is the exact token `timeout` (not the human `timeout (750ms)` wrap).
+pub(crate) fn completion_timeout_contrast_line(raw_label: &str) -> Option<&'static str> {
+    if raw_label == "timeout" {
+        Some(HTTP_VS_TCP_CONTRAST)
+    } else {
+        None
+    }
+}
+
+/// Completion human block: T269 suffix on line 1; T281 F1 on the next line iff raw `timeout`.
+pub(crate) fn completion_status_human_lines(
+    url: &str,
+    model: &str,
+    raw_label: &str,
+    budget_ms: u128,
+) -> Vec<String> {
+    let human = format_probe_label_human(raw_label, budget_ms);
+    let mut lines = vec![format_endpoint_line("Completion", url, model, &human)];
+    if let Some(contrast) = completion_timeout_contrast_line(raw_label) {
+        lines.push(contrast.to_string());
+    }
+    lines
 }
 
 /// Nightly `--status` format tokens (shared human/json map).
@@ -380,6 +409,94 @@ mod tests {
     }
 
     #[test]
+    fn http_vs_tcp_contrast__equals_frozen_line() {
+        assert_eq!(HTTP_VS_TCP_CONTRAST, "HTTP /health 750ms ≠ daemon TCP");
+        assert_eq!(HTTP_VS_TCP_CONTRAST.chars().count(), 31);
+        assert!(HTTP_VS_TCP_CONTRAST.contains("/health"));
+        assert!(HTTP_VS_TCP_CONTRAST.contains("750ms"));
+        assert!(HTTP_VS_TCP_CONTRAST.contains("daemon TCP"));
+        assert!(HTTP_VS_TCP_CONTRAST.contains('\u{2260}'));
+        assert_ne!(HTTP_VS_TCP_CONTRAST, "HTTP /health 750ms != daemon TCP");
+    }
+
+    #[test]
+    fn completion_timeout_contrast_line__timeout__some_frozen() {
+        assert_eq!(
+            completion_timeout_contrast_line("timeout"),
+            Some(HTTP_VS_TCP_CONTRAST)
+        );
+    }
+
+    #[rstest::rstest]
+    #[case("skipped")]
+    #[case("ok")]
+    #[case("down")]
+    #[case("error")]
+    #[case("")]
+    #[case("TIMEOUT")]
+    #[case("timeout-ish")]
+    #[case("timeout (750ms)")]
+    fn completion_timeout_contrast_line__passthrough_labels__none(#[case] label: &str) {
+        assert_eq!(completion_timeout_contrast_line(label), None);
+    }
+
+    #[test]
+    fn completion_status_human_lines__timeout__suffix_then_frozen_contrast() {
+        let lines = completion_status_human_lines(
+            "http://127.0.0.1:8081",
+            "gemma-4-E4B-it-Q6_K.gguf",
+            "timeout",
+            750,
+        );
+        assert_eq!(
+            lines,
+            vec![
+                "Completion: 127.0.0.1:8081  model=gemma-4-E4B-it-Q6_K.gguf  probe=timeout (750ms)"
+                    .to_string(),
+                HTTP_VS_TCP_CONTRAST.to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn completion_status_human_lines__human_wrapped_raw__no_contrast() {
+        let lines = completion_status_human_lines(
+            "http://127.0.0.1:8081",
+            "gemma-4-E4B-it-Q6_K.gguf",
+            "timeout (750ms)",
+            750,
+        );
+        assert_eq!(lines.len(), 1);
+        assert!(
+            lines[0].contains("probe=timeout (750ms)"),
+            "wrapped raw still prints as probe label: {}",
+            lines[0]
+        );
+        assert!(
+            !lines
+                .iter()
+                .any(|l| l.contains("HTTP /health") || l.contains("daemon TCP")),
+            "mis-wired human label must not emit F1: {lines:?}"
+        );
+    }
+
+    #[rstest::rstest]
+    #[case("skipped")]
+    #[case("ok")]
+    #[case("down")]
+    #[case("error")]
+    fn completion_status_human_lines__passthrough__single_line_no_contrast(#[case] label: &str) {
+        let lines = completion_status_human_lines("http://127.0.0.1:8081", "m", label, 750);
+        assert_eq!(lines.len(), 1);
+        assert!(
+            lines[0].contains(&format!("probe={label}")),
+            "passthrough probe label: {}",
+            lines[0]
+        );
+        assert!(!lines[0].contains("HTTP /health"));
+    }
+
+    #[test]
     fn format_probe_label_human__timeout__budget_suffix() {
         assert_eq!(format_probe_label_human("timeout", 750), "timeout (750ms)");
     }
@@ -405,6 +522,11 @@ mod tests {
         let value = to_value(&status);
         assert_eq!(value["completion"]["probe"], "timeout");
         assert_ne!(value["completion"]["probe"], "timeout (750ms)");
+        let raw = value.to_string();
+        assert!(
+            !raw.contains("HTTP /health") && !raw.contains('\u{2260}'),
+            "AC4: JSON must not contain T281 F1 contrast; got: {raw}"
+        );
     }
 
     #[test]

@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -15,7 +15,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
-| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
+| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Completed** |
 | `context --show` misses leftover shell | **T282** |
 | `project list` leftover-first | **T283** |
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
@@ -383,6 +383,54 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Live leftover 11 roots | T276 F9 |
 | T281–T283 peers | F17 |
 | Series README Planned at CX1 | P3-3 **verified_fixed** at closeout |
+
+### T281 planning absorption (2026-08-22) — timeout next-line HTTP vs TCP; no 750 raise
+
+| Item | Disposition |
+|------|-------------|
+| Audit nightly Completion timeout vs daemon Open (750 ms not raised) | **Absorb** F1–F5 / AC1–AC2 / AC7 / AC10 — after_help already T269; status-block next line is DoD |
+| T269 closeout two-truths on `--status` | **Absorb** F1 — gate on raw `== "timeout"`; do **not** print when `ok` |
+| T269 F21 JSON budget field | **Decline** F3 |
+| T255 F18 raise 750 / doctor 16th / persist / wrapper | **Decline** F2 / F11 |
+| Unify daemon TCP with HTTP `/health` | **Decline** F10 |
+| TCP-probe from nightly to print Open | **Decline** F1 / F27 |
+| Embedding-only timeout contrast | **Decline as DoD** F26 |
+| last-PR Cursor #196 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| T282 `--show` / T283 list | **Decline** peers |
+| leftover `7d97a456` 11 roots | **Decline** — T276 Completed; live rebind owner-confirm |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F12/F17 |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
+| Live schtasks mutate / force llama load | **F16** — hermetic + pass-with-observed-data is DoD |
+
+### T281 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M-1 AC2 omit `"timeout (750ms)"` | **Folded** F32 / AC2 extra `#[case]` |
+| Agy m1 U+2260 vs ASCII `!=` | **Already** F25; **folded** AC1 `assert_ne!` |
+| Agy m2 raw `completion_label` | **Already** §5.2; **folded** F32 |
+| OpenCode m-1 `scripts/dev-check.ps1` | **Folded** plan Phase 4 |
+| OpenCode m-2 AC10/AC8 vs AC7 comments | **Partial** — additive AC7; do not renumber T255/T269 |
+| Agy O1 docs / O2 rstest | **Already** F19 / AC2 |
+| OpenCode O-3 skill `--status` missing | **Folded** F19 no-op |
+| OpenCode O-5 HEAD ahead of origin/main | **Folded** Phase 0 fetch/reconcile |
+| OpenCode invented F1 / nightly-is-TCP / strip T269 suffix | **Decline** §13 |
+| last-PR #196 Cursor | **Affirm N/A** — no T285 |
+| No B from either harness | Nothing to decline of B |
+
+### T281 closeout residuals (2026-08-22)
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` | F13 |
+| Embedding-only timeout has no F1 | F26 |
+| JSON has no budget / contrast field | F3 |
+| ledgerful doctor `:8081` chat ≠ nightly `/health` | F11 — not doctor 16th |
+| Daemon Stopped + port Open | F27 — F1 does not say Open |
+| Live leftover 11 roots / 0 of 3 grants | T276 F9 / T275 F10 |
+| CX1 P2-1 call-site helper | **verified_fixed** — `completion_status_human_lines(raw)` |
 
 ### T274 closeout residuals (2026-08-21)
 

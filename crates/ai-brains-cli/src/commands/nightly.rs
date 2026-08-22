@@ -184,23 +184,18 @@ pub async fn run(
             "Errors in last run: {}",
             last_errors_raw.as_deref().unwrap_or("[]")
         );
-        let completion_human = crate::commands::nightly_status::format_probe_label_human(
-            completion_label,
-            NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis(),
-        );
         let embedding_human = crate::commands::nightly_status::format_probe_label_human(
             embedding_label,
             NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis(),
         );
-        println!(
-            "{}",
-            format_endpoint_line(
-                "Completion",
-                &model_url,
-                &completion_model,
-                &completion_human,
-            )
-        );
+        for line in crate::commands::nightly_status::completion_status_human_lines(
+            &model_url,
+            &completion_model,
+            completion_label,
+            NIGHTLY_STATUS_PROBE_TIMEOUT.as_millis(),
+        ) {
+            println!("{line}");
+        }
         println!(
             "{}",
             format_endpoint_line(
