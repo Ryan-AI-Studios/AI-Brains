@@ -34,6 +34,7 @@ fn preflight_system_id() -> PrincipalId {
 }
 
 fn open_store() -> (tempfile::NamedTempFile, SqliteEventStore, ProjectId) {
+    common::skip_live_preflight_hotspots();
     let temp_file = tempfile::NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
     let key = DataKey::generate();

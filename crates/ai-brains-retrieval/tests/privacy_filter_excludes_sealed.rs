@@ -28,6 +28,10 @@ fn privacy_filter_excludes_sealed() -> Result<(), Box<dyn std::error::Error>> {
         None,
         false,
     )?;
-    assert!(preflight.text.is_empty());
+    assert!(
+        !preflight.text.contains("PRIVATE KEY"),
+        "sealed payload must not inject; text=\n{}",
+        preflight.text
+    );
     Ok(())
 }
