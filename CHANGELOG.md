@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T276 Leftover `--global` prefer-fill + labels:** `--global` still searches all projects (no leftover drop). When a pre-clear effective project exists, lexical recall prefer-fills that project's hits into `candidate_depth` so cwd unique pins can beat leftover volume. Pretty `--global` (recall / search / sync vault) prefixes each hit with a T264-class `[8hex]` (or upgraded `display_label`); JSON `RecallResult` does not grow `project_id`. Path split remains `project rebind-path` (memories stay). Docs: CAPABILITIES Scope / T264 rows, OPERATIONS rebind sentence.
+
 - **T275 Discovery grants first-run:** Denied `briefing project --format human` is a grant wall (not `_None_` empty vault); pins remain via `recall` / `search`. Hermetic CLI `policy bootstrap` (System principal — omit `--principal-id`) unlocks `briefing project` `denied: false` and `evidence list` exit 0. No auto-grant on init/preflight. JSON deny shape unchanged (`denied: true`, empty arrays). Docs: CAPABILITIES denied packets, OPERATIONS grant-wall sentence.
 
 - **T274 Pins vs harness ingest ranking:** `recall` / `search` / `sync query` vault and preflight Index prefer leading `DECISION:` / `CONSTRAINT:` / `INVARIANT:` pins over session dumps (`## Objective`, review-track chrome). Classification is leading-line only; chrome gets a −16 composite penalty; lexical MATCH and Index are two-pass (authority GLOB then fill). Duplicate chrome first-lines collapse. `forget --match` and `memory list` recency stay unfiltered. No new Recall JSON keys. Docs: CAPABILITIES pin-type row, PROTOCOL-COMPAT recall compact keys.

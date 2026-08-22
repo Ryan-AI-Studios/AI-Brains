@@ -447,6 +447,7 @@ pub async fn run_query(
                 no_bridge,
                 min_semantic_score: None,
                 include_symbols: false,
+                preferred_project_id: None,
             },
         )?;
 
@@ -499,6 +500,14 @@ pub async fn run_query(
             no_bridge: true,
             min_semantic_score: None,
             include_symbols: false,
+            preferred_project_id: if global {
+                std::env::var("AI_BRAINS_PROJECT_ID")
+                    .ok()
+                    .as_deref()
+                    .and_then(|raw| ai_brains_core::ids::ProjectId::from_str(raw.trim()).ok())
+            } else {
+                None
+            },
         },
     )?;
     let hits = outcome.hits;
@@ -541,7 +550,12 @@ pub async fn run_query(
                 project_id.as_ref(),
             )?;
             println!("{}", scope_line);
-            crate::commands::recall::print_pretty_hits(&hits);
+            if global {
+                let tags = crate::commands::recall_global::tags_for_hits(&ctx.conn, &hits)?;
+                crate::commands::recall::print_pretty_hits_with_tags(&hits, &tags);
+            } else {
+                crate::commands::recall::print_pretty_hits(&hits);
+            }
         }
         Ok(())
     };

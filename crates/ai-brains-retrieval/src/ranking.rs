@@ -384,6 +384,7 @@ mod tests {
             is_plan_demoted: false,
             score_kind,
             cosine: None,
+            project_id: None,
         }
     }
 

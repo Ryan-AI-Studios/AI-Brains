@@ -15,6 +15,9 @@ pub struct RetrievalMemory {
     pub session_id: Option<String>,
     /// Memory projection `updated_at` (RFC3339), when available (T211 recency).
     pub updated_at: Option<String>,
+    /// `COALESCE(mp.project_id, sp.project_id)` for T276 pretty tags (F15).
+    /// Prefer-fill is two `lexical_search` calls, not this column.
+    pub project_id: Option<String>,
 }
 
 /// Options for [`lexical_search`] (T217).
@@ -241,6 +244,7 @@ fn match_query_filtered(
                 score: row.get(4)?,
                 session_id: row.get(3)?,
                 updated_at: row.get(5)?,
+                project_id: row.get(6)?,
             });
         }
     }
@@ -257,7 +261,8 @@ fn match_sql_and_params(
     authority: &AuthorityFilter,
 ) -> (String, Vec<rusqlite::types::Value>) {
     let mut sql =
-        "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, fts.rank, mp.updated_at
+        "SELECT mp.memory_id, mp.content, mp.privacy, mp.session_id, fts.rank, mp.updated_at,
+                COALESCE(mp.project_id, sp.project_id)
          FROM memory_fts fts
          JOIN memory_projection mp ON mp.rowid = fts.rowid
          LEFT JOIN session_projection sp ON mp.session_id = sp.session_id
@@ -351,7 +356,11 @@ pub fn substring_fallback(
 
     let pattern = format!("%{}%", escape_like_pattern(query));
 
-    let mut sql = "SELECT memory_id, content, privacy, session_id, updated_at FROM memory_projection\n         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'".to_string();
+    let mut sql = "SELECT memory_id, content, privacy, session_id, updated_at,
+            COALESCE(project_id, (SELECT sp.project_id FROM session_projection sp WHERE sp.session_id = memory_projection.session_id LIMIT 1))
+         FROM memory_projection
+         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'"
+        .to_string();
     let mut params_vec: Vec<rusqlite::types::Value> = vec![pattern.into()];
 
     if let Some(sid) = session_id {
@@ -398,6 +407,7 @@ pub fn substring_fallback(
                 score: None,
                 session_id: row.get(3)?,
                 updated_at: row.get(4)?,
+                project_id: row.get(5)?,
             });
         }
     }

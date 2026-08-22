@@ -4342,6 +4342,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     global: *global,
                     min_score: *min_score,
                     symbols: *symbols,
+                    preferred_project_id: if *global { *project_id } else { None },
                 },
             )
         }

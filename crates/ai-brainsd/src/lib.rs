@@ -278,6 +278,7 @@ impl DaemonWriter {
                 quiet: true,
                 min_semantic_score: None,
                 include_symbols: false,
+                preferred_project_id: None,
             },
         )?;
         Ok(hits)

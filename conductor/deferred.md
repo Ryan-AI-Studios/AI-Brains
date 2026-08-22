@@ -10,7 +10,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 |------|-------|
 | recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
 | briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
-| leftover `7d97a456` ~18k / `--global` junk | **T276** (T259 residual) |
+| leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
 | 22/22 backup FAIL; no usable encrypted file | **T277** |
 | graph sparse + neighbors blank preview | **T278** |
 | preflight Safety = review-track Objective | **T279** |
@@ -96,6 +96,51 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Live vault still 0 of 3 grants | F10 — owner did not confirm live bootstrap; hermetic is DoD |
 | T280 deny hint still `--scope …` vs doctor omit | Peer |
 | Personal denied `_None_` left | F32 optional; F35 contamination locked |
+
+### T276 planning absorption (2026-08-21) — prefer-fill + labels; no silent exclude
+
+| Item | Disposition |
+|------|-------------|
+| Audit leftover `7d97a456` ~18k / `--global` junk | **Absorb** F1–F6 / AC1–AC5 |
+| T264 leftover-first recall / filter-flag residual | **Partial** — prefer-fill + pretty tags **DoD**; `--exclude-project` **decline F20** |
+| T259 leftover memory reclassify | **Decline F7** — memories stay |
+| Live leftover 11 `C:\dev\*` roots | **F9** Stop-Before; hermetic is DoD |
+| whoami mismatch:false | **Already T258** — F10; shell leftover **T282** |
+| `project list` leftover-first | **Decline → T283** |
+| last-PR Cursor #190 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Affirm T284** — no T285 |
+| Identity mismatch `7d97a456` vs `fcb8a40f` | **Partial** — leftover volume this track (F2 cwd preferred); adopt-path T258; no T285 |
+| T240 F2 / T274 chrome / clap 5 / rusqlite 0.40 | **Decline** |
+
+### T276 fold-in (2026-08-21) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 tag before score, one space | **Folded** F4 / AC4 |
+| Agy m2 HashSet merge dedupe | **Folded** F38 / AC1 |
+| Agy O1 `format_pretty_hit_line` `project_tag` | **Already** F18 |
+| Agy O2 preferred-full skip | **Folded** F39 |
+| OpenCode m1 drop COALESCE / two-search only | **Partial** — fill already F1; COALESCE **kept** F15 for tags |
+| OpenCode m2 both arms + bridge None | **Folded** F40 |
+| OpenCode m3 AC3 pre-rerank | **Folded** F41 |
+| OpenCode O1 empty-hint Try `--global` | **Decline** — live global arm already honest |
+| OpenCode CP `display_label` `:383` | **Decline citation** — CLI `project.rs:383` |
+| leftover UUID `7d97a51a` | **Decline typo** — live `7d97a456` |
+| last-PR #190 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
+### T276 closeout residuals (2026-08-22) — prefer-fill + labels shipped
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F22 |
+| Live leftover 11 `C:\dev\*` roots still on `7d97a456` | F9 — owner did not confirm `--write --yes` |
+| `--exclude-project` clap flag | F20 decline |
+| Leftover memory reclassify / `MemoryMoved` | F7 / T259 F5 |
+| JSON `project_id` on `RecallResult` | F5 T180 freeze |
+| Semantic-only prefer-fill e2e | F32; lexical AC2 is the hole |
+| `project list` leftover-first | **T283** |
+| `context --show` leftover shell | **T282** |
 
 ### T274 closeout residuals (2026-08-21)
 
