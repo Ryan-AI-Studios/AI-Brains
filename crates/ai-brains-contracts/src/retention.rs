@@ -326,6 +326,39 @@ mod tests {
     }
 
     #[test]
+    fn retention_class_bucket__zero_dispose__json_keys_exactly_five() {
+        let b = RetentionClassBucket {
+            class: CLASS_MEMORY_LEGACY.into(),
+            candidate_count: 1,
+            mechanism: MECHANISM_HELD.into(),
+            sample_ids: vec!["aaaaaaaa-aaaa-aaaa-aaaa-000000000001".into()],
+            notes: vec!["inventory".into()],
+            would_ce_wipe: 0,
+            would_projection_delete: 0,
+            dispose_sample_ids: Vec::new(),
+        };
+        let value = serde_json::to_value(&b).expect("ser");
+        let obj = value.as_object().expect("object");
+        let mut keys: Vec<&String> = obj.keys().collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "candidate_count",
+                "class",
+                "mechanism",
+                "notes",
+                "sample_ids"
+            ]
+        );
+        assert!(!obj.contains_key("would_ce_wipe"));
+        assert!(!obj.contains_key("would_projection_delete"));
+        assert!(!obj.contains_key("dispose_sample_ids"));
+        assert_eq!(API_VERSION, "1");
+        assert_eq!(class_dispose_count(&b), 0);
+    }
+
+    #[test]
     fn retention_report__contains_honesty_warnings() {
         let w = RetentionPlanReport::honesty_warnings(true);
         let joined = w.join(" ");

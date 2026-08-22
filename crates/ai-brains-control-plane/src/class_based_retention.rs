@@ -22,7 +22,8 @@ use ai_brains_contracts::retention::{
     RETENTION_HONESTY_NOT_NIST_PURGE, RETENTION_HONESTY_PRE_ERASE_BACKUP,
     RETENTION_HONESTY_STREAM_INDEPENDENCE, RETENTION_HONESTY_TICKET_NOT_CE, RetentionCascade,
     RetentionClassBucket, RetentionPlanReport, RetentionReportMode, RetentionTotals,
-    default_horizon_labels, is_canonical_class, truncate_id, truncate_sample_ids,
+    class_dispose_count, default_horizon_labels, is_canonical_class, truncate_id,
+    truncate_sample_ids,
 };
 use ai_brains_core::ids::ContentKeyId;
 use ai_brains_core::principal::Principal;
@@ -626,7 +627,7 @@ fn build_report(
     let mut has_ce = false;
 
     for (class, items) in by_class {
-        // Dominant mechanism: first non-skip if mixed, else majority
+        // Dominant mechanism: majority; ties prefer later BTreeMap key (`held` over `ce_wipe`)
         let mechanism = dominant_mechanism(&items);
         if mechanism == MECHANISM_CE_WIPE {
             has_ce = true;
@@ -636,17 +637,21 @@ fn build_report(
         for i in &items {
             notes.extend(i.notes.iter().cloned());
         }
+        let mut class_ce = 0u64;
+        let mut class_pd = 0u64;
         // Per-mechanism sub-counts into totals (by candidate, not class)
         for i in &items {
             totals.candidates = totals.candidates.saturating_add(1);
             match i.mechanism.as_str() {
                 MECHANISM_CE_WIPE => {
                     totals.would_ce_wipe = totals.would_ce_wipe.saturating_add(1);
+                    class_ce = class_ce.saturating_add(1);
                     has_ce = true;
                 }
                 MECHANISM_PROJECTION_DELETE => {
                     totals.would_projection_delete =
                         totals.would_projection_delete.saturating_add(1);
+                    class_pd = class_pd.saturating_add(1);
                 }
                 MECHANISM_HELD => {
                     totals.would_held = totals.would_held.saturating_add(1);
@@ -656,15 +661,26 @@ fn build_report(
                 }
             }
         }
+        let dispose_sample_ids = truncate_sample_ids(
+            items
+                .iter()
+                .filter(|c| c.mechanism == MECHANISM_CE_WIPE)
+                .chain(
+                    items
+                        .iter()
+                        .filter(|c| c.mechanism == MECHANISM_PROJECTION_DELETE),
+                )
+                .map(|c| c.id.as_str()),
+        );
         classes.push(RetentionClassBucket {
             class,
             candidate_count: items.len() as u64,
             mechanism,
             sample_ids,
             notes: notes.into_iter().collect(),
-            would_ce_wipe: 0,
-            would_projection_delete: 0,
-            dispose_sample_ids: Vec::new(),
+            would_ce_wipe: class_ce,
+            would_projection_delete: class_pd,
+            dispose_sample_ids,
         });
     }
 
@@ -1266,15 +1282,7 @@ fn append_retention_applied<W: EventWriter>(
             mechanism: c.mechanism.clone(),
         })
         .collect();
-    let mut sample_ids = Vec::new();
-    for c in &report.classes {
-        for s in &c.sample_ids {
-            if sample_ids.len() >= 5 {
-                break;
-            }
-            sample_ids.push(truncate_id(s));
-        }
-    }
+    let sample_ids = audit_sample_ids(report);
     let payload = Payload::RetentionApplied(RetentionAppliedPayload {
         command_id: command_id.to_string(),
         mode: "apply".into(),
@@ -1295,4 +1303,122 @@ fn append_retention_applied<W: EventWriter>(
     )?;
     writer.append_events(&[env])?;
     Ok(())
+}
+
+/// Audit sample identities for `RetentionApplied` (T284 F7).
+///
+/// When totals have dispose work, fill **only** from classes with class dispose
+/// count > 0 using `dispose_sample_ids` (fallback `sample_ids`). Inventory-only
+/// (dispose totals 0) keeps class-order `sample_ids` (overlay pins OK). Cap 5,
+/// de-dupe, truncated ids. Not `pub` — integration tests lock via events (AC2).
+pub(crate) fn audit_sample_ids(report: &RetentionPlanReport) -> Vec<String> {
+    let dispose_total = report
+        .totals
+        .would_ce_wipe
+        .saturating_add(report.totals.would_projection_delete);
+    let mut sample_ids = Vec::new();
+    let mut seen = BTreeSet::new();
+    let classes: Vec<&RetentionClassBucket> = if dispose_total == 0 {
+        report.classes.iter().collect()
+    } else {
+        report
+            .classes
+            .iter()
+            .filter(|c| class_dispose_count(c) > 0)
+            .collect()
+    };
+    for c in classes {
+        let source = if dispose_total > 0 && !c.dispose_sample_ids.is_empty() {
+            c.dispose_sample_ids.as_slice()
+        } else {
+            c.sample_ids.as_slice()
+        };
+        for s in source {
+            let t = truncate_id(s);
+            if !seen.insert(t.clone()) {
+                continue;
+            }
+            sample_ids.push(t);
+            if sample_ids.len() >= 5 {
+                return sample_ids;
+            }
+        }
+    }
+    sample_ids
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+
+    fn overlay_pins() -> Vec<String> {
+        (1..=5)
+            .map(|i| format!("aaaaaaaa-aaaa-aaaa-aaaa-{i:012}"))
+            .collect()
+    }
+
+    fn overlay_report() -> RetentionPlanReport {
+        let pins = overlay_pins();
+        let n = pins.len() as u64;
+        let mut report =
+            RetentionPlanReport::empty(RetentionReportMode::DryRun, "2026-08-22T00:00:00Z");
+        report.classes.push(RetentionClassBucket {
+            class: CLASS_MEMORY_LEGACY.to_string(),
+            candidate_count: n,
+            mechanism: MECHANISM_HELD.to_string(),
+            sample_ids: pins,
+            notes: Vec::new(),
+            would_ce_wipe: 0,
+            would_projection_delete: 0,
+            dispose_sample_ids: Vec::new(),
+        });
+        report.totals.candidates = n;
+        report.totals.would_held = n;
+        report
+    }
+
+    #[test]
+    fn audit_sample_ids__overlay_only__pins_ok() {
+        let report = overlay_report();
+        let ids = audit_sample_ids(&report);
+        assert_eq!(ids, overlay_pins());
+    }
+
+    #[test]
+    fn audit_sample_ids__mixed_dispose__prefers_dispose_ids_cap5_deduped() {
+        let mut report = overlay_report();
+        report.classes.push(RetentionClassBucket {
+            class: CLASS_RAW_TURN.to_string(),
+            candidate_count: 3,
+            mechanism: MECHANISM_PROJECTION_DELETE.to_string(),
+            sample_ids: vec!["turn:sess:0".into()],
+            notes: Vec::new(),
+            would_ce_wipe: 0,
+            would_projection_delete: 3,
+            dispose_sample_ids: vec![
+                "turn:sess:0".into(),
+                "content_key:ck-ce".into(),
+                "turn:sess:0".into(),
+                "turn:sess:1".into(),
+                "turn:sess:2".into(),
+                "turn:sess:3".into(),
+                "turn:sess:4".into(),
+            ],
+        });
+        report.totals.would_projection_delete = 3;
+        let ids = audit_sample_ids(&report);
+        assert!(
+            ids.iter()
+                .any(|s| s.starts_with("turn:") || s.starts_with("content_key:")),
+            "mixed dispose must sample turn/content_key ids; got {ids:?}"
+        );
+        assert!(ids.len() <= 5, "cap 5; got {ids:?}");
+        let unique: BTreeSet<&String> = ids.iter().collect();
+        assert_eq!(unique.len(), ids.len(), "must de-dupe; got {ids:?}");
+        assert!(
+            ids.iter().all(|s| !s.starts_with("aaaaaaaa-")),
+            "must not pad with overlay pins; got {ids:?}"
+        );
+    }
 }

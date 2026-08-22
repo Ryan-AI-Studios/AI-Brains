@@ -428,19 +428,26 @@ pub(crate) fn format_retention_pretty(report: &RetentionPlanReport) -> String {
             "CLASS", "COUNT", "MECHANISM", "SAMPLES"
         ));
         for c in &report.classes {
-            if c.candidate_count == 0 {
+            if c.would_ce_wipe == 0 && c.would_projection_delete == 0 {
                 continue;
             }
-            if c.mechanism != MECHANISM_CE_WIPE && c.mechanism != MECHANISM_PROJECTION_DELETE {
-                continue;
-            }
-            lines.push(format!(
-                "{:<18} {:>5} {:<18} {}",
-                c.class,
-                c.candidate_count,
-                c.mechanism,
+            let samples = if c.dispose_sample_ids.is_empty() {
                 sample_cell(&c.sample_ids)
-            ));
+            } else {
+                sample_cell(&c.dispose_sample_ids)
+            };
+            if c.would_ce_wipe > 0 {
+                lines.push(format!(
+                    "{:<18} {:>5} {:<18} {}",
+                    c.class, c.would_ce_wipe, MECHANISM_CE_WIPE, samples
+                ));
+            }
+            if c.would_projection_delete > 0 {
+                lines.push(format!(
+                    "{:<18} {:>5} {:<18} {}",
+                    c.class, c.would_projection_delete, MECHANISM_PROJECTION_DELETE, samples
+                ));
+            }
         }
         lines.push(String::new());
     }
@@ -814,6 +821,54 @@ mod tests {
         assert!(
             text.contains("next: ai-brains retention apply --confirm --scope Repository:<uuid>"),
             "CE next: missing; got:\n{text}"
+        );
+    }
+
+    #[test]
+    fn format_retention_pretty__dispose_samples_empty__falls_back_to_sample_ids() {
+        use ai_brains_contracts::retention::{
+            CLASS_SECRET, MECHANISM_CE_WIPE, MECHANISM_HELD, RetentionCascade, RetentionTotals,
+            default_horizon_labels,
+        };
+        let report = RetentionPlanReport {
+            api_version: "1".into(),
+            generated_at: "2026-08-22T00:00:00Z".into(),
+            mode: "dry_run".into(),
+            horizons: default_horizon_labels(),
+            classes: vec![RetentionClassBucket {
+                class: CLASS_SECRET.into(),
+                candidate_count: 1,
+                mechanism: MECHANISM_HELD.into(),
+                sample_ids: vec!["content_key:ck-legacy".into()],
+                notes: Vec::new(),
+                would_ce_wipe: 1,
+                would_projection_delete: 0,
+                dispose_sample_ids: Vec::new(),
+            }],
+            totals: RetentionTotals {
+                candidates: 1,
+                would_ce_wipe: 1,
+                would_projection_delete: 0,
+                would_skip: 0,
+                would_held: 0,
+            },
+            cascade: RetentionCascade::default(),
+            warnings: RetentionPlanReport::honesty_warnings(true),
+            errors_count: 0,
+            errors: Vec::new(),
+        };
+        let text = format_retention_pretty(&report);
+        let work_row = text
+            .lines()
+            .find(|l| l.contains(CLASS_SECRET) && l.contains(MECHANISM_CE_WIPE))
+            .unwrap_or("");
+        assert!(
+            work_row.contains("content_key:ck-legacy"),
+            "empty dispose_sample_ids must fall back to sample_ids; line={work_row}\n{text}"
+        );
+        assert!(
+            !work_row.contains('—'),
+            "fallback must not print em-dash empty samples; line={work_row}"
         );
     }
 
