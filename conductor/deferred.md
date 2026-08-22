@@ -305,6 +305,20 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Live `safety sync` pin | **Decline** F21 |
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 
+### T279 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 first-line `[` JSON finder | **Already** F35/AC9; **folded** F36 / AC9 (`safety.rs` `:116–118`) |
+| Agy m2 always `trim_to_word_budget_no_sentinel` | **Folded** F37 |
+| Agy O1 `SAFETY_EMPTY` no `HOTSPOT:` | **Already** F3 / AC14 |
+| Agy O2 pure parse/format units | **Already** AC2 / AC9 |
+| OpenCode m1 AC6 test names `summary_smoke` + `summary_compact` | **Folded** AC6 |
+| OpenCode m2 `displayScore` 3.944 vs 3.934949 | **Folded** §2.1 volatile; F2 raw `score={:.2}` |
+| OpenCode O1 `--global` empty wording | **Decline** — one `SAFETY_EMPTY` |
+| last-PR #194 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |

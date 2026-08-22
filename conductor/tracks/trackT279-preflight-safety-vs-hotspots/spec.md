@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can trust Safety as bearings + live hotspots, not session chrome. Index ranking stays T274. Policy `--scope` **T280**. Nightly dual-probe **T281**. `context --show` leftover **T282**. `project list` cwd-first **T283**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “preflight Safety = review-track Objective”; T274 F23 leftover (Safety SQL); T274 closeout “AC6 dump buried CONSTRAINT would Safety-steal”; T250 F12 HOTSPOT float **partial** (live line `score={:.2}` only)
 - **Not absorbed (DoD):** T272 skip-set / T264 caps / `GLOBAL_SAFETY_*`; T274 Index/rank; `query_ledgerful` Intelligence rewrite; live `safety sync` without `--dry-run`; T280–T283; T240 F2; leftover `7d97a456` rebind; clap 5; rusqlite 0.40; DTO keys; doctor 16th check
-- **Research date:** 2026-08-22 (plan dogfood HEAD `631a8f8` T278 `#194`; product `src/` = T278)
-- **AI fold-in:** none yet (plan pass). Disposition after review-track → **§13**.
-- **Ledger:** planning DOCS TX `4d4dd4b0-1884-4bfc-a0dd-8543aa5de1a5`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `631a8f8` T278 `#194`; product `src/` = T278). Fold-in against `448ef47` (docs-only; crates identical to `631a8f8`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Already (Agy):** O1 F3/AC14; O2 AC2/AC9. **Agree (Agy):** m1 F36/AC9 line-finder copy of `safety.rs` `:116–118`; m2 F37 always-trim. **Agree (OpenCode):** m1 AC6 live test names; m2 §2.1 volatile `displayScore`. **Decline (OpenCode):** O1 split `--global` empty copy. **Affirm:** #194 N/A; no T285. Disposition **§13**.
+- **Ledger:** planning DOCS TX `4d4dd4b0-1884-4bfc-a0dd-8543aa5de1a5`. Fold-in DOCS TX `2b834a4e-ea61-4142-a6c5-a03a9a7eb108`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env` (T240 F2). Do **not** pin the live vault as implement proof. Do **not** run `safety sync` without `--dry-run`. Do **not** live-bootstrap grants (T275). Do **not** leftover-rebind (T276). Do **not** grow hotspot `project.rs` / CLI `preflight.rs` / `sync.rs` / `doctor.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** enable `AI_BRAINS_GOVERNED_BRIEFING`.
 
 ---
@@ -33,16 +33,16 @@ This unblocks the daily product: T274 ranked Index; T272 fixed skip-set. The rem
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `631a8f8` T278 squash `#194`. Tree **CLEAN**. `origin/main...HEAD` **00**. Product `src/` includes T274–T278. |
+| HEAD | **Plan dogfood:** `631a8f8` T278 squash `#194`. **This fold-in:** `448ef47` (docs-only; `git diff 631a8f8 HEAD -- crates/` empty). Tree **CLEAN** at fold-in. `main` ahead of `origin/main` by the plan commit. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-21 05:55**, 25 368 576 bytes, **0.1.1**. **T270** on PATH (before T274–T278). Safety SQL is unchanged since T274 (F23 left it here) — **PATH is valid for this hole.** **Do not `cargo install`.** Tests/manual AC use `cargo run` / hermetic. |
-| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **3516**. In-context **0/0/0**. Grants **0 of 3** (T275 hermetic; live not bootstrapped). Capture independence holds. |
+| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **volatile** (plan 3516; this fold-in **3546**). In-context **0/0/0**. Grants **0 of 3** (T275 hermetic; live not bootstrapped). Capture independence holds. |
 | `project whoami` | Not this track. Shell leftover `7d97a456` is T282 / T258; leftover volume T276. |
 | `safety sync --dry-run` | **5** hotspots: `project.rs` (score 0.05), `sync.rs`, `forget.rs`, `context.rs`, `governed_common.rs`. Matches `ledgerful hotspots` table. |
 | `preflight --pretty --compact -m 400` | Safety body is **`## Objective` only.** Then Sessions. **No** Ledgerful Intelligence header. **No** dry-run paths. |
 | `preflight --pretty -m 800` | Safety is the full T272 `review-track` Objective dump (skill text; buried CONSTRAINT likely). Sessions follow. Index is still chrome (`# Track Plan Review`, ` ```json`) — PATH-behind T274; **not this DoD.** Intelligence still **absent** (`query_ledgerful` returned `None`). |
 | Last GitHub PR | [#194](https://github.com/Ryan-AI-Studios/AI-Brains/pull/194) T278 (2026-08-22). `gh pr view --comments`, `/reviews`, `/comments`, `issues/194/comments` all **empty**. **last-PR Cursor: N/A.** Open PRs: Dependabot remotes only (`#61` rusqlite 0.40.2, `#62` chrono 0.4.45, actions). **No leftover to mint. No T285.** |
 | Prior #188 Bugbot | **T284 Completed** `#193`. Not this track. |
-| Identity / doctor | ledgerful doctor 4 warn (legacy `.changeguard` / sig-pin / timings / :8081). **0 pending / 0 drift.** Hotspot **#1** `project.rs` (**3.944**). CLI `preflight.rs` **#7** (2.257, **2027** lines). Retrieval `preflight.rs` **1087**. `project.rs` **1332**. `doctor.rs` / `sync.rs` / `main.rs` — **do not grow.** |
+| Identity / doctor | ledgerful doctor 4 warn (legacy `.changeguard` / sig-pin / timings / :8081). **0 pending / 0 drift.** Hotspot **#1** `project.rs` (**volatile** — plan 3.944; OpenCode live `displayScore` 3.934949 / raw `score` 0.050… → F2 `{:.2}` = **0.05** matching dry-run). CLI `preflight.rs` **#7** (2.257, **2027** lines). Retrieval `preflight.rs` **1087**. `project.rs` **1332**. `doctor.rs` / `sync.rs` / `main.rs` — **do not grow.** |
 | `ISSUES.md` | **Does not exist.** |
 
 ### 2.2 Why this still matters
@@ -76,7 +76,7 @@ This unblocks the daily product: T274 ranked Index; T272 fixed skip-set. The rem
 | T219/T250 pretty | `tests/preflight_pretty_readability.rs` | Summary must **not** print Bearings (`:292/:553`) — retrieval always-emit is pretty-path only; summary formatter stays T220. |
 | T180 / T265 | `PreflightContextResponse` | `{text, word_count}` + additive `sections[]`. **No new keys.** |
 | Hermetic helper | `tests/common/mod.rs` `AMBIENT_DENYLIST` **`:42`** | Must **set** skip-env after strip so host `ledgerful hotspots` cannot pollute integration tests (cwd is this repo). |
-| Hotspots | `project.rs` #1 3.944; CLI `preflight.rs` #7 | **Do not touch.** Helpers in retrieval `preflight_safety.rs` + `session_chrome.rs`. |
+| Hotspots | `project.rs` #1 (score volatile; F2 uses raw `score={:.2}` not `displayScore`); CLI `preflight.rs` #7 | **Do not touch.** Helpers in retrieval `preflight_safety.rs` + `session_chrome.rs`. |
 
 ### 2.4 Dependency / standards research (2026-08-22) — snapshot; re-verify at execute
 
@@ -114,10 +114,10 @@ This unblocks the daily product: T274 ranked Index; T272 fixed skip-set. The rem
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `4d4dd4b0`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `4d4dd4b0`. Fold-in is DOCS TX `2b834a4e`. Implement starts a **FEATURE** TX. |
 | **F1 — Leading-line Safety GLOB** | Replace LIKE-anywhere with `safety_marker_glob_sql("m.content")`: `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` at start, plus `ASSISTANT: ` variants. Case-sensitive SQL (T274 F8). Buried `CONSTRAINT:` in `## Objective` dumps **must not** match. |
 | **F2 — Live inject (project-scoped)** | When `!global` and skip-env is off, prepend up to **5** lines from `ledgerful hotspots --json --limit 5` (same argv as `safety.rs`). Render `HOTSPOT: {path} score={score:.2}` (one line per path; path first so `--compact` 100 still shows the file). Fail-open (F35). |
-| **F3 — Honest empty** | If live inject empty/skipped **and** vault GLOB empty: still push `--- Repository Bearings & Safety ---\n` + `SAFETY_EMPTY` (`No in-context hotspots. next: ai-brains safety sync --dry-run`). **Do not** put `HOTSPOT:` in that string. `--summary` does **not** print the header (T219 AC8/AC13 stay). |
+| **F3 — Honest empty** | If live inject empty/skipped **and** vault GLOB empty: still push `--- Repository Bearings & Safety ---\n` + `SAFETY_EMPTY` (`No in-context hotspots. next: ai-brains safety sync --dry-run`). **Do not** put `HOTSPOT:` in that string. `--summary` does **not** print the header (T219 AC8/AC13 stay). One remediator for project-scoped **and** `--global` (OpenCode O1 declined). |
 | **F4 — `--global` no live inject** | T214 F9 analog. Global Safety = vault GLOB + T264 caps/tags only. Cwd Ledgerful is one repo; do not pretend it is a multi-project rollup. |
 | **F5 — T272 skip stands** | `safety_ids` = emitted **vault** memory ids only. Live lines have no id and **must not** be inserted into `safety_raw`. |
 | **F6 — T264 caps freeze** | `GLOBAL_SAFETY_FETCH=40`, per-project 2, max 8, LIMIT 10 project. Do not retune. Round-robin still applies to vault entries only. |
@@ -150,6 +150,8 @@ This unblocks the daily product: T274 ranked Index; T272 fixed skip-set. The rem
 | **F33 — Live classify-only** | Manual AC uses `cargo run -p ai-brains-cli -- preflight --pretty --compact -m 400` from this repo (skip-env **unset**). Do **not** treat PATH T270 binary as proof. |
 | **F34 — Empty is pretty-path** | Always-emit is `build_legacy_preflight` text. Summary formatter must not grow. If `--summary` ever printed Bearings, T219 AC8 would fail — keep that split. |
 | **F35 — Fail-open live fetch** | Spawn fail / non-zero / no `[` JSON / parse err / empty array → no inject, continue. **No** `wait-timeout` crate. Hang is a soft residual (live `hotspots --json --limit 5` was fast this session). |
+| **F36 — JSON array line-finder** | Copy CLI `safety.rs` `:116–118`: first line whose `trim_start` starts with `[`, then join remaining lines. Mid-line ANSI `[` does **not** match. Extra JSON keys (`displayScore`) ignored (serde default; render uses `path` + `score` only). (Agy m1.) |
+| **F37 — Always trim Safety** | Assembled Safety text (live lines + vault bearings **or** `SAFETY_EMPTY`) always goes through existing `trim_to_word_budget_no_sentinel(&safety_text, onboarding_budget)` (`preflight.rs` `:372` today). Always-emit must **not** skip this call. (Agy m2.) |
 
 ---
 
@@ -162,10 +164,10 @@ This unblocks the daily product: T274 ranked Index; T272 fixed skip-set. The rem
 | **AC3** | Hermetic CLI (skip-env **on** via helper): pin `CONSTRAINT: T279-bearing-needle-<uuid>` + newer `## Objective\n… CONSTRAINT: buried …`. Pretty Safety contains the bearing needle; does **not** contain `## Objective`. EXIT 0. **Required red.** |
 | **AC4** | Hermetic CLI skip-on: vault with **no** leading CONSTRAINT/INVARIANT/HOTSPOT pins. Pretty contains `--- Repository Bearings & Safety ---` **and** `safety sync --dry-run` (F3). Does **not** contain `## Objective`. **Required red.** |
 | **AC5** | T272 `preflight_global_isolation__capped_out_safety__appears_in_index` still passes (leading CONSTRAINT GLOB + skip-set). |
-| **AC6** | T219 `preflight_pretty__summary__dual_model_unchanged` still has **no** Bearings header on `--summary`. |
+| **AC6** | T219 `preflight_pretty__summary_smoke__dual_model_unchanged` (`preflight_pretty_readability.rs` `:266`) **and** `preflight_pretty__summary_compact__dual_model_unchanged` (`:532`) still have **no** Bearings header on `--summary` (`:292` / `:553`). (OpenCode m1.) |
 | **AC7** | Compact JSON: serde still `{text, word_count}` (+ T265 `sections` if present). No new required keys. |
 | **AC8** | Unit: skip-env truthy → `fetch_live_hotspots` returns empty without spawning (TempEnv). Unset + mocked JSON parse unit does **not** need a live binary. |
-| **AC9** | Parse unit: stdout with a log line then `[{"path":"crates/ai-brains-cli/src/commands/project.rs","score":0.05,"complexity":21.0,"frequency":9.1}]` → one hotspot path `project.rs`. Missing `[` → empty (fail-open). |
+| **AC9** | Parse unit: stdout with a log line (may contain mid-line `[`) then a line starting with `[` and `[{"path":"crates/ai-brains-cli/src/commands/project.rs","score":0.05,"complexity":21.0,"frequency":9.1,"displayScore":3.93}]` → one hotspot path `project.rs`. Finder is F36 (not `contains('[')`). Missing leading `[` → empty (fail-open). Extra `displayScore` ignored. |
 | **AC10** | Manual classify-only (`cargo run`, skip-env **unset**): `preflight --pretty --compact -m 400` Safety contains `HOTSPOT:` and at least one of `project.rs` / `sync.rs` / `forget.rs` / `context.rs` / `governed_common.rs`, **or** F3 remediator if Ledgerful spawn fails. Pass-with-observed-data. **Did not** `safety sync` without dry-run. |
 | **AC11** | `--global --pretty` (hermetic, skip on): no requirement that Safety contains cwd `project.rs`. Live inject skipped (F4). |
 | **AC12** | `--summary` after AC3 fixture: `in_context_constraints >= 1` (bearing in window). Empty remediator does **not** bump `in_context_hotspots`. |
@@ -225,9 +227,9 @@ Dumps that lose Safety via GLOB become eligible for Index (T274 two-pass). That 
 6. `safety_empty_const__no_hotspot_marker` — AC14
 7. `skip_live_hotspots_env__truthy__no_spawn` — AC8
 
-**Green:** F1 SQL swap; F2/F13/F35 sibling; F3 always-emit; F7 suppress; F30 after_help; hermetic_bin sets skip.
+**Green:** F1 SQL swap; F2/F13/F35/F36 sibling; F3 always-emit; F37 trim; F7 suppress; F30 after_help; hermetic_bin sets skip.
 
-**Stay green:** AC5 T272; AC6 T219 summary; AC7 JSON keys; T264 tags; T220 counts.
+**Stay green:** AC5 T272; AC6 T219 `summary_smoke` + `summary_compact`; AC7 JSON keys; T264 tags; T220 counts.
 
 **Manual:** AC10 classify-only `cargo run`; AC11 global; **no** live pin; **no** `cargo install`.
 
@@ -240,6 +242,7 @@ Dumps that lose Safety via GLOB become eligible for Index (T274 two-pass). That 
 | Hermetic tests pick up host hotspots | F13 set skip in `hermetic_bin`; AC8 |
 | Preflight latency / hang on `ledgerful hotspots` | limit 5; live was fast; fail-open; no timeout crate (F35 soft hang) |
 | Intelligence + Safety both list paths | F11 leave Intelligence; soft dup |
+| `--global` empty remediator names project-scoped dry-run | OpenCode O1 declined; one `SAFETY_EMPTY` |
 | `--summary` counts jump when inject works | Intended (F9); empty remediator has no `HOTSPOT:` |
 | T272 AC2 word budget | Helper skip-on; leading CONSTRAINT still GLOB |
 | CLI `preflight.rs` growth | F14 / AC13 zero hunks on that file |
@@ -270,6 +273,7 @@ Dumps that lose Safety via GLOB become eligible for Index (T274 two-pass). That 
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 | Live `safety sync` pin | **Decline** F21 |
 | T275 live bootstrap | **Decline** F17 |
+| OpenCode O1 `--global` empty wording | **Decline** F3 — one remediator |
 
 **Entire `deferred.md` scanned.** Closed/strikethrough rows stay closed. Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` — not Safety identity.
 
@@ -280,11 +284,11 @@ Dumps that lose Safety via GLOB become eligible for Index (T274 two-pass). That 
 1. Phase 0 re-verify SQL `:290–305`, skip `:345`, emit `:353`, `safety.rs` fetch `:102`, clap limit 5, T272 AC2, skip-env helper, deferred rescan, #194 still empty, pins.
 2. Red AC1–AC4/AC8/AC9/AC14.
 3. `session_chrome.rs` `safety_marker_glob_sql`.
-4. `preflight_safety.rs` parse/format/fetch/skip/empty.
-5. `preflight.rs` GLOB + prepend + always-emit + F7.
+4. `preflight_safety.rs` parse (F36) / format / fetch / skip / empty.
+5. `preflight.rs` GLOB + prepend + always-emit + F37 trim + F7.
 6. `hermetic_bin` sets skip=1; denylist includes the key.
 7. `main.rs` after_help; docs.
-8. Green + AC5/AC6; classify-only AC10.
+8. Green + AC5/AC6 (`summary_smoke` + `summary_compact`); classify-only AC10.
 9. Review → `review.md`; FEATURE TX; implement-track Phase 6 publish.
 
 ---
@@ -302,6 +306,7 @@ Dumps that lose Safety via GLOB become eligible for Index (T274 two-pass). That 
 | Doctor 16th check | T255 F11 |
 | Live leftover 11 roots | T276 F9 |
 | Live 0 of 3 grants | T275 F10 |
+| `--global` empty remediator is cwd dry-run | OpenCode O1 declined |
 
 ---
 
@@ -325,4 +330,25 @@ Dumps that lose Safety via GLOB become eligible for Index (T274 two-pass). That 
 
 ## 13. AI fold-in
 
-Reserved. This planning pass has no `*-review.md` yet.
+Inputs: `agy-review.md` (HEAD `448ef47`) + `opencode-review.md` (HEAD `448ef47`). Product crates identical to `631a8f8`. **B 0 / M 0** both harnesses. last-PR #194 still empty. No T285. Do **not** edit the review files.
+
+### Per-AI
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy m1 | JSON parser locates first line starting with `[` (skip logs/ANSI) | **Already** F35/AC9; **folded** F36 / AC9 copy of `safety.rs` `:116–118` |
+| Agy m2 | `trim_to_word_budget_no_sentinel` on assembled Safety (live + bearings or empty) | **Folded** F37 — always-emit must not skip `:372` |
+| Agy O1 | `SAFETY_EMPTY` must not contain `HOTSPOT:` | **Already** F3 / AC14 |
+| Agy O2 | Pure units for format + JSON parse (no live binary) | **Already** AC2 / AC9 |
+| OpenCode m1 | AC6 test name `summary` vs live `summary_smoke` + `summary_compact` | **Folded** AC6 + Phase 0 names (`:266` / `:532`) |
+| OpenCode m2 | Hotspot #1 `displayScore` 3.944 vs 3.934949 | **Folded** §2.1 volatile; F2 stays raw `score={:.2}` (= dry-run `0.05`) |
+| OpenCode O1 | Split `--global` empty remediator wording | **Decline as DoD** — one `SAFETY_EMPTY` (F3); hint remains valid |
+
+### Pins locked by fold-in
+
+1. **F36 / AC9:** array finder is `trim_start().starts_with('[')` (not `contains`); extra `displayScore` ignored.
+2. **F37:** always-emit still calls `trim_to_word_budget_no_sentinel(..., onboarding_budget)`.
+3. **AC6:** stay-green tests are `summary_smoke` and `summary_compact`.
+4. **§2.1:** pin counts and hotspot `displayScore` are volatile; F2 format is raw `score`.
+5. **Already:** F3/AC14 no `HOTSPOT:` in empty; AC2/AC9 pure units.
+6. **Decline:** OpenCode O1 second empty string for `--global`.

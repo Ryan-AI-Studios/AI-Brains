@@ -1,10 +1,26 @@
 # T279 Plan — Preflight Safety vs live hotspots
 
 **Status:** **Pending** (Planned — requirements written; F0 until **go**)
-**Spec:** [spec.md](./spec.md) F0–F35 / AC1–AC14
+**Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC14 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `4d4dd4b0-1884-4bfc-a0dd-8543aa5de1a5` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `2b834a4e-ea61-4142-a6c5-a03a9a7eb108` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors either harness. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F36 / AC9:** JSON array finder is first line whose `trim_start` starts with `[` (`safety.rs` `:116–118`). Extra `displayScore` ignored.
+2. **F37:** always-emit still `trim_to_word_budget_no_sentinel(..., onboarding_budget)`.
+3. **AC6:** stay-green is `preflight_pretty__summary_smoke__dual_model_unchanged` + `preflight_pretty__summary_compact__dual_model_unchanged`.
+4. **§2.1:** pin counts / hotspot `displayScore` volatile; F2 uses raw `score={:.2}`.
+5. **Already:** F3/AC14; AC2/AC9 pure units.
+6. **Decline:** OpenCode O1 split `--global` empty copy.
 
 ---
 
@@ -12,9 +28,9 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `631a8f8` T278 `#194`. CLEAN. `origin/main...HEAD` **00** |
+| HEAD / tree | **Plan dogfood:** `631a8f8` T278 `#194`. **This fold-in:** `448ef47` (docs-only; product crates identical). CLEAN |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. **T270** on PATH. Safety SQL unchanged since T274 F23. **Do not `cargo install`.** |
-| `preflight --summary` | Pinned **3516**; in-context 0/0/0; grants **0 of 3**; Scope `3581317d` |
+| `preflight --summary` | Pinned **volatile** (plan 3516; fold-in **3546**); in-context 0/0/0; grants **0 of 3**; Scope `3581317d` |
 | `safety sync --dry-run` | **5** paths: `project.rs`, `sync.rs`, `forget.rs`, `context.rs`, `governed_common.rs` |
 | `preflight --pretty --compact -m 400` | Safety = **`## Objective`**. No Intelligence. No dry-run paths |
 | `preflight --pretty -m 800` | Safety = T272 review-track Objective dump |
@@ -22,7 +38,7 @@
 | Open PR on HEAD | none (Dependabot remotes only: rusqlite 0.40.2 `#61`, chrono 0.4.45 `#62`) |
 | Pins | clap lock **4.6.1** (crates.io 4.6.6; **no clap 5**); serde_json **1.0.150** (1.0.151); chrono **0.4.44** (0.4.45); rusqlite **0.39.0** (0.40.2); uuid lock **1.23.1** (1.25.0) — **no bumps** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.1** |
-| Hotspots | `project.rs` **#1** (3.944) — do not grow. CLI `preflight.rs` #7 (2027) — do not grow. Retrieval `preflight.rs` **1087**. `doctor.rs` / `sync.rs` — do not grow |
+| Hotspots | `project.rs` **#1** (displayScore volatile; F2 raw `score={:.2}`) — do not grow. CLI `preflight.rs` #7 (2027) — do not grow. Retrieval `preflight.rs` **1087**. `doctor.rs` / `sync.rs` — do not grow |
 | Ledger | 0 pending / 0 drift at scan; planning TX `4d4dd4b0` |
 | `ISSUES.md` | **Does not exist** (F24) |
 | ledgerful search | `safety_sql` `preflight.rs:290`; `query_ledgerful` `:695`; CLI `fetch_hotspots_json` `safety.rs:102` |
@@ -38,7 +54,7 @@
 - [ ] Re-read CLI `safety.rs` `fetch_hotspots_json` ~`:102–128` + clap `SafetyCommands::Sync` default **5**
 - [ ] Re-read `index_marker_glob_sql` (`session_chrome.rs` ~`:73`) — **do not reuse** (includes DECISION)
 - [ ] Confirm T272 AC2/AC3 still in `preflight_global_isolation.rs`
-- [ ] Confirm T219 summary-no-Bearings still in `preflight_pretty_readability.rs`
+- [ ] Confirm T219 `preflight_pretty__summary_smoke__dual_model_unchanged` (`:266`) and `preflight_pretty__summary_compact__dual_model_unchanged` (`:532`) still assert no Bearings on `--summary`
 - [ ] Rescan `conductor/deferred.md` — T279 rows absorbed; no new overlapping open rows
 - [ ] Confirm #194 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
 - [ ] Re-dogfood `safety sync --dry-run` + `preflight --pretty --compact -m 400` **read-only**. **Did not** pin. **Did not** `safety sync` without `--dry-run`
@@ -67,6 +83,7 @@
 | last-PR #194 Cursor | N/A empty |
 | Dependabot rusqlite `#61` | F12 — no T285 |
 | Live `safety sync` pin | F21 |
+| OpenCode O1 `--global` empty wording | F3 one remediator |
 
 ---
 
@@ -84,9 +101,9 @@
 ## Phase 2 — Green
 
 - [ ] F1 `safety_marker_glob_sql` in `session_chrome.rs`; Safety SQL uses it (not LIKE, not `index_marker_glob_sql`)
-- [ ] F14 `preflight_safety.rs`: parse, `format_safety_hotspot_line`, `SAFETY_EMPTY`, skip-env, fail-open fetch
+- [ ] F14 `preflight_safety.rs`: parse (F36 line-finder), `format_safety_hotspot_line`, `SAFETY_EMPTY`, skip-env, fail-open fetch
 - [ ] F2 prepend live lines (project-scoped, limit 5) **without** memory_ids (F5)
-- [ ] F3 always-emit header + empty or body
+- [ ] F3 always-emit header + empty or body; F37 still `trim_to_word_budget_no_sentinel(..., onboarding_budget)`
 - [ ] F7 suppress vault HOTSPOT when live inject non-empty
 - [ ] F13 `hermetic_bin` sets `AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS=1`; denylist includes the key
 - [ ] F30 preflight `after_help` additive (`main.rs`)
