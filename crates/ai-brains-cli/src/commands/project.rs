@@ -43,7 +43,7 @@ pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Er
         return Ok(());
     }
 
-    // F39: cwd owner from resolve_path_alias_for_location (`:226–237`).
+    // F39: cwd owner from resolve_path_alias_for_location (`:237–248`).
     let cwd_owner = match std::env::current_dir() {
         Ok(cwd) => {
             let git = collect_git_identity(&cwd).unwrap_or_default();

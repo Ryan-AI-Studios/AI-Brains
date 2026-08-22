@@ -1,7 +1,7 @@
 # T283 — `project list` must not lead with leftover 18k pins
 
 - **Track ID:** T283-ProjectListCwdFirst
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** (implement + gate; Phase 6 publish pending this commit)
 - **Category:** UX / HONESTY
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — `project list` **7/6**; first row leftover `7d97a456` / `C:\dev\crawlx` 18036; cwd `*C:\dev\ai-brains` third. Re-verified **2026-08-22** (HEAD `6d3cbc5` T282 `#198`): leftover **18043** first; cwd `3581317d` **fourth** (3633).

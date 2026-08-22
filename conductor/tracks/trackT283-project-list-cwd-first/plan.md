@@ -1,6 +1,6 @@
 # T283 Plan — `project list` cwd-first (human only)
 
-**Status:** **Planned** (Pending until **go**)
+**Status:** **Completed** (gate green; Phase 6 pending this commit)
 **Spec:** [spec.md](./spec.md) F0–F39 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `0535063a-dd76-454e-8c1b-bae350a5d7bd` (DOCS)
@@ -49,20 +49,20 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `project.rs` `:26–102` list + JSON
-- [ ] Re-read `query_store.rs` `:567` / `:611` — **do not edit ORDER BY**
-- [ ] Re-read `project_list_footer.rs` `:21–41` — **do not edit**; pass original vec
-- [ ] Re-read clap List `main.rs` `:2636–2643` — **no new flags**
-- [ ] Re-read `resolve_path_alias_for_location` `project.rs` `:226–237` — **call existing**
-- [ ] Confirm T212 JSON tests find by id not `[0]`
-- [ ] Rescan `conductor/deferred.md` — T283 rows absorbed; no new mint
-- [ ] Confirm #198 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `project list` + `project whoami` **read-only**. **Did not** write `.env`
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX
-- [ ] Did **not** `cargo install`; did **not** grow `query_store.rs` / `project_list_footer.rs` / `sync.rs` / `forget.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `project.rs` `:26–102` list + JSON
+- [x] Re-read `query_store.rs` `:567` / `:611` — **do not edit ORDER BY**
+- [x] Re-read `project_list_footer.rs` `:21–41` — **do not edit**; pass original vec
+- [x] Re-read clap List `main.rs` `:2636–2643` — **no new flags**
+- [x] Re-read `resolve_path_alias_for_location` `project.rs` `:226–237` — **call existing**
+- [x] Confirm T212 JSON tests find by id not `[0]`
+- [x] Rescan `conductor/deferred.md` — T283 rows absorbed; no new mint
+- [x] Confirm #198 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `project list` + `project whoami` **read-only**. **Did not** write `.env`
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX `b0f00cbc-63a7-4cce-be0c-3f4edbd1c7b5`
+- [x] Did **not** `cargo install`; did **not** grow `query_store.rs` / `project_list_footer.rs` / `sync.rs` / `forget.rs`
 
 ---
 
@@ -91,46 +91,46 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `promote_cwd_owner__middle_id__becomes_first` — AC1 (last `[c,a,b]` + middle `[b,a,c]` + already-first; `len` unchanged; promoted id `count == 1`)
-- [ ] rstest None/empty/missing — AC2
-- [ ] Commit red allowed
+- [x] `promote_cwd_owner__middle_id__becomes_first` — AC1 (last `[c,a,b]` + middle `[b,a,c]` + already-first; `len` unchanged; promoted id `count == 1`)
+- [x] rstest None/empty/missing — AC2
+- [x] Commit red allowed (`5806ac7`)
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] `project_list_order.rs` + `mod.rs` (F37 `with_capacity`; F39 rustdoc)
-- [ ] `list()` human loop uses `promote_cwd_owner`; JSON + `print_unaliased_footer` keep original; F26 resolve `?` (do **not** fail-open store lookup)
-- [ ] Hermetic `tests/project_list_cwd_first.rs` AC3–AC6 (`hermetic_bin` + **must** `isolate_empty_home`; leftover more pins; cwd `register-path`; `.current_dir`; AC3/AC5 `lines().nth(1)`; AC5 **re-env after strip**)
-- [ ] AC7–AC9 / AC13 stay green
-- [ ] Commit green
+- [x] `project_list_order.rs` + `mod.rs` (F37 `with_capacity`; F39 rustdoc)
+- [x] `list()` human loop uses `promote_cwd_owner`; JSON + `print_unaliased_footer` keep original; F26 resolve `?` (do **not** fail-open store lookup)
+- [x] Hermetic `tests/project_list_cwd_first.rs` AC3–AC6 (`hermetic_bin` + **must** `isolate_empty_home`; leftover more pins; cwd `register-path`; `.current_dir`; AC3/AC5 `lines().nth(1)`; AC5 **re-env after strip**)
+- [x] AC7–AC9 / AC13 stay green
+- [x] Commit green (`cf985f2`)
 
 ---
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES List + List JSON: cwd-first human; JSON size-desc
-- [ ] OPERATIONS Listing Projects: T212 columns + cwd-first (replace stale T76)
-- [ ] PROTOCOL-COMPAT: no new required keys
-- [ ] CLI-EXIT-CODES: list still exit 0
-- [ ] Root CHANGELOG T283
-- [ ] List `after_help` F35: `human table puts the cwd path-owner first; JSON order unchanged`
-- [ ] `.claude/skills/ai-brains/SKILL.md` `:89` one sentence (F19). **Skip** `.agents/skills/ai-brains/SKILL.md` (no `project list` match)
+- [x] CAPABILITIES List + List JSON: cwd-first human; JSON size-desc
+- [x] OPERATIONS Listing Projects: T212 columns + cwd-first (replace stale T76)
+- [x] PROTOCOL-COMPAT: no new required keys
+- [x] CLI-EXIT-CODES: list still exit 0
+- [x] Root CHANGELOG T283
+- [x] List `after_help` F35: `human table puts the cwd path-owner first; JSON order unchanged`
+- [x] `.claude/skills/ai-brains/SKILL.md` `:89` one sentence (F19). **Skip** `.agents/skills/ai-brains/SKILL.md` (no `project list` match)
 
 ---
 
 ## Phase 4 — Gate + publish (on go)
 
-- [ ] Classify-only AC10 (`cargo run -p ai-brains-cli -- project list` and `--format json`). **No** `.env` write
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Review log `review.md`; FEATURE cross-model (F22)
-- [ ] `scripts/dev-check.ps1` (not repo-root `dev-check.ps1`)
+- [x] Classify-only AC10 (`cargo run -p ai-brains-cli -- project list` and `--format json`). **No** `.env` write
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] Review log `review.md`; FEATURE cross-model (F22) — CX1 product PASS
+- [x] `scripts/dev-check.ps1` (not repo-root `dev-check.ps1`) — nextest **3341** / 1 skipped
 - [ ] implement-track Phase 6: push `track/T283-*` → PR → watch GHA `CI` green → squash-merge → prune. Never `git push origin main`
 
 ## DoD
 
-- [ ] Human first data row is cwd path-owner when registered (F1)
-- [ ] JSON array still memory-desc (F2)
-- [ ] Footer still T267 (F3)
-- [ ] No T240 F2 write (F4)
+- [x] Human first data row is cwd path-owner when registered (F1)
+- [x] JSON array still memory-desc (F2)
+- [x] Footer still T267 (F3)
+- [x] No T240 F2 write (F4)
 - [ ] Conductor **Completed** only after merge + hygiene

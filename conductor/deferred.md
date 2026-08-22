@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22 (`#198`). **T283 Planned** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22 (`#198`). **T283 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -17,7 +17,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Completed** `#197` |
 | `context --show` misses leftover shell | **T282 Completed** 2026-08-22 `#198` |
-| `project list` leftover-first | **T283 Planned** 2026-08-22 |
+| `project list` leftover-first | **T283 Completed** 2026-08-22 |
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
 | device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
 
@@ -139,7 +139,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Leftover memory reclassify / `MemoryMoved` | F7 / T259 F5 |
 | JSON `project_id` on `RecallResult` | F5 T180 freeze |
 | Semantic-only prefer-fill e2e | F32; lexical AC2 is the hole |
-| `project list` leftover-first | **T283 Planned** 2026-08-22 |
+| `project list` leftover-first | **T283 Completed** 2026-08-22 |
 | `context --show` leftover shell | **T282 Completed** `#198` |
 
 ### T277 planning absorption (2026-08-22) — current-key create; no rekey of T244 `.bak`
@@ -478,7 +478,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | SESSION leftover line | F27 |
 | No-`.env` leftover naming (without lie-suffix) | F26 |
 | Quote-strip file PROJECT_ID | F32 |
-| T283 list cwd-first | **T283 Planned** 2026-08-22 |
+| T283 list cwd-first | **T283 Completed** 2026-08-22 |
 | Live leftover 11 `C:\dev\*` roots | T276 F9 — owner-confirm rebind |
 | Live 0 of 3 grants | T275 F10 |
 | T242 first-run stderr still possible | F6 — leftover is stdout |
@@ -523,6 +523,19 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode O-3 keep F26 store `?` | **Already** F26 |
 | last-PR #198 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M (Agy m1 store-resolve declined as false-complete) |
+
+### T283 closeout residuals (2026-08-22) — human cwd-first; JSON size-desc frozen
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH until `cargo install` | F13 |
+| JSON `cwd_first` marker | F32 — decline as DoD |
+| Star-only fallback when no path-owner | F10 |
+| `--sort` flag | F5 |
+| Duplicate git/path probe vs footer | F9 — T267 signature freeze |
+| Live leftover 11 `C:\dev\*` roots | T276 F9 — owner-confirm rebind |
+| Live 0 of 3 grants | T275 F10 |
+| CX1 P1-1 process (gate/closeout) | **verified_fixed** — `dev-check` 3341 + `verify --scope full`; closeout this commit |
 
 ### T274 closeout residuals (2026-08-21)
 

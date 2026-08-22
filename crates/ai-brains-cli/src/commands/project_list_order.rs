@@ -9,7 +9,7 @@ use ai_brains_store::ProjectListDetail;
 /// Promote the cwd path-owner to index 0 when it is present in `rows`.
 ///
 /// `cwd_owner` comes from `resolve_path_alias_for_location` (`project.rs`
-/// `:226–237`). Exact `project_id` match. Store order otherwise. JSON and the
+/// `:237–248`). Exact `project_id` match. Store order otherwise. JSON and the
 /// unaliased footer keep the unpromoted vec.
 pub(crate) fn promote_cwd_owner(
     rows: &[ProjectListDetail],
