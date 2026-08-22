@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22. T283 remains Placeholder.
 
 | Item | Track |
 |------|-------|
@@ -15,8 +15,8 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
-| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Completed** |
-| `context --show` misses leftover shell | **T282** |
+| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Completed** `#197` |
+| `context --show` misses leftover shell | **T282 Completed** 2026-08-22 |
 | `project list` leftover-first | **T283** |
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
 | device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
@@ -431,6 +431,58 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Daemon Stopped + port Open | F27 — F1 does not say Open |
 | Live leftover 11 roots / 0 of 3 grants | T276 F9 / T275 F10 |
 | CX1 P2-1 call-site helper | **verified_fixed** — `completion_status_human_lines(raw)` |
+
+### T282 planning absorption (2026-08-22) — leftover `--show` line + KEY redact; no T240 F2
+
+| Item | Disposition |
+|------|-------------|
+| Audit `context --show` misses leftover shell vs `.env` (whoami has it) | **Absorb** F1–F4 / AC1–AC5 / AC10 — stdout leftover after `Repository:` iff captured shell ≠ file `PROJECT_ID` |
+| Placeholder no `AI_BRAINS_KEY` / `x'` on `--show` | **Absorb** F3 / AC3 / AC6 — file KEY/VAULT_KEY → `(redacted)`; clap help stays T256 |
+| T276 F10/F11 / closeout shell leftover | **Absorb** (this track) |
+| T242 session-quiet hides override warn | **Partial** — motivation; do **not** restyle T242 (F6) |
+| T206 L3 / CHANGELOG `context --show` mismatch warn | **Decline** F10 — T240 stderr; cwd `mismatch: false` |
+| T256 `--help` hide_env_values | **Decline** F7 — help-only; file dump is this track |
+| `--format json` / vault-free `--show` / SESSION leftover | **Decline** F4 / F11 / F27 |
+| last-PR Cursor #197 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| T283 list cwd-first | **Decline** peer placeholder |
+| leftover `7d97a456` 11 roots | **Decline** — T276 Completed; live rebind owner-confirm |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F2/F12/F17 |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover **this track** |
+| Live `.env` write / adopt-path `--write-env` | **F16** — hermetic no-write is DoD |
+
+### T282 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 file PROJECT_ID strip+trim | **Already** F1/F25; **folded** F33 / AC2 padded value |
+| Agy m2 exact `KEY=` prefix | **Already** F3; **folded** F34 / AC3 `KEYRING=` passthrough |
+| Agy O1 `assert_no_secret_leakage` | **Already** AC6 |
+| Agy O2 helper units | **Already** AC1–AC3 |
+| OpenCode m-1 `.claude` skill already `--show` | **Folded** F19 / AC11 — no new section; one sentence on `:50`/`:57`/`:88` |
+| OpenCode m-2 drop `VAULT_KEY` redact | **Decline** — live daemon/elevation; **folded** F36 rustdoc |
+| OpenCode m-3 AC4 leftover once | **Folded** AC4 `count() == 1` |
+| OpenCode O-1 `isolate_empty_home` | **Folded** AC4 must |
+| OpenCode O-2 capture comment | **Folded** F35 |
+| OpenCode O-3 SESSION/model passthrough | **Already** F3 / §5.4 |
+| last-PR #197 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M (m-2 drop declined as false) |
+
+### T282 closeout residuals (2026-08-22) — leftover `--show` line + KEY redact
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH until `cargo install` | F13 |
+| Vault-free `--show` | F11 — decline as DoD |
+| SESSION leftover line | F27 |
+| No-`.env` leftover naming (without lie-suffix) | F26 |
+| Quote-strip file PROJECT_ID | F32 |
+| T283 list cwd-first | Peer placeholder |
+| Live leftover 11 `C:\dev\*` roots | T276 F9 — owner-confirm rebind |
+| Live 0 of 3 grants | T275 F10 |
+| T242 first-run stderr still possible | F6 — leftover is stdout |
+| CX1 P1-1 process (gate/closeout) | **verified_fixed** — `dev-check` 3333 + `verify --scope full`; closeout this commit |
 
 ### T274 closeout residuals (2026-08-21)
 

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T282 `context --show` leftover shell vs `.env`:** when captured pre-dotenv `AI_BRAINS_PROJECT_ID` differs from the file, stdout after `Repository:` is `shell leftover PROJECT_ID: <uuid> (.env overrides)` (once). Same-id / missing file id omit the line. `AI_BRAINS_KEY` / `AI_BRAINS_VAULT_KEY` file lines print `(redacted)`. `--show` still does not write `.env`. Docs: CAPABILITIES Show-only, OPERATIONS `--show`.
+
 - **T281 Nightly timeout next-line HTTP vs TCP:** human `nightly --status` Completion `probe=timeout (750ms)` is followed by `HTTP /health 750ms ≠ daemon TCP`. `--quick` / `ok` / `down` / `error` do not print the line. JSON probe tokens stay `ok|down|timeout|error|skipped`; 750 ms budget and daemon TCP Open are unchanged. Docs: CAPABILITIES T269 honesty, OPERATIONS Completion/Embedding.
 
 - **T280 Policy deny hint omits required `--scope`:** `POLICY_DENIED` `details.hint` (CLI / daemon / progressive) names `policy bootstrap --dry-run` then `policy bootstrap` and `(omit --scope when project context is authoritative)` — not `bootstrap --scope …`. Briefing markdown next-step matches JSON SHORT. `policy show` `next_step` and doctor LONG are unchanged. `--scope Repository:<uuid>` remains valid when context is not authoritative. Docs: CLI-EXIT-CODES deny remediator, CAPABILITIES progressive first-run, PROTOCOL-COMPAT no new keys.
