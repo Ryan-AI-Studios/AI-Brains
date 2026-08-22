@@ -10,9 +10,12 @@ use crate::preflight_global::{
     GLOBAL_SESSION_MAX, GLOBAL_SESSION_PER_PROJECT, prefix_first_line, project_key, project_tag,
     span_count, take_round_robin,
 };
+use crate::preflight_safety::{
+    SAFETY_EMPTY, fetch_live_hotspots, format_safety_hotspot_line, suppress_vault_hotspot_row,
+};
 use crate::privacy_filter::is_injectable_privacy;
 use crate::ranking::{PinKind, classify_pin_kind};
-use crate::session_chrome::{bound_not_in_sql, index_marker_glob_sql};
+use crate::session_chrome::{bound_not_in_sql, index_marker_glob_sql, safety_marker_glob_sql};
 use crate::sessions::active_sessions;
 use crate::word_budget::{
     content_word_count, trim_to_word_budget, trim_to_word_budget_no_sentinel, word_count,
@@ -287,24 +290,36 @@ fn build_legacy_preflight(
     let mut safety_raw: Vec<(String, String, (Option<String>, String))> = Vec::new(); // content, ts, (project, memory_id)
     let mut span_ids: Vec<String> = Vec::new();
 
-    let safety_sql = if global {
-        "SELECT m.memory_id, m.content, m.updated_at, COALESCE(m.project_id, s.project_id)
-         FROM memory_projection m
-         LEFT JOIN session_projection s ON m.session_id = s.session_id
-         WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
-         AND m.status = 'pinned'
-         ORDER BY m.updated_at DESC LIMIT 40"
+    // T279 F2/F4: live `ledgerful hotspots` is project-scoped only (T214 F9 analog).
+    let live_hotspots = if global {
+        Vec::new()
     } else {
-        "SELECT m.memory_id, m.content, m.updated_at, COALESCE(m.project_id, s.project_id)
-         FROM memory_projection m
-         LEFT JOIN session_projection s ON m.session_id = s.session_id
-         WHERE (m.content LIKE '%CONSTRAINT:%' OR m.content LIKE '%INVARIANT:%' OR m.content LIKE '%HOTSPOT:%')
-         AND m.status = 'pinned'
-         AND (s.project_id = ? OR m.project_id = ?)
-         ORDER BY m.updated_at DESC LIMIT 10"
+        fetch_live_hotspots()
+    };
+
+    let safety_glob = safety_marker_glob_sql("m.content");
+    let safety_sql = if global {
+        format!(
+            "SELECT m.memory_id, m.content, m.updated_at, COALESCE(m.project_id, s.project_id)
+             FROM memory_projection m
+             LEFT JOIN session_projection s ON m.session_id = s.session_id
+             WHERE m.status = 'pinned'
+             {safety_glob}
+             ORDER BY m.updated_at DESC LIMIT 40"
+        )
+    } else {
+        format!(
+            "SELECT m.memory_id, m.content, m.updated_at, COALESCE(m.project_id, s.project_id)
+             FROM memory_projection m
+             LEFT JOIN session_projection s ON m.session_id = s.session_id
+             WHERE m.status = 'pinned'
+             AND (s.project_id = ? OR m.project_id = ?)
+             {safety_glob}
+             ORDER BY m.updated_at DESC LIMIT 10"
+        )
     };
     const _: () = assert!(GLOBAL_SAFETY_FETCH == 40);
-    let mut safety_stmt = conn.prepare(safety_sql)?;
+    let mut safety_stmt = conn.prepare(&safety_sql)?;
     let mut safety_rows = if global {
         safety_stmt.query([])?
     } else if let Some(ref pid) = project_id_str {
@@ -322,8 +337,7 @@ fn build_legacy_preflight(
         let updated_at: String = row.get(2)?;
         let item_project: Option<String> = row.get(3)?;
 
-        // Suppress vault HOTSPOTs if we already have fresh intelligence from the bridge
-        if has_cg_intelligence && content.contains("HOTSPOT:") {
+        if suppress_vault_hotspot_row(&content, !live_hotspots.is_empty(), has_cg_intelligence) {
             continue;
         }
 
@@ -350,30 +364,35 @@ fn build_legacy_preflight(
 
     let mut safety_cleaned: Vec<String> = Vec::new();
     let mut safety_for_skip: Vec<String> = Vec::new();
-    if !safety_entries.is_empty() {
-        for (entry, (pid, _)) in &safety_entries {
-            let stripped = entry.strip_prefix("ASSISTANT: ").unwrap_or(entry);
-            safety_for_skip.push(stripped.to_string());
-            let tagged = if global {
-                if let Some(id) = pid.as_deref() {
-                    span_ids.push(id.to_string());
-                }
-                prefix_first_line(stripped, pid.as_deref())
-            } else {
-                stripped.to_string()
-            };
-            safety_cleaned.push(tagged);
+    for hs in &live_hotspots {
+        if let Some(line) = format_safety_hotspot_line(&hs.path, hs.score) {
+            safety_cleaned.push(line);
         }
-        let safety_text = format!(
-            "--- Repository Bearings & Safety ---\n{}",
-            safety_cleaned.join("\n\n")
-        );
-        // Intermediate subsection trim: no F2b sentinel (final join applies F2b).
-        sections.push(trim_to_word_budget_no_sentinel(
-            &safety_text,
-            onboarding_budget,
-        ));
     }
+    for (entry, (pid, _)) in &safety_entries {
+        let stripped = entry.strip_prefix("ASSISTANT: ").unwrap_or(entry);
+        safety_for_skip.push(stripped.to_string());
+        let tagged = if global {
+            if let Some(id) = pid.as_deref() {
+                span_ids.push(id.to_string());
+            }
+            prefix_first_line(stripped, pid.as_deref())
+        } else {
+            stripped.to_string()
+        };
+        safety_cleaned.push(tagged);
+    }
+    // T279 F3/F37: always emit the Safety header; trim even the honest-empty body.
+    let safety_body = if safety_cleaned.is_empty() {
+        SAFETY_EMPTY.to_string()
+    } else {
+        safety_cleaned.join("\n\n")
+    };
+    let safety_text = format!("--- Repository Bearings & Safety ---\n{safety_body}");
+    sections.push(trim_to_word_budget_no_sentinel(
+        &safety_text,
+        onboarding_budget,
+    ));
 
     let active = if global {
         take_round_robin(

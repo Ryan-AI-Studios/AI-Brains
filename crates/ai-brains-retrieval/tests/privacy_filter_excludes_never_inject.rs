@@ -25,6 +25,10 @@ fn privacy_filter_excludes_never_inject() -> Result<(), Box<dyn std::error::Erro
         None,
         false,
     )?;
-    assert!(preflight.text.is_empty());
+    assert!(
+        !preflight.text.contains("sensitive operator note"),
+        "NeverInject payload must not appear; text=\n{}",
+        preflight.text
+    );
     Ok(())
 }

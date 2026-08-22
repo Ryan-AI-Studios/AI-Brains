@@ -622,6 +622,21 @@ mod tests {
         );
     }
 
+    /// T279 F30: after_help names Safety live hotspots + dry-run empty.
+    #[test]
+    #[allow(non_snake_case)]
+    fn preflight__help__names_session_safety_hotspots() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "preflight", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("hotspots") && help.contains("safety sync --dry-run"),
+            "F30: after_help names live hotspots and dry-run empty; got: {help}"
+        );
+    }
+
     /// T278 F30: after_help names session PREVIEW caption shape.
     #[test]
     #[allow(non_snake_case)]
@@ -1077,7 +1092,7 @@ enum Commands {
     /// Generate preflight context for an LLM
     #[command(
         display_order = 11,
-        after_help = "Default --pretty caps Session and Recent display lines at 140 characters. Safety is not line-capped on default pretty; only --compact first-line-caps Safety (100).\nJSON and --summary ignore --compact.\nFull `--format json` is compact `{text, word_count, sections}` (T265). `--summary --format json` stays the T220 pretty envelope.\nExamples:\n  ai-brains preflight --pretty\n  ai-brains preflight --pretty --compact\n  ai-brains preflight --format json\n  ai-brains preflight --summary"
+        after_help = "Default --pretty caps Session and Recent display lines at 140 characters. Safety is not line-capped on default pretty; only --compact first-line-caps Safety (100).\nSafety is live Ledgerful hotspots (project-scoped) or leading CONSTRAINT/INVARIANT/HOTSPOT pins, not session dumps; empty names `ai-brains safety sync --dry-run`.\nJSON and --summary ignore --compact.\nFull `--format json` is compact `{text, word_count, sections}` (T265). `--summary --format json` stays the T220 pretty envelope.\nExamples:\n  ai-brains preflight --pretty\n  ai-brains preflight --pretty --compact\n  ai-brains preflight --format json\n  ai-brains preflight --summary"
     )]
     Preflight {
         #[arg(short, long, default_value_t = 1500)]

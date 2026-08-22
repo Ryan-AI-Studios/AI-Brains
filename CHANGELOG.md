@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T279 Preflight Safety vs live hotspots:** Pretty `Repository Bearings & Safety` is live Ledgerful hotspot paths (project-scoped `ledgerful hotspots --json --limit 5`, `HOTSPOT: <path> score=n`) plus leading-line GLOB `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` — not LIKE-anywhere session dumps. Honest empty still emits the header and `next: ai-brains safety sync --dry-run`. `--global` does not live-inject. JSON keys stay `{text, word_count, sections}`. Docs: CAPABILITIES Safety row, OPERATIONS preflight vs pin, PROTOCOL-COMPAT no new keys.
+
 - **T278 Session neighbor PREVIEW captions:** Pretty `graph neighbors` fills session-kind PREVIEW with `{n} memories · first line` (count from `graph session`, skip-empty first memory, Unicode 80-cap). JSON neighbor keys stay three. Density floors / `graph update` honesty are unchanged — live sparse E/N is not a caption bug. Docs: CAPABILITIES graph table, OPERATIONS captions vs update≠rebuild, PROTOCOL-COMPAT human-only preview.
 
 - **T284 Retention Work + apply samples:** Human `retention plan` Work rows use per-class CE/projection counts (not the dominant `mechanism`), so a held-majority mixed `secret` still lists due `ce_wipe` work. `RetentionApplied.sample_ids` prefer dispose identities (`content_key:` / `turn:`) when dispose totals > 0; overlay pins remain inventory-only. Zero-dispose class JSON still omits the three optional keys. Docs: CAPABILITIES Work, OPERATIONS Audit, PROTOCOL-COMPAT class-bucket extras.

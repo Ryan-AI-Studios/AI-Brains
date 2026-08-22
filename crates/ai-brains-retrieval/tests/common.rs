@@ -2,6 +2,7 @@
 
 use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
 use ai_brains_core::privacy::Privacy;
+use ai_brains_core::temp_env::TempEnv;
 use ai_brains_crypto::DataKey;
 use ai_brains_events::{
     Actor, AggregateType, Payload,
@@ -10,12 +11,22 @@ use ai_brains_events::{
 };
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
+use std::sync::OnceLock;
 use tempfile::NamedTempFile;
+
+/// T279 F13 analog: retrieval integration tests call `build_preflight` in-process
+/// (not via CLI `hermetic_bin`). Skip live `ledgerful hotspots` so repo-cwd
+/// inject cannot leak into hermetic fixtures.
+pub fn skip_live_preflight_hotspots() {
+    static SKIP: OnceLock<TempEnv> = OnceLock::new();
+    SKIP.get_or_init(|| TempEnv::set("AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS", "1"));
+}
 
 pub fn store_with_memory(
     content: &str,
     privacy: Privacy,
 ) -> Result<SqliteEventStore, Box<dyn std::error::Error>> {
+    skip_live_preflight_hotspots();
     let temp_file = NamedTempFile::new()?;
     let db_path = temp_file
         .path()
@@ -55,6 +66,7 @@ pub fn store_with_memory(
 }
 
 pub fn empty_store() -> Result<SqliteEventStore, Box<dyn std::error::Error>> {
+    skip_live_preflight_hotspots();
     let temp_file = NamedTempFile::new()?;
     let db_path = temp_file
         .path()
@@ -76,6 +88,7 @@ pub fn store_with_project_id(
     privacy: Privacy,
     project_id: ProjectId,
 ) -> Result<SqliteEventStore, Box<dyn std::error::Error>> {
+    skip_live_preflight_hotspots();
     let temp_file = NamedTempFile::new()?;
     let db_path = temp_file
         .path()

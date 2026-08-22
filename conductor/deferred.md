@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -13,7 +13,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
 | 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
-| preflight Safety = review-track Objective | **T279** |
+| preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
 | `context --show` misses leftover shell | **T282** |
@@ -283,6 +283,57 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | `pretty_no_memory_node` still `graph update` | F32 / T262 leftover wrong-kind |
 | T279–T283 peers | F22 |
 | AC5 fail-open for `get_session_memories` SQL (vs `memory_preview`) | Low — same match arm; executable lock is DROP COLUMN content |
+
+### T279 planning absorption (2026-08-22) — leading-line GLOB + live hotspots; no live pin
+
+| Item | Disposition |
+|------|-------------|
+| Audit Safety = review-track Objective / ≠ `safety sync --dry-run` paths | **Absorb** F1–F3 / AC3–AC4 / AC10 |
+| T274 F23 Safety SQL leftover | **Absorb** F1 — LIKE-anywhere → leading-line GLOB |
+| T274 closeout AC6 buried CONSTRAINT would Safety-steal | **Absorb** AC3 — dump must not appear in Safety |
+| T250 F12 HOTSPOT float reformat | **Partial** F15 — live `score={:.2}` only |
+| T272 skip-set / T264 caps | **Affirm freeze** F5/F6 |
+| T272 F18 session HOTSPOT skip | **Decline** F32 |
+| `query_ledgerful` Intelligence empty | **Decline** F11 |
+| T280 deny hint `--scope` | **Decline → T280** |
+| T281 nightly 750 ms / T282 `--show` / T283 list | **Decline** peers |
+| leftover `7d97a456` 11 roots | **Decline** — T276 Completed; live rebind owner-confirm |
+| last-PR Cursor #194 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F12/F17 |
+| Live `safety sync` pin | **Decline** F21 |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
+
+### T279 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 first-line `[` JSON finder | **Already** F35/AC9; **folded** F36 / AC9 (`safety.rs` `:116–118`) |
+| Agy m2 always `trim_to_word_budget_no_sentinel` | **Folded** F37 |
+| Agy O1 `SAFETY_EMPTY` no `HOTSPOT:` | **Already** F3 / AC14 |
+| Agy O2 pure parse/format units | **Already** AC2 / AC9 |
+| OpenCode m1 AC6 test names `summary_smoke` + `summary_compact` | **Folded** AC6 |
+| OpenCode m2 `displayScore` 3.944 vs 3.934949 | **Folded** §2.1 volatile; F2 raw `score={:.2}` |
+| OpenCode O1 `--global` empty wording | **Decline** — one `SAFETY_EMPTY` |
+| last-PR #194 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
+### T279 closeout residuals (2026-08-22) — Safety GLOB + live hotspots + honest empty
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` | F20 — tests/manual use `cargo run` |
+| Intelligence + Safety path dup if bridge later fills | F11 |
+| CLI `safety.rs` vs retrieval JSON parse drift | F29 |
+| Unbounded `ledgerful hotspots` wait | F35 |
+| Session `HOTSPOT:` skip | F32 / T272 F18 |
+| Safety SQL still no `is_injectable_privacy` | CX1 P0-1 **out of scope** — pre-existing; Index already filters |
+| `--global` empty remediator is cwd dry-run | OpenCode O1 declined |
+| Live leftover 11 roots | T276 F9 |
+| Live 0 of 3 grants | T275 F10 |
+| T280–T283 peers | F17 |
+| `agy-review.md` trailing whitespace lines 3–6 | CX2 P3 — plan-review artifact; do not edit `*-review.md` |
 
 ### T274 closeout residuals (2026-08-21)
 

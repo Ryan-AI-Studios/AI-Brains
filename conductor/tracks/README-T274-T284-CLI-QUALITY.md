@@ -1,7 +1,7 @@
 # T274–T284 — Post-T270 live CLI quality (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-21 (PATH graph-on `ai-brains` **0.1.1** installed from HEAD `14d42af`; live vault `C:\dev\ai-brains\vault.db`; daemon Running; agent non-TTY). Plus last-PR Cursor Bugbot on [#188](https://github.com/Ryan-AI-Studios/AI-Brains/pull/188) (T270).
-**Status:** **T274 Completed** 2026-08-21 (`#189`). **T275 Completed** 2026-08-21 (`#190`). **T276 Completed** 2026-08-22 (`#191`). **T277 Completed** 2026-08-22 (`#192`; live `--no-prune` skipped). **T284 Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (session PREVIEW; density honesty frozen). T279–T283 remain **Placeholder**. F0 = plan-only until **go**.
+**Status:** **T274 Completed** 2026-08-21 (`#189`). **T275 Completed** 2026-08-21 (`#190`). **T276 Completed** 2026-08-22 (`#191`). **T277 Completed** 2026-08-22 (`#192`; live `--no-prune` skipped). **T284 Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`; session PREVIEW; density honesty frozen). **T279 Completed** 2026-08-22 (Safety GLOB + live hotspots + honest empty). T280–T283 remain **Placeholder**.
 **Prior closed series:** T256–T273 CLI audit (closer T270/T273 2026-08-21).
 **Ledger (registration):** DOCS TX `89a8a2b9-d69d-471f-857b-b9e634138499`.
 
@@ -21,7 +21,7 @@ Scores below are **Usefulness / Effectiveness** from that audit (1–10). Every 
 | Leftover `7d97a456` ~18k pins / many `C:\dev\*` roots; `--global` recall junk | 7/**3**; list-paths 8/**7** | **T276 Completed** | P0 |
 | No usable encrypted backup (22/22 FAIL; T244 file now KeyMismatch) | opp; doctor warn | **T277 Completed** (hermetic F2; live create still owner-confirm) | P1 |
 | Graph sparse E/N ~0.11; neighbors preview blank | 7/**7**, 6/**6** | **T278 Completed** | P1 |
-| Preflight Safety ≠ `safety sync --dry-run` hotspots | friction / opp | **T279** | P1 |
+| Preflight Safety ≠ `safety sync --dry-run` hotspots | friction / opp | **T279 Completed** | P1 |
 | Deny / `policy show` still `bootstrap --scope …` vs doctor omit `--scope` | 8/**7**, 7/**7** | **T280** | P2 |
 | Nightly Completion `timeout (750ms)` vs daemon LLM **Open** (labeled, still dual-probe) | friction (nightly 8/8) | **T281** | P2 |
 | `context --show` misses leftover shell vs `.env` (whoami has it) | 7/**7** | **T282** | P2 |
@@ -47,13 +47,13 @@ Scores below are **Usefulness / Effectiveness** from that audit (1–10). Every 
 
 ## Suggested implement order
 
-1. **T274 Completed.** **T275 Completed.** **T276 Completed.** **T277 Completed** (`#192`). **T284 Completed** (`#193`). **T278 Completed.**
-2. Next: `/plan-track 279` (Safety vs hotspots), then `/implement-track`
+1. **T274 Completed.** **T275 Completed.** **T276 Completed.** **T277 Completed** (`#192`). **T284 Completed** (`#193`). **T278 Completed** (`#194`).
+2. Next: **T280 Placeholder** — `/plan-track 280` first. Then `/implement-track`.
 3. **T277** live `backup create --no-prune` still owner-confirm (hermetic shipped)
 4. **T279** / **T280** / **T282** / **T283** presentation
 5. **T281** nightly remaining dual-probe sentence
 
-Do **not** `/implement-track` a Placeholder. Run `/plan-track TNN` first.
+Do **not** `/implement-track` a Placeholder. Run `/plan-track TNN` first. T280–T283 still need `/plan-track`.
 
 ## Non-goals of this series
 
