@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Planned** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -15,7 +15,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
-| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
+| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Planned** |
 | `context --show` misses leftover shell | **T282** |
 | `project list` leftover-first | **T283** |
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
@@ -383,6 +383,26 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Live leftover 11 roots | T276 F9 |
 | T281–T283 peers | F17 |
 | Series README Planned at CX1 | P3-3 **verified_fixed** at closeout |
+
+### T281 planning absorption (2026-08-22) — timeout next-line HTTP vs TCP; no 750 raise
+
+| Item | Disposition |
+|------|-------------|
+| Audit nightly Completion timeout vs daemon Open (750 ms not raised) | **Absorb** F1–F5 / AC1–AC2 / AC7 / AC10 — after_help already T269; status-block next line is DoD |
+| T269 closeout two-truths on `--status` | **Absorb** F1 — gate on raw `== "timeout"`; do **not** print when `ok` |
+| T269 F21 JSON budget field | **Decline** F3 |
+| T255 F18 raise 750 / doctor 16th / persist / wrapper | **Decline** F2 / F11 |
+| Unify daemon TCP with HTTP `/health` | **Decline** F10 |
+| TCP-probe from nightly to print Open | **Decline** F1 / F27 |
+| Embedding-only timeout contrast | **Decline as DoD** F26 |
+| last-PR Cursor #196 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| T282 `--show` / T283 list | **Decline** peers |
+| leftover `7d97a456` 11 roots | **Decline** — T276 Completed; live rebind owner-confirm |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F12/F17 |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
+| Live schtasks mutate / force llama load | **F16** — hermetic + pass-with-observed-data is DoD |
 
 ### T274 closeout residuals (2026-08-21)
 
