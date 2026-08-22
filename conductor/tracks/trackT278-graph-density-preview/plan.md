@@ -1,6 +1,6 @@
 # T278 Plan — Session neighbor PREVIEW + honest density
 
-**Status:** **In Progress**
+**Status:** **Completed**
 **Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC14 + §13 AI fold-in
 **Category:** FEATURE / UX
 **Ledger TX (planning):** `977c5e7e-1043-4d5d-ab52-7803cd231f6a` (DOCS)
@@ -115,29 +115,29 @@ No Blockers / Majors either harness. Disposition in spec **§13**.
 - [x] PROTOCOL-COMPAT §5: preview human-only; keys unchanged
 - [x] CHANGELOG T278
 - [x] Skill one-liner if graph section exists
-- [ ] conductor Completed only on implement closeout — **not** this planning pass
+- [x] conductor Completed only on implement closeout — **not** this planning pass
 
 ## Phase 4 — Verify
 
-- [ ] Targeted nextest: `-p ai-brains-cli graph` units; `--test graph_human_cli`; `--test graph_live_projection` (graph feature)
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] `cargo fmt --check`
-- [ ] Primary review → `review.md`; mediums not silently dropped
-- [ ] Cross-model `codex-review` (F20)
-- [ ] Full workspace gate at closeout only
-- [ ] Classify-only live `graph update --format human` (AC8) + `cargo run --features graph -- graph neighbors <id> --format human` (AC10). **No** live rebuild
+- [x] Targeted nextest: `-p ai-brains-cli graph` units; `--test graph_human_cli`; `--test graph_live_projection` (graph feature)
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] `cargo fmt --check`
+- [x] Primary review → `review.md`; mediums not silently dropped
+- [x] Cross-model `codex-review` (F20)
+- [x] Full workspace gate at closeout only
+- [x] Classify-only live `graph update --format human` (AC8) + `cargo run --features graph -- graph neighbors <id> --format human` (AC10). **No** live rebuild
 
 ## DoD (checkable)
 
-- [ ] Hermetic pin → pretty PREVIEW contains `memories` (AC3)
-- [ ] Session caption unit `{n} memories · first` + 80 cap + CJK (AC1)
-- [ ] `pick_first_nonempty` skip-empty unit (AC14 / F34)
-- [ ] Session I/O helper returns `String` (AC5 / F33)
-- [ ] JSON neighbor keys still three (AC4)
-- [ ] Live `graph update --format human` still not a false unlabeled live (AC8)
-- [ ] No live `graph rebuild`
-- [ ] No `cargo install`
-- [ ] Diff omits `doctor.rs` / `project.rs` / `projector.rs` / `graph_density.rs` (AC13)
+- [x] Hermetic pin → pretty PREVIEW contains `memories` (AC3)
+- [x] Session caption unit `{n} memories · first` + 80 cap + CJK (AC1)
+- [x] `pick_first_nonempty` skip-empty unit (AC14 / F34)
+- [x] Session I/O helper returns `String` (AC5 / F33)
+- [x] JSON neighbor keys still three (AC4)
+- [x] Live `graph update --format human` still not a false unlabeled live (AC8)
+- [x] No live `graph rebuild`
+- [x] No `cargo install`
+- [x] Diff omits `doctor.rs` / `project.rs` / `projector.rs` / `graph_density.rs` (AC13)
 - [ ] implement-track Phase 6: push `track/T278-*` → PR → watch GHA `CI` green → squash-merge → prune (never `git push origin main`)
 
 ## Stop-before

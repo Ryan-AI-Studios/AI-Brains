@@ -1,7 +1,7 @@
 # T278 review log — Graph neighbor previews + honest density
 
 **Track:** T278-GraphDensityPreview
-**Status:** In Progress (product green; Phase 5–6 pending)
+**Status:** Completed (full gate green; Phase 6 pending this commit)
 **FEATURE TX:** `13cc210d-e29b-48b0-b370-2f858a092eb9`
 **HEAD (implement):** `track/T278-graph-density-preview`
 
@@ -13,8 +13,8 @@
 | R1b | Explore subagent (read-only DoD) | **PASS** — no P0–P3; omit-list clean; F33/F34/AC1–AC14 static DoD met |
 | CX1 | Codex gpt-5.6-luna | **FAIL** — P1-001 process (full gate/closeout), P2-001 AC5 fail-open test, P2-002 AC3 PREVIEW cell |
 | R2 | Implementer | P2-001/P2-002 fixed; P1-001 residual closeout |
-| CX2 | Codex | pending |
-| Gate | `dev-check.ps1` + `ledgerful verify --scope full` | pending |
+| CX2 | Codex gpt-5.6-luna | **PASS** (product DoD). P2-001/P2-002 verified_fixed. P1-001 residual closeout only |
+| Gate | `dev-check.ps1` + `ledgerful verify --scope full` | **PASS** nextest **3280** / 1 skipped |
 
 ## Finding fields
 
@@ -24,9 +24,9 @@ id, severity, description, source, files, required_fix, status, evidence.
 
 | id | severity | description | source | files | required_fix | status | evidence |
 |----|----------|-------------|--------|-------|--------------|--------|----------|
-| P1-001 | high (process) | Full gate, durable review, conductor closeout unfinished at CX1 time | CX1 | conductor + review.md | Complete Phase 5–6 | `fixed_pending_verification` | targeted gates green; full `dev-check` pending |
-| P2-001 | high | AC5 fail-open had no executable SQL-err path | CX1 | `tests/graph_live_projection.rs` | Hermetic `memory_preview` error → neighbors exit 0 | `fixed_pending_verification` | `pin__graph_on__neighbors_pretty__session_preview_sql_err_exit_0` PASS |
-| P2-002 | high | AC3 asserted tautological non-whitespace on the whole row | CX1 | `tests/graph_live_projection.rs` | Parse PREVIEW cell (col 73) for `1 memories · DECISION` | `fixed_pending_verification` | `pin__graph_on__neighbors_pretty__session_preview_nonblank` PASS |
+| P1-001 | high (process) | Full gate, durable review, conductor closeout unfinished at CX1 time | CX1 | conductor + review.md | Complete Phase 5–6 | `verified_fixed` | `dev-check` 3280 passed / 1 skipped; `ledgerful verify --scope full` exit 0 |
+| P2-001 | high | AC5 fail-open had no executable SQL-err path | CX1 | `tests/graph_live_projection.rs` | Hermetic `memory_preview` error → neighbors exit 0 | `verified_fixed` (CX2) | `pin__graph_on__neighbors_pretty__session_preview_sql_err_exit_0` PASS |
+| P2-002 | high | AC3 asserted tautological non-whitespace on the whole row | CX1 | `tests/graph_live_projection.rs` | Parse PREVIEW cell (col 73) for `1 memories · DECISION` | `verified_fixed` (CX2) | `pin__graph_on__neighbors_pretty__session_preview_nonblank` PASS |
 
 R1/R1b: no product findings.
 

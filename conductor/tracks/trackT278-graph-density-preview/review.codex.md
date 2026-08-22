@@ -1,83 +1,66 @@
-# T278 Independent Completion Audit
+# T278-GraphDensityPreview — CX2 Independent Completion Audit
 
-**Scope:** `track/T278-graph-density-preview` vs `origin/main`  
-**HEAD:** `134944d`  
-**Base:** `origin/main` `400dd78`  
-**Verdict:** Product implementation appears correct, but the track is **not completion-ready** because required closeout verification and publish steps remain pending.
+**Scope:** `track/T278-graph-density-preview` `be1d86c` vs `origin/main` `400dd78`  
+**Mode:** Read-only
 
-## P0 Findings
+## Verdict
 
-None.
+**Product PASS.** CX1 product findings P2-001 and P2-002 are fixed. The only remaining issue is the previously identified **P1 process residual**: full closeout verification and publish steps remain incomplete.
 
-## P1 Findings
+## Findings
 
-### P1-001 — Required closeout gates are incomplete
-
-`plan.md` and `review.md` still show Phase 4, full verification, cross-model review, and publish steps as pending. `conductor.md` remains **In Progress**.
-
-Required before completion:
-
-- Run the full workspace gate.
-- Run `ledgerful verify --scope full`.
-- Record the independent review result in `review.md`.
-- Complete implement-track publish/hygiene steps.
-
-Evidence: [plan.md](C:/dev/AI-Brains/conductor/tracks/trackT278-graph-density-preview/plan.md:120), [review.md](C:/dev/AI-Brains/conductor/tracks/trackT278-graph-density-preview/review.md:15)
-
-## P2 Findings
-
-### P2-001 — Fail-open behavior lacks an executable regression test
-
-The implementation correctly returns `String`, catches session lookup and preview errors, logs warnings, and avoids `?` propagation in the session arm ([graph.rs](C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/graph.rs:271)).
-
-However, no test forces `get_session_memories`, `memory_preview`, or lock failure and verifies that `graph neighbors` still exits successfully with an honest fallback. A future regression could reintroduce `?` without the suite detecting it.
-
-Add a hermetic failure-path test for AC5.
-
-### P2-002 — AC3 does not precisely verify the PREVIEW column
-
-The integration test checks that a line contains `session`, `memories`, and any non-whitespace character. The final character assertion is tautological for any nonempty output line; it does not parse or specifically validate the PREVIEW field.
-
-Evidence: [graph_live_projection.rs](C:/dev/AI-Brains/crates/ai-brains-cli/tests/graph_live_projection.rs:138)
-
-Strengthen the assertion to validate the session row’s final column, preferably including the expected count and preview text.
-
-## P3 Findings
+### P0
 
 None.
 
-## Requirement and DoD Audit
+### P1
 
-| Area | Result |
-|---|---|
-| Session PREVIEW caption | Implemented: `{n} memories · first line` |
-| Empty/whitespace handling | Implemented and unit-tested |
-| Unicode-safe 80-character cap | Implemented through `truncate_preview_chars` and tested |
-| Sorted session memory selection | Implemented |
-| Skip-empty first preview | Implemented through pure `pick_first_nonempty` and tested |
-| Session-arm fail-open behavior | Implemented; failure-path test missing |
-| JSON schema | Frozen; `memory_id`, `neighbors`, and three `NeighborHit` keys remain unchanged |
-| Pretty-row wiring | Reachable through `pretty_neighbor_rows` |
-| Clap help | Additive `after_help` implemented and tested; `Command::after_help` remains supported by current clap documentation ([docs.rs](https://docs.rs/clap/latest/clap/struct.Command.html)) |
-| Density floors | Untouched |
-| Projector/event/contracts | Untouched |
-| Live rebuild/install/pin boundaries | No evidence of prohibited actions; manual evidence says none performed |
-| Documentation | CAPABILITIES, OPERATIONS, PROTOCOL-COMPAT, CHANGELOG, and skill documentation updated |
-| Red stubs | Replaced by green implementation; no relevant production placeholders remain |
-| Targeted gates | Orchestrator evidence reports passing targeted nextest, clippy, and fmt |
-| Full workspace gate | Not run/evidenced |
-| Ledgerful full verification | Not run; local Ledgerful database could not be opened |
-| Publish/hygiene | Not complete |
+#### P1-001 — Closeout process remains incomplete
 
-## Verification Notes
+The track is still marked **In Progress** in [plan.md](C:/dev/AI-Brains/conductor/tracks/trackT278-graph-density-preview/plan.md:3), [review.md](C:/dev/AI-Brains/conductor/tracks/trackT278-graph-density-preview/review.md:4), and [conductor.md](C:/dev/AI-Brains/conductor/conductor.md:225).
 
-- `cargo fmt --check`: passed locally.
-- Local nextest rerun was blocked by read-only filesystem access to `target\debug\.cargo-lock`.
-- `ai-brains preflight --summary`: unavailable because `AI_BRAINS_KEY` is missing.
-- `ledgerful doctor` / status: unavailable because Ledgerful could not open its database.
-- Branch is clean and contains no forbidden density/projector/doctor/contract changes.
-- No deferred P3 items are proposed.
+Outstanding process items include:
 
-## Final Assessment
+- Full workspace gate and `ledgerful verify --scope full`.
+- Final Phase 5–6 closeout.
+- PR/CI/squash-merge/publish hygiene.
 
-The product code satisfies the substantive T278 behavior, with two test-proof gaps. The track must remain open until P1-001 is completed and the P2 test gaps are addressed or explicitly resolved by the owner.
+Per instruction, this is classified as a **process residual only**, not a product DoD failure.
+
+### P2
+
+None open.
+
+- **P2-001 verified fixed:** `session_neighbor_caption` catches both session lookup and individual preview failures and returns a fallback `String` ([graph.rs](C:/dev/AI-Brains/crates/ai-brains-cli/src/commands/graph.rs:270)). The new SQL-error test drops FTS triggers, removes `memory_projection.content`, and asserts exit code `0`, a memories caption, and no leaked `DECISION` text ([graph_live_projection.rs](C:/dev/AI-Brains/crates/ai-brains-cli/tests/graph_live_projection.rs:164)).
+- **P2-002 verified fixed:** AC3 now extracts the PREVIEW cell at column 73 and asserts `1 memories`, ` · `, and `DECISION` ([graph_live_projection.rs](C:/dev/AI-Brains/crates/ai-brains-cli/tests/graph_live_projection.rs:108), [graph_live_projection.rs](C:/dev/AI-Brains/crates/ai-brains-cli/tests/graph_live_projection.rs:149)).
+
+### P3
+
+None affecting product correctness.
+
+`git diff --check` reports intentional Markdown hard-break whitespace in review artifacts only; this is not a product regression or configured gate failure.
+
+## Regression sweep
+
+- `cargo fmt --all -- --check`: **PASS**
+- Cargo pins unchanged versus `origin/main`.
+- No changes to density floors, projector, doctor, preflight, sync, contracts, `Cargo.toml`, `Cargo.lock`, or `.env`.
+- JSON output serialization and keys remain unchanged.
+- No live rebuild path was introduced.
+- Branch is clean and `origin/main` is an ancestor of `HEAD`.
+
+Targeted integration execution was unavailable in this managed read-only environment:
+
+- Direct test binary: blocked by denied `tempfile` creation.
+- `cargo nextest`: blocked opening `target\debug\.cargo-lock`.
+- `ledgerful doctor/status/search`: blocked by database access permissions.
+- `ai-brains preflight/recall`: blocked because `AI_BRAINS_KEY` is unavailable.
+
+The orchestrator-supplied targeted results for both repaired tests were PASS, and source/test inspection confirms the assertions exercise the intended behaviors.
+
+## Final assessment
+
+**T278 product implementation: PASS.**  
+**Track completion: pending P1-001 process closeout only.**
+
+No files were modified by this review.
