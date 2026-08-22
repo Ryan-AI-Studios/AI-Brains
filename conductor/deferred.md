@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -18,7 +18,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
 | `context --show` misses leftover shell | **T282** |
 | `project list` leftover-first | **T283** |
-| #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284** |
+| #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
 | device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
 
 ### T274 planning absorption (2026-08-21) — leading-line + two-pass; no Safety steal
@@ -189,6 +189,53 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Integrity-check fail leaves dest file | pre-T277; F2 is post-meta |
 | Shared crate other-key fixture module | F44 |
 
+### T284 planning absorption (2026-08-22) — Work dispose counts + apply samples; no live apply
+
+| Item | Disposition |
+|------|-------------|
+| #188 Work empty when held dominates CE class | **Absorb** F1/F6 / AC1/AC3 — class dispose counts, not dominant `mechanism` |
+| #188 `RetentionApplied.sample_ids` prefer overlay pins | **Absorb** F7 / AC2 — dispose ids first; no pad with pins when dispose > 0 |
+| T270 F9 Work dispose-only | **Lift** F1 — still dispose-only; filter is per-class CE/PD counts |
+| T270 F8 `Nothing to dispose.` = no CE/PD | **Affirm** AC4 — inventory-only freeze |
+| T270 overlay / `none_auto` / pin hold | **Affirm** F9 — do not remove |
+| Change `dominant_mechanism` / split `classes[]` | **Decline** F2/F3 — matrix stays majority (tie → `held`) |
+| Optional class-bucket JSON extras | **Partial F4** — skip-if-zero; report keys unchanged; live inventory omits |
+| Event `class_counts` split | **Decline** F8 |
+| Live `retention apply --confirm` | **Decline** F16 — hermetic `prepare_retention_apply` is DoD |
+| T248 F16 doctor retention / T270 F20 nightly restyle | **Decline** F17 |
+| last-PR Cursor #192 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Absorb** (source) — **no T285** |
+| leftover `7d97a456` / T278–T283 | **Decline** peers |
+| T277 live `backup create --no-prune` | **Decline** — T277 Completed hermetic; live skip residual |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F19/F32 |
+
+### T284 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 Work fallback `sample_ids` | **Already** F6; **folded test** AC17 |
+| Agy m2 `audit_sample_ids` de-dupe | **Already** F7; locked by AC16 |
+| Agy O1 exact 5-key serde omit | **Folded** F37 / AC5 |
+| Agy O2 stale comment | **Already** F38 |
+| OpenCode m1 stale comment `:629` | **Already** F38 |
+| OpenCode m2 no `Default`; ~6 literals | **Already** F28 |
+| OpenCode O1 helper unit no event-log | **Folded** F41 / AC16 |
+| last-PR #192 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
+### T284 closeout residuals (2026-08-22) — Work dispose counts + apply samples
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F15 — operator; tests use source |
+| Live vault still 0 CE / 0 projection | Honest; mixed hole is hermetic |
+| Event `class_counts` still dominant | F8 |
+| Two Work rows sharing samples if CE+PD mix | F29 |
+| Nightly `candidates=` includes held | T270 F20 |
+| Doctor retention check | T248 F16 |
+| Live `retention apply --confirm` | F16 — not run |
+| `class_dispose_count` is `pub` (cross-crate) | F27 amended; `audit_sample_ids` stays `pub(crate)` |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |
@@ -215,7 +262,7 @@ Specified softs — not product blockers:
 | Leftover project 18k pins still owned by `7d97a456` | **T276** |
 | Doctor retention check | T248 F16 |
 | rusqlite `table_exists` 0.40 | T213 L4 |
-| last-PR Cursor #188 Work table / apply samples | **T284** |
+| last-PR Cursor #188 Work table / apply samples | **T284 Completed** 2026-08-22 |
 
 ## Post-P12 backlog promotion (2026-08-01)
 

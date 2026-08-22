@@ -4,8 +4,8 @@
 //! T166 — class-based retention plan/apply tests.
 
 use ai_brains_contracts::retention::{
-    CLASS_MEMORY_LEGACY, CLASS_RAW_TURN, MECHANISM_HELD, MECHANISM_SKIP,
-    RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY,
+    CLASS_MEMORY_LEGACY, CLASS_RAW_TURN, CLASS_SECRET, MECHANISM_HELD, MECHANISM_SKIP,
+    RETENTION_HONESTY_MEMORY_LEGACY_INVENTORY, truncate_id,
 };
 use ai_brains_control_plane::{
     AllowAllPolicy, MAX_RETENTION_HORIZON_DAYS, RetentionApplyCommand, RetentionConfig,
@@ -19,7 +19,7 @@ use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_core::temp_env::TempEnv;
 use ai_brains_crypto::DataKey;
-use ai_brains_events::EventKind;
+use ai_brains_events::{EventKind, Payload};
 use ai_brains_store::SqliteEventStore;
 use ai_brains_store::connection::VaultConnection;
 use ai_brains_store::event_store::EventStore;
@@ -460,6 +460,120 @@ fn retention_plan__pinned_memory__held() {
     assert!(held, "R11 pinned must be held: {report:?}");
     let json = serde_json::to_string(&report).unwrap();
     assert!(!json.contains("pinned-body-secret"));
+}
+
+#[rstest]
+#[case::tie_one_held_one_ce(1, 1)]
+#[case::majority_two_held_one_ce(2, 1)]
+fn retention_plan__mixed_held_and_ce_secret__held_dominant_dispose_counts(
+    #[case] held_n: usize,
+    #[case] ce_n: usize,
+) {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let old = (Utc::now() - Duration::days(30)).to_rfc3339();
+
+    for i in 0..held_n {
+        let mid = format!("aaaaaaaa-aaaa-aaaa-aaaa-{i:012}");
+        insert_memory(store, &mid, "pinned", "held-secret-body");
+        let key = ContentKeyId::new();
+        insert_active_key(store, &key, &old);
+        insert_blob(
+            store,
+            &key,
+            &Uuid::new_v4().to_string(),
+            Some("secret"),
+            Some("memory"),
+            Some(&mid),
+            &old,
+        );
+    }
+
+    let mut ce_keys = Vec::new();
+    for _ in 0..ce_n {
+        let key = ContentKeyId::new();
+        insert_active_key(store, &key, &old);
+        insert_blob(
+            store,
+            &key,
+            &Uuid::new_v4().to_string(),
+            Some("secret"),
+            None,
+            None,
+            &old,
+        );
+        ce_keys.push(key);
+    }
+
+    let report = plan_retention(store, &config()).unwrap();
+    let secret = report
+        .classes
+        .iter()
+        .find(|c| c.class == CLASS_SECRET)
+        .expect("secret bucket");
+    assert_eq!(
+        secret.mechanism, MECHANISM_HELD,
+        "dominant must stay held (tie last-wins / majority); got {secret:?}"
+    );
+    assert!(
+        report.totals.would_ce_wipe >= 1,
+        "totals must count CE: {report:?}"
+    );
+    assert!(
+        secret.would_ce_wipe >= 1,
+        "class dispose count must count CE: {secret:?}"
+    );
+    for key in &ce_keys {
+        let expected = truncate_id(&format!("content_key:{key}"));
+        assert!(
+            secret.dispose_sample_ids.iter().any(|s| s == &expected),
+            "dispose_sample_ids must include unpinned content_key id {expected}; got {:?}",
+            secret.dispose_sample_ids
+        );
+    }
+}
+
+#[test]
+fn retention_plan__does_not_append_events_or_retention_applied() {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    insert_memory(
+        store,
+        "aaaaaaaa-aaaa-aaaa-aaaa-0000000000ac",
+        "pinned",
+        "plan-must-not-append",
+    );
+    let sid = Uuid::new_v4().to_string();
+    let old = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old);
+
+    let before = store.read_all_events().unwrap();
+    let before_n = before.len();
+    assert!(
+        !before
+            .iter()
+            .any(|e| e.event_type == EventKind::RetentionApplied),
+        "fixture must not start with RetentionApplied"
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    assert!(
+        report.totals.would_projection_delete >= 1,
+        "plan should see the old turn; got {report:?}"
+    );
+
+    let after = store.read_all_events().unwrap();
+    assert_eq!(
+        after.len(),
+        before_n,
+        "AC7: retention plan must not grow the event log"
+    );
+    assert!(
+        !after
+            .iter()
+            .any(|e| e.event_type == EventKind::RetentionApplied),
+        "AC7: plan must not append RetentionApplied"
+    );
 }
 
 #[test]
@@ -1109,6 +1223,50 @@ fn retention_apply__pinned_inventory__held_in_report_no_delete() {
     assert_eq!(forgotten, 1, "apply prepare must not delete forgotten rows");
     let json = serde_json::to_string(report).unwrap();
     assert!(!json.contains("apply-overlay-body"));
+}
+
+#[test]
+fn retention_apply__overlay_plus_raw_turn__applied_samples_include_turn() {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    let pin_ids: Vec<String> = (1..=5)
+        .map(|i| format!("aaaaaaaa-aaaa-aaaa-aaaa-{i:012}"))
+        .collect();
+    for id in &pin_ids {
+        insert_memory(store, id, "pinned", "overlay-pin-body");
+    }
+    let sid = Uuid::new_v4().to_string();
+    let old = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old);
+
+    let outcome = prepare_retention_apply(
+        store,
+        &ports.writer,
+        &config(),
+        "ret-t284-samples",
+        true,
+        false,
+    )
+    .unwrap();
+    assert_eq!(outcome.report.totals.would_projection_delete, 1);
+    assert_eq!(outcome.report.totals.would_ce_wipe, 0);
+
+    let events = store.read_all_events().unwrap();
+    let samples = events
+        .iter()
+        .find_map(|e| match &e.payload {
+            Payload::RetentionApplied(p) => Some(p.sample_ids.clone()),
+            _ => None,
+        })
+        .expect("RetentionApplied");
+    assert!(
+        samples.iter().any(|s| s.starts_with("turn:")),
+        "apply samples must include a turn identity; got {samples:?}"
+    );
+    assert_ne!(
+        samples, pin_ids,
+        "apply samples must not equal the overlay pin list; got {samples:?}"
+    );
 }
 
 #[test]

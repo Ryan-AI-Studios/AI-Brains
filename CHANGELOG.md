@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T284 Retention Work + apply samples:** Human `retention plan` Work rows use per-class CE/projection counts (not the dominant `mechanism`), so a held-majority mixed `secret` still lists due `ce_wipe` work. `RetentionApplied.sample_ids` prefer dispose identities (`content_key:` / `turn:`) when dispose totals > 0; overlay pins remain inventory-only. Zero-dispose class JSON still omits the three optional keys. Docs: CAPABILITIES Work, OPERATIONS Audit, PROTOCOL-COMPAT class-bucket extras.
+
 - **T277 Recoverable encrypted backup under the current key:** `backup create` fail-closes after write — dest conn dropped, then `classify_backup_read`; non-usable files (Incomplete / missing cores) are deleted and never printed as `Backup created and verified:`. After `AI_BRAINS_KEY` change, old `.bak` stay KeyMismatch; create a new snapshot (`--no-prune` keeps residuals). Mixed fleet: ≥1 verify OK + doctor `backup_recent` ok is recoverability; verify still exits 1 when residuals FAIL. Docs: CAPABILITIES §11 KEY-change, OPERATIONS Backup.
 
 - **T276 Leftover `--global` prefer-fill + labels:** `--global` still searches all projects (no leftover drop). When a pre-clear effective project exists, lexical recall prefer-fills that project's hits into `candidate_depth` so cwd unique pins can beat leftover volume. Pretty `--global` (recall / search / sync vault) prefixes each hit with a T264-class `[8hex]` (or upgraded `display_label`); JSON `RecallResult` does not grow `project_id`. Path split remains `project rebind-path` (memories stay). Docs: CAPABILITIES Scope / T264 rows, OPERATIONS rebind sentence.

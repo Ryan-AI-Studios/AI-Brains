@@ -132,6 +132,29 @@ pub struct RetentionClassBucket {
     pub sample_ids: Vec<String>,
     #[serde(default)]
     pub notes: Vec<String>,
+    /// Per-class CE candidates (T284). Omitted when 0 so inventory JSON stays five keys.
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub would_ce_wipe: u64,
+    /// Per-class projection-delete candidates (T284). Omitted when 0.
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub would_projection_delete: u64,
+    /// Dispose identities (CE first, then projection). Cap 5. Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dispose_sample_ids: Vec<String>,
+}
+
+fn is_zero_u64(n: &u64) -> bool {
+    *n == 0
+}
+
+/// Sum of class-level dispose counters (CE + projection). Not the dominant `mechanism`.
+///
+/// `pub` so control-plane `audit_sample_ids` can share the sum (F27's `pub(crate)`
+/// would be crate-local to contracts and unused in the lib).
+pub fn class_dispose_count(bucket: &RetentionClassBucket) -> u64 {
+    bucket
+        .would_ce_wipe
+        .saturating_add(bucket.would_projection_delete)
 }
 
 /// Aggregate totals across classes (no double-count of same identity — R13).
@@ -284,6 +307,9 @@ mod tests {
                 mechanism: MECHANISM_PROJECTION_DELETE.into(),
                 sample_ids: vec!["sess:0".into()],
                 notes: vec!["event log retained".into()],
+                would_ce_wipe: 0,
+                would_projection_delete: 2,
+                dispose_sample_ids: vec!["sess:0".into()],
             }],
             totals: RetentionTotals {
                 candidates: 2,
@@ -300,6 +326,39 @@ mod tests {
         let json = serde_json::to_string(&r).expect("ser");
         let decoded: RetentionPlanReport = serde_json::from_str(&json).expect("de");
         assert_eq!(decoded, r);
+    }
+
+    #[test]
+    fn retention_class_bucket__zero_dispose__json_keys_exactly_five() {
+        let b = RetentionClassBucket {
+            class: CLASS_MEMORY_LEGACY.into(),
+            candidate_count: 1,
+            mechanism: MECHANISM_HELD.into(),
+            sample_ids: vec!["aaaaaaaa-aaaa-aaaa-aaaa-000000000001".into()],
+            notes: vec!["inventory".into()],
+            would_ce_wipe: 0,
+            would_projection_delete: 0,
+            dispose_sample_ids: Vec::new(),
+        };
+        let value = serde_json::to_value(&b).expect("ser");
+        let obj = value.as_object().expect("object");
+        let mut keys: Vec<&String> = obj.keys().collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "candidate_count",
+                "class",
+                "mechanism",
+                "notes",
+                "sample_ids"
+            ]
+        );
+        assert!(!obj.contains_key("would_ce_wipe"));
+        assert!(!obj.contains_key("would_projection_delete"));
+        assert!(!obj.contains_key("dispose_sample_ids"));
+        assert_eq!(API_VERSION, "1");
+        assert_eq!(class_dispose_count(&b), 0);
     }
 
     #[test]

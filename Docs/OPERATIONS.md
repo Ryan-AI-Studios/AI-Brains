@@ -353,7 +353,7 @@ ai-brains retention apply --confirm --format json
 | Nightly CE | **Never auto-applied.** `AI_BRAINS_RETENTION_APPLY_CE` / `APPLY_CE_ON_NIGHTLY` only **log intent**; they do **not** enable nightly CE. Nightly runs class dry-run log + raw-turn projection cleanup. Class CE remains confirm-gated CLI + daemon. |
 | Pin hold (R11) | If **any** memory subject linked to a content key is pinned, the key is `held` (not age CE-wiped). |
 | R15 cascade residual | Hierarchy cascade may mark a parent `stale` for resynthesis even if that parent was `pinned` (pin superseded by synthesis staleness after child CE). |
-| Audit | Apply appends `RetentionApplied` (class counts/mechanisms; no bodies). Dry-run does not. |
+| Audit | Apply appends `RetentionApplied` (class counts/mechanisms; no bodies). Dry-run does not. `sample_ids` prefer dispose identities (`content_key:` / `turn:`) when CE or projection work exists; overlay pin ids are inventory-only (T284). Human **Work** is the due slice (dispose counts), not the class-matrix dominant mechanism. |
 
 **Class matrix (v1 defaults)**
 

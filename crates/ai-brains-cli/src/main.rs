@@ -2298,7 +2298,7 @@ enum ErasureCommands {
 enum RetentionCommands {
     /// Dry-run class matrix report (no disposal)
     #[command(
-        after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json\nmemory_legacy is inventory (none_auto); pins held; plan does not forget."
+        after_help = "Examples:\n  ai-brains retention plan\n  ai-brains retention plan --format json\nmemory_legacy is inventory (none_auto); pins held; plan does not forget.\nWork lists dispose identities even when the class's dominant mechanism is held."
     )]
     Plan {
         /// Output format: auto (TTY human / pipe json), pretty/human/text/markdown/md, or json
