@@ -534,6 +534,49 @@ fn retention_plan__mixed_held_and_ce_secret__held_dominant_dispose_counts(
 }
 
 #[test]
+fn retention_plan__does_not_append_events_or_retention_applied() {
+    let (_tmp, ports) = open_ports();
+    let store = store_of(&ports);
+    insert_memory(
+        store,
+        "aaaaaaaa-aaaa-aaaa-aaaa-0000000000ac",
+        "pinned",
+        "plan-must-not-append",
+    );
+    let sid = Uuid::new_v4().to_string();
+    let old = (Utc::now() - Duration::days(120)).to_rfc3339();
+    insert_turn(store, &sid, 0, &old);
+
+    let before = store.read_all_events().unwrap();
+    let before_n = before.len();
+    assert!(
+        !before
+            .iter()
+            .any(|e| e.event_type == EventKind::RetentionApplied),
+        "fixture must not start with RetentionApplied"
+    );
+
+    let report = plan_retention(store, &config()).unwrap();
+    assert!(
+        report.totals.would_projection_delete >= 1,
+        "plan should see the old turn; got {report:?}"
+    );
+
+    let after = store.read_all_events().unwrap();
+    assert_eq!(
+        after.len(),
+        before_n,
+        "AC7: retention plan must not grow the event log"
+    );
+    assert!(
+        !after
+            .iter()
+            .any(|e| e.event_type == EventKind::RetentionApplied),
+        "AC7: plan must not append RetentionApplied"
+    );
+}
+
+#[test]
 fn retention_plan__no_double_count_same_content_key() {
     let (_tmp, ports) = open_ports();
     let store = store_of(&ports);

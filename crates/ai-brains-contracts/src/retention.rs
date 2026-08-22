@@ -148,6 +148,9 @@ fn is_zero_u64(n: &u64) -> bool {
 }
 
 /// Sum of class-level dispose counters (CE + projection). Not the dominant `mechanism`.
+///
+/// `pub` so control-plane `audit_sample_ids` can share the sum (F27's `pub(crate)`
+/// would be crate-local to contracts and unused in the lib).
 pub fn class_dispose_count(bucket: &RetentionClassBucket) -> u64 {
     bucket
         .would_ce_wipe

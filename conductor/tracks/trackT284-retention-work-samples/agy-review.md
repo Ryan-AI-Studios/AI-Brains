@@ -1,9 +1,9 @@
 # Track review: T284-RetentionWorkSamples
 
-**Harness:** Antigravity (`agy`)  
-**Track:** `conductor/tracks/trackT284-retention-work-samples`  
-**Date:** 2026-08-21  
-**HEAD:** `da6f316`  
+**Harness:** Antigravity (`agy`)
+**Track:** `conductor/tracks/trackT284-retention-work-samples`
+**Date:** 2026-08-21
+**HEAD:** `da6f316`
 
 ---
 
