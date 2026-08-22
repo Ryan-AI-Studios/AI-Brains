@@ -1,10 +1,26 @@
 # T284 Plan — Retention Work + apply samples
 
 **Status:** **Pending** (Planned — not In Progress)
-**Spec:** [spec.md](./spec.md) F0–F40 / AC1–AC15
+**Spec:** [spec.md](./spec.md) F0–F41 / AC1–AC17 + §13 AI fold-in
 **Category:** BUGFIX / HONESTY
 **Ledger TX (planning):** `d2010eda-264a-449b-9f37-f3e7687e9fe1` (DOCS)
+**Ledger TX (fold-in):** `9c454170-57a9-405a-b6e6-ace0b177b472` (DOCS)
 **Ledger TX (implement):** start **BUGFIX** on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F37 / AC5:** zero-dispose class JSON keys exactly five (`class`, `candidate_count`, `mechanism`, `sample_ids`, `notes`).
+2. **F41 / AC16:** `audit_sample_ids` same-file units (overlay pins OK; mixed dispose-only, cap 5, de-duped).
+3. **AC17:** pretty fallback when `dispose_sample_ids` empty.
+4. **F27:** helper is `pub(crate)`, not `pub`.
+5. **Already:** F6 fallback (Agy m1); F7 de-dupe (Agy m2); F28 no Default (OpenCode m2); F38 comment (Agy O2 / OpenCode m1).
+6. **Decline:** `#[derive(Default)]`; public helper for `tests/`; pin bumps.
 
 ---
 
@@ -12,7 +28,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `abaab31` T277 `#192`. CLEAN. `main` == `origin/main` |
+| HEAD / tree | **Plan dogfood:** `abaab31` T277 `#192`. **This fold-in:** `da6f316` (plan docs; product crates identical). CLEAN; `main` ahead of `origin/main` by planning docs |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. **T270** on PATH. Work/samples hole is T270-era. **Do not `cargo install`.** |
 | `preflight --summary` | Pinned **3429**; in-context 0/0/0; grants **0 of 3**; Scope `3581317d` |
 | `whoami` | `mismatch: false`; shell leftover `7d97a456` (T282 / T258 — not this track) |
@@ -84,7 +100,9 @@
 - [ ] F28 update ~6 struct literals
 - [ ] F38 stale comment
 - [ ] F11 Plan `after_help` additive
-- [ ] F37 omit-keys unit; roundtrip still equal
+- [ ] F37 / AC5 exact 5-key omit; roundtrip still equal
+- [ ] F41 / AC16 `audit_sample_ids` same-file units
+- [ ] AC17 pretty fallback when `dispose_sample_ids` empty
 - [ ] AC4/AC6/AC11/AC12/AC15 stay green
 - [ ] Commit green
 
@@ -98,7 +116,7 @@
 
 ## Phase 4 — Verify
 
-- [ ] Targeted nextest: `-p ai-brains-contracts retention` ; `-p ai-brains-control-plane --test class_based_retention` ; `-p ai-brains-cli --test retention_plan_human`
+- [ ] Targeted nextest: `-p ai-brains-contracts retention` ; `-p ai-brains-control-plane --lib` ; `-p ai-brains-control-plane --test class_based_retention` ; `-p ai-brains-cli --test retention_plan_human`
 - [ ] `cargo clippy -p ai-brains-contracts -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`
 - [ ] `cargo fmt --check`
 - [ ] Primary review → `review.md`; mediums not silently dropped
@@ -111,7 +129,9 @@
 - [ ] Mixed CE+held class still appears under Work when `would_ce_wipe>0` (AC1/AC3)
 - [ ] `RetentionApplied` samples include dispose ids when overlay is large (AC2)
 - [ ] Inventory-only vault still `Nothing to dispose.` (AC4)
-- [ ] Live inventory JSON omits optional keys when zero (AC5)
+- [ ] Zero-dispose class JSON keys exactly five (AC5)
+- [ ] `audit_sample_ids` helper units (AC16)
+- [ ] Pretty fallback when `dispose_sample_ids` empty (AC17)
 - [ ] No live `retention apply --confirm`
 - [ ] No `cargo install`
 - [ ] implement-track Phase 6: push `track/T284-*` → PR → watch GHA `CI` green → squash-merge → prune (never `git push origin main`)

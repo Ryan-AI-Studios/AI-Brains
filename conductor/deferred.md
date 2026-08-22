@@ -209,6 +209,20 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | T277 live `backup create --no-prune` | **Decline** — T277 Completed hermetic; live skip residual |
 | T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F19/F32 |
 
+### T284 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 Work fallback `sample_ids` | **Already** F6; **folded test** AC17 |
+| Agy m2 `audit_sample_ids` de-dupe | **Already** F7; locked by AC16 |
+| Agy O1 exact 5-key serde omit | **Folded** F37 / AC5 |
+| Agy O2 stale comment | **Already** F38 |
+| OpenCode m1 stale comment `:629` | **Already** F38 |
+| OpenCode m2 no `Default`; ~6 literals | **Already** F28 |
+| OpenCode O1 helper unit no event-log | **Folded** F41 / AC16 |
+| last-PR #192 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |

@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators (and agents) can believe `next: apply` because Work lists the **dispose identities**. Apply audit samples name what was actually queued for CE/projection, not the inventory overlay.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “#188 Work hides CE when held dominates; apply samples prefer overlay ids”; T270 F9 **lift** (Work is still dispose-only; filter is class-level dispose counts, not dominant `mechanism`); T270 closeout residual “last-PR Cursor #188 Work table / apply samples”
 - **Not absorbed (DoD):** Live `retention apply --confirm`; CE wipe on the operator vault; T270 overlay removal; `dominant_mechanism` rewrite; `classify_legacy` / `migrate governed`; doctor 16th; clap 5 / rusqlite 0.40; DTO **required** keys / `api_version` bump; T278–T283 peers; T240 F2; leftover `7d97a456` rebind
-- **Research date:** 2026-08-22 (plan dogfood HEAD `abaab31` T277 `#192`; product `src/` = T277). Snapshot — re-verify at execute.
-- **AI fold-in:** none yet (plan pass).
-- **Ledger:** planning DOCS TX `d2010eda-264a-449b-9f37-f3e7687e9fe1`. Implement starts a **BUGFIX** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `abaab31` T277 `#192`; product `src/` = T277). Fold-in against `da6f316` (plan docs; crates identical to `abaab31`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Already:** Agy m1 F6 fallback; Agy m2 F7 de-dupe; Agy O2 / OpenCode m1 F38 comment; OpenCode m2 F28 no `Default`. **Agree:** Agy O1 exact 5-key omit (F37/AC5); OpenCode O1 same-file `audit_sample_ids` unit (F41/AC16); Agy m1 named pretty fallback unit (AC17). **Affirm:** #192 N/A; no T285. Disposition **§13**.
+- **Ledger:** planning DOCS TX `d2010eda-264a-449b-9f37-f3e7687e9fe1`. Fold-in DOCS TX `9c454170-57a9-405a-b6e6-ace0b177b472`. Implement starts a **BUGFIX** TX on **go**.
 - **Isolation:** Do **not** run live `retention apply --confirm`. Do **not** call `classify_legacy` / `migrate governed`. Do **not** `cargo install`, rewrite `.env` (T240 F2), pin-as-implement, or mutate schtasks. Do **not** grow hotspot `project.rs` / `preflight.rs` / `sync.rs` / `doctor.rs` / `ranking.rs`. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -34,7 +34,7 @@ This unblocks the daily product: T270 made 39k pins visible as inventory. Bugbot
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `abaab31` `feat(backup): T277 fail-closed usable create under current key (#192)`. Tree **CLEAN**. `main` == `origin/main`. |
+| HEAD | **Plan dogfood:** `abaab31` T277 `#192`. **This fold-in:** `da6f316` (`docs(conductor): plan T284 Work dispose rows and apply samples`). `git diff abaab31 HEAD -- crates/` empty — product `src/` identical to T277. Tree **CLEAN** at plan; fold-in dirties conductor only. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-21 05:55**, 25 368 576 bytes, **0.1.1**. **T270** on PATH (before T274–T277). Retention Work/samples hole is **T270-era — PATH is valid**. **Do not `cargo install`.** Tests/manual AC use `cargo run` / hermetic. |
 | `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **3429**. In-context **0/0/0**. Grants **0 of 3** (T275 hermetic; live not bootstrapped). Capture independence holds. |
 | `project whoami` | `mismatch: false`. Effective/path/detect `3581317d`. Shell leftover `7d97a456` overridden by local `.env`. **Not this track** (T258 adopt-path; leftover volume T276; `--show` leftover **T282**). |
@@ -117,7 +117,7 @@ This unblocks the daily product: T270 made 39k pins visible as inventory. Bugbot
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `d2010eda`. Implement starts a **BUGFIX** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `d2010eda`. Fold-in is DOCS TX `9c454170`. Implement starts a **BUGFIX** TX. |
 | **F1 — T270 F9 lift** | Work is still **dispose-only**. Filter is **class-level dispose counts** (`would_ce_wipe + would_projection_delete` on the bucket), not `c.mechanism == ce_wipe \| projection_delete`. Inventory-only (`totals` dispose 0) still `Nothing to dispose.` / no Work / no `next:` (T270 F8 stands). |
 | **F2 — One bucket per class** | Do **not** split `secret` into two `classes[]` rows. `class_bucket_map` and CANONICAL_CLASSES matrix stay one row per class. Dominant `mechanism` + `candidate_count` still describe the **majority** (held may win). |
 | **F3 — Do not change `dominant_mechanism`** | Majority + tie → `max_by_key` last-wins (`held` beats `ce_wipe` on a 1–1 tie). Matrix honesty for inventory-heavy classes. |
@@ -144,7 +144,7 @@ This unblocks the daily product: T270 made 39k pins visible as inventory. Bugbot
 | **F24 — Docs** | CAPABILITIES T248/T270 row: Work lists dispose identities (not dominant mechanism). OPERATIONS Audit + Work sentence. PROTOCOL-COMPAT: report keys unchanged; class bucket **may** emit optional `would_ce_wipe` / `would_projection_delete` / `dispose_sample_ids` when non-zero (absent = 0). CHANGELOG T284. |
 | **F25 — Existing tests stay green** | Empty-vault CP + T248 pretty/JSON hermetics; inventory pretty `:682`; overlay apply `:1031`; R11 held `:439`; raw_turn Work `:855`; CE next-scope `:880`. Do not weaken body-plaintext asserts. |
 | **F26 — CLI file growth** | Pretty Work lift in `retention.rs`. Engine fill + `audit_sample_ids` in `class_based_retention.rs`. Optional fields in contracts `retention.rs`. **Do not** grow `project.rs` / `preflight.rs` / `doctor.rs`. |
-| **F27 — Helpers** | `pub(crate) fn class_dispose_count(b: &RetentionClassBucket) -> u64` in contracts (sum of the two u64s). CLI Work iterates mechanisms. CP `fn audit_sample_ids(report: &RetentionPlanReport) -> Vec<String>`. |
+| **F27 — Helpers** | `pub(crate) fn class_dispose_count(b: &RetentionClassBucket) -> u64` in contracts (sum of the two u64s). CLI Work iterates mechanisms. CP `pub(crate) fn audit_sample_ids(report: &RetentionPlanReport) -> Vec<String>` — crate-visible for same-crate units; **not** `pub` (integration `tests/` must keep using events — AC2). |
 | **F28 — Struct literals** | All `RetentionClassBucket { … }` sites (~6) set new fields (or `..Default` if Default is added). Prefer explicit `0` / `vec![]` in production constructors; tests may use `Default` **only if** `class`/`mechanism` remain required at type level — **do not** `#[derive(Default)]` a bucket with empty class. |
 | **F29 — Mixed CE+PD in one class** | Two Work rows. Samples may repeat `dispose_sample_ids` on both rows. Do not invent a `ce_wipe+projection_delete` token. |
 | **F30 — Secrets** | Never print `AI_BRAINS_KEY`. Sample cells truncated ids only. |
@@ -154,10 +154,11 @@ This unblocks the daily product: T270 made 39k pins visible as inventory. Bugbot
 | **F34 — Fixture for AC1** | Reuse CP `insert_memory` + `insert_active_key` + `insert_blob` (`content_class=secret`, aged `created_at`). ≥1 pinned envelope + ≥1 unpinned aged secret envelope. rstest cases: **1 held + 1 CE** (tie → held dominant) and **2 held + 1 CE** (majority held). |
 | **F35 — Fixture for AC2** | Overlay ≥5 pinned memories (so overlay samples fill cap 5) + ≥1 old `raw_turn` (`insert_turn` 120d). `prepare_retention_apply(..., confirm=true, dry_run=false)`. Parse `Payload::RetentionApplied` `sample_ids`: at least one `turn:` prefix; **not** five overlay UUIDs only. |
 | **F36 — Pretty unit AC3** | Construct a `secret` bucket `mechanism=held`, `candidate_count=12`, `would_ce_wipe=2`, `dispose_sample_ids=["content_key:ck-ce"]`, `sample_ids=[pin ids]`. `format_retention_pretty` contains `Work`, a `secret` line with `2` and `ce_wipe` and `content_key:ck-ce`, **not** an empty Work header. Totals `would_ce_wipe=2`. `next:` present. |
-| **F37 — Inventory JSON omits extras** | Unit: held-only overlay report serde does **not** contain `"would_ce_wipe"` / `"dispose_sample_ids"` keys (skip-if-zero). Live PATH json today is the exhibit. |
+| **F37 — Inventory JSON omits extras** | Held-only / zero-dispose class JSON object keys are **exactly** `class`, `candidate_count`, `mechanism`, `sample_ids`, `notes` (Agy O1). Omit `"would_ce_wipe"`, `"would_projection_delete"`, `"dispose_sample_ids"` (skip-if-zero). Live PATH json today is the exhibit. |
 | **F38 — Stale comment** | Replace `build_report` “first non-skip if mixed, else majority” with “majority; ties prefer later BTreeMap key (`held` over `ce_wipe`)”. |
 | **F39 — No T285** | #192 empty; #188 absorbed; Dependabot not a leftover. |
-| **F40 — Gate** | Targeted nextest `-p ai-brains-contracts retention` + `-p ai-brains-control-plane --test class_based_retention` + `-p ai-brains-cli --test retention_plan_human` + clippy those packages. Full workspace gate only at implement closeout — **not** a plan gate. |
+| **F40 — Gate** | Targeted nextest `-p ai-brains-contracts retention` + `-p ai-brains-control-plane --lib` (F41 units) + `-p ai-brains-control-plane --test class_based_retention` + `-p ai-brains-cli --test retention_plan_human` + clippy those packages. Full workspace gate only at implement closeout — **not** a plan gate. |
+| **F41 — `audit_sample_ids` same-file unit (OpenCode O1)** | Required `#[cfg(test)]` in `class_based_retention.rs` (file currently has **no** test module; integration tests stay in `tests/`). Overlay-only report → pin ids OK (AC12). Mixed dispose>0 → dispose ids only, cap 5, de-duped, includes `turn:` / `content_key:`, **no** overlay pin padding. Do **not** require an event-log round trip for this helper. |
 
 ---
 
@@ -169,7 +170,7 @@ This unblocks the daily product: T270 made 39k pins visible as inventory. Bugbot
 | **AC2** | CP: overlay ≥5 pins + 1 old turn (F35). `prepare_retention_apply` appends `RetentionApplied` whose `sample_ids` include a `turn:` identity and do **not** equal the overlay pin list. |
 | **AC3** | CLI unit F36: mixed held-dominant pretty prints Work **data row** for `secret` / `ce_wipe` / dispose count / dispose sample. Contains `next:`. Does **not** print only an empty Work header. |
 | **AC4** | Inventory-only pretty (`:682` / live dogfood shape) still `Nothing to dispose.`, no Work, no `next:`. Overlay apply `:1031` still no CE/projection enqueue. |
-| **AC5** | Serde: zero dispose fields omitted (`F37`). Roundtrip `retention_plan_report__roundtrip` still equal. `api_version` **1**. |
+| **AC5** | Serde F37: zero-dispose class JSON keys are **exactly** `class`, `candidate_count`, `mechanism`, `sample_ids`, `notes`. Roundtrip `retention_plan_report__roundtrip` still equal. `api_version` **1**. |
 | **AC6** | `format_retention_pretty__raw_turn_work__…` and CE `--scope` next still green (pure dispose class, dominant == dispose). |
 | **AC7** | Plan hermetic: event-log COUNT unchanged (T270 F12). |
 | **AC8** | No plaintext bodies in JSON/pretty (existing R4 asserts). |
@@ -180,6 +181,8 @@ This unblocks the daily product: T270 made 39k pins visible as inventory. Bugbot
 | **AC13** | PATH live (optional on go): `retention plan --format human` still inventory-only on this vault. **Do not** live apply. |
 | **AC14** | Clippy `-D warnings` on touched crates. No `unwrap`/`expect`/`panic` in production. |
 | **AC15** | `class_counts` in the event still use dominant mechanism + `candidate_count`. |
+| **AC16** | F41: `audit_sample_ids__overlay_only__pins_ok` and `audit_sample_ids__mixed_dispose__prefers_dispose_ids_cap5_deduped` in CP `class_based_retention.rs` `#[cfg(test)]`. Mixed case: output contains a `turn:` or `content_key:` id, len ≤ 5, no duplicate ids, no overlay pin-only fill. |
+| **AC17** | F6 fallback pretty unit: `would_ce_wipe=1`, `dispose_sample_ids=[]`, `sample_ids=["content_key:ck-legacy"]` → Work SAMPLES contains `content_key:ck-legacy` (not `—`). |
 
 ---
 
@@ -233,11 +236,11 @@ N/A. No file create. No `Connection` vs `remove_file`.
 2. AC3 `format_retention_pretty__held_dominates_ce_same_class__work_shows_dispose_row`.
 3. AC2 `retention_apply__overlay_plus_raw_turn__applied_samples_include_turn` — today samples are overlay-first.
 
-Then green: F4 fields + F5 fill + F6 Work + F7 `audit_sample_ids` → AC4/AC5/AC6 stay green.
+Then green: F4 fields + F5 fill + F6 Work + F7 `audit_sample_ids` → AC4/AC5/AC6 stay green. Same green: AC16 helper units + AC17 fallback pretty + AC5 exact 5-key omit.
 
 **Stay green:** T248 empty pretty; T270 inventory pretty + overlay apply; R11 held; R4 no bodies; clap format.
 
-Targeted: `cargo nextest run -p ai-brains-contracts retention` ; `-p ai-brains-control-plane --test class_based_retention` ; `-p ai-brains-cli --test retention_plan_human` ; `cargo clippy -p ai-brains-contracts -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`.
+Targeted: `cargo nextest run -p ai-brains-contracts retention` ; `-p ai-brains-control-plane --lib` ; `-p ai-brains-control-plane --test class_based_retention` ; `-p ai-brains-cli --test retention_plan_human` ; `cargo clippy -p ai-brains-contracts -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`.
 
 Full workspace gate only at implement closeout — **not** a plan gate.
 
@@ -298,7 +301,7 @@ Entire `conductor/deferred.md` scanned 2026-08-22 (post-P12 through T277 closeou
 2. Rescan `deferred.md`.
 3. FEATURE/BUGFIX TX.
 4. **Red** AC1 + AC3 + AC2 (failing tests first).
-5. **Green** F4 contracts fields → F5 `build_report` fill → F6 Work → F7 `audit_sample_ids` → F11 after_help → F24 docs → F38 comment.
+5. **Green** F4 contracts fields → F5 `build_report` fill → F6 Work → F7 `audit_sample_ids` → F11 after_help → F24 docs → F38 comment → AC5 5-key omit → AC16 helper units → AC17 fallback pretty.
 6. Targeted nextest + clippy (F40).
 7. Review log + cross-model (F22).
 8. Full gate at closeout. **Do not** live apply. **Do not** `cargo install`.
@@ -325,9 +328,9 @@ Entire `conductor/deferred.md` scanned 2026-08-22 (post-P12 through T277 closeou
 | File | Change |
 |------|--------|
 | `crates/ai-brains-contracts/src/retention.rs` | Optional F4 fields + `class_dispose_count` + skip helpers + roundtrip/omit unit |
-| `crates/ai-brains-control-plane/src/class_based_retention.rs` | F5 fill; F7 `audit_sample_ids`; F38 comment; constructors |
+| `crates/ai-brains-control-plane/src/class_based_retention.rs` | F5 fill; F7 `audit_sample_ids`; F38 comment; constructors; F41 `#[cfg(test)]` AC16 |
 | `crates/ai-brains-control-plane/tests/class_based_retention.rs` | AC1 rstest + AC2 apply samples |
-| `crates/ai-brains-cli/src/commands/retention.rs` | F6 Work rows; AC3 pretty unit; F28 literals |
+| `crates/ai-brains-cli/src/commands/retention.rs` | F6 Work rows; AC3 pretty unit; AC17 fallback pretty; F28 literals |
 | `crates/ai-brains-cli/src/main.rs` | Plan `after_help` additive sentence only |
 | `crates/ai-brains-cli/tests/retention_plan_human.rs` | Stay green; add hermetic mixed Work if CLI e2e is cheap (optional — AC3 unit is required) |
 | `Docs/CAPABILITIES.md` | Work = dispose identities |
@@ -342,4 +345,36 @@ Entire `conductor/deferred.md` scanned 2026-08-22 (post-P12 through T277 closeou
 
 ## 13. AI fold-in
 
-None this pass (plan only). Reviewers write `<slug>-review.md`; fold-in after `/fold-in 284`.
+Inputs: `agy-review.md` + `opencode-review.md` (HEAD `da6f316`; product crates identical to `abaab31`). **B 0 / M 0.** last-PR #192 still empty (re-checked 0/0). No T285. Do **not** edit the review files.
+
+### Per-AI
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy m1 | Work fallback to `sample_ids` when `dispose_sample_ids` empty | **Already** F6; **folded test** AC17 |
+| Agy m2 | `audit_sample_ids` de-dupe before cap 5 | **Already** F7; locked by AC16 |
+| Agy O1 | Contracts serde omit extras; exact 5 baseline keys | **Folded** F37 / AC5 |
+| Agy O2 | Stale `dominant_mechanism` comment | **Already** F38 |
+| OpenCode m1 | Stale comment `:629` vs impl `:686` | **Already** F38 |
+| OpenCode m2 | No `Default` on `RetentionClassBucket`; ~6 literals | **Already** F28 |
+| OpenCode O1 | Pure unit for `audit_sample_ids` (no event-log) | **Folded** F41 / AC16 (`pub(crate)` + same-file `#[cfg(test)]`) |
+| last-PR #192 Cursor | empty | **Affirm N/A** — no T285 |
+| No B/M | — | Nothing to decline of B/M |
+
+### Declined / not new design
+
+| Item | Why |
+|------|-----|
+| `#[derive(Default)]` on `RetentionClassBucket` | F28 — empty `class` is not a valid default |
+| `pub fn audit_sample_ids` for `tests/` | F27/F41 — helper stays crate-visible; AC2 is the event lock |
+| Change `dominant_mechanism` / split buckets / live apply | Unchanged F2/F3/F16 |
+| serde_json 1.0.151 / clap 4.6.6 / rusqlite 0.40.2 | **No bump** (F12) |
+
+### Pins locked by fold-in
+
+1. **F37 / AC5:** zero-dispose class JSON keys **exactly** `class`, `candidate_count`, `mechanism`, `sample_ids`, `notes`.
+2. **F41 / AC16:** `audit_sample_ids` same-file units (overlay pins OK; mixed dispose-only, cap 5, de-duped).
+3. **AC17:** pretty fallback when `dispose_sample_ids` empty.
+4. **F27:** `audit_sample_ids` is `pub(crate)`, not `pub`.
+5. **F6 / F7 / F28 / F38:** already specified; reviewers confirmed live lines.
+6. **§2.1:** fold-in HEAD `da6f316`; product crates identical to `abaab31`.
