@@ -1,6 +1,6 @@
 # AI-Brains — Capabilities & Features
 
-**Version:** 0.1.1
+**Version:** 0.1.2
 **Platform:** Windows 11 first (PowerShell); Ubuntu 24.04 / WSL and macOS are tiered — see **[COMPATIBILITY.md](COMPATIBILITY.md)** (not a blanket “best-effort” claim)
 **Type:** Local-first CLI + optional local daemon (not an MCP server)
 **Related docs:** [README.md](README.md) (index) · [INSTALL.md](INSTALL.md) · [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · [OPERATIONS.md](OPERATIONS.md) · [WORKFLOWS.md](WORKFLOWS.md) · [PRD.md](PRD.md) · [COMPATIBILITY.md](COMPATIBILITY.md) · [PROTOCOL-COMPAT.md](PROTOCOL-COMPAT.md) · [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md) · [status.md](status.md) (historical) · [ADR-0019 connector sandbox](DECISIONS/ADR-0019-connector-sandbox-execution-model.md)

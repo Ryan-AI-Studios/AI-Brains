@@ -1,6 +1,6 @@
 # AI-Brains documentation index
 
-**Product version:** 0.1.1 (`Cargo.toml` workspace)
+**Product version:** 0.1.2 (`Cargo.toml` workspace)
 **Platform matrix:** [COMPATIBILITY.md](COMPATIBILITY.md)
 **Track status (live):** [`conductor/conductor.md`](../conductor/conductor.md)
 **Security limits hub:** [SECURITY-LIMITS.md](SECURITY-LIMITS.md) · root [SECURITY.md](../SECURITY.md)

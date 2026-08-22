@@ -1,6 +1,6 @@
 # Release checklist (human + scripts)
 
-**Product version context:** workspace `Cargo.toml` → currently **0.1.1**
+**Product version context:** workspace `Cargo.toml` → currently **0.1.2**
 **Track:** T185 — Claims Governance, SBOM, and Release Gate
 **Normative claims:** [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md)
 **Tool pins:** [ci-tooling.md](ci-tooling.md)
@@ -14,7 +14,7 @@ This is the **ordered gate** for a dry-run RC or a public `v*` tag. Agent automa
 | Mode | Public `v*` tag? | GitHub Release assets? | Notes |
 |------|------------------|------------------------|-------|
 | **Dry-run RC** | No (preferred for first pass) | Optional private archive under track `evidence/dry-run-<date>/` | Records commit SHA + operator without publishing |
-| **Public tag / binary ship** | Yes (`v0.1.1` style) | Yes when binaries ship | Full L5 SBOM + L6 NOTICE + claims scan required |
+| **Public tag / binary ship** | Yes (`v0.1.2` style) | Yes when binaries ship | Full L5 SBOM + L6 NOTICE + claims scan required |
 
 **R-CI-BRANCH honesty:** branch protection may be **unenforced** until a repo admin enables it. Do **not** claim “protected main” solely because this checklist exists.
 

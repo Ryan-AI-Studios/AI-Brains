@@ -28,7 +28,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 authors = ["AI-Brains Contributors"]
 edition = "2024"
 # Project terms: LICENSE (PolyForm Noncommercial 1.0.0) + COMMERCIAL-EXCEPTION.md

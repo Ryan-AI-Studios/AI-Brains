@@ -1,6 +1,6 @@
 # Release claims checklist (normative)
 
-**Product version:** 0.1.1
+**Product version:** 0.1.2
 **Document date:** 2026-08-01
 **Track:** T185 — Claims Governance, SBOM, and Release Gate
 **Status:** Normative for public/tag/binary distribution language (L1–L3)
