@@ -16,12 +16,16 @@ pub(crate) fn format_probe_label_human(label: &str, budget_ms: u128) -> String {
     }
 }
 
-/// T281 F1 — human contrast when Completion probe is the raw `timeout` token.
-/// Red stub: empty so AC1/AC2 fail until green.
-pub(crate) const HTTP_VS_TCP_CONTRAST: &str = "";
+/// Human contrast when Completion probe is the raw `timeout` token (T281 F1).
+pub(crate) const HTTP_VS_TCP_CONTRAST: &str = "HTTP /health 750ms ≠ daemon TCP";
 
-pub(crate) fn completion_timeout_contrast_line(_raw_label: &str) -> Option<&'static str> {
-    None
+/// Some iff `raw_label` is the exact token `timeout` (not the human `timeout (750ms)` wrap).
+pub(crate) fn completion_timeout_contrast_line(raw_label: &str) -> Option<&'static str> {
+    if raw_label == "timeout" {
+        Some(HTTP_VS_TCP_CONTRAST)
+    } else {
+        None
+    }
 }
 
 /// Nightly `--status` format tokens (shared human/json map).
@@ -445,6 +449,11 @@ mod tests {
         let value = to_value(&status);
         assert_eq!(value["completion"]["probe"], "timeout");
         assert_ne!(value["completion"]["probe"], "timeout (750ms)");
+        let raw = value.to_string();
+        assert!(
+            !raw.contains("HTTP /health") && !raw.contains('\u{2260}'),
+            "AC4: JSON must not contain T281 F1 contrast; got: {raw}"
+        );
     }
 
     #[test]

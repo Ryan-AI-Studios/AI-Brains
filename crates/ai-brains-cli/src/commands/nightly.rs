@@ -201,6 +201,11 @@ pub async fn run(
                 &completion_human,
             )
         );
+        if let Some(line) =
+            crate::commands::nightly_status::completion_timeout_contrast_line(completion_label)
+        {
+            println!("{line}");
+        }
         println!(
             "{}",
             format_endpoint_line(

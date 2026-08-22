@@ -677,7 +677,7 @@ ai-brains nightly --skip-import-opencode
 - **Last task result** — from that LIST /V parse. PowerShell `Get-ScheduledTaskInfo` is Last Result fallback **only when LIST /V succeeded but last_result parse missed (locale)**.
 - **Last scheduled run** (Task Scheduler Last Run Time) is printed separately from vault **Last nightly run**. They can disagree (e.g. the task fired but the action target was missing, so the vault never advanced).
 - Last nightly run / unsummarized counts / last-run errors
-- **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error` on default `--status`; **`--quick` prints `probe=skipped`** — no HTTP). Human `probe=timeout` is labeled `timeout (750ms)` (HTTP `/health` budget). `daemon status` Open is TCP connect, not `/health`. Credentials in URLs are redacted; vault keys never printed
+- **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error` on default `--status`; **`--quick` prints `probe=skipped`** — no HTTP). Human `probe=timeout` is labeled `timeout (750ms)` (HTTP `/health` budget). On human timeout, the next line is `HTTP /health 750ms ≠ daemon TCP`. `daemon status` Open is TCP connect, not `/health`. Credentials in URLs are redacted; vault keys never printed
 - **Router** (T255, read-only) — Last Result for `AI-Brains-Router`. Does **not** register, start, or repair that task
 - **Multi-import** block (T239)
 - Missing action: if Task To Run’s first quoted `.cmd` / `.bat` / `.exe` does not exist → `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`
@@ -686,7 +686,7 @@ ai-brains nightly --skip-import-opencode
 
 `--format json` emits a CLI-local machine object. Default `--format` is **human**; piped `nightly --status` stays human. `doctor` is not the model-port matrix; `nightly --status` is.
 
-Default status probes run **in parallel** with a **750 ms** timeout (not sequential 2s+2s). Nightly **run** pre-summarize probe stays **2s**. The 750 ms budget is **not** raised; human timeout is labeled `(750ms)` so it is not read as “backend down.”
+Default status probes run **in parallel** with a **750 ms** timeout (not sequential 2s+2s). Nightly **run** pre-summarize probe stays **2s**. The 750 ms budget is **not** raised; human timeout is labeled `(750ms)` so it is not read as “backend down.” On human timeout, the next line is `HTTP /health 750ms ≠ daemon TCP` (HTTP `/health` budget ≠ daemon TCP Open).
 
 Status **exit 0** when probes are down / timeout / missing action / nonzero Last Result.
 
