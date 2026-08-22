@@ -53,6 +53,8 @@ pub const AMBIENT_DENYLIST: &[&str] = &[
     // CLI env args not in elevation list
     "AI_BRAINS_SCOPE",
     "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID",
+    // T279 F13: strip ambient skip so hermetic_bin can force-on without host leak.
+    "AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS",
     // Ledgerful TX id (preferred + deprecated alias) — strip ambient pollution
     "LEDGERFUL_TX_ID",
     "CHANGEGUARD_TX_ID",
@@ -90,6 +92,8 @@ pub fn hermetic_bin() -> Command {
     strip_ambient(&mut cmd);
     cmd.env("AI_BRAINS_ALLOW_ZERO_KEY", "1");
     cmd.env("AI_BRAINS_KEY", ZERO_SQLCIPHER_KEY);
+    // T279 F13: repo-cwd `ledgerful hotspots` must not leak into hermetic Safety.
+    cmd.env("AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS", "1");
     cmd
 }
 

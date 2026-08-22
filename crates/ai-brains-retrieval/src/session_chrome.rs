@@ -87,9 +87,24 @@ pub fn index_marker_glob_sql(column: &str) -> String {
 /// Safety GLOB: leading CONSTRAINT / INVARIANT / HOTSPOT only (T279 F1).
 ///
 /// Does **not** include `DECISION:` — that belongs to Index (`index_marker_glob_sql`).
-/// T279 red stub: empty so AC1 fails until green.
-pub fn safety_marker_glob_sql(_column: &str) -> String {
-    String::new()
+pub fn safety_marker_glob_sql(column: &str) -> String {
+    debug_assert!(
+        is_safe_sql_ident(column),
+        "safety_marker_glob_sql column must be a SQL identifier"
+    );
+    let prefixes = [
+        "CONSTRAINT:",
+        "INVARIANT:",
+        "HOTSPOT:",
+        "ASSISTANT: CONSTRAINT:",
+        "ASSISTANT: INVARIANT:",
+        "ASSISTANT: HOTSPOT:",
+    ];
+    let parts: Vec<String> = prefixes
+        .iter()
+        .map(|p| format!("{column} GLOB '{p}*'"))
+        .collect();
+    format!(" AND ({})", parts.join(" OR "))
 }
 
 /// `AND col NOT IN (?,?,…)` with `n` placeholders. `n == 0` → omit (F35).

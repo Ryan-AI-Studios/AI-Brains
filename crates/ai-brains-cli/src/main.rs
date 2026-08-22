@@ -1092,7 +1092,7 @@ enum Commands {
     /// Generate preflight context for an LLM
     #[command(
         display_order = 11,
-        after_help = "Default --pretty caps Session and Recent display lines at 140 characters. Safety is not line-capped on default pretty; only --compact first-line-caps Safety (100).\nJSON and --summary ignore --compact.\nFull `--format json` is compact `{text, word_count, sections}` (T265). `--summary --format json` stays the T220 pretty envelope.\nExamples:\n  ai-brains preflight --pretty\n  ai-brains preflight --pretty --compact\n  ai-brains preflight --format json\n  ai-brains preflight --summary"
+        after_help = "Default --pretty caps Session and Recent display lines at 140 characters. Safety is not line-capped on default pretty; only --compact first-line-caps Safety (100).\nSafety is live Ledgerful hotspots (project-scoped) or leading CONSTRAINT/INVARIANT/HOTSPOT pins, not session dumps; empty names `ai-brains safety sync --dry-run`.\nJSON and --summary ignore --compact.\nFull `--format json` is compact `{text, word_count, sections}` (T265). `--summary --format json` stays the T220 pretty envelope.\nExamples:\n  ai-brains preflight --pretty\n  ai-brains preflight --pretty --compact\n  ai-brains preflight --format json\n  ai-brains preflight --summary"
     )]
     Preflight {
         #[arg(short, long, default_value_t = 1500)]

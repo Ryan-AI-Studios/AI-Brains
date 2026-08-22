@@ -836,6 +836,8 @@ ai-brains safety sync --limit 20     # sync top 20
 ai-brains safety sync --dry-run      # preview what would be synced
 ```
 
+`preflight --pretty` Safety lists those live paths (project-scoped) without pinning. `safety sync` without `--dry-run` writes `HOTSPOT:` pins into the vault.
+
 ## 8. Troubleshooting
 
 ### `cargo audit` appears to hang

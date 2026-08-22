@@ -2,8 +2,8 @@
 //!
 //! File-local helper (F29): do not share with CLI `safety.rs` this track.
 
-/// Honest empty Safety body (F3). T279 red stub includes `HOTSPOT:` so AC14 fails.
-pub const SAFETY_EMPTY: &str = "HOTSPOT: none";
+/// Honest empty Safety body (F3). Must not contain `HOTSPOT:` (AC14 / F9).
+pub const SAFETY_EMPTY: &str = "No in-context hotspots. next: ai-brains safety sync --dry-run";
 
 /// One parsed live hotspot row (`path` + raw `score`).
 #[derive(Debug, Clone, PartialEq)]
@@ -13,36 +13,77 @@ pub struct LiveHotspot {
 }
 
 /// Render `HOTSPOT: {path} score={score:.2}` (F2 / F15). Empty path → skip (AC2).
-/// T279 red stub: always `None` so AC2 fails.
-pub fn format_safety_hotspot_line(_path: &str, _score: f64) -> Option<String> {
-    None
+pub fn format_safety_hotspot_line(path: &str, score: f64) -> Option<String> {
+    let path = path.trim();
+    if path.is_empty() {
+        return None;
+    }
+    Some(format!("HOTSPOT: {path} score={score:.2}"))
 }
 
 /// Parse `ledgerful hotspots --json` stdout. Finder is F36 (first `trim_start` `[`).
-/// T279 red stub: always empty so AC9 fails.
-pub fn parse_hotspots_json(_stdout: &str) -> Vec<LiveHotspot> {
-    Vec::new()
+pub fn parse_hotspots_json(stdout: &str) -> Vec<LiveHotspot> {
+    let json_start = stdout
+        .lines()
+        .position(|line| line.trim_start().starts_with('['));
+    let Some(json_start) = json_start else {
+        return Vec::new();
+    };
+    let json_str: String = stdout
+        .lines()
+        .skip(json_start)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let Ok(values) = serde_json::from_str::<Vec<serde_json::Value>>(&json_str) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for v in values {
+        let path = v
+            .get("path")
+            .and_then(|p| p.as_str())
+            .unwrap_or("")
+            .to_string();
+        if path.trim().is_empty() {
+            continue;
+        }
+        let score = v.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
+        out.push(LiveHotspot { path, score });
+    }
+    out
 }
 
 /// `AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS` truthy → skip F2 (F13).
 pub fn skip_live_hotspots() -> bool {
-    false
+    match std::env::var("AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS") {
+        Ok(v) => {
+            let t = v.trim();
+            t == "1"
+                || t.eq_ignore_ascii_case("true")
+                || t.eq_ignore_ascii_case("yes")
+                || t.eq_ignore_ascii_case("on")
+        }
+        Err(_) => false,
+    }
 }
 
 /// Fetch live hotspots via `spawn`. Skip-env must not call `spawn` (AC8).
-/// T279 red stub: ignores skip so AC8 fails.
 pub fn fetch_live_hotspots_with(
     spawn: impl FnOnce() -> Result<String, String>,
 ) -> Vec<LiveHotspot> {
-    let _ = skip_live_hotspots();
+    if skip_live_hotspots() {
+        return Vec::new();
+    }
     match spawn() {
         Ok(stdout) => parse_hotspots_json(&stdout),
-        Err(_) => Vec::new(),
+        Err(e) => {
+            tracing::warn!(error = %e, "preflight live hotspots skipped");
+            Vec::new()
+        }
     }
 }
 
 /// Project-scoped live inject. Fail-open (F35).
-#[allow(dead_code)]
 pub fn fetch_live_hotspots() -> Vec<LiveHotspot> {
     fetch_live_hotspots_with(spawn_ledgerful_hotspots_json)
 }

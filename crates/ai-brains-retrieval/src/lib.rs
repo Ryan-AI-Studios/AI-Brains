@@ -48,7 +48,7 @@ pub use semantic::{
 };
 pub use session_chrome::{
     authority_glob_sql, bound_not_in_sql, dedupe_session_chrome, index_marker_glob_sql,
-    is_authority_pin_content, is_session_chrome, prefer_authority_hits,
+    is_authority_pin_content, is_session_chrome, prefer_authority_hits, safety_marker_glob_sql,
 };
 pub use sessions::active_sessions;
 pub use symbol_stub::{
