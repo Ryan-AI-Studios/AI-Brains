@@ -518,8 +518,9 @@ This command generates a deterministic `PROJECT_ID` based on your directory and 
 ### Listing Projects
 ```powershell
 ai-brains project list
+ai-brains project list --format json
 ```
-Output (post-T76): a table with `project_id`, `name (alias|UUID)`, `alias`, and `memories` columns.
+Human table (T212 columns): `label` | `project_id` | `memories` | `last_activity` | `path`. The first data row is the cwd path-owner when that id is registered; remaining rows stay memory-desc. `--format json` keeps T212 size-desc array order (`memory_count DESC, project_id ASC`) — not cwd-first. Star `*` still marks process `AI_BRAINS_PROJECT_ID` (not the sort key).
 
 ### Resolving Aliases
 ```powershell

@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22. T283 remains Placeholder.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22 (`#198`). **T283 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -16,8 +16,8 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Completed** `#197` |
-| `context --show` misses leftover shell | **T282 Completed** 2026-08-22 |
-| `project list` leftover-first | **T283** |
+| `context --show` misses leftover shell | **T282 Completed** 2026-08-22 `#198` |
+| `project list` leftover-first | **T283 Completed** 2026-08-22 |
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
 | device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
 
@@ -139,8 +139,8 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Leftover memory reclassify / `MemoryMoved` | F7 / T259 F5 |
 | JSON `project_id` on `RecallResult` | F5 T180 freeze |
 | Semantic-only prefer-fill e2e | F32; lexical AC2 is the hole |
-| `project list` leftover-first | **T283** |
-| `context --show` leftover shell | **T282** |
+| `project list` leftover-first | **T283 Completed** 2026-08-22 |
+| `context --show` leftover shell | **T282 Completed** `#198` |
 
 ### T277 planning absorption (2026-08-22) — current-key create; no rekey of T244 `.bak`
 
@@ -478,11 +478,64 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | SESSION leftover line | F27 |
 | No-`.env` leftover naming (without lie-suffix) | F26 |
 | Quote-strip file PROJECT_ID | F32 |
-| T283 list cwd-first | Peer placeholder |
+| T283 list cwd-first | **T283 Completed** 2026-08-22 |
 | Live leftover 11 `C:\dev\*` roots | T276 F9 — owner-confirm rebind |
 | Live 0 of 3 grants | T275 F10 |
 | T242 first-run stderr still possible | F6 — leftover is stdout |
 | CX1 P1-1 process (gate/closeout) | **verified_fixed** — `dev-check` 3333 + `verify --scope full`; closeout this commit |
+
+### T283 planning absorption (2026-08-22) — human cwd-first; JSON size-desc frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit `project list` leftover-first (7/6) | **Absorb** F1–F8 / AC1–AC6 / AC10 — human table promotes cwd path-owner; remaining rows stay memory-desc |
+| Placeholder JSON freeze vs human-only sort | **Absorb** F2 JSON freeze (T212 F13); F1 human-only permute |
+| Placeholder “or `*` active” | **Partial** — star stays T212 env marker; **F10 decline star-as-sort** (leftover env would keep leftover-first) |
+| T276 F10 / closeout `project list` leftover-first | **Absorb** (this track) |
+| T282 closeout T283 peer | **Absorb** (this track) |
+| T267 footer leftover-as-AI-Brains | **Decline** F3 — Completed; pass original store vec to footer |
+| T212 labels / store `ORDER BY` / JSON keys | **Decline** F2 / F11 / F30 |
+| T230 never-blank | **Decline** — labels unchanged |
+| last-PR Cursor #198 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| leftover `7d97a456` 11 roots | **Decline** — T276 Completed; live rebind owner-confirm |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F4/F12/F17 |
+| JSON reorder / `--sort` / star-as-sort | **Decline** F2 / F5 / F10 |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; list sort **this track** |
+| Live `.env` write / adopt-path `--write-env` / leftover `set-alias AI-Brains` | **F16** — hermetic no-write is DoD |
+
+### T283 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 fail-open `resolve_path_alias_for_location` | **Decline** — footer `:112` still `?`; **already** F26 for `current_dir`/git |
+| Agy m2 `with_capacity` + no dup/drop | **Folded** F37 / AC1 |
+| Agy O1 OPERATIONS T76 refresh | **Already** F19 |
+| Agy O2 first/middle/last units | **Folded** AC1 middle; already-first + AC2 rest |
+| OpenCode m-1 promoted id once + len | **Folded** AC1 |
+| OpenCode m-2 `.claude` `:89` exists | **Already** F19 |
+| OpenCode m-3 AC10 max-memory not leftover UUID | **Folded** AC10 |
+| OpenCode m-4 AC5 re-env after denylist | **Folded** F38 / AC5 |
+| OpenCode m-5 after_help “JSON order unchanged” | **Folded** F35 |
+| OpenCode O-1 `lines().nth(1)` | **Folded** AC3 / AC5 / AC10 |
+| OpenCode O-2 resolve comment | **Folded** F39 |
+| OpenCode O-3 keep F26 store `?` | **Already** F26 |
+| last-PR #198 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M (Agy m1 store-resolve declined as false-complete) |
+
+### T283 closeout residuals (2026-08-22) — human cwd-first; JSON size-desc frozen
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH until `cargo install` | F13 |
+| JSON `cwd_first` marker | F32 — decline as DoD |
+| Star-only fallback when no path-owner | F10 |
+| `--sort` flag | F5 |
+| Duplicate git/path probe vs footer | F9 — T267 signature freeze |
+| Live leftover 11 `C:\dev\*` roots | T276 F9 — owner-confirm rebind |
+| Live 0 of 3 grants | T275 F10 |
+| CX1 P1-1 process (gate/closeout) | **verified_fixed** — `dev-check` 3341 + `verify --scope full`; closeout this commit |
 
 ### T274 closeout residuals (2026-08-21)
 

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T283 `project list` cwd-first (human only):** the first data row is the cwd path-owner when that id is in the vault; remaining rows stay memory-desc. `--format json` array order stays T212 `memory_count DESC, project_id ASC`. T267 unaliased footer still uses store order. Docs: CAPABILITIES List / List JSON, OPERATIONS Listing Projects.
+
 - **T282 `context --show` leftover shell vs `.env`:** when captured pre-dotenv `AI_BRAINS_PROJECT_ID` differs from the file, stdout after `Repository:` is `shell leftover PROJECT_ID: <uuid> (.env overrides)` (once). Same-id / missing file id omit the line. `AI_BRAINS_KEY` / `AI_BRAINS_VAULT_KEY` file lines print `(redacted)`. `--show` still does not write `.env`. Docs: CAPABILITIES Show-only, OPERATIONS `--show`.
 
 - **T281 Nightly timeout next-line HTTP vs TCP:** human `nightly --status` Completion `probe=timeout (750ms)` is followed by `HTTP /health 750ms ≠ daemon TCP`. `--quick` / `ok` / `down` / `error` do not print the line. JSON probe tokens stay `ok|down|timeout|error|skipped`; 750 ms budget and daemon TCP Open are unchanged. Docs: CAPABILITIES T269 honesty, OPERATIONS Completion/Embedding.

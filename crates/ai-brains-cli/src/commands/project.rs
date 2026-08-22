@@ -43,7 +43,18 @@ pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Er
         return Ok(());
     }
 
-    for row in &projects {
+    // F39: cwd owner from resolve_path_alias_for_location (`:237–248`).
+    let cwd_owner = match std::env::current_dir() {
+        Ok(cwd) => {
+            let git = collect_git_identity(&cwd).unwrap_or_default();
+            resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git)?
+        }
+        Err(_) => None,
+    };
+    let display =
+        crate::commands::project_list_order::promote_cwd_owner(&projects, cwd_owner.as_deref());
+
+    for row in &display {
         let label = display_label(&row.name, &row.alias, &row.project_id);
         let starred = match active_id.as_deref() {
             Some(id) if id == row.project_id => format!("*{}", label),
