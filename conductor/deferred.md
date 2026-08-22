@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Planned** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -14,7 +14,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
-| deny/`policy show` `--scope …` vs doctor omit | **T280 Planned** |
+| deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
 | `context --show` misses leftover shell | **T282** |
 | `project list` leftover-first | **T283** |
@@ -94,7 +94,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 |----------|-------------|
 | PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F18 |
 | Live vault still 0 of 3 grants | F10 — owner did not confirm live bootstrap; hermetic is DoD |
-| T280 deny hint still `--scope …` vs doctor omit | **T280 Planned** 2026-08-22 |
+| T280 deny hint still `--scope …` vs doctor omit | **T280 Completed** 2026-08-22 |
 | Personal denied `_None_` left | F32 optional; F35 contamination locked |
 
 ### T276 planning absorption (2026-08-21) — prefer-fill + labels; no silent exclude
@@ -368,6 +368,21 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode F1 length 172 vs ~183 | **Folded** AC1 / §8 / §11 |
 | last-PR #195 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M |
+
+### T280 closeout residuals (2026-08-22) — deny HINT omit-`--scope`; markdown next = SHORT
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` | F13 — tests/manual use `cargo run` |
+| Three-copy HINT (no shared crate) | F24 |
+| T226 O1 shared resolve wrapper | F5 |
+| clap after_help still shows `--scope Repository:<uuid>` first | F6 / F26 — valid CI form |
+| HINT **172** chars (no 140 cap) | F1 |
+| PATH briefing `_None_` | T275 F18 PATH-behind |
+| Live 0 of 3 grants | T275 F10 |
+| Live leftover 11 roots | T276 F9 |
+| T281–T283 peers | F17 |
+| Series README Planned at CX1 | P3-3 **verified_fixed** at closeout |
 
 ### T274 closeout residuals (2026-08-21)
 

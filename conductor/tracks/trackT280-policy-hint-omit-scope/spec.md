@@ -1,7 +1,7 @@
 # T280 — Policy deny/show hints must match doctor (omit `--scope` when context is authoritative)
 
 - **Track ID:** T280-PolicyHintOmitScope
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** (implement 2026-08-22; FEATURE TX `ebf7885d-68b8-47e2-918c-4f926b28a74f`)
 - **Category:** UX / HONESTY
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — `policy show` **8/7**, `policy check` **7/7**; deny `details.hint` still `bootstrap --scope …` while doctor says omit `--scope`. Placeholder minted with T274–T284.
