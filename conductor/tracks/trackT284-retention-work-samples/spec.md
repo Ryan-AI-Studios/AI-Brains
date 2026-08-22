@@ -1,7 +1,7 @@
 # T284 — Retention Work table and apply samples must not hide dispose work
 
 - **Track ID:** T284-RetentionWorkSamples
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** 2026-08-22
 - **Category:** BUGFIX / HONESTY
 - **Owner:** Grok
 - **Source:** Last-PR Cursor Bugbot on [#188](https://github.com/Ryan-AI-Studios/AI-Brains/pull/188) (T270) — two Mediums (`e03e500a`, `04bc5b81`). Verified still true on HEAD `abaab31` (T277 `#192`). Placeholder minted with T274–T284.

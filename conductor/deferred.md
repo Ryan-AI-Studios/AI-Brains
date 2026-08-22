@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Planned** 2026-08-22 (not a Placeholder).
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -18,7 +18,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
 | `context --show` misses leftover shell | **T282** |
 | `project list` leftover-first | **T283** |
-| #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Planned** 2026-08-22 |
+| #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
 | device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
 
 ### T274 planning absorption (2026-08-21) — leading-line + two-pass; no Safety steal
@@ -223,6 +223,19 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | last-PR #192 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M |
 
+### T284 closeout residuals (2026-08-22) — Work dispose counts + apply samples
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F15 — operator; tests use source |
+| Live vault still 0 CE / 0 projection | Honest; mixed hole is hermetic |
+| Event `class_counts` still dominant | F8 |
+| Two Work rows sharing samples if CE+PD mix | F29 |
+| Nightly `candidates=` includes held | T270 F20 |
+| Doctor retention check | T248 F16 |
+| Live `retention apply --confirm` | F16 — not run |
+| `class_dispose_count` is `pub` (cross-crate) | F27 amended; `audit_sample_ids` stays `pub(crate)` |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |
@@ -249,7 +262,7 @@ Specified softs — not product blockers:
 | Leftover project 18k pins still owned by `7d97a456` | **T276** |
 | Doctor retention check | T248 F16 |
 | rusqlite `table_exists` 0.40 | T213 L4 |
-| last-PR Cursor #188 Work table / apply samples | **T284 Planned** 2026-08-22 |
+| last-PR Cursor #188 Work table / apply samples | **T284 Completed** 2026-08-22 |
 
 ## Post-P12 backlog promotion (2026-08-01)
 

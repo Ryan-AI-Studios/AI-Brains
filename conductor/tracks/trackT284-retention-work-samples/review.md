@@ -1,7 +1,7 @@
 # T284 review log — Retention Work + apply samples
 
 **Track:** T284-RetentionWorkSamples
-**Status:** In Progress (CX1 FAIL → P2/P3 fixed; CX2 + full gate pending)
+**Status:** Completed (full gate green; Phase 6 pending this commit)
 **BUGFIX TX:** `6549506e-816b-4a50-aa2d-4c9e4b60984e`
 **HEAD (implement):** `track/T284-retention-work-samples`
 
@@ -12,7 +12,9 @@
 | R1 | Implementer (Grok) vs spec AC1–AC17 / DoD | **PASS** — red then green; Work uses class dispose counts; apply samples prefer `turn:` / `content_key:`; inventory-only freeze held |
 | R1b | Explore subagent (read-only DoD) | **PASS** — no P0–P3; `class_dispose_count` `pub` accepted (contracts→CP) |
 | CX1 | Codex gpt-5.6-sol | **FAIL** — P1-01 process (gate/closeout), P2-01 AC7 event-log proof, P3-01 F27 pub, P3-02 agy trailing ws |
-| R2 | Implementer | P2-01/P3-01/P3-02 **fixed_pending_verification**; P1-01 is remaining closeout |
+| R2 | Implementer | P2-01/P3-01/P3-02 fixed |
+| CX2 | Codex gpt-5.6-luna | **PASS** (product DoD). P2-01/P3-01/P3-02 verified_fixed. P1-01 residual closeout only |
+| Gate | `dev-check.ps1` + `ledgerful verify --scope full` | **PASS** nextest **3279** / 1 skipped |
 
 ## Finding fields
 
@@ -22,8 +24,8 @@ id, severity, description, source, files, required_fix, status, evidence.
 
 | id | severity | description | source | files | required_fix | status | evidence |
 |----|----------|-------------|--------|-------|--------------|--------|----------|
-| P1-01 | high (process) | Full gate, durable review, conductor checklists unfinished at CX1 time | CX1 | conductor + review.md | Complete Phase 5–6 | open (this closeout) | Expected mid-implement; not a product hole |
-| P2-01 | high | AC7 cited memory-list freeze, not event-log COUNT | CX1 | `tests/class_based_retention.rs` | Direct `read_all_events` before/after `plan_retention` | `fixed_pending_verification` | `retention_plan__does_not_append_events_or_retention_applied` PASS |
+| P1-01 | high (process) | Full gate, durable review, conductor checklists unfinished at CX1 time | CX1 | conductor + review.md | Complete Phase 5–6 | `verified_fixed` | `dev-check` 3279 passed / 1 skipped; `ledgerful verify --scope full` exit 0 |
+| P2-01 | high | AC7 cited memory-list freeze, not event-log COUNT | CX1 | `tests/class_based_retention.rs` | Direct `read_all_events` before/after `plan_retention` | `verified_fixed` (CX2) | `retention_plan__does_not_append_events_or_retention_applied` PASS |
 | P3-01 | low | F27 said `pub(crate)` for `class_dispose_count` | CX1 | contracts `retention.rs` / spec F27 | Authorize `pub` (cross-crate) | `verified_fixed` (spec F27 amended) | CP cannot call `pub(crate)` in contracts |
 | P3-02 | low | Trailing whitespace in `agy-review.md` | CX1 | `agy-review.md:3-6` | Strip | `verified_fixed` | `git diff --check` that file exit 0 |
 
@@ -91,6 +93,16 @@ PATH ai-brains retention plan --format human
 
 Did not retention apply --confirm
 Did not cargo install
+```
+
+## Full gate
+
+```text
+.\scripts\dev-check.ps1
+  SUCCESS; nextest 3279 passed / 1 skipped; deny + audit 19 allowed
+
+ledgerful verify --scope full
+  exit 0 (fmt, clippy, nextest, deny, audit)
 ```
 
 ## Notes

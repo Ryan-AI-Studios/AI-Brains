@@ -228,7 +228,7 @@
 | T281 | Nightly HTTP vs daemon TCP line | **Pending** | Grok | [T281](tracks/trackT281-nightly-probe-vs-tcp/spec.md) | **Placeholder 2026-08-21:** T269 labeled 750ms; Completion timeout vs daemon Open still dual-probe. Do not raise 750. |
 | T282 | `context --show` leftover shell | **Pending** | Grok | [T282](tracks/trackT282-context-show-leftover/spec.md) | **Placeholder 2026-08-21:** whoami shows leftover shell; `--show` does not. No T240 F2. |
 | T283 | `project list` cwd-first | **Pending** | Grok | [T283](tracks/trackT283-project-list-cwd-first/spec.md) | **Placeholder 2026-08-21:** leftover 18k is first row; cwd owner third. |
-| T284 | Retention Work + apply samples | **In Progress** | Grok | [T284](tracks/trackT284-retention-work-samples/spec.md) | **In Progress 2026-08-22:** BUGFIX TX `6549506e-816b-4a50-aa2d-4c9e4b60984e`. Work lists class dispose counts; `RetentionApplied.sample_ids` prefer CE/turn ids. |
+| T284 | Retention Work + apply samples | ✅ **Completed** | Grok | [T284](tracks/trackT284-retention-work-samples/spec.md) | **Completed 2026-08-22:** Work lists class dispose counts (not dominant `mechanism`); `RetentionApplied.sample_ids` prefer `content_key:`/`turn:` when dispose>0. Internal R1/R1b **PASS**; CX1 P2-01 **verified_fixed**; CX2 product **PASS**. `dev-check` nextest **3279** (1 skipped). BUGFIX TX `6549506e-816b-4a50-aa2d-4c9e4b60984e`. Soft: PATH until `cargo install`; live vault still 0 CE. |
 
 
 ---

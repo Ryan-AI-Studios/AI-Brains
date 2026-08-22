@@ -1,6 +1,6 @@
 # T284 Plan — Retention Work + apply samples
 
-**Status:** **Pending** (Planned — not In Progress)
+**Status:** **Completed** 2026-08-22 (hermetic Work + apply samples; no live apply)
 **Spec:** [spec.md](./spec.md) F0–F41 / AC1–AC17 + §13 AI fold-in
 **Category:** BUGFIX / HONESTY
 **Ledger TX (planning):** `d2010eda-264a-449b-9f37-f3e7687e9fe1` (DOCS)
@@ -49,16 +49,16 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
-- [ ] Re-read Work filter `retention.rs` ~`:420–445`, `next:` ~`:514`, `dominant_mechanism` ~`:686`, `build_report` ~`:610`, `merge_memory_legacy_inventory` ~`:711`, `append_retention_applied` ~`:1263`
-- [ ] Re-read clap `RetentionCommands::Plan` ~`:2298` / `Apply` ~`:2312`
-- [ ] Confirm T270 inventory pretty `:682` and overlay apply `:1031` still present
-- [ ] Rescan `conductor/deferred.md` — T284 rows already absorbed; no new overlapping open rows
-- [ ] Confirm #192 comments/reviews still empty (N/A); #188 two Mediums still the hole; no mint
-- [ ] Re-dogfood `retention plan --format human` / `--format json` only. **Did not** live apply
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] BUGFIX TX on go
-- [ ] Did **not** `cargo install`; did **not** grow `doctor.rs` / `project.rs`; did **not** live `retention apply --confirm`
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
+- [x] Re-read Work filter `retention.rs` ~`:420–445`, `next:` ~`:514`, `dominant_mechanism` ~`:686`, `build_report` ~`:610`, `merge_memory_legacy_inventory` ~`:711`, `append_retention_applied` ~`:1263`
+- [x] Re-read clap `RetentionCommands::Plan` ~`:2298` / `Apply` ~`:2312`
+- [x] Confirm T270 inventory pretty `:682` and overlay apply `:1031` still present
+- [x] Rescan `conductor/deferred.md` — T284 rows already absorbed; no new overlapping open rows
+- [x] Confirm #192 comments/reviews still empty (N/A); #188 two Mediums still the hole; no mint
+- [x] Re-dogfood `retention plan --format human` / `--format json` only. **Did not** live apply
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] BUGFIX TX on go
+- [x] Did **not** `cargo install`; did **not** grow `doctor.rs` / `project.rs`; did **not** live `retention apply --confirm`
 
 ---
 
@@ -86,55 +86,55 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `retention_plan__mixed_held_and_ce_secret__held_dominant_dispose_counts` (rstest: 1+1 tie, 2+1 majority) — AC1
-- [ ] `format_retention_pretty__held_dominates_ce_same_class__work_shows_dispose_row` — AC3
-- [ ] `retention_apply__overlay_plus_raw_turn__applied_samples_include_turn` — AC2
-- [ ] Commit red allowed
+- [x] `retention_plan__mixed_held_and_ce_secret__held_dominant_dispose_counts` (rstest: 1+1 tie, 2+1 majority) — AC1
+- [x] `format_retention_pretty__held_dominates_ce_same_class__work_shows_dispose_row` — AC3
+- [x] `retention_apply__overlay_plus_raw_turn__applied_samples_include_turn` — AC2
+- [x] Commit red allowed
 
 ## Phase 2 — Green
 
-- [ ] F4 optional fields on `RetentionClassBucket` (`skip_serializing_if` zero/empty) + `class_dispose_count`
-- [ ] F5 `build_report` fills dispose counts + `dispose_sample_ids` (CE first); overlay merge does not
-- [ ] F6 Work rows from class dispose counts (two rows if both mechanisms)
-- [ ] F7 `audit_sample_ids` — dispose-only when totals dispose > 0
-- [ ] F28 update ~6 struct literals
-- [ ] F38 stale comment
-- [ ] F11 Plan `after_help` additive
-- [ ] F37 / AC5 exact 5-key omit; roundtrip still equal
-- [ ] F41 / AC16 `audit_sample_ids` same-file units
-- [ ] AC17 pretty fallback when `dispose_sample_ids` empty
-- [ ] AC4/AC6/AC11/AC12/AC15 stay green
-- [ ] Commit green
+- [x] F4 optional fields on `RetentionClassBucket` (`skip_serializing_if` zero/empty) + `class_dispose_count`
+- [x] F5 `build_report` fills dispose counts + `dispose_sample_ids` (CE first); overlay merge does not
+- [x] F6 Work rows from class dispose counts (two rows if both mechanisms)
+- [x] F7 `audit_sample_ids` — dispose-only when totals dispose > 0
+- [x] F28 update ~6 struct literals
+- [x] F38 stale comment
+- [x] F11 Plan `after_help` additive
+- [x] F37 / AC5 exact 5-key omit; roundtrip still equal
+- [x] F41 / AC16 `audit_sample_ids` same-file units
+- [x] AC17 pretty fallback when `dispose_sample_ids` empty
+- [x] AC4/AC6/AC11/AC12/AC15 stay green
+- [x] Commit green
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES T248/T270 row: Work = dispose identities
-- [ ] OPERATIONS Audit: `RetentionApplied` samples prefer dispose ids
-- [ ] PROTOCOL-COMPAT: optional class-bucket extras; absent = 0
-- [ ] CHANGELOG T284
-- [ ] conductor Completed only on implement closeout — **not** this planning pass
+- [x] CAPABILITIES T248/T270 row: Work = dispose identities
+- [x] OPERATIONS Audit: `RetentionApplied` samples prefer dispose ids
+- [x] PROTOCOL-COMPAT: optional class-bucket extras; absent = 0
+- [x] CHANGELOG T284
+- [x] conductor Completed only on implement closeout — **not** this planning pass
 
 ## Phase 4 — Verify
 
-- [ ] Targeted nextest: `-p ai-brains-contracts retention` ; `-p ai-brains-control-plane --lib` ; `-p ai-brains-control-plane --test class_based_retention` ; `-p ai-brains-cli --test retention_plan_human`
-- [ ] `cargo clippy -p ai-brains-contracts -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] `cargo fmt --check`
-- [ ] Primary review → `review.md`; mediums not silently dropped
-- [ ] Cross-model `codex-review` (F22)
-- [ ] Full workspace gate at closeout only
-- [ ] Optional PATH `retention plan --format human` still inventory-only (AC13). **No** live apply
+- [x] Targeted nextest: `-p ai-brains-contracts retention` ; `-p ai-brains-control-plane --lib` ; `-p ai-brains-control-plane --test class_based_retention` ; `-p ai-brains-cli --test retention_plan_human`
+- [x] `cargo clippy -p ai-brains-contracts -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`
+- [x] `cargo fmt --check`
+- [x] Primary review → `review.md`; mediums not silently dropped
+- [x] Cross-model `codex-review` (F22)
+- [x] Full workspace gate at closeout only
+- [x] Optional PATH `retention plan --format human` still inventory-only (AC13). **No** live apply
 
 ## DoD (checkable)
 
-- [ ] Mixed CE+held class still appears under Work when `would_ce_wipe>0` (AC1/AC3)
-- [ ] `RetentionApplied` samples include dispose ids when overlay is large (AC2)
-- [ ] Inventory-only vault still `Nothing to dispose.` (AC4)
-- [ ] Zero-dispose class JSON keys exactly five (AC5)
-- [ ] `audit_sample_ids` helper units (AC16)
-- [ ] Pretty fallback when `dispose_sample_ids` empty (AC17)
-- [ ] No live `retention apply --confirm`
-- [ ] No `cargo install`
-- [ ] implement-track Phase 6: push `track/T284-*` → PR → watch GHA `CI` green → squash-merge → prune (never `git push origin main`)
+- [x] Mixed CE+held class still appears under Work when `would_ce_wipe>0` (AC1/AC3)
+- [x] `RetentionApplied` samples include dispose ids when overlay is large (AC2)
+- [x] Inventory-only vault still `Nothing to dispose.` (AC4)
+- [x] Zero-dispose class JSON keys exactly five (AC5)
+- [x] `audit_sample_ids` helper units (AC16)
+- [x] Pretty fallback when `dispose_sample_ids` empty (AC17)
+- [x] No live `retention apply --confirm`
+- [x] No `cargo install`
+- [x] implement-track Phase 6: push `track/T284-*` → PR → watch GHA `CI` green → squash-merge → prune (never `git push origin main`)
 
 ## Stop-before
 
