@@ -1,6 +1,31 @@
 use ai_brains_core::ids::{HarnessId, ProjectId, SessionId};
 use ai_brains_path::{extract_project_id_from_ledgerful, find_ledgerful_dir};
 
+/// F1: leftover stdout prefix (27 chars including trailing space).
+pub(crate) const SHELL_LEFTOVER_PREFIX: &str = "";
+/// F1: leftover stdout suffix (17 chars including leading space).
+pub(crate) const SHELL_LEFTOVER_SUFFIX: &str = "";
+/// F3: file dump replacement for `AI_BRAINS_KEY`.
+pub(crate) const SHOW_REDACTED_KEY: &str = "";
+/// Daemon/elevation alias: `AI_BRAINS_VAULT_KEY` is live (`ai-brainsd` vault_key.rs, CLI elevation.rs, daemon.rs daemon.env). F36.
+pub(crate) const SHOW_REDACTED_VAULT_KEY: &str = "";
+
+pub(crate) fn format_shell_leftover_line(_id: &str) -> String {
+    String::new()
+}
+
+pub(crate) fn leftover_shell_vs_file(_shell: Option<&str>, _file: Option<&str>) -> Option<String> {
+    None
+}
+
+pub(crate) fn file_project_id_from_env_text(_content: &str) -> Option<&str> {
+    None
+}
+
+pub(crate) fn map_show_env_line(_line: &str) -> Option<String> {
+    None
+}
+
 pub fn run(
     ctx: &crate::context::AppContext,
     new_project: bool,
@@ -180,4 +205,125 @@ pub fn run(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+
+    const FROZEN_UUID: &str = "7d97a456-f2f4-43ea-1f13-211af684ad37";
+    const FILE_UUID: &str = "3581317d-601e-44f7-ab84-fde90aa12d3c";
+    const SAME_UUID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+    #[test]
+    fn format_shell_leftover_line__known_uuid__frozen_80() {
+        assert_eq!(SHELL_LEFTOVER_PREFIX, "shell leftover PROJECT_ID: ");
+        assert_eq!(SHELL_LEFTOVER_PREFIX.chars().count(), 27);
+        assert_eq!(SHELL_LEFTOVER_SUFFIX, " (.env overrides)");
+        assert_eq!(SHELL_LEFTOVER_SUFFIX.chars().count(), 17);
+        assert_eq!(FROZEN_UUID.chars().count(), 36);
+        let line = format_shell_leftover_line(FROZEN_UUID);
+        assert_eq!(line.chars().count(), 80);
+        assert!(
+            line.starts_with(SHELL_LEFTOVER_PREFIX),
+            "must start with prefix; got {line:?}"
+        );
+        assert!(
+            line.ends_with(SHELL_LEFTOVER_SUFFIX),
+            "must end with suffix; got {line:?}"
+        );
+        assert!(
+            !line.starts_with("Warning:"),
+            "leftover must not start with Warning:; got {line:?}"
+        );
+        assert_eq!(
+            line,
+            "shell leftover PROJECT_ID: 7d97a456-f2f4-43ea-1f13-211af684ad37 (.env overrides)"
+        );
+    }
+
+    #[test]
+    fn leftover_shell_vs_file__differ__some() {
+        assert_eq!(
+            leftover_shell_vs_file(Some(FROZEN_UUID), Some(FILE_UUID)),
+            Some(format_shell_leftover_line(FROZEN_UUID))
+        );
+    }
+
+    #[rstest::rstest]
+    #[case(Some(SAME_UUID), Some(SAME_UUID))]
+    #[case(None, Some(SAME_UUID))]
+    #[case(Some(SAME_UUID), None)]
+    #[case(Some(""), Some(SAME_UUID))]
+    #[case(Some(SAME_UUID), Some(""))]
+    #[case(None, None)]
+    fn leftover_shell_vs_file__same_or_missing__none(
+        #[case] shell: Option<&str>,
+        #[case] file: Option<&str>,
+    ) {
+        assert_eq!(leftover_shell_vs_file(shell, file), None);
+    }
+
+    #[test]
+    fn file_project_id_from_env_text__padded_value__trimmed() {
+        let content = format!("AI_BRAINS_PROJECT_ID=  {FILE_UUID}  \n");
+        assert_eq!(file_project_id_from_env_text(&content), Some(FILE_UUID));
+    }
+
+    #[test]
+    fn map_show_env_line__key__redacted() {
+        assert_eq!(
+            map_show_env_line(
+                "AI_BRAINS_KEY=x'deadbeefcafebabe0123456789abcdefdeadbeefcafebabe0123456789abcdef'"
+            ),
+            Some("AI_BRAINS_KEY=(redacted)".to_string())
+        );
+    }
+
+    #[test]
+    fn map_show_env_line__vault_key__redacted() {
+        assert_eq!(
+            map_show_env_line(
+                "AI_BRAINS_VAULT_KEY=x'deadbeefcafebabe0123456789abcdefdeadbeefcafebabe0123456789abcdef'"
+            ),
+            Some("AI_BRAINS_VAULT_KEY=(redacted)".to_string())
+        );
+    }
+
+    #[test]
+    fn map_show_env_line__bare_key_names__redacted() {
+        assert_eq!(
+            map_show_env_line("AI_BRAINS_KEY"),
+            Some("AI_BRAINS_KEY=(redacted)".to_string())
+        );
+        assert_eq!(
+            map_show_env_line("AI_BRAINS_VAULT_KEY"),
+            Some("AI_BRAINS_VAULT_KEY=(redacted)".to_string())
+        );
+    }
+
+    #[test]
+    fn map_show_env_line__project_id__passthrough() {
+        let line = "AI_BRAINS_PROJECT_ID=3581317d-601e-44f7-ab84-fde90aa12d3c";
+        assert_eq!(map_show_env_line(line), Some(line.to_string()));
+    }
+
+    #[test]
+    fn map_show_env_line__comment_and_ledgerful__skip() {
+        assert_eq!(map_show_env_line("# comment"), None);
+        assert_eq!(map_show_env_line("LEDGERFUL_TX_ID=abc"), None);
+    }
+
+    #[test]
+    fn map_show_env_line__keyring_and_vault_key_path__passthrough() {
+        assert_eq!(
+            map_show_env_line("AI_BRAINS_KEYRING=foo"),
+            Some("AI_BRAINS_KEYRING=foo".to_string())
+        );
+        assert_eq!(
+            map_show_env_line("AI_BRAINS_VAULT_KEY_PATH=/x"),
+            Some("AI_BRAINS_VAULT_KEY_PATH=/x".to_string())
+        );
+    }
 }
