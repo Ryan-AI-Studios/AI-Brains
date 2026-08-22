@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Planned** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -12,7 +12,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
 | leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
 | 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
-| graph sparse + neighbors blank preview | **T278** |
+| graph sparse + neighbors blank preview | **T278 Planned** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279** |
 | deny/`policy show` `--scope …` vs doctor omit | **T280** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
@@ -235,6 +235,24 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Doctor retention check | T248 F16 |
 | Live `retention apply --confirm` | F16 — not run |
 | `class_dispose_count` is `pub` (cross-crate) | F27 amended; `audit_sample_ids` stays `pub(crate)` |
+
+### T278 planning absorption (2026-08-22) — session PREVIEW; density honesty frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit neighbors PREVIEW blank on session `RECALLS` | **Absorb** F1–F4 / AC1–AC3 — T246 F10 lift (`kind == "session"`) |
+| Audit sparse E/N ~0.11 (live **0.130**) | **Partial** — honesty already T213/T232 (AC8/AC9); do **not** retune floors or live-rebuild |
+| T246 F10 memory-only PREVIEW | **Lift** F1 — session added; memory unchanged |
+| T246 F18 projector completeness | **Partial** — pin `RECALLS` is T262; session **caption** this track; projector edges **decline F11** |
+| T213 floor flags / contracts / rusqlite `table_exists` / two-tier coverage | **Decline** F7/F12 |
+| Auto rebuild / projector more edges / Cargo default-on / WCC | **Decline** F8/F10/F11 |
+| 2-hop pretty / hierarchy captions / mermaid (T246 F17) | **Decline** F18/F19 |
+| last-PR Cursor #193 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| leftover `7d97a456` / T279–T283 | **Decline** peers |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F12/F22 |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 
 ### T274 closeout residuals (2026-08-21)
 
