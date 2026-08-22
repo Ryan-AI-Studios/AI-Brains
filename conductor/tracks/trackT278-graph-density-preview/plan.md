@@ -99,22 +99,22 @@ No Blockers / Majors either harness. Disposition in spec **§13**.
 
 ## Phase 2 — Green
 
-- [ ] F14 `format_session_neighbor_preview` `pub(crate)` in `graph.rs`
-- [ ] F34 `pick_first_nonempty` `pub(crate)` (skip trim-empty; `None` if all blank)
-- [ ] F33 `session_neighbor_caption` → `String` (match/if let + warn; no `?`; calls F34)
-- [ ] F1–F4 `pretty_neighbor_rows` session arm calls F33 helper
-- [ ] Update T246 session fixture empty preview → AC2 caption
-- [ ] F30 `GraphCommands` `after_help` additive
-- [ ] AC4/AC5/AC6/AC7/AC9/AC14 stay green
-- [ ] Commit green
+- [x] F14 `format_session_neighbor_preview` `pub(crate)` in `graph.rs`
+- [x] F34 `pick_first_nonempty` `pub(crate)` (skip trim-empty; `None` if all blank)
+- [x] F33 `session_neighbor_caption` → `String` (match/if let + warn; no `?`; calls F34)
+- [x] F1–F4 `pretty_neighbor_rows` session arm calls F33 helper
+- [x] Update T246 session fixture empty preview → AC2 caption
+- [x] F30 `GraphCommands` `after_help` additive
+- [x] AC4/AC5/AC6/AC7/AC9/AC14 stay green
+- [x] Commit green
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES graph table: session PREVIEW `{n} memories · first line`
-- [ ] OPERATIONS one sentence (captions; update ≠ rebuild)
-- [ ] PROTOCOL-COMPAT §5: preview human-only; keys unchanged
-- [ ] CHANGELOG T278
-- [ ] Skill one-liner if graph section exists
+- [x] CAPABILITIES graph table: session PREVIEW `{n} memories · first line`
+- [x] OPERATIONS one sentence (captions; update ≠ rebuild)
+- [x] PROTOCOL-COMPAT §5: preview human-only; keys unchanged
+- [x] CHANGELOG T278
+- [x] Skill one-liner if graph section exists
 - [ ] conductor Completed only on implement closeout — **not** this planning pass
 
 ## Phase 4 — Verify

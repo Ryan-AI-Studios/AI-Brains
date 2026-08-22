@@ -250,13 +250,59 @@ fn memory_preview(ctx: &AppContext, memory_id: &str) -> Result<String, Box<dyn s
 }
 
 /// T278 F2: `{n} memories` plus optional ` · first` (trim-empty first → no dot), cap 80.
-pub(crate) fn format_session_neighbor_preview(_n: usize, _first_preview: &str) -> String {
-    String::new()
+pub(crate) fn format_session_neighbor_preview(n: usize, first_preview: &str) -> String {
+    let mut caption = format!("{n} memories");
+    if !first_preview.trim().is_empty() {
+        caption.push_str(" · ");
+        caption.push_str(first_preview);
+    }
+    crate::commands::display_text::truncate_preview_chars(&caption, 80)
 }
 
 /// T278 F34: skip items whose trim is empty; return the first remaining as-is.
-pub(crate) fn pick_first_nonempty(_previews: &[String]) -> Option<String> {
-    None
+pub(crate) fn pick_first_nonempty(previews: &[String]) -> Option<String> {
+    previews
+        .iter()
+        .find(|preview| !preview.trim().is_empty())
+        .cloned()
+}
+
+/// T278 F33: session PREVIEW I/O. Never `Result` — fail-open to `"0 memories"` / `"{n} memories"`.
+fn session_neighbor_caption(
+    ctx: &AppContext,
+    searcher: &GraphSearch<'_>,
+    session_id: &str,
+) -> String {
+    let mut ids = match searcher.get_session_memories(session_id) {
+        Ok(ids) => ids,
+        Err(err) => {
+            tracing::warn!(
+                error = %err,
+                session_id,
+                "session neighbor caption: get_session_memories failed"
+            );
+            return format_session_neighbor_preview(0, "");
+        }
+    };
+    ids.sort();
+    let n = ids.len();
+    let mut previews = Vec::with_capacity(n);
+    for id in &ids {
+        match memory_preview(ctx, id) {
+            Ok(preview) => previews.push(preview),
+            Err(err) => {
+                tracing::warn!(
+                    error = %err,
+                    memory_id = %id,
+                    session_id,
+                    "session neighbor caption: memory_preview failed"
+                );
+                previews.push(String::new());
+            }
+        }
+    }
+    let first = pick_first_nonempty(&previews).unwrap_or_default();
+    format_session_neighbor_preview(n, &first)
 }
 
 fn pretty_neighbor_rows(
@@ -269,6 +315,8 @@ fn pretty_neighbor_rows(
         let kind = searcher.node_kind(&hit.external_id)?.unwrap_or_default();
         let preview = if kind == "memory" {
             memory_preview(ctx, &hit.external_id)?
+        } else if kind == "session" {
+            session_neighbor_caption(ctx, searcher, &hit.external_id)
         } else {
             String::new()
         };
@@ -700,7 +748,7 @@ mod tests {
                 label: "RECALLS".into(),
                 external_id: "3b4e95b8-a011-48a8-b5ea-72e36c6a2458".into(),
                 kind: "session".into(),
-                preview: String::new(),
+                preview: "2 memories · pin text".into(),
             },
             PrettyNeighborRow {
                 direction: "outgoing".into(),
@@ -852,7 +900,10 @@ mod tests {
             std::collections::BTreeSet::from(["external_id", "label", "direction"])
         );
         assert_eq!(v["neighbors"][0]["direction"], "incoming");
-        assert_eq!(v["neighbors"][0]["external_id"], "3b4e95b8-a011-48a8-b5ea-72e36c6a2458");
+        assert_eq!(
+            v["neighbors"][0]["external_id"],
+            "3b4e95b8-a011-48a8-b5ea-72e36c6a2458"
+        );
     }
 
     #[test]
