@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Planned** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -14,7 +14,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
-| deny/`policy show` `--scope …` vs doctor omit | **T280** |
+| deny/`policy show` `--scope …` vs doctor omit | **T280 Planned** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
 | `context --show` misses leftover shell | **T282** |
 | `project list` leftover-first | **T283** |
@@ -94,7 +94,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 |----------|-------------|
 | PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F18 |
 | Live vault still 0 of 3 grants | F10 — owner did not confirm live bootstrap; hermetic is DoD |
-| T280 deny hint still `--scope …` vs doctor omit | Peer |
+| T280 deny hint still `--scope …` vs doctor omit | **T280 Planned** 2026-08-22 |
 | Personal denied `_None_` left | F32 optional; F35 contamination locked |
 
 ### T276 planning absorption (2026-08-21) — prefer-fill + labels; no silent exclude
@@ -334,6 +334,27 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Live 0 of 3 grants | T275 F10 |
 | T280–T283 peers | F17 |
 | `agy-review.md` trailing whitespace lines 3–6 | CX2 P3 — plan-review artifact; do not edit `*-review.md` |
+
+### T280 planning absorption (2026-08-22) — deny HINT omit-`--scope`; show SHORT already omit
+
+| Item | Disposition |
+|------|-------------|
+| Audit deny/`policy show` `--scope …` vs doctor omit | **Absorb** F1–F4 / AC1–AC7 / AC10 — show JSON `next_step` already SHORT (affirm); HINT + briefing markdown next are DoD |
+| T275 F11 / closeout HINT still `--scope …` | **Absorb** F1 / F2 |
+| T241 F14 markdown T227 leftover | **Absorb** F2 — `BRIEFING_DENIED_NEXT_STEP` = SHORT |
+| T243 AC12 wording freeze | **Lift** F1 / F27 — new freeze string |
+| T210 AC7 substring-only | **Tighten** AC5 |
+| T226 O1 shared resolve wrapper | **Decline** F5 |
+| clap after_help dual examples | **Decline** F6 — already both forms |
+| Runtime two-arm HINT | **Decline** F4 — no-context is fail_usage (T210 AC8) |
+| last-PR Cursor #195 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| T281 nightly 750 ms / T282 `--show` / T283 list | **Decline** peers |
+| leftover `7d97a456` 11 roots | **Decline** — T276 Completed; live rebind owner-confirm |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F12/F17 |
+| Live operator bootstrap | **F10** — hermetic is DoD |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 
 ### T274 closeout residuals (2026-08-21)
 
