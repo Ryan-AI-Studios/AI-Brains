@@ -356,7 +356,11 @@ pub fn substring_fallback(
 
     let pattern = format!("%{}%", escape_like_pattern(query));
 
-    let mut sql = "SELECT memory_id, content, privacy, session_id, updated_at FROM memory_projection\n         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'".to_string();
+    let mut sql = "SELECT memory_id, content, privacy, session_id, updated_at,
+            COALESCE(project_id, (SELECT sp.project_id FROM session_projection sp WHERE sp.session_id = memory_projection.session_id LIMIT 1))
+         FROM memory_projection
+         WHERE content LIKE ? ESCAPE '\\' AND status = 'pinned'"
+        .to_string();
     let mut params_vec: Vec<rusqlite::types::Value> = vec![pattern.into()];
 
     if let Some(sid) = session_id {
@@ -403,7 +407,7 @@ pub fn substring_fallback(
                 score: None,
                 session_id: row.get(3)?,
                 updated_at: row.get(4)?,
-                project_id: None,
+                project_id: row.get(5)?,
             });
         }
     }

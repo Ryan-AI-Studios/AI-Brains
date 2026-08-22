@@ -7,7 +7,10 @@ use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, MemoryPinnedPayload, Payload};
-use ai_brains_retrieval::{RecallOptions, recall_full};
+use ai_brains_retrieval::{
+    LexicalSearchOptions, RecallHit, RecallOptions, candidate_depth, lexical_search,
+    merge_preferred_then_global, recall_full, substring_fallback,
+};
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 use std::str::FromStr;
 
@@ -60,12 +63,9 @@ fn two_projects() -> Result<(ProjectId, ProjectId), Box<dyn std::error::Error>> 
     ))
 }
 
-/// AC2: leftover-like B fills unscoped authority MATCH; owner A pin must still be hit #1
-/// once `preferred_project_id = Some(A)`.
-///
-/// Live T274 two-pass already lifts **chrome** under unscoped MATCH. Leftover
-/// **authority** volume (15 DECISION rows) is the T276 starve: pass-1 GLOB fills
-/// `candidate_depth(5)=15` and the owner pin never enters without prefer-fill.
+/// AC2: leftover-like B has 15 chrome rows MATCHing needle; owner A has one
+/// leading DECISION pin. `preferred_project_id = Some(A)` → hit #1 is the A pin.
+/// (T274 two-pass already lifts chrome unscoped; prefer-fill still runs.)
 #[test]
 fn recall_full__global_prefer__owner_pin_beats_leftover_chrome()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -77,7 +77,7 @@ fn recall_full__global_prefer__owner_pin_beats_leftover_chrome()
         append_pinned_on(
             &store,
             leftover,
-            &format!("DECISION: leftover dump {i} {repeats}"),
+            &format!("## Objective\n{repeats}review dump {i} of the leftover remediator"),
         )?;
     }
     let pin_id = append_pinned_on(
@@ -121,7 +121,7 @@ fn recall_full__global_prefer__leftover_still_in_candidates()
         leftover_ids.push(append_pinned_on(
             &store,
             leftover,
-            &format!("DECISION: leftover dump {i} {repeats}"),
+            &format!("## Objective\n{repeats}review dump {i} of the leftover remediator"),
         )?);
     }
     append_pinned_on(
@@ -166,6 +166,108 @@ fn recall_full__preferred_none__no_fill_panic() -> Result<(), Box<dyn std::error
             .iter()
             .map(|h| h.content.as_str())
             .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+fn fts_hits(
+    store: &SqliteEventStore,
+    query: &str,
+    project: Option<ProjectId>,
+    depth: usize,
+) -> Result<Vec<RecallHit>, Box<dyn std::error::Error>> {
+    Ok(lexical_search(
+        store.connection(),
+        query,
+        project,
+        None,
+        LexicalSearchOptions {
+            rescue: true,
+            limit: depth,
+            exclude_symbol_stubs: true,
+            prefer_authority: true,
+        },
+    )?
+    .into_iter()
+    .map(|memory| {
+        let project = memory.project_id.clone();
+        let mut hit = RecallHit::fts(
+            memory.memory_id,
+            memory.content,
+            memory.score,
+            memory.session_id,
+            memory.updated_at,
+        );
+        hit.project_id = project;
+        hit
+    })
+    .collect())
+}
+
+/// Leftover **authority** volume (not chrome): prefer-fill merge puts the owner pin
+/// first. Unscoped `recall_full` top-5 is leftover-only (T274 pass-1 fills depth).
+/// Post-rerank top-5 may still be leftover (F1/F14: no ranking.rs leftover penalty).
+#[test]
+fn merge_preferred_then_global__leftover_authority__owner_first()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let (owner, leftover) = two_projects()?;
+    let needle = format!("T276-authority-{}", uuid::Uuid::new_v4());
+    for i in 0..15 {
+        let repeats = format!("{needle} ").repeat(12);
+        append_pinned_on(
+            &store,
+            leftover,
+            &format!("DECISION: leftover dump {i} {repeats}"),
+        )?;
+    }
+    let pin_id = append_pinned_on(
+        &store,
+        owner,
+        &format!("DECISION: {needle} owner unique pin we must surface"),
+    )?;
+
+    let starved = recall_full(store.connection(), None, &needle, 5, opts(None))?;
+    assert!(
+        starved.hits.iter().all(|h| h.memory_id != pin_id),
+        "unscoped leftover authority must starve owner from top-5; hits={:?}",
+        starved
+            .hits
+            .iter()
+            .map(|h| h.content.as_str())
+            .collect::<Vec<_>>()
+    );
+
+    let depth = candidate_depth(5);
+    let scoped = fts_hits(&store, &needle, Some(owner), depth)?;
+    let unscoped = fts_hits(&store, &needle, None, depth)?;
+    let merged = merge_preferred_then_global(scoped, unscoped, depth);
+    assert_eq!(
+        merged[0].memory_id,
+        pin_id,
+        "F1: prefer-fill merge must lead with owner pin; first={:?} all={:?}",
+        merged[0].content,
+        merged
+            .iter()
+            .map(|h| h.memory_id.as_str())
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+/// F4/F15 analog: substring LIKE carries COALESCE project_id so `--global` pretty can tag.
+#[test]
+fn substring_fallback__maps_coalesce_project_id() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let owner = ProjectId::from_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
+    append_pinned_on(&store, owner, "hello world substring tag body")?;
+    let hits = substring_fallback(store.connection(), "llo worl", None, None, 5, false)?;
+    assert_eq!(hits.len(), 1, "substring must find the pin; hits={hits:?}");
+    assert_eq!(
+        hits[0].project_id.as_deref(),
+        Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        "F15 substring COALESCE; hit={:?}",
+        hits[0]
     );
     Ok(())
 }

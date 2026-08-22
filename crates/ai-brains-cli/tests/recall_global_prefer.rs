@@ -37,7 +37,7 @@ fn seed_two_project_vault(vault: &Path, needle: &str) {
             vault,
             LEFTOVER_PROJECT,
             LEFTOVER_SESSION,
-            &format!("DECISION: leftover dump {i} {repeats}"),
+            &format!("## Objective\n{repeats}review dump {i} of the leftover remediator"),
         );
     }
     pin_on(

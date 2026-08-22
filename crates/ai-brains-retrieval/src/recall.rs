@@ -318,15 +318,23 @@ pub fn recall_full(
             .collect()
     };
     let mut local_hits: Vec<RecallHit> = if let Some(preferred) = options.preferred_project_id {
-        let scoped = lexical_search(conn, query, Some(preferred), session_id, lexical_opts)?;
-        let unscoped = lexical_search(conn, query, None, session_id, lexical_opts)?;
+        let scoped = fts_to_hits(lexical_search(
+            conn,
+            query,
+            Some(preferred),
+            session_id,
+            lexical_opts,
+        )?);
+        // F39: skip the unscoped MATCH when preferred already fills depth.
         // AC3 leftover-in-candidates is this merge (pre-rerank_hits). A leftover-free
         // post-rerank top-5 is not a silent-exclude regression (F41).
-        crate::prefer_project::merge_preferred_then_global(
-            fts_to_hits(scoped),
-            fts_to_hits(unscoped),
-            depth,
-        )
+        if scoped.len() >= depth {
+            crate::prefer_project::merge_preferred_then_global(scoped, Vec::new(), depth)
+        } else {
+            let unscoped =
+                fts_to_hits(lexical_search(conn, query, None, session_id, lexical_opts)?);
+            crate::prefer_project::merge_preferred_then_global(scoped, unscoped, depth)
+        }
     } else {
         fts_to_hits(lexical_search(
             conn,
@@ -553,15 +561,6 @@ pub fn recall_full(
     crate::ranking::rerank_hits(&mut blended);
     crate::session_chrome::dedupe_session_chrome(&mut blended);
     crate::symbol_stub::dedupe_symbol_stubs(&mut blended);
-
-    // T276: prefer-fill must survive truncate. `rerank_hits` is BM25-led, so leftover
-    // authority dumps can bury the cwd pin after it entered the candidate window.
-    // Stable-partition preferred-project hits to the front (not a leftover SQL drop;
-    // F14 leftover penalty stays out of ranking.rs). AC3 leftover still follows.
-    if let Some(pref) = options.preferred_project_id {
-        let pref_s = pref.to_string();
-        blended.sort_by_key(|h| u8::from(h.project_id.as_deref() != Some(pref_s.as_str())));
-    }
 
     if blended.len() > limit {
         blended.truncate(limit);
