@@ -211,6 +211,35 @@ fn context_show__and_show_new_project__leave_env_bytes_unchanged() {
 }
 
 #[test]
+fn context_show__no_project_context__leftover_vs_file_not_process_env() {
+    let fx = fixture(Some(&format!("AI_BRAINS_PROJECT_ID={ENV_ID}\n")));
+    let mut cmd = common::hermetic_bin();
+    common::isolate_empty_home(&mut cmd);
+    let out = cmd
+        .current_dir(&fx.cwd)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .env("AI_BRAINS_PROJECT_ID", SHELL_ID)
+        .arg("context")
+        .arg("--show")
+        .output()
+        .expect("context --show --no-project-context must spawn");
+    assert_success(&out);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let leftover = leftover_line(SHELL_ID);
+    assert_eq!(
+        stdout.matches(leftover.as_str()).count(),
+        1,
+        "F1/F25: leftover vs file even when --no-project-context keeps process env as shell; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!("AI_BRAINS_PROJECT_ID={ENV_ID}")),
+        "dump is the file, not process env; got: {stdout}"
+    );
+}
+
+#[test]
 fn context_show__no_env_file__no_overrides_suffix() {
     let fx = fixture(None);
     let out = run_show(&fx, Some(SHELL_ID), &[]);
