@@ -51,10 +51,8 @@ pub fn list(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Er
         }
         Err(_) => None,
     };
-    let display = crate::commands::project_list_order::promote_cwd_owner(
-        &projects,
-        cwd_owner.as_deref(),
-    );
+    let display =
+        crate::commands::project_list_order::promote_cwd_owner(&projects, cwd_owner.as_deref());
 
     for row in &display {
         let label = display_label(&row.name, &row.alias, &row.project_id);
