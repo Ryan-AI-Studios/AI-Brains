@@ -30,7 +30,7 @@ fn preflight_includes_session_turns() -> Result<(), Box<dyn std::error::Error>> 
         false,
     )?;
 
-    // This is expected to fail currently as preflight.rs only lists active session IDs
+    // Session section includes turn text, not only session ids.
     assert!(context.text.contains("What is the capital of France?"));
     assert!(context.text.contains("The capital of France is Paris."));
     Ok(())

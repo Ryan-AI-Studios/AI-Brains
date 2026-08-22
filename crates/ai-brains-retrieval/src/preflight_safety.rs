@@ -2,8 +2,13 @@
 //!
 //! File-local helper (F29): do not share with CLI `safety.rs` this track.
 
+use crate::ranking::{PinKind, classify_pin_kind};
+
 /// Honest empty Safety body (F3). Must not contain `HOTSPOT:` (AC14 / F9).
 pub const SAFETY_EMPTY: &str = "No in-context hotspots. next: ai-brains safety sync --dry-run";
+
+/// F2: same argv limit as CLI `safety sync` default.
+pub const LIVE_HOTSPOT_LIMIT: usize = 5;
 
 /// One parsed live hotspot row (`path` + raw `score`).
 #[derive(Debug, Clone, PartialEq)]
@@ -49,8 +54,23 @@ pub fn parse_hotspots_json(stdout: &str) -> Vec<LiveHotspot> {
         }
         let score = v.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
         out.push(LiveHotspot { path, score });
+        if out.len() == LIVE_HOTSPOT_LIMIT {
+            break;
+        }
     }
     out
+}
+
+/// F7: keep Intelligence substring suppress; live inject drops **leading** vault HOTSPOT only.
+pub fn suppress_vault_hotspot_row(
+    content: &str,
+    live_inject_nonempty: bool,
+    has_cg_intelligence: bool,
+) -> bool {
+    if has_cg_intelligence && content.contains("HOTSPOT:") {
+        return true;
+    }
+    live_inject_nonempty && classify_pin_kind(content) == PinKind::Hotspot
 }
 
 /// `AI_BRAINS_PREFLIGHT_SKIP_LIVE_HOTSPOTS` truthy → skip F2 (F13).
@@ -90,7 +110,12 @@ pub fn fetch_live_hotspots() -> Vec<LiveHotspot> {
 
 fn spawn_ledgerful_hotspots_json() -> Result<String, String> {
     let output = std::process::Command::new("ledgerful")
-        .args(["hotspots", "--json", "--limit", "5"])
+        .args([
+            "hotspots",
+            "--json",
+            "--limit",
+            &LIVE_HOTSPOT_LIMIT.to_string(),
+        ])
         .output()
         .map_err(|e| format!("failed to run ledgerful: {e}"))?;
     if !output.status.success() {
@@ -137,6 +162,42 @@ mod tests {
         assert!(
             missing.is_empty(),
             "AC9: missing leading [ is fail-open empty; got {missing:?}"
+        );
+    }
+
+    #[test]
+    fn parse_hotspots_json__more_than_five__caps() {
+        let rows: Vec<String> = (0..8)
+            .map(|i| format!(r#"{{"path":"crates/f{i}.rs","score":0.01}}"#))
+            .collect();
+        let stdout = format!("[{}]", rows.join(","));
+        let got = parse_hotspots_json(&stdout);
+        assert_eq!(got.len(), LIVE_HOTSPOT_LIMIT, "F2 cap 5; got {got:?}");
+        assert_eq!(got[0].path, "crates/f0.rs");
+        assert_eq!(got[4].path, "crates/f4.rs");
+    }
+
+    #[test]
+    fn suppress_vault_hotspot_row__live_inject__leading_only() {
+        assert!(
+            suppress_vault_hotspot_row("HOTSPOT: src/foo.rs score=0.05", true, false),
+            "F7: leading vault HOTSPOT dropped when live inject nonempty"
+        );
+        assert!(
+            !suppress_vault_hotspot_row(
+                "CONSTRAINT: Do not confuse HOTSPOT: text with live data",
+                true,
+                false
+            ),
+            "F7: buried HOTSPOT: must not drop a CONSTRAINT bearing"
+        );
+        assert!(
+            suppress_vault_hotspot_row(
+                "CONSTRAINT: Do not confuse HOTSPOT: text with live data",
+                false,
+                true
+            ),
+            "F7: Intelligence suppress keeps substring match"
         );
     }
 

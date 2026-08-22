@@ -10,7 +10,9 @@ use crate::preflight_global::{
     GLOBAL_SESSION_MAX, GLOBAL_SESSION_PER_PROJECT, prefix_first_line, project_key, project_tag,
     span_count, take_round_robin,
 };
-use crate::preflight_safety::{SAFETY_EMPTY, fetch_live_hotspots, format_safety_hotspot_line};
+use crate::preflight_safety::{
+    SAFETY_EMPTY, fetch_live_hotspots, format_safety_hotspot_line, suppress_vault_hotspot_row,
+};
 use crate::privacy_filter::is_injectable_privacy;
 use crate::ranking::{PinKind, classify_pin_kind};
 use crate::session_chrome::{bound_not_in_sql, index_marker_glob_sql, safety_marker_glob_sql};
@@ -335,9 +337,7 @@ fn build_legacy_preflight(
         let updated_at: String = row.get(2)?;
         let item_project: Option<String> = row.get(3)?;
 
-        // Suppress vault HOTSPOTs if we already have fresh intelligence from the bridge
-        // or live inject already listed the same files (T279 F7).
-        if (has_cg_intelligence || !live_hotspots.is_empty()) && content.contains("HOTSPOT:") {
+        if suppress_vault_hotspot_row(&content, !live_hotspots.is_empty(), has_cg_intelligence) {
             continue;
         }
 
