@@ -2,27 +2,48 @@ use ai_brains_core::ids::{HarnessId, ProjectId, SessionId};
 use ai_brains_path::{extract_project_id_from_ledgerful, find_ledgerful_dir};
 
 /// F1: leftover stdout prefix (27 chars including trailing space).
-pub(crate) const SHELL_LEFTOVER_PREFIX: &str = "";
+pub(crate) const SHELL_LEFTOVER_PREFIX: &str = "shell leftover PROJECT_ID: ";
 /// F1: leftover stdout suffix (17 chars including leading space).
-pub(crate) const SHELL_LEFTOVER_SUFFIX: &str = "";
+pub(crate) const SHELL_LEFTOVER_SUFFIX: &str = " (.env overrides)";
 /// F3: file dump replacement for `AI_BRAINS_KEY`.
-pub(crate) const SHOW_REDACTED_KEY: &str = "";
+pub(crate) const SHOW_REDACTED_KEY: &str = "AI_BRAINS_KEY=(redacted)";
 /// Daemon/elevation alias: `AI_BRAINS_VAULT_KEY` is live (`ai-brainsd` vault_key.rs, CLI elevation.rs, daemon.rs daemon.env). F36.
-pub(crate) const SHOW_REDACTED_VAULT_KEY: &str = "";
+pub(crate) const SHOW_REDACTED_VAULT_KEY: &str = "AI_BRAINS_VAULT_KEY=(redacted)";
 
-pub(crate) fn format_shell_leftover_line(_id: &str) -> String {
-    String::new()
+pub(crate) fn format_shell_leftover_line(id: &str) -> String {
+    format!("{SHELL_LEFTOVER_PREFIX}{id}{SHELL_LEFTOVER_SUFFIX}")
 }
 
-pub(crate) fn leftover_shell_vs_file(_shell: Option<&str>, _file: Option<&str>) -> Option<String> {
-    None
+pub(crate) fn leftover_shell_vs_file(shell: Option<&str>, file: Option<&str>) -> Option<String> {
+    let shell = shell.map(str::trim).filter(|s| !s.is_empty())?;
+    let file = file.map(str::trim).filter(|s| !s.is_empty())?;
+    if shell == file {
+        None
+    } else {
+        Some(format_shell_leftover_line(shell))
+    }
 }
 
-pub(crate) fn file_project_id_from_env_text(_content: &str) -> Option<&str> {
-    None
+pub(crate) fn file_project_id_from_env_text(content: &str) -> Option<&str> {
+    content.lines().find_map(|line| {
+        line.trim_start()
+            .strip_prefix("AI_BRAINS_PROJECT_ID=")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+    })
 }
 
-pub(crate) fn map_show_env_line(_line: &str) -> Option<String> {
+pub(crate) fn map_show_env_line(line: &str) -> Option<String> {
+    let trimmed = line.trim_start();
+    if trimmed == "AI_BRAINS_KEY" || trimmed.starts_with("AI_BRAINS_KEY=") {
+        return Some(SHOW_REDACTED_KEY.to_string());
+    }
+    if trimmed == "AI_BRAINS_VAULT_KEY" || trimmed.starts_with("AI_BRAINS_VAULT_KEY=") {
+        return Some(SHOW_REDACTED_VAULT_KEY.to_string());
+    }
+    if trimmed.starts_with("AI_BRAINS_") {
+        return Some(line.to_string());
+    }
     None
 }
 
@@ -46,11 +67,18 @@ pub fn run(
             let content = std::fs::read_to_string(&env_path)?;
             println!("--- Current Context ---");
             for line in content.lines() {
-                if line.starts_with("AI_BRAINS_") {
-                    println!("{}", line);
+                if let Some(mapped) = map_show_env_line(line) {
+                    println!("{mapped}");
                 }
             }
             println!("Repository: {}", current_dir.display());
+            // Shell comes from shell_project_id_captured() recorded at main.rs
+            // :3256–3263 before dotenv (whoami differ project.rs :704–709).
+            let file_id = file_project_id_from_env_text(&content);
+            let captured = crate::commands::project::shell_project_id_captured();
+            if let Some(leftover) = leftover_shell_vs_file(captured.as_deref(), file_id) {
+                println!("{leftover}");
+            }
         } else {
             println!(
                 "No .env file found in {}. Run 'ai-brains context' to initialize.",

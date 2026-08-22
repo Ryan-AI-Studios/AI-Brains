@@ -510,7 +510,7 @@ ai-brains context
 ```
 This command generates a deterministic `PROJECT_ID` based on your directory and a fresh `SESSION_ID`, storing them in a local `.env` file. Subsequent operations (recall, ingest) automatically use these env values.
 
-- `--show` — print current context without modifying `.env`
+- `--show` — print current context without modifying `.env`. When pre-dotenv shell `PROJECT_ID` differs from the file, the next line after `Repository:` is `shell leftover PROJECT_ID: <uuid> (.env overrides)`. `AI_BRAINS_KEY` / `VAULT_KEY` file lines print `(redacted)` (T256 `--help` hide stays separate).
 - `--new-project` — force a fresh project ID
 - `--new-session` — rotate the session ID (useful for long sessions)
 - `--tx-id <uuid>` — link the context to a Ledgerful transaction (T37)

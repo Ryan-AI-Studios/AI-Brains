@@ -49,12 +49,13 @@ ai-brains doctor
 ai-brains daemon status
 ai-brains context --show   # confirm project id / vault env warnings
 ```
+A `shell leftover PROJECT_ID` line names the pre-dotenv shell id the `.env` overrides.
 If `doctor` cannot open the vault: fix `AI_BRAINS_KEY` / global dotenv / path before recall.
 
 ### Phase 1: Orient
 1. `ai-brains safety sync --dry-run` — Ledgerful hotspots preview (non-mutating).
 2. `ai-brains preflight --summary` then `--pretty` or `--format json` if needed.
-3. **Verify project:** if warnings say local `.env` overrides shell, trust `context --show`. Wrong `AI_BRAINS_PROJECT_ID` → wrong preflight/recall brain.
+3. **Verify project:** if warnings say local `.env` overrides shell, trust `context --show` (a `shell leftover PROJECT_ID` line names the pre-dotenv shell id the `.env` overrides). Wrong `AI_BRAINS_PROJECT_ID` → wrong preflight/recall brain.
 
 ### Phase 2: Recall (search before acting)
 
@@ -85,7 +86,7 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 | Goal | Command | Notes |
 |------|---------|--------|
 | Health | `doctor`, `daemon status` | Best non-destructive start |
-| Project identity | `context --show`, `project list`, `project detect` | detect: git slug → vault → env; warns on git/env mismatch |
+| Project identity | `context --show`, `project list`, `project detect` | detect: git slug → vault → env; warns on git/env mismatch. `--show` leftover line names the pre-dotenv shell `PROJECT_ID` the `.env` overrides |
 | Orient | `preflight --summary` / `--pretty` | Scoped by project id. Pretty Safety is live Ledgerful hotspots (project-scoped) or leading CONSTRAINT/INVARIANT/HOTSPOT; empty names `safety sync --dry-run`. |
 | Search | `recall` / `search` (alias), `sync query --quiet` | Scope carefully; `search` is vault-first recall, not ledger or progressive |
 | Harness capture | `harness install --harness all-ready --dry-run` then `--yes` | Five ready (grok → agy → opencode → claude → codex). Codex live fire needs `/hooks` trust. No nightly Claude/Codex. |
