@@ -90,7 +90,7 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 | Search | `recall` / `search` (alias), `sync query --quiet` | Scope carefully; `search` is vault-first recall, not ledger or progressive |
 | Harness capture | `harness install --harness all-ready --dry-run` then `--yes` | Five ready (grok → agy → opencode → claude → codex). Codex live fire needs `/hooks` trust. No nightly Claude/Codex. |
 | Hotspots preview | `safety sync --dry-run` | Prefer dry-run until user wants pin |
-| Graph health | `graph update` | Needs graph-on install |
+| Graph health | `graph update` / `graph neighbors` | Graph-on install. Pretty session PREVIEW is `{n} memories · first line` (human-only; JSON keys unchanged). `graph update` is health, not rebuild. |
 | Pin / forget | `pin`, `forget` | Mutating |
 | Backup | `backup list` (read); `backup create` (write) | Old plain backups may WARN under new key |
 

@@ -622,6 +622,21 @@ mod tests {
         );
     }
 
+    /// T278 F30: after_help names session PREVIEW caption shape.
+    #[test]
+    #[allow(non_snake_case)]
+    fn graph__help__names_session_preview_caption() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "graph", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("memories") && help.contains("first line"),
+            "F30: after_help names session PREVIEW caption; got: {help}"
+        );
+    }
+
     /// T269 AC6: after_help names Nightly heading, 267009/SCHED, 750 ms, TCP, and `/health`.
     #[test]
     #[allow(non_snake_case)]
@@ -2525,7 +2540,7 @@ enum MigrateCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged)."
+    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged).\nSession PREVIEW is {n} memories · first line."
 )]
 pub enum GraphCommands {
     /// Rebuild graph from all events

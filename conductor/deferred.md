@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -12,7 +12,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
 | leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
 | 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
-| graph sparse + neighbors blank preview | **T278** |
+| graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279** |
 | deny/`policy show` `--scope …` vs doctor omit | **T280** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281** |
@@ -235,6 +235,54 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Doctor retention check | T248 F16 |
 | Live `retention apply --confirm` | F16 — not run |
 | `class_dispose_count` is `pub` (cross-crate) | F27 amended; `audit_sample_ids` stays `pub(crate)` |
+
+### T278 planning absorption (2026-08-22) — session PREVIEW; density honesty frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit neighbors PREVIEW blank on session `RECALLS` | **Absorb** F1–F4 / AC1–AC3 — T246 F10 lift (`kind == "session"`) |
+| Audit sparse E/N ~0.11 (live **0.130**) | **Partial** — honesty already T213/T232 (AC8/AC9); do **not** retune floors or live-rebuild |
+| T246 F10 memory-only PREVIEW | **Lift** F1 — session added; memory unchanged |
+| T246 F18 projector completeness | **Partial** — pin `RECALLS` is T262; session **caption** this track; projector edges **decline F11** |
+| T213 floor flags / contracts / rusqlite `table_exists` / two-tier coverage | **Decline** F7/F12 |
+| Auto rebuild / projector more edges / Cargo default-on / WCC | **Decline** F8/F10/F11 |
+| 2-hop pretty / hierarchy captions / mermaid (T246 F17) | **Decline** F18/F19 |
+| last-PR Cursor #193 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Decline** — **T284 Completed** `#193` |
+| Dependabot `#61` rusqlite 0.40.2 | **Decline** F12 — **no T285** |
+| leftover `7d97a456` / T279–T283 | **Decline** peers |
+| T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F12/F22 |
+| Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
+
+### T278 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 fail-open no `?` on session-arm I/O | **Already** F4; **folded** F33 / AC5 |
+| Agy m2 skip empty first memory preview | **Already** F3; **folded test** AC14 (F34 pure helper) |
+| Agy O1 UTF-8 80-cap | **Already** F2; **folded** AC1 CJK case |
+| Agy O2 pure units `(0,"")` / `(1,"preview")` | **Already** F14 / AC1; **tightened** AC1 |
+| OpenCode m1 density `:14–16` vs crate-root `:10–16` | **Folded** §2.3 |
+| OpenCode m2 / O1 AC14 I/O stub hedge | **Folded** F34 `pick_first_nonempty` required-pure |
+| OpenCode m3 HEAD/pinned snapshot drift | **Folded** §2.1 volatile |
+| OpenCode O2 empty-first hermetic AC3 | **Decline as DoD** — AC14 is the skip-loop lock |
+| last-PR #193 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
+### T278 closeout residuals (2026-08-22) — session PREVIEW captions; density honesty frozen
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install --features graph` / `Build-AIBrains.ps1` | F15 — operator; tests use `cargo run --features graph` |
+| Live vault still sparse E/N ~0.13 | Honest; rebuild Stop-Before (F8) |
+| `SessionSummaryCreated` nodes without edges | F11 / T213 projector class |
+| N+1 `get_session_memories` on huge sessions | §5; COUNT+LIMIT 1 later |
+| Other-kind captions (`decision` title, `project` name) | F1 v1 session+memory only |
+| Hermetic AC3 empty-first memory | OpenCode O2 declined as DoD; AC14 covers skip-loop |
+| Hierarchy pretty still id-only | F19 |
+| `pretty_no_memory_node` still `graph update` | F32 / T262 leftover wrong-kind |
+| T279–T283 peers | F22 |
+| AC5 fail-open for `get_session_memories` SQL (vs `memory_preview`) | Low — same match arm; executable lock is DROP COLUMN content |
 
 ### T274 closeout residuals (2026-08-21)
 
