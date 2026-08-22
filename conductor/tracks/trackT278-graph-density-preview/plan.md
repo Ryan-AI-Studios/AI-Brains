@@ -1,10 +1,25 @@
 # T278 Plan — Session neighbor PREVIEW + honest density
 
 **Status:** **Pending** (Planned). F0 = plan-only until **go**.
-**Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC13
+**Spec:** [spec.md](./spec.md) F0–F33 / AC1–AC14 + §13 AI fold-in
 **Category:** FEATURE / UX
 **Ledger TX (planning):** `977c5e7e-1043-4d5d-ab52-7803cd231f6a` (DOCS)
+**Ledger TX (fold-in):** `384ed242-bb9d-4125-9079-3f40b8d5486a` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md`
+
+No Blockers / Majors. OpenCode file not in track dir (**N/A**). Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F33 / AC5:** `session_neighbor_caption` → `String`; no `?` on session-arm I/O (Agy m1).
+2. **AC14:** skip empty first memory preview (Agy m2; already F3).
+3. **AC1:** `(0,"")` / `(1,"preview")` / whitespace no-dot / 80-cap + CJK via `truncate_preview_chars` (Agy O1/O2).
+4. **Already:** F2 Unicode cap; F3 skip-loop; F4 fail-open; F14 same-file units.
+5. **Decline:** always-dot when first blank; JSON object = three keys only; byte-slice truncate.
 
 ---
 
@@ -12,7 +27,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | **Plan dogfood:** `400dd78` T284 `#193`. CLEAN. `origin/main` = HEAD |
+| HEAD / tree | **Plan dogfood:** `400dd78` T284 `#193`. **This fold-in:** `46fc872` (plan docs; product crates identical). CLEAN |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. **T270** on PATH (T246 pretty + T262 projection). **Do not `cargo install`.** |
 | `preflight --summary` | Pinned **3476**; in-context 0/0/0; grants **0 of 3**; Scope `3581317d` |
 | `project whoami` | `mismatch: false`; shell leftover `7d97a456` (T282 / T258 — not this track) |
@@ -73,18 +88,20 @@
 ## Phase 1 — Red (TDD)
 
 - [ ] `format_session_neighbor_preview__zero_and_blank__zero_memories_no_dot` — AC1
-- [ ] `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1
+- [ ] `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1 (`(1,"preview")` + CJK)
 - [ ] `format_neighbors_pretty__session_recalls__preview_shows_memories` — AC2
 - [ ] `pin__graph_on__neighbors_pretty__session_preview_nonblank` — AC3
+- [ ] `session_neighbor_caption__first_empty_preview__uses_next_nonempty` — AC14
 - [ ] Commit red allowed
 
 ## Phase 2 — Green
 
 - [ ] F14 `format_session_neighbor_preview` `pub(crate)` in `graph.rs`
-- [ ] F1–F4 `pretty_neighbor_rows` session arm: `get_session_memories` + first non-empty `memory_preview`; fail-open `"0 memories"`
+- [ ] F33 `session_neighbor_caption` → `String` (match/if let + warn; no `?`)
+- [ ] F1–F4 `pretty_neighbor_rows` session arm calls F33 helper
 - [ ] Update T246 session fixture empty preview → AC2 caption
 - [ ] F30 `GraphCommands` `after_help` additive
-- [ ] AC4/AC6/AC7/AC9 stay green
+- [ ] AC4/AC5/AC6/AC7/AC9/AC14 stay green
 - [ ] Commit green
 
 ## Phase 3 — Docs
@@ -109,7 +126,9 @@
 ## DoD (checkable)
 
 - [ ] Hermetic pin → pretty PREVIEW contains `memories` (AC3)
-- [ ] Session caption unit `{n} memories · first` + 80 cap (AC1)
+- [ ] Session caption unit `{n} memories · first` + 80 cap + CJK (AC1)
+- [ ] Skip empty first preview (AC14)
+- [ ] Session I/O helper returns `String` (AC5 / F33)
 - [ ] JSON neighbor keys still three (AC4)
 - [ ] Live `graph update --format human` still not a false unlabeled live (AC8)
 - [ ] No live `graph rebuild`

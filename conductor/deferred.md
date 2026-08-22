@@ -254,6 +254,18 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | T240 F2 / clap 5 / rusqlite 0.40 / DTO required keys | **Decline** F12/F22 |
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 
+### T278 fold-in (2026-08-22) — `agy-review.md` (OpenCode file missing)
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 fail-open no `?` on session-arm I/O | **Already** F4; **folded** F33 / AC5 |
+| Agy m2 skip empty first memory preview | **Already** F3; **folded test** AC14 |
+| Agy O1 UTF-8 80-cap | **Already** F2; **folded** AC1 CJK case |
+| Agy O2 pure units `(0,"")` / `(1,"preview")` | **Already** F14 / AC1; **tightened** AC1 |
+| last-PR #193 Cursor | **Affirm N/A** — no T285 |
+| OpenCode | **N/A** — `opencode-review.md` not in track dir |
+| No B/M | Nothing to decline of B/M |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |

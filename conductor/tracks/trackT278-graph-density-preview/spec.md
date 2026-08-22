@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can scan 1-hop neighbors as a daily tool (session row has text, not UUID-only). Density floors / remediator stay T213/T232. Safety vs hotspots stays **T279**. Policy `--scope` **T280**. Nightly dual-probe **T281**. `context --show` leftover **T282**. `project list` cwd-first **T283**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “graph sparse + neighbors blank preview”; T246 **F10 lift** (PREVIEW for `kind == "session"`, not only `"memory"`); T246 F18 remainder that is presentation (session caption), not projector
 - **Not absorbed (DoD):** Live `graph rebuild` of the operator vault; T213 floor retune (`MIN_EDGE_NODE_RATIO=0.50`); Cargo `default` graph-on (T200); projector rewrite / fake edges / WCC; 2-hop sibling rows; hierarchy preview; mermaid/tree (T246 F17); `GraphHealthOutput` contracts promote; rusqlite **0.40+** `table_exists`; clap 5; DTO keys; T279–T283 peers; T240 F2; leftover `7d97a456` rebind
-- **Research date:** 2026-08-22 (plan dogfood HEAD `400dd78` T284 `#193`; product `src/` = T284)
-- **AI fold-in:** (none yet — review-track writes `*-review.md` after this plan)
-- **Ledger:** planning DOCS TX `977c5e7e-1043-4d5d-ab52-7803cd231f6a`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `400dd78` T284 `#193`; product `src/` = T284). Fold-in against `46fc872` (plan docs; crates identical to `400dd78`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` only (OpenCode file not in track dir). **B 0 / M 0.** **Already:** Agy m2 F3 skip-empty-first; Agy O1 `truncate_preview_chars` Unicode-safe; Agy O2 F14/AC1 units. **Agree:** Agy m1 session I/O helper returns `String` (F33 / AC5); Agy m2 named skip-empty unit (AC14); Agy O1 CJK cap on caption (AC1); Agy O2 explicit `(0,"")` / `(1,"preview")` cases (AC1). **Affirm:** #193 N/A; no T285. Disposition **§13**.
+- **Ledger:** planning DOCS TX `977c5e7e-1043-4d5d-ab52-7803cd231f6a`. Fold-in DOCS TX `384ed242-bb9d-4125-9079-3f40b8d5486a`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** run live `graph rebuild`. Do **not** retune T213 floors. Do **not** rewrite `GraphProjector`. Do **not** `cargo install`, rewrite `.env` (T240 F2), pin-as-implement, or mutate schtasks. Do **not** grow hotspot `project.rs` / `preflight.rs` / `sync.rs` / `doctor.rs`. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -123,7 +123,7 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 | **F1 — T246 F10 lift (session)** | Pretty PREVIEW is filled when `kind == "memory"` (**unchanged**) **or** `kind == "session"` (new). Other kinds (`turn`, `project`, `source`, …) stay empty this track. |
 | **F2 — Session caption SOOT** | `format_session_neighbor_preview(n, first_preview) -> String`: always `"{n} memories"` (n may be 0). If `first_preview` is non-empty after trim, append `" · "` + that string. Cap the **whole** caption with `truncate_preview_chars(..., 80)` (T216/T250). Never the literal `"Session"` from `graph_node.label`. |
 | **F3 — Count = `graph session`** | `n` = `get_session_memories(session_id)` length (same walk as `graph session`). First preview: sort ids lexicographic (same as session pretty), `memory_preview` the first id; if that preview is empty, try subsequent ids until one is non-empty or the list ends. Do **not** change `get_session_memories` signature. N+1 session walks for ≤50 pretty session-rows is acceptable (T246 F11 class). |
-| **F4 — Fail-open** | `get_session_memories` / `memory_preview` / lock errors on the session arm → `tracing::warn` + caption `"0 memories"` (or whatever `n` succeeded). **Do not** `?` those errors out of `neighbors` (T262 F18 pattern). Memory-kind arm may keep today’s `?` on `memory_preview` (pre-existing; not this lift). |
+| **F4 — Fail-open** | `get_session_memories` / `memory_preview` / lock errors on the session arm → `tracing::warn` + caption `"0 memories"` (or whatever `n` succeeded). **Do not** `?` those errors out of `neighbors` (T262 F18 pattern). Memory-kind arm may keep today’s `?` on `memory_preview` (pre-existing; not this lift). **F33** makes this structural. |
 | **F5 — JSON keys frozen** | Neighbors `{ memory_id, neighbors: [{ external_id, label, direction }] }` only. **No** `kind` / `preview` / `truncated` keys (T246 F5 / T262 F13). PROTOCOL-COMPAT array-order unchanged. |
 | **F6 — `NeighborHit` / `get_neighbors` frozen** | Do not change serde or signature. Recall `--graph-boost` stays source-compatible (T246 F10 / T262 F33). |
 | **F7 — T213 floors frozen** | `MIN_EDGE_NODE_RATIO=0.50`, `MIN_MEMORY_COVERAGE=0.10`, `MIN_PINNED=100`, `MIN_NODES=50`, env names, verdict priority, SQL gather — **untouched**. Doctor check count stays **15**. |
@@ -152,6 +152,7 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 | **F30 — clap `after_help`** | Additive sentence on `GraphCommands`: session PREVIEW is `{n} memories · first line`. Do not restack T204 groups. |
 | **F31 — Stop-before extras** | No `.env` rewrite, no schtasks, no `retention apply --confirm`, no live `policy bootstrap`, no live leftover rebind. |
 | **F32 — Inherit T262 next-action** | Missing-node pretty still rebuild iff vault has the id. Present-empty neighbors still **no** remediator. This track does not restyle `PRETTY_NEXT`. |
+| **F33 — Session I/O helper returns `String`** | Agy **m1.** Private/`pub(crate)` `session_neighbor_caption(ctx, searcher, session_id) -> String` (name flexible) **never** returns `Result`. Internals use `match` / `if let` + `tracing::warn` on `get_session_memories`, session-arm `memory_preview`, and lock errors. `pretty_neighbor_rows` session arm does **not** use `?`. `node_kind()?` stays **before** the kind branch (pre-existing). Memory-kind arm unchanged (`memory_preview()?`). Do not fork a second `memory_preview`. |
 
 ---
 
@@ -159,11 +160,11 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Unit: `format_session_neighbor_preview(0, "") == "0 memories"`; `(3, "hello")` contains `3 memories` and `hello` and ` · `; empty/whitespace first_preview → no ` · `; 200-char preview caption `.chars().count() <= 80`. |
+| **AC1** | Unit (same-file, Agy **O2** cases): `format_session_neighbor_preview(0, "") == "0 memories"`; `(1, "preview")` contains `1 memories` + `preview` + ` · `; `(3, "hello")` same pattern; whitespace-only first_preview → **no** ` · `; 200-char ASCII first_preview caption `.chars().count() <= 80` and ends with `…`; CJK-over-budget first_preview (Agy **O1**) `.chars().count() <= 80`, no panic, no mid-char slice. Cap via existing `truncate_preview_chars` — do **not** byte-slice. |
 | **AC2** | Unit: `format_neighbors_pretty` fixture one incoming `RECALLS` **session** with preview `"2 memories · pin text"` — header + `in` + `RECALLS` + `session` + `2 memories`. JSON helper still emits only `incoming`/`outgoing`/`external_id`. |
 | **AC3** | Hermetic graph-on: `pin` unique DECISION → `graph neighbors <id> --format pretty` contains `session` and `memories` and at least one non-whitespace PREVIEW character on that row. **No** `graph rebuild` in the test. Extends T262 AC7. |
 | **AC4** | Same hermetic: `--format json` keys **exactly** `memory_id`, `neighbors`; each hit keys **exactly** `external_id`, `label`, `direction`. T246 AC7 / `graph_human_cli` lock stays green. |
-| **AC5** | Unit: `get_session_memories` Err path of the helper used by pretty rows does not appear as `?` in the session arm (AC1 `"0 memories"` / warn). Neighbors exit **0**. |
+| **AC5** | F33: session arm of `pretty_neighbor_rows` has **no** `?` on `get_session_memories` or `memory_preview`. Helper returns `String`. Err → `"0 memories"` (or `"{n} memories"` if count succeeded) + `tracing::warn`. Neighbors exit **0**. Memory-kind `?` may remain. |
 | **AC6** | Feature-off: `graph neighbors <id> --format pretty` exit **2** + `FEATURE_UNAVAILABLE` (existing). |
 | **AC7** | Clap: `graph neighbors --format xml <id>` exit **2** (existing). |
 | **AC8** | `graph update --format human` on the **live** vault (classify-only): `status:` is `sparse` (or `live`/`empty` if the vault changed); **not** a unlabeled `"live"` JSON blob. `remediation:` still `ai-brains graph rebuild` while sparse + graph-on. Do **not** rebuild. |
@@ -172,6 +173,7 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 | **AC11** | Docs: CAPABILITIES + OPERATIONS + PROTOCOL-COMPAT human-preview note + CHANGELOG T278. |
 | **AC12** | `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` on touched files; no `unwrap`/`expect`/`panic` in production graph.rs path. |
 | **AC13** | Diff does **not** include `project.rs`, `preflight.rs`, `doctor.rs`, `sync.rs`, `projector.rs`, `graph_density.rs` (floors). |
+| **AC14** | Unit (Agy **m2** / already F3): given sorted ids where the first `memory_preview` is empty/whitespace and the second is `"hello"`, caption contains `hello` and ` · ` (not stuck on the empty first). Pure helper if the skip-loop is extracted; otherwise same-file with a small stub. Count `n` is still the **full** list length. |
 
 ---
 
@@ -191,7 +193,7 @@ Live E/N 0.13 with coverage 0.53 is a **typed** graph, not a broken assessor. T2
 
 ### 5.4 Helper placement
 
-`format_session_neighbor_preview` is pure (n + string → string) so units need no vault. I/O (`get_session_memories` + `memory_preview`) stays inside `pretty_neighbor_rows`.
+`format_session_neighbor_preview` is pure (n + string → string) so units need no vault. I/O lives in `session_neighbor_caption` → `String` (F33), called from `pretty_neighbor_rows` when `kind == "session"`. Do not `?` that path.
 
 ---
 
@@ -215,9 +217,10 @@ Live E/N 0.13 with coverage 0.53 is a **typed** graph, not a broken assessor. T2
 Red (must fail on today’s tree):
 
 1. `format_session_neighbor_preview__zero_and_blank__zero_memories_no_dot` — AC1
-2. `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1
+2. `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1 (include `(1,"preview")` + CJK)
 3. `format_neighbors_pretty__session_recalls__preview_shows_memories` — AC2 (today’s fixture has empty session preview)
 4. `pin__graph_on__neighbors_pretty__session_preview_nonblank` — AC3 (T262 AC7 does not assert PREVIEW)
+5. `session_neighbor_caption__first_empty_preview__uses_next_nonempty` — AC14 (or equivalent unit on the skip-loop)
 
 Green: F1–F4 in `pretty_neighbor_rows`; F14 units; AC4/AC6/AC7/AC9 stay.
 
@@ -265,8 +268,8 @@ Manual (on go): AC8 live `graph update --format human`; AC10 `cargo run --featur
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify `pretty_neighbor_rows` `:260`, `memory_preview` `:234`, `get_session_memories` `:107`, density floors `:14`, clap Neighbors `:2534`, #193 still empty, pins unchanged.
-2. Red AC1–AC3.
-3. Green F1–F4 + F14 + F30 `after_help`.
+2. Red AC1–AC3 + AC14.
+3. Green F1–F4 + F14 + F33 + F30 `after_help`.
 4. Docs F24.
 5. Targeted nextest `graph_human_cli` + `graph_live_projection` + `graph.rs` units; clippy `-p ai-brains-cli --all-targets`.
 6. Review → `review.md`; Codex (F20); full gate at closeout; implement-track Phase 6 publish.
@@ -309,7 +312,37 @@ Manual (on go): AC8 live `graph update --format human`; AC10 `cargo run --featur
 
 ## 13. AI fold-in
 
-(none yet)
+Inputs: `agy-review.md` (HEAD `46fc872`; product crates identical to `400dd78`). **OpenCode `opencode-review.md` not present** in the track dir at fold-in — **N/A**. **B 0 / M 0.** last-PR #193 still empty. No T285. Do **not** edit the review files.
+
+### Per-AI
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy m1 | Fail-open isolation: no `?` on session-arm DB/lock | **Already** F4; **folded** F33 / AC5 (`session_neighbor_caption` → `String`) |
+| Agy m2 | Skip empty first memory preview; try subsequent ids | **Already** F3; **folded test** AC14 |
+| Agy O1 | UTF-8 safe 80-char cap (`truncate_preview_chars`) | **Already** F2 (`display_text.rs` CJK/emdash units); **folded** AC1 CJK caption case — do not byte-slice |
+| Agy O2 | Pure units `(0,"")` / `(1,"preview")` / long / whitespace | **Already** F14 / AC1; **tightened** AC1 case list |
+| last-PR #193 Cursor | empty | **Affirm N/A** — no T285 |
+| OpenCode | file missing | **N/A** |
+| No B/M | — | Nothing to decline of B/M |
+
+### Declined / not new design
+
+| Item | Why |
+|------|-----|
+| Always `{n} memories · {first}` even when first is blank | F2 — append ` · ` only after trim-non-empty (Agy summary oversimplified; F2 stands) |
+| JSON object is only three keys | F5 — object keys `memory_id` + `neighbors`; **hit** keys are the three (`external_id`, `label`, `direction`) |
+| Byte-slice / new truncate helper | F2 — reuse `truncate_preview_chars` |
+| `node_kind()?` fail-open | Pre-existing before the kind branch; F33 scopes session-arm I/O only |
+| clap 5 / rusqlite 0.40 / live rebuild / floor retune | Unchanged F8/F7/F12 |
+
+### Pins locked by fold-in
+
+1. **F33 / AC5:** session caption I/O helper returns `String`; no `?` in the session arm.
+2. **AC14:** skip empty/whitespace first memory preview; `n` is still full list length.
+3. **AC1:** explicit `(0,"")`, `(1,"preview")`, whitespace no-dot, 80-cap + CJK via `truncate_preview_chars`.
+4. **F2 / F3 / F4 / F14:** already specified; Agy confirmed live `pretty_neighbor_rows` `:252`.
+5. **§2.1:** fold-in HEAD `46fc872`; product crates identical to `400dd78`.
 
 ---
 
