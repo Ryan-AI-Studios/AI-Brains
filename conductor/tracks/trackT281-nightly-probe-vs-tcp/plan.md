@@ -1,10 +1,27 @@
 # T281 Plan — Nightly HTTP `/health` vs daemon TCP contrast line
 
 **Status:** **Pending** (Planned — requirements written; F0 until **go**)
-**Spec:** [spec.md](./spec.md) F0–F31 / AC1–AC14
+**Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC14 + §13 AI fold-in
 **Category:** OPS / UX / HONESTY
 **Ledger TX (planning):** `b9b8c77d-3a92-476d-9887-1b7dfeed7fe2` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `40fde806-a4f2-49da-9ff7-d917fa3605cd` (DOCS)
 **Ledger TX (implement):** BUGFIX on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 1**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F32 / AC2:** `"timeout (750ms)"` → None; call site raw `completion_label`.
+2. **AC1 / F25:** U+2260 byte-exact; `assert_ne!` ASCII `!=`.
+3. **F1:** 31 chars `HTTP /health 750ms ≠ daemon TCP` — **not** OpenCode invented dotted/TCP-budget string; **not** strip T269 suffix.
+4. **F19:** no skill `--status` section → skip skill edit.
+5. **Phase 4:** `scripts/dev-check.ps1`.
+6. **AC7:** extend live test `:77`; keep T255/T269 comment numbers.
+7. **Affirm:** #196 N/A; no T285.
 
 ---
 
@@ -33,6 +50,7 @@
 
 ## Phase 0 — on go (re-verify)
 
+- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`) (OpenCode O-5)
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
 - [ ] Re-read `NIGHTLY_STATUS_PROBE_TIMEOUT` `nightly.rs` `:13` — **do not edit** (F2)
 - [ ] Re-read `--quick` skip `:52–66` and Completion print `:195–212`
@@ -70,14 +88,17 @@
 | last-PR #196 Cursor | N/A empty |
 | Dependabot rusqlite `#61` | F12 — no T285 |
 | Embedding-only timeout line | F26 |
+| OpenCode invented F1 (`  · … timeout (100ms×5)`) | §13 — freeze is 31-char F1 |
+| OpenCode “nightly blocks on daemon TCP” | §13 — live is `probe_health` HTTP |
+| Strip T269 `timeout (750ms)` suffix | F5 |
 
 ---
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `http_vs_tcp_contrast__equals_frozen_line` — AC1
+- [ ] `http_vs_tcp_contrast__equals_frozen_line` — AC1 (`assert_eq!` F1; `assert_ne!` ASCII `!=`)
 - [ ] `completion_timeout_contrast_line__timeout__some_frozen` — AC2 Some
-- [ ] `completion_timeout_contrast_line__passthrough_labels__none` rstest — AC2 None
+- [ ] `completion_timeout_contrast_line__passthrough_labels__none` rstest — AC2 None including `#[case("timeout (750ms)")]` (F32 / OpenCode M-1)
 - [ ] Commit red allowed
 
 ---
@@ -85,8 +106,8 @@
 ## Phase 2 — Green
 
 - [ ] F1 const `HTTP_VS_TCP_CONTRAST` + `completion_timeout_contrast_line` in `nightly_status.rs`
-- [ ] `nightly.rs`: after Completion `println!`, `if let Some(line) = … { println!("{line}"); }`
-- [ ] AC7 hermetic `--quick` does not contain `HTTP /health` or `daemon TCP`
+- [ ] `nightly.rs`: after Completion `println!`, `if let Some(line) = completion_timeout_contrast_line(completion_label) { println!("{line}"); }` — **raw** `completion_label`, not `completion_human` (F32)
+- [ ] AC7 hermetic `--quick` does not contain `HTTP /health` or `daemon TCP` (additive comment on `:77`; do not renumber T255 AC10 / T269 AC8)
 - [ ] AC3–AC6 / AC8–AC9 / AC13–AC14 stay green
 - [ ] Commit green
 
@@ -98,7 +119,7 @@
 - [ ] OPERATIONS Completion/Embedding: same sentence
 - [ ] PROTOCOL-COMPAT: no new required keys
 - [ ] CHANGELOG T281
-- [ ] Skill one-liner if nightly `--status` section exists
+- [ ] Skill one-liner: **skip** — no `nightly --status` subsection (F19 / OpenCode O-3)
 - [ ] conductor Completed on implement closeout (not this planning pass)
 
 ---
@@ -110,7 +131,7 @@
 - [ ] `cargo fmt --check`
 - [ ] Primary review → `review.md`; mediums not silently dropped
 - [ ] Cross-model `codex-review` (F22)
-- [ ] Full workspace gate (`dev-check.ps1` / `ledgerful verify --scope full`)
+- [ ] Full workspace gate (`scripts/dev-check.ps1` / `ledgerful verify --scope full`)
 - [ ] Classify-only live `cargo run -p ai-brains-cli -- nightly --status` (AC10). **No** schtasks mutate. **No** forced llama load
 
 ---
@@ -118,7 +139,7 @@
 ## DoD (checkable)
 
 - [ ] Unit: F1 const exact 31-char line (AC1)
-- [ ] Unit: helper Some iff `== "timeout"` (AC2)
+- [ ] Unit: helper Some iff `== "timeout"`; None for `"timeout (750ms)"` (AC2 / F32)
 - [ ] T269 suffix / heading / after_help stay green (AC3/AC6)
 - [ ] JSON timeout still raw `"timeout"` (AC4)
 - [ ] Router 267009 frozen (AC5)

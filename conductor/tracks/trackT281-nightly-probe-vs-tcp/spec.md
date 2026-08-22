@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can tell HTTP `/health` budget-timeout from TCP liveness without reading `--help`. `context --show` leftover **T282**. `project list` cwd-first **T283**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “nightly Completion timeout vs daemon Open (750 ms not raised)”; T269 closeout “operator still sees two truths on the status block”
 - **Not absorbed (DoD):** Raise 750 ms; unify daemon TCP with HTTP `/health`; JSON `probe_budget_ms` / contrast field; doctor 16th; persist probe; product `.cmd` / schedule-Router; `--quick --no-vault`; TCP-probe from nightly status; T282/T283; T240 F2; leftover rebind; clap 5; rusqlite 0.40; DTO keys; live schtasks mutate
-- **Research date:** 2026-08-22 (plan dogfood HEAD `d89f5e6` T280 `#196`; product `src/` = T280; nightly last product commit T269 `9008074` `#186`)
-- **AI fold-in:** none yet (plan pass). Disposition after `/fold-in`.
-- **Ledger:** planning DOCS TX `b9b8c77d-3a92-476d-9887-1b7dfeed7fe2`. Implement starts a **BUGFIX** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `d89f5e6` T280 `#196`; product `src/` = T280; nightly last product commit T269 `9008074` `#186`). Fold-in against `550f3eb` (docs-only; crates identical to `d89f5e6`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md`. **Agy B 0 / M 0.** **OpenCode B 0 / M 1.** **Agree (OpenCode):** M-1 AC2 human-wrapped `"timeout (750ms)"` → None + raw call site. **Agree (Agy):** m1 U+2260 byte-exact; m2 raw `completion_label`. **Agree (OpenCode m):** m-1 `scripts/dev-check.ps1`; m-2 AC7 comment mapping (do not renumber T255/T269). **Already:** Agy O1 F19/AC11; Agy O2 AC2 rstest. **Decline (OpenCode summary):** invented F1 `  · … timeout (100ms×5)`; “nightly blocks on daemon TCP”; strip T269 suffix. **Affirm:** #196 N/A; no T285. Disposition **§13**.
+- **Ledger:** planning DOCS TX `b9b8c77d-3a92-476d-9887-1b7dfeed7fe2`. Fold-in DOCS TX `40fde806-a4f2-49da-9ff7-d917fa3605cd`. Implement starts a **BUGFIX** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env` (T240 F2). Do **not** raise `NIGHTLY_STATUS_PROBE_TIMEOUT`. Do **not** mutate `AI-Brains-Nightly` or `AI-Brains-Router`. Do **not** import `probe_health` into `daemon.rs`. Do **not** grow hotspot `project.rs` / `sync.rs` / `forget.rs` / `daemon.rs` / `doctor.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `policy bootstrap`, `safety sync` without `--dry-run`, `retention apply --confirm`, or `graph rebuild`.
 
 ---
@@ -99,7 +99,7 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job can
 
 | Claim | Source | Takeaway |
 |-------|--------|----------|
-| `/health` can miss a 750 ms budget under load | [llama.cpp #20684](https://github.com/ggml-org/llama.cpp/issues/20684) (opened 2026-03-17; still labeled bug as of 2026-08-22 crawl). `/health` has no special fast-path — queued behind inference. T269 cited PR #20817 as closer; **this pass could not re-fetch #20817** (GitHub page load failed). Raising 750 ms does not fix a busy slot. | Label the mechanism on the status block. Do **not** raise 750. |
+| `/health` can miss a 750 ms budget under load | [llama.cpp #20684](https://github.com/ggml-org/llama.cpp/issues/20684). [PR #20817](https://github.com/ggml-org/llama.cpp/pull/20817) **merged** 2026-03-23 (`httplib` dynamic threads; `ThreadPool(n_threads_http, n_threads_http+1024)`). Alternative [PR #20799](https://github.com/ggml-org/llama.cpp/pull/20799) (special `/health` fast-path) was **closed** in favor of #20817 — so `/health` still has **no** special handling; it still shares the HTTP pool. Raising 750 ms does not fix a busy slot or an operator binary without #20817. | Label the mechanism on the status block. Do **not** raise 750. |
 | TCP open ≠ HTTP ready | [Kubernetes probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes) (current): `tcpSocket` succeeds if the port is open; `httpGet` requires an HTTP status. Same split as daemon TCP vs nightly `/health`. | Do not unify. Print the contrast. |
 | Human-first; saying (just) enough; ease of discovery; `git status` shows state + hint | [clig.dev](https://clig.dev/) (current) | Contrast belongs on `--status` when timeout, not only in `--help`. Do not print when `ok`. |
 | clap `after_help` | docs.rs/clap/4.6.6 `Command::after_help` | Keep derive string. T269 AC6 already locks needles. |
@@ -107,7 +107,7 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job can
 
 **N/A:** SQLCipher page encrypt, schtasks mutate, T180 DTO new keys, Windows service install, Safety GLOB (T279 Completed), policy HINT (T280 Completed).
 
-**Could not verify:** whether `C:\llm\router.bat` llama.cpp includes a `/health` fast-path (operator binary). DoD does not depend on that upgrade. Live timeout vs Open **this session** (Completion was `ok`). GitHub HTML for #20684/#20817 bodies (search snippet + T269 citation stand).
+**Could not verify:** whether `C:\llm\router.bat` llama.cpp includes #20817 (operator binary). DoD does not depend on that upgrade. Live timeout vs Open **this session** (Completion was `ok`).
 
 **ledgerful / ai-brains:** `preflight --summary` 0 of 3 grants @ **3581** pins; PATH `nightly --status` Completion `ok` + daemon LLM Open (Stopped); `ledgerful ledger status --compact` 0 pending / 0 drift; `search "format_probe_label_human"` → `nightly_status.rs:11` / `nightly.rs:187`; `search "NIGHTLY_STATUS_PROBE_TIMEOUT"` → `nightly.rs:13`; `scan --impact` CLEAN at `d89f5e6`; `hotspots --json --limit 5` `project.rs` #1 — do not grow. Recall of “HTTP /health 750ms daemon TCP” returned T269 review-track dumps (PATH-behind T274).
 
@@ -117,8 +117,8 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job can
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `b9b8c77d`. Implement starts a **BUGFIX** TX. |
-| **F1 — Contrast line (human, timeout only)** | Const `pub(crate) HTTP_VS_TCP_CONTRAST: &str = "HTTP /health 750ms ≠ daemon TCP"` in `nightly_status.rs` (**31** chars; U+2260 `≠`). Pure helper `completion_timeout_contrast_line(raw_label: &str) -> Option<&'static str>` returns `Some(HTTP_VS_TCP_CONTRAST)` iff `raw_label == "timeout"` (exact token, **not** `contains`, **not** case-fold — T269 F27 analog). `"skipped"`, `"ok"`, `"down"`, `"error"`, `""`, `"TIMEOUT"`, `"timeout-ish"` → `None`. After the Completion `format_endpoint_line` `println!`, `if let Some(line) = completion_timeout_contrast_line(completion_label) { println!("{line}"); }`. Do **not** append to the `probe=` token. Do **not** print “Open”. Do **not** TCP-probe. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `b9b8c77d`. Fold-in is DOCS TX `40fde806`. Implement starts a **BUGFIX** TX. |
+| **F1 — Contrast line (human, timeout only)** | Const `pub(crate) HTTP_VS_TCP_CONTRAST: &str = "HTTP /health 750ms ≠ daemon TCP"` in `nightly_status.rs` (**31** chars; U+2260 `≠`). **Not** OpenCode’s invented `  · HTTP /health 750ms ≠ daemon TCP timeout (100ms×5)`. Pure helper `completion_timeout_contrast_line(raw_label: &str) -> Option<&'static str>` returns `Some(HTTP_VS_TCP_CONTRAST)` iff `raw_label == "timeout"` (exact token, **not** `contains`, **not** case-fold — T269 F27 analog). `"skipped"`, `"ok"`, `"down"`, `"error"`, `""`, `"TIMEOUT"`, `"timeout-ish"`, **`"timeout (750ms)"`** → `None` (F32). After the Completion `format_endpoint_line` `println!`, pass **raw** `completion_label` (not `completion_human`): `if let Some(line) = completion_timeout_contrast_line(completion_label) { println!("{line}"); }`. Do **not** append to the `probe=` token. Do **not** print “Open”. Do **not** TCP-probe. Do **not** strip the T269 `timeout (750ms)` suffix. |
 | **F2 — Do not raise 750 ms** | Affirm T255 F18 / T269 F4. `NIGHTLY_STATUS_PROBE_TIMEOUT` stays 750 ms. Run-path stays 2s. |
 | **F3 — JSON frozen** | `schema_version` **1**. `FROZEN_KEYS` unchanged. Probe tokens `ok\|down\|timeout\|error\|skipped`. No `probe_budget_ms`. No contrast field. Timeout still serializes `"timeout"` without ` (750ms)`. |
 | **F4 — `--quick`** | Still `probe=skipped`. No HTTP. No `(750ms)`. No F1 line. |
@@ -136,19 +136,20 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job can
 | **F16 — Stop-before live mutate** | Even after go: do not unschedule/reschedule Nightly, do not write `.cmd`, do not touch Router registration, do not load llama.cpp to force timeout. |
 | **F17 — Decline peers** | T282 `context --show`; T283 list cwd-first; leftover rebind; T240 F2; T255 750 ms raise; T263 H2; T266 JSON freeze for nightly pipes; T275 live bootstrap; T277 live `--no-prune`; T278 live rebuild; T279 live pin; T284 live apply. |
 | **F18 — last-PR Cursor** | #196 empty → **N/A**. #188 closed by T284. Dependabot `#61` rusqlite **not** this track. **No T285.** |
-| **F19 — Docs** | CAPABILITIES T269 bullet: additive “on human timeout, next line is `HTTP /health 750ms ≠ daemon TCP`”. OPERATIONS: same sentence under Completion/Embedding. Root CHANGELOG T281 row. CLI-EXIT-CODES unchanged (status still exit **0**). Skill one-liner if nightly `--status` section exists. |
+| **F19 — Docs** | CAPABILITIES T269 bullet: additive “on human timeout, next line is `HTTP /health 750ms ≠ daemon TCP`”. OPERATIONS: same sentence under Completion/Embedding. Root CHANGELOG T281 row. CLI-EXIT-CODES unchanged (status still exit **0**). Skill one-liner is **no-op**: `.agents/skills/ai-brains/SKILL.md` has `ai-brains nightly` (run) but **no** `--status` subsection (OpenCode O-3). Do **not** mint a skill section as DoD. |
 | **F20 — Exit 0** | Unchanged. Timeout / 267009 / down / daemon Stopped are still success for `--status`. |
 | **F21 — Tests** | Naming `function_or_feature__condition__expected_result`. Units for F1 const + helper rstest. Existing T247/T255/T269 units stay green. Hermetic `--quick` must not contain F1. No `unwrap`/`expect`/`panic` in production. |
 | **F22 — Cross-model** | Honesty UX on the status path (easy T269 regression). After Phase-1 review clean, run read-only `codex-review`. |
 | **F23 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
 | **F24 — PowerShell** | `;` not `&&`. |
-| **F25 — Unicode** | Production contrast uses `≠` (U+2260), matching this spec. Tests must use that character. ASCII `!=` is not the freeze. Source files are UTF-8. |
+| **F25 — Unicode** | Production contrast uses `≠` (U+2260), matching this spec. AC1 is byte-exact `assert_eq!` against F1; also `assert_ne!` vs the ASCII spelling `HTTP /health 750ms != daemon TCP` (Agy m1). Source files are UTF-8. |
 | **F26 — Embedding-only timeout** | Not DoD. Helper is one-label so it can be reused later. Do **not** print a second identical line. |
 | **F27 — Do not claim Open** | F1 never includes `Open`. Daemon may be Stopped with port Open (this session). Mechanism only. |
 | **F28 — Classify-only live** | Manual AC uses `cargo run -p ai-brains-cli -- nightly --status` from this repo. Do **not** treat PATH T270 as proof of the new line. Do **not** mutate tasks. Do **not** generate llama.cpp load. |
 | **F29 — Existing tests stay green** | T229 truncate; T247 `--quick` / LIST /V / schedule `lines[1]`; T255 JSON keys / Router 267009 / default human pipes; T269 heading / suffix / after_help AC6 / AC8 hermetic. |
 | **F30 — models crate freeze** | `llama_cpp.rs` `probe_health` untouched. CLI presentation only. |
 | **F31 — Identity leftover** | `7d97a456` vs `fcb8a40f` is T258/T276/T282. **No T285.** |
+| **F32 — Raw call site (OpenCode M-1 / Agy m2)** | Helper argument is the **raw** `completion_label` (`as_label()` / `"skipped"`), **never** `completion_human`. Live print site today wraps via `format_probe_label_human` (`nightly.rs` `:187–203`); a mis-wire to `completion_human` would make F1 a silent no-op. AC2 **must** include `#[case("timeout (750ms)")]` → `None`. |
 
 ---
 
@@ -156,13 +157,13 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job can
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Unit: `HTTP_VS_TCP_CONTRAST` `assert_eq!` F1 literal (**31** chars); contains `/health` and `750ms` and `daemon TCP`; contains `≠` (U+2260). **Required red** (`http_vs_tcp_contrast__equals_frozen_line`). |
-| **AC2** | Unit (rstest `#[case]`): `completion_timeout_contrast_line("timeout") == Some(HTTP_VS_TCP_CONTRAST)`. `None` for `"skipped"`, `"ok"`, `"down"`, `"error"`, `""`, `"TIMEOUT"`, `"timeout-ish"`. **Required red.** |
+| **AC1** | Unit: `HTTP_VS_TCP_CONTRAST` `assert_eq!` F1 literal (**31** chars); contains `/health` and `750ms` and `daemon TCP`; contains `≠` (U+2260); `assert_ne!` vs ASCII `HTTP /health 750ms != daemon TCP` (Agy m1). **Required red** (`http_vs_tcp_contrast__equals_frozen_line`). |
+| **AC2** | Unit (rstest `#[case]`): `completion_timeout_contrast_line("timeout") == Some(HTTP_VS_TCP_CONTRAST)`. `None` for `"skipped"`, `"ok"`, `"down"`, `"error"`, `""`, `"TIMEOUT"`, `"timeout-ish"`, **`"timeout (750ms)"`** (OpenCode M-1 — human-wrapped label must yield None; call site passes raw `completion_label`). **Required red.** |
 | **AC3** | Existing T269: `format_probe_label_human("timeout", 750) == "timeout (750ms)"`; pass-through cases unchanged. |
 | **AC4** | Existing T255 JSON timeout fixture: `completion.probe == "timeout"` **without** ` (750ms)` and **without** F1 text in JSON. `FROZEN_KEYS` still present. |
 | **AC5** | Existing T255: `format_router_status_lines(true, Some("Running"), Some("267009"))` first line still `Router: Running  last result: 267009`. |
 | **AC6** | Existing T269 AC6: `nightly --help` still contains `AI-Brains-Nightly`, `267009` or `SCHED_S_TASK_RUNNING`, `750`, `TCP`, `/health`. |
-| **AC7** | All-OS hermetic `tests/nightly_status.rs` `--status --quick`: heading + `probe=skipped`; does **not** contain `(750ms)`; does **not** contain `HTTP /health` and does **not** contain `daemon TCP`. Exit **0**. Extend T269 AC8. |
+| **AC7** | All-OS hermetic `tests/nightly_status.rs` `nightly_status__default_format__human_header_even_if_piped` (`:77`): heading + `probe=skipped`; does **not** contain `(750ms)`; does **not** contain `HTTP /health` and does **not** contain `daemon TCP`. Exit **0**. **Do not renumber** existing comments (T255 “AC10” piped-human; T269 “AC8” heading). Additive T281 AC7 asserts + comment only (OpenCode m-2). |
 | **AC8** | Existing T247: `format_status_schedule_block` still has `Last task result: 101` as today (do not insert contrast into the vec). |
 | **AC9** | Existing T255 JSON `--quick`: `completion.probe == "skipped"`; no human header. |
 | **AC10** | Manual classify-only (`cargo run`, no schtasks mutate, no forced llama load): full `nightly --status` still heading + Router 267009 (volatile). **If** Completion is `probe=timeout (750ms)`, the **next line** is exactly F1. **If** Completion is `ok`/`down`/`error`, F1 is **absent**. `daemon status` may still say Open. Exit **0**. Pass-with-observed-data. Source/hermetic is DoD — **not PATH.** |
@@ -214,7 +215,7 @@ pub(crate) fn completion_timeout_contrast_line(raw_label: &str) -> Option<&'stat
 }
 ```
 
-Call site uses the **raw** `completion_label` (`as_label()` / `"skipped"`), not the human-wrapped string.
+Call site uses the **raw** `completion_label` (`as_label()` / `"skipped"`), **not** `completion_human` (`"timeout (750ms)"`). Live wrap is `nightly.rs` `:187–203`. F32 / AC2 lock the mis-wire.
 
 ### 5.3 Why not fold HTTP into `probe=timeout (750ms HTTP /health)`?
 
@@ -242,6 +243,8 @@ T269 AC2 / operators already parse `timeout (750ms)`. Growing the token hides th
 - Live leftover rebind / `.env` rewrite / `cargo install`
 - T282 / T283 peers
 - Forcing llama.cpp load to reproduce timeout
+- OpenCode invented F1 (`  · … timeout (100ms×5)`) or stripping T269 `timeout (750ms)`
+- Nightly status calling `TcpStream::connect_timeout` (daemon-only)
 
 ---
 
@@ -289,6 +292,8 @@ T269 AC2 / operators already parse `timeout (750ms)`. Growing the token hides th
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 | Embedding-only timeout contrast | **Decline as DoD** F26 |
 | Historical CE wipe, MSI, `anyhow` allowlist, archive `changeguard` | **Decline** — not status chrome |
+| OpenCode M-1 wrapped `"timeout (750ms)"` None | **Absorb** F32 / AC2 |
+| OpenCode invented F1 / nightly-is-TCP / strip T269 suffix | **Decline** §13 |
 
 **Entire `deferred.md` scanned.** Closed/strikethrough rows stay closed. Open overlapping row is this placeholder (absorb). T282/T283 remain Pending placeholders.
 
@@ -296,13 +301,13 @@ T269 AC2 / operators already parse `timeout (750ms)`. Growing the token hides th
 
 ## 10. Implement order (on go)
 
-1. Phase 0 re-verify `nightly.rs` `:13/:52–66/:195–212`, `nightly_status.rs` `:8/:11/:260`, `daemon.rs` `:749`, `main.rs` `:1137/:658`, T269 units, deferred rescan, #196 still empty, pins.
-2. Red AC1–AC2.
-3. Const + helper in `nightly_status.rs` (F1); 3-line print in `nightly.rs`.
-4. Extend hermetic AC7; AC3–AC6 / AC8–AC9 / AC13–AC14 stay green.
-5. Docs F19; CHANGELOG.
+1. Phase 0 re-verify `nightly.rs` `:13/:52–66/:187–212`, `nightly_status.rs` `:8/:11/:260`, `daemon.rs` `:749`, `main.rs` `:1137/:658`, T269 units, deferred rescan, #196 still empty, pins. `git fetch --all --prune`; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`).
+2. Red AC1–AC2 (include `"timeout (750ms)"` None + ASCII `!=` `assert_ne!`).
+3. Const + helper in `nightly_status.rs` (F1/F32); 3-line print in `nightly.rs` using **raw** `completion_label`.
+4. Extend hermetic AC7 (additive comment; do not renumber T255/T269); AC3–AC6 / AC8–AC9 / AC13–AC14 stay green.
+5. Docs F19 (CAPABILITIES + OPERATIONS + CHANGELOG; **no** new skill section).
 6. Classify-only AC10. **No** schtasks. **No** forced llama load.
-7. Review → `review.md`; BUGFIX TX; implement-track Phase 6 publish.
+7. Review → `review.md`; BUGFIX TX; implement-track Phase 6 publish. `scripts/dev-check.ps1` (not repo-root `dev-check.ps1`).
 
 ---
 
@@ -329,7 +334,7 @@ T269 AC2 / operators already parse `timeout (750ms)`. Growing the token hides th
 | Path | Change |
 |------|--------|
 | `crates/ai-brains-cli/src/commands/nightly_status.rs` | F1 const + helper + AC1/AC2 units |
-| `crates/ai-brains-cli/src/commands/nightly.rs` | After Completion `println!`, optional F1 `println!` (~3 lines) |
+| `crates/ai-brains-cli/src/commands/nightly.rs` | After Completion `println!`, optional F1 `println!` (~3 lines); argument is raw `completion_label` (F32) |
 | `crates/ai-brains-cli/tests/nightly_status.rs` | AC7 extend: no F1 on `--quick` |
 | `Docs/CAPABILITIES.md` / `Docs/OPERATIONS.md` / `CHANGELOG.md` | F19 |
 | `conductor/conductor.md` / `deferred.md` / README | Planned + absorb table |
@@ -340,4 +345,36 @@ T269 AC2 / operators already parse `timeout (750ms)`. Growing the token hides th
 
 ## 13. AI fold-in
 
-Empty at plan time. Fill on `/fold-in` from `agy-review.md` / `opencode-review.md`. Do **not** edit those review files here.
+Inputs: `agy-review.md` (HEAD `550f3eb`) + `opencode-review.md` (HEAD `550f3eb`). Product crates identical to `d89f5e6`. **Agy B 0 / M 0.** **OpenCode B 0 / M 1.** last-PR #196 still empty. No T285. Do **not** edit the review files.
+
+### Per-AI
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy m1 | Unicode `≠` (U+2260) byte-exact; do not convert to ASCII `!=` | **Already** F25/AC1; **folded** AC1 `assert_ne!` vs `HTTP /health 750ms != daemon TCP` |
+| Agy m2 | Call site must pass raw `completion_label`, not `completion_human` | **Already** §5.2; **folded** F32 + AC2 `"timeout (750ms)"` None |
+| Agy O1 | OPERATIONS / CAPABILITIES name the contrast line | **Already** F19 / AC11 |
+| Agy O2 | rstest `#[case]` for helper Some/None | **Already** AC2; M-1 adds the missing wrapped case |
+| OpenCode **M-1** | AC2 None list omit `"timeout (750ms)"` → silent no-op if mis-wired | **Folded** F32 / AC2 extra `#[case("timeout (750ms)")]` |
+| OpenCode m-1 | Plan Phase 4 cites `dev-check.ps1`; live is `scripts/dev-check.ps1` | **Folded** plan Phase 4 + §10.7 |
+| OpenCode m-2 | Test doc-comments AC10/AC8 vs plan AC7 | **Partial** — AC7 names live test `:77`; **do not renumber** T255 AC10 / T269 AC8 comments; additive T281 AC7 comment only |
+| OpenCode O-3 | Skill has no `nightly --status` section so F19 skill is no-op | **Folded** F19 — no new skill section as DoD |
+| OpenCode O-5 | HEAD 1 ahead of `origin/main` | **Folded** Phase 0 `git fetch`; reconcile if `origin/main` moved; **no rebase** over user work |
+| OpenCode O-1 | Timeout print line has no hermetic e2e | **Decline as DoD** — AC1+AC2+AC10; no mock llama in CLI hermetic |
+| OpenCode O-2 / O-4 | conductor Pending until go; no live `.env` | **Already** F0 / isolation |
+| OpenCode **summary F1** | Invented `  · HTTP /health 750ms ≠ daemon TCP timeout (100ms×5)` | **Decline** — freeze is `HTTP /health 750ms ≠ daemon TCP` (31 chars). Re-trigger: owner changes F1 |
+| OpenCode **summary probe** | “Completion probe blocks on daemon TCP 100 ms × 5” | **Decline** — live `nightly.rs` `:58` is `probe_health` HTTP `/health`; daemon TCP is `daemon.rs` `:749` **separate command**. Re-trigger: none (false) |
+| OpenCode **summary shift** | Strip T269 `timeout (750ms)` → raw `timeout` | **Decline** F5. Re-trigger: owner reopens T269 suffix |
+
+### Pins locked by fold-in
+
+1. **F32 / AC2:** helper Some iff raw `"timeout"`; **`"timeout (750ms)"` → None**; call site passes `completion_label` not `completion_human`.
+2. **AC1 / F25:** byte-exact U+2260; `assert_ne!` ASCII `!=`.
+3. **F1 length:** **31** chars; **not** OpenCode’s invented dotted/TCP-budget string.
+4. **F19:** skill `--status` subsection **absent** → no skill edit.
+5. **Phase 4:** `scripts/dev-check.ps1`.
+6. **AC7:** extend `nightly_status__default_format__human_header_even_if_piped`; keep T255/T269 comment numbers.
+7. **§2.4:** llama.cpp #20817 merged (dynamic threads, no `/health` fast-path); #20799 closed.
+8. **Affirm:** #196 N/A; no T285; Agy no B/M to decline.
+
+---

@@ -404,6 +404,22 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 | Live schtasks mutate / force llama load | **F16** — hermetic + pass-with-observed-data is DoD |
 
+### T281 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M-1 AC2 omit `"timeout (750ms)"` | **Folded** F32 / AC2 extra `#[case]` |
+| Agy m1 U+2260 vs ASCII `!=` | **Already** F25; **folded** AC1 `assert_ne!` |
+| Agy m2 raw `completion_label` | **Already** §5.2; **folded** F32 |
+| OpenCode m-1 `scripts/dev-check.ps1` | **Folded** plan Phase 4 |
+| OpenCode m-2 AC10/AC8 vs AC7 comments | **Partial** — additive AC7; do not renumber T255/T269 |
+| Agy O1 docs / O2 rstest | **Already** F19 / AC2 |
+| OpenCode O-3 skill `--status` missing | **Folded** F19 no-op |
+| OpenCode O-5 HEAD ahead of origin/main | **Folded** Phase 0 fetch/reconcile |
+| OpenCode invented F1 / nightly-is-TCP / strip T269 suffix | **Decline** §13 |
+| last-PR #196 Cursor | **Affirm N/A** — no T285 |
+| No B from either harness | Nothing to decline of B |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |
