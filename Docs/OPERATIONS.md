@@ -752,17 +752,17 @@ ai-brains backup verify
 ai-brains doctor --backup-max-age 7d
 ai-brains doctor --summary           # T249: compact 15-check skim
 ```
-Backups include an integrity check; corrupt backups are rejected at creation time.
+Backups include an integrity check; corrupt backups are rejected at creation time. After write, create classifies the file under the current key and deletes a non-usable snapshot (T277) — `Backup created and verified:` means doctor-usable, not merely `integrity_check` ok.
 
-**Recoverability green path (T244):** after encrypt or when doctor/list show zero usable encrypted backups (legacy plain wall, Incomplete shells missing `events`/`memory_projection`, wrong key), create under the current key then prove recovery:
+**Recoverability green path (T244 / T277):** after encrypt, KEY change, or when doctor/list show zero usable encrypted backups (legacy plain wall, Incomplete shells missing `events`/`memory_projection`, wrong key), create a **new** snapshot under the current key then prove recovery:
 
 ```powershell
 ai-brains backup create --no-prune   # or default keep-10 if prune is OK
-ai-brains backup verify              # expect ≥1 OK
+ai-brains backup verify              # expect ≥1 OK (exit 1 is OK if residuals FAIL)
 ai-brains doctor                     # backup_recent should ok (or age-warn only)
 ```
 
-Do not treat “backup file exists” or list timestamp as recovery proof — verify must pass core-table checks.
+After `AI_BRAINS_KEY` change, old `.bak` stay KeyMismatch. Do not transcode. Exhibit: `vault-2026-08-12T15-50-06.db.bak` (T244; unreadable under a later key). Do not treat “backup file exists” or list timestamp as recovery proof — verify must pass core-table checks.
 
 **List honesty (T209 / T244):** `ai-brains backup list` labels residual plain / incomplete / wrong-key / corrupt (`(legacy plain)` / `(no core tables)` / `(unreadable key)` / `(corrupt)`), sorts **usable-first**, warns only on short corrupt files, and prints one residual summary (`not recoverable under current key`); use `--verbose` for per-file detail or `--quiet` to suppress the summary (see CAPABILITIES §11 decision table).
 

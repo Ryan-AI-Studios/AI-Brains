@@ -11,7 +11,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
 | briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
 | leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
-| 22/22 backup FAIL; no usable encrypted file | **T277** |
+| 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
 | graph sparse + neighbors blank preview | **T278** |
 | preflight Safety = review-track Objective | **T279** |
 | deny/`policy show` `--scope …` vs doctor omit | **T280** |
@@ -141,6 +141,53 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Semantic-only prefer-fill e2e | F32; lexical AC2 is the hole |
 | `project list` leftover-first | **T283** |
 | `context --show` leftover shell | **T282** |
+
+### T277 planning absorption (2026-08-22) — current-key create; no rekey of T244 `.bak`
+
+| Item | Disposition |
+|------|-------------|
+| Audit 22/22 FAIL; doctor no usable encrypted backup | **Absorb** F1–F7 / AC1–AC7 |
+| T225 residual “operator still runs live `backup create`” | **Absorb** F4 / AC7 (owner-confirm) |
+| T244 AC12 Readable `vault-2026-08-12T15-50-06.db.bak` | **Absorb regression** — live list `(unreadable key)`; new snapshot is DoD; do not transcode (F5) |
+| T209 L3 real wrong-key fixture | **Partial F33** — mixed other-key `.bak` + create **hard**; verify taxonomy stays soft |
+| T244 F17 / T225 F17 verify `--quiet` / JSON summary / VerifyError | **Decline** F14 |
+| T244 F18 archive helper | **Decline** F14 |
+| T187 `cipher_integrity_check` | **Decline** F14 |
+| Restore / create daemon probe | **Decline** F9/F35 — T188 restore-only; live daemon Stopped |
+| Default live `--keep 10` (would prune 12) | **Decline** F4/F19 — go uses `--no-prune` |
+| last-PR Cursor #191 | **N/A** — comments/reviews empty |
+| last-PR #188 Work / apply samples | **Affirm T284** — no T285 |
+| leftover `7d97a456` / T278–T283 | **Decline** peers |
+| T240 F2 / clap 5 / rusqlite 0.40 | **Decline** |
+
+### T277 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 drop dest before classify | **Folded** F42 |
+| Agy m2 Err names class | **Folded** F2 / F43 |
+| Agy O1 shared other-key utility | **Partial** F44 — file-local helper only |
+| Agy O2 rustdoc usable invariant | **Folded** F2 |
+| OpenCode m `drop(dst)` before `remove_file` | **Folded** F42 (same as Agy m1) |
+| OpenCode O AC1 `!exists()` | **Folded** F43 / AC1 |
+| OpenCode vault size drift | **Folded** F36 volatile snapshot |
+| last-PR #191 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
+### T277 closeout residuals (2026-08-22) — fail-closed create + mixed hermetic
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F16 |
+| Live 22 residual `.bak` still KeyMismatch / plain / Incomplete | F5/F9 — owner did not confirm live `backup create --no-prune` |
+| Default keep-10 would prune 12 residuals | F4/F19 — product default stays; live skip used `--no-prune` in hermetic |
+| Prune dry-run `remaining_count` lie | F20 |
+| Class-aware prune / archive / `backups/legacy/` | F14 / T244 F18 |
+| verify `--quiet` / JSON summary / VerifyError | T244 F17 |
+| `cipher_integrity_check` | T187 |
+| Offsite / immutable copy | local-first |
+| Integrity-check fail leaves dest file | pre-T277; F2 is post-meta |
+| Shared crate other-key fixture module | F44 |
 
 ### T274 closeout residuals (2026-08-21)
 
@@ -2005,7 +2052,7 @@ P12 residual implemented 2026-08-01. Normative: `conductor/tracks/trackT186-herm
 
 ### T225 (2026-08-11) soft residuals
 - F17: verify `--quiet`; JSON `summary` field; structured `VerifyError` / 4-class rollup (O1); optional 3-class substring rollup omitted (M5)
-- Operator still runs `ai-brains backup create` on live encrypted vaults
+- Operator still runs `ai-brains backup create` on live encrypted vaults → **T277 Planned** (2026-08-22)
 
 | T233 soft residual (list-paths / unregister-path / from-scan / route metadata) | ~~**T254**~~ ✅ **Completed** 2026-08-15 — O2/F31/F15 + refuse-steal + `bridge_roots_failed`; **declined** T233-F44 + concurrent F21 |
 

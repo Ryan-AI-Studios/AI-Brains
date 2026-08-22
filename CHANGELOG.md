@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T277 Recoverable encrypted backup under the current key:** `backup create` fail-closes after write — dest conn dropped, then `classify_backup_read`; non-usable files (Incomplete / missing cores) are deleted and never printed as `Backup created and verified:`. After `AI_BRAINS_KEY` change, old `.bak` stay KeyMismatch; create a new snapshot (`--no-prune` keeps residuals). Mixed fleet: ≥1 verify OK + doctor `backup_recent` ok is recoverability; verify still exits 1 when residuals FAIL. Docs: CAPABILITIES §11 KEY-change, OPERATIONS Backup.
+
 - **T276 Leftover `--global` prefer-fill + labels:** `--global` still searches all projects (no leftover drop). When a pre-clear effective project exists, lexical recall prefer-fills that project's hits into `candidate_depth` so cwd unique pins can beat leftover volume. Pretty `--global` (recall / search / sync vault) prefixes each hit with a T264-class `[8hex]` (or upgraded `display_label`); JSON `RecallResult` does not grow `project_id`. Path split remains `project rebind-path` (memories stay). Docs: CAPABILITIES Scope / T264 rows, OPERATIONS rebind sentence.
 
 - **T275 Discovery grants first-run:** Denied `briefing project --format human` is a grant wall (not `_None_` empty vault); pins remain via `recall` / `search`. Hermetic CLI `policy bootstrap` (System principal — omit `--principal-id`) unlocks `briefing project` `denied: false` and `evidence list` exit 0. No auto-grant on init/preflight. JSON deny shape unchanged (`denied: true`, empty arrays). Docs: CAPABILITIES denied packets, OPERATIONS grant-wall sentence.
