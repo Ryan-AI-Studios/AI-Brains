@@ -1,25 +1,27 @@
 # T278 Plan — Session neighbor PREVIEW + honest density
 
 **Status:** **Pending** (Planned). F0 = plan-only until **go**.
-**Spec:** [spec.md](./spec.md) F0–F33 / AC1–AC14 + §13 AI fold-in
+**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC14 + §13 AI fold-in
 **Category:** FEATURE / UX
 **Ledger TX (planning):** `977c5e7e-1043-4d5d-ab52-7803cd231f6a` (DOCS)
-**Ledger TX (fold-in):** `384ed242-bb9d-4125-9079-3f40b8d5486a` (DOCS)
+**Ledger TX (fold-in Agy):** `384ed242-bb9d-4125-9079-3f40b8d5486a` (DOCS)
+**Ledger TX (fold-in OpenCode):** `0765b916-9f38-417b-a698-b39b657078dd` (DOCS)
 **Ledger TX (implement):** start **FEATURE** on **go**
 
 ---
 
-## AI fold-in (2026-08-22) — `agy-review.md`
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
 
-No Blockers / Majors. OpenCode file not in track dir (**N/A**). Disposition in spec **§13**.
+No Blockers / Majors either harness. Disposition in spec **§13**.
 
 ### Pins locked by fold-in
 
 1. **F33 / AC5:** `session_neighbor_caption` → `String`; no `?` on session-arm I/O (Agy m1).
-2. **AC14:** skip empty first memory preview (Agy m2; already F3).
+2. **F34 / AC14:** `pick_first_nonempty` required-pure (OpenCode m2/O1; Agy m2). No I/O stub.
 3. **AC1:** `(0,"")` / `(1,"preview")` / whitespace no-dot / 80-cap + CJK via `truncate_preview_chars` (Agy O1/O2).
-4. **Already:** F2 Unicode cap; F3 skip-loop; F4 fail-open; F14 same-file units.
-5. **Decline:** always-dot when first blank; JSON object = three keys only; byte-slice truncate.
+4. **§2.3:** `graph_density.rs` crate-root `:10–16` (OpenCode m1).
+5. **Already:** F2 Unicode cap; F3 skip-loop; F4 fail-open; F14 same-file units.
+6. **Decline:** always-dot when first blank; JSON object = three keys only; byte-slice truncate; OpenCode O2 empty-first hermetic AC3.
 
 ---
 
@@ -27,9 +29,9 @@ No Blockers / Majors. OpenCode file not in track dir (**N/A**). Disposition in s
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | **Plan dogfood:** `400dd78` T284 `#193`. **This fold-in:** `46fc872` (plan docs; product crates identical). CLEAN |
+| HEAD / tree | **Plan dogfood:** `400dd78` T284 `#193`. **Agy fold-in:** `46fc872`. **This OpenCode fold-in:** `5defcc5` (docs-only; product crates identical). CLEAN |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. **T270** on PATH (T246 pretty + T262 projection). **Do not `cargo install`.** |
-| `preflight --summary` | Pinned **3476**; in-context 0/0/0; grants **0 of 3**; Scope `3581317d` |
+| `preflight --summary` | Pinned **volatile** (plan 3476; OpenCode 3495; this fold-in **3515**); in-context 0/0/0; grants **0 of 3**; Scope `3581317d` |
 | `project whoami` | `mismatch: false`; shell leftover `7d97a456` (T282 / T258 — not this track) |
 | `graph update --format human` | `status: sparse` E/N **0.130** nodes 23082 edges 3005 pinned 39382 memory_nodes 20961; rem=`ai-brains graph rebuild` |
 | Doctor `graph_density` | warn + rebuild; **15** checks; `graph_feature` ok |
@@ -52,7 +54,7 @@ No Blockers / Majors. OpenCode file not in track dir (**N/A**). Disposition in s
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
 - [ ] Re-read `pretty_neighbor_rows` (`graph.rs` ~`:252–274`), `memory_preview` ~`:234–250`, `format_neighbors_pretty` ~`:157`, `neighbors` ~`:303`
 - [ ] Re-read `get_session_memories` (`queries.rs` ~`:107`) — **do not change signature**
-- [ ] Re-read density floors `graph_density.rs` ~`:14–16` + `assess_graph_density` — F27 small-vault `MIN_NODES=50`
+- [ ] Re-read density floors `graph_density.rs` ~`:10–16` + `assess_graph_density` — F27 small-vault `MIN_NODES=50`
 - [ ] Re-read clap `GraphCommands::Neighbors` ~`:2534` / `after_help` ~`:2528`
 - [ ] Confirm T262 AC6/AC7 still present in `graph_live_projection.rs`
 - [ ] Rescan `conductor/deferred.md` — T278 rows already absorbed; no new overlapping open rows
@@ -82,6 +84,7 @@ No Blockers / Majors. OpenCode file not in track dir (**N/A**). Disposition in s
 | last-PR #193 Cursor | N/A empty |
 | T279–T283 / leftover rebind / T240 F2 / clap 5 / rusqlite 0.40 | F12/F22 |
 | Dependabot rusqlite `#61` | F12 — no T285 |
+| OpenCode O2 empty-first hermetic AC3 | AC14 is skip-loop DoD |
 
 ---
 
@@ -91,13 +94,14 @@ No Blockers / Majors. OpenCode file not in track dir (**N/A**). Disposition in s
 - [ ] `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1 (`(1,"preview")` + CJK)
 - [ ] `format_neighbors_pretty__session_recalls__preview_shows_memories` — AC2
 - [ ] `pin__graph_on__neighbors_pretty__session_preview_nonblank` — AC3
-- [ ] `session_neighbor_caption__first_empty_preview__uses_next_nonempty` — AC14
+- [ ] `pick_first_nonempty__blank_then_hello__some_hello` — AC14
 - [ ] Commit red allowed
 
 ## Phase 2 — Green
 
 - [ ] F14 `format_session_neighbor_preview` `pub(crate)` in `graph.rs`
-- [ ] F33 `session_neighbor_caption` → `String` (match/if let + warn; no `?`)
+- [ ] F34 `pick_first_nonempty` `pub(crate)` (skip trim-empty; `None` if all blank)
+- [ ] F33 `session_neighbor_caption` → `String` (match/if let + warn; no `?`; calls F34)
 - [ ] F1–F4 `pretty_neighbor_rows` session arm calls F33 helper
 - [ ] Update T246 session fixture empty preview → AC2 caption
 - [ ] F30 `GraphCommands` `after_help` additive
@@ -127,7 +131,7 @@ No Blockers / Majors. OpenCode file not in track dir (**N/A**). Disposition in s
 
 - [ ] Hermetic pin → pretty PREVIEW contains `memories` (AC3)
 - [ ] Session caption unit `{n} memories · first` + 80 cap + CJK (AC1)
-- [ ] Skip empty first preview (AC14)
+- [ ] `pick_first_nonempty` skip-empty unit (AC14 / F34)
 - [ ] Session I/O helper returns `String` (AC5 / F33)
 - [ ] JSON neighbor keys still three (AC4)
 - [ ] Live `graph update --format human` still not a false unlabeled live (AC8)

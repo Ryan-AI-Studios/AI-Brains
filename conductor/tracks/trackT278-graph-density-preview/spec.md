@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can scan 1-hop neighbors as a daily tool (session row has text, not UUID-only). Density floors / remediator stay T213/T232. Safety vs hotspots stays **T279**. Policy `--scope` **T280**. Nightly dual-probe **T281**. `context --show` leftover **T282**. `project list` cwd-first **T283**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “graph sparse + neighbors blank preview”; T246 **F10 lift** (PREVIEW for `kind == "session"`, not only `"memory"`); T246 F18 remainder that is presentation (session caption), not projector
 - **Not absorbed (DoD):** Live `graph rebuild` of the operator vault; T213 floor retune (`MIN_EDGE_NODE_RATIO=0.50`); Cargo `default` graph-on (T200); projector rewrite / fake edges / WCC; 2-hop sibling rows; hierarchy preview; mermaid/tree (T246 F17); `GraphHealthOutput` contracts promote; rusqlite **0.40+** `table_exists`; clap 5; DTO keys; T279–T283 peers; T240 F2; leftover `7d97a456` rebind
-- **Research date:** 2026-08-22 (plan dogfood HEAD `400dd78` T284 `#193`; product `src/` = T284). Fold-in against `46fc872` (plan docs; crates identical to `400dd78`).
-- **AI fold-in:** 2026-08-22 `agy-review.md` only (OpenCode file not in track dir). **B 0 / M 0.** **Already:** Agy m2 F3 skip-empty-first; Agy O1 `truncate_preview_chars` Unicode-safe; Agy O2 F14/AC1 units. **Agree:** Agy m1 session I/O helper returns `String` (F33 / AC5); Agy m2 named skip-empty unit (AC14); Agy O1 CJK cap on caption (AC1); Agy O2 explicit `(0,"")` / `(1,"preview")` cases (AC1). **Affirm:** #193 N/A; no T285. Disposition **§13**.
-- **Ledger:** planning DOCS TX `977c5e7e-1043-4d5d-ab52-7803cd231f6a`. Fold-in DOCS TX `384ed242-bb9d-4125-9079-3f40b8d5486a`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `400dd78` T284 `#193`; product `src/` = T284). Agy fold-in against `46fc872`. OpenCode fold-in against `5defcc5` (docs-only; crates identical to `400dd78`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Already (Agy):** m2 F3; O1 `truncate_preview_chars`; O2 F14/AC1. **Agree (Agy):** m1 F33/AC5; m2 AC14; O1 CJK AC1; O2 case list. **Agree (OpenCode):** m1 §2.3 crate-root `:10–16`; m2/O1 `pick_first_nonempty` F34 / AC14 required-pure; m3 HEAD/`pinned` snapshot. **Decline (OpenCode):** O2 empty-first hermetic AC3 (AC14 is DoD). **Affirm:** #193 N/A; no T285. Disposition **§13**.
+- **Ledger:** planning DOCS TX `977c5e7e-1043-4d5d-ab52-7803cd231f6a`. Agy fold-in DOCS TX `384ed242-bb9d-4125-9079-3f40b8d5486a`. OpenCode fold-in DOCS TX `0765b916-9f38-417b-a698-b39b657078dd`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** run live `graph rebuild`. Do **not** retune T213 floors. Do **not** rewrite `GraphProjector`. Do **not** `cargo install`, rewrite `.env` (T240 F2), pin-as-implement, or mutate schtasks. Do **not** grow hotspot `project.rs` / `preflight.rs` / `sync.rs` / `doctor.rs`. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -33,9 +33,9 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | **Plan dogfood:** `400dd78` T284 squash `#193`. Tree **CLEAN**. `origin/main` = HEAD (0/0). Product `src/` is T284. |
+| HEAD | **Plan dogfood:** `400dd78` T284 squash `#193`. **Agy fold-in:** `46fc872`. **This OpenCode fold-in:** `5defcc5` (docs-only). `git diff 400dd78 HEAD -- crates/` empty — product `src/` identical to T284. Tree **CLEAN** at fold-in start. `main` ahead of `origin/main` by plan+fold docs. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-21 05:55**, 25 368 576 bytes, **0.1.1**. **T270** on PATH (includes T246 pretty + T262 live projection; before T274–T284). Graph hole is T246-era — **PATH is valid**. **Do not `cargo install`.** Tests/manual AC use `cargo run --features graph` / hermetic. |
-| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **3476**. In-context **0/0/0**. Grants **0 of 3** (T275 hermetic; live not bootstrapped). Capture independence holds. |
+| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **volatile** (plan 3476; OpenCode 3495; this fold-in **3515**). In-context **0/0/0**. Grants **0 of 3** (T275 hermetic; live not bootstrapped). Capture independence holds. |
 | `project whoami` | `mismatch: false`. Effective/path/detect `3581317d`. Shell leftover `7d97a456` overridden by local `.env`. **Not this track** (T258 adopt-path; leftover volume T276; `--show` leftover **T282**). |
 | `graph update --format human` | `status: sparse` `density: warn` `nodes: 23082` `edges: 3005` `pinned_memories: 39382` `memory_nodes: 20961` `edge_node_ratio: 0.130…` note sparse below floor **0.5**; `remediation: ai-brains graph rebuild`. Coverage 20961/39382 ≈ **0.532** (above `MIN_MEMORY_COVERAGE` 0.10). Warn is **E/N**, not coverage. |
 | Doctor `graph_feature` | **ok** / `available` |
@@ -71,8 +71,8 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 | `get_session_memories` | `ai-brains-graph` `queries.rs` **`:107`** | Recursive `IN_SESSION` + `RECALLS`/`SOURCE_FOR` UNION session `RECALLS`. **Do not change signature** (CLI + `live_graph.rs` + projector tests). |
 | clap | `main.rs` `GraphCommands::Neighbors` **`:2534–2541`** | `--format` `auto\|pretty\|human\|text\|json` default `auto`; `--limit`. `after_help` **`:2528`**. `Update` format default **`json`** (T246 F6). **No new flags.** |
 | TTY probe | `graph.rs` **`:10`** `std::io::IsTerminal` | T214 F24 closed (crate removed). **Do not revert.** |
-| Density floors | `graph_density.rs` **`:14–16`** | `MIN_EDGE_NODE_RATIO=0.50`, `MIN_MEMORY_COVERAGE=0.10`, env overrides. Assessor **`:167`**. **Do not change constants.** |
-| Doctor check | `doctor.rs` `graph_density` **`:906`** | Soft warn. Matrix **15**. **Do not grow `doctor.rs`.** |
+| Density floors | `crates/ai-brains-cli/src/graph_density.rs` (crate root, **not** `commands/`) **`:10–16`** | `MIN_PINNED=100` `:10`; `MIN_NODES=50` `:12`; `MIN_EDGE_NODE_RATIO=0.50` `:14`; `MIN_MEMORY_COVERAGE=0.10` `:16`. Env overrides `:18–21`. Assessor **`:167`**. **Do not change constants.** (OpenCode **m1**.) |
+| Doctor check | `doctor.rs` `check_graph_density` **`:868`** (assess call `:906`) | Soft warn. Matrix **15**. **Do not grow `doctor.rs`.** |
 | Update human | `emit_graph_health_human` **`:276–288`** | Labeled lines. Status from assessor. |
 | Projector pin / capture | `projector.rs` `MemoryPinned` **`:63–84`**; `project_capture_turn` **`:309–348`** | T262: `Some(turn_id)` → memory + session + `RECALLS`. Legacy `None` → turn + `IN_SESSION`. **Do not rewrite.** |
 | `SessionSummaryCreated` | `projector.rs` **`:86–93`** | Node, **no** edge. Soft residual. |
@@ -119,7 +119,7 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `977c5e7e`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `977c5e7e`. Agy fold-in `384ed242`. OpenCode fold-in `0765b916`. Implement starts a **FEATURE** TX. |
 | **F1 — T246 F10 lift (session)** | Pretty PREVIEW is filled when `kind == "memory"` (**unchanged**) **or** `kind == "session"` (new). Other kinds (`turn`, `project`, `source`, …) stay empty this track. |
 | **F2 — Session caption SOOT** | `format_session_neighbor_preview(n, first_preview) -> String`: always `"{n} memories"` (n may be 0). If `first_preview` is non-empty after trim, append `" · "` + that string. Cap the **whole** caption with `truncate_preview_chars(..., 80)` (T216/T250). Never the literal `"Session"` from `graph_node.label`. |
 | **F3 — Count = `graph session`** | `n` = `get_session_memories(session_id)` length (same walk as `graph session`). First preview: sort ids lexicographic (same as session pretty), `memory_preview` the first id; if that preview is empty, try subsequent ids until one is non-empty or the list ends. Do **not** change `get_session_memories` signature. N+1 session walks for ≤50 pretty session-rows is acceptable (T246 F11 class). |
@@ -133,7 +133,7 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 | **F11 — No projector rewrite** | Do not add edges to `SessionSummaryCreated`. Do not fake `SYNTHESIZED_FROM`. Do not remint historical ids. T262 capture/`turn_id` path stands. |
 | **F12 — No pin bumps / new crates** | clap 5, rusqlite 0.40, uuid 1.25, chrono 0.4.45, serde_json 1.0.151, comfy-table — **forbidden**. Workspace **0.1.1**. |
 | **F13 — Do not grow doctor / hotspots** | No `doctor.rs` / `project.rs` / `preflight.rs` / `sync.rs` / `ranking.rs` edits. Density doctor already honest. |
-| **F14 — Same-file helper + units** | `format_session_neighbor_preview` is `pub(crate)` in `graph.rs` with same-file units (T284 F41 class). Do **not** extract `graph_preview.rs` this track (`graph.rs` is 914, not T255-scale). Do **not** make the helper `pub` for `tests/`. |
+| **F14 — Same-file helper + units** | `format_session_neighbor_preview` and `pick_first_nonempty` are `pub(crate)` in `graph.rs` with same-file units (T284 F41 class). Do **not** extract `graph_preview.rs` this track (`graph.rs` is 914, not T255-scale). Do **not** make the helpers `pub` for `tests/`. |
 | **F15 — PATH-behind** | Live PATH is T270. Do **not** `cargo install` unless the user asks. Tests/manual AC use `cargo run --features graph` / hermetic bin. |
 | **F16 — Capture independence** | Pretty + read-only SQL. No new events, no models, no contracts DTO, no CLI reqwest. |
 | **F17 — `std::io::IsTerminal` stays** | Do not re-add `is-terminal` crate. |
@@ -153,6 +153,7 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 | **F31 — Stop-before extras** | No `.env` rewrite, no schtasks, no `retention apply --confirm`, no live `policy bootstrap`, no live leftover rebind. |
 | **F32 — Inherit T262 next-action** | Missing-node pretty still rebuild iff vault has the id. Present-empty neighbors still **no** remediator. This track does not restyle `PRETTY_NEXT`. |
 | **F33 — Session I/O helper returns `String`** | Agy **m1.** Private/`pub(crate)` `session_neighbor_caption(ctx, searcher, session_id) -> String` (name flexible) **never** returns `Result`. Internals use `match` / `if let` + `tracing::warn` on `get_session_memories`, session-arm `memory_preview`, and lock errors. `pretty_neighbor_rows` session arm does **not** use `?`. `node_kind()?` stays **before** the kind branch (pre-existing). Memory-kind arm unchanged (`memory_preview()?`). Do not fork a second `memory_preview`. |
+| **F34 — Pure skip-loop selector** | OpenCode **m2 / O1.** `pick_first_nonempty(previews: &[String]) -> Option<String>` is `pub(crate)` in `graph.rs`: skip items whose `trim()` is empty; return the first remaining as-is (not re-trimmed into a new semantic). `None` if all blank. `session_neighbor_caption` fetches previews in lex id order (fail-open `""` per id), `n = ids.len()`, `first = pick_first_nonempty(&previews).unwrap_or("")`, then `format_session_neighbor_preview(n, first)`. **AC14 is this unit** — not an I/O stub. |
 
 ---
 
@@ -173,7 +174,7 @@ This unblocks the daily product: T213/T232 made density **honest**; T246 made th
 | **AC11** | Docs: CAPABILITIES + OPERATIONS + PROTOCOL-COMPAT human-preview note + CHANGELOG T278. |
 | **AC12** | `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` on touched files; no `unwrap`/`expect`/`panic` in production graph.rs path. |
 | **AC13** | Diff does **not** include `project.rs`, `preflight.rs`, `doctor.rs`, `sync.rs`, `projector.rs`, `graph_density.rs` (floors). |
-| **AC14** | Unit (Agy **m2** / already F3): given sorted ids where the first `memory_preview` is empty/whitespace and the second is `"hello"`, caption contains `hello` and ` · ` (not stuck on the empty first). Pure helper if the skip-loop is extracted; otherwise same-file with a small stub. Count `n` is still the **full** list length. |
+| **AC14** | Unit on `pick_first_nonempty` (OpenCode **m2/O1**; Agy **m2**): `&["", "  ", "hello"]` → `Some("hello")`; `&["pin"]` → `Some("pin")`; `&["", "   "]` → `None`; empty slice → `None`. `format_session_neighbor_preview(3, pick.unwrap_or(""))` with that `"hello"` still contains `3 memories` + `hello` + ` · ` (`n` is full list length, not index of first nonempty). No vault I/O in this unit. |
 
 ---
 
@@ -193,7 +194,7 @@ Live E/N 0.13 with coverage 0.53 is a **typed** graph, not a broken assessor. T2
 
 ### 5.4 Helper placement
 
-`format_session_neighbor_preview` is pure (n + string → string) so units need no vault. I/O lives in `session_neighbor_caption` → `String` (F33), called from `pretty_neighbor_rows` when `kind == "session"`. Do not `?` that path.
+`format_session_neighbor_preview` and `pick_first_nonempty` are pure (no vault). I/O lives in `session_neighbor_caption` → `String` (F33), which calls `pick_first_nonempty` then `format_session_neighbor_preview`. `pretty_neighbor_rows` session arm does not `?`.
 
 ---
 
@@ -220,7 +221,7 @@ Red (must fail on today’s tree):
 2. `format_session_neighbor_preview__count_and_first__dot_and_cap_80` — AC1 (include `(1,"preview")` + CJK)
 3. `format_neighbors_pretty__session_recalls__preview_shows_memories` — AC2 (today’s fixture has empty session preview)
 4. `pin__graph_on__neighbors_pretty__session_preview_nonblank` — AC3 (T262 AC7 does not assert PREVIEW)
-5. `session_neighbor_caption__first_empty_preview__uses_next_nonempty` — AC14 (or equivalent unit on the skip-loop)
+5. `pick_first_nonempty__blank_then_hello__some_hello` — AC14 (required pure helper; no I/O stub)
 
 Green: F1–F4 in `pretty_neighbor_rows`; F14 units; AC4/AC6/AC7/AC9 stay.
 
@@ -267,9 +268,9 @@ Manual (on go): AC8 live `graph update --format human`; AC10 `cargo run --featur
 
 ## 10. Implement order (on go)
 
-1. Phase 0 re-verify `pretty_neighbor_rows` `:260`, `memory_preview` `:234`, `get_session_memories` `:107`, density floors `:14`, clap Neighbors `:2534`, #193 still empty, pins unchanged.
-2. Red AC1–AC3 + AC14.
-3. Green F1–F4 + F14 + F33 + F30 `after_help`.
+1. Phase 0 re-verify `pretty_neighbor_rows` `:260`, `memory_preview` `:234`, `get_session_memories` `:107`, density floors `:10–16`, clap Neighbors `:2534`, #193 still empty, pins unchanged.
+2. Red AC1–AC3 + AC14 (`pick_first_nonempty`).
+3. Green F1–F4 + F14 + F33 + F34 + F30 `after_help`.
 4. Docs F24.
 5. Targeted nextest `graph_human_cli` + `graph_live_projection` + `graph.rs` units; clippy `-p ai-brains-cli --all-targets`.
 6. Review → `review.md`; Codex (F20); full gate at closeout; implement-track Phase 6 publish.
@@ -285,6 +286,7 @@ Manual (on go): AC8 live `graph update --format human`; AC10 `cargo run --featur
 | `SessionSummaryCreated` nodes without edges | F11 / T213 projector class |
 | N+1 `get_session_memories` on huge sessions | §5; COUNT+LIMIT 1 later |
 | Other-kind captions (`decision` title, `project` name) | F1 v1 session+memory only |
+| Hermetic AC3 empty-first memory | OpenCode O2 declined as DoD; AC14 covers skip-loop |
 | Hierarchy pretty still id-only | F19 |
 | `pretty_no_memory_node` still `graph update` | F32 / T262 leftover wrong-kind |
 | T279–T283 peers | F22 |
@@ -312,18 +314,21 @@ Manual (on go): AC8 live `graph update --format human`; AC10 `cargo run --featur
 
 ## 13. AI fold-in
 
-Inputs: `agy-review.md` (HEAD `46fc872`; product crates identical to `400dd78`). **OpenCode `opencode-review.md` not present** in the track dir at fold-in — **N/A**. **B 0 / M 0.** last-PR #193 still empty. No T285. Do **not** edit the review files.
+Inputs: `agy-review.md` (HEAD `46fc872`) + `opencode-review.md` (HEAD `5defcc5`). Product crates identical to `400dd78`. **B 0 / M 0** both harnesses. last-PR #193 still empty. No T285. Do **not** edit the review files.
 
 ### Per-AI
 
 | Source | Item | Disposition |
 |--------|------|-------------|
 | Agy m1 | Fail-open isolation: no `?` on session-arm DB/lock | **Already** F4; **folded** F33 / AC5 (`session_neighbor_caption` → `String`) |
-| Agy m2 | Skip empty first memory preview; try subsequent ids | **Already** F3; **folded test** AC14 |
+| Agy m2 | Skip empty first memory preview; try subsequent ids | **Already** F3; **folded test** AC14 (now F34 pure helper) |
 | Agy O1 | UTF-8 safe 80-char cap (`truncate_preview_chars`) | **Already** F2 (`display_text.rs` CJK/emdash units); **folded** AC1 CJK caption case — do not byte-slice |
 | Agy O2 | Pure units `(0,"")` / `(1,"preview")` / long / whitespace | **Already** F14 / AC1; **tightened** AC1 case list |
+| OpenCode m1 | `graph_density.rs` crate-root `:10–16` not `:14–16` | **Folded** §2.3 path + line range; doctor `:868` / assess `:906` |
+| OpenCode m2 / O1 | AC14 skip-loop must be a pure `pick_first_nonempty` | **Folded** F34 / AC14 required-pure (no I/O stub) |
+| OpenCode m3 | HEAD `5defcc5` / pinned / E/N snapshot drift | **Folded** §2.1 volatile snapshot; Phase 0 re-dogfood stands |
+| OpenCode O2 | Empty-first case in hermetic AC3 | **Decline as DoD** — pin DECISION has content; skip-loop DoD is AC14. Soft residual only |
 | last-PR #193 Cursor | empty | **Affirm N/A** — no T285 |
-| OpenCode | file missing | **N/A** |
 | No B/M | — | Nothing to decline of B/M |
 
 ### Declined / not new design
@@ -334,15 +339,17 @@ Inputs: `agy-review.md` (HEAD `46fc872`; product crates identical to `400dd78`).
 | JSON object is only three keys | F5 — object keys `memory_id` + `neighbors`; **hit** keys are the three (`external_id`, `label`, `direction`) |
 | Byte-slice / new truncate helper | F2 — reuse `truncate_preview_chars` |
 | `node_kind()?` fail-open | Pre-existing before the kind branch; F33 scopes session-arm I/O only |
+| Hermetic AC3 empty-first memory | OpenCode O2 — AC14 is the skip-loop lock; AC3 stays pin → non-blank PREVIEW |
 | clap 5 / rusqlite 0.40 / live rebuild / floor retune | Unchanged F8/F7/F12 |
 
 ### Pins locked by fold-in
 
 1. **F33 / AC5:** session caption I/O helper returns `String`; no `?` in the session arm.
-2. **AC14:** skip empty/whitespace first memory preview; `n` is still full list length.
+2. **F34 / AC14:** `pick_first_nonempty` same-file units; `n` is full list length; no I/O stub.
 3. **AC1:** explicit `(0,"")`, `(1,"preview")`, whitespace no-dot, 80-cap + CJK via `truncate_preview_chars`.
-4. **F2 / F3 / F4 / F14:** already specified; Agy confirmed live `pretty_neighbor_rows` `:252`.
-5. **§2.1:** fold-in HEAD `46fc872`; product crates identical to `400dd78`.
+4. **§2.3:** density constants `graph_density.rs` crate-root `:10–16`; doctor `check_graph_density` `:868`.
+5. **F2 / F3 / F4 / F14:** already specified; Agy confirmed live `pretty_neighbor_rows` `:252`; OpenCode confirmed `NeighborHit` `queries.rs:7–11`.
+6. **§2.1:** OpenCode fold-in HEAD `5defcc5`; product crates identical to `400dd78`; pinned count volatile.
 
 ---
 
