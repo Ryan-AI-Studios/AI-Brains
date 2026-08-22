@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Doctor `backup_recent` can be ok under the **current** key. T181 drills stay credible. DataKey rotation still expects a verified recent backup.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “22/22 backup FAIL; no usable encrypted file”; T225 residual “Operator still runs `ai-brains backup create` on live encrypted vaults”; T244 AC12 live Readable that **regressed** to KeyMismatch after KEY change
 - **Not absorbed (DoD):** Auto-delete / quarantine of 21 residuals; nightly auto-create; rekey/transcode old `.bak`; restore redesign; T188 daemon gate on **create**; `cipher_integrity_check`; verify `--quiet` / JSON `summary` / `VerifyError` (T244 F17); clap archive (T244 F18); rusqlite **0.40+**; clap 5; DTO keys; 3-2-1-1-0 offsite/immutable; `cargo install`
-- **Research date:** 2026-08-22 (live dogfood HEAD `5ece8d5` T276 `#191`; product `src/` = T276)
-- **AI fold-in:** none yet (plan-track). Disposition lands in **§13** after `/fold-in`.
-- **Ledger:** planning DOCS TX `58645bcf-c537-4907-807e-87d63e028fea`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `5ece8d5` T276 `#191`; product `src/` = T276). Fold-in against `c51d673` (plan docs; crates identical to `5ece8d5`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md`. **B 0 / M 0.** **Agree:** Agy m1 + OpenCode m `drop(dst)` before classify/`remove_file` (F42); Agy m2 class in Err (F2/F43); OpenCode O AC1 `!exists()` (F43). **Partial:** Agy O1 local other-key helper, not a new crate module (F44). **Agree:** Agy O2 rustdoc on `run_backup_from_conn` (F2). **Snapshot:** OpenCode vault size drift (volatile). Disposition **§13**.
+- **Ledger:** planning DOCS TX `58645bcf-c537-4907-807e-87d63e028fea`. Fold-in DOCS TX `29398ea9-d46c-4f6b-b3bf-37bc6d7c69b7`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`, rewrite `.env` (T240 F2), live `retention apply --confirm`, mutate schtasks, restore while daemon could start, or prune the live 21 residuals unless the owner confirms. Do **not** grow hotspot `project.rs` / CLI `preflight.rs` / `sync.rs` / `doctor.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Live `backup create` only with owner confirm at **go**.
 
 ---
@@ -33,14 +33,14 @@ This unblocks the daily product: T244 made class honesty and a green create path
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `5ece8d5` T276 squash `#191`. `main` = `origin/main`. Tree **CLEAN**. |
+| HEAD | **Plan dogfood:** `5ece8d5` T276 squash `#191`. **This fold-in:** `c51d673` (`docs(conductor): plan T277 current-key recoverable backup`). `git diff 5ece8d5 HEAD -- crates/` empty — product `src/` identical to T276. Tree **CLEAN**. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-21 05:55**, 25 368 576 bytes, **0.1.1**. **T270** on PATH (before T274–T276). Backup classify/create are T244-era — **PATH is valid for this hole.** **Do not `cargo install`.** |
 | Source debug | Tests/manual AC use `cargo run` / hermetic. |
 | `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **3376**. In-context **0/0/0**. Grants **0 of 3** (T275 hermetic; live not bootstrapped). Capture independence holds. |
 | Fleet | **22** `vault-*.db.bak` under `C:\dev\ai-brains\backups\`. Newest: `vault-2026-08-12T15-50-06.db.bak` **78 200 832** bytes (T244 live create). Vault now **~122 MB**. |
 | `backup list --quiet` | Row 1 = T244 file **`(unreadable key)`**. Mix of `(legacy plain)` + `(no core tables)`. **0** Readable / PreT109. |
 | `doctor --format json` `backup_recent` | **warn**, `ok: false`, message `no usable encrypted backup under current key`, remediation `ai-brains backup create`. **Not** the stale-usable arm. |
-| `backup create --dry-run --no-prune` | Would write `C:\dev\ai-brains\backups\vault-<now>.db.bak`, source `C:\dev\ai-brains\vault.db`, estimated **122433536** bytes. |
+| `backup create --dry-run --no-prune` | Would write `C:\dev\ai-brains\backups\vault-<now>.db.bak`, source `C:\dev\ai-brains\vault.db`. Size **volatile**: plan **122433536**; OpenCode fold **122560512**; this fold-in **122953728**. Ranking unchanged. Re-dogfood at Phase 0. |
 | `backup create --dry-run` (default keep 10) | Same preview + **would prune 12** residuals. Dry-run `remaining_count` prints **22** because `prune_backups` counts `path.exists()` (**F20** — files not deleted on dry-run). Live go uses **`--no-prune`**. |
 | Daemon | `daemon status` **Stopped**. T188 restore probe is N/A for create. |
 | T244 manual evidence | 2026-08-12 create `--no-prune` → verify `1 OK, 21 FAIL`; doctor ok on that timestamp. **Regressed:** same file is KeyMismatch under today’s key. |
@@ -121,7 +121,7 @@ This unblocks the daily product: T244 made class honesty and a green create path
 |----|----------|
 | **F0 — Plan-only** | No production code, no live `backup create` / prune / restore, no `cargo install` until **go**. Dry-run research OK. |
 | **F1 — Create engine unchanged** | SQLCipher Online Backup API (`Backup::new` + `run_to_completion`) + dest key pragmas + `integrity_check` + T109 meta. Not `sqlcipher_export`. Same key on src and dest (Zetetic constraint). |
-| **F2 — Post-create usable fail-closed (hard)** | After meta insert in `run_backup_from_conn`, `classify_backup_read(&path, &self.key)`. If `!is_usable_class`, `fs::remove_file` (best-effort) and return `Err` naming the class (Incomplete / KeyMismatch / …). Never leave a non-usable file that the CLI will call “verified.” Brain SOOT — CLI print stays `Backup created and verified:` (smoke substring). |
+| **F2 — Post-create usable fail-closed (hard)** | After meta insert in `run_backup_from_conn`: **`drop(dst)`** (F42), then `classify_backup_read(&path, &self.key)` (opens its own conn at `:457`, dropped before return). If `!is_usable_class`, `fs::remove_file` **must run after drop** (not while `dst` is live) and return `Err` whose `Display` names the class (F43). Never `Ok` a non-usable file the CLI will call “verified.” Rustdoc on `run_backup_from_conn`: post-create path is doctor-usable (Agy O2). CLI print stays `Backup created and verified:` (smoke substring). |
 | **F3 — Mixed-fleet lock (hard)** | Hermetic: current-key vault + **other-key** encrypted `vault-*.db.bak` (≥512, not plain) in `backups/` → `backup create --no-prune` → new file **Readable**; residual stays `(unreadable key)`; doctor `backup_recent` **ok** (7d); verify **1 OK, 1 FAIL**, exit **1**, **no** create nudge (`ok >= 1`). |
 | **F4 — Live create `--no-prune` (hard on go)** | Mutating only with owner confirm. Prefer `backup create --no-prune`. Record exact path / list first row / verify counts / doctor `backup_recent`. Default keep-10 would prune 12 residuals — **not** the live DoD. |
 | **F5 — Old ciphertext stays** | Do **not** rekey, transcode, or `sqlcipher_export` the T244 file. KeyMismatch is honest. |
@@ -155,12 +155,15 @@ This unblocks the daily product: T244 made class honesty and a green create path
 | **F33 — T209 L3 partial** | Mixed-fleet other-key file is the hard fixture. Do not expand into a full verify-error taxonomy. |
 | **F34 — Gate site** | F2 lives in `run_backup_from_conn` (all create callers). |
 | **F35 — No create daemon probe** | Do not copy `probe_restore_daemon_busy` onto create. |
-| **F36 — Live size** | ~122 MB source. Hermetic stays tiny. |
+| **F36 — Live size** | Source vault ~123 MB and growing (fold-in dry-run **122953728**). Hermetic stays tiny. |
 | **F37 — Backup dir** | Sibling `backups/` of the vault. F17b stands. |
 | **F38 — Zero new crates** | — |
 | **F39 — T244 honesty frozen** | Incomplete / residual summary / both-cores verify / doctor usable SOOT — do not reopen. |
 | **F40 — No compensating rewrite of `.bak`** | Analog of no `MemoryMoved`. New file only. |
-| **F41 — AC4 nudge** | Mixed verify with `ok >= 1` must **not** print the create nudge. |
+| **F41 — AC4 nudge** | Mixed verify with `ok >= 1` must **not** print the create nudge (`should_emit_create_nudge` is `ok==0 && total>=1` in `verify_report.rs` `:48–50`). |
+| **F42 — `drop(dst)` before classify/delete (Agy m1 / OpenCode m)** | `dst` (`Connection::open` `:165`) is still alive at today's `Ok(backup_path)` (`:218`). Windows SQLite does not open with `FILE_SHARE_DELETE`; `fs::remove_file` while the handle lives is `ERROR_SHARING_VIOLATION` ([sqlite.org forum](https://sqlite.org/forum/forumpost/ee70b06f80): close, then delete). Sequence after meta: `drop(dst);` → classify → if bad, `remove_file`. Do **not** classify while `dst` is live (unnecessary second SQLCipher handle). Re-trigger: AC1 `!exists()` fails on Windows. |
+| **F43 — AC1 asserts Err + absent + class (OpenCode O / Agy m2)** | `run_backup_from_conn__missing_cores__fails_and_deletes` must assert **all three**: `result.is_err()`, `!backup_path.exists()`, and `err.to_string()` contains `Incomplete` **and** `core tables` (not just `is_err()`). If `remove_file` fails after drop, still `Err` (class + IO) — never `Ok`. Delete is no longer “best-effort `let _ =`” once F42 holds. |
+| **F44 — Other-key helper is local (Agy O1 partial)** | CLI mixed-fleet tests may use a **file-local** `write_other_key_bak` (keyed SQLCipher junk, size ≥512, not plain). Do **not** mint a new shared crate / `test_support` module. Brain AC1 is same-key junk-only (no other-key). T209 `write_large_non_plain` stays random-bytes KeyMismatch. |
 
 ---
 
@@ -168,7 +171,7 @@ This unblocks the daily product: T244 made class honesty and a green create path
 
 | AC | Criterion | Proof |
 |----|-----------|-------|
-| **AC1** | Source vault with **no** `events`/`memory_projection` (junk table only) → `run_backup_from_conn` **Err**; dest path **absent** (deleted). Required **red** before F2 exists (today: create succeeds, classify Incomplete). | Brain unit |
+| **AC1** | Source vault with **no** `events`/`memory_projection` (junk table only) → `run_backup_from_conn` **Err**; dest path **absent**; `err` contains `Incomplete` and `core tables` (F42/F43). Required **red** before F2 exists (today: create succeeds, classify Incomplete). | Brain unit |
 | **AC2** | Hermetic mixed: other-key SQLCipher `vault-*.db.bak` + `backup create --no-prune` → `backup list` first filename is the **new** file; its row is **not** `(unreadable key)` / `(legacy plain)` / `(no core tables)` (Readable meta columns populated); residual still `(unreadable key)` | CLI hermetic |
 | **AC3** | Same fixture: `doctor --json --backup-max-age 7d` → `backup_recent` severity **Ok** (not `no usable encrypted backup under current key`) | CLI hermetic |
 | **AC4** | Same fixture: `backup verify` (no path) → stdout has `1 OK` and `1 FAIL`; exit **1**; **no** create-nudge substring; **no** `0 OK` | CLI hermetic |
@@ -203,7 +206,23 @@ T244 wrote a keyed snapshot and classified it **Readable**. List today tokens it
 
 F2 would **not** have prevented the 2026-08-12 file from becoming KeyMismatch later. It prevents a different lie: `integrity_check` ok + missing cores (Incomplete) still printing “verified.” AC1 is that arm. AC2–AC4 lock the **operator** path T244 already coded, with a residual that matches production.
 
-Other-key fixture (not random ≥512 garbage): `Connection::open` + `apply_key_pragmas(other)` + `CREATE TABLE junk(x)` + enough rows that `metadata.len() >= 512`. Distinct from T209 `write_large_non_plain` (random bytes). F33.
+**F2 sequence (Windows-safe, F42):**
+
+```text
+// Backup handle already scoped-out at :174
+// integrity_check + meta still use dst
+drop(dst);
+let (class, _) = classify_backup_read(&backup_path, &self.key);
+if !is_usable_class(class) {
+    fs::remove_file(&backup_path)?;  // or Err(class + io) if delete fails — never Ok
+    return Err(format!("{class:?}: missing core tables").into()); // AC1 substring
+}
+Ok(backup_path)
+```
+
+Exact Incomplete wording may vary; AC1 locks `Incomplete` + `core tables`. Do not `let _ = fs::remove_file` after F42 — AC1 `!exists()` is the assertion (OpenCode O).
+
+Other-key fixture (not random ≥512 garbage): `Connection::open` + `apply_key_pragmas(other)` + `CREATE TABLE junk(x)` + enough rows that `metadata.len() >= 512`. Distinct from T209 `write_large_non_plain` (random bytes). F33 / F44 local helper.
 
 ### 5.3 Live go runbook (not executed in planning)
 
@@ -236,6 +255,7 @@ Restore overwrites the vault the daemon holds (T188). Create writes a **new** fi
 - clap 5; new DTO keys; new crates; `cargo install`.
 - T240 F2 `.env`; T275 live bootstrap; T276 leftover `--write --yes`.
 - Prune `remaining_count` dry-run honesty (F20); class-aware prune.
+- New shared crate / `test_support` module for other-key fixtures (F44).
 
 ---
 
@@ -243,7 +263,7 @@ Restore overwrites the vault the daemon holds (T188). Create writes a **new** fi
 
 **Phase 1 red (required before green):** AC1 brain unit (today `run_backup` succeeds on junk-only vault).
 
-Then green: F2 classify+delete in `run_backup_from_conn` → AC5 still green → CLI mixed hermetic AC2–AC4/AC13 (F28 `--no-prune`).
+Then green: F2 `drop(dst)` + classify + required `remove_file` in `run_backup_from_conn` (F42/F43) → AC5 still green → CLI mixed hermetic AC2–AC4/AC13 (F28 `--no-prune`, F44 local helper).
 
 **Stay green:** AC6, AC10, AC14, T244 list honesty, T225 quiet verify, T188 restore daemon.
 
@@ -266,6 +286,7 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 | PATH-behind T276 | F16; backup hole is T244-era |
 | Dry-run remaining 22 vs 10 | F20 documented; not DoD |
 | KEY printed in tests | F17; reuse `ZERO_KEY` / `hermetic_with_key` |
+| Windows `remove_file` while `dst` open | F42 `drop(dst)` first; F43 `!exists()` |
 
 ---
 
@@ -297,7 +318,7 @@ Entire `conductor/deferred.md` scanned 2026-08-22 (post-P12 through T276 closeou
 
 1. Phase 0 re-verify `run_backup_from_conn` `:146`, classify `:440`, `run_create` `:55`, clap Create `:2804` / keep `:4443`, doctor `:330`, T244 file still KeyMismatch, 22 files, #191 empty, #188 T284.
 2. Red: AC1 missing-cores unit.
-3. Green: F2 in `run_backup_from_conn`.
+3. Green: F2/F42/F43 in `run_backup_from_conn` (`drop(dst)` then classify then delete).
 4. CLI mixed hermetic AC2–AC4/AC13 (`--no-prune`).
 5. Docs F6/F24. No live create until owner confirms; then AC7.
 6. Review loop + FEATURE `codex-review` + full gate. implement-track Phase 6.
@@ -317,6 +338,7 @@ Entire `conductor/deferred.md` scanned 2026-08-22 (post-P12 through T276 closeou
 | `cipher_integrity_check` | T187 |
 | Offsite / immutable copy | local-first |
 | T209 dedicated verify wrong-key AC9 | F33 remainder |
+| Shared crate other-key fixture module | F44 — file-local helper only |
 | Create daemon notice if daemon later Running | F13/F35 |
 
 ---
@@ -325,7 +347,7 @@ Entire `conductor/deferred.md` scanned 2026-08-22 (post-P12 through T276 closeou
 
 | Path | Change |
 |------|--------|
-| `crates/ai-brains-brain/src/backup.rs` | F2 after meta in `run_backup_from_conn` + AC1 unit |
+| `crates/ai-brains-brain/src/backup.rs` | F2/F42/F43 after meta in `run_backup_from_conn` (`drop(dst)` + rustdoc) + AC1 unit |
 | `crates/ai-brains-cli/tests/backup_list_honesty.rs` **or** new `backup_recoverable.rs` | AC2/AC4/AC13 mixed fleet |
 | `crates/ai-brains-cli/tests/doctor_cli.rs` | AC3 (or same new file if shared fixture) |
 | `Docs/CAPABILITIES.md` / `Docs/OPERATIONS.md` / `CHANGELOG.md` | F6/F24 |
@@ -335,6 +357,44 @@ Do **not** touch: `project.rs`, CLI `preflight.rs`, `sync.rs`, `doctor.rs` (logi
 
 ---
 
-## 13. AI fold-in disposition
+## 13. AI fold-in disposition (2026-08-22)
 
-*Empty until `/fold-in` of `*-review.md`. Plan-track does not invent findings.*
+Sources: `agy-review.md` + `opencode-review.md` (HEAD `c51d673`). **B 0 / M 0.** Review files are inputs — **do not edit**.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** drop dest conn before classify (Windows lock) | **Agree** | **F42** — `drop(dst)` after meta, **then** classify. Same root cause as OpenCode m |
+| **m2** Err names classification type | **Agree** | **F2 / F43** — AC1 `err` contains `Incomplete` and `core tables` |
+| **O1** shared other-key test utility | **Partial** | **F44** — file-local helper in CLI tests. No new crate / shared module |
+| **O2** rustdoc usable invariant on `run_backup_from_conn` | **Agree** | **F2** rustdoc |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m** `drop(dst)` before `remove_file` (sharing violation) | **Agree** | **F42** — classify after drop (own conn `:457`); delete after classify returns. Re-trigger: AC1 `!exists()` fails on Windows |
+| **O** AC1 asserts delete arm `!exists()` | **Agree** | **F43 / AC1** — `is_err` + `!exists` + class substring (AGENTS.md specific values) |
+| vault size 122560512 vs plan 122433536 | **Agree snapshot** | **F36 / §2.1** — volatile; fold-in dry-run **122953728**. Phase 0 re-dogfood |
+| Pins / `#191` empty / `#188` T284 | **Already** | §2.1 / §9. No T285 |
+
+### Declined / not new design
+
+| Item | Why |
+|------|-----|
+| Shared crate other-key fixture | F44 — two fixtures differ (same-key junk vs other-key SQLCipher) |
+| `let _ = remove_file` best-effort after F42 | F43 — AC1 requires absent path; propagate delete IO into the same `Err` |
+| Rekey / keep-10 live prune / create daemon probe | Unchanged F5 / F4 / F35 |
+| last-PR #191 Cursor | Still N/A empty; **no T285** |
+| serde_json 1.0.151 / clap 4.6.6 / rusqlite 0.40.2 | **No bump** (F10) |
+
+### Pins locked by fold-in
+
+1. **F42:** `drop(dst)` after meta, then `classify_backup_read`, then `remove_file` if not usable. Windows sharing.
+2. **F43 / AC1:** `is_err()` + `!backup_path.exists()` + `Incomplete` + `core tables`.
+3. **F2 rustdoc:** post-create path is `is_usable_class`.
+4. **F44:** other-key helper stays file-local.
+5. **F36:** vault size volatile; re-dogfood at Phase 0.
+6. **§2.1:** fold-in HEAD `c51d673`; product crates identical to `5ece8d5`.
+

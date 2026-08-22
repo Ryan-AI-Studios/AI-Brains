@@ -160,6 +160,20 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | leftover `7d97a456` / T278–T283 | **Decline** peers |
 | T240 F2 / clap 5 / rusqlite 0.40 | **Decline** |
 
+### T277 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 drop dest before classify | **Folded** F42 |
+| Agy m2 Err names class | **Folded** F2 / F43 |
+| Agy O1 shared other-key utility | **Partial** F44 — file-local helper only |
+| Agy O2 rustdoc usable invariant | **Folded** F2 |
+| OpenCode m `drop(dst)` before `remove_file` | **Folded** F42 (same as Agy m1) |
+| OpenCode O AC1 `!exists()` | **Folded** F43 / AC1 |
+| OpenCode vault size drift | **Folded** F36 volatile snapshot |
+| last-PR #191 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |
