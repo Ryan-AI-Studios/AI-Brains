@@ -30,6 +30,10 @@ pub struct RecallOptions {
     /// When true, keep T70 code-symbol stubs in the mix (CLI `--symbols`).
     /// Default **false**: exclude stubs from the candidate set (T260 F1).
     pub include_symbols: bool,
+    /// T276: pre-`--global`-clear effective project. When `Some`, `recall_full`
+    /// prefer-fills that project's lexical hits into the unscoped candidate set.
+    /// Never a leftover-UUID hardcode. `None` → today's unscoped path (F3).
+    pub preferred_project_id: Option<ai_brains_core::ids::ProjectId>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

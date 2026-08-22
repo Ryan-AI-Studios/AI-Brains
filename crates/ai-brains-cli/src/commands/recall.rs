@@ -27,6 +27,8 @@ pub struct RecallRunOptions {
     pub min_score: Option<f64>,
     /// Mix T70 code-symbol stubs into results (default: exclude).
     pub symbols: bool,
+    /// T276: pre-`--global`-clear project id for prefer-fill. None when not `--global`.
+    pub preferred_project_id: Option<ProjectId>,
 }
 
 fn resolve_format(explicit: Option<&str>, is_tty: bool) -> &str {
@@ -210,6 +212,7 @@ pub fn run(
             no_bridge: options.no_bridge,
             min_semantic_score: options.min_score,
             include_symbols: options.symbols,
+            preferred_project_id: options.preferred_project_id,
         },
     )?;
     let hits = outcome.hits;

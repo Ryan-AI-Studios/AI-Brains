@@ -55,6 +55,7 @@ fn default_opts() -> RecallOptions {
         no_bridge: true,
         min_semantic_score: None,
         include_symbols: false,
+        preferred_project_id: None,
     }
 }
 
