@@ -44,6 +44,7 @@ pub mod preflight_pretty;
 pub mod project;
 pub mod project_adopt;
 pub mod project_list_footer;
+pub mod project_list_order;
 pub mod project_paths;
 pub mod project_rebind;
 pub mod recall;
