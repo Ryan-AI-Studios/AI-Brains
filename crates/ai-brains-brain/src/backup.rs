@@ -1116,6 +1116,59 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    #[allow(non_snake_case)]
+    fn run_backup_from_conn__missing_cores__fails_and_deletes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // T277 AC1/F43: junk-only source must fail closed (Incomplete + dest absent).
+        let dir = tempdir()?;
+        let vault_path = dir.path().join("vault.db");
+        let backups = dir.path().join("backups");
+        let key = zero_key();
+        let conn = rusqlite::Connection::open(&vault_path)?;
+        apply_key_pragmas(&conn, &key)?;
+        conn.execute_batch("CREATE TABLE junk(x); INSERT INTO junk VALUES (1);")?;
+
+        let service = BackupService::new(vault_path, key);
+        let result = service.run_backup_from_conn(&conn);
+        assert!(
+            result.is_err(),
+            "junk-only vault must fail create; got Ok({})",
+            result
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default()
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Incomplete"),
+            "err must name Incomplete class; got {err}"
+        );
+        assert!(
+            err.contains("core tables"),
+            "err must mention core tables; got {err}"
+        );
+
+        let leftover: Vec<std::path::PathBuf> = if backups.exists() {
+            fs::read_dir(&backups)?
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .is_some_and(|n| n.starts_with("vault-") && n.ends_with(".db.bak"))
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        assert!(
+            leftover.is_empty(),
+            "dest backup must be deleted; leftover={leftover:?}"
+        );
+        Ok(())
+    }
+
     // --- T244 usable / residual helpers + classify core-table gate ---
 
     #[test]
