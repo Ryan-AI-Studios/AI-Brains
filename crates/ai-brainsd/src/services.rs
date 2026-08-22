@@ -1222,8 +1222,11 @@ mod tests {
         }
     }
 
+    /// T280 AC2 / F28 — daemon HINT byte-equal F1; omit required `--scope …`.
     #[test]
     fn policy_denied_with_hint__includes_details_hint() {
+        const F1: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
+        assert_eq!(POLICY_DENIED_HINT, F1);
         let resp = policy_denied_with_hint("ReadEvidence denied for list_sources");
         match resp {
             DaemonResponse::Error(err) => {
@@ -1235,6 +1238,7 @@ mod tests {
                     .and_then(|d| d.get("hint"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
+                assert_eq!(hint, F1);
                 assert!(
                     !hint.is_empty() && hint.contains("bootstrap"),
                     "expected non-empty details.hint mentioning bootstrap, got {hint:?}"
@@ -1242,6 +1246,14 @@ mod tests {
                 assert!(
                     hint.contains("policy show") || hint.contains("policy bootstrap"),
                     "expected secondary show/bootstrap remediation, got {hint:?}"
+                );
+                assert!(
+                    hint.contains("omit --scope") || hint.contains("authoritative"),
+                    "expected omit-scope parenthetical, got {hint:?}"
+                );
+                assert!(
+                    !hint.contains("--scope …"),
+                    "HINT must not require --scope ellipsis, got {hint:?}"
                 );
             }
             other => panic!("expected Error, got {other:?}"),

@@ -558,6 +558,43 @@ mod tests {
         assert!(!md.contains("**Denied:**"), "must not show Denied: {md}");
     }
 
+    /// T280 AC4 / F2 — markdown next equals SHORT; order Denied → next → grant-wall → Decisions.
+    #[test]
+    fn render_project_markdown__denied__next_step_omits_scope_ellipsis() {
+        assert_eq!(BRIEFING_DENIED_NEXT_STEP, BRIEFING_DENIED_DENIAL_HINT);
+        assert!(
+            !BRIEFING_DENIED_NEXT_STEP.contains("--scope …"),
+            "markdown next must not require --scope ellipsis; got {BRIEFING_DENIED_NEXT_STEP}"
+        );
+        assert!(
+            !BRIEFING_DENIED_DENIAL_HINT.contains("--scope …"),
+            "JSON denial_hint must not require --scope ellipsis; got {BRIEFING_DENIED_DENIAL_HINT}"
+        );
+        let md = render_project_markdown(&empty_project(true));
+        let denied_pos = md.find("> **Denied:**").expect("denied pos");
+        let next_pos = md.find(BRIEFING_DENIED_NEXT_STEP).expect("next-step pos");
+        let wall_pos = md.find(BRIEFING_DENIED_GRANT_WALL).expect("grant-wall pos");
+        let decisions_pos = md
+            .find("## Decisions (current authority)")
+            .expect("decisions pos");
+        assert!(
+            denied_pos < next_pos,
+            "Denied must precede next-step: {md}"
+        );
+        assert!(
+            next_pos < wall_pos,
+            "next-step must precede grant-wall: {md}"
+        );
+        assert!(
+            wall_pos < decisions_pos,
+            "grant-wall must precede ## Decisions: {md}"
+        );
+        assert!(
+            md.contains(BRIEFING_DENIED_GRANT_WALL),
+            "T275 grant-wall stays: {md}"
+        );
+    }
+
     #[test]
     fn render_project_markdown__denied__bootstrap_next_step_no_empty_authority() {
         // AC7 + AC9

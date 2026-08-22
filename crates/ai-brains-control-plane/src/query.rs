@@ -23,6 +23,10 @@ use crate::errors::{ControlPlaneError, Result};
 use crate::ports::{Clock, EventWriter, GovernedQueryStore, PolicyContext, PolicyEvaluator};
 use crate::sources::{build_event, parse_scope_key, scope_identity_key};
 
+/// Dual-site SOOT with CLI `POLICY_DENIED_HINT` (governed_common) — keep wording in sync
+/// (T221 F17 / T280 F1 / F33). Module-level so AC3 can `assert_eq!` without query I/O.
+const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+
 /// Progressive query request.
 #[derive(Debug, Clone)]
 pub struct ProgressiveQueryRequest {
@@ -89,8 +93,6 @@ where
     let trace_id = QueryTraceId::new();
 
     if !can_read {
-        // Dual-site SOOT with CLI `POLICY_DENIED_HINT` (governed_common) — keep wording in sync (T221 F17).
-        const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
         let resp = ProgressiveQueryResponse {
             api_version: ai_brains_contracts::briefings::API_VERSION.to_string(),
             results: Vec::new(),
@@ -812,4 +814,28 @@ fn persist_trace<W: EventWriter>(
     )?;
     writer.append_events(&[event])?;
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
+mod tests {
+    use super::*;
+
+    /// T280 AC3 / F33 — hoisted CP HINT byte-equal F1.
+    #[test]
+    fn policy_denied_hint__wording__omits_required_scope() {
+        const F1: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
+        assert_eq!(POLICY_DENIED_HINT, F1);
+        assert_eq!(POLICY_DENIED_HINT.len(), 172);
+        assert!(
+            !POLICY_DENIED_HINT.contains("--scope …"),
+            "HINT must not require --scope ellipsis; got {POLICY_DENIED_HINT}"
+        );
+        assert!(
+            POLICY_DENIED_HINT.contains("omit --scope")
+                && POLICY_DENIED_HINT.contains("policy bootstrap")
+                && POLICY_DENIED_HINT.contains("--dry-run"),
+            "HINT must name dry-run bootstrap and omit-scope; got {POLICY_DENIED_HINT}"
+        );
+    }
 }
