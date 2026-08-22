@@ -47,8 +47,8 @@ pub const GRAPH_REINSTALL_SOOT: &str =
 
 /// Stable F6 remediation template for POLICY_DENIED `details.hint` (T201 / T210).
 ///
-/// Dual-site SOOT with `ai_brainsd::services::POLICY_DENIED_HINT` — keep wording in sync.
-pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)";
+/// Dual-site SOOT with `ai_brainsd::services::POLICY_DENIED_HINT` — keep wording in sync (T280 F1).
+pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
 
 // CLI-only progressive→recall fallback (T243 F13). Not dual-site.
 pub const PROGRESSIVE_RECALL_FALLBACK: &str = "Ungoverned vault search: ai-brains recall \"…\"";
@@ -680,7 +680,6 @@ mod tests {
         assert_eq!(exit_code_for_api_error(&err), EXIT_POLICY_DENIED);
     }
 
-    /// AC12 — dual-site POLICY_DENIED_HINT wording must stay unchanged (T243).
     #[test]
     fn apply_authorized_empty_list_next__empty_items__sets_recall() {
         // T263 AC7 / F8
@@ -721,11 +720,21 @@ mod tests {
         );
     }
 
+    /// T280 F1 / F27 / AC1 — deny HINT omits required `--scope …` (U+2026).
     #[test]
-    fn policy_denied_hint__wording__unchanged() {
-        assert_eq!(
-            POLICY_DENIED_HINT,
-            "ensure a grant for this capability exists; run `ai-brains policy bootstrap --scope …` (or check with `ai-brains policy show --scope …`)"
+    fn policy_denied_hint__wording__omits_required_scope() {
+        const F1: &str = "ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)";
+        assert_eq!(POLICY_DENIED_HINT, F1);
+        assert_eq!(POLICY_DENIED_HINT.len(), 172);
+        assert!(
+            !POLICY_DENIED_HINT.contains("--scope …"),
+            "HINT must not require --scope ellipsis; got {POLICY_DENIED_HINT}"
+        );
+        assert!(
+            POLICY_DENIED_HINT.contains("omit --scope")
+                && POLICY_DENIED_HINT.contains("policy bootstrap")
+                && POLICY_DENIED_HINT.contains("--dry-run"),
+            "HINT must name dry-run bootstrap and omit-scope; got {POLICY_DENIED_HINT}"
         );
     }
 

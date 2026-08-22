@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T280 Policy deny hint omits required `--scope`:** `POLICY_DENIED` `details.hint` (CLI / daemon / progressive) names `policy bootstrap --dry-run` then `policy bootstrap` and `(omit --scope when project context is authoritative)` — not `bootstrap --scope …`. Briefing markdown next-step matches JSON SHORT. `policy show` `next_step` and doctor LONG are unchanged. `--scope Repository:<uuid>` remains valid when context is not authoritative. Docs: CLI-EXIT-CODES deny remediator, CAPABILITIES progressive first-run, PROTOCOL-COMPAT no new keys.
+
 - **T279 Preflight Safety vs live hotspots:** Pretty `Repository Bearings & Safety` is live Ledgerful hotspot paths (project-scoped `ledgerful hotspots --json --limit 5`, `HOTSPOT: <path> score=n`) plus leading-line GLOB `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` — not LIKE-anywhere session dumps. Honest empty still emits the header and `next: ai-brains safety sync --dry-run`. `--global` does not live-inject. JSON keys stay `{text, word_count, sections}`. Docs: CAPABILITIES Safety row, OPERATIONS preflight vs pin, PROTOCOL-COMPAT no new keys.
 
 - **T278 Session neighbor PREVIEW captions:** Pretty `graph neighbors` fills session-kind PREVIEW with `{n} memories · first line` (count from `graph session`, skip-empty first memory, Unicode 80-cap). JSON neighbor keys stay three. Density floors / `graph update` honesty are unchanged — live sparse E/N is not a caption bug. Docs: CAPABILITIES graph table, OPERATIONS captions vs update≠rebuild, PROTOCOL-COMPAT human-only preview.

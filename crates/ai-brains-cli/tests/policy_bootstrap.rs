@@ -521,7 +521,7 @@ fn policy_check__missing_capability__exit_2_catalog_no_clap_required() {
     }
 }
 
-/// AC7 — deny details.hint mentions bootstrap.
+/// T210 AC7 / T280 AC5 — deny details.hint names dry-run bootstrap and omits `--scope …`.
 #[test]
 fn policy_bootstrap__deny_hint__contains_bootstrap() {
     let dir = tempdir().unwrap();
@@ -538,8 +538,16 @@ fn policy_bootstrap__deny_hint__contains_bootstrap() {
         .and_then(|h| h.as_str())
         .unwrap_or("");
     assert!(
-        !hint.is_empty() && (hint.contains("bootstrap") || hint.contains("policy bootstrap")),
-        "hint must mention bootstrap; got {hint:?}"
+        !hint.is_empty() && hint.contains("policy bootstrap") && hint.contains("--dry-run"),
+        "hint must name dry-run bootstrap; got {hint:?}"
+    );
+    assert!(
+        hint.contains("omit --scope") || hint.contains("authoritative"),
+        "hint must omit required --scope; got {hint:?}"
+    );
+    assert!(
+        !hint.contains("--scope …"),
+        "hint must not require --scope ellipsis; got {hint:?}"
     );
 }
 

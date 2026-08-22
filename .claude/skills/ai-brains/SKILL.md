@@ -78,7 +78,7 @@ ai-brains sync query "<topic>" --quiet   # vault + Ledgerful ledger
 `forget --list-forgotten` (read); `--memory-id` / `--match` + `-f`; `--restore <uuid>`.
 
 ### Governed discovery (may POLICY_DENIED)
-`scope resolve`, `source list`, `evidence list`, `review list`, `briefing project` need **policy grants** for the principal/scope. Deny + `details.hint` is expected without grants — fall back to preflight/recall. Denied project briefing human is a **grant wall**, not an empty vault: run `policy bootstrap --dry-run` then `policy bootstrap`; pins remain via `recall` / `search`. Granted-empty briefing/lists still mean “no Approved/Active authority” — use `recall`, not “seed an Approved decision.” Personal briefing deny is optional continuity, not a required bootstrap. Not a vault-key problem.
+`scope resolve`, `source list`, `evidence list`, `review list`, `briefing project` need **policy grants** for the principal/scope. Deny + `details.hint` is expected without grants — fall back to preflight/recall. Denied project briefing human is a **grant wall**, not an empty vault: run `policy bootstrap --dry-run` then `policy bootstrap` (omit `--scope` when project context is authoritative); pins remain via `recall` / `search`. Deny `details.hint` matches that omit form. Granted-empty briefing/lists still mean “no Approved/Active authority” — use `recall`, not “seed an Approved decision.” Personal briefing deny is optional continuity, not a required bootstrap. Not a vault-key problem.
 
 ## Command summary (agents)
 

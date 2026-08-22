@@ -256,7 +256,7 @@ ai-brains query trace <trace-id>
 ```
 Missing `--project-id` / `AI_BRAINS_PROJECT_ID` on `query progressive` and `query expand` exits **2** (`EXIT_USAGE`) with a copy-paste example on stderr. `query trace` is excluded (empty-success `null` when missing).
 
-**Progressive / expand policy walls (T221):** `query progressive` with policy deny prints the pretty packet on **stdout** (including `denied: true` and `denial_hint`) and exits **3** — not exit 0 empty-knowledge. Same for `--dry-run`. `query expand` with `kind: "Denied"` exits **3**; `kind: "Unknown"` stays exit **0**. **`Denied` may mean capability miss and/or cross-scope** — exit 3 does not prove which. stderr carries `POLICY_DENIED: …` then bootstrap remediation. First-run: `policy bootstrap --scope Repository:<uuid>` (omit `--principal-id` to grant the default System principal used by progressive/expand).
+**Progressive / expand policy walls (T221):** `query progressive` with policy deny prints the pretty packet on **stdout** (including `denied: true` and `denial_hint`) and exits **3** — not exit 0 empty-knowledge. Same for `--dry-run`. `query expand` with `kind: "Denied"` exits **3**; `kind: "Unknown"` stays exit **0**. **`Denied` may mean capability miss and/or cross-scope** — exit 3 does not prove which. stderr carries `POLICY_DENIED: …` then bootstrap remediation. First-run: `policy bootstrap --dry-run` then `policy bootstrap` (omit `--scope` when project context is authoritative; `--scope Repository:<uuid>` remains valid for no-context CI). Omit `--principal-id` to grant the default System principal used by progressive/expand.
 
 ### Governed command surface (T160)
 
