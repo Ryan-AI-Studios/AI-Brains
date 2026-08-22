@@ -1,10 +1,26 @@
 # T280 Plan — Policy hint omit `--scope`
 
 **Status:** **Pending** (Planned; implement on **go**)
-**Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC14
+**Spec:** [spec.md](./spec.md) F0–F33 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `e51b3b28-d885-46cd-b622-3a7b82ae489a` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `6c90e5c4-005a-4409-9aa5-5fc665635539` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+No Blockers / Majors either harness. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F33 / AC1–AC3:** `assert_eq!` F1 in all three crates; hoist CP function-local const to module-level.
+2. **AC4:** Denied → NEXT_STEP → GRANT_WALL → `## Decisions`.
+3. **§2.3:** T210 AC8 fn `:548` (comment `:546`).
+4. **F1 length:** **172** chars.
+5. **Already:** F19/AC11; AC5 hermetic tighten.
+6. **Affirm:** #195 N/A; no T285.
 
 ---
 
@@ -12,7 +28,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `83080ff` T279 `#195`. CLEAN. `origin/main` = HEAD (`0 0`) |
+| HEAD / tree | **Plan dogfood:** `83080ff` T279 `#195`. **This fold-in:** `f35884e` (docs-only; `git diff 83080ff HEAD -- crates/` empty). CLEAN at plan; dirty only fold-in docs |
 | PATH `ai-brains` | **0.1.1** mtime 2026-08-21 05:55. **T270** on PATH. HINT unchanged since T210. **Do not `cargo install`.** |
 | `preflight --summary` | Pinned **3547**; in-context 0/0/0; grants **0 of 3**; Scope `3581317d`; SHORT remediator (no `--scope`) |
 | `policy show` | JSON `next_step` = SHORT (no `--scope`). **Affirm freeze.** |
@@ -38,7 +54,7 @@
 - [ ] Re-read HINT CLI `governed_common.rs` ~`:51`, daemon `services.rs` ~`:989`, CP `query.rs` ~`:93`
 - [ ] Re-read `BRIEFING_DENIED_NEXT_STEP` `renderer.rs` ~`:13` and `BRIEFING_DENIED_DENIAL_HINT` ~`:16`
 - [ ] Re-read SHORT `:107` / LONG `:111` — **do not edit** (F3)
-- [ ] Confirm T210 AC7 `:526` + AC8 `:546`; T243 unit `:725`; T275 grant-wall + AC16
+- [ ] Confirm T210 AC7 `:526` + AC8 fn `:548` (comment `:546`); T243 unit `:725`; T275 grant-wall + AC16
 - [ ] Rescan `conductor/deferred.md` — T280 rows absorbed; no new overlapping open rows
 - [ ] Confirm #195 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
 - [ ] Re-dogfood `policy show` / `policy check --capability ReadEvidence` / `doctor --summary` **read-only**. **Did not** bootstrap
@@ -75,13 +91,13 @@
 ## Phase 1 — Red (TDD)
 
 - [ ] `policy_denied_hint__wording__omits_required_scope` — AC1 (rename from `__unchanged`)
-- [ ] Daemon `policy_denied_with_hint` F1 needles — AC2
-- [ ] CP query const unit — AC3
-- [ ] `render_project_markdown__denied__next_step_omits_scope_ellipsis` (or extend existing denied unit) — AC4
+- [ ] Daemon `policy_denied_with_hint` `assert_eq!` F1 — AC2
+- [ ] CP query **hoisted** module-level const `assert_eq!` F1 — AC3 (F33)
+- [ ] `render_project_markdown__denied__next_step_omits_scope_ellipsis` (or extend existing denied unit) — AC4 order Denied → next → grant-wall → Decisions
 - [ ] Hermetic `policy_bootstrap__deny_hint__contains_bootstrap` tighten — AC5
 - [ ] Commit red allowed
 
-F1 literal (copy exactly, U+2026 never in the new string):
+F1 literal (copy exactly, **172** chars, U+2026 never in the new string):
 
 ```
 ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap` (omit --scope when project context is authoritative)
@@ -89,8 +105,8 @@ ensure a grant for this capability exists; run `ai-brains policy bootstrap --dry
 
 ## Phase 2 — Green
 
-- [ ] CLI / daemon / CP HINT = F1 (three copies)
-- [ ] F2 `BRIEFING_DENIED_NEXT_STEP` = `BRIEFING_DENIED_DENIAL_HINT`
+- [ ] CLI / daemon / CP HINT = F1 (three copies); CP const **hoisted** module-level (F33)
+- [ ] F2 `BRIEFING_DENIED_NEXT_STEP` = `BRIEFING_DENIED_DENIAL_HINT`; AC4 order lock
 - [ ] F28 daemon AC11 `omit --scope` + `!contains("--scope …")`
 - [ ] AC6/AC7/AC8/AC9/AC13/AC14 stay green
 - [ ] Commit green

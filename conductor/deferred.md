@@ -356,6 +356,19 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Live operator bootstrap | **F10** — hermetic is DoD |
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover T282 |
 
+### T280 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 dual-site `assert_eq!` / CP function-local const | **Already** AC1–AC3; **folded** F33 hoist + exact equality |
+| Agy m2 markdown next vs grant-wall vs Decisions | **Already** AC4 next-before-Decisions; **folded** AC4 full order |
+| Agy O1 `CLI-EXIT-CODES.md` `:94` | **Already** F19 / AC11 |
+| Agy O2 hermetic `!contains("--scope …")` | **Already** AC5 |
+| OpenCode O1 T210 AC8 `:546` vs `:548` | **Folded** §2.3 fn `:548` (comment `:546`) |
+| OpenCode F1 length 172 vs ~183 | **Folded** AC1 / §8 / §11 |
+| last-PR #195 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |
