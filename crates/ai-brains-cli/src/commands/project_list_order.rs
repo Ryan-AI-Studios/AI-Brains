@@ -13,10 +13,22 @@ use ai_brains_store::ProjectListDetail;
 /// unaliased footer keep the unpromoted vec.
 pub(crate) fn promote_cwd_owner(
     rows: &[ProjectListDetail],
-    _cwd_owner: Option<&str>,
+    cwd_owner: Option<&str>,
 ) -> Vec<ProjectListDetail> {
-    let _ = rows;
-    Vec::new()
+    let Some(owner) = cwd_owner.filter(|s| !s.is_empty()) else {
+        return rows.to_vec();
+    };
+    let Some(idx) = rows.iter().position(|r| r.project_id == owner) else {
+        return rows.to_vec();
+    };
+    if idx == 0 {
+        return rows.to_vec();
+    }
+    let mut out = Vec::with_capacity(rows.len());
+    out.push(rows[idx].clone());
+    out.extend(rows[..idx].iter().cloned());
+    out.extend(rows[idx + 1..].iter().cloned());
+    out
 }
 
 #[cfg(test)]
