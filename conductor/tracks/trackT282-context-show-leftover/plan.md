@@ -1,11 +1,11 @@
 # T282 Plan — `context --show` leftover shell vs `.env`
 
-**Status:** **Pending** (Planned — plan-only until **go**)
+**Status:** **Completed** 2026-08-22
 **Spec:** [spec.md](./spec.md) F0–F36 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `fe4e6895-6619-490d-8bbb-72a0fab55bb7` (DOCS)
 **Ledger TX (fold-in Agy+OpenCode):** `11b44c43-0a67-47a5-906b-f25e1f9035e8` (DOCS)
-**Ledger TX (implement):** FEATURE — start on **go**
+**Ledger TX (implement):** FEATURE `c93b313e-4270-446f-bce5-eb80f8fec7f0`
 
 ---
 
@@ -49,21 +49,21 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `context.rs` `:19–35` show dump — early return before write
-- [ ] Re-read clap Context `main.rs` `:1284–1298` — **no new flags**
-- [ ] Re-read shell capture `main.rs` `:3256–3263` + `project.rs` `:156–163` — **call existing**, do not grow `project.rs`
-- [ ] Re-read whoami leftover match `project.rs` `:703–709` — **do not change**
-- [ ] Re-read T242 `env_warn.rs` SOOT — **do not restyle**
-- [ ] Re-read T256 `hide_env_values` `main.rs` `:997` — **do not reopen help**
-- [ ] Confirm no existing `tests/` coverage for `context --show`
-- [ ] Rescan `conductor/deferred.md` — T282 rows absorbed; T283 still placeholder
-- [ ] Confirm #197 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `context --show` + `project whoami` **read-only**. **Did not** write `.env`
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX
-- [ ] Did **not** `cargo install`; did **not** grow `project.rs` / `sync.rs` / `forget.rs` / `env_warn.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `context.rs` `:19–35` show dump — early return before write
+- [x] Re-read clap Context `main.rs` `:1284–1298` — **no new flags**
+- [x] Re-read shell capture `main.rs` `:3256–3263` + `project.rs` `:156–163` — **call existing**, do not grow `project.rs`
+- [x] Re-read whoami leftover match `project.rs` `:703–709` — **do not change**
+- [x] Re-read T242 `env_warn.rs` SOOT — **do not restyle**
+- [x] Re-read T256 `hide_env_values` `main.rs` `:997` — **do not reopen help**
+- [x] Confirm no existing `tests/` coverage for `context --show`
+- [x] Rescan `conductor/deferred.md` — T282 rows absorbed; T283 still placeholder
+- [x] Confirm #197 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `context --show` + `project whoami` **read-only**. **Did not** write `.env`
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX
+- [x] Did **not** `cargo install`; did **not** grow `project.rs` / `sync.rs` / `forget.rs` / `env_warn.rs`
 
 ---
 
@@ -93,46 +93,46 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `format_shell_leftover_line__known_uuid__frozen_80` — AC1 (prefix 27, suffix 17, line 80, no `Warning:`)
-- [ ] `leftover_shell_vs_file__differ__some` + rstest None cases — AC2 (include F33 padded file value)
-- [ ] `map_show_env_line__key__redacted` + passthrough / skip — AC3 (F34 `KEYRING=` / `VAULT_KEY_PATH=` passthrough)
-- [ ] Commit red allowed
+- [x] `format_shell_leftover_line__known_uuid__frozen_80` — AC1 (prefix 27, suffix 17, line 80, no `Warning:`)
+- [x] `leftover_shell_vs_file__differ__some` + rstest None cases — AC2 (include F33 padded file value)
+- [x] `map_show_env_line__key__redacted` + passthrough / skip — AC3 (F34 `KEYRING=` / `VAULT_KEY_PATH=` passthrough)
+- [x] Commit red allowed
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] F1 consts + `format_shell_leftover_line` + `leftover_shell_vs_file` + F33 `file_project_id_from_env_text` in `context.rs`
-- [ ] F3/F34 `map_show_env_line` in the dump loop; F36 VAULT_KEY rustdoc; F35 capture comment
-- [ ] After `Repository:`, `if let Some(line) = leftover_shell_vs_file(captured.as_deref(), file_id)` println **once**
-- [ ] Hermetic `tests/context_show_leftover.rs` AC4–AC8 (`hermetic_bin` + **must** `isolate_empty_home` + leftover `count() == 1`; dummy KEY ≠ zero vault KEY)
-- [ ] AC9 / AC13 / AC14 stay green
-- [ ] Commit green
+- [x] F1 consts + `format_shell_leftover_line` + `leftover_shell_vs_file` + F33 `file_project_id_from_env_text` in `context.rs`
+- [x] F3/F34 `map_show_env_line` in the dump loop; F36 VAULT_KEY rustdoc; F35 capture comment
+- [x] After `Repository:`, `if let Some(line) = leftover_shell_vs_file(captured.as_deref(), file_id)` println **once**
+- [x] Hermetic `tests/context_show_leftover.rs` AC4–AC8 (`hermetic_bin` + **must** `isolate_empty_home` + leftover `count() == 1`; dummy KEY ≠ zero vault KEY)
+- [x] AC9 / AC13 / AC14 stay green
+- [x] Commit green
 
 ---
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES Show-only row: leftover next-line + KEY redact
-- [ ] OPERATIONS `--show` bullet: same
-- [ ] PROTOCOL-COMPAT: no new required keys
-- [ ] CLI-EXIT-CODES: show still exit 0
-- [ ] Root CHANGELOG T282
-- [ ] `.claude/skills/ai-brains/SKILL.md`: one leftover sentence on existing `--show` (F19). **Skip** `.agents/skills/ai-brains/SKILL.md` (no `context` match)
+- [x] CAPABILITIES Show-only row: leftover next-line + KEY redact
+- [x] OPERATIONS `--show` bullet: same
+- [x] PROTOCOL-COMPAT: no new required keys
+- [x] CLI-EXIT-CODES: show still exit 0
+- [x] Root CHANGELOG T282
+- [x] `.claude/skills/ai-brains/SKILL.md`: one leftover sentence on existing `--show` (F19). **Skip** `.agents/skills/ai-brains/SKILL.md` (no `context` match)
 
 ---
 
 ## Phase 4 — Gate + publish (on go)
 
-- [ ] Classify-only AC10 (`cargo run -p ai-brains-cli -- context --show`). **No** `.env` write
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Review log `review.md`; FEATURE cross-model (F22)
-- [ ] `scripts/dev-check.ps1` (not repo-root `dev-check.ps1`)
-- [ ] implement-track Phase 6: push `track/T282-*` → PR → watch GHA `CI` green → squash-merge → prune. Never `git push origin main`
+- [x] Classify-only AC10 (`cargo run -p ai-brains-cli -- context --show`). **No** `.env` write
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] Review log `review.md`; FEATURE cross-model (F22)
+- [x] `scripts/dev-check.ps1` (not repo-root `dev-check.ps1`)
+- [x] implement-track Phase 6: push `track/T282-*` → PR → watch GHA `CI` green → squash-merge → prune. Never `git push origin main`
 
 ## DoD
 
-- [ ] `--show` names leftover shell vs `.env` when they differ (F1)
-- [ ] KEY / VAULT_KEY file lines redacted (F3)
-- [ ] No T240 F2 write (AC7)
-- [ ] Conductor **Completed** only after merge + hygiene
+- [x] `--show` names leftover shell vs `.env` when they differ (F1)
+- [x] KEY / VAULT_KEY file lines redacted (F3)
+- [x] No T240 F2 write (AC7)
+- [x] Conductor **Completed** only after merge + hygiene

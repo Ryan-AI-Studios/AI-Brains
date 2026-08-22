@@ -1,7 +1,7 @@
 # T282 — `context --show` must name leftover shell vs effective `.env`
 
 - **Track ID:** T282-ContextShowLeftover
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** 2026-08-22
 - **Category:** UX / HONESTY
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — `context --show` **7/7**; `whoami` already shows `shell_project_id=7d97a456` vs effective `3581317d`. Re-verified **2026-08-22** (HEAD `65108cd` T281 `#197`).

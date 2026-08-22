@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Planned** 2026-08-22. T283 remains Placeholder.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22. T283 remains Placeholder.
 
 | Item | Track |
 |------|-------|
@@ -16,7 +16,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
 | nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Completed** `#197` |
-| `context --show` misses leftover shell | **T282 Planned** 2026-08-22 |
+| `context --show` misses leftover shell | **T282 Completed** 2026-08-22 |
 | `project list` leftover-first | **T283** |
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
 | device/replicate/query-trace/forget empty; T266 JSON; T240 F2; T255 750ms; T263 H2 | **Declined** — see README-T274-T284 |
@@ -468,6 +468,21 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode O-3 SESSION/model passthrough | **Already** F3 / §5.4 |
 | last-PR #197 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M (m-2 drop declined as false) |
+
+### T282 closeout residuals (2026-08-22) — leftover `--show` line + KEY redact
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH until `cargo install` | F13 |
+| Vault-free `--show` | F11 — decline as DoD |
+| SESSION leftover line | F27 |
+| No-`.env` leftover naming (without lie-suffix) | F26 |
+| Quote-strip file PROJECT_ID | F32 |
+| T283 list cwd-first | Peer placeholder |
+| Live leftover 11 `C:\dev\*` roots | T276 F9 — owner-confirm rebind |
+| Live 0 of 3 grants | T275 F10 |
+| T242 first-run stderr still possible | F6 — leftover is stdout |
+| CX1 P1-1 process (gate/closeout) | **verified_fixed** — `dev-check` 3333 + `verify --scope full`; closeout this commit |
 
 ### T274 closeout residuals (2026-08-21)
 
