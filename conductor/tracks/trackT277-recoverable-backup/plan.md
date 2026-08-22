@@ -1,6 +1,6 @@
 # T277 Plan — Recoverable encrypted backup under the current key
 
-**Status:** **Pending** (requirements written. F0 = plan-only until **go**.)
+**Status:** **Completed** 2026-08-22 (hermetic F2; live create skipped)
 **Spec:** [spec.md](./spec.md) F0–F44 / AC1–AC15 + §13 AI fold-in
 **Category:** OPS / FEATURE / UX
 **Ledger TX (planning):** `58645bcf-c537-4907-807e-87d63e028fea` (DOCS)
@@ -51,17 +51,17 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `run_backup_from_conn` (`backup.rs` ~`:146–218`), `classify_backup_read` ~`:440` (own conn `:457`), `is_usable_class` ~`:33`. F42: `dst` still live at `:218` today — `drop(dst)` is the green insert
-- [ ] Re-read CLI `run_create` ~`:55`, clap `Create` ~`:2804`, `effective_keep` ~`:4443`
-- [ ] Re-read `check_backup_recent` ~`:330` (do **not** edit `doctor.rs`)
-- [ ] Confirm T244 file still `(unreadable key)`; fleet still 22; doctor still `no usable…`
-- [ ] Rescan `conductor/deferred.md` — T277 rows already absorbed; no new overlapping open rows
-- [ ] Confirm #191 comments/reviews still empty (N/A); #188 Mediums stay T284; no mint
-- [ ] Re-dogfood `--dry-run --no-prune` only. **Did not** live create unless owner confirms
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX on go
-- [ ] Did **not** `cargo install`; did **not** grow `doctor.rs` / `project.rs`; did **not** restore; did **not** prune live residuals
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `run_backup_from_conn` (`backup.rs` ~`:146–218`), `classify_backup_read` ~`:440` (own conn `:457`), `is_usable_class` ~`:33`. F42: `dst` still live at `:218` today — `drop(dst)` is the green insert
+- [x] Re-read CLI `run_create` ~`:55`, clap `Create` ~`:2804`, `effective_keep` ~`:4443`
+- [x] Re-read `check_backup_recent` ~`:330` (do **not** edit `doctor.rs`)
+- [x] Confirm T244 file still `(unreadable key)`; fleet still 22; doctor still `no usable…`
+- [x] Rescan `conductor/deferred.md` — T277 rows already absorbed; no new overlapping open rows
+- [x] Confirm #191 comments/reviews still empty (N/A); #188 Mediums stay T284; no mint
+- [x] Re-dogfood `--dry-run --no-prune` only. **Did not** live create unless owner confirms
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX on go (`e877fd0d-7573-49c1-b76e-758b99116e41`)
+- [x] Did **not** `cargo install`; did **not** grow `doctor.rs` / `project.rs`; did **not** restore; did **not** prune live residuals
 
 ---
 
@@ -95,32 +95,32 @@ No Blockers / Majors. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] Brain unit `run_backup_from_conn__missing_cores__fails_and_deletes` (AC1/F43) — **required red** (today create succeeds as Incomplete). Asserts `is_err` + `!exists` + `Incomplete` + `core tables`
-- [ ] Scaffold mixed-fleet CLI tests (AC2–AC4/AC13) — may lock-pass on create-already-works; AC1 is the fail-first
+- [x] Brain unit `run_backup_from_conn__missing_cores__fails_and_deletes` (AC1/F43) — **required red** (today create succeeds as Incomplete). Asserts `is_err` + `!exists` + `Incomplete` + `core tables`
+- [x] Scaffold mixed-fleet CLI tests (AC2–AC4/AC13) — may lock-pass on create-already-works; AC1 is the fail-first
 
 ---
 
 ## Phase 2 — Green (F2 + mixed lock)
 
-- [ ] `run_backup_from_conn`: after meta, **`drop(dst)`** (F42), `classify_backup_read`, `!is_usable_class` → `remove_file` + Err with class (F2/F34/F43). Rustdoc usable invariant
-- [ ] File-local `write_other_key_bak` in CLI tests (F44) — not a new crate module
-- [ ] AC5 Readable unit stays green
-- [ ] Hermetic other-key `.bak` + `backup create --no-prune` (F28)
-- [ ] AC2 list Readable first + residual `(unreadable key)`
-- [ ] AC3 doctor `backup_recent` ok
-- [ ] AC4 verify `1 OK` `1 FAIL` exit 1, **no** nudge (F41)
-- [ ] AC13 residual summary `not recoverable under current key`
-- [ ] AC14 smoke substring `Backup created and verified:`
-- [ ] No clap flags; no `doctor.rs` growth; no `project.rs`
+- [x] `run_backup_from_conn`: after meta, **`drop(dst)`** (F42), `classify_backup_read`, `!is_usable_class` → `remove_file` + Err with class (F2/F34/F43). Rustdoc usable invariant
+- [x] File-local `write_other_key_bak` in CLI tests (F44) — not a new crate module
+- [x] AC5 Readable unit stays green
+- [x] Hermetic other-key `.bak` + `backup create --no-prune` (F28)
+- [x] AC2 list Readable first + residual `(unreadable key)`
+- [x] AC3 doctor `backup_recent` ok
+- [x] AC4 verify `1 OK` `1 FAIL` exit 1, **no** nudge (F41)
+- [x] AC13 residual summary `not recoverable under current key`
+- [x] AC14 smoke substring `Backup created and verified:`
+- [x] No clap flags; no `doctor.rs` growth; no `project.rs`
 
 ---
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES §11: current-key create after KeyMismatch / KEY change (F6/F24)
-- [ ] OPERATIONS Backup green path + T244 filename as exhibit (no key)
-- [ ] CHANGELOG T277
-- [ ] Soft: one RECOVERY-DRILLS line if cheap
+- [x] CAPABILITIES §11: current-key create after KeyMismatch / KEY change (F6/F24)
+- [x] OPERATIONS Backup green path + T244 filename as exhibit (no key)
+- [x] CHANGELOG T277
+- [x] Soft: one RECOVERY-DRILLS line if cheap
 
 ---
 
@@ -129,17 +129,17 @@ No Blockers / Majors. Disposition in spec **§13**.
 - [ ] Owner says yes to mutating `backup create --no-prune`
 - [ ] Run create; list; verify; doctor json `backup_recent`
 - [ ] Paste exact outputs into Manual evidence below
-- [ ] If owner declines: hermetic AC1–AC6/AC13 is still DoD; AC7 recorded as skipped with reason
+- [x] If owner declines: hermetic AC1–AC6/AC13 is still DoD; AC7 recorded as skipped with reason (`/implement-track 277` did not confirm live create)
 
 ---
 
 ## Phase 5 — Review + gate + publish
 
-- [ ] Internal review vs spec; F2 data-safety
-- [ ] Cross-model **hard** on F2 (F25)
-- [ ] Targeted nextest: `-p ai-brains-brain backup` ; `-p ai-brains-cli --test backup_list_honesty --test doctor_cli --test smoke --test recovery_drills`
-- [ ] `cargo clippy -p ai-brains-brain -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Full gate at closeout (not a plan gate)
+- [x] Internal review vs spec; F2 data-safety
+- [x] Cross-model **hard** on F2 (F25) — Codex CX1 **PASS** (no P0–P3)
+- [x] Targeted nextest: `-p ai-brains-brain backup` (28); `-p ai-brains-cli --test backup_recoverable --test backup_list_honesty` (16); `--test doctor_cli --test smoke --test recovery_drills` (118)
+- [x] `cargo clippy -p ai-brains-brain -p ai-brains-cli --all-targets -- -D warnings`
+- [x] Full gate at closeout: `dev-check.ps1` SUCCESS nextest **3270** passed / 1 skipped; `ledgerful verify --scope full` exit 0
 - [ ] implement-track Phase 6: push `track/T277-*` → PR → watch GHA `CI` → squash-merge → prune. Never `git push origin main`
 
 ---
@@ -147,21 +147,23 @@ No Blockers / Majors. Disposition in spec **§13**.
 ## Manual evidence (fill on go)
 
 ```text
-Binary: (pending go)
+Binary: PATH ai-brains 0.1.1 (T270-era; F16 no cargo install). Hermetic ACs use cargo test bin.
 PRE list: T244 vault-2026-08-12T15-50-06.db.bak (unreadable key); 22 residual
-PRE doctor backup_recent: no usable encrypted backup under current key
-CREATE: (pending owner confirm) ai-brains --no-project-context backup create --no-prune
-POST list / verify / doctor: (pending)
+PRE doctor backup_recent: warn, no usable encrypted backup under current key, rem=ai-brains backup create
+PRE dry-run --no-prune: C:\dev\ai-brains\backups\vault-2026-08-22T02-30-51.db.bak, size 123043840 (F36)
+Daemon: Stopped
+CREATE: skipped — owner did not confirm live backup create --no-prune
+POST list / verify / doctor: N/A (AC7 skip; hermetic AC1–AC6/AC13 is DoD)
 ```
 
 ---
 
 ## DoD
 
-- [ ] AC1 red-then-green (fail-closed Incomplete create; F42 drop + F43 three asserts)
-- [ ] AC2–AC4/AC13 mixed KeyMismatch + create hermetic
-- [ ] AC5/AC6/AC10/AC14 stay green
-- [ ] AC7 live create **or** explicit owner skip in this file
-- [ ] AC8 docs; AC9 no pin/DTO bumps
+- [x] AC1 red-then-green (fail-closed Incomplete create; F42 drop + F43 three asserts)
+- [x] AC2–AC4/AC13 mixed KeyMismatch + create hermetic
+- [x] AC5/AC6/AC10/AC14 stay green
+- [x] AC7 live create **or** explicit owner skip in this file (skipped — `/implement-track 277` did not confirm)
+- [x] AC8 docs; AC9 no pin/DTO bumps
 - [ ] Conductor **Completed** only after merge + hygiene
-- [ ] No live prune of 21 residuals; no restore; no `cargo install`
+- [x] No live prune of 21 residuals; no restore; no `cargo install`

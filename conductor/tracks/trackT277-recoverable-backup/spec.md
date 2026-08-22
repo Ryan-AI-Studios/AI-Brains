@@ -1,7 +1,7 @@
 # T277 — At least one usable encrypted backup under the current key
 
 - **Track ID:** T277-RecoverableBackup
-- **Status:** **Planned** (Pending until **go**. F0 = plan-only.)
+- **Status:** **Completed** 2026-08-22 (hermetic F2; live create skipped)
 - **Category:** OPS / FEATURE / UX
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — `backup list` **8/8** honest FAIL fleet; `backup verify` **8/9** 0 OK / 22 FAIL; doctor `backup_recent` warn. Placeholder minted with T274–T284.

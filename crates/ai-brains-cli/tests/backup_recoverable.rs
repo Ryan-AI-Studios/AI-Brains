@@ -1,6 +1,6 @@
 //! T277 — Recoverable encrypted backup under the current key (hermetic mixed fleet).
 //!
-//! Other-key helper is file-local (F44). Live live-vault create is AC7/owner-confirm.
+//! Other-key helper is file-local (F44). Live vault create is AC7 / owner-confirm.
 
 #![allow(clippy::disallowed_methods)]
 #![allow(non_snake_case)]

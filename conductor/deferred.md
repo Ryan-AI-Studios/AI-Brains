@@ -11,7 +11,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | recall/search/semantic/preflight/memory-list session dumps over pins | **T274 Completed** |
 | briefing/progressive/lists POLICY_DENIED (0 of 3 grants) | **T275 Completed** |
 | leftover `7d97a456` ~18k / `--global` junk | **T276 Completed** (prefer-fill + labels; T264 F11 no drop; live 11 roots still F9) |
-| 22/22 backup FAIL; no usable encrypted file | **T277 Planned** (T244 file now KeyMismatch; F2 + mixed hermetic; live `--no-prune` owner-confirm) |
+| 22/22 backup FAIL; no usable encrypted file | **T277 Completed** (F2 fail-closed create + mixed hermetic; live `--no-prune` skipped — owner did not confirm) |
 | graph sparse + neighbors blank preview | **T278** |
 | preflight Safety = review-track Objective | **T279** |
 | deny/`policy show` `--scope …` vs doctor omit | **T280** |
@@ -173,6 +173,21 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode vault size drift | **Folded** F36 volatile snapshot |
 | last-PR #191 Cursor | **Affirm N/A** — no T285 |
 | No B/M | Nothing to decline of B/M |
+
+### T277 closeout residuals (2026-08-22) — fail-closed create + mixed hermetic
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` / `Build-AIBrains.ps1` | F16 |
+| Live 22 residual `.bak` still KeyMismatch / plain / Incomplete | F5/F9 — owner did not confirm live `backup create --no-prune` |
+| Default keep-10 would prune 12 residuals | F4/F19 — product default stays; live skip used `--no-prune` in hermetic |
+| Prune dry-run `remaining_count` lie | F20 |
+| Class-aware prune / archive / `backups/legacy/` | F14 / T244 F18 |
+| verify `--quiet` / JSON summary / VerifyError | T244 F17 |
+| `cipher_integrity_check` | T187 |
+| Offsite / immutable copy | local-first |
+| Integrity-check fail leaves dest file | pre-T277; F2 is post-meta |
+| Shared crate other-key fixture module | F44 |
 
 ### T274 closeout residuals (2026-08-21)
 
