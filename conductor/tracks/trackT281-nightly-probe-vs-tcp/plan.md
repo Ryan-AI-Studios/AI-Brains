@@ -1,11 +1,11 @@
 # T281 Plan — Nightly HTTP `/health` vs daemon TCP contrast line
 
-**Status:** **Pending** (Planned — requirements written; F0 until **go**)
+**Status:** **In Progress** (go 2026-08-22)
 **Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC14 + §13 AI fold-in
 **Category:** OPS / UX / HONESTY
 **Ledger TX (planning):** `b9b8c77d-3a92-476d-9887-1b7dfeed7fe2` (DOCS)
 **Ledger TX (fold-in Agy+OpenCode):** `40fde806-a4f2-49da-9ff7-d917fa3605cd` (DOCS)
-**Ledger TX (implement):** BUGFIX on **go**
+**Ledger TX (implement):** BUGFIX `435f6228-5052-406c-baf1-5bd2234cafaf`
 
 ---
 

@@ -16,6 +16,14 @@ pub(crate) fn format_probe_label_human(label: &str, budget_ms: u128) -> String {
     }
 }
 
+/// T281 F1 — human contrast when Completion probe is the raw `timeout` token.
+/// Red stub: empty so AC1/AC2 fail until green.
+pub(crate) const HTTP_VS_TCP_CONTRAST: &str = "";
+
+pub(crate) fn completion_timeout_contrast_line(_raw_label: &str) -> Option<&'static str> {
+    None
+}
+
 /// Nightly `--status` format tokens (shared human/json map).
 pub(crate) fn resolve_nightly_status_format(explicit: &str, is_tty: bool) -> &'static str {
     crate::commands::format_resolve::resolve_human_json_format(explicit, is_tty)
@@ -377,6 +385,38 @@ mod tests {
     #[test]
     fn nightly_task_heading__equals_nightly_ai_brains_nightly() {
         assert_eq!(NIGHTLY_TASK_HEADING, "Nightly: AI-Brains-Nightly");
+    }
+
+    #[test]
+    fn http_vs_tcp_contrast__equals_frozen_line() {
+        assert_eq!(HTTP_VS_TCP_CONTRAST, "HTTP /health 750ms ≠ daemon TCP");
+        assert_eq!(HTTP_VS_TCP_CONTRAST.chars().count(), 31);
+        assert!(HTTP_VS_TCP_CONTRAST.contains("/health"));
+        assert!(HTTP_VS_TCP_CONTRAST.contains("750ms"));
+        assert!(HTTP_VS_TCP_CONTRAST.contains("daemon TCP"));
+        assert!(HTTP_VS_TCP_CONTRAST.contains('\u{2260}'));
+        assert_ne!(HTTP_VS_TCP_CONTRAST, "HTTP /health 750ms != daemon TCP");
+    }
+
+    #[test]
+    fn completion_timeout_contrast_line__timeout__some_frozen() {
+        assert_eq!(
+            completion_timeout_contrast_line("timeout"),
+            Some(HTTP_VS_TCP_CONTRAST)
+        );
+    }
+
+    #[rstest::rstest]
+    #[case("skipped")]
+    #[case("ok")]
+    #[case("down")]
+    #[case("error")]
+    #[case("")]
+    #[case("TIMEOUT")]
+    #[case("timeout-ish")]
+    #[case("timeout (750ms)")]
+    fn completion_timeout_contrast_line__passthrough_labels__none(#[case] label: &str) {
+        assert_eq!(completion_timeout_contrast_line(label), None);
     }
 
     #[test]

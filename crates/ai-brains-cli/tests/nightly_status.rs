@@ -109,6 +109,15 @@ fn nightly_status__default_format__human_header_even_if_piped() {
         !stdout.contains("(750ms)"),
         "AC8: --quick must not print budget suffix; got: {stdout}"
     );
+    // T281 AC7 (additive; keep T255 AC10 / T269 AC8 comment numbers): --quick is skipped, not timeout.
+    assert!(
+        !stdout.contains("HTTP /health"),
+        "T281 AC7: --quick must not print HTTP /health contrast; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("daemon TCP"),
+        "T281 AC7: --quick must not print daemon TCP contrast; got: {stdout}"
+    );
 }
 
 /// AC14: `--format json --quick` skips probes (`probe` is the string `skipped`).
