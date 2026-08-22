@@ -23,6 +23,6 @@ pub mod version;
 pub use response::{ApiError, ApiResult};
 pub use retention::{
     RetentionCascade, RetentionClassBucket, RetentionPlanReport, RetentionReportMode,
-    RetentionTotals,
+    RetentionTotals, class_dispose_count,
 };
 pub use time_convert::offset_to_utc;

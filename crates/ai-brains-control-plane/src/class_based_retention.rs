@@ -662,6 +662,9 @@ fn build_report(
             mechanism,
             sample_ids,
             notes: notes.into_iter().collect(),
+            would_ce_wipe: 0,
+            would_projection_delete: 0,
+            dispose_sample_ids: Vec::new(),
         });
     }
 
@@ -771,6 +774,9 @@ fn merge_memory_legacy_inventory(
             mechanism: mechanism.to_string(),
             sample_ids: overlay_samples,
             notes: vec![NOTE_MEMORY_LEGACY_INVENTORY.to_string()],
+            would_ce_wipe: 0,
+            would_projection_delete: 0,
+            dispose_sample_ids: Vec::new(),
         });
     }
 

@@ -699,6 +699,9 @@ mod tests {
                     "aaaaaaaa-aaaa-aaaa-aaaa-000000000003".into(),
                 ],
                 notes: vec!["inventory overlay; none_auto; pinned held (R11); other skip".into()],
+                would_ce_wipe: 0,
+                would_projection_delete: 0,
+                dispose_sample_ids: Vec::new(),
             }],
             totals: RetentionTotals {
                 candidates: 3,
@@ -748,6 +751,69 @@ mod tests {
         assert!(
             text.contains("Totals  candidates=3 ce_wipe=0 projection_delete=0 skip=0 held=3"),
             "exact Totals line missing; got:\n{text}"
+        );
+    }
+
+    #[test]
+    fn format_retention_pretty__held_dominates_ce_same_class__work_shows_dispose_row() {
+        use ai_brains_contracts::retention::{
+            CLASS_SECRET, MECHANISM_CE_WIPE, MECHANISM_HELD, RetentionCascade, RetentionTotals,
+            default_horizon_labels,
+        };
+        let report = RetentionPlanReport {
+            api_version: "1".into(),
+            generated_at: "2026-08-22T00:00:00Z".into(),
+            mode: "dry_run".into(),
+            horizons: default_horizon_labels(),
+            classes: vec![RetentionClassBucket {
+                class: CLASS_SECRET.into(),
+                candidate_count: 12,
+                mechanism: MECHANISM_HELD.into(),
+                sample_ids: vec![
+                    "aaaaaaaa-aaaa-aaaa-aaaa-000000000001".into(),
+                    "aaaaaaaa-aaaa-aaaa-aaaa-000000000002".into(),
+                ],
+                notes: Vec::new(),
+                would_ce_wipe: 2,
+                would_projection_delete: 0,
+                dispose_sample_ids: vec!["content_key:ck-ce".into()],
+            }],
+            totals: RetentionTotals {
+                candidates: 12,
+                would_ce_wipe: 2,
+                would_projection_delete: 0,
+                would_skip: 0,
+                would_held: 10,
+            },
+            cascade: RetentionCascade::default(),
+            warnings: RetentionPlanReport::honesty_warnings(true),
+            errors_count: 0,
+            errors: Vec::new(),
+        };
+        let text = format_retention_pretty(&report);
+        assert!(
+            text.contains("Work"),
+            "mixed held+CE must print Work header; got:\n{text}"
+        );
+        let work_row = text
+            .lines()
+            .find(|l| l.contains(CLASS_SECRET) && l.contains(MECHANISM_CE_WIPE))
+            .unwrap_or("");
+        assert!(
+            !work_row.is_empty(),
+            "Work must have a secret/ce_wipe data row (not an empty Work header); got:\n{text}"
+        );
+        assert!(
+            work_row.split_whitespace().any(|t| t == "2"),
+            "Work COUNT must be class dispose count 2; line={work_row}"
+        );
+        assert!(
+            work_row.contains("content_key:ck-ce"),
+            "Work SAMPLES must be dispose ids; line={work_row}"
+        );
+        assert!(
+            text.contains("next: ai-brains retention apply --confirm --scope Repository:<uuid>"),
+            "CE next: missing; got:\n{text}"
         );
     }
 
@@ -836,6 +902,9 @@ mod tests {
                 mechanism: MECHANISM_PROJECTION_DELETE.into(),
                 sample_ids: vec!["sess:0".into(), "sess:1".into()],
                 notes: vec!["event log retained".into()],
+                would_ce_wipe: 0,
+                would_projection_delete: 2,
+                dispose_sample_ids: vec!["sess:0".into(), "sess:1".into()],
             }],
             totals: RetentionTotals {
                 candidates: 2,
@@ -893,6 +962,9 @@ mod tests {
                 mechanism: MECHANISM_CE_WIPE.into(),
                 sample_ids: vec!["ck-1".into()],
                 notes: Vec::new(),
+                would_ce_wipe: 1,
+                would_projection_delete: 0,
+                dispose_sample_ids: vec!["ck-1".into()],
             }],
             totals: RetentionTotals {
                 candidates: 1,

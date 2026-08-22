@@ -132,6 +132,26 @@ pub struct RetentionClassBucket {
     pub sample_ids: Vec<String>,
     #[serde(default)]
     pub notes: Vec<String>,
+    /// Per-class CE candidates (T284). Omitted when 0 so inventory JSON stays five keys.
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub would_ce_wipe: u64,
+    /// Per-class projection-delete candidates (T284). Omitted when 0.
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub would_projection_delete: u64,
+    /// Dispose identities (CE first, then projection). Cap 5. Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dispose_sample_ids: Vec<String>,
+}
+
+fn is_zero_u64(n: &u64) -> bool {
+    *n == 0
+}
+
+/// Sum of class-level dispose counters (CE + projection). Not the dominant `mechanism`.
+pub fn class_dispose_count(bucket: &RetentionClassBucket) -> u64 {
+    bucket
+        .would_ce_wipe
+        .saturating_add(bucket.would_projection_delete)
 }
 
 /// Aggregate totals across classes (no double-count of same identity — R13).
@@ -284,6 +304,9 @@ mod tests {
                 mechanism: MECHANISM_PROJECTION_DELETE.into(),
                 sample_ids: vec!["sess:0".into()],
                 notes: vec!["event log retained".into()],
+                would_ce_wipe: 0,
+                would_projection_delete: 2,
+                dispose_sample_ids: vec!["sess:0".into()],
             }],
             totals: RetentionTotals {
                 candidates: 2,
