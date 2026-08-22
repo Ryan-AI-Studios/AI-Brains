@@ -1,10 +1,27 @@
 # T282 Plan — `context --show` leftover shell vs `.env`
 
 **Status:** **Pending** (Planned — plan-only until **go**)
-**Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC14
+**Spec:** [spec.md](./spec.md) F0–F36 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `fe4e6895-6619-490d-8bbb-72a0fab55bb7` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `11b44c43-0a67-47a5-906b-f25e1f9035e8` (DOCS)
 **Ledger TX (implement):** FEATURE — start on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F19:** no new skill section; `.claude/skills/ai-brains/SKILL.md` existing `--show` (`:50`/`:57`/`:88`) gets one leftover sentence; `.agents` skill no-op.
+2. **AC4:** leftover exact string **once**; hermetic **must** `isolate_empty_home`.
+3. **F33 / AC2:** `file_project_id_from_env_text` strip+trim + whitespace-padded case.
+4. **F34 / AC3:** exact `KEY=` / `VAULT_KEY=`; `KEYRING=` / `VAULT_KEY_PATH=` passthrough.
+5. **F35:** capture-site comment only.
+6. **F36:** keep `VAULT_KEY` redact (daemon/elevation live — OpenCode “not in crates/” is false).
+7. **Affirm:** #197 N/A; no T285.
 
 ---
 
@@ -26,7 +43,7 @@
 | `ISSUES.md` | **Does not exist** (F23) |
 | ledgerful search | `shell_project_id_captured` `project.rs:160/:704` |
 | Online | clig.dev human-first + just-enough; 12-factor config litmus (no credentials in dump); clap 4.6.6 `hide_env_values` is help-only (T256) |
-| Skill | no `context --show` subsection → F19 no-op |
+| Skill | `.agents` no `context` match (no-op). `.claude` **already** `--show` at `:50`/`:57`/`:88` — F19 one-liner on go (OpenCode m-1) |
 
 ---
 
@@ -77,18 +94,18 @@
 ## Phase 1 — Red (TDD)
 
 - [ ] `format_shell_leftover_line__known_uuid__frozen_80` — AC1 (prefix 27, suffix 17, line 80, no `Warning:`)
-- [ ] `leftover_shell_vs_file__differ__some` + rstest None cases — AC2
-- [ ] `map_show_env_line__key__redacted` + passthrough / skip — AC3
+- [ ] `leftover_shell_vs_file__differ__some` + rstest None cases — AC2 (include F33 padded file value)
+- [ ] `map_show_env_line__key__redacted` + passthrough / skip — AC3 (F34 `KEYRING=` / `VAULT_KEY_PATH=` passthrough)
 - [ ] Commit red allowed
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] F1 consts + `format_shell_leftover_line` + `leftover_shell_vs_file` in `context.rs`
-- [ ] F3 `map_show_env_line` in the dump loop
-- [ ] After `Repository:`, `if let Some(line) = leftover_shell_vs_file(captured.as_deref(), file_id)` println
-- [ ] Hermetic `tests/context_show_leftover.rs` AC4–AC8 (`hermetic_bin` + `isolate_empty_home` + tempfile `.env`; dummy KEY ≠ zero vault KEY)
+- [ ] F1 consts + `format_shell_leftover_line` + `leftover_shell_vs_file` + F33 `file_project_id_from_env_text` in `context.rs`
+- [ ] F3/F34 `map_show_env_line` in the dump loop; F36 VAULT_KEY rustdoc; F35 capture comment
+- [ ] After `Repository:`, `if let Some(line) = leftover_shell_vs_file(captured.as_deref(), file_id)` println **once**
+- [ ] Hermetic `tests/context_show_leftover.rs` AC4–AC8 (`hermetic_bin` + **must** `isolate_empty_home` + leftover `count() == 1`; dummy KEY ≠ zero vault KEY)
 - [ ] AC9 / AC13 / AC14 stay green
 - [ ] Commit green
 
@@ -101,7 +118,7 @@
 - [ ] PROTOCOL-COMPAT: no new required keys
 - [ ] CLI-EXIT-CODES: show still exit 0
 - [ ] Root CHANGELOG T282
-- [ ] **Skip** skill (F19 no-op)
+- [ ] `.claude/skills/ai-brains/SKILL.md`: one leftover sentence on existing `--show` (F19). **Skip** `.agents/skills/ai-brains/SKILL.md` (no `context` match)
 
 ---
 

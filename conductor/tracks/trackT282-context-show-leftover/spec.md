@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Agents that only run `context --show` see leftover shell `PROJECT_ID` the same way `project whoami` already does. `project list` cwd-first **T283**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “`context --show` misses leftover shell”; T276 F10/F11 shell leftover pointer; T206 CHANGELOG soft “no `context --show` mismatch warn” **declined as DoD** (T240 stderr already; cwd `mismatch: false`)
 - **Not absorbed (DoD):** T240 F2 silent `.env` write; T258 adopt-path; T276 live leftover rebind; T256 `--help` restyle; T206 L3 path-mismatch line on `--show`; T242 warn restyle; `--format` / JSON dump; vault-free `--show`; SESSION leftover line; T283 list cwd-first; clap 5; rusqlite 0.40; DTO keys; `cargo install`
-- **Research date:** 2026-08-22 (plan dogfood HEAD `65108cd` T281 `#197`; product `src/` = T281; `--show` last product-touched with context write path, still the raw `.env` dump)
-- **Ledger:** planning DOCS TX `fe4e6895-6619-490d-8bbb-72a0fab55bb7`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `65108cd` T281 `#197`; product `src/` = T281; `--show` last product-touched with context write path, still the raw `.env` dump). Fold-in against `d370ea1` (docs-only; crates identical to `65108cd`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md`. **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree (OpenCode):** m-1 F19 `.claude` existing `--show` one-liner (no new section); m-3 AC4 leftover count `== 1`; O-1 AC4 `isolate_empty_home`; O-2 F35 capture comment. **Agree (Agy):** m1 F33 file-id helper strip+trim; m2 F34 exact `KEY=` / `VAULT_KEY=` prefix (not `starts_with("AI_BRAINS_KEY")`). **Already:** Agy O1 AC6; Agy O2 AC1–AC3; OpenCode O-3 F3/§5.4. **Decline (OpenCode m-2 drop):** `AI_BRAINS_VAULT_KEY` **is** live (`elevation.rs` `:37`, `daemon.rs` `:509`, `ai-brainsd` `vault_key.rs`) — keep redact; **folded** F36 rustdoc why the alias arm exists. **Affirm:** #197 N/A; no T285. Disposition **§13**.
+- **Ledger:** planning DOCS TX `fe4e6895-6619-490d-8bbb-72a0fab55bb7`. Fold-in DOCS TX `11b44c43-0a67-47a5-906b-f25e1f9035e8`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env` (T240 F2). Do **not** `adopt-path --write-env`. Do **not** `rebind-path --write`. Do **not** grow hotspot `project.rs` / `sync.rs` / `forget.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `policy bootstrap`, `safety sync` without `--dry-run`, `retention apply --confirm`, or `graph rebuild`. Do **not** mutate schtasks.
 
 ---
@@ -76,7 +77,7 @@ This unblocks daily honesty for the Windows-first vault: a leftover `7d97a456` i
 | Leak helper | `ai_brains_crypto::test_support::assert_no_secret_leakage` | T181 / T256. **Reuse** on `--show` stdout+stderr when fixture plants a dummy KEY in the **file**. |
 | Dummy KEY | T256 `tests/cli_help_secret_redaction.rs` `DUMMY_KEY` | Distinct from `ZERO_SQLCIPHER_KEY`. Plant in fixture `.env`; vault still uses hermetic zero KEY. |
 | Docs | `Docs/CAPABILITIES.md` **`:199`**; `Docs/OPERATIONS.md` **`:513`** | Show-only row is one cell. **Additive** leftover + redact. CHANGELOG T282 on go. |
-| Skill | `.agents/skills/ai-brains/SKILL.md` / `.claude/skills/ai-brains/SKILL.md` | **No** `context --show` subsection. **Do not** mint one as DoD (T281 F19 analog). |
+| Skill | `.agents/skills/ai-brains/SKILL.md` — **no** `context` match (F19 no-op for that file). `.claude/skills/ai-brains/SKILL.md` **already** names `context --show` at **`:50`** (Phase 0), **`:57`** (“trust `context --show`”), **`:88`** (command table). Plan F19 “no subsection” was stale for `.claude`. **Do not** mint a new section. **Do** add one sentence on the existing mentions (OpenCode m-1). |
 | `ISSUES.md` | — | Does not exist. |
 
 ### 2.4 Dependency / standards research (2026-08-22) — snapshot; re-verify at execute
@@ -116,9 +117,9 @@ This unblocks daily honesty for the Windows-first vault: a leftover `7d97a456` i
 | ID | Decision |
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `fe4e6895`. Implement starts a **FEATURE** TX. |
-| **F1 — Leftover line (stdout, differ only)** | After the `Repository:` line (when `.env` exists), print exactly `format!("{SHELL_LEFTOVER_PREFIX}{id}{SHELL_LEFTOVER_SUFFIX}")` iff captured shell is Some nonempty **and** file `AI_BRAINS_PROJECT_ID` (trim, first matching line) is Some nonempty **and** `shell != file` (exact string, **not** `contains`, **not** case-fold — T269 F27 analog). Consts in `context.rs`: `SHELL_LEFTOVER_PREFIX = "shell leftover PROJECT_ID: "` (**27** chars including trailing space); `SHELL_LEFTOVER_SUFFIX = " (.env overrides)"` (**17** chars including leading space). Example with a 36-char UUID is **80** chars. Helpers: `format_shell_leftover_line(id) -> String`; `leftover_shell_vs_file(shell, file) -> Option<String>` (`None` for same / missing / empty / `"7d97a456" vs file None`). Source of shell = `shell_project_id_captured()` (already recorded in `main`). Source of file = parse cwd `.env` text, **not** post-dotenv process env (so `--no-project-context` still names leftover vs file). **Do not** start with `Warning:`. **Do not** print path-mismatch. **Do not** print remediations / `adopt-path`. **Do not** print leftover when there is no file PROJECT_ID (F26). |
+| **F1 — Leftover line (stdout, differ only)** | After the `Repository:` line (when `.env` exists), print exactly `format!("{SHELL_LEFTOVER_PREFIX}{id}{SHELL_LEFTOVER_SUFFIX}")` **once** iff captured shell is Some nonempty **and** file `AI_BRAINS_PROJECT_ID` is Some nonempty **and** `shell != file` (exact string, **not** `contains`, **not** case-fold — T269 F27 analog). Consts in `context.rs`: `SHELL_LEFTOVER_PREFIX = "shell leftover PROJECT_ID: "` (**27** chars including trailing space); `SHELL_LEFTOVER_SUFFIX = " (.env overrides)"` (**17** chars including leading space). Example with a 36-char UUID is **80** chars. Helpers: `format_shell_leftover_line(id) -> String`; `leftover_shell_vs_file(shell, file) -> Option<String>` (`None` for same / missing / empty / `"7d97a456" vs file None`). Source of shell = `shell_project_id_captured()` (already recorded in `main`). Source of file = **F33** parse of cwd `.env` text, **not** post-dotenv process env (so `--no-project-context` still names leftover vs file). **Do not** start with `Warning:`. **Do not** print path-mismatch. **Do not** print remediations / `adopt-path`. **Do not** print leftover when there is no file PROJECT_ID (F26). |
 | **F2 — No `.env` write** | Affirm T240 F2. `--show` returns before `fs::write`. `--show` + `--new-project` / `--new-session` is still show-only. Hermetic: file bytes unchanged. |
-| **F3 — KEY redact on dump** | In the `AI_BRAINS_*` print loop: `AI_BRAINS_KEY=` / bare `AI_BRAINS_KEY` → print `AI_BRAINS_KEY=(redacted)`; `AI_BRAINS_VAULT_KEY=` / bare → `AI_BRAINS_VAULT_KEY=(redacted)`. Other `AI_BRAINS_*` lines print as-is (model URLs, PROJECT_ID, SESSION_ID, HARNESS_ID, `VAULT_PATH`). Consts `SHOW_REDACTED_KEY` / `SHOW_REDACTED_VAULT_KEY`. Helper `map_show_env_line(line) -> Option<String>` (`None` = skip non-`AI_BRAINS_` as today). **Do not** dump process-env KEY. **Do not** reopen T256 `--help`. |
+| **F3 — KEY redact on dump** | In the `AI_BRAINS_*` print loop (F34): `AI_BRAINS_KEY=` / bare `AI_BRAINS_KEY` → print `AI_BRAINS_KEY=(redacted)`; `AI_BRAINS_VAULT_KEY=` / bare → `AI_BRAINS_VAULT_KEY=(redacted)`. Match **exact prefix `NAME=` or exact bare `NAME` after `trim_start`** — **not** `starts_with("AI_BRAINS_KEY")` (would mask `AI_BRAINS_KEYRING=`). Other `AI_BRAINS_*` lines print as-is (model URLs, PROJECT_ID, SESSION_ID, HARNESS_ID, `VAULT_PATH`). Consts `SHOW_REDACTED_KEY` / `SHOW_REDACTED_VAULT_KEY`. Helper `map_show_env_line(line) -> Option<String>` (`None` = skip non-`AI_BRAINS_` as today). **Do not** dump process-env KEY. **Do not** reopen T256 `--help`. **Do not** drop the `VAULT_KEY` arm (F36). |
 | **F4 — Dump shape freeze** | Header `--- Current Context ---` stays. No TTY/JSON switch. Piped `--show` stays the dump. **No** `--format`. **No** clap `after_help` as DoD. |
 | **F5 — whoami freeze** | Do not change whoami JSON keys, human labels, remediations, or `--no-project-context` nulling. `--show` is **not** whoami. |
 | **F6 — T242 freeze** | Do not restyle `env_warn.rs`. Leftover is additive stdout. First-run stderr warn may still appear in hermetics — leftover must be on **stdout**. |
@@ -134,7 +135,7 @@ This unblocks daily honesty for the Windows-first vault: a leftover `7d97a456` i
 | **F16 — Stop-before live mutate** | Even after go: do not write live `.env`, do not `adopt-path --write-env`, do not `rebind-path --write`, do not live bootstrap / apply / rebuild / `safety sync` without `--dry-run`. |
 | **F17 — Decline peers** | T283 list cwd-first; leftover 11-root rebind; T240 F2; T255 750 ms; T263 H2; T275 live bootstrap; T277 live `--no-prune`; T278 live rebuild; T279 live pin; T284 live apply; T281 product (Completed). |
 | **F18 — last-PR Cursor** | #197 empty → **N/A**. #188 closed by T284. Dependabot `#61` rusqlite **not** this track. **No T285.** |
-| **F19 — Docs** | CAPABILITIES Show-only row: additive “when pre-dotenv shell `PROJECT_ID` differs from the file, next line is `shell leftover PROJECT_ID: <uuid> (.env overrides)`; `AI_BRAINS_KEY` / `VAULT_KEY` file lines print `(redacted)`”. OPERATIONS `--show` bullet: same. Root CHANGELOG T282. CLI-EXIT-CODES unchanged (show still exit **0**). Skill: **no-op** (no `--show` subsection). |
+| **F19 — Docs** | CAPABILITIES Show-only row: additive “when pre-dotenv shell `PROJECT_ID` differs from the file, next line is `shell leftover PROJECT_ID: <uuid> (.env overrides)`; `AI_BRAINS_KEY` / `VAULT_KEY` file lines print `(redacted)`”. OPERATIONS `--show` bullet: same. Root CHANGELOG T282. CLI-EXIT-CODES unchanged (show still exit **0**). **No new skill section.** `.agents/skills/ai-brains/SKILL.md` stays no-op (no `context` match). `.claude/skills/ai-brains/SKILL.md` **already** tells harnesses to run `context --show` (`:50` / `:57` / `:88`) — additive **one sentence** on that existing guidance: a `shell leftover PROJECT_ID` line names the pre-dotenv shell id the `.env` overrides (OpenCode m-1). Do **not** rewrite Phase 0 into whoami. |
 | **F20 — Exit 0** | Unchanged. Leftover / redact / missing `.env` are still success. |
 | **F21 — Tests** | Naming `function_or_feature__condition__expected_result`. Units for F1 consts/helpers + F3 map. Hermetic leftover / same-shell / KEY redact / no-write / no-env no-suffix. No `unwrap`/`expect`/`panic` in production. |
 | **F22 — Cross-model** | Honesty UX on identity dump (easy T240/T256 regression). After Phase-1 review clean, run read-only `codex-review`. |
@@ -148,6 +149,10 @@ This unblocks daily honesty for the Windows-first vault: a leftover `7d97a456` i
 | **F30 — `x'` assertion** | Hermetic `--show` stdout+stderr must not contain the planted dummy `x'…'` / T256 `DUMMY_KEY` prefix. Do **not** globally forbid `x'` on `--help` (doctor after_help shape). `--show` has no format example. |
 | **F31 — Identity leftover** | `7d97a456` vs `fcb8a40f` in other trees is T258/T276. This cwd leftover is shell `7d97a456` vs `.env` `3581317d`. **No T285.** |
 | **F32 — Quoted file values** | v1 does **not** strip quotes. Hermetic writes unquoted IDs (live `.env` is unquoted). Soft residual. |
+| **F33 — File PROJECT_ID helper (Agy m1)** | `file_project_id_from_env_text(content: &str) -> Option<&str>`: first line whose `trim_start()` starts with `AI_BRAINS_PROJECT_ID=`; `strip_prefix` then `trim`; empty → None. **Do not** use process env. AC2 includes a whitespace-padded value case (`"  {uuid}  "` → Some after trim, compared to unpadded shell). |
+| **F34 — Exact KEY prefix (Agy m2)** | `map_show_env_line` redacts iff `trim_start` is `AI_BRAINS_KEY` / `AI_BRAINS_VAULT_KEY` **or** starts with `AI_BRAINS_KEY=` / `AI_BRAINS_VAULT_KEY=`. `AI_BRAINS_KEYRING=` and `AI_BRAINS_VAULT_KEY_PATH=` **passthrough**. |
+| **F35 — Capture comment (OpenCode O-2)** | One comment on the `--show` leftover call: shell comes from `shell_project_id_captured()` recorded at `main.rs` `:3256–3263` before dotenv (whoami differ `project.rs` `:704–709`). **Comment-only.** Prefer **zero** `main.rs` / `project.rs` product diff. |
+| **F36 — Keep VAULT_KEY redact (OpenCode m-2 decline-drop)** | `AI_BRAINS_VAULT_KEY` **is** a live product var: daemon resolver `ai-brainsd/src/vault_key.rs` (prefer VAULT_KEY then KEY), CLI `ELEVATE_ENV_KEYS` `elevation.rs` `:37`, `daemon.rs` `:509` `daemon.env` writer. OpenCode “no symbol in `crates/`” is **false**. Keep the redact arm. One-line rustdoc on `SHOW_REDACTED_VAULT_KEY` naming that alias. Re-trigger to drop: owner confirms CLI+daemon no longer list the name. |
 
 ---
 
@@ -156,16 +161,16 @@ This unblocks daily honesty for the Windows-first vault: a leftover `7d97a456` i
 | AC | Proof |
 |----|-------|
 | **AC1** | Unit: `SHELL_LEFTOVER_PREFIX` `assert_eq!` `"shell leftover PROJECT_ID: "` (**27** chars); `SHELL_LEFTOVER_SUFFIX` `assert_eq!` `" (.env overrides)"` (**17** chars); `format_shell_leftover_line` with a 36-char UUID is **80** chars and starts with the prefix and ends with the suffix; does **not** start with `Warning:`. **Required red** (`format_shell_leftover_line__known_uuid__frozen_80`). |
-| **AC2** | Unit (rstest `#[case]`): `leftover_shell_vs_file(Some(shell), Some(file))` is `Some(format_shell_leftover_line(shell))` iff `shell != file` and both nonempty. `None` for same id, `None`/`Some`, `Some`/`None`, empty, `None`/`None`. **Required red.** |
-| **AC3** | Unit: `map_show_env_line("AI_BRAINS_KEY=x'deadbeef…'") == Some("AI_BRAINS_KEY=(redacted)")`; same for `AI_BRAINS_VAULT_KEY=…`; `AI_BRAINS_PROJECT_ID=<uuid>` passthrough; `"# comment"` / `"LEDGERFUL_TX_ID=…"` → `None`. **Required red.** |
-| **AC4** | Hermetic `tests/context_show_leftover.rs`: tempfile `.env` with `AI_BRAINS_PROJECT_ID={env_id}`; child env `AI_BRAINS_PROJECT_ID={shell_id}` (different UUIDs); `context --show` exit **0**; stdout contains file PROJECT_ID line; stdout contains **exact** leftover line for `shell_id`; leftover is **after** `Repository:`; stdout does **not** put leftover only on stderr. |
+| **AC2** | Unit (rstest `#[case]`): `leftover_shell_vs_file(Some(shell), Some(file))` is `Some(format_shell_leftover_line(shell))` iff `shell != file` and both nonempty. `None` for same id, `None`/`Some`, `Some`/`None`, empty, `None`/`None`. `file_project_id_from_env_text` (F33) on `AI_BRAINS_PROJECT_ID=  {uuid}  \n` yields Some(unpadded uuid). **Required red.** |
+| **AC3** | Unit: `map_show_env_line("AI_BRAINS_KEY=x'deadbeef…'") == Some("AI_BRAINS_KEY=(redacted)")`; same for `AI_BRAINS_VAULT_KEY=…`; `AI_BRAINS_PROJECT_ID=<uuid>` passthrough; `"# comment"` / `"LEDGERFUL_TX_ID=…"` → `None`; **`AI_BRAINS_KEYRING=foo` and `AI_BRAINS_VAULT_KEY_PATH=/x` passthrough** (F34 — not prefix-of-KEY). **Required red.** |
+| **AC4** | Hermetic `tests/context_show_leftover.rs` **must** `isolate_empty_home` (OpenCode O-1): tempfile `.env` with `AI_BRAINS_PROJECT_ID={env_id}`; child env `AI_BRAINS_PROJECT_ID={shell_id}` (different UUIDs); `context --show` exit **0**; stdout contains file PROJECT_ID line; stdout contains **exact** leftover line for `shell_id`; leftover is **after** `Repository:`; **`stdout.matches(exact_leftover).count() == 1`** (OpenCode m-3); leftover is **not** only on stderr. |
 | **AC5** | Hermetic: shell == file PROJECT_ID → stdout does **not** contain `SHELL_LEFTOVER_PREFIX` and does **not** contain `(.env overrides)`. |
 | **AC6** | Hermetic: fixture `.env` includes T256-class dummy `AI_BRAINS_KEY=x'…'` (not `ZERO_SQLCIPHER_KEY`); `--show` stdout+stderr contain `AI_BRAINS_KEY=(redacted)`; `assert_no_secret_leakage`; no `AI_BRAINS_KEY=x'`. Vault still opens via hermetic zero KEY. |
 | **AC7** | Hermetic: snapshot `.env` bytes; `--show` (and `--show --new-project`) leave bytes unchanged; stdout has header (no “initialized” / “Local .env updated”). |
 | **AC8** | Hermetic: no `.env` file + leftover shell env → stdout contains the existing `No .env file found` sentence; does **not** contain `(.env overrides)`. |
 | **AC9** | Existing T240 whoami JSON still has `shell_project_id` when shell ≠ env (`project_identity_convergence.rs` leftover field assert). |
 | **AC10** | Manual classify-only (`cargo run`, **no** `.env` write): from this repo, `context --show` still dumps `PROJECT_ID=3581317d-…`. **If** `project whoami` JSON has `shell_project_id` `7d97a456-…`, `--show` stdout contains that UUID **and** `(.env overrides)` **and** no `x'`. **If** whoami omits `shell_project_id`, leftover line is **absent**. Exit **0**. Pass-with-observed-data. Source/hermetic is DoD — **not PATH.** |
-| **AC11** | Docs: CAPABILITIES + OPERATIONS name leftover + redact; CHANGELOG T282. PROTOCOL-COMPAT no new required keys. CLI-EXIT-CODES show exit 0 unchanged. |
+| **AC11** | Docs: CAPABILITIES + OPERATIONS name leftover + redact; CHANGELOG T282. PROTOCOL-COMPAT no new required keys. CLI-EXIT-CODES show exit 0 unchanged. `.claude/skills/ai-brains/SKILL.md` existing `--show` mentions gain the leftover one-liner; `.agents/skills/ai-brains/SKILL.md` unchanged (no `context` match). |
 | **AC12** | No production `unwrap`/`expect`/`panic`; no clap/rusqlite bump; no DTO keys; `project.rs` / `sync.rs` / `forget.rs` / `env_warn.rs` / T256 `--key` arg absent from the product diff (or comment-only `main.rs` if F9 one-liner is used — prefer zero). |
 | **AC13** | T256 `cli_help_secret_redaction` still green (`[env: AI_BRAINS_KEY]` without `=`). |
 | **AC14** | T242 session-quiet suite still green. |
@@ -281,7 +286,7 @@ File dump ≠ clap help. Map KEY lines before println. Model URLs stay — they 
 2. Red AC1–AC3.
 3. Consts + helpers in `context.rs`; dump loop redact + leftover println after `Repository:` using **captured** shell vs **file** id.
 4. Hermetic `tests/context_show_leftover.rs` AC4–AC8; AC9/AC13/AC14 stay green.
-5. Docs F19 (CAPABILITIES + OPERATIONS + CHANGELOG; **no** new skill section).
+5. Docs F19 (CAPABILITIES + OPERATIONS + CHANGELOG; `.claude` skill one-liner on existing `--show`; **no** new skill section; `.agents` skill no-op).
 6. Classify-only AC10. **No** `.env` write.
 7. Review → `review.md`; FEATURE TX; implement-track Phase 6 publish. `scripts/dev-check.ps1` (not repo-root `dev-check.ps1`).
 
@@ -312,8 +317,42 @@ File dump ≠ clap help. Map KEY lines before println. Model URLs stay — they 
 | `Docs/CAPABILITIES.md` | Show-only row additive |
 | `Docs/OPERATIONS.md` | `--show` bullet additive |
 | `CHANGELOG.md` | T282 row |
+| `.claude/skills/ai-brains/SKILL.md` | F19 one sentence on existing `:50`/`:57`/`:88` `--show` (no new section) |
 | `conductor/conductor.md` | Planned → (on go) In Progress / Completed |
 | `conductor/deferred.md` | This absorption; closeout on implement |
 | `conductor/tracks/README-T274-T284-CLI-QUALITY.md` | T282 Planned |
 
-**Do not touch:** `project.rs` (call existing capture only), `env_warn.rs`, T256 `--key`, `sync.rs`, `forget.rs`, `daemon.rs`, `nightly.rs`, contracts, `Cargo.toml` / lock, skill `--show` section, live `.env`.
+**Do not touch:** `project.rs` (call existing capture only), `env_warn.rs`, T256 `--key`, `sync.rs`, `forget.rs`, `daemon.rs`, `nightly.rs`, contracts, `Cargo.toml` / lock, `.agents/skills/ai-brains/SKILL.md`, live `.env`.
+
+---
+
+## 13. AI fold-in
+
+Inputs: `agy-review.md` (HEAD `d370ea1`) + `opencode-review.md` (HEAD `d370ea1`). Product crates identical to `65108cd`. **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** last-PR #197 still empty. No T285. Do **not** edit the review files.
+
+### Per-AI
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy m1 | Parse `file_project_id`: strip `AI_BRAINS_PROJECT_ID=` + trim before leftover compare | **Already** F1/F25; **folded** F33 named helper + AC2 whitespace-padded value |
+| Agy m2 | `map_show_env_line` exact `KEY=` / `VAULT_KEY=` (not mask future `KEY*` vars) | **Already** F3; **folded** F34 + AC3 `KEYRING=` / `VAULT_KEY_PATH=` passthrough |
+| Agy O1 | Hermetic `assert_no_secret_leakage` | **Already** AC6 / F30 |
+| Agy O2 | Pure units for leftover + redact helpers | **Already** AC1–AC3 (required red) |
+| OpenCode **m-1** | F19 “no skill `--show`” is stale: `.claude/skills/ai-brains/SKILL.md` `:50`/`:57`/`:88` already tell harnesses to run `--show` | **Folded** F19 / AC11 — **no new section**; additive one sentence on existing mentions. `.agents/skills/ai-brains/SKILL.md` stays no-op (verified no `context` match) |
+| OpenCode **m-2** | `AI_BRAINS_VAULT_KEY` “not a live var in `crates/`” → comment or drop | **Decline drop** — live at `elevation.rs` `:37`, `daemon.rs` `:509`, `ai-brainsd/src/vault_key.rs`. **Folded** F36 rustdoc why the alias arm exists. Re-trigger: owner confirms the name is gone from CLI+daemon |
+| OpenCode **m-3** | AC4 leftover “contains” allows a duplicated `println!` | **Folded** AC4 `matches(exact).count() == 1` |
+| OpenCode O-1 | AC4–AC8 `isolate_empty_home()` | **Already** plan Phase 2; **folded** AC4 **must** isolate |
+| OpenCode O-2 | Comment tying leftover to `main.rs` capture + whoami differ | **Folded** F35 comment-only; prefer-zero `main.rs`/`project.rs` |
+| OpenCode O-3 | Passthrough doc for SESSION/HARNESS/model URLs | **Already** F3 / §5.4 |
+| OpenCode AC30 typo | Cited “AC30” | **Ignore** — live freeze is **F30** |
+
+### Pins locked by fold-in
+
+1. **F19:** no new skill section; `.claude` existing `--show` gets one leftover sentence; `.agents` skill unchanged.
+2. **AC4:** exact leftover string appears **once** on stdout; hermetic **must** `isolate_empty_home`.
+3. **F33 / AC2:** `file_project_id_from_env_text` strip+trim; whitespace-padded value case.
+4. **F34 / AC3:** exact `KEY=` / `VAULT_KEY=` ; `KEYRING=` / `VAULT_KEY_PATH=` passthrough.
+5. **F35:** capture-site comment only.
+6. **F36:** keep `VAULT_KEY` redact; rustdoc names daemon/elevation.
+7. **Affirm:** #197 N/A; no T285; Agy/OpenCode no B/M to decline (m-2 drop declined as false).
+

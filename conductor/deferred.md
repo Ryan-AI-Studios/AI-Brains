@@ -452,6 +452,23 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; shell leftover **this track** |
 | Live `.env` write / adopt-path `--write-env` | **F16** — hermetic no-write is DoD |
 
+### T282 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 file PROJECT_ID strip+trim | **Already** F1/F25; **folded** F33 / AC2 padded value |
+| Agy m2 exact `KEY=` prefix | **Already** F3; **folded** F34 / AC3 `KEYRING=` passthrough |
+| Agy O1 `assert_no_secret_leakage` | **Already** AC6 |
+| Agy O2 helper units | **Already** AC1–AC3 |
+| OpenCode m-1 `.claude` skill already `--show` | **Folded** F19 / AC11 — no new section; one sentence on `:50`/`:57`/`:88` |
+| OpenCode m-2 drop `VAULT_KEY` redact | **Decline** — live daemon/elevation; **folded** F36 rustdoc |
+| OpenCode m-3 AC4 leftover once | **Folded** AC4 `count() == 1` |
+| OpenCode O-1 `isolate_empty_home` | **Folded** AC4 must |
+| OpenCode O-2 capture comment | **Folded** F35 |
+| OpenCode O-3 SESSION/model passthrough | **Already** F3 / §5.4 |
+| last-PR #197 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M (m-2 drop declined as false) |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |
