@@ -143,6 +143,12 @@ impl BackupService {
     /// Run a backup using the SQLite backup API.
     /// The source connection is borrowed from the caller to avoid opening
     /// a second connection to the same WAL file (which deadlocks).
+    ///
+    /// After integrity_check + `_aibrains_backup_meta`, the dest connection is
+    /// dropped and the file is classified under the current key. Only
+    /// [`is_usable_class`] (Readable | PreT109) returns `Ok`. A non-usable
+    /// snapshot is deleted and this returns `Err` — never a path the CLI can
+    /// print as `Backup created and verified:` (T277 F2/F42/F43).
     pub fn run_backup_from_conn(
         &self,
         src_conn: &rusqlite::Connection,
@@ -214,6 +220,22 @@ impl BackupService {
             "schema_version",
             schema_ver.unwrap_or_else(|| "unknown".to_string()),
         )?;
+
+        // T277 F42: dest handle must close before classify (own conn) or delete.
+        // Windows SQLite does not share FILE_SHARE_DELETE; remove_file while
+        // `dst` is live is ERROR_SHARING_VIOLATION.
+        drop(dst);
+        let (class, _) = classify_backup_read(&backup_path, &self.key);
+        if !is_usable_class(class) {
+            // F43: never Ok a non-usable file; propagate delete IO with class.
+            return match fs::remove_file(&backup_path) {
+                Ok(()) => Err(format!("{class:?}: missing core tables").into()),
+                Err(io_err) => Err(format!(
+                    "{class:?}: missing core tables; also failed to delete backup: {io_err}"
+                )
+                .into()),
+            };
+        }
 
         Ok(backup_path)
     }
@@ -714,7 +736,9 @@ mod tests {
         let conn = rusqlite::Connection::open(&vault_path)?;
         apply_key_pragmas(&conn, &key)?;
         conn.execute_batch(
-            "CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
+            "CREATE TABLE events (id INTEGER PRIMARY KEY);
+             CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);
+             CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
         )?;
         drop(conn);
 
@@ -791,6 +815,8 @@ mod tests {
             );
             INSERT INTO schema_migrations (name) VALUES ('0018_memory_embedding');
             INSERT INTO schema_migrations (name) VALUES ('0019_embedding_timestamp');
+            CREATE TABLE events (id INTEGER PRIMARY KEY);
+            CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);
             CREATE TABLE test (id INTEGER PRIMARY KEY);
             INSERT INTO test VALUES (1);",
         )?;
@@ -829,6 +855,8 @@ mod tests {
                 applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             INSERT INTO schema_migrations (name) VALUES ('0018_memory_embedding');
+            CREATE TABLE events (id INTEGER PRIMARY KEY);
+            CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);
             CREATE TABLE test (id INTEGER PRIMARY KEY);
             INSERT INTO test VALUES (1);",
         )?;
@@ -874,7 +902,9 @@ mod tests {
         let conn = rusqlite::Connection::open(&vault_path)?;
         apply_key_pragmas(&conn, &key)?;
         conn.execute_batch(
-            "CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
+            "CREATE TABLE events (id INTEGER PRIMARY KEY);
+             CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);
+             CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
         )?;
         drop(conn);
 
@@ -970,7 +1000,9 @@ mod tests {
         let conn = rusqlite::Connection::open(&vault_path)?;
         apply_key_pragmas(&conn, &key)?;
         conn.execute_batch(
-            "CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
+            "CREATE TABLE events (id INTEGER PRIMARY KEY);
+             CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);
+             CREATE TABLE test (id INTEGER PRIMARY KEY); INSERT INTO test VALUES (1);",
         )?;
         drop(conn);
 
