@@ -505,6 +505,25 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | Identity mismatch quiet | **Not this track** — T258 adopt-path; leftover data T276; list sort **this track** |
 | Live `.env` write / adopt-path `--write-env` / leftover `set-alias AI-Brains` | **F16** — hermetic no-write is DoD |
 
+### T283 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 fail-open `resolve_path_alias_for_location` | **Decline** — footer `:112` still `?`; **already** F26 for `current_dir`/git |
+| Agy m2 `with_capacity` + no dup/drop | **Folded** F37 / AC1 |
+| Agy O1 OPERATIONS T76 refresh | **Already** F19 |
+| Agy O2 first/middle/last units | **Folded** AC1 middle; already-first + AC2 rest |
+| OpenCode m-1 promoted id once + len | **Folded** AC1 |
+| OpenCode m-2 `.claude` `:89` exists | **Already** F19 |
+| OpenCode m-3 AC10 max-memory not leftover UUID | **Folded** AC10 |
+| OpenCode m-4 AC5 re-env after denylist | **Folded** F38 / AC5 |
+| OpenCode m-5 after_help “JSON order unchanged” | **Folded** F35 |
+| OpenCode O-1 `lines().nth(1)` | **Folded** AC3 / AC5 / AC10 |
+| OpenCode O-2 resolve comment | **Folded** F39 |
+| OpenCode O-3 keep F26 store `?` | **Already** F26 |
+| last-PR #198 Cursor | **Affirm N/A** — no T285 |
+| No B/M | Nothing to decline of B/M (Agy m1 store-resolve declined as false-complete) |
+
 ### T274 closeout residuals (2026-08-21)
 
 | Residual | Disposition |

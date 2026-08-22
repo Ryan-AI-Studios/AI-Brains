@@ -1,10 +1,27 @@
 # T283 Plan — `project list` cwd-first (human only)
 
 **Status:** **Planned** (Pending until **go**)
-**Spec:** [spec.md](./spec.md) F0–F36 / AC1–AC14
+**Spec:** [spec.md](./spec.md) F0–F39 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `0535063a-dd76-454e-8c1b-bae350a5d7bd` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `254805ef-bfcb-4448-8ad0-e2c66374b19a` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F26:** store-resolve Err still fails list (footer `:112` `?`). Agy m1 fail-open-on-resolve **declined**.
+2. **F37 / AC1:** `Vec::with_capacity(len)` + len unchanged + promoted id once; middle + last cases.
+3. **F35:** after_help `human table puts the cwd path-owner first; JSON order unchanged`.
+4. **F38 / AC5:** `.env(AI_BRAINS_PROJECT_ID)` **after** `hermetic_bin` (denylist `:51`).
+5. **AC3/AC5/AC10:** first data row is `stdout.lines().nth(1)`; JSON `[0]` is max `memory_count`.
+6. **F39:** helper rustdoc + `list()` comment; no new `project.rs` helpers.
+7. **Affirm:** F19 `:89` no new skill section; #198 N/A; no T285.
 
 ---
 
@@ -74,7 +91,7 @@
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `promote_cwd_owner__middle_id__becomes_first` — AC1
+- [ ] `promote_cwd_owner__middle_id__becomes_first` — AC1 (last `[c,a,b]` + middle `[b,a,c]` + already-first; `len` unchanged; promoted id `count == 1`)
 - [ ] rstest None/empty/missing — AC2
 - [ ] Commit red allowed
 
@@ -82,9 +99,9 @@
 
 ## Phase 2 — Green
 
-- [ ] `project_list_order.rs` + `mod.rs`
-- [ ] `list()` human loop uses `promote_cwd_owner`; JSON + `print_unaliased_footer` keep original
-- [ ] Hermetic `tests/project_list_cwd_first.rs` AC3–AC6 (`hermetic_bin` + **must** `isolate_empty_home`; leftover more pins; cwd `register-path`; `.current_dir`)
+- [ ] `project_list_order.rs` + `mod.rs` (F37 `with_capacity`; F39 rustdoc)
+- [ ] `list()` human loop uses `promote_cwd_owner`; JSON + `print_unaliased_footer` keep original; F26 resolve `?` (do **not** fail-open store lookup)
+- [ ] Hermetic `tests/project_list_cwd_first.rs` AC3–AC6 (`hermetic_bin` + **must** `isolate_empty_home`; leftover more pins; cwd `register-path`; `.current_dir`; AC3/AC5 `lines().nth(1)`; AC5 **re-env after strip**)
 - [ ] AC7–AC9 / AC13 stay green
 - [ ] Commit green
 
@@ -97,7 +114,7 @@
 - [ ] PROTOCOL-COMPAT: no new required keys
 - [ ] CLI-EXIT-CODES: list still exit 0
 - [ ] Root CHANGELOG T283
-- [ ] List `after_help` F35 one sentence
+- [ ] List `after_help` F35: `human table puts the cwd path-owner first; JSON order unchanged`
 - [ ] `.claude/skills/ai-brains/SKILL.md` `:89` one sentence (F19). **Skip** `.agents/skills/ai-brains/SKILL.md` (no `project list` match)
 
 ---

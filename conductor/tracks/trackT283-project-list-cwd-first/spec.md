@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators scanning `project list` from this repo see the cwd path-owner first. Leftover 11-root rebind stays **T276 F9**. Shell leftover dump stays **T282 Completed**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “`project list` leftover-first”; T276 F10/closeout list leftover-first pointer; T282 closeout “T283 list cwd-first” peer
 - **Not absorbed (DoD):** T267 footer pick/suggestion; T240 F2 silent `.env` write; T258 adopt-path; T276 live leftover rebind; T212 JSON keys / store SQL; T266 Family B default; star-as-sort; `--sort` flag; JSON array reorder; clap 5; rusqlite 0.40; DTO keys; `cargo install`
-- **Research date:** 2026-08-22 (plan dogfood HEAD `6d3cbc5` T282 `#198`). Product `src/` = T282. Store order still T212 F13.
-- **AI fold-in:** none yet (plan pass). Disposition later in **§13** if reviews land.
-- **Ledger:** planning DOCS TX `0535063a-dd76-454e-8c1b-bae350a5d7bd`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `6d3cbc5` T282 `#198`). Product `src/` = T282. Store order still T212 F13. Fold-in against `dd57150` (docs-only; crates identical to `6d3cbc5`).
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md`. **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree (Agy):** m2 F37 `with_capacity` + no dup/drop; O1 already F19; O2 last-id AC1. **Agree (OpenCode):** m-1 AC1 once+len; m-3 AC10 max-memory not hardcoded leftover; m-4 AC5 re-env after denylist; m-5 F35 “JSON order unchanged”; O-1 AC3/AC5 `nth(1)`; O-2 F39 comment. **Already:** OpenCode m-2 F19 `:89`; OpenCode O-3 F26. **Decline (Agy m1):** fail-open `resolve_path_alias_for_location` — footer `:112` still `?`; would not stop the command unless T267 is reopened. **Affirm:** #198 N/A; no T285. Disposition **§13**.
+- **Ledger:** planning DOCS TX `0535063a-dd76-454e-8c1b-bae350a5d7bd`. Fold-in DOCS TX `254805ef-bfcb-4448-8ad0-e2c66374b19a`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** write live `.env` (T240 F2). Do **not** `adopt-path --write-env`. Do **not** `rebind-path --write`. Do **not** `set-alias 7d97a456 … AI-Brains`. Do **not** grow hotspot `project.rs` with new helpers (call existing; new sibling). Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `policy bootstrap`, `safety sync` without `--dry-run`, `retention apply --confirm`, or `graph rebuild`. Do **not** mutate schtasks.
 
 ---
@@ -113,8 +113,8 @@ This unblocks daily honesty for the Windows-first vault: leftover volume is stil
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `0535063a`. Implement starts a **FEATURE** TX. |
-| **F1 — Human cwd-first** | After the header, the first data row is the cwd **path-owner** (`resolve_path_alias_for_location`) **iff** that id is present in `list_projects_detail`. Helper `promote_cwd_owner(rows, cwd_owner) -> Vec<ProjectListDetail>`: if `cwd_owner` is Some nonempty **and** `rows.iter().position(|r| r.project_id == owner)` hits, that row is index 0 and the rest keep **stable relative order**. Exact string, **not** `contains`, **not** case-fold, **not** 8-hex prefix. **Do not** special-case `7d97a456`. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `0535063a`. Fold-in is DOCS TX `254805ef`. Implement starts a **FEATURE** TX. |
+| **F1 — Human cwd-first** | After the header, the first data row is the cwd **path-owner** (`resolve_path_alias_for_location`) **iff** that id is present in `list_projects_detail`. Helper `promote_cwd_owner(rows, cwd_owner) -> Vec<ProjectListDetail>`: if `cwd_owner` is Some nonempty **and** `rows.iter().position(|r| r.project_id == owner)` hits, that row is index 0 and the rest keep **stable relative order**. Exact string, **not** `contains`, **not** case-fold, **not** 8-hex prefix. **Do not** special-case `7d97a456`. Construct with **F37**. Result `len == rows.len()`; promoted id appears **once** (F33). |
 | **F2 — JSON freeze** | `--format json` prints store order (T212 F13: `memory_count DESC, project_id ASC`). **No** new keys. **No** `sort` / `cwd_first` field. `api_version` stays `"1"`. |
 | **F3 — Footer freeze** | `print_unaliased_footer(ctx, &projects)` keeps the **unpromoted** vec. T267 F3/F3b/F9 stand. **Do not edit** `project_list_footer.rs`. |
 | **F4 — No `.env` write** | Affirm T240 F2. List is read-only. |
@@ -139,17 +139,20 @@ This unblocks daily honesty for the Windows-first vault: leftover volume is stil
 | **F23 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
 | **F24 — PowerShell** | `;` not `&&`. |
 | **F25 — Compare source** | `project_id == cwd_owner` exact. No UUID parse (invalid leftover still matches if equal). Trim owner only if `resolve_*` already returns trimmed ids (it does). |
-| **F26 — Probe fail-open** | `current_dir` Err → no promote. Git collect fail-open (`unwrap_or_default`) like footer. Store `resolve_path_alias_for_location` Err fails the command (same as footer `?`). |
+| **F26 — Probe fail-open** | `current_dir` Err → no promote. Git collect fail-open (`unwrap_or_default`) like footer. Store `resolve_path_alias_for_location` Err **fails the command** (same as footer `project_list_footer.rs` `:112` `?`). **Do not** `unwrap_or`/`ok()` that store error on the promote probe (OpenCode O-3). Agy m1 fail-open-on-resolve **declined** — footer would still `?`, so the command still dies unless T267 is reopened. Re-trigger: owner wants list to succeed when path-alias lookup errors. |
 | **F27 — Classify-only live** | Manual AC uses `cargo run -p ai-brains-cli -- project list` from this repo. **Do not** treat PATH as proof. **Do not** write `.env`. |
 | **F28 — Existing tests stay green** | T212 `project_list_labels.rs`; T267 `next_action_honesty.rs` footer; T198 empty; T230 never-blank units; T254 register-path list JSON. |
 | **F29 — No leftover UUID in product** | Affirm T267 F9. Fixture ids in tests are hermetic UUIDs, not `7d97a456`. |
 | **F30 — Columns freeze** | Header `label` / `project_id` / `memories` / `last_activity` / `path`. Widths 30/36/8/12. Truncate stays. |
 | **F31 — Identity leftover** | `7d97a456` vs `fcb8a40f` in other trees is T258/T276. This cwd is path-owner `3581317d` vs leftover size-winner. **No T285.** |
 | **F32 — No JSON `cwd_first`** | Adding a key is a T180-class growth. Human-only permute is enough. Soft residual if agents later need an explicit marker. |
-| **F33 — One promote** | `promote_cwd_owner` runs **once**. First data row `project_id` appears once (no duplicated row). |
+| **F33 — One promote** | `promote_cwd_owner` runs **once**. First data row `project_id` appears once (no duplicated row). Unit proof: result `len == rows.len()` and promoted-id `count == 1` (OpenCode m-1). |
 | **F34 — Hermetic isolate** | AC3–AC6 **must** `isolate_empty_home` (T205/T282 analog). |
-| **F35 — after_help** | Additive one sentence on List `after_help`: human table puts the cwd path-owner first; JSON stays memory-count DESC. **Not** a clap flag. |
+| **F35 — after_help** | Additive one sentence on List `after_help` (`main.rs` `:2636–2638`): `human table puts the cwd path-owner first; JSON order unchanged`. **Not** “JSON stays memory-count DESC” (that can read as a new JSON promise). **Not** a clap flag. (OpenCode m-5.) |
 | **F36 — Do not grow `query_store.rs`** | CLI permute. Store stays T212 F13. |
+| **F37 — Allocate once (Agy m2)** | `promote_cwd_owner` uses `Vec::with_capacity(rows.len())`, pushes the matched row, then extends every other row in original order. No second allocate, no dup, no drop. Already-first and no-hit paths may `to_vec()`. |
+| **F38 — AC5 re-env after strip (OpenCode m-4)** | `tests/common/mod.rs` `AMBIENT_DENYLIST` includes `AI_BRAINS_PROJECT_ID` (`:51`). `hermetic_bin` strips it. AC5 **must** `.env("AI_BRAINS_PROJECT_ID", leftover_id)` **after** `hermetic_bin()` (same pattern as `project_list_labels.rs` `pin_memory` `:89`). |
+| **F39 — Call-site comment (OpenCode O-2)** | Rustdoc on `promote_cwd_owner`: cwd owner comes from `resolve_path_alias_for_location` (`project.rs` `:226–237`). One comment on the `list()` call. **Comment-only.** Do **not** add helpers or comments on the resolve fn itself (hotspot `project.rs`). |
 
 ---
 
@@ -157,16 +160,16 @@ This unblocks daily honesty for the Windows-first vault: leftover volume is stil
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Unit: three `ProjectListDetail` rows (ids `a`,`b`,`c` counts 30,20,10); `promote_cwd_owner(&rows, Some("c"))` → `[c,a,b]` (c first, a then b stable). `promote_cwd_owner(&rows, Some("a"))` equals input (already first). Named `promote_cwd_owner__middle_id__becomes_first`. **Required red.** |
+| **AC1** | Unit: three `ProjectListDetail` rows (ids `a`,`b`,`c` counts 30,20,10). `promote_cwd_owner(&rows, Some("c"))` (last) → `[c,a,b]`; **`out.len() == 3`**; **`out.iter().filter(|r| r.project_id == "c").count() == 1`** (OpenCode m-1). `Some("b")` (middle) → `[b,a,c]` (Agy O2). `Some("a")` equals input (already first). Named `promote_cwd_owner__middle_id__becomes_first` (keep name; include last+middle+len/once in that test or sibling units). **Required red.** |
 | **AC2** | Unit (rstest `#[case]`): `None`, `Some("")`, `Some("missing")` all return a clone equal to input (including empty vec). **Required red.** |
-| **AC3** | Hermetic `tests/project_list_cwd_first.rs` **must** `isolate_empty_home`: two projects; leftover-shaped has **more** pins + other registered path; cwd dir `register-path` to the **smaller** project; `project list` with `.current_dir(cwd_dir)` exit **0**; **second stdout line** (first data row) contains the cwd project_id; does **not** start with the leftover id. Named `project_list__human__cwd_owner_smaller_count__first_data_row`. |
+| **AC3** | Hermetic `tests/project_list_cwd_first.rs` **must** `isolate_empty_home`: two projects; leftover-shaped has **more** pins + other registered path; cwd dir `register-path` to the **smaller** project; `project list` with `.current_dir(cwd_dir)` exit **0**; **`stdout.lines().nth(1)`** (OpenCode O-1) contains the cwd project_id and does **not** contain the leftover id. Named `project_list__human__cwd_owner_smaller_count__first_data_row`. |
 | **AC4** | Same fixture: `project list --format json` `projects[0].project_id` is the **larger** leftover-shaped id; cwd id is present later. JSON keys still `api_version` / `projects` / `unaliased_count`. Named `project_list__json__still_memory_desc`. |
-| **AC5** | Same fixture + child env `AI_BRAINS_PROJECT_ID={leftover_id}`: human first data row is still **cwd** id; leftover row (later) may show `*`. Proves F7/F10. Named `project_list__human__star_on_leftover_env__cwd_still_first`. |
+| **AC5** | Same fixture; after `hermetic_bin()` **re-set** `.env("AI_BRAINS_PROJECT_ID", leftover_id)` (F38 — denylist `:51` strips ambient). Human **`stdout.lines().nth(1)`** is still **cwd** id; leftover row (later) may show `*`. Proves F7/F10. Named `project_list__human__star_on_leftover_env__cwd_still_first`. |
 | **AC6** | Hermetic: two projects, **no** `register-path` for cwd; leftover larger. Human first data row is leftover (F8). Named `project_list__human__no_path_owner__memory_desc`. |
 | **AC7** | T267 `next_action_honesty` footer tests stay green (original order). |
 | **AC8** | T212 `project_list__format_json__shape_and_unaliased_count` stays green. |
 | **AC9** | T198 empty vault still `No projects registered. (0 projects)` exit 0; no promote panic. |
-| **AC10** | Manual classify-only (`cargo run`, **no** `.env` write): from this repo, human first data row contains `3581317d-601e-44f7-ab84-fde90aa12d3c`. JSON `projects[0].project_id` is still leftover `7d97a456-…` **if** that id remains max-count (pass-with-observed-data). Footer must **not** contain `set-alias 7d97a456` + `AI-Brains`. Exit **0**. Source/hermetic is DoD — **not PATH.** |
+| **AC10** | Manual classify-only (`cargo run`, **no** `.env` write): from this repo, human **`stdout.lines().nth(1)`** contains `3581317d-601e-44f7-ab84-fde90aa12d3c`. JSON: `projects[0]` is the **max-`memory_count`** row in the array (this machine observed leftover `7d97a456` / 18043 — pass-with-observed-data; do **not** hard-fail if another id becomes largest). Footer must **not** contain `set-alias 7d97a456` + `AI-Brains`. Exit **0**. Source/hermetic is DoD — **not PATH.** (OpenCode m-3.) |
 | **AC11** | Docs: CAPABILITIES + OPERATIONS name human cwd-first + JSON size-desc; CHANGELOG T283; `.claude` `:89` one sentence; `.agents` skill unchanged. PROTOCOL-COMPAT no new required keys. CLI-EXIT-CODES list exit 0 unchanged. |
 | **AC12** | No production `unwrap`/`expect`/`panic`; no clap/rusqlite bump; no DTO keys; `query_store.rs` / `project_list_footer.rs` / `sync.rs` / `forget.rs` absent from the product diff (or comment-only). `project.rs` has **no new named helpers**. |
 | **AC13** | Default `project list` (no `--format`) is still a table, not JSON (T266 Family B). |
@@ -191,7 +194,7 @@ Star stays on env. First row is path-owner even if leftover has more memories.
 
 ```text
 promote_cwd_owner(rows, cwd_owner)
-  Some(id) in rows → [that row] ++ others stable
+  Some(id) in rows → Vec::with_capacity(len); push match; extend rest
   else            → rows as-is (memory-desc)
 ```
 
@@ -321,3 +324,36 @@ T267 last-resort `unaliased[0]` is highest-memory **among unaliased**. Promoting
 | `conductor/tracks/README-T274-T284-CLI-QUALITY.md` | T283 Planned |
 
 **Do not touch:** `query_store.rs`, `project_list_footer.rs`, `env_warn.rs`, `sync.rs`, `forget.rs`, `context.rs`, contracts, `Cargo.toml` / lock, `.agents/skills/ai-brains/SKILL.md`, live `.env`.
+
+---
+
+## 13. AI fold-in
+
+Inputs: `agy-review.md` (HEAD `dd57150`) + `opencode-review.md` (HEAD `dd57150`). Product crates identical to `6d3cbc5`. **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** last-PR #198 still empty. No T285. Do **not** edit the review files.
+
+### Per-AI
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy **m1** | Fail-open `current_dir` / git / `resolve_path_alias_for_location` so list never dies | **Partial already F26** for `current_dir` + git. **Decline** store-resolve fail-open — footer `:112` still `?`, so the command still exits unless T267 is reopened. Re-trigger: owner wants list to succeed when path-alias lookup errors. |
+| Agy **m2** | `Vec::with_capacity(len)` + push match + extend rest (no dup/drop) | **Folded** F37 / AC1 len+once |
+| Agy O1 | Refresh OPERATIONS T76 columns | **Already** F19 / AC11 |
+| Agy O2 | Units: first / middle / last / unknown / empty / empty slice | **Already** AC1 already-first + AC2 None/empty/missing/empty vec; **folded** middle `Some("b")` into AC1 |
+| OpenCode **m-1** | Unit: promoted id `count == 1` and `len` unchanged | **Already** F33; **folded** AC1 asserts |
+| OpenCode **m-2** | Confirm `.claude` `:89` exists; no new section; `.agents` no-op | **Already** F19 — verified `:89` Project identity row; `.agents` zero `project list` matches |
+| OpenCode **m-3** | AC10 JSON: assert max-`memory_count` row, not hardcoded leftover UUID | **Folded** AC10 |
+| OpenCode **m-4** | AC5 re-`.env` `AI_BRAINS_PROJECT_ID` after `hermetic_bin` denylist strip | **Folded** F38 / AC5 (`common/mod.rs` `:51`) |
+| OpenCode **m-5** | F35 after_help: “JSON order unchanged” not “stays memory-count DESC” | **Folded** F35 |
+| OpenCode O-1 | AC3/AC5 `stdout.lines().nth(1)` not whole-stdout contains | **Folded** AC3 / AC5 / AC10 |
+| OpenCode O-2 | Doc-comment tying promote to `resolve_path_alias_for_location` | **Folded** F39 — helper rustdoc + `list()` comment; **not** on the resolve fn (hotspot) |
+| OpenCode O-3 | Keep F26: resolve Err fails the command | **Already** F26; affirmed vs Agy m1 |
+
+### Pins locked by fold-in
+
+1. **F26:** store-resolve Err still fails list (footer parity). Agy m1 fail-open-on-resolve declined.
+2. **F37 / AC1:** `with_capacity` + len unchanged + promoted id once; middle+last cases.
+3. **F35:** after_help “JSON order unchanged”.
+4. **F38 / AC5:** re-env after `hermetic_bin` strip.
+5. **AC3/AC5/AC10:** first data row is `lines().nth(1)`; JSON `[0]` is max memory_count.
+6. **F39:** comment-only; no new `project.rs` helpers.
+7. **Affirm:** F19 `:89` no new skill section; #198 N/A; no T285; no B/M to decline except Agy m1 store-resolve.
