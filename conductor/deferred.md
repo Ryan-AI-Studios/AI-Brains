@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
-Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Planned** 2026-08-22.
+Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
@@ -15,7 +15,7 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | graph sparse + neighbors blank preview | **T278 Completed** 2026-08-22 |
 | preflight Safety = review-track Objective | **T279 Completed** 2026-08-22 |
 | deny/`policy show` `--scope …` vs doctor omit | **T280 Completed** |
-| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Planned** |
+| nightly Completion timeout vs daemon Open (750 ms not raised) | **T281 Completed** |
 | `context --show` misses leftover shell | **T282** |
 | `project list` leftover-first | **T283** |
 | #188 Work hides CE when held dominates; apply samples prefer overlay ids | **T284 Completed** 2026-08-22 |
@@ -419,6 +419,18 @@ Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `1
 | OpenCode invented F1 / nightly-is-TCP / strip T269 suffix | **Decline** §13 |
 | last-PR #196 Cursor | **Affirm N/A** — no T285 |
 | No B from either harness | Nothing to decline of B |
+
+### T281 closeout residuals (2026-08-22)
+
+| Residual | Disposition |
+|----------|-------------|
+| PATH `ai-brains` until `cargo install` | F13 |
+| Embedding-only timeout has no F1 | F26 |
+| JSON has no budget / contrast field | F3 |
+| ledgerful doctor `:8081` chat ≠ nightly `/health` | F11 — not doctor 16th |
+| Daemon Stopped + port Open | F27 — F1 does not say Open |
+| Live leftover 11 roots / 0 of 3 grants | T276 F9 / T275 F10 |
+| CX1 P2-1 call-site helper | **verified_fixed** — `completion_status_human_lines(raw)` |
 
 ### T274 closeout residuals (2026-08-21)
 

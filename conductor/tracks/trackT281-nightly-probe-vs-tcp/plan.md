@@ -1,6 +1,6 @@
 # T281 Plan — Nightly HTTP `/health` vs daemon TCP contrast line
 
-**Status:** **In Progress** (go 2026-08-22)
+**Status:** **Completed** 2026-08-22
 **Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC14 + §13 AI fold-in
 **Category:** OPS / UX / HONESTY
 **Ledger TX (planning):** `b9b8c77d-3a92-476d-9887-1b7dfeed7fe2` (DOCS)
@@ -50,21 +50,21 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 1**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`) (OpenCode O-5)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
-- [ ] Re-read `NIGHTLY_STATUS_PROBE_TIMEOUT` `nightly.rs` `:13` — **do not edit** (F2)
-- [ ] Re-read `--quick` skip `:52–66` and Completion print `:195–212`
-- [ ] Re-read `format_probe_label_human` `nightly_status.rs` `:11` — **do not restyle** (F5)
-- [ ] Re-read `FROZEN_KEYS` `:260` — **do not add** (F3)
-- [ ] Re-read `daemon.rs` `:749` TCP — **do not import `probe_health`** (F10)
-- [ ] Re-read after_help `main.rs` `:1137` + AC6 `:658` — **freeze** (F7)
-- [ ] Confirm T269 hermetic `--quick` `tests/nightly_status.rs` `:77`
-- [ ] Rescan `conductor/deferred.md` — T281 rows absorbed; no new overlapping open rows
-- [ ] Confirm #196 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `nightly --status` + `daemon status` **read-only**. **Did not** mutate schtasks. **Did not** force llama load
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] BUGFIX TX
-- [ ] Did **not** `cargo install`; did **not** grow `project.rs` / `sync.rs` / `forget.rs` / `daemon.rs` / `doctor.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`) (OpenCode O-5)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
+- [x] Re-read `NIGHTLY_STATUS_PROBE_TIMEOUT` `nightly.rs` `:13` — **do not edit** (F2)
+- [x] Re-read `--quick` skip `:52–66` and Completion print `:195–212`
+- [x] Re-read `format_probe_label_human` `nightly_status.rs` `:11` — **do not restyle** (F5)
+- [x] Re-read `FROZEN_KEYS` `:260` — **do not add** (F3)
+- [x] Re-read `daemon.rs` `:749` TCP — **do not import `probe_health`** (F10)
+- [x] Re-read after_help `main.rs` `:1137` + AC6 `:658` — **freeze** (F7)
+- [x] Confirm T269 hermetic `--quick` `tests/nightly_status.rs` `:77`
+- [x] Rescan `conductor/deferred.md` — T281 rows absorbed; no new overlapping open rows
+- [x] Confirm #196 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `nightly --status` + `daemon status` **read-only**. **Did not** mutate schtasks. **Did not** force llama load
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] BUGFIX TX
+- [x] Did **not** `cargo install`; did **not** grow `project.rs` / `sync.rs` / `forget.rs` / `daemon.rs` / `doctor.rs`
 
 ---
 
@@ -96,60 +96,60 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 1**. Disposition in spec **§13**.
 
 ## Phase 1 — Red (TDD)
 
-- [ ] `http_vs_tcp_contrast__equals_frozen_line` — AC1 (`assert_eq!` F1; `assert_ne!` ASCII `!=`)
-- [ ] `completion_timeout_contrast_line__timeout__some_frozen` — AC2 Some
-- [ ] `completion_timeout_contrast_line__passthrough_labels__none` rstest — AC2 None including `#[case("timeout (750ms)")]` (F32 / OpenCode M-1)
-- [ ] Commit red allowed
+- [x] `http_vs_tcp_contrast__equals_frozen_line` — AC1 (`assert_eq!` F1; `assert_ne!` ASCII `!=`)
+- [x] `completion_timeout_contrast_line__timeout__some_frozen` — AC2 Some
+- [x] `completion_timeout_contrast_line__passthrough_labels__none` rstest — AC2 None including `#[case("timeout (750ms)")]` (F32 / OpenCode M-1)
+- [x] Commit red allowed
 
 ---
 
 ## Phase 2 — Green
 
-- [ ] F1 const `HTTP_VS_TCP_CONTRAST` + `completion_timeout_contrast_line` in `nightly_status.rs`
-- [ ] `nightly.rs`: after Completion `println!`, `if let Some(line) = completion_timeout_contrast_line(completion_label) { println!("{line}"); }` — **raw** `completion_label`, not `completion_human` (F32)
-- [ ] AC7 hermetic `--quick` does not contain `HTTP /health` or `daemon TCP` (additive comment on `:77`; do not renumber T255 AC10 / T269 AC8)
-- [ ] AC3–AC6 / AC8–AC9 / AC13–AC14 stay green
-- [ ] Commit green
+- [x] F1 const `HTTP_VS_TCP_CONTRAST` + `completion_timeout_contrast_line` in `nightly_status.rs`
+- [x] `nightly.rs`: after Completion `println!`, `if let Some(line) = completion_timeout_contrast_line(completion_label) { println!("{line}"); }` — **raw** `completion_label`, not `completion_human` (F32)
+- [x] AC7 hermetic `--quick` does not contain `HTTP /health` or `daemon TCP` (additive comment on `:77`; do not renumber T255 AC10 / T269 AC8)
+- [x] AC3–AC6 / AC8–AC9 / AC13–AC14 stay green
+- [x] Commit green
 
 ---
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES T269 bullet: additive timeout next-line
-- [ ] OPERATIONS Completion/Embedding: same sentence
-- [ ] PROTOCOL-COMPAT: no new required keys
-- [ ] CHANGELOG T281
-- [ ] Skill one-liner: **skip** — no `nightly --status` subsection (F19 / OpenCode O-3)
-- [ ] conductor Completed on implement closeout (not this planning pass)
+- [x] CAPABILITIES T269 bullet: additive timeout next-line
+- [x] OPERATIONS Completion/Embedding: same sentence
+- [x] PROTOCOL-COMPAT: no new required keys
+- [x] CHANGELOG T281
+- [x] Skill one-liner: **skip** — no `nightly --status` subsection (F19 / OpenCode O-3)
+- [x] conductor Completed on implement closeout (not this planning pass)
 
 ---
 
 ## Phase 4 — Verify
 
-- [ ] Targeted nextest: `-p ai-brains-cli` F1/F2 units; `--test nightly_status`; `nightly__help__names_nightly_heading_and_probe_budget`; T247/T255/T269 stay-green
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] `cargo fmt --check`
-- [ ] Primary review → `review.md`; mediums not silently dropped
-- [ ] Cross-model `codex-review` (F22)
-- [ ] Full workspace gate (`scripts/dev-check.ps1` / `ledgerful verify --scope full`)
-- [ ] Classify-only live `cargo run -p ai-brains-cli -- nightly --status` (AC10). **No** schtasks mutate. **No** forced llama load
+- [x] Targeted nextest: `-p ai-brains-cli` F1/F2 units; `--test nightly_status`; `nightly__help__names_nightly_heading_and_probe_budget`; T247/T255/T269 stay-green
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] `cargo fmt --check`
+- [x] Primary review → `review.md`; mediums not silently dropped
+- [x] Cross-model `codex-review` (F22)
+- [x] Full workspace gate (`scripts/dev-check.ps1` / `ledgerful verify --scope full`)
+- [x] Classify-only live `cargo run -p ai-brains-cli -- nightly --status` (AC10). **No** schtasks mutate. **No** forced llama load
 
 ---
 
 ## DoD (checkable)
 
-- [ ] Unit: F1 const exact 31-char line (AC1)
-- [ ] Unit: helper Some iff `== "timeout"`; None for `"timeout (750ms)"` (AC2 / F32)
-- [ ] T269 suffix / heading / after_help stay green (AC3/AC6)
-- [ ] JSON timeout still raw `"timeout"` (AC4)
-- [ ] Router 267009 frozen (AC5)
-- [ ] Hermetic `--quick` no F1 / no `(750ms)` (AC7)
-- [ ] Schedule block not injected (AC8)
-- [ ] Live classify-only AC10 (`cargo run`, not PATH); pass-with-observed-data
-- [ ] 750 ms not raised; `daemon.rs` / `llama_cpp.rs` untouched (AC12)
-- [ ] No `cargo install`
-- [ ] Diff omits `project.rs` / `sync.rs` / `forget.rs` / `daemon.rs` / `doctor.rs`
-- [ ] implement-track Phase 6: push `track/T281-*` → PR → watch GHA `CI` green → squash-merge → prune (never `git push origin main`)
+- [x] Unit: F1 const exact 31-char line (AC1)
+- [x] Unit: helper Some iff `== "timeout"`; None for `"timeout (750ms)"` (AC2 / F32)
+- [x] T269 suffix / heading / after_help stay green (AC3/AC6)
+- [x] JSON timeout still raw `"timeout"` (AC4)
+- [x] Router 267009 frozen (AC5)
+- [x] Hermetic `--quick` no F1 / no `(750ms)` (AC7)
+- [x] Schedule block not injected (AC8)
+- [x] Live classify-only AC10 (`cargo run`, not PATH); pass-with-observed-data
+- [x] 750 ms not raised; `daemon.rs` / `llama_cpp.rs` untouched (AC12)
+- [x] No `cargo install`
+- [x] Diff omits `project.rs` / `sync.rs` / `forget.rs` / `daemon.rs` / `doctor.rs`
+- [x] implement-track Phase 6: push `track/T281-*` → PR → watch GHA `CI` green → squash-merge → prune (never `git push origin main`)
 
 ---
 

@@ -1,7 +1,7 @@
 # T281 — Nightly Completion timeout vs daemon Open must be one-line obvious
 
 - **Track ID:** T281-NightlyProbeVsTcp
-- **Status:** **In Progress** (go 2026-08-22; Placeholder upgraded 2026-08-22)
+- **Status:** **Completed** 2026-08-22 (squash pending Phase 6)
 - **Category:** OPS / UX / HONESTY
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-21 — friction: `nightly --status` Completion `probe=timeout (750ms)` while `daemon status` LLM **Open**. Nightly itself scored **8/8** after T269. Placeholder minted with T274–T284.
