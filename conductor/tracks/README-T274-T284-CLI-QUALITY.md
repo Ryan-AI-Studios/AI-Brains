@@ -1,7 +1,7 @@
 # T274–T284 — Post-T270 live CLI quality (placeholders)
 
 **Source:** Non-destructive CLI audit 2026-08-21 (PATH graph-on `ai-brains` **0.1.1** installed from HEAD `14d42af`; live vault `C:\dev\ai-brains\vault.db`; daemon Running; agent non-TTY). Plus last-PR Cursor Bugbot on [#188](https://github.com/Ryan-AI-Studios/AI-Brains/pull/188) (T270).
-**Status:** **T274 Completed** 2026-08-21 (`#189`). **T275 Completed** 2026-08-21 (`#190`). **T276 Completed** 2026-08-22 (`#191`). **T277 Completed** 2026-08-22 (fail-closed create; live `--no-prune` skipped). T278–T284 remain **Placeholder**. F0 = plan-only until **go**.
+**Status:** **T274 Completed** 2026-08-21 (`#189`). **T275 Completed** 2026-08-21 (`#190`). **T276 Completed** 2026-08-22 (`#191`). **T277 Completed** 2026-08-22 (`#192`; live `--no-prune` skipped). **T284 Planned** 2026-08-22 (Work + apply samples). T278–T283 remain **Placeholder**. F0 = plan-only until **go**.
 **Prior closed series:** T256–T273 CLI audit (closer T270/T273 2026-08-21).
 **Ledger (registration):** DOCS TX `89a8a2b9-d69d-471f-857b-b9e634138499`.
 
@@ -26,7 +26,7 @@ Scores below are **Usefulness / Effectiveness** from that audit (1–10). Every 
 | Nightly Completion `timeout (750ms)` vs daemon LLM **Open** (labeled, still dual-probe) | friction (nightly 8/8) | **T281** | P2 |
 | `context --show` misses leftover shell vs `.env` (whoami has it) | 7/**7** | **T282** | P2 |
 | `project list` leads with leftover 18k; cwd owner not first | 7/**6** | **T283** | P2 |
-| Cursor #188: Work table skips mixed held+CE class; `RetentionApplied` samples prefer inventory ids | Bugbot Medium ×2 | **T284** | P0 |
+| Cursor #188: Work table skips mixed held+CE class; `RetentionApplied` samples prefer inventory ids | Bugbot Medium ×2 | **T284 Planned** | P0 |
 
 ## Declined (written — not minted)
 
@@ -47,8 +47,8 @@ Scores below are **Usefulness / Effectiveness** from that audit (1–10). Every 
 
 ## Suggested implement order
 
-1. **T274 Completed.** **T275 Completed.** **T276 Completed.** **T277 Completed** (next: `/plan-track 284` or `/plan-track 278`)
-2. **T284** (T270 Work/samples regression) — correctness
+1. **T274 Completed.** **T275 Completed.** **T276 Completed.** **T277 Completed** (`#192`).
+2. **T284 Planned** (T270 Work/samples regression) — next: **go** / `/implement-track 284` or `/plan-track 278`
 3. **T277** live `backup create --no-prune` still owner-confirm (hermetic shipped)
 4. **T279** / **T280** / **T282** / **T283** presentation
 5. **T278** graph density

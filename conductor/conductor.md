@@ -228,7 +228,7 @@
 | T281 | Nightly HTTP vs daemon TCP line | **Pending** | Grok | [T281](tracks/trackT281-nightly-probe-vs-tcp/spec.md) | **Placeholder 2026-08-21:** T269 labeled 750ms; Completion timeout vs daemon Open still dual-probe. Do not raise 750. |
 | T282 | `context --show` leftover shell | **Pending** | Grok | [T282](tracks/trackT282-context-show-leftover/spec.md) | **Placeholder 2026-08-21:** whoami shows leftover shell; `--show` does not. No T240 F2. |
 | T283 | `project list` cwd-first | **Pending** | Grok | [T283](tracks/trackT283-project-list-cwd-first/spec.md) | **Placeholder 2026-08-21:** leftover 18k is first row; cwd owner third. |
-| T284 | Retention Work + apply samples | **Pending** | Grok | [T284](tracks/trackT284-retention-work-samples/spec.md) | **Placeholder 2026-08-21:** Cursor #188 Mediums — empty Work when held dominates CE class; `RetentionApplied` samples prefer overlay ids. |
+| T284 | Retention Work + apply samples | **Pending** | Grok | [T284](tracks/trackT284-retention-work-samples/spec.md) | **Planned 2026-08-22:** #188 Mediums — Work lists class dispose counts (not dominant mechanism); `RetentionApplied.sample_ids` prefer CE/turn ids over T270 overlay pins. F0 until **go**. |
 
 
 ---
