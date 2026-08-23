@@ -34,9 +34,9 @@ pub use preflight::{
     PreflightContext, build_preflight, build_preflight_with_options, governed_briefing_enabled,
 };
 pub use ranking::{
-    PinKind, RELEVANCE_SCALE, SESSION_CHROME_PENALTY, SYMBOL_PENALTY, ScoreKind, StalenessClass,
-    classify_pin_kind, classify_staleness, extract_track_tokens, first_contentful_line,
-    rerank_hits, strip_assistant_prefix,
+    LEADING_QUERY_BONUS, PinKind, RELEVANCE_SCALE, SESSION_CHROME_PENALTY, SYMBOL_PENALTY,
+    ScoreKind, StalenessClass, classify_pin_kind, classify_staleness, extract_track_tokens,
+    first_contentful_line, rerank_hits, rerank_hits_with_query, strip_assistant_prefix,
 };
 pub use recall::{
     RecallHit, RecallOptions, RecallOutcome, graph_neighbor_stored_score, recall, recall_full,
@@ -48,7 +48,8 @@ pub use semantic::{
 };
 pub use session_chrome::{
     authority_glob_sql, bound_not_in_sql, dedupe_session_chrome, index_marker_glob_sql,
-    is_authority_pin_content, is_session_chrome, prefer_authority_hits, safety_marker_glob_sql,
+    is_authority_pin_content, is_session_chrome, parent_seeds_graph_neighbors,
+    prefer_authority_hits, safety_marker_glob_sql, tags_envelope_sql,
 };
 pub use sessions::active_sessions;
 pub use symbol_stub::{

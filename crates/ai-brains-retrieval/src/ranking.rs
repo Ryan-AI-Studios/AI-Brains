@@ -7,6 +7,7 @@
 //! extend this function rather than introducing a second final sort.
 
 use crate::recall::RecallHit;
+use ai_brains_core::{contentful_tokens, extract_fts_tokens};
 
 // ---------------------------------------------------------------------------
 // F9 — boost magnitudes (frozen)
@@ -81,14 +82,34 @@ pub fn strip_assistant_prefix(content: &str) -> &str {
     content.strip_prefix("ASSISTANT: ").unwrap_or(content)
 }
 
-/// First non-empty line after [`strip_assistant_prefix`] + trim (T274 F2).
+/// Role tokens duplicated here (retrieval cannot import CLI `ROLE_PREFIXES`).
+const PIN_ROLE_PREFIXES: [&str; 3] = ["ASSISTANT:", "USER:", "SYSTEM:"];
+
+fn strip_pin_role(content: &str) -> &str {
+    for token in PIN_ROLE_PREFIXES {
+        if let Some(rest) = content.strip_prefix(token) {
+            return rest;
+        }
+    }
+    content
+}
+
+/// First non-empty line after pin envelope (T285 F2).
+///
+/// Strip one leading `USER:` / `ASSISTANT:` / `SYSTEM:` via `strip_prefix`
+/// (no required space), `trim_start`, skip a `tags:` line if present, then
+/// the first remaining contentful line. Empty / role-only → `""`.
 pub fn first_contentful_line(content: &str) -> &str {
-    let stripped = strip_assistant_prefix(content).trim();
-    stripped
-        .lines()
-        .map(str::trim)
-        .find(|l| !l.is_empty())
-        .unwrap_or("")
+    let after_role = strip_pin_role(content).trim_start();
+    let mut lines = after_role.lines().map(str::trim).filter(|l| !l.is_empty());
+    let Some(first) = lines.next() else {
+        return "";
+    };
+    if first.to_ascii_lowercase().starts_with("tags:") {
+        lines.next().unwrap_or("")
+    } else {
+        first
+    }
 }
 
 /// Classify pin kind from the **first contentful line** only (T274 F2).
@@ -251,13 +272,25 @@ pub fn effective_score(
     v
 }
 
+/// Leading-line query-token bonus (T285 F6). Same scale as
+/// [`SESSION_CHROME_PENALTY`]. Applied only from [`rerank_hits_with_query`]
+/// when `query` is `Some` and the first contentful line is authority.
+pub const LEADING_QUERY_BONUS: f64 = 16.0;
+
 /// Re-rank blended hits in place with pin-type + recency composite (F8).
 ///
 /// Sets [`RecallHit::is_plan_demoted`] for Plan-class Decisions. Sort:
 /// effective desc → `updated_at` desc (missing last) → `memory_id` asc.
 ///
 /// **F40:** single post-blend entry point; T215 extends here.
+/// T285: query-unaware wrapper (`query=None` → no [`LEADING_QUERY_BONUS`]).
 pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
+    rerank_hits_with_query(hits, None);
+}
+
+/// T285 F6: same sort as [`rerank_hits`] plus leading-line query bonus when
+/// `query` is `Some` and the hit is authority after envelope.
+pub fn rerank_hits_with_query(hits: &mut Vec<RecallHit>, query: Option<&str>) {
     if hits.is_empty() {
         return;
     }
@@ -314,6 +347,20 @@ pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
             }
             if crate::session_chrome::is_session_chrome(&hit.content) {
                 effective -= SESSION_CHROME_PENALTY;
+            }
+            if let Some(q) = query {
+                let tokens = contentful_tokens(&extract_fts_tokens(q));
+                if crate::session_chrome::is_authority_pin_content(&hit.content)
+                    && !tokens.is_empty()
+                {
+                    let line = first_contentful_line(&hit.content).to_ascii_lowercase();
+                    if tokens
+                        .iter()
+                        .any(|t| line.contains(&t.to_ascii_lowercase()))
+                    {
+                        effective += LEADING_QUERY_BONUS;
+                    }
+                }
             }
             Ranked {
                 effective,
@@ -923,6 +970,69 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         assert_eq!(hits[1].memory_id, "mem-stub");
+    }
+
+    /// T285 AC1: TAGS envelope + role+trim_start; empty → Other (no panic).
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_pin_kind__tags_envelope_and_role_trim__ac1() {
+        assert_eq!(
+            classify_pin_kind("ASSISTANT: TAGS: t285-canary\nDECISION: needle"),
+            PinKind::Decision,
+            "tagged assistant pin must classify Decision"
+        );
+        assert_eq!(
+            classify_pin_kind("TAGS: x\nCONSTRAINT: rule"),
+            PinKind::Constraint
+        );
+        assert_eq!(
+            classify_pin_kind("ASSISTANT: TAGS: x\n## Objective\nburied decision: y"),
+            PinKind::Other,
+            "TAGS then ## Objective stays Other (not buried decision:)"
+        );
+        assert_eq!(
+            classify_pin_kind("ASSISTANT:\nDECISION: nl"),
+            PinKind::Decision,
+            "ASSISTANT: + newline + DECISION: (no required space)"
+        );
+        assert_eq!(classify_pin_kind(""), PinKind::Other);
+        assert_eq!(classify_pin_kind("ASSISTANT:"), PinKind::Other);
+        assert_eq!(
+            classify_pin_kind("ASSISTANT: DECISION: x"),
+            PinKind::Decision,
+            "untagged ASSISTANT: DECISION: still Decision (T274)"
+        );
+    }
+
+    /// T285 AC3: live onboarding chrome BM25 −12 loses to leading DECISION −2
+    /// after detector and/or leading-query +16.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits_with_query__onboarding_chrome_loses_to_pin__ac3() {
+        let mut hits = vec![
+            hit(
+                "mem-chrome",
+                "# AI-Brains Session Onboarding Complete\ncapture independence event log dump",
+                Some(-12.0),
+                None,
+            ),
+            hit(
+                "mem-pin",
+                "DECISION: Capture independence remains",
+                Some(-2.0),
+                None,
+            ),
+        ];
+        rerank_hits_with_query(&mut hits, Some("capture independence"));
+        assert_eq!(
+            hits[0].memory_id,
+            "mem-pin",
+            "pin must outrank live onboarding chrome; order={:?}",
+            hits.iter()
+                .map(|h| h.memory_id.as_str())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(hits[1].memory_id, "mem-chrome");
     }
 
     /// T274 AC1: leading markers only. Buried `decision:` / JSON keys → Other.

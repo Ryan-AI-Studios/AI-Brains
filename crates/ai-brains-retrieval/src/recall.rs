@@ -494,13 +494,23 @@ pub fn recall_full(
         && let Some(searcher) = graph
     {
         let mut graph_hits: Vec<RecallHit> = Vec::new();
-        // Snapshot existing hits (id, score, score_kind) for parent inheritance.
-        let existing: Vec<(String, Option<f64>, ScoreKind)> = blended
+        // Snapshot id/score/kind/content so chrome skip can read parent body (T285 F10).
+        let existing: Vec<(String, Option<f64>, ScoreKind, String)> = blended
             .iter()
-            .map(|h| (h.memory_id.clone(), h.score, h.score_kind))
+            .map(|h| {
+                (
+                    h.memory_id.clone(),
+                    h.score,
+                    h.score_kind,
+                    h.content.clone(),
+                )
+            })
             .collect();
 
-        for (parent_id, parent_score, parent_kind) in existing {
+        for (parent_id, parent_score, parent_kind, parent_content) in existing {
+            if !crate::session_chrome::parent_seeds_graph_neighbors(&parent_content) {
+                continue;
+            }
             let neighbors = match searcher.get_neighbors(&parent_id) {
                 Ok(n) => n,
                 Err(e) => {
@@ -558,7 +568,7 @@ pub fn recall_full(
     // T211: pin-type + recency composite re-rank (F8). Single post-blend entry
     // point (F40) — ScoreKind-aware (T215). Truncate after. T260 F3: stub
     // content-dedupe runs after this sort, never before.
-    crate::ranking::rerank_hits(&mut blended);
+    crate::ranking::rerank_hits_with_query(&mut blended, Some(query));
     crate::session_chrome::dedupe_session_chrome(&mut blended);
     crate::symbol_stub::dedupe_symbol_stubs(&mut blended);
 
