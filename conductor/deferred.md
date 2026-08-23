@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #200 **N/A** empty — **no T301**.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #200 **N/A** empty — **no T301**. **T285 Planned** 2026-08-22 (not implemented).
 
 | Item | Track |
 |------|-------|
@@ -25,6 +25,29 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | forget-list empty U=6 | **T299** |
 | graph sparse live rebuild | **T300** |
 | T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |
+
+### T285 planning absorption (2026-08-22) — envelope + detector + chrome-seed skip; no Index steal
+
+| Item | Disposition |
+|------|-------------|
+| Audit recall/search/semantic/sync-vault still chrome Q=4 | **Absorb** F1–F12 / AC1–AC6 / AC12–AC14 |
+| Placeholder Manual DoD `--tag` canary | **Absorb** F2 envelope so TAGS pins classify |
+| T274 closeout “live dumps until install” | **Absorb / reopen** — PATH **0.1.2** still Q=4 |
+| T274 closeout detector not rstest | **Absorb** F26 / AC2 new prefixes |
+| T274 I1 `ASSISTANT:` + CLI `TAGS:` line | **Absorb** F2 |
+| Live `# AI-Brains Session Onboarding Complete` / `# Review of Track` | **Absorb** F5 |
+| Default `graph_hop_depth=1` chrome seeds dumps | **Absorb** F10 (T260 analog) |
+| T274 AC4 needle-in-both-bodies | **Absorb** AC4 **asymmetric** needle |
+| T274 closeout GLOB lowercase | **Partial F9** — envelope/retain SoT |
+| T274 closeout AC16 semantic helper | **Decline as DoD** — AC14 fallback; no HTTP |
+| Preflight Index `## Objective` / summary 0 vs 3648 | **Decline → T286** |
+| `memory list` just-now ingest | **Decline → T287** |
+| `graph neighbors` dump sessions | **Decline → T293** |
+| leftover dest-missing / context skip upsert | **Decline → T294** |
+| T276 F39 `--global` skip leftover MATCH | **Decline F23** |
+| T240 F2 / T263 H2 / T211 F25 / T218 floors / clap 5 / rusqlite 0.40 | **Decline** |
+| last-PR Cursor #200 | **N/A** empty — **no T301** |
+| Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 

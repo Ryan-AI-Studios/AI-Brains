@@ -1,9 +1,9 @@
 # T285–T300 — Post-T283 live CLI quality (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-22** on PATH graph-on `ai-brains` **0.1.2** (`ae5f6fd` `#200`). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; grants **3 of 3**; leftover `7d97a456` still ~18k pins / **5** roots after partial rebind. Agent non-TTY.
-**Status:** All **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
+**Status:** **T285 Planned** 2026-08-22 (Pending until **go**). T286–T300 still **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** Do not `/implement-track 285` until the owner says **go**.
 **Prior closed series:** T274–T284 (closer T283 `#199`). T274 ranking shipped but **live recall/Index still Q=4**.
-**Ledger (registration):** DOCS TX `36224860-4861-4d1d-b0b0-058911971142`.
+**Ledger (registration):** DOCS TX `36224860-4861-4d1d-b0b0-058911971142`. **T285 plan:** DOCS TX `515b984b-7f5e-4386-9566-a292efd3afe1`.
 **last-PR Cursor:** [#200](https://github.com/Ryan-AI-Studios/AI-Brains/pull/200) comments/reviews **empty** → N/A. **No T301.**
 
 Scores below are **Usefulness / Quality** from that audit (1–10). Every command with **U&lt;8 or Q&lt;8**, plus every “doesn’t work,” friction, and significant-opportunity item, maps to **exactly one** track unless **declined**.
@@ -52,7 +52,7 @@ Scores below are **Usefulness / Quality** from that audit (1–10). Every comman
 4. **T295** / **T300** live ops (owner-confirm)
 5. **T289** / **T291** / **T292** / **T296** / **T297** / **T298** / **T299**
 
-Do **not** `/implement-track` a Placeholder. Run `/plan-track TNN` first.
+Do **not** `/implement-track` a Placeholder. **T285** is Planned — wait for owner **go** / `/implement-track 285`. Run `/plan-track TNN` first for T286–T300.
 
 ## Non-goals of this series
 
