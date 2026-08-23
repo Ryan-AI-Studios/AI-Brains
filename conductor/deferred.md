@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #204 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #205 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Planned** 2026-08-23.
 
 | Item | Track |
 |------|-------|
@@ -117,6 +117,27 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | PATH `ai-brains` still T281-era until `cargo install` | **Residual** — F13; source/hermetic SoT; T282 leftover `--show` + T283 cwd-first + T285–T289 not on PATH |
 | Allowed-empty Personal `_None_` | **Residual** — F6 freeze |
 | T290 lists/progressive pin count | **Not stolen** |
+
+### T290 planning absorption (2026-08-23) — granted-empty lists/progressive copy-paste recall + Pinned: N; no H2
+
+| Item | Disposition |
+|------|-------------|
+| Audit evidence/source/review list + `query progressive` granted-empty U=6 | **Absorb** F1–F7 / AC1–AC6 / AC12 |
+| Placeholder Manual four commands | **Absorb** AC12 |
+| T263 F8 parenthetical “vault pins are not governed evidence” | **Absorb / promote** F3 / F7 copy-paste + `(Pinned: N)` |
+| T263 F9 leave T243 ellipsis | **Partial reopen** — granted-empty `next_step` string growth; **affirm** F8 deny stderr const |
+| T243 F5 progressive `next_step` overlay | **Affirm gate**; **grow** contents (operator query) |
+| T214 `count_pinned_memories` | **Reuse** F4 — fail-open; 0-pin honesty AC2 |
+| T288 `vault_pin_*` keys / briefing stanza | **Decline** F3 / F23 — Completed project-only |
+| T289 Personal deny `_None_` | **Decline** — Completed `#205` |
+| `query trace` bare `null` | **Decline → T291** |
+| `policy check` JSON-only | **Decline → T292** |
+| graph neighbors dump sessions | **Decline → T293** |
+| leftover dest-missing / context skip upsert | **Decline → T294** |
+| forget-list empty next | **Decline → T299** |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
+| last-PR Cursor #205 | **N/A** empty — **no T301** |
+| Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
 
 ### T287 closeout residuals (2026-08-23)
 
