@@ -4,13 +4,13 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #201 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #202 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Planned** 2026-08-23.
 
 | Item | Track |
 |------|-------|
 | recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
 | preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Completed** |
-| `memory list` just-now ingest | **T287** |
+| `memory list` just-now ingest | **T287 Planned** |
 | briefing granted-empty vs pins (no H2) | **T288** |
 | personal briefing deny `_None_` | **T289** |
 | governed lists/progressive empty U=6 | **T290** |
@@ -25,6 +25,28 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | forget-list empty U=6 | **T299** |
 | graph sparse live rebuild | **T300** |
 | T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |
+
+### T287 planning absorption (2026-08-23) — human prefer-fill; JSON/store recency frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit `memory list --limit 5` just-now ingest | **Absorb** F1–F6 / AC1–AC3 / AC15 |
+| Placeholder Manual DoD `--limit 5` + `--summary` | **Absorb** AC1/AC7/AC15 |
+| T274 F13 / T285 F14 / T286 F15 / T286 AC15 list ORDER | **Lift human pinned** F1; **affirm store+JSON** F2/F3/AC4 |
+| T216 default limit 50 (placeholder said 5) | **Affirm freeze** F11; DoD uses `--limit 5` |
+| Preview `TAGS:` envelope | **Absorb** F6 / AC3 `first_contentful_line` |
+| JSON freeze vs human-only permute | **Absorb** F2 JSON recency (T283 analog); F9 no `--authority` |
+| T216 `--status` / `--summary` / JSON keys / exit 2 | **Affirm freeze** F7/F8/F10/F13 |
+| T216 `--offset` / tag histogram | **Decline** T216 F24 |
+| `forget --match` two-pass | **Decline** F14 — T274 F18 |
+| USER/SYSTEM TAGS GLOB | **Decline** F29 — T285 F7 |
+| briefing granted-empty vs pins | **Decline → T288** |
+| graph neighbors dump sessions | **Decline → T293** |
+| forget-list empty next | **Decline → T299** |
+| leftover dest-missing / context skip upsert | **Decline → T294** |
+| T240 F2 / T263 H2 / T211 F25 / clap 5 / rusqlite 0.40 | **Decline** F16 |
+| last-PR Cursor #202 | **N/A** empty — **no T301** |
+| Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
 
 ### T286 closeout residuals (2026-08-23)
 
