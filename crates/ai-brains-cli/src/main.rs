@@ -1837,7 +1837,7 @@ enum BriefingCommands {
     },
     /// Build a Personal Continuity Briefing packet
     #[command(
-        after_help = "Examples:\n  ai-brains briefing personal --format human\n  ai-brains briefing personal --format json"
+        after_help = "Denied human uses an optional-continuity body (not `_None_` empty preferences). JSON `denied: true` keeps empty arrays.\nExamples:\n  ai-brains briefing personal --format human\n  ai-brains briefing personal --format json"
     )]
     Personal {
         /// Personal user id (defaults to principal UUID mapping)

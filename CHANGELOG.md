@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T289 Personal deny is not empty preferences:** Denied `briefing personal --format human` omits `_None_` under Preferences/Continuity and prints `_(optional continuity; not a missing vault)_`. Next-step stays T263 `recall` (not Personal `policy bootstrap`). JSON `denied: true` + empty arrays unchanged. Allowed-empty Personal still `_None_`. Project T275 grant-wall / T288 vault-pin stanza untouched.
+
 - **T288 Granted-empty briefing vault-pin stanza:** `briefing project` when allowed and authority arrays are empty prints `## Vault pins (not Approved)` with inventory `Pinned: N` plus up to 3 leading-line `DECISION:`/`CONSTRAINT:` previews. CLI JSON adds optional `vault_pin_count` / `vault_pin_previews` (omit when overlay off; `0`/`[]` when granted-empty with no pins). `decisions[]` / `conclusions[]` stay empty; DTO and daemon packet unchanged. Denied / nonempty-authority omit the overlay.
 
 - **T287 `memory list` authority mix:** human pinned prefer-fills leading-line `DECISION:` / `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` (TAGS-or-GLOB + envelope preview) then recency-fills the rest. `--format json` `items[0]` and store `list_memories` stay newest-`updated_at`. `--summary` counts and forgotten lists unchanged. No new clap flags or JSON keys.

@@ -348,6 +348,48 @@ fn briefing_project__no_grants__soft_deny_exit_0() {
     }
 }
 
+/// T289 AC2 — denied Personal human omits `_None_` (not empty preferences).
+#[test]
+fn briefing_personal__no_grants__human_omits_none() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = briefing_personal(&vault)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("briefing personal human deny");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "soft deny must stay exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("# Personal Continuity Briefing"),
+        "personal human header: {stdout}"
+    );
+    assert!(
+        stdout.contains("**Denied:**"),
+        "personal deny blockquote: {stdout}"
+    );
+    assert!(
+        stdout.contains("recall"),
+        "personal deny must name recall: {stdout}"
+    );
+    assert!(
+        !stdout.contains("_None_"),
+        "denied personal must not print _None_: {stdout}"
+    );
+    assert!(
+        !stdout.contains("policy bootstrap"),
+        "personal deny must not recommend policy bootstrap: {stdout}"
+    );
+}
+
 /// T241 AC7 / CX1 P2 — personal soft deny JSON also includes denial_hint (CP path).
 #[test]
 fn briefing_personal__no_grants__soft_deny_denial_hint() {
@@ -386,6 +428,26 @@ fn briefing_personal__no_grants__soft_deny_denial_hint() {
         !hint.contains("policy bootstrap"),
         "personal denied JSON must not recommend policy bootstrap; got {v}"
     );
+    assert!(
+        v.get("vault_pin_count").is_none() && v.get("vault_pin_previews").is_none(),
+        "T289 AC3: T288 overlay keys are project-path only; got {v}"
+    );
+    let prefs = v["preferences"]
+        .as_array()
+        .or_else(|| v["packet"]["preferences"].as_array());
+    assert_eq!(
+        prefs.map(Vec::len),
+        Some(0),
+        "denied preferences stay empty array; got {v}"
+    );
+    let summary = v["continuity"]["summary"]
+        .as_str()
+        .or_else(|| v["packet"]["continuity"]["summary"].as_str())
+        .unwrap_or("missing");
+    assert_eq!(
+        summary, "",
+        "denied continuity.summary stays empty string; got {v}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +484,33 @@ fn briefing_project__help__lists_human_pretty_and_example() {
     assert!(
         combined.contains("not Approved") && combined.contains("vault_pin_count"),
         "T288 AC10: after_help must name vault-pin stanza + JSON extras; got {combined}"
+    );
+}
+
+#[test]
+fn briefing_personal__help__names_optional_body_not_none() {
+    // T289 AC8
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("briefing")
+        .arg("personal")
+        .arg("--help")
+        .output()
+        .expect("help");
+    assert_eq!(out.status.code(), Some(0));
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let lower = combined.to_lowercase();
+    assert!(
+        lower.contains("not `_none_`"),
+        "personal after_help must say denied human is not _None_: {combined}"
+    );
+    assert!(
+        lower.contains("optional") && lower.contains("denied"),
+        "personal after_help must name optional-continuity deny body: {combined}"
     );
 }
 
