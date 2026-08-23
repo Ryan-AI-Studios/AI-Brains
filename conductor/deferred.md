@@ -49,6 +49,25 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor #200 | **N/A** empty — **no T301** |
 | Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
 
+### T285 fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 AC4 dumps without needle not red | **Folded** AC4/AC5 body-MATCH + chrome first line |
+| OpenCode M2 hop-1 untestable graph-off | **Folded** F36 unit + F37/AC17 CLI `test(graph)` |
+| OpenCode M3 snapshot tuple has no content | **Folded** F10 read `blended` content |
+| Agy m1 recency-retry `NOT IN` binds | **Folded** F34 / AC15 |
+| Agy m2 role+TAGS no panic / whitespace | **Folded** F2 / AC1 |
+| OpenCode m1 live `:180` pre-retain gate | **Already** F7; tightened |
+| OpenCode m2 F8 vs substring_fallback | **Folded** F8 / §5.2 |
+| OpenCode m3 envelope order | **Already** F2 |
+| Agy O1 CAPABILITIES graph sentence | **Already** F31 |
+| Agy O2 dumps without needle | **Decline** — conflicts with M1 |
+| OpenCode O1 retrieval graph CI line | **Decline as DoD** — CLI graph job enough |
+| OpenCode O2 `sync.rs:529` → `:532` | **Folded** §2.3 |
+| OpenCode O3 ROLE_PREFIXES via core | **Decline** — duplicate three tokens in ranking.rs |
+| last-PR #200 Cursor | **Affirm N/A** — no T301 |
+
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
 Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22 (`#198`). **T283 Completed** 2026-08-22.

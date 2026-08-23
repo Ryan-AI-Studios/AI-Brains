@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Daily `recall` / `search` / `--semantic` lexical honesty / `sync query` vault half. Preflight Index/summary **T286**. `memory list` ORDER **T287**. Graph neighbors CLI **T293**. Leftover dest upsert **T294**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “recall/search/semantic/sync-vault still chrome Q=4”; T274 closeout “live vault still dumps until install” **reopened** (PATH **is** 0.1.2 / T274 and still Q=4); T274 I1 `ASSISTANT:` + CLI `TAGS:` envelope; live detector miss (`# AI-Brains Session Onboarding Complete`, `# Review of Track`); default `graph_hop_depth=1` chrome seed; T274 AC4 needle-in-both-bodies (insufficient)
 - **Not absorbed (DoD):** T286 Index/summary renderer; T287 list ORDER; T293 `graph neighbors` CLI; T276 F39 leftover skip; T294 vault upsert; T279 Safety; T263 H2; T240 F2; T211 F25 blend; T218 floors / ANN; clap 5 / rusqlite 0.40 / DTO keys; raise `candidate_depth`
-- **Research date:** 2026-08-22 (plan dogfood HEAD `76c4db9` mint; product `src/` = 0.1.2 `#200` `ae5f6fd`)
-- **AI fold-in:** none yet (plan pass). last-PR Cursor **#200** comments/reviews **empty** → N/A. **No T301.**
-- **Ledger:** planning DOCS TX `515b984b-7f5e-4386-9566-a292efd3afe1`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-22 (plan dogfood HEAD `76c4db9` mint; product `src/` = 0.1.2 `#200` `ae5f6fd`). Fold-in against `ee7dab2`.
+- **AI fold-in:** 2026-08-22 `agy-review.md` + `opencode-review.md` (HEAD `ee7dab2`). **Agy B 0 / M 0.** **OpenCode B 0 / M 3.** **Agree:** OpenCode M1 AC4/AC5 needle-in-body redness; M2 CLI `test(graph)` (option a) + pure helper; M3 skip reads `blended` content not the 3-tuple; Agy m1 recency-retry binds; Agy m2 role+TAGS no-panic / trim_start. **Already:** Agy O1 F31; OpenCode m1 F7 post-retain; m3 F2. **Decline:** Agy O2 “dumps without needle” (conflicts with M1); OpenCode O1 retrieval CI extra line; O3 share `ROLE_PREFIXES` via core. Disposition **§13**.
+- **Ledger:** planning DOCS TX `515b984b-7f5e-4386-9566-a292efd3afe1`. Fold-in DOCS TX `3a598eff-b7e5-4158-970b-be5e331006a7`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement (hermetic needle is SoT; Manual DoD unique canary is allowed on go). Do **not** rewrite `.env`. Do **not** grow hotspot `project.rs` / `sync.rs` / CLI `preflight.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** raise `candidate_depth`. Do **not** retune T218 floors. Do **not** bump `KIND_*`.
 
 ---
@@ -77,7 +77,8 @@ Placeholder F “outrank” is resolved at this plan: **envelope strip (role + T
 | CLI pin | `pin.rs` `:53–57` | Tags prepend `TAGS: …\n`. Default role **assistant** → stored `ASSISTANT: TAGS: …\nDECISION:`. **Do not change pin write** (would rewrite history). Rank must understand the envelope. |
 | CLI recall flags | `main.rs` `:1042–1088` | `graph_boost` default **0.1**; `graph_hop_depth` default **1**. **No new flags.** |
 | `search` | T243 alias of `recall` | Follows automatically. |
-| `sync query` vault | `sync.rs` `recall_full` `:529` `classify_pin_kind` | Follows automatically. **Do not grow `sync.rs` (hotspot #2).** Ledger pane **T271**. |
+| `sync query` vault | `sync.rs` `recall_full`; `classify_pin_kind` **`:532`** (ledger-first probe; plan `:529` was off-by-3) | Follows automatically. **Do not grow `sync.rs` (hotspot #2).** Ledger pane **T271**. |
+| Graph loop | `recall.rs` **`:492–552`** `#[cfg(feature = "graph")]` | Snapshot tuple is `(id, score, score_kind)` **no content**. Hits in `blended` **do** carry `content` (`RecallHit` `:40–60`). F10 skip **must** read parent content from `blended` (OpenCode M3). Default retrieval tests pass `graph: None` / hop **0**. CI graph job is **CLI-only** (`ci.yml` `:109` / `:173` `-p ai-brains-cli --features graph -E 'test(graph)'`). |
 | `forget --match` | unfiltered MATCH | **Stay unfiltered** (T260/T274 F18). |
 | Preflight Index | `retrieval/src/preflight.rs` | Two-pass already. Renderer/summary counts **T286**. **Do not edit as DoD.** |
 | Contracts | `RecallResult` `:18–36` | Additive optional only. **No** `is_session` / `pin_kind` / `envelope` wire key. |
@@ -124,17 +125,17 @@ Placeholder F “outrank” is resolved at this plan: **envelope strip (role + T
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `515b984b`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `515b984b`. Fold-in is DOCS TX `3a598eff`. Implement starts a **FEATURE** TX. |
 | **F1 — Rank, do not delete** | Session ingest stays recallable. **Do not** hard-exclude transcripts. **Do not** forget/migrate them. |
-| **F2 — Envelope strip (new)** | `first_contentful_line` / `classify_pin_kind` / `is_session_chrome` / `is_authority_pin_content` inspect the body **after** a pin envelope: (1) strip one leading role token `ASSISTANT:` / `USER:` / `SYSTEM:` (case-sensitive token + following whitespace, same idea as CLI `display_text::strip_role_prefix`); (2) if the next contentful line starts with `tags:` (ASCII case-insensitive), **skip that line**; (3) first remaining contentful line is the marker/chrome line. `strip_assistant_prefix` stays as a primitive (T274 units that call it directly stay green). Stored JSON `content` stays raw (`ASSISTANT: TAGS: …`). |
+| **F2 — Envelope strip (new)** | `first_contentful_line` / `classify_pin_kind` / `is_session_chrome` / `is_authority_pin_content` inspect the body **after** a pin envelope: (1) strip one leading role token `ASSISTANT:` / `USER:` / `SYSTEM:` via `strip_prefix(token)` then **`trim_start`** (newlines/tabs count — CLI `display_text::strip_role_prefix` shape; live `strip_assistant_prefix("ASSISTANT: ")` is **too strict** for `ASSISTANT:\nDECISION:`); (2) if the next contentful line starts with `tags:` (ASCII case-insensitive), **skip that line**; (3) first remaining contentful line is the marker/chrome line. Empty / shorter-than-prefix / all-whitespace → `""` / `PinKind::Other` — **no panic, no unwrap**. Duplicate the three tokens next to the envelope helper in `ranking.rs` (retrieval cannot import CLI `pub(crate)` `ROLE_PREFIXES`; **do not** move them into `ai-brains-core` this track — OpenCode O3 declined). `strip_assistant_prefix` stays as a primitive (T274 units that call it directly stay green). Stored JSON `content` stays raw (`ASSISTANT: TAGS: …`). |
 | **F3 — T274 leading-line stands** | After the envelope, marker must **start** that line. Buried JSON `"decisions": [` and skill-body mentions stay **Other**. Leading `INVARIANT:` stays Constraint. |
 | **F4 — KIND_* / chrome −16 / depth / floors frozen** | Do **not** change `KIND_*`, `PLAN_PENALTY`, `RECENCY_SCALE`, `SESSION_CHROME_PENALTY` (16), `SYMBOL_PENALTY`, `candidate_depth` 15..50, T218 0.55/0.60. |
 | **F5 — Detector prefixes (additive)** | Closed list **adds** (first contentful line, case-insensitive `starts_with`): `# ai-brains session onboarding`; `# review of track`. Existing five prefixes + `{`+`"decisions":` stay. **Not** every `# Heading`. |
 | **F6 — Leading-line query bonus** | Inside **the same** `rerank_hits` sort (F40 — **no** second final sort): when the hit is authority after envelope **and** the first contentful line contains ≥1 **contentful** query token (`contentful_tokens(extract_fts_tokens(query))`, ASCII case-insensitive substring), add `LEADING_QUERY_BONUS = 16.0`. Chrome still −16. Call site `recall_full` passes the raw query. Existing `rerank_hits(hits)` keeps `query=None` (bonus 0) so T211/T274 units stay green. |
-| **F7 — Pass-1 GLOB-or-TAGS** | Pass-1 SQL is existing `authority_glob_sql` **OR** `tags_envelope_sql(column)` (`col GLOB 'TAGS:*' OR col GLOB 'ASSISTANT: TAGS:*'`; identifier-checked like F36). Then **in-memory retain** `is_authority_pin_content`. `pass1.len() >= depth` uses **post-retain** len (do not skip pass-2 because 15 tagged dumps filled SQL). Dropped dumps do not occupy the authority slot. |
-| **F8 — Recency retry** | If post-retain pass-1 is **empty**, one more MATCH with the same Prefer filter but `ORDER BY mp.updated_at DESC, mp.memory_id ASC LIMIT depth` (not `rank`), then in-memory retain again. Newest matching tagged/untagged pins enter when BM25-of-TAGS was all dumps. **Do not** use recency as the primary pass-1 when retain is already full. Bind LIMIT; no UUID interpolation. |
+| **F7 — Pass-1 GLOB-or-TAGS** | Pass-1 SQL is existing `authority_glob_sql` **OR** `tags_envelope_sql(column)` (`col GLOB 'TAGS:*' OR col GLOB 'ASSISTANT: TAGS:*'`; identifier-checked like T274 F36). Then **in-memory retain** `is_authority_pin_content`. Live `match_query` `:180` returns early when **SQL** `pass1.len() >= limit` **before** retain — **move the gate** to post-retain (OpenCode m1). `retain.len() >= depth` uses **post-retain** len (do not skip pass-2 / F8 because 15 tagged dumps filled SQL). Dropped dumps do not occupy the authority slot. |
+| **F8 — Recency retry** | If post-retain pass-1 is **empty**, one more MATCH with the same Prefer filter but `ORDER BY mp.updated_at DESC, mp.memory_id ASC LIMIT depth` (not `rank`), then in-memory retain again. This is a **retry of pass-1** (same MATCH expr, different ORDER) — **not** a third MATCH family, **not** `substring_fallback`, **not** a second `match_limit_bound` on pass-2 (OpenCode m2). Newest matching tagged/untagged pins enter when BM25-of-TAGS was all dumps. **Do not** use recency as the primary pass-1 when retain is already full. ExcludeIds on pass-2 (and on retry if ids are excluded) use `bound_not_in_sql` + `params_from_iter` only (F34). |
 | **F9 — GLOB still a subset** | SQL GLOB stays case-sensitive. Envelope + in-memory retain are SoT for lowercase `decision:` and TAGS (T274 F8 analog). |
-| **F10 — Chrome must not seed graph** | After blend, **before** neighbor expansion: skip parent hits where `is_session_chrome` (post-envelope). T260 stub-seed skip stays. Do **not** set default `graph_hop_depth` to 0 (would disable T66). Do **not** add `--no-graph`. |
+| **F10 — Chrome must not seed graph** | After blend, **before** neighbor expansion: skip parent hits where `parent_seeds_graph_neighbors` is false (F36). Read **`hit.content` from `blended`** (or snapshot a 4th `content` field). **Forbidden** to skip using only the live `(id, score, score_kind)` tuple — that tuple has no content and a stub would always expand (OpenCode M3). T260 stub-seed skip stays. Do **not** set default `graph_hop_depth` to 0 (would disable T66). Do **not** add `--no-graph`. |
 | **F11 — Semantic arm** | No second embedding SQL. `prefer_authority_hits` inherits envelope classify. Dual floors **untouched**. Hermetic AC **no** HTTP. `--semantic` CLI e2e optional if :8083 down; lexical fallback list must still put the pin in top-3 when the floor yields “showing lexical.” |
 | **F12 — Near-dup chrome** | `dedupe_session_chrome` after rerank stands. Distinct `DECISION:` pins never collapse. |
 | **F13 — Decline Index / summary** | Preflight Index two-pass / `--summary` in-context counts are **T286**. Retrieval `preflight.rs` Index SQL **not** DoD here. |
@@ -153,13 +154,15 @@ Placeholder F “outrank” is resolved at this plan: **envelope strip (role + T
 | **F26 — Tests** | Naming `function_or_feature__condition__expected_result`. rstest `#[case]` for **new** detector prefixes (absorb T274 closeout low). No `unwrap`/`expect`/`panic` in production. `TempEnv` if tests touch ranking envs. |
 | **F27 — Cross-model** | Retrieval ranking is FEATURE. After Phase-1 clean, run read-only `codex-review`. |
 | **F28 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
-| **F29 — File growth** | Envelope + `LEADING_QUERY_BONUS` in `ranking.rs`. Detector prefixes + `tags_envelope_sql` in `session_chrome.rs`. Pass-1 OR-TAGS + retain + recency retry in `lexical.rs`. Graph chrome-seed skip + query-aware rerank call in `recall.rs`. New CLI hermetic `tests/recall_rank_v2.rs` (do **not** weaken T274 `recall_pin_rank.rs`). **Do not** grow `project.rs`, CLI `preflight.rs`, `sync.rs`, `pin.rs` write path. |
-| **F30 — Existing tests stay green** | T274 AC1–AC5/AC14 (untagged + needle-in-dump-bodies); T211 leading DECISION; T260 exclude; T216 list recency; T207/T261 empty; T218 floors; T276 prefer-fill. Add **new** units for TAGS envelope → Decision; live prefixes → chrome; asymmetric needle; hop-1 chrome does not add neighbors. |
+| **F29 — File growth** | Envelope + `LEADING_QUERY_BONUS` in `ranking.rs`. Detector prefixes + `tags_envelope_sql` + F36 helper in `session_chrome.rs`. Pass-1 OR-TAGS + retain + recency retry in `lexical.rs`. Graph chrome-seed skip (read `blended` content) + query-aware rerank call in `recall.rs`. New CLI hermetic `tests/recall_rank_v2.rs` + graph-on `test(graph)` file (do **not** weaken T274 `recall_pin_rank.rs`). **Do not** grow `project.rs`, CLI `preflight.rs`, `sync.rs`, `pin.rs` write path, `.github/workflows/ci.yml`. |
+| **F30 — Existing tests stay green** | T274 AC1–AC5/AC14 (untagged + needle-in-dump-bodies); T211 leading DECISION; T260 exclude; T216 list recency; T207/T261 empty; T218 floors; T276 prefer-fill. Add **new** units for TAGS envelope → Decision; live prefixes → chrome; first-line-asymmetric / body-MATCH dumps; F36 helper; CLI `test(graph)` AC17. |
 | **F31 — Docs** | CAPABILITIES pin-type row: envelope + new prefixes + leading-query bonus + chrome-seed skip; fix the stale “graph expansion only when `--semantic`” sentence to match src (hop-1 default, chrome parents skipped). CHANGELOG T285. PROTOCOL-COMPAT: no new required keys. WORKFLOWS “what did we decide” still `recall`. |
 | **F32 — PowerShell** | `;` not `&&`. |
 | **F33 — substring fallback** | T105/T261: LIKE on small vaults. Envelope prefer-fill after substring stands. `--global` leftover skip-LIKE (10k) stays. |
-| **F34 — Pass-2 / retry ids bound** | F35 stands. Recency-retry SQL has **only** `?` placeholders. Empty retain → omit `NOT IN`. |
+| **F34 — Pass-2 / retry ids bound** | T274 F35 stands. Recency-retry **and** pass-2 `NOT IN` use `bound_not_in_sql` + dynamically generated `?` placeholders + `params_from_iter` (Agy m1). **Forbidden** to `format!` UUID strings into SQL. Empty retain → omit `NOT IN` (do not emit `NOT IN ()`). |
 | **F35 — search alias** | T243: `search` is `recall`. One hermetic covers both binary names **or** document that argv0 alias is clap-level (AC may call `recall` only). Manual DoD still runs **both** commands. |
+| **F36 — Seed helper** | `parent_seeds_graph_neighbors(content: &str) -> bool` is `!is_session_chrome(content)` **after envelope**. Lives in `session_chrome.rs` (or `recall.rs` next to the loop). Unit-tested **without** `--features graph` (graph block is `#[cfg(feature = "graph")]` `:492`). |
+| **F37 — Graph-on CLI hermetic** | AC17 lives in `crates/ai-brains-cli/tests/` with `graph` in the test name (nextest `-E 'test(graph)'`) and `#[cfg(feature = "graph")]`, same pattern as `graph_live_projection.rs`. Reuses existing CI job (`ci.yml` `:109` / `:173`). **Do not** add a retrieval `--features graph` CI line (OpenCode O1 declined as DoD). **Do not** add a new GHA job. |
 
 ---
 
@@ -167,12 +170,12 @@ Placeholder F “outrank” is resolved at this plan: **envelope strip (role + T
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Unit: `classify_pin_kind("ASSISTANT: TAGS: t285-canary\nDECISION: needle")` **Decision**; `"TAGS: x\nCONSTRAINT: rule"` **Constraint**; `"ASSISTANT: TAGS: x\n## Objective\nburied decision: y"` **Other**. Untagged `ASSISTANT: DECISION: x` still Decision (T274). **Required red.** |
+| **AC1** | Unit: `classify_pin_kind("ASSISTANT: TAGS: t285-canary\nDECISION: needle")` **Decision**; `"TAGS: x\nCONSTRAINT: rule"` **Constraint**; `"ASSISTANT: TAGS: x\n## Objective\nburied decision: y"` **Other**; `"ASSISTANT:\nDECISION: nl"` **Decision** (token + `trim_start`); `""` / `"ASSISTANT:"` → **Other** (no panic). Untagged `ASSISTANT: DECISION: x` still Decision (T274). **Required red.** |
 | **AC2** | rstest `#[case]`: detector **true** for `# AI-Brains Session Onboarding Complete`, `# Review of Track 254: …`, plus T274 closed prefixes. **False** for `DECISION: …`, `CONSTRAINT: …`, `# Heading without chrome prefixes`. |
 | **AC3** | `rerank_hits_with_query`: chrome `# AI-Brains Session Onboarding Complete\n… capture independence …` BM25 **−12** vs leading `DECISION: Capture independence remains` BM25 **−2**, query `"capture independence"` → pin **first** (detector −16 **and/or** leading-query +16). **Required red.** |
-| **AC4** | Retrieval hermetic **asymmetric**: 15 dumps whose **first line** is `# Review of Track` / onboarding and whose **body** does **not** contain the unique needle + 1 `ASSISTANT: TAGS: t285\nDECISION: {needle}` that MATCHES → `recall_full` `--limit 5` `graph_hop_depth: 1` hit **#1** is the pin (`memory_id` + envelope-stripped content starts with `DECISION:`). Proves envelope pass-1 + hop-1. **Required red.** |
-| **AC5** | Same fixture as AC4 but pin is **untagged** `DECISION: {needle}` (T274 shape) and dumps do **not** contain the needle → pin still #1 (regression vs “we only fixed TAGS”). |
-| **AC6** | Unit: graph expansion helper / `recall_full` with hop-1: a chrome parent does **not** add its neighbor to `blended` (neighbor id absent). An authority parent still may add a neighbor. T260 stub-seed skip stays. |
+| **AC4** | Retrieval hermetic **first-line asymmetric, body MATCH** (OpenCode M1): 15 dumps whose **first line** is `# Review of Track` / onboarding and whose **body repeats the unique needle** (so FTS MATCH hits them with high BM25 — T274-class) + 1 `ASSISTANT: TAGS: t285\nDECISION: {needle}` → `recall_full` `--limit 5` hit **#1** is the pin (`memory_id` + envelope-stripped content starts with `DECISION:`). Graph may be `None` (graph-off crate). Dumps **without** the needle in the body are **not** this AC (would be a sole-candidate pass). **Required red.** |
+| **AC5** | Same MATCH dumps as AC4 (needle **in dump bodies**, chrome first line) but pin is **untagged** `DECISION: {needle}` → pin still #1 (regression vs “we only fixed TAGS”). |
+| **AC6** | Unit (graph-off): `parent_seeds_graph_neighbors` is **false** for `# Review of Track …` / onboarding / `## Objective` (post-envelope, including `ASSISTANT: TAGS: x\n## Objective`) and **true** for `DECISION: …` / `ASSISTANT: TAGS: t\nDECISION: …`. T260 stub-seed skip stays. **Required red.** |
 | **AC7** | T274 `rerank_hits__plan_below_shipped_same_track` / classify buried-Other / CLI `recall_pin_rank` **stay green**. |
 | **AC8** | T260 default exclude still drops `Function foo (src/a.rs:1)` without `--symbols`. |
 | **AC9** | Empty / contentless still T207 / T261. |
@@ -181,8 +184,9 @@ Placeholder F “outrank” is resolved at this plan: **envelope strip (role + T
 | **AC12** | Hermetic CLI: `ai-brains recall "{needle}" --limit 5 --format pretty --no-bridge` **and** `ai-brains search "{needle}" --limit 5 --format pretty --no-bridge` hit #1 is the tagged pin, **not** `# AI-Brains Session Onboarding` / `# Review of Track` / `## Objective`. EXIT **0**. **Required red** (CLI). |
 | **AC13** | Hermetic `sync query "{needle}" --no-bridge --limit 5`: vault section top is the pin. Ledger pane may be empty — **do not** assert ledger. |
 | **AC14** | `--semantic` hermetic: if embed skipped/floor-empty, lexical fallback list still has the pin in **top-3**. No live HTTP required. |
-| **AC15** | Unit: pass-1 SQL string for Prefer contains `GLOB` + `TAGS:` + `LIMIT` (not unbounded SELECT). Recency-retry SQL contains `updated_at` and **only** `?` placeholders for ids/limit (F34). Guard, not Phase-1 red. |
+| **AC15** | Unit: pass-1 SQL string for Prefer contains `GLOB` + `TAGS:` + `LIMIT` (not unbounded SELECT). Recency-retry SQL contains `updated_at` and **only** `?` placeholders for ids/limit — no UUID literals in the string (F34 / Agy m1). Guard, not Phase-1 red. |
 | **AC16** | Store `list_memories` recency order unit still `updated_at DESC` (T216 / T287 freeze). |
+| **AC17** | CLI `#[cfg(feature = "graph")]` hermetic whose **test name contains `graph`** (CI `-E 'test(graph)'`): a chrome dump that MATCHES the query is a hit; a neighbor memory that does **not** MATCH is **absent** from results (chrome did not seed). An authority pin parent **may** still add a neighbor. Pattern: `graph_live_projection.rs`. Not required red on graph-off workspace nextest. |
 
 ---
 
@@ -191,8 +195,9 @@ Placeholder F “outrank” is resolved at this plan: **envelope strip (role + T
 ### 5.1 Envelope (F2)
 
 ```
-strip one leading USER:|ASSISTANT:|SYSTEM: + whitespace
-trim
+strip_prefix one of USER:|ASSISTANT:|SYSTEM:  (no required space)
+trim_start  (newlines/tabs ok)
+if remainder empty → Other
 if first contentful line starts_with tags: (ascii lower): skip that line
 first remaining contentful line → classify / chrome / authority
 ```
@@ -204,20 +209,20 @@ Do **not** `find("DECISION:")` in the whole body. Do **not** rewrite `pin.rs`. P
 ```
 depth = candidate_depth(limit)
 sql_pass1 = MATCH + (authority_glob OR tags_envelope) ORDER BY rank LIMIT depth
-retain authority after envelope
+retain = authority after envelope          -- gate uses THIS len, not SQL len
 if retain.len() >= depth: return retain
 if retain is empty:
     sql_retry = same MATCH+filter ORDER BY updated_at DESC, memory_id ASC LIMIT depth
-    retain = authority(retry)
+    retain = authority(retry)              -- pass-1 retry, not substring_fallback
 pass2 = MATCH excluding retain ids ORDER BY rank LIMIT (depth - retain.len())
 return retain ++ pass2
 ```
 
-Pass-2 may still contain chrome (queries with no matching pin stay honest — no T207 lie).
+Pass-2 may still contain chrome (queries with no matching pin stay honest — no T207 lie). F8 does **not** re-run LIKE / `substring_fallback`.
 
 ### 5.3 Chrome-seed skip (F10)
 
-T260: stubs do not seed graph. T285: `is_session_chrome` parents do not call `get_neighbors`. Authority parents still expand (neighbors then take chrome −16 / query bonus in the **same** `rerank_hits` sort).
+T260: stubs do not seed graph. T285: iterate `blended` (content on the hit); `if !parent_seeds_graph_neighbors(&hit.content) { continue; }` before `get_neighbors`. Do **not** rebuild skip from the `(id, score, kind)` snapshot alone. Authority parents still expand (neighbors then take chrome −16 / query bonus in the **same** `rerank_hits` sort).
 
 ### 5.4 Query bonus vs multiplicative
 
@@ -243,18 +248,20 @@ All `recall_full` callers inherit F2–F10. `forget` stays unfiltered.
 - `--transcripts` / `--pins-only`.
 - T263 H2 pin→Approved; T240 F2 silent Scope; clap 5; LLM cross-encoder.
 - Live `retention apply --confirm` / `graph rebuild`.
+- `.github/workflows/ci.yml` extra retrieval graph job (F37).
+- Move `ROLE_PREFIXES` into `ai-brains-core` (OpenCode O3).
 
 ---
 
 ## 7. Verification plan (TDD)
 
-**Phase 1 red (required before green):** AC1, AC2, AC3, AC4, AC12.
+**Phase 1 red (required before green):** AC1, AC2, AC3, AC4, AC6, AC12.
 
-Then green: envelope + detector prefixes + F7/F8 lexical + F6 query bonus + F10 chrome-seed skip.
+Then green: envelope + detector prefixes + F7/F8 lexical + F6 query bonus + F10 chrome-seed skip (helper + loop).
 
 **Stay green:** AC7–AC11, AC16, T274, T260, T207/T261, T276 prefer-fill.
 
-Targeted: `cargo nextest run -p ai-brains-retrieval --lib` + `--test recall_pin_rank` + `--test recall_rank_v2` (name on go) + `cargo nextest run -p ai-brains-cli --test recall_pin_rank --test recall_rank_v2` + `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`.
+Targeted: `cargo nextest run -p ai-brains-retrieval --lib` + `--test recall_pin_rank` + `--test recall_rank_v2` (name on go) + `cargo nextest run -p ai-brains-cli --test recall_pin_rank --test recall_rank_v2` + `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`. Graph-on: `cargo nextest run -p ai-brains-cli --features graph -E "test(graph)"` (existing CI filter; AC17).
 
 Full workspace gate only at implement closeout — **not** a plan gate.
 
@@ -308,9 +315,9 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 4. F5 detector prefixes + AC2.
 5. F6 `rerank_hits_with_query` + AC3.
 6. F7/F8 lexical TAGS-or-authority + retain + recency retry; F34 binds.
-7. F10 chrome-seed skip in `recall.rs`; pass query into rerank.
-8. CLI hermetic `recall_rank_v2.rs` (AC12/AC13). Docs F31.
-9. Targeted clippy/nextest. Review loop. Full gate. Publish (implement-track Phase 6).
+7. F10/F36 helper + skip in `recall.rs` against `blended` content; pass query into rerank.
+8. CLI hermetic `recall_rank_v2.rs` (AC12/AC13). CLI `test(graph)` AC17.
+9. Docs F31. Targeted clippy/nextest + graph-on filter. Review loop. Full gate. Publish (implement-track Phase 6).
 
 ---
 
@@ -326,6 +333,7 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 | Index/summary still Objective until T286 | Honest split |
 | JSON `{` chrome without `"decisions":` | Closed list; may still rank as Other + BM25 |
 | PATH until `cargo install` | F21 |
+| Retrieval `--features graph` in CI | OpenCode O1 declined; re-trigger if graph-on retrieval tests exist and the CLI job misses them |
 
 ---
 
@@ -338,8 +346,9 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 | `crates/ai-brains-retrieval/src/lexical.rs` | F7/F8/F34 |
 | `crates/ai-brains-retrieval/src/recall.rs` | F10 chrome-seed skip; query-aware rerank |
 | `crates/ai-brains-retrieval/src/lib.rs` | export envelope / `tags_envelope_sql` / `LEADING_QUERY_BONUS` if tests need them |
-| `crates/ai-brains-cli/tests/recall_rank_v2.rs` | **New** AC12/AC13 (tagged + asymmetric) |
-| `crates/ai-brains-retrieval/tests/recall_rank_v2.rs` | **New** AC4/AC5/AC6 (hop-1) |
+| `crates/ai-brains-cli/tests/recall_rank_v2.rs` | **New** AC12/AC13 (tagged + body-MATCH dumps) |
+| `crates/ai-brains-cli/tests/recall_rank_v2_graph.rs` (name on go) | **New** AC17 `#[cfg(feature = "graph")]` + `graph` in test name |
+| `crates/ai-brains-retrieval/tests/recall_rank_v2.rs` | **New** AC4/AC5 (body-MATCH dumps); AC6 helper units |
 | `Docs/CAPABILITIES.md` | pin-type + graph-seed sentence |
 | `CHANGELOG.md` | T285 |
 | `Docs/PROTOCOL-COMPAT.md` | no new required keys (one line) |
@@ -349,8 +358,41 @@ Full workspace gate only at implement closeout — **not** a plan gate.
 
 ---
 
-## 13. last-PR Cursor / AI fold-in
+## 13. AI fold-in
 
-Inputs this plan pass: last merged **#200** (empty comments/reviews/issue comments). Open HEAD PR: none. Dependabot remotes only.
+Inputs: `agy-review.md` + `opencode-review.md` (2026-08-22, HEAD `ee7dab2`). Product `src/` = 0.1.2 `#200`. **Do not edit those files.** **Agy B 0 / M 0.** **OpenCode B 0 / M 3.** last-PR #200 still empty. **No T301.**
 
-**No Blockers/Majors.** **No T301.** Fold-in of `*-review.md` happens after `/review-track 285`, not here.
+### Pins locked by fold-in
+
+1. **AC4/AC5 (OpenCode M1):** dumps **repeat the unique needle in the body** (FTS MATCH + high BM25) with chrome **first line**. A dump body without the needle is a sole-candidate pass — not red. First-line remains asymmetric vs T274 `## Objective`.
+2. **F10/F36/M3:** skip reads `blended` hit `content` (or a 4-tuple). Live snapshot `(id, score, kind)` at `recall.rs:498–501` has no content.
+3. **F37/AC17 (OpenCode M2 option a):** CLI `test(graph)` hermetic; reuse `ci.yml` `:109`/`:173`. No new GHA job. No retrieval `--features graph` CI line (O1 declined as DoD).
+4. **F7 gate (OpenCode m1):** post-retain `len`, not SQL `pass1.len()` at live `:180`.
+5. **F8 (OpenCode m2):** recency retry is pass-1 retry, not `substring_fallback`.
+6. **F2 (Agy m2):** `strip_prefix(token)` + `trim_start`; empty → Other; no panic. Tokens duplicated in `ranking.rs`, not `ai-brains-core` (O3 declined).
+7. **F34 (Agy m1):** recency-retry `NOT IN` is `?` + `params_from_iter` only.
+8. **F31 (Agy O1):** CAPABILITIES hop-1 default + chrome-parent skip — already planned.
+9. **sync.rs:532** (OpenCode O2): classify_pin_kind line; do not edit the file.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** recency-retry `NOT IN` bound via `params_from_iter` | **Folded** F34 / AC15 |
+| Agy | **m2** role strip + whitespace/newlines; no panic on short/empty | **Folded** F2 / AC1 |
+| Agy | **O1** CAPABILITIES graph-expansion sentence | **Already** F31 |
+| Agy | **O2** dumps without needle in bodies | **Decline** — conflicts with OpenCode M1; body-without-needle is not red |
+| OpenCode | **M1** AC4 redness needs needle in dump bodies | **Folded** AC4 / AC5 |
+| OpenCode | **M2** hop-1 untestable graph-off; pick CLI `test(graph)` | **Folded** F37 / AC17 + F36 unit for graph-off |
+| OpenCode | **M3** snapshot tuple omits content; skip from `blended` | **Folded** F10 |
+| OpenCode | **m1** live `:180` gate is pre-retain | **Already** F7; **tightened** “move the gate” |
+| OpenCode | **m2** F8 is not a third MATCH family | **Folded** F8 / §5.2 |
+| OpenCode | **m3** envelope order role then TAGS | **Already** F2 |
+| OpenCode | **O1** extra retrieval `--features graph` CI line | **Decline as DoD** — CLI graph job is enough. Re-trigger: graph-on retrieval tests exist and CI misses them |
+| OpenCode | **O2** `sync.rs:529` → `:532` | **Folded** §2.3 |
+| OpenCode | **O3** share `ROLE_PREFIXES` via `ai-brains-core` | **Decline** — retrieval duplicates three tokens; core share is another track. Re-trigger: owner wants one SOOT across CLI+retrieval |
+| both | last-PR #200 Cursor | **Affirm N/A** — no T301 |
+| both | deferred Index / memory-list / neighbors | **Affirm** T286 / T287 / T293 |
+
+No Blockers. OpenCode M1–M3 folded (not declined). No new placeholder minted.

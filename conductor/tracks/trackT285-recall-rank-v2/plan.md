@@ -1,10 +1,28 @@
 # T285 Plan — recall rank v2 (envelope + detector + chrome-seed skip)
 
 **Status:** **Pending** (Planned — not In Progress). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F35 / AC1–AC16
+**Spec:** [spec.md](./spec.md) F0–F37 / AC1–AC17 + §13 AI fold-in
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger TX (planning):** `515b984b-7f5e-4386-9566-a292efd3afe1` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `3a598eff-b7e5-4158-970b-be5e331006a7` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-22) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 3** (all three **folded**). Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **AC4/AC5:** dump **bodies contain the unique needle** (MATCH + high BM25); first line stays live chrome. Needle-absent dumps are not red (OpenCode M1; Agy O2 declined).
+2. **F10/M3:** skip from `blended.content`, not `(id, score, kind)`.
+3. **F36/AC6:** graph-off unit helper `parent_seeds_graph_neighbors`.
+4. **F37/AC17:** CLI `test(graph)` hermetic; existing CI filter. No `ci.yml` retrieval extra line (O1 declined).
+5. **F7:** post-retain gate (live `:180` is pre-retain today).
+6. **F2/AC1:** `strip_prefix` + `trim_start`; empty → Other.
+7. **F34:** recency-retry `NOT IN` bound (Agy m1).
+8. **Affirm:** #200 N/A; T286/T287/T293 not stolen; O3 core ROLE_PREFIXES declined.
 
 ---
 
@@ -38,7 +56,9 @@
 - [ ] Re-read `ranking.rs` `first_contentful_line` / `classify_pin_kind` / `rerank_hits`
 - [ ] Re-read `session_chrome.rs` detector + `authority_glob_sql`
 - [ ] Re-read `lexical.rs` two-pass + F35 `NOT IN`
-- [ ] Re-read `recall.rs` graph loop `:493` + T260 stub-seed `:484`
+- [ ] Re-read `recall.rs` graph loop `:492–552` + snapshot `:498–501` (no content) + T260 stub-seed `:484`
+- [ ] Confirm CI graph job is CLI-only (`ci.yml` `:109` / `:173`) — **do not** edit ci.yml
+- [ ] Confirm AC4 dumps **contain** the needle in bodies (OpenCode M1)
 - [ ] Confirm `pin.rs` still prepends `TAGS:` — **do not rewrite**
 - [ ] Confirm clap Recall `graph_hop_depth` default **1** — **do not zero**
 - [ ] Confirm T274 `tests/recall_pin_rank.rs` still uses `graph_hop_depth: 0` and needle-in-dump-bodies — **stay green**, do not “fix” into AC4
@@ -79,7 +99,8 @@
 - [ ] AC1 unit: TAGS envelope → Decision / Objective-after-TAGS → Other
 - [ ] AC2 rstest: onboarding Complete + `# Review of Track` true; `# Heading` false
 - [ ] AC3 `rerank_hits_with_query` pin first vs live onboarding chrome
-- [ ] AC4 retrieval hermetic: tagged pin vs 15 `# Review of Track` dumps **without** needle in dump bodies; `graph_hop_depth: 1`; pin #1
+- [ ] AC4 retrieval hermetic: tagged pin vs 15 `# Review of Track` dumps **with needle in dump bodies** (chrome first line); pin #1
+- [ ] AC6 unit: `parent_seeds_graph_neighbors` false for chrome, true for DECISION
 - [ ] AC12 CLI hermetic pretty `recall` + `search` pin #1, EXIT 0
 - [ ] Commit red (allowed)
 
@@ -90,9 +111,9 @@
 - [ ] F6 `LEADING_QUERY_BONUS` inside single `rerank_hits` sort; `recall_full` passes query
 - [ ] F7 GLOB-or-TAGS + in-memory retain (post-retain `len`)
 - [ ] F8 recency retry when retain empty; F34 bound params
-- [ ] F10 skip `is_session_chrome` parents in graph loop (T260 analog)
-- [ ] AC5 untagged pin still #1 without needle in dumps
-- [ ] AC6 chrome parent adds **no** neighbor
+- [ ] F10 skip chrome parents using `blended` content (not 3-tuple); F36 helper
+- [ ] AC5 untagged pin still #1 vs **same body-MATCH dumps**
+- [ ] AC17 CLI `test(graph)`: chrome parent does not seed a non-MATCH neighbor
 - [ ] AC13 `sync query` vault top = pin (hermetic; do not edit `sync.rs`)
 - [ ] AC14 semantic fallback top-3 pin (no HTTP required)
 - [ ] AC7–AC11, AC15, AC16 stay green
@@ -105,7 +126,7 @@
 - [ ] PROTOCOL-COMPAT: no new required keys
 - [ ] `cargo fmt --check`
 - [ ] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Targeted nextest (spec §7)
+- [ ] Targeted nextest (spec §7) including `cargo nextest run -p ai-brains-cli --features graph -E "test(graph)"`
 - [ ] Review log `review.md`; Phase-1 clean then `codex-review` (F27)
 - [ ] Full gate at closeout: `cargo fmt --check ; cargo clippy --workspace --all-targets -- -D warnings ; cargo nextest run --workspace ; cargo deny check ; cargo audit ; ledgerful verify --scope full`
 - [ ] Manual DoD (below) on `cargo run` / hermetic — **not** PATH until owner asks `cargo install`
