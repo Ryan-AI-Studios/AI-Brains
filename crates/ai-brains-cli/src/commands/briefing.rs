@@ -17,6 +17,26 @@ use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_store::SqliteEventStore;
 use std::io::IsTerminal;
+#[allow(unused_imports)] // T288 red stub; FromStr used by parse in green
+use std::str::FromStr;
+
+/// Overlay gate (T288 F2/F3/AC14): granted-empty only.
+#[allow(dead_code)] // T288 red stub; wired in green
+pub(crate) fn should_overlay_vault_pins(
+    denied: bool,
+    decisions_empty: bool,
+    conclusions_empty: bool,
+) -> bool {
+    let _ = (denied, decisions_empty, conclusions_empty);
+    false // T288 red stub
+}
+
+/// Fail-open `Repository:{uuid}` parse (T288 F14/AC17). Never `?` onto `run_project`.
+#[allow(dead_code)] // T288 red stub; wired in green
+pub(crate) fn parse_repository_project_id(scope_key: &str) -> Option<ProjectId> {
+    let _ = scope_key;
+    None // T288 red stub
+}
 
 pub struct ProjectBriefingOptions {
     pub project_id: Option<ProjectId>,
@@ -215,6 +235,7 @@ pub(crate) fn cli_principal() -> ai_brains_core::principal::Principal {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     fn classify_briefing_format__explicit_json__returns_json() {
@@ -274,6 +295,82 @@ mod tests {
         assert_eq!(
             classify_briefing_format(Some("  Pretty  "), true),
             Ok(BriefingFormatKind::Markdown)
+        );
+    }
+
+    #[rstest]
+    #[case(true, true, true, false)]
+    #[case(false, false, true, false)]
+    #[case(false, true, true, true)]
+    fn should_overlay_vault_pins__rstest_denied_nonempty_empty(
+        #[case] denied: bool,
+        #[case] decisions_empty: bool,
+        #[case] conclusions_empty: bool,
+        #[case] expected: bool,
+    ) {
+        // T288 AC14
+        assert_eq!(
+            should_overlay_vault_pins(denied, decisions_empty, conclusions_empty),
+            expected
+        );
+    }
+
+    #[rstest]
+    #[case(
+        "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        Some("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    )]
+    #[case("Personal:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", None)]
+    #[case("not-a-scope", None)]
+    #[case("Repository:", None)]
+    #[case("Repository:not-a-uuid", None)]
+    fn parse_repository_project_id__rstest_personal_garbage_valid(
+        #[case] scope_key: &str,
+        #[case] expected_uuid: Option<&str>,
+    ) {
+        // T288 AC17
+        let got = parse_repository_project_id(scope_key);
+        let expected = expected_uuid.map(|s| ProjectId::from_str(s).expect("fixture uuid"));
+        assert_eq!(got, expected, "scope_key={scope_key:?}");
+    }
+
+    #[test]
+    fn project_briefing_packet__serde__omits_vault_pin_count() {
+        // T288 AC8 DTO freeze
+        let packet = ai_brains_contracts::briefings::ProjectBriefingPacket::empty_denied(
+            "b1".into(),
+            ai_brains_contracts::briefings::BriefingScopeDto {
+                scope_key: "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".into(),
+                confidence: "High".into(),
+                warnings: Vec::new(),
+                alternatives: Vec::new(),
+                authoritative: true,
+            },
+            "no grant",
+        );
+        let json = serde_json::to_value(&packet).expect("ser");
+        assert!(
+            json.get("vault_pin_count").is_none(),
+            "DTO must not grow vault_pin_count; got {json}"
+        );
+        assert!(
+            json.get("vault_pin_previews").is_none(),
+            "DTO must not grow vault_pin_previews; got {json}"
+        );
+    }
+
+    #[test]
+    fn preview_line__tags_envelope_t288__decision_not_tags() {
+        // T288 AC9 inherit T287 F6
+        let out =
+            crate::commands::memory::preview_line("ASSISTANT: TAGS: t288\nDECISION: needle", 80);
+        assert!(
+            out.contains("DECISION:"),
+            "envelope preview must surface DECISION:; got {out:?}"
+        );
+        assert!(
+            !out.starts_with("TAGS:"),
+            "preview must not start with TAGS:; got {out:?}"
         );
     }
 

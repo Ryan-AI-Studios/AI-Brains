@@ -458,6 +458,10 @@ fn briefing_project__granted_substance__decision_and_conclusion_in_md_and_json()
         !md.contains("> **Denied:**"),
         "granted packet must not be denied: {md}"
     );
+    assert!(
+        !md.contains("## Vault pins"),
+        "T288 AC7: overlay off when authority is non-empty; got {md}"
+    );
 
     let json_out = briefing_project(&vault)
         .arg("--format")

@@ -336,3 +336,279 @@ fn source_list__no_grants__exit_3_bootstrap_no_empty_next() {
 fn review_list__no_grants__exit_3_bootstrap_no_empty_next() {
     assert_denied_list_bootstrap_no_empty_next("review");
 }
+
+fn briefing_project_human(vault: &Path) -> std::process::Output {
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("briefing")
+        .arg("project")
+        .arg("--project-id")
+        .arg(PROJECT)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("briefing project human")
+}
+
+fn briefing_project_json(vault: &Path) -> std::process::Output {
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("briefing")
+        .arg("project")
+        .arg("--project-id")
+        .arg(PROJECT)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("briefing project json")
+}
+
+fn pin_via_hermetic_cmd(vault: &Path, content: &str, tag: Option<&str>) {
+    let mut cmd = common::hermetic_cmd(vault);
+    cmd.arg("pin");
+    if let Some(t) = tag {
+        cmd.arg("--tag").arg(t);
+    }
+    cmd.arg("--").arg(content).assert().success();
+}
+
+fn human_pinned_count_nonzero(md: &str) -> bool {
+    md.lines().any(|line| {
+        line.strip_prefix("Pinned:")
+            .and_then(|rest| rest.trim().parse::<u64>().ok())
+            .is_some_and(|n| n > 0)
+    })
+}
+
+/// T288 AC1 — granted + DECISION pin: vault-pin stanza, not under Decisions.
+#[test]
+fn briefing_project__granted_with_decision_pin__human_stanza_not_under_decisions() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    let needle = "T288-ac1-needle-granted-empty-stanza";
+    pin_via_hermetic_cmd(&vault, &format!("DECISION: {needle}"), Some("t288"));
+
+    let human = briefing_project_human(&vault);
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&human.stderr),
+        String::from_utf8_lossy(&human.stdout)
+    );
+    let md = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        md.contains("## Vault pins (not Approved)"),
+        "granted-empty with pin must emit heading; got {md}"
+    );
+    assert!(
+        human_pinned_count_nonzero(&md),
+        "Pinned: must be a nonzero inventory count; got {md}"
+    );
+    assert!(
+        md.contains(needle) || md.contains("DECISION:"),
+        "stanza must surface needle or DECISION:; got {md}"
+    );
+    assert!(md.contains("recall"), "must keep recall next; got {md}");
+    assert!(
+        md.contains("## Decisions (current authority)"),
+        "must keep Decisions heading; got {md}"
+    );
+    assert!(
+        md.contains("_None_"),
+        "Decisions body must stay _None_; got {md}"
+    );
+    assert!(
+        !md.contains("[Approved]"),
+        "pin must not appear as Approved claim under Decisions; got {md}"
+    );
+}
+
+/// T288 AC2 — same fixture: JSON overlay keys; authority arrays empty.
+#[test]
+fn briefing_project__granted_with_decision_pin__json_overlay_count_and_previews() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    let needle = "T288-ac2-needle-json-overlay";
+    pin_via_hermetic_cmd(&vault, &format!("DECISION: {needle}"), Some("t288"));
+
+    let json = briefing_project_json(&vault);
+    assert_eq!(
+        json.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&json.stderr),
+        String::from_utf8_lossy(&json.stdout)
+    );
+    let v = stdout_json(&json);
+    assert_eq!(v["denied"], false, "packet={v}");
+    let decisions = v["decisions"].as_array().expect("decisions");
+    let conclusions = v["conclusions"].as_array().expect("conclusions");
+    assert!(decisions.is_empty(), "authority must stay empty; {v}");
+    assert!(conclusions.is_empty(), "authority must stay empty; {v}");
+    let kinds: Vec<&str> = v["warnings"]
+        .as_array()
+        .map(|ws| {
+            ws.iter()
+                .filter_map(|w| w["kind"].as_str())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    assert!(
+        kinds.contains(&"empty_authority"),
+        "JSON warning kind must stay empty_authority; got {v}"
+    );
+    let count = v["vault_pin_count"].as_u64().unwrap_or(0);
+    assert!(count >= 1, "vault_pin_count must be ≥1; got {v}");
+    let previews = v["vault_pin_previews"].as_array().expect("previews");
+    assert!(
+        previews.iter().any(|p| p
+            .as_str()
+            .is_some_and(|s| s.contains("DECISION:") || s.contains(needle))),
+        "previews must contain DECISION: or needle; got {v}"
+    );
+}
+
+/// T288 AC4 — granted-empty 0 pins: heading + Pinned: 0; no fabricated DECISION.
+#[test]
+fn briefing_project__granted_empty_zero_pins__pinned_zero_no_fabricated_decision() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+
+    let human = briefing_project_human(&vault);
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&human.stderr),
+        String::from_utf8_lossy(&human.stdout)
+    );
+    let md = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        md.contains("## Vault pins (not Approved)"),
+        "zero-pin granted-empty must still emit heading; got {md}"
+    );
+    assert!(
+        md.contains("Pinned: 0"),
+        "zero-pin must print Pinned: 0; got {md}"
+    );
+    assert!(
+        !md.lines()
+            .any(|l| l.trim_start().starts_with("- DECISION:")),
+        "must not fabricate a DECISION preview; got {md}"
+    );
+
+    let json = briefing_project_json(&vault);
+    assert_eq!(
+        json.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&json.stderr),
+        String::from_utf8_lossy(&json.stdout)
+    );
+    let v = stdout_json(&json);
+    assert_eq!(v["vault_pin_count"], 0, "packet={v}");
+    let previews = v["vault_pin_previews"].as_array().expect("previews");
+    assert!(previews.is_empty(), "zero-pin previews must be []; got {v}");
+}
+
+/// T288 AC5 — denied: no vault-pin heading / JSON keys; grant-wall stands.
+#[test]
+fn briefing_project__denied__no_vault_pin_stanza() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let human = briefing_project_human(&vault);
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&human.stderr),
+        String::from_utf8_lossy(&human.stdout)
+    );
+    let md = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        !md.contains("## Vault pins"),
+        "denied markdown must omit vault-pin heading; got {md}"
+    );
+    assert!(
+        !md.contains("_None_"),
+        "T275 denied must not show _None_; got {md}"
+    );
+
+    let json = briefing_project_json(&vault);
+    assert_eq!(json.status.code(), Some(0));
+    let v = stdout_json(&json);
+    assert_eq!(v["denied"], true, "packet={v}");
+    assert!(
+        v.get("vault_pin_count").is_none(),
+        "denied JSON must omit overlay keys; got {v}"
+    );
+}
+
+/// T288 AC15 — chrome-only pin: COUNT ≥1, no DECISION preview.
+#[test]
+fn briefing_project__granted_chrome_only__count_without_decision_preview() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    pin_via_hermetic_cmd(&vault, "## Objective", None);
+
+    let human = briefing_project_human(&vault);
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&human.stderr),
+        String::from_utf8_lossy(&human.stdout)
+    );
+    let md = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        human_pinned_count_nonzero(&md),
+        "chrome-only must still COUNT ≥1; got {md}"
+    );
+    assert!(
+        !md.lines().any(|l| l.contains("DECISION:")),
+        "chrome-only must not fabricate DECISION preview; got {md}"
+    );
+}
+
+/// T288 AC16 — Hotspot pin counted, omitted from previews.
+#[test]
+fn briefing_project__granted_hotspot_only__preview_omits_hotspot() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    pin_via_hermetic_cmd(&vault, "HOTSPOT: crates/foo.rs", None);
+
+    let human = briefing_project_human(&vault);
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&human.stderr),
+        String::from_utf8_lossy(&human.stdout)
+    );
+    let md = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        human_pinned_count_nonzero(&md),
+        "hotspot-only must COUNT ≥1; got {md}"
+    );
+    assert!(
+        !md.contains("HOTSPOT: crates/foo.rs"),
+        "previews must omit Hotspot; got {md}"
+    );
+}
