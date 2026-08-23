@@ -10,6 +10,19 @@ use std::str::FromStr;
 /// Production CLI uses bounded `list_memories` via `memory list` / `forget --list-forgotten`.
 const LEGACY_LIST_FORGOTTEN_CAP: usize = 1_000_000;
 
+/// Bind-free GLOB extra on `mp.content` (T287 F4 / F27).
+///
+/// Marker+HOTSPOT **or** TAGS envelope. Single `AND (` group — do not stack
+/// two `AND (` clauses. Duplicate of retrieval `index_pass1_glob_sql("mp.content")`
+/// so store does not depend on retrieval.
+const AUTHORITY_CONTENT_GLOB_SQL: &str = " AND (\
+  mp.content GLOB 'DECISION:*' OR mp.content GLOB 'ASSISTANT: DECISION:*' OR \
+  mp.content GLOB 'CONSTRAINT:*' OR mp.content GLOB 'ASSISTANT: CONSTRAINT:*' OR \
+  mp.content GLOB 'INVARIANT:*' OR mp.content GLOB 'ASSISTANT: INVARIANT:*' OR \
+  mp.content GLOB 'HOTSPOT:*' OR mp.content GLOB 'ASSISTANT: HOTSPOT:*' OR \
+  mp.content GLOB 'TAGS:*' OR mp.content GLOB 'ASSISTANT: TAGS:*'\
+)";
+
 /// Case-insensitive exact token match on first-line `TAGS: a, b` (T216 F12 stage 2).
 ///
 /// Strips one leading USER:/ASSISTANT:/SYSTEM: (capture pin stores
@@ -71,6 +84,52 @@ fn memory_list_from_where(
         );
     }
     (sql, params)
+}
+
+fn list_memory_rows(
+    vault: &VaultConnection,
+    filter: &MemoryListFilter,
+    extra_sql: &str,
+) -> Result<Vec<MemoryListRow>> {
+    let conn = vault.lock()?;
+    let tag_sql = filter.tag.is_some();
+    let (from_where, mut params) =
+        memory_list_from_where(filter.status, filter.project_id.as_ref(), tag_sql);
+    let limit = filter.limit.max(1);
+    params.push(limit.to_string());
+    let sql = format!(
+        "SELECT mp.memory_id, mp.content, mp.updated_at, \
+                COALESCE(mp.project_id, sp.project_id) AS project_id, \
+                mp.status \
+         {from_where} \
+         {extra_sql} \
+         ORDER BY mp.updated_at DESC, mp.memory_id ASC \
+         LIMIT ?"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params
+        .iter()
+        .map(|p| p as &dyn rusqlite::types::ToSql)
+        .collect();
+    let rows = stmt.query_map(param_refs.as_slice(), |row| {
+        let memory_id: String = row.get(0)?;
+        let content: String = row.get(1)?;
+        let updated_at: String = row.get(2)?;
+        let project_id: Option<String> = row.get(3)?;
+        let status: String = row.get(4)?;
+        Ok(MemoryListRow {
+            memory_id,
+            content,
+            updated_at,
+            project_id,
+            status,
+        })
+    })?;
+    let mut results = Vec::new();
+    for row in rows {
+        results.push(row?);
+    }
+    Ok(results)
 }
 
 impl QueryStore for VaultConnection {
@@ -226,49 +285,11 @@ impl QueryStore for VaultConnection {
     }
 
     fn list_memories(&self, filter: &MemoryListFilter) -> Result<Vec<MemoryListRow>> {
-        let conn = self.lock()?;
-        let tag_sql = filter.tag.is_some();
-        let (from_where, mut params) =
-            memory_list_from_where(filter.status, filter.project_id.as_ref(), tag_sql);
-        let limit = filter.limit.max(1);
-        params.push(limit.to_string());
-        let sql = format!(
-            "SELECT mp.memory_id, mp.content, mp.updated_at, \
-                    COALESCE(mp.project_id, sp.project_id) AS project_id, \
-                    mp.status \
-             {from_where} \
-             ORDER BY mp.updated_at DESC, mp.memory_id ASC \
-             LIMIT ?"
-        );
-        let mut stmt = conn.prepare(&sql)?;
-        let param_refs: Vec<&dyn rusqlite::types::ToSql> = params
-            .iter()
-            .map(|p| p as &dyn rusqlite::types::ToSql)
-            .collect();
-        let rows = stmt.query_map(param_refs.as_slice(), |row| {
-            let memory_id: String = row.get(0)?;
-            let content: String = row.get(1)?;
-            let updated_at: String = row.get(2)?;
-            let project_id: Option<String> = row.get(3)?;
-            let status: String = row.get(4)?;
-            Ok(MemoryListRow {
-                memory_id,
-                content,
-                updated_at,
-                project_id,
-                status,
-            })
-        })?;
-        let mut results = Vec::new();
-        for row in rows {
-            results.push(row?);
-        }
-        Ok(results)
+        list_memory_rows(self, filter, "")
     }
 
     fn list_authority_memories(&self, filter: &MemoryListFilter) -> Result<Vec<MemoryListRow>> {
-        // T287 red stub: recency list until green GLOB extra lands.
-        self.list_memories(filter)
+        list_memory_rows(self, filter, AUTHORITY_CONTENT_GLOB_SQL)
     }
 
     fn count_memories(&self, filter: &MemoryListFilter) -> Result<u64> {

@@ -2603,7 +2603,7 @@ pub enum GraphCommands {
 pub enum MemoryCommands {
     /// List pinned or forgotten memories (inventory skim; read-only)
     #[command(
-        after_help = "Examples:\n  ai-brains memory list\n  ai-brains memory list --status forgotten --limit 5\n  ai-brains memory list --summary\n  ai-brains memory list --summary --global\n  ai-brains memory list --format json --limit 3\n  ai-brains memory list --tag architecture\nDefault status=pinned. --summary always shows Pinned + Forgotten (ignores --status/--limit; --tag filters counts).\nTags are content-prefix heuristic (TAGS: first line), not a schema column.\nSoft-forget list/restore is not CE wipe / not NIST Purge."
+        after_help = "Examples:\n  ai-brains memory list\n  ai-brains memory list --status forgotten --limit 5\n  ai-brains memory list --summary\n  ai-brains memory list --summary --global\n  ai-brains memory list --format json --limit 3\n  ai-brains memory list --tag architecture\nDefault status=pinned. --summary always shows Pinned + Forgotten (ignores --status/--limit; --tag filters counts).\nHuman pinned prefer-fills leading-line authority; JSON order unchanged (recency).\nTags are content-prefix heuristic (TAGS: first line), not a schema column.\nSoft-forget list/restore is not CE wipe / not NIST Purge."
     )]
     List {
         /// Status filter: pinned (default) or forgotten

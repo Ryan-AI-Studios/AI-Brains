@@ -1086,6 +1086,25 @@ fn memory_list__chrome_only_vault__first_row_stays_objective() {
 }
 
 #[test]
+fn memory_list_help__mentions_human_authority_and_json_recency() {
+    let out = hermetic()
+        .arg("--no-project-context")
+        .args(["memory", "list", "--help"])
+        .output()
+        .expect("memory list --help");
+    assert!(out.status.success(), "help exit 0");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("prefer-fill") && stdout.contains("authority"),
+        "AC17 after_help names human prefer-fill authority; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("JSON") && stdout.contains("recency"),
+        "AC17 after_help names JSON recency freeze; got:\n{stdout}"
+    );
+}
+
+#[test]
 fn memory_list__forgotten_status__no_authority_promote_of_remaining_pin() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
