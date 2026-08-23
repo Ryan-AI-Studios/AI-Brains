@@ -305,3 +305,61 @@ fn list_memories__parameterized_sql__no_id_interpolation_smoke() {
     let n = conn.count_memories(&filter).unwrap();
     assert_eq!(n, 1);
 }
+
+#[test]
+fn list_authority_memories__older_tagged_decision__returned_at_limit_1() {
+    let store = open_store();
+    let a = ProjectId::new();
+    register_project(&store, a, "A");
+    let pin_id = pin_memory(
+        &store,
+        a,
+        "ASSISTANT: TAGS: t287\nDECISION: T287a-store-needle",
+    );
+    pin_memory(&store, a, "## Objective newer dump for T287");
+    let conn = store.connection();
+    let rows = conn
+        .list_authority_memories(&MemoryListFilter {
+            status: MemoryListStatus::Pinned,
+            project_id: Some(a),
+            tag: None,
+            limit: 1,
+        })
+        .unwrap();
+    assert_eq!(rows.len(), 1, "pass-1 limit 1 must return the pin");
+    assert_eq!(rows[0].memory_id, pin_id.to_string());
+    assert!(
+        rows[0].content.contains("DECISION:"),
+        "authority row content; got {}",
+        rows[0].content
+    );
+
+    let src = include_str!("../src/query_store.rs");
+    assert!(src.contains("GLOB 'TAGS:*'"), "SQL extra must GLOB TAGS:*");
+    assert!(
+        src.contains("GLOB 'ASSISTANT: TAGS:*'"),
+        "SQL extra must GLOB ASSISTANT: TAGS:*"
+    );
+    assert!(
+        src.contains("GLOB 'DECISION:*'"),
+        "SQL extra must GLOB DECISION:*"
+    );
+    assert!(
+        src.contains("GLOB 'HOTSPOT:*'"),
+        "SQL extra must GLOB HOTSPOT:*"
+    );
+    let glob_idx = src
+        .find("GLOB 'DECISION:*'")
+        .expect("DECISION GLOB present");
+    let window = src.get(glob_idx.saturating_sub(80)..glob_idx.saturating_add(900));
+    let extra = window.unwrap_or(src);
+    let and_groups = extra.matches("AND (").count();
+    assert!(
+        extra.contains(" OR "),
+        "authority extra is a single AND ( … OR … ) group"
+    );
+    assert!(
+        and_groups <= 1,
+        "must not stack two AND ( groups; window={extra}"
+    );
+}

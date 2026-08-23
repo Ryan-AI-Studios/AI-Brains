@@ -55,6 +55,9 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
     /// SQL pre-filters `content LIKE 'TAGS:%'` (start-anchored); token match is the
     /// caller's responsibility on list rows (or use [`Self::count_memories`] for totals).
     fn list_memories(&self, filter: &MemoryListFilter) -> Result<Vec<MemoryListRow>>;
+    /// Authority-marker inventory (T287): same filter as [`Self::list_memories`]
+    /// plus bind-free GLOB extra on `mp.content` (marker **or** TAGS envelope).
+    fn list_authority_memories(&self, filter: &MemoryListFilter) -> Result<Vec<MemoryListRow>>;
     /// Total matching rows for a filter (no LIMIT). When `tag` is set, applies
     /// two-stage TAGS: prefix + case-insensitive exact token match (T216 F12).
     fn count_memories(&self, filter: &MemoryListFilter) -> Result<u64>;

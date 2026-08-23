@@ -830,3 +830,302 @@ fn forget_list_forgotten__global__project_col_non_empty() {
         "AC15 expected ≥1 forgotten row; stdout:\n{stdout}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// T287 — human prefer-fill authority; JSON recency freeze
+// ---------------------------------------------------------------------------
+
+fn unique_token(prefix: &str) -> String {
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    format!("{prefix}-{n}")
+}
+
+fn first_human_preview(stdout: &str) -> String {
+    // Human row is `{:<36} {:<12} {preview}` — slice by columns, do not
+    // split_whitespace (`just now` is two tokens in the 12-char updated field).
+    for line in stdout.lines() {
+        let chars: Vec<char> = line.chars().collect();
+        if chars.len() < 51 {
+            continue;
+        }
+        let id: String = chars.iter().take(36).collect();
+        if id.starts_with("memory_id") {
+            continue;
+        }
+        let id = id.trim();
+        if id.len() != 36 || !id.contains('-') {
+            continue;
+        }
+        let preview: String = chars.iter().skip(50).collect();
+        return preview.trim_start().to_string();
+    }
+    String::new()
+}
+
+fn seed_tagged_pin_then_dumps(vault: &Path, work_dir: &Path, project_id: &str, needle: &str) {
+    pin_memory_tagged(
+        vault,
+        work_dir,
+        project_id,
+        &format!("DECISION: {needle} body for inventory mix"),
+        &["t287"],
+    );
+    pin_memory(
+        vault,
+        work_dir,
+        project_id,
+        &format!("## Objective dump one {needle}"),
+    );
+    pin_memory(
+        vault,
+        work_dir,
+        project_id,
+        &format!("## Objective dump two {needle}"),
+    );
+    pin_memory(
+        vault,
+        work_dir,
+        project_id,
+        &format!("## Objective dump three {needle}"),
+    );
+    pin_memory(
+        vault,
+        work_dir,
+        project_id,
+        &format!("## Objective dump four {needle}"),
+    );
+}
+
+#[test]
+fn memory_list__human_limit_5__first_row_is_tagged_decision_not_objective() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T287p");
+    seed_tagged_pin_then_dumps(&vault, &proj, &id, &needle);
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC1 exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("DECISION:"),
+        "AC1 human page must include DECISION:; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains(&needle),
+        "AC1 human page must include pin needle; got:\n{stdout}"
+    );
+    let first = first_human_preview(&stdout);
+    assert!(
+        !first.starts_with("## Objective"),
+        "AC1 first data row must not be Objective dump; first={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains("DECISION:") || first.contains(&needle),
+        "AC1 first data row must be the pin; first={first:?}\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("ASSISTANT: DECISION") && !stdout.contains("ASSISTANT: TAGS"),
+        "AC13 human previews must not begin with ASSISTANT:; got:\n{stdout}"
+    );
+}
+
+#[test]
+fn memory_list__json_limit_5__items0_stays_recency_dump() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T287j");
+    seed_tagged_pin_then_dumps(&vault, &proj, &id, &needle);
+
+    let (code, stdout, stderr) =
+        run_memory_list(&vault, &["--format", "json", "--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC2 exit 0; stderr={stderr}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("valid json");
+    assert_eq!(v["api_version"], "1");
+    assert_eq!(v["scope"], "project");
+    assert_eq!(v["status"], "pinned");
+    assert!(v["items"].is_array());
+    assert!(v.get("more_available").is_some());
+    assert!(v.get("returned").is_some());
+    assert!(v.get("limit").is_some());
+    assert!(v.get("total").is_some());
+    assert!(v.get("mix").is_none(), "AC12 no mix key; got:\n{stdout}");
+    assert!(
+        v.get("authority").is_none(),
+        "AC12 no authority key; got:\n{stdout}"
+    );
+    let preview = v["items"][0]["preview"].as_str().unwrap_or("");
+    assert!(
+        preview.contains("## Objective") || preview.contains("dump four"),
+        "AC2 items[0] stays recency dump; preview={preview:?}\n{stdout}"
+    );
+}
+
+#[test]
+fn memory_list__mix_fixture_summary__counts_dumps_and_pin() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T287s");
+    seed_tagged_pin_then_dumps(&vault, &proj, &id, &needle);
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--summary"], Some(&id));
+    assert_eq!(code, 0, "AC7 exit 0; stderr={stderr}");
+    let pinned = stdout
+        .lines()
+        .find_map(|l| l.strip_prefix("Pinned: "))
+        .and_then(|s| s.trim().parse::<u64>().ok())
+        .unwrap_or(0);
+    assert!(
+        pinned >= 5,
+        "AC7 summary counts dumps+pin (status COUNT); got:\n{stdout}"
+    );
+}
+
+#[test]
+fn memory_list__human_limit_5__untagged_decision_prefer_filled() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T287u");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {needle} untagged inventory pin"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump one {needle}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump two {needle}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump three {needle}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump four {needle}"),
+    );
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC9 exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        !first.starts_with("## Objective"),
+        "AC9 untagged pin still prefer-fills; first={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains("DECISION:") || first.contains(&needle),
+        "AC9 first row is untagged pin; first={first:?}\n{stdout}"
+    );
+}
+
+#[test]
+fn memory_list__chrome_only_vault__first_row_stays_objective() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let nonce = unique_token("T287c");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump one {nonce}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump two {nonce}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump three {nonce}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump four {nonce}"),
+    );
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC10 exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        first.starts_with("## Objective"),
+        "AC10 chrome-only first row is Objective; first={first:?}\n{stdout}"
+    );
+}
+
+#[test]
+fn memory_list__forgotten_status__no_authority_promote_of_remaining_pin() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let pin_needle = unique_token("T287k");
+    let dump_needle = unique_token("T287d");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {pin_needle} stays pinned"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective forget-me {dump_needle}"),
+    );
+    forget_by_match(&vault, &proj, &id, &dump_needle);
+
+    let (c1, out1, _) = run_memory_list(
+        &vault,
+        &["--status", "forgotten", "--limit", "5"],
+        Some(&id),
+    );
+    let (c2, out2, _) = run_forget_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(c1, 0, "AC8 memory list forgotten; {out1}");
+    assert_eq!(c2, 0, "AC8 forget list-forgotten; {out2}");
+    assert!(
+        out1.contains(&dump_needle) || out1.contains("Objective"),
+        "AC8 forgotten list shows the dump; got:\n{out1}"
+    );
+    assert!(
+        !out1.contains(&pin_needle),
+        "AC8 must not promote remaining pinned DECISION into forgotten list; got:\n{out1}"
+    );
+    assert!(
+        !out2.contains(&pin_needle),
+        "AC8 list-forgotten must not promote remaining pin; got:\n{out2}"
+    );
+}

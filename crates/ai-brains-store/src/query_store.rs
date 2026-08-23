@@ -266,6 +266,11 @@ impl QueryStore for VaultConnection {
         Ok(results)
     }
 
+    fn list_authority_memories(&self, filter: &MemoryListFilter) -> Result<Vec<MemoryListRow>> {
+        // T287 red stub: recency list until green GLOB extra lands.
+        self.list_memories(filter)
+    }
+
     fn count_memories(&self, filter: &MemoryListFilter) -> Result<u64> {
         let conn = self.lock()?;
         let tag_sql = filter.tag.is_some();

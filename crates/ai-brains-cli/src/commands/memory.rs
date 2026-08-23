@@ -66,6 +66,19 @@ pub(crate) fn truncate_project_col(label: &str, max: usize) -> String {
     truncate_chars(label, max)
 }
 
+/// Prefer-fill authority rows then recency-fill (T287 F35).
+///
+/// Pass-1 order is preserved; pass-2 ids already in pass-1 are skipped;
+/// result length is at most `limit`.
+pub(crate) fn prefer_fill_authority(
+    _pass1: Vec<MemoryListRow>,
+    pass2: Vec<MemoryListRow>,
+    limit: usize,
+) -> Vec<MemoryListRow> {
+    // T287 red stub: recency-only until green mix lands.
+    pass2.into_iter().take(limit).collect()
+}
+
 // ---------------------------------------------------------------------------
 // JSON DTOs (CLI-local, F10/F11/F22 — no contracts freeze)
 // ---------------------------------------------------------------------------
@@ -568,6 +581,58 @@ mod tests {
             preview_line("\n\n  ASSISTANT: body line\nsecond", 80),
             "body line"
         );
+    }
+
+    #[test]
+    fn preview_line__tags_envelope__decision_not_tags() {
+        let out = preview_line("ASSISTANT: TAGS: t287\nDECISION: needle", 80);
+        assert!(
+            out.contains("DECISION:"),
+            "envelope preview must surface DECISION:; got {out:?}"
+        );
+        assert!(
+            !out.starts_with("TAGS:"),
+            "preview must not start with TAGS:; got {out:?}"
+        );
+    }
+
+    #[test]
+    fn preview_line__tags_only__fallback_non_empty() {
+        let out = preview_line("ASSISTANT: TAGS: only", 80);
+        assert!(!out.is_empty(), "TAGS-only fallback must not be empty");
+        assert!(
+            out.starts_with("TAGS:"),
+            "empty contentful falls back to TAGS: line; got {out:?}"
+        );
+    }
+
+    fn list_row(id: &str) -> MemoryListRow {
+        MemoryListRow {
+            memory_id: id.to_string(),
+            content: format!("body {id}"),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            project_id: None,
+            status: "pinned".to_string(),
+        }
+    }
+
+    #[rstest::rstest]
+    #[case::overlap(vec!["pin"], vec!["dump", "pin"], 10, vec!["pin", "dump"])]
+    #[case::authority_only(vec!["pin1", "pin2"], vec![], 10, vec!["pin1", "pin2"])]
+    #[case::recency_only(vec![], vec!["dump1", "dump2"], 10, vec!["dump1", "dump2"])]
+    #[case::limit(vec!["pin1", "pin2"], vec!["dump1", "dump2"], 3, vec!["pin1", "pin2", "dump1"])]
+    fn prefer_fill_authority__cases__expected_ids(
+        #[case] pass1: Vec<&str>,
+        #[case] pass2: Vec<&str>,
+        #[case] limit: usize,
+        #[case] expected: Vec<&str>,
+    ) {
+        let p1: Vec<MemoryListRow> = pass1.iter().copied().map(list_row).collect();
+        let p2: Vec<MemoryListRow> = pass2.iter().copied().map(list_row).collect();
+        let out = prefer_fill_authority(p1, p2, limit);
+        let ids: Vec<String> = out.into_iter().map(|r| r.memory_id).collect();
+        let expected: Vec<String> = expected.into_iter().map(str::to_string).collect();
+        assert_eq!(ids, expected);
     }
 
     #[test]
