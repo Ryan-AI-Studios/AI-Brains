@@ -338,7 +338,7 @@ mod tests {
     use super::*;
     use ai_brains_contracts::briefings::{
         BriefingScopeDto, BudgetReportDto, ContinuitySummaryDto, FreshnessSummaryDto,
-        PersonalContinuityBriefingPacket, ProjectBriefingPacket,
+        PersonalContinuityBriefingPacket, PersonalPreferenceDto, ProjectBriefingPacket,
     };
 
     fn empty_project(denied: bool) -> ProjectBriefingPacket {
@@ -645,6 +645,34 @@ mod tests {
         assert!(
             value.get("denial_hint").is_none(),
             "empty_denied leaves denial_hint omitted: {value}"
+        );
+    }
+
+    #[test]
+    fn render_personal_markdown__denied_with_pref__keeps_pref_text() {
+        // T289 F23 — nonempty denied still renders the text; empty Continuity still BODY.
+        let mut packet = empty_personal(true);
+        packet.preferences.push(PersonalPreferenceDto {
+            id: "p1".into(),
+            statement: "keep this pref".into(),
+            evidence_handles: Vec::new(),
+        });
+        let md = render_personal_markdown(&packet);
+        assert!(
+            md.contains("- keep this pref"),
+            "denied nonempty pref must render: {md}"
+        );
+        assert!(
+            !md.contains(&format!("## Preferences\n{BRIEFING_PERSONAL_DENIED_BODY}")),
+            "nonempty Preferences must not use denied body: {md}"
+        );
+        assert!(
+            md.contains(&format!("## Continuity\n{BRIEFING_PERSONAL_DENIED_BODY}")),
+            "empty Continuity still uses denied body: {md}"
+        );
+        assert!(
+            !md.contains("_None_"),
+            "denied must not emit _None_ even with prefs: {md}"
         );
     }
 
