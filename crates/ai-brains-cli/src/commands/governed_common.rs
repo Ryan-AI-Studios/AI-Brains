@@ -56,32 +56,40 @@ pub const PROGRESSIVE_RECALL_FALLBACK: &str = "Ungoverned vault search: ai-brain
 /// Default copy-paste recall needle for granted-empty lists (T290 F5).
 pub const LIST_RECALL_QUERY: &str = "what did we decide";
 
-/// Collapse ASCII whitespace, replace `"`, cap 80 chars (T290 F6). Empty → [`LIST_RECALL_QUERY`].
-pub fn sanitize_recall_query(raw: &str) -> String {
+/// Collapse ASCII whitespace and interpolators (`$` / backtick) to single spaces;
+/// `"` → `'`; cap 80. Empty / interpolator-only after collapse returns `""`.
+///
+/// T291 F16: dropping `$` / backtick is a space boundary (no `a  b`); final trim.
+pub(crate) fn collapse_copy_paste_text(raw: &str) -> String {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return LIST_RECALL_QUERY.to_string();
+        return String::new();
     }
     let mut collapsed = String::with_capacity(trimmed.len());
     let mut prev_space = false;
     for c in trimmed.chars() {
-        if c.is_ascii_whitespace() {
+        if c.is_ascii_whitespace() || c == '$' || c == '`' {
             if !prev_space {
                 collapsed.push(' ');
                 prev_space = true;
             }
-        } else if c == '$' || c == '`' {
-            // Drop PowerShell interpolators so copy-paste `recall "…"` is not executable.
-            prev_space = false;
         } else {
             prev_space = false;
             collapsed.push(if c == '"' { '\'' } else { c });
         }
     }
+    collapsed.trim().chars().take(80).collect()
+}
+
+/// Collapse ASCII whitespace, replace `"`, cap 80 chars (T290 F6 / T291 F16).
+/// Empty → [`LIST_RECALL_QUERY`].
+pub fn sanitize_recall_query(raw: &str) -> String {
+    let collapsed = collapse_copy_paste_text(raw);
     if collapsed.is_empty() {
-        return LIST_RECALL_QUERY.to_string();
+        LIST_RECALL_QUERY.to_string()
+    } else {
+        collapsed
     }
-    collapsed.chars().take(80).collect()
 }
 
 /// Granted-empty `next_step` (T290 F7). `recall_query` None → [`LIST_RECALL_QUERY`].
@@ -863,6 +871,9 @@ mod tests {
     #[case("say \"hi\"", "say 'hi'")]
     #[case("echo $(hi)", "echo (hi)")]
     #[case("say `whoami`", "say whoami")]
+    #[case("a $ b", "a b")]
+    #[case("$ $", "what did we decide")]
+    #[case(" $ ", "what did we decide")]
     #[case("", "what did we decide")]
     #[case("   ", "what did we decide")]
     fn sanitize_recall_query__cases__expected_needle(#[case] raw: &str, #[case] expected: &str) {

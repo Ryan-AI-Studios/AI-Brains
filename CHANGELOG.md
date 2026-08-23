@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T291 `query trace` missing is useful:** Missing/unauthorized `query trace` stdout is a pretty JSON envelope (`found: false`, `trace_id`, `next_step` copy-paste `ai-brains query progressive "what did we decide" --dry-run false`) exit **0**, not the token `null`. `--format human` prints two lines (`No trace for <id>.` + `next:`). Found traces stay `QueryTraceDto` JSON (no wrap). `QueryTraceDto` unaugmented; no daemon GetQueryTrace. `#206` sanitizer collapse: `$`/backtick are space boundaries (`a $ b` → `a b`).
+
 - **T290 Granted-empty lists/progressive are useful:** Authorized-empty `evidence` / `source` / `review` list and `query progressive` JSON `next_step` is copy-paste `ai-brains recall "…"` (lists: `what did we decide`; progressive: the operator query) plus `(Pinned: N)` when local COUNT succeeds. Human lists print that line after `(none)`. Arrays stay `[]` (no H2). DTO fields unchanged; T288 `vault_pin_*` keys stay briefing-only. Denied stderr still prints the T243 ellipsis const.
 
 - **T289 Personal deny is not empty preferences:** Denied `briefing personal --format human` omits `_None_` under Preferences/Continuity and prints `_(optional continuity; not a missing vault)_`. Next-step stays T263 `recall` (not Personal `policy bootstrap`). JSON `denied: true` + empty arrays unchanged. Allowed-empty Personal still `_None_`. Project T275 grant-wall / T288 vault-pin stanza untouched.

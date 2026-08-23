@@ -93,7 +93,7 @@ fn query_expand__missing_project_id__exit_2_with_example() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn query_trace__missing_project__still_exit_0_null() {
+fn query_trace__missing_project__still_exit_0_envelope() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
@@ -115,9 +115,22 @@ fn query_trace__missing_project__still_exit_0_null() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
+    let trimmed = stdout.trim();
+    assert_ne!(
+        trimmed, "null",
+        "T291: missing project must not print the token null; got: {stdout}"
+    );
+    let v: Value = serde_json::from_str(trimmed).unwrap_or_else(|_| {
+        panic!("missing-project trace stdout must be JSON envelope; got {stdout}")
+    });
+    assert_eq!(v["found"], false, "envelope found=false; got {v}");
+    assert_eq!(v["api_version"], "1", "envelope api_version; got {v}");
     assert!(
-        stdout.trim() == "null" || stdout.contains("null"),
-        "missing trace prints null; got: {stdout}"
+        v["next_step"]
+            .as_str()
+            .unwrap_or("")
+            .contains("query progressive"),
+        "next_step must name progressive persist; got {v}"
     );
 }
 

@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #205 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #206 Bugbot Low → **T291 F16** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
@@ -162,7 +162,57 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Daemon list overlay has copy-paste query but no `(Pinned: N)` | **Residual** — F14 |
 | Personal/Workspace list COUNT skipped | **Residual** — F4 |
 | T291 `query trace` `null` / T292 policy-check human / T293–T300 | **Not stolen** |
-| Codex CX1 P1 PowerShell `$`/backtick interpolators | **Fixed** — sanitize drops `$` and backtick; rstest + formatter unit |
+| Codex CX1 P1 PowerShell `$`/backtick interpolators | **Fixed** — sanitize drops `$` and backtick; rstest + formatter unit. **#206 Bugbot Low** (collapse around dropped interpolators / final trim) → **T291 F16**. |
+
+### T291 planning absorption (2026-08-23) — missing envelope + human next; no invented traces
+
+| Item | Disposition |
+|------|-------------|
+| Audit `query trace` bare `null` U=3 | **Absorb** F1–F8 / AC1–AC4 / AC11 |
+| Placeholder Manual `missing-id` + `--format human` | **Absorb** AC11 |
+| Placeholder JSON stay-null **or** wrap | **Absorb missing-only envelope** F1/F7 — not `{trace:null}` found wrap |
+| Placeholder `query progressive --trace` | **Decline** — flag does not exist (F8 names `--dry-run false`) |
+| T263 F6 / F26 scalar `null` freeze | **Lift** F1 with PROTOCOL-COMPAT §5 row |
+| T202 F31 no project-id | **Affirm** F5 / AC4 |
+| T152 progressive `dry_run` default true | **Affirm** F9 — next names `--dry-run false` |
+| T290 lists/progressive next | **Decline** — Completed `#206` |
+| T292 `policy check` human | **Decline → T292** |
+| T293 neighbors dump sessions | **Decline → T293** |
+| T294 leftover dest-missing | **Decline → T294** |
+| T298 device/replicate empty | **Decline → T298** |
+| T299 forget-list empty | **Decline → T299** |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
+| last-PR Cursor **#206** Bugbot Low `sanitize_recall_query` interpolator collapse | **Absorb** F16 / AC8 — no T301 |
+| Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
+
+### T291 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `--format JSON` must not use `OutputFormat::parse` | **Folded** F3 / AC7 / §5.5 |
+| Agy m2 sanitizer space boundaries / no double-space | **Already** F16; **tightened** |
+| Agy O1 parent + Trace after_help | **Already** F14; **tightened** AC10 `:1589` / `:1892` / `:1924` |
+| Agy O2 e2e persist then trace | **Already** AC5; **tightened** bootstrap + `--dry-run false` |
+| OpenCode M-1 hotspot #3 → #2 | **Folded** snapshot |
+| OpenCode M-2 / M-3 preflight words / doctor warn count | **Snapshot only** (volatile); Phase 0; not DoD |
+| OpenCode o-1 clap `value_parser` | **Folded** (same as Agy m1) |
+| OpenCode o-2 bootstrap covers `get_query_trace` | **Folded** AC5 / §5.6 |
+| OpenCode o-3 `api_version` `"1"` | **Already** F7 |
+| OpenCode o-4 `auto` TTY | **Already** F3 |
+| OpenCode o-5 `cli_help_ia.rs` lock | **Decline** — AC10 hermetic `--help` |
+| OpenCode o-6 OPERATIONS two null sentences | **Folded** AC10 |
+| last-PR #206 Cursor | **Affirm F16** — no T301 |
+| No B | Nothing to decline of B |
+
+### T291 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` still T281-era until `cargo install` | **Residual** — F17; source/hermetic SoT; T282 leftover `--show` + T283 cwd-first + T285–T291 not on PATH |
+| Found `--format human` still QueryTraceDto JSON | **Residual** — F10 by design |
+| Default progressive still does not persist | **Residual** — F9 by design |
+| T292 `policy check` human / T293–T300 | **Not stolen** |
+| Codex CX1 P1 process (full gate / publish pending at review time) | **verified_fixed** after closeout + Phase 6 |
 
 ### T287 closeout residuals (2026-08-23)
 

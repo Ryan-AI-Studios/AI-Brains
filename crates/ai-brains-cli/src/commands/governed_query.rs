@@ -3,11 +3,11 @@
 use crate::commands::briefing::cli_principal;
 use crate::commands::governed_common::{
     EXIT_POLICY_DENIED, GovernedCliError, OutputFormat, POLICY_DENIED_HINT,
-    PROGRESSIVE_RECALL_FALLBACK, UNKNOWN_HANDLE_PREVIEW, emit_json, fail_cp, fail_usage,
-    format_authorized_empty_next,
+    PROGRESSIVE_RECALL_FALLBACK, UNKNOWN_HANDLE_PREVIEW, collapse_copy_paste_text, emit_human,
+    emit_json, fail_cp, fail_usage, format_authorized_empty_next,
 };
 use crate::context::AppContext;
-use ai_brains_contracts::briefings::ProgressiveQueryResponse;
+use ai_brains_contracts::briefings::{API_VERSION, ProgressiveQueryResponse};
 use ai_brains_control_plane::{
     ExpandHandleRequest, GetQueryTraceRequest, ProgressiveQueryRequest, StorePorts, SystemClock,
     expand_handle, get_query_trace, progressive_query, scope_identity_key,
@@ -16,12 +16,31 @@ use ai_brains_core::ids::ProjectId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
 use ai_brains_store::{QueryStore, SqliteEventStore};
+use serde::Serialize;
+use std::io::IsTerminal;
 
 /// F30 progressive usage message (copy-paste example + env).
 pub const PROGRESSIVE_PROJECT_USAGE: &str = "project id required. Example:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\nOr set AI_BRAINS_PROJECT_ID.";
 
 /// F30 expand usage message (copy-paste example + env).
 pub const EXPAND_PROJECT_USAGE: &str = "project id required. Example:\n  ai-brains query expand <handle-id> --project-id <uuid>\nOr set AI_BRAINS_PROJECT_ID.";
+
+/// Copy-paste command that persists a query trace (T152 `--dry-run` default is true).
+const TRACE_PROGRESSIVE_PERSIST: &str =
+    "ai-brains query progressive \"what did we decide\" --dry-run false";
+
+/// T291 F8 — copy-paste remediator for missing/unauthorized `query trace`.
+pub const TRACE_MISSING_NEXT_STEP: &str =
+    "No persisted trace. Run: ai-brains query progressive \"what did we decide\" --dry-run false";
+
+/// CLI-local missing/unauthorized envelope (T291 F7). Not a `QueryTraceDto`.
+#[derive(Debug, Serialize)]
+struct MissingTraceEnvelope {
+    api_version: String,
+    found: bool,
+    trace_id: String,
+    next_step: String,
+}
 
 pub struct ProgressiveQueryOptions {
     pub query: String,
@@ -38,6 +57,7 @@ pub struct ExpandHandleOptions {
 
 pub struct TraceOptions {
     pub trace_id: String,
+    pub format: String,
 }
 
 /// Fill `preview` when expand JSON is `kind=Unknown` with an empty preview (T263 F7).
@@ -199,9 +219,38 @@ pub fn run_expand(
     Ok(())
 }
 
-/// `ai-brains query trace <trace-id>` — fetch a governed query trace (JSON stdout).
+/// Displayed `trace_id` (T291 F15): shared collapse; empty → `<empty>`.
+fn sanitize_trace_id(raw: &str) -> String {
+    let collapsed = collapse_copy_paste_text(raw);
+    if collapsed.is_empty() {
+        "<empty>".to_string()
+    } else {
+        collapsed
+    }
+}
+
+fn missing_trace_envelope(trace_id: &str) -> MissingTraceEnvelope {
+    MissingTraceEnvelope {
+        api_version: API_VERSION.to_string(),
+        found: false,
+        trace_id: sanitize_trace_id(trace_id),
+        next_step: TRACE_MISSING_NEXT_STEP.to_string(),
+    }
+}
+
+/// `--format` after clap `value_parser` (T291 F3). Found path ignores this.
+fn missing_trace_is_human(format: &str) -> bool {
+    match format {
+        "human" | "pretty" | "text" | "markdown" | "md" => true,
+        "auto" => std::io::stdout().is_terminal(),
+        _ => false,
+    }
+}
+
+/// `ai-brains query trace <trace-id>` — fetch a governed query trace.
 ///
-/// F31: project id is not required; missing traces print `null` and exit 0.
+/// T202 F31: project id is not required. T291: missing/unauthorized is a
+/// missing-only envelope (or two human lines), exit 0 — not the token `null`.
 pub fn run_trace(
     ctx: &AppContext,
     options: TraceOptions,
@@ -212,6 +261,7 @@ pub fn run_trace(
     let principal = cli_principal();
     let event_store = ports.store();
 
+    let requested = options.trace_id.clone();
     let trace = get_query_trace(
         &event_store,
         &policy,
@@ -224,9 +274,13 @@ pub fn run_trace(
     match trace {
         Some(t) => crate::commands::identity_warn::print_json_stdout(&t)?,
         None => {
-            // Empty-state contract: missing or unauthorized → null JSON.
-            crate::commands::identity_warn::note_machine_stdout();
-            println!("null");
+            if missing_trace_is_human(&options.format) {
+                let id = sanitize_trace_id(&requested);
+                emit_human(&format!("No trace for {id}."));
+                emit_human(&format!("next: {TRACE_PROGRESSIVE_PERSIST}"));
+            } else {
+                emit_json(&missing_trace_envelope(&requested))?;
+            }
         }
     }
     Ok(())
@@ -236,6 +290,62 @@ pub fn run_trace(
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trace_missing_next_step__frozen__exact_string() {
+        assert_eq!(
+            TRACE_MISSING_NEXT_STEP,
+            "No persisted trace. Run: ai-brains query progressive \"what did we decide\" --dry-run false"
+        );
+        assert!(
+            !TRACE_MISSING_NEXT_STEP.contains('\n') && !TRACE_MISSING_NEXT_STEP.contains('…'),
+            "F8 must be one line without U+2026; got {TRACE_MISSING_NEXT_STEP}"
+        );
+        assert!(
+            TRACE_MISSING_NEXT_STEP.contains("query progressive")
+                && TRACE_MISSING_NEXT_STEP.contains("--dry-run false"),
+            "F8 must name progressive persist; got {TRACE_MISSING_NEXT_STEP}"
+        );
+        assert!(
+            !TRACE_MISSING_NEXT_STEP.contains("--trace"),
+            "F8 must not invent --trace; got {TRACE_MISSING_NEXT_STEP}"
+        );
+        assert!(
+            TRACE_MISSING_NEXT_STEP.ends_with(TRACE_PROGRESSIVE_PERSIST),
+            "F8 must share TRACE_PROGRESSIVE_PERSIST with human next; got {TRACE_MISSING_NEXT_STEP}"
+        );
+    }
+
+    #[test]
+    fn sanitize_trace_id__newline_dollar_quotes__single_line_safe() {
+        let got = sanitize_trace_id("id\nwith $ and `tick` and \"q\"");
+        assert!(
+            !got.contains('\n') && !got.contains('$') && !got.contains('`') && !got.contains('"'),
+            "displayed id must be single-line without interpolators/quotes; got {got:?}"
+        );
+        assert_eq!(sanitize_trace_id("   $ $  "), "<empty>");
+        assert_eq!(sanitize_trace_id(""), "<empty>");
+    }
+
+    #[test]
+    fn query_trace_dto__serialized__has_no_found_or_next_step() {
+        use ai_brains_contracts::briefings::QueryTraceDto;
+        let json = serde_json::json!({
+            "api_version": "1",
+            "query_trace_id": "t",
+            "scope": "s",
+            "principal": "p",
+            "query": "q",
+            "applied_policy": "pol",
+        });
+        let dto: QueryTraceDto = serde_json::from_value(json).expect("QueryTraceDto");
+        let ser = serde_json::to_value(&dto).expect("serialize");
+        assert!(
+            ser.get("found").is_none() && ser.get("next_step").is_none(),
+            "QueryTraceDto must not grow found/next_step; got {ser}"
+        );
+        assert_eq!(ser["query_trace_id"], "t");
+    }
 
     #[test]
     fn progressive_usage_message__includes_example_and_env() {

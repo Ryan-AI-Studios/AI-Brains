@@ -25,7 +25,7 @@ Optional features not compiled into this binary (notably default-build `graph *`
 
 ### fail_usage → 2 (T202 / T203)
 
-`query progressive` and `query expand` require `--project-id` or `AI_BRAINS_PROJECT_ID`. When both are unset, `fail_usage` writes a copy-paste example to **stderr** and exits **2** via `GovernedCliError` / `EXIT_USAGE` (not clap-required; not exit 1). `query trace` is excluded.
+`query progressive` and `query expand` require `--project-id` or `AI_BRAINS_PROJECT_ID`. When both are unset, `fail_usage` writes a copy-paste example to **stderr** and exits **2** via `GovernedCliError` / `EXIT_USAGE` (not clap-required; not exit 1). `query trace` is excluded (no project-id). Missing/unauthorized: exit **0** + pretty JSON envelope (`found: false`, `next_step` copy-paste `query progressive … --dry-run false`) or `--format human` two lines. Optional `--format` (`auto|pretty|human|text|json|markdown|md`; case-sensitive). Not exit **4** `NOT_FOUND`. Not the token `null`.
 
 **T203/T226 soft-resolve:** `source list|show`, `evidence list|search|show`, `review list`, and **`policy show|check|bootstrap`** accept optional `--scope`. When omitted, CLI runs `resolve_scope` (cwd + `AI_BRAINS_PROJECT_ID`) and fills only if **authoritative**. Otherwise `fail_usage` on **stderr** (template includes example `--scope Repository:<uuid>`, `ai-brains scope resolve`, and “non-authoritative context is not filled silently”) and exit **2** — **not** clap “required arguments were not provided”, and **not** exit **6** `INVALID_PAYLOAD`.
 

@@ -275,6 +275,71 @@ mod tests {
         );
     }
 
+    /// T291 AC7: `--format JSON` is clap InvalidValue (not `OutputFormat::parse`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_trace__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "trace",
+            "x",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T291 AC7: `--format json` parses (default envelope/DTO).
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_trace__format_json__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "trace",
+            "x",
+            "--format",
+            "json",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected query trace --format json to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Trace { format, .. },
+            } => assert_eq!(format, "json"),
+            _ => panic!("expected Query::Trace"),
+        }
+    }
+
+    /// T291 AC10: `query trace --help` must not retain the scalar-null contract.
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_trace__help__names_envelope_not_json_token_null() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "query", "trace", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            !help.contains("JSON token null"),
+            "AC10: help must not retain scalar-null contract; got: {help}"
+        );
+        let lower = help.to_lowercase();
+        assert!(
+            lower.contains("found")
+                && lower.contains("next")
+                && lower.contains("query progressive")
+                && lower.contains("dry-run"),
+            "AC10: help must name envelope + progressive persist; got: {help}"
+        );
+    }
+
     /// T270 AC12: `retention plan --help` names inventory / none_auto.
     #[test]
     #[allow(non_snake_case)]
@@ -1586,7 +1651,7 @@ enum Commands {
     /// Governed progressive query, handle expand, and query-trace retrieval (T152)
     #[command(
         display_order = 32,
-        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints the JSON token null and exits 0 (not an object).\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints a JSON envelope (`found: false` + `next_step` copy-paste `query progressive … --dry-run false`) and exits 0; `--format human` prints two lines.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Query {
         #[command(subcommand)]
@@ -1889,7 +1954,7 @@ enum BriefingCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints the JSON token null and exits 0 (not an object).\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+    after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints a JSON envelope (`found: false` + `next_step` copy-paste `query progressive … --dry-run false`) and exits 0; `--format human` prints two lines.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
 )]
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
@@ -1919,11 +1984,20 @@ enum GovernedQueryCommands {
         #[arg(long, default_value_t = 512)]
         max_chars: usize,
     },
-    /// Fetch a governed query trace by id (null when missing or unauthorized)
+    /// Fetch a governed query trace by id (envelope when missing or unauthorized)
     #[command(
-        after_help = "Missing or unauthorized traces print the JSON token null and exit 0 (not an object). Vault-first: `recall` / `search`.\nExamples:\n  ai-brains query trace <trace-id>"
+        after_help = "Missing or unauthorized traces print a JSON envelope (`found: false` + `next_step` copy-paste `query progressive … --dry-run false`) and exit 0, or two human lines with `--format human`. Found traces stay QueryTraceDto JSON. Vault-first: `recall` / `search`.\nExamples:\n  ai-brains query trace <trace-id>\n  ai-brains query trace <trace-id> --format human"
     )]
-    Trace { trace_id: String },
+    Trace {
+        trace_id: String,
+        /// Output format: json (default envelope/DTO), pretty/human/text/markdown/md (missing two-line), auto (TTY human / pipe json)
+        #[arg(
+            long,
+            default_value = "json",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -3958,12 +4032,15 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     max_chars: *max_chars,
                 },
             ),
-            GovernedQueryCommands::Trace { trace_id } => commands::governed_query::run_trace(
-                &ctx,
-                commands::governed_query::TraceOptions {
-                    trace_id: trace_id.clone(),
-                },
-            ),
+            GovernedQueryCommands::Trace { trace_id, format } => {
+                commands::governed_query::run_trace(
+                    &ctx,
+                    commands::governed_query::TraceOptions {
+                        trace_id: trace_id.clone(),
+                        format: format.clone(),
+                    },
+                )
+            }
         },
         Commands::Scope { command } => match command {
             ScopeCommands::Resolve {

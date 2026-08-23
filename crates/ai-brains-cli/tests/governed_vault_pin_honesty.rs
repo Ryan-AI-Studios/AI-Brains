@@ -201,9 +201,12 @@ fn query_expand__unknown__preview_nonempty_exit_0() {
     );
 }
 
-/// AC6 — missing trace stays scalar JSON `null` + exit 0 (F6 frozen).
+const TRACE_MISSING_NEXT_STEP: &str =
+    "No persisted trace. Run: ai-brains query progressive \"what did we decide\" --dry-run false";
+
+/// T291 AC2 — missing trace is a missing-only envelope (not the token `null`) + exit 0.
 #[test]
-fn query_trace__unknown__stdout_null_exit_0() {
+fn query_trace__unknown__stdout_envelope_exit_0() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
@@ -225,9 +228,192 @@ fn query_trace__unknown__stdout_null_exit_0() {
         String::from_utf8_lossy(&out.stdout)
     );
     let trimmed = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    assert_eq!(
+    assert_ne!(
         trimmed, "null",
-        "trace empty-success must be the token null; got {trimmed:?}"
+        "T291: missing trace must not be the token null; got {trimmed:?}"
+    );
+    let v: Value = serde_json::from_str(&trimmed)
+        .unwrap_or_else(|_| panic!("missing trace stdout must be JSON object; got {trimmed:?}"));
+    assert_eq!(v["found"], false, "envelope found=false; got {v}");
+    assert_eq!(v["api_version"], "1", "envelope api_version; got {v}");
+    let trace_id = v["trace_id"].as_str().unwrap_or("");
+    assert!(
+        trace_id.contains("00000000-0000-0000-0000-000000000000") || trace_id.contains("00000000"),
+        "trace_id must carry sanitized requested id; got {v}"
+    );
+    assert_eq!(
+        v["next_step"].as_str().unwrap_or(""),
+        TRACE_MISSING_NEXT_STEP,
+        "next_step must equal F8 const; got {v}"
+    );
+}
+
+/// T291 AC3 — `--format human` is two lines (No trace + next progressive persist).
+#[test]
+fn query_trace__unknown__human_two_lines() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("query")
+        .arg("trace")
+        .arg(UNKNOWN)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("query trace human");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "human missing stays exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let trimmed = stdout.trim_end();
+    assert!(
+        !trimmed.trim_start().starts_with('{'),
+        "human missing must not be a JSON object; got {stdout:?}"
+    );
+    let lines: Vec<&str> = trimmed.lines().collect();
+    assert_eq!(
+        lines.len(),
+        2,
+        "human missing must be exactly two lines; got {lines:?}"
+    );
+    assert!(
+        lines[0].contains("No trace"),
+        "line 1 must say No trace; got {lines:?}"
+    );
+    assert!(
+        lines[1].contains("next:")
+            && lines[1].contains("query progressive")
+            && lines[1].contains("--dry-run false")
+            && !lines[1].contains("--trace"),
+        "line 2 must be next progressive persist; got {lines:?}"
+    );
+}
+
+/// T291 AC5 — persist then trace returns QueryTraceDto (not found:false); human found stays JSON.
+#[test]
+fn query_trace__after_persist__returns_dto_not_envelope() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let boot = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("bootstrap")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy bootstrap");
+    assert_eq!(
+        boot.status.code(),
+        Some(0),
+        "bootstrap failed; stderr={} stdout={}",
+        String::from_utf8_lossy(&boot.stderr),
+        String::from_utf8_lossy(&boot.stdout)
+    );
+
+    let prog = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env("AI_BRAINS_PROJECT_ID", PROJECT)
+        .arg("query")
+        .arg("progressive")
+        .arg("what did we decide")
+        .arg("--dry-run")
+        .arg("false")
+        .output()
+        .expect("progressive persist");
+    assert_eq!(
+        prog.status.code(),
+        Some(0),
+        "progressive --dry-run false failed; stderr={} stdout={}",
+        String::from_utf8_lossy(&prog.stderr),
+        String::from_utf8_lossy(&prog.stdout)
+    );
+    let packet: Value = serde_json::from_slice(&prog.stdout).unwrap_or_else(|_| {
+        panic!(
+            "progressive stdout JSON; stderr={} stdout={}",
+            String::from_utf8_lossy(&prog.stderr),
+            String::from_utf8_lossy(&prog.stdout)
+        )
+    });
+    let trace_id = packet["query_trace_id"]
+        .as_str()
+        .expect("query_trace_id")
+        .to_string();
+    assert!(
+        !trace_id.is_empty(),
+        "persisted packet must carry query_trace_id; got {packet}"
+    );
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("query")
+        .arg("trace")
+        .arg(&trace_id)
+        .output()
+        .expect("query trace found");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "found trace stays exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v = stdout_json(&out);
+    assert_eq!(
+        v["query_trace_id"].as_str().unwrap_or(""),
+        trace_id,
+        "found DTO must echo query_trace_id; got {v}"
+    );
+    assert!(
+        v.get("found").is_none(),
+        "found DTO must not have found key; got {v}"
+    );
+
+    let human = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("query")
+        .arg("trace")
+        .arg(&trace_id)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("query trace found human");
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "found --format human stays exit 0; stderr={}",
+        String::from_utf8_lossy(&human.stderr)
+    );
+    let hv = stdout_json(&human);
+    assert_eq!(
+        hv["query_trace_id"].as_str().unwrap_or(""),
+        trace_id,
+        "found --format human still QueryTraceDto JSON; got {hv}"
+    );
+    let htext = String::from_utf8_lossy(&human.stdout);
+    assert!(
+        !htext.contains("No trace"),
+        "found human must not print missing lines; got {htext}"
     );
 }
 
