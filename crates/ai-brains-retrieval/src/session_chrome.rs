@@ -135,6 +135,14 @@ pub fn dedupe_session_chrome(hits: &mut Vec<RecallHit>) {
     });
 }
 
+/// T285 F36: chrome-shaped parents must not seed graph neighbors.
+///
+/// True for authority pins (after envelope). False for session chrome.
+/// Red stub: existing detector only (new live prefixes fail AC6 until green).
+pub fn parent_seeds_graph_neighbors(content: &str) -> bool {
+    !is_session_chrome(content)
+}
+
 /// Authority hits first (relative order preserved), then others, cap `depth` (F9).
 pub fn prefer_authority_hits(hits: Vec<RecallHit>, depth: usize) -> Vec<RecallHit> {
     let mut auth = Vec::new();
@@ -186,6 +194,59 @@ mod tests {
             cosine: None,
             project_id: None,
         }
+    }
+
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("## Objective\nbody", true)]
+    #[case("# Track Plan Review: T274", true)]
+    #[case("### Track 248 Review", true)]
+    #[case("# AI-Brains Onboarding", true)]
+    #[case("```json\n{\"a\":1}\n```", true)]
+    #[case("{\"decisions\": [\"x\"]}", true)]
+    #[case("# AI-Brains Session Onboarding Complete", true)]
+    #[case("# Review of Track 254: ranking hole", true)]
+    #[case("DECISION: we chose X", false)]
+    #[case("CONSTRAINT: must be safe", false)]
+    #[case("# Heading without chrome prefixes", false)]
+    fn is_session_chrome__live_and_closed_prefixes__ac2(
+        #[case] content: &str,
+        #[case] expected: bool,
+    ) {
+        assert_eq!(
+            is_session_chrome(content),
+            expected,
+            "AC2 content={content:?}"
+        );
+    }
+
+    #[test]
+    fn parent_seeds_graph_neighbors__chrome_false_authority_true__ac6() {
+        assert!(
+            !parent_seeds_graph_neighbors("# Review of Track 254: ranking hole"),
+            "AC6: live review chrome must not seed"
+        );
+        assert!(
+            !parent_seeds_graph_neighbors("# AI-Brains Session Onboarding Complete"),
+            "AC6: live onboarding chrome must not seed"
+        );
+        assert!(
+            !parent_seeds_graph_neighbors("## Objective\nbody"),
+            "AC6: T274 chrome must not seed"
+        );
+        assert!(
+            !parent_seeds_graph_neighbors("ASSISTANT: TAGS: x\n## Objective\nbody"),
+            "AC6: TAGS envelope then ## Objective is still chrome"
+        );
+        assert!(
+            parent_seeds_graph_neighbors("DECISION: we chose X"),
+            "AC6: authority pin may seed"
+        );
+        assert!(
+            parent_seeds_graph_neighbors("ASSISTANT: TAGS: t\nDECISION: we chose X"),
+            "AC6: tagged DECISION may seed"
+        );
     }
 
     #[test]

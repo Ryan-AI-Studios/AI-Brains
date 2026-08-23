@@ -375,6 +375,7 @@ dependencies = [
  "ai-brains-models",
  "ai-brains-store",
  "chrono",
+ "rstest",
  "rusqlite",
  "serde_json",
  "strip-ansi-escapes",

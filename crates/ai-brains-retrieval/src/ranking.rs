@@ -251,13 +251,25 @@ pub fn effective_score(
     v
 }
 
+/// Leading-line query-token bonus (T285 F6). Same scale as
+/// [`SESSION_CHROME_PENALTY`]. Applied only from [`rerank_hits_with_query`]
+/// when `query` is `Some` and the first contentful line is authority.
+pub const LEADING_QUERY_BONUS: f64 = 16.0;
+
 /// Re-rank blended hits in place with pin-type + recency composite (F8).
 ///
 /// Sets [`RecallHit::is_plan_demoted`] for Plan-class Decisions. Sort:
 /// effective desc → `updated_at` desc (missing last) → `memory_id` asc.
 ///
 /// **F40:** single post-blend entry point; T215 extends here.
+/// T285: query-unaware wrapper (`query=None` → no [`LEADING_QUERY_BONUS`]).
 pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
+    rerank_hits_with_query(hits, None);
+}
+
+/// T285 F6: same sort as [`rerank_hits`] plus leading-line query bonus when
+/// `query` is `Some`. Stub in red: bonus not applied until green.
+pub fn rerank_hits_with_query(hits: &mut Vec<RecallHit>, _query: Option<&str>) {
     if hits.is_empty() {
         return;
     }
@@ -923,6 +935,69 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         assert_eq!(hits[1].memory_id, "mem-stub");
+    }
+
+    /// T285 AC1: TAGS envelope + role+trim_start; empty → Other (no panic).
+    #[test]
+    #[allow(non_snake_case)]
+    fn classify_pin_kind__tags_envelope_and_role_trim__ac1() {
+        assert_eq!(
+            classify_pin_kind("ASSISTANT: TAGS: t285-canary\nDECISION: needle"),
+            PinKind::Decision,
+            "tagged assistant pin must classify Decision"
+        );
+        assert_eq!(
+            classify_pin_kind("TAGS: x\nCONSTRAINT: rule"),
+            PinKind::Constraint
+        );
+        assert_eq!(
+            classify_pin_kind("ASSISTANT: TAGS: x\n## Objective\nburied decision: y"),
+            PinKind::Other,
+            "TAGS then ## Objective stays Other (not buried decision:)"
+        );
+        assert_eq!(
+            classify_pin_kind("ASSISTANT:\nDECISION: nl"),
+            PinKind::Decision,
+            "ASSISTANT: + newline + DECISION: (no required space)"
+        );
+        assert_eq!(classify_pin_kind(""), PinKind::Other);
+        assert_eq!(classify_pin_kind("ASSISTANT:"), PinKind::Other);
+        assert_eq!(
+            classify_pin_kind("ASSISTANT: DECISION: x"),
+            PinKind::Decision,
+            "untagged ASSISTANT: DECISION: still Decision (T274)"
+        );
+    }
+
+    /// T285 AC3: live onboarding chrome BM25 −12 loses to leading DECISION −2
+    /// after detector and/or leading-query +16.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits_with_query__onboarding_chrome_loses_to_pin__ac3() {
+        let mut hits = vec![
+            hit(
+                "mem-chrome",
+                "# AI-Brains Session Onboarding Complete\ncapture independence event log dump",
+                Some(-12.0),
+                None,
+            ),
+            hit(
+                "mem-pin",
+                "DECISION: Capture independence remains",
+                Some(-2.0),
+                None,
+            ),
+        ];
+        rerank_hits_with_query(&mut hits, Some("capture independence"));
+        assert_eq!(
+            hits[0].memory_id,
+            "mem-pin",
+            "pin must outrank live onboarding chrome; order={:?}",
+            hits.iter()
+                .map(|h| h.memory_id.as_str())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(hits[1].memory_id, "mem-chrome");
     }
 
     /// T274 AC1: leading markers only. Buried `decision:` / JSON keys → Other.
