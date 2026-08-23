@@ -9,8 +9,10 @@ use crate::commands::recall::format_scope_line;
 use crate::context::AppContext;
 use ai_brains_control_plane::clamp_list_limit;
 use ai_brains_core::ids::ProjectId;
+use ai_brains_retrieval::{PinKind, classify_pin_kind, first_contentful_line};
 use ai_brains_store::{MemoryListFilter, MemoryListRow, MemoryListStatus, QueryStore};
 use serde::Serialize;
+use std::collections::HashSet;
 use std::str::FromStr;
 
 /// Human table project column max chars under `--global` (F8 / PROJECT_COL_MAX).
@@ -27,16 +29,24 @@ const EMPTY_TAG_MSG: &str = "Empty --tag is not allowed.";
 // Pure helpers (F9 / F12 / F8) — unit-tested
 // ---------------------------------------------------------------------------
 
-/// First non-empty line; always strip leading USER:/ASSISTANT:/SYSTEM: (case-sensitive
-/// token + whitespace); char-safe truncate with `…` (F9/F31).
+/// First contentful line after the pin envelope (T287 F6); char-safe truncate.
+///
+/// Empty `first_contentful_line` falls back to today's first non-empty line
+/// after role strip (may be `TAGS:` — not `""`). `trim_start` so leading
+/// blank lines still strip `ASSISTANT:` (existing `preview_line__first_non_empty_line`).
 pub(crate) fn preview_line(content: &str, max_chars: usize) -> String {
-    let line = content
-        .lines()
-        .find(|l| !l.trim().is_empty())
-        .unwrap_or("")
-        .trim();
-    let stripped = super::display_text::strip_role_prefix(line);
-    super::display_text::truncate_preview_chars(stripped, max_chars)
+    let contentful = first_contentful_line(content.trim_start());
+    let line = if contentful.is_empty() {
+        let raw = content
+            .lines()
+            .find(|l| !l.trim().is_empty())
+            .unwrap_or("")
+            .trim();
+        super::display_text::strip_role_prefix(raw)
+    } else {
+        contentful
+    };
+    super::display_text::truncate_preview_chars(line, max_chars)
 }
 
 /// Parse first line if `TAGS: …` (after optional role prefix), split comma, trim,
@@ -64,6 +74,36 @@ pub(crate) fn content_has_tag(content: &str, tag: &str) -> bool {
 /// Truncate project label column to `max` chars with `…` (F8 AC20).
 pub(crate) fn truncate_project_col(label: &str, max: usize) -> String {
     truncate_chars(label, max)
+}
+
+/// Prefer-fill authority rows then recency-fill (T287 F35).
+///
+/// Pass-1 order is preserved; pass-2 ids already in pass-1 are skipped;
+/// result length is at most `limit`.
+pub(crate) fn prefer_fill_authority(
+    pass1: Vec<MemoryListRow>,
+    pass2: Vec<MemoryListRow>,
+    limit: usize,
+) -> Vec<MemoryListRow> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for row in pass1 {
+        if out.len() >= limit {
+            break;
+        }
+        if seen.insert(row.memory_id.clone()) {
+            out.push(row);
+        }
+    }
+    for row in pass2 {
+        if out.len() >= limit {
+            break;
+        }
+        if seen.insert(row.memory_id.clone()) {
+            out.push(row);
+        }
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -159,25 +199,54 @@ pub fn run_inventory(
     let page_limit = clamp_list_limit(opts.limit);
     let tag = opts.tag.as_ref().map(|s| s.trim().to_string());
     let project_id = if opts.global { None } else { opts.project_id };
+    let is_json = opts.format.eq_ignore_ascii_case("json");
 
     // F43: when --tag, over-fetch candidates then token-filter then page.
-    let sql_limit = if tag.is_some() {
-        page_limit.saturating_mul(4).max(50).saturating_add(1)
+    let overfetch = page_limit.saturating_mul(4).max(50).saturating_add(1);
+    let recency_limit = if tag.is_some() {
+        overfetch
     } else {
         page_limit.saturating_add(1)
     };
 
-    let filter = MemoryListFilter {
-        status,
-        project_id,
-        tag: tag.clone(),
-        limit: sql_limit,
+    let mut rows = if is_json || status != MemoryListStatus::Pinned {
+        let filter = MemoryListFilter {
+            status,
+            project_id,
+            tag: tag.clone(),
+            limit: recency_limit,
+        };
+        let mut rows = ctx.conn.list_memories(&filter)?;
+        if let Some(ref t) = tag {
+            rows.retain(|r| content_has_tag(&r.content, t));
+        }
+        rows
+    } else {
+        // GLOB is a superset of classifier (TAGS envelope matches tagged dumps).
+        // LIMIT page then retain Other can empty pass-1 while older DECISION pins
+        // still exist (live hole). Over-fetch like F43, then retain, then mix.
+        let pass1_limit = overfetch;
+        let mut pass1 = ctx.conn.list_authority_memories(&MemoryListFilter {
+            status,
+            project_id,
+            tag: tag.clone(),
+            limit: pass1_limit,
+        })?;
+        pass1.retain(|r| classify_pin_kind(&r.content) != PinKind::Other);
+        if let Some(ref t) = tag {
+            pass1.retain(|r| content_has_tag(&r.content, t));
+        }
+        let mut pass2 = ctx.conn.list_memories(&MemoryListFilter {
+            status,
+            project_id,
+            tag: tag.clone(),
+            limit: recency_limit,
+        })?;
+        if let Some(ref t) = tag {
+            pass2.retain(|r| content_has_tag(&r.content, t));
+        }
+        prefer_fill_authority(pass1, pass2, page_limit.saturating_add(1))
     };
-
-    let mut rows = ctx.conn.list_memories(&filter)?;
-    if let Some(ref t) = tag {
-        rows.retain(|r| content_has_tag(&r.content, t));
-    }
 
     let more_available = rows.len() > page_limit;
     if more_available {
@@ -192,7 +261,6 @@ pub fn run_inventory(
         limit: 0, // ignored by count
     })?;
 
-    let is_json = opts.format.eq_ignore_ascii_case("json");
     if is_json {
         return emit_list_json(
             opts.global,
@@ -568,6 +636,58 @@ mod tests {
             preview_line("\n\n  ASSISTANT: body line\nsecond", 80),
             "body line"
         );
+    }
+
+    #[test]
+    fn preview_line__tags_envelope__decision_not_tags() {
+        let out = preview_line("ASSISTANT: TAGS: t287\nDECISION: needle", 80);
+        assert!(
+            out.contains("DECISION:"),
+            "envelope preview must surface DECISION:; got {out:?}"
+        );
+        assert!(
+            !out.starts_with("TAGS:"),
+            "preview must not start with TAGS:; got {out:?}"
+        );
+    }
+
+    #[test]
+    fn preview_line__tags_only__fallback_non_empty() {
+        let out = preview_line("ASSISTANT: TAGS: only", 80);
+        assert!(!out.is_empty(), "TAGS-only fallback must not be empty");
+        assert!(
+            out.starts_with("TAGS:"),
+            "empty contentful falls back to TAGS: line; got {out:?}"
+        );
+    }
+
+    fn list_row(id: &str) -> MemoryListRow {
+        MemoryListRow {
+            memory_id: id.to_string(),
+            content: format!("body {id}"),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            project_id: None,
+            status: "pinned".to_string(),
+        }
+    }
+
+    #[rstest::rstest]
+    #[case::overlap(vec!["pin"], vec!["dump", "pin"], 10, vec!["pin", "dump"])]
+    #[case::authority_only(vec!["pin1", "pin2"], vec![], 10, vec!["pin1", "pin2"])]
+    #[case::recency_only(vec![], vec!["dump1", "dump2"], 10, vec!["dump1", "dump2"])]
+    #[case::limit(vec!["pin1", "pin2"], vec!["dump1", "dump2"], 3, vec!["pin1", "pin2", "dump1"])]
+    fn prefer_fill_authority__cases__expected_ids(
+        #[case] pass1: Vec<&str>,
+        #[case] pass2: Vec<&str>,
+        #[case] limit: usize,
+        #[case] expected: Vec<&str>,
+    ) {
+        let p1: Vec<MemoryListRow> = pass1.iter().copied().map(list_row).collect();
+        let p2: Vec<MemoryListRow> = pass2.iter().copied().map(list_row).collect();
+        let out = prefer_fill_authority(p1, p2, limit);
+        let ids: Vec<String> = out.into_iter().map(|r| r.memory_id).collect();
+        let expected: Vec<String> = expected.into_iter().map(str::to_string).collect();
+        assert_eq!(ids, expected);
     }
 
     #[test]
