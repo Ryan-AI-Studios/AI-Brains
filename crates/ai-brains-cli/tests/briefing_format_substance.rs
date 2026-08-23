@@ -419,6 +419,10 @@ fn briefing_project__help__lists_human_pretty_and_example() {
         combined.contains("--format human") || combined.contains("format human"),
         "help after_help must include human example: {combined}"
     );
+    assert!(
+        combined.contains("not Approved") && combined.contains("vault_pin_count"),
+        "T288 AC10: after_help must name vault-pin stanza + JSON extras; got {combined}"
+    );
 }
 
 // ---------------------------------------------------------------------------

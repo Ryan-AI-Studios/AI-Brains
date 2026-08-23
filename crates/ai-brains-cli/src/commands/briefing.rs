@@ -5,37 +5,110 @@
 //! unknown → `fail_usage` exit 2 (F1–F3). Requires vault path + grants like governed preflight.
 
 use crate::commands::governed_common::fail_usage;
+use crate::commands::memory::preview_line;
 use crate::context::AppContext;
+use ai_brains_contracts::briefings::ProjectBriefingPacket;
 use ai_brains_control_plane::{
     BudgetConfig, PersonalBriefingRequest, ProjectBriefingRequest, ScopeResolveInput, StorePorts,
-    SystemClock, build_personal_briefing, build_project_briefing, make_principal,
-    render_personal_markdown, render_project_markdown,
+    SystemClock, VaultPinStanza, build_personal_briefing, build_project_briefing, make_principal,
+    render_personal_markdown, render_project_markdown_with_vault_pins,
 };
 use ai_brains_core::ids::{PrincipalId, ProjectId, UserId};
 use ai_brains_core::principal::PrincipalKind;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
-use ai_brains_store::SqliteEventStore;
+use ai_brains_retrieval::{PinKind, classify_pin_kind};
+use ai_brains_store::{MemoryListFilter, MemoryListStatus, QueryStore, SqliteEventStore};
+use std::collections::HashSet;
 use std::io::IsTerminal;
-#[allow(unused_imports)] // T288 red stub; FromStr used by parse in green
 use std::str::FromStr;
 
+const VAULT_PIN_FETCH_LIMIT: usize = 32;
+const VAULT_PIN_PREVIEW_CAP: usize = 3;
+const VAULT_PIN_PREVIEW_CHARS: usize = 80;
+
 /// Overlay gate (T288 F2/F3/AC14): granted-empty only.
-#[allow(dead_code)] // T288 red stub; wired in green
 pub(crate) fn should_overlay_vault_pins(
     denied: bool,
     decisions_empty: bool,
     conclusions_empty: bool,
 ) -> bool {
-    let _ = (denied, decisions_empty, conclusions_empty);
-    false // T288 red stub
+    !denied && decisions_empty && conclusions_empty
 }
 
 /// Fail-open `Repository:{uuid}` parse (T288 F14/AC17). Never `?` onto `run_project`.
-#[allow(dead_code)] // T288 red stub; wired in green
 pub(crate) fn parse_repository_project_id(scope_key: &str) -> Option<ProjectId> {
-    let _ = scope_key;
-    None // T288 red stub
+    let rest = scope_key.strip_prefix("Repository:")?;
+    ProjectId::from_str(rest).ok()
+}
+
+fn collect_vault_pin_stanza(
+    conn: &dyn QueryStore,
+    packet: &ProjectBriefingPacket,
+) -> Option<VaultPinStanza> {
+    if !should_overlay_vault_pins(
+        packet.denied,
+        packet.decisions.is_empty(),
+        packet.conclusions.is_empty(),
+    ) {
+        return None;
+    }
+    let project_id = parse_repository_project_id(&packet.scope.scope_key)?;
+    let count = conn.count_pinned_memories(Some(&project_id)).ok()?;
+    let rows = conn
+        .list_authority_memories(&MemoryListFilter {
+            status: MemoryListStatus::Pinned,
+            project_id: Some(project_id),
+            tag: None,
+            limit: VAULT_PIN_FETCH_LIMIT,
+        })
+        .ok()?;
+    let mut seen = HashSet::new();
+    let mut previews = Vec::new();
+    for row in rows {
+        if previews.len() >= VAULT_PIN_PREVIEW_CAP {
+            break;
+        }
+        match classify_pin_kind(&row.content) {
+            PinKind::Decision | PinKind::Constraint => {}
+            PinKind::Hotspot | PinKind::Other => continue,
+        }
+        if !seen.insert(row.memory_id.clone()) {
+            continue;
+        }
+        previews.push(preview_line(&row.content, VAULT_PIN_PREVIEW_CHARS));
+    }
+    Some(VaultPinStanza { count, previews })
+}
+
+fn overlay_vault_pins_json(raw: String, stanza: Option<&VaultPinStanza>) -> String {
+    let Some(stanza) = stanza else {
+        return raw;
+    };
+    let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return raw;
+    };
+    let Some(obj) = value.as_object_mut() else {
+        return raw;
+    };
+    obj.insert(
+        "vault_pin_count".to_string(),
+        serde_json::Value::from(stanza.count),
+    );
+    obj.insert(
+        "vault_pin_previews".to_string(),
+        serde_json::Value::Array(
+            stanza
+                .previews
+                .iter()
+                .map(|p| serde_json::Value::String(p.clone()))
+                .collect(),
+        ),
+    );
+    match serde_json::to_string_pretty(&value) {
+        Ok(pretty) => pretty,
+        Err(_) => raw,
+    }
 }
 
 pub struct ProjectBriefingOptions {
@@ -127,10 +200,14 @@ pub fn run_project(
         },
     )?;
 
+    let stanza = collect_vault_pin_stanza(&*ctx.conn, &packet);
     emit_output(
         options.format.as_deref(),
-        || render_project_markdown(&packet),
-        || serde_json::to_string_pretty(&packet),
+        || render_project_markdown_with_vault_pins(&packet, stanza.as_ref()),
+        || {
+            let raw = serde_json::to_string_pretty(&packet)?;
+            Ok(overlay_vault_pins_json(raw, stanza.as_ref()))
+        },
     )
 }
 
@@ -233,6 +310,7 @@ pub(crate) fn cli_principal() -> ai_brains_core::principal::Principal {
 
 #[cfg(test)]
 #[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
     use rstest::rstest;

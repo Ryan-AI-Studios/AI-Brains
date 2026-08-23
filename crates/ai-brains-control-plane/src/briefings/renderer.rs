@@ -84,7 +84,6 @@ pub fn render_project_markdown_with_vault_pins(
     packet: &ProjectBriefingPacket,
     vault_pins: Option<&VaultPinStanza>,
 ) -> String {
-    let _ = vault_pins; // T288 red stub: ignore Some until green.
     let mut lines: Vec<String> = Vec::new();
     lines.push("# Project Briefing".to_string());
     lines.push(String::new());
@@ -160,6 +159,22 @@ pub fn render_project_markdown_with_vault_pins(
         lines.push(String::new());
         lines.push(BRIEFING_EMPTY_AUTHORITY_NOTICE.to_string());
         lines.push(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.to_string());
+        if let Some(stanza) = vault_pins {
+            lines.push(String::new());
+            lines.push(BRIEFING_VAULT_PINS_HEADING.to_string());
+            lines.push(format!("Pinned: {}", stanza.count));
+            if stanza.previews.is_empty() {
+                if stanza.count > 0 {
+                    lines.push(
+                        "_No leading-line DECISION/CONSTRAINT samples in this scope._".to_string(),
+                    );
+                }
+            } else {
+                for preview in stanza.previews.iter().take(3) {
+                    lines.push(format!("- {preview}"));
+                }
+            }
+        }
     }
 
     if !packet.constraints.is_empty() {

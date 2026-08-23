@@ -243,6 +243,7 @@ resolved repository scope, or authority sections are empty (`denied` / warnings)
   - Aliases `human` / `pretty` / `text` / `markdown` / `md` → markdown; only `json` → JSON.
   - Unknown `--format` → exit **2** + accepted list on stderr (no silent JSON).
   - Preflight pins ≠ briefing authority (dual model); empty allowed packets surface next-steps.
+  - **T288:** granted-empty CLI human prints a **Vault pins (not Approved)** stanza (`Pinned: N`); JSON may add `vault_pin_count` / `vault_pin_previews`. Authority arrays stay empty.
 - **Progressive / expand / trace**: JSON only (not TTY-markdown).
 
 ```powershell
