@@ -70,6 +70,9 @@ pub fn sanitize_recall_query(raw: &str) -> String {
                 collapsed.push(' ');
                 prev_space = true;
             }
+        } else if c == '$' || c == '`' {
+            // Drop PowerShell interpolators so copy-paste `recall "…"` is not executable.
+            prev_space = false;
         } else {
             prev_space = false;
             collapsed.push(if c == '"' { '\'' } else { c });
@@ -858,6 +861,8 @@ mod tests {
     #[case("  foo\nbar  ", "foo bar")]
     #[case("foo\tbar", "foo bar")]
     #[case("say \"hi\"", "say 'hi'")]
+    #[case("echo $(hi)", "echo (hi)")]
+    #[case("say `whoami`", "say whoami")]
     #[case("", "what did we decide")]
     #[case("   ", "what did we decide")]
     fn sanitize_recall_query__cases__expected_needle(#[case] raw: &str, #[case] expected: &str) {
@@ -878,6 +883,19 @@ mod tests {
         assert!(
             !step.contains('\n'),
             "formatter must stay one line after newline query; got {step}"
+        );
+    }
+
+    #[test]
+    fn format_authorized_empty_next__powershell_interpolators__stripped() {
+        let step = format_authorized_empty_next(None, Some("echo $(Get-Process) `whoami`"));
+        assert!(
+            !step.contains('$') && !step.contains('`'),
+            "copy-paste next_step must not keep PowerShell interpolators; got {step}"
+        );
+        assert!(
+            step.contains("echo (Get-Process) whoami"),
+            "needle must keep the rest of the query; got {step}"
         );
     }
 
