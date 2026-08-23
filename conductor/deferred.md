@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #203 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #204 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Planned** 2026-08-23 (Pending until go).
 
 | Item | Track |
 |------|-------|
@@ -61,7 +61,26 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Governed preflight no stanza | **Residual** — F27 / T170 D21 |
 | First `dev-check` fail-fast `backup_restore__daemon_down_force__succeeds` | **Environmental** — daemon was Running; temporary `daemon stop`; gate re-run **3399** passed. Daemon left **Stopped**. |
 
-| personal briefing deny `_None_` | **T289** |
+| personal briefing deny `_None_` | **T289 Planned** |
+
+### T289 planning absorption (2026-08-23) — denied Personal omits `_None_`; no bootstrap
+
+| Item | Disposition |
+|------|-------------|
+| Audit `briefing personal` deny + `_None_` prefs U=4 | **Absorb** F1–F4 / AC1–AC2 / AC10 |
+| Placeholder Manual `--format human` | **Absorb** AC2 / AC10 |
+| T275 F32 Personal `_None_` optional | **Absorb / promote** F1 |
+| T275 F35 no project-wall leak | **Affirm** F3 / AC6 |
+| T263 F4 recall next | **Affirm freeze** F4 |
+| T227 empty_continuity allowed-empty | **Affirm** F6 / AC5 |
+| T288 closeout Personal `_None_` | **Absorb** (this track) |
+| T288 vault-pin stanza | **Decline** F8 — project-only Completed |
+| Lists/progressive pin count | **Decline → T290** |
+| T227 #18 synthetic continuity | **Decline** F24 |
+| Auto Personal grant | **Decline** F7 |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F19 |
+| last-PR Cursor #204 | **N/A** empty — **no T301** |
+| Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
 | governed lists/progressive empty U=6 | **T290** |
 | `query trace` bare `null` | **T291** |
 | `policy check` JSON-only | **T292** |
