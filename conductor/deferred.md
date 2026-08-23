@@ -4,12 +4,12 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #200 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #201 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Planned** 2026-08-23.
 
 | Item | Track |
 |------|-------|
 | recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
-| preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286** |
+| preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Planned** |
 | `memory list` just-now ingest | **T287** |
 | briefing granted-empty vs pins (no H2) | **T288** |
 | personal briefing deny `_None_` | **T289** |
@@ -25,6 +25,33 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | forget-list empty U=6 | **T299** |
 | graph sparse live rebuild | **T300** |
 | T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |
+
+### T286 planning absorption (2026-08-23) — Index TAGS-or-GLOB + envelope titles; no Session steal
+
+| Item | Disposition |
+|------|-------------|
+| Audit Index `## Objective`; summary decisions 0 vs 3647/3716 pins | **Absorb** F1–F4 / AC1–AC6 / AC16 |
+| Placeholder Manual DoD `--pretty` + `--summary` | **Absorb** AC5/AC6/AC16; Manual `-m 1500` |
+| T285 F13 / closeout Index/summary still Objective | **Absorb** (this track) |
+| T274 AC6/AC7 untagged Index + window `DECISION:` | **Absorb as regression** F5 / AC3 |
+| T274 two-pass GLOB misses TAGS envelope | **Absorb** F2 `index_pass1_glob_sql` |
+| Index title `content.lines().next()` is `TAGS:` | **Absorb** F4 `first_contentful_line` |
+| Placeholder (b) show Pinned N next to 0 | **Already T214** — insufficient; get pin into window (F10) |
+| Placeholder (a) vault-authority count key | **Decline** F10 — T220 no new keys |
+| Session + Index both Objective | **Partial** — Index DoD; Session recency **decline F12** |
+| T214 dual counts / 9-arg formatters | **Affirm freeze** F10 |
+| T220 JSON keys / T265 `sections[]` | **Affirm freeze** F10 / F11 |
+| T272 Safety skip-set / T264 caps | **Affirm freeze** F6 / F9 |
+| T279 Safety SQL | **Decline** F7 — Completed |
+| T250 Index not line-capped | **Affirm** F8 |
+| T264 Index fetch-80 leftover-heavy | **Decline** — T264 soft; not leftover drop |
+| `memory list` just-now ingest | **Decline → T287** |
+| briefing granted-empty vs pins | **Decline → T288** |
+| graph neighbors dump sessions | **Decline → T293** |
+| leftover dest-missing / context skip upsert | **Decline → T294** |
+| T240 F2 / T263 H2 / T211 F25 / clap 5 / rusqlite 0.40 | **Decline** F16 / F20 |
+| last-PR Cursor #201 | **N/A** empty — **no T301** |
+| Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
 
 ### T285 planning absorption (2026-08-22) — envelope + detector + chrome-seed skip; no Index steal
 
