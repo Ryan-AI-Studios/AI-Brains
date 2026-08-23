@@ -863,6 +863,9 @@ mod tests {
     #[case("say \"hi\"", "say 'hi'")]
     #[case("echo $(hi)", "echo (hi)")]
     #[case("say `whoami`", "say whoami")]
+    #[case("a $ b", "a b")]
+    #[case("$ $", "what did we decide")]
+    #[case(" $ ", "what did we decide")]
     #[case("", "what did we decide")]
     #[case("   ", "what did we decide")]
     fn sanitize_recall_query__cases__expected_needle(#[case] raw: &str, #[case] expected: &str) {

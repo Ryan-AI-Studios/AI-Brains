@@ -23,6 +23,10 @@ pub const PROGRESSIVE_PROJECT_USAGE: &str = "project id required. Example:\n  ai
 /// F30 expand usage message (copy-paste example + env).
 pub const EXPAND_PROJECT_USAGE: &str = "project id required. Example:\n  ai-brains query expand <handle-id> --project-id <uuid>\nOr set AI_BRAINS_PROJECT_ID.";
 
+/// T291 F8 — copy-paste remediator for missing/unauthorized `query trace`.
+/// Compile stub: red AC1 must fail on the assertion, not a missing symbol.
+pub const TRACE_MISSING_NEXT_STEP: &str = "T291_RED_STUB";
+
 pub struct ProgressiveQueryOptions {
     pub query: String,
     pub project_id: Option<ProjectId>,
@@ -236,6 +240,27 @@ pub fn run_trace(
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trace_missing_next_step__frozen__exact_string() {
+        assert_eq!(
+            TRACE_MISSING_NEXT_STEP,
+            "No persisted trace. Run: ai-brains query progressive \"what did we decide\" --dry-run false"
+        );
+        assert!(
+            !TRACE_MISSING_NEXT_STEP.contains('\n') && !TRACE_MISSING_NEXT_STEP.contains('…'),
+            "F8 must be one line without U+2026; got {TRACE_MISSING_NEXT_STEP}"
+        );
+        assert!(
+            TRACE_MISSING_NEXT_STEP.contains("query progressive")
+                && TRACE_MISSING_NEXT_STEP.contains("--dry-run false"),
+            "F8 must name progressive persist; got {TRACE_MISSING_NEXT_STEP}"
+        );
+        assert!(
+            !TRACE_MISSING_NEXT_STEP.contains("--trace"),
+            "F8 must not invent --trace; got {TRACE_MISSING_NEXT_STEP}"
+        );
+    }
 
     #[test]
     fn progressive_usage_message__includes_example_and_env() {

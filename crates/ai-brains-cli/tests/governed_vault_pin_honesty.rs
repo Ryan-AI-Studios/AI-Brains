@@ -201,9 +201,12 @@ fn query_expand__unknown__preview_nonempty_exit_0() {
     );
 }
 
-/// AC6 — missing trace stays scalar JSON `null` + exit 0 (F6 frozen).
+const TRACE_MISSING_NEXT_STEP: &str =
+    "No persisted trace. Run: ai-brains query progressive \"what did we decide\" --dry-run false";
+
+/// T291 AC2 — missing trace is a missing-only envelope (not the token `null`) + exit 0.
 #[test]
-fn query_trace__unknown__stdout_null_exit_0() {
+fn query_trace__unknown__stdout_envelope_exit_0() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
@@ -225,9 +228,24 @@ fn query_trace__unknown__stdout_null_exit_0() {
         String::from_utf8_lossy(&out.stdout)
     );
     let trimmed = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    assert_eq!(
+    assert_ne!(
         trimmed, "null",
-        "trace empty-success must be the token null; got {trimmed:?}"
+        "T291: missing trace must not be the token null; got {trimmed:?}"
+    );
+    let v: Value = serde_json::from_str(&trimmed).unwrap_or_else(|_| {
+        panic!("missing trace stdout must be JSON object; got {trimmed:?}")
+    });
+    assert_eq!(v["found"], false, "envelope found=false; got {v}");
+    assert_eq!(v["api_version"], "1", "envelope api_version; got {v}");
+    let trace_id = v["trace_id"].as_str().unwrap_or("");
+    assert!(
+        trace_id.contains("00000000-0000-0000-0000-000000000000") || trace_id.contains("00000000"),
+        "trace_id must carry sanitized requested id; got {v}"
+    );
+    assert_eq!(
+        v["next_step"].as_str().unwrap_or(""),
+        TRACE_MISSING_NEXT_STEP,
+        "next_step must equal F8 const; got {v}"
     );
 }
 
