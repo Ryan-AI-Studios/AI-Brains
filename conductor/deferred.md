@@ -48,6 +48,20 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor #202 | **N/A** empty — **no T301** |
 | Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
 
+### T287 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 empty-contentful `preview_line` fallback | **Already** F6; **tightened** AC3 TAGS-only |
+| Agy m2 exact GLOB + single `AND (` | **Already** F4 / F27 / AC5 |
+| Agy O1 `prefer_fill_authority` multi-case | **Folded** AC16 rstest |
+| Agy O2 after_help dual-truth | **Already** F30 / AC17 |
+| OpenCode m1 `preview_line` forget/graph callers | **Folded** F6 / F24 inherit-only (`forget.rs:19/24`, `graph.rs:248`) |
+| OpenCode m2 pinned/word-count 237 vs 612 | **Folded** volatile snapshot |
+| OpenCode m3 `run_inventory` `:136` vs `:137` | **Folded** live `:137` |
+| last-PR #202 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 ### T286 closeout residuals (2026-08-23)
 
 | Item | Disposition |

@@ -1,10 +1,26 @@
 # T287 Plan — human `memory list` prefer-fill authority; JSON/store recency frozen
 
 **Status:** **Pending** (Planned). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F38 / AC1–AC18
+**Spec:** [spec.md](./spec.md) F0–F38 / AC1–AC18 + §13 AI fold-in
 **Category:** FEATURE / UX
 **Ledger TX (planning):** `673e7322-b68f-40dd-bd34-6a91a83e7412` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `35a4042f-dd4a-40fc-b81a-6e34fdb7d903` (DOCS)
 **Ledger TX (implement):** FEATURE — start on **go**
+
+---
+
+## AI fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F6/AC3 (Agy m1):** empty contentful → fallback `TAGS:` line, not `""`.
+2. **AC16 (Agy O1):** rstest overlap / authority-only / recency-only / limit.
+3. **F6/F24 (OpenCode m1):** `preview_line` inherit-only in `forget.rs` `:19`/`:24` and `graph.rs` `:248` — **do not edit** those files.
+4. **Volatile (OpenCode m2):** pinned/word-count snapshots.
+5. **Citation (OpenCode m3):** `run_inventory` `:137`.
+6. **Affirm:** #202 N/A; T288/T293/T299 not stolen; Agy m2 GLOB already AC5; Agy O2 after_help already AC17.
 
 ---
 
@@ -36,7 +52,8 @@
 
 - [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `memory.rs` `run_inventory` + `preview_line`
+- [ ] Re-read `memory.rs` `run_inventory` `:137` + `preview_line` `:32`
+- [ ] Confirm `preview_line` callers still `forget.rs:19/24` + `graph.rs:248` — **inherit only; do not edit** those files
 - [ ] Re-read `query_store.rs` `list_memories` / `memory_list_from_where` — **do not** change ORDER
 - [ ] Confirm `MemoryListFilter` still four fields — **do not** add `authority` field
 - [ ] Confirm `classify_pin_kind` / `first_contentful_line` still exported from retrieval
@@ -83,9 +100,9 @@
 
 - [ ] AC1 CLI: tagged `DECISION:` pin vs newer `## Objective` dumps — human `--limit 5` first data row is the pin
 - [ ] AC2: JSON `items[0]` stays recency dump
-- [ ] AC3 unit: `preview_line` envelope → `DECISION:` not `TAGS:`
+- [ ] AC3 unit: `preview_line` envelope → `DECISION:` not `TAGS:`; TAGS-only fallback non-empty (Agy m1)
 - [ ] AC5 store: `list_authority_memories` GLOB-or-TAGS + needles
-- [ ] AC16 unit: `prefer_fill_authority` unique
+- [ ] AC16 unit: `prefer_fill_authority` rstest overlap / authority-only / recency-only / limit (Agy O1)
 - [ ] Commit red (allowed)
 
 ## Phase 2 — Green
@@ -93,10 +110,12 @@
 - [ ] F4 `list_authority_memories` in `query_store.rs` + trait
 - [ ] F1 mix in `run_inventory` for human pinned only
 - [ ] F5 retain `classify_pin_kind != Other`
-- [ ] F6 `preview_line` uses `first_contentful_line` + empty fallback
+- [ ] F6 `preview_line` uses `first_contentful_line` + empty fallback; forget/graph **inherit only**
 - [ ] F35 helper uniqueness
 - [ ] AC4 T216 store recency stays green
 - [ ] AC6–AC14 stay green (JSON keys / summary / forgotten / untagged / chrome-only / exit 2 / no ASSISTANT: / list-forgotten share)
+- [ ] F28: `forget_match_preview__role_prefix_stripped__max_100` / `forget_multi_preview__role_prefix_stripped__max_80` + graph human preview tests **stay green**
+- [ ] Did **not** edit `forget.rs` / `graph.rs` production
 - [ ] Commit green (allowed)
 
 ## Phase 3 — Docs

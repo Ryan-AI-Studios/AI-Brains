@@ -10,8 +10,8 @@
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “`memory list` just-now ingest”; T274 F13 / T285 F14 / T286 F15 / T286 AC15 “list ORDER is T287”; live hole: default page and `--limit 5` are harness ingest (`## Objective`, review-track)
 - **Not absorbed (DoD):** T288 briefing stanza; T293 neighbors CLI; T299 forgotten-empty next; T294 leftover upsert; T216 `--status` / limit 50 / JSON keys; T274 `forget --match` unfiltered; T263 H2 pin→Approved; T240 F2; clap 5 / rusqlite 0.40
 - **Research date:** 2026-08-23 (plan dogfood HEAD `360139d` T286 `#202`; product `src/` = T286 Index + T216 list recency; PATH **0.1.2** 2026-08-22 19:41 **without** T285/T286 — list hole is in **source and PATH**)
-- **AI fold-in:** none yet (plan pass). Disposition after `/fold-in 287` → **§13**.
-- **Ledger:** planning DOCS TX `673e7322-b68f-40dd-bd34-6a91a83e7412`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-23 `agy-review.md` + `opencode-review.md` (HEAD `3178d5b`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 empty-contentful `preview_line` fallback (already F6; **tightened** AC3 TAGS-only); Agy O1 `prefer_fill_authority` rstest cases (AC16); OpenCode m1 `preview_line` ripple to `forget.rs`/`graph.rs` (F6/F24 inherit-only); OpenCode m2/m3 volatile snapshot + `run_inventory` `:137`. **Already:** Agy m2 GLOB needles (F4/F27/AC5); Agy O2 after_help (F30/AC17). **No declines of B/M.** Disposition **§13**.
+- **Ledger:** planning DOCS TX `673e7322-b68f-40dd-bd34-6a91a83e7412`. Fold-in DOCS TX `35a4042f-dd4a-40fc-b81a-6e34fdb7d903`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement (hermetic needle is SoT; Manual DoD unique canary is allowed on go). Do **not** rewrite `.env`. Do **not** grow hotspot `project.rs` / `sync.rs` / `forget.rs` **production** / CLI `preflight.rs` / `session_chrome.rs` / `ranking.rs` / `pin.rs` write. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -58,7 +58,7 @@ This unblocks daily inventory: T216 shipped recency skim; T274/T285/T286 ranked 
 
 | Item | Location | Notes |
 |------|----------|-------|
-| CLI run | `crates/ai-brains-cli/src/commands/memory.rs` `run_inventory` `:136` | One `list_memories` call; tag retain; JSON vs human emit. **Mix here** for human + `status=pinned`. |
+| CLI run | `crates/ai-brains-cli/src/commands/memory.rs` `run_inventory` `:137` | One `list_memories` call; tag retain; JSON vs human emit. **Mix here** for human + `status=pinned`. (`run_list` is `:129`; OpenCode fold-in: plan cited `:136`.) |
 | Preview | `preview_line` `:32` | First non-empty + `strip_role_prefix`. Lift to `first_contentful_line` (retrieval already a CLI dep). |
 | JSON DTO | `MemoryListJson` `:73–84` CLI-local (T216 F22). Keys: `api_version`, `scope`, `project_id`, `status`, `items[]`, `returned`, `more_available`, `limit`, `total`. Item: `memory_id`, `preview`, `updated_at`, `project_id`. **No contracts freeze.** |
 | clap | `main.rs` `MemoryCommands::List` `:2608–2630` | `--status` / `-l` / `--global` / `--format` / `--summary` / `--tag` / `--project-id`. **No new flag.** |
@@ -98,7 +98,7 @@ This unblocks daily inventory: T216 shipped recency skim; T274/T285/T286 ranked 
 
 **Could not verify:** exact COUNT of post-envelope leading-marker rows in `3581317d` without vault SQL (do not print `AI_BRAINS_KEY`). Hermetic unique needle + live Manual `--limit 5` are the proof.
 
-**ledgerful / ai-brains:** `preflight --summary` Pinned **3750** / in-context 0/0/0 / word **237**; `memory list --limit 5` all chrome; `ledgerful ledger status --compact` 0 pending / 0 drift; `search "list_memories"` → `query_store.rs` + `memory.rs:177` + store tests; `scan --impact` CLEAN at `360139d`; hotspots `project.rs` #1 / `forget.rs` #3. Semantic recall of “memory list ORDER” still returns onboarding/review chrome (PATH 0.1.2 / ranking evidence) — not SoT for list mix.
+**ledgerful / ai-brains:** `preflight --summary` Pinned **volatile** (plan **3750**/`--summary` **3751**; OpenCode **3750**; fold-in **3776**) / in-context 0/0/0 at plan, fold-in **0/1/0** / word **volatile** (plan **237**; OpenCode **612**; fold-in **1406**). `memory list --limit 5` all chrome. `ledgerful ledger status --compact` 0 pending / 0 drift; `search "list_memories"` → `query_store.rs` + `memory.rs:177` + store tests; `scan --impact` CLEAN at plan `360139d`; hotspots `project.rs` #1 / `forget.rs` #3. Semantic recall of “memory list ORDER” still returns onboarding/review chrome (PATH 0.1.2 / ranking evidence) — not SoT for list mix.
 
 ---
 
@@ -106,13 +106,13 @@ This unblocks daily inventory: T216 shipped recency skim; T274/T285/T286 ranked 
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `673e7322`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `673e7322`. Fold-in is DOCS TX `35a4042f`. Implement starts a **FEATURE** TX. |
 | **F1 — Human pinned prefer-fill** | When `--status pinned` and **not** `--format json` and **not** `--summary`: pass-1 authority rows (newest first), then pass-2 recency fill excluding pass-1 ids, cap `page_limit`. First human data row is an authority pin when the scoped vault has ≥1 injectable leading-marker pin. Chrome dumps **may** fill later slots. |
 | **F2 — JSON recency freeze** | `--format json` uses **only** `list_memories` recency. `items[0]` is newest `updated_at` (tie `memory_id ASC`). **No** mix. **No** new keys (`mix`, `authority`, `sort`). T283 F2 analog. |
 | **F3 — Store `list_memories` ORDER freeze** | `ORDER BY mp.updated_at DESC, mp.memory_id ASC` stays (T216 F7 / T274 F13 store / T285 AC16 / T286 AC15). **Do not** change that SQL. Mix is CLI (human) + a **new** store method (pass-1). |
 | **F4 — `list_authority_memories`** | New `QueryStore` method. Same `memory_list_from_where` (status / project / tag LIKE) **plus** bind-free GLOB extra on **`mp.content` only** (no column arg — no ident injection). GLOB inner = T286 `index_pass1_glob_sql("mp.content")` shape: marker+HOTSPOT **OR** `TAGS:*` **OR** `ASSISTANT: TAGS:*`. Single `AND (` group. **Do not** stack two `AND (` requiring both. **Do not** add `USER: TAGS:*` / `SYSTEM: TAGS:*` (F29). Same `ORDER BY` + `LIMIT ?`. **Do not** add fields to `MemoryListFilter`. |
 | **F5 — Retain `classify_pin_kind != Other`** | After pass-1 fetch, drop rows where `classify_pin_kind` is `Other` (TAGS-only / body without marker). **Hotspot stays.** **Forbidden** to switch to `is_authority_pin_content` (drops Hotspot). Import `ai_brains_retrieval::{classify_pin_kind, PinKind, first_contentful_line}` — CLI already depends on retrieval. **Do not edit** `ranking.rs`. |
-| **F6 — Envelope preview** | `preview_line` uses `first_contentful_line` then existing char-safe truncate (80). Empty contentful → **fallback** to today’s first non-empty line after role strip (may be `TAGS:`). **Do not** invent `Untitled Memory` on list (Index-only T286 F4). Human **and** JSON previews share this helper (display honesty). No `unwrap`/`expect`/`panic`. |
+| **F6 — Envelope preview** | `preview_line` uses `first_contentful_line` then existing char-safe truncate. Empty contentful → **fallback** to today’s first non-empty line after role strip (may be `TAGS:` — Agy m1: **not** `""` when that line has text). **Do not** invent `Untitled Memory` on list (Index-only T286 F4). **Shared SOOT:** `forget.rs` `forget_match_preview` `:19` (max **100**) / `forget_multi_preview` `:24` (max **80`) and `graph.rs` `memory_preview` `:248` (max **80**) already call `preview_line` — envelope skip **inherits**. **Do not** edit `forget.rs` / `graph.rs`. **Do not** unify T216 F26 / T224 budgets. Human **and** JSON list previews share this helper. No `unwrap`/`expect`/`panic`. |
 | **F7 — Forgotten recency** | `--status forgotten` and `forget --list-forgotten` **do not** mix. Recency only. T299 owns empty next-step. |
 | **F8 — Summary freeze** | `--summary` still COUNT only (T216 F11/F46). Ignores `--status`/`--limit`. **Do not** list pins in summary. |
 | **F9 — No new clap flag** | No `--authority` / `--kind` / `--recency` / `--sort` / `--pins-only`. Silent human mix (T274 F15 / T283 F5 / T286 F17). Placeholder “or `--authority` default-on” **declined**. |
@@ -127,14 +127,14 @@ This unblocks daily inventory: T216 shipped recency skim; T274/T285/T286 ranked 
 | **F18 — Live vault pin** | Do **not** pin production DECISIONs as implement. Hermetic unique needle is SoT. Manual unique canary allowed on go. |
 | **F19 — last-PR Cursor** | #202 empty → **N/A**. Dependabot remotes not this track. **No T301.** |
 | **F20 — Capture independence** | SQL + pure formatters + existing classifier. No models, embeddings, graph, ledgerful, new events. **Do not rewrite** `pin.rs` stored shape. |
-| **F21 — Tests** | Naming `function_or_feature__condition__expected_result`. No `unwrap`/`expect`/`panic` in production. `tempfile::tempdir` per hermetic. rstest optional for GLOB cases. |
+| **F21 — Tests** | Naming `function_or_feature__condition__expected_result`. No `unwrap`/`expect`/`panic` in production. `tempfile::tempdir` per hermetic. **AC16 required rstest `#[case]`** (Agy O1). GLOB store cases may stay `#[test]`. |
 | **F22 — Cross-model** | Inventory mix is FEATURE. After Phase-1 clean, run read-only `codex-review`. |
 | **F23 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
-| **F24 — File growth** | Mix helper + `preview_line` in `memory.rs`. Optional tiny `prefer_fill_authority` unit in the same file (or `memory_list_order.rs` if `memory.rs` would grow ≥80 net lines — prefer **same file** first). Store GLOB + `list_authority_memories` in `query_store.rs` + trait in `lib.rs`. Hermetic in existing `memory_list_inventory.rs` (CLI + store). **Do not** grow `project.rs`, `sync.rs`, `forget.rs` production, `session_chrome.rs`, `ranking.rs`, `lexical.rs`, `pin.rs` write, CLI `preflight.rs`, `.github/workflows/ci.yml`. |
+| **F24 — File growth** | Mix helper + `preview_line` in `memory.rs`. Optional tiny `prefer_fill_authority` unit in the same file (or `memory_list_order.rs` if `memory.rs` would grow ≥80 net lines — prefer **same file** first). Store GLOB + `list_authority_memories` in `query_store.rs` + trait in `lib.rs` (only `VaultConnection` implements `QueryStore` — OpenCode verified). Hermetic in existing `memory_list_inventory.rs` (CLI + store). **Inherit-only:** `forget.rs` / `graph.rs` pick up envelope skip via `preview_line` — **do not** grow those files. **Do not** grow `project.rs`, `sync.rs`, `session_chrome.rs`, `ranking.rs`, `lexical.rs`, `pin.rs` write, CLI `preflight.rs`, `.github/workflows/ci.yml`. |
 | **F25 — Docs** | CAPABILITIES Memory inventory: human pinned prefer-fills authority; JSON recency frozen. CHANGELOG T287. `memory list` after_help one sentence (T283 pattern). OPERATIONS one-liner. |
 | **F26 — PowerShell** | `;` not `&&`. |
 | **F27 — No shared GLOB helper** | Do **not** import `index_pass1_glob_sql` into store (store must not depend on retrieval). Do **not** extract a shared crate helper. Duplicate the bind-free `mp.content` GLOB extra in `query_store.rs`. Store unit locks the literal needles (`DECISION:*`, `TAGS:*`, `ASSISTANT: TAGS:*`, `HOTSPOT:*`). |
-| **F28 — Existing tests stay green** | T216 CLI inventory suite; store `list_memories` recency unit; T216 JSON schema keys; empty `No pinned memories.`; forgotten share-backend; summary counts; tag exact-token; exit 2. |
+| **F28 — Existing tests stay green** | T216 CLI inventory suite; store `list_memories` recency unit; T216 JSON schema keys; empty `No pinned memories.`; forgotten share-backend; summary counts; tag exact-token; exit 2; `forget_match_preview__role_prefix_stripped__max_100` / `forget_multi_preview__role_prefix_stripped__max_80`; graph human preview tests that use `preview_line`. |
 | **F29 — USER/SYSTEM TAGS GLOB decline** | T285 F7 / T286 OpenCode L1. Default `pin` role is assistant. Re-trigger: live `--role user\|system` tagged pins miss **human** first page after ship. |
 | **F30 — Dual-truth after_help** | Human pinned prefer-fills authority; JSON order unchanged (recency). Same class as T283 “human table puts the cwd path-owner first; JSON order unchanged”. |
 | **F31 — Pass-2 fill stands** | Recency chrome **may** appear as rows 2+. Do **not** hard-exclude transcripts (T260 analog). |
@@ -154,7 +154,7 @@ This unblocks daily inventory: T216 shipped recency skim; T274/T285/T286 ranked 
 |----|-------|
 | **AC1** | CLI hermetic: older `pin --tag t287 -- "DECISION: {needle}"` + four **newer** `## Objective` dumps → `memory list --limit 5` stdout (human) contains `DECISION:` and `{needle}`; the first **data** row preview does **not** start with `## Objective`. EXIT **0**. **Required red.** |
 | **AC2** | Same fixture: `memory list --format json --limit 5` `items[0].preview` contains `## Objective` or the newest dump body (recency); does **not** require `items[0]` to be the pin. Keys T216 still present. EXIT **0**. **Required red** (JSON freeze). |
-| **AC3** | Unit: `preview_line("ASSISTANT: TAGS: t287\nDECISION: needle", 80)` contains `DECISION:` and does **not** start with `TAGS:`. Existing `preview_line__role_prefix_stripped_always` stays green. |
+| **AC3** | Unit: `preview_line("ASSISTANT: TAGS: t287\nDECISION: needle", 80)` contains `DECISION:` and does **not** start with `TAGS:`. **Agy m1:** `preview_line("ASSISTANT: TAGS: only", 80)` is **non-empty** and starts with `TAGS:` (empty `first_contentful_line` fallback — not `""`). Existing `preview_line__role_prefix_stripped_always` stays green. |
 | **AC4** | Store unit `list_memories__limit_plus_one__returns_extra_row_for_more_available` **stays green** (recency ORDER). |
 | **AC5** | Store: `list_authority_memories` on older tagged `DECISION:` + newer `## Objective` returns the pin (content GLOB/retain). SQL extra contains `GLOB 'TAGS:*'`, `GLOB 'ASSISTANT: TAGS:*'`, `GLOB 'DECISION:*'`, `GLOB 'HOTSPOT:*'`, and a single `AND (` with `OR` (not two stacked `AND (`). |
 | **AC6** | T216 `memory_list__format_json__schema_keys` **stays green**. |
@@ -167,7 +167,7 @@ This unblocks daily inventory: T216 shipped recency skim; T274/T285/T286 ranked 
 | **AC13** | Displayed human preview lines still do not begin with `ASSISTANT:` (T216/T219). |
 | **AC14** | `forget --list-forgotten` share-backend test **stays green**. |
 | **AC15** | Manual PATH-or-`cargo run`: `memory list --limit 5` among the 5 human rows **≥1** preview starts with `DECISION:` / `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` when such pins exist in scope; `memory list --summary` Pinned still matches. EXIT **0**. Hermetic AC1 covers if live page is PATH-behind. |
-| **AC16** | Unit `prefer_fill_authority`: pass-1 `[pin]`, pass-2 `[dump, pin]` → `[pin, dump]`; `len==2`; pin once. |
+| **AC16** | Unit `prefer_fill_authority` (**rstest `#[case]`**, Agy O1): (1) overlap — pass-1 `[pin]`, pass-2 `[dump, pin]` → `[pin, dump]`, pin once; (2) authority-only — pass-2 empty → pass-1 truncated to `limit`; (3) recency-only — pass-1 empty → pass-2 truncated to `limit` (F32); (4) limit — 2 pins + 2 dumps, `limit=3` → 2 pins then 1 dump. |
 | **AC17** | `memory list --help` / after_help mentions that human pinned prefer-fills authority and JSON stays recency (substring). |
 | **AC18** | CAPABILITIES Memory inventory row updated; CHANGELOG T287. |
 
@@ -229,6 +229,8 @@ pub(crate) fn preview_line(content: &str, max_chars: usize) -> String {
 
 `first_contentful_line` already skips `tags:` after role strip — **do not** double-strip role on the contentful path.
 
+Callers besides list emit (OpenCode m1, live): `forget.rs:19/24`, `graph.rs:248`. Envelope skip is display honesty for those previews too. Existing forget units assert role-strip of `ASSISTANT: DECISION:` → `DECISION:` — still green after F6.
+
 ### 5.4 Dual-truth (F2 / F30)
 
 Scripts that want “newest ingest” keep `--format json`. Humans who skim inventory get pins first. Same product decision as T283 cwd-first. Not a clap maze (F9).
@@ -270,7 +272,7 @@ No full workspace nextest as a plan gate. On go: targeted CLI+store nextest then
 | Dual-truth agents vs scripts | F30 after_help + CAPABILITIES; JSON freeze AC2 |
 | GLOB drift vs T286 `index_pass1_glob_sql` | F27 store unit needles; classifier retain F5 |
 | `MemoryListFilter` field add breaks literals | F4/F37 new method, no field |
-| `forget.rs` hotspot growth | Mix gated in `memory.rs`; forgotten path unchanged |
+| `forget.rs` hotspot growth | Mix gated in `memory.rs`; forgotten path unchanged; `preview_line` inherit-only (F6/F24) |
 | Prefer-fill first page all pins (limit 50) | Intentional inventory; dumps still in JSON recency / raise `--limit`; F31 later slots if pass-1 &lt; limit |
 | USER/SYSTEM tagged pins miss pass-1 | F29 residual; default assistant |
 | PATH 0.1.2 still chrome | F17; Manual `cargo run`; AC1 hermetic SoT |
@@ -350,6 +352,8 @@ Closed/strikethrough rows (T216–T286 Completed, T274–T284, T255, …) stay c
 | `crates/ai-brains-store/src/query_store.rs` | GLOB extra + method impl |
 | `crates/ai-brains-store/tests/memory_list_inventory.rs` | AC5 (+ AC4 stays) |
 | `crates/ai-brains-cli/src/commands/memory.rs` | Mix branch, `preview_line`, `prefer_fill_authority` |
+| `crates/ai-brains-cli/src/commands/forget.rs` | **Inherit only** via `preview_line` (`:19`/`:24`). **Do not edit.** |
+| `crates/ai-brains-cli/src/commands/graph.rs` | **Inherit only** via `preview_line` (`:248`). **Do not edit.** |
 | `crates/ai-brains-cli/src/main.rs` | after_help sentence only (≤5 lines) |
 | `crates/ai-brains-cli/tests/memory_list_inventory.rs` | AC1/AC2/AC7/AC9/AC10 |
 | `Docs/CAPABILITIES.md` | Memory inventory row |
@@ -363,4 +367,31 @@ Closed/strikethrough rows (T216–T286 Completed, T274–T284, T255, …) stay c
 
 ## 13. AI fold-in
 
-Reserved. `/fold-in 287` after review-track. Do **not** edit `*-review.md` here.
+Inputs (not edited): `agy-review.md` + `opencode-review.md` at HEAD `3178d5b`. Live verify: `preview_line` `:32`; `run_inventory` `:137`; `forget.rs` import `:1` + wrappers `:19`/`:24`; `graph.rs` `:248`; `first_contentful_line` `:102`; `QueryStore` impl only `VaultConnection` (`query_store.rs:76`). Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0 / 0.40.2; no clap 5).
+
+### Pins locked by fold-in
+
+1. **F6/AC3 (Agy m1):** empty `first_contentful_line` → fallback first non-empty after role strip; `preview_line("ASSISTANT: TAGS: only", 80)` non-empty starts with `TAGS:` — not `""`.
+2. **AC16 (Agy O1):** `prefer_fill_authority` rstest cases: overlap, authority-only, recency-only, limit truncation.
+3. **F6/F24 (OpenCode m1):** `preview_line` ripple is inherit-only (`forget.rs:19/24`, `graph.rs:248`). Do **not** edit those files. T216/T224 budgets stay (100 / 80 / 80). Forget/graph role-strip units stay green (F28).
+4. **§2.1 (OpenCode m2):** pinned COUNT / word count are **volatile** snapshots (plan 237 / OpenCode 612 / fold-in 1406).
+5. **§2.3 (OpenCode m3):** `run_inventory` live `:137` (not `:136`).
+6. **Already:** Agy m2 GLOB needles = F4/F27/AC5; Agy O2 after_help = F30/AC17; OpenCode F27 single `AND (` stays.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** empty-contentful `preview_line` fallback | **Already** F6; **tightened** AC3 TAGS-only |
+| Agy | **m2** exact GLOB prefixes + single `AND (` | **Already** F4 / F27 / AC5 |
+| Agy | **O1** `prefer_fill_authority` multi-case units | **Folded** AC16 rstest |
+| Agy | **O2** after_help dual-truth sentence | **Already** F30 / AC17 / F25 |
+| OpenCode | B / M | None filed (QueryStore single impl / GLOB subset / F29 / F27 **affirmed**) |
+| OpenCode | **m1** `preview_line` forget/graph callers | **Folded** F6 / F24 / §12 inherit-only |
+| OpenCode | **m2** word count 237 vs 612 | **Folded** volatile snapshot |
+| OpenCode | **m3** `run_inventory` `:136` vs `:137` | **Folded** live `:137` |
+| both | last-PR #202 Cursor | **Affirm N/A** — no T301 |
+| both | deferred list / briefing / neighbors / forgotten-empty | **Affirm** this track / T288 / T293 / T299 |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.
