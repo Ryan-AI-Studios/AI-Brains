@@ -101,6 +101,13 @@ pub fn index_marker_glob_sql(column: &str) -> String {
     format!(" AND ({inner} OR {column} GLOB 'HOTSPOT:*' OR {column} GLOB 'ASSISTANT: HOTSPOT:*')")
 }
 
+/// Index pass-1 GLOB: marker+HOTSPOT **or** TAGS envelope (T286 F2).
+///
+/// Red stub: marker-only until green wires the OR-join.
+pub fn index_pass1_glob_sql(column: &str) -> String {
+    index_marker_glob_sql(column)
+}
+
 /// Safety GLOB: leading CONSTRAINT / INVARIANT / HOTSPOT only (T279 F1).
 ///
 /// Does **not** include `DECISION:` — that belongs to Index (`index_marker_glob_sql`).
@@ -307,6 +314,44 @@ mod tests {
         assert!(
             !sql.to_ascii_uppercase().contains("LIKE"),
             "AC1: must not emit LIKE; got {sql}"
+        );
+    }
+
+    #[test]
+    fn index_pass1_glob_sql__tags_or_marker__single_and_group() {
+        let sql = index_pass1_glob_sql("m.content");
+        assert!(sql.contains("GLOB 'TAGS:*'"), "AC4: TAGS:* GLOB; got {sql}");
+        assert!(
+            sql.contains("GLOB 'ASSISTANT: TAGS:*'"),
+            "AC4: ASSISTANT: TAGS:* GLOB; got {sql}"
+        );
+        assert!(
+            sql.contains("GLOB 'DECISION:*'"),
+            "AC4: DECISION:* GLOB; got {sql}"
+        );
+        assert!(
+            sql.contains("GLOB 'HOTSPOT:*'"),
+            "AC4: HOTSPOT:* GLOB; got {sql}"
+        );
+        assert_eq!(
+            sql.matches(" AND (").count(),
+            1,
+            "AC4: single AND ( grouping, not stacked ANDs; got {sql}"
+        );
+        assert!(sql.contains(" OR "), "AC4: OR join; got {sql}");
+        let src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/session_chrome.rs"
+        ));
+        let start = src
+            .find("pub fn index_pass1_glob_sql")
+            .expect("index_pass1_glob_sql present");
+        let rest = &src[start..];
+        let end = rest.find("\npub fn ").unwrap_or(rest.len());
+        let body = &rest[..end];
+        assert!(
+            body.contains("debug_assert!(is_safe_sql_ident(column))"),
+            "AC4: helper must debug_assert is_safe_sql_ident; body={body}"
         );
     }
 

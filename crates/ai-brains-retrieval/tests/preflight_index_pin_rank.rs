@@ -81,3 +81,85 @@ fn preflight__index_prefers_leading_decision_over_objective_dump()
     );
     Ok(())
 }
+
+fn first_numbered_index_line(text: &str) -> &str {
+    let after = text
+        .split("--- Memory Index (Briefing) ---")
+        .nth(1)
+        .unwrap_or(text);
+    after
+        .lines()
+        .map(str::trim)
+        .find(|l| l.starts_with("1."))
+        .unwrap_or("")
+}
+
+/// T286 AC1/AC2/AC12 — tagged TAGS envelope pin vs a newer `## Objective` dump.
+#[test]
+fn preflight__index_prefers_tags_envelope_decision_over_objective_dump()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let needle = format!("T286-index-needle-{}", uuid::Uuid::new_v4());
+    let pin_content = format!("ASSISTANT: TAGS: t286\nDECISION: {needle} Index must list this pin");
+    let dump_body = format!(
+        "## Objective\nReview dump with buried decision: in the skill body. {}",
+        "padding word ".repeat(80)
+    );
+    let pin_id = append_pinned(&store, project_id, &pin_content)?;
+    let dump_id = append_pinned(&store, project_id, &dump_body)?;
+    set_updated_at(&store, &pin_id, "2020-01-01T00:00:00+00:00")?;
+    set_updated_at(&store, &dump_id, "2026-08-23T12:00:00+00:00")?;
+
+    let ctx = build_preflight(store.connection(), None, 60, Some(project_id), None, false)?;
+
+    assert!(
+        ctx.text.contains("DECISION:") && ctx.text.contains(&needle),
+        "AC1: Index must contain the tagged DECISION pin; text=\n{}",
+        ctx.text
+    );
+    let first = first_numbered_index_line(&ctx.text);
+    assert!(
+        !first.contains("## Objective"),
+        "AC1: first numbered Index line must not be ## Objective; line={first:?}\n{}",
+        ctx.text
+    );
+    assert!(
+        first.contains("DECISION:"),
+        "AC2: first numbered Index line must title DECISION:; line={first:?}\n{}",
+        ctx.text
+    );
+    assert!(
+        !first.contains("TAGS:"),
+        "AC2: envelope TAGS: must not be the Index title; line={first:?}\n{}",
+        ctx.text
+    );
+    Ok(())
+}
+
+/// T286 AC10 — TAGS-only envelope (no following content line) titles Untitled Memory.
+#[test]
+fn preflight__index_tags_only_envelope__untitled_memory() -> Result<(), Box<dyn std::error::Error>>
+{
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    append_pinned(
+        &store,
+        project_id,
+        "ASSISTANT: TAGS: one two three four five six",
+    )?;
+
+    let ctx = build_preflight(store.connection(), None, 60, Some(project_id), None, false)?;
+    let first = first_numbered_index_line(&ctx.text);
+    assert!(
+        first.contains("Untitled Memory"),
+        "AC10: empty envelope title is Untitled Memory; line={first:?}\n{}",
+        ctx.text
+    );
+    assert!(
+        !first.contains("TAGS:"),
+        "AC10: TAGS-only must not be the title; line={first:?}\n{}",
+        ctx.text
+    );
+    Ok(())
+}
