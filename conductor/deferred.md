@@ -4,14 +4,36 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #202 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #203 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Planned** 2026-08-23 (Pending until go).
 
 | Item | Track |
 |------|-------|
 | recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
 | preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Completed** |
 | `memory list` just-now ingest | **T287 Completed** |
-| briefing granted-empty vs pins (no H2) | **T288** |
+| briefing granted-empty vs pins (no H2) | **T288 Planned** |
+
+### T288 planning absorption (2026-08-23) — granted-empty vault-pin stanza; no H2
+
+| Item | Disposition |
+|------|-------------|
+| Audit `briefing project` granted-empty `_None_` vs 3k pins | **Absorb** F2–F5 / AC1–AC4 / AC12 |
+| Dual model: briefing = Approved; pins via recall | **Absorb** F1 keep split + F2 labeled stanza |
+| T263 F24 soft vault pin COUNT | **Absorb / promote** F4 inventory `count_pinned_memories` |
+| T263 F3 / T227 F3 never scrape pins into authority | **Affirm** F1 |
+| T263 F29 next-step ≤140 | **Affirm** F6 / AC6 |
+| T275 denied grant-wall | **Affirm** F7 / AC5 |
+| T287 `list_authority_memories` / `preview_line` | **Reuse** F5 / F15 |
+| T287 R1-1 live GLOB 0 | **Absorb** F4/F32 — COUNT not GLOB |
+| Placeholder JSON if T180 else human-only | **Absorb JSON overlay** F3 — T180 additive; non-TTY default |
+| Personal deny `_None_` | **Decline → T289** |
+| Lists/progressive pin count | **Decline → T290** |
+| graph neighbors dump sessions | **Decline → T293** |
+| leftover dest-missing / context skip upsert | **Decline → T294** |
+| T287 list mix | **Completed** — not stolen |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
+| last-PR Cursor #203 | **N/A** empty — **no T301** |
+| Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
 | personal briefing deny `_None_` | **T289** |
 | governed lists/progressive empty U=6 | **T290** |
 | `query trace` bare `null` | **T291** |
