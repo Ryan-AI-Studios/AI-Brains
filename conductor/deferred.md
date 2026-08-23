@@ -4,11 +4,11 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #200 **N/A** empty — **no T301**. **T285 Planned** 2026-08-22 (not implemented).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #200 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22.
 
 | Item | Track |
 |------|-------|
-| recall/search/semantic/sync-vault still chrome Q=4 | **T285** |
+| recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
 | preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286** |
 | `memory list` just-now ingest | **T287** |
 | briefing granted-empty vs pins (no H2) | **T288** |
@@ -67,6 +67,18 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode O2 `sync.rs:529` → `:532` | **Folded** §2.3 |
 | OpenCode O3 ROLE_PREFIXES via core | **Decline** — duplicate three tokens in ranking.rs |
 | last-PR #200 Cursor | **Affirm N/A** — no T301 |
+
+### T285 closeout (2026-08-22)
+
+| Item | Disposition |
+|------|-------------|
+| PATH until `cargo install` | **Residual** F21 — source has rank v2; PATH 0.1.2 until owner asks install |
+| Live canary pin landed in `[test-alias]` without forcing cwd PROJECT_ID | **Residual** — ranking SoT is hermetic AC12/AC13; `--global` GUID hit #1 |
+| Pretty `[session]` badge | **Soft** spec §11 |
+| More chrome prefixes as vault grows | **Soft** closed list |
+| Index/summary still Objective | **T286** |
+| `memory list` just-now | **T287** |
+| graph neighbors dump sessions | **T293** |
 
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 

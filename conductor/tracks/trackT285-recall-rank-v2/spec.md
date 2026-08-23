@@ -1,7 +1,7 @@
 # T285 — Recall/search must surface pins, not review-track dumps
 
 - **Track ID:** T285-RecallRankV2
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** 2026-08-22
 - **Category:** FEATURE / UX / RETRIEVAL
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-22 PATH **0.1.2** — `recall`/`search` **10/4**, `--semantic` **8/4**, `sync query` vault **9/7**. Placeholder minted with T285–T300 (`76c4db9`).
