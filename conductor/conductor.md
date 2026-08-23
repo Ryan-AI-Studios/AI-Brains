@@ -229,6 +229,22 @@
 | T282 | `context --show` leftover shell | ✅ **Completed** | Grok | [T282](tracks/trackT282-context-show-leftover/spec.md) | **Completed 2026-08-22:** leftover stdout after `Repository:` when captured shell `PROJECT_ID` ≠ file; KEY/VAULT_KEY `(redacted)`. Internal R1/R1b **PASS**; Codex CX1 **product PASS**. `dev-check` nextest **3333** (1 skipped). FEATURE TX `c93b313e-4270-446f-bce5-eb80f8fec7f0`. Soft: PATH until `cargo install`. |
 | T283 | `project list` cwd-first | ✅ **Completed** | Grok | [T283](tracks/trackT283-project-list-cwd-first/spec.md) | **Completed 2026-08-22:** human table cwd path-owner first; JSON size-desc frozen; T267 footer original vec. Internal R1/R1b **PASS**; Codex CX1 **product PASS**. `dev-check` nextest **3341** (1 skipped). FEATURE TX `b0f00cbc-63a7-4cce-be0c-3f4edbd1c7b5`. Soft: PATH until `cargo install`. |
 | T284 | Retention Work + apply samples | ✅ **Completed** | Grok | [T284](tracks/trackT284-retention-work-samples/spec.md) | **Completed 2026-08-22:** Work lists class dispose counts (not dominant `mechanism`); `RetentionApplied.sample_ids` prefer `content_key:`/`turn:` when dispose>0. Internal R1/R1b **PASS**; CX1 P2-01 **verified_fixed**; CX2 product **PASS**. `dev-check` nextest **3279** (1 skipped). BUGFIX TX `6549506e-816b-4a50-aa2d-4c9e4b60984e`. Soft: PATH until `cargo install`; live vault still 0 CE. |
+| T285 | Recall/search rank v2 | **Pending** | Grok | [T285](tracks/trackT285-recall-rank-v2/spec.md) | **Placeholder 2026-08-22:** live 0.1.2 recall/search/semantic still Q=4 chrome; T274 two-pass insufficient. |
+| T286 | Preflight Index + summary pins | **Pending** | Grok | [T286](tracks/trackT286-preflight-index-pins/spec.md) | **Placeholder 2026-08-22:** pretty Index `## Objective`; summary decisions 0 vs 3647 pins. |
+| T287 | `memory list` authority mix | **Pending** | Grok | [T287](tracks/trackT287-memory-list-authority/spec.md) | **Placeholder 2026-08-22:** limit-5 just-now ingest not pins. |
+| T288 | Briefing vault-pin stanza | **Pending** | Grok | [T288](tracks/trackT288-briefing-useful-pins/spec.md) | **Placeholder 2026-08-22:** granted-empty `_None_` vs 3k pins; no H2. |
+| T289 | Personal briefing deny | **Pending** | Grok | [T289](tracks/trackT289-personal-briefing/spec.md) | **Placeholder 2026-08-22:** deny + `_None_` prefs U=4. |
+| T290 | Governed empty useful | **Pending** | Grok | [T290](tracks/trackT290-governed-empty-useful/spec.md) | **Placeholder 2026-08-22:** lists/progressive `[]` + recall next, no pin count. |
+| T291 | `query trace` next | **Pending** | Grok | [T291](tracks/trackT291-query-trace-next/spec.md) | **Placeholder 2026-08-22:** bare `null` U=3; prior decline reopened. |
+| T292 | `policy check` human | **Pending** | Grok | [T292](tracks/trackT292-policy-check-human/spec.md) | **Placeholder 2026-08-22:** JSON-only U=7. |
+| T293 | Graph neighbors pins first | **Pending** | Grok | [T293](tracks/trackT293-graph-neighbors-pins/spec.md) | **Placeholder 2026-08-22:** PREVIEW filled; neighbors are dump sessions. |
+| T294 | `context` vault upsert | **Pending** | Grok | [T294](tracks/trackT294-context-vault-upsert/spec.md) | **Placeholder 2026-08-22:** already-initialized skips vault ensure; leftover dest-missing. |
+| T295 | Usable encrypted backup | **Pending** | Grok | [T295](tracks/trackT295-usable-backup/spec.md) | **Placeholder 2026-08-22:** 0 OK/22 FAIL; live create owner-confirm. |
+| T296 | Nightly Router last-result | **Pending** | Grok | [T296](tracks/trackT296-nightly-router-result/spec.md) | **Placeholder 2026-08-22:** `267014` / TASK_TERMINATED vs Nightly 0. |
+| T297 | Daemon Stopped vs LLM Open | **Pending** | Grok | [T297](tracks/trackT297-daemon-vs-llm/spec.md) | **Placeholder 2026-08-22:** status contrast line; do not start daemon. |
+| T298 | Device/replicate useful empty | **Pending** | Grok | [T298](tracks/trackT298-device-replicate/spec.md) | **Placeholder 2026-08-22:** U=5 empty; prior decline reopened. |
+| T299 | Forget-list useful empty | **Pending** | Grok | [T299](tracks/trackT299-forget-list-useful/spec.md) | **Placeholder 2026-08-22:** U=6; add Pinned N + next memory list. |
+| T300 | Graph sparse ops | **Pending** | Grok | [T300](tracks/trackT300-graph-sparse-ops/spec.md) | **Placeholder 2026-08-22:** live rebuild owner-confirm; floors frozen. |
 
 
 ---

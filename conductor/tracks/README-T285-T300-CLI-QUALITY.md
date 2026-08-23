@@ -1,0 +1,59 @@
+# T285–T300 — Post-T283 live CLI quality (placeholders)
+
+**Source:** Non-destructive CLI audit **2026-08-22** on PATH graph-on `ai-brains` **0.1.2** (`ae5f6fd` `#200`). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; grants **3 of 3**; leftover `7d97a456` still ~18k pins / **5** roots after partial rebind. Agent non-TTY.
+**Status:** All **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
+**Prior closed series:** T274–T284 (closer T283 `#199`). T274 ranking shipped but **live recall/Index still Q=4**.
+**Ledger (registration):** DOCS TX `36224860-4861-4d1d-b0b0-058911971142`.
+**last-PR Cursor:** [#200](https://github.com/Ryan-AI-Studios/AI-Brains/pull/200) comments/reviews **empty** → N/A. **No T301.**
+
+Scores below are **Usefulness / Quality** from that audit (1–10). Every command with **U&lt;8 or Q&lt;8**, plus every “doesn’t work,” friction, and significant-opportunity item, maps to **exactly one** track unless **declined**.
+
+## Audit → track map
+
+| Finding | U/Q or class | Track | Pri |
+|---------|--------------|-------|-----|
+| `recall` / `search` / `--semantic` rank review-track / `## Objective` over pins; unique DECISION pin not in top-3 | 10/**4**, 10/**4**, 8/**4** | **T285** | P0 |
+| `sync query` vault half same dumps (ledger pane already found T187) | 9/**7** | **T285** (vault arm only) | P0 |
+| `preflight --pretty` Session + Index still `## Objective`; `--summary` in-context decisions **0** next to 3647 pins | 7/**5**, 8/**7** | **T286** | P0 |
+| `memory list --limit 5` is just-now ingest, not pins | 8/**6** | **T287** | P1 |
+| `briefing project` granted-empty `_None_` feels like empty vault (H2 still declined) | 7/**7** | **T288** | P0 |
+| Dual model: briefing/progressive = Approved; pins only via recall | friction | **T288** | P0 |
+| `briefing personal` deny + `_None_` prefs | 4/**7** | **T289** | P2 |
+| `evidence` / `source` / `review` list + `query progressive` granted-empty U=6 | 6/**8** | **T290** | P1 |
+| `query trace` prints `null` | 3/**8**; friction | **T291** | P2 |
+| `policy check` JSON-only | 7/**8** | **T292** | P2 |
+| `graph neighbors` PREVIEW filled but neighbors are dump sessions | 7/**8** | **T293** | P1 |
+| Leftover 5 roots dest-missing; `context` already-initialized skips vault upsert | not working / opp | **T294** | P1 |
+| No usable encrypted backup (22/22 FAIL; doctor warn) | not working / opp | **T295** | P1 |
+| Nightly Router `Ready` + `SCHED_S_TASK_TERMINATED` dual-truth | 8/8 nightly; friction / opp | **T296** | P2 |
+| `daemon status` Stopped vs llama.cpp `:8081` Open | friction | **T297** | P2 |
+| `device status` / `replicate status` optional empty | 5/**8**, 5/**8** | **T298** | P2 |
+| `forget --list-forgotten` honest empty U=6 | 6/**8** | **T299** | P2 |
+| Graph sparse E/N ~0.14 (floors honest; rebuild Stop-Before) | not working / opp | **T300** | P1 |
+
+## Declined (written — not minted)
+
+| Item | Why |
+|------|-----|
+| `doctor` / `daemon status` / `detect` / `whoami` / `list` cwd-first / `--show` leftover / `harness` / `retention plan` / `backup list\|verify` / `scope` / `adopt-path` / `scan-roots` / `bootstrap --dry-run` / `--help` | U≥8 **and** Q≥8 on 2026-08-22 |
+| Raise 750 ms / unify daemon TCP with HTTP | **T255 F18** / **T269** / **T281** |
+| T240 F2 silent Scope switch | Standing |
+| T263 H2 pin → Approved | Standing — T288/T290 populate **without** promotion |
+| T278 density floor retune | Honest sparse; **T300** is live rebuild owner-confirm, not floor change |
+| clap 5 / rusqlite 0.40 / DTO new required keys | Standing |
+| T274 two-pass as sufficient | **Reopened as T285** — live still Q=4 |
+| last-PR #200 Cursor | **N/A** empty |
+
+## Suggested implement order
+
+1. **T285** (daily brain) then **T286** (Index/summary) then **T288** (briefing useful)
+2. **T294** leftover dest upsert (unblocks 5 roots without `.env` rewrite)
+3. **T287** / **T290** / **T293**
+4. **T295** / **T300** live ops (owner-confirm)
+5. **T289** / **T291** / **T292** / **T296** / **T297** / **T298** / **T299**
+
+Do **not** `/implement-track` a Placeholder. Run `/plan-track TNN` first.
+
+## Non-goals of this series
+
+Live `retention apply --confirm`, CE, `migrate governed`, pin→Approved, clap 5, silent `.env` rewrite, schtasks mutate, graph default-on Cargo.

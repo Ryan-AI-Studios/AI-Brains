@@ -2,6 +2,30 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
+
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #200 **N/A** empty — **no T301**.
+
+| Item | Track |
+|------|-------|
+| recall/search/semantic/sync-vault still chrome Q=4 | **T285** |
+| preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286** |
+| `memory list` just-now ingest | **T287** |
+| briefing granted-empty vs pins (no H2) | **T288** |
+| personal briefing deny `_None_` | **T289** |
+| governed lists/progressive empty U=6 | **T290** |
+| `query trace` bare `null` | **T291** |
+| `policy check` JSON-only | **T292** |
+| graph neighbors dump sessions | **T293** |
+| leftover dest-missing; context skip vault upsert | **T294** |
+| 0 usable encrypted backup | **T295** |
+| nightly Router 267014 / TASK_TERMINATED | **T296** |
+| daemon Stopped vs llama Open | **T297** |
+| device/replicate U=5 | **T298** |
+| forget-list empty U=6 | **T299** |
+| graph sparse live rebuild | **T300** |
+| T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |
+
 ## T274–T284 placeholders (2026-08-21) — post-T270 live CLI quality
 
 Minted from PATH dogfood + last-PR Cursor #188 (2 Bugbot Mediums, verified on `14d42af`). Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** T284 is **Completed** 2026-08-22 (`#193`). **T278 Completed** 2026-08-22 (`#194`). **T279 Completed** 2026-08-22 (`#195`). **T280 Completed** 2026-08-22 (`#196`). **T281 Completed** 2026-08-22 (`#197`). **T282 Completed** 2026-08-22 (`#198`). **T283 Completed** 2026-08-22.
