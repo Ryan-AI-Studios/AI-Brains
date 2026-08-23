@@ -952,19 +952,32 @@ fn memory_list__json_limit_5__items0_stays_recency_dump() {
     assert_eq!(v["scope"], "project");
     assert_eq!(v["status"], "pinned");
     assert!(v["items"].is_array());
-    assert!(v.get("more_available").is_some());
-    assert!(v.get("returned").is_some());
-    assert!(v.get("limit").is_some());
-    assert!(v.get("total").is_some());
-    assert!(v.get("mix").is_none(), "AC12 no mix key; got:\n{stdout}");
-    assert!(
-        v.get("authority").is_none(),
-        "AC12 no authority key; got:\n{stdout}"
+    let mut keys: Vec<&str> = v
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec![
+            "api_version",
+            "items",
+            "limit",
+            "more_available",
+            "project_id",
+            "returned",
+            "scope",
+            "status",
+            "total",
+        ],
+        "AC12 T216 field set only; got:\n{stdout}"
     );
     let preview = v["items"][0]["preview"].as_str().unwrap_or("");
     assert!(
-        preview.contains("## Objective") || preview.contains("dump four"),
-        "AC2 items[0] stays recency dump; preview={preview:?}\n{stdout}"
+        preview.contains("dump four") && preview.contains(&needle),
+        "AC2 items[0] is newest recency dump four; preview={preview:?}\n{stdout}"
     );
 }
 
@@ -1040,6 +1053,78 @@ fn memory_list__human_limit_5__untagged_decision_prefer_filled() {
     assert!(
         first.contains("DECISION:") || first.contains(&needle),
         "AC9 first row is untagged pin; first={first:?}\n{stdout}"
+    );
+}
+
+#[test]
+fn memory_list__human_tag_t287__mix_among_tag_matches_only() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let tagged = unique_token("T287tg");
+    let untagged = unique_token("T287un");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {untagged} untagged must not appear under --tag"),
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {tagged} tagged authority pin"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump one {tagged}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump two {tagged}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump three {tagged}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump four {tagged}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump five {tagged}"),
+        &["t287"],
+    );
+
+    let (code, stdout, stderr) =
+        run_memory_list(&vault, &["--limit", "5", "--tag", "t287"], Some(&id));
+    assert_eq!(code, 0, "F12 mix+tag exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        first.contains("DECISION:") && first.contains(&tagged),
+        "tagged authority wins under --tag; first={first:?}\n{stdout}"
+    );
+    assert!(
+        !stdout.contains(&untagged),
+        "untagged pin excluded by --tag; got:\n{stdout}"
     );
 }
 
