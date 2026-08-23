@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #205 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Planned** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #205 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
@@ -153,6 +153,16 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode O2 progressive no `--format` | **Already** F10 |
 | last-PR #205 Cursor | **Affirm N/A** — no T301 |
 | No B/M | Nothing to decline of B/M |
+
+### T290 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` still T281-era until `cargo install` | **Residual** — F17; source/hermetic SoT; T282 leftover `--show` + T283 cwd-first + T285–T290 not on PATH |
+| Daemon list overlay has copy-paste query but no `(Pinned: N)` | **Residual** — F14 |
+| Personal/Workspace list COUNT skipped | **Residual** — F4 |
+| T291 `query trace` `null` / T292 policy-check human / T293–T300 | **Not stolen** |
+| Codex CX1 P1 PowerShell `$`/backtick interpolators | **Fixed** — sanitize drops `$` and backtick; rstest + formatter unit |
 
 ### T287 closeout residuals (2026-08-23)
 

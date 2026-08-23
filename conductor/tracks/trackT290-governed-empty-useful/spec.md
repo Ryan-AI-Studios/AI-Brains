@@ -1,7 +1,7 @@
 # T290 — Granted-empty governed lists/progressive must be useful
 
 - **Track ID:** T290-GovernedEmptyUseful
-- **Status:** **Planned** (Pending in registry; plan-only until go)
+- **Status:** **Completed**
 - **Category:** FEATURE / UX / HONESTY
 - **Owner:** Grok
 - **Source:** Audit 2026-08-22 — evidence/source/review list **6/8**; `query progressive` **6/8** (`denied: false`, `items`/`results: []`, `next: recall` ellipsis, no pin count). Placeholder minted with T285–T300 (`76c4db9`). T263 ✅ F8 list overlay names recall (**H2 declined**). T243 ✅ F5 progressive `next_step`. T275 ✅ grants (live **3 of 3**). T288 ✅ project briefing stanza (do **not** steal). T289 ✅ Personal deny (do **not** steal).
