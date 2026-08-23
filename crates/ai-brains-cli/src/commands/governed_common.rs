@@ -53,6 +53,23 @@ pub const POLICY_DENIED_HINT: &str = "ensure a grant for this capability exists;
 // CLI-only progressive→recall fallback (T243 F13). Not dual-site.
 pub const PROGRESSIVE_RECALL_FALLBACK: &str = "Ungoverned vault search: ai-brains recall \"…\"";
 
+/// Default copy-paste recall needle for granted-empty lists (T290 F5).
+pub const LIST_RECALL_QUERY: &str = "what did we decide";
+
+/// Collapse ASCII whitespace, replace `"`, cap 80 chars (T290 F6). Empty → [`LIST_RECALL_QUERY`].
+pub fn sanitize_recall_query(raw: &str) -> String {
+    // T290_RED_STUB — green replaces with F6 sanitize. Touch the const so clippy is clean on red.
+    let _ = LIST_RECALL_QUERY;
+    raw.to_string()
+}
+
+/// Granted-empty `next_step` (T290 F7). `recall_query` None → [`LIST_RECALL_QUERY`].
+pub fn format_authorized_empty_next(pin_count: Option<u64>, recall_query: Option<&str>) -> String {
+    let _ = pin_count;
+    // T290_RED_STUB — echo the raw query so the newline round-trip test fails until green.
+    format!("T290_RED_STUB{}", recall_query.unwrap_or(""))
+}
+
 /// CLI overlay for authorized-empty discovery lists (T263 F8).
 ///
 /// When JSON has an empty `items` array and is not a deny/error envelope, set
@@ -673,6 +690,7 @@ pub fn emit_scope_human(resp: &ScopeResolvedResponse) {
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     fn exit_code_for_api_error__policy_denied__3() {
@@ -717,6 +735,57 @@ mod tests {
         assert!(
             denied.get("next_step").is_none(),
             "denied envelope must not get authorized-empty next_step; got {denied}"
+        );
+    }
+
+    /// T290 AC1 — exact F7 shape; single line; no U+2026.
+    #[test]
+    fn format_authorized_empty_next__with_count__includes_pinned_and_copy_paste() {
+        let with_count = format_authorized_empty_next(Some(12), None);
+        assert_eq!(
+            with_count,
+            "Ungoverned vault search: ai-brains recall \"what did we decide\" (Pinned: 12)"
+        );
+        assert!(
+            !with_count.contains('\n') && !with_count.contains('…'),
+            "formatter must be one line without U+2026; got {with_count}"
+        );
+        let without = format_authorized_empty_next(None, None);
+        assert_eq!(
+            without,
+            "Ungoverned vault search: ai-brains recall \"what did we decide\""
+        );
+        assert!(
+            !without.contains('\n') && !without.contains('…'),
+            "formatter must be one line without U+2026; got {without}"
+        );
+    }
+
+    /// T290 AC4 / AC14 — sanitize cases (tab, newline, quotes, empty, 80-cap).
+    #[rstest]
+    #[case("  foo\nbar  ", "foo bar")]
+    #[case("foo\tbar", "foo bar")]
+    #[case("say \"hi\"", "say 'hi'")]
+    #[case("", "what did we decide")]
+    #[case("   ", "what did we decide")]
+    fn sanitize_recall_query__cases__expected_needle(#[case] raw: &str, #[case] expected: &str) {
+        assert_eq!(sanitize_recall_query(raw), expected, "raw={raw:?}");
+    }
+
+    #[test]
+    fn sanitize_recall_query__eighty_one_a__truncates_to_eighty() {
+        let raw = "a".repeat(81);
+        let got = sanitize_recall_query(&raw);
+        assert_eq!(got.len(), 80, "got={got}");
+        assert_eq!(got, "a".repeat(80));
+    }
+
+    #[test]
+    fn format_authorized_empty_next__newline_query__single_line() {
+        let step = format_authorized_empty_next(Some(0), Some("  foo\nbar  "));
+        assert!(
+            !step.contains('\n'),
+            "formatter must stay one line after newline query; got {step}"
         );
     }
 
