@@ -48,24 +48,24 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `preflight.rs` Index two-pass `:458–545` + title `:538` + `drain_index_pass` `:682`
-- [ ] Confirm `is_safe_sql_ident` still `session_chrome.rs:178` — new helper must `debug_assert` it
-- [ ] Confirm `tags_envelope_sql` still TAGS + ASSISTANT: TAGS only — **do not** add USER/SYSTEM (L1 declined)
-- [ ] Re-read `session_chrome.rs` `index_marker_glob_sql` / `tags_envelope_sql`
-- [ ] Re-read `ranking.rs` `first_contentful_line` (T285 F2)
-- [ ] Confirm CLI `preflight.rs` `:884–888` still `matches("DECISION:")` — **do not grow** production
-- [ ] Confirm `pin.rs` still prepends `TAGS:` — **do not rewrite**
-- [ ] Confirm T274 `preflight_index_pin_rank.rs` untagged AC6 — **stay green**
-- [ ] Confirm T279 Safety SQL / `preflight_safety.rs` — **do not edit**
-- [ ] Confirm T220 JSON keys / 9-arg formatters — **do not add keys**
-- [ ] Rescan `conductor/deferred.md` — T286 rows absorbed; T287/T288/T293 not stolen
-- [ ] Confirm #201 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `preflight --pretty -m 1500` + `--summary` **read-only**. **Did not** pin production decisions; **did not** write `.env`
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX (new) — category FEATURE
-- [ ] Did **not** `cargo install`; did **not** grow `sync.rs` / `project.rs` / CLI `preflight.rs` production / `pin.rs` write / `lexical.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `preflight.rs` Index two-pass `:458–545` + title `:538` + `drain_index_pass` `:682`
+- [x] Confirm `is_safe_sql_ident` still `session_chrome.rs:178` — new helper must `debug_assert` it
+- [x] Confirm `tags_envelope_sql` still TAGS + ASSISTANT: TAGS only — **do not** add USER/SYSTEM (L1 declined)
+- [x] Re-read `session_chrome.rs` `index_marker_glob_sql` / `tags_envelope_sql`
+- [x] Re-read `ranking.rs` `first_contentful_line` (T285 F2)
+- [x] Confirm CLI `preflight.rs` `:884–888` still `matches("DECISION:")` — **do not grow** production
+- [x] Confirm `pin.rs` still prepends `TAGS:` — **do not rewrite**
+- [x] Confirm T274 `preflight_index_pin_rank.rs` untagged AC6 — **stay green**
+- [x] Confirm T279 Safety SQL / `preflight_safety.rs` — **do not edit**
+- [x] Confirm T220 JSON keys / 9-arg formatters — **do not add keys**
+- [x] Rescan `conductor/deferred.md` — T286 rows absorbed; T287/T288/T293 not stolen
+- [x] Confirm #201 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `preflight --pretty -m 1500` + `--summary` **read-only**. **Did not** pin production decisions; **did not** write `.env`
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX (new) — category FEATURE `59d67348-953d-4d8d-9171-68a7cbfe95c8`
+- [x] Did **not** `cargo install`; did **not** grow `sync.rs` / `project.rs` / CLI `preflight.rs` production / `pin.rs` write / `lexical.rs`
 
 ---
 
@@ -96,45 +96,45 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 1 — Red (required)
 
-- [ ] AC1 retrieval: TAGS envelope pin vs newer `## Objective` dump — Index item 1 is the pin
-- [ ] AC2: Index title is `DECISION:` not `TAGS:`
-- [ ] AC4 unit: `index_pass1_glob_sql` single `AND (` with TAGS **OR** marker+HOTSPOT + `debug_assert!(is_safe_sql_ident)`
-- [ ] AC5 CLI pretty Index item 1
-- [ ] AC6 CLI summary JSON tagged in `preflight_summary_json.rs`
-- [ ] Commit red (allowed)
+- [x] AC1 retrieval: TAGS envelope pin vs newer `## Objective` dump — Index item 1 is the pin
+- [x] AC2: Index title is `DECISION:` not `TAGS:`
+- [x] AC4 unit: `index_pass1_glob_sql` single `AND (` with TAGS **OR** marker+HOTSPOT + `debug_assert!(is_safe_sql_ident)`
+- [x] AC5 CLI pretty Index item 1
+- [x] AC6 CLI summary JSON tagged in `preflight_summary_json.rs`
+- [x] Commit red (allowed) `6291e09`
 
 ## Phase 2 — Green
 
-- [ ] F2 `index_pass1_glob_sql` in `session_chrome.rs`
-- [ ] Pass-1 extra uses it (`preflight.rs`)
-- [ ] F4 Index title `first_contentful_line`; empty → `Untitled Memory`; **delete** `:538` `lines().next().unwrap_or`
-- [ ] AC3 T274 untagged stays green
-- [ ] AC7 T220 untagged summary stays green
-- [ ] AC8–AC15 stay green (Safety / sections / pretty strip / global skip / no new keys / list ORDER)
-- [ ] Commit green (allowed)
+- [x] F2 `index_pass1_glob_sql` in `session_chrome.rs`
+- [x] Pass-1 extra uses it (`preflight.rs`)
+- [x] F4 Index title `first_contentful_line`; empty → `Untitled Memory`; **delete** `:538` `lines().next().unwrap_or`
+- [x] AC3 T274 untagged stays green
+- [x] AC7 T220 untagged summary stays green
+- [x] AC8–AC15 stay green (Safety / sections / pretty strip / global skip / no new keys / list ORDER)
+- [x] Commit green (allowed) `5f4e727`
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES: Index pass-1 marker-GLOB **or** TAGS; titles after envelope
-- [ ] CHANGELOG T286
-- [ ] PROTOCOL-COMPAT: no new required keys (N/A sentence)
+- [x] CAPABILITIES: Index pass-1 marker-GLOB **or** TAGS; titles after envelope
+- [x] CHANGELOG T286
+- [x] PROTOCOL-COMPAT: no new required keys (N/A sentence)
 
 ## Phase 4 — Verify
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] `cargo nextest run -p ai-brains-retrieval -p ai-brains-cli -E "test(preflight)"`
-- [ ] `.\scripts\dev-check.ps1` (or workspace gate) before closeout
-- [ ] `ledgerful verify --scope full`
-- [ ] `codex-review` (FEATURE)
+- [x] `cargo fmt --check`
+- [x] `cargo clippy -p ai-brains-retrieval -p ai-brains-cli --all-targets -- -D warnings`
+- [x] `cargo nextest run -p ai-brains-retrieval -p ai-brains-cli -E "test(preflight)"` 131/131
+- [x] `.\scripts\dev-check.ps1` (or workspace gate) before closeout — nextest **3366** passed / 1 skipped
+- [x] `ledgerful verify --scope full` exit 0
+- [x] `codex-review` (FEATURE) — product PASS; P1-01 process / P2-01 unrolled / P3-01 residual
 
 ## Phase 5 — Closeout
 
-- [ ] `conductor.md` T286 **Completed**
-- [ ] `review.md` findings closed
-- [ ] Append residuals to `deferred.md`
-- [ ] FEATURE TX commit
-- [ ] **Did not** `cargo install` unless owner asked
+- [x] `conductor.md` T286 **Completed**
+- [x] `review.md` findings closed
+- [x] Append residuals to `deferred.md`
+- [x] FEATURE TX commit
+- [x] **Did not** `cargo install` unless owner asked
 
 ## Phase 6 — Publish (standing)
 

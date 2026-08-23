@@ -4,12 +4,12 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #201 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Planned** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #201 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
 | recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
-| preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Planned** |
+| preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Completed** |
 | `memory list` just-now ingest | **T287** |
 | briefing granted-empty vs pins (no H2) | **T288** |
 | personal briefing deny `_None_` | **T289** |
@@ -25,6 +25,18 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | forget-list empty U=6 | **T299** |
 | graph sparse live rebuild | **T300** |
 | T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |
+
+### T286 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| Live `cargo run --pretty -m 1500` Index item 1 still `## Objective` on `3581317d` (R1-1 / Codex P3-01) | **Residual** — hermetic AC1/AC5 SoT; drain breaks if first addable row exceeds `max_words`; F21 PATH until `cargo install`; F22 no live canary |
+| Session section still recency chrome (F12) | **Residual** — Index is the decision list |
+| Index items 2+ may still be `## Objective` (F14) | **Residual** — prefer-fill not hard-exclude |
+| `USER:` / `SYSTEM:` TAGS GLOB miss pass-1 (OpenCode L1) | **Residual** — T285 F7; default assistant |
+| Duplicate OR-join with lexical Prefer (F27) | **Residual** — no shared helper this track |
+| `in_context_decisions` still a substring not vault COUNT (F10) | **Affirm freeze** |
+| T287 / T288 / T293 | **Not stolen** |
 
 ### T286 planning absorption (2026-08-23) — Index TAGS-or-GLOB + envelope titles; no Session steal
 

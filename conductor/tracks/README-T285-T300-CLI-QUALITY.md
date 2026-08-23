@@ -1,7 +1,7 @@
 # T285–T300 — Post-T283 live CLI quality (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-22** on PATH graph-on `ai-brains` **0.1.2** (`ae5f6fd` `#200`). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; grants **3 of 3**; leftover `7d97a456` still ~18k pins / **5** roots after partial rebind. Agent non-TTY.
-**Status:** **T285 Completed** 2026-08-22 (`#201`). **T286 In Progress** 2026-08-23 (`/implement-track 286`, FEATURE TX `59d67348-953d-4d8d-9171-68a7cbfe95c8`). T287–T300 still **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
+**Status:** **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23. T287–T300 still **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
 **Prior closed series:** T274–T284 (closer T283 `#199`). T274 ranking shipped but **live recall/Index still Q=4**.
 **Ledger (registration):** DOCS TX `36224860-4861-4d1d-b0b0-058911971142`. **T285 plan:** DOCS TX `515b984b-7f5e-4386-9566-a292efd3afe1`. **T285 fold-in:** DOCS TX `3a598eff-b7e5-4158-970b-be5e331006a7`. **T286 plan:** DOCS TX `397f9c55-5953-402b-95fc-db431f5a037c`. **T286 fold-in:** DOCS TX `0eea671d-b8c3-4209-9e6b-31764707efdf`.
 **last-PR Cursor:** [#201](https://github.com/Ryan-AI-Studios/AI-Brains/pull/201) T285 comments/reviews **empty** → N/A. **No T301.** (#200 version bump also empty.)
