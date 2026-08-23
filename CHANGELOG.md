@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Added
+
+- **T285 Recall/search rank v2:** `recall` / `search` (and `--semantic` lexical fallback / `sync query` vault) put tagged `ASSISTANT: TAGS:` pins and live `DECISION:` markers above session chrome. Envelope strip + `# AI-Brains Session Onboarding` / `# Review of Track` detector + pass-1 TAGS-or-authority retain + recency retry + leading-line query bonus +16 + chrome parents do not seed graph neighbors. JSON keys unchanged. Graph hop-1 default stands.
+
 ## [0.1.2] — 2026-08-22
 
 Workspace version bump after the T256–T283 CLI quality series (T274–T284 closer). PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph`.

@@ -7,6 +7,7 @@
 //! extend this function rather than introducing a second final sort.
 
 use crate::recall::RecallHit;
+use ai_brains_core::{contentful_tokens, extract_fts_tokens};
 
 // ---------------------------------------------------------------------------
 // F9 — boost magnitudes (frozen)
@@ -81,14 +82,34 @@ pub fn strip_assistant_prefix(content: &str) -> &str {
     content.strip_prefix("ASSISTANT: ").unwrap_or(content)
 }
 
-/// First non-empty line after [`strip_assistant_prefix`] + trim (T274 F2).
+/// Role tokens duplicated here (retrieval cannot import CLI `ROLE_PREFIXES`).
+const PIN_ROLE_PREFIXES: [&str; 3] = ["ASSISTANT:", "USER:", "SYSTEM:"];
+
+fn strip_pin_role(content: &str) -> &str {
+    for token in PIN_ROLE_PREFIXES {
+        if let Some(rest) = content.strip_prefix(token) {
+            return rest;
+        }
+    }
+    content
+}
+
+/// First non-empty line after pin envelope (T285 F2).
+///
+/// Strip one leading `USER:` / `ASSISTANT:` / `SYSTEM:` via `strip_prefix`
+/// (no required space), `trim_start`, skip a `tags:` line if present, then
+/// the first remaining contentful line. Empty / role-only → `""`.
 pub fn first_contentful_line(content: &str) -> &str {
-    let stripped = strip_assistant_prefix(content).trim();
-    stripped
-        .lines()
-        .map(str::trim)
-        .find(|l| !l.is_empty())
-        .unwrap_or("")
+    let after_role = strip_pin_role(content).trim_start();
+    let mut lines = after_role.lines().map(str::trim).filter(|l| !l.is_empty());
+    let Some(first) = lines.next() else {
+        return "";
+    };
+    if first.to_ascii_lowercase().starts_with("tags:") {
+        lines.next().unwrap_or("")
+    } else {
+        first
+    }
 }
 
 /// Classify pin kind from the **first contentful line** only (T274 F2).
@@ -268,8 +289,8 @@ pub fn rerank_hits(hits: &mut Vec<RecallHit>) {
 }
 
 /// T285 F6: same sort as [`rerank_hits`] plus leading-line query bonus when
-/// `query` is `Some`. Stub in red: bonus not applied until green.
-pub fn rerank_hits_with_query(hits: &mut Vec<RecallHit>, _query: Option<&str>) {
+/// `query` is `Some` and the hit is authority after envelope.
+pub fn rerank_hits_with_query(hits: &mut Vec<RecallHit>, query: Option<&str>) {
     if hits.is_empty() {
         return;
     }
@@ -326,6 +347,20 @@ pub fn rerank_hits_with_query(hits: &mut Vec<RecallHit>, _query: Option<&str>) {
             }
             if crate::session_chrome::is_session_chrome(&hit.content) {
                 effective -= SESSION_CHROME_PENALTY;
+            }
+            if let Some(q) = query {
+                let tokens = contentful_tokens(&extract_fts_tokens(q));
+                if crate::session_chrome::is_authority_pin_content(&hit.content)
+                    && !tokens.is_empty()
+                {
+                    let line = first_contentful_line(&hit.content).to_ascii_lowercase();
+                    if tokens
+                        .iter()
+                        .any(|t| line.contains(&t.to_ascii_lowercase()))
+                    {
+                        effective += LEADING_QUERY_BONUS;
+                    }
+                }
             }
             Ranked {
                 effective,

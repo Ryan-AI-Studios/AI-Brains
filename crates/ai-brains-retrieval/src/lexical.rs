@@ -145,6 +145,7 @@ pub fn lexical_search(
 enum AuthorityFilter {
     None,
     Prefer,
+    PreferRecency,
     ExcludeIds(Vec<String>),
 }
 
@@ -168,7 +169,7 @@ fn match_query(
         return Ok(Vec::new());
     }
     if prefer_authority {
-        let pass1 = match_query_filtered(
+        let sql_pass1 = match_query_filtered(
             conn,
             match_expr,
             project_id,
@@ -177,11 +178,36 @@ fn match_query(
             exclude_symbol_stubs,
             AuthorityFilter::Prefer,
         )?;
-        if pass1.len() >= limit {
-            return Ok(pass1);
+        let mut retain: Vec<RetrievalMemory> = sql_pass1
+            .into_iter()
+            .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
+            .collect();
+        if retain.len() >= limit {
+            return Ok(retain);
         }
-        let remainder = limit.saturating_sub(pass1.len());
-        let ids: Vec<String> = pass1.iter().map(|m| m.memory_id.clone()).collect();
+        if retain.is_empty() {
+            let retry = match_query_filtered(
+                conn,
+                match_expr,
+                project_id,
+                session_id,
+                limit,
+                exclude_symbol_stubs,
+                AuthorityFilter::PreferRecency,
+            )?;
+            retain = retry
+                .into_iter()
+                .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
+                .collect();
+            if retain.len() >= limit {
+                return Ok(retain);
+            }
+        }
+        let remainder = limit.saturating_sub(retain.len());
+        if remainder == 0 {
+            return Ok(retain);
+        }
+        let ids: Vec<String> = retain.iter().map(|m| m.memory_id.clone()).collect();
         let pass2 = match_query_filtered(
             conn,
             match_expr,
@@ -191,9 +217,8 @@ fn match_query(
             exclude_symbol_stubs,
             AuthorityFilter::ExcludeIds(ids),
         )?;
-        let mut out = pass1;
-        out.extend(pass2);
-        return Ok(out);
+        retain.extend(pass2);
+        return Ok(retain);
     }
     match_query_filtered(
         conn,
@@ -290,8 +315,18 @@ fn match_sql_and_params(
 
     match authority {
         AuthorityFilter::None => {}
-        AuthorityFilter::Prefer => {
-            sql.push_str(&crate::session_chrome::authority_glob_sql("mp.content"));
+        AuthorityFilter::Prefer | AuthorityFilter::PreferRecency => {
+            let auth = crate::session_chrome::authority_glob_sql("mp.content");
+            let tags = crate::session_chrome::tags_envelope_sql("mp.content");
+            let auth_inner = auth
+                .strip_prefix(" AND (")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(auth.as_str());
+            let tags_inner = tags
+                .strip_prefix(" AND (")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(tags.as_str());
+            sql.push_str(&format!(" AND ({auth_inner} OR {tags_inner})"));
         }
         AuthorityFilter::ExcludeIds(ids) => {
             if let Some(clause) = crate::session_chrome::bound_not_in_sql("mp.memory_id", ids.len())
@@ -304,7 +339,14 @@ fn match_sql_and_params(
         }
     }
 
-    sql.push_str(" ORDER BY rank LIMIT ?");
+    match authority {
+        AuthorityFilter::PreferRecency => {
+            sql.push_str(" ORDER BY mp.updated_at DESC, mp.memory_id ASC LIMIT ?");
+        }
+        _ => {
+            sql.push_str(" ORDER BY rank LIMIT ?");
+        }
+    }
     params_vec.push((limit as i64).into());
     (sql, params_vec)
 }
@@ -319,6 +361,19 @@ pub(crate) fn match_pass_sql_for_test(prefer: bool, exclude_n: usize) -> String 
         AuthorityFilter::None
     };
     match_sql_and_params("needle", None, None, 15, false, &filter).0
+}
+
+#[cfg(test)]
+pub(crate) fn match_prefer_recency_sql_for_test() -> String {
+    match_sql_and_params(
+        "needle",
+        None,
+        None,
+        15,
+        false,
+        &AuthorityFilter::PreferRecency,
+    )
+    .0
 }
 
 /// Substring fallback when FTS5 returns no results.
@@ -482,6 +537,10 @@ mod unit_tests {
             "AC17: pass-1 SQL has GLOB + LIMIT; got {pass1}"
         );
         assert!(
+            pass1.contains("TAGS:") && pass1.contains("ASSISTANT: TAGS:"),
+            "AC15: pass-1 SQL includes TAGS envelope GLOB; got {pass1}"
+        );
+        assert!(
             !pass1.contains("memory_id NOT IN"),
             "AC17: pass-1 has no id NOT IN; got {pass1}"
         );
@@ -497,6 +556,19 @@ mod unit_tests {
         assert!(
             pass2.contains("LIMIT"),
             "AC17: pass-2 still LIMIT; got {pass2}"
+        );
+        let retry = match_prefer_recency_sql_for_test();
+        assert!(
+            retry.contains("updated_at") && retry.contains("LIMIT"),
+            "AC15: recency-retry SQL has updated_at + LIMIT; got {retry}"
+        );
+        assert!(
+            retry.contains('?') && !retry.contains('-'),
+            "AC15: recency-retry uses ? placeholders, no UUID literals; got {retry}"
+        );
+        assert!(
+            retry.contains("TAGS:"),
+            "AC15: recency-retry keeps TAGS GLOB; got {retry}"
         );
     }
 }

@@ -26,6 +26,12 @@ pub fn is_session_chrome(content: &str) -> bool {
     if lower.starts_with("# ai-brains onboarding") {
         return true;
     }
+    if lower.starts_with("# ai-brains session onboarding") {
+        return true;
+    }
+    if lower.starts_with("# review of track") {
+        return true;
+    }
     if lower.starts_with("```json") {
         return true;
     }
@@ -67,6 +73,17 @@ pub fn authority_glob_sql(column: &str) -> String {
         .map(|p| format!("{column} GLOB '{p}*'"))
         .collect();
     format!(" AND ({})", parts.join(" OR "))
+}
+
+/// Bind-free `AND (col GLOB 'TAGS:*' OR col GLOB 'ASSISTANT: TAGS:*')` (T285 F7).
+///
+/// `column` must be a SQL identifier (`content` / `mp.content` / `m.content`).
+pub fn tags_envelope_sql(column: &str) -> String {
+    debug_assert!(
+        is_safe_sql_ident(column),
+        "tags_envelope_sql column must be a SQL identifier"
+    );
+    format!(" AND ({column} GLOB 'TAGS:*' OR {column} GLOB 'ASSISTANT: TAGS:*')")
 }
 
 /// Index pass-1 GLOB: [`authority_glob_sql`] plus leading HOTSPOT (F11).
@@ -138,7 +155,6 @@ pub fn dedupe_session_chrome(hits: &mut Vec<RecallHit>) {
 /// T285 F36: chrome-shaped parents must not seed graph neighbors.
 ///
 /// True for authority pins (after envelope). False for session chrome.
-/// Red stub: existing detector only (new live prefixes fail AC6 until green).
 pub fn parent_seeds_graph_neighbors(content: &str) -> bool {
     !is_session_chrome(content)
 }

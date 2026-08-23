@@ -114,3 +114,75 @@ fn recall_full__tagged_pin_vs_body_match_review_dumps__hit_one__ac4()
     );
     Ok(())
 }
+
+/// AC5: same body-MATCH dumps as AC4, untagged `DECISION:` pin is still #1.
+#[test]
+fn recall_full__untagged_pin_vs_body_match_review_dumps__hit_one__ac5()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let needle = format!("T285-rank-needle-{}", uuid::Uuid::new_v4());
+    for i in 0..15 {
+        let repeats = format!("{needle} ").repeat(12);
+        append_pinned(
+            &store,
+            &format!("# Review of Track 285: dump {i}\n{repeats}review body"),
+        )?;
+    }
+    let pin_id = append_pinned(
+        &store,
+        &format!("DECISION: {needle} we chose rank v2 untagged"),
+    )?;
+
+    let outcome = recall_full(store.connection(), None, &needle, 5, default_opts())?;
+    assert!(
+        !outcome.hits.is_empty(),
+        "AC5: recall must return hits; got empty for needle={needle}"
+    );
+    assert_eq!(
+        outcome.hits[0].memory_id, pin_id,
+        "AC5: untagged pin must be hit #1; first={} content={:?}",
+        outcome.hits[0].memory_id, outcome.hits[0].content
+    );
+    assert!(
+        envelope_stripped_starts_with_decision(&outcome.hits[0].content),
+        "AC5: hit #1 must start with DECISION:; got {}",
+        outcome.hits[0].content
+    );
+    Ok(())
+}
+
+/// AC14: `--semantic` with no stored embeddings still puts the pin in top-3
+/// (lexical fallback). No HTTP required.
+#[test]
+fn recall_full__semantic_no_blobs__lexical_fallback_pin_in_top3__ac14()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let needle = format!("T285-rank-needle-{}", uuid::Uuid::new_v4());
+    for i in 0..15 {
+        let repeats = format!("{needle} ").repeat(12);
+        append_pinned(
+            &store,
+            &format!("# Review of Track 285: dump {i}\n{repeats}review body"),
+        )?;
+    }
+    let pin_id = append_pinned(
+        &store,
+        &format!("ASSISTANT: TAGS: t285\nDECISION: {needle} we chose rank v2"),
+    )?;
+
+    let mut opts = default_opts();
+    opts.semantic = true;
+    let outcome = recall_full(store.connection(), None, &needle, 5, opts)?;
+    let top3: Vec<&str> = outcome
+        .hits
+        .iter()
+        .take(3)
+        .map(|h| h.memory_id.as_str())
+        .collect();
+    assert!(
+        top3.contains(&pin_id.as_str()),
+        "AC14: pin must be in top-3 lexical fallback; top3={top3:?} embedding={:?}",
+        outcome.embedding
+    );
+    Ok(())
+}
