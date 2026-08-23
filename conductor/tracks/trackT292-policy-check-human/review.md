@@ -34,6 +34,14 @@
 
 No open medium+. No regressions observed on AC5 suite.
 
-## Phase-2 cross-model
+## Phase-2 cross-model (Codex CX1 — `review.codex.md`)
 
-Pending Codex (`review.codex.md`).
+| id | severity | disposition | notes |
+|----|----------|-------------|-------|
+| P1-01 | high (process) | `verified_fixed` after Phase 5/6 | gates incomplete at audit time; closed by `dev-check` + verify full + publish |
+| P1-02 | high (process) | `verified_fixed` (process) | single feat commit after planning — same class as T291; product ACs hermetic-proven |
+| P2-01 | medium | `verified_fixed` | AC12 → `rstest` `#[case]` |
+| P2-02 | medium | `verified_fixed` | help asserts full `CAPABILITY_CATALOG` block |
+| P2-03 | medium | `verified_fixed` | AC3 line2 `assert_eq!(SHORT)`; deny omit-format pipe JSON |
+
+**Verdict after fixes:** product PASS; process P1s closed by Phase 5/6.

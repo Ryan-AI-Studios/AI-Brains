@@ -415,7 +415,7 @@ mod tests {
         );
     }
 
-    /// T292 AC9: `policy check --help` names auto/TTY and keeps catalog order.
+    /// T292 AC9/F29: `policy check --help` names auto/TTY and catalog block matches CAPABILITY_CATALOG.
     #[test]
     #[allow(non_snake_case)]
     fn policy_check__help__names_auto_tty_and_catalog() {
@@ -433,31 +433,15 @@ mod tests {
             !lower.contains("json-only") && !lower.contains("json only"),
             "AC9: help must not claim JSON-only; got: {help}"
         );
-        for line in [
-            "ReadEvidence (discovery)",
-            "ReadConclusions (discovery)",
-            "ReadDecisions (discovery)",
-            "ApproveConclusion",
-            "ApproveDecision",
-            "Erase",
-            "Export",
-            "ProposeConclusion",
-            "ProposeDecision",
-        ] {
-            assert!(
-                help.contains(line),
-                "AC9/F29: catalog line missing from help: {line}"
-            );
-        }
-        let re_pos = help
-            .find("ReadEvidence (discovery)")
-            .expect("ReadEvidence in help");
-        let pd_pos = help
-            .find("ProposeDecision")
-            .expect("ProposeDecision in help");
+        // F29: after_help catalog block must stay byte-stable with CAPABILITY_CATALOG.
+        let catalog_block = crate::commands::governed_common::CAPABILITY_CATALOG
+            .iter()
+            .map(|line| format!("  {line}"))
+            .collect::<Vec<_>>()
+            .join("\n");
         assert!(
-            re_pos < pd_pos,
-            "AC9/F29: catalog discovery-first order broken"
+            help.contains(&catalog_block),
+            "AC9/F29: help catalog block must match CAPABILITY_CATALOG byte-for-byte; missing:\n{catalog_block}\nhelp:\n{help}"
         );
     }
 

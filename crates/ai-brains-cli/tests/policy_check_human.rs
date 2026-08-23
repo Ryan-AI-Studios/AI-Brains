@@ -4,9 +4,14 @@
 
 mod common;
 
+use rstest::rstest;
 use serde_json::Value;
 use std::path::Path;
 use tempfile::tempdir;
+
+/// T241 F14 SHORT — human deny line 2 must match exactly.
+const POLICY_BOOTSTRAP_SOOT_SHORT: &str =
+    "next: run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap`";
 
 const SCOPE: &str = "Repository:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
@@ -122,22 +127,20 @@ fn policy_check__deny__format_human__denied_plus_short_exit_3() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
     let trimmed = stdout.trim();
+    let lines: Vec<&str> = trimmed.lines().collect();
     assert!(
         !trimmed.starts_with('{'),
         "AC3: must not be a JSON object; got {stdout}"
     );
-    assert!(
-        trimmed.contains("denied:") && trimmed.contains("ProposeConclusion"),
-        "AC3: deny line; got {stdout}"
-    );
-    assert!(
-        trimmed.contains("policy bootstrap"),
-        "AC3: SHORT must name bootstrap; got {stdout}"
-    );
     assert_eq!(
-        trimmed.lines().count(),
+        lines.len(),
         2,
         "AC3: exactly two stdout lines; got {stdout:?}"
+    );
+    assert_eq!(lines[0], "denied: ProposeConclusion");
+    assert_eq!(
+        lines[1], POLICY_BOOTSTRAP_SOOT_SHORT,
+        "AC3: line 2 must equal SHORT exactly"
     );
     assert!(
         serde_json::from_str::<Value>(trimmed).is_err(),
@@ -221,45 +224,83 @@ fn policy_check__allow__omit_format__pipe_still_json() {
     assert_eq!(v["capability"], "ReadEvidence");
 }
 
-/// T292 AC12 — pretty/md/text ≡ human allow line.
+/// T292 AC7 deny — pipe omit-format stays one POLICY_DENIED JSON document.
 #[test]
-fn policy_check__allow__format_pretty_aliases__human_line() {
+fn policy_check__deny__omit_format__pipe_still_json_api_error() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--capability")
+        .arg("ProposeConclusion")
+        .arg("--scope")
+        .arg(SCOPE)
+        .output()
+        .expect("policy check deny omit format");
+
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("pipe deny default must be JSON");
+    assert_eq!(v["code"], "POLICY_DENIED");
+    let hint = v
+        .pointer("/details/hint")
+        .and_then(|h| h.as_str())
+        .unwrap_or("");
+    assert!(!hint.is_empty(), "details.hint must be non-empty; got {v}");
+}
+
+/// T292 AC12 — pretty/md/text ≡ human allow line (rstest per alias).
+#[rstest]
+#[case("pretty")]
+#[case("text")]
+#[case("markdown")]
+#[case("md")]
+fn policy_check__allow__format_pretty_aliases__human_line(#[case] token: &str) {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
     system_bootstrap(&vault);
 
-    for token in ["pretty", "text", "markdown", "md"] {
-        let out = common::hermetic_bin()
-            .arg("--no-project-context")
-            .arg("--vault-path")
-            .arg(&vault)
-            .arg("policy")
-            .arg("check")
-            .arg("--capability")
-            .arg("ReadEvidence")
-            .arg("--scope")
-            .arg(SCOPE)
-            .arg("--format")
-            .arg(token)
-            .output()
-            .unwrap_or_else(|e| panic!("policy check --format {token}: {e}"));
-        assert_eq!(
-            out.status.code(),
-            Some(0),
-            "{token}: stderr={} stdout={}",
-            String::from_utf8_lossy(&out.stderr),
-            String::from_utf8_lossy(&out.stdout)
-        );
-        let stdout = String::from_utf8_lossy(&out.stdout);
-        let trimmed = stdout.trim();
-        assert!(
-            trimmed.starts_with("allowed: true (ReadEvidence on "),
-            "AC12: {token} must ≡ human allow; got {stdout}"
-        );
-        assert!(
-            !trimmed.starts_with('{'),
-            "AC12: {token} not JSON; got {stdout}"
-        );
-    }
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("check")
+        .arg("--capability")
+        .arg("ReadEvidence")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg(token)
+        .output()
+        .unwrap_or_else(|e| panic!("policy check --format {token}: {e}"));
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{token}: stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let trimmed = stdout.trim();
+    assert!(
+        trimmed.starts_with("allowed: true (ReadEvidence on "),
+        "AC12: {token} must ≡ human allow; got {stdout}"
+    );
+    assert!(
+        !trimmed.starts_with('{'),
+        "AC12: {token} not JSON; got {stdout}"
+    );
 }

@@ -255,6 +255,16 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR #207 Cursor | **Affirm N/A** — no T301 |
 | No B/M | Nothing to decline of B/M |
 
+### T292 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH until `cargo install` (F13) | **Residual** — source/hermetic SoT |
+| Propose*/Approve*/Erase/Export human deny next still SHORT (F24) | **Residual** — bootstrap does not issue those caps |
+| `policy show` / `policy bootstrap` TTY still JSON (F26) | **Residual** — Family D peers |
+| Human deny stderr empty (no `POLICY_DENIED:` CODE) | **Residual** — F7 by design |
+| T293–T300 | **Not stolen** |
+
 ### T287 closeout residuals (2026-08-23)
 
 | Item | Disposition |
