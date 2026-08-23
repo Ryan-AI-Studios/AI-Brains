@@ -139,6 +139,21 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor #205 | **N/A** empty — **no T301** |
 | Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
 
+### T290 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 review human `(none)` + next line | **Folded** AC3 / F2 |
+| Agy m2 formatter single-line | **Folded** F6 / F7 / AC1 / AC4 |
+| Agy O1 CLI-EXIT-CODES + OPERATIONS exit 0 | **Already** F25 / AC10; **tightened** AC10 |
+| Agy O2 sanitize rstest tab / newline / quotes / 80 | **Already** AC4; **folded** tab + formatter `!contains('\n')` |
+| OpenCode m1 `QueryStore` import in four callers | **Folded** F12 / §5.2 |
+| OpenCode m2 AC6 not `progressive_cmd` `"x"` | **Folded** AC6 |
+| OpenCode O1 exact `next_step` `assert_eq!` | **Folded** AC1 unit exact |
+| OpenCode O2 progressive no `--format` | **Already** F10 |
+| last-PR #205 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 ### T287 closeout residuals (2026-08-23)
 
 | Item | Disposition |

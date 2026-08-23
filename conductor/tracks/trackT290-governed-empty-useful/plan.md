@@ -1,10 +1,26 @@
 # T290 Plan — granted-empty lists/progressive copy-paste recall + Pinned: N
 
 **Status:** **Pending** (Planned). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC17
+**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC17 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `c66b1485-a4a7-4ca6-87d2-8b2e2d8b5865` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `8875a1cc-fba7-49a3-8026-dff1a033ddd6` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F12/§5.2 (OpenCode m1):** `use ai_brains_store::QueryStore;` in four callers — **not** `governed_common.rs`.
+2. **AC6 (OpenCode m2):** do not reuse `progressive_cmd` (`:83` `"x"`).
+3. **AC1 (OpenCode O1 + Agy m2):** exact F7 `assert_eq!`; single-line; no U+2026.
+4. **AC3 (Agy m1):** human parity evidence + source + review.
+5. **AC4 (Agy O2):** tab + newline round-trip single-line.
+6. **Affirm:** Agy O1 already AC10; OpenCode O2 already F10; #205 N/A; T288/T289/H2 not stolen.
 
 ---
 
@@ -39,14 +55,15 @@
 - [ ] Confirm fallback const still exact ellipsis — **do not edit the string** (F8 / AC15)
 - [ ] Confirm list DTOs still have **no** `next_step` field — **do not add**
 - [ ] Confirm `ProgressiveQueryResponse.next_step` still `Option<String>` skip_serializing_if — **grow string only**
-- [ ] Confirm `count_pinned_memories` still on `QueryStore` `:699` — **do not** add a store method; **do not** import QueryStore into `governed_common.rs`
-- [ ] Confirm `run_list_local` still has `ScopeRef` + `ctx.conn` — COUNT here
+- [ ] Confirm `count_pinned_memories` still on `QueryStore` impl for `VaultConnection` (`query_store.rs:135` / SQL `:699`) — **do not** add a store method; **do not** import QueryStore into `governed_common.rs`; **do** import it in four callers (OpenCode m1)
+- [ ] Confirm `run_list_local` still has `ScopeRef` + `ctx.conn` — COUNT here (evidence **`:202`**, source `:196`, review `:81`)
+- [ ] Confirm `progressive_cmd` `:83` still hardcodes `"x"` — AC6 must not reuse it (OpenCode m2)
 - [ ] Confirm daemon `emit_list` has no ctx — `pin_count = None`
 - [ ] Confirm `apply_progressive_search_hints` empty arm `:76` still sets the const — replace with formatter
 - [ ] Confirm deny stderr `:133` still prints the const — **do not change**
 - [ ] Confirm clap list `--format` default `json`; progressive has no `--format`
 - [ ] Confirm evidence search dispatches `run_list` — inherit overlay; F32 needle is **not** evidence `--query`
-- [ ] Rescan `conductor/deferred.md` — T290 absorbed; T291–T300 / T288 / T289 not stolen
+- [ ] Rescan `conductor/deferred.md` — T290 absorbed + fold-in table; T291–T300 / T288 / T289 not stolen
 - [ ] Confirm #205 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
 - [ ] Re-dogfood four Manual commands **read-only**. **Did not** pin production decisions; **did not** write `.env`; **did not** extra `policy bootstrap`
 - [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
@@ -89,18 +106,19 @@
 
 - [ ] `LIST_RECALL_QUERY` exact `what did we decide`
 - [ ] `sanitize_recall_query` F6
-- [ ] `format_authorized_empty_next`
+- [ ] `format_authorized_empty_next` — AC1 exact `assert_eq!`; `!contains('\n')` (Agy m2 / OpenCode O1)
 - [ ] `apply_authorized_empty_list_next(value, pin_count)` — empty items still `contains("recall")`
 - [ ] No `unwrap`/`expect`/`panic` in production
 - [ ] No QueryStore import in `governed_common.rs`
 
 ## Phase 3 — List emit + progressive
 
+- [ ] `use ai_brains_store::QueryStore;` in `evidence.rs` / `source.rs` / `review.rs` / `governed_query.rs` (OpenCode m1)
 - [ ] Local COUNT `ScopeRef::Repository` → `count_pinned_memories(Some).ok()`
-- [ ] `emit_list` JSON + human second line (evidence / source / review)
+- [ ] `emit_list` JSON + human second line for **all three** nouns (Agy m1 / AC3); `review items: (none)` string frozen
 - [ ] Daemon `pin_count = None`
 - [ ] Progressive empty arm: formatter + COUNT + operator query; deny stderr const frozen
-- [ ] AC2/AC3 0-pin hermetic; AC5 with pin; AC6 progressive needle
+- [ ] AC2/AC3 0-pin hermetic; AC5 with pin; AC6 progressive needle **without** `progressive_cmd` `"x"` (OpenCode m2)
 - [ ] AC7/AC8/AC9/AC15 stay green
 
 ## Phase 4 — Docs + gates
