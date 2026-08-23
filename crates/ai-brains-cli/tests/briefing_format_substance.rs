@@ -490,6 +490,10 @@ fn briefing_project__granted_substance__decision_and_conclusion_in_md_and_json()
         !conclusions.is_empty(),
         "conclusions must be non-empty; got {v}"
     );
+    assert!(
+        v.get("vault_pin_count").is_none() && v.get("vault_pin_previews").is_none(),
+        "T288 AC7: overlay JSON keys omit when authority is non-empty; got {v}"
+    );
     let dec_text = decisions
         .iter()
         .filter_map(|d| d["statement"].as_str())

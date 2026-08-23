@@ -553,7 +553,11 @@ fn briefing_project__denied__no_vault_pin_stanza() {
     assert_eq!(v["denied"], true, "packet={v}");
     assert!(
         v.get("vault_pin_count").is_none(),
-        "denied JSON must omit overlay keys; got {v}"
+        "denied JSON must omit vault_pin_count; got {v}"
+    );
+    assert!(
+        v.get("vault_pin_previews").is_none(),
+        "denied JSON must omit vault_pin_previews; got {v}"
     );
 }
 
