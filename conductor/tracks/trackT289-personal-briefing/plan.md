@@ -1,11 +1,11 @@
 # T289 Plan — Personal deny must not print `_None_` preferences
 
-**Status:** **Pending** (Planned). Full F-list in spec.md.
+**Status:** **Completed**. Full F-list in spec.md.
 **Spec:** [spec.md](./spec.md) F0–F24 / AC1–AC12 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `25bbc580-99a6-4969-8ea5-d0e1902d374e` (DOCS)
 **Ledger TX (fold-in Agy+OpenCode):** `45277700-a110-4f91-911b-8f921173dfdb` (DOCS)
-**Ledger TX (implement):** FEATURE on **go**
+**Ledger TX (implement):** FEATURE `95ad50a2-ecc8-413d-8ae0-ef06ee07cf41`
 
 ---
 
@@ -47,19 +47,19 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — 0 pending / 0 drift before FEATURE TX
-- [ ] Re-read `render_personal_markdown` `:243` + `_None_` `:262–273`
-- [ ] Confirm `BRIEFING_PERSONAL_DENIED_NEXT_STEP` unchanged — **do not edit**
-- [ ] Confirm `personal.rs:121` still PERSONAL hint — **do not edit `personal.rs`**
-- [ ] Confirm T275 AC16 unit still forbids GRANT_WALL/HIDDEN on personal deny
-- [ ] Confirm T227 AC8 allowed-empty `_None_` + empty_continuity
-- [ ] Rescan `conductor/deferred.md` — T289 absorbed; T290 not stolen
-- [ ] Confirm #204 comments/reviews still empty (N/A); no mint
-- [ ] Re-dogfood `briefing personal --format human` + json **read-only**. **Did not** Personal bootstrap; **did not** write `.env`
-- [ ] Re-check clap **4.6.1**, rusqlite **0.39.0** — **no bump**
-- [ ] FEATURE TX (new)
-- [ ] Did **not** `cargo install`; did **not** grow `personal.rs` / `project.rs` / `preflight.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — 0 pending / 0 drift before FEATURE TX
+- [x] Re-read `render_personal_markdown` `:243` + `_None_` `:262–273`
+- [x] Confirm `BRIEFING_PERSONAL_DENIED_NEXT_STEP` unchanged — **do not edit**
+- [x] Confirm `personal.rs:121` still PERSONAL hint — **do not edit `personal.rs`**
+- [x] Confirm T275 AC16 unit still forbids GRANT_WALL/HIDDEN on personal deny
+- [x] Confirm T227 AC8 allowed-empty `_None_` + empty_continuity
+- [x] Rescan `conductor/deferred.md` — T289 absorbed; T290 not stolen
+- [x] Confirm #204 comments/reviews still empty (N/A); no mint
+- [x] Re-dogfood `briefing personal --format human` + json **read-only**. **Did not** Personal bootstrap; **did not** write `.env`
+- [x] Re-check clap **4.6.1**, rusqlite **0.39.0** — **no bump**
+- [x] FEATURE TX (new)
+- [x] Did **not** `cargo install`; did **not** grow `personal.rs` / `project.rs` / `preflight.rs`
 
 ---
 
@@ -88,53 +88,53 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 1 — Red (required)
 
-- [ ] `render_personal_markdown__denied__no_none_placeholder` (AC1)
-- [ ] `briefing_personal_denied_body__exact_optional_one_line` (AC4)
-- [ ] Confirm they **fail** (not compile-error-only) before green
+- [x] `render_personal_markdown__denied__no_none_placeholder` (AC1)
+- [x] `briefing_personal_denied_body__exact_optional_one_line` (AC4)
+- [x] Confirm they **fail** (not compile-error-only) before green
 
 ## Phase 2 — Green
 
-- [ ] `BRIEFING_PERSONAL_DENIED_BODY` exact F2 next to Personal deny consts
-- [ ] **Private `fn`** `personal_empty_section_placeholder(denied)` — **not** `empty_section_placeholder`; **not** `pub`; **not** re-exported (Agy m1)
-- [ ] Prefs + Continuity empty branches use the helper
-- [ ] Reuse existing `empty_personal` fixture (`:383`) — do not mint a second one (OpenCode O1)
-- [ ] No `unwrap`/`expect`/`panic` in production
-- [ ] `personal.rs` diff empty
+- [x] `BRIEFING_PERSONAL_DENIED_BODY` exact F2 next to Personal deny consts
+- [x] **Private `fn`** `personal_empty_section_placeholder(denied)` — **not** `empty_section_placeholder`; **not** `pub`; **not** re-exported (Agy m1)
+- [x] Prefs + Continuity empty branches use the helper
+- [x] Reuse existing `empty_personal` fixture (`:383`) — do not mint a second one (OpenCode O1)
+- [x] No `unwrap`/`expect`/`panic` in production
+- [x] `personal.rs` diff empty
 
 ## Phase 3 — More ACs
 
-- [ ] AC2 hermetic human no `_None_`
-- [ ] AC3 JSON freeze (existing hermetic stays green)
-- [ ] AC5 T227 allowed-empty `_None_` stays green (**both** Preferences and Continuity)
-- [ ] AC6 T275 AC16 stays green
-- [ ] AC7 unknown format exit 2
-- [ ] AC11 `personal.rs` unchanged
-- [ ] AC12 no new JSON keys
+- [x] AC2 hermetic human no `_None_`
+- [x] AC3 JSON freeze (existing hermetic stays green)
+- [x] AC5 T227 allowed-empty `_None_` stays green (**both** Preferences and Continuity)
+- [x] AC6 T275 AC16 stays green
+- [x] AC7 unknown format exit 2
+- [x] AC11 `personal.rs` unchanged
+- [x] AC12 no new JSON keys
 
 ## Phase 4 — Docs + gates
 
-- [ ] CAPABILITIES **extend** Denied packets row `:322` (not a new section)
-- [ ] `briefing personal` after_help one sentence
-- [ ] CHANGELOG T289
-- [ ] `cargo fmt --check` ; `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings`
-- [ ] `cargo nextest run --workspace` (or targeted then full)
-- [ ] `cargo deny check` ; `cargo audit`
-- [ ] `ledgerful verify --scope full`
+- [x] CAPABILITIES **extend** Denied packets row `:322` (not a new section)
+- [x] `briefing personal` after_help one sentence
+- [x] CHANGELOG T289
+- [x] `cargo fmt --check` ; `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings`
+- [x] `cargo nextest run --workspace` (or targeted then full)
+- [x] `cargo deny check` ; `cargo audit`
+- [x] `ledgerful verify --scope full`
 
 ## Phase 5 — Manual + closeout
 
-- [ ] Manual AC10 `cargo run -p ai-brains-cli -- briefing personal --format human`
-- [ ] Phase-1 `review.md` → clean
-- [ ] `codex-review` (FEATURE)
-- [ ] conductor.md T289 **Completed**; deferred closeout; README
-- [ ] Publish: push `track/T289-*` → PR → `gh run watch --exit-status` CI green → `gh pr merge --squash --delete-branch` → fetch/prune. Never `git push origin main`. Never force-push.
+- [x] Manual AC10 `cargo run -p ai-brains-cli -- briefing personal --format human`
+- [x] Phase-1 `review.md` → clean
+- [x] `codex-review` (FEATURE)
+- [x] conductor.md T289 **Completed**; deferred closeout; README
+- [x] Publish: push `track/T289-*` → PR → `gh run watch --exit-status` CI green → `gh pr merge --squash --delete-branch` → fetch/prune. Never `git push origin main`. Never force-push.
 
 ## DoD
 
-- [ ] Denied human has no `_None_`; next is recall; not Personal bootstrap
-- [ ] JSON `denied: true` unchanged
-- [ ] T288 / T290 / H2 not stolen
-- [ ] CI green + squash-merged
+- [x] Denied human has no `_None_`; next is recall; not Personal bootstrap
+- [x] JSON `denied: true` unchanged
+- [x] T288 / T290 / H2 not stolen
+- [x] CI green + squash-merged
 
 ## Isolation (every phase)
 

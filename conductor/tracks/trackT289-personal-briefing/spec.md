@@ -1,7 +1,7 @@
 # T289 — Personal briefing deny must not look like empty preferences
 
 - **Track ID:** T289-PersonalBriefing
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** 2026-08-23
 - **Category:** FEATURE / UX / HONESTY
 - **Owner:** Grok
 - **Source:** Audit 2026-08-22 — `briefing personal` **4/7**; deny + `_None_` Preferences/Continuity. Placeholder minted with T285–T300 (`76c4db9`). T263 ✅ F4 Personal deny names `recall` (**not** Personal bootstrap). T275 ✅ F35 contamination lock (no project grant-wall). T275 **F32** Personal `_None_` was **not** DoD — **this track absorbs it**. T288 ✅ project vault-pin stanza (do **not** steal).

@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #204 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Planned** 2026-08-23 (Pending until go).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #204 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
@@ -57,11 +57,11 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 |------|-------------|
 | Live `cargo run -- briefing project --format human` on `3581317d` prints `Pinned: 3889` and `_No leading-line DECISION/CONSTRAINT samples in this scope._` (R1-1 / CX1 P3) | **Residual** — pass-1 GLOB 0 (F32); inventory COUNT is Manual SoT; hermetic AC1/AC2 for samples; F17 PATH until `cargo install` |
 | Daemon/HTTP packet unaugmented | **Residual** — F29 |
-| Personal `_None_` / lists/progressive pin count | **T289 / T290** — not stolen |
+| Personal `_None_` / lists/progressive pin count | **T289 Completed** / **T290** — not stolen |
 | Governed preflight no stanza | **Residual** — F27 / T170 D21 |
 | First `dev-check` fail-fast `backup_restore__daemon_down_force__succeeds` | **Environmental** — daemon was Running; temporary `daemon stop`; gate re-run **3399** passed. Daemon left **Stopped**. |
 
-| personal briefing deny `_None_` | **T289 Planned** |
+| personal briefing deny `_None_` | **T289 Completed** |
 
 ### T289 planning absorption (2026-08-23) — denied Personal omits `_None_`; no bootstrap
 
@@ -109,6 +109,14 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | forget-list empty U=6 | **T299** |
 | graph sparse live rebuild | **T300** |
 | T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |
+
+### T289 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` still T281-era until `cargo install` | **Residual** — F13; source/hermetic SoT; T282 leftover `--show` + T283 cwd-first + T285–T289 not on PATH |
+| Allowed-empty Personal `_None_` | **Residual** — F6 freeze |
+| T290 lists/progressive pin count | **Not stolen** |
 
 ### T287 closeout residuals (2026-08-23)
 
