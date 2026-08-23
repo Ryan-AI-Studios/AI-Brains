@@ -428,6 +428,26 @@ fn briefing_personal__no_grants__soft_deny_denial_hint() {
         !hint.contains("policy bootstrap"),
         "personal denied JSON must not recommend policy bootstrap; got {v}"
     );
+    assert!(
+        v.get("vault_pin_count").is_none() && v.get("vault_pin_previews").is_none(),
+        "T289 AC3: T288 overlay keys are project-path only; got {v}"
+    );
+    let prefs = v["preferences"]
+        .as_array()
+        .or_else(|| v["packet"]["preferences"].as_array());
+    assert_eq!(
+        prefs.map(Vec::len),
+        Some(0),
+        "denied preferences stay empty array; got {v}"
+    );
+    let summary = v["continuity"]["summary"]
+        .as_str()
+        .or_else(|| v["packet"]["continuity"]["summary"].as_str())
+        .unwrap_or("missing");
+    assert_eq!(
+        summary, "",
+        "denied continuity.summary stays empty string; got {v}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -464,6 +484,33 @@ fn briefing_project__help__lists_human_pretty_and_example() {
     assert!(
         combined.contains("not Approved") && combined.contains("vault_pin_count"),
         "T288 AC10: after_help must name vault-pin stanza + JSON extras; got {combined}"
+    );
+}
+
+#[test]
+fn briefing_personal__help__names_optional_body_not_none() {
+    // T289 AC8
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("briefing")
+        .arg("personal")
+        .arg("--help")
+        .output()
+        .expect("help");
+    assert_eq!(out.status.code(), Some(0));
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let lower = combined.to_lowercase();
+    assert!(
+        lower.contains("not `_none_`"),
+        "personal after_help must say denied human is not _None_: {combined}"
+    );
+    assert!(
+        lower.contains("optional") && lower.contains("denied"),
+        "personal after_help must name optional-continuity deny body: {combined}"
     );
 }
 

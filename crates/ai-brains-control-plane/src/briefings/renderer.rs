@@ -56,8 +56,8 @@ pub const BRIEFING_PERSONAL_DENIED_DENIAL_HINT: &str =
 
 /// Denied Personal empty Preferences/Continuity body (T289 F2).
 ///
-/// Allowed-empty stays `_None_`. T289 red stub — green replaces with F2 exact body.
-pub const BRIEFING_PERSONAL_DENIED_BODY: &str = "T289_RED_STUB";
+/// Allowed-empty stays `_None_`. One line, ≤140 chars. Not a grant wall.
+pub const BRIEFING_PERSONAL_DENIED_BODY: &str = "_(optional continuity; not a missing vault)_";
 
 /// Empty personal continuity notice (T227 F9 / F17).
 pub const BRIEFING_EMPTY_CONTINUITY_NOTICE: &str = "_No personal continuity yet._";
@@ -244,6 +244,17 @@ fn empty_section_placeholder(denied: bool) -> &'static str {
     }
 }
 
+/// Denied Personal empty prefs/continuity is optional continuity, not `_None_` (T289 F2).
+///
+/// Private — do not share `empty_section_placeholder` (T275 F35 / T289 F3).
+fn personal_empty_section_placeholder(denied: bool) -> &'static str {
+    if denied {
+        BRIEFING_PERSONAL_DENIED_BODY
+    } else {
+        "_None_"
+    }
+}
+
 /// Deterministic Markdown render of a Personal continuity packet.
 pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> String {
     let mut lines: Vec<String> = Vec::new();
@@ -265,7 +276,7 @@ pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> St
     lines.push(String::new());
     lines.push("## Preferences".to_string());
     if packet.preferences.is_empty() {
-        lines.push("_None_".to_string());
+        lines.push(personal_empty_section_placeholder(packet.denied).to_string());
     } else {
         for p in &packet.preferences {
             lines.push(format!("- {}", p.statement));
@@ -275,7 +286,7 @@ pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> St
     lines.push(String::new());
     lines.push("## Continuity".to_string());
     if packet.continuity.summary.is_empty() {
-        lines.push("_None_".to_string());
+        lines.push(personal_empty_section_placeholder(packet.denied).to_string());
     } else {
         lines.push(packet.continuity.summary.clone());
     }
@@ -322,6 +333,7 @@ pub fn render_personal_markdown(packet: &PersonalContinuityBriefingPacket) -> St
 
 #[cfg(test)]
 #[allow(non_snake_case)]
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
     use ai_brains_contracts::briefings::{
@@ -545,7 +557,10 @@ mod tests {
             md.contains(BRIEFING_PERSONAL_DENIED_NEXT_STEP),
             "personal deny next-step frozen: {md}"
         );
-        assert!(md.contains("recall"), "personal deny must name recall: {md}");
+        assert!(
+            md.contains("recall"),
+            "personal deny must name recall: {md}"
+        );
         assert!(
             !md.contains("policy bootstrap"),
             "personal deny must not contain policy bootstrap: {md}"
@@ -588,6 +603,48 @@ mod tests {
         assert!(
             !BRIEFING_PERSONAL_DENIED_BODY.contains("policy bootstrap"),
             "const must not contain policy bootstrap; got {BRIEFING_PERSONAL_DENIED_BODY:?}"
+        );
+    }
+
+    #[test]
+    fn personal_empty_denied__json__no_new_keys() {
+        // T289 AC12 — packet keys frozen; no T288 overlay extras.
+        let packet = PersonalContinuityBriefingPacket::empty_denied(
+            "b1".into(),
+            "Personal:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "denied",
+        );
+        let value = serde_json::to_value(&packet).expect("serialize empty_denied");
+        let obj = value.as_object().expect("object");
+        assert!(
+            !obj.contains_key("vault_pin_count") && !obj.contains_key("vault_pin_previews"),
+            "T288 overlay keys must not appear on Personal JSON: {value}"
+        );
+        let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        assert_eq!(
+            keys,
+            [
+                "api_version",
+                "briefing_id",
+                "budget",
+                "continuity",
+                "denial_reason",
+                "denied",
+                "grants_applied",
+                "kind",
+                "open_review_items",
+                "preferences",
+                "scope_key",
+                "warnings",
+            ]
+        );
+        assert_eq!(value["preferences"], serde_json::json!([]));
+        assert_eq!(value["continuity"]["summary"], "");
+        assert_eq!(value["denied"], true);
+        assert!(
+            value.get("denial_hint").is_none(),
+            "empty_denied leaves denial_hint omitted: {value}"
         );
     }
 
@@ -794,7 +851,11 @@ mod tests {
             !md.contains(BRIEFING_DENIED_NEXT_STEP),
             "allowed empty must not get deny next-step: {md}"
         );
-        // No synthetic continuity fill.
+        // No synthetic continuity fill. T289 AC5: both empty sections stay `_None_`.
+        assert!(
+            md.contains("## Preferences\n_None_"),
+            "preferences stay _None_ when allowed-empty: {md}"
+        );
         assert!(
             md.contains("## Continuity\n_None_"),
             "continuity stays _None_: {md}"
