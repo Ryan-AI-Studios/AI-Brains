@@ -4,9 +4,10 @@
 //! issue discovery grants only). No domain logic in the CLI.
 
 use crate::commands::governed_common::{
-    DISCOVERY_CAP_LABELS, OutputFormat, POLICY_BOOTSTRAP_SOOT_SHORT,
-    capability_required_usage_message, emit_human, emit_json, fail_api, fail_cp, fail_usage,
-    policy_denied_hint_details, resolve_principal, resolve_scope_key_for_cli,
+    DISCOVERY_CAP_LABELS, EXIT_POLICY_DENIED, GovernedCliError, OutputFormat,
+    POLICY_BOOTSTRAP_SOOT_SHORT, capability_required_usage_message, emit_human, emit_json,
+    fail_api, fail_cp, fail_usage, policy_denied_hint_details, resolve_principal,
+    resolve_scope_key_for_cli,
 };
 use crate::context::AppContext;
 use ai_brains_contracts::response::ApiError;
@@ -19,6 +20,7 @@ use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::GrantCapability;
 use ai_brains_store::SqliteEventStore;
 use serde::Serialize;
+use std::io::IsTerminal;
 
 pub struct ShowOptions {
     /// Optional — soft-resolves when authoritative (T226).
@@ -32,8 +34,26 @@ pub struct CheckOptions {
     pub capability: Option<String>,
     /// Optional — soft-resolves when authoritative (T226).
     pub scope: Option<String>,
-    pub format: Option<String>,
+    /// Family A token from clap (`auto` default). Not `Option` — clap always supplies.
+    pub format: String,
     pub principal_id: Option<String>,
+}
+
+/// T292 F2 — human allow line (exact shape; not a wire contract).
+pub(crate) fn format_policy_check_allow_line(capability: &str, scope: &str) -> String {
+    format!("allowed: true ({capability} on {scope})")
+}
+
+/// T292 F7 — human deny line 1 (exact shape; line 2 is `POLICY_BOOTSTRAP_SOOT_SHORT`).
+pub(crate) fn format_policy_check_deny_line(capability: &str) -> String {
+    format!("denied: {capability}")
+}
+
+fn check_output_format(resolved: &str) -> OutputFormat {
+    match resolved {
+        "human" => OutputFormat::Human,
+        _ => OutputFormat::Json,
+    }
 }
 
 pub struct BootstrapOptions {
@@ -142,7 +162,12 @@ pub fn run_check(
     ctx: &AppContext,
     options: CheckOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let format = OutputFormat::parse(options.format.as_deref());
+    // T292 F1/F3: clap value_parser accepted the token; resolve auto via TTY (not OutputFormat::parse).
+    let resolved = crate::commands::format_resolve::resolve_human_json_format(
+        &options.format,
+        std::io::stdout().is_terminal(),
+    );
+    let format = check_output_format(resolved);
     let principal = resolve_principal(options.principal_id.as_deref());
 
     // T241 F6: only omitted `--capability` (None) → fail_usage catalog (exit 2).
@@ -187,19 +212,34 @@ pub fn run_check(
     };
 
     if !allowed {
-        // Exactly one structured document on deny (JSON: ApiError only; exit 3).
-        // F6: structured details.hint for operator remediation (T201).
-        return fail_api(
-            format,
-            ApiError::new(
-                "POLICY_DENIED",
-                format!(
-                    "{cap_label} denied for principal {} on {scope_key}",
-                    principal.id
-                ),
-            )
-            .with_details(policy_denied_hint_details()),
-        );
+        match format {
+            // T292 F7: human deny is two stdout lines + exit 3; skip fail_api (stderr empty).
+            OutputFormat::Human | OutputFormat::Markdown => {
+                emit_human(&format_policy_check_deny_line(cap_label));
+                emit_human(POLICY_BOOTSTRAP_SOOT_SHORT);
+                return Err(Box::new(GovernedCliError::emitted(
+                    EXIT_POLICY_DENIED,
+                    format!(
+                        "POLICY_DENIED: {cap_label} denied for principal {} on {scope_key}",
+                        principal.id
+                    ),
+                )));
+            }
+            // T292 F6 / T160 R1-01: exactly one ApiError JSON document on stdout.
+            OutputFormat::Json => {
+                return fail_api(
+                    format,
+                    ApiError::new(
+                        "POLICY_DENIED",
+                        format!(
+                            "{cap_label} denied for principal {} on {scope_key}",
+                            principal.id
+                        ),
+                    )
+                    .with_details(policy_denied_hint_details()),
+                );
+            }
+        }
     }
 
     #[derive(serde::Serialize)]
@@ -220,7 +260,7 @@ pub fn run_check(
     match format {
         OutputFormat::Json => emit_json(&result),
         OutputFormat::Human | OutputFormat::Markdown => {
-            emit_human(&format!("allowed: true ({cap_label} on {scope_key})"));
+            emit_human(&format_policy_check_allow_line(cap_label, &scope_key));
             Ok(())
         }
     }
@@ -383,5 +423,33 @@ fn capability_label(cap: GrantCapability) -> &'static str {
         GrantCapability::ApproveDecision => "ApproveDecision",
         GrantCapability::Export => "Export",
         GrantCapability::Erase => "Erase",
+    }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::{format_policy_check_allow_line, format_policy_check_deny_line};
+    use crate::commands::governed_common::POLICY_BOOTSTRAP_SOOT_SHORT;
+
+    /// T292 AC1 — allow line exact shape.
+    #[test]
+    fn format_policy_check_allow_line__read_evidence__exact_string() {
+        let line = format_policy_check_allow_line("ReadEvidence", "Repository:aaaa-bbbb");
+        assert_eq!(line, "allowed: true (ReadEvidence on Repository:aaaa-bbbb)");
+        assert!(!line.starts_with('{'));
+        assert!(line.contains("allowed:"));
+        assert!(line.contains("ReadEvidence"));
+    }
+
+    /// T292 AC1 — deny line exact + SHORT freeze.
+    #[test]
+    fn format_policy_check_deny_line__propose__exact_string() {
+        let line = format_policy_check_deny_line("ProposeConclusion");
+        assert_eq!(line, "denied: ProposeConclusion");
+        assert_eq!(
+            POLICY_BOOTSTRAP_SOOT_SHORT,
+            "next: run `ai-brains policy bootstrap --dry-run` then `ai-brains policy bootstrap`"
+        );
     }
 }

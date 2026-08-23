@@ -294,7 +294,9 @@ ai-brains policy bootstrap   # omit --scope when project context is authoritativ
 ai-brains policy show --scope Repository:<uuid>
 ai-brains policy show --format json   # T226: soft-fill --scope when authoritative
 ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>
+ai-brains policy check --capability ReadEvidence --format human   # T292: TTY-friendly allow/deny lines
 ai-brains policy check --capability ReadEvidence --format json   # omit --scope when authoritative
+# default --format auto = TTY human / pipe JSON; scripts that previously parsed TTY default JSON must pass --format json
 ```
 
 **Governed policy bootstrap (T210 + T241 cold-start):** After vault open, discovery lists (`source list` / `evidence list` / `review list`) and briefing sections need grants. **Discoverability surfaces** (T241): `doctor` soft check **`policy_grants`** (warn when discovery active_count < 3 under authoritative scope), `preflight --summary` post-hoc grants/next line when project-scoped incomplete, `policy show` empty human SOOT + JSON `next_step`, `policy check` without `--capability` → exit **2** capability catalog (not clap “required arguments”), briefing denied JSON **`denial_hint`**. Cold-start sequence: open vault → `policy bootstrap --dry-run` → `policy bootstrap` → `policy show` / `briefing project` / `evidence list`. Run **`ai-brains policy bootstrap --scope Repository:<uuid>`** (or omit `--scope` when project context is authoritative) once per principal+scope. Issues exactly `ReadEvidence`, `ReadConclusions`, `ReadDecisions` with `Privacy::LocalOnly`; registers the principal if missing; idempotent re-run. Does **not** issue Propose*/Approve*/Export/Erase. Does **not** auto-run on `init` (deny-by-default until explicit opt-in). `--dry-run` / `-n` reports the plan with zero event appends.
