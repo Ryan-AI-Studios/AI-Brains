@@ -590,12 +590,12 @@ fn preflight__pretty_index_item1_is_decision_when_tagged_pin_exists() {
 
     let proj = dir.path().join("proj-t286-pretty");
     let id = register_project(&vault, &proj);
-    let needle = format!("T286-pretty-needle-{}", uuid::Uuid::new_v4());
+    let needle = format!("T286p-{}", &uuid::Uuid::new_v4().to_string()[..8]);
     pin_memory_tagged(
         &vault,
         &proj,
         &id,
-        &format!("DECISION: {needle} Index item 1 must be this pin"),
+        &format!("DECISION: {needle} pin"),
         "t286",
     );
     pin_memory(

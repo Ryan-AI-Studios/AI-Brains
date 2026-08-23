@@ -103,9 +103,24 @@ pub fn index_marker_glob_sql(column: &str) -> String {
 
 /// Index pass-1 GLOB: marker+HOTSPOT **or** TAGS envelope (T286 F2).
 ///
-/// Red stub: marker-only until green wires the OR-join.
+/// Same inner-join shape as lexical Prefer (`AND (marker OR tags)`). Does **not**
+/// stack two `AND (` clauses. `index_marker_glob_sql` stays marker-only.
 pub fn index_pass1_glob_sql(column: &str) -> String {
-    index_marker_glob_sql(column)
+    debug_assert!(
+        is_safe_sql_ident(column),
+        "index_pass1_glob_sql column must be a SQL identifier"
+    );
+    let marker = index_marker_glob_sql(column);
+    let tags = tags_envelope_sql(column);
+    let marker_inner = marker
+        .strip_prefix(" AND (")
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or(marker.as_str());
+    let tags_inner = tags
+        .strip_prefix(" AND (")
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or(tags.as_str());
+    format!(" AND ({marker_inner} OR {tags_inner})")
 }
 
 /// Safety GLOB: leading CONSTRAINT / INVARIANT / HOTSPOT only (T279 F1).
@@ -350,7 +365,7 @@ mod tests {
         let end = rest.find("\npub fn ").unwrap_or(rest.len());
         let body = &rest[..end];
         assert!(
-            body.contains("debug_assert!(is_safe_sql_ident(column))"),
+            body.contains("debug_assert!(") && body.contains("is_safe_sql_ident(column)"),
             "AC4: helper must debug_assert is_safe_sql_ident; body={body}"
         );
     }

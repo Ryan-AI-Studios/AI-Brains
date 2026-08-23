@@ -100,8 +100,8 @@ fn preflight__index_prefers_tags_envelope_decision_over_objective_dump()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = common::empty_store()?;
     let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
-    let needle = format!("T286-index-needle-{}", uuid::Uuid::new_v4());
-    let pin_content = format!("ASSISTANT: TAGS: t286\nDECISION: {needle} Index must list this pin");
+    let needle = format!("T286i-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let pin_content = format!("ASSISTANT: TAGS: t286\nDECISION: {needle} pin");
     let dump_body = format!(
         "## Objective\nReview dump with buried decision: in the skill body. {}",
         "padding word ".repeat(80)

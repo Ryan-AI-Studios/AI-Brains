@@ -14,8 +14,8 @@ use crate::preflight_safety::{
     SAFETY_EMPTY, fetch_live_hotspots, format_safety_hotspot_line, suppress_vault_hotspot_row,
 };
 use crate::privacy_filter::is_injectable_privacy;
-use crate::ranking::{PinKind, classify_pin_kind};
-use crate::session_chrome::{bound_not_in_sql, index_marker_glob_sql, safety_marker_glob_sql};
+use crate::ranking::{PinKind, classify_pin_kind, first_contentful_line};
+use crate::session_chrome::{bound_not_in_sql, index_pass1_glob_sql, safety_marker_glob_sql};
 use crate::sessions::active_sessions;
 use crate::word_budget::{
     content_word_count, trim_to_word_budget, trim_to_word_budget_no_sentinel, word_count,
@@ -459,7 +459,7 @@ fn build_legacy_preflight(
     // T274 F11: leading-marker pins first, then recency-fill other injectable rows.
     let mut collected: Vec<(String, String, Option<String>)> = Vec::new(); // content, ts, project
     let mut collected_ids: HashSet<String> = HashSet::new();
-    let pass1_sql = index_select_sql(global, &index_marker_glob_sql("m.content"));
+    let pass1_sql = index_select_sql(global, &index_pass1_glob_sql("m.content"));
     drain_index_pass(
         &conn,
         &pass1_sql,
@@ -535,7 +535,7 @@ fn build_legacy_preflight(
         // 1. Build the index section with relative timestamps
         let mut index_lines = vec!["--- Memory Index (Briefing) ---".to_string()];
         for (i, (content, updated_at, pid)) in index_items.iter().enumerate() {
-            let first_line = content.lines().next().unwrap_or("Untitled Memory");
+            let first_line = index_item_title(content);
             let summary = truncate_index_summary(first_line);
             let ts = relative_timestamp(updated_at);
             let line = if ts.is_empty() {
@@ -995,6 +995,16 @@ fn is_low_signal(content: &str) -> bool {
     false
 }
 
+/// Envelope-stripped Index title (T286 F4). Empty / role-only / TAGS-only → fallback.
+fn index_item_title(content: &str) -> &str {
+    let line = first_contentful_line(content);
+    if line.is_empty() {
+        "Untitled Memory"
+    } else {
+        line
+    }
+}
+
 /// Truncate a memory index title for display.
 ///
 /// Uses Unicode scalar counts (not bytes) so multi-byte characters such as
@@ -1032,8 +1042,33 @@ fn truncate_turn(content: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn index_item_title__empty_envelope__untitled_memory() {
+        assert_eq!(
+            index_item_title("ASSISTANT: TAGS: x"),
+            "Untitled Memory",
+            "AC10: TAGS-only"
+        );
+        assert_eq!(
+            index_item_title("ASSISTANT:"),
+            "Untitled Memory",
+            "AC10: role-only"
+        );
+        assert_eq!(index_item_title(""), "Untitled Memory", "AC10: empty");
+        assert_eq!(
+            index_item_title("DECISION: keep the pin"),
+            "DECISION: keep the pin"
+        );
+        assert_eq!(
+            index_item_title("ASSISTANT: TAGS: t286\nDECISION: keep the pin"),
+            "DECISION: keep the pin",
+            "AC2: envelope skipped"
+        );
+    }
 
     #[test]
     fn truncate_index_summary_ascii_under_limit_unchanged() {

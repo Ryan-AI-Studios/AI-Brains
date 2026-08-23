@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T286 Preflight Index + summary pins:** Memory Index pass-1 is marker-GLOB **or** TAGS envelope; numbered titles use `first_contentful_line` (empty → `Untitled Memory`). `--pretty` Index item 1 is a `DECISION:`/`CONSTRAINT:`/`HOTSPOT:` pin when one exists, not `## Objective`. `--summary` `In context decisions` stays a window substring (no new JSON key) and is ≥1 when that pin is in the budget window. T274 untagged Index and T279 Safety unchanged.
+
 - **T285 Recall/search rank v2:** `recall` / `search` (and `--semantic` lexical fallback / `sync query` vault) put tagged `ASSISTANT: TAGS:` pins and live `DECISION:` markers above session chrome. Envelope strip + `# AI-Brains Session Onboarding` / `# Review of Track` detector + pass-1 TAGS-or-authority retain + recency retry + leading-line query bonus +16 + chrome parents do not seed graph neighbors. JSON keys unchanged. Graph hop-1 default stands.
 
 ## [0.1.2] — 2026-08-22
