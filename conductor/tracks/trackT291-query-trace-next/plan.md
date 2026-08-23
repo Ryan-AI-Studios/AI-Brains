@@ -1,28 +1,43 @@
 # T291 Plan — query trace missing envelope + human next
 
 **Status:** **Pending** (Planned). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC13
+**Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC13 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `c59e5bb6-adf1-40c5-9288-66403d208aca` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `627d3871-b5c6-4e03-8b11-9588a61777d1` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
 
 ---
 
-## Preflight (plan time — 2026-08-23)
+## AI fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0**. OpenCode M-1 hotspot **folded**. M-2/M-3 volatile snapshot. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F3/AC7 (Agy m1 + OpenCode o-1):** clap `value_parser` T266 set — **not** `OutputFormat::parse`.
+2. **AC5 (OpenCode o-2):** System bootstrap omit `--principal-id`; `--dry-run false`; not `progressive_cmd`.
+3. **AC10 (OpenCode o-6 + Agy O1):** OPERATIONS both null phrases; after_help `:1589` / `:1892` / `:1924`; `query trace --help` forbids `JSON token null`.
+4. **F16 (Agy m2):** interpolators = space boundary; no double-space.
+5. **Hotspot (OpenCode M-1):** `governed_common.rs` **#2** (3.806).
+
+---
+
+## Preflight (plan time — 2026-08-23; fold-in refresh)
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `37012fe` T290 `#206`. CLEAN. `origin/main` = HEAD |
+| HEAD / tree | Fold-in `ff61399` (`track-t95-in-force`). T291 plan `e81a1a2`. `origin/main` = `37012fe` T290 `#206`. CLEAN. T95 did not touch `run_trace`. |
 | PATH `ai-brains` | **0.1.2** mtime 2026-08-22 19:41, 25 139 712 bytes. **Has T274. No T285–T290.** Hole is in **source**. **Do not `cargo install`.** |
 | `query trace missing-id` | stdout token `null`; exit **0** |
 | `query trace missing-id --format human` | clap unexpected `--format` (tip: `--log-format`) |
 | `query progressive` `--dry-run` | default **true** — no persist |
-| `preflight --summary` | Pinned **3976**; in-context **0/0/0**; word **381** |
+| `preflight --summary` | Pinned **4019** (volatile); in-context **0/0/0**; word **689** |
 | Last PR comments | #206 T290 — Cursor Bugbot **1 Low** sanitizer collapse. **Absorb F16.** **No T301.** |
 | Open PR on HEAD | none (Dependabot remotes only: rusqlite 0.40.2 `#61`, chrono 0.4.45 `#62`, …) |
 | Pins | clap lock **4.6.1** (crates.io 4.6.6; GitHub **v4.6.6**; **no clap 5**); serde_json **1.0.150** (crates.io 1.0.151); chrono **0.4.44**; rusqlite **0.39.0** (0.40.2) — **no bumps** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.2** |
-| Hotspots | `project.rs` **#1** — do not touch. `governed_common.rs` **#3** — sanitizer collapse only. `governed_query.rs` not top-10 — envelope here. CLI `preflight.rs` **#8** — do not grow. |
+| Hotspots | `project.rs` **#1** (3.941) — do not touch. `governed_common.rs` **#2** (3.806) — sanitizer collapse only. `governed_query.rs` not top-10 — envelope here. CLI `preflight.rs` **#8** — do not grow. |
 | Ledger | 0 pending / 0 drift at scan; planning TX `c59e5bb6` |
 | `ISSUES.md` | **Does not exist** (F22) |
 | ledgerful search | `run_trace` → `governed_query.rs:205`; `get_query_trace` → `query.rs:413` |
@@ -42,6 +57,9 @@
 - [ ] Confirm `get_query_trace` still `Ok(None)` for miss / cross-principal / no grant — **do not change CP**
 - [ ] Confirm `sanitize_recall_query` still sets `prev_space = false` on `$`/backtick — F16 still true
 - [ ] Confirm hermetic `query_trace__unknown__stdout_null_exit_0` still exact `"null"`
+- [ ] Confirm `OutputFormat::parse` still case-insensitive unknown→Json — AC7 **must** use clap `value_parser` (F3)
+- [ ] Confirm `progressive_cmd` still hardcodes `"x"` + default dry-run — AC5 must not reuse it
+- [ ] Re-scan hotspots — `governed_common.rs` still sanitizer-only
 - [ ] Rescan `conductor/deferred.md` — T291 absorbed + #206; T292–T300 / T290 not stolen
 - [ ] Confirm #206 Bugbot still the only Cursor finding; no mint; Dependabot `#61` still not this track
 - [ ] Re-dogfood `query trace missing-id` **read-only**. **Did not** pin production decisions; **did not** write `.env`; **did not** extra `policy bootstrap`
@@ -73,15 +91,15 @@
 
 - [ ] `TRACE_MISSING_NEXT_STEP` + missing envelope struct in `governed_query.rs`
 - [ ] `run_trace` None arm: json → `emit_json` envelope; human → two lines (F2)
-- [ ] clap `--format` on `Trace`; dispatch; after_help
+- [ ] clap `--format` on `Trace` with T266 `value_parser` (not `OutputFormat::parse`); dispatch; after_help `:1589` / `:1892` / `:1924`
 - [ ] `sanitize_trace_id` (F15); share collapse with F16
 - [ ] Fix `sanitize_recall_query` interpolator-as-whitespace + final trim (F16)
-- [ ] AC3 human hermetic; AC4 no-project; AC7 InvalidValue `JSON`
+- [ ] AC3 human hermetic; AC4 no-project; AC7 InvalidValue `JSON` via clap `value_parser`
 - [ ] AC9 unit id sanitize
 
 ## Phase 3 — found + stay-green
 
-- [ ] AC5 hermetic persist (`--dry-run false`) then `query trace <id>`
+- [ ] AC5 hermetic: System bootstrap omit `--principal-id` + `query progressive "what did we decide" --dry-run false` (not `progressive_cmd`) then `query trace <id>`
 - [ ] Found `--format human` still QueryTraceDto (F10)
 - [ ] AC6 T290/T221 stay green; ellipsis const exact
 - [ ] AC12 `QueryTraceDto` no new fields

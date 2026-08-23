@@ -185,6 +185,25 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor **#206** Bugbot Low `sanitize_recall_query` interpolator collapse | **Absorb** F16 / AC8 — no T301 |
 | Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
 
+### T291 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `--format JSON` must not use `OutputFormat::parse` | **Folded** F3 / AC7 / §5.5 |
+| Agy m2 sanitizer space boundaries / no double-space | **Already** F16; **tightened** |
+| Agy O1 parent + Trace after_help | **Already** F14; **tightened** AC10 `:1589` / `:1892` / `:1924` |
+| Agy O2 e2e persist then trace | **Already** AC5; **tightened** bootstrap + `--dry-run false` |
+| OpenCode M-1 hotspot #3 → #2 | **Folded** snapshot |
+| OpenCode M-2 / M-3 preflight words / doctor warn count | **Snapshot only** (volatile); Phase 0; not DoD |
+| OpenCode o-1 clap `value_parser` | **Folded** (same as Agy m1) |
+| OpenCode o-2 bootstrap covers `get_query_trace` | **Folded** AC5 / §5.6 |
+| OpenCode o-3 `api_version` `"1"` | **Already** F7 |
+| OpenCode o-4 `auto` TTY | **Already** F3 |
+| OpenCode o-5 `cli_help_ia.rs` lock | **Decline** — AC10 hermetic `--help` |
+| OpenCode o-6 OPERATIONS two null sentences | **Folded** AC10 |
+| last-PR #206 Cursor | **Affirm F16** — no T301 |
+| No B | Nothing to decline of B |
+
 ### T287 closeout residuals (2026-08-23)
 
 | Item | Disposition |
