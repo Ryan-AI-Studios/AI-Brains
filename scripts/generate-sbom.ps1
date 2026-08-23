@@ -9,7 +9,7 @@
 #
 # Usage:
 #   .\scripts\generate-sbom.ps1
-#   .\scripts\generate-sbom.ps1 -Target x86_64-pc-windows-msvc -Version 0.1.1
+#   .\scripts\generate-sbom.ps1 -Target x86_64-pc-windows-msvc -Version 0.1.2
 #   .\scripts\generate-sbom.ps1 -IncludeDesktop
 #
 # Requires: cargo-cyclonedx 0.5.9+ (Apache-2.0). See Docs/ci-tooling.md.

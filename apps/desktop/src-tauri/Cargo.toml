@@ -1,6 +1,6 @@
 [package]
 name = "ai-brains-desktop"
-version = "0.1.1"
+version = "0.1.2"
 description = "AI-Brains desktop thin client (Tauri v2)"
 authors = ["AI-Brains Contributors"]
 edition = "2024"

@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-08-22
+
+Workspace version bump after the T256–T283 CLI quality series (T274–T284 closer). PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph`.
+
 ### Added
 
 - **T283 `project list` cwd-first (human only):** the first data row is the cwd path-owner when that id is in the vault; remaining rows stay memory-desc. `--format json` array order stays T212 `memory_count DESC, project_id ASC`. T267 unaliased footer still uses store order. Docs: CAPABILITIES List / List JSON, OPERATIONS Listing Projects.
