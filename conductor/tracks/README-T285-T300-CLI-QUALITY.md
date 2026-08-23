@@ -1,7 +1,7 @@
 # T285–T300 — Post-T283 live CLI quality (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-22** on PATH graph-on `ai-brains` **0.1.2** (`ae5f6fd` `#200`). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; grants **3 of 3**; leftover `7d97a456` still ~18k pins / **5** roots after partial rebind. Agent non-TTY.
-**Status:** **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Planned** 2026-08-23 (Pending until **go**). T288–T300 still **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
+**Status:** **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23. T288–T300 still **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
 **Prior closed series:** T274–T284 (closer T283 `#199`). T274 ranking shipped but **live recall/Index still Q=4**.
 **Ledger (registration):** DOCS TX `36224860-4861-4d1d-b0b0-058911971142`. **T285 plan:** DOCS TX `515b984b-7f5e-4386-9566-a292efd3afe1`. **T285 fold-in:** DOCS TX `3a598eff-b7e5-4158-970b-be5e331006a7`. **T286 plan:** DOCS TX `397f9c55-5953-402b-95fc-db431f5a037c`. **T286 fold-in:** DOCS TX `0eea671d-b8c3-4209-9e6b-31764707efdf`. **T287 plan:** DOCS TX `673e7322-b68f-40dd-bd34-6a91a83e7412`. **T287 fold-in:** DOCS TX `35a4042f-dd4a-40fc-b81a-6e34fdb7d903`.
 **last-PR Cursor:** [#202](https://github.com/Ryan-AI-Studios/AI-Brains/pull/202) T286 comments/reviews **empty** → N/A. **No T301.** (#201 / #200 also empty.)
@@ -52,7 +52,7 @@ Scores below are **Usefulness / Quality** from that audit (1–10). Every comman
 4. **T295** / **T300** live ops (owner-confirm)
 5. **T289** / **T291** / **T292** / **T296** / **T297** / **T298** / **T299**
 
-Do **not** `/implement-track` a Placeholder. **T287** is Planned — wait for owner **go** / `/implement-track 287`. Run `/plan-track TNN` first for T288–T300.
+Do **not** `/implement-track` a Placeholder. Run `/plan-track TNN` first for T288–T300.
 
 ## Non-goals of this series
 

@@ -1,7 +1,7 @@
 # T287 — `memory list` first page must include pins, not only just-now ingest
 
 - **Track ID:** T287-MemoryListAuthority
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed**
 - **Category:** FEATURE / UX
 - **Owner:** Grok
 - **Source:** Audit 2026-08-22 — `memory list --limit 5` **8/6** (onboarding / review-track “just now”). Placeholder minted with T285–T300 (`76c4db9`). T274 F13 froze recency — **reopen as this track**. T285/T286 Completed (`#201`/`#202`) and **did not steal** list ORDER.

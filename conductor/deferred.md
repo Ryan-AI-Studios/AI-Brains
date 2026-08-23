@@ -4,13 +4,13 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #202 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Planned** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #202 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
 | recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
 | preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Completed** |
-| `memory list` just-now ingest | **T287 Planned** |
+| `memory list` just-now ingest | **T287 Completed** |
 | briefing granted-empty vs pins (no H2) | **T288** |
 | personal briefing deny `_None_` | **T289** |
 | governed lists/progressive empty U=6 | **T290** |
@@ -25,6 +25,16 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | forget-list empty U=6 | **T299** |
 | graph sparse live rebuild | **T300** |
 | T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |
+
+### T287 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| Live `cargo run -- memory list --limit 5` on `3581317d` still `## Objective` (R1-1) | **Residual** — pass-1 GLOB matched 0 rows in-scope (F32 recency-fill); hermetic AC1 SoT; F17 PATH until `cargo install` |
+| Duplicate GLOB vs `index_pass1_glob_sql` | **Residual** — F27 no shared helper |
+| USER/SYSTEM TAGS GLOB | **Residual** — F29; default assistant |
+| F18 canary pin not in this project's count | **Residual** — leftover-shell `PROJECT_ID` vs `.env` (`pin.rs` `std::env::var`); T282 leftover / not this track |
+| T288 / T293 / T299 | **Not stolen** |
 
 ### T287 planning absorption (2026-08-23) — human prefer-fill; JSON/store recency frozen
 

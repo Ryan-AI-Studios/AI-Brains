@@ -1,11 +1,11 @@
 # T287 Plan — human `memory list` prefer-fill authority; JSON/store recency frozen
 
-**Status:** **Pending** (Planned). Full F-list in spec.md.
+**Status:** **Completed**. Full F-list in spec.md.
 **Spec:** [spec.md](./spec.md) F0–F38 / AC1–AC18 + §13 AI fold-in
 **Category:** FEATURE / UX
 **Ledger TX (planning):** `673e7322-b68f-40dd-bd34-6a91a83e7412` (DOCS)
 **Ledger TX (fold-in Agy+OpenCode):** `35a4042f-dd4a-40fc-b81a-6e34fdb7d903` (DOCS)
-**Ledger TX (implement):** FEATURE — start on **go**
+**Ledger TX (implement):** FEATURE `9d8cdbb9-2c2f-4e78-83d0-60b239f9e1e3`
 
 ---
 
@@ -50,23 +50,23 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `memory.rs` `run_inventory` `:137` + `preview_line` `:32`
-- [ ] Confirm `preview_line` callers still `forget.rs:19/24` + `graph.rs:248` — **inherit only; do not edit** those files
-- [ ] Re-read `query_store.rs` `list_memories` / `memory_list_from_where` — **do not** change ORDER
-- [ ] Confirm `MemoryListFilter` still four fields — **do not** add `authority` field
-- [ ] Confirm `classify_pin_kind` / `first_contentful_line` still exported from retrieval
-- [ ] Confirm `index_pass1_glob_sql` still TAGS + ASSISTANT: TAGS only — **do not** edit `session_chrome.rs`; duplicate GLOB in store (F27)
-- [ ] Confirm `pin.rs` still prepends `TAGS:` — **do not rewrite**
-- [ ] Confirm T216 store recency unit + CLI JSON schema tests — **stay green**
-- [ ] Confirm `forget.rs` list-forgotten still delegates to `run_inventory` — **do not grow** production
-- [ ] Rescan `conductor/deferred.md` — T287 rows absorbed; T288/T293/T299 not stolen
-- [ ] Confirm #202 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `memory list --limit 5` + `--summary` + `--format json --limit 1` **read-only**. **Did not** pin production decisions; **did not** write `.env`
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX (new)
-- [ ] Did **not** `cargo install`; did **not** grow `sync.rs` / `project.rs` / `forget.rs` production / `session_chrome.rs` / `ranking.rs` / `pin.rs` write / CLI `preflight.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `memory.rs` `run_inventory` `:137` + `preview_line` `:32`
+- [x] Confirm `preview_line` callers still `forget.rs:19/24` + `graph.rs:248` — **inherit only; do not edit** those files
+- [x] Re-read `query_store.rs` `list_memories` / `memory_list_from_where` — **do not** change ORDER
+- [x] Confirm `MemoryListFilter` still four fields — **do not** add `authority` field
+- [x] Confirm `classify_pin_kind` / `first_contentful_line` still exported from retrieval
+- [x] Confirm `index_pass1_glob_sql` still TAGS + ASSISTANT: TAGS only — **do not** edit `session_chrome.rs`; duplicate GLOB in store (F27)
+- [x] Confirm `pin.rs` still prepends `TAGS:` — **do not rewrite**
+- [x] Confirm T216 store recency unit + CLI JSON schema tests — **stay green**
+- [x] Confirm `forget.rs` list-forgotten still delegates to `run_inventory` — **do not grow** production
+- [x] Rescan `conductor/deferred.md` — T287 rows absorbed; T288/T293/T299 not stolen
+- [x] Confirm #202 comments/reviews still empty (N/A); no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `memory list --limit 5` + `--summary` + `--format json --limit 1` **read-only**. **Did not** pin production decisions; **did not** write `.env`
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX (new)
+- [x] Did **not** `cargo install`; did **not** grow `sync.rs` / `project.rs` / `forget.rs` production / `session_chrome.rs` / `ranking.rs` / `pin.rs` write / CLI `preflight.rs`
 
 ---
 
@@ -98,61 +98,61 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 1 — Red (required)
 
-- [ ] AC1 CLI: tagged `DECISION:` pin vs newer `## Objective` dumps — human `--limit 5` first data row is the pin
-- [ ] AC2: JSON `items[0]` stays recency dump
-- [ ] AC3 unit: `preview_line` envelope → `DECISION:` not `TAGS:`; TAGS-only fallback non-empty (Agy m1)
-- [ ] AC5 store: `list_authority_memories` GLOB-or-TAGS + needles
-- [ ] AC16 unit: `prefer_fill_authority` rstest overlap / authority-only / recency-only / limit (Agy O1)
-- [ ] Commit red (allowed)
+- [x] AC1 CLI: tagged `DECISION:` pin vs newer `## Objective` dumps — human `--limit 5` first data row is the pin
+- [x] AC2: JSON `items[0]` stays recency dump
+- [x] AC3 unit: `preview_line` envelope → `DECISION:` not `TAGS:`; TAGS-only fallback non-empty (Agy m1)
+- [x] AC5 store: `list_authority_memories` GLOB-or-TAGS + needles
+- [x] AC16 unit: `prefer_fill_authority` rstest overlap / authority-only / recency-only / limit (Agy O1)
+- [x] Commit red (allowed)
 
 ## Phase 2 — Green
 
-- [ ] F4 `list_authority_memories` in `query_store.rs` + trait
-- [ ] F1 mix in `run_inventory` for human pinned only
-- [ ] F5 retain `classify_pin_kind != Other`
-- [ ] F6 `preview_line` uses `first_contentful_line` + empty fallback; forget/graph **inherit only**
-- [ ] F35 helper uniqueness
-- [ ] AC4 T216 store recency stays green
-- [ ] AC6–AC14 stay green (JSON keys / summary / forgotten / untagged / chrome-only / exit 2 / no ASSISTANT: / list-forgotten share)
-- [ ] F28: `forget_match_preview__role_prefix_stripped__max_100` / `forget_multi_preview__role_prefix_stripped__max_80` + graph human preview tests **stay green**
-- [ ] Did **not** edit `forget.rs` / `graph.rs` production
-- [ ] Commit green (allowed)
+- [x] F4 `list_authority_memories` in `query_store.rs` + trait
+- [x] F1 mix in `run_inventory` for human pinned only
+- [x] F5 retain `classify_pin_kind != Other`
+- [x] F6 `preview_line` uses `first_contentful_line` + empty fallback; forget/graph **inherit only**
+- [x] F35 helper uniqueness
+- [x] AC4 T216 store recency stays green
+- [x] AC6–AC14 stay green (JSON keys / summary / forgotten / untagged / chrome-only / exit 2 / no ASSISTANT: / list-forgotten share)
+- [x] F28: `forget_match_preview__role_prefix_stripped__max_100` / `forget_multi_preview__role_prefix_stripped__max_80` + graph human preview tests **stay green**
+- [x] Did **not** edit `forget.rs` / `graph.rs` production
+- [x] Commit green (allowed)
 
 ## Phase 3 — Docs
 
-- [ ] CAPABILITIES: human pinned prefer-fills authority; JSON recency frozen
-- [ ] CHANGELOG T287
-- [ ] `memory list` after_help dual-truth sentence (F30 / AC17)
-- [ ] OPERATIONS one-liner if still recency-only
+- [x] CAPABILITIES: human pinned prefer-fills authority; JSON recency frozen
+- [x] CHANGELOG T287
+- [x] `memory list` after_help dual-truth sentence (F30 / AC17)
+- [x] OPERATIONS one-liner if still recency-only
 
 ## Phase 4 — Verify
 
-- [ ] `cargo fmt --check`
-- [ ] `cargo clippy -p ai-brains-cli -p ai-brains-store --all-targets -- -D warnings`
-- [ ] `cargo nextest run -p ai-brains-cli -p ai-brains-store --profile ci`
-- [ ] Full gate before publish (`dev-check.ps1` / implement-track)
-- [ ] `ledgerful verify --scope fast` then `--scope full` at closeout
-- [ ] Manual AC15 `cargo run -p ai-brains-cli -- memory list --limit 5` (not PATH unless owner asks install)
+- [x] `cargo fmt --check`
+- [x] `cargo clippy -p ai-brains-cli -p ai-brains-store --all-targets -- -D warnings`
+- [x] `cargo nextest run -p ai-brains-cli -p ai-brains-store --profile ci`
+- [x] Full gate before publish (`dev-check.ps1` / implement-track)
+- [x] `ledgerful verify --scope fast` then `--scope full` at closeout
+- [x] Manual AC15 `cargo run -p ai-brains-cli -- memory list --limit 5` (not PATH unless owner asks install)
 
 ## Phase 5 — Review + closeout
 
-- [ ] `conductor/tracks/trackT287-memory-list-authority/review.md`
-- [ ] Read-only `codex-review` (F22)
-- [ ] conductor.md T287 **Completed**; deferred closeout table
-- [ ] implement-track Phase 6: push `track/T287-*` → PR → watch GHA `CI` green → squash-merge → prune. Never `git push origin main`. Never force-push.
+- [x] `conductor/tracks/trackT287-memory-list-authority/review.md`
+- [x] Read-only `codex-review` (F22)
+- [x] conductor.md T287 **Completed**; deferred closeout table
+- [x] implement-track Phase 6: push `track/T287-*` → PR → watch GHA `CI` green → squash-merge → prune. Never `git push origin main`. Never force-push.
 
 ---
 
 ## DoD (checkable)
 
-- [ ] Human `--limit 5` includes ≥1 leading-line authority pin when any exist (AC1/AC15)
-- [ ] JSON `items[0]` recency (AC2)
-- [ ] Store `list_memories` ORDER unchanged (AC4)
-- [ ] `--summary` counts unchanged (AC7)
-- [ ] Forgotten / `forget --list-forgotten` recency (AC8/AC14)
-- [ ] Preview skips TAGS envelope (AC3)
-- [ ] No new clap flags / JSON keys / crate pins
-- [ ] T288 / T293 / T299 not stolen
+- [x] Human `--limit 5` includes ≥1 leading-line authority pin when any exist (AC1/AC15)
+- [x] JSON `items[0]` recency (AC2)
+- [x] Store `list_memories` ORDER unchanged (AC4)
+- [x] `--summary` counts unchanged (AC7)
+- [x] Forgotten / `forget --list-forgotten` recency (AC8/AC14)
+- [x] Preview skips TAGS envelope (AC3)
+- [x] No new clap flags / JSON keys / crate pins
+- [x] T288 / T293 / T299 not stolen
 
 ---
 
