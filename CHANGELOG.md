@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T288 Granted-empty briefing vault-pin stanza:** `briefing project` when allowed and authority arrays are empty prints `## Vault pins (not Approved)` with inventory `Pinned: N` plus up to 3 leading-line `DECISION:`/`CONSTRAINT:` previews. CLI JSON adds optional `vault_pin_count` / `vault_pin_previews` (omit when overlay off; `0`/`[]` when granted-empty with no pins). `decisions[]` / `conclusions[]` stay empty; DTO and daemon packet unchanged. Denied / nonempty-authority omit the overlay.
+
 - **T287 `memory list` authority mix:** human pinned prefer-fills leading-line `DECISION:` / `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` (TAGS-or-GLOB + envelope preview) then recency-fills the rest. `--format json` `items[0]` and store `list_memories` stay newest-`updated_at`. `--summary` counts and forgotten lists unchanged. No new clap flags or JSON keys.
 
 - **T286 Preflight Index + summary pins:** Memory Index pass-1 is marker-GLOB **or** TAGS envelope; numbered titles use `first_contentful_line` (empty → `Untitled Memory`). `--pretty` Index item 1 is a `DECISION:`/`CONSTRAINT:`/`HOTSPOT:` pin when one exists, not `## Objective`. `--summary` `In context decisions` stays a window substring (no new JSON key) and is ≥1 when that pin is in the budget window. T274 untagged Index and T279 Safety unchanged.

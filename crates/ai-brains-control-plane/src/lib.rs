@@ -34,8 +34,9 @@ pub use adapters::{
 };
 pub use briefings::{
     BRIEFING_POLICY_VERSION, BudgetConfig, PersonalBriefingRequest, ProjectBriefingRequest,
-    apply_budget, apply_personal_budget, build_personal_briefing, build_project_briefing,
-    render_personal_markdown, render_project_json, render_project_markdown,
+    VaultPinStanza, apply_budget, apply_personal_budget, build_personal_briefing,
+    build_project_briefing, render_personal_markdown, render_project_json, render_project_markdown,
+    render_project_markdown_with_vault_pins,
 };
 pub use class_based_retention::{
     MAX_RETENTION_HORIZON_DAYS, NS_RETENTION_APPLY, RetentionApplyCommand, RetentionConfig,

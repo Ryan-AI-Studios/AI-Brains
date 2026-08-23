@@ -48,7 +48,7 @@ Transport (named pipe / UDS / loopback HTTP) is covered by **T179** (`Docs/COMPA
 | Module | Constant location |
 |--------|-------------------|
 | scopes | `ai_brains_contracts::scopes::API_VERSION` |
-| briefings | `ai_brains_contracts::briefings::API_VERSION` (T227 additive warning kinds: `empty_authority` \| `empty_continuity` — only when `!denied`; N−1 clients ignore unknown kinds) |
+| briefings | `ai_brains_contracts::briefings::API_VERSION` (T227 additive warning kinds: `empty_authority` \| `empty_continuity` — only when `!denied`; N−1 clients ignore unknown kinds). **T288 CLI extras:** granted-empty `briefing project --format json` may add optional `vault_pin_count` / `vault_pin_previews`; daemon/HTTP `ProjectBriefingPacket` is **unaugmented**. |
 | knowledge | `ai_brains_contracts::knowledge::API_VERSION` |
 | review | `ai_brains_contracts::review::API_VERSION` |
 | erasure | `ai_brains_contracts::erasure::API_VERSION` |

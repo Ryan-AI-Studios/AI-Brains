@@ -1821,7 +1821,7 @@ enum ReplicateCommands {
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
     #[command(
-        after_help = "Examples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Human granted-empty prefer-fills a Vault pins (not Approved) stanza; CLI JSON adds vault_pin_count / vault_pin_previews; authority arrays stay empty.\nExamples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]

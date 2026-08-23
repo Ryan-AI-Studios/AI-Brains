@@ -36,6 +36,16 @@ pub const BRIEFING_EMPTY_AUTHORITY_NOTICE: &str =
 pub const BRIEFING_EMPTY_AUTHORITY_NEXT_STEP: &str =
     "next: `ai-brains recall` / `search` for vault pins; typed Approved needs propose + approve";
 
+/// Granted-empty vault-pin heading (T288 F2 / F30). Not an Approved authority section.
+pub const BRIEFING_VAULT_PINS_HEADING: &str = "## Vault pins (not Approved)";
+
+/// Display-only vault inventory overlay (T288 F11). Not a packet DTO field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VaultPinStanza {
+    pub count: u64,
+    pub previews: Vec<String>,
+}
+
 /// Personal deny markdown next-step (T263 F4) — unused/optional, not a required bootstrap.
 pub const BRIEFING_PERSONAL_DENIED_NEXT_STEP: &str =
     "next: Personal continuity is optional; daily decisions: `ai-brains recall` / `search`";
@@ -64,6 +74,16 @@ pub fn render_personal_json(
 
 /// Deterministic Markdown render of a Project briefing packet.
 pub fn render_project_markdown(packet: &ProjectBriefingPacket) -> String {
+    render_project_markdown_with_vault_pins(packet, None)
+}
+
+/// Same as [`render_project_markdown`] plus an optional vault-pin stanza (T288).
+///
+/// `None` ≡ today's render (governed preflight keeps this path).
+pub fn render_project_markdown_with_vault_pins(
+    packet: &ProjectBriefingPacket,
+    vault_pins: Option<&VaultPinStanza>,
+) -> String {
     let mut lines: Vec<String> = Vec::new();
     lines.push("# Project Briefing".to_string());
     lines.push(String::new());
@@ -139,6 +159,22 @@ pub fn render_project_markdown(packet: &ProjectBriefingPacket) -> String {
         lines.push(String::new());
         lines.push(BRIEFING_EMPTY_AUTHORITY_NOTICE.to_string());
         lines.push(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.to_string());
+        if let Some(stanza) = vault_pins {
+            lines.push(String::new());
+            lines.push(BRIEFING_VAULT_PINS_HEADING.to_string());
+            lines.push(format!("Pinned: {}", stanza.count));
+            if stanza.previews.is_empty() {
+                if stanza.count > 0 {
+                    lines.push(
+                        "_No leading-line DECISION/CONSTRAINT samples in this scope._".to_string(),
+                    );
+                }
+            } else {
+                for preview in stanza.previews.iter().take(3) {
+                    lines.push(format!("- {preview}"));
+                }
+            }
+        }
     }
 
     if !packet.constraints.is_empty() {
@@ -416,6 +452,49 @@ mod tests {
         assert!(
             n <= 140,
             "empty_authority next must be <=140 chars (got {n}): {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+    }
+
+    #[test]
+    fn render_project_markdown_with_vault_pins__some__inserts_after_empty_authority() {
+        // T288 AC3
+        let empty_allowed = empty_project(false);
+        let stanza = VaultPinStanza {
+            count: 12,
+            previews: vec!["DECISION: x".into()],
+        };
+        let with = render_project_markdown_with_vault_pins(&empty_allowed, Some(&stanza));
+        let without = render_project_markdown(&empty_allowed);
+        assert!(
+            with.contains(BRIEFING_VAULT_PINS_HEADING),
+            "Some stanza must emit heading; got {with}"
+        );
+        assert!(
+            with.contains("Pinned: 12"),
+            "Some stanza must emit inventory count; got {with}"
+        );
+        assert!(
+            with.contains("- DECISION: x"),
+            "Some stanza must emit preview; got {with}"
+        );
+        let next_pos = with
+            .find(BRIEFING_EMPTY_AUTHORITY_NEXT_STEP)
+            .expect("empty_authority next");
+        let heading_pos = with
+            .find(BRIEFING_VAULT_PINS_HEADING)
+            .expect("vault pins heading");
+        let freshness_pos = with.find("## Freshness").expect("freshness");
+        assert!(
+            next_pos < heading_pos && heading_pos < freshness_pos,
+            "stanza must sit after empty_authority next and before Freshness; got {with}"
+        );
+        assert!(
+            with.contains("_None_"),
+            "Decisions body must stay _None_; got {with}"
+        );
+        assert!(
+            !without.contains(BRIEFING_VAULT_PINS_HEADING),
+            "None/default render must omit heading; got {without}"
         );
     }
 

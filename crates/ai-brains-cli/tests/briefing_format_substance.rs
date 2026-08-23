@@ -419,6 +419,10 @@ fn briefing_project__help__lists_human_pretty_and_example() {
         combined.contains("--format human") || combined.contains("format human"),
         "help after_help must include human example: {combined}"
     );
+    assert!(
+        combined.contains("not Approved") && combined.contains("vault_pin_count"),
+        "T288 AC10: after_help must name vault-pin stanza + JSON extras; got {combined}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -458,6 +462,10 @@ fn briefing_project__granted_substance__decision_and_conclusion_in_md_and_json()
         !md.contains("> **Denied:**"),
         "granted packet must not be denied: {md}"
     );
+    assert!(
+        !md.contains("## Vault pins"),
+        "T288 AC7: overlay off when authority is non-empty; got {md}"
+    );
 
     let json_out = briefing_project(&vault)
         .arg("--format")
@@ -481,6 +489,10 @@ fn briefing_project__granted_substance__decision_and_conclusion_in_md_and_json()
     assert!(
         !conclusions.is_empty(),
         "conclusions must be non-empty; got {v}"
+    );
+    assert!(
+        v.get("vault_pin_count").is_none() && v.get("vault_pin_previews").is_none(),
+        "T288 AC7: overlay JSON keys omit when authority is non-empty; got {v}"
     );
     let dec_text = decisions
         .iter()

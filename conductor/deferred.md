@@ -4,14 +4,63 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #202 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #203 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
 | recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
 | preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Completed** |
 | `memory list` just-now ingest | **T287 Completed** |
-| briefing granted-empty vs pins (no H2) | **T288** |
+| briefing granted-empty vs pins (no H2) | **T288 Completed** |
+
+### T288 planning absorption (2026-08-23) — granted-empty vault-pin stanza; no H2
+
+| Item | Disposition |
+|------|-------------|
+| Audit `briefing project` granted-empty `_None_` vs 3k pins | **Absorb** F2–F5 / AC1–AC4 / AC12 |
+| Dual model: briefing = Approved; pins via recall | **Absorb** F1 keep split + F2 labeled stanza |
+| T263 F24 soft vault pin COUNT | **Absorb / promote** F4 inventory `count_pinned_memories` |
+| T263 F3 / T227 F3 never scrape pins into authority | **Affirm** F1 |
+| T263 F29 next-step ≤140 | **Affirm** F6 / AC6 |
+| T275 denied grant-wall | **Affirm** F7 / AC5 |
+| T287 `list_authority_memories` / `preview_line` | **Reuse** F5 / F15 |
+| T287 R1-1 live GLOB 0 | **Absorb** F4/F32 — COUNT not GLOB |
+| Placeholder JSON if T180 else human-only | **Absorb JSON overlay** F3 — T180 additive; non-TTY default |
+| Personal deny `_None_` | **Decline → T289** |
+| Lists/progressive pin count | **Decline → T290** |
+| graph neighbors dump sessions | **Decline → T293** |
+| leftover dest-missing / context skip upsert | **Decline → T294** |
+| T287 list mix | **Completed** — not stolen |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
+| last-PR Cursor #203 | **N/A** empty — **no T301** |
+| Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
+
+### T288 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 fail-open `Repository:` / `ProjectId` parse | **Already** F13/F14; **tightened** F14 + **AC17** |
+| Agy m2 Hotspot exclude `Decision \|\| Constraint` | **Already** F5 / AC16 |
+| Agy O1 PROTOCOL-COMPAT CLI extras vs daemon DTO | **Already** F25 / AC10 |
+| Agy O2 rstest denied / nonempty / 0-pin / with-pin | **Already** AC14 + AC4 + AC1 |
+| OpenCode m1 3822 session-join vs ~3821 `count_pinned_memories` | **Folded** F4 / AC12 / spec §5.6 |
+| OpenCode m2 pin env `PROJECT_ID`+`SESSION_ID` | **Folded** AC1 / F20 |
+| OpenCode m3 NeverInject/Sealed previews | **Folded** F36 display-only; no `is_injectable_privacy` |
+| OpenCode O1 `VaultPinStanza` in `renderer.rs` | **Folded** F11 required re-export |
+| OpenCode O2 fetch limit 8→32 | **Folded** F5 `limit = 32` |
+| last-PR #203 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
+### T288 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| Live `cargo run -- briefing project --format human` on `3581317d` prints `Pinned: 3889` and `_No leading-line DECISION/CONSTRAINT samples in this scope._` (R1-1 / CX1 P3) | **Residual** — pass-1 GLOB 0 (F32); inventory COUNT is Manual SoT; hermetic AC1/AC2 for samples; F17 PATH until `cargo install` |
+| Daemon/HTTP packet unaugmented | **Residual** — F29 |
+| Personal `_None_` / lists/progressive pin count | **T289 / T290** — not stolen |
+| Governed preflight no stanza | **Residual** — F27 / T170 D21 |
+| First `dev-check` fail-fast `backup_restore__daemon_down_force__succeeds` | **Environmental** — daemon was Running; temporary `daemon stop`; gate re-run **3399** passed. Daemon left **Stopped**. |
+
 | personal briefing deny `_None_` | **T289** |
 | governed lists/progressive empty U=6 | **T290** |
 | `query trace` bare `null` | **T291** |
