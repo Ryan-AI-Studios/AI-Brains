@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T290 Granted-empty lists/progressive are useful:** Authorized-empty `evidence` / `source` / `review` list and `query progressive` JSON `next_step` is copy-paste `ai-brains recall "…"` (lists: `what did we decide`; progressive: the operator query) plus `(Pinned: N)` when local COUNT succeeds. Human lists print that line after `(none)`. Arrays stay `[]` (no H2). DTO fields unchanged; T288 `vault_pin_*` keys stay briefing-only. Denied stderr still prints the T243 ellipsis const.
+
 - **T289 Personal deny is not empty preferences:** Denied `briefing personal --format human` omits `_None_` under Preferences/Continuity and prints `_(optional continuity; not a missing vault)_`. Next-step stays T263 `recall` (not Personal `policy bootstrap`). JSON `denied: true` + empty arrays unchanged. Allowed-empty Personal still `_None_`. Project T275 grant-wall / T288 vault-pin stanza untouched.
 
 - **T288 Granted-empty briefing vault-pin stanza:** `briefing project` when allowed and authority arrays are empty prints `## Vault pins (not Approved)` with inventory `Pinned: N` plus up to 3 leading-line `DECISION:`/`CONSTRAINT:` previews. CLI JSON adds optional `vault_pin_count` / `vault_pin_previews` (omit when overlay off; `0`/`[]` when granted-empty with no pins). `decisions[]` / `conclusions[]` stay empty; DTO and daemon packet unchanged. Denied / nonempty-authority omit the overlay.

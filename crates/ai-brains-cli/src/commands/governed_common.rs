@@ -58,23 +58,48 @@ pub const LIST_RECALL_QUERY: &str = "what did we decide";
 
 /// Collapse ASCII whitespace, replace `"`, cap 80 chars (T290 F6). Empty → [`LIST_RECALL_QUERY`].
 pub fn sanitize_recall_query(raw: &str) -> String {
-    // T290_RED_STUB — green replaces with F6 sanitize. Touch the const so clippy is clean on red.
-    let _ = LIST_RECALL_QUERY;
-    raw.to_string()
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return LIST_RECALL_QUERY.to_string();
+    }
+    let mut collapsed = String::with_capacity(trimmed.len());
+    let mut prev_space = false;
+    for c in trimmed.chars() {
+        if c.is_ascii_whitespace() {
+            if !prev_space {
+                collapsed.push(' ');
+                prev_space = true;
+            }
+        } else {
+            prev_space = false;
+            collapsed.push(if c == '"' { '\'' } else { c });
+        }
+    }
+    if collapsed.is_empty() {
+        return LIST_RECALL_QUERY.to_string();
+    }
+    collapsed.chars().take(80).collect()
 }
 
 /// Granted-empty `next_step` (T290 F7). `recall_query` None → [`LIST_RECALL_QUERY`].
 pub fn format_authorized_empty_next(pin_count: Option<u64>, recall_query: Option<&str>) -> String {
-    let _ = pin_count;
-    // T290_RED_STUB — echo the raw query so the newline round-trip test fails until green.
-    format!("T290_RED_STUB{}", recall_query.unwrap_or(""))
+    let needle = match recall_query {
+        Some(q) => sanitize_recall_query(q),
+        None => LIST_RECALL_QUERY.to_string(),
+    };
+    match pin_count {
+        Some(n) => {
+            format!("Ungoverned vault search: ai-brains recall \"{needle}\" (Pinned: {n})")
+        }
+        None => format!("Ungoverned vault search: ai-brains recall \"{needle}\""),
+    }
 }
 
-/// CLI overlay for authorized-empty discovery lists (T263 F8).
+/// CLI overlay for authorized-empty discovery lists (T263 F8 / T290 F3).
 ///
 /// When JSON has an empty `items` array and is not a deny/error envelope, set
-/// `next_step` (if absent) to [`PROGRESSIVE_RECALL_FALLBACK`]. Does not change DTOs.
-pub fn apply_authorized_empty_list_next(value: &mut serde_json::Value) {
+/// `next_step` (if absent) via [`format_authorized_empty_next`]. Does not change DTOs.
+pub fn apply_authorized_empty_list_next(value: &mut serde_json::Value, pin_count: Option<u64>) {
     let Some(obj) = value.as_object_mut() else {
         return;
     };
@@ -96,7 +121,7 @@ pub fn apply_authorized_empty_list_next(value: &mut serde_json::Value) {
     }
     obj.insert(
         "next_step".to_string(),
-        serde_json::Value::String(PROGRESSIVE_RECALL_FALLBACK.to_string()),
+        serde_json::Value::String(format_authorized_empty_next(pin_count, None)),
     );
 }
 
@@ -705,7 +730,7 @@ mod tests {
             "items": [],
             "more_available": false,
         });
-        apply_authorized_empty_list_next(&mut value);
+        apply_authorized_empty_list_next(&mut value, None);
         let step = value["next_step"].as_str().unwrap_or("");
         assert!(
             !step.is_empty() && step.contains("recall"),
@@ -721,7 +746,7 @@ mod tests {
     #[test]
     fn apply_authorized_empty_list_next__nonempty_or_denied__omits_next_step() {
         let mut nonempty = serde_json::json!({"items": [{"id": "1"}]});
-        apply_authorized_empty_list_next(&mut nonempty);
+        apply_authorized_empty_list_next(&mut nonempty, Some(12));
         assert!(
             nonempty.get("next_step").is_none(),
             "non-empty items must not get next_step; got {nonempty}"
@@ -731,11 +756,78 @@ mod tests {
             "message": "no grant",
             "items": [],
         });
-        apply_authorized_empty_list_next(&mut denied);
+        apply_authorized_empty_list_next(&mut denied, Some(12));
         assert!(
             denied.get("next_step").is_none(),
             "denied envelope must not get authorized-empty next_step; got {denied}"
         );
+        let mut denied_flag = serde_json::json!({"denied": true, "items": []});
+        apply_authorized_empty_list_next(&mut denied_flag, Some(12));
+        assert!(
+            denied_flag.get("next_step").is_none(),
+            "denied:true must not get authorized-empty next_step; got {denied_flag}"
+        );
+    }
+
+    /// T290 AC14 — overlay gate rstest: denied / nonempty skip; empty apply.
+    #[rstest]
+    #[case(serde_json::json!({"items": [{"id": "1"}]}), true)]
+    #[case(serde_json::json!({"denied": true, "items": []}), true)]
+    #[case(serde_json::json!({"code": "POLICY_DENIED", "items": []}), true)]
+    #[case(serde_json::json!({"items": []}), false)]
+    fn apply_authorized_empty_list_next__overlay_gate__denied_nonempty_empty(
+        #[case] mut value: serde_json::Value,
+        #[case] omit: bool,
+    ) {
+        apply_authorized_empty_list_next(&mut value, Some(3));
+        if omit {
+            assert!(
+                value.get("next_step").is_none(),
+                "overlay must skip; got {value}"
+            );
+        } else {
+            let step = value["next_step"].as_str().unwrap_or("");
+            assert!(
+                step.contains("recall") && step.contains("(Pinned: 3)"),
+                "empty overlay must apply; got {value}"
+            );
+        }
+    }
+
+    /// T290 AC15 — deny-stderr ellipsis const frozen.
+    #[test]
+    fn progressive_recall_fallback__exact__ellipsis_unchanged() {
+        assert_eq!(
+            PROGRESSIVE_RECALL_FALLBACK,
+            "Ungoverned vault search: ai-brains recall \"…\""
+        );
+    }
+
+    /// T290 AC13 — list/progressive DTOs stay unaugmented (no T288 keys).
+    #[test]
+    fn list_and_progressive_dtos__serde__no_vault_pin_count() {
+        use ai_brains_contracts::briefings::{EvidenceListResponse, ProgressiveQueryResponse};
+        use ai_brains_contracts::review::ReviewQueueResponse;
+        use ai_brains_contracts::sources::SourceListResponse;
+        let packets = [
+            serde_json::to_value(EvidenceListResponse::new(Vec::new())).expect("evidence"),
+            serde_json::to_value(SourceListResponse::new(Vec::new())).expect("source"),
+            serde_json::to_value(ReviewQueueResponse::new(Vec::new())).expect("review"),
+            serde_json::to_value(ProgressiveQueryResponse::new(
+                Vec::new(),
+                "scope",
+                "policy",
+                "trace",
+                false,
+            ))
+            .expect("progressive"),
+        ];
+        for v in packets {
+            assert!(
+                v.get("vault_pin_count").is_none() && v.get("vault_pin_previews").is_none(),
+                "DTO must not grow T288 keys; got {v}"
+            );
+        }
     }
 
     /// T290 AC1 — exact F7 shape; single line; no U+2026.

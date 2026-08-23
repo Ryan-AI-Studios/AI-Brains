@@ -4,6 +4,7 @@ use crate::commands::briefing::cli_principal;
 use crate::commands::governed_common::{
     EXIT_POLICY_DENIED, GovernedCliError, OutputFormat, POLICY_DENIED_HINT,
     PROGRESSIVE_RECALL_FALLBACK, UNKNOWN_HANDLE_PREVIEW, emit_json, fail_cp, fail_usage,
+    format_authorized_empty_next,
 };
 use crate::context::AppContext;
 use ai_brains_contracts::briefings::ProgressiveQueryResponse;
@@ -14,7 +15,7 @@ use ai_brains_control_plane::{
 use ai_brains_core::ids::ProjectId;
 use ai_brains_core::privacy::Privacy;
 use ai_brains_core::scope::ScopeRef;
-use ai_brains_store::SqliteEventStore;
+use ai_brains_store::{QueryStore, SqliteEventStore};
 
 /// F30 progressive usage message (copy-paste example + env).
 pub const PROGRESSIVE_PROJECT_USAGE: &str = "project id required. Example:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\nOr set AI_BRAINS_PROJECT_ID.";
@@ -59,8 +60,12 @@ pub(crate) fn apply_unknown_expand_preview(value: &mut serde_json::Value) {
     }
 }
 
-/// Progressive deny/empty honesty (T243 F33). Mutate before `emit_json`.
-pub(crate) fn apply_progressive_search_hints(resp: &mut ProgressiveQueryResponse) {
+/// Progressive deny/empty honesty (T243 F33 / T290 F33). Mutate before `emit_json`.
+pub(crate) fn apply_progressive_search_hints(
+    resp: &mut ProgressiveQueryResponse,
+    pin_count: Option<u64>,
+    query: &str,
+) {
     if resp.denied {
         if resp
             .denial_hint
@@ -74,7 +79,7 @@ pub(crate) fn apply_progressive_search_hints(resp: &mut ProgressiveQueryResponse
             resp.denial_hint = Some(format!("{base} {PROGRESSIVE_RECALL_FALLBACK}"));
         }
     } else if resp.results.is_empty() {
-        resp.next_step = Some(PROGRESSIVE_RECALL_FALLBACK.to_string());
+        resp.next_step = Some(format_authorized_empty_next(pin_count, Some(query)));
     }
 }
 
@@ -99,6 +104,8 @@ pub fn run_progressive(
     } else {
         Some(&ports.writer)
     };
+    let query = options.query.clone();
+    let pin_count = ctx.conn.count_pinned_memories(Some(&project_id)).ok();
     // F33: map CP errors (incl. PolicyDenied) via fail_cp → exit 3, never raw `?` → exit 1.
     let mut resp = match progressive_query(
         writer,
@@ -123,7 +130,7 @@ pub fn run_progressive(
     if resp.denied && resp.denial_hint.is_none() {
         resp.denial_hint = Some(POLICY_DENIED_HINT.to_string());
     }
-    apply_progressive_search_hints(&mut resp);
+    apply_progressive_search_hints(&mut resp, pin_count, &query);
     // F2/F3: keep ProgressiveQueryResponse on stdout, then exit 3 on deny (F1/F34).
     emit_json(&resp)?;
     if resp.denied {
@@ -253,7 +260,7 @@ mod tests {
         let mut resp = empty_progressive_resp();
         resp.denied = true;
         resp.denial_hint = Some(POLICY_DENIED_HINT.to_string());
-        apply_progressive_search_hints(&mut resp);
+        apply_progressive_search_hints(&mut resp, Some(12), "x");
         assert!(
             resp.next_step.is_none(),
             "denied must omit next_step; got {:?}",
@@ -273,7 +280,7 @@ mod tests {
     #[test]
     fn apply_progressive_search_hints__authorized_empty__next_step_contains_recall() {
         let mut resp = empty_progressive_resp();
-        apply_progressive_search_hints(&mut resp);
+        apply_progressive_search_hints(&mut resp, Some(0), "what did we decide about SQLCipher");
         let step = resp.next_step.as_deref().unwrap_or("");
         assert!(
             resp.next_step.is_some(),
@@ -282,6 +289,10 @@ mod tests {
         assert!(
             step.contains("recall"),
             "next_step must contain recall; got {step}"
+        );
+        assert!(
+            step.contains("SQLCipher") && step.contains("(Pinned: 0)") && !step.contains('…'),
+            "authorized empty must copy-paste the operator query + Pinned; got {step}"
         );
         assert!(
             resp.denial_hint.is_none(),
@@ -331,7 +342,7 @@ mod tests {
             "trace",
             false,
         );
-        apply_progressive_search_hints(&mut resp);
+        apply_progressive_search_hints(&mut resp, Some(12), "SQLCipher");
         assert!(
             resp.next_step.is_none(),
             "authorized hits must omit next_step; got {:?}",

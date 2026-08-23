@@ -81,6 +81,11 @@ fn seed_evidence_no_grants(vault_path: &Path) -> String {
 }
 
 fn progressive_cmd(vault: &Path) -> assert_cmd::Command {
+    progressive_cmd_query(vault, "x")
+}
+
+/// T290 AC6 — do not reuse `progressive_cmd` (hardcodes `"x"`).
+fn progressive_cmd_query(vault: &Path, query: &str) -> assert_cmd::Command {
     let mut cmd = common::hermetic_bin();
     cmd.arg("--no-project-context")
         .arg("--vault-path")
@@ -88,7 +93,7 @@ fn progressive_cmd(vault: &Path) -> assert_cmd::Command {
         .env("AI_BRAINS_PROJECT_ID", PROJECT)
         .arg("query")
         .arg("progressive")
-        .arg("x");
+        .arg(query);
     cmd
 }
 
@@ -244,6 +249,61 @@ fn progressive__after_system_bootstrap__exit_0_denied_false() {
     assert!(
         step.contains("recall"),
         "next_step must contain recall; got {v}"
+    );
+}
+
+/// T290 AC6 — granted-empty progressive copies the operator query + Pinned (not U+2026).
+#[test]
+fn query_progressive__authorized_empty__next_step_contains_query_and_pinned() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let boot = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("policy")
+        .arg("bootstrap")
+        .arg("--scope")
+        .arg(SCOPE)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("policy bootstrap");
+    assert_eq!(
+        boot.status.code(),
+        Some(0),
+        "bootstrap failed; stderr={} stdout={}",
+        String::from_utf8_lossy(&boot.stderr),
+        String::from_utf8_lossy(&boot.stdout)
+    );
+
+    let out = progressive_cmd_query(&vault, "what did we decide about SQLCipher")
+        .output()
+        .expect("progressive SQLCipher");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "authorized progressive must exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("stdout json");
+    assert_eq!(v["denied"], false, "packet={v}");
+    let results = v["results"].as_array().expect("results array");
+    assert!(results.is_empty(), "results must stay []; got {v}");
+    let step = v["next_step"].as_str().unwrap_or("");
+    assert!(
+        step.contains("recall")
+            && step.contains("SQLCipher")
+            && step.contains("Pinned:")
+            && !step.contains('…'),
+        "next_step must copy-paste SQLCipher + Pinned, not U+2026; got {v}"
+    );
+    assert!(
+        v.get("vault_pin_count").is_none(),
+        "progressive must not grow T288 keys; got {v}"
     );
 }
 
