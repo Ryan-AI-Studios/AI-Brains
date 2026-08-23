@@ -80,6 +80,32 @@ fn pin_memory(vault: &Path, work_dir: &Path, project_id: &str, content: &str) {
         .success();
 }
 
+fn pin_memory_tagged(vault: &Path, work_dir: &Path, project_id: &str, content: &str, tag: &str) {
+    let env_path = work_dir.join(".env");
+    let env_content = fs::read_to_string(&env_path).expect(".env for pin");
+    let mut session_id = String::new();
+    for line in env_content.lines() {
+        if let Some(rest) = line.strip_prefix("AI_BRAINS_SESSION_ID=") {
+            session_id = rest.trim().to_string();
+        }
+    }
+    assert!(!session_id.is_empty(), "SESSION_ID missing from .env");
+
+    hermetic()
+        .current_dir(work_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .env("AI_BRAINS_PROJECT_ID", project_id)
+        .env("AI_BRAINS_SESSION_ID", &session_id)
+        .arg("pin")
+        .arg(content)
+        .arg("--tag")
+        .arg(tag)
+        .assert()
+        .success();
+}
+
 fn run_preflight(
     vault: &Path,
     preflight_args: &[&str],
@@ -552,5 +578,59 @@ fn preflight_pretty__summary_compact__dual_model_unchanged() {
     assert!(
         !stdout.contains("--- Repository Bearings"),
         "AC13: summary must not dump pretty body; got:\n{stdout}"
+    );
+}
+
+/// T286 AC5 — pretty Index item 1 is the tagged DECISION pin, not `## Objective`.
+#[test]
+fn preflight__pretty_index_item1_is_decision_when_tagged_pin_exists() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("proj-t286-pretty");
+    let id = register_project(&vault, &proj);
+    let needle = format!("T286p-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {needle} pin"),
+        "t286",
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nNewer review dump must not steal Index item 1",
+    );
+
+    let (code, stdout, stderr) = run_preflight(
+        &vault,
+        &["--pretty", "-m", "1500", "--no-hook-prompt"],
+        Some(&id),
+    );
+    assert_eq!(code, 0, "AC5 exit 0; stderr={stderr}");
+
+    let after = stdout
+        .split("--- Memory Index (Briefing) ---")
+        .nth(1)
+        .unwrap_or("");
+    let first = after
+        .lines()
+        .map(str::trim)
+        .find(|l| l.starts_with("1."))
+        .unwrap_or("");
+    assert!(
+        first.contains("DECISION:") || first.starts_with("1. DECISION:"),
+        "AC5: Index line 1 must start with DECISION: after pretty strip; line={first:?}\n{stdout}"
+    );
+    assert!(
+        !first.contains("## Objective"),
+        "AC5: Index line 1 must not be ## Objective; line={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains(&needle),
+        "AC5: Index line 1 must include the tagged pin needle; line={first:?}\n{stdout}"
     );
 }

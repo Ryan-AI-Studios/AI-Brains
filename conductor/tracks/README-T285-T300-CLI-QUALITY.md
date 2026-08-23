@@ -1,10 +1,10 @@
 # T285–T300 — Post-T283 live CLI quality (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-22** on PATH graph-on `ai-brains` **0.1.2** (`ae5f6fd` `#200`). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; grants **3 of 3**; leftover `7d97a456` still ~18k pins / **5** roots after partial rebind. Agent non-TTY.
-**Status:** **T285 Completed** 2026-08-22. T286–T300 still **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
+**Status:** **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23. T287–T300 still **Placeholder / Pending**. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.**
 **Prior closed series:** T274–T284 (closer T283 `#199`). T274 ranking shipped but **live recall/Index still Q=4**.
-**Ledger (registration):** DOCS TX `36224860-4861-4d1d-b0b0-058911971142`. **T285 plan:** DOCS TX `515b984b-7f5e-4386-9566-a292efd3afe1`. **T285 fold-in:** DOCS TX `3a598eff-b7e5-4158-970b-be5e331006a7`.
-**last-PR Cursor:** [#200](https://github.com/Ryan-AI-Studios/AI-Brains/pull/200) comments/reviews **empty** → N/A. **No T301.**
+**Ledger (registration):** DOCS TX `36224860-4861-4d1d-b0b0-058911971142`. **T285 plan:** DOCS TX `515b984b-7f5e-4386-9566-a292efd3afe1`. **T285 fold-in:** DOCS TX `3a598eff-b7e5-4158-970b-be5e331006a7`. **T286 plan:** DOCS TX `397f9c55-5953-402b-95fc-db431f5a037c`. **T286 fold-in:** DOCS TX `0eea671d-b8c3-4209-9e6b-31764707efdf`.
+**last-PR Cursor:** [#201](https://github.com/Ryan-AI-Studios/AI-Brains/pull/201) T285 comments/reviews **empty** → N/A. **No T301.** (#200 version bump also empty.)
 
 Scores below are **Usefulness / Quality** from that audit (1–10). Every command with **U&lt;8 or Q&lt;8**, plus every “doesn’t work,” friction, and significant-opportunity item, maps to **exactly one** track unless **declined**.
 
@@ -42,7 +42,7 @@ Scores below are **Usefulness / Quality** from that audit (1–10). Every comman
 | T278 density floor retune | Honest sparse; **T300** is live rebuild owner-confirm, not floor change |
 | clap 5 / rusqlite 0.40 / DTO new required keys | Standing |
 | T274 two-pass as sufficient | **Reopened as T285** — live still Q=4 |
-| last-PR #200 Cursor | **N/A** empty |
+| last-PR #200 / #201 Cursor | **N/A** empty |
 
 ## Suggested implement order
 
@@ -52,7 +52,7 @@ Scores below are **Usefulness / Quality** from that audit (1–10). Every comman
 4. **T295** / **T300** live ops (owner-confirm)
 5. **T289** / **T291** / **T292** / **T296** / **T297** / **T298** / **T299**
 
-Do **not** `/implement-track` a Placeholder. **T285** is Planned — wait for owner **go** / `/implement-track 285`. Run `/plan-track TNN` first for T286–T300.
+Do **not** `/implement-track` a Placeholder. **T286** is Planned — wait for owner **go** / `/implement-track 286`. Run `/plan-track TNN` first for T287–T300.
 
 ## Non-goals of this series
 

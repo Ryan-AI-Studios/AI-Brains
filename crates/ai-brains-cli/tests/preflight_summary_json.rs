@@ -79,6 +79,32 @@ fn pin_memory(vault: &Path, work_dir: &Path, project_id: &str, content: &str) {
         .success();
 }
 
+fn pin_memory_tagged(vault: &Path, work_dir: &Path, project_id: &str, content: &str, tag: &str) {
+    let env_path = work_dir.join(".env");
+    let env_content = fs::read_to_string(&env_path).expect(".env for pin");
+    let mut session_id = String::new();
+    for line in env_content.lines() {
+        if let Some(rest) = line.strip_prefix("AI_BRAINS_SESSION_ID=") {
+            session_id = rest.trim().to_string();
+        }
+    }
+    assert!(!session_id.is_empty(), "SESSION_ID missing from .env");
+
+    hermetic()
+        .current_dir(work_dir)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .env("AI_BRAINS_PROJECT_ID", project_id)
+        .env("AI_BRAINS_SESSION_ID", &session_id)
+        .arg("pin")
+        .arg(content)
+        .arg("--tag")
+        .arg(tag)
+        .assert()
+        .success();
+}
+
 /// Run `preflight` with arbitrary subcommand flags after the `preflight` token.
 fn run_preflight(
     vault: &Path,
@@ -445,5 +471,95 @@ fn preflight_summary_json__no_project_no_global__scope_none() {
     assert!(
         v.get("projects").is_none(),
         "AC14: no projects key under none; got {v}"
+    );
+}
+
+/// T286 AC6 — tagged TAGS envelope pin still yields in_context_decisions >= 1.
+#[test]
+fn preflight__summary_json_tagged_pin__in_context_decisions_nonzero() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("proj-t286-summary");
+    let id = register_project(&vault, &proj);
+    let needle = format!("T286-summary-needle-{}", uuid::Uuid::new_v4());
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {needle} tagged pin must enter the summary window"),
+        "t286",
+    );
+    // Stop the pin session so its DECISION: turn is not in the active Session section
+    // (otherwise the T220 substring scan already counts 1 and AC6 is not red).
+    let env_path = proj.join(".env");
+    let env_content = fs::read_to_string(&env_path).expect(".env after tagged pin");
+    let mut pin_session = String::new();
+    for line in env_content.lines() {
+        if let Some(rest) = line.strip_prefix("AI_BRAINS_SESSION_ID=") {
+            pin_session = rest.trim().to_string();
+        }
+    }
+    assert!(!pin_session.is_empty(), "SESSION_ID after tagged pin");
+    hermetic()
+        .current_dir(&proj)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env("AI_BRAINS_PROJECT_ID", &id)
+        .env("AI_BRAINS_SESSION_ID", &pin_session)
+        .arg("stop-session")
+        .arg(&pin_session)
+        .assert()
+        .success();
+    hermetic()
+        .current_dir(&proj)
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env("AI_BRAINS_PROJECT_ID", &id)
+        .arg("context")
+        .arg("--new-session")
+        .assert()
+        .success();
+    // Three newer dumps fill Recent (cap 3) so the pin is Index-only after green.
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nNewer dump 0 padding word padding word padding word",
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nNewer dump 1 padding word padding word padding word",
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nNewer dump 2 padding word padding word padding word",
+    );
+
+    let (code, stdout, stderr) =
+        run_preflight(&vault, &["--summary", "--format", "json"], Some(&id));
+    assert_eq!(code, 0, "AC6 exit 0; stderr={stderr}");
+    let v = parse_summary_json(&stdout);
+    assert_eq!(v["api_version"], "1");
+    assert!(v.get("pinned").is_some(), "T220 pinned key");
+    assert!(
+        v.get("in_context_decisions").is_some(),
+        "T220 in_context_decisions key"
+    );
+    assert!(
+        v.get("index_kind").is_none() && v.get("in_context_authority").is_none(),
+        "AC14: no extra required keys; got {v}"
+    );
+    let decisions = v["in_context_decisions"].as_u64().unwrap_or(0);
+    assert!(
+        decisions >= 1,
+        "AC6: tagged pin must yield in_context_decisions >= 1; got {decisions}\n{stdout}"
     );
 }
