@@ -241,6 +241,40 @@ mod tests {
         assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
 
+    /// T290 AC10: list after_help names copy-paste recall + Pinned.
+    #[test]
+    #[allow(non_snake_case)]
+    fn evidence_list__help__names_pinned_and_recall_query() {
+        use clap::Parser;
+        let err = match super::Cli::try_parse_from(["ai-brains", "evidence", "list", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string().to_lowercase();
+        assert!(
+            help.contains("pinned") && help.contains("what did we decide") && help.contains("none"),
+            "AC10: evidence list after_help names Pinned + recall query + (none); got: {help}"
+        );
+    }
+
+    /// T290 AC10: progressive after_help names operator query + Pinned (not ellipsis-only).
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_progressive__help__names_operator_query_and_pinned() {
+        use clap::Parser;
+        let err = match super::Cli::try_parse_from(["ai-brains", "query", "progressive", "--help"])
+        {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string().to_lowercase();
+        assert!(
+            help.contains("pinned")
+                && (help.contains("operator query") || help.contains("ellipsis")),
+            "AC10: progressive after_help names Pinned + operator query; got: {help}"
+        );
+    }
+
     /// T270 AC12: `retention plan --help` names inventory / none_auto.
     #[test]
     #[allow(non_snake_case)]
@@ -1860,7 +1894,7 @@ enum BriefingCommands {
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
     #[command(
-        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Granted-empty next_step is copy-paste `recall` of the operator query plus `(Pinned: N)` when COUNT succeeds (not the U+2026 ellipsis).\nProgressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Progressive {
         /// Query text
@@ -1940,7 +1974,7 @@ enum ScopeCommands {
 enum EvidenceCommands {
     /// List evidence for a scope (optional FTS --query)
     #[command(
-        after_help = "Examples:\n  ai-brains evidence list --scope Repository:<uuid>\n  ai-brains evidence list --format json\n  ai-brains evidence list --query keyword --scope Repository:<uuid>"
+        after_help = "Granted-empty JSON next_step is copy-paste `recall \"what did we decide\"` plus `(Pinned: N)` when local COUNT succeeds; human prints that line after `(none)`.\nExamples:\n  ai-brains evidence list --scope Repository:<uuid>\n  ai-brains evidence list --format json\n  ai-brains evidence list --query keyword --scope Repository:<uuid>"
     )]
     List {
         /// Scope identity key; soft-filled from authoritative context when omitted
@@ -2023,7 +2057,7 @@ enum EvidenceCommands {
 enum SourceCommands {
     /// List registered sources for a scope
     #[command(
-        after_help = "Examples:\n  ai-brains source list --scope Repository:<uuid>\n  ai-brains source list --format json"
+        after_help = "Granted-empty JSON next_step is copy-paste `recall \"what did we decide\"` plus `(Pinned: N)` when local COUNT succeeds; human prints that line after `(none)`.\nExamples:\n  ai-brains source list --scope Repository:<uuid>\n  ai-brains source list --format json"
     )]
     List {
         /// Scope identity key; soft-filled from authoritative context when omitted
@@ -2148,7 +2182,7 @@ enum DecisionCommands {
 enum ReviewCommands {
     /// List open review items (E1: items: [] when empty)
     #[command(
-        after_help = "Examples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review list --format json"
+        after_help = "Granted-empty JSON next_step is copy-paste `recall \"what did we decide\"` plus `(Pinned: N)` when local COUNT succeeds; human prints that line after `(none)`.\nExamples:\n  ai-brains review list --scope Repository:<uuid>\n  ai-brains review list --format json"
     )]
     List {
         /// Scope identity key; soft-filled from authoritative context when omitted

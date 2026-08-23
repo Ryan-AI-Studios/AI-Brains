@@ -337,7 +337,7 @@ ai-brains review list --format json   # soft-default scope (authoritative) or fa
 |---------|--------|
 | **Commands** | `source list`, `evidence list` (optional `--query` FTS), `evidence search` (requires `--query`) |
 | **Bounds** | Default limit **50**, hard clamp **200**; `more_available` via LIMIT+1 |
-| **Empty** | E1 `items: []` (never null); human `(none)`; exit **0** when policy allows; authorized-empty JSON adds `next_step` naming `recall` (T263; vault pins are not governed evidence) |
+| **Empty** | E1 `items: []` (never null); human `(none)`; exit **0** when policy allows; authorized-empty JSON `next_step` is copy-paste `ai-brains recall "what did we decide"` plus `(Pinned: N)` when local COUNT succeeds (T290; vault pins are not governed evidence). Human prints that same next line after `(none)`. |
 | **Policy** | `ReadEvidence` for source/evidence list; `ReadConclusions` for review list; deny → exit **3** + `details.hint` (bootstrap first) |
 | **Bootstrap (T210)** | `ai-brains policy bootstrap [--scope …] [--dry-run]` issues discovery grants only (`ReadEvidence`, `ReadConclusions`, `ReadDecisions`, `LocalOnly`); registers principal if missing; idempotent via `active_grants`; no auto-init |
 | **Soft-resolve** | Omitted `--scope` fills only when `scope resolve` is authoritative; else **exit 2** `fail_usage` (never exit **6**) |
@@ -611,7 +611,7 @@ Three surfaces, three corpora — not three UIs on one index:
 | Agent / pipe / scripts | `recall "…"` JSON (or `search`) |
 | Human, vault **+ ledger** / plan vs shipped | `sync query "…" --format pretty` |
 | “What did we decide?” (daily) | **`recall` / `search`** (vault `DECISION:` / `CONSTRAINT:` pins). Briefing / `query progressive` read **only** Approved decisions + Active/Confirmed conclusions — grants do not copy pins into authority. |
-| Governed conclusions / decisions | `query progressive "…"` (Approved + Active/Confirmed only; needs discovery grants; **not** vault FTS). Granted-empty → `next_step` names `recall`. |
+| Governed conclusions / decisions | `query progressive "…"` (Approved + Active/Confirmed only; needs discovery grants; **not** vault FTS). Granted-empty → `next_step` is copy-paste `recall` of the operator query plus `(Pinned: N)` when COUNT succeeds (not the U+2026 ellipsis). |
 | Embeddings / hybrid | `recall "…" --semantic` (not `sync query`) |
 | Machine stream of vault hits | `sync query "…" --format ndjson` **or** `recall --format json` |
 | Invalid `AI_BRAINS_PROJECT_ID` | **`recall` / `search`** → clap **exit 2**; **`sync query`** → vault-wide `Scope: project=(none)` exit **0** (F36 — clap env parse vs manual resolve; not converged) |

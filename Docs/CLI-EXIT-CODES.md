@@ -105,7 +105,7 @@ On **`policy check`** deny and local **list** denies (`review list`, `source lis
 | `briefing project` / `personal` | soft packet `denied: true` | **0** | unchanged (T210 F28) — do not treat like progressive |
 | `briefing project` / `personal` | unknown `--format` (not human/pretty/text/markdown/md/json) | **2** | **T227:** `fail_usage` on stderr with accepted list; **zero stdout** (no silent JSON) |
 
-Authorized progressive with grants and zero hits stays **`denied: false`**, empty `results`, exit **0** (T221 F14 — true empty *governed* knowledge). **T243:** that packet includes additive **`next_step`** naming ungoverned `ai-brains recall "…"` (`denial_hint` omitted). Hits omit `next_step`. Empty governed ≠ empty vault.
+Authorized progressive with grants and zero hits stays **`denied: false`**, empty `results`, exit **0** (T221 F14 — true empty *governed* knowledge). **T243 / T290:** that packet includes additive **`next_step`** that is copy-paste `ai-brains recall "<operator query>"` plus `(Pinned: N)` when COUNT succeeds (`denial_hint` omitted). Hits omit `next_step`. Denied stderr still prints the T243 ellipsis const. Empty governed ≠ empty vault. Authorized-empty `evidence` / `source` / `review` list is the same exit **0** + informative `next_step` (lists use `what did we decide`).
 
 Invalid `AI_BRAINS_PROJECT_ID`: **`recall` / `search`** → clap **exit 2**; **`sync query`** → exit **0** with `Scope: project=(none)` (T231 F36 — not converged).
 

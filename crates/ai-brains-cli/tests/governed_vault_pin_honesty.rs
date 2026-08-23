@@ -14,6 +14,7 @@ use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_store::SqliteEventStore;
 use ai_brains_store::connection::VaultConnection;
+use rstest::rstest;
 use serde_json::Value;
 use std::path::Path;
 use tempfile::tempdir;
@@ -230,7 +231,7 @@ fn query_trace__unknown__stdout_null_exit_0() {
     );
 }
 
-fn list_json(vault: &Path, noun: &str) -> std::process::Output {
+fn list_cmd(vault: &Path, noun: &str, format: &str) -> std::process::Output {
     common::hermetic_bin()
         .arg("--no-project-context")
         .arg("--vault-path")
@@ -240,10 +241,18 @@ fn list_json(vault: &Path, noun: &str) -> std::process::Output {
         .arg("--scope")
         .arg(SCOPE)
         .arg("--format")
-        .arg("json")
+        .arg(format)
         .arg("--local")
         .output()
-        .unwrap_or_else(|_| panic!("{noun} list"))
+        .unwrap_or_else(|_| panic!("{noun} list --format {format}"))
+}
+
+fn list_json(vault: &Path, noun: &str) -> std::process::Output {
+    list_cmd(vault, noun, "json")
+}
+
+fn list_human(vault: &Path, noun: &str) -> std::process::Output {
+    list_cmd(vault, noun, "human")
 }
 
 fn assert_authorized_empty_list_next(noun: &str) {
@@ -335,6 +344,114 @@ fn source_list__no_grants__exit_3_bootstrap_no_empty_next() {
 #[test]
 fn review_list__no_grants__exit_3_bootstrap_no_empty_next() {
     assert_denied_list_bootstrap_no_empty_next("review");
+}
+
+fn none_line_for(noun: &str) -> &'static str {
+    match noun {
+        "evidence" => "evidence: (none)",
+        "source" => "sources: (none)",
+        "review" => "review items: (none)",
+        other => panic!("unknown list noun {other}"),
+    }
+}
+
+/// T290 AC2 — 0-pin granted-empty JSON next_step is copy-paste recall + Pinned: 0.
+#[rstest]
+#[case("evidence")]
+#[case("source")]
+#[case("review")]
+fn list__authorized_empty__next_step_names_pinned_and_query(#[case] noun: &str) {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    let out = list_json(&vault, noun);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{noun} authorized-empty must exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v = stdout_json(&out);
+    let items = v["items"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{noun} items; {v}"));
+    assert!(items.is_empty(), "{noun} items must stay []; got {v}");
+    let step = v["next_step"].as_str().unwrap_or("");
+    assert!(
+        step.contains("recall")
+            && step.contains("what did we decide")
+            && step.contains("(Pinned: 0)"),
+        "{noun} next_step must name recall + query + Pinned: 0; got {v}"
+    );
+    assert!(
+        v.get("vault_pin_count").is_none(),
+        "{noun} must not grow T288 keys; got {v}"
+    );
+}
+
+/// T290 AC3 — human empty prints (none) then the same next-step line (all three nouns).
+#[rstest]
+#[case("evidence")]
+#[case("source")]
+#[case("review")]
+fn list__authorized_empty_human__none_then_next_line(#[case] noun: &str) {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    let out = list_human(&vault, noun);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{noun} human empty must exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains(none_line_for(noun)),
+        "{noun} must keep (none); got {stdout}"
+    );
+    assert!(
+        stdout.contains("recall")
+            && stdout.contains("what did we decide")
+            && stdout.contains("Pinned: 0"),
+        "{noun} human must print next line; got {stdout}"
+    );
+}
+
+/// T290 AC5 — pin raises Pinned to nonzero; items stay []; pin text not in items.
+#[test]
+fn evidence_list__authorized_empty_with_pin__next_step_nonzero_items_empty() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_discovery_grants(&vault);
+    let needle = "T290-ac5-needle-list-pin-count";
+    pin_via_hermetic_cmd(&vault, &format!("DECISION: {needle}"), Some("t290"));
+    let out = list_json(&vault, "evidence");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v = stdout_json(&out);
+    let items = v["items"].as_array().expect("items");
+    assert!(items.is_empty(), "items must stay []; got {v}");
+    let items_json = serde_json::to_string(&v["items"]).expect("items json");
+    assert!(
+        !items_json.contains(needle),
+        "pin text must not appear in items; got {v}"
+    );
+    let step = v["next_step"].as_str().unwrap_or("");
+    assert!(
+        step.contains("(Pinned:") && !step.contains("(Pinned: 0)"),
+        "next_step must contain (Pinned: N) with N>0; got {v}"
+    );
 }
 
 fn briefing_project_human(vault: &Path) -> std::process::Output {

@@ -3,7 +3,8 @@
 use crate::commands::governed_common::{
     self, OutputFormat, PathDecision, PathFlags, apply_authorized_empty_list_next, emit_human,
     emit_json, ensure_command_id, expect_daemon_ok, fail_api, fail_cp, fail_path, fail_usage,
-    policy_denied_hint_details, principal_id_wire, resolve_principal, resolve_scope_key_for_cli,
+    format_authorized_empty_next, policy_denied_hint_details, principal_id_wire, resolve_principal,
+    resolve_scope_key_for_cli,
 };
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
@@ -18,9 +19,9 @@ use ai_brains_control_plane::{
 };
 use ai_brains_core::ids::ReviewItemId;
 use ai_brains_core::privacy::Privacy;
-use ai_brains_core::scope::GrantCapability;
+use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
-use ai_brains_store::SqliteEventStore;
+use ai_brains_store::{QueryStore, SqliteEventStore};
 use std::str::FromStr;
 
 pub struct ListOptions {
@@ -135,7 +136,11 @@ fn run_list_local(
         })
         .collect();
     let resp = ReviewQueueResponse::new(dtos);
-    emit_list(format, &resp)
+    let pin_count = match &scope {
+        ScopeRef::Repository(pid) => ctx.conn.count_pinned_memories(Some(pid)).ok(),
+        _ => None,
+    };
+    emit_list(format, &resp, pin_count)
 }
 
 async fn run_list_daemon(
@@ -160,7 +165,7 @@ async fn run_list_daemon(
     };
     let resp = expect_daemon_ok(format, resp)?;
     match resp {
-        DaemonResponse::ReviewList(queue) => emit_list(format, &queue),
+        DaemonResponse::ReviewList(queue) => emit_list(format, &queue, None),
         other => Err(format!("unexpected daemon response: {other:?}").into()),
     }
 }
@@ -168,16 +173,18 @@ async fn run_list_daemon(
 fn emit_list(
     format: OutputFormat,
     resp: &ReviewQueueResponse,
+    pin_count: Option<u64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match format {
         OutputFormat::Json => {
             let mut value = serde_json::to_value(resp)?;
-            apply_authorized_empty_list_next(&mut value);
+            apply_authorized_empty_list_next(&mut value, pin_count);
             emit_json(&value)
         }
         OutputFormat::Human | OutputFormat::Markdown => {
             if resp.items.is_empty() {
                 emit_human("review items: (none)");
+                emit_human(&format_authorized_empty_next(pin_count, None));
             } else {
                 for item in &resp.items {
                     emit_human(&format!("- {} [{}] {}", item.id, item.status, item.subject));
