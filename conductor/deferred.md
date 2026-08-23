@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #206 Bugbot Low → **T291 F16** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Planned** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #206 Bugbot Low → **T291 F16** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
@@ -203,6 +203,16 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode o-6 OPERATIONS two null sentences | **Folded** AC10 |
 | last-PR #206 Cursor | **Affirm F16** — no T301 |
 | No B | Nothing to decline of B |
+
+### T291 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` still T281-era until `cargo install` | **Residual** — F17; source/hermetic SoT; T282 leftover `--show` + T283 cwd-first + T285–T291 not on PATH |
+| Found `--format human` still QueryTraceDto JSON | **Residual** — F10 by design |
+| Default progressive still does not persist | **Residual** — F9 by design |
+| T292 `policy check` human / T293–T300 | **Not stolen** |
+| Codex CX1 P1 process (full gate / publish pending at review time) | **verified_fixed** after closeout + Phase 6 |
 
 ### T287 closeout residuals (2026-08-23)
 

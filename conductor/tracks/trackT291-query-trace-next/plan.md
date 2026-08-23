@@ -1,6 +1,6 @@
 # T291 Plan — query trace missing envelope + human next
 
-**Status:** **Pending** (Planned). Full F-list in spec.md.
+**Status:** ✅ **Completed**. Full F-list in spec.md.
 **Spec:** [spec.md](./spec.md) F0–F26 / AC1–AC13 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `c59e5bb6-adf1-40c5-9288-66403d208aca` (DOCS)
@@ -48,24 +48,24 @@ Agy **B 0 / M 0**. OpenCode **B 0**. OpenCode M-1 hotspot **folded**. M-2/M-3 vo
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `governed_query.rs` `run_trace` `:205` None arm `println!("null")`
-- [ ] Confirm `QueryTraceDto` still has **no** `found` / `next_step` — **do not add**
-- [ ] Confirm progressive `--dry-run` default still **true** — **do not flip** (F9)
-- [ ] Confirm no `--trace` on progressive
-- [ ] Confirm `get_query_trace` still `Ok(None)` for miss / cross-principal / no grant — **do not change CP**
-- [ ] Confirm `sanitize_recall_query` still sets `prev_space = false` on `$`/backtick — F16 still true
-- [ ] Confirm hermetic `query_trace__unknown__stdout_null_exit_0` still exact `"null"`
-- [ ] Confirm `OutputFormat::parse` still case-insensitive unknown→Json — AC7 **must** use clap `value_parser` (F3)
-- [ ] Confirm `progressive_cmd` still hardcodes `"x"` + default dry-run — AC5 must not reuse it
-- [ ] Re-scan hotspots — `governed_common.rs` still sanitizer-only
-- [ ] Rescan `conductor/deferred.md` — T291 absorbed + #206; T292–T300 / T290 not stolen
-- [ ] Confirm #206 Bugbot still the only Cursor finding; no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `query trace missing-id` **read-only**. **Did not** pin production decisions; **did not** write `.env`; **did not** extra `policy bootstrap`
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX (new)
-- [ ] Did **not** `cargo install`; did **not** grow `project.rs` / `preflight.rs` / `briefing.rs` / `personal.rs` / CP `persist_trace`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `governed_query.rs` `run_trace` `:205` None arm `println!("null")`
+- [x] Confirm `QueryTraceDto` still has **no** `found` / `next_step` — **do not add**
+- [x] Confirm progressive `--dry-run` default still **true** — **do not flip** (F9)
+- [x] Confirm no `--trace` on progressive
+- [x] Confirm `get_query_trace` still `Ok(None)` for miss / cross-principal / no grant — **do not change CP**
+- [x] Confirm `sanitize_recall_query` still sets `prev_space = false` on `$`/backtick — F16 still true
+- [x] Confirm hermetic `query_trace__unknown__stdout_null_exit_0` still exact `"null"`
+- [x] Confirm `OutputFormat::parse` still case-insensitive unknown→Json — AC7 **must** use clap `value_parser` (F3)
+- [x] Confirm `progressive_cmd` still hardcodes `"x"` + default dry-run — AC5 must not reuse it
+- [x] Re-scan hotspots — `governed_common.rs` still sanitizer-only
+- [x] Rescan `conductor/deferred.md` — T291 absorbed + #206; T292–T300 / T290 not stolen
+- [x] Confirm #206 Bugbot still the only Cursor finding; no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `query trace missing-id` **read-only**. **Did not** pin production decisions; **did not** write `.env`; **did not** extra `policy bootstrap`
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX (new)
+- [x] Did **not** `cargo install`; did **not** grow `project.rs` / `preflight.rs` / `briefing.rs` / `personal.rs` / CP `persist_trace`
 
 ---
 
@@ -82,53 +82,53 @@ Agy **B 0 / M 0**. OpenCode **B 0**. OpenCode M-1 hotspot **folded**. M-2/M-3 vo
 
 ## Phase 1 — red (required first)
 
-- [ ] `trace_missing_next_step__frozen__exact_string` (AC1) — F8 const exact
-- [ ] `query_trace__unknown__stdout_envelope_exit_0` (AC2) — fail while stdout is `null`
-- [ ] `sanitize_recall_query` rstest `a $ b` → `a b` (AC8) — fail on current helper
-- [ ] Commit red allowed
+- [x] `trace_missing_next_step__frozen__exact_string` (AC1) — F8 const exact
+- [x] `query_trace__unknown__stdout_envelope_exit_0` (AC2) — fail while stdout is `null`
+- [x] `sanitize_recall_query` rstest `a $ b` → `a b` (AC8) — fail on current helper
+- [x] Commit red allowed
 
 ## Phase 2 — green missing path
 
-- [ ] `TRACE_MISSING_NEXT_STEP` + missing envelope struct in `governed_query.rs`
-- [ ] `run_trace` None arm: json → `emit_json` envelope; human → two lines (F2)
-- [ ] clap `--format` on `Trace` with T266 `value_parser` (not `OutputFormat::parse`); dispatch; after_help `:1589` / `:1892` / `:1924`
-- [ ] `sanitize_trace_id` (F15); share collapse with F16
-- [ ] Fix `sanitize_recall_query` interpolator-as-whitespace + final trim (F16)
-- [ ] AC3 human hermetic; AC4 no-project; AC7 InvalidValue `JSON` via clap `value_parser`
-- [ ] AC9 unit id sanitize
+- [x] `TRACE_MISSING_NEXT_STEP` + missing envelope struct in `governed_query.rs`
+- [x] `run_trace` None arm: json → `emit_json` envelope; human → two lines (F2)
+- [x] clap `--format` on `Trace` with T266 `value_parser` (not `OutputFormat::parse`); dispatch; after_help `:1589` / `:1892` / `:1924`
+- [x] `sanitize_trace_id` (F15); share collapse with F16
+- [x] Fix `sanitize_recall_query` interpolator-as-whitespace + final trim (F16)
+- [x] AC3 human hermetic; AC4 no-project; AC7 InvalidValue `JSON` via clap `value_parser`
+- [x] AC9 unit id sanitize
 
 ## Phase 3 — found + stay-green
 
-- [ ] AC5 hermetic: System bootstrap omit `--principal-id` + `query progressive "what did we decide" --dry-run false` (not `progressive_cmd`) then `query trace <id>`
-- [ ] Found `--format human` still QueryTraceDto (F10)
-- [ ] AC6 T290/T221 stay green; ellipsis const exact
-- [ ] AC12 `QueryTraceDto` no new fields
+- [x] AC5 hermetic: System bootstrap omit `--principal-id` + `query progressive "what did we decide" --dry-run false` (not `progressive_cmd`) then `query trace <id>`
+- [x] Found `--format human` still QueryTraceDto (F10)
+- [x] AC6 T290/T221 stay green; ellipsis const exact
+- [x] AC12 `QueryTraceDto` no new fields
 
 ## Phase 4 — docs + gate
 
-- [ ] CAPABILITIES Trace row; OPERATIONS; CLI-EXIT-CODES; PROTOCOL-COMPAT §5 + §3.1; clap after_help; CHANGELOG
-- [ ] `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] Targeted nextest then workspace gate (`dev-check` / nextest + deny + audit)
-- [ ] Manual AC11 `cargo run -p ai-brains-cli -- query trace missing-id` and `--format human`
-- [ ] `ledgerful verify --scope full`
+- [x] CAPABILITIES Trace row; OPERATIONS; CLI-EXIT-CODES; PROTOCOL-COMPAT §5 + §3.1; clap after_help; CHANGELOG
+- [x] `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] Targeted nextest then workspace gate (`dev-check` / nextest + deny + audit)
+- [x] Manual AC11 `cargo run -p ai-brains-cli -- query trace missing-id` and `--format human`
+- [x] `ledgerful verify --scope full`
 
 ## Phase 5 — review + publish
 
-- [ ] `conductor/tracks/trackT291-query-trace-next/review.md` phase-1
-- [ ] Codex/cross-model when FEATURE
-- [ ] Mark conductor **Completed**; append closeout residuals to `deferred.md`
-- [ ] Push `track/T291-*` ; PR ; `gh run watch --exit-status` ; `gh pr merge --squash --delete-branch`
-- [ ] Fetch prune; point local `main` at `origin/main`; delete merged local `track/T291-*` only
-- [ ] Never `git push origin main`. Never force-push.
+- [x] `conductor/tracks/trackT291-query-trace-next/review.md` phase-1
+- [x] Codex/cross-model when FEATURE
+- [x] Mark conductor **Completed**; append closeout residuals to `deferred.md`
+- [x] Push `track/T291-*` ; PR ; `gh run watch --exit-status` ; `gh pr merge --squash --delete-branch`
+- [x] Fetch prune; point local `main` at `origin/main`; delete merged local `track/T291-*` only
+- [x] Never `git push origin main`. Never force-push.
 
 ---
 
 ## DoD (checkable)
 
-- [ ] Default `query trace missing-id` is **not** the token `null`; JSON `found: false` + F8 `next_step`
-- [ ] `--format human` has `No trace` and `next:` and `--dry-run false`
-- [ ] Exit **0**; no project-id required
-- [ ] Found DTO unchanged; no invented traces
-- [ ] #206 `a $ b` collapses to `a b`
-- [ ] Docs no longer say “JSON token null (not an object)”
-- [ ] Status stays **Pending** until go; this file’s implement boxes stay unchecked through planning
+- [x] Default `query trace missing-id` is **not** the token `null`; JSON `found: false` + F8 `next_step`
+- [x] `--format human` has `No trace` and `next:` and `--dry-run false`
+- [x] Exit **0**; no project-id required
+- [x] Found DTO unchanged; no invented traces
+- [x] #206 `a $ b` collapses to `a b`
+- [x] Docs no longer say “JSON token null (not an object)”
+- [x] Status stays **Pending** until go; this file’s implement boxes stay unchecked through planning

@@ -1,7 +1,7 @@
 # T291 — `query trace` missing must not be a bare `null`
 
 - **Track ID:** T291-QueryTraceNext
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** ✅ **Completed**
 - **Category:** FEATURE / UX / HONESTY
 - **Owner:** Grok
 - **Source:** Audit 2026-08-22 — `query trace` **3/8**; friction “null with no next.” Placeholder minted with T285–T300 (`76c4db9`). T274–T284 declined the surface as honest-empty E=8; **reopened** because U&lt;8. T263 ✅ F6 / F26 **froze** scalar `null` (P-CLI) — **this track lifts that freeze** with a documented missing-only envelope (not `{trace:null}` wrapping of `QueryTraceDto`). T202 ✅ F31 project-id gate still excluded. T152 ✅ progressive `dry_run` default **true** (no `QueryTraceRecorded`). T290 ✅ lists/progressive next (do **not** steal).
