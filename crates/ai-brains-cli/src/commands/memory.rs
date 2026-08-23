@@ -222,7 +222,10 @@ pub fn run_inventory(
         }
         rows
     } else {
-        let pass1_limit = if tag.is_some() { overfetch } else { page_limit };
+        // GLOB is a superset of classifier (TAGS envelope matches tagged dumps).
+        // LIMIT page then retain Other can empty pass-1 while older DECISION pins
+        // still exist (live hole). Over-fetch like F43, then retain, then mix.
+        let pass1_limit = overfetch;
         let mut pass1 = ctx.conn.list_authority_memories(&MemoryListFilter {
             status,
             project_id,

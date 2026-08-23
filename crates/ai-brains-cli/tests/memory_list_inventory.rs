@@ -1044,6 +1044,69 @@ fn memory_list__human_limit_5__untagged_decision_prefer_filled() {
 }
 
 #[test]
+fn memory_list__human_limit_5__newer_tagged_dumps_do_not_starve_older_pin() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T287n");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {needle} must survive tagged-dump GLOB head"),
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump one {needle}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump two {needle}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump three {needle}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump four {needle}"),
+        &["t287"],
+    );
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective tagged dump five {needle}"),
+        &["t287"],
+    );
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "starve-guard exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        !first.starts_with("## Objective"),
+        "pass-1 must over-fetch past tagged Other GLOB rows; first={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains("DECISION:") || first.contains(&needle),
+        "older untagged pin must prefer-fill; first={first:?}\n{stdout}"
+    );
+}
+
+#[test]
 fn memory_list__chrome_only_vault__first_row_stays_objective() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
