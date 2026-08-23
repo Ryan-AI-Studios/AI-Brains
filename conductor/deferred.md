@@ -53,6 +53,20 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor #201 | **N/A** empty — **no T301** |
 | Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
 
+### T286 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 empty envelope → `Untitled Memory` | **Already** F4 / AC10; **tightened** replace `:538` |
+| Agy m2 `debug_assert!(is_safe_sql_ident)` | **Folded** F2 / AC4 |
+| Agy O1 tagged summary JSON file | **Already** AC6; named `preflight_summary_json.rs` |
+| Agy O2 CAPABILITIES Index envelope | **Already** F29 |
+| OpenCode L1 USER/SYSTEM TAGS GLOB | **Decline as DoD** — T285 F7; residual §11 |
+| OpenCode L2 duplicate OR-join | **Already** F27 |
+| OpenCode pinned COUNT 3647 vs 3716 | **Folded** volatile snapshot |
+| last-PR #201 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 ### T285 planning absorption (2026-08-22) — envelope + detector + chrome-seed skip; no Index steal
 
 | Item | Disposition |

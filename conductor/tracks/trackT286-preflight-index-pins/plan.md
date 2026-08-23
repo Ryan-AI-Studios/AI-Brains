@@ -1,10 +1,27 @@
 # T286 Plan — preflight Index TAGS-or-GLOB + envelope titles
 
 **Status:** **Pending** (Planned). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC16
+**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC16 + §13 AI fold-in
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger TX (planning):** `397f9c55-5953-402b-95fc-db431f5a037c` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `0eea671d-b8c3-4209-9e6b-31764707efdf` (DOCS)
 **Ledger TX (implement):** FEATURE — start on **go**
+
+---
+
+## AI fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F4/AC10 (Agy m1):** replace live `:538` `lines().next().unwrap_or`; empty `first_contentful_line` → `"Untitled Memory"`.
+2. **F2/AC4 (Agy m2):** `debug_assert!(is_safe_sql_ident(column))` first in `index_pass1_glob_sql`.
+3. **AC6 (Agy O1):** tagged JSON test in `preflight_summary_json.rs`.
+4. **F29 (Agy O2):** CAPABILITIES already planned.
+5. **F27 (OpenCode L2):** keep duplicate OR-join.
+6. **Affirm:** #201 N/A; T287/T288/T293 not stolen.
+7. **Decline:** OpenCode L1 `USER:`/`SYSTEM:` TAGS GLOB (T285 F7).
 
 ---
 
@@ -14,7 +31,7 @@
 |-------|--------|
 | HEAD / tree | `16ee1aa` T285 `#201`. CLEAN. `origin/main` = HEAD |
 | PATH `ai-brains` | **0.1.2** mtime 2026-08-22 19:41, 25 139 712 bytes. **Has T274. No T285.** Hole is in **source** Index SQL. **Do not `cargo install`.** |
-| `preflight --summary` | Pinned **3716**; in-context 5/0/0; Scope `3581317d`; word count **255** |
+| `preflight --summary` | Pinned **volatile** (plan **3716** / OpenCode **3647**); in-context 5/0/0; Scope `3581317d`; word count **255** |
 | `preflight --pretty -m 1500` | Safety hotspots OK (T279). Index **`1. ## Objective -- just now`** |
 | Last PR comments | #201 T285 — **empty** (N/A). **No T301.** |
 | Open PR on HEAD | none (Dependabot remotes only: rusqlite 0.40.2 `#61`, chrono 0.4.45 `#62`, …) |
@@ -33,7 +50,9 @@
 
 - [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `preflight.rs` Index two-pass `:458–545` + `drain_index_pass` `:682`
+- [ ] Re-read `preflight.rs` Index two-pass `:458–545` + title `:538` + `drain_index_pass` `:682`
+- [ ] Confirm `is_safe_sql_ident` still `session_chrome.rs:178` — new helper must `debug_assert` it
+- [ ] Confirm `tags_envelope_sql` still TAGS + ASSISTANT: TAGS only — **do not** add USER/SYSTEM (L1 declined)
 - [ ] Re-read `session_chrome.rs` `index_marker_glob_sql` / `tags_envelope_sql`
 - [ ] Re-read `ranking.rs` `first_contentful_line` (T285 F2)
 - [ ] Confirm CLI `preflight.rs` `:884–888` still `matches("DECISION:")` — **do not grow** production
@@ -71,6 +90,7 @@
 | T279 Safety SQL | Completed freeze |
 | T263 H2 / T240 F2 / clap 5 / rusqlite 0.40 | Standing |
 | last-PR #201 Cursor | N/A empty — no T301 |
+| OpenCode L1 USER/SYSTEM TAGS GLOB | T285 F7 freeze; default `--role assistant` |
 
 ---
 
@@ -78,16 +98,16 @@
 
 - [ ] AC1 retrieval: TAGS envelope pin vs newer `## Objective` dump — Index item 1 is the pin
 - [ ] AC2: Index title is `DECISION:` not `TAGS:`
-- [ ] AC4 unit: `index_pass1_glob_sql` single `AND (` with TAGS **OR** marker+HOTSPOT
+- [ ] AC4 unit: `index_pass1_glob_sql` single `AND (` with TAGS **OR** marker+HOTSPOT + `debug_assert!(is_safe_sql_ident)`
 - [ ] AC5 CLI pretty Index item 1
-- [ ] AC6 CLI summary JSON `in_context_decisions >= 1` tagged
+- [ ] AC6 CLI summary JSON tagged in `preflight_summary_json.rs`
 - [ ] Commit red (allowed)
 
 ## Phase 2 — Green
 
 - [ ] F2 `index_pass1_glob_sql` in `session_chrome.rs`
 - [ ] Pass-1 extra uses it (`preflight.rs`)
-- [ ] F4 Index title `first_contentful_line`; empty → `Untitled Memory`
+- [ ] F4 Index title `first_contentful_line`; empty → `Untitled Memory`; **delete** `:538` `lines().next().unwrap_or`
 - [ ] AC3 T274 untagged stays green
 - [ ] AC7 T220 untagged summary stays green
 - [ ] AC8–AC15 stay green (Safety / sections / pretty strip / global skip / no new keys / list ORDER)

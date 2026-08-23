@@ -10,8 +10,8 @@
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “preflight Index `## Objective`; summary decisions 0 vs 3647 pins”; T285 F13 / closeout “Index/summary still Objective”; T274 AC6/AC7 as **regression** (untagged stays); live TAGS envelope hole on Index SQL
 - **Not absorbed (DoD):** T287 list ORDER; T288 briefing stanza; T293 neighbors CLI; T279 Safety SQL; T263 H2 pin→Approved; T240 F2; T214 9-arg formatters; T220 new keys; T180 required-key growth; clap 5 / rusqlite 0.40; Session-section reorder
 - **Research date:** 2026-08-23 (plan dogfood HEAD `16ee1aa` T285 `#201`; product `src/` = rank v2; PATH **0.1.2** 2026-08-22 19:41 **without** T285)
-- **AI fold-in:** none yet (plan pass). last-PR Cursor **#201** comments/reviews/inline **empty** → N/A. **No T301.**
-- **Ledger:** planning DOCS TX `397f9c55-5953-402b-95fc-db431f5a037c`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-23 `agy-review.md` + `opencode-review.md` (HEAD `97da9f5`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 empty-title `Untitled Memory` (already F4/AC10; tightened replace `lines().next()`); Agy m2 `debug_assert!(is_safe_sql_ident)` on the new helper (F2/AC4); Agy O1 AC6 file `preflight_summary_json.rs`; Agy O2 CAPABILITIES (already F29). **Already:** OpenCode L2 duplicate OR-join (F27). **Decline:** OpenCode L1 `USER:`/`SYSTEM:` TAGS GLOB (T285 F7 freeze). Disposition **§13**.
+- **Ledger:** planning DOCS TX `397f9c55-5953-402b-95fc-db431f5a037c`. Fold-in DOCS TX `0eea671d-b8c3-4209-9e6b-31764707efdf`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement (hermetic needle is SoT; Manual DoD unique canary is allowed on go). Do **not** rewrite `.env`. Do **not** grow hotspot `project.rs` / `sync.rs` / CLI `preflight.rs` **production** (tests OK). Do **not** edit T279 Safety SQL. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -35,7 +35,7 @@ This unblocks the daily product: T274 two-pass is on and still loses because Ind
 |--------|-------------|
 | HEAD | `16ee1aa` T285 squash `#201`. Tree **CLEAN**. `origin/main` = HEAD. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-22 19:41**, 25 139 712 bytes, **0.1.2**. **Has T274. Does not have T285.** Index hole is in **source + PATH**. **Do not `cargo install`.** Tests/manual AC use `cargo run` / hermetic. |
-| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **3716**. In-context hotspots **5** / decisions **0** / constraints **0**. Word count **255**. Grants omitted (3 of 3). Hole stands: 3k pins vs 0 decisions. |
+| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **volatile** (plan **3716**; OpenCode review **3647** — still thousands). In-context hotspots **5** / decisions **0** / constraints **0**. Word count **255**. Grants omitted (3 of 3). Hole stands: 3k pins vs 0 decisions. |
 | `preflight --pretty -m 1500` | Safety = live `HOTSPOT: crates/…` (T279 OK). Sessions = review-track / onboarding dumps (`## Objective` in body). **Memory Index line 1: `## Objective -- just now`.** Budget often cuts after item 1. |
 | `preflight --pretty -m 400` | Safety + Sessions only — Index truncated by word budget. Manual DoD uses `-m 1500` (CAPABILITIES default) so Index is visible. |
 | Last GitHub PR | [#201](https://github.com/Ryan-AI-Studios/AI-Brains/pull/201) T285 (2026-08-23). `gh pr view --comments`, `/reviews`, `/comments` all **empty**. **last-PR Cursor: N/A.** Open PRs: Dependabot remotes only (`#61` rusqlite 0.40.2, `#62` chrono 0.4.45, `#59` tokio, actions `#68–#72`). **No leftover to mint. No T301.** |
@@ -112,11 +112,11 @@ This unblocks the daily product: T274 two-pass is on and still loses because Ind
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `397f9c55`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `397f9c55`. Fold-in is DOCS TX `0eea671d`. Implement starts a **FEATURE** TX. |
 | **F1 — Index item 1 is authority** | When the scoped vault has ≥1 injectable leading-marker pin (Decision / Constraint / Hotspot after envelope), Memory Index line `1.` is that class of pin — not session chrome. Chrome dumps may still fill **later** Index slots (pass-2 recency). |
-| **F2 — Pass-1 GLOB-or-TAGS** | Index pass-1 SQL extra is **`index_pass1_glob_sql(column)`** = existing `index_marker_glob_sql` **OR** `tags_envelope_sql` (same inner-join shape as lexical Prefer `:318–329`). `index_marker_glob_sql` stays marker+HOTSPOT only (T274 F11). Do **not** concatenate the two `AND (…)` clauses (that would require TAGS **and** marker). |
+| **F2 — Pass-1 GLOB-or-TAGS** | Index pass-1 SQL extra is **`index_pass1_glob_sql(column)`** = existing `index_marker_glob_sql` **OR** `tags_envelope_sql` (same inner-join shape as lexical Prefer `:318–329`). First statement of the helper is **`debug_assert!(is_safe_sql_ident(column))`** (live `session_chrome.rs:178`; same as `tags_envelope_sql` `:82–85` — Agy m2). `index_marker_glob_sql` stays marker+HOTSPOT only (T274 F11). Do **not** concatenate the two `AND (…)` clauses (that would require TAGS **and** marker). Do **not** add `USER: TAGS:*` / `SYSTEM: TAGS:*` (OpenCode L1 declined — T285 F7 freeze; default pin role is `assistant`). |
 | **F3 — Retain is classify ≠ Other** | `drain_index_pass` `authority_only` keeps `classify_pin_kind != Other` (Hotspot stays). **Forbidden** to switch to `is_authority_pin_content` (drops Hotspot from Index). Envelope classify is already T285. |
-| **F4 — Envelope titles** | Index numbered line uses `first_contentful_line(content)` then `truncate_index_summary`. Empty / role-only / TAGS-only → **`Untitled Memory`**. **No** `unwrap`/`expect`/`panic`. Stored `content` in JSON `text` for Recent/session stays raw; only the Index **title** line is envelope-stripped (so `matches("DECISION:")` sees the marker). |
+| **F4 — Envelope titles** | Index numbered line uses `first_contentful_line(content)` then `truncate_index_summary`. Empty / role-only / TAGS-only (`""`) → **`Untitled Memory`** — **no** blank `1. -- ts` line (Agy m1). **Replace** live `content.lines().next().unwrap_or("Untitled Memory")` (`preflight.rs:538`); do not keep `lines().next()` after the switch. **No** `unwrap`/`expect`/`panic`. Stored `content` in JSON `text` for Recent/session stays raw; only the Index **title** line is envelope-stripped (so `matches("DECISION:")` at CLI `:886–888` sees the marker). |
 | **F5 — T274 untagged stands** | `preflight__index_prefers_leading_decision_over_objective_dump` stays green. Do not weaken it into TAGS-only. |
 | **F6 — T272 skip-set freeze** | Index/Recent skip = **emitted** Safety ids. Do not skip the whole fetch window. Do not retune `GLOBAL_*` caps. |
 | **F7 — T279 Safety freeze** | Do not edit `safety_marker_glob_sql` / `preflight_safety.rs` / live hotspot fetch. Pretty Safety must still match `safety sync --dry-run` paths (hotspots), not `## Objective`. |
@@ -157,9 +157,9 @@ This unblocks the daily product: T274 two-pass is on and still loses because Ind
 | **AC1** | Retrieval hermetic: older `ASSISTANT: TAGS: t286\nDECISION: {needle}` + newer `## Objective\n…` dump → `build_preflight` Index contains `DECISION:` and `{needle}`; the first numbered Index line does **not** start with `## Objective`. **Required red.** |
 | **AC2** | Same fixture: the first numbered Index line contains `DECISION:` and does **not** contain `TAGS:` as the title (envelope skipped). |
 | **AC3** | T274 `preflight__index_prefers_leading_decision_over_objective_dump` **stays green** (untagged pin). |
-| **AC4** | Unit: `index_pass1_glob_sql("m.content")` contains `GLOB 'TAGS:*'`, `GLOB 'ASSISTANT: TAGS:*'`, `GLOB 'DECISION:*'`, `GLOB 'HOTSPOT:*'`, and a single `AND (` grouping with `OR` (not two stacked `AND (` requiring both). Column ident-checked. |
+| **AC4** | Unit: `index_pass1_glob_sql("m.content")` contains `GLOB 'TAGS:*'`, `GLOB 'ASSISTANT: TAGS:*'`, `GLOB 'DECISION:*'`, `GLOB 'HOTSPOT:*'`, and a single `AND (` grouping with `OR` (not two stacked `AND (` requiring both). Helper source includes `debug_assert!(is_safe_sql_ident(column))` (Agy m2). |
 | **AC5** | CLI hermetic: `preflight --pretty -m 1500 --no-hook-prompt` stdout Memory Index line `1.` (after pretty strip) starts with `DECISION:` (or `1. DECISION:`) when a tagged pin exists vs a newer Objective dump. EXIT **0**. **Required red** (CLI). |
-| **AC6** | CLI hermetic: `preflight --summary --format json` `in_context_decisions >= 1` for the tagged-pin fixture. Keys T220 still present (`pinned`, `in_context_decisions`, no extra required key). EXIT **0**. **Required red** (CLI). |
+| **AC6** | CLI hermetic in **`crates/ai-brains-cli/tests/preflight_summary_json.rs`** (Agy O1): `preflight --summary --format json` `in_context_decisions >= 1` for an `ASSISTANT: TAGS: …\nDECISION: …` fixture. Keys T220 still present (`pinned`, `in_context_decisions`, no extra required key). EXIT **0**. **Required red** (CLI). |
 | **AC7** | T220 `preflight_summary_json__legacy_markers__in_context_counts_meaningful` **stays green**. |
 | **AC8** | Pretty Safety is still live hotspot paths / T279 empty SOOT — **not** `## Objective`. Regression guard (existing T279 tests stay). |
 | **AC9** | Non-summary `--format json`: `sections[]` still has `id=="index"` when Index is in `text`; required `text`/`word_count` stay. |
@@ -183,7 +183,7 @@ tags   = tags_envelope_sql(col)       -- AND (TAGS:* OR ASSISTANT: TAGS:*)
 pass1  = AND ( <marker inner> OR <tags inner> )
 ```
 
-Copy the `strip_prefix(" AND (")` / `strip_suffix(')')` join from `lexical.rs` Prefer. Do not share a helper this track (F27). Identifier check via existing `debug_assert!(is_safe_sql_ident)`.
+Copy the `strip_prefix(" AND (")` / `strip_suffix(')')` join from `lexical.rs` Prefer. Do not share a helper this track (F27). **Required:** first statement is `debug_assert!(is_safe_sql_ident(column))` (Agy m2; live helper `:178`). Do not expand `tags_envelope_sql` (OpenCode L1).
 
 Unbounded `ORDER BY updated_at DESC` stays (T274 — Index is not FTS `LIMIT depth`). `drain_index_pass` still breaks on word budget / global fetch cap.
 
@@ -196,7 +196,7 @@ summary = truncate_index_summary(title)  -- 60 / 57… Unicode
 "{i}. {summary} -- {relative_ts}"
 ```
 
-Pretty may still strip a leftover role token (T219). JSON `text` Index lines are already envelope-titled so summary `matches("DECISION:")` works without growing CLI `preflight.rs`.
+Pretty may still strip a leftover role token (T219). JSON `text` Index lines are already envelope-titled so summary `matches("DECISION:")` at CLI `preflight.rs:886–888` works without growing CLI `preflight.rs`. Live title line today is `content.lines().next().unwrap_or("Untitled Memory")` (`:538`) — **delete that**, do not wrap `first_contentful_line` in another `lines().next()`.
 
 ### 5.3 Why not a new summary key
 
@@ -221,6 +221,7 @@ Pretty order is Safety → Session → Index → Recent. Session chrome is **hon
 - Grow CLI `preflight.rs` production / 9-arg formatters.
 - FTS MATCH on Index / title-body split / rusqlite 0.40 / clap 5.
 - Rewrite `pin` storage.
+- Expand `tags_envelope_sql` to `USER: TAGS:*` / `SYSTEM: TAGS:*` (T285 F7; default `--role assistant`).
 - `cargo install` as planning or implement unless the user asks.
 
 ---
@@ -233,7 +234,7 @@ Pretty order is Safety → Session → Index → Recent. Session chrome is **hon
 2. Assert first numbered Index line is `DECISION:` not `TAGS:` (AC2) — same test or split.
 3. Unit `index_pass1_glob_sql__tags_or_marker__single_and_group` (AC4) in `session_chrome.rs` tests.
 4. CLI `preflight__pretty_index_item1_is_decision_when_tagged_pin_exists` (AC5).
-5. CLI `preflight__summary_json_tagged_pin__in_context_decisions_nonzero` (AC6).
+5. CLI `preflight__summary_json_tagged_pin__in_context_decisions_nonzero` (AC6) in `preflight_summary_json.rs`.
 
 **Green:** F2 helper + pass-1 extra + F4 title. Do not “fix” T274 untagged into TAGS-only.
 
@@ -305,9 +306,11 @@ Pretty order is Safety → Session → Index → Recent. Session chrome is **hon
 - Index items 2+ may still be `## Objective` (F14).
 - PATH until `cargo install` (F21).
 - `in_context_decisions` still a substring, not a vault-authority COUNT (F10).
-- Duplicate OR-join with lexical Prefer (F27).
+- Duplicate OR-join with lexical Prefer (F27 / OpenCode L2).
+- `USER:` / `SYSTEM:` TAGS envelopes miss pass-1 GLOB (OpenCode L1 declined as DoD; may still fill via pass-2 recency).
 - T264 Index fetch-80 leftover-heavy (not this).
 - Duplicate `classify_pin_kind` on every drain row (pre-existing).
+- Pinned COUNT in `--summary` is volatile (plan 3716 / review 3647).
 
 ---
 
@@ -319,7 +322,8 @@ Pretty order is Safety → Session → Index → Recent. Session chrome is **hon
 | `crates/ai-brains-retrieval/src/lib.rs` | Re-export `index_pass1_glob_sql` if tests need it |
 | `crates/ai-brains-retrieval/src/preflight.rs` | Pass-1 extra; Index title `first_contentful_line` |
 | `crates/ai-brains-retrieval/tests/preflight_index_pin_rank.rs` | AC1/AC2 tagged; AC3 stays |
-| `crates/ai-brains-cli/tests/` | AC5 pretty; AC6 summary JSON tagged |
+| `crates/ai-brains-cli/tests/preflight_pretty_readability.rs` (or sibling) | AC5 pretty tagged Index item 1 |
+| `crates/ai-brains-cli/tests/preflight_summary_json.rs` | AC6 tagged `in_context_decisions >= 1` |
 | `Docs/CAPABILITIES.md` | Index envelope + TAGS-or-GLOB sentence |
 | `CHANGELOG.md` | T286 |
 | `conductor/conductor.md` | Planned → (on go) In Progress → Completed |
@@ -331,4 +335,33 @@ Pretty order is Safety → Session → Index → Recent. Session chrome is **hon
 
 ## 13. AI fold-in
 
-None this pass (plan). Review-track writes `*-review.md` only after `/review-track 286`.
+Inputs: `agy-review.md` + `opencode-review.md` (2026-08-23, HEAD `97da9f5`). Product `src/` = T285 `#201` `16ee1aa`. **Do not edit those files.** **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** last-PR #201 still empty. **No T301.**
+
+Verified live: `tags_envelope_sql` `:81–87` is `TAGS:*` OR `ASSISTANT: TAGS:*` only; `index_marker_glob_sql` `:90–101`; `is_safe_sql_ident` `:178`; Index title `:538` `lines().next().unwrap_or`; drain Other-skip `:682` before word-budget `:705`; CLI substring `:886–888` (OpenCode citation `:899` is off-by-~11 — fold the live lines). `pin --role` default `assistant` (`main.rs:1306`).
+
+### Pins locked by fold-in
+
+1. **F4/AC10 (Agy m1):** empty `first_contentful_line` → `"Untitled Memory"`; **replace** `:538` `lines().next().unwrap_or`; no blank numbered line; no panic.
+2. **F2/AC4 (Agy m2):** `index_pass1_glob_sql` starts with `debug_assert!(is_safe_sql_ident(column))`.
+3. **AC6 (Agy O1):** tagged summary JSON test lives in `preflight_summary_json.rs`.
+4. **F29 (Agy O2):** CAPABILITIES Index pass-1 marker-GLOB **or** TAGS envelope — already planned.
+5. **F27 (OpenCode L2):** duplicate OR-join with lexical Prefer stays; no shared helper this track.
+6. **OpenCode L1 declined:** do **not** grow `tags_envelope_sql` / Index GLOB with `USER: TAGS:*` / `SYSTEM: TAGS:*`. Re-trigger: owner evidence that live `--role user|system` tagged DECISION pins miss Index item 1 after this track ships.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** empty envelope title fallback | **Already** F4 / AC10; **tightened** replace `:538` |
+| Agy | **m2** `debug_assert!(is_safe_sql_ident)` | **Folded** F2 / AC4 / §5.1 |
+| Agy | **O1** tagged summary JSON in `preflight_summary_json.rs` | **Already** AC6; **named file** |
+| Agy | **O2** CAPABILITIES Index envelope sentence | **Already** F29 / Phase 3 |
+| OpenCode | **L1** `USER:`/`SYSTEM:` TAGS GLOB missing | **Decline as DoD** — T285 F7; default assistant; do not edit `lexical.rs`. Residual §11 |
+| OpenCode | **L2** duplicate OR-join two sites | **Already** F27 / §11 |
+| OpenCode | pinned COUNT 3647 vs plan 3716 | **Folded** §2.1 volatile snapshot |
+| OpenCode | CLI scan `:899` | **Decline citation** — live `:886–888` |
+| both | last-PR #201 Cursor | **Affirm N/A** — no T301 |
+| both | deferred Index / memory-list / neighbors / briefing | **Affirm** this track / T287 / T293 / T288 |
+
+No Blockers. No Majors. No new placeholder minted.
