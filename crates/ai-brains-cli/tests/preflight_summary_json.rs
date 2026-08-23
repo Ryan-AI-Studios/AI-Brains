@@ -524,14 +524,24 @@ fn preflight__summary_json_tagged_pin__in_context_decisions_nonzero() {
         .assert()
         .success();
     // Three newer dumps fill Recent (cap 3) so the pin is Index-only after green.
-    for i in 0..3 {
-        pin_memory(
-            &vault,
-            &proj,
-            &id,
-            &format!("## Objective\nNewer dump {i} padding word padding word padding word"),
-        );
-    }
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nNewer dump 0 padding word padding word padding word",
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nNewer dump 1 padding word padding word padding word",
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nNewer dump 2 padding word padding word padding word",
+    );
 
     let (code, stdout, stderr) =
         run_preflight(&vault, &["--summary", "--format", "json"], Some(&id));
