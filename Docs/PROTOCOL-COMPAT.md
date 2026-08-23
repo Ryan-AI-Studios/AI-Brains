@@ -48,7 +48,7 @@ Transport (named pipe / UDS / loopback HTTP) is covered by **T179** (`Docs/COMPA
 | Module | Constant location |
 |--------|-------------------|
 | scopes | `ai_brains_contracts::scopes::API_VERSION` |
-| briefings | `ai_brains_contracts::briefings::API_VERSION` (T227 additive warning kinds: `empty_authority` \| `empty_continuity` — only when `!denied`; N−1 clients ignore unknown kinds). **T288 CLI extras:** granted-empty `briefing project --format json` may add optional `vault_pin_count` / `vault_pin_previews`; daemon/HTTP `ProjectBriefingPacket` is **unaugmented**. **T290:** granted-empty list/progressive CLI `next_step` **string growth** (copy-paste `recall` + `(Pinned: N)`); list DTOs stay unaugmented (overlay on `Value`); `ProgressiveQueryResponse.next_step` remains optional; daemon/HTTP DTOs **unaugmented**. |
+| briefings | `ai_brains_contracts::briefings::API_VERSION` (T227 additive warning kinds: `empty_authority` \| `empty_continuity` — only when `!denied`; N−1 clients ignore unknown kinds). **T288 CLI extras:** granted-empty `briefing project --format json` may add optional `vault_pin_count` / `vault_pin_previews`; daemon/HTTP `ProjectBriefingPacket` is **unaugmented**. **T290:** granted-empty list/progressive CLI `next_step` **string growth** (copy-paste `recall` + `(Pinned: N)`); list DTOs stay unaugmented (overlay on `Value`); `ProgressiveQueryResponse.next_step` remains optional; daemon/HTTP DTOs **unaugmented**. **T291:** missing `query trace` stdout is a **CLI-local** envelope (`api_version`, `found: false`, `trace_id`, `next_step`); `QueryTraceDto` is **unaugmented** (no `found` / `next_step`); no daemon GetQueryTrace. |
 | knowledge | `ai_brains_contracts::knowledge::API_VERSION` |
 | review | `ai_brains_contracts::review::API_VERSION` |
 | erasure | `ai_brains_contracts::erasure::API_VERSION` |
@@ -107,6 +107,7 @@ Responses that claim `api_version` MUST serialize the field. Value enforcement i
 | `device status` | **human** only | Same roster as `device list` + **always** `next: ai-brains replicate status` (empty and enrolled). No `--format` (unknown flags clap exit **2**). Not a wire contract. Not a JSON DTO. Additive T251; **not** a compact↔pretty flip. |
 | `harness status --format json` | **pretty** (`to_string_pretty`) | CLI-local `StatusReport` `schema_version: 1`. Keys unchanged (`id`/`wiring`/`next_action` required). Additive T267: `wiring=ok` → `next_action: "none"` (key stays; do not omit). Human path is **not** a wire contract (ok rows omit `next:`). |
 | `replicate status --format json` | existing JSON | Machine enrollment path. **keys unchanged**. Do not treat `device status` as a compact↔pretty flip of this surface. |
+| `query trace` missing/unauthorized | **pretty** (`emit_json`) | **T291 type change (lift T263 F6):** missing/unauthorized stdout is a CLI-local envelope `{api_version, found: false, trace_id, next_step}` — not the JSON token `null`, not `{trace:null}`. Found path stays pretty `QueryTraceDto` (**keys unchanged**; no `found`). `--format human`/`pretty`/`text`/`markdown`/`md` missing is two human lines (not a wire contract). Default `--format json`. Tokens **case-sensitive** (`JSON`/`Pretty` exit 2). P-CLI stdout only (no daemon GetQueryTrace). |
 
 Changing compact ↔ pretty for a pinned command is a **breaking** CLI contract unless gated by a new flag.
 
