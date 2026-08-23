@@ -54,6 +54,11 @@ pub const BRIEFING_PERSONAL_DENIED_NEXT_STEP: &str =
 pub const BRIEFING_PERSONAL_DENIED_DENIAL_HINT: &str =
     "Personal continuity is optional; daily decisions: `ai-brains recall` / `search`";
 
+/// Denied Personal empty Preferences/Continuity body (T289 F2).
+///
+/// Allowed-empty stays `_None_`. T289 red stub — green replaces with F2 exact body.
+pub const BRIEFING_PERSONAL_DENIED_BODY: &str = "T289_RED_STUB";
+
 /// Empty personal continuity notice (T227 F9 / F17).
 pub const BRIEFING_EMPTY_CONTINUITY_NOTICE: &str = "_No personal continuity yet._";
 
@@ -513,6 +518,76 @@ mod tests {
         assert!(
             !md.contains("seed an Approved"),
             "allowed empty must not keep old seed-Approved lead-in: {md}"
+        );
+    }
+
+    #[test]
+    fn render_personal_markdown__denied__no_none_placeholder() {
+        // T289 AC1 — required red on today's `_None_` branches.
+        let md = render_personal_markdown(&empty_personal(true));
+        assert!(
+            !md.contains("_None_"),
+            "denied personal must not look like empty preferences: {md}"
+        );
+        assert!(
+            md.contains(BRIEFING_PERSONAL_DENIED_BODY),
+            "denied empty sections use optional-continuity body: {md}"
+        );
+        assert!(
+            md.contains(&format!("## Preferences\n{BRIEFING_PERSONAL_DENIED_BODY}")),
+            "Preferences must use denied body: {md}"
+        );
+        assert!(
+            md.contains(&format!("## Continuity\n{BRIEFING_PERSONAL_DENIED_BODY}")),
+            "Continuity must use denied body: {md}"
+        );
+        assert!(
+            md.contains(BRIEFING_PERSONAL_DENIED_NEXT_STEP),
+            "personal deny next-step frozen: {md}"
+        );
+        assert!(md.contains("recall"), "personal deny must name recall: {md}");
+        assert!(
+            !md.contains("policy bootstrap"),
+            "personal deny must not contain policy bootstrap: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_GRANT_WALL),
+            "personal deny must not contain project grant-wall: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_HIDDEN),
+            "personal deny must not contain project hidden placeholder: {md}"
+        );
+        assert!(
+            !md.contains(BRIEFING_DENIED_NEXT_STEP),
+            "personal deny must not reuse repository bootstrap next: {md}"
+        );
+    }
+
+    #[test]
+    fn briefing_personal_denied_body__exact_optional_one_line() {
+        // T289 AC4
+        assert_eq!(
+            BRIEFING_PERSONAL_DENIED_BODY,
+            "_(optional continuity; not a missing vault)_"
+        );
+        assert!(
+            !BRIEFING_PERSONAL_DENIED_BODY.contains('\n'),
+            "body must be one line; got {BRIEFING_PERSONAL_DENIED_BODY:?}"
+        );
+        let n = BRIEFING_PERSONAL_DENIED_BODY.chars().count();
+        assert!(n <= 140, "body must be <=140 chars (got {n})");
+        assert!(
+            BRIEFING_PERSONAL_DENIED_BODY.contains("optional"),
+            "body must contain optional; got {BRIEFING_PERSONAL_DENIED_BODY:?}"
+        );
+        assert!(
+            !BRIEFING_PERSONAL_DENIED_BODY.contains("_None_"),
+            "const must not contain _None_; got {BRIEFING_PERSONAL_DENIED_BODY:?}"
+        );
+        assert!(
+            !BRIEFING_PERSONAL_DENIED_BODY.contains("policy bootstrap"),
+            "const must not contain policy bootstrap; got {BRIEFING_PERSONAL_DENIED_BODY:?}"
         );
     }
 
