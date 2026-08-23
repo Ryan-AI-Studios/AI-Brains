@@ -9,10 +9,10 @@
 - **Blocks / feeds:** Operators who run `policy check --capability ReadEvidence` on a TTY see `allowed: true (ReadEvidence on …)` instead of a JSON object. Denied caps print `denied:` + bootstrap next on stdout (exit **3**). Neighbors **T293**. Forget-list **T299**. Device **T298**.
 - **Absorbs:** Placeholder problem text + Manual DoD two commands; deferred.md “`policy check` JSON-only”; T266 F1 Family D **for check only** (show/bootstrap/lists stay D)
 - **Not absorbed (DoD):** `policy show` / `policy bootstrap` default JSON; `OutputFormat::parse` surface-wide `parse_or_fail` (T227 F34 / T266 F11); new capabilities; auto-grant; T263 H2; T293–T300; T240 F2; clap 5 / rusqlite 0.40; CheckResult new keys; daemon PolicyCheck RPC
-- **Research date:** 2026-08-23 (plan dogfood HEAD `ea5c947` T291 `#207`; `origin/main` = `ea5c947`. Product `src/` = Family D default json + human allow already exists + human deny empty stdout. PATH **0.1.2** 2026-08-22 19:41 **without** T285–T291 — hole is in **source and PATH**)
-- **AI fold-in:** (none yet — write after `/review-track` + `/fold-in`)
-- **Ledger:** planning DOCS TX `84c4b2ec-3930-4d49-bcee-6b0bb3abdce3`. Implement starts a **FEATURE** TX on **go**.
-- **Isolation:** Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement. Do **not** rewrite `.env`. Do **not** extra live `policy bootstrap`. Do **not** change `OutputFormat::parse`. Do **not** grow hotspot `project.rs` / `sync.rs` / `forget.rs` / CLI `preflight.rs` / `personal.rs` / `briefing.rs` / `governed_common.rs` (hotspot **#3** at 3.613 — reuse consts only). Human + format resolve live in `policy_cmd.rs` (not top-10) + clap in `main.rs`. Reuse `format_resolve::resolve_human_json_format` (do **not** change its map). Do **not** print or commit `AI_BRAINS_KEY`.
+- **Research date:** 2026-08-23 (plan dogfood HEAD `ea5c947` T291 `#207`; plan commit `1331786`. Product `src/` = Family D default json + human allow already exists + human deny empty stdout. PATH **0.1.2** 2026-08-22 19:41 **without** T285–T291 — hole is in **source and PATH**)
+- **AI fold-in:** 2026-08-23 `agy-review.md` (`1331786`) + `opencode-review.md` (`1331786`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** OpenCode m1 AC2 `hermetic_bin` omit-principal (not `policy_bootstrap.rs` helpers); OpenCode m2 only clap constructs `CheckOptions`; OpenCode O1 OPERATIONS script `--format json` sentence; OpenCode O3 T241 F6b catalog after_help freeze; Agy O2 `--format Pretty` clap InvalidValue. **Already:** Agy m1 F25; Agy m2 F7; Agy O1 F12/AC9; OpenCode O2 F1 stdout TTY. **Decline:** none of B/M (none filed). Word/pin/hotspot snapshot only. Disposition **§13**.
+- **Ledger:** planning DOCS TX `84c4b2ec-3930-4d49-bcee-6b0bb3abdce3`. Fold-in DOCS TX `2eafd304-3287-44d2-9e87-51ce0ed42523`. Implement starts a **FEATURE** TX on **go**.
+- **Isolation:** Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement. Do **not** rewrite `.env`. Do **not** extra live `policy bootstrap`. Do **not** change `OutputFormat::parse`. Do **not** grow hotspot `project.rs` / `sync.rs` / `forget.rs` / CLI `preflight.rs` / `personal.rs` / `briefing.rs` / `governed_common.rs` (hotspot **#3** at **3.604** fold-in — reuse consts only). Human + format resolve live in `policy_cmd.rs` (not top-10) + clap in `main.rs`. Reuse `format_resolve::resolve_human_json_format` (do **not** change its map). Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
 
@@ -35,14 +35,14 @@ This unblocks the unused human path: `run_check` already emits `allowed: true ({
 |--------|-------------|
 | HEAD | `ea5c947` T291 `#207` on `main`. Tree **CLEAN**. `origin/main` = `ea5c947`. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-22 19:41**, 25 139 712 bytes, **0.1.2**. Has T274. **Does not have T285–T291.** Policy-check hole is in **source + PATH** (T160-era default json). **Do not `cargo install`.** |
-| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **4020** (volatile). In-context **0/0/0**. Word **267**. Grants omitted (live **3 of 3** — ReadEvidence allows). Phase 0 re-verify. |
+| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **4041** (volatile; plan 4020 / OpenCode 4020). In-context **0/0/0**. Word **664** (plan 267 / OpenCode 408). Grants omitted (live **3 of 3** — ReadEvidence allows). Phase 0 re-verify. |
 | `policy check --capability ReadEvidence` (PATH, no `--format`) | pretty JSON `{allowed:true, principal_id, capability, scope}` on stdout. Exit **0**. **This is the 7/8 hole.** |
 | `policy check --capability ReadEvidence --format human` | stdout `allowed: true (ReadEvidence on Repository:3581317d-…)`. Exit **0**. **Human allow already exists.** Do not restyle except freeze the line. |
 | `policy check --capability ProposeConclusion --format human` | Exit **3**. stderr `POLICY_DENIED: ProposeConclusion denied for principal …` + `POLICY_DENIED_HINT`. **stdout empty.** **This is the deny-human hole.** |
 | `policy check --capability ReadEvidence --format auto` | PATH **and** source `cargo run` → **same JSON object** (parse maps `auto` → Json). `auto` is **not** a real token today. |
 | `policy check --help` | `--format <FORMAT> [default: json]`. Catalog after_help intact (T241 F6b). |
 | Last GitHub PR | [#207](https://github.com/Ryan-AI-Studios/AI-Brains/pull/207) T291 (2026-08-23). **Cursor / Bugbot / reviews / issue comments: empty.** **N/A — no T301.** Open PRs: Dependabot remotes only (`#61` rusqlite 0.40.2, `#62` chrono 0.4.45, `#59` tokio, `#60` thiserror, `#58` tower-http, actions `#68–#72`). |
-| Identity / doctor | ledgerful doctor **4** warn (legacy `.changeguard` / sig-pin / sig-version / timings). Optional :8081 / :8083 unreachable. **0 pending / 0 drift.** Hotspot **#1** `project.rs` (3.941) — **do not touch.** `sync.rs` **#2** (3.628). `governed_common.rs` **#3** (3.613) — **reuse consts only.** `policy_cmd.rs` **not** top-10 — format + human deny live here. CLI `preflight.rs` #8 (2.159). |
+| Identity / doctor | ledgerful doctor **4** warn (legacy `.changeguard` / sig-pin / sig-version / timings). Optional :8081 unreachable; :8083 ok at fold-in (plan: both unreachable — volatile). **0 pending / 0 drift.** Hotspot **#1** `project.rs` (**3.932**; plan 3.941) — **do not touch.** `sync.rs` **#2** (3.619). `governed_common.rs` **#3** (**3.604**) — **reuse consts only.** `policy_cmd.rs` **not** top-10 — format + human deny live here. CLI `preflight.rs` #8 (2.151). |
 | `ISSUES.md` | **Does not exist.** |
 
 ### 2.2 Why JSON-only still trains “scripts-only”
@@ -113,21 +113,21 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 | ID | Decision |
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
-| **F1 — Family A lift (`policy check` only)** | clap `default_value = "auto"` + T266 `value_parser`. TTY human / pipe JSON via `resolve_human_json_format` + `stdout().is_terminal()` (scope.rs analog). `--format json` unchanged object. `--format human`/`pretty`/`text`/`markdown`/`md` force human **regardless of TTY**. `policy show` / `policy bootstrap` stay Family D default json. |
+| **F1 — Family A lift (`policy check` only)** | clap `default_value = "auto"` + T266 `value_parser`. TTY human / pipe JSON via `resolve_human_json_format` + **`std::io::stdout().is_terminal()`** (scope.rs analog; T291 `governed_query.rs:245`). Do **not** probe `stdin()` or `stderr()`. `--format json` unchanged object. `--format human`/`pretty`/`text`/`markdown`/`md` force human **regardless of TTY**. `policy show` / `policy bootstrap` stay Family D default json. |
 | **F2 — Human allow freeze** | One stdout line **exact shape** `allowed: true ({cap} on {scope})` (already shipped `:223`). Contains `allowed:` and the capability. No leading `{`. No second next-line on allow (grant already exists). Helper `format_policy_check_allow_line` in `policy_cmd.rs`. |
-| **F3 — clap `value_parser` (not `OutputFormat::parse`)** | Tokens `["auto", "pretty", "human", "text", "json", "markdown", "md"]`. **Case-sensitive.** `JSON`/`Pretty`/`xml` → clap InvalidValue exit **2**. Do **not** route AC7 through `OutputFormat::parse` (lowercases; `auto`/`JSON` → Json). After clap accepts a token: resolver → `"human"` or `"json"` → `OutputFormat::Human` or `Json`. |
+| **F3 — clap `value_parser` (not `OutputFormat::parse`)** | Tokens `["auto", "pretty", "human", "text", "json", "markdown", "md"]`. **Case-sensitive.** `JSON`/`Pretty`/`xml` → clap InvalidValue exit **2**. Do **not** route **AC6** through `OutputFormat::parse` (lowercases; `auto`/`JSON` → Json). After clap accepts a token: resolver → `"human"` or `"json"` → `OutputFormat::Human` or `Json`. Precedent `main.rs:2446` / `:2459` (retention) and Trace `:1997`. |
 | **F4 — Exit codes frozen** | Allow **0**. Deny **3**. Missing `--capability` / soft-resolve fail **2**. Unknown capability **6**. Do not use exit 4. |
 | **F5 — JSON allow keys frozen** | `CheckResult` `{allowed: bool, principal_id, capability, scope}` pretty `emit_json`. **No** new required keys (`next_step` / `found` / `denied` are not on the allow object). CLI-local — not contracts. |
 | **F6 — JSON deny frozen** | `fail_api` ApiError `POLICY_DENIED` + `details.hint` = `POLICY_DENIED_HINT` on **stdout**, exactly one JSON document (T160 R1-01). Exit 3. Existing hermetics stay green. |
 | **F7 — Human deny (SOOT)** | Two stdout lines. Line 1 **exact** `denied: {cap}` (`format_policy_check_deny_line`). Line 2 **exact** `POLICY_BOOTSTRAP_SOOT_SHORT` (T241 F14). Exit **3**. Not a JSON object. Do **not** call `fail_api`/`emit_error` on this arm (stderr stays empty so TTY scan is stdout-only). Return `GovernedCliError::emitted(EXIT_POLICY_DENIED, …)`. Markdown ≡ human. |
-| **F8 — T241 / T226 / T210 freeze** | `--capability` still optional at clap; omit → catalog `fail_usage` (format-independent). Soft-resolve `--scope` unchanged. Bootstrap still Read* only. No auto-grant (T210 F13). |
+| **F8 — T241 / T226 / T210 freeze** | `--capability` still optional at clap; omit → catalog `fail_usage` (format-independent). Soft-resolve `--scope` unchanged. Bootstrap still Read* only. No auto-grant (T210 F13). **F6b catalog:** Check `after_help` “Valid capabilities (discovery first):” block stays **byte-stable** with `CAPABILITY_CATALOG` (`governed_common.rs:147–157` / clap comment `:2329`). Additive format examples go in the Examples block **only** — do not restyle or reorder the catalog (OpenCode O3). |
 | **F9 — `OutputFormat::parse` frozen** | Do **not** add `Auto`. Do **not** `parse_or_fail`. Show/bootstrap/lists still silent-JSON-on-unknown. |
 | **F10 — No contracts / daemon** | Do not mint a CheckResult DTO. Do not add PolicyCheck RPC. PROTOCOL-COMPAT is **P-CLI** stdout only. |
 | **F11 — Tests** | Naming `function_or_feature__condition__expected_result`. No `unwrap`/`expect`/`panic` in production. Hermetic `tempfile::tempdir`. JSON deny/allow hermetics that pass `--format json` stay. New human ACs. Clap AC for `JSON` InvalidValue + default `auto`. |
-| **F12 — Docs** | CAPABILITIES OutputFormat table: named `policy check` Family A row (list/show remain D). PROTOCOL-COMPAT §5 new row. OPERATIONS add `--format human` example; note default auto. Check `after_help` + clap `///` docstring. CHANGELOG on implement. CLI-EXIT-CODES: deny exit 3 unchanged; mention human stdout lines. |
+| **F12 — Docs** | CAPABILITIES OutputFormat table: named `policy check` Family A row (list/show remain D). PROTOCOL-COMPAT §5 new row. OPERATIONS add `--format human` example **and** the exact operator sentence: `scripts that previously parsed TTY default JSON must pass --format json`. Check `after_help` Examples + clap `///` docstring (catalog freeze is F8). CHANGELOG on implement. CLI-EXIT-CODES: deny exit 3 unchanged; mention human stdout lines. |
 | **F13 — PATH** | Soft. Source/hermetic SoT. Do not `cargo install` as implement. |
 | **F14 — Capture independence** | No models, embeddings, graph, or new events. Probe + emit only. |
-| **F15 — Isolation hotspots** | Do not grow `project.rs` / `sync.rs` / `forget.rs` / `preflight.rs` / `personal.rs` / `briefing.rs`. `governed_common.rs` (**#3**) — **import existing consts only** (SHORT, HINT, parse, fail_api, emit_*). Do not change `resolve_human_json_format` behavior. |
+| **F15 — Isolation hotspots** | Do not grow `project.rs` / `sync.rs` / `forget.rs` / `preflight.rs` / `personal.rs` / `briefing.rs`. `governed_common.rs` (**#3** at **3.604**) — **import existing consts only** (SHORT, HINT, parse, fail_api, emit_*). Do not change `resolve_human_json_format` behavior. |
 | **F16 — Identity stdout** | JSON allow/deny call `emit_json` / `print_json_stdout` (T257). Human path does **not** mark machine JSON. |
 | **F17 — ISSUES.md** | Does not exist. Debt is `deferred.md`. |
 | **F18 — Decline peers** | T293 neighbors; T294 leftover; T295 backup; T296 nightly Router; T297 daemon vs LLM; T298 device; T299 forget-list; T300 graph sparse. T291 Completed — not stolen. |
@@ -137,8 +137,11 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 | **F22 — Cross-model** | FEATURE (operator format contract). After Phase-1 review clean, run read-only `codex-review`. |
 | **F23 — Stop-before** | Even after go: do not write `.env`; do not extra live `policy bootstrap`; do not `retention apply --confirm`; do not mutate Nightly/Router; do not `graph rebuild`. |
 | **F24 — Propose* honesty** | Human deny next is SHORT for **all** caps (including Propose*/Approve*/Erase/Export). Bootstrap does not issue those. Residual §11 — do not invent grant-admin. |
-| **F25 — Helper locality** | `format_policy_check_allow_line` / `format_policy_check_deny_line` are `pub(crate)` in `policy_cmd.rs`. Do not move into `governed_common.rs`. |
-| **F26 — Show/bootstrap clap** | Do **not** add `value_parser` or flip default on Show/Bootstrap this track. AC12 locks their default still `json`. |
+| **F25 — Helper locality** | `format_policy_check_allow_line` / `format_policy_check_deny_line` are `pub(crate)` in `policy_cmd.rs`. **Not** `pub`. **Not** re-exported from `commands/mod.rs`. Do not move into `governed_common.rs` (Agy m1). |
+| **F26 — Show/bootstrap clap** | Do **not** add `value_parser` or flip default on Show/Bootstrap this track. **AC8** locks their `--help` default still `json`. |
+| **F27 — AC2 principal (OpenCode m1)** | AC2 uses `common::hermetic_bin()` (denylist includes `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` at `tests/common/mod.rs:55`). Both bootstrap and check **omit** `--principal-id` so both resolve `cli_principal()` System (`a1b2a1b2-…`). Do **not** reuse `policy_bootstrap.rs` `policy_bootstrap` / `policy_check` helpers — they force `--principal-id PRINCIPAL` and `--format json`. Same class as T291 AC5 not `progressive_cmd`. |
+| **F28 — `CheckOptions` construction (OpenCode m2)** | Live constructors: struct `:30` + clap dispatch `main.rs:4333` **only**. After `format: String`, no test struct-literal with `None`. Phase 0 grep `CheckOptions {`. |
+| **F29 — Catalog after_help (OpenCode O3)** | See F8. Hermetic `policy check --help` still contains every `CAPABILITY_CATALOG` line in discovery-first order. |
 
 ---
 
@@ -147,14 +150,14 @@ Training data is not a pin. Re-verify clap/serde_json at execute.
 | ID | Criterion |
 |----|-----------|
 | **AC1** | Unit: `format_policy_check_allow_line("ReadEvidence", "Repository:aaaa-bbbb")` **exact** `allowed: true (ReadEvidence on Repository:aaaa-bbbb)`; `!starts_with('{')`; contains `allowed:` and `ReadEvidence`. `format_policy_check_deny_line("ProposeConclusion")` **exact** `denied: ProposeConclusion`. Deny human line 2 unit equals `POLICY_BOOTSTRAP_SOOT_SHORT` (`assert_eq!`). **Required red.** |
-| **AC2** | Hermetic: after System `policy bootstrap` (omit `--principal-id`) on a temp vault + `--scope Repository:<uuid>`, `policy check --capability ReadEvidence --format human` exit **0**; stdout is **not** a JSON object (trim no leading `{`); contains `allowed:` and `ReadEvidence`; one line (no extra blank). |
-| **AC3** | Hermetic: ungranted vault `policy check --capability ProposeConclusion --scope Repository:<uuid> --format human` exit **3**; stdout is **not** a JSON object; contains `denied:` and `ProposeConclusion`; contains `policy bootstrap`; two lines; stdout is **not** parseable as `ApiError`. |
+| **AC2** | Hermetic via `common::hermetic_bin()` (F27): after System `policy bootstrap` (**omit** `--principal-id`) on a temp vault + `--scope Repository:<uuid>`, `policy check --capability ReadEvidence --format human` (**omit** `--principal-id`) exit **0**; stdout is **not** a JSON object (trim no leading `{`); contains `allowed:` and `ReadEvidence`; one line (no extra blank). Do **not** call `policy_bootstrap.rs` helpers. |
+| **AC3** | Hermetic: ungranted vault `policy check --capability ProposeConclusion --scope Repository:<uuid> --format human` exit **3**; stdout is **not** a JSON object; contains `denied:` and `ProposeConclusion`; contains `policy bootstrap`; two lines; stdout is **not** parseable as `ApiError`. **Stderr** does **not** contain `POLICY_DENIED:` (F7 skip `fail_api`; `main.rs:3568` `!emitted` skips `eprintln!`). |
 | **AC4** | Hermetic: same allow vault `policy check --capability ReadEvidence --format json` exit **0**; object keys `allowed==true`, `capability=="ReadEvidence"`, `principal_id` + `scope` present; **no** `next_step` / `found` keys. |
 | **AC5** | Stay-green: `policy_check__deny__exit_3_details_hint` (json) still exit 3 + `code=POLICY_DENIED` + non-empty `/details/hint`; `cli_policy_check__no_grant__exit_code_3` still one JSON document; missing-capability catalog exit 2; unknown capability exit 6; T226 soft-resolve tests. |
-| **AC6** | clap: `policy check --capability ReadEvidence --format JSON` InvalidValue exit **2** (stderr clap, not `OutputFormat::parse`). `--format json` parses. `--format pretty` parses. Omitted `--format` clap default is **`auto`**. |
+| **AC6** | clap: `policy check --capability ReadEvidence --format JSON` **and** `--format Pretty` InvalidValue exit **2** (stderr clap, not `OutputFormat::parse`; Agy O2). `--format json` parses. `--format pretty` parses. Omitted `--format` clap default is **`auto`**. |
 | **AC7** | Hermetic non-TTY omit `--format` on allow still JSON `allowed:true` (auto + pipe). Locks F21: CI/scripts without a TTY do not silently become human. |
 | **AC8** | `policy show --help` and `policy bootstrap --help` still `default: json` (or clap default json). Do not flip Family D peers. |
-| **AC9** | Docs + help: CAPABILITIES named `policy check` Family A row; PROTOCOL-COMPAT §5 row; OPERATIONS `--format human` example; Check after_help mentions default `auto` = TTY human / pipe JSON. Hermetic: `policy check --help` contains `auto` (or TTY) and does **not** claim JSON-only. |
+| **AC9** | Docs + help: CAPABILITIES named `policy check` Family A row; PROTOCOL-COMPAT §5 row; OPERATIONS `--format human` example **plus** `scripts that previously parsed TTY default JSON must pass --format json` (OpenCode O1). Check after_help Examples mention default `auto` = TTY human / pipe JSON; **Valid capabilities** catalog block unchanged (F8/F29). Hermetic: `policy check --help` contains `auto` (or TTY) and does **not** claim JSON-only; still lists `ReadEvidence (discovery)` … `ProposeDecision` in catalog order. |
 | **AC10** | Manual (on go, `cargo run -p ai-brains-cli --`, no `--daemon`): `policy check --capability ReadEvidence --format human` and `--format json`. Pass = AC2/AC4 shape on this vault (live 3 of 3 → allow). Optional: `--format human` on `ProposeConclusion` = AC3. Unique canary pin **not** required. **Do not** `cargo install`. **Do not** extra live bootstrap. |
 | **AC11** | `CheckResult` serde: no new fields. Allow JSON golden keys still parse. |
 | **AC12** | Markdown/`md`/`pretty`/`text` on allow ≡ F2 line (resolver). Not a separate markdown renderer. |
@@ -185,9 +188,13 @@ Same pin as T291 AC7 / T266 AC2: `value_parser` is case-sensitive; `OutputFormat
 
 ### 5.6 AC2 bootstrap
 
-System principal when `--principal-id` omitted (`cli_principal()`). Hermetic: `policy bootstrap --scope Repository:<uuid> --format json` then check ReadEvidence. Do **not** extra live vault bootstrap. Live Manual AC10 uses existing 3 of 3.
+System principal when `--principal-id` omitted (`cli_principal()` → `a1b2a1b2-…` unless `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` is set). `hermetic_bin` **strips** that env (`tests/common/mod.rs:55`), so omit-principal on both bootstrap and check is the T221 F31 / T291 AC5 pattern. Do **not** reuse `policy_bootstrap.rs` helpers (they pin `PRINCIPAL` + `--format json`). Do **not** extra live vault bootstrap. Live Manual AC10 uses existing 3 of 3.
 
-### 5.7 Default lift vs T180
+### 5.7 Human deny `emitted` (Agy m2 / OpenCode looks-solid #2)
+
+`GovernedCliError::emitted` sets `emitted: true` (`governed_common.rs:259`). `main.rs:3568` only `eprintln!`s when `!emitted`. Human deny returns `GovernedCliError::emitted(EXIT_POLICY_DENIED, …)` **after** the two stdout lines — stderr stays empty. JSON deny still `fail_api` → `emit_error` stdout ApiError.
+
+### 5.8 Default lift vs T180
 
 Pipes/hermetic stay JSON (`auto` + non-TTY). TTY omit-format becomes human. Document as P-CLI default lift, not a DTO type change. CheckResult keys unchanged. Compact↔pretty: still pretty `emit_json`.
 
@@ -311,7 +318,7 @@ Then clap AC6 (`policy_check__format_JSON__clap_invalid_value` in `main.rs` test
 | `crates/ai-brains-cli/src/commands/format_resolve.rs` | **Reuse only** — do not change map |
 | `crates/ai-brains-cli/tests/` (new or existing policy_*.rs) | AC2/AC3/AC4/AC7 hermetics |
 | `Docs/CAPABILITIES.md` | `policy check` Family A row |
-| `Docs/OPERATIONS.md` | `--format human` example + default auto |
+| `Docs/OPERATIONS.md` | `--format human` example + default auto + exact `scripts that previously parsed TTY default JSON must pass --format json` |
 | `Docs/CLI-EXIT-CODES.md` | human deny stdout note; exit 3 unchanged |
 | `Docs/PROTOCOL-COMPAT.md` | §5 `policy check` row |
 | `CHANGELOG.md` | on implement |
@@ -319,3 +326,40 @@ Then clap AC6 (`policy_check__format_JSON__clap_invalid_value` in `main.rs` test
 | `conductor/deferred.md` | this planning table (now); closeout later |
 
 **Do not touch:** `governed_common.rs` `OutputFormat::parse` body; `policy show` / `bootstrap` clap defaults; CP policy evaluator; contracts; `briefing.rs`; `personal.rs`; CLI `preflight.rs`; `project.rs`; `.github/workflows/ci.yml`.
+
+---
+
+## 13. AI fold-in
+
+Inputs (not edited): `agy-review.md` (HEAD `1331786`) + `opencode-review.md` (HEAD `1331786`). Fold-in HEAD `1331786` on `main`. Live verify: `run_check` `:141` deny `fail_api` `:192` / allow human `:223`; clap Check `default_value = "json"` no `value_parser` `:2340`; `OutputFormat::parse` `:360` unknown/`auto` → Json; `resolve_human_json_format` `:8–16`; TTY gate precedent `governed_query.rs:245` stdout; `GovernedCliError::emitted` `:259` + `main.rs:3568` `!emitted`; `CheckOptions {` only struct `:30` + dispatch `:4333`; `hermetic_bin` strips `AI_BRAINS_PREFLIGHT_PRINCIPAL_ID` `:55`; `policy_bootstrap.rs` helpers force `--principal-id PRINCIPAL` + `--format json`; T241 F6b comment `:2329` + `CAPABILITY_CATALOG` `:147`; OPERATIONS `:296–297` json-only example; CAPABILITIES Family D lump `:95`; PROTOCOL-COMPAT §5 no `policy check` row. Hotspot `governed_common.rs` **#3** (3.604). Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; no clap 5). Last merged PR still **#207**. **No T301.**
+
+### Pins locked by fold-in
+
+1. **AC2 / F27 (OpenCode m1):** `hermetic_bin` omit `--principal-id` both sides; do **not** reuse `policy_bootstrap.rs` helpers.
+2. **F28 (OpenCode m2):** `CheckOptions` only clap dispatch `:4333`.
+3. **F8 / F29 / AC9 (OpenCode O3):** Check after_help catalog block byte-stable with `CAPABILITY_CATALOG`.
+4. **F12 / AC9 (OpenCode O1):** OPERATIONS exact sentence `scripts that previously parsed TTY default JSON must pass --format json`.
+5. **AC6 (Agy O2):** clap `--format Pretty` InvalidValue as well as `JSON`.
+6. **AC3 (Agy m2):** stderr has no `POLICY_DENIED:` (skip `fail_api`).
+7. **F3 AC-id slip:** InvalidValue is **AC6**, not AC7. **F26** peer lock is **AC8**, not AC12.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** helpers `pub(crate)` in `policy_cmd.rs` | **Already** F25; **tightened** not `pub` / not `mod.rs` re-export |
+| Agy | **m2** human deny skip `fail_api` | **Already** F7; **tightened** AC3 stderr empty + §5.7 `emitted` |
+| Agy | **O1** CAPABILITIES Family A row | **Already** F12 / AC9 |
+| Agy | **O2** clap `JSON`/`Pretty` InvalidValue | **Already** AC6 JSON / F3 Pretty; **folded** AC6 Pretty case |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** AC2 principal env | **Folded** F27 / AC2 / §5.6 — denylist already strips; forbid T210 helpers |
+| OpenCode | **m2** `CheckOptions.format: String` | **Already** one clap constructor; **folded** F28 |
+| OpenCode | **O1** OPERATIONS script `--format json` sentence | **Folded** F12 / AC9 exact wording |
+| OpenCode | **O2** `stdout().is_terminal()` not stdin/stderr | **Already** F1; **tightened** |
+| OpenCode | **O3** T241 F6b catalog after_help | **Folded** F8 / F29 / AC9 |
+| OpenCode | word 267→408 / pinned 4020 | **Snapshot only** (fold-in word **664** / pinned **4041**); Phase 0; not DoD |
+| both | last-PR #207 Cursor | **Affirm F20** — no T301 |
+| both | deferred T293–T300 / H2 / clap 5 | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.

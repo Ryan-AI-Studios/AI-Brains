@@ -237,6 +237,24 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor **#207** | **N/A empty** — **no T301** F20 |
 | Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
 
+### T292 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 helpers `pub(crate)` | **Already** F25; **tightened** not `pub` / not `mod.rs` re-export |
+| Agy m2 skip `fail_api` | **Already** F7; **tightened** AC3 stderr empty + §5.7 |
+| Agy O1 CAPABILITIES Family A row | **Already** F12 / AC9 |
+| Agy O2 clap `JSON`/`Pretty` InvalidValue | **Already** AC6 JSON / F3; **folded** AC6 Pretty |
+| OpenCode m1 AC2 principal env | **Folded** F27 / AC2 / §5.6 — `hermetic_bin` denylist; not T210 helpers |
+| OpenCode m2 `CheckOptions.format: String` | **Already** one clap constructor; **folded** F28 |
+| OpenCode O1 OPERATIONS script `--format json` | **Folded** F12 / AC9 exact sentence |
+| OpenCode O2 `stdout().is_terminal()` | **Already** F1; **tightened** |
+| OpenCode O3 T241 F6b catalog after_help | **Folded** F8 / F29 / AC9 |
+| OpenCode word/pin snapshot | **Snapshot only** — not DoD |
+| F3/F26 AC-id slips | **Folded** InvalidValue = AC6; peers = AC8 |
+| last-PR #207 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 ### T287 closeout residuals (2026-08-23)
 
 | Item | Disposition |
