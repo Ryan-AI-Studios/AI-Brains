@@ -34,6 +34,23 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
 | last-PR Cursor #203 | **N/A** empty — **no T301** |
 | Identity mismatch leftover `7d97a456` | **Not this track** — T258 / T294 |
+
+### T288 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 fail-open `Repository:` / `ProjectId` parse | **Already** F13/F14; **tightened** F14 + **AC17** |
+| Agy m2 Hotspot exclude `Decision \|\| Constraint` | **Already** F5 / AC16 |
+| Agy O1 PROTOCOL-COMPAT CLI extras vs daemon DTO | **Already** F25 / AC10 |
+| Agy O2 rstest denied / nonempty / 0-pin / with-pin | **Already** AC14 + AC4 + AC1 |
+| OpenCode m1 3822 session-join vs ~3821 `count_pinned_memories` | **Folded** F4 / AC12 / spec §5.6 |
+| OpenCode m2 pin env `PROJECT_ID`+`SESSION_ID` | **Folded** AC1 / F20 |
+| OpenCode m3 NeverInject/Sealed previews | **Folded** F36 display-only; no `is_injectable_privacy` |
+| OpenCode O1 `VaultPinStanza` in `renderer.rs` | **Folded** F11 required re-export |
+| OpenCode O2 fetch limit 8→32 | **Folded** F5 `limit = 32` |
+| last-PR #203 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 | personal briefing deny `_None_` | **T289** |
 | governed lists/progressive empty U=6 | **T290** |
 | `query trace` bare `null` | **T291** |

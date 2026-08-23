@@ -1,10 +1,27 @@
 # T288 Plan — granted-empty briefing vault-pin stanza (not H2)
 
 **Status:** **Pending** (Planned). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F35 / AC1–AC16
+**Spec:** [spec.md](./spec.md) F0–F36 / AC1–AC17 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `6bf1d41c-a2c6-4b86-8b4b-2dee14690363` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `90e5e1d2-683d-4d62-baf1-4f821d423561` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F14/AC17 (Agy m1):** `strip_prefix("Repository:")` + `ProjectId::from_str`; no `?` on overlay path.
+2. **F4/AC12 (OpenCode m1):** COUNT is `count_pinned_memories`; Manual nonzero ≠ 3822 equality.
+3. **AC1 (OpenCode m2):** hermetic pin via `hermetic_cmd` / `hermetic_cmd_with_ids`.
+4. **F36 (OpenCode m3):** display-only privacy; no `is_injectable_privacy`.
+5. **F11 (OpenCode O1):** `VaultPinStanza` in `renderer.rs` + re-export.
+6. **F5 (OpenCode O2):** fetch `limit = 32`.
+7. **Affirm:** Agy m2 Hotspot already AC16; Agy O1 PROTOCOL-COMPAT already AC10; Agy O2 rstest already AC14+AC4+AC1; #203 N/A; T289/T290/T293/T294 not stolen.
 
 ---
 
@@ -38,9 +55,11 @@
 - [ ] Re-read `briefing.rs` `run_project` + `renderer.rs` `render_project_markdown` `:66` + empty_authority footer `:137–141`
 - [ ] Confirm `BRIEFING_EMPTY_AUTHORITY_NEXT_STEP` still ≤140 / contains `recall` — **do not edit**
 - [ ] Confirm `ProjectBriefingPacket` still has no vault-pin fields — **do not add**
-- [ ] Confirm `count_pinned_memories` + `list_authority_memories` still on `QueryStore` — **do not** add a third method
+- [ ] Confirm `count_pinned_memories` + `list_authority_memories` still on `QueryStore` — **do not** add a third method; **do not** switch stanza COUNT to `count_memories` session-join
 - [ ] Confirm `preview_line` still in `memory.rs` — import only
-- [ ] Confirm `classify_pin_kind` still Decision/Constraint/Hotspot/Other — **do not edit** `ranking.rs`
+- [ ] Confirm `classify_pin_kind` still Decision/Constraint/Hotspot/Other — **do not edit** `ranking.rs`; retain `== Decision \|\| == Constraint`
+- [ ] Confirm `pin.rs` still requires `AI_BRAINS_PROJECT_ID` **and** `AI_BRAINS_SESSION_ID` — hermetic pin uses `hermetic_cmd`
+- [ ] Confirm `MemoryListRow` still has no privacy field — F36 display-only; **do not** add `is_injectable_privacy`
 - [ ] Confirm `retrieval/src/preflight.rs` still calls `render_project_markdown(packet)` — **do not pass stanza**
 - [ ] Confirm `personal.rs` Preferences `_None_` — **T289; do not edit**
 - [ ] Rescan `conductor/deferred.md` — T288 rows absorbed; T289/T290/T293/T294 not stolen
@@ -77,6 +96,7 @@
 | Grow `governed_common.rs` | F12 hotspot #5 |
 | last-PR #203 Cursor | N/A empty — no T301 |
 | clap 5 / rusqlite 0.40 / T240 F2 | Standing |
+| `is_injectable_privacy` on stanza | F36 — T216/T287 list parity |
 
 ---
 
@@ -84,17 +104,18 @@
 
 - [ ] `render_project_markdown_with_vault_pins__some__inserts_after_empty_authority` (AC3)
 - [ ] `should_overlay_vault_pins__rstest_denied_nonempty_empty` (AC14)
-- [ ] `briefing_project__granted_with_decision_pin__human_stanza_not_under_decisions` (AC1)
+- [ ] `parse_repository_project_id__rstest_personal_garbage_valid` (AC17)
+- [ ] `briefing_project__granted_with_decision_pin__human_stanza_not_under_decisions` (AC1) — pin via `hermetic_cmd` (both env vars)
 - [ ] `briefing_project__granted_with_decision_pin__json_overlay_count_and_previews` (AC2)
 - [ ] Confirm they **fail** (not compile-error-only) before green
 
 ## Phase 2 — Green
 
-- [ ] `VaultPinStanza` `{ count: u64, previews: Vec<String> }` + `BRIEFING_VAULT_PINS_HEADING`
+- [ ] `VaultPinStanza` `{ count: u64, previews: Vec<String> }` **in `renderer.rs`** + `BRIEFING_VAULT_PINS_HEADING`
 - [ ] `render_project_markdown_with_vault_pins`; `render_project_markdown` wraps `None`
-- [ ] CLI: parse `Repository:{uuid}`; `count_pinned_memories`; `list_authority_memories` + retain Decision\|Constraint; `preview_line` 80; fail-open
+- [ ] CLI: `strip_prefix("Repository:")` + `from_str` fail-open (**no `?`**); `count_pinned_memories`; `list_authority_memories` **limit 32** + retain Decision\|Constraint; `preview_line` 80
 - [ ] JSON overlay keys; E1 omit / zero-empty
-- [ ] Export from CP `mod.rs` / `lib.rs` if needed
+- [ ] **Required** re-export from CP `mod.rs` / `lib.rs`
 - [ ] No `unwrap`/`expect`/`panic` in production
 
 ## Phase 3 — More ACs
@@ -108,12 +129,13 @@
 - [ ] AC13 store units **stay green**
 - [ ] AC15 chrome-only COUNT without DECISION preview
 - [ ] AC16 Hotspot excluded from previews
+- [ ] AC17 scope-parse fail-open unit
 
 ## Phase 4 — Docs + gates
 
 - [ ] CAPABILITIES dual-model sentence
 - [ ] `briefing project` after_help one sentence (human stanza + JSON extras; authority arrays empty)
-- [ ] PROTOCOL-COMPAT briefings: CLI optional keys; daemon packet unchanged
+- [ ] PROTOCOL-COMPAT briefings: CLI optional keys; daemon packet unchanged; CAPABILITIES display-only (not injection)
 - [ ] CHANGELOG T288
 - [ ] `cargo fmt --check` ; `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings`
 - [ ] `cargo nextest run --workspace` (or targeted then full before commit)
