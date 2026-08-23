@@ -1,10 +1,27 @@
 # T289 Plan — Personal deny must not print `_None_` preferences
 
 **Status:** **Pending** (Planned). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F24 / AC1–AC12
+**Spec:** [spec.md](./spec.md) F0–F24 / AC1–AC12 + §13 AI fold-in
 **Category:** FEATURE / UX / HONESTY
 **Ledger TX (planning):** `25bbc580-99a6-4969-8ea5-d0e1902d374e` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `45277700-a110-4f91-911b-8f921173dfdb` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F11 (Agy m1):** helper is private `fn` — not `pub` / not re-exported.
+2. **AC5 (Agy O1):** allowed-empty `## Preferences\n_None_`.
+3. **§2.3 (OpenCode m1):** CP test is `tests/personal_briefing.rs:154`.
+4. **AC3/F5 (OpenCode m2):** T288 overlay project-path only.
+5. **AC4 (OpenCode m3):** const-level `_None_` / bootstrap guards.
+6. **AC8/F20 (OpenCode O2):** CAPABILITIES *extend* row `:322`.
+7. **Affirm:** Agy m2 exact AC4; Agy O2 after_help; OpenCode O1 `empty_personal`; #204 N/A; T290/H2 not stolen.
 
 ---
 
@@ -78,8 +95,9 @@
 ## Phase 2 — Green
 
 - [ ] `BRIEFING_PERSONAL_DENIED_BODY` exact F2 next to Personal deny consts
-- [ ] `personal_empty_section_placeholder(denied)` — **not** `empty_section_placeholder`
+- [ ] **Private `fn`** `personal_empty_section_placeholder(denied)` — **not** `empty_section_placeholder`; **not** `pub`; **not** re-exported (Agy m1)
 - [ ] Prefs + Continuity empty branches use the helper
+- [ ] Reuse existing `empty_personal` fixture (`:383`) — do not mint a second one (OpenCode O1)
 - [ ] No `unwrap`/`expect`/`panic` in production
 - [ ] `personal.rs` diff empty
 
@@ -87,7 +105,7 @@
 
 - [ ] AC2 hermetic human no `_None_`
 - [ ] AC3 JSON freeze (existing hermetic stays green)
-- [ ] AC5 T227 allowed-empty `_None_` stays green
+- [ ] AC5 T227 allowed-empty `_None_` stays green (**both** Preferences and Continuity)
 - [ ] AC6 T275 AC16 stays green
 - [ ] AC7 unknown format exit 2
 - [ ] AC11 `personal.rs` unchanged
@@ -95,7 +113,7 @@
 
 ## Phase 4 — Docs + gates
 
-- [ ] CAPABILITIES Denied Personal sentence
+- [ ] CAPABILITIES **extend** Denied packets row `:322` (not a new section)
 - [ ] `briefing personal` after_help one sentence
 - [ ] CHANGELOG T289
 - [ ] `cargo fmt --check` ; `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings`

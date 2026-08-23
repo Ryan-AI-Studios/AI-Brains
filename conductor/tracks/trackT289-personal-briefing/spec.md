@@ -10,8 +10,8 @@
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “personal briefing deny `_None_`”; T275 F32 optional Personal `_None_`; T288 closeout “Personal `_None_` not stolen”
 - **Not absorbed (DoD):** Auto Personal grant / live Personal `policy bootstrap`; T263 H2; T288 vault-pin stanza on Personal; T290 lists/progressive; T227 #18 synthetic continuity; T240 F2; clap 5 / rusqlite 0.40; DTO new keys
 - **Research date:** 2026-08-23 (plan dogfood HEAD `05d7ac0` T288 `#204`; product `src/` = T288 renderer + T263/T275 personal deny; PATH **0.1.2** 2026-08-22 19:41 **without** T285–T288 — personal `_None_` hole is in **source and PATH**)
-- **AI fold-in:** (none yet — plan pass)
-- **Ledger:** planning DOCS TX `25bbc580-99a6-4969-8ea5-d0e1902d374e`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-23 `agy-review.md` + `opencode-review.md` (HEAD `72fbb92`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 private helper (F11); Agy O1 Preferences `_None_` on allowed-empty (AC5); OpenCode m1 tests path ( §2.3); OpenCode m2 T288 overlay project-only (AC3/F5); OpenCode m3 const guards on AC4; OpenCode O2 CAPABILITIES *extend* (AC8/F20). **Already:** Agy m2 exact AC4 string; Agy O2 after_help (F20/AC8); OpenCode O1 `empty_personal` fixture (AC1). **No declines of B/M.** Disposition **§13**.
+- **Ledger:** planning DOCS TX `25bbc580-99a6-4969-8ea5-d0e1902d374e`. Fold-in DOCS TX `45277700-a110-4f91-911b-8f921173dfdb`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement. Do **not** rewrite `.env`. Do **not** live `policy bootstrap` (project or Personal). Do **not** grow hotspot `project.rs` / `personal.rs` / CLI `preflight.rs` / `governed_common.rs`. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -70,7 +70,7 @@ This unblocks the optional surface: T263 made deny *honest about next command*; 
 | Hermetic | `briefing_format_substance.rs` `briefing_personal__no_grants__soft_deny_denial_hint` `:353` | JSON only. Additive human AC. Header test `:222` does not assert `_None_`. |
 | T263 unit | `renderer.rs` `:520` | Recall + no bootstrap + F35 consts. **Extend** with `!_None_` + new body. |
 | T227 AC8 | `:706` | Allowed-empty `_None_` + empty_continuity **stays green.** |
-| CP denied | `personal_briefing.rs` `personal_briefing__without_grant__denied` `:154` | Asserts Denied + reason; **no** `_None_` assert. |
+| CP denied | `crates/ai-brains-control-plane/tests/personal_briefing.rs` `personal_briefing__without_grant__denied` **`:154`** (OpenCode m1: not `src/briefings/`) | Asserts Denied + reason; **no** `_None_` assert. |
 | Hotspots | `personal.rs` #7 | Isolation: renderer-only. |
 
 ### 2.4 Deps / pins (researched 2026-08-23 — snapshot, re-verify at execute)
@@ -95,7 +95,7 @@ This unblocks the optional surface: T263 made deny *honest about next command*; 
 | T227 #18 | No synthetic personal summary. **Affirm.** |
 | N/A | SQLCipher, schtasks, llama `/health`, FTS5, clap 5 (not released). |
 
-**Could not verify:** GitHub clap-rs release page fetch empty this pass; crates.io **4.6.6** is current. Re-verify at execute.
+**Could not verify (plan pass):** GitHub clap-rs release page fetch empty. **Fold-in:** OpenCode re-verified crates.io clap **4.6.6** / no clap 5. Snapshot — re-verify at execute.
 
 **ledgerful / ai-brains:** `briefing personal --format human` Denied + `_None_` + recall next. `search "render_personal_markdown"` → `renderer.rs:243` + CLI + CP tests. Hotspots `personal.rs` #7. Semantic recall of T263 F4 is plan-audit chrome — live src is SoT.
 
@@ -110,13 +110,13 @@ This unblocks the optional surface: T263 made deny *honest about next command*; 
 | **F2 — Personal denied body const** | New `BRIEFING_PERSONAL_DENIED_BODY` = `_(optional continuity; not a missing vault)_` (exact). One line, no `\n`, `.chars().count() <= 140`, contains `optional`, does **not** contain `_None_` or `policy bootstrap`. Used for **both** empty sections when denied. |
 | **F3 — T275 F35 contamination** | Denied Personal markdown must **not** contain `BRIEFING_DENIED_GRANT_WALL`, `BRIEFING_DENIED_HIDDEN`, `BRIEFING_DENIED_NEXT_STEP`, or `policy bootstrap`. Do **not** call `empty_section_placeholder`. |
 | **F4 — T263 next frozen** | Do **not** edit `BRIEFING_PERSONAL_DENIED_NEXT_STEP` / `BRIEFING_PERSONAL_DENIED_DENIAL_HINT`. Still the next-step / JSON hint. |
-| **F5 — JSON freeze** | `denied: true`, `preferences: []`, `continuity.summary: ""` (never null), `denial_hint` recall. **No** new keys (`vault_pin_*`, grant-wall). E1 unchanged. |
+| **F5 — JSON freeze** | `denied: true`, `preferences: []`, `continuity.summary: ""` (never null), `denial_hint` recall. **No** new keys (`vault_pin_*`, grant-wall). E1 unchanged. T288 overlay is **`run_project` only**; `run_personal` `:263–267` is `render_personal_markdown` + `to_string_pretty(&packet)` (OpenCode m2). |
 | **F6 — Allowed-empty freeze** | `!denied` empty still `_None_` + `BRIEFING_EMPTY_CONTINUITY_NOTICE` / `NEXT_STEP` (T227 AC8). Placeholder “granted-empty unused line” **already shipped** as NOTICE. **Do not** restyle as DoD. |
 | **F7 — No auto Personal grant** | No `policy bootstrap` Personal as required next. No live Personal grant. Hermetic deny fixture is SoT. |
 | **F8 — No H2 / no T288 steal** | No pin→Approved. No vault-pin stanza on Personal. Project `_None_` / T288 overlay **untouched**. |
 | **F9 — No new clap flag** | Format aliases T227. Exit **0** soft deny. Unknown format exit **2**. |
 | **F10 — DTO freeze** | Do **not** add fields to `PersonalContinuityBriefingPacket`. |
-| **F11 — File growth** | Production: `renderer.rs` only (const + `personal_empty_section_placeholder` + two call sites). Units in `renderer.rs`. Hermetic additive in `briefing_format_substance.rs`. **Do not** edit `personal.rs`, `project.rs`, CLI `preflight.rs`, `governed_common.rs`, `briefing.rs` run path (after_help sentence OK), `query_store.rs`, `ci.yml`. |
+| **F11 — File growth** | Production: `renderer.rs` only (const + **private `fn`** `personal_empty_section_placeholder` — same visibility as `empty_section_placeholder` `:234`; **not** `pub`; **not** re-exported from `mod.rs`/`lib.rs` — Agy m1). Two call sites. Units in `renderer.rs`. Hermetic additive in `briefing_format_substance.rs`. **Do not** edit `personal.rs`, `project.rs`, CLI `preflight.rs`, `governed_common.rs`, `briefing.rs` run path (after_help sentence OK), `query_store.rs`, `ci.yml`. |
 | **F12 — last-PR Cursor** | #204 empty → **N/A**. Dependabot not this track. **No T301.** |
 | **F13 — PATH** | Do not `cargo install` unless the user asks. |
 | **F14 — Capture independence** | Markdown + consts only. No models, events, graph. `--dry-run` default true stays. |
@@ -125,7 +125,7 @@ This unblocks the optional surface: T263 made deny *honest about next command*; 
 | **F17 — Debt file** | `conductor/ISSUES.md` does **not** exist. |
 | **F18 — Decline peers** | T290 lists; T291 trace; T288 Completed; T294 leftover. |
 | **F19 — Decline pins** | T263 H2; T240 F2; clap 5; rusqlite 0.40; T227 #18 synthetic fill. |
-| **F20 — Docs** | CAPABILITIES Denied packets: Personal denied human optional-body not `_None_`. CHANGELOG T289. `briefing personal` after_help one sentence. |
+| **F20 — Docs** | **Extend** CAPABILITIES Denied packets row (`:322` already names recall / optional continuity — OpenCode O2); do **not** add a new section. CHANGELOG T289. `briefing personal` after_help one sentence (denied human optional-body not `_None_` — Agy O2 already F20). |
 | **F21 — PowerShell** | `;` not `&&`. |
 | **F22 — Existing tests stay green** | T263 personal deny recall; T275 AC16; T227 AC8/AC9b; JSON denial_hint hermetic; format human header. |
 | **F23 — Nonempty denied** | If denied packet ever has prefs/continuity text, render that text (don’t blank it). `empty_denied` is empty today. |
@@ -137,14 +137,14 @@ This unblocks the optional surface: T263 made deny *honest about next command*; 
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Unit: `render_personal_markdown(&empty_personal(true))` does **not** contain `_None_`; contains `BRIEFING_PERSONAL_DENIED_BODY` under both Preferences and Continuity; contains `BRIEFING_PERSONAL_DENIED_NEXT_STEP` / `recall`; does **not** contain `policy bootstrap` / GRANT_WALL / HIDDEN / `BRIEFING_DENIED_NEXT_STEP`. **Required red.** |
+| **AC1** | Unit: reuse existing `empty_personal(true)` (`renderer.rs:383` — OpenCode O1; do **not** mint a second fixture). `render_personal_markdown(&empty_personal(true))` does **not** contain `_None_`; contains `BRIEFING_PERSONAL_DENIED_BODY` under both Preferences and Continuity; contains `BRIEFING_PERSONAL_DENIED_NEXT_STEP` / `recall`; does **not** contain `policy bootstrap` / GRANT_WALL / HIDDEN / `BRIEFING_DENIED_NEXT_STEP`. **Required red.** |
 | **AC2** | Hermetic: `briefing personal --format human` (no Personal grants) exit **0**; stdout has `# Personal Continuity Briefing`, `**Denied:**`, `recall`; **no** `_None_`; **no** `policy bootstrap`. |
-| **AC3** | Same fixture `--format json`: `denied: true`, `preferences` empty array, `continuity.summary` `""`, `denial_hint` contains `recall` not `policy bootstrap`; **no** `vault_pin_count`. Existing `briefing_personal__no_grants__soft_deny_denial_hint` **stays green.** |
-| **AC4** | Unit: `BRIEFING_PERSONAL_DENIED_BODY` exact string F2; `!contains('\n')`; `chars().count() <= 140`; contains `optional`. |
-| **AC5** | Unit T227: `render_personal_markdown(&empty_personal(false))` still contains `## Continuity\n_None_` + empty_continuity notice (**stays green**). |
+| **AC3** | Same fixture `--format json`: `denied: true`, `preferences` empty array, `continuity.summary` `""`, `denial_hint` contains `recall` not `policy bootstrap`; **no** `vault_pin_count` (T288 overlay is project-path only — `run_personal` `:266` serializes the packet; OpenCode m2). Existing `briefing_personal__no_grants__soft_deny_denial_hint` **stays green.** |
+| **AC4** | Unit: `BRIEFING_PERSONAL_DENIED_BODY` **exact** `_(optional continuity; not a missing vault)_` (Agy m2); `!contains('\n')`; `chars().count() <= 140`; contains `optional`; **also** `!contains("_None_")` and `!contains("policy bootstrap")` on the **const** (OpenCode m3 — not only the rendered markdown). |
+| **AC5** | Unit T227: `render_personal_markdown(&empty_personal(false))` still contains `## Preferences\n_None_` **and** `## Continuity\n_None_` + empty_continuity notice (**stays green**; Agy O1 Preferences lock). |
 | **AC6** | T275 AC16 unit **stays green** (no project-wall leak). |
 | **AC7** | T227 unknown `--format` still exit **2** zero stdout. |
-| **AC8** | Docs: CAPABILITIES Denied + after_help + CHANGELOG T289. |
+| **AC8** | Docs: **extend** CAPABILITIES Denied packets row `:322` (already recall/optional — OpenCode O2) + `briefing personal` after_help one sentence + CHANGELOG T289. |
 | **AC9** | No new crate. No clap 5. No `unwrap`/`expect`/`panic` in production. `cargo clippy -p ai-brains-cli -p ai-brains-control-plane --all-targets -- -D warnings` clean on go. |
 | **AC10** | Manual (source/hermetic bin, not PATH): `cargo run -p ai-brains-cli -- briefing personal --format human` — no `_None_`; has `recall`; exit **0**. |
 | **AC11** | `personal.rs` **unchanged** (diff). |
@@ -165,10 +165,10 @@ JSON is already `denied: true` + empty arrays. The lie is markdown `_None_`. `pe
 ### 5.3 Helper
 
 ```text
-fn personal_empty_section_placeholder(denied: bool) -> &'static str
+fn personal_empty_section_placeholder(denied: bool) -> &'static str  // private, renderer.rs only
 ```
 
-Denied → `BRIEFING_PERSONAL_DENIED_BODY`; else → `_None_`. Do **not** share `empty_section_placeholder`.
+Denied → `BRIEFING_PERSONAL_DENIED_BODY`; else → `_None_`. Do **not** share `empty_section_placeholder`. Do **not** `pub` or re-export (Agy m1).
 
 ---
 
@@ -274,6 +274,34 @@ Then AC3/AC5/AC6 stay-green; docs AC8; Manual AC10.
 
 ## 13. AI fold-in
 
-(none this pass)
+Inputs (not edited): `agy-review.md` + `opencode-review.md` at HEAD `72fbb92`. Live verify: `empty_section_placeholder` **`fn`** `:234`; `_None_` `:263`/`:273`; `run_personal` emit `:263–267`; CP denied test `tests/personal_briefing.rs:154`; `empty_personal` `:383`; CAPABILITIES `:322`. Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; no clap 5).
 
-last-PR Cursor **#204 N/A** empty — no T301.
+### Pins locked by fold-in
+
+1. **F11 (Agy m1):** `personal_empty_section_placeholder` is private `fn` in `renderer.rs` — not `pub`, not re-exported.
+2. **AC5 (Agy O1):** allowed-empty asserts `## Preferences\n_None_` as well as Continuity.
+3. **§2.3 (OpenCode m1):** CP denied test path is `crates/ai-brains-control-plane/tests/personal_briefing.rs:154`.
+4. **AC3/F5 (OpenCode m2):** T288 overlay is `run_project` only; Personal JSON is raw packet serde.
+5. **AC4 (OpenCode m3):** const itself `!contains("_None_")` / `!contains("policy bootstrap")`.
+6. **AC8/F20 (OpenCode O2):** CAPABILITIES *extend* Denied row `:322`, not a new section.
+7. **Already:** Agy m2 exact AC4 string; Agy O2 after_help; OpenCode O1 `empty_personal` fixture named in AC1.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** helper private `fn` | **Folded** F11 / §5.3 |
+| Agy | **m2** AC4 exact string / one-line / ≤140 | **Already** F2 / AC4 |
+| Agy | **O1** allowed-empty Preferences `_None_` | **Folded** AC5 |
+| Agy | **O2** Personal after_help | **Already** F20 / AC8 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** `personal_briefing.rs:154` vs tests crate | **Folded** §2.3 live `tests/personal_briefing.rs:154` |
+| OpenCode | **m2** T288 overlay not on `run_personal` | **Folded** F5 / AC3 |
+| OpenCode | **m3** const-level `_None_` / bootstrap guards | **Folded** AC4 |
+| OpenCode | **O1** reuse `empty_personal` | **Already** AC1; **tightened** name `:383` |
+| OpenCode | **O2** CAPABILITIES extend not add | **Folded** F20 / AC8 |
+| both | last-PR #204 Cursor | **Affirm N/A** — no T301 |
+| both | deferred T290 / H2 / T288 | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.

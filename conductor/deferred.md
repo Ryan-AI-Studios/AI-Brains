@@ -81,6 +81,22 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F19 |
 | last-PR Cursor #204 | **N/A** empty — **no T301** |
 | Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
+
+### T289 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 helper private `fn` | **Folded** F11 / §5.3 |
+| Agy m2 AC4 exact string / one-line / ≤140 | **Already** F2 / AC4 |
+| Agy O1 allowed-empty Preferences `_None_` | **Folded** AC5 |
+| Agy O2 Personal after_help | **Already** F20 / AC8 |
+| OpenCode m1 CP denied test path | **Folded** §2.3 `tests/personal_briefing.rs:154` |
+| OpenCode m2 T288 overlay not on `run_personal` | **Folded** F5 / AC3 |
+| OpenCode m3 const `_None_` / bootstrap guards | **Folded** AC4 |
+| OpenCode O1 reuse `empty_personal` | **Already** AC1; named `:383` |
+| OpenCode O2 CAPABILITIES extend not add | **Folded** F20 / AC8 |
+| last-PR #204 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
 | governed lists/progressive empty U=6 | **T290** |
 | `query trace` bare `null` | **T291** |
 | `policy check` JSON-only | **T292** |
