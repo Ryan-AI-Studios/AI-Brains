@@ -1,7 +1,7 @@
 # T288 — Granted-empty briefing must show vault pins exist (not H2)
 
 - **Track ID:** T288-BriefingUsefulPins
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** ✅ **Completed**
 - **Category:** FEATURE / UX / HONESTY
 - **Owner:** Grok
 - **Source:** Audit 2026-08-22 — `briefing project` **7/7**; friction “Approved empty vs 3647 pins”. Placeholder minted with T285–T300 (`76c4db9`). T263 ✅ H1 empty_authority + recall next (**H2 declined**). T275 ✅ grant-wall. T287 ✅ `list_authority_memories` (reuse; do not steal list mix).

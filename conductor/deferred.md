@@ -4,14 +4,14 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #203 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Planned** 2026-08-23 (Pending until go).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #203 **N/A** empty — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23.
 
 | Item | Track |
 |------|-------|
 | recall/search/semantic/sync-vault still chrome Q=4 | **T285 Completed** |
 | preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Completed** |
 | `memory list` just-now ingest | **T287 Completed** |
-| briefing granted-empty vs pins (no H2) | **T288 Planned** |
+| briefing granted-empty vs pins (no H2) | **T288 Completed** |
 
 ### T288 planning absorption (2026-08-23) — granted-empty vault-pin stanza; no H2
 
@@ -50,6 +50,16 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode O2 fetch limit 8→32 | **Folded** F5 `limit = 32` |
 | last-PR #203 Cursor | **Affirm N/A** — no T301 |
 | No B/M | Nothing to decline of B/M |
+
+### T288 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| Live `cargo run -- briefing project --format human` on `3581317d` prints `Pinned: 3889` and `_No leading-line DECISION/CONSTRAINT samples in this scope._` (R1-1 / CX1 P3) | **Residual** — pass-1 GLOB 0 (F32); inventory COUNT is Manual SoT; hermetic AC1/AC2 for samples; F17 PATH until `cargo install` |
+| Daemon/HTTP packet unaugmented | **Residual** — F29 |
+| Personal `_None_` / lists/progressive pin count | **T289 / T290** — not stolen |
+| Governed preflight no stanza | **Residual** — F27 / T170 D21 |
+| First `dev-check` fail-fast `backup_restore__daemon_down_force__succeeds` | **Environmental** — daemon was Running; temporary `daemon stop`; gate re-run **3399** passed. Daemon left **Stopped**. |
 
 | personal briefing deny `_None_` | **T289** |
 | governed lists/progressive empty U=6 | **T290** |
