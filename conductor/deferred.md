@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #206 Bugbot Low → **T291 F16** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #207 T291 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Planned** 2026-08-23.
 
 | Item | Track |
 |------|-------|
@@ -213,6 +213,57 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Default progressive still does not persist | **Residual** — F9 by design |
 | T292 `policy check` human / T293–T300 | **Not stolen** |
 | Codex CX1 P1 process (full gate / publish pending at review time) | **verified_fixed** after closeout + Phase 6 |
+
+### T292 planning absorption (2026-08-23) — Family A auto TTY human / pipe JSON; deny two-line SHORT; no parse flip
+
+| Item | Disposition |
+|------|-------------|
+| Audit `policy check` JSON-only U=7 | **Absorb** F1–F7 / AC1–AC4 / AC10 |
+| Placeholder Manual `--format human` + `--format json` | **Absorb** AC10 |
+| Placeholder `--format auto` TTY human / pipe JSON | **Absorb** F1 / F21 / AC6 / AC7 |
+| Placeholder deny `denied: <cap> — next` | **Absorb** F7 two lines (SHORT exact) |
+| T266 F1 Family D for policy | **Partial lift** — check only → A; show/bootstrap **affirm D** F26 |
+| T266 F11 / T227 F34 `OutputFormat::parse` | **Affirm freeze** F9 |
+| T241 F6 catalog / F14 SHORT | **Affirm** F8 / F7 |
+| T226 soft-resolve | **Affirm** F8 / AC5 |
+| T160 R1-01 one JSON deny document | **Affirm** F6 / AC5 |
+| T210 F13 no auto-grant | **Affirm** F8 / F19 |
+| T291 query-trace envelope | **Decline** — Completed `#207` |
+| T293 neighbors dump sessions | **Decline → T293** |
+| T294 leftover dest-missing | **Decline → T294** |
+| T298 device/replicate empty | **Decline → T298** |
+| T299 forget-list empty | **Decline → T299** |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F19 |
+| last-PR Cursor **#207** | **N/A empty** — **no T301** F20 |
+| Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
+
+### T292 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 helpers `pub(crate)` | **Already** F25; **tightened** not `pub` / not `mod.rs` re-export |
+| Agy m2 skip `fail_api` | **Already** F7; **tightened** AC3 stderr empty + §5.7 |
+| Agy O1 CAPABILITIES Family A row | **Already** F12 / AC9 |
+| Agy O2 clap `JSON`/`Pretty` InvalidValue | **Already** AC6 JSON / F3; **folded** AC6 Pretty |
+| OpenCode m1 AC2 principal env | **Folded** F27 / AC2 / §5.6 — `hermetic_bin` denylist; not T210 helpers |
+| OpenCode m2 `CheckOptions.format: String` | **Already** one clap constructor; **folded** F28 |
+| OpenCode O1 OPERATIONS script `--format json` | **Folded** F12 / AC9 exact sentence |
+| OpenCode O2 `stdout().is_terminal()` | **Already** F1; **tightened** |
+| OpenCode O3 T241 F6b catalog after_help | **Folded** F8 / F29 / AC9 |
+| OpenCode word/pin snapshot | **Snapshot only** — not DoD |
+| F3/F26 AC-id slips | **Folded** InvalidValue = AC6; peers = AC8 |
+| last-PR #207 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
+### T292 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH until `cargo install` (F13) | **Residual** — source/hermetic SoT |
+| Propose*/Approve*/Erase/Export human deny next still SHORT (F24) | **Residual** — bootstrap does not issue those caps |
+| `policy show` / `policy bootstrap` TTY still JSON (F26) | **Residual** — Family D peers |
+| Human deny stderr empty (no `POLICY_DENIED:` CODE) | **Residual** — F7 by design |
+| T293–T300 | **Not stolen** |
 
 ### T287 closeout residuals (2026-08-23)
 

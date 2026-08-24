@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T292 `policy check` human Family A:** Default `--format auto` is TTY `allowed:` / `denied:` + bootstrap SHORT (exit **3** on deny, stderr empty) / pipe JSON. `--format json` keep frozen `CheckResult` / one ApiError document. `policy show` / `policy bootstrap` stay default JSON. Tokens case-sensitive (`JSON`/`Pretty` exit 2). Scripts that previously parsed TTY default JSON must pass `--format json`.
+
 - **T291 `query trace` missing is useful:** Missing/unauthorized `query trace` stdout is a pretty JSON envelope (`found: false`, `trace_id`, `next_step` copy-paste `ai-brains query progressive "what did we decide" --dry-run false`) exit **0**, not the token `null`. `--format human` prints two lines (`No trace for <id>.` + `next:`). Found traces stay `QueryTraceDto` JSON (no wrap). `QueryTraceDto` unaugmented; no daemon GetQueryTrace. `#206` sanitizer collapse: `$`/backtick are space boundaries (`a $ b` → `a b`).
 
 - **T290 Granted-empty lists/progressive are useful:** Authorized-empty `evidence` / `source` / `review` list and `query progressive` JSON `next_step` is copy-paste `ai-brains recall "…"` (lists: `what did we decide`; progressive: the operator query) plus `(Pinned: N)` when local COUNT succeeds. Human lists print that line after `(none)`. Arrays stay `[]` (no H2). DTO fields unchanged; T288 `vault_pin_*` keys stay briefing-only. Denied stderr still prints the T243 ellipsis const.

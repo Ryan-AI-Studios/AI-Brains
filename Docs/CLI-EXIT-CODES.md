@@ -93,6 +93,8 @@ Do **not** document “all failures always emit JSON on stderr” — that is fa
 
 On **`policy check`** deny and local **list** denies (`review list`, `source list`, `evidence list`), Json envelopes carry a non-empty structured **`details.hint`** string. Prefer **`ai-brains policy bootstrap --dry-run`** then **`ai-brains policy bootstrap`** (omit `--scope` when project context is authoritative) to register the principal (if needed) and issue discovery grants (`ReadEvidence`, `ReadConclusions`, `ReadDecisions`). Explicit `--scope Repository:<uuid>` remains valid for no-context CI (`--no-project-context`). Soft: source/evidence **show** deny also attaches the hint when touched by T203. Other deny sites may still emit bare `POLICY_DENIED` without `details`. Message remains terse. Exit stays **3**.
 
+**T292 `policy check` human deny:** `--format human` / TTY `auto` prints two **stdout** lines (`denied: {cap}` + bootstrap SHORT) and exits **3** with empty stderr (skips `emit_error`). JSON deny (`--format json` / pipe `auto`) stays one ApiError document on stdout.
+
 **Human / Markdown** governed deny (`emit_error`): after the `CODE: message` stderr line, a non-empty `details.hint` is printed on the next stderr line (T221 F5).
 
 ### Progressive / expand deny (T221)

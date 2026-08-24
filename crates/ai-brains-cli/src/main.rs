@@ -275,6 +275,176 @@ mod tests {
         );
     }
 
+    /// T292 AC6: `--format JSON` is clap InvalidValue (not `OutputFormat::parse`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_check__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "policy",
+            "check",
+            "--capability",
+            "ReadEvidence",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T292 AC6: `--format Pretty` is clap InvalidValue.
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_check__format_Pretty__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "policy",
+            "check",
+            "--capability",
+            "ReadEvidence",
+            "--format",
+            "Pretty",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format Pretty"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T292 AC6: `--format json` parses.
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_check__format_json__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "policy",
+            "check",
+            "--capability",
+            "ReadEvidence",
+            "--format",
+            "json",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected policy check --format json to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Policy {
+                command: super::PolicyCommands::Check { format, .. },
+            } => assert_eq!(format, "json"),
+            _ => panic!("expected Policy::Check"),
+        }
+    }
+
+    /// T292 AC6: `--format pretty` parses.
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_check__format_pretty__parses() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "policy",
+            "check",
+            "--capability",
+            "ReadEvidence",
+            "--format",
+            "pretty",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected policy check --format pretty to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Policy {
+                command: super::PolicyCommands::Check { format, .. },
+            } => assert_eq!(format, "pretty"),
+            _ => panic!("expected Policy::Check"),
+        }
+    }
+
+    /// T292 AC6: omitted `--format` defaults to `auto`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_check__default_format__auto() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "policy",
+            "check",
+            "--capability",
+            "ReadEvidence",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected policy check with no --format to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Policy {
+                command: super::PolicyCommands::Check { format, .. },
+            } => assert_eq!(format, "auto"),
+            _ => panic!("expected Policy::Check"),
+        }
+    }
+
+    /// T292 AC8: `policy show --help` still defaults format to json (Family D).
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_show__help__default_format_json() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "policy", "show", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("default: json") || help.contains("[default: json]"),
+            "AC8: policy show --help must keep default json; got: {help}"
+        );
+    }
+
+    /// T292 AC8: `policy bootstrap --help` still defaults format to json (Family D).
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_bootstrap__help__default_format_json() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "policy", "bootstrap", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("default: json") || help.contains("[default: json]"),
+            "AC8: policy bootstrap --help must keep default json; got: {help}"
+        );
+    }
+
+    /// T292 AC9/F29: `policy check --help` names auto/TTY and catalog block matches CAPABILITY_CATALOG.
+    #[test]
+    #[allow(non_snake_case)]
+    fn policy_check__help__names_auto_tty_and_catalog() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "policy", "check", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        let lower = help.to_lowercase();
+        assert!(
+            lower.contains("auto") && (lower.contains("tty") || lower.contains("pipe")),
+            "AC9: help must name auto + TTY/pipe; got: {help}"
+        );
+        assert!(
+            !lower.contains("json-only") && !lower.contains("json only"),
+            "AC9: help must not claim JSON-only; got: {help}"
+        );
+        // F29: after_help catalog block must stay byte-stable with CAPABILITY_CATALOG.
+        let catalog_block = crate::commands::governed_common::CAPABILITY_CATALOG
+            .iter()
+            .map(|line| format!("  {line}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            help.contains(&catalog_block),
+            "AC9/F29: help catalog block must match CAPABILITY_CATALOG byte-for-byte; missing:\n{catalog_block}\nhelp:\n{help}"
+        );
+    }
+
     /// T291 AC7: `--format JSON` is clap InvalidValue (not `OutputFormat::parse`).
     #[test]
     #[allow(non_snake_case)]
@@ -1716,7 +1886,7 @@ enum Commands {
     /// Policy grant inspection + discovery bootstrap (T160/T210)
     #[command(
         display_order = 36,
-        after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy show   # omit --scope when project context is authoritative\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative"
+        after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy show   # omit --scope when project context is authoritative\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative; default auto = TTY human / pipe JSON\n  ai-brains policy check --capability ReadEvidence --format human\n  ai-brains policy check --capability ReadEvidence --format json"
     )]
     Policy {
         #[command(subcommand)]
@@ -2309,7 +2479,7 @@ enum ReviewCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy show   # omit --scope when project context is authoritative\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative"
+    after_help = "Examples:\n  ai-brains policy bootstrap --scope Repository:<uuid>\n  ai-brains policy bootstrap   # omit --scope when project context is authoritative\n  ai-brains policy show --scope Repository:<uuid>\n  ai-brains policy show   # omit --scope when project context is authoritative\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative; default auto = TTY human / pipe JSON\n  ai-brains policy check --capability ReadEvidence --format human\n  ai-brains policy check --capability ReadEvidence --format json"
 )]
 enum PolicyCommands {
     /// List applied grants for principal + scope (read-only)
@@ -2328,7 +2498,7 @@ enum PolicyCommands {
     /// Dry-run capability allow check
     // after_help catalog must stay in sync with governed_common::CAPABILITY_CATALOG (T241 F6b).
     #[command(
-        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative\n\nValid capabilities (discovery first):\n  ReadEvidence (discovery)\n  ReadConclusions (discovery)\n  ReadDecisions (discovery)\n  ApproveConclusion\n  ApproveDecision\n  Erase\n  Export\n  ProposeConclusion\n  ProposeDecision"
+        after_help = "Examples:\n  ai-brains policy check --capability ProposeConclusion --scope Repository:<uuid>\n  ai-brains policy check --capability ReadEvidence   # omit --scope when authoritative; default auto = TTY human / pipe JSON\n  ai-brains policy check --capability ReadEvidence --format human\n  ai-brains policy check --capability ReadEvidence --format json\n\nValid capabilities (discovery first):\n  ReadEvidence (discovery)\n  ReadConclusions (discovery)\n  ReadDecisions (discovery)\n  ApproveConclusion\n  ApproveDecision\n  Erase\n  Export\n  ProposeConclusion\n  ProposeDecision"
     )]
     Check {
         /// Capability name (e.g. ProposeConclusion, ReadEvidence). Required at runtime (catalog on omit).
@@ -2337,8 +2507,13 @@ enum PolicyCommands {
         /// Scope identity key (optional — soft-resolves when authoritative)
         #[arg(long)]
         scope: Option<String>,
-        #[arg(long, default_value = "json")]
-        format: Option<String>,
+        /// Output format: auto (TTY human / pipe json), pretty/human/text/markdown/md, or json
+        #[arg(
+            long,
+            default_value = "auto",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
         principal_id: Option<String>,
     },
