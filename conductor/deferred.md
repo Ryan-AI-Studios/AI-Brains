@@ -83,6 +83,24 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor **#211** | **N/A empty** — **no T301** F18 |
 | Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** F27 |
 
+### T296 fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 hex parse `0x41306` | **Folded** F33 / AC3 |
+| Agy m2 blank/whitespace Status no invented `Ready` | **Already** F2 / F26; **tightened** F34 |
+| Agy O1 CLI-EXIT-CODES both SCHED_S success | **Already** F19; **tightened** AC10 |
+| Agy O2 help unit 267014 | **Already** F7 / AC6 |
+| OpenCode m1 plan HEAD `8b95181` vs `c7d6e3e` | **Snapshot** — preflight refreshed |
+| OpenCode m2 word 367→428 | **Snapshot** |
+| OpenCode m3 daemon Stopped is T297 | **Already** F11 |
+| OpenCode O1 hermetic HRESULT omission | **Already** AC1 + AC8 |
+| OpenCode O2 keep `Ready` | **Already** F1 / AC1 |
+| OpenCode “no help change” | **Decline** F7 / AC6 |
+| OpenCode `nightly.rs` production edit | **Decline** F9 |
+| last-PR #211 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 ### T294 closeout residuals (2026-08-24)
 
 | Residual | Notes |

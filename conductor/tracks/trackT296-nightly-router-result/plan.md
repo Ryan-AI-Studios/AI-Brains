@@ -1,20 +1,35 @@
 # T296 Plan — Nightly Router last-result honesty
 
-**Status:** **Pending** (Planned; F0 until **go**). Full F-list in spec.md.
-**Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC14
+**Status:** **Pending** (Planned + folded; F0 until **go**). Full F-list in spec.md.
+**Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `3b6532dc-54eb-4313-bdf8-477f4348a694` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `314aa590-c779-4c0a-9889-81681319e950` (DOCS)
 **Ledger TX (implement):** BUGFIX TX on **go**
 
 ---
 
-## Preflight (plan time — 2026-08-24)
+## AI fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F33/AC3:** hex `0x41306` / `0X41306` / `0x41301` rstest required red.
+2. **F34/AC3:** whitespace-only Status ≡ blank (live trim `:195`).
+3. **F19/AC10:** CLI-EXIT-CODES both 267009 and 267014 as `SCHED_S_*` success.
+4. **F7/AC6:** after_help **does** add 267014 (decline OpenCode “no help change”).
+5. **F9:** zero production `nightly.rs`.
+
+---
+
+## Preflight (plan time — 2026-08-24; fold-in refresh)
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `8b95181` T295 `#211`. CLEAN. `origin/main` = HEAD (`0 0`). Branch `main`. |
+| HEAD / tree | Fold-in on `c7d6e3e` (`main`, T296 plan). Parent `8b95181` T295 `#211`. CLEAN at fold-in start. `origin/main` = `8b95181` until this commit. |
 | PATH `ai-brains` | **0.1.2** mtime 2026-08-22 19:41, 25 139 712 bytes. **Has T269/T281.** No T285–T295. Hole is **human Router 267014**. **Do not `cargo install`.** |
-| `preflight --summary` | Pinned **4102** (volatile). In-context **0/0/0**. Word **367**. Scope `3581317d`. |
+| `preflight --summary` | Pinned **4119** (volatile; plan 4102 / OpenCode 4102). In-context **0/0/0**. Word **536** (plan 367 / OpenCode 428). Scope `3581317d`. |
 | PATH `nightly --status --quick` | Heading + Last Result **0** + `Router: Ready  last result: 267014` + `task terminated (SCHED_S_TASK_TERMINATED)`. `probe=skipped`. Exit **0**. |
 | PATH JSON `--quick` | `last_task_result` `"0"`; `router.last_result` `"267014"`; hint SCHED_S_TASK_TERMINATED; probes `"skipped"`. |
 | LIST /V Router | Ready; Last Result **267014**; Last Run **8/19/2026 2:40:07 PM**; Next **N/A**; `C:\llm\router.bat` |
@@ -24,7 +39,7 @@
 | Open PR on HEAD | none (Dependabot remotes: rusqlite `#61`, chrono `#62`, tokio `#59`, thiserror `#60`, tower-http `#58`, actions `#68–#72`) |
 | Pins | clap lock **4.6.1** (crates.io **4.6.6**; **no clap 5**); rusqlite **0.39.0** (0.40.2); chrono **0.4.44**; serde_json **1.0.150**; thiserror **2.0.18**; tokio **1.52.3** — **no bumps** |
 | rustc / nextest / workspace | 1.95.0 / 0.9.140 / **0.1.2** |
-| Hotspots | `project.rs` **#1** (**3.906**) — do not touch. `nightly.rs` **2128** / `nightly_status.rs` **760** — not top-10. |
+| Hotspots | `project.rs` **#1** (**3.897** fold-in; plan 3.906) — do not touch. `nightly.rs` **2128** / `nightly_status.rs` **760** — not top-10. |
 | Ledger | 0 pending / 0 drift at scan |
 | `ISSUES.md` | **Does not exist** (F23) |
 | ledgerful search | `format_router_status_lines` `nightly_status.rs:187` / `nightly.rs:210`; `explain_last_task_result` `nightly.rs:958` |
@@ -37,7 +52,7 @@
 
 - [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
-- [ ] Re-read `format_router_status_lines` `nightly_status.rs` **`:187–216`** — this is the DoD edit
+- [ ] Re-read `format_router_status_lines` `nightly_status.rs` **`:187–216`** — this is the DoD edit; confirm trim `:195` (F34) and that helper still has no hex parse (F33 is new)
 - [ ] Re-read `explain_last_task_result` `nightly.rs` **`:958–973`** — **do not edit** (F6)
 - [ ] Re-read JSON `router_json_from_input` **`:218–230`** — hints stay `explain_last_task_result` (F5)
 - [ ] Re-read `FROZEN_KEYS` **`:289–308`** — **do not add**
@@ -81,6 +96,8 @@
 - [ ] `format_router_status_lines__ready_267014__status_then_terminated_no_numeric` fails
 - [ ] Rewrite Running+267009 unit → status-only (fails)
 - [ ] Rewrite blank-status 267009 unit → `Router: running` (fails)
+- [ ] `format_router_status_lines__blank_status_267014__terminated_phrase` + whitespace `"   "` (F34) fails
+- [ ] `format_router_status_lines__hex_0x41306__same_as_267014` (F33) fails
 - [ ] `nightly__help__names_router_267014_success` fails
 - [ ] Red commit allowed
 
@@ -142,6 +159,7 @@
 
 - [ ] AC1 Ready+267014 → `Router: Ready` + `last run: terminated`; no numeric; no SCHED_S
 - [ ] AC2 Running+267009 → `Router: Running` only
+- [ ] AC3 hex `0x41306` (F33) + whitespace Status (F34)
 - [ ] AC5 JSON still `"267014"` + existing hint
 - [ ] AC6 after_help 267014 success; T269 needles stay
 - [ ] AC7 `explain_last_task_result` units green

@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can tell Nightly process exit **0** from Router scheduler HRESULT **267014**. Daemon Stopped vs llama Open **T297**. Device/replicate empty **T298**. Forget-list **T299**. Graph sparse **T300**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “nightly Router 267014 / TASK_TERMINATED”; T269 closeout “do not restyle Router” **as a T269 freeze that this track explicitly supersedes on the human Router line only**; T255 AC6/AC15 **human** half (numeric on first line)
 - **Not absorbed (DoD):** Raise 750 ms; unify daemon TCP with HTTP; JSON keys / `last_result` raw string / `last_result_hint` SCHED_S text; doctor 16th; persist probe; product `.cmd` / schedule-Router; `--quick --no-vault`; mutate `AI-Brains-Router`; T297 daemon contrast; Nightly `Last task result:` chrome; `explain_last_task_result` strings; clap 5 / rusqlite 0.40; T298–T300; T240 F2
-- **Research date:** 2026-08-24 (plan dogfood HEAD `8b95181` T295 `#211`. Product `src/` = T295; nightly last product chrome T281. PATH **0.1.2** 2026-08-22 19:41 **has T269/T281**, not T285–T295. Live hole is **human Router HRESULT**, not missing heading.)
-- **AI fold-in:** none yet. Review-track writes `*-review.md` only.
-- **Ledger:** planning DOCS TX `3b6532dc-54eb-4313-bdf8-477f4348a694`. Implement starts a **BUGFIX** TX on **go**.
+- **Research date:** 2026-08-24 (plan dogfood HEAD `8b95181` T295 `#211`. Fold-in HEAD `c7d6e3e`. Product `src/` = T295; nightly last product chrome T281. PATH **0.1.2** 2026-08-22 19:41 **has T269/T281**, not T285–T295. Live hole is **human Router HRESULT**, not missing heading.)
+- **AI fold-in:** 2026-08-24 `agy-review.md` (`c7d6e3e`) + `opencode-review.md` (`c7d6e3e`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 hex rstest F33/AC3; Agy m2 whitespace-blank F34/AC3; Agy O1 CLI-EXIT-CODES both SCHED_S AC10. **Already:** Agy O2 AC6; OpenCode O1 AC1+AC8; OpenCode O2 F1/AC1; OpenCode m3 F11. **Snapshot:** OpenCode m1/m2 HEAD/word/pin. **Decline:** OpenCode “no help change” (F7/AC6); OpenCode `nightly.rs` production edit (F9). Disposition **§13**.
+- **Ledger:** planning DOCS TX `3b6532dc-54eb-4313-bdf8-477f4348a694`. Fold-in DOCS TX `314aa590-c779-4c0a-9889-81681319e950`. Implement starts a **BUGFIX** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** rewrite `.env` (T240 F2). Do **not** mutate `AI-Brains-Nightly` or `AI-Brains-Router`. Do **not** raise `NIGHTLY_STATUS_PROBE_TIMEOUT`. Do **not** grow hotspot `project.rs` / `sync.rs` / `governed_common.rs` / `forget.rs` / `doctor.rs` / `daemon.rs`. Do **not** edit `explain_last_task_result` (Nightly + JSON hints). Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `retention apply --confirm`, `graph rebuild`, leftover `rebind-path --write --yes`, or `safety sync` without `--dry-run`.
 
 ---
@@ -33,9 +33,9 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `8b95181` T295 squash `#211`. Tree **CLEAN**. `origin/main` = HEAD (`git rev-list --left-right --count origin/main...HEAD` = `0 0`). Branch `main`. |
+| HEAD | Plan dogfood `8b95181` T295 `#211`. Fold-in `c7d6e3e` (T296 plan; parent `8b95181`). Tree **CLEAN**. `origin/main` = `8b95181` (`left-right` `0 1` — local plan commit). Branch `main`. |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` mtime **2026-08-22 19:41**, 25 139 712 bytes, **0.1.2**. **Has T269 heading + T281 contrast + T255 Router numeric.** **Does not have T285–T295.** Nightly chrome for this hole is **on PATH** (T281-era). **Do not `cargo install`.** Tests/manual AC use `cargo run` / hermetic. |
-| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **4102** (volatile). In-context **0/0/0**. Word **367**. Capture independence holds. |
+| `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **4119** (volatile; plan 4102 / OpenCode 4102). In-context **0/0/0**. Word **536** (plan 367 / OpenCode 428). Capture independence holds. |
 | PATH `nightly --status --quick` | Banner + `Nightly: AI-Brains-Nightly`. `Last task result: **0**`. Last scheduled **8/24/2026 3:00:02 AM**. Last nightly run **2026-08-24T07:08:10Z**. Sessions summarized **3**. Completion/Embedding `probe=skipped`. **`Router: Ready  last result: 267014`** then **`task terminated (SCHED_S_TASK_TERMINATED)`**. Multi-import 2026-08-24 ok. Exit **0**. **Live hole confirmed.** |
 | PATH `nightly --status --quick --format json` | `schema_version` 1. `last_task_result` **`"0"`** / hint `null`. `completion.probe` / `embedding.probe` `"skipped"`. `router.scheduled` true, `status` `"Ready"`, `last_result` **`"267014"`**, `last_result_hint` `"task terminated (SCHED_S_TASK_TERMINATED)"`, `task_to_run` `C:\llm\router.bat`. Frozen keys present. |
 | `AI-Brains-Router` LIST /V | **Ready**; Enabled; Next Run **N/A** (ONLOGON); Last Run **8/19/2026 2:40:07 PM**; Last Result **267014**; Task To Run **unquoted** `C:\llm\router.bat`. |
@@ -44,7 +44,7 @@ This unblocks daily ops honesty for the Windows-first vault: the nightly job suc
 | `daemon status` (`--no-project-context`) | **Stopped** + `next: ai-brains daemon start`. LLM default `:11434` Open (env-unset path). **T297**, not this track. |
 | Doctor (ledgerful) | **4** warn (legacy `.changeguard` / sig-pin / sig-version / timings). Completion model **unreachable** this pass. Embedding `:8083` **ok**. **0 pending / 0 drift.** |
 | Last GitHub PR | [#211](https://github.com/Ryan-AI-Studios/AI-Brains/pull/211) T295 (merged 2026-08-24). `gh pr view --comments`, `/reviews`, `/comments`, `issues/211/comments` all **empty**. **last-PR Cursor: N/A.** Open PRs: Dependabot remotes only (`#61` rusqlite 0.40.2, `#62` chrono 0.4.45, `#59` tokio, `#60` thiserror, `#58` tower-http, actions `#68–#72`). **No leftover to mint. No T301.** |
-| Identity / hotspots | Hotspot **#1** `project.rs` (**3.906**) — **do not touch.** `sync.rs` #2. `governed_common.rs` #3. `context.rs` #4. `forget.rs` #5. `nightly.rs` **2128** / `nightly_status.rs` **760** — not top-10. `doctor.rs` **1855**. |
+| Identity / hotspots | Hotspot **#1** `project.rs` (**3.897** fold-in; plan 3.906) — **do not touch.** `sync.rs` #2. `governed_common.rs` #3. `context.rs` #4. `forget.rs` #5. `nightly.rs` **2128** / `nightly_status.rs` **760** — not top-10. `doctor.rs` **1855**. |
 | `ISSUES.md` | **Does not exist.** |
 
 ### 2.2 Why this still matters
@@ -136,9 +136,9 @@ Callers (`ledgerful search`): `format_router_status_lines` = helper + `nightly.r
 | **F16 — Stop-before live mutate** | Even after go: do not unschedule/reschedule Nightly, do not `/End` or `/Run` Router, do not write `.cmd`. |
 | **F17 — Decline peers** | T297–T300; T294 leftover `--write`; T295 engine/doctor remediator; T240 F2; T263 H2; T255 750 ms raise. |
 | **F18 — last-PR Cursor** | **#211** empty → **N/A**. Dependabot `#61` rusqlite **not** this track. **No T301.** |
-| **F19 — Docs** | CAPABILITIES T269/T281 bullet: additive “human Router omits 267014/267009 decimals; `Ready` + `last run: terminated`”. OPERATIONS Router bullet. Root CHANGELOG T296. CLI-EXIT-CODES: status still exit **0** for Router 267014 (add the token next to 267009). |
+| **F19 — Docs** | CAPABILITIES T269/T281 bullet: additive “human Router omits 267014/267009 decimals; `Ready` + `last run: terminated`”. OPERATIONS Router bullet. Root CHANGELOG T296. CLI-EXIT-CODES: status still exit **0** for Router **267009** (`SCHED_S_TASK_RUNNING`) **and** **267014** (`SCHED_S_TASK_TERMINATED`) — both scheduler **success** constants (Agy O1). |
 | **F20 — Exit 0** | Unchanged. Timeout / 267009 / **267014** / down / daemon Stopped are still success for `--status`. |
-| **F21 — Tests** | Naming `function_or_feature__condition__expected_result`. Required red names in §7. Existing T247/T269/T281 units stay green. Hermetic `--quick` must **not** contain human `267014` or `SCHED_S_TASK_TERMINATED` (safe: Nightly last result is 0; JSON is a different invocation). No `unwrap`/`expect`/`panic` in production. |
+| **F21 — Tests** | Naming `function_or_feature__condition__expected_result`. Required red names in §7 (include F33 hex + F34 whitespace). Existing T247/T269/T281 units stay green. Hermetic `--quick` must **not** contain human `267014` or `SCHED_S_TASK_TERMINATED` (safe: Nightly last result is 0; JSON is a different invocation). No `unwrap`/`expect`/`panic` in production. |
 | **F22 — Cross-model** | Honesty UX on the status path (easy T255/T269 regression). After Phase-1 review clean, run read-only `codex-review`. Category **BUGFIX** (not FEATURE) — still run Codex like T281. |
 | **F23 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
 | **F24 — PowerShell** | `;` not `&&`. |
@@ -150,6 +150,8 @@ Callers (`ledgerful search`): `format_router_status_lines` = helper + `nightly.r
 | **F30 — Signature freeze** | `format_router_status_lines(found, status, last_result) -> Vec<String>` stays 3 args. Do not add a 4th. |
 | **F31 — Non-Windows** | Omit Router lines (T255 F32). JSON `router: null`. Units stay `#[cfg_attr(not(windows), allow(dead_code))]` as today. |
 | **F32 — Two-space freeze gone** | T255 §5.2 “two spaces before `last result:`” **retired for Router human** when Status is present (there is no `last result:`). Do not keep a dead two-space lock. |
+| **F33 — Hex rstest (Agy m1)** | AC3 **required red** rstest: `0x41306` / `0X41306` same vec as decimal `267014`; `0x41301` same as `267009`. Live `explain_last_task_result` already parses hex (`nightly.rs` `:960–961`) — Router human mapper must too (F25). Name: `format_router_status_lines__hex_0x41306__same_as_267014`. |
+| **F34 — Whitespace-only Status (Agy m2)** | Helper already `status.map(str::trim).filter(\|s\| !s.is_empty())` (`:195`). AC3: `Some("   ")` + 267014 → `["Router: terminated"]` (same as `None`). Do **not** invent `Ready`. |
 
 ---
 
@@ -159,14 +161,14 @@ Callers (`ledgerful search`): `format_router_status_lines` = helper + `nightly.r
 |----|-------|
 | **AC1** | Unit **required red:** `format_router_status_lines(true, Some("Ready"), Some("267014"))` == `["Router: Ready", "last run: terminated"]`. Joined stdout contains **neither** `267014` **nor** `SCHED_S`. Const `ROUTER_LAST_RUN_TERMINATED` `assert_eq!`. Name: `format_router_status_lines__ready_267014__status_then_terminated_no_numeric`. |
 | **AC2** | Unit **required red:** `format_router_status_lines(true, Some("Running"), Some("267009"))` == `["Router: Running"]`. No `267009`, no `SCHED_S`. **Rewrites** T255 AC6 human half. JSON half of that test still `last_result == "267009"` + existing hint string. Name: `format_router_status_lines__running_267009__status_only_no_numeric`. |
-| **AC3** | Unit: blank Status + `267014` → `["Router: terminated"]`. Blank + `267009` → `["Router: running"]`. Hex `0x41306` same as 267014. **Rewrites** T255 AC15. |
+| **AC3** | Unit **required red:** blank Status + `267014` → `["Router: terminated"]`. Blank + `267009` → `["Router: running"]`. Whitespace-only Status `"   "` + 267014 → same as blank (F34). Hex `0x41306` / `0X41306` same vec as `267014`; `0x41301` same as `267009` (F33). Names: `format_router_status_lines__blank_status_267014__terminated_phrase`; `format_router_status_lines__hex_0x41306__same_as_267014`. **Rewrites** T255 AC15. |
 | **AC4** | Unit: Ready + `0` → `["Router: Ready"]`. Ready + `1` → first `Router: Ready`, follow existing `explain_last_task_result("1")` string. `found == false` still `Router: not scheduled` with no `next:`. |
 | **AC5** | Unit: `router_json_from_input` Ready + 267014 → `last_result == "267014"`, `last_result_hint` still `"task terminated (SCHED_S_TASK_TERMINATED)"`, `scheduled == true`. `FROZEN_KEYS` still present. |
 | **AC6** | Existing T269: `nightly --help` still contains `AI-Brains-Nightly`, `267009` or `SCHED_S_TASK_RUNNING`, `750`, `TCP`, `/health`. **Additive** unit: help contains `267014` **or** `SCHED_S_TASK_TERMINATED`, and names success / not Nightly Last Result. Name: `nightly__help__names_router_267014_success`. |
 | **AC7** | Existing `explain_last_task_result__267014__terminated` and `__267009__running_sched_s` stay green (Nightly decode). |
-| **AC8** | Hermetic `tests/nightly_status.rs` `--quick` human: heading + `probe=skipped` + no T281 contrast. **Additive:** stdout does **not** contain `267014` and does **not** contain `SCHED_S_TASK_TERMINATED`. Exit **0**. JSON `--quick` still `probe == "skipped"`; **do not** assert host `router.last_result` (T255 AC9). |
+| **AC8** | Hermetic `tests/nightly_status.rs` `--quick` human: heading + `probe=skipped` + no T281 contrast. **Additive:** stdout does **not** contain `267014` and does **not** contain `SCHED_S_TASK_TERMINATED`. Exit **0**. JSON `--quick` still `probe == "skipped"`; **do not** assert host `router.last_result` (T255 AC9). Helper lock is **AC1** (unit `format_router_status_lines`); this hermetic is live-`schtasks` contains-not (OpenCode O1 already covered by AC1+AC8 — do not add a third copy). Keep T255 “AC10” / T269 “AC8” **comment numbers** in that file (T281 m-2 analog). |
 | **AC9** | Manual (`cargo run -p ai-brains-cli -- --no-project-context nightly --status --quick`): still `Nightly:` separate from `Router:`. `Last task result: 0` present. Router human **does not** present `267014` (Status `Ready` + `last run: terminated` on this machine today). JSON `--format json --quick` still `router.last_result == "267014"` (pass-with-observed-data if LIST /V still 267014). Exit **0**. **Did not** mutate schtasks. |
-| **AC10** | Docs: CAPABILITIES + OPERATIONS + CHANGELOG T296 + CLI-EXIT-CODES names 267014 as status-success. PROTOCOL-COMPAT no new required keys. |
+| **AC10** | Docs: CAPABILITIES + OPERATIONS + CHANGELOG T296. CLI-EXIT-CODES Nightly-status paragraph names **both** `267009` (`SCHED_S_TASK_RUNNING`) and `267014` (`SCHED_S_TASK_TERMINATED`) as scheduler success → exit **0** (Agy O1). PROTOCOL-COMPAT no new required keys. |
 | **AC11** | No production `unwrap`/`expect`/`panic`; no clap/rusqlite bump; no DTO keys; `NIGHTLY_STATUS_PROBE_TIMEOUT` still 750 ms; `daemon.rs` / `llama_cpp.rs` / `project.rs` / `sync.rs` / `forget.rs` / `doctor.rs` / `explain_last_task_result` absent from the product diff (except `nightly.rs` only if compile forces — then stop). |
 | **AC12** | `--quick` still does not construct `LlamaCppProvider` (T247 F19). |
 | **AC13** | Full gate at closeout: `scripts/dev-check.ps1` (fmt / clippy `-D warnings` / nextest / deny / audit). |
@@ -248,7 +250,9 @@ Those units **are** the red tests. Rewrite in place (same functions, new expecte
 1. `format_router_status_lines__ready_267014__status_then_terminated_no_numeric`
 2. Rewrite `format_router_status_lines__running_267009__router_and_hint_on_following_line` → `__status_only_no_numeric`
 3. Rewrite `format_router_status_lines__blank_status_267009__last_result_only` → running phrase
-4. `nightly__help__names_router_267014_success`
+4. `format_router_status_lines__blank_status_267014__terminated_phrase` (F34 whitespace sibling in same test or rstest)
+5. `format_router_status_lines__hex_0x41306__same_as_267014` (F33)
+6. `nightly__help__names_router_267014_success`
 
 **Then green:** helper body + after_help sentence + docs.
 
@@ -345,4 +349,35 @@ Those units **are** the red tests. Rewrite in place (same functions, new expecte
 
 ## 13. AI fold-in
 
-Empty until `/review-track` + `/fold-in`. Do **not** edit `*-review.md` during fold-in.
+Inputs (not edited): `agy-review.md` (HEAD `c7d6e3e`) + `opencode-review.md` (HEAD `c7d6e3e`). Fold-in on `main` (ahead of `origin/main` `8b95181` T295 `#211`). Live verify: `format_router_status_lines` **`:187–216`** still prints `last result: {code}` + `explain_last_task_result`; already **trims** status **`:195`**; `explain_last_task_result` hex `0x`/`0X` **`:960–961`**; after_help `main.rs` **`:1432–1434`** has 267009 sentence **no 267014** (F7 **does** add a sentence — OpenCode “no help change” is wrong); T269 AC6 **`:952–980`**; hermetic `tests/nightly_status.rs` **`:77–121`**. Hotspot `project.rs` **#1** (**3.897** fold-in; plan 3.906). Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; **no clap 5**). Last merged PR still **#211** (comments/reviews **empty**). **No T301.** Fold-in preflight: Pinned **4119** / in-context **0/0/0** / word **536** (plan 4102/367; OpenCode 4102/428 — volatile). Doctor **4** warn; :8083 **ok**; :8081 **ok** this pass (`gemma-4-E4B-it-Q5_K_M.gguf` — model tag volatile).
+
+### Pins locked by fold-in
+
+1. **F33 / AC3 (Agy m1):** rstest hex `0x41306` / `0X41306` / `0x41301` same vec as decimal.
+2. **F34 / AC3 (Agy m2):** whitespace-only Status `"   "` ≡ blank → `Router: terminated` (live trim `:195`; do not invent `Ready`).
+3. **F19 / AC10 (Agy O1):** CLI-EXIT-CODES names **both** 267009 and 267014 as `SCHED_S_*` success → exit 0.
+4. **F7 / AC6:** after_help **does** add 267014 success sentence (decline OpenCode “no help change”).
+5. **F9:** zero production edits in `nightly.rs` (decline OpenCode listing the print call site as a product change).
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** hex parse in `format_router_status_lines` | **Folded** F33 / AC3 required red |
+| Agy | **m2** blank/whitespace Status must not invent `Ready` | **Already** F2 / F26 / AC3; **tightened** F34 (`:195` trim) |
+| Agy | **O1** CLI-EXIT-CODES both 267009 and 267014 success | **Already** F19 / AC10; **tightened** AC10 SCHED_S names |
+| Agy | **O2** help unit `nightly__help__names_router_267014_success` | **Already** F7 / AC6 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** plan HEAD `8b95181` vs `c7d6e3e` | **Snapshot** — preflight refreshed; not DoD |
+| OpenCode | **m2** word 367→428 | **Snapshot** — fold-in 536 / pin 4119; not DoD |
+| OpenCode | **m3** `daemon status` Stopped is T297 | **Already** F11 |
+| OpenCode | **O1** hermetic/unit lock HRESULT omission | **Already** AC1 (unit helper) + AC8 (hermetic contains-not). OpenCode mixed T255 AC9/AC10/AC14 comment numbers with this track’s ACs. Do **not** add a third copy. |
+| OpenCode | **O2** keep `Ready` state word | **Already** F1 / AC1 `["Router: Ready", "last run: terminated"]` |
+| OpenCode | “What Looks Solid” #5 no help change | **Decline** — F7 / AC6 after_help additive **is** DoD. Today’s after_help has no 267014; that is the hole. |
+| OpenCode | summary lists `nightly.rs` print site as a product change | **Decline** — F9: call site already correct; zero production `nightly.rs` |
+| both | last-PR #211 Cursor | **Affirm F18** — no T301 |
+| both | deferred T297–T300 / T240 F2 / 750 ms / JSON freeze | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.
+
