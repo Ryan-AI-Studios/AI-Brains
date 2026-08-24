@@ -9,10 +9,10 @@
 - **Blocks / feeds:** Doctor `backup_recent` can be **ok** under the **current** key on this machine. T181 drills stay credible. DataKey rotation (T189) still expects a verified recent backup. Nightly Router **T296**. Graph sparse **T300**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “0 usable encrypted backup”; T277 closeout “live 22 residual until owner `backup create --no-prune`”; T225 residual “operator still runs live `backup create`” (T277 skipped); CAPABILITIES §11 green path omitting `--no-prune` / custom `--output-dir` vs doctor sibling dir
 - **Not absorbed (DoD):** T277 F2 engine rewrite; rekey/transcode T244 `.bak`; default keep-10 change; doctor remediator string (T277 F8); growing `doctor.rs`; prune `remaining_count` dry-run honesty (T277 F20); class-aware prune / archive (T244 F18); verify `--quiet` / JSON summary / `VerifyError` (T244 F17); `cipher_integrity_check` (T187); restore / create daemon probe (T188); clap 5 / rusqlite 0.40; T296–T300; T294 leftover `--write`
-- **Research date:** 2026-08-24 (plan dogfood HEAD `56d905a` T294 `#210`. Product `src/` = T277 F2 already in `run_backup_from_conn`. PATH **0.1.2** 2026-08-22 19:41 **has T277**. Live hole is **operator file**, not missing engine.)
-- **AI fold-in:** (none yet — plan pass)
-- **Ledger:** planning DOCS TX `37c18651-f942-4732-afca-31b5e6269134`. Implement starts a **FEATURE** TX on **go**.
-- **Isolation:** Do **not** `cargo install`. Do **not** rewrite `.env` (T240 F2). Do **not** live `backup create` / prune / restore until owner confirms **at go**. Do **not** `retention apply --confirm`. Do **not** mutate schtasks. Do **not** `graph rebuild`. Do **not** leftover `rebind-path --write --yes`. Do **not** grow hotspot `project.rs` (**#1** **3.915**) / `sync.rs` / `governed_common.rs` / `forget.rs` / CLI `preflight.rs` / **`doctor.rs`**. Touch clap `main.rs` Create `after_help` + docs + tests. Reuse T277 engine. Do **not** print or commit `AI_BRAINS_KEY`.
+- **Research date:** 2026-08-24 (plan dogfood HEAD `56d905a` T294 `#210`. Fold-in HEAD `cd9701a`. Product `src/` = T277 F2 already in `run_backup_from_conn`. PATH **0.1.2** 2026-08-22 19:41 **has T277**. Live hole is **operator file**, not missing engine.)
+- **AI fold-in:** 2026-08-24 `agy-review.md` (`cd9701a`) + `opencode-review.md` (`cd9701a`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 AC5 distinct substrings; Agy O1 OPERATIONS list+doctor vs `--output-dir`; Agy O2 / OpenCode O1 AC5 `--dry-run --no-prune` example; OpenCode m2 F12 `help_ia.rs` + `tests/cli_help_ia.rs`; OpenCode O2 F35/F37 no-vault combined streams; OpenCode O3 F38 live N+1 count. **Already:** Agy m2 F14/AC3; OpenCode m3 F19. **Snapshot:** OpenCode m1 HEAD `56d905a`→`cd9701a`; word/pin/hotspot/doctor volatile. **Decline:** none of B/M (none filed). Disposition **§13**.
+- **Ledger:** planning DOCS TX `37c18651-f942-4732-afca-31b5e6269134`. Fold-in DOCS TX `f02074c2-b30c-40f2-9ac4-5c784f960844`. Implement starts a **FEATURE** TX on **go**.
+- **Isolation:** Do **not** `cargo install`. Do **not** rewrite `.env` (T240 F2). Do **not** live `backup create` / prune / restore until owner confirms **at go**. Do **not** `retention apply --confirm`. Do **not** mutate schtasks. Do **not** `graph rebuild`. Do **not** leftover `rebind-path --write --yes`. Do **not** grow hotspot `project.rs` (**#1** **3.906** fold-in) / `sync.rs` / `governed_common.rs` / `forget.rs` / CLI `preflight.rs` / **`doctor.rs`** / `src/help_ia.rs` / `tests/cli_help_ia.rs`. Touch clap `main.rs` Create `after_help` + docs + `backup_recoverable.rs`. Reuse T277 engine. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
 
@@ -130,13 +130,13 @@ Training data is not a pin. Re-verify clap / rusqlite backup API at execute.
 | **F3 — Live flags** | Mutating only with owner confirm at go. Command: `ai-brains --no-project-context backup create --no-prune`. **No** `--keep`. **No** `--output-dir` (doctor only lists vault-parent `backups/`). **No** restore. **No** `backup prune`. Daemon stays Stopped; do not start it for this track. |
 | **F4 — Keep-10 product default** | T126 / T277 F19. `keep.or(Some(10))` **`:4790`** and bare `backup` **`:4815`** unchanged. Live go `--no-prune` so 12 residuals survive. |
 | **F5 — Old ciphertext stays** | Do **not** rekey, transcode, or `sqlcipher_export` the T244 file or other residuals. KeyMismatch / LegacyPlain / Incomplete stay honest. |
-| **F6 — Create `after_help`** | Additive clap `after_help` on `BackupCommands::Create` (`main.rs` **`:3148`**). Frozen themes (exact wording in AC8 / §5.1): residual fleet (unreadable-key / legacy-plain / no-core-tables) is kept only with `--no-prune`; default `--keep 10` deletes older files **by timestamp, not class**; doctor `backup_recent` only sees the vault sibling `backups/` (do not use `--output-dir` if the goal is doctor-ok); after KEY change create a **new** snapshot. Examples include `backup create --dry-run --no-prune` and `backup create --no-prune`. Do **not** restyle List/Verify/Restore/Prune help. |
+| **F6 — Create `after_help`** | Additive clap `after_help` on `BackupCommands::Create` (`main.rs` **`:3148`**). Frozen themes (exact wording in **AC5 / §5.1**): residual fleet (unreadable-key / legacy-plain / no-core-tables) is kept only with `--no-prune`; default `--keep 10` deletes older files **by timestamp, not class**; doctor `backup_recent` only sees the vault sibling `backups/` (do not use `--output-dir` if the goal is doctor-ok); after KEY change create a **new** snapshot. Examples include `backup create --dry-run --no-prune` and `backup create --no-prune`. Do **not** restyle List/Verify/Restore/Prune help. |
 | **F7 — Doctor remediator freeze** | Stay `ai-brains backup create` only (T277 F8 / T244 F4). **Do not grow `doctor.rs`.** Docs + after_help carry `--no-prune`. |
-| **F8 — Docs** | CAPABILITIES §11 green path (`:536`): live remediator includes `--no-prune` when residuals must be kept; doctor-usable means **default sibling `backups/`**, not `--output-dir D:\backups`. OPERATIONS Backup (`:749`) extend (do not add a second Backup heading): this-vault runbook with `--no-project-context`, `--no-prune`, no `--output-dir`, verify ≥1 OK / exit 1 OK, doctor not zero-usable. CHANGELOG T295. Soft RECOVERY-DRILLS one-liner. PROTOCOL-COMPAT **no new JSON row** (F20). |
+| **F8 — Docs** | CAPABILITIES §11 green path (`:536`): live remediator includes `--no-prune` when residuals must be kept; doctor-usable means **default sibling `backups/`**, not `--output-dir D:\backups`. OPERATIONS Backup (`:749`) extend (do not add a second Backup heading): this-vault runbook with `--no-project-context`, `--no-prune`, no `--output-dir`, verify ≥1 OK / exit 1 OK, doctor not zero-usable. **Explicit:** `--output-dir` is a manual export; **`backup list` (default dir) and doctor `backup_recent` only scan the vault sibling `backups/`** (Agy O1). CHANGELOG T295. Soft RECOVERY-DRILLS one-liner. PROTOCOL-COMPAT **no new JSON row** (F20). |
 | **F9 — No restore / no daemon mutate / no mass-delete** | T188 restore stays. Create does **not** gain a daemon probe (T277 F35). No live `backup prune`. No nightly scheduled create. |
 | **F10 — Pins** | No rusqlite 0.40, clap 5, chrono/serde_json/thiserror/tokio/uuid bumps, new crates, DTO keys. Workspace **0.1.2**. |
 | **F11 — Capture independence** | Backup path stays store/crypto/brain/cli. No models/graph **required**. Feature-off still creates via SQLCipher. |
-| **F12 — Hotspots** | **Do not grow** `project.rs` / CLI `preflight.rs` / `sync.rs` / `governed_common.rs` / `forget.rs` / `ranking.rs` / **`doctor.rs`**. Do **not** edit T277 production engine unless a compile forces it (then stop). Clap Create `after_help` in `main.rs`. Tests in `backup_recoverable.rs` (help AC) — do **not** mint a new integration binary unless help test cannot live there. Do **not** grow `cli_help_ia.rs` (T291 decline analog). |
+| **F12 — Hotspots** | **Do not grow** `project.rs` / CLI `preflight.rs` / `sync.rs` / `governed_common.rs` / `forget.rs` / `ranking.rs` / **`doctor.rs`**. Do **not** edit T277 production engine unless a compile forces it (then stop). Clap Create `after_help` in `main.rs`. Tests in `backup_recoverable.rs` (help AC) — do **not** mint a new integration binary unless help test cannot live there. Do **not** grow `crates/ai-brains-cli/src/help_ia.rs` (root `ROOT_AFTER_HELP_TIP` / `ROOT_AFTER_LONG_HELP` at `main.rs:11` / `:1279–1280`). Do **not** grow `crates/ai-brains-cli/tests/cli_help_ia.rs` (T204/T291 extra lock analog — OpenCode m2). |
 | **F13 — Success substring** | Keep `Backup created and verified:` (T277 F22 / smoke). Do not require class token in that line. |
 | **F14 — Verify exit frozen** | Any FAIL → exit **1**. Recoverability success = `ok >= 1`, not exit 0 on a residual fleet. Nudge only when `ok==0 && total>=1` (T225 F9). After live create: nudge **absent**. |
 | **F15 — List sort** | Usable-first stays CLI `run_list` only (T244 F7). After F3 the new Readable is top row. |
@@ -159,8 +159,10 @@ Training data is not a pin. Re-verify clap / rusqlite backup API at execute.
 | **F32 — PowerShell** | `;` not `&&`. |
 | **F33 — Doctor matrix** | Frozen **15** checks. `backup_recent` stays soft. Do not add check 16. |
 | **F34 — No compensating rewrite of `.bak`** | Analog of no `MemoryMoved`. New file only. |
-| **F35 — Help AC isolation** | Help test runs `backup create --help` only (no vault write). Do not require a live vault. |
+| **F35 — Help AC isolation** | Help test runs `backup create --help` only (no vault write). Do not require a live vault. Pattern: `tests/cli_help_ia.rs` `help_stdout` — `hermetic_bin()` + args, **no** `--vault-path`, assert exit **0**. Combined stdout+stderr (OpenCode O2). If clap help does **not** short-circuit without a vault, fallback hermetic init + record in `review.md`; prefer no vault. |
 | **F36 — Bare `ai-brains backup`** | Still default-create keep-10 (`:4815`). after_help lives on `Create` subcommand; bare `backup --help` need not duplicate (optional same after_help only if clap shares it — do **not** invent a new subcommand). |
+| **F37 — Help AC distinct locks (Agy m1 / OpenCode O1)** | AC5 uses **separate** `contains` asserts (not one concatenated haystack that could pass on a single mashed line): (1) `--no-prune`; (2) timestamp-not-class / residual-fleet wording; (3) `backups/` **or** `backup_recent`; (4) the example substring `backup create --dry-run --no-prune`. Combined stdout+stderr. |
+| **F38 — Live residual count (OpenCode O3)** | Phase 0 records **N** = count of `vault-*.db.bak` (plan-time **22**). After live `--no-prune` create: list has **N+1** files; new Readable first. Paste the exact `backup list --quiet` transcript into `review.md`. Do **not** freeze 22 if Phase 0 N drifted. |
 
 ---
 
@@ -172,10 +174,10 @@ Training data is not a pin. Re-verify clap / rusqlite backup API at execute.
 | **AC2** | T277 mixed: `backup_create__key_mismatch_residual__new_readable_and_doctor_ok` still first-row Readable + residual `(unreadable key)` + doctor `backup_recent` Ok | CLI hermetic stay-green |
 | **AC3** | T277 `backup_verify__mixed_ok_and_key_mismatch__one_ok_exit_1_no_nudge` still 1 OK / 1 FAIL / exit 1 / no create nudge | CLI hermetic stay-green |
 | **AC4** | T277 `backup_list__mixed_after_create__residual_summary_not_recoverable` still `not recoverable under current key` | CLI hermetic stay-green |
-| **AC5** | `backup create --help` (hermetic bin) stdout/stderr contains `--no-prune` **and** a residual-fleet / timestamp-not-class sentence **and** default sibling `backups/` / doctor (or `backup_recent`) **and** does **not** require `--output-dir` for doctor-ok | New CLI help test |
+| **AC5** | `backup create --help` (hermetic bin, **no** `--vault-path`, F35) combined stdout+stderr: **separate** asserts (F37) for `--no-prune`, timestamp-not-class / residual-fleet, `backups/` or `backup_recent`, and example `backup create --dry-run --no-prune`. Does **not** require `--output-dir` for doctor-ok. Exit **0**. | New CLI help test |
 | **AC6** | clap Create still `--output-dir` / `--keep` / `--no-prune` / `--dry-run`; dispatch `keep.or(Some(10))` unless `--no-prune`; no new flags | Review + help |
-| **AC7** | CAPABILITIES §11 green path mentions `--no-prune` when residuals must be kept **and** doctor-usable = default sibling `backups/` (not custom `--output-dir`). OPERATIONS Backup this-vault runbook. CHANGELOG T295. | Grep |
-| **AC8** | Live on go (owner confirm): `backup create --no-prune` (no `--output-dir`) → list first row **not** residual token; verify ≥1 OK (exit 1 OK); doctor `backup_recent` not `no usable encrypted backup under current key`; residual count still 22 + 1 new. Record commands/outputs. **Planning pass must not create.** If owner **explicitly skips**: status stays Pending (F2b). | Manual |
+| **AC7** | CAPABILITIES §11 green path mentions `--no-prune` when residuals must be kept **and** doctor-usable = default sibling `backups/` (not custom `--output-dir`). OPERATIONS Backup this-vault runbook **plus** one sentence that `--output-dir` is a manual export and **`backup list` + doctor only scan sibling `backups/`** (Agy O1 / F8). CHANGELOG T295. | Grep |
+| **AC8** | Live on go (owner confirm): `backup create --no-prune` (no `--output-dir`) → list first row **not** residual token; verify ≥1 OK (exit 1 OK; **nudge absent** — F14 / Agy m2); doctor `backup_recent` not `no usable encrypted backup under current key`; file count **N+1** where N is Phase 0 `vault-*.db.bak` count (plan-time 22; F38). Paste list transcript in `review.md`. **Planning pass must not create.** If owner **explicitly skips**: status stays Pending (F2b). | Manual |
 | **AC9** | No production `unwrap`/`expect`/`panic` on touched paths; lockfile clap/rusqlite/chrono/serde_json unchanged; no DTO keys; `doctor.rs` production **untouched** | Review / diff |
 | **AC10** | T188 restore-daemon units stay green; create path still has **no** `probe_restore_daemon_busy` | Grep + nextest |
 | **AC11** | Capture independence: no `ai-brains-models` / graph **required** on backup create | Grep |
@@ -196,7 +198,7 @@ Test names (TDD). **Must fail red before F6 after_help exists:**
 
 ### 5.1 Create `after_help` (F6)
 
-Suggested frozen text (implement may wrap for clap width; AC5 locks substrings `--no-prune`, residual/timestamp, `backups/` or `backup_recent`):
+Suggested frozen text (implement may wrap for clap width; AC5 / F37 lock **separate** substrings `--no-prune`, residual/timestamp, `backups/` or `backup_recent`, and `backup create --dry-run --no-prune`):
 
 ```text
 Default --keep 10 prunes older vault-*.db.bak by timestamp, not class.
@@ -233,7 +235,7 @@ T277 F8 / T244 AI2 L5 freeze the string `ai-brains backup create`. Growing `doct
 
 ### 5.5 Help test
 
-`backup_create_help__after_help__mentions_no_prune_default_dir` in `backup_recoverable.rs`: `hermetic_bin().arg("backup").arg("create").arg("--help")` — no `--vault-path` required if clap help short-circuits (if the binary requires vault for `--help`, use existing hermetic init; prefer no vault). Assert AC5 substrings. Combined stdout+stderr.
+`backup_create_help__after_help__mentions_no_prune_default_dir` in `backup_recoverable.rs`, same shape as `tests/cli_help_ia.rs` `help_stdout`: `hermetic_bin().arg("backup").arg("create").arg("--help")` — **no** `--vault-path` (F35). Combined stdout+stderr. Separate `contains` asserts (F37). Exit **0**. If help fails without a vault, fallback hermetic init + record; prefer no vault. Do **not** add this lock to `tests/cli_help_ia.rs` (F12).
 
 ---
 
@@ -328,11 +330,11 @@ T274–T294 Completed rows stay closed. Do not reopen T277 F2, T240 F2, T255 750
 
 ## 10. Implement order (on go)
 
-1. Phase 0 re-verify `run_backup_from_conn` `:227` `drop(dst)`, clap Create `:3148` still no after_help, dispatch `:4790`, doctor `:370` zero-usable, 22 files, T244 still KeyMismatch, dry-run size, #210 empty, pins, hotspots.
-2. Red: AC5 help test.
-3. Green: F6 after_help; docs F8/AC7. **No** engine edit.
+1. Phase 0 re-verify `run_backup_from_conn` `:227` `drop(dst)`, clap Create `:3148` still no after_help, dispatch `:4790`, doctor `:370` zero-usable, **N** `vault-*.db.bak` (F38), T244 still KeyMismatch, dry-run size, #210 empty, pins, hotspots, `src/help_ia.rs` + `tests/cli_help_ia.rs` still not grown.
+2. Red: AC5 help test (F37 distinct substrings + `--dry-run --no-prune` + no vault).
+3. Green: F6 after_help; docs F8/AC7 (Agy O1 list+doctor vs `--output-dir`). **No** engine edit. **No** `help_ia.rs` / `cli_help_ia.rs` edit.
 4. Stay-green AC1–AC4 / AC12 / AC13.
-5. Live AC8 **only if owner confirmed**; else F2b stay Pending.
+5. Live AC8 **only if owner confirmed** (N+1 + list transcript F38); else F2b stay Pending.
 6. Phase-1 review → `review.md`. Cross-model FEATURE (`codex-review`).
 7. Full gate. Publish implement-track Phase 6 **only if F2a landed** (live file). Never `git push origin main`.
 
@@ -359,7 +361,9 @@ T274–T294 Completed rows stay closed. Do not reopen T277 F2, T240 F2, T255 750
 | Path | Change |
 |------|--------|
 | `crates/ai-brains-cli/src/main.rs` | Create `after_help` only (`:3148`) |
-| `crates/ai-brains-cli/tests/backup_recoverable.rs` | AC5 help test |
+| `crates/ai-brains-cli/tests/backup_recoverable.rs` | AC5 help test (F37) |
+| `crates/ai-brains-cli/src/help_ia.rs` | **Do not edit** (F12) |
+| `crates/ai-brains-cli/tests/cli_help_ia.rs` | **Do not edit** (F12) |
 | `Docs/CAPABILITIES.md` | §11 green path `--no-prune` + default dir |
 | `Docs/OPERATIONS.md` | Backup this-vault runbook (extend `:749`) |
 | `CHANGELOG.md` | T295 |
@@ -376,4 +380,35 @@ T274–T294 Completed rows stay closed. Do not reopen T277 F2, T240 F2, T255 750
 
 ## 13. AI fold-in
 
-(empty — plan pass 2026-08-24)
+Inputs (not edited): `agy-review.md` (HEAD `cd9701a`) + `opencode-review.md` (HEAD `cd9701a`). Fold-in HEAD `cd9701a` on `main` (ahead of `origin/main` `56d905a` T294 `#210`). Live verify: clap Create **`:3148–3164`** no after_help; dispatch `keep.or(Some(10))` **`:4790`**; `drop(dst)` brain `:227`; `should_emit_create_nudge` `verify_report.rs:48` (`ok==0 && total>=1`); `format_create_nudge` `:55`; `run_verify` imports those at CLI `backup.rs:276–279`; `mod help_ia;` `main.rs:11`; `ROOT_AFTER_HELP_TIP` `:1280`; file **`src/help_ia.rs` exists**; **`src/cli_help_ia.rs` does not**; help lock analog is **`tests/cli_help_ia.rs`** `help_stdout` (no `--vault-path`). OPERATIONS `:749` already shows `--no-prune` and `--output-dir` without saying doctor/list ignore custom dir. Hotspot `project.rs` **#1** (**3.906** fold-in; plan 3.915). Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; **no clap 5**). Last merged PR still **#210** (comments/reviews **empty**). **No T301.** Fold-in preflight: Pinned **4101** / in-context **0/0/0** / word **333** (plan 4059/305; OpenCode 4090/947 — volatile). Doctor **4** warn; :8083 **ok**; :8081 **ok** this pass (plan: unreachable at doctor — volatile).
+
+### Pins locked by fold-in
+
+1. **F37 / AC5 (Agy m1 + OpenCode O1):** separate `contains` asserts for `--no-prune`, timestamp-not-class, `backups/` or `backup_recent`, and example `backup create --dry-run --no-prune`.
+2. **F12 (OpenCode m2):** do not grow `src/help_ia.rs` **or** `tests/cli_help_ia.rs`. AC5 lives in `backup_recoverable.rs`.
+3. **F35 / F37 (OpenCode O2):** no `--vault-path`; combined stdout+stderr; `cli_help_ia.rs` `help_stdout` pattern.
+4. **F38 / AC8 (OpenCode O3):** Phase 0 **N**; after create **N+1**; list transcript in `review.md`.
+5. **F8 / AC7 (Agy O1):** OPERATIONS sentence: `--output-dir` is export; list + doctor scan sibling `backups/` only.
+6. **F6 typo:** after_help wording pointer is **AC5 / §5.1**, not AC8.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** AC5 distinct substrings | **Folded** F37 / AC5 |
+| Agy | **m2** verify exit 1 mixed + no nudge when `ok>=1` | **Already** F14 / AC3 (hermetic) / AC8 (live) |
+| Agy | **O1** OPERATIONS `--output-dir` vs doctor/list | **Already** F8; **tightened** F8 / AC7 |
+| Agy | **O2** `--dry-run --no-prune` in after_help examples | **Already** §5.1; **folded** AC5 example lock (F37) |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** plan HEAD `56d905a` vs `cd9701a` | **Snapshot** — preflight refreshed; not DoD |
+| OpenCode | **m2** F12 `cli_help_ia.rs` vs `help_ia.rs` | **Folded** F12 — both `src/help_ia.rs` and `tests/cli_help_ia.rs` |
+| OpenCode | **m3** T277 F20 remaining_count excluded consistently | **Already** F19 / plan Declined |
+| OpenCode | **O1** AC5 assert `--dry-run --no-prune` example | **Folded** F37 / AC5 (same as Agy O2) |
+| OpenCode | **O2** combined streams + clap help no-vault | **Already** §5.5; **tightened** F35 / F37 |
+| OpenCode | **O3** AC8 exact 22+1 | **Folded** F38 — N from Phase 0, not a frozen 22 |
+| OpenCode | word 305→947 / pin 4059→4090 | **Snapshot only** — fold-in 333 / 4101; not DoD |
+| both | last-PR #210 Cursor | **Affirm F25** — no T301 |
+| both | deferred T296–T300 / T277 F2 / T277 F8 / T240 F2 | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.

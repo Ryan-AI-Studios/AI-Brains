@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Planned** 2026-08-24.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Planned + folded** 2026-08-24.
 
 | Item | Track |
 |------|-------|
@@ -34,6 +34,23 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
 | last-PR Cursor **#210** | **N/A empty** — **no T301** F25 |
 | Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** — T258 / leftover data |
+
+### T295 fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 AC5 distinct substrings | **Folded** F37 / AC5 |
+| Agy m2 verify exit 1 mixed + no nudge | **Already** F14 / AC3 / AC8 |
+| Agy O1 OPERATIONS `--output-dir` vs list/doctor | **Already** F8; **tightened** AC7 |
+| Agy O2 `--dry-run --no-prune` in after_help | **Already** §5.1; **folded** AC5 example (F37) |
+| OpenCode m1 plan HEAD `56d905a` vs `cd9701a` | **Snapshot** — preflight refreshed |
+| OpenCode m2 F12 `cli_help_ia.rs` vs `help_ia.rs` | **Folded** F12 — both `src/help_ia.rs` and `tests/cli_help_ia.rs` |
+| OpenCode m3 T277 F20 remaining_count consistent | **Already** F19 |
+| OpenCode O1 AC5 `--dry-run --no-prune` example | **Folded** F37 / AC5 |
+| OpenCode O2 combined streams + no-vault help | **Already** §5.5; **tightened** F35 / F37 |
+| OpenCode O3 AC8 exact 22+1 | **Folded** F38 — Phase 0 N, after N+1 |
+| last-PR #210 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
 
 ### T294 closeout residuals (2026-08-24)
 
