@@ -118,6 +118,15 @@ fn nightly_status__default_format__human_header_even_if_piped() {
         !stdout.contains("daemon TCP"),
         "T281 AC7: --quick must not print daemon TCP contrast; got: {stdout}"
     );
+    // T296 AC8 (additive; keep T255 AC10 / T269 AC8 comment numbers): human omits Router HRESULT.
+    assert!(
+        !stdout.contains("267014"),
+        "T296 AC8: human --quick must not contain 267014; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("SCHED_S_TASK_TERMINATED"),
+        "T296 AC8: human --quick must not contain SCHED_S_TASK_TERMINATED; got: {stdout}"
+    );
 }
 
 /// AC14: `--format json --quick` skips probes (`probe` is the string `skipped`).

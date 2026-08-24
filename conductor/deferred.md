@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Planned** 2026-08-24.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24.
 
 | Item | Track |
 |------|-------|
@@ -64,6 +64,19 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode O3 AC8 exact 22+1 | **Folded** F38 — Phase 0 N, after N+1 |
 | last-PR #210 Cursor | **Affirm N/A** — no T301 |
 | No B/M | Nothing to decline of B/M |
+
+### T296 implement closeout (2026-08-24)
+
+| Item | Disposition |
+|------|-------------|
+| Human Ready+267014 → `Router: Ready` + `last run: terminated` | **Done** F1/F2 / AC1 / AC9 |
+| Running+267009 status-only; blank terminated/running; hex + whitespace | **Done** F3/F33/F34 / AC2/AC3 |
+| JSON `last_result` / hint frozen; `explain_last_task_result` untouched | **Affirm** F5/F6 / AC5/AC7 |
+| after_help 267014 success; CLI-EXIT-CODES both SCHED_S | **Done** F7/F19 / AC6/AC10 |
+| CAPABILITIES / OPERATIONS / CHANGELOG | **Done** AC10 |
+| Full gate `dev-check.ps1` | **Done** AC13 |
+| T297–T300 / leftover `--write` / 750 raise / doctor 16th | **Not stolen** |
+| PATH until `cargo install` | **Residual** F13 |
 
 ### T296 planning absorption (2026-08-24) — human Router omits 267014 HRESULT; JSON frozen
 
@@ -237,7 +250,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | graph neighbors dump sessions | **T293** |
 | leftover dest-missing; context skip vault upsert | **T294** |
 | 0 usable encrypted backup | **T295** |
-| nightly Router 267014 / TASK_TERMINATED | **T296 Planned** |
+| nightly Router 267014 / TASK_TERMINATED | **T296 Completed** |
 | daemon Stopped vs llama Open | **T297** |
 | device/replicate U=5 | **T298** |
 | forget-list empty U=6 | **T299** |

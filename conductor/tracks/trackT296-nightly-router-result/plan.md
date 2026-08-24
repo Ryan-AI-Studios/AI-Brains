@@ -1,6 +1,6 @@
 # T296 Plan — Nightly Router last-result honesty
 
-**Status:** **Pending** (Planned + folded; F0 until **go**). Full F-list in spec.md.
+**Status:** **Completed** (BUGFIX TX `388b9f76-dd66-4978-9a8e-3964d4fb372a`). Full F-list in spec.md.
 **Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `3b6532dc-54eb-4313-bdf8-477f4348a694` (DOCS)
@@ -50,30 +50,30 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
-- [ ] Re-read `format_router_status_lines` `nightly_status.rs` **`:187–216`** — this is the DoD edit; confirm trim `:195` (F34) and that helper still has no hex parse (F33 is new)
-- [ ] Re-read `explain_last_task_result` `nightly.rs` **`:958–973`** — **do not edit** (F6)
-- [ ] Re-read JSON `router_json_from_input` **`:218–230`** — hints stay `explain_last_task_result` (F5)
-- [ ] Re-read `FROZEN_KEYS` **`:289–308`** — **do not add**
-- [ ] Re-read after_help `main.rs` **`:1432–1434`** + T269 AC6 **`:952–980`** — additive 267014 only (F7)
-- [ ] Re-read `NIGHTLY_STATUS_PROBE_TIMEOUT` — **do not edit** (F8)
-- [ ] Confirm hermetic `--quick` `tests/nightly_status.rs` **`:77`**
-- [ ] Rescan `conductor/deferred.md` — T296 absorbed; T297–T300 / T240 F2 / 750 ms not stolen
-- [ ] Confirm `#211` still empty Cursor; no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `nightly --status --quick` **read-only**. Record live Router status + last_result (plan-time Ready / 267014). **Did not** mutate schtasks
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0** — **no bump**
-- [ ] BUGFIX TX (new)
-- [ ] Did **not** `cargo install`; did **not** grow `project.rs` / `doctor.rs` / `daemon.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
+- [x] Re-read `format_router_status_lines` `nightly_status.rs` **`:187–216`** — this is the DoD edit; confirm trim `:195` (F34) and that helper still has no hex parse (F33 is new)
+- [x] Re-read `explain_last_task_result` `nightly.rs` **`:958–973`** — **do not edit** (F6)
+- [x] Re-read JSON `router_json_from_input` **`:218–230`** — hints stay `explain_last_task_result` (F5)
+- [x] Re-read `FROZEN_KEYS` **`:289–308`** — **do not add**
+- [x] Re-read after_help `main.rs` **`:1432–1434`** + T269 AC6 **`:952–980`** — additive 267014 only (F7)
+- [x] Re-read `NIGHTLY_STATUS_PROBE_TIMEOUT` — **do not edit** (F8)
+- [x] Confirm hermetic `--quick` `tests/nightly_status.rs` **`:77`**
+- [x] Rescan `conductor/deferred.md` — T296 absorbed; T297–T300 / T240 F2 / 750 ms not stolen
+- [x] Confirm `#211` still empty Cursor; no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `nightly --status --quick` **read-only**. Record live Router status + last_result (plan-time Ready / 267014). **Did not** mutate schtasks
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0** — **no bump**
+- [x] BUGFIX TX (new) `388b9f76-dd66-4978-9a8e-3964d4fb372a`
+- [x] Did **not** `cargo install`; did **not** grow `project.rs` / `doctor.rs` / `daemon.rs`
 
 ---
 
 ## Absorbed deferred
 
-- [ ] Audit Router 267014 / TASK_TERMINATED → F1–F7 / AC1–AC3 / AC9
-- [ ] Placeholder Manual `nightly --status --quick` → AC9
-- [ ] T255 AC6/AC15 human numeric → rewrite AC2 / AC3
-- [ ] last-PR #211 Cursor N/A → F18 no T301
+- [x] Audit Router 267014 / TASK_TERMINATED → F1–F7 / AC1–AC3 / AC9
+- [x] Placeholder Manual `nightly --status --quick` → AC9
+- [x] T255 AC6/AC15 human numeric → rewrite AC2 / AC3
+- [x] last-PR #211 Cursor N/A → F18 no T301
 
 ---
 
@@ -93,53 +93,53 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 1 — TDD red
 
-- [ ] `format_router_status_lines__ready_267014__status_then_terminated_no_numeric` fails
-- [ ] Rewrite Running+267009 unit → status-only (fails)
-- [ ] Rewrite blank-status 267009 unit → `Router: running` (fails)
-- [ ] `format_router_status_lines__blank_status_267014__terminated_phrase` + whitespace `"   "` (F34) fails
-- [ ] `format_router_status_lines__hex_0x41306__same_as_267014` (F33) fails
-- [ ] `nightly__help__names_router_267014_success` fails
-- [ ] Red commit allowed
+- [x] `format_router_status_lines__ready_267014__status_then_terminated_no_numeric` fails
+- [x] Rewrite Running+267009 unit → status-only (fails)
+- [x] Rewrite blank-status 267009 unit → `Router: running` (fails)
+- [x] `format_router_status_lines__blank_status_267014__terminated_phrase` + whitespace `"   "` (F34) fails
+- [x] `format_router_status_lines__hex_0x41306__same_as_267014` (F33) fails
+- [x] `nightly__help__names_router_267014_success` fails
+- [x] Red commit allowed
 
 ---
 
 ## Phase 2 — green
 
-- [ ] Const `ROUTER_LAST_RUN_TERMINATED` + helper body (F1–F4)
-- [ ] JSON units still raw `"267014"` / `"267009"` + existing hints
-- [ ] after_help additive sentence; T269 AC6 stay-green
-- [ ] Hermetic AC8: human `--quick` has no `267014` / no `SCHED_S_TASK_TERMINATED`
-- [ ] Green commit allowed
+- [x] Const `ROUTER_LAST_RUN_TERMINATED` + helper body (F1–F4)
+- [x] JSON units still raw `"267014"` / `"267009"` + existing hints
+- [x] after_help additive sentence; T269 AC6 stay-green
+- [x] Hermetic AC8: human `--quick` has no `267014` / no `SCHED_S_TASK_TERMINATED`
+- [x] Green commit allowed
 
 ---
 
 ## Phase 3 — docs
 
-- [ ] `Docs/CAPABILITIES.md` T269/T281 bullet
-- [ ] `Docs/OPERATIONS.md` Router bullet
-- [ ] `Docs/CLI-EXIT-CODES.md` 267014 next to 267009
-- [ ] `CHANGELOG.md` T296 Unreleased
-- [ ] PROTOCOL-COMPAT untouched
+- [x] `Docs/CAPABILITIES.md` T269/T281 bullet
+- [x] `Docs/OPERATIONS.md` Router bullet
+- [x] `Docs/CLI-EXIT-CODES.md` 267014 next to 267009
+- [x] `CHANGELOG.md` T296 Unreleased
+- [x] PROTOCOL-COMPAT untouched
 
 ---
 
 ## Phase 4 — verify
 
-- [ ] Targeted: `cargo nextest run -p ai-brains-cli -- nightly_status nightly__help format_router explain_last_task`
-- [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Manual AC9 (`cargo run`, `--no-project-context`, `--status --quick` + json). Record transcript in `review.md`. **No** schtasks mutate
-- [ ] `scripts/dev-check.ps1`
-- [ ] Phase-1 review → `review.md`
-- [ ] `codex-review` (F22) → `review.codex.md`
+- [x] Targeted: `cargo nextest run -p ai-brains-cli -- nightly_status nightly__help format_router explain_last_task`
+- [x] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
+- [x] Manual AC9 (`cargo run`, `--no-project-context`, `--status --quick` + json). Record transcript in `review.md`. **No** schtasks mutate
+- [x] `scripts/dev-check.ps1`
+- [x] Phase-1 review → `review.md`
+- [x] `codex-review` (F22) → `review.codex.md`
 
 ---
 
 ## Phase 5 — closeout
 
-- [ ] conductor T296 **Completed**
-- [ ] deferred.md T296 closeout table
-- [ ] README-T285-T300 T296 Completed
-- [ ] `ai-brains pin` DECISION (human omits 267014; JSON frozen)
+- [x] conductor T296 **Completed**
+- [x] deferred.md T296 closeout table
+- [x] README-T285-T300 T296 Completed
+- [x] `ai-brains pin` DECISION (human omits 267014; JSON frozen) — `1ec245ad-9b85-47f5-8fcc-e4d5dacc19df`
 - [ ] BUGFIX TX commit
 - [ ] 0 pending / 0 drift
 
@@ -157,17 +157,17 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## DoD (checkable)
 
-- [ ] AC1 Ready+267014 → `Router: Ready` + `last run: terminated`; no numeric; no SCHED_S
-- [ ] AC2 Running+267009 → `Router: Running` only
-- [ ] AC3 hex `0x41306` (F33) + whitespace Status (F34)
-- [ ] AC5 JSON still `"267014"` + existing hint
-- [ ] AC6 after_help 267014 success; T269 needles stay
-- [ ] AC7 `explain_last_task_result` units green
-- [ ] AC8 hermetic `--quick` heading + no 267014 on human
-- [ ] AC9 live Manual: Nightly `Last task result: 0` still present; Router human not `267014`
-- [ ] AC11 engine/doctor/daemon/`explain_last_task_result` untouched
-- [ ] AC13 full gate green
-- [ ] F0 was respected (no product commits as planning)
+- [x] AC1 Ready+267014 → `Router: Ready` + `last run: terminated`; no numeric; no SCHED_S
+- [x] AC2 Running+267009 → `Router: Running` only
+- [x] AC3 hex `0x41306` (F33) + whitespace Status (F34)
+- [x] AC5 JSON still `"267014"` + existing hint
+- [x] AC6 after_help 267014 success; T269 needles stay
+- [x] AC7 `explain_last_task_result` units green
+- [x] AC8 hermetic `--quick` heading + no 267014 on human
+- [x] AC9 live Manual: Nightly `Last task result: 0` still present; Router human not `267014`
+- [x] AC11 engine/doctor/daemon/`explain_last_task_result` untouched
+- [x] AC13 full gate green
+- [x] F0 was respected (no product commits as planning)
 
 ---
 
