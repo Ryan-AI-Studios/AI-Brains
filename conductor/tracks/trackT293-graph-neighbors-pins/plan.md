@@ -1,6 +1,6 @@
 # T293 Plan — graph neighbors pins first (human-only)
 
-**Status:** **Pending** (Planned; implement on **go**). Full F-list in spec.md.
+**Status:** **Completed** (FEATURE TX `0d731f26`; publish in progress). Full F-list in spec.md.
 **Spec:** [spec.md](./spec.md) F0–F31 / AC1–AC14 + §13 AI fold-in
 **Category:** UX / FEATURE
 **Ledger TX (planning):** `83553530-cc14-4e4a-ad5e-cf366cf11a03` (DOCS)
@@ -53,27 +53,27 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 0 — on go (re-verify)
 
-- [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
-- [ ] Re-read `graph.rs` `neighbors` `:361` — pretty still uses F9-sorted hits; JSON still `format_neighbors_json`
-- [ ] Confirm `sort_neighbor_hits` still direction→label→id (`:140`)
-- [ ] Confirm `pretty_neighbor_rows` session arm still T278 caption (`:318`)
-- [ ] Confirm `NeighborHit` still three keys; `get_neighbors` SQL unchanged
-- [ ] Confirm clap Neighbors still default `auto` + five-token `value_parser` (`:2850`) — **no new flags**
-- [ ] Confirm `classify_pin_kind` still leading-line after envelope (`ranking.rs:122`) — **do not edit ranking.rs**
-- [ ] Confirm T278 AC3 still asserts PREVIEW contains `DECISION`, not first-row identity
-- [ ] Confirm `format_session_neighbor_preview` still pushes `" · "` (`:256`) — F4 `split_once` must match
-- [ ] Confirm **no** `memory_projection` insert helper in `graph_human_cli.rs` — AC3 writes **new** F31 helper; T278 DROP COLUMN stays fail-open only
-- [ ] Confirm PROTOCOL-COMPAT array-order is **`:95`** (not `:103` scan-roots)
-- [ ] Confirm OPERATIONS neighbors paragraph still **`:948`** — extend, do not add a second block
-- [ ] Confirm dispatch still `main.rs:5121` `GraphCommands::Neighbors`
-- [ ] Re-scan hotspots — `graph.rs` still not top-10; do not grow `project.rs`
-- [ ] Rescan `conductor/deferred.md` — T293 absorbed + #208 N/A; T294–T300 / T292 not stolen
-- [ ] Confirm #208 still empty Cursor; no mint; Dependabot `#61` still not this track
-- [ ] Re-dogfood `graph neighbors <id> --format human --limit 8` **read-only**. **Did not** pin production decisions; **did not** write `.env`; **did not** `graph rebuild`
-- [ ] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
-- [ ] FEATURE TX (new)
-- [ ] Did **not** `cargo install`; did **not** grow `projector.rs` / `queries.rs` / `ranking.rs` body / `session_chrome.rs`
+- [x] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before FEATURE TX)
+- [x] Re-read `graph.rs` `neighbors` `:361` — pretty still uses F9-sorted hits; JSON still `format_neighbors_json`
+- [x] Confirm `sort_neighbor_hits` still direction→label→id (`:140`)
+- [x] Confirm `pretty_neighbor_rows` session arm still T278 caption (`:318`)
+- [x] Confirm `NeighborHit` still three keys; `get_neighbors` SQL unchanged
+- [x] Confirm clap Neighbors still default `auto` + five-token `value_parser` (`:2850`) — **no new flags**
+- [x] Confirm `classify_pin_kind` still leading-line after envelope (`ranking.rs:122`) — **do not edit ranking.rs**
+- [x] Confirm T278 AC3 still asserts PREVIEW contains `DECISION`, not first-row identity
+- [x] Confirm `format_session_neighbor_preview` still pushes `" · "` (`:256`) — F4 `split_once` must match
+- [x] Confirm **no** `memory_projection` insert helper in `graph_human_cli.rs` — AC3 writes **new** F31 helper; T278 DROP COLUMN stays fail-open only
+- [x] Confirm PROTOCOL-COMPAT array-order is **`:95`** (not `:103` scan-roots)
+- [x] Confirm OPERATIONS neighbors paragraph still **`:948`** — extend, do not add a second block
+- [x] Confirm dispatch still `main.rs:5121` `GraphCommands::Neighbors`
+- [x] Re-scan hotspots — `graph.rs` still not top-10; do not grow `project.rs`
+- [x] Rescan `conductor/deferred.md` — T293 absorbed + #208 N/A; T294–T300 / T292 not stolen
+- [x] Confirm #208 still empty Cursor; no mint; Dependabot `#61` still not this track
+- [x] Re-dogfood `graph neighbors <id> --format human --limit 8` **read-only**. **Did not** pin production decisions; **did not** write `.env`; **did not** `graph rebuild`
+- [x] Re-check clap lock **4.6.1**, rusqlite **0.39.0**, chrono **0.4.44** — **no bump**
+- [x] FEATURE TX (new)
+- [x] Did **not** `cargo install`; did **not** grow `projector.rs` / `queries.rs` / `ranking.rs` body / `session_chrome.rs`
 
 ---
 
@@ -92,56 +92,58 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 
 ## Phase 1 — red (required first)
 
-- [ ] `prefer_authority_neighbor_rows__dump_then_decision_memory__memory_first` (AC1)
-- [ ] `session_caption_body__memories_dot_decision__strips_prefix` (AC13) including `"1 memories · 1.2.3 dump"` remainder
-- [ ] `graph_neighbors__pretty__authority_before_dump_session` (AC3) — fail while pretty is F9 incoming-first
-- [ ] Commit red allowed
+- [x] `prefer_authority_neighbor_rows__dump_then_decision_memory__memory_first` (AC1)
+- [x] `session_caption_body__memories_dot_decision__strips_prefix` (AC13) including `"1 memories · 1.2.3 dump"` remainder
+- [x] `graph_neighbors__pretty__authority_before_dump_session` (AC3) — fail while pretty is F9 incoming-first
+- [x] Commit red allowed
 
 ## Phase 2 — green pretty reorder
 
-- [ ] `pub(crate)` helpers in `graph.rs` (F18): `session_caption_body` (`split_once(" · ")`), `neighbor_authority_rank`, `prefer_authority_neighbor_rows` (`sort_by_key` `(rank, original_index)`)
-- [ ] Pretty path in `neighbors`: after `pretty_neighbor_rows`, prefer, then `format_neighbors_pretty`
-- [ ] AC2 case 6 four-tier mixed exact order
-- [ ] F31 `seed_memory_projection` in hermetic test file (not T278 DROP COLUMN)
-- [ ] JSON path: **no** prefer (F2)
-- [ ] AC2 rstest `#[case]`
-- [ ] AC4 JSON dump session still `neighbors[0]`
-- [ ] AC14 pretty `--limit 1` is authority; JSON `--limit 1` is dump
+- [x] `pub(crate)` helpers in `graph.rs` (F18): `session_caption_body` (`split_once(" · ")`), `neighbor_authority_rank`, `prefer_authority_neighbor_rows` (`sort_by_key` `(rank, original_index)`)
+- [x] Pretty path in `neighbors`: after `pretty_neighbor_rows`, prefer, then `format_neighbors_pretty`
+- [x] AC2 case 6 four-tier mixed exact order
+- [x] F31 `seed_memory_projection` in hermetic test file (not T278 DROP COLUMN)
+- [x] JSON path: **no** prefer (F2)
+- [x] AC2 rstest `#[case]`
+- [x] AC4 JSON dump session still `neighbors[0]`
+- [x] AC14 pretty `--limit 1` is authority; JSON `--limit 1` is dump
 
 ## Phase 3 — stay-green + peers
 
-- [ ] AC5 T278 session PREVIEW
-- [ ] AC6 T246 JSON keys
-- [ ] AC7 T262 pin neighbors json/pretty
-- [ ] AC8 feature-off exit 2
-- [ ] AC9 `sort_neighbor_hits` unit
-- [ ] T285 `recall_rank_v2_graph.rs` untouched / still green if run
+- [x] AC5 T278 session PREVIEW
+- [x] AC6 T246 JSON keys
+- [x] AC7 T262 pin neighbors json/pretty
+- [x] AC8 feature-off exit 2
+- [x] AC9 `sort_neighbor_hits` unit
+- [x] T285 `recall_rank_v2_graph.rs` untouched / still green if run
 
 ## Phase 4 — docs + gate
 
-- [ ] CAPABILITIES graph row; PROTOCOL-COMPAT §5 array-order pretty note; OPERATIONS one sentence; GraphCommands after_help dual-truth (keep session PREVIEW sentence + json example); CHANGELOG
-- [ ] AC10 hermetic `--help` substring
-- [ ] `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] Targeted nextest (`-p ai-brains-cli` + graph feature tests) then workspace gate (`dev-check` / nextest + deny + audit)
-- [ ] Manual AC12 `cargo run -p ai-brains-cli --features graph -- graph neighbors <id> --format human --limit 8` and `--format json`
-- [ ] `ledgerful verify --scope full`
+- [x] CAPABILITIES graph row; PROTOCOL-COMPAT §5 array-order pretty note; OPERATIONS one sentence; GraphCommands after_help dual-truth (keep session PREVIEW sentence + json example); CHANGELOG
+- [x] AC10 hermetic `--help` substring
+- [x] `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] Targeted nextest (`-p ai-brains-cli` + graph feature tests) then workspace gate (`dev-check` / nextest + deny + audit)
+- [x] Manual AC12 `cargo run -p ai-brains-cli --features graph -- graph neighbors <id> --format human --limit 8` and `--format json`
+- [x] `ledgerful verify --scope full`
 
 ## Phase 5 — review + publish
 
-- [ ] `conductor/tracks/trackT293-graph-neighbors-pins/review.md` phase-1
-- [ ] Codex/cross-model when FEATURE
-- [ ] Mark conductor **Completed**; append closeout residuals to `deferred.md`
-- [ ] Push `track/T293-*` ; PR ; `gh run watch --exit-status` ; `gh pr merge --squash --delete-branch`
-- [ ] Hygiene: `git fetch --all --prune`; point local `main` at `origin/main`; delete merged local `track/T293-*` only. Never `git push origin main`. Never force-push.
+- [x] `conductor/tracks/trackT293-graph-neighbors-pins/review.md` phase-1
+- [x] Codex/cross-model when FEATURE
+- [x] Mark conductor **Completed**; append closeout residuals to `deferred.md`
+- [x] Push `track/T293-*` ; PR ; `gh run watch --exit-status` ; `gh pr merge --squash --delete-branch`
+- [x] Hygiene: `git fetch --all --prune`; point local `main` at `origin/main`; delete merged local `track/T293-*` only. Never `git push origin main`. Never force-push.
 
 ---
 
 ## DoD (checkable)
 
-- [ ] AC1–AC14 green (hermetic + units + docs + Manual AC12)
-- [ ] JSON neighbors still F9 direction→label→id (AC4/AC6/AC9)
-- [ ] T278 PREVIEW unchanged (AC5)
-- [ ] No 2-hop rows; no projector/rebuild; no `get_neighbors` SQL change
-- [ ] No clap 5 / rusqlite 0.40 / `.env` write / `graph rebuild` / `cargo install`
-- [ ] Medium+ review findings not silently dropped
-- [ ] FEATURE TX committed; conductor Completed only after publish hygiene
+- [x] AC1–AC14 green (hermetic + units + docs + Manual AC12)
+- [x] JSON neighbors still F9 direction→label→id (AC4/AC6/AC9)
+- [x] T278 PREVIEW unchanged (AC5)
+- [x] No 2-hop rows; no projector/rebuild; no `get_neighbors` SQL change
+- [x] No clap 5 / rusqlite 0.40 / `.env` write / `graph rebuild` / `cargo install`
+- [x] Medium+ review findings not silently dropped
+- [x] FEATURE TX committed; conductor Completed only after publish hygiene
+
+

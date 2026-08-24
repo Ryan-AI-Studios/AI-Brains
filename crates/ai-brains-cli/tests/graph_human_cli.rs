@@ -701,3 +701,214 @@ fn graph_neighbors__json_limit_and_sort__unlimited_unless_flag() {
         2
     );
 }
+
+#[cfg(feature = "graph")]
+fn seed_memory_projection(
+    vault: &Path,
+    memory_id: &str,
+    session_id: &str,
+    project_id: &str,
+    content: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = open_zero_vault(vault)?;
+    let guard = conn.lock()?;
+    guard.execute(
+        "INSERT INTO memory_projection (memory_id, session_id, project_id, content, privacy, status, level, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        rusqlite::params![
+            memory_id,
+            session_id,
+            project_id,
+            content,
+            "\"LocalOnly\"",
+            "Active",
+            0,
+            "2026-08-23T00:00:00Z",
+            "2026-08-23T00:00:00Z",
+        ],
+    )?;
+    Ok(())
+}
+
+#[cfg(feature = "graph")]
+fn authority_dump_fixture(vault: &Path) -> String {
+    const PROJECT_ID: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    const SESSION_ID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    const DUMP_SESSION: &str = "00000000-0000-4000-8000-000000000001";
+    const DUMP_MEMORY: &str = "00000000-0000-4000-8000-000000000002";
+    const NEEDLE: &str = "T293-authority-before-dump";
+
+    init_vault(vault);
+    let pin = common::hermetic_cmd_with_ids(vault, PROJECT_ID, SESSION_ID)
+        .arg("pin")
+        .arg(format!("DECISION: {NEEDLE}"))
+        .output()
+        .expect("pin");
+    assert!(
+        pin.status.success(),
+        "pin failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&pin.stdout),
+        String::from_utf8_lossy(&pin.stderr)
+    );
+    let memory_id = parse_pin_id(&String::from_utf8_lossy(&pin.stdout));
+
+    seed_node(vault, "session", DUMP_SESSION).expect("dump session node");
+    seed_node(vault, "memory", DUMP_MEMORY).expect("dump memory node");
+    seed_memory_projection(
+        vault,
+        DUMP_MEMORY,
+        DUMP_SESSION,
+        PROJECT_ID,
+        "## Objective\nTrack dump soup.",
+    )
+    .expect("dump memory projection");
+    seed_edge(vault, DUMP_SESSION, "RECALLS", DUMP_MEMORY).expect("dump session recalls dump mem");
+    seed_edge(vault, DUMP_SESSION, "RECALLS", &memory_id).expect("dump session recalls pin");
+    memory_id
+}
+
+/// T293 AC3: pretty first data row is authority, not dump UUID / Objective.
+#[cfg(feature = "graph")]
+#[test]
+fn graph_neighbors__pretty__authority_before_dump_session() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    let memory_id = authority_dump_fixture(&vault);
+    const DUMP_SESSION: &str = "00000000-0000-4000-8000-000000000001";
+
+    let pretty = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg(&memory_id)
+        .arg("--format")
+        .arg("pretty")
+        .arg("--limit")
+        .arg("8")
+        .output()
+        .expect("neighbors pretty");
+    assert_eq!(
+        pretty.status.code(),
+        Some(0),
+        "pretty exit; stderr={}",
+        String::from_utf8_lossy(&pretty.stderr)
+    );
+    let out = String::from_utf8_lossy(&pretty.stdout);
+    let data: Vec<&str> = out
+        .lines()
+        .filter(|l| l.starts_with("in ") || l.starts_with("out"))
+        .collect();
+    assert!(
+        !data.is_empty(),
+        "expected at least one data row; got: {out}"
+    );
+    let first = data[0];
+    assert!(
+        first.contains("DECISION") || first.contains("T293-authority-before-dump"),
+        "AC3 first data row must be authority; got: {first}"
+    );
+    assert!(
+        !first.contains("## Objective") && !first.contains("# Review of Track"),
+        "AC3 first data row must not be dump chrome; got: {first}"
+    );
+    assert!(
+        !first.contains(DUMP_SESSION),
+        "AC3 first data row must not be dump UUID; got: {first}"
+    );
+    assert!(
+        data.iter().any(|l| l.contains(DUMP_SESSION)),
+        "AC3 dump session must still appear later; got: {out}"
+    );
+}
+
+/// T293 AC4: JSON neighbors[0] stays dump UUID; keys frozen.
+#[cfg(feature = "graph")]
+#[test]
+fn graph_neighbors__json__dump_session_still_first() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    let memory_id = authority_dump_fixture(&vault);
+    const DUMP_SESSION: &str = "00000000-0000-4000-8000-000000000001";
+
+    let json = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg(&memory_id)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("neighbors json");
+    assert_eq!(
+        json.status.code(),
+        Some(0),
+        "json exit; stderr={}",
+        String::from_utf8_lossy(&json.stderr)
+    );
+    let parsed: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&json.stdout).trim()).expect("json");
+    assert_eq!(
+        object_keys(&parsed),
+        BTreeSet::from(["memory_id".into(), "neighbors".into()])
+    );
+    let neighbors = parsed["neighbors"].as_array().expect("neighbors");
+    assert!(!neighbors.is_empty());
+    assert_eq!(neighbors[0]["external_id"], DUMP_SESSION);
+    assert_eq!(
+        object_keys(&neighbors[0]),
+        BTreeSet::from(["external_id".into(), "label".into(), "direction".into()])
+    );
+}
+
+/// T293 AC14: pretty --limit 1 is authority; JSON --limit 1 is dump.
+#[cfg(feature = "graph")]
+#[test]
+fn graph_neighbors__limit_1__pretty_authority_json_dump() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    let memory_id = authority_dump_fixture(&vault);
+    const DUMP_SESSION: &str = "00000000-0000-4000-8000-000000000001";
+
+    let pretty = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg(&memory_id)
+        .arg("--format")
+        .arg("pretty")
+        .arg("--limit")
+        .arg("1")
+        .output()
+        .expect("pretty limit 1");
+    assert_eq!(pretty.status.code(), Some(0));
+    let out = String::from_utf8_lossy(&pretty.stdout);
+    let data: Vec<&str> = out
+        .lines()
+        .filter(|l| l.starts_with("in ") || l.starts_with("out"))
+        .collect();
+    assert_eq!(data.len(), 1, "pretty --limit 1 one data row; got: {out}");
+    assert!(
+        data[0].contains("DECISION") || data[0].contains("T293-authority-before-dump"),
+        "pretty --limit 1 must be authority; got: {}",
+        data[0]
+    );
+    assert!(!data[0].contains(DUMP_SESSION));
+    assert!(
+        out.contains("… and") || out.contains("and 1 more") || out.contains("more"),
+        "pretty --limit 1 should note more rows when total > 1; got: {out}"
+    );
+
+    let json = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg(&memory_id)
+        .arg("--format")
+        .arg("json")
+        .arg("--limit")
+        .arg("1")
+        .output()
+        .expect("json limit 1");
+    assert_eq!(json.status.code(), Some(0));
+    let parsed: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&json.stdout).trim()).expect("json");
+    let neighbors = parsed["neighbors"].as_array().expect("neighbors");
+    assert_eq!(neighbors.len(), 1);
+    assert_eq!(neighbors[0]["external_id"], DUMP_SESSION);
+}

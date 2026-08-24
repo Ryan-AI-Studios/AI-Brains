@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T293 `graph neighbors` pins first (human-only):** Pretty/human prefer-fills authority 1-hop (`DECISION:` / `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` memory or session caption) ahead of dump sessions. JSON keys and direction→label→id array order unchanged. No 2-hop rows; no projector/rebuild.
+
 - **T292 `policy check` human Family A:** Default `--format auto` is TTY `allowed:` / `denied:` + bootstrap SHORT (exit **3** on deny, stderr empty) / pipe JSON. `--format json` keep frozen `CheckResult` / one ApiError document. `policy show` / `policy bootstrap` stay default JSON. Tokens case-sensitive (`JSON`/`Pretty` exit 2). Scripts that previously parsed TTY default JSON must pass `--format json`.
 
 - **T291 `query trace` missing is useful:** Missing/unauthorized `query trace` stdout is a pretty JSON envelope (`found: false`, `trace_id`, `next_step` copy-paste `ai-brains query progressive "what did we decide" --dry-run false`) exit **0**, not the token `null`. `--format human` prints two lines (`No trace for <id>.` + `next:`). Found traces stay `QueryTraceDto` JSON (no wrap). `QueryTraceDto` unaugmented; no daemon GetQueryTrace. `#206` sanitizer collapse: `$`/backtick are space boundaries (`a $ b` → `a b`).

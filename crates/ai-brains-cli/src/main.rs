@@ -921,6 +921,34 @@ mod tests {
         );
     }
 
+    /// T293 AC10: after_help dual-truth — human prefer-fills authority; JSON order unchanged.
+    #[test]
+    #[allow(non_snake_case)]
+    fn graph__help__names_prefer_authority_and_json_order() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "graph", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("prefer-fills") || help.contains("authority"),
+            "AC10: after_help names human prefer-fills authority; got: {help}"
+        );
+        assert!(
+            help.contains("JSON order unchanged")
+                || (help.contains("direction") && help.contains("label")),
+            "AC10: after_help names JSON order unchanged; got: {help}"
+        );
+        assert!(
+            help.contains("--format json"),
+            "AC10: catalog/examples still include --format json; got: {help}"
+        );
+        assert!(
+            help.contains("memories") && help.contains("first line"),
+            "AC10: session PREVIEW sentence retained; got: {help}"
+        );
+    }
+
     /// T269 AC6: after_help names Nightly heading, 267009/SCHED, 750 ms, TCP, and `/health`.
     #[test]
     #[allow(non_snake_case)]
@@ -2838,7 +2866,7 @@ enum MigrateCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged).\nSession PREVIEW is {n} memories · first line."
+    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged).\nSession PREVIEW is {n} memories · first line.\nHuman prefer-fills authority 1-hop (DECISION/CONSTRAINT/INVARIANT/HOTSPOT); JSON order unchanged (direction→label→id)."
 )]
 pub enum GraphCommands {
     /// Rebuild graph from all events

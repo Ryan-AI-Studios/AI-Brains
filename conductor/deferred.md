@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #208 T292 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Planned + folded** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #208 T292 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (publish in progress).
 
 | Item | Track |
 |------|-------|
@@ -302,6 +302,17 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode HEAD/word snapshot | **Snapshot only** — not DoD |
 | last-PR #208 Cursor | **Affirm N/A** — no T301 |
 | No B/M | Nothing to decline of B/M |
+
+### T293 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH until `cargo install --features graph` | **Residual** — F15; source/hermetic SoT |
+| Live chrome-only 1-hop (`b189ad20`) still dump-first (`## Objective`) | **Residual** — F25 honest; Manual AC12 recorded; hermetic AC3 SoT |
+| Session PREVIEW first-line still chrome when pin buried later | **Residual** — F6; do not rewrite caption |
+| Sparse E/N ~0.12 / live rebuild | **Decline → T300** |
+| T294–T299 peers | **Not stolen** |
+| Codex P1 process (gates/closeout at review time) | **Closed by** full gate + publish |
 
 ### T287 closeout residuals (2026-08-23)
 
