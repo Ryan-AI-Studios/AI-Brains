@@ -116,15 +116,15 @@ Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
 - [x] CAPABILITIES Family A row for `policy check`; OPERATIONS human example + exact script `--format json` sentence; CLI-EXIT-CODES; PROTOCOL-COMPAT §5; Check after_help Examples only (catalog freeze F8); CHANGELOG
 - [x] AC9 hermetic `policy check --help` names auto/TTY; catalog lines still present
 - [x] `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] Targeted nextest then workspace gate (`dev-check` / nextest + deny + audit)
+- [x] Targeted nextest then workspace gate (`dev-check` / nextest + deny + audit)
 - [x] Manual AC10 `cargo run -p ai-brains-cli -- policy check --capability ReadEvidence --format human` and `--format json`
-- [ ] `ledgerful verify --scope full`
+- [x] `ledgerful verify --scope full`
 
 ## Phase 5 — review + publish
 
 - [x] `conductor/tracks/trackT292-policy-check-human/review.md` phase-1
-- [ ] Codex/cross-model when FEATURE
-- [ ] Mark conductor **Completed**; append closeout residuals to `deferred.md`
+- [x] Codex/cross-model when FEATURE
+- [x] Mark conductor **Completed**; append closeout residuals to `deferred.md`
 - [ ] Push `track/T292-*` ; PR ; `gh run watch --exit-status` ; `gh pr merge --squash --delete-branch`
 - [ ] Hygiene: `git fetch --all --prune`; point local `main` at `origin/main`; delete merged local `track/T292-*` only. Never `git push origin main`. Never force-push.
 
