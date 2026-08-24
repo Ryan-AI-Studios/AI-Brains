@@ -33,6 +33,26 @@ pub(crate) fn file_project_id_from_env_text(content: &str) -> Option<&str> {
     })
 }
 
+/// Same grammar as [`file_project_id_from_env_text`] for `AI_BRAINS_SESSION_ID=`.
+/// Uses `strip_prefix` so `AI_BRAINS_SESSION_ID_EXTRA=` does not match (T294 F3).
+pub(crate) fn file_session_id_from_env_text(content: &str) -> Option<&str> {
+    content.lines().find_map(|line| {
+        line.trim_start()
+            .strip_prefix("AI_BRAINS_SESSION_ID=")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+    })
+}
+
+fn file_harness_id_from_env_text(content: &str) -> Option<&str> {
+    content.lines().find_map(|line| {
+        line.trim_start()
+            .strip_prefix("AI_BRAINS_HARNESS_ID=")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+    })
+}
+
 pub(crate) fn map_show_env_line(line: &str) -> Option<String> {
     let trimmed = line.trim_start();
     if trimmed == "AI_BRAINS_KEY" || trimmed.starts_with("AI_BRAINS_KEY=") {
@@ -110,27 +130,20 @@ pub fn run(
         ProjectId::from_uuid(uuid::Uuid::from_bytes(bytes))
     };
 
-    let existing_project = if env_path.exists() {
-        let existing = std::fs::read_to_string(&env_path)?;
-        existing
-            .lines()
-            .find(|l| l.starts_with("AI_BRAINS_PROJECT_ID"))
-            .and_then(|l| l.split('=').nth(1))
-            .map(|s| s.to_string())
+    // T294 F3: exact strip_prefix helpers (not starts_with) gate already-initialized.
+    let env_text = if env_path.exists() {
+        Some(std::fs::read_to_string(&env_path)?)
     } else {
         None
     };
-
-    let existing_session = if env_path.exists() {
-        let existing = std::fs::read_to_string(&env_path)?;
-        existing
-            .lines()
-            .find(|l| l.starts_with("AI_BRAINS_SESSION_ID"))
-            .and_then(|l| l.split('=').nth(1))
-            .map(|s| s.to_string())
-    } else {
-        None
-    };
+    let existing_project = env_text
+        .as_deref()
+        .and_then(file_project_id_from_env_text)
+        .map(str::to_string);
+    let existing_session = env_text
+        .as_deref()
+        .and_then(file_session_id_from_env_text)
+        .map(str::to_string);
 
     if let Some(ref sid) = existing_session {
         // T82: --new-project forces re-initialization even when a session
@@ -147,6 +160,56 @@ pub fn run(
                 println!("Project ID: {}", project_id);
             }
             println!("Session ID: {}", sid);
+
+            // T294 F1: upsert .env dest into the open vault without rewriting .env.
+            let Some(env_body) = env_text.as_deref() else {
+                return Err("internal: .env content missing after session parse".into());
+            };
+            let file_pid_raw = file_project_id_from_env_text(env_body);
+            let file_sid_raw = file_session_id_from_env_text(env_body);
+            let parsed_pid = file_pid_raw.and_then(|s| s.parse::<ProjectId>().ok());
+            let parsed_sid = file_sid_raw.and_then(|s| s.parse::<SessionId>().ok());
+
+            match (parsed_pid, parsed_sid, file_sid_raw) {
+                (Some(env_pid), Some(env_sid), _) => {
+                    let harness_id = file_harness_id_from_env_text(env_body)
+                        .and_then(|s| s.parse::<HarnessId>().ok())
+                        .unwrap_or_default();
+                    let privacy = ai_brains_core::privacy::Privacy::LocalOnly;
+                    let mut sink = crate::context::StoreSink {
+                        store: ai_brains_store::SqliteEventStore::new((*ctx.conn).clone()),
+                        last_error: None,
+                        #[cfg(feature = "graph")]
+                        graph_hook: Some(crate::live_graph::LiveGraphHook::new(
+                            std::sync::Arc::clone(&ctx.conn),
+                        )),
+                    };
+                    let service = ai_brains_capture::CaptureService::new();
+                    let capture_context = ai_brains_capture::CaptureContext {
+                        git_working_dir: std::env::current_dir().ok(),
+                    };
+                    ctx.ensure_project_and_session_exists(
+                        &mut sink,
+                        &service,
+                        &capture_context,
+                        env_pid,
+                        env_sid,
+                        harness_id,
+                        privacy,
+                    )?;
+                    println!("Vault: project and session present.");
+                }
+                (Some(_), None, Some(raw_sid)) => {
+                    // F14 / AC7: session line present but not a UUID; project parsed.
+                    return Err(format!(
+                        "Invalid AI_BRAINS_SESSION_ID in .env (expected UUID): {raw_sid}"
+                    )
+                    .into());
+                }
+                _ => {
+                    // F4: missing/unparseable project → skip ensure (no Vault: line).
+                }
+            }
             return Ok(());
         }
         if new_project {
@@ -297,6 +360,53 @@ mod tests {
     fn file_project_id_from_env_text__padded_value__trimmed() {
         let content = format!("AI_BRAINS_PROJECT_ID=  {FILE_UUID}  \n");
         assert_eq!(file_project_id_from_env_text(&content), Some(FILE_UUID));
+    }
+
+    #[test]
+    fn file_session_id_from_env_text__padded_value__trimmed() {
+        let content = format!("AI_BRAINS_SESSION_ID=  {SAME_UUID}  \n");
+        assert_eq!(file_session_id_from_env_text(&content), Some(SAME_UUID));
+    }
+
+    #[test]
+    fn file_session_id_from_env_text__empty_or_comment__none() {
+        assert_eq!(
+            file_session_id_from_env_text("AI_BRAINS_SESSION_ID=\n"),
+            None
+        );
+        assert_eq!(
+            file_session_id_from_env_text(
+                "# AI_BRAINS_SESSION_ID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n"
+            ),
+            None
+        );
+        assert_eq!(file_session_id_from_env_text(""), None);
+    }
+
+    #[test]
+    fn file_session_id_from_env_text__extra_suffix__none() {
+        let content = format!("AI_BRAINS_SESSION_ID_EXTRA={SAME_UUID}\n");
+        assert_eq!(file_session_id_from_env_text(&content), None);
+    }
+
+    #[rstest::rstest]
+    #[case("a1a61a6f-578a-683a-0000-000000000000")]
+    #[case("3581317d-601e-44f7-ab84-fde90aa12d3c")]
+    fn project_and_session_id__hashed_or_v4__from_str_ok(#[case] raw: &str) {
+        assert!(
+            raw.parse::<ProjectId>().is_ok(),
+            "ProjectId must accept {raw}"
+        );
+        assert!(
+            raw.parse::<SessionId>().is_ok(),
+            "SessionId must accept {raw}"
+        );
+    }
+
+    #[test]
+    fn project_and_session_id__garbage__from_str_err() {
+        assert!("not-a-uuid".parse::<ProjectId>().is_err());
+        assert!("not-a-uuid".parse::<SessionId>().is_err());
     }
 
     #[test]
