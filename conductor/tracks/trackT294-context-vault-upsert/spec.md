@@ -9,10 +9,10 @@
 - **Blocks / feeds:** Operators who run `context` in a leftover repo whose `.env` `PROJECT_ID` is **not** in the open vault get that dest registered (idempotent events) **without** rewriting `.env`, so print-only `rebind-path --to <env-id>` stops saying dest-missing. Live leftover `--write --yes` stays owner-confirm (**T276 F9**). Backup **T295**. Forget-list **T299**. Graph sparse **T300**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “leftover dest-missing / context skip upsert” (every T285–T293 decline pointer); T259 F9 runbook “run `context` in that repo first” (currently a lie)
 - **Not absorbed (DoD):** T258 adopt-path / T240 F2 silent Scope switch; T259 dest mint inside `rebind-path`; T259 F5 `MemoryMoved`; live leftover `rebind-path --write --yes` without owner confirm; gimp/homebrew-tap silent mint without `.env`; `--new-project`; T282 `--show`; T295–T300; clap 5 / rusqlite 0.40
-- **Research date:** 2026-08-24 (plan dogfood HEAD `2325adc` T293 `#209`. Product `src/` = T82 early-return **before** `ensure_project_and_session_exists`. PATH **0.1.2** 2026-08-22 19:41 **without** T285–T293 — hole is in **source and PATH**)
-- **AI fold-in:** none yet (plan-track). Review-track writes `agy-review.md` / `opencode-review.md` only.
-- **Ledger:** planning DOCS TX `dd3a3998-4754-49e8-9558-524c7b1761c3`. Implement starts a **FEATURE** TX on **go**.
-- **Isolation:** Do **not** `cargo install`. Do **not** rewrite live `.env`. Do **not** pin production decisions to the live vault as implement. Do **not** live leftover `rebind-path --write --yes` / `unregister-path`. Do **not** live `context` in leftover dirs unless the owner confirms at go (mints dest into the daily vault). Do **not** grow hotspot `project.rs` (**#1** 3.924) / `sync.rs` / `forget.rs` / CLI `preflight.rs` / `project_rebind.rs` / `project_adopt.rs`. This track lives in `commands/context.rs` (hotspot **#5** 2.932 — the bug file) + clap `main.rs`. Reuse `AppContext::ensure_project_and_session_exists` (`src/context.rs:107`) — do **not** duplicate `ProjectRegistered`. Do **not** print or commit `AI_BRAINS_KEY`.
+- **Research date:** 2026-08-24 (plan dogfood HEAD `2325adc` T293 `#209`; plan commit `6fe734c`. Product `src/` = T82 early-return **before** `ensure_project_and_session_exists`. PATH **0.1.2** 2026-08-22 19:41 **without** T285–T293 — hole is in **source and PATH**)
+- **AI fold-in:** 2026-08-24 `agy-review.md` (`6fe734c`) + `opencode-review.md` (`6fe734c`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 AC1 `_EXTRA` suffix skip; Agy O2 AC15 second-`context` zero events; OpenCode O1 AC3 fixture comment/blank/dummy KEY; OpenCode O2 F39 local AC4 seed (do not import `fixture_rebind`); OpenCode O3 AC6 no `Vault:` + AC3 line once. **Already:** Agy m2 F14/AC7; Agy O1 F17/AC9 WORKFLOWS; OpenCode m2 F3 lossy `:113`; OpenCode m3 F6 `--show` `:88`. **Snapshot:** OpenCode m1 HEAD `2325adc`→`6fe734c`; word/pin/doctor volatile. **Decline:** none of B/M (none filed). Disposition **§13**.
+- **Ledger:** planning DOCS TX `dd3a3998-4754-49e8-9558-524c7b1761c3`. Fold-in DOCS TX `d578953e-0409-47cd-b323-2c4a6faca842`. Implement starts a **FEATURE** TX on **go**.
+- **Isolation:** Do **not** `cargo install`. Do **not** rewrite live `.env`. Do **not** pin production decisions to the live vault as implement. Do **not** live leftover `rebind-path --write --yes` / `unregister-path`. Do **not** live `context` in leftover dirs unless the owner confirms at go (mints dest into the daily vault). Do **not** grow hotspot `project.rs` (**#1** **3.915** fold-in) / `sync.rs` / `forget.rs` / CLI `preflight.rs` / `project_rebind.rs` / `project_adopt.rs`. This track lives in `commands/context.rs` (hotspot **#5** **2.924** — the bug file) + clap `main.rs`. Reuse `AppContext::ensure_project_and_session_exists` (`src/context.rs:107`) — do **not** duplicate `ProjectRegistered`. Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
 
@@ -42,7 +42,7 @@ This unblocks the leftover runbook. WORKFLOWS already says “in the leftover re
 | Print-only rebind dest-missing | `project rebind-path C:\dev\crawlx --to a1a61a6f-578a-683a-0000-000000000000 --format human` (piped → JSON): exit **1**, `Project 'a1a61a6f-…' not found in vault.` **This is the dest-missing hole.** **Did not** `--write`. |
 | `context --help` (PATH **and** `cargo run`) | `Initialize or refresh the project context (writes local .env)`. **No** after_help. Dual-truth: already-initialized currently writes **nothing** (early-return) and also ensures **nothing**. |
 | Last GitHub PR | [#209](https://github.com/Ryan-AI-Studios/AI-Brains/pull/209) T293 (merged 2026-08-24). `gh pr view --comments`, `/reviews`, `/comments`, `issues/209/comments` all **empty**. **last-PR Cursor: N/A.** Open PRs: Dependabot remotes only (`#61` rusqlite 0.40.2, `#62` chrono 0.4.45, `#59` tokio, `#60` thiserror, `#58` tower-http, actions `#68–#72`). **No leftover to mint. No T301.** |
-| Identity / doctor | ledgerful doctor **4** warn (legacy `.changeguard` / sig-pin / sig-version / timings). Optional :8081 / :8083 **unreachable** this pass (volatile; semantic recall embedding was **ok**). **0 pending / 0 drift.** Hotspot **#1** `project.rs` (**3.924**) — **do not touch.** `sync.rs` **#2** (3.610). `governed_common.rs` **#3** (3.595). `forget.rs` **#4**. **`commands/context.rs` #5 (2.932, 321 lines) — extend here.** CLI `preflight.rs` #8. |
+| Identity / doctor | ledgerful doctor **4** warn (legacy `.changeguard` / sig-pin / sig-version / timings). Optional :8081 unreachable; :8083 **ok** at fold-in (plan: both unreachable — volatile). **0 pending / 0 drift.** Hotspot **#1** `project.rs` (**3.915** fold-in; plan 3.924) — **do not touch.** `sync.rs` **#2**. `governed_common.rs` **#3**. `forget.rs` **#4**. **`commands/context.rs` #5 (2.924, 321 lines) — extend here.** CLI `preflight.rs` #8. |
 | `ISSUES.md` | **Does not exist.** |
 | Planning live `context` in leftover dirs | **Not run.** Current source early-returns (no mint, no write). After go, live leftover `context` **would** mint dest into the daily vault — **Stop-Before** unless owner confirms (F27). |
 
@@ -119,7 +119,7 @@ Training data is not a pin. Re-verify clap / uuid parse at execute.
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
 | **F1 — Already-initialized upserts env IDs** | When `.env` has parseable `AI_BRAINS_PROJECT_ID` **and** `AI_BRAINS_SESSION_ID` and flags are not `--show` / `--new-project` / `--new-session`: print the existing “already initialized” block, call `ensure_project_and_session_exists` with **those** IDs (not the hashed/discovered `project_id` computed above), print **exact** `Vault: project and session present.`, `return Ok(())`. **Do not** write `.env`. **Do not** auto-trigger `sync pull` (first-init pull stays on the write path only). |
 | **F2 — T240 F2** | No silent `.env` / daily Scope rewrite. Bytes of cwd `.env` on the upsert path **equal** before/after (including KEY, comments, blanks, extra keys). Never write `~/.ai-brains/.env`. |
-| **F3 — Parse helpers** | Reuse `file_project_id_from_env_text` (T282 trim). Add `file_session_id_from_env_text` with the same `strip_prefix("AI_BRAINS_SESSION_ID=")` + trim + nonempty grammar. **Do not** use `:113` `starts_with` + `split('=')` for upsert (matches `AI_BRAINS_PROJECT_ID_FOO`, no trim). Quote-strip **not** this track (T282 F32 residual). |
+| **F3 — Parse helpers** | Reuse `file_project_id_from_env_text` (T282 `:27–34`: `trim_start` + `strip_prefix("AI_BRAINS_PROJECT_ID=")` + `trim` + nonempty). Add `file_session_id_from_env_text` with the **same** grammar on `AI_BRAINS_SESSION_ID=`. `strip_prefix` (not `starts_with`) so `AI_BRAINS_SESSION_ID_EXTRA=…` / `AI_BRAINS_PROJECT_ID_FOO=…` do **not** match (Agy m1). **Do not** use `:113–133` `starts_with` + `split('=')` for upsert. Quote-strip **not** this track (T282 F32 residual). |
 | **F4 — Both IDs required to mint** | Upsert only when **both** parse as `ProjectId` / `SessionId` (`FromStr` / `Uuid::parse_str`). Session-present + missing/unparseable project → **do not** mint the hashed/discovered id; keep already-initialized print (hashed display allowed) + skip ensure. Session line present but unparseable (non-UUID garbage) **and** project parses → exit **1**, `.env` unchanged, no events. |
 | **F5 — No new clap flags** | No `--ensure-vault` / `--yes`. Default is the remediator (clig). `--show` / `--new-project` / `--new-session` / `--tx-id` frozen. |
 | **F6 — `--show` freeze** | T282 leftover line + KEY/VAULT_KEY redact. **No** vault ensure. **No** `.env` write. Stay-green `context_show_leftover.rs`. |
@@ -155,6 +155,7 @@ Training data is not a pin. Re-verify clap / uuid parse at execute.
 | **F36 — PowerShell** | `;` not `&&`. |
 | **F37 — Identity stdout** | No JSON on `context`. Human only. |
 | **F38 — Name freeze** | Minted dest name stays ensure’s `(no alias) — {8hex}`. Do not `set-alias`. |
+| **F39 — AC4 local seed (OpenCode O2)** | T259 `fixture_rebind` / `event_count` / `register_path` live in `tests/project_rebind_path.rs` as **file-private** fns (separate integration binary — **not** importable). AC4 **must** local-seed in `tests/context_vault_upsert.rs`: copy `init_vault` / `register_path` / `event_count` (T259 `:98–108` `TempEnv` + `ZERO_KEY` + `read_all_events().len()`). Do **not** edit `project_rebind_path.rs`. Do **not** call `fixture_rebind` (that helper **creates dest B via `context`**, so dest already exists — wrong for the dest-missing-then-upsert hole). |
 
 ---
 
@@ -162,20 +163,21 @@ Training data is not a pin. Re-verify clap / uuid parse at execute.
 
 | ID | Criterion |
 |----|-----------|
-| **AC1** | Unit: `file_session_id_from_env_text` padded `AI_BRAINS_SESSION_ID=  {uuid}  ` → `Some(uuid)`; empty / missing / comment → `None`. `file_project_id_from_env_text` already T282 — stay. **Required red** for the new helper. |
+| **AC1** | Unit rstest: `file_session_id_from_env_text` padded `AI_BRAINS_SESSION_ID=  {uuid}  ` → `Some(uuid)`; empty / missing / `# comment` → `None`; **`AI_BRAINS_SESSION_ID_EXTRA={uuid}` → `None`** (Agy m1; `strip_prefix` not `starts_with`). `file_project_id_from_env_text` T282 padded stay-green. **Required red** for the new helper. |
 | **AC2** | rstest parse: hashed-shape `a1a61a6f-578a-683a-0000-000000000000` **and** a v4 UUID both `ProjectId::from_str` / `SessionId::from_str` **Ok**. Garbage `not-a-uuid` **Err**. Locks F15. |
-| **AC3** | Hermetic (`hermetic_bin` + `isolate_empty_home` + tempdir + `--vault-path`): `init`; write `.env` with **hashed-shape** dest project + v4 session (neither in vault); `context` (no `--new-project`); exit **0**; stdout contains `Context is already initialized for project` **and** exact `Vault: project and session present.`; **does not** contain `Local .env updated successfully.`; `.env` **bytes equal**; `project list --format json` contains the dest `project_id`. **Required red** before early-return is lifted. |
+| **AC3** | Hermetic (`hermetic_bin` + `isolate_empty_home` + tempdir + `--vault-path`): `init`; write `.env` with **hashed-shape** dest project + v4 session (neither in vault) **plus** a `# comment` line, a blank line, and dummy `AI_BRAINS_KEY=x'00…00'` (T259 `ZERO_KEY` shape — OpenCode O1). `context` (no `--new-project`); exit **0**; stdout contains `Context is already initialized for project`; exact `Vault: project and session present.` appears **once** (`lines` equal that string `count() == 1`); **does not** contain `Local .env updated successfully.`; `.env` **bytes equal** (comment + blank + KEY line survive); `project list --format json` contains the dest `project_id`. **Required red** before early-return is lifted. |
 | **AC4** | Same fixture: print-only `project rebind-path <registered-from-path> --to <dest-id> --format human` exit **0**; stdout is **not** dest-missing (`not found in vault` absent). Need a **from** project that owns the path (T259-class seed). **Did not** pass `--write`. |
 | **AC5** | Stay-green: `test_cli_context_idempotency` still exit 0, contains `already initialized`, `.env` equal on second run; `--new-session` still rewrites. T282 `--show` leftover suite. T259 `project_rebind_path__dest_missing__exit_1` (`00000000-…0077`) still exit 1. |
-| **AC6** | Hermetic: session-only `.env` (`SESSION_ID` valid, **no** `PROJECT_ID`); `context` exit **0**; `.env` bytes equal; `project list` JSON **does not** contain the hashed/discovered cwd id that `context` would have minted on first-init. Locks F4 skip. |
+| **AC6** | Hermetic: session-only `.env` (`SESSION_ID` valid, **no** `PROJECT_ID`); `context` exit **0**; `.env` bytes equal; `project list` JSON **does not** contain the hashed/discovered cwd id that `context` would have minted on first-init; stdout **does not** contain `Vault:` (OpenCode O3 — F4 skip-ensure must not print F32). |
 | **AC7** | Hermetic: valid project UUID + `AI_BRAINS_SESSION_ID=not-a-uuid`; exit **1**; stderr contains `AI_BRAINS_SESSION_ID`; `.env` bytes equal; event count unchanged. |
 | **AC8** | Hermetic: `--show` on the AC3 fixture does **not** add dest to `project list`; `.env` unchanged. |
-| **AC9** | Docs + help: CAPABILITIES Init row names vault upsert / no rewrite; OPERATIONS context paragraph; WORKFLOWS leftover `context` is true; Context `--help` after_help or docstring states already-initialized **does not rewrite** `.env` **and** ensures vault. Hermetic `context --help` contains `already` (or `initialized`) **and** `vault` (or `does not rewrite` / `.env`). Rebind `--help` still says dest is not minted by rebind. |
+| **AC9** | Docs + help: CAPABILITIES Init row names vault upsert / no rewrite; OPERATIONS `:512` extend (do not add a second context block); WORKFLOWS leftover block (`:79–81`) states already-initialized `context` **ensures dest in the open vault without rewriting `.env`** (Agy O1); Context `--help` after_help or docstring states already-initialized **does not rewrite** `.env` **and** ensures vault. Hermetic `context --help` contains `already` (or `initialized`) **and** `vault` (or `does not rewrite` / `.env`). Rebind `--help` still says dest is not minted by rebind. |
 | **AC10** | Manual (on go, `cargo run -p ai-brains-cli --`, no `--daemon`): hermetic AC3/AC4 commands. **Optional live leftover:** print-only rebind dest-missing **before** (already recorded). Live `context` in crawlx/degoo/kinledger **only if owner confirms**. Live `--write --yes` **only if owner confirms per path**. Default: skip live mutate. **Do not** `cargo install`. |
 | **AC11** | First-init (no `.env`) still writes `.env` and prints `Context initialized` + `Local .env updated successfully.` (existing smoke / a focused assert). |
 | **AC12** | Feature-off (default CLI test bin): AC3 still registers dest (capture/SQL, not graph). |
 | **AC13** | No production `unwrap`/`expect`/`panic` in the touched `context.rs` arm. |
 | **AC14** | `context --help` does **not** contain `set-alias` + leftover dump UUID + `AI-Brains` together (T259 F1). |
+| **AC15** | Hermetic AC3 fixture after first upsert: second `context` exit **0**; `event_count` **unchanged** (Agy O2; local `event_count` F39); `.env` bytes equal; `Vault:` line still **once**. Locks ensure projection `SELECT 1` — no duplicate `ProjectRegistered`. |
 
 ---
 
@@ -209,13 +211,14 @@ if session_in_env && !new_session && !new_project:
     return Ok(())   # never write .env, never sync pull
 ```
 
-### 5.5 Fixture for AC3/AC4
+### 5.5 Fixture for AC3/AC4 (F39)
 
-1. `init` vault in tempdir.
-2. Register **from-project** + path alias (reuse T259 fixture style; do **not** edit `project_rebind_path.rs` unless importing a helper already `pub(crate)` — prefer local seed in the new test file).
-3. Write `.env` with dest hashed-shape UUID + session v4 (not in vault).
-4. `context` → dest in `project_projection`.
-5. `rebind-path <path> --to <dest> --format human` print-only exit 0.
+1. `init` vault in tempdir. Local `event_count` (copy T259 `:98–108`; `ZERO_KEY` dummy).
+2. **From-project:** first-init `context` in `work_a` + `register-path` a path onto that id (local `register_path`; do **not** import `fixture_rebind` — dest B would already exist).
+3. **Dest dir:** write `.env` with hashed-shape dest UUID + session v4 **not** in vault, plus `# comment`, blank line, dummy `AI_BRAINS_KEY=x'00…00'` (AC3).
+4. `context` in dest dir → dest in `project_projection`; `.env` bytes equal; `Vault:` once.
+5. `rebind-path <path> --to <dest> --format human` print-only exit 0 (AC4).
+6. Second `context` in dest dir → `event_count` unchanged (AC15).
 
 ### 5.6 Why `Vault:` line
 
@@ -261,7 +264,7 @@ clig: if you change state, tell the user. Ensure is idempotent; “present” is
 
 | Risk | Mitigation |
 |------|------------|
-| Second `context` in a healthy repo appends duplicate `ProjectRegistered` | ensure projection `SELECT 1` (existing). AC5 event-count optional on already-present dest. |
+| Second `context` in a healthy repo appends duplicate `ProjectRegistered` | ensure projection `SELECT 1` (existing). **AC15** event-count lock (Agy O2). |
 | Hashed UUID `FromStr` rejects leftover dests | AC2 hashed-shape; uuid `parse_str`. |
 | `.env` rewrite sneaks in | AC3 byte-equal; F2; do not call `fs::write` on this arm. |
 | Live leftover `context` pollutes daily vault during implement | F27 Stop-Before; hermetic DoD. |
@@ -308,9 +311,9 @@ T274–T293 Completed rows stay closed. Do not reopen T240 F2, T255 750 ms, T263
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify early-return `:150`, ensure `:182`, T282 helpers, leftover 5 roots dest-missing, #209 empty, pins, hotspots.
-2. Red: AC1 helper + AC3 hermetic upsert + AC4 rebind dest exists.
+2. Red: AC1 helper (`_EXTRA`) + AC3 hermetic upsert (rich `.env`) + AC4 rebind dest exists.
 3. Green: F1 arm in `context.rs`; clap after_help; no `.env` write.
-4. Stay-green AC5/AC6/AC7/AC8.
+4. Stay-green AC5/AC6 (no `Vault:`)/AC7/AC8; AC15 second-`context` zero events.
 5. Docs F17/F19. CHANGELOG.
 6. Phase-1 review → `review.md`. Cross-model FEATURE (`codex-review`).
 7. Full gate. Publish implement-track Phase 6. **Do not** leftover `--write` unless owner confirmed.
@@ -338,7 +341,7 @@ T274–T293 Completed rows stay closed. Do not reopen T240 F2, T255 750 ms, T263
 |------|-----|
 | `crates/ai-brains-cli/src/commands/context.rs` | F1 arm + F3 session helper + F32 line |
 | `crates/ai-brains-cli/src/main.rs` | Context docstring + after_help; T259 after_help F19 |
-| `crates/ai-brains-cli/tests/context_vault_upsert.rs` | **New** AC1–AC4 / AC6–AC8 / AC12 |
+| `crates/ai-brains-cli/tests/context_vault_upsert.rs` | **New** AC1–AC4 / AC6–AC8 / AC12 / AC15; local `event_count` (F39) |
 | `Docs/CAPABILITIES.md` | Init row |
 | `Docs/OPERATIONS.md` | `:512` extend |
 | `Docs/WORKFLOWS.md` | leftover `context` truth |
@@ -352,4 +355,35 @@ T274–T293 Completed rows stay closed. Do not reopen T240 F2, T255 750 ms, T263
 
 ## 13. AI fold-in
 
-None yet. `/review-track 294` then `/fold-in`.
+Inputs (not edited): `agy-review.md` (HEAD `6fe734c`) + `opencode-review.md` (HEAD `6fe734c`). Fold-in HEAD `6fe734c` on `main` (ahead of `origin/main` `2325adc` T293 `#209`). Live verify: early-return `:135–151` (`return` `:150`); `--show` return `:88`; lossy parse `:113–133`; T282 helper `:27–34` `strip_prefix`; ensure call `:182`; write `:223`; clap Context `:1581–1596` dispatch **`:4876`**; T259 after_help `:3033`; `resolve_project_ref` dest-missing `:506`; `ensure_project_and_session_exists` `:107–166`; `fixture_rebind` **private** `project_rebind_path.rs:238`; `event_count` `:98`; smoke idempotency `:1934` (no event count); WORKFLOWS leftover `:79–81` still commented. Hotspot `project.rs` **#1** (**3.915**); `commands/context.rs` **#5** (**2.924**). Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; uuid 1.23.1; **no clap 5**). Last merged PR still **#209** (comments/reviews **empty**). **No T301.** Fold-in preflight: Pinned **4058** / in-context **0/0/0** / word **468** (plan 175 / OpenCode 452 — volatile). Doctor **4** warn (OpenCode said 5 — volatile); :8083 **ok**; :8081 unreachable this pass.
+
+### Pins locked by fold-in
+
+1. **F3 / AC1 (Agy m1):** `file_session_id_from_env_text` uses `strip_prefix("AI_BRAINS_SESSION_ID=")` (not `starts_with`); `_EXTRA=` → `None`.
+2. **AC15 (Agy O2):** second `context` on the AC3 dest → `event_count` unchanged.
+3. **AC3 (OpenCode O1):** fixture includes `# comment`, blank line, dummy `ZERO_KEY`; bytes equal including those lines.
+4. **F39 / §5.5 (OpenCode O2):** local seed in `context_vault_upsert.rs`; do **not** import or edit `fixture_rebind`.
+5. **AC3 + AC6 (OpenCode O3):** `Vault:` **once** when both IDs parse; **absent** on session-only skip.
+6. **AC9 (Agy O1):** WORKFLOWS leftover block names ensure-without-rewrite (already F17; sentence locked).
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** session parse trim + ignore `_EXTRA` | **Already** F3 `strip_prefix`; **folded** AC1 `_EXTRA` case |
+| Agy | **m2** malformed session UUID stderr + exit 1 | **Already** F14 / AC7 |
+| Agy | **O1** WORKFLOWS leftover ensure-without-rewrite | **Already** F17 / AC9; **tightened** leftover-block sentence |
+| Agy | **O2** second `context` zero duplicate events | **Folded** AC15 (smoke AC5 has no `event_count`) |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** plan HEAD `2325adc` vs `6fe734c` | **Snapshot** — plan preflight refreshed; not DoD |
+| OpenCode | **m2** lossy `:113–133` must not upsert | **Already** F3; **affirm** |
+| OpenCode | **m3** `--show` returns `:88` before early-return | **Already** F6 / AC8; live `:88` |
+| OpenCode | **O1** AC3 KEY/comment/blank byte-equality | **Folded** AC3 fixture richness |
+| OpenCode | **O2** AC4 from-project local seed | **Already** §5.5; **folded** F39 — `fixture_rebind` private / wrong shape |
+| OpenCode | **O3** `Vault:` only when both IDs parse | **Already** AC3 presence; **folded** count==1 + AC6 absence |
+| OpenCode | word 175→452 / doctor 4 vs 5 | **Snapshot only** — fold-in 468 / 4 warn; not DoD |
+| both | last-PR #209 Cursor | **Affirm F25** — no T301 |
+| both | deferred T295–T300 / T258 / T240 F2 / dest mint in rebind | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.

@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #209 T293 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Planned** 2026-08-24 (Pending until go).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #209 T293 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Planned + folded** 2026-08-24 (Pending until go).
 
 | Item | Track |
 |------|-------|
@@ -31,6 +31,23 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | T240 F2 reopen / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
 | last-PR Cursor **#209** | **N/A empty** — **no T301** F25 |
 | Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** — T258 / leftover data T276 |
+
+### T294 fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 session parse trim + `_EXTRA` skip | **Already** F3; **folded** AC1 `_EXTRA` |
+| Agy m2 malformed session UUID exit 1 | **Already** F14 / AC7 |
+| Agy O1 WORKFLOWS leftover ensure-without-rewrite | **Already** F17 / AC9; **tightened** leftover-block sentence |
+| Agy O2 second `context` zero duplicate events | **Folded** AC15 |
+| OpenCode m1 plan HEAD `2325adc` vs `6fe734c` | **Snapshot** — preflight refreshed |
+| OpenCode m2 lossy `:113` must not upsert | **Already** F3 |
+| OpenCode m3 `--show` return `:88` | **Already** F6 / AC8 |
+| OpenCode O1 AC3 KEY/comment/blank bytes | **Folded** AC3 fixture |
+| OpenCode O2 AC4 local seed / `fixture_rebind` private | **Folded** F39 |
+| OpenCode O3 `Vault:` only when both IDs parse | **Folded** AC3 count==1 + AC6 absence |
+| last-PR #209 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
 
 ### T288 planning absorption (2026-08-23) — granted-empty vault-pin stanza; no H2
 
