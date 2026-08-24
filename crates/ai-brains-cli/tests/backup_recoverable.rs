@@ -243,3 +243,36 @@ fn backup_list__mixed_after_create__residual_summary_not_recoverable() {
         "AC13: residual summary; stderr={stderr}"
     );
 }
+
+/// T295 AC5 / F37: Create `--help` after_help locks (no vault; combined streams).
+#[test]
+fn backup_create_help__after_help__mentions_no_prune_default_dir() {
+    let out = common::hermetic_bin()
+        .arg("backup")
+        .arg("create")
+        .arg("--help")
+        .output()
+        .expect("backup create --help must spawn");
+    assert!(
+        out.status.success(),
+        "AC5: help must exit 0; out={}",
+        combined(&out)
+    );
+    let help = combined(&out);
+    assert!(
+        help.contains("--no-prune"),
+        "AC5/F37: after_help must mention --no-prune; help={help}"
+    );
+    assert!(
+        help.contains("by timestamp, not class") || help.contains("residual fleet"),
+        "AC5/F37: timestamp-not-class or residual-fleet wording; help={help}"
+    );
+    assert!(
+        help.contains("backups/") || help.contains("backup_recent"),
+        "AC5/F37: default sibling backups/ or backup_recent; help={help}"
+    );
+    assert!(
+        help.contains("backup create --dry-run --no-prune"),
+        "AC5/F37: example backup create --dry-run --no-prune; help={help}"
+    );
+}

@@ -3147,6 +3147,9 @@ pub enum RecoveryCommands {
 #[derive(Subcommand, Clone)]
 pub enum BackupCommands {
     /// Create a timestamped backup (default)
+    #[command(
+        after_help = "Default --keep 10 prunes older vault-*.db.bak by timestamp, not class.\nA residual fleet ((unreadable key) / (legacy plain) / (no core tables)) is kept only with --no-prune.\nDoctor backup_recent only lists the vault sibling backups/ directory — omit --output-dir when the goal is doctor-ok.\nAfter AI_BRAINS_KEY change, old .bak stay KeyMismatch; create a new snapshot.\nExamples:\n  ai-brains --no-project-context backup create --dry-run --no-prune\n  ai-brains --no-project-context backup create --no-prune"
+    )]
     Create {
         /// Custom output directory for the backup
         #[arg(long)]

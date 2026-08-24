@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #209 T293 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (publish in progress).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (live `--no-prune` F2a + after_help).
 
 | Item | Track |
 |------|-------|
@@ -13,6 +13,57 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | `memory list` just-now ingest | **T287 Completed** |
 | briefing granted-empty vs pins (no H2) | **T288 Completed** |
 | leftover dest-missing; context skip vault upsert | **T294 Completed** |
+| 0 usable encrypted backup | **T295 Completed** |
+
+### T295 implement closeout (2026-08-24)
+
+| Item | Disposition |
+|------|-------------|
+| Live `--no-prune` create + list Readable + verify ≥1 OK + doctor `backup_recent` ok | **Done** F2a / AC8 (N 22→23; `vault-2026-08-24T10-01-54.db.bak`) |
+| Create `after_help` + AC5 F37 | **Done** |
+| CAPABILITIES / OPERATIONS / CHANGELOG / RECOVERY-DRILLS | **Done** AC7 |
+| T277 engine / doctor remediator / keep-10 / residuals | **Affirm freeze** — untouched |
+| Doctor remediator still omits `--no-prune` | **Residual** F7 (docs+after_help carry it) |
+| PATH until `cargo install` (T285–T294 not on PATH) | **Residual** F16 |
+| Live 22 residual `.bak` still KeyMismatch/plain/Incomplete | **Expected** F5; verify exit 1 |
+| T296–T300 | **Not stolen** |
+
+### T295 planning absorption (2026-08-24) — live `--no-prune` current-key file; T277 engine frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit 0 OK/22 FAIL; doctor `backup_recent` no usable encrypted backup | **Absorb** F2–F8 / AC5–AC8 |
+| Placeholder Manual `backup create --no-prune` + list + verify + doctor | **Absorb** AC8 |
+| T277 closeout live 22 residual until owner create | **Absorb** F2 / F3 — hermetic skip is **not** Complete here |
+| T225 residual “operator still runs live `backup create`” | **Absorb** F2 / AC8 |
+| CAPABILITIES green path omits `--no-prune`; example `--output-dir` vs doctor sibling dir | **Absorb** F6 / F8 / AC5 / AC7 |
+| T277 F2 fail-closed engine / mixed hermetic | **Affirm freeze** F1 / AC1–AC4 |
+| T277 F8 doctor remediator `ai-brains backup create` | **Affirm** F7 — do not grow `doctor.rs` |
+| T277 F20 prune dry-run `remaining_count` | **Decline** F19 |
+| T244 F17/F18 / T187 `cipher_integrity_check` / restore-on-create | **Decline** F19 / F9 |
+| Default keep-10 change | **Decline** F4 |
+| Rekey / transcode T244 `.bak` | **Decline** F5 |
+| T294 leftover `--write` / T296–T300 | **Decline →** those tracks |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
+| last-PR Cursor **#210** | **N/A empty** — **no T301** F25 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** — T258 / leftover data |
+
+### T295 fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 AC5 distinct substrings | **Folded** F37 / AC5 |
+| Agy m2 verify exit 1 mixed + no nudge | **Already** F14 / AC3 / AC8 |
+| Agy O1 OPERATIONS `--output-dir` vs list/doctor | **Already** F8; **tightened** AC7 |
+| Agy O2 `--dry-run --no-prune` in after_help | **Already** §5.1; **folded** AC5 example (F37) |
+| OpenCode m1 plan HEAD `56d905a` vs `cd9701a` | **Snapshot** — preflight refreshed |
+| OpenCode m2 F12 `cli_help_ia.rs` vs `help_ia.rs` | **Folded** F12 — both `src/help_ia.rs` and `tests/cli_help_ia.rs` |
+| OpenCode m3 T277 F20 remaining_count consistent | **Already** F19 |
+| OpenCode O1 AC5 `--dry-run --no-prune` example | **Folded** F37 / AC5 |
+| OpenCode O2 combined streams + no-vault help | **Already** §5.5; **tightened** F35 / F37 |
+| OpenCode O3 AC8 exact 22+1 | **Folded** F38 — Phase 0 N, after N+1 |
+| last-PR #210 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
 
 ### T294 closeout residuals (2026-08-24)
 
