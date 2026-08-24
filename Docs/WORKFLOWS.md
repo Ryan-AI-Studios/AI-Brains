@@ -76,15 +76,16 @@ historical memories.
 ai-brains project list-paths --shared-only --format human
 ai-brains project list-paths --project <leftover-uuid> --format human
 
-# In the leftover repo, mint/ensure dest first (out of band):
-#   cd C:\dev\crawlx
-#   ai-brains context
+# In the leftover repo, ensure dest first (already-initialized context upserts
+# the .env PROJECT_ID into the open vault without rewriting .env):
+cd C:\dev\crawlx
+ai-brains context
 
 ai-brains project rebind-path C:\dev\crawlx --to <dest-uuid> --format human
 ai-brains project rebind-path C:\dev\crawlx --to <dest-uuid> --write --yes
 ```
 
-Do **not** rebind `C:\dev\ai-brains` off its real path owner as leftover cleanup.
+Repos without a `.env` (e.g. gimp / homebrew-tap) still need first-init `context`, which writes `.env`. Do **not** rebind `C:\dev\ai-brains` off its real path owner as leftover cleanup.
 
 ---
 

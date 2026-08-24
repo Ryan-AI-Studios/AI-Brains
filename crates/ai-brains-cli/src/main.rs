@@ -1578,8 +1578,11 @@ enum Commands {
         /// Session ID to stop
         session_id: String,
     },
-    /// Initialize or refresh the project context (writes local .env)
-    #[command(display_order = 15)]
+    /// Initialize or refresh the project context (first-init writes local .env; already-initialized ensures vault)
+    #[command(
+        display_order = 15,
+        after_help = "First-init (no .env) writes local .env with PROJECT_ID / SESSION_ID / HARNESS_ID.\nAlready-initialized (session present, no --new-project/--new-session) ensures those .env IDs exist in the open vault and does not rewrite .env.\n--show never writes .env or ensures vault."
+    )]
     Context {
         /// Force a fresh project ID even if one is detected
         #[arg(long)]
@@ -3030,7 +3033,7 @@ pub enum ProjectCommands {
     },
     /// Move one path alias to another existing project (print-only by default)
     #[command(
-        after_help = "Default is print-only (does not append events). Write requires both --write and --yes.\nDoes not move historical memories. Does not write .env (use adopt-path for daily Scope).\nDoes not mint the dest project — run `ai-brains context` in that repo first.\nExamples:\n  ai-brains project rebind-path C:\\dev\\crawlx --to <dest-uuid> --format human\n  ai-brains project rebind-path C:\\dev\\crawlx --to <dest-uuid> --write --yes"
+        after_help = "Default is print-only (does not append events). Write requires both --write and --yes.\nDoes not move historical memories. Does not write .env (use adopt-path for daily Scope).\nDoes not mint the dest project — run `ai-brains context` in that repo first (already-initialized context upserts that dest without rewriting .env).\nExamples:\n  ai-brains project rebind-path C:\\dev\\crawlx --to <dest-uuid> --format human\n  ai-brains project rebind-path C:\\dev\\crawlx --to <dest-uuid> --write --yes"
     )]
     RebindPath {
         /// Filesystem path to rebind (Windows or WSL form; normalized for compare)

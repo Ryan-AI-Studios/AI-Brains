@@ -196,7 +196,7 @@ Most users never need an explicit start: the CLI auto-launches. A Windows servic
 
 | Capability | Command / detail |
 |------------|------------------|
-| Init project context | `context` — writes local `.env` (`PROJECT_ID`, `SESSION_ID`, `HARNESS_ID`) |
+| Init project context | `context` — first-init writes local `.env` (`PROJECT_ID`, `SESSION_ID`, `HARNESS_ID`); already-initialized ensures those IDs in the open vault and does **not** rewrite `.env` |
 | Show only | `context --show` — when pre-dotenv shell `PROJECT_ID` differs from the file, the next line is `shell leftover PROJECT_ID: <uuid> (.env overrides)`; `AI_BRAINS_KEY` / `VAULT_KEY` file lines print `(redacted)` |
 | Rotate project / session | `--new-project` · `--new-session` |
 | Ledger linkage | `--tx-id` / `LEDGERFUL_TX_ID` (legacy `CHANGEGUARD_TX_ID` fallback) |
