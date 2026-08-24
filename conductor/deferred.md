@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #208 T292 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (publish in progress).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #209 T293 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Planned** 2026-08-24 (Pending until go).
 
 | Item | Track |
 |------|-------|
@@ -12,6 +12,25 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | preflight Index `## Objective`; summary decisions 0 vs 3647 pins | **T286 Completed** |
 | `memory list` just-now ingest | **T287 Completed** |
 | briefing granted-empty vs pins (no H2) | **T288 Completed** |
+| leftover dest-missing; context skip vault upsert | **T294 Planned** |
+
+### T294 planning absorption (2026-08-24) — already-initialized upserts `.env` dest; no `.env` rewrite
+
+| Item | Disposition |
+|------|-------------|
+| Audit leftover 5 roots dest-missing; `context` already-initialized skips vault ensure | **Absorb** F1–F4 / AC3–AC4 / AC10 |
+| Placeholder Manual `context` + `project list` contains env id + print-only rebind dest exists | **Absorb** AC3 / AC4 / AC10 |
+| T259 F9 dest must exist / runbook `context` first (currently a lie) | **Absorb as honesty** F8 / F19 — rebind still does not mint |
+| T259 F5 memories stay | **Affirm** F10 |
+| T240 F2 no silent `.env` | **Affirm** F2 |
+| T258 adopt-path / cwd `mismatch: false` | **Decline steal** F9 — Completed; opposite direction |
+| T276 F9 live leftover `--write --yes` | **Affirm Stop-Before** F11 |
+| T282 `--show` leftover shell | **Decline steal** F6 — Completed |
+| T293 neighbors dump sessions | **Decline** — Completed `#209` |
+| T295–T300 peers | **Decline →** those placeholders |
+| T240 F2 reopen / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
+| last-PR Cursor **#209** | **N/A empty** — **no T301** F25 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** — T258 / leftover data T276 |
 
 ### T288 planning absorption (2026-08-23) — granted-empty vault-pin stanza; no H2
 
