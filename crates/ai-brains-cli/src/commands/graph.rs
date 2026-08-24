@@ -4,6 +4,7 @@ use crate::graph_density::{
 };
 use ai_brains_control_plane::clamp_list_limit;
 use ai_brains_graph::{GraphRebuilder, GraphSearch, GraphVault, NeighborHit};
+use ai_brains_retrieval::{PinKind, classify_pin_kind};
 use ai_brains_store::{QueryStore, SqliteEventStore};
 use rusqlite::OptionalExtension;
 use serde::Serialize;
@@ -331,6 +332,43 @@ fn pretty_neighbor_rows(
     Ok(rows)
 }
 
+/// T293 F4: strip T278 `{n} memories · ` once (exact space-dot-space). Dots in the
+/// remainder stay. No separator / empty remainder → `""` (Other).
+pub(crate) fn session_caption_body(preview: &str) -> &str {
+    match preview.split_once(" · ") {
+        Some((_, rest)) => rest.trim(),
+        None => "",
+    }
+}
+
+/// T293 F1 ranks: 0 memory authority, 1 session authority, 2 other memory, 3 other.
+pub(crate) fn neighbor_authority_rank(row: &PrettyNeighborRow) -> u8 {
+    let authority = if row.kind == "memory" {
+        classify_pin_kind(&row.preview) != PinKind::Other
+    } else if row.kind == "session" {
+        let body = session_caption_body(&row.preview);
+        !body.is_empty() && classify_pin_kind(body) != PinKind::Other
+    } else {
+        false
+    };
+    match (row.kind.as_str(), authority) {
+        ("memory", true) => 0,
+        ("session", true) => 1,
+        ("memory", false) => 2,
+        _ => 3,
+    }
+}
+
+/// T293 F1: stable prefer-authority reorder. Same length; no drops. Within-tier
+/// order stays the F9 direction→label→id order via `(rank, original_index)`.
+pub(crate) fn prefer_authority_neighbor_rows(rows: &mut [PrettyNeighborRow]) {
+    let mut indexed: Vec<(usize, PrettyNeighborRow)> = rows.iter().cloned().enumerate().collect();
+    indexed.sort_by_key(|(idx, row)| (neighbor_authority_rank(row), *idx));
+    for (dst, (_, row)) in rows.iter_mut().zip(indexed) {
+        *dst = row;
+    }
+}
+
 fn emit_graph_health_human(report: &GraphHealthOutput) {
     println!("status: {}", report.status);
     println!("density: {}", report.density);
@@ -390,7 +428,8 @@ pub fn neighbors(
             println!("{}", pretty_no_neighbors(memory_id));
             return Ok(());
         }
-        let rows = pretty_neighbor_rows(ctx, &searcher, &hits)?;
+        let mut rows = pretty_neighbor_rows(ctx, &searcher, &hits)?;
+        prefer_authority_neighbor_rows(&mut rows);
         print!(
             "{}",
             format_neighbors_pretty(memory_id, &rows, clamp_list_limit(limit))
@@ -1069,5 +1108,107 @@ mod tests {
                 ("outgoing", "B", "z"),
             ]
         );
+    }
+
+    fn pretty_row(kind: &str, id: &str, preview: &str) -> PrettyNeighborRow {
+        PrettyNeighborRow {
+            direction: "incoming".into(),
+            label: "RECALLS".into(),
+            external_id: id.into(),
+            kind: kind.into(),
+            preview: preview.into(),
+        }
+    }
+
+    /// T293 AC1: dump session then Decision memory → memory first; dump still present.
+    #[test]
+    fn prefer_authority_neighbor_rows__dump_then_decision_memory__memory_first() {
+        let mut rows = vec![
+            pretty_row("session", "dump-session", "1 memories · ## Objective"),
+            pretty_row("memory", "auth-memory", "DECISION: keep authority first"),
+        ];
+        prefer_authority_neighbor_rows(&mut rows);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].external_id, "auth-memory");
+        assert_eq!(rows[1].external_id, "dump-session");
+    }
+
+    /// T293 AC13: exact ` · ` strip; dots in remainder stay; no Decision on prefix.
+    #[test]
+    fn session_caption_body__memories_dot_decision__strips_prefix() {
+        assert_eq!(
+            session_caption_body("5 memories · DECISION: x"),
+            "DECISION: x"
+        );
+        assert_eq!(session_caption_body("2 memories"), "");
+        assert_eq!(session_caption_body("2 memories ·    "), "");
+        assert_eq!(
+            session_caption_body("1 memories · 1.2.3 dump"),
+            "1.2.3 dump"
+        );
+        assert_eq!(
+            classify_pin_kind(session_caption_body("5 memories · DECISION: x")),
+            PinKind::Decision
+        );
+        assert_eq!(
+            classify_pin_kind(session_caption_body("2 memories")),
+            PinKind::Other
+        );
+    }
+
+    /// T293 AC2: rank helper cases including four-tier mixed exact order.
+    #[rstest::rstest]
+    #[case::overlap_stable(
+        vec![
+            pretty_row("session", "dump-a", "1 memories · ## Objective"),
+            pretty_row("session", "dump-b", "1 memories · # Review of Track"),
+            pretty_row("memory", "auth-m", "DECISION: keep"),
+        ],
+        vec!["auth-m", "dump-a", "dump-b"]
+    )]
+    #[case::session_authority(
+        vec![
+            pretty_row("session", "dump", "1 memories · ## Objective"),
+            pretty_row("session", "auth-s", "1 memories · DECISION: x"),
+        ],
+        vec!["auth-s", "dump"]
+    )]
+    #[case::chrome_only(
+        vec![
+            pretty_row("session", "a", "1 memories · ## Objective"),
+            pretty_row("session", "b", "1 memories · ## Objective"),
+        ],
+        vec!["a", "b"]
+    )]
+    #[case::hotspot_memory(
+        vec![
+            pretty_row("session", "dump", "1 memories · ## Objective"),
+            pretty_row("memory", "hot", "HOTSPOT: brittle"),
+        ],
+        vec!["hot", "dump"]
+    )]
+    #[case::invariant_session(
+        vec![
+            pretty_row("session", "dump", "1 memories · ## Objective"),
+            pretty_row("session", "inv", "1 memories · INVARIANT: stay"),
+        ],
+        vec!["inv", "dump"]
+    )]
+    #[case::four_tier_mixed(
+        vec![
+            pretty_row("session", "other-s", "1 memories · ## Objective"),
+            pretty_row("memory", "other-m", "plain note"),
+            pretty_row("session", "auth-s", "1 memories · DECISION: s"),
+            pretty_row("memory", "auth-m", "DECISION: m"),
+        ],
+        vec!["auth-m", "auth-s", "other-m", "other-s"]
+    )]
+    fn prefer_authority_neighbor_rows__cases__expected_order(
+        #[case] mut rows: Vec<PrettyNeighborRow>,
+        #[case] expected_ids: Vec<&str>,
+    ) {
+        prefer_authority_neighbor_rows(&mut rows);
+        let ids: Vec<&str> = rows.iter().map(|r| r.external_id.as_str()).collect();
+        assert_eq!(ids, expected_ids);
     }
 }

@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #207 T291 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Planned** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #208 T292 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (publish in progress).
 
 | Item | Track |
 |------|-------|
@@ -264,6 +264,55 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | `policy show` / `policy bootstrap` TTY still JSON (F26) | **Residual** — Family D peers |
 | Human deny stderr empty (no `POLICY_DENIED:` CODE) | **Residual** — F7 by design |
 | T293–T300 | **Not stolen** |
+
+### T293 planning absorption (2026-08-23) — human-only prefer-authority 1-hop; JSON F9 freeze; no 2-hop
+
+| Item | Disposition |
+|------|-------------|
+| Audit `graph neighbors` dump sessions U=7 | **Absorb** F1–F6 / AC1–AC4 / AC12 |
+| Placeholder Manual `--format human --limit 8` | **Absorb** AC12 |
+| Placeholder JSON freeze vs human-only | **Absorb** F2 / AC4 (T246 F9 JSON; pretty permute) |
+| Placeholder PREVIEW still `{n} memories · first line` | **Absorb** F6 / AC5 T278 freeze |
+| T278 F18 2-hop pretty rows | **Affirm decline** F3 |
+| T246 F5 keys / F9 JSON sort | **Affirm freeze** F2 |
+| T262 pin = node | **Affirm** F10 / AC7 |
+| T287 human prefer-fill pattern | **Reuse** F1; do **not** reuse `prefer_fill_authority` F30 |
+| T285 chrome-seed skip (recall `--graph-boost`) | **Decline** F20 |
+| T292 policy-check human | **Decline** — Completed `#208` |
+| leftover dest-missing / context skip upsert | **Decline → T294** |
+| T295–T299 peers | **Decline →** those placeholders |
+| T300 live rebuild / floors | **Decline → T300** F7 |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F21 |
+| last-PR Cursor **#208** | **N/A empty** — **no T301** F19 |
+| Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
+
+### T293 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `" · "` split | **Already** F4/AC13; **tightened** `split_once` + AC13 dots case |
+| Agy m2 `sort_by_key` stable | **Already** F1 original index; **folded** no `sort_unstable_by_key` |
+| Agy O1 PROTOCOL-COMPAT array-order | **Already** F14/AC11; **tightened** `:95` |
+| Agy O2 four-tier rstest | **Folded** AC2 case 6 |
+| OpenCode m1 no `memory_projection` insert helper | **Folded** F31 / §5.4 — new helper; T278 DROP COLUMN is fail-open only |
+| OpenCode m2 `" · "` split | **Same as Agy m1** |
+| OpenCode O1 PROTOCOL-COMPAT `:103` neighbors | **Decline citation** — live `:103` is `project scan-roots`; `:95` is the array-order row |
+| OpenCode O2 four-tier rstest | **Same as Agy O2** |
+| OpenCode O3 exact AC3 first-row UUID | **Already** AC4 dump JSON; **folded** AC3 first pretty row is not dump id |
+| OpenCode HEAD/word snapshot | **Snapshot only** — not DoD |
+| last-PR #208 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
+### T293 closeout residuals (2026-08-23)
+
+| Item | Disposition |
+|------|-------------|
+| PATH until `cargo install --features graph` | **Residual** — F15; source/hermetic SoT |
+| Live chrome-only 1-hop (`b189ad20`) still dump-first (`## Objective`) | **Residual** — F25 honest; Manual AC12 recorded; hermetic AC3 SoT |
+| Session PREVIEW first-line still chrome when pin buried later | **Residual** — F6; do not rewrite caption |
+| Sparse E/N ~0.12 / live rebuild | **Decline → T300** |
+| T294–T299 peers | **Not stolen** |
+| Codex P1 process (gates/closeout at review time) | **Closed by** full gate + publish |
 
 ### T287 closeout residuals (2026-08-23)
 
