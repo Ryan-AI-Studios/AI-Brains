@@ -50,7 +50,7 @@ Optional features not compiled into this binary (notably default-build `graph *`
 
 ### Nightly status
 
-`ai-brains nightly --status` (human or `--format json`) exits **0** when probes are down / timeout / missing action / nonzero Last Result / Router 267009 (status report, not a failure — like `device status`). `--format` without `--status`, unknown `--format`, or `JSON`/`Pretty` → clap exit **2**.
+`ai-brains nightly --status` (human or `--format json`) exits **0** when probes are down / timeout / missing action / nonzero Last Result / Router **267009** (`SCHED_S_TASK_RUNNING`) / Router **267014** (`SCHED_S_TASK_TERMINATED`) — both are scheduler **success** constants (status report, not a failure — like `device status`). `--format` without `--status`, unknown `--format`, or `JSON`/`Pretty` → clap exit **2**.
 
 ### Path aliases (T254)
 

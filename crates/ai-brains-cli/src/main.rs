@@ -980,6 +980,26 @@ mod tests {
         );
     }
 
+    /// T296 AC6: after_help names Router 267014 / SCHED_S_TASK_TERMINATED as success (not Nightly).
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly__help__names_router_267014_success() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "nightly", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("267014") || help.contains("SCHED_S_TASK_TERMINATED"),
+            "AC6: after_help names 267014 or SCHED_S_TASK_TERMINATED; got: {help}"
+        );
+        let lower = help.to_ascii_lowercase();
+        assert!(
+            lower.contains("success") && lower.contains("not nightly"),
+            "AC6: after_help must say success and not Nightly Last Result; got: {help}"
+        );
+    }
+
     /// T273 AC12: after_help names POSIX `-- --limit` and contrasts vault `--limit 10`.
     #[test]
     #[allow(non_snake_case)]
@@ -1431,7 +1451,7 @@ enum Commands {
     /// Run nightly intelligence sweep
     #[command(
         display_order = 26,
-        after_help = "Default --format is human; pipes stay human (do not silently switch to JSON).\nScripts: pass --format json.\nNightly Last Result is AI-Brains-Nightly. Router 267009 is SCHED_S_TASK_RUNNING (success; ONLOGON keep-alive).\nprobe=timeout is HTTP /health within 750 ms. daemon status Open is TCP connect.\nExamples:\n  ai-brains nightly --status\n  ai-brains nightly --status --format json\n  ai-brains nightly --status --quick --format json"
+        after_help = "Default --format is human; pipes stay human (do not silently switch to JSON).\nScripts: pass --format json.\nNightly Last Result is AI-Brains-Nightly. Router 267009 is SCHED_S_TASK_RUNNING (success; ONLOGON keep-alive).\nRouter 267014 is SCHED_S_TASK_TERMINATED (success; last run ended), not Nightly Last Result.\nprobe=timeout is HTTP /health within 750 ms. daemon status Open is TCP connect.\nExamples:\n  ai-brains nightly --status\n  ai-brains nightly --status --format json\n  ai-brains nightly --status --quick --format json"
     )]
     Nightly {
         /// Schedule this as a Windows scheduled task

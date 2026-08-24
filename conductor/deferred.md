@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (live `--no-prune` F2a + after_help).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24.
 
 | Item | Track |
 |------|-------|
@@ -63,6 +63,55 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode O2 combined streams + no-vault help | **Already** §5.5; **tightened** F35 / F37 |
 | OpenCode O3 AC8 exact 22+1 | **Folded** F38 — Phase 0 N, after N+1 |
 | last-PR #210 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
+### T296 implement closeout (2026-08-24)
+
+| Item | Disposition |
+|------|-------------|
+| Human Ready+267014 → `Router: Ready` + `last run: terminated` | **Done** F1/F2 / AC1 / AC9 |
+| Running+267009 status-only; blank terminated/running; hex + whitespace | **Done** F3/F33/F34 / AC2/AC3 |
+| JSON `last_result` / hint frozen; `explain_last_task_result` untouched | **Affirm** F5/F6 / AC5/AC7 |
+| after_help 267014 success; CLI-EXIT-CODES both SCHED_S | **Done** F7/F19 / AC6/AC10 |
+| CAPABILITIES / OPERATIONS / CHANGELOG | **Done** AC10 |
+| Full gate `dev-check.ps1` | **Done** AC13 |
+| T297–T300 / leftover `--write` / 750 raise / doctor 16th | **Not stolen** |
+| PATH until `cargo install` | **Residual** F13 |
+
+### T296 planning absorption (2026-08-24) — human Router omits 267014 HRESULT; JSON frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit `Router: Ready last result: 267014` + `SCHED_S_TASK_TERMINATED` vs Nightly 0 | **Absorb** F1–F7 / AC1–AC3 / AC6 / AC9 |
+| Placeholder Manual `nightly --status --quick` | **Absorb** AC9 |
+| T269 “do not restyle Router” | **Supersede human only** F1–F3; JSON + heading + Nightly Last Result **affirm** |
+| T255 AC6/AC15 human numeric | **Absorb / rewrite** AC2 / AC3 |
+| T255 JSON keys / `last_result_hint` SCHED_S | **Affirm freeze** F5 |
+| `explain_last_task_result` strings | **Affirm freeze** F6 |
+| T281 750 raise / HTTP vs TCP | **Affirm freeze** F8 |
+| T255 doctor 16th / persist / `.cmd` / `--no-vault` | **Decline** F10 |
+| T297 daemon Stopped vs LLM Open | **Decline steal** F11 |
+| T298–T300 / T294 leftover `--write` / T295 engine | **Decline** F17 |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F12 / F17 |
+| last-PR Cursor **#211** | **N/A empty** — **no T301** F18 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** F27 |
+
+### T296 fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 hex parse `0x41306` | **Folded** F33 / AC3 |
+| Agy m2 blank/whitespace Status no invented `Ready` | **Already** F2 / F26; **tightened** F34 |
+| Agy O1 CLI-EXIT-CODES both SCHED_S success | **Already** F19; **tightened** AC10 |
+| Agy O2 help unit 267014 | **Already** F7 / AC6 |
+| OpenCode m1 plan HEAD `8b95181` vs `c7d6e3e` | **Snapshot** — preflight refreshed |
+| OpenCode m2 word 367→428 | **Snapshot** |
+| OpenCode m3 daemon Stopped is T297 | **Already** F11 |
+| OpenCode O1 hermetic HRESULT omission | **Already** AC1 + AC8 |
+| OpenCode O2 keep `Ready` | **Already** F1 / AC1 |
+| OpenCode “no help change” | **Decline** F7 / AC6 |
+| OpenCode `nightly.rs` production edit | **Decline** F9 |
+| last-PR #211 Cursor | **Affirm N/A** — no T301 |
 | No B/M | Nothing to decline of B/M |
 
 ### T294 closeout residuals (2026-08-24)
@@ -201,7 +250,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | graph neighbors dump sessions | **T293** |
 | leftover dest-missing; context skip vault upsert | **T294** |
 | 0 usable encrypted backup | **T295** |
-| nightly Router 267014 / TASK_TERMINATED | **T296** |
+| nightly Router 267014 / TASK_TERMINATED | **T296 Completed** |
 | daemon Stopped vs llama Open | **T297** |
 | device/replicate U=5 | **T298** |
 | forget-list empty U=6 | **T299** |

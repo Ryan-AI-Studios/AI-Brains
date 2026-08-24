@@ -676,13 +676,13 @@ ai-brains nightly --skip-import-opencode
 
 `nightly --status` (T247 / T269 / T281) prints additive human lines:
 
-- **Nightly heading** — `Nightly: AI-Brains-Nightly` on every OS, immediately after `=== Nightly Status ===`, so Last Result is not mixed with Router **267009**
+- **Nightly heading** — `Nightly: AI-Brains-Nightly` on every OS, immediately after `=== Nightly Status ===`, so Last Result is not mixed with Router
 - **Scheduled** next run — **LIST /V primary** (one `schtasks /FO LIST /V` spawn: next-run + last-run + last-result + Task To Run). CSV next-run is fallback only (3 columns — never Last Result). LIST /V non-zero (task missing) → `Scheduled: No`; no PowerShell.
 - **Last task result** — from that LIST /V parse. PowerShell `Get-ScheduledTaskInfo` is Last Result fallback **only when LIST /V succeeded but last_result parse missed (locale)**.
 - **Last scheduled run** (Task Scheduler Last Run Time) is printed separately from vault **Last nightly run**. They can disagree (e.g. the task fired but the action target was missing, so the vault never advanced).
 - Last nightly run / unsummarized counts / last-run errors
 - **Completion** / **Embedding** host:port + model + soft probe (`ok` / `down` / `timeout` / `error` on default `--status`; **`--quick` prints `probe=skipped`** — no HTTP). Human `probe=timeout` is labeled `timeout (750ms)` (HTTP `/health` budget). On Completion human timeout, the next line is `HTTP /health 750ms ≠ daemon TCP`. `daemon status` Open is TCP connect, not `/health`. Credentials in URLs are redacted; vault keys never printed
-- **Router** (T255, read-only) — Last Result for `AI-Brains-Router`. Does **not** register, start, or repair that task
+- **Router** (T255 / T296, read-only) — Status for `AI-Brains-Router`. Human omits scheduler-success decimals (`267014` → `last run: terminated`; `267009` → Status-only). JSON still has raw `last_result` + `SCHED_S_*` hints. Does **not** register, start, or repair that task
 - **Multi-import** block (T239)
 - Missing action: if Task To Run’s first quoted `.cmd` / `.bat` / `.exe` does not exist → `Action target missing: <path>` + `next: ai-brains nightly --schedule --dry-run`
 

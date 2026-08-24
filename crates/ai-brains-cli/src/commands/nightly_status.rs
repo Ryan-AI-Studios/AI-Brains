@@ -9,6 +9,9 @@ use serde::Serialize;
 /// Human heading so Nightly Last Result is not read as the Router task (T269 F1).
 pub(crate) const NIGHTLY_TASK_HEADING: &str = "Nightly: AI-Brains-Nightly";
 
+/// Human follow line for Router SCHED_S_TASK_TERMINATED (T296 F2) — no HRESULT / SCHED_S token.
+pub(crate) const ROUTER_LAST_RUN_TERMINATED: &str = "last run: terminated";
+
 /// Suffix the HTTP `/health` budget on the exact `timeout` token only (T269 F3 / F27).
 pub(crate) fn format_probe_label_human(label: &str, budget_ms: u128) -> String {
     if label == "timeout" {
@@ -179,7 +182,17 @@ pub(crate) fn emit_nightly_status_json(
     serde_json::to_string_pretty(status)
 }
 
-/// Human Router lines (T255 F7/F10/AC6/AC7/AC15). Hint is a following line.
+/// Parse schtasks Last Result decimal or `0x`/`0X` hex (same class as `explain_last_task_result`).
+fn parse_router_last_result_code(raw: &str) -> Option<u32> {
+    let s = raw.trim();
+    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        u32::from_str_radix(hex, 16).ok()
+    } else {
+        s.parse::<u32>().ok()
+    }
+}
+
+/// Human Router lines (T255 F7/F10; T296 F1–F4 supersede numeric HRESULT on human).
 ///
 /// Do not apply Nightly first-quoted missing-action / `next:` to Router.
 /// Production call site is Windows-only; unit tests keep this live on Unix.
@@ -194,25 +207,45 @@ pub(crate) fn format_router_status_lines(
     }
     let status = status.map(str::trim).filter(|s| !s.is_empty());
     let last_result = last_result.map(str::trim).filter(|s| !s.is_empty());
-    let mut lines = Vec::new();
     match (status, last_result) {
         (Some(st), Some(code)) => {
-            // Two spaces before `last result:` (T255 §5.2 / AC6).
-            lines.push(format!("Router: {st}  last result: {code}"));
-            if let Some(hint) = explain_last_task_result(code) {
-                lines.push(hint.to_string());
+            match parse_router_last_result_code(code) {
+                // SCHED_S_TASK_TERMINATED — Status + short phrase (no HRESULT / SCHED_S).
+                Some(267014) => vec![
+                    format!("Router: {st}"),
+                    ROUTER_LAST_RUN_TERMINATED.to_string(),
+                ],
+                // SCHED_S_TASK_RUNNING — Status already says running; omit code.
+                Some(267009) | Some(0) => vec![format!("Router: {st}")],
+                // Process-like exits keep existing Nightly decode strings.
+                Some(1) | Some(101) => {
+                    let mut lines = vec![format!("Router: {st}")];
+                    if let Some(hint) = explain_last_task_result(code) {
+                        lines.push(hint.to_string());
+                    }
+                    lines
+                }
+                // Unknown / unparseable with Status: Status only (honesty without decimal noise).
+                Some(_) | None => vec![format!("Router: {st}")],
             }
         }
-        (None, Some(code)) => {
-            lines.push(format!("Router: last result: {code}"));
-            if let Some(hint) = explain_last_task_result(code) {
-                lines.push(hint.to_string());
+        (None, Some(code)) => match parse_router_last_result_code(code) {
+            Some(267014) => vec!["Router: terminated".to_string()],
+            Some(267009) => vec!["Router: running".to_string()],
+            Some(0) => vec!["Router:".to_string()],
+            Some(1) | Some(101) => {
+                let mut lines = vec![format!("Router: last result: {code}")];
+                if let Some(hint) = explain_last_task_result(code) {
+                    lines.push(hint.to_string());
+                }
+                lines
             }
-        }
-        (Some(st), None) => lines.push(format!("Router: {st}")),
-        (None, None) => lines.push("Router:".to_string()),
+            // Unknown blank-Status: keep raw code for honesty.
+            Some(_) | None => vec![format!("Router: last result: {code}")],
+        },
+        (Some(st), None) => vec![format!("Router: {st}")],
+        (None, None) => vec!["Router:".to_string()],
     }
-    lines
 }
 
 /// Router JSON `scheduled` is `found` (ONLOGON has no `next_run`).
@@ -556,16 +589,44 @@ mod tests {
         assert_eq!(embedding["host_port"], "127.0.0.1:8083");
     }
 
+    /// T296 AC1: Ready + 267014 → status + terminated phrase; no decimal / SCHED_S.
     #[test]
-    fn format_router_status_lines__running_267009__router_and_hint_on_following_line() {
-        let lines = format_router_status_lines(true, Some("Running"), Some("267009"));
+    fn format_router_status_lines__ready_267014__status_then_terminated_no_numeric() {
+        assert_eq!(ROUTER_LAST_RUN_TERMINATED, "last run: terminated");
+        let lines = format_router_status_lines(true, Some("Ready"), Some("267014"));
         assert_eq!(
             lines,
             vec![
-                "Router: Running  last result: 267009".to_string(),
-                "task still running (SCHED_S_TASK_RUNNING)".to_string(),
+                "Router: Ready".to_string(),
+                ROUTER_LAST_RUN_TERMINATED.to_string(),
             ]
         );
+        let joined = lines.join("\n");
+        assert!(
+            !joined.contains("267014"),
+            "human must omit 267014; got: {joined}"
+        );
+        assert!(
+            !joined.contains("SCHED_S"),
+            "human must omit SCHED_S; got: {joined}"
+        );
+    }
+
+    /// T296 AC2: Running + 267009 → status only (supersedes T255 AC6 human numeric).
+    #[test]
+    fn format_router_status_lines__running_267009__status_only_no_numeric() {
+        let lines = format_router_status_lines(true, Some("Running"), Some("267009"));
+        assert_eq!(lines, vec!["Router: Running".to_string()]);
+        let joined = lines.join("\n");
+        assert!(
+            !joined.contains("267009"),
+            "human must omit 267009; got: {joined}"
+        );
+        assert!(
+            !joined.contains("SCHED_S"),
+            "human must omit SCHED_S; got: {joined}"
+        );
+        // JSON half of T255 AC6 stays frozen.
         let json = router_json_from_input(&RouterStatusInput {
             found: true,
             status: Some("Running".to_string()),
@@ -610,20 +671,94 @@ mod tests {
         assert_eq!(json.last_result.as_deref(), Some("0"));
     }
 
+    /// T296 AC3 / F34: blank or whitespace Status + 267014 → terminated phrase (no Ready).
     #[test]
-    fn format_router_status_lines__blank_status_267009__last_result_only() {
+    fn format_router_status_lines__blank_status_267014__terminated_phrase() {
+        let blank = format_router_status_lines(true, None, Some("267014"));
+        assert_eq!(blank, vec!["Router: terminated".to_string()]);
+        assert!(
+            !blank.iter().any(|line| line.contains("Ready")),
+            "blank status must not invent Ready; got: {blank:?}"
+        );
+        let whitespace = format_router_status_lines(true, Some("   "), Some("267014"));
+        assert_eq!(
+            whitespace, blank,
+            "whitespace-only Status must match blank (F34)"
+        );
+    }
+
+    /// T296 AC3: blank Status + 267009 → running phrase (supersedes T255 AC15).
+    #[test]
+    fn format_router_status_lines__blank_status_267009__running_phrase() {
         let lines = format_router_status_lines(true, None, Some("267009"));
-        assert_eq!(
-            lines.first().map(String::as_str),
-            Some("Router: last result: 267009")
-        );
-        assert_eq!(
-            lines.get(1).map(String::as_str),
-            Some("task still running (SCHED_S_TASK_RUNNING)")
-        );
+        assert_eq!(lines, vec!["Router: running".to_string()]);
         assert!(
             !lines.first().is_some_and(|line| line.contains("Running")),
-            "blank status must not invent Running"
+            "blank status must not invent title-case Running; got: {lines:?}"
+        );
+        assert!(
+            !lines.join("\n").contains("267009"),
+            "human must omit 267009; got: {lines:?}"
+        );
+    }
+
+    /// T296 AC3 / F33: hex forms match decimal scheduler-success mapping.
+    #[rstest::rstest]
+    #[case("0x41306", "267014")]
+    #[case("0X41306", "267014")]
+    #[case("0x41301", "267009")]
+    fn format_router_status_lines__hex_0x41306__same_as_267014(
+        #[case] hex: &str,
+        #[case] decimal: &str,
+    ) {
+        let with_status_hex = format_router_status_lines(true, Some("Ready"), Some(hex));
+        let with_status_dec = format_router_status_lines(true, Some("Ready"), Some(decimal));
+        assert_eq!(
+            with_status_hex, with_status_dec,
+            "hex {hex} must match decimal {decimal} with Status"
+        );
+        let blank_hex = format_router_status_lines(true, None, Some(hex));
+        let blank_dec = format_router_status_lines(true, None, Some(decimal));
+        assert_eq!(
+            blank_hex, blank_dec,
+            "hex {hex} must match decimal {decimal} when Status blank"
+        );
+    }
+
+    /// T296 AC4: Ready + 0 → status only; Ready + 1 → status + existing process hint.
+    #[test]
+    fn format_router_status_lines__ready_0_and_1__status_and_process_hint() {
+        assert_eq!(
+            format_router_status_lines(true, Some("Ready"), Some("0")),
+            vec!["Router: Ready".to_string()]
+        );
+        let fail = format_router_status_lines(true, Some("Ready"), Some("1"));
+        assert_eq!(fail.first().map(String::as_str), Some("Router: Ready"));
+        assert_eq!(
+            fail.get(1).map(String::as_str),
+            explain_last_task_result("1")
+        );
+        assert_eq!(
+            format_router_status_lines(true, None, Some("0")),
+            vec!["Router:".to_string()]
+        );
+    }
+
+    /// T296 AC5: JSON still carries raw 267014 + existing SCHED_S hint.
+    #[test]
+    fn router_json_from_input__ready_267014__raw_last_result_and_hint() {
+        let json = router_json_from_input(&RouterStatusInput {
+            found: true,
+            status: Some("Ready".to_string()),
+            last_result: Some("267014".to_string()),
+            task_to_run: Some(r"C:\llm\router.bat".to_string()),
+        });
+        assert!(json.scheduled);
+        assert_eq!(json.status.as_deref(), Some("Ready"));
+        assert_eq!(json.last_result.as_deref(), Some("267014"));
+        assert_eq!(
+            json.last_result_hint.as_deref(),
+            Some("task terminated (SCHED_S_TASK_TERMINATED)")
         );
     }
 
