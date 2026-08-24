@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #208 T292 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Planned** 2026-08-23.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #208 T292 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Planned + folded** 2026-08-23.
 
 | Item | Track |
 |------|-------|
@@ -285,6 +285,23 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F21 |
 | last-PR Cursor **#208** | **N/A empty** — **no T301** F19 |
 | Identity leftover `7d97a456` | **Not this track** — T258 / T294 |
+
+### T293 fold-in (2026-08-23) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `" · "` split | **Already** F4/AC13; **tightened** `split_once` + AC13 dots case |
+| Agy m2 `sort_by_key` stable | **Already** F1 original index; **folded** no `sort_unstable_by_key` |
+| Agy O1 PROTOCOL-COMPAT array-order | **Already** F14/AC11; **tightened** `:95` |
+| Agy O2 four-tier rstest | **Folded** AC2 case 6 |
+| OpenCode m1 no `memory_projection` insert helper | **Folded** F31 / §5.4 — new helper; T278 DROP COLUMN is fail-open only |
+| OpenCode m2 `" · "` split | **Same as Agy m1** |
+| OpenCode O1 PROTOCOL-COMPAT `:103` neighbors | **Decline citation** — live `:103` is `project scan-roots`; `:95` is the array-order row |
+| OpenCode O2 four-tier rstest | **Same as Agy O2** |
+| OpenCode O3 exact AC3 first-row UUID | **Already** AC4 dump JSON; **folded** AC3 first pretty row is not dump id |
+| OpenCode HEAD/word snapshot | **Snapshot only** — not DoD |
+| last-PR #208 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
 
 ### T287 closeout residuals (2026-08-23)
 

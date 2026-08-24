@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators who paste a pin id into `graph neighbors --format human` see an authority neighbor (leading `DECISION:` / `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` memory, or a session whose caption first-line is that marker) on the **first data row** when such a 1-hop exists. Sparse rebuild remains **T300**. Leftover dest upsert **T294**. Forget-list **T299**.
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “graph neighbors dump sessions” (every T285–T292 decline pointer)
 - **Not absorbed (DoD):** Live `graph rebuild` (T300); T213 floor retune; Cargo default-on graph; projector rewrite / fake edges / 2-hop pretty rows (T278 F18); hierarchy/session/update restyle; JSON `kind`/`preview` keys; `--authority` / `--sort`; T285 chrome-seed skip (recall `--graph-boost`); T240 F2; T263 H2; clap 5 / rusqlite 0.40
-- **Research date:** 2026-08-23 (plan dogfood HEAD `80a10d9` T292 `#208`. Product `src/` = T278 session PREVIEW + T246 JSON sort incoming-first. PATH **0.1.2** 2026-08-22 19:41 **without** T285–T292 — neighbor-order hole is in **source and PATH**)
-- **AI fold-in:** (none yet — plan pass)
-- **Ledger:** planning DOCS TX `83553530-cc14-4e4a-ad5e-cf366cf11a03`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-23 (plan dogfood HEAD `80a10d9` T292 `#208`; plan commit `fe9fb89`. Product `src/` = T278 session PREVIEW + T246 JSON sort incoming-first. PATH **0.1.2** 2026-08-22 19:41 **without** T285–T292 — neighbor-order hole is in **source and PATH**)
+- **AI fold-in:** 2026-08-23 `agy-review.md` (`fe9fb89`) + `opencode-review.md` (`fe9fb89`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy/OpenCode m2 `split_once(" · ")`; Agy m2 `sort_by_key` + original index; OpenCode m1 new `memory_projection` INSERT helper (not T278 DROP COLUMN); Agy/OpenCode O2 four-tier rstest; OpenCode O3 exact AC3 first-row identity; Agy/OpenCode O1 PROTOCOL-COMPAT `:95` pretty note. **Already:** F1 stable; F4/AC13 strip; F14/AC11 array-order; AC4 exact dump UUID. **Decline:** OpenCode “third neighbors row `:103`” — live `:103` is `project scan-roots`. Word/pin/hotspot snapshot only. Disposition **§13**.
+- **Ledger:** planning DOCS TX `83553530-cc14-4e4a-ad5e-cf366cf11a03`. Fold-in DOCS TX `13843d9e-33be-4288-8979-534f1593d3ed`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement (hermetic needle is SoT; Manual unique canary allowed on go). Do **not** rewrite `.env`. Do **not** live `graph rebuild`. Do **not** grow hotspot `project.rs` / `sync.rs` / `forget.rs` production / CLI `preflight.rs` / `session_chrome.rs` / `ranking.rs` (import `classify_pin_kind` only) / `projector.rs` / `queries.rs` `get_neighbors`. Helpers live in `graph.rs` (not top-10; **1073** lines — same file first; split `graph_neighbors_order.rs` only if production net ≥80). Do **not** print or commit `AI_BRAINS_KEY`.
 
 ---
@@ -73,7 +73,7 @@ This unblocks the unused caption: T278 filled PREVIEW; the first row is still du
 | T285 graph test | `tests/recall_rank_v2_graph.rs` | Recall chrome-seed. **Do not edit as DoD.** |
 | PROTOCOL-COMPAT | `Docs/PROTOCOL-COMPAT.md` **`:94–95`** | Keys unchanged. Array order direction→label→id. **Add pretty human-only prefer note on the array-order row.** |
 | CAPABILITIES | **`:103`** / command **`:462`** | T278 PREVIEW sentence. Add human prefer-fill / JSON freeze. |
-| OPERATIONS | graph **update/rebuild** `:893+`; **no** neighbors sentence | Add one sentence near the graph block. |
+| OPERATIONS | graph **update/rebuild** `:893+`; neighbors paragraph **`:948`** (T246/T262/T278) | **Extend `:948`** — do not add a second block. |
 | Hotspots | `project.rs` #1 3.932 | **Do not touch.** Helpers in `graph.rs`. |
 
 ### 2.4 Dependency / standards research (2026-08-23) — snapshot; re-verify at execute
@@ -112,11 +112,11 @@ This unblocks the unused caption: T278 filled PREVIEW; the first row is still du
 | ID | Decision |
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `83553530`. Implement starts a **FEATURE** TX. |
-| **F1 — Human-only prefer-authority** | After T246 F9 sort + `pretty_neighbor_rows`, pretty path calls `prefer_authority_neighbor_rows`. Rank: **0** memory + `classify_pin_kind != Other`; **1** session + caption body `!= Other`; **2** other memory; **3** other session / other kinds. Stable within rank (original index). Same length; **no drops**. Applies to `pretty`/`human`/`text` and TTY `auto`. |
+| **F1 — Human-only prefer-authority** | After T246 F9 sort + `pretty_neighbor_rows`, pretty path calls `prefer_authority_neighbor_rows`. Rank: **0** memory + `classify_pin_kind != Other`; **1** session + caption body `!= Other`; **2** other memory; **3** other session / other kinds. Implement with `Vec::sort_by_key` (stable; do **not** `sort_unstable_by_key`) on `(rank, original_index)` so within-tier order stays F9 direction→label→id (Agy m2). Same length; **no drops**. Applies to `pretty`/`human`/`text` and TTY `auto`. |
 | **F2 — JSON freeze** | `sort_neighbor_hits` remains the JSON order (T246 F9). Keys T246 F5. Compact. **No** pretty permute on JSON. Pipe `auto` is JSON (already). |
 | **F3 — 1-hop only** | Do **not** add 2-hop sibling memories as pretty rows (T278 F18). Do **not** change `get_neighbors` SQL/signature. Do **not** walk `get_session_memories` to emit extra rows. |
-| **F4 — Classifier from displayed preview** | Memory: `classify_pin_kind(&row.preview)`. Session: strip first ` · ` from T278 caption, classify the remainder (empty / no separator → Other). Import `ai_brains_retrieval::{PinKind, classify_pin_kind}`. **Do not edit** `ranking.rs` / `session_chrome.rs`. Hotspot **stays** (INVARIANT→Constraint). |
-| **F5 — Dumps stay** | Prefer-fill, not hard-exclude (T260/T274 analog). Chrome 1-hop may occupy rows 2+ and the whole page when no authority 1-hop exists (F32). |
+| **F4 — Classifier from displayed preview** | Memory: `classify_pin_kind(&row.preview)`. Session: `str::split_once(" · ")` (**exact** space-dot-space; T278 `format_session_neighbor_preview` `:256` — Agy m1 / OpenCode m2). Classify the remainder (no separator / empty remainder → Other). Do **not** split on `.` or bare `·`. Import `ai_brains_retrieval::{PinKind, classify_pin_kind}`. **Do not edit** `ranking.rs` / `session_chrome.rs`. Hotspot **stays** (INVARIANT→Constraint). |
+| **F5 — Dumps stay** | Prefer-fill, not hard-exclude (T260/T274 analog). Chrome 1-hop may occupy rows 2+ and the whole page when no authority 1-hop exists (**F25**). |
 | **F6 — T278 PREVIEW freeze** | Session cell remains `{n} memories · first line` (fail-open, 80-cap, `pick_first_nonempty`). Do **not** retitle PREVIEW to `DECISION:` when the first memory is chrome. Ranker reads the caption; it does not rewrite it. |
 | **F7 — Projector / density / rebuild freeze** | No `projector.rs` rewrite. No T213 floor change. No live `graph rebuild` (T300). `graph update` JSON/human unchanged. |
 | **F8 — No new clap flag** | No `--authority` / `--sort` / `--pins-only`. Silent human mix (T287 F9). Format tokens / default `auto` frozen (T246 F1). |
@@ -125,7 +125,7 @@ This unblocks the unused caption: T278 filled PREVIEW; the first row is still du
 | **F11 — Hierarchy / session / update freeze** | Do **not** prefer-fill those commands. Neighbors only. |
 | **F12 — Feature-off freeze** | Exit **2** + `FEATURE_UNAVAILABLE` stays. |
 | **F13 — Tests** | Naming `function_or_feature__condition__expected_result`. No `unwrap`/`expect`/`panic` in production. `tempfile::tempdir` hermetic. **AC2 required rstest `#[case]`** for the rank helper. |
-| **F14 — Docs** | CAPABILITIES graph row: human prefer-fills authority 1-hop; JSON order unchanged. PROTOCOL-COMPAT §5 array-order row: pretty human-only prefer; JSON direction→label→id freeze. GraphCommands `after_help` one dual-truth sentence (T283/T287). OPERATIONS one sentence near graph update. CHANGELOG on implement. |
+| **F14 — Docs** | CAPABILITIES graph row: human prefer-fills authority 1-hop; JSON order unchanged. PROTOCOL-COMPAT §5 **array-order row `:95`**: pretty human-only prefer-authority; JSON stays direction→label→id (Agy O1 / OpenCode O1). GraphCommands `after_help` one dual-truth sentence (T283/T287). OPERATIONS **extend** the existing neighbors paragraph **`:948`** (do **not** add a second graph block). CHANGELOG on implement. |
 | **F15 — PATH** | Soft. Source/hermetic SoT. Do not `cargo install` as implement. |
 | **F16 — Capture independence** | Pretty reorder + existing SQL. No models, embeddings, new events, ledgerful writes. |
 | **F17 — Isolation hotspots** | Do not grow `project.rs` / `sync.rs` / `forget.rs` production / CLI `preflight.rs` / `personal.rs` / `briefing.rs` / `session_chrome.rs` / `ranking.rs` (import only) / `projector.rs` / `queries.rs` / `doctor.rs` / `.github/workflows/ci.yml`. |
@@ -142,6 +142,7 @@ This unblocks the unused caption: T278 filled PREVIEW; the first row is still du
 | **F28 — PowerShell** | `;` not `&&`. |
 | **F29 — Identity stdout** | JSON still `note_machine_stdout` (T257). Pretty does not. |
 | **F30 — No shared list helper** | Do **not** reuse `memory::prefer_fill_authority` (different row type). Graph helper is local. |
+| **F31 — AC3 dump-memory INSERT (OpenCode m1)** | `graph_human_cli.rs` has `seed_node` `:104` / `seed_edge` `:119` / `open_zero_vault` `:91`. **No** `memory_projection` insert helper exists. T278 DROP COLUMN (`graph_live_projection.rs:187`) is the fail-open AC5 fixture — **do not reuse it** to seed content. Write a **new** `seed_memory_projection` (file-local) with columns `memory_id, session_id, project_id, content, privacy, status, level, created_at, updated_at` (CLI test shape `cross_repo_bridge_smoke.rs:101`; `tx_id` optional). `privacy` JSON string `"LocalOnly"`. Required NOT NULL from `0006_memory_projection.sql`: `memory_id, content, privacy, status, created_at, updated_at`. |
 
 ---
 
@@ -150,8 +151,8 @@ This unblocks the unused caption: T278 filled PREVIEW; the first row is still du
 | ID | Criterion |
 |----|-----------|
 | **AC1** | Unit: `prefer_authority_neighbor_rows` on `[dump-session Objective, authority-memory DECISION:]` (F9 incoming-first order) → first row is the memory; len unchanged; dump still present second. **Required red.** |
-| **AC2** | rstest `#[case]` on the helper: (1) overlap/stable — two dump sessions + one Decision memory → memory first, dumps keep relative order; (2) session-authority — dump session Objective + session caption `1 memories · DECISION: x` → Decision session first; (3) chrome-only — two Objective sessions → original order (F25); (4) Hotspot memory ranks with Decision (not Other); (5) `INVARIANT:` session caption ranks as authority. |
-| **AC3** | CLI hermetic (`test(graph)`): pin `DECISION: {needle}` + extra incoming dump session (UUID `00000000-0000-4000-8000-000000000001`) whose session memories first-line is `## Objective` → `graph neighbors <pin> --format pretty --limit 8` first **data** row after the header is **not** `## Objective` / `# Review of Track`; PREVIEW of that first row contains `DECISION` or `{needle}`; dump session still appears in the table. Exit **0**. **Required red.** |
+| **AC2** | rstest `#[case]` on the helper: (1) overlap/stable — two dump sessions + one Decision memory → memory first, dumps keep relative order; (2) session-authority — dump session Objective + session caption `1 memories · DECISION: x` → Decision session first; (3) chrome-only — two Objective sessions → original order (F25); (4) Hotspot memory ranks with Decision (not Other); (5) `INVARIANT:` session caption ranks as authority; **(6) four-tier mixed** (Agy O2 / OpenCode O2) — one of each rank 0–3 in F9 dump-first order → exact `[authority-memory, authority-session, other-memory, other-session]`. |
+| **AC3** | CLI hermetic (`test(graph)`): pin `DECISION: {needle}` + extra incoming dump session (UUID `00000000-0000-4000-8000-000000000001`) whose session memories first-line is `## Objective` (F31 INSERT, not T278 DROP COLUMN) → `graph neighbors <pin> --format pretty --limit 8` first **data** row after the header contains `DECISION` or `{needle}` **and** does **not** contain `## Objective` / `# Review of Track`; that row’s ID is **not** `00000000-…0001` (OpenCode O3: pin’s own session / authority neighbor, not the dump UUID); dump session UUID still appears in a later data row. Exit **0**. **Required red.** |
 | **AC4** | Same fixture: `--format json` `neighbors[0].external_id` is the dump session `00000000-…0001` (incoming UUID-first); keys still exactly `{external_id,label,direction}`; root keys `{memory_id,neighbors}`. Exit **0**. **Required red** (JSON freeze). |
 | **AC5** | T278 `pin__graph_on__neighbors_pretty__session_preview_nonblank` **stays green**. |
 | **AC6** | T246 `graph_neighbors__json_and_pretty__frozen_keys_and_dir` **stays green**. |
@@ -159,9 +160,9 @@ This unblocks the unused caption: T278 filled PREVIEW; the first row is still du
 | **AC8** | Feature-off `graph_neighbors__format_pretty__feature_off_exit_2` **stays green**. |
 | **AC9** | `sort_neighbor_hits__incoming_before_outgoing_then_label_then_id` **stays green**. |
 | **AC10** | `graph neighbors --help` / GraphCommands after_help mentions human prefer-fills authority and JSON order unchanged (substring). Catalog/examples still include `--format json` and session PREVIEW sentence. |
-| **AC11** | CAPABILITIES graph row + PROTOCOL-COMPAT §5 array-order row + OPERATIONS one sentence + CHANGELOG T293. |
+| **AC11** | CAPABILITIES graph row + PROTOCOL-COMPAT §5 **array-order row `:95`** (pretty human-only prefer; JSON direction→label→id) + OPERATIONS **`:948` paragraph extended** (not a new section) + CHANGELOG T293. |
 | **AC12** | Manual (on go, `cargo run -p ai-brains-cli --features graph --`, no `--daemon`): `graph neighbors <pin-id> --format human --limit 8` and `--format json`. Pass = if the live 1-hop contains an authority neighbor, pretty first data row is that class (not `## Objective` / Track 254 as row 1); JSON `neighbors[0]` still F9 order. If live 1-hop is chrome-only (F25), record observed first PREVIEW and **hermetic AC3 is SoT**. Unique canary pin **allowed**. **Do not** `cargo install`. **Do not** `graph rebuild`. |
-| **AC13** | Unit: `session_caption_body("5 memories · DECISION: x")` is `DECISION: x`; `"2 memories"` / `"2 memories ·    "` → empty/Other. Does **not** classify the `{n} memories` prefix as Decision. |
+| **AC13** | Unit: `session_caption_body("5 memories · DECISION: x")` is `DECISION: x`; `"2 memories"` / `"2 memories ·    "` → empty/Other. `"1 memories · 1.2.3 dump"` remainder is `1.2.3 dump` (does **not** split on `.`). Does **not** classify the `{n} memories` prefix as Decision. |
 | **AC14** | Pretty `--limit 1` on the AC3 fixture returns **one** data row and it is the authority neighbor (`… and N more` still correct). JSON `--limit 1` is still the dump session. |
 
 ---
@@ -178,11 +179,19 @@ T246 F9 is a PROTOCOL-COMPAT **behavioral** note (AI2 M2). Scripts that pin `nei
 
 ### 5.3 Caption strip
 
-T278 `format_session_neighbor_preview` concatenates `"{n} memories"` + ` · ` + first line. Ranker splits on the first ` · ` only. Do **not** regex the count. Do **not** classify `5 memories` as authority.
+T278 `format_session_neighbor_preview` concatenates `"{n} memories"` + `" · "` + first line (`graph.rs:256`). Ranker uses `split_once(" · ")` only (Agy m1). Do **not** regex the count. Do **not** split on `.` or bare `·`. Do **not** classify `5 memories` as authority.
 
-### 5.4 Hermetic dump session (AC3)
+### 5.4 Hermetic dump session (AC3 / F31)
 
-Reuse `graph_human_cli.rs` `seed_node` / `seed_edge` / SQL `memory_projection` insert (T278 DROP COLUMN pattern) with `TempEnv` + zero key. Dump session UUID **`00000000-0000-4000-8000-000000000001`** so F9 incoming UUID-sort puts it first in JSON. Dump memory UUID `…0002` + content `## Objective\n…` so `get_session_memories` + `ids.sort()` + `pick_first_nonempty` yields Objective PREVIEW. Pin via existing `pin_decision` (session `aaaaaaaa-…`, content `DECISION:`).
+**Reuse:** `graph_human_cli.rs` `open_zero_vault` `:91`, `seed_node` `:104`, `seed_edge` `:119`, and `graph_live_projection.rs` `pin_decision` `:22` (session `aaaaaaaa-…`, content `DECISION:`).
+
+**Write new:** `seed_memory_projection` in the same hermetic test file as AC3 (prefer `graph_human_cli.rs`). T278 DROP COLUMN (`graph_live_projection.rs:187`) is fail-open AC5 — **not** a content seeder (OpenCode m1).
+
+Dump session UUID **`00000000-0000-4000-8000-000000000001`** so F9 incoming UUID-sort puts it first in JSON. Dump memory UUID `…0002` + content `## Objective\n…` + `seed_edge(dump-session, RECALLS, dump-memory)` so `get_session_memories` + `ids.sort()` + `pick_first_nonempty` yields Objective PREVIEW. Also `seed_edge(dump-session, RECALLS, pin-id)` so the dump session is a 1-hop of the pin.
+
+### 5.7 `sort_by_key` (Agy m2)
+
+[`Vec::sort_by_key`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.sort_by_key) is **stable**. `sort_unstable_by_key` is not. Key is `(neighbor_authority_rank(row), original_index)` so within-tier order cannot regress even if someone later switches to unstable.
 
 ### 5.5 Why import classifier, not GLOB
 
@@ -243,6 +252,7 @@ Then rstest AC2. Pretty `--limit 1` AC14.
 | PATH-behind | F15 `cargo run --features graph` / hermetic |
 | last-PR leftover missed | #208 empty (verified). Dependabot not tracks. |
 | `graph.rs` bloat | F18 same-file cap |
+| AC3 INSERT missing columns | F31 9-col CLI test shape; required 0006 NOT NULL |
 
 ---
 
@@ -279,7 +289,7 @@ Then rstest AC2. Pretty `--limit 1` AC14.
 2. FEATURE TX
 3. Red AC1 helper + AC13 strip + AC3 hermetic pretty
 4. Green: pretty path calls prefer; JSON untouched
-5. Red/green AC4 JSON freeze; AC2 rstest; AC14 limit
+5. Red/green AC4 JSON freeze; AC2 rstest (incl. four-tier case 6); AC14 limit; F31 INSERT helper
 6. Stay-green AC5–AC9
 7. Docs AC10/AC11
 8. Clippy + nextest (`--features graph` where required) + deny/audit
@@ -309,10 +319,10 @@ Then rstest AC2. Pretty `--limit 1` AC14.
 |------|--------|
 | `crates/ai-brains-cli/src/commands/graph.rs` | `prefer_authority_neighbor_rows` + rank/strip helpers; pretty path only; units AC1/AC2/AC13 |
 | `crates/ai-brains-cli/src/main.rs` | GraphCommands `after_help` dual-truth sentence only (no flag changes) |
-| `crates/ai-brains-cli/tests/graph_human_cli.rs` or `graph_live_projection.rs` | AC3/AC4/AC14 hermetics (`test(graph)`) |
+| `crates/ai-brains-cli/tests/graph_human_cli.rs` (prefer) or `graph_live_projection.rs` | AC3/AC4/AC14 hermetics (`test(graph)`); **new** `seed_memory_projection` (F31) |
 | `Docs/CAPABILITIES.md` | graph neighbors prefer-fill / JSON freeze |
 | `Docs/PROTOCOL-COMPAT.md` | §5 array-order pretty human-only note |
-| `Docs/OPERATIONS.md` | one sentence near graph update |
+| `Docs/OPERATIONS.md` | extend existing neighbors paragraph `:948` (T246/T262/T278) |
 | `CHANGELOG.md` | on implement |
 | `conductor/conductor.md` | Planned now; Completed on implement only |
 | `conductor/deferred.md` | this planning table (now); closeout later |
@@ -324,4 +334,35 @@ Then rstest AC2. Pretty `--limit 1` AC14.
 
 ## 13. AI fold-in
 
-(none yet — plan pass)
+Inputs (not edited): `agy-review.md` (HEAD `fe9fb89`) + `opencode-review.md` (HEAD `fe9fb89`). Fold-in HEAD `fe9fb89` on `main`. Live verify: `neighbors` `:361` pretty `:388` JSON `:401`; `sort_neighbor_hits` `:140`; `format_session_neighbor_preview` `" · "` `:256`; `pretty_neighbor_rows` `:308`; `seed_node` `:104` / `seed_edge` `:119` / **no** projection insert helper; T278 DROP COLUMN `:187`; MemoryPinned INSERT columns `memory.rs:22`; clap Neighbors `:2846` dispatch `:5121`; PROTOCOL-COMPAT graph `:94` array-order `:95` (`:103` is `project scan-roots`, not neighbors); OPERATIONS neighbors `:948`; `classify_pin_kind` `:122`. Hotspot `project.rs` **#1** (3.932). Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; no clap 5). Last merged PR still **#208**. **No T301.** Fold-in preflight: Pinned **4048** / in-context **1/2/1** / word **1416** (volatile). Doctor **4** warn; :8081/:8083 ok at fold-in (OpenCode: unreachable — volatile).
+
+### Pins locked by fold-in
+
+1. **F4 / AC13 (Agy m1 / OpenCode m2):** `split_once(" · ")` exact; dots in first-line stay in remainder.
+2. **F1 (Agy m2):** `sort_by_key` on `(rank, original_index)`; no `sort_unstable_by_key`.
+3. **F31 / §5.4 (OpenCode m1):** new `seed_memory_projection`; do **not** reuse T278 DROP COLUMN as a seeder.
+4. **AC2 case 6 (Agy O2 / OpenCode O2):** four-tier mixed exact order.
+5. **AC3 (OpenCode O3):** first pretty data row is authority (DECISION/needle) and **not** dump UUID `00000000-…0001`.
+6. **F14 / AC11 (Agy O1 / OpenCode O1):** PROTOCOL-COMPAT **`:95`** pretty note; OPERATIONS **extend `:948`**.
+7. **F5 F-id slip:** chrome-only is **F25**, not F32.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** `" · "` split | **Already** F4/AC13; **tightened** `split_once` + AC13 dots case |
+| Agy | **m2** stable `sort_by_key` | **Already** F1 original index; **folded** `sort_by_key` / no unstable |
+| Agy | **O1** PROTOCOL-COMPAT array-order | **Already** F14/AC11; **tightened** `:95` |
+| Agy | **O2** four-tier rstest | **Folded** AC2 case 6 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** no projection insert helper | **Folded** F31 / §5.4 |
+| OpenCode | **m2** `" · "` split | **Same as Agy m1** |
+| OpenCode | **O1** PROTOCOL-COMPAT `:94–95` + “`:103` neighbors” | **Partial** — `:95` folded; **decline** `:103` (live `project scan-roots`) |
+| OpenCode | **O2** four-tier rstest | **Same as Agy O2** |
+| OpenCode | **O3** exact AC3/AC4 UUID | **Already** AC4 dump UUID; **folded** AC3 first-row not dump id |
+| OpenCode | HEAD `80a10d9` vs `fe9fb89` / word 280→314 | **Snapshot only** — plan preflight refreshed; not DoD |
+| both | last-PR #208 Cursor | **Affirm F19** — no T301 |
+| both | deferred T294–T300 / 2-hop / H2 / clap 5 | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.
