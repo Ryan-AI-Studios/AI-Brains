@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #209 T293 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (publish in progress).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Planned** 2026-08-24.
 
 | Item | Track |
 |------|-------|
@@ -13,6 +13,27 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | `memory list` just-now ingest | **T287 Completed** |
 | briefing granted-empty vs pins (no H2) | **T288 Completed** |
 | leftover dest-missing; context skip vault upsert | **T294 Completed** |
+| 0 usable encrypted backup | **T295 Planned** |
+
+### T295 planning absorption (2026-08-24) — live `--no-prune` current-key file; T277 engine frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit 0 OK/22 FAIL; doctor `backup_recent` no usable encrypted backup | **Absorb** F2–F8 / AC5–AC8 |
+| Placeholder Manual `backup create --no-prune` + list + verify + doctor | **Absorb** AC8 |
+| T277 closeout live 22 residual until owner create | **Absorb** F2 / F3 — hermetic skip is **not** Complete here |
+| T225 residual “operator still runs live `backup create`” | **Absorb** F2 / AC8 |
+| CAPABILITIES green path omits `--no-prune`; example `--output-dir` vs doctor sibling dir | **Absorb** F6 / F8 / AC5 / AC7 |
+| T277 F2 fail-closed engine / mixed hermetic | **Affirm freeze** F1 / AC1–AC4 |
+| T277 F8 doctor remediator `ai-brains backup create` | **Affirm** F7 — do not grow `doctor.rs` |
+| T277 F20 prune dry-run `remaining_count` | **Decline** F19 |
+| T244 F17/F18 / T187 `cipher_integrity_check` / restore-on-create | **Decline** F19 / F9 |
+| Default keep-10 change | **Decline** F4 |
+| Rekey / transcode T244 `.bak` | **Decline** F5 |
+| T294 leftover `--write` / T296–T300 | **Decline →** those tracks |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F24 |
+| last-PR Cursor **#210** | **N/A empty** — **no T301** F25 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** — T258 / leftover data |
 
 ### T294 closeout residuals (2026-08-24)
 
