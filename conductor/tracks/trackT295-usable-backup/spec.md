@@ -1,7 +1,7 @@
 # T295 — Operator vault must have ≥1 usable encrypted backup
 
 - **Track ID:** T295-UsableBackup
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** (2026-08-24; F2a live file + after_help)
 - **Category:** OPS / RECOVERY / UX
 - **Owner:** Grok
 - **Source:** Audit 2026-08-22 — `backup list`/`verify` honest **8/8**; **not working:** 0 usable; doctor `backup_recent` warn. Placeholder minted with T285–T300 (`76c4db9`). T277 ✅ fail-closed create (hermetic); live `--no-prune` **skipped**.

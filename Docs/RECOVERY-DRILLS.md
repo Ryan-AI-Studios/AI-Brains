@@ -18,7 +18,7 @@ See also [failure-drills.md](../conductor/failure-drills.md) F-REC-01/02 and
 | **Ad-hoc** | After disk/path incidents, key handling changes, or operator practice |
 | **CI** | Automated suite (`recovery_drills`, elevated smoke/crypto/store tests) |
 
-**Do not** treat “a backup file exists” as recovery proof. **Do** run restore + content smoke (T181-R-01). After `AI_BRAINS_KEY` change, re-run `backup create` under the current key (T277); old ciphertext stays KeyMismatch.
+**Do not** treat “a backup file exists” as recovery proof. **Do** run restore + content smoke (T181-R-01). After `AI_BRAINS_KEY` change, re-run `backup create --no-prune` under the current key in the default sibling `backups/` (T277/T295); old ciphertext stays KeyMismatch.
 
 ---
 

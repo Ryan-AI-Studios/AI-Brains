@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Planned + folded** 2026-08-24.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (live `--no-prune` F2a + after_help).
 
 | Item | Track |
 |------|-------|
@@ -13,7 +13,20 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | `memory list` just-now ingest | **T287 Completed** |
 | briefing granted-empty vs pins (no H2) | **T288 Completed** |
 | leftover dest-missing; context skip vault upsert | **T294 Completed** |
-| 0 usable encrypted backup | **T295 Planned** |
+| 0 usable encrypted backup | **T295 Completed** |
+
+### T295 implement closeout (2026-08-24)
+
+| Item | Disposition |
+|------|-------------|
+| Live `--no-prune` create + list Readable + verify ≥1 OK + doctor `backup_recent` ok | **Done** F2a / AC8 (N 22→23; `vault-2026-08-24T10-01-54.db.bak`) |
+| Create `after_help` + AC5 F37 | **Done** |
+| CAPABILITIES / OPERATIONS / CHANGELOG / RECOVERY-DRILLS | **Done** AC7 |
+| T277 engine / doctor remediator / keep-10 / residuals | **Affirm freeze** — untouched |
+| Doctor remediator still omits `--no-prune` | **Residual** F7 (docs+after_help carry it) |
+| PATH until `cargo install` (T285–T294 not on PATH) | **Residual** F16 |
+| Live 22 residual `.bak` still KeyMismatch/plain/Incomplete | **Expected** F5; verify exit 1 |
+| T296–T300 | **Not stolen** |
 
 ### T295 planning absorption (2026-08-24) — live `--no-prune` current-key file; T277 engine frozen
 

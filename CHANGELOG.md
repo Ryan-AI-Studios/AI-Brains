@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T295 usable encrypted backup (operator vault):** Live `--no-prune` create under the current key in the default sibling `backups/` so doctor `backup_recent` is not zero-usable. `backup create --help` after_help documents residual-fleet `--no-prune`, timestamp-not-class prune, and that list/doctor ignore custom `--output-dir`. T277 engine frozen; doctor remediator string unchanged.
+
 - **T294 `context` vault upsert:** Already-initialized `context` (session present, no `--new-project`/`--new-session`) ensures the `.env` project/session IDs in the open vault and does **not** rewrite `.env`. Prints `Vault: project and session present.` Malformed session UUID exits **1**. `--show` still never ensures. `rebind-path` still does not mint dest.
 
 - **T293 `graph neighbors` pins first (human-only):** Pretty/human prefer-fills authority 1-hop (`DECISION:` / `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` memory or session caption) ahead of dump sessions. JSON keys and direction→label→id array order unchanged. No 2-hop rows; no projector/rebuild.
