@@ -4,7 +4,23 @@
 **Spec:** [spec.md](./spec.md) F0–F34 / AC1–AC14
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `3f147d91-b4f9-42b2-a8c3-8ea01dd1292d` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `338d0a5b-9dba-446a-8e07-89e0af81f610` (DOCS)
 **Ledger TX (implement):** BUGFIX TX on **go**
+
+---
+
+## AI fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 1**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F28/AC8:** keep-bound `TcpListener` hermetic is required `run_status` wiring proof (OpenCode M1).
+2. **F35/AC1:** rstest 8 triples; include `(false, true, true)`.
+3. **F30/AC6:** both-Open tail is exactly `[const, next:]`.
+4. **F36:** capture by backend `name`, not both-bools-from-one-state.
+5. **F20/AC7:** exact after_help uses `TCP connect`; in-process `try_parse_from`.
+6. **F19:** docs distinguish T281 HTTP contrast vs T297 IPC vs TCP.
 
 ---
 
@@ -34,7 +50,9 @@
 
 - [ ] `git fetch --all --prune` ; if `origin/main` moved, reconcile (no rebase over user work; never `git push origin main`)
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact` ; `ledgerful scan --impact` — work root `C:\dev\AI-Brains`; 0 pending / 0 drift (before BUGFIX TX)
-- [ ] Re-read `run_status` `daemon.rs` **`:706–805`** — TCP loop + `status_next_line` print; confirm no contrast yet
+- [ ] Re-read `run_status` `daemon.rs` **`:706–805`** — TCP loop + `status_next_line` print; confirm no contrast yet; names `"LLM backend"` / `"Embedding backend"` for F36
+- [ ] Re-read T94 `smoke.rs` **`:3103–3146`** — **drop-then-delay**; AC8 is **keep-bound** (do not copy the drop)
+- [ ] Re-read T85 `smoke.rs` **`:2901–2916`** — `contains("Closed")` only; do **not** add `!contains` const
 - [ ] Re-read `status_next_line` **`:696–703`** — **do not change strings** (F32)
 - [ ] Re-read TCP 5×100 ms **`:747–770`** — **do not retune** (F7)
 - [ ] Re-read early-route `main.rs` **`:4133–4142`** — **do not move**
@@ -57,6 +75,7 @@
 - [ ] T281 F27 Stopped + port Open → this track
 - [ ] T296 F11 / OpenCode m3 → this track
 - [ ] last-PR #212 Cursor N/A → F14 no T301
+- [x] Fold-in OpenCode M1 keep-bound AC8; F35 rstest; F36 name-match; F30 both-Open
 
 ---
 
@@ -77,15 +96,13 @@
 
 ## Phase 1 — TDD red
 
-- [ ] `status_backend_contrast_line__stopped_llm_open__frozen_const` fails
-- [ ] `status_backend_contrast_line__stopped_embed_open__frozen_const` fails
-- [ ] `status_backend_contrast_line__stopped_both_closed__none` fails
-- [ ] `status_backend_contrast_line__running_open__none` fails
+- [ ] `status_backend_contrast_line__matrix` rstest 8 triples fails (includes `(false, true, true)`)
 - [ ] `backend_open_ne_daemon__uses_u2260_not_ascii` fails
-- [ ] `status_report_tail__stopped_open__contrast_then_next` fails
+- [ ] `status_report_tail__stopped_open_pair__single_contrast_then_next` rstest (F30) fails
 - [ ] `status_report_tail__stopped_closed__next_only` fails
 - [ ] `status_report_tail__running__empty` fails
-- [ ] `daemon__help__status_names_backend_tcp` fails
+- [ ] `daemon__help__status_names_backend_tcp` (`try_parse_from`) fails
+- [ ] `daemon_status__keep_bound_listener__contrast_when_stopped` AC8 fails
 - [ ] Red commit allowed
 
 ---
@@ -93,17 +110,18 @@
 ## Phase 2 — green
 
 - [ ] Const `BACKEND_OPEN_NE_DAEMON` + helpers (F1–F5)
-- [ ] `run_status` captures Open bools; prints `status_report_tail` after PID
+- [ ] `run_status` **F36 name-match** Open bools; prints `status_report_tail` after PID
 - [ ] `status_next_line` units stay green
-- [ ] Status `after_help` (F20)
+- [ ] Status exact F20 `after_help` (`TCP connect`)
+- [ ] AC8 keep-bound listener hermetic (hold `TcpListener`; last line `next:` when Stopped)
 - [ ] Green commit allowed
 
 ---
 
 ## Phase 3 — docs
 
-- [ ] `Docs/CAPABILITIES.md` `:110` last-line `next:` kept; additive contrast
-- [ ] `Docs/OPERATIONS.md` `:558` additive
+- [ ] `Docs/CAPABILITIES.md` `:110` last-line `next:` kept; additive contrast; T281 vs T297 distinction (F19)
+- [ ] `Docs/OPERATIONS.md` `:558` additive; T281 vs T297 distinction
 - [ ] Root `CHANGELOG.md` T297 Unreleased
 - [ ] PROTOCOL-COMPAT untouched
 
@@ -111,7 +129,7 @@
 
 ## Phase 4 — verify
 
-- [ ] Targeted: `cargo nextest run -p ai-brains-cli -- status_backend_contrast status_report_tail status_next_line daemon_status daemon__help`
+- [ ] Targeted: `cargo nextest run -p ai-brains-cli -- status_backend_contrast status_report_tail status_next_line daemon_status daemon__help keep_bound`
 - [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
 - [ ] Manual AC10 (`cargo run`, read-only `daemon status`). Record transcript in `review.md`. **No** daemon stop/start
 - [ ] `scripts/dev-check.ps1`

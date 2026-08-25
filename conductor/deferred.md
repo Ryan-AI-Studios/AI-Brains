@@ -135,6 +135,26 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor **#212** | **N/A empty** — **no T301** F14 |
 | Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** |
 
+### T297 fold-in (2026-08-24) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 AC8 vacuous / no `run_status` wiring proof | **Folded** F28 / AC8 keep-bound `TcpListener` + last-line `next:` |
+| Agy m1 8-permutation bools | **Folded** F35 / AC1 rstest |
+| Agy m2 U+2260 | **Already** F18 / AC5 |
+| Agy m3 Running/Stopped skip | **Partial** — Running skip stays; Stopped+Open required via M1 |
+| Agy O1 in-process `--help` | **Folded** AC7 `try_parse_from` |
+| Agy O2 T281 vs T297 docs | **Folded** F19 |
+| OpenCode m1 name-match capture | **Folded** F36 / §5.2 |
+| OpenCode m2 conductor Placeholder | **Already** Planned on `18ff6f7` |
+| OpenCode m3 F30 both-Open red | **Folded** AC6 rstest |
+| OpenCode m4 `TCP connect` after_help | **Already** F20; **tightened** exact sentence |
+| OpenCode O1 hermetic last `next:` | **Folded** AC8 |
+| OpenCode O2 T85 `:8080` | **Folded** §5.5 |
+| OpenCode “fold-in cannot edit conductor.md” | **Decline** — skill allows it |
+| last-PR #212 Cursor | **Affirm N/A** — no T301 |
+| No B | Nothing to decline of B |
+
 ### T294 closeout residuals (2026-08-24)
 
 | Residual | Notes |
