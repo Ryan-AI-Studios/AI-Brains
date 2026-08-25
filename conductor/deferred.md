@@ -4,7 +4,24 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#218** T301 **and** `#217` 0.1.3 **empty**. **T285–T301 Completed.** **T302–T305 Planned** (Dependabot cargo).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#218** T301 **and** `#217` 0.1.3 **empty**. **T285–T302 Completed.** **T303–T305 Planned** (Dependabot cargo).
+
+### T302 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| thiserror/thiserror-impl 2.0.18→2.0.20 via `thiserror@2.0.18 --precise` | **Done** AC1 / F8 |
+| chrono 0.4.44→0.4.45 via `--precise` | **Done** AC2 / F8 |
+| Workspace carets still 2.0 / 0.4; `git diff -- crates/` empty | **Done** AC3 / AC5 |
+| thiserror 1.0.69 unchanged; rusqlite/tokio/tower-http/clap unchanged | **Done** AC7 |
+| F9: thiserror-impl→syn 3.0.3; iana-time-zone windows-core 0.62.2→0.61.2 | **Done** expected extras |
+| CHANGELOG Unreleased Changed row | **Done** AC6 |
+| Full gate (fmt/clippy/nextest/deny/audit + ledgerful full) | **Done** AC4 |
+| Do not merge Dependabot remotes `#60`/`#62` | **Done** F5 |
+| Close `#60`/`#62` as superseded after squash; do not delete remotes | **Residual** R1 — standing Dependabot hygiene |
+| Dual thiserror 1.0.69 + 2.x (bare `-p thiserror` ambiguous) | **Residual** R2 — Tauri/json-patch stack; out of scope |
+| Dual windows-core 0.61.2 + 0.62.2 after F9 edge | **Residual** R3 — expected; unify needs Tauri/windows work |
+| mint row “T302 Planned” | **Superseded** — Completed |
 
 ### T301 implement closeout (2026-08-25)
 
@@ -57,7 +74,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Item | Disposition |
 |------|-------------|
 | GHA `#68–#72` SHA-pin majors | **T301** Completed |
-| thiserror `#60` + chrono `#62` patches | **T302** Planned |
+| thiserror `#60` + chrono `#62` patches | **T302** Completed |
 | tokio `#59` 1.53.1 | **T303** Planned |
 | tower-http `#58` 0.7 | **T304** Planned |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
