@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #213 T297 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Planned** 2026-08-25.
 
 ### T297 implement closeout (2026-08-24)
 
@@ -20,7 +20,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Doctor Safety 3×1000 ms vs status Status 1×300 ms | **Residual** F27 — probe-policy, not this hole |
 | T249 F12 `--format json` / uptime / `sc query` | **Residual** F8 / F17 — declined JSON surface |
 | Force-restore hermetics vacuous when live daemon Running | **Residual** — CI Stopped proves; local soft-skip until owner stop or IPC isolation |
-| T298–T300 | **Not stolen** |
+| T298 Planned; T299–T300 | **Not stolen** |
 
 | Item | Track |
 |------|-------|
@@ -171,6 +171,25 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR #212 Cursor | **Affirm N/A** — no T301 |
 | No B | Nothing to decline of B |
 
+### T298 planning absorption (2026-08-25) — this-machine + short honesty; no bootstrap
+
+| Item | Disposition |
+|------|-------------|
+| Audit `device status` / `replicate status` U=5 empty | **Absorb** F1–F8 / AC1–AC9 / AC14 |
+| Placeholder Manual `device status` + `replicate status` — no bootstrap | **Absorb** AC14 / F13 |
+| Placeholder hostname or fingerprint + `local-only; not PQ; not remote wipe` + existing `next:` | **Absorb** F1 / F4 / F5 |
+| Placeholder replicate `this machine: fingerprint-or-none` | **Rewrite** F20 — empty is `{hostname} (not enrolled)`, not token `none` |
+| T251 F2 last-line `next:` / no `--format` | **Affirm** F5 / F11 |
+| T251 F14 status does not reprint honesty paragraph | **Partial lift** F4 — one short line |
+| T251 F6 / PROTOCOL-COMPAT JSON keys | **Affirm** F9 / AC7 |
+| T251 F12 list JSON / combined dashboard / doctor 16th | **Decline** F16 |
+| T198 F7 plural empty copy | **Affirm** F12 |
+| T297 closeout T298 steal | **Absorb** (this track) |
+| T299 forget-list / T300 graph sparse | **Decline** F24 |
+| leftover `--write` / T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F14 / F24 |
+| last-PR Cursor **#213** | **N/A empty** — **no T301** F18 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** |
+
 ### T294 closeout residuals (2026-08-24)
 
 | Residual | Notes |
@@ -309,7 +328,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | 0 usable encrypted backup | **T295** |
 | nightly Router 267014 / TASK_TERMINATED | **T296 Completed** |
 | daemon Stopped vs llama Open | **T297** |
-| device/replicate U=5 | **T298** |
+| device/replicate U=5 | **T298 Planned** |
 | forget-list empty U=6 | **T299** |
 | graph sparse live rebuild | **T300** |
 | T240 F2 / T263 H2 / 750 ms / clap 5 / density floors | **Declined** — see README-T285-T300 |

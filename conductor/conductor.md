@@ -242,7 +242,7 @@
 | T295 | Usable encrypted backup | **Completed** | Grok | [T295](tracks/trackT295-usable-backup/spec.md) | **Completed 2026-08-24:** Live `--no-prune` F2a (N 22→23; doctor `backup_recent` ok). Create `after_help` + docs. FEATURE `aa31087f`. T277 engine frozen. |
 | T296 | Nightly Router last-result | **Completed** | Grok | [T296](tracks/trackT296-nightly-router-result/spec.md) | **Completed 2026-08-24:** human Router omits 267014/267009 decimals; Ready + `last run: terminated`; JSON frozen. BUGFIX `388b9f76`. |
 | T297 | Daemon Stopped vs LLM Open | **Completed** | Grok | [T297](tracks/trackT297-daemon-vs-llm/spec.md) | **Completed 2026-08-24:** human contrast `backend TCP Open ≠ daemon` when Stopped and LLM/Embedding TCP Open; `next:` still last; keep-bound AC8; no daemon start/stop. BUGFIX TX `a3c47213`. |
-| T298 | Device/replicate useful empty | **Pending** | Grok | [T298](tracks/trackT298-device-replicate/spec.md) | **Placeholder 2026-08-22:** U=5 empty; prior decline reopened. |
+| T298 | Device/replicate useful empty | **Pending** | Grok | [T298](tracks/trackT298-device-replicate/spec.md) | **Planned 2026-08-25:** empty `device status` names this-machine + `local-only; not PQ; not remote wipe` before last-line `next:`; replicate human adds same label (`{hostname} (not enrolled)` / fingerprint); JSON keys frozen. No live bootstrap. DOCS TX `839a62a1`. |
 | T299 | Forget-list useful empty | **Pending** | Grok | [T299](tracks/trackT299-forget-list-useful/spec.md) | **Placeholder 2026-08-22:** U=6; add Pinned N + next memory list. |
 | T300 | Graph sparse ops | **Pending** | Grok | [T300](tracks/trackT300-graph-sparse-ops/spec.md) | **Placeholder 2026-08-22:** live rebuild owner-confirm; floors frozen. |
 
