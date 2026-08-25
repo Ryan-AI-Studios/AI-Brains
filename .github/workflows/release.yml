@@ -11,14 +11,14 @@
 #
 # R-SLSA honesty: optional Artifact Attestations (Build L1-oriented). Not L3/certified.
 #
-# SHA pins resolved 2026-08-01:
-#   actions/checkout@v4                          → 11d5960a326750d5838078e36cf38b85af677262
+# SHA pins resolved 2026-08-25 (T301; commit SHAs only — peel annotated tags):
+#   actions/checkout@v7.0.1                      → 3d3c42e5aac5ba805825da76410c181273ba90b1
 #   dtolnay/rust-toolchain@v1                    → e97e2d8cc328f1b50210efc529dca0028893a2d9
 #   Swatinem/rust-cache@v2                       → e18b497796c12c097a38f9edb9d0641fb99eee32
-#   actions/attest@v2.4.0                        → ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc
-#   softprops/action-gh-release@v2               → 3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
-#   actions/upload-artifact@v4                   → ea165f8d65b6e75b540449e92b4886f43607fa02
-#   actions/download-artifact@v4                 → d3f86a106a0bac45b974a628896c90dbdf5c8093
+#   actions/attest@v4.2.2                        → 1e69f48acb82d1966a394da916b4c1698aa569d6
+#   softprops/action-gh-release@v3.0.2           → 3d0d9888cb7fd7b750713d6e236d1fcb99157228 (peeled from tag object fe965f7a…)
+#   actions/upload-artifact@v7.0.1               → 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+#   actions/download-artifact@v8.0.1             → 3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
 
 name: Release
 
@@ -56,7 +56,7 @@ jobs:
         shell: pwsh
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Rust toolchain 1.95.0
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
@@ -122,7 +122,7 @@ jobs:
           .\scripts\generate-checksums.ps1
 
       - name: Upload dist artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ai-brains-windows-x64
           path: dist/
@@ -141,14 +141,14 @@ jobs:
         shell: pwsh
     steps:
       - name: Download dist artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ai-brains-windows-x64
           path: dist
 
       - name: Attest build provenance (soft; continue-on-error)
         continue-on-error: true
-        uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc # v2.4.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             dist/ai-brains.exe
@@ -174,13 +174,13 @@ jobs:
         shell: pwsh
     steps:
       - name: Download dist artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ai-brains-windows-x64
           path: dist
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           files: |
             dist/ai-brains.exe
