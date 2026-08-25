@@ -10,8 +10,9 @@
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “graph sparse live rebuild” (every T278/T293/T295–T299 decline pointer); T278 F8 Stop-Before **lifted to owner-confirm** (same class as T295 live `--no-prune`); T232 remediator string freeze
 - **Not absorbed (DoD):** T213 floor retune (`MIN_EDGE_NODE_RATIO=0.50`); Cargo `default` graph-on (T200); projector rewrite / fake edges / WCC; `GraphRebuilder` `read_all_events` RAM rewrite; `--confirm` on rebuild (would dead-end T232 remediator); doctor 16th check / grow `doctor.rs`; nightly auto-rebuild; T240 F2; leftover `--write`; clap 5 / rusqlite 0.40; daemon start/stop as silent DoD
 - **Research date:** 2026-08-25 (plan dogfood HEAD `d953a20` T299 `#215`. Product `src/` = T299. PATH **0.1.2** 2026-08-22 19:41 **graph-on**, has T213/T232 silent rebuild, **not** this remediator UX.)
-- **Ledger:** planning DOCS TX `d7d6f57c-4f12-4cc4-8425-395aa678f6c8`. Implement starts a **FEATURE** TX on **go**.
-- **Isolation:** Do **not** `cargo install`. Do **not** rewrite `.env` (T240 F2). Do **not** `graph rebuild` the live vault as planning. Do **not** `daemon stop` / `daemon start` as planning. Do **not** retune T213 floors. Do **not** rewrite `GraphRebuilder` / `GraphProjector`. Do **not** grow hotspot `project.rs` / `sync.rs` / `governed_common.rs` / `forget.rs` / `doctor.rs` / `graph_density.rs` (floors). Helpers in `graph.rs` (**1130** lines — not top-10). Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `retention apply --confirm`, leftover `rebind-path --write --yes`, or `safety sync` without `--dry-run`.
+- **Ledger:** planning DOCS TX `d7d6f57c-4f12-4cc4-8425-395aa678f6c8`. Fold-in DOCS TX `4d2884de-347a-4714-a7c4-e29579e5a0fd`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-25 `agy-review.md` + `opencode-review.md` (HEAD `907759f`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** OpenCode m1 strike F10 debate; OpenCode O1 mid-rebuild TOCTOU residual; OpenCode O2 crate-root `graph_density.rs` path; OpenCode O3 `graph.rs` **1214** physical lines; Agy m3 AC10 inject matrix includes daemon-down mutate. **Already:** Agy m1 = F27; Agy m2 = F32; Agy O1 = F6; Agy O2 = F5/AC9. **No declines of B/M.** Disposition **§13**.
+- **Isolation:** Do **not** `cargo install`. Do **not** rewrite `.env` (T240 F2). Do **not** `graph rebuild` the live vault as planning. Do **not** `daemon stop` / `daemon start` as planning. Do **not** retune T213 floors. Do **not** rewrite `GraphRebuilder` / `GraphProjector`. Do **not** grow hotspot `project.rs` / `sync.rs` / `governed_common.rs` / `forget.rs` / `doctor.rs` / `crates/ai-brains-cli/src/graph_density.rs` (floors). Helpers in `graph.rs` (**1214** physical lines / 1130 non-blank — not top-10). Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `retention apply --confirm`, leftover `rebind-path --write --yes`, or `safety sync` without `--dry-run`.
 
 ---
 
@@ -43,7 +44,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T262/T278/T2
 | `graph.rs` `rebuild` | `:386–397` — `tracing::info` start/complete; `GraphRebuilder::rebuild()?;` **no stdout**; **no daemon probe**. |
 | `GraphRebuilder` | `rebuild.rs:20–59` — `DELETE FROM graph_edge` then `graph_node`; `read_all_events()` into a `Vec`; `projector.apply` each; `flush`. **Engine freeze.** |
 | Last GitHub PR | [#215](https://github.com/Ryan-AI-Studios/AI-Brains/pull/215) T299 (merged 2026-08-25T13:50:23Z). `gh pr view --comments`, `/reviews`, `/comments`, `issues/215/comments` all **empty**. **last-PR Cursor: N/A.** Open PRs: Dependabot remotes only (`#61` rusqlite 0.40.2, `#62` chrono 0.4.45, `#59` tokio, `#60` thiserror, `#58` tower-http, actions `#68–#72`). **No leftover to mint. No T301.** |
-| Identity / hotspots | Hotspot **#1** `project.rs` (**3.871**) — **do not touch.** `sync.rs` #2. `governed_common.rs` #3. `context.rs` #4. `forget.rs` #5. `graph.rs` **1130** / `graph_density.rs` / `rebuild.rs` **not** top-10 — **extend `graph.rs`.** `doctor.rs` **1738** — **do not grow.** |
+| Identity / hotspots | Hotspot **#1** `project.rs` (**3.871**) — **do not touch.** `sync.rs` #2. `governed_common.rs` #3. `context.rs` #4. `forget.rs` #5. `graph.rs` **1214** physical (1130 non-blank) / `crates/ai-brains-cli/src/graph_density.rs` / `rebuild.rs` **not** top-10 — **extend `graph.rs`.** `doctor.rs` **1738** — **do not grow.** |
 | Ledger | **0 pending / 0 drift** at scan (before this DOCS TX). |
 | `ISSUES.md` | **Does not exist.** |
 | Planning live rebuild | **Not run.** `--help` + health only. |
@@ -69,7 +70,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T262/T278/T2
 | CLI update | `update` **`:605–663`** | Gather + assess + `GraphHealthOutput`. **Reuse** for post-rebuild / dry-run current density. Default `--format json` **frozen** (T246 F6). |
 | Human emit | `emit_graph_health_human` **`:372–384`** | Labeled lines. Reuse. |
 | JSON DTO | `GraphHealthOutput` **`:35–48`** | `nodes`, `edges`, `pinned_memories`, `memory_nodes`, `edge_node_ratio`, `density`, `status`, `note`, optional `remediation`. **Freeze keys** (T213 / PROTOCOL-COMPAT `:96`). |
-| Floors | `graph_density.rs` **`:10–16`** | `MIN_PINNED=100`; `MIN_NODES=50`; `MIN_EDGE_NODE_RATIO=0.50`; `MIN_MEMORY_COVERAGE=0.10`. Env `:18–21`. Assessor **`:167`**. **Do not change.** |
+| Floors | `crates/ai-brains-cli/src/graph_density.rs` **`:10–16`** (crate-root CLI module, **not** `ai-brains-graph`) | `MIN_PINNED=100`; `MIN_NODES=50`; `MIN_EDGE_NODE_RATIO=0.50`; `MIN_MEMORY_COVERAGE=0.10`. Env `:18–21`. Assessor **`:167`**. **Do not change.** |
 | Remediator SOOT | `REMEDIATION_REBUILD` **`:140`** | Exact `ai-brains graph rebuild`. T232 F4. **Do not change.** |
 | Doctor check | `doctor.rs` `check_graph_density` **`:868`** | Soft warn. Matrix **15**. **Do not grow `doctor.rs`.** |
 | Engine | `ai-brains-graph/src/rebuild.rs` **`:20–59`** | DELETE + `read_all_events` + apply. Idempotent test `rebuild_is_idempotent.rs`. **Do not rewrite.** |
@@ -128,7 +129,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T262/T278/T2
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `d7d6f57c`. Implement starts a FEATURE TX. |
 | **F1 — Live rebuild owner-confirm (hard)** | Mutating `graph rebuild` on the operator vault runs **only** if the owner confirms **at go** (and daemon is Stopped, or owner confirms `daemon stop` first). If owner skips: hermetic ACs + written skip — **not** a floor lie. Track may Complete hermetic like T277; live file remains residual until confirm (T295 later absorbed that residual). |
-| **F2 — Floors frozen (hard)** | `MIN_EDGE_NODE_RATIO=0.50`, `MIN_MEMORY_COVERAGE=0.10`, `MIN_PINNED=100`, `MIN_NODES=50`, env names, verdict priority, SQL gather — **untouched**. Doctor check count stays **15**. Do **not** edit `graph_density.rs` except if a compile break (expect **zero** edits). |
+| **F2 — Floors frozen (hard)** | `MIN_EDGE_NODE_RATIO=0.50`, `MIN_MEMORY_COVERAGE=0.10`, `MIN_PINNED=100`, `MIN_NODES=50`, env names, verdict priority, SQL gather — **untouched**. Doctor check count stays **15**. Do **not** edit `crates/ai-brains-cli/src/graph_density.rs` except if a compile break (expect **zero** edits). |
 | **F3 — Pass-with-observed-data (hard)** | After rebuild, `status` may be `live` **or** `sparse` **or** `empty`. Never coerce `live`. Manual pass = `graph update --format human` and doctor `graph_density` **agree** (same `status` / same remediator-or-omit). |
 | **F4 — Post-rebuild stdout (hard)** | Successful mutating rebuild emits `GraphHealthOutput` via existing `emit_graph_health_human` (default) or pretty JSON (`--format json`). Same keys as `graph update`. Exit **0** even when still `sparse`. |
 | **F5 — Rebuild `--format` (hard)** | Tokens **`human\|json` only**. Default **`human`**. Unknown / `JSON` / `Pretty` / `auto` → clap `InvalidValue` exit **2**. Do **not** add `auto` (T246 update `auto` stays JSON — do not copy that trap onto rebuild). `graph update --format` **unchanged**. |
@@ -136,13 +137,13 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T262/T278/T2
 | **F7 — Daemon fail-closed (hard)** | Mutating rebuild (`!dry_run`) uses `probe_restore_daemon_busy` (Safety 3×≥1000 ms). `daemon_up` → `Err` exit **1**. Message substring classes (T188): `daemon is running`, `ai-brains daemon stop`, `sc stop AI-Brains-Daemon`. **`--force` does not exist** and must not be added. Dry-run + daemon_up: stdout NOTICE (restore analog) + continue. Injectable `rebuild_with_daemon_state` for units (no live IPC). |
 | **F8 — No `--confirm` (hard)** | T232 remediator stays exact `ai-brains graph rebuild`. Adding `--confirm` would dead-end doctor copy-paste. |
 | **F9 — Engine freeze (hard)** | Do **not** edit `rebuild.rs` / `projector.rs` / `queries.rs` `get_neighbors`. CLI wraps `GraphRebuilder::rebuild()`. Idempotent crate test stays green. |
-| **F10 — JSON keys freeze (hard)** | Rebuild `--format json` object = T213 `GraphHealthOutput` keys. **No** `next_step` / `events_replayed` / `dry_run` JSON fields on the health object. Dry-run `[dry-run]` lines are **human extra after** the health block; JSON dry-run prints the health object then a **second** stdout line or object? **Pin:** JSON dry-run prints the health object **only** (scripts already have counts); the `[dry-run]` sentence is **human-only** (stderr `tracing::info` + human stdout extra lines). JSON dry-run still must **not** mutate. |
+| **F10 — JSON keys freeze (hard)** | Rebuild `--format json` object = T213 `GraphHealthOutput` keys. **No** `next_step` / `events_replayed` / `dry_run` JSON fields on the health object. JSON dry-run prints the health object **only** (scripts already have counts). The `[dry-run]` sentence is **human-only** (stdout extra lines after the health block; stderr `tracing::info` otherwise). JSON dry-run still must **not** mutate. |
 | **F11 — T262 freeze** | Pin printed id is a memory node + `RECALLS` without rebuild. AC6/AC7 stay green. Rebuild must not become required for a new pin. |
 | **F12 — Cargo default-off** | `default = []` stays. Feature-off `graph rebuild` (any flags) exit **2** + `FEATURE_UNAVAILABLE` + `GRAPH_REINSTALL_SOOT`. |
 | **F13 — No live rebuild as planning** | Planning did not run it. Go: Stop-Before unless owner confirms. |
 | **F14 — Pins / crates** | No workspace/lock bumps. Zero new crates. No `indicatif`. |
 | **F15 — Capture independence** | Rebuild still event-log replay. No new events. No models. No contracts crate. No new `EventStore` method (COUNT is CLI SQL). |
-| **F16 — Isolation** | No T240 F2. No leftover `--write`. No doctor 16th. No floor CLI flags. No `project.rs` / `sync.rs` / `forget.rs` / `doctor.rs` / `graph_density.rs`. No daemon start/stop as DoD. |
+| **F16 — Isolation** | No T240 F2. No leftover `--write`. No doctor 16th. No floor CLI flags. No `project.rs` / `sync.rs` / `forget.rs` / `doctor.rs` / `crates/ai-brains-cli/src/graph_density.rs`. No daemon start/stop as DoD. |
 | **F17 — PATH** | Do not `cargo install`. Source/hermetic SoT. PATH 0.1.2 until owner asks. Manual AC14 via **`cargo run -p ai-brains-cli --features graph`**. |
 | **F18 — last-PR Cursor** | **#215** comments/reviews/issue **empty**. **No T301.** Dependabot `#61` rusqlite / `#58–#62` / `#68–#72` **not stolen**. |
 | **F19 — Docs** | CAPABILITIES rebuild row **`:461`** additive (daemon stop; `--dry-run`; stdout density; may stay sparse). OPERATIONS Graph health **`:927–949`** extend — do not add a second Graph heading. WORKFLOWS **`:215`** additive daemon-stop. Root CHANGELOG T300 Unreleased. Rebuild `after_help` on the **variant**. CLI-EXIT-CODES: **add** daemon-up exit **1**; still-sparse success exit **0**. PROTOCOL-COMPAT `:96` additive: rebuild `--format json` uses the same keys. Phase 0 re-locates anchors. |
@@ -151,7 +152,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T262/T278/T2
 | **F22 — Help** | `GraphCommands::Rebuild` variant `after_help`: daemon must be Stopped; `--dry-run` first; floors 0.50 may still warn after replay; stdout is density; T232 remediator unchanged; examples `graph rebuild --dry-run` and `graph rebuild`. Enum-level neighbors after_help **unchanged**. |
 | **F23 — Exit** | Success (sparse or live) → **0**. Daemon-up mutate → **1**. Feature-off / clap unknown format → **2**. Store/rebuild `Err` keeps today’s fail path (exit 1 class). |
 | **F24 — Decline peers** | Floor retune; Cargo default-on; projector more-edges; nightly auto-rebuild; leftover `--write`; T240 F2; T263 H2; T255 750 raise; clap 5 / rusqlite 0.40; `--confirm`; spinner; streaming `read_all_events`. |
-| **F25 — Soft residuals** | PATH until install; live skip if owner refuses daemon stop; `read_all_events` RAM; `SessionSummaryCreated` nodes without edges (T278 F11); coverage vs E/N dual (warn is E/N). |
+| **F25 — Soft residuals** | PATH until install; live skip if owner refuses daemon stop; `read_all_events` RAM; `SessionSummaryCreated` nodes without edges (T278 F11); coverage vs E/N dual (warn is E/N); daemon started **mid-rebuild** / crash mid-replay — re-run rebuild (`rebuild_is_idempotent.rs`); probe is not atomic with DELETE. |
 | **F26 — Helper (hard)** | Required `pub(crate) fn rebuild_daemon_busy_message() -> String` in `graph.rs` (or file-local const) with T188 substring classes. Required `rebuild_with_daemon_state(ctx, dry_run, format, daemon_up)` sync core. Production `async fn rebuild` probes then calls it. Units rstest daemon_up × dry_run (AC10). |
 | **F27 — Shared health builder** | Extract `fn graph_health_report(ctx) -> Result<GraphHealthOutput>` from `update` so rebuild/dry-run/update **cannot** drift keys. `update` stays the JSON-default CLI. |
 | **F28 — Existing tests stay green** | T213 assessor units; T232 capability remediations; T246 JSON neighbors keys; T262 AC6/AC7; T278 PREVIEW; T293 prefer-fill; `graph_health_output__serde_keys`; feature-off update; doctor 15-check matrix. |
@@ -175,7 +176,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T262/T278/T2
 | **AC7** | Feature-off `graph rebuild` and `graph rebuild --dry-run` exit **2** + `FEATURE_UNAVAILABLE` + reinstall SOOT. |
 | **AC8** | Floors unchanged: unit still asserts `MIN_EDGE_NODE_RATIO == 0.50` (existing T213 unit **or** one-liner stay-green in `graph_density.rs` tests — do not retune). Doctor `health_check_order_names__fixed_matrix` still **15**. |
 | **AC9** | `graph rebuild --format auto` / `JSON` / `Pretty` → clap exit **2**. `--format json` accepted. `graph update --help` still default json. |
-| **AC10** | rstest `rebuild_daemon_busy_message` contains the three T188 substrings. Each of AC3/AC4 covered by `#[case]` or explicit tests. |
+| **AC10** | rstest `rebuild_daemon_busy_message` contains the three T188 substrings. Inject matrix (Agy m3) via `rebuild_with_daemon_state`: (1) `daemon_up=true`, `dry_run=false` → `Err` (AC3); (2) `daemon_up=true`, `dry_run=true` → `Ok` NOTICE + `[dry-run]` (AC4); (3) `daemon_up=false`, `dry_run=false` → `Ok` with `status:` (may share AC2 hermetic vault). |
 | **AC11** | `graph rebuild --help` after_help contains `daemon` / `--dry-run` / `0.50` (or `sparse`) / `graph update`. Enum neighbors after_help still names PREVIEW / prefer-fills. |
 | **AC12** | Docs: CAPABILITIES `:461` additive; OPERATIONS Graph health extend; WORKFLOWS `:215` daemon-stop; CHANGELOG T300 Unreleased; CLI-EXIT-CODES daemon-up **1** + still-sparse **0**; PROTOCOL-COMPAT `:96` rebuild JSON = update keys. Phase 0 re-locates. |
 | **AC13** | No `ai-brains-contracts` type. No pin bumps. No new crate. `rebuild.rs` production **unchanged** (grep: T300 consts not referenced from `rebuild.rs`). `graph_density.rs` production **unchanged**. `doctor.rs` production **unchanged**. |
@@ -358,6 +359,7 @@ DELETE of graph tables is T188-class destructive. Weakening to Status would miss
 | Still-sparse after rebuild | F3 honest |
 | Doctor `recovery_kit_event` warn | Unrelated |
 | JSON dry-run has no `dry_run` key | F10 by design |
+| Daemon started mid-rebuild / crash mid-replay | F25 — re-run rebuild; idempotent; probe≠atomic DELETE |
 
 ---
 
@@ -377,10 +379,38 @@ DELETE of graph tables is T188-class destructive. Weakening to Status would miss
 | `Docs/PROTOCOL-COMPAT.md` | **`:96`** rebuild JSON = update keys |
 | `conductor/conductor.md` / `deferred.md` / this spec+plan / README-T285-T300 | Planning now; Completed on go |
 
-**Do not touch:** `rebuild.rs`; `graph_density.rs`; `doctor.rs`; `projector.rs`; `project.rs`; `ai-brains-contracts`; `Cargo.lock`; live vault rebuild/daemon as planning.
+**Do not touch:** `crates/ai-brains-graph/src/rebuild.rs`; `crates/ai-brains-cli/src/graph_density.rs`; `doctor.rs`; `projector.rs`; `project.rs`; `ai-brains-contracts`; `Cargo.lock`; live vault rebuild/daemon as planning.
 
 ---
 
 ## 13. AI fold-in
 
-Reserved for `/fold-in 300`. Do **not** edit `*-review.md`.
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (both HEAD `907759f`). Fold-in on `main` at `907759f`. Live verify: `rebuild` **`:386–397`** still silent + no daemon probe; `GraphHealthOutput` **`:35–48`**; floors `crates/ai-brains-cli/src/graph_density.rs` **`:10–16`**; `REMEDIATION_REBUILD` **`:140`**; `probe_restore_daemon_busy` **`:471`**; clap `Rebuild` unit **`:2941`**; `graph.rs` **1214** physical lines (1130 non-blank). Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; **no clap 5**). Last merged PR still **#215** (comments/reviews **empty**). **No T301.**
+
+### Pins locked by fold-in
+
+1. **F10 (OpenCode m1):** JSON dry-run prints the health object **only**. `[dry-run]` is human-only. No debate in the freeze row.
+2. **F25 (OpenCode O1):** Mid-rebuild daemon start / crash mid-replay is a named residual — re-run rebuild (`rebuild_is_idempotent.rs`); probe is not atomic with DELETE. No extra code this track.
+3. **§2.3 / F2 / F16 / §12 (OpenCode O2):** Floors live in `crates/ai-brains-cli/src/graph_density.rs`, not `ai-brains-graph`.
+4. **Isolation / §2.1 (OpenCode O3):** `graph.rs` is **1214** physical lines (1130 non-blank). Still not top-10; still extend in-file.
+5. **AC10 (Agy m3):** Inject matrix three cases — daemon-up mutate Err; daemon-up dry-run Ok NOTICE; daemon-down mutate Ok `status:`.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** extract `graph_health_report` | **Already** F27 |
+| Agy | **m2** async dispatch `.await` | **Already** F32 / §5.3 |
+| Agy | **m3** inject matrix daemon-busy states | **Folded** AC10 third case (daemon-down mutate); AC3/AC4 already cases 1–2 |
+| Agy | **O1** COUNT fail-open omit `N` | **Already** F6 |
+| Agy | **O2** clap tokens `human\|json` reject `auto` | **Already** F5 / AC9 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** F10 inline debate | **Folded** F10 — decision only |
+| OpenCode | **O1** mid-rebuild TOCTOU residual | **Folded** F25 / §11 |
+| OpenCode | **O2** crate path for `graph_density.rs` | **Folded** §2.3 / F2 / F16 / §12 |
+| OpenCode | **O3** `graph.rs` 1214 vs 1130 | **Folded** Isolation — physical 1214 |
+| both | last-PR #215 Cursor | **Affirm F18** — no T301 |
+| both | deferred floors / clap 5 / `--confirm` / T232 remediator | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.

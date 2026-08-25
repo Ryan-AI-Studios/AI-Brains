@@ -4,7 +4,23 @@
 **Spec:** [spec.md](./spec.md) F0–F32 / AC1–AC16
 **Category:** OPS / GRAPH / UX
 **Ledger TX (planning):** `d7d6f57c-4f12-4cc4-8425-395aa678f6c8` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `4d2884de-347a-4714-a7c4-e29579e5a0fd` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F10:** JSON dry-run = health object only; `[dry-run]` human-only (strike debate).
+2. **F25:** Mid-rebuild TOCTOU / crash mid-replay → re-run rebuild; no extra code.
+3. **§2.3:** floors = `crates/ai-brains-cli/src/graph_density.rs`.
+4. **Isolation:** `graph.rs` **1214** physical lines.
+5. **AC10:** inject matrix three cases (Agy m3).
+6. **Phase 0:** re-locate doc anchors (including `:461`).
 
 ---
 
@@ -22,7 +38,7 @@
 | Pins | clap lock **4.6.1** / crates.io **4.6.6**; rusqlite **0.39.0** / crates.io **0.40.2**; serde_json lock **1.0.150** / crates.io **1.0.151**; no clap 5; `rstest` **0.25**. **Snapshot — re-verify at execute.** |
 | last-PR Cursor | **#215** empty. **No T301.** Dependabot remotes only. |
 | Ledger | 0 pending / 0 drift at scan. This DOCS TX `d7d6f57c`. |
-| Hotspots | `project.rs` #1 — do not touch. `forget.rs` #5. `graph.rs` **1130** not top-10 — implement there. `doctor.rs` / `graph_density.rs` / `rebuild.rs` **untouched**. |
+| Hotspots | `project.rs` #1 — do not touch. `forget.rs` #5. `graph.rs` **1214** physical (1130 non-blank) not top-10 — implement there. `doctor.rs` / `crates/ai-brains-cli/src/graph_density.rs` / `rebuild.rs` **untouched**. |
 | `ISSUES.md` | Does not exist. |
 
 ---
@@ -32,7 +48,7 @@
 - [ ] `git fetch --all --prune` ; branch `track/T300-graph-sparse-ops`
 - [ ] `ledgerful doctor` ; ledger 0 pending / 0 drift before FEATURE TX
 - [ ] Re-read `graph.rs` `rebuild` / `update` / `emit_graph_health_human` / `GraphHealthOutput`
-- [ ] Re-read `rebuild.rs` (must stay frozen) + `graph_density.rs` floors `:10–16`
+- [ ] Re-read `rebuild.rs` (must stay frozen) + `crates/ai-brains-cli/src/graph_density.rs` floors `:10–16`
 - [ ] Re-read `doctor.rs` `check_graph_density` (must stay frozen)
 - [ ] Re-read `probe_restore_daemon_busy` + restore busy message substring classes
 - [ ] Re-locate doc anchors CAPABILITIES rebuild row (`:461` at plan) / OPERATIONS Graph health / WORKFLOWS `:215` / PROTOCOL-COMPAT `:96` / CHANGELOG / after_help (do not trust plan-time line numbers if those files moved)
@@ -54,6 +70,7 @@
 - [ ] T232 remediator exact `ai-brains graph rebuild` → F8 (no `--confirm`)
 - [ ] T188 daemon Safety for mutate → F7 / AC3
 - [ ] last-PR #215 Cursor N/A → F18 no T301
+- [ ] Fold-in OpenCode m1 F10 pin; O1 TOCTOU residual; O2 crate path; O3 1214 lines; Agy m3 AC10 inject matrix
 
 ---
 

@@ -6,6 +6,22 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #215 T299 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25 (`#214`). **T299 Completed** 2026-08-25 (`#215`). **T300 Planned** 2026-08-25 (Pending until go).
 
+### T300 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 extract `graph_health_report` | **Already** F27 |
+| Agy m2 async dispatch `.await` | **Already** F32 |
+| Agy m3 inject matrix three daemon/dry-run cases | **Folded** AC10 (case 3 daemon-down mutate) |
+| Agy O1 COUNT fail-open omit `N` | **Already** F6 |
+| Agy O2 clap `human\|json` reject `auto` | **Already** F5 / AC9 |
+| OpenCode m1 F10 inline debate | **Folded** F10 — decision only |
+| OpenCode O1 mid-rebuild TOCTOU residual | **Folded** F25 / §11 |
+| OpenCode O2 crate path `graph_density.rs` | **Folded** §2.3 / F2 / F16 / §12 |
+| OpenCode O3 `graph.rs` 1214 vs 1130 | **Folded** Isolation — 1214 physical |
+| last-PR #215 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 ### T300 planning absorption (2026-08-25) — owner-confirm rebuild; daemon fail-closed; floors frozen
 
 | Item | Disposition |
