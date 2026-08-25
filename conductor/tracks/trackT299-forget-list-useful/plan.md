@@ -4,7 +4,22 @@
 **Spec:** [spec.md](./spec.md) F0–F33 / AC1–AC16
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `4516432b-edbf-49b4-a11a-2e682db985c0` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `81ff640f-110b-4e12-872c-e4f468e016de` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **§7 / AC16:** JSON absence lock (AC5) is stay-green, not red.
+2. **AC14:** Manual SoT is `cargo run -p ai-brains-cli`.
+3. **AC2 / F6:** same flags → byte-identical stdout (`assert_eq!`).
+4. **F19:** CAPABILITIES Empty row `:275`; CLI-EXIT-CODES sentence **required**.
+5. **Phase 0:** re-locate doc anchors (including `:275`).
 
 ---
 
@@ -32,7 +47,7 @@
 - [ ] `ledgerful doctor` ; ledger 0 pending / 0 drift before FEATURE TX
 - [ ] Re-read `memory.rs` `run_inventory` / `emit_list_human` empty arm / `run_summary` COUNT / `MemoryListJson`
 - [ ] Re-read `forget.rs` list-forgotten wrapper (must stay thin)
-- [ ] Re-locate doc anchors CAPABILITIES Empty row / OPERATIONS / WORKFLOWS / CHANGELOG / after_help (do not trust plan-time `:274`/`:745`/`:195`/`:1597`/`:2985` if those files moved)
+- [ ] Re-locate doc anchors CAPABILITIES Empty row (`:275` at plan) / OPERATIONS / WORKFLOWS / CHANGELOG / after_help (do not trust plan-time `:275`/`:745`/`:195`/`:1597`/`:2985` if those files moved)
 - [ ] Re-dogfood `forget --list-forgotten --limit 5` + `memory list --summary` read-only — **do not forget live pins**
 - [ ] Pins clap **4.6.1** / rusqlite **0.39.0** — no bump; no new crate
 - [ ] FEATURE TX
@@ -50,6 +65,7 @@
 - [ ] T216 F36 partial lift → F27
 - [ ] T287 F7 empty next parked here → absorb
 - [ ] last-PR #214 Cursor N/A → F18 no T301
+- [ ] Fold-in OpenCode m1 stay-green JSON; m2 `cargo run` Manual; Agy m3 AC2 `assert_eq!`; O1 `:275`; O2 CLI-EXIT-CODES required
 
 ---
 
@@ -57,8 +73,7 @@
 
 - [ ] `forgotten_empty_remediator` rstest (AC10) — Some(n) / None / 0 / global
 - [ ] Hermetic empty forgotten + ≥1 pin: `Pinned:` matches `--summary`; last line `next: ai-brains memory list` (AC1)
-- [ ] Hermetic `memory list --status forgotten` matches forget list (AC2)
-- [ ] JSON key absence `next_step` / `pinned` (AC5)
+- [ ] Hermetic `forget --list-forgotten` stdout **equals** `memory list --status forgotten` **and** has AC1 markers (AC2)
 - [ ] Hermetic `--global` last line includes `--global` (AC6)
 
 ---
@@ -70,7 +85,7 @@
 - [ ] Pass `tag` into `emit_list_human` (F31 / AC11)
 - [ ] Pinned-empty / summary / JSON / nonempty forgotten **untouched-as-frozen**
 - [ ] `forget.rs` production **unchanged**
-- [ ] Stay-green AC3–AC4 / AC7–AC9 / AC16 / T216 / T287
+- [ ] Stay-green AC3–AC5 / AC7–AC9 / AC16 / T216 / T287 (AC5 JSON absence is **not** red)
 
 ---
 
@@ -81,7 +96,7 @@
 - [ ] WORKFLOWS empty-forgotten case
 - [ ] Root CHANGELOG T299 Unreleased
 - [ ] Forget after_help + memory list after_help one sentence each
-- [ ] CLI-EXIT-CODES empty forgotten still 0 (sentence if missing)
+- [ ] CLI-EXIT-CODES **add** empty forgotten still exit 0
 
 ---
 
@@ -89,7 +104,7 @@
 
 - [ ] Targeted nextest `-p ai-brains-cli` `memory_list_inventory`
 - [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings`
-- [ ] Manual AC14 live empty — **no** live forget; record PATH vs source if they differ
+- [ ] Manual AC14 live empty **via `cargo run -p ai-brains-cli`** — **no** live forget; optionally record PATH-behind diff
 - [ ] `scripts/dev-check.ps1`
 - [ ] Phase-1 `review.md` + Codex `review.codex.md`
 

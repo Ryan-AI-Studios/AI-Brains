@@ -10,7 +10,8 @@
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “forget-list empty U=6”; T216 F14 empty const **kept**; T216 F36 “skip next on empty” **partial lift** (stdout `next:` on forgotten-empty only; stderr restore still skipped); T287 F7 “T299 owns empty next-step”
 - **Not absorbed (DoD):** Auto-forget / CE wipe; `--summary` on `forget`; JSON new keys / `next_step`; forgotten human mix (T287 F7); `--offset`; tag histogram; clap 5 / rusqlite 0.40; T300; T240 F2
 - **Research date:** 2026-08-25 (plan dogfood HEAD `5323034` T298 `#214`. Product `src/` = T298. PATH **0.1.2** 2026-08-22 19:41 **has T216 empty one-liner**, not this remediator. Live vault **Forgotten: 0** / **Pinned: 4152** — do not auto-forget.)
-- **Ledger:** planning DOCS TX `4516432b-edbf-49b4-a11a-2e682db985c0`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-25 `agy-review.md` + `opencode-review.md` (HEAD `d318a0e`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** OpenCode m1 JSON absence is stay-green not red; OpenCode m2 AC14 Manual SoT is `cargo run`; Agy m3 AC2 byte-identical stdout; OpenCode O1 CAPABILITIES Empty row **`:275`**; OpenCode O2 CLI-EXIT-CODES sentence **required**. **Already:** Agy m1 tag param = F26/F31/§5.2; Agy m2 rstest = AC10; Agy O1 fail-open = F2; Agy O2 after_help = F22/AC12; OpenCode O3 two COUNTs = F32. **No declines of B/M.** Disposition **§13**.
+- **Ledger:** planning DOCS TX `4516432b-edbf-49b4-a11a-2e682db985c0`. Fold-in DOCS TX `81ff640f-110b-4e12-872c-e4f468e016de`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** rewrite `.env` (T240 F2). Do **not** `forget` live pins (`--match` / `--memory-id -f`) on the operator vault. Do **not** `forget --restore` live. Do **not** grow hotspot `project.rs` / `sync.rs` / `governed_common.rs` / `context.rs` / `forget.rs`. Grow `memory.rs` only (shared inventory emit). Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `retention apply --confirm`, `graph rebuild`, leftover `rebind-path --write --yes`, or `safety sync` without `--dry-run`.
 
 ---
@@ -116,7 +117,7 @@ This unblocks daily ops honesty for the Windows-first vault: a project with **ze
 | **F3 — `next:` copy-paste (hard)** | Not global: exact `next: ai-brains memory list`. Global: exact `next: ai-brains memory list --global`. Do **not** echo `--limit` / `--tag` / `--format` / `--status forgotten` / `--project-id`. Default `memory list` is pinned inventory — that is the remediator. |
 | **F4 — Empty const freeze (hard)** | `No forgotten memories.` byte-identical (T216 F14 / T198). Do **not** rewrite to “No forgotten memories (N pins).” `Pinned:` is a **following** line. |
 | **F5 — `next:` last (hard)** | Last non-empty stdout line is the F3 string (T251 analog). No trailing dump. |
-| **F6 — Shared backend (hard)** | Implement **only** in `emit_list_human` / a `pub(crate)` remediator in `memory.rs`. `forget --list-forgotten` and `memory list --status forgotten` both get the lines. **Do not** special-case `forget.rs`. **Do not** grow `forget.rs`. |
+| **F6 — Shared backend (hard)** | Implement **only** in `emit_list_human` / a `pub(crate)` remediator in `memory.rs`. `forget --list-forgotten` and `memory list --status forgotten` both get the lines. Same human flags (`--limit 5`, same scope/tag) → **byte-identical stdout** (`assert_eq!` — Agy m3). **Do not** special-case `forget.rs`. **Do not** grow `forget.rs`. |
 | **F7 — Forgotten recency freeze** | T287 F7 stands. Nonempty forgotten does **not** mix, does **not** grow `Pinned:` / `next: ai-brains memory list`. F36 stderr restore next **unchanged**. |
 | **F8 — Pinned-empty freeze** | `No pinned memories.` path **unchanged**. Do **not** print forgotten `next:` or a second `Pinned:` on pinned-empty. |
 | **F9 — Summary freeze** | `--summary` still COUNT-only (T216 F11/F46). Do **not** add `next:` there. Do **not** add `--summary` to `forget` (T216 F28). |
@@ -129,7 +130,7 @@ This unblocks daily ops honesty for the Windows-first vault: a project with **ze
 | **F16 — Isolation** | No T240 F2 `.env` rewrite. No daemon start/stop/install. No auto-forget. No T300 steal. No doctor 16th. No `forget.rs` growth. No `project.rs` / `sync.rs` / `governed_common.rs` / `context.rs`. |
 | **F17 — PATH** | Do not `cargo install`. Source/hermetic SoT. PATH 0.1.2 until owner asks. |
 | **F18 — last-PR Cursor** | **#214** comments/reviews/issue **empty**. **No T301.** Dependabot `#61` rusqlite / `#58–#62` / `#68–#72` **not stolen**. |
-| **F19 — Docs** | CAPABILITIES Empty row (`:274`) additive: forgotten-empty prints `Pinned: N` + last-line `next:`. OPERATIONS `:745` additive. WORKFLOWS `:195–198` additive empty case. CHANGELOG T299 Unreleased. Forget after_help `:1597` + memory list after_help `:2985` one sentence each. CLI-EXIT-CODES: empty forgotten still exit **0** (add a sentence if missing). PROTOCOL-COMPAT: **N/A** (CLI-local human; JSON keys unchanged — document “keys unchanged” only if a memory-list row exists at execute; today there is **no** PROTOCOL-COMPAT memory-list row). Phase 0 re-locates these anchors. |
+| **F19 — Docs** | CAPABILITIES Empty row (**`:275`** today; Formats is `:274` — OpenCode O1; Phase 0 re-locates) additive: forgotten-empty prints `Pinned: N` + last-line `next:`. OPERATIONS `:745` additive. WORKFLOWS `:195–198` additive empty case. CHANGELOG T299 Unreleased. Forget after_help `:1597` + memory list after_help `:2985` one sentence each. CLI-EXIT-CODES: **add** a sentence that empty forgotten list is still exit **0** (OpenCode O2 — `rg` finds no forget/forgotten empty row today; `:116` is unrelated clap-required `--scope`). PROTOCOL-COMPAT: **N/A** (CLI-local human; JSON keys unchanged — document “keys unchanged” only if a memory-list row exists at execute; today there is **no** PROTOCOL-COMPAT memory-list row). Phase 0 re-locates these anchors. |
 | **F20 — Placeholder JSON rewrite** | Placeholder said “JSON: additive `next_step` if keys allow; else human-only.” Live JSON has **no** `next_step` field and T287 F10 froze the shape. **Human-only.** |
 | **F21 — High findings** | Auto-forgetting the live vault; changing `No forgotten memories.`; adding JSON keys; mixing nonempty forgotten; putting T299 lines in `forget.rs`; `--summary` on forget; claiming CE wipe; clap 5; growing hotspot `project.rs`. |
 | **F22 — Help** | Additive. Forget after_help already names `memory list`. Add: empty list-forgotten prints `Pinned: N` + `next: ai-brains memory list`. Combined help still lists `--list-forgotten`. |
@@ -152,7 +153,7 @@ This unblocks daily ops honesty for the Windows-first vault: a project with **ze
 | AC | Proof |
 |----|-------|
 | **AC1** | Hermetic vault, ≥1 pinned, **0** forgotten: `forget --list-forgotten --limit 5` exit **0**. Stdout contains exact `No forgotten memories.` Contains `Pinned: {n}` where `{n}` **equals** `memory list --summary` `Pinned:` in the same vault/scope (parse both). **Last non-empty line** is `next: ai-brains memory list`. Does **not** contain F36 restore sentence on stdout. Stderr does **not** contain `forget --restore` / `forget --memory-id`. |
-| **AC2** | Same vault: `memory list --status forgotten --limit 5` stdout last-line / `Pinned:` / empty const **match** AC1 (shared backend). |
+| **AC2** | Same vault + same human flags (`--limit 5`): `forget --list-forgotten` stdout **equals** `memory list --status forgotten` stdout (`assert_eq!` — Agy m3). That shared stdout satisfies AC1 (exact `No forgotten memories.`, `Pinned: {n}` matching summary, last line `next: ai-brains memory list`). Both exit **0**. |
 | **AC3** | Hermetic 0 pins + 0 forgotten: contains `No forgotten memories.` Contains `Pinned: 0`. Last line `next: ai-brains memory list`. Exit **0**. |
 | **AC4** | Hermetic nonempty forgotten (pin then `forget --match` in **temp** vault): stdout contains the forgotten preview. Does **not** contain `next: ai-brains memory list`. Does **not** contain a T299 `Pinned:` line after the table (summary is a different command). F36 stderr restore **still** present. Exit **0**. |
 | **AC5** | Hermetic empty forgotten `--format json`: parse object; required keys present (`api_version`, `scope`, `status`, `items`, `total`, `returned`, `more_available`, `limit`); **no** `next_step` / `pinned` / `next`; `items` empty array; `total == 0`; `status == "forgotten"`. |
@@ -162,11 +163,11 @@ This unblocks daily ops honesty for the Windows-first vault: a project with **ze
 | **AC9** | Missing project + not `--global`: `forget --list-forgotten` still exit **2** via `fail_usage` (T216). Isolated empty-home / no `AI_BRAINS_PROJECT_ID`. |
 | **AC10** | Unit rstest `forgotten_empty_remediator`: (1) `Some(3), false` → `["Pinned: 3", "next: ai-brains memory list"]`; (2) `None, false` → `["next: ai-brains memory list"]` and **not** `Pinned:`; (3) `Some(0), false` → `Pinned: 0` + non-global next; (4) `Some(2), true` → `Pinned: 2` + `next: ai-brains memory list --global`. Each vec item `!contains('\n')`. |
 | **AC11** | Hermetic `--tag` (F31): pin `TAGS: architecture\nbody`; forgotten-empty `--tag architecture` `Pinned:` equals `--summary --tag architecture` Pinned; unknown tag still empty success + `Pinned: 0` (or omit if COUNT 0) + next. |
-| **AC12** | Docs: CAPABILITIES Empty row additive; OPERATIONS additive; WORKFLOWS empty case; CHANGELOG T299 Unreleased; after_help Forget + memory list additive. Phase 0 re-locates anchors. |
+| **AC12** | Docs: CAPABILITIES Empty row (`:275`) additive; OPERATIONS additive; WORKFLOWS empty case; CHANGELOG T299 Unreleased; after_help Forget + memory list additive; CLI-EXIT-CODES **add** empty forgotten exit 0. Phase 0 re-locates anchors. |
 | **AC13** | `forget --help` still lists `--list-forgotten` and `memory list`. `memory list --help` still lists `--status forgotten`. `cli_help_ia` Daily `memory` stays green. |
-| **AC14** | Manual on **live** vault (do **not** forget/restore): `forget --list-forgotten --limit 5` + `memory list --summary`. Pass: forgotten-empty; stdout contains `No forgotten` **and** `Pinned:` matching that `--summary` Pinned (same scope) **and** last line `next: ai-brains memory list`; exit **0**. Record PATH vs `cargo run` if they differ (PATH-behind is F17). |
+| **AC14** | Manual on **live** vault (do **not** forget/restore) **via `cargo run -p ai-brains-cli`** (OpenCode m2 — PATH **0.1.2** lacks T299; PATH-behind is F17, optional record). `forget --list-forgotten --limit 5` + `memory list --summary`. Pass: forgotten-empty; stdout contains `No forgotten` **and** `Pinned:` matching that `--summary` Pinned (same scope) **and** last line `next: ai-brains memory list`; exit **0**. |
 | **AC15** | No `ai-brains-contracts` type. No pin bumps. No new crate. `forget.rs` production **unchanged** (grep: T299 consts/helper not referenced from `forget.rs`). No new store method. |
-| **AC16** | Stay-green: T216 share-backend nonempty; JSON schema keys present on **pinned** json; T287 mix; empty const substring; F36 nonempty stderr. |
+| **AC16** | Stay-green: T216 share-backend nonempty; JSON schema keys present on **pinned** json; **AC5** empty forgotten JSON absence of `next_step`/`pinned` (OpenCode m1 — freeze-lock, already true); T287 mix; empty const substring; F36 nonempty stderr. |
 
 ---
 
@@ -260,14 +261,14 @@ Placeholder: `next: ai-brains memory list`. Summary already printed `Pinned: N` 
 
 1. `forget_list_forgotten__empty_with_pin__pinned_count_and_next` (AC1)
 2. `forgotten_empty_remediator__cases` (AC10 rstest — helper missing)
-3. `forget_list_forgotten__empty_json__keys_frozen_no_next_step` (AC5 — keys-present may already pass; must assert **absence** of `next_step` **and** human AC1 still red)
+3. `forget_list_forgotten__empty_matches_memory_list_status_forgotten` (AC2 — `assert_eq!` of stdout **and** AC1 markers; equality alone is already true today)
 4. `forget_list_forgotten__global_empty__next_includes_global` (AC6)
 
 **Then green:** helper + empty Forgotten arm COUNT + pass `tag` + docs.
 
-**Stay-green:** AC2 share / AC4 nonempty omit / AC7 pinned-empty / AC8 summary / AC9 exit 2 / AC16 T216+T287.
+**Stay-green:** AC5 JSON absence lock (OpenCode m1 — already true; do **not** burn a red commit on it) / AC4 nonempty omit / AC7 pinned-empty / AC8 summary / AC9 exit 2 / AC16 T216+T287.
 
-**Manual:** AC14 classify-only. Pass-with-observed-data on live Forgotten: 0. **Do not forget live pins.**
+**Manual:** AC14 via **`cargo run -p ai-brains-cli`**. Pass-with-observed-data on live Forgotten: 0. **Do not forget live pins.**
 
 ---
 
@@ -275,7 +276,7 @@ Placeholder: `next: ai-brains memory list`. Summary already printed `Pinned: N` 
 
 | Risk | Mitigation |
 |------|------------|
-| Dual-truth forget vs `memory list --status forgotten` | F6 shared emit only; AC2. |
+| Dual-truth forget vs `memory list --status forgotten` | F6 shared emit only; AC2 `assert_eq!`. |
 | `Pinned:` disagrees with `--summary` | F2 same `count_memories` filter; AC1 parse-both. |
 | `count_pinned_memories` “already imported” shortcut | F2 forbid; AC15 no new store method. |
 | JSON scripts grow a key | F10 / AC5 absence. |
@@ -319,11 +320,11 @@ Placeholder: `next: ai-brains memory list`. Summary already printed `Pinned: N` 
 ## 10. Implement order (on go)
 
 1. Phase 0 re-verify (plan.md) + FEATURE TX.
-2. Red AC1 / AC6 / AC10 (and AC5 absence lock).
+2. Red AC1 / AC2 / AC6 / AC10 (AC5 is stay-green).
 3. Green helper + empty Forgotten arm + pass `tag`.
-4. Stay-green AC2–AC4 / AC7–AC9 / AC16.
+4. Stay-green AC3–AC5 / AC7–AC9 / AC16.
 5. Docs AC12.
-6. Manual AC14 (read-only; **no** live forget).
+6. Manual AC14 via **`cargo run`** (read-only; **no** live forget).
 7. `scripts/dev-check.ps1`; Phase-1 review; `codex-review`.
 8. conductor Completed + deferred closeout + pin.
 9. Phase 6 publish (`track/T299-*` → PR → watch GHA `CI` green → squash-merge). Never `git push origin main`.
@@ -351,11 +352,11 @@ Placeholder: `next: ai-brains memory list`. Summary already printed `Pinned: N` 
 | `crates/ai-brains-cli/src/commands/memory.rs` | F26 remediator; empty Forgotten arm COUNT + print; pass `tag` into `emit_list_human`; units AC10 |
 | `crates/ai-brains-cli/src/main.rs` | Forget + memory list `after_help` one sentence (F22). No new clap fields. |
 | `crates/ai-brains-cli/tests/memory_list_inventory.rs` | AC1–AC9 / AC11 / AC16 hermetics (extend this file) |
-| `Docs/CAPABILITIES.md` | Empty row `:274` additive |
+| `Docs/CAPABILITIES.md` | Empty row **`:275`** additive |
 | `Docs/OPERATIONS.md` | `:745` additive |
 | `Docs/WORKFLOWS.md` | `:195–198` additive empty case |
 | `CHANGELOG.md` | T299 Unreleased |
-| `Docs/CLI-EXIT-CODES.md` | Empty forgotten still 0 (sentence if missing) |
+| `Docs/CLI-EXIT-CODES.md` | **Add** empty forgotten still exit 0 |
 | `conductor/conductor.md` / `deferred.md` / this spec+plan / README-T285-T300 | Planning now; Completed on go |
 
 **Do not touch:** `forget.rs` production; `query_store.rs`; `doctor.rs`; `project.rs`; `ai-brains-contracts`; `Cargo.lock`; live vault forget/restore; PROTOCOL-COMPAT JSON key **set**.
@@ -364,4 +365,34 @@ Placeholder: `next: ai-brains memory list`. Summary already printed `Pinned: N` 
 
 ## 13. AI fold-in
 
-(empty until `/fold-in 299`)
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (both HEAD `d318a0e`). Fold-in on `main` at `d318a0e`. Live verify: `emit_list_human` **`:448–475`** still no `tag` arg / Forgotten empty prints const then `return Ok(())`; `run_inventory` caller **`:276–285`** does not pass tag; CAPABILITIES Empty row **`:275`** (Formats `:274`); CLI-EXIT-CODES `rg forget` only `:116` unrelated; `ProjectId` is `Copy` (`ids.rs:7`); `pin_memory_tagged` exists in `memory_list_inventory.rs`. Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; **no clap 5**). Last merged PR still **#214** (comments/reviews **empty**). **No T301.**
+
+### Pins locked by fold-in
+
+1. **§7 / AC16 (OpenCode m1):** JSON absence of `next_step`/`pinned` (AC5) is **stay-green**, not a red-first test.
+2. **AC14 (OpenCode m2):** Manual SoT invocation is **`cargo run -p ai-brains-cli`**. PATH-behind is F17 optional record.
+3. **AC2 / F6 (Agy m3):** same human flags → **byte-identical stdout** (`assert_eq!`) between `forget --list-forgotten` and `memory list --status forgotten`.
+4. **F19 (OpenCode O1):** CAPABILITIES Empty row **`:275`**.
+5. **F19 (OpenCode O2):** CLI-EXIT-CODES sentence is **required** (not “if missing”).
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** thread `tag` into `emit_list_human` | **Already** F26 / F31 / §5.2 |
+| Agy | **m2** rstest four remediator cases | **Already** AC10 |
+| Agy | **m3** hermetic stdout parity | **Folded** F6 / AC2 `assert_eq!` |
+| Agy | **O1** fail-open `.ok()` | **Already** F2 / §5.2 |
+| Agy | **O2** both after_help | **Already** F22 / AC12 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** JSON absence is stay-green | **Folded** §7 / AC16 — AC5 stays a freeze lock, not red |
+| OpenCode | **m2** AC14 names `cargo run` | **Folded** AC14 |
+| OpenCode | **O1** CAPABILITIES `:275` | **Folded** F19 / §12 |
+| OpenCode | **O2** CLI-EXIT-CODES required add | **Folded** F19 |
+| OpenCode | **O3** two COUNTs on empty path | **Already** F32 — note-only, no extra F |
+| both | last-PR #214 Cursor | **Affirm F18** — no T301 |
+| both | deferred T300 / T240 F2 / clap 5 / JSON freeze | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.
+
