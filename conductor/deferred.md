@@ -4,7 +4,30 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #214 T298 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25 (`#214`). **T299 Completed** 2026-08-25.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #215 T299 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25 (`#214`). **T299 Completed** 2026-08-25 (`#215`). **T300 Planned** 2026-08-25 (Pending until go).
+
+### T300 planning absorption (2026-08-25) — owner-confirm rebuild; daemon fail-closed; floors frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit graph sparse E/N ~0.14; doctor `graph_density` warn | **Absorb** F1–F8 / AC1–AC5 / AC14 |
+| Placeholder Manual `graph update` + owner-confirm `graph rebuild` + doctor agree | **Absorb** AC14 / F1 / F3 |
+| Placeholder floors frozen; never force `live` | **Absorb** F2 / F3 |
+| Placeholder skip = T262 hermetic + written skip | **Absorb** F1 / F11 / AC6 |
+| T278 F8 no live rebuild as DoD | **Lift to owner-confirm** F1 (T295 class) |
+| T278 F7 / T213 floors 0.50 | **Affirm freeze** F2 / AC8 |
+| T232 remediator exact `ai-brains graph rebuild` | **Affirm** F8 — **no `--confirm`** |
+| T262 pin = node without rebuild | **Affirm** F11 / AC6 |
+| T188 daemon Safety for mutate | **Absorb pattern** F7 / AC3 |
+| T295 live `--no-prune` analog | **Absorb class** F1 |
+| T293 neighbors ranking | **Decline steal** — Completed `#209` |
+| T299 closeout T300 steal | **Absorb** (this track) |
+| Silent rebuild stdout / no `--dry-run` / daemon Running race | **Absorb** F4 / F6 / F7 |
+| Floor retune / Cargo default-on / projector more-edges / streaming `read_all_events` | **Decline** F9 / F24 |
+| leftover `--write` / T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F14 / F24 |
+| last-PR Cursor **#215** | **N/A empty** — **no T301** F18 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** |
+| `recovery_kit_event` doctor warn | **Not this track** |
 
 ### T299 implement closeout (2026-08-25)
 
