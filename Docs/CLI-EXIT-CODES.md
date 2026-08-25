@@ -115,6 +115,8 @@ Invalid `AI_BRAINS_PROJECT_ID`: **`recall` / `search`** → clap **exit 2**; **`
 
 After T201, CLI commands that always need a scope use **clap-required** `--scope: String` so forgetting the flag exits **2** (English clap usage on stderr), not **6**.
 
+**T299:** Empty human `forget --list-forgotten` / `memory list --status forgotten` (zero forgotten rows) is still exit **0**, even when it also prints `Pinned: N` and `next: ai-brains memory list`. Missing project without `--global` remains exit **2**.
+
 Still clap-required after T226: `erasure request`, `erasure wipe`, `review resolve` (destructive / mutate / CE). **T241:** `policy check --capability` is **optional at clap**; omit → runtime **`fail_usage` exit 2** with discovery-first capability catalog (not clap “required arguments were not provided”). Only `--scope` softens via soft-resolve; capability omission is a separate catalog usage path.
 
 **T203/T226 soft-default:** `--scope` is **optional** on `review list`, `source list|show`, `evidence list|search|show`, and **`policy show|check|bootstrap`**. Missing + non-authoritative → runtime **`fail_usage` exit 2** (template class, not clap text). Authoritative context (e.g. `AI_BRAINS_PROJECT_ID`) may soft-fill. **Do not** reintroduce exit-6 missing-scope on these CLI paths.

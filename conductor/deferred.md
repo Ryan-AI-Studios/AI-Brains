@@ -4,7 +4,61 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #213 T297 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #214 T298 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25 (`#214`). **T299 Completed** 2026-08-25.
+
+### T299 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| Empty forgotten `Pinned: N` + `next: memory list` (shared backend) | **Done** F1–F6 / AC1–AC6 / AC14 |
+| JSON nine keys frozen; no `next_step` | **Done** F10 / AC5 (exact key-set assert) |
+| `forget.rs` production unchanged; helper in `memory.rs` | **Done** F6 / AC15 |
+| Docs CAPABILITIES/OPS/WORKFLOWS/CHANGELOG/CLI-EXIT-CODES/after_help | **Done** F19 / AC12 |
+| PATH until `cargo install` | **Residual** F17 — not easy without owner install |
+| Live Forgotten: 0 | **Residual** F13/F25 — honest AC14 empty SoT |
+| JSON `next_step` / `--summary` on forget / tag histogram / `--offset` | **Residual** F10/F9/F24 — declined |
+| `count_pinned_memories` vs session-join residual | **Residual** F25 — this track uses inventory COUNT |
+| clap 4.6 workspace / rusqlite 0.40 Dependabot | **Residual** F14 — not stolen |
+| T300 graph sparse | **Not stolen** F24 |
+
+### T299 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 tag param on `emit_list_human` | **Already** F26 / F31 / §5.2 |
+| Agy m2 rstest four remediator cases | **Already** AC10 |
+| Agy m3 hermetic stdout parity | **Folded** F6 / AC2 `assert_eq!` |
+| Agy O1 fail-open `.ok()` | **Already** F2 |
+| Agy O2 both after_help | **Already** F22 / AC12 |
+| OpenCode m1 JSON absence is stay-green not red | **Folded** §7 / AC16 |
+| OpenCode m2 AC14 names `cargo run` | **Folded** AC14 |
+| OpenCode O1 CAPABILITIES Empty row `:275` | **Folded** F19 |
+| OpenCode O2 CLI-EXIT-CODES required add | **Folded** F19 |
+| OpenCode O3 two COUNTs | **Already** F32 |
+| last-PR #214 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
+### T299 planning absorption (2026-08-25) — empty forgotten Pinned N + next memory list; JSON frozen
+
+| Item | Disposition |
+|------|-------------|
+| Audit `forget --list-forgotten` U=6 empty | **Absorb** F1–F6 / AC1–AC6 / AC14 |
+| Placeholder Manual `forget --list-forgotten --limit 5` + `memory list --summary` | **Absorb** AC14 / F13 |
+| Placeholder keep `No forgotten memories.` + `Pinned: N` + `next: ai-brains memory list` | **Absorb** F1 / F3 / F4 |
+| Placeholder JSON additive `next_step` if keys allow | **Rewrite** F20 / F10 — human-only; nine keys frozen |
+| T216 F14 empty const / exit 0 | **Affirm** F4 / F23 |
+| T216 F36 skip next on empty | **Partial lift** F27 — stdout `next:` on forgotten-empty; stderr restore still nonempty-only |
+| T216 F10 / T287 F10 JSON keys | **Affirm freeze** F10 / AC5 |
+| T216 F28 no `--summary` on forget / F6 limit 50 | **Affirm** F9 / F11 |
+| T216 closeout tag histogram / `--offset` / auto-forget / CE wipe | **Decline** F24 / F13 |
+| T287 F7 forgotten recency; empty next parked here | **Affirm** F7; **absorb** empty next |
+| T287/T290/T291/T292/T293/T294/T298 “Decline → T299” | **Absorb** (this track) |
+| T298 closeout T299 steal | **Absorb** (this track); **T300** still not stolen |
+| T274–T284 declined forget empty as E=8 | **Reopened** as this track |
+| T300 graph sparse live rebuild | **Decline** F24 |
+| leftover `--write` / T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F14 / F24 |
+| last-PR Cursor **#214** | **N/A empty** — **no T301** F18 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** |
 
 ### T298 implement closeout (2026-08-25)
 

@@ -25,6 +25,22 @@ const SCOPE_MISSING_MSG: &str =
 const INVALID_STATUS_MSG: &str = "Invalid --status. Use pinned or forgotten.";
 const EMPTY_TAG_MSG: &str = "Empty --tag is not allowed.";
 
+/// T299 F26 — forgotten-empty remediator lines (`Pinned: N` when COUNT Ok + `next:` last).
+///
+/// `None` = fail-open (omit `Pinned:`); `Some(0)` still prints `Pinned: 0`.
+pub(crate) fn forgotten_empty_remediator(pinned: Option<u64>, global: bool) -> Vec<String> {
+    let mut lines = Vec::new();
+    if let Some(n) = pinned {
+        lines.push(format!("Pinned: {n}"));
+    }
+    if global {
+        lines.push("next: ai-brains memory list --global".to_string());
+    } else {
+        lines.push("next: ai-brains memory list".to_string());
+    }
+    lines
+}
+
 // ---------------------------------------------------------------------------
 // Pure helpers (F9 / F12 / F8) — unit-tested
 // ---------------------------------------------------------------------------
@@ -282,6 +298,7 @@ pub fn run_inventory(
         &rows,
         more_available,
         total,
+        tag.as_deref(),
     )
 }
 
@@ -454,6 +471,7 @@ fn emit_list_human(
     rows: &[MemoryListRow],
     more_available: bool,
     total: u64,
+    tag: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let name_alias = if !global {
         match project_id {
@@ -470,7 +488,22 @@ fn emit_list_human(
     if rows.is_empty() {
         match status {
             MemoryListStatus::Pinned => println!("No pinned memories."),
-            MemoryListStatus::Forgotten => println!("No forgotten memories."),
+            MemoryListStatus::Forgotten => {
+                println!("No forgotten memories.");
+                // T299 F1/F2/F27: summary COUNT SoT + stdout remediator; still before F36.
+                let pinned = ctx
+                    .conn
+                    .count_memories(&MemoryListFilter {
+                        status: MemoryListStatus::Pinned,
+                        project_id: if global { None } else { project_id.copied() },
+                        tag: tag.map(str::to_string),
+                        limit: 0,
+                    })
+                    .ok();
+                for line in forgotten_empty_remediator(pinned, global) {
+                    println!("{line}");
+                }
+            }
         }
         return Ok(());
     }
@@ -599,6 +632,30 @@ fn emit_summary_human(
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+
+    /// T299 AC10 / F26 — remediator line shapes (fail-open / zero / global).
+    #[rstest::rstest]
+    #[case::some_n(Some(3), false, &["Pinned: 3", "next: ai-brains memory list"])]
+    #[case::none_fail_open(None, false, &["next: ai-brains memory list"])]
+    #[case::zero_pins(Some(0), false, &["Pinned: 0", "next: ai-brains memory list"])]
+    #[case::global(Some(2), true, &["Pinned: 2", "next: ai-brains memory list --global"])]
+    fn forgotten_empty_remediator__cases(
+        #[case] pinned: Option<u64>,
+        #[case] global: bool,
+        #[case] expected: &[&str],
+    ) {
+        let lines = forgotten_empty_remediator(pinned, global);
+        assert_eq!(lines, expected);
+        for line in &lines {
+            assert!(!line.contains('\n'), "F26 one line each; got {line:?}");
+        }
+        if pinned.is_none() {
+            assert!(
+                lines.iter().all(|l| !l.starts_with("Pinned:")),
+                "fail-open omits Pinned:; got {lines:?}"
+            );
+        }
+    }
 
     #[test]
     fn preview_line__role_prefix_stripped_always() {

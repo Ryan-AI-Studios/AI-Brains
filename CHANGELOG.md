@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T299 useful empty `forget --list-forgotten`:** Empty forgotten human lists keep `No forgotten memories.`, then print `Pinned: N` (same `count_memories` as `memory list --summary`) and last-line `next: ai-brains memory list` (`--global` on that next when global). Shared via `memory list --status forgotten`. JSON nine keys frozen (no `next_step`). No auto-forget; `forget.rs` production unchanged.
+
 - **T298 useful empty `device` / `replicate` status:** Empty `device status` names this machine (`{hostname} (not enrolled)`), prints short honesty `local-only; not PQ; not remote wipe`, and keeps last-line `next: ai-brains replicate status`. Enrolled status uses the hyphen fingerprint (or `enrolled; fingerprint unavailable` on malformed rows). Human `replicate status` adds the same this-machine label after `enrolled_count`. JSON keys stay frozen (no `this_machine`). No live bootstrap; no `--format` on `device`.
 
 - **T297 `daemon status` Stopped vs backend Open:** When Stopped and LLM/Embedding TCP is Open, prints `backend TCP Open ≠ daemon` immediately above T249 `next: ai-brains daemon start`. Running omits the contrast. Status `after_help` clarifies Open is TCP connect to the model process. No JSON/`--format`; no HTTP unify; do not start/stop the daemon for this honesty.
