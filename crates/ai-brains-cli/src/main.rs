@@ -2938,7 +2938,17 @@ enum MigrateCommands {
 )]
 pub enum GraphCommands {
     /// Rebuild graph from all events
-    Rebuild,
+    #[command(
+        after_help = "Daemon must be Stopped before a mutating rebuild (`ai-brains daemon stop` or `sc stop AI-Brains-Daemon`).\nPrefer `graph rebuild --dry-run` first — prints current density without DELETE.\nTyped-lineage floor 0.50 may still report sparse after a full replay (honest; not a floor lie).\nStdout is the density report (same labeled lines / JSON keys as `graph update`).\nRemediator string stays exact `ai-brains graph rebuild` (no --confirm).\nLarge vaults may take minutes; progress is tracing on stderr, not a stdout spinner.\nExamples:\n  ai-brains graph rebuild --dry-run\n  ai-brains graph rebuild\n  ai-brains graph rebuild --format json"
+    )]
+    Rebuild {
+        /// Preview density + event COUNT; do not DELETE or replay
+        #[arg(long)]
+        dry_run: bool,
+        /// Output format: human (default) or json (same keys as `graph update`)
+        #[arg(long, default_value = "human", value_parser = ["human", "json"])]
+        format: String,
+    },
     /// Show 1-hop graph neighbors of a memory
     Neighbors {
         memory_id: String,
@@ -5219,7 +5229,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         },
         #[cfg(feature = "graph")]
         Commands::Graph { command, .. } => match command {
-            GraphCommands::Rebuild => commands::graph::rebuild(&ctx),
+            GraphCommands::Rebuild { dry_run, format } => {
+                commands::graph::rebuild(&ctx, *dry_run, format).await
+            }
             GraphCommands::Neighbors {
                 memory_id,
                 format,

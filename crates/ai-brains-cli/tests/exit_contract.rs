@@ -254,6 +254,61 @@ fn graph_update__feature_off__exit_2_feature_unavailable() {
     );
 }
 
+/// T300 AC7: feature-off `graph rebuild` exit 2 + FEATURE_UNAVAILABLE.
+#[cfg(not(feature = "graph"))]
+#[test]
+fn graph_rebuild__feature_off__exit_2_feature_unavailable() {
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("graph")
+        .arg("rebuild")
+        .output()
+        .expect("graph rebuild stub");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "graph rebuild feature-off must exit 2; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("FEATURE_UNAVAILABLE"),
+        "must prefix FEATURE_UNAVAILABLE; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("cargo install") && stdout.contains("--features graph"),
+        "must include reinstall SOOT; got: {stdout}"
+    );
+}
+
+/// T300 AC7: feature-off `graph rebuild --dry-run` exit 2 + FEATURE_UNAVAILABLE.
+#[cfg(not(feature = "graph"))]
+#[test]
+fn graph_rebuild__dry_run__feature_off_exit_2_feature_unavailable() {
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("graph")
+        .arg("rebuild")
+        .arg("--dry-run")
+        .output()
+        .expect("graph rebuild --dry-run stub");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "graph rebuild --dry-run feature-off must exit 2; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("FEATURE_UNAVAILABLE"),
+        "must prefix FEATURE_UNAVAILABLE; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("cargo install") && stdout.contains("--features graph"),
+        "must include reinstall SOOT; got: {stdout}"
+    );
+}
+
 /// T246 AC11: new `--format pretty` still hits the feature-off stub (exit 2).
 #[cfg(not(feature = "graph"))]
 #[test]

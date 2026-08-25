@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T300 graph rebuild remediator UX:** Mutating `graph rebuild` Safety-probes the daemon (fail-closed exit **1** while up). `--dry-run` prints current density + would-DELETE sentence (allowed while daemon is up; JSON dry-run is health-only). Success stdout is the density report (human default; `--format json` same keys as `graph update`). Floors frozen; may stay `sparse` after replay. No `--confirm` (T232 remediator stays exact). `GraphRebuilder` / `graph_density.rs` / `doctor.rs` unchanged.
+
 - **T299 useful empty `forget --list-forgotten`:** Empty forgotten human lists keep `No forgotten memories.`, then print `Pinned: N` (same `count_memories` as `memory list --summary`) and last-line `next: ai-brains memory list` (`--global` on that next when global). Shared via `memory list --status forgotten`. JSON nine keys frozen (no `next_step`). No auto-forget; `forget.rs` production unchanged.
 
 - **T298 useful empty `device` / `replicate` status:** Empty `device status` names this machine (`{hostname} (not enrolled)`), prints short honesty `local-only; not PQ; not remote wipe`, and keeps last-line `next: ai-brains replicate status`. Enrolled status uses the hyphen fingerprint (or `enrolled; fingerprint unavailable` on malformed rows). Human `replicate status` adds the same this-machine label after `enrolled_count`. JSON keys stay frozen (no `this_machine`). No live bootstrap; no `--format` on `device`.

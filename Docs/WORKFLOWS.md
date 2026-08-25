@@ -213,6 +213,9 @@ if anything goes wrong.
 ai-brains --vault-path .ai-brains\vault.db backup
 
 # 2. (Run the risky operation — for example, a graph rebuild.)
+# Stop the daemon first so LiveGraphHook cannot race DELETE+replay.
+ai-brains daemon stop
+ai-brains --vault-path .ai-brains\vault.db graph rebuild --dry-run
 ai-brains --vault-path .ai-brains\vault.db graph rebuild
 
 # 3. If you want to roll back, dry-run the restore first.

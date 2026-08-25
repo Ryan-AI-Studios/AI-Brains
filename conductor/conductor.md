@@ -244,7 +244,7 @@
 | T297 | Daemon Stopped vs LLM Open | **Completed** | Grok | [T297](tracks/trackT297-daemon-vs-llm/spec.md) | **Completed 2026-08-24:** human contrast `backend TCP Open ≠ daemon` when Stopped and LLM/Embedding TCP Open; `next:` still last; keep-bound AC8; no daemon start/stop. BUGFIX TX `a3c47213`. |
 | T298 | Device/replicate useful empty | ✅ **Completed** | Grok | [T298](tracks/trackT298-device-replicate/spec.md) | **Completed 2026-08-25:** empty `device status` this-machine + `local-only; not PQ; not remote wipe` before last-line `next:`; replicate human same label (19-char prefix); JSON keys frozen; F26 Vec; F2 fail-open. Full nextest **3514**; `ledgerful verify --scope full` passed. FEATURE TX `3b29ef23`. Soft residual PATH-behind. |
 | T299 | Forget-list useful empty | ✅ **Completed** | Grok | [T299](tracks/trackT299-forget-list-useful/spec.md) | **Completed 2026-08-25:** empty forgotten keeps `No forgotten memories.` + `Pinned: N` (summary `count_memories`) + last-line `next: ai-brains memory list`; JSON nine keys frozen; `forget.rs` unchanged. Manual AC14 `Pinned: 4161` match via `cargo run`. FEATURE TX `8723f58f`. Full gate + Codex feature PASS. |
-| T300 | Graph sparse ops | **Pending** | Grok | [T300](tracks/trackT300-graph-sparse-ops/spec.md) | **Planned 2026-08-25:** owner-confirm live rebuild; daemon fail-closed; `--dry-run` + stdout density; floors frozen; T262 stays. F0 until go. |
+| T300 | Graph sparse ops | ✅ **Completed** | Grok | [T300](tracks/trackT300-graph-sparse-ops/spec.md) | **Complete 2026-08-25:** rebuild `--dry-run` + density stdout; daemon Safety fail-closed; floors frozen; T262 stay-green; live mutate skipped (owner). Full gate green. Series closer T285–T300. |
 
 
 ---
