@@ -383,17 +383,142 @@ fn emit_graph_health_human(report: &GraphHealthOutput) {
     }
 }
 
-pub fn rebuild(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    tracing::info!("[graph] Starting graph rebuild...");
+fn emit_graph_health(
+    report: &GraphHealthOutput,
+    format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if format == "human" {
+        emit_graph_health_human(report);
+    } else {
+        crate::commands::identity_warn::print_json_stdout(report)?;
+    }
+    Ok(())
+}
 
+/// Shared health builder for `graph update` and `graph rebuild` (T300 F27).
+fn graph_health_report(ctx: &AppContext) -> Result<GraphHealthOutput, Box<dyn std::error::Error>> {
+    let conn = ctx
+        .conn
+        .lock()
+        .map_err(|e| format!("Failed to lock vault: {}", e))?;
+
+    let gather = gather_density_snapshot(&conn)
+        .map_err(|e| format!("Failed to gather graph density: {e}"))?;
+
+    let (snap, pinned_for_json, memory_for_json) = match gather {
+        GatherResult::TablesMissing => {
+            return Err(
+                "Failed to count graph nodes/edges: graph tables missing (run migrate / init)"
+                    .into(),
+            );
+        }
+        GatherResult::PinnedCountFailed {
+            nodes,
+            edges,
+            memory_nodes,
+        } => {
+            let s = GraphDensitySnapshot {
+                nodes,
+                edges,
+                pinned_memories: 0,
+                memory_nodes,
+            };
+            let mem_json = memory_nodes.unwrap_or(0);
+            (s, 0_i64, mem_json)
+        }
+        GatherResult::Ok(s) => {
+            let mem_json = s.memory_nodes.unwrap_or(0);
+            let pinned = s.pinned_memories;
+            (s, pinned, mem_json)
+        }
+    };
+
+    let assessment = assess_graph_density(&snap);
+
+    Ok(GraphHealthOutput {
+        nodes: snap.nodes,
+        edges: snap.edges,
+        pinned_memories: pinned_for_json,
+        memory_nodes: memory_for_json,
+        edge_node_ratio: assessment.edge_node_ratio,
+        density: assessment.density,
+        status: assessment.status,
+        note: assessment.note,
+        remediation: assessment.remediation,
+    })
+}
+
+/// T188 substring classes for mutating rebuild blocked by a live daemon (T300 F7/F26).
+pub(crate) fn rebuild_daemon_busy_message() -> String {
+    "Cannot rebuild graph: daemon is running and holds the vault open. \
+     Stop it first with `ai-brains daemon stop`, or if installed as a Windows \
+     service: `sc stop AI-Brains-Daemon` (service hosts `ai-brainsd`)."
+        .to_string()
+}
+
+const REBUILD_DRY_RUN_DAEMON_NOTICE: &str = "NOTICE: live rebuild will fail while the daemon is running. \
+     Stop with `ai-brains daemon stop` or `sc stop AI-Brains-Daemon` before a real rebuild.";
+
+fn rebuild_dry_run_line(event_count: Option<i64>) -> String {
+    match event_count {
+        Some(n) => format!(
+            "[dry-run] would DELETE graph_node/graph_edge then replay {n} events; no mutation."
+        ),
+        None => "[dry-run] would DELETE graph_node/graph_edge then replay events; no mutation."
+            .to_string(),
+    }
+}
+
+fn count_events_fail_open(ctx: &AppContext) -> Option<i64> {
+    let conn = ctx.conn.lock().ok()?;
+    conn.query_row("SELECT COUNT(*) FROM events", [], |row| row.get(0))
+        .ok()
+}
+
+/// Injectable rebuild core (T300 F26). Production probes then calls this.
+pub(crate) fn rebuild_with_daemon_state(
+    ctx: &AppContext,
+    dry_run: bool,
+    format: &str,
+    daemon_up: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !dry_run && daemon_up {
+        return Err(rebuild_daemon_busy_message().into());
+    }
+
+    if dry_run {
+        let report = graph_health_report(ctx)?;
+        emit_graph_health(&report, format)?;
+        if format == "human" {
+            if daemon_up {
+                println!("{REBUILD_DRY_RUN_DAEMON_NOTICE}");
+            }
+            let n = count_events_fail_open(ctx);
+            println!("{}", rebuild_dry_run_line(n));
+        }
+        return Ok(());
+    }
+
+    tracing::info!("[graph] Starting graph rebuild...");
     let event_store = SqliteEventStore::new((*ctx.conn).clone());
     let graph_vault = GraphVault::new((*ctx.conn).clone());
     let rebuilder = GraphRebuilder::new(&graph_vault, &event_store);
-
     rebuilder.rebuild()?;
-
     tracing::info!("[graph] Rebuild complete.");
+
+    let report = graph_health_report(ctx)?;
+    emit_graph_health(&report, format)?;
     Ok(())
+}
+
+pub async fn rebuild(
+    ctx: &AppContext,
+    dry_run: bool,
+    format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = crate::daemon_client::DaemonClient::new();
+    let daemon_up = crate::commands::backup::probe_restore_daemon_busy(&client).await;
+    rebuild_with_daemon_state(ctx, dry_run, format, daemon_up)
 }
 
 pub fn neighbors(
@@ -603,63 +728,8 @@ pub fn session(
 }
 
 pub fn update(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let conn = ctx
-        .conn
-        .lock()
-        .map_err(|e| format!("Failed to lock vault: {}", e))?;
-
-    // Fail-closed on node/edge COUNT errors (audit2 F8); density via shared pure assessor (F32).
-    let gather = gather_density_snapshot(&conn)
-        .map_err(|e| format!("Failed to gather graph density: {e}"))?;
-
-    let (snap, pinned_for_json, memory_for_json) = match gather {
-        GatherResult::TablesMissing => {
-            return Err(
-                "Failed to count graph nodes/edges: graph tables missing (run migrate / init)"
-                    .into(),
-            );
-        }
-        GatherResult::PinnedCountFailed {
-            nodes,
-            edges,
-            memory_nodes,
-        } => {
-            // Still report structural density; pinned unknown → 0 field, omit false empty_lag.
-            let s = GraphDensitySnapshot {
-                nodes,
-                edges,
-                pinned_memories: 0,
-                memory_nodes,
-            };
-            let mem_json = memory_nodes.unwrap_or(0);
-            (s, 0_i64, mem_json)
-        }
-        GatherResult::Ok(s) => {
-            let mem_json = s.memory_nodes.unwrap_or(0);
-            let pinned = s.pinned_memories;
-            (s, pinned, mem_json)
-        }
-    };
-
-    let assessment = assess_graph_density(&snap);
-
-    let report = GraphHealthOutput {
-        nodes: snap.nodes,
-        edges: snap.edges,
-        pinned_memories: pinned_for_json,
-        memory_nodes: memory_for_json,
-        edge_node_ratio: assessment.edge_node_ratio,
-        density: assessment.density,
-        status: assessment.status,
-        note: assessment.note,
-        remediation: assessment.remediation,
-    };
-    if format == "human" {
-        emit_graph_health_human(&report);
-    } else {
-        crate::commands::identity_warn::print_json_stdout(&report)?;
-    }
-    Ok(())
+    let report = graph_health_report(ctx)?;
+    emit_graph_health(&report, format)
 }
 
 #[cfg(test)]
@@ -669,6 +739,7 @@ mod tests {
     use crate::graph_density::{
         GraphDensitySnapshot, REMEDIATION_REBUILD, assess_graph_density_with,
     };
+    use rstest::rstest;
 
     /// T213 AC8: success JSON shape includes expanded density fields + note.
     #[test]
@@ -778,6 +849,254 @@ mod tests {
     fn resolve_graph_format__json__json_regardless_of_tty() {
         assert_eq!(resolve_graph_format("json", true), "json");
         assert_eq!(resolve_graph_format("json", false), "json");
+    }
+
+    /// T300 AC10: busy message carries T188 substring classes (rstest cases).
+    #[rstest]
+    #[case::daemon_running("daemon is running")]
+    #[case::daemon_stop("ai-brains daemon stop")]
+    #[case::service_stop("sc stop")]
+    fn rebuild_daemon_busy_message__contains_t188_substring(#[case] needle: &str) {
+        let msg = rebuild_daemon_busy_message();
+        assert!(msg.contains(needle), "missing {needle}: {msg}");
+        assert!(
+            msg.contains("AI-Brains-Daemon"),
+            "missing service name: {msg}"
+        );
+    }
+
+    #[test]
+    fn rebuild_dry_run_line__with_count__includes_n() {
+        let line = rebuild_dry_run_line(Some(42));
+        assert!(line.contains("[dry-run]"), "{line}");
+        assert!(line.contains("42"), "{line}");
+        assert!(line.contains("no mutation"), "{line}");
+    }
+
+    #[test]
+    fn rebuild_dry_run_daemon_notice__contains_stop_guidance() {
+        assert!(REBUILD_DRY_RUN_DAEMON_NOTICE.contains("daemon"));
+        assert!(REBUILD_DRY_RUN_DAEMON_NOTICE.contains("ai-brains daemon stop"));
+        assert!(REBUILD_DRY_RUN_DAEMON_NOTICE.contains("sc stop AI-Brains-Daemon"));
+    }
+
+    const ZERO_KEY: &str = "x'0000000000000000000000000000000000000000000000000000000000000000'";
+
+    fn count_graph_nodes(ctx: &AppContext) -> Result<i64, Box<dyn std::error::Error>> {
+        let conn = ctx
+            .conn
+            .lock()
+            .map_err(|e| format!("Failed to lock vault: {e}"))?;
+        let n: i64 = conn
+            .query_row("SELECT COUNT(*) FROM graph_node", [], |row| row.get(0))
+            .map_err(|e| format!("Failed to count graph_node: {e}"))?;
+        Ok(n)
+    }
+
+    fn make_ctx(vault: std::path::PathBuf) -> (AppContext, ai_brains_core::temp_env::TempEnv) {
+        use ai_brains_crypto::SqlCipherKey;
+        use ai_brains_store::connection::VaultConnection;
+        use std::sync::Arc;
+
+        let allow = ai_brains_core::temp_env::TempEnv::set(
+            ai_brains_store::connection::ALLOW_ZERO_KEY_ENV,
+            "1",
+        );
+        let key = SqlCipherKey::from_raw(ZERO_KEY.to_string());
+        let conn = VaultConnection::open(&vault, &key).expect("open vault");
+        conn.migrate().expect("migrate");
+        (
+            AppContext {
+                vault_path: vault,
+                _key: key,
+                conn: Arc::new(conn),
+            },
+            allow,
+        )
+    }
+
+    fn seed_pin(ctx: &AppContext) -> String {
+        use ai_brains_core::ids::{MemoryId, ProjectId, SessionId};
+        use ai_brains_core::privacy::Privacy;
+        use ai_brains_events::constructors::EventBuilder;
+        use ai_brains_events::{
+            Actor, AggregateType, MemoryPinnedPayload, Payload, ProjectRegisteredPayload,
+            SessionStartedPayload,
+        };
+        use ai_brains_store::EventStore;
+
+        let store = SqliteEventStore::new((*ctx.conn).clone());
+        let project_id = ProjectId::new();
+        let session_id = SessionId::new();
+        let memory_id = MemoryId::new();
+
+        let project_env = EventBuilder::new(
+            AggregateType::Project,
+            project_id.as_uuid(),
+            Actor::System,
+            Privacy::CloudOk,
+        )
+        .build(Payload::ProjectRegistered(ProjectRegisteredPayload {
+            project_id,
+            name: "t300-rebuild".to_string(),
+            tx_id: None,
+        }))
+        .expect("project event");
+        store.append_event(&project_env).expect("append project");
+
+        let session_env = EventBuilder::new(
+            AggregateType::Session,
+            session_id.as_uuid(),
+            Actor::System,
+            Privacy::CloudOk,
+        )
+        .build(Payload::SessionStarted(SessionStartedPayload {
+            session_id,
+            project_id,
+            tx_id: None,
+        }))
+        .expect("session event");
+        store.append_event(&session_env).expect("append session");
+
+        let pin_env = EventBuilder::new(
+            AggregateType::Memory,
+            memory_id.as_uuid(),
+            Actor::System,
+            Privacy::LocalOnly,
+        )
+        .build(Payload::MemoryPinned(MemoryPinnedPayload {
+            memory_id,
+            content: "DECISION: T300 rebuild keeps pin node.".to_string(),
+            session_id: Some(session_id),
+            project_id: Some(project_id),
+            tx_id: None,
+            rank: Some(1),
+            source_tag: Some("pin".to_string()),
+            query_text: None,
+        }))
+        .expect("pin event");
+        store.append_event(&pin_env).expect("append pin");
+
+        let graph_vault = GraphVault::new((*ctx.conn).clone());
+        let rebuilder = GraphRebuilder::new(&graph_vault, &store);
+        rebuilder.rebuild().expect("initial project");
+        memory_id.to_string()
+    }
+
+    /// T300 AC3: daemon-up mutate fail-closes before DELETE.
+    #[test]
+    fn rebuild_with_daemon_state__daemon_up_mutate__err() {
+        let dir = tempfile::tempdir().unwrap();
+        let (ctx, _allow) = make_ctx(dir.path().join("vault.db"));
+        let memory_id = seed_pin(&ctx);
+        let before = count_graph_nodes(&ctx).expect("count before");
+        assert!(before > 0, "seed must create nodes");
+
+        let err = rebuild_with_daemon_state(&ctx, false, "human", true)
+            .expect_err("daemon-up mutate must Err");
+        let msg = err.to_string();
+        assert!(msg.contains("daemon is running"), "{msg}");
+        assert!(msg.contains("ai-brains daemon stop"), "{msg}");
+        assert!(
+            msg.contains("sc stop") && msg.contains("AI-Brains-Daemon"),
+            "{msg}"
+        );
+        let after = count_graph_nodes(&ctx).expect("count after");
+        assert_eq!(before, after, "must not DELETE when daemon up");
+
+        let graph_vault = GraphVault::new((*ctx.conn).clone());
+        let searcher = GraphSearch::new(&graph_vault);
+        let hits = searcher.get_neighbors(&memory_id).expect("neighbors");
+        assert!(
+            hits.iter().any(|h| h.label == "RECALLS"),
+            "pin RECALLS must survive blocked rebuild; got {hits:?}"
+        );
+    }
+
+    /// T300 AC4: daemon-up dry-run Ok (NOTICE + dry-run lines are human helpers).
+    #[test]
+    fn rebuild_with_daemon_state__daemon_up_dry_run__ok() {
+        let dir = tempfile::tempdir().unwrap();
+        let (ctx, _allow) = make_ctx(dir.path().join("vault.db"));
+        let _memory_id = seed_pin(&ctx);
+        let before = count_graph_nodes(&ctx).expect("count before");
+
+        rebuild_with_daemon_state(&ctx, true, "human", true).expect("dry-run ok");
+        let after = count_graph_nodes(&ctx).expect("count after");
+        assert_eq!(before, after, "dry-run must not DELETE");
+        assert!(REBUILD_DRY_RUN_DAEMON_NOTICE.contains("daemon"));
+        assert!(rebuild_dry_run_line(Some(1)).contains("[dry-run]"));
+    }
+
+    /// T300 AC2 / AC10 case 3: daemon-down mutate emits health; pin RECALLS stay; status matches update.
+    #[test]
+    fn rebuild_with_daemon_state__daemon_down_mutate__prints_density_keeps_pin() {
+        let dir = tempfile::tempdir().unwrap();
+        let (ctx, _allow) = make_ctx(dir.path().join("vault.db"));
+        let memory_id = seed_pin(&ctx);
+
+        rebuild_with_daemon_state(&ctx, false, "human", false).expect("mutate ok");
+        let after = graph_health_report(&ctx).expect("health after");
+        assert!(
+            matches!(after.status, "live" | "sparse" | "empty"),
+            "status={}",
+            after.status
+        );
+        assert!(after.nodes >= 0);
+        assert!(after.edges >= 0);
+
+        let update_report = graph_health_report(&ctx).expect("update health");
+        assert_eq!(
+            after.status, update_report.status,
+            "rebuild health must match update builder"
+        );
+
+        let graph_vault = GraphVault::new((*ctx.conn).clone());
+        let searcher = GraphSearch::new(&graph_vault);
+        let hits = searcher.get_neighbors(&memory_id).expect("neighbors");
+        assert!(
+            hits.iter()
+                .any(|h| h.direction == "incoming" && h.label == "RECALLS"),
+            "T262 RECALLS must remain after rebuild; got {hits:?}"
+        );
+    }
+
+    /// T300 AC5: JSON mutate health keys frozen (no next_step / events_replayed).
+    #[test]
+    fn rebuild_with_daemon_state__format_json__health_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let (ctx, _allow) = make_ctx(dir.path().join("vault.db"));
+        let _memory_id = seed_pin(&ctx);
+
+        rebuild_with_daemon_state(&ctx, false, "json", false).expect("json mutate");
+        let report = graph_health_report(&ctx).expect("report");
+        let v: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&report).expect("ser")).expect("parse");
+        for key in [
+            "nodes",
+            "edges",
+            "pinned_memories",
+            "memory_nodes",
+            "edge_node_ratio",
+            "density",
+            "status",
+            "note",
+        ] {
+            assert!(v.get(key).is_some(), "missing {key} in {v}");
+        }
+        assert!(v.get("next_step").is_none(), "no next_step: {v}");
+        assert!(
+            v.get("events_replayed").is_none(),
+            "no events_replayed: {v}"
+        );
+        assert!(matches!(
+            v["status"].as_str(),
+            Some("live" | "sparse" | "empty")
+        ));
+        assert!(matches!(
+            v["density"].as_str(),
+            Some("ok" | "warn" | "skip")
+        ));
     }
 
     fn fixture_neighbor_rows() -> Vec<PrettyNeighborRow> {

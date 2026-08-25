@@ -924,9 +924,17 @@ Success JSON shape (pretty):
 | `graph_feature=unavailable` (default / Release graph-off) | Install a graph-capable binary first: `cargo install --path crates/ai-brains-cli --locked --features graph` (`GRAPH_REINSTALL_SOOT`) — rebuild is a dead-end on graph-off |
 
 ```powershell
-# Graph-on only:
+# Graph-on only — prefer dry-run first (allowed while daemon is Running):
+ai-brains graph rebuild --dry-run
+# Mutating rebuild: stop the daemon first (LiveGraphHook races DELETE+replay).
+ai-brains daemon stop
+# or: sc stop AI-Brains-Daemon
 ai-brains graph rebuild
+# Optional: same keys as update for scripts
+ai-brains graph rebuild --format json
 ```
+
+Mutating rebuild fail-closes with exit **1** while the daemon is up (message names `ai-brains daemon stop` / `sc stop AI-Brains-Daemon`). Success prints the density report on stdout (human default) and exits **0** even when still `sparse` — rebuild replays the same projector; typed-lineage floor **0.50** is not retuned. `--dry-run` never calls `GraphRebuilder`; JSON dry-run is the health object only (no `[dry-run]` line).
 
 Do **not** treat non-zero `nodes` alone as healthy — live dogfood historically showed ~1300 nodes / ~95 edges (`E/N ≈ 0.07`) while still reporting `live` before T213.
 
