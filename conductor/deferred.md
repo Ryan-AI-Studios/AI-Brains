@@ -4,7 +4,26 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #213 T297 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Planned** 2026-08-25.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #213 T297 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25.
+
+### T298 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| Empty `device status` four-line: T198 + this-machine + short honesty + `next:` last | **Done** F1/F4/F5 / AC1 / AC14 |
+| Enrolled `device status` hyphen fingerprint + honesty + `next:` last | **Done** F7 / AC2 |
+| Human `replicate status` 19-char `this machine:` after `enrolled_count` | **Done** F8 / AC6 / AC9 |
+| JSON six keys frozen; no `this_machine`; `--quiet` unchanged | **Done** F9/F10 / AC7/AC8 |
+| `emit_device_roster` returns `Vec`; list/fingerprint frozen | **Done** F26/F6 / AC3/AC4 |
+| Fail-open malformed fp → `enrolled; fingerprint unavailable` | **Done** F2 / AC11 |
+| No live bootstrap; no `hostname` / `serial_test` crates | **Done** F13/F14/F27 |
+| Docs CAPABILITIES/OPERATIONS/INSTALL/PROTOCOL-COMPAT/CHANGELOG | **Done** F19 / AC12 (Codex P2 INSTALL dual form fixed) |
+| PATH until `cargo install` | **Residual** F17 — not easy without owner install |
+| Live vault stays 0 enrolled | **Residual** F13/F25 — honest AC14 empty SoT |
+| `device list --format json` / combined dashboard / doctor 16th | **Residual** F16/F25 — declined |
+| Singular error-copy unify (`load_local_*`) | **Residual** T251 F12 — not this hole |
+| clap 4.6 workspace pin / rusqlite 0.40 Dependabot | **Residual** F14 — not stolen |
+| T299 forget-list / T300 graph sparse | **Not stolen** F24 |
 
 ### T297 implement closeout (2026-08-24)
 
@@ -20,7 +39,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Doctor Safety 3×1000 ms vs status Status 1×300 ms | **Residual** F27 — probe-policy, not this hole |
 | T249 F12 `--format json` / uptime / `sc query` | **Residual** F8 / F17 — declined JSON surface |
 | Force-restore hermetics vacuous when live daemon Running | **Residual** — CI Stopped proves; local soft-skip until owner stop or IPC isolation |
-| T298 Planned; T299–T300 | **Not stolen** |
+| T298 Completed; T299–T300 | **Not stolen** (T298 later Completed) |
 
 | Item | Track |
 |------|-------|

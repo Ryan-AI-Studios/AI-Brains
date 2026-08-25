@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 //! T251 — `device status` discoverability hermetics (AC1–AC8 / AC12).
+//! T298 — this-machine + short honesty on empty/enrolled status surfaces.
 
 mod common;
 
@@ -9,6 +10,15 @@ use tempfile::tempdir;
 
 const T198_EMPTY: &str = "No enrolled devices. Run `ai-brains device bootstrap` first.";
 const DEVICE_STATUS_NEXT: &str = "next: ai-brains replicate status";
+const DEVICE_STATUS_HONESTY: &str = "local-only; not PQ; not remote wipe";
+const T298_HOST: &str = "T298-HOST";
+const THIS_MACHINE_PREFIX: &str = "  this machine:    ";
+
+fn with_t298_host(mut cmd: assert_cmd::Command) -> assert_cmd::Command {
+    cmd.env("COMPUTERNAME", T298_HOST);
+    cmd.env_remove("HOSTNAME");
+    cmd
+}
 
 fn init_vault(vault_path: &std::path::Path) {
     common::hermetic_bin()
@@ -39,14 +49,14 @@ fn last_nonempty_line(stdout: &str) -> Option<&str> {
         .find(|line| !line.is_empty())
 }
 
-/// AC1 / AC2: empty vault `device status` is recognized, T198 plural + next:.
+/// T251 AC1 + T298 AC1: empty vault four-line body (T198 + this-machine + honesty + next:).
 #[test]
 fn device_status__empty_vault__outputs_hint_and_next_replicate_status() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let out = common::hermetic_bin()
+    let out = with_t298_host(common::hermetic_bin())
         .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault)
@@ -70,14 +80,32 @@ fn device_status__empty_vault__outputs_hint_and_next_replicate_status() {
         stdout.contains(T198_EMPTY),
         "expected exact T198 plural line; got: {stdout}"
     );
+    assert!(
+        stdout.contains(&format!("this machine: {T298_HOST} (not enrolled)")),
+        "expected this-machine not-enrolled; got: {stdout}"
+    );
+    assert!(
+        stdout.contains(DEVICE_STATUS_HONESTY),
+        "expected short honesty const; got: {stdout}"
+    );
     assert_eq!(
         last_nonempty_line(&stdout),
         Some(DEVICE_STATUS_NEXT),
         "last non-empty data line must be next pointer; got: {stdout}"
     );
+    let nonempty: Vec<&str> = stdout
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    assert_eq!(
+        nonempty.len(),
+        4,
+        "empty device status must be exactly four non-empty lines; got: {stdout}"
+    );
 }
 
-/// AC3: enrolled vault prints roster + always-appended next:.
+/// T251 AC3 + T298 AC2: enrolled vault roster + this-machine fingerprint + honesty + next: last.
 #[test]
 fn device_status__enrolled_vault__outputs_table_and_next_replicate_status() {
     let dir = tempdir().unwrap();
@@ -85,7 +113,7 @@ fn device_status__enrolled_vault__outputs_table_and_next_replicate_status() {
     init_vault(&vault);
     bootstrap(&vault);
 
-    let out = common::hermetic_bin()
+    let out = with_t298_host(common::hermetic_bin())
         .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault)
@@ -106,8 +134,29 @@ fn device_status__enrolled_vault__outputs_table_and_next_replicate_status() {
         "expected enrolled roster (DEVICE_ID or local); got: {stdout}"
     );
     assert!(
-        stdout.contains(DEVICE_STATUS_NEXT),
-        "enrolled status must append next pointer; got: {stdout}"
+        stdout.contains("this machine:"),
+        "enrolled status must print this machine:; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("(not enrolled)") && !stdout.contains("fingerprint unavailable"),
+        "enrolled happy path must not claim not enrolled / unavailable; got: {stdout}"
+    );
+    let this_line = stdout
+        .lines()
+        .find(|l| l.contains("this machine:"))
+        .unwrap_or("");
+    assert!(
+        this_line.contains('-'),
+        "enrolled this-machine must be hyphen fingerprint; got: {this_line}"
+    );
+    assert!(
+        stdout.contains(DEVICE_STATUS_HONESTY),
+        "enrolled status must print short honesty; got: {stdout}"
+    );
+    assert_eq!(
+        last_nonempty_line(&stdout),
+        Some(DEVICE_STATUS_NEXT),
+        "last non-empty data line must be next pointer; got: {stdout}"
     );
 }
 
@@ -150,7 +199,7 @@ fn device_status__with_format_json_flag__fails_exit_2() {
     );
 }
 
-/// AC4 empty: `device list` keeps T198 and does not grow next:.
+/// T251 AC4 + T298 AC3 empty: `device list` keeps T198 and does not grow T298 lines.
 #[test]
 fn device_list__empty_vault__does_not_contain_next() {
     let dir = tempdir().unwrap();
@@ -178,12 +227,14 @@ fn device_list__empty_vault__does_not_contain_next() {
         "empty list must keep T198 plural; got: {stdout}"
     );
     assert!(
-        !stdout.contains("next:"),
-        "device list must not contain next:; got: {stdout}"
+        !stdout.contains("next:")
+            && !stdout.contains("this machine:")
+            && !stdout.contains(DEVICE_STATUS_HONESTY),
+        "device list must not contain next:/this-machine/honesty; got: {stdout}"
     );
 }
 
-/// AC4 enrolled: `device list` shows local and does not grow next:.
+/// T251 AC4 + T298 AC3 enrolled: `device list` shows local and does not grow T298 lines.
 #[test]
 fn device_list__enrolled_vault__does_not_contain_next() {
     let dir = tempdir().unwrap();
@@ -212,8 +263,10 @@ fn device_list__enrolled_vault__does_not_contain_next() {
         "enrolled list must contain local; got: {stdout}"
     );
     assert!(
-        !stdout.contains("next:"),
-        "device list must not contain next:; got: {stdout}"
+        !stdout.contains("next:")
+            && !stdout.contains("this machine:")
+            && !stdout.contains(DEVICE_STATUS_HONESTY),
+        "device list must not contain next:/this-machine/honesty; got: {stdout}"
     );
 }
 
@@ -245,14 +298,14 @@ fn device_status__help__lists_status() {
     );
 }
 
-/// AC7: `replicate status` empty vault is unchanged (honesty + bootstrap hint).
+/// T251 AC7 + T298 AC6 / AC16: empty replicate status adds this-machine; keeps honesty + hint.
 #[test]
 fn replicate_status__empty_vault__still_prints_enrolled_count_honesty_hint() {
     let dir = tempdir().unwrap();
     let vault = dir.path().join("vault.db");
     init_vault(&vault);
 
-    let out = common::hermetic_bin()
+    let out = with_t298_host(common::hermetic_bin())
         .arg("--no-project-context")
         .arg("--vault-path")
         .arg(&vault)
@@ -269,9 +322,25 @@ fn replicate_status__empty_vault__still_prints_enrolled_count_honesty_hint() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(
-        stdout.contains("enrolled_count"),
-        "replicate status must keep enrolled_count; got: {stdout}"
+        stdout.contains("enrolled_count") && stdout.contains('0'),
+        "replicate status must keep enrolled_count 0; got: {stdout}"
     );
+    assert!(
+        stdout.contains("this machine:")
+            && stdout.contains("(not enrolled)")
+            && stdout.contains(T298_HOST),
+        "replicate status empty must name this-machine not enrolled; got: {stdout}"
+    );
+    let this_line = stdout
+        .lines()
+        .find(|l| l.contains("this machine:"))
+        .unwrap_or("");
+    assert!(
+        this_line.starts_with(THIS_MACHINE_PREFIX),
+        "this machine line must use exact 19-char prefix; got: {this_line:?} (len {})",
+        "  this machine:    ".len()
+    );
+    assert_eq!(THIS_MACHINE_PREFIX.len(), 19);
     assert!(
         stdout.contains("honesty") || stdout.contains("not PQ"),
         "replicate status must keep honesty; got: {stdout}"
@@ -280,9 +349,145 @@ fn replicate_status__empty_vault__still_prints_enrolled_count_honesty_hint() {
         stdout.contains("bootstrap") && stdout.contains("hint"),
         "replicate status empty must keep bootstrap hint; got: {stdout}"
     );
+    assert!(
+        !stdout.contains("sync: running") && !stdout.contains("replication: running"),
+        "must not claim sync is running; got: {stdout}"
+    );
 }
 
-/// AC5 companion: fingerprint empty stays T198 one-liner (no next:).
+/// T298 AC7: JSON keys frozen; no this_machine.
+#[test]
+fn replicate_status__format_json__keys_frozen_no_this_machine() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = with_t298_host(common::hermetic_bin())
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("status")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("replicate status --format json");
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json object on stdout");
+    let obj = v.as_object().expect("object");
+    let keys: std::collections::BTreeSet<&str> = obj.keys().map(String::as_str).collect();
+    let expected: std::collections::BTreeSet<&str> = [
+        "relay",
+        "enrolled_count",
+        "cursors",
+        "gap_or_blocked",
+        "devices",
+        "honesty",
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(
+        keys, expected,
+        "JSON key set must stay frozen; got: {keys:?}"
+    );
+    assert!(!obj.contains_key("this_machine"));
+    assert!(!stdout.contains("this machine"));
+    assert_eq!(obj.get("enrolled_count").and_then(|n| n.as_u64()), Some(0));
+}
+
+/// T298 AC8: --quiet stays relay-only.
+#[test]
+fn replicate_status__quiet__relay_only_no_this_machine() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = with_t298_host(common::hermetic_bin())
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("status")
+        .arg("--quiet")
+        .output()
+        .expect("replicate status --quiet");
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        stdout.contains("not configured"),
+        "quiet must print relay line; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("this machine:"),
+        "quiet must not print this machine:; got: {stdout}"
+    );
+}
+
+/// T298 AC9: enrolled fingerprint shared across device status / replicate status / fingerprint.
+#[test]
+fn device_and_replicate_status__enrolled__share_fingerprint_label() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    bootstrap(&vault);
+
+    let fp_out = with_t298_host(common::hermetic_bin())
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("device")
+        .arg("fingerprint")
+        .output()
+        .expect("device fingerprint enrolled");
+    let fp = String::from_utf8_lossy(&fp_out.stdout).trim().to_string();
+    assert!(
+        fp_out.status.success() && fp.contains('-'),
+        "fingerprint must be hyphen form; got: {fp}"
+    );
+
+    let status_out = with_t298_host(common::hermetic_bin())
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("device")
+        .arg("status")
+        .output()
+        .expect("device status enrolled");
+    let status_stdout = String::from_utf8_lossy(&status_out.stdout);
+    assert!(
+        status_stdout.contains(&fp),
+        "device status this-machine must contain fingerprint; got: {status_stdout}"
+    );
+
+    let rep_out = with_t298_host(common::hermetic_bin())
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("replicate")
+        .arg("status")
+        .output()
+        .expect("replicate status enrolled");
+    let rep_stdout = String::from_utf8_lossy(&rep_out.stdout);
+    assert!(
+        rep_stdout.contains(&fp),
+        "replicate status this-machine must contain fingerprint; got: {rep_stdout}"
+    );
+}
+
+/// T251 AC5 companion + T298 AC4: fingerprint empty stays T198 one-liner (no T298 lines).
 #[test]
 fn device_fingerprint__empty_vault__does_not_contain_next() {
     let dir = tempdir().unwrap();
@@ -310,7 +515,7 @@ fn device_fingerprint__empty_vault__does_not_contain_next() {
         "fingerprint empty must stay T198 plural; got: {stdout}"
     );
     assert!(
-        !stdout.contains("next:"),
-        "fingerprint empty must not contain next:; got: {stdout}"
+        !stdout.contains("next:") && !stdout.contains("this machine:"),
+        "fingerprint empty must not contain next:/this machine:; got: {stdout}"
     );
 }

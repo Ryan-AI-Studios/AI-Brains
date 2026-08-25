@@ -1079,7 +1079,7 @@ Operator notes for the Tauri desktop adapter. Deep dive, architecture diagrams, 
 | Gap / reorder | Sync gaps buffer until fill or signed `GapSkipAudit`; no corrupt apply past gap |
 | Capture independence | `ai-brains-capture` has **no** dependency on `ai-brains-sync` |
 
-**Discoverability:** `ai-brains device status` prints the enrolled roster (same as `device list`) and always ends with `next: ai-brains replicate status`.
+**Discoverability:** `ai-brains device status` prints the enrolled roster (same as `device list`), names this machine (`{hostname} (not enrolled)` or hyphen fingerprint), prints short honesty `local-only; not PQ; not remote wipe`, and always ends with `next: ai-brains replicate status`. Human `replicate status` adds the same this-machine label after `enrolled_count` (JSON keys unchanged).
 
 ### Related docs
 

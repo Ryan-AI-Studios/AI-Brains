@@ -2106,7 +2106,7 @@ enum DeviceCommands {
     },
     /// List enrolled devices (active + local)
     List,
-    /// Enrolled roster + pointer to `replicate status`
+    /// Enrolled roster + this-machine + local-only honesty + pointer to `replicate status`
     Status,
     /// Generate keys + write enrollment package (new machine; does not enroll into a peer vault)
     PackageExport {

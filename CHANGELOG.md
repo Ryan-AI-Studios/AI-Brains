@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T298 useful empty `device` / `replicate` status:** Empty `device status` names this machine (`{hostname} (not enrolled)`), prints short honesty `local-only; not PQ; not remote wipe`, and keeps last-line `next: ai-brains replicate status`. Enrolled status uses the hyphen fingerprint (or `enrolled; fingerprint unavailable` on malformed rows). Human `replicate status` adds the same this-machine label after `enrolled_count`. JSON keys stay frozen (no `this_machine`). No live bootstrap; no `--format` on `device`.
+
 - **T297 `daemon status` Stopped vs backend Open:** When Stopped and LLM/Embedding TCP is Open, prints `backend TCP Open ≠ daemon` immediately above T249 `next: ai-brains daemon start`. Running omits the contrast. Status `after_help` clarifies Open is TCP connect to the model process. No JSON/`--format`; no HTTP unify; do not start/stop the daemon for this honesty.
 
 - **T296 Nightly Router last-result honesty:** Human `nightly --status` Router line omits `267014` / `267009` decimals (`Ready` + `last run: terminated`, or Status-only when Running). JSON `router.last_result` / `last_result_hint` stay frozen. `nightly --help` after_help names Router **267014** as `SCHED_S_TASK_TERMINATED` success (not Nightly Last Result). Status exit **0** for both scheduler-success HRESULTs.
