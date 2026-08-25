@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T303 tokio 1.53.1:** Workspace floor `1.52` → **`1.53`** (`features = ["full"]`) and lock **1.52.3 → 1.53.1** via `cargo update -p tokio --precise 1.53.1`. Lands Windows signal MSRV fix `#8300` (remove `OnceLock::wait`). Expected F9 `windows-sys` edge re-resolutions from Dependabot `#59`. No tower-http / rusqlite / clap / thiserror bump. No Dependabot remote merge.
+
 - **T302 cargo patch thiserror + chrono:** Lockfile-only — `thiserror`/`thiserror-impl` **2.0.18 → 2.0.20** (precise `thiserror@2.0.18`; leave transitive `thiserror@1.0.69`) and `chrono` **0.4.44 → 0.4.45**. Expected extras: `thiserror-impl` → `syn 3.0.3`; `iana-time-zone` Windows edge `windows-core` **0.62.2 → 0.61.2** (both versions remain). Workspace carets still `2.0` / `0.4`. No Dependabot remote merge (`#60`/`#62`).
 
 ## [0.1.3] — 2026-08-25

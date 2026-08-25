@@ -1,7 +1,7 @@
 # T303 — tokio 1.52.3 → 1.53.1
 
 - **Track ID:** T303-Tokio153
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** ✅ **Completed** (2026-08-25)
 - **Category:** CHORE / DEPS
 - **Owner:** Grok
 - **Source:** Dependabot `#59` tokio 1.52.3→**1.53.1**. Owner requested 2026-08-25.

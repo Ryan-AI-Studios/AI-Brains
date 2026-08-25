@@ -4,7 +4,26 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#219** T302 **empty**. **T285–T302 Completed.** **T303–T305 Planned** (Dependabot cargo).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#219** T302 **empty**. **T285–T303 Completed.** **T304–T305 Planned** (Dependabot cargo).
+
+### T303 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| Workspace tokio floor `1.52` → `1.53` full | **Done** AC1 / F1 |
+| Lock tokio 1.52.3 → 1.53.1 via `--precise` | **Done** AC1 / F8 |
+| F9 windows-sys edge re-resolutions toward 0.61.2 | **Done** expected extras |
+| rusqlite / tower-http / clap / thiserror unchanged | **Done** AC4 |
+| `git diff -- crates/` empty; no live `daemon stop` | **Done** F3 / F7 |
+| Targeted ai-brainsd 87 + CLI daemon_status 9 | **Done** AC3 |
+| CHANGELOG Unreleased Changed row | **Done** AC5 |
+| Full gate (fmt/clippy/nextest/deny/audit + ledgerful full) | **Done** AC2 (after Phase 5) |
+| Do not merge Dependabot remote `#59` | **Done** F6 |
+| Close `#59` as superseded after squash; do not delete remote | **Residual** R1 — standing Dependabot hygiene |
+| Multi-version windows-sys 0.45/0.52/0.59/0.60.2/0.61.2 remains | **Residual** R2 — not easy; ecosystem unify |
+| Live lock edges ≠ exact Dependabot `#59` flips (more 0.61.2) | **Residual** R3 — F9 variance; do not hand-edit |
+| `#8095` mpsc drop-waker — monitor only if future hang | **Residual** R4 — AC3 green; no src change |
+| mint row “T303 Planned” | **Superseded** — Completed |
 
 ### T302 implement closeout (2026-08-25)
 
@@ -90,7 +109,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 |------|-------------|
 | GHA `#68–#72` SHA-pin majors | **T301** Completed |
 | thiserror `#60` + chrono `#62` patches | **T302** Completed |
-| tokio `#59` 1.53.1 | **T303** Planned |
+| tokio `#59` 1.53.1 | **T303** Completed |
 | tower-http `#58` 0.7 | **T304** Planned |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
 | last-PR `#219` Cursor | **N/A empty** — no T306 |
