@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-08-25
+
+Workspace version bump after the T285–T300 CLI quality series (T300 graph sparse remediator closer). PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph` (or `scripts/build.ps1`).
+
 ### Added
 
 - **T300 graph rebuild remediator UX:** Mutating `graph rebuild` Safety-probes the daemon (fail-closed exit **1** while up). `--dry-run` prints current density + would-DELETE sentence (allowed while daemon is up; JSON dry-run is health-only). Success stdout is the density report (human default; `--format json` same keys as `graph update`). Floors frozen; may stay `sparse` after replay. No `--confirm` (T232 remediator stays exact). `GraphRebuilder` / `graph_density.rs` / `doctor.rs` unchanged.
