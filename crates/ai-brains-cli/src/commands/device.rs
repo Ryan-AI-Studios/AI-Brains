@@ -23,7 +23,7 @@ use ai_brains_events::{
 };
 use ai_brains_store::EventStore;
 use ai_brains_store::SqliteEventStore;
-use ai_brains_store::projections::replication::{self, DevicePrivateKeyRow};
+use ai_brains_store::projections::replication::{self, DeviceIdentityRow, DevicePrivateKeyRow};
 #[cfg(test)]
 use ai_brains_store::projections::replication::{EnvelopeIndexRow, SignedControlRow};
 use ai_brains_sync::{
@@ -324,6 +324,38 @@ pub fn run_bootstrap(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>>
 const EMPTY_ENROLL_HINT: &str = "No enrolled devices. Run `ai-brains device bootstrap` first.";
 /// T251 F2: always-appended pointer after the roster on `device status`.
 const DEVICE_STATUS_NEXT: &str = "next: ai-brains replicate status";
+/// T298 F4: short honesty on `device status` (empty and enrolled). Not the replicate paragraph.
+pub(crate) const DEVICE_STATUS_HONESTY: &str = "local-only; not PQ; not remote wipe";
+
+/// T298 F3: Windows-first host identity from env (no `hostname` crate / no spawn).
+pub(crate) fn os_hostname() -> String {
+    for key in ["COMPUTERNAME", "HOSTNAME"] {
+        if let Ok(val) = std::env::var(key) {
+            let trimmed = val.lines().next().unwrap_or("").trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+    }
+    "unknown".to_string()
+}
+
+/// T298 F2: this-machine label shared by `device status` and human `replicate status`.
+pub(crate) fn this_machine_label(devices: &[DeviceIdentityRow]) -> String {
+    let chosen = devices
+        .iter()
+        .find(|d| d.status == "local")
+        .or_else(|| devices.iter().find(|d| d.status == "active"));
+    match chosen {
+        None => format!("{} (not enrolled)", os_hostname()),
+        Some(d) if d.fingerprint_sha256.len() == 32 => {
+            let mut fp = [0u8; 32];
+            fp.copy_from_slice(&d.fingerprint_sha256);
+            format_fingerprint_hyphen(&fp)
+        }
+        Some(_) => format!("{} (enrolled; fingerprint unavailable)", os_hostname()),
+    }
+}
 
 /// Print local device dual-key fingerprint (R24).
 pub fn run_fingerprint(ctx: &AppContext, raw: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -352,18 +384,23 @@ pub fn run_fingerprint(ctx: &AppContext, raw: bool) -> Result<(), Box<dyn std::e
 }
 
 /// Shared enrolled-roster emit used by `device list` and `device status`.
-fn emit_device_roster(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
+///
+/// T298 F26: returns the enrolled rows so `run_status` can label this-machine
+/// without a second SQL list. Print body stays T198 or the roster table.
+fn emit_device_roster(
+    ctx: &AppContext,
+) -> Result<Vec<DeviceIdentityRow>, Box<dyn std::error::Error>> {
     let conn = ctx.conn.lock()?;
     let devices = replication::list_enrolled_devices(&conn)?;
     if devices.is_empty() {
         println!("{EMPTY_ENROLL_HINT}");
-        return Ok(());
+        return Ok(devices);
     }
     println!(
         "{:<38} {:<8} {:<20} FINGERPRINT",
         "DEVICE_ID", "STATUS", "ENROLLED_BY"
     );
-    for d in devices {
+    for d in &devices {
         let mut fp = [0u8; 32];
         if d.fingerprint_sha256.len() == 32 {
             fp.copy_from_slice(&d.fingerprint_sha256);
@@ -376,17 +413,20 @@ fn emit_device_roster(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>
             format_fingerprint_hyphen(&fp)
         );
     }
-    Ok(())
+    Ok(devices)
 }
 
 /// List enrolled devices.
 pub fn run_list(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    emit_device_roster(ctx)
+    let _devices = emit_device_roster(ctx)?;
+    Ok(())
 }
 
-/// Enrolled roster plus a pointer to `replicate status` (T251).
+/// Enrolled roster plus this-machine / short honesty / pointer to `replicate status` (T251/T298).
 pub fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    emit_device_roster(ctx)?;
+    let devices = emit_device_roster(ctx)?;
+    println!("this machine: {}", this_machine_label(&devices));
+    println!("{DEVICE_STATUS_HONESTY}");
     println!("{DEVICE_STATUS_NEXT}");
     Ok(())
 }
@@ -609,10 +649,107 @@ mod tests {
 
     use super::*;
     use ai_brains_core::ids::{ContentKeyId, ReplicationEventId};
+    use ai_brains_core::temp_env::TempEnv;
     use ai_brains_sync::{
         CONTENT_TYPE_DEVICE_ENROLLED, ContentTypeCode, EnvelopeId, OuterEnvelope, SignedEnvelope,
     };
+    use rstest::rstest;
     use uuid::Uuid;
+
+    fn row_with(status: &str, fingerprint_len: usize) -> DeviceIdentityRow {
+        DeviceIdentityRow {
+            device_id: "00000000-0000-0000-0000-000000000001".to_string(),
+            schema_version: REPLICATION_SCHEMA_VERSION as i64,
+            ed25519_public: vec![0u8; 32],
+            x25519_public: vec![0u8; 32],
+            display_name: None,
+            status: status.to_string(),
+            enrolled_at: "2026-08-25T00:00:00Z".to_string(),
+            revoked_at: None,
+            enrolled_by_device_id: "00000000-0000-0000-0000-000000000001".to_string(),
+            fingerprint_sha256: vec![0xABu8; fingerprint_len],
+        }
+    }
+
+    /// T298 AC10 / F3 / F27: COMPUTERNAME wins; HOSTNAME fallback; unknown; trim. No serial_test.
+    #[rstest]
+    #[case(
+        "COMPUTERNAME",
+        "WIN-HOST",
+        Some("HOSTNAME"),
+        Some("other"),
+        "WIN-HOST"
+    )]
+    #[case("HOSTNAME", "nix-host", None, None, "nix-host")]
+    #[case(
+        "COMPUTERNAME",
+        "   ",
+        Some("HOSTNAME"),
+        Some("fallback-host"),
+        "fallback-host"
+    )]
+    #[case("COMPUTERNAME", "  trim-me\n", None, None, "trim-me")]
+    fn os_hostname__computername_then_hostname_then_unknown(
+        #[case] set_key: &str,
+        #[case] set_val: &str,
+        #[case] second_key: Option<&str>,
+        #[case] second_val: Option<&str>,
+        #[case] expected: &str,
+    ) {
+        let _clear_cn = TempEnv::remove("COMPUTERNAME");
+        let _clear_hn = TempEnv::remove("HOSTNAME");
+        let _set = TempEnv::set(set_key, set_val);
+        let _second = match (second_key, second_val) {
+            (Some(k), Some(v)) => Some(TempEnv::set(k, v)),
+            _ => None,
+        };
+        assert_eq!(os_hostname(), expected);
+    }
+
+    #[test]
+    fn os_hostname__both_missing__unknown() {
+        let _clear_cn = TempEnv::remove("COMPUTERNAME");
+        let _clear_hn = TempEnv::remove("HOSTNAME");
+        assert_eq!(os_hostname(), "unknown");
+    }
+
+    /// T298 AC11 / F2: empty / local / active-without-local / malformed enrolled.
+    #[rstest]
+    #[case::empty("empty")]
+    #[case::local_ok("local32")]
+    #[case::active_ok("active32")]
+    #[case::malformed_local("local31")]
+    fn this_machine_label__empty_local_active_malformed(#[case] kind: &str) {
+        let _host = TempEnv::set("COMPUTERNAME", "T298-UNIT");
+        let _clear_hn = TempEnv::remove("HOSTNAME");
+        let devices: Vec<DeviceIdentityRow> = match kind {
+            "empty" => vec![],
+            "local32" => vec![row_with("local", 32)],
+            "active32" => vec![row_with("active", 32)],
+            "local31" => vec![row_with("local", 31)],
+            other => panic!("unknown case {other}"),
+        };
+        let label = this_machine_label(&devices);
+        match kind {
+            "empty" => {
+                assert_eq!(label, "T298-UNIT (not enrolled)");
+                assert!(!label.contains("unavailable"));
+            }
+            "local32" | "active32" => {
+                assert!(
+                    label.contains('-')
+                        && !label.contains("not enrolled")
+                        && !label.contains("unavailable"),
+                    "expected hyphen fingerprint; got: {label}"
+                );
+            }
+            "local31" => {
+                assert_eq!(label, "T298-UNIT (enrolled; fingerprint unavailable)");
+                assert!(!label.contains("not enrolled"));
+            }
+            _ => unreachable!(),
+        }
+    }
 
     fn signed_envelope_from_row(row: &SignedControlRow) -> Result<SignedEnvelope, String> {
         let content_type =

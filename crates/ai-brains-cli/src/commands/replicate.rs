@@ -4,7 +4,7 @@
 //! relay (`--fake-relay` / `AI_BRAINS_SYNC_FAKE_RELAY_PATH`) is used.
 //! Honesty: optional; not PQ; not remote wipe; not metadata-private.
 
-use crate::commands::device::data_key_from_sqlcipher;
+use crate::commands::device::{data_key_from_sqlcipher, this_machine_label};
 use crate::context::AppContext;
 use ai_brains_core::ids::DeviceId;
 use ai_brains_store::ReplicateEngine;
@@ -134,6 +134,8 @@ pub fn run_status(
         format_relay_status(relay_path.as_deref())
     );
     println!("  enrolled_count:  {}", devices.len());
+    // T298 F8: exact 19-char prefix matching sibling human fields.
+    println!("  this machine:    {}", this_machine_label(&devices));
     println!("  cursors:         {}", cursors.len());
     if !gap_or_blocked.is_empty() {
         println!("  gap_or_blocked:  {}", gap_or_blocked.len());
