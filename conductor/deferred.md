@@ -6,6 +6,22 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #216 T300 **empty**. **T285–T300 Completed.** **T301–T305 Planned** (Dependabot; owner 2026-08-25).
 
+### T301 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 peel annotated-tag SHA (action-gh-release) | **Folded** F10 / Phase 0 — pin commit `3d0d9888…` not tag `fe965f7a…` |
+| OpenCode m1 last-PR `#217` vs `#216` | **Folded** F8 |
+| OpenCode O1 / Agy m1 attest v4.2.2 | **Folded** F11 latest v4.x patch at execute |
+| OpenCode O2 no SHA-pin script | **Folded** §7 `rg` checklist |
+| OpenCode O3 Node-24 date | **Folded** drop unverified date |
+| Agy m2 “tag-object SHA also works” | **Decline**; F10 commit SHA only |
+| Agy m3 release.yml header table | **Already** F9 / AC6 |
+| Agy O1 three ci.yml checkout jobs | **Folded** AC1 |
+| Agy O2 floating-tag `rg` | **Already** AC3 |
+| last-PR `#216`/`#217` Cursor | **Affirm N/A** — no T306 |
+| No B | Nothing to decline of B |
+
 ### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
 
 | Item | Disposition |

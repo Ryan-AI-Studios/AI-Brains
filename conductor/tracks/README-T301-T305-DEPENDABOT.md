@@ -2,8 +2,8 @@
 
 **Source:** Open Dependabot PRs as of 2026-08-25 after T300 `#216` + workspace 0.1.3 `#217`. Owner asked to **mint tracks** (not merge remotes). **Do not** `git push origin main`. **Do not** merge Dependabot branches as-is (T185 SHA-pin + SQLCipher honesty).
 **Status:** Placeholders **Planned / Pending**. Full F-list in each spec. **Do not implement until go.**
-**Ledger:** planning DOCS TX `30b7ca9d-4932-4f00-97b8-82d5d25e633b`.
-**last-PR Cursor:** [#216](https://github.com/Ryan-AI-Studios/AI-Brains/pull/216) T300 — **empty**. **No extra leftover track.** Dependabot remotes `#58–#62`, `#68–#72` are this series.
+**Ledger:** planning DOCS TX `30b7ca9d-4932-4f00-97b8-82d5d25e633b`. **T301 fold-in:** DOCS TX `3402c6ed-1134-4a4e-b974-130153d6cc4c`.
+**last-PR Cursor:** [#217](https://github.com/Ryan-AI-Studios/AI-Brains/pull/217) workspace 0.1.3 **and** [#216](https://github.com/Ryan-AI-Studios/AI-Brains/pull/216) T300 — **empty**. **No T306.** Dependabot remotes `#58–#62`, `#68–#72` are this series.
 
 ## PR → track map
 
