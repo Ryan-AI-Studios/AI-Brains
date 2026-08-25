@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #216 T300 **empty**. **T285–T300 Completed.** **T301 Completed** (GHA SHA pins). **T302–T305 Planned** (Dependabot cargo).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#218** T301 **and** `#217` 0.1.3 **empty**. **T285–T301 Completed.** **T302–T305 Planned** (Dependabot cargo).
 
 ### T301 implement closeout (2026-08-25)
 
@@ -37,6 +37,21 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR `#216`/`#217` Cursor | **Affirm N/A** — no T306 |
 | No B | Nothing to decline of B |
 
+### T302 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2+m3 precise `thiserror@2.0.18 --precise 2.0.20` | **Folded** F8 — `cargo pkgid thiserror` is ambiguous with 1.0.69 |
+| OpenCode m1 stale changelog text | **Folded** spec §2 — thiserror syn 3 + clippy #454; chrono 0.4.45 tz-only |
+| OpenCode m2 last-PR `#216` → `#218` | **Folded** §2 / §9 |
+| OpenCode O1 `#62` windows-core 0.62.2→0.61.2 | **Folded** F9 / AC7 — both versions stay |
+| OpenCode O2 syn 3 already in lock | **Folded** F9; PR body at execute |
+| Agy m1 lockfile-only Cargo.toml | **Already** F2 / AC3 / AC5 |
+| Agy O1 clippy `--all-targets` | **Already** AC4 |
+| Agy chrono 0.4.45 DateTime Copy / `days_since` | **Decline** — not v0.4.45 (tz #1787/#1789) |
+| last-PR `#218` / `#217` Cursor | **Affirm N/A** — no T306 |
+| No B / M | Nothing to decline of B/M |
+
 ### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
 
 | Item | Disposition |
@@ -46,7 +61,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | tokio `#59` 1.53.1 | **T303** Planned |
 | tower-http `#58` 0.7 | **T304** Planned |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
-| last-PR `#216` Cursor | **N/A empty** — no T306 |
+| last-PR `#218` / `#217` Cursor | **N/A empty** — no T306 |
 | clap 5 | **Still declined** (not in this Dependabot batch) |
 | Merge Dependabot remotes as-is | **Declined** — recreate on `track/TNN-*` |
 
