@@ -745,7 +745,7 @@ ai-brains forget --match "outdated fact" -f   # find by content; -f to forget
 ai-brains forget --list-forgotten --limit 5   # soft-deleted rows (bounded; not CE wipe)
 ai-brains forget --restore <uuid>             # undo with a compensating event
 ```
-Forgotten memories remain in the event log for audit but are excluded from FTS, graph, and preflight. Soft-forget ≠ CE wipe / NIST Purge.
+Forgotten memories remain in the event log for audit but are excluded from FTS, graph, and preflight. Soft-forget ≠ CE wipe / NIST Purge. Empty human `forget --list-forgotten` / `memory list --status forgotten` keeps `No forgotten memories.`, then prints `Pinned: N` matching `--summary` and last-line `next: ai-brains memory list` (add `--global` on that next when the list was global).
 
 ### Backup
 ```powershell

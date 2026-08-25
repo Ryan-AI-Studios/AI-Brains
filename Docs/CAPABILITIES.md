@@ -271,7 +271,7 @@ ai-brains forget --list-forgotten --global --format json   # same backend as --s
 | **Labels never blank (T230)** | Inventory tables that use `display_label` never emit an empty label: empty/whitespace **name** with empty alias → `(no alias)`. **Orphan** `project_id`s (memories without a `project_projection` row) show the same token. Alias wins over empty name; alias is **not** trimmed. Non-summary list JSON stays **id-only** (no `label` field on items). |
 | **Tags** | Content-prefix heuristic only (`TAGS:` first line after optional role prefix from `pin --tag`); SQL start-anchored `LIKE 'TAGS:%'` (or `ROLE: TAGS:%`) + case-insensitive exact token. Not a schema column. Sparse token density among `TAGS:` rows can under-fill a page under elevated candidate cap (raise `--limit`). |
 | **Formats** | human table (Scope + preview with role-prefix strip) or `--format json` (`api_version`, items, total, more_available). Summary JSON `by_project[].label` is always a non-empty string when present. |
-| **Empty** | `No pinned memories.` / `No forgotten memories.` exit **0**. |
+| **Empty** | `No pinned memories.` / `No forgotten memories.` exit **0**. Forgotten-empty (human) also prints `Pinned: N` (same COUNT as `--summary`) and last-line `next: ai-brains memory list` (`--global` appends `--global` on that next only). JSON empty forgotten stays nine keys (`items: []`); no `next_step`. |
 
 ---
 

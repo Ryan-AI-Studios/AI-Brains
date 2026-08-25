@@ -195,7 +195,10 @@ What you should see:
 - `--list-forgotten` / `memory list --status forgotten` print **Scope**,
   a bounded table (`memory_id`, optional `project` under `--global`,
   `updated`, preview), and `Showing N of T` when truncated (default
-  limit 50). Soft-forget ≠ CE wipe / NIST Purge.
+  limit 50). Soft-forget ≠ CE wipe / NIST Purge. When the forgotten list
+  is empty, human output keeps `No forgotten memories.`, then `Pinned: N`
+  (same COUNT as `memory list --summary`) and last-line
+  `next: ai-brains memory list` so operators still see live pins.
 - `--restore` flips the projection status back to pinned (soft restore).
 
 ---

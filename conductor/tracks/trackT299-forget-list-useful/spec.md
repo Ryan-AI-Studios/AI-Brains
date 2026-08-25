@@ -1,7 +1,7 @@
 # T299 — Empty `forget --list-forgotten` must point at live pins
 
 - **Track ID:** T299-ForgetListUseful
-- **Status:** **Planned** (Pending until **go**; not Placeholder)
+- **Status:** **Completed** (2026-08-25)
 - **Category:** UX / HONESTY
 - **Owner:** Grok
 - **Source:** Audit 2026-08-22 — `forget --list-forgotten` **6/8** `No forgotten memories.`; T274–T284 declined honest empty (E=8) — **reopened** U&lt;8. Placeholder minted with T285–T300 (`76c4db9`). T287 F7 parked empty next here. T298 F24 pointed here.

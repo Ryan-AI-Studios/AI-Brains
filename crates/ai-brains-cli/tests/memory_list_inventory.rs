@@ -1296,3 +1296,319 @@ fn memory_list__forgotten_status__no_authority_promote_of_remaining_pin() {
         "AC8 list-forgotten must not promote remaining pin; got:\n{out2}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// T299 — empty forgotten useful remediator (Pinned: N + next: memory list)
+// ---------------------------------------------------------------------------
+
+fn parse_pinned_count(stdout: &str) -> Option<u64> {
+    stdout
+        .lines()
+        .find_map(|l| l.strip_prefix("Pinned: "))
+        .and_then(|s| s.trim().parse::<u64>().ok())
+}
+
+fn last_nonempty_line(stdout: &str) -> &str {
+    stdout
+        .lines()
+        .map(str::trim_end)
+        .rfind(|l| !l.is_empty())
+        .unwrap_or("")
+}
+
+/// T299 AC1 — empty forgotten with ≥1 pin: Pinned matches summary; next last.
+#[test]
+fn forget_list_forgotten__empty_with_pin__pinned_count_and_next() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "DECISION: T299 inventory pin stays pinned",
+    );
+
+    let (sum_code, sum_out, _) = run_memory_list(&vault, &["--summary"], Some(&id));
+    assert_eq!(sum_code, 0, "summary; {sum_out}");
+    let summary_pinned = parse_pinned_count(&sum_out).expect("summary Pinned:");
+    assert!(summary_pinned >= 1, "expect ≥1 pin; {sum_out}");
+
+    let (code, stdout, stderr) = run_forget_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC1 exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("No forgotten memories."),
+        "AC1 empty const; got:\n{stdout}"
+    );
+    let list_pinned = parse_pinned_count(&stdout).expect("list Pinned:");
+    assert_eq!(
+        list_pinned, summary_pinned,
+        "AC1 Pinned must match summary; list={list_pinned} summary={summary_pinned}\n{stdout}\n{sum_out}"
+    );
+    assert_eq!(
+        last_nonempty_line(&stdout),
+        "next: ai-brains memory list",
+        "AC1 next last; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("forget --restore") && !stdout.contains("forget --memory-id"),
+        "AC1 no F36 restore on stdout; got:\n{stdout}"
+    );
+    assert!(
+        !stderr.contains("forget --restore") && !stderr.contains("forget --memory-id"),
+        "AC1 empty skips F36 stderr; got:\n{stderr}"
+    );
+}
+
+/// T299 AC2 — forget list-forgotten stdout equals memory list --status forgotten.
+#[test]
+fn forget_list_forgotten__empty_matches_memory_list_status_forgotten() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "DECISION: T299 shared empty backend pin",
+    );
+
+    let (c1, out1, _) = run_memory_list(
+        &vault,
+        &["--status", "forgotten", "--limit", "5"],
+        Some(&id),
+    );
+    let (c2, out2, _) = run_forget_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(c1, 0);
+    assert_eq!(c2, 0);
+    assert_eq!(out1, out2, "AC2 / F6 byte-identical stdout");
+    assert!(out1.contains("No forgotten memories."));
+    assert!(parse_pinned_count(&out1).is_some());
+    assert_eq!(last_nonempty_line(&out1), "next: ai-brains memory list");
+}
+
+/// T299 AC3 — 0 pins + 0 forgotten still prints Pinned: 0 + next.
+#[test]
+fn forget_list_forgotten__empty_zero_pins__pinned_zero_and_next() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+
+    let (code, stdout, _) = run_forget_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0);
+    assert!(stdout.contains("No forgotten memories."));
+    assert_eq!(parse_pinned_count(&stdout), Some(0));
+    assert_eq!(last_nonempty_line(&stdout), "next: ai-brains memory list");
+}
+
+/// T299 AC4 — nonempty forgotten omits T299 remediator; F36 stderr still present.
+#[test]
+fn forget_list_forgotten__nonempty__omits_t299_remediator() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "DECISION: T299 nonempty forget token abcxyz",
+    );
+    forget_by_match(&vault, &proj, &id, "abcxyz");
+
+    let (code, stdout, stderr) = run_forget_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0);
+    assert!(
+        stdout.contains("abcxyz") || stdout.contains("nonempty forget"),
+        "nonempty preview; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("next: ai-brains memory list"),
+        "AC4 omit T299 next; got:\n{stdout}"
+    );
+    // T299 Pinned: line after empty const only — nonempty table may still have
+    // project labels; assert no remediator block after Showing.
+    let after_showing = stdout
+        .lines()
+        .skip_while(|l| !l.starts_with("Showing "))
+        .skip(1)
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        !after_showing.contains("Pinned:"),
+        "AC4 no T299 Pinned after table; got:\n{stdout}"
+    );
+    assert!(
+        stderr.contains("forget --restore") || stderr.contains("forget --memory-id"),
+        "AC4 F36 stderr still present; got:\n{stderr}"
+    );
+}
+
+/// T299 AC5 — empty forgotten JSON keys frozen; no next_step / pinned.
+#[test]
+fn forget_list_forgotten__empty_json__no_next_step_or_pinned() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(&vault, &proj, &id, "DECISION: T299 json freeze pin");
+
+    let (code, stdout, _) =
+        run_forget_list(&vault, &["--limit", "5", "--format", "json"], Some(&id));
+    assert_eq!(code, 0, "json exit 0; {stdout}");
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("valid json");
+    assert_eq!(v["status"], "forgotten");
+    assert_eq!(v["total"], 0);
+    assert!(v["items"].as_array().expect("items").is_empty());
+    let mut keys: Vec<&str> = v
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        [
+            "api_version",
+            "items",
+            "limit",
+            "more_available",
+            "project_id",
+            "returned",
+            "scope",
+            "status",
+            "total",
+        ],
+        "AC5 / F10 exact nine keys; got:\n{stdout}"
+    );
+    assert!(v.get("next_step").is_none(), "F10 no next_step; {stdout}");
+    assert!(v.get("pinned").is_none(), "F10 no pinned; {stdout}");
+    assert!(v.get("next").is_none(), "F10 no next; {stdout}");
+}
+
+/// T299 AC6 — --global empty forgotten next includes --global.
+#[test]
+fn forget_list_forgotten__global_empty__next_includes_global() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let a = dir.path().join("a");
+    let b = dir.path().join("b");
+    let id_a = register_project(&vault, &a);
+    let _id_b = register_project(&vault, &b);
+    pin_memory(
+        &vault,
+        &a,
+        &id_a,
+        "DECISION: T299 global empty pin on A only",
+    );
+
+    let (sum_code, sum_out, _) = run_memory_list(&vault, &["--summary", "--global"], None);
+    assert_eq!(sum_code, 0);
+    let summary_pinned = parse_pinned_count(&sum_out).expect("global summary Pinned:");
+
+    let (code, stdout, _) = run_forget_list(&vault, &["--limit", "5", "--global"], None);
+    assert_eq!(code, 0, "AC6 exit 0; {stdout}");
+    assert!(stdout.contains("No forgotten memories."));
+    assert_eq!(
+        parse_pinned_count(&stdout),
+        Some(summary_pinned),
+        "AC6 Pinned matches global summary"
+    );
+    assert_eq!(
+        last_nonempty_line(&stdout),
+        "next: ai-brains memory list --global",
+        "AC6 global next; got:\n{stdout}"
+    );
+    assert_ne!(
+        last_nonempty_line(&stdout),
+        "next: ai-brains memory list",
+        "AC6 must not use non-global next as last line"
+    );
+}
+
+/// T299 AC7 stay-green — pinned-empty does not gain forgotten remediator.
+#[test]
+fn memory_list__pinned_empty__omits_forgotten_next() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+
+    let (code, stdout, _) = run_memory_list(&vault, &[], Some(&id));
+    assert_eq!(code, 0);
+    assert!(stdout.contains("No pinned memories."));
+    assert!(
+        !stdout.contains("next: ai-brains memory list"),
+        "AC7 pinned-empty omits T299 next; got:\n{stdout}"
+    );
+}
+
+/// T299 AC8 stay-green — summary has no T299 next.
+#[test]
+fn memory_list__summary__omits_t299_next() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(&vault, &proj, &id, "DECISION: T299 summary freeze pin");
+
+    let (code, stdout, _) = run_memory_list(&vault, &["--summary"], Some(&id));
+    assert_eq!(code, 0);
+    assert!(stdout.contains("Pinned:"));
+    assert!(stdout.contains("Forgotten:"));
+    assert!(
+        !stdout.contains("next: ai-brains memory list"),
+        "AC8 summary omits T299 next; got:\n{stdout}"
+    );
+}
+
+/// T299 AC11 — --tag filters Pinned COUNT like --summary --tag.
+#[test]
+fn forget_list_forgotten__empty_tag__pinned_matches_summary_tag() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory_tagged(
+        &vault,
+        &proj,
+        &id,
+        "DECISION: T299 architecture pin body",
+        &["architecture"],
+    );
+    pin_memory(&vault, &proj, &id, "DECISION: T299 untagged pin body");
+
+    let (sum_code, sum_out, _) =
+        run_memory_list(&vault, &["--summary", "--tag", "architecture"], Some(&id));
+    assert_eq!(sum_code, 0);
+    let summary_pinned = parse_pinned_count(&sum_out).expect("tag summary Pinned:");
+
+    let (code, stdout, _) = run_forget_list(
+        &vault,
+        &["--limit", "5", "--tag", "architecture"],
+        Some(&id),
+    );
+    assert_eq!(code, 0);
+    assert!(stdout.contains("No forgotten memories."));
+    assert_eq!(parse_pinned_count(&stdout), Some(summary_pinned));
+    assert_eq!(last_nonempty_line(&stdout), "next: ai-brains memory list");
+
+    let (c2, out2, _) = run_forget_list(&vault, &["--limit", "5", "--tag", "nosuchtag"], Some(&id));
+    assert_eq!(c2, 0);
+    assert!(out2.contains("No forgotten memories."));
+    assert_eq!(parse_pinned_count(&out2), Some(0));
+    assert_eq!(last_nonempty_line(&out2), "next: ai-brains memory list");
+}

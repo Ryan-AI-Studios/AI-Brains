@@ -4,7 +4,22 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #214 T298 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25 (`#214`). **T299 Planned** 2026-08-25.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #214 T298 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25 (`#214`). **T299 Completed** 2026-08-25.
+
+### T299 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| Empty forgotten `Pinned: N` + `next: memory list` (shared backend) | **Done** F1–F6 / AC1–AC6 / AC14 |
+| JSON nine keys frozen; no `next_step` | **Done** F10 / AC5 (exact key-set assert) |
+| `forget.rs` production unchanged; helper in `memory.rs` | **Done** F6 / AC15 |
+| Docs CAPABILITIES/OPS/WORKFLOWS/CHANGELOG/CLI-EXIT-CODES/after_help | **Done** F19 / AC12 |
+| PATH until `cargo install` | **Residual** F17 — not easy without owner install |
+| Live Forgotten: 0 | **Residual** F13/F25 — honest AC14 empty SoT |
+| JSON `next_step` / `--summary` on forget / tag histogram / `--offset` | **Residual** F10/F9/F24 — declined |
+| `count_pinned_memories` vs session-join residual | **Residual** F25 — this track uses inventory COUNT |
+| clap 4.6 workspace / rusqlite 0.40 Dependabot | **Residual** F14 — not stolen |
+| T300 graph sparse | **Not stolen** F24 |
 
 ### T299 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
 
