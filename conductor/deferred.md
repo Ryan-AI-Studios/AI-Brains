@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #210 T294 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Planned** 2026-08-24.
 
 | Item | Track |
 |------|-------|
@@ -113,6 +113,27 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode `nightly.rs` production edit | **Decline** F9 |
 | last-PR #211 Cursor | **Affirm N/A** — no T301 |
 | No B/M | Nothing to decline of B/M |
+
+### T297 planning absorption (2026-08-24) — Stopped + backend TCP Open contrast; do not start daemon
+
+| Item | Disposition |
+|------|-------------|
+| Audit `daemon status` Stopped vs llama.cpp `:8081` Open | **Absorb** F1–F6 / AC1–AC6 / AC10 |
+| Placeholder Manual `daemon status` — do not start daemon | **Absorb** AC10 / F11 |
+| Placeholder string `llama.cpp HTTP Open ≠ daemon` | **Rewrite** F1/F31 — live TCP (not HTTP); `--no-project-context` is Ollama `:11434` |
+| T281 closeout F27 Daemon Stopped + port Open | **Absorb** |
+| T296 F11 / OpenCode m3 daemon Stopped is T297 | **Absorb** |
+| T249 F4 last-line `next:` / no JSON | **Affirm** F5 / F8 / F24 |
+| T249 F5/F11 no live start-stop / no sc query | **Affirm** F11 |
+| T249 F12 daemon json / uptime / sc query | **Decline** F8 |
+| T199 TCP 5×100 ms / keyless / exit 0 | **Affirm** F6 / F7 |
+| T255 F18 / T281 F2 raise 750 | **Decline** F10 |
+| T281 F10 unify HTTP | **Decline** F9 |
+| Doctor `daemon_reachable` vs status Stopped | **Decline** F27 |
+| T298–T300 / leftover `--write` / T296 Router | **Decline** F17 |
+| T240 F2 / T263 H2 / clap 5 / rusqlite 0.40 | **Decline** F12 / F17 |
+| last-PR Cursor **#212** | **N/A empty** — **no T301** F14 |
+| Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** |
 
 ### T294 closeout residuals (2026-08-24)
 
