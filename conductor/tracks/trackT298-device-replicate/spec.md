@@ -10,7 +10,8 @@
 - **Absorbs:** Placeholder problem text + Manual DoD; deferred.md “device/replicate U=5”; T251 F14 “status does not reprint honesty” **as a partial lift** (one short line, not the replicate paragraph)
 - **Not absorbed (DoD):** Live `device bootstrap` / enroll / revoke; PQ product; remote wipe; `--format` on `device`; replicate JSON new keys; combined list+replicate dashboard; doctor 16th; clap 5 / rusqlite 0.40; T299–T300; T240 F2
 - **Research date:** 2026-08-25 (plan dogfood HEAD `01fb0db` T297 `#213`. Product `src/` = T297. PATH **0.1.2** 2026-08-22 19:41 **has T251 empty+next**, not this identity/honesty. Live vault **zero** enrolled — do not bootstrap.)
-- **Ledger:** planning DOCS TX `839a62a1-2881-4fbb-b918-4ce5673d721c`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-25 `agy-review.md` + `opencode-review.md` (HEAD `782ddac`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree hard:** OpenCode m3 fail-open must not claim `(not enrolled)` on an enrolled vault (rewrite F2/AC11). **Agree:** Agy m1 required `emit_device_roster` → `Vec` (F26); OpenCode m1 `serial_test` absent / no `#[serial(env)]` (F27); OpenCode m2 AC6/AC9 env inject; Agy m3 AC11 active-without-local; Agy O1 19-char prefix (F8); OpenCode O1 Phase 0 re-locate docs; OpenCode O2 AC2 last-line. **Already:** Agy m2 trim = F3; Agy O2 docs list = F19; OpenCode O2 last-line already AC2. **Snapshot:** OpenCode O3 hostname crates.io published **2025-11-28** (docs.rs rebuild 2026-06-11). Disposition **§13**.
+- **Ledger:** planning DOCS TX `839a62a1-2881-4fbb-b918-4ce5673d721c`. Fold-in DOCS TX `b206dce2-6324-4c49-97f3-b3328d15db16`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** `cargo install`. Do **not** rewrite `.env` (T240 F2). Do **not** `device bootstrap` / enroll / revoke on the live vault. Do **not** `daemon start` / `stop` / `install`. Do **not** add crate `hostname`. Do **not** grow hotspot `project.rs` / `sync.rs` / `governed_common.rs` / `context.rs` / `forget.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** live `retention apply --confirm`, `graph rebuild`, leftover `rebind-path --write --yes`, or `safety sync` without `--dry-run`.
 
 ---
@@ -87,7 +88,7 @@ This unblocks daily ops honesty for the Windows-first vault: a local-only machin
 | `rusqlite` | workspace **0.39.0** | **0.40.2** (Dependabot `#61` open) | **No bump.** |
 | `serde_json` | lock **1.0.150** | current 1.0.x | **No bump.** JSON keys frozen. |
 | `rstest` | cli dev-dep **0.25** | already in crate | Reuse for helper `#[case]`. |
-| `hostname` crate | **not in lock** | **0.4.2** (docs.rs 2026-06-11, MIT; `get` + **`set`**) | **Do not add.** |
+| `hostname` crate | **not in lock** | **0.4.2** (crates.io published **2025-11-28**; docs.rs rebuild 2026-06-11; MIT; `get` + **`set`**) | **Do not add.** |
 | `tokio` | workspace **1.52** / lock **1.52.3** | crates.io **1.53.1** (`#59`) | Unused here. **No bump.** |
 | rustc / edition | **1.95.0** / **2024** | — | Unchanged. |
 | workspace version | **0.1.2** | — | **No bump.** |
@@ -117,13 +118,13 @@ This unblocks daily ops honesty for the Windows-first vault: a local-only machin
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
 | **F1 — Device empty body (hard)** | Empty `device status` stdout is **exactly four** non-empty data lines, in order: (1) T198 `EMPTY_ENROLL_HINT`, (2) `this machine: {os_hostname} (not enrolled)`, (3) `local-only; not PQ; not remote wipe`, (4) `next: ai-brains replicate status`. Exit **0**. |
-| **F2 — Shared this-machine label (hard)** | `pub(crate) fn this_machine_label(devices: &[DeviceIdentityRow]) -> String`. Local (`status=="local"`) else first `active`. If that row has `fingerprint_sha256.len()==32` → `format_fingerprint_hyphen`. Else `{os_hostname()} (not enrolled)`. Fail-open on bad length (do **not** panic). Used by **both** `device status` and human `replicate status`. |
-| **F3 — OS hostname (hard)** | `os_hostname()` reads `COMPUTERNAME` then `HOSTNAME` (first non-empty trimmed first line). Else `unknown`. **No** `hostname` crate. **No** `hostname.exe`. **No** Win32 `GetComputerNameW`. Hermetic tests inject `COMPUTERNAME=T298-HOST` and remove `HOSTNAME`. |
+| **F2 — Shared this-machine label (hard)** | `pub(crate) fn this_machine_label(devices: &[DeviceIdentityRow]) -> String`. Choose local (`status=="local"`) else first `active` (same as `load_local_signing_key` `:134–139`). **Empty slice** → `{os_hostname()} (not enrolled)`. **Chosen row `fingerprint_sha256.len()==32`** → `format_fingerprint_hyphen` (raw bytes, not hex — live `DeviceIdentityRow` `:39`). **Chosen row exists but len ≠ 32** → `{os_hostname()} (enrolled; fingerprint unavailable)` — do **not** print `(not enrolled)` on an enrolled vault (OpenCode m3). Do **not** panic. Used by **both** `device status` and human `replicate status`. |
+| **F3 — OS hostname (hard)** | `os_hostname()` reads `COMPUTERNAME` then `HOSTNAME`. For each: `lines().next().unwrap_or("").trim()` (strips CR/LF/whitespace — Agy m2). First non-empty wins; else `unknown`. **No** `hostname` crate. **No** `hostname.exe`. **No** Win32 `GetComputerNameW`. **No** `serial_test` / `#[serial(env)]` (F27). Hermetic CLI tests inject `COMPUTERNAME=T298-HOST` and remove `HOSTNAME`. |
 | **F4 — Short honesty (hard)** | Frozen const `DEVICE_STATUS_HONESTY: &str = "local-only; not PQ; not remote wipe"`. Printed on `device status` only (empty **and** enrolled). Do **not** reprint replicate’s full `optional multi-device; not PQ; not remote wipe; not metadata-private` paragraph. This **partially lifts T251 F14**. |
 | **F5 — `next:` last (hard)** | T251 F2 stands: always append `DEVICE_STATUS_NEXT` as the **last** non-empty line (empty and enrolled). |
-| **F6 — Emitter frozen (hard)** | `emit_device_roster` unchanged. T298 lines live **only** in `device::run_status` after the emitter returns. `run_list` / `run_fingerprint` must not contain `this machine:` / `DEVICE_STATUS_HONESTY` / `next:`. |
-| **F7 — Enrolled device status (hard)** | After the roster table: `this machine: {hyphen fingerprint}` then honesty then `next:`. Do **not** also print `(not enrolled)`. |
-| **F8 — Replicate human (hard)** | After `enrolled_count` print `  this machine:    {this_machine_label}` (same label as device, padded to match existing columns). Keep relay / cursors / honesty / hint. Do **not** print `sync: running` / `replication: active` or any claim that sync is happening. |
+| **F6 — Emitter print frozen (hard)** | Emitter **print** body unchanged (T198 or table). T298 lines live **only** in `device::run_status` after the emitter returns. `run_list` / `run_fingerprint` must not contain `this machine:` / `DEVICE_STATUS_HONESTY` / `next:`. Iterate the vec by reference so the return (F26) does not change printed rows. |
+| **F7 — Enrolled device status (hard)** | After the roster table: `this machine: {this_machine_label}` then honesty then `next:`. Happy path is hyphen fingerprint (no `(not enrolled)`). Malformed-fp arm is F2 unavailable string. |
+| **F8 — Replicate human (hard)** | After `enrolled_count` print with **exact 19-char prefix** `  this machine:    ` (Agy O1; matches live `  relay:           ` / `  enrolled_count:  ` / `  cursors:         ` / `  honesty:         ` / `  hint:            ` — all len 19). Same `this_machine_label` as device. Keep relay / cursors / honesty / hint. Do **not** print `sync: running` / `replication: active` or any claim that sync is happening. |
 | **F9 — Replicate JSON freeze (hard)** | `--format json` keys stay exactly today’s six: `relay`, `enrolled_count`, `cursors`, `gap_or_blocked`, `devices`, `honesty`. **No** `this_machine`. PROTOCOL-COMPAT `:109` stays “keys unchanged”. |
 | **F10 — `--quiet` freeze** | `replicate status --quiet` still prints only `format_relay_status`. No this-machine. |
 | **F11 — No `--format` on device** | T251 F6 stands. `device status --format json` clap unexpected argument exit **2**. No DTO. |
@@ -134,13 +135,15 @@ This unblocks daily ops honesty for the Windows-first vault: a local-only machin
 | **F16 — Isolation** | No T240 F2 `.env` rewrite. No daemon start/stop/install. No doctor 16th. No combined dashboard. No default `device` → status. No `visible_alias = "stat"`. No T299/T300 steal. |
 | **F17 — PATH** | Do not `cargo install`. Source/hermetic SoT. PATH 0.1.2 until owner asks. |
 | **F18 — last-PR Cursor** | **#213** comments/reviews/issue **empty**. **No T301.** Dependabot `#61` rusqlite / `#58–#62` / `#68–#72` **not stolen**. |
-| **F19 — Docs** | CAPABILITIES `:112` additive (this-machine + short honesty **before** last-line `next:`). `:113` additive human this-machine; JSON keys frozen. OPERATIONS `:1082` additive. INSTALL `:197` tip additive. PROTOCOL-COMPAT `:107` additive human-only; `:109` keys unchanged. CHANGELOG T298 Unreleased. CLI-EXIT-CODES footnote still exit **0** (no change required unless a sentence is missing “useful empty is still 0”). `cli_help_ia` does not snapshot Device examples — stay green. |
+| **F19 — Docs** | CAPABILITIES `:112` additive (this-machine + short honesty **before** last-line `next:`). `:113` additive human this-machine; JSON keys frozen. OPERATIONS `:1082` additive. INSTALL `:197` tip additive. PROTOCOL-COMPAT `:107` additive human-only; `:109` keys unchanged. CHANGELOG T298 Unreleased. CLI-EXIT-CODES footnote still exit **0** (no change required unless a sentence is missing “useful empty is still 0”). `cli_help_ia` does not snapshot Device examples — stay green. Name **both** empty `{hostname} (not enrolled)` and enrolled hyphen-fingerprint on the three operator docs (Agy O2). Phase 0 re-locates these line anchors (OpenCode O1). |
 | **F20 — Placeholder `none` rewrite** | Placeholder said replicate `this machine: &lt;fingerprint-or-none&gt;`. Live hole is **identity**, not the token `none` (`enrolled_count: 0` already says none). Empty label is `{hostname} (not enrolled)` on **both** surfaces (same helper). Literal `none` is **not** the empty string. |
-| **F21 — High findings** | Inventing a fingerprint without enroll; putting T298 lines inside `emit_device_roster`; adding JSON `this_machine`; `--format` on device; bootstrapping the live vault; adding `hostname` crate; claiming sync is running; clap 5. |
+| **F21 — High findings** | Inventing a fingerprint without enroll; putting T298 lines inside `emit_device_roster`; adding JSON `this_machine`; `--format` on device; bootstrapping the live vault; adding `hostname` or `serial_test`; claiming `(not enrolled)` on an enrolled vault; claiming sync is running; clap 5. |
 | **F22 — Help** | `DeviceCommands::Status` about may add “this-machine + local-only”. Parent Device after_help honesty paragraph **stays**. No required new after_help dump. In-process `Cli::try_parse_from(["ai-brains", "device", "status"])` still `Ok`. |
 | **F23 — Exit** | Recognized status → **0** (empty and enrolled). Unexpected `--format` → clap **2**. Missing vault key stays today’s `VAULT_KEY_MISSING`. |
 | **F24 — Decline peers** | T299 forget-list; T300 graph sparse; leftover `--write`; T240 F2; T263 H2; T255 750 raise; T251 F12 bag; doctor 16th. |
 | **F25 — Soft residuals** | PATH until install; live vault stays 0 enrolled (honest); `device list --format json`; bootstrap→outbox; unify singular error copy; clap 4.6 workspace pin; is-terminal migrate. |
+| **F26 — Emitter returns `Vec` (hard)** | `emit_device_roster` **must** return `Result<Vec<DeviceIdentityRow>, Box<dyn std::error::Error>>` (Agy m1). `run_list` discards the vec. `run_status` passes `&devices` to `this_machine_label` — **no** second `list_enrolled_devices` / lock. Empty copy stays `EMPTY_ENROLL_HINT`. |
+| **F27 — No `serial_test` (hard)** | `serial_test` is **not** in workspace/`ai-brains-cli` (verified). Do **not** add it (F14). AC10 `os_hostname` units use `TempEnv` under **nextest process isolation**. Do **not** write `#[serial(env)]`. Hermetics inject env on the child `Command` (OpenCode m1). |
 
 ---
 
@@ -148,21 +151,21 @@ This unblocks daily ops honesty for the Windows-first vault: a local-only machin
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Hermetic empty vault: `device status` exit **0**. Stdout contains exact T198 plural. Contains `this machine: T298-HOST (not enrolled)` (child env `COMPUTERNAME=T298-HOST`, `HOSTNAME` removed). Contains exact `local-only; not PQ; not remote wipe`. Last non-empty line is `next: ai-brains replicate status`. Four non-empty lines. |
-| **AC2** | Hermetic after `device bootstrap`: stdout contains `DEVICE_ID` or `local`. Contains `this machine:` **without** `(not enrolled)`. Contains a hyphenated fingerprint (at least one `-` of 4-char groups). Contains honesty const. Last non-empty line is `next:`. Exit **0**. |
+| **AC1** | Hermetic empty vault: `device status` exit **0**. Child env: `.env("COMPUTERNAME", "T298-HOST")` + `env_remove("HOSTNAME")` (denylist does **not** strip these). Stdout contains exact T198 plural. Contains `this machine: T298-HOST (not enrolled)`. Contains exact `local-only; not PQ; not remote wipe`. Last non-empty line is `next: ai-brains replicate status` (`last_nonempty_line`, same helper as T251). Four non-empty lines. |
+| **AC2** | Hermetic after `device bootstrap`: stdout contains `DEVICE_ID` or `local`. Contains `this machine:` **without** `(not enrolled)` and **without** `fingerprint unavailable`. Contains a hyphenated fingerprint (at least one `-` of 4-char groups). Contains honesty const. **Last non-empty line is `next:`** (`last_nonempty_line` — OpenCode O2; T251 enrolled test only `contains`). Exit **0**. |
 | **AC3** | Hermetic `device list` empty: T198 present; **does not** contain `this machine:` / honesty const / `next:`. Enrolled list contains `local` and **does not** contain those three. |
 | **AC4** | Hermetic `device fingerprint` empty: T198 one-liner; **does not** contain `this machine:` / `next:`. Existing T198 empty-fingerprint test stays green. |
 | **AC5** | `device status --format json` clap unexpected argument exit **2** (T251 AC8 stay-green). |
-| **AC6** | Hermetic empty `replicate status`: exit **0**. Contains `enrolled_count` and `0`. Contains `this machine:` and `(not enrolled)` and `T298-HOST`. Contains honesty (`not PQ`). Contains bootstrap `hint`. Does **not** contain `running` as a sync-state claim (no `sync: running` / `replication: running`). |
+| **AC6** | Hermetic empty `replicate status`: **same child env as AC1** (`.env("COMPUTERNAME", "T298-HOST")` + `env_remove("HOSTNAME")` — OpenCode m2). Exit **0**. Contains `enrolled_count` and `0`. Contains `this machine:` and `(not enrolled)` and `T298-HOST`. Contains honesty (`not PQ`). Contains bootstrap `hint`. Human `this machine:` line starts with exact prefix `  this machine:    ` (19 chars). Does **not** contain `running` as a sync-state claim (no `sync: running` / `replication: running`). |
 | **AC7** | Hermetic empty `replicate status --format json`: parse object; key set **equals** `{relay, enrolled_count, cursors, gap_or_blocked, devices, honesty}`; **no** `this_machine` / `this machine`; `enrolled_count == 0`. |
 | **AC8** | Hermetic `replicate status --quiet`: stdout is the relay line (`not configured`); **does not** contain `this machine:`. |
-| **AC9** | Hermetic enrolled: `device fingerprint` stdout (hyphen form) is a substring of `replicate status` `this machine:` line **and** of `device status` `this machine:` line. |
-| **AC10** | Unit rstest `os_hostname`: `COMPUTERNAME` wins; `HOSTNAME` used when COMPUTERNAME missing/blank; both missing → `unknown`. Use `TempEnv` RAII. `#[serial(env)]` if the same test binary mutates those keys in-process. |
-| **AC11** | Unit rstest `this_machine_label`: empty slice → `{host} (not enrolled)`; local 32-byte fp → hyphen form (no `(not enrolled)`); 31-byte fp fail-open enrolled-empty form. |
+| **AC9** | Hermetic enrolled: **same child env as AC1** (OpenCode m2). `device fingerprint` stdout (hyphen form) is a substring of `replicate status` `this machine:` line **and** of `device status` `this machine:` line. |
+| **AC10** | Unit rstest `os_hostname` with `TempEnv` RAII (nextest isolation; **no** `#[serial(env)]` / **no** `serial_test` crate — F27). Cases: `COMPUTERNAME` wins; `HOSTNAME` used when COMPUTERNAME missing/blank; both missing → `unknown`; value with leading space + trailing newline trims to the host token (Agy m2). |
+| **AC11** | Unit rstest `this_machine_label` (Agy m3 + OpenCode m3): (1) empty slice → `{host} (not enrolled)`; (2) one `status=="local"` 32-byte fp → hyphen form (no `(not enrolled)`, no `unavailable`); (3) no `local`, first `active` 32-byte fp → hyphen form; (4) `local` 31-byte fp → `{host} (enrolled; fingerprint unavailable)` and **not** `(not enrolled)`. |
 | **AC12** | Docs: CAPABILITIES `:112`/`:113` additive; OPERATIONS `:1082` additive; INSTALL `:197` additive; PROTOCOL-COMPAT `:107` additive / `:109` keys unchanged; CHANGELOG T298 Unreleased. |
 | **AC13** | `device --help` still lists `status`. Combined help still contains `ai-brains device status`. `cli_help_ia` group labels stay green. |
 | **AC14** | Manual on **live** vault (do **not** bootstrap): `device status` + `replicate status`. Pass: empty-enrolled; device contains **local-only** (or the frozen const) **and** a this-machine identifier (`DESKTOP` or `unknown` or `(not enrolled)`); `next:` last on device; replicate `enrolled_count: 0` + this-machine + honesty; does not claim sync is running; exit **0**. Record PATH vs `cargo run` if they differ (PATH-behind is F17). |
-| **AC15** | No `ai-brains-contracts` type. No pin bumps. No new crate. `emit_device_roster` body unchanged (grep: T298 consts not referenced from `run_list`). |
+| **AC15** | No `ai-brains-contracts` type. No pin bumps. No new crate (including **no** `serial_test` / `hostname`). Emitter **print** body unchanged (grep: T298 consts not referenced from `run_list`). Signature returns `Vec` (F26). |
 | **AC16** | T251 AC7 stay-green: empty replicate still prints `enrolled_count` / honesty / bootstrap hint (additive this-machine allowed). |
 
 ---
@@ -198,8 +201,7 @@ pub(crate) fn os_hostname() -> String { /* F3 */ }
 pub(crate) fn this_machine_label(devices: &[DeviceIdentityRow]) -> String { /* F2 */ }
 
 pub fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
-    emit_device_roster(ctx)?;
-    let devices = /* list_enrolled_devices under lock, or return the vec from emit — do not duplicate emit's print */;
+    let devices = emit_device_roster(ctx)?; // F26 required Vec
     println!("this machine: {}", this_machine_label(&devices));
     println!("{DEVICE_STATUS_HONESTY}");
     println!("{DEVICE_STATUS_NEXT}");
@@ -207,7 +209,17 @@ pub fn run_status(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-**Do not** list devices twice as two SQL round-trips if a small refactor is cleaner: `emit_device_roster` may return `Vec<DeviceIdentityRow>` (print side-effect kept) so `run_list` ignores the vec and `run_status` uses it. Returning the vec is **allowed**; changing empty **copy** is **not**.
+`emit_device_roster` **must** return the vec (F26). `run_list` discards it. Print side-effect kept. Empty **copy** unchanged. Iterate by `&devices` so return does not consume printed rows.
+
+Fail-open sketch for F2:
+
+```rust
+match chosen {
+    None => format!("{} (not enrolled)", os_hostname()),
+    Some(d) if d.fingerprint_sha256.len() == 32 => format_fingerprint_hyphen(&fp),
+    Some(_) => format!("{} (enrolled; fingerprint unavailable)", os_hostname()),
+}
+```
 
 `replicate.rs` already imports `data_key_from_sqlcipher` from `device`. Import `this_machine_label` the same way. Print after `enrolled_count`.
 
@@ -247,7 +259,7 @@ U=5 is “agents learn nothing.” An enrolled roster still does not say **not P
 
 1. `device_status__empty_vault__this_machine_honesty_next` (AC1 — four lines; today two)
 2. `os_hostname__computername_then_hostname_then_unknown` (AC10)
-3. `this_machine_label__empty_and_local_fp` (AC11)
+3. `this_machine_label__empty_local_active_malformed` (AC11 rstest 4 cases)
 4. `replicate_status__empty_vault__this_machine_not_enrolled` (AC6)
 5. `replicate_status__format_json__keys_frozen_no_this_machine` (AC7 — may already pass keys; must assert **absence** of `this_machine` **and** human AC6 still red)
 
@@ -263,7 +275,9 @@ U=5 is “agents learn nothing.” An enrolled roster still does not say **not P
 
 | Risk | Mitigation |
 |------|------------|
-| Two “this machine” meanings (hostname vs fingerprint) | F2 **one** helper; empty = hostname+(not enrolled); enrolled = fingerprint only. |
+| Two “this machine” meanings (hostname vs fingerprint) | F2 **one** helper; empty = hostname+(not enrolled); enrolled = fingerprint; malformed enrolled = `enrolled; fingerprint unavailable`. |
+| Enrolled vault labeled `(not enrolled)` | F2/AC11 case 4 — OpenCode m3. |
+| Implementer adds `serial_test` | F27 — nextest isolation; no crate. |
 | List grows T298 lines | F6 emitter frozen; AC3. |
 | JSON scripts break | F9 / AC7 exact key set. |
 | Live bootstrap “to have something to show” | F13 / AC14 empty vault. |
@@ -304,7 +318,7 @@ U=5 is “agents learn nothing.” An enrolled roster still does not say **not P
 
 1. Phase 0 re-verify (plan.md) + FEATURE TX.
 2. Red AC1 / AC6 / AC10 / AC11 (and AC7 absence lock).
-3. Green helpers + `run_status` insert + replicate human line. Optional `emit_device_roster` → return `Vec` if it removes a second SQL list.
+3. Green helpers + **F26 required** `emit_device_roster` → `Vec` + `run_status` insert + replicate 19-char prefix.
 4. Stay-green AC3–AC5 / AC8 / AC9 / AC16.
 5. Docs AC12.
 6. Manual AC14 (read-only; **no** bootstrap).
@@ -332,7 +346,7 @@ U=5 is “agents learn nothing.” An enrolled roster still does not say **not P
 
 | Path | Change |
 |------|--------|
-| `crates/ai-brains-cli/src/commands/device.rs` | F2/F3 helpers + honesty const; `run_status` prints label + honesty + next; units AC10/AC11 |
+| `crates/ai-brains-cli/src/commands/device.rs` | F2/F3 helpers + honesty const; **F26** emitter returns `Vec`; `run_status` prints label + honesty + next; units AC10/AC11 |
 | `crates/ai-brains-cli/src/commands/replicate.rs` | Human `this machine:` after `enrolled_count`; JSON untouched |
 | `crates/ai-brains-cli/src/main.rs` | Optional Status about text (F22). No `--format` field. |
 | `crates/ai-brains-cli/tests/device_status_discoverability.rs` | AC1/AC2/AC6–AC9 hermetics (inject `T298-HOST`) |
@@ -344,3 +358,42 @@ U=5 is “agents learn nothing.” An enrolled roster still does not say **not P
 | `conductor/conductor.md` / `deferred.md` / this spec+plan / README-T285-T300 | Planning now; Completed on go |
 
 **Do not touch:** `doctor.rs`; `project.rs`; `forget.rs`; `ai-brains-contracts`; `Cargo.lock`; `ai-brains-sync` fingerprint formatter (reuse); T176 enroll/revoke; live vault; PROTOCOL-COMPAT JSON key **set**.
+
+---
+
+## 13. AI fold-in
+
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (both HEAD `782ddac`). Fold-in on `main` at `782ddac`. Live verify: `emit_device_roster` **`:354–380`** still `Result<()>`, `for d in devices` consumes; `run_status` **`:387–392`** emitter then `next:` only; replicate human **`:131–158`** prefixes all **len 19**; JSON six keys **`:96–121`**; `--quiet` **`:126–128`**; `DeviceIdentityRow.fingerprint_sha256: Vec<u8>` **`:39`**; `serial_test` **absent** from workspace; `hermetic_bin` denylist **`:42–69`** does not strip `COMPUTERNAME`/`HOSTNAME`. Pins **snapshot — re-verify at execute** (clap lock 4.6.1 / crates.io 4.6.6; rusqlite 0.39.0; hostname crate 0.4.2 crates.io **2025-11-28**, not in lock; **no clap 5**). Last merged PR still **#213** (comments/reviews **empty**). **No T301.**
+
+### Pins locked by fold-in
+
+1. **F2 / AC11 (OpenCode m3):** chosen-row bad fingerprint → `{hostname} (enrolled; fingerprint unavailable)`, never `(not enrolled)`.
+2. **F26 (Agy m1):** `emit_device_roster` **must** return `Vec<DeviceIdentityRow>`; no second SQL list.
+3. **F27 / AC10 (OpenCode m1):** no `serial_test` crate; no `#[serial(env)]`; nextest isolation + `TempEnv` / child `.env`.
+4. **AC6 / AC9 (OpenCode m2):** hermetics inject `COMPUTERNAME=T298-HOST` and remove `HOSTNAME` (same as AC1).
+5. **AC11 (Agy m3):** rstest includes active-without-local.
+6. **F8 (Agy O1):** exact 19-char prefix `  this machine:    `.
+7. **Phase 0 (OpenCode O1):** re-locate doc line anchors before editing.
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** emitter returns `Vec` | **Folded** F26 — **required**, not optional |
+| Agy | **m2** trim CR/whitespace | **Already** F3; **tightened** `lines().next().trim()` + AC10 trim case |
+| Agy | **m3** AC11 four-case matrix | **Folded** AC11 cases 1–4 (incl. active-without-local) |
+| Agy | **O1** 19-char column prefix | **Folded** F8 exact prefix (live siblings all len 19) |
+| Agy | **O2** docs dual empty/enrolled | **Already** F19; **tightened** name both formats |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** `serial_test` not a dep | **Folded** F27 / AC10 |
+| OpenCode | **m2** AC6/AC9 env inject | **Folded** AC6 / AC9 same child env as AC1 |
+| OpenCode | **m3** fail-open `(not enrolled)` lie | **Folded** F2 / AC11 case 4 |
+| OpenCode | **O1** Phase 0 re-locate docs | **Folded** plan Phase 0 + F19 |
+| OpenCode | **O2** enrolled last-line at CLI | **Already** AC2; **tightened** `last_nonempty_line` required |
+| OpenCode | **O3** hostname crates.io date | **Snapshot** — published 2025-11-28; docs.rs rebuild 2026-06-11; decline stands |
+| both | last-PR #213 Cursor | **Affirm F18** — no T301 |
+| both | deferred T299–T300 / T240 F2 / clap 5 / JSON freeze | **Affirm** |
+
+No Blockers. No Majors. No new placeholder minted. Do **not** edit `*-review.md`.
+

@@ -190,6 +190,24 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR Cursor **#213** | **N/A empty** — **no T301** F18 |
 | Identity leftover `7d97a456` vs `fcb8a40f` | **Not this track** |
 
+### T298 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `emit_device_roster` returns `Vec` | **Folded** F26 — required |
+| Agy m2 `os_hostname` trim CR/whitespace | **Already** F3; **tightened** AC10 |
+| Agy m3 AC11 active-without-local + malformed | **Folded** AC11 four cases |
+| Agy O1 19-char replicate prefix | **Folded** F8 |
+| Agy O2 docs dual empty/enrolled | **Already** F19; **tightened** |
+| OpenCode m1 `serial_test` not a dep | **Folded** F27 / AC10 — no crate |
+| OpenCode m2 AC6/AC9 env inject | **Folded** same child env as AC1 |
+| OpenCode m3 fail-open `(not enrolled)` on enrolled vault | **Folded** F2 / AC11 case 4 `{hostname} (enrolled; fingerprint unavailable)` |
+| OpenCode O1 Phase 0 re-locate doc anchors | **Folded** plan Phase 0 |
+| OpenCode O2 enrolled last-line CLI | **Already** AC2; **tightened** `last_nonempty_line` |
+| OpenCode O3 hostname crates.io date | **Snapshot** — 2025-11-28 publish; decline stands |
+| last-PR #213 Cursor | **Affirm N/A** — no T301 |
+| No B/M | Nothing to decline of B/M |
+
 ### T294 closeout residuals (2026-08-24)
 
 | Residual | Notes |

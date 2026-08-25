@@ -1,10 +1,27 @@
 # T298 Plan — device/replicate useful empty
 
 **Status:** **Pending** (Planned; not Placeholder). Implement only on **go**.
-**Spec:** [spec.md](./spec.md) F0–F25 / AC1–AC16
+**Spec:** [spec.md](./spec.md) F0–F27 / AC1–AC16
 **Category:** UX / HONESTY
 **Ledger TX (planning):** `839a62a1-2881-4fbb-b918-4ce5673d721c` (DOCS)
+**Ledger TX (fold-in Agy+OpenCode):** `b206dce2-6324-4c49-97f3-b3328d15db16` (DOCS)
 **Ledger TX (implement):** FEATURE on **go**
+
+---
+
+## AI fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+Agy **B 0 / M 0**. OpenCode **B 0 / M 0**. Disposition in spec **§13**.
+
+### Pins locked by fold-in
+
+1. **F2/AC11:** malformed enrolled fingerprint → `{hostname} (enrolled; fingerprint unavailable)`, never `(not enrolled)`.
+2. **F26:** `emit_device_roster` **must** return `Vec` (no second SQL list).
+3. **F27/AC10:** no `serial_test` / no `#[serial(env)]`; nextest isolation.
+4. **AC6/AC9:** same `COMPUTERNAME=T298-HOST` + `HOSTNAME` removed as AC1.
+5. **AC11:** rstest includes active-without-local.
+6. **F8:** exact 19-char `  this machine:    `.
+7. **Phase 0:** re-locate doc line anchors.
 
 ---
 
@@ -32,8 +49,9 @@
 - [ ] `ledgerful doctor` ; ledger 0 pending / 0 drift before FEATURE TX
 - [ ] Re-read `device.rs` `emit_device_roster` / `run_status` / `EMPTY_ENROLL_HINT` / `DEVICE_STATUS_NEXT`
 - [ ] Re-read `replicate.rs` `run_status` human + JSON + `--quiet`
+- [ ] Re-locate doc anchors CAPABILITIES / OPERATIONS / INSTALL / PROTOCOL-COMPAT (OpenCode O1) — do not trust plan-time `:112`/`:113`/`:1082`/`:197`/`:107`/`:109` if those files moved
 - [ ] Re-dogfood `device status` + `replicate status` read-only — **do not bootstrap**
-- [ ] Pins clap **4.6.1** / rusqlite **0.39.0** — no bump; no `hostname` crate
+- [ ] Pins clap **4.6.1** / rusqlite **0.39.0** — no bump; no `hostname` crate; **no** `serial_test` crate
 - [ ] FEATURE TX
 - [ ] Did **not** `cargo install`; did **not** grow hotspots / bootstrap live vault
 - [ ] Rescan `conductor/deferred.md` — T298 absorbed; T299–T300 / T240 F2 / 750 ms not stolen
@@ -48,15 +66,16 @@
 - [ ] Placeholder replicate `none` → **rewrite** F20 `{hostname} (not enrolled)`
 - [ ] T251 F14 partial lift → F4
 - [ ] last-PR #213 Cursor N/A → F18 no T301
+- [ ] Fold-in OpenCode m3 fail-open; F26 Vec return; F27 no serial_test; AC6 env inject; AC11 4-case rstest
 
 ---
 
 ## Phase 1 — TDD red
 
-- [ ] `os_hostname` rstest (AC10) — `TempEnv`; COMPUTERNAME wins / HOSTNAME fallback / `unknown`
-- [ ] `this_machine_label` rstest (AC11) — empty / local 32-byte / bad len fail-open
-- [ ] Hermetic empty `device status` four-line body (AC1) — inject `COMPUTERNAME=T298-HOST`
-- [ ] Hermetic empty `replicate status` this-machine `(not enrolled)` (AC6)
+- [ ] `os_hostname` rstest (AC10) — `TempEnv`; **no** `#[serial(env)]`; COMPUTERNAME wins / HOSTNAME fallback / `unknown` / trim
+- [ ] `this_machine_label` rstest (AC11) — empty / local 32-byte / active-without-local / 31-byte → `enrolled; fingerprint unavailable`
+- [ ] Hermetic empty `device status` four-line body (AC1) — inject `COMPUTERNAME=T298-HOST` + remove `HOSTNAME`
+- [ ] Hermetic empty `replicate status` this-machine `(not enrolled)` (AC6) — **same env inject as AC1**
 - [ ] JSON key-set freeze + no `this_machine` (AC7)
 
 ---
@@ -65,8 +84,8 @@
 
 - [ ] Const `DEVICE_STATUS_HONESTY` + helpers in `device.rs` (`pub(crate)`)
 - [ ] `run_status` (device): after emitter, print label + honesty + `next:` (F1/F5/F6)
-- [ ] Optional: `emit_device_roster` returns `Vec` so status does not double-list; empty **copy** unchanged
-- [ ] `replicate.rs` human line after `enrolled_count`; JSON / `--quiet` untouched
+- [ ] **Required:** `emit_device_roster` returns `Vec` (F26); `run_list` discards; empty **copy** unchanged
+- [ ] `replicate.rs` human line after `enrolled_count` with exact 19-char prefix; JSON / `--quiet` untouched
 - [ ] Enrolled hermetic AC2 / AC9 (fingerprint shared)
 - [ ] Stay-green AC3–AC5 / AC8 / AC13 / AC16 / T176 / T198 fingerprint
 
@@ -136,6 +155,7 @@ Never `git push origin main`. Never force-push.
 | `--format` on `device` / JSON DTO | F11 |
 | Replicate JSON `this_machine` key | F9 |
 | Crate `hostname` / Win32 / `hostname.exe` | F3 / F14 |
+| Crate `serial_test` / `#[serial(env)]` | F27 |
 | Combined dashboard / doctor 16th | F16 |
 | T299 forget-list / T300 graph sparse | F24 |
 | clap 5 / rusqlite 0.40 / T240 F2 | F14 / F24 |
