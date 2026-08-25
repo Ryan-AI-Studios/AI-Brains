@@ -702,6 +702,39 @@ pub(crate) fn status_next_line(is_running: bool) -> Option<&'static str> {
     }
 }
 
+/// Human contrast when Stopped and a model/embedding TCP port is Open (T297 F1).
+/// U+2260 `≠` — not ASCII `!=`. Not T281 `HTTP /health 750ms ≠ daemon TCP`.
+pub(crate) const BACKEND_OPEN_NE_DAEMON: &str = "backend TCP Open ≠ daemon";
+
+/// Some iff Stopped and at least one backend TCP port is Open (T297 F2).
+pub(crate) fn status_backend_contrast_line(
+    is_running: bool,
+    llm_open: bool,
+    embed_open: bool,
+) -> Option<&'static str> {
+    if !is_running && (llm_open || embed_open) {
+        Some(BACKEND_OPEN_NE_DAEMON)
+    } else {
+        None
+    }
+}
+
+/// Tail after PID: contrast (if any) then T249 `next:` (T297 F5 / F24).
+pub(crate) fn status_report_tail(
+    is_running: bool,
+    llm_open: bool,
+    embed_open: bool,
+) -> Vec<&'static str> {
+    let mut lines = Vec::new();
+    if let Some(contrast) = status_backend_contrast_line(is_running, llm_open, embed_open) {
+        lines.push(contrast);
+    }
+    if let Some(next) = status_next_line(is_running) {
+        lines.push(next);
+    }
+    lines
+}
+
 /// Interactive daemon status (T199): liveness IPC without vault key / open.
 pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::Error>> {
     let client = DaemonClient::new();
@@ -736,6 +769,8 @@ pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::E
         "llama.cpp default :8080",
     );
 
+    let mut llm_open = false;
+    let mut embed_open = false;
     for (name, host, port, desc) in [
         ("LLM backend", model_host, model_port, model_desc),
         ("Embedding backend", embed_host, embed_port, embed_desc),
@@ -769,6 +804,12 @@ pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::E
                         }
                     }
                 }
+                // T297 F36: capture Open by backend name (not both from one state).
+                match name {
+                    "LLM backend" => llm_open = state == "Open",
+                    "Embedding backend" => embed_open = state == "Open",
+                    _ => {}
+                }
                 println!("{} {} [{}]: {}", name, addr, desc, state);
             }
             Err(_) => {
@@ -798,7 +839,8 @@ pub async fn run_status(opts: StatusOptions) -> Result<(), Box<dyn std::error::E
         }
     }
 
-    if let Some(line) = status_next_line(is_running) {
+    // T297 F5/F29: contrast (if any) then T249 next: — after PID block.
+    for line in status_report_tail(is_running, llm_open, embed_open) {
         println!("{line}");
     }
 
@@ -811,6 +853,7 @@ mod status_vault_tests {
     #![allow(non_snake_case)]
 
     use super::*;
+    use rstest::rstest;
     use std::path::Path;
 
     /// T249 AC7: Stopped prints next-step; Running omits it.
@@ -825,6 +868,74 @@ mod status_vault_tests {
     #[test]
     fn status_next_line__running__none() {
         assert!(status_next_line(true).is_none());
+    }
+
+    /// T297 AC1/AC2/AC3/AC4 / F35: exhaustive 8-triple matrix.
+    #[rstest]
+    #[case(false, false, false, false)]
+    #[case(false, true, false, true)]
+    #[case(false, false, true, true)]
+    #[case(false, true, true, true)]
+    #[case(true, false, false, false)]
+    #[case(true, true, false, false)]
+    #[case(true, false, true, false)]
+    #[case(true, true, true, false)]
+    fn status_backend_contrast_line__matrix(
+        #[case] is_running: bool,
+        #[case] llm_open: bool,
+        #[case] embed_open: bool,
+        #[case] expect_some: bool,
+    ) {
+        let got = status_backend_contrast_line(is_running, llm_open, embed_open);
+        if expect_some {
+            assert_eq!(got, Some(BACKEND_OPEN_NE_DAEMON));
+        } else {
+            assert!(got.is_none(), "expected None; got {got:?}");
+        }
+    }
+
+    /// T297 AC5 / F18: U+2260, not ASCII `!=`.
+    #[test]
+    fn backend_open_ne_daemon__uses_u2260_not_ascii() {
+        assert!(
+            BACKEND_OPEN_NE_DAEMON.contains('\u{2260}'),
+            "const must use U+2260; got: {BACKEND_OPEN_NE_DAEMON}"
+        );
+        assert_ne!(BACKEND_OPEN_NE_DAEMON, "backend TCP Open != daemon");
+        assert_eq!(BACKEND_OPEN_NE_DAEMON, "backend TCP Open ≠ daemon");
+    }
+
+    /// T297 AC6 / F30: Stopped+Open pair → single contrast then next:.
+    #[rstest]
+    #[case(true, false)]
+    #[case(false, true)]
+    #[case(true, true)]
+    fn status_report_tail__stopped_open_pair__single_contrast_then_next(
+        #[case] llm_open: bool,
+        #[case] embed_open: bool,
+    ) {
+        let tail = status_report_tail(false, llm_open, embed_open);
+        assert_eq!(
+            tail,
+            vec![BACKEND_OPEN_NE_DAEMON, "next: ai-brains daemon start"],
+            "F30: exactly one contrast then next:; got {tail:?}"
+        );
+        assert_eq!(tail.last().copied(), Some("next: ai-brains daemon start"));
+    }
+
+    /// T297 AC6: Stopped + both Closed → next: only.
+    #[test]
+    fn status_report_tail__stopped_closed__next_only() {
+        assert_eq!(
+            status_report_tail(false, false, false),
+            vec!["next: ai-brains daemon start"]
+        );
+    }
+
+    /// T297 AC6: Running → empty even if both Open.
+    #[test]
+    fn status_report_tail__running__empty() {
+        assert!(status_report_tail(true, true, true).is_empty());
     }
 
     /// AC13: missing key → None (no panic, no propagate).

@@ -980,6 +980,51 @@ mod tests {
         );
     }
 
+    /// T297 AC7: Status after_help names TCP connect + model process.
+    #[test]
+    #[allow(non_snake_case)]
+    fn daemon__help__status_names_backend_tcp() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "daemon", "status", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.contains("TCP connect"),
+            "AC7: after_help names TCP connect; got: {help}"
+        );
+        assert!(
+            help.contains("model process"),
+            "AC7: after_help names model process; got: {help}"
+        );
+    }
+
+    /// T297 AC7: unknown Status flags stay clap exit 2 (no `--format`).
+    #[test]
+    #[allow(non_snake_case)]
+    fn daemon_status__unknown_format_flag__clap_exit_2() {
+        let err =
+            match super::Cli::try_parse_from(["ai-brains", "daemon", "status", "--format", "json"])
+            {
+                Ok(_) => panic!("expected unknown --format to fail clap parse"),
+                Err(e) => e,
+            };
+        let kind = err.kind();
+        assert!(
+            matches!(
+                kind,
+                clap::error::ErrorKind::UnknownArgument | clap::error::ErrorKind::InvalidValue
+            ),
+            "AC7: unknown flag must be clap usage class; got {kind:?}"
+        );
+        // clap DisplayHelp/usage exits map to EXIT_USAGE=2 at main; kind proves refuse.
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("--format") || rendered.contains("unexpected"),
+            "AC7: error should name the unknown flag; got: {rendered}"
+        );
+    }
+
     /// T296 AC6: after_help names Router 267014 / SCHED_S_TASK_TERMINATED as success (not Nightly).
     #[test]
     #[allow(non_snake_case)]
@@ -3106,6 +3151,9 @@ pub enum DaemonCommands {
     /// Start the daemon in the background
     Start,
     /// Show the status of the running daemon
+    #[command(
+        after_help = "LLM/Embedding Open is TCP connect to the model process, not the AI-Brains daemon."
+    )]
     Status,
     /// Register a Windows Task Scheduler logon task to auto-start the daemon
     Schedule {

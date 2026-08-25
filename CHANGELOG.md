@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T297 `daemon status` Stopped vs backend Open:** When Stopped and LLM/Embedding TCP is Open, prints `backend TCP Open ≠ daemon` immediately above T249 `next: ai-brains daemon start`. Running omits the contrast. Status `after_help` clarifies Open is TCP connect to the model process. No JSON/`--format`; no HTTP unify; do not start/stop the daemon for this honesty.
+
 - **T296 Nightly Router last-result honesty:** Human `nightly --status` Router line omits `267014` / `267009` decimals (`Ready` + `last run: terminated`, or Status-only when Running). JSON `router.last_result` / `last_result_hint` stay frozen. `nightly --help` after_help names Router **267014** as `SCHED_S_TASK_TERMINATED` success (not Nightly Last Result). Status exit **0** for both scheduler-success HRESULTs.
 
 - **T295 usable encrypted backup (operator vault):** Live `--no-prune` create under the current key in the default sibling `backups/` so doctor `backup_recent` is not zero-usable. `backup create --help` after_help documents residual-fleet `--no-prune`, timestamp-not-class prune, and that list/doctor ignore custom `--output-dir`. T277 engine frozen; doctor remediator string unchanged.

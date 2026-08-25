@@ -144,3 +144,55 @@ fn daemon_status__stopped__no_vault_section() {
     }
     // If a live daemon is Running on the machine, skip AC6 assertion (unit covers Stopped).
 }
+
+/// T297 AC8 / F28: keep-bound listener — Stopped+Open must print contrast; Running omits it.
+/// Hold the listener for the whole `daemon status` (do not copy T94 drop-then-delay).
+#[test]
+fn daemon_status__keep_bound_listener__contrast_when_stopped() {
+    use std::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind keep-bound listener");
+    let port = listener.local_addr().expect("local_addr").port();
+    let model_url = format!("http://127.0.0.1:{port}");
+
+    let mut cmd = common::hermetic_bin_no_key();
+    cmd.env_remove("AI_BRAINS_KEY");
+    cmd.env_remove("AI_BRAINS_ALLOW_ZERO_KEY");
+    let output = cmd
+        .env("AI_BRAINS_MODEL_URL", &model_url)
+        .arg("daemon")
+        .arg("status")
+        .output()
+        .expect("daemon status keep-bound");
+
+    // Keep listener alive until after the child exits.
+    drop(listener);
+
+    assert!(
+        output.status.success(),
+        "AC8: exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let contrast = "backend TCP Open ≠ daemon";
+    let last = stdout.lines().rfind(|l| !l.is_empty());
+
+    if stdout.contains("Status: Stopped") {
+        assert!(
+            stdout.contains(contrast),
+            "AC8 Stopped+Open must contain contrast; got: {stdout}"
+        );
+        assert_eq!(
+            last,
+            Some("next: ai-brains daemon start"),
+            "AC8: last non-empty line must be next:; got {last:?} in {stdout}"
+        );
+    } else if stdout.contains("Status: Running") {
+        assert!(
+            !stdout.contains(contrast),
+            "AC8 Running must omit contrast; got: {stdout}"
+        );
+    } else {
+        panic!("AC8: expected Status Running|Stopped; got: {stdout}");
+    }
+}

@@ -107,7 +107,7 @@ Four families (T266):
 | `memory list` | human | human | **B.** `--format human` (default) or `json`. No `auto`. |
 | `project list` | human | human | **B.** `--format human` (default) or `json`. No `auto`. |
 | `doctor` | human | human | **B.** `--json` / `--format json` override (full `DoctorReport`). `--summary` is opt-in compact of the same 15-check report (warn+fail attention or `No issues.`). Does **not** TTY-switch. |
-| `daemon status` | human | human | **B.** No `--format`. Stopped last line: `next: ai-brains daemon start`. Running omits `next:`. Exit **0** both states. Keyless liveness (T199). |
+| `daemon status` | human | human | **B.** No `--format`. When Stopped and LLM/Embedding TCP is Open, prints `backend TCP Open ≠ daemon` (IPC vs model TCP — not nightly’s T281 `HTTP /health 750ms ≠ daemon TCP`) **before** the last line. Stopped last line: `next: ai-brains daemon start`. Running omits contrast and `next:`. Exit **0** both states. Keyless liveness (T199). |
 | `device list` | human | human | **B.** Human table only. No `--format`. Empty = T198 `No enrolled devices. Run \`ai-brains device bootstrap\` first.` |
 | `device status` | human | human | **B.** Human-only. Same roster as `device list` + **always** `next: ai-brains replicate status` (empty and enrolled). No `--format` (unknown flags clap exit **2**). Not a JSON DTO. |
 | `replicate status` | human | human | `--format json` is the machine enrollment path (keys frozen; unchanged). Does **not** TTY-switch. |
