@@ -4,7 +4,20 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #215 T299 **empty** — **no T301**. **T285 Completed** 2026-08-22 (`#201`). **T286 Completed** 2026-08-23 (`#202`). **T287 Completed** 2026-08-23 (`#203`). **T288 Completed** 2026-08-23 (`#204`). **T289 Completed** 2026-08-23 (`#205`). **T290 Completed** 2026-08-23 (`#206`). **T291 Completed** 2026-08-23 (`#207`). **T292 Completed** 2026-08-23 (`#208`). **T293 Completed** 2026-08-23 (`#209`). **T294 Completed** 2026-08-24 (`#210`). **T295 Completed** 2026-08-24 (`#211`). **T296 Completed** 2026-08-24 (`#212`). **T297 Completed** 2026-08-24. **T298 Completed** 2026-08-25 (`#214`). **T299 Completed** 2026-08-25 (`#215`). **T300 Completed** 2026-08-25 (series closer).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #216 T300 **empty**. **T285–T300 Completed.** **T301–T305 Planned** (Dependabot; owner 2026-08-25).
+
+### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
+
+| Item | Disposition |
+|------|-------------|
+| GHA `#68–#72` SHA-pin majors | **T301** Planned |
+| thiserror `#60` + chrono `#62` patches | **T302** Planned |
+| tokio `#59` 1.53.1 | **T303** Planned |
+| tower-http `#58` 0.7 | **T304** Planned |
+| rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
+| last-PR `#216` Cursor | **N/A empty** — no T306 |
+| clap 5 | **Still declined** (not in this Dependabot batch) |
+| Merge Dependabot remotes as-is | **Declined** — recreate on `track/TNN-*` |
 
 ### T300 implement closeout (2026-08-25)
 
@@ -13,15 +26,15 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Rebuild remediator UX: `--dry-run` + density stdout + daemon Safety fail-closed | **Done** F4–F8 / AC1–AC5 / AC14 dry-run |
 | Floors frozen; never force `live`; T232 remediator exact; no `--confirm` | **Done** F2 / F3 / F8 / AC8 / AC16 |
 | Shared `graph_health_report`; `rebuild.rs` / `graph_density.rs` / `doctor.rs` unchanged | **Done** F27 / AC13 |
-| Live mutate on operator vault | **Residual** F1 — owner skipped daemon stop; hermetic + unit inject SoT |
-| PATH until `cargo install --features graph` | **Residual** F17 — not easy without owner install |
+| Live mutate on operator vault | **Done** 2026-08-25 owner: daemon stop → `graph rebuild` (~91s, 57919 events) → E/N **0.149→0.407** still `sparse` honest; doctor `graph_density` agrees; daemon restarted PID 17404 |
+| PATH until `cargo install --features graph` | **Done** 2026-08-25 owner: `cargo install --path crates/ai-brains-cli --locked --features graph` → PATH **0.1.3** graph-on |
 | `read_all_events` full Vec RAM | **Residual** F9 / F25 — engine freeze |
 | Mid-rebuild daemon start / crash TOCTOU | **Residual** F25 — re-run rebuild; probe≠atomic DELETE |
 | JSON dry-run omits `dry_run` key | **Residual** F10 — by design (human-only extras) |
 | Hermetic mutate early-return when host daemon Running | **Residual** C3 — unit `daemon_up=false` is mutate SoT; not easy without daemon stop |
-| clap 4.6 workspace / rusqlite 0.40 Dependabot | **Residual** F14 — not stolen |
+| clap 4.6 workspace / rusqlite 0.40 Dependabot | **T305** Planned (rusqlite); clap 5 still declined |
 | leftover `--write` / T240 F2 / T263 H2 / clap 5 / floor retune | **Residual** F24 — declined |
-| No T301 (last-PR #215 empty) | **Affirm** F18 |
+| No T301 (last-PR #215 empty) | **Superseded** — T301–T305 Dependabot series; last-PR `#216` empty |
 
 ### T300 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
 
