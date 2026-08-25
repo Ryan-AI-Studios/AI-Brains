@@ -4,7 +4,22 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #216 T300 **empty**. **T285–T300 Completed.** **T301–T305 Planned** (Dependabot; owner 2026-08-25).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #216 T300 **empty**. **T285–T300 Completed.** **T301 Completed** (GHA SHA pins). **T302–T305 Planned** (Dependabot cargo).
+
+### T301 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| checkout v7.0.1 all 4 sites (3× ci + release) | **Done** AC1 |
+| upload-artifact v7.0.1 / download-artifact v8.0.1 / attest v4.2.2 / gh-release v3.0.2 peeled | **Done** AC2 / F10 / F11 |
+| No floating `@vN`; no `pull_request_target` / `workflow_run` | **Done** AC3 / AC4 |
+| CHANGELOG + release.yml header SHA table 2026-08-25 | **Done** AC6 / F9 |
+| Zero crate / Cargo.lock edits | **Done** AC7 |
+| Do not merge Dependabot remotes `#68–#72` | **Done** F3 |
+| Release.yml tag-only — no PR job exercises attest/publish | **Residual** R1 — YAML + input-compat review only; soft attest F5 |
+| Node 20 runner deprecation timeline | **Residual** R2 — out of scope; Node 24 is action `runs.using` |
+| dtolnay/rust-toolchain + Swatinem/rust-cache unpinned-from-this-batch | **Residual** R3 — F2 / non-goal |
+| mint row “T301 Planned” | **Superseded** — Completed |
 
 ### T301 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
 
@@ -26,7 +41,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 
 | Item | Disposition |
 |------|-------------|
-| GHA `#68–#72` SHA-pin majors | **T301** Planned |
+| GHA `#68–#72` SHA-pin majors | **T301** Completed |
 | thiserror `#60` + chrono `#62` patches | **T302** Planned |
 | tokio `#59` 1.53.1 | **T303** Planned |
 | tower-http `#58` 0.7 | **T304** Planned |

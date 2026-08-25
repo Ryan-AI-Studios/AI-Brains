@@ -1,7 +1,7 @@
 # T301 — GitHub Actions SHA-pin refresh (Dependabot #68–#72)
 
 - **Track ID:** T301-GhaShaPins
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** (2026-08-25)
 - **Category:** INFRA / SECURITY
 - **Owner:** Grok
 - **Source:** Open Dependabot PRs `#68` upload-artifact 4→7, `#69` download-artifact 4→8, `#70` attest 2→4, `#71` action-gh-release 2→3, `#72` checkout 4→7 (2026-08-02). Owner requested tracks 2026-08-25 after T300 live rebuild.

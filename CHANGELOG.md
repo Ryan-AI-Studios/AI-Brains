@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Security
+
+- **T301 GHA SHA-pin refresh:** Bump SHA-pinned Actions to Dependabot target majors without floating tags — `actions/checkout` v7.0.1, `upload-artifact` v7.0.1, `download-artifact` v8.0.1, `attest` v4.2.2, `softprops/action-gh-release` v3.0.2 (annotated tag peeled to commit). `ci.yml` (3× checkout) + `release.yml`. rust-toolchain / rust-cache unchanged. No Dependabot remote merge.
+
 ## [0.1.3] — 2026-08-25
 
 Workspace version bump after the T285–T300 CLI quality series (T300 graph sparse remediator closer). PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph` (or `scripts/build.ps1`).
