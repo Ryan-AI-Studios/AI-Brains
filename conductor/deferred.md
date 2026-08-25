@@ -4,7 +4,24 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor #216 T300 **empty**. **T285–T300 Completed.** **T301 Completed** (GHA SHA pins). **T302–T305 Planned** (Dependabot cargo).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#218** T301 **and** `#217` 0.1.3 **empty**. **T285–T302 Completed.** **T303–T305 Planned** (Dependabot cargo).
+
+### T302 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| thiserror/thiserror-impl 2.0.18→2.0.20 via `thiserror@2.0.18 --precise` | **Done** AC1 / F8 |
+| chrono 0.4.44→0.4.45 via `--precise` | **Done** AC2 / F8 |
+| Workspace carets still 2.0 / 0.4; `git diff -- crates/` empty | **Done** AC3 / AC5 |
+| thiserror 1.0.69 unchanged; rusqlite/tokio/tower-http/clap unchanged | **Done** AC7 |
+| F9: thiserror-impl→syn 3.0.3; iana-time-zone windows-core 0.62.2→0.61.2 | **Done** expected extras |
+| CHANGELOG Unreleased Changed row | **Done** AC6 |
+| Full gate (fmt/clippy/nextest/deny/audit + ledgerful full) | **Done** AC4 |
+| Do not merge Dependabot remotes `#60`/`#62` | **Done** F5 |
+| Close `#60`/`#62` as superseded after squash; do not delete remotes | **Residual** R1 — standing Dependabot hygiene |
+| Dual thiserror 1.0.69 + 2.x (bare `-p thiserror` ambiguous) | **Residual** R2 — Tauri/json-patch stack; out of scope |
+| Dual windows-core 0.61.2 + 0.62.2 after F9 edge | **Residual** R3 — expected; unify needs Tauri/windows work |
+| mint row “T302 Planned” | **Superseded** — Completed |
 
 ### T301 implement closeout (2026-08-25)
 
@@ -37,16 +54,31 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR `#216`/`#217` Cursor | **Affirm N/A** — no T306 |
 | No B | Nothing to decline of B |
 
+### T302 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2+m3 precise `thiserror@2.0.18 --precise 2.0.20` | **Folded** F8 — `cargo pkgid thiserror` is ambiguous with 1.0.69 |
+| OpenCode m1 stale changelog text | **Folded** spec §2 — thiserror syn 3 + clippy #454; chrono 0.4.45 tz-only |
+| OpenCode m2 last-PR `#216` → `#218` | **Folded** §2 / §9 |
+| OpenCode O1 `#62` windows-core 0.62.2→0.61.2 | **Folded** F9 / AC7 — both versions stay |
+| OpenCode O2 syn 3 already in lock | **Folded** F9; PR body at execute |
+| Agy m1 lockfile-only Cargo.toml | **Already** F2 / AC3 / AC5 |
+| Agy O1 clippy `--all-targets` | **Already** AC4 |
+| Agy chrono 0.4.45 DateTime Copy / `days_since` | **Decline** — not v0.4.45 (tz #1787/#1789) |
+| last-PR `#218` / `#217` Cursor | **Affirm N/A** — no T306 |
+| No B / M | Nothing to decline of B/M |
+
 ### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
 
 | Item | Disposition |
 |------|-------------|
 | GHA `#68–#72` SHA-pin majors | **T301** Completed |
-| thiserror `#60` + chrono `#62` patches | **T302** Planned |
+| thiserror `#60` + chrono `#62` patches | **T302** Completed |
 | tokio `#59` 1.53.1 | **T303** Planned |
 | tower-http `#58` 0.7 | **T304** Planned |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
-| last-PR `#216` Cursor | **N/A empty** — no T306 |
+| last-PR `#218` / `#217` Cursor | **N/A empty** — no T306 |
 | clap 5 | **Still declined** (not in this Dependabot batch) |
 | Merge Dependabot remotes as-is | **Declined** — recreate on `track/TNN-*` |
 
