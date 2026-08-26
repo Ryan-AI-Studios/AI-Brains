@@ -4,7 +4,21 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#222** T305 **empty**. **T285–T306 Completed.** **T307–T309 Planned.** **T310 Planned** (placeholder from T306 full plan).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#223** T306 **empty**. **T285–T306 Completed.** **T307 Planned (full, upstream-blocked).** **T308–T309 Planned.** **T310 Planned** (placeholder from T306 full plan).
+
+### T307 full plan (2026-08-26) — dual 0.6.11; reqwest still 0.6.8
+
+| Item | Disposition |
+|------|-------------|
+| T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **Absorb** F1–F3 / AC1–AC2 — unify **up** only |
+| crates.io reqwest **0.13.4** / master still `tower-http 0.6.8` | **F3 Stop-Before** on go if unchanged; conductor **Blocked** not Completed |
+| reqwest#3062 open (2026-06-29; last 2026-07-13); tower-http #712/#722 git-only | **Decline git-dep** F11; `unknown-git = "deny"` |
+| `[patch.crates-io]` / fork / `tower-reqwest` | **Decline** F4 |
+| T304 R4 csrf | **Decline** F5 |
+| T308 / T309 / T310 | **Not stolen** |
+| Dual hyper 0.14 / desktop 0.1.2 | **Decline** — not this dual |
+| last-PR `#223` Cursor | **N/A empty** — no T311 |
+| clap 5 / floor retune | **Still declined** |
 
 ### T306 implement closeout (2026-08-26)
 
