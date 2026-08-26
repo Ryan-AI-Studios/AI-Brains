@@ -6,6 +6,19 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#223** T306 **empty**. **T285–T306 Completed.** **T307 Planned (full, upstream-blocked).** **T308–T309 Planned.** **T310 Planned** (placeholder from T306 full plan).
 
+### T307 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Both m1 stale HEAD `34379bf` / 0/0 | **Folded** snapshot `a084610` / ahead **1** |
+| Agy m1 `#223` time 11:38:11Z | **Decline** — `createdAt` / `gh pr list`; `mergedAt` **12:34:00Z** |
+| OpenCode m2 agy timestamp misread | **Folded** — spec was already correct |
+| OpenCode m3 `cargo info` ≠ 0.6.8 pin | **Folded** F22 / AC1 / AC9 |
+| Agy m2 F3 halt via `cargo info` | **Partial** — halt Already F3; pin SoT is Cargo.toml |
+| Both O1 AC2 / O2 json-only F12 | **Already** |
+| last-PR `#223` Cursor | **Affirm N/A** — no T311 |
+| Agy/OpenCode B / M | None filed |
+
 ### T307 full plan (2026-08-26) — dual 0.6.11; reqwest still 0.6.8
 
 | Item | Disposition |

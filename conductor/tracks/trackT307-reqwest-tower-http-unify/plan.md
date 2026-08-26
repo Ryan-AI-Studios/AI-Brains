@@ -3,6 +3,7 @@
 **Status:** **Pending**. Spec [spec.md](./spec.md). **Upstream-blocked** at plan time (reqwest 0.13.4 → tower-http `0.6.8`).
 **Category:** CHORE / DEPS
 **Ledger (planning):** `6e17c94a-a250-4f24-b579-3b4a66970aa6` (DOCS)
+**Ledger (fold-in):** `b4094321-90a3-42c7-984b-b0ff05dd1eac` (DOCS)
 **Ledger (implement):** CHORE TX on go **only if** Phase 0 F3 does not halt.
 
 ---
@@ -11,7 +12,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `34379bf` CLEAN; `origin/main...HEAD` **0/0**. Branch `main`. T306 `#223` on main. |
+| HEAD / tree | Fold-in `a084610` CLEAN; `origin/main...HEAD` **ahead 1**. Plan-write was `34379bf` / 0/0 (m1). Branch `main`. T306 `#223` on origin/main. |
 | PATH `cipher_page` | **`cipher_version=4.14.0 community`** (T306 done; not this hole) |
 | PATH `graph_feature` | **`available`** |
 | Workspace reqwest | `"0.13"` json (`Cargo.toml:50`) |
@@ -19,7 +20,7 @@
 | Lock tower-http | **0.6.11** (reqwest) **and** **0.7.0** (api-server) |
 | Invert 0.6.11 | reqwest → models → cli/brain/retrieval/daemon; desktop |
 | Invert 0.7.0 | api-server → ai-brainsd |
-| crates.io reqwest | **0.13.4** latest (`cargo info` / `cargo search`) |
+| crates.io reqwest | **0.13.4** latest (`cargo info` = **version**; pin = docs.rs `Cargo.toml.orig` `0.6.8` — F22) |
 | crates.io tower-http | **0.7.0** latest |
 | reqwest master / 0.13.4 Cargo.toml | `tower-http = "0.6.8"` follow-redirect |
 | reqwest#3062 | **open**, not merged (`2026-06-29` … last `2026-07-13`) |
@@ -29,7 +30,7 @@
 | rustc | **1.95.0** |
 | Last PR Cursor | `#223` comments/reviews/issues **empty** — N/A; no T311 |
 | Open PRs | **none** |
-| Ledger | 0 pending / 0 drift at scan; this TX `6e17c94a` |
+| Ledger | 0 pending / 0 drift at scan; plan TX `6e17c94a`; fold-in TX `b4094321` |
 | `ISSUES.md` | **Does not exist** |
 | Planning bump | **Not run** |
 
@@ -51,8 +52,8 @@
 
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
 - [ ] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
-- [ ] `cargo info reqwest --color never` — latest version
-- [ ] Read that version’s `tower-http` requirement (docs.rs `/crate/reqwest/<ver>/source/Cargo.toml` or crates.io download)
+- [ ] `cargo info reqwest --color never` — latest **version** only (F22; not the 0.6.8 pin)
+- [ ] Read **that** version’s `tower-http` requirement from docs.rs `/crate/reqwest/<ver>/source/Cargo.toml.orig` (or crates.io download)
 - [ ] `cargo info tower-http --color never` — latest 0.7.x
 - [ ] Rescan `deferred.md` open overlapping rows
 - [ ] **If** reqwest still requires tower-http **0.6.x** → **F3 halt**:

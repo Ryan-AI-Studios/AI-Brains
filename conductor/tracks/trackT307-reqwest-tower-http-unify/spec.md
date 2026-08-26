@@ -9,8 +9,9 @@
 - **Blocks / feeds:** One lock line of `tower-http` (smaller graph, quieter `deny.toml` `multiple-versions = "warn"`). Does **not** unblock T308/T309/T310. Capture path does not use `tower-http`.
 - **Absorbs:** T304 R2 (dual required after `#221`); leftover README T307 problem text.
 - **Not absorbed (DoD):** T304 R4 csrf; T308 sparse remediator; T309 `table_exists`; T310 `run_update` + PATH daemon; clap 5; floor retune; `[patch.crates-io]`; git-dep reqwest / tower-http; new crates (`tower-reqwest`).
-- **Research date:** 2026-08-26 (HEAD `34379bf` T306 `#223`).
-- **Ledger:** planning DOCS TX `6e17c94a-a250-4f24-b579-3b4a66970aa6`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. Implement starts a **CHORE** TX on **go** only if Phase 0 F3 does **not** halt.
+- **Research date:** 2026-08-26 (plan wrote at `34379bf`; fold-in against `a084610`, ahead **1** of `origin/main`).
+- **AI fold-in:** 2026-08-26 `agy-review.md` + `opencode-review.md` (HEAD `a084610`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** both m1 HEAD snapshot; OpenCode m3 cargo-info is version-only (F22 / AC9). **Decline:** Agy m1 `#223` timestamp (`mergedAt` **12:34:00Z** is correct; **11:38:11Z** is `createdAt` / `gh pr list`). **Already:** Agy m2 F3 halt; both O1 AC2; Agy O2 / OpenCode O2 F12. Disposition **§13**.
+- **Ledger:** planning DOCS TX `6e17c94a-a250-4f24-b579-3b4a66970aa6`. Fold-in DOCS TX `b4094321-90a3-42c7-984b-b0ff05dd1eac`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. Implement starts a **CHORE** TX on **go** only if Phase 0 F3 does **not** halt.
 - **Isolation:** Do **not** `[patch.crates-io]`. Do **not** git-dep [reqwest#3062](https://github.com/seanmonstar/reqwest/pull/3062) or tower-http `main`. Do **not** add CorsLayer / CsrfLayer. Do **not** merge Dependabot remotes. Never `git push origin main`. Do **not** `cargo install` / live HTTP bind / `daemon stop` as planning.
 
 ---
@@ -32,11 +33,11 @@ This unblocks lock hygiene the T304 bump could not: two semver-incompatible `tow
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `34379bf` — T306 `#223` Completed. Tree **CLEAN**. `origin/main...HEAD` **0/0**. Branch `main`. |
+| HEAD | Fold-in `a084610` (T307 full-plan commit). Tree **CLEAN**. `origin/main...HEAD` **ahead 1**. Branch `main`. Plan-write snapshot was `34379bf` / **0/0** (both-reviewer m1). |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` LastWriteTime **2026-08-26 6:54:32 AM**; `ai-brains 0.1.3`. |
 | PATH `doctor --json` | `cipher_page` **`cipher_version=4.14.0 community`** (T306 done). `graph_feature=available`. `vault_open` opened read-only. **Not this hole.** |
 | rustc / cargo | **1.95.0** / **1.95.0**. |
-| Last GitHub PR | [#223](https://github.com/Ryan-AI-Studios/AI-Brains/pull/223) T306 (`mergedAt` **2026-08-26T12:34:00Z**). `pulls/223/comments`, `/reviews`, `issues/223/comments` all **`[]`**. Body has a Bugbot **CURSOR_SUMMARY** (low-risk overview, no defect). **last-PR Cursor: N/A.** Open PRs: **none**. **No leftover from Cursor. No T311.** |
+| Last GitHub PR | [#223](https://github.com/Ryan-AI-Studios/AI-Brains/pull/223) T306 (`mergedAt` **2026-08-26T12:34:00Z**; `createdAt` / `gh pr list` **11:38:11Z** — do **not** treat list time as merge). `pulls/223/comments`, `/reviews`, `issues/223/comments` all **`[]`**. Body has a Bugbot **CURSOR_SUMMARY** (low-risk overview, no defect). **last-PR Cursor: N/A.** Open PRs: **none**. **No leftover from Cursor. No T311.** |
 | Ledger | **0 pending / 0 drift** at scan (before this DOCS TX). |
 | `ISSUES.md` | **Does not exist.** |
 | Planning bump | **Not run.** |
@@ -115,7 +116,7 @@ This unblocks lock hygiene the T304 bump could not: two semver-incompatible `tow
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts CHORE **only if** Phase 0 F3 does not halt. Do **not** bump as planning. |
 | **F1 — Unify up** | Target a **single** lock `tower-http` **0.7.x**. Do **not** revert api-server to 0.6. Workspace tower-http stays `{ version = "0.7", features = ["limit", "cors", "trace"] }`. |
 | **F2 — reqwest features** | Keep `json` only. Do **not** add gzip/brotli/zstd/deflate/native-tls. |
-| **F3 — Stop-Before (primary today)** | If latest **crates.io** reqwest still requires tower-http **0.6.x** (or master still `0.6.8` with no newer published crate): **halt**. Dual stays. Conductor → **Blocked** (not Completed). Write crates.io + `#3062` evidence in `deferred.md`. **No** product commit. **No** patch. **No** git dep. |
+| **F3 — Stop-Before (primary today)** | If latest **crates.io** reqwest still requires tower-http **0.6.x** (or master still `0.6.8` with no newer published crate): **halt**. Dual stays. Conductor → **Blocked** (not Completed). Write crates.io + `#3062` evidence in `deferred.md`. **No** product commit. **No** patch. **No** git dep. Pin **range** SoT is F22, not `cargo info` alone. |
 | **F4 — No new crates** | No `tower-reqwest`, no fork, no `[patch.crates-io]`. |
 | **F5 — T161 CORS deny** | No `CorsLayer` / `CsrfLayer` / `ServeDir`. Test AC still ACAO **absent**. Layers stay `:66` / `:68`. |
 | **F6 — Peer pins** | No rusqlite / clap / thiserror / tokio steal or revert. axum stays 0.8.9 unless a reqwest bump **forces** a documented follow (then **Stop-Before** — not silent). |
@@ -123,7 +124,7 @@ This unblocks lock hygiene the T304 bump could not: two semver-incompatible `tow
 | **F8 — Precise pkgid** | `cargo update -p reqwest --precise <ver>` ([cargo-update `--precise`](https://doc.rust-lang.org/cargo/commands/cargo-update.html)). Today `cargo pkgid reqwest` is unique (`0.13.4`). If 0.14: workspace `"0.14"` first. **Do not** `cargo update -p tower-http --precise 0.7.0` as the unify method (T304: fails). |
 | **F9 — Lock extras** | Accept resolver extras (windows-sys / socket2 / hyper). Do **not** hand-edit lock. Abort if rusqlite / clap / thiserror / tokio leave their pins. |
 | **F10 — Git** | Never `git push origin main`. Do not merge Dependabot remotes. |
-| **F11 — Git deps** | Do **not** point reqwest at `#3062` / `refs/pull/3062/head`. `unknown-git = "deny"`. |
+| **F11 — Git deps** | Do **not** point reqwest at `#3062` / `refs/pull/3062/head`. `deny.toml:27` `unknown-git = "deny"`; `allow-git = []`. |
 | **F12 — tower-http 0.7.1** | Prefer published **0.7.1+** (includes #712/#722) **if** crates.io has it when reqwest allows 0.7. If reqwest pins **0.7.0** and our features stay `json` (no decompression), **accept 0.7.0**. Do not wait on unpublished git tower-http. |
 | **F13 — F3 is not Complete** | Documented halt is **Blocked**, not a fake Completed DoD. Owner may leave it parked until a crates.io reqwest ships. |
 | **F14 — Isolation** | No live loopback bind as DoD (`127.0.0.1:0` tests). No `daemon stop`. No `cargo install`. |
@@ -134,6 +135,7 @@ This unblocks lock hygiene the T304 bump could not: two semver-incompatible `tow
 | **F19 — Capture independence** | No events. models HTTP client stays the same crate surface (`Client` / `json`). |
 | **F20 — Debt file** | `conductor/ISSUES.md` does **not** exist. Residuals → `deferred.md`. |
 | **F21 — deny multiple-versions** | Do **not** flip `warn` → `deny` this track (other duals: thiserror 1+2, http, hyper). Quieting tower-http dual is the win; policy stays warn. |
+| **F22 — Pin evidence** | `cargo info reqwest` proves the **latest version** only (today **0.13.4**). Feature lines like `brotli = [tower-http/decompression-br]` are **not** a version pin. The declared `tower-http` **range** SoT is that version’s published `Cargo.toml` ([docs.rs source](https://docs.rs/crate/reqwest/0.13.4/source/Cargo.toml.orig) / crates.io download / GitHub raw). Re-read the **execute-current** version’s toml on go. |
 
 ---
 
@@ -141,7 +143,7 @@ This unblocks lock hygiene the T304 bump could not: two semver-incompatible `tow
 
 | AC | Proof |
 |----|-------|
-| **AC1** | **Either** `Cargo.lock` has **one** `name = "tower-http"` at **0.7.x**, **or** F3 halt with dated crates.io evidence (`cargo info reqwest` still 0.13.4 / tower-http 0.6.8) and conductor **Blocked**. |
+| **AC1** | **Either** `Cargo.lock` has **one** `name = "tower-http"` at **0.7.x**, **or** F3 halt with dated evidence: `cargo info` latest reqwest version **plus** that version’s `Cargo.toml` still declaring tower-http **0.6.x** (F22). Conductor **Blocked**. |
 | **AC2** | If bump: `cargo tree -i tower-http@0.6.11 --locked` **fails** (no such pkgid). If F3: command still lists reqwest → 0.6.11 (expected). |
 | **AC3** | If bump: `http_cors__default__no_allow_origin_star` green; ACAO absent. If F3: not run as a product change. |
 | **AC4** | If bump: `http_body__over_limit__413` green; `routes.rs:66/:68` still the two layers. |
@@ -149,7 +151,7 @@ This unblocks lock hygiene the T304 bump could not: two semver-incompatible `tow
 | **AC6** | If bump: workspace clippy / nextest / deny / audit green. rusqlite **0.40.2**, clap **4.x**, tokio **1.53.1**, thiserror **2.0.20** still present. |
 | **AC7** | If bump: CHANGELOG Unreleased Changed. If F3: no CHANGELOG. |
 | **AC8** | `git diff -- crates/` empty **unless** a reqwest API break forces a documented models/desktop compile fix (then list files; still no CorsLayer). Expected default: toml + lock + CHANGELOG + conductor only. |
-| **AC9** | Phase 0: cwd `C:\dev\AI-Brains`; `cargo info reqwest`; read reqwest’s declared `tower-http` version from crates.io / docs.rs source. If still 0.6.x → **F3 halt** (do not start CHORE product TX). |
+| **AC9** | Phase 0: cwd `C:\dev\AI-Brains`; `cargo info reqwest` for **latest version**; then read **that** version’s declared `tower-http` from docs.rs `/crate/reqwest/<ver>/source/Cargo.toml.orig` (or crates.io download). If still 0.6.x → **F3 halt** (do not start CHORE product TX). Do **not** treat `cargo info` feature lines as the pin. |
 
 No live HTTP server as DoD.
 
@@ -202,9 +204,9 @@ TDD: **no new named tests** (F15). On go:
 
 ```powershell
 # Phase 0 — re-verify (do not bump yet)
-cargo info reqwest --color never
+cargo info reqwest --color never          # latest VERSION only (F22)
 cargo info tower-http --color never
-# Confirm reqwest's declared tower-http (docs.rs source or crates.io download)
+# Declared pin: docs.rs /crate/reqwest/<ver>/source/Cargo.toml.orig  (not cargo info)
 # If still 0.6.x → F3 halt. Do not start CHORE product TX.
 
 # Only if F3 does not halt:
@@ -273,7 +275,7 @@ Entire `conductor/deferred.md` scanned 2026-08-26.
 
 ## 10. Implement order (on go)
 
-1. Phase 0: AC9 `cargo info reqwest` + declared tower-http range. If 0.6.x → **F3 halt** (Blocked + deferred evidence). **Stop.**
+1. Phase 0: AC9 `cargo info reqwest` (version) + F22 declared range from that version’s `Cargo.toml`. If 0.6.x → **F3 halt** (Blocked + deferred evidence). **Stop.**
 2. If unblocked: CHORE TX. Workspace caret only if 0.14. `cargo update -p reqwest --precise <ver>` (F8).
 3. Confirm single 0.7.x (AC1/AC2). F9 extras; abort on peer-pin drift.
 4. AC3–AC6 tests + gate. AC7 CHANGELOG. AC8 crate diff empty (or listed compile fixes).
@@ -308,3 +310,41 @@ Entire `conductor/deferred.md` scanned 2026-08-26.
 | `apps/desktop/src-tauri/**` | **No edit** unless compile-forced |
 
 Do **not** touch `project.rs` (hotspot #1).
+
+---
+
+## 13. AI fold-in
+
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (HEAD `a084610`). Fold-in verify: lock dual tower-http **0.6.11** (`Cargo.lock:6189`) + **0.7.0** (`:6207`); `cargo info reqwest` **0.13.4** (no `0.6.8` version line); [docs.rs 0.13.4 `Cargo.toml.orig`](https://docs.rs/crate/reqwest/0.13.4/source/Cargo.toml.orig) `tower-http = { version = "0.6.8", … follow-redirect }`; `#223` `mergedAt` **12:34:00Z** / `createdAt` **11:38:11Z**; comments/reviews/issues `[]`; HEAD `a084610` ahead **1**; `deny.toml:27` `unknown-git = "deny"`; `routes.rs:66/:68`; `security.rs:154/:184`.
+
+### Pins locked by fold-in
+
+1. **§2.1 HEAD (both m1):** review-time HEAD is `a084610` / ahead **1**. Plan-write was `34379bf` / 0/0. Phase 0 re-verifies the working tree. Fold-in commit follows this snapshot.
+2. **§2.1 `#223` time (OpenCode m2; decline Agy m1 timestamp):** `mergedAt` **2026-08-26T12:34:00Z**. **11:38:11Z** is `createdAt` / `gh pr list`. Do not “fix” the spec to list time.
+3. **F22 / AC9 / AC1 (OpenCode m3):** `cargo info` = latest **version**. Declared tower-http **range** = published `Cargo.toml`. Feature lines (`tower-http/decompression-br`) are not a pin.
+4. **F12 (both O2):** json-only models callers; accept crates.io 0.7.0 if reqwest allows 0.7; do not wait on unpublished #712/#722.
+5. **AC2 (both O1):** bump path requires `cargo tree -i tower-http@0.6.11 --locked` to fail.
+6. **last-PR Cursor `#223`:** N/A empty; **no T311.**
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** stale HEAD `34379bf` / 0/0 | **Folded** §2.1 + plan preflight → `a084610` / ahead **1** |
+| Agy | **m1** `#223` `mergedAt` “should be 11:38:11Z” | **Decline** — that is `createdAt` / `gh pr list`; `mergedAt` **12:34:00Z** (OpenCode m2 + `gh pr view --json mergedAt`) |
+| Agy | **m2** `cargo info` proves 0.6.8 / F3 halt | **Partial** — halt conclusion **Already** F3; `cargo info` does **not** print the 0.6.8 range (**F22**) |
+| Agy | **O1** AC2 tree fail | **Already** AC2 |
+| Agy | **O2** json-only / no decompression | **Already** F2 / F12 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** stale HEAD | **Folded** (same as Agy m1 HEAD) |
+| OpenCode | **m2** agy timestamp misread | **Folded** §2.1 / pin 2 — spec was already correct |
+| OpenCode | **m3** cargo-info vs Cargo.toml pin | **Folded** F22 / AC1 / AC9 / §7 |
+| OpenCode | **O1** AC2 | **Already** AC2 |
+| OpenCode | **O2** F12 json-only 0.7.0 | **Already** F12 |
+| both | last-PR Cursor empty; deferred map; no T311 | **Affirm** |
+| both | F3 halt is expected go outcome | **Already** F3 / F13 |
+
+No Blockers/Majors to decline. No new placeholder. Do **not** edit `*-review.md`. Do **not** execute until go.
+
+**Planning + fold-in 2026-08-26.** Still **plan-only until go**.
