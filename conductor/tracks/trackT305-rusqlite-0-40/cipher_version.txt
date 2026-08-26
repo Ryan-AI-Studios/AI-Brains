@@ -1,0 +1,4 @@
+T305 execute probe — 2026-08-25 Windows MSVC EDT
+rusqlite 0.40.2 + bundled-sqlcipher-vendored-openssl
+PRAGMA cipher_version = 4.14.0 community
+Source: cargo test -p ai-brains-store --lib cipher_version__non_empty_when_sqlcipher_linked -- --nocapture
