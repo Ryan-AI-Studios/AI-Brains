@@ -284,23 +284,10 @@ pub fn assess_graph_density_with(
     }
 }
 
-/// True when both `graph_node` and `graph_edge` exist (sqlite_master; same pattern as `has_core_tables`).
+/// True when both `graph_node` and `graph_edge` exist (same pattern as `has_core_tables`).
 pub fn has_graph_tables(conn: &Connection) -> bool {
-    let has_node = conn
-        .query_row(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = 'graph_node' LIMIT 1",
-            [],
-            |_row| Ok(true),
-        )
-        .unwrap_or(false);
-    let has_edge = conn
-        .query_row(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = 'graph_edge' LIMIT 1",
-            [],
-            |_row| Ok(true),
-        )
-        .unwrap_or(false);
-    has_node && has_edge
+    conn.table_exists(None, "graph_node").unwrap_or(false)
+        && conn.table_exists(None, "graph_edge").unwrap_or(false)
 }
 
 fn count_star(conn: &Connection, sql: &str) -> Result<i64, String> {

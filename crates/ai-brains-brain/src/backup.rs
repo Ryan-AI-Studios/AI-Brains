@@ -613,21 +613,10 @@ fn emit_list_noise(path: &Path, class: BackupReadClass, mode: ListMode) {
 ///
 /// Used by backup metadata probes and doctor `schema_readable` (T192 F19).
 pub fn has_core_tables(conn: &rusqlite::Connection) -> bool {
-    let has_events = conn
-        .query_row(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = 'events' LIMIT 1",
-            [],
-            |_row| Ok(true),
-        )
-        .unwrap_or(false);
-    let has_mem = conn
-        .query_row(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = 'memory_projection' LIMIT 1",
-            [],
-            |_row| Ok(true),
-        )
-        .unwrap_or(false);
-    has_events && has_mem
+    conn.table_exists(None, "events").unwrap_or(false)
+        && conn
+            .table_exists(None, "memory_projection")
+            .unwrap_or(false)
 }
 
 pub fn parse_backup_timestamp(s: &str) -> Option<NaiveDateTime> {
@@ -705,6 +694,23 @@ pub fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn has_core_tables__empty_db__false() {
+        let conn = rusqlite::Connection::open_in_memory().expect("memdb");
+        assert!(!has_core_tables(&conn));
+    }
+
+    #[test]
+    fn has_core_tables__both_tables__true() {
+        let conn = rusqlite::Connection::open_in_memory().expect("memdb");
+        conn.execute_batch(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY);
+             CREATE TABLE memory_projection (id INTEGER PRIMARY KEY);",
+        )
+        .expect("create");
+        assert!(has_core_tables(&conn));
+    }
 
     #[test]
     fn parse_duration__overflow_days__errors_not_panic() {

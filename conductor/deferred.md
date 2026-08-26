@@ -4,7 +4,37 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#224** T307 F3 halt **empty**. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Planned.** **T310 Pending** placeholder.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#226** / **#225** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Pending** placeholder.
+
+### T309 implement (2026-08-26) — rusqlite `table_exists` (Completed)
+
+| Item | Disposition |
+|------|-------------|
+| T213 L4 / T305 R2 `table_exists` | **Done** — `has_core_tables` + `has_graph_tables` call `Connection::table_exists` |
+| AC5 `has_core_tables__*` units | **Done** — empty + both-tables hermetic PASS |
+| F6 docstring sqlite_master | **Done** — `has_graph_tables` doc rewritten |
+| Key-probe `SELECT count(*) FROM sqlite_master` | **Affirmed** — `backup.rs:252` / `:488` unchanged |
+| Residual R1 — test-local `fn table_exists` helpers still sqlite_master | **By design** — non-goal |
+| Residual R2 — PATH binary until `cargo install` | **Soft** — source SoT |
+| Residual R3 — T310 placeholder | **Not stolen** |
+| T307 dual tower-http | **Not stolen** (Blocked) |
+| Pin | rusqlite **0.40.2** unchanged |
+| CHORE TX | `473e1069-374e-4a2d-96ba-38d64b417cd7` |
+
+### T309 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `has_core_tables__*` units | **Folded** AC5 (regression net, not a red) |
+| Agy m2 docstring sqlite_master | **Folded** F6 / AC1 |
+| Agy O1 / O2 unwrap_or + count probes | **Already** F3/F4 / AC3 |
+| OpenCode m1 line `:281` → `:288` | **Folded** spec §2 |
+| OpenCode m2 last-PR `#222` → `#226` | **Folded** §2 / §9; comments `[]`; **no T311** |
+| OpenCode m3 no behavioral red | **Folded** §7 / plan |
+| OpenCode m4 ConnectionRef docs 404 | **Folded** — link `Connection::table_exists` |
+| OpenCode O1 views → false | **Folded** F4 + SQLite `sqlite3_table_column_metadata` |
+| T310 / T307 | **Not stolen** |
+| DOCS TX | `04a90ce4-f45e-43ca-875a-f2d8324ff2a7` |
 
 ### T308 implement (2026-08-26) — Sparse remediator None (Completed)
 
