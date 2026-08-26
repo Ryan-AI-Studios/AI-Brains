@@ -44,11 +44,10 @@ pub fn apply_key_pragmas(conn: &Connection, key: &SqlCipherKey) -> Result<()> {
     Ok(())
 }
 
-/// Return non-empty `PRAGMA cipher_version` when SQLCipher is linked.
-/// Empty/error indicates a plain `bundled` (non-SQLCipher) build drift.
+/// Return `PRAGMA cipher_version` when SQLCipher is linked.
+/// Empty string indicates a plain `bundled` (non-SQLCipher) build drift;
+/// query failures are preserved (not mapped to empty) so doctor can surface them.
 pub fn cipher_version(conn: &Connection) -> Result<String> {
-    let version: String = conn
-        .query_row("PRAGMA cipher_version", [], |row| row.get(0))
-        .unwrap_or_default();
+    let version: String = conn.query_row("PRAGMA cipher_version", [], |row| row.get(0))?;
     Ok(version)
 }

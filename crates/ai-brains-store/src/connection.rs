@@ -405,7 +405,7 @@ mod tests {
             !ver.trim().is_empty(),
             "T187-V-01: PRAGMA cipher_version must be non-empty (SQLCipher linked); got {ver:?}"
         );
-        // Observed under MSVC + bundled-sqlcipher-vendored-openssl (2026-08-02): "4.10.0 community"
+        // Observed under MSVC + bundled-sqlcipher-vendored-openssl (2026-08-25 EDT / rusqlite 0.40.2): "4.14.0 community"
         assert!(
             ver.contains("4."),
             "unexpected cipher_version shape (expected 4.x community): {ver}"

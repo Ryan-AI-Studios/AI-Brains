@@ -4,7 +4,27 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#220** T303 **empty**. **T285–T304 Completed.** **T305 Planned** (Dependabot cargo rusqlite).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#221** T304 **empty**. **T285–T305 Completed** (Dependabot series closed).
+
+### T305 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| Workspace rusqlite exact `0.39.0` → `0.40.2` (same 4 features) | **Done** AC1 / F1 |
+| Lock rusqlite **0.40.2**; libsqlite3-sys **0.38.2**; hashlink **0.12.1** via `--precise` | **Done** AC1 / F12 / F13 |
+| Observed `PRAGMA cipher_version` **`4.14.0 community`** (2026-08-25 EDT) | **Done** AC2 / F2 |
+| Encrypt/open/wrong-key + sqlcipher_export rotate + backup KATs | **Done** AC3 / AC4 / F9 |
+| `cipher_version` query errors propagated (no `unwrap_or_default`) | **Done** Codex P2-02 |
+| Full gate (fmt/clippy/nextest 3529 pass / 1 skip / deny / audit + ledgerful full) | **Done** AC5 |
+| CHANGELOG + COMPATIBILITY F8 | **Done** AC7 |
+| Live new-binary doctor vault_open + cipher_page ok; no key leak | **Done** AC8 |
+| Do not merge Dependabot remote `#61` | **Done** F8 |
+| Close `#61` as superseded after squash; do not delete remote | **Residual** R1 — standing Dependabot hygiene |
+| T213 L4 `Connection::table_exists` not adopted (F5 optional) | **Residual** R2 — not easy product churn; local helpers unrelated |
+| PATH-installed `ai-brains` remains pre-0.40.2 until operator install | **Residual** R3 — gate used track-built binary (F10) |
+| `#61` windows-sys/socket2 extras absent on live HEAD | **Residual** R4 — F13 variance; do not hand-edit |
+| clap 5 still declined | **Residual** R5 — standing decline |
+| mint row “T305 Planned” | **Superseded** — Completed |
 
 ### T304 implement closeout (2026-08-25)
 
@@ -136,6 +156,21 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR `#220` Cursor | **Affirm N/A** — no T306 |
 | No B / M | Nothing to decline of B/M |
 
+### T305 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m3 `--precise 0.40.2` | **Folded** F12 |
+| OpenCode extras libsqlite3-sys 0.38.2 + hashlink 0.12.x | **Folded** F13 — live graph after T303/T304 may differ from `#61` |
+| OpenCode m1 last-PR `#216` → `#221` | **Folded** §2 / §9 |
+| OpenCode local `fn table_exists` ≠ rusqlite API | **Folded** F5 |
+| Agy m1 workspace exact `0.40.2` | **Already** F1 / AC1 |
+| Agy m2 pre-write COMPATIBILITY `4.14.0 community` | **Partial** — F2 records **observed**; SQLCipher test shape is expectation only |
+| Agy O1/O2 targeted store nextest + live doctor | **Already** AC3/AC4/AC8 |
+| Agy “4.14 opens 4.10 transparently” | **Partial** — Zetetic same-major format; **F9 is proof** |
+| last-PR `#221` Cursor | **Affirm N/A** — no T306 |
+| No B / M | Nothing to decline of B/M |
+
 ### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
 
 | Item | Disposition |
@@ -145,7 +180,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | tokio `#59` 1.53.1 | **T303** Completed |
 | tower-http `#58` 0.7 | **T304** Completed |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
-| last-PR `#220` Cursor | **N/A empty** — no T306 |
+| last-PR `#221` Cursor | **N/A empty** — no T306 |
 | clap 5 | **Still declined** (not in this Dependabot batch) |
 | Merge Dependabot remotes as-is | **Declined** — recreate on `track/TNN-*` |
 

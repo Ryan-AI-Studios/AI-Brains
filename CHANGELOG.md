@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T305 rusqlite 0.40.2:** Workspace exact pin `0.39.0` → **`0.40.2`** (same features `bundled-sqlcipher-vendored-openssl` / `backup` / `fallible_uint` / `trace`) via `cargo update -p rusqlite --precise 0.40.2`. Bundled SQLCipher **4.10 → 4.14**; observed `PRAGMA cipher_version` **`4.14.0 community`**. Lock extras: libsqlite3-sys **0.37.0 → 0.38.2**, hashlink **0.11.0 → 0.12.1**. Encrypt/open/wrong-key + `sqlcipher_export` rotate + backup KATs green. No clap / tokio / tower-http / thiserror bump. No Dependabot remote merge (`#61`).
+
 - **T304 tower-http 0.7:** Workspace pin `0.6.6` → **`0.7`** (features `limit`/`cors`/`trace` unchanged) and lock adds **tower-http 0.7.0** for `ai-brains-api-server`. Transitive **0.6.11** remains via `reqwest` (`^0.6.8`) — dual versions required; bare `cargo update -p tower-http --precise 0.7.0` cannot unify. T161 CORS deny + `RequestBodyLimitLayer` / `TraceLayer` constructors unchanged. No rusqlite / clap / thiserror / tokio bump. No Dependabot remote merge (`#58`).
 
 - **T303 tokio 1.53.1:** Workspace floor `1.52` → **`1.53`** (`features = ["full"]`) and lock **1.52.3 → 1.53.1** via `cargo update -p tokio --precise 1.53.1`. Lands Windows signal MSRV fix `#8300` (remove `OnceLock::wait`). Expected F9 `windows-sys` edge re-resolutions from Dependabot `#59`. No tower-http / rusqlite / clap / thiserror bump. No Dependabot remote merge.
