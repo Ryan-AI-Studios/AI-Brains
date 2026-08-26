@@ -4,7 +4,23 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#221** T304 **empty**. **T285–T305 Completed** (Dependabot series closed).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#222** T305 **empty**. **T285–T305 Completed.** **T306–T309 Planned** (leftover placeholders).
+
+### T306–T309 mint (2026-08-26) — leftover placeholders (owner-requested)
+
+| Item | Disposition |
+|------|-------------|
+| T305 R3 PATH pre-0.40.2 | **T306** Planned |
+| T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **T307** Planned — **upstream-blocked** (reqwest still `tower-http 0.6.8`) |
+| T300 still sparse E/N 0.409; doctor SOOT rebuild | **T308** Planned — floors frozen |
+| T213 L4 / T305 R2 `table_exists` | **T309** Planned |
+| T305 R1 / T304 R1 Dependabot close hygiene | **Decline** — standing; not a track |
+| T305 R4 / T304 R3 lock extra variance | **Decline** — do not hand-edit |
+| clap 5 / T305 R5 | **Still declined** |
+| T304 R4 csrf | **Still declined** |
+| T278 floor retune | **Still declined** — T308 is remediator copy, not 0.50 |
+| last-PR `#222` Cursor | **N/A empty** — no T310 |
+| T302 R2 dual thiserror 1.x | **Decline** — Tauri/json-patch; not these leftovers |
 
 ### T305 implement closeout (2026-08-25)
 
