@@ -4,7 +4,24 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#226** / **#225** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Pending** placeholder.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#227** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Planned** (2026-08-26).
+
+### T310 full plan (2026-08-26) — `update` graph-on + PATH daemon 4.14
+
+| Item | Disposition |
+|------|-------------|
+| T306 F9 `run_update` omits `--features graph` | **Absorb** F1 / F9 / AC1 |
+| T306 F8 PATH `ai-brainsd` mtime 2026-08-22 | **Absorb** F4 / F10 / F11 / AC2 (or AC9) |
+| T309 R3 T310 placeholder | **Absorb** — this plan |
+| Chicken-egg PATH `update` before new CLI | **F10** — SOOT CLI first, then update |
+| SCM `AI-Brains-Daemon` Stopped | **F12** — do not `sc start`; ImagePath is PATH exe |
+| Daemon `cipher_page` / doctor 16th | **Decline** F7 / F11 |
+| T307 dual tower-http | **Not stolen** (Blocked) |
+| T308 floors / PATH-behind remediator | **Decline as DoD** |
+| T197 silent zero | **Decline** |
+| clap 5 / Cargo `default = []` | **Decline** |
+| last-PR Cursor `#227` | **N/A empty** — no T311 |
+| DOCS TX | `4e15b2eb-cc78-40e0-aaf2-0dd362814c7e` |
 
 ### T309 implement (2026-08-26) — rusqlite `table_exists` (Completed)
 
