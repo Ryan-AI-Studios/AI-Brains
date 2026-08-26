@@ -212,15 +212,22 @@ pub fn assess_graph_density_with(
     }
 
     // 3. sparse (typed-lineage under-link floor)
+    // T308: graph-on Sparse omits remediator — rebuild already ran / cannot raise typed E/N.
+    // Graph-off still remediates reinstall SOOT (real next step). Note keeps lag nuance.
     if snap.nodes >= min_nodes && snap.edges > 0 && ratio < min_ratio {
         let message =
             format!("sparse: edge/node ratio below typed-lineage floor {min_ratio} ({suffix})");
+        let sparse_remediation = if graph_cli_available {
+            None
+        } else {
+            Some(remediation.into())
+        };
         return Assessment {
             verdict: DensityVerdict::Sparse,
             density: "warn",
             status: "sparse",
             note: density_warn_note(&message, graph_cli_available, true),
-            remediation: Some(remediation.into()),
+            remediation: sparse_remediation,
             message,
             edge_node_ratio: ratio,
         };
@@ -455,15 +462,19 @@ mod tests {
     }
 
     #[test]
-    fn assess_graph_density_with__sparse_1304_95_graph_on__rebuild() {
-        // E/N ≈ 0.073 < 0.50
+    fn assess_graph_density_with__sparse_1304_95_graph_on__no_rebuild_remediator() {
+        // E/N ≈ 0.073 < 0.50 — T308: graph-on Sparse omits remediator (rebuild loop stop)
         let a = assess_graph_density_with(&snap(1304, 95, 8398, Some(500)), true);
         assert_eq!(a.verdict, DensityVerdict::Sparse);
         assert_eq!(a.density, "warn");
         assert_eq!(a.status, "sparse");
         assert!(a.message.contains("sparse"), "msg={}", a.message);
         assert!((a.edge_node_ratio - (95.0 / 1304.0)).abs() < 1e-9);
-        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
+        assert!(
+            a.remediation.is_none(),
+            "sparse graph-on remediator must be None"
+        );
+        assert_ne!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
         assert!(
             a.note.contains("rebuild if projection lag suspected"),
             "sparse graph-on note nuance: {}",
@@ -520,11 +531,20 @@ mod tests {
 
     #[test]
     fn assess_graph_density_with__ratio_0_4__warn_sparse() {
+        // T308: graph-on Sparse remediator None (typed-lineage under-link survives rebuild)
         let a = assess_graph_density_with(&snap(100, 40, 50, None), true);
         assert_eq!(a.verdict, DensityVerdict::Sparse);
         assert_eq!(a.density, "warn");
         assert_eq!(a.status, "sparse");
-        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
+        assert!(
+            a.remediation.is_none(),
+            "sparse graph-on remediator must be None"
+        );
+        assert!(
+            a.note.contains("rebuild if projection lag suspected"),
+            "sparse graph-on note nuance: {}",
+            a.note
+        );
     }
 
     #[test]

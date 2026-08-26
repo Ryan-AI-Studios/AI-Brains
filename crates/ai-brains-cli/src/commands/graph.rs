@@ -736,9 +736,7 @@ pub fn update(ctx: &AppContext, format: &str) -> Result<(), Box<dyn std::error::
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
-    use crate::graph_density::{
-        GraphDensitySnapshot, REMEDIATION_REBUILD, assess_graph_density_with,
-    };
+    use crate::graph_density::{GraphDensitySnapshot, assess_graph_density_with};
     use rstest::rstest;
 
     /// T213 AC8: success JSON shape includes expanded density fields + note.
@@ -791,9 +789,9 @@ mod tests {
         ));
     }
 
-    /// T213 AC9 / T232 L3: sparse fixture maps status/density + exact rebuild remediation.
+    /// T213 AC9 / T308: sparse fixture maps status/density; remediator key omitted (no rebuild loop).
     #[test]
-    fn graph_health_output__sparse_fixture__status_sparse_with_remediation() {
+    fn graph_health_output__sparse_fixture__status_sparse_omits_remediation() {
         let snap = GraphDensitySnapshot {
             nodes: 1304,
             edges: 95,
@@ -801,7 +799,10 @@ mod tests {
             memory_nodes: Some(500),
         };
         let a = assess_graph_density_with(&snap, true);
-        assert_eq!(a.remediation.as_deref(), Some(REMEDIATION_REBUILD));
+        assert!(
+            a.remediation.is_none(),
+            "sparse graph-on remediator must be None"
+        );
         let report = GraphHealthOutput {
             nodes: snap.nodes,
             edges: snap.edges,
@@ -818,13 +819,18 @@ mod tests {
                 .expect("json");
         assert_eq!(v["status"], "sparse");
         assert_eq!(v["density"], "warn");
-        assert_eq!(
-            v["remediation"].as_str(),
-            Some(REMEDIATION_REBUILD),
-            "remediation: {}",
-            v["remediation"]
+        assert!(
+            v.get("remediation").is_none(),
+            "sparse graph-on JSON must omit remediation key: {}",
+            v
         );
         assert!(!v["note"].as_str().unwrap_or("").is_empty());
+        assert!(v.get("nodes").is_some());
+        assert!(v.get("edges").is_some());
+        assert!(v.get("pinned_memories").is_some());
+        assert!(v.get("memory_nodes").is_some());
+        assert!(v.get("edge_node_ratio").is_some());
+        assert!(v.get("note").is_some());
     }
 
     #[test]

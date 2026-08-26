@@ -1,7 +1,7 @@
 # T308 — Sparse graph remediator honesty (no rebuild loop)
 
 - **Track ID:** T308-GraphSparseRemediator
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** (2026-08-26)
 - **Category:** FEATURE / CLI
 - **Owner:** Grok
 - **Source:** T300 live rebuild still `sparse`; T306 R4; leftover README P1. PATH doctor **2026-08-26**: nodes=**63040** edges=**25844** **E/N=0.410** pinned=49521 memory_nodes=39355; remediator still **`ai-brains graph rebuild`**. `graph update --format human` note already says `rebuild if projection lag suspected` **and** still prints the rebuild remediator.

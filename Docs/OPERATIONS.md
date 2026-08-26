@@ -916,12 +916,13 @@ Success JSON shape (pretty):
 | `sparse` | Under-linked (E/N below typed-lineage floor **0.50**), orphan nodes (many nodes, zero edges), or severe memory projection lag |
 | `empty` | Many pinned memories but graph tables empty (empty lag) |
 
-**When to rebuild (T232 — capability-aware):** if `status` is `sparse` or `empty`, or doctor/`graph update` `density` is `warn`, pick the next action that matches **this binary**:
+**When to rebuild (T232 / T308 — capability-aware):** if doctor/`graph update` `density` is `warn`, pick the next action that matches **this binary** and the **primary verdict**:
 
-| Capability | Primary remediation |
-|------------|---------------------|
-| `graph_feature=available` (or graph CLI present; `--features graph`) | `ai-brains graph rebuild` |
-| `graph_feature=unavailable` (default / Release graph-off) | Install a graph-capable binary first: `cargo install --path crates/ai-brains-cli --locked --features graph` (`GRAPH_REINSTALL_SOOT`) — rebuild is a dead-end on graph-off |
+| Capability + verdict | Primary remediation |
+|----------------------|---------------------|
+| Graph-on **empty_lag / orphan_nodes / projection_lag** | `ai-brains graph rebuild` |
+| Graph-on **sparse** (typed-lineage E/N below floor **0.50**) | **Omit** remediator (T308) — note may still say `rebuild if projection lag suspected`; a second rebuild will not raise typed E/N |
+| Graph-off any density warn (including sparse) | Install a graph-capable binary first: `cargo install --path crates/ai-brains-cli --locked --features graph` (`GRAPH_REINSTALL_SOOT`) — rebuild is a dead-end on graph-off |
 
 ```powershell
 # Graph-on only — prefer dry-run first (allowed while daemon is Running):
@@ -947,7 +948,8 @@ ai-brains doctor --format json
 # checks include:
 #   name=graph_feature  (soft info: available|unavailable via compile-time cfg; never alone fail/degraded)
 #   name=graph_density  (soft warn → overall degraded; never hard-fail alone;
-#                        remediation = rebuild when graph-on, GRAPH_REINSTALL_SOOT when graph-off)
+#                        remediator: graph-on empty/orphan/projection_lag → rebuild;
+#                        graph-on sparse → omit (T308); graph-off → GRAPH_REINSTALL_SOOT)
 ```
 
 **Local graph-on rebuild:** `scripts/Build-AIBrains.ps1` and `scripts/build.ps1` build CLI with `--features graph` and probe `graph_feature=available` before finishing (T222). Primary source install SOOT remains `cargo install --path crates/ai-brains-cli --locked --features graph`. Cargo `default = []` is unchanged (slim / Release may stay graph-off).
@@ -1040,7 +1042,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Recovery kit export | `ai-brains recovery export --output <path> [--passphrase-file] [--dry-run] [--force]` (T188) |
 | Doctor (health) | `ai-brains doctor [--summary] [--json] [--kit-path] [--passphrase-file] [--fail-on-degraded] [--backup-max-age 7d] [--full]` (T192/T249; `--summary` skim; JSON still full report) |
 | Manage Projects | `ai-brains project list/resolve/detect` |
-| Graph Health | `ai-brains graph update` (`live`\|`sparse`\|`empty`; graph-on rebuild if sparse/empty) + doctor `graph_density` (capability-aware remediation: rebuild vs reinstall SOOT — T232) |
+| Graph Health | `ai-brains graph update` (`live`\|`sparse`\|`empty`; graph-on rebuild for empty/orphan/projection_lag; sparse omits remediator — T308) + doctor `graph_density` (capability-aware remediation — T232/T308) |
 
 ## Desktop thin client (T172 + T173 security)
 

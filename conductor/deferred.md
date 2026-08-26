@@ -4,7 +4,23 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#224** T307 F3 halt **empty**. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 full plan (Pending).** **T309 Planned.** **T310 Pending** placeholder.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#224** T307 F3 halt **empty**. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Planned.** **T310 Pending** placeholder.
+
+### T308 implement (2026-08-26) — Sparse remediator None (Completed)
+
+| Item | Disposition |
+|------|-------------|
+| T306 R4 / Sparse graph-on remediator rebuild | **Done** — `remediation: None`; JSON omits key; note keeps lag nuance |
+| empty_lag / orphan / projection_lag rebuild | **Affirmed** stay-green |
+| Graph-off Sparse reinstall SOOT | **Affirmed** |
+| Floors `MIN_EDGE_NODE_RATIO=0.50` | **Unchanged** F1 |
+| Residual R1 — live E/N still ~0.41 | **Not easy / by design** — floors frozen; projector more-edges is different track |
+| Residual R2 — never-rebuilt Sparse has no rebuild remediator | **Not easy / by design** F2 — empty_lag/orphan still rebuild; freshness arm declined |
+| Residual R3 — PATH binary still shows rebuild until `cargo install` | **Soft** — hermetic/source SoT; F12 no install as DoD |
+| Residual R4 — `recovery_kit_event` doctor warn | **Not this track** (T306 R5) |
+| Floor retune / projector rewrite / T309 `table_exists` / T310 | **Not stolen** |
+| T307 dual tower-http | **Not stolen** (Blocked) |
+| FEATURE TX | `d62a3884-5af8-44fc-9434-3b8c31a656af` |
 
 ### T308 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
 
@@ -101,7 +117,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | First F1 Access denied (hung PATH `ai-brains preflight --summary` PID) | **Residual** R1 — ops; elevated retry cleared; do not daemon-stop |
 | PATH `ai-brainsd` still 4.10-era (mtime 2026-08-22); mixed CLI/daemon | **Residual** R2 — F8 / **T310** (not easy; needs stop + install) |
 | T84 `run_update` omits `--features graph` | **Residual** R3 — F9 / **T310** (product src) |
-| `graph_density` sparse E/N≈0.409; remediator rebuild | **Residual** R4 — AC7 / **T308** |
+| `graph_density` sparse E/N≈0.409; remediator rebuild | **Done** R4 — **T308** graph-on Sparse remediator `None` |
 | `recovery_kit_event` doctor warn | **Residual** R5 — not this track |
 | INSTALL.md header still 0.1.2 | **Residual** R6 — docs drift; not DoD |
 | Harness reinstall after cargo install | **Residual** R7 — F24 soft |
@@ -139,7 +155,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 |------|-------------|
 | T305 R3 PATH pre-0.40.2 | **Done** T306 — PATH `4.14.0 community` |
 | T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **T307** **Blocked** (F3 2026-08-26) — reqwest still `tower-http 0.6.8` |
-| T300 still sparse E/N 0.409; doctor SOOT rebuild | **T308** Planned — floors frozen |
+| T300 still sparse E/N 0.409; doctor SOOT rebuild | **T308** ✅ Completed — Sparse remediator None; floors frozen |
 | T213 L4 / T305 R2 `table_exists` | **T309** Planned |
 | T305 R1 / T304 R1 Dependabot close hygiene | **Decline** — standing; not a track |
 | T305 R4 / T304 R3 lock extra variance | **Decline** — do not hand-edit |
