@@ -1,9 +1,9 @@
 # T301–T305 — Dependabot upgrades (owner-requested)
 
 **Source:** Open Dependabot PRs as of 2026-08-25 after T300 `#216` + workspace 0.1.3 `#217`. Owner asked to **mint tracks** (not merge remotes). **Do not** `git push origin main`. **Do not** merge Dependabot branches as-is (T185 SHA-pin + SQLCipher honesty).
-**Status:** **T301 Completed** (INFRA TX `3571d90d…`); **T302 Completed** (CHORE TX `aec6d64e…`); **T303 Completed** (CHORE TX `46c31a21…`); T304–T305 **Planned / Pending**. Full F-list in each spec. **Do not implement T304–T305 until go.**
-**Ledger:** planning DOCS TX `30b7ca9d-4932-4f00-97b8-82d5d25e633b`. **T301 fold-in:** DOCS TX `3402c6ed-1134-4a4e-b974-130153d6cc4c`. **T301 implement:** INFRA `3571d90d-b7c2-4204-8556-7a2b50c2d017`. **T302 implement:** CHORE `aec6d64e-82e4-4593-ab1c-628f3112d329`. **T303 implement:** CHORE `46c31a21-dc44-4f2d-b037-0290bb792bb4`.
-**last-PR Cursor:** [#219](https://github.com/Ryan-AI-Studios/AI-Brains/pull/219) T302 — **empty**. **No T306.** Dependabot remotes `#58–#62`, `#68–#72` are this series.
+**Status:** **T301–T304 Completed**; **T305 Planned / Pending** (rusqlite). Full F-list in each spec. **Do not implement T305 until go.**
+**Ledger:** planning DOCS TX `30b7ca9d-4932-4f00-97b8-82d5d25e633b`. **T301 fold-in:** DOCS TX `3402c6ed-1134-4a4e-b974-130153d6cc4c`. **T301 implement:** INFRA `3571d90d-b7c2-4204-8556-7a2b50c2d017`. **T302 implement:** CHORE `aec6d64e-82e4-4593-ab1c-628f3112d329`. **T303 implement:** CHORE `46c31a21-dc44-4f2d-b037-0290bb792bb4`. **T304 implement:** CHORE `f1edfb28-9f51-4910-be4c-14bef88fe09e`.
+**last-PR Cursor:** [#220](https://github.com/Ryan-AI-Studios/AI-Brains/pull/220) T303 — **empty**. **No T306.** Dependabot remotes `#58–#62`, `#68–#72` are this series.
 
 ## PR → track map
 
