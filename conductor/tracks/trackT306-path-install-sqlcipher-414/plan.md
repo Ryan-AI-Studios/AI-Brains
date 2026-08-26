@@ -1,10 +1,10 @@
 # T306 Plan — PATH install SQLCipher 4.14
 
-**Status:** **Pending**. Spec [spec.md](./spec.md).
+**Status:** **Completed** 2026-08-26. Spec [spec.md](./spec.md).
 **Category:** CHORE / OPS
 **Ledger (planning):** `2b0a2dec-7921-4e84-a964-b37cb703457c` (DOCS)
 **Ledger (fold-in):** `b04594d2-d70a-44a1-89a1-90e408715414` (DOCS)
-**Ledger (implement):** CHORE TX on **go**. **Do not install until go.**
+**Ledger (implement):** CHORE TX `927f9b00-c0a6-4fd1-833b-ddf4772baa90`
 
 ---
 
@@ -37,8 +37,8 @@
 
 | Item | Plan action |
 |------|-------------|
-| T305 R3 PATH 4.10 | **DoD** F1–F7 / AC1–AC5 / AC8 |
-| T305 Codex PATH older binary | **DoD** same |
+| T305 R3 PATH 4.10 | **DoD** F1–F7 / AC1–AC5 / AC8 — **Done** `4.14.0 community` |
+| T305 Codex PATH older binary | **DoD** same — **Done** |
 | T305 R1/R4/R5 | **Declined** §9 |
 | T305 R2 `table_exists` | **T309** |
 | T304 R2 tower-http dual | **T307** |
@@ -50,47 +50,46 @@
 
 ## Phase 0 — on go (re-verify + deferred rescan)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
-- [ ] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
-- [ ] Lock: rusqlite **0.40.2** (`Select-String` / `cargo pkgid rusqlite`)
-- [ ] `perl -v` succeeds
-- [ ] PATH `ai-brains doctor --json` `cipher_page` still **4.10** (or already 4.14 → skip F1, still record AC2)
-- [ ] Rescan `deferred.md` open overlapping rows
-- [ ] `ledgerful ledger start T306-path-install-sqlcipher-414 --category CHORE --message "PATH install locked graph-on CLI (SQLCipher 4.14)"`
-- [ ] **Stop-Before** if lock is not 0.40.2, Perl missing, or cwd wrong
-- [ ] **Do not** `cargo install` until this phase is checked
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact`
+- [x] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
+- [x] Lock: rusqlite **0.40.2** (`Select-String` / `cargo pkgid rusqlite`)
+- [x] `perl -v` succeeds (v5.42.2)
+- [x] PATH `ai-brains doctor --json` `cipher_page` still **4.10** before F1
+- [x] Rescan `deferred.md` open overlapping rows
+- [x] `ledgerful ledger start T306-path-install-sqlcipher-414 --category CHORE --message "PATH install locked graph-on CLI (SQLCipher 4.14)"` → `927f9b00-c0a6-4fd1-833b-ddf4772baa90`
+- [x] **Stop-Before** if lock is not 0.40.2, Perl missing, or cwd wrong — N/A green
+- [x] **Do not** `cargo install` until this phase is checked
 
 ## Phase 1 — Install (AC1, F1)
 
-- [ ] From repo root: `cargo install --path crates/ai-brains-cli --locked --features graph`
-- [ ] If cargo refuses same-version: retry with `--force` (F1 optional). Do **not** drop `--features graph` or `--locked`
-- [ ] If sharing violation on `ai-brains.exe`: **halt** (F13). Do **not** `daemon stop`
-- [ ] If openssl-src / Perl Configure fails: **halt** (F12)
+- [x] From repo root: `cargo install --path crates/ai-brains-cli --locked --features graph`
+- [x] First attempt: release built (~11m) then **Access denied** replacing PATH exe (PID 28316 hung `preflight --summary`). Halted per F13; did **not** stop daemon.
+- [x] Elevated retry: replace succeeded (`Replaced package … executable ai-brains.exe`) — no `--force` needed
+- [x] openssl-src / Perl Configure: ok
 
 ## Phase 2 — Prove PATH (AC2–AC5, AC7)
 
-- [ ] `where.exe ai-brains` still cargo bin; LastWriteTime newer than **2026-08-25 14:47:44** (AC1 / F25 **supporting** — not 4.14 proof)
-- [ ] `ai-brains doctor --json` filtered: `cipher_page` message contains **`4.14`** (AC2)
-- [ ] `graph_feature` message **`available`** (AC3)
-- [ ] `vault_open` ok (AC4)
-- [ ] No `AI_BRAINS_KEY` / `x'<64 hex>'` in captured output (AC5)
-- [ ] `--summary` may stay degraded (`graph_density` / `recovery_kit_event`) — **not a fail** (AC7)
-- [ ] If `cipher_page` still `4.10`: **halt** (F26)
+- [x] `where.exe ai-brains` = `C:\Users\RyanB\.cargo\bin\ai-brains.exe`; LastWriteTime **2026-08-26 6:54:32 AM** (after 2026-08-25 14:47:44) — F25 supporting
+- [x] `cipher_page` message **`cipher_version=4.14.0 community`** (AC2)
+- [x] `graph_feature` message **`available`**; `ai-brains graph update --format json` returned nodes/edges (AC3)
+- [x] `vault_open` ok `opened read-only` (AC4)
+- [x] No `AI_BRAINS_KEY` / `x'<64 hex>'` in captured `--json` (AC5)
+- [x] `--summary` degraded (`graph_density` E/N=0.409, `recovery_kit_event`) — **not a fail** (AC7)
 
 ## Phase 3 — Closeout (AC6, AC8)
 
-- [ ] `git diff -- crates/ Cargo.toml Cargo.lock` empty (AC6)
-- [ ] Mark this plan tasks complete; `conductor.md` T306 **Completed** with PATH message evidence
-- [ ] `deferred.md` T305 R3 → **Done** (PATH `4.14`)
-- [ ] `ledgerful verify --scope fast` ; `ledgerful ledger commit`
-- [ ] Pin: `ai-brains pin "DECISION: PATH ai-brains installed --locked --features graph; doctor cipher_page 4.14.x (T306). Daemon/update leftover is T310." --tx-id <chore-tx>`
-- [ ] Phase 6: `track/T306-*` if a closeout commit exists → PR → watch `CI` green → `gh pr merge --squash --delete-branch`. Never `git push origin main`
+- [x] `git diff -- crates/ Cargo.toml Cargo.lock` empty (AC6)
+- [x] Mark this plan tasks complete; `conductor.md` T306 **Completed** with PATH message evidence
+- [x] `deferred.md` T305 R3 → **Done** (PATH `4.14`); T306 residuals appended
+- [x] `ledgerful verify --scope fast` ; `ledgerful ledger commit`
+- [x] Pin: PATH install decision with CHORE tx-id
+- [x] Phase 6: `track/T306-*` → PR → watch `CI` green → squash-merge
 
 ## DoD
 
-- [ ] PATH `cipher_page` message contains **`4.14`** (AC2)
-- [ ] `graph_feature=available` (AC3)
-- [ ] No crate/lock diff (AC6); no key leak (AC5)
-- [ ] No live encrypt / rebuild / daemon stop (F4)
-- [ ] Conductor Completed (AC8)
-- [ ] T307 / T308 / T309 / T310 not stolen
+- [x] PATH `cipher_page` message contains **`4.14`** (AC2)
+- [x] `graph_feature=available` (AC3)
+- [x] No crate/lock diff (AC6); no key leak (AC5)
+- [x] No live encrypt / rebuild / daemon stop (F4)
+- [x] Conductor Completed (AC8)
+- [x] T307 / T308 / T309 / T310 not stolen

@@ -1,7 +1,7 @@
 # T306 — PATH install: SQLCipher 4.14.0 community
 
 - **Track ID:** T306-PathInstallSqlcipher414
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** ✅ **Completed** 2026-08-26 — PATH `cipher_version=4.14.0 community`; CHORE TX `927f9b00-c0a6-4fd1-833b-ddf4772baa90`
 - **Category:** CHORE / OPS
 - **Owner:** Grok
 - **Source:** T305 R3 — gate used track-built `target\debug\ai-brains.exe`; PATH `ai-brains` still rusqlite **0.39** / SQLCipher **4.10**. Owner asked leftover placeholders 2026-08-26; this pass upgrades the stub to a full plan.
