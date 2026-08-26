@@ -6,6 +6,22 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#224** T307 F3 halt **empty**. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 full plan (Pending).** **T309 Planned.** **T310 Pending** placeholder.
 
+### T308 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Both m1 stale HEAD `037262e` / 0/0 | **Folded** snapshot `0d0fdab` / ahead **1** |
+| OpenCode O1 PROTOCOL-COMPAT `:96` already optional | **Folded** — drop from stale-doc row; not AC8 |
+| Agy O3 same PROTOCOL-COMPAT | **Folded** with O1 |
+| Agy m2 OPERATIONS/CAPABILITIES/CHANGELOG | **Already** AC8 |
+| Agy O1 doctor.rs forward / skip_serializing_if | **Already** F7 / F6 |
+| Agy O2 smoke F17 | **Already** F5 / AC5 |
+| OpenCode O2 loop-stop Osmani | **Already** §2.4 |
+| Emitter `graph.rs:381–383` omit-on-None | **Folded** F2 / §12 — no production graph.rs edit |
+| last-PR `#224` Cursor | **Affirm N/A** — no T311 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `91f8fbcd-655e-4fbd-bd64-635e9fa271bf` |
+
 ### T308 full plan (2026-08-26) — Sparse remediator None; floors frozen
 
 | Item | Disposition |

@@ -3,6 +3,7 @@
 **Status:** **Pending**. Spec [spec.md](./spec.md).
 **Category:** FEATURE / CLI
 **Ledger (planning):** `96f0ce16-3a64-43cc-92ac-b9a4d89c46ae` (DOCS)
+**Ledger (fold-in):** `91f8fbcd-655e-4fbd-bd64-635e9fa271bf` (DOCS)
 **Ledger (implement):** FEATURE TX on **go**.
 
 ---
@@ -11,7 +12,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `037262e` CLEAN; `origin/main...HEAD` **0/0**. Branch `main`. T307 `#224` on origin/main. |
+| HEAD / tree | Fold-in `0d0fdab` CLEAN; `origin/main...HEAD` **ahead 1**. Plan-write was `037262e` / 0/0 (m1). Branch `main`. T307 `#224` on origin/main. |
 | PATH `ai-brains` | **0.1.3** graph-on; mtime **2026-08-26 6:54:32 AM** |
 | PATH `doctor --json` `graph_density` | **warn** Sparse E/N **0.410** (63040/25844); **`remediation: ai-brains graph rebuild`** — **this hole** |
 | PATH `graph update --format human` | note has lag nuance **and** remediator rebuild |
@@ -23,7 +24,7 @@
 | Pins | clap `"4.5"`; rusqlite **0.40.2** — no bump |
 | Last PR Cursor | `#224` comments/reviews/issues **empty** — N/A; no T311 |
 | Open PRs | **none** |
-| Ledger | 0 pending / 0 drift at scan; plan TX `96f0ce16` |
+| Ledger | 0 pending / 0 drift at scan; plan TX `96f0ce16`; fold-in TX `91f8fbcd` |
 | `ISSUES.md` | **Does not exist** |
 | Planning rebuild / install | **Not run** |
 
@@ -67,8 +68,10 @@
 - [ ] Keep `density_warn_note(..., sparse_nuance=true)`
 - [ ] Other warn arms still `density_remediation(...)` (AC2)
 - [ ] Do **not** edit `doctor.rs` unless compile-forced (unexpected)
+- [ ] Do **not** edit `emit_graph_health_human` (`graph.rs:381–383` already omits `None`)
 - [ ] Do **not** edit `has_graph_tables` (AC10 / T309)
 - [ ] Do **not** change floors
+- [ ] Do **not** edit PROTOCOL-COMPAT `:96` (already optional)
 
 ## Phase 3 — Stay-green + docs
 

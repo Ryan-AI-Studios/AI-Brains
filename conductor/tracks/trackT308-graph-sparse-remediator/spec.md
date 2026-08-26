@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Operators who already rebuilt stop copy-pasting DELETE+replay. Does **not** unblock T307 (Blocked), T309 `table_exists`, T310 `run_update` / PATH daemon. Capture path does not use density remediator copy.
 - **Absorbs:** T306 R4 / leftover “T300 still sparse; doctor SOOT rebuild”; T300 closeout “still sparse honest.”
 - **Not absorbed (DoD):** T278 / T300 floor retune (`MIN_EDGE_NODE_RATIO = 0.50`); projector more-edges / WCC; `GraphRebuilder` rewrite; auto-rebuild; T213 event↔graph freshness; T309 `has_graph_tables`; T310; clap 5; live rebuild as DoD.
-- **Research date:** 2026-08-26 (HEAD `037262e` T307 `#224`).
-- **Ledger:** planning DOCS TX `96f0ce16-3a64-43cc-92ac-b9a4d89c46ae`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-26 (plan wrote at `037262e` T307 `#224`; fold-in against `0d0fdab`, ahead **1** of `origin/main`).
+- **AI fold-in:** 2026-08-26 `agy-review.md` + `opencode-review.md` (HEAD `0d0fdab`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** both m1 HEAD snapshot; OpenCode O1 PROTOCOL-COMPAT `:96` already optional (drop from stale-doc row). **Already:** Agy m2 AC8 docs; Agy O1 doctor.rs forward; Agy O2 smoke F17; Agy O3 / OpenCode O2 loop-stop. Disposition **§13**.
+- **Ledger:** planning DOCS TX `96f0ce16-3a64-43cc-92ac-b9a4d89c46ae`. Fold-in DOCS TX `91f8fbcd-655e-4fbd-bd64-635e9fa271bf`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** retune floors. Do **not** live `graph rebuild` / `daemon stop` / `cargo install` as planning. Do **not** grow `doctor.rs` (T300 freeze — it already forwards `assessment.remediation`). Do **not** rewrite `GraphRebuilder` / projector. Do **not** steal `has_graph_tables` (T309). Never `git push origin main`.
 
 ---
@@ -32,7 +33,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T300 made re
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `037262e` T307 F3 halt squash `#224`. Tree **CLEAN**. `origin/main...HEAD` **0/0**. Branch `main`. |
+| HEAD | Fold-in `0d0fdab` (T308 full-plan commit). Tree **CLEAN**. `origin/main...HEAD` **ahead 1**. Branch `main`. Plan-write snapshot was `037262e` / **0/0** (both-reviewer m1). |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` LastWriteTime **2026-08-26 6:54:32 AM**; `ai-brains 0.1.3`; T306 graph-on SQLCipher **4.14**. |
 | PATH `doctor --format json` | `status=degraded`. `graph_density` **warn** `sparse: … floor 0.5 (nodes=63040 edges=25844 E/N=0.410 pinned=49521 memory_nodes=39355)` **`remediation: ai-brains graph rebuild`**. Other warn: `recovery_kit_event` (**not this track**). Matrix **15**. `cipher_page` `4.14.0 community`. `graph_feature=available`. `vault_open` opened read-only. |
 | PATH `graph update --format human` | `status: sparse` `density: warn` nodes **63044** edges **25847** pinned **49522** memory_nodes **39357** `edge_node_ratio: 0.40998…` note **includes** `rebuild if projection lag suspected` **and** `remediation: ai-brains graph rebuild`. |
@@ -66,12 +67,13 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T300 made re
 | Priority | comment **`:165`** | empty_lag → orphan → sparse → projection_lag → skip → Ok. **Do not reorder.** |
 | `has_graph_tables` | **`:281`** | sqlite_master. **T309 — do not steal.** |
 | Doctor check | `doctor.rs` `check_graph_density` **`:868–918`** | Warn arms including Sparse pass `assessment.remediation`. Gather-error **`:892`** uses `density_remediation`. **Do not grow.** Matrix **15** (`:1066`). |
-| Graph JSON | `graph.rs` `GraphHealthOutput` **`:35–48`** | `#[serde(skip_serializing_if = "Option::is_none")]` on `remediation`. Sparse omit is already valid shape. |
+| Graph JSON | `graph.rs` `GraphHealthOutput` **`:35–48`** | `#[serde(skip_serializing_if = "Option::is_none")]` on `remediation`. Sparse omit is already valid shape. Human emitter **`:381–383`** already `if let Some` — **no production `graph.rs` edit** (test only). |
 | Sparse JSON test | `graph.rs` **`:794–828`** | `graph_health_output__sparse_fixture__status_sparse_with_remediation` asserts rebuild. **Flip** to omit key. |
 | Assessor units | `graph_density.rs` **`:458–528`** | `…sparse_1304_95_graph_on__rebuild` and `…ratio_0_4__warn_sparse` assert rebuild. **Flip.** Graph-off Sparse **`:475–490`** reinstall — **keep.** |
 | Smoke F17 | `tests/smoke.rs` **`:3265–3340`** | Const equals exact rebuild; doctor.rs has **no** rebuild literal. **Stay-green.** |
 | Contracts | `ai-brains-contracts/src/doctor.rs` `HealthCheck` **`:67–70`** | Optional remediator; `skip_serializing_if`. Schema v1. **No DTO change.** |
-| Docs | `Docs/OPERATIONS.md` **`:918–923`**, **`:949–950`**, **`:1043`**; `Docs/CAPABILITIES.md` **`:557`**; `PROTOCOL-COMPAT.md` **`:96`** | “graph-on → rebuild if sparse/empty” is **stale** for Sparse. |
+| Docs (stale) | `Docs/OPERATIONS.md` **`:918–923`**, **`:949–950`**, **`:1043`**; `Docs/CAPABILITIES.md` **`:557`** | “graph-on → rebuild if sparse/empty” / “rebuild when graph-on” is **stale** for Sparse. AC8. |
+| Docs (already) | `Docs/PROTOCOL-COMPAT.md` **`:96`** | `remediation` already **optional**. Omit-on-None is in contract — **do not list as stale** (OpenCode O1 / Agy O3). |
 | Hotspots | `project.rs` #1 | **Do not touch.** Expected product: `graph_density.rs` + `graph.rs` tests + docs + CHANGELOG. |
 
 ### 2.4 Dependency / standards research (2026-08-26) — snapshot, re-verify at execute
@@ -95,7 +97,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T300 made re
 |----|----------|
 | **F0** | Plan-only until go. No product commits as planning. |
 | **F1** | Default floors **frozen**: `MIN_EDGE_NODE_RATIO = 0.50`, `MIN_PINNED = 100`, `MIN_NODES = 50`, `MIN_MEMORY_COVERAGE = 0.10`. Env overrides stay. Do **not** force `live`. |
-| **F2** | Graph-on **Sparse**: `remediation = None` (JSON omits key; pretty omits the remediator line). Note **keeps** `rebuild if projection lag suspected`. Do **not** invent a non-command honesty string. Do **not** SOOT `graph update` or `graph rebuild --dry-run`. |
+| **F2** | Graph-on **Sparse**: `remediation = None` (JSON omits key; pretty omits the remediator line). Note **keeps** `rebuild if projection lag suspected`. Do **not** invent a non-command honesty string. Do **not** SOOT `graph update` or `graph rebuild --dry-run`. Pretty omit is **already** `emit_graph_health_human` `if let Some` (`graph.rs:381–383`) — no emitter rewrite. |
 | **F3** | Graph-on **empty_lag / orphan_nodes / projection_lag**: still exact `REMEDIATION_REBUILD` (`ai-brains graph rebuild`, no `--confirm`). T232 F4 remainder. |
 | **F4** | Graph-off **any** density warn (including Sparse): still `GRAPH_REINSTALL_SOOT` only. Install is a real next step; rebuild is a dead-end on graph-off. |
 | **F5** | `REMEDIATION_REBUILD` const **stays**. Sparse graph-on simply does not use it. Smoke F17 stay-green. |
@@ -127,7 +129,7 @@ This unblocks daily ops honesty: T213/T232 made density **honest**; T300 made re
 | **AC5** | `MIN_EDGE_NODE_RATIO` still **0.50** in src (`:14`). Smoke F17 still holds (`REMEDIATION_REBUILD` const + doctor.rs has no rebuild literal). |
 | **AC6** | Doctor matrix still **15**; `check_graph_density` still forwards assessor remediator (no new doctor.rs logic unless a compile force — unexpected). |
 | **AC7** | clippy `-p ai-brains-cli --all-targets -- -D warnings` + nextest units covering `graph_density` / `graph_health_output` / smoke SOOT. |
-| **AC8** | CHANGELOG Unreleased Changed. OPERATIONS / CAPABILITIES T232 “rebuild if sparse” sentences updated: Sparse graph-on **omits** remediator; empty/orphan/projection_lag still rebuild. |
+| **AC8** | CHANGELOG Unreleased Changed. OPERATIONS / CAPABILITIES T232 “rebuild if sparse” sentences updated: Sparse graph-on **omits** remediator; empty/orphan/projection_lag still rebuild. **Not** PROTOCOL-COMPAT `:96` (already optional). |
 | **AC9** | Optional live: PATH or `cargo run --features graph -- doctor --format json` on this vault — Sparse check has **no** `remediation` key (or value ≠ rebuild). Skip with written reason if owner declines live. **No rebuild.** |
 | **AC10** | `has_graph_tables` sqlite_master **unchanged**. T309 not stolen. |
 
@@ -154,6 +156,8 @@ In the Sparse arm only (`:214–226`):
 - `density_warn_note(..., sparse_nuance=true)` **unchanged**.
 
 Other arms keep `Some(density_remediation(graph_cli_available).into())`.
+
+Doctor `check_graph_density` (`:914`) and `GraphHealthOutput` serde already forward/omit `None`. Production touch is the Sparse arm + unit/JSON test flips.
 
 ### 5.4 Capture independence
 
@@ -284,7 +288,7 @@ Entire `conductor/deferred.md` scanned 2026-08-26.
 | Path | Role |
 |------|------|
 | `crates/ai-brains-cli/src/graph_density.rs` | Sparse arm remediator; unit flips |
-| `crates/ai-brains-cli/src/commands/graph.rs` | Sparse JSON test omit remediator (**`:794–828`**) |
+| `crates/ai-brains-cli/src/commands/graph.rs` | Sparse JSON test omit remediator (**`:794–828`**). Production emitter **`:381–383`** **no edit**. |
 | `crates/ai-brains-cli/src/commands/doctor.rs` | **No edit** (forward already) |
 | `crates/ai-brains-cli/tests/smoke.rs` | Stay-green F17 (no edit expected) |
 | `Docs/OPERATIONS.md` | When-to-rebuild table; doctor comment; Graph Health row |
@@ -296,6 +300,34 @@ Entire `conductor/deferred.md` scanned 2026-08-26.
 
 ---
 
-## 13. Fold-in disposition
+## 13. AI fold-in
 
-*(empty until `/fold-in 308`)*
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (HEAD `0d0fdab`). Fold-in verify: Sparse arm `graph_density.rs:223` still `Some(remediation.into())`; floors `:14` **0.50**; `GraphHealthOutput` skip_serializing_if `:46–47`; human emitter `:381–383` `if let Some`; doctor `:914` forwards remediator; PROTOCOL-COMPAT `:96` already “optional `remediation`”; OPERATIONS `:918–923` / `:949–950` / `:1043` and CAPABILITIES `:557` still “rebuild if sparse”; smoke F17 `:3265–3340`; `#224` comments/reviews/issues `[]`; HEAD `0d0fdab` ahead **1**.
+
+### Pins locked by fold-in
+
+1. **§2.1 HEAD (both m1):** review-time HEAD is `0d0fdab` / ahead **1**. Plan-write was `037262e` / 0/0. Phase 0 re-verifies the working tree. Fold-in commit follows this snapshot.
+2. **PROTOCOL-COMPAT `:96` (OpenCode O1 / Agy O3):** already optional remediator. **Not** a stale AC8 target. Omit-on-None is in contract.
+3. **Emitter (OpenCode solid #3):** `graph.rs:381–383` already omits the remediator line when `None`. F2 pretty-omit needs **no** production `graph.rs` edit (test flip only).
+4. **last-PR Cursor `#224`:** N/A empty; **no T311.**
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** stale HEAD `037262e` / 0/0 | **Folded** §2.1 + plan preflight → `0d0fdab` / ahead **1** |
+| Agy | **m2** OPERATIONS + CAPABILITIES + CHANGELOG sync | **Already** AC8 / §12 |
+| Agy | **O1** doctor.rs forwards `None` / skip_serializing_if | **Already** F7 / F6 |
+| Agy | **O2** smoke F17 stay-green | **Already** F5 / AC5 |
+| Agy | **O3** PROTOCOL-COMPAT optional | **Folded** with OpenCode O1 — drop from stale-doc row |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** stale HEAD | **Folded** (same as Agy m1) |
+| OpenCode | **O1** PROTOCOL-COMPAT `:96` not stale | **Folded** §2.3 docs-already row / pin 2 |
+| OpenCode | **O2** loop-stop Osmani corroboration | **Already** §2.4 |
+| both | last-PR Cursor empty; deferred map; no T311 | **Affirm** |
+| both | Sparse hole is `:223`; floors frozen; no doctor.rs growth | **Already** F1 / F2 / F7 |
+
+No Blockers/Majors to decline. No new placeholder. Do **not** edit `*-review.md`. Do **not** execute until go.
+
+**Planning + fold-in 2026-08-26.** Still **plan-only until go**.

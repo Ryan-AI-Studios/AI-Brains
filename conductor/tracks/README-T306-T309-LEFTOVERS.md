@@ -2,7 +2,7 @@
 
 **Source:** T301–T305 Dependabot series **Completed** (`#218`–`#222`). Owner asked 2026-08-26 to mint **placeholder tracks** for the four leftover residuals called out after T305. T306 upgraded to a **full plan** the same day; T310 minted from that live baseline (not Cursor).
 **Status:** **T306 Completed** (PATH `cipher_version=4.14.0 community`). **T307 Blocked** (F3 2026-08-26 — reqwest still `tower-http 0.6.8`). **T308 full plan (Pending).** **T309 Planned.** **T310 Pending** placeholder.
-**Ledger:** mint DOCS TX `c62396f6-4532-4335-b10b-f31b3fa02ec2`. T306 full-plan DOCS TX `2b0a2dec-7921-4e84-a964-b37cb703457c`. T306 implement CHORE TX `927f9b00-c0a6-4fd1-833b-ddf4772baa90`. T307 full-plan DOCS TX `6e17c94a-a250-4f24-b579-3b4a66970aa6`. T307 F3 halt DOCS TX `a4f3ba1d-d478-4768-a2b5-1eb6bebf254f`. T308 full-plan DOCS TX `96f0ce16-3a64-43cc-92ac-b9a4d89c46ae`.
+**Ledger:** mint DOCS TX `c62396f6-4532-4335-b10b-f31b3fa02ec2`. T306 full-plan DOCS TX `2b0a2dec-7921-4e84-a964-b37cb703457c`. T306 implement CHORE TX `927f9b00-c0a6-4fd1-833b-ddf4772baa90`. T307 full-plan DOCS TX `6e17c94a-a250-4f24-b579-3b4a66970aa6`. T307 F3 halt DOCS TX `a4f3ba1d-d478-4768-a2b5-1eb6bebf254f`. T308 full-plan DOCS TX `96f0ce16-3a64-43cc-92ac-b9a4d89c46ae`. T308 fold-in DOCS TX `91f8fbcd-655e-4fbd-bd64-635e9fa271bf`.
 **last-PR Cursor:** [#224](https://github.com/Ryan-AI-Studios/AI-Brains/pull/224) T307 F3 halt — **empty**. T310 is **not** a Cursor leftover.
 
 ## Residual → track map
