@@ -4,7 +4,25 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#223** T306 **empty**. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308–T309 Planned.** **T310 Planned** (placeholder from T306 full plan).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#224** T307 F3 halt **empty**. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 full plan (Pending).** **T309 Planned.** **T310 Pending** placeholder.
+
+### T308 full plan (2026-08-26) — Sparse remediator None; floors frozen
+
+| Item | Disposition |
+|------|-------------|
+| T306 R4 / T300 still sparse; doctor SOOT `graph rebuild` | **Absorb** F2 / AC1 / AC4 / AC9 — graph-on Sparse `remediation = None` |
+| Live PATH 2026-08-26 E/N **0.410** (63040/25844); coverage ~0.80 | **Evidence** — warn is E/N not projection_lag; note already has lag nuance |
+| Floor retune `MIN_EDGE_NODE_RATIO=0.50` | **Decline** F1 |
+| empty_lag / orphan / projection_lag rebuild | **Affirm** F3 — T232 F4 remainder |
+| Graph-off Sparse reinstall SOOT | **Affirm** F4 |
+| Grow `doctor.rs` / 16th check | **Decline** F7 / F13 |
+| `has_graph_tables` `table_exists` | **Decline steal → T309** |
+| T84 `run_update` / PATH daemon 4.10 | **Decline steal → T310** |
+| T307 dual tower-http | **Not stolen** — Blocked |
+| Event↔graph freshness | **Decline** — T213 F31 |
+| last-PR Cursor `#224` | **N/A empty** — no T311 |
+| clap 5 | **Still declined** |
+| DOCS TX | `96f0ce16-3a64-43cc-92ac-b9a4d89c46ae` |
 
 ### T307 F3 halt closeout (2026-08-26) — go re-verify; Blocked
 
