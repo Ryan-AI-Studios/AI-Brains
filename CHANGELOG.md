@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T308 Sparse remediator honesty:** Graph-on **Sparse** density verdict omits the `remediation` key (and pretty remediator line) so operators stop copy-pasting `ai-brains graph rebuild` after typed-lineage E/N already survived a full replay (T300). Note still includes `rebuild if projection lag suspected`. Graph-on **empty_lag / orphan_nodes / projection_lag** still remediate exact `ai-brains graph rebuild`. Graph-off Sparse still remediates `GRAPH_REINSTALL_SOOT`. Floors frozen (`MIN_EDGE_NODE_RATIO = 0.50`). No doctor.rs / projector / `has_graph_tables` change.
+
 - **T305 rusqlite 0.40.2:** Workspace exact pin `0.39.0` → **`0.40.2`** (same features `bundled-sqlcipher-vendored-openssl` / `backup` / `fallible_uint` / `trace`) via `cargo update -p rusqlite --precise 0.40.2`. Bundled SQLCipher **4.10 → 4.14**; observed `PRAGMA cipher_version` **`4.14.0 community`**. Lock extras: libsqlite3-sys **0.37.0 → 0.38.2**, hashlink **0.11.0 → 0.12.1**. Encrypt/open/wrong-key + `sqlcipher_export` rotate + backup KATs green. No clap / tokio / tower-http / thiserror bump. No Dependabot remote merge (`#61`).
 
 - **T304 tower-http 0.7:** Workspace pin `0.6.6` → **`0.7`** (features `limit`/`cors`/`trace` unchanged) and lock adds **tower-http 0.7.0** for `ai-brains-api-server`. Transitive **0.6.11** remains via `reqwest` (`^0.6.8`) — dual versions required; bare `cargo update -p tower-http --precise 0.7.0` cannot unify. T161 CORS deny + `RequestBodyLimitLayer` / `TraceLayer` constructors unchanged. No rusqlite / clap / thiserror / tokio bump. No Dependabot remote merge (`#58`).
