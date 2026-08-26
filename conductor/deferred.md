@@ -4,7 +4,67 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#221** T304 **empty**. **T285–T305 Completed** (Dependabot series closed).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#222** T305 **empty**. **T285–T306 Completed.** **T307–T309 Planned.** **T310 Planned** (placeholder from T306 full plan).
+
+### T306 implement closeout (2026-08-26)
+
+| Item | Disposition |
+|------|-------------|
+| PATH F1 `cargo install --path crates/ai-brains-cli --locked --features graph` | **Done** AC1 / F1 (elevated retry after Access denied) |
+| PATH `doctor --json` `cipher_page` **`cipher_version=4.14.0 community`** | **Done** AC2 / F2 |
+| PATH `graph_feature=available`; vault_open read-only; no key leak | **Done** AC3–AC5 |
+| `git diff -- crates/ Cargo.toml Cargo.lock` empty | **Done** AC6 / F3 |
+| T305 R3 PATH pre-0.40.2 / 4.10 | **Done** — absorbed; PATH now 4.14 |
+| First F1 Access denied (hung PATH `ai-brains preflight --summary` PID) | **Residual** R1 — ops; elevated retry cleared; do not daemon-stop |
+| PATH `ai-brainsd` still 4.10-era (mtime 2026-08-22); mixed CLI/daemon | **Residual** R2 — F8 / **T310** (not easy; needs stop + install) |
+| T84 `run_update` omits `--features graph` | **Residual** R3 — F9 / **T310** (product src) |
+| `graph_density` sparse E/N≈0.409; remediator rebuild | **Residual** R4 — AC7 / **T308** |
+| `recovery_kit_event` doctor warn | **Residual** R5 — not this track |
+| INSTALL.md header still 0.1.2 | **Residual** R6 — docs drift; not DoD |
+| Harness reinstall after cargo install | **Residual** R7 — F24 soft |
+| T307 / T308 / T309 / T310 | **Not stolen** |
+| mint row “T306 Planned” | **Superseded** — Completed |
+
+### T306 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `--json` over `--summary` | **Already** F2 / AC2 |
+| Agy m2 `--features graph` | **Already** F1 / F7 / AC3 |
+| Agy m3 Perl pre-check | **Already** F12 / AC9 |
+| Agy O1 filtered JSON | **Already** F6 / AC5 / §7 |
+| OpenCode m1 stale HEAD `cb5aa49` | **Folded** snapshot `30894bf` / ahead 2 |
+| OpenCode O1 F25 mtime empty-proof | **Folded** F25 / AC1 supporting; AC2 SoT |
+| OpenCode O2 mixed CLI/daemon | **Already** F8 / F22 |
+| OpenCode `#222` `mergedAt` 03:51:25Z | **Folded** §2.1 |
+| last-PR `#222` Cursor | **Affirm N/A** — no T311 |
+| Agy/OpenCode B / M | None filed |
+
+### T306 full plan (2026-08-26) — PATH proven 4.10; mint T310
+
+| Item | Disposition |
+|------|-------------|
+| T305 R3 PATH `cipher_version=4.10.0 community` | **Done** T306 — PATH now `cipher_version=4.14.0 community` |
+| T84 `run_update` omits `--features graph`; PATH `ai-brainsd` mtime 2026-08-22 | **T310** placeholder (T306 F3/F4 no src / no daemon stop) |
+| INSTALL.md header still 0.1.2 | **Decline** — docs drift; not R3 |
+| last-PR `#222` Cursor | **Affirm N/A empty** — T310 is live src, not Cursor |
+| T307 / T308 / T309 | **Not stolen** |
+
+### T306–T309 mint (2026-08-26) — leftover placeholders (owner-requested)
+
+| Item | Disposition |
+|------|-------------|
+| T305 R3 PATH pre-0.40.2 | **Done** T306 — PATH `4.14.0 community` |
+| T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **T307** Planned — **upstream-blocked** (reqwest still `tower-http 0.6.8`) |
+| T300 still sparse E/N 0.409; doctor SOOT rebuild | **T308** Planned — floors frozen |
+| T213 L4 / T305 R2 `table_exists` | **T309** Planned |
+| T305 R1 / T304 R1 Dependabot close hygiene | **Decline** — standing; not a track |
+| T305 R4 / T304 R3 lock extra variance | **Decline** — do not hand-edit |
+| clap 5 / T305 R5 | **Still declined** |
+| T304 R4 csrf | **Still declined** |
+| T278 floor retune | **Still declined** — T308 is remediator copy, not 0.50 |
+| last-PR `#222` Cursor | **N/A empty** — no Cursor leftover; **T310** minted from T306 live baseline (daemon + T84) |
+| T302 R2 dual thiserror 1.x | **Decline** — Tauri/json-patch; not these leftovers |
 
 ### T305 implement closeout (2026-08-25)
 
@@ -21,7 +81,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Do not merge Dependabot remote `#61` | **Done** F8 |
 | Close `#61` as superseded after squash; do not delete remote | **Residual** R1 — standing Dependabot hygiene |
 | T213 L4 `Connection::table_exists` not adopted (F5 optional) | **Residual** R2 — not easy product churn; local helpers unrelated |
-| PATH-installed `ai-brains` remains pre-0.40.2 until operator install | **Residual** R3 — gate used track-built binary (F10) |
+| PATH-installed `ai-brains` remains pre-0.40.2 until operator install | **Done** T306 — PATH `cipher_version=4.14.0 community` |
 | `#61` windows-sys/socket2 extras absent on live HEAD | **Residual** R4 — F13 variance; do not hand-edit |
 | clap 5 still declined | **Residual** R5 — standing decline |
 | mint row “T305 Planned” | **Superseded** — Completed |

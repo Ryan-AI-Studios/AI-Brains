@@ -250,6 +250,11 @@
 | T303 | tokio 1.53.1 | ✅ **Completed** | Grok | [T303](tracks/trackT303-tokio-1-53/spec.md) | **Completed 2026-08-25:** Floor `1.53` + lock **1.53.1** (`#8300`; F8 precise; F9 windows-sys extras). Full gate exit 0. CHORE TX `46c31a21-dc44-4f2d-b037-0290bb792bb4`. Residuals R1–R4 in deferred.md. |
 | T304 | tower-http 0.7 | ✅ **Completed** | Grok | [T304](tracks/trackT304-tower-http-0-7/spec.md) | **Completed 2026-08-25:** Workspace `0.7` + lock **0.7.0** for api-server; dual **0.6.11** via reqwest. T161 CORS deny intact; no src change. Full gate exit 0. CHORE TX `f1edfb28-9f51-4910-be4c-14bef88fe09e`. Residuals R1–R4 in deferred.md. |
 | T305 | rusqlite 0.40.2 | ✅ **Completed** | Grok | [T305](tracks/trackT305-rusqlite-0-40/spec.md) | **Completed 2026-08-25:** `#61` exact `0.40.2` + `--precise`; SQLCipher **4.14.0 community**; F13 libsqlite3-sys 0.38.2 + hashlink 0.12.1; F9 KATs + live doctor green; CHORE `d80afcd7`. |
+| T306 | PATH install SQLCipher 4.14 | ✅ **Completed** | Grok | [T306](tracks/trackT306-path-install-sqlcipher-414/spec.md) | **Completed 2026-08-26:** PATH `cipher_page` **`cipher_version=4.14.0 community`**; `graph_feature=available`; no crate/lock diff. CHORE `927f9b00`. Soft: daemon 4.10 + T84 → **T310**; sparse → **T308**. |
+| T307 | reqwest / tower-http unify | **Pending** | Grok | [T307](tracks/trackT307-reqwest-tower-http-unify/spec.md) | **Planned 2026-08-26:** T304 R2 dual 0.6.11 via reqwest 0.13.4. **Upstream-blocked** today. F0 until go. |
+| T308 | Sparse remediator honesty | **Pending** | Grok | [T308](tracks/trackT308-graph-sparse-remediator/spec.md) | **Planned 2026-08-26:** doctor still SOOT `graph rebuild` at E/N 0.409. Floors frozen. F0 until go. |
+| T309 | rusqlite `table_exists` | **Pending** | Grok | [T309](tracks/trackT309-rusqlite-table-exists/spec.md) | **Planned 2026-08-26:** T213 L4 / T305 R2. `has_core_tables` + `has_graph_tables` only. F0 until go. |
+| T310 | update graph-on + PATH daemon 4.14 | **Pending** | Grok | [T310](tracks/trackT310-update-graph-on-daemon/spec.md) | **Placeholder 2026-08-26 (from T306 plan):** T84 `run_update` omits `--features graph`; PATH `ai-brainsd` mtime 2026-08-22. F0 until go. |
 
 
 ---
