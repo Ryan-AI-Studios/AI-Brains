@@ -4,7 +4,26 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#219** T302 **empty**. **T285–T303 Completed.** **T304–T305 Planned** (Dependabot cargo).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#220** T303 **empty**. **T285–T304 Completed.** **T305 Planned** (Dependabot cargo rusqlite).
+
+### T304 implement closeout (2026-08-25)
+
+| Item | Disposition |
+|------|-------------|
+| Workspace tower-http `0.6.6` → `0.7` (limit/cors/trace) | **Done** AC1 / F1 |
+| Lock api-server → tower-http **0.7.0**; reqwest keeps **0.6.11** | **Done** AC1 — dual required |
+| Bare `cargo update -p tower-http --precise 0.7.0` fails (reqwest `^0.6.8`) | **Residual** R2 — not easy; needs reqwest that accepts 0.7 |
+| T161 CORS deny + layers `:66`/`:68` unchanged; no CorsLayer/csrf/fs | **Done** AC3 / AC4 / F2 / F3 |
+| rusqlite / clap / thiserror / tokio 1.53.1 unchanged | **Done** F4 |
+| `git diff -- crates/` empty | **Done** constructors unchanged |
+| Targeted api-server nextest 39 (CORS + body-limit) | **Done** AC2 |
+| CHANGELOG Unreleased Changed row | **Done** AC6 |
+| Full gate (fmt/clippy/nextest/deny/audit + ledgerful full) | **Done** AC5 (after Phase 5) |
+| Do not merge Dependabot remote `#58` | **Done** F6 |
+| Close `#58` as superseded after squash; do not delete remote | **Residual** R1 — standing Dependabot hygiene |
+| `#58` F9 windows-sys/socket2/windows-core extras absent on live HEAD | **Residual** R3 — expected variance after T303; do not hand-edit |
+| Opt-in `csrf` feature in 0.7 not enabled | **Residual** R4 — product non-goal |
+| mint row “T304 Planned” | **Superseded** — Completed |
 
 ### T303 implement closeout (2026-08-25)
 
@@ -103,6 +122,20 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR `#219` Cursor | **Affirm N/A** — no T306 |
 | No B / M | Nothing to decline of B/M |
 
+### T304 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 workspace `0.7` required (`^0.6.6` cannot reach 0.7) | **Folded** F1 affirmed — unlike T303, this **is** a caret-unblock |
+| Agy m3 `--precise 0.7.0` | **Folded** F8 |
+| OpenCode O1 `#58` windows-sys/socket2/windows-core extras | **Folded** F9 — live graph after T303 may differ; do not hand-edit |
+| OpenCode m1 last-PR `#216` → `#220` | **Folded** §2 / §9 |
+| Agy m2 keep limit/cors/trace; no csrf/fs | **Already** F2 |
+| Agy O1 targeted `-p ai-brains-api-server` | **Already** AC2 |
+| OpenCode “limit/cors/trace no breaking API” | **Partial** — constructors unchanged; gRPC classify unused |
+| last-PR `#220` Cursor | **Affirm N/A** — no T306 |
+| No B / M | Nothing to decline of B/M |
+
 ### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
 
 | Item | Disposition |
@@ -110,9 +143,9 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | GHA `#68–#72` SHA-pin majors | **T301** Completed |
 | thiserror `#60` + chrono `#62` patches | **T302** Completed |
 | tokio `#59` 1.53.1 | **T303** Completed |
-| tower-http `#58` 0.7 | **T304** Planned |
+| tower-http `#58` 0.7 | **T304** Completed |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
-| last-PR `#219` Cursor | **N/A empty** — no T306 |
+| last-PR `#220` Cursor | **N/A empty** — no T306 |
 | clap 5 | **Still declined** (not in this Dependabot batch) |
 | Merge Dependabot remotes as-is | **Declined** — recreate on `track/TNN-*` |
 
