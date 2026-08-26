@@ -18,6 +18,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Residual R2 — never-rebuilt Sparse has no rebuild remediator | **Not easy / by design** F2 — empty_lag/orphan still rebuild; freshness arm declined |
 | Residual R3 — PATH binary still shows rebuild until `cargo install` | **Soft** — hermetic/source SoT; F12 no install as DoD |
 | Residual R4 — `recovery_kit_event` doctor warn | **Not this track** (T306 R5) |
+| Residual R5 — GHA `pull_request` CI did not auto-start on `#225` (close/reopen/empty commit no-op); used `workflow_dispatch` run `32988264560` (all green) | **Not easy** — ops/Actions quirk; branch unprotected so dispatch gate was authoritative |
 | Floor retune / projector rewrite / T309 `table_exists` / T310 | **Not stolen** |
 | T307 dual tower-http | **Not stolen** (Blocked) |
 | FEATURE TX | `d62a3884-5af8-44fc-9434-3b8c31a656af` |
