@@ -1,7 +1,7 @@
 # T307 — Unify tower-http (drop reqwest 0.6.11 dual)
 
 - **Track ID:** T307-ReqwestTowerHttpUnify
-- **Status:** **Planned** (Pending until **go**; **upstream-blocked** at this plan)
+- **Status:** **Blocked** (F3 halt on go 2026-08-26 — crates.io reqwest still 0.13.4 / tower-http `0.6.8`; `#3062` open)
 - **Category:** CHORE / DEPS
 - **Owner:** Grok
 - **Source:** T304 R2 — api-server `tower-http` **0.7.0**; reqwest keeps **0.6.11**. Owner leftover placeholders 2026-08-26; this pass upgrades the stub to a full plan.
@@ -11,7 +11,7 @@
 - **Not absorbed (DoD):** T304 R4 csrf; T308 sparse remediator; T309 `table_exists`; T310 `run_update` + PATH daemon; clap 5; floor retune; `[patch.crates-io]`; git-dep reqwest / tower-http; new crates (`tower-reqwest`).
 - **Research date:** 2026-08-26 (plan wrote at `34379bf`; fold-in against `a084610`, ahead **1** of `origin/main`).
 - **AI fold-in:** 2026-08-26 `agy-review.md` + `opencode-review.md` (HEAD `a084610`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** both m1 HEAD snapshot; OpenCode m3 cargo-info is version-only (F22 / AC9). **Decline:** Agy m1 `#223` timestamp (`mergedAt` **12:34:00Z** is correct; **11:38:11Z** is `createdAt` / `gh pr list`). **Already:** Agy m2 F3 halt; both O1 AC2; Agy O2 / OpenCode O2 F12. Disposition **§13**.
-- **Ledger:** planning DOCS TX `6e17c94a-a250-4f24-b579-3b4a66970aa6`. Fold-in DOCS TX `b4094321-90a3-42c7-984b-b0ff05dd1eac`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. Implement starts a **CHORE** TX on **go** only if Phase 0 F3 does **not** halt.
+- **Ledger:** planning DOCS TX `6e17c94a-a250-4f24-b579-3b4a66970aa6`. Fold-in DOCS TX `b4094321-90a3-42c7-984b-b0ff05dd1eac`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. F3 halt DOCS TX `a4f3ba1d-d478-4768-a2b5-1eb6bebf254f` (no CHORE product TX).
 - **Isolation:** Do **not** `[patch.crates-io]`. Do **not** git-dep [reqwest#3062](https://github.com/seanmonstar/reqwest/pull/3062) or tower-http `main`. Do **not** add CorsLayer / CsrfLayer. Do **not** merge Dependabot remotes. Never `git push origin main`. Do **not** `cargo install` / live HTTP bind / `daemon stop` as planning.
 
 ---

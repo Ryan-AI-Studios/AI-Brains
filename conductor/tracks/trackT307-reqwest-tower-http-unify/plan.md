@@ -1,10 +1,10 @@
 # T307 Plan — reqwest / tower-http unify
 
-**Status:** **Pending**. Spec [spec.md](./spec.md). **Upstream-blocked** at plan time (reqwest 0.13.4 → tower-http `0.6.8`).
-**Category:** CHORE / DEPS
+**Status:** **Blocked** (F3 halt on go 2026-08-26). Spec [spec.md](./spec.md).
+**Category:** CHORE / DEPS (halt is DOCS provenance)
 **Ledger (planning):** `6e17c94a-a250-4f24-b579-3b4a66970aa6` (DOCS)
 **Ledger (fold-in):** `b4094321-90a3-42c7-984b-b0ff05dd1eac` (DOCS)
-**Ledger (implement):** CHORE TX on go **only if** Phase 0 F3 does not halt.
+**Ledger (implement):** F3 halt DOCS TX `a4f3ba1d-d478-4768-a2b5-1eb6bebf254f` — **no** CHORE product TX.
 
 ---
 
@@ -50,20 +50,20 @@
 
 ## Phase 0 — on go (re-verify + deferred rescan)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
-- [ ] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
-- [ ] `cargo info reqwest --color never` — latest **version** only (F22; not the 0.6.8 pin)
-- [ ] Read **that** version’s `tower-http` requirement from docs.rs `/crate/reqwest/<ver>/source/Cargo.toml.orig` (or crates.io download)
-- [ ] `cargo info tower-http --color never` — latest 0.7.x
-- [ ] Rescan `deferred.md` open overlapping rows
-- [ ] **If** reqwest still requires tower-http **0.6.x** → **F3 halt**:
-  - [ ] Do **not** start a CHORE product TX
-  - [ ] Conductor T307 → **Blocked** with dated evidence
-  - [ ] `deferred.md` F3 row (crates.io version + `#3062` still open/merged?)
-  - [ ] `ledgerful ledger commit` this docs-only halt (or note on existing TX)
-  - [ ] **Stop.** Do not patch. Do not git-dep.
-- [ ] **Else** (unblocked): `ledgerful ledger start T307-reqwest-tower-http-unify --category CHORE --message "Unify tower-http 0.7 via reqwest <ver>"`
-- [ ] **Do not** merge Dependabot remotes
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact` — ready; 0 pending / 0 drift
+- [x] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
+- [x] `cargo info reqwest --color never` — latest **0.13.4** (F22 version only)
+- [x] Read **that** version’s `tower-http` requirement from docs.rs `/crate/reqwest/0.13.4/source/Cargo.toml.orig` — still **`0.6.8`**
+- [x] `cargo info tower-http --color never` — latest **0.7.0**
+- [x] Rescan `deferred.md` open overlapping rows
+- [x] **If** reqwest still requires tower-http **0.6.x** → **F3 halt**:
+  - [x] Do **not** start a CHORE product TX
+  - [x] Conductor T307 → **Blocked** with dated evidence
+  - [x] `deferred.md` F3 row (crates.io **0.13.4** + `#3062` still **open** / last 2026-07-13)
+  - [x] DOCS TX `a4f3ba1d-d478-4768-a2b5-1eb6bebf254f` for halt closeout
+  - [x] **Stop.** Do not patch. Do not git-dep.
+- [ ] **Else** (unblocked): `ledgerful ledger start … CHORE` — **N/A** (halted)
+- [x] **Do not** merge Dependabot remotes
 
 ## Phase 1 — Bump (only if F3 does not halt)
 
@@ -93,18 +93,19 @@
 
 ## Phase 3b — Closeout (F3 halt)
 
-- [ ] conductor **Blocked** (not Completed)
-- [ ] deferred F3 evidence dated
-- [ ] No `Cargo.toml` / `Cargo.lock` / CHANGELOG product diff
-- [ ] T308 / T309 / T310 not stolen
+- [x] conductor **Blocked** (not Completed)
+- [x] deferred F3 evidence dated (2026-08-26) + residual lows R1–R5
+- [x] No `Cargo.toml` / `Cargo.lock` / CHANGELOG product diff
+- [x] T308 / T309 / T310 not stolen
+- [x] `review.md` written (F16 skip cross-model)
 
 ## DoD
 
-- [ ] Dual gone **or** F3 halt with crates.io evidence (AC1)
-- [ ] CORS deny intact if a bump ships (AC3)
-- [ ] Peer pins unchanged if a bump ships (AC6)
-- [ ] Never `git push origin main`; no Dependabot remote merge
-- [ ] T308 / T309 / T310 not stolen
+- [x] Dual gone **or** F3 halt with crates.io evidence (AC1) — **halt**
+- [x] CORS deny intact if a bump ships (AC3) — N/A (no bump)
+- [x] Peer pins unchanged if a bump ships (AC6) — N/A (no bump)
+- [x] Never `git push origin main`; no Dependabot remote merge
+- [x] T308 / T309 / T310 not stolen
 
 ## Evidence commands (bump path)
 
