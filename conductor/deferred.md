@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#219** T302 **empty**. **T285–T303 Completed.** **T304–T305 Planned** (Dependabot cargo).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#220** T303 **empty**. **T285–T303 Completed.** **T304–T305 Planned** (Dependabot cargo).
 
 ### T303 implement closeout (2026-08-25)
 
@@ -103,6 +103,20 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR `#219` Cursor | **Affirm N/A** — no T306 |
 | No B / M | Nothing to decline of B/M |
 
+### T304 fold-in (2026-08-25) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 workspace `0.7` required (`^0.6.6` cannot reach 0.7) | **Folded** F1 affirmed — unlike T303, this **is** a caret-unblock |
+| Agy m3 `--precise 0.7.0` | **Folded** F8 |
+| OpenCode O1 `#58` windows-sys/socket2/windows-core extras | **Folded** F9 — live graph after T303 may differ; do not hand-edit |
+| OpenCode m1 last-PR `#216` → `#220` | **Folded** §2 / §9 |
+| Agy m2 keep limit/cors/trace; no csrf/fs | **Already** F2 |
+| Agy O1 targeted `-p ai-brains-api-server` | **Already** AC2 |
+| OpenCode “limit/cors/trace no breaking API” | **Partial** — constructors unchanged; gRPC classify unused |
+| last-PR `#220` Cursor | **Affirm N/A** — no T306 |
+| No B / M | Nothing to decline of B/M |
+
 ### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
 
 | Item | Disposition |
@@ -112,7 +126,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | tokio `#59` 1.53.1 | **T303** Completed |
 | tower-http `#58` 0.7 | **T304** Planned |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
-| last-PR `#219` Cursor | **N/A empty** — no T306 |
+| last-PR `#220` Cursor | **N/A empty** — no T306 |
 | clap 5 | **Still declined** (not in this Dependabot batch) |
 | Merge Dependabot remotes as-is | **Declined** — recreate on `track/TNN-*` |
 
