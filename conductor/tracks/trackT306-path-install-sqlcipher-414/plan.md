@@ -3,6 +3,7 @@
 **Status:** **Pending**. Spec [spec.md](./spec.md).
 **Category:** CHORE / OPS
 **Ledger (planning):** `2b0a2dec-7921-4e84-a964-b37cb703457c` (DOCS)
+**Ledger (fold-in):** `b04594d2-d70a-44a1-89a1-90e408715414` (DOCS)
 **Ledger (implement):** CHORE TX on **go**. **Do not install until go.**
 
 ---
@@ -11,7 +12,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `cb5aa49` CLEAN; `origin/main` = `a49acbd` `#222`; ahead **1** |
+| HEAD / tree | Review `30894bf` CLEAN; `origin/main` = `a49acbd` `#222`; ahead **2**. Plan-write was `cb5aa49` / ahead **1** (OpenCode m1). |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **25,216,512** B; mtime **2026-08-25 14:47:44**; **0.1.3** |
 | PATH `cipher_page` | **`cipher_version=4.10.0 community`** (`doctor --json`) |
 | PATH `graph_feature` | **`available`** |
@@ -68,7 +69,7 @@
 
 ## Phase 2 — Prove PATH (AC2–AC5, AC7)
 
-- [ ] `where.exe ai-brains` still cargo bin; LastWriteTime newer than **2026-08-25 14:47:44** (AC1 / F25)
+- [ ] `where.exe ai-brains` still cargo bin; LastWriteTime newer than **2026-08-25 14:47:44** (AC1 / F25 **supporting** — not 4.14 proof)
 - [ ] `ai-brains doctor --json` filtered: `cipher_page` message contains **`4.14`** (AC2)
 - [ ] `graph_feature` message **`available`** (AC3)
 - [ ] `vault_open` ok (AC4)

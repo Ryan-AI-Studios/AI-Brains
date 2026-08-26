@@ -6,6 +6,21 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#222** T305 **empty**. **T285–T305 Completed.** **T306–T309 Planned** (leftover placeholders). **T310 Planned** (placeholder from T306 full plan).
 
+### T306 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 `--json` over `--summary` | **Already** F2 / AC2 |
+| Agy m2 `--features graph` | **Already** F1 / F7 / AC3 |
+| Agy m3 Perl pre-check | **Already** F12 / AC9 |
+| Agy O1 filtered JSON | **Already** F6 / AC5 / §7 |
+| OpenCode m1 stale HEAD `cb5aa49` | **Folded** snapshot `30894bf` / ahead 2 |
+| OpenCode O1 F25 mtime empty-proof | **Folded** F25 / AC1 supporting; AC2 SoT |
+| OpenCode O2 mixed CLI/daemon | **Already** F8 / F22 |
+| OpenCode `#222` `mergedAt` 03:51:25Z | **Folded** §2.1 |
+| last-PR `#222` Cursor | **Affirm N/A** — no T311 |
+| Agy/OpenCode B / M | None filed |
+
 ### T306 full plan (2026-08-26) — PATH proven 4.10; mint T310
 
 | Item | Disposition |

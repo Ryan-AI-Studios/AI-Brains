@@ -9,8 +9,9 @@
 - **Blocks / feeds:** PATH doctor `cipher_page` honesty. Unblocks operators from running the WAL-reset-fixed SQLCipher 4.14 that source already has. Does **not** unblock T307/T308/T309.
 - **Absorbs:** T305 R3; T305 Codex “PATH still points at the older binary”; mint stub problem text.
 - **Not absorbed (DoD):** T307 dual tower-http; T308 sparse remediator; T309 `table_exists`; PATH `ai-brainsd` 4.10 WAL writer + T84 `run_update` graph-off (**T310**); clap 5; floor retune; live `vault encrypt` / `graph rebuild` / `daemon stop`.
-- **Research date:** 2026-08-26 (HEAD `cb5aa49`; product `src/` = T305 `#222` `a49acbd`).
-- **Ledger:** planning DOCS TX `2b0a2dec-7921-4e84-a964-b37cb703457c`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. Implement starts a **CHORE** TX on **go**.
+- **Research date:** 2026-08-26 (plan wrote at `cb5aa49`; review/fold-in verify HEAD `30894bf`; product `src/` = T305 `#222` `a49acbd`). This fold-in commit follows `30894bf`.
+- **AI fold-in:** 2026-08-26 `agy-review.md` + `opencode-review.md` (HEAD `30894bf`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** OpenCode m1 HEAD snapshot; OpenCode O1 F25/AC1 mtime supporting; OpenCode `#222` `mergedAt` **03:51:25Z**. **Already:** Agy m1–m3 / O1; OpenCode O2. Disposition **§13**.
+- **Ledger:** planning DOCS TX `2b0a2dec-7921-4e84-a964-b37cb703457c`. Fold-in DOCS TX `b04594d2-d70a-44a1-89a1-90e408715414`. Series mint DOCS `c62396f6-4532-4335-b10b-f31b3fa02ec2`. Implement starts a **CHORE** TX on **go**.
 - **Isolation:** Do **not** `cargo install` as planning. Do **not** live `vault encrypt` / `graph rebuild`. Do **not** `daemon stop` / `daemon start`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** edit `GRAPH_REINSTALL_SOOT`. Do **not** bump workspace `0.1.3`. Do **not** merge Dependabot remotes. Never `git push origin main`.
 
 ---
@@ -32,7 +33,7 @@ This unblocks daily ops honesty: T305 upgraded the lock; T306 is the operator bi
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `cb5aa49` mint T306–T309. Tree **CLEAN**. `origin/main` = `a49acbd` T305 `#222`. Ahead **1** (conductor mint only). Branch `main`. |
+| HEAD | Review-time `30894bf` (full T306 plan + T310 mint). Tree **CLEAN**. `origin/main` = `a49acbd` T305 `#222`. Ahead **2**. Branch `main`. Plan-write snapshot was `cb5aa49` / ahead **1** (OpenCode m1). |
 | PATH `ai-brains` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` — **25,216,512** bytes; LastWriteTime **2026-08-25 14:47:44**; `ai-brains 0.1.3`. Workspace version is also **0.1.3** — **`--version` does not prove rusqlite 0.40.2**. |
 | PATH `doctor --json` `cipher_page` | **`ok` / `cipher_version=4.10.0 community`**. Smoking gun: PATH is still **SQLCipher 4.10** (rusqlite 0.39 era). |
 | PATH `graph_feature` | **`available`**. T300 already installed graph-on. T306 must **keep** `--features graph`. |
@@ -41,7 +42,7 @@ This unblocks daily ops honesty: T305 upgraded the lock; T306 is the operator bi
 | `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **4296** (volatile). Sessions **4**. Capture independence holds. |
 | Perl | **v5.42.2** MSWin32-x64 (Strawberry) on PATH — openssl-src Configure can run. |
 | rustc / cargo | **1.95.0** / **1.95.0** (`rust-toolchain.toml`). |
-| Last GitHub PR | [#222](https://github.com/Ryan-AI-Studios/AI-Brains/pull/222) T305 (merged 2026-08-26T03:30:04Z). `pulls/222/comments`, `/reviews`, `issues/222/comments` all **empty**. **last-PR Cursor: N/A.** Open PRs: **none**. **No leftover from Cursor.** T310 is from **this** live baseline (daemon + T84), not Cursor. |
+| Last GitHub PR | [#222](https://github.com/Ryan-AI-Studios/AI-Brains/pull/222) T305 (`mergedAt` **2026-08-26T03:51:25Z**, merge `a49acbd`). `pulls/222/comments`, `/reviews`, `issues/222/comments` all **empty**. **last-PR Cursor: N/A.** Open PRs: **none**. **No leftover from Cursor.** T310 is from live baseline (daemon + T84), not Cursor. |
 | Ledger | **0 pending / 0 drift** at scan (before this DOCS TX). |
 | `ISSUES.md` | **Does not exist.** |
 | Planning install | **Not run.** |
@@ -141,7 +142,7 @@ This unblocks daily ops honesty: T305 upgraded the lock; T306 is the operator bi
 | **F22 — Pragmas** | `cipher_compatibility = 4`; no `cipher_plaintext_header_size`. No live rekey. |
 | **F23 — Capture independence** | Install only. No events. No models on the install path. |
 | **F24 — Harness** | OPERATIONS “re-run `harness install` after cargo install” is a **soft residual**, not DoD (would mutate harness config). PATH spawn is enough. |
-| **F25 — mtime** | After install, PATH `ai-brains.exe` LastWriteTime **newer than 2026-08-25 14:47:44**. |
+| **F25 — mtime supporting** | After install, PATH `ai-brains.exe` LastWriteTime **newer than 2026-08-25 14:47:44**. That only proves F1 ran (any reinstall passes). **Not** 4.14 proof — distinguisher is **AC2** (OpenCode O1). |
 | **F26 — Wrong binary** | If after F1 `cipher_page` is still `4.10`, **halt** (install root / PATH shadow / failed copy). Do not “fix” by editing doctor. |
 | **F27 — Matrix** | Doctor stays **15** checks. Do not add a 16th “sqlcipher_patch” check. |
 | **F28 — Pins** | No clap / rusqlite / tokio / reqwest / tower-http steal. Re-verify lock rusqlite **0.40.2** in Phase 0 on go. |
@@ -154,7 +155,7 @@ This unblocks daily ops honesty: T305 upgraded the lock; T306 is the operator bi
 
 | AC | Proof |
 |----|-------|
-| **AC1** | Operator ran F1 from repo root. PATH `where.exe ai-brains` is still `C:\Users\RyanB\.cargo\bin\ai-brains.exe`. LastWriteTime **after** 2026-08-25 14:47:44 (F25). |
+| **AC1** | Operator ran F1 from repo root. PATH `where.exe ai-brains` is still `C:\Users\RyanB\.cargo\bin\ai-brains.exe`. LastWriteTime **after** 2026-08-25 14:47:44 (F25 **supporting**). Do **not** treat mtime as 4.14 proof — that is **AC2**. |
 | **AC2** | `ai-brains doctor --json` (PATH): `checks[]` entry `name=="cipher_page"` has `ok==true` and `message` contains **`4.14`**. Prefer recording the full message (expect `cipher_version=4.14.0 community` shape). |
 | **AC3** | Same JSON: `name=="graph_feature"` message **`available`**; no `FEATURE_UNAVAILABLE` on `ai-brains graph update --format json` (exit 0 or non-2). |
 | **AC4** | Same JSON: `name=="vault_open"` ok (`opened read-only` class). Doctor did not migrate. |
@@ -252,6 +253,7 @@ Do **not** require full workspace nextest to finish the install proof. Conductor
 |------|------------|
 | `--summary` false pass (ok 4.10 looks like ok 4.14) | **F2 / AC2** `--json` + token `4.14` |
 | `--version` 0.1.3 false pass | **F17** |
+| mtime newer without 4.14 (empty-proof) | **F25 / AC1** supporting only; **AC2** is SoT |
 | Slim install drops graph | **F1 / F7 / AC3** keep `--features graph` |
 | `--locked` omitted → resolver drift | **F1** SOOT includes `--locked` |
 | openssl-src / Perl missing | **F12** Phase 0 `perl -v`; Stop-Before |
@@ -330,3 +332,41 @@ Entire `conductor/deferred.md` scanned 2026-08-26.
 | `Docs/COMPATIBILITY.md` | Already records source 4.14 — **do not rewrite** as PATH proof |
 | `GRAPH_REINSTALL_SOOT` | **Do not touch** |
 | `ai-brainsd.exe` | **T310** |
+
+---
+
+## 13. AI fold-in
+
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (HEAD `30894bf`). Fold-in verify: PATH `cipher_page` still `cipher_version=4.10.0 community`; `graph_feature=available`; `vault_open` read-only; lock rusqlite **0.40.2**; `GRAPH_REINSTALL_SOOT` `governed_common.rs:45–46`; `doctor.rs:166–185` / `:854–865`; `run_update` `:1034` CLI args `:1071` omit `--features graph`; `pragmas.rs:22/:42` `cipher_compatibility = 4`; `#222` `mergedAt` **2026-08-26T03:51:25Z**; comments/reviews empty; HEAD `30894bf` ahead **2**.
+
+### Pins locked by fold-in
+
+1. **F2 / AC2 (Agy m1):** `--json` + token `4.14`. `--summary` hides ok `cipher_page`.
+2. **F1 / F7 / AC3 (Agy m2):** `--features graph` required; slim install is a T222 High.
+3. **F12 / AC9 (Agy m3):** Phase 0 `perl -v` before `cargo install`.
+4. **F6 / AC5 / §7 (Agy O1):** filtered JSON only (`cipher_page`, `graph_feature`, `vault_open`).
+5. **§2.1 (OpenCode m1):** review-time HEAD is `30894bf` / ahead **2**; Phase 0 re-verifies working tree. Fold-in commit follows this snapshot.
+6. **F25 / AC1 (OpenCode O1):** mtime is supporting evidence that F1 ran; **AC2** is the 4.14 distinguisher.
+7. **F8 / F22 (OpenCode O2):** mixed CLI 4.14 / daemon 4.10 is same-major `cipher_compatibility = 4`; T310 owns daemon.
+8. **§2.1 PR time:** `#222` `mergedAt` **03:51:25Z** (not `gh pr list` 03:30:04Z).
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** `--json` over `--summary` | **Already** F2 / AC2 / §5.1 |
+| Agy | **m2** `--features graph` | **Already** F1 / F7 / AC3 |
+| Agy | **m3** Perl pre-check | **Already** F12 / AC9 |
+| Agy | **O1** filtered JSON | **Already** F6 / AC5 / §7 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** stale HEAD `cb5aa49` / ahead 1 | **Folded** §2.1 + plan preflight → review HEAD `30894bf` / ahead **2** |
+| OpenCode | **O1** F25 mtime empty-proof | **Folded** F25 / AC1 supporting; AC2 SoT |
+| OpenCode | **O2** mixed CLI/daemon `cipher_compatibility=4` | **Already** F8 / F22 |
+| OpenCode | `#222` `mergedAt` 03:51:25Z | **Folded** §2.1 |
+| both | last-PR Cursor empty; deferred map; no T311 | **Affirm** |
+| OpenCode | “fold-in after implementation” | **Decline** — fold-in is plan-time; implement is **go** |
+
+No Blockers/Majors to decline. No new placeholder. Do **not** edit `*-review.md`. Do **not** execute until go.
+
+**Planning + fold-in 2026-08-26.** Still **plan-only until go**.
