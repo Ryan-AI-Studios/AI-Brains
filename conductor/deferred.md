@@ -4,7 +4,56 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#222** T305 **empty**. **T285–T306 Completed.** **T307–T309 Planned.** **T310 Planned** (placeholder from T306 full plan).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#223** T306 **empty**. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308–T309 Planned.** **T310 Planned** (placeholder from T306 full plan).
+
+### T307 F3 halt closeout (2026-08-26) — go re-verify; Blocked
+
+| Item | Disposition |
+|------|-------------|
+| Phase 0 `cargo info reqwest` latest | **0.13.4** (version only — F22) |
+| Declared pin (docs.rs `Cargo.toml.orig` + master) | `tower-http = { version = "0.6.8", … follow-redirect }` — still **0.6.x** |
+| Lock dual | **0.6.11** (reqwest) + **0.7.0** (api-server) — unchanged |
+| `cargo tree -i tower-http@0.6.11 --locked` | Still lists reqwest → models/desktop (AC2 F3 path) |
+| reqwest#3062 | Still **open** (`merged: false`; created 2026-06-29; last update **2026-07-13**) |
+| Product bump / `[patch]` / git-dep | **Not done** — F3 / F4 / F11 |
+| Conductor | **Blocked** (not Completed) — F13 / AC1 |
+| CHANGELOG / crates / lock | **No product diff** |
+| T304 R2 dual | **Still open** — parked until crates.io reqwest allows tower-http **0.7** |
+| Residual R1 — dual remains until crates.io reqwest | **Not easy** — upstream; watch `#3062` only |
+| Residual R2 — `#3062` open; decompression hang class | **Not easy** — do not git-dep (`unknown-git = "deny"`) |
+| Residual R3 — tower-http **0.7.1** unpublished (#712/#722 git-only) | **Not easy** — F12; accept 0.7.0 when unblocked |
+| Residual R4 — `deny.toml` `multiple-versions = "warn"` (thiserror/http/hyper too) | **Decline flip this track** — F21 |
+| Residual R5 — dual hyper 0.14 / http 0.2 / desktop 0.1.2 | **Decline** — not tower-http dual |
+| T308 / T309 / T310 | **Not stolen** |
+| last-PR Cursor `#223` | **N/A empty** — no T311 |
+| DOCS TX | `a4f3ba1d-d478-4768-a2b5-1eb6bebf254f` |
+
+### T307 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Both m1 stale HEAD `34379bf` / 0/0 | **Folded** snapshot `a084610` / ahead **1** |
+| Agy m1 `#223` time 11:38:11Z | **Decline** — `createdAt` / `gh pr list`; `mergedAt` **12:34:00Z** |
+| OpenCode m2 agy timestamp misread | **Folded** — spec was already correct |
+| OpenCode m3 `cargo info` ≠ 0.6.8 pin | **Folded** F22 / AC1 / AC9 |
+| Agy m2 F3 halt via `cargo info` | **Partial** — halt Already F3; pin SoT is Cargo.toml |
+| Both O1 AC2 / O2 json-only F12 | **Already** |
+| last-PR `#223` Cursor | **Affirm N/A** — no T311 |
+| Agy/OpenCode B / M | None filed |
+
+### T307 full plan (2026-08-26) — dual 0.6.11; reqwest still 0.6.8
+
+| Item | Disposition |
+|------|-------------|
+| T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **Absorb** F1–F3 / AC1–AC2 — unify **up** only |
+| crates.io reqwest **0.13.4** / master still `tower-http 0.6.8` | **F3 Stop-Before** on go if unchanged; conductor **Blocked** not Completed |
+| reqwest#3062 open (2026-06-29; last 2026-07-13); tower-http #712/#722 git-only | **Decline git-dep** F11; `unknown-git = "deny"` |
+| `[patch.crates-io]` / fork / `tower-reqwest` | **Decline** F4 |
+| T304 R4 csrf | **Decline** F5 |
+| T308 / T309 / T310 | **Not stolen** |
+| Dual hyper 0.14 / desktop 0.1.2 | **Decline** — not this dual |
+| last-PR `#223` Cursor | **N/A empty** — no T311 |
+| clap 5 / floor retune | **Still declined** |
 
 ### T306 implement closeout (2026-08-26)
 
@@ -55,7 +104,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Item | Disposition |
 |------|-------------|
 | T305 R3 PATH pre-0.40.2 | **Done** T306 — PATH `4.14.0 community` |
-| T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **T307** Planned — **upstream-blocked** (reqwest still `tower-http 0.6.8`) |
+| T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **T307** **Blocked** (F3 2026-08-26) — reqwest still `tower-http 0.6.8` |
 | T300 still sparse E/N 0.409; doctor SOOT rebuild | **T308** Planned — floors frozen |
 | T213 L4 / T305 R2 `table_exists` | **T309** Planned |
 | T305 R1 / T304 R1 Dependabot close hygiene | **Decline** — standing; not a track |
