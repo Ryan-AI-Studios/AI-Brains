@@ -4,7 +4,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#220** T303 **empty**. **T285–T304 Completed.** **T305 Planned** (Dependabot cargo rusqlite).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#221** T304 **empty**. **T285–T304 Completed.** **T305 Planned** (Dependabot cargo rusqlite).
 
 ### T304 implement closeout (2026-08-25)
 
@@ -136,6 +136,21 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | last-PR `#220` Cursor | **Affirm N/A** — no T306 |
 | No B / M | Nothing to decline of B/M |
 
+### T305 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m3 `--precise 0.40.2` | **Folded** F12 |
+| OpenCode extras libsqlite3-sys 0.38.2 + hashlink 0.12.x | **Folded** F13 — live graph after T303/T304 may differ from `#61` |
+| OpenCode m1 last-PR `#216` → `#221` | **Folded** §2 / §9 |
+| OpenCode local `fn table_exists` ≠ rusqlite API | **Folded** F5 |
+| Agy m1 workspace exact `0.40.2` | **Already** F1 / AC1 |
+| Agy m2 pre-write COMPATIBILITY `4.14.0 community` | **Partial** — F2 records **observed**; SQLCipher test shape is expectation only |
+| Agy O1/O2 targeted store nextest + live doctor | **Already** AC3/AC4/AC8 |
+| Agy “4.14 opens 4.10 transparently” | **Partial** — Zetetic same-major format; **F9 is proof** |
+| last-PR `#221` Cursor | **Affirm N/A** — no T306 |
+| No B / M | Nothing to decline of B/M |
+
 ### T301–T305 mint (2026-08-25) — Dependabot tracks (owner-requested)
 
 | Item | Disposition |
@@ -145,7 +160,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | tokio `#59` 1.53.1 | **T303** Completed |
 | tower-http `#58` 0.7 | **T304** Completed |
 | rusqlite `#61` 0.40.2 (prior series decline) | **T305** Planned — **reopened** by owner |
-| last-PR `#220` Cursor | **N/A empty** — no T306 |
+| last-PR `#221` Cursor | **N/A empty** — no T306 |
 | clap 5 | **Still declined** (not in this Dependabot batch) |
 | Merge Dependabot remotes as-is | **Declined** — recreate on `track/TNN-*` |
 
