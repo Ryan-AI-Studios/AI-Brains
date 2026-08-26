@@ -4,13 +4,23 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#222** T305 **empty**. **T285–T305 Completed.** **T306–T309 Planned** (leftover placeholders).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#222** T305 **empty**. **T285–T305 Completed.** **T306–T309 Planned** (leftover placeholders). **T310 Planned** (placeholder from T306 full plan).
+
+### T306 full plan (2026-08-26) — PATH proven 4.10; mint T310
+
+| Item | Disposition |
+|------|-------------|
+| T305 R3 PATH `cipher_version=4.10.0 community` | **T306** full plan — DoD `--json` token `4.14`; `--summary` hides ok |
+| T84 `run_update` omits `--features graph`; PATH `ai-brainsd` mtime 2026-08-22 | **T310** placeholder (T306 F3/F4 no src / no daemon stop) |
+| INSTALL.md header still 0.1.2 | **Decline** — docs drift; not R3 |
+| last-PR `#222` Cursor | **Affirm N/A empty** — T310 is live src, not Cursor |
+| T307 / T308 / T309 | **Not stolen** |
 
 ### T306–T309 mint (2026-08-26) — leftover placeholders (owner-requested)
 
 | Item | Disposition |
 |------|-------------|
-| T305 R3 PATH pre-0.40.2 | **T306** Planned |
+| T305 R3 PATH pre-0.40.2 | **T306** Planned — **upgraded to full plan 2026-08-26** (PATH proven `4.10.0 community`) |
 | T304 R2 dual tower-http 0.6.11 via reqwest 0.13.4 | **T307** Planned — **upstream-blocked** (reqwest still `tower-http 0.6.8`) |
 | T300 still sparse E/N 0.409; doctor SOOT rebuild | **T308** Planned — floors frozen |
 | T213 L4 / T305 R2 `table_exists` | **T309** Planned |
@@ -19,7 +29,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | clap 5 / T305 R5 | **Still declined** |
 | T304 R4 csrf | **Still declined** |
 | T278 floor retune | **Still declined** — T308 is remediator copy, not 0.50 |
-| last-PR `#222` Cursor | **N/A empty** — no T310 |
+| last-PR `#222` Cursor | **N/A empty** — no Cursor leftover; **T310** minted from T306 live baseline (daemon + T84) |
 | T302 R2 dual thiserror 1.x | **Decline** — Tauri/json-patch; not these leftovers |
 
 ### T305 implement closeout (2026-08-25)

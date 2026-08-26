@@ -23,7 +23,7 @@ Replace **production** sqlite_master existence probes in `has_core_tables` and `
 
 **Research:** rusqlite 0.40.2 `table_exists(db_name, table_name)`; `db_name = None` searches all. Returns `Result<bool>` — map err → false **or** propagate; **no** `unwrap`/`expect`. Snapshot — re-read docs.rs at execute.
 
-last-PR `#222` Cursor **empty**. **No T310.**
+last-PR `#222` Cursor **empty**. **T310** minted from T306 plan (daemon + T84), not Cursor.
 
 ## 3. Frozen decisions
 

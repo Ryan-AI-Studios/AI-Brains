@@ -22,7 +22,7 @@ Stop looping **rebuild** as the doctor SOOT when verdict is **Sparse** after a s
 
 **Research:** N/A product copy. T213/T232/T300: honest sparse; no auto-rebuild; remediator exact for lag/empty — not for “already rebuilt, still sparse.”
 
-last-PR `#222` Cursor **empty**. **No T310.**
+last-PR `#222` Cursor **empty**. **T310** minted from T306 plan (daemon + T84), not Cursor.
 
 ## 3. Frozen decisions
 

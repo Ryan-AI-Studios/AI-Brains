@@ -1,25 +1,27 @@
-# T306–T309 — Post-T305 leftovers (placeholders)
+# T306–T310 — Post-T305 leftovers
 
-**Source:** T301–T305 Dependabot series **Completed** (`#218`–`#222`). Owner asked 2026-08-26 to mint **placeholder tracks** for the four leftover residuals called out after T305. **Do not implement until go.**
-**Status:** **T306–T309 Planned / Pending.** Full F-list in each spec.
-**Ledger:** mint DOCS TX `c62396f6-4532-4335-b10b-f31b3fa02ec2`.
-**last-PR Cursor:** [#222](https://github.com/Ryan-AI-Studios/AI-Brains/pull/222) T305 — **empty**. **No T310.**
+**Source:** T301–T305 Dependabot series **Completed** (`#218`–`#222`). Owner asked 2026-08-26 to mint **placeholder tracks** for the four leftover residuals called out after T305. T306 upgraded to a **full plan** the same day; T310 minted from that live baseline (not Cursor).
+**Status:** **T306 full plan / Pending.** **T307–T310 Planned / Pending.** **Do not implement until go.**
+**Ledger:** mint DOCS TX `c62396f6-4532-4335-b10b-f31b3fa02ec2`. T306 full-plan DOCS TX `2b0a2dec-7921-4e84-a964-b37cb703457c`.
+**last-PR Cursor:** [#222](https://github.com/Ryan-AI-Studios/AI-Brains/pull/222) T305 — **empty**. T310 is **not** a Cursor leftover.
 
 ## Residual → track map
 
 | Leftover | Track | Pri |
 |----------|-------|-----|
-| T305 R3 PATH `ai-brains` 0.1.3 may predate rusqlite 0.40.2 / SQLCipher **4.14.0 community** | **T306** | P1 |
+| T305 R3 PATH `cipher_page` **`4.10.0 community`** (version 0.1.3 does not prove rusqlite 0.40.2) | **T306** full plan | P1 |
 | T304 R2 dual `tower-http` 0.7.0 (api-server) + **0.6.11** (reqwest 0.13.4) | **T307** | P2 |
 | T300 live rebuild still `sparse` (PATH doctor E/N **0.409**); remediator still `graph rebuild`; floors frozen | **T308** | P1 |
 | T213 L4 / T305 R2 `Connection::table_exists` not adopted | **T309** | P2 |
+| T84 `run_update` omits `--features graph`; PATH `ai-brainsd` mtime **2026-08-22** (4.10 WAL writer) | **T310** placeholder | P2 |
 
 ## Suggested implement order
 
-1. **T306** (operator install; unblocks PATH cipher_version honesty)
+1. **T306** (operator install; unblocks PATH cipher_version honesty) — DoD `doctor --json` token `4.14`
 2. **T308** (doctor sparse remediator loop; no floor retune)
 3. **T309** (small rusqlite API; pin already 0.40.2)
-4. **T307 last** — **blocked** until crates.io `reqwest` allows `tower-http` 0.7 (today **0.13.4** pins `tower-http 0.6.8`)
+4. **T310** (after T306: `run_update` graph-on + daemon 4.14; may need owner-confirm `daemon stop`)
+5. **T307 last** — **blocked** until crates.io `reqwest` allows `tower-http` 0.7 (today **0.13.4** pins `tower-http 0.6.8`)
 
 ## Standing declines (not reopened)
 
@@ -29,4 +31,4 @@
 - New crates (`tower-reqwest`, etc.)
 - `[patch.crates-io]` to force reqwest onto tower-http 0.7
 - T304 csrf feature
-- Live `vault encrypt` / live `graph rebuild` as a planning step
+- Live `vault encrypt` / live `graph rebuild` / `daemon stop` as a planning step

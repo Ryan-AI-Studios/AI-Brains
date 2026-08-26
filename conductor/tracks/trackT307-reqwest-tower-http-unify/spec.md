@@ -23,7 +23,7 @@ Single `tower-http` line in `Cargo.lock` at **0.7.x** (api-server + reqwest). Ke
 
 **Research (snapshot — re-verify at execute):** [reqwest master](https://github.com/seanmonstar/reqwest/blob/master/Cargo.toml) still `tower-http 0.6.8` at 0.13.4. No crates.io reqwest release accepts 0.7. **Stop-Before** if still true on go.
 
-last-PR `#222` Cursor **empty**. **No T310.**
+last-PR `#222` Cursor **empty**. **T310** minted from T306 plan (daemon + T84), not Cursor.
 
 ## 3. Frozen decisions
 
