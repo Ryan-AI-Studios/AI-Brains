@@ -1,14 +1,14 @@
 # T309 — rusqlite `Connection::table_exists`
 
 - **Track ID:** T309-RusqliteTableExists
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** ✅ **Completed**
 - **Category:** CHORE / REFACTOR
 - **Owner:** Grok
 - **Source:** T213 L4 (deferred while pin was 0.39.0); T305 R2 — pin is now **0.40.2**.
 - **Depends on:** T305 `#222`. [docs.rs 0.40.2 `Connection::table_exists`](https://docs.rs/rusqlite/0.40.2/rusqlite/struct.Connection.html#method.table_exists): `conn.table_exists(None, name) -> Result<bool>`.
-- **F0:** Plan-only until go.
+- **F0:** Satisfied by `/implement-track` / go.
 - **AI fold-in:** 2026-08-26 `agy-review.md` + `opencode-review.md` (HEAD `bf04c91`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** Disposition **§13**. Fold-in DOCS TX `04a90ce4-f45e-43ca-875a-f2d8324ff2a7`.
-- **Ledger:** series DOCS `c62396f6`. Implement **CHORE** on go.
+- **Ledger:** series DOCS `c62396f6`. Implement **CHORE** `473e1069-374e-4a2d-96ba-38d64b417cd7`.
 
 ## 1. Objective
 

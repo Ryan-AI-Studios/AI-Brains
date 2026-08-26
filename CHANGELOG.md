@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T309 rusqlite `table_exists`:** `has_core_tables` and `has_graph_tables` use `Connection::table_exists` (pin stays **0.40.2**) instead of `sqlite_master` existence probes. Encrypt/rotate/backup `SELECT count(*) FROM sqlite_master` key probes unchanged.
+
 - **T308 Sparse remediator honesty:** Graph-on **Sparse** density verdict omits the `remediation` key (and pretty remediator line) so operators stop copy-pasting `ai-brains graph rebuild` after typed-lineage E/N already survived a full replay (T300). Note still includes `rebuild if projection lag suspected`. Graph-on **empty_lag / orphan_nodes / projection_lag** still remediate exact `ai-brains graph rebuild`. Graph-off Sparse still remediates `GRAPH_REINSTALL_SOOT`. Floors frozen (`MIN_EDGE_NODE_RATIO = 0.50`). No doctor.rs / projector / `has_graph_tables` change.
 
 - **T305 rusqlite 0.40.2:** Workspace exact pin `0.39.0` → **`0.40.2`** (same features `bundled-sqlcipher-vendored-openssl` / `backup` / `fallible_uint` / `trace`) via `cargo update -p rusqlite --precise 0.40.2`. Bundled SQLCipher **4.10 → 4.14**; observed `PRAGMA cipher_version` **`4.14.0 community`**. Lock extras: libsqlite3-sys **0.37.0 → 0.38.2**, hashlink **0.11.0 → 0.12.1**. Encrypt/open/wrong-key + `sqlcipher_export` rotate + backup KATs green. No clap / tokio / tower-http / thiserror bump. No Dependabot remote merge (`#61`).
