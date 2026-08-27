@@ -4,7 +4,55 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#226** / **#225** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Pending** placeholder.
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#227** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).**
+
+### T310 implement (2026-08-27) — `update` graph-on + PATH daemon 4.14 (Completed)
+
+| Item | Disposition |
+|------|-------------|
+| T306 F9 `run_update` graph-off | **Done** — `UPDATE_CLI_CARGO_ARGS` reconstructs `GRAPH_REINSTALL_SOOT` |
+| T306 F8 PATH `ai-brainsd` 4.10 | **Done** — mtime **2026-08-27 12:04:58 AM**; size 22,173,184 B |
+| F10.1 SOOT CLI | **Done** — PATH `ai-brains.exe` mtime **2026-08-27 12:00:49 AM** |
+| PATH `ai-brains daemon update` | **Tried** — os error 5 self-replace (running CLI). Used F10 **OR** path: `cargo install --path crates/ai-brainsd --locked` + `daemon start` |
+| AC3 doctor | **Done** — `graph_feature` available; `cipher_page` `cipher_version=4.14.0 community` |
+| SCM | **Affirmed** Stopped (F12) |
+| T307 / T308 floors | **Not stolen** |
+| Residual R1 — `ai-brains daemon update` cannot replace running `ai-brains.exe` | **Soft** — F14 / cargo#3486; OR path is the live sequence |
+| Residual R2 — `ai-brainsd --version` Missing | **F15** |
+| FEATURE TX | `65008805-2230-485d-84d3-580659b519b8` |
+
+### T310 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 HEAD `e577c8c` / 0/0 | **Folded** snapshot `87919dd` / ahead **1** |
+| Agy m2 F10 chicken-egg | **Already** F9 / F10 |
+| Agy O1 argv in `daemon.rs` | **Folded** F1 `UPDATE_CLI_CARGO_ARGS` / `UPDATE_DAEMON_CARGO_ARGS` |
+| Agy O2 reconstruct unit | **Already** AC1 |
+| OpenCode m1 `#227` `mergedAt` 22:22:01Z | **Folded** — list 22:02:39Z is not merge |
+| OpenCode m2 `run_update` `:1100` / `run_start` `:20` | **Folded** §2 |
+| OpenCode O1 scan hotspots empty | **Folded** Phase 0 re-check; F1 unchanged |
+| OpenCode O2 AC4 unit | **Folded** lock `run_update_daemon_args__no_graph_feature` |
+| last-PR `#227` Cursor | **Affirm N/A** — no T311 |
+| T307 / T308 floors | **Not stolen** |
+| DOCS TX | `20060ded-80be-4a78-b10b-a7dd69e4f817` |
+
+### T310 full plan (2026-08-26) — `update` graph-on + PATH daemon 4.14
+
+| Item | Disposition |
+|------|-------------|
+| T306 F9 `run_update` omits `--features graph` | **Absorb** F1 / F9 / AC1 |
+| T306 F8 PATH `ai-brainsd` mtime 2026-08-22 | **Absorb** F4 / F10 / F11 / AC2 (or AC9) |
+| T309 R3 T310 placeholder | **Absorb** — this plan |
+| Chicken-egg PATH `update` before new CLI | **F10** — SOOT CLI first, then update |
+| SCM `AI-Brains-Daemon` Stopped | **F12** — do not `sc start`; ImagePath is PATH exe |
+| Daemon `cipher_page` / doctor 16th | **Decline** F7 / F11 |
+| T307 dual tower-http | **Not stolen** (Blocked) |
+| T308 floors / PATH-behind remediator | **Decline as DoD** |
+| T197 silent zero | **Decline** |
+| clap 5 / Cargo `default = []` | **Decline** |
+| last-PR Cursor `#227` | **N/A empty** — no T311 |
+| DOCS TX | `4e15b2eb-cc78-40e0-aaf2-0dd362814c7e` |
 
 ### T309 implement (2026-08-26) — rusqlite `table_exists` (Completed)
 
@@ -146,8 +194,8 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | `git diff -- crates/ Cargo.toml Cargo.lock` empty | **Done** AC6 / F3 |
 | T305 R3 PATH pre-0.40.2 / 4.10 | **Done** — absorbed; PATH now 4.14 |
 | First F1 Access denied (hung PATH `ai-brains preflight --summary` PID) | **Residual** R1 — ops; elevated retry cleared; do not daemon-stop |
-| PATH `ai-brainsd` still 4.10-era (mtime 2026-08-22); mixed CLI/daemon | **Residual** R2 — F8 / **T310** (not easy; needs stop + install) |
-| T84 `run_update` omits `--features graph` | **Residual** R3 — F9 / **T310** (product src) |
+| ~~PATH `ai-brainsd` still 4.10-era (mtime 2026-08-22); mixed CLI/daemon~~ | **Done T310** — PATH mtime **2026-08-27 12:04:58 AM** |
+| ~~T84 `run_update` omits `--features graph`~~ | **Done T310** — CLI argv reconstructs `GRAPH_REINSTALL_SOOT` |
 | `graph_density` sparse E/N≈0.409; remediator rebuild | **Done** R4 — **T308** graph-on Sparse remediator `None` |
 | `recovery_kit_event` doctor warn | **Residual** R5 — not this track |
 | INSTALL.md header still 0.1.2 | **Residual** R6 — docs drift; not DoD |

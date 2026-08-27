@@ -21,6 +21,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T310 `ai-brains update` graph-on:** `run_update` CLI cargo argv reconstructs `GRAPH_REINSTALL_SOOT` (`--features graph`). Daemon argv stays `--path crates/ai-brainsd --locked` (no graph feature on that crate). PATH `ai-brainsd` 4.14 via T84 stop/install after new CLI is on PATH.
+
 - **T309 rusqlite `table_exists`:** `has_core_tables` and `has_graph_tables` use `Connection::table_exists` (pin stays **0.40.2**) instead of `sqlite_master` existence probes. Encrypt/rotate/backup `SELECT count(*) FROM sqlite_master` key probes unchanged.
 
 - **T308 Sparse remediator honesty:** Graph-on **Sparse** density verdict omits the `remediation` key (and pretty remediator line) so operators stop copy-pasting `ai-brains graph rebuild` after typed-lineage E/N already survived a full replay (T300). Note still includes `rebuild if projection lag suspected`. Graph-on **empty_lag / orphan_nodes / projection_lag** still remediate exact `ai-brains graph rebuild`. Graph-off Sparse still remediates `GRAPH_REINSTALL_SOOT`. Floors frozen (`MIN_EDGE_NODE_RATIO = 0.50`). No doctor.rs / projector / `has_graph_tables` change.
