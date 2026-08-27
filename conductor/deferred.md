@@ -4,7 +4,28 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#227** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).**
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#228** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).** **T311 Planned (2026-08-27) — decision in-force.**
+
+### T311 plan-write (2026-08-27) — decision in-force (Pending)
+
+| Item | Disposition |
+|------|-------------|
+| Archived T95 `track-t95-in-force` unique commits | **Absorb** — tag `archive/track-t95-in-force` @ `7812b61`; rewrite in CP (not retrieval) |
+| last-PR `#228` Cursor | **N/A empty** — no T312 |
+| T307 / T308 floors / H2 / recovery kit / clap 5 / `--version` | **Not stolen** |
+| DOCS TX | `67c2081c-5040-464e-9214-4022556e7f25` |
+
+### T310 owner elevated PATH install (2026-08-27)
+
+| Item | Disposition |
+|------|-------------|
+| Non-elevated `cargo install` Access denied (T306 R1) | **Affirmed** — owner used elevated shell |
+| PATH `ai-brains.exe` | **Done** — **26,842,112** B; mtime **2026-08-27 05:52:13**; `0.1.3`; `graph_feature=available` |
+| PATH `ai-brainsd.exe` | **Done** — **22,377,984** B; mtime **2026-08-27 05:51:37** (was T310 OR-path 22,173,184 B / 12:04:58 AM) |
+| `cipher_page` | **Done** — `cipher_version=4.14.0 community` |
+| T308 PATH remediator still rebuild | **Done** — doctor JSON omits `graph_density.remediation` |
+| Residual R1 — `daemon update` self-replace os error 5 | **Soft** — elevated install is the live PATH replace; cargo#3486 stands |
+| Residual R2 — `ai-brainsd --version` Missing | **F15** — unchanged |
 
 ### T310 implement (2026-08-27) — `update` graph-on + PATH daemon 4.14 (Completed)
 
@@ -94,7 +115,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | Floors `MIN_EDGE_NODE_RATIO=0.50` | **Unchanged** F1 |
 | Residual R1 — live E/N still ~0.41 | **Not easy / by design** — floors frozen; projector more-edges is different track |
 | Residual R2 — never-rebuilt Sparse has no rebuild remediator | **Not easy / by design** F2 — empty_lag/orphan still rebuild; freshness arm declined |
-| Residual R3 — PATH binary still shows rebuild until `cargo install` | **Soft** — hermetic/source SoT; F12 no install as DoD |
+| ~~Residual R3 — PATH binary still shows rebuild until `cargo install`~~ | **Done** 2026-08-27 owner elevated PATH — doctor JSON omits `graph_density.remediation` |
 | Residual R4 — `recovery_kit_event` doctor warn | **Not this track** (T306 R5) |
 | Residual R5 — GHA `pull_request` CI did not auto-start on `#225` (close/reopen/empty commit no-op); used `workflow_dispatch` run `32988264560` (all green) | **Not easy** — ops/Actions quirk; branch unprotected so dispatch gate was authoritative |
 | Floor retune / projector rewrite / T309 `table_exists` / T310 | **Not stolen** |
