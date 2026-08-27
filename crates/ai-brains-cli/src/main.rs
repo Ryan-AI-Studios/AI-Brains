@@ -2477,7 +2477,7 @@ enum ConclusionCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>"
+    after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>\n  ai-brains decision in-force workspace_id"
 )]
 enum DecisionCommands {
     /// Propose a decision (daemon preferred; local if daemon down before send or --local)
@@ -2512,6 +2512,26 @@ enum DecisionCommands {
         daemon: bool,
         #[arg(long)]
         require_daemon: bool,
+    },
+    /// Resolve the in-force Approved decision for a term (local projection)
+    #[command(
+        after_help = "Examples:\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force workspace_id --format json"
+    )]
+    InForce {
+        /// Term to resolve (e.g. workspace_id)
+        #[arg(value_name = "TERM")]
+        term: String,
+        /// Scope identity key; soft-filled from authoritative context when omitted
+        #[arg(long)]
+        scope: Option<String>,
+        #[arg(
+            long,
+            default_value = "json",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
     },
 }
 
@@ -4542,6 +4562,20 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 )
                 .await
             }
+            DecisionCommands::InForce {
+                term,
+                scope,
+                format,
+                principal_id,
+            } => commands::decision::run_in_force(
+                &ctx,
+                commands::decision::InForceOptions {
+                    term: term.clone(),
+                    scope: scope.clone(),
+                    format: format.clone(),
+                    principal_id: principal_id.clone(),
+                },
+            ),
         },
         Commands::Review { command } => match command {
             ReviewCommands::List {

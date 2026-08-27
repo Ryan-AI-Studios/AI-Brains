@@ -1,7 +1,7 @@
 # T311 — Decision in-force resolver
 
 - **Track ID:** T311-DecisionInForce
-- **Status:** **Planned** (Pending until go)
+- **Status:** **Completed** (2026-08-27)
 - **Category:** FEATURE
 - **Owner:** Grok
 - **Source:** Archived local WIP `track-t95-in-force` (tag `archive/track-t95-in-force` @ `7812b61`). Not last-PR Cursor. Not a `deferred.md` row.

@@ -19,6 +19,7 @@ pub mod decisions;
 pub mod errors;
 pub mod evaluation;
 pub mod grants;
+pub mod in_force;
 pub mod invalidation;
 pub mod legacy_import;
 pub mod policy;
@@ -73,6 +74,7 @@ pub use grants::{
     register_principal, register_workspace, revoke_grant, set_repository_ledgerful_id,
     unregister_path_alias, upsert_repository_identity,
 };
+pub use in_force::{InForceChainLink, InForceResponse, InForceRuling, resolve_in_force};
 pub use invalidation::{
     InvalidationResult, SourceUnavailableRequest, invalidate_dependents_for_changed_source,
     mark_source_unavailable, plan_invalidation_events_for_changed_source,

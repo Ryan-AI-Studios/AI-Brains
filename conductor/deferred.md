@@ -4,7 +4,24 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#228** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).** **T311 Planned (2026-08-27) — decision in-force** (fold-in `e5f9e657`).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#228** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).** **T311 Completed (2026-08-27).**
+
+### T311 implement (2026-08-27) — decision in-force (Completed)
+
+| Item | Disposition |
+|------|-------------|
+| Archived T95 in-force | **Done** — CP `in_force.rs`, not retrieval; successor `state=in_force` |
+| AC1–AC11 | **Done** — 12 tests PASS; `dev-check` **3545** passed, 1 skipped |
+| Codex | **PASS** — 0 findings (`review.codex.md`, gpt-5.6-sol) |
+| T307 / T308 floors / H2 / daemon wire | **Not stolen** |
+| Residual R1 — daemon `ListInForce` | **Soft** F13 |
+| Residual R2 — `--as-of` | **Soft** non-goal |
+| Residual R3 — sibling Approved same term | **Soft** F7 earliest-root |
+| Residual R4 — `approved_at` column | **Soft** JSON `updated_at` |
+| Residual R5 — conclusion in-force | **Soft** non-goal |
+| Residual R6 — PATH until elevated install | **Soft** source SoT |
+| Residual R7 — PowerShell `""` drops empty TERM | **Soft** hermetic `.arg("")` + whitespace fail_usage |
+| FEATURE TX | `e88743aa-e92c-407a-8093-6c6e4e6d9b53` |
 
 ### T311 fold-in (2026-08-27) — `agy-review.md` + `opencode-review.md`
 
