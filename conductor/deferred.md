@@ -4,7 +4,23 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#228** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).** **T311 Planned (2026-08-27) — decision in-force.**
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#228** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).** **T311 Planned (2026-08-27) — decision in-force** (fold-in `e5f9e657`).
+
+### T311 fold-in (2026-08-27) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m F3 `OutputFormat::parse` swallows unknown | **Folded** F3 `value_parser` + AC8 `--format nope` |
+| OpenCode m F12 `format_authorized_empty_next` | **Folded** F12 human; JSON F4 unchanged |
+| Agy m2 `decision_valid_at` `pub(crate)` | **Folded** F9; no copy |
+| Agy m1 HEAD `b7ca150` | **Folded** snapshot |
+| Agy O1 / O2 / O3 | **Already** F4 / F8 / F2+F10 |
+| OpenCode supersede O | **Already** F5/F8; §2.3 note; write path not tightened |
+| OpenCode density 0.409 | **Decline** floor change |
+| OpenCode summary new projection / FTS `decision list` | **Decline** — T150 `Option<String>`; FTS non-goal |
+| last-PR `#228` Cursor | **Affirm N/A** — no T312 |
+| T307 / T308 floors | **Not stolen** |
+| DOCS TX | `e5f9e657-83e8-4402-9fdf-1f7089c151d7` |
 
 ### T311 plan-write (2026-08-27) — decision in-force (Pending)
 

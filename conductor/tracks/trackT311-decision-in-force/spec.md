@@ -9,9 +9,9 @@
 - **Blocks / feeds:** Operators can ask “what is in force for term X?” without treating vault pins as Approved (H2 still declined).
 - **Absorbs:** Archived resolver **with corrections** (layer, scope isolation, ruling `state`, empty-term usage, policy). Tag remains the provenance snapshot — **do not cherry-pick blindly**.
 - **Not absorbed (DoD):** T307 dual tower-http; T308 density floors; `recovery_kit_event`; clap 5; T263 H2; `ai-brainsd --version`; conclusion in-force; daemon `ListInForce` wire; projection `approved_at` column; FTS/`list_decisions(None)`; `--global`; INSTALL 0.1.2 header.
-- **Research date:** 2026-08-27 (HEAD `bc74098`; PATH elevated install). Snapshot — **re-verify pins at execute**.
-- **AI fold-in:** none yet (plan-write). Review-track → `<slug>-review.md`.
-- **Ledger:** planning DOCS TX `67c2081c-5040-464e-9214-4022556e7f25`. Implement starts a FEATURE TX on **go**.
+- **Research date:** 2026-08-27 (plan-write HEAD `bc74098`; fold-in HEAD `b7ca150`; PATH elevated install). Snapshot — **re-verify pins at execute**.
+- **AI fold-in:** 2026-08-27 `agy-review.md` + `opencode-review.md` (HEAD `b7ca150`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** OpenCode F3 `value_parser` (unknown → clap exit 2); OpenCode F12 `format_authorized_empty_next`; Agy m2 `pub(crate) decision_valid_at`; Agy m1 HEAD snapshot. **Already:** Agy O1 F4; Agy O2 F8; Agy O3 F2/F10; OpenCode supersede O (F5/F8). **Decline:** OpenCode summary “new superseded_by projection” / `decision list` FTS; `DecisionRow.superseded_by` is `Option<String>` not `u64`; density 0.409 as a floor change. Disposition **§13**.
+- **Ledger:** planning DOCS TX `67c2081c-5040-464e-9214-4022556e7f25`. Fold-in DOCS TX `e5f9e657-83e8-4402-9fdf-1f7089c151d7`. Implement starts a FEATURE TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** `cargo install` / `daemon stop` / `sc start` as planning. Do **not** print or commit `AI_BRAINS_KEY`. Never `git push origin main`.
 
 ---
@@ -31,7 +31,7 @@
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `bc74098` T310 `#228` on `main`. Branch `track/T311-decision-in-force`. Tree CLEAN at plan-write. |
+| HEAD | Plan-write `bc74098`. Fold-in `b7ca150` (this branch, 1 ahead of `origin/main`). Tree CLEAN at fold-in. |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,842,112** B; LastWriteTime **2026-08-27 05:52:13**. `ai-brains 0.1.3`. Owner **elevated** `cargo install` (non-elevated Access denied — T306 R1). |
 | PATH `ai-brainsd.exe` | **22,377,984** B; LastWriteTime **2026-08-27 05:51:37**. (T310 OR-path was 22,173,184 B / 12:04:58 AM.) |
 | `doctor --summary` | `degraded`. `cipher_page` **`cipher_version=4.14.0 community`**. `graph_feature=available`. `graph_density` sparse E/N **0.408**. `recovery_kit_event` warn. JSON **omits** `graph_density.remediation` (T308 live on PATH). |
@@ -66,7 +66,8 @@
 | Lifecycle | `control-plane/src/decisions.rs` | `propose` / `approve` / `supersede` / `revoke`. Reuse in tests (not raw events). |
 | Row | `ports.rs` `DecisionRow` | `state`, `title`, `statement`, `scope`, `approver`, `valid_from`/`until`, `recorded_at`, `updated_at`, `superseded_by`. |
 | List | `adapters.rs` `list_decisions` `:725` | `AND scope = ?`; `ORDER BY recorded_at ASC, decision_id ASC`. |
-| Valid-time | `briefings/project.rs` `decision_valid_at` `:695` **private** | Copy 4 lines into CP `in_force.rs`. Do **not** refactor briefing this track. |
+| Valid-time | `briefings/project.rs` `decision_valid_at` `:695` **private today** | **Fold:** `pub(crate)` only (Agy m2). `in_force.rs` calls `crate::briefings::project::decision_valid_at`. No copy. No other `project.rs` edits. |
+| Supersede | `decisions.rs` `supersede_decision` `:204` | `ProposeDecision` grant; **no** old≠new / successor-exists / same-scope check (OpenCode O). F8/F5 remain the read-side mitigation. Do **not** tighten supersede this track. |
 | Successor helper | `conflicts.rs` `current_successor` | Conclusions only. Do **not** overload. |
 | Policy | `GrantCapability::ReadDecisions` | Same as briefing/progressive. |
 | Help IA | `help_ia.rs` | Governed already names `decision`. Add `in-force` example on `DecisionCommands` `after_help` only. |
@@ -99,18 +100,18 @@ N/A: no Windows schtasks / SQLCipher pin change.
 | ID | Decision |
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
-| **F1 — Layer** | `resolve_in_force` lives in `ai-brains-control-plane/src/in_force.rs` (export from `lib.rs`). **Not** retrieval. Do not cherry-pick archive `in_force.rs`. Do not grow `governed_common.rs` / `project.rs`. |
+| **F1 — Layer** | `resolve_in_force` lives in `ai-brains-control-plane/src/in_force.rs` (export from `lib.rs`). **Not** retrieval. Do not cherry-pick archive `in_force.rs`. Do not grow `governed_common.rs` (call existing helpers only). `project.rs`: **visibility-only** on `decision_valid_at` (F9); no other briefing edits. |
 | **F2 — CLI** | `ai-brains decision in-force <TERM> [--scope] [--format] [--principal-id]`. Positional term. No `--local`/`--daemon` (local projection only). |
-| **F3 — Format** | Same tokens as `decision propose` (`OutputFormat::parse`). Default **`json`** (sibling T160). Human/pretty/text/markdown/md → two-block human. Unknown → clap exit **2**. |
+| **F3 — Format** | Default **`json`**. `--format` uses clap `value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]` (repo SOOT; **not** propose’s unvalidated `Option<String>`). Unknown token → clap `InvalidValue` exit **2** (clap `Error::exit_code` is 2 for stderr kinds — [docs.rs clap::error::Error](https://docs.rs/clap/latest/clap/error/struct.Error.html)). Then `OutputFormat::parse`: human/pretty/text → Human; markdown/md → Markdown; json/auto → Json (`auto` is not a TTY switch this track). |
 | **F4 — JSON keys** | Frozen object. Always emit `term`, `scope`, `ruling` (`null` or object), `chain` (array, possibly empty). **Do not** `skip_serializing_if` on `ruling`. Ruling object: `decision_id`, `title`, `statement`, `state` (`"in_force"` only), `approver` (string, empty if none), `updated_at` (RFC3339). Chain link: `decision_id`, `status` (`superseded_by:<uuid>`). |
 | **F5 — Scope** | `resolve_scope_key_for_cli` (T226). Match **only** `list_decisions(Some(scope_key), None)`. Never `list_decisions(None, …)` for fallback. Successor `row.scope` must equal query scope or chain **stops** (anti-enumeration / leftover `7d97a456`). |
 | **F6 — Term match** | Trim. Empty/whitespace → `fail_usage` exit **2**. Else: (1) title `Term: <term>` case-insensitive exact after prefix; else (2) title substring; else (3) statement substring. Both case-insensitive. |
 | **F7 — Root** | Among scoped matches whose `state` is `Approved`, `Superseded`, or `Revoked` (skip `Proposed`), pick **earliest** `recorded_at` then `decision_id` (matches adapter ORDER BY). Revoked root with no usable successor → `ruling: null`, `chain: []`. |
 | **F8 — Walk** | Follow `superseded_by` while non-empty. Cap **32** hops. Repeat id → `ControlPlaneError` (invalid state), CLI `fail_cp`. Broken id / missing successor → stop; if current is Approved+valid-now keep it, else none. |
-| **F9 — Current ruling** | After walk, `ruling` is `Some` iff current `state == "Approved"` **and** `decision_valid_at(now)` (copied helper). `state` JSON is always `"in_force"` when present. Predecessors only in `chain`. |
+| **F9 — Current ruling** | After walk, `ruling` is `Some` iff current `state == "Approved"` **and** `decision_valid_at(now)` (`pub(crate)` helper in `briefings/project.rs`). `state` JSON is always `"in_force"` when present. Predecessors only in `chain`. |
 | **F10 — Policy** | `ReadDecisions` + `production_policy`. Deny → `POLICY_DENIED` + `policy_denied_hint_details()` (T280 omit `--scope`). Exit **3**. |
 | **F11 — Clock** | `SystemClock.now()` for valid-time. Tests inject `Clock`. |
-| **F12 — Empty unknown** | Authorized + no match: exit **0**, `ruling: null`, `chain: []`. Human: `No in-force ruling for term "<term>".` last line `next: ai-brains recall "what did we decide"` (T290 copy-paste; no H2). |
+| **F12 — Empty unknown** | Authorized + no match: exit **0**, `ruling: null`, `chain: []`. JSON keys stay F4 (**no** `next_step` key). Human: `No in-force ruling for term "<term>".` then `format_authorized_empty_next(None, None)` → `Ungoverned vault search: ai-brains recall "what did we decide"` (T290 helper; no H2). |
 | **F13 — Decline daemon** | No `DaemonRequest` / contracts DTO / HTTP route. Soft residual. |
 | **F14 — Decline H2 / pins** | Do not promote vault pins. In-force reads **decision_projection** only. |
 | **F15 — Decline `--global` / FTS / conclusion in-force / `--version` / clap 5 / T307 / floors / recovery kit / INSTALL 0.1.2** | Written. |
@@ -131,7 +132,7 @@ N/A: no Windows schtasks / SQLCipher pin change.
 | **AC5** | `resolve_in_force__empty_term__err` (CP) **and** CLI empty/whitespace → exit **2** (`fail_usage`). |
 | **AC6** | `resolve_in_force__other_scope_row__not_visible`: row in a different `scope` key does not match. |
 | **AC7** | `resolve_in_force__cycle__error` (self `superseded_by` or 2-cycle). |
-| **AC8** | CLI clap: `decision in-force --help` lists `<TERM>` and `--scope`. Hermetic. |
+| **AC8** | CLI clap: `decision in-force --help` lists `<TERM>`, `--scope`, and `--format` possible values. `--format nope` → clap exit **2** (`InvalidValue`). Hermetic. |
 | **AC9** | Policy deny hermetic: no `ReadDecisions` → exit **3**, stdout/stderr `POLICY_DENIED`, hint omits `--scope`. |
 | **AC10** | JSON always has `ruling` key (null or object). Fixture snapshot or `serde_json` pointer. |
 | **AC11** | Targeted: `cargo clippy -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`; nextest those packages (plus new tests). Full workspace gate on implement-track publish, not plan. |
@@ -151,7 +152,7 @@ Algorithm (single function, generic over `GovernedQueryStore` + `Clock`):
 
 CLI maps `ControlPlaneError::PolicyDenied` through existing `fail_api` / `fail_cp` so exit codes stay T201/T221.
 
-Human (non-json): `Term:` / `Scope:` / `Ruling:` one line or the F12 none + `next:`.
+Human (non-json): `Term:` / `Scope:` / `Ruling:` one line, or the F12 none + `format_authorized_empty_next` line.
 
 ---
 
@@ -226,11 +227,12 @@ Entire `conductor/deferred.md` scanned 2026-08-27 (header through T142 / T192 cl
 ## 10. Implement order (on go)
 
 1. Phase 0: re-read `DecisionCommands`, `list_decisions`, `decision_valid_at`; lock clap **4.6.1** / rusqlite **0.40.2**; PATH mtimes; FEATURE TX. **Do not install.**
-2. Red AC1 (missing module).
-3. Green `in_force.rs` + `lib.rs` export. AC2–AC7.
-4. CLI `InForce` + `run_in_force` + help. AC8–AC10.
-5. CHANGELOG + CAPABILITIES/OPERATIONS one-liners.
-6. Targeted clippy/nextest AC11. Implement-track full gate before publish.
+2. `pub(crate) fn decision_valid_at` in `briefings/project.rs` (visibility only).
+3. Red AC1 (missing module).
+4. Green `in_force.rs` + `lib.rs` export. AC2–AC7.
+5. CLI `InForce` + `value_parser` `--format` + `run_in_force` + F12 helper. AC8–AC10.
+6. CHANGELOG + CAPABILITIES/OPERATIONS one-liners.
+7. Targeted clippy/nextest AC11. Implement-track full gate before publish.
 
 ---
 
@@ -251,6 +253,7 @@ Entire `conductor/deferred.md` scanned 2026-08-27 (header through T142 / T192 cl
 
 | Path | Change |
 |------|--------|
+| `crates/ai-brains-control-plane/src/briefings/project.rs` | `pub(crate)` on `decision_valid_at` only |
 | `crates/ai-brains-control-plane/src/in_force.rs` | **New** resolver |
 | `crates/ai-brains-control-plane/src/lib.rs` | `mod` + `pub use` |
 | `crates/ai-brains-control-plane/tests/in_force.rs` | AC1–AC7 |
@@ -260,4 +263,33 @@ Entire `conductor/deferred.md` scanned 2026-08-27 (header through T142 / T192 cl
 | `Docs/CHANGELOG.md` | Unreleased Added |
 | `Docs/CAPABILITIES.md` / `Docs/OPERATIONS.md` | One-line |
 
-Do **not** touch: retrieval, `governed_common.rs` (call existing helpers only), `project.rs`, `decision_projection`, daemon-api, contracts, graph, INSTALL.md version header.
+Do **not** touch: retrieval, `governed_common.rs` (call existing helpers only), `decision_projection`, daemon-api, contracts, graph, INSTALL.md version header. `project.rs` visibility-only (F9).
+
+---
+
+## 13. AI fold-in
+
+**Inputs:** `agy-review.md`, `opencode-review.md` (2026-08-27, HEAD `b7ca150`). Do **not** edit those files.
+
+**Pins locked (re-verified fold-in):** clap lock **4.6.1** (crates.io 4.6.6 — no bump); rusqlite **0.40.2**; time **0.3.47**; serde_json **1.0.150**. clap `value_parser` unknown → `InvalidValue`; `Error::exit_code` is **2** for stderr kinds.
+
+### Agy
+
+| Finding | Disposition | Fold |
+|---------|-------------|------|
+| m1 HEAD `bc74098` vs `b7ca150` | **Agree** | §2.1 snapshot |
+| m2 `decision_valid_at` `pub(crate)` | **Agree** | F1/F9 / §2.3 / touch map |
+| O1 no `skip_serializing_if` on `ruling` | **Already** | F4 / AC10 |
+| O2 hop cap 32 + visited set | **Already** | F8 / AC7 |
+| O3 `source.rs` read pattern | **Already** | F2 / F10 / `decision.rs` |
+
+### OpenCode
+
+| Finding | Disposition | Fold |
+|---------|-------------|------|
+| m F3 unknown format is `OutputFormat::parse` → Json, not clap 2 | **Agree** | F3 `value_parser`; AC8 `--format nope` |
+| m F12 reuse `format_authorized_empty_next` | **Agree** | F12 human line; JSON keys stay F4 |
+| O/m density 0.409 vs 0.408 | **Decline** as plan change | Benign live drift; floors frozen |
+| O `supersede_decision` no old≠new / same-scope | **Already** | §2.3 note; F5/F8 mitigation; do not tighten write path |
+| Summary: new `superseded_by` projection / `decision list` FTS | **Decline** | T150 already has the column (`Option<String>`, not `u64`). FTS/`decision list` remain non-goals |
+| last-PR `#228` | **Affirm N/A** | Re-checked fold-in: comments 0, reviews 0. No T312 |

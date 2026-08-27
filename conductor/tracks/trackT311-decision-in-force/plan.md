@@ -3,6 +3,7 @@
 **Status:** **Pending** (plan-only until go). Spec [spec.md](./spec.md).
 **Category:** FEATURE
 **Ledger (planning):** DOCS `67c2081c-5040-464e-9214-4022556e7f25`
+**Ledger (fold-in):** DOCS `e5f9e657-83e8-4402-9fdf-1f7089c151d7`
 **Implement:** FEATURE TX on **go** (not this pass)
 
 ---
@@ -11,7 +12,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `bc74098` CLEAN; branch `track/T311-decision-in-force` |
+| HEAD / tree | Fold-in `b7ca150` CLEAN; plan-write was `bc74098`. Branch `track/T311-decision-in-force` |
 | PATH CLI | **0.1.3** graph-on; **26,842,112** B; mtime **2026-08-27 05:52:13** (owner **elevated** install) |
 | PATH daemon | **22,377,984** B; mtime **2026-08-27 05:51:37** |
 | `daemon status` | **Running** PID **15200** |
@@ -40,7 +41,7 @@
 
 ## Phase 0 (on go)
 
-- [ ] Re-read `main.rs` `DecisionCommands`, `adapters.rs` `list_decisions`, `briefings/project.rs` `decision_valid_at`
+- [ ] Re-read `main.rs` `DecisionCommands`, `adapters.rs` `list_decisions`, `briefings/project.rs` `decision_valid_at` (make `pub(crate)` on go)
 - [ ] Confirm lock clap **4.6.1**, rusqlite **0.40.2**; cwd `C:\dev\AI-Brains`
 - [ ] Confirm interactive daemon Running; do **not** `cargo install`
 - [ ] `ledgerful hotspots` — keep resolver out of `governed_common.rs` / `project.rs`
@@ -50,9 +51,10 @@
 
 ## Tasks
 
+- [ ] `pub(crate) fn decision_valid_at` in `briefings/project.rs` (visibility only)
 - [ ] **Red:** AC1 CP test fails (no `in_force` module)
 - [ ] **Green:** `control-plane/src/in_force.rs` + `lib.rs` export; AC1–AC7
-- [ ] CLI `DecisionCommands::InForce` + `run_in_force` (T203 read pattern, `ReadDecisions`)
+- [ ] CLI `DecisionCommands::InForce` + `value_parser` `--format` + `run_in_force` (`ReadDecisions`, F12 helper)
 - [ ] Help `after_help` example; default `--format json`
 - [ ] Hermetic AC8–AC10 (clap help + deny exit 3 + `ruling` key)
 - [ ] CHANGELOG + CAPABILITIES/OPERATIONS one-liners
