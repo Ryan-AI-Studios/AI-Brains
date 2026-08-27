@@ -60,7 +60,8 @@
 - [x] CHANGELOG
 - [x] clippy `-D warnings` `-p ai-brains-cli`; nextest that package (1602 passed)
 - [x] Owner-confirm F10: CLI SOOT first, then F10 **OR** path (`cargo install --path crates/ai-brainsd --locked` + `daemon start`) after PATH `daemon update` hit os error 5 self-replace
-- [ ] PR → CI → squash (never `git push origin main`)
+- [x] PR → CI → squash (never `git push origin main`) — `#228` MERGED `bc74098`; post-merge CI run `33058111701` green
+- [x] Owner elevated PATH reinstall (2026-08-27 05:51–05:52): CLI **26,842,112** B; daemon **22,377,984** B; doctor `cipher_page` 4.14.0 + `graph_feature=available`; T308 remediator omitted on PATH JSON
 
 ## DoD
 

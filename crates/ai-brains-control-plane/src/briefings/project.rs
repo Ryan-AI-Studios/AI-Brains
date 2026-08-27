@@ -692,7 +692,7 @@ fn conclusion_valid_at(row: &crate::ports::ConclusionRow, at: time::OffsetDateTi
 /// Whether a decision's valid-time window covers `at`.
 ///
 /// Missing `valid_from` is treated as always-started (legacy rows).
-fn decision_valid_at(row: &crate::ports::DecisionRow, at: time::OffsetDateTime) -> bool {
+pub(crate) fn decision_valid_at(row: &crate::ports::DecisionRow, at: time::OffsetDateTime) -> bool {
     let from_ok = row.valid_from.map(|vf| vf <= at).unwrap_or(true);
     let until_ok = row.valid_until.map(|u| u > at).unwrap_or(true);
     from_ok && until_ok

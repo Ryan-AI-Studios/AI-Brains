@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Added
+
+- **T311 `decision in-force`:** `ai-brains decision in-force <TERM>` walks `decision_projection.superseded_by` in the resolved scope and returns the current Approved, valid-now ruling (`state: in_force`) or honest `ruling: null`. Default `--format json` (clap `value_parser`; unknown token exit **2**). `ReadDecisions` deny is exit **3** + T280 omit-`--scope` hint. Empty term is usage exit **2**. Local projection only (no daemon wire, no pin→Approved).
+
 ### Security
 
 - **T301 GHA SHA-pin refresh:** Bump SHA-pinned Actions to Dependabot target majors without floating tags — `actions/checkout` v7.0.1, `upload-artifact` v7.0.1, `download-artifact` v8.0.1, `attest` v4.2.2, `softprops/action-gh-release` v3.0.2 (annotated tag peeled to commit). `ci.yml` (3× checkout) + `release.yml`. rust-toolchain / rust-cache unchanged. No Dependabot remote merge.
