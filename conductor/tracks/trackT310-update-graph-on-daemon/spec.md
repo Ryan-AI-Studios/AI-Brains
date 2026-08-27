@@ -9,8 +9,9 @@
 - **Blocks / feeds:** `ai-brains update` must not undo T222. PATH daemon (WAL writer + SCM ImagePath) gets the 4.14 WAL-reset fix. Does **not** unblock T307.
 - **Absorbs:** T306 F8/F9 / soft residuals “PATH `ai-brainsd` 4.10” + “`run_update` omits `--features graph`”; T309 R3 T310 placeholder.
 - **Not absorbed (DoD):** T307 dual tower-http; T308 floors / remediator (PATH-behind may clear as install side-effect); T309 `table_exists` (done); clap 5; Cargo `default = []` flip; doctor 16th; daemon `cipher_page`; SCM `sc start`; T197 `AI_BRAINS_VAULT_KEY` silent zero; live `vault encrypt` / `graph rebuild`.
-- **Research date:** 2026-08-26 (HEAD `e577c8c` T309 `#227`). Snapshot — re-verify pins at execute.
-- **Ledger:** planning DOCS TX `4e15b2eb-cc78-40e0-aaf2-0dd362814c7e`. Series mint DOCS `c62396f6`. Implement starts a **FEATURE** TX on **go** (src change in `run_update`).
+- **Research date:** 2026-08-26 (plan-write HEAD `e577c8c`; fold-in HEAD `87919dd` ahead **1**). Snapshot — re-verify pins at execute.
+- **AI fold-in:** 2026-08-26 `agy-review.md` + `opencode-review.md` (HEAD `87919dd`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** Disposition **§13**. Fold-in DOCS TX `20060ded-80be-4a78-b10b-a7dd69e4f817`.
+- **Ledger:** planning DOCS TX `4e15b2eb-cc78-40e0-aaf2-0dd362814c7e`. Fold-in DOCS TX `20060ded-80be-4a78-b10b-a7dd69e4f817`. Series mint DOCS `c62396f6`. Implement starts a **FEATURE** TX on **go** (src change in `run_update`).
 - **Isolation:** Do **not** `daemon stop` / `cargo install` / `sc start` / edit `run_update` as planning. Do **not** print or commit `AI_BRAINS_KEY`. Never `git push origin main`.
 
 ---
@@ -31,17 +32,17 @@ This unblocks daily ops honesty: T306 put 4.14 on the **CLI**; T222 put graph-on
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `e577c8c` T309 `#227`. Tree **CLEAN**. `main...origin/main`. |
+| HEAD | Fold-in `87919dd` (T310 full-plan commit). Tree **CLEAN**. `origin/main...HEAD` **ahead 1**. Plan-write snapshot was `e577c8c` / **0/0** (Agy m1). |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` — **26,501,632** B; LastWriteTime **2026-08-26 6:54:32 AM**; `ai-brains 0.1.3`; doctor `graph_feature=available`; `cipher_page` **`cipher_version=4.14.0 community`**. |
 | PATH `ai-brainsd.exe` | **21,045,248** B; LastWriteTime **2026-08-22 2:48:10 PM**. Older than CLI. `ai-brainsd --version` → `Error: Missing` (not a version flag — **do not add**). |
 | `daemon status` | **Running** PID **48960**; vault `C:\dev\ai-brains\vault.db`; LLM/Embedding TCP Open. |
 | SCM `AI-Brains-Daemon` | **Stopped** / Automatic. `BINARY_PATH_NAME` = `C:\Users\RyanB\.cargo\bin\ai-brainsd.exe --service`. Same file as PATH. |
 | PATH `doctor --summary` | `degraded`. `graph_density` sparse E/N **0.411** remediator still `ai-brains graph rebuild` — **PATH-behind T308** (CLI mtime is T306, before T308 merge). `recovery_kit_event` warn. **Not this DoD.** |
-| `run_update` | `daemon.rs:1034–1099`. CLI install `:1070–1071` **omits** `--features graph`. Daemon install `:1083–1084` `--path crates/ai-brainsd --locked` (no graph feature on that crate — **correct**). Then `run_start` (interactive spawn, **not** `sc start`). |
+| `run_update` | `daemon.rs:1034–1100`. CLI install `:1070–1071` **omits** `--features graph`. Daemon install `:1083–1084` `--path crates/ai-brainsd --locked` (no graph feature on that crate — **correct**). Then `run_start` (interactive spawn, **not** `sc start`). |
 | `GRAPH_REINSTALL_SOOT` | `governed_common.rs:45–46` exact `cargo install --path crates/ai-brains-cli --locked --features graph`. **Do not edit the string.** |
 | `Build-AIBrains.ps1` | Already CLI `--features graph` + copies `ai-brainsd.exe`. Alternative PATH path (T306 F16). **Not** the `update` hole. |
 | T84 hermetic | `smoke.rs` `test_daemon_update_command_exists` — help surface only; **no** argv assert. |
-| Last GitHub PR | [#227](https://github.com/Ryan-AI-Studios/AI-Brains/pull/227) T309 (`mergedAt` **2026-08-26T22:02:39Z**). `pulls/227/comments`, `/reviews`, `issues/227/comments` all **`[]`**. **last-PR Cursor: N/A. No T311.** Open PRs: **none**. |
+| Last GitHub PR | [#227](https://github.com/Ryan-AI-Studios/AI-Brains/pull/227) T309. `gh pr view --json mergedAt` **2026-08-26T22:22:01Z** (`gh pr list` showed **22:02:39Z** — do **not** treat list time as merge; T306 pin). `pulls/227/comments`, `/reviews`, `issues/227/comments` all **`[]`**. **last-PR Cursor: N/A. No T311.** Open PRs: **none**. |
 | rustc / Perl | **1.95.0** / Perl **v5.42.2** (openssl-src Configure). |
 | Ledger | **0 pending / 0 drift** at scan (before this DOCS TX). |
 | `ISSUES.md` | **Does not exist.** |
@@ -64,14 +65,14 @@ This unblocks daily ops honesty: T306 put 4.14 on the **CLI**; T222 put graph-on
 
 | Item | Location | Notes |
 |------|----------|-------|
-| `run_update` | `daemon.rs:1034–1099` | Stop (probe 300 ms → shutdown → taskkill/pkill) → CLI cargo → daemon cargo → `run_start`. |
+| `run_update` | `daemon.rs:1034–1100` | Stop (probe 300 ms → shutdown → taskkill/pkill) → CLI cargo → daemon cargo → `run_start`. |
 | CLI argv | `:1070–1071` | `["install", "--path", "crates/ai-brains-cli", "--locked"]` — **missing** `--features graph`. |
 | Daemon argv | `:1083–1084` | `["install", "--path", "crates/ai-brainsd", "--locked"]`. `ai-brainsd` has **no** `graph` feature (`crates/ai-brainsd/Cargo.toml`). Keep. |
-| `run_start` | `daemon.rs:5–19` | Sibling `ai-brainsd.exe` or PATH; `spawn_daemon` detached. **Not** SCM. |
+| `run_start` | `daemon.rs:5–20` | Sibling `ai-brainsd.exe` or PATH; `spawn_daemon` detached. **Not** SCM. |
 | SOOT | `governed_common.rs:45–46` | Human string. Smoke `tests/smoke.rs` ~3259 pins it to INSTALL. |
 | CLI features | `ai-brains-cli/Cargo.toml` `default = []`; `graph = [...]` | Unchanged (T200 A2=no). |
 | Help | `main.rs` `DaemonCommands::Update`; smoke T84 | Stay-green. |
-| Hotspots | `project.rs` #1; `governed_common.rs` **#3** | Do **not** grow `governed_common` unless required. Prefer `daemon.rs` argv const + reconstruct test. `daemon.rs` not in top 10. |
+| Hotspots | Plan-time `ledgerful hotspots`: `project.rs` #1; `governed_common.rs` **#3**. OpenCode audit `scan --impact` at `87919dd` reported `"hotspots": []`. | **F1 stands either way.** Keep argv slices in `daemon.rs`. Phase 0 re-run `ledgerful hotspots`. |
 
 ### 2.4 Dependency / standards research (2026-08-26) — snapshot, re-verify at execute
 
@@ -104,7 +105,7 @@ This unblocks daily ops honesty: T306 put 4.14 on the **CLI**; T222 put graph-on
 | ID | Decision |
 |----|----------|
 | **F0** | Plan-only until **go**. No `cargo install`, `daemon stop`/`start`, `sc start`/`stop`, `taskkill` as planning. |
-| **F1** | `run_update` CLI cargo argv **reconstructs** `GRAPH_REINSTALL_SOOT` exactly: `install --path crates/ai-brains-cli --locked --features graph`. Do **not** edit the SOOT string. Prefer `pub(crate)` argv slice in `daemon.rs` + unit; do **not** grow `governed_common.rs` (hotspot #3) for this. |
+| **F1** | `run_update` CLI cargo argv **reconstructs** `GRAPH_REINSTALL_SOOT` exactly: `install --path crates/ai-brains-cli --locked --features graph`. Do **not** edit the SOOT string. `pub(crate)` slices **`UPDATE_CLI_CARGO_ARGS`** and **`UPDATE_DAEMON_CARGO_ARGS`** live in `daemon.rs` (Agy O1). Do **not** grow `governed_common.rs` for this (F1 stands even if Phase 0 `hotspots` rank differs). |
 | **F2** | Daemon cargo argv stays `install --path crates/ai-brainsd --locked`. **No** `--features graph` on `ai-brainsd`. |
 | **F3** | Stop/restart policy stays T84 (`run_update` already stops then `run_start`). Do not add SCM start. |
 | **F4** | Owner-confirm live PATH daemon replace on go (interactive daemon is Running). Planning does not stop it. |
@@ -133,7 +134,7 @@ This unblocks daily ops honesty: T306 put 4.14 on the **CLI**; T222 put graph-on
 | **AC1** | Unit `run_update_cli_args__reconstruct_graph_reinstall_soot`: `format!("cargo {}", args.join(" ")) == GRAPH_REINSTALL_SOOT`. `run_update` uses those args (not a parallel literal). |
 | **AC2** | After owner-confirm F10 step 2: PATH `ai-brainsd.exe` LastWriteTime **newer than 2026-08-22 14:48:10**. Lock rusqlite still **0.40.2**. |
 | **AC3** | PATH `ai-brains doctor --json`: `graph_feature` message **`available`**; `cipher_page` message contains **`4.14`**. Filter those checks only (F18). |
-| **AC4** | `ai-brainsd` cargo argv in `run_update` still has **no** `--features graph`. |
+| **AC4** | Unit `run_update_daemon_args__no_graph_feature`: `UPDATE_DAEMON_CARGO_ARGS` is exactly `["install", "--path", "crates/ai-brainsd", "--locked"]` (no `--features`, no `graph`). `run_update` uses that slice. |
 | **AC5** | T84 smoke `test_daemon_update_command_exists` stay-green. Existing `run_start` / schedule units stay-green. |
 | **AC6** | clippy `-D warnings` on `ai-brains-cli`; nextest that package (plus any new unit). |
 | **AC7** | CHANGELOG Unreleased notes the graph-on `update` + daemon PATH 4.14 ops. |
@@ -173,9 +174,10 @@ T307; clap 5; Cargo default graph-on; doctor 16th / daemon `cipher_page`; `ai-br
 TDD **red first** (unlike T309 — this **is** a distinguishable argv change):
 
 1. **Red:** add `run_update_cli_args__reconstruct_graph_reinstall_soot` against today’s argv (fails: no `--features graph`).
-2. **Green:** slice includes `--features graph`; `run_update` uses it.
-3. Stay-green AC4/AC5/AC6.
-4. Owner-confirm F10 live (AC2/AC3) or record AC9.
+2. **Green:** `UPDATE_CLI_CARGO_ARGS` includes `--features graph`; `run_update` uses it.
+3. **AC4 lock:** `run_update_daemon_args__no_graph_feature` is stay-green on today’s daemon argv (OpenCode O2) — not a behavioral red.
+4. Stay-green AC5/AC6.
+5. Owner-confirm F10 live (AC2/AC3) or record AC9.
 
 Do **not** require full workspace nextest to finish the **plan**. On go: targeted nextest + clippy; implement-track full gate before publish.
 
@@ -213,7 +215,7 @@ Entire `conductor/deferred.md` scanned 2026-08-26 (header through T142 residuals
 | `recovery_kit_event` | **Not this track** |
 | T197 daemon `AI_BRAINS_VAULT_KEY` silent zero | **Decline** — honesty residual, not install argv |
 | clap 5 | **Decline** F5 |
-| last-PR Cursor `#227` | **N/A empty** — **no T311** |
+| last-PR Cursor `#227` | **N/A empty** — `mergedAt` **22:22:01Z**; comments `[]`; **no T311** |
 | T240 F2 / leftover `--write` / T263 H2 | **Decline** — standing |
 | Cargo `default = []` / A2 | **Decline** — T200 |
 
@@ -221,9 +223,9 @@ Entire `conductor/deferred.md` scanned 2026-08-26 (header through T142 residuals
 
 ## 10. Implement order (on go)
 
-1. Phase 0: re-read `run_update` `:1070–1084` vs SOOT; lock rusqlite **0.40.2**; `perl -v`; daemon still Running; SCM still Stopped; FEATURE TX. **Do not install yet.**
+1. Phase 0: re-read `run_update` `:1070–1084` vs SOOT; lock rusqlite **0.40.2**; `perl -v`; daemon still Running; SCM still Stopped; `ledgerful hotspots`; FEATURE TX. **Do not install yet.**
 2. Red AC1 test.
-3. Green argv + CHANGELOG.
+3. Green `UPDATE_CLI_CARGO_ARGS` + CHANGELOG. AC4 lock (`UPDATE_DAEMON_CARGO_ARGS`) may land green.
 4. Targeted clippy/nextest AC5/AC6.
 5. Owner-confirm F10 live → AC2/AC3, else AC9.
 6. Conductor Completed + deferred. Phase 6: `track/T310-*` → PR → watch `CI` → squash-merge. Never `git push origin main`.
@@ -248,7 +250,7 @@ Entire `conductor/deferred.md` scanned 2026-08-26 (header through T142 residuals
 
 | Path | Role |
 |------|------|
-| `crates/ai-brains-cli/src/commands/daemon.rs` | `run_update` CLI argv + AC1 unit |
+| `crates/ai-brains-cli/src/commands/daemon.rs` | `UPDATE_CLI_CARGO_ARGS` / `UPDATE_DAEMON_CARGO_ARGS`; AC1 + AC4 units |
 | `crates/ai-brains-cli/src/commands/governed_common.rs` | **Read-only** SOOT |
 | `CHANGELOG.md` | Unreleased |
 | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` | F10.1 ops (not in git) |
@@ -257,3 +259,38 @@ Entire `conductor/deferred.md` scanned 2026-08-26 (header through T142 residuals
 | `conductor/deferred.md` | T306 F8/F9 done **on go** |
 | `Cargo.toml` / `Cargo.lock` | **No bump** |
 | `graph_density.rs` / doctor matrix | **No** |
+
+---
+
+## 13. AI fold-in
+
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (HEAD `87919dd`). Fold-in verify: `run_update` `daemon.rs:1034–1100` (`Ok(())` `:1099`); CLI argv `:1070–1071` omit `--features graph`; daemon argv `:1083–1084`; `run_start` `:5–20`; `GRAPH_REINSTALL_SOOT` `:45–46`; `#227` `mergedAt` **22:22:01Z**; comments `[]`; tree CLEAN ahead **1**.
+
+### Pins locked by fold-in
+
+1. **HEAD (Agy m1):** fold-in HEAD is `87919dd` / ahead **1**. Plan-write was `e577c8c` / 0/0.
+2. **`#227` mergedAt (OpenCode m1):** `gh pr view` **2026-08-26T22:22:01Z**. List **22:02:39Z** is not merge.
+3. **Line ranges (OpenCode m2):** `run_update` **`:1034–1100`**; `run_start` **`:5–20`**. Argv lines `:1070–1071` / `:1083–1084` unchanged.
+4. **Argv names (Agy O1):** `UPDATE_CLI_CARGO_ARGS` / `UPDATE_DAEMON_CARGO_ARGS` in `daemon.rs`. F1 / no `governed_common` growth.
+5. **AC4 unit (OpenCode O2):** `run_update_daemon_args__no_graph_feature` is a **lock**, not a red.
+6. **Hotspots (OpenCode O1):** F1 stands if `scan --impact` reports no hotspots. Phase 0 re-runs `ledgerful hotspots`.
+7. **last-PR Cursor `#227`:** N/A empty; **no T311.**
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** HEAD `e577c8c` / 0/0 | **Folded** §2.1 + plan preflight → `87919dd` / ahead **1** |
+| Agy | **m2** F10 chicken-egg | **Already** F9 / F10 / plan Phase 0 |
+| Agy | **O1** argv slices in `daemon.rs` | **Folded** F1 names `UPDATE_CLI_CARGO_ARGS` / `UPDATE_DAEMON_CARGO_ARGS` |
+| Agy | **O2** reconstruct unit | **Already** AC1 |
+| OpenCode | B / M | None filed |
+| OpenCode | **m1** `#227` `mergedAt` 22:02:39Z → 22:22:01Z | **Folded** §2.1 / §9 |
+| OpenCode | **m2** line drift `:1099`/`:19` → `:1100`/`:20` | **Folded** §2.1 / §2.3 |
+| OpenCode | **O1** `scan --impact` hotspots empty | **Folded** §2.3 + Phase 0 re-check; F1 unchanged |
+| OpenCode | **O2** AC4 dedicated unit | **Folded** AC4 lock `run_update_daemon_args__no_graph_feature` |
+| both | last-PR Cursor empty; deferred map; no T311 | **Affirm** |
+
+No Blockers/Majors to decline. No new placeholder. Do **not** edit `*-review.md`. Do **not** execute until go.
+

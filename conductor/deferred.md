@@ -4,7 +4,23 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
-Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#227** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Planned** (2026-08-26).
+Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#227** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Planned** (fold-in 2026-08-26).
+
+### T310 fold-in (2026-08-26) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 HEAD `e577c8c` / 0/0 | **Folded** snapshot `87919dd` / ahead **1** |
+| Agy m2 F10 chicken-egg | **Already** F9 / F10 |
+| Agy O1 argv in `daemon.rs` | **Folded** F1 `UPDATE_CLI_CARGO_ARGS` / `UPDATE_DAEMON_CARGO_ARGS` |
+| Agy O2 reconstruct unit | **Already** AC1 |
+| OpenCode m1 `#227` `mergedAt` 22:22:01Z | **Folded** — list 22:02:39Z is not merge |
+| OpenCode m2 `run_update` `:1100` / `run_start` `:20` | **Folded** §2 |
+| OpenCode O1 scan hotspots empty | **Folded** Phase 0 re-check; F1 unchanged |
+| OpenCode O2 AC4 unit | **Folded** lock `run_update_daemon_args__no_graph_feature` |
+| last-PR `#227` Cursor | **Affirm N/A** — no T311 |
+| T307 / T308 floors | **Not stolen** |
+| DOCS TX | `20060ded-80be-4a78-b10b-a7dd69e4f817` |
 
 ### T310 full plan (2026-08-26) — `update` graph-on + PATH daemon 4.14
 
