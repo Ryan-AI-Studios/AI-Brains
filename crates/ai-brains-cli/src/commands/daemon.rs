@@ -1031,6 +1031,23 @@ mod status_vault_tests {
 ///
 /// Must be run from the workspace root. Gracefully stops the daemon first;
 /// falls back to a force-kill if it does not respond within ~1 s.
+///
+/// T310 F1: CLI argv reconstructs `GRAPH_REINSTALL_SOOT` (unit-proven). Do not
+/// edit that SOOT string. Keep these slices in this module (do not grow
+/// `governed_common.rs`).
+pub(crate) const UPDATE_CLI_CARGO_ARGS: &[&str] = &[
+    "install",
+    "--path",
+    "crates/ai-brains-cli",
+    "--locked",
+    "--features",
+    "graph",
+];
+
+/// T310 F2 / AC4: daemon crate has no `graph` feature.
+pub(crate) const UPDATE_DAEMON_CARGO_ARGS: &[&str] =
+    &["install", "--path", "crates/ai-brainsd", "--locked"];
+
 pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("[update] Checking for running daemon...");
     let client = DaemonClient::new();
@@ -1068,7 +1085,7 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
 
     tracing::info!("[update] Installing ai-brains-cli via `cargo install --locked`...");
     let cli_ok = std::process::Command::new("cargo")
-        .args(["install", "--path", "crates/ai-brains-cli", "--locked"])
+        .args(UPDATE_CLI_CARGO_ARGS)
         .status()
         .map_err(|e| format!("Failed to invoke cargo: {e}"))?;
     if !cli_ok.success() {
@@ -1081,7 +1098,7 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
 
     tracing::info!("[update] Installing ai-brainsd via `cargo install --locked`...");
     let daemon_ok = std::process::Command::new("cargo")
-        .args(["install", "--path", "crates/ai-brainsd", "--locked"])
+        .args(UPDATE_DAEMON_CARGO_ARGS)
         .status()
         .map_err(|e| format!("Failed to invoke cargo: {e}"))?;
     if !daemon_ok.success() {
@@ -1103,6 +1120,31 @@ pub async fn run_update(ctx: &AppContext) -> Result<(), Box<dyn std::error::Erro
 #[allow(clippy::disallowed_methods, non_snake_case)]
 mod tests {
     use super::*;
+    use crate::commands::governed_common::GRAPH_REINSTALL_SOOT;
+
+    /// T310 AC1: CLI cargo argv reconstructs GRAPH_REINSTALL_SOOT (not a parallel literal).
+    #[test]
+    fn run_update_cli_args__reconstruct_graph_reinstall_soot() {
+        assert_eq!(
+            format!("cargo {}", UPDATE_CLI_CARGO_ARGS.join(" ")),
+            GRAPH_REINSTALL_SOOT
+        );
+    }
+
+    /// T310 AC4: daemon install stays `--locked` with no `--features graph`.
+    #[test]
+    fn run_update_daemon_args__no_graph_feature() {
+        assert_eq!(
+            UPDATE_DAEMON_CARGO_ARGS,
+            ["install", "--path", "crates/ai-brainsd", "--locked"]
+        );
+        assert!(
+            !UPDATE_DAEMON_CARGO_ARGS
+                .iter()
+                .any(|a| *a == "--features" || *a == "graph"),
+            "daemon crate has no graph feature; got {UPDATE_DAEMON_CARGO_ARGS:?}"
+        );
+    }
 
     /// T85: parse_host_port correctly extracts host and port from full URLs.
     #[test]

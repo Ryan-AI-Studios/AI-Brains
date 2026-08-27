@@ -1,7 +1,7 @@
 # T310 — `ai-brains update` graph-on + PATH daemon SQLCipher 4.14
 
 - **Track ID:** T310-UpdateGraphOnDaemon
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** ✅ **Completed**
 - **Category:** CHORE / FEATURE (light)
 - **Owner:** Grok
 - **Source:** T306 mint (F8/F9): PATH `ai-brainsd` still 4.10-era; T84 `run_update` omits `--features graph`. Not last-PR Cursor.
@@ -11,7 +11,7 @@
 - **Not absorbed (DoD):** T307 dual tower-http; T308 floors / remediator (PATH-behind may clear as install side-effect); T309 `table_exists` (done); clap 5; Cargo `default = []` flip; doctor 16th; daemon `cipher_page`; SCM `sc start`; T197 `AI_BRAINS_VAULT_KEY` silent zero; live `vault encrypt` / `graph rebuild`.
 - **Research date:** 2026-08-26 (plan-write HEAD `e577c8c`; fold-in HEAD `87919dd` ahead **1**). Snapshot — re-verify pins at execute.
 - **AI fold-in:** 2026-08-26 `agy-review.md` + `opencode-review.md` (HEAD `87919dd`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** Disposition **§13**. Fold-in DOCS TX `20060ded-80be-4a78-b10b-a7dd69e4f817`.
-- **Ledger:** planning DOCS TX `4e15b2eb-cc78-40e0-aaf2-0dd362814c7e`. Fold-in DOCS TX `20060ded-80be-4a78-b10b-a7dd69e4f817`. Series mint DOCS `c62396f6`. Implement starts a **FEATURE** TX on **go** (src change in `run_update`).
+- **Ledger:** planning DOCS TX `4e15b2eb-cc78-40e0-aaf2-0dd362814c7e`. Fold-in DOCS TX `20060ded-80be-4a78-b10b-a7dd69e4f817`. Series mint DOCS `c62396f6`. Implement **FEATURE** TX `65008805-2230-485d-84d3-580659b519b8`.
 - **Isolation:** Do **not** `daemon stop` / `cargo install` / `sc start` / edit `run_update` as planning. Do **not** print or commit `AI_BRAINS_KEY`. Never `git push origin main`.
 
 ---
@@ -104,7 +104,7 @@ This unblocks daily ops honesty: T306 put 4.14 on the **CLI**; T222 put graph-on
 
 | ID | Decision |
 |----|----------|
-| **F0** | Plan-only until **go**. No `cargo install`, `daemon stop`/`start`, `sc start`/`stop`, `taskkill` as planning. |
+| **F0** | Satisfied by `/implement-track` / go. Live install still waits for F10 after green. |
 | **F1** | `run_update` CLI cargo argv **reconstructs** `GRAPH_REINSTALL_SOOT` exactly: `install --path crates/ai-brains-cli --locked --features graph`. Do **not** edit the SOOT string. `pub(crate)` slices **`UPDATE_CLI_CARGO_ARGS`** and **`UPDATE_DAEMON_CARGO_ARGS`** live in `daemon.rs` (Agy O1). Do **not** grow `governed_common.rs` for this (F1 stands even if Phase 0 `hotspots` rank differs). |
 | **F2** | Daemon cargo argv stays `install --path crates/ai-brainsd --locked`. **No** `--features graph` on `ai-brainsd`. |
 | **F3** | Stop/restart policy stays T84 (`run_update` already stops then `run_start`). Do not add SCM start. |

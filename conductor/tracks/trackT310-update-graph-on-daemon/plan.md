@@ -1,10 +1,10 @@
 # T310 Plan — `update` graph-on + PATH daemon 4.14
 
-**Status:** **Pending**. Spec [spec.md](./spec.md).
+**Status:** ✅ **Completed**. Spec [spec.md](./spec.md).
 **Category:** CHORE / FEATURE (light)
 **Ledger (planning):** DOCS `4e15b2eb-cc78-40e0-aaf2-0dd362814c7e`
 **Ledger (fold-in):** DOCS `20060ded-80be-4a78-b10b-a7dd69e4f817`
-**Implement:** **FEATURE** TX on go (src in `run_update`)
+**Implement:** **FEATURE** TX `65008805-2230-485d-84d3-580659b519b8`
 
 ---
 
@@ -43,27 +43,27 @@
 
 ## Phase 0 (on go)
 
-- [ ] Re-read `daemon.rs` `run_update` `:1070–1084` vs `GRAPH_REINSTALL_SOOT`
-- [ ] Confirm lock rusqlite **0.40.2**; `perl -v`; cwd `C:\dev\AI-Brains`
-- [ ] Confirm interactive daemon Running; SCM Stopped
-- [ ] `ledgerful hotspots` (F1 stands even if rank differs)
-- [ ] Rescan deferred + last-PR Cursor
-- [ ] FEATURE TX
-- [ ] Do **not** `cargo install` / `daemon stop` / `sc start` / PATH `ai-brains update` until F10 (after green)
+- [x] Re-read `daemon.rs` `run_update` `:1070–1084` vs `GRAPH_REINSTALL_SOOT`
+- [x] Confirm lock rusqlite **0.40.2** (`23f2a97d…`); `perl` v5.42.2; cwd `C:\dev\AI-Brains`
+- [x] Confirm interactive daemon Running PID 48960; SCM Stopped
+- [x] `ledgerful hotspots` — `governed_common.rs` #3; F1 keep argv in `daemon.rs`
+- [x] Rescan deferred + last-PR Cursor (`#227` comments `[]`; T307 not stolen)
+- [x] FEATURE TX `65008805-2230-485d-84d3-580659b519b8`
+- [x] Do **not** `cargo install` / `daemon stop` / `sc start` / PATH `ai-brains update` until F10 (after green)
 
 ## Tasks
 
-- [ ] **Red:** `run_update_cli_args__reconstruct_graph_reinstall_soot` fails on current CLI argv
-- [ ] **Green:** `UPDATE_CLI_CARGO_ARGS` reconstructs SOOT; `run_update` uses it
-- [ ] **AC4 lock:** `UPDATE_DAEMON_CARGO_ARGS` + `run_update_daemon_args__no_graph_feature` (stay-green on today’s daemon argv)
-- [ ] Do not edit `GRAPH_REINSTALL_SOOT`; do not grow `governed_common.rs`
-- [ ] CHANGELOG
-- [ ] clippy `-D warnings` `-p ai-brains-cli`; nextest that package
-- [ ] Owner-confirm F10: CLI SOOT first, then `ai-brains update` **or** stop + `cargo install --path crates/ai-brainsd --locked` + start — **or** record AC9
+- [x] **Red:** `run_update_cli_args__reconstruct_graph_reinstall_soot` fails on current CLI argv (source-level: join lacked `--features graph`)
+- [x] **Green:** `UPDATE_CLI_CARGO_ARGS` reconstructs SOOT; `run_update` uses it
+- [x] **AC4 lock:** `UPDATE_DAEMON_CARGO_ARGS` + `run_update_daemon_args__no_graph_feature` (stay-green on today’s daemon argv)
+- [x] Do not edit `GRAPH_REINSTALL_SOOT`; do not grow `governed_common.rs`
+- [x] CHANGELOG
+- [x] clippy `-D warnings` `-p ai-brains-cli`; nextest that package (1602 passed)
+- [x] Owner-confirm F10: CLI SOOT first, then F10 **OR** path (`cargo install --path crates/ai-brainsd --locked` + `daemon start`) after PATH `daemon update` hit os error 5 self-replace
 - [ ] PR → CI → squash (never `git push origin main`)
 
 ## DoD
 
-- [ ] AC1, AC4–AC8
-- [ ] AC2 + AC3 **or** AC9 written
-- [ ] T307 / T308 floors / SCM start not stolen
+- [x] AC1, AC4–AC8
+- [x] AC2 + AC3 **or** AC9 written
+- [x] T307 / T308 floors / SCM start not stolen
