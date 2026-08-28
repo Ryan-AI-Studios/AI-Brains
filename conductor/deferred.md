@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T314 full plan (2026-08-28) — clap `--format` / `--dry-run` unify
+
+| Item | Disposition |
+|------|-------------|
+| Audit 5 clap errors (expand `--format`; progressive `--dry-run` value; scan-roots `--dry-run` unknown) | **Absorb** F1/F7/F11 / AC1–AC6 |
+| Briefing project/personal same `ArgAction::Set` trap | **Absorb** F5 / AC3 |
+| T290 F10 progressive JSON-only | **Affirm** F6 — no `--format` |
+| T291 `--dry-run false` persist SOOT | **Affirm** F3 — optional-value, not `--commit` |
+| T268 scan-roots dry-run-only | **Affirm** F11 no-op alias; do not write |
+| T266 Family A auto rewrite | **Decline** — expand stays Family C default json |
+| T319 / T321 / T324 | **Not stolen** |
+| clap 5 / T240 F2 / T263 H2 / rotate-datakey `require_backup` | **Decline** F13/F14 |
+| last-PR Cursor `#231` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `23da7568-f134-4dde-8a9a-3842eb213cb7` |
+
 ## T312–T324 placeholders (2026-08-27) — post-T311 live CLI dogfood (0.1.3)
 
 Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s open residuals. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#230** (T312) minted **T325**. Series README `conductor/tracks/README-T312-T324-CLI-DOGFOOD.md`. Series DOCS TX `a6d3c404-1d64-4cba-a743-d75ac16c74cd`.
@@ -109,7 +125,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 |------|-------------|
 | ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
 | `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
-| `--format` / `--dry-run` clap friction | **T314** Pending |
+| `--format` / `--dry-run` clap friction | **T314** Planned (full F-list 2026-08-28) |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
 | `graph neighbors` RECALLS spam | **T317** Pending |
