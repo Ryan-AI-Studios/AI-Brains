@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger (planning):** DOCS `8b1b418b-acbb-4398-b867-7ea297d10e41`
+**Ledger (fold-in):** DOCS `2e553fb4-57c6-459e-b5b7-ea774cd74021`
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `27731be` mint T312–T324 CLEAN; `origin/main...HEAD` **ahead 1**. Branch `track/T312-T324-cli-dogfood`. Product `src/` = T285 + T311. |
+| HEAD / tree | Fold-in `413aa33` plan commit CLEAN; `origin/main...HEAD` **ahead 2**. Plan-write was `27731be` / ahead **1** (Agy m1 / OpenCode m3). Branch `track/T312-T324-cli-dogfood`. Product `src/` = T285 + T311. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM** |
 | `preflight --summary` | Pinned **4513**; in-context **0/0/0**; word count **587** |
 | `recall "graph backend" --limit 3` | #1 audit dump **−4.060**; #2 `## Objective` **−3.824**; #3 `# Review of Track 253` **−1.325** |
@@ -38,6 +39,7 @@
 | T218 floors / `candidate_depth` / H2 / clap 5 | **Declined** F4 / F20 / F24 |
 | T315 / T313 / T317 / T316 | **Not stolen** |
 | last-PR `#229` Cursor | **N/A empty** |
+| OpenCode M1–M3 needle/bonus redness | **F42** / AC2 / AC4 stay-green |
 
 ---
 
@@ -56,18 +58,17 @@
 ## Phase 1 — Red
 
 - [ ] `is_session_chrome__atx_tokens__ac1` rstest (`# Preview of graph` **false**)
-- [ ] `rerank_hits_with_query__verbose_other_dump_loses_to_pin__ac2`
-- [ ] `rerank_hits_with_query__short_other_unpenalized__ac3`
-- [ ] Retrieval hermetic `recall_full__prose_dump_body_match__pin_first__ac4`
-- [ ] Retrieval hermetic `match_query__and_retain_empty__authority_or_fills_pin__ac5`
+- [ ] `rerank_hits_with_query__verbose_other_dump_loses_to_pin__ac2` (pin first line **no** query tokens)
+- [ ] Retrieval hermetic `match_query__and_retain_empty__authority_or_fills_pin__ac5` (query `"t312or backend"` — F42; **no** UUID in query)
 - [ ] `parent_seeds_graph_neighbors__verbose_other__false__ac6`
-- [ ] CLI `crates/ai-brains-cli/tests/recall_rank_v3.rs` AC12
-- [ ] Confirm those tests **fail** on current T285 tree (prose dump still #1; AND-miss pin absent)
+- [ ] CLI `crates/ai-brains-cli/tests/recall_rank_v3.rs` AC12 / AC13 (same F42 fixture)
+- [ ] Confirm those tests **fail** on current T285 tree (AND-miss pin absent; AC2 dump leads without F6)
+- [ ] AC3 crumb index 0 + AC4 full-needle pin #1 are **stay-green** (not Phase-1 red)
 
 ## Phase 2 — Green
 
 - [ ] F5 ATX token detector in `is_session_chrome` (token set, not substring)
-- [ ] `is_verbose_other_dump` + F6 penalty in `rerank_hits_with_query` (F7 no stack)
+- [ ] Define `DUMP_OTHER_CHAR_FLOOR` / `DUMP_OTHER_PENALTY` in `session_chrome.rs`; apply F6 in `rerank_hits_with_query` (F7 no stack)
 - [ ] F8 authority-OR fill in `match_query` after recency-empty; thread `raw_query`; ≥2 contentful tokens
 - [ ] F10 `parent_seeds_graph_neighbors` skips verbose-Other
 - [ ] Reuse `match_or` / `select_or_tokens` from `ai-brains-core` (no new crate)
@@ -97,7 +98,7 @@
 - [ ] `ledgerful verify --scope full`
 - [ ] Phase-1 review log `review.md` until clean
 - [ ] `codex-review` (FEATURE) until clean
-- [ ] Optional Manual canary (F22 uuid) — not live `graph backend` as SoT
+- [ ] Optional Manual canary (F42: `recall "t312or backend"`; uuid in pin body only) — not live `graph backend` as SoT
 
 ## Phase 5 — Closeout
 
@@ -110,8 +111,9 @@
 
 ## DoD (checkable)
 
-- [ ] AC2/AC4: prose (non-chrome) long dump with needle in body loses to tagged pin
-- [ ] AC5: two-token AND-miss pin still #1 via authority-OR
+- [ ] AC2: 2000-char prose dump loses to pin whose first line has **no** query tokens
+- [ ] AC4 stay-green: full-needle tagged pin still #1 vs prose dumps (T285)
+- [ ] AC5/AC12: two-token AND-miss (`t312or backend`) pin #1 via F8; UUID only in bodies
 - [ ] AC1: `# Preview of graph` is **not** chrome
 - [ ] T285 chrome tests stay green
 - [ ] `KIND_DECISION` still 2.0; floors still 0.55/0.60; depth still 15..50

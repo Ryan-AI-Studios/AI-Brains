@@ -10,7 +10,8 @@
 - **Absorbs:** Audit ranking gap; opportunity (a) prefer `DECISION:` / `CONSTRAINT:` / structured synth; T285 closeout “live vault still dumps” **reopened** (PATH **is** 0.1.3 / T285 and still dump-first on `graph backend`); T285 closeout “more chrome prefixes as vault grows”
 - **Not absorbed (DoD):** T315 summary 0/0/0; T313 ledger pane; T317 RECALLS spam; T218 floors / ANN; raise `candidate_depth`; clap 5; T263 H2; T240 F2; FTS title/body schema split (T285 declined); KIND_* bump; pretty score = effective (raw BM25 display stays)
 - **Research date:** 2026-08-27. SQLite FTS5 still one-column `bm25` (https://www.sqlite.org/fts5.html, fetched 2026-08-27; last updated 2026-08-01). clap lock **4.6.1** / crates.io **4.6.6**. rusqlite **0.40.2**. Snapshot — **re-verify at execute**.
-- **Ledger:** planning DOCS TX `8b1b418b-acbb-4398-b867-7ea297d10e41`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
+- **AI fold-in:** 2026-08-27 `agy-review.md` + `opencode-review.md` (HEAD `413aa33`). **Agy B 0 / M 0.** **OpenCode B 0 / M 3.** **Agree:** OpenCode M1/M3 needle grammar (exactly 2 contentful tokens; UUID only in bodies); OpenCode M2 AC2 pin first line has **no** query tokens (no `LEADING_QUERY_BONUS` mask); OpenCode m1 F9 R2-note; OpenCode m2 `DUMP_OTHER_*` in `session_chrome.rs`; both m HEAD snapshot; OpenCode O1 F6 defense-in-depth; OpenCode O2 AC3 crumb-first; OpenCode O3 `recall.rs:571`. **Already:** Agy m2 raw_query thread (F8/F29); Agy O1 F7 else-if; Agy O2 zero-touch `recall.rs`; Agy O3 F5 tokens. **Decline:** none of B/M. Disposition **§13**.
+- **Ledger:** planning DOCS TX `8b1b418b-acbb-4398-b867-7ea297d10e41`. Fold-in DOCS TX `2e553fb4-57c6-459e-b5b7-ea774cd74021`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** `cargo install`. Do **not** pin production decisions to the live vault as implement. Do **not** rewrite `.env`. Do **not** grow hotspot `project.rs` / `sync.rs` / CLI `preflight.rs`. Touch `ranking.rs` + `session_chrome.rs` (#6) + `lexical.rs` as this plan names. Do **not** print or commit `AI_BRAINS_KEY`. Frozen: `candidate_depth`, T218 floors, `KIND_*`.
 
 ---
@@ -30,7 +31,7 @@
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `27731be` `docs(conductor): mint T312-T324…`. Product `src/` has T285 + T311. Tree **CLEAN**. `origin/main...HEAD` **ahead 1** (mint). Branch `track/T312-T324-cli-dogfood`. |
+| HEAD | Fold-in `413aa33` `docs(conductor): plan T312 recall rank v3…`. Product `src/` has T285 + T311. Tree **CLEAN**. `origin/main...HEAD` **ahead 2**. Branch `track/T312-T324-cli-dogfood`. Plan-write snapshot was `27731be` / ahead **1** (Agy m1 / OpenCode m3). |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. (Mint snapshot was 26,842,112 B / 05:52 — owner reinstalled after T311 `#229`.) Ranking hole is **source + PATH**. **Do not `cargo install`.** |
 | `preflight --summary` | Scope `C:\dev\ai-brains` (`3581317d`). Pinned **4513**. In-context hotspots/decisions/constraints **0/0/0**. Word count **587**. Grants **3 of 3**. Summary hole is **T315**. |
 | `recall "graph backend" --no-bridge --limit 3` | **#1** audit dump `ASSISTANT: All non-destructive commands tested…` score **−4.060**. **#2** `ASSISTANT: ## Objective` (T309 OpenCode plan-audit) **−3.824**. **#3** `ASSISTANT: # Review of Track 253` **−1.325**. No leading `DECISION:`. |
@@ -53,7 +54,8 @@
 | T217 rescue does not fire | `lexical_search` returns early when R0 AND is **non-empty** (`:85–87`). Dumps AND-hit → no R2 OR. T217 also requires **≥3** tokens (`:90`); `"graph backend"` is **2**. |
 | Detector closed list | True for `#2` `## Objective` and `#3` `# Review of Track`. **False** for #1 prose (`All non-destructive commands tested…`). Those take BM25 −4 with **no −16**. |
 | Chrome in top-3 is a set problem | After −16, chrome effective ≈ −12. They still occupy rank 2–3 because the truncated window **is** 3 dumps. Rerank cannot invent a pin that never entered `candidate_depth`. |
-| KIND_+2 frozen | Dump BM25 −4.06 → effective ≈ 4.06. Pin BM25 −1 + KIND 2 + recency 1 ≈ 4 **without** `LEADING_QUERY_BONUS`. Bonus +16 wins **if the pin is in the set**. Bumping `KIND_DECISION` does **not** pull a pin into an empty pass-1. **Keep frozen.** |
+| KIND_+2 frozen | Dump BM25 −4.06 → effective ≈ 4.06. Pin BM25 −1 + KIND 2 ≈ 3 **without** `LEADING_QUERY_BONUS`. Bonus +16 wins **if the pin is in the set and the first line overlaps a query token**. Bumping `KIND_DECISION` does **not** pull a pin into an empty pass-1. **Keep frozen.** |
+| F6 vs live #1 | **F8 is the live-hole fix** (get a pin into the set). F6 is **defense-in-depth**: sink verbose-Other when a pin is already present but first-line overlap is missing (AC2) and for rank 2..N hygiene. An OR-filled pin whose first line contains a query token already beats dump BM25 −4 via +16 **without** F6. |
 | `candidate_depth(3)=15` | Frozen (T261). Live AND only **had** 3 rows. Depth cannot create MATCH hits. |
 | FTS one column | `bm25(fts, title_w, body_w)` **N/A**. SQLite FTS5 (current): column weights need a title/body split. k1=1.2, b=0.75 length-normalize **inside** BM25 — long dumps still win on **term frequency**, not missing `b`. **Decline** schema split. |
 | `--semantic` | T218 floor → lexical honesty + RRF dumps. `prefer_authority_hits` inherits envelope classify. Dual floors **untouched**. |
@@ -70,7 +72,7 @@ Placeholder “outrank” is resolved at this plan: **authority-OR fill when AND
 | Lexical two-pass | `lexical.rs` `:159–221` | Pass-1 Prefer → retain → recency retry → pass-2 `ExcludeIds`. **Add** authority-OR MATCH after recency-empty, before pass-2. Thread raw query into `match_query`. |
 | T217 ladder | `lexical.rs` `:74–140` | R0 AND → return if non-empty; R1/R2 only if empty **and** tokens ≥ 3. **Do not change** this gate. T312 OR is inside `match_query` Prefer. |
 | OR helpers | `ai-brains-core/src/fts.rs` `match_or` `:71`; `select_or_tokens` `:80` cap 8 | Reuse. No new crate. |
-| Pipeline | `recall.rs` `:291–357` / rerank `:570` | `candidate_depth` then `prefer_authority: true` then graph then `rerank_hits_with_query(&mut blended, Some(query))`. Pass **query** already. Seed skip reads `blended` content (T285 F10). |
+| Pipeline | `recall.rs` `:291–357` / seed `:511` / rerank `:571` | `candidate_depth` then `prefer_authority: true` then graph then `rerank_hits_with_query(&mut blended, Some(query))`. Pass **query** already. Seed skip reads `blended` content (T285 F10 / F10 this track). |
 | Depth | `hybrid.rs` `candidate_depth` `:20` | `limit*3` clamp **15..50**. **Do not raise.** |
 | Semantic floors | `hybrid.rs` `:13–17` | 0.55 hybrid / 0.60 semantic-only. **Do not retune.** |
 | CLI pin | `pin.rs` TAGS envelope | **Do not change pin write.** |
@@ -113,7 +115,7 @@ Placeholder “outrank” is resolved at this plan: **authority-OR fill when AND
 
 **Could not verify:** COUNT of in-scope `DECISION:` rows MATCH-ORing `graph` without vault SQL (do not print `AI_BRAINS_KEY`). Hermetic unique needle + optional live Manual canary are the proof, not live archaeology.
 
-**ledgerful / ai-brains:** `preflight --summary` 0/0/0 vs **4513** pins; live recall still audit/Objective/Review-of-Track; `ledgerful ledger status --compact` 0 pending / 0 drift; `search "rerank_hits_with_query"` → `ranking.rs:293` + `recall.rs:570`; `scan --impact` CLEAN at `27731be`; hotspots `session_chrome.rs` #6. Semantic/`sync query` still dump-first — evidence of the hole, not SoT for decisions.
+**ledgerful / ai-brains:** `preflight --summary` 0/0/0 vs **4519** pins (plan-write 4513); live recall still audit/Objective/Review-of-Track; `ledgerful ledger status --compact` 0 pending / 0 drift; `search "rerank_hits_with_query"` → `ranking.rs:293` + `recall.rs:571`; `parent_seeds_graph_neighbors` call `recall.rs:511`; `scan --impact` CLEAN at plan-write; hotspots `session_chrome.rs` #6. Semantic/`sync query` still dump-first — evidence of the hole, not SoT for decisions.
 
 ---
 
@@ -129,8 +131,8 @@ Placeholder “outrank” is resolved at this plan: **authority-OR fill when AND
 | **F5 — ATX heading tokens (additive)** | `is_session_chrome` is true when the first contentful line is an ATX heading (`#` after envelope) **and** `extract_fts_tokens(line)` contains one of **`review` / `objective` / `onboarding` / `audit` / `ratings`** (ASCII case-insensitive token set — **not** substring `contains("review")`, which would false-hit `# Preview of graph`). Existing exact prefixes (`## objective`, `# review of track`, `` ```json ``, `{`+`"decisions":`, …) stay as regression. **False** for `# Heading without chrome prefixes` (T285 AC2). **Do not** add prose-sentence prefixes (`Here's where we are`) — that is F6. |
 | **F6 — Verbose-Other penalty** | Inside **the same** `rerank_hits_with_query` sort (F40 — **no** second final sort): when `classify_pin_kind` is **Other**, `is_session_chrome` is **false**, and `content.chars().count() >= DUMP_OTHER_CHAR_FLOOR` (**800**), subtract `DUMP_OTHER_PENALTY` = `SESSION_CHROME_PENALTY` (16.0). Decision / Constraint / Hotspot never take this penalty (authority richness is not a dump). Short Other chat crumbs (**&lt; 800** chars) stay unpenalized. |
 | **F7 — No double dump penalty** | Chrome already −16. Do **not** also apply F6 on chrome rows. A long `## Objective` dump is −16 once. |
-| **F8 — Authority-OR fill** | Inside `match_query` when `prefer_authority` and post-AND + post-recency **retain is empty**: if `contentful_tokens(extract_fts_tokens(raw_query)).len() >= 2`, one more Prefer MATCH using `match_or(select_or_tokens(contentful))` (T217 helpers), then in-memory retain. Then pass-2 AND as today (`ExcludeIds`). This is a **retry of pass-1** with OR — **not** a T217 R2 change, **not** substring_fallback, **not** a third MATCH family on unfiltered dumps. |
-| **F9 — T217 ladder unchanged** | R0 non-empty still returns. Rescue still requires tokens ≥ 3. `forget --match` stays `rescue: false` + `prefer_authority: false`. |
+| **F8 — Authority-OR fill** | Inside `match_query` when `prefer_authority` and post-AND + post-recency **retain is empty**: if `contentful_tokens(extract_fts_tokens(raw_query)).len() >= 2`, one more Prefer MATCH using `match_or(select_or_tokens(contentful))` (T217 helpers), then in-memory retain. Then pass-2 AND as today (`ExcludeIds`). Thread **`raw_query: &str`** into `match_query` (do not reverse-parse `match_expr`). This is a **retry of pass-1** with OR — **not** a T217 R2 change, **not** substring_fallback, **not** a third MATCH family on unfiltered dumps. |
+| **F9 — T217 ladder unchanged** | R0 non-empty still returns. Rescue still requires tokens ≥ 3. `forget --match` stays `rescue: false` + `prefer_authority: false`. **Note:** on the `prefer_authority` path, F8 inside R0’s `match_query` can satisfy empty-AND pin-fill that previously waited for T217 R2. R2 remains for `rescue` **without** prefer (non-recall callers) and for dump-only OR when F8 retain is still empty. Do **not** delete R2; do **not** “fix” a double-fire — Prefer-OR + retain is idempotent on the same `select_or_tokens` set. |
 | **F10 — Verbose-Other must not seed graph** | `parent_seeds_graph_neighbors` is false when `is_session_chrome` **or** `is_verbose_other_dump`. T260 stub-seed skip stays. Do **not** default `graph_hop_depth` to 0. Read **`hit.content` from `blended`**. |
 | **F11 — Semantic arm** | No second embedding SQL. `prefer_authority_hits` + F6/F5 inherit. Dual floors **untouched**. Hermetic AC **no** HTTP. |
 | **F12 — Near-dup chrome** | `dedupe_session_chrome` after rerank stands. Distinct `DECISION:` pins never collapse. |
@@ -143,14 +145,14 @@ Placeholder “outrank” is resolved at this plan: **authority-OR fill when AND
 | **F19 — Capture independence** | Ranking only. No models on default FTS. No new events. **Do not rewrite** `pin.rs` stored shape. |
 | **F20 — Pins / crates** | No clap 5, no rusqlite bump, no new crates, workspace **0.1.3**. |
 | **F21 — PATH** | Do not `cargo install` unless the user asks. Tests/manual AC use `cargo run` / hermetic bin. |
-| **F22 — Live vault pin** | Do **not** pin production DECISIONs as implement. Hermetic unique needle is SoT. Manual DoD **unique canary** (uuid in the string) is allowed on go. |
+| **F22 — Live vault pin** | Do **not** pin production DECISIONs as implement. Hermetic unique needle is SoT. Manual DoD **unique canary** is allowed on go — UUID / unique id in the **pin body only**; query stays **exactly 2 contentful tokens** (F42). |
 | **F23 — Decline leftover F39** | T276 preferred-fill skip when cwd fills depth stays. |
 | **F24 — Decline T279 / T263 H2 / T240 F2 / T211 F25 / ANN / floor retune** | Standing. |
 | **F25 — last-PR Cursor** | #229 empty → **N/A**. **No T325.** |
 | **F26 — Tests** | Naming `function_or_feature__condition__expected_result`. rstest `#[case]` for new heading tokens. No `unwrap`/`expect`/`panic` in production. |
 | **F27 — Cross-model** | Retrieval ranking is FEATURE. After Phase-1 clean, run read-only `codex-review`. |
 | **F28 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
-| **F29 — File growth** | F6 penalty apply in `ranking.rs`. F5 token heading + `is_verbose_other_dump` + F10 seed helper in `session_chrome.rs`. F8 OR fill in `lexical.rs` (`match_query` threads `raw_query`). New CLI hermetic `tests/recall_rank_v3.rs`. **Do not** grow `project.rs`, CLI `preflight.rs`, `sync.rs`, `pin.rs` write path, `.github/workflows/ci.yml`. **Do not** require a production `recall.rs` edit if seed helper lives in `session_chrome.rs` (call site already uses `parent_seeds_graph_neighbors`). |
+| **F29 — File growth** | F6 penalty **apply** in `ranking.rs`. F5 token heading + `is_verbose_other_dump` + F10 seed helper + **`DUMP_OTHER_CHAR_FLOOR` / `DUMP_OTHER_PENALTY` consts** in `session_chrome.rs` (beside `SESSION_CHROME_PENALTY`; `ranking.rs` re-exports like chrome). F8 OR fill in `lexical.rs` (`match_query` threads `raw_query`). New CLI hermetic `tests/recall_rank_v3.rs`. **Do not** grow `project.rs`, CLI `preflight.rs`, `sync.rs`, `pin.rs` write path, `.github/workflows/ci.yml`. **Do not** require a production `recall.rs` edit (`parent_seeds_graph_neighbors` already at `:511`; rerank already `:571`). |
 | **F30 — Existing tests stay green** | T285 AC1–AC17; T274 pin-rank; T211 leading DECISION; T260 exclude; T217 rescue units; T216 list recency; T207/T261 empty; T218 floors; T276 prefer-fill. |
 | **F31 — Docs** | CAPABILITIES pin-type row: authority-OR fill + verbose-Other −16 + ATX token headings. CHANGELOG T312. PROTOCOL-COMPAT: no new required keys. WORKFLOWS “what did we decide” still `recall`. |
 | **F32 — PowerShell** | `;` not `&&`. |
@@ -160,9 +162,10 @@ Placeholder “outrank” is resolved at this plan: **authority-OR fill when AND
 | **F36 — Seed helper** | `parent_seeds_graph_neighbors` unit-tested **without** `--features graph`. |
 | **F37 — Graph-on CLI** | T285 AC17 stays green. New verbose-Other seed is a **graph-off unit** (F36). Do **not** add a retrieval graph CI line. |
 | **F38 — Pretty score display** | Raw BM25 on pretty `score=` stays. Do **not** replace it with composite effective this track. |
-| **F39 — DUMP_OTHER_CHAR_FLOOR** | Const **800** next to the penalty. Count `content.chars()` (Unicode scalar values), not bytes, not tokens. |
+| **F39 — DUMP_OTHER_CHAR_FLOOR** | Const **800**. **Define** `DUMP_OTHER_CHAR_FLOOR` and `DUMP_OTHER_PENALTY` in `session_chrome.rs` beside `SESSION_CHROME_PENALTY` (`:11`). **Apply** in `ranking.rs` `rerank_hits_with_query` (else-if after chrome — F7). Count `content.chars()` (Unicode scalar values), not bytes, not tokens. AC16 freeze imports from `session_chrome`. |
 | **F40 — OR only when retain empty** | Do **not** OR-fill when AND-retain already has ≥1 authority pin (T285 pass-1 stands). |
 | **F41 — Two-token OR** | Fire at **≥2** contentful tokens (T217 rescue stays ≥3). `"graph backend"` is the live 2-token hole. |
+| **F42 — Needle grammar** | Hermetic queries that prove **F8** are **exactly 2 contentful tokens** (`extract_fts_tokens` then `contentful_tokens`; live split is non-alphanumeric **including** `-`/`_`, `fts.rs:28–34`). The pin **lacks ≥1** of those tokens. UUIDs live **only in stored bodies**, never in the query (a hyphenated UUID yields ~5 fragments → `lexical.rs:90` ≥3 → T217 R2 + T274 pass-1 would **green today**). AC4 (full-needle pin vs prose dumps) is **stay-green**. AC5 / AC12 / AC13 / AC14 / Manual use this grammar. |
 
 ---
 
@@ -171,19 +174,19 @@ Placeholder “outrank” is resolved at this plan: **authority-OR fill when AND
 | AC | Proof |
 |----|-------|
 | **AC1** | rstest `#[case]`: detector **true** for `# Review of Track 253`, `## Objective`, `## Ratings\n…`, `# AI-Brains Onboarding`, `# Track plan audit`. **False** for `DECISION: …`, `# Heading without chrome prefixes`, `# Preview of graph backend` (must not substring-hit `review`). Existing T285 prefixes stay true. **Required red.** |
-| **AC2** | `rerank_hits_with_query`: Other dump 2000 chars, first line `All non-destructive commands tested against the live vault.`, BM25 **−4.06**, query `"graph backend"` vs leading `DECISION: graph backend stays sqlite` BM25 **−1.0** → pin **first** (F6 −16). **Required red.** |
-| **AC3** | Same sort: Other dump **200** chars (short crumb) BM25 −4 vs pin BM25 −1 **without** query bonus → dump may still lead (F6 does **not** fire). Guard that short Other is not penalized (`effective` of the crumb is **not** reduced by 16). |
-| **AC4** | Retrieval hermetic: 15 dumps whose **first line is non-chrome prose** (`Here's the assessment.`) and whose **body repeats the unique needle 12×** + 1 `ASSISTANT: TAGS: t312\nDECISION: {needle}` → `recall_full` `--limit 5` hit **#1** is the pin. Graph may be `None`. **Required red** (T285 chrome-first-line tests would **not** catch this). |
-| **AC5** | Retrieval hermetic **AND-miss / OR-hit**: query `"t312or {uuid} backend"` (two contentful tokens); pin `DECISION: t312or {uuid} sqlite graph` (**no** `backend`); 15 dumps whose body contains **both** tokens + chrome or prose first line → pin **#1**. Proves F8. **Required red.** |
+| **AC2** | `rerank_hits_with_query`: Other dump 2000 chars, first line `All non-destructive commands tested against the live vault.`, BM25 **−4.06**, query `"graph backend"` vs pin `DECISION: sqlite projector stays native` BM25 **−1.0** (first line contains **neither** `graph` nor `backend` — **no** `LEADING_QUERY_BONUS`). Pre-F6 dump effective ≈ 4.06 > pin 3.0 (dump leads). With F6 dump ≈ −11.94 → pin **first**. **Required red.** |
+| **AC3** | Same sort: Other dump **200** chars (short crumb) BM25 −4 vs pin `DECISION: sqlite projector stays native` BM25 −1, query `"graph backend"` (no first-line overlap). **Crumb remains index 0** (effective ≈ 4.0, F6 did **not** fire). Do not assert “may still lead.” Guard, not Phase-1 red. |
+| **AC4** | Retrieval hermetic **stay-green** (T285 pass-1): 15 dumps whose **first line is non-chrome prose** (`Here's the assessment.`) and whose **body repeats the unique needle 12×** + 1 `ASSISTANT: TAGS: t312\nDECISION: {needle}` (needle in the pin — AND-hit). `recall_full` `--limit 5` hit **#1** is the pin. Graph may be `None`. **Not required red** — TAGS+MATCH already retains today; keeps T285 from regressing on prose first lines. |
+| **AC5** | Retrieval hermetic **AND-miss / OR-hit** (F42): query **`"t312or backend"`** (exactly **2** contentful tokens; **no** UUID in the query); pin `ASSISTANT: TAGS: t312\nDECISION: t312or {uuid} sqlite graph` (**no** `backend`; uuid in the **body**); 15 dumps whose bodies contain **both** `t312or` **and** `backend` (so R0 AND is **non-empty** and T217 `:85–87` returns early). Pin **#1** after F8. **Required red.** |
 | **AC6** | Unit (graph-off): `parent_seeds_graph_neighbors` **false** for verbose-Other (800+ chars, non-chrome) and for `## Objective`; **true** for `DECISION: …` and for short Other &lt; 800. T260 stub-seed skip stays. **Required red.** |
 | **AC7** | T285 `recall_rank_v2` / `classify_pin_kind__tags_envelope` / `rerank_hits_with_query__onboarding_chrome_loses_to_pin` / CLI graph AC17 **stay green**. |
 | **AC8** | T260 default exclude still drops `Function foo (src/a.rs:1)` without `--symbols`. |
 | **AC9** | Empty / contentless still T207 / T261. |
 | **AC10** | `forget --match` still finds a verbose-Other dump row (unfiltered). |
 | **AC11** | Compact recall JSON: no new required keys; `content` still includes `ASSISTANT:` / `TAGS:` raw. |
-| **AC12** | Hermetic CLI `tests/recall_rank_v3.rs`: `ai-brains recall "{needle}" --limit 5 --format pretty --no-bridge` **and** `search` hit #1 is the tagged pin, **not** the prose dump / `## Objective`. EXIT **0**. **Required red** (CLI). |
-| **AC13** | Hermetic `sync query "{needle}" --no-bridge --limit 5`: vault section top is the pin. Ledger pane may be empty — **do not** assert ledger. |
-| **AC14** | `--semantic` hermetic: if embed skipped/floor-empty, lexical fallback list still has the pin in **top-3**. No live HTTP required. |
+| **AC12** | Hermetic CLI `tests/recall_rank_v3.rs` using **F42** (same 2-token AND-miss as AC5): `ai-brains recall "t312or backend" --limit 5 --format pretty --no-bridge` **and** `search` hit #1 is the tagged pin, **not** the prose dump / `## Objective`. EXIT **0**. **Required red** (CLI). |
+| **AC13** | Hermetic `sync query "t312or backend" --no-bridge --limit 5` (F42 AND-miss): vault section top is the pin. Ledger pane may be empty — **do not** assert ledger. **Required red** (vault arm). |
+| **AC14** | `--semantic` hermetic on the **same F42 fixture**: if embed skipped/floor-empty, lexical fallback list still has the pin in **top-3**. No live HTTP required. **Required red** (fallback inherits F8). |
 | **AC15** | Unit: authority-OR SQL (when retain-empty) contains ` OR ` + `GLOB` + `TAGS:` + `LIMIT`; **only** `?` placeholders for ids/limit — no UUID literals (F34). Guard, not Phase-1 red. |
 | **AC16** | Unit: `KIND_DECISION == 2.0`, `KIND_CONSTRAINT == 4.0`, `SESSION_CHROME_PENALTY == 16.0`, `candidate_depth(5) == 15`, `SEMANTIC_MIN_COSINE == 0.55`, `SEMANTIC_ONLY_MIN_COSINE == 0.60`. Stay-green freeze. |
 | **AC17** | Chrome long dump: applying F6 must **not** change effective vs chrome-only (−16 once). Unit: `## Objective` + 2000 chars, BM25 −3.8, query `None` → same effective as the chrome penalty path today. |
@@ -210,17 +213,30 @@ else if is_verbose_other_dump { effective -= 16 }  // F6 / F7
 
 Live #1 (`All non-destructive commands tested…`) is this class. Live #2/#3 are chrome. Both sink relative to a pin in the set.
 
+**F6 is not the live-#1 fix.** Getting a pin into `candidate_depth` is F8. An OR-filled pin whose first line overlaps a query token already wins via `LEADING_QUERY_BONUS` +16. F6 is load-bearing when that overlap is **absent** (AC2) and for sinking verbose-Other below short crumbs in ranks 2..N.
+
 ### 5.3 ATX token set (F5)
 
 Split the first contentful line with `extract_fts_tokens` (alphanumeric runs). Do **not** use `str::contains("review")` (`Preview` would match). Token set is closed and tiny. Exact-prefix detectors remain so `` ```json `` and `{`+`"decisions":` still fire without being headings.
 
-### 5.4 What we will not do
+### 5.4 Needle grammar (F42)
+
+`extract_fts_tokens` splits on every non-alphanumeric char (`fts.rs:28–34`), including UUID hyphens. Query `"t312or {uuid} backend"` is **~7** contentful tokens, not 2. That trips T217 `:90` (`tokens.len() >= 3`) and, if R0 AND is empty, R2 OR + T274 pass-1 retain the pin **on the T285 tree**.
+
+Prove F8 with:
+
+- Query: exactly **two** contentful tokens (`t312or backend`).
+- Pin: contains token A, **lacks** token B; uniqueness (uuid) only in the stored body.
+- Dumps: bodies contain **both** tokens so R0 AND is non-empty (`:85–87` early return — T217 never runs).
+
+### 5.5 What we will not do
 
 - Bump `KIND_DECISION` (dump BM25 −18 still wins; pin-not-in-set still wins).
 - Raise `candidate_depth` (live AND had 3 rows).
 - Split FTS into title/body (migration; T285 declined).
 - LLM / neural reranker (capture independence; AuthorityBench says text richness ≠ authority).
 - Pretty composite score (display; F38).
+- UUID-in-query hermetics (F42).
 
 ---
 
@@ -235,15 +251,14 @@ Hard-delete dumps from FTS. Pin→Approved (H2). New FTS columns. `--semantic` H
 **Red first (on go):**
 
 1. `is_session_chrome__atx_tokens__ac1` (rstest) — `# Preview of graph` false.
-2. `rerank_hits_with_query__verbose_other_dump_loses_to_pin__ac2`
-3. `recall_full__prose_dump_body_match__pin_first__ac4` (retrieval hermetic)
-4. `match_query__and_retain_empty__authority_or_fills_pin__ac5`
-5. `parent_seeds_graph_neighbors__verbose_other__false__ac6`
-6. CLI `recall_rank_v3.rs` AC12
+2. `rerank_hits_with_query__verbose_other_dump_loses_to_pin__ac2` (pin first line has **no** query tokens)
+3. `match_query__and_retain_empty__authority_or_fills_pin__ac5` (query `"t312or backend"` — F42)
+4. `parent_seeds_graph_neighbors__verbose_other__false__ac6`
+5. CLI `recall_rank_v3.rs` AC12 / AC13 (same F42 fixture)
 
-Then green the production paths. Stay-green AC7/AC16/T285. Full gate before Completed.
+Then green the production paths. Stay-green AC3/AC4/AC7/AC16/T285. Full gate before Completed.
 
-Manual (optional canary, not architecture SoT): unique `DECISION: t312-canary-{uuid} sqlite graph` then `recall "t312-canary-{uuid} backend" --format pretty --no-bridge --limit 5` → pin #1. Do **not** require live `graph backend` to become a pin (corpus volatile).
+Manual (optional canary, not architecture SoT): pin `DECISION: t312or {uuid} sqlite graph` then `recall "t312or backend" --format pretty --no-bridge --limit 5` → pin #1. UUID is **not** in the query. Do **not** require live `graph backend` to become a pin (corpus volatile).
 
 ---
 
@@ -280,13 +295,14 @@ Manual (optional canary, not architecture SoT): unique `DECISION: t312-canary-{u
 | last-PR Cursor `#229` | **N/A empty** — no T325 |
 | conductor/archive specs / cargo-audit allowlist / T147 TempEnv | **Not related** — not retrieval rank |
 | Pretty composite score | **Decline** F38 |
+| OpenCode M1–M3 UUID/bonus redness | **Absorb** F42 / AC2 / AC4 stay-green / AC5–AC14 grammar |
 
 ---
 
 ## 10. Implement order (on go)
 
 1. Phase 0: re-read `match_query` retain gate, `is_session_chrome`, `rerank_hits_with_query`; rescan deferred; FEATURE TX.
-2. Red: AC1/AC2/AC4/AC5/AC6/AC12 tests.
+2. Red: AC1/AC2/AC5/AC6/AC12/AC13 tests (F42 grammar; AC4 stay-green).
 3. Green: F5 detector + F6 penalty + F8 OR fill + F10 seed.
 4. Stay-green: T285 / T217 / T218 / T260 / AC16/AC17.
 5. Docs: CAPABILITIES + CHANGELOG.
@@ -312,7 +328,7 @@ Manual (optional canary, not architecture SoT): unique `DECISION: t312-canary-{u
 
 | Path | Change |
 |------|--------|
-| `crates/ai-brains-retrieval/src/session_chrome.rs` | F5 ATX tokens; `is_verbose_other_dump`; F10 seed |
+| `crates/ai-brains-retrieval/src/session_chrome.rs` | F5 ATX tokens; `is_verbose_other_dump`; F10 seed; `DUMP_OTHER_*` consts (F39) |
 | `crates/ai-brains-retrieval/src/ranking.rs` | Apply F6 in `rerank_hits_with_query`; freeze tests AC16 |
 | `crates/ai-brains-retrieval/src/lexical.rs` | F8 OR fill inside `match_query`; thread `raw_query` |
 | `crates/ai-brains-retrieval/src/recall.rs` | **Avoid** unless compile-forced (seed helper already called) |
@@ -326,6 +342,42 @@ Manual (optional canary, not architecture SoT): unique `DECISION: t312-canary-{u
 
 ---
 
-## 13. Fold-in
+## 13. AI fold-in
 
-*(empty until `/fold-in 312`)*
+Inputs (not edited): `agy-review.md` + `opencode-review.md` (HEAD `413aa33`). Fold-in verify: `extract_fts_tokens` `fts.rs:28–34` splits on non-alphanumeric including `-`; T217 `:85–87` R0-non-empty return + `:90` ≥3; `LEADING_QUERY_BONUS` `ranking.rs:351–363` any-token `line.contains`; `parent_seeds` call `recall.rs:511`; rerank `:571`; `SESSION_CHROME_PENALTY` `session_chrome.rs:11`; `#229` comments/reviews/issues `[]`; HEAD `413aa33` ahead **2**.
+
+### Pins locked by fold-in
+
+1. **§2.1 HEAD (Agy m1 / OpenCode m3):** review-time HEAD is `413aa33` / ahead **2**. Plan-write was `27731be` / ahead **1**. Phase 0 re-verifies the working tree.
+2. **Needle grammar (OpenCode M1/M3):** F8 hermetics are **exactly 2 contentful tokens**; UUID only in stored bodies. AC4 is stay-green (T285 pass-1). AC5/AC12/AC13/AC14/Manual use F42.
+3. **AC2 no bonus mask (OpenCode M2):** pin first line contains **none** of the query tokens. F6 is load-bearing here; F8 is the live-#1 fix (O1).
+4. **`DUMP_OTHER_*` home (OpenCode m2):** define in `session_chrome.rs` beside `SESSION_CHROME_PENALTY`; apply in `ranking.rs`.
+5. **last-PR Cursor `#229`:** N/A empty; **no T325.**
+
+### Per-AI disposition
+
+| Source | Item | Disposition |
+|--------|------|-------------|
+| Agy | B / M | None filed |
+| Agy | **m1** stale HEAD `27731be` | **Folded** §2.1 + plan preflight → `413aa33` / ahead **2** |
+| Agy | **m2** thread `raw_query` into `match_query` | **Already** F8 / F29; **tightened** F8 wording |
+| Agy | **O1** chrome else-if zero-stack | **Already** F7 / AC17 |
+| Agy | **O2** zero-touch `recall.rs` (`:511`) | **Already** F10 / F29 |
+| Agy | **O3** `extract_fts_tokens` not substring | **Already** F5 / AC1 |
+| OpenCode | B | None filed |
+| OpenCode | **M1** AC5 UUID ≥3 tokens greens T217 | **Folded** F42 / AC5 query `"t312or backend"` |
+| OpenCode | **M2** AC2 `LEADING_QUERY_BONUS` masks F6 | **Folded** AC2 pin `DECISION: sqlite projector stays native` |
+| OpenCode | **M3** AC4/AC12–14 / Manual same redness | **Folded** AC4 stay-green; AC12–14 + Manual F42 |
+| OpenCode | **m1** F8 vs T217 R2 on prefer path | **Folded** F9 note |
+| OpenCode | **m2** `DUMP_OTHER_*` module | **Folded** F39 / F29 |
+| OpenCode | **m3** stale HEAD | **Folded** with Agy m1 |
+| OpenCode | **O1** F6 is hygiene not live-#1 | **Folded** §2.2 + §5.2 |
+| OpenCode | **O2** AC3 deterministic | **Folded** AC3 crumb **index 0** |
+| OpenCode | **O3** `recall.rs:570` → `:571` | **Folded** §2.3 |
+| both | last-PR Cursor empty; deferred map; no T325 | **Affirm** |
+| both | KIND/floors/depth frozen; no clap 5 / H2 | **Already** F4 / F20 / F24 |
+
+No Blockers. No declined Majors. No new placeholder. Do **not** edit `*-review.md`. Do **not** execute until go.
+
+**Planning + fold-in 2026-08-27.** Still **plan-only until go**.
+

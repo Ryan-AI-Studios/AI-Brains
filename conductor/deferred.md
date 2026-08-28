@@ -22,6 +22,25 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | last-PR `#229` Cursor | **N/A empty** — no T325 |
 | DOCS TX | `8b1b418b-acbb-4398-b867-7ea297d10e41` |
 
+### T312 fold-in (2026-08-27) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 AC5 UUID token split greens T217 | **Folded** F42 / AC5 query `"t312or backend"` |
+| OpenCode M2 AC2 `LEADING_QUERY_BONUS` masks F6 | **Folded** AC2 pin without query tokens |
+| OpenCode M3 AC4/AC12–14 / Manual same redness | **Folded** AC4 stay-green; CLI F42 |
+| OpenCode m1 F8 vs T217 R2 | **Folded** F9 note |
+| OpenCode m2 `DUMP_OTHER_*` module | **Folded** F39 in `session_chrome.rs` |
+| Both m1/m3 HEAD `27731be` | **Folded** snapshot `413aa33` / ahead **2** |
+| OpenCode O1 F6 hygiene | **Folded** §2.2 / §5.2 |
+| OpenCode O2 AC3 crumb-first | **Folded** AC3 index 0 |
+| OpenCode O3 `recall.rs:571` | **Folded** §2.3 |
+| Agy m2 raw_query thread | **Already** F8 |
+| Agy O1/O2/O3 F7 / recall.rs / F5 | **Already** |
+| last-PR `#229` Cursor | **Affirm N/A** — no T325 |
+| Agy/OpenCode B | None filed |
+| DOCS TX | `2e553fb4-57c6-459e-b5b7-ea774cd74021` |
+
 | Item | Disposition |
 |------|-------------|
 | Audit recall rank still dump-first (T285 shipped) | **T312** Planned (full plan 2026-08-27; Pending until go) |
