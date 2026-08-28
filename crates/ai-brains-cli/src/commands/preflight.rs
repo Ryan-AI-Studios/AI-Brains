@@ -56,7 +56,8 @@ pub(crate) struct PreflightSummaryJson {
     /// T241 F3: present when project-scoped discovery grants incomplete (`active_count < 3`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grants_status: Option<String>,
-    /// T241 F3: short bootstrap SOOT when discovery incomplete; omit when complete/global.
+    /// Optional remediator: T241 bootstrap when discovery grants incomplete, else T315
+    /// empty-decisions SOOT when `in_context_decisions == 0`. Omit when neither applies.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_step: Option<String>,
     /// T264 F8: distinct non-unknown projects in the emitted global body. Global only.
@@ -1465,6 +1466,44 @@ mod tests {
             "SOOT immediately after budget line; got:\n{joined}"
         );
         assert!(soot_idx < footer_idx, "SOOT before footer; got:\n{joined}");
+    }
+
+    /// T315 F8 / AC4: legacy `Total Word Count:` prefix still accepts insert (red/mid-green).
+    #[test]
+    fn insert_after_budget_window_line__legacy_total_word_count__inserts_after() {
+        let mut lines = vec![
+            "--- AI-Brains Preflight Summary ---".to_string(),
+            "Scope: none".to_string(),
+            "In context decisions: 0".to_string(),
+            "Total Word Count: 42".to_string(),
+            String::new(),
+            "Use --pretty or --format json for full context.".to_string(),
+        ];
+        let soot = format_summary_empty_decisions_next(0).expect("zero → SOOT");
+        insert_after_budget_window_line(&mut lines, soot.clone());
+        let legacy_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Total Word Count:"))
+            .expect("legacy word-count line");
+        let soot_idx = lines
+            .iter()
+            .position(|l| l == &soot)
+            .expect("SOOT line present");
+        let footer_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Use --pretty"))
+            .expect("footer");
+        assert_eq!(
+            soot_idx,
+            legacy_idx + 1,
+            "SOOT immediately after legacy Total Word Count:; got:\n{}",
+            lines.join("\n")
+        );
+        assert!(
+            soot_idx < footer_idx,
+            "SOOT before footer; got:\n{}",
+            lines.join("\n")
+        );
     }
 
     /// T315 AC14: trigger is decision_count == 0 only (hotspots may be non-zero).
