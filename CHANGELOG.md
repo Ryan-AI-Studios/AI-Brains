@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T315 Preflight empty-decisions next-step:** `preflight --summary` when `In context decisions` is **0** prints exact `next: ai-brains recall "what did we decide"` after the word-count line (before the footer). Human label `Total Word Count:` → `Budget window words:` (JSON key `word_count` unchanged). JSON optional `next_step` is that SOOT when T241 did not set bootstrap (incomplete grants still win). Docs: CAPABILITIES summary rows; PROTOCOL-COMPAT optional `next_step` sources (T241 bootstrap **or** T315 empty-decisions); no new required keys.
+
 - **T312 recall rank v3:** When pass-1 AND authority retain is empty, Prefer MATCH once more with contentful `match_or` (≥2 tokens) so pins that miss an AND token still enter `candidate_depth`. Verbose-Other dumps (≥800 chars, non-chrome) take the same **−16** dump penalty as session chrome (no stack). ATX headings whose FTS tokens include `review`/`objective`/`onboarding`/`audit`/`ratings` are chrome (token set, not substring). Verbose-Other and chrome do not seed graph neighbors. KIND / floors / depth frozen; no new Recall JSON keys; `forget --match` stays unfiltered.
 
 - **T311 `decision in-force`:** `ai-brains decision in-force <TERM>` walks `decision_projection.superseded_by` in the resolved scope and returns the current Approved, valid-now ruling (`state: in_force`) or honest `ruling: null`. Default `--format json` (clap `value_parser`; unknown token exit **2**). `ReadDecisions` deny is exit **3** + T280 omit-`--scope` hint. Empty term is usage exit **2**. Local projection only (no daemon wire, no pin→Approved).

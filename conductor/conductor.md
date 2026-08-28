@@ -259,7 +259,7 @@
 | T312 | Recall rank v3 | ✅ **Completed** | Grok | [T312](tracks/trackT312-recall-rank-v3/spec.md) | **Complete 2026-08-27:** F8 authority-OR (pass-2 OR when filled) + F6 verbose-Other −16@800 + F5 ATX token chrome. F42 hermetics + CLI AC12/13. FEATURE TX `7f7e99bb`. `dev-check` 3568 passed. Codex FAIL→fixed (P2/P3 + T260 symbols). Residuals R1–R6 soft. |
 | T313 | `sync query` ledger provenance | **Pending** | Grok | [T313](tracks/trackT313-sync-query-provenance/spec.md) | **Placeholder:** T271 rescue banner must make phrase vs fuzzy token obvious. `/plan-track T313`. |
 | T314 | Unify `--format` / `--dry-run` | **Pending** | Grok | [T314](tracks/trackT314-clap-flag-unify/spec.md) | **Placeholder:** expand `--format`; progressive `--dry-run` flag; scan-roots `--dry-run` no-op. Not clap 5. Not progressive `--format` (T290 F10). `/plan-track T314`. |
-| T315 | Preflight governed-empty next-step | **Pending** | Grok | [T315](tracks/trackT315-preflight-governed-empty/spec.md) | **Placeholder:** summary 0/0/0 + word-count label. No H2. `/plan-track T315`. |
+| T315 | Preflight governed-empty next-step | **Completed** | Grok | [T315](tracks/trackT315-preflight-governed-empty/spec.md) | **Completed** 2026-08-28: empty-decisions `next: ai-brains recall "what did we decide"` + `Budget window words:`; JSON `next_step` when T241 left None. FEATURE TX `a38a0cba`. Residuals: T286 R1-1 Index Objective; PATH install; T325. |
 | T316 | `memory list` preview + nudge | **Pending** | Grok | [T316](tracks/trackT316-memory-list-preview/spec.md) | **Placeholder:** contentful previews; forget nudge not an error. T287 ORDER frozen. `/plan-track T316`. |
 | T317 | Graph neighbors RECALLS filter | **Pending** | Grok | [T317](tracks/trackT317-graph-neighbors-recalls/spec.md) | **Placeholder:** human neighbors not 19× RECALLS spam; hierarchy empty named. T293 sort not stolen. `/plan-track T317`. |
 | T318 | Backup list usable-first | **Pending** | Grok | [T318](tracks/trackT318-backup-list-usable-first/spec.md) | **Placeholder:** T295 left ≥1 usable; Default table still residual-heavy. `/plan-track T318`. |
@@ -269,6 +269,7 @@
 | T322 | `decision in-force --as-of` | **Pending** | Grok | [T322](tracks/trackT322-decision-as-of/spec.md) | **Placeholder:** T311 R2. `/plan-track T322`. |
 | T323 | Conclusion in-force | **Pending** | Grok | [T323](tracks/trackT323-conclusion-in-force/spec.md) | **Placeholder:** T311 R5 — walker **or** decline if no chain. `/plan-track T323`. |
 | T324 | PowerShell empty TERM | **Pending** | Grok | [T324](tracks/trackT324-powershell-empty-term/spec.md) | **Placeholder:** T311 R7. `/plan-track T324`. |
+| T325 | FTS OR-fill recency retry | **Pending** | Grok | [T325](tracks/trackT325-fts-or-fill-recency/spec.md) | **Placeholder:** `#230` Cursor Bugbot — T312 F8 Prefer-OR skips PreferRecency (`lexical.rs:231–250`). `/plan-track T325`. |
 
 
 ---

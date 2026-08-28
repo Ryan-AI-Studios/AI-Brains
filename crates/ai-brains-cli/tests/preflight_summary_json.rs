@@ -304,6 +304,14 @@ fn preflight_summary_json__legacy_markers__in_context_counts_meaningful() {
         hotspots >= 1,
         "AC5: in_context_hotspots >= 1 from HOTSPOT: pin; got {hotspots}\n{stdout}"
     );
+    // T315 AC7 / F30: project-scoped fixtures keep T241 bootstrap; must not be T315 SOOT.
+    let t315_soot = r#"next: ai-brains recall "what did we decide""#;
+    if let Some(step) = v.get("next_step").and_then(|x| x.as_str()) {
+        assert_ne!(
+            step, t315_soot,
+            "AC7: legacy pin fixture must not use T315 empty-decisions SOOT; got {step}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -561,5 +569,85 @@ fn preflight__summary_json_tagged_pin__in_context_decisions_nonzero() {
     assert!(
         decisions >= 1,
         "AC6: tagged pin must yield in_context_decisions >= 1; got {decisions}\n{stdout}"
+    );
+    // T315 AC7 / F30: project-scoped fixtures keep T241 bootstrap; must not be T315 SOOT.
+    let t315_soot = r#"next: ai-brains recall "what did we decide""#;
+    if let Some(step) = v.get("next_step").and_then(|x| x.as_str()) {
+        assert_ne!(
+            step, t315_soot,
+            "AC7: tagged pin fixture must not use T315 empty-decisions SOOT; got {step}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// T315 — empty-decisions next-step + Budget window words (scope-none; F38)
+// ---------------------------------------------------------------------------
+
+const T315_EMPTY_DECISIONS_SOOT: &str = r#"next: ai-brains recall "what did we decide""#;
+
+/// T315 AC5: scope-none empty vault human summary shows SOOT + budget label.
+#[test]
+fn preflight__summary_human__empty_vault_scope_none__next_step_and_budget_label() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    // F38: no register_project / no AI_BRAINS_PROJECT_ID — grants probe returns None.
+    let (code, stdout, stderr) = run_preflight(&vault, &["--summary"], None);
+    assert_eq!(code, 0, "AC5 exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains(T315_EMPTY_DECISIONS_SOOT),
+        "AC5: must contain empty-decisions SOOT; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("Budget window words:"),
+        "AC5: Budget window words: label; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("Total Word Count"),
+        "AC5: Total Word Count retired; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("decision propose"),
+        "AC5: must not name decision propose; got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("In context decisions: 0"),
+        "AC5: honest zero decisions stay; got:\n{stdout}"
+    );
+}
+
+/// T315 AC6: scope-none empty vault JSON next_step is T315 SOOT (not bootstrap).
+#[test]
+fn preflight__summary_json__empty_vault_scope_none__next_step_soot() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let (code, stdout, stderr) = run_preflight(&vault, &["--summary", "--format", "json"], None);
+    assert_eq!(code, 0, "AC6 exit 0; stderr={stderr}");
+    let v = parse_summary_json(&stdout);
+    assert_eq!(v["scope"], "none", "AC6 scope none; got {v}");
+    assert_eq!(
+        v["next_step"].as_str(),
+        Some(T315_EMPTY_DECISIONS_SOOT),
+        "AC6: next_step must be T315 SOOT; got {v}"
+    );
+    assert!(
+        !stdout.contains("--- AI-Brains Preflight Summary ---"),
+        "AC6: no human banner"
+    );
+    assert_eq!(v["api_version"], "1");
+    assert!(v.get("pinned").is_some());
+    assert!(v.get("in_context_decisions").is_some());
+    assert!(v.get("word_count").is_some());
+    assert!(
+        v.get("sections").is_none(),
+        "AC6: no sections on summary; got {v}"
+    );
+    assert!(
+        v.get("grants_status").is_none(),
+        "AC6: scope-none has no grants_status; got {v}"
     );
 }

@@ -4,7 +4,57 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 ## T312–T324 placeholders (2026-08-27) — post-T311 live CLI dogfood (0.1.3)
 
-Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s open residuals. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#229** empty. Series README `conductor/tracks/README-T312-T324-CLI-DOGFOOD.md`. Series DOCS TX `a6d3c404-1d64-4cba-a743-d75ac16c74cd`.
+Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s open residuals. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#230** (T312) minted **T325**. Series README `conductor/tracks/README-T312-T324-CLI-DOGFOOD.md`. Series DOCS TX `a6d3c404-1d64-4cba-a743-d75ac16c74cd`.
+
+### T315 full plan (2026-08-28) — empty-decisions next-step + word-count label
+
+| Item | Disposition |
+|------|-------------|
+| ~~Audit preflight 0/0/0 + opaque `Total Word Count`~~ | **Landed** T315 Completed — SOOT + `Budget window words:` |
+| T286 live Index `## Objective` (R1-1) | **Decline steal** F11 — residual stands (not easy; Index SQL) |
+| ~~T220 F30 human label vs JSON `word_count`~~ | **Landed** F7 `Budget window words:` |
+| ~~T241 optional JSON `next_step`~~ | **Landed** reuse key; F5 grants win |
+| T288 / T290 granted-empty overlay | **Decline steal** — needle `LIST_RECALL_QUERY` only (F3) |
+| T263 H2 / T240 F2 / clap 5 | **Decline** F4 / F24 / F20 |
+| T313–T324 / T307 / T308 floors | **Not stolen** / **Decline** |
+| last-PR Cursor `#230` F8 Prefer-OR skips recency | **Mint T325** (does not fit T315 / T313–T324) |
+| last-PR `#229` empty | **Superseded** by `#230` |
+| DOCS TX | `ca5b1614-6849-416d-ad27-1d44a23198d7` |
+
+### T315 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| T286 Index still `## Objective` on live vault (R1-1) | **Deferred** — needs Index SQL / budget fit track; T315 next-step honesty only |
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F18 — source bin proves AC11; not Complete-blocking |
+| In-context decisions remain 0 after T315 | **By design** — product is `next:` remediator, not window stuffing |
+| T325 F8 PreferRecency on OR-fill | **Not stolen** — placeholder Pending |
+| Optional `after_help` T315 sentence | **Skipped** (plan optional); not deferred as debt |
+| FEATURE TX | `a38a0cba-b820-4f36-8924-c13bff46b50a` |
+
+### T315 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 AC7 “next_step omitted” unreachable (project-scoped T241 bootstrap) | **Folded** F5/F30/AC7 — assert **not the T315 SOOT** |
+| OpenCode O1 AC5/AC6 project-scoped fixture | **Folded** F38 scope-none empty vault |
+| OpenCode O2 F23 existing import | **Folded** — one **new** `LIST_RECALL_QUERY` import |
+| OpenCode O3 `lexical.rs` lines | **Folded** F21 `:197–214` / `:215–252` |
+| OpenCode O5 AC4–AC6 names | **Folded** AC table |
+| Both m/O HEAD `44520d8` | **Folded** snapshot `2b6919c` / ahead **1** |
+| Agy m2 insert helper prefix | **Folded** F8 dual prefix |
+| Agy O1/O2/O3 F7/F3/F5 | **Already** |
+| last-PR `#230` Cursor | **Affirm** T325 — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `c90c1c71-aa57-40b4-8ee6-7b068837b4bc` |
+
+### T325 mint (2026-08-28) — `#230` Cursor leftover (placeholder)
+
+| Item | Disposition |
+|------|-------------|
+| `#230` Bugbot medium: F8 OR-fill no PreferRecency (`lexical.rs:231–250` vs AND `:197–213`) | **T325** Pending placeholder |
+| T315 summary 0/0/0 | **Not stolen** (this plan) |
+| T312 F8/F42 grammar | **Affirm freeze** until `/plan-track T325` |
 
 ### T312 implement (2026-08-27) — recall rank v3 (Completed)
 
@@ -60,7 +110,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
 | `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
 | `--format` / `--dry-run` clap friction | **T314** Pending |
-| preflight 0/0/0 + word count | **T315** Pending |
+| ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
 | `graph neighbors` RECALLS spam | **T317** Pending |
 | `backup list` residual noise | **T318** Pending |
@@ -70,6 +120,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | T311 R2 `--as-of` | **T322** Pending |
 | T311 R5 conclusion in-force | **T323** Pending |
 | T311 R7 PowerShell empty TERM | **T324** Pending |
+| T312 F8 Prefer-OR skips recency (`#230`) | **T325** Pending |
 | T311 R1 daemon `ListInForce` | **Decline** — no consumer; mint later if a DTO caller appears |
 | T311 R3 sibling Approved | **Decline** — T311 F7 earliest-root by design |
 | T311 R4 `approved_at` | **Partial T322** — column only if plan proves `updated_at` insufficient |
@@ -80,7 +131,8 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | T308 density floors | **Decline** standing |
 | T310 R1 self-replace / F15 `--version` | **Decline** |
 | `recovery_kit_event` doctor warn | **Decline** this series (doctor Q=9) |
-| last-PR `#229` Cursor | **N/A empty** — no extra leftover |
+| last-PR `#229` Cursor | **N/A empty** — superseded by `#230` |
+| last-PR `#230` Cursor F8 recency | **T325** Pending |
 
 ### T311 implement (2026-08-27) — decision in-force (Completed) — residual promotion
 

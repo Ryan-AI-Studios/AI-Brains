@@ -1,5 +1,6 @@
 use crate::commands::governed_common::{
-    DISCOVERY_CAP_LABELS, POLICY_BOOTSTRAP_SOOT_SHORT, discovery_active_count, resolve_principal,
+    DISCOVERY_CAP_LABELS, LIST_RECALL_QUERY, POLICY_BOOTSTRAP_SOOT_SHORT, discovery_active_count,
+    resolve_principal,
 };
 use crate::commands::harness::{PromptDecision, interpret_consent_answer, should_prompt_install};
 use crate::context::AppContext;
@@ -55,7 +56,8 @@ pub(crate) struct PreflightSummaryJson {
     /// T241 F3: present when project-scoped discovery grants incomplete (`active_count < 3`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grants_status: Option<String>,
-    /// T241 F3: short bootstrap SOOT when discovery incomplete; omit when complete/global.
+    /// Optional remediator: T241 bootstrap when discovery grants incomplete, else T315
+    /// empty-decisions SOOT when `in_context_decisions == 0`. Omit when neither applies.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_step: Option<String>,
     /// T264 F8: distinct non-unknown projects in the emitted global body. Global only.
@@ -101,6 +103,40 @@ pub(crate) fn build_preflight_summary_json(
         next_step: None,
         in_context_project_span: None,
     }
+}
+
+/// T315 F2/F35: empty in-context decisions next-step (SOOT).
+///
+/// Fires when `decision_count == 0` only (F1). Reuses [`LIST_RECALL_QUERY`].
+/// Does **not** call `format_authorized_empty_next` (no Ungoverned / Pinned suffix).
+pub(crate) fn format_summary_empty_decisions_next(decision_count: usize) -> Option<String> {
+    if decision_count != 0 {
+        return None;
+    }
+    Some(format!(r#"next: ai-brains recall "{LIST_RECALL_QUERY}""#))
+}
+
+/// T315 F8: insert SOOT after budget-window (or legacy `Total Word Count:`) line.
+///
+/// Prefer a line starting with `Budget window words:` or `Total Word Count:`;
+/// else insert before the first empty line, else before the footer, else append.
+pub(crate) fn insert_after_budget_window_line(lines: &mut Vec<String>, line: String) {
+    if let Some(idx) = lines
+        .iter()
+        .position(|l| l.starts_with("Budget window words:") || l.starts_with("Total Word Count:"))
+    {
+        lines.insert(idx + 1, line);
+        return;
+    }
+    if let Some(idx) = lines.iter().position(|l| l.is_empty()) {
+        lines.insert(idx, line);
+        return;
+    }
+    if let Some(idx) = lines.iter().position(|l| l.starts_with("Use --pretty")) {
+        lines.insert(idx, line);
+        return;
+    }
+    lines.push(line);
 }
 
 /// Format a post-hoc discovery-grants summary line (T241 F3 / AC9).
@@ -793,7 +829,7 @@ pub(crate) fn format_preflight_summary_lines(
     lines.push(format!("In context hotspots: {}", hotspot_count));
     lines.push(format!("In context decisions: {}", decision_count));
     lines.push(format!("In context constraints: {}", constraint_count));
-    lines.push(format!("Total Word Count: {}", word_count));
+    lines.push(format!("Budget window words: {}", word_count));
     lines.push(String::new());
     lines.push("Use --pretty or --format json for full context.".to_string());
     lines
@@ -911,6 +947,12 @@ fn print_summary(
                 envelope.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
             }
         }
+        // T315 F5: fill empty-decisions next_step only when T241 left it None.
+        if envelope.next_step.is_none()
+            && let Some(soot) = format_summary_empty_decisions_next(decision_count)
+        {
+            envelope.next_step = Some(soot);
+        }
         // Pretty summary JSON (memory-list family); T180 full path stays compact.
         crate::commands::identity_warn::print_json_stdout(&envelope)?;
         // M1: still run install side effects; never pollute stdout.
@@ -941,6 +983,10 @@ fn print_summary(
         } else {
             lines.push(span_line);
         }
+    }
+    // T315 F8: empty-decisions next-step after budget-window line (even if grants incomplete).
+    if let Some(soot) = format_summary_empty_decisions_next(decision_count) {
+        insert_after_budget_window_line(&mut lines, soot);
     }
     if let Some(n) = grants_count
         && let Some(line) = format_grants_incomplete_line(n)
@@ -1372,6 +1418,147 @@ mod tests {
         let _ = format_preflight_summary_lines("Scope: global", true, Some(0), 0, 0, 0, 0, 0, 0);
     }
 
+    /// T315 AC1: empty-decisions next-step SOOT.
+    #[test]
+    fn format_summary_empty_decisions_next__zero__exact_soot() {
+        let soot = format_summary_empty_decisions_next(0).expect("zero decisions → Some");
+        assert_eq!(soot, r#"next: ai-brains recall "what did we decide""#);
+        assert!(
+            soot.chars().count() <= 140,
+            "AC13: SOOT must be ≤140 chars; got {}",
+            soot.chars().count()
+        );
+        assert!(
+            format_summary_empty_decisions_next(1).is_none(),
+            "decision_count == 1 → None"
+        );
+    }
+
+    /// T315 AC4 / F8: insert after budget-window line, before footer.
+    #[test]
+    fn insert_after_budget_window_line__zero_decisions__after_word_count_before_footer() {
+        let mut lines =
+            format_preflight_summary_lines("Scope: none", false, None, 0, 0, 0, 0, 0, 42);
+        assert!(
+            format_summary_empty_decisions_next(1).is_none(),
+            "AC4: decision_count == 1 does not insert"
+        );
+        let soot = format_summary_empty_decisions_next(0).expect("zero → SOOT");
+        insert_after_budget_window_line(&mut lines, soot.clone());
+        let joined = lines.join("\n");
+        let budget_idx = lines
+            .iter()
+            .position(|l| {
+                l.starts_with("Budget window words:") || l.starts_with("Total Word Count:")
+            })
+            .expect("budget or legacy word-count line");
+        let soot_idx = lines
+            .iter()
+            .position(|l| l == &soot)
+            .expect("SOOT line present");
+        let footer_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Use --pretty"))
+            .expect("footer");
+        assert_eq!(
+            soot_idx,
+            budget_idx + 1,
+            "SOOT immediately after budget line; got:\n{joined}"
+        );
+        assert!(soot_idx < footer_idx, "SOOT before footer; got:\n{joined}");
+    }
+
+    /// T315 F8 / AC4: legacy `Total Word Count:` prefix still accepts insert (red/mid-green).
+    ///
+    /// Sentinel after the legacy line ensures empty-line fallback cannot fake a pass
+    /// (Codex P3-002): SOOT must land before `NOT_THE_INSERT_POINT`.
+    #[test]
+    fn insert_after_budget_window_line__legacy_total_word_count__inserts_after() {
+        let mut lines = vec![
+            "--- AI-Brains Preflight Summary ---".to_string(),
+            "Scope: none".to_string(),
+            "In context decisions: 0".to_string(),
+            "Total Word Count: 42".to_string(),
+            "NOT_THE_INSERT_POINT".to_string(),
+            String::new(),
+            "Use --pretty or --format json for full context.".to_string(),
+        ];
+        let soot = format_summary_empty_decisions_next(0).expect("zero → SOOT");
+        insert_after_budget_window_line(&mut lines, soot.clone());
+        let legacy_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Total Word Count:"))
+            .expect("legacy word-count line");
+        let soot_idx = lines
+            .iter()
+            .position(|l| l == &soot)
+            .expect("SOOT line present");
+        let sentinel_idx = lines
+            .iter()
+            .position(|l| l == "NOT_THE_INSERT_POINT")
+            .expect("sentinel");
+        let footer_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Use --pretty"))
+            .expect("footer");
+        assert_eq!(
+            soot_idx,
+            legacy_idx + 1,
+            "SOOT immediately after legacy Total Word Count:; got:\n{}",
+            lines.join("\n")
+        );
+        assert!(
+            soot_idx < sentinel_idx,
+            "SOOT before sentinel (legacy match required; empty-line fallback would fail); got:\n{}",
+            lines.join("\n")
+        );
+        assert!(
+            soot_idx < footer_idx,
+            "SOOT before footer; got:\n{}",
+            lines.join("\n")
+        );
+    }
+
+    /// T315 AC14: trigger is decision_count == 0 only (hotspots may be non-zero).
+    #[test]
+    fn format_summary_empty_decisions_next__hotspots_nonzero_decisions_zero__still_some() {
+        // Formatter trigger helper ignores hotspot/constraint counts (F1).
+        assert!(format_summary_empty_decisions_next(0).is_some());
+        let mut lines =
+            format_preflight_summary_lines("Scope: global", true, Some(0), 0, 0, 5, 0, 0, 10);
+        let soot = format_summary_empty_decisions_next(0).expect("decisions 0");
+        insert_after_budget_window_line(&mut lines, soot);
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("In context hotspots: 5"),
+            "hotspots stay; got:\n{joined}"
+        );
+        assert!(
+            joined.contains(r#"next: ai-brains recall "what did we decide""#),
+            "AC14: still inserts when hotspots=5; got:\n{joined}"
+        );
+    }
+
+    /// T315 AC8: T241 bootstrap wins JSON next_step when grants_status is set.
+    #[test]
+    fn empty_decisions_next_step__grants_incomplete__bootstrap_wins() {
+        let mut env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
+        env.grants_status = format_grants_status(0);
+        assert!(env.grants_status.is_some());
+        env.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
+        // T315 fill only when next_step is None (mirrors print_summary F5).
+        if env.next_step.is_none()
+            && let Some(soot) = format_summary_empty_decisions_next(0)
+        {
+            env.next_step = Some(soot);
+        }
+        assert_eq!(
+            env.next_step.as_deref(),
+            Some(POLICY_BOOTSTRAP_SOOT_SHORT),
+            "AC8: T241 bootstrap must not be overwritten"
+        );
+    }
+
     /// T241 AC9: post-hoc grants line for incomplete discovery; complete omits.
     #[test]
     fn format_grants_incomplete_line__empty_and_partial__contains_bootstrap() {
@@ -1479,8 +1666,12 @@ mod tests {
             "AC5 In context constraints; got:\n{joined}"
         );
         assert!(
-            joined.contains("Total Word Count: 100"),
-            "word count from field; got:\n{joined}"
+            joined.contains("Budget window words: 100"),
+            "AC2: budget-window label; got:\n{joined}"
+        );
+        assert!(
+            !joined.contains("Total Word Count"),
+            "AC2: Total Word Count label retired; got:\n{joined}"
         );
         assert!(
             !joined.lines().any(|l| l.starts_with("Project:")),
