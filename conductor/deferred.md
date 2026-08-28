@@ -2,6 +2,21 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T317 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 F31 lists only `:1129`; live also `:1229` / `:1383` | **Folded** F31 / Phase 2 — `(2,0)` / `(2,0)` / `(51,0)` |
+| OpenCode m2 uuid workspace 1.13 vs lock 1.23.1 | **Folded** §2.4 lock **1.23.1** |
+| OpenCode O1 AC9 unnamed / overlap `:616` | **Folded** AC9 in `graph_human_cli.rs`; RECALLS count ≥ 4 |
+| OpenCode O2 live N 11→12 | **Note** AC11 observed-data; §2.1 |
+| Agy m1 HEAD `dae7df3` vs `e17678d` | **Folded** snapshot `e17678d` / ahead **1** |
+| Agy m2 footer order limit then RECALLS | **Already** §5.2; **tightened** F9 / AC17 |
+| Agy O1/O2/O3 F3 / F9 / F2 | **Already** |
+| last-PR `#233` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `e1ef2696-8ee0-47e3-9136-04f41d336cdc` |
+
 ### T317 full plan (2026-08-28) — human RECALLS cap 3 + hierarchy leaf nightly next
 
 | Item | Disposition |

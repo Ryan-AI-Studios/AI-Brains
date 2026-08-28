@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** UX / GRAPH
 **Ledger (planning):** DOCS `0db2a64d-6ae6-4c25-b2fc-3a6db62d0dfa`
+**Ledger (fold-in):** DOCS `e1ef2696-8ee0-47e3-9136-04f41d336cdc`
 
 ---
 
@@ -10,17 +11,17 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | Product `dae7df3` T313 `#233` CLEAN. Branch `track/T317-graph-neighbors-recalls`. `origin/main` = `dae7df3` (ahead **0** at plan-write). |
+| HEAD / tree | Fold-in `e17678d` plan commit CLEAN; `origin/main` = `dae7df3` (ahead **1**). Plan-write was `dae7df3` / ahead **0** (Agy m1). Branch `track/T317-graph-neighbors-recalls`. Product `src/` = T313 `#233`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. **T293 on PATH.** T312/T315/T314/T313 **not**. T317 hole **is**. |
 | `preflight --summary` (PATH) | Pinned **4549**; in-context **0/0/0**; `Total Word Count: 785` (PATH-behind T315) |
 | `graph update --format human` | sparse; E/N **0.414**; floors frozen |
-| `graph neighbors 431f6505-… --format human` | **11/11** `in RECALLS` dump sessions; header `(11)` |
+| `graph neighbors 431f6505-… --format human` | PATH **11/11** `in RECALLS`; OpenCode `cargo run` **12** (O2). Header `(N)` |
 | `graph neighbors … --format json` | `n=11` `RECALLS=11` |
 | `graph hierarchy 431f6505-…` | `No SYNTHESIZED_FROM children (leaf).` no `next:`; JSON `synthesized_from: []` |
 | `graph.rs` | **1539** lines; `neighbors` `:524`; `format_neighbors_pretty` 3-arg `:158`; `pretty_hierarchy_leaf` `:125`; prefer `:364` |
 | `queries.rs` `get_neighbors` | `:62` UNION ALL — **do not edit** |
 | rustc | **1.95.0** |
-| Pins | clap `"4.5"` / lock **4.6.1** / crates.io **4.6.6**; rusqlite **0.40.2**; serde_json **1.0.150**; workspace **0.1.3** — no bump |
+| Pins | clap `"4.5"` / lock **4.6.1** / crates.io **4.6.6**; rusqlite **0.40.2**; serde_json **1.0.150**; uuid ws `"1.13"` / lock **1.23.1**; workspace **0.1.3** — no bump |
 | Last PR Cursor | `#233` `mergedAt` **2026-08-28T12:28:19Z**; comments/reviews **[]** — **N/A empty**. `#230` → **T325** already. |
 | Open PRs | **none** |
 | Ledger | 0 pending / 0 drift at scan; this TX `0db2a64d` |
@@ -42,6 +43,10 @@
 | last-PR `#233` Cursor | **N/A empty** F19 |
 | last-PR `#230` F8 recency | **T325** — not stolen |
 | T316 / T318–T324 / clap 5 | **Not stolen** / **Decline** |
+| OpenCode m1 three `format_neighbors_pretty` units | **F31** / Phase 2 `:1129` `(2,0)` / `:1229` `(2,0)` / `:1383` `(51,0)` |
+| OpenCode m2 uuid lock | **§2.4** 1.23.1 |
+| OpenCode O1 AC9 file + count | **AC9** in `graph_human_cli.rs`; RECALLS ≥ 4 |
+| Agy m2 footer order | **F9 / AC17** limit then RECALLS |
 
 ---
 
@@ -50,6 +55,7 @@
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
 - [ ] Confirm cwd `C:\dev\AI-Brains`
 - [ ] Re-read `neighbors()` `:524–571` + `format_neighbors_pretty` `:158–184` + `pretty_hierarchy_leaf` `:125–127`
+- [ ] Confirm the three unit callers still `:1129` / `:1229` / `:1383` (F31)
 - [ ] Re-read T293 `prefer_authority_neighbor_rows` `:364` + AC9 `:1321` + `graph_human_cli.rs:532`
 - [ ] Confirm `queries.rs:62` and `projector.rs:70–81` still RECALLS as today
 - [ ] Re-dogfood `431f6505-50d7-5176-8cda-f8ba2534fe14` (record live N; AC11 observed-data)
@@ -68,7 +74,7 @@
 - [ ] `format_neighbors_pretty__recalls_hidden__header_total_and_footer` (AC5) — must **fail** on 3-arg helper
 - [ ] `pretty_hierarchy_leaf__nightly_status_next` (AC7) — must **fail** on one-line leaf
 - [ ] Hermetic AC14 `graph_neighbors__human__caps_recalls_with_footer`
-- [ ] **Write AC9** `graph_neighbors__json__no_recalls_cap` (green-on-arrival — passes on HEAD; do **not** skip as stay-green)
+- [ ] **Write AC9** `graph_neighbors__json__no_recalls_cap` in `graph_human_cli.rs` (green-on-arrival — passes on HEAD; do **not** skip as stay-green). Seed 4+ `RECALLS`; assert length **and** RECALLS-label count ≥ 4 (OpenCode O1). Not `:616`.
 - [ ] Confirm red tests **fail** on current tree (no cap helper; leaf has no `next:`)
 
 ## Phase 2 — Green
@@ -77,7 +83,7 @@
 - [ ] `format_neighbors_pretty` arity F31; header `full_hop_count`; footer `+{n} more RECALLS` (F9)
 - [ ] `pretty_hierarchy_leaf` two-line F2
 - [ ] Wire `neighbors()` : prefer → cap → format (spec §5.2)
-- [ ] Update existing `format_neighbors_pretty__incoming_and_outgoing__…` to pass `2, 0`
+- [ ] Update **all three** existing `format_neighbors_pretty` units (F31 / OpenCode m1): `:1129` incoming/outgoing → `(2, 0)`; `:1229` session PREVIEW → `(2, 0)`; `:1383` 51-row limit → `(51, 0)` (`recalls_hidden=0`; this is `--limit`, not the cap)
 - [ ] Production: no `unwrap`/`expect`/`panic`
 - [ ] `graph.rs` production net <80 **or** split `graph_neighbors_pretty.rs` (F18)
 
@@ -90,7 +96,7 @@
 - [ ] Rebuild RECALLS survive (`graph.rs:1017` / `:1065`)
 - [ ] `graph_human_cli.rs` leaf `contains("No SYNTHESIZED_FROM children (leaf).")`
 - [ ] Feature-off exit 2 (AC16)
-- [ ] AC17 two footers (`--limit` + RECALLS hidden)
+- [ ] AC17 two footers (`--limit` then `+N more RECALLS`; F9 / Agy m2)
 
 ## Phase 4 — Docs
 
