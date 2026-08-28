@@ -95,16 +95,16 @@
 
 ## Phase 4 — Gate + review
 
-- [ ] `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; `cargo deny check` ; `cargo audit`
-- [ ] `ledgerful verify --scope full`
+- [x] `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; `cargo deny check` ; `cargo audit`
+- [x] `ledgerful verify --scope full`
 - [x] Phase-1 review log `review.md` until clean
-- [ ] `codex-review` (FEATURE) until clean
-- [ ] Optional Manual canary (F42: `recall "t312or backend"`; uuid in pin body only) — not live `graph backend` as SoT
+- [x] `codex-review` (FEATURE) until clean — FAIL then fixed (P2/P3 + T260 symbols OR pass-2); soft R1 synth
+- [x] Optional Manual canary (F42: `recall "t312or backend"`; uuid in pin body only) — pin #1 via cargo run
 
 ## Phase 5 — Closeout
 
-- [ ] Conductor T312 **Completed** with evidence
-- [ ] deferred.md T312 row struck; residuals appended
+- [x] Conductor T312 **Completed** with evidence
+- [x] deferred.md T312 row struck; residuals appended
 - [ ] FEATURE TX commit
 - [ ] Phase 6: push `track/T312-*` → PR → watch GHA `CI` green → `gh pr merge --squash --delete-branch`. Never `git push origin main`.
 
@@ -121,7 +121,7 @@
 - [x] No new Recall JSON keys
 - [x] `forget --match` unfiltered
 - [x] CAPABILITIES + CHANGELOG
-- [ ] Full gate + Codex PASS
+- [x] Full gate + Codex PASS (after fix round)
 - [x] PATH install **not** required for Completed (F21)
 
 ---

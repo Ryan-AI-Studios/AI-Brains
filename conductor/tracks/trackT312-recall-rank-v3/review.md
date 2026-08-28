@@ -40,11 +40,17 @@ Authority-OR fill when AND-retain empty (F8); verbose-Other −16 (F6/F7); ATX h
 ## Gates
 
 - Targeted unit + hermetic T312: PASS
-- T285 / T217 stay-green: PASS
+- T285 / T217 / T260 stay-green: PASS (after F8 pass-2 OR fix)
 - `cargo fmt` + targeted clippy: PASS
 - Unrelated `exit_contract` graph feature-off: FAIL under parallel suite once; **PASS alone** (not T312)
-- Full `dev-check.ps1` + `ledgerful verify --scope full`: re-run after green
+- Full `dev-check.ps1`: **PASS** (3568 tests)
 - Manual canary: pin #1 for `t312or backend`
+
+### Post-codex regression fix
+
+| id | severity | description | status |
+|----|----------|-------------|--------|
+| R2-F1 | high | F8 Prefer-OR + AND pass-2 dropped T260 `--symbols` stubs | `verified_fixed` — when F8 fills, pass-2 uses OR (`50d66ca`) |
 
 ## Soft residuals → `deferred.md`
 
