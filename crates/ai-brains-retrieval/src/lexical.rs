@@ -212,7 +212,11 @@ fn match_query(
                 return Ok(retain);
             }
         }
-        // T312 F8 / F40 / F41: authority-OR fill only when retain still empty.
+        // T312 F8 / F40 / F41: authority-OR fill when retain still empty.
+        // When F8 runs, pass-2 must also use the OR expr — AND pass-2 would be
+        // empty whenever Prefer-AND was empty (T260 `--symbols` mix; live dumps
+        // still OR-match either token).
+        let mut pass2_expr = match_expr.to_string();
         if retain.is_empty() {
             let contentful = contentful_tokens(&extract_fts_tokens(raw_query));
             if contentful.len() >= 2 {
@@ -240,6 +244,9 @@ fn match_query(
                     if retain.len() >= limit {
                         return Ok(retain);
                     }
+                    if !retain.is_empty() {
+                        pass2_expr = or_expr;
+                    }
                 }
             }
         }
@@ -250,7 +257,7 @@ fn match_query(
         let ids: Vec<String> = retain.iter().map(|m| m.memory_id.clone()).collect();
         let pass2 = match_query_filtered(
             conn,
-            match_expr,
+            &pass2_expr,
             project_id,
             session_id,
             remainder,
