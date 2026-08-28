@@ -1,9 +1,10 @@
 # T312 Plan — Recall rank v3 (pins over dumps)
 
-**Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
+**Status:** **In Progress** (FEATURE TX `7f7e99bb`). Spec [spec.md](./spec.md).
 **Category:** FEATURE / UX / RETRIEVAL
 **Ledger (planning):** DOCS `8b1b418b-acbb-4398-b867-7ea297d10e41`
 **Ledger (fold-in):** DOCS `2e553fb4-57c6-459e-b5b7-ea774cd74021`
+**Ledger (implement):** FEATURE `7f7e99bb-7dcb-4c84-bb5e-b3ed5dd9fdd3`
 
 ---
 
@@ -45,58 +46,58 @@
 
 ## Phase 0 — on go (re-verify + deferred rescan)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
-- [ ] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
-- [ ] Re-read `lexical.rs` `match_query` retain/recency `:171–221` and T217 early-return `:85–87`
-- [ ] Re-read `session_chrome.rs` `is_session_chrome` `:14–44` + `parent_seeds_graph_neighbors` `:180`
-- [ ] Re-read `ranking.rs` `rerank_hits_with_query` `:293–364`; confirm `KIND_DECISION == 2.0`
-- [ ] Confirm `candidate_depth` clamp 15..50 and T218 0.55/0.60
-- [ ] Rescan `deferred.md` open overlapping rows
-- [ ] `ledgerful ledger start T312-recall-rank-v3 --category FEATURE`
-- [ ] **Do not** `cargo install` / live production `pin` / `.env` rewrite in Phase 0
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact`
+- [x] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
+- [x] Re-read `lexical.rs` `match_query` retain/recency `:171–221` and T217 early-return `:85–87`
+- [x] Re-read `session_chrome.rs` `is_session_chrome` `:14–44` + `parent_seeds_graph_neighbors` `:180`
+- [x] Re-read `ranking.rs` `rerank_hits_with_query` `:293–364`; confirm `KIND_DECISION == 2.0`
+- [x] Confirm `candidate_depth` clamp 15..50 and T218 0.55/0.60
+- [x] Rescan `deferred.md` open overlapping rows
+- [x] `ledgerful ledger start T312-recall-rank-v3 --category FEATURE`
+- [x] **Do not** `cargo install` / live production `pin` / `.env` rewrite in Phase 0
 
 ## Phase 1 — Red
 
-- [ ] `is_session_chrome__atx_tokens__ac1` rstest (`# Preview of graph` **false**)
-- [ ] `rerank_hits_with_query__verbose_other_dump_loses_to_pin__ac2` (pin first line **no** query tokens)
-- [ ] Retrieval hermetic `match_query__and_retain_empty__authority_or_fills_pin__ac5` (query `"t312or backend"` — F42; **no** UUID in query)
-- [ ] `parent_seeds_graph_neighbors__verbose_other__false__ac6`
-- [ ] CLI `crates/ai-brains-cli/tests/recall_rank_v3.rs` AC12 / AC13 (same F42 fixture)
-- [ ] Confirm those tests **fail** on current T285 tree (AND-miss pin absent; AC2 dump leads without F6)
-- [ ] AC3 crumb index 0 + AC4 full-needle pin #1 are **stay-green** (not Phase-1 red)
+- [x] `is_session_chrome__atx_tokens__ac1` rstest (`# Preview of graph` **false**)
+- [x] `rerank_hits_with_query__verbose_other_dump_loses_to_pin__ac2` (pin first line **no** query tokens)
+- [x] Retrieval hermetic `match_query__and_retain_empty__authority_or_fills_pin__ac5` (query `"t312or backend"` — F42; **no** UUID in query)
+- [x] `parent_seeds_graph_neighbors__verbose_other__false__ac6`
+- [x] CLI `crates/ai-brains-cli/tests/recall_rank_v3.rs` AC12 / AC13 (same F42 fixture)
+- [x] Confirm those tests **fail** on current T285 tree (AND-miss pin absent; AC2 dump leads without F6)
+- [x] AC3 crumb index 0 + AC4 full-needle pin #1 are **stay-green** (not Phase-1 red)
 
 ## Phase 2 — Green
 
-- [ ] F5 ATX token detector in `is_session_chrome` (token set, not substring)
-- [ ] Define `DUMP_OTHER_CHAR_FLOOR` / `DUMP_OTHER_PENALTY` in `session_chrome.rs`; apply F6 in `rerank_hits_with_query` (F7 no stack)
-- [ ] F8 authority-OR fill in `match_query` after recency-empty; thread `raw_query`; ≥2 contentful tokens
-- [ ] F10 `parent_seeds_graph_neighbors` skips verbose-Other
-- [ ] Reuse `match_or` / `select_or_tokens` from `ai-brains-core` (no new crate)
-- [ ] Do **not** change T217 R0/≥3 gate
-- [ ] Do **not** bump `KIND_*` / floors / `candidate_depth`
-- [ ] Do **not** edit `project.rs` / `sync.rs` / CLI `preflight.rs` / `pin.rs` write / `hybrid.rs` floors
+- [x] F5 ATX token detector in `is_session_chrome` (token set, not substring)
+- [x] Define `DUMP_OTHER_CHAR_FLOOR` / `DUMP_OTHER_PENALTY` in `session_chrome.rs`; apply F6 in `rerank_hits_with_query` (F7 no stack)
+- [x] F8 authority-OR fill in `match_query` after recency-empty; thread `raw_query`; ≥2 contentful tokens
+- [x] F10 `parent_seeds_graph_neighbors` skips verbose-Other
+- [x] Reuse `match_or` / `select_or_tokens` from `ai-brains-core` (no new crate)
+- [x] Do **not** change T217 R0/≥3 gate
+- [x] Do **not** bump `KIND_*` / floors / `candidate_depth`
+- [x] Do **not** edit `project.rs` / `sync.rs` / CLI `preflight.rs` / `pin.rs` write / `hybrid.rs` floors
 
 ## Phase 3 — Stay-green + docs
 
-- [ ] AC7 T285 `recall_rank_v2` + onboarding chrome unit
-- [ ] AC8 T260 stub exclude
-- [ ] AC9 T207/T261 empty
-- [ ] AC10 `forget --match` still finds the dump
-- [ ] AC11 JSON keys frozen
-- [ ] AC13 `sync query` vault (hermetic; do not grow `sync.rs`)
-- [ ] AC14 `--semantic` fallback no HTTP
-- [ ] AC15 OR SQL `?` only
-- [ ] AC16 freeze consts
-- [ ] AC17 chrome long dump −16 once
-- [ ] AC18 list recency
-- [ ] CAPABILITIES pin-type row additive + CHANGELOG T312
-- [ ] PROTOCOL-COMPAT: no new required keys
+- [x] AC7 T285 `recall_rank_v2` + onboarding chrome unit
+- [x] AC8 T260 stub exclude
+- [x] AC9 T207/T261 empty
+- [x] AC10 `forget --match` still finds the dump
+- [x] AC11 JSON keys frozen
+- [x] AC13 `sync query` vault (hermetic; do not grow `sync.rs`)
+- [x] AC14 `--semantic` fallback no HTTP
+- [x] AC15 OR SQL `?` only
+- [x] AC16 freeze consts
+- [x] AC17 chrome long dump −16 once
+- [x] AC18 list recency
+- [x] CAPABILITIES pin-type row additive + CHANGELOG T312
+- [x] PROTOCOL-COMPAT: no new required keys
 
 ## Phase 4 — Gate + review
 
 - [ ] `cargo fmt --check` ; clippy workspace `-D warnings` ; nextest workspace ; `cargo deny check` ; `cargo audit`
 - [ ] `ledgerful verify --scope full`
-- [ ] Phase-1 review log `review.md` until clean
+- [x] Phase-1 review log `review.md` until clean
 - [ ] `codex-review` (FEATURE) until clean
 - [ ] Optional Manual canary (F42: `recall "t312or backend"`; uuid in pin body only) — not live `graph backend` as SoT
 
@@ -111,17 +112,17 @@
 
 ## DoD (checkable)
 
-- [ ] AC2: 2000-char prose dump loses to pin whose first line has **no** query tokens
-- [ ] AC4 stay-green: full-needle tagged pin still #1 vs prose dumps (T285)
-- [ ] AC5/AC12: two-token AND-miss (`t312or backend`) pin #1 via F8; UUID only in bodies
-- [ ] AC1: `# Preview of graph` is **not** chrome
-- [ ] T285 chrome tests stay green
-- [ ] `KIND_DECISION` still 2.0; floors still 0.55/0.60; depth still 15..50
-- [ ] No new Recall JSON keys
-- [ ] `forget --match` unfiltered
-- [ ] CAPABILITIES + CHANGELOG
+- [x] AC2: 2000-char prose dump loses to pin whose first line has **no** query tokens
+- [x] AC4 stay-green: full-needle tagged pin still #1 vs prose dumps (T285)
+- [x] AC5/AC12: two-token AND-miss (`t312or backend`) pin #1 via F8; UUID only in bodies
+- [x] AC1: `# Preview of graph` is **not** chrome
+- [x] T285 chrome tests stay green
+- [x] `KIND_DECISION` still 2.0; floors still 0.55/0.60; depth still 15..50
+- [x] No new Recall JSON keys
+- [x] `forget --match` unfiltered
+- [x] CAPABILITIES + CHANGELOG
 - [ ] Full gate + Codex PASS
-- [ ] PATH install **not** required for Completed (F21)
+- [x] PATH install **not** required for Completed (F21)
 
 ---
 

@@ -6,15 +6,29 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s open residuals. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#229** empty. Series README `conductor/tracks/README-T312-T324-CLI-DOGFOOD.md`. Series DOCS TX `a6d3c404-1d64-4cba-a743-d75ac16c74cd`.
 
+### T312 implement (2026-08-27) — recall rank v3 (Completed)
+
+| Item | Disposition |
+|------|-------------|
+| ~~Audit recall rank dump-first / F5 F6 F8~~ | **Done** — FEATURE TX `7f7e99bb`; hermetic AC1–AC17 + CLI AC10/12/13 |
+| Codex P1 “structured synth not boosted” | **Soft residual R1** — spec §11 F6-by-design; no `KIND_SYNTH` this track |
+| PATH until `cargo install` | **Soft residual R2** — F21; hermetic/`cargo run` SoT |
+| Live `graph backend` may still dump-first if no OR-matching pin | **Soft residual R3** — honest; AC5 hermetic SoT |
+| Pretty `score=` still raw BM25 | **Soft residual R4** — F38 decline |
+| More ATX chrome tokens as vault grows | **Soft residual R5** — closed set; extend only with evidence |
+| Semantic dumps above floor | **Soft residual R6** — T218 freeze; inherit F5/F6 only |
+| exit_contract graph feature-off flake under parallel nextest | **Unrelated** — passes alone; not T312 regression |
+| last-PR `#229` Cursor | **N/A empty** — no T325 |
+
 ### T312 full plan (2026-08-27) — authority-OR fill + verbose-Other penalty
 
 | Item | Disposition |
 |------|-------------|
-| Audit recall rank still dump-first (T285 shipped) | **Absorb** F5/F6/F8 / AC1–AC6 / AC12 |
-| Live `graph backend` AND-retain empty (JSON `--limit 15` **n=3**) | **Absorb** F8 — T217 R0-non-empty + 2-token skip |
-| Prose dump #1 not chrome (`All non-destructive…` **−4.06**) | **Absorb** F6 `DUMP_OTHER_CHAR_FLOOR=800` |
-| `# Preview` substring false-hit | **F5** token set, not `contains("review")` |
-| T285 “more chrome prefixes as vault grows” | **Absorb** F5 ATX tokens; decline infinite prose prefixes |
+| ~~Audit recall rank still dump-first (T285 shipped)~~ | **Done** T312 implement |
+| ~~Live `graph backend` AND-retain empty~~ | **Done** F8 |
+| ~~Prose dump #1 not chrome~~ | **Done** F6 |
+| ~~`# Preview` substring false-hit~~ | **Done** F5 |
+| ~~T285 “more chrome prefixes as vault grows”~~ | **Done** F5; R5 soft for future tokens |
 | T217 OR helpers | **Partial** reuse; **F9** gate unchanged |
 | T218 floors / `candidate_depth` / KIND bump | **Decline** F4 |
 | T315 / T313 / T317 / T316 | **Not stolen** |
@@ -43,7 +57,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 
 | Item | Disposition |
 |------|-------------|
-| Audit recall rank still dump-first (T285 shipped) | **T312** Planned (full plan 2026-08-27; Pending until go) |
+| ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
 | `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
 | `--format` / `--dry-run` clap friction | **T314** Pending |
 | preflight 0/0/0 + word count | **T315** Pending |
