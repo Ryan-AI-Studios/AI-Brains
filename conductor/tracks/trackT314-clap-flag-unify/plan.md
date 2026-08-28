@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** UX / CLI
 **Ledger (planning):** DOCS `23da7568-f134-4dde-8a9a-3842eb213cb7`
+**Ledger (fold-in):** DOCS `0d3c2e80-a309-41c0-b49b-08627ec2d373`
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `ae6615d` T315 `#231` CLEAN. Branch `track/T314-clap-flag-unify`. `origin/main` = `ae6615d` (ahead **0**). |
+| HEAD / tree | Fold-in `2a1eb35` plan commit CLEAN; `origin/main` = `ae6615d` (ahead **1**). Plan-write was `ae6615d` / ahead **0** (Agy m1). Branch `track/T314-clap-flag-unify`. Product `src/` = T315 `#231`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T312/T315 **not** on PATH. T314 clap holes **are**. |
 | `preflight --summary` (PATH) | Pinned **4536**; in-context **0/0/0**; `Total Word Count: 705` (PATH-behind T315) |
 | `query expand --format json` | unexpected `--format` (tip `--log-format`) |
@@ -41,6 +42,11 @@
 | last-PR `#231` Cursor | **N/A empty** F21 |
 | last-PR `#230` F8 recency | **T325** — not stolen |
 | T319 / T321 / T324 / clap 5 | **Not stolen** / **Decline** |
+| OpenCode m1 AC7 absent | **F6 / AC7** new Phase 1 green-on-arrival unit |
+| OpenCode O1 found newlines | **F9 / AC16** |
+| OpenCode O2 AC14 `--project-id` | **AC14** |
+| OpenCode O3 PROTOCOL-COMPAT add expand row | **F25 / AC13** |
+| OpenCode O4 help-shape AC | **Decline** as DoD |
 
 ---
 
@@ -70,13 +76,14 @@
 - [ ] Hermetic AC10 expand `--format human` two lines
 - [ ] Hermetic AC11 progressive bare `--dry-run` deny
 - [ ] Confirm those tests **fail** on current tree (Set requires value; expand has no `--format`; scan-roots unknown arg)
-- [ ] AC7 progressive `--format` unexpected + AC8 T291 freeze + AC9 expand JSON unknown are **stay-green** (not Phase-1 red)
+- [ ] **Write AC7** `query_progressive__format_json__unexpected_argument` (green-on-arrival — passes on HEAD; OpenCode m1: do **not** skip as stay-green)
+- [ ] AC8 T291 freeze + AC9 expand JSON unknown are **stay-green** (not Phase-1 red)
 
 ## Phase 2 — Green
 
 - [ ] F1 attribute block on Progressive + Briefing Project + Personal (no `require_equals`)
 - [ ] F7 Expand `format: String` default `json` + Trace `value_parser`; thread through `ExpandHandleOptions` + dispatch
-- [ ] F32 `query_format_is_human`; F9 two-line human; JSON `emit_json` default
+- [ ] F32 `query_format_is_human`; F9 human `kind` then preview verbatim (two-line count Unknown/Denied only); JSON `emit_json` default
 - [ ] F11 ScanRoots `dry_run: bool`; discard in match; after_help sentence
 - [ ] Do **not** edit `project_paths.rs` / `project.rs` / `briefing.rs` / `governed_common.rs` / contracts
 - [ ] Do **not** add progressive `--format`
@@ -84,20 +91,20 @@
 
 ## Phase 3 — Stay-green + docs
 
-- [ ] AC7 / AC8 / AC9 / AC12 scan-roots JSON keys
+- [ ] AC7 (now written) / AC8 / AC9 / AC12 scan-roots JSON keys
 - [ ] T266 scan-roots format tokens stay
 - [ ] T268 no writes / `--root` XOR
 - [ ] T290 progressive JSON-only
 - [ ] T291 missing-trace envelope + `--dry-run false` persist hermetic
 - [ ] `governed_first_run_deny_exit.rs:128` explicit `--dry-run true` still green
 - [ ] CAPABILITIES split progressive vs expand; scan-roots `--dry-run` accepted (AC13)
-- [ ] PROTOCOL-COMPAT: expand human not a wire contract; scan-roots keys frozen
+- [ ] PROTOCOL-COMPAT: **add** `query expand` CLI row (HandlePreviewDto + `applied_scope`; human not a wire contract); scan-roots keys frozen
 - [ ] CHANGELOG Unreleased T314
 - [ ] after_help examples F25
 
 ## Phase 4 — Manual + gate
 
-- [ ] AC14 `cargo run` parse of expand `--format json`, progressive `--dry-run`, scan-roots `--dry-run` (PATH-behind not a fail)
+- [ ] AC14 `cargo run` parse of expand `--format json --project-id <uuid>`, progressive `--dry-run`, scan-roots `--dry-run` (PATH-behind not a fail)
 - [ ] AC15 empty diff on forbidden files
 - [ ] Review log `review.md`; medium+ not dropped
 - [ ] `codex-review` after Phase-1 clean (F23)

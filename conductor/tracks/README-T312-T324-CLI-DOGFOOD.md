@@ -1,9 +1,9 @@
 # T312–T324 — Post-T311 live CLI dogfood (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-27** on PATH graph-on `ai-brains` **0.1.3** (elevated install 2026-08-27 **05:52**; CLI **26,842,112** B). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; pinned **4510**; grants **3 of 3**. Agent non-TTY (pipe → JSON). Plus **entire** `conductor/deferred.md` open residuals that still deserve a track.
-**Status:** **T312 Completed** (`#230` `44520d8`). **T315 Completed** (`#231` `ae6615d`). **T314 Planned** (full F-list 2026-08-28, plan DOCS `23da7568`). T313 / T316–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229`).
-**HEAD at T314 plan:** `ae6615d` T315 squash. Tree **CLEAN** (product). `origin/main` in sync.
-**Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`. T314 plan DOCS `23da7568`.
+**Status:** **T312 Completed** (`#230` `44520d8`). **T315 Completed** (`#231` `ae6615d`). **T314 Planned** (full F-list 2026-08-28, plan DOCS `23da7568`, fold-in DOCS `0d3c2e80`). T313 / T316–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229`).
+**HEAD at T314 fold-in:** `2a1eb35` plan docs (product `src/` = `ae6615d`). Tree **CLEAN** (product). `origin/main` = `ae6615d` (ahead **1**).
+**Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`. T314 plan DOCS `23da7568`. T314 fold-in DOCS `0d3c2e80`.
 **last-PR Cursor:** [#231](https://github.com/Ryan-AI-Studios/AI-Brains/pull/231) T315 — comments **empty**. `#230` Bugbot **1 medium** (F8 OR-fill skips PreferRecency) already **T325**. `#229` was empty.
 
 Scores below are **Usefulness / Quality** from that audit (1–10). Every command with **U&lt;8 or Q&lt;8**, plus every “doesn’t work,” friction, and significant-opportunity item, maps to **exactly one** track unless **declined**.

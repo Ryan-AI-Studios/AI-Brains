@@ -2,13 +2,29 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T314 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 AC7 named test absent / stay-green skip | **Folded** F6 / AC7 — new Phase 1 green-on-arrival unit |
+| OpenCode O1 found-preview newlines | **Folded** F9 / AC16 |
+| OpenCode O2 AC14 missing `--project-id` | **Folded** AC14 |
+| OpenCode O3 PROTOCOL-COMPAT no expand row | **Folded** F25 / AC13 — **add** row |
+| OpenCode O4 help-shape AC | **Decline** as DoD (optional) |
+| OpenCode F1 clap 4.6.1 probe | **Folded** §2.4 |
+| Agy m1 HEAD `ae6615d` | **Folded** snapshot `2a1eb35` / ahead **1** |
+| Agy m2 F32 / O1/O2/O3 | **Already** F32 / F2 / F11 / F9 |
+| last-PR `#231` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `0d3c2e80-a309-41c0-b49b-08627ec2d373` |
+
 ### T314 full plan (2026-08-28) — clap `--format` / `--dry-run` unify
 
 | Item | Disposition |
 |------|-------------|
 | Audit 5 clap errors (expand `--format`; progressive `--dry-run` value; scan-roots `--dry-run` unknown) | **Absorb** F1/F7/F11 / AC1–AC6 |
 | Briefing project/personal same `ArgAction::Set` trap | **Absorb** F5 / AC3 |
-| T290 F10 progressive JSON-only | **Affirm** F6 — no `--format` |
+| T290 F10 progressive JSON-only | **Affirm** F6 — no `--format`; **AC7 is a new guard** (fold-in) |
 | T291 `--dry-run false` persist SOOT | **Affirm** F3 — optional-value, not `--commit` |
 | T268 scan-roots dry-run-only | **Affirm** F11 no-op alias; do not write |
 | T266 Family A auto rewrite | **Decline** — expand stays Family C default json |

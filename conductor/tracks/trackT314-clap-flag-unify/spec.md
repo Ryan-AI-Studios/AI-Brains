@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Every later CLI track. T291 copy-paste `query progressive … --dry-run false` must stay valid. Does **not** populate governed stores. Does **not** steal T319 handle-vs-memory UUID.
 - **Absorbs:** Audit clap friction (expand `--format`; progressive/briefing optional-value `--dry-run`; scan-roots `--dry-run` no-op)
 - **Not absorbed (DoD):** clap **5**; T266 auto TTY/pipe family rewrite; adding `--format` to `query progressive` (T290 F10); `--commit` / `--apply` instead of `--dry-run false`; silent `.env`; T321 `safety sync`; T324 empty TERM; rotate-datakey `require_backup` `ArgAction::Set`
-- **Research date:** 2026-08-28 (plan-write product HEAD `ae6615d` T315 `#231`). Snapshot — **re-verify at execute**.
-- **Ledger:** planning DOCS TX `23da7568-f134-4dde-8a9a-3842eb213cb7`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-28 (plan-write product HEAD `ae6615d` T315 `#231`). Fold-in against `2a1eb35` (this plan’s own docs commit; ahead **1** of `origin/main` = `ae6615d`). Snapshot — **re-verify at execute**.
+- **AI fold-in:** 2026-08-28 `agy-review.md` + `opencode-review.md` (HEAD `2a1eb35`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** OpenCode m1 AC7 named test does not exist (write Phase 1, green-on-arrival); OpenCode O1 F9 two-line guarantee is Unknown/Denied only; OpenCode O2 AC14 `--project-id`; OpenCode O3 PROTOCOL-COMPAT **add** expand row; Agy m1 HEAD snapshot. **Already:** Agy m2 F32; Agy O1/O2/O3 F2/F11/F9. **Decline:** OpenCode O4 help-shape AC (not required). Disposition **§13**.
+- **Ledger:** planning DOCS TX `23da7568-f134-4dde-8a9a-3842eb213cb7`. Fold-in DOCS TX `0d3c2e80-a309-41c0-b49b-08627ec2d373`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** `cargo install`. Do **not** bump clap. Do **not** grow hotspot `project.rs` / `sync.rs` / `governed_common.rs`. Do **not** rewrite scan-roots to write. Do **not** print or commit `AI_BRAINS_KEY`. Touch `main.rs` clap + parse tests + a thin expand human branch in `governed_query.rs`.
 
 ---
@@ -32,7 +33,7 @@ This unblocks daily CLI: five live parse failures on PATH 0.1.3 and on HEAD `ae6
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `ae6615d` `feat(cli): T315 preflight empty-decisions next-step + Budget window words (#231)`. Tree **CLEAN**. Branch `track/T314-clap-flag-unify` (from `main`). `origin/main` = `ae6615d` (ahead **0** at plan-write). |
+| HEAD | Fold-in `2a1eb35` `docs(conductor): plan T314 clap --format / --dry-run unify`. Product `src/` = T315 `#231` `ae6615d`. Tree **CLEAN**. Branch `track/T314-clap-flag-unify`. `origin/main` = `ae6615d` (ahead **1**). Plan-write snapshot was `ae6615d` / ahead **0** (Agy m1 / OpenCode HEAD self-ref). |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. Owner elevated install after T311 `#229`. **T312 and T315 are not on PATH.** T314 clap holes **are** on PATH (same structs). **Do not `cargo install`.** Tests/manual AC use `cargo run` / hermetic / `Cli::try_parse_from`. |
 | `preflight --summary` (PATH) | Pinned **4536**. In-context **0/0/0**. `Total Word Count: 705` (PATH-behind T315 `Budget window words:`). Grants omitted (3 of 3). **Not this DoD.** |
 | `query expand <uuid> --format json` | `error: unexpected argument '--format' found` + tip `--log-format`. **Source + PATH.** |
@@ -98,7 +99,7 @@ This unblocks daily CLI: five live parse failures on PATH 0.1.3 and on HEAD `ae6
 
 **N/A:** SQLCipher page encrypt, schtasks, Windows service, llama.cpp `/health`, clap 5 (not this bump), FTS5, T307 reqwest/tower-http, Index SQL.
 
-**Could not verify:** Whether clap 4.6.6 changes `default_missing_value` docs vs 4.6.1 (latest is 4.6.6; we do not bump). Hermetic parse is SoT at execute. Live Manual AC is `cargo run` clap parse, not PATH.
+**Could not verify (plan-write):** Whether clap 4.6.6 changes `default_missing_value` semantics vs 4.6.1. **Fold-in:** OpenCode compiled the exact F1 attribute block against clap **4.6.1** (lock version) in an isolated scratch crate (deleted; no repo writes): bare → true; space `false` → false; equals `false` → false; omitted → true; `--dry-run q` → `InvalidValue` (F34). Execute still re-verifies via `Cli::try_parse_from` (Phase 0). No bump to 4.6.6.
 
 **ledgerful / ai-brains:** `preflight --summary` PATH 4536 pins / 0/0/0 / `Total Word Count` (PATH-behind T315); `ledgerful ledger status --compact` 0 pending / 0 drift; `search "ArgAction::Set"` → `main.rs:2197/:2213/:2238` + `require_backup:2068`; `scan --impact` CLEAN at `ae6615d`; hotspots `project.rs` #1 / `governed_common.rs` #3. Semantic recall of clap still returns the 2026-08-27 audit dump — evidence of ranking (T312 not on PATH), not SoT for clap structs.
 
@@ -108,16 +109,16 @@ This unblocks daily CLI: five live parse failures on PATH 0.1.3 and on HEAD `ae6
 
 | ID | Decision |
 |----|----------|
-| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `23da7568`. Implement starts a **FEATURE** TX. |
+| **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS TX `23da7568`. Fold-in is DOCS TX `0d3c2e80`. Implement starts a **FEATURE** TX. |
 | **F1 — Optional-value `--dry-run`** | Progressive + both briefing subcommands use the **same** clap block: `long`, `default_value_t = true`, `num_args = 0..=1`, `default_missing_value = "true"`, `action = ArgAction::Set`. Semantics: omitted → **true**; `--dry-run` → **true**; `--dry-run true` / `--dry-run=true` → **true**; `--dry-run false` / `--dry-run=false` → **false**. |
 | **F2 — No `require_equals`** | T291 SOOT is space-separated `--dry-run false`. Setting `require_equals` would make that a positional and rot AC1. Equals form may also parse (clap); space form is required. |
 | **F3 — T291 persist string frozen** | `TRACE_PROGRESSIVE_PERSIST` and `TRACE_MISSING_NEXT_STEP` stay exact. Do **not** switch copy-paste to `--apply` / `--commit` / `--write`. Unit `trace_missing_next_step__frozen__exact_string` stay-green. |
 | **F4 — Default stays dry-run** | Omitted `--dry-run` is still true. Do **not** invert to SetTrue-default-false (that would persist traces / write BriefingGenerated without an explicit flag). |
 | **F5 — Briefing absorbed** | `briefing project` and `briefing personal` get F1. Same trap, same fix. Do not change `briefing.rs` writer logic (already `if options.dry_run { None }`). |
-| **F6 — Progressive JSON-only** | **No** `--format` on `query progressive` (T290 F10). CAPABILITIES progressive row stays json/json no TTY flip. `query_progressive__format_json__unexpected_argument` stay-green. |
+| **F6 — Progressive JSON-only** | **No** `--format` on `query progressive` (T290 F10). CAPABILITIES progressive row stays json/json no TTY flip. Guard is **AC7** — a **new** unit (OpenCode m1: the named test is **not** in the tree today; nearest analogue is `daemon_status__unknown_format_flag__clap_exit_2` `:1005`). Do **not** skip writing it because “stay-green”. |
 | **F7 — Expand `--format` token set** | Copy Trace `value_parser` **exactly** (7 tokens, case-sensitive). Default **`json`**. `JSON` / `Pretty` / `xml` → clap `InvalidValue` (exit 2), not `OutputFormat::parse`. |
 | **F8 — Expand default JSON** | Omitted `--format` stays JSON `HandlePreviewDto` + `applied_scope` (today). Do **not** default `auto` (would TTY-flip expand and break TTY operators / stay-green hermetics). `--format auto` is allowed: TTY human / pipe JSON via shared helper. |
-| **F9 — Expand human honesty** | Tokens `human\|pretty\|text\|markdown\|md` (and `auto` on TTY): stdout is **two lines**, not a JSON object. Line 1 = `kind`. Line 2 = `preview` (existing string, including `UNKNOWN_HANDLE_PREVIEW`). Do not print `applied_scope` on human. JSON path unchanged `emit_json`. |
+| **F9 — Expand human honesty** | Tokens `human\|pretty\|text\|markdown\|md` (and `auto` on TTY): stdout is **not** a JSON object. Line 1 = `kind`. Then the DTO `preview` **verbatim** (including `UNKNOWN_HANDLE_PREVIEW`). Do not print `applied_scope` on human. JSON path unchanged `emit_json`. **Two-line count is guaranteed for envelope kinds `Unknown` / `Denied` only** (AC10). Found previews are bounded free text (`truncate_chars` on summary/statement; CP `query.rs:599/:626/:650`) and **may contain embedded newlines** — do not assert `lines.len() == 2` on the found path (OpenCode O1). |
 | **F10 — Expand deny / fail_cp** | `kind == "Denied"` still exit **3** + existing stderr after stdout. Human Denied still two lines then exit 3. `fail_cp` stays `OutputFormat::Json` (T221) — do not thread format into CP errors this track. |
 | **F11 — Scan-roots `--dry-run` no-op** | Add `#[arg(long)] dry_run: bool` (`SetTrue`, default false). Discard in dispatch (`dry_run: _`). **Do not** change `scan_roots` signature or write behavior. after_help one sentence: `` `--dry-run` is accepted (already dry-run-only). `` |
 | **F12 — Decline `--commit`/`--apply`** | Persist remains `--dry-run false`. Adding a second write flag would dual-path T291 hermetics. |
@@ -133,7 +134,7 @@ This unblocks daily CLI: five live parse failures on PATH 0.1.3 and on HEAD `ae6
 | **F22 — Tests** | Naming `function_or_feature__condition__expected_result`. No `unwrap`/`expect`/`panic` in production. `try_parse_from` tests may `panic!` on unexpected Ok/Err (existing `main.rs` pattern). |
 | **F23 — Cross-model** | CLI honesty FEATURE. After Phase-1 clean, run read-only `codex-review`. |
 | **F24 — Debt file** | `conductor/ISSUES.md` does **not** exist. Deferrals → `conductor/deferred.md`. |
-| **F25 — Docs** | CAPABILITIES: split progressive vs expand/trace; scan-roots `--dry-run` accepted. CHANGELOG T314. PROTOCOL-COMPAT: scan-roots keys unchanged; expand JSON keys unchanged; optional note that expand `--format human` is not a wire contract. after_help: progressive/briefing `--dry-run` examples include bare flag **and** `--dry-run false`; expand `--format json` / `--format human`; scan-roots `--dry-run`. |
+| **F25 — Docs** | CAPABILITIES: split progressive vs expand/trace; scan-roots `--dry-run` accepted. CHANGELOG T314. PROTOCOL-COMPAT: scan-roots keys unchanged; **add** a `query expand` CLI row (none exists today — OpenCode O3; `rg expand Docs/PROTOCOL-COMPAT.md` is 0). Row documents `HandlePreviewDto` keys + CLI `applied_scope` + “human is not a wire contract”. after_help: progressive/briefing `--dry-run` examples include bare flag **and** `--dry-run false`; expand `--format json` / `--format human`; scan-roots `--dry-run`. |
 | **F26 — PowerShell** | `;` not `&&`. |
 | **F27 — Stay-green T291** | Missing-trace envelope + human two lines + `--dry-run false` persist hermetic AC5 still green. |
 | **F28 — Stay-green T290** | Progressive no `--format`. Granted-empty `next_step` recall overlay unchanged. |
@@ -156,16 +157,16 @@ This unblocks daily CLI: five live parse failures on PATH 0.1.3 and on HEAD `ae6
 | **AC4** | Unit `query_expand__format_json__parses` (format == `"json"`) + `query_expand__format_human__parses` + default omitted == `"json"`. **Required red.** |
 | **AC5** | Units `query_expand__format_JSON__clap_invalid_value` and `query_expand__format_xml__clap_invalid_value` (`ErrorKind::InvalidValue`). **Required red.** |
 | **AC6** | Unit `scan_roots__dry_run__parses`: `["ai-brains", "project", "scan-roots", "--dry-run"]` Ok. **Required red.** |
-| **AC7** | Unit `query_progressive__format_json__unexpected_argument` still fails clap (F6). Stay-green / required if not already present. |
+| **AC7** | **New** unit `query_progressive__format_json__unexpected_argument` written in Phase 1 (**green-on-arrival**, not stay-green — the test is **absent** today; `rg query_progressive__format` → 0). `try_parse_from(["ai-brains", "query", "progressive", "q", "--format", "json"])` → `Err` with `ErrorKind::UnknownArgument` (mirror `daemon_status__unknown_format_flag__clap_exit_2` `:1005`; rendered contains `--format` or `unexpected`). Passes on HEAD (flag missing) and must still pass after T314 (F6: we do **not** add `--format`). **Required write.** |
 | **AC8** | `trace_missing_next_step__frozen__exact_string` stay-green (F3). |
 | **AC9** | Hermetic `query_expand__unknown__preview_nonempty_exit_0` stay-green (JSON, no `--format`). |
 | **AC10** | Hermetic `query_expand__format_human__unknown__two_lines_not_json`: `--format human` exit **0**; stdout is **not** a JSON object (no leading `{`); contains `Unknown`; contains `Handle not found.`; two nonempty lines. **Required red.** |
 | **AC11** | Hermetic `progressive__dry_run_bare_no_grants__exit_3_denied_true`: `--dry-run` with **no** value still exit 3 + JSON `denied: true` (extends `:128` comment). **Required red.** |
 | **AC12** | Hermetic scan-roots `--dry-run --format json` on a temp vault/cwd: exit **0**; envelope keys unchanged (`api_version`, `scan_root`, `truncated`, `roots`); no `.env` write. Can be parse+one integration; do not require live `C:\dev` scan. |
-| **AC13** | Docs: CAPABILITIES split progressive vs expand; scan-roots `--dry-run` accepted; CHANGELOG Unreleased T314; PROTOCOL-COMPAT expand human not a wire contract; after_help examples F25. |
-| **AC14** | Manual (source bin): `cargo run -q -p ai-brains-cli -- query expand <uuid> --format json --no-project-context` **parses** (not `--log-format`); `query progressive "q" --dry-run --no-project-context` **parses** (may then usage/deny); `project scan-roots --dry-run --format json --no-project-context` **parses**. PATH-behind is **not** a fail. **Do not** `cargo install`. |
+| **AC13** | Docs: CAPABILITIES split progressive vs expand; scan-roots `--dry-run` accepted; CHANGELOG Unreleased T314; PROTOCOL-COMPAT **add** `query expand` CLI row (F25 — not an update of a missing row); after_help examples F25. |
+| **AC14** | Manual (source bin): `cargo run -q -p ai-brains-cli -- query expand <uuid> --format json --project-id <uuid> --no-project-context` **parses** (not `--log-format`; include `--project-id` so stderr is not `EXPAND_PROJECT_USAGE` — OpenCode O2). May then Unknown JSON if the vault opens. `query progressive "q" --dry-run --no-project-context` **parses** (may then usage/deny). `project scan-roots --dry-run --format json --no-project-context` **parses**. PATH-behind is **not** a fail. **Do not** `cargo install`. |
 | **AC15** | `git diff -- crates/ai-brains-cli/src/commands/project.rs crates/ai-brains-cli/src/commands/project_paths.rs crates/ai-brains-cli/src/commands/governed_common.rs crates/ai-brains-cli/src/commands/briefing.rs crates/ai-brains-contracts` empty (except if briefing.rs is truly untouched — expected empty). |
-| **AC16** | Human expand SOOT: line 1 is exactly DTO `kind`; line 2 is exactly DTO `preview`. No extra banner. |
+| **AC16** | Human expand SOOT: line 1 is exactly DTO `kind`; then DTO `preview` verbatim (no extra banner). Two nonempty lines for `Unknown`/`Denied` (AC10). Do **not** assert `lines.len() == 2` on found handles (F9). |
 
 ---
 
@@ -177,7 +178,7 @@ Progressive/briefing default is **dry-run true**. `SetTrue` default is false. Fl
 
 ### 5.2 Why expand human is two lines, not parse-only
 
-Parse-only `--format human` that still `emit_json`s would lie (clig.dev). Trace already human-renders missing envelopes. Expand human is `kind` + `preview` — the two fields operators need. `applied_scope` stays JSON-only (debug). T319 (evidence show on a vault `memory_id`) is a different command; Unknown preview stays `Handle not found.`
+Parse-only `--format human` that still `emit_json`s would lie (clig.dev). Trace already human-renders missing envelopes. Expand human is `kind` then `preview` verbatim — the two fields operators need. `applied_scope` stays JSON-only (debug). T319 (evidence show on a vault `memory_id`) is a different command; Unknown preview stays `Handle not found.` Found `preview` may contain newlines; AC10 hermetic is Unknown-only.
 
 ### 5.3 Why scan-roots does not grow `project_paths.rs`
 
@@ -233,8 +234,9 @@ Red first (must fail on current `ArgAction::Set` / missing expand format / missi
 6. `scan_roots__dry_run__parses` (AC6)
 7. Hermetic expand `--format human` two lines (AC10)
 8. Hermetic progressive bare `--dry-run` deny (AC11)
+9. **Write AC7** `query_progressive__format_json__unexpected_argument` (green-on-arrival; must exist)
 
-Then green F1/F7/F9/F11. Stay-green AC7/AC8/AC9/AC12/T266/T268/T290/T291. Docs AC13. Manual AC14.
+Then green F1/F7/F9/F11. Stay-green AC8/AC9/AC12/T266/T268/T290/T291 + AC7 after it is written. Docs AC13. Manual AC14.
 
 ---
 
@@ -276,17 +278,23 @@ Then green F1/F7/F9/F11. Stay-green AC7/AC8/AC9/AC12/T266/T268/T290/T291. Docs A
 | last-PR `#230` F8 recency | **T325** already Pending |
 | conductor/archive / cargo-audit allowlist | **Not related** |
 | PATH T315 `Total Word Count` | **Not this DoD** (T315 F18) |
+| OpenCode m1 AC7 named test absent | **Absorb** F6 / AC7 — new Phase 1 green-on-arrival unit |
+| OpenCode O1 found-preview newlines | **Absorb** F9 / AC16 |
+| OpenCode O2 AC14 missing `--project-id` | **Absorb** AC14 |
+| OpenCode O3 PROTOCOL-COMPAT no expand row | **Absorb** F25 / AC13 — **add** row |
+| OpenCode O4 help-shape AC | **Decline** as DoD — reviewer marked optional; clap help ` [<DRY_RUN>]` follows F1; not a fail |
+| Agy m1 HEAD `ae6615d` vs `2a1eb35` | **Absorb** snapshot |
 
 ---
 
 ## 10. Implement order (on go)
 
 1. Phase 0 re-read Progressive/Expand/ScanRoots/Briefing clap + T291 consts + `run_expand`; rescan deferred; FEATURE TX  
-2. Red AC1–AC6 + AC10–AC11  
+2. Red AC1–AC6 + AC10–AC11; **write AC7** (green-on-arrival — F6)  
 3. Green F1 three sites; F7 expand clap; F9 human branch; F11 scan-roots field + discard; F32 helper  
-4. Stay-green AC7–AC9 / AC12 / T266 / T268 / T290 / T291  
-5. Docs F25 / AC13  
-6. Manual AC14 → review → full gate → Complete  
+4. Stay-green AC8/AC9 / AC12 / T266 / T268 / T290 / T291 + AC7  
+5. Docs F25 / AC13 (**add** PROTOCOL-COMPAT expand row)  
+6. Manual AC14 (expand includes `--project-id`) → review → full gate → Complete  
 
 ---
 
@@ -319,6 +327,40 @@ Then green F1/F7/F9/F11. Stay-green AC7/AC8/AC9/AC12/T266/T268/T290/T291. Docs A
 
 ---
 
-## 13. last-PR Cursor / fold-in placeholder
+## 13. AI fold-in disposition (2026-08-28)
 
-Plan-write: `#231` comments empty; `#230` already T325. No mint. Fold-in later may correct line numbers / HEAD snapshot only.
+Source: `agy-review.md` (HEAD `2a1eb35`, verdict **Planned**) + `opencode-review.md` (HEAD `2a1eb35`, verdict **Planned after fixes**). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** Inputs **not** edited.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `ae6615d` vs live `2a1eb35` | **Agree** | Snapshot `2a1eb35` / ahead **1** of `origin/main` `ae6615d` |
+| **m2** extract `query_format_is_human` | **Already** | F32 |
+| **O1** no `require_equals` | **Already** | F2 / AC2 |
+| **O2** zero-touch `project_paths.rs` | **Already** | F11 / AC15 |
+| **O3** two-line expand human | **Already** | F9 / AC10; **tightened** with OpenCode O1 |
+| last-PR `#231` / T325 | **Already** | F21 |
+| B / M | none | — |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** AC7 named test does not exist; “stay-green” would skip the F6 guard | **Agree** | F6 / AC7 / plan Phase 1: **new** unit, green-on-arrival (`UnknownArgument`). Re-trigger to reopen stay-green skip: only if `query_progressive__format_json__unexpected_argument` is added on `main` before go. |
+| **O1** two-line shape only Unknown/Denied | **Agree** | F9 / AC16 |
+| **O2** AC14 expand missing `--project-id` | **Agree** | AC14 |
+| **O3** PROTOCOL-COMPAT has no expand row | **Agree** | F25 / AC13 **add** row |
+| **O4** help-shape `--dry-run [<DRY_RUN>]` AC | **Decline** as DoD | Reviewer marked optional. F1 clap block implies the help change; not a fail. Re-trigger if execute help still shows required `<DRY_RUN>` after F1. |
+| **O** F1 probe on clap 4.6.1 | **Agree** | §2.4 closed the plan-write “Could not verify” gap |
+| B / M | none | — |
+
+### Pins locked by fold-in
+
+1. **AC7 / F6:** `query_progressive__format_json__unexpected_argument` is a **new Phase 1 unit** (green-on-arrival). Do not skip it as stay-green.
+2. **F9 / AC16:** two-line human count is **Unknown/Denied only**; found `preview` may contain newlines.
+3. **AC14:** expand manual includes `--project-id <uuid>`.
+4. **F25:** PROTOCOL-COMPAT **adds** a `query expand` CLI row (none exists).
+5. **F21:** `#231` Cursor empty; F8 recency leftover stays **T325**. No T326.
+
+**Planning + fold-in 2026-08-28.** Still **plan-only until go**.
