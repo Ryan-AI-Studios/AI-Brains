@@ -1,10 +1,10 @@
 # T312–T324 — Post-T311 live CLI dogfood (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-27** on PATH graph-on `ai-brains` **0.1.3** (elevated install 2026-08-27 **05:52**; CLI **26,842,112** B). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; pinned **4510**; grants **3 of 3**. Agent non-TTY (pipe → JSON). Plus **entire** `conductor/deferred.md` open residuals that still deserve a track.
-**Status:** **T312 Planned** (full F-list 2026-08-27, DOCS `8b1b418b`). T313–T324 still placeholders. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229` `a1d4081`).
-**HEAD at mint:** `a1d4081` `feat(cli): T311 decision in-force resolver (#229)`. Tree **CLEAN** (product). `origin/main` in sync.
-**Ledger (registration):** DOCS TX filled at commit (see deferred.md header).
-**last-PR Cursor:** [#229](https://github.com/Ryan-AI-Studios/AI-Brains/pull/229) — `pulls/229/comments`, `/reviews` both **`[]`**. **N/A empty.** No extra leftover track.
+**Status:** **T312 Completed** (`#230` `44520d8`). **T315 Planned** (full F-list 2026-08-28, DOCS `ca5b1614`). T313–T314 / T316–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229`).
+**HEAD at T315 plan:** `44520d8` T312 squash. Tree **CLEAN** (product). `origin/main` in sync.
+**Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`.
+**last-PR Cursor:** [#230](https://github.com/Ryan-AI-Studios/AI-Brains/pull/230) T312 — Bugbot **1 medium** (F8 OR-fill skips PreferRecency). **Minted T325.** `#229` was empty.
 
 Scores below are **Usefulness / Quality** from that audit (1–10). Every command with **U&lt;8 or Q&lt;8**, plus every “doesn’t work,” friction, and significant-opportunity item, maps to **exactly one** track unless **declined**.
 
@@ -25,10 +25,10 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 
 | Finding | U/Q or class | Track | Pri |
 |---------|--------------|-------|-----|
-| `recall` / `--semantic` still rank review dumps over DECISION pins; negative BM25 can lead | 9/**8** FTS but finding #2; `--semantic` 9/**7** | **T312 Planned** | P0 |
+| `recall` / `--semantic` still rank review dumps over DECISION pins; negative BM25 can lead | 9/**8** FTS but finding #2; `--semantic` 9/**7** | **T312 Completed** | P0 |
 | `sync query` ledger pane silently phrase-miss → fuzzy token rescue; provenance opaque | 8/**7** | **T313** | P1 |
 | `--format` missing on `query expand`; `--dry-run` requires a value on `query progressive`; `scan-roots` rejects `--dry-run` | friction (5 clap errors) | **T314** | P1 |
-| `preflight --summary` 0/0/0 + opaque `Total Word Count`; no “run X to populate” | 8/**7** | **T315** | P0 |
+| `preflight --summary` 0/0/0 + opaque `Total Word Count`; no “run X to populate” | 8/**7** | **T315 Planned** | P0 |
 | `memory list` raw first-line previews; forget nudge reads like an error | 6/**6** | **T316** | P2 |
 | `graph neighbors` RECALLS spam (19 edges); hierarchy `synthesized_from` empty | 6/**5** | **T317** | P1 |
 | `backup list` residual plaintext rows drown the 1 usable; verify repeats per-file | 6/**6** | **T318** | P2 |
@@ -38,6 +38,7 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 | T311 R2 — `decision in-force` has no `--as-of` | deferred residual | **T322** | P2 |
 | T311 R5 — no conclusion in-force | deferred residual | **T323** | P2 |
 | T311 R7 — PowerShell `""` drops empty TERM | deferred residual | **T324** | P2 |
+| T312 F8 Prefer-OR skips PreferRecency (`#230` Cursor) | last-PR leftover | **T325** | P1 |
 
 ## Declined (written — not minted)
 
@@ -64,8 +65,8 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 
 ## Suggested implement order
 
-1. **T312** (daily brain) then **T315** (summary next-step)
-2. **T314** (clap friction unblocks every later CLI track)
+1. **T315** (summary next-step; T312 already Completed)
+2. **T325** (F8 recency leftover) or **T314** (clap friction unblocks every later CLI track)
 3. **T313** / **T317** / **T319**
 4. **T320** (compose; after doctor/nightly stay stable)
 5. **T316** / **T318** / **T321**
