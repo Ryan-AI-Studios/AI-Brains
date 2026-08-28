@@ -2,6 +2,25 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T319 full plan (2026-08-28) — handle vs memory UUID namespace
+
+| Item | Disposition |
+|------|-------------|
+| Audit `evidence show` / `source show` on a vault `memory_id` | **Absorb** F1–F8 / AC5–AC8 / AC11 — name namespace; no H2 |
+| Audit `query expand` same UUID hole | **Absorb** F3 / AC5–AC6 — preview replaces `Handle not found.` when EXISTS |
+| Evidence Unknown empty preview (T263 overlay never wired) | **Absorb** F2 |
+| T263 H1 `Handle not found.` / Unknown exit **0** | **Affirm** F3 / F11 / AC9 stay-green for non-memory UUID |
+| Source `NOT_FOUND` exit **4** | **Affirm** F4 — additive `details.hint` only |
+| T290 granted-empty list copy | **Not stolen** F12 |
+| T263 H2 pin→Approved / migrate | **Decline** F9 / F20 |
+| T167 EvidenceId prefers `memory_id` | **Not stolen** — import-only |
+| T316 / T317–T318 / T320–T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T307 Blocked / T308 floors / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#234` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `844bdbed-7295-4635-a04f-968d224e41ec` |
+
 ### T317 implement residuals (2026-08-28) — non-easy lows
 
 | Item | Disposition |
@@ -251,9 +270,9 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | `--format` / `--dry-run` clap friction | **T314 Completed** `#232` |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
-| `graph neighbors` RECALLS spam | **T317** Planned (full F-list 2026-08-28) |
+| `graph neighbors` RECALLS spam | **T317 Completed** `#234` |
 | `backup list` residual noise | **T318** Pending |
-| evidence/source show vault UUID | **T319** Pending |
+| evidence/source show vault UUID | **T319** Planned (full F-list 2026-08-28) |
 | unified `status` opportunity | **T320** Pending |
 | `safety sync` write surprise | **T321** Pending |
 | T311 R2 `--as-of` | **T322** Pending |
