@@ -1469,6 +1469,9 @@ mod tests {
     }
 
     /// T315 F8 / AC4: legacy `Total Word Count:` prefix still accepts insert (red/mid-green).
+    ///
+    /// Sentinel after the legacy line ensures empty-line fallback cannot fake a pass
+    /// (Codex P3-002): SOOT must land before `NOT_THE_INSERT_POINT`.
     #[test]
     fn insert_after_budget_window_line__legacy_total_word_count__inserts_after() {
         let mut lines = vec![
@@ -1476,6 +1479,7 @@ mod tests {
             "Scope: none".to_string(),
             "In context decisions: 0".to_string(),
             "Total Word Count: 42".to_string(),
+            "NOT_THE_INSERT_POINT".to_string(),
             String::new(),
             "Use --pretty or --format json for full context.".to_string(),
         ];
@@ -1489,6 +1493,10 @@ mod tests {
             .iter()
             .position(|l| l == &soot)
             .expect("SOOT line present");
+        let sentinel_idx = lines
+            .iter()
+            .position(|l| l == "NOT_THE_INSERT_POINT")
+            .expect("sentinel");
         let footer_idx = lines
             .iter()
             .position(|l| l.starts_with("Use --pretty"))
@@ -1497,6 +1505,11 @@ mod tests {
             soot_idx,
             legacy_idx + 1,
             "SOOT immediately after legacy Total Word Count:; got:\n{}",
+            lines.join("\n")
+        );
+        assert!(
+            soot_idx < sentinel_idx,
+            "SOOT before sentinel (legacy match required; empty-line fallback would fail); got:\n{}",
             lines.join("\n")
         );
         assert!(
