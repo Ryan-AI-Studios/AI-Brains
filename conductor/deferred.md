@@ -2,6 +2,24 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T313 full plan (2026-08-28) — rescued heading; F7 banner exact
+
+| Item | Disposition |
+|------|-------------|
+| Audit `sync query` phrase→fuzzy opacity / “can’t tell which results came from where” | **Absorb** F1 / AC1–AC3 / AC8 / AC11 — heading names rescued token |
+| T271 F7 banner already prints on PATH | **Affirm** F2 exact; **reopen** as heading (generic `--- Ledgerful Ledger Search ---` over 10-row `graph` table) |
+| T271 F6 first-seen + cap 3 | **Affirm** F4 — no scoring / no skip-`graph` |
+| T273 `--` / T271 F5 no FTS-quote | **Affirm** F5 / F6 |
+| T231 always-pretty / ndjson vault-only | **Affirm** F7 — no combined JSON (no key exists) |
+| T211 ledger-first `Note:` | **Affirm** F9 — do not rename F7 `Note:` |
+| T271 residual Ledgerful token-OR / `--limit` / merge tables | **Decline** F11 |
+| T312 rank / T314 clap / T315 summary / T316–T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 | **Not stolen** / **Decline** |
+| last-PR Cursor `#232` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `bdf8fddd-84f9-4d9d-9b7d-64887dd834e2` |
+
 ### T314 implement residuals (2026-08-28) — non-easy lows
 
 | Item | Disposition |
@@ -152,7 +170,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | Item | Disposition |
 |------|-------------|
 | ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
-| `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
+| `sync query` ledger phrase→fuzzy opacity | **T313** Planned (full F-list 2026-08-28) |
 | `--format` / `--dry-run` clap friction | **T314** Planned (full F-list 2026-08-28) |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
