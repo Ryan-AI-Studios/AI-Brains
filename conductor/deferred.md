@@ -2,6 +2,50 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T314 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F18 — source bin / hermetic prove DoD; not Complete-blocking |
+| `query progressive --dry-run "query text"` may bool-steal positional | **Deferred** F34 by design — examples keep query first |
+| Expand `--format auto` human only when explicit (default stays json) | **Deferred** F8 — Family C |
+| `fail_cp` stays JSON even under `--format human` | **Deferred** F10 — CP errors not format-threaded this track |
+| AC4 unit name `query_expand__format_human__parses` folded into `…format_json__parses` | **Deferred** low naming drift — behavior covered; split optional |
+| T325 F8 PreferRecency / T319 handle UUID / clap 5 / T321 / T324 | **Not stolen** |
+| FEATURE TX | `26f296f5-fd76-4d04-afba-6d26e54a1bc5` |
+
+### T314 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 AC7 named test absent / stay-green skip | **Folded** F6 / AC7 — new Phase 1 green-on-arrival unit |
+| OpenCode O1 found-preview newlines | **Folded** F9 / AC16 |
+| OpenCode O2 AC14 missing `--project-id` | **Folded** AC14 |
+| OpenCode O3 PROTOCOL-COMPAT no expand row | **Folded** F25 / AC13 — **add** row |
+| OpenCode O4 help-shape AC | **Decline** as DoD (optional) |
+| OpenCode F1 clap 4.6.1 probe | **Folded** §2.4 |
+| Agy m1 HEAD `ae6615d` | **Folded** snapshot `2a1eb35` / ahead **1** |
+| Agy m2 F32 / O1/O2/O3 | **Already** F32 / F2 / F11 / F9 |
+| last-PR `#231` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `0d3c2e80-a309-41c0-b49b-08627ec2d373` |
+
+### T314 full plan (2026-08-28) — clap `--format` / `--dry-run` unify
+
+| Item | Disposition |
+|------|-------------|
+| Audit 5 clap errors (expand `--format`; progressive `--dry-run` value; scan-roots `--dry-run` unknown) | **Absorb** F1/F7/F11 / AC1–AC6 |
+| Briefing project/personal same `ArgAction::Set` trap | **Absorb** F5 / AC3 |
+| T290 F10 progressive JSON-only | **Affirm** F6 — no `--format`; **AC7 is a new guard** (fold-in) |
+| T291 `--dry-run false` persist SOOT | **Affirm** F3 — optional-value, not `--commit` |
+| T268 scan-roots dry-run-only | **Affirm** F11 no-op alias; do not write |
+| T266 Family A auto rewrite | **Decline** — expand stays Family C default json |
+| T319 / T321 / T324 | **Not stolen** |
+| clap 5 / T240 F2 / T263 H2 / rotate-datakey `require_backup` | **Decline** F13/F14 |
+| last-PR Cursor `#231` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `23da7568-f134-4dde-8a9a-3842eb213cb7` |
+
 ## T312–T324 placeholders (2026-08-27) — post-T311 live CLI dogfood (0.1.3)
 
 Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s open residuals. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#230** (T312) minted **T325**. Series README `conductor/tracks/README-T312-T324-CLI-DOGFOOD.md`. Series DOCS TX `a6d3c404-1d64-4cba-a743-d75ac16c74cd`.
@@ -109,7 +153,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 |------|-------------|
 | ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
 | `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
-| `--format` / `--dry-run` clap friction | **T314** Pending |
+| `--format` / `--dry-run` clap friction | **T314** Planned (full F-list 2026-08-28) |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
 | `graph neighbors` RECALLS spam | **T317** Pending |

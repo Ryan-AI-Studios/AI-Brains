@@ -201,6 +201,60 @@ fn query_expand__unknown__preview_nonempty_exit_0() {
     );
 }
 
+/// T314 AC10 — expand `--format human` Unknown: two lines, not JSON.
+#[test]
+fn query_expand__format_human__unknown__two_lines_not_json() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("query")
+        .arg("expand")
+        .arg(UNKNOWN)
+        .arg("--project-id")
+        .arg(PROJECT)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("query expand --format human");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "Unknown expand human stays exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let trimmed = stdout.trim_end();
+    assert!(
+        !trimmed.starts_with('{'),
+        "AC10: human expand must not be a JSON object; got {trimmed:?}"
+    );
+    assert!(
+        trimmed.contains("Unknown"),
+        "AC10: human expand must contain kind Unknown; got {trimmed:?}"
+    );
+    assert!(
+        trimmed.contains("Handle not found."),
+        "AC10: human expand must contain UNKNOWN_HANDLE_PREVIEW; got {trimmed:?}"
+    );
+    let lines: Vec<&str> = trimmed.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert_eq!(
+        lines.len(),
+        2,
+        "AC10: Unknown human expand is two nonempty lines; got {lines:?}"
+    );
+    assert_eq!(lines[0], "Unknown", "AC10 line 1 is DTO kind");
+    assert_eq!(
+        lines[1], "Handle not found.",
+        "AC10 line 2 is preview verbatim"
+    );
+}
+
 const TRACE_MISSING_NEXT_STEP: &str =
     "No persisted trace. Run: ai-brains query progressive \"what did we decide\" --dry-run false";
 

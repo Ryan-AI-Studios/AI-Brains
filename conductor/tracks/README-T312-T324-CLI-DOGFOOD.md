@@ -1,10 +1,10 @@
 # T312–T324 — Post-T311 live CLI dogfood (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-27** on PATH graph-on `ai-brains` **0.1.3** (elevated install 2026-08-27 **05:52**; CLI **26,842,112** B). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; pinned **4510**; grants **3 of 3**. Agent non-TTY (pipe → JSON). Plus **entire** `conductor/deferred.md` open residuals that still deserve a track.
-**Status:** **T312 Completed** (`#230` `44520d8`). **T315 Planned** (full F-list 2026-08-28, plan DOCS `ca5b1614`, fold-in DOCS `c90c1c71`). T313–T314 / T316–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229`).
-**HEAD at T315 plan:** `44520d8` T312 squash. Tree **CLEAN** (product). `origin/main` in sync.
-**Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`.
-**last-PR Cursor:** [#230](https://github.com/Ryan-AI-Studios/AI-Brains/pull/230) T312 — Bugbot **1 medium** (F8 OR-fill skips PreferRecency). **Minted T325.** `#229` was empty.
+**Status:** **T312 Completed** (`#230` `44520d8`). **T315 Completed** (`#231` `ae6615d`). **T314 Completed** (full F-list 2026-08-28, plan DOCS `23da7568`, fold-in DOCS `0d3c2e80`). T313 / T316–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229`).
+**HEAD at T314 fold-in:** `2a1eb35` plan docs (product `src/` = `ae6615d`). Tree **CLEAN** (product). `origin/main` = `ae6615d` (ahead **1**).
+**Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`. T314 plan DOCS `23da7568`. T314 fold-in DOCS `0d3c2e80`.
+**last-PR Cursor:** [#231](https://github.com/Ryan-AI-Studios/AI-Brains/pull/231) T315 — comments **empty**. `#230` Bugbot **1 medium** (F8 OR-fill skips PreferRecency) already **T325**. `#229` was empty.
 
 Scores below are **Usefulness / Quality** from that audit (1–10). Every command with **U&lt;8 or Q&lt;8**, plus every “doesn’t work,” friction, and significant-opportunity item, maps to **exactly one** track unless **declined**.
 
@@ -27,8 +27,8 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 |---------|--------------|-------|-----|
 | `recall` / `--semantic` still rank review dumps over DECISION pins; negative BM25 can lead | 9/**8** FTS but finding #2; `--semantic` 9/**7** | **T312 Completed** | P0 |
 | `sync query` ledger pane silently phrase-miss → fuzzy token rescue; provenance opaque | 8/**7** | **T313** | P1 |
-| `--format` missing on `query expand`; `--dry-run` requires a value on `query progressive`; `scan-roots` rejects `--dry-run` | friction (5 clap errors) | **T314** | P1 |
-| `preflight --summary` 0/0/0 + opaque `Total Word Count`; no “run X to populate” | 8/**7** | **T315 Planned** | P0 |
+| `--format` missing on `query expand`; `--dry-run` requires a value on `query progressive`; `scan-roots` rejects `--dry-run` | friction (5 clap errors) | **T314 Completed** | P1 |
+| `preflight --summary` 0/0/0 + opaque `Total Word Count`; no “run X to populate” | 8/**7** | **T315 Completed** | P0 |
 | `memory list` raw first-line previews; forget nudge reads like an error | 6/**6** | **T316** | P2 |
 | `graph neighbors` RECALLS spam (19 edges); hierarchy `synthesized_from` empty | 6/**5** | **T317** | P1 |
 | `backup list` residual plaintext rows drown the 1 usable; verify repeats per-file | 6/**6** | **T318** | P2 |
@@ -65,8 +65,8 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 
 ## Suggested implement order
 
-1. **T315** (summary next-step; T312 already Completed)
-2. **T325** (F8 recency leftover) or **T314** (clap friction unblocks every later CLI track)
+1. **T315** Completed (`#231`)
+2. **T314** (clap friction unblocks later CLI tracks) or **T325** (F8 recency leftover)
 3. **T313** / **T317** / **T319**
 4. **T320** (compose; after doctor/nightly stay stable)
 5. **T316** / **T318** / **T321**
@@ -79,3 +79,4 @@ Live `retention apply --confirm`, CE, `migrate governed`, pin→Approved, clap 5
 ## Registry
 
 See `conductor/conductor.md` T312–T324 and each `trackT3xx-*/spec.md`. Residuals stay in `conductor/deferred.md` until a track closes.
+

@@ -91,12 +91,13 @@ Four families (T266):
 | `recall` | pretty | json | **A.** Explicit `--format` wins |
 | `preflight` | human | json | **A.** TTY default is `human`; `--pretty` / `--format pretty` also human-mode. `--compact` is a bool flag (not a format token) and is ignored on JSON. |
 | `briefing` | markdown | json | **A.** T202 F9 + **T227**: `human\|pretty\|text\|markdown\|md` → markdown; only `json` → JSON; unknown → exit **2** |
-| `query progressive` / `expand` / `trace` | json | json | No TTY flip |
+| `query progressive` | json | json | **C.** No TTY flip. No `--format` (T290 F10 / T314). |
+| `query expand` / `trace` | json | json | **C.** Default `--format json` (omitted stays JSON — no default TTY flip). Tokens `auto\|pretty\|human\|text\|json\|markdown\|md` (T291/T314; case-sensitive; `JSON`/`Pretty` exit **2**). `--format auto` is TTY human / pipe JSON. Expand human: `kind` then `preview` (not a wire contract). Trace missing human: two lines (T291). |
 | list/show (governed evidence/source/review/...) | json (Human if `--format human`) | json | **D.** `OutputFormat::parse` → Json bare |
 | `policy check` | human | json | **A.** T292: `--format auto` (default). TTY `allowed:` / `denied:` + SHORT; pipe / `--format json` pretty `CheckResult` / ApiError. Tokens case-sensitive (`JSON`/`Pretty` exit 2). `policy show` / `policy bootstrap` stay **D**. |
 | `scope resolve` | human | json | **A.** T249: `--format auto` (default). TTY human (`scope:` / `confidence:` / evidence). Pipe / `--format json` pretty JSON. Keys frozen. Tokens case-sensitive (`JSON`/`Pretty` exit 2). |
 | `project list-paths` | human | json | **A.** T266/T254: `--format auto` (default). Tokens `auto\|pretty\|human\|text\|json\|markdown\|md`. `--format pretty` ≡ table. Agents: `--format human`. Scripts: `--format json`. Keys frozen. |
-| `project scan-roots` | human | json | **A.** Same token map as list-paths. Dry-run table / JSON envelope. |
+| `project scan-roots` | human | json | **A.** Same token map as list-paths. Dry-run table / JSON envelope. **T314:** `--dry-run` accepted as a no-op (already dry-run-only). |
 | `project whoami` | human | json | **A.** Same token map. Identity remediator, not a default flip. |
 | `project adopt-path` | human | json | **A.** Same token map. Print-only by default. |
 | `project rebind-path` | human | json | **A.** Same token map. Print-only by default. |

@@ -500,6 +500,47 @@ fn scan_roots__format_json__api_version_1() {
     assert!(v["roots"].is_array(), "AC5: roots array");
 }
 
+/// T314 AC12 — `--dry-run --format json` parses, keys frozen, no .env write.
+#[test]
+fn scan_roots__dry_run_format_json__keys_unchanged_no_env_write() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let tree = dir.path().join("tree");
+    let hit = tree.join("hit-child");
+    fs::create_dir_all(&hit).unwrap();
+    fs::write(hit.join(".ledgerful"), b"").unwrap();
+    let env_path = tree.join(".env");
+    assert!(!env_path.exists(), "precondition: no .env");
+
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("project")
+        .arg("scan-roots")
+        .arg(&tree)
+        .arg("--dry-run")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("scan-roots --dry-run json");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "AC12: scan-roots --dry-run must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("scan json object");
+    assert_eq!(v["api_version"], "1");
+    assert!(v.get("scan_root").is_some(), "AC12: scan_root key");
+    assert!(v["truncated"].is_boolean(), "AC12: truncated bool");
+    assert!(v["roots"].is_array(), "AC12: roots array");
+    assert!(!env_path.exists(), "AC12: --dry-run must not write .env");
+}
+
 // ---------------------------------------------------------------------------
 // AC10–AC12 — scan-roots dry-run
 // ---------------------------------------------------------------------------
