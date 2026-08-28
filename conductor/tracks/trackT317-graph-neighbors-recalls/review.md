@@ -69,4 +69,6 @@ cargo run … --format json (hierarchy)
 
 ## Gate
 
-Pending full `dev-check.ps1` + `ledgerful verify --scope full` before Completed.
+- `.\scripts\dev-check.ps1` — **PASS** (nextest **3593**, 1 skipped; deny + audit ok)
+- `ledgerful verify --scope full` — **PASS**
+- Ready to publish Phase 6

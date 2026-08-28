@@ -2,6 +2,19 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T317 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F15 — source/`cargo run --features graph` + hermetic SoT; not Complete-blocking |
+| Live N on `431f6505-…` moves (plan 11 / OpenCode 12 / Manual **12**) | **Deferred** — hermetic AC1/AC14 SoT; Manual pass-with-observed-data |
+| Kept session PREVIEW still `## Objective` on capped RECALLS | **Deferred** — T278/T293 honesty; DoD is cardinality not caption rewrite |
+| Hierarchy of a real pin stays a leaf | **Deferred** — by design; next-step is orientation only |
+| Sparse E/N ~0.41 floors | **Deferred** — T308 frozen; not stolen |
+| JSON still lists all RECALLS (11/12) | **Deferred** — F3 by design (dual-truth) |
+| T312 PATH dump-first / T325 F8 PreferRecency | **Not stolen** |
+| FEATURE TX | `39e0e1e4-577c-4b18-a4d9-59101d163020` |
+
 ### T317 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
