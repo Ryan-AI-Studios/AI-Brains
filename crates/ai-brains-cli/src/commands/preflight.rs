@@ -103,6 +103,18 @@ pub(crate) fn build_preflight_summary_json(
     }
 }
 
+/// T315 F2/F35: empty in-context decisions next-step (SOOT).
+///
+/// Stub until green: always `None` so AC1 fails red.
+pub(crate) fn format_summary_empty_decisions_next(_decision_count: usize) -> Option<String> {
+    None
+}
+
+/// T315 F8: insert SOOT after budget-window (or legacy Total Word Count) line.
+///
+/// Stub until green: no-op so AC4 fails red.
+pub(crate) fn insert_after_budget_window_line(_lines: &mut Vec<String>, _line: String) {}
+
 /// Format a post-hoc discovery-grants summary line (T241 F3 / AC9).
 ///
 /// Returns `None` when complete (`active_count == 3`) so callers omit OK density.
@@ -1372,6 +1384,90 @@ mod tests {
         let _ = format_preflight_summary_lines("Scope: global", true, Some(0), 0, 0, 0, 0, 0, 0);
     }
 
+    /// T315 AC1: empty-decisions next-step SOOT.
+    #[test]
+    fn format_summary_empty_decisions_next__zero__exact_soot() {
+        let soot = format_summary_empty_decisions_next(0).expect("zero decisions → Some");
+        assert_eq!(soot, r#"next: ai-brains recall "what did we decide""#);
+        assert!(
+            soot.chars().count() <= 140,
+            "AC13: SOOT must be ≤140 chars; got {}",
+            soot.chars().count()
+        );
+        assert!(
+            format_summary_empty_decisions_next(1).is_none(),
+            "decision_count == 1 → None"
+        );
+    }
+
+    /// T315 AC4 / F8: insert after budget-window line, before footer.
+    #[test]
+    fn insert_after_budget_window_line__zero_decisions__after_word_count_before_footer() {
+        let mut lines =
+            format_preflight_summary_lines("Scope: none", false, None, 0, 0, 0, 0, 0, 42);
+        assert!(
+            format_summary_empty_decisions_next(1).is_none(),
+            "AC4: decision_count == 1 does not insert"
+        );
+        let soot = format_summary_empty_decisions_next(0).expect("zero → SOOT");
+        insert_after_budget_window_line(&mut lines, soot.clone());
+        let joined = lines.join("\n");
+        let budget_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Budget window words:") || l.starts_with("Total Word Count:"))
+            .expect("budget or legacy word-count line");
+        let soot_idx = lines
+            .iter()
+            .position(|l| l == &soot)
+            .expect("SOOT line present");
+        let footer_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Use --pretty"))
+            .expect("footer");
+        assert_eq!(soot_idx, budget_idx + 1, "SOOT immediately after budget line; got:\n{joined}");
+        assert!(soot_idx < footer_idx, "SOOT before footer; got:\n{joined}");
+    }
+
+    /// T315 AC14: trigger is decision_count == 0 only (hotspots may be non-zero).
+    #[test]
+    fn format_summary_empty_decisions_next__hotspots_nonzero_decisions_zero__still_some() {
+        // Formatter trigger helper ignores hotspot/constraint counts (F1).
+        assert!(format_summary_empty_decisions_next(0).is_some());
+        let mut lines =
+            format_preflight_summary_lines("Scope: global", true, Some(0), 0, 0, 5, 0, 0, 10);
+        let soot = format_summary_empty_decisions_next(0).expect("decisions 0");
+        insert_after_budget_window_line(&mut lines, soot);
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("In context hotspots: 5"),
+            "hotspots stay; got:\n{joined}"
+        );
+        assert!(
+            joined.contains(r#"next: ai-brains recall "what did we decide""#),
+            "AC14: still inserts when hotspots=5; got:\n{joined}"
+        );
+    }
+
+    /// T315 AC8: T241 bootstrap wins JSON next_step when grants_status is set.
+    #[test]
+    fn empty_decisions_next_step__grants_incomplete__bootstrap_wins() {
+        let mut env = build_preflight_summary_json(false, None, None, 0, 0, 0, 0, 0, 0);
+        env.grants_status = format_grants_status(0);
+        assert!(env.grants_status.is_some());
+        env.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
+        // T315 fill only when next_step is None (mirrors print_summary F5).
+        if env.next_step.is_none() {
+            if let Some(soot) = format_summary_empty_decisions_next(0) {
+                env.next_step = Some(soot);
+            }
+        }
+        assert_eq!(
+            env.next_step.as_deref(),
+            Some(POLICY_BOOTSTRAP_SOOT_SHORT),
+            "AC8: T241 bootstrap must not be overwritten"
+        );
+    }
+
     /// T241 AC9: post-hoc grants line for incomplete discovery; complete omits.
     #[test]
     fn format_grants_incomplete_line__empty_and_partial__contains_bootstrap() {
@@ -1479,8 +1575,12 @@ mod tests {
             "AC5 In context constraints; got:\n{joined}"
         );
         assert!(
-            joined.contains("Total Word Count: 100"),
-            "word count from field; got:\n{joined}"
+            joined.contains("Budget window words: 100"),
+            "AC2: budget-window label; got:\n{joined}"
+        );
+        assert!(
+            !joined.contains("Total Word Count"),
+            "AC2: Total Word Count label retired; got:\n{joined}"
         );
         assert!(
             !joined.lines().any(|l| l.starts_with("Project:")),
