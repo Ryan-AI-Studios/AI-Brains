@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T313 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 / Agy m2 heading `is_empty()` vs F25 whitespace | **Folded** F1 / F3 / F25 / AC3 — `!tok.trim().is_empty()` + `Some("   ")` |
+| OpenCode m2 WORKFLOWS.md `:316` | **Folded** F14 / AC10 / §12 |
+| OpenCode m3 AC13 `git diff -- C:\dev\Ledgerful` exit 128 | **Folded** AC13 in-repo `crates/` name-only |
+| OpenCode m4 existing ndjson hermetics drop non-JSON | **Folded** AC14 new Phase 1 green-on-arrival |
+| OpenCode O1 clap `Query` line | **Folded** §2.3 `:3590` / `:3629–3647` |
+| OpenCode O2 `join` vs three `println!` | **Folded** §5.2 SoT |
+| OpenCode O3 pin-count 4544→4545 | **Note** volatile |
+| Agy m1 HEAD `cd7bfde` vs `2bec83e` | **Folded** snapshot `2bec83e` / ahead **1** |
+| Agy O1/O2/O3 F10 / F2 / F7 | **Already** |
+| last-PR `#232` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `5fa5626e-ce2f-42df-97f4-744053ba09a5` |
+
 ### T313 full plan (2026-08-28) — rescued heading; F7 banner exact
 
 | Item | Disposition |

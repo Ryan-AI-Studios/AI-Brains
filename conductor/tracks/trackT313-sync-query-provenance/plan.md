@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** UX / HONESTY
 **Ledger (planning):** DOCS `bdf8fddd-84f9-4d9d-9b7d-64887dd834e2`
+**Ledger (fold-in):** DOCS `5fa5626e-ce2f-42df-97f4-744053ba09a5`
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `cd7bfde` T314 `#232` **CLEAN**. `main` == `origin/main`. |
+| HEAD / tree | Fold-in `2bec83e` plan commit CLEAN; `origin/main` = `cd7bfde` (ahead **1**). Plan-write was `cd7bfde` / ahead **0** (Agy m1). Product `src/` = T314 `#232`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T271 banner **is** on PATH. T312/T315/T314 **not**. |
 | `preflight --summary` (PATH) | Pinned **4544**; in-context **0/0/0**; `Total Word Count: 737` (PATH-behind T315) |
 | Phrase `"graph backend"` | `ledgerful ledger search --json -- "graph backend"` → `[]` |
@@ -43,6 +44,11 @@
 | last-PR `#232` Cursor | **N/A empty** F20 |
 | last-PR `#230` F8 recency | **T325** — not stolen |
 | T312 / T314 / T315 / T316–T324 / clap 5 | **Not stolen** / **Decline** |
+| OpenCode m1 / Agy m2 heading `trim()` | **F1 / F25 / AC3** `Some("   ")` |
+| OpenCode m2 WORKFLOWS.md `:316` | **F14 / AC10** |
+| OpenCode m3 AC13 out-of-repo path | **AC13** in-repo name-only |
+| OpenCode m4 ndjson heading guard | **AC14** new Phase 1 green-on-arrival |
+| OpenCode O2 three `println!` | **§5.2 SoT** |
 
 ---
 
@@ -51,7 +57,8 @@
 - [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
 - [ ] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
 - [ ] Re-read `probe_ledger_search` rescue arm + `LedgerProbeResult`
-- [ ] Re-read `sync.rs` `print_ledger` `:563–571` + T211 ledger-first `:574`
+- [ ] Re-read `sync.rs` `print_ledger` `:563–571` + T211 ledger-first `:573–587` (call sites `:576` / `:585`)
+- [ ] Confirm `SyncCommands::Query` still `:3629–3647` (enum `:3590`)
 - [ ] Re-read `ledger_rescue_banner` + unit `:663–667`
 - [ ] Confirm Ledgerful `search.rs` still phrase-wraps
 - [ ] Re-dogfood `sync query "graph backend"` — generic heading still the hole
@@ -65,14 +72,15 @@
 
 - [ ] `ledger_section_heading__rescued_token__names_token` (AC1)
 - [ ] `ledger_section_heading__phrase_hit__generic` (AC2)
-- [ ] `ledger_section_heading__empty_token__generic` (AC3)
+- [ ] `ledger_section_heading__empty_token__generic` (AC3 — `Some("")` **and** `Some("   ")`)
 - [ ] `format_ledger_section_lines__rescued__heading_then_banner` (AC8)
 - [ ] Confirm those tests **fail** while heading is hardcoded generic / helper missing
+- [ ] **Write AC14** `sync_query__format_ndjson__no_ledger_heading` (green-on-arrival — passes on HEAD; OpenCode m4: do **not** skip as stay-green)
 - [ ] AC4 T271 banner + AC5 T273 argv + AC6 T124 no-bridge are **stay-green** (not Phase-1 red)
 
 ## Phase 2 — Green
 
-- [ ] F1 `ledger_section_heading` + F10 `format_ledger_section_lines` / `print_ledger_section`
+- [ ] F1 `ledger_section_heading` with `!tok.trim().is_empty()` + F10 `format_ledger_section_lines` (AC8) / `print_ledger_section` (**three `println!`**, not `join`)
 - [ ] F3 `rescued_token: Option<String>` on `LedgerProbeResult`; F6 hit arm `Some(token.clone())`; other arms `None`
 - [ ] `sync.rs` delete closure; call `print_ledger_section` (file must not grow)
 - [ ] Match today’s spacing (heading `println!("\n{…}")` then banner then display)
@@ -87,9 +95,9 @@
 - [ ] AC5 T273 argv
 - [ ] AC6 T124 `--no-bridge`
 - [ ] AC7 isolation vault header
-- [ ] AC14 ndjson no ledger heading
+- [ ] AC14 (now written) ndjson no ledger heading without `--no-bridge`
 - [ ] `ledger_json_non_empty` units
-- [ ] CAPABILITIES pane bullet + OPERATIONS two-section sentence (AC10)
+- [ ] CAPABILITIES pane bullet + OPERATIONS two-section sentence + **WORKFLOWS.md `:316`** (AC10)
 - [ ] CHANGELOG Unreleased T313
 - [ ] No PROTOCOL-COMPAT DTO row
 
@@ -97,7 +105,7 @@
 
 - [ ] AC11 `cargo run` `sync query "graph backend"` rescued heading + F7 + `matching entries for 'graph'` (PATH-behind not a fail)
 - [ ] AC12 phrase-hit control (`T314` or Phase 0 pick) generic heading, no banner
-- [ ] AC13 empty diff on forbidden crates
+- [ ] AC13 `git diff --name-only -- crates/` allow-list (`sync_query_ledger.rs` / `sync.rs` / optional `tests/smoke.rs`); **not** `C:\dev\Ledgerful`
 - [ ] Review log `review.md`; medium+ not dropped
 - [ ] Cross-model optional (F21) — skip unless Phase-1 review asks
 - [ ] Full gate: `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings` ; `cargo nextest run --workspace` ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
@@ -111,7 +119,7 @@
 - [ ] F7 banner sentence exact
 - [ ] Rescue still runs (F6 first-seen, cap 3)
 - [ ] `--no-bridge` still skips the ledger section
-- [ ] ndjson still has no ledger pane
+- [ ] ndjson still has no ledger pane (**AC14 named test exists**)
 - [ ] `sync.rs` did not grow (print extracted)
 - [ ] Status **Pending** until go; **Completed** only after merge hygiene
 
