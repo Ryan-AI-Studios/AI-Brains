@@ -2,6 +2,41 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+## T312–T324 placeholders (2026-08-27) — post-T311 live CLI dogfood (0.1.3)
+
+Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s open residuals. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#229** empty. Series README `conductor/tracks/README-T312-T324-CLI-DOGFOOD.md`. Series DOCS TX `a6d3c404-1d64-4cba-a743-d75ac16c74cd`.
+
+| Item | Disposition |
+|------|-------------|
+| Audit recall rank still dump-first (T285 shipped) | **T312** Pending |
+| `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
+| `--format` / `--dry-run` clap friction | **T314** Pending |
+| preflight 0/0/0 + word count | **T315** Pending |
+| `memory list` preview + forget nudge | **T316** Pending |
+| `graph neighbors` RECALLS spam | **T317** Pending |
+| `backup list` residual noise | **T318** Pending |
+| evidence/source show vault UUID | **T319** Pending |
+| unified `status` opportunity | **T320** Pending |
+| `safety sync` write surprise | **T321** Pending |
+| T311 R2 `--as-of` | **T322** Pending |
+| T311 R5 conclusion in-force | **T323** Pending |
+| T311 R7 PowerShell empty TERM | **T324** Pending |
+| T311 R1 daemon `ListInForce` | **Decline** — no consumer; mint later if a DTO caller appears |
+| T311 R3 sibling Approved | **Decline** — T311 F7 earliest-root by design |
+| T311 R4 `approved_at` | **Partial T322** — column only if plan proves `updated_at` insufficient |
+| T311 R6 PATH install | **Done** — owner elevated install 2026-08-27 |
+| T263 H2 / governed populate from pins | **Decline** standing |
+| `sync pull/push` / replicate / device | **Decline** — T92 / T298 honesty |
+| T307 dual tower-http | **Not stolen** (Blocked) |
+| T308 density floors | **Decline** standing |
+| T310 R1 self-replace / F15 `--version` | **Decline** |
+| `recovery_kit_event` doctor warn | **Decline** this series (doctor Q=9) |
+| last-PR `#229` Cursor | **N/A empty** — no extra leftover |
+
+### T311 implement (2026-08-27) — decision in-force (Completed) — residual promotion
+
+R2 / R5 / R7 **promoted** to T322 / T323 / T324 (Pending placeholders). R1 / R3 / R4 / R6 as in the T312–T324 table above.
+
 ## T285–T300 placeholders (2026-08-22) — post-T283 live CLI quality (0.1.2)
 
 Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#228** empty. **T285–T306 Completed.** **T307 Blocked (F3 2026-08-26).** **T308 Completed (2026-08-26).** **T309 Completed (2026-08-26).** **T310 Completed (2026-08-27).** **T311 Completed (2026-08-27).**
@@ -14,13 +49,13 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | AC1–AC11 | **Done** — 12 tests PASS; `dev-check` **3545** passed, 1 skipped |
 | Codex | **PASS** — 0 findings (`review.codex.md`, gpt-5.6-sol) |
 | T307 / T308 floors / H2 / daemon wire | **Not stolen** |
-| Residual R1 — daemon `ListInForce` | **Soft** F13 |
-| Residual R2 — `--as-of` | **Soft** non-goal |
-| Residual R3 — sibling Approved same term | **Soft** F7 earliest-root |
-| Residual R4 — `approved_at` column | **Soft** JSON `updated_at` |
-| Residual R5 — conclusion in-force | **Soft** non-goal |
-| Residual R6 — PATH until elevated install | **Soft** source SoT |
-| Residual R7 — PowerShell `""` drops empty TERM | **Soft** hermetic `.arg("")` + whitespace fail_usage |
+| Residual R1 — daemon `ListInForce` | **Soft** F13 — **declined** T312–T324 mint (no daemon consumer) |
+| ~~Residual R2 — `--as-of`~~ | **Promoted T322** Pending |
+| Residual R3 — sibling Approved same term | **Soft** F7 earliest-root — **declined** remint |
+| Residual R4 — `approved_at` column | **Soft** JSON `updated_at` — **partial T322** |
+| ~~Residual R5 — conclusion in-force~~ | **Promoted T323** Pending |
+| Residual R6 — PATH until elevated install | **Done** 2026-08-27 owner elevated install |
+| ~~Residual R7 — PowerShell `""` drops empty TERM~~ | **Promoted T324** Pending |
 | FEATURE TX | `e88743aa-e92c-407a-8093-6c6e4e6d9b53` |
 
 ### T311 fold-in (2026-08-27) — `agy-review.md` + `opencode-review.md`
@@ -35,7 +70,7 @@ Minted from PATH **0.1.2** non-destructive dogfood. Full F-list on `/plan-track 
 | OpenCode supersede O | **Already** F5/F8; §2.3 note; write path not tightened |
 | OpenCode density 0.409 | **Decline** floor change |
 | OpenCode summary new projection / FTS `decision list` | **Decline** — T150 `Option<String>`; FTS non-goal |
-| last-PR `#228` Cursor | **Affirm N/A** — no T312 |
+| last-PR `#228` Cursor | **Affirm N/A** — T312–T324 minted from 2026-08-27 audit + T311 residuals, not `#228` |
 | T307 / T308 floors | **Not stolen** |
 | DOCS TX | `e5f9e657-83e8-4402-9fdf-1f7089c151d7` |
 
