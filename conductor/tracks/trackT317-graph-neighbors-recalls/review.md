@@ -1,8 +1,8 @@
 # T317 Review Log — Graph neighbors RECALLS cap + hierarchy leaf next
 
-**Track:** T317-GraphNeighborsRecalls  
-**Category:** FEATURE / UX  
-**FEATURE TX:** `39e0e1e4-577c-4b18-a4d9-59101d163020`  
+**Track:** T317-GraphNeighborsRecalls
+**Category:** FEATURE / UX
+**FEATURE TX:** `39e0e1e4-577c-4b18-a4d9-59101d163020`
 **Branch:** `track/T317-graph-neighbors-recalls`
 
 ## Scope
@@ -58,9 +58,14 @@ cargo run … --format json (hierarchy)
 → {"root":"431f6505-…","synthesized_from":[]}
 ```
 
-## Cross-model
+## Cross-model (Codex CX1 — `review.codex.md`)
 
-Pending `codex-review` → `review.codex.md` after Phase-1 clean + targeted clippy green.
+| ID | Severity | Disposition |
+|----|----------|-------------|
+| P0-001 | process | **Validated** — gates/publish outstanding at review time; closing this loop |
+| P2-001 | medium | **Validated → fixed** — AC9 now asserts exact `neighbors.len()==5` and RECALLS count `==5` |
+| P3-001 | low | **Validated → fixed** — review.md trailing whitespace; spec.md EOF blank trimmed |
+| P3-002 | low | **False positive** — `for`/`map` building seed fixtures is not multi-case parameterization; AC2 already uses `rstest`; existing tree (51-row unit) uses the same fixture pattern |
 
 ## Gate
 

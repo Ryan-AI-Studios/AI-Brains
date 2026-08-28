@@ -406,4 +406,3 @@ Source: `agy-review.md` (HEAD `e17678d`, verdict **Planned**) + `opencode-review
 5. **F19:** `#233` Cursor empty; F8 recency leftover stays **T325**. No T326.
 
 **Planning + fold-in 2026-08-28.** Still **plan-only until go**.
-

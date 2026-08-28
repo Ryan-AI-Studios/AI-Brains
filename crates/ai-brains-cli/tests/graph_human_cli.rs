@@ -846,14 +846,15 @@ fn graph_neighbors__json__no_recalls_cap() {
     let parsed: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&json.stdout).trim()).expect("parse");
     let neighbors = parsed["neighbors"].as_array().expect("neighbors array");
-    assert!(
-        neighbors.len() >= 4,
-        "JSON must list all 1-hop; got len={} {parsed}",
+    assert_eq!(
+        neighbors.len(),
+        5,
+        "JSON must list all seeded 1-hop; got len={} {parsed}",
         neighbors.len()
     );
     let recalls = neighbors.iter().filter(|h| h["label"] == "RECALLS").count();
-    assert!(
-        recalls >= 4,
+    assert_eq!(
+        recalls, 5,
         "JSON must not cap RECALLS; recalls={recalls} {parsed}"
     );
 }
