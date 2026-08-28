@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T317 Graph neighbors RECALLS cap:** Human `graph neighbors` keeps all non-`RECALLS` 1-hop rows and the first **3** `RECALLS` (after T293 prefer-authority), then prints `+N more RECALLS`. Header `(N)` stays the full pre-cap 1-hop count. JSON still lists every 1-hop (keys/order frozen). Hierarchy leaf pretty adds `next: ai-brains nightly --status` (still no graph update/rebuild). Docs: CAPABILITIES / PROTOCOL-COMPAT / OPERATIONS; GraphCommands `after_help` dual-truth.
+
 - **T313 `sync query` rescued heading:** When T271 token rescue produces ledger hits, the pane heading is `--- Ledgerful Ledger Search (rescued token: '<tok>') ---` (plus the locked F7 banner). Phrase hits / misses keep the generic heading. ndjson remains vault-only (no ledger pane). Docs: CAPABILITIES / OPERATIONS / WORKFLOWS.
 
 - **T315 Preflight empty-decisions next-step:** `preflight --summary` when `In context decisions` is **0** prints exact `next: ai-brains recall "what did we decide"` after the word-count line (before the footer). Human label `Total Word Count:` → `Budget window words:` (JSON key `word_count` unchanged). JSON optional `next_step` is that SOOT when T241 did not set bootstrap (incomplete grants still win). Docs: CAPABILITIES summary rows; PROTOCOL-COMPAT optional `next_step` sources (T241 bootstrap **or** T315 empty-decisions); no new required keys.

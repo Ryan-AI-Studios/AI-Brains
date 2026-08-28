@@ -123,7 +123,33 @@ pub(crate) fn pretty_no_neighbors(id: &str) -> String {
 }
 
 pub(crate) fn pretty_hierarchy_leaf() -> String {
-    "No SYNTHESIZED_FROM children (leaf).".to_string()
+    "No SYNTHESIZED_FROM children (leaf).\nnext: ai-brains nightly --status".to_string()
+}
+
+/// T317 F1: human-only RECALLS display cap (after T293 prefer-authority).
+pub(crate) const RECALLS_PRETTY_CAP: usize = 3;
+
+/// Keep all non-`RECALLS` rows; keep the first `RECALLS_PRETTY_CAP` `RECALLS` in order.
+/// Returns `(kept, recalls_hidden)`. Label match is exact `"RECALLS"`.
+pub(crate) fn cap_recalls_pretty_rows(
+    rows: &[PrettyNeighborRow],
+) -> (Vec<PrettyNeighborRow>, usize) {
+    let mut kept = Vec::with_capacity(rows.len());
+    let mut recalls_kept = 0usize;
+    let mut recalls_hidden = 0usize;
+    for row in rows {
+        if row.label == "RECALLS" {
+            if recalls_kept < RECALLS_PRETTY_CAP {
+                kept.push(row.clone());
+                recalls_kept += 1;
+            } else {
+                recalls_hidden += 1;
+            }
+        } else {
+            kept.push(row.clone());
+        }
+    }
+    (kept, recalls_hidden)
 }
 
 pub(crate) fn pretty_session_empty() -> String {
@@ -159,10 +185,11 @@ pub(crate) fn format_neighbors_pretty(
     memory_id: &str,
     rows: &[PrettyNeighborRow],
     limit: usize,
+    full_hop_count: usize,
+    recalls_hidden: usize,
 ) -> String {
-    let total = rows.len();
-    let (shown, more) = apply_limit(total, limit);
-    let mut out = format!("Neighbors of {memory_id} ({total})\n");
+    let (shown, more) = apply_limit(rows.len(), limit);
+    let mut out = format!("Neighbors of {memory_id} ({full_hop_count})\n");
     out.push_str(&format!(
         "{:<3} {:<16} {:<36} {:<14} {}\n",
         "DIR", "LABEL", "ID", "KIND", "PREVIEW"
@@ -179,6 +206,9 @@ pub(crate) fn format_neighbors_pretty(
     }
     if let Some(n) = more {
         out.push_str(&format!("… and {n} more\n"));
+    }
+    if recalls_hidden > 0 {
+        out.push_str(&format!("+{recalls_hidden} more RECALLS\n"));
     }
     out
 }
@@ -555,9 +585,17 @@ pub fn neighbors(
         }
         let mut rows = pretty_neighbor_rows(ctx, &searcher, &hits)?;
         prefer_authority_neighbor_rows(&mut rows);
+        let full_hop_count = rows.len();
+        let (kept, recalls_hidden) = cap_recalls_pretty_rows(&rows);
         print!(
             "{}",
-            format_neighbors_pretty(memory_id, &rows, clamp_list_limit(limit))
+            format_neighbors_pretty(
+                memory_id,
+                &kept,
+                clamp_list_limit(limit),
+                full_hop_count,
+                recalls_hidden,
+            )
         );
         return Ok(());
     }
@@ -1126,7 +1164,7 @@ mod tests {
 
     #[test]
     fn format_neighbors_pretty__incoming_and_outgoing__header_in_out_kinds() {
-        let text = format_neighbors_pretty("root-id", &fixture_neighbor_rows(), 50);
+        let text = format_neighbors_pretty("root-id", &fixture_neighbor_rows(), 50, 2, 0);
         assert!(text.starts_with("Neighbors of root-id (2)"));
         assert!(text.contains("DIR"));
         assert!(text.contains("LABEL"));
@@ -1226,7 +1264,7 @@ mod tests {
     fn format_neighbors_pretty__session_recalls__preview_shows_memories() {
         let mut rows = fixture_neighbor_rows();
         rows[0].preview = format_session_neighbor_preview(2, "pin text");
-        let text = format_neighbors_pretty("root-id", &rows, 50);
+        let text = format_neighbors_pretty("root-id", &rows, 50, 2, 0);
         assert!(text.contains("DIR"));
         assert!(text.contains("in "));
         assert!(text.contains("RECALLS"));
@@ -1380,13 +1418,167 @@ mod tests {
             })
             .collect();
         let limit = clamp_list_limit(None);
-        let text = format_neighbors_pretty("root", &rows, limit);
+        let text = format_neighbors_pretty("root", &rows, limit, 51, 0);
         let data_lines: Vec<&str> = text
             .lines()
             .filter(|l| l.starts_with("in ") || l.starts_with("out"))
             .collect();
         assert_eq!(data_lines.len(), 50);
         assert!(text.contains("… and 1 more"));
+        assert!(!text.contains("more RECALLS"));
+    }
+
+    /// T317 AC1: 11 RECALLS → 3 kept, hidden 8.
+    #[test]
+    fn cap_recalls_pretty_rows__eleven_recalls__keeps_three_hidden_eight() {
+        let rows: Vec<PrettyNeighborRow> = (0..11)
+            .map(|i| pretty_row("session", &format!("s-{i:02}"), "1 memories · ## Objective"))
+            .collect();
+        let (kept, hidden) = cap_recalls_pretty_rows(&rows);
+        assert_eq!(kept.len(), 3, "kept={kept:?}");
+        assert_eq!(hidden, 8);
+        assert!(kept.iter().all(|r| r.label == "RECALLS"));
+        assert_eq!(kept[0].external_id, "s-00");
+        assert_eq!(kept[2].external_id, "s-02");
+    }
+
+    /// T317 AC2: at-or-under cap unchanged; 4 → keep 3 hide 1.
+    #[rstest::rstest]
+    #[case::zero(0usize, 0usize, 0usize)]
+    #[case::one(1, 1, 0)]
+    #[case::three(3, 3, 0)]
+    #[case::four(4, 3, 1)]
+    fn cap_recalls_pretty_rows__at_or_under_cap__unchanged(
+        #[case] n: usize,
+        #[case] expect_kept: usize,
+        #[case] expect_hidden: usize,
+    ) {
+        let rows: Vec<PrettyNeighborRow> = (0..n)
+            .map(|i| pretty_row("session", &format!("s-{i}"), "1 memories · dump"))
+            .collect();
+        let (kept, hidden) = cap_recalls_pretty_rows(&rows);
+        assert_eq!(kept.len(), expect_kept);
+        assert_eq!(hidden, expect_hidden);
+        assert_eq!(kept.len() + hidden, n);
+    }
+
+    /// T317 AC3: mixed labels keep all non-RECALLS + 3 RECALLS.
+    #[test]
+    fn cap_recalls_pretty_rows__mixed_labels__keeps_all_non_recalls() {
+        let mut rows = vec![
+            PrettyNeighborRow {
+                direction: "outgoing".into(),
+                label: "SYNTHESIZED_FROM".into(),
+                external_id: "synth-a".into(),
+                kind: "memory".into(),
+                preview: "a".into(),
+            },
+            PrettyNeighborRow {
+                direction: "outgoing".into(),
+                label: "SYNTHESIZED_FROM".into(),
+                external_id: "synth-b".into(),
+                kind: "memory".into(),
+                preview: "b".into(),
+            },
+        ];
+        for i in 0..5 {
+            rows.push(pretty_row(
+                "session",
+                &format!("r-{i}"),
+                "1 memories · ## Objective",
+            ));
+        }
+        let (kept, hidden) = cap_recalls_pretty_rows(&rows);
+        assert_eq!(kept.len(), 5, "2 non-RECALLS + 3 RECALLS; kept={kept:?}");
+        assert_eq!(hidden, 2);
+        assert!(kept.iter().any(|r| r.external_id == "synth-a"));
+        assert!(kept.iter().any(|r| r.external_id == "synth-b"));
+        let recalls: Vec<&str> = kept
+            .iter()
+            .filter(|r| r.label == "RECALLS")
+            .map(|r| r.external_id.as_str())
+            .collect();
+        assert_eq!(recalls, vec!["r-0", "r-1", "r-2"]);
+    }
+
+    /// T317 AC4: after prefer, authority RECALLS is among the 3 kept.
+    #[test]
+    fn cap_recalls_pretty_rows__authority_recalls__kept_before_dumps() {
+        let mut rows = vec![
+            pretty_row("session", "dump-0", "1 memories · ## Objective"),
+            pretty_row("session", "dump-1", "1 memories · ## Objective"),
+            pretty_row("session", "dump-2", "1 memories · ## Objective"),
+            pretty_row("session", "dump-3", "1 memories · ## Objective"),
+            pretty_row("session", "auth-s", "1 memories · DECISION: keep me"),
+        ];
+        prefer_authority_neighbor_rows(&mut rows);
+        assert_eq!(rows[0].external_id, "auth-s");
+        let (kept, hidden) = cap_recalls_pretty_rows(&rows);
+        assert_eq!(kept.len(), 3);
+        assert_eq!(hidden, 2);
+        assert_eq!(kept[0].external_id, "auth-s");
+        assert!(kept.iter().any(|r| r.external_id == "auth-s"));
+    }
+
+    /// T317 AC5: header uses full hop count; 3 data rows; RECALLS footer.
+    #[test]
+    fn format_neighbors_pretty__recalls_hidden__header_total_and_footer() {
+        let rows: Vec<PrettyNeighborRow> = (0..3)
+            .map(|i| pretty_row("session", &format!("s-{i}"), "1 memories · dump"))
+            .collect();
+        let text = format_neighbors_pretty("root", &rows, 50, 11, 8);
+        assert!(
+            text.starts_with("Neighbors of root (11)"),
+            "header must use full_hop_count; got: {text}"
+        );
+        let data_lines: Vec<&str> = text
+            .lines()
+            .filter(|l| l.starts_with("in ") || l.starts_with("out"))
+            .collect();
+        assert_eq!(data_lines.len(), 3);
+        assert!(
+            text.contains("+8 more RECALLS"),
+            "missing RECALLS footer; got: {text}"
+        );
+        assert!(!text.contains("+8 more RECALLS."));
+    }
+
+    /// T317 AC6: recalls_hidden=0 → no RECALLS footer; header uses full_hop_count.
+    #[test]
+    fn format_neighbors_pretty__no_hidden__no_recalls_footer() {
+        let rows = fixture_neighbor_rows();
+        let text = format_neighbors_pretty("root-id", &rows, 50, 2, 0);
+        assert!(text.starts_with("Neighbors of root-id (2)"));
+        assert!(!text.contains("more RECALLS"));
+    }
+
+    /// T317 AC7: leaf two lines; nightly --status next-step.
+    #[test]
+    fn pretty_hierarchy_leaf__nightly_status_next() {
+        let text = pretty_hierarchy_leaf();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "expected two lines; got: {text:?}");
+        assert_eq!(lines[0], "No SYNTHESIZED_FROM children (leaf).");
+        assert_eq!(lines[1], "next: ai-brains nightly --status");
+    }
+
+    /// T317 AC17: --limit footer then RECALLS footer.
+    #[test]
+    fn format_neighbors_pretty__limit_and_recalls_hidden__two_footers() {
+        let rows: Vec<PrettyNeighborRow> = (0..4)
+            .map(|i| pretty_row("session", &format!("s-{i}"), "1 memories · dump"))
+            .collect();
+        let text = format_neighbors_pretty("root", &rows, 2, 10, 7);
+        let limit_pos = text.find("… and 2 more").unwrap_or_else(|| {
+            panic!("limit footer missing: {text}");
+        });
+        let recalls_pos = text.find("+7 more RECALLS").unwrap_or_else(|| {
+            panic!("RECALLS footer missing: {text}");
+        });
+        assert!(
+            limit_pos < recalls_pos,
+            "limit line must precede RECALLS footer; got: {text}"
+        );
     }
 
     #[test]
