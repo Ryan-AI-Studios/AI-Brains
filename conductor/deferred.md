@@ -10,16 +10,27 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 
 | Item | Disposition |
 |------|-------------|
-| Audit preflight 0/0/0 + opaque `Total Word Count` | **Absorb** F1/F2/F7 / AC1–AC6 / AC11 |
-| T286 live Index `## Objective` (R1-1) | **Decline steal** F11 — honesty + next-step, not Index SQL |
-| T220 F30 human label vs JSON `word_count` | **Absorb** F7 `Budget window words:` |
-| T241 optional JSON `next_step` | **Partial** — reuse key; F5 grants win |
+| ~~Audit preflight 0/0/0 + opaque `Total Word Count`~~ | **Landed** T315 Completed — SOOT + `Budget window words:` |
+| T286 live Index `## Objective` (R1-1) | **Decline steal** F11 — residual stands (not easy; Index SQL) |
+| ~~T220 F30 human label vs JSON `word_count`~~ | **Landed** F7 `Budget window words:` |
+| ~~T241 optional JSON `next_step`~~ | **Landed** reuse key; F5 grants win |
 | T288 / T290 granted-empty overlay | **Decline steal** — needle `LIST_RECALL_QUERY` only (F3) |
 | T263 H2 / T240 F2 / clap 5 | **Decline** F4 / F24 / F20 |
 | T313–T324 / T307 / T308 floors | **Not stolen** / **Decline** |
 | last-PR Cursor `#230` F8 Prefer-OR skips recency | **Mint T325** (does not fit T315 / T313–T324) |
 | last-PR `#229` empty | **Superseded** by `#230` |
 | DOCS TX | `ca5b1614-6849-416d-ad27-1d44a23198d7` |
+
+### T315 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| T286 Index still `## Objective` on live vault (R1-1) | **Deferred** — needs Index SQL / budget fit track; T315 next-step honesty only |
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F18 — source bin proves AC11; not Complete-blocking |
+| In-context decisions remain 0 after T315 | **By design** — product is `next:` remediator, not window stuffing |
+| T325 F8 PreferRecency on OR-fill | **Not stolen** — placeholder Pending |
+| Optional `after_help` T315 sentence | **Skipped** (plan optional); not deferred as debt |
+| FEATURE TX | `a38a0cba-b820-4f36-8924-c13bff46b50a` |
 
 ### T315 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
 
@@ -99,7 +110,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
 | `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
 | `--format` / `--dry-run` clap friction | **T314** Pending |
-| preflight 0/0/0 + word count | **T315 Planned** (full F-list 2026-08-28) |
+| ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
 | `graph neighbors` RECALLS spam | **T317** Pending |
 | `backup list` residual noise | **T318** Pending |
