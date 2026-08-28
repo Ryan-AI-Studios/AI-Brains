@@ -2,6 +2,25 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T317 full plan (2026-08-28) — human RECALLS cap 3 + hierarchy leaf nightly next
+
+| Item | Disposition |
+|------|-------------|
+| Audit `graph neighbors` RECALLS spam (19; live **11** on `431f6505-…`) | **Absorb** F1 / F9 / AC1 / AC5 / AC11 / AC14 |
+| Audit hierarchy `synthesized_from` empty | **Absorb** F2 / AC7 / AC12 — `next: ai-brains nightly --status`; AC9 still forbids graph update/rebuild |
+| T293 prefer-authority / no-drops | **Affirm** F5 — cap **after** prefer; JSON still full |
+| T293 F8 no `--label` / F11 hierarchy freeze | **Affirm** F8; **supersede F11 for leaf copy only** |
+| T246 JSON keys / T262 RECALLS survive | **Affirm** F3 / F7 / AC8 / AC15 |
+| T308 R1 live E/N ~0.41 | **Decline** floor change F7 |
+| T278 F18 2-hop / projector delete RECALLS | **Decline** F4 / F7 |
+| T316 / T318–T324 / T325 F8 recency | **Not stolen** |
+| T313 `#233` / T312 / T314 / T315 | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 | **Not stolen** / **Decline** |
+| last-PR Cursor `#233` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `0db2a64d-6ae6-4c25-b2fc-3a6db62d0dfa` |
+
+
 ### T313 implement residuals (2026-08-28) — non-easy lows
 
 | Item | Disposition |
@@ -200,11 +219,11 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | Item | Disposition |
 |------|-------------|
 | ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
-| `sync query` ledger phrase→fuzzy opacity | **T313** Planned (full F-list 2026-08-28) |
-| `--format` / `--dry-run` clap friction | **T314** Planned (full F-list 2026-08-28) |
+| `sync query` ledger phrase→fuzzy opacity | **T313 Completed** `#233` |
+| `--format` / `--dry-run` clap friction | **T314 Completed** `#232` |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
-| `graph neighbors` RECALLS spam | **T317** Pending |
+| `graph neighbors` RECALLS spam | **T317** Planned (full F-list 2026-08-28) |
 | `backup list` residual noise | **T318** Pending |
 | evidence/source show vault UUID | **T319** Pending |
 | unified `status` opportunity | **T320** Pending |
