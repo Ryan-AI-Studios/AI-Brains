@@ -2,6 +2,19 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T313 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F16 — source bin / hermetic prove DoD; not Complete-blocking |
+| Broad rescue token `graph` still first-seen | **Deferred** F4 — honesty of heading, not scoring / length-sort |
+| T211 `Note:` vs F7 `Note:` same prefix | **Deferred** F9 — heading differentiates; do not rename F7 |
+| ndjson still vault-only (no combined envelope) | **Deferred** F7 — contract track if ever needed |
+| Ledgerful still phrase-wraps spaces | **Deferred** F11 — other repo; T313 does not wait |
+| 10 ledger rows on rescue (no `--limit` on argv) | **Deferred** F11 — T211 vault 5 vs ledger 10 freeze |
+| T312 PATH dump-first / T325 F8 PreferRecency | **Not stolen** |
+| FEATURE TX | `a58ee509-ed84-420b-9fd0-c4112782289d` |
+
 ### T313 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
@@ -23,8 +36,8 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 | Item | Disposition |
 |------|-------------|
-| Audit `sync query` phrase→fuzzy opacity / “can’t tell which results came from where” | **Absorb** F1 / AC1–AC3 / AC8 / AC11 — heading names rescued token |
-| T271 F7 banner already prints on PATH | **Affirm** F2 exact; **reopen** as heading (generic `--- Ledgerful Ledger Search ---` over 10-row `graph` table) |
+| Audit `sync query` phrase→fuzzy opacity / “can’t tell which results came from where” | **Resolved** T313 implement — heading names rescued token |
+| T271 F7 banner already prints on PATH | **Resolved** T313 heading `(rescued token: '<tok>')`; F2 banner exact |
 | T271 F6 first-seen + cap 3 | **Affirm** F4 — no scoring / no skip-`graph` |
 | T273 `--` / T271 F5 no FTS-quote | **Affirm** F5 / F6 |
 | T231 always-pretty / ndjson vault-only | **Affirm** F7 — no combined JSON (no key exists) |

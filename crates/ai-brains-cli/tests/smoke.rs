@@ -125,6 +125,47 @@ fn sync_query__no_bridge__skips_ledgerful_section() {
     );
 }
 
+/// T313 AC14: `--format ndjson` without `--no-bridge` still has no ledger heading.
+/// (Existing ndjson hermetics use `--no-bridge` + JSON parse and cannot see a leak.)
+#[test]
+#[allow(non_snake_case)]
+fn sync_query__format_ndjson__no_ledger_heading() {
+    let dir = tempdir().unwrap();
+    let vault_path = dir.path().join("vault.db");
+
+    init_vault(&vault_path);
+    ingest_turn(
+        &vault_path,
+        PROJECT_ALPHA,
+        SESSION_1,
+        "T313 ndjson no ledger heading seed content.",
+    );
+
+    let output = common::hermetic_bin()
+        .env("AI_BRAINS_PROJECT_ID", PROJECT_ALPHA)
+        .arg("--vault-path")
+        .arg(&vault_path)
+        .arg("--no-project-context")
+        .arg("sync")
+        .arg("query")
+        .arg("ndjson no ledger heading seed")
+        .arg("--format")
+        .arg("ndjson")
+        .output()
+        .expect("sync query must run");
+
+    assert!(
+        output.status.success(),
+        "sync query --format ndjson must exit 0; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("Ledgerful Ledger Search"),
+        "ndjson must not emit the ledger pane heading; got: {stdout}"
+    );
+}
+
 /// T124: `sync query --no-bridge --format ndjson` emits only local records.
 #[test]
 #[allow(non_snake_case)]

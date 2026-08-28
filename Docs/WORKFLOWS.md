@@ -313,7 +313,7 @@ ai-brains sync query "auth middleware" --format ndjson --no-bridge
 What you should see:
 
 - `recall` / `search` pretty: `Scope:` + hits (or empty next-step including a `sync query` tip when you need the ledger pane). `--format text` is pretty (same as `sync query --format text`).
-- `sync query` pretty: `--- AI-Brains Recall ---` vault block + optional `--- Ledgerful Ledger Search ---`.
+- `sync query` pretty: `--- AI-Brains Recall ---` vault block + optional `--- Ledgerful Ledger Search ---` (or `--- Ledgerful Ledger Search (rescued token: '<tok>') ---` when token rescue fires).
 - `query progressive`: JSON `ProgressiveQueryResponse`. Deny → exit **3**, `denied: true`, bootstrap + ungoverned `recall` hint. Authorized empty → exit **0**, `denied: false`, `results: []`, `next_step` names `recall` (empty governed ≠ empty vault).
 - Missing/invalid project on `sync query` → `Scope: project=(none)` (vault-wide), not a random UUID.
 - Invalid `AI_BRAINS_PROJECT_ID` on `recall` / `search` → clap exit **2** (env parse); on `sync query` → exit **0** with `project=(none)`.

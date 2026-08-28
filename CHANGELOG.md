@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T313 `sync query` rescued heading:** When T271 token rescue produces ledger hits, the pane heading is `--- Ledgerful Ledger Search (rescued token: '<tok>') ---` (plus the locked F7 banner). Phrase hits / misses keep the generic heading. ndjson remains vault-only (no ledger pane). Docs: CAPABILITIES / OPERATIONS / WORKFLOWS.
+
 - **T315 Preflight empty-decisions next-step:** `preflight --summary` when `In context decisions` is **0** prints exact `next: ai-brains recall "what did we decide"` after the word-count line (before the footer). Human label `Total Word Count:` → `Budget window words:` (JSON key `word_count` unchanged). JSON optional `next_step` is that SOOT when T241 did not set bootstrap (incomplete grants still win). Docs: CAPABILITIES summary rows; PROTOCOL-COMPAT optional `next_step` sources (T241 bootstrap **or** T315 empty-decisions); no new required keys.
 
 - **T314 Clap `--format` / `--dry-run` unify:** `query expand` accepts T291 token set `auto\|pretty\|human\|text\|json\|markdown\|md` (default **json**; case-sensitive; `JSON`/`Pretty` exit **2**). `--format human` prints `kind` then `preview` (not JSON; not a wire contract); omitted stays `HandlePreviewDto` + CLI `applied_scope`. `query progressive` / `briefing project|personal`: bare `--dry-run` parses true; `--dry-run false` still persists (T291 SOOT); omitted stays true. Progressive still has **no** `--format` (T290 F10). `project scan-roots --dry-run` accepted as a no-op (already dry-run-only; keys frozen). Docs: CAPABILITIES split progressive vs expand/trace; PROTOCOL-COMPAT **adds** `query expand` row.
