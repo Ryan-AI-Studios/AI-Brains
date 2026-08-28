@@ -767,6 +767,97 @@ fn authority_dump_fixture(vault: &Path) -> String {
     memory_id
 }
 
+/// T317 AC14: human neighbors caps RECALLS at 3 + footer; keeps non-RECALLS.
+#[cfg(feature = "graph")]
+#[test]
+fn graph_neighbors__human__caps_recalls_with_footer() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_node(&vault, "memory", "hub").expect("hub");
+    seed_node(&vault, "memory", "synth-child").expect("synth child");
+    seed_edge(&vault, "hub", "SYNTHESIZED_FROM", "synth-child").expect("synth edge");
+    for i in 0..5 {
+        let sid = format!("sess-{i:02}");
+        seed_session_recall(&vault, &sid, "hub").expect("RECALLS");
+    }
+
+    let pretty = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg("hub")
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("neighbors human");
+    assert_eq!(
+        pretty.status.code(),
+        Some(0),
+        "human exit; stderr={}",
+        String::from_utf8_lossy(&pretty.stderr)
+    );
+    let out = String::from_utf8_lossy(&pretty.stdout);
+    assert!(
+        out.starts_with("Neighbors of hub (6)"),
+        "header must be full 1-hop count; got: {out}"
+    );
+    let data: Vec<&str> = out
+        .lines()
+        .filter(|l| l.starts_with("in ") || l.starts_with("out"))
+        .collect();
+    assert_eq!(data.len(), 4, "3 RECALLS + 1 SYNTHESIZED_FROM; got: {out}");
+    assert!(
+        data.iter().any(|l| l.contains("SYNTHESIZED_FROM")),
+        "non-RECALLS must stay; got: {out}"
+    );
+    assert!(
+        out.contains("+2 more RECALLS"),
+        "RECALLS footer required; got: {out}"
+    );
+}
+
+/// T317 AC9: JSON lists all RECALLS (no pretty cap). Green-on-arrival / stay-green.
+#[cfg(feature = "graph")]
+#[test]
+fn graph_neighbors__json__no_recalls_cap() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    seed_node(&vault, "memory", "hub").expect("hub");
+    for i in 0..5 {
+        let sid = format!("sess-{i:02}");
+        seed_session_recall(&vault, &sid, "hub").expect("RECALLS");
+    }
+
+    let json = common::hermetic_vault(&vault)
+        .arg("graph")
+        .arg("neighbors")
+        .arg("hub")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("neighbors json");
+    assert_eq!(
+        json.status.code(),
+        Some(0),
+        "json exit; stderr={}",
+        String::from_utf8_lossy(&json.stderr)
+    );
+    let parsed: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&json.stdout).trim()).expect("parse");
+    let neighbors = parsed["neighbors"].as_array().expect("neighbors array");
+    assert!(
+        neighbors.len() >= 4,
+        "JSON must list all 1-hop; got len={} {parsed}",
+        neighbors.len()
+    );
+    let recalls = neighbors.iter().filter(|h| h["label"] == "RECALLS").count();
+    assert!(
+        recalls >= 4,
+        "JSON must not cap RECALLS; recalls={recalls} {parsed}"
+    );
+}
+
 /// T293 AC3: pretty first data row is authority, not dump UUID / Objective.
 #[cfg(feature = "graph")]
 #[test]

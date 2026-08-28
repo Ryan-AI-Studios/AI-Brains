@@ -3225,7 +3225,7 @@ enum MigrateCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged).\nSession PREVIEW is {n} memories · first line.\nHuman prefer-fills authority 1-hop (DECISION/CONSTRAINT/INVARIANT/HOTSPOT); JSON order unchanged (direction→label→id)."
+    after_help = "Examples:\n  ai-brains graph neighbors <memory-id>\n  ai-brains graph neighbors <memory-id> --format json\nTTY/auto prints a table; --format json is compact (keys unchanged).\nSession PREVIEW is {n} memories · first line.\nHuman prefer-fills authority 1-hop (DECISION/CONSTRAINT/INVARIANT/HOTSPOT); JSON order unchanged (direction→label→id).\nHuman table caps RECALLS at 3 and prints +N more RECALLS; JSON lists all 1-hop. Hierarchy leaf pretty may add next: ai-brains nightly --status."
 )]
 pub enum GraphCommands {
     /// Rebuild graph from all events

@@ -123,8 +123,7 @@ pub(crate) fn pretty_no_neighbors(id: &str) -> String {
 }
 
 pub(crate) fn pretty_hierarchy_leaf() -> String {
-    // T317 F2: second line added in green; keep first line exact for AC9 / hermetic contains.
-    "No SYNTHESIZED_FROM children (leaf).".to_string()
+    "No SYNTHESIZED_FROM children (leaf).\nnext: ai-brains nightly --status".to_string()
 }
 
 /// T317 F1: human-only RECALLS display cap (after T293 prefer-authority).
@@ -132,12 +131,25 @@ pub(crate) const RECALLS_PRETTY_CAP: usize = 3;
 
 /// Keep all non-`RECALLS` rows; keep the first `RECALLS_PRETTY_CAP` `RECALLS` in order.
 /// Returns `(kept, recalls_hidden)`. Label match is exact `"RECALLS"`.
-///
-/// **Red stub (T317):** identity — returns all rows and `0` hidden until green.
 pub(crate) fn cap_recalls_pretty_rows(
     rows: &[PrettyNeighborRow],
 ) -> (Vec<PrettyNeighborRow>, usize) {
-    (rows.to_vec(), 0)
+    let mut kept = Vec::with_capacity(rows.len());
+    let mut recalls_kept = 0usize;
+    let mut recalls_hidden = 0usize;
+    for row in rows {
+        if row.label == "RECALLS" {
+            if recalls_kept < RECALLS_PRETTY_CAP {
+                kept.push(row.clone());
+                recalls_kept += 1;
+            } else {
+                recalls_hidden += 1;
+            }
+        } else {
+            kept.push(row.clone());
+        }
+    }
+    (kept, recalls_hidden)
 }
 
 pub(crate) fn pretty_session_empty() -> String {
@@ -573,7 +585,6 @@ pub fn neighbors(
         }
         let mut rows = pretty_neighbor_rows(ctx, &searcher, &hits)?;
         prefer_authority_neighbor_rows(&mut rows);
-        // T317 green wires cap here; red keeps uncapped prefer output (stub is identity).
         let full_hop_count = rows.len();
         let (kept, recalls_hidden) = cap_recalls_pretty_rows(&rows);
         print!(
@@ -1558,12 +1569,12 @@ mod tests {
             .map(|i| pretty_row("session", &format!("s-{i}"), "1 memories · dump"))
             .collect();
         let text = format_neighbors_pretty("root", &rows, 2, 10, 7);
-        let limit_pos = text
-            .find("… and 2 more")
-            .expect(&format!("limit footer missing: {text}"));
-        let recalls_pos = text
-            .find("+7 more RECALLS")
-            .expect(&format!("RECALLS footer missing: {text}"));
+        let limit_pos = text.find("… and 2 more").unwrap_or_else(|| {
+            panic!("limit footer missing: {text}");
+        });
+        let recalls_pos = text.find("+7 more RECALLS").unwrap_or_else(|| {
+            panic!("RECALLS footer missing: {text}");
+        });
         assert!(
             limit_pos < recalls_pos,
             "limit line must precede RECALLS footer; got: {text}"
