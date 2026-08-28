@@ -347,6 +347,9 @@ pub fn rerank_hits_with_query(hits: &mut Vec<RecallHit>, query: Option<&str>) {
             }
             if crate::session_chrome::is_session_chrome(&hit.content) {
                 effective -= SESSION_CHROME_PENALTY;
+            } else if crate::session_chrome::is_verbose_other_dump(&hit.content) {
+                // T312 F6/F7: verbose-Other −16 once; never stack with chrome.
+                effective -= crate::session_chrome::DUMP_OTHER_PENALTY;
             }
             if let Some(q) = query {
                 let tokens = contentful_tokens(&extract_fts_tokens(q));
@@ -1033,6 +1036,124 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         assert_eq!(hits[1].memory_id, "mem-chrome");
+    }
+
+    /// T312 AC2: verbose-Other dump (no chrome) loses to pin with no first-line
+    /// query overlap (F6 load-bearing; no LEADING_QUERY_BONUS).
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits_with_query__verbose_other_dump_loses_to_pin__ac2() {
+        let dump_body = format!(
+            "All non-destructive commands tested against the live vault.\n{}",
+            "pad ".repeat(400)
+        );
+        assert!(
+            dump_body.chars().count() >= crate::session_chrome::DUMP_OTHER_CHAR_FLOOR,
+            "AC2 fixture must meet DUMP_OTHER_CHAR_FLOOR"
+        );
+        let mut hits = vec![
+            hit("mem-dump", &dump_body, Some(-4.06), None),
+            hit(
+                "mem-pin",
+                "DECISION: sqlite projector stays native",
+                Some(-1.0),
+                None,
+            ),
+        ];
+        rerank_hits_with_query(&mut hits, Some("graph backend"));
+        assert_eq!(
+            hits[0].memory_id,
+            "mem-pin",
+            "AC2: pin must beat verbose-Other without query-token overlap; order={:?}",
+            hits.iter()
+                .map(|h| h.memory_id.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// T312 AC3: short Other crumb (&lt;800) stays index 0 vs no-overlap pin.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits_with_query__short_other_crumb_stays_first__ac3() {
+        let crumb = "short crumb about vault commands. pad pad pad pad pad pad pad pad";
+        assert!(
+            crumb.chars().count() < crate::session_chrome::DUMP_OTHER_CHAR_FLOOR,
+            "AC3 crumb must be under floor"
+        );
+        let mut hits = vec![
+            hit("mem-crumb", crumb, Some(-4.0), None),
+            hit(
+                "mem-pin",
+                "DECISION: sqlite projector stays native",
+                Some(-1.0),
+                None,
+            ),
+        ];
+        rerank_hits_with_query(&mut hits, Some("graph backend"));
+        assert_eq!(
+            hits[0].memory_id,
+            "mem-crumb",
+            "AC3: short crumb remains index 0; order={:?}",
+            hits.iter()
+                .map(|h| h.memory_id.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// T312 AC17: chrome long dump takes −16 once (F6 must not stack).
+    ///
+    /// Discriminator: BM25 −20 chrome vs Other at −3.8. With −16 once,
+    /// chrome effective ≈ 4.0 beats Other 3.8. With a stacked −32,
+    /// chrome effective ≈ −12 loses — so order proves single penalty.
+    #[test]
+    #[allow(non_snake_case)]
+    fn rerank_hits__chrome_long_dump__penalty_once__ac17() {
+        let chrome = format!("## Objective\n{}", "x".repeat(2000));
+        let mut pair = vec![
+            hit("chrome", &chrome, Some(-20.0), None),
+            hit("other", "tiny other crumb", Some(-3.8), None),
+        ];
+        rerank_hits_with_query(&mut pair, None);
+        assert_eq!(
+            pair[0].memory_id,
+            "chrome",
+            "AC17: −16 once keeps BM25−20 chrome ahead of Other−3.8; stacked −32 would lose; order={:?}",
+            pair.iter()
+                .map(|h| h.memory_id.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// T312 F39: exact 799 vs 800 char boundary for verbose-Other.
+    #[test]
+    #[allow(non_snake_case)]
+    fn is_verbose_other_dump__char_floor_boundary__f39() {
+        let under: String = "a".repeat(799);
+        let at: String = "a".repeat(800);
+        assert_eq!(under.chars().count(), 799);
+        assert_eq!(at.chars().count(), 800);
+        assert!(
+            !crate::session_chrome::is_verbose_other_dump(&under),
+            "F39: 799 chars must not be verbose-Other"
+        );
+        assert!(
+            crate::session_chrome::is_verbose_other_dump(&at),
+            "F39: 800 chars must be verbose-Other"
+        );
+    }
+
+    /// T312 AC16: frozen KIND / chrome / depth / floors.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ranking_consts__kind_chrome_depth_floors__frozen__ac16() {
+        assert!((KIND_DECISION - 2.0).abs() < f64::EPSILON);
+        assert!((KIND_CONSTRAINT - 4.0).abs() < f64::EPSILON);
+        assert!((SESSION_CHROME_PENALTY - 16.0).abs() < f64::EPSILON);
+        assert_eq!(crate::hybrid::candidate_depth(5), 15);
+        assert!((crate::hybrid::SEMANTIC_MIN_COSINE - 0.55).abs() < f64::EPSILON);
+        assert!((crate::hybrid::SEMANTIC_ONLY_MIN_COSINE - 0.60).abs() < f64::EPSILON);
+        assert_eq!(crate::session_chrome::DUMP_OTHER_CHAR_FLOOR, 800);
+        assert!((crate::session_chrome::DUMP_OTHER_PENALTY - 16.0).abs() < f64::EPSILON);
     }
 
     /// T274 AC1: leading markers only. Buried `decision:` / JSON keys → Other.

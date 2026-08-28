@@ -4,11 +4,21 @@
 
 use crate::ranking::{PinKind, classify_pin_kind, first_contentful_line, strip_assistant_prefix};
 use crate::recall::RecallHit;
+use ai_brains_core::extract_fts_tokens;
 use std::collections::BTreeSet;
 
 /// Composite penalty applied in [`crate::ranking::rerank_hits`] when the detector
 /// is true (same scale as [`crate::ranking::SYMBOL_PENALTY`]).
 pub const SESSION_CHROME_PENALTY: f64 = 16.0;
+
+/// Char floor for verbose-Other dump penalty (T312 F39). Unicode scalar values.
+pub const DUMP_OTHER_CHAR_FLOOR: usize = 800;
+
+/// Verbose-Other penalty — same magnitude as [`SESSION_CHROME_PENALTY`] (T312 F6).
+pub const DUMP_OTHER_PENALTY: f64 = SESSION_CHROME_PENALTY;
+
+/// ATX-heading chrome tokens (ASCII case-insensitive). Token set, not substring.
+const ATX_CHROME_TOKENS: &[&str] = &["review", "objective", "onboarding", "audit", "ratings"];
 
 /// True for closed-list harness session dumps (first contentful line).
 pub fn is_session_chrome(content: &str) -> bool {
@@ -40,7 +50,29 @@ pub fn is_session_chrome(content: &str) -> bool {
         .chars()
         .take(500)
         .collect();
-    line.starts_with('{') && head.contains("\"decisions\":")
+    if line.starts_with('{') && head.contains("\"decisions\":") {
+        return true;
+    }
+    // T312 F5: ATX heading whose FTS tokens include a chrome token (not substring).
+    is_atx_chrome_heading(line)
+}
+
+/// ATX heading (`#…`) whose `extract_fts_tokens` hit the closed chrome token set.
+fn is_atx_chrome_heading(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    if !trimmed.starts_with('#') {
+        return false;
+    }
+    extract_fts_tokens(line)
+        .iter()
+        .any(|t| ATX_CHROME_TOKENS.contains(&t.to_ascii_lowercase().as_str()))
+}
+
+/// Other-class non-chrome content at/above [`DUMP_OTHER_CHAR_FLOOR`] (T312 F6).
+pub fn is_verbose_other_dump(content: &str) -> bool {
+    classify_pin_kind(content) == PinKind::Other
+        && !is_session_chrome(content)
+        && content.chars().count() >= DUMP_OTHER_CHAR_FLOOR
 }
 
 /// Leading DECISION / CONSTRAINT / INVARIANT (F3 maps INVARIANT → Constraint).
@@ -174,11 +206,12 @@ pub fn dedupe_session_chrome(hits: &mut Vec<RecallHit>) {
     });
 }
 
-/// T285 F36: chrome-shaped parents must not seed graph neighbors.
+/// T285 F36 / T312 F10: chrome and verbose-Other parents must not seed graph.
 ///
-/// True for authority pins (after envelope). False for session chrome.
+/// True for authority pins and short Other crumbs. False for session chrome
+/// and verbose-Other dumps (≥ [`DUMP_OTHER_CHAR_FLOOR`] chars).
 pub fn parent_seeds_graph_neighbors(content: &str) -> bool {
-    !is_session_chrome(content)
+    !is_session_chrome(content) && !is_verbose_other_dump(content)
 }
 
 /// Authority hits first (relative order preserved), then others, cap `depth` (F9).
@@ -259,6 +292,24 @@ mod tests {
         );
     }
 
+    /// T312 AC1: ATX token set (not substring `contains("review")`).
+    #[rstest]
+    #[case("# Review of Track 253", true)]
+    #[case("## Objective", true)]
+    #[case("## Ratings\nbody", true)]
+    #[case("# AI-Brains Onboarding", true)]
+    #[case("# Track plan audit", true)]
+    #[case("DECISION: we chose X", false)]
+    #[case("# Heading without chrome prefixes", false)]
+    #[case("# Preview of graph backend", false)]
+    fn is_session_chrome__atx_tokens__ac1(#[case] content: &str, #[case] expected: bool) {
+        assert_eq!(
+            is_session_chrome(content),
+            expected,
+            "AC1 content={content:?}"
+        );
+    }
+
     #[test]
     fn parent_seeds_graph_neighbors__chrome_false_authority_true__ac6() {
         assert!(
@@ -284,6 +335,35 @@ mod tests {
         assert!(
             parent_seeds_graph_neighbors("ASSISTANT: TAGS: t\nDECISION: we chose X"),
             "AC6: tagged DECISION may seed"
+        );
+    }
+
+    /// T312 AC6: verbose-Other must not seed; short Other may.
+    #[test]
+    fn parent_seeds_graph_neighbors__verbose_other__false__ac6() {
+        let verbose = format!(
+            "All non-destructive commands tested against the live vault. {}",
+            "x".repeat(DUMP_OTHER_CHAR_FLOOR)
+        );
+        assert!(
+            verbose.chars().count() >= DUMP_OTHER_CHAR_FLOOR,
+            "fixture must meet floor"
+        );
+        assert!(
+            !parent_seeds_graph_neighbors(&verbose),
+            "AC6: verbose-Other must not seed"
+        );
+        assert!(
+            !parent_seeds_graph_neighbors("## Objective\nbody"),
+            "AC6: chrome still must not seed"
+        );
+        assert!(
+            parent_seeds_graph_neighbors("DECISION: we chose X"),
+            "AC6: authority may seed"
+        );
+        assert!(
+            parent_seeds_graph_neighbors("short other crumb under floor"),
+            "AC6: short Other < 800 may seed"
         );
     }
 

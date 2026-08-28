@@ -81,6 +81,7 @@ pub fn lexical_search(
         limit,
         opts.exclude_symbol_stubs,
         opts.prefer_authority,
+        raw_query,
     )?;
     if !results.is_empty() {
         return Ok(results);
@@ -113,6 +114,7 @@ pub fn lexical_search(
             limit,
             opts.exclude_symbol_stubs,
             opts.prefer_authority,
+            raw_query,
         )?;
         if !results.is_empty() {
             return Ok(results);
@@ -136,6 +138,7 @@ pub fn lexical_search(
             limit,
             opts.exclude_symbol_stubs,
             opts.prefer_authority,
+            raw_query,
         )?;
     }
 
@@ -156,6 +159,11 @@ enum AuthorityFilter {
 ///
 /// When `prefer_authority` is true (recall path), T274 two-pass: authority GLOB
 /// `LIMIT depth`, then fill remainder excluding pass-1 ids (F7 / F35).
+///
+/// T312 F8: when AND + recency retain is empty and `raw_query` has ≥2 contentful
+/// tokens, Prefer MATCH once more with `match_or` before pass-2 AND fill.
+/// `raw_query` is threaded so OR tokens are not reverse-parsed from `match_expr`.
+#[allow(clippy::too_many_arguments)]
 fn match_query(
     conn: &VaultConnection,
     match_expr: &str,
@@ -164,6 +172,7 @@ fn match_query(
     limit: usize,
     exclude_symbol_stubs: bool,
     prefer_authority: bool,
+    raw_query: &str,
 ) -> Result<Vec<RetrievalMemory>> {
     if match_expr.is_empty() {
         return Ok(Vec::new());
@@ -203,6 +212,44 @@ fn match_query(
                 return Ok(retain);
             }
         }
+        // T312 F8 / F40 / F41: authority-OR fill when retain still empty.
+        // When F8 runs, pass-2 must also use the OR expr — AND pass-2 would be
+        // empty whenever Prefer-AND was empty (T260 `--symbols` mix; live dumps
+        // still OR-match either token).
+        let mut pass2_expr = match_expr.to_string();
+        if retain.is_empty() {
+            let contentful = contentful_tokens(&extract_fts_tokens(raw_query));
+            if contentful.len() >= 2 {
+                let or_tokens = select_or_tokens(&contentful);
+                let or_expr = match_or(&or_tokens);
+                if !or_expr.is_empty() {
+                    tracing::debug!(
+                        stage = "prefer_or",
+                        or_token_count = or_tokens.len(),
+                        "FTS authority-OR fill after empty AND retain"
+                    );
+                    let or_pass = match_query_filtered(
+                        conn,
+                        &or_expr,
+                        project_id,
+                        session_id,
+                        limit,
+                        exclude_symbol_stubs,
+                        AuthorityFilter::Prefer,
+                    )?;
+                    retain = or_pass
+                        .into_iter()
+                        .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
+                        .collect();
+                    if retain.len() >= limit {
+                        return Ok(retain);
+                    }
+                    if !retain.is_empty() {
+                        pass2_expr = or_expr;
+                    }
+                }
+            }
+        }
         let remainder = limit.saturating_sub(retain.len());
         if remainder == 0 {
             return Ok(retain);
@@ -210,7 +257,7 @@ fn match_query(
         let ids: Vec<String> = retain.iter().map(|m| m.memory_id.clone()).collect();
         let pass2 = match_query_filtered(
             conn,
-            match_expr,
+            &pass2_expr,
             project_id,
             session_id,
             remainder,
@@ -569,6 +616,38 @@ mod unit_tests {
         assert!(
             retry.contains("TAGS:"),
             "AC15: recency-retry keeps TAGS GLOB; got {retry}"
+        );
+    }
+
+    /// T312 AC15: authority-OR MATCH expr has ` OR `; Prefer SQL stays GLOB/TAGS/LIMIT + `?` only.
+    #[test]
+    fn authority_or_sql__or_glob_tags_limit_placeholders__ac15() {
+        let contentful = contentful_tokens(&extract_fts_tokens("t312or backend"));
+        assert_eq!(contentful.len(), 2, "F42: exactly 2 contentful tokens");
+        let or_expr = match_or(&select_or_tokens(&contentful));
+        assert!(
+            or_expr.contains(" OR "),
+            "AC15: OR MATCH expr must contain OR; got {or_expr}"
+        );
+        let prefer = match_pass_sql_for_test(true, 0);
+        assert!(
+            prefer.contains("GLOB") && prefer.contains("TAGS:") && prefer.contains("LIMIT"),
+            "AC15: Prefer SQL has GLOB + TAGS + LIMIT; got {prefer}"
+        );
+        assert!(
+            prefer.contains('?'),
+            "AC15: Prefer SQL uses ? placeholders; got {prefer}"
+        );
+        // No hyphenated UUID literals in the SQL template.
+        let without_glob_lits = prefer
+            .replace("DECISION:", "")
+            .replace("CONSTRAINT:", "")
+            .replace("INVARIANT:", "")
+            .replace("ASSISTANT: ", "")
+            .replace("TAGS:", "");
+        assert!(
+            !without_glob_lits.contains('-'),
+            "AC15: no UUID literals in Prefer SQL; got {prefer}"
         );
     }
 }
