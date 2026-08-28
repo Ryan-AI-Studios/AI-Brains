@@ -6,9 +6,25 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s open residuals. Full F-list on `/plan-track TNN`. **Do not implement Placeholders.** last-PR Cursor **#229** empty. Series README `conductor/tracks/README-T312-T324-CLI-DOGFOOD.md`. Series DOCS TX `a6d3c404-1d64-4cba-a743-d75ac16c74cd`.
 
+### T312 full plan (2026-08-27) — authority-OR fill + verbose-Other penalty
+
 | Item | Disposition |
 |------|-------------|
-| Audit recall rank still dump-first (T285 shipped) | **T312** Pending |
+| Audit recall rank still dump-first (T285 shipped) | **Absorb** F5/F6/F8 / AC1–AC6 / AC12 |
+| Live `graph backend` AND-retain empty (JSON `--limit 15` **n=3**) | **Absorb** F8 — T217 R0-non-empty + 2-token skip |
+| Prose dump #1 not chrome (`All non-destructive…` **−4.06**) | **Absorb** F6 `DUMP_OTHER_CHAR_FLOOR=800` |
+| `# Preview` substring false-hit | **F5** token set, not `contains("review")` |
+| T285 “more chrome prefixes as vault grows” | **Absorb** F5 ATX tokens; decline infinite prose prefixes |
+| T217 OR helpers | **Partial** reuse; **F9** gate unchanged |
+| T218 floors / `candidate_depth` / KIND bump | **Decline** F4 |
+| T315 / T313 / T317 / T316 | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 | **Not stolen** / **Decline** |
+| last-PR `#229` Cursor | **N/A empty** — no T325 |
+| DOCS TX | `8b1b418b-acbb-4398-b867-7ea297d10e41` |
+
+| Item | Disposition |
+|------|-------------|
+| Audit recall rank still dump-first (T285 shipped) | **T312** Planned (full plan 2026-08-27; Pending until go) |
 | `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
 | `--format` / `--dry-run` clap friction | **T314** Pending |
 | preflight 0/0/0 + word count | **T315** Pending |

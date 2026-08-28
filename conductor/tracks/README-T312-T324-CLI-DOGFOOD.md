@@ -1,7 +1,7 @@
 # T312–T324 — Post-T311 live CLI dogfood (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-27** on PATH graph-on `ai-brains` **0.1.3** (elevated install 2026-08-27 **05:52**; CLI **26,842,112** B). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; pinned **4510**; grants **3 of 3**. Agent non-TTY (pipe → JSON). Plus **entire** `conductor/deferred.md` open residuals that still deserve a track.
-**Status:** **Placeholders only.** Full F-list on `/plan-track TNN`. Do **not** implement. **T307 stays Blocked.** **T311 Completed** (`#229` `a1d4081`).
+**Status:** **T312 Planned** (full F-list 2026-08-27, DOCS `8b1b418b`). T313–T324 still placeholders. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229` `a1d4081`).
 **HEAD at mint:** `a1d4081` `feat(cli): T311 decision in-force resolver (#229)`. Tree **CLEAN** (product). `origin/main` in sync.
 **Ledger (registration):** DOCS TX filled at commit (see deferred.md header).
 **last-PR Cursor:** [#229](https://github.com/Ryan-AI-Studios/AI-Brains/pull/229) — `pulls/229/comments`, `/reviews` both **`[]`**. **N/A empty.** No extra leftover track.
@@ -17,7 +17,7 @@ Live re-check this pass (PATH 0.1.3, cwd `C:\dev\AI-Brains`):
 | `query expand` clap | No `--format`. `query progressive --dry-run` is `ArgAction::Set` (requires `true`/`false`). `project scan-roots` has no `--dry-run` (always dry-run). |
 | `memory list` | stderr F36 forget nudge. Previews still first-line ingest. |
 | backup list | T295 left ≥1 usable; Default table still lists residual fleet; F6 one-line stderr summary exists. |
-| T311 PATH | Install **05:52** predates `#229` merge **23:33Z** — PATH may lack `decision in-force`. Ranking hole is in **source + PATH**. Do **not** `cargo install` as planning. |
+| T311 PATH | Owner reinstall **2026-08-27 8:21:55 PM** **26,897,408** B (mint was 05:52 / 26,842,112 B). Ranking hole is still **source + PATH** (T285 on PATH; T312 not). Do **not** `cargo install` as planning. |
 
 Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1**; rusqlite **0.40.2**; workspace **0.1.3**.
 
@@ -25,7 +25,7 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 
 | Finding | U/Q or class | Track | Pri |
 |---------|--------------|-------|-----|
-| `recall` / `--semantic` still rank review dumps over DECISION pins; negative BM25 can lead | 9/**8** FTS but finding #2; `--semantic` 9/**7** | **T312** | P0 |
+| `recall` / `--semantic` still rank review dumps over DECISION pins; negative BM25 can lead | 9/**8** FTS but finding #2; `--semantic` 9/**7** | **T312 Planned** | P0 |
 | `sync query` ledger pane silently phrase-miss → fuzzy token rescue; provenance opaque | 8/**7** | **T313** | P1 |
 | `--format` missing on `query expand`; `--dry-run` requires a value on `query progressive`; `scan-roots` rejects `--dry-run` | friction (5 clap errors) | **T314** | P1 |
 | `preflight --summary` 0/0/0 + opaque `Total Word Count`; no “run X to populate” | 8/**7** | **T315** | P0 |
