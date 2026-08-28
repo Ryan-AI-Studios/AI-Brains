@@ -52,76 +52,76 @@
 
 ## Phase 0 — on go (re-verify + deferred rescan)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
-- [ ] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
-- [ ] Re-read `GovernedQueryCommands::{Progressive,Expand,Trace}` and `BriefingCommands` dry_run attrs
-- [ ] Re-read `ProjectCommands::ScanRoots` + dispatch `:5251`
-- [ ] Re-read `TRACE_MISSING_NEXT_STEP` / `TRACE_PROGRESSIVE_PERSIST` (`governed_query.rs:29–34`)
-- [ ] Re-read `run_expand` `:169–219` and `missing_trace_is_human` `:242–248`
-- [ ] Confirm clap lock still **4.6.1** (or note drift); `#5912` still in-tree (`num_args 0..=1` legal)
-- [ ] Rescan `deferred.md` open overlapping rows
-- [ ] Confirm T325 placeholder still Pending (do not steal F8 recency)
-- [ ] Confirm T290 F10 still no progressive `--format`
-- [ ] `ledgerful ledger start T314-clap-flag-unify --category FEATURE`
-- [ ] **Do not** `cargo install` / live production `pin` / `.env` rewrite / clap 5 bump in Phase 0
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact`
+- [x] Confirm cwd `C:\dev\AI-Brains` (not Helping Hands)
+- [x] Re-read `GovernedQueryCommands::{Progressive,Expand,Trace}` and `BriefingCommands` dry_run attrs
+- [x] Re-read `ProjectCommands::ScanRoots` + dispatch `:5251`
+- [x] Re-read `TRACE_MISSING_NEXT_STEP` / `TRACE_PROGRESSIVE_PERSIST` (`governed_query.rs:29–34`)
+- [x] Re-read `run_expand` `:169–219` and `missing_trace_is_human` `:242–248`
+- [x] Confirm clap lock still **4.6.1** (or note drift); `#5912` still in-tree (`num_args 0..=1` legal)
+- [x] Rescan `deferred.md` open overlapping rows
+- [x] Confirm T325 placeholder still Pending (do not steal F8 recency)
+- [x] Confirm T290 F10 still no progressive `--format`
+- [x] `ledgerful ledger start T314-clap-flag-unify --category FEATURE`
+- [x] **Do not** `cargo install` / live production `pin` / `.env` rewrite / clap 5 bump in Phase 0
 
 ## Phase 1 — Red
 
-- [ ] `query_progressive__dry_run_bare__parses_true` (AC1)
-- [ ] `query_progressive__dry_run_false__parses_false` + omitted default true (AC2)
-- [ ] `briefing_project__dry_run_bare__parses_true` + `briefing_personal__dry_run_bare__parses_true` (AC3)
-- [ ] `query_expand__format_json__parses` + human + default json (AC4)
-- [ ] `query_expand__format_JSON__clap_invalid_value` + xml (AC5)
-- [ ] `scan_roots__dry_run__parses` (AC6)
-- [ ] Hermetic AC10 expand `--format human` two lines
-- [ ] Hermetic AC11 progressive bare `--dry-run` deny
-- [ ] Confirm those tests **fail** on current tree (Set requires value; expand has no `--format`; scan-roots unknown arg)
-- [ ] **Write AC7** `query_progressive__format_json__unexpected_argument` (green-on-arrival — passes on HEAD; OpenCode m1: do **not** skip as stay-green)
-- [ ] AC8 T291 freeze + AC9 expand JSON unknown are **stay-green** (not Phase-1 red)
+- [x] `query_progressive__dry_run_bare__parses_true` (AC1)
+- [x] `query_progressive__dry_run_false__parses_false` + omitted default true (AC2)
+- [x] `briefing_project__dry_run_bare__parses_true` + `briefing_personal__dry_run_bare__parses_true` (AC3)
+- [x] `query_expand__format_json__parses` + human + default json (AC4)
+- [x] `query_expand__format_JSON__clap_invalid_value` + xml (AC5)
+- [x] `scan_roots__dry_run__parses` (AC6)
+- [x] Hermetic AC10 expand `--format human` two lines
+- [x] Hermetic AC11 progressive bare `--dry-run` deny
+- [x] Confirm those tests **fail** on current tree (Set requires value; expand has no `--format`; scan-roots unknown arg)
+- [x] **Write AC7** `query_progressive__format_json__unexpected_argument` (green-on-arrival — passes on HEAD; OpenCode m1: do **not** skip as stay-green)
+- [x] AC8 T291 freeze + AC9 expand JSON unknown are **stay-green** (not Phase-1 red)
 
 ## Phase 2 — Green
 
-- [ ] F1 attribute block on Progressive + Briefing Project + Personal (no `require_equals`)
-- [ ] F7 Expand `format: String` default `json` + Trace `value_parser`; thread through `ExpandHandleOptions` + dispatch
-- [ ] F32 `query_format_is_human`; F9 human `kind` then preview verbatim (two-line count Unknown/Denied only); JSON `emit_json` default
-- [ ] F11 ScanRoots `dry_run: bool`; discard in match; after_help sentence
-- [ ] Do **not** edit `project_paths.rs` / `project.rs` / `briefing.rs` / `governed_common.rs` / contracts
-- [ ] Do **not** add progressive `--format`
-- [ ] Do **not** change T291 consts
+- [x] F1 attribute block on Progressive + Briefing Project + Personal (no `require_equals`)
+- [x] F7 Expand `format: String` default `json` + Trace `value_parser`; thread through `ExpandHandleOptions` + dispatch
+- [x] F32 `query_format_is_human`; F9 human `kind` then preview verbatim (two-line count Unknown/Denied only); JSON `emit_json` default
+- [x] F11 ScanRoots `dry_run: bool`; discard in match; after_help sentence
+- [x] Do **not** edit `project_paths.rs` / `project.rs` / `briefing.rs` / `governed_common.rs` / contracts
+- [x] Do **not** add progressive `--format`
+- [x] Do **not** change T291 consts
 
 ## Phase 3 — Stay-green + docs
 
-- [ ] AC7 (now written) / AC8 / AC9 / AC12 scan-roots JSON keys
-- [ ] T266 scan-roots format tokens stay
-- [ ] T268 no writes / `--root` XOR
-- [ ] T290 progressive JSON-only
-- [ ] T291 missing-trace envelope + `--dry-run false` persist hermetic
-- [ ] `governed_first_run_deny_exit.rs:128` explicit `--dry-run true` still green
-- [ ] CAPABILITIES split progressive vs expand; scan-roots `--dry-run` accepted (AC13)
-- [ ] PROTOCOL-COMPAT: **add** `query expand` CLI row (HandlePreviewDto + `applied_scope`; human not a wire contract); scan-roots keys frozen
-- [ ] CHANGELOG Unreleased T314
-- [ ] after_help examples F25
+- [x] AC7 (now written) / AC8 / AC9 / AC12 scan-roots JSON keys
+- [x] T266 scan-roots format tokens stay
+- [x] T268 no writes / `--root` XOR
+- [x] T290 progressive JSON-only
+- [x] T291 missing-trace envelope + `--dry-run false` persist hermetic
+- [x] `governed_first_run_deny_exit.rs:128` explicit `--dry-run true` still green
+- [x] CAPABILITIES split progressive vs expand; scan-roots `--dry-run` accepted (AC13)
+- [x] PROTOCOL-COMPAT: **add** `query expand` CLI row (HandlePreviewDto + `applied_scope`; human not a wire contract); scan-roots keys frozen
+- [x] CHANGELOG Unreleased T314
+- [x] after_help examples F25
 
 ## Phase 4 — Manual + gate
 
-- [ ] AC14 `cargo run` parse of expand `--format json --project-id <uuid>`, progressive `--dry-run`, scan-roots `--dry-run` (PATH-behind not a fail)
-- [ ] AC15 empty diff on forbidden files
-- [ ] Review log `review.md`; medium+ not dropped
-- [ ] `codex-review` after Phase-1 clean (F23)
-- [ ] Full gate: `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings` ; `cargo nextest run --workspace` ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
-- [ ] Conductor **Completed**; `deferred.md` closeout row; FEATURE TX commit
-- [ ] implement-track Phase 6: push `track/T314-*`, PR, watch GHA `CI` green, squash-merge, prune. Never `git push origin main`.
+- [x] AC14 `cargo run` parse of expand `--format json --project-id <uuid>`, progressive `--dry-run`, scan-roots `--dry-run` (PATH-behind not a fail)
+- [x] AC15 empty diff on forbidden files
+- [x] Review log `review.md`; medium+ not dropped
+- [x] `codex-review` after Phase-1 clean (F23)
+- [x] Full gate: `cargo fmt --check` ; `cargo clippy --workspace --all-targets -- -D warnings` ; `cargo nextest run --workspace` ; `cargo deny check` ; `cargo audit` ; `ledgerful verify --scope full`
+- [x] Conductor **Completed**; `deferred.md` closeout row; FEATURE TX commit
+- [x] implement-track Phase 6: push `track/T314-*`, PR, watch GHA `CI` green, squash-merge, prune. Never `git push origin main`.
 
 ## DoD (checkable)
 
-- [ ] `query expand --format json` parses; `--format human` two lines not JSON
-- [ ] `query progressive "q" --dry-run` parses true; `--dry-run false` parses false; omitted true
-- [ ] Briefing project/personal bare `--dry-run` parses true
-- [ ] `project scan-roots --dry-run` parses; command still writes nothing
-- [ ] Progressive still has no `--format`
-- [ ] T291 `--dry-run false` string exact
-- [ ] No clap 5; no `project.rs` growth; no new DTO keys
-- [ ] Status Completed only after merge hygiene
+- [x] `query expand --format json` parses; `--format human` two lines not JSON
+- [x] `query progressive "q" --dry-run` parses true; `--dry-run false` parses false; omitted true
+- [x] Briefing project/personal bare `--dry-run` parses true
+- [x] `project scan-roots --dry-run` parses; command still writes nothing
+- [x] Progressive still has no `--format`
+- [x] T291 `--dry-run false` string exact
+- [x] No clap 5; no `project.rs` growth; no new DTO keys
+- [x] Status Completed only after merge hygiene
 
 ## Isolation
 

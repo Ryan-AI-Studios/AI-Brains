@@ -142,6 +142,28 @@ fn progressive__dry_run_no_grants__exit_3_denied_true() {
     assert_eq!(v["denied"], true, "packet={v}");
 }
 
+/// T314 AC11 — bare `--dry-run` (no value) still deny exit 3 + JSON denied true.
+#[test]
+fn progressive__dry_run_bare_no_grants__exit_3_denied_true() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let out = progressive_cmd(&vault)
+        .arg("--dry-run")
+        .output()
+        .expect("progressive bare --dry-run");
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "bare --dry-run deny must exit 3; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("stdout json");
+    assert_eq!(v["denied"], true, "packet={v}");
+}
+
 /// AC2 / AC11 — stderr CODE+bootstrap; stdout denial_hint with bootstrap; field absent when not denied (AC11 half via AC3).
 #[test]
 fn progressive__deny__stderr_code_and_hint_stdout_denial_hint() {
@@ -415,6 +437,53 @@ fn expand__seeded_no_grants__exit_3_kind_denied() {
     assert!(
         !stderr.contains("recall"),
         "expand deny must not append recall fallback (F20); got: {stderr}"
+    );
+}
+
+/// T314 AC16 — Denied `--format human`: two nonempty lines, exit 3, not JSON.
+#[test]
+fn query_expand__format_human__denied__two_lines_not_json() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let handle = seed_evidence_no_grants(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .env("AI_BRAINS_PROJECT_ID", PROJECT)
+        .arg("query")
+        .arg("expand")
+        .arg(&handle)
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("query expand denied human");
+
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "Denied human must exit 3; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let trimmed = stdout.trim_end();
+    assert!(
+        !trimmed.starts_with('{'),
+        "AC16: Denied human must not be JSON; got {trimmed:?}"
+    );
+    let lines: Vec<&str> = trimmed.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert_eq!(
+        lines.len(),
+        2,
+        "AC16: Denied human is two nonempty lines; got {lines:?}"
+    );
+    assert_eq!(lines[0], "Denied", "AC16 line 1 is DTO kind");
+    assert!(
+        !lines[1].is_empty(),
+        "AC16 line 2 must be nonempty Denied human preview"
     );
 }
 

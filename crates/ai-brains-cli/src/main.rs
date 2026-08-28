@@ -487,6 +487,249 @@ mod tests {
         }
     }
 
+    /// T314 AC1: bare `--dry-run` on progressive parses as true.
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_progressive__dry_run_bare__parses_true() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "progressive",
+            "q",
+            "--dry-run",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected progressive bare --dry-run to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Progressive { dry_run, .. },
+            } => assert!(dry_run, "bare --dry-run must be true"),
+            _ => panic!("expected Query::Progressive"),
+        }
+    }
+
+    /// T314 AC2: `--dry-run false` / `true` / omitted on progressive.
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_progressive__dry_run_false__parses_false() {
+        let false_cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "progressive",
+            "q",
+            "--dry-run",
+            "false",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected --dry-run false to parse: {e}"),
+        };
+        match *false_cli.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Progressive { dry_run, .. },
+            } => assert!(!dry_run, "--dry-run false must be false"),
+            _ => panic!("expected Query::Progressive"),
+        }
+
+        let true_cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "progressive",
+            "q",
+            "--dry-run",
+            "true",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected --dry-run true to parse: {e}"),
+        };
+        match *true_cli.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Progressive { dry_run, .. },
+            } => assert!(dry_run, "--dry-run true must be true"),
+            _ => panic!("expected Query::Progressive"),
+        }
+
+        let omitted = match super::Cli::try_parse_from(["ai-brains", "query", "progressive", "q"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected omitted --dry-run to parse: {e}"),
+        };
+        match *omitted.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Progressive { dry_run, .. },
+            } => assert!(dry_run, "omitted --dry-run must default true"),
+            _ => panic!("expected Query::Progressive"),
+        }
+    }
+
+    /// T314 AC3: bare `--dry-run` on briefing project parses as true.
+    #[test]
+    #[allow(non_snake_case)]
+    fn briefing_project__dry_run_bare__parses_true() {
+        let cli =
+            match super::Cli::try_parse_from(["ai-brains", "briefing", "project", "--dry-run"]) {
+                Ok(c) => c,
+                Err(e) => panic!("expected briefing project bare --dry-run to parse: {e}"),
+            };
+        match *cli.command {
+            super::Commands::Briefing {
+                command: super::BriefingCommands::Project { dry_run, .. },
+            } => assert!(dry_run, "bare --dry-run must be true"),
+            _ => panic!("expected Briefing::Project"),
+        }
+    }
+
+    /// T314 AC3: bare `--dry-run` on briefing personal parses as true.
+    #[test]
+    #[allow(non_snake_case)]
+    fn briefing_personal__dry_run_bare__parses_true() {
+        let cli =
+            match super::Cli::try_parse_from(["ai-brains", "briefing", "personal", "--dry-run"]) {
+                Ok(c) => c,
+                Err(e) => panic!("expected briefing personal bare --dry-run to parse: {e}"),
+            };
+        match *cli.command {
+            super::Commands::Briefing {
+                command: super::BriefingCommands::Personal { dry_run, .. },
+            } => assert!(dry_run, "bare --dry-run must be true"),
+            _ => panic!("expected Briefing::Personal"),
+        }
+    }
+
+    /// T314 AC4: expand `--format json` / human / default json.
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_expand__format_json__parses() {
+        let json_cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "expand",
+            "x",
+            "--format",
+            "json",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected expand --format json to parse: {e}"),
+        };
+        match *json_cli.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Expand { format, .. },
+            } => assert_eq!(format, "json"),
+            _ => panic!("expected Query::Expand"),
+        }
+
+        let human_cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "expand",
+            "x",
+            "--format",
+            "human",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected expand --format human to parse: {e}"),
+        };
+        match *human_cli.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Expand { format, .. },
+            } => assert_eq!(format, "human"),
+            _ => panic!("expected Query::Expand"),
+        }
+
+        let default_cli = match super::Cli::try_parse_from(["ai-brains", "query", "expand", "x"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected expand default format to parse: {e}"),
+        };
+        match *default_cli.command {
+            super::Commands::Query {
+                command: super::GovernedQueryCommands::Expand { format, .. },
+            } => assert_eq!(format, "json", "omitted --format must default json"),
+            _ => panic!("expected Query::Expand"),
+        }
+    }
+
+    /// T314 AC5: expand `--format JSON` is clap InvalidValue.
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_expand__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "expand",
+            "x",
+            "--format",
+            "JSON",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T314 AC5: expand `--format xml` is clap InvalidValue.
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_expand__format_xml__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "expand",
+            "x",
+            "--format",
+            "xml",
+        ]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T314 AC6: scan-roots `--dry-run` parses (no-op alias).
+    #[test]
+    #[allow(non_snake_case)]
+    fn scan_roots__dry_run__parses() {
+        let cli =
+            match super::Cli::try_parse_from(["ai-brains", "project", "scan-roots", "--dry-run"]) {
+                Ok(c) => c,
+                Err(e) => panic!("expected scan-roots --dry-run to parse: {e}"),
+            };
+        match *cli.command {
+            super::Commands::Project {
+                command: super::ProjectCommands::ScanRoots { dry_run, .. },
+            } => assert!(dry_run, "--dry-run SetTrue must be true"),
+            _ => panic!("expected ProjectCommands::ScanRoots"),
+        }
+    }
+
+    /// T314 AC7 / F6: progressive still rejects `--format` (T290 F10).
+    #[test]
+    #[allow(non_snake_case)]
+    fn query_progressive__format_json__unexpected_argument() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "query",
+            "progressive",
+            "q",
+            "--format",
+            "json",
+        ]) {
+            Ok(_) => panic!("expected progressive --format to fail clap parse"),
+            Err(e) => e,
+        };
+        assert_eq!(
+            err.kind(),
+            ErrorKind::UnknownArgument,
+            "AC7: progressive --format must be UnknownArgument (not a malformed value_parser)"
+        );
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("--format") || rendered.contains("unexpected"),
+            "AC7: error should name --format; got: {rendered}"
+        );
+    }
+
     /// T291 AC10: `query trace --help` must not retain the scalar-null contract.
     #[test]
     #[allow(non_snake_case)]
@@ -1917,7 +2160,7 @@ enum Commands {
     /// Governed progressive query, handle expand, and query-trace retrieval (T152)
     #[command(
         display_order = 32,
-        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints a JSON envelope (`found: false` + `next_step` copy-paste `query progressive … --dry-run false`) and exits 0; `--format human` prints two lines.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints a JSON envelope (`found: false` + `next_step` copy-paste `query progressive … --dry-run false`) and exits 0; `--format human` prints two lines.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query progressive \"what did we decide\" --dry-run\n  ai-brains query progressive \"what did we decide\" --dry-run false\n  ai-brains query expand <handle-id> --project-id <uuid> --format json\n  ai-brains query expand <handle-id> --project-id <uuid> --format human\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Query {
         #[command(subcommand)]
@@ -2186,7 +2429,7 @@ enum ReplicateCommands {
 enum BriefingCommands {
     /// Build a Project Briefing packet (policy → lifecycle → authority)
     #[command(
-        after_help = "Human granted-empty prefer-fills a Vault pins (not Approved) stanza; CLI JSON adds vault_pin_count / vault_pin_previews; authority arrays stay empty.\nExamples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Human granted-empty prefer-fills a Vault pins (not Approved) stanza; CLI JSON adds vault_pin_count / vault_pin_previews; authority arrays stay empty.\nExamples:\n  ai-brains briefing project --format human --max-words 1500 --project-id <uuid>\n  ai-brains briefing project --format json --project-id <uuid>\n  ai-brains briefing project --dry-run --project-id <uuid>\n  ai-brains briefing project --dry-run false --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Project {
         #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
@@ -2194,7 +2437,14 @@ enum BriefingCommands {
         #[arg(short, long, default_value_t = 1500)]
         max_words: usize,
         /// Skip BriefingGenerated event / cache write (default: true)
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        /// T314 F1 — optional-value dry-run (default true). Bare `--dry-run` and `--dry-run false` both parse.
+        #[arg(
+            long,
+            default_value_t = true,
+            num_args = 0..=1,
+            default_missing_value = "true",
+            action = clap::ArgAction::Set
+        )]
         dry_run: bool,
         /// Output format: human, pretty, text, markdown, md, or json (default: markdown on TTY, json otherwise)
         #[arg(long)]
@@ -2202,7 +2452,7 @@ enum BriefingCommands {
     },
     /// Build a Personal Continuity Briefing packet
     #[command(
-        after_help = "Denied human uses an optional-continuity body (not `_None_` empty preferences). JSON `denied: true` keeps empty arrays.\nExamples:\n  ai-brains briefing personal --format human\n  ai-brains briefing personal --format json"
+        after_help = "Denied human uses an optional-continuity body (not `_None_` empty preferences). JSON `denied: true` keeps empty arrays.\nExamples:\n  ai-brains briefing personal --format human\n  ai-brains briefing personal --format json\n  ai-brains briefing personal --dry-run\n  ai-brains briefing personal --dry-run false"
     )]
     Personal {
         /// Personal user id (defaults to principal UUID mapping)
@@ -2210,7 +2460,14 @@ enum BriefingCommands {
         user_id: Option<String>,
         #[arg(short, long, default_value_t = 800)]
         max_words: usize,
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        /// T314 F1 — optional-value dry-run (default true). Bare `--dry-run` and `--dry-run false` both parse.
+        #[arg(
+            long,
+            default_value_t = true,
+            num_args = 0..=1,
+            default_missing_value = "true",
+            action = clap::ArgAction::Set
+        )]
         dry_run: bool,
         /// Output format: human, pretty, text, markdown, md, or json (default: markdown on TTY, json otherwise)
         #[arg(long)]
@@ -2220,12 +2477,12 @@ enum BriefingCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints a JSON envelope (`found: false` + `next_step` copy-paste `query progressive … --dry-run false`) and exits 0; `--format human` prints two lines.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query expand <handle-id> --project-id <uuid>\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
+    after_help = "Progressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\n`query trace` missing/unauthorized prints a JSON envelope (`found: false` + `next_step` copy-paste `query progressive … --dry-run false`) and exits 0; `--format human` prints two lines.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query progressive \"what did we decide\" --dry-run\n  ai-brains query progressive \"what did we decide\" --dry-run false\n  ai-brains query expand <handle-id> --project-id <uuid> --format json\n  ai-brains query expand <handle-id> --project-id <uuid> --format human\n  ai-brains query trace <trace-id>\n  # or set AI_BRAINS_PROJECT_ID"
 )]
 enum GovernedQueryCommands {
     /// Run a governed progressive query (JSON ProgressiveQueryResponse)
     #[command(
-        after_help = "Granted-empty next_step is copy-paste `recall` of the operator query plus `(Pinned: N)` when COUNT succeeds (not the U+2026 ellipsis).\nProgressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Granted-empty next_step is copy-paste `recall` of the operator query plus `(Pinned: N)` when COUNT succeeds (not the U+2026 ellipsis).\nProgressive searches Approved decisions + Confirmed/Active conclusions, not vault FTS. Vault-first: `recall` / `search`. Vault + ledger: `sync query`.\nExamples:\n  ai-brains query progressive \"why was graph backend replaced?\" --project-id <uuid>\n  ai-brains query progressive \"what did we decide\" --dry-run\n  ai-brains query progressive \"what did we decide\" --dry-run false\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Progressive {
         /// Query text
@@ -2235,12 +2492,19 @@ enum GovernedQueryCommands {
         #[arg(short, long, default_value_t = 16)]
         limit: usize,
         /// Skip QueryTraceRecorded event (default: true)
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        /// T314 F1 — optional-value dry-run (default true). Bare `--dry-run` and `--dry-run false` both parse.
+        #[arg(
+            long,
+            default_value_t = true,
+            num_args = 0..=1,
+            default_missing_value = "true",
+            action = clap::ArgAction::Set
+        )]
         dry_run: bool,
     },
     /// Expand an evidence / conclusion / decision handle to a bounded preview
     #[command(
-        after_help = "Examples:\n  ai-brains query expand <handle-id> --project-id <uuid>\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Default --format json emits HandlePreviewDto + applied_scope. `--format human` prints kind then preview (two lines for Unknown/Denied).\nExamples:\n  ai-brains query expand <handle-id> --project-id <uuid> --format json\n  ai-brains query expand <handle-id> --project-id <uuid> --format human\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Expand {
         /// Handle id (evidence UUID, conclusion id, or decision id)
@@ -2249,6 +2513,13 @@ enum GovernedQueryCommands {
         project_id: Option<ProjectId>,
         #[arg(long, default_value_t = 512)]
         max_chars: usize,
+        /// Output format: json (default DTO), pretty/human/text/markdown/md (kind+preview), auto (TTY human / pipe json)
+        #[arg(
+            long,
+            default_value = "json",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
     },
     /// Fetch a governed query trace by id (envelope when missing or unauthorized)
     #[command(
@@ -3148,7 +3419,7 @@ pub enum ProjectCommands {
     },
     /// Discover immediate child directories that contain .ledgerful (dry-run; never writes)
     #[command(
-        after_help = "Default --format auto = TTY table / pipe JSON. Agents that want a table pass --format human. Scripts pass --format json.\nDry-run only. Never appends events. Never writes .env. Never auto-registers.\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\n`--root DIR` is a named alias of the positional path (not both). Default is cwd — not the parent.\nAlready-registered hits list the owner; suggested is empty (human —). Use unregister-path / rebind-path to move a bind.\nWhen the implicit-cwd scan has no unregistered hits, human output may print `next: ai-brains project scan-roots --root <git-parent>`.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --root C:\\dev\n  ai-brains project scan-roots --format human\n  ai-brains project scan-roots --format json"
+        after_help = "Default --format auto = TTY table / pipe JSON. Agents that want a table pass --format human. Scripts pass --format json.\nDry-run only. Never appends events. Never writes .env. Never auto-registers.\n`--dry-run` is accepted (already dry-run-only).\nA hit is a directory that contains a .ledgerful child. .changeguard alone is not a hit.\n`--root DIR` is a named alias of the positional path (not both). Default is cwd — not the parent.\nAlready-registered hits list the owner; suggested is empty (human —). Use unregister-path / rebind-path to move a bind.\nWhen the implicit-cwd scan has no unregistered hits, human output may print `next: ai-brains project scan-roots --root <git-parent>`.\nExamples:\n  ai-brains project scan-roots\n  ai-brains project scan-roots C:\\dev\n  ai-brains project scan-roots --root C:\\dev\n  ai-brains project scan-roots --dry-run\n  ai-brains project scan-roots --format human\n  ai-brains project scan-roots --format json"
     )]
     ScanRoots {
         /// Directory to scan (default: cwd). Immediate children only.
@@ -3159,6 +3430,9 @@ pub enum ProjectCommands {
         /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json
         #[arg(long, default_value = "auto", value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"])]
         format: String,
+        /// Accepted no-op alias (command is already dry-run-only; T314 F11)
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Unregister a filesystem path alias (compensating Removed event; does not forget symbols)
     #[command(
@@ -4331,12 +4605,14 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 handle_id,
                 project_id,
                 max_chars,
+                format,
             } => commands::governed_query::run_expand(
                 &ctx,
                 commands::governed_query::ExpandHandleOptions {
                     handle_id: handle_id.clone(),
                     project_id: *project_id,
                     max_chars: *max_chars,
+                    format: format.clone(),
                 },
             ),
             GovernedQueryCommands::Trace { trace_id, format } => {
@@ -5248,13 +5524,16 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 yes,
                 format,
             } => commands::project_rebind::run(&ctx, path, to, *write, *yes, format),
-            ProjectCommands::ScanRoots { path, root, format } => {
-                commands::project_paths::scan_roots(
-                    &ctx,
-                    root.as_deref().or(path.as_deref()),
-                    format,
-                )
-            }
+            ProjectCommands::ScanRoots {
+                path,
+                root,
+                format,
+                dry_run: _,
+            } => commands::project_paths::scan_roots(
+                &ctx,
+                root.as_deref().or(path.as_deref()),
+                format,
+            ),
             ProjectCommands::UnregisterPath {
                 path,
                 project,

@@ -25,6 +25,9 @@ pub const PROGRESSIVE_PROJECT_USAGE: &str = "project id required. Example:\n  ai
 /// F30 expand usage message (copy-paste example + env).
 pub const EXPAND_PROJECT_USAGE: &str = "project id required. Example:\n  ai-brains query expand <handle-id> --project-id <uuid>\nOr set AI_BRAINS_PROJECT_ID.";
 
+/// T314 AC16 — human Denied second line when DTO `preview` is empty (JSON stays empty; F17).
+const DENIED_HANDLE_HUMAN_PREVIEW: &str = "Access denied.";
+
 /// Copy-paste command that persists a query trace (T152 `--dry-run` default is true).
 const TRACE_PROGRESSIVE_PERSIST: &str =
     "ai-brains query progressive \"what did we decide\" --dry-run false";
@@ -53,6 +56,8 @@ pub struct ExpandHandleOptions {
     pub handle_id: String,
     pub project_id: Option<ProjectId>,
     pub max_chars: usize,
+    /// T314 F7 — Trace token set; default `"json"`.
+    pub format: String,
 }
 
 pub struct TraceOptions {
@@ -166,7 +171,7 @@ pub fn run_progressive(
     Ok(())
 }
 
-/// `ai-brains query expand <handle-id>` — bounded handle preview (JSON stdout).
+/// `ai-brains query expand <handle-id>` — bounded handle preview (JSON default; human kind+preview).
 pub fn run_expand(
     ctx: &AppContext,
     options: ExpandHandleOptions,
@@ -206,7 +211,26 @@ pub fn run_expand(
         );
     }
     apply_unknown_expand_preview(&mut value);
-    emit_json(&value)?;
+    // T314 F9 / AC16 — human tokens: kind then preview (two nonempty lines for Unknown/Denied).
+    if query_format_is_human(&options.format) {
+        let kind = value.get("kind").and_then(|k| k.as_str()).unwrap_or("");
+        let mut preview_text = value
+            .get("preview")
+            .and_then(|p| p.as_str())
+            .unwrap_or("")
+            .to_string();
+        // JSON Denied keeps empty preview (stay-green); human fills so AC16 is nonempty.
+        if preview_text.is_empty() && kind == "Denied" {
+            preview_text = DENIED_HANDLE_HUMAN_PREVIEW.to_string();
+        }
+        if preview_text.is_empty() && kind == "Unknown" {
+            preview_text = UNKNOWN_HANDLE_PREVIEW.to_string();
+        }
+        emit_human(kind);
+        emit_human(&preview_text);
+    } else {
+        emit_json(&value)?;
+    }
     // F6/F30: exact kind "Denied" → exit 3 + F4 stderr; Unknown/found stay exit 0.
     if preview.kind == "Denied" {
         eprintln!("POLICY_DENIED: expand handle denied");
@@ -238,13 +262,18 @@ fn missing_trace_envelope(trace_id: &str) -> MissingTraceEnvelope {
     }
 }
 
-/// `--format` after clap `value_parser` (T291 F3). Found path ignores this.
-fn missing_trace_is_human(format: &str) -> bool {
+/// T314 F32 / T291 F3 — Trace + Expand `--format` human tokens (after clap value_parser).
+pub(crate) fn query_format_is_human(format: &str) -> bool {
     match format {
         "human" | "pretty" | "text" | "markdown" | "md" => true,
         "auto" => std::io::stdout().is_terminal(),
         _ => false,
     }
+}
+
+/// `--format` after clap `value_parser` (T291 F3). Found path ignores this.
+fn missing_trace_is_human(format: &str) -> bool {
+    query_format_is_human(format)
 }
 
 /// `ai-brains query trace <trace-id>` — fetch a governed query trace.

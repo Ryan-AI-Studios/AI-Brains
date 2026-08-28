@@ -2,6 +2,18 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T314 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F18 — source bin / hermetic prove DoD; not Complete-blocking |
+| `query progressive --dry-run "query text"` may bool-steal positional | **Deferred** F34 by design — examples keep query first |
+| Expand `--format auto` human only when explicit (default stays json) | **Deferred** F8 — Family C |
+| `fail_cp` stays JSON even under `--format human` | **Deferred** F10 — CP errors not format-threaded this track |
+| AC4 unit name `query_expand__format_human__parses` folded into `…format_json__parses` | **Deferred** low naming drift — behavior covered; split optional |
+| T325 F8 PreferRecency / T319 handle UUID / clap 5 / T321 / T324 | **Not stolen** |
+| FEATURE TX | `26f296f5-fd76-4d04-afba-6d26e54a1bc5` |
+
 ### T314 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
