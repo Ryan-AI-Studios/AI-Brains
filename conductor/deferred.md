@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T319 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 daemon `run_show_daemon` takes no ctx | **Folded** F2 / F30 / Phase 2 / §5.1 — thread `&ctx`; source Error before `expect_daemon_ok` `:671` |
+| OpenCode m2 line counts 1029/463/305/303 vs 1133/496/320/322 | **Folded** §2.3; F32/F23 80-net is phase diff |
+| OpenCode m3 AC15 conditional found-kind | **Folded** AC3 `kind: "Evidence"` fixture; AC15 = AC3 |
+| OpenCode O1 AC1 daemon proof | **Folded** F23 |
+| OpenCode O2 AC8 stderr order | **Folded** AC8 T221 F5 bare hint |
+| OpenCode O3 word 740→669 | **Note** §2.1 |
+| Agy m1 HEAD `fa353c7` vs `14198b5` | **Folded** snapshot `14198b5` / ahead **1** |
+| Agy m2 EXISTS `Err` → false | **Already** F1 |
+| Agy O1/O2/O3 F7 / F3–F4 / F6 | **Already** |
+| last-PR `#234` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `09c2659f-962a-40e5-a04f-92f2de9c4f8d` |
+
 ### T319 full plan (2026-08-28) — handle vs memory UUID namespace
 
 | Item | Disposition |
