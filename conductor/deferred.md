@@ -21,6 +21,22 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | last-PR `#229` empty | **Superseded** by `#230` |
 | DOCS TX | `ca5b1614-6849-416d-ad27-1d44a23198d7` |
 
+### T315 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 AC7 “next_step omitted” unreachable (project-scoped T241 bootstrap) | **Folded** F5/F30/AC7 — assert **not the T315 SOOT** |
+| OpenCode O1 AC5/AC6 project-scoped fixture | **Folded** F38 scope-none empty vault |
+| OpenCode O2 F23 existing import | **Folded** — one **new** `LIST_RECALL_QUERY` import |
+| OpenCode O3 `lexical.rs` lines | **Folded** F21 `:197–214` / `:215–252` |
+| OpenCode O5 AC4–AC6 names | **Folded** AC table |
+| Both m/O HEAD `44520d8` | **Folded** snapshot `2b6919c` / ahead **1** |
+| Agy m2 insert helper prefix | **Folded** F8 dual prefix |
+| Agy O1/O2/O3 F7/F3/F5 | **Already** |
+| last-PR `#230` Cursor | **Affirm** T325 — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `c90c1c71-aa57-40b4-8ee6-7b068837b4bc` |
+
 ### T325 mint (2026-08-28) — `#230` Cursor leftover (placeholder)
 
 | Item | Disposition |

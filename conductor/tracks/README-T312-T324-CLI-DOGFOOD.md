@@ -1,7 +1,7 @@
 # T312–T324 — Post-T311 live CLI dogfood (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-27** on PATH graph-on `ai-brains` **0.1.3** (elevated install 2026-08-27 **05:52**; CLI **26,842,112** B). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; pinned **4510**; grants **3 of 3**. Agent non-TTY (pipe → JSON). Plus **entire** `conductor/deferred.md` open residuals that still deserve a track.
-**Status:** **T312 Completed** (`#230` `44520d8`). **T315 Planned** (full F-list 2026-08-28, DOCS `ca5b1614`). T313–T314 / T316–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229`).
+**Status:** **T312 Completed** (`#230` `44520d8`). **T315 Planned** (full F-list 2026-08-28, plan DOCS `ca5b1614`, fold-in DOCS `c90c1c71`). T313–T314 / T316–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. Do **not** implement until **go**. **T307 stays Blocked.** **T311 Completed** (`#229`).
 **HEAD at T315 plan:** `44520d8` T312 squash. Tree **CLEAN** (product). `origin/main` in sync.
 **Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`.
 **last-PR Cursor:** [#230](https://github.com/Ryan-AI-Studios/AI-Brains/pull/230) T312 — Bugbot **1 medium** (F8 OR-fill skips PreferRecency). **Minted T325.** `#229` was empty.
