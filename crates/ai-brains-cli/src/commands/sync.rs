@@ -560,20 +560,10 @@ pub async fn run_query(
         Ok(())
     };
 
-    let print_ledger = |section: &crate::commands::sync_query_ledger::LedgerProbeResult| {
-        println!("\n--- Ledgerful Ledger Search ---");
-        if let Some(ref banner) = section.banner {
-            println!("{}", banner);
-        }
-        if let Some(ref text) = section.display {
-            println!("{}", text);
-        }
-    };
-
     if ledger_first {
         println!("Note: vault top hit is plan/stale; ledger results shown first.");
         if let Some(ref section) = ledger_section {
-            print_ledger(section);
+            crate::commands::sync_query_ledger::print_ledger_section(section);
         }
         println!();
         print_vault()?;
@@ -582,7 +572,7 @@ pub async fn run_query(
         if let Some(ref section) = ledger_section
             && (section.non_empty || section.display.is_some())
         {
-            print_ledger(section);
+            crate::commands::sync_query_ledger::print_ledger_section(section);
         }
     }
 

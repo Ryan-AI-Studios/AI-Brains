@@ -200,7 +200,7 @@ The T70 bridge lets a single command search both your memory vault and the Ledge
 ```powershell
 ai-brains sync query "rust" --format pretty
 ```
-Output has two sections — `--- AI-Brains Recall ---` (vault FTS hits) and `--- Ledgerful Ledger Search ---` (ledger entries). `--no-bridge` skips the ledger pane. `--quiet` omits never-ran/failed ledger lines (hits and ran-empty still print).
+Output has two sections — `--- AI-Brains Recall ---` (vault FTS hits) and `--- Ledgerful Ledger Search ---` (ledger entries; when T271 token rescue fires the heading becomes `--- Ledgerful Ledger Search (rescued token: '<tok>') ---`). `--no-bridge` skips the ledger pane. `--quiet` omits never-ran/failed ledger lines (hits and ran-empty still print).
 
 ### Generating Preflight Context
 ```powershell

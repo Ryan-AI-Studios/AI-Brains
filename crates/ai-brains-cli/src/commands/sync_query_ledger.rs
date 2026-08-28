@@ -23,7 +23,7 @@ pub(crate) enum LedgerOutcomeClass {
     Success,
 }
 
-/// Result of a `ledgerful ledger search --json` probe (T211 F12 / T271).
+/// Result of a `ledgerful ledger search --json` probe (T211 F12 / T271 / T313).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LedgerProbeResult {
     pub non_empty: bool,
@@ -31,6 +31,45 @@ pub(crate) struct LedgerProbeResult {
     pub display: Option<String>,
     /// F7 banner only when token rescue produced hits.
     pub banner: Option<String>,
+    /// T313: token that produced a rescue hit; drives the section heading.
+    pub rescued_token: Option<String>,
+}
+
+/// T313 F1: ledger pane heading names the rescued token when present and non-blank.
+pub(crate) fn ledger_section_heading(rescued_token: Option<&str>) -> String {
+    match rescued_token {
+        Some(tok) if !tok.trim().is_empty() => {
+            format!("--- Ledgerful Ledger Search (rescued token: '{tok}') ---")
+        }
+        _ => "--- Ledgerful Ledger Search ---".to_string(),
+    }
+}
+
+/// AC8 unit helper: heading, optional banner, optional display (no leading blank).
+#[cfg(test)]
+pub(crate) fn format_ledger_section_lines(section: &LedgerProbeResult) -> Vec<String> {
+    let mut lines = vec![ledger_section_heading(section.rescued_token.as_deref())];
+    if let Some(ref banner) = section.banner {
+        lines.push(banner.clone());
+    }
+    if let Some(ref text) = section.display {
+        lines.push(text.clone());
+    }
+    lines
+}
+
+/// Print the ledger pane (T313). Three `println!` matching today's spacing.
+pub(crate) fn print_ledger_section(section: &LedgerProbeResult) {
+    println!(
+        "\n{}",
+        ledger_section_heading(section.rescued_token.as_deref())
+    );
+    if let Some(ref banner) = section.banner {
+        println!("{}", banner);
+    }
+    if let Some(ref text) = section.display {
+        println!("{}", text);
+    }
 }
 
 /// Strip ANSI and trim. Never FTS-quote (F5).
@@ -240,6 +279,7 @@ pub(crate) fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProb
             non_empty: false,
             display: Some(ledger_miss_copy_never_ran(SYSTEM32_NEVER_RAN)),
             banner: None,
+            rescued_token: None,
         });
     }
 
@@ -252,6 +292,7 @@ pub(crate) fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProb
             non_empty: false,
             display: Some(ledger_miss_copy_never_ran("query is empty.")),
             banner: None,
+            rescued_token: None,
         });
     }
 
@@ -268,6 +309,7 @@ pub(crate) fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProb
                 non_empty: false,
                 display: Some(ledger_miss_copy_never_ran("ledgerful CLI not found.")),
                 banner: None,
+                rescued_token: None,
             });
         }
     };
@@ -282,6 +324,7 @@ pub(crate) fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProb
             non_empty: false,
             display: Some(miss_from_nonzero(&stderr)),
             banner: None,
+            rescued_token: None,
         });
     }
 
@@ -291,6 +334,7 @@ pub(crate) fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProb
             non_empty: true,
             display: human_ledger_display(&forward, quiet, is_tty, &stdout),
             banner: None,
+            rescued_token: None,
         });
     }
 
@@ -309,6 +353,7 @@ pub(crate) fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProb
                     non_empty: true,
                     display: human_ledger_display(token, quiet, is_tty, &tok_stdout),
                     banner: Some(ledger_rescue_banner(&forward, token)),
+                    rescued_token: Some(token.clone()),
                 });
             }
         }
@@ -318,6 +363,7 @@ pub(crate) fn probe_ledger_search(query: &str, quiet: bool) -> Option<LedgerProb
         non_empty: false,
         display: Some(ledger_miss_copy_ran_empty(&forward)),
         banner: None,
+        rescued_token: None,
     })
 }
 
@@ -363,13 +409,87 @@ pub(crate) fn ledger_json_non_empty(stdout: &str) -> bool {
 #[allow(clippy::disallowed_methods)]
 mod tests {
     use super::{
-        LEDGER_STDERR_LINE_MAX, LedgerOutcomeClass, SYSTEM32_NEVER_RAN, is_windows_system_cwd,
-        ledger_classify_outcome, ledger_first_stderr_line, ledger_forward_query,
-        ledger_json_non_empty, ledger_miss_copy_failed, ledger_miss_copy_never_ran,
-        ledger_miss_copy_ran_empty, ledger_quiet_omits_pane, ledger_rescue_banner,
-        ledger_rescue_pick, ledger_rescue_tokens, ledger_search_argv, path_is_windows_system_dir,
+        LEDGER_STDERR_LINE_MAX, LedgerOutcomeClass, LedgerProbeResult, SYSTEM32_NEVER_RAN,
+        format_ledger_section_lines, is_windows_system_cwd, ledger_classify_outcome,
+        ledger_first_stderr_line, ledger_forward_query, ledger_json_non_empty,
+        ledger_miss_copy_failed, ledger_miss_copy_never_ran, ledger_miss_copy_ran_empty,
+        ledger_quiet_omits_pane, ledger_rescue_banner, ledger_rescue_pick, ledger_rescue_tokens,
+        ledger_search_argv, ledger_section_heading, path_is_windows_system_dir,
     };
     use std::path::Path;
+
+    /// T313 AC1: rescued token appears in the ledger section heading.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_section_heading__rescued_token__names_token() {
+        let heading = ledger_section_heading(Some("graph"));
+        assert_eq!(
+            heading,
+            "--- Ledgerful Ledger Search (rescued token: 'graph') ---"
+        );
+        assert!(heading.contains("rescued token"));
+        assert!(heading.contains("'graph'"));
+    }
+
+    /// T313 AC2: phrase-hit / miss heading stays generic (no rescued).
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_section_heading__phrase_hit__generic() {
+        let heading = ledger_section_heading(None);
+        assert_eq!(heading, "--- Ledgerful Ledger Search ---");
+        assert!(!heading.contains("rescued"));
+    }
+
+    /// T313 AC3 / F25: empty or whitespace-only rescued token → generic heading.
+    #[test]
+    #[allow(non_snake_case)]
+    fn ledger_section_heading__empty_token__generic() {
+        assert_eq!(
+            ledger_section_heading(Some("")),
+            "--- Ledgerful Ledger Search ---"
+        );
+        assert_eq!(
+            ledger_section_heading(Some("   ")),
+            "--- Ledgerful Ledger Search ---"
+        );
+        assert!(!ledger_section_heading(Some("")).contains("rescued"));
+        assert!(!ledger_section_heading(Some("   ")).contains("rescued"));
+    }
+
+    /// T313 AC8: rescued lines are heading → F7 banner → display; phrase-hit has no banner.
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_ledger_section_lines__rescued__heading_then_banner() {
+        let rescued = LedgerProbeResult {
+            non_empty: true,
+            display: Some("10 matching entries for 'graph':".to_string()),
+            banner: Some(ledger_rescue_banner("graph backend", "graph")),
+            rescued_token: Some("graph".to_string()),
+        };
+        let lines = format_ledger_section_lines(&rescued);
+        assert_eq!(
+            lines[0],
+            "--- Ledgerful Ledger Search (rescued token: 'graph') ---"
+        );
+        assert_eq!(
+            lines[1],
+            "Note: no phrase match for 'graph backend'; showing hits for 'graph'."
+        );
+        assert_eq!(lines[2], "10 matching entries for 'graph':");
+        assert_eq!(lines.len(), 3);
+
+        let phrase = LedgerProbeResult {
+            non_empty: true,
+            display: Some("3 matching entries for 'T314':".to_string()),
+            banner: None,
+            rescued_token: None,
+        };
+        let phrase_lines = format_ledger_section_lines(&phrase);
+        assert_eq!(phrase_lines[0], "--- Ledgerful Ledger Search ---");
+        assert!(!phrase_lines.iter().any(|l| l.contains("no phrase match")));
+        assert_eq!(phrase_lines[1], "3 matching entries for 'T314':");
+        assert_eq!(phrase_lines.len(), 2);
+    }
 
     /// T273 AC1: JSON argv always inserts `--` immediately before a dash needle.
     #[test]

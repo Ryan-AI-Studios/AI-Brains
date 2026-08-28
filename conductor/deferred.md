@@ -2,6 +2,54 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T313 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F16 — source bin / hermetic prove DoD; not Complete-blocking |
+| Broad rescue token `graph` still first-seen | **Deferred** F4 — honesty of heading, not scoring / length-sort |
+| T211 `Note:` vs F7 `Note:` same prefix | **Deferred** F9 — heading differentiates; do not rename F7 |
+| ndjson still vault-only (no combined envelope) | **Deferred** F7 — contract track if ever needed |
+| Ledgerful still phrase-wraps spaces | **Deferred** F11 — other repo; T313 does not wait |
+| 10 ledger rows on rescue (no `--limit` on argv) | **Deferred** F11 — T211 vault 5 vs ledger 10 freeze |
+| T312 PATH dump-first / T325 F8 PreferRecency | **Not stolen** |
+| FEATURE TX | `a58ee509-ed84-420b-9fd0-c4112782289d` |
+
+### T313 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 / Agy m2 heading `is_empty()` vs F25 whitespace | **Folded** F1 / F3 / F25 / AC3 — `!tok.trim().is_empty()` + `Some("   ")` |
+| OpenCode m2 WORKFLOWS.md `:316` | **Folded** F14 / AC10 / §12 |
+| OpenCode m3 AC13 `git diff -- C:\dev\Ledgerful` exit 128 | **Folded** AC13 in-repo `crates/` name-only |
+| OpenCode m4 existing ndjson hermetics drop non-JSON | **Folded** AC14 new Phase 1 green-on-arrival |
+| OpenCode O1 clap `Query` line | **Folded** §2.3 `:3590` / `:3629–3647` |
+| OpenCode O2 `join` vs three `println!` | **Folded** §5.2 SoT |
+| OpenCode O3 pin-count 4544→4545 | **Note** volatile |
+| Agy m1 HEAD `cd7bfde` vs `2bec83e` | **Folded** snapshot `2bec83e` / ahead **1** |
+| Agy O1/O2/O3 F10 / F2 / F7 | **Already** |
+| last-PR `#232` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `5fa5626e-ce2f-42df-97f4-744053ba09a5` |
+
+### T313 full plan (2026-08-28) — rescued heading; F7 banner exact
+
+| Item | Disposition |
+|------|-------------|
+| Audit `sync query` phrase→fuzzy opacity / “can’t tell which results came from where” | **Resolved** T313 implement — heading names rescued token |
+| T271 F7 banner already prints on PATH | **Resolved** T313 heading `(rescued token: '<tok>')`; F2 banner exact |
+| T271 F6 first-seen + cap 3 | **Affirm** F4 — no scoring / no skip-`graph` |
+| T273 `--` / T271 F5 no FTS-quote | **Affirm** F5 / F6 |
+| T231 always-pretty / ndjson vault-only | **Affirm** F7 — no combined JSON (no key exists) |
+| T211 ledger-first `Note:` | **Affirm** F9 — do not rename F7 `Note:` |
+| T271 residual Ledgerful token-OR / `--limit` / merge tables | **Decline** F11 |
+| T312 rank / T314 clap / T315 summary / T316–T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 | **Not stolen** / **Decline** |
+| last-PR Cursor `#232` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `bdf8fddd-84f9-4d9d-9b7d-64887dd834e2` |
+
 ### T314 implement residuals (2026-08-28) — non-easy lows
 
 | Item | Disposition |
@@ -152,7 +200,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | Item | Disposition |
 |------|-------------|
 | ~~Audit recall rank still dump-first (T285 shipped)~~ | **T312 Completed** (2026-08-27) |
-| `sync query` ledger phrase→fuzzy opacity | **T313** Pending |
+| `sync query` ledger phrase→fuzzy opacity | **T313** Planned (full F-list 2026-08-28) |
 | `--format` / `--dry-run` clap friction | **T314** Planned (full F-list 2026-08-28) |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
