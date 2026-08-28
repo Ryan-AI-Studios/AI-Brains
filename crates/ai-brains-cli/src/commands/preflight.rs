@@ -1,5 +1,6 @@
 use crate::commands::governed_common::{
-    DISCOVERY_CAP_LABELS, POLICY_BOOTSTRAP_SOOT_SHORT, discovery_active_count, resolve_principal,
+    DISCOVERY_CAP_LABELS, LIST_RECALL_QUERY, POLICY_BOOTSTRAP_SOOT_SHORT, discovery_active_count,
+    resolve_principal,
 };
 use crate::commands::harness::{PromptDecision, interpret_consent_answer, should_prompt_install};
 use crate::context::AppContext;
@@ -105,15 +106,37 @@ pub(crate) fn build_preflight_summary_json(
 
 /// T315 F2/F35: empty in-context decisions next-step (SOOT).
 ///
-/// Stub until green: always `None` so AC1 fails red.
-pub(crate) fn format_summary_empty_decisions_next(_decision_count: usize) -> Option<String> {
-    None
+/// Fires when `decision_count == 0` only (F1). Reuses [`LIST_RECALL_QUERY`].
+/// Does **not** call `format_authorized_empty_next` (no Ungoverned / Pinned suffix).
+pub(crate) fn format_summary_empty_decisions_next(decision_count: usize) -> Option<String> {
+    if decision_count != 0 {
+        return None;
+    }
+    Some(format!(r#"next: ai-brains recall "{LIST_RECALL_QUERY}""#))
 }
 
-/// T315 F8: insert SOOT after budget-window (or legacy Total Word Count) line.
+/// T315 F8: insert SOOT after budget-window (or legacy `Total Word Count:`) line.
 ///
-/// Stub until green: no-op so AC4 fails red.
-pub(crate) fn insert_after_budget_window_line(_lines: &mut Vec<String>, _line: String) {}
+/// Prefer a line starting with `Budget window words:` or `Total Word Count:`;
+/// else insert before the first empty line, else before the footer, else append.
+pub(crate) fn insert_after_budget_window_line(lines: &mut Vec<String>, line: String) {
+    if let Some(idx) = lines
+        .iter()
+        .position(|l| l.starts_with("Budget window words:") || l.starts_with("Total Word Count:"))
+    {
+        lines.insert(idx + 1, line);
+        return;
+    }
+    if let Some(idx) = lines.iter().position(|l| l.is_empty()) {
+        lines.insert(idx, line);
+        return;
+    }
+    if let Some(idx) = lines.iter().position(|l| l.starts_with("Use --pretty")) {
+        lines.insert(idx, line);
+        return;
+    }
+    lines.push(line);
+}
 
 /// Format a post-hoc discovery-grants summary line (T241 F3 / AC9).
 ///
@@ -805,7 +828,7 @@ pub(crate) fn format_preflight_summary_lines(
     lines.push(format!("In context hotspots: {}", hotspot_count));
     lines.push(format!("In context decisions: {}", decision_count));
     lines.push(format!("In context constraints: {}", constraint_count));
-    lines.push(format!("Total Word Count: {}", word_count));
+    lines.push(format!("Budget window words: {}", word_count));
     lines.push(String::new());
     lines.push("Use --pretty or --format json for full context.".to_string());
     lines
@@ -923,6 +946,12 @@ fn print_summary(
                 envelope.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
             }
         }
+        // T315 F5: fill empty-decisions next_step only when T241 left it None.
+        if envelope.next_step.is_none()
+            && let Some(soot) = format_summary_empty_decisions_next(decision_count)
+        {
+            envelope.next_step = Some(soot);
+        }
         // Pretty summary JSON (memory-list family); T180 full path stays compact.
         crate::commands::identity_warn::print_json_stdout(&envelope)?;
         // M1: still run install side effects; never pollute stdout.
@@ -953,6 +982,10 @@ fn print_summary(
         } else {
             lines.push(span_line);
         }
+    }
+    // T315 F8: empty-decisions next-step after budget-window line (even if grants incomplete).
+    if let Some(soot) = format_summary_empty_decisions_next(decision_count) {
+        insert_after_budget_window_line(&mut lines, soot);
     }
     if let Some(n) = grants_count
         && let Some(line) = format_grants_incomplete_line(n)
@@ -1414,7 +1447,9 @@ mod tests {
         let joined = lines.join("\n");
         let budget_idx = lines
             .iter()
-            .position(|l| l.starts_with("Budget window words:") || l.starts_with("Total Word Count:"))
+            .position(|l| {
+                l.starts_with("Budget window words:") || l.starts_with("Total Word Count:")
+            })
             .expect("budget or legacy word-count line");
         let soot_idx = lines
             .iter()
@@ -1424,7 +1459,11 @@ mod tests {
             .iter()
             .position(|l| l.starts_with("Use --pretty"))
             .expect("footer");
-        assert_eq!(soot_idx, budget_idx + 1, "SOOT immediately after budget line; got:\n{joined}");
+        assert_eq!(
+            soot_idx,
+            budget_idx + 1,
+            "SOOT immediately after budget line; got:\n{joined}"
+        );
         assert!(soot_idx < footer_idx, "SOOT before footer; got:\n{joined}");
     }
 
@@ -1456,10 +1495,10 @@ mod tests {
         assert!(env.grants_status.is_some());
         env.next_step = Some(POLICY_BOOTSTRAP_SOOT_SHORT.to_string());
         // T315 fill only when next_step is None (mirrors print_summary F5).
-        if env.next_step.is_none() {
-            if let Some(soot) = format_summary_empty_decisions_next(0) {
-                env.next_step = Some(soot);
-            }
+        if env.next_step.is_none()
+            && let Some(soot) = format_summary_empty_decisions_next(0)
+        {
+            env.next_step = Some(soot);
         }
         assert_eq!(
             env.next_step.as_deref(),
