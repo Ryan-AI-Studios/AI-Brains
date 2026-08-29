@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T316 `memory list` chrome-skip preview:** Human and JSON preview values skip leading session chrome / `Let me` preambles when a later line exists (8-line walk; authority never skipped; all-chrome fallback). Drop T216 F36 nonempty-list forget stderr hint (after_help still documents forget). T287 ORDER / T216 JSON keys / T299 empty remediator unchanged. Docs: CAPABILITIES / OPERATIONS.
+
 - **T320 Unified `status` glance:** Top-level `ai-brains status` composes daemon IPC Running/Stopped, doctor attention (`format_doctor_summary`), graph density one-liner, and nightly last-run + scheduled. Family A `--format auto` (TTY human / pipe json). Fail-open per section; exit **0** for degraded/Stopped/sparse/never. CLI-local pretty JSON envelope `schema_version: 1` (not a contracts DTO). Does not replace `doctor` / `nightly --status` / `daemon status` / `graph update`. No HTTP probes; no daemon TCP. Stopped may add `next: ai-brains daemon start`. Docs: CAPABILITIES / PROTOCOL-COMPAT / OPERATIONS / CLI-EXIT-CODES; Daily help inventory adds `status`.
 
 - **T319 Handle vs memory UUID namespace:** Pasting a vault `memory_id` into `query expand` / `evidence show` / `source show` names the other namespace (`This UUID is a vault memory_id, not a governed handle.`) and points at `ai-brains recall "what did we decide"` (JSON optional `next_step`; source additive `details.hint`). Expand/evidence Unknown stay exit **0**; source miss stays exit **4**. Unknown-unknown keeps T263 `Handle not found.` DTO / control-plane `expand_handle` / daemon IPC unaugmented. Docs: CAPABILITIES / PROTOCOL-COMPAT / OPERATIONS / CLI-EXIT-CODES; after_help dual-truth.

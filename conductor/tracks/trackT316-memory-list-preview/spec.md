@@ -1,7 +1,7 @@
 # T316 — `memory list` preview + forget nudge
 
 - **Track ID:** T316-MemoryListPreview
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** (FEATURE TX `50c73816-3152-499e-bee9-1b5aeb7b0aec`)
 - **Category:** UX
 - **Owner:** Grok
 - **Source:** Live CLI audit 2026-08-27 — `memory list` 6/**6**. Previews are raw first lines (`Let me verify the clap pin...` / `## Objective`). Trailing F36 forget nudge on stderr reads like an error after a successful table. Series README `README-T312-T324-CLI-DOGFOOD.md`.
@@ -357,4 +357,3 @@ Source: `agy-review.md` + `opencode-review.md` (HEAD `120bbfa`). **Agy B 0 / M 0
 6. **last-PR Cursor:** `#238` empty; `#237` → **T326**; `#230` → **T325**. **No T327.**
 
 **Planning + fold-in 2026-08-29.** Still **plan-only until go**.
-

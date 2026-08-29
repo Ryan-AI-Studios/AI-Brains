@@ -2,6 +2,21 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T316 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F31 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| T287 R1-1 live GLOB+retain empty → recency first page | **Deferred** F27 — preview DoD landed; ORDER not this track |
+| Agent prefix set may grow (`Now let me check whether…`) | **Deferred** F2/F33 — closed set; extend only with evidence |
+| JSON preview values change for chrome rows | **By design** F7 — not a key change; not a residual bug |
+| OpenCode O2 briefing/graph inherit hermetics | **Decline** F6/F14 — helper units are inherit SoT |
+| T325 F8 PreferRecency / T318 / T321–T324 | **Not stolen** |
+| T326 `PinnedCountFailed` fake `pinned=0` | **Not stolen** — Pending placeholder |
+| T319 `memory show <id>` | **Decline** F13 |
+| FEATURE TX | `50c73816-3152-499e-bee9-1b5aeb7b0aec` |
+| Recall hermetic 120s timeouts under heavy parallel load | **Deferred** low-info — unrelated to T316; serial re-run 10/10 PASS; do not broaden-fix |
+
 ### T316 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
