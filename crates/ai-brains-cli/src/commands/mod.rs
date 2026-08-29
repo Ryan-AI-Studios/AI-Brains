@@ -20,6 +20,7 @@ pub mod evidence;
 pub mod forget;
 pub mod format_resolve;
 pub mod governed_common;
+pub mod governed_namespace;
 pub mod governed_query;
 #[cfg(feature = "graph")]
 pub mod graph;
