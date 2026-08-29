@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** FEATURE
 **Ledger (planning):** DOCS `d8e6e556-cfb8-4cd6-84cc-3f5b1599532c`
+**Ledger (fold-in):** DOCS `418e2547-d972-4457-a1cb-c927b5f41f37`
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | Product `0eef80b` T321 `#243`. Branch `track/T322-decision-as-of`. `origin/main` = `0eef80b`. Working tree had uncommitted T321 conductor Completed + residuals — included in this DOCS commit. |
+| HEAD / tree | Fold-in `7867d56` plan commit CLEAN; `origin/main` = `0eef80b` (ahead **1**). Plan-write was `0eef80b` / ahead **0** (Agy m2). Branch `track/T322-decision-as-of`. Product `src/` = T321 `#243` `0eef80b`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T311 **on PATH**. T312–T321 **not**. Hole **is** (no `--as-of`). |
 | `preflight --summary` (PATH) | Pinned **4630**; in-context **0/0/0**; `Total Word Count: 728` (PATH-behind T315). |
 | PATH `decision in-force --help` | TERM / `--scope` / `--format` json; **no** `--as-of` |
@@ -42,7 +43,11 @@
 | last-PR `#243` | **N/A empty** |
 | last-PR `#237` / `#230` | **T326** / **T325** — not stolen |
 | T321 residuals / T325 / T326 / clap 5 | **Not stolen** / **Decline** |
-| T321 uncommitted conductor note | **This DOCS commit** |
+| T321 uncommitted conductor note | **Plan-write DOCS commit** |
+| Agy m1 same-tick `valid_from` | **F37** / AC3/AC11/AC16 |
+| OpenCode m2 AC10 harness | **Split** CLI omit + CLI unknown key; CP `to_value` |
+| OpenCode m2b flag-before-TERM | **AC7** |
+| OpenCode O2 three-chain | **AC16** |
 
 ---
 
@@ -57,6 +62,7 @@
 - [ ] Re-read T311 tests `control-plane/tests/in_force.rs` + `cli/tests/decision_in_force.rs`
 - [ ] Re-dogfood `decision in-force --help` + `decision in-force workspace_id --format json` + `--as-of` still unknown until green
 - [ ] Confirm clap lock still **4.6.1**; time lock **0.3.47**; T323 / T324 / T325 / T326 still Pending (do not steal)
+- [ ] Confirm snapshot still `7867d56` / product `0eef80b` or re-cite go HEAD (F22)
 - [ ] Rescan `deferred.md` open overlapping rows
 - [ ] `ledgerful ledger start T322-decision-as-of --category FEATURE`
 - [ ] **Do not** `cargo install` / live `decision propose` / approve / supersede / `.env` rewrite / clap 5 / grow `governed_common.rs` / `project.rs` / projector
@@ -65,6 +71,7 @@
 
 - [ ] `decision_in_force_help__after_help__names_as_of` (AC1) — must **fail** today
 - [ ] `resolve_in_force_at__as_of_before_supersede__prior_approved` (AC3) — must **fail** (`resolve_in_force_at` missing)
+- [ ] `resolve_in_force_at__as_of_mid_three_chain__prefix_only` (AC16) — must **fail** (same missing fn)
 - [ ] `parse_as_of_rfc3339__date_only__err` + `parse_as_of_rfc3339__zulu__ok` (AC6) — must **fail** (helper absent)
 - [ ] Confirm T311 stay-green tests still **pass** on this red commit (AC8 / AC9) — 4-arg untouched
 
@@ -74,7 +81,8 @@
 - [ ] F5 hop-stop in `walk_chain`
 - [ ] F6 Some-path ruling (Approved / Superseded-stopped / Revoked-before)
 - [ ] Additive JSON `as_of` skip_serializing_if (F4)
-- [ ] AC3 / AC4 / AC5 / AC11 / AC15
+- [ ] F37: D1 `valid_from` `2020-01-01T00:00:00Z` on AC3 / AC11 / AC16
+- [ ] AC3 / AC4 / AC5 / AC11 / AC15 / AC16 (three-chain prefix)
 - [ ] `pub use resolve_in_force_at`
 
 ## Phase 3 — Green (CLI)
@@ -83,7 +91,7 @@
 - [ ] clap `--as-of` + dispatch + InForce after_help (F2 / F23)
 - [ ] `run_in_force` passes `Option<OffsetDateTime>`
 - [ ] Human `As of:` line when set (F12)
-- [ ] AC1 / AC2 / AC6 / AC7 / AC10
+- [ ] AC1 / AC2 / AC6 / AC7 (incl. `--as-of not-a-date workspace_id`) / AC10 split (omit-key + unknown+`--as-of` key)
 - [ ] Stay-green AC8
 
 ## Phase 4 — Docs
@@ -101,7 +109,7 @@
 
 ## DoD (after go)
 
-- [ ] AC1–AC15
+- [ ] AC1–AC16
 - [ ] T311 4-arg / JSON-without-`as_of` / deny exit 3 / empty term exit 2 stay-green
 - [ ] No `approved_at` column; no projector `valid_until` close
 - [ ] T323 / T324 / T325 / T326 / T307 / H2 / clap 5 **not stolen**

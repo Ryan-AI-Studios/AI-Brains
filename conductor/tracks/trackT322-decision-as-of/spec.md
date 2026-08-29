@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Time-travel “what was in force at instant T?” Default **now** stays T311. Does **not** steal T323 conclusion in-force / T324 empty TERM / T325 / T326.
 - **Absorbs:** T311 R2. T311 R4 `approved_at` **column declined** — hop-stop on superseded/revoked `updated_at` is sufficient (proof §2.2). Event payload already has `approved_at`; projector does not persist it.
 - **Not absorbed (DoD):** T311 R1 daemon `ListInForce`; R3 sibling Approved (F7 earliest-root freeze); R5 conclusion (T323); R7 empty TERM (T324); H2; FTS `decision list`; projector `valid_until` close; new `approved_at` column; date-only `--as-of`; `--from`/`--to` range; clap 5
-- **Research date:** 2026-08-29 (plan-write product HEAD `0eef80b` T321 `#243`). Snapshot — **re-verify at execute**.
-- **Ledger:** planning DOCS TX `d8e6e556-cfb8-4cd6-84cc-3f5b1599532c`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-29 (plan-write product HEAD `0eef80b` T321 `#243`). Fold-in against `7867d56` (this plan’s own docs commit; ahead **1** of `origin/main` = `0eef80b`). Snapshot — **re-verify at execute**.
+- **AI fold-in:** 2026-08-29 `agy-review.md` + `opencode-review.md` (HEAD `7867d56`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 AC3/AC11 explicit `valid_from` (Windows 100 ns tick); Agy m2 HEAD snapshot; Agy O2 / OpenCode m2 AC10 split (CLI omit-key + CLI unknown+`--as-of` key; CP `to_value` on AC3/AC4); OpenCode m2b AC7 flag-before-TERM; OpenCode O2 AC16 three-chain prefix. **Already:** Agy m3 fail_usage reparse (F16/F29/§5.2); Agy O1 4-arg wrapper (F1); OpenCode m1 F6 (b)/(c) (walk-through; §2.2 residual). **Decline:** OpenCode O1 “stored `valid_from` is None” — `propose_decision` writes `valid_from: Some(now)` even when CLI sends None (`decisions.rs:101–118`); projector never stores NULL. Disposition **§13**.
+- **Ledger:** planning DOCS TX `d8e6e556-cfb8-4cd6-84cc-3f5b1599532c`. Fold-in DOCS TX `418e2547-d972-4457-a1cb-c927b5f41f37`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** grow `governed_common.rs` (#3) / `project.rs` / `briefings/personal.rs` (#9) / decision **projector**. Extend CP `in_force.rs` + CLI clap. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** `cargo install`. Do **not** propose/approve/supersede on the **live** operator vault as proof.
 
 ---
@@ -32,7 +33,7 @@ This unblocks: T311 answers only “what governs **now**.” After supersession 
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | Plan-write `0eef80b` `feat(cli): T321 safety sync write honesty (#243)`. Tree **DIRTY** at plan start: uncommitted T321 conductor Completed + implement residuals (`conductor.md` / `deferred.md`) — absorbed into this DOCS commit, not product. Branch `track/T322-decision-as-of`. `origin/main` = `0eef80b`. |
+| HEAD | Fold-in against plan-write `7867d56` `docs(conductor): plan T322 decision in-force --as-of (hop-stop, no approved_at column)`. Product `src/` = T321 `#243` `0eef80b` (crates identical to plan-write). Tree **CLEAN** at fold-in. Branch `track/T322-decision-as-of`. `origin/main` = `0eef80b` (ahead **1**). Plan-write snapshot was `0eef80b` / ahead **0** (Agy m2). |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. **T311 on PATH** (`decision in-force` exists). T312–T321 **not**. T322 hole **is** on PATH **and** source (no `--as-of`). **Do not `cargo install`.** |
 | `preflight --summary` (PATH) | Pinned **4630**. In-context **0/0/0**. `Total Word Count: 728` (PATH-behind T315 `Budget window words:`). **Not this DoD.** |
 | PATH `decision in-force --help` | `<TERM>`; `--scope`; `--format` default **json**; tokens `auto\|pretty\|human\|text\|json\|markdown\|md`. **No** `--as-of`. after_help two examples, neither as-of. |
@@ -114,7 +115,7 @@ N/A: Windows schtasks / SQLCipher pin change / clap 5.
 | **F3 — T311 format freeze** | Default **json**. `value_parser` tokens unchanged. Unknown `--format` stay-green AC8. |
 | **F4 — JSON keys** | Always emit T311 F4: `term`, `scope`, `ruling` (never skip), `chain`. **Additive** `as_of` (RFC3339 string) when the flag was set; `skip_serializing_if = "Option::is_none"`. Ruling object keys **frozen** (`decision_id`, `title`, `statement`, `state`, `approver`, `updated_at`). Do **not** add `approved_at` to JSON. |
 | **F5 — Hop-stop** | Walk `superseded_by` as T311 F8 (cap 32, cycle error, scope equality, broken id stop). **Before taking a hop**, if `as_of` is `Some(t)` and `t < current.updated_at`, **break** (keep current; do not hop). `as_of is None` → take all hops (T311). Closed-open: `t >= current.updated_at` takes the hop. |
-| **F6 — Ruling at as-of** | Let `at = as_of.unwrap_or(now)`. After walk: **None-path (T311 F9):** `Approved && decision_valid_at(now)` only. **Some-path:** (a) `Approved && decision_valid_at(at) && updated_at <= at` → ruling; (b) `Superseded && decision_valid_at(at)` (stopped because hop is in the future) → ruling; (c) `Revoked && updated_at > at && decision_valid_at(at)` → ruling; else none. Revoked-root empty-chain special case **only** on the None-path (T311 F7 stay-green). Some-path may return a ruling with empty chain (revoked-before-revoke / stopped at root). |
+| **F6 — Ruling at as-of** | Let `at = as_of.unwrap_or(now)`. After walk: **None-path (T311 F9):** `Approved && decision_valid_at(now)` only. **Some-path:** (a) `Approved && decision_valid_at(at) && updated_at <= at` → ruling; (b) `Superseded && decision_valid_at(at)` (stopped because hop is in the future) → ruling; (c) `Revoked && updated_at > at && decision_valid_at(at)` → ruling; else none. Revoked-root empty-chain special case **only** on the None-path (T311 F7 stay-green). Some-path may return a ruling with empty chain (revoked-before-revoke / stopped at root). **Out-of-contract by design:** `[valid_from, approval)` on a later-superseded node (approval `updated_at` overwritten; §11). Do not add an AC that requires `approved_at` (F9). |
 | **F7 — Chain is the walk prefix** | `chain` is hops **taken**, not the full current-day chain. as-of that stops at D1 while D1→D2 exists now → `chain=[]`, ruling D1. as-of after hop → chain D1→D2 (same as now if D2 is tip). |
 | **F8 — T311 F-list freeze** | Scope F5, term match F6, earliest-root F7, hop cap/cycle F8, policy F10, empty unknown F12 (`ruling: null`, no `next_step` key, human `format_authorized_empty_next`), local-only F13, H2 F14. Do not reopen. |
 | **F9 — Decline `approved_at` column** | R4 proof §2.2. Do **not** edit `projections/decision.rs`. Do **not** add a migration. Event payload field stays unprojected. |
@@ -145,6 +146,7 @@ N/A: Windows schtasks / SQLCipher pin change / clap 5.
 | **F34 — help_ia freeze** | Governed list already has `decision`. |
 | **F35 — No timeout crate** | N/A. |
 | **F36 — Clock on None only** | `as_of Some` must **not** call `clock.now()` for F9 (tests inject wall hop via projection `updated_at`). |
+| **F37 — As-of fixtures set `valid_from`** | AC3 / AC11 / AC16 propose D1 with `ProposeDecisionRequest.valid_from = Some(2020-01-01T00:00:00Z)` (payload already `Some` even when CLI sends None — `decisions.rs:101–118`). Then `as_of = hop_at - Duration::NANOSECOND` cannot fall before stored `valid_from`. Windows `SystemTime` is **100 ns** FILETIME ([std::time::SystemTime](https://doc.rust-lang.org/stable/std/time/struct.SystemTime.html); `GetSystemTimePreciseAsFileTime`); propose+supersede on the same tick would make `hop_at - 1ns < valid_from` if both defaulted to `now`. **Do not sleep.** |
 
 ---
 
@@ -154,19 +156,20 @@ N/A: Windows schtasks / SQLCipher pin change / clap 5.
 |----|-----------|
 | **AC1** | `decision_in_force_help__after_help__names_as_of` — `--help` lists `--as-of` and an RFC3339 example containing `T` and `Z` or a numeric offset. Must **fail** today (no flag). |
 | **AC2** | `decision_in_force_clap__default__as_of_absent` — help / clap struct has `--as-of` optional (not required). Green-on-arrival for “optional” once the flag exists; red today on missing `--as-of` in help (same proof as AC1 is fine — do not require a second help spawn if AC1 already asserts optional-not-required via clap `[OPTIONS]`). Prefer a dedicated clap parse: `in-force workspace_id` (no `--as-of`) still parses. Hermetic. |
-| **AC3** | `resolve_in_force_at__as_of_before_supersede__prior_approved` — D1 Approved then superseded by D2; `as_of = d1.updated_at - 1ns` → ruling **D1**, `state=in_force`, `chain=[]`. |
-| **AC4** | `resolve_in_force_at__as_of_at_supersede__successor` — same fixture; `as_of = d1.updated_at` → ruling **D2**, chain len 1 D1→D2. Closed-open. |
-| **AC5** | `resolve_in_force_at__as_of_before_valid_from__none` — `as_of` far in the past (`1970-01-01T00:00:00Z`) → `ruling=None` (valid_from is proposal/now). |
+| **AC3** | `resolve_in_force_at__as_of_before_supersede__prior_approved` — D1 Approved then superseded by D2; D1 `valid_from` **explicit** `2020-01-01T00:00:00Z` (F37); `as_of = d1.updated_at - 1ns` → ruling **D1**, `state=in_force`, `chain=[]`. CP `to_value` includes `as_of` key. |
+| **AC4** | `resolve_in_force_at__as_of_at_supersede__successor` — same fixture; `as_of = d1.updated_at` → ruling **D2**, chain len 1 D1→D2. Closed-open. CP `to_value` includes `as_of`. |
+| **AC5** | `resolve_in_force_at__as_of_before_valid_from__none` — `as_of` far in the past (`1970-01-01T00:00:00Z`) → `ruling=None`. Mechanism: stored `valid_from` is proposal time (`Some`, never NULL after propose) so `valid_from <= 1970` is false; Approved-tip `updated_at <= at` also fails. |
 | **AC6** | `parse_as_of_rfc3339__date_only__err` — `"2026-01-01"` errors (no spawn). `parse_as_of_rfc3339__zulu__ok` — `"2026-01-15T00:00:00Z"` ok. |
-| **AC7** | `decision_in_force__as_of_invalid__clap_exit_2` — `--as-of not-a-date` and `--as-of 2026-01-01` → clap exit **2**, `invalid value`. |
+| **AC7** | `decision_in_force__as_of_invalid__clap_exit_2` — `--as-of not-a-date` and `--as-of 2026-01-01` after TERM → clap exit **2**, `invalid value`. **Also** `--as-of not-a-date workspace_id` (flag before TERM) exit **2** (F31 / OpenCode m2b). |
 | **AC8** | Stay-green T311 CLI: `decision_in_force__help__lists_term_scope_format`; `decision_in_force__format_nope__clap_exit_2`; empty term exit 2; deny exit 3. |
 | **AC9** | Stay-green T311 CP: AC1 superseded-root current D2; AC2 successor-term empty chain; AC3 revoked-root none (**None-path**); AC4 unknown; AC5 empty term; AC6 other scope; AC7 cycle. 4-arg `resolve_in_force` still compiles. |
-| **AC10** | Stay-green JSON: omit `--as-of` → object has `term`/`scope`/`ruling`/`chain` and **does not** contain key `as_of`. With `--as-of` (hermetic or CP `to_value`) key `as_of` is the RFC3339 string. |
-| **AC11** | `resolve_in_force_at__revoked_as_of_before_revoke__prior_approved` — D1 approved then revoked; `as_of = d1.updated_at - 1ns` → ruling D1; 4-arg / `None` still none + empty chain (AC3 stay-green). |
+| **AC10** | **Split (no chain required on CLI).** (a) CLI omit `--as-of` → `contains_key("as_of") == false` (extend T311 `decision_in_force__unknown_term__ruling_key_null` or named `decision_in_force__omit_as_of__no_as_of_key`). (b) CLI `--as-of 2026-01-15T00:00:00Z` on seeded unknown term → `as_of` key present, `ruling` null (`decision_in_force__as_of_unknown__emits_as_of_key`). Does **not** need propose/approve/supersede in the CLI fixture (`seed_read_decisions` is enough). (c) CP AC3/AC4 `serde_json::to_value` includes `as_of` when `Some`. |
+| **AC11** | `resolve_in_force_at__revoked_as_of_before_revoke__prior_approved` — D1 approved then revoked; D1 `valid_from` explicit 2020 (F37); `as_of = d1.updated_at - 1ns` → ruling D1; 4-arg / `None` still none + empty chain (AC3 stay-green). |
 | **AC12** | Targeted: `cargo clippy -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`; nextest those packages (plus new tests). Full workspace gate on implement-track publish, not plan. |
 | **AC13** | Docs: CAPABILITIES `decision in-force` row names `--as-of`; OPERATIONS one example; CHANGELOG Unreleased Added. Grep, not a docs-file hermetic. |
 | **AC14** | Manual (on go, after green): `cargo run -p ai-brains-cli -- decision in-force --help` lists `--as-of`. `decision in-force workspace_id --as-of 2020-01-01T00:00:00Z --format json` → `ruling: null` on **this** live vault (pass-with-observed-data). **Do not** propose to the operator vault. |
 | **AC15** | `resolve_in_force_at__none__matches_four_arg` — same fixture as T311 AC1; `resolve_in_force_at(..., None)` equals `resolve_in_force(...)` (ruling D2). |
+| **AC16** | `resolve_in_force_at__as_of_mid_three_chain__prefix_only` — D1→D2→D3 (F37 `valid_from` on D1); `as_of` after D1 hop and before D2 hop → ruling **D2**, `chain.len()==1` (D1→D2) even though today’s full chain is 2. F7 prefix. |
 
 ---
 
@@ -194,9 +197,9 @@ as_of: Option<String>,
 
 `run_in_force` parses the (already-validated) string to `OffsetDateTime` with `Rfc3339` and `map_err` into `fail_usage` only if the invariant breaks (should not). Prefer `expect` **forbidden** — use `fail_usage` on reparse err.
 
-### 5.3 Tests without sleep
+### 5.3 Tests without sleep (F37)
 
-After `supersede_decision` / `revoke_decision`, `ports.query.get_decision(d1)` → `updated_at`. `before = hop_at - time::Duration::NANOSECOND`. Do **not** `sleep`. Do **not** invent FakeClock this track (`supersede` ignores `Clock`).
+AC3 / AC11 / AC16: propose D1 with `valid_from: Some(OffsetDateTime::parse("2020-01-01T00:00:00Z", &Rfc3339)?)`. After `supersede_decision` / `revoke_decision`, `ports.query.get_decision(d1)` → `updated_at`. `before = hop_at - time::Duration::NANOSECOND`. Do **not** `sleep`. Do **not** invent FakeClock this track (`supersede` ignores `Clock`). Do **not** use `hop_at - 1ns` on a fixture whose `valid_from` defaulted to the same tick as the hop. Do **not** add `time-macros` / `datetime!` (workspace `time` already has `parsing`).
 
 ---
 
@@ -218,7 +221,7 @@ After `supersede_decision` / `revoke_decision`, `ports.query.get_decision(d1)` �
 
 ## 7. Verification plan
 
-**Red first (TDD):** AC1 help must **fail** on today’s tree (no `--as-of`). AC3 must **fail** (`resolve_in_force_at` missing). AC6 date-only parser missing. Then green hop-stop + clap. Then AC4/AC5/AC7/AC11/AC15. Stay-green AC8–AC10/AC9.
+**Red first (TDD):** AC1 help must **fail** on today’s tree (no `--as-of`). AC3 must **fail** (`resolve_in_force_at` missing). AC6 date-only parser missing. Then green hop-stop + clap. Then AC4/AC5/AC7/AC11/AC15/AC16. Stay-green AC8–AC10/AC9.
 
 **Manual (on go, after green):** AC14. Record JSON. Do not require live Approved chain.
 
@@ -230,7 +233,7 @@ Do **not** require full workspace nextest to finish the **plan**.
 
 | Risk | Mitigation |
 |------|------------|
-| Same-nanosecond propose/approve/supersede flakes | AC3/AC4 use **stored** `updated_at ± 1ns`, not wall capture around the call |
+| Same-tick propose/supersede flakes (Windows 100 ns) | F37 explicit `valid_from` 2020; then stored `updated_at - 1ns` |
 | Signature break T311 tests | F1 4-arg wrapper |
 | JSON key churn | F4 skip_serializing_if; AC10 forbids `as_of` when omitted |
 | Projector tourism | F9/F10 |
@@ -269,8 +272,8 @@ Entire `conductor/deferred.md` scanned 2026-08-29 (T321 implement residuals thro
 
 1. Phase 0: re-read `in_force.rs` walk + F9, clap `InForce`, `decision_valid_at`, projector supersede arm, T311 tests; lock clap **4.6.1** / time **0.3.47**; FEATURE TX. **Do not install.** **Do not** live-propose.
 2. Red AC1 / AC3 / AC6 (must fail).
-3. Green `resolve_in_force_at` + 4-arg wrapper + F5 hop-stop + F6 Some-path. AC3–AC5 / AC11 / AC15.
-4. CLI `--as-of` + `parse_as_of_rfc3339` + after_help + human `As of:` + JSON skip. AC1 / AC2 / AC7 / AC10.
+3. Green `resolve_in_force_at` + 4-arg wrapper + F5 hop-stop + F6 Some-path. AC3–AC5 / AC11 / AC15 / AC16. F37 `valid_from` 2020 on D1.
+4. CLI `--as-of` + `parse_as_of_rfc3339` + after_help + human `As of:` + JSON skip. AC1 / AC2 / AC7 (incl. flag-before-TERM) / AC10 split.
 5. Stay-green AC8 / AC9.
 6. CHANGELOG + CAPABILITIES/OPERATIONS (AC13).
 7. Targeted clippy/nextest AC12. Implement-track full gate before publish.
@@ -281,7 +284,7 @@ Entire `conductor/deferred.md` scanned 2026-08-29 (T321 implement residuals thro
 
 | Residual | Notes |
 |----------|-------|
-| Propose→approve gap on a superseded/revoked node | Approval `updated_at` overwritten; hop-stop uses `[valid_from, hop_at)`. Column declined F9 |
+| Propose→approve gap on a superseded/revoked node | Approval `updated_at` overwritten; hop-stop uses `[valid_from, hop_at)`. Column declined F9. F6 tests do **not** assert in-force in `[valid_from, approval)` |
 | PATH until owner `cargo install` | F27 — hermetic/`cargo run` SoT |
 | Live vault `workspace_id` ruling null | Honesty; AC14 pass-with-observed-data |
 | Daemon `ListInForce` | F11 / T311 R1 |
@@ -296,12 +299,49 @@ Entire `conductor/deferred.md` scanned 2026-08-29 (T321 implement residuals thro
 |------|--------|
 | `crates/ai-brains-control-plane/src/in_force.rs` | `resolve_in_force_at`; hop-stop; additive `as_of` JSON; 4-arg wrapper |
 | `crates/ai-brains-control-plane/src/lib.rs` | `pub use` `resolve_in_force_at` |
-| `crates/ai-brains-control-plane/tests/in_force.rs` | AC3–AC5 / AC11 / AC15 (existing AC1–AC7 stay) |
+| `crates/ai-brains-control-plane/tests/in_force.rs` | AC3–AC5 / AC11 / AC15 / AC16 (existing AC1–AC7 stay); F37 `valid_from` |
 | `crates/ai-brains-cli/src/commands/decision.rs` | `parse_as_of_rfc3339`; `InForceOptions.as_of`; `run_in_force` passes `Option<OffsetDateTime>`; human `As of:` |
 | `crates/ai-brains-cli/src/main.rs` | `InForce` `--as-of` + dispatch + after_help |
-| `crates/ai-brains-cli/tests/decision_in_force.rs` | AC1 / AC2 / AC7 / AC10 |
+| `crates/ai-brains-cli/tests/decision_in_force.rs` | AC1 / AC2 / AC7 (flag-before-TERM) / AC10 split (omit-key + unknown+`--as-of` key) |
 | `CHANGELOG.md` | Unreleased Added |
 | `Docs/CAPABILITIES.md` | Family C row `--as-of` |
 | `Docs/OPERATIONS.md` | One example |
 
-Do **not** touch: `governed_common.rs`, `briefings/project.rs`, `projections/decision.rs`, `help_ia.rs`, daemon-api, contracts, retrieval, graph, INSTALL.md.
+Do **not** touch: `governed_common.rs`, `briefings/project.rs`, `ai-brains-store/src/projections/decision.rs` (Agy cited a non-existent CP `projections/decision.rs` — live projector is **store**), `help_ia.rs`, daemon-api, contracts, retrieval, graph, INSTALL.md.
+
+---
+
+## 13. AI fold-in disposition (2026-08-29)
+
+Source: `agy-review.md` + `opencode-review.md` (HEAD `7867d56`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.**
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** AC3/AC11 `hop_at - 1ns` vs `valid_from` same tick | **Agree** | **F37** + AC3/AC11/AC16 explicit `valid_from` `2020-01-01T00:00:00Z`; Windows FILETIME 100 ns ([SystemTime](https://doc.rust-lang.org/stable/std/time/struct.SystemTime.html)) |
+| **m2** HEAD `0eef80b` vs `7867d56` | **Agree** | Snapshot `7867d56` / ahead **1** of `origin/main` `0eef80b` |
+| **m3** zero-panic reparse | **Already** | F16 / F29 / §5.2 `fail_usage` — do not `unwrap` |
+| **O1** 4-arg wrapper | **Already** | F1 |
+| **O2** `contains_key("as_of") == false` | **Agree** | AC10 (a) explicit |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** F6 (b) Proposed-as-ruling | **Already** | Reviewer walk-through closed it; `[valid_from, approval)` is §11 / F6 out-of-contract. No column (F9). |
+| **m2** AC10 positive key unreachable from CLI | **Partial** | Split AC10: CLI **can** prove the key on unknown term (no chain — `seed_read_decisions` exists). CP `to_value` on AC3/AC4. **Decline** “CLI-side stays negative-only.” |
+| **m2b** `--as-of` before TERM | **Agree** | AC7 extra clause |
+| **O1** AC5 mechanism is `updated_at` not `valid_from` | **Decline** | Stored `valid_from` is **Some(proposal time)** (`propose_decision` `:101–118` + projector `None => Some(occurred_at)`). 1970 fails `valid_from <= at`. Tightened AC5 parenthetical to name both guards. |
+| **O2** three-chain prefix | **Agree** | **AC16** |
+
+### Pins locked by fold-in
+
+1. **F37:** as-of hop tests set D1 `valid_from` to 2020; do not rely on `now - 1ns` vs default proposal tick.
+2. **AC10:** CLI omit-key **and** CLI unknown+`--as-of` key; CP `to_value` on Some. No CLI approve/supersede fixture required.
+3. **AC16:** mid-chain prefix (D1→D2→D3).
+4. **AC7:** flag-before-TERM InvalidValue.
+5. **last-PR:** `#243` N/A empty; `#237` → T326; `#230` → T325; **no T327**.
+6. Projector path is **`crates/ai-brains-store/src/projections/decision.rs`**, not CP.
+
+Plan-write HEAD `0eef80b`. Fold-in against `7867d56` (ahead **1**). Still **plan-only until go**.

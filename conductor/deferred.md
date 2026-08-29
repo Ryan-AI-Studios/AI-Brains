@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T322 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2 HEAD `0eef80b` vs `7867d56` | **Folded** snapshot `7867d56` / ahead **1** |
+| Agy m1 AC3/AC11 same-tick `valid_from` | **Folded** F37 explicit `2020-01-01T00:00:00Z` |
+| Agy m3 / O1 unwrap + wrapper | **Already** F16/F29 / F1 |
+| Agy O2 omit `as_of` key | **Folded** AC10 (a) |
+| OpenCode m1 F6 Proposed-as-ruling | **Already** §2.2 / F6 residual; no column |
+| OpenCode m2 AC10 CLI cannot prove key | **Partial** — CLI unknown+`--as-of` **does**; CP `to_value` on AC3/AC4; **decline** negative-only |
+| OpenCode m2b flag-before-TERM | **Folded** AC7 |
+| OpenCode O1 AC5 `valid_from` None | **Decline** — payload/projector store Some(proposal) |
+| OpenCode O2 three-chain prefix | **Folded** AC16 |
+| last-PR `#243` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `418e2547-d972-4457-a1cb-c927b5f41f37` |
+
 ### T322 full plan (2026-08-29) — `decision in-force --as-of` (hop-stop; no column)
 
 | Item | Disposition |
