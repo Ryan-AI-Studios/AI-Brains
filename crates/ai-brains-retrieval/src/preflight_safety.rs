@@ -26,11 +26,19 @@ pub fn format_safety_hotspot_line(path: &str, score: f64) -> Option<String> {
     Some(format!("HOTSPOT: {path} score={score:.2}"))
 }
 
-/// Parse `ledgerful hotspots --json` stdout. Finder is F36 (first `trim_start` `[`).
+/// Parse `ledgerful hotspots --json` stdout (T321 F7).
+///
+/// Accepts (a) object with `files` array (`schemaVersion` optional) or (b) legacy
+/// top-level array after first `trim_start` `[` (T279 F36). Finder: first line
+/// `trim_start` `{` or `[`. Raw field `score` (ignore `displayScore`).
+///
+/// Copy-not-share with CLI `parse_ledgerful_hotspots_json` (F29): this inject
+/// caps at `LIVE_HOTSPOT_LIMIT`; CLI uses operator-set `--limit` (default 5).
 pub fn parse_hotspots_json(stdout: &str) -> Vec<LiveHotspot> {
-    let json_start = stdout
-        .lines()
-        .position(|line| line.trim_start().starts_with('['));
+    let json_start = stdout.lines().position(|line| {
+        let t = line.trim_start();
+        t.starts_with('{') || t.starts_with('[')
+    });
     let Some(json_start) = json_start else {
         return Vec::new();
     };
@@ -39,9 +47,7 @@ pub fn parse_hotspots_json(stdout: &str) -> Vec<LiveHotspot> {
         .skip(json_start)
         .collect::<Vec<_>>()
         .join("\n");
-    let Ok(values) = serde_json::from_str::<Vec<serde_json::Value>>(&json_str) else {
-        return Vec::new();
-    };
+    let values = parse_hotspot_value_rows(&json_str);
     let mut out = Vec::new();
     for v in values {
         let path = v
@@ -59,6 +65,21 @@ pub fn parse_hotspots_json(stdout: &str) -> Vec<LiveHotspot> {
         }
     }
     out
+}
+
+fn parse_hotspot_value_rows(json_str: &str) -> Vec<serde_json::Value> {
+    let trimmed = json_str.trim_start();
+    if trimmed.starts_with('{') {
+        let Ok(obj) = serde_json::from_str::<serde_json::Value>(json_str) else {
+            return Vec::new();
+        };
+        obj.get("files")
+            .and_then(|f| f.as_array())
+            .cloned()
+            .unwrap_or_default()
+    } else {
+        serde_json::from_str::<Vec<serde_json::Value>>(json_str).unwrap_or_default()
+    }
 }
 
 /// F7: keep Intelligence substring suppress; live inject drops **leading** vault HOTSPOT only.
@@ -162,6 +183,41 @@ mod tests {
         assert!(
             missing.is_empty(),
             "AC9: missing leading [ is fail-open empty; got {missing:?}"
+        );
+    }
+
+    #[test]
+    fn parse_hotspots_json__envelope_v1_files__raw_score() {
+        let stdout = r#"{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "crates/ai-brains-cli/src/commands/project.rs",
+      "score": 0.037,
+      "displayScore": 3.65,
+      "complexity": 21,
+      "frequency": 7.2
+    }
+  ],
+  "resultCount": 1,
+  "limit": 5
+}"#;
+        let got = parse_hotspots_json(stdout);
+        assert_eq!(got.len(), 1, "AC5: one hotspot; got {got:?}");
+        assert!(
+            got[0].path.ends_with("project.rs"),
+            "AC5: path; got {}",
+            got[0].path
+        );
+        assert!(
+            (got[0].score - 0.037).abs() < 1e-9,
+            "AC5: raw score 0.037; got {}",
+            got[0].score
+        );
+        assert!(
+            (got[0].score - 3.65).abs() > 0.1,
+            "AC5: must not use displayScore 3.65; got {}",
+            got[0].score
         );
     }
 

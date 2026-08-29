@@ -1197,6 +1197,82 @@ mod tests {
         );
     }
 
+    /// T321 AC1: safety sync --help names pin + dry-run preview; about contains pin.
+    #[test]
+    #[allow(non_snake_case)]
+    fn safety_sync_help__after_help__names_pin_and_dry_run() {
+        let err = match super::Cli::try_parse_from(["ai-brains", "safety", "sync", "--help"]) {
+            Ok(_) => panic!("expected --help to be DisplayHelp"),
+            Err(e) => e,
+        };
+        let help = err.to_string();
+        assert!(
+            help.to_lowercase().contains("pin"),
+            "AC1: about/after_help must name pin; got: {help}"
+        );
+        assert!(
+            help.contains("dry-run") || help.contains("--dry-run"),
+            "AC1: after_help/options must name --dry-run; got: {help}"
+        );
+        assert!(
+            help.contains("Default pins") || help.contains("without pinning"),
+            "AC1: after_help must say default pins / preview without pinning; got: {help}"
+        );
+    }
+
+    /// T321 AC2: default dry_run is false (write); --dry-run sets true.
+    #[test]
+    #[allow(non_snake_case)]
+    fn safety_sync_clap__default__dry_run_false() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "safety", "sync"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected safety sync to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Safety {
+                command: super::SafetyCommands::Sync { dry_run, limit },
+            } => {
+                assert!(!dry_run, "AC2: default dry_run false");
+                assert_eq!(limit, 5, "AC10: --limit default 5");
+            }
+            _ => panic!("expected Commands::Safety::Sync"),
+        }
+        let cli = match super::Cli::try_parse_from(["ai-brains", "safety", "sync", "--dry-run"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected safety sync --dry-run to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Safety {
+                command: super::SafetyCommands::Sync { dry_run, .. },
+            } => {
+                assert!(dry_run, "AC2: --dry-run sets true");
+            }
+            _ => panic!("expected Commands::Safety::Sync"),
+        }
+    }
+
+    /// T321 AC10: unknown flag on safety sync → clap UnknownArgument (exit 2).
+    #[test]
+    #[allow(non_snake_case)]
+    fn safety_sync_clap__unknown_flag__exit_2() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "safety",
+            "sync",
+            "--not-a-real-flag",
+        ]) {
+            Ok(_) => panic!("expected unknown flag to fail"),
+            Err(e) => e,
+        };
+        assert_eq!(
+            err.kind(),
+            ErrorKind::UnknownArgument,
+            "AC10: unknown flag → UnknownArgument; got {:?}",
+            err.kind()
+        );
+    }
+
     /// T278 F30: after_help names session PREVIEW caption shape.
     #[test]
     #[allow(non_snake_case)]
@@ -3714,12 +3790,17 @@ pub enum SyncCommands {
 
 #[derive(Subcommand, Clone)]
 pub enum SafetyCommands {
-    /// Synchronize Ledgerful hotspots into the AI-Brains vault
+    /// Pin Ledgerful hotspots into the AI-Brains vault
+    #[command(
+        after_help = "Default pins the top Ledgerful hotspots into the vault as HOTSPOT memories.\n\
+Use --dry-run to preview without pinning.\n\
+preflight already live-injects hotspot paths into Safety without pinning."
+    )]
     Sync {
         /// Limit the number of hotspots to ingest
         #[arg(short, long, default_value_t = 5)]
         limit: usize,
-        /// Preview what would be synced without pinning
+        /// Preview what would be pinned without writing to the vault
         #[arg(long)]
         dry_run: bool,
     },
