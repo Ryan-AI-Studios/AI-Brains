@@ -685,7 +685,10 @@ fn extract_constraints(conclusions: &[BriefingClaimDto]) -> Vec<BriefingConstrai
 }
 
 /// Whether a conclusion's valid-time window covers `at` (valid_from ≤ at < valid_until|∞).
-fn conclusion_valid_at(row: &crate::ports::ConclusionRow, at: time::OffsetDateTime) -> bool {
+pub(crate) fn conclusion_valid_at(
+    row: &crate::ports::ConclusionRow,
+    at: time::OffsetDateTime,
+) -> bool {
     row.valid_from <= at && row.valid_until.map(|u| u > at).unwrap_or(true)
 }
 
