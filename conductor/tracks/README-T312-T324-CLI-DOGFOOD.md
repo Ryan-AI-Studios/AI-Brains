@@ -1,9 +1,9 @@
 # T312–T324 — Post-T311 live CLI dogfood (placeholders)
 
 **Source:** Non-destructive CLI audit **2026-08-27** on PATH graph-on `ai-brains` **0.1.3** (elevated install 2026-08-27 **05:52**; CLI **26,842,112** B). Live vault `C:\dev\ai-brains\vault.db`; Scope `3581317d`; pinned **4510**; grants **3 of 3**. Agent non-TTY (pipe → JSON). Plus **entire** `conductor/deferred.md` open residuals that still deserve a track.
-**Status:** **T312 Completed** (`#230` `44520d8`). **T314 Completed** (`#232` `cd7bfde`). **T315 Completed** (`#231` `ae6615d`). **T313 Completed** (`#233` `dae7df3`, FEATURE `a58ee509`). **T317 Completed** (`#234` `fa353c7`, FEATURE `39e0e1e4`). **T319 Completed** (FEATURE `ce627277`). T316 / T318 / T320–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. **T307 stays Blocked.** **T311 Completed** (`#229`).
+**Status:** **T312 Completed** (`#230` `44520d8`). **T314 Completed** (`#232` `cd7bfde`). **T315 Completed** (`#231` `ae6615d`). **T313 Completed** (`#233` `dae7df3`, FEATURE `a58ee509`). **T317 Completed** (`#234` `fa353c7`, FEATURE `39e0e1e4`). **T319 Completed** (`#235` `e03c49d`, FEATURE `ce627277`). **T320 Completed** (FEATURE `a700986c`). T316 / T318 / T321–T324 still placeholders. **T325 minted** from `#230` Cursor (F8 recency) — not in the original audit map. **T307 stays Blocked.** **T311 Completed** (`#229`).
 **HEAD at T313 implement:** track branch off `cd7bfde` T314 `#232`.
-**Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`. T314 plan DOCS `23da7568`. T314 fold-in DOCS `0d3c2e80`. T314 FEATURE `26f296f5`. T313 plan DOCS `bdf8fddd`. T313 fold-in DOCS `5fa5626e`. T313 FEATURE `a58ee509`. T317 plan DOCS `0db2a64d`. T317 fold-in DOCS `e1ef2696`. T317 FEATURE `39e0e1e4`. T319 plan DOCS `844bdbed`. T319 fold-in DOCS `09c2659f`.
+**Ledger (registration):** series mint DOCS `a6d3c404`. T315 plan DOCS `ca5b1614`. T314 plan DOCS `23da7568`. T314 fold-in DOCS `0d3c2e80`. T314 FEATURE `26f296f5`. T313 plan DOCS `bdf8fddd`. T313 fold-in DOCS `5fa5626e`. T313 FEATURE `a58ee509`. T317 plan DOCS `0db2a64d`. T317 fold-in DOCS `e1ef2696`. T317 FEATURE `39e0e1e4`. T319 plan DOCS `844bdbed`. T319 fold-in DOCS `09c2659f`. T319 FEATURE `ce627277`. T320 plan DOCS `dcb67912`. T320 fold-in DOCS `a92f9b07`. T320 FEATURE `a700986c`.
 **last-PR Cursor:** [#232](https://github.com/Ryan-AI-Studios/AI-Brains/pull/232) T314 — comments **empty**. `#230` Bugbot **1 medium** (F8 OR-fill skips PreferRecency) already **T325**. `#231` was empty.
 
 Scores below are **Usefulness / Quality** from that audit (1–10). Every command with **U&lt;8 or Q&lt;8**, plus every “doesn’t work,” friction, and significant-opportunity item, maps to **exactly one** track unless **declined**.
@@ -33,7 +33,7 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 | `graph neighbors` RECALLS spam (19 edges; live **11** on `431f6505-…`); hierarchy `synthesized_from` empty | 6/**5** | **T317 Completed** | P1 |
 | `backup list` residual plaintext rows drown the 1 usable; verify repeats per-file | 6/**6** | **T318** | P2 |
 | `evidence show` / `source show` on a vault memory UUID → `Handle not found` / `NOT_FOUND` | friction / 2–3/**4** show path | **T319 Completed** | P1 |
-| No single `ai-brains status` (doctor + nightly + graph + daemon) | opportunity | **T320** | P1 |
+| No single `ai-brains status` (doctor + nightly + graph + daemon) | opportunity | **T320 Completed** | P1 |
 | `safety sync` is a write (pins hotspots) but grouped as read-ish; chatty | 5/**5** | **T321** | P2 |
 | T311 R2 — `decision in-force` has no `--as-of` | deferred residual | **T322** | P2 |
 | T311 R5 — no conclusion in-force | deferred residual | **T323** | P2 |
@@ -68,8 +68,8 @@ Pins (workspace, snapshot — re-verify at execute): clap **4.5** / lock **4.6.1
 1. **T315** Completed (`#231`)
 2. **T314** Completed (`#232`)
 3. **T313** Completed (`#233`)
-4. **T317** Completed (`#234`) / **T319** Completed (handle vs memory) / **T325** (F8 recency leftover)
-5. **T320** (compose; after doctor/nightly stay stable)
+4. **T317** Completed (`#234`) / **T319** Completed (`#235`) / **T325** (F8 recency leftover)
+5. **T320 Completed** (unified `status` glance)
 6. **T316** / **T318** / **T321**
 7. **T324** (small clap/usage) then **T322** / **T323** (governed reads)
 

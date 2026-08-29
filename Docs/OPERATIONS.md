@@ -761,7 +761,11 @@ ai-brains backup list
 ai-brains backup verify
 ai-brains doctor --backup-max-age 7d
 ai-brains doctor --summary           # T249: compact 15-check skim
+ai-brains status                     # T320: daemon + doctor + graph + nightly glance
+ai-brains status --format json       # pretty CLI-local envelope (schema_version: 1)
 ```
+`ai-brains status` is a fast daily glance — it does **not** replace `doctor`, `nightly --status`, `daemon status`, or `graph update`. Fail-open per section; exit **0** for degraded/Stopped/sparse/never. No HTTP probes; never starts the daemon; never rebuilds the graph.
+
 Backups include an integrity check; corrupt backups are rejected at creation time. After write, create classifies the file under the current key and deletes a non-usable snapshot (T277) — `Backup created and verified:` means doctor-usable, not merely `integrity_check` ok.
 
 **Recoverability green path (T244 / T277 / T295):** after encrypt, KEY change, or when doctor/list show zero usable encrypted backups (legacy plain wall, Incomplete shells missing `events`/`memory_projection`, wrong key), create a **new** snapshot under the current key in the **default vault sibling `backups/`** (no `--output-dir`) then prove recovery. Custom `--output-dir` is a manual export only — `backup list` (default dir) and doctor `backup_recent` scan the sibling `backups/` directory alone.

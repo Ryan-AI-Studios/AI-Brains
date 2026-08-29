@@ -58,6 +58,7 @@ pub mod safety;
 pub mod scope;
 pub mod shadow;
 pub mod source;
+pub mod status;
 pub mod stop_session;
 pub mod symbol_bridge;
 pub mod sync;

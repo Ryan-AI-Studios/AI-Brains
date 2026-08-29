@@ -2,6 +2,57 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T320 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F22 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| Live E/N ~0.42 still sparse | **Deferred** F36 honesty — no floor retune / rebuild on glance |
+| Doctor Safety vs glance Status probe | **Deferred** F9 by design — Status 1×300 ms matches `daemon status` |
+| Two vault opens (`build_report` + glance `open_read_intent`) | **Deferred** F44 — not a conn-sharing track; do not grow doctor |
+| F32 other-file physical net ~82 incl. clap test blocks in `main.rs` | **Deferred** — production-only estimate ~60 under 80; test blocks inflate file total |
+| T325 F8 PreferRecency / T316 / T318 / T321–T324 | **Not stolen** |
+| FEATURE TX | `a700986c-41d5-41b6-b417-6cac9153be0e` |
+
+### T320 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 HEAD `464edc2` vs `e15188e` | **Folded** snapshot `e15188e` / ahead **1** |
+| Agy m2 `graph_density.rs` not under `commands/` | **Folded** §2.3 / F11 — `src/graph_density.rs` via `main.rs:9` |
+| Agy O1/O2/O3 in-process / fail-open / graph-off | **Already** F2 / F4 / F11 |
+| OpenCode m1 line counts 1738 vs 1855 | **Partial** dual-count (nonblank vs physical); F32 go-HEAD. **Decline** “pre-T317 / `src/graph.rs`” |
+| OpenCode O1 AC9 host daemon IPC | **Folded** AC9 / F45 — do not assert `daemon.state` |
+| OpenCode O2 `status_next_line` reuse | **Folded** F27 / AC7 — human = helper; JSON prefix-less |
+| OpenCode O3 scheduled mapper | **Folded** F12 / AC6 — live `next_run.is_some()` (`nightly.rs:104`), not Router `found &&` |
+| last-PR `#236` / `#235` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `a92f9b07-1894-42a1-8526-9f66fa9ed02d` |
+
+### T320 full plan (2026-08-29) — unified `ai-brains status` glance
+
+| Item | Disposition |
+|------|-------------|
+| Audit opportunity (b) no single `status` | **Absorb** F1–F15 / AC3–AC12 — in-process compose; fail-open |
+| Placeholder name vs `daemon status` | **Absorb** F1 — top-level `Commands::Status`; nested unchanged |
+| Placeholder compose vs subprocess | **Absorb** F2 — never PATH subprocess |
+| Placeholder 750 ms fail-open | **Absorb** F4 / F7 — no HTTP; Status IPC 300 ms |
+| T192/T249 doctor 15 + `--summary` | **Affirm** F6 / F10 / F38 — reuse; do not replace |
+| T199/T297 `daemon status` | **Affirm** F8 / F39 — do not call `run_status` |
+| T255 nightly JSON / Router / 750 ms | **Affirm** F12 / F37 — last-run + schtasks only |
+| T308 Sparse remediator None / floors 0.50 | **Affirm** F36 |
+| T204 Daily string lock | **Partial** F17 — additive `status` only |
+| T310 F15 `ai-brainsd --version` | **Decline** F20 |
+| minikube bitwise exit | **Decline** F31 |
+| Unsummarized / Router / TCP on glance | **Decline** F12 / F8 |
+| T263 H2 / T240 F2 / clap 5 | **Decline** F20 |
+| T316 / T318 / T321–T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T307 Blocked / T308 floor retune | **Not stolen** / **Decline** |
+| last-PR Cursor `#236` / `#235` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `dcb67912-8fb7-4bbd-a354-68ba41857744` |
+
 ### T319 implement residuals (2026-08-28) — non-easy lows
 
 | Item | Disposition |
@@ -301,8 +352,8 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | `memory list` preview + forget nudge | **T316** Pending |
 | `graph neighbors` RECALLS spam | **T317 Completed** `#234` |
 | `backup list` residual noise | **T318** Pending |
-| evidence/source show vault UUID | **T319** Planned (full F-list 2026-08-28) |
-| unified `status` opportunity | **T320** Pending |
+| evidence/source show vault UUID | **T319** Completed `#235` |
+| unified `status` opportunity | **T320** Planned (full F-list 2026-08-29) |
 | `safety sync` write surprise | **T321** Pending |
 | T311 R2 `--as-of` | **T322** Pending |
 | T311 R5 conclusion in-force | **T323** Pending |

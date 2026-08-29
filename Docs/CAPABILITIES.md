@@ -62,7 +62,7 @@ Governed memory separates **what was observed** from **what we conclude** and **
 
 ```text
 Setup:     init
-Daily:     recall | preflight | doctor | project | pin | context | stop-session | daemon
+Daily:     recall | preflight | doctor | status | project | pin | context | stop-session | daemon
 Operator:  backup | recovery | vault | retention | device | replicate | nightly | safety
 Governed:  scope | briefing | query | evidence | source | review | policy | conclusion | decision
 Dangerous: forget | erasure  (+ dual-ops: retention apply, vault encrypt|rotate-datakey, migrate governed --confirm, daemon install|uninstall|update)
@@ -108,6 +108,7 @@ Four families (T266):
 | `memory list` | human | human | **B.** `--format human` (default) or `json`. No `auto`. |
 | `project list` | human | human | **B.** `--format human` (default) or `json`. No `auto`. |
 | `doctor` | human | human | **B.** `--json` / `--format json` override (full `DoctorReport`). `--summary` is opt-in compact of the same 15-check report (warn+fail attention or `No issues.`). Does **not** TTY-switch. |
+| `status` | human | json | **A.** T320 unified glance: daemon IPC Running/Stopped + doctor attention + graph density one-liner + nightly last-run/scheduled. `--format auto` (default): TTY human / pipe json. Tokens `auto\|pretty\|human\|text\|json\|markdown\|md` (case-sensitive). Fail-open per section; exit **0** always for a successful emit (degraded / Stopped / sparse / never). Does **not** replace `doctor` / `nightly --status` / `daemon status` / `graph update`. No HTTP probes; no daemon TCP. CLI-local envelope `schema_version: 1` (not a contracts DTO). Stopped may add `next: ai-brains daemon start` / JSON `next_step`. |
 | `daemon status` | human | human | **B.** No `--format`. When Stopped and LLM/Embedding TCP is Open, prints `backend TCP Open ≠ daemon` (IPC vs model TCP — not nightly’s T281 `HTTP /health 750ms ≠ daemon TCP`) **before** the last line. Stopped last line: `next: ai-brains daemon start`. Running omits contrast and `next:`. Exit **0** both states. Keyless liveness (T199). |
 | `device list` | human | human | **B.** Human table only. No `--format`. Empty = T198 `No enrolled devices. Run \`ai-brains device bootstrap\` first.` |
 | `device status` | human | human | **B.** Human-only. Same roster as `device list` + this-machine (`{hostname} (not enrolled)` or hyphen fingerprint) + short honesty `local-only; not PQ; not remote wipe` + **always** last-line `next: ai-brains replicate status` (empty and enrolled). No `--format` (unknown flags clap exit **2**). Not a JSON DTO. |
@@ -115,7 +116,7 @@ Four families (T266):
 | `retention plan` | human | json | **A.** T248: `--format auto` (default). TTY human class matrix; pipe / `--format json` pretty JSON. Report keys frozen. Live vaults overlay `memory_legacy` as inventory (`none_auto`): pinned→`held`, other statuses→`skip`; `Nothing to dispose.` means no CE/projection work (T270). Human **Work** lists dispose identities (class CE/projection counts), not the class dominant mechanism — a held-majority `secret` still shows a `ce_wipe` Work row (T284). |
 | `decision in-force` | json | json | **C.** T311: default JSON. `--format` `value_parser` tokens `auto\|pretty\|human\|text\|json\|markdown\|md`; unknown → clap exit **2**. `auto` is not a TTY switch. Human/pretty/text: `Term:`/`Scope:`/`Ruling:` or F12 none + recall next. Local projection; `ReadDecisions`. |
 
-Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty vault still prints the schedule). Scripts should pass `--format json`. `retention apply` stays JSON unless `--format human` is explicit. `scope resolve` on a TTY is human; scripts should pass `--format json`. Default `doctor` stays the full 15-check listing. `device list` / `device status` are human-only (no `--format`). Machine enrollment is `replicate status --format json` (keys frozen).
+Operator: `retention plan` on a TTY is a scannable class/horizon matrix (empty vault still prints the schedule). Scripts should pass `--format json`. `retention apply` stays JSON unless `--format human` is explicit. `scope resolve` on a TTY is human; scripts should pass `--format json`. Default `doctor` stays the full 15-check listing. **`status` (T320)** is the daily glance when you want daemon Running/Stopped + doctor attention + graph density + nightly last-run in one command — `doctor --summary` alone still hides a Stopped daemon (`daemon_reachable` is always ok) and omits nightly. `device list` / `device status` are human-only (no `--format`). Machine enrollment is `replicate status --format json` (keys frozen).
 
 **Global options:**
 

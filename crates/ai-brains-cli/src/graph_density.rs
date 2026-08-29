@@ -118,7 +118,8 @@ pub fn threshold_min_memory_coverage() -> f64 {
     parse_f64_env(ENV_MIN_MEMORY_COVERAGE, MIN_MEMORY_COVERAGE)
 }
 
-fn format_ratio(ratio: f64) -> String {
+/// Three-decimal ratio for human density lines (doctor / graph update / status glance).
+pub(crate) fn format_ratio(ratio: f64) -> String {
     format!("{ratio:.3}")
 }
 

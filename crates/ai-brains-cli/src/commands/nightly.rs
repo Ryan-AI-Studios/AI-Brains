@@ -1054,17 +1054,19 @@ fn fetch_schedule_next_run(task_name: &str) -> Option<String> {
 }
 
 /// LIST /V foundness (F34): `found` is true only when the spawn succeeds.
+/// Visibility `pub(crate)` for T320 status glance (behavior unchanged).
 #[cfg(windows)]
-struct ScheduleSnapshot {
-    found: bool,
-    snap: SchtasksListV,
+pub(crate) struct ScheduleSnapshot {
+    pub(crate) found: bool,
+    pub(crate) snap: SchtasksListV,
 }
 
 /// Windows schedule snapshot: LIST /V first; PS Last Result only after successful LIST /V
 /// with a missing `last_result`; CSV next-run only when LIST /V missed `next_run`.
 /// Non-zero LIST /V (task missing) → `found: false`, all None, **no** PowerShell (F3/F34).
+/// Visibility `pub(crate)` for T320 status glance (behavior unchanged).
 #[cfg(windows)]
-fn fetch_schedule_snapshot(task_name: &str) -> ScheduleSnapshot {
+pub(crate) fn fetch_schedule_snapshot(task_name: &str) -> ScheduleSnapshot {
     let list = std::process::Command::new("schtasks")
         .args(["/query", "/tn", task_name, "/fo", "LIST", "/v"])
         .output();
