@@ -17,6 +17,7 @@ use ai_brains_events::payload::ConclusionSupersededPayload;
 use ai_brains_events::{Actor, AggregateType, Payload};
 use ai_brains_store::SqliteEventStore;
 use ai_brains_store::connection::VaultConnection;
+use rstest::rstest;
 use tempfile::NamedTempFile;
 
 fn open_ports() -> (NamedTempFile, StorePorts) {
@@ -227,18 +228,19 @@ fn resolve_conclusion_in_force__unknown_term__none() {
     assert_eq!(resp.scope, scope_key);
 }
 
-#[test]
-fn resolve_conclusion_in_force__empty_term__err() {
+#[rstest]
+#[case::empty("")]
+#[case::whitespace("   ")]
+#[case::tab("\t")]
+fn resolve_conclusion_in_force__empty_term__err(#[case] term: &str) {
     let (_t, ports) = open_ports();
     let scope_key = "Personal:00000000-0000-0000-0000-000000000001";
-    for term in ["", "   ", "\t"] {
-        let err = resolve_conclusion_in_force(&ports.query, &SystemClock, scope_key, term)
-            .expect_err("empty term must err");
-        assert!(
-            matches!(err, ControlPlaneError::InvalidPayload(_)),
-            "expected InvalidPayload; got {err:?}"
-        );
-    }
+    let err = resolve_conclusion_in_force(&ports.query, &SystemClock, scope_key, term)
+        .expect_err("empty term must err");
+    assert!(
+        matches!(err, ControlPlaneError::InvalidPayload(_)),
+        "expected InvalidPayload; got {err:?}"
+    );
 }
 
 #[test]
