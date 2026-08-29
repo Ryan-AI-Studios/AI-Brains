@@ -610,7 +610,7 @@ fn root_help__daily_includes_memory() {
     );
     assert!(
         stdout.contains(
-            "Daily:     recall, preflight, doctor, project, pin, memory, context, stop-session, daemon"
+            "Daily:     recall, preflight, doctor, status, project, pin, memory, context, stop-session, daemon"
         ) || stdout.contains("pin, memory, context"),
         "Daily inventory string; snippet missing in:\n{}",
         stdout.lines().take(40).collect::<Vec<_>>().join("\n")

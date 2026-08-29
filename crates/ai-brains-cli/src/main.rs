@@ -647,6 +647,54 @@ mod tests {
         }
     }
 
+    /// T320 AC2: `status --format xml` is clap InvalidValue (exit 2).
+    #[test]
+    #[allow(non_snake_case)]
+    fn status__format_xml__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from(["ai-brains", "status", "--format", "xml"]) {
+            Ok(_) => panic!("expected clap to reject --format xml"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T320 AC2: `status --format JSON` is clap InvalidValue (case-sensitive).
+    #[test]
+    #[allow(non_snake_case)]
+    fn status__format_JSON__clap_invalid_value() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from(["ai-brains", "status", "--format", "JSON"]) {
+            Ok(_) => panic!("expected clap to reject --format JSON"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
+    }
+
+    /// T320 AC2: `daemon status` still parses (nested; not stolen by top-level status).
+    #[test]
+    #[allow(non_snake_case)]
+    fn daemon_status__still_parses_alongside_top_level_status() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "daemon", "status"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected daemon status to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Daemon {
+                command: super::DaemonCommands::Status,
+            } => {}
+            _ => panic!("expected Daemon::Status"),
+        }
+        let status = match super::Cli::try_parse_from(["ai-brains", "status"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected top-level status to parse: {e}"),
+        };
+        match *status.command {
+            super::Commands::Status { format } => assert_eq!(format, "auto"),
+            _ => panic!("expected Commands::Status"),
+        }
+    }
+
     /// T314 AC5: expand `--format JSON` is clap InvalidValue.
     #[test]
     #[allow(non_snake_case)]
@@ -1833,6 +1881,20 @@ enum Commands {
         /// Compact human summary (warn+fail only). JSON still emits the full report.
         #[arg(long)]
         summary: bool,
+    },
+    /// Unified vault glance (daemon + doctor attention + graph density + nightly last-run)
+    #[command(
+        display_order = 12,
+        after_help = "In-process compose of four probes. Does not replace `doctor` / `nightly --status` / `daemon status` / `graph update`.\nNever starts the daemon; never rebuilds the graph; no HTTP probes; no daemon TCP retries.\nFail-open per section; exit 0 for degraded / Stopped / sparse / never.\nExamples:\n  ai-brains status\n  ai-brains status --format json"
+    )]
+    Status {
+        /// Output format: auto (TTY human / pipe json) or explicit human|json aliases
+        #[arg(
+            long,
+            default_value = "auto",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
     },
     /// [dangerous] Forget a specific memory (soft delete)
     #[command(
@@ -4482,6 +4544,20 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         .await;
     }
 
+    // T320: unified status glance — Status IPC + doctor/graph/nightly compose; no AppContext.
+    if let Commands::Status { format } = cli.command.as_ref() {
+        let vault_path = cli
+            .vault_path
+            .clone()
+            .ok_or("Vault path is required (--vault-path or AI_BRAINS_VAULT_PATH)")?;
+        return commands::status::run(commands::status::StatusOptions {
+            vault_path,
+            key: cli.key.clone(),
+            format: format.clone(),
+        })
+        .await;
+    }
+
     // T199: daemon status is liveness IPC only — no AppContext / key / vault open.
     if let Commands::Daemon {
         command: DaemonCommands::Status,
@@ -4549,6 +4625,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         } => unreachable!("vault rotate-datakey handled before AppContext"),
         Commands::Recovery { .. } => unreachable!("recovery handled before AppContext"),
         Commands::Doctor { .. } => unreachable!("doctor handled before AppContext"),
+        Commands::Status { .. } => unreachable!("status handled before AppContext"),
         Commands::Init { .. } => unreachable!("init handled before AppContext"),
         Commands::Briefing { command } => match command {
             BriefingCommands::Project {

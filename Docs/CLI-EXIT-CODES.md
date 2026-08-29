@@ -40,6 +40,10 @@ Optional features not compiled into this binary (notably default-build `graph *`
 | status **fail** | **1** |
 | Clap usage on doctor flags | **2** |
 
+### Unified status glance (T320)
+
+`ai-brains status` exits **0** for a successful emit even when doctor is degraded/fail, daemon is Stopped, graph is sparse, or nightly last-run is never (report, not a failure — like `daemon status`). Unknown `--format` / `JSON`/`Pretty` → clap exit **2**. Missing vault path → same doctor-class error path (not a new clap required on the subcommand).
+
 ### Daemon status
 
 `ai-brains daemon status` exits **0** for both Running and Stopped (liveness report, not a failure).

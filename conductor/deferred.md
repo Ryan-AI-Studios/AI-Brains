@@ -2,6 +2,18 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T320 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F22 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| Live E/N ~0.42 still sparse | **Deferred** F36 honesty — no floor retune / rebuild on glance |
+| Doctor Safety vs glance Status probe | **Deferred** F9 by design — Status 1×300 ms matches `daemon status` |
+| Two vault opens (`build_report` + glance `open_read_intent`) | **Deferred** F44 — not a conn-sharing track; do not grow doctor |
+| F32 other-file physical net ~82 incl. clap test blocks in `main.rs` | **Deferred** — production-only estimate ~60 under 80; test blocks inflate file total |
+| T325 F8 PreferRecency / T316 / T318 / T321–T324 | **Not stolen** |
+| FEATURE TX | `a700986c-41d5-41b6-b417-6cac9153be0e` |
+
 ### T320 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
