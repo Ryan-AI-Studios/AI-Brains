@@ -55,8 +55,9 @@ ai-brains pin "CONSTRAINT: …"
 ## Orientation at session start
 
 ```powershell
-ai-brains safety sync
 ai-brains preflight --max-words 1000
+# Preview brittle files without pinning (default `safety sync` writes HOTSPOT pins):
+ai-brains safety sync --dry-run
 ```
 
 ## Commands reference

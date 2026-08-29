@@ -2,6 +2,49 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T321 full plan (2026-08-29) — `safety sync` write honesty (banner-only; JSON envelope)
+
+| Item | Disposition |
+|------|-------------|
+| Audit `safety sync` 5/5 write surprise + chatter | **Absorb** F1–F6 / AC1–AC4 / AC7 / AC14 |
+| Placeholder dry-run-by-default vs banner | **Pick banner** F1 — default stays write; T279 remediator is already `--dry-run` |
+| T279 remediator `safety sync --dry-run` / SAFETY_EMPTY / GLOB | **Affirm freeze** F8 |
+| T279 F21 no live pin as proof | **Affirm** F12 |
+| T279 F29 CLI vs retrieval parse drift | **Partial** F7/F29 copy-not-share envelope (`files[]`); cap differs |
+| T279 F35 unbounded `ledgerful hotspots` wait | **Decline** F35 |
+| Live `hotspots --json` `{schemaVersion:1, files[]}` (dogfood; CLI text-fallback; retrieval empty) | **Absorb** F7 / AC5 / AC6 — restores T279 live inject + raw `score` |
+| `WORKFLOWS.md` JSON `LedgerEntry` lie | **Absorb** F10 / AC13 |
+| `antigravity-rule.md` session-start write | **Absorb** F33 — `--dry-run` or `preflight` |
+| T316 stderr analog | **Analog only** F30 — banner on stdout |
+| T322 / T323 / T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T326 `PinnedCountFailed` fake `pinned=0` (`#237`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#242` / `#241` | **N/A empty** (no defect) |
+| last-PR `#237` / `#230` | **T326** / **T325** already Pending — **no T327** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `956c8463-c577-44cf-a614-169d77117446` |
+
+### T321 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m3 HEAD `16edc3f` vs `42df225` | **Folded** snapshot `42df225` / ahead **1** |
+| Agy m1 AC6 spawn hazard | **Folded** F7/AC6 `parse_ledgerful_hotspots_json` (no spawn) |
+| Agy m2 score vs displayScore false-pass | **Folded** AC5/AC6 fixture both fields distinct |
+| Agy m4 / OpenCode O2 serde required freq/complexity | **Folded** F7 `#[serde(default)]` on CLI those two fields |
+| Agy O1 Value one-pass | **Decline** as required — impl detail; AC5/AC6 SoT |
+| Agy O2 docs-file hermetics | **Decline** as DoD — AC13 grep |
+| OpenCode m1 F4 tracing warn “(not stdout)” | **Folded** F4 reword; subscriber freeze; `--log-format off` residual |
+| OpenCode m2 write-path unproven | **Partial** F5/AC17 `format_detail_row`; **decline** tempdir write (F12) |
+| OpenCode O1 `--limit 0` empty | **Folded** AC15 |
+| OpenCode O3 F29 “unbounded”/“20” | **Folded** operator-set `--limit` (default 5), no inject cap |
+| last-PR `#242` / `#241` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `573fb6ba-01f8-4ccb-b40d-3d0d3e6d58f2` |
+
+
+
 ### T318 implement residuals (2026-08-29) — non-easy lows
 
 | Item | Disposition |
@@ -465,7 +508,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | `backup list` residual noise | **T318** Planned (Pending until go) |
 | evidence/source show vault UUID | **T319** Completed `#235` |
 | unified `status` opportunity | **T320** Completed `#237` `c3abe19` |
-| `safety sync` write surprise | **T321** Pending |
+| `safety sync` write surprise | **T321 Planned** (Pending until go) |
 | T311 R2 `--as-of` | **T322** Pending |
 | T311 R5 conclusion in-force | **T323** Pending |
 | T311 R7 PowerShell empty TERM | **T324** Pending |

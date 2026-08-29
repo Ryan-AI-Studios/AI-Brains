@@ -842,15 +842,15 @@ Normative: [ADR-0020](DECISIONS/ADR-0020-datakey-rotation.md). Residual honesty:
 
 ## 7. Safety & Hotspot Sync
 
-Ledgerful scans the codebase for hotspots (frequently-edited, complex files). The bridge re-pins these as AI-Brains memories so they appear in preflight and recall.
+Ledgerful scans the codebase for hotspots (frequently-edited, complex files). Preview first; pin only when you intend to write `HOTSPOT:` memories into the vault.
 
 ```powershell
-ai-brains safety sync                # sync top 5 hotspots
-ai-brains safety sync --limit 20     # sync top 20
-ai-brains safety sync --dry-run      # preview what would be synced
+ai-brains safety sync --dry-run      # preview (would pin; no vault write)
+ai-brains safety sync                # pins top 5 hotspots into the vault
+ai-brains safety sync --limit 20     # pins top 20
 ```
 
-`preflight --pretty` Safety lists those live paths (project-scoped) without pinning. `safety sync` without `--dry-run` writes `HOTSPOT:` pins into the vault.
+`preflight --pretty` Safety already live-injects those paths (project-scoped) **without** pinning. Default `safety sync` (no `--dry-run`) **pins** and prints `Pinning N Ledgerful hotspot(s) into the vault.` before the pin.
 
 ## 8. Troubleshooting
 

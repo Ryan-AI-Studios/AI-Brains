@@ -331,8 +331,8 @@ Goal: see what code in this repo was touched recently, and recall any
 related memory context.
 
 ```powershell
-# 1. Pull structured safety/ledger entries from Ledgerful.
-ai-brains --vault-path .ai-brains\vault.db safety sync --limit 50
+# 1. Preview Ledgerful hotspots (no vault write). Drop --dry-run only to pin.
+ai-brains --vault-path .ai-brains\vault.db safety sync --dry-run --limit 50
 
 # 2. Recall semantically across the same vault (combines FTS5 + embeddings).
 ai-brains --vault-path .ai-brains\vault.db recall --semantic `
@@ -341,9 +341,9 @@ ai-brains --vault-path .ai-brains\vault.db recall --semantic `
 
 What you should see:
 
-- `safety sync` prints a JSON array of `LedgerEntry` records
-  (file path, tx id, risk score, etc.). With `--dry-run`, it lists
-  pending entries without applying them.
+- `safety sync --dry-run` prints a human dry-run table (`would pin N hotspot(s)`
+  with path + raw score). Omitting `--dry-run` **pins** a `HOTSPOT:` memory
+  into the vault (stdout banner `Pinning N…`). Output is human text, not a JSON array.
 - `recall --semantic` mixes keyword hits and embedding hits; the
   `graph_boost` adds a small bonus to graph-neighbor results.
 
