@@ -9,7 +9,7 @@ use crate::commands::recall::format_scope_line;
 use crate::context::AppContext;
 use ai_brains_control_plane::clamp_list_limit;
 use ai_brains_core::ids::ProjectId;
-use ai_brains_retrieval::{PinKind, classify_pin_kind, first_contentful_line};
+use ai_brains_retrieval::{PinKind, classify_pin_kind, first_contentful_line, is_session_chrome};
 use ai_brains_store::{MemoryListFilter, MemoryListRow, MemoryListStatus, QueryStore};
 use serde::Serialize;
 use std::collections::HashSet;
@@ -19,6 +19,11 @@ use std::str::FromStr;
 pub(crate) const PROJECT_COL_MAX: usize = 20;
 /// List preview max chars (F9 / F26) — not the same as forget match-preview 100.
 pub(crate) const PREVIEW_MAX_CHARS: usize = 80;
+/// T316 F4 — max chrome lines skipped after the envelope before fallback.
+pub(crate) const PREVIEW_CHROME_WALK: usize = 8;
+/// T316 F33 — closed agent preamble prefixes (ASCII-lower); not in session_chrome.
+pub(crate) const PREVIEW_AGENT_CHROME_PREFIXES: &[&str] =
+    &["let me ", "now let me ", "i'll ", "i will "];
 
 const SCOPE_MISSING_MSG: &str =
     "No project scope. Set AI_BRAINS_PROJECT_ID, run `ai-brains context`, or pass --global.";
@@ -45,24 +50,85 @@ pub(crate) fn forgotten_empty_remediator(pinned: Option<u64>, global: bool) -> V
 // Pure helpers (F9 / F12 / F8) — unit-tested
 // ---------------------------------------------------------------------------
 
-/// First contentful line after the pin envelope (T287 F6); char-safe truncate.
+/// True when a one-line preview candidate is leading chrome (T316 F2/F3).
 ///
-/// Empty `first_contentful_line` falls back to today's first non-empty line
-/// after role strip (may be `TAGS:` — not `""`). `trim_start` so leading
-/// blank lines still strip `ASSISTANT:` (existing `preview_line__first_non_empty_line`).
-pub(crate) fn preview_line(content: &str, max_chars: usize) -> String {
-    let contentful = first_contentful_line(content.trim_start());
-    let line = if contentful.is_empty() {
+/// Authority (`Decision` / `Constraint` / `Hotspot`) is never chrome.
+/// Empty → `Other` (not authority-elevated).
+pub(crate) fn preview_line_is_chrome(line: &str) -> bool {
+    match classify_pin_kind(line) {
+        PinKind::Decision | PinKind::Constraint | PinKind::Hotspot => return false,
+        PinKind::Other => {}
+    }
+    if is_session_chrome(line) {
+        return true;
+    }
+    if line.trim_start().starts_with("```") {
+        return true;
+    }
+    let lower = line.trim_start().to_ascii_lowercase();
+    PREVIEW_AGENT_CHROME_PREFIXES
+        .iter()
+        .any(|p| lower.starts_with(p))
+}
+
+/// Non-empty body lines after the T285/T287 envelope (role + optional TAGS:).
+fn preview_body_lines(content: &str) -> Vec<&str> {
+    let after_role = super::display_text::strip_role_prefix(content.trim_start()).trim_start();
+    let mut lines = after_role.lines().map(str::trim).filter(|l| !l.is_empty());
+    let mut out = Vec::new();
+    if let Some(first) = lines.next() {
+        if first.to_ascii_lowercase().starts_with("tags:") {
+            out.extend(lines);
+        } else {
+            out.push(first);
+            out.extend(lines);
+        }
+    }
+    out
+}
+
+/// First non-chrome line within the walk cap; else envelope / TAGS fallback (T316 F1–F5).
+pub(crate) fn skip_leading_preview_chrome(content: &str) -> String {
+    let trimmed = content.trim_start();
+    let contentful = first_contentful_line(trimmed);
+    let fallback = if contentful.is_empty() {
         let raw = content
             .lines()
             .find(|l| !l.trim().is_empty())
             .unwrap_or("")
             .trim();
-        super::display_text::strip_role_prefix(raw)
+        super::display_text::strip_role_prefix(raw).to_string()
     } else {
-        contentful
+        contentful.to_string()
     };
-    super::display_text::truncate_preview_chars(line, max_chars)
+
+    let lines = preview_body_lines(trimmed);
+    if lines.is_empty() {
+        return fallback;
+    }
+
+    let mut chrome_skipped = 0usize;
+    for line in lines {
+        if preview_line_is_chrome(line) {
+            if chrome_skipped >= PREVIEW_CHROME_WALK {
+                break;
+            }
+            chrome_skipped += 1;
+            continue;
+        }
+        return line.to_string();
+    }
+    fallback
+}
+
+/// First contentful line after the pin envelope (T287 F6); T316 chrome-skip; char-safe truncate.
+///
+/// Empty `first_contentful_line` falls back to today's first non-empty line
+/// after role strip (may be `TAGS:` — not `""`). `trim_start` so leading
+/// blank lines still strip `ASSISTANT:` (existing `preview_line__first_non_empty_line`).
+pub(crate) fn preview_line(content: &str, max_chars: usize) -> String {
+    let line = skip_leading_preview_chrome(content);
+    super::display_text::truncate_preview_chars(&line, max_chars)
 }
 
 /// Parse first line if `TAGS: …` (after optional role prefix), split comma, trim,
@@ -553,10 +619,7 @@ fn emit_list_human(
         println!("Showing {} of {}", returned, total);
     }
 
-    // F36: stderr next-step (not on empty / json / summary).
-    eprintln!(
-        "Use ai-brains forget --memory-id <id> -f to forget, or ai-brains forget --restore <id> for forgotten rows."
-    );
+    // T316 F9: drop T216 F36 stderr forget hint (Windows stderr looks like an error).
     Ok(())
 }
 
@@ -715,6 +778,88 @@ mod tests {
         assert!(
             out.starts_with("TAGS:"),
             "empty contentful falls back to TAGS: line; got {out:?}"
+        );
+    }
+
+    /// T316 AC1 — session chrome heading skipped when a later body line exists.
+    #[test]
+    fn preview_line__session_chrome_heading__skips_to_body() {
+        let out = preview_line("## Objective\nWe decided SQLCipher", 80);
+        assert!(
+            out.contains("We decided") || out.contains("SQLCipher"),
+            "AC1 preview must surface body, not heading; got {out:?}"
+        );
+        assert!(
+            !out.starts_with("## Objective"),
+            "AC1 must not keep ## Objective; got {out:?}"
+        );
+    }
+
+    /// T316 AC2 — agent preamble skipped to authority line.
+    #[test]
+    fn preview_line__let_me_verify__skips_to_next() {
+        let out = preview_line("Let me verify the clap pin\nCONSTRAINT: freeze ORDER", 80);
+        assert!(
+            out.starts_with("CONSTRAINT:"),
+            "AC2 must skip Let me…; got {out:?}"
+        );
+    }
+
+    /// T316 AC5 — all-chrome body falls back to first contentful (not empty).
+    #[test]
+    fn preview_line__all_chrome__fallback_first_contentful() {
+        let out = preview_line("## Objective", 80);
+        assert_eq!(out, "## Objective", "AC5 all-chrome fallback; got {out:?}");
+    }
+
+    /// T316 AC6 — authority one-liner never skipped (even with I'll…).
+    #[test]
+    fn preview_line__authority_line__never_skipped() {
+        let out = preview_line("DECISION: I'll ship T316", 80);
+        assert!(
+            out.starts_with("DECISION:"),
+            "AC6 authority must stay; got {out:?}"
+        );
+    }
+
+    /// T316 AC19 — fence then Decision: first-non-chrome wins (not envelope-stop).
+    #[test]
+    fn preview_line__fence_then_decision__keeps_decision() {
+        let out = preview_line("```json\nDECISION: needle", 80);
+        assert!(
+            out.starts_with("DECISION:"),
+            "AC19 fence then Decision must keep Decision; got {out:?}"
+        );
+    }
+
+    /// T316 AC7 — walk cap 8 chrome then body; 9th chrome-only stays fallback.
+    #[rstest::rstest]
+    #[case::eight_then_body(
+        {
+            let mut s = String::new();
+            for _ in 0..8 {
+                s.push_str("## Objective\n");
+            }
+            s.push_str("We decided after eight");
+            s
+        },
+        "We decided after eight"
+    )]
+    #[case::nine_chrome_fallback(
+        {
+            let mut s = String::new();
+            for _ in 0..9 {
+                s.push_str("## Objective\n");
+            }
+            s
+        },
+        "## Objective"
+    )]
+    fn preview_line__walk_cap__eight(#[case] body: String, #[case] expect_prefix: &str) {
+        let out = preview_line(&body, 80);
+        assert!(
+            out.starts_with(expect_prefix),
+            "AC7 walk cap; expect starts with {expect_prefix:?}; got {out:?}"
         );
     }
 

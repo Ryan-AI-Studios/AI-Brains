@@ -236,10 +236,10 @@ fn memory_list__project_scoped_pinned__scope_and_rows() {
         !stdout.contains("ASSISTANT: DECISION"),
         "role prefix must be stripped from preview column; got:\n{stdout}"
     );
-    // F36 stderr next-step
+    // T316 AC8 / F9 — nonempty human list must not print F36 forget hint on stderr.
     assert!(
-        stderr.contains("forget --memory-id") || stderr.contains("forget --restore"),
-        "stderr next-step; got:\n{stderr}"
+        !stderr.contains("forget --memory-id") && !stderr.contains("forget --restore"),
+        "AC8 omit F36 stderr; got:\n{stderr}"
     );
 }
 
@@ -1252,6 +1252,101 @@ fn memory_list_help__mentions_human_authority_and_json_recency() {
     );
 }
 
+/// T316 AC14 — after_help names chrome-skip + no runtime forget hint.
+#[test]
+fn memory_list_help__after_help__names_chrome_skip_and_no_forget_hint() {
+    let out = hermetic()
+        .arg("--no-project-context")
+        .args(["memory", "list", "--help"])
+        .output()
+        .expect("memory list --help");
+    assert!(out.status.success(), "help exit 0");
+    let stdout = String::from_utf8_lossy(&out.stdout).to_ascii_lowercase();
+    assert!(
+        stdout.contains("chrome") || stdout.contains("let me"),
+        "AC14 after_help names chrome-skip / Let me; got help"
+    );
+    assert!(
+        stdout.contains("forget")
+            && (stdout.contains("does not print")
+                || stdout.contains("no runtime")
+                || stdout.contains("not print a forget")
+                || stdout.contains("does not print a forget")),
+        "AC14 after_help names no runtime forget hint; got help"
+    );
+}
+
+/// T316 AC8 named — nonempty human list omits F36 stderr.
+#[test]
+fn memory_list__nonempty__omits_f36_stderr() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(&vault, &proj, &id, "DECISION: T316 nonempty f36 omit pin");
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "exit 0; stderr={stderr}");
+    assert!(stdout.contains("Showing"), "nonempty table; got:\n{stdout}");
+    assert!(
+        !stderr.contains("forget --memory-id") && !stderr.contains("forget --restore"),
+        "AC8 omit F36 stderr; got:\n{stderr}"
+    );
+}
+
+/// T316 AC11 — JSON preview values skip chrome; keys stay T216.
+#[test]
+fn memory_list__format_json__preview_skips_chrome() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let nonce = unique_token("t316-json-chrome");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective\nWe decided SQLCipher {nonce}"),
+    );
+
+    let (code, stdout, _) =
+        run_memory_list(&vault, &["--format", "json", "--limit", "1"], Some(&id));
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    // T216 nine envelope keys (project_id present under project scope).
+    for key in [
+        "api_version",
+        "scope",
+        "project_id",
+        "status",
+        "returned",
+        "more_available",
+        "limit",
+        "total",
+        "items",
+    ] {
+        assert!(
+            v.get(key).is_some(),
+            "T216 key {key} missing; got:\n{stdout}"
+        );
+    }
+    assert!(
+        v.get("next_step").is_none() && v.get("chrome_skipped").is_none(),
+        "no new JSON keys; got:\n{stdout}"
+    );
+    let preview = v["items"][0]["preview"].as_str().unwrap_or("");
+    assert!(
+        preview.contains("We decided") || preview.contains("SQLCipher"),
+        "AC11 JSON preview skips chrome; got {preview:?}"
+    );
+    assert!(
+        !preview.starts_with("## Objective"),
+        "AC11 must not keep ## Objective; got {preview:?}"
+    );
+}
+
 #[test]
 fn memory_list__forgotten_status__no_authority_promote_of_remaining_pin() {
     let dir = tempdir().unwrap();
@@ -1407,7 +1502,8 @@ fn forget_list_forgotten__empty_zero_pins__pinned_zero_and_next() {
     assert_eq!(last_nonempty_line(&stdout), "next: ai-brains memory list");
 }
 
-/// T299 AC4 — nonempty forgotten omits T299 remediator; F36 stderr still present.
+/// T299 AC4 — nonempty forgotten omits T299 remediator.
+/// T316 AC9 — F36 stderr also omitted (supersedes T216 runtime stderr).
 #[test]
 fn forget_list_forgotten__nonempty__omits_t299_remediator() {
     let dir = tempdir().unwrap();
@@ -1446,8 +1542,27 @@ fn forget_list_forgotten__nonempty__omits_t299_remediator() {
         "AC4 no T299 Pinned after table; got:\n{stdout}"
     );
     assert!(
-        stderr.contains("forget --restore") || stderr.contains("forget --memory-id"),
-        "AC4 F36 stderr still present; got:\n{stderr}"
+        !stderr.contains("forget --restore") && !stderr.contains("forget --memory-id"),
+        "AC9 omit F36 stderr; got:\n{stderr}"
+    );
+}
+
+/// T316 AC9 named alias — nonempty forgotten omits F36 stderr.
+#[test]
+fn forget_list_forgotten__nonempty__omits_f36_stderr() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    pin_memory(&vault, &proj, &id, "DECISION: T316 f36 omit token f36xyz");
+    forget_by_match(&vault, &proj, &id, "f36xyz");
+
+    let (code, _stdout, stderr) = run_forget_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0);
+    assert!(
+        !stderr.contains("forget --restore") && !stderr.contains("forget --memory-id"),
+        "AC9 omit F36 stderr; got:\n{stderr}"
     );
 }
 

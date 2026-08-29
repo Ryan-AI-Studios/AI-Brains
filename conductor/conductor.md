@@ -260,7 +260,7 @@
 | T313 | `sync query` ledger provenance | ✅ **Completed** | Grok | [T313](tracks/trackT313-sync-query-provenance/spec.md) | **Completed 2026-08-28:** rescued heading `(rescued token: '<tok>')` when T271 F6 fires; F7 banner exact; T231 ndjson vault-only. Internal PASS; Codex product PASS. Full verify green. FEATURE TX `a58ee509`. Soft: PATH install; broad `graph` token; Ledgerful phrase-wrap. |
 | T314 | Unify `--format` / `--dry-run` | ✅ **Completed** | Grok | [T314](tracks/trackT314-clap-flag-unify/spec.md) | **Completed** 2026-08-28: FEATURE TX `26f296f5`. Optional-value `--dry-run` (progressive+briefing); expand `--format` Trace tokens + human kind/preview; scan-roots `--dry-run` no-op. CX2 PASS WITH DEFERRED P3. Full gate green. |
 | T315 | Preflight governed-empty next-step | **Completed** | Grok | [T315](tracks/trackT315-preflight-governed-empty/spec.md) | **Completed** 2026-08-28: empty-decisions `next: ai-brains recall "what did we decide"` + `Budget window words:`; JSON `next_step` when T241 left None. FEATURE TX `a38a0cba`. Residuals: T286 R1-1 Index Objective; PATH install; T325. |
-| T316 | `memory list` preview + nudge | **Pending** | Grok | [T316](tracks/trackT316-memory-list-preview/spec.md) | **Placeholder:** contentful previews; forget nudge not an error. T287 ORDER frozen. `/plan-track T316`. |
+| T316 | `memory list` preview + nudge | ✅ **Completed** | Grok | [T316](tracks/trackT316-memory-list-preview/spec.md) | **Completed** 2026-08-29: chrome-skip preview (walk 8) + drop F36 stderr. FEATURE TX `50c73816`. Internal R1 + Codex CX PASS WITH DEFERRED P3. nextest **3633** (threads=2). Soft: PATH; T287 R1-1; agent prefixes; T325/T326. |
 | T317 | Graph neighbors RECALLS filter | ✅ **Completed** | Grok | [T317](tracks/trackT317-graph-neighbors-recalls/spec.md) | **Completed 2026-08-28:** human RECALLS cap **3** + `+N more RECALLS`; hierarchy leaf `next: ai-brains nightly --status`. JSON F9 freeze. Internal R1 + Codex CX1 (P2 AC9 exact fixed). `dev-check` nextest **3593**; `ledgerful verify --scope full`. FEATURE TX `39e0e1e4`. Soft: PATH until `cargo install`; live N volatility. |
 | T318 | Backup list usable-first | **Pending** | Grok | [T318](tracks/trackT318-backup-list-usable-first/spec.md) | **Placeholder:** T295 left ≥1 usable; Default table still residual-heavy. `/plan-track T318`. |
 | T319 | Handle vs memory UUID | ✅ **Completed** | Grok | [T319](tracks/trackT319-handle-vs-memory-id/spec.md) | **Completed 2026-08-28:** PR [#235](https://github.com/Ryan-AI-Studios/AI-Brains/pull/235) squash `e03c49d`. CLI overlay names vault `memory_id` on expand/evidence/source; exit 0/4 freeze; CX2 PASS; `dev-check` nextest **3605**; FEATURE TX `ce627277`. Soft: PATH until `cargo install`. |
@@ -270,6 +270,7 @@
 | T323 | Conclusion in-force | **Pending** | Grok | [T323](tracks/trackT323-conclusion-in-force/spec.md) | **Placeholder:** T311 R5 — walker **or** decline if no chain. `/plan-track T323`. |
 | T324 | PowerShell empty TERM | **Pending** | Grok | [T324](tracks/trackT324-powershell-empty-term/spec.md) | **Placeholder:** T311 R7. `/plan-track T324`. |
 | T325 | FTS OR-fill recency retry | **Pending** | Grok | [T325](tracks/trackT325-fts-or-fill-recency/spec.md) | **Placeholder:** `#230` Cursor Bugbot — T312 F8 Prefer-OR skips PreferRecency (`lexical.rs:231–250`). `/plan-track T325`. |
+| T326 | Status graph pin-count fail-open | **Pending** | Grok | [T326](tracks/trackT326-status-pinned-count-failopen/spec.md) | **Placeholder:** `#237` Cursor Bugbot — T320 `PinnedCountFailed` invents `pinned=0` (`status.rs:329–340`; `graph.rs:445–458`). Doctor already skips. `/plan-track T326`. |
 
 
 ---
@@ -286,6 +287,7 @@
 2. Add entry to table above with **Pending** status
 3. Update to **In Progress** when implementation starts
 4. Update to **Complete** when all success criteria are met
+
 
 
 
