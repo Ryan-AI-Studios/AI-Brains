@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T316 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 HEAD `d1c3bd3` vs `120bbfa` | **Folded** snapshot `120bbfa` / ahead **1** |
+| Agy m2 all-chrome fallback | **Already** F5 / AC5 |
+| Agy O1/O2/O3 F36 / skip walk / authority | **Already** F9 / F1–F2 / F3 |
+| OpenCode m1 F3 walk-stop underspecified | **Folded** F1/F3 first-non-chrome; **AC19** fence-then-Decision |
+| OpenCode m2 AC14 after_help unnamed | **Folded** AC14 `memory_list_help__after_help__names_chrome_skip_and_no_forget_hint` |
+| OpenCode O1 `classify_pin_kind("")` → Other | **Folded** F3 |
+| OpenCode O2 briefing/graph inherit smoke | **Partial** F6 helper units; **decline** extra hermetics (F14) |
+| OpenCode O3 T326 line citations | **Already** T326 Phase 0 re-cite |
+| last-PR `#238` / `#237` Cursor | **Affirm** N/A empty / **T326** — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `69e50ba1-5c35-49d4-abb3-56f1ff6419c6` |
+
 ### T316 full plan (2026-08-29) — memory list chrome-skip preview + drop F36 stderr
 
 | Item | Disposition |

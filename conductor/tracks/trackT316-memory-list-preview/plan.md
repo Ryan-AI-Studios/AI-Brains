@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** UX
 **Ledger (planning):** DOCS `66b597f7-faf9-4f3e-bb06-6af72811bdc6`
+**Ledger (fold-in):** DOCS `69e50ba1-5c35-49d4-abb3-56f1ff6419c6`
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `d1c3bd3` T320 Completed note `#238` CLEAN. Branch `track/T316-memory-list-preview`. `origin/main` = `d1c3bd3` (ahead **0** at plan-write). Product `src/` includes T287 mix + T320 glance. |
+| HEAD / tree | Fold-in `120bbfa` plan commit CLEAN; `origin/main` = `d1c3bd3` (ahead **1**). Plan-write was `d1c3bd3` / ahead **0** (Agy m1). Branch `track/T316-memory-list-preview`. Product `src/` = T320 `#238`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T287/T316 **not** on PATH. Hole **is** (chrome first lines + F36 stderr). |
 | `preflight --summary` (PATH) | Pinned **4568→4569**; in-context **0/0/0**; `Total Word Count: 728` (PATH-behind T315) |
 | PATH `memory list --limit 5` | `## Objective` / review / ` ```json ` / dump prose; F36 stderr interleaves after Scope |
@@ -43,6 +44,12 @@
 | last-PR `#237` Cursor pin-count | **T326** — not stolen |
 | last-PR `#230` F8 recency | **T325** — not stolen |
 | T318 / T321 / T322–T324 / clap 5 | **Not stolen** / **Decline** |
+| OpenCode m1 walk-stop | **F1/F3 / AC19** first-non-chrome |
+| OpenCode m2 after_help hermetic | **AC14** named test |
+| OpenCode O1 empty classify | **F3** |
+| OpenCode O2 inherit smoke | **Partial** F6 helper units; decline extra briefing/graph hermetics |
+| Agy m1 HEAD | **§2.1** `120bbfa` / ahead **1** |
+| Agy m2 all-chrome | **Already** F5 / AC5 |
 
 ---
 
@@ -54,7 +61,7 @@
 - [ ] Re-read `first_contentful_line` `ranking.rs:102` (do **not** edit) + `is_session_chrome` `:24–58` (import only)
 - [ ] Re-read T287 mix `run_inventory` `:228–265` + `prefer_fill_authority` `:99`
 - [ ] Re-read T299 `forgotten_empty_remediator` `:31` + empty arm `:488–508`
-- [ ] Re-read hermetic F36 `:239–243` + T299 AC4 `:1410–1450`
+- [ ] Re-read hermetic F36 `:239–243` + T299 AC4 `:1410–1450` + T287 help `:1237`
 - [ ] Re-read callers: `forget.rs:19–25`, `graph.rs:279`, `briefing.rs:77` (inherit-only)
 - [ ] Re-dogfood `memory list --limit 5 --format human` + `--format json --limit 1` (source)
 - [ ] Confirm clap lock still **4.6.1**; JSON keys still T216; Daily string already has `status`
@@ -69,10 +76,12 @@
 - [ ] `preview_line__let_me_verify__skips_to_next` (AC2)
 - [ ] `preview_line__all_chrome__fallback_first_contentful` (AC5)
 - [ ] `preview_line__authority_line__never_skipped` (AC6)
+- [ ] `preview_line__fence_then_decision__keeps_decision` (AC19)
 - [ ] rstest `preview_line__walk_cap__eight` (AC7)
 - [ ] Hermetic `memory_list__nonempty__omits_f36_stderr` (AC8)
 - [ ] Hermetic `forget_list_forgotten__nonempty__omits_f36_stderr` (AC9)
 - [ ] Hermetic `memory_list__format_json__preview_skips_chrome` (AC11)
+- [ ] Hermetic `memory_list_help__after_help__names_chrome_skip_and_no_forget_hint` (AC14)
 - [ ] Confirm red tests **fail** on current tree (preview still `## Objective` / F36 stderr present)
 - [ ] Confirm TAGS envelope + TAGS-only units **still pass** (AC3/AC4)
 
@@ -91,7 +100,7 @@
 - [ ] AC10 T299 empty remediator
 - [ ] AC12 JSON recency order
 - [ ] AC13 `prefer_fill_authority` rstest
-- [ ] AC14 after_help
+- [ ] T287 help `:1237` stay-green (AC14 is Phase 1 red, additive after_help)
 - [ ] AC15 CAPABILITIES / OPERATIONS / CHANGELOG
 - [ ] AC16 empty diff: `forget.rs` / `graph.rs` / `briefing.rs` / `ranking.rs` / `session_chrome.rs` / `project.rs` / `sync.rs` / `query_store.rs`
 - [ ] AC18 exit 2 / clap InvalidValue stay-green
@@ -109,7 +118,7 @@
 
 ## Definition of Done (checkable)
 
-- [ ] AC1–AC9 / AC11 red-then-green
+- [ ] AC1–AC9 / AC11 / AC14 / AC19 red-then-green
 - [ ] AC3/AC4/AC10/AC12/AC13/AC16/AC18 stay-green
 - [ ] AC14–AC15 docs + after_help
 - [ ] AC17 manual recorded (PATH-behind not a fail)

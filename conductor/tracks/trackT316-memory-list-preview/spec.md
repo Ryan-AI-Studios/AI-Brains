@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Daily inventory skim. Does **not** replace `recall` rank (T312) or list ORDER (T287).
 - **Absorbs:** Audit preview + F36 stderr nudge; T216 F36 runtime stderr **supersede** (after_help stays)
 - **Not absorbed (DoD):** T287 ORDER / JSON recency; T299 forgotten-empty `Pinned: N` + `next:`; T216 JSON keys / limit 50/200; forget match-preview budgets 100/80; `memory show <id>`; T325 F8 recency; T326 T320 pin-count leftover
-- **Research date:** 2026-08-29 (plan-write product HEAD `d1c3bd3` T320 Completed note `#238`; T320 product `#237` `c3abe19`). Snapshot — **re-verify at execute**.
-- **Ledger:** planning DOCS TX `66b597f7-faf9-4f3e-bb06-6af72811bdc6`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-29 (plan-write product HEAD `d1c3bd3` T320 Completed note `#238`; T320 product `#237` `c3abe19`). Fold-in against `120bbfa` (this plan’s own docs commit; ahead **1** of `origin/main` = `d1c3bd3`). Snapshot — **re-verify at execute**.
+- **AI fold-in:** 2026-08-29 `agy-review.md` + `opencode-review.md` (HEAD `120bbfa`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 HEAD snapshot; OpenCode m1 walk-stop first-non-chrome (F1/F3 + AC19); OpenCode m2 named after_help hermetic (AC14); OpenCode O1 empty `classify_pin_kind` → Other. **Already:** Agy m2 F5/AC5 all-chrome fallback; Agy O1/O2/O3 F9 / F1–F2 / F3; OpenCode O3 T326 Phase 0 re-cite. **Partial:** OpenCode O2 inherit smoke — helper units lock inherit; decline extra briefing/graph hermetics (F14). Disposition **§13**.
+- **Ledger:** planning DOCS TX `66b597f7-faf9-4f3e-bb06-6af72811bdc6`. Fold-in DOCS TX `69e50ba1-5c35-49d4-abb3-56f1ff6419c6`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** `cargo install`. Do **not** grow hotspot `project.rs` / `sync.rs` / `forget.rs` **production** / `session_chrome.rs` / `ranking.rs` / `doctor.rs` / `governed_common.rs`. Chrome skip lives in `memory.rs` `preview_line` (inherit-only for forget/graph/briefing). Do **not** print or commit `AI_BRAINS_KEY`. Do **not** pin production DECISIONs as planning.
 
 ---
@@ -32,7 +33,7 @@ This unblocks daily CLI: T287 mixed the first page when GLOB retain finds pins; 
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `d1c3bd3` `chore(conductor): T320 Completed note with PR #237 squash c3abe19 (#238)`. Tree **CLEAN** at plan-write. Branch `track/T316-memory-list-preview` off `origin/main`. `origin/main` = `d1c3bd3`. |
+| HEAD | Fold-in against plan-write `120bbfa` `docs(conductor): plan T316 memory list preview (chrome-skip, drop F36; mint T326)`. Product `src/` = T320 `#238` `d1c3bd3`. Tree **CLEAN** at fold-in. Branch `track/T316-memory-list-preview`. `origin/main` = `d1c3bd3` (ahead **1**). Plan-write snapshot was `d1c3bd3` / ahead **0** (Agy m1). |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. **T263/T293 on PATH.** **T287 / T312 / T315 / T314 / T313 / T317 / T319 / T320 not.** List hole **is** on PATH **and** source. **Do not `cargo install`.** Tests/manual AC use hermetic bin / `cargo run`. |
 | `preflight --summary` (PATH) | Pinned **4568** (plan start) / **4569** after this session’s ingest. In-context **0/0/0**. `Total Word Count: 728` (PATH-behind T315 `Budget window words:`). **Not this DoD.** |
 | PATH `memory list --limit 5 --format human` | Five recency chrome/dump first lines: `## Objective`; `# Track Plan Review: T296…`; ` ```json `; audit-dump prose; `## Objective`. Footer `Showing 5 of 4569`. F36 stderr `Use ai-brains forget --memory-id <id> -f…` **interleaves after Scope / before `status=`** (stderr vs stdout buffering). Exit **0**. |
@@ -113,12 +114,12 @@ N/A-if-skipped: SQLCipher, schtasks, llama.cpp `/health`, FTS5 `bm25` (list is p
 | ID | Decision |
 |----|----------|
 | **F0 — Go gate** | Plan-only until user **go**. Planning is DOCS. Implement starts a FEATURE TX. |
-| **F1 — Chrome skip after envelope** | `preview_line` still starts with `first_contentful_line` (T287 F6). Then walk subsequent non-empty lines of the **same stored body** and take the first **non-chrome** line. Do **not** change `first_contentful_line` / `ranking.rs`. |
+| **F1 — Chrome skip after envelope** | `preview_line` still starts with `first_contentful_line` (T287 F6). Then walk subsequent non-empty lines of the **same stored body** and take the first **non-chrome** line **whatever its kind**. Authority-ness only prevents skip-list eviction; it does **not** rank, search the body, or force-return the envelope line (OpenCode m1). Do **not** change `first_contentful_line` / `ranking.rs`. |
 | **F2 — Closed skip list** | A candidate line is chrome when **any**: (a) `is_session_chrome(line)` (heading / ` ```json ` / ATX tokens — import, do not edit `session_chrome.rs`); (b) trimmed line starts with `` ``` ``; (c) ASCII-lower trimmed line starts with a closed agent prefix: `let me `, `now let me `, `i'll `, `i will `. **No regex crate.** Do **not** add `All non-destructive…` or free prose. |
-| **F3 — Never skip authority** | If `classify_pin_kind` of a **one-line** candidate is Decision / Constraint / Hotspot, **keep it** even if a prefix overlaps. Do **not** switch to `is_authority_pin_content` (drops Hotspot — T287 F5). |
+| **F3 — Never skip authority** | If `classify_pin_kind` of a **one-line** candidate is Decision / Constraint / Hotspot, that line is **not chrome** (keep), even if a prefix overlaps. This is a skip-list exemption on the **candidate**, not “stop walking and return the envelope.” Chrome-before-authority (` ```json ` then `DECISION:`) still walks to the Decision (AC19). `classify_pin_kind("")` is `Other` — empty is never authority-elevated (OpenCode O1). Do **not** switch to `is_authority_pin_content` (drops Hotspot — T287 F5). |
 | **F4 — Walk cap** | Skip at most **`PREVIEW_CHROME_WALK = 8`** chrome lines after the envelope line. Do **not** scan the rest of an 800-char dump for a buried `DECISION:` (that retitles dumps; T287 F31 / T312 F6 stay). |
 | **F5 — All-chrome fallback** | If every walked line is chrome or empty, keep today’s first contentful / TAGS-only fallback (T287 F6 — **not** `""`, **not** `Untitled Memory`). |
-| **F6 — Inherit `preview_line`** | forget match/multi, graph neighbor preview, briefing vault-pin stanza pick up skip automatically. **Do not** edit `forget.rs` / `graph.rs` / `briefing.rs` production. **Do not** unify T216/T224 budgets (80 vs 100 vs 80). |
+| **F6 — Inherit `preview_line`** | forget match/multi, graph neighbor preview, briefing vault-pin stanza pick up skip automatically. Inherit SoT is `preview_line` units (AC1–AC7 / AC19), not extra briefing/graph hermetics (OpenCode O2 declined as DoD — F14). **Do not** edit `forget.rs` / `graph.rs` / `briefing.rs` production. **Do not** unify T216/T224 budgets (80 vs 100 vs 80). |
 | **F7 — JSON keys freeze** | T216 F10 nine envelope keys + item `{memory_id, preview, updated_at, project_id}`. Preview **values** may skip chrome. **No** new keys (`chrome_skipped`, `title`, `next_step`). PROTOCOL-COMPAT N/A (CLI-local). |
 | **F8 — T287 ORDER freeze** | Human pinned prefer-fill unchanged. JSON + store `list_memories` recency unchanged. Forgotten recency unchanged. **Do not** reopen GLOB / `list_authority_memories` (R1-1 is **not** this DoD). |
 | **F9 — Drop F36 stderr** | Remove the nonempty-human `eprintln!` forget/restore hint. Empty / json / summary already skip it. **Supersedes** T216 F36 **runtime** stderr. after_help + CAPABILITIES keep the forget/restore **docs**. |
@@ -168,7 +169,8 @@ N/A-if-skipped: SQLCipher, schtasks, llama.cpp `/health`, FTS5 `bm25` (list is p
 | **AC11** | JSON keys exact T216 set; `items[0].preview` on a chrome+body fixture is the body line | Hermetic `memory_list__format_json__preview_skips_chrome` |
 | **AC12** | JSON recency order unchanged (newest `updated_at` first) | Stay-green / fixture two rows |
 | **AC13** | `prefer_fill_authority` rstest unchanged | Stay-green |
-| **AC14** | after_help names chrome-skip + no runtime forget hint | Unit or hermetic help assert |
+| **AC14** | after_help names chrome-skip + no runtime forget hint | Hermetic `memory_list_help__after_help__names_chrome_skip_and_no_forget_hint` (additive to stay-green `memory_list_help__mentions_human_authority_and_json_recency` `:1237`) |
+| **AC19** | Fence then authority: body `` ```json `` then `DECISION: needle` → preview starts with `DECISION:` (first-non-chrome; F3 is not envelope-stop) | Unit `preview_line__fence_then_decision__keeps_decision` |
 | **AC15** | Docs: CAPABILITIES inventory row; CHANGELOG; OPERATIONS one-liner | File grep |
 | **AC16** | `forget.rs` / `graph.rs` / `briefing.rs` / `ranking.rs` / `session_chrome.rs` / `project.rs` / `sync.rs` production empty of behavior diff (inherit only) | `git diff -- crates/...` name-only |
 | **AC17** | Manual `cargo run -p ai-brains-cli -- memory list --limit 5 --format human`: no F36 stderr; pass-with-observed-data on previews (T287 R1-1 may still recency-fill) | Recorded stdout/stderr |
@@ -185,12 +187,13 @@ Pure helper in `memory.rs` (next to `preview_line`):
 1. `contentful = first_contentful_line(content.trim_start())`.
 2. Collect non-empty trimmed lines after the T285 envelope (same scan as `first_contentful_line`: strip one role, skip one `tags:` line, then remaining lines).
 3. Walk at most `PREVIEW_CHROME_WALK` chrome lines (`preview_line_is_chrome`).
-4. First non-chrome wins; else fallback to step 1 / today’s first-non-empty + role strip (TAGS-only).
-5. `truncate_preview_chars` unchanged.
+4. **First non-chrome wins** (OpenCode m1): return that line whatever its kind. Do **not** return the envelope line just because it is authority. If the envelope is chrome, keep walking until a non-chrome line or the cap.
+5. Else fallback to step 1 / today’s first-non-empty + role strip (TAGS-only).
+6. `truncate_preview_chars` unchanged.
 
 `preview_line_is_chrome(line)`:
 
-- `classify_pin_kind(line)` ∈ {Decision, Constraint, Hotspot} → **false** (keep).
+- `classify_pin_kind(line)` ∈ {Decision, Constraint, Hotspot} → **false** (keep). Empty `""` → `Other` (not authority).
 - `is_session_chrome(line)` → true.
 - `line.trim_start().starts_with("```")` → true.
 - ASCII-lower starts with `PREVIEW_AGENT_CHROME_PREFIXES` → true.
@@ -221,9 +224,11 @@ Reopening list ORDER / GLOB overfetch (T287 R1-1). Changing forget match SQL. `-
 - `preview_line__let_me_verify__skips_to_next`
 - `preview_line__all_chrome__fallback_first_contentful`
 - `preview_line__authority_line__never_skipped`
+- `preview_line__fence_then_decision__keeps_decision` (AC19)
 - `preview_line__walk_cap__eight` (rstest)
 - Hermetic `memory_list__nonempty__omits_f36_stderr` — today’s stderr contains F36.
 - Hermetic JSON chrome+body preview (today `## Objective`).
+- Hermetic `memory_list_help__after_help__names_chrome_skip_and_no_forget_hint` (AC14) — today’s after_help has T287 dual-truth only.
 
 **Green:** implement skip helper + delete eprintln.
 
@@ -237,9 +242,10 @@ Reopening list ORDER / GLOB overfetch (T287 R1-1). Changing forget match SQL. `-
 
 | Risk | Mitigation |
 |------|------------|
-| Skip retitles dumps as pins | F4 walk cap; F3 never skip authority **as keep**; do not search whole body |
+| Skip retitles dumps as pins | F4 walk cap; F3 skip-list exemption on the **candidate** (not envelope-stop); do not search whole body |
 | `I'll` false-positive on a Decision | F3 classify before prefix |
-| Briefing/graph inherit surprise | Authority retain already filters briefing; inherit is T287 F6 class; AC16 empty diff |
+| Chrome-before-authority mis-read | AC19 + F1 first-non-chrome |
+| Briefing/graph inherit surprise | Authority retain already filters briefing; inherit SoT = `preview_line` units (F6); AC16 empty diff |
 | T299 AC4 bitrot | AC9 updates that hermetic in the same commit |
 | Live Manual still `## Objective` first | F27 honesty; hermetic SoT |
 | 80-net | Keep helper small; tests in existing `memory.rs` `#[cfg(test)]` + hermetic file |
@@ -265,14 +271,21 @@ Reopening list ORDER / GLOB overfetch (T287 R1-1). Changing forget match SQL. `-
 | last-PR Cursor `#238` | **N/A empty** |
 | last-PR Cursor `#237` Bugbot `PinnedCountFailed` invents `pinned=0` | **Mint T326** — still true `status.rs:329–340` + `graph.rs:445–458`; doctor already skips (`doctor.rs:901`) |
 | last-PR `#230` F8 recency | **T325** already Pending |
-| DOCS TX | `66b597f7-faf9-4f3e-bb06-6af72811bdc6` |
+| OpenCode m1 walk-stop / AC19 | **Folded** F1/F3 / AC19 |
+| OpenCode m2 after_help hermetic | **Folded** AC14 named test |
+| OpenCode O1 empty classify | **Folded** F3 |
+| OpenCode O2 inherit smoke | **Partial** F6 — helper units; decline extra briefing/graph hermetics |
+| Agy m1 HEAD `d1c3bd3` vs `120bbfa` | **Folded** snapshot `120bbfa` / ahead **1** |
+| Agy m2 all-chrome fallback | **Already** F5 / AC5 |
+| DOCS TX (plan) | `66b597f7-faf9-4f3e-bb06-6af72811bdc6` |
+| DOCS TX (fold-in) | `69e50ba1-5c35-49d4-abb3-56f1ff6419c6` |
 
 ---
 
 ## 10. Implement order (on go)
 
 1. Phase 0 re-read `preview_line` / F36 / T287 mix / T299 remediator / hermetic F36 asserts; rescan deferred; FEATURE TX.
-2. Red units + hermetics (must fail).
+2. Red units + hermetics (must fail) including AC14 after_help + AC19 fence-then-Decision.
 3. Green: `skip_leading_preview_chrome` + drop eprintln + after_help sentence.
 4. Stay-green T287/T216/T299/T224; flip F36 asserts.
 5. Docs CAPABILITIES / CHANGELOG / OPERATIONS.
@@ -300,10 +313,48 @@ Suggested series order after this plan: **T316 go** (daily inventory skim) or **
 |------|--------|
 | `crates/ai-brains-cli/src/commands/memory.rs` | `preview_line` skip walk; drop F36 eprintln; units |
 | `crates/ai-brains-cli/src/main.rs` | `MemoryCommands::List` after_help one sentence only |
-| `crates/ai-brains-cli/tests/memory_list_inventory.rs` | Flip F36; JSON chrome preview; T299 AC4 |
+| `crates/ai-brains-cli/tests/memory_list_inventory.rs` | Flip F36; JSON chrome preview; T299 AC4; AC14 after_help hermetic |
 | `Docs/CAPABILITIES.md` | Inventory chrome-skip + no runtime forget stderr |
 | `Docs/OPERATIONS.md` | One-liner |
 | `CHANGELOG.md` | Unreleased |
 | `conductor/conductor.md` | T316 Planned; T326 Pending placeholder |
 | `conductor/deferred.md` | This plan + T326 mint |
 | **Do not touch** | `forget.rs` production, `graph.rs`, `briefing.rs`, `ranking.rs`, `session_chrome.rs`, `query_store.rs`, `project.rs`, `sync.rs`, `doctor.rs`, `status.rs` (T326), retrieval rank, contracts |
+
+---
+
+## 13. AI fold-in disposition (2026-08-29)
+
+Source: `agy-review.md` + `opencode-review.md` (HEAD `120bbfa`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.**
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** HEAD `d1c3bd3` vs `120bbfa` | **Agree** | Snapshot fold-in `120bbfa` / ahead **1**; product `src/` = `d1c3bd3` (Agy m1 class) |
+| **m2** all-chrome fallback empty string | **Already** | F5 / AC5 — fallback first contentful / TAGS, not `""` |
+| **O1** drop F36 stderr | **Already** | F9 / AC8 / AC9 |
+| **O2** chrome walk cap 8 | **Already** | F1 / F2 / F4 / AC1 / AC2 / AC7 |
+| **O3** authority immunity | **Already** | F3 / AC6; **tightened** OpenCode m1 / AC19 |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** F3 walk-stop underspecified | **Agree** | F1/F3: walk returns **first non-chrome** whatever its kind; authority is skip-list exemption, not envelope-stop. **AC19** `preview_line__fence_then_decision__keeps_decision` |
+| **m2** AC14 after_help unnamed | **Agree** | Named hermetic `memory_list_help__after_help__names_chrome_skip_and_no_forget_hint`. Stay-green existing T287 help test `:1237` |
+| **O1** `classify_pin_kind("")` → Other | **Agree** | F3 / §5.1 clause |
+| **O2** briefing/graph inherit smoke | **Partial** | F6: inherit SoT is `preview_line` units (AC1–AC7 / AC19). **Decline** extra briefing/graph hermetics as DoD (F14 — do not grow those files). Re-trigger: a caller forks a second preview helper |
+| **O3** T326 line citations will drift | **Already** | T326 Phase 0 re-reads `status.rs` / `graph.rs` on `/plan-track T326` |
+
+### Pins locked by fold-in
+
+1. **F1/F3/AC19:** first-non-chrome wins; authority does not stop the envelope.
+2. **AC14:** named after_help hermetic (chrome-skip + no runtime forget hint).
+3. **F3:** `classify_pin_kind("") == Other`.
+4. **F6:** inherit locked by `preview_line` units, not briefing/graph hermetics.
+5. **HEAD snapshot:** fold-in `120bbfa` / ahead **1** of `origin/main` `d1c3bd3`.
+6. **last-PR Cursor:** `#238` empty; `#237` → **T326**; `#230` → **T325**. **No T327.**
+
+**Planning + fold-in 2026-08-29.** Still **plan-only until go**.
+
