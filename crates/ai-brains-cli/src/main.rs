@@ -2504,7 +2504,7 @@ enum GovernedQueryCommands {
     },
     /// Expand an evidence / conclusion / decision handle to a bounded preview
     #[command(
-        after_help = "Default --format json emits HandlePreviewDto + applied_scope. `--format human` prints kind then preview (two lines for Unknown/Denied).\nExamples:\n  ai-brains query expand <handle-id> --project-id <uuid> --format json\n  ai-brains query expand <handle-id> --project-id <uuid> --format human\n  # or set AI_BRAINS_PROJECT_ID"
+        after_help = "Default --format json emits HandlePreviewDto + applied_scope. `--format human` prints kind then preview (two lines for Unknown/Denied).\nUnknown that is a vault memory_id (not a governed handle) names the namespace and adds a third human line / optional JSON next_step pointing at `ai-brains recall \"what did we decide\"`.\nExamples:\n  ai-brains query expand <handle-id> --project-id <uuid> --format json\n  ai-brains query expand <handle-id> --project-id <uuid> --format human\n  # or set AI_BRAINS_PROJECT_ID"
     )]
     Expand {
         /// Handle id (evidence UUID, conclusion id, or decision id)
@@ -2635,7 +2635,7 @@ enum EvidenceCommands {
     },
     /// Show a bounded evidence / handle preview
     #[command(
-        after_help = "Examples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json\n  ai-brains evidence show <id> --format json"
+        after_help = "A vault memory_id pasted here is named (not shown as evidence) and points at `ai-brains recall \"what did we decide\"`.\nExamples:\n  ai-brains evidence show <id> --scope Repository:<uuid> --format json\n  ai-brains evidence show <id> --format json"
     )]
     Show {
         /// Evidence or handle id
@@ -2690,7 +2690,7 @@ enum SourceCommands {
     },
     /// Show a registered source by id
     #[command(
-        after_help = "Examples:\n  ai-brains source show <id> --scope Repository:<uuid>\n  ai-brains source show <id> --format json"
+        after_help = "A vault memory_id pasted here stays NOT_FOUND (exit 4) and names the other namespace via details.hint / stderr hint.\nExamples:\n  ai-brains source show <id> --scope Repository:<uuid>\n  ai-brains source show <id> --format json"
     )]
     Show {
         /// Source id

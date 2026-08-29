@@ -2,6 +2,54 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T319 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F22 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| Live audit id `431f6505-…` may be forgotten later | **Deferred** — Manual pass-with-observed-data; hermetic AC5–AC8 SoT |
+| Vault still 0 governed evidence rows | **Deferred** — honesty not populate (H1); H2 declined |
+| No `memory show <id>` remediator | **Deferred** — next-step is recall needle; T316 is list preview not show-by-id |
+| Daemon `HandlePreviewDto` / Inspect* IPC unaugmented | **Deferred** F7/F30 — CLI Value overlay only by design |
+| T312 PATH dump-first / T325 F8 PreferRecency | **Not stolen** |
+| FEATURE TX | `ce627277-0e01-40c8-8b96-b810f07186c4` |
+
+### T319 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 daemon `run_show_daemon` takes no ctx | **Folded** F2 / F30 / Phase 2 / §5.1 — thread `&ctx`; source Error before `expect_daemon_ok` `:671` |
+| OpenCode m2 line counts 1029/463/305/303 vs 1133/496/320/322 | **Folded** §2.3; F32/F23 80-net is phase diff |
+| OpenCode m3 AC15 conditional found-kind | **Folded** AC3 `kind: "Evidence"` fixture; AC15 = AC3 |
+| OpenCode O1 AC1 daemon proof | **Folded** F23 |
+| OpenCode O2 AC8 stderr order | **Folded** AC8 T221 F5 bare hint |
+| OpenCode O3 word 740→669 | **Note** §2.1 |
+| Agy m1 HEAD `fa353c7` vs `14198b5` | **Folded** snapshot `14198b5` / ahead **1** |
+| Agy m2 EXISTS `Err` → false | **Already** F1 |
+| Agy O1/O2/O3 F7 / F3–F4 / F6 | **Already** |
+| last-PR `#234` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `09c2659f-962a-40e5-a04f-92f2de9c4f8d` |
+
+### T319 full plan (2026-08-28) — handle vs memory UUID namespace
+
+| Item | Disposition |
+|------|-------------|
+| Audit `evidence show` / `source show` on a vault `memory_id` | **Absorb** F1–F8 / AC5–AC8 / AC11 — name namespace; no H2 |
+| Audit `query expand` same UUID hole | **Absorb** F3 / AC5–AC6 — preview replaces `Handle not found.` when EXISTS |
+| Evidence Unknown empty preview (T263 overlay never wired) | **Absorb** F2 |
+| T263 H1 `Handle not found.` / Unknown exit **0** | **Affirm** F3 / F11 / AC9 stay-green for non-memory UUID |
+| Source `NOT_FOUND` exit **4** | **Affirm** F4 — additive `details.hint` only |
+| T290 granted-empty list copy | **Not stolen** F12 |
+| T263 H2 pin→Approved / migrate | **Decline** F9 / F20 |
+| T167 EvidenceId prefers `memory_id` | **Not stolen** — import-only |
+| T316 / T317–T318 / T320–T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T307 Blocked / T308 floors / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#234` | **N/A empty** — no T326 |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `844bdbed-7295-4635-a04f-968d224e41ec` |
+
 ### T317 implement residuals (2026-08-28) — non-easy lows
 
 | Item | Disposition |
@@ -251,9 +299,9 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | `--format` / `--dry-run` clap friction | **T314 Completed** `#232` |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Pending |
-| `graph neighbors` RECALLS spam | **T317** Planned (full F-list 2026-08-28) |
+| `graph neighbors` RECALLS spam | **T317 Completed** `#234` |
 | `backup list` residual noise | **T318** Pending |
-| evidence/source show vault UUID | **T319** Pending |
+| evidence/source show vault UUID | **T319** Planned (full F-list 2026-08-28) |
 | unified `status` opportunity | **T320** Pending |
 | `safety sync` write surprise | **T321** Pending |
 | T311 R2 `--as-of` | **T322** Pending |

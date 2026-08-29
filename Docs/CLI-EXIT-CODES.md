@@ -104,6 +104,8 @@ On **`policy check`** deny and local **list** denies (`review list`, `source lis
 | `query progressive` | packet `denied: true` (incl. `--dry-run`) | **3** | **stdout:** pretty `ProgressiveQueryResponse` (keeps `denied` / `denial_reason` / additive **`denial_hint`** bootstrap string plus ungoverned `recall` fallback). **stderr:** `POLICY_DENIED: …` then bootstrap hint then `Ungoverned vault search: ai-brains recall "…"`. `next_step` omitted. |
 | `query expand` | preview `kind == "Denied"` (capability miss **and/or** cross-scope — not disambiguated) | **3** | **stdout:** preview JSON. **stderr:** `POLICY_DENIED: …` then bootstrap hint. |
 | `query expand` | `kind == "Unknown"` (handle not found) | **0** | not a policy wall |
+| `query expand` / `evidence show` | `kind == "Unknown"` + UUID is vault `memory_id` (T319) | **0** | same exit as unknown-unknown; preview/next_step name the other namespace (not a new exit code) |
+| `source show` | `NOT_FOUND` + UUID is vault `memory_id` (T319) | **4** | same exit as plain miss; additive `details.hint` only |
 | `briefing project` / `personal` | soft packet `denied: true` | **0** | unchanged (T210 F28) — do not treat like progressive |
 | `briefing project` / `personal` | unknown `--format` (not human/pretty/text/markdown/md/json) | **2** | **T227:** `fail_usage` on stderr with accepted list; **zero stdout** (no silent JSON) |
 

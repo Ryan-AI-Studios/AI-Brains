@@ -6,6 +6,9 @@ use crate::commands::governed_common::{
     format_authorized_empty_next, policy_denied_hint_details, principal_id_wire, resolve_principal,
     resolve_scope_key_for_cli,
 };
+use crate::commands::governed_namespace::{
+    apply_unknown_handle_overlay, namespace_memory_present, wrong_namespace_next_line,
+};
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
 use ai_brains_contracts::briefings::{
@@ -72,7 +75,7 @@ pub async fn run_show(
     };
 
     match path {
-        PathDecision::Daemon => run_show_daemon(&options, &scope_key, format).await,
+        PathDecision::Daemon => run_show_daemon(ctx, &options, &scope_key, format).await,
         PathDecision::Local { .. } => run_show_local(ctx, &options, &scope_key, format),
     }
 }
@@ -139,16 +142,12 @@ fn run_show_local(
         Ok(preview) => {
             // expand_handle returns denied preview (empty/truncated) rather than PolicyDenied
             // for some paths; still attach hint when kind signals deny if free — keep parity.
-            match format {
-                OutputFormat::Json => emit_json(&preview),
-                OutputFormat::Human | OutputFormat::Markdown => {
-                    emit_human(&format!(
-                        "handle: {} ({})\npreview: {}\ntruncated: {}",
-                        preview.handle_id, preview.kind, preview.preview, preview.truncated
-                    ));
-                    Ok(())
-                }
-            }
+            let mut value = serde_json::to_value(&preview)?;
+            // F1: probe only after Unknown (skip found/Denied SQL).
+            let present = preview.kind == "Unknown"
+                && namespace_memory_present(ctx.conn.memory_exists(&preview.handle_id));
+            apply_unknown_handle_overlay(&mut value, present);
+            emit_evidence_preview(format, &value)
         }
         Err(e) => {
             use ai_brains_control_plane::ControlPlaneError;
@@ -165,6 +164,7 @@ fn run_show_local(
 }
 
 async fn run_show_daemon(
+    ctx: &AppContext,
     options: &ShowOptions,
     scope_key: &str,
     format: OutputFormat,
@@ -186,17 +186,44 @@ async fn run_show_daemon(
     };
     let resp = expect_daemon_ok(format, resp)?;
     match resp {
-        DaemonResponse::EvidencePreview(preview) => match format {
-            OutputFormat::Json => emit_json(&preview),
-            OutputFormat::Human | OutputFormat::Markdown => {
-                emit_human(&format!(
-                    "handle: {} ({})\npreview: {}\ntruncated: {}",
-                    preview.handle_id, preview.kind, preview.preview, preview.truncated
-                ));
-                Ok(())
-            }
-        },
+        DaemonResponse::EvidencePreview(preview) => {
+            // F2/F30: CLI probes local vault even on daemon path; no EXISTS IPC.
+            let mut value = serde_json::to_value(&preview)?;
+            let present = preview.kind == "Unknown"
+                && namespace_memory_present(ctx.conn.memory_exists(&preview.handle_id));
+            apply_unknown_handle_overlay(&mut value, present);
+            emit_evidence_preview(format, &value)
+        }
         other => Err(format!("unexpected daemon response: {other:?}").into()),
+    }
+}
+
+/// Emit evidence show after T319 overlay (JSON Value may include optional `next_step`).
+fn emit_evidence_preview(
+    format: OutputFormat,
+    value: &serde_json::Value,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match format {
+        OutputFormat::Json => emit_json(value),
+        OutputFormat::Human | OutputFormat::Markdown => {
+            let handle_id = value
+                .get("handle_id")
+                .and_then(|h| h.as_str())
+                .unwrap_or("");
+            let kind = value.get("kind").and_then(|k| k.as_str()).unwrap_or("");
+            let preview = value.get("preview").and_then(|p| p.as_str()).unwrap_or("");
+            let truncated = value
+                .get("truncated")
+                .and_then(|t| t.as_bool())
+                .unwrap_or(false);
+            emit_human(&format!(
+                "handle: {handle_id} ({kind})\npreview: {preview}\ntruncated: {truncated}"
+            ));
+            if value.get("next_step").and_then(|n| n.as_str()).is_some() {
+                emit_human(&wrong_namespace_next_line());
+            }
+            Ok(())
+        }
     }
 }
 

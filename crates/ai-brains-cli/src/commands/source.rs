@@ -6,6 +6,7 @@ use crate::commands::governed_common::{
     format_authorized_empty_next, policy_denied_hint_details, principal_id_wire, resolve_principal,
     resolve_scope_key_for_cli,
 };
+use crate::commands::governed_namespace::{namespace_memory_present, wrong_namespace_source_hint};
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
 use ai_brains_contracts::response::ApiError;
@@ -70,7 +71,7 @@ pub async fn run_show(
     };
 
     match path {
-        PathDecision::Daemon => run_show_daemon(&options, &scope_key, format).await,
+        PathDecision::Daemon => run_show_daemon(ctx, &options, &scope_key, format).await,
         PathDecision::Local { .. } => run_show_local(ctx, &options, &scope_key, format),
     }
 }
@@ -157,10 +158,7 @@ fn run_show_local(
     let dto = match ports.query.get_source(source_id) {
         Ok(Some(row)) if row.scope == expected_scope => source_row_to_dto(&row),
         Ok(Some(_)) | Ok(None) => {
-            return fail_api(
-                format,
-                ApiError::new("NOT_FOUND", format!("source {}", options.id)),
-            );
+            return fail_source_not_found(ctx, format, &options.id);
         }
         Err(e) => return fail_cp(format, e),
     };
@@ -169,6 +167,7 @@ fn run_show_local(
 }
 
 async fn run_show_daemon(
+    ctx: &AppContext,
     options: &ShowOptions,
     scope_key: &str,
     format: OutputFormat,
@@ -187,11 +186,53 @@ async fn run_show_daemon(
             return fail_path(format, governed_common::PathPolicyError::DaemonUnavailable);
         }
     };
-    let resp = expect_daemon_ok(format, resp)?;
+    // F30: attach hint only when local vault has this UUID as a memory_id.
+    // Plain daemon NOT_FOUND (and other errors) stay on expect_daemon_ok (N±1).
     match resp {
-        DaemonResponse::Source(dto) => emit_source(format, &dto),
-        other => Err(format!("unexpected daemon response: {other:?}").into()),
+        DaemonResponse::Error(err)
+            if err.code == "NOT_FOUND"
+                && namespace_memory_present(ctx.conn.memory_exists(&options.id)) =>
+        {
+            fail_api(format, with_wrong_namespace_hint(err))
+        }
+        other => {
+            let resp = expect_daemon_ok(format, other)?;
+            match resp {
+                DaemonResponse::Source(dto) => emit_source(format, &dto),
+                unexpected => Err(format!("unexpected daemon response: {unexpected:?}").into()),
+            }
+        }
     }
+}
+
+/// F4 — source miss stays NOT_FOUND exit 4; additive hint when UUID is a vault memory_id.
+fn fail_source_not_found(
+    ctx: &AppContext,
+    format: OutputFormat,
+    id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let err = ApiError::new("NOT_FOUND", format!("source {id}"));
+    if namespace_memory_present(ctx.conn.memory_exists(id)) {
+        return fail_api(format, with_wrong_namespace_hint(err));
+    }
+    fail_api(format, err)
+}
+
+fn with_wrong_namespace_hint(err: ApiError) -> ApiError {
+    let hint = serde_json::Value::String(wrong_namespace_source_hint());
+    // Preserve any prior details keys; overlay hint.
+    let details = match err.details {
+        Some(serde_json::Value::Object(mut existing)) => {
+            existing.insert("hint".to_string(), hint);
+            serde_json::Value::Object(existing)
+        }
+        _ => {
+            let mut map = serde_json::Map::new();
+            map.insert("hint".to_string(), hint);
+            serde_json::Value::Object(map)
+        }
+    };
+    ApiError::new(err.code, err.message).with_details(details)
 }
 
 fn run_list_local(
