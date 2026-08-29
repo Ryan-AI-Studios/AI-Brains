@@ -2,6 +2,18 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T319 implement residuals (2026-08-28) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` | **Deferred** F22 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| Live audit id `431f6505-…` may be forgotten later | **Deferred** — Manual pass-with-observed-data; hermetic AC5–AC8 SoT |
+| Vault still 0 governed evidence rows | **Deferred** — honesty not populate (H1); H2 declined |
+| No `memory show <id>` remediator | **Deferred** — next-step is recall needle; T316 is list preview not show-by-id |
+| Daemon `HandlePreviewDto` / Inspect* IPC unaugmented | **Deferred** F7/F30 — CLI Value overlay only by design |
+| T312 PATH dump-first / T325 F8 PreferRecency | **Not stolen** |
+| FEATURE TX | `ce627277-0e01-40c8-8b96-b810f07186c4` |
+
 ### T319 fold-in (2026-08-28) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
