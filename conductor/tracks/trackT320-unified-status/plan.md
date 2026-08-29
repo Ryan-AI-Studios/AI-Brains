@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** FEATURE / UX
 **Ledger (planning):** DOCS `dcb67912-8fb7-4bbd-a354-68ba41857744`
+**Ledger (fold-in):** DOCS `a92f9b07-1894-42a1-8526-9f66fa9ed02d`
 
 ---
 
@@ -10,9 +11,9 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `464edc2` T319 `#236` CLEAN. Branch `track/T320-unified-status` off `origin/main`. Ahead **0** at plan-write (docs commit will be +1). |
+| HEAD / tree | Fold-in `e15188e` plan commit CLEAN; `origin/main` = `464edc2` (ahead **1**). Plan-write was `464edc2` / ahead **0** (Agy m1). Branch `track/T320-unified-status`. Product `src/` = T319 `#236`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T320 hole **is** (`status` unrecognized, exit 2). T312–T319 **not** on PATH. |
-| `preflight --summary` (PATH) | Pinned **4563**; in-context **0/0/0**; `Total Word Count: 699` (PATH-behind T315) |
+| `preflight --summary` (PATH) | Pinned **4563**; in-context **0/0/0**; plan-write words **699**; OpenCode **705** (PATH-behind T315) |
 | `doctor --summary` | degraded; **only** graph_density warn E/N **0.416**; exit 0. Stopped daemon would **not** show (daemon_reachable always ok). |
 | `nightly --status --quick` | last **2026-08-28T07:08:30Z**; scheduled Yes; last_result **0**; probe=skipped |
 | `daemon status` | Running; PID 3592; TCP Open; exit 0 |
@@ -25,7 +26,7 @@
 | Open PRs | **none** |
 | Ledger | 0 pending / 0 drift at scan; this TX `dcb67912` |
 | Hotspots | `project.rs` #1 **3.698** — do not touch. `sync.rs` #2. `governed_common.rs` #3. `daemon.rs` #8 — do not grow `run_status`. |
-| Line counts | doctor **1738**; nightly **1968**; daemon **1232**; graph **1606**; main **5402** |
+| Line counts | Nonblank (plan-write): doctor **1738**; nightly **1968**; daemon **1232**; `commands/graph.rs` **1606**; main **5402**. Physical (OpenCode m1): **1855 / 2128 / 1341 / 1731 / 5578**. F32 = go-HEAD diff. |
 | `ISSUES.md` | **Does not exist** |
 | Planning install / live pin / live rebuild / daemon mutate | **Not run** |
 
@@ -49,6 +50,12 @@
 | last-PR `#230` F8 recency | **T325** — not stolen |
 | T316 / T318 / T321–T324 / clap 5 | **Not stolen** / **Decline** |
 | minikube bitwise exit | **F31** decline |
+| OpenCode m1 line counts | **Partial** §2.3 dual-count; F32 go-HEAD; decline `src/graph.rs` |
+| OpenCode O1 AC9 host daemon | **F45 / AC9** |
+| OpenCode O2 `status_next_line` | **F27 / AC7** |
+| OpenCode O3 scheduled mapper | **F12 / AC6** `next_run.is_some()` |
+| Agy m1 HEAD | **§2.1** `e15188e` / ahead **1** |
+| Agy m2 `graph_density` path | **§2.3** `src/graph_density.rs` |
 
 ---
 
@@ -58,9 +65,9 @@
 - [ ] Confirm cwd `C:\dev\AI-Brains`
 - [ ] Re-read doctor `build_report` `:77` + `format_doctor_summary` `:932` + 15-check unit `:1065` + `daemon_reachable` always-ok `:187–192`
 - [ ] Re-read `main.rs` doctor early dispatch `:4454` + `Commands::Doctor` unreachable `:4551`
-- [ ] Re-read `daemon.rs` `run_status` `:739` (do **not** call) + `daemon_probe.rs` Status vs Safety
-- [ ] Re-read `nightly.rs` status branch `:40–222` + `fetch_schedule_snapshot` `:1067` (still private?)
-- [ ] Re-read `graph.rs` `graph_health_report` `:429` (do **not** import) + `graph_density.rs` gather/assess
+- [ ] Re-read `daemon.rs` `run_status` `:739` (do **not** call) + `status_next_line` `:697–701` (F27 reuse) + `daemon_probe.rs` Status vs Safety
+- [ ] Re-read `nightly.rs` status branch `:40–222` + `scheduled = snap.next_run.is_some()` `:104` (F12) + `fetch_schedule_snapshot` `:1067` (still private?)
+- [ ] Re-read `commands/graph.rs` `graph_health_report` `:429` (do **not** import) + `crates/ai-brains-cli/src/graph_density.rs` gather/assess (`main.rs:9`)
 - [ ] Re-read `help_ia.rs:11` Daily string + unit `:57–61` + `memory_list_inventory.rs:612`
 - [ ] Re-dogfood `doctor --summary` / `nightly --status --quick` / `daemon status` / `graph update --format human` / `ai-brains status --help` (must still be missing until green)
 - [ ] Confirm clap lock still **4.6.1**; floors still `0.50`; `DoctorReport` still 15
@@ -75,11 +82,11 @@
 - [ ] `status_envelope__doctor_err__error_keeps_daemon` (AC4)
 - [ ] `status_envelope__graph_err__error_keeps_others` (AC5)
 - [ ] `status_nightly_human__never_and_not_scheduled` (AC6)
-- [ ] `status_next_line__stopped__daemon_start` / `status_next_line__running__none` (AC7)
+- [ ] `format_status_human__stopped__reuses_daemon_next` / `format_status_human__running__no_next` (AC7) — human **eq** `daemon::status_next_line(false)`; JSON prefix-less; do **not** reuse daemon.rs test names
 - [ ] `format_status_human__includes_doctor_summary_no_nightly_banner` (AC8)
 - [ ] `format_status_graph_line__three_decimal_en` (AC16)
 - [ ] Clap AC2 `status --format xml` / `JSON` InvalidValue exit 2 (hermetic or clap parse unit)
-- [ ] Hermetic AC9 `status__format_json__parses_envelope`
+- [ ] Hermetic AC9 `status__format_json__parses_envelope` — keys only; **do not** assert `daemon.state` (host IPC / F45)
 - [ ] Confirm red tests **fail** on current tree (no `commands/status.rs`; clap has no `Status`)
 
 ## Phase 2 — Green
@@ -89,11 +96,12 @@
 - [ ] Early dispatch before AppContext (F30) — same class as doctor
 - [ ] Probe `DaemonProbePolicy::Status`; `build_report`; slim doctor JSON (F9/F10)
 - [ ] Graph gather+assess; human one-liner (F11)
-- [ ] Nightly `sync_state` SQL + `pub(crate)` `fetch_schedule_snapshot` (F12/F34)
+- [ ] Nightly `sync_state` SQL + `pub(crate)` `fetch_schedule_snapshot`; `scheduled = snap.next_run.is_some()` (F12/F34/AC6)
+- [ ] Human `next:` = `daemon::status_next_line(false)`; JSON prefix-less const (F27)
 - [ ] Fail-open per section (F4); exit 0 (F5)
 - [ ] `help_ia.rs` Daily + Start-here; update both Daily string tests (F17)
 - [ ] Production: no `unwrap`/`expect`/`panic`
-- [ ] Isolation: doctor.rs / graph.rs / daemon.rs `run_status` / project.rs / sync.rs / governed_common.rs behavior-empty (AC13)
+- [ ] Isolation: doctor.rs / `commands/graph.rs` / daemon.rs `run_status` / project.rs / sync.rs / governed_common.rs behavior-empty (AC13); import `status_next_line` only
 
 ## Phase 3 — Stay-green
 
@@ -143,4 +151,4 @@
 
 ## Isolation (repeat)
 
-Do not grow `doctor.rs`. Do not call `nightly::run` or `daemon::run_status`. Do not import `graph.rs`. No `cargo install`. Never `git push origin main`.
+Do not grow `doctor.rs`. Do not call `nightly::run` or `daemon::run_status`. Do not import `commands/graph.rs`. Reuse `status_next_line`. No `cargo install`. Never `git push origin main`.

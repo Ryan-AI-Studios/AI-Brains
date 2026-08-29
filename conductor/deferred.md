@@ -2,6 +2,21 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T320 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 HEAD `464edc2` vs `e15188e` | **Folded** snapshot `e15188e` / ahead **1** |
+| Agy m2 `graph_density.rs` not under `commands/` | **Folded** §2.3 / F11 — `src/graph_density.rs` via `main.rs:9` |
+| Agy O1/O2/O3 in-process / fail-open / graph-off | **Already** F2 / F4 / F11 |
+| OpenCode m1 line counts 1738 vs 1855 | **Partial** dual-count (nonblank vs physical); F32 go-HEAD. **Decline** “pre-T317 / `src/graph.rs`” |
+| OpenCode O1 AC9 host daemon IPC | **Folded** AC9 / F45 — do not assert `daemon.state` |
+| OpenCode O2 `status_next_line` reuse | **Folded** F27 / AC7 — human = helper; JSON prefix-less |
+| OpenCode O3 scheduled mapper | **Folded** F12 / AC6 — live `next_run.is_some()` (`nightly.rs:104`), not Router `found &&` |
+| last-PR `#236` / `#235` Cursor | **Affirm** N/A empty — no T326 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `a92f9b07-1894-42a1-8526-9f66fa9ed02d` |
+
 ### T320 full plan (2026-08-29) — unified `ai-brains status` glance
 
 | Item | Disposition |
