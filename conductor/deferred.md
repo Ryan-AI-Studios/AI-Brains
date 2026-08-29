@@ -25,6 +25,24 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | `ISSUES.md` | **Does not exist** |
 | DOCS TX | `956c8463-c577-44cf-a614-169d77117446` |
 
+### T321 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m3 HEAD `16edc3f` vs `42df225` | **Folded** snapshot `42df225` / ahead **1** |
+| Agy m1 AC6 spawn hazard | **Folded** F7/AC6 `parse_ledgerful_hotspots_json` (no spawn) |
+| Agy m2 score vs displayScore false-pass | **Folded** AC5/AC6 fixture both fields distinct |
+| Agy m4 / OpenCode O2 serde required freq/complexity | **Folded** F7 `#[serde(default)]` on CLI those two fields |
+| Agy O1 Value one-pass | **Decline** as required — impl detail; AC5/AC6 SoT |
+| Agy O2 docs-file hermetics | **Decline** as DoD — AC13 grep |
+| OpenCode m1 F4 tracing warn “(not stdout)” | **Folded** F4 reword; subscriber freeze; `--log-format off` residual |
+| OpenCode m2 write-path unproven | **Partial** F5/AC17 `format_detail_row`; **decline** tempdir write (F12) |
+| OpenCode O1 `--limit 0` empty | **Folded** AC15 |
+| OpenCode O3 F29 “unbounded”/“20” | **Folded** operator-set `--limit` (default 5), no inject cap |
+| last-PR `#242` / `#241` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `573fb6ba-01f8-4ccb-b40d-3d0d3e6d58f2` |
+
 
 
 ### T318 implement residuals (2026-08-29) — non-easy lows

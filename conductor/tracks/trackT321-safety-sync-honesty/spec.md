@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Operators who think `sync` family is read-only. Restores T279 live-inject after Ledgerful JSON envelope. Does **not** populate governed stores. Does **not** steal T322–T326.
 - **Absorbs:** Audit write-surprise + chatter; live `hotspots --json` `{schemaVersion, files[]}` (CLI JSON fail → text-mode chatter + displayScore; retrieval fail-open → preflight Safety 0); T279 F29 parser drift **partial** (copy-not-share envelope, cap differs); docs `WORKFLOWS.md` JSON-`LedgerEntry` lie; session-start `antigravity-rule.md` write-without-preview
 - **Not absorbed (DoD):** Changing hotspot pin **schema** (`HOTSPOT:` blob); growing `project.rs` / CLI `preflight.rs` / `pin.rs` production / `help_ia.rs`; T264 global mix; T279 Safety SQL/GLOB; T279 F35 Command timeout crate; dry-run-**by-default** (breaking); `--quiet` / `--format json` / `--confirm`; clap 5
-- **Research date:** 2026-08-29 (plan-write product HEAD `16edc3f` T318 Completed note `#242`; T318 product `#241` `3bac49e`). Snapshot — **re-verify at execute**.
-- **Ledger:** planning DOCS TX `956c8463-c577-44cf-a614-169d77117446`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-29 (plan-write product HEAD `16edc3f` T318 Completed note `#242`; T318 product `#241` `3bac49e`). Fold-in against `42df225` (this plan’s own docs commit; ahead **1** of `origin/main` = `16edc3f`). Snapshot — **re-verify at execute**.
+- **AI fold-in:** 2026-08-29 `agy-review.md` + `opencode-review.md` (HEAD `42df225`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m1 named parse helper no spawn (AC6); Agy m2 distinct `score` vs `displayScore` (AC5/AC6); Agy m3 HEAD snapshot; Agy m4 / OpenCode O2 `#[serde(default)]` on CLI `complexity`/`frequency`; OpenCode m1 F4 tracing-warn is stdout under default fmt subscriber; OpenCode m2 F5 write-row shape + `format_detail_row` unit (not tempdir vault write); OpenCode O1 `--limit 0` empty proof; OpenCode O3 F29 wording. **Already:** Agy m1 spawn hazard (AC6 already “parse helper, no spawn”). **Decline:** Agy O1 required `Value` single-pass (impl detail); Agy O2 docs-file hermetics (AC13 grep); OpenCode m2 required tempdir write (F12 + `pin::run` needs env + ledgerful spawn). Disposition **§13**.
+- **Ledger:** planning DOCS TX `956c8463-c577-44cf-a614-169d77117446`. Fold-in DOCS TX `573fb6ba-01f8-4ccb-b40d-3d0d3e6d58f2`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** pin live hotspots as planning or as implement proof. Do **not** `cargo install`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** grow hotspot `project.rs` (#1) / `sync.rs` (#2) / `governed_common.rs` (#3) / `forget.rs` (#5) / CLI `preflight.rs` (#7).
 
 ---
@@ -33,7 +34,7 @@ This unblocks daily CLI: `sync` looks like `sync query` (read); default is a wri
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `16edc3f` `chore(conductor): T318 Completed note with PR #241 squash 3bac49e` (`#242`). Product `src/` = T318 `#241` `3bac49e`. Tree **CLEAN**. Branch `track/T321-safety-sync-honesty` off `main` = `origin/main`. Ahead **0** at plan start. |
+| HEAD | Fold-in against plan-write `42df225` `docs(conductor): plan T321 safety sync write honesty (banner, quieter, JSON files envelope)`. Product `src/` = T318 `#242` `16edc3f` / `#241` `3bac49e` (crates identical to plan-write). Tree **CLEAN** at fold-in. Branch `track/T321-safety-sync-honesty`. `origin/main` = `16edc3f` (ahead **1**). Plan-write snapshot was `16edc3f` / ahead **0** (Agy m3). |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. **T279/T272 on PATH.** T312–T318 **not**. `safety.rs` **unchanged** by T316/T318 — hole **is** on PATH **and** source. **Do not `cargo install`.** Tests/manual AC use hermetic / `cargo run`. |
 | `preflight --summary` (PATH) | Pinned **4616**. In-context **0/0/0**. `Total Word Count: 701` (PATH-behind T315 `Budget window words:`). **Not this DoD** except: **0 hotspots** is the envelope hole (retrieval parse). |
 | `safety --help` | Parent about `Manage repository safety signals`. Subcommand `Synchronize Ledgerful hotspots into the AI-Brains vault`. **No** after_help. |
@@ -70,10 +71,10 @@ This unblocks daily CLI: `sync` looks like `sync query` (read); default is a wri
 | Spawn argv | `preflight_safety.rs:111–125` | Same `hotspots --json --limit 5`. **Do not change argv.** |
 | Preflight help | `main.rs:1185–1197` / `:1748` | `safety sync --dry-run`. **Stay-green.** |
 | `help_ia` | Operator includes `safety` | **Freeze.** Do not move to Daily. |
-| Hermetics | **No** `safety sync` CLI test today | Help + clap default + format helpers + retrieval envelope unit are the reds. |
+| Hermetics | **No** `safety sync` CLI test today | Help + clap default + `parse_ledgerful_hotspots_json` + `format_*` + retrieval envelope are the reds. |
 | T279 parse units | `preflight_safety.rs:151–178` | `log_then_array` + cap-5. **Stay-green.** |
 | Line counts | `safety.rs` **168** nonblank / **187** physical; `preflight_safety.rs` **227** physical; `pin.rs` **138**. Snapshot — **F22 80-net is phase diff vs go HEAD**. |
-| Contracts | none | No DTO. PROTOCOL-COMPAT N/A. Retrieval `parse_hotspots_json` is crate-private (`mod preflight_safety` not `pub use`). **Copy-not-share** (F29) because CLI `--limit` is unbounded vs inject cap 5. |
+| Contracts | none | No DTO. PROTOCOL-COMPAT N/A. Retrieval `parse_hotspots_json` is crate-private (`mod preflight_safety` not `pub use`). **Copy-not-share** (F29) because CLI `--limit` is **operator-set** (default 5, no inject cap) vs inject cap 5. |
 
 ### 2.4 Dependency / standards research (2026-08-29)
 
@@ -83,6 +84,7 @@ This unblocks daily CLI: `sync` looks like `sync query` (read); default is a wri
 | `serde_json` | lock **1.0.150** | **No bump.** Envelope deserialize local. |
 | `rusqlite` | exact **0.40.2** | **No bump.** No SQL. |
 | `uuid` | ws `"1.13"` / lock **1.23.1** | **No bump.** |
+| `tracing-subscriber` | lock **0.3.23** | **No bump.** Default fmt writer is stdout (`W = fn() -> Stdout`). F4 does **not** call `.with_writer()`. |
 | rustc / edition | **1.95.0** / **2024** | Unchanged. |
 | workspace version | **0.1.3** | **No bump.** |
 | New crates | — | **Zero.** No wait-timeout (T279 F35 decline). |
@@ -114,15 +116,15 @@ N/A-if-skipped: SQLCipher, schtasks, llama.cpp `/health`, FTS5, clap `num_args` 
 | **F1 — Default stays write** | `dry_run: bool` absent = **false**. Do **not** default `--dry-run`. Do **not** T314 optional-value / `--dry-run false` to pin. T279 remediator stays a **preview**. OPERATIONS write example stays valid. |
 | **F2 — Write banner** | When `!dry_run` and `hotspots` nonempty, stdout **before** `pin::run`: `Pinning {n} Ledgerful hotspot(s) into the vault.` Helper `format_write_banner(n) -> String`. |
 | **F3 — Help honesty** | `SafetyCommands::Sync` about names **pin**. `--dry-run` help: preview **without pinning**. One additive **after_help**: default pins Ledgerful hotspots into the vault; `--dry-run` previews; preflight already live-injects without pinning. |
-| **F4 — Drop scan theater** | Delete `Scanning for Ledgerful Hotspots...` and `Ledgerful scan complete: N`. Text-mode / JSON-err diagnostic → `tracing::warn!` (not stdout). Fail path still `return Err(...)` when **both** JSON and text fail. |
-| **F5 — Dry-run / details quieter** | Header SOOT `--- Dry Run: would pin {n} hotspot(s) ---` (not `would sync`). Human rows: `  {i}. {path} (score: {score:.2})` using **raw** JSON `score` (T279 F2). Drop freq/complexity from **human** list. Write details fence may stay; same row shape. Pin **blob** `render_hotspots` may keep freq/complexity (schema freeze). |
+| **F4 — Drop scan theater** | Delete `Scanning for Ledgerful Hotspots...` and `Ledgerful scan complete: N`. Text-mode / JSON-err diagnostic → `tracing::warn!` (**filterable**; default `tracing_subscriber::fmt()` writer is **stdout** — lock **0.3.23**, docs.rs `W = fn() -> Stdout`, `main.rs:4089–4118` never `.with_writer()`; `DEFAULT_ENV_FILTER` enables `warn`). **Do not** retarget the subscriber this track. Silence leftover warn with `--log-format off` / `RUST_LOG`. AC7/AC14 assert the two frozen `println!` strings are gone, not that warn is on stderr. Fail path still `return Err(...)` when **both** JSON and text fail. (OpenCode m1) |
+| **F5 — Dry-run / details quieter** | Header SOOT `--- Dry Run: would pin {n} hotspot(s) ---` (not `would sync`). Human rows (dry-run **and** write) use the **same** `format_detail_row`: `  {i}. {path} (score: {score:.2})` with **raw** JSON `score` (T279 F2). Freq/complexity stay **only** in the pin **blob** (`render_hotspots`). Write may keep the `--- Hotspot Details ---` fence; rows inside it are the two-field shape, not `{:.4}`+freq+complexity. (OpenCode m2) |
 | **F6 — pin.rs freeze** | Do **not** edit `pin.rs` production. Keep `Memory {id} successfully pinned`. **Drop** `Safety synchronization complete. N hotspot(s) pinned to vault.` (duplicate). `--dry-run` still returns **before** `pin::run`. |
-| **F7 — Envelope parse** | CLI `fetch_hotspots_json` and retrieval `parse_hotspots_json` accept: (a) object with `files` array (`schemaVersion` optional); (b) legacy top-level array after first `[` line (T279 F36). Finder: first line `trim_start` `{` **or** `[`. Raw field `score` (ignore `displayScore`). CLI does **not** cap (ledgerful `--limit` already applied). Retrieval still caps `LIVE_HOTSPOT_LIMIT=5`. |
+| **F7 — Envelope parse** | CLI `fetch_hotspots_json` **spawns** then calls pure `parse_ledgerful_hotspots_json(stdout: &str) -> Result<Vec<LedgerfulHotspot>, String>` (Agy m1). Retrieval `parse_hotspots_json` accepts the same wire: (a) object with `files` array (`schemaVersion` optional); (b) legacy top-level array after first `[` line (T279 F36). Finder: first line `trim_start` `{` **or** `[`. Raw field `score` (ignore `displayScore`). CLI `LedgerfulHotspot`: `#[serde(default)]` on `complexity` and `frequency` (path/score stay required) — Agy m4 / OpenCode O2; retrieval `LiveHotspot` is path+score only (already resilient). CLI does **not** cap (operator `--limit`, default 5). Retrieval still caps `LIVE_HOTSPOT_LIMIT=5`. |
 | **F8 — T279 remediator / GLOB freeze** | `SAFETY_EMPTY` exact. Preflight after_help `safety sync --dry-run` stay-green. Safety SQL/GLOB / skip-set / `--global` no live-inject **unchanged**. Do **not** grow CLI `preflight.rs`. |
 | **F9 — Flags** | **No** new clap flag (`--quiet` / `--format` / `--confirm` / `--usable-only`). `--limit` default **5** freeze. |
 | **F10 — No list JSON** | `safety sync` stays human stdout. Do **not** add `--format json`. `WORKFLOWS.md` LedgerEntry claim is **wrong** — fix docs. |
 | **F11 — Isolation** | Edit `safety.rs` + `main.rs` SafetyCommands about/after_help + retrieval `parse_hotspots_json` + hermetics + docs. **Do not** grow `project.rs` / `sync.rs` / `forget.rs` production / `doctor.rs` / `governed_common.rs` / `pin.rs` production / CLI `preflight.rs` / `help_ia.rs` / `session_chrome.rs`. |
-| **F12 — No live pin as proof** | Planning and implement **proof** = `--dry-run` + hermetics + parse units. Do not pin the operator vault. |
+| **F12 — No live pin as proof** | Planning and implement **proof** = `--dry-run` + hermetics + parse/format units (AC17 write-row shape). Do **not** pin the operator vault. Do **not** require a tempdir write hermetic (`pin::run` needs project/session env + ambient `ledgerful`). |
 | **F13 — Decline extra CLI** | No `--quiet`, JSON summary, `VerifyError`-class, `--commit`, dry-run-default. |
 | **F14 — Capture independence** | Presentation + JSON parse. No models, embeddings, graph, new events except the existing pin path when the operator **omits** `--dry-run`. |
 | **F15 — Pins / crates** | No clap 5, no lock bumps, no new crates, workspace **0.1.3**. |
@@ -139,7 +141,7 @@ N/A-if-skipped: SQLCipher, schtasks, llama.cpp `/health`, FTS5, clap `num_args` 
 | **F26 — Decline peers** | T322–T324; T325 F8 recency; T326 pin-count; T318 Completed; T307 Blocked. |
 | **F27 — PATH-behind** | T315/T312–T318 not on PATH — **not this hole**. Hermetic / `cargo run` SoT. Do not `cargo install`. |
 | **F28 — Dual-truth** | Preflight Safety **live-injects** (read). `safety sync` **pins** (write). after_help names both. |
-| **F29 — Copy-not-share** | Do **not** `pub use` retrieval parse into CLI (inject cap 5 vs CLI `--limit` 20). Copy envelope field names. Comment both parsers. Closes T279 F29 *drift* without a shared helper. |
+| **F29 — Copy-not-share** | Do **not** `pub use` retrieval parse into CLI. Caps differ: retrieval inject cap **5** vs CLI **operator-set `--limit` (default 5, no inject cap)**. Copy envelope field names. Comment both parsers with that rationale (OpenCode O3). Closes T279 F29 *drift* without a shared helper. |
 | **F30 — Stdout product** | Banner / dry-run table / details on **stdout**. Windows-first: do not `eprintln!` the banner. |
 | **F31 — Text fallback stays** | Old Ledgerful / broken JSON still uses `fetch_hotspots_text`. Do not delete. |
 | **F32 — Pin blob leading line freeze** | `HOTSPOT: Brittle files identified by Ledgerful:` stays. Score values may change 3.65 → 0.04 when JSON path works (restore, not schema). |
@@ -158,8 +160,8 @@ N/A-if-skipped: SQLCipher, schtasks, llama.cpp `/health`, FTS5, clap `num_args` 
 | **AC2** | `Cli::try_parse_from(["ai-brains","safety","sync"])` → `dry_run == false`; with `--dry-run` → `true` | New `safety_sync_clap__default__dry_run_false` |
 | **AC3** | `format_write_banner(5)` contains `Pinning`, `5`, `vault`; does **not** contain `Scanning` / `sync` | Unit `format_write_banner__names_pinning_and_count` |
 | **AC4** | `format_dry_run_header(5)` contains `would pin` and **not** `would sync` | Unit `format_dry_run_header__would_pin_not_sync` |
-| **AC5** | Retrieval envelope fixture `{schemaVersion:1, files:[{path, score:0.037…}]}` → one `LiveHotspot` with **raw** score (not displayScore 3.65); legacy array test stay-green | New `parse_hotspots_json__envelope_v1_files__raw_score` + stay-green `:151` |
-| **AC6** | CLI envelope unit (same shape) returns path + raw score; ignores `displayScore` | New `fetch_or_parse_hotspots_json__envelope_v1_files__raw_score` in `safety.rs` `#[cfg(test)]` (parse helper, no spawn) |
+| **AC5** | Retrieval envelope fixture **must** include distinct non-zero `score: 0.037` **and** `displayScore: 3.65`. One `LiveHotspot`; assert raw score ≈ `0.037` and **not** `3.65`. Legacy array stay-green | New `parse_hotspots_json__envelope_v1_files__raw_score` + stay-green `:151` (Agy m2) |
+| **AC6** | CLI **pure** `parse_ledgerful_hotspots_json` (same fixture as AC5) returns path + raw score; **does not spawn** `ledgerful` | New `parse_ledgerful_hotspots_json__envelope_v1_files__raw_score` in `safety.rs` `#[cfg(test)]` (Agy m1) |
 | **AC7** | Production `safety.rs` has **no** `Scanning for Ledgerful Hotspots` and **no** `Ledgerful scan complete` string | Source/unit or `include_str!` assert in the help/parse test file |
 | **AC8** | `SAFETY_EMPTY` still contains `safety sync --dry-run` | Stay-green `preflight_safety.rs` unit + `preflight__no_bearings__emits_safety_sync_remediator` |
 | **AC9** | Preflight `--help` still names `safety sync --dry-run` | Stay-green `preflight__help__names_session_safety_hotspots` |
@@ -168,8 +170,9 @@ N/A-if-skipped: SQLCipher, schtasks, llama.cpp `/health`, FTS5, clap `num_args` 
 | **AC12** | CLI `preflight.rs` / `help_ia.rs` / `project.rs` / `doctor.rs` production empty of behavior diff | name-only `git diff` |
 | **AC13** | Docs: CAPABILITIES hotspot row; OPERATIONS §7 `--dry-run` first; WORKFLOWS no `LedgerEntry`; antigravity-rule session-start `--dry-run` or `preflight`; CHANGELOG T321 | File grep |
 | **AC14** | Manual `cargo run -p ai-brains-cli -- safety sync --dry-run`: **no** `Scanning`; **no** `text mode`; header `would pin`; scores **&lt; 1.0** (raw); exit 0; no new pin. **Do not** omit `--dry-run` | Recorded stdout |
-| **AC15** | Empty-hotspots path (fixture / stub): `Safety layer is healthy` / no `Pinning` | Unit or hermetic if cheap; else covered by empty-branch source + AC14 when N=0 (live N=5 — skip live empty) |
+| **AC15** | After green: `cargo run -- safety sync --dry-run --limit 0` → `No hotspots identified. Safety layer is healthy.`; **no** `Pinning`; exit 0 (live `ledgerful hotspots --json --limit 0` → `files: []`). Pre-green this errors (finder `[` + text empty). Distinct from JSON-*fail* → text-fallback-empty (unit-only) | Manual (OpenCode O1) |
 | **AC16** | T279 cap-5 array still 5 | Stay-green `parse_hotspots_json__more_than_five__caps` |
+| **AC17** | `format_detail_row(1, path, 0.037)` contains path + `0.04` (or `{:.2}`) and **does not** contain `freq` / `complexity` | New unit `format_detail_row__path_and_raw_score__no_freq` (OpenCode m2 — write-path shape without pinning) |
 
 ---
 
@@ -180,9 +183,9 @@ N/A-if-skipped: SQLCipher, schtasks, llama.cpp `/health`, FTS5, clap `num_args` 
 1. Fetch (JSON envelope then text fallback). **No** scanning println.
 2. Empty → `No hotspots identified. Safety layer is healthy.` return.
 3. Dry-run → `format_dry_run_header` + path/score rows + `--- End Dry Run ---` return (**before** pin).
-4. Write → `format_write_banner` + details rows + `pin::run(..., false)` + **no** extra complete line.
+4. Write → `format_write_banner` **then** `format_detail_row`s (optional details fence) **then** `pin::run(..., false)` + **no** extra complete line. Banner `println!` is immediately before `pin::run` aside from the detail rows/fence (OpenCode m2 source-order).
 
-Helpers live in `safety.rs` (`pub(crate)` or private + `#[cfg(test)]` via super).
+Helpers live in `safety.rs` (`pub(crate)` or private + `#[cfg(test)]` via super): `format_write_banner`, `format_dry_run_header`, `format_detail_row`, `parse_ledgerful_hotspots_json`.
 
 ### 5.2 Envelope (CLI + retrieval)
 
@@ -192,9 +195,9 @@ Helpers live in `safety.rs` (`pub(crate)` or private + `#[cfg(test)]` via super)
 
 - Deserialize `files` (rename `schemaVersion` optional).
 - Legacy: first `[` line → `Vec<T>` (T279).
-- Extra JSON fields ignored (serde default).
-- CLI struct keeps complexity/frequency for `render_hotspots` blob.
-- Retrieval `LiveHotspot` stays path+score.
+- Extra JSON fields ignored (`displayScore`).
+- CLI `LedgerfulHotspot`: `#[serde(default)]` on `complexity`/`frequency` so a future Ledgerful omit does not fail the whole parse (Agy m4). Path + `score` stay required.
+- Retrieval `LiveHotspot` stays path+score (`unwrap_or(0.0)` on score already).
 
 ### 5.3 Why not dry-run-by-default
 
@@ -215,7 +218,7 @@ Pretty Safety shows live paths **without** pinning (T279). `safety sync` **creat
 
 ## 6. Non-goals
 
-Dry-run-by-default / `--dry-run false` persist. `--quiet` / `--format json` / `--confirm`. Editing `pin.rs` production. Growing CLI `preflight.rs` / `help_ia.rs` / `project.rs`. T279 GLOB/SQL retune. T279 F35 timeout crate. T264 caps. T322–T326. clap 5. Pin→Approved (H2). Silent `.env`. Live pin as Complete proof. Shared retrieval↔CLI parse helper (F29). Deleting text fallback.
+Dry-run-by-default / `--dry-run false` persist. `--quiet` / `--format json` / `--confirm`. Editing `pin.rs` production. Growing CLI `preflight.rs` / `help_ia.rs` / `project.rs`. T279 GLOB/SQL retune. T279 F35 timeout crate. T264 caps. T322–T326. clap 5. Pin→Approved (H2). Silent `.env`. Live pin as Complete proof. Shared retrieval↔CLI parse helper (F29). Deleting text fallback. Retargeting `tracing_subscriber` init. Docs-file hermetics. Tempdir write as Complete-blocking AC.
 
 ---
 
@@ -226,15 +229,16 @@ Dry-run-by-default / `--dry-run false` persist. `--quiet` / `--format json` / `-
 - AC1 after_help / about `pin` — today’s help is `Synchronize` / `synced`, no after_help.
 - AC2 is **green-on-arrival** for `dry_run == false` (lock the freeze) — write in Phase 1 anyway.
 - AC3/AC4 helpers **absent**.
-- AC5 envelope unit — today `parse_hotspots_json` of live object → empty (no `[`).
-- AC6 CLI envelope unit **absent**.
+- AC5 envelope unit — today `parse_hotspots_json` of live object → empty (no `[`); fixture **must** include both `score` and `displayScore`.
+- AC6 CLI `parse_ledgerful_hotspots_json` unit **absent** (must not call `fetch_hotspots_json`).
 - AC7 `Scanning` string **present**.
+- AC17 `format_detail_row` **absent**.
 
 **Green:** helpers + about/after_help + envelope both parsers + drop scan/complete/text-mode stdout + banner + `would pin` + drop duplicate complete.
 
 **Stay-green:** AC8/AC9/AC10/AC11/AC12/AC16.
 
-**Manual AC14:** `cargo run -- safety sync --dry-run` only.
+**Manual AC14 + AC15:** `cargo run -- safety sync --dry-run` and `--dry-run --limit 0` (post-green). Never omit `--dry-run` against the operator vault.
 
 ---
 
@@ -278,10 +282,10 @@ Dry-run-by-default / `--dry-run false` persist. `--quiet` / `--format json` / `-
 ## 10. Implement order (on go)
 
 1. Phase 0 re-read `safety.rs` `run`/`fetch_*`/`render_hotspots` + clap Sync + retrieval `parse_hotspots_json` + T279 units + `--dry-run` dogfood. Confirm envelope still `{files[]}`. Start FEATURE TX.
-2. Red: AC1–AC7 tests (must fail except AC2 lock).
-3. Green: envelope both parsers; emit helpers; drop scan/complete; banner; about/after_help.
-4. Stay-green T279 + pin.rs empty diff + preflight help.
-5. Docs AC13. Manual AC14 dry-run only.
+2. Red: AC1–AC7 + AC17 tests (must fail except AC2 lock).
+3. Green: envelope both parsers (`parse_ledgerful_hotspots_json`); emit helpers including `format_detail_row`; drop scan/complete; banner immediately before `pin::run` (aside from detail rows); about/after_help; CLI `#[serde(default)]` on complexity/frequency.
+4. Stay-green T279 + pin.rs empty diff + preflight help + tracing init untouched.
+5. Docs AC13. Manual AC14 dry-run + AC15 `--limit 0`.
 6. FEATURE cross-model; full gate; conductor Completed; implement-track Phase 6 publish.
 
 ---
@@ -291,7 +295,7 @@ Dry-run-by-default / `--dry-run false` persist. `--quiet` / `--format json` / `-
 | Item | Note |
 |------|------|
 | PATH until owner `cargo install` | F27 — hermetic/`cargo run` SoT |
-| Text fallback if Ledgerful JSON regresses | F31 — warn-only diagnostic |
+| Text fallback if Ledgerful JSON regresses | F31 — `tracing::warn!` (filterable; **stdout** under default fmt subscriber — F4 / OpenCode m1). Silence: `--log-format off` |
 | In-context hotspots 0 on **PATH** until install | Expected; source parse is SoT |
 | Unbounded `ledgerful hotspots` wait | F35 declined |
 | Pin UUID line after banner | F6 pin.rs freeze — useful id |
@@ -313,4 +317,42 @@ Dry-run-by-default / `--dry-run false` persist. `--quiet` / `--format json` / `-
 | `CHANGELOG.md` | T321 row |
 | `conductor/conductor.md` / `deferred.md` / series README | Registry + absorb |
 
-**Do not touch:** `pin.rs` production, CLI `preflight.rs`, `help_ia.rs`, `project.rs`, `doctor.rs`, `sync.rs`, `forget.rs` production, `session_chrome.rs`, contracts, `Cargo.toml` pins.
+**Do not touch:** `pin.rs` production, CLI `preflight.rs`, `help_ia.rs`, `project.rs`, `doctor.rs`, `sync.rs`, `forget.rs` production, `session_chrome.rs`, contracts, `Cargo.toml` pins, `tracing_subscriber` init (`main.rs:4089–4118`).
+
+---
+
+## 13. AI fold-in disposition (2026-08-29)
+
+Source: `agy-review.md` + `opencode-review.md` (HEAD `42df225`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.**
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** AC6 must not spawn `ledgerful` | **Agree** (already sketched) | Named helper `parse_ledgerful_hotspots_json`; AC6 tests that only |
+| **m2** score vs displayScore false-pass | **Agree** | AC5/AC6 fixture `score: 0.037` **and** `displayScore: 3.65`; assert raw not 3.65 |
+| **m3** HEAD `16edc3f` vs `42df225` | **Agree** | Snapshot `42df225` / ahead **1** of `origin/main` `16edc3f` |
+| **m4** required `complexity`/`frequency` | **Agree** | F7 `#[serde(default)]` on those two CLI fields |
+| **O1** `Value` dual-format one-pass | **Decline** as required | Impl may use typed envelope or `Value`; DoD is AC5/AC6 |
+| **O2** docs-file hermetics | **Decline** as DoD | AC13 file grep; do not add markdown tests |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** F4 `tracing::warn!` “(not stdout)” false | **Agree** | F4 reword; subscriber freeze; soft residual `--log-format off` |
+| **m2** write-path underspecified / unproven | **Partial** | F5 same `format_detail_row` for write+dry-run; **AC17** unit; Phase 2 banner-before-`pin::run`. **Decline** required tempdir vault write (F12; `pin::run` needs project/session + ambient `ledgerful`) |
+| **O1** `--limit 0` empty proof | **Agree** | AC15 manual post-green |
+| **O2** serde default missing fields | **Agree** | Same as Agy m4 — CLI struct |
+| **O3** F29 “unbounded” / “20” | **Agree** | “operator-set `--limit` (default 5), no inject cap” |
+
+### Pins locked by fold-in
+
+1. **F4:** do **not** claim warn is off stdout; do **not** edit `tracing_subscriber` init.
+2. **AC6:** pure parse helper, **no** `Command::new("ledgerful")` in the unit.
+3. **AC5/AC6:** fixture has **both** `score` and `displayScore`, distinct and non-zero.
+4. **F5/AC17:** write human rows = dry-run two-field shape; blob keeps freq/complexity.
+5. **AC15:** `--limit 0` is the empty proof **after** envelope green.
+6. **last-PR:** `#242` / `#241` N/A empty; `#237` → T326; `#230` → T325; **no T327**.
+
+Plan-write HEAD `16edc3f`. Fold-in against `42df225` (ahead **1**). Still **plan-only until go**.
