@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Operators can ask “what conclusion is in force for term X?” Dual-model pins stay orientation (H2 declined). Does **not** steal T322 `--as-of` / T324 empty TERM / T325 / T326.
 - **Absorbs:** T311 R5. Phase 0 chain proof §2.2.
 - **Not absorbed (DoD):** T322 `--as-of` (decision-only; copy-not-share later); T324 PowerShell empty TERM; T311 R1 daemon `ListInForce`; H2 pin→Confirmed; FTS `conclusion list`; CLI `confirm`/`correct`/`activate`; projector edits; `conclusions_valid_at` SQL reuse; clap 5
-- **Research date:** 2026-08-29 (plan-write product HEAD `766a6c8` T322 `#244`). Snapshot — **re-verify at execute**.
-- **Ledger:** planning DOCS TX `61b188d1-fd07-48e6-9bec-bdce0d197c60`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
+- **Research date:** 2026-08-29 (plan-write product HEAD `766a6c8` T322 `#244`). Fold-in against `0ead377` (this plan’s own docs commit; ahead **1** of `origin/main` = `766a6c8`). Snapshot — **re-verify at execute**.
+- **AI fold-in:** 2026-08-29 `agy-review.md` + `opencode-review.md` (HEAD `0ead377`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m2 HEAD snapshot; OpenCode m1 fixture pick (single `ConclusionSuperseded` self-hop via `EventBuilder` — T311 analog); OpenCode m2 AC17 three-hop; OpenCode O2 AC16 honesty sentence. **Already:** Agy m1 F35; Agy m3 `pub(crate)` F1; Agy O1/O2 F29/F9. **Partial/decline:** OpenCode m1 “Proposed upsert resets `state` to Candidate” — **false** (`ON CONFLICT DO UPDATE` omits `state`/`superseded_by`, projector `:43–52`); OpenCode m2 “linear-scan passes the whole suite” — AC1 `chain.len()==1` already fails a non-walker. **Decline:** OpenCode O1 required comment. Disposition **§13**.
+- **Ledger:** planning DOCS TX `61b188d1-fd07-48e6-9bec-bdce0d197c60`. Fold-in DOCS TX `853b18d9-ee2e-4ed9-afe3-01962bab0430`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **FEATURE** TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** grow `governed_common.rs` (#3) / `sync.rs` (#2) / CLI `project.rs` (#1) / `forget.rs` (#5). `briefings/project.rs`: **visibility-only** on `conclusion_valid_at`. Do **not** edit `in_force.rs` (decision). Do **not** edit store `projections/conclusion.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** `cargo install`. Do **not** propose/confirm/correct on the **live** operator vault as proof.
 
 ---
@@ -32,7 +33,7 @@ This unblocks: T311 shipped `decision in-force`; `conclusion` is still propose-o
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | Plan-write against `766a6c8` `feat(decision): T322 in-force --as-of hop-stop (#244)`. Branch `track/T323-conclusion-in-force`. `origin/main` = `766a6c8` (ahead **0** at checkout; dirty conductor T322 Completed note absorbed into this DOCS commit). |
+| HEAD | Fold-in against plan-write `0ead377` `docs(conductor): plan T323 conclusion in-force walker (Active|Confirmed, no as-of)`. Product `src/` = T322 `#244` `766a6c8`. Branch `track/T323-conclusion-in-force`. `origin/main` = `766a6c8` (ahead **1**). Plan-write snapshot was `766a6c8` / ahead **0** (Agy m2). |
 | PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. **T311 on PATH.** T312–T322 **not** (T322 `--as-of` is source-only). T323 hole **is** on PATH **and** source (`conclusion` is Propose-only). **Do not `cargo install`.** |
 | `preflight --summary` (PATH) | Pinned **4640**. In-context **0/0/0**. `Total Word Count: 777` (PATH-behind T315 `Budget window words:`). **Not this DoD.** |
 | PATH `conclusion --help` | Subcommand **`propose` only**. after_help one propose example. |
@@ -97,7 +98,7 @@ This unblocks: T311 shipped `decision in-force`; `conclusion` is still propose-o
 
 **Current-state vs as-of research (primary sources):**
 
-- SQL Server temporal: **current** table is a plain `SELECT` (no `FOR SYSTEM_TIME`). `AS OF` is the history clause ([Microsoft Learn — Query data in a system-versioned temporal table](https://learn.microsoft.com/en-us/sql/relational-databases/tables/temporal/query-data), updated 2026-08-24). **Fit:** T323 is the current-table analog (T311 now). T322 already shipped AS OF for **decisions**. Do not copy `--as-of` here.
+- SQL Server temporal: **current** table is a plain `SELECT` (no `FOR SYSTEM_TIME`). `AS OF` is the history clause ([Microsoft Learn — Query data in a system-versioned temporal table](https://learn.microsoft.com/en-us/sql/relational-databases/tables/temporal/query-data?view=sql-server-ver17), ms.date 2026-08-18 / page fetch 2026-08-24). **Fit:** T323 is the current-table analog (T311 now). T322 already shipped AS OF for **decisions**. Do not copy `--as-of` here.
 - `conclusions_valid_at` documents “Does NOT use recorded_at / occurred_at (bitemporal: domain valid time)” and skips Superseded. Walker needs those rows as hop parents. **Do not reuse.**
 - Successor-pointer current revision (CMS / git `HEAD`) matches `superseded_by` walk-to-tip then F9-class filter.
 
@@ -146,7 +147,7 @@ N/A: Windows schtasks / SQLCipher pin change / clap 5.
 | **F34 — help_ia freeze** | Governed list already has `conclusion`. |
 | **F35 — Evidence for Confirmed** | CP fixtures that `confirm_conclusion` **must** propose with **non-empty** `evidence_ids` (`UnsupportedCannotConfirm` otherwise). `EvidenceId::new()` without an evidence row is enough (same as `conclusion_commands.rs`). |
 | **F36 — Unconfirmed successor** | `correct_conclusion` leaves the successor **Candidate**. Walk lands on Candidate → F9 none (honest). AC1 confirms the successor before asserting a ruling. |
-| **F37 — Cycle fixture** | Self-cycle via `correct_conclusion(..., new_conclusion_id: Some(old_id))` after Confirmed (propose+supersede same id). If that InvalidTransitions at implement, stop-before and use a documented test-only hop — do **not** skip AC7. |
+| **F37 — Cycle fixture** | Self-cycle via a **single** `ConclusionSuperseded` event (`superseded_by` = own id) on an existing Confirmed row — **not** `correct_conclusion(..., new_conclusion_id: Some(old_id))`. T311 analog is `supersede_decision(d1, d1)`. Integration tests cannot call `pub(crate) build_event` (`sources.rs:431`); use public `EventBuilder` + `ports.writer.append_events` (precedent `tests/cryptographic_erasure.rs:963–982`). Projector `ConclusionProposed` `ON CONFLICT DO UPDATE` (`:43–52`) **omits** `state` and `superseded_by` — OpenCode’s “upsert resets state to Candidate / blanks the hop” is **false**; the pair-batch would still cycle, but it also rewrites `statement`/`valid_from` as noise. Do **not** skip AC7. |
 
 ---
 
@@ -169,7 +170,8 @@ N/A: Windows schtasks / SQLCipher pin change / clap 5.
 | **AC13** | `resolve_conclusion_in_force__uncorrected_successor_candidate__none`: C1 Confirmed then `correct_conclusion` **without** activating/confirming C2 → `ruling=None` (F36). Chain may be non-empty (hop was taken). |
 | **AC14** | Targeted: `cargo clippy -p ai-brains-control-plane -p ai-brains-cli --all-targets -- -D warnings`; nextest those packages (plus new tests). Full workspace gate on implement-track publish, not plan. |
 | **AC15** | Docs: CAPABILITIES Family C `conclusion in-force` row; OPERATIONS one example; CHANGELOG Unreleased Added. Grep, not a docs-file hermetic. |
-| **AC16** | Manual (on go, after green): `cargo run -p ai-brains-cli -- conclusion in-force --help` lists `<TERM>`. `conclusion in-force workspace_id --format json` → `ruling: null` on **this** live vault (pass-with-observed-data). **Do not** propose to the operator vault. |
+| **AC16** | Manual (on go, after green): `cargo run -p ai-brains-cli -- conclusion in-force --help` lists `<TERM>`. `conclusion in-force workspace_id --format json` → `ruling: null` on **this** live vault (pass-with-observed-data). Live null is **expected** (CLI is propose-only on PATH; no governed conclusion lifecycle rows). Positive walk proof is hermetic AC1/AC17. **Do not** propose to the operator vault. |
+| **AC17** | `resolve_conclusion_in_force__three_hop_chain__tip_ruling_len2` — C1 Confirmed (`Term: workspace_id`) → `correct_and_confirm` C2 → `correct_and_confirm` C3; query term `workspace_id` → ruling **C3**, `state=in_force`, `chain.len()==2` (C1→C2 and C2→C3, `superseded_by:<uuid>`). F8 multi-hop. Must **fail** today (module missing). |
 
 ---
 
@@ -196,7 +198,7 @@ Copy the **read** shape of `decision.rs` `run_in_force` (no `as_of` branch):
 
 Propose daemon/local path **untouched**.
 
-### 5.3 Tests without sleep (F35 / F36)
+### 5.3 Tests without sleep (F35 / F36 / F37)
 
 Helper `propose_confirmed(ports, principal, scope, statement)`:
 
@@ -205,7 +207,21 @@ Helper `propose_confirmed(ports, principal, scope, statement)`:
 
 Helper `correct_and_confirm(...)` calls `correct_conclusion` then `confirm_conclusion` on the new id (F35 evidence on the correct call).
 
-AC13 stops after `correct_conclusion`. AC11 uses `activate_conclusion` (agent) instead of confirm.
+AC13 stops after `correct_conclusion`. AC11 uses `activate_conclusion` (agent) instead of confirm. AC17 calls `correct_and_confirm` twice.
+
+**AC7 / F37:** after `propose_confirmed`, append **one** envelope — do not call `correct_conclusion`:
+
+```text
+EventBuilder::new(AggregateType::Conclusion, c1.as_uuid(), Actor::System, Privacy::LocalOnly)
+  .build(Payload::ConclusionSuperseded(ConclusionSupersededPayload {
+      conclusion_id: c1,
+      superseded_by: c1,
+      reason: "self".into(),
+  }))
+ports.writer.append_events(&[env])
+```
+
+Then `resolve_conclusion_in_force` → `InvalidTransition`. Precedent: `cryptographic_erasure.rs:963–982`. Do **not** export `build_event`.
 
 Do **not** `sleep`. Do **not** live-propose.
 
@@ -228,7 +244,7 @@ Do **not** `sleep`. Do **not** live-propose.
 
 ## 7. Verification plan
 
-**Red first (TDD):** AC1 CP test on today’s tree (module missing) → fail compile. Then green `conclusion_in_force.rs`. Then AC2–AC7 / AC11–AC13. Then CLI clap + deny hermetics AC8–AC10.
+**Red first (TDD):** AC1 CP test on today’s tree (module missing) → fail compile. AC17 same missing fn. Then green `conclusion_in_force.rs`. Then AC2–AC7 / AC11–AC13 / AC17. Then CLI clap + deny hermetics AC8–AC10.
 
 **Manual (on go, after green):** AC16. Record JSON. Do not require live Confirmed chain.
 
@@ -246,7 +262,8 @@ Do **not** require full workspace nextest to finish the **plan**.
 | JSON key clash with decision in-force | F29 new types; no `decision_id`/`as_of` |
 | Signature break T311/T322 | F24 do not edit `in_force.rs` |
 | Growing hotspots | F23; `project.rs` visibility-only |
-| Cycle fixture InvalidTransition | F37 stop-before; do not drop AC7 |
+| Cycle fixture InvalidTransition | F37 `EventBuilder` self-`ConclusionSuperseded` (not `correct_conclusion`); do not drop AC7 |
+| 1-hop-only walker | AC17 three-hop `chain.len()==2` |
 | H2 creep | F14 / F12 T290 helper |
 | T324 steal | F2 / F5 empty term is whitespace `fail_usage` only |
 | Evidence-less confirm | F35 |
@@ -279,8 +296,8 @@ Entire `conductor/deferred.md` scanned 2026-08-29 (T322 implement residuals thro
 ## 10. Implement order (on go)
 
 1. Phase 0: re-read `conclusions.rs` `correct_conclusion` / `confirm` / `reject` / `activate`; projector `ConclusionSuperseded`; `conclusion_valid_at`; clap `ConclusionCommands`; T311 `in_force.rs` as **pattern only** (do not edit); lock clap **4.6.1**; FEATURE TX. **Do not install.** **Do not** live-propose.
-2. Red AC1 / AC8 (must fail).
-3. Green `conclusion_in_force.rs` + `lib.rs` export + `pub(crate) conclusion_valid_at`. AC1–AC7 / AC11–AC13.
+2. Red AC1 / AC8 / AC17 (must fail).
+3. Green `conclusion_in_force.rs` + `lib.rs` export + `pub(crate) conclusion_valid_at`. AC1–AC7 / AC11–AC13 / AC17. F37 `EventBuilder` self-supersede (not `correct_conclusion`).
 4. CLI `InForce` + `value_parser` `--format` + `run_in_force` + F12 helper. AC8–AC10.
 5. Stay-green T311/T322 tests (untouched).
 6. CHANGELOG + CAPABILITIES/OPERATIONS (AC15).
@@ -294,7 +311,7 @@ Entire `conductor/deferred.md` scanned 2026-08-29 (T322 implement residuals thro
 |----------|-------|
 | Conclusion `--as-of` hop-stop | F30 — copy-not-share T322; mint later if an audit needs point-in-time conclusions |
 | PATH until owner `cargo install` | F27 — hermetic/`cargo run` SoT |
-| Live vault `workspace_id` ruling null | Honesty; AC16 pass-with-observed-data |
+| Live vault `workspace_id` ruling null | Honesty; AC16 pass-with-observed-data (expected empty; hermetic AC1/AC17 are the positive walk) |
 | Daemon `ListInForce` | F13 / T311 R1 |
 | Long-statement human dump | F12 uses statement as-is; no truncate this track |
 | Stale/Disputed not in-force | F7/F9 by design; briefing has separate sections |
@@ -310,7 +327,7 @@ Entire `conductor/deferred.md` scanned 2026-08-29 (T322 implement residuals thro
 | `crates/ai-brains-control-plane/src/conclusion_in_force.rs` | **New** resolver |
 | `crates/ai-brains-control-plane/src/lib.rs` | `mod` + `pub use` |
 | `crates/ai-brains-control-plane/src/briefings/project.rs` | `conclusion_valid_at` **`pub(crate)` only** |
-| `crates/ai-brains-control-plane/tests/conclusion_in_force.rs` | **New** AC1–AC7 / AC11–AC13 |
+| `crates/ai-brains-control-plane/tests/conclusion_in_force.rs` | **New** AC1–AC7 / AC11–AC13 / AC17; F37 `EventBuilder` self-supersede |
 | `crates/ai-brains-cli/src/commands/conclusion.rs` | `run_in_force` + options |
 | `crates/ai-brains-cli/src/main.rs` | `ConclusionCommands::InForce` + dispatch + after_help |
 | `crates/ai-brains-cli/tests/conclusion_in_force.rs` | **New** AC8–AC10 / AC5 CLI |
@@ -318,4 +335,40 @@ Entire `conductor/deferred.md` scanned 2026-08-29 (T322 implement residuals thro
 | `Docs/CAPABILITIES.md` | Family C row |
 | `Docs/OPERATIONS.md` | One example |
 
-Do **not** touch: `governed_common.rs`, `in_force.rs`, `conclusions.rs` production, `ai-brains-store/src/projections/conclusion.rs`, `adapters.rs` `conclusions_valid_at`, `help_ia.rs`, daemon-api, contracts, retrieval, graph, INSTALL.md.
+Do **not** touch: `governed_common.rs`, `in_force.rs`, `conclusions.rs` production, `ai-brains-store/src/projections/conclusion.rs`, `adapters.rs` `conclusions_valid_at`, `help_ia.rs`, daemon-api, contracts, retrieval, graph, INSTALL.md. Do **not** export `build_event` (F37 uses public `EventBuilder`).
+
+---
+
+## 13. AI fold-in disposition (2026-08-29)
+
+Source: `agy-review.md` + `opencode-review.md` (HEAD `0ead377`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.**
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** F35 empty-evidence confirm | **Already** | F35 / §5.3 `EvidenceId::new()` |
+| **m2** HEAD `766a6c8` vs `0ead377` | **Agree** | Snapshot `0ead377` / ahead **1** of `origin/main` `766a6c8` |
+| **m3** `conclusion_valid_at` private | **Already** | F1 visibility-only `pub(crate)` |
+| **O1** dedicated DTOs | **Already** | F4 / F29 |
+| **O2** Active\|Confirmed | **Already** | F9 / AC11 / AC12 |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** F37 `correct_conclusion` same-id / Proposed upsert resets state | **Partial** | **Decline** “ON CONFLICT resets `state` to Candidate / blanks `superseded_by`” — live `DO UPDATE SET` (`projector :43–52`) omits both columns; propose-then-supersede would still cycle. **Agree** fixture pick: single `EventBuilder` `ConclusionSuperseded` self-hop (T311 `supersede_decision(d1,d1)` analog; tests cannot call `pub(crate) build_event`). **F37** + §5.3 rewritten. |
+| **m2** AC2 cannot prove a walker | **Partial** | **Decline** “linear-scan passes the whole suite” — AC1 `chain.len()==1` already fails a non-walker. **Agree** extra hop proof: **AC17** three-node `chain.len()==2`. |
+| **O1** `status` format comment | **Decline** as required | Already F4 T311 mirror; no extra AC. |
+| **O2** AC16 live null weak integration | **Agree** | AC16 sentence: live null **expected**; hermetic AC1/AC17 are the positive walk. |
+
+### Pins locked by fold-in
+
+1. **F37:** AC7 fixture is a **single** `ConclusionSuperseded` (`superseded_by` = own id) via public `EventBuilder` + `append_events`. Not `correct_conclusion(..., Some(old_id))`.
+2. **AC17:** C1→C2→C3, query C1’s term, ruling C3, chain len 2.
+3. **AC16:** live `ruling: null` is honesty, not a missing-chain fail.
+4. **last-PR:** `#244` N/A empty; `#237` → T326; `#230` → T325; **no T327**.
+5. Projector `ConclusionProposed` ON CONFLICT does **not** rewrite `state` / `superseded_by`.
+
+Plan-write HEAD `766a6c8`. Fold-in against `0ead377` (ahead **1**). Still **plan-only until go**.
+

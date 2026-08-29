@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T323 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2 HEAD `766a6c8` vs `0ead377` | **Folded** snapshot `0ead377` / ahead **1** |
+| Agy m1 / m3 / O1 / O2 | **Already** F35 / F1 / F29 / F9 |
+| OpenCode m1 Proposed upsert resets state | **Decline** — `ON CONFLICT` omits `state`/`superseded_by` (`projector :43–52`) |
+| OpenCode m1 fixture pick | **Folded** F37 `EventBuilder` single `ConclusionSuperseded` self-hop |
+| OpenCode m2 linear-scan passes suite | **Decline** — AC1 `chain.len()==1` already fails a non-walker |
+| OpenCode m2 three-hop | **Folded** AC17 |
+| OpenCode O1 status comment | **Decline** as required — F4 T311 mirror |
+| OpenCode O2 AC16 live null | **Folded** expected-empty sentence |
+| last-PR `#244` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `853b18d9-ee2e-4ed9-afe3-01962bab0430` |
+
 ### T323 full plan (2026-08-29) — conclusion in-force walker (no `--as-of`)
 
 | Item | Disposition |
