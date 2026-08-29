@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T324 PowerShell empty TERM on `in-force`:** `decision in-force` and `conclusion in-force` accept optional positional `TERM` plus named `--term` (`num_args 0..=1`, `default_missing_value ""`, no `require_equals`). Omit / `--term=` / bare `--term` → `fail_usage` `term must be non-empty` exit **2** (PowerShell 5.1 drops `""` so clap missing `<TERM>` is no longer the 5.1 path). Positional and `--term` conflict. Docs: CAPABILITIES / OPERATIONS / CLI-EXIT-CODES.
+
 - **T323 `conclusion in-force`:** `ai-brains conclusion in-force <TERM>` walks `conclusion_projection.superseded_by` in-scope and returns the current Active|Confirmed, valid-now tip (`state: in_force`) or honest `ruling: null`. Default `--format json` (clap `value_parser`; unknown token exit **2**). `ReadConclusions` deny is exit **3** + T280 omit-`--scope` hint. Empty term is usage exit **2**. Local projection only (no `--as-of`, no daemon wire, no pin→Confirmed). Docs: CAPABILITIES / OPERATIONS.
 
 - **T322 `decision in-force --as-of`:** Optional `--as-of <RFC3339>` returns the chain tip at that instant (hop-stop on superseded/revoked `updated_at`; closed-open). Omit flag → T311 now-path unchanged (`as_of` JSON key skipped). No `approved_at` column. Date-only rejected (clap exit **2**). Docs: CAPABILITIES / OPERATIONS.

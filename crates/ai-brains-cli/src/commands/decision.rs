@@ -234,7 +234,7 @@ pub(crate) fn parse_as_of_rfc3339(s: &str) -> Result<String, String> {
         .map_err(|e| format!("invalid RFC3339 timestamp: {e}"))
 }
 
-/// `ai-brains decision in-force <TERM>` — local projection read (T311 / T322).
+/// `ai-brains decision in-force [TERM|--term[=TERM]]` — local projection read (T311 / T322 / T324).
 pub fn run_in_force(
     ctx: &AppContext,
     options: InForceOptions,

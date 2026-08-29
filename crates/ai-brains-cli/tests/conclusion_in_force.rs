@@ -78,8 +78,17 @@ fn conclusion_in_force__help__lists_term_scope_format() {
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.contains("<TERM>"),
-        "help must list <TERM>; got {stdout}"
+        stdout.contains("--term"),
+        "help must list --term flag; got {stdout}"
+    );
+    assert!(stdout.contains("TERM"), "help must name TERM; got {stdout}");
+    assert!(
+        stdout.contains("--term="),
+        "after_help must document --term= empty; got {stdout}"
+    );
+    assert!(
+        !stdout.contains("'\"\"'") && !stdout.contains("--%"),
+        "after_help must not recommend '\"\"' or --%; got {stdout}"
     );
     assert!(
         stdout.contains("--scope"),
@@ -157,6 +166,164 @@ fn conclusion_in_force__empty_term__exit_2(#[case] term: &str) {
         "empty/whitespace term must be fail_usage exit 2; term={term:?} stderr={} stdout={}",
         String::from_utf8_lossy(&out.stderr),
         String::from_utf8_lossy(&out.stdout)
+    );
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        combined.contains("term must be non-empty"),
+        "empty/whitespace must keep fail_usage message; term={term:?} got {combined}"
+    );
+}
+
+fn assert_fail_usage_non_empty_term(out: &std::process::Output, label: &str) {
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let combined = format!("{stderr}{stdout}");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "{label}: expected exit 2; stderr={stderr} stdout={stdout}"
+    );
+    assert!(
+        combined.contains("term must be non-empty"),
+        "{label}: expected fail_usage message; got {combined}"
+    );
+    assert!(
+        !combined.contains("required arguments were not provided"),
+        "{label}: must not be clap missing <TERM>; got {combined}"
+    );
+}
+
+#[test]
+fn conclusion_in_force__omitted_term__fail_usage_exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = format!("Repository:{PROJECT}");
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("conclusion")
+        .arg("in-force")
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("omitted term");
+    assert_fail_usage_non_empty_term(&out, "omitted term");
+}
+
+#[rstest]
+#[case::bare_flag(vec!["--term"])]
+#[case::flag_then_empty(vec!["--term", ""])]
+fn conclusion_in_force__term_flag_no_value__fail_usage_exit_2(#[case] term_args: Vec<&str>) {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = format!("Repository:{PROJECT}");
+
+    let mut cmd = common::hermetic_bin();
+    cmd.arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("conclusion")
+        .arg("in-force");
+    for a in &term_args {
+        cmd.arg(a);
+    }
+    let out = cmd
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("term flag no value");
+    assert_fail_usage_non_empty_term(&out, &format!("term_args={term_args:?}"));
+}
+
+#[test]
+fn conclusion_in_force__term_flag_equals_empty__fail_usage_exit_2() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = format!("Repository:{PROJECT}");
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("conclusion")
+        .arg("in-force")
+        .arg("--term=")
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("term=");
+    assert_fail_usage_non_empty_term(&out, "--term=");
+}
+
+#[test]
+fn conclusion_in_force__term_flag_workspace_id__format_nope__clap_exit_2() {
+    let out = common::hermetic_bin()
+        .arg("conclusion")
+        .arg("in-force")
+        .arg("--term")
+        .arg("workspace_id")
+        .arg("--format")
+        .arg("nope")
+        .output()
+        .expect("term flag format nope");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "InvalidValue must be clap exit 2; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        combined.contains("invalid value") || combined.contains("possible values"),
+        "expected clap InvalidValue text; got {combined}"
+    );
+}
+
+#[test]
+fn conclusion_in_force__positional_and_term_flag__clap_conflict_exit_2() {
+    let out = common::hermetic_bin()
+        .arg("conclusion")
+        .arg("in-force")
+        .arg("workspace_id")
+        .arg("--term")
+        .arg("other")
+        .output()
+        .expect("positional+term conflict");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "conflict must be clap exit 2; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        combined.contains("cannot be used with") || combined.contains("conflict"),
+        "expected clap conflict text; got {combined}"
     );
 }
 
