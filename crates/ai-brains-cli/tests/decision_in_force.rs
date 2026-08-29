@@ -14,6 +14,7 @@ use ai_brains_core::scope::{GrantCapability, ScopeRef};
 use ai_brains_crypto::SqlCipherKey;
 use ai_brains_store::SqliteEventStore;
 use ai_brains_store::connection::VaultConnection;
+use rstest::rstest;
 use serde_json::Value;
 use std::path::Path;
 use tempfile::tempdir;
@@ -248,5 +249,195 @@ fn decision_in_force__unknown_term__ruling_key_null() {
     assert!(
         v.get("next_step").is_none(),
         "F12 JSON has no next_step key"
+    );
+    assert!(
+        v.get("as_of").is_none(),
+        "AC10 omit --as-of → no as_of key; got {v}"
+    );
+}
+
+#[test]
+fn decision_in_force_help__after_help__names_as_of() {
+    let out = common::hermetic_bin()
+        .arg("decision")
+        .arg("in-force")
+        .arg("--help")
+        .output()
+        .expect("help");
+    assert!(
+        out.status.success(),
+        "help must exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("--as-of"),
+        "help must list --as-of; got {stdout}"
+    );
+    assert!(
+        stdout.contains("T") && (stdout.contains('Z') || stdout.contains('+')),
+        "after_help must show RFC3339 example with T and Z/offset; got {stdout}"
+    );
+}
+
+#[test]
+fn decision_in_force_clap__default__as_of_absent() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = seed_read_decisions(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("decision")
+        .arg("in-force")
+        .arg("workspace_id")
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--format")
+        .arg("json")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .output()
+        .expect("omit as-of");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "in-force without --as-of must parse; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[rstest]
+#[case::invalid_after_term(&[
+    "decision",
+    "in-force",
+    "workspace_id",
+    "--as-of",
+    "not-a-date",
+])]
+#[case::date_only_after_term(&[
+    "decision",
+    "in-force",
+    "workspace_id",
+    "--as-of",
+    "2026-01-01",
+])]
+#[case::flag_before_term(&[
+    "decision",
+    "in-force",
+    "--as-of",
+    "not-a-date",
+    "workspace_id",
+])]
+#[case::empty_value(&[
+    "decision",
+    "in-force",
+    "workspace_id",
+    "--as-of",
+    "",
+])]
+fn decision_in_force__as_of_invalid__clap_exit_2(#[case] args: &[&str]) {
+    let out = common::hermetic_bin()
+        .args(args)
+        .output()
+        .expect("spawn as-of invalid");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "must be clap exit 2; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        combined.to_ascii_lowercase().contains("invalid"),
+        "expected invalid value text; got {combined}"
+    );
+}
+
+#[test]
+fn decision_in_force__as_of_human__emits_as_of_line() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = seed_read_decisions(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("decision")
+        .arg("in-force")
+        .arg("workspace_id")
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--format")
+        .arg("human")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--as-of")
+        .arg("2026-01-15T00:00:00Z")
+        .output()
+        .expect("human as-of");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "human as-of must exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("As of: 2026-01-15T00:00:00Z"),
+        "F12 human must print As of: line; got {stdout}"
+    );
+}
+
+#[test]
+fn decision_in_force__as_of_unknown__emits_as_of_key() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let scope = seed_read_decisions(&vault);
+
+    let out = common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("decision")
+        .arg("in-force")
+        .arg("workspace_id")
+        .arg("--scope")
+        .arg(&scope)
+        .arg("--format")
+        .arg("json")
+        .arg("--principal-id")
+        .arg(PRINCIPAL)
+        .arg("--as-of")
+        .arg("2026-01-15T00:00:00Z")
+        .output()
+        .expect("as-of unknown");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "authorized unknown+as-of must exit 0; stderr={} stdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: Value = serde_json::from_slice(&out.stdout).expect("json");
+    assert!(v["ruling"].is_null());
+    assert!(
+        v.get("as_of").is_some() && !v["as_of"].is_null(),
+        "AC10 as_of key present; got {v}"
     );
 }

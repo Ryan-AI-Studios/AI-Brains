@@ -1,4 +1,4 @@
-//! Resolve the in-force Approved decision for a term (T311).
+//! Resolve the in-force Approved decision for a term (T311 / T322).
 //!
 //! Governed query over `decision_projection` only. No events, pins, FTS, or
 //! vault-wide `list_decisions(None)`.
@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 
 use serde::Serialize;
+use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use ai_brains_core::ids::DecisionId;
@@ -25,6 +26,9 @@ pub struct InForceResponse {
     pub scope: String,
     pub ruling: Option<InForceRuling>,
     pub chain: Vec<InForceChainLink>,
+    /// Present only when `--as-of` was set (T322).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub as_of: Option<String>,
 }
 
 /// Current ruling. `state` is always `"in_force"` when present (F9).
@@ -45,7 +49,7 @@ pub struct InForceChainLink {
     pub status: String,
 }
 
-/// Resolve the in-force ruling for `term` inside `scope_key`.
+/// Resolve the in-force ruling for `term` inside `scope_key` at **now** (T311).
 ///
 /// Empty/whitespace `term` is [`ControlPlaneError::InvalidPayload`]. Cycle in
 /// `superseded_by` is [`ControlPlaneError::InvalidTransition`].
@@ -59,6 +63,25 @@ where
     Q: GovernedQueryStore,
     C: Clock,
 {
+    resolve_in_force_at(query, clock, scope_key, term, None)
+}
+
+/// Resolve the in-force ruling at an optional point in time (T322).
+///
+/// `as_of = None` matches [`resolve_in_force`] (T311). `Some(t)` hop-stops on
+/// the supersede/revoke chain using closed-open transaction time
+/// (`t >= updated_at` takes the hop).
+pub fn resolve_in_force_at<Q, C>(
+    query: &Q,
+    clock: &C,
+    scope_key: &str,
+    term: &str,
+    as_of: Option<OffsetDateTime>,
+) -> Result<InForceResponse>
+where
+    Q: GovernedQueryStore,
+    C: Clock,
+{
     let term = term.trim();
     if term.is_empty() {
         return Err(ControlPlaneError::InvalidPayload(
@@ -66,22 +89,33 @@ where
         ));
     }
 
+    let as_of_str = match as_of {
+        Some(t) => Some(
+            t.format(&Rfc3339)
+                .map_err(|e| ControlPlaneError::Query(e.to_string()))?,
+        ),
+        None => None,
+    };
+
     let rows = query.list_decisions(Some(scope_key), None)?;
-    let empty = empty_response(term, scope_key);
+    let empty = empty_response(term, scope_key, as_of_str.clone());
     let Some(root) = select_root(&rows, term) else {
         return Ok(empty);
     };
 
-    let (current, chain) = walk_chain(query, root.clone(), scope_key)?;
-    let now = clock.now()?;
-    let ruling = if current.state == "Approved" && decision_valid_at(&current, now) {
-        Some(ruling_from_row(&current)?)
-    } else {
-        None
+    let (current, chain) = walk_chain(query, root.clone(), scope_key, as_of)?;
+    let at = match as_of {
+        Some(t) => t,
+        None => clock.now()?,
     };
+    let ruling = ruling_at(&current, as_of.is_some(), at)?;
 
-    // Revoked root with no usable successor: keep chain empty (F7).
-    let chain = if ruling.is_none() && current.id == root.id && current.state == "Revoked" {
+    // Revoked root with no usable successor: keep chain empty (F7) — None-path only.
+    let chain = if as_of.is_none()
+        && ruling.is_none()
+        && current.id == root.id
+        && current.state == "Revoked"
+    {
         Vec::new()
     } else {
         chain
@@ -92,15 +126,46 @@ where
         scope: scope_key.to_string(),
         ruling,
         chain,
+        as_of: as_of_str,
     })
 }
 
-fn empty_response(term: &str, scope_key: &str) -> InForceResponse {
+fn ruling_at(
+    current: &DecisionRow,
+    as_of_set: bool,
+    at: OffsetDateTime,
+) -> Result<Option<InForceRuling>> {
+    if !as_of_set {
+        // T311 F9: Approved && valid-now only.
+        return if current.state == "Approved" && decision_valid_at(current, at) {
+            Ok(Some(ruling_from_row(current)?))
+        } else {
+            Ok(None)
+        };
+    }
+
+    // T322 F6 Some-path. Superseded/Revoked require hop still in the future
+    // (`updated_at > at`) so a broken/missing successor after the hop is none.
+    let ok = match current.state.as_str() {
+        "Approved" => decision_valid_at(current, at) && current.updated_at <= at,
+        "Superseded" => current.updated_at > at && decision_valid_at(current, at),
+        "Revoked" => current.updated_at > at && decision_valid_at(current, at),
+        _ => false,
+    };
+    if ok {
+        Ok(Some(ruling_from_row(current)?))
+    } else {
+        Ok(None)
+    }
+}
+
+fn empty_response(term: &str, scope_key: &str, as_of: Option<String>) -> InForceResponse {
     InForceResponse {
         term: term.to_string(),
         scope: scope_key.to_string(),
         ruling: None,
         chain: Vec::new(),
+        as_of,
     }
 }
 
@@ -149,6 +214,7 @@ fn walk_chain<Q: GovernedQueryStore>(
     query: &Q,
     mut current: DecisionRow,
     scope_key: &str,
+    as_of: Option<OffsetDateTime>,
 ) -> Result<(DecisionRow, Vec<InForceChainLink>)> {
     let mut chain = Vec::new();
     let mut visited = HashSet::new();
@@ -163,6 +229,12 @@ fn walk_chain<Q: GovernedQueryStore>(
         else {
             break;
         };
+        // F5 hop-stop: closed-open on superseded/revoked updated_at.
+        if let Some(t) = as_of
+            && t < current.updated_at
+        {
+            break;
+        }
         if !visited.insert(next_raw.to_string()) {
             return Err(ControlPlaneError::InvalidTransition(format!(
                 "supersession cycle at {next_raw}"

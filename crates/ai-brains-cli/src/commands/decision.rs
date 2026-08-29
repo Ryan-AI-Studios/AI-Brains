@@ -14,7 +14,7 @@ use ai_brains_contracts::response::ApiError;
 use ai_brains_control_plane::{
     NS_PROPOSE_DECISION, PolicyContext, PolicyEvaluator,
     ProposeDecisionRequest as CpProposeDecision, StorePorts, SystemClock, id_from_command,
-    parse_scope_key, propose_decision, resolve_in_force,
+    parse_scope_key, propose_decision, resolve_in_force_at,
 };
 use ai_brains_core::ids::{ConclusionId, DecisionId, EvidenceId};
 use ai_brains_core::privacy::Privacy;
@@ -22,6 +22,8 @@ use ai_brains_core::scope::GrantCapability;
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use ai_brains_store::SqliteEventStore;
 use std::str::FromStr;
+use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 
 pub struct ProposeOptions {
     pub statement: String,
@@ -221,9 +223,18 @@ pub struct InForceOptions {
     pub scope: Option<String>,
     pub format: String,
     pub principal_id: Option<String>,
+    /// Already clap-validated RFC3339 string when `Some` (T322).
+    pub as_of: Option<String>,
 }
 
-/// `ai-brains decision in-force <TERM>` — local projection read (T311).
+/// Clap `value_parser` for `--as-of` — strict RFC3339 (F29 / F30).
+pub(crate) fn parse_as_of_rfc3339(s: &str) -> Result<String, String> {
+    OffsetDateTime::parse(s, &Rfc3339)
+        .map(|_| s.to_string())
+        .map_err(|e| format!("invalid RFC3339 timestamp: {e}"))
+}
+
+/// `ai-brains decision in-force <TERM>` — local projection read (T311 / T322).
 pub fn run_in_force(
     ctx: &AppContext,
     options: InForceOptions,
@@ -232,6 +243,16 @@ pub fn run_in_force(
     if options.term.trim().is_empty() {
         return fail_usage("term must be non-empty");
     }
+
+    let as_of = match options.as_of.as_deref() {
+        None => None,
+        Some(s) => match OffsetDateTime::parse(s, &Rfc3339) {
+            Ok(t) => Some(t),
+            Err(e) => {
+                return fail_usage(format!("invalid --as-of timestamp: {e}"));
+            }
+        },
+    };
 
     let store = SqliteEventStore::new((*ctx.conn).clone());
     let ports = StorePorts::from_store(store);
@@ -268,7 +289,7 @@ pub fn run_in_force(
         Err(e) => return fail_cp(format, e),
     }
 
-    match resolve_in_force(&ports.query, &SystemClock, &scope_key, &options.term) {
+    match resolve_in_force_at(&ports.query, &SystemClock, &scope_key, &options.term, as_of) {
         Ok(resp) => emit_in_force(format, &resp),
         Err(e) => fail_cp(format, e),
     }
@@ -281,19 +302,46 @@ fn emit_in_force(
     match format {
         OutputFormat::Json => emit_json(resp),
         OutputFormat::Human | OutputFormat::Markdown => {
+            let as_of_line = resp
+                .as_of
+                .as_deref()
+                .map(|s| format!("As of: {s}\n"))
+                .unwrap_or_default();
             if let Some(ruling) = &resp.ruling {
                 emit_human(&format!(
-                    "Term: {}\nScope: {}\nRuling: {} ({})",
+                    "{as_of_line}Term: {}\nScope: {}\nRuling: {} ({})",
                     resp.term, resp.scope, ruling.title, ruling.decision_id
                 ));
             } else {
                 emit_human(&format!(
-                    "No in-force ruling for term \"{}\".\n{}",
+                    "{as_of_line}No in-force ruling for term \"{}\".\n{}",
                     resp.term,
                     format_authorized_empty_next(None, None)
                 ));
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod as_of_parse_tests {
+    #![allow(non_snake_case)]
+    #![allow(clippy::disallowed_methods)]
+    use super::parse_as_of_rfc3339;
+
+    #[test]
+    fn parse_as_of_rfc3339__date_only__err() {
+        let err = parse_as_of_rfc3339("2026-01-01").expect_err("date-only must fail");
+        assert!(
+            err.contains("invalid RFC3339") || err.contains("parse"),
+            "expected parse err; got {err}"
+        );
+    }
+
+    #[test]
+    fn parse_as_of_rfc3339__zulu__ok() {
+        let ok = parse_as_of_rfc3339("2026-01-15T00:00:00Z").expect("zulu ok");
+        assert_eq!(ok, "2026-01-15T00:00:00Z");
     }
 }

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T322 `decision in-force --as-of`:** Optional `--as-of <RFC3339>` returns the chain tip at that instant (hop-stop on superseded/revoked `updated_at`; closed-open). Omit flag → T311 now-path unchanged (`as_of` JSON key skipped). No `approved_at` column. Date-only rejected (clap exit **2**). Docs: CAPABILITIES / OPERATIONS.
+
 - **T321 `safety sync` write honesty:** Default still **pins**; about/after_help name pin; stdout banner `Pinning N Ledgerful hotspot(s) into the vault.` before `pin::run`. Drop Scanning / scan-complete theater (`tracing::warn!` on JSON→text fallback). `--dry-run` header `would pin` with path+raw score rows. Parses live `ledgerful hotspots --json` `{schemaVersion, files[]}` (CLI + retrieval; legacy `[…]` stay-green). Docs: CAPABILITIES / OPERATIONS §7 / WORKFLOWS / antigravity-rule.
 
 - **T318 Backup list usable-first:** Default/Quiet `backup list` table = usable encrypted only (`Readable`/`PreT109`); residual count footer on stdout (`not recoverable under current key`); Quiet omits footer; `--verbose` lists every class + WARNs. Residuals-only → `No usable backups.` (not `No backups found.`). Mixed verify (`ok >= 1`): counts + `{fail} FAIL (use --verbose for per-file).` — no first-5 `FAIL —`; zero-OK first-5 + create nudge unchanged (T225). Docs: CAPABILITIES / OPERATIONS.
