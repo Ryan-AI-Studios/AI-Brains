@@ -2,6 +2,43 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T324 full plan (2026-08-29) — PowerShell empty TERM (`--term` + omit→fail_usage)
+
+| Item | Disposition |
+|------|-------------|
+| T311 R7 / I3 5.1 `in-force ""` drops argv → clap missing `<TERM>` | **Absorb** F1–F11 / AC1–AC9 / AC15–AC16 |
+| T323 same required positional | **Absorb** F1 / AC9 copy-not-share |
+| Placeholder docs-only `--%` / `'""'` | **Decline** F30 — live pwsh they are two quote chars, exit 0 unknown term |
+| pwsh 7.6 Windows already preserves `""` | **Honesty** — DoD is 5.1 + Legacy analog (omit-TERM hermetic) |
+| T322 `--as-of` empty | **Decline** F6 |
+| T311 R1 daemon `ListInForce` | **Decline** F13 |
+| All other required positionals | **Decline** F26 |
+| T323 implement residuals | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T326 `PinnedCountFailed` fake `pinned=0` (`#237`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#245` | **N/A empty** (no defect) |
+| last-PR `#237` / `#230` | **T326** / **T325** already Pending — **no T327** |
+| T323 uncommitted conductor Completed note | **Plan-write DOCS commit** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `3b998d33-ac46-4a8c-9074-aebcc5931e46` |
+
+### T323 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| Conclusion `--as-of` hop-stop (copy-not-share T322) | **Deferred** F30 / §11 — mint later if audit needs point-in-time conclusions |
+| PATH `ai-brains` until owner `cargo install` (source has in-force; PATH may lag) | **Deferred** F27 — hermetic/`cargo run` SoT |
+| Live vault `workspace_id` ruling null (AC16) | **By design** — expected empty; hermetic AC1/AC17 are positive walk |
+| Daemon `ListInForce` / contracts DTO | **Decline** F13 / T311 R1 |
+| Long-statement human dump (no truncate) | **Deferred** soft — F12 uses statement as-is |
+| Stale/Disputed tip not in-force | **By design** F7/F9 |
+| CLI still propose-only besides in-force (confirm/correct CP-only) | **Deferred** F31 |
+| `correct_conclusion` successor stays Candidate until confirm/activate | **By design** F36 |
+| T324 / T325 / T326 / T307 | **Not stolen** |
+| FEATURE TX | `4bef80a8-5c70-43da-9b13-385e2c7d884f` |
+| PR | [#245](https://github.com/Ryan-AI-Studios/AI-Brains/pull/245) squash `5b50d56` |
+
 ### T323 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
