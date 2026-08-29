@@ -2851,7 +2851,7 @@ enum SourceCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>"
+    after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>\n  ai-brains conclusion in-force workspace_id"
 )]
 enum ConclusionCommands {
     /// Propose a conclusion (daemon preferred; local if daemon down before send or --local)
@@ -2881,6 +2881,26 @@ enum ConclusionCommands {
         daemon: bool,
         #[arg(long)]
         require_daemon: bool,
+    },
+    /// Resolve the in-force Active|Confirmed conclusion for a term (local projection)
+    #[command(
+        after_help = "Examples:\n  ai-brains conclusion in-force workspace_id\n  ai-brains conclusion in-force workspace_id --format json"
+    )]
+    InForce {
+        /// Term to resolve (e.g. workspace_id)
+        #[arg(value_name = "TERM")]
+        term: String,
+        /// Scope identity key; soft-filled from authoritative context when omitted
+        #[arg(long)]
+        scope: Option<String>,
+        #[arg(
+            long,
+            default_value = "json",
+            value_parser = ["auto", "pretty", "human", "text", "json", "markdown", "md"]
+        )]
+        format: String,
+        #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
+        principal_id: Option<String>,
     },
 }
 
@@ -4973,6 +4993,20 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 )
                 .await
             }
+            ConclusionCommands::InForce {
+                term,
+                scope,
+                format,
+                principal_id,
+            } => commands::conclusion::run_in_force(
+                &ctx,
+                commands::conclusion::InForceOptions {
+                    term: term.clone(),
+                    scope: scope.clone(),
+                    format: format.clone(),
+                    principal_id: principal_id.clone(),
+                },
+            ),
         },
         Commands::Decision { command } => match command {
             DecisionCommands::Propose {

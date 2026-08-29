@@ -1,8 +1,9 @@
-//! `ai-brains conclusion propose` — propose a conclusion (T160).
+//! `ai-brains conclusion propose` / `in-force` (T160 / T323).
 
 use crate::commands::governed_common::{
     self, OutputFormat, PathDecision, PathFlags, emit_human, emit_json, ensure_command_id,
-    expect_daemon_ok, fail_api, fail_cp, fail_path, principal_id_wire, resolve_principal,
+    expect_daemon_ok, fail_api, fail_cp, fail_path, fail_usage, format_authorized_empty_next,
+    policy_denied_hint_details, principal_id_wire, resolve_principal, resolve_scope_key_for_cli,
 };
 use crate::context::AppContext;
 use crate::daemon_client::DaemonClient;
@@ -11,11 +12,13 @@ use ai_brains_contracts::knowledge::{
 };
 use ai_brains_contracts::response::ApiError;
 use ai_brains_control_plane::{
-    NS_PROPOSE_CONCLUSION, ProposeConclusionRequest as CpProposeConclusion, StorePorts,
-    SystemClock, id_from_command, parse_scope_key, propose_conclusion,
+    NS_PROPOSE_CONCLUSION, PolicyContext, PolicyEvaluator,
+    ProposeConclusionRequest as CpProposeConclusion, StorePorts, SystemClock, id_from_command,
+    parse_scope_key, propose_conclusion, resolve_conclusion_in_force,
 };
 use ai_brains_core::ids::{ConclusionId, EvidenceId};
 use ai_brains_core::privacy::Privacy;
+use ai_brains_core::scope::GrantCapability;
 use ai_brains_daemon_api::{DaemonRequest, DaemonResponse};
 use ai_brains_store::SqliteEventStore;
 use std::str::FromStr;
@@ -185,4 +188,86 @@ fn parse_evidence_ids(ids: &[String]) -> Result<Vec<EvidenceId>, String> {
         }
     }
     Ok(out)
+}
+
+pub struct InForceOptions {
+    pub term: String,
+    pub scope: Option<String>,
+    pub format: String,
+    pub principal_id: Option<String>,
+}
+
+/// `ai-brains conclusion in-force <TERM>` — local projection read (T323).
+pub fn run_in_force(
+    ctx: &AppContext,
+    options: InForceOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let format = OutputFormat::parse(Some(options.format.as_str()));
+    if options.term.trim().is_empty() {
+        return fail_usage("term must be non-empty");
+    }
+
+    let store = SqliteEventStore::new((*ctx.conn).clone());
+    let ports = StorePorts::from_store(store);
+    let identity = ports.identity_store();
+    let scope_key = match resolve_scope_key_for_cli(options.scope.as_deref(), &identity) {
+        Ok(k) => k,
+        Err(msg) => return fail_usage(msg),
+    };
+    let scope = match parse_scope_key(&scope_key) {
+        Ok(s) => s,
+        Err(e) => return fail_cp(format, e),
+    };
+
+    let principal = resolve_principal(options.principal_id.as_deref());
+    let policy = ports.production_policy();
+    let policy_ctx = PolicyContext::default_for_privacy(Privacy::LocalOnly);
+    match policy.allow(
+        principal.id,
+        GrantCapability::ReadConclusions,
+        &scope,
+        &policy_ctx,
+    ) {
+        Ok(true) => {}
+        Ok(false) => {
+            return fail_api(
+                format,
+                ApiError::new(
+                    "POLICY_DENIED",
+                    "ReadConclusions denied for conclusion in-force",
+                )
+                .with_details(policy_denied_hint_details()),
+            );
+        }
+        Err(e) => return fail_cp(format, e),
+    }
+
+    match resolve_conclusion_in_force(&ports.query, &SystemClock, &scope_key, &options.term) {
+        Ok(resp) => emit_in_force(format, &resp),
+        Err(e) => fail_cp(format, e),
+    }
+}
+
+fn emit_in_force(
+    format: OutputFormat,
+    resp: &ai_brains_control_plane::ConclusionInForceResponse,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match format {
+        OutputFormat::Json => emit_json(resp),
+        OutputFormat::Human | OutputFormat::Markdown => {
+            if let Some(ruling) = &resp.ruling {
+                emit_human(&format!(
+                    "Term: {}\nScope: {}\nRuling: {} ({})",
+                    resp.term, resp.scope, ruling.statement, ruling.conclusion_id
+                ));
+            } else {
+                emit_human(&format!(
+                    "No in-force ruling for term \"{}\".\n{}",
+                    resp.term,
+                    format_authorized_empty_next(None, None)
+                ));
+            }
+            Ok(())
+        }
+    }
 }
