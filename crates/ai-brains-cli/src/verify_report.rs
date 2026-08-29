@@ -56,6 +56,14 @@ pub fn format_create_nudge() -> String {
     "No usable encrypted backup under current key. Run: ai-brains backup create".to_string()
 }
 
+/// Mixed-fleet trailer when `ok >= 1` and `fail >= 1` (T318 F5/F9).
+///
+/// SOOT: `{fail} FAIL (use --verbose for per-file).`
+/// Distinct from the T225 overflow trailer (`… and {more} more FAIL …`).
+pub fn format_mixed_fail_trailer(fail: usize) -> String {
+    format!("{fail} FAIL (use --verbose for per-file).")
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(non_snake_case)]
@@ -154,5 +162,18 @@ mod tests {
     #[test]
     fn verify_fail_preview_cap__is_five() {
         assert_eq!(VERIFY_FAIL_PREVIEW_CAP, 5);
+    }
+
+    #[test]
+    fn format_mixed_trailer__contains_verbose_and_count() {
+        let s = format_mixed_fail_trailer(22);
+        assert_eq!(
+            s, "22 FAIL (use --verbose for per-file).",
+            "exact mixed trailer SOOT: {s}"
+        );
+        assert!(
+            !s.contains("more FAIL"),
+            "must not reuse T225 overflow trailer: {s}"
+        );
     }
 }

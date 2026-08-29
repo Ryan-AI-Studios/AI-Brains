@@ -1,9 +1,10 @@
 # T318 Plan — backup list usable-first (collapse residual fleet)
 
-**Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
+**Status:** **In Progress** (go + FEATURE `93fbf235`). Spec [spec.md](./spec.md).
 **Category:** UX / OPS
 **Ledger (planning):** DOCS `156b2a03-b5aa-4905-b840-d14fb182aa90`
 **Ledger (fold-in):** DOCS `5f4aace2-b78d-4757-961f-12bc2366f5b3`
+**Ledger (FEATURE):** `93fbf235-8dc2-40d8-add1-9ac9bfc2643b`
 
 ---
 
@@ -57,55 +58,67 @@
 
 ## Phase 0 — on go (re-verify + deferred rescan)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
-- [ ] Confirm cwd `C:\dev\AI-Brains`
-- [ ] Re-read `run_list` `:163–229` + F6 `:222–228` + `list_sort_key` `:156`
-- [ ] Re-read `run_verify` JSON/verbose/default arms `:349–405`
-- [ ] Re-read `verify_report.rs` cap/counts/preview/nudge
-- [ ] Re-read `is_usable_class` / `residual_for_summary` / `ListMode::from_flags` (import only; do **not** edit brain production)
-- [ ] Re-read hermetics `backup_list_honesty.rs` mixed/AC1–AC5/AC20 + F31 census (`:82/:164/:336/:394/:430`) + `backup_recoverable.rs` list + `smoke.rs` mixed verify
-- [ ] Re-dogfood `backup list` (stdout vs stderr) + `backup verify` default (source)
-- [ ] Record live N = count of `vault-*.db.bak`
-- [ ] Confirm clap lock still **4.6.1**; doctor remediator still `ai-brains backup create`
-- [ ] Rescan `deferred.md` open overlapping rows
-- [ ] Confirm T325 / T326 / T321 still Pending (do not steal)
-- [ ] `ledgerful ledger start T318-backup-list-usable-first --category FEATURE`
-- [ ] **Do not** `cargo install` / live `backup create` / prune / restore / `.env` rewrite / clap 5 / grow `doctor.rs`
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact`
+- [x] Confirm cwd `C:\dev\AI-Brains`
+- [x] Re-read `run_list` `:163–229` + F6 `:222–228` + `list_sort_key` `:156`
+- [x] Re-read `run_verify` JSON/verbose/default arms `:349–405`
+- [x] Re-read `verify_report.rs` cap/counts/preview/nudge
+- [x] Re-read `is_usable_class` / `residual_for_summary` / `ListMode::from_flags` (import only; do **not** edit brain production)
+- [x] Re-read hermetics `backup_list_honesty.rs` mixed/AC1–AC5/AC20 + F31 census (`:82/:164/:336/:394/:430`) + `backup_recoverable.rs` list + `smoke.rs` mixed verify
+- [x] Re-dogfood `backup list` (stdout vs stderr) + `backup verify` default (source)
+- [x] Record live N = **23** `vault-*.db.bak` (1 usable + 22 residual)
+- [x] Confirm clap lock still **4.6.1**; doctor remediator still `ai-brains backup create`
+- [x] Rescan `deferred.md` open overlapping rows
+- [x] Confirm T325 / T326 / T321 still Pending (do not steal)
+- [x] `ledgerful ledger start T318-backup-list-usable-first --category FEATURE` → `93fbf235`
+- [x] **Do not** `cargo install` / live `backup create` / prune / restore / `.env` rewrite / clap 5 / grow `doctor.rs`
 
 ## Phase 1 — Red
 
-- [ ] `backup_list_honesty__mixed_usable_and_residual__usable_first` asserts Default omits residual tokens (AC1) — must **fail** today
-- [ ] Footer on stdout / absent stderr (AC2) — must **fail** today
-- [ ] `backup_list__all_residual__no_usable_and_footer` (AC3)
-- [ ] F31 census: flip Default-mode token/stderr asserts in `__plain_unset_rust_log…` / `__two_plain…` / `__large_key_mismatch…` / `__incomplete…` / `__incomplete_default_rust_log_warn…` (same commit as AC1)
-- [ ] `backup_list_honesty__quiet_mixed__usable_row_no_footer` (AC5) — mixed fixture + `--quiet`
-- [ ] `backup_list__empty__no_backups_found_exit_0` (AC6)
-- [ ] Update `__quiet__no_summary` + `__quiet_and_verbose__quiet_wins` for all-residual quiet (AC20)
-- [ ] `backup_list_help__after_help__names_usable_only_and_verbose` (AC14)
-- [ ] `backup_verify_all__mixed__reports_per_file` asserts **no** `FAIL —` (AC8) — must **fail** today
-- [ ] `format_mixed_trailer__contains_verbose_and_count` (AC8 / F9)
+- [x] `backup_list_honesty__mixed_usable_and_residual__usable_first` asserts Default omits residual tokens (AC1) — must **fail** today
+- [x] Footer on stdout / absent stderr (AC2) — must **fail** today
+- [x] `backup_list__all_residual__no_usable_and_footer` (AC3)
+- [x] F31 census: flip Default-mode token/stderr asserts in `__plain_unset_rust_log…` / `__two_plain…` / `__large_key_mismatch…` / `__incomplete…` / `__incomplete_default_rust_log_warn…` (same commit as AC1)
+- [x] `backup_list_honesty__quiet_mixed__usable_row_no_footer` (AC5) — mixed fixture + `--quiet`
+- [x] `backup_list__empty__no_backups_found_exit_0` (AC6)
+- [x] Update `__quiet__no_summary` + `__quiet_and_verbose__quiet_wins` for all-residual quiet (AC20)
+- [x] `backup_list_help__after_help__names_usable_only_and_verbose` (AC14)
+- [x] `backup_verify_all__mixed__reports_per_file` asserts **no** `FAIL —` (AC8) — must **fail** today
+- [x] `format_mixed_trailer__contains_verbose_and_count` (AC8 / F9)
 
 ## Phase 2 — Green
 
-- [ ] Default/Quiet: print usable rows only; residuals-only → `No usable backups.`
-- [ ] Default footer `println!` of current F6 sentence; delete `eprintln!`
-- [ ] Verbose: all rows, no footer (T209 WARNs stay)
-- [ ] `format_mixed_fail_trailer` in `verify_report.rs`; `run_verify` human default: `format_fail_preview` only when `ok == 0`; mixed → counts + helper
-- [ ] List `after_help` one additive sentence
-- [ ] F31 same-commit flips; keep doctor mixed Ok
+- [x] Default/Quiet: print usable rows only; residuals-only → `No usable backups.`
+- [x] Default footer `println!` of current F6 sentence; delete `eprintln!`
+- [x] Verbose: all rows, no footer (T209 WARNs stay)
+- [x] `format_mixed_fail_trailer` in `verify_report.rs`; `run_verify` human default: `format_fail_preview` only when `ok == 0`; mixed → counts + helper
+- [x] List `after_help` one additive sentence
+- [x] F31 same-commit flips; keep doctor mixed Ok
 
 ## Phase 3 — Stay-green + docs
 
-- [ ] `list_sort_tests`; T198 empty **verify**; AC6 list empty; T225 zero-OK 5-FAIL; verbose mixed stream; JSON verify; T295 create help
-- [ ] CAPABILITIES §11; OPERATIONS list/verify; CHANGELOG
-- [ ] AC16 empty diff `doctor.rs` / brain `backup.rs` / `project.rs` / `forget.rs` production
+- [x] `list_sort_tests`; T198 empty **verify**; AC6 list empty; T225 zero-OK 5-FAIL; verbose mixed stream; JSON verify; T295 create help
+- [x] CAPABILITIES §11; OPERATIONS list/verify; CHANGELOG
+- [x] AC16 empty diff `doctor.rs` / brain `backup.rs` / `project.rs` / `forget.rs` production
 
 ## Phase 4 — Manual + gate + publish
 
-- [ ] AC17 `cargo run -p ai-brains-cli -- backup list` + `backup verify` (record N / stdout / exit)
-- [ ] Targeted `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; nextest backup hermetics + smoke verify
-- [ ] FEATURE cross-model (`codex-review`)
-- [ ] Full gate; conductor Completed; deferred residuals; implement-track Phase 6 (push `track/T318-*`, PR, watch CI, squash-merge). **Never** `git push origin main`
+- [x] AC17 `cargo run -p ai-brains-cli -- backup list` + `backup verify` (N=23; list exit 0 usable+footer; verify exit 1 counts+trailer no `FAIL —`)
+- [x] Targeted `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` ; nextest backup hermetics + smoke verify
+- [x] FEATURE cross-model (`codex-review`) — product PASS; process P1 cleared by gate/commits; help/P3 fixed; PreT109 deferred
+- [x] Full gate (`NEXTEST_TEST_THREADS=2`); conductor Completed; deferred residuals; implement-track Phase 6 pending publish
+
+## Manual AC17 evidence
+
+```text
+cargo run -p ai-brains-cli --quiet -- backup list
+  exit 0; stdout: 1 usable row (vault-2026-08-24T10-01-54.db.bak) +
+  "22 backup(s) not recoverable under current key …"; stderr empty
+cargo run -p ai-brains-cli --quiet -- backup verify
+  exit 1; stdout: "Verified 23 backups: 1 OK, 22 FAIL." +
+  "22 FAIL (use --verbose for per-file)."; no "FAIL —"; stderr empty
+N=23
+```
 
 ---
 

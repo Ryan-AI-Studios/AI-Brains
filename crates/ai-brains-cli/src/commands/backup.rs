@@ -160,6 +160,43 @@ fn list_sort_key(info: &BackupInfo) -> (u8, Reverse<Option<NaiveDateTime>>, Path
     (priority, Reverse(info.timestamp), info.path.clone())
 }
 
+fn print_list_row(info: &BackupInfo) {
+    let token = backup_class_token(info.class);
+    let ts = info
+        .timestamp
+        .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
+        .unwrap_or_else(|| "(unparseable)".to_string());
+    let source = info
+        .metadata
+        .get("source_vault_path")
+        .cloned()
+        .unwrap_or_else(|| token.to_string());
+    let version = info
+        .metadata
+        .get("ai_brains_version")
+        .cloned()
+        .unwrap_or_else(|| token.to_string());
+    let size = info
+        .metadata
+        .get("backup_file_size_bytes")
+        .cloned()
+        .unwrap_or_else(|| token.to_string());
+    let filename = info
+        .path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    println!(
+        "{:<35} {:<22} {:<40} {:<14} {:<20}",
+        filename,
+        ts,
+        truncate_right(&source, 40),
+        truncate(&version, 14),
+        size
+    );
+}
+
 pub fn run_list(ctx: &AppContext, mode: ListMode) -> Result<(), Box<dyn std::error::Error>> {
     let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
     let mut backups = service.list_backups(mode)?;
@@ -171,58 +208,39 @@ pub fn run_list(ctx: &AppContext, mode: ListMode) -> Result<(), Box<dyn std::err
     // T244 F7: usable-first presentation only in CLI list (not brain list_backups).
     backups.sort_by_key(list_sort_key);
 
-    println!(
-        "{:<35} {:<22} {:<40} {:<14} {:<20}",
-        "Filename", "Timestamp", "Source Vault", "Version", "Size (bytes)"
-    );
+    // T244 F6 / T318: residual count over the full fleet (before emit filter).
+    let residual_count = backups
+        .iter()
+        .filter(|info| residual_for_summary(info.class))
+        .fold(0usize, |n, _| n.saturating_add(1));
 
-    let mut residual_count = 0usize;
-    for info in &backups {
-        // T244 F6: residual = all non-usable (Incomplete / plain / key / corrupt).
-        if residual_for_summary(info.class) {
-            residual_count = residual_count.saturating_add(1);
-        }
+    // T318 F1/F3: Default/Quiet table = usable only; Verbose keeps every class.
+    let rows: Vec<&BackupInfo> = if mode == ListMode::Verbose {
+        backups.iter().collect()
+    } else {
+        backups
+            .iter()
+            .filter(|info| is_usable_class(info.class))
+            .collect()
+    };
 
-        let token = backup_class_token(info.class);
-        let ts = info
-            .timestamp
-            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
-            .unwrap_or_else(|| "(unparseable)".to_string());
-        let source = info
-            .metadata
-            .get("source_vault_path")
-            .cloned()
-            .unwrap_or_else(|| token.to_string());
-        let version = info
-            .metadata
-            .get("ai_brains_version")
-            .cloned()
-            .unwrap_or_else(|| token.to_string());
-        let size = info
-            .metadata
-            .get("backup_file_size_bytes")
-            .cloned()
-            .unwrap_or_else(|| token.to_string());
-        let filename = info
-            .path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
+    if rows.is_empty() {
+        // T318 F4: residual fleet with zero usable — not the empty-dir message.
+        println!("No usable backups.");
+    } else {
         println!(
             "{:<35} {:<22} {:<40} {:<14} {:<20}",
-            filename,
-            ts,
-            truncate_right(&source, 40),
-            truncate(&version, 14),
-            size
+            "Filename", "Timestamp", "Source Vault", "Version", "Size (bytes)"
         );
+        for info in rows {
+            print_list_row(info);
+        }
     }
 
-    // F6: one eprintln summary under Default when any residual ≥ 1.
+    // T318 F2: residual summary on stdout under Default (not stderr / ErrorRecord).
     // Quiet: no summary. Verbose: omit (per-file detail already emitted).
     if mode == ListMode::Default && residual_count >= 1 {
-        eprintln!(
+        println!(
             "{residual_count} backup(s) not recoverable under current key (legacy plain / incomplete / key / corrupt): use --verbose or ai-brains backup verify"
         );
     }
@@ -274,8 +292,8 @@ pub fn run_verify(
     verbose: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::verify_report::{
-        VERIFY_FAIL_PREVIEW_CAP, format_create_nudge, format_fail_preview, format_verify_counts,
-        should_emit_create_nudge,
+        VERIFY_FAIL_PREVIEW_CAP, format_create_nudge, format_fail_preview,
+        format_mixed_fail_trailer, format_verify_counts, should_emit_create_nudge,
     };
 
     let service = BackupService::new(ctx.vault_path.clone(), ctx._key.clone());
@@ -375,32 +393,37 @@ pub fn run_verify(
             }
         }
     } else {
-        // Quiet-by-default: counts + first N FAIL previews + optional create nudge.
+        // Quiet-by-default: counts; FAIL preview only when ok==0 (T225);
+        // mixed ok>=1 + fail>=1 → trailer only (T318 F5).
         let total = results.len();
         let ok = results.iter().filter(|r| r.status == "ok").count();
         let fail = total.saturating_sub(ok);
         println!("{}", format_verify_counts(total, ok, fail));
 
-        let fails: Vec<(String, String)> = results
-            .iter()
-            .filter_map(|r| {
-                let err = r.error.as_ref()?;
-                let filename = PathBuf::from(&r.path)
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| r.path.clone());
-                Some((filename, err.clone()))
-            })
-            .collect();
-        let (preview_lines, trailer) = format_fail_preview(&fails, VERIFY_FAIL_PREVIEW_CAP);
-        for line in preview_lines {
-            println!("{line}");
-        }
-        if let Some(t) = trailer {
-            println!("{t}");
-        }
-        if should_emit_create_nudge(ok, total) {
-            println!("{}", format_create_nudge());
+        if ok == 0 {
+            let fails: Vec<(String, String)> = results
+                .iter()
+                .filter_map(|r| {
+                    let err = r.error.as_ref()?;
+                    let filename = PathBuf::from(&r.path)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| r.path.clone());
+                    Some((filename, err.clone()))
+                })
+                .collect();
+            let (preview_lines, trailer) = format_fail_preview(&fails, VERIFY_FAIL_PREVIEW_CAP);
+            for line in preview_lines {
+                println!("{line}");
+            }
+            if let Some(t) = trailer {
+                println!("{t}");
+            }
+            if should_emit_create_nudge(ok, total) {
+                println!("{}", format_create_nudge());
+            }
+        } else if fail >= 1 {
+            println!("{}", format_mixed_fail_trailer(fail));
         }
     }
 

@@ -2,6 +2,19 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T318 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` (pre-T318 emit on PATH) | **Deferred** F27 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| Live ~22 residual KeyMismatch/plain/Incomplete fleet | **Deferred** F12 — expected; verify exit 1; no transcode this track |
+| T209 L3 real wrong-key SQLCipher fixture | **Deferred** soft / declined DoD |
+| verify JSON `summary` / verify `--quiet` / class-aware prune | **Decline** F13 |
+| PreT109 Default visibility dedicated hermetic (CX-P2-2) | **Deferred** low-info — `is_usable_class` already includes PreT109; readable mixed hermetic covers usable band |
+| Recall hermetic 120s timeouts under heavy parallel load | **Deferred** low-info — unrelated; `NEXTEST_TEST_THREADS=2` full workspace PASS; same as T316 residual |
+| T325 F8 PreferRecency / T326 pin-count / T321–T324 | **Not stolen** |
+| FEATURE TX | `93fbf235-8dc2-40d8-add1-9ac9bfc2643b` |
+
 ### T318 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
@@ -21,7 +34,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 | Item | Disposition |
 |------|-------------|
-| Audit `backup list` 6/6 residual fleet noise | **Absorb** F1–F5 / AC1–AC5 / AC17 — T244 **sorts** usable-first; Default still prints 22 residual rows |
+| ~~Audit `backup list` 6/6 residual fleet noise~~ | **Resolved** T318 — usable-only Default + stdout F6 + mixed-verify summary |
 | T244 F7 CLI usable-first sort / brain timestamp-desc | **Affirm freeze** F6/F7 — do not edit brain `backup.rs` production |
 | T244 F6 stderr residual summary | **Supersede stream** F2 — same SOOT on **stdout** (T316 Windows-first analog; do not drop the count) |
 | T225 first-5 FAIL on default verify | **Partial** F5 — keep zero-OK + nudge; **supersede mixed** (`ok>=1` counts + `--verbose` trailer, no `FAIL —`) |
