@@ -2,6 +2,60 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T324 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2 HEAD `5b50d56` vs `e616642` | **Folded** snapshot `e616642` / ahead **1** |
+| Agy m1 / m3 / O1 / O2 | **Already** F24/AC8 (tightened) / F11/F37/AC7 / F7 / F3/F36 |
+| Agy `run_in_force` line cites | **Decline** as citation — live `decision.rs:243–245` / `conclusion.rs:206–208` |
+| Agy `#245` `mergedAt` 19:34:43Z | **Decline** — live `mergedAt` **2026-08-29T19:52:25Z** |
+| OpenCode m1 PATH `conclusion in-force` exit 1 | **Folded** §2.1 **exit 2** (live `$LASTEXITCODE` 2) |
+| OpenCode m2 5.1 `--term ""` | **Folded** AC19 |
+| OpenCode O1 AC2 `.arg("--term").arg("")` | **Folded** AC2 rstest |
+| OpenCode O2 AC8 `<TERM>` false-pass | **Folded** F24 / AC8 — assert `--term`; do not SoT angle-brackets |
+| OpenCode O2b doctor 5 vs 4 | **Note** — fold-in 4 warn; plan-write 5th was impact-stale |
+| last-PR `#245` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `6d4f36d0-8f99-4233-96b1-04192cfdc7a5` |
+
+### T324 full plan (2026-08-29) — PowerShell empty TERM (`--term` + omit→fail_usage)
+
+| Item | Disposition |
+|------|-------------|
+| T311 R7 / I3 5.1 `in-force ""` drops argv → clap missing `<TERM>` | **Absorb** F1–F11 / AC1–AC9 / AC15–AC16 |
+| T323 same required positional | **Absorb** F1 / AC9 copy-not-share |
+| Placeholder docs-only `--%` / `'""'` | **Decline** F30 — live pwsh they are two quote chars, exit 0 unknown term |
+| pwsh 7.6 Windows already preserves `""` | **Honesty** — DoD is 5.1 + Legacy analog (omit-TERM hermetic) |
+| T322 `--as-of` empty | **Decline** F6 |
+| T311 R1 daemon `ListInForce` | **Decline** F13 |
+| All other required positionals | **Decline** F26 |
+| T323 implement residuals | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T326 `PinnedCountFailed` fake `pinned=0` (`#237`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#245` | **N/A empty** (no defect) |
+| last-PR `#237` / `#230` | **T326** / **T325** already Pending — **no T327** |
+| T323 uncommitted conductor Completed note | **Plan-write DOCS commit** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `3b998d33-ac46-4a8c-9074-aebcc5931e46` |
+
+### T323 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| Conclusion `--as-of` hop-stop (copy-not-share T322) | **Deferred** F30 / §11 — mint later if audit needs point-in-time conclusions |
+| PATH `ai-brains` until owner `cargo install` (source has in-force; PATH may lag) | **Deferred** F27 — hermetic/`cargo run` SoT |
+| Live vault `workspace_id` ruling null (AC16) | **By design** — expected empty; hermetic AC1/AC17 are positive walk |
+| Daemon `ListInForce` / contracts DTO | **Decline** F13 / T311 R1 |
+| Long-statement human dump (no truncate) | **Deferred** soft — F12 uses statement as-is |
+| Stale/Disputed tip not in-force | **By design** F7/F9 |
+| CLI still propose-only besides in-force (confirm/correct CP-only) | **Deferred** F31 |
+| `correct_conclusion` successor stays Candidate until confirm/activate | **By design** F36 |
+| T324 / T325 / T326 / T307 | **Not stolen** |
+| FEATURE TX | `4bef80a8-5c70-43da-9b13-385e2c7d884f` |
+| PR | [#245](https://github.com/Ryan-AI-Studios/AI-Brains/pull/245) squash `5b50d56` |
+
 ### T323 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

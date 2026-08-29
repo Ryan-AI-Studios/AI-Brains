@@ -2851,7 +2851,7 @@ enum SourceCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>\n  ai-brains conclusion in-force workspace_id"
+    after_help = "Examples:\n  ai-brains conclusion propose --claim \"...\" --evidence <id> --scope Repository:<uuid>\n  ai-brains conclusion in-force workspace_id\n  ai-brains conclusion in-force --term= (empty term → usage exit 2)\n  ai-brains conclusion in-force --term workspace_id"
 )]
 enum ConclusionCommands {
     /// Propose a conclusion (daemon preferred; local if daemon down before send or --local)
@@ -2884,12 +2884,22 @@ enum ConclusionCommands {
     },
     /// Resolve the in-force Active|Confirmed conclusion for a term (local projection)
     #[command(
-        after_help = "Examples:\n  ai-brains conclusion in-force workspace_id\n  ai-brains conclusion in-force workspace_id --format json"
+        after_help = "Examples:\n  ai-brains conclusion in-force workspace_id\n  ai-brains conclusion in-force workspace_id --format json\n  ai-brains conclusion in-force --term= (empty term → usage exit 2)\n  ai-brains conclusion in-force --term workspace_id"
     )]
     InForce {
         /// Term to resolve (e.g. workspace_id)
         #[arg(value_name = "TERM")]
-        term: String,
+        term: Option<String>,
+        /// Named term (PowerShell 5.1: `""` is dropped; use `--term=` for empty)
+        #[arg(
+            long = "term",
+            value_name = "TERM",
+            num_args = 0..=1,
+            default_missing_value = "",
+            action = clap::ArgAction::Set,
+            conflicts_with = "term"
+        )]
+        term_flag: Option<String>,
         /// Scope identity key; soft-filled from authoritative context when omitted
         #[arg(long)]
         scope: Option<String>,
@@ -2906,7 +2916,7 @@ enum ConclusionCommands {
 
 #[derive(Subcommand, Clone)]
 #[command(
-    after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>\n  ai-brains decision in-force workspace_id"
+    after_help = "Examples:\n  ai-brains decision propose --statement \"...\" --scope Repository:<uuid>\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force --term= (empty term → usage exit 2)\n  ai-brains decision in-force --term workspace_id"
 )]
 enum DecisionCommands {
     /// Propose a decision (daemon preferred; local if daemon down before send or --local)
@@ -2944,12 +2954,22 @@ enum DecisionCommands {
     },
     /// Resolve the in-force Approved decision for a term (local projection)
     #[command(
-        after_help = "Examples:\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force workspace_id --format json\n  ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z"
+        after_help = "Examples:\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force workspace_id --format json\n  ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z\n  ai-brains decision in-force --term= (empty term → usage exit 2)\n  ai-brains decision in-force --term workspace_id"
     )]
     InForce {
         /// Term to resolve (e.g. workspace_id)
         #[arg(value_name = "TERM")]
-        term: String,
+        term: Option<String>,
+        /// Named term (PowerShell 5.1: `""` is dropped; use `--term=` for empty)
+        #[arg(
+            long = "term",
+            value_name = "TERM",
+            num_args = 0..=1,
+            default_missing_value = "",
+            action = clap::ArgAction::Set,
+            conflicts_with = "term"
+        )]
+        term_flag: Option<String>,
         /// Scope identity key; soft-filled from authoritative context when omitted
         #[arg(long)]
         scope: Option<String>,
@@ -4995,13 +5015,17 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             ConclusionCommands::InForce {
                 term,
+                term_flag,
                 scope,
                 format,
                 principal_id,
             } => commands::conclusion::run_in_force(
                 &ctx,
                 commands::conclusion::InForceOptions {
-                    term: term.clone(),
+                    term: term_flag
+                        .clone()
+                        .or_else(|| term.clone())
+                        .unwrap_or_default(),
                     scope: scope.clone(),
                     format: format.clone(),
                     principal_id: principal_id.clone(),
@@ -5042,6 +5066,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             DecisionCommands::InForce {
                 term,
+                term_flag,
                 scope,
                 format,
                 principal_id,
@@ -5049,7 +5074,10 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } => commands::decision::run_in_force(
                 &ctx,
                 commands::decision::InForceOptions {
-                    term: term.clone(),
+                    term: term_flag
+                        .clone()
+                        .or_else(|| term.clone())
+                        .unwrap_or_default(),
                     scope: scope.clone(),
                     format: format.clone(),
                     principal_id: principal_id.clone(),

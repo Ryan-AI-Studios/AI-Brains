@@ -288,8 +288,12 @@ ai-brains review list --format json                    # soft-default scope or f
 ai-brains review list --scope Repository:<uuid>
 ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local
 ai-brains conclusion in-force workspace_id --format json
+ai-brains conclusion in-force --term=                    # empty term → fail_usage exit 2 (T324; PS 5.1-safe)
+ai-brains conclusion in-force --term workspace_id
 ai-brains decision propose --statement "..." --scope Repository:<uuid>
 ai-brains decision in-force workspace_id --format json
+ai-brains decision in-force --term=                      # empty term → fail_usage exit 2 (T324; PS 5.1-safe)
+ai-brains decision in-force --term workspace_id
 ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z --format json
 ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>
 ai-brains erasure request --id <id> --scope Repository:<uuid>   # daemon-required; ticket only (not CE)
@@ -1034,8 +1038,8 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` (progressive/expand require project id; missing → exit **2**) |
 | Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence list\|search\|show` · `source list\|show` · `review list\|resolve` (T160/T203) |
 | Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
-| In-force decision (term) | `ai-brains decision in-force <TERM> [--as-of <RFC3339>]` (local projection; default JSON; `ReadDecisions`) |
-| In-force conclusion (term) | `ai-brains conclusion in-force <TERM>` (local projection; default JSON; `ReadConclusions`; no `--as-of`) |
+| In-force decision (term) | `ai-brains decision in-force [TERM] [--term[=TERM]] [--as-of <RFC3339>]` (local projection; default JSON; `ReadDecisions`; T324: `--term=` for empty on PS 5.1) |
+| In-force conclusion (term) | `ai-brains conclusion in-force [TERM] [--term[=TERM]]` (local projection; default JSON; `ReadConclusions`; no `--as-of`; same `--term=` empty path) |
 | Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |
 | Policy show / check / bootstrap | `ai-brains policy show\|check` (read-only); `policy bootstrap` (discovery grants, T210) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |

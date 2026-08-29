@@ -197,7 +197,7 @@ pub struct InForceOptions {
     pub principal_id: Option<String>,
 }
 
-/// `ai-brains conclusion in-force <TERM>` — local projection read (T323).
+/// `ai-brains conclusion in-force [TERM|--term[=TERM]]` — local projection read (T323 / T324).
 pub fn run_in_force(
     ctx: &AppContext,
     options: InForceOptions,
