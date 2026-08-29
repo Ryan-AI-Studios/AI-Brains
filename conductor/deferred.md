@@ -2,6 +2,21 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T318 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 HEAD `ed2f5f8` vs `93a788a` | **Folded** snapshot `93a788a` / ahead **1** |
+| Agy m2 empty vs residuals-only | **Already** F4 / AC3 / AC6 |
+| Agy O1/O2/O3 usable-only / stdout F6 / mixed verify | **Already** F1 / F2 / F5 |
+| OpenCode m1 Default-mode flip census | **Folded** F31 — `:82/:164/:336/:394/:430` + recoverable same commit as AC1 |
+| OpenCode m2 AC5 all-plain quiet cannot show usable row | **Folded** AC5 mixed-quiet new fixture; AC20 all-residual quiet + dual-flag named |
+| OpenCode O1 two trailer formats | **Folded** F9 `format_mixed_fail_trailer` + unit (do not merge T225 overflow string) |
+| OpenCode O2 list `No backups found.` untested | **Folded** AC6 `backup_list__empty__no_backups_found_exit_0` |
+| last-PR `#240` / `#239` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `5f4aace2-b78d-4757-961f-12bc2366f5b3` |
+
 ### T318 full plan (2026-08-29) — backup list usable-only Default + mixed-verify summary
 
 | Item | Disposition |

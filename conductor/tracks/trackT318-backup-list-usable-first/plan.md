@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** UX / OPS
 **Ledger (planning):** DOCS `156b2a03-b5aa-4905-b840-d14fb182aa90`
+**Ledger (fold-in):** DOCS `5f4aace2-b78d-4757-961f-12bc2366f5b3`
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | `ed2f5f8` T316 Completed note `#240` CLEAN. Branch `track/T318-backup-list-usable-first`. `origin/main` = `ed2f5f8` (ahead **0** at cut). |
+| HEAD / tree | Fold-in `93a788a` plan commit CLEAN; `origin/main` = `ed2f5f8` (ahead **1**). Plan-write was `ed2f5f8` / ahead **0** (Agy m1). Branch `track/T318-backup-list-usable-first`. Product `src/` = T316 `#240`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T244/T225/T295 **on PATH**. T316 **not**. Hole **is** (full residual table + F6 stderr + verify first-5 FAIL on mixed). |
 | `preflight --summary` (PATH) | Pinned **4601**; in-context **0/0/0**; `Total Word Count: 802` (PATH-behind T315) |
 | PATH `backup list` | Header + **23** files; first row T295 Readable `vault-2026-08-24T10-01-54.db.bak`; **22** residual rows; stderr F6 `22 backup(s) not recoverable…`. Exit 0 |
@@ -42,6 +43,12 @@
 | T277 engine / doctor remediator / keep-10 | **Freeze** F10 |
 | T295 ≥1 usable + mixed exit 1 | **Affirm** |
 | T316 stderr analog | **F2/F30** move F6 |
+| OpenCode m1 Default-mode flip census | **F31** / Phase 0 names `:82/:164/:336/:394/:430` |
+| OpenCode m2 AC5 all-plain quiet | **AC5** mixed-quiet new fixture; **AC20** all-residual quiet + dual-flag |
+| OpenCode O1 mixed trailer helper | **F9** `format_mixed_fail_trailer` + unit |
+| OpenCode O2 list empty untested | **AC6** named hermetic |
+| Agy m1 HEAD | **§2.1** `93a788a` / ahead **1** |
+| Agy m2 empty vs residuals-only | **Already** F4 / AC3 / AC6 |
 | last-PR `#240`/`#239` | **N/A empty** |
 | last-PR `#237` / `#230` | **T326** / **T325** — not stolen |
 | T321–T324 / clap 5 | **Not stolen** / **Decline** |
@@ -56,7 +63,7 @@
 - [ ] Re-read `run_verify` JSON/verbose/default arms `:349–405`
 - [ ] Re-read `verify_report.rs` cap/counts/preview/nudge
 - [ ] Re-read `is_usable_class` / `residual_for_summary` / `ListMode::from_flags` (import only; do **not** edit brain production)
-- [ ] Re-read hermetics `backup_list_honesty.rs` mixed/AC1–AC5 + `backup_recoverable.rs` list + `smoke.rs` mixed verify
+- [ ] Re-read hermetics `backup_list_honesty.rs` mixed/AC1–AC5/AC20 + F31 census (`:82/:164/:336/:394/:430`) + `backup_recoverable.rs` list + `smoke.rs` mixed verify
 - [ ] Re-dogfood `backup list` (stdout vs stderr) + `backup verify` default (source)
 - [ ] Record live N = count of `vault-*.db.bak`
 - [ ] Confirm clap lock still **4.6.1**; doctor remediator still `ai-brains backup create`
@@ -70,21 +77,26 @@
 - [ ] `backup_list_honesty__mixed_usable_and_residual__usable_first` asserts Default omits residual tokens (AC1) — must **fail** today
 - [ ] Footer on stdout / absent stderr (AC2) — must **fail** today
 - [ ] `backup_list__all_residual__no_usable_and_footer` (AC3)
+- [ ] F31 census: flip Default-mode token/stderr asserts in `__plain_unset_rust_log…` / `__two_plain…` / `__large_key_mismatch…` / `__incomplete…` / `__incomplete_default_rust_log_warn…` (same commit as AC1)
+- [ ] `backup_list_honesty__quiet_mixed__usable_row_no_footer` (AC5) — mixed fixture + `--quiet`
+- [ ] `backup_list__empty__no_backups_found_exit_0` (AC6)
+- [ ] Update `__quiet__no_summary` + `__quiet_and_verbose__quiet_wins` for all-residual quiet (AC20)
 - [ ] `backup_list_help__after_help__names_usable_only_and_verbose` (AC14)
 - [ ] `backup_verify_all__mixed__reports_per_file` asserts **no** `FAIL —` (AC8) — must **fail** today
+- [ ] `format_mixed_trailer__contains_verbose_and_count` (AC8 / F9)
 
 ## Phase 2 — Green
 
 - [ ] Default/Quiet: print usable rows only; residuals-only → `No usable backups.`
 - [ ] Default footer `println!` of current F6 sentence; delete `eprintln!`
 - [ ] Verbose: all rows, no footer (T209 WARNs stay)
-- [ ] `run_verify` human default: `format_fail_preview` only when `ok == 0`; mixed → counts + `{fail} FAIL (use --verbose for per-file).`
+- [ ] `format_mixed_fail_trailer` in `verify_report.rs`; `run_verify` human default: `format_fail_preview` only when `ok == 0`; mixed → counts + helper
 - [ ] List `after_help` one additive sentence
-- [ ] Flip T209/T244/T277 stderr+row asserts; keep doctor mixed Ok
+- [ ] F31 same-commit flips; keep doctor mixed Ok
 
 ## Phase 3 — Stay-green + docs
 
-- [ ] `list_sort_tests`; T198 empty; T225 zero-OK 5-FAIL; verbose mixed stream; JSON verify; T295 create help
+- [ ] `list_sort_tests`; T198 empty **verify**; AC6 list empty; T225 zero-OK 5-FAIL; verbose mixed stream; JSON verify; T295 create help
 - [ ] CAPABILITIES §11; OPERATIONS list/verify; CHANGELOG
 - [ ] AC16 empty diff `doctor.rs` / brain `backup.rs` / `project.rs` / `forget.rs` production
 
