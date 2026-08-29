@@ -2,6 +2,42 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T322 full plan (2026-08-29) — `decision in-force --as-of` (hop-stop; no column)
+
+| Item | Disposition |
+|------|-------------|
+| T311 R2 `--as-of` | **Absorb** F1–F7 / AC1–AC7 / AC11 / AC14 / AC15 |
+| T311 R4 `approved_at` column | **Decline** F9 — superseded/revoked `updated_at` is the hop timestamp; event `approved_at` stays unprojected |
+| Projector `valid_until` close on supersede | **Decline** F10 — overlap with successor `valid_from` |
+| T311 R1 daemon `ListInForce` | **Decline** F11 |
+| T311 R3 sibling Approved | **Decline** — T311 F7 freeze |
+| T311 R5 conclusion in-force | **Not stolen** T323 |
+| T311 R7 PowerShell empty TERM | **Not stolen** T324 |
+| Date-only `--as-of` / `--from`/`--to` | **Decline** F30 / F2 |
+| T321 implement residuals | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T326 `PinnedCountFailed` fake `pinned=0` (`#237`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#243` | **N/A empty** (no defect) |
+| last-PR `#237` / `#230` | **T326** / **T325** already Pending — **no T327** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `d8e6e556-cfb8-4cd6-84cc-3f5b1599532c` |
+
+### T321 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` (pre-T321 emit on PATH) | **Deferred** F27 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| In-context hotspots 0 on **PATH** until install (source envelope parse is SoT) | **Deferred** soft — expected until PATH catch-up |
+| `tracing::warn!` JSON→text fallback still on **stdout** under default fmt subscriber | **Deferred** F4 / OpenCode m1 — subscriber freeze; silence `--log-format off` / `RUST_LOG` |
+| T279 F35 unbounded `ledgerful hotspots` wait | **Decline** F35 — no timeout crate this track |
+| `displayScore` not shown (raw `score` only) | **By design** F5 — not a defect |
+| T318 PATH install / live residuals / PreT109 hermetic / recall timeout under load | **Carry** prior soft residuals — not stolen |
+| T322–T324 / T325 F8 PreferRecency / T326 pin-count | **Not stolen** |
+| T307 Blocked | **Not stolen** |
+| FEATURE TX | `3fadf62c-976d-4257-8a20-08960683292e` |
+| PR | [#243](https://github.com/Ryan-AI-Studios/AI-Brains/pull/243) squash `0eef80b` |
+
 ### T321 full plan (2026-08-29) — `safety sync` write honesty (banner-only; JSON envelope)
 
 | Item | Disposition |
