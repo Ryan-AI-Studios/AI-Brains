@@ -1,4 +1,4 @@
-//! T312 — recall rank v3 hermetics (authority-OR fill + verbose-Other).
+//! T312 / T325 — recall rank v3 hermetics (authority-OR fill + OR PreferRecency).
 #![allow(non_snake_case)]
 
 mod common;
@@ -117,7 +117,7 @@ fn match_query__or_fill_tags_flood__recency_retry_pin_first()
     // 15 TAGS envelope dumps that AND-hit both tokens (high TF) but fail
     // is_authority_pin_content — occupy Prefer-OR LIMIT before the short pin.
     for i in 0..15 {
-        let repeats = format!("t325or backend ").repeat(12);
+        let repeats = "t325or backend ".repeat(12);
         append_pinned(
             &store,
             &format!("ASSISTANT: TAGS: t325\nHere's the assessment. dump {i}\n{repeats}"),
