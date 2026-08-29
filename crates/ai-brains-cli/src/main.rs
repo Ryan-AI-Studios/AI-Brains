@@ -2924,7 +2924,7 @@ enum DecisionCommands {
     },
     /// Resolve the in-force Approved decision for a term (local projection)
     #[command(
-        after_help = "Examples:\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force workspace_id --format json"
+        after_help = "Examples:\n  ai-brains decision in-force workspace_id\n  ai-brains decision in-force workspace_id --format json\n  ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z"
     )]
     InForce {
         /// Term to resolve (e.g. workspace_id)
@@ -2941,6 +2941,13 @@ enum DecisionCommands {
         format: String,
         #[arg(long, env = "AI_BRAINS_PREFLIGHT_PRINCIPAL_ID")]
         principal_id: Option<String>,
+        /// Point-in-time ruling (strict RFC3339). Omit for current (T311).
+        #[arg(
+            long = "as-of",
+            value_name = "RFC3339",
+            value_parser = commands::decision::parse_as_of_rfc3339
+        )]
+        as_of: Option<String>,
     },
 }
 
@@ -5004,6 +5011,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 scope,
                 format,
                 principal_id,
+                as_of,
             } => commands::decision::run_in_force(
                 &ctx,
                 commands::decision::InForceOptions {
@@ -5011,6 +5019,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     scope: scope.clone(),
                     format: format.clone(),
                     principal_id: principal_id.clone(),
+                    as_of: as_of.clone(),
                 },
             ),
         },

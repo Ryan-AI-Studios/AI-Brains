@@ -74,7 +74,9 @@ pub use grants::{
     register_principal, register_workspace, revoke_grant, set_repository_ledgerful_id,
     unregister_path_alias, upsert_repository_identity,
 };
-pub use in_force::{InForceChainLink, InForceResponse, InForceRuling, resolve_in_force};
+pub use in_force::{
+    InForceChainLink, InForceResponse, InForceRuling, resolve_in_force, resolve_in_force_at,
+};
 pub use invalidation::{
     InvalidationResult, SourceUnavailableRequest, invalidate_dependents_for_changed_source,
     mark_source_unavailable, plan_invalidation_events_for_changed_source,

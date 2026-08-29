@@ -289,6 +289,7 @@ ai-brains review list --scope Repository:<uuid>
 ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local
 ai-brains decision propose --statement "..." --scope Repository:<uuid>
 ai-brains decision in-force workspace_id --format json
+ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z --format json
 ai-brains review resolve <id> --resolution approved --scope Repository:<uuid>
 ai-brains erasure request --id <id> --scope Repository:<uuid>   # daemon-required; ticket only (not CE)
 ai-brains erasure wipe --content-key-id <uuid> --scope Repository:<uuid>           # dry-run (default)
@@ -1032,7 +1033,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Progressive Query / Expand / Trace | `ai-brains query progressive\|expand\|trace` (progressive/expand require project id; missing → exit **2**) |
 | Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence list\|search\|show` · `source list\|show` · `review list\|resolve` (T160/T203) |
 | Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
-| In-force decision (term) | `ai-brains decision in-force <TERM>` (local projection; default JSON; `ReadDecisions`) |
+| In-force decision (term) | `ai-brains decision in-force <TERM> [--as-of <RFC3339>]` (local projection; default JSON; `ReadDecisions`) |
 | Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |
 | Policy show / check / bootstrap | `ai-brains policy show\|check` (read-only); `policy bootstrap` (discovery grants, T210) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |
