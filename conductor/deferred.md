@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T324 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2 HEAD `5b50d56` vs `e616642` | **Folded** snapshot `e616642` / ahead **1** |
+| Agy m1 / m3 / O1 / O2 | **Already** F24/AC8 (tightened) / F11/F37/AC7 / F7 / F3/F36 |
+| Agy `run_in_force` line cites | **Decline** as citation — live `decision.rs:243–245` / `conclusion.rs:206–208` |
+| Agy `#245` `mergedAt` 19:34:43Z | **Decline** — live `mergedAt` **2026-08-29T19:52:25Z** |
+| OpenCode m1 PATH `conclusion in-force` exit 1 | **Folded** §2.1 **exit 2** (live `$LASTEXITCODE` 2) |
+| OpenCode m2 5.1 `--term ""` | **Folded** AC19 |
+| OpenCode O1 AC2 `.arg("--term").arg("")` | **Folded** AC2 rstest |
+| OpenCode O2 AC8 `<TERM>` false-pass | **Folded** F24 / AC8 — assert `--term`; do not SoT angle-brackets |
+| OpenCode O2b doctor 5 vs 4 | **Note** — fold-in 4 warn; plan-write 5th was impact-stale |
+| last-PR `#245` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `6d4f36d0-8f99-4233-96b1-04192cfdc7a5` |
+
 ### T324 full plan (2026-08-29) — PowerShell empty TERM (`--term` + omit→fail_usage)
 
 | Item | Disposition |

@@ -9,8 +9,9 @@
 - **Blocks / feeds:** Windows PowerShell 5.1 operators who type `decision in-force ""` (and, after PATH catch-up, `conclusion in-force ""`). Does **not** steal T325 / T326 / T307. Does **not** retune TERM matching.
 - **Absorbs:** T311 R7. T323 same clap hole (live `term: String` required positional on both `DecisionCommands::InForce` and `ConclusionCommands::InForce`).
 - **Not absorbed (DoD):** clap **5**; docs-only `--%` / `'""'` as empty (live they are **not** empty); every other required positional on the CLI; T322 `--as-of` empty; T314 progressive `--dry-run` (Completed); T325 / T326; daemon DTO; H2
-- **Research date:** 2026-08-29 (plan-write product HEAD `5b50d56` T323 `#245`). Snapshot — **re-verify at execute**.
-- **Ledger:** planning DOCS TX `3b998d33-ac46-4a8c-9074-aebcc5931e46`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **BUGFIX** TX on **go**.
+- **Research date:** 2026-08-29 (plan-write product HEAD `5b50d56` T323 `#245`). Fold-in against `e616642` (this plan’s own docs commit; ahead **1** of `origin/main` = `5b50d56`). Snapshot — **re-verify at execute**.
+- **AI fold-in:** 2026-08-29 `agy-review.md` + `opencode-review.md` (HEAD `e616642`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** **Agree:** Agy m2 HEAD snapshot; OpenCode m1 PATH unrecognized-subcommand **exit 2** (not 1); OpenCode m2 AC19 5.1 `--term ""` drop; OpenCode O1 AC2 `.arg("--term").arg("")`; OpenCode O2 AC8 must not SoT `contains("<TERM>")` (false-pass via `--term <TERM>`). **Already:** Agy m1 F24/AC8 (tightened by O2); Agy m3 F11/F37/AC7; Agy O1 F7; Agy O2 F3/F36. **Decline as citation:** Agy `run_in_force` `:232–234` / `:195–197` — live is `decision.rs:243–245` / `conclusion.rs:206–208`. Agy `#245` `mergedAt` 19:34:43Z is list `createdAt`; live `mergedAt` **2026-08-29T19:52:25Z**. Disposition **§13**.
+- **Ledger:** planning DOCS TX `3b998d33-ac46-4a8c-9074-aebcc5931e46`. Fold-in DOCS TX `6d4f36d0-8f99-4233-96b1-04192cfdc7a5`. Series mint DOCS `a6d3c404-1d64-4cba-a743-d75ac16c74cd`. Implement starts a **BUGFIX** TX on **go**.
 - **Isolation:** Do **not** implement until **go**. Do **not** `cargo install`. Do **not** bump clap. Do **not** grow `governed_common.rs` (#3) / `help_ia.rs` / `project.rs` (#1) / `sync.rs` (#2). Do **not** edit CP `in_force.rs` / `conclusion_in_force.rs`. Do **not** print or commit `AI_BRAINS_KEY`. Do **not** propose/approve/correct on the live vault.
 
 ---
@@ -32,8 +33,8 @@ This unblocks: T311 already fail_usage's empty/whitespace **when the argv slot e
 
 | Signal | Observation |
 |--------|-------------|
-| HEAD | `5b50d56` `feat(conclusion): T323 in-force walker (Active\|Confirmed, no as-of) (#245)`. Branch `track/T324-powershell-empty-term`. `origin/main` = `5b50d56` (ahead **0** at plan-write). Tree dirty: uncommitted T323 Completed conductor + residuals — **absorbed into this DOCS commit**. |
-| PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. **T311 on PATH.** T312–T323 **not**. T323 `conclusion in-force` is **source-only** (PATH `unrecognized subcommand` exit 1). **Do not `cargo install`.** |
+| HEAD | Fold-in against plan-write `e616642` `docs(conductor): plan T324 PowerShell empty TERM (--term + omit fail_usage)`. Product `src/` = T323 `#245` `5b50d56`. Branch `track/T324-powershell-empty-term`. `origin/main` = `5b50d56` (ahead **1**). Plan-write snapshot was `5b50d56` / ahead **0** (Agy m2). |
+| PATH `ai-brains.exe` | `C:\Users\RyanB\.cargo\bin\ai-brains.exe` **26,897,408** B; LastWriteTime **2026-08-27 8:21:55 PM**; `ai-brains 0.1.3`. **T311 on PATH.** T312–T323 **not**. T323 `conclusion in-force` is **source-only** (PATH `unrecognized subcommand` **exit 2** — clap usage, not `EXIT_INTERNAL` 1). **Do not `cargo install`.** |
 | `preflight --summary` (PATH) | Pinned **4645**. In-context **0/0/0**. `Total Word Count: 753` (PATH-behind T315). **Not this DoD.** |
 | Shell | Agent **pwsh 7.6.0-rc.1**, `$PSNativeCommandArgumentPassing = Windows` (platform default). Host also has **Windows PowerShell 5.1.26100.9168** (`powershell.exe`). |
 | pwsh 7.6 Windows `decision in-force ""` | **`term must be non-empty` exit 2.** Empty argv **preserved**. Same for `''`. |
@@ -44,7 +45,7 @@ This unblocks: T311 already fail_usage's empty/whitespace **when the argv slot e
 | PATH `--term` / `--term=` | `unexpected argument '--term'` exit 2. Flag **does not exist**. |
 | PATH `conclusion in-force ""` | unrecognized subcommand (T323 PATH-behind). Source clap is the same required `term: String`. |
 | Last GitHub PR | [#245](https://github.com/Ryan-AI-Studios/AI-Brains/pull/245) T323. `mergedAt` **2026-08-29T19:52:25Z**. Issue/review/inline comments **[]**. Open PRs: **none**. `#237` Bugbot already **T326**. `#230` already **T325**. **No T327 from Cursor.** |
-| Ledger | 0 pending / 0 drift before this DOCS TX. Doctor 5 warn (impact-stale at scan start; legacy `.changeguard`; sig-pin; sig-version; timings-0) — hygiene, not this DoD. Impact **LOW** (conductor-only dirty). |
+| Ledger | 0 pending / 0 drift at fold-in. Doctor **4** warn at fold-in (legacy `.changeguard`; sig-pin; sig-version; timings-0). Plan-write had a 5th **impact-stale** (dirty conductor) — resolved by the plan commit. Hygiene, not this DoD. |
 | Hotspots | CLI `project.rs` **#1** (3.623). `sync.rs` **#2**. `governed_common.rs` **#3**. `forget.rs` **#5**. **Do not grow those.** `main.rs` clap / `decision.rs` / `conclusion.rs` not top 10. |
 | `ISSUES.md` | **Does not exist.** |
 
@@ -135,7 +136,7 @@ This unblocks: T311 already fail_usage's empty/whitespace **when the argv slot e
 - **F21** after_help required (F7).
 - **F22** 80-net vs go HEAD: clap fields + dispatch merge + after_help + hermetic tests. Do **not** grow `main.rs` test blocks (put new tests in existing `decision_in_force.rs` / `conclusion_in_force.rs`).
 - **F23** Isolation: no live vault lifecycle writes; no `.env` rewrite.
-- **F24** Stay-green T311/T322/T323 walker, JSON, `--as-of`, deny exit 3, empty-term **message**. AC8 help **updates** (name `--term` + `TERM`; do **not** freeze `<TERM>` angle brackets — optional positional likely renders `[TERM]`).
+- **F24** Stay-green T311/T322/T323 walker, JSON, `--as-of`, deny exit 3, empty-term **message**. AC8 help **must** assert the `--term` flag (and `TERM` as a name). Do **not** SoT `contains("<TERM>")` — after F1 clap still renders `--term <TERM>` / `--term [<TERM>]`, so the old substring **false-passes** (OpenCode O2). Angle vs square on the positional is not frozen.
 - **F25** last-PR `#245` empty / `#237` → **T326** / `#230` → **T325** / **no T327**.
 - **F26** Decline peers: all other positionals; clap 5; T325; T326; T307; T308 floors; T240 F2.
 - **F27** PATH-behind T312–T323. T311 `decision in-force` **is** on PATH (5.1 hole is live). T323 `conclusion in-force` is source/`cargo run`/hermetic SoT until owner install.
@@ -157,13 +158,13 @@ This unblocks: T311 already fail_usage's empty/whitespace **when the argv slot e
 | ID | Criterion |
 |----|-----------|
 | **AC1** | `decision_in_force__omitted_term__fail_usage_exit_2` — hermetic no TERM argv → exit **2**, stderr contains `term must be non-empty`, **not** `required arguments were not provided`. |
-| **AC2** | `decision_in_force__term_flag_no_value__fail_usage_exit_2` — `--term` with no following value → same fail_usage. |
+| **AC2** | `decision_in_force__term_flag_no_value__fail_usage_exit_2` — rstest: (a) `--term` with no following value; (b) `.arg("--term").arg("")` (preserved-empty argv, pwsh Windows shape). Both fail_usage. |
 | **AC3** | `decision_in_force__term_flag_equals_empty__fail_usage_exit_2` — `--term=` → same fail_usage. |
 | **AC4** | Existing `decision_in_force__empty_term__exit_2` stay-green (`""` and `"   "`). |
 | **AC5** | `decision_in_force__term_flag_workspace_id__format_nope__clap_exit_2` — `--term workspace_id --format nope` is clap InvalidValue exit 2 (named value binds). |
 | **AC6** | Existing `decision_in_force__format_nope__clap_exit_2` stay-green (positional). |
 | **AC7** | `decision_in_force__positional_and_term_flag__clap_conflict_exit_2` — both present → clap conflict exit 2. |
-| **AC8** | Help lists `--term` and `TERM` (angle or square). after_help contains `--term=`. Does **not** recommend `'""'` or `--%`. |
+| **AC8** | Help lists `--term` as a flag (`contains("--term")`) and names `TERM`. Do **not** SoT `contains("<TERM>")` (false-pass via the flag’s value_name). after_help contains `--term=`. Does **not** recommend `'""'` or `--%`. |
 | **AC9** | Conclusion mirrors AC1–AC8 (`conclusion_in_force__…`). |
 | **AC10** | Existing deny exit **3** stay-green (decision + conclusion). |
 | **AC11** | Existing JSON `ruling` key stay-green. |
@@ -174,6 +175,7 @@ This unblocks: T311 already fail_usage's empty/whitespace **when the argv slot e
 | **AC16** | **Manual (powershell.exe 5.1):** `ai-brains decision in-force --term=` → same fail_usage. |
 | **AC17** | **Manual (pwsh Windows):** `decision in-force ""` stay fail_usage (already true today). |
 | **AC18** | **Manual source:** `cargo run -p ai-brains-cli -- conclusion in-force --term=` → fail_usage (PATH-behind T323/T324). **No** live propose. |
+| **AC19** | **Manual (powershell.exe 5.1):** `ai-brains decision in-force --term ""` → `term must be non-empty` exit 2 (5.1 drops `""`, leftover bare `--term` → `default_missing_value`). Not clap “value required for `--term`”. Source `cargo run` if PATH still pre-T324. |
 
 ---
 
@@ -238,7 +240,7 @@ Placeholder text said decision-only because T323 was not shipped. Live source no
 **Red first (must fail on missing `--term` / still-required positional):**
 
 - `decision_in_force__omitted_term__fail_usage_exit_2` — today: clap missing `<TERM>` (assert fail_usage message → **fail**)
-- `decision_in_force__term_flag_no_value__fail_usage_exit_2` — today: unexpected `--term` → **fail**
+- `decision_in_force__term_flag_no_value__fail_usage_exit_2` — today: unexpected `--term` → **fail** (rstest: no-value **and** `.arg("--term").arg("")`)
 - `decision_in_force__term_flag_equals_empty__fail_usage_exit_2` — same
 - `conclusion_in_force__omitted_term__fail_usage_exit_2` / `__term_flag_no_value__` / `__term_flag_equals_empty__`
 - Stay-green T311/T323 empty `.arg("")` still **pass** on the red commit
@@ -247,7 +249,7 @@ Placeholder text said decision-only because T323 was not shipped. Live source no
 
 **Docs:** AC14.
 
-**Manual:** AC15–AC18. 5.1 is Complete-blocking for the hole; pwsh Windows is stay-green.
+**Manual:** AC15–AC19. 5.1 is Complete-blocking for the hole (`""`, `--term=`, `--term ""`); pwsh Windows is stay-green.
 
 ---
 
@@ -255,7 +257,7 @@ Placeholder text said decision-only because T323 was not shipped. Live source no
 
 | Risk | Mitigation |
 |------|------------|
-| Help `[TERM]` breaks AC8 `<TERM>` | **Update** AC8 (F24). Not a product regression. |
+| Help `[TERM]` / `--term <TERM>` | **Update** AC8 (F24). Old `contains("<TERM>")` **false-passes** after F1. Assert `--term` as a flag. |
 | `--term` steals next positional | F34; conflicts_with; examples use `--term=` / `--term workspace_id`. |
 | `default_missing_value = ""` + clap assert wants `require_equals` | T314 already ships `num_args 0..=1` + missing default **without** equals (lock 4.6.1). Re-verify at execute. If clap panics, **Stop-Before** — do not silently add `require_equals` (that breaks 5.1 leftover `--term`). |
 | PATH 5.1 manual uses pre-T324 binary | AC15 allows `cargo run`; do not `cargo install`. |
@@ -293,7 +295,7 @@ Placeholder text said decision-only because T323 was not shipped. Live source no
 2. Red: AC1–AC3 + conclusion mirrors (must fail).
 3. Green: clap F1–F2 + dispatch merge + after_help F7; AC4–AC12 stay-green/update.
 4. Docs AC14.
-5. Targeted clippy/nextest; manual AC15–AC18; implement-track publish (never `git push origin main`).
+5. Targeted clippy/nextest; manual AC15–AC19; implement-track publish (never `git push origin main`).
 
 ---
 
@@ -327,11 +329,38 @@ Placeholder text said decision-only because T323 was not shipped. Live source no
 
 ---
 
-## 13. last-PR Cursor / fold-in hooks
+## 13. AI fold-in disposition (2026-08-29)
 
-| Item | Disposition |
-|------|-------------|
-| `#245` comments/reviews | **N/A empty** |
-| `#237` Bugbot pin-count | **T326** Pending |
-| `#230` Bugbot F8 recency | **T325** Pending |
-| New leftover fitting no placeholder | **None — no T327** |
+Source: `agy-review.md` + `opencode-review.md` (HEAD `e616642`). **Agy B 0 / M 0.** **OpenCode B 0 / M 0.** Do **not** edit the input review files.
+
+### Agy
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** AC8 `<TERM>` help assert | **Already** + **tighten** | F24 / AC8 already said update. OpenCode O2 is why: keep `--term` flag assert; do not SoT `contains("<TERM>")`. |
+| **m2** HEAD `5b50d56` vs `e616642` | **Agree** | Snapshot `e616642` / ahead **1** of `origin/main` `5b50d56` |
+| **m3** `conflicts_with` dual-input | **Already** | F11 / F37 / AC7 |
+| **O1** `--term=` after_help | **Already** | F7 |
+| **O2** uniform exit 2 message | **Already** | F3 / F36 |
+| `run_in_force` line cites `:232–234` / `:195–197` | **Decline** as citation | Live `decision.rs:243–245` / `conclusion.rs:206–208` (OpenCode exact) |
+| `#245` `mergedAt` 19:34:43Z | **Decline** as timestamp | `gh pr view --json mergedAt` is **2026-08-29T19:52:25Z** (list `createdAt` trap) |
+
+### OpenCode
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **m1** PATH `conclusion in-force` exit 1 | **Agree** | §2.1 → **exit 2** (live re-measured this fold-in: unrecognized subcommand, `$LASTEXITCODE` 2) |
+| **m2** 5.1 `--term ""` not in manual | **Agree** | **AC19** — leftover bare `--term` is the `default_missing_value` path |
+| **O1** AC2 `.arg("--term").arg("")` | **Agree** | AC2 rstest two cases |
+| **O2** AC8 `<TERM>` false-pass | **Agree** | F24 / AC8 — assert `--term`; do not SoT angle-brackets |
+| **O2b** doctor 5 vs 4 warn | **Note** | Fold-in doctor **4** warn; plan-write 5th was impact-stale (dirty conductor), now clean |
+
+### Pins locked by fold-in
+
+1. **PATH unrecognized `conclusion in-force` is clap exit 2**, not 1. No AC depends on the digit; baseline table must be exact.
+2. **AC19:** 5.1 `decision in-force --term ""` → `term must be non-empty` (drop analog). Completes the 5.1 matrix with AC15 (`""`) and AC16 (`--term=`).
+3. **AC8:** must `contains("--term")`. Must **not** SoT `contains("<TERM>")` (false-pass after F1).
+4. **AC2:** hermetic covers both bare `--term` and `--term` + empty argv.
+5. **last-PR:** `#245` N/A empty; `#237` → T326; `#230` → T325; **no T327**.
+
+Plan-write HEAD `5b50d56`. Fold-in against `e616642` (ahead **1**). Still **plan-only until go**.

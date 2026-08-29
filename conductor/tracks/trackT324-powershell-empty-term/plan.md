@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** BUGFIX / UX / WINDOWS
 **Ledger (planning):** DOCS `3b998d33-ac46-4a8c-9074-aebcc5931e46`
+**Ledger (fold-in):** DOCS `6d4f36d0-8f99-4233-96b1-04192cfdc7a5`
 
 ---
 
@@ -10,7 +11,7 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | Product `5b50d56` T323 `#245`. Branch `track/T324-powershell-empty-term`. `origin/main` = `5b50d56`. Dirty conductor T323 Completed + residuals — absorbed here. |
+| HEAD / tree | Fold-in `e616642` plan commit; `origin/main` = `5b50d56` (ahead **1**). Plan-write was `5b50d56` / ahead **0** (Agy m2). Branch `track/T324-powershell-empty-term`. Product `src/` = T323 `#245` `5b50d56`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T311 **on PATH**. T312–T323 **not**. Decision hole **is** on PATH (5.1). Conclusion in-force **source-only**. |
 | `preflight --summary` (PATH) | Pinned **4645**; in-context **0/0/0**; `Total Word Count: 753` (PATH-behind T315). |
 | pwsh 7.6 Windows `decision in-force ""` | `term must be non-empty` exit **2** (preserved) |
@@ -43,6 +44,10 @@
 | last-PR `#237` / `#230` | **T326** / **T325** — not stolen |
 | T323 residuals / T325 / T326 / clap 5 | **Not stolen** / **Decline** |
 | T323 uncommitted conductor note | **Plan-write DOCS commit** |
+| Agy m2 HEAD snapshot | **Folded** `e616642` / ahead **1** |
+| OpenCode m1 PATH exit 2 | **Folded** §2.1 |
+| OpenCode m2 AC19 5.1 `--term ""` | **Folded** |
+| OpenCode O1/O2 AC2 extra case / AC8 false-pass | **Folded** |
 
 ---
 
@@ -63,7 +68,7 @@
 ## Phase 1 — Red
 
 - [ ] `decision_in_force__omitted_term__fail_usage_exit_2` (AC1) — must **fail** (clap missing `<TERM>` today)
-- [ ] `decision_in_force__term_flag_no_value__fail_usage_exit_2` (AC2) — must **fail** (unexpected `--term`)
+- [ ] `decision_in_force__term_flag_no_value__fail_usage_exit_2` (AC2) — must **fail** (unexpected `--term`; rstest no-value **and** `.arg("--term").arg("")`)
 - [ ] `decision_in_force__term_flag_equals_empty__fail_usage_exit_2` (AC3) — must **fail**
 - [ ] Conclusion mirrors AC1–AC3 (AC9) — must **fail**
 - [ ] Confirm existing empty-term hermetics still **pass** on this red commit (F8 / F24)
@@ -74,7 +79,7 @@
 - [ ] Dispatch merge F2; `InForceOptions.term: String` unchanged
 - [ ] `conflicts_with` F37 / AC7
 - [ ] after_help F7 (`--term=` empty SOOT; no `'""'` / `--%`)
-- [ ] AC4–AC6 / AC8 / AC10–AC12 stay-green or help update
+- [ ] AC4–AC6 / AC8 (`--term` flag, **not** `contains("<TERM>")`) / AC10–AC12 stay-green or help update
 - [ ] AC9 conclusion copy
 
 ## Phase 3 — Docs
@@ -88,12 +93,12 @@
 
 - [ ] `cargo clippy -p ai-brains-cli --all-targets -- -D warnings` (AC13)
 - [ ] nextest `-p ai-brains-cli --test decision_in_force --test conclusion_in_force`
-- [ ] Manual AC15–AC18 (5.1 `""` + `--term=`; pwsh stay-green; source conclusion `--term=`) — **no** live propose
+- [ ] Manual AC15–AC19 (5.1 `""` + `--term=` + `--term ""`; pwsh stay-green; source conclusion `--term=`) — **no** live propose
 - [ ] Implement-track full gate + PR + GHA + squash (never `git push origin main`)
 
 ## DoD (after go)
 
-- [ ] AC1–AC18
+- [ ] AC1–AC19
 - [ ] T311/T322/T323 tests stay-green except AC8 help angle-brackets (F24)
 - [ ] No clap 5; no `require_equals`; no CP resolver edits
 - [ ] T325 / T326 / T307 / H2 **not stolen**
