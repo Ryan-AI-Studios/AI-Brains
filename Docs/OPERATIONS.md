@@ -259,6 +259,8 @@ Missing `--project-id` / `AI_BRAINS_PROJECT_ID` on `query progressive` and `quer
 
 **Progressive / expand policy walls (T221):** `query progressive` with policy deny prints the pretty packet on **stdout** (including `denied: true` and `denial_hint`) and exits **3** — not exit 0 empty-knowledge. Same for `--dry-run`. `query expand` with `kind: "Denied"` exits **3**; `kind: "Unknown"` stays exit **0**. **`Denied` may mean capability miss and/or cross-scope** — exit 3 does not prove which. stderr carries `POLICY_DENIED: …` then bootstrap remediation. First-run: `policy bootstrap --dry-run` then `policy bootstrap` (omit `--scope` when project context is authoritative; `--scope Repository:<uuid>` remains valid for no-context CI). Omit `--principal-id` to grant the default System principal used by progressive/expand.
 
+**Handle vs vault memory_id (T319):** Governed handles and vault `memory_id`s are different UUID namespaces that look identical. Pasting a recall/`memory list` id into `query expand` / `evidence show` / `source show` does **not** show the memory body. When the UUID exists in `memory_projection`, expand/evidence Unknown preview becomes `This UUID is a vault memory_id, not a governed handle.` plus `next: ai-brains recall "what did we decide"` (JSON optional `next_step` without the `next:` prefix). Truly missing ids keep `Handle not found.` (expand/evidence exit **0**) or `NOT_FOUND: source {id}` (source exit **4**, with additive `details.hint` when the id is a memory). Do not interpolate the UUID into `recall`.
+
 ### Governed command surface (T160)
 
 Thin CLI over control-plane (local default for reads) and named-pipe daemon (preferred for mutations). JSON default for new commands.
@@ -279,7 +281,9 @@ ai-brains evidence list --scope Repository:<uuid>
 ai-brains evidence list --query keyword --scope Repository:<uuid>
 ai-brains evidence search --query keyword --scope Repository:<uuid>
 ai-brains evidence show <id> --scope Repository:<uuid> --format json
+ai-brains evidence show <memory_id> --format human   # T319: names vault namespace; does not show memory
 ai-brains source show <id> --scope Repository:<uuid>
+ai-brains source show <memory_id> --format json      # T319: still NOT_FOUND exit 4 + hint when memory
 ai-brains review list --format json                    # soft-default scope or fail_usage exit 2
 ai-brains review list --scope Repository:<uuid>
 ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local

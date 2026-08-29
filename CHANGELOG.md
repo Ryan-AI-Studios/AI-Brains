@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T319 Handle vs memory UUID namespace:** Pasting a vault `memory_id` into `query expand` / `evidence show` / `source show` names the other namespace (`This UUID is a vault memory_id, not a governed handle.`) and points at `ai-brains recall "what did we decide"` (JSON optional `next_step`; source additive `details.hint`). Expand/evidence Unknown stay exit **0**; source miss stays exit **4**. Unknown-unknown keeps T263 `Handle not found.` DTO / control-plane `expand_handle` / daemon IPC unaugmented. Docs: CAPABILITIES / PROTOCOL-COMPAT / OPERATIONS / CLI-EXIT-CODES; after_help dual-truth.
+
 - **T317 Graph neighbors RECALLS cap:** Human `graph neighbors` keeps all non-`RECALLS` 1-hop rows and the first **3** `RECALLS` (after T293 prefer-authority), then prints `+N more RECALLS`. Header `(N)` stays the full pre-cap 1-hop count. JSON still lists every 1-hop (keys/order frozen). Hierarchy leaf pretty adds `next: ai-brains nightly --status` (still no graph update/rebuild). Docs: CAPABILITIES / PROTOCOL-COMPAT / OPERATIONS; GraphCommands `after_help` dual-truth.
 
 - **T313 `sync query` rescued heading:** When T271 token rescue produces ledger hits, the pane heading is `--- Ledgerful Ledger Search (rescued token: '<tok>') ---` (plus the locked F7 banner). Phrase hits / misses keep the generic heading. ndjson remains vault-only (no ledger pane). Docs: CAPABILITIES / OPERATIONS / WORKFLOWS.

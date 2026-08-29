@@ -6,6 +6,9 @@ use crate::commands::governed_common::{
     PROGRESSIVE_RECALL_FALLBACK, UNKNOWN_HANDLE_PREVIEW, collapse_copy_paste_text, emit_human,
     emit_json, fail_cp, fail_usage, format_authorized_empty_next,
 };
+use crate::commands::governed_namespace::{
+    apply_unknown_handle_overlay, namespace_memory_present, wrong_namespace_next_line,
+};
 use crate::context::AppContext;
 use ai_brains_contracts::briefings::{API_VERSION, ProgressiveQueryResponse};
 use ai_brains_control_plane::{
@@ -63,26 +66,6 @@ pub struct ExpandHandleOptions {
 pub struct TraceOptions {
     pub trace_id: String,
     pub format: String,
-}
-
-/// Fill `preview` when expand JSON is `kind=Unknown` with an empty preview (T263 F7).
-pub(crate) fn apply_unknown_expand_preview(value: &mut serde_json::Value) {
-    let Some(obj) = value.as_object_mut() else {
-        return;
-    };
-    if obj.get("kind").and_then(|k| k.as_str()) != Some("Unknown") {
-        return;
-    }
-    let empty = obj
-        .get("preview")
-        .and_then(|p| p.as_str())
-        .is_none_or(|s| s.is_empty());
-    if empty {
-        obj.insert(
-            "preview".to_string(),
-            serde_json::Value::String(UNKNOWN_HANDLE_PREVIEW.to_string()),
-        );
-    }
 }
 
 /// Progressive deny/empty honesty (T243 F33 / T290 F33). Mutate before `emit_json`.
@@ -210,8 +193,11 @@ pub fn run_expand(
             serde_json::Value::String(scope_identity_key(&scope)),
         );
     }
-    apply_unknown_expand_preview(&mut value);
-    // T314 F9 / AC16 — human tokens: kind then preview (two nonempty lines for Unknown/Denied).
+    // T319 F1: probe vault memory_id only after Unknown; overlay replaces T263 when EXISTS.
+    let present = preview.kind == "Unknown"
+        && namespace_memory_present(ctx.conn.memory_exists(&preview.handle_id));
+    apply_unknown_handle_overlay(&mut value, present);
+    // T314 F9 / AC16 — human tokens: kind then preview (+ optional next line for wrong-namespace).
     if query_format_is_human(&options.format) {
         let kind = value.get("kind").and_then(|k| k.as_str()).unwrap_or("");
         let mut preview_text = value
@@ -228,6 +214,10 @@ pub fn run_expand(
         }
         emit_human(kind);
         emit_human(&preview_text);
+        // F13: Unknown+memory human is three nonempty lines (kind, F6 preview, F6 next).
+        if value.get("next_step").and_then(|n| n.as_str()).is_some() {
+            emit_human(&wrong_namespace_next_line());
+        }
     } else {
         emit_json(&value)?;
     }
@@ -448,13 +438,15 @@ mod tests {
             "preview": "",
             "handle_id": "00000000-0000-0000-0000-000000000000",
         });
-        apply_unknown_expand_preview(&mut value);
+        apply_unknown_handle_overlay(&mut value, false);
         let preview = value["preview"].as_str().unwrap_or("");
         assert!(
             !preview.is_empty(),
             "Unknown preview must be a non-empty SOOT; got {value}"
         );
+        assert_eq!(preview, UNKNOWN_HANDLE_PREVIEW);
         assert_eq!(value["kind"], "Unknown");
+        assert!(value.get("next_step").is_none());
     }
 
     #[test]

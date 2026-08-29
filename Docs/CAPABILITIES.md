@@ -343,7 +343,7 @@ ai-brains review list --format json   # soft-default scope (authoritative) or fa
 | **Policy** | `ReadEvidence` for source/evidence list; `ReadConclusions` for review list; deny → exit **3** + `details.hint` (bootstrap first) |
 | **Bootstrap (T210)** | `ai-brains policy bootstrap [--scope …] [--dry-run]` issues discovery grants only (`ReadEvidence`, `ReadConclusions`, `ReadDecisions`, `LocalOnly`); registers principal if missing; idempotent via `active_grants`; no auto-init |
 | **Soft-resolve** | Omitted `--scope` fills only when `scope resolve` is authoritative; else **exit 2** `fail_usage` (never exit **6**) |
-| **Show** | `source show` / `evidence show` use the same soft-resolve helper |
+| **Show** | `source show` / `evidence show` use the same soft-resolve helper. **T319:** a vault `memory_id` pasted into show/expand is **named** (not shown as evidence/source) and points at `ai-brains recall "what did we decide"`; expand/evidence Unknown stay exit **0**; source miss stays exit **4** + additive hint |
 | **Policy show/check (T226 + T241)** | `policy show` and `policy check` soft-resolve omitted `--scope` like discovery lists / bootstrap; always canonicalize via `parse_scope_key` → `scope_identity_key`. **T241:** `--capability` on check is optional at clap; omit → exit **2** discovery-first catalog via `fail_usage` (not clap required-arg English). Empty `policy show` prints bootstrap SOOT / JSON `next_step`. Erasure / `review resolve` stay clap-required. |
 | **Status filter** | Default Active-only on source/evidence projections |
 | **Capture independence** | Projection reads only — no models/embeddings; no control-plane→retrieval dependency |
