@@ -97,12 +97,17 @@ fn backup_list_honesty__plain_unset_rust_log__legacy_plain_no_per_file_warn() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
 
+    // T318 F1/F4/F31: Default omits residual table tokens; residuals-only → No usable backups.
     assert!(
-        stdout.contains("(legacy plain)"),
-        "AC1: table must show (legacy plain); stdout={stdout}"
+        !stdout.contains("(legacy plain)"),
+        "T318: Default must not print residual table tokens; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("No usable backups."),
+        "T318 AC3: all-residual Default prints No usable backups.; stdout={stdout}"
     );
 
-    // Summary via eprintln is OK (stderr). Per-file key/metadata WARN is not.
+    // Per-file key/metadata WARN is not allowed on Default.
     let stderr_lower = stderr.to_ascii_lowercase();
     let has_per_file_key_warn = stderr_lower.contains("warn")
         && (stderr_lower.contains("key verification")
@@ -114,10 +119,14 @@ fn backup_list_honesty__plain_unset_rust_log__legacy_plain_no_per_file_warn() {
         !has_per_file_key_warn,
         "AC1: default must not emit per-file key/metadata WARN; stderr={stderr}"
     );
-    // Summary expected for ≥1 residual.
+    // T318 F2: residual summary on stdout (not stderr / ErrorRecord).
     assert!(
-        stderr.contains("not recoverable under current key"),
-        "AC1: default summary expected; stderr={stderr}"
+        stdout.contains("not recoverable under current key"),
+        "T318 AC2: default summary on stdout; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318 AC2: summary must not be on stderr; stderr={stderr}"
     );
 }
 
@@ -148,11 +157,16 @@ fn backup_list_honesty__short_garbage_rust_log_warn__corrupt_warn() {
         combined.contains("corrupt or unreadable")
             || combined.contains("file is not a database")
             || (combined.contains("warn") && combined.contains("corrupt")),
-        "AC2: short garbage must emit Corrupt WARN; combined={combined}"
+        "AC2/F21: short garbage must emit Corrupt WARN; combined={combined}"
+    );
+    // T318 F21: Default table omits residual (corrupt) rows; WARN may still fire under RUST_LOG=warn.
+    assert!(
+        !stdout.contains("(corrupt)"),
+        "T318 F21: Default must not print (corrupt) table token; stdout={stdout}"
     );
     assert!(
-        stdout.contains("(corrupt)"),
-        "AC2: table token (corrupt); stdout={stdout}"
+        stdout.contains("No usable backups."),
+        "T318: all-residual Default prints No usable backups.; stdout={stdout}"
     );
 }
 
@@ -171,26 +185,40 @@ fn backup_list_honesty__two_plain__at_most_one_summary() {
 
     let out = list_output(&vault, &[], None);
     assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
-    let summary_lines: Vec<_> = stderr
+    // T318 F2/F31: summary lines move to stdout.
+    let summary_lines: Vec<_> = stdout
         .lines()
         .filter(|l| l.contains("not recoverable under current key"))
         .collect();
     assert!(
         summary_lines.len() <= 1,
-        "AC3: ≤1 summary line; got {} in stderr={stderr}",
+        "AC3: ≤1 summary line; got {} in stdout={stdout}",
         summary_lines.len()
     );
     assert_eq!(
         summary_lines.len(),
         1,
-        "AC3: exactly one summary for 2 plain; stderr={stderr}"
+        "AC3: exactly one summary for 2 plain; stdout={stdout}"
     );
     assert!(
         summary_lines[0].contains("2 backup(s) not recoverable under current key")
             || summary_lines[0].contains("not recoverable under current key"),
         "AC3: summary content; line={}",
         summary_lines[0]
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318: summary must not be on stderr; stderr={stderr}"
+    );
+    assert!(
+        stdout.contains("No usable backups."),
+        "T318: all-residual Default; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("(legacy plain)"),
+        "T318: no residual table tokens on Default; stdout={stdout}"
     );
 }
 
@@ -221,14 +249,14 @@ fn backup_list_honesty__verbose_plain__per_file_detail() {
         combined.to_ascii_lowercase().contains("legacy plaintext"),
         "AC4: verbose must emit per-file legacy detail; combined={combined}"
     );
-    // Prefer omit summary under verbose (F7).
-    let summary_count = stderr
+    // Prefer omit summary under verbose (F7 / T318 F3).
+    let combined_summary = format!("{stdout}{stderr}")
         .lines()
         .filter(|l| l.contains("not recoverable under current key"))
         .count();
     assert_eq!(
-        summary_count, 0,
-        "AC4: verbose omits summary; stderr={stderr}"
+        combined_summary, 0,
+        "AC4: verbose omits summary; stdout={stdout} stderr={stderr}"
     );
 }
 
@@ -249,13 +277,19 @@ fn backup_list_honesty__quiet__no_summary() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
 
+    // T318 AC20: all-residual quiet → No usable backups.; no residual tokens; no footer.
     assert!(
-        stdout.contains("(legacy plain)"),
-        "AC5: quiet still shows table tokens; stdout={stdout}"
+        stdout.contains("No usable backups."),
+        "AC20: quiet all-residual → No usable backups.; stdout={stdout}"
     );
     assert!(
-        !stderr.contains("not recoverable under current key"),
-        "AC5: quiet must not print summary; stderr={stderr}"
+        !stdout.contains("(legacy plain)"),
+        "AC20: quiet must not print residual tokens; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("not recoverable under current key")
+            && !stderr.contains("not recoverable under current key"),
+        "AC20: quiet must not print footer; stdout={stdout} stderr={stderr}"
     );
 }
 
@@ -273,19 +307,24 @@ fn backup_list_honesty__quiet_and_verbose__quiet_wins() {
     let stderr = String::from_utf8_lossy(&out.stderr);
 
     assert!(
-        stdout.contains("(legacy plain)"),
-        "dual flags still show tokens; stdout={stdout}"
+        stdout.contains("No usable backups."),
+        "AC20: quiet wins → No usable backups.; stdout={stdout}"
     );
     assert!(
-        !stderr.contains("not recoverable under current key"),
-        "AC5: quiet wins — no summary; stderr={stderr}"
+        !stdout.contains("(legacy plain)"),
+        "AC20: quiet wins — no residual tokens; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("not recoverable under current key")
+            && !stderr.contains("not recoverable under current key"),
+        "AC20: quiet wins — no footer; stdout={stdout} stderr={stderr}"
     );
     // Quiet: no per-file legacy WARN either.
     let has_legacy_warn = stderr.to_ascii_lowercase().contains("legacy plaintext")
         && stderr.to_ascii_lowercase().contains("warn");
     assert!(
         !has_legacy_warn,
-        "AC5: quiet wins — no per-file WARN; stderr={stderr}"
+        "AC20: quiet wins — no per-file WARN; stderr={stderr}"
     );
 }
 
@@ -345,13 +384,22 @@ fn backup_list_honesty__large_key_mismatch__summary_not_warn_flood() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
 
+    // T318 F1/F31: Default omits residual tokens; footer on stdout.
     assert!(
-        stdout.contains("(unreadable key)"),
-        "AC9: table token (unreadable key); stdout={stdout}"
+        !stdout.contains("(unreadable key)"),
+        "T318: Default must not print residual table tokens; stdout={stdout}"
     );
     assert!(
-        stderr.contains("not recoverable under current key"),
-        "AC9: summary expected; stderr={stderr}"
+        stdout.contains("No usable backups."),
+        "T318: all-residual Default; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("not recoverable under current key"),
+        "T318 AC2: summary on stdout; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318 AC2: summary must not be on stderr; stderr={stderr}"
     );
 
     // Under Default, KeyMismatch is debug only — with RUST_LOG=warn no per-file WARN.
@@ -408,17 +456,26 @@ fn backup_list_honesty__incomplete__token_and_residual_summary() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
 
+    // T318 F1/F31: Default omits Incomplete token; footer on stdout still counts it.
     assert!(
-        stdout.contains("(no core tables)"),
-        "T244 AC1: Incomplete token; stdout={stdout}"
+        !stdout.contains("(no core tables)"),
+        "T318: Default must not print Incomplete token; stdout={stdout}"
     );
     assert!(
-        stderr.contains("not recoverable under current key"),
-        "T244 AC6: Incomplete must count in residual summary; stderr={stderr}"
+        stdout.contains("No usable backups."),
+        "T318: all-residual Default; stdout={stdout}"
     );
     assert!(
-        stderr.contains("1 backup(s) not recoverable under current key"),
-        "T244 residual count includes Incomplete; stderr={stderr}"
+        stdout.contains("not recoverable under current key"),
+        "T318: Incomplete counts in residual summary on stdout; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("1 backup(s) not recoverable under current key"),
+        "T318 residual count includes Incomplete; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318: summary must not be on stderr; stderr={stderr}"
     );
 }
 
@@ -445,13 +502,22 @@ fn backup_list_honesty__incomplete_default_rust_log_warn__no_per_file_warn() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
 
+    // T318 F1/F31: Default omits Incomplete token; footer on stdout.
     assert!(
-        stdout.contains("(no core tables)"),
-        "AC17: Incomplete token; stdout={stdout}"
+        !stdout.contains("(no core tables)"),
+        "T318: Default must not print Incomplete token; stdout={stdout}"
     );
     assert!(
-        stderr.contains("not recoverable under current key"),
-        "AC17: residual summary still ok under default; stderr={stderr}"
+        stdout.contains("No usable backups."),
+        "T318: all-residual Default; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("not recoverable under current key"),
+        "T318: residual summary on stdout under default; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318: summary must not be on stderr; stderr={stderr}"
     );
 
     // Per-file Incomplete WARN is Verbose-only; Default must not emit it at warn filter.
@@ -519,30 +585,40 @@ fn backup_list_honesty__mixed_usable_and_residual__usable_first() {
     let out = list_output(&vault, &[], None);
     assert_eq!(out.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
     let lines: Vec<&str> = stdout
         .lines()
         .filter(|l| l.contains("vault-") && l.contains(".db.bak"))
         .collect();
-    assert!(lines.len() >= 3, "expected ≥3 backup rows; stdout={stdout}");
-    // Usable Readable row first (no residual tokens in meta columns).
+    // T318 AC1: Default table = usable only (no residual token rows).
+    assert_eq!(
+        lines.len(),
+        1,
+        "T318 AC1: Default prints usable row only; stdout={stdout}"
+    );
     assert!(
         !lines[0].contains("(no core tables)")
             && !lines[0].contains("(legacy plain)")
             && !lines[0].contains("(unreadable key)")
             && !lines[0].contains("(corrupt)"),
-        "T244 AC7: first data row must be usable; line={}",
+        "T318 AC1: usable row must not carry residual tokens; line={}",
         lines[0]
     );
-    let residual_body = lines[1..].join("\n");
     assert!(
-        residual_body.contains("(no core tables)") || residual_body.contains("(legacy plain)"),
-        "residuals after usable; lines={lines:?}"
+        !stdout.contains("(no core tables)")
+            && !stdout.contains("(legacy plain)")
+            && !stdout.contains("(unreadable key)")
+            && !stdout.contains("(corrupt)"),
+        "T318 AC1: no residual tokens anywhere in Default stdout; stdout={stdout}"
     );
-
-    let stderr = String::from_utf8_lossy(&out.stderr);
+    // T318 AC2: footer on stdout with residual count; absent on stderr.
     assert!(
-        stderr.contains("2 backup(s) not recoverable under current key"),
-        "two residuals (incomplete + plain); stderr={stderr}"
+        stdout.contains("2 backup(s) not recoverable under current key"),
+        "T318 AC2: two residuals (incomplete + plain) on stdout; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318 AC2: footer must not be on stderr; stderr={stderr}"
     );
 }
 
@@ -607,4 +683,154 @@ fn backup_verify__incomplete_and_single_core__missing_core_tables() {
         })
         .expect("one result with single table entry");
     assert_eq!(single["tables"][0], "events");
+}
+
+// ---------------------------------------------------------------------------
+// T318 — usable-only Default + empty / quiet-mixed / after_help
+// ---------------------------------------------------------------------------
+
+#[test]
+fn backup_list__all_residual__no_usable_and_footer() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let backup_dir = ensure_backups_dir(&vault);
+    write_plain_bak(&backup_dir, "vault-2026-01-01T00-00-00.db.bak");
+    write_plain_bak(&backup_dir, "vault-2026-01-02T00-00-00.db.bak");
+
+    let out = list_output(&vault, &[], None);
+    assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+
+    assert!(
+        stdout.contains("No usable backups."),
+        "AC3: residuals-only Default; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("(legacy plain)"),
+        "AC3: no residual table tokens; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("2 backup(s) not recoverable under current key"),
+        "AC3: footer count on stdout; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "AC3: footer not on stderr; stderr={stderr}"
+    );
+}
+
+#[test]
+fn backup_list_honesty__quiet_mixed__usable_row_no_footer() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    common::hermetic_bin()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&vault)
+        .arg("backup")
+        .assert()
+        .success();
+
+    let backup_dir = ensure_backups_dir(&vault);
+    write_incomplete_bak(&backup_dir, "vault-2099-12-31T23-59-59.db.bak");
+    write_plain_bak(&backup_dir, "vault-2099-12-30T00-00-00.db.bak");
+
+    let out = list_output(&vault, &["--quiet"], None);
+    assert_eq!(out.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let lines: Vec<&str> = stdout
+        .lines()
+        .filter(|l| l.contains("vault-") && l.contains(".db.bak"))
+        .collect();
+
+    assert_eq!(
+        lines.len(),
+        1,
+        "AC5: quiet mixed prints usable row only; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("(legacy plain)")
+            && !stdout.contains("(no core tables)")
+            && !stdout.contains("(unreadable key)")
+            && !stdout.contains("(corrupt)"),
+        "AC5: no residual tokens; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("not recoverable under current key")
+            && !stderr.contains("not recoverable under current key"),
+        "AC5: quiet omits footer; stdout={stdout} stderr={stderr}"
+    );
+    assert!(
+        !stdout.contains("No usable backups."),
+        "AC5: mixed quiet must not claim no usable; stdout={stdout}"
+    );
+}
+
+#[test]
+fn backup_list__empty__no_backups_found_exit_0() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let _backup_dir = ensure_backups_dir(&vault);
+
+    let out = list_output(&vault, &[], None);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "AC6: empty list exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stdout.contains("No backups found."),
+        "AC6: empty dir message; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("No usable backups."),
+        "AC6: must not use residuals-only message; stdout={stdout}"
+    );
+    assert!(
+        !stdout.contains("not recoverable under current key")
+            && !stderr.contains("not recoverable under current key"),
+        "AC6: no residual footer; stdout={stdout} stderr={stderr}"
+    );
+}
+
+#[test]
+fn backup_list_help__after_help__names_usable_only_and_verbose() {
+    let out = common::hermetic_bin()
+        .arg("backup")
+        .arg("list")
+        .arg("--help")
+        .output()
+        .expect("backup list --help must spawn");
+    assert!(
+        out.status.success(),
+        "AC14: help must exit 0; out={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let help = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    )
+    .to_ascii_lowercase();
+    assert!(
+        help.contains("usable") && help.contains("verbose"),
+        "AC14: after_help names usable-only default and --verbose; help={help}"
+    );
+    assert!(
+        help.contains("footer") || help.contains("residual") || help.contains("stdout"),
+        "AC14: after_help names residual footer / stdout; help={help}"
+    );
+    assert!(
+        help.contains("quiet"),
+        "AC14: after_help names --quiet; help={help}"
+    );
 }

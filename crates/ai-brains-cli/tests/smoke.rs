@@ -1420,16 +1420,22 @@ fn backup_verify_all__mixed__reports_per_file() {
         "verify with one corrupted backup must exit non-zero"
     );
     let stdout = String::from_utf8_lossy(&verify_output.stdout);
-    // T225 M2: quiet default → summary counts + FAIL preview; no per-file OK.
+    // T318 AC8: mixed ok>=1 → counts + mixed trailer; no FAIL — preview; no create nudge.
     assert!(
         stdout.contains("1 OK") && stdout.contains("1 FAIL"),
         "quiet mixed summary must include 1 OK and 1 FAIL; got: {stdout}"
     );
     assert!(
-        stdout
-            .lines()
-            .any(|l| l.starts_with("vault-") && l.contains("FAIL —")),
-        "quiet mixed must include at least one FAIL — preview; got: {stdout}"
+        !stdout.contains("FAIL —"),
+        "T318 AC8: mixed ok>=1 must omit FAIL — preview; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("--verbose"),
+        "T318 AC8: mixed trailer must point at --verbose; got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("No usable encrypted backup under current key"),
+        "T318 AC8: no create nudge when ok>=1; got: {stdout}"
     );
     let per_file_ok = stdout
         .lines()

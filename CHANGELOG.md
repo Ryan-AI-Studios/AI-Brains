@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T318 Backup list usable-first:** Default/Quiet `backup list` table = usable encrypted only (`Readable`/`PreT109`); residual count footer on stdout (`not recoverable under current key`); Quiet omits footer; `--verbose` lists every class + WARNs. Residuals-only → `No usable backups.` (not `No backups found.`). Mixed verify (`ok >= 1`): counts + `{fail} FAIL (use --verbose for per-file).` — no first-5 `FAIL —`; zero-OK first-5 + create nudge unchanged (T225). Docs: CAPABILITIES / OPERATIONS.
+
 - **T316 `memory list` chrome-skip preview:** Human and JSON preview values skip leading session chrome / `Let me` preambles when a later line exists (8-line walk; authority never skipped; all-chrome fallback). Drop T216 F36 nonempty-list forget stderr hint (after_help still documents forget). T287 ORDER / T216 JSON keys / T299 empty remediator unchanged. Docs: CAPABILITIES / OPERATIONS.
 
 - **T320 Unified `status` glance:** Top-level `ai-brains status` composes daemon IPC Running/Stopped, doctor attention (`format_doctor_summary`), graph density one-liner, and nightly last-run + scheduled. Family A `--format auto` (TTY human / pipe json). Fail-open per section; exit **0** for degraded/Stopped/sparse/never. CLI-local pretty JSON envelope `schema_version: 1` (not a contracts DTO). Does not replace `doctor` / `nightly --status` / `daemon status` / `graph update`. No HTTP probes; no daemon TCP. Stopped may add `next: ai-brains daemon start`. Docs: CAPABILITIES / PROTOCOL-COMPAT / OPERATIONS / CLI-EXIT-CODES; Daily help inventory adds `status`.

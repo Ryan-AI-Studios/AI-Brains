@@ -3623,12 +3623,15 @@ pub enum BackupCommands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// List all backups with their metadata
+    /// List usable encrypted backups (default); residual count is a stdout footer
+    #[command(
+        after_help = "Default lists usable encrypted backups only; residual count is a stdout footer. --verbose lists every class; --quiet is usable-only without the footer."
+    )]
     List {
-        /// Suppress summary and per-file metadata WARNs (table tokens still apply).
+        /// Usable-only table without the residual footer (no per-file metadata WARNs).
         #[arg(long)]
         quiet: bool,
-        /// Per-file detail for non-readable backups (legacy plain / key mismatch / corrupt).
+        /// Per-file detail for non-readable backups (legacy plain / incomplete / key mismatch / corrupt).
         #[arg(long)]
         verbose: bool,
     },

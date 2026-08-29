@@ -130,13 +130,15 @@ fn backup_create__key_mismatch_residual__new_readable_and_doctor_ok() {
         .lines()
         .filter(|l| l.contains("vault-") && l.contains(".db.bak"))
         .collect();
-    assert!(
-        rows.len() >= 2,
-        "mixed fleet must list new + residual; stdout={stdout}"
+    // T318 AC19: Default lists usable row only; residual collapses to footer.
+    assert_eq!(
+        rows.len(),
+        1,
+        "T318: Default usable-only table; stdout={stdout}"
     );
     assert!(
         rows[0].contains(&created_name),
-        "AC2: first filename is the new file; first={} created={created_name}",
+        "AC2: usable filename is the new file; first={} created={created_name}",
         rows[0]
     );
     assert!(
@@ -147,14 +149,17 @@ fn backup_create__key_mismatch_residual__new_readable_and_doctor_ok() {
         "AC2: new row must be Readable (meta populated, no residual token); line={}",
         rows[0]
     );
-    let residual_body = rows[1..].join("\n");
     assert!(
-        residual_body.contains("(unreadable key)"),
-        "AC2: residual stays (unreadable key); rows={rows:?}"
+        !stdout.contains("(unreadable key)"),
+        "T318: Default omits residual table token; stdout={stdout}"
     );
     assert!(
-        stderr.contains("not recoverable under current key"),
-        "AC13: default list residual summary; stderr={stderr}"
+        stdout.contains("not recoverable under current key"),
+        "AC13/T318: residual summary on stdout; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318: summary must not be on stderr; stderr={stderr}"
     );
 
     let doctor = common::hermetic_bin()
@@ -223,6 +228,15 @@ fn backup_verify__mixed_ok_and_key_mismatch__one_ok_exit_1_no_nudge() {
         !stdout.contains("No usable encrypted backup under current key"),
         "AC4/F41: no create nudge when ok>=1; stdout={stdout}"
     );
+    // T318 AC8: mixed ok>=1 drops first-5 FAIL — preview; trailer points at --verbose.
+    assert!(
+        !stdout.contains("FAIL —"),
+        "T318 AC8: mixed must omit FAIL — preview; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("--verbose"),
+        "T318 AC8: mixed trailer must mention --verbose; stdout={stdout}"
+    );
 }
 
 #[test]
@@ -237,10 +251,15 @@ fn backup_list__mixed_after_create__residual_summary_not_recoverable() {
         .output()
         .expect("backup list");
     assert_eq!(list.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&list.stdout);
     let stderr = String::from_utf8_lossy(&list.stderr);
     assert!(
-        stderr.contains("not recoverable under current key"),
-        "AC13: residual summary; stderr={stderr}"
+        stdout.contains("not recoverable under current key"),
+        "AC13/T318: residual summary on stdout; stdout={stdout}"
+    );
+    assert!(
+        !stderr.contains("not recoverable under current key"),
+        "T318: summary must not be on stderr; stderr={stderr}"
     );
 }
 

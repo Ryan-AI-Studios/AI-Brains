@@ -2,6 +2,58 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T318 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| PATH `ai-brains` until owner `cargo install` (pre-T318 emit on PATH) | **Deferred** F27 — hermetic/`cargo run` SoT; PATH-behind not Complete-blocking |
+| Live ~22 residual KeyMismatch/plain/Incomplete fleet | **Deferred** F12 — expected; verify exit 1; no transcode this track |
+| T209 L3 real wrong-key SQLCipher fixture | **Deferred** soft / declined DoD |
+| verify JSON `summary` / verify `--quiet` / class-aware prune | **Decline** F13 |
+| PreT109 Default visibility dedicated hermetic (CX-P2-2) | **Deferred** low-info — `is_usable_class` already includes PreT109; readable mixed hermetic covers usable band |
+| Recall hermetic 120s timeouts under heavy parallel load | **Deferred** low-info — unrelated; `NEXTEST_TEST_THREADS=2` full workspace PASS; same as T316 residual |
+| T325 F8 PreferRecency / T326 pin-count / T321–T324 | **Not stolen** |
+| FEATURE TX | `93fbf235-8dc2-40d8-add1-9ac9bfc2643b` |
+
+### T318 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 HEAD `ed2f5f8` vs `93a788a` | **Folded** snapshot `93a788a` / ahead **1** |
+| Agy m2 empty vs residuals-only | **Already** F4 / AC3 / AC6 |
+| Agy O1/O2/O3 usable-only / stdout F6 / mixed verify | **Already** F1 / F2 / F5 |
+| OpenCode m1 Default-mode flip census | **Folded** F31 — `:82/:164/:336/:394/:430` + recoverable same commit as AC1 |
+| OpenCode m2 AC5 all-plain quiet cannot show usable row | **Folded** AC5 mixed-quiet new fixture; AC20 all-residual quiet + dual-flag named |
+| OpenCode O1 two trailer formats | **Folded** F9 `format_mixed_fail_trailer` + unit (do not merge T225 overflow string) |
+| OpenCode O2 list `No backups found.` untested | **Folded** AC6 `backup_list__empty__no_backups_found_exit_0` |
+| last-PR `#240` / `#239` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `5f4aace2-b78d-4757-961f-12bc2366f5b3` |
+
+### T318 full plan (2026-08-29) — backup list usable-only Default + mixed-verify summary
+
+| Item | Disposition |
+|------|-------------|
+| ~~Audit `backup list` 6/6 residual fleet noise~~ | **Resolved** T318 — usable-only Default + stdout F6 + mixed-verify summary |
+| T244 F7 CLI usable-first sort / brain timestamp-desc | **Affirm freeze** F6/F7 — do not edit brain `backup.rs` production |
+| T244 F6 stderr residual summary | **Supersede stream** F2 — same SOOT on **stdout** (T316 Windows-first analog; do not drop the count) |
+| T225 first-5 FAIL on default verify | **Partial** F5 — keep zero-OK + nudge; **supersede mixed** (`ok>=1` counts + `--verbose` trailer, no `FAIL —`) |
+| T225/T244 F17 verify `--quiet` / JSON `summary` / `VerifyError` | **Decline** F13 |
+| T244 F18 class-aware prune / `backups/legacy/` | **Decline** F13 |
+| T209 L3/L4 wrong-key fixture / dedicated PreT109 unit | **Decline** (soft; not this DoD) |
+| T277 create engine / doctor remediator `ai-brains backup create` / keep-10 | **Affirm freeze** F10 — do not grow `doctor.rs` |
+| T295 ≥1 usable + mixed verify exit 1 + no nudge | **Affirm** F5/F24 / AC8/AC19 |
+| T316 F36 stderr drop | **Analog only** F30 — F6 **moves** (count is the product) |
+| T321 / T322–T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T326 `PinnedCountFailed` fake `pinned=0` (`#237`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#240` / `#239` | **N/A empty** (Bugbot overview, no defect) |
+| last-PR `#237` / `#230` | **T326** / **T325** already Pending — **no T327** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `156b2a03-b5aa-4905-b840-d14fb182aa90` |
+
+
 ### T316 implement residuals (2026-08-29) — non-easy lows
 
 | Item | Disposition |
@@ -410,7 +462,7 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
 | `memory list` preview + forget nudge | **T316** Planned (Pending until go) |
 | `graph neighbors` RECALLS spam | **T317 Completed** `#234` |
-| `backup list` residual noise | **T318** Pending |
+| `backup list` residual noise | **T318** Planned (Pending until go) |
 | evidence/source show vault UUID | **T319** Completed `#235` |
 | unified `status` opportunity | **T320** Completed `#237` `c3abe19` |
 | `safety sync` write surprise | **T321** Pending |

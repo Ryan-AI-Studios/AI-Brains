@@ -778,9 +778,9 @@ ai-brains --no-project-context doctor                     # backup_recent should
 
 After `AI_BRAINS_KEY` change, old `.bak` stay KeyMismatch. Do not transcode. Exhibit: `vault-2026-08-12T15-50-06.db.bak` (T244; unreadable under a later key). Do not treat “backup file exists” or list timestamp as recovery proof — verify must pass core-table checks.
 
-**List honesty (T209 / T244):** `ai-brains backup list` labels residual plain / incomplete / wrong-key / corrupt (`(legacy plain)` / `(no core tables)` / `(unreadable key)` / `(corrupt)`), sorts **usable-first**, warns only on short corrupt files, and prints one residual summary (`not recoverable under current key`); use `--verbose` for per-file detail or `--quiet` to suppress the summary (see CAPABILITIES §11 decision table).
+**List honesty (T209 / T244 / T318):** Default/Quiet `ai-brains backup list` prints usable encrypted rows only (`Readable`/`PreT109`); residuals-only → `No usable backups.`; Default stdout residual count footer (`not recoverable under current key`); `--verbose` lists every class + per-file WARNs (no footer); `--quiet` usable-only without footer (see CAPABILITIES §11 decision table).
 
-**Verify quiet default (T225 / T244):** `ai-brains backup verify` prints counts + first 5 FAIL reasons (use `--verbose` for the full per-file stream). Both core tables required (`missing core tables`). Doctor `backup_recent` ages only usable encrypted backups (Readable/PreT109 with cores); Incomplete/plain fleets warn + nudge `ai-brains backup create` only.
+**Verify quiet default (T225 / T244 / T318):** mixed fleet (`ok >= 1`) prints counts + `{fail} FAIL (use --verbose for per-file).` (no first-5 `FAIL —`); zero-OK keeps first 5 FAIL + create nudge. Both core tables required (`missing core tables`). Doctor `backup_recent` ages only usable encrypted backups (Readable/PreT109 with cores); Incomplete/plain fleets warn + nudge `ai-brains backup create` only.
 
 **Recovery drills (T181):** operator playbook, CE pre-erase honesty, RecoveryKit residual, and automated drill matrix live in [RECOVERY-DRILLS.md](RECOVERY-DRILLS.md). Run restore + content smoke before releases — not “backup exists” alone.
 
