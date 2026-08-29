@@ -2,6 +2,34 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T316 full plan (2026-08-29) — memory list chrome-skip preview + drop F36 stderr
+
+| Item | Disposition |
+|------|-------------|
+| Audit `memory list` 6/6 raw first-line previews + F36 stderr-as-error | **Absorb** F1–F10 / AC1–AC9 / AC17 |
+| T216 F36 stderr next-step | **Supersede runtime** F9; after_help/docs stay |
+| T287 ORDER / JSON recency / envelope `preview_line` | **Affirm** F8 / F7; **extend** skip after envelope F1 |
+| T287 R1-1 live GLOB+retain empty → recency first page | **Partial** F27 — preview still DoD; ORDER not |
+| T299 empty `Pinned: N` + `next:` | **Affirm** F11; **update** nonempty F36 hermetic AC9 |
+| T319 no `memory show` | **Decline** F13 |
+| T318 / T321 / T322–T324 | **Not stolen** |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#238` | **N/A empty** |
+| last-PR Cursor `#237` Bugbot `PinnedCountFailed` fake `pinned=0` | **Mint T326** — still true `status.rs:329–340` + `graph.rs:445–458`; doctor skip is SOOT |
+| last-PR `#230` F8 recency | **T325** already Pending |
+| DOCS TX | `66b597f7-faf9-4f3e-bb06-6af72811bdc6` |
+
+### T326 mint (2026-08-29) — `#237` Cursor leftover (placeholder)
+
+| Item | Disposition |
+|------|-------------|
+| `#237` Bugbot medium: `PinnedCountFailed` invents `pinned=0` then assesses (`status.rs:329–340`) | **T326** Pending placeholder |
+| `graph.rs:445–458` same fake 0 | **Absorb into T326** (same hole) |
+| Doctor skip `:901` | **SOOT** — do not grow doctor |
+| T316 list preview | **Not stolen** (this mint) |
+| T320 four-section compose / floors 0.50 | **Affirm freeze** until `/plan-track T326` |
+
 ### T320 implement residuals (2026-08-29) — non-easy lows
 
 | Item | Disposition |
@@ -11,7 +39,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Doctor Safety vs glance Status probe | **Deferred** F9 by design — Status 1×300 ms matches `daemon status` |
 | Two vault opens (`build_report` + glance `open_read_intent`) | **Deferred** F44 — not a conn-sharing track; do not grow doctor |
 | F32 other-file physical net ~82 incl. clap test blocks in `main.rs` | **Deferred** — production-only estimate ~60 under 80; test blocks inflate file total |
-| T325 F8 PreferRecency / T316 / T318 / T321–T324 | **Not stolen** |
+| T325 F8 PreferRecency / T316 / T318 / T321–T324 | **Not stolen** (T316 Planned 2026-08-29; T326 minted from `#237`) |
 | FEATURE TX | `a700986c-41d5-41b6-b417-6cac9153be0e` |
 
 ### T320 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
@@ -349,11 +377,11 @@ Minted from PATH **0.1.3** non-destructive dogfood + **entire** this file’s op
 | `sync query` ledger phrase→fuzzy opacity | **T313 Completed** `#233` |
 | `--format` / `--dry-run` clap friction | **T314 Completed** `#232` |
 | ~~preflight 0/0/0 + word count~~ | **T315 Completed** 2026-08-28 (SOOT + Budget window words) |
-| `memory list` preview + forget nudge | **T316** Pending |
+| `memory list` preview + forget nudge | **T316** Planned (Pending until go) |
 | `graph neighbors` RECALLS spam | **T317 Completed** `#234` |
 | `backup list` residual noise | **T318** Pending |
 | evidence/source show vault UUID | **T319** Completed `#235` |
-| unified `status` opportunity | **T320** Planned (full F-list 2026-08-29) |
+| unified `status` opportunity | **T320** Completed `#237` `c3abe19` |
 | `safety sync` write surprise | **T321** Pending |
 | T311 R2 `--as-of` | **T322** Pending |
 | T311 R5 conclusion in-force | **T323** Pending |
