@@ -12,6 +12,7 @@ pub mod adapters;
 pub mod briefings;
 pub mod class_based_retention;
 pub mod command_id;
+pub mod conclusion_in_force;
 pub mod conclusions;
 pub mod conflicts;
 pub mod cryptographic_erasure;
@@ -48,6 +49,10 @@ pub use class_based_retention::{
 pub use command_id::{
     NS_PROPOSE_CONCLUSION, NS_PROPOSE_DECISION, NS_REQUEST_ERASURE, NS_WIPE_CONTENT_ENVELOPE,
     id_from_command,
+};
+pub use conclusion_in_force::{
+    ConclusionInForceChainLink, ConclusionInForceResponse, ConclusionInForceRuling,
+    resolve_conclusion_in_force,
 };
 pub use conclusions::{
     ProposeConclusionRequest, ProposeConclusionResult, activate_conclusion, approve_conclusion,

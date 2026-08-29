@@ -2,6 +2,56 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T323 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2 HEAD `766a6c8` vs `0ead377` | **Folded** snapshot `0ead377` / ahead **1** |
+| Agy m1 / m3 / O1 / O2 | **Already** F35 / F1 / F29 / F9 |
+| OpenCode m1 Proposed upsert resets state | **Decline** — `ON CONFLICT` omits `state`/`superseded_by` (`projector :43–52`) |
+| OpenCode m1 fixture pick | **Folded** F37 `EventBuilder` single `ConclusionSuperseded` self-hop |
+| OpenCode m2 linear-scan passes suite | **Decline** — AC1 `chain.len()==1` already fails a non-walker |
+| OpenCode m2 three-hop | **Folded** AC17 |
+| OpenCode O1 status comment | **Decline** as required — F4 T311 mirror |
+| OpenCode O2 AC16 live null | **Folded** expected-empty sentence |
+| last-PR `#244` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `853b18d9-ee2e-4ed9-afe3-01962bab0430` |
+
+### T323 full plan (2026-08-29) — conclusion in-force walker (no `--as-of`)
+
+| Item | Disposition |
+|------|-------------|
+| T311 R5 conclusion in-force | **Absorb** F1–F12 / AC1–AC13 / AC16 — **walker** (`correct_conclusion` + projector `superseded_by`) |
+| Placeholder “decline if no chain” | **Superseded** — chain exists in live src |
+| T322 `--as-of` copy | **Decline** F30 — residual §11 |
+| T311 R1 daemon `ListInForce` | **Decline** F13 |
+| T311 R7 PowerShell empty TERM | **Not stolen** T324 |
+| T322 implement residuals | **Not stolen** — T322 Completed `#244` |
+| T325 F8 PreferRecency (`#230`) | **Not stolen** |
+| T326 `PinnedCountFailed` fake `pinned=0` (`#237`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| last-PR Cursor `#244` | **N/A empty** (no defect) |
+| last-PR `#237` / `#230` | **T326** / **T325** already Pending — **no T327** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `61b188d1-fd07-48e6-9bec-bdce0d197c60` |
+
+### T322 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| Propose→approve gap on superseded/revoked node (`updated_at` overwritten; hop uses `[valid_from, hop_at)`) | **Deferred** §11 / F9 — column declined |
+| PATH `ai-brains` until owner `cargo install` (post-T322 needs install for `--as-of`) | **Deferred** F27 — hermetic/`cargo run` SoT |
+| Live vault `workspace_id` ruling null honesty (AC14 pass-with-observed-data) | **By design** — no live propose |
+| Daemon `ListInForce` / contracts DTO | **Decline** F11 / T311 R1 |
+| Date-only `--as-of` UX | **Decline** F30 |
+| `supersede_decision` ignores injected `Clock` (wall `build_event`) | **Deferred** soft — tests use stored `updated_at` |
+| ~~F6(b) Superseded without `updated_at > at` on orphan/broken successor~~ | **Fixed** Codex P2 — guard + hermetic `broken_successor_after_hop` |
+| AC16 distinct wall-hop assert (`d1_hop < d2_hop`) | **Deferred** T322-R5 — fails closed if same-tick; unlikely |
+| Exact revoke-boundary hermetic (`as_of == revoke updated_at`) | **Deferred** soft P3 — closed-open covered by supersede AC4 |
+| T323 / T324 / T325 / T326 / T307 | **Not stolen** |
+| FEATURE TX / PR | `331ce060` / `#244` → `766a6c8` |
+
 ### T322 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

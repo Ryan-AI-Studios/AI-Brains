@@ -287,6 +287,7 @@ ai-brains source show <memory_id> --format json      # T319: still NOT_FOUND exi
 ai-brains review list --format json                    # soft-default scope or fail_usage exit 2
 ai-brains review list --scope Repository:<uuid>
 ai-brains conclusion propose --claim "..." --evidence <id> --scope Repository:<uuid> --local
+ai-brains conclusion in-force workspace_id --format json
 ai-brains decision propose --statement "..." --scope Repository:<uuid>
 ai-brains decision in-force workspace_id --format json
 ai-brains decision in-force workspace_id --as-of 2026-01-15T00:00:00Z --format json
@@ -1034,6 +1035,7 @@ If the graph features are missing on Windows, verify that the `graph` feature wa
 | Scope / Evidence / Source / Review | `ai-brains scope resolve` · `evidence list\|search\|show` · `source list\|show` · `review list\|resolve` (T160/T203) |
 | Propose Conclusion / Decision | `ai-brains conclusion propose` · `decision propose` (daemon prefer; `--local` OK) |
 | In-force decision (term) | `ai-brains decision in-force <TERM> [--as-of <RFC3339>]` (local projection; default JSON; `ReadDecisions`) |
+| In-force conclusion (term) | `ai-brains conclusion in-force <TERM>` (local projection; default JSON; `ReadConclusions`; no `--as-of`) |
 | Erasure ticket (daemon-only) | `ai-brains erasure request --id … --scope …` (no CE wipe claim) |
 | Policy show / check / bootstrap | `ai-brains policy show\|check` (read-only); `policy bootstrap` (discovery grants, T210) |
 | Deep Search | `ai-brains recall` (use `--format pretty` for readable results) |

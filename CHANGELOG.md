@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T323 `conclusion in-force`:** `ai-brains conclusion in-force <TERM>` walks `conclusion_projection.superseded_by` in-scope and returns the current Active|Confirmed, valid-now tip (`state: in_force`) or honest `ruling: null`. Default `--format json` (clap `value_parser`; unknown token exit **2**). `ReadConclusions` deny is exit **3** + T280 omit-`--scope` hint. Empty term is usage exit **2**. Local projection only (no `--as-of`, no daemon wire, no pin→Confirmed). Docs: CAPABILITIES / OPERATIONS.
+
 - **T322 `decision in-force --as-of`:** Optional `--as-of <RFC3339>` returns the chain tip at that instant (hop-stop on superseded/revoked `updated_at`; closed-open). Omit flag → T311 now-path unchanged (`as_of` JSON key skipped). No `approved_at` column. Date-only rejected (clap exit **2**). Docs: CAPABILITIES / OPERATIONS.
 
 - **T321 `safety sync` write honesty:** Default still **pins**; about/after_help name pin; stdout banner `Pinning N Ledgerful hotspot(s) into the vault.` before `pin::run`. Drop Scanning / scan-complete theater (`tracing::warn!` on JSON→text fallback). `--dry-run` header `would pin` with path+raw score rows. Parses live `ledgerful hotspots --json` `{schemaVersion, files[]}` (CLI + retrieval; legacy `[…]` stay-green). Docs: CAPABILITIES / OPERATIONS §7 / WORKFLOWS / antigravity-rule.
