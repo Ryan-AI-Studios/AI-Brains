@@ -29,6 +29,9 @@ const SCOPE_MISSING_MSG: &str =
     "No project scope. Set AI_BRAINS_PROJECT_ID, run `ai-brains context`, or pass --global.";
 const INVALID_STATUS_MSG: &str = "Invalid --status. Use pinned or forgotten.";
 const EMPTY_TAG_MSG: &str = "Empty --tag is not allowed.";
+/// T331 F35 — copy-not-share Index F4 (61 chars). Do not import retrieval.
+const EMPTY_AUTHORITY_HONESTY: &str =
+    "No DECISION/CONSTRAINT pins in scope; showing recent activity";
 
 /// T299 F26 — forgotten-empty remediator lines (`Pinned: N` when COUNT Ok + `next:` last).
 ///
@@ -69,6 +72,14 @@ pub(crate) fn preview_line_is_chrome(line: &str) -> bool {
     PREVIEW_AGENT_CHROME_PREFIXES
         .iter()
         .any(|p| lower.starts_with(p))
+}
+
+/// T331 F7 — authority never chrome; session chrome on full body; agent/fence on leading line only.
+fn row_is_list_chrome(content: &str) -> bool {
+    if classify_pin_kind(content) != PinKind::Other {
+        return false;
+    }
+    is_session_chrome(content) || preview_line_is_chrome(first_contentful_line(content))
 }
 
 /// Non-empty body lines after the T285/T287 envelope (role + optional TAGS:).
@@ -188,13 +199,34 @@ pub(crate) fn prefer_fill_authority(
     out
 }
 
-/// Empty-GLOB recency fill (T331 F7). Stub identity until green: today's recency order.
-#[allow(dead_code)] // wired in run_inventory on green
+/// Empty-GLOB recency fill (T331 F7): authority, then non-chrome Other, then chrome; cap `limit`.
 pub(crate) fn recency_fill_empty_authority(
     pool: Vec<MemoryListRow>,
     limit: usize,
 ) -> Vec<MemoryListRow> {
-    pool.into_iter().take(limit).collect()
+    let mut authority = Vec::new();
+    let mut non_chrome = Vec::new();
+    let mut chrome = Vec::new();
+    for row in pool {
+        if classify_pin_kind(&row.content) != PinKind::Other {
+            authority.push(row);
+        } else if row_is_list_chrome(&row.content) {
+            chrome.push(row);
+        } else {
+            non_chrome.push(row);
+        }
+    }
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for row in authority.into_iter().chain(non_chrome).chain(chrome) {
+        if out.len() >= limit {
+            break;
+        }
+        if seen.insert(row.memory_id.clone()) {
+            out.push(row);
+        }
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -294,13 +326,13 @@ pub fn run_inventory(
 
     // F43: when --tag, over-fetch candidates then token-filter then page.
     let overfetch = page_limit.saturating_mul(4).max(50).saturating_add(1);
-    let recency_limit = if tag.is_some() {
-        overfetch
-    } else {
-        page_limit.saturating_add(1)
-    };
 
     let mut rows = if is_json || status != MemoryListStatus::Pinned {
+        let recency_limit = if tag.is_some() {
+            overfetch
+        } else {
+            page_limit.saturating_add(1)
+        };
         let filter = MemoryListFilter {
             status,
             project_id,
@@ -327,16 +359,35 @@ pub fn run_inventory(
         if let Some(ref t) = tag {
             pass1.retain(|r| content_has_tag(&r.content, t));
         }
-        let mut pass2 = ctx.conn.list_memories(&MemoryListFilter {
-            status,
-            project_id,
-            tag: tag.clone(),
-            limit: recency_limit,
-        })?;
-        if let Some(ref t) = tag {
-            pass2.retain(|r| content_has_tag(&r.content, t));
+        if pass1.is_empty() {
+            // T331 F1/F8: empty GLOB+retain → over-fetch recency and row-skip chrome.
+            let mut pass2 = ctx.conn.list_memories(&MemoryListFilter {
+                status,
+                project_id,
+                tag: tag.clone(),
+                limit: overfetch,
+            })?;
+            if let Some(ref t) = tag {
+                pass2.retain(|r| content_has_tag(&r.content, t));
+            }
+            recency_fill_empty_authority(pass2, page_limit.saturating_add(1))
+        } else {
+            let recency_limit = if tag.is_some() {
+                overfetch
+            } else {
+                page_limit.saturating_add(1)
+            };
+            let mut pass2 = ctx.conn.list_memories(&MemoryListFilter {
+                status,
+                project_id,
+                tag: tag.clone(),
+                limit: recency_limit,
+            })?;
+            if let Some(ref t) = tag {
+                pass2.retain(|r| content_has_tag(&r.content, t));
+            }
+            prefer_fill_authority(pass1, pass2, page_limit.saturating_add(1))
         }
-        prefer_fill_authority(pass1, pass2, page_limit.saturating_add(1))
     };
 
     let more_available = rows.len() > page_limit;
@@ -364,6 +415,12 @@ pub fn run_inventory(
         );
     }
 
+    let show_empty_authority_honesty = status == MemoryListStatus::Pinned
+        && !rows.is_empty()
+        && rows
+            .iter()
+            .all(|r| classify_pin_kind(&r.content) == PinKind::Other);
+
     emit_list_human(
         ctx,
         opts.global,
@@ -374,6 +431,7 @@ pub fn run_inventory(
         more_available,
         total,
         tag.as_deref(),
+        show_empty_authority_honesty,
     )
 }
 
@@ -547,6 +605,7 @@ fn emit_list_human(
     more_available: bool,
     total: u64,
     tag: Option<&str>,
+    show_empty_authority_honesty: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let name_alias = if !global {
         match project_id {
@@ -581,6 +640,10 @@ fn emit_list_human(
             }
         }
         return Ok(());
+    }
+
+    if show_empty_authority_honesty {
+        println!("{EMPTY_AUTHORITY_HONESTY}");
     }
 
     if global {
@@ -899,6 +962,15 @@ mod tests {
         let ids: Vec<String> = out.into_iter().map(|r| r.memory_id).collect();
         let expected: Vec<String> = expected.into_iter().map(str::to_string).collect();
         assert_eq!(ids, expected);
+    }
+
+    #[test]
+    fn empty_authority_honesty__is_61_chars() {
+        assert_eq!(EMPTY_AUTHORITY_HONESTY.len(), 61);
+        assert_eq!(
+            EMPTY_AUTHORITY_HONESTY,
+            "No DECISION/CONSTRAINT pins in scope; showing recent activity"
+        );
     }
 
     fn list_row_with(id: &str, content: &str) -> MemoryListRow {

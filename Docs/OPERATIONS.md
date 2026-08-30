@@ -748,7 +748,7 @@ ai-brains nightly --schedule --run-as-system --start-time "03:00" --dry-run
 
 ### Soft-Delete + inventory (T216)
 ```powershell
-ai-brains memory list                         # skim pinned (prefer-fill + chrome-skip previews; JSON recency; no F36 stderr; default limit 50)
+ai-brains memory list                         # skim pinned (prefer-fill; GLOB-empty skips chrome + F4 honesty; JSON recency; no F36 stderr; default limit 50)
 ai-brains memory list --summary               # Pinned + Forgotten counts
 ai-brains memory list --status forgotten -l 5
 ai-brains forget --memory-id <uuid>           # prompt; -f to skip

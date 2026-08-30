@@ -982,6 +982,10 @@ fn memory_list__json_limit_5__items0_stays_recency_dump() {
         preview.contains("dump four") && preview.contains(&needle),
         "AC2 items[0] is newest recency dump four; preview={preview:?}\n{stdout}"
     );
+    assert!(
+        !stdout.contains(T331_F3),
+        "AC5 JSON stdout must not include F3 honesty; got:\n{stdout}"
+    );
 }
 
 #[test]
@@ -1243,6 +1247,52 @@ fn memory_list__chrome_only_vault__first_row_stays_objective() {
         !stdout.contains("No pinned memories."),
         "AC6 must not empty-table lie; got:\n{stdout}"
     );
+
+    let (scode, sstdout, _) = run_memory_list(&vault, &["--summary"], Some(&id));
+    assert_eq!(scode, 0, "AC9 summary exit 0");
+    assert!(
+        sstdout.contains("Pinned:"),
+        "AC9 summary still prints Pinned COUNT; got:\n{sstdout}"
+    );
+    assert!(
+        !sstdout.contains(T331_F3),
+        "AC9 --summary must not print F3; got:\n{sstdout}"
+    );
+}
+
+/// T331 AC18 — `--global` chrome-only still prints F3.
+#[test]
+fn memory_list__global_chrome_only__prints_f4() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let nonce = unique_token("T331g");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump one {nonce}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump two {nonce}"),
+    );
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--global", "--limit", "5"], None);
+    assert_eq!(code, 0, "AC18 exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("Scope: global") || stdout.to_ascii_lowercase().contains("global"),
+        "AC18 --global scope; got:\n{stdout}"
+    );
+    let f3 = stdout.matches(T331_F3).count();
+    assert_eq!(
+        f3, 1,
+        "AC18 global empty-authority prints F3 once; got {f3} in:\n{stdout}"
+    );
 }
 
 /// T331 AC1 — GLOB-empty chrome + older process Other: process first, F3 once.
@@ -1333,6 +1383,13 @@ fn memory_list_help__mentions_human_authority_and_json_recency() {
     assert!(
         stdout.contains("JSON") && stdout.contains("recency"),
         "AC17 after_help names JSON recency freeze; got:\n{stdout}"
+    );
+    let lower = stdout.to_ascii_lowercase();
+    assert!(
+        lower.contains("no leading-line")
+            || stdout.contains(T331_F3)
+            || stdout.contains("showing recent activity"),
+        "AC11 after_help names GLOB-empty honesty / no leading-line; got:\n{stdout}"
     );
 }
 
@@ -1473,6 +1530,10 @@ fn memory_list__forgotten_status__no_authority_promote_of_remaining_pin() {
     assert!(
         !out2.contains(&pin_needle),
         "AC8 list-forgotten must not promote remaining pin; got:\n{out2}"
+    );
+    assert!(
+        !out1.contains(T331_F3) && !out2.contains(T331_F3),
+        "AC8 forgotten path must not print F3 honesty; got list:\n{out1}\nlist-forgotten:\n{out2}"
     );
 }
 

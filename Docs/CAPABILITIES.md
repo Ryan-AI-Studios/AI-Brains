@@ -252,7 +252,7 @@ ai-brains forget --dry-run …
 Forgotten items remain in the event log (audit) but drop from FTS / graph / preflight.
 **Soft-forget is not CE wipe / not NIST Purge** — `forget --restore` reverses soft-delete; list/restore do not purge ciphertext.
 
-### Memory inventory (T216 / T287 / T316)
+### Memory inventory (T216 / T287 / T316 / T331)
 ```powershell
 ai-brains memory list                          # default status=pinned, limit 50
 ai-brains memory list --status forgotten -l 5
@@ -267,6 +267,7 @@ ai-brains forget --list-forgotten --global --format json   # same backend as --s
 |---------|--------|
 | **Primary** | `memory list` is **read-only** (not `[dangerous]`); never appends events. |
 | **Human pinned prefer-fill (T287)** | Default/`--format human` `--status pinned` prefer-fills leading-line `DECISION:` / `CONSTRAINT:` / `INVARIANT:` / `HOTSPOT:` (TAGS envelope skipped in preview). `--format json` and store `list_memories` stay `updated_at DESC` recency. Forgotten lists are recency-only. |
+| **GLOB-empty recency fill (T331)** | When pass-1 GLOB+retain is **empty**, human over-fetches recency and **row-skips** session chrome (`## Objective` / agent preamble / JSON `"decisions":` dumps), promoting lowercase `decision:` (GLOB miss) and process Other. Chrome-only vaults still list recency chrome (never `No pinned memories.` when COUNT>0) plus F4 `No DECISION/CONSTRAINT pins in scope; showing recent activity` once after `status=`. JSON `items[0]` stays newest recency. Store GLOB/ORDER unedited. |
 | **Preview chrome-skip (T316)** | Human and JSON `preview` values skip leading session chrome (`## Objective`, ATX review headings, fences) and closed agent preambles (`Let me …`) when a later non-chrome line exists within an 8-line walk. Authority one-liners are never skipped. All-chrome bodies fall back to the first contentful line. JSON keys and list ORDER are unchanged. Nonempty human list does **not** print a runtime forget/restore stderr hint (see `forget --help` / after_help). |
 | **Scope** | Project default (`AI_BRAINS_PROJECT_ID` / `--project-id`); without project and without `--global` → exit **2**. `--global` → `Scope: global`. |
 | **Status** | `--status pinned\|forgotten` (default **pinned**). `forget --list-forgotten` ≡ `memory list --status forgotten` (+ limit/scope/format/tag). |
