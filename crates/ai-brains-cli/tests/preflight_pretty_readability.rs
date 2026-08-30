@@ -634,3 +634,119 @@ fn preflight__pretty_index_item1_is_decision_when_tagged_pin_exists() {
         "AC5: Index line 1 must include the tagged pin needle; line={first:?}\n{stdout}"
     );
 }
+
+const T265_SECTION_IDS: &[&str] = &[
+    "safety",
+    "session",
+    "index",
+    "recent",
+    "ledgerful",
+    "empty_repo",
+    "governed",
+    "other",
+];
+
+/// T327 AC12 — mixed pin + dumps: full JSON keys frozen; some index item is DECISION.
+#[test]
+fn preflight__format_json__mixed_pin_dumps__index_item_decision() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj-t327-json");
+    let id = register_project(&vault, &proj);
+    let needle = format!("T327-ac12-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("DECISION: {needle} json index pin"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nLet me verify the SQL path for json chatter one",
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        "## Objective\nLet me verify the SQL path for json chatter two",
+    );
+
+    let (code, stdout, stderr) = run_preflight(
+        &vault,
+        &["--format", "json", "-m", "1500", "--no-hook-prompt"],
+        Some(&id),
+    );
+    assert_eq!(code, 0, "AC12 exit 0; stderr={stderr}");
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).unwrap_or_else(|e| panic!("AC12 parse: {e}; {stdout}"));
+    let obj = v.as_object().expect("object");
+    assert!(obj.contains_key("text"), "AC12 text");
+    assert!(obj.contains_key("word_count"), "AC12 word_count");
+    let sections = obj
+        .get("sections")
+        .and_then(|s| s.as_array())
+        .expect("AC12 sections array");
+    for s in sections {
+        let sid = s.get("id").and_then(|i| i.as_str()).unwrap_or("");
+        assert!(
+            T265_SECTION_IDS.contains(&sid),
+            "AC12: unknown section id {sid:?}; sections={sections:?}"
+        );
+    }
+    let index_has_decision = sections.iter().any(|s| {
+        s.get("id").and_then(|i| i.as_str()) == Some("index")
+            && s.get("items")
+                .and_then(|i| i.as_array())
+                .is_some_and(|items| {
+                    items
+                        .iter()
+                        .any(|it| it.as_str().is_some_and(|t| t.contains("DECISION:")))
+                })
+    });
+    assert!(
+        index_has_decision,
+        "AC12: some index item contains DECISION:; sections={sections:?}"
+    );
+}
+
+/// T327 AC13 — summary JSON: T220 keys; DECISION window ⇒ in_context_decisions >= 1.
+#[test]
+fn preflight__summary_json__mixed_pin__in_context_decisions() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj-t327-sum");
+    let id = register_project(&vault, &proj);
+    pin_memory(&vault, &proj, &id, "DECISION: T327-ac13 summary window pin");
+
+    let (code, stdout, stderr) = run_preflight(
+        &vault,
+        &["--summary", "--format", "json", "--no-hook-prompt"],
+        Some(&id),
+    );
+    assert_eq!(code, 0, "AC13 exit 0; stderr={stderr}");
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).unwrap_or_else(|e| panic!("AC13 parse: {e}; {stdout}"));
+    for key in [
+        "api_version",
+        "scope",
+        "project_id",
+        "pinned",
+        "active_sessions",
+        "in_context_hotspots",
+        "in_context_decisions",
+        "in_context_constraints",
+        "word_count",
+    ] {
+        assert!(v.get(key).is_some(), "AC13 T220 key {key}; got {v}");
+    }
+    assert!(v.get("sections").is_none(), "AC13: summary has no sections");
+    let decisions = v["in_context_decisions"].as_u64().unwrap_or(0);
+    assert!(
+        decisions >= 1,
+        "AC13: seeded DECISION must enter the window; in_context_decisions={decisions}; got {v}"
+    );
+}

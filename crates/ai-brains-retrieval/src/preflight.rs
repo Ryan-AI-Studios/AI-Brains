@@ -419,6 +419,8 @@ fn build_legacy_preflight(
             };
             let mut session_lines = vec![header];
             let had_turns = !session.turns.is_empty();
+            let mut other_emitted = 0usize;
+            let mut other_skipped = 0usize;
             for turn in &session.turns {
                 let content = &turn.content;
                 // Skip test markers
@@ -439,8 +441,22 @@ fn build_legacy_preflight(
                 if is_low_signal(content) {
                     continue;
                 }
-                let truncated = truncate_turn(content);
-                session_lines.push(format!("{}: {}", turn.role.to_uppercase(), truncated));
+                let kind = classify_pin_kind(content);
+                let is_user = turn.role.eq_ignore_ascii_case("user");
+                let is_auth = kind != PinKind::Other;
+                if is_user || is_auth {
+                    let truncated = truncate_turn(content);
+                    session_lines.push(format!("{}: {}", turn.role.to_uppercase(), truncated));
+                } else if other_emitted < SESSION_OTHER_TURN_CAP {
+                    let truncated = truncate_turn(content);
+                    session_lines.push(format!("{}: {}", turn.role.to_uppercase(), truncated));
+                    other_emitted += 1;
+                } else {
+                    other_skipped += 1;
+                }
+            }
+            if other_skipped > 0 {
+                session_lines.push(format!("+{other_skipped} more session turns via recall"));
             }
             // Include session if it has unfiltered turns, or if it was empty to begin with
             if session_lines.len() > 1 || !had_turns {
@@ -457,6 +473,7 @@ fn build_legacy_preflight(
 
     // --- General Memory Index (scoped to current project when project_id is known) ---
     // T274 F11: leading-marker pins first, then recency-fill other injectable rows.
+    // T327 F1: skip-oversized (never body-break); non-global slot cap 15.
     let mut collected: Vec<(String, String, Option<String>)> = Vec::new(); // content, ts, project
     let mut collected_ids: HashSet<String> = HashSet::new();
     let pass1_sql = index_select_sql(global, &index_pass1_glob_sql("m.content"));
@@ -469,10 +486,10 @@ fn build_legacy_preflight(
         &safety_ids,
         &mut collected,
         &mut collected_ids,
-        max_words,
         true,
         None,
     )?;
+    let pass1_count = collected.len();
     let mut pass2_ids: Vec<String> = collected_ids.iter().cloned().collect();
     pass2_ids.sort();
     let pass2_extra = bound_not_in_sql("m.memory_id", pass2_ids.len()).unwrap_or_default();
@@ -486,26 +503,41 @@ fn build_legacy_preflight(
         &safety_ids,
         &mut collected,
         &mut collected_ids,
-        max_words,
         false,
         None,
     )?;
 
-    // Most Recent stays recency-ordered (T274 Index two-pass must not retitle this section).
+    // T327 F3: Most Recent prefers authority, then recency-fills remaining slots.
     let mut recent_raw: Vec<(String, String, Option<String>)> = Vec::new();
     let mut recent_ids: HashSet<String> = HashSet::new();
-    let recency_sql = index_select_sql(global, "");
     let recent_cap = if global { GLOBAL_INDEX_FETCH } else { 3 };
+    let recent_pass1_sql = index_select_sql(global, &index_pass1_glob_sql("m.content"));
     drain_index_pass(
         &conn,
-        &recency_sql,
+        &recent_pass1_sql,
         global,
         project_id_str.as_deref(),
         &[],
         &safety_ids,
         &mut recent_raw,
         &mut recent_ids,
-        usize::MAX,
+        true,
+        Some(recent_cap),
+    )?;
+    let mut recent_pass2_ids: Vec<String> = recent_ids.iter().cloned().collect();
+    recent_pass2_ids.sort();
+    let recent_pass2_extra =
+        bound_not_in_sql("m.memory_id", recent_pass2_ids.len()).unwrap_or_default();
+    let recent_pass2_sql = index_select_sql(global, &recent_pass2_extra);
+    drain_index_pass(
+        &conn,
+        &recent_pass2_sql,
+        global,
+        project_id_str.as_deref(),
+        &recent_pass2_ids,
+        &safety_ids,
+        &mut recent_raw,
+        &mut recent_ids,
         false,
         Some(recent_cap),
     )?;
@@ -534,6 +566,9 @@ fn build_legacy_preflight(
     if !index_items.is_empty() {
         // 1. Build the index section with relative timestamps
         let mut index_lines = vec!["--- Memory Index (Briefing) ---".to_string()];
+        if pass1_count == 0 {
+            index_lines.push(INDEX_EMPTY_AUTHORITY_SOOT.to_string());
+        }
         for (i, (content, updated_at, pid)) in index_items.iter().enumerate() {
             let first_line = index_item_title(content);
             let summary = truncate_index_summary(first_line);
@@ -615,6 +650,12 @@ fn build_legacy_preflight(
     })
 }
 
+/// Copy-not-share CLI `PRETTY_INDEX_MAX`. Non-global Index drain only (T327 F20).
+pub(crate) const INDEX_SLOT_CAP: usize = 15;
+const SESSION_OTHER_TURN_CAP: usize = 3;
+const INDEX_EMPTY_AUTHORITY_SOOT: &str =
+    "No DECISION/CONSTRAINT pins in scope; showing recent activity";
+
 fn index_select_sql(global: bool, extra: &str) -> String {
     let scope = if global {
         "WHERE m.status = 'pinned'"
@@ -626,7 +667,7 @@ fn index_select_sql(global: bool, extra: &str) -> String {
          FROM memory_projection m
          LEFT JOIN session_projection s ON m.session_id = s.session_id
          {scope}{extra}
-         ORDER BY m.updated_at DESC"
+         ORDER BY m.updated_at DESC, m.memory_id ASC"
     )
 }
 
@@ -640,7 +681,6 @@ fn drain_index_pass(
     safety_ids: &HashSet<String>,
     collected: &mut Vec<(String, String, Option<String>)>,
     collected_ids: &mut HashSet<String>,
-    max_words: usize,
     authority_only: bool,
     max_count: Option<usize>,
 ) -> Result<()> {
@@ -695,14 +735,7 @@ fn drain_index_pass(
             collected.push((content, updated_at, item_project));
             continue;
         }
-        let candidate = if collected.is_empty() {
-            content.clone()
-        } else {
-            let mut parts: Vec<String> = collected.iter().map(|(c, _, _)| c.clone()).collect();
-            parts.push(content.clone());
-            parts.join("\n\n")
-        };
-        if word_count(&candidate) > max_words {
+        if collected.len() >= INDEX_SLOT_CAP {
             break;
         }
         collected_ids.insert(memory_id);
@@ -1086,6 +1119,25 @@ mod tests {
         assert!(out.is_char_boundary(out.len()));
         assert_eq!(out.chars().count(), 57 + 3); // 57 kept + "..."
         assert!(!out.contains('\u{FFFD}'));
+    }
+
+    #[test]
+    fn index_select_sql__order__updated_at_desc_memory_id_asc() {
+        let sql = index_select_sql(false, "");
+        assert!(
+            sql.contains("ORDER BY m.updated_at DESC, m.memory_id ASC"),
+            "AC5: Index SQL must tie-break memory_id ASC; sql={sql}"
+        );
+        let global = index_select_sql(true, "");
+        assert!(
+            global.contains("ORDER BY m.updated_at DESC, m.memory_id ASC"),
+            "AC5: global Index SQL must use the same ORDER; sql={global}"
+        );
+    }
+
+    #[test]
+    fn index_slot_cap__non_global_only__is_fifteen() {
+        assert_eq!(INDEX_SLOT_CAP, 15, "AC23: copy-not-share PRETTY_INDEX_MAX");
     }
 
     #[test]

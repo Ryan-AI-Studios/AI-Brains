@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Changed
+
+- **T327 Preflight authority-first sections:** Memory Index / Session / Most Recent prefer `classify_pin_kind` over recency chatter. Index pass-1 no longer aborts on a whale body; non-global Index caps at 15 slots; empty-authority Index prints `No DECISION/CONSTRAINT pins in scope; showing recent activity` once (pretty prologue). Session Other assistant turns cap at 3 with `+K more session turns via recall`. Most Recent uses the same prefer-authority fill. JSON required keys unchanged. Capture stays unfiltered.
+
 ## [0.1.4] — 2026-08-30
 
 Workspace version bump after T312–T325 CLI dogfood plus T326 pin-count fail-open. PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph` (or `scripts/build.ps1`).

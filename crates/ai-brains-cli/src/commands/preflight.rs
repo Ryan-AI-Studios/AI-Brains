@@ -462,6 +462,16 @@ fn is_recall_hint_line(line: &str) -> bool {
     t.starts_with("(Use 'recall'") || t.starts_with("(Use \"recall\"")
 }
 
+/// T327 F56 — retrieval Session overflow (`+K more session turns via recall`).
+fn is_session_overflow_notice(line: &str) -> bool {
+    let t = line.trim();
+    t.starts_with('+') && t.contains("more session turns via recall")
+}
+
+/// T327 F41/F57 — Index empty-authority honesty (copy-not-share retrieval SOOT).
+const INDEX_EMPTY_AUTHORITY_SOOT: &str =
+    "No DECISION/CONSTRAINT pins in scope; showing recent activity";
+
 /// Lookup for T264 pretty tag upgrade: 8-hex prefix → (project_id, name, alias).
 type ProjectTagLookup<'a> = dyn Fn(&str) -> Option<(String, String, String)> + 'a;
 
@@ -600,6 +610,7 @@ pub(crate) fn format_preflight_pretty_body_resolved(
                 let mut turn_count = 0usize;
                 let mut turn_total = 0usize;
                 let mut in_open_turn = false;
+                let mut saw_session_overflow = false;
                 let session_cap = Some(caps.line_max);
                 for line in &lines {
                     if line.trim().is_empty() {
@@ -607,6 +618,12 @@ pub(crate) fn format_preflight_pretty_body_resolved(
                             // Preserve blank only when we still show the open turn body.
                             body_lines.push(String::new());
                         }
+                        continue;
+                    }
+                    if is_session_overflow_notice(line) {
+                        body_lines.push(line.trim().to_string());
+                        in_open_turn = false;
+                        saw_session_overflow = true;
                         continue;
                     }
                     if is_session_turn_start(line) {
@@ -628,7 +645,7 @@ pub(crate) fn format_preflight_pretty_body_resolved(
                 while body_lines.last().is_some_and(|l| l.is_empty()) {
                     body_lines.pop();
                 }
-                if turn_total > caps.turns_per_session {
+                if turn_total > caps.turns_per_session && !saw_session_overflow {
                     let n = turn_total - caps.turns_per_session;
                     body_lines.push(format!("+{n} more turns in session"));
                 }
@@ -636,9 +653,14 @@ pub(crate) fn format_preflight_pretty_body_resolved(
             PrettySectionKind::Index => {
                 let mut index_items: Vec<String> = Vec::new();
                 let mut other: Vec<String> = Vec::new();
+                let mut prologue: Vec<String> = Vec::new();
                 for line in &lines {
                     let trimmed = line.trim();
                     if trimmed.is_empty() {
+                        continue;
+                    }
+                    if trimmed == INDEX_EMPTY_AUTHORITY_SOOT {
+                        prologue.push(trimmed.to_string());
                         continue;
                     }
                     // Peel leading `[8hex]` so numbered detection still sees "1. …" (F2/F4).
@@ -668,6 +690,7 @@ pub(crate) fn format_preflight_pretty_body_resolved(
                 }
                 let total = index_items.len();
                 let take_n = total.min(caps.index_max);
+                body_lines.extend(prologue);
                 for item in index_items.into_iter().take(take_n) {
                     body_lines.push(item);
                 }
@@ -2334,6 +2357,65 @@ CONSTRAINT: s9\n\nCONSTRAINT: s10";
         assert!(
             cmp.contains(&body),
             "AC7 200-char ## body stays full on compact; got:\n{cmp}"
+        );
+    }
+
+    /// T327 AC14 — retrieval Session overflow notice is a standalone line.
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__session_overflow_notice__own_line_no_synthetic() {
+        let mut lines = vec!["--- Session: aaaa ---".to_string()];
+        lines.push("USER: what is the drain doing today".to_string());
+        for t in 1..=6 {
+            lines.push(format!(
+                "ASSISTANT: Let me verify the SQL path number {t} now."
+            ));
+        }
+        lines.push("+4 more session turns via recall".to_string());
+        let text = lines.join("\n");
+
+        let std = format_preflight_pretty_body_with(&text, &PrettyCaps::standard());
+        assert!(
+            std.lines()
+                .any(|l| l.trim() == "+4 more session turns via recall"),
+            "AC14 standard: F42 notice is its own line; got:\n{std}"
+        );
+        assert!(
+            !std.contains("more turns in session"),
+            "AC14 standard: no synthetic CLI turn overflow; got:\n{std}"
+        );
+
+        let cmp = format_preflight_pretty_body_with(&text, &PrettyCaps::compact());
+        assert!(
+            cmp.lines()
+                .any(|l| l.trim() == "+4 more session turns via recall"),
+            "AC14 compact: F42 notice is its own line (not dropped at turns=2); got:\n{cmp}"
+        );
+        assert!(
+            !cmp.contains("more turns in session"),
+            "AC14 compact: no synthetic CLI turn overflow; got:\n{cmp}"
+        );
+    }
+
+    /// T327 AC24 — F4 honesty line is Index prologue before numbered items.
+    #[test]
+    #[allow(non_snake_case)]
+    fn format_preflight_pretty_body__index_f4_prologue__before_numbered() {
+        let text = "\
+--- Memory Index (Briefing) ---
+No DECISION/CONSTRAINT pins in scope; showing recent activity
+1. ## Objective -- 1 min ago";
+        let out = format_preflight_pretty_body(text);
+        let f4 = "No DECISION/CONSTRAINT pins in scope; showing recent activity";
+        let f4_at = out
+            .find(f4)
+            .unwrap_or_else(|| panic!("AC24: F4 SOOT missing; got:\n{out}"));
+        let item_at = out
+            .find("1. ## Objective")
+            .unwrap_or_else(|| panic!("AC24: numbered item missing; got:\n{out}"));
+        assert!(
+            f4_at < item_at,
+            "AC24: F4 prologue must precede numbered items; f4@{f4_at} item@{item_at}\n{out}"
         );
     }
 }
