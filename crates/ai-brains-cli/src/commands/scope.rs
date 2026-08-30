@@ -56,7 +56,7 @@ pub async fn run_resolve(
     };
 
     match path {
-        PathDecision::Daemon => run_resolve_daemon(&options, format).await,
+        PathDecision::Daemon => run_resolve_daemon(ctx, &options, format).await,
         PathDecision::Local { .. } => run_resolve_local(ctx, &options, format),
     }
 }
@@ -93,6 +93,10 @@ fn run_resolve_local(
     match format {
         OutputFormat::Json => {
             crate::commands::identity_warn::inject_identity_mismatch_warning(&mut wire.warnings);
+            crate::commands::identity_warn::inject_identity_collision_warning(
+                &mut wire.warnings,
+                ctx,
+            );
             emit_json(&wire)
         }
         OutputFormat::Human | OutputFormat::Markdown => {
@@ -103,6 +107,7 @@ fn run_resolve_local(
 }
 
 async fn run_resolve_daemon(
+    ctx: &AppContext,
     options: &ResolveOptions,
     format: OutputFormat,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -131,6 +136,10 @@ async fn run_resolve_daemon(
             OutputFormat::Json => {
                 crate::commands::identity_warn::inject_identity_mismatch_warning(
                     &mut wire.warnings,
+                );
+                crate::commands::identity_warn::inject_identity_collision_warning(
+                    &mut wire.warnings,
+                    ctx,
                 );
                 emit_json(&wire)
             }

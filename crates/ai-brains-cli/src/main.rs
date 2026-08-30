@@ -3545,7 +3545,7 @@ pub enum ProjectCommands {
     },
     /// Show all project identity signals (env / path alias / git detect)
     #[command(
-        after_help = "Shows effective daily Scope, shell vs .env PROJECT_ID, path-alias owner, and detect result.\nDoes not rewrite PROJECT_ID. Detect order: path_alias → git_slug → env.\nExamples:\n  ai-brains project whoami\n  ai-brains project whoami --format json\n  ai-brains --no-project-context project whoami --format json"
+        after_help = "Shows effective daily Scope, shell vs .env PROJECT_ID, path-alias owner, and detect result.\nDoes not rewrite PROJECT_ID. Detect order: path_alias → git_slug → env.\nidentity_collision is additive when env differs from path and/or detect (including path-null); mismatch stays env vs path-alias only.\nExamples:\n  ai-brains project whoami\n  ai-brains project whoami --format json\n  ai-brains --no-project-context project whoami --format json"
     )]
     Whoami {
         /// Output format: auto (TTY=human / pipe=JSON), pretty|human|text|markdown|md (human), or json

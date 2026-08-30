@@ -10,6 +10,7 @@ mod common;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use tempfile::tempdir;
 
 const SOOT_PHRASE: &str = "project identity mismatch";
@@ -69,6 +70,47 @@ fn register_path(vault: &Path, project_ref: &str, path: &str) {
         .arg(path)
         .assert()
         .success();
+}
+
+fn set_alias(vault: &Path, project_id: &str, alias: &str) {
+    hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(vault)
+        .arg("project")
+        .arg("set-alias")
+        .arg(project_id)
+        .arg(alias)
+        .assert()
+        .success();
+}
+
+fn git_init_with_origin(repo: &Path, origin_url: &str) {
+    fs::create_dir_all(repo).expect("repo dir");
+    let status = Command::new("git")
+        .args(["init"])
+        .current_dir(repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .status()
+        .expect("git init");
+    assert!(status.success(), "git init failed");
+    let _ = Command::new("git")
+        .args(["config", "user.email", "t328@example.com"])
+        .current_dir(repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .status();
+    let _ = Command::new("git")
+        .args(["config", "user.name", "T328 Test"])
+        .current_dir(repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .status();
+    let status = Command::new("git")
+        .args(["remote", "add", "origin", origin_url])
+        .current_dir(repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .status()
+        .expect("git remote add");
+    assert!(status.success(), "git remote add failed");
 }
 
 struct MismatchFixture {
@@ -167,6 +209,12 @@ fn scope_resolve_json__mismatch__stdout_parses_token_no_soot() {
     assert!(
         warnings.iter().any(|w| w.as_str() == Some(token.as_str())),
         "warnings must contain {token}; got: {warnings:?}"
+    );
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_identity_collision"))),
+        "AC8: path-present mismatch must not emit collision token; got: {warnings:?}"
     );
     assert!(
         !stdout.contains("Warning:"),
@@ -340,4 +388,159 @@ fn recall_global__mismatch__no_soot() {
     assert_exit_0(&out, "recall --global");
     assert_no_soot(&stderr_str(&out), "stderr");
     assert_no_soot(&stdout_str(&out), "stdout");
+}
+
+// ---------------------------------------------------------------------------
+// T328 AC7 — path-null env≠detect injects collision token, not mismatch
+// ---------------------------------------------------------------------------
+
+struct CollisionFixture {
+    _dir: tempfile::TempDir,
+    vault: PathBuf,
+    work: PathBuf,
+    id_env: String,
+    id_detect: String,
+}
+
+fn collision_path_none_fixture() -> CollisionFixture {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj_env = dir.path().join("t328-env-proj");
+    let id_env = register_project(&vault, &proj_env);
+    set_alias(&vault, &id_env, "t328-warn-env-row");
+
+    let proj_detect = dir.path().join("t328-detect-proj");
+    let id_detect = register_project(&vault, &proj_detect);
+    set_alias(&vault, &id_detect, "T328WarnCollisionSlug");
+
+    let work = dir.path().join("t328-collision-work");
+    git_init_with_origin(&work, "https://github.com/user/T328WarnCollisionSlug.git");
+    fs::write(
+        work.join(".env"),
+        format!("AI_BRAINS_PROJECT_ID={id_env}\n"),
+    )
+    .expect("write work .env");
+
+    CollisionFixture {
+        _dir: dir,
+        vault,
+        work,
+        id_env,
+        id_detect,
+    }
+}
+
+#[test]
+fn scope_resolve_json__path_none_env_detect_differ__collision_token() {
+    let fx = collision_path_none_fixture();
+    let mut cmd = hermetic();
+    cmd.arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.work)
+        .arg("scope")
+        .arg("resolve")
+        .arg("--format")
+        .arg("json")
+        .arg("--local");
+    let out = cmd.output().expect("scope resolve collision");
+    assert_exit_0(&out, "scope resolve --format json path-none");
+    let stdout = stdout_str(&out);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("scope JSON");
+    assert!(v.get("api_version").is_some(), "keys frozen api_version");
+    let warnings = v
+        .get("warnings")
+        .and_then(|w| w.as_array())
+        .expect("warnings array");
+    let token = format!(
+        "project_identity_collision env={} detect={}",
+        fx.id_env, fx.id_detect
+    );
+    let collision_hits: Vec<&str> = warnings
+        .iter()
+        .filter_map(|w| w.as_str())
+        .filter(|s| s.starts_with("project_identity_collision"))
+        .collect();
+    assert_eq!(
+        collision_hits,
+        vec![token.as_str()],
+        "AC7 exactly one collision token; got: {warnings:?}"
+    );
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_identity_mismatch"))),
+        "AC7 must not contain mismatch token; got: {warnings:?}"
+    );
+}
+
+#[test]
+fn scope_resolve_json__aligned_env_path_detect__no_collision_token() {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("t328-aligned-proj");
+    let id = register_project(&vault, &proj);
+    set_alias(&vault, &id, "T328WarnAlignedSlug");
+
+    let work = dir.path().join("t328-aligned-work");
+    git_init_with_origin(&work, "https://github.com/user/T328WarnAlignedSlug.git");
+    register_path(&vault, &id, work.to_str().expect("utf8"));
+    fs::write(work.join(".env"), format!("AI_BRAINS_PROJECT_ID={id}\n")).expect("write .env");
+
+    let mut cmd = hermetic();
+    cmd.arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&work)
+        .arg("scope")
+        .arg("resolve")
+        .arg("--format")
+        .arg("json")
+        .arg("--local");
+    let out = cmd.output().expect("scope resolve aligned");
+    assert_exit_0(&out, "scope resolve aligned");
+    let stdout = stdout_str(&out);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("scope JSON");
+    let warnings = v
+        .get("warnings")
+        .and_then(|w| w.as_array())
+        .expect("warnings array");
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_identity_collision"))),
+        "AC9 aligned must not contain collision token; got: {warnings:?}"
+    );
+}
+
+#[test]
+fn scope_resolve_json__no_project_context__no_collision_token() {
+    let fx = collision_path_none_fixture();
+    let mut cmd = hermetic();
+    cmd.arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.work)
+        .env("AI_BRAINS_PROJECT_ID", &fx.id_env)
+        .arg("scope")
+        .arg("resolve")
+        .arg("--format")
+        .arg("json")
+        .arg("--local");
+    let out = cmd.output().expect("scope resolve npc");
+    assert_exit_0(&out, "scope resolve --no-project-context");
+    let stdout = stdout_str(&out);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("scope JSON");
+    let warnings = v
+        .get("warnings")
+        .and_then(|w| w.as_array())
+        .expect("warnings array");
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_identity_collision"))),
+        "F16: --no-project-context must not inject collision token; got: {warnings:?}"
+    );
 }
