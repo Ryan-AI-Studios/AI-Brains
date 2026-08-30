@@ -324,6 +324,10 @@ fn open_glance_conn(opts: &StatusOptions) -> Result<VaultConnection, String> {
 fn build_graph_section(conn: &VaultConnection) -> Result<GraphSection, String> {
     let guard = conn.lock().map_err(|e| e.to_string())?;
     let gather = gather_density_snapshot(&guard)?;
+    graph_section_from_gather(gather)
+}
+
+fn graph_section_from_gather(gather: GatherResult) -> Result<GraphSection, String> {
     match gather {
         GatherResult::TablesMissing => Err("graph tables missing".into()),
         GatherResult::PinnedCountFailed {
@@ -331,6 +335,7 @@ fn build_graph_section(conn: &VaultConnection) -> Result<GraphSection, String> {
             edges,
             memory_nodes,
         } => {
+            // T326 red: still invents pinned=0 then assesses (Bugbot #237).
             let snap = GraphDensitySnapshot {
                 nodes,
                 edges,
@@ -644,6 +649,76 @@ mod tests {
         );
         assert_eq!(v["daemon"]["state"], "Running");
         assert!(v["doctor"].get("status").is_none());
+    }
+
+    #[test]
+    fn graph_section_from_gather__pinned_count_failed__error_not_fake_zero() {
+        use crate::graph_density::PINNED_COUNT_FAILED_MSG;
+
+        let empty = graph_section_from_gather(GatherResult::PinnedCountFailed {
+            nodes: 0,
+            edges: 0,
+            memory_nodes: Some(0),
+        });
+        match empty {
+            Err(e) => assert_eq!(e, PINNED_COUNT_FAILED_MSG),
+            Ok(g) => panic!(
+                "empty-graph COUNT fail must be Err, not Ok pinned={:?} status={:?}",
+                g.pinned, g.status
+            ),
+        }
+
+        let would_be_sparse = graph_section_from_gather(GatherResult::PinnedCountFailed {
+            nodes: 100,
+            edges: 10,
+            memory_nodes: Some(0),
+        });
+        match would_be_sparse {
+            Err(e) => assert_eq!(e, PINNED_COUNT_FAILED_MSG),
+            Ok(g) => panic!(
+                "COUNT fail must be Err, not Ok sparse pinned={:?} status={:?}",
+                g.pinned, g.status
+            ),
+        }
+
+        let env = apply_graph_error(
+            envelope_from_parts(
+                true,
+                fixture_doctor_ok(),
+                fixture_graph_sparse(),
+                fixture_nightly_never_unscheduled(),
+            ),
+            PINNED_COUNT_FAILED_MSG,
+        );
+        let v = serde_json::to_value(&env).expect("serialize");
+        assert!(
+            v["graph"]["error"].as_str().is_some_and(|s| !s.is_empty()),
+            "graph.error nonempty"
+        );
+        assert!(v["graph"].get("status").is_none());
+        assert!(v["graph"].get("nodes").is_none());
+        assert!(v["graph"].get("edges").is_none());
+        assert!(v.get("daemon").is_some());
+        assert_eq!(v["schema_version"], 1);
+
+        let err_section = GraphSection {
+            status: None,
+            density: None,
+            edge_node_ratio: None,
+            nodes: None,
+            edges: None,
+            pinned: None,
+            error: Some(PINNED_COUNT_FAILED_MSG.into()),
+        };
+        let line = format_status_graph_line(&err_section);
+        assert!(
+            line.contains("graph: error="),
+            "human error arm; got {line}"
+        );
+        assert!(
+            !line.contains("pinned=0"),
+            "must not invent pinned=0; got {line}"
+        );
     }
 
     #[test]

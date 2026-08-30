@@ -15,6 +15,10 @@ pub const MIN_EDGE_NODE_RATIO: f64 = 0.50;
 /// Severe projection-coverage floor (`kind = 'memory'` nodes / pinned).
 pub const MIN_MEMORY_COVERAGE: f64 = 0.10;
 
+/// Doctor skip / glance error / graph-update error body (T326 F4).
+pub(crate) const PINNED_COUNT_FAILED_MSG: &str =
+    "pinned memory count failed (cannot assess empty_lag without pins)";
+
 const ENV_MIN_PINNED: &str = "AI_BRAINS_GRAPH_MIN_PINNED";
 const ENV_MIN_NODES: &str = "AI_BRAINS_GRAPH_MIN_NODES";
 const ENV_MIN_EDGE_RATIO: &str = "AI_BRAINS_GRAPH_MIN_EDGE_RATIO";

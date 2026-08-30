@@ -434,7 +434,12 @@ fn graph_health_report(ctx: &AppContext) -> Result<GraphHealthOutput, Box<dyn st
 
     let gather = gather_density_snapshot(&conn)
         .map_err(|e| format!("Failed to gather graph density: {e}"))?;
+    graph_health_from_gather(gather)
+}
 
+fn graph_health_from_gather(
+    gather: GatherResult,
+) -> Result<GraphHealthOutput, Box<dyn std::error::Error>> {
     let (snap, pinned_for_json, memory_for_json) = match gather {
         GatherResult::TablesMissing => {
             return Err(
@@ -447,6 +452,7 @@ fn graph_health_report(ctx: &AppContext) -> Result<GraphHealthOutput, Box<dyn st
             edges,
             memory_nodes,
         } => {
+            // T326 red: still invents pinned=0 then assesses (same as glance).
             let s = GraphDensitySnapshot {
                 nodes,
                 edges,
@@ -776,6 +782,34 @@ mod tests {
     use super::*;
     use crate::graph_density::{GraphDensitySnapshot, assess_graph_density_with};
     use rstest::rstest;
+
+    #[test]
+    fn graph_health_from_gather__pinned_count_failed__err() {
+        use crate::graph_density::PINNED_COUNT_FAILED_MSG;
+
+        let r = graph_health_from_gather(GatherResult::PinnedCountFailed {
+            nodes: 0,
+            edges: 0,
+            memory_nodes: Some(0),
+        });
+        match r {
+            Err(e) => {
+                let s = e.to_string();
+                assert!(
+                    s.contains("cannot assess empty_lag without pins"),
+                    "Err display must contain skip body; got {s}"
+                );
+                assert!(
+                    s.contains(PINNED_COUNT_FAILED_MSG) || s.contains("cannot assess empty_lag"),
+                    "got {s}"
+                );
+            }
+            Ok(out) => panic!(
+                "must not fake pinned_memories={} status={}",
+                out.pinned_memories, out.status
+            ),
+        }
+    }
 
     /// T213 AC8: success JSON shape includes expanded density fields + note.
     #[test]
