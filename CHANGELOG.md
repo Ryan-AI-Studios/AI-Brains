@@ -15,7 +15,13 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-08-30
+
+Workspace version bump after T312–T325 CLI dogfood plus T326 pin-count fail-open. PATH `ai-brains --version` reports this after `cargo install --path crates/ai-brains-cli --locked --features graph` (or `scripts/build.ps1`).
+
 ### Fixed
+
+- **T326 `status` / `graph` pin-count fail-open:** `GatherResult::PinnedCountFailed` no longer invents `pinned=0` then assesses density. Glance graph section is T320 F4 `error` (exit **0**; other sections still emit). `graph update` and `graph rebuild` health (shared builder) return `Err` analog `TablesMissing` (exit **1** `COMMAND_FAILED`). Doctor skip arm untouched. Workspace **0.1.3 → 0.1.4**.
 
 - **T325 FTS authority-OR fill PreferRecency:** When Prefer-OR retain is empty (TAGS-not-authority rows fill the BM25 `LIMIT` window), retry once with `AuthorityFilter::PreferRecency` on the OR expr before pass-2 — same empty-only retry as AND. Pass-2 still uses the OR expr when Prefer-OR or recency-OR retains. Docs: CAPABILITIES pin-type row (pass-2 OR-when-retain; AND only when both fills empty).
 

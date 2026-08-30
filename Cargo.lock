@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-adapters"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-capture",
  "ai-brains-contracts",
@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-api-server"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-brain"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-capture"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-cli"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-adapters",
  "ai-brains-brain",
@@ -195,7 +195,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-contracts"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-core",
  "chrono",
@@ -207,7 +207,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-control-plane"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -231,7 +231,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "serde",
  "serde_json",
@@ -242,7 +242,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-crypto"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "aes-gcm",
  "ai-brains-core",
@@ -261,7 +261,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-daemon-api"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -292,7 +292,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-events"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-core",
  "hex",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-git"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "hex",
  "sha2 0.11.0",
@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-graph"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -336,7 +336,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-models"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-core",
  "async-trait",
@@ -351,7 +351,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-path"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -364,7 +364,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-retrieval"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-control-plane",
@@ -388,7 +388,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-scheduler"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-core",
  "ai-brains-path",
@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-security"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-core",
  "once_cell",
@@ -408,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-sources"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-contracts",
  "ai-brains-core",
@@ -426,7 +426,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-store"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-core",
  "ai-brains-crypto",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brains-sync"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "aes-gcm",
  "ai-brains-core",
@@ -470,7 +470,7 @@ dependencies = [
 
 [[package]]
 name = "ai-brainsd"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "ai-brains-api-server",
  "ai-brains-capture",

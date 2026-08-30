@@ -1,6 +1,6 @@
 # Install & first vault (how-to)
 
-Windows-first install and adoption path for AI-Brains **0.1.2**.
+Windows-first install and adoption path for AI-Brains **0.1.4**.
 Normative platform matrix: [COMPATIBILITY.md](COMPATIBILITY.md).
 Ops deep reference: [OPERATIONS.md](OPERATIONS.md).
 Index: [README.md](README.md).

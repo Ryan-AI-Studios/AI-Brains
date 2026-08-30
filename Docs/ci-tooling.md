@@ -168,7 +168,7 @@ Dev/CI only — **not** workspace product dependencies. **No AGPL/GPL** tools.
 ```bash
 # Linux runners
 ./scripts/generate-sbom.sh
-# TARGET=x86_64-unknown-linux-gnu VERSION=0.1.2 ./scripts/generate-sbom.sh
+# TARGET=x86_64-unknown-linux-gnu VERSION=0.1.4 ./scripts/generate-sbom.sh
 ```
 
 Underlying generator:
