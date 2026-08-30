@@ -1,6 +1,6 @@
 # Release checklist (human + scripts)
 
-**Product version context:** workspace `Cargo.toml` → currently **0.1.2**
+**Product version context:** workspace `Cargo.toml` → currently **0.1.4**
 **Track:** T185 — Claims Governance, SBOM, and Release Gate
 **Normative claims:** [RELEASE-CLAIMS.md](RELEASE-CLAIMS.md)
 **Tool pins:** [ci-tooling.md](ci-tooling.md)

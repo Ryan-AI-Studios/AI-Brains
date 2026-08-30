@@ -639,6 +639,11 @@ mod tests {
     }
 
     #[test]
+    fn cargo_pkg_version__workspace__is_0_1_4() {
+        assert_eq!(env!("CARGO_PKG_VERSION"), "0.1.4");
+    }
+
+    #[test]
     fn graph_section_from_gather__pinned_count_failed__error_not_fake_zero() {
         use crate::graph_density::PINNED_COUNT_FAILED_MSG;
 

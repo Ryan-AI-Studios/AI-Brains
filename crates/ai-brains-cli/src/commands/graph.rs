@@ -448,7 +448,9 @@ fn graph_health_from_gather(
             );
         }
         GatherResult::PinnedCountFailed { .. } => {
-            return Err(format!("Failed to count pinned memories: {PINNED_COUNT_FAILED_MSG}").into());
+            return Err(
+                format!("Failed to count pinned memories: {PINNED_COUNT_FAILED_MSG}").into(),
+            );
         }
         GatherResult::Ok(s) => {
             let mem_json = s.memory_nodes.unwrap_or(0);

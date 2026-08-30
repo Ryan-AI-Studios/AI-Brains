@@ -1,7 +1,7 @@
 # Security limits (honest hub)
 
 One-page executive summary of **what AI-Brains does and does not claim** for operators, security reviewers, and release gates.
-Product version **0.1.2**. Index: [README.md](README.md).
+Product version **0.1.4**. Index: [README.md](README.md).
 
 This document **links** normative sources; it does not replace ADRs or COMPATIBILITY.
 
