@@ -333,6 +333,10 @@ fn seed_t250_long_and_overflow(vault: &Path) -> (std::path::PathBuf, String, Str
     let proj = dir.join("proj-t250");
     let id = register_project(vault, &proj);
     let long = t250_long_seed();
+    // Pin first so T330 fetch-20 + pretty turn cap 6 (oldest-of-window) still
+    // shows the long Session/Recent display line (T250 AC10). Newest-pin used
+    // to land in LIMIT 5; it now sits past pretty's 6-turn cap.
+    pin_memory(vault, &proj, &id, &long);
     pin_memory(
         vault,
         &proj,
@@ -417,8 +421,6 @@ fn seed_t250_long_and_overflow(vault: &Path) -> (std::path::PathBuf, String, Str
         &id,
         "DECISION: t250 compact overflow index item eight must appear in memory index",
     );
-    // Pin last so retrieval Recent (top-3 by updated_at) includes the full 200+ char body.
-    pin_memory(vault, &proj, &id, &long);
     (proj, id, long)
 }
 
@@ -448,7 +450,7 @@ fn preflight_pretty__long_session_recent__line_capped_140() {
                 && !(l.trim().chars().next().is_some_and(|c| c.is_ascii_digit())
                     && l.contains(". "))
         })
-        .expect("seed Recent/Session display line");
+        .unwrap_or_else(|| panic!("seed Recent/Session display line; stdout=\n{stdout}"));
     assert!(
         seed_line.chars().count() <= 140,
         "AC10 seed line ≤140 chars; got {} `{seed_line}`",
