@@ -1030,6 +1030,31 @@ mod tests {
         10,
         vec!["proc", "json"]
     )]
+    #[case::cap_two(
+        vec![
+            ("chrome", "## Objective dump"),
+            ("proc", "T331 process note about inventory fill"),
+            ("pin", "decision: lowercase inventory pin"),
+        ],
+        2,
+        vec!["pin", "proc"]
+    )]
+    #[case::leading_let_me_is_chrome(
+        vec![
+            ("agent", "Let me verify the inventory fill"),
+            ("proc", "T331 process note about inventory fill"),
+        ],
+        10,
+        vec!["proc", "agent"]
+    )]
+    #[case::leading_fence_is_chrome(
+        vec![
+            ("fence", "```\ncode\n```"),
+            ("proc", "T331 process note about inventory fill"),
+        ],
+        10,
+        vec!["proc", "fence"]
+    )]
     fn recency_fill_empty_authority__cases__expected_ids(
         #[case] pool: Vec<(&str, &str)>,
         #[case] limit: usize,

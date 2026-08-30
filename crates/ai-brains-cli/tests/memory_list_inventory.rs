@@ -1310,10 +1310,10 @@ fn memory_list__glob_empty_chrome_plus_process__process_is_first_with_f4() {
         &id,
         &format!("T331 process {needle} inventory skim body"),
     );
-    pin_memory(&vault, &proj, &id, &format!("## Objective dump-1 {needle}"));
-    pin_memory(&vault, &proj, &id, &format!("## Objective dump-2 {needle}"));
-    pin_memory(&vault, &proj, &id, &format!("## Objective dump-3 {needle}"));
-    pin_memory(&vault, &proj, &id, &format!("## Objective dump-4 {needle}"));
+    pin_memory(&vault, &proj, &id, "## Objective dump-1");
+    pin_memory(&vault, &proj, &id, "## Objective dump-2");
+    pin_memory(&vault, &proj, &id, "## Objective dump-3");
+    pin_memory(&vault, &proj, &id, "## Objective dump-4");
 
     let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
     assert_eq!(code, 0, "AC1 exit 0; stderr={stderr}");
@@ -1323,7 +1323,7 @@ fn memory_list__glob_empty_chrome_plus_process__process_is_first_with_f4() {
         "AC1 first preview must not be Objective chrome; first={first:?}\n{stdout}"
     );
     assert!(
-        first.contains(&needle) || first.contains("T331 process"),
+        first.contains("T331 process") && first.contains(&needle),
         "AC1 first preview is the process needle; first={first:?}\n{stdout}"
     );
     let f3 = stdout.matches(T331_F3).count();
