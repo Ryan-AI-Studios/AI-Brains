@@ -2,6 +2,40 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T329 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 AC7 `sections[]` is CLI not retrieval | **Folded** AC7 `tests/preflight_json_envelope.rs`; AC1–AC6/AC14 retrieval |
+| OpenCode m1 AC9 omit freeze files | **Folded** AC9/F14 + `word_budget.rs` / `preflight_global.rs` / `preflight_safety.rs` / `lexical.rs` |
+| OpenCode m2 helper chrome drift vs `:612–615` | **Folded** F36 / AC14 / §5.4 shared `format!` |
+| OpenCode O1 AC16 unreachable | **Folded** AC16 label; AC3 is header-absent SoT |
+| OpenCode O2 `repeat(2000)` = 4000 words | **Folded** F35 / AC1 / §2.2 |
+| OpenCode O3 mint cite `:617–625` vs live `:618–633` | **Folded** as note — spec already live; mint row snapshot |
+| Agy O1 / O2 greedy trial + final trim | **Already** F2/F7/F8/F9 |
+| OpenCode O3b Dependabot `#250–#256` | **Already** F27 |
+| Agy/OpenCode B / M | None |
+| last-PR `#257` Cursor | **Affirm** N/A empty — no T330 |
+| DOCS TX | `10a7a9bb-d949-435a-aa1c-255d5d1a0097` |
+
+### T329 full plan (2026-08-30) — preflight Recent whale drop
+
+| Item | Disposition |
+|------|-------------|
+| `#249` Bugbot medium: whale authority Recent bodies drop the Recent section (`preflight.rs:510–543` / `:618–633`) | **Absorb** F1–F7 / AC1 / AC3 / AC4 |
+| T327 AC9 small-needle `max_words=1500` | **Stay-green** F10 / AC2 — not the red |
+| Truncate-whale-to-fit | **Decline as DoD** F6 — §11 residual |
+| Drain-side body skip | **Decline** F4 (T327 F44 freeze) |
+| Knapsack / DP packer | **Decline** F39 — n≤3 greedy skip |
+| T327 Index/Session/F4 | **Not stolen** F11 |
+| T328 identity collision | **Not stolen** F15 — Completed `#257` |
+| last-PR Cursor `#257` | **N/A empty** — no T330 |
+| Open PRs `#250–#256` Dependabot | **Decline** F27 — Phase 0 rescan |
+| T307 / clap 5 / H2 / T240 F2 / floors | **Decline** F28 |
+| PATH install | **Decline as DoD** F19 |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `c78cc092-b09d-435a-bb66-7f89f022b842` |
+
 ### T328 implement residuals (2026-08-30) — project identity collision
 
 | Item | Disposition |

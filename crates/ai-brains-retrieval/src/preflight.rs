@@ -589,39 +589,28 @@ fn build_legacy_preflight(
         }
         let index_text = index_lines.join("\n");
 
-        // 2. Build the detailed section (top 3 most recent memories)
-        let mut detailed_text = String::new();
-        if !recent_items.is_empty() {
-            let mut detailed_entries = Vec::new();
-            for (content, updated_at, pid) in &recent_items {
-                let ts = relative_timestamp(updated_at);
-                let entry = if ts.is_empty() {
-                    content.to_string()
-                } else {
-                    format!("({}) {}", ts, content)
-                };
-                if global {
-                    if let Some(id) = pid.as_deref() {
-                        span_ids.push(id.to_string());
-                    }
-                    detailed_entries.push(prefix_first_line(&entry, pid.as_deref()));
-                } else {
-                    detailed_entries.push(entry);
+        // 2. Format Recent entries in collected order (T329 packs after Index).
+        let mut detailed_entries = Vec::new();
+        for (content, updated_at, pid) in &recent_items {
+            let ts = relative_timestamp(updated_at);
+            let entry = if ts.is_empty() {
+                content.to_string()
+            } else {
+                format!("({}) {}", ts, content)
+            };
+            if global {
+                if let Some(id) = pid.as_deref() {
+                    span_ids.push(id.to_string());
                 }
+                detailed_entries.push(prefix_first_line(&entry, pid.as_deref()));
+            } else {
+                detailed_entries.push(entry);
             }
-            detailed_text = format!(
-                "--- Most Recent Memories ---\n\n{}\n\n(Use 'recall' to fetch details for other index items)",
-                detailed_entries.join("\n\n")
-            );
         }
 
-        // 3. Assemble with budget awareness (content words; ignore F2b chrome).
+        // 3. Index first (existing title/trim ladder, Index-only).
         let remaining_budget = max_words.saturating_sub(content_word_count(&sections.join("\n\n")));
-        let full_text = format!("{}\n\n{}", index_text, detailed_text);
-
-        if word_count(&full_text) <= remaining_budget {
-            sections.push(full_text);
-        } else if word_count(&index_text) <= remaining_budget {
+        if word_count(&index_text) <= remaining_budget {
             sections.push(index_text);
         } else {
             // Intermediate index cut: no F2b; final assembly applies F2b if needed.
@@ -630,6 +619,16 @@ fn build_legacy_preflight(
                 remaining_budget,
             ));
             sections.push("... [Index Truncated]".to_string());
+        }
+
+        // 4. Pack Recent independently against leftover remaining (T329).
+        if !detailed_entries.is_empty() {
+            let remaining_budget =
+                max_words.saturating_sub(content_word_count(&sections.join("\n\n")));
+            let packed = pack_recent_entries(&detailed_entries, remaining_budget);
+            if !packed.is_empty() {
+                sections.push(format_recent_section(&packed));
+            }
         }
     }
 
@@ -655,6 +654,28 @@ pub(crate) const INDEX_SLOT_CAP: usize = 15;
 const SESSION_OTHER_TURN_CAP: usize = 3;
 const INDEX_EMPTY_AUTHORITY_SOOT: &str =
     "No DECISION/CONSTRAINT pins in scope; showing recent activity";
+const RECENT_SECTION_HEADER: &str = "--- Most Recent Memories ---";
+const RECENT_SECTION_FOOTER: &str = "(Use 'recall' to fetch details for other index items)";
+
+fn format_recent_section(entries: &[String]) -> String {
+    format!(
+        "{RECENT_SECTION_HEADER}\n\n{}\n\n{RECENT_SECTION_FOOTER}",
+        entries.join("\n\n")
+    )
+}
+
+/// Greedy pack in collected order: skip an item whose trial (header + packed +
+/// candidate + footer) overflows remaining; never drop already-packed items.
+fn pack_recent_entries(entries: &[String], remaining_budget: usize) -> Vec<String> {
+    let mut packed = Vec::new();
+    for entry in entries {
+        packed.push(entry.clone());
+        if word_count(&format_recent_section(&packed)) > remaining_budget {
+            packed.pop();
+        }
+    }
+    packed
+}
 
 fn index_select_sql(global: bool, extra: &str) -> String {
     let scope = if global {
@@ -1267,5 +1288,32 @@ mod tests {
             "dropped duplicate extra id must not enter skip set; remaining={remaining:?} skip={skip:?}"
         );
         assert_eq!(skip.len(), 1, "exactly the kept extra; skip={skip:?}");
+    }
+
+    #[test]
+    fn pack_recent_entries__whale_then_small__skips_whale_keeps_small() {
+        let whale = format!(
+            "(just now) DECISION: whale title\nT329WHALEBODY\n{}",
+            "padding word ".repeat(2000)
+        );
+        let small =
+            "(just now) DECISION: T329SMALL compact authority pin that must survive packing"
+                .to_string();
+        let remaining = word_count(&format_recent_section(std::slice::from_ref(&small)));
+        let packed = pack_recent_entries(&[whale, small.clone()], remaining);
+        assert_eq!(
+            packed,
+            vec![small.clone()],
+            "AC14: skip whale keep small in collected order"
+        );
+        let trial = format_recent_section(&packed);
+        assert_eq!(
+            trial,
+            format!(
+                "--- Most Recent Memories ---\n\n{}\n\n(Use 'recall' to fetch details for other index items)",
+                packed.join("\n\n")
+            ),
+            "AC14: trial chrome matches live header/join/footer"
+        );
     }
 }
