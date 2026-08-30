@@ -2,6 +2,19 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T329 implement residuals (2026-08-30) — preflight Recent whale drop
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install` | **Deferred** F19 — source has T329; PATH still **0.1.3** |
+| Whale-only Recent omitted when body > leftover | **By design** F6 — Index title remains; truncate-to-fit §11 |
+| Skip does not SQL-backfill a 4th Recent row | **Deferred** F23 |
+| Live Index still F4 + recency fill | T327 residual; not this DoD — AC11 still observed Recent header |
+| T328 leftover `10d4bff5` | T328 residual |
+| Pretty formatter still in CLI `preflight.rs` | Hotspot #7 — no pretty growth |
+| `word_count` vs `content_word_count` mix at assembly | Pre-existing; F8 freeze |
+| BUGFIX TX | `b50242d4-ce60-45d5-899e-2f1924c6dc0b` |
+
 ### T329 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
