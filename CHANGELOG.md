@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Fixed
 
+- **T330 Preflight Index authority fit:** Short leading `DECISION:` / `CONSTRAINT:` pins are no longer skipped as low-signal. Index pass-2 skips session chrome so `## Objective` dumps do not fill empty-authority slots; F4 keys off collected authority (chrome-only project vaults get header+F4 with no numbered Objective). Session loads the latest **20** turns (Other cap 3 unchanged). Whale-only Recent at a tight budget emits a truncated snippet instead of omitting the section. JSON required keys unchanged.
+
 - **T329 Preflight Recent whale drop:** Most Recent is packed after Index against leftover budget. An oversized collected body is skipped; smaller authority / recency-fill items still emit under `--- Most Recent Memories ---`. Whale-only overflow omits the Recent header (Index title remains). JSON required keys unchanged; Recent item strings may omit a body that does not fit.
 
 ### Changed

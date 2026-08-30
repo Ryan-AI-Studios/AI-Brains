@@ -2,6 +2,10 @@ use crate::errors::Result;
 use crate::privacy_filter::is_injectable_privacy;
 use ai_brains_store::VaultConnection;
 
+/// Loaded `turn_projection` window per active session (T330 F8).
+/// Session Other preview cap stays 3; `K` counts skipped Other in this window.
+pub(crate) const SESSION_TURN_FETCH: usize = 20;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionTurn {
     pub role: String,
@@ -57,13 +61,14 @@ fn collect_sessions(
             let session_id: String = row.get(0)?;
             let project_id: Option<String> = row.get(2)?;
 
-            let mut turn_stmt = conn.prepare(
+            let turn_sql = format!(
                 "SELECT role, content
                  FROM turn_projection
                  WHERE session_id = ?
                  ORDER BY turn_index DESC
-                 LIMIT 5",
-            )?;
+                 LIMIT {SESSION_TURN_FETCH}"
+            );
+            let mut turn_stmt = conn.prepare(&turn_sql)?;
             let mut turn_rows = turn_stmt.query([&session_id])?;
             let mut turns = Vec::new();
             while let Some(turn_row) = turn_rows.next()? {
@@ -83,4 +88,18 @@ fn collect_sessions(
     }
 
     Ok(active)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[allow(non_snake_case)]
+    fn session_turn_fetch__is_twenty_and_sql_limit_uses_const() {
+        assert_eq!(super::SESSION_TURN_FETCH, 20, "AC13: SESSION_TURN_FETCH");
+        let src = include_str!("sessions.rs");
+        assert!(
+            src.contains("LIMIT {SESSION_TURN_FETCH}"),
+            "AC13: SQL LIMIT must interpolate SESSION_TURN_FETCH"
+        );
+    }
 }

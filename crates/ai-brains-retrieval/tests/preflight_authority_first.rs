@@ -7,7 +7,7 @@ use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, MemoryPinnedPayload, Payload};
-use ai_brains_retrieval::build_preflight;
+use ai_brains_retrieval::{build_preflight, word_count};
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 
 const INDEX_EMPTY_AUTHORITY_SOOT: &str =
@@ -60,9 +60,9 @@ fn other_assistant_turn(i: usize) -> String {
 
 /// T327 AC7 — USER + authority uncapped; Other assistant cap 3 + +K notice.
 ///
-/// `active_sessions` loads `LIMIT 5` turns (`sessions.rs`). Do not raise that
-/// cap (F19). Window = USER + 4 Other; a separate pinned DECISION proves
-/// authority still appears in the assembled text (Index).
+/// `active_sessions` loads `SESSION_TURN_FETCH` turns (`sessions.rs`). Other
+/// assistant cap stays 3. Window = USER + 4 Other; a separate pinned DECISION
+/// proves authority still appears in the assembled text (Index).
 #[test]
 fn preflight__session_other_turns__cap_3_plus_k_notice() -> Result<(), Box<dyn std::error::Error>> {
     let store = common::empty_store()?;
@@ -124,6 +124,52 @@ fn preflight__session_other_turns__cap_3_plus_k_notice() -> Result<(), Box<dyn s
         ctx.text.contains(&notice),
         "AC7: overflow notice {notice:?}; text=\n{}",
         ctx.text
+    );
+    Ok(())
+}
+
+/// T330 AC8 — USER + 8 Other under fetch 20: Other cap 3 + `+5 more`.
+#[test]
+fn preflight__session_eight_other_turns__cap_3_plus_5_notice()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let (session_id, project_id) = common::append_active_session(&store)?;
+    let sid = session_id.to_string();
+    common::append_turn(&store, &sid, "user", "What is the capital of France today?")?;
+    for i in 1..=8 {
+        common::append_turn(&store, &sid, "assistant", &other_assistant_turn(i))?;
+    }
+
+    let ctx = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
+
+    let session_part = ctx
+        .text
+        .split("--- Session:")
+        .nth(1)
+        .and_then(|s| s.split("--- Memory Index").next())
+        .unwrap_or("");
+    assert!(
+        session_part.contains("What is the capital of France today?"),
+        "AC8: USER turn kept; session=\n{session_part}\nfull=\n{}",
+        ctx.text
+    );
+    let other_emitted = (1..=8)
+        .filter(|i| session_part.contains(&other_assistant_turn(*i)))
+        .count();
+    assert!(
+        other_emitted <= 3,
+        "AC8: Other assistant ≤ 3 (got {other_emitted}); session=\n{session_part}"
+    );
+    assert!(
+        session_part.contains("+5 more session turns via recall"),
+        "AC8: +5 notice (8 Other − cap 3); session=\n{session_part}"
     );
     Ok(())
 }
@@ -368,9 +414,9 @@ fn preflight__recent_whale_authority_plus_small__header_and_small_survive()
     Ok(())
 }
 
-/// T329 AC3 — whale-only at max_words=250: omit Recent header; Index title remains.
+/// T330 AC11 — whale-only at max_words=250: Recent header + snippet; Index title remains.
 #[test]
-fn preflight__recent_whale_only__omits_header_keeps_index_title()
+fn preflight__recent_whale_only__header_and_snippet_under_budget()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = common::empty_store()?;
     let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
@@ -384,14 +430,70 @@ fn preflight__recent_whale_only__omits_header_keeps_index_title()
 
     let ctx = build_preflight(store.connection(), None, 250, Some(project_id), None, false)?;
 
+    let header_at = ctx
+        .text
+        .find(RECENT_HEADER)
+        .unwrap_or_else(|| panic!("AC11: Recent header missing; text=\n{}", ctx.text));
+    let recent = &ctx.text[header_at..];
     assert!(
-        !ctx.text.contains(RECENT_HEADER),
-        "AC3: whale-only tight budget omits Recent header; text=\n{}",
+        word_count(recent) <= 250,
+        "AC11: Recent section must be a snippet (wc={} > 250); recent=\n{recent}",
+        word_count(recent)
+    );
+    let body = recent
+        .split(RECENT_HEADER)
+        .nth(1)
+        .unwrap_or(recent)
+        .split("(Use 'recall' to fetch details for other index items)")
+        .next()
+        .unwrap_or(recent);
+    assert!(
+        word_count(body) >= 8,
+        "AC11: snippet body must be ≥ MIN_RECENT_BODY_WORDS; wc={} body=\n{body}",
+        word_count(body)
+    );
+    assert!(
+        body.contains(&whale_title) && body.contains("DECISION:"),
+        "AC11: snippet must retain first-item whale title; body=\n{body}"
+    );
+    let full_blob = "padding word ".repeat(2000);
+    assert!(
+        !recent.contains(full_blob.trim()),
+        "AC11: Recent must not be the full whale blob; recent=\n{recent}"
+    );
+    let before = &ctx.text[..header_at];
+    assert!(
+        before.contains("DECISION:") && before.contains(&whale_title),
+        "AC11: Index still contains whale DECISION title; before=\n{before}"
+    );
+    Ok(())
+}
+
+/// T330 AC19 — empty vault (no project): empty_repo banner; no F4 / Index / Recent.
+#[test]
+fn preflight__empty_vault__empty_repo_banner_no_index_f4_recent()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let ctx = build_preflight(store.connection(), None, 1500, None, None, false)?;
+    assert!(
+        ctx.text
+            .contains("--- AI-Brains: New Repository Detected ---"),
+        "AC19: empty_repo banner; text=\n{}",
         ctx.text
     );
     assert!(
-        ctx.text.contains("DECISION:") && ctx.text.contains(&whale_title),
-        "AC3: Index still contains whale DECISION title; text=\n{}",
+        !ctx.text.contains(INDEX_EMPTY_AUTHORITY_SOOT),
+        "AC19: F4 must not leak into empty_repo; text=\n{}",
+        ctx.text
+    );
+    assert!(
+        !ctx.text.contains("--- Memory Index (Briefing) ---"),
+        "AC19: no Memory Index header; text=\n{}",
+        ctx.text
+    );
+    assert!(
+        !ctx.text.contains(RECENT_HEADER),
+        "AC19: no Recent header; text=\n{}",
         ctx.text
     );
     Ok(())

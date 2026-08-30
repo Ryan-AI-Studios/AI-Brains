@@ -15,7 +15,9 @@ use crate::preflight_safety::{
 };
 use crate::privacy_filter::is_injectable_privacy;
 use crate::ranking::{PinKind, classify_pin_kind, first_contentful_line};
-use crate::session_chrome::{bound_not_in_sql, index_pass1_glob_sql, safety_marker_glob_sql};
+use crate::session_chrome::{
+    bound_not_in_sql, index_pass1_glob_sql, is_session_chrome, safety_marker_glob_sql,
+};
 use crate::sessions::active_sessions;
 use crate::word_budget::{
     content_word_count, trim_to_word_budget, trim_to_word_budget_no_sentinel, word_count,
@@ -488,8 +490,8 @@ fn build_legacy_preflight(
         &mut collected_ids,
         true,
         None,
+        false,
     )?;
-    let pass1_count = collected.len();
     let mut pass2_ids: Vec<String> = collected_ids.iter().cloned().collect();
     pass2_ids.sort();
     let pass2_extra = bound_not_in_sql("m.memory_id", pass2_ids.len()).unwrap_or_default();
@@ -505,6 +507,7 @@ fn build_legacy_preflight(
         &mut collected_ids,
         false,
         None,
+        true,
     )?;
 
     // T327 F3: Most Recent prefers authority, then recency-fills remaining slots.
@@ -523,6 +526,7 @@ fn build_legacy_preflight(
         &mut recent_ids,
         true,
         Some(recent_cap),
+        false,
     )?;
     let mut recent_pass2_ids: Vec<String> = recent_ids.iter().cloned().collect();
     recent_pass2_ids.sort();
@@ -540,6 +544,7 @@ fn build_legacy_preflight(
         &mut recent_ids,
         false,
         Some(recent_cap),
+        false,
     )?;
 
     let index_items = if global {
@@ -563,10 +568,16 @@ fn build_legacy_preflight(
         recent_raw
     };
 
-    if !index_items.is_empty() {
-        // 1. Build the index section with relative timestamps
+    let empty_repo = collected.is_empty() && active.is_empty() && !global && project_id.is_none();
+    if empty_repo {
+        sections.push("--- AI-Brains: New Repository Detected ---\nThis repository has not been initialized with AI-Brains. No previous memories or safety signals are available for this context. Run 'ai-brains context' to initialize project tracking.".to_string());
+    } else {
+        // 1. Build the index section with relative timestamps (header+F4 even if numbered empty).
         let mut index_lines = vec!["--- Memory Index (Briefing) ---".to_string()];
-        if pass1_count == 0 {
+        let authority_in_index = index_items
+            .iter()
+            .any(|(content, _, _)| classify_pin_kind(content) != PinKind::Other);
+        if !authority_in_index {
             index_lines.push(INDEX_EMPTY_AUTHORITY_SOOT.to_string());
         }
         for (i, (content, updated_at, pid)) in index_items.iter().enumerate() {
@@ -620,28 +631,42 @@ fn build_legacy_preflight(
             sections.push("... [Index Truncated]".to_string());
         }
 
-        // 4. Pack Recent independently against leftover remaining (T329).
+        // 4. Pack Recent independently against leftover remaining (T329 + T330 packed-empty truncate).
         if !detailed_entries.is_empty() {
             let remaining_budget =
                 max_words.saturating_sub(content_word_count(&sections.join("\n\n")));
-            let packed = pack_recent_entries(&detailed_entries, remaining_budget);
+            let mut packed = pack_recent_entries(&detailed_entries, remaining_budget);
+            let mut used_truncate_fallback = false;
+            if packed.is_empty() {
+                let chrome = word_count(RECENT_SECTION_HEADER) + word_count(RECENT_SECTION_FOOTER);
+                let body_budget = remaining_budget.saturating_sub(chrome);
+                if body_budget >= MIN_RECENT_BODY_WORDS {
+                    packed.push(trim_to_word_budget_no_sentinel(
+                        &detailed_entries[0],
+                        body_budget,
+                    ));
+                    used_truncate_fallback = true;
+                }
+            }
             if !packed.is_empty() {
                 if global {
-                    for (entry, pid) in detailed_entries.iter().zip(detailed_pids.iter()) {
-                        if packed.iter().any(|p| p == entry)
-                            && let Some(id) = pid.as_deref()
-                        {
+                    if used_truncate_fallback {
+                        if let Some(id) = detailed_pids.first().and_then(|p| p.as_deref()) {
                             span_ids.push(id.to_string());
+                        }
+                    } else {
+                        for (entry, pid) in detailed_entries.iter().zip(detailed_pids.iter()) {
+                            if packed.iter().any(|p| p == entry)
+                                && let Some(id) = pid.as_deref()
+                            {
+                                span_ids.push(id.to_string());
+                            }
                         }
                     }
                 }
                 sections.push(format_recent_section(&packed));
             }
         }
-    }
-
-    if collected.is_empty() && active.is_empty() && !global && project_id.is_none() {
-        sections.push("--- AI-Brains: New Repository Detected ---\nThis repository has not been initialized with AI-Brains. No previous memories or safety signals are available for this context. Run 'ai-brains context' to initialize project tracking.".to_string());
     }
 
     let text = trim_to_word_budget(&sections.join("\n\n"), max_words);
@@ -664,6 +689,7 @@ const INDEX_EMPTY_AUTHORITY_SOOT: &str =
     "No DECISION/CONSTRAINT pins in scope; showing recent activity";
 const RECENT_SECTION_HEADER: &str = "--- Most Recent Memories ---";
 const RECENT_SECTION_FOOTER: &str = "(Use 'recall' to fetch details for other index items)";
+const MIN_RECENT_BODY_WORDS: usize = 8;
 
 fn format_recent_section(entries: &[String]) -> String {
     format!(
@@ -712,6 +738,7 @@ fn drain_index_pass(
     collected_ids: &mut HashSet<String>,
     authority_only: bool,
     max_count: Option<usize>,
+    skip_chrome: bool,
 ) -> Result<()> {
     let mut params: Vec<rusqlite::types::Value> = Vec::new();
     if !global {
@@ -745,11 +772,17 @@ fn drain_index_pass(
         let updated_at: String = row.get(3)?;
         let item_project: Option<String> = row.get(4)?;
         let content = strip_ansi(&content);
-        if is_low_signal(&content) {
-            continue;
-        }
-        if authority_only && classify_pin_kind(&content) == PinKind::Other {
-            continue;
+        let kind = classify_pin_kind(&content);
+        if kind == PinKind::Other {
+            if is_low_signal(&content) {
+                continue;
+            }
+            if authority_only {
+                continue;
+            }
+            if skip_chrome && is_session_chrome(&content) {
+                continue;
+            }
         }
         if let Some(n) = max_count
             && collected.len() >= n
