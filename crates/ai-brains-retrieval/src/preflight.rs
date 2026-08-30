@@ -591,6 +591,7 @@ fn build_legacy_preflight(
 
         // 2. Format Recent entries in collected order (T329 packs after Index).
         let mut detailed_entries = Vec::new();
+        let mut detailed_pids: Vec<Option<String>> = Vec::new();
         for (content, updated_at, pid) in &recent_items {
             let ts = relative_timestamp(updated_at);
             let entry = if ts.is_empty() {
@@ -599,13 +600,11 @@ fn build_legacy_preflight(
                 format!("({}) {}", ts, content)
             };
             if global {
-                if let Some(id) = pid.as_deref() {
-                    span_ids.push(id.to_string());
-                }
                 detailed_entries.push(prefix_first_line(&entry, pid.as_deref()));
             } else {
                 detailed_entries.push(entry);
             }
+            detailed_pids.push(pid.clone());
         }
 
         // 3. Index first (existing title/trim ladder, Index-only).
@@ -627,6 +626,15 @@ fn build_legacy_preflight(
                 max_words.saturating_sub(content_word_count(&sections.join("\n\n")));
             let packed = pack_recent_entries(&detailed_entries, remaining_budget);
             if !packed.is_empty() {
+                if global {
+                    for (entry, pid) in detailed_entries.iter().zip(detailed_pids.iter()) {
+                        if packed.iter().any(|p| p == entry)
+                            && let Some(id) = pid.as_deref()
+                        {
+                            span_ids.push(id.to_string());
+                        }
+                    }
+                }
                 sections.push(format_recent_section(&packed));
             }
         }
