@@ -188,6 +188,15 @@ pub(crate) fn prefer_fill_authority(
     out
 }
 
+/// Empty-GLOB recency fill (T331 F7). Stub identity until green: today's recency order.
+#[allow(dead_code)] // wired in run_inventory on green
+pub(crate) fn recency_fill_empty_authority(
+    pool: Vec<MemoryListRow>,
+    limit: usize,
+) -> Vec<MemoryListRow> {
+    pool.into_iter().take(limit).collect()
+}
+
 // ---------------------------------------------------------------------------
 // JSON DTOs (CLI-local, F10/F11/F22 — no contracts freeze)
 // ---------------------------------------------------------------------------
@@ -887,6 +896,78 @@ mod tests {
         let p1: Vec<MemoryListRow> = pass1.iter().copied().map(list_row).collect();
         let p2: Vec<MemoryListRow> = pass2.iter().copied().map(list_row).collect();
         let out = prefer_fill_authority(p1, p2, limit);
+        let ids: Vec<String> = out.into_iter().map(|r| r.memory_id).collect();
+        let expected: Vec<String> = expected.into_iter().map(str::to_string).collect();
+        assert_eq!(ids, expected);
+    }
+
+    fn list_row_with(id: &str, content: &str) -> MemoryListRow {
+        MemoryListRow {
+            memory_id: id.to_string(),
+            content: content.to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            project_id: None,
+            status: "pinned".to_string(),
+        }
+    }
+
+    #[rstest::rstest]
+    #[case::authority_then_process_then_chrome(
+        vec![
+            ("chrome", "## Objective dump"),
+            ("proc", "T331 process note about inventory fill"),
+            ("pin", "decision: lowercase inventory pin"),
+        ],
+        10,
+        vec!["pin", "proc", "chrome"]
+    )]
+    #[case::chrome_only_fallback(
+        vec![
+            ("c1", "## Objective dump one"),
+            ("c2", "## Objective dump two"),
+        ],
+        10,
+        vec!["c1", "c2"]
+    )]
+    #[case::empty_pool(vec![], 10, vec![])]
+    #[case::duplicate_ids_once(
+        vec![
+            ("chrome", "## Objective dump"),
+            ("chrome", "## Objective dump again"),
+            ("proc", "T331 process unique body"),
+        ],
+        10,
+        vec!["proc", "chrome"]
+    )]
+    #[case::mid_body_let_me_is_not_chrome(
+        vec![
+            ("chrome", "## Objective dump"),
+            (
+                "proc",
+                "T331 process inventory note\nLet me verify the helper stays non-chrome",
+            ),
+        ],
+        10,
+        vec!["proc", "chrome"]
+    )]
+    #[case::json_decisions_head_is_chrome(
+        vec![
+            ("json", "{\n  \"decisions\": [\"x\"]\n}"),
+            ("proc", "T331 process note after json dump"),
+        ],
+        10,
+        vec!["proc", "json"]
+    )]
+    fn recency_fill_empty_authority__cases__expected_ids(
+        #[case] pool: Vec<(&str, &str)>,
+        #[case] limit: usize,
+        #[case] expected: Vec<&str>,
+    ) {
+        let rows: Vec<MemoryListRow> = pool
+            .into_iter()
+            .map(|(id, content)| list_row_with(id, content))
+            .collect();
+        let out = recency_fill_empty_authority(rows, limit);
         let ids: Vec<String> = out.into_iter().map(|r| r.memory_id).collect();
         let expected: Vec<String> = expected.into_iter().map(str::to_string).collect();
         assert_eq!(ids, expected);

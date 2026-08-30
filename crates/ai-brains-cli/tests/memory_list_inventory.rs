@@ -835,6 +835,9 @@ fn forget_list_forgotten__global__project_col_non_empty() {
 // T287 — human prefer-fill authority; JSON recency freeze
 // ---------------------------------------------------------------------------
 
+/// T331 F3 / F35 — copy-not-share 61-char honesty (do not import retrieval const).
+const T331_F3: &str = "No DECISION/CONSTRAINT pins in scope; showing recent activity";
+
 fn unique_token(prefix: &str) -> String {
     let n = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1225,11 +1228,92 @@ fn memory_list__chrome_only_vault__first_row_stays_objective() {
     );
 
     let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
-    assert_eq!(code, 0, "AC10 exit 0; stderr={stderr}");
+    assert_eq!(code, 0, "AC10/AC6 exit 0; stderr={stderr}");
     let first = first_human_preview(&stdout);
     assert!(
         first.starts_with("## Objective"),
         "AC10 chrome-only first row is Objective; first={first:?}\n{stdout}"
+    );
+    let f3 = stdout.matches(T331_F3).count();
+    assert_eq!(
+        f3, 1,
+        "AC6 chrome-only prints F3 honesty once; got {f3} in:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("No pinned memories."),
+        "AC6 must not empty-table lie; got:\n{stdout}"
+    );
+}
+
+/// T331 AC1 — GLOB-empty chrome + older process Other: process first, F3 once.
+#[test]
+fn memory_list__glob_empty_chrome_plus_process__process_is_first_with_f4() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T331p");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("T331 process {needle} inventory skim body"),
+    );
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-1 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-2 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-3 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-4 {needle}"));
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC1 exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        !first.starts_with("## Objective"),
+        "AC1 first preview must not be Objective chrome; first={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains(&needle) || first.contains("T331 process"),
+        "AC1 first preview is the process needle; first={first:?}\n{stdout}"
+    );
+    let f3 = stdout.matches(T331_F3).count();
+    assert_eq!(f3, 1, "AC1 F3 honesty once; got {f3} in:\n{stdout}");
+}
+
+/// T331 AC2 — lowercase `decision:` GLOB-miss is still first; no F3.
+#[test]
+fn memory_list__glob_empty_lowercase_decision__is_first_no_f4() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T331d");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("decision: {needle} lowercase inventory pin"),
+    );
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-1 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-2 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-3 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-4 {needle}"));
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC2 exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        !first.starts_with("## Objective"),
+        "AC2 first preview must not be Objective chrome; first={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains("decision:") && first.contains(&needle),
+        "AC2 first preview is lowercase decision pin; first={first:?}\n{stdout}"
+    );
+    assert!(
+        !stdout.contains(T331_F3),
+        "AC2 authority present → no F3; got:\n{stdout}"
     );
 }
 
