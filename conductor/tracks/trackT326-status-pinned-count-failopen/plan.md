@@ -1,10 +1,11 @@
 # T326 Plan — status/graph PinnedCountFailed fail-open + workspace 0.1.4
 
-**Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
+**Status:** **Completed** (2026-08-30). Spec [spec.md](./spec.md).
 **Category:** BUGFIX / UX / CHORE
 **Ledger (planning):** DOCS `5fd70b52-1a16-4971-ab0f-684c553a4c17`
 **Ledger (fold-in):** DOCS `de4210ab-95df-4b2a-96bd-0c099c8445a5`
 **Ledger (mint):** T316 DOCS `66b597f7-faf9-4f3e-bb06-6af72811bdc6`
+**Ledger (implement):** BUGFIX `986c12ef-91a3-4a7d-a2ae-49bf664d8739`
 
 ---
 
@@ -60,65 +61,65 @@
 
 ## Phase 0 — on go (re-verify + deferred rescan)
 
-- [ ] `ledgerful doctor` ; `ledgerful ledger status --compact`
-- [ ] Confirm cwd `C:\dev\AI-Brains`
-- [ ] Re-read `status.rs:329–340` vs doctor `:901–904` vs `graph.rs:445–458`
-- [ ] Re-read assessor skip arm `graph_density.rs:260–270`
-- [ ] Confirm Bugbot `#237` still true (fake 0 + assess)
-- [ ] Confirm workspace still **0.1.3**; rusqlite **0.40.2**; clap lock **4.6.1**
-- [ ] Confirm T307 still Blocked; T325 Completed; no new Cursor leftover
-- [ ] Rescan `deferred.md` open overlapping rows
-- [ ] `ledgerful ledger start T326-status-pinned-count-failopen --category BUGFIX`
-- [ ] Confirm CI graph-on nextest is still `-E "test(graph)"` (`ci.yml:108`) — AC12 must not drop it
-- [ ] **Do not** `cargo install` / live table drop / `.env` rewrite / retune floors / edit `doctor.rs` / git tag / edit `ci.yml`
+- [x] `ledgerful doctor` ; `ledgerful ledger status --compact`
+- [x] Confirm cwd `C:\dev\AI-Brains`
+- [x] Re-read `status.rs:329–340` vs doctor `:901–904` vs `graph.rs:445–458`
+- [x] Re-read assessor skip arm `graph_density.rs:260–270`
+- [x] Confirm Bugbot `#237` still true (fake 0 + assess)
+- [x] Confirm workspace still **0.1.3**; rusqlite **0.40.2**; clap lock **4.6.1**
+- [x] Confirm T307 still Blocked; T325 Completed; no new Cursor leftover
+- [x] Rescan `deferred.md` open overlapping rows
+- [x] `ledgerful ledger start T326-status-pinned-count-failopen --category BUGFIX` (`986c12ef`)
+- [x] Confirm CI graph-on nextest is still `-E "test(graph)"` (`ci.yml:108`) — AC12 must not drop it
+- [x] **Do not** `cargo install` / live table drop / `.env` rewrite / retune floors / edit `doctor.rs` / git tag / edit `ci.yml`
 
 ## Phase 1 — Red
 
-- [ ] `graph_section_from_gather__pinned_count_failed__error_not_fake_zero` (AC1) — **must fail** (today Ok `live`/`pinned=0` on empty-graph COUNT fail)
-- [ ] Second case `nodes=100, edges=10` still would be Ok sparse with `pinned=0` today
-- [ ] `graph_health_from_gather__pinned_count_failed__err` (AC2, `--features graph`) — **must fail**
-- [ ] Confirm AC3/AC4/AC5/AC6 still **pass** (stay-green)
+- [x] `graph_section_from_gather__pinned_count_failed__error_not_fake_zero` (AC1) — **must fail** (today Ok `live`/`pinned=0` on empty-graph COUNT fail)
+- [x] Second case `nodes=100, edges=10` still would be Ok sparse with `pinned=0` today
+- [x] `graph_health_from_gather__pinned_count_failed__err` (AC2, `--features graph`) — **must fail**
+- [x] Confirm AC3/AC4/AC5/AC6 still **pass** (stay-green)
 
 ## Phase 2 — Green (fail-open)
 
-- [ ] `PINNED_COUNT_FAILED_MSG` const on `graph_density.rs` (F4)
-- [ ] `graph_section_from_gather` — `PinnedCountFailed → Err` (F1/F8)
-- [ ] `graph_health_from_gather` — `PinnedCountFailed → Err` (F2/F8/F35) — shared by update **and** rebuild `:520/:539/:769`
-- [ ] AC1/AC2/AC7/AC8 pass
-- [ ] AC3–AC6 / AC12–AC14 / AC16 stay-green
-- [ ] AC12 graph-on: clippy `--features graph`; nextest **`-E "test(graph)"`** (F37 — do **not** full-package graph-on)
-- [ ] AC16 add `MIN_EDGE_NODE_RATIO == 0.50` into existing env-default test
-- [ ] `git diff` `doctor.rs` empty (AC5/AC13)
+- [x] `PINNED_COUNT_FAILED_MSG` const on `graph_density.rs` (F4)
+- [x] `graph_section_from_gather` — `PinnedCountFailed → Err` (F1/F8)
+- [x] `graph_health_from_gather` — `PinnedCountFailed → Err` (F2/F8/F35) — shared by update **and** rebuild `:520/:539/:769`
+- [x] AC1/AC2/AC7/AC8 pass
+- [x] AC3–AC6 / AC12–AC14 / AC16 stay-green
+- [x] AC12 graph-on: clippy `--features graph`; nextest **`-E "test(graph)"`** (F37 — do **not** full-package graph-on)
+- [x] AC16 add `MIN_EDGE_NODE_RATIO == 0.50` into existing env-default test
+- [x] `git diff` `doctor.rs` empty (AC5/AC13)
 
 ## Phase 3 — Version 0.1.4
 
-- [ ] `Cargo.toml` `workspace.package.version = "0.1.4"` (F23)
-- [ ] Cargo rewrite of lock workspace package versions (**no** `cargo update` of third-party crates)
-- [ ] CHANGELOG: T326 Fixed bullet + insert `## [0.1.4] — <date>` after Unreleased (F24 / AC10)
-- [ ] Docs F25 headers **0.1.4** (CAPABILITIES / INSTALL / README / RELEASE-CHECKLIST currently-line / RELEASE-CLAIMS header / SECURITY-LIMITS / ci-tooling example / generate-sbom.ps1 **and** `.sh`)
-- [ ] CAPABILITIES F36 COUNT-fail honesty on `status` + `graph update` + `graph rebuild` (AC11)
-- [ ] `Docs/CLI-EXIT-CODES.md` COUNT-fail → exit **1** on update/rebuild (AC11)
-- [ ] AC9 source `--version` / `CARGO_PKG_VERSION` is **0.1.4**
-- [ ] `check-version-banners.ps1` sees `## [0.1.4]`
-- [ ] Desktop **0.1.2** untouched (F26)
-- [ ] Path-dep `"0.1.0"` untouched (F27)
+- [x] `Cargo.toml` `workspace.package.version = "0.1.4"` (F23)
+- [x] Cargo rewrite of lock workspace package versions (**no** `cargo update` of third-party crates)
+- [x] CHANGELOG: T326 Fixed bullet + insert `## [0.1.4] — <date>` after Unreleased (F24 / AC10)
+- [x] Docs F25 headers **0.1.4** (CAPABILITIES / INSTALL / README / RELEASE-CHECKLIST currently-line / RELEASE-CLAIMS header / SECURITY-LIMITS / ci-tooling example / generate-sbom.ps1 **and** `.sh`)
+- [x] CAPABILITIES F36 COUNT-fail honesty on `status` + `graph update` + `graph rebuild` (AC11)
+- [x] `Docs/CLI-EXIT-CODES.md` COUNT-fail → exit **1** on update/rebuild (AC11)
+- [x] AC9 source `--version` / `CARGO_PKG_VERSION` is **0.1.4**
+- [x] `check-version-banners.ps1` sees `## [0.1.4]`
+- [x] Desktop **0.1.2** untouched (F26)
+- [x] Path-dep `"0.1.0"` untouched (F27)
 
 ## Phase 4 — Docs / isolation
 
-- [ ] PROTOCOL-COMPAT: no new required keys
-- [ ] AC14 no new clap flags
-- [ ] AC15 PATH honesty (no install)
-- [ ] Conductor / deferred Completed notes **only after** implement-track publish
+- [x] PROTOCOL-COMPAT: no new required keys
+- [x] AC14 no new clap flags
+- [x] AC15 PATH honesty (no install)
+- [x] Conductor / deferred Completed notes **only after** implement-track publish
 
 ## DoD (checkable)
 
-- [ ] AC1 red-then-green: empty-graph COUNT fail is glance `error`, not `live`/`pinned=0`
-- [ ] AC2: shared builder COUNT fail is `Err` (`graph update` **and** `graph rebuild`), not `pinned_memories: 0`
-- [ ] Doctor skip + 15-check matrix untouched
-- [ ] Floors 0.50 frozen
-- [ ] Workspace **0.1.4** + CHANGELOG section + Docs headers
-- [ ] No clap 5 / no rusqlite bump / no T307 / no H2 / no desktop bump / no git tag
-- [ ] Full implement-track gate + PR squash-merge (never `git push origin main`)
+- [x] AC1 red-then-green: empty-graph COUNT fail is glance `error`, not `live`/`pinned=0`
+- [x] AC2: shared builder COUNT fail is `Err` (`graph update` **and** `graph rebuild`), not `pinned_memories: 0`
+- [x] Doctor skip + 15-check matrix untouched
+- [x] Floors 0.50 frozen
+- [x] Workspace **0.1.4** + CHANGELOG section + Docs headers
+- [x] No clap 5 / no rusqlite bump / no T307 / no H2 / no desktop bump / no git tag
+- [x] Full implement-track gate + PR squash-merge (never `git push origin main`)
 
 ## Isolation
 

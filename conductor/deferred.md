@@ -2,6 +2,19 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T326 implement residuals (2026-08-30) — pin-count fail-open + 0.1.4
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install --features graph` | **Deferred** — source `--version` **0.1.4**; PATH still **0.1.3** / T320 `status` lag |
+| COUNT fail rare on a healthy vault | **Deferred** — hermetic inject is SoT (F21); live glance COUNT succeeds |
+| Doctor skip literal vs `PINNED_COUNT_FAILED_MSG` const | **Deferred** — copy-not-share (F3/F4); `doctor.rs` untouched |
+| No git tag `v0.1.4` | **Deferred** F28 — T185 public-tag path |
+| Extra 0.1.x comment mentions outside F25 closed set | **Deferred** — F25 closed set includes `.ps1` **and** `.sh` |
+| T307 / clap 5 | **Standing** — not stolen |
+| T327 preflight authority-first / T328 identity collision | **Not stolen** — Pending tracks; registry rows kept |
+| BUGFIX TX | `986c12ef-91a3-4a7d-a2ae-49bf664d8739` |
+
 ### T326 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

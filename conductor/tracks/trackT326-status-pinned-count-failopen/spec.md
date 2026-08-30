@@ -1,7 +1,7 @@
 # T326 — `status` / `graph update` must not fake `pinned=0` on COUNT fail + workspace 0.1.4
 
 - **Track ID:** T326-StatusPinnedCountFailOpen
-- **Status:** **Planned** (Pending until **go**)
+- **Status:** **Completed** (2026-08-30)
 - **Category:** BUGFIX / UX / CHORE
 - **Owner:** Grok
 - **Source:** Last-PR Cursor Bugbot on [#237](https://github.com/Ryan-AI-Studios/AI-Brains/pull/237) (T320, `mergedAt` **2026-08-29T03:17:43Z**). Medium `3885361601`: when pinned-memory COUNT fails, glance invents `pinned=0` and still runs density assessment. Empty graph on a pin-rich vault can then show `live`/`skip` + `pinned=0` instead of failing that section open. Doctor already skips. Owner also asked this track to **bump the workspace version** (0.1.3 → **0.1.4**).
