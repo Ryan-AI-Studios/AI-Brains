@@ -2,14 +2,71 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T330 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode M1 shared drain chrome-skip vs T327 AC10 stay-green | **Folded** F2 option (a): `skip_chrome=true` **Index pass-2 only**; Recent pass-2 false; AC12 names T327 AC10 |
+| Agy m1 empty-repo vs Index/F4 gate | **Folded** F42 / AC19 / §5.2 empty_repo **before** assembly |
+| OpenCode m2 F8 “CAPABILITIES names 20” vs live latest 5 | **Folded** F8 **will** name 20; AC16 updates `:383` on go |
+| OpenCode m3 conductor gitignored vs tracked | **Folded** Isolation: `conductor.md`/`deferred.md` **tracked**; do not git-add |
+| OpenCode O4 `#258` `mergedAt` 16:11:45Z | **Folded** **2026-08-30T16:28:59Z** |
+| OpenCode O5 `is_verbose_other_dump` unused in preflight | **Folded** F2 do-not-add to drain |
+| OpenCode O6 AC2 wrap cites test comment | **Folded** §2.2 hermetic fixture SoT |
+| OpenCode O7 doctor 5 vs 4+2 optional | **Folded** §2.1 |
+| Agy O1/O2 call-only / tail-trim | **Already** F2 / F6 |
+| last-PR `#258` Cursor | **Affirm** N/A empty — no T333 |
+| Agy/OpenCode B | None |
+| OpenCode M | **1** — folded (not declined) |
+| DOCS TX | `cb8baa4f-0c2e-491e-b788-a71f393d5de5` |
+
+### T330 full plan (2026-08-30) — preflight Index authority fit
+
+| Item | Disposition |
+|------|-------------|
+| T327 live Index F4 + recency chrome (4754 pins, in-context 0) | **Absorb** F1–F5 / AC1 / AC3 / AC4 / AC17 |
+| T286 R1-1 Index `## Objective` post-skip-oversized | **Absorb** F2 / F15 / AC3 (chrome skip; F4 stays if no pin) |
+| `is_low_signal` before classify skips short `DECISION:` (`preflight.rs:748`) | **Absorb** F1 / AC1 / AC2 |
+| T327 Session `turn_projection` LIMIT 5 | **Absorb** F8 / AC8 (fetch **20**; Other cap 3 freeze) |
+| T329 truncate-whale-to-fit §11 | **Absorb narrow** F6 / F16 / AC11 (packed-empty only) |
+| T329 skip does not SQL-backfill a 4th Recent | **Decline** F7 |
+| T329 skip when small fits (AC1) | **Freeze** F11 / AC10 |
+| T327 skip-oversized / slot cap / F4 **string** / Other cap 3 / F56/F57 | **Freeze** F9/F10 |
+| T331 `memory list` GLOB-empty / T332 detect / T288 briefing LIMIT-32 | **Not stolen** F13 |
+| Buried `decision:` / classifier widen / LIKE-GLOB | **Decline** F12 / F29 |
+| last-PR Cursor `#258` | **N/A empty** — no T333 |
+| Open PRs `#250–#256` Dependabot | **Decline** F28 — Phase 0 rescan |
+| T240 F2 / H2 / T307 / clap 5 / PATH install | **Decline** F22 / F29 |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `3a3afc58-97c5-414c-86db-2c7b21f13611` |
+
+### T330–T332 mint + T66 closeout (2026-08-30)
+
+| Item | Disposition |
+|------|-------------|
+| ~~T327 live Index F4 + recency chrome (4753 pins, in-context decisions 0)~~ | **T330 Planned** — F1–F5 / AC1 / AC3 |
+| ~~T329 truncate-whale-to-fit / skip no 4th SQL backfill / Session LIMIT 5~~ | **T330 Planned** — fetch 20 + packed-empty truncate; **decline** 4th SQL |
+| T287 R1-1 / T316 F27 `memory list` GLOB+retain empty → recency first page | **Mint T331** |
+| T328 env-in-vault detect fallback hides slug miss (`project.rs:338–350`) | **Mint T332** |
+| T328 leftover `10d4bff5` 2-mem path null | **Mint T332** (ops vs remediator on `/plan-track 332`) |
+| PATH `cargo install` | **Decline as tracks** — owner ops; every recent residual |
+| Doctor path-null ok / daily silent until whoami | **Decline** — T328 F11/F29 by design |
+| Leftover `7d97a456` | **Not stolen** — T259/T276 ops |
+| T240 F2 / clap 5 / H2 / T307 | **Not stolen** / T307 still **Blocked** |
+| last-PR Cursor `#258` | **N/A empty** — no T333 |
+| Open PRs `#250–#256` Dependabot | **Decline** as product findings |
+| T66 “Code Complete / pending MemoryPinned” | **Closed** — T67/T68/T69 shipped; registry **Completed** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `e58288ab-8301-43bb-8508-e13acc859191` |
+
 ### T329 implement residuals (2026-08-30) — preflight Recent whale drop
 
 | Item | Disposition |
 |------|-------------|
 | PATH until owner `cargo install` | **Deferred** F19 — source has T329; PATH still **0.1.3** |
-| Whale-only Recent omitted when body > leftover | **By design** F6 — Index title remains; truncate-to-fit §11 |
-| Skip does not SQL-backfill a 4th Recent row | **Deferred** F23 |
-| Live Index still F4 + recency fill | T327 residual; not this DoD — AC11 still observed Recent header |
+| ~~Whale-only Recent omitted when body > leftover~~ | T329 F6; **T330 Planned** packed-empty truncate (F6/AC11) |
+| Skip does not SQL-backfill a 4th Recent row | **Deferred** F23 — T330 **declines** (F7) |
+| ~~Live Index still F4 + recency fill~~ | **T330 Planned** |
 | T328 leftover `10d4bff5` | T328 residual |
 | Pretty formatter still in CLI `preflight.rs` | Hotspot #7 — no pretty growth |
 | `word_count` vs `content_word_count` mix at assembly | Pre-existing; F8 freeze |
@@ -112,11 +169,11 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Item | Disposition |
 |------|-------------|
 | PATH until owner `cargo install` | **Deferred** F28 — source has T327; PATH still **0.1.3** |
-| Live Index still F4 + recency fill (`3581317d` no fitting leading DECISION) | **Deferred** AC17 pass-with-observed-data; do not H2 |
-| Session `turn_projection` LIMIT 5 | **Deferred** F19 — do not grow `sessions.rs`; F2 applies to loaded turns; CAPABILITIES names the window |
+| ~~Live Index still F4 + recency fill (`3581317d` no fitting leading DECISION)~~ | **T330 Planned** F1–F5; Manual still pass-with-observed-data |
+| ~~Session `turn_projection` LIMIT 5~~ | **T330 Planned** F8 fetch **20** |
 | AC1 needle-as-item-1 vs F44 no body-skip | **Deferred** F44 wins; whale (newer) is Index 1; small pin still enters |
 | T328 identity collision | **Completed** this implement |
-| T287 `memory list` ORDER | **Not stolen** F13 |
+| T287 `memory list` ORDER | **Not stolen** F13 — **T331** |
 | FEATURE TX | `cc2212aa-001a-4a68-ae4a-f547f06afce3` |
 
 ### T326 implement residuals (2026-08-30) — pin-count fail-open + 0.1.4

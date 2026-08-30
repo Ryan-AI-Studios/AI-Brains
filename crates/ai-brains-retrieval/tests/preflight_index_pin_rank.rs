@@ -7,7 +7,7 @@ use ai_brains_core::ids::{MemoryId, ProjectId};
 use ai_brains_core::privacy::Privacy;
 use ai_brains_events::constructors::EventBuilder;
 use ai_brains_events::{Actor, AggregateType, MemoryPinnedPayload, Payload};
-use ai_brains_retrieval::build_preflight;
+use ai_brains_retrieval::{build_preflight, word_count};
 use ai_brains_store::event_store::{EventStore, SqliteEventStore};
 
 fn append_pinned(
@@ -244,7 +244,95 @@ fn preflight__index_whale_decision_then_small_pin__small_pin_is_item_1()
     Ok(())
 }
 
-/// T327 AC3 — zero authority → F4 honesty line once, recency fill allowed.
+/// T330 AC1 — short leading DECISION (word_count < 6) is Index 1; F4 absent.
+#[test]
+fn preflight__index_short_decision_under_six_words__is_item_1()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let needle = format!("T330a1{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let pin_content = format!("DECISION: {needle}");
+    assert!(
+        word_count(&pin_content) < 6,
+        "AC1: stored pin must be low-signal by today's meter; wc={} content={pin_content}",
+        word_count(&pin_content)
+    );
+    let dump_body = format!(
+        "## Objective\nReview dump with buried decision: in the skill body. {}",
+        "padding word ".repeat(80)
+    );
+    let pin_id = append_pinned(&store, project_id, &pin_content)?;
+    let dump_id = append_pinned(&store, project_id, &dump_body)?;
+    set_updated_at(&store, &pin_id, "2020-01-01T00:00:00+00:00")?;
+    set_updated_at(&store, &dump_id, "2026-08-30T12:00:00+00:00")?;
+
+    let ctx = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
+    let first = first_numbered_index_line(&ctx.text);
+    assert!(
+        first.contains(&needle) && first.contains("DECISION:"),
+        "AC1: Index line 1 must be the short DECISION pin; line={first:?}\n{}",
+        ctx.text
+    );
+    assert!(
+        !ctx.text.contains(INDEX_EMPTY_AUTHORITY_SOOT),
+        "AC1: F4 must be absent when a short pin is collected; text=\n{}",
+        ctx.text
+    );
+    Ok(())
+}
+
+/// T330 AC2 — capture wrap ASSISTANT: DECISION: {needle} still Index 1 (wc < 6).
+#[test]
+fn preflight__index_assistant_wrapped_short_decision__is_item_1()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let needle = format!("T330a2{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let pin_content = format!("ASSISTANT: DECISION: {needle}");
+    assert!(
+        word_count(&pin_content) < 6,
+        "AC2: wrapped pin must be low-signal by today's meter; wc={} content={pin_content}",
+        word_count(&pin_content)
+    );
+    let dump_body = format!(
+        "## Objective\nReview dump with buried decision: in the skill body. {}",
+        "padding word ".repeat(80)
+    );
+    let pin_id = append_pinned(&store, project_id, &pin_content)?;
+    let dump_id = append_pinned(&store, project_id, &dump_body)?;
+    set_updated_at(&store, &pin_id, "2020-01-01T00:00:00+00:00")?;
+    set_updated_at(&store, &dump_id, "2026-08-30T12:00:00+00:00")?;
+
+    let ctx = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
+    let first = first_numbered_index_line(&ctx.text);
+    assert!(
+        first.contains(&needle) && first.contains("DECISION:"),
+        "AC2: Index line 1 must be the wrapped short DECISION pin; line={first:?}\n{}",
+        ctx.text
+    );
+    assert!(
+        !ctx.text.contains(INDEX_EMPTY_AUTHORITY_SOOT),
+        "AC2: F4 must be absent; text=\n{}",
+        ctx.text
+    );
+    Ok(())
+}
+
+/// T327 AC3 / T330 AC3 — chrome-only: F4 once; numbered Index must not be ## Objective.
 #[test]
 fn preflight__index_no_authority__f4_honesty_line_once() -> Result<(), Box<dyn std::error::Error>> {
     let store = common::empty_store()?;
@@ -265,10 +353,53 @@ fn preflight__index_no_authority__f4_honesty_line_once() -> Result<(), Box<dyn s
     )?;
     let f4 = ctx.text.matches(INDEX_EMPTY_AUTHORITY_SOOT).count();
     assert_eq!(f4, 1, "AC3: F4 SOOT exactly once; text=\n{}", ctx.text);
+    let numbered = numbered_index_lines(&ctx.text);
+    assert!(
+        numbered.iter().all(|l| !l.contains("## Objective")),
+        "AC3: numbered Index must not contain ## Objective; numbered={numbered:?}\n{}",
+        ctx.text
+    );
+    Ok(())
+}
+
+/// T330 AC4 — newer chrome + older non-chrome Other: F4 + item 1 is the Other.
+#[test]
+fn preflight__index_chrome_plus_other__other_is_item_1_with_f4()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let other_body = "Let me verify the SQL for the drain path now.";
+    assert!(
+        word_count(other_body) >= 6,
+        "AC4: Other body must survive low-signal; wc={}",
+        word_count(other_body)
+    );
+    let dump_body = format!(
+        "## Objective\nReview dump with buried decision: in the skill body. {}",
+        "padding word ".repeat(80)
+    );
+    let other_id = append_pinned(&store, project_id, other_body)?;
+    let dump_id = append_pinned(&store, project_id, &dump_body)?;
+    set_updated_at(&store, &other_id, "2020-01-01T00:00:00+00:00")?;
+    set_updated_at(&store, &dump_id, "2026-08-30T12:00:00+00:00")?;
+
+    let ctx = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
+    assert!(
+        ctx.text.contains(INDEX_EMPTY_AUTHORITY_SOOT),
+        "AC4: F4 present (no authority pin); text=\n{}",
+        ctx.text
+    );
     let first = first_numbered_index_line(&ctx.text);
     assert!(
-        !first.is_empty(),
-        "AC3: recency fill still numbers Index item 1; text=\n{}",
+        first.contains("Let me verify") && !first.contains("## Objective"),
+        "AC4: Index line 1 is the non-chrome Other; line={first:?}\n{}",
         ctx.text
     );
     Ok(())
