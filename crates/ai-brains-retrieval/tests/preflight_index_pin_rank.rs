@@ -362,6 +362,49 @@ fn preflight__index_no_authority__f4_honesty_line_once() -> Result<(), Box<dyn s
     Ok(())
 }
 
+/// T330 F3 — lowercase `decision:` misses GLOB pass-1 but is collected-authority; F4 absent.
+#[test]
+fn preflight__index_lowercase_decision_pass2__no_f4() -> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let needle = format!("T330low{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let pin_content = format!("decision: {needle} must surface as authority pin");
+    assert!(
+        word_count(&pin_content) >= 6,
+        "F3 fixture must not be low-signal Other; wc={}",
+        word_count(&pin_content)
+    );
+    let dump_body = format!(
+        "## Objective\nReview dump with buried decision: in the skill body. {}",
+        "padding word ".repeat(80)
+    );
+    let pin_id = append_pinned(&store, project_id, &pin_content)?;
+    let dump_id = append_pinned(&store, project_id, &dump_body)?;
+    set_updated_at(&store, &pin_id, "2020-01-01T00:00:00+00:00")?;
+    set_updated_at(&store, &dump_id, "2026-08-30T12:00:00+00:00")?;
+
+    let ctx = build_preflight(
+        store.connection(),
+        None,
+        1500,
+        Some(project_id),
+        None,
+        false,
+    )?;
+    let first = first_numbered_index_line(&ctx.text);
+    assert!(
+        first.contains(&needle),
+        "F3: pass-2 lowercase decision is Index 1; line={first:?}\n{}",
+        ctx.text
+    );
+    assert!(
+        !ctx.text.contains(INDEX_EMPTY_AUTHORITY_SOOT),
+        "F3: F4 must key off collected authority, not GLOB pass-1 count; text=\n{}",
+        ctx.text
+    );
+    Ok(())
+}
+
 /// T330 AC4 — newer chrome + older non-chrome Other: F4 + item 1 is the Other.
 #[test]
 fn preflight__index_chrome_plus_other__other_is_item_1_with_f4()

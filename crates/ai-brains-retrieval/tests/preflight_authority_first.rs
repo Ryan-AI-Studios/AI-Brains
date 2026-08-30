@@ -440,6 +440,22 @@ fn preflight__recent_whale_only__header_and_snippet_under_budget()
         "AC11: Recent section must be a snippet (wc={} > 250); recent=\n{recent}",
         word_count(recent)
     );
+    let body = recent
+        .split(RECENT_HEADER)
+        .nth(1)
+        .unwrap_or(recent)
+        .split("(Use 'recall' to fetch details for other index items)")
+        .next()
+        .unwrap_or(recent);
+    assert!(
+        word_count(body) >= 8,
+        "AC11: snippet body must be ≥ MIN_RECENT_BODY_WORDS; wc={} body=\n{body}",
+        word_count(body)
+    );
+    assert!(
+        body.contains(&whale_title) && body.contains("DECISION:"),
+        "AC11: snippet must retain first-item whale title; body=\n{body}"
+    );
     let full_blob = "padding word ".repeat(2000);
     assert!(
         !recent.contains(full_blob.trim()),
