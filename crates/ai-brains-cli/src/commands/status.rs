@@ -11,8 +11,8 @@ use crate::commands::format_resolve::resolve_human_json_format;
 use crate::daemon_client::DaemonClient;
 use crate::daemon_probe::{DaemonProbePolicy, probe_daemon_reachable};
 use crate::graph_density::{
-    Assessment, GatherResult, GraphDensitySnapshot, assess_graph_density, format_ratio,
-    gather_density_snapshot,
+    Assessment, GatherResult, GraphDensitySnapshot, PINNED_COUNT_FAILED_MSG, assess_graph_density,
+    format_ratio, gather_density_snapshot,
 };
 use crate::key_resolve::resolve_operator_sqlcipher_key;
 use ai_brains_contracts::doctor::{CheckSeverity, DoctorReport, DoctorStatus};
@@ -330,20 +330,7 @@ fn build_graph_section(conn: &VaultConnection) -> Result<GraphSection, String> {
 fn graph_section_from_gather(gather: GatherResult) -> Result<GraphSection, String> {
     match gather {
         GatherResult::TablesMissing => Err("graph tables missing".into()),
-        GatherResult::PinnedCountFailed {
-            nodes,
-            edges,
-            memory_nodes,
-        } => {
-            // T326 red: still invents pinned=0 then assesses (Bugbot #237).
-            let snap = GraphDensitySnapshot {
-                nodes,
-                edges,
-                pinned_memories: 0,
-                memory_nodes,
-            };
-            Ok(graph_from_assessment(&snap, &assess_graph_density(&snap)))
-        }
+        GatherResult::PinnedCountFailed { .. } => Err(PINNED_COUNT_FAILED_MSG.into()),
         GatherResult::Ok(snap) => {
             let assessment = assess_graph_density(&snap);
             Ok(graph_from_assessment(&snap, &assessment))

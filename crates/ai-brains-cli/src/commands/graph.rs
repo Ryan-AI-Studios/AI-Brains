@@ -1,6 +1,6 @@
 use crate::context::AppContext;
 use crate::graph_density::{
-    GatherResult, GraphDensitySnapshot, assess_graph_density, gather_density_snapshot,
+    GatherResult, PINNED_COUNT_FAILED_MSG, assess_graph_density, gather_density_snapshot,
 };
 use ai_brains_control_plane::clamp_list_limit;
 use ai_brains_graph::{GraphRebuilder, GraphSearch, GraphVault, NeighborHit};
@@ -447,20 +447,8 @@ fn graph_health_from_gather(
                     .into(),
             );
         }
-        GatherResult::PinnedCountFailed {
-            nodes,
-            edges,
-            memory_nodes,
-        } => {
-            // T326 red: still invents pinned=0 then assesses (same as glance).
-            let s = GraphDensitySnapshot {
-                nodes,
-                edges,
-                pinned_memories: 0,
-                memory_nodes,
-            };
-            let mem_json = memory_nodes.unwrap_or(0);
-            (s, 0_i64, mem_json)
+        GatherResult::PinnedCountFailed { .. } => {
+            return Err(format!("Failed to count pinned memories: {PINNED_COUNT_FAILED_MSG}").into());
         }
         GatherResult::Ok(s) => {
             let mem_json = s.memory_nodes.unwrap_or(0);

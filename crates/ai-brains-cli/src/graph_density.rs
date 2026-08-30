@@ -620,6 +620,7 @@ mod tests {
         assert_eq!(threshold_min_nodes(), MIN_NODES);
         assert!((threshold_min_edge_ratio() - MIN_EDGE_NODE_RATIO).abs() < 1e-12);
         assert!((threshold_min_memory_coverage() - MIN_MEMORY_COVERAGE).abs() < 1e-12);
+        assert!((MIN_EDGE_NODE_RATIO - 0.50).abs() < f64::EPSILON);
     }
 
     #[test]
