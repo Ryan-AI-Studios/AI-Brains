@@ -3,6 +3,7 @@
 **Status:** **Planned** (Pending until **go**). Spec [spec.md](./spec.md).
 **Category:** BUGFIX / UX / CHORE
 **Ledger (planning):** DOCS `5fd70b52-1a16-4971-ab0f-684c553a4c17`
+**Ledger (fold-in):** DOCS `de4210ab-95df-4b2a-96bd-0c099c8445a5`
 **Ledger (mint):** T316 DOCS `66b597f7-faf9-4f3e-bb06-6af72811bdc6`
 
 ---
@@ -11,16 +12,16 @@
 
 | Check | Result |
 |-------|--------|
-| HEAD / tree | Product `9119c74` T325 `#247`. Dirty conductor T325 Completed notes → this plan DOCS. Branch `track/T326-status-pinned-count-failopen`. `origin/main` = `9119c74` (ahead **0** at plan start). |
+| HEAD / tree | Fold-in `6b27beb` plan commit; `origin/main` = `9119c74` (ahead **1**). Plan-write was `9119c74` / ahead **0** (Agy m2). Branch `track/T326-status-pinned-count-failopen`. Product `src/` = T325 `#247` `9119c74`. |
 | PATH `ai-brains` | **0.1.3** graph-on; **26,897,408** B; mtime **2026-08-27 8:21:55 PM**. T312–T325 **not** on PATH. `status` unrecognized. |
-| `preflight --summary` (PATH) | Pinned **4674**; in-context **0/0/0**; `Total Word Count: 717` (PATH-behind T315). |
+| `preflight --summary` (PATH) | Pinned **4674**; in-context **0/0/0**; plan-write `Total Word Count: 717` (**volatile**; OpenCode **768**). |
 | Bugbot `#237` `3885361601` | **Still true** — `status.rs:329–340` invents `pinned=0` + assesses |
 | graph.rs same arm | `:445–458` fake 0 |
 | Doctor skip | `:901–904` **SOOT** |
 | Assessor skip arm | `graph_density.rs:260–270` empty graph + `pinned<100` → `live`/`skip` |
 | rustc | **1.95.0** |
 | Pins | clap `"4.5"` / lock **4.6.1** / crates.io **4.6.6**; rusqlite **0.40.2**; serde_json **1.0.150**; workspace **0.1.3** → **0.1.4 this track** |
-| Last PR Cursor | `#247` empty. `#237` → **this**. **No T327.** |
+| Last PR Cursor | `#247` empty (`mergedAt` **2026-08-30T00:23:50Z**). `#237` → **this**. **No T327.** |
 | Open PRs | **none** |
 | Ledger | 0 pending / 0 drift at scan (before this DOCS TX) |
 | Impact | **LOW** (conductor-only dirty) |
@@ -45,6 +46,15 @@
 | T307 / clap 5 / H2 / floors | **Not stolen** / **Decline** |
 | last-PR `#247` | **N/A empty** |
 | Desktop 0.1.2 / git tag | **Decline** F26/F28 |
+| Agy m2 HEAD snapshot | **Folded** `6b27beb` / ahead **1** |
+| OpenCode m1 AC12 CI graph filter | **Folded** F37 / AC12 |
+| OpenCode m2 rebuild callers | **Folded** F2 / §5.2 / F36 / AC11 |
+| OpenCode m3 CLI-EXIT-CODES | **Folded** AC11 / touch map |
+| OpenCode O1 AC16 0.50 assert | **Folded** AC16 |
+| OpenCode O2 generate-sbom.sh | **Folded** F25 |
+| OpenCode O3 volatile | **Folded** §2.1 |
+| Agy m1 / m3 / O1 / O2 | **Already** F31 / F23 / F4 / F25 |
+| Agy `#247` 00:10:29Z | **Decline** as `createdAt` |
 
 ---
 
@@ -59,7 +69,8 @@
 - [ ] Confirm T307 still Blocked; T325 Completed; no new Cursor leftover
 - [ ] Rescan `deferred.md` open overlapping rows
 - [ ] `ledgerful ledger start T326-status-pinned-count-failopen --category BUGFIX`
-- [ ] **Do not** `cargo install` / live table drop / `.env` rewrite / retune floors / edit `doctor.rs` / git tag
+- [ ] Confirm CI graph-on nextest is still `-E "test(graph)"` (`ci.yml:108`) — AC12 must not drop it
+- [ ] **Do not** `cargo install` / live table drop / `.env` rewrite / retune floors / edit `doctor.rs` / git tag / edit `ci.yml`
 
 ## Phase 1 — Red
 
@@ -72,9 +83,11 @@
 
 - [ ] `PINNED_COUNT_FAILED_MSG` const on `graph_density.rs` (F4)
 - [ ] `graph_section_from_gather` — `PinnedCountFailed → Err` (F1/F8)
-- [ ] `graph_health_from_gather` — `PinnedCountFailed → Err` (F2/F8/F35)
+- [ ] `graph_health_from_gather` — `PinnedCountFailed → Err` (F2/F8/F35) — shared by update **and** rebuild `:520/:539/:769`
 - [ ] AC1/AC2/AC7/AC8 pass
 - [ ] AC3–AC6 / AC12–AC14 / AC16 stay-green
+- [ ] AC12 graph-on: clippy `--features graph`; nextest **`-E "test(graph)"`** (F37 — do **not** full-package graph-on)
+- [ ] AC16 add `MIN_EDGE_NODE_RATIO == 0.50` into existing env-default test
 - [ ] `git diff` `doctor.rs` empty (AC5/AC13)
 
 ## Phase 3 — Version 0.1.4
@@ -82,8 +95,9 @@
 - [ ] `Cargo.toml` `workspace.package.version = "0.1.4"` (F23)
 - [ ] Cargo rewrite of lock workspace package versions (**no** `cargo update` of third-party crates)
 - [ ] CHANGELOG: T326 Fixed bullet + insert `## [0.1.4] — <date>` after Unreleased (F24 / AC10)
-- [ ] Docs F25 headers **0.1.4** (CAPABILITIES / INSTALL / README / RELEASE-CHECKLIST currently-line / RELEASE-CLAIMS header / SECURITY-LIMITS / ci-tooling example / generate-sbom comment)
-- [ ] CAPABILITIES F36 COUNT-fail honesty (AC11)
+- [ ] Docs F25 headers **0.1.4** (CAPABILITIES / INSTALL / README / RELEASE-CHECKLIST currently-line / RELEASE-CLAIMS header / SECURITY-LIMITS / ci-tooling example / generate-sbom.ps1 **and** `.sh`)
+- [ ] CAPABILITIES F36 COUNT-fail honesty on `status` + `graph update` + `graph rebuild` (AC11)
+- [ ] `Docs/CLI-EXIT-CODES.md` COUNT-fail → exit **1** on update/rebuild (AC11)
 - [ ] AC9 source `--version` / `CARGO_PKG_VERSION` is **0.1.4**
 - [ ] `check-version-banners.ps1` sees `## [0.1.4]`
 - [ ] Desktop **0.1.2** untouched (F26)
@@ -99,7 +113,7 @@
 ## DoD (checkable)
 
 - [ ] AC1 red-then-green: empty-graph COUNT fail is glance `error`, not `live`/`pinned=0`
-- [ ] AC2: `graph update` COUNT fail is `Err`, not `pinned_memories: 0`
+- [ ] AC2: shared builder COUNT fail is `Err` (`graph update` **and** `graph rebuild`), not `pinned_memories: 0`
 - [ ] Doctor skip + 15-check matrix untouched
 - [ ] Floors 0.50 frozen
 - [ ] Workspace **0.1.4** + CHANGELOG section + Docs headers

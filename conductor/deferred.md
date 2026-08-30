@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T326 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2 HEAD `9119c74` vs `6b27beb` | **Folded** snapshot `6b27beb` / ahead **1** |
+| Agy m1 / m3 / O1 / O2 | **Already** F31 / F23 / F4 / F25 |
+| Agy `#247` `mergedAt` 00:10:29Z | **Decline** — live `mergedAt` **2026-08-30T00:23:50Z** |
+| OpenCode m1 AC12 full-package graph-on | **Folded** F37 / AC12 CI `-E "test(graph)"` + clippy `--features graph` |
+| OpenCode m2 rebuild callers `:520/:539/:769` | **Folded** F2 / §5.2 / F36 / AC11 |
+| OpenCode m3 CLI-EXIT-CODES | **Folded** AC11 / touch map |
+| OpenCode O1 AC16 0.50 assert absent | **Folded** AC16 into existing env-default test |
+| OpenCode O2 `generate-sbom.sh` | **Folded** F25 |
+| OpenCode O3 volatile counts | **Folded** §2.1 |
+| last-PR `#247` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `de4210ab-95df-4b2a-96bd-0c099c8445a5` |
+
 ### T326 full plan (2026-08-29) — `#237` PinnedCountFailed fail-open + workspace 0.1.4
 
 | Item | Disposition |
