@@ -2,6 +2,64 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T328 implement residuals (2026-08-30) — project identity collision
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install` | **Deferred** F19 — source has T328; PATH still **0.1.3** |
+| Live LexBase / AI-Brains already aligned | **Deferred** AC12 honesty; hermetic AC3 is SoT |
+| `10d4bff5` 2-mem hashed row, path null | **Deferred** F6 — do not merge this track |
+| Doctor still ok on path-null env≠detect | **Deferred** F11 |
+| Daily commands silent until whoami / scope JSON | **Deferred** F29 |
+| Leftover `7d97a456` multi-root | T259/T276 ops — not this |
+| Env-in-vault detect fallback hides a slug miss | **Deferred** §11 / F10 (OpenCode O2) |
+| T329 whale-Recent | **Not stolen** — Pending placeholder |
+| BUGFIX TX | `5f6c5b9c-e1c0-4add-a5c1-eb9534cc12f0` |
+
+### T328 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy M1 / OpenCode M1 env-null `ids.len()≥2` vs F16/AC10 | **Folded** F2 / §5.1 / AC1 `(None, Some(a), Some(b)) == false` |
+| OpenCode m1 AC1 omitted that case | **Folded** with M1 |
+| Agy m1 F3 path interpolation | **Folded** F3 `git_toplevel` else cwd; AC3/AC4 |
+| OpenCode m2 nextest `-- test(warning_json)` | **Folded** §7 `-E "test(scope_resolve) + test(warning_json)"` |
+| OpenCode m2b `#249` `mergedAt` 05:31:44Z | **Folded** **2026-08-30T05:48:05Z** |
+| OpenCode m2b query_store `:625–630` | **Decline** as citation — live `:623–629` (spec already) |
+| Agy O1 `compute_pending` skip detect | **Decline** — live never calls `resolve_detect` (`:94–114`) |
+| OpenCode O1 skip detect on **new** collision helper | **Folded** §5.3 |
+| OpenCode O2 env-in-vault detect fallback | **Folded** §11 residual; not DoD (F10) |
+| OpenCode O3 Dependabot `#250–#256` | **Folded** Phase 0 open-PR rescan |
+| Agy O2 / `#249` Bugbot | **Already** T329 |
+| Agy/OpenCode B | None |
+| DOCS TX | `da7f848d-4fea-4a07-b1b1-6eac7d912b6a` |
+
+### T328 full plan (2026-08-30) — env≠detect collision when path-alias is null
+
+| Item | Disposition |
+|------|-------------|
+| Mint F1 alias-lookup gap | **Partial** F1 — live LexBase register-path **resolves** (`C:/dev/LexBase` vs `C:\dev\lexbase`); hermetic RED only then path-crate |
+| Mint F2 detect-vs-env `identity_collision` | **Absorb** F2 / AC1 / AC3 — `mismatch` stays env∧path |
+| Mint F3 adopt-path-only remediations | **Corrected** F3 — path-null names `register-path` first (T258 exits 1 with no owner) |
+| Mint F4 whoami + `scope resolve` | **Absorb** F4; process-warn / preflight Scope / doctor **decline** |
+| Mint F5 / F6 empty + no merge | **Absorb** |
+| Live LexBase whoami aligned `05e42a80` | **Honesty** AC12 — hermetic AC3 is SoT; `10d4bff5` leftover 2 mem / path null |
+| T327/T326 “T328 not stolen” | **This plan** |
+| T240 F2 / T257 token / T258 adopt / T259 leftover | **Affirm freeze** / **not stolen** |
+| `#249` Bugbot whale pins drop Recent | **Mint T329** |
+| T307 / clap 5 / H2 / T327 product | **Decline** / **not stolen** |
+| last-PR Cursor `#249` | **T329** — no T330 |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `8b24f6f5-1b8c-4f12-880b-5b48794330ca` |
+
+### T329 mint (2026-08-30) — `#249` Cursor leftover (placeholder)
+
+| Item | Disposition |
+|------|-------------|
+| `#249` Bugbot medium: whale authority Recent bodies drop the Recent section (`preflight.rs:509–543` / `:617–633`) | **T329** Pending placeholder |
+| T327 AC9 small-needle `max_words=1500` | **Stay-green ≠ whale** — full plan on `/plan-track 329` |
+| T328 identity collision | **Not stolen** (this mint) |
+
 ### T327 implement residuals (2026-08-30) — preflight authority-first
 
 | Item | Disposition |
@@ -10,7 +68,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 | Live Index still F4 + recency fill (`3581317d` no fitting leading DECISION) | **Deferred** AC17 pass-with-observed-data; do not H2 |
 | Session `turn_projection` LIMIT 5 | **Deferred** F19 — do not grow `sessions.rs`; F2 applies to loaded turns; CAPABILITIES names the window |
 | AC1 needle-as-item-1 vs F44 no body-skip | **Deferred** F44 wins; whale (newer) is Index 1; small pin still enters |
-| T328 identity collision | **Not stolen** — stays Pending |
+| T328 identity collision | **Completed** this implement |
 | T287 `memory list` ORDER | **Not stolen** F13 |
 | FEATURE TX | `cc2212aa-001a-4a68-ae4a-f547f06afce3` |
 

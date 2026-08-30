@@ -282,6 +282,11 @@ fn project_whoami__json__fields_present() {
     assert!(v.get("git_toplevel").is_some());
     assert!(v.get("mismatch").is_some_and(|x| x.is_boolean()));
     assert!(v.get("remediations").is_some_and(|x| x.is_array()));
+    assert_eq!(
+        v.get("identity_collision").and_then(|x| x.as_bool()),
+        Some(false),
+        "AC6/AC10: --no-project-context env-null → collision false; got: {stdout}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +358,25 @@ fn project_whoami__env_differs_path__mismatch_true() {
         v.get("mismatch").and_then(|x| x.as_bool()),
         Some(true),
         "mismatch true; got: {stdout}"
+    );
+    assert_eq!(
+        v.get("identity_collision").and_then(|x| x.as_bool()),
+        Some(true),
+        "AC5: path-present env≠path is also identity_collision; got: {stdout}"
+    );
+    let remediations = v
+        .get("remediations")
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .unwrap_or_default();
+    assert!(
+        remediations.contains("adopt-path"),
+        "AC5 remediations still name adopt-path; got: {remediations}"
     );
     // shell was id_path, env force-set to id_env → shell reported when differs
     assert_eq!(
@@ -645,5 +669,285 @@ fn project_detect__path_zero_mem__extra_verify_note() {
     assert!(
         stderr.contains("0 memories") && stderr.contains("project list"),
         "F6 zero-mem verify note; got: {stderr}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T328 — path-null env≠detect identity_collision
+// ---------------------------------------------------------------------------
+
+struct CollisionFixture {
+    _dir: tempfile::TempDir,
+    vault: std::path::PathBuf,
+    repo: std::path::PathBuf,
+    id_env: String,
+    id_detect: String,
+}
+
+fn collision_path_none_fixture() -> CollisionFixture {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj_env = dir.path().join("t328-env-proj");
+    let id_env = register_project(&vault, &proj_env);
+    set_alias(&vault, &id_env, "t328-env-row");
+
+    let proj_detect = dir.path().join("t328-detect-proj");
+    let id_detect = register_project(&vault, &proj_detect);
+    set_alias(&vault, &id_detect, "T328CollisionSlug");
+
+    let repo = dir.path().join("t328-collision-repo");
+    git_init_with_origin(&repo, "https://github.com/user/T328CollisionSlug.git");
+    fs::write(
+        repo.join(".env"),
+        format!("AI_BRAINS_PROJECT_ID={id_env}\n"),
+    )
+    .expect("write .env");
+
+    CollisionFixture {
+        _dir: dir,
+        vault,
+        repo,
+        id_env,
+        id_detect,
+    }
+}
+
+#[test]
+fn project_whoami__env_differs_detect_path_none__collision_true_mismatch_false() {
+    let fx = collision_path_none_fixture();
+    let out = hermetic()
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("whoami")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("whoami collision json");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "AC3 exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(
+        v.get("mismatch").and_then(|x| x.as_bool()),
+        Some(false),
+        "path-null is not T240 mismatch; got: {stdout}"
+    );
+    assert_eq!(
+        v.get("identity_collision").and_then(|x| x.as_bool()),
+        Some(true),
+        "AC3 identity_collision; got: {stdout}"
+    );
+    assert_eq!(
+        v.get("env_project_id").and_then(|x| x.as_str()),
+        Some(fx.id_env.as_str()),
+        "env A; got: {stdout}"
+    );
+    assert_eq!(
+        v.get("detect_project_id").and_then(|x| x.as_str()),
+        Some(fx.id_detect.as_str()),
+        "detect B; got: {stdout}"
+    );
+    assert!(
+        v.get("path_alias_project_id").is_some_and(|x| x.is_null()),
+        "path none; got: {stdout}"
+    );
+    let remediations: Vec<&str> = v
+        .get("remediations")
+        .and_then(|x| x.as_array())
+        .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect())
+        .unwrap_or_default();
+    let joined = remediations.join("\n");
+    assert!(
+        joined.contains("register-path"),
+        "AC3 names register-path; got: {joined}"
+    );
+    assert!(
+        joined.contains(&fx.id_detect),
+        "AC3 names detect UUID; got: {joined}"
+    );
+    let path_display = v
+        .get("git_toplevel")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| fx.repo.display().to_string());
+    assert!(
+        joined.contains(&path_display),
+        "AC3 interpolates git_toplevel/cwd {path_display}; got: {joined}"
+    );
+    assert!(
+        joined.contains("adopt-path"),
+        "AC3 still names adopt-path after register-path; got: {joined}"
+    );
+    assert!(
+        remediations
+            .iter()
+            .any(|r| r.contains("register-path") && r.contains("adopt-path")),
+        "AC3 combined register-path then adopt-path; got: {joined}"
+    );
+    for r in &remediations {
+        if r.contains("adopt-path") {
+            let rp = r.find("register-path");
+            let ap = r.find("adopt-path");
+            assert!(
+                rp.is_some_and(|i| ap.is_some_and(|j| i < j)),
+                "register-path must precede adopt-path in {r}"
+            );
+        }
+    }
+}
+
+#[test]
+fn project_whoami__env_differs_detect_path_none__human_names_register_path() {
+    let fx = collision_path_none_fixture();
+    let out = hermetic()
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("whoami")
+        .arg("--format")
+        .arg("human")
+        .output()
+        .expect("whoami collision human");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "AC4 exit 0; stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("identity_collision:    true"),
+        "AC4 human names identity_collision true; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("register-path"),
+        "AC4 names register-path; got: {stdout}"
+    );
+    let json = hermetic()
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("whoami")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("whoami json for path display");
+    let v: serde_json::Value =
+        serde_json::from_slice(&json.stdout).expect("json for interpolated path");
+    let path_display = v
+        .get("git_toplevel")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| fx.repo.display().to_string());
+    assert!(
+        stdout.contains(&path_display),
+        "AC4 interpolates {path_display}; got: {stdout}"
+    );
+}
+
+#[test]
+fn project_whoami__aligned_env_path_detect__collision_false() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("t328-aligned-proj");
+    let id = register_project(&vault, &proj);
+    set_alias(&vault, &id, "T328AlignedSlug");
+
+    let repo = dir.path().join("t328-aligned-repo");
+    git_init_with_origin(&repo, "https://github.com/user/T328AlignedSlug.git");
+    register_path(&vault, &id, repo.to_str().expect("utf8"));
+    fs::write(repo.join(".env"), format!("AI_BRAINS_PROJECT_ID={id}\n")).expect("write .env");
+
+    let out = hermetic()
+        .arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("whoami")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("whoami aligned");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(
+        v.get("identity_collision").and_then(|x| x.as_bool()),
+        Some(false),
+        "AC9 aligned collision false; got: {stdout}"
+    );
+    assert_eq!(
+        v.get("mismatch").and_then(|x| x.as_bool()),
+        Some(false),
+        "AC9 aligned mismatch false; got: {stdout}"
+    );
+    let remediations = v
+        .get("remediations")
+        .and_then(|x| x.as_array())
+        .expect("remediations");
+    assert!(
+        remediations.is_empty(),
+        "AC9 remediations empty when aligned; got: {stdout}"
+    );
+}
+
+#[test]
+fn project_whoami__no_project_context__path_none_slug_detect__collision_false() {
+    let fx = collision_path_none_fixture();
+    let out = hermetic()
+        .arg("--no-project-context")
+        .arg("--vault-path")
+        .arg(&fx.vault)
+        .current_dir(&fx.repo)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .arg("project")
+        .arg("whoami")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("whoami npc collision");
+
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert!(
+        v.get("env_project_id").is_some_and(|x| x.is_null()),
+        "AC10 env null; got: {stdout}"
+    );
+    assert_eq!(
+        v.get("identity_collision").and_then(|x| x.as_bool()),
+        Some(false),
+        "AC10 env-null collision false even when detect is present; got: {stdout}"
     );
 }

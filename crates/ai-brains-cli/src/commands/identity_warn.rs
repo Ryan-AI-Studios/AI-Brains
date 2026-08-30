@@ -86,6 +86,134 @@ pub fn inject_identity_mismatch_warning(warnings: &mut Vec<String>) {
     inject_identity_mismatch_token(warnings, &pending.env, &pending.path);
 }
 
+fn non_empty(s: Option<&str>) -> Option<&str> {
+    s.filter(|v| !v.is_empty())
+}
+
+/// T328 F2 — env-present guard. Empty string is absent.
+pub(crate) fn identity_collision(
+    env: Option<&str>,
+    path: Option<&str>,
+    detect: Option<&str>,
+) -> bool {
+    let Some(e) = non_empty(env) else {
+        return false;
+    };
+    let path_differs = non_empty(path).is_some_and(|p| p != e);
+    let detect_differs = non_empty(detect).is_some_and(|d| d != e);
+    path_differs || detect_differs
+}
+
+/// Stable machine token for `scope resolve` JSON `warnings[]` (T328 F8).
+pub(crate) fn identity_collision_json_token(env: &str, detect: &str) -> String {
+    format!("project_identity_collision env={env} detect={detect}")
+}
+
+/// Inject the collision token once. Testable without process state.
+pub(crate) fn inject_identity_collision_token(warnings: &mut Vec<String>, env: &str, detect: &str) {
+    if warnings
+        .iter()
+        .any(|w| w.starts_with("project_identity_collision"))
+    {
+        return;
+    }
+    warnings.push(identity_collision_json_token(env, detect));
+}
+
+/// Path-null collision token only. Skip when mismatch already applies (F8).
+pub(crate) fn maybe_inject_identity_collision_token(
+    warnings: &mut Vec<String>,
+    env: Option<&str>,
+    path: Option<&str>,
+    detect: Option<&str>,
+) {
+    if warnings
+        .iter()
+        .any(|w| w.starts_with("project_identity_mismatch"))
+    {
+        return;
+    }
+    if non_empty(path).is_some() {
+        return;
+    }
+    let Some(e) = non_empty(env) else {
+        return;
+    };
+    let Some(d) = non_empty(detect) else {
+        return;
+    };
+    if !identity_collision(env, path, detect) {
+        return;
+    }
+    inject_identity_collision_token(warnings, e, d);
+}
+
+/// Frozen path-absent remediations (F3). `path_display` is git_toplevel else cwd.
+pub(crate) fn identity_collision_remediations_path_absent(
+    detect_id: &str,
+    path_display: &str,
+) -> Vec<String> {
+    vec![
+        "Daily Scope comes from .env / shell AI_BRAINS_PROJECT_ID (not auto-switched to detect)."
+            .to_string(),
+        format!("Detect identifies {detect_id}."),
+        format!(
+            "Run `ai-brains project register-path {detect_id} {path_display}` then `ai-brains project adopt-path` (print-only) or `ai-brains project adopt-path --write-env --yes`."
+        ),
+        format!("Or set AI_BRAINS_PROJECT_ID={detect_id} in project .env if that row is intended."),
+        "Use `ai-brains context --new-project` only if a fresh identity is intended.".to_string(),
+        "set-alias is a human label; register-path is the filesystem root (do not conflate)."
+            .to_string(),
+    ]
+}
+
+/// Overlay collision token after T257 mismatch inject (local + daemon JSON).
+///
+/// Skips `resolve_detect` when env is absent or a path owner is present (F8 / §5.3).
+pub fn inject_identity_collision_warning(warnings: &mut Vec<String>, ctx: &AppContext) {
+    if warnings
+        .iter()
+        .any(|w| w.starts_with("project_identity_mismatch"))
+    {
+        return;
+    }
+    // F16: daily Scope is not comparable under these argv flags (do not reuse
+    // T257 should_skip — that also skips path-none, which is this hole).
+    let args: Vec<String> = std::env::args().collect();
+    if args
+        .iter()
+        .any(|a| a == "--no-project-context" || a == "--global")
+    {
+        return;
+    }
+    let env_owned = std::env::var("AI_BRAINS_PROJECT_ID").ok();
+    let Some(env) = non_empty(env_owned.as_deref()) else {
+        return;
+    };
+    let Ok(cwd) = std::env::current_dir() else {
+        return;
+    };
+    let git = crate::commands::project::collect_git_identity(&cwd).unwrap_or_default();
+    let path_id =
+        crate::commands::project::resolve_path_alias_for_location(ctx.conn.as_ref(), &cwd, &git)
+            .ok()
+            .flatten();
+    if non_empty(path_id.as_deref()).is_some() {
+        return;
+    }
+    let detect_id = crate::commands::project::resolve_detect(ctx.conn.as_ref(), &cwd)
+        .ok()
+        .flatten()
+        .filter(|o| !o.project.0.is_empty())
+        .map(|o| o.project.0);
+    maybe_inject_identity_collision_token(
+        warnings,
+        Some(env),
+        path_id.as_deref(),
+        detect_id.as_deref(),
+    );
+}
+
 /// Record mismatch once per process. Does not print (F6).
 pub fn record_identity_mismatch(ctx: &AppContext) {
     let _ = PENDING.get_or_init(|| compute_pending(ctx));
@@ -175,5 +303,38 @@ mod tests {
             Some("env"),
             Some("path")
         ));
+    }
+
+    #[test]
+    fn identity_collision__env_and_detect_differ_path_none__true() {
+        assert!(identity_collision(Some("a"), None, Some("b")));
+        assert!(identity_collision(Some("a"), Some("b"), Some("b")));
+        assert!(identity_collision(Some("a"), Some(""), Some("b")));
+    }
+
+    #[test]
+    fn identity_collision__env_none_path_differs_detect__false() {
+        assert!(!identity_collision(None, Some("a"), Some("b")));
+        assert!(!identity_collision(None, None, Some("a")));
+        assert!(!identity_collision(Some(""), None, Some("b")));
+        assert!(!identity_collision(Some("a"), Some("a"), Some("a")));
+        assert!(!identity_collision(Some("a"), None, Some("a")));
+        assert!(!identity_collision(Some("a"), Some("a"), None));
+        assert!(!identity_collision(None, None, None));
+    }
+
+    #[test]
+    fn identity_collision_json_token__stable_no_warning_prefix() {
+        let token = identity_collision_json_token("e", "d");
+        assert_eq!(token, "project_identity_collision env=e detect=d");
+        assert!(!token.contains("Warning:"));
+        assert!(!token.contains("project_identity_mismatch"));
+        let mut warnings = Vec::new();
+        inject_identity_collision_token(&mut warnings, "e", "d");
+        inject_identity_collision_token(&mut warnings, "e", "d");
+        assert_eq!(
+            warnings,
+            vec!["project_identity_collision env=e detect=d".to_string()]
+        );
     }
 }

@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Changed
 
+- **T328 Project identity collision:** `project whoami` adds always-present `identity_collision` (boolean; never omit / never `null`). Path-null env≠detect is `mismatch: false` + `identity_collision: true` with remediations that name `register-path` first (then `adopt-path`). `mismatch` stays env vs path-alias only. `scope resolve` JSON `warnings[]` may include additive `project_identity_collision env=<uuid> detect=<uuid>` only when path-alias is absent (not when the T257 mismatch token already applies). Exit **0**. No `.env` rewrite, no memory merge.
+
 - **T327 Preflight authority-first sections:** Memory Index / Session / Most Recent prefer `classify_pin_kind` over recency chatter. Index pass-1 no longer aborts on a whale body; non-global Index caps at 15 slots; empty-authority Index prints `No DECISION/CONSTRAINT pins in scope; showing recent activity` once (pretty prologue). Session Other assistant turns cap at 3 with `+K more session turns via recall`. Most Recent uses the same prefer-authority fill. JSON required keys unchanged. Capture stays unfiltered.
 
 ## [0.1.4] — 2026-08-30

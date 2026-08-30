@@ -689,6 +689,7 @@ struct WhoamiReport {
     git_slug: Option<String>,
     git_toplevel: Option<String>,
     mismatch: bool,
+    identity_collision: bool,
     remediations: Vec<String>,
 }
 
@@ -732,6 +733,12 @@ fn build_whoami_report(
         _ => false,
     };
 
+    let identity_collision = crate::commands::identity_warn::identity_collision(
+        env_project_id.as_deref(),
+        path_alias_project_id.as_deref(),
+        detect_project_id.as_deref(),
+    );
+
     let mut remediations = Vec::new();
     if mismatch {
         remediations.push(
@@ -764,6 +771,22 @@ fn build_whoami_report(
                 .to_string(),
         );
     }
+    if identity_collision
+        && !mismatch
+        && let Some(ref detect_id) = detect_project_id
+    {
+        let path_display = git
+            .toplevel
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| cwd.display().to_string());
+        remediations.extend(
+            crate::commands::identity_warn::identity_collision_remediations_path_absent(
+                detect_id,
+                &path_display,
+            ),
+        );
+    }
 
     Ok(WhoamiReport {
         effective_project_id,
@@ -774,6 +797,7 @@ fn build_whoami_report(
         git_slug: git.slug,
         git_toplevel: git.toplevel.map(|p| p.display().to_string()),
         mismatch,
+        identity_collision,
         remediations,
     })
 }
@@ -803,6 +827,7 @@ fn emit_whoami_human(report: &WhoamiReport) {
     println!("git_slug:              {}", fmt_opt(&report.git_slug));
     println!("git_toplevel:          {}", fmt_opt(&report.git_toplevel));
     println!("mismatch:              {}", report.mismatch);
+    println!("identity_collision:    {}", report.identity_collision);
     if report.remediations.is_empty() {
         println!("remediations:          (none)");
     } else {
