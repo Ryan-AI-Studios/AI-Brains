@@ -160,9 +160,11 @@ enum AuthorityFilter {
 /// When `prefer_authority` is true (recall path), T274 two-pass: authority GLOB
 /// `LIMIT depth`, then fill remainder excluding pass-1 ids (F7 / F35).
 ///
-/// T312 F8: when AND + recency retain is empty and `raw_query` has ≥2 contentful
-/// tokens, Prefer MATCH once more with `match_or` before pass-2 AND fill.
-/// `raw_query` is threaded so OR tokens are not reverse-parsed from `match_expr`.
+/// T312 F8 / T325: when AND + recency retain is empty and `raw_query` has ≥2
+/// contentful tokens, Prefer MATCH once more with `match_or`; if Prefer-OR
+/// retain is empty, PreferRecency on the OR expr (mirrors AND). Pass-2 uses
+/// the OR expr when either OR fill retains. `raw_query` is threaded so OR
+/// tokens are not reverse-parsed from `match_expr`.
 #[allow(clippy::too_many_arguments)]
 fn match_query(
     conn: &VaultConnection,
@@ -243,6 +245,30 @@ fn match_query(
                         .collect();
                     if retain.len() >= limit {
                         return Ok(retain);
+                    }
+                    // T325: PreferRecency on OR when Prefer-OR retain empty
+                    // (TAGS-not-authority flood fills BM25 LIMIT; mirrors AND).
+                    if retain.is_empty() {
+                        tracing::debug!(
+                            stage = "prefer_or_recency",
+                            "FTS authority-OR recency retry after empty Prefer-OR retain"
+                        );
+                        let retry = match_query_filtered(
+                            conn,
+                            &or_expr,
+                            project_id,
+                            session_id,
+                            limit,
+                            exclude_symbol_stubs,
+                            AuthorityFilter::PreferRecency,
+                        )?;
+                        retain = retry
+                            .into_iter()
+                            .filter(|m| crate::session_chrome::is_authority_pin_content(&m.content))
+                            .collect();
+                        if retain.len() >= limit {
+                            return Ok(retain);
+                        }
                     }
                     if !retain.is_empty() {
                         pass2_expr = or_expr;
@@ -637,6 +663,15 @@ mod unit_tests {
         assert!(
             prefer.contains('?'),
             "AC15: Prefer SQL uses ? placeholders; got {prefer}"
+        );
+        assert!(
+            prefer.contains("ORDER BY rank"),
+            "AC6: Prefer SQL must ORDER BY rank (not recency bleed); got {prefer}"
+        );
+        // SELECT still projects mp.updated_at; guard the ORDER BY arm only (F27).
+        assert!(
+            !prefer.contains("ORDER BY mp.updated_at"),
+            "AC6: Prefer SQL must not ORDER BY updated_at; got {prefer}"
         );
         // No hyphenated UUID literals in the SQL template.
         let without_glob_lits = prefer

@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Fixed
+
+- **T325 FTS authority-OR fill PreferRecency:** When Prefer-OR retain is empty (TAGS-not-authority rows fill the BM25 `LIMIT` window), retry once with `AuthorityFilter::PreferRecency` on the OR expr before pass-2 — same empty-only retry as AND. Pass-2 still uses the OR expr when Prefer-OR or recency-OR retains. Docs: CAPABILITIES pin-type row (pass-2 OR-when-retain; AND only when both fills empty).
+
 ### Added
 
 - **T324 PowerShell empty TERM on `in-force`:** `decision in-force` and `conclusion in-force` accept optional positional `TERM` plus named `--term` (`num_args 0..=1`, `default_missing_value ""`, no `require_equals`). Omit / `--term=` / bare `--term` → `fail_usage` `term must be non-empty` exit **2** (PowerShell 5.1 drops `""` so clap missing `<TERM>` is no longer the 5.1 path). Positional and `--term` conflict. Docs: CAPABILITIES / OPERATIONS / CLI-EXIT-CODES.

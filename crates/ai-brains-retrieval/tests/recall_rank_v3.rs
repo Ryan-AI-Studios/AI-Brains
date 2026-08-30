@@ -1,4 +1,4 @@
-//! T312 — recall rank v3 hermetics (authority-OR fill + verbose-Other).
+//! T312 / T325 — recall rank v3 hermetics (authority-OR fill + OR PreferRecency).
 #![allow(non_snake_case)]
 
 mod common;
@@ -102,6 +102,61 @@ fn recall_full__prose_dumps_full_needle_pin__hit_one__ac4() -> Result<(), Box<dy
     assert!(
         envelope_stripped_starts_with_decision(&outcome.hits[0].content),
         "AC4: hit #1 must start with DECISION: after envelope; got {}",
+        outcome.hits[0].content
+    );
+    Ok(())
+}
+
+/// T325 AC1: TAGS-not-authority flood fills Prefer-OR BM25 window; PreferRecency
+/// on the OR expr must still surface the newest OR-only DECISION pin.
+#[test]
+fn match_query__or_fill_tags_flood__recency_retry_pin_first()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let uuid = uuid::Uuid::new_v4();
+    // 15 TAGS envelope dumps that AND-hit both tokens (high TF) but fail
+    // is_authority_pin_content — occupy Prefer-OR LIMIT before the short pin.
+    for i in 0..15 {
+        let repeats = "t325or backend ".repeat(12);
+        append_pinned(
+            &store,
+            &format!("ASSISTANT: TAGS: t325\nHere's the assessment. dump {i}\n{repeats}"),
+        )?;
+    }
+    // Newest OR-only pin (has t325or, lacks backend); short body so BM25 loses to floods.
+    let pin_id = append_pinned(
+        &store,
+        &format!("ASSISTANT: TAGS: t325\nDECISION: t325or {uuid} sqlite graph"),
+    )?;
+
+    let outcome = recall_full(
+        store.connection(),
+        None,
+        "t325or backend",
+        5,
+        default_opts(),
+    )?;
+    assert!(!outcome.hits.is_empty(), "AC1: recall must return hits");
+    assert_eq!(
+        outcome.hits[0].memory_id,
+        pin_id,
+        "AC1: recency-OR pin must be hit #1; first={} content={:?} all={:?}",
+        outcome.hits[0].memory_id,
+        outcome.hits[0].content,
+        outcome
+            .hits
+            .iter()
+            .map(|h| (h.memory_id.as_str(), h.content.as_str()))
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        envelope_stripped_starts_with_decision(&outcome.hits[0].content),
+        "AC1: hit #1 must be DECISION:; got {}",
+        outcome.hits[0].content
+    );
+    assert!(
+        !outcome.hits[0].content.contains("backend"),
+        "AC1: pin must lack backend token (AND-miss); got {}",
         outcome.hits[0].content
     );
     Ok(())
