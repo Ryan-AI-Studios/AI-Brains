@@ -301,3 +301,143 @@ fn preflight__sealed_decision__never_in_index_or_recent() -> Result<(), Box<dyn 
     );
     Ok(())
 }
+
+const RECENT_HEADER: &str = "--- Most Recent Memories ---";
+const WHALE_BODY_TOKEN: &str = "T329WHALEBODY";
+
+fn whale_authority_body(title_needle: &str) -> String {
+    format!(
+        "DECISION: {title_needle} oversized authority pin title\n{WHALE_BODY_TOKEN}\n{}",
+        "padding word ".repeat(2000)
+    )
+}
+
+fn small_authority_body(needle: &str) -> String {
+    format!("DECISION: {needle} compact authority pin that must survive packing")
+}
+
+fn recent_slice(text: &str) -> Option<&str> {
+    text.find(RECENT_HEADER)
+        .map(|at| &text[at + RECENT_HEADER.len()..])
+}
+
+/// T329 AC1 — whale + small at max_words=250: Recent header + small survive; whale body dropped.
+#[test]
+fn preflight__recent_whale_authority_plus_small__header_and_small_survive()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let whale_title = format!("T329-whale-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let small_needle = format!("T329-small-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let small_id = append_pinned(
+        &store,
+        project_id,
+        &small_authority_body(&small_needle),
+        Privacy::CloudOk,
+    )?;
+    set_updated_at(&store, &small_id, "2020-01-01T00:00:00+00:00")?;
+    let whale_id = append_pinned(
+        &store,
+        project_id,
+        &whale_authority_body(&whale_title),
+        Privacy::CloudOk,
+    )?;
+    set_updated_at(&store, &whale_id, "2026-08-30T12:00:00+00:00")?;
+
+    let ctx = build_preflight(store.connection(), None, 250, Some(project_id), None, false)?;
+
+    let header_at = ctx
+        .text
+        .find(RECENT_HEADER)
+        .unwrap_or_else(|| panic!("AC1: Recent header missing; text=\n{}", ctx.text));
+    let after = &ctx.text[header_at + RECENT_HEADER.len()..];
+    assert!(
+        after.contains(&small_needle) && after.contains("DECISION:"),
+        "AC1: small DECISION must appear after Recent header; after=\n{after}\nfull=\n{}",
+        ctx.text
+    );
+    assert!(
+        !after.contains(WHALE_BODY_TOKEN),
+        "AC1: whale body token must be absent from Recent; after=\n{after}"
+    );
+    let before = &ctx.text[..header_at];
+    assert!(
+        before.contains("DECISION:") && before.contains(&whale_title),
+        "AC1: Index numbered lines still contain whale DECISION title; before=\n{before}"
+    );
+    Ok(())
+}
+
+/// T329 AC3 — whale-only at max_words=250: omit Recent header; Index title remains.
+#[test]
+fn preflight__recent_whale_only__omits_header_keeps_index_title()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let whale_title = format!("T329-whaleonly-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    append_pinned(
+        &store,
+        project_id,
+        &whale_authority_body(&whale_title),
+        Privacy::CloudOk,
+    )?;
+
+    let ctx = build_preflight(store.connection(), None, 250, Some(project_id), None, false)?;
+
+    assert!(
+        !ctx.text.contains(RECENT_HEADER),
+        "AC3: whale-only tight budget omits Recent header; text=\n{}",
+        ctx.text
+    );
+    assert!(
+        ctx.text.contains("DECISION:") && ctx.text.contains(&whale_title),
+        "AC3: Index still contains whale DECISION title; text=\n{}",
+        ctx.text
+    );
+    Ok(())
+}
+
+/// T329 AC4 — whale + small at max_words=8000: both bodies appear in Recent.
+#[test]
+fn preflight__recent_whale_plus_small__large_budget_keeps_whale_body()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = common::empty_store()?;
+    let project_id = ProjectId::from_uuid(uuid::Uuid::nil());
+    let whale_title = format!("T329-fit-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let small_needle = format!("T329-fitsmall-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let small_id = append_pinned(
+        &store,
+        project_id,
+        &small_authority_body(&small_needle),
+        Privacy::CloudOk,
+    )?;
+    set_updated_at(&store, &small_id, "2020-01-01T00:00:00+00:00")?;
+    let whale_id = append_pinned(
+        &store,
+        project_id,
+        &whale_authority_body(&whale_title),
+        Privacy::CloudOk,
+    )?;
+    set_updated_at(&store, &whale_id, "2026-08-30T12:00:00+00:00")?;
+
+    let ctx = build_preflight(
+        store.connection(),
+        None,
+        8000,
+        Some(project_id),
+        None,
+        false,
+    )?;
+
+    let after = recent_slice(&ctx.text)
+        .unwrap_or_else(|| panic!("AC4: Recent header missing; text=\n{}", ctx.text));
+    assert!(
+        after.contains(&small_needle),
+        "AC4: small needle in Recent; after=\n{after}"
+    );
+    assert!(
+        after.contains(WHALE_BODY_TOKEN),
+        "AC4: whale body token must appear when budget fits; after=\n{after}"
+    );
+    Ok(())
+}
