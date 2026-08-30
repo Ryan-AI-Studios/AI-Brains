@@ -2,6 +2,19 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T330 implement residuals (2026-08-30) — preflight Index authority fit
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install` | **Deferred** F22 — source has T330; PATH still **0.1.3** |
+| Live vault still 0 in-context decisions | **Deferred** F3 honesty; hermetic AC1 SoT; Manual AC17 pass-with-observed-data (F4 present; numbered not 15× `## Objective`) |
+| `+K` only among last 20 turns | **Deferred** F8 by design |
+| Process Other still fills Index | **Deferred** F2 does not grow process-prefix lists (T316) |
+| T331 `memory list` GLOB-empty / T332 detect / T288 briefing LIMIT-32 | **Not stolen** F13 |
+| Pretty formatter still in CLI `preflight.rs` | Hotspot #7 — no pretty growth |
+| T250 pretty AC10 fixture pinned long-seed first | Stay-green after fetch 20 + pretty 6; not a product reopen |
+| FEATURE TX | `c95f2b41-0917-4586-a46e-cd66c6802361` |
+
 ### T330 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
