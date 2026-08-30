@@ -422,7 +422,7 @@ fn preflight__index_one_pin_plus_dumps__pin_first_slot_cap_15()
         let dump_id = append_pinned(
             &store,
             project_id,
-            &format!("## Objective dump-{i} Let me verify the SQL path for chatter item {i}"),
+            &format!("Let me verify the SQL path for chatter item {i} extra words now."),
         )?;
         set_updated_at(
             &store,
