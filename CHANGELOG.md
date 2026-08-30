@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Fixed
 
+- **T332 Whoami detect-source honesty:** `project whoami` always emits `detect_source` (`path_alias` \| `git_slug` \| `env` \| `none`). When detect falls back to env after a git-slug miss, remediations name `set-alias` / `register-path` even though `identity_collision` stays false. `scope resolve` JSON `warnings[]` may include additive `project_detect_env_fallback env=<uuid> slug=<slug>` (not when mismatch or collision already applies). T206 `project detect` env-fallback exit **0** unchanged. Exit **0**.
+
 - **T331 `memory list` GLOB-empty recency:** When leading-line GLOB+retain is empty, human `--limit` skips session chrome (`## Objective` dumps) so process Other / lowercase `decision:` can occupy the first page, and prints `No DECISION/CONSTRAINT pins in scope; showing recent activity` once. Chrome-only vaults still list recency chrome (not an empty table). JSON `items[0]` stays newest recency; store GLOB/ORDER unedited.
 
 - **T330 Preflight Index authority fit:** Short leading `DECISION:` / `CONSTRAINT:` pins are no longer skipped as low-signal. Index pass-2 skips session chrome so `## Objective` dumps do not fill empty-authority slots; F4 keys off collected authority (chrome-only project vaults get header+F4 with no numbered Objective). Session loads the latest **20** turns (Other cap 3 unchanged). Whale-only Recent at a tight budget emits a truncated snippet instead of omitting the section. JSON required keys unchanged.

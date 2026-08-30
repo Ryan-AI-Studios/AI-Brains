@@ -217,6 +217,12 @@ fn scope_resolve_json__mismatch__stdout_parses_token_no_soot() {
         "AC8: path-present mismatch must not emit collision token; got: {warnings:?}"
     );
     assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_detect_env_fallback"))),
+        "AC9 no env-fallback token when mismatch applies; got: {warnings:?}"
+    );
+    assert!(
         !stdout.contains("Warning:"),
         "stdout must not contain Warning:; got: {stdout}"
     );
@@ -473,6 +479,12 @@ fn scope_resolve_json__path_none_env_detect_differ__collision_token() {
             .is_some_and(|s| s.starts_with("project_identity_mismatch"))),
         "AC7 must not contain mismatch token; got: {warnings:?}"
     );
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_detect_env_fallback"))),
+        "AC8 no env-fallback token when collision applies; got: {warnings:?}"
+    );
 }
 
 #[test]
@@ -513,6 +525,12 @@ fn scope_resolve_json__aligned_env_path_detect__no_collision_token() {
             .is_some_and(|s| s.starts_with("project_identity_collision"))),
         "AC9 aligned must not contain collision token; got: {warnings:?}"
     );
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_detect_env_fallback"))),
+        "AC13 aligned must not contain env-fallback token; got: {warnings:?}"
+    );
 }
 
 #[test]
@@ -542,5 +560,118 @@ fn scope_resolve_json__no_project_context__no_collision_token() {
             .as_str()
             .is_some_and(|s| s.starts_with("project_identity_collision"))),
         "F16: --no-project-context must not inject collision token; got: {warnings:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// T332 — env-fallback slug-miss token (path-null, env==detect)
+// ---------------------------------------------------------------------------
+
+fn env_fallback_slug_miss_fixture() -> (tempfile::TempDir, PathBuf, PathBuf, String) {
+    let dir = tempdir().expect("tempdir");
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+
+    let proj = dir.path().join("t332-env-proj");
+    let id_env = register_project(&vault, &proj);
+    set_alias(&vault, &id_env, "test-alias");
+
+    let work = dir.path().join("t332-env-work");
+    git_init_with_origin(&work, "https://github.com/user/AI-Brains.git");
+    fs::write(
+        work.join(".env"),
+        format!("AI_BRAINS_PROJECT_ID={id_env}\n"),
+    )
+    .expect("write .env");
+
+    (dir, vault, work, id_env)
+}
+
+#[test]
+fn scope_resolve_json__env_fallback_slug_miss__token() {
+    let (_dir, vault, work, id_env) = env_fallback_slug_miss_fixture();
+    let mut cmd = hermetic();
+    cmd.arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&work)
+        .arg("scope")
+        .arg("resolve")
+        .arg("--format")
+        .arg("json")
+        .arg("--local");
+    let out = cmd.output().expect("scope resolve env-fallback");
+    assert_exit_0(&out, "scope resolve env-fallback slug miss");
+    let stdout = stdout_str(&out);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("scope JSON");
+    assert!(v.get("api_version").is_some(), "keys frozen api_version");
+    assert!(v.get("warnings").is_some(), "keys frozen warnings");
+    let warnings = v
+        .get("warnings")
+        .and_then(|w| w.as_array())
+        .expect("warnings array");
+    let token = format!("project_detect_env_fallback env={id_env} slug=AI-Brains");
+    let hits: Vec<&str> = warnings
+        .iter()
+        .filter_map(|w| w.as_str())
+        .filter(|s| s.starts_with("project_detect_env_fallback"))
+        .collect();
+    assert_eq!(
+        hits,
+        vec![token.as_str()],
+        "AC7 exactly one env-fallback token; got: {warnings:?}"
+    );
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_identity_collision"))),
+        "AC7 must not contain collision token; got: {warnings:?}"
+    );
+    assert!(
+        !warnings.iter().any(|w| w
+            .as_str()
+            .is_some_and(|s| s.starts_with("project_identity_mismatch"))),
+        "AC7 must not contain mismatch token; got: {warnings:?}"
+    );
+}
+
+#[test]
+fn scope_resolve_json__env_fallback_slug_miss__cwd_flag() {
+    let (_dir, vault, work, id_env) = env_fallback_slug_miss_fixture();
+    let unrelated = work.parent().expect("parent").join("unrelated-cwd");
+    fs::create_dir_all(&unrelated).expect("unrelated dir");
+    fs::write(
+        unrelated.join(".env"),
+        format!("AI_BRAINS_PROJECT_ID={id_env}\n"),
+    )
+    .expect("write unrelated .env so T80 does not clear Scope");
+    let mut cmd = hermetic();
+    cmd.arg("--vault-path")
+        .arg(&vault)
+        .current_dir(&unrelated)
+        .arg("scope")
+        .arg("resolve")
+        .arg("--format")
+        .arg("json")
+        .arg("--local")
+        .arg("--cwd")
+        .arg(work.to_str().expect("utf8 work"));
+    let out = cmd.output().expect("scope resolve --cwd env-fallback");
+    assert_exit_0(&out, "scope resolve --cwd env-fallback");
+    let stdout = stdout_str(&out);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("scope JSON");
+    let warnings = v
+        .get("warnings")
+        .and_then(|w| w.as_array())
+        .expect("warnings array");
+    let token = format!("project_detect_env_fallback env={id_env} slug=AI-Brains");
+    let hits: Vec<&str> = warnings
+        .iter()
+        .filter_map(|w| w.as_str())
+        .filter(|s| s.starts_with("project_detect_env_fallback"))
+        .collect();
+    assert_eq!(
+        hits,
+        vec![token.as_str()],
+        "Codex P1: --cwd must drive detect/git not process cwd; got: {warnings:?}"
     );
 }
