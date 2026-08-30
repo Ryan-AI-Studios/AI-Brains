@@ -2,6 +2,89 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T326 full plan (2026-08-29) — `#237` PinnedCountFailed fail-open + workspace 0.1.4
+
+| Item | Disposition |
+|------|-------------|
+| `#237` Bugbot `PinnedCountFailed` invents `pinned=0` then assesses (`status.rs:329–340`) | **Absorb** F1 / AC1 |
+| `graph.rs:445–458` same fake 0 | **Absorb** F2 / AC2 |
+| Doctor skip `:901–904` | **Affirm freeze** F3 |
+| T320 F4 `graph.error` envelope | **Reuse** |
+| Assessor empty+`pinned<100` → `live`/`skip` | **Evidence** §5.3 — do not retune |
+| Owner version bump | **Absorb** F23–F28 / AC9–AC11 — **0.1.3 → 0.1.4** |
+| T304 R6 Docs banners still 0.1.2 | **Absorb** F25 (catch up to 0.1.4; `#217` skipped them) |
+| T183 L6 / T185 banner script | **Absorb** F24 CHANGELOG `## [0.1.4]`; `-Strict` not a required gate |
+| Desktop 0.1.2 / path-dep 0.1.0 / git tag / cargo-release | **Decline** F26–F28 |
+| T325 implement residuals / Completed note | **Not stolen** / **Plan-write DOCS commit** |
+| T307 Blocked / clap 5 / H2 / T240 F2 / floors | **Not stolen** / **Decline** |
+| last-PR Cursor `#247` | **N/A empty** (no defect) |
+| last-PR `#237` | **this** — **no T327** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `5fd70b52-1a16-4971-ab0f-684c553a4c17` |
+
+### T325 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| 15 **newer** TAGS-not-authority after the pin still miss PreferRecency window | **Deferred** F26 — same T274 LIMIT; do not raise `candidate_depth` |
+| PATH `ai-brains` until owner `cargo install` (T312–T325) | **Deferred** F21 — hermetic/`cargo run` SoT; AC15 dump-first honesty |
+| Live `graph backend` dump-first on PATH | **Deferred** — T312 not on PATH; do not live-pin canary |
+| Same-tick `updated_at` FILETIME flake | **Deferred** F37 Stop-Before; no sleep |
+| T316 / T287 list GLOB+retain empty → recency | **Not stolen** — list ORDER, not FTS MATCH |
+| Pretty `score=` still raw BM25 | **Deferred** T312 F38 freeze |
+| T326 `PinnedCountFailed` invents `pinned=0` (`#237`) | **Promoted** — T326 Planned (this pass); Pending until go |
+| T307 reqwest/tower-http Blocked | **Not stolen** |
+| `#230` Bugbot F8 Prefer-OR skips PreferRecency | **Resolved** T325 `#247` `9119c74` |
+| BUGFIX TX | `1ea8c80d-3237-4a6d-832b-3d0aa3d0105a` |
+| PR | [#247](https://github.com/Ryan-AI-Studios/AI-Brains/pull/247) squash `9119c74` |
+
+### T325 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m2 HEAD `211c934` vs `6c23288` | **Folded** snapshot `6c23288` / ahead **1** |
+| Agy m1 / m3 / O1 / O2 | **Already** F7/AC14 / F35 / F33 / §5.1 tracing |
+| Agy `#246` `mergedAt` 22:15:07Z | **Decline** — live `mergedAt` **2026-08-29T22:33:35Z** |
+| OpenCode m1 CAPABILITIES pass-2 AND fill | **Folded** F25 / AC11 |
+| OpenCode m2 AC6 no ORDER BY rank assert | **Folded** AC6 extend `:624` unit |
+| OpenCode m3 AC1 BM25 flood underspecified | **Folded** F35 / AC1 `12× "t325or backend "` + Phase-1 green-today |
+| OpenCode O1 no PreferRecency hermetic | **Folded** AC16 |
+| OpenCode O2 volatile preflight/doctor | **Folded** §2.1 |
+| OpenCode O3 Bugbot line 251 | **Decline** as required — semantics SoT |
+| last-PR `#246` Cursor | **Affirm** N/A empty — no T327 |
+| Agy/OpenCode B / M | None filed |
+| DOCS TX | `86f98ed2-6873-4cda-9e7e-84b86500af12` |
+
+### T325 full plan (2026-08-29) — F8 OR-fill PreferRecency (`#230`)
+
+| Item | Disposition |
+|------|-------------|
+| `#230` Bugbot F8 Prefer-OR skips PreferRecency | **Absorb** F1–F7 / AC1 / AC14 |
+| T312 F8/F40/F41/F42 | **Affirm freeze** F3/F6/F8/F24/F34 |
+| T312 AC5 prose dumps | **Stay-green** F8/F35 — not the red (red is TAGS flood) |
+| T316 F27 list recency | **Not stolen** |
+| T324 implement residuals / Completed note | **Not stolen** / **Plan-write DOCS commit** |
+| T326 `PinnedCountFailed` (`#237`) | **Not stolen** |
+| T307 Blocked / T308 floors / H2 / clap 5 / T240 F2 | **Not stolen** / **Decline** |
+| T217 ≥3 / T218 floors / KIND / depth | **Decline** F4/F5 |
+| last-PR Cursor `#246` | **N/A empty** (no defect) |
+| last-PR `#237` / `#230` | **T326** / **this** — **no T327** |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `e8a70f94-0beb-4b98-bc5b-50da64bdd87a` |
+
+### T324 implement residuals (2026-08-29) — non-easy lows
+
+| Item | Disposition |
+|------|-------------|
+| Other required positionals still drop empty argv on 5.1 (`recall ""`, …) | **Deferred** F26 — series non-goal |
+| `--as-of ""` on 5.1 still clap “value required” | **Deferred** F6 — different hole; not this DoD |
+| PATH `ai-brains` until owner `cargo install` (T312–T324) | **Deferred** F27 — hermetic/`cargo run` SoT |
+| Help `[TERM]` vs older docs `<TERM>` series-wide | **Deferred** soft — in-force rows updated (F33) |
+| T311 R7 / I3 PowerShell empty TERM | **Resolved** T324 `#246` `211c934` |
+| T325 F8 PreferRecency / T326 pin-count / T307 | **Not stolen** |
+| BUGFIX TX | `45ffa467-eb73-4137-97d1-926a6d260290` |
+| PR | [#246](https://github.com/Ryan-AI-Studios/AI-Brains/pull/246) squash `211c934` |
+
 ### T324 fold-in (2026-08-29) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |
@@ -23,7 +106,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 
 | Item | Disposition |
 |------|-------------|
-| T311 R7 / I3 5.1 `in-force ""` drops argv → clap missing `<TERM>` | **Absorb** F1–F11 / AC1–AC9 / AC15–AC16 |
+| T311 R7 / I3 5.1 `in-force ""` drops argv → clap missing `<TERM>` | **Resolved** T324 `#246` |
 | T323 same required positional | **Absorb** F1 / AC9 copy-not-share |
 | Placeholder docs-only `--%` / `'""'` | **Decline** F30 — live pwsh they are two quote chars, exit 0 unknown term |
 | pwsh 7.6 Windows already preserves `""` | **Honesty** — DoD is 5.1 + Legacy analog (omit-TERM hermetic) |
