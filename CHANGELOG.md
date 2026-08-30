@@ -15,6 +15,10 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ## [Unreleased]
 
+### Fixed
+
+- **T329 Preflight Recent whale drop:** Most Recent is packed after Index against leftover budget. An oversized collected body is skipped; smaller authority / recency-fill items still emit under `--- Most Recent Memories ---`. Whale-only overflow omits the Recent header (Index title remains). JSON required keys unchanged; Recent item strings may omit a body that does not fit.
+
 ### Changed
 
 - **T328 Project identity collision:** `project whoami` adds always-present `identity_collision` (boolean; never omit / never `null`). Path-null env≠detect is `mismatch: false` + `identity_collision: true` with remediations that name `register-path` first (then `adopt-path`). `mismatch` stays env vs path-alias only. `scope resolve` JSON `warnings[]` may include additive `project_identity_collision env=<uuid> detect=<uuid>` only when path-alias is absent (not when the T257 mismatch token already applies). Exit **0**. No `.env` rewrite, no memory merge.
