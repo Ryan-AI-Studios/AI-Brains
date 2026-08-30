@@ -835,6 +835,9 @@ fn forget_list_forgotten__global__project_col_non_empty() {
 // T287 — human prefer-fill authority; JSON recency freeze
 // ---------------------------------------------------------------------------
 
+/// T331 F3 / F35 — copy-not-share 61-char honesty (do not import retrieval const).
+const T331_F3: &str = "No DECISION/CONSTRAINT pins in scope; showing recent activity";
+
 fn unique_token(prefix: &str) -> String {
     let n = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -978,6 +981,10 @@ fn memory_list__json_limit_5__items0_stays_recency_dump() {
     assert!(
         preview.contains("dump four") && preview.contains(&needle),
         "AC2 items[0] is newest recency dump four; preview={preview:?}\n{stdout}"
+    );
+    assert!(
+        !stdout.contains(T331_F3),
+        "AC5 JSON stdout must not include F3 honesty; got:\n{stdout}"
     );
 }
 
@@ -1225,11 +1232,138 @@ fn memory_list__chrome_only_vault__first_row_stays_objective() {
     );
 
     let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
-    assert_eq!(code, 0, "AC10 exit 0; stderr={stderr}");
+    assert_eq!(code, 0, "AC10/AC6 exit 0; stderr={stderr}");
     let first = first_human_preview(&stdout);
     assert!(
         first.starts_with("## Objective"),
         "AC10 chrome-only first row is Objective; first={first:?}\n{stdout}"
+    );
+    let f3 = stdout.matches(T331_F3).count();
+    assert_eq!(
+        f3, 1,
+        "AC6 chrome-only prints F3 honesty once; got {f3} in:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("No pinned memories."),
+        "AC6 must not empty-table lie; got:\n{stdout}"
+    );
+
+    let (scode, sstdout, _) = run_memory_list(&vault, &["--summary"], Some(&id));
+    assert_eq!(scode, 0, "AC9 summary exit 0");
+    assert!(
+        sstdout.contains("Pinned:"),
+        "AC9 summary still prints Pinned COUNT; got:\n{sstdout}"
+    );
+    assert!(
+        !sstdout.contains(T331_F3),
+        "AC9 --summary must not print F3; got:\n{sstdout}"
+    );
+}
+
+/// T331 AC18 — `--global` chrome-only still prints F3.
+#[test]
+fn memory_list__global_chrome_only__prints_f4() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let nonce = unique_token("T331g");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump one {nonce}"),
+    );
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("## Objective dump two {nonce}"),
+    );
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--global", "--limit", "5"], None);
+    assert_eq!(code, 0, "AC18 exit 0; stderr={stderr}");
+    assert!(
+        stdout.contains("Scope: global") || stdout.to_ascii_lowercase().contains("global"),
+        "AC18 --global scope; got:\n{stdout}"
+    );
+    let f3 = stdout.matches(T331_F3).count();
+    assert_eq!(
+        f3, 1,
+        "AC18 global empty-authority prints F3 once; got {f3} in:\n{stdout}"
+    );
+}
+
+/// T331 AC1 — GLOB-empty chrome + older process Other: process first, F3 once.
+#[test]
+fn memory_list__glob_empty_chrome_plus_process__process_is_first_with_f4() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T331p");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("T331 process {needle} inventory skim body"),
+    );
+    pin_memory(&vault, &proj, &id, "## Objective dump-1");
+    pin_memory(&vault, &proj, &id, "## Objective dump-2");
+    pin_memory(&vault, &proj, &id, "## Objective dump-3");
+    pin_memory(&vault, &proj, &id, "## Objective dump-4");
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC1 exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        !first.starts_with("## Objective"),
+        "AC1 first preview must not be Objective chrome; first={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains("T331 process") && first.contains(&needle),
+        "AC1 first preview is the process needle; first={first:?}\n{stdout}"
+    );
+    let f3 = stdout.matches(T331_F3).count();
+    assert_eq!(f3, 1, "AC1 F3 honesty once; got {f3} in:\n{stdout}");
+}
+
+/// T331 AC2 — lowercase `decision:` GLOB-miss is still first; no F3.
+#[test]
+fn memory_list__glob_empty_lowercase_decision__is_first_no_f4() {
+    let dir = tempdir().unwrap();
+    let vault = dir.path().join("vault.db");
+    init_vault(&vault);
+    let proj = dir.path().join("proj");
+    let id = register_project(&vault, &proj);
+    let needle = unique_token("T331d");
+    pin_memory(
+        &vault,
+        &proj,
+        &id,
+        &format!("decision: {needle} lowercase inventory pin"),
+    );
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-1 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-2 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-3 {needle}"));
+    pin_memory(&vault, &proj, &id, &format!("## Objective dump-4 {needle}"));
+
+    let (code, stdout, stderr) = run_memory_list(&vault, &["--limit", "5"], Some(&id));
+    assert_eq!(code, 0, "AC2 exit 0; stderr={stderr}");
+    let first = first_human_preview(&stdout);
+    assert!(
+        !first.starts_with("## Objective"),
+        "AC2 first preview must not be Objective chrome; first={first:?}\n{stdout}"
+    );
+    assert!(
+        first.contains("decision:") && first.contains(&needle),
+        "AC2 first preview is lowercase decision pin; first={first:?}\n{stdout}"
+    );
+    assert!(
+        !stdout.contains(T331_F3),
+        "AC2 authority present → no F3; got:\n{stdout}"
     );
 }
 
@@ -1249,6 +1383,13 @@ fn memory_list_help__mentions_human_authority_and_json_recency() {
     assert!(
         stdout.contains("JSON") && stdout.contains("recency"),
         "AC17 after_help names JSON recency freeze; got:\n{stdout}"
+    );
+    let lower = stdout.to_ascii_lowercase();
+    assert!(
+        lower.contains("no leading-line")
+            || stdout.contains(T331_F3)
+            || stdout.contains("showing recent activity"),
+        "AC11 after_help names GLOB-empty honesty / no leading-line; got:\n{stdout}"
     );
 }
 
@@ -1389,6 +1530,10 @@ fn memory_list__forgotten_status__no_authority_promote_of_remaining_pin() {
     assert!(
         !out2.contains(&pin_needle),
         "AC8 list-forgotten must not promote remaining pin; got:\n{out2}"
+    );
+    assert!(
+        !out1.contains(T331_F3) && !out2.contains(T331_F3),
+        "AC8 forgotten path must not print F3 honesty; got list:\n{out1}\nlist-forgotten:\n{out2}"
     );
 }
 
