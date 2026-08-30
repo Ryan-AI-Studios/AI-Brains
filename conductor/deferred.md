@@ -2,6 +2,56 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T331 implement residuals (2026-08-30) — memory list GLOB-empty recency + honesty
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install` | **Deferred** F19 — source has T331; PATH still **0.1.3** |
+| Live vault still 0 leading-line DECISION | **Deferred** F3 honesty; hermetic AC1/AC2 SoT; Manual AC14 pass-with-observed-data |
+| Lowercase pin older than over-fetch window | **Deferred** F8 — `--limit 5` scans 51 newest |
+| Process Other still fills first page | **Deferred** F7 does not grow process-prefix lists |
+| Briefing still 0 samples | T288 LIMIT-32 — not this |
+| T332 detect env-fallback | **Not stolen** F15 |
+| F6 later-slot chrome when pass-1 non-empty | **Deferred** T331-F3 — authority still slot 1; prefer-fill freeze |
+| Sparse `--tag` over-fetch empty table while `total>0` | **Out of scope** — T216 F43 / store freeze F5; Codex CX1 |
+| `cross_repo_bridge_smoke` `ledgerful init` hang (120s) | **Unrelated** — pre-existing e2e; T331 does not touch it; GHA likely skips (no ledgerful). Local nextest **3751** passed excluding it |
+| FEATURE TX | `13ce6c3e-e248-4ce1-b113-a0362c986292` |
+
+### T331 fold-in (2026-08-30) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| Agy m1 mid-body agent prefix / `row_is_list_chrome` on full blob | **Folded** F7 / §5.3 **required** wrapper: `preview_line_is_chrome(first_contentful_line)` only; AC7 cases 5–6 |
+| Agy m1 “both helpers on first_contentful_line only” | **Decline** — `is_session_chrome(content)` stays full (`:48–54` JSON `"decisions":` head) |
+| Agy “54-character” SOOT | **Decline citation** — measured **61** (OpenCode O1) |
+| Agy O1 / O2 three-tier + store freeze | **Already** F2 / F7 / F5 |
+| OpenCode O1 F35 54 vs 61 | **Folded** F35 **61**-char |
+| OpenCode O2 Budget/hotspot four-decimal drift | **Already** snapshot / Phase 0 |
+| last-PR `#259` Cursor | **Affirm** N/A empty — no T333 |
+| Agy/OpenCode B / M | None |
+| OpenCode m | None |
+| Agy m | **1** — folded (partial, not declined) |
+| DOCS TX | `0647fe73-3ced-42d3-80bf-f91761b8b889` |
+
+### T331 full plan (2026-08-30) — `memory list` GLOB-empty recency + honesty
+
+| Item | Disposition |
+|------|-------------|
+| T287 R1-1 live GLOB 0 → recency first page (`3581317d` human first id == JSON recency) | **Absorb** F1–F3 / F7 / AC1 / AC14 |
+| T316 F27 ORDER not this track | **Absorb** F1 row-skip; T316 preview **freeze** F16 |
+| T327 list first page still recency | **Absorb** this track |
+| Mint JSON ORDER reopen | **Decline** F4 — freeze (T287 AC2 stay-green) |
+| T287 store GLOB / pass-1 over-fetch starve | **Freeze** F5 / AC4 — already shipped |
+| T288 briefing LIMIT-32 / empty samples | **Not stolen** F14 |
+| T330 Index chrome skip / F4 / Session 20 | **Not stolen** F15 — analog string copy only |
+| T332 detect env-fallback / `10d4bff5` | **Not stolen** F15 |
+| Buried `decision:` / LIKE-GLOB / USER/SYSTEM TAGS | **Decline** F17 / F18 / F27 |
+| last-PR Cursor `#259` | **N/A empty** — no T333 |
+| Open PRs `#250–#256` Dependabot | **Decline** F29 — Phase 0 rescan |
+| T240 F2 / H2 / T307 / clap 5 / PATH install | **Decline** F19 / F29 |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `72c19557-7a1a-4fac-9e27-a457e730f161` |
+
 ### T330 implement residuals (2026-08-30) — preflight Index authority fit
 
 | Item | Disposition |
@@ -59,7 +109,7 @@ Tracks deferred from T142. Append-only; strike through when promoted to a real t
 |------|-------------|
 | ~~T327 live Index F4 + recency chrome (4753 pins, in-context decisions 0)~~ | **T330 Planned** — F1–F5 / AC1 / AC3 |
 | ~~T329 truncate-whale-to-fit / skip no 4th SQL backfill / Session LIMIT 5~~ | **T330 Planned** — fetch 20 + packed-empty truncate; **decline** 4th SQL |
-| T287 R1-1 / T316 F27 `memory list` GLOB+retain empty → recency first page | **Mint T331** |
+| ~~T287 R1-1 / T316 F27 `memory list` GLOB+retain empty → recency first page~~ | **T331 Planned** — empty-GLOB row-skip + F4 honesty; JSON recency freeze |
 | T328 env-in-vault detect fallback hides slug miss (`project.rs:338–350`) | **Mint T332** |
 | T328 leftover `10d4bff5` 2-mem path null | **Mint T332** (ops vs remediator on `/plan-track 332`) |
 | PATH `cargo install` | **Decline as tracks** — owner ops; every recent residual |
