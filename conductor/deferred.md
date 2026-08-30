@@ -2,6 +2,18 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T327 implement residuals (2026-08-30) — preflight authority-first
+
+| Item | Disposition |
+|------|-------------|
+| PATH until owner `cargo install` | **Deferred** F28 — source has T327; PATH still **0.1.3** |
+| Live Index still F4 + recency fill (`3581317d` no fitting leading DECISION) | **Deferred** AC17 pass-with-observed-data; do not H2 |
+| Session `turn_projection` LIMIT 5 | **Deferred** F19 — do not grow `sessions.rs`; F2 applies to loaded turns; CAPABILITIES names the window |
+| AC1 needle-as-item-1 vs F44 no body-skip | **Deferred** F44 wins; whale (newer) is Index 1; small pin still enters |
+| T328 identity collision | **Not stolen** — stays Pending |
+| T287 `memory list` ORDER | **Not stolen** F13 |
+| FEATURE TX | `cc2212aa-001a-4a68-ae4a-f547f06afce3` |
+
 ### T326 implement residuals (2026-08-30) — pin-count fail-open + 0.1.4
 
 | Item | Disposition |
