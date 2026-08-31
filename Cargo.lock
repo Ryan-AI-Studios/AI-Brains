@@ -111,6 +111,7 @@ dependencies = [
  "ai-brains-events",
  "ai-brains-graph",
  "ai-brains-models",
+ "ai-brains-retrieval",
  "ai-brains-store",
  "async-trait",
  "chrono",

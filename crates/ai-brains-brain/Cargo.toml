@@ -13,6 +13,7 @@ ai-brains-events = { path = "../ai-brains-events" }
 ai-brains-graph = { path = "../ai-brains-graph" }
 ai-brains-store = { path = "../ai-brains-store" }
 ai-brains-models = { path = "../ai-brains-models" }
+ai-brains-retrieval = { path = "../ai-brains-retrieval" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -227,6 +227,68 @@ mod tests {
         }
     }
 
+    /// T336 AC8: `--skip-graduation` parses without running nightly.
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_skip_graduation__parses() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "nightly", "--skip-graduation"]) {
+            Ok(c) => c,
+            Err(e) => panic!("expected --skip-graduation to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Nightly {
+                skip_graduation,
+                graduation_dry_run,
+                ..
+            } => {
+                assert!(skip_graduation);
+                assert!(!graduation_dry_run);
+            }
+            _ => panic!("expected Commands::Nightly"),
+        }
+    }
+
+    /// T336 AC8: `--graduation-dry-run` is distinct from schedule `--dry-run`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_graduation_dry_run__parses_without_schedule_dry_run() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "nightly", "--graduation-dry-run"])
+        {
+            Ok(c) => c,
+            Err(e) => panic!("expected --graduation-dry-run to parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Nightly {
+                graduation_dry_run,
+                dry_run,
+                skip_graduation,
+                ..
+            } => {
+                assert!(graduation_dry_run);
+                assert!(!dry_run);
+                assert!(!skip_graduation);
+            }
+            _ => panic!("expected Commands::Nightly"),
+        }
+    }
+
+    /// T336 AC8: `--skip-graduation` conflicts with `--graduation-dry-run`.
+    #[test]
+    #[allow(non_snake_case)]
+    fn nightly_skip_graduation__conflicts_with_graduation_dry_run() {
+        use clap::error::ErrorKind;
+        let err = match super::Cli::try_parse_from([
+            "ai-brains",
+            "nightly",
+            "--skip-graduation",
+            "--graduation-dry-run",
+        ]) {
+            Ok(_) => panic!("expected clap to reject both graduation flags"),
+            Err(e) => e,
+        };
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
+    }
+
     /// T255 AC2: `--format` requires `--status`.
     #[test]
     #[allow(non_snake_case)]
@@ -2147,6 +2209,13 @@ enum Commands {
         /// Skip only Cursor IDE batch import during nightly
         #[arg(long)]
         skip_import_cursor: bool,
+        /// Skip pin-to-proposal graduation (SYSTEM scheduled nightly bakes this)
+        #[arg(long, conflicts_with = "graduation_dry_run")]
+        skip_graduation: bool,
+        /// Scan pins and print would-propose counts without appending events.
+        /// Does not overload schedule `--dry-run`.
+        #[arg(long, conflicts_with = "skip_graduation")]
+        graduation_dry_run: bool,
         /// Schedule the task to run as SYSTEM (no login required). Requires elevation.
         #[arg(long)]
         run_as_system: bool,
@@ -5644,6 +5713,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             skip_import_claude,
             skip_import_codex,
             skip_import_cursor,
+            skip_graduation,
+            graduation_dry_run,
             run_as_system,
             dry_run,
         } => {
@@ -5660,6 +5731,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 *skip_import_claude,
                 *skip_import_codex,
                 *skip_import_cursor,
+                *skip_graduation,
+                *graduation_dry_run,
                 *run_as_system,
                 *dry_run,
                 *quick,

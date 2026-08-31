@@ -33,6 +33,8 @@ pub async fn run(
     skip_import_claude: bool,
     skip_import_codex: bool,
     skip_import_cursor: bool,
+    skip_graduation: bool,
+    graduation_dry_run: bool,
     run_as_system: bool,
     dry_run: bool,
     quick: bool,
@@ -564,7 +566,16 @@ pub async fn run(
     let batch_size = std::env::var("AI_BRAINS_NIGHTLY_BATCH")
         .ok()
         .and_then(|s| s.parse::<usize>().ok());
-    let count = service.run_nightly(project_id, batch_size).await?;
+    let graduation = if skip_graduation {
+        ai_brains_brain::GraduationMode::Skip
+    } else if graduation_dry_run {
+        ai_brains_brain::GraduationMode::DryRun
+    } else {
+        ai_brains_brain::GraduationMode::Run
+    };
+    let count = service
+        .run_nightly_with(project_id, batch_size, graduation)
+        .await?;
     tracing::info!("Running memory synthesis...");
 
     // WAL checkpoint: ensure embeddings generated during nightly are persisted
@@ -1216,7 +1227,7 @@ fn generate_nightly_wrapper_script_from_env(
         lines.push(format!("cd /d \"{parent}\""));
     }
     lines.push(format!(
-        r#""{}" --no-project-context nightly --skip-import --log-format json"#,
+        r#""{}" --no-project-context nightly --skip-import --skip-graduation --log-format json"#,
         exe_str
     ));
     Ok(lines.join("\n"))
@@ -2030,7 +2041,7 @@ Author: N/A\n";
     #[allow(non_snake_case)]
     fn build_schtasks_args__run_as_system__includes_no_project_context_and_skip_import() {
         let args = build_schtasks_args(
-            r"C:\fake\ai-brains.exe --no-project-context nightly --skip-import --log-format json",
+            r"C:\fake\ai-brains.exe --no-project-context nightly --skip-import --skip-graduation --log-format json",
             "AI-Brains-Nightly",
             "03:00",
             true,
@@ -2041,6 +2052,25 @@ Author: N/A\n";
             .expect("/tr argument present");
         let task_command = &args[tr + 1];
         assert!(task_command.contains("--no-project-context"));
+        assert!(task_command.contains("--skip-import"));
+        assert!(task_command.contains("--skip-graduation"));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn build_schtasks_args__run_as_system__includes_skip_graduation() {
+        let args = build_schtasks_args(
+            r"C:\fake\ai-brains.exe --no-project-context nightly --skip-import --skip-graduation --log-format json",
+            "AI-Brains-Nightly",
+            "03:00",
+            true,
+        );
+        let tr = args
+            .iter()
+            .position(|a| a == "/tr")
+            .expect("/tr argument present");
+        let task_command = &args[tr + 1];
+        assert!(task_command.contains("--skip-graduation"));
         assert!(task_command.contains("--skip-import"));
     }
 
@@ -2063,6 +2093,10 @@ Author: N/A\n";
         assert!(!preview.contains("/ru"), "{preview}");
         assert!(preview.contains("/f"), "{preview}");
         assert!(preview.contains("/create"), "{preview}");
+        assert!(
+            !preview.contains("--skip-graduation"),
+            "user-principal schedule must graduate; got {preview}"
+        );
     }
 
     #[test]
@@ -2081,6 +2115,7 @@ Author: N/A\n";
         let task_command = &args[tr + 1];
         assert!(!task_command.contains("--no-project-context"));
         assert!(!task_command.contains("--skip-import"));
+        assert!(!task_command.contains("--skip-graduation"));
     }
 
     #[test]
@@ -2122,6 +2157,7 @@ Author: N/A\n";
         assert!(content.contains("set \"AI_BRAINS_EMBEDDING_MODEL=embed-model\""));
         assert!(content.contains("--no-project-context"));
         assert!(content.contains("--skip-import"));
+        assert!(content.contains("--skip-graduation"));
         assert!(content.contains(r#""C:\fake\ai-brains.exe""#));
         assert!(content.contains("cd /d \"C:\\\""));
         Ok(())

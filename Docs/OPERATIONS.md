@@ -66,7 +66,7 @@ ai-brains antigravity-import --days 30 --force
 - Binds `conversationId` → workspace via `history.jsonl` (normalized path alias). Missing history → stable `agy-unbound` / `(unbound AGY)` — **not** cwd `.env` project by default.
 - Idempotent: path-keyed `source_meta` + delta turn index; message-only SOOT.
 - Human stats on **stderr** (bound/unbound/quiescent/unchanged counters). Not a JSON status object.
-- **Scheduled SYSTEM nightly** keeps `--skip-import` by default (T239 D12) — it does **not** run AGY/Grok/OpenCode/Claude/Codex/Cursor batch import under Session 0. Manual / user-principal `nightly` without that flag runs six-source multi-harness import (agy → grok → opencode → claude → codex → cursor).
+- **Scheduled SYSTEM nightly** keeps `--skip-import` and `--skip-graduation` by default (T239 D12 / T336) — it does **not** run AGY/Grok/OpenCode/Claude/Codex/Cursor batch import under Session 0, and it does **not** graduate pins into the review queue. Manual / user-principal `nightly` without those flags runs six-source multi-harness import and propose-only pin graduation.
 
 ### Harness detect + install (T235)
 
@@ -598,6 +598,7 @@ The nightly job does:
 - **Multi-harness session import (T239+T334):** AGY → Grok → OpenCode → Claude → Codex → Cursor (message-only; never opens `opencode.db` / Cursor `state.vscdb`). Flags: `--skip-import` (all six), `--skip-import-agy`, `--skip-import-grok`, `--skip-import-opencode`, `--skip-import-claude`, `--skip-import-codex`, `--skip-import-cursor`. Fail-open per source; `last_multi_import` sync_state (`v:1` additive) + `nightly --status` Multi-import block. Adapter progress may print non-JSON lines on stderr even when `--log-format json` is set (SYSTEM wrapper).
 - Soft model-endpoint probe (T229) after multi-import / before summarize — non-fatal `warn` if completion/embedding endpoints are down
 - Summarization of unsummarized sessions (with T34 chunking for sessions over 38,912 tokens)
+- **Pin graduation (T336):** after summarize, in-scope `DECISION:` / `CONSTRAINT:` / `INVARIANT:` pins become `DecisionProposed` / `ConclusionProposed` plus `ReviewItemOpened` (propose-only; cap 10; `AI_BRAINS_GRADUATION_CAP` override). Flags: `--skip-graduation` (no scan), `--graduation-dry-run` (scan + counts, no append). Fail-open. SYSTEM wrapper bakes `--skip-graduation`. Does not flip `AI_BRAINS_GOVERNED_SYNTHESIS` and does not auto-approve.
 - Memory synthesis (RAPTOR-style clustering + CRAG factual verification)
 - Embedding backfill (UTF-8-safe truncate, T229 F5 — no mid-character panic)
 - **Phase 2 multi-root bridge (T233):** MADR + symbol inventory per **registered path alias** (not process cwd)
@@ -671,7 +672,7 @@ Overnight brain is designed to talk to a **local** llama.cpp-style router rather
 | Path | Who | Multi-import | Env / project context |
 |------|-----|--------------|------------------------|
 | **User-principal** (`nightly --schedule`, no `--run-as-system`) | Logged-in user | **ON** by default (AGY → Grok → OpenCode) | Inherits user env + global dotenv; harness homes readable |
-| **SYSTEM** (`nightly --schedule --run-as-system`) | Session 0 | **`--skip-import` baked into wrapper** (T239 D12) | Wrapper bakes vault + model env; no user-profile harness homes |
+| **SYSTEM** (`nightly --schedule --run-as-system`) | Session 0 | **`--skip-import --skip-graduation` baked into wrapper** (T239 D12 / T336) | Wrapper bakes vault + model env; no user-profile harness homes |
 
 **Completeness path:** run interactive `ai-brains nightly` or a **user-principal** scheduled task when you need multi-harness import. SYSTEM is for headless summarize/embed when nobody is logged in.
 
@@ -684,6 +685,8 @@ ai-brains nightly --status --format json   # machine object (default human; pipe
 ai-brains nightly --unschedule
 ai-brains nightly --skip-import        # skip all harness importers
 ai-brains nightly --skip-import-opencode
+ai-brains nightly --skip-graduation    # skip pin-to-proposal graduation
+ai-brains nightly --graduation-dry-run # scan pins; print counts; no append
 ```
 
 `nightly --status` (T247 / T269 / T281) prints additive human lines:
@@ -730,7 +733,7 @@ By default `--schedule` registers a task under the current user, which inherits 
   icacls "$env:ProgramData\AI-Brains\nightly-task.bat"
   ```
   Expect only `SYSTEM` and `Administrators` with full control. If ACL apply or verify fails, scheduling aborts — `schtasks /Create` is not called.
-- The wrapper appends `--no-project-context --skip-import` to the `ai-brains.exe nightly` invocation. SYSTEM has no user-profile harness homes (AGY/Grok/OpenCode) and no `.env` to auto-discover, so project-context discovery and multi-harness import would both be wrong or empty under Session 0; these flags skip them by default (T239 D12). **Completeness path:** run `nightly` as the interactive user (or user-principal scheduled task) so harness homes are readable.
+- The wrapper appends `--no-project-context --skip-import --skip-graduation` to the `ai-brains.exe nightly` invocation. SYSTEM has no user-profile harness homes (AGY/Grok/OpenCode) and no `.env` to auto-discover, so project-context discovery and multi-harness import would both be wrong or empty under Session 0; pin graduation is skipped so Session 0 does not fill the review queue unattended (T239 D12 / T336). **Completeness path:** run `nightly` as the interactive user (or user-principal scheduled task) so harness homes are readable and pin graduation runs.
 - `--run-as-system` **requires Administrator rights** (ProgramData ACL + `/RU SYSTEM`). From a normal shell the CLI **prompts for UAC** and re-launches itself elevated (approve the dialog). You can still use an already-elevated PowerShell if you prefer. If UAC is cancelled or disabled, re-run from an Administrator shell. `--dry-run` does not elevate.
 - **Residual risk (accepted, T145):** the invoked binary typically lives under `%USERPROFILE%\.cargo\bin\` (user-writable by design for `cargo install`). Copying binaries into `ProgramData` is packaging/installer scope, not done here. The primary hijack vector on the *script* path is closed by the ProgramData + ACL model above. The same residual applies to `ai-brainsd.exe` used by `daemon install` / deprecated `daemon schedule --run-as-system`. `daemon.env` uses the same ACL model under `%ProgramData%\AI-Brains\`.
 

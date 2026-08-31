@@ -17,6 +17,8 @@ Version banners in documentation are maintained manually from the workspace `Car
 
 ### Added
 
+- **T336 Propose-only pin graduation:** Interactive / user-principal `nightly` scans in-scope `DECISION:` / `CONSTRAINT:` / `INVARIANT:` pins and appends `DecisionProposed` / `ConclusionProposed` plus `ReviewItemOpened` (no auto-approve; cap 10, override `AI_BRAINS_GRADUATION_CAP`). SYSTEM wrapper bakes `--skip-graduation` next to `--skip-import`. `--graduation-dry-run` prints would-propose counts without appending (does not overload schedule `--dry-run`). Fail-open after summarize. Proposer is the well-known system synthesis principal (`SYSTEM_SYNTHESIS_PRINCIPAL_UUID`). Does **not** flip `AI_BRAINS_GOVERNED_SYNTHESIS`. Empty-authority briefing next-step names `review list` + nightly pin graduation.
+
 - **T334 Cursor JSONL adapter + six-source nightly:** `ai-brains cursor-import` (`--days` / `--force` / `--dry-run`) walks `~/.cursor/projects/<slug>/agent-transcripts` (message-only; skip `subagents/`; no Composer `state.vscdb`; no `cursor-hook`). Nightly import order is **agy → grok → opencode → claude → codex → cursor**. `--skip-import` skips all six; per-source `--skip-import-claude` / `--skip-import-codex` / `--skip-import-cursor`. `last_multi_import` stays `v:1` with additive keys; pre-T334 blobs dual-read as skipped `absent_pre_t334`. `nightly --status --format json` ok reports always include `claude` / `codex` / `cursor`.
 
 - **T335 PINNED_IN_PROJECT:** session-less `MemoryPinned` with `project_id` (T70 `ledgerful:symbol`) emits a memory→project `PINNED_IN_PROJECT` graph edge. Sessioned pins stay RECALLS-only. Historical repair is existing `graph rebuild` (not a new `graph repair` command). Migration **0029** adds the label to `graph_edge` CHECK.
