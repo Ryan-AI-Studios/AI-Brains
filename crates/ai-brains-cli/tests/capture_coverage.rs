@@ -19,7 +19,8 @@ fn init_vault(vault: &std::path::Path) {
 }
 
 /// Production coverage consults `CURSOR_HOME` / `GROK_HOME` / … before `HOME`.
-/// GHA (and some developer shells) may set those; strip so USERPROFILE fixtures win.
+/// `dirs::home_dir()` on Windows uses the Known Folder profile, not `USERPROFILE`,
+/// so CLI fixtures must set the harness `*_HOME` vars (not only HOME/USERPROFILE).
 fn strip_harness_homes(cmd: &mut assert_cmd::Command) {
     cmd.env_remove("CURSOR_HOME");
     cmd.env_remove("GROK_HOME");
@@ -69,6 +70,7 @@ fn capture_coverage__cursor_deficit__exit_0() {
         .arg("json")
         .env("USERPROFILE", home.path())
         .env("HOME", home.path())
+        .env("CURSOR_HOME", home.path().join(".cursor"))
         .output()
         .expect("capture coverage");
     assert!(
