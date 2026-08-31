@@ -82,6 +82,22 @@ impl<'a> GraphProjector<'a> {
                         confidence: 1.0,
                     });
                 }
+                if p.session_id.is_none()
+                    && let Some(project_id) = &p.project_id
+                {
+                    self.node_buffer.push(GraphNode {
+                        id: project_id.to_string(),
+                        label: "Project".to_string(),
+                        category: "project".to_string(),
+                        metadata: serde_json::json!({}),
+                    });
+                    self.edge_buffer.push(GraphEdge {
+                        source: p.memory_id.to_string(),
+                        target: project_id.to_string(),
+                        relation: "PINNED_IN_PROJECT".to_string(),
+                        confidence: 1.0,
+                    });
+                }
             }
             Payload::SessionSummaryCreated(p) => {
                 self.node_buffer.push(GraphNode {

@@ -2,6 +2,14 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T335 implement residuals (2026-08-31) — PINNED_IN_PROJECT projector
+
+| Item | Disposition |
+|------|-------------|
+| Live `2ba85180-30ea-5ef6-800a-dbbc376392c2` neighbors `[]` until owner `graph rebuild` | **Defer** F5 — mutate is owner-confirm; new ingest gets the edge immediately |
+| `ledgerful verify --scope full` workspace nextest 600s step timeout | **Observed** — equivalent nextest **3801** passed in `dev-check.ps1` (`NEXTEST_TEST_THREADS=2`) |
+| FEATURE TX | `b4fc0d23-8db6-430d-806e-e3142170f75f` |
+
 ### T335 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
 
 | Item | Disposition |

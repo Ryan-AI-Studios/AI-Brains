@@ -114,6 +114,10 @@ pub const MIGRATIONS: &[(&str, &str)] = &[
         "0028_replication_outbox",
         include_str!("../migrations/0028_replication_outbox.sql"),
     ),
+    (
+        "0029_graph_pinned_in_project",
+        include_str!("../migrations/0029_graph_pinned_in_project.sql"),
+    ),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> Result<()> {
