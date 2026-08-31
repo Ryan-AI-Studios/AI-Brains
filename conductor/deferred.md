@@ -2,6 +2,31 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T336 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md` (placeholder expanded)
+
+| Item | Disposition |
+|------|-------------|
+| Agy B1 un-expanded stub | **Folded** — full spec+plan written; status stays **Pending** |
+| Agy M1 privacy / skip Sealed NeverInject | **Folded** F5 / AC4 |
+| Agy M2 never auto-approve | **Folded** F3 / F6 / AC5 |
+| Agy m1 / OpenCode O2 sort + cap | **Folded** F7 default **10** / `AI_BRAINS_GRADUATION_CAP` |
+| OpenCode M1 projector `:150-240` stale | **Folded** §2.3 cite **`:166–311`** |
+| OpenCode M2 GOVERNED_SYNTHESIS already exists | **Folded** F1/F2/AC12 — pin graduation **alongside**; do **not** flip flag |
+| OpenCode m1 F4 not bare `_None_` | **Folded** F4 / AC11 next-step only |
+| OpenCode m2 `SupercededBy` vs `SUPERSEDES` | **Folded** F15; no CHECK growth |
+| Agy O1/O2; OpenCode O1 | **Already** reuse kinds / `#264` no defect |
+| `#264` `mergedAt` 17:10:36Z | **Decline** timestamp — live gh **17:30:04Z** |
+| Live `--dry-run` overload | **Folded** F10 — schedule-only; new `--graduation-dry-run` |
+| `propose_decision` fills review list | **Folded** F3 — must append `ReviewItemOpened` |
+| T263 H2 standing Decline | **Reopen propose-only** F6; auto-approve **still Decline** |
+| T311 R1–R7 | **Decline / closed** F18 |
+| T337–T341 | **Not stolen** F17 |
+| last-PR `#264` Cursor usage-limit | **No leftover** — no T342. T341 still Unix slug |
+| Dependabot `#250–#256` | **Decline** F19 |
+| Live 0 DECISION/CONSTRAINT samples at 4910 pins | **Honesty** AC14 / T340 |
+| Agy/OpenCode B / M | **1 / 2+2** — B1 + both M-pairs folded |
+| DOCS TX | `70470eb6-ffa3-4fee-a423-b729e1c275de` |
+
 ### T335 implement residuals (2026-08-31) — PINNED_IN_PROJECT projector
 
 | Item | Disposition |
