@@ -80,6 +80,59 @@ mod tests {
         assert_eq!(format, "minimal");
     }
 
+    /// T337 AC1: `capture coverage` parses with default days 30.
+    #[test]
+    #[allow(non_snake_case)]
+    fn capture_coverage__clap_parses() {
+        let cli = match super::Cli::try_parse_from(["ai-brains", "capture", "coverage"]) {
+            Ok(c) => c,
+            Err(e) => panic!("capture coverage must parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Capture {
+                command:
+                    super::CaptureCommands::Coverage {
+                        days,
+                        format,
+                        global,
+                        ..
+                    },
+            } => {
+                assert_eq!(days, 30);
+                assert_eq!(format, "human");
+                assert!(!global);
+            }
+            _ => panic!("expected Commands::Capture Coverage"),
+        }
+    }
+
+    /// T337 AC11: `--format json` is required for JSON (default human).
+    #[test]
+    #[allow(non_snake_case)]
+    fn capture_coverage__clap_format_json() {
+        let cli = match super::Cli::try_parse_from([
+            "ai-brains",
+            "capture",
+            "coverage",
+            "--days",
+            "2",
+            "--format",
+            "json",
+        ]) {
+            Ok(c) => c,
+            Err(e) => panic!("capture coverage --format json must parse: {e}"),
+        };
+        match *cli.command {
+            super::Commands::Capture {
+                command: super::CaptureCommands::Coverage { days, format, .. },
+            } => {
+                assert_eq!(days, 2);
+                assert_eq!(format, "json");
+            }
+            _ => panic!("expected Commands::Capture Coverage"),
+        }
+    }
+
     /// T334 AC5: `cursor-import --dry-run` must parse (not help-only).
     #[test]
     #[allow(non_snake_case)]
@@ -2330,6 +2383,12 @@ enum Commands {
         #[command(subcommand)]
         command: MemoryCommands,
     },
+    /// Read-only disk vs vault session capture coverage
+    #[command(display_order = 19)]
+    Capture {
+        #[command(subcommand)]
+        command: CaptureCommands,
+    },
     /// Stop an active session
     #[command(display_order = 16)]
     StopSession {
@@ -3785,6 +3844,29 @@ pub enum GraphCommands {
         /// Output format: json (default pretty-JSON), auto (same as json), or human
         #[arg(long, default_value = "json", value_parser = ["json", "auto", "human"])]
         format: String,
+    },
+}
+
+/// T337 capture coverage subcommands.
+#[derive(Subcommand, Clone)]
+pub enum CaptureCommands {
+    /// Compare on-disk harness session files vs vault SessionStarted counts
+    #[command(
+        after_help = "Read-only. Does not import, open JSONL turn bodies, or add a doctor check.\nDefault --format is human; pipes stay human unless --format json.\nExit 0 on deficit (honesty warning). Exit 2 on usage.\nExamples:\n  ai-brains capture coverage\n  ai-brains capture coverage --days 2 --format json\n  ai-brains capture coverage --global"
+    )]
+    Coverage {
+        /// Mtime window in days (default 30, same as nightly D10)
+        #[arg(long, default_value_t = 30)]
+        days: usize,
+        /// Output format: human (default) or json. Pipes stay human unless json.
+        #[arg(long, default_value = "human", value_parser = ["human", "json"])]
+        format: String,
+        /// Count vault SessionStarted across all projects
+        #[arg(long)]
+        global: bool,
+        /// Project scope (env AI_BRAINS_PROJECT_ID); required unless --global
+        #[arg(long, env = "AI_BRAINS_PROJECT_ID")]
+        project_id: Option<ProjectId>,
     },
 }
 
@@ -5829,6 +5911,26 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                         summary: *summary,
                         tag: tag.clone(),
                         project_id: effective_project_id,
+                    },
+                )
+            }
+        },
+        Commands::Capture { command } => match command {
+            CaptureCommands::Coverage {
+                days,
+                format,
+                global,
+                project_id,
+            } => {
+                let effective_project_id = if *global { None } else { *project_id };
+                commands::capture_coverage::run(
+                    &ctx,
+                    commands::capture_coverage::CoverageOptions {
+                        days: *days,
+                        format: format.clone(),
+                        global: *global,
+                        project_id: effective_project_id,
+                        home_override: None,
                     },
                 )
             }

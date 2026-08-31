@@ -55,6 +55,24 @@ Empty / whitespace-only / TTY stdin is usage **exit 2** plus a copy-paste exampl
 
 Harness importers and hooks must keep **only** user prompts and final assistant text. Shared SOOT: `ai_brains_adapters::message_only` + `parse_transcript_for_ingest` (step-shaped AGY2 + legacy role/content; prefer `transcript_full.jsonl`). Used by batch import and `agy-hook`. Tool steps (`VIEW_FILE`, `RUN_COMMAND`, tool results), `reasoning`/`thinking`, and system chrome are dropped. The optional `IngestRequest.thinking` DTO field is never populated by adapters.
 
+### Capture coverage (T337)
+
+Read-only inventory of on-disk session *files* vs vault `SessionStarted` counts. Does **not** import, open JSONL turn bodies, or add a doctor check.
+
+```powershell
+ai-brains capture coverage
+ai-brains capture coverage --days 2 --format json
+ai-brains capture coverage --global
+```
+
+- `--days <N>`: file mtime window (default **30**).
+- `--format human|json`: default **human**; pipes stay human unless `--format json`.
+- `--global`: vault counts across all projects; otherwise `AI_BRAINS_PROJECT_ID`.
+- Status `deficit` means disk-eligible files exist and vault count is 0 — next step is a copy-paste importer (`cursor-import`, `claude-import`, `codex-import`, `antigravity-import`). Exit **0** (honesty, not a fail).
+- Grok files without a path-explainable `subagent-` / `worktrees` skip and vault 0 → `unverifiable_subagent`; next step is `grok-import --days N --dry-run` (**never** `--force`). Live Grok hooks remain the capture path.
+- OpenCode disk cell is `—` / JSON `null` (`requires_opencode_bin`) until T339. Missing `opencode` on PATH in `last_multi_import` → `expected_skip`.
+- Pre-T334 three-source `last_multi_import` blobs warn `stale_multi_import` (`skip_reason=absent_pre_t334`). PATH may still lack `cursor-import` until the owner installs the T334 binary.
+
 ### Antigravity Import
 Bulk-import Antigravity conversation logs from local tool-specific brain dirs.
 ```powershell

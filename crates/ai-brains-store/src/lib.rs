@@ -145,6 +145,17 @@ pub trait QueryStore: std::marker::Send + std::marker::Sync {
         &self,
         project_id: Option<&ai_brains_core::ids::ProjectId>,
     ) -> Result<u64>;
+    /// Count `SessionStarted` events whose actor is a harness in `harness_ids`.
+    ///
+    /// T337: coverage CLI. Reads `events.actor_json` / `payload_json` via
+    /// `json_extract` — no `session_projection` column. Empty `harness_ids`
+    /// returns `0`. `None` project = vault-wide; `Some` filters payload
+    /// `project_id`.
+    fn count_sessions_started_by_harness(
+        &self,
+        harness_ids: &[&str],
+        project_id: Option<&ai_brains_core::ids::ProjectId>,
+    ) -> Result<u64>;
     fn get_session_memory_ids(&self, session_id: &str) -> Result<Vec<MemoryId>>;
     /// Returns true iff a row with this `memory_id` exists in `memory_projection`.
     /// Used by `forget` to validate `--memory-id` before appending a

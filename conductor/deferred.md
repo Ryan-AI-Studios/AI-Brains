@@ -2,6 +2,50 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T337 implement residuals (2026-08-31) — capture coverage CLI
+
+| Item | Disposition |
+|------|-------------|
+| Codex filename walk vs `discover_codex_sessions` | **Defer** T337-R1 — F12 no JSONL peek; filename `rollout-*.jsonl` + mtime |
+| Daily `--help` inventory omits `capture` | **Defer** T337-R2 — T204 frozen `help_ia` string |
+| AGY `discover_sessions_from_home` still uses `is_dir` | **Defer** T337-R8 — reused importer; coverage marks discover `Err` unreadable |
+| FEATURE TX | `33e67f21-0e83-470d-b9ed-12cff1a72202` |
+| `dev-check` nextest | **3836** passed, 1 skipped (`NEXTEST_TEST_THREADS=2`) |
+| `ledgerful verify` nextest 600s | **Observed** (same as T335/T336) — equivalent nextest **3836** passed in `dev-check.ps1` |
+
+### T337 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 F9 missing-keys unimplementable | **Folded** F9 / AC7 — `skip_reason==absent_pre_t334` |
+| OpenCode m2 grok path walk ≠ importer skip | **Folded** F3 / AC4b — status `unverifiable_subagent`; next_step `--dry-run`; **no** classifier retune |
+| Agy m1 OpenCode disk 0 false-deficit | **Folded** §6 / §10 — JSON `null` + human `—` |
+| OpenCode O1 SYSTEM cite | **Folded** §2.3 `:1160` / `:1230` |
+| OpenCode O2 `antigravity-import` | **Folded** F8 |
+| OpenCode O3 grok discover reads summary.json | **Folded** F6 thin walk |
+| Agy O1/O2 | **Already** F2 / F15 |
+| last-PR `#265` Cursor | **Affirm** no leftover |
+| Agy/OpenCode B / M | None |
+| Agy m / OpenCode m | **1 / 2** — all folded |
+| DOCS TX | `e9583f17-a2e1-44c0-9e3f-e1eb5571ac0e` |
+
+### T337 full plan (2026-08-31) — capture coverage CLI (no doctor 16th)
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F2 doctor **or** CLI | **CLI only** — T255 15-check freeze |
+| Placeholder F3 subagent ingest vs skip | **document-skip** F3; grok `--days 2` skipped_subagent=**1174** found=0; do not retune classifier |
+| Placeholder F4 bind | **Report** F4; Unix slug **T341** |
+| T334 residual Cursor unbound slugs | **Absorb** F4 |
+| T339 OpenCode PATH | **Not stolen** — coverage `expected_skip` |
+| T336 / T338 / T340 / T341 | **Not stolen** |
+| `#265` Cursor usage-limit | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| last-PR Cursor `#265` | **N/A empty** (notice only) |
+| `session_projection.harness_id` | **Decline** — query `SessionStarted` actor_json |
+| PATH `cursor-import` missing | **Honesty** F9 — source has T334; do not `cargo install` as plan |
+| DOCS TX | `b1ae3a86-c327-4961-8ccd-bb3f648daf64` |
+
 ### T336 implement residuals (2026-08-31) — propose-only pin graduation
 
 | Item | Disposition |

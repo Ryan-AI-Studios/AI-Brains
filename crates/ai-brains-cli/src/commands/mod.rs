@@ -2,6 +2,7 @@ pub mod agy_hook;
 pub mod antigravity_import;
 pub mod backup;
 pub mod briefing;
+pub mod capture_coverage;
 pub mod claude_hook;
 pub mod claude_import;
 pub mod codex_hook;
