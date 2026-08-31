@@ -2,6 +2,22 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T337 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md`
+
+| Item | Disposition |
+|------|-------------|
+| OpenCode m1 F9 missing-keys unimplementable | **Folded** F9 / AC7 — `skip_reason==absent_pre_t334` |
+| OpenCode m2 grok path walk ≠ importer skip | **Folded** F3 / AC4b — status `unverifiable_subagent`; next_step `--dry-run`; **no** classifier retune |
+| Agy m1 OpenCode disk 0 false-deficit | **Folded** §6 / §10 — JSON `null` + human `—` |
+| OpenCode O1 SYSTEM cite | **Folded** §2.3 `:1160` / `:1230` |
+| OpenCode O2 `antigravity-import` | **Folded** F8 |
+| OpenCode O3 grok discover reads summary.json | **Folded** F6 thin walk |
+| Agy O1/O2 | **Already** F2 / F15 |
+| last-PR `#265` Cursor | **Affirm** no leftover |
+| Agy/OpenCode B / M | None |
+| Agy m / OpenCode m | **1 / 2** — all folded |
+| DOCS TX | `e9583f17-a2e1-44c0-9e3f-e1eb5571ac0e` |
+
 ### T337 full plan (2026-08-31) — capture coverage CLI (no doctor 16th)
 
 | Item | Disposition |
