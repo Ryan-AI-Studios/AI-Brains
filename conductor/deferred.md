@@ -2,6 +2,23 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T337 full plan (2026-08-31) — capture coverage CLI (no doctor 16th)
+
+| Item | Disposition |
+|------|-------------|
+| Placeholder F2 doctor **or** CLI | **CLI only** — T255 15-check freeze |
+| Placeholder F3 subagent ingest vs skip | **document-skip** F3; grok `--days 2` skipped_subagent=**1174** found=0; do not retune classifier |
+| Placeholder F4 bind | **Report** F4; Unix slug **T341** |
+| T334 residual Cursor unbound slugs | **Absorb** F4 |
+| T339 OpenCode PATH | **Not stolen** — coverage `expected_skip` |
+| T336 / T338 / T340 / T341 | **Not stolen** |
+| `#265` Cursor usage-limit | **No leftover** — no T342 |
+| Dependabot `#250–#256` | **Decline** |
+| last-PR Cursor `#265` | **N/A empty** (notice only) |
+| `session_projection.harness_id` | **Decline** — query `SessionStarted` actor_json |
+| PATH `cursor-import` missing | **Honesty** F9 — source has T334; do not `cargo install` as plan |
+| DOCS TX | `b1ae3a86-c327-4961-8ccd-bb3f648daf64` |
+
 ### T336 implement residuals (2026-08-31) — propose-only pin graduation
 
 | Item | Disposition |
