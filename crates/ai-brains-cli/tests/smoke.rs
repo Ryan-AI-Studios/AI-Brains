@@ -2849,7 +2849,9 @@ fn test_nightly_skip_import_flag_accepted() {
         .stdout(predicate::str::contains("--skip-import-opencode"))
         .stdout(predicate::str::contains("--skip-import-claude"))
         .stdout(predicate::str::contains("--skip-import-codex"))
-        .stdout(predicate::str::contains("--skip-import-cursor"));
+        .stdout(predicate::str::contains("--skip-import-cursor"))
+        .stdout(predicate::str::contains("--skip-graduation"))
+        .stdout(predicate::str::contains("--graduation-dry-run"));
 }
 
 /// T334 AC5: `cursor-import --dry-run` is a real clap command (not cursor-hook).

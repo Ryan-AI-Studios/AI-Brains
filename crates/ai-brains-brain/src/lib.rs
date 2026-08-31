@@ -11,6 +11,7 @@ mod embeddings;
 mod feedback_loop;
 pub mod intervention;
 pub mod memory_synthesis;
+mod pin_graduation;
 mod recipe_promotion;
 mod retention;
 
@@ -23,6 +24,10 @@ pub use embeddings::EmbeddingService;
 pub use feedback_loop::FeedbackLoopService;
 pub use intervention::{InterventionWarning, RiskAlert, RiskReviewAgent};
 use memory_synthesis::MemorySynthesizer;
+pub use pin_graduation::{
+    DEFAULT_GRADUATION_CAP, GRADUATION_CAP_ENV, GraduationMode, GraduationReport,
+    PIN_GRADUATION_NAMESPACE, PinGraduationError, graduate_pins, graduation_cap_from_env,
+};
 use recipe_promotion::RecipePromotionService;
 pub use retention::RetentionService;
 
@@ -89,6 +94,17 @@ impl NightlyService {
         project_id: ProjectId,
         batch_size: Option<usize>,
     ) -> Result<usize, Box<dyn std::error::Error>> {
+        self.run_nightly_with(project_id, batch_size, GraduationMode::Run)
+            .await
+    }
+
+    /// Nightly sweep with an explicit pin-graduation mode (T336).
+    pub async fn run_nightly_with(
+        &self,
+        project_id: ProjectId,
+        batch_size: Option<usize>,
+        graduation: GraduationMode,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
         let unsummarized = self.query_store.get_unsummarized_sessions()?;
         let mut count = 0;
         let mut errors = Vec::new();
@@ -146,6 +162,50 @@ impl NightlyService {
                         session_id, e
                     ));
                     consecutive_errors += 1;
+                }
+            }
+        }
+
+        match graduation {
+            GraduationMode::Skip => {
+                eprintln!("[Nightly] Skipping pin graduation (--skip-graduation).");
+            }
+            GraduationMode::DryRun => {
+                match crate::graduate_pins(
+                    self.query_store.as_ref(),
+                    self.event_store.as_ref(),
+                    project_id,
+                    true,
+                ) {
+                    Ok(report) => {
+                        eprintln!(
+                            "[Nightly] Pin graduation dry-run: would propose {} (cap {})",
+                            report.would_propose, report.cap
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "pin graduation dry-run failed (non-fatal)");
+                        eprintln!("[Nightly] Pin graduation dry-run failed (non-fatal): {e}");
+                    }
+                }
+            }
+            GraduationMode::Run => {
+                match crate::graduate_pins(
+                    self.query_store.as_ref(),
+                    self.event_store.as_ref(),
+                    project_id,
+                    false,
+                ) {
+                    Ok(report) => {
+                        eprintln!(
+                            "[Nightly] Pin graduation: proposed {} (cap {})",
+                            report.proposed, report.cap
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "pin graduation failed (non-fatal)");
+                        eprintln!("[Nightly] Pin graduation failed (non-fatal): {e}");
+                    }
                 }
             }
         }

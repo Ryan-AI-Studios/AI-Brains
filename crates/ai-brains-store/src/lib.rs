@@ -178,6 +178,8 @@ impl MemoryListStatus {
 pub struct MemoryListRow {
     pub memory_id: String,
     pub content: String,
+    /// First-write timestamp (`memory_projection.created_at`).
+    pub created_at: String,
     pub updated_at: String,
     pub project_id: Option<String>,
     pub status: String,

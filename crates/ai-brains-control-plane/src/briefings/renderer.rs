@@ -29,12 +29,12 @@ pub const BRIEFING_DENIED_HIDDEN: &str = "_(hidden until discovery grants)_";
 pub const BRIEFING_EMPTY_AUTHORITY_NOTICE: &str =
     "_No current authority (decisions/conclusions empty)._";
 
-/// Empty allowed project next-step (T227 F8 / F17; T263 F2 / F29).
+/// Empty allowed project next-step (T227 F8 / F17; T263 F2 / F29; T336 F4).
 ///
-/// Vault pins are not governed authority. Daily decisions: `recall` / `search`.
-/// One line, ≤140 chars (preflight footer).
+/// Vault pins are not governed authority. Nightly pin graduation fills `review list`.
+/// Daily decisions: `recall` / `search`. One line, ≤140 chars (preflight footer).
 pub const BRIEFING_EMPTY_AUTHORITY_NEXT_STEP: &str =
-    "next: `ai-brains recall` / `search` for vault pins; typed Approved needs propose + approve";
+    "next: `ai-brains review list`; nightly pin graduation; `recall` / `search` for vault pins";
 
 /// Granted-empty vault-pin heading (T288 F2 / F30). Not an Approved authority section.
 pub const BRIEFING_VAULT_PINS_HEADING: &str = "## Vault pins (not Approved)";
@@ -443,10 +443,18 @@ mod tests {
 
     #[test]
     fn briefing_empty_authority_next_step__contains_recall_not_seed_approved() {
-        // T263 AC1 / F2
+        // T263 AC1 / F2; T336 AC11
         assert!(
             BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.contains("recall"),
             "empty_authority next must name recall; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+        assert!(
+            BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.contains("review list"),
+            "empty_authority next must name review list; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+        assert!(
+            !BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.contains("Approved"),
+            "must not claim pins are Approved; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
         );
         assert!(
             !BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.starts_with("seed an Approved"),
@@ -455,6 +463,18 @@ mod tests {
         assert!(
             !BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.starts_with("next: seed an Approved"),
             "must not lead with seed-Approved; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+    }
+
+    #[test]
+    fn briefing_empty_authority_next_step__names_review_list() {
+        assert!(
+            BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.contains("review list"),
+            "T336 AC11: next-step must name review list; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
+        );
+        assert!(
+            BRIEFING_EMPTY_AUTHORITY_NEXT_STEP.contains("graduation"),
+            "T336 AC11: next-step must name graduation; got {BRIEFING_EMPTY_AUTHORITY_NEXT_STEP}"
         );
     }
 

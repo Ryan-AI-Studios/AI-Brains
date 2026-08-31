@@ -432,11 +432,12 @@ Pipeline includes:
 1. **Multi-harness session import (T239+T334)** — fixed order **agy → grok → opencode → claude → codex → cursor** (message-only adapters; never `opencode.db` / never Cursor `state.vscdb`). `--skip-import` skips all six; per-source `--skip-import-agy` / `--skip-import-grok` / `--skip-import-opencode` / `--skip-import-claude` / `--skip-import-codex` / `--skip-import-cursor`. Fail-open per source with **per-source sinks**. Report persisted as `last_multi_import` (`v:1` additive keys); `nightly --status` prints six Multi-import source lines (missing → `never`; corrupt → `unreadable`; OpenCode `list_capped > 0` surfaces a cap warning). Pre-T334 three-source blobs dual-read with `absent_pre_t334`. Import progress may interleave non-JSON on stderr under SYSTEM `--log-format json` (accepted).
 2. **Soft model-endpoint probe (T229)** — after multi-import, before summarize; 2s `/health` then `/v1/models`; non-fatal warn if completion (`:8081`) or embedding (`:8083`) is down
 3. Session summarization (chunked; **38,912-token** context with carryover)
-4. Memory synthesis (batch-limited, e.g. 50 memories/run)
-5. Embedding backfill + stale refresh + WAL checkpoint (UTF-8-safe truncate — T229 F5)
-6. **Phase 2 multi-root bridge (T233/T254)** — for each registered path alias (sorted ASC; optional `AI_BRAINS_NIGHTLY_MAX_ROOTS`): MADR export + `ledgerful symbols --pub --json --limit N --auto-index` with **explicit root** (`current_dir`). Zero aliases → no-op + `register-path` hint. Per-root failures warn + continue. Logs `bridge_roots_total/ok/skipped/failed` (`ok + skipped + failed` accounts for every considered root; missing = skipped; symbol `Err` = failed; MADR-fail + symbols-ok = ok). Symbol source_tag `ledgerful:symbol` (dual-read legacy `changeguard:symbol`). Cap default **5000** (`AI_BRAINS_NIGHTLY_MAX_SYMBOLS`). No SQL open of `.ledgerful/state/ledger.db`; no System32 cwd dependence. Route catalog remains `ledgerful endpoints` (not symbols).
-7. **`MemorySynthesized`** events for graph edges
-8. Live graph projection updates
+4. **Pin graduation (T336)** — propose-only `DecisionProposed` / `ConclusionProposed` + `ReviewItemOpened` from in-scope Decision/Constraint pins (cap 10; `AI_BRAINS_GRADUATION_CAP`). `--skip-graduation` skips the scan; `--graduation-dry-run` prints counts without append (not schedule `--dry-run`). Fail-open. SYSTEM wrapper bakes `--skip-graduation`. Does not flip `AI_BRAINS_GOVERNED_SYNTHESIS`.
+5. Memory synthesis (batch-limited, e.g. 50 memories/run)
+6. Embedding backfill + stale refresh + WAL checkpoint (UTF-8-safe truncate — T229 F5)
+7. **Phase 2 multi-root bridge (T233/T254)** — for each registered path alias (sorted ASC; optional `AI_BRAINS_NIGHTLY_MAX_ROOTS`): MADR export + `ledgerful symbols --pub --json --limit N --auto-index` with **explicit root** (`current_dir`). Zero aliases → no-op + `register-path` hint. Per-root failures warn + continue. Logs `bridge_roots_total/ok/skipped/failed` (`ok + skipped + failed` accounts for every considered root; missing = skipped; symbol `Err` = failed; MADR-fail + symbols-ok = ok). Symbol source_tag `ledgerful:symbol` (dual-read legacy `changeguard:symbol`). Cap default **5000** (`AI_BRAINS_NIGHTLY_MAX_SYMBOLS`). No SQL open of `.ledgerful/state/ledger.db`; no System32 cwd dependence. Route catalog remains `ledgerful endpoints` (not symbols).
+8. **`MemorySynthesized`** events for graph edges
+9. Live graph projection updates
 
 **`nightly --status` honesty (T247):**
 
@@ -451,7 +452,7 @@ Pipeline includes:
 - **JSON / Router (T255):** `--format json` emits a CLI-local machine object. Default `--format human`; piped `nightly --status` stays human. Additive read-only `Router:` Last Result line — does **not** register, start, or repair `AI-Brains-Router`. `doctor` remains the frozen **15**-check matrix (not the model-port matrix)
 - **Nightly vs Router (T269 / T281 / T296):** human prints `Nightly: AI-Brains-Nightly` before the schedule block so Last Result **0** is not the same object as Router. Human Router omits `267014` / `267009` decimals: `Ready` + `last run: terminated` (or Status-only when Running). JSON still carries raw `router.last_result` + `SCHED_S_*` hints. Human `probe=timeout` is labeled `probe=timeout (750ms)` (HTTP `/health` within 750 ms). On Completion human timeout, the next line is `HTTP /health 750ms ≠ daemon TCP`. `--quick` stays `probe=skipped` (no contrast). JSON probe tokens and the 750 ms budget are unchanged. `daemon status` Open remains TCP connect, not `/health`
 
-SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config (global dotenv gap-fill T205). **SYSTEM keeps `--skip-import` by default** — completeness path is user-principal `nightly --schedule` or manual `nightly` (not Session 0 import). See [OPERATIONS.md](OPERATIONS.md) dual-path table + local router (`c:\llm\router.bat` / `AI-Brains-Router`).
+SYSTEM-mode schedules bake vault/model env into a wrapper script so Session 0 has config (global dotenv gap-fill T205). **SYSTEM keeps `--skip-import --skip-graduation` by default** — completeness path is user-principal `nightly --schedule` or manual `nightly` (not Session 0 import or pin graduation). See [OPERATIONS.md](OPERATIONS.md) dual-path table + local router (`c:\llm\router.bat` / `AI-Brains-Router`).
 
 ---
 

@@ -2,6 +2,16 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T336 implement residuals (2026-08-31) — propose-only pin graduation
+
+| Item | Disposition |
+|------|-------------|
+| `conclusion_projection.unsupported=1` when `evidence_ids` empty despite payload `unsupported: false` | **Defer** T336-R2 — T167 coerce in `projections/conclusion.rs`. Do not invent evidence. Payload stays false. |
+| Sequential-only idempotency (overlapping nightly race) | **Defer** T336-R3 — single-writer nightly; EventStore has no aggregate unique. SYSTEM `--skip-graduation`. |
+| Live sampler 0 DECISION/CONSTRAINT prefixes | **Honesty** AC14 / T340 — fixture is SoT |
+| FEATURE TX | `0703b9dc-964c-4416-bccb-5b88d61d9b1e` |
+| `dev-check` nextest | **3818** passed, 1 skipped (`NEXTEST_TEST_THREADS=2`) |
+
 ### T336 fold-in (2026-08-31) — `agy-review.md` + `opencode-review.md` (placeholder expanded)
 
 | Item | Disposition |

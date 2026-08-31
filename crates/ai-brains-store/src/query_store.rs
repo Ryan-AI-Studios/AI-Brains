@@ -98,7 +98,7 @@ fn list_memory_rows(
     let limit = filter.limit.max(1);
     params.push(limit.to_string());
     let sql = format!(
-        "SELECT mp.memory_id, mp.content, mp.updated_at, \
+        "SELECT mp.memory_id, mp.content, mp.created_at, mp.updated_at, \
                 COALESCE(mp.project_id, sp.project_id) AS project_id, \
                 mp.status \
          {from_where} \
@@ -114,12 +114,14 @@ fn list_memory_rows(
     let rows = stmt.query_map(param_refs.as_slice(), |row| {
         let memory_id: String = row.get(0)?;
         let content: String = row.get(1)?;
-        let updated_at: String = row.get(2)?;
-        let project_id: Option<String> = row.get(3)?;
-        let status: String = row.get(4)?;
+        let created_at: String = row.get(2)?;
+        let updated_at: String = row.get(3)?;
+        let project_id: Option<String> = row.get(4)?;
+        let status: String = row.get(5)?;
         Ok(MemoryListRow {
             memory_id,
             content,
+            created_at,
             updated_at,
             project_id,
             status,
