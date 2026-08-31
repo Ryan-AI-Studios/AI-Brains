@@ -299,3 +299,10 @@
 
 
 
+| T334 | Claude/Codex/Cursor six-source nightly | **Pending** | Grok | [T334](tracks/trackT334-codex-claude-nightly-import/spec.md) | **Planned 2026-08-30:** new Cursor JSONL adapter + `cursor-import`; nightly agy→grok→opencode→claude→codex→cursor. No live Cursor hooks. Spec Planned; not In Progress. |
+| T335 | Orphan pin session-link repair | **Pending** | — | [T335](tracks/trackT335-orphan-pin-session-link/spec.md) | **Placeholder 2026-08-30:** pins w/o session context → zero-edge orphans (verified: 2ba85180, d960e4ce). Compensating-event repair + prevention. Graph density driver. |
+| T336 | Governed provenance bootstrap | **Pending** | — | [T336](tracks/trackT336-governed-provenance-bootstrap/spec.md) | **Placeholder 2026-08-30:** zero governed events ever; evidence/source/review/briefing all empty; 4 edge types dead. Nightly graduation + review-loop UX. |
+| T337 | Session capture coverage audit | **Pending** | — | [T337](tracks/trackT337-session-capture-coverage/spec.md) | **Placeholder 2026-08-30:** 16 terminals/4 projects vs 8 sessions vault. Truth table includes Cursor (import-only). 1184 grok subagent turns skipped; T334 owns importers. |
+| T338 | Nightly throughput window | **Pending** | — | [T338](tracks/trackT338-nightly-throughput-window/spec.md) | **Placeholder 2026-08-30:** summarization batch unlimited (8 = agy-only), but embedding backfill capped 50/run (52.9k backlog); time-budget + error-budget redesign. |
+| T339 | OpenCode import PATH fix | **Pending** | — | [T339](tracks/trackT339-opencode-import-path-fix/spec.md) | **Placeholder 2026-08-30:** opencode missing from scheduled-task PATH; skipped_missing_binary=1 nightly. Resolution + honesty reason field. |
+| T340 | Agent capture guidance (skills) | **Pending** | — | [T340](tracks/trackT340-agent-capture-guidance/spec.md) | **Placeholder 2026-08-30:** all pins+code from agents; skills lack session-context pin discipline, close-time pin mandate, capture hygiene. Docs-only. |

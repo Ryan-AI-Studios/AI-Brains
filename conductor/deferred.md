@@ -2,6 +2,24 @@
 
 Tracks deferred from T142. Append-only; strike through when promoted to a real track.
 
+### T334 full plan (2026-08-30) — Claude/Codex/Cursor six-source nightly
+
+| Item | Disposition |
+|------|-------------|
+| T239 D16 / T253 “no Claude/Codex in multi-import” / T255 F34 nightly | **Absorb** F13 / AC6 |
+| Owner: Cursor has **zero** product surface; disk JSONL | **Absorb** F1–F12 — adapter + `cursor-import` + sixth nightly source. **Not T341** |
+| Live Cursor hooks / `HarnessId::Cursor` / `state.vscdb` | **Decline** F12 / F20 |
+| T337 capture-coverage CLI / grok subagent policy | **Not stolen** — T337 placeholder F1/F4 name Cursor |
+| T339 OpenCode PATH / `skipped_missing_binary` | **Not stolen** |
+| T338 first-run volume (6+104+36) | **F27 pointer** — no hidden cap |
+| `--import-dry-run` / nightly `--days` | **Decline** F18 |
+| last-PR Cursor `#262` | **N/A empty** |
+| Open PRs `#250–#256` Dependabot | **Decline** F25 — Phase 0 rescan |
+| T240 F2 / T307 / clap 5 / 0.1.6 / git tag | **Decline** F21 / F25 |
+| T333 PATH (now 0.1.5) / human `source=` / `10d4bff5` | **Decline** / ops-only |
+| `ISSUES.md` | **Does not exist** |
+| DOCS TX | `a6075c47-5aa1-46f9-8c6b-c9ca93f35d59` |
+
 ### T333 implement residuals (2026-08-30) — detect JSON `source` + workspace 0.1.5
 
 | Item | Disposition |
